@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
 import { runEngine } from '../../engine/Engine';
-import ComfortClock from '../visualizers/ComfortClock';
+import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
 import EfficiencyCurve from '../visualizers/EfficiencyCurve';
 import FootprintXRay from '../visualizers/FootprintXRay';
 import InteractiveTwin from '../InteractiveTwin';
@@ -307,16 +307,16 @@ function FullSurveyResults({
             <div className="verdict-label">Vented</div>
             <div className="verdict-status">{redFlags.rejectVented ? '❌ Rejected' : '✅ Viable'}</div>
           </div>
-          <div className={`verdict-item ${redFlags.flagAshp ? 'flagged' : 'approved'}`}>
+          <div className={`verdict-item ${redFlags.rejectAshp ? 'rejected' : redFlags.flagAshp ? 'flagged' : 'approved'}`}>
             <div className="verdict-icon">🌿</div>
             <div className="verdict-label">ASHP</div>
-            <div className="verdict-status">{redFlags.flagAshp ? '⚠️ Flagged' : '✅ Viable'}</div>
+            <div className="verdict-status">{redFlags.rejectAshp ? '❌ Rejected' : redFlags.flagAshp ? '⚠️ Flagged' : '✅ Viable'}</div>
           </div>
         </div>
         {redFlags.reasons.length > 0 && (
           <ul className="red-flag-list" style={{ marginTop: '1rem' }}>
             {redFlags.reasons.map((r, i) => (
-              <li key={i} className={r.includes('Rejected') || r.includes('Cut-off') ? 'reject' : 'flag'}>{r}</li>
+              <li key={i} className={r.includes('Rejected') || r.includes('Hard Fail') || r.includes('Cut-off') ? 'reject' : 'flag'}>{r}</li>
             ))}
           </ul>
         )}
@@ -330,11 +330,9 @@ function FullSurveyResults({
         </div>
         <div style={{ marginTop: '1rem' }}>
           <h4 style={{ marginBottom: '0.75rem', fontSize: '0.95rem', color: '#4a5568' }}>
-            24-Hour Comfort Comparison
+            🎨 Paint Your Day – Interactive Comfort Clock
           </h4>
-          <div className="chart-wrapper">
-            <ComfortClock data={lifestyle.hourlyData} />
-          </div>
+          <InteractiveComfortClock heatLossKw={results.hydraulic.flowRateLs * 1000 / 100 || 8} />
         </div>
       </div>
 

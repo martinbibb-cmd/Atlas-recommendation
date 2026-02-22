@@ -5,6 +5,7 @@ export function runRedFlagModule(input: EngineInputV2_3): RedFlagResult {
   let rejectCombi = false;
   let rejectVented = false;
   let flagAshp = false;
+  let rejectAshp = false;
 
   // Journey 1: Fast-Choice Red Flag triggers
 
@@ -23,6 +24,17 @@ export function runRedFlagModule(input: EngineInputV2_3): RedFlagResult {
     reasons.push(
       `🚫 Vented System Rejected: Loft conversion has eliminated the gravity "head" ` +
       `required for a vented F&E tank and cold water storage. Sealed system required.`
+    );
+  }
+
+  // One-pipe topology → ASHP hard fail (return temp >55°C prevents condensing / ASHP operation)
+  if (input.pipingTopology === 'one_pipe') {
+    rejectAshp = true;
+    flagAshp = true;
+    reasons.push(
+      `🚫 ASHP Hard Fail: One-pipe ring main detected. Return temperature to the last ` +
+      `radiator exceeds 55°C, preventing ASHP low-temperature operation and condensing ` +
+      `mode. Full system re-pipe to two-pipe or microbore is required before ASHP installation.`
     );
   }
 
@@ -45,5 +57,5 @@ export function runRedFlagModule(input: EngineInputV2_3): RedFlagResult {
     );
   }
 
-  return { rejectCombi, rejectVented, flagAshp, reasons };
+  return { rejectCombi, rejectVented, flagAshp, rejectAshp, reasons };
 }

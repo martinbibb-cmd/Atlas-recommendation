@@ -80,4 +80,37 @@ describe('PredictiveMaintenanceModule', () => {
     const result = runPredictiveMaintenanceModule({ ...healthyInput, hasMagneticFilter: false });
     expect(result.recommendations.some(r => r.includes('Magnetic Filter'))).toBe(true);
   });
+
+  it('annualCostOfDecayGbp is zero when annualGasSpendGbp is not provided', () => {
+    const result = runPredictiveMaintenanceModule(neglectedInput);
+    expect(result.annualCostOfDecayGbp).toBe(0);
+    expect(result.flushRoiYears).toBeNull();
+  });
+
+  it('annualCostOfDecayGbp is positive for neglected system with annual gas spend', () => {
+    const result = runPredictiveMaintenanceModule({ ...neglectedInput, annualGasSpendGbp: 1200 });
+    expect(result.annualCostOfDecayGbp).toBeGreaterThan(0);
+  });
+
+  it('flushRoiYears is calculated when annualGasSpendGbp is provided and there is decay', () => {
+    const result = runPredictiveMaintenanceModule({ ...neglectedInput, annualGasSpendGbp: 1200 });
+    expect(result.flushRoiYears).not.toBeNull();
+    expect(result.flushRoiYears!).toBeGreaterThan(0);
+  });
+
+  it('silicate level increases annualCostOfDecayGbp', () => {
+    const withoutSilicate = runPredictiveMaintenanceModule({ ...neglectedInput, annualGasSpendGbp: 1200 });
+    const withSilicate = runPredictiveMaintenanceModule({ ...neglectedInput, annualGasSpendGbp: 1200, silicateLevelMgL: 80 });
+    expect(withSilicate.annualCostOfDecayGbp).toBeGreaterThan(withoutSilicate.annualCostOfDecayGbp);
+  });
+
+  it('annualCostOfDecayGbp is bounded (efficiency loss ≤ 25%)', () => {
+    const result = runPredictiveMaintenanceModule({
+      ...neglectedInput,
+      annualGasSpendGbp: 1200,
+      silicateLevelMgL: 500, // extreme silicate
+    });
+    // Max cost = 25% × £1200 = £300
+    expect(result.annualCostOfDecayGbp).toBeLessThanOrEqual(300);
+  });
 });
