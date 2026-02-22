@@ -29,6 +29,16 @@ const WB_SOFTENER_FLAG =
   'Worcester Bosch heat exchangers are uniquely compatible with salt-water ' +
   'softeners, providing superior scale protection without voiding warranties.';
 
+// Primary Bypass Rule: even with a WB 8000+ Al-Si unit, the heating (primary)
+// loop must still be filled with untreated hard water + Sentinel X100 inhibitor
+// to satisfy warranty conditions.  Only the DHW (secondary) circuit may use
+// artificially softened water.
+const PRIMARY_BYPASS_RULE =
+  'Primary Bypass Rule: The heating circuit (primary loop) must still be filled ' +
+  'with hard water + Sentinel X100 inhibitor to satisfy WB Al-Si warranty conditions. ' +
+  'Only the domestic hot-water (DHW) circuit may use artificially softened water. ' +
+  'Install a bypass valve to prevent softened water from entering the primary loop.';
+
 // ─── Main Module ──────────────────────────────────────────────────────────────
 
 /**
@@ -82,6 +92,7 @@ export function runMetallurgyEdgeModule(input: MetallurgyEdgeInput): MetallurgyE
       `major brand with full warranty coverage for softened water in the primary circuit.`;
 
     notes.push(`⭐ WB Softener Edge Active: ${WB_SOFTENER_FLAG}`);
+    notes.push(`🔧 ${PRIMARY_BYPASS_RULE}`);
   } else if (VAILLANT_PREFERRED_HARDNESS.has(input.waterHardnessCategory)) {
     // Soft/moderate water without a softener → stainless is a fine choice;
     // no softener risk, excellent longevity.
