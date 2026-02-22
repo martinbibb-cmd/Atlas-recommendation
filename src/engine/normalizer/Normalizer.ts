@@ -24,6 +24,8 @@ const VERY_HARD_PREFIXES = [
   'AL', 'LU',
   // East Anglia (300+ ppm)
   'NR', 'IP', 'CB',
+  // Dorset – Jurassic limestone/chalk aquifer; Sherborne (DT9) reaches 364 ppm
+  'DT',
 ];
 
 /**

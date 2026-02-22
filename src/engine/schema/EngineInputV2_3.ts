@@ -676,3 +676,93 @@ export interface SpecEdgeResult {
 
   notes: string[];
 }
+
+// ─── Regional Hardness Module ─────────────────────────────────────────────────
+
+export interface RegionalHardnessResult {
+  /** Extracted postcode prefix (e.g. 'DT' for 'DT9 3AQ') */
+  postcodePrefix: string;
+  /** Modelled CaCO₃ level (mg/L / ppm) for this postcode zone */
+  ppmLevel: number;
+  /** Water hardness classification */
+  hardnessCategory: NormalizerOutput['waterHardnessCategory'];
+  /**
+   * True when the postcode overlies high-silica geology (London Basin / Thames
+   * Estuary).  Silicates form a porous ceramic scaffold ~10× harder to remove
+   * than CaCO₃ alone, adding a compounding thermal resistance penalty.
+   */
+  silicateTaxActive: boolean;
+  /** Human-readable description of the local water chemistry and commercial implication */
+  description: string;
+  notes: string[];
+}
+
+// ─── Softener Warranty Module ─────────────────────────────────────────────────
+
+export type BoilerCompatibility = 'wb_8000plus' | 'vaillant' | 'other';
+
+export interface SoftenerWarrantyInput {
+  /** True if a salt-based water softener is fitted on the domestic side */
+  hasSoftener: boolean;
+  /** Water hardness category – determines scale-penalty baseline */
+  waterHardnessCategory: NormalizerOutput['waterHardnessCategory'];
+  /** Boiler model in use – determines softener compatibility */
+  boilerCompatibility?: BoilerCompatibility;
+}
+
+export interface SoftenerWarrantyResult {
+  /**
+   * DHW scaling tax percentage cleared by the softener (11% efficiency gain
+   * retained when softener is present and water is hard/very_hard).
+   * 0 when no softener is fitted or water is soft/moderate.
+   */
+  dhwScalingTaxClearedPct: number;
+  /**
+   * True when the heating (primary) circuit must still be filled with hard
+   * water + Sentinel X100 inhibitor to satisfy WB warranty conditions.
+   * Always true when wbEdgeActive is true.
+   */
+  primaryBypassRequired: boolean;
+  /** Human-readable primary bypass rule for the installer brief */
+  primaryBypassRule: string;
+  /** True when WB 8000+ (Al-Si) softener edge is unlocked */
+  wbEdgeActive: boolean;
+  notes: string[];
+}
+
+// ─── Full Job SPF Module ──────────────────────────────────────────────────────
+
+export type InstallationVariant = 'full_job' | 'fast_fit';
+
+export interface FullJobSPFInput {
+  /** Installation variant – drives design flow temperature and SPF curve */
+  installationVariant: InstallationVariant;
+  /** Building design heat loss (W) */
+  heatLossWatts: number;
+  /** Annual gas spend (GBP) – used to monetise running-cost difference (optional) */
+  annualGasSpendGbp?: number;
+}
+
+export interface FullJobSPFResult {
+  /** The installation variant that was evaluated */
+  installationVariant: InstallationVariant;
+  /** Modelled design flow temperature (°C) */
+  designFlowTempC: number;
+  /** Seasonal Performance Factor range [min, max] */
+  spfRange: [number, number];
+  /** Midpoint SPF for single-figure display */
+  spfMidpoint: number;
+  /**
+   * SPF improvement if the alternative (Full Job) were chosen instead.
+   * Positive means Full Job is better; 0 when Full Job is already selected.
+   */
+  spfDeltaVsAlternative: number;
+  /**
+   * Estimated annual gas saving (GBP/year) achievable by upgrading to the
+   * Full Job variant.  Null when annualGasSpendGbp is not provided or Full
+   * Job is already selected.
+   */
+  annualSavingGbp: number | null;
+  notes: string[];
+}
+

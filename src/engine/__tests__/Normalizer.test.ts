@@ -124,6 +124,19 @@ describe('Normalizer', () => {
     expect(result.waterHardnessCategory).toBe('very_hard');
   });
 
+  // ── Postcode expansion – Dorset (DT) Very Hard ────────────────────────────
+
+  it('classifies Dorset (DT) postcode as very_hard', () => {
+    const result = normalizeInput({ ...baseInput, postcode: 'DT1 1AA' });
+    expect(result.waterHardnessCategory).toBe('very_hard');
+    expect(result.cacO3Level).toBe(300);
+  });
+
+  it('classifies Sherborne (DT9) postcode as very_hard', () => {
+    const result = normalizeInput({ ...baseInput, postcode: 'DT9 3AQ' });
+    expect(result.waterHardnessCategory).toBe('very_hard');
+  });
+
   // ── Postcode expansion – Hard (180–300 ppm) ──────────────────────────────────
 
   it('classifies Yorkshire (LS – Leeds) postcode as hard', () => {
