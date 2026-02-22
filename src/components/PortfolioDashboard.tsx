@@ -43,7 +43,7 @@ function PropertyRow({ prop }: { prop: PortfolioPropertyResult }) {
   return (
     <>
       <tr
-        onClick={() => setExpanded(e => !e)}
+        onClick={() => setExpanded(prev => !prev)}
         style={{ cursor: 'pointer', background: expanded ? '#f7fafc' : undefined }}
       >
         <td style={{ padding: '10px 8px', fontWeight: 600, fontSize: '0.85rem' }}>

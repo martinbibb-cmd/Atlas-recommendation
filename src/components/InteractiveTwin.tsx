@@ -15,6 +15,11 @@ import SystemFlushSlider from './visualizers/SystemFlushSlider';
 import MixergyTankVisualizer from './visualizers/MixergyTankVisualizer';
 import type { MixergyResult } from '../engine/schema/EngineInputV2_3';
 
+/** Minimum home-hours per day to favour a heat pump's "continuous low-level" profile */
+const HEAT_PUMP_HOME_HOURS_THRESHOLD = 14;
+/** Minimum away-hours per day to favour a boiler's double-peak "fast response" profile */
+const BOILER_AWAY_HOURS_THRESHOLD = 10;
+
 interface Props {
   mixergy: MixergyResult;
   /** Current boiler efficiency for the flush slider (post-decay) */
@@ -62,11 +67,11 @@ export default function InteractiveTwin({
             <strong>Live recalculation:</strong>{' '}
             {homeHours}h at home · {awayHours}h away ·{' '}
             {24 - homeHours - awayHours}h sleeping
-            {homeHours > 14 ? (
+            {homeHours > HEAT_PUMP_HOME_HOURS_THRESHOLD ? (
               <span style={{ color: '#276749', fontWeight: 600 }}>
                 {' '}— Continuous occupancy: heat pump suits this profile.
               </span>
-            ) : awayHours > 10 ? (
+            ) : awayHours > BOILER_AWAY_HOURS_THRESHOLD ? (
               <span style={{ color: '#744210', fontWeight: 600 }}>
                 {' '}— Double-peak profile: fast-response boiler suits this pattern.
               </span>
