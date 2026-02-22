@@ -94,6 +94,8 @@ export interface BomItem {
   model: string;
   quantity: number;
   notes: string;
+  /** Indicative trade unit price in GBP (populated by WholesalerPricingAdapter) */
+  unitPriceGbp?: number;
 }
 
 // ─── Legacy Infrastructure ────────────────────────────────────────────────────
@@ -147,6 +149,8 @@ export interface CalibrationResult {
   thermalMassKjPerK: number;              // estimated effective thermal mass
   confidenceScore: number;                // 0–1
   calibratedVsTheoreticalRatio: number;  // >1 = measured > theoretical (common in older stock)
+  /** True when measured heat loss deviates >30% from theoretical – indicates performance gap */
+  performanceGapDetected: boolean;
   notes: string[];
 }
 
@@ -248,4 +252,40 @@ export interface FullEngineResult {
   redFlags: RedFlagResult;
   bomItems: BomItem[];
   legacyInfrastructure: LegacyInfrastructureResult;
+}
+
+// ─── Portfolio Analysis ───────────────────────────────────────────────────────
+
+export interface PortfolioProperty {
+  /** Unique asset reference (e.g. address or HA asset ID) */
+  assetId: string;
+  address: string;
+  maintenanceInput: PredictiveMaintenanceInput;
+  /** Year of last MCS design review (undefined = never) */
+  lastMcsReviewYear?: number;
+  /** Year of last Legionella risk assessment (undefined = never) */
+  lastLegionellaAssessmentYear?: number;
+  /** Dynamic system pressure at last inspection (bar) */
+  lastDynamicPressureBar?: number;
+  /** Date string of most recent annual service (ISO 8601) */
+  lastServiceDate?: string;
+}
+
+export interface PortfolioPropertyResult {
+  assetId: string;
+  address: string;
+  kettlingRiskScore: number;    // 0–10
+  magnetiteRiskScore: number;   // 0–10
+  overallHealthScore: number;   // 0–100
+  complianceAlerts: string[];
+  recommendedActions: string[];
+}
+
+export interface PortfolioResult {
+  properties: PortfolioPropertyResult[];
+  /** Assets ordered from highest risk to lowest */
+  rankedByRisk: PortfolioPropertyResult[];
+  fleetAverageHealthScore: number;
+  criticalAssetCount: number;
+  complianceFailureCount: number;
 }

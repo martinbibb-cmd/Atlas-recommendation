@@ -32,6 +32,7 @@ export function calibrateFromMeasuredData(data: CalibrationInput): CalibrationRe
       thermalMassKjPerK: 0,
       confidenceScore: 0,
       calibratedVsTheoreticalRatio: 0,
+      performanceGapDetected: false,
       notes,
     };
   }
@@ -61,6 +62,9 @@ export function calibrateFromMeasuredData(data: CalibrationInput): CalibrationRe
   const calibratedVsTheoreticalRatio =
     theoreticalUaWperK > 0 ? uaWperK / theoreticalUaWperK : 1;
 
+  const performanceGapDetected =
+    calibratedVsTheoreticalRatio > 1.3 || calibratedVsTheoreticalRatio < 0.7;
+
   notes.push(
     `📊 Calibration complete using ${points.length} data points. ` +
     `Derived UA = ${uaWperK.toFixed(1)} W/K (R² = ${rSquared.toFixed(2)}).`
@@ -72,13 +76,13 @@ export function calibrateFromMeasuredData(data: CalibrationInput): CalibrationRe
 
   if (calibratedVsTheoreticalRatio > 1.3) {
     notes.push(
-      `⚠️ Measured UA is ${((calibratedVsTheoreticalRatio - 1) * 100).toFixed(0)}% ` +
-      `above theoretical benchmark. Common causes: uninsulated solid walls, single ` +
-      `glazing, or loft insulation deficiency. Consider targeted fabric improvements.`
+      `⚠️ Performance Gap Detected: Measured UA is ${((calibratedVsTheoreticalRatio - 1) * 100).toFixed(0)}% ` +
+      `above theoretical benchmark. Likely causes: hidden air bypasses, failed insulation, ` +
+      `uninsulated solid walls, or single glazing. Investigate with thermal imaging.`
     );
   } else if (calibratedVsTheoreticalRatio < 0.7) {
     notes.push(
-      `ℹ️ Measured UA is ${((1 - calibratedVsTheoreticalRatio) * 100).toFixed(0)}% ` +
+      `⚠️ Performance Gap Detected: Measured UA is ${((1 - calibratedVsTheoreticalRatio) * 100).toFixed(0)}% ` +
       `below theoretical benchmark. Building may benefit from thermal bridging calculations ` +
       `or the dataset may not cover cold-weather periods.`
     );
@@ -98,6 +102,7 @@ export function calibrateFromMeasuredData(data: CalibrationInput): CalibrationRe
     thermalMassKjPerK: parseFloat(thermalMassKjPerK.toFixed(1)),
     confidenceScore: parseFloat(rSquared.toFixed(3)),
     calibratedVsTheoreticalRatio: parseFloat(calibratedVsTheoreticalRatio.toFixed(3)),
+    performanceGapDetected,
     notes,
   };
 }
