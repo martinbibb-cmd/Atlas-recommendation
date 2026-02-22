@@ -884,12 +884,20 @@ export interface TenantConfig {
 
 /**
  * Building fabric type classification for thermal inertia simulation.
- *  - 'solid_brick_1930s': Pre-war solid brick construction.
- *                         High thermal mass; Tau (τ) ≈ 55 hours.
- *  - 'lightweight_new':   Post-1990s lightweight frame / new build.
- *                         Low thermal mass; Tau (τ) ≈ 15 hours.
+ *  - 'solid_brick_1930s':  Pre-war solid brick construction.
+ *                          High thermal mass; Tau (τ) ≈ 55 hours.
+ *  - '1970s_cavity_wall':  Post-war cavity wall with partial fill insulation.
+ *                          Medium thermal mass; Tau (τ) ≈ 35 hours.
+ *  - 'lightweight_new':    Post-1990s lightweight frame / new build.
+ *                          Low thermal mass; Tau (τ) ≈ 15 hours.
+ *  - 'passivhaus_standard': Super-insulated Passivhaus certified fabric.
+ *                           Very high thermal mass; Tau (τ) ≈ 190.5 hours.
  */
-export type BuildingFabricType = 'solid_brick_1930s' | 'lightweight_new';
+export type BuildingFabricType =
+  | 'solid_brick_1930s'
+  | '1970s_cavity_wall'
+  | 'lightweight_new'
+  | 'passivhaus_standard';
 
 /**
  * Occupancy profile for the thermal decay simulation.

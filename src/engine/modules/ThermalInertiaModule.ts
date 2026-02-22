@@ -23,12 +23,16 @@ import type {
 
 const TAU_HOURS: Record<ThermalInertiaInput['fabricType'], number> = {
   solid_brick_1930s: 55,
+  '1970s_cavity_wall': 35,
   lightweight_new: 15,
+  passivhaus_standard: 190.5,
 };
 
 const FABRIC_LABEL: Record<ThermalInertiaInput['fabricType'], string> = {
   solid_brick_1930s: '1930s solid brick semi',
+  '1970s_cavity_wall': '1970s cavity wall semi',
   lightweight_new: 'lightweight / new-build flat',
+  passivhaus_standard: 'Passivhaus super-insulated build',
 };
 
 /** Default away-all-day unheated window (hours) for the Professional profile. */
@@ -132,6 +136,23 @@ function buildNarrative(
       `After ${hours} hours without heating the indoor temperature drops by only ${totalDropC}°C ` +
       `to ${finalTempC}°C – well within the comfort band. ` +
       `The high thermal inertia reduces peak gas demand because the building is still warm when occupants return.`
+    );
+  } else if (input.fabricType === '1970s_cavity_wall') {
+    return (
+      `${profileLabel} profile – ${label} (τ = ${tau} h): ` +
+      `The cavity wall construction offers moderate thermal storage. ` +
+      `After ${hours} hours without heating the indoor temperature drops by ${totalDropC}°C ` +
+      `to ${finalTempC}°C. ` +
+      `A Hive smart schedule can pre-heat this building efficiently before occupants return, ` +
+      `avoiding unnecessary heat loss during extended unoccupied periods.`
+    );
+  } else if (input.fabricType === 'passivhaus_standard') {
+    return (
+      `${profileLabel} profile – ${label} (τ = ${tau} h): ` +
+      `The super-insulated Passivhaus fabric retains heat exceptionally well. ` +
+      `After ${hours} hours without heating the indoor temperature drops by only ${totalDropC}°C ` +
+      `to ${finalTempC}°C – far above the comfort threshold. ` +
+      `The very high thermal inertia makes this building ideal for "low and slow" heat pump operation.`
     );
   } else {
     return (

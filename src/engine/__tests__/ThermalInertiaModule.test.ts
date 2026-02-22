@@ -18,6 +18,20 @@ const lightweightProfessional: ThermalInertiaInput = {
   outdoorTempC: 5,
 };
 
+const cavityWallProfessional: ThermalInertiaInput = {
+  fabricType: '1970s_cavity_wall',
+  occupancyProfile: 'professional',
+  initialTempC: 20,
+  outdoorTempC: 5,
+};
+
+const passivhausProfessional: ThermalInertiaInput = {
+  fabricType: 'passivhaus_standard',
+  occupancyProfile: 'professional',
+  initialTempC: 20,
+  outdoorTempC: 5,
+};
+
 // ─── 1. Thermal time constant (τ) ────────────────────────────────────────────
 
 describe('ThermalInertiaModule – thermal time constant', () => {
@@ -29,6 +43,16 @@ describe('ThermalInertiaModule – thermal time constant', () => {
   it('lightweight_new has τ = 15 hours', () => {
     const result = runThermalInertiaModule(lightweightProfessional);
     expect(result.tauHours).toBe(15);
+  });
+
+  it('1970s_cavity_wall has τ = 35 hours', () => {
+    const result = runThermalInertiaModule(cavityWallProfessional);
+    expect(result.tauHours).toBe(35);
+  });
+
+  it('passivhaus_standard has τ = 190.5 hours', () => {
+    const result = runThermalInertiaModule(passivhausProfessional);
+    expect(result.tauHours).toBe(190.5);
   });
 });
 
@@ -170,5 +194,64 @@ describe('ThermalInertiaModule – notes', () => {
   it('no comfort alert for solid brick (stays above 16°C)', () => {
     const result = runThermalInertiaModule(solidBrickProfessional);
     expect(result.notes.every(n => !n.includes('Comfort alert'))).toBe(true);
+  });
+});
+
+// ─── 8. New archetypes: 1970s_cavity_wall and passivhaus_standard ──────────────
+
+describe('ThermalInertiaModule – 1970s_cavity_wall archetype', () => {
+  it('returns τ = 35 hours', () => {
+    const result = runThermalInertiaModule(cavityWallProfessional);
+    expect(result.tauHours).toBe(35);
+  });
+
+  it('finalTempC matches exponential decay formula for τ = 35', () => {
+    const result = runThermalInertiaModule(cavityWallProfessional);
+    // T(10) = 5 + (20 - 5) * exp(-10/35)
+    const expected = 5 + 15 * Math.exp(-10 / 35);
+    expect(result.finalTempC).toBeCloseTo(expected, 0);
+  });
+
+  it('drops less than lightweight_new but more than solid_brick_1930s over 10 hours', () => {
+    const cavityResult = runThermalInertiaModule(cavityWallProfessional);
+    const solidResult = runThermalInertiaModule(solidBrickProfessional);
+    const lightResult = runThermalInertiaModule(lightweightProfessional);
+    expect(cavityResult.totalDropC).toBeGreaterThan(solidResult.totalDropC);
+    expect(cavityResult.totalDropC).toBeLessThan(lightResult.totalDropC);
+  });
+
+  it('narrative mentions cavity wall construction', () => {
+    const result = runThermalInertiaModule(cavityWallProfessional);
+    expect(result.narrative).toMatch(/cavity/i);
+  });
+});
+
+describe('ThermalInertiaModule – passivhaus_standard archetype', () => {
+  it('returns τ = 190.5 hours', () => {
+    const result = runThermalInertiaModule(passivhausProfessional);
+    expect(result.tauHours).toBe(190.5);
+  });
+
+  it('finalTempC matches exponential decay formula for τ = 190.5', () => {
+    const result = runThermalInertiaModule(passivhausProfessional);
+    // T(10) = 5 + (20 - 5) * exp(-10/190.5)
+    const expected = 5 + 15 * Math.exp(-10 / 190.5);
+    expect(result.finalTempC).toBeCloseTo(expected, 0);
+  });
+
+  it('drops less than solid_brick_1930s over 10 hours (highest inertia)', () => {
+    const passivhausResult = runThermalInertiaModule(passivhausProfessional);
+    const solidResult = runThermalInertiaModule(solidBrickProfessional);
+    expect(passivhausResult.totalDropC).toBeLessThan(solidResult.totalDropC);
+  });
+
+  it('stays well above 19°C after 10 hours (super-insulated fabric)', () => {
+    const result = runThermalInertiaModule(passivhausProfessional);
+    expect(result.finalTempC).toBeGreaterThan(19);
+  });
+
+  it('narrative mentions Passivhaus or heat pump', () => {
+    const result = runThermalInertiaModule(passivhausProfessional);
+    expect(result.narrative).toMatch(/passivhaus|heat pump/i);
   });
 });
