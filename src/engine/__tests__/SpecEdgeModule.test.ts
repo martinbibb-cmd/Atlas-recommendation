@@ -215,6 +215,47 @@ describe('SpecEdgeModule – maintenance ROI visualizer', () => {
     expect(result.dhwScalingTaxPct).toBe(0);
   });
 
+  it('DHW scaling tax is zero when a softener is fitted, even in hard water', () => {
+    const result = runSpecEdgeModule({
+      ...fullJobInput,
+      waterHardnessCategory: 'hard',
+      hasSoftener: true,
+    });
+    expect(result.dhwScalingTaxPct).toBe(0);
+  });
+
+  it('DHW scaling tax is zero when a softener is fitted in very_hard water', () => {
+    const result = runSpecEdgeModule({
+      ...fullJobInput,
+      waterHardnessCategory: 'very_hard',
+      hasSoftener: true,
+    });
+    expect(result.dhwScalingTaxPct).toBe(0);
+  });
+
+  it('annualCostOfInactionGbp excludes DHW scaling component when softener is fitted', () => {
+    const withSoftener = runSpecEdgeModule({
+      ...fullJobInput,
+      waterHardnessCategory: 'hard',
+      hasSoftener: true,
+    });
+    const withoutSoftener = runSpecEdgeModule({
+      ...fullJobInput,
+      waterHardnessCategory: 'hard',
+      hasSoftener: false,
+    });
+    expect(withSoftener.annualCostOfInactionGbp).toBeLessThan(withoutSoftener.annualCostOfInactionGbp);
+  });
+
+  it('emits a softener-cleared DHW note for hard water when softener is fitted', () => {
+    const result = runSpecEdgeModule({
+      ...fullJobInput,
+      waterHardnessCategory: 'hard',
+      hasSoftener: true,
+    });
+    expect(result.notes.some(n => n.includes('Water softener') && n.includes('DHW scaling tax cleared'))).toBe(true);
+  });
+
   it('calculates annualCostOfInactionGbp > 0 when annualGasSpendGbp is provided', () => {
     const result = runSpecEdgeModule(fullJobInput); // hard water, no filter, £1200/yr
     expect(result.annualCostOfInactionGbp).toBeGreaterThan(0);

@@ -178,9 +178,12 @@ export function runSpecEdgeModule(input: SpecEdgeInput): SpecEdgeResult {
   // ── 3. Maintenance ROI Visualizer ─────────────────────────────────────────
   const magnetiteSludgeTaxPct = input.hasMagneticFilter ? 0 : MAGNETITE_ENERGY_TAX_PCT;
   const radiatorHeatOutputReductionPct = input.hasMagneticFilter ? 0 : MAGNETITE_RAD_REDUCTION_PCT;
-  const dhwScalingTaxPct = HARD_WATER_CATEGORIES.has(input.waterHardnessCategory)
-    ? SCALE_PENALTY_PCT
-    : 0;
+  // A fitted water softener removes scale-causing minerals from the primary and DHW
+  // circuits, eliminating the DHW scaling penalty regardless of area hardness.
+  const dhwScalingTaxPct =
+    !input.hasSoftener && HARD_WATER_CATEGORIES.has(input.waterHardnessCategory)
+      ? SCALE_PENALTY_PCT
+      : 0;
 
   if (!input.hasMagneticFilter) {
     notes.push(
@@ -206,6 +209,12 @@ export function runSpecEdgeModule(input: SpecEdgeInput): SpecEdgeResult {
       `A 1.6 mm scale layer on the DHW heat exchanger triggers an ${dhwScalingTaxPct}% ` +
       `fuel increase for hot water only. ${silicateMessage}` +
       `Scale inhibitor or softener treatment recommended.`
+    );
+  } else if (input.hasSoftener && HARD_WATER_CATEGORIES.has(input.waterHardnessCategory)) {
+    notes.push(
+      `✅ DHW Scaling: Water softener fitted – DHW scaling tax cleared. ` +
+      `${SCALE_PENALTY_PCT}% efficiency gain retained versus an untreated ` +
+      `${input.waterHardnessCategory.replace('_', ' ')} water supply.`
     );
   } else {
     notes.push(`✅ DHW Scaling: Soft/moderate water area – no DHW scale penalty modelled.`);
