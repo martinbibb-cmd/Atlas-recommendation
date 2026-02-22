@@ -1,4 +1,4 @@
-import type { GridFlexInput, GridFlexResult } from '../schema/EngineInputV2_3';
+import type { GridFlexInput, GridFlexResult, HalfHourSlot } from '../schema/EngineInputV2_3';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -11,6 +11,75 @@ const SOLAR_X_ENHANCED_TANK_L = 300;
 
 /** Baseline electricity price used to convert kWh savings to GBP (p/kWh) */
 const BASELINE_ELECTRICITY_PENCE_PER_KWH = 24.5;
+
+/** British Gas "Mixergy Extra" annual rebate for eligible customers (GBP) */
+const BG_MIXERGY_REBATE_GBP = 40;
+
+// ─── BH/DT Simulated Agile Day (High Renewables) ─────────────────────────────
+//
+// 48 half-hour slots for a representative "High Renewables" day in the South
+// West (BH / DT region).  Prices are calibrated against Octopus Agile BH/DT
+// actuals for a day with high wind-plus-solar penetration.
+//
+// Structure:
+//  • 00:00–02:00 (slots  0– 3): night shoulder, ~7–9 p/kWh.
+//  • 02:00–05:30 (slots  4–10): cheapest overnight window, ~2–5 p/kWh.
+//    This is the optimal 3.5-hour block for the Mixergy "Hot Water Battery."
+//  • 05:30–07:00 (slots 11–13): early morning ramp-up, ~9–15 p/kWh.
+//  • 07:00–16:00 (slots 14–31): daytime shoulder (solar support), ~14–22 p/kWh.
+//  • 16:00–20:00 (slots 32–39): evening peak, ~28–38 p/kWh.
+//  • 20:00–24:00 (slots 40–47): late evening taper, ~18–12 p/kWh.
+
+export const BH_DT_HIGH_RENEWABLES_DAY: HalfHourSlot[] = [
+  { slotIndex:  0, pricePerKwhPence:  8.5 },  // 00:00
+  { slotIndex:  1, pricePerKwhPence:  7.8 },  // 00:30
+  { slotIndex:  2, pricePerKwhPence:  7.2 },  // 01:00
+  { slotIndex:  3, pricePerKwhPence:  6.5 },  // 01:30
+  { slotIndex:  4, pricePerKwhPence:  4.2 },  // 02:00  ← cheapest window start
+  { slotIndex:  5, pricePerKwhPence:  3.8 },  // 02:30
+  { slotIndex:  6, pricePerKwhPence:  2.9 },  // 03:00  ← absolute cheapest slot
+  { slotIndex:  7, pricePerKwhPence:  3.1 },  // 03:30
+  { slotIndex:  8, pricePerKwhPence:  3.5 },  // 04:00
+  { slotIndex:  9, pricePerKwhPence:  4.0 },  // 04:30
+  { slotIndex: 10, pricePerKwhPence:  4.8 },  // 05:00
+  { slotIndex: 11, pricePerKwhPence:  9.2 },  // 05:30  ← cheapest window end
+  { slotIndex: 12, pricePerKwhPence: 12.4 },  // 06:00
+  { slotIndex: 13, pricePerKwhPence: 15.1 },  // 06:30
+  { slotIndex: 14, pricePerKwhPence: 17.8 },  // 07:00
+  { slotIndex: 15, pricePerKwhPence: 19.2 },  // 07:30
+  { slotIndex: 16, pricePerKwhPence: 20.5 },  // 08:00
+  { slotIndex: 17, pricePerKwhPence: 21.0 },  // 08:30
+  { slotIndex: 18, pricePerKwhPence: 20.8 },  // 09:00
+  { slotIndex: 19, pricePerKwhPence: 19.5 },  // 09:30
+  { slotIndex: 20, pricePerKwhPence: 18.2 },  // 10:00
+  { slotIndex: 21, pricePerKwhPence: 17.0 },  // 10:30
+  { slotIndex: 22, pricePerKwhPence: 16.5 },  // 11:00
+  { slotIndex: 23, pricePerKwhPence: 15.8 },  // 11:30
+  { slotIndex: 24, pricePerKwhPence: 14.5 },  // 12:00
+  { slotIndex: 25, pricePerKwhPence: 14.2 },  // 12:30
+  { slotIndex: 26, pricePerKwhPence: 14.8 },  // 13:00
+  { slotIndex: 27, pricePerKwhPence: 15.5 },  // 13:30
+  { slotIndex: 28, pricePerKwhPence: 16.8 },  // 14:00
+  { slotIndex: 29, pricePerKwhPence: 18.0 },  // 14:30
+  { slotIndex: 30, pricePerKwhPence: 19.8 },  // 15:00
+  { slotIndex: 31, pricePerKwhPence: 22.5 },  // 15:30
+  { slotIndex: 32, pricePerKwhPence: 28.4 },  // 16:00  ← peak start
+  { slotIndex: 33, pricePerKwhPence: 32.1 },  // 16:30
+  { slotIndex: 34, pricePerKwhPence: 35.8 },  // 17:00
+  { slotIndex: 35, pricePerKwhPence: 38.2 },  // 17:30  ← peak apex
+  { slotIndex: 36, pricePerKwhPence: 36.5 },  // 18:00
+  { slotIndex: 37, pricePerKwhPence: 33.0 },  // 18:30
+  { slotIndex: 38, pricePerKwhPence: 29.8 },  // 19:00
+  { slotIndex: 39, pricePerKwhPence: 26.2 },  // 19:30
+  { slotIndex: 40, pricePerKwhPence: 22.0 },  // 20:00
+  { slotIndex: 41, pricePerKwhPence: 19.5 },  // 20:30
+  { slotIndex: 42, pricePerKwhPence: 17.8 },  // 21:00
+  { slotIndex: 43, pricePerKwhPence: 16.2 },  // 21:30
+  { slotIndex: 44, pricePerKwhPence: 15.0 },  // 22:00
+  { slotIndex: 45, pricePerKwhPence: 13.8 },  // 22:30
+  { slotIndex: 46, pricePerKwhPence: 12.5 },  // 23:00
+  { slotIndex: 47, pricePerKwhPence: 11.2 },  // 23:30
+];
 
 // ─── Main Module ──────────────────────────────────────────────────────────────
 
@@ -25,10 +94,36 @@ const BASELINE_ELECTRICITY_PENCE_PER_KWH = 24.5;
  * 2. Applying the Mixergy Solar X "Hot Water Battery" grid-import reduction
  *    (35% standard, 40% for 300L+ tanks).
  *
+ * Shifting potential:
+ *  - Combi boilers:   0% – must fire on demand; no arbitrage possible.
+ *  - Mixergy tanks: 100% – entire 4 kWh daily reheat can be pre-loaded
+ *    overnight (typically 02:00–05:30) at the cheapest Agile price.
+ *
+ * British Gas rebate:
+ *  - £40/year "Mixergy Extra" rebate applied when tankType is 'mixergy'
+ *    AND provider is 'british_gas'.
+ *
  * @param input  Grid flexibility input block (DHW demand, Agile slots, Solar X).
  */
 export function runGridFlexModule(input: GridFlexInput): GridFlexResult {
   const notes: string[] = [];
+
+  // ── 0. Shifting potential ─────────────────────────────────────────────────
+  // Combi boilers fire on demand and cannot shift; Mixergy tanks are 100% shiftable.
+  const shiftingPotentialFraction = input.tankType === 'combi' ? 0 : 1;
+
+  if (input.tankType === 'combi') {
+    notes.push(
+      `🔥 Combi Boiler detected: shifting potential = 0%. ` +
+      `Combi boilers must fire when the tap opens – no Agile load-shifting is possible. ` +
+      `Upgrade to a Mixergy stored cylinder to unlock 100% shifting potential.`,
+    );
+  } else if (input.tankType === 'mixergy') {
+    notes.push(
+      `🔋 Mixergy Tank detected: shifting potential = 100%. ` +
+      `Entire 4 kWh daily reheat can be pre-loaded in the cheapest overnight window (02:00–05:30).`,
+    );
+  }
 
   if (input.agileSlots.length === 0 || input.dhwAnnualKwh <= 0) {
     notes.push('⚠️ Insufficient data: agileSlots and dhwAnnualKwh are required for DSR calculation.');
@@ -41,6 +136,8 @@ export function runGridFlexModule(input: GridFlexInput): GridFlexResult {
       mixergySolarXSavingGbp: 0,
       totalAnnualSavingGbp: 0,
       solarSelfConsumptionFraction: 0,
+      shiftingPotentialFraction,
+      bgRebateGbp: 0,
       notes,
     };
   }
@@ -55,10 +152,11 @@ export function runGridFlexModule(input: GridFlexInput): GridFlexResult {
     input.agileSlots.reduce((acc, s) => acc + s.pricePerKwhPence, 0) / input.agileSlots.length;
 
   // ── 2. Annual load-shift saving ───────────────────────────────────────────
-  // Saving per kWh = difference between average price and cheapest slot
+  // Saving per kWh = difference between average price and cheapest slot,
+  // scaled by the shifting potential (0 for combi, 1 for Mixergy).
   const savingPerKwhPence = Math.max(dailyAvgPricePence - cheapest.pricePerKwhPence, 0);
   const annualLoadShiftSavingGbp = parseFloat(
-    ((input.dhwAnnualKwh * savingPerKwhPence) / 100).toFixed(2),
+    ((input.dhwAnnualKwh * savingPerKwhPence * shiftingPotentialFraction) / 100).toFixed(2),
   );
 
   notes.push(
@@ -107,14 +205,28 @@ export function runGridFlexModule(input: GridFlexInput): GridFlexResult {
     );
   }
 
-  // ── 5. Total saving ───────────────────────────────────────────────────────
+  // ── 5. British Gas "Mixergy Extra" rebate ─────────────────────────────────
+  const bgRebateGbp =
+    input.tankType === 'mixergy' && input.provider === 'british_gas'
+      ? BG_MIXERGY_REBATE_GBP
+      : 0;
+
+  if (bgRebateGbp > 0) {
+    notes.push(
+      `🏷️ British Gas "Mixergy Extra" rebate: £${bgRebateGbp}/yr applied ` +
+      `(Mixergy tank + British Gas tariff combination).`,
+    );
+  }
+
+  // ── 6. Total saving ───────────────────────────────────────────────────────
   const totalAnnualSavingGbp = parseFloat(
-    (annualLoadShiftSavingGbp + mixergySolarXSavingGbp).toFixed(2),
+    (annualLoadShiftSavingGbp + mixergySolarXSavingGbp + bgRebateGbp).toFixed(2),
   );
 
   notes.push(
     `💰 Total annual grid-flexibility saving: £${totalAnnualSavingGbp.toFixed(2)} ` +
-    `(load shift £${annualLoadShiftSavingGbp.toFixed(2)} + Solar X £${mixergySolarXSavingGbp.toFixed(2)}).`,
+    `(load shift £${annualLoadShiftSavingGbp.toFixed(2)} + Solar X £${mixergySolarXSavingGbp.toFixed(2)}` +
+    `${bgRebateGbp > 0 ? ` + BG rebate £${bgRebateGbp.toFixed(2)}` : ''}).`,
   );
 
   return {
@@ -126,6 +238,8 @@ export function runGridFlexModule(input: GridFlexInput): GridFlexResult {
     mixergySolarXSavingGbp,
     totalAnnualSavingGbp,
     solarSelfConsumptionFraction,
+    shiftingPotentialFraction,
+    bgRebateGbp,
     notes,
   };
 }
