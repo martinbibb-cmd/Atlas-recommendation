@@ -17,9 +17,42 @@ describe('RegionalHardness – Dorset (DT)', () => {
     expect(result.postcodePrefix).toBe('DT');
   });
 
-  it('does not flag Dorset as high-silica', () => {
+  it('flags Dorset as silicate-scaffold active (Jurassic limestone / Chalk)', () => {
     const result = runRegionalHardness('DT1 1AA');
-    expect(result.silicateTaxActive).toBe(false);
+    expect(result.silicateTaxActive).toBe(true);
+  });
+});
+
+describe('RegionalHardness – Bournemouth (BH)', () => {
+  it('classifies BH (Bournemouth) as hard', () => {
+    const result = runRegionalHardness('BH1 1AA');
+    expect(result.hardnessCategory).toBe('hard');
+  });
+
+  it('returns ppm in the 250–290 range for Bournemouth', () => {
+    const result = runRegionalHardness('BH1 1AA');
+    expect(result.ppmLevel).toBeGreaterThanOrEqual(250);
+    expect(result.ppmLevel).toBeLessThanOrEqual(290);
+  });
+
+  it('reports the BH prefix', () => {
+    const result = runRegionalHardness('BH9 1AA');
+    expect(result.postcodePrefix).toBe('BH');
+  });
+
+  it('flags Bournemouth as silicate-scaffold active (Jurassic limestone / Chalk)', () => {
+    const result = runRegionalHardness('BH1 1AA');
+    expect(result.silicateTaxActive).toBe(true);
+  });
+
+  it('description references Dorset Chalk / Jurassic limestone for BH', () => {
+    const result = runRegionalHardness('BH1 1AA');
+    expect(result.description).toContain('Dorset Chalk');
+  });
+
+  it('returns a non-empty notes array for BH', () => {
+    const result = runRegionalHardness('BH1 1AA');
+    expect(result.notes.length).toBeGreaterThan(0);
   });
 });
 

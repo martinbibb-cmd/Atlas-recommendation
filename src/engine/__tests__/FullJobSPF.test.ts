@@ -98,6 +98,16 @@ describe('FullJobSPF – notes', () => {
     expect(result.notes.some(n => n.includes('Full Job'))).toBe(true);
   });
 
+  it('includes visual trace saving note for full_job when gas spend provided', () => {
+    const result = runFullJobSPF(fullJobInput);
+    expect(result.notes.some(n => n.includes('Visual Trace'))).toBe(true);
+  });
+
+  it('visual trace note is absent for full_job when no gas spend provided', () => {
+    const result = runFullJobSPF({ installationVariant: 'full_job', heatLossWatts: 8000 });
+    expect(result.notes.some(n => n.includes('Visual Trace'))).toBe(false);
+  });
+
   it('includes Octopus "Cosy" / SPF penalty language in fast_fit notes', () => {
     const result = runFullJobSPF(fastFitInput);
     expect(result.notes.some(n => n.includes('SPF'))).toBe(true);

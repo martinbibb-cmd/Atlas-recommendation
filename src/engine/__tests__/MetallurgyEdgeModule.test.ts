@@ -88,4 +88,14 @@ describe('MetallurgyEdgeModule', () => {
     const result = runMetallurgyEdgeModule({ hasSoftener: true, waterHardnessCategory: 'moderate' });
     expect(result.wbSoftenerEdgeActive).toBe(true);
   });
+
+  it('emits a Primary Bypass Rule note when WB softener edge is active', () => {
+    const result = runMetallurgyEdgeModule(softenerHardWater);
+    expect(result.notes.some(n => n.includes('Primary Bypass Rule'))).toBe(true);
+  });
+
+  it('does not emit a Primary Bypass Rule note when no softener is present', () => {
+    const result = runMetallurgyEdgeModule(noSoftenerHardWater);
+    expect(result.notes.some(n => n.includes('Primary Bypass Rule'))).toBe(false);
+  });
 });

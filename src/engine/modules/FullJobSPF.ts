@@ -22,6 +22,16 @@ const FAST_FIT_SPF_MAX = 3.1;
 // Assumes typical UK prices: ~24p/kWh electricity vs ~7p/kWh gas → ratio ≈ 3.5×.
 const ELECTRICITY_TO_GAS_PRICE_RATIO = 3.5; // electricity is ~3.5× more expensive per kWh (24p vs 7p)
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Converts an annual gas spend (GBP) to an estimated annual electricity cost
+ * at the given SPF.  Accounts for the ~3.5× electricity-to-gas price ratio.
+ */
+function annualElectricityCost(annualGasSpendGbp: number, spfMidpoint: number): number {
+  return (annualGasSpendGbp / spfMidpoint) * ELECTRICITY_TO_GAS_PRICE_RATIO;
+}
+
 // ─── Main Module ──────────────────────────────────────────────────────────────
 
 /**
@@ -70,11 +80,9 @@ export function runFullJobSPF(input: FullJobSPFInput): FullJobSPFResult {
 
   if (!isFullJob && input.annualGasSpendGbp) {
     // Estimated annual electricity spend at fast-fit SPF
-    const electricityCostFastFit =
-      (input.annualGasSpendGbp / fastFitMidpoint) * ELECTRICITY_TO_GAS_PRICE_RATIO;
+    const electricityCostFastFit = annualElectricityCost(input.annualGasSpendGbp, fastFitMidpoint);
     // Estimated annual electricity spend at full-job SPF
-    const electricityCostFullJob =
-      (input.annualGasSpendGbp / fullJobMidpoint) * ELECTRICITY_TO_GAS_PRICE_RATIO;
+    const electricityCostFullJob = annualElectricityCost(input.annualGasSpendGbp, fullJobMidpoint);
     annualSavingGbp = parseFloat(
       (electricityCostFastFit - electricityCostFullJob).toFixed(0)
     );
@@ -94,6 +102,19 @@ export function runFullJobSPF(input: FullJobSPFInput): FullJobSPFResult {
       `${(fullJobMidpoint - fastFitMidpoint).toFixed(1)} extra SPF points – ` +
       `translating directly to lower annual running costs.`
     );
+
+    if (input.annualGasSpendGbp) {
+      // Compute the saving that a customer would see vs the fast-fit alternative
+      const fullJobSavingGbp = Math.round(
+        annualElectricityCost(input.annualGasSpendGbp, fastFitMidpoint) -
+        annualElectricityCost(input.annualGasSpendGbp, fullJobMidpoint)
+      );
+      notes.push(
+        `💡 Visual Trace: British Gas's "Full Job" policy allows your heat pump to run at ` +
+        `${designFlowTempC}°C, saving you £${fullJobSavingGbp}/year more than a fast-fit installation ` +
+        `(based on £${input.annualGasSpendGbp} annual gas spend).`
+      );
+    }
   } else {
     notes.push(
       `⚠️ Octopus "Cosy" Fast Fit (${designFlowTempC}°C flow): Existing undersized ` +

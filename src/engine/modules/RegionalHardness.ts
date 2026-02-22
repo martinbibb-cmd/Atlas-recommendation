@@ -15,6 +15,9 @@ const PPM_LOOKUP: Record<string, number> = {
   // Sherborne (DT9) sits on the North Dorset Chalk and reaches 364 ppm.
   // Weymouth / Dorchester (DT1–DT4) slightly lower but still Very Hard.
   DT: 314,   // representative zone median (range 250–364 ppm)
+  // Bournemouth / Christchurch (BH) overlies the same Jurassic limestone /
+  // Upper Chalk aquifer as DT, with CaCO₃ levels of 250–290 ppm.
+  BH: 270,   // representative zone median (range 250–290 ppm)
 
   // ── Kent: Cretaceous Chalk ────────────────────────────────────────────────
   ME: 310,
@@ -137,12 +140,25 @@ const PPM_LOOKUP: Record<string, number> = {
   DL: 65,
 };
 
-// ─── High-silica prefixes (London Basin / Thames Estuary) ────────────────────
+// ─── High-silica / silicate-scaffold prefixes ────────────────────────────────
+//
+// Two distinct geological settings produce a silicate "scaffold" that makes
+// scale ~10× harder to remove than CaCO₃ alone:
+//
+//  London Basin / Thames Estuary: dissolved biogenic silica co-deposits with
+//   CaCO₃ on heat-exchanger surfaces, forming a porous ceramic matrix.
+//
+//  Dorset Chalk / Jurassic limestone (BH, DT): reactive silicates in the
+//   Upper Chalk aquifer precipitate alongside CaCO₃ at elevated hardness levels,
+//   creating the same thermally resistant scaffold.
 
 const HIGH_SILICA_PREFIXES = new Set([
+  // London Basin / Thames Estuary
   'E', 'EC', 'N', 'NW', 'SE', 'SW', 'W', 'WC',
   'BR', 'CR', 'DA', 'EN', 'HA', 'IG', 'KT', 'RM', 'SM', 'TW', 'UB', 'WD',
   'SS', 'CM', 'CO',
+  // Dorset Chalk / Jurassic limestone
+  'BH', 'DT',
 ]);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -168,7 +184,8 @@ function classifyPpm(ppm: number): RegionalHardnessResult['hardnessCategory'] {
  * sales materials targeting British Gas (Hive) and Worcester Bosch installers.
  *
  * Key hotspots:
- *  - Dorset (DT):          250–364 ppm – Jurassic chalk / limestone aquifer.
+ *  - Bournemouth (BH):      250–290 ppm – Jurassic chalk / limestone aquifer; silicate scaffold.
+ *  - Dorset (DT):          250–364 ppm – Jurassic chalk / limestone aquifer; silicate scaffold.
  *  - Kent (ME, CT, TN, DA): 305–315 ppm – Cretaceous Chalk.
  *  - East Anglia (NR, IP):  305–320 ppm – Chalk / Cretaceous limestone.
  *  - London / Essex:        235–255 ppm – Thames Basin + high-silica geology.
@@ -192,10 +209,15 @@ export function runRegionalHardness(postcode: string): RegionalHardnessResult {
     soft: 'Soft (<100 ppm)',
   };
 
+  const isDorsetSilicate = prefix === 'BH' || prefix === 'DT';
   const silicateClause = silicateTaxActive
-    ? ' The postcode also overlies the London Basin / Thames Estuary, where dissolved ' +
-      'silicates form a porous ceramic scaffold on heat-exchanger surfaces – ~10× ' +
-      'harder to remove than CaCO₃ alone (Silicate Tax active).'
+    ? isDorsetSilicate
+      ? ' The postcode overlies the Dorset Chalk / Jurassic limestone aquifer, where ' +
+        'reactive silicates co-precipitate with CaCO₃ on heat-exchanger surfaces – ~10× ' +
+        'harder to remove than CaCO₃ alone (Silicate Tax active).'
+      : ' The postcode also overlies the London Basin / Thames Estuary, where dissolved ' +
+        'silicates form a porous ceramic scaffold on heat-exchanger surfaces – ~10× ' +
+        'harder to remove than CaCO₃ alone (Silicate Tax active).'
     : '';
 
   const description =
@@ -228,8 +250,11 @@ export function runRegionalHardness(postcode: string): RegionalHardnessResult {
   }
 
   if (silicateTaxActive) {
+    const silicateSource = isDorsetSilicate
+      ? 'Dorset Chalk / Jurassic limestone aquifer'
+      : 'London Basin / Thames Estuary geology';
     notes.push(
-      `⚠️ Silicate Tax Active: London Basin / Thames Estuary geology. Dissolved silicates ` +
+      `⚠️ Silicate Tax Active: ${silicateSource}. Dissolved silicates ` +
       `form a porous ceramic scale scaffold ~10× harder to remove than CaCO₃ alone. ` +
       `Effective thermal resistance is compounded beyond the CaCO₃ ppm reading.`
     );

@@ -688,8 +688,9 @@ export interface RegionalHardnessResult {
   hardnessCategory: NormalizerOutput['waterHardnessCategory'];
   /**
    * True when the postcode overlies high-silica geology (London Basin / Thames
-   * Estuary).  Silicates form a porous ceramic scaffold ~10× harder to remove
-   * than CaCO₃ alone, adding a compounding thermal resistance penalty.
+   * Estuary, or Dorset Chalk / Jurassic limestone).  Silicates form a porous
+   * ceramic scaffold ~10× harder to remove than CaCO₃ alone, adding a
+   * compounding thermal resistance penalty.
    */
   silicateTaxActive: boolean;
   /** Human-readable description of the local water chemistry and commercial implication */
