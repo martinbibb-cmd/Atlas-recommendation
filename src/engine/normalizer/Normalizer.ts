@@ -10,6 +10,35 @@ const HARD_WATER_PREFIXES = [
 
 const VERY_HARD_PREFIXES = ['HP', 'MK', 'OX', 'RG', 'SL', 'TW', 'GU', 'KT'];
 
+/**
+ * Silicate scaling scaffold coefficient for high-silica London/Essex areas.
+ * Silicates form a porous ceramic scaffold that is ~10× harder to remove than
+ * CaCO₃ alone and far more thermally resistive.  Applied to the scaleRf
+ * formula for postcodes in HIGH_SILICA_PREFIXES.
+ */
+const HIGH_SILICA_SCAFFOLD_COEFFICIENT = 10.0;
+
+/**
+ * Volume proxy when radiator count is unavailable (litres per kW of boiler
+ * output).  Based on industry rule-of-thumb: ~6 L/kW for a typical UK system.
+ */
+const VOLUME_PROXY_L_PER_KW = 6;
+
+/**
+ * Postcodes overlying the London Basin / Thames Estuary geology.
+ * The Cretaceous chalk and Eocene silts here dissolve significant silica
+ * (SiO₂) into the aquifer, producing a porous silicate scale that is ~10×
+ * harder to remove than CaCO₃ alone.  All Greater London postcodes plus
+ * the Essex river-plain boroughs (IG, RM, SS) qualify.
+ */
+const HIGH_SILICA_PREFIXES = [
+  // Greater London inner & outer
+  'E', 'EC', 'N', 'NW', 'SE', 'SW', 'W', 'WC',
+  'BR', 'CR', 'DA', 'EN', 'HA', 'IG', 'KT', 'RM', 'SM', 'TW', 'UB', 'WD',
+  // Essex Thames plain
+  'SS', 'CM', 'CO',
+];
+
 function getPostcodePrefix(postcode: string): string {
   return postcode.trim().toUpperCase().replace(/[0-9\s].*$/, '');
 }
@@ -18,6 +47,7 @@ export function normalizeInput(input: EngineInputV2_3): NormalizerOutput {
   const prefix = getPostcodePrefix(input.postcode);
   const isVeryHard = VERY_HARD_PREFIXES.includes(prefix);
   const isHard = HARD_WATER_PREFIXES.some(p => prefix.startsWith(p));
+  const isHighSilica = HIGH_SILICA_PREFIXES.some(p => prefix.startsWith(p));
 
   let cacO3Level: number;
   let silicaLevel: number;
@@ -42,16 +72,31 @@ export function normalizeInput(input: EngineInputV2_3): NormalizerOutput {
     waterHardnessCategory = 'soft';
   }
 
-  // System volume: ~10L per radiator (standard UK estimate)
-  const systemVolumeL = input.radiatorCount * 10;
+  /**
+   * Scaling scaffold coefficient.
+   * London/Essex postcodes overlie the London Basin where dissolved silica
+   * forms a porous ceramic scaffold on heat-exchanger surfaces that is ~10×
+   * more thermally resistive than CaCO₃ alone and far harder to remove by
+   * descaling.  Set to HIGH_SILICA_SCAFFOLD_COEFFICIENT for these areas, 1.0 elsewhere.
+   */
+  const scalingScaffoldCoefficient = isHighSilica ? HIGH_SILICA_SCAFFOLD_COEFFICIENT : 1.0;
+
+  // System volume: ~10 L per radiator (standard UK estimate).
+  // Fallback: VOLUME_PROXY_L_PER_KW per kW of boiler output when radiator count is unavailable.
+  const systemVolumeL =
+    input.radiatorCount > 0
+      ? input.radiatorCount * 10
+      : (input.heatLossWatts / 1000) * VOLUME_PROXY_L_PER_KW;
 
   // Vented systems need loft space and gravity head
   const canUseVentedSystem = !input.hasLoftConversion;
 
   // Silicate thermal resistance (Rf): silicates are ~10x more resistant than CaCO3
   // Base Rf for CaCO3: ~0.0001 m²K/W per 0.1mm
-  // Silicate "scaffold" factor: 10x
-  const scaleRf = (cacO3Level / 1000) * 0.001 + (silicaLevel / 1000) * 0.01;
+  // Silicate scaffold coefficient amplifies silica contribution for high-silica areas
+  const scaleRf =
+    (cacO3Level / 1000) * 0.001 +
+    (silicaLevel / 1000) * 0.001 * scalingScaffoldCoefficient;
 
   // 10-year decay: 1.6mm scale layer → ~11% efficiency collapse (spec)
   // Scale growth rate ~0.1mm/year in hard water
@@ -67,5 +112,6 @@ export function normalizeInput(input: EngineInputV2_3): NormalizerOutput {
     canUseVentedSystem,
     scaleRf,
     tenYearEfficiencyDecayPct,
+    scalingScaffoldCoefficient,
   };
 }

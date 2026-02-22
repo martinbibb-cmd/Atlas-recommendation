@@ -4,6 +4,7 @@ const SPECIFIC_HEAT_WATER = 4.19; // kJ/(kg·°C)
 const STANDARD_DELTA_T = 20;      // °C for conventional systems
 const ASHP_DELTA_T_MIN = 5;       // °C
 const MAX_VELOCITY_22MM = 1.5;    // m/s
+const PIPE_15MM_AREA = Math.PI * (0.006) ** 2; // m² (inner radius ~6mm for 15mm copper)
 const PIPE_22MM_AREA = Math.PI * (0.009) ** 2; // m² (inner radius ~9mm for standard 22mm copper)
 const PIPE_28MM_AREA = Math.PI * (0.014) ** 2; // m² (inner radius ~14mm)
 const BOTTLENECK_THRESHOLD_KW = 19.0;
@@ -28,7 +29,16 @@ export function calcVelocity(flowRateLs: number, pipeAreaM2: number): number {
 export function runHydraulicSafetyModule(input: EngineInputV2_3): HydraulicResult {
   const notes: string[] = [];
   const heatLossKw = input.heatLossWatts / 1000;
-  const pipeArea = input.primaryPipeDiameter >= 28 ? PIPE_28MM_AREA : PIPE_22MM_AREA;
+
+  // Select pipe cross-section area based on primary pipe diameter
+  let pipeArea: number;
+  if (input.primaryPipeDiameter >= 28) {
+    pipeArea = PIPE_28MM_AREA;
+  } else if (input.primaryPipeDiameter >= 22) {
+    pipeArea = PIPE_22MM_AREA;
+  } else {
+    pipeArea = PIPE_15MM_AREA; // 15mm (microbore primaries)
+  }
 
   // Standard system flow
   const flowRateLs = calcFlowRate(heatLossKw, STANDARD_DELTA_T);

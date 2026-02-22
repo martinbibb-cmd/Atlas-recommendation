@@ -1,4 +1,18 @@
-export type OccupancySignature = 'professional' | 'steady_home' | 'shift_worker';
+export type OccupancySignature =
+  | 'professional'
+  | 'steady_home'
+  | 'shift_worker'
+  /**
+   * V3 aliases – accepted alongside the V2 names for forward-compatibility.
+   * 'steady' maps to the same behaviour as 'steady_home' (continuous occupancy,
+   * ASHP recommended).
+   */
+  | 'steady'
+  /**
+   * V3 alias for 'shift_worker' – irregular/offset demand, stored water
+   * recommended.
+   */
+  | 'shift';
 
 export type BuildingMass = 'light' | 'medium' | 'heavy';
 
@@ -35,12 +49,17 @@ export interface EngineInputV2_3 {
   systemAgeYears?: number;
   annualGasSpendGbp?: number;
 
+  // Behaviour
+  drawFrequency?: 'low' | 'high';
+
   // System optimization
   installationPolicy?: InstallationPolicy;
 
   // Metallurgy edge
   hasSoftener?: boolean;
   preferredMetallurgy?: HeatExchangerMetallurgy | 'auto';
+  /** V3 heat exchanger material designation ('Al-Si' | 'stainless_steel'). */
+  heatExchangerMaterial?: 'Al-Si' | 'stainless_steel';
 
   // Mixergy legacy
   hasIotIntegration?: boolean;
@@ -67,6 +86,12 @@ export interface CombiStressResult {
   condensingEfficiencyPct: number;
   isCondensingCompromised: boolean;
   totalPenaltyKwh: number;
+  /**
+   * Worcester Bosch longevity bonus (%).  Set to 15 when hasSoftener is true
+   * and the heat exchanger is Al-Si, reflecting WB's unique softener-warranty
+   * compatibility.  0 otherwise.
+   */
+  wbLongevityBoostPct: number;
   notes: string[];
 }
 
@@ -97,10 +122,16 @@ export interface NormalizerOutput {
   cacO3Level: number;    // mg/L
   silicaLevel: number;   // mg/L
   waterHardnessCategory: 'soft' | 'moderate' | 'hard' | 'very_hard';
-  systemVolumeL: number; // estimated from radiator count
+  systemVolumeL: number; // estimated from radiator count (or 6 L/kW proxy)
   canUseVentedSystem: boolean;
   scaleRf: number;       // thermal resistance factor
   tenYearEfficiencyDecayPct: number;
+  /**
+   * Silicate scaling scaffold coefficient – 10.0 for high-silica areas
+   * (London / Essex geology), 1.0 elsewhere.  Silicates form a porous
+   * ceramic scaffold that is ~10× harder to remove than CaCO₃ alone.
+   */
+  scalingScaffoldCoefficient: number;
 }
 
 export interface RedFlagResult {
