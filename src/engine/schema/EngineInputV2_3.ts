@@ -100,6 +100,12 @@ export interface MixergyResult {
   mixergyLitres: number;
   footprintSavingPct: number;
   heatPumpCopMultiplierPct: number;
+  /**
+   * Gas saving (%) delivered by Mixergy's active top-down stratification versus
+   * a conventional cylinder of equivalent capacity.  Based on Mixergy field data:
+   * only the volume actually required is heated, avoiding full-tank reheat cycles.
+   */
+  gasSavingPct: number;
   notes: string[];
 }
 

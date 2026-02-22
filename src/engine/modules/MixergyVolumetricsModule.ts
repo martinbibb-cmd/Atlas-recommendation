@@ -9,6 +9,14 @@ const HEAT_PUMP_COP_IMPROVEMENT_MIN = 5;
 const HEAT_PUMP_COP_IMPROVEMENT_MAX = 10;
 
 /**
+ * Gas saving (%) delivered by Mixergy's active top-down stratification.
+ * By heating only the water actually required and preventing full-tank reheat
+ * cycles, Mixergy field data shows ~21% gas saving versus a conventional
+ * cylinder of equivalent usable capacity.
+ */
+const GAS_SAVING_PCT = 21;
+
+/**
  * Mixergy Volumetrics Module
  *
  * Mixergy uses active top-down stratification, keeping the hottest water
@@ -31,6 +39,10 @@ export function runMixergyVolumetricsModule(): MixergyResult {
     `ensuring a full layer of ready-to-use hot water is always available at the outlet ` +
     `without mixing with cold supply water.`,
 
+    `⚡ Gas Saving: Active top-down stratification delivers a ${GAS_SAVING_PCT}% gas saving ` +
+    `versus a conventional cylinder of equivalent capacity by heating only the water ` +
+    `actually required and avoiding full-tank reheat cycles.`,
+
     `🌡️ Heat Pump COP Multiplier: When paired with an ASHP via external plate heat exchanger, ` +
     `Mixergy draws the coldest water from the very base of the tank, maximising ΔT for the ` +
     `heat pump and preventing coil lock-out, delivering a ${HEAT_PUMP_COP_IMPROVEMENT_MIN}–` +
@@ -42,6 +54,7 @@ export function runMixergyVolumetricsModule(): MixergyResult {
     mixergyLitres: MIXERGY_LITRES,
     footprintSavingPct: FOOTPRINT_SAVING_PCT,
     heatPumpCopMultiplierPct: HEAT_PUMP_COP_IMPROVEMENT_MIN,
+    gasSavingPct: GAS_SAVING_PCT,
     notes,
   };
 }
