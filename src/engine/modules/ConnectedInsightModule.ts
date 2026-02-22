@@ -15,8 +15,12 @@ import type {
 /** Half-hourly kW threshold for combi boiler ignition spikes (DHW draws) */
 const COMBI_SPIKE_KW_THRESHOLD = 19.0;
 
-/** Fraction of grid import reduction due to Mixergy Solar X battery effect */
+/** Fraction of grid import reduction due to Mixergy Solar X battery effect (standard) */
 const MIXERGY_SOLAR_X_SAVING_FRACTION = 0.35;
+/** Enhanced fraction for 300L+ tank – active stratification captures more solar surplus */
+const MIXERGY_SOLAR_X_SAVING_FRACTION_300L = 0.40;
+/** Minimum tank volume (litres) for enhanced Solar X saving */
+const MIXERGY_SOLAR_X_ENHANCED_TANK_L = 300;
 
 /** Assumed average UK electricity price for baseline savings calc (p/kWh) */
 const BASELINE_ELECTRICITY_PENCE_PER_KWH = 24.5;
@@ -141,16 +145,18 @@ export function isolateBaseload(halfHourlyKwh: number[]): BaseloadIsolationResul
 /**
  * Simulates shifting the DHW load to the cheapest daily half-hour slot on
  * the Octopus Agile tariff and optionally applies the Mixergy Solar X
- * "Hot Water Battery" 35% grid-import reduction.
+ * "Hot Water Battery" 35% grid-import reduction (40% for 300L+ tank).
  *
  * @param dhwAnnualKwh      Annual DHW demand to shift (kWh).
  * @param agileSlots        48 half-hour price slots for a representative day (p/kWh).
  * @param mixergySolarX     Whether the Mixergy Solar X integration is enabled.
+ * @param tankVolumeLitres  Tank volume (litres) – 300L+ triggers enhanced 40% saving.
  */
 export function calculateDsrSavings(
   dhwAnnualKwh: number,
   agileSlots: HalfHourSlot[],
   mixergySolarX: boolean,
+  tankVolumeLitres?: number,
 ): DsrSavingsResult {
   const notes: string[] = [];
 
@@ -188,9 +194,12 @@ export function calculateDsrSavings(
       ? dhwAnnualKwh * (savingPerKwhPence / BASELINE_ELECTRICITY_PENCE_PER_KWH)
       : 0;
 
-  // Mixergy Solar X: 35% reduction in grid import on top of load shift
+  // Mixergy Solar X: 35% reduction in grid import on top of load shift (40% for 300L+ tank)
+  const solarXFraction = (mixergySolarX && (tankVolumeLitres ?? 0) >= MIXERGY_SOLAR_X_ENHANCED_TANK_L)
+    ? MIXERGY_SOLAR_X_SAVING_FRACTION_300L
+    : MIXERGY_SOLAR_X_SAVING_FRACTION;
   const mixergySolarXSavingKwh = mixergySolarX
-    ? parseFloat((dhwAnnualKwh * MIXERGY_SOLAR_X_SAVING_FRACTION).toFixed(2))
+    ? parseFloat((dhwAnnualKwh * solarXFraction).toFixed(2))
     : 0;
 
   notes.push(
@@ -201,7 +210,8 @@ export function calculateDsrSavings(
   if (mixergySolarX) {
     notes.push(
       `🔋 Mixergy Solar X enabled: additional ${mixergySolarXSavingKwh.toFixed(1)} kWh/yr ` +
-      `grid-import reduction (35% of DHW load).`,
+      `grid-import reduction (${Math.round(solarXFraction * 100)}% of DHW load` +
+      `${(tankVolumeLitres ?? 0) >= MIXERGY_SOLAR_X_ENHANCED_TANK_L ? ' – 300L enhanced rate' : ''}).`,
     );
   }
 
@@ -325,6 +335,7 @@ export function runConnectedInsightModule(
       baseloadIsolation.estimatedDhwKwh,
       agileSlots,
       input.gridConstraints.mixergySolarX,
+      input.gridConstraints.mixergySolarXTankLitres,
     );
     notes.push(...dsrSavings.notes);
   }

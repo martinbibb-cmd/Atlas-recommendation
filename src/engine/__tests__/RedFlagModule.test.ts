@@ -46,4 +46,25 @@ describe('RedFlagModule', () => {
     const result = runRedFlagModule({ ...baseInput, dynamicMainsPressure: 0.7 });
     expect(result.rejectCombi).toBe(true);
   });
+
+  it('rejectAshp is false for two-pipe topology', () => {
+    const result = runRedFlagModule({ ...baseInput, pipingTopology: 'two_pipe' });
+    expect(result.rejectAshp).toBe(false);
+  });
+
+  it('rejectAshp is true for one-pipe topology (Hard Fail)', () => {
+    const result = runRedFlagModule({ ...baseInput, pipingTopology: 'one_pipe' });
+    expect(result.rejectAshp).toBe(true);
+    expect(result.flagAshp).toBe(true);
+  });
+
+  it('one-pipe topology includes hard fail message in reasons', () => {
+    const result = runRedFlagModule({ ...baseInput, pipingTopology: 'one_pipe' });
+    expect(result.reasons.some(r => r.includes('Hard Fail'))).toBe(true);
+  });
+
+  it('rejectAshp is false when pipingTopology is undefined', () => {
+    const result = runRedFlagModule(baseInput);
+    expect(result.rejectAshp).toBe(false);
+  });
 });

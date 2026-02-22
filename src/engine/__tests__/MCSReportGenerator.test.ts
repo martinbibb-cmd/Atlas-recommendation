@@ -26,6 +26,7 @@ const baseInput: MCSReportInput = {
   primaryPipeDiameter: 22,
   hydraulicResult: baseHydraulicResult,
   systemType: 'ashp',
+  primaryVolumeL: 80,
 };
 
 describe('MCSReportGenerator', () => {
@@ -68,9 +69,9 @@ describe('MCSReportGenerator', () => {
     expect(report.roomByRoomSchedule[0].roomName).toBe('Living Room');
   });
 
-  it('produces 4 compliance checks', () => {
+  it('produces 6 compliance checks', () => {
     const report = generateMCSReport(baseInput);
-    expect(report.complianceChecks).toHaveLength(4);
+    expect(report.complianceChecks).toHaveLength(6);
   });
 
   it('all checks pass for a well-specified system', () => {
@@ -105,5 +106,44 @@ describe('MCSReportGenerator', () => {
     const report = generateMCSReport(baseInput);
     expect(() => new Date(report.generatedAt)).not.toThrow();
     expect(report.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('ASHP ΔT check passes when ΔT ≤ 7°C', () => {
+    const report = generateMCSReport({ ...baseInput, designFlowTempC: 45, designReturnTempC: 40 });
+    const check = report.complianceChecks.find(c => c.check === 'ASHP ΔT Compliance');
+    expect(check?.passed).toBe(true);
+  });
+
+  it('ASHP ΔT check fails when ΔT > 7°C for ASHP', () => {
+    const report = generateMCSReport({ ...baseInput, designFlowTempC: 55, designReturnTempC: 45 });
+    const check = report.complianceChecks.find(c => c.check === 'ASHP ΔT Compliance');
+    expect(check?.passed).toBe(false);
+  });
+
+  it('ASHP ΔT check is not applicable for boiler systems', () => {
+    const report = generateMCSReport({ ...baseInput, systemType: 'boiler', designFlowTempC: 70, designReturnTempC: 50 });
+    const check = report.complianceChecks.find(c => c.check === 'ASHP ΔT Compliance');
+    expect(check?.passed).toBe(true);
+  });
+
+  it('expansion vessel check passes when primaryVolumeL is provided', () => {
+    const report = generateMCSReport({ ...baseInput, primaryVolumeL: 100 });
+    const check = report.complianceChecks.find(c => c.check === 'Expansion Vessel Sizing');
+    expect(check?.passed).toBe(true);
+    expect(report.expansionVesselSizingL).toBeCloseTo(15, 1);
+  });
+
+  it('expansion vessel check fails when primaryVolumeL is absent', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { primaryVolumeL: _, ...inputWithoutVolume } = baseInput;
+    const report = generateMCSReport(inputWithoutVolume);
+    const check = report.complianceChecks.find(c => c.check === 'Expansion Vessel Sizing');
+    expect(check?.passed).toBe(false);
+    expect(report.expansionVesselSizingL).toBe(0);
+  });
+
+  it('expansionVesselSizingL is 15% of primaryVolumeL', () => {
+    const report = generateMCSReport({ ...baseInput, primaryVolumeL: 200 });
+    expect(report.expansionVesselSizingL).toBeCloseTo(30, 1);
   });
 });

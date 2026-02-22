@@ -170,8 +170,18 @@ describe('calculateDsrSavings', () => {
     expect(withoutMixergy.mixergySolarXSavingKwh).toBe(0);
   });
 
-  it('Mixergy Solar X saving is 35% of DHW demand', () => {
+  it('Mixergy Solar X saving is 35% of DHW demand for standard tank', () => {
     const result = calculateDsrSavings(1000, agileSlots, true);
+    expect(result.mixergySolarXSavingKwh).toBeCloseTo(350, 0);
+  });
+
+  it('Mixergy Solar X saving is 40% of DHW demand for 300L tank', () => {
+    const result = calculateDsrSavings(1000, agileSlots, true, 300);
+    expect(result.mixergySolarXSavingKwh).toBeCloseTo(400, 0);
+  });
+
+  it('Mixergy Solar X saving is 35% for tank under 300L', () => {
+    const result = calculateDsrSavings(1000, agileSlots, true, 250);
     expect(result.mixergySolarXSavingKwh).toBeCloseTo(350, 0);
   });
 

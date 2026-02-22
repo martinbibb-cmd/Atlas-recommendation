@@ -86,6 +86,8 @@ export interface RedFlagResult {
   rejectCombi: boolean;
   rejectVented: boolean;
   flagAshp: boolean;
+  /** True when one-pipe topology is detected – ASHP cannot operate without return temp >55°C */
+  rejectAshp: boolean;
   reasons: string[];
 }
 
@@ -163,6 +165,10 @@ export interface PredictiveMaintenanceInput {
   hasScaleInhibitor: boolean;
   hasMagneticFilter: boolean;
   annualServicedByEngineer: boolean;
+  /** Silica level from geochemical normalizer (mg/L) – drives silicate-tax efficiency decay */
+  silicateLevelMgL?: number;
+  /** Annual gas spend (GBP) – used to convert efficiency decay into £/year cost */
+  annualGasSpendGbp?: number;
 }
 
 export interface PredictiveMaintenanceResult {
@@ -170,6 +176,10 @@ export interface PredictiveMaintenanceResult {
   magnetiteRiskScore: number;           // 0–10
   overallHealthScore: number;           // 0–100 (100 = perfect)
   estimatedRemainingLifeYears: number;
+  /** Estimated annual cost of running the system in its degraded state (GBP) */
+  annualCostOfDecayGbp: number;
+  /** Years for a £500 system flush to pay back through restored efficiency (null if no spend provided) */
+  flushRoiYears: number | null;
   recommendations: string[];
   criticalAlerts: string[];
 }
@@ -220,6 +230,8 @@ export interface MCSReportInput {
   primaryPipeDiameter: number;
   hydraulicResult: HydraulicResult;
   systemType: 'ashp' | 'gshp' | 'boiler';
+  /** Total primary circuit water volume (litres) – required for expansion vessel sizing */
+  primaryVolumeL?: number;
 }
 
 export interface MCSComplianceCheck {
@@ -239,6 +251,8 @@ export interface MCSReport {
   roomByRoomSchedule: RoomHeatLoss[];
   complianceChecks: MCSComplianceCheck[];
   mcsPackSections: string[];
+  /** Minimum expansion vessel size (litres) sized at 15% of primary volume */
+  expansionVesselSizingL: number;
 }
 
 // ─── Updated FullEngineResult ─────────────────────────────────────────────────
@@ -279,6 +293,8 @@ export interface ConnectedEngineInputV2_4 {
     hasSolarPV: boolean;
     /** Enables "Hot Water Battery" logic for Mixergy Solar X integration */
     mixergySolarX: boolean;
+    /** Tank volume (litres) for Solar X; 300L+ unlocks 40% grid-import reduction vs 35% standard */
+    mixergySolarXTankLitres?: number;
   };
 }
 

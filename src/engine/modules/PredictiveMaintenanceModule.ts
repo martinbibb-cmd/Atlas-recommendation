@@ -21,6 +21,13 @@ const KETTLING_SCALE_THRESHOLD_MM = 1.6;
 const BASE_MAGNETITE_RATE_PER_YEAR = 1.2;
 const FILTER_MAGNETITE_MULTIPLIER = 0.15; // 85% reduction with magnetic filter
 
+// Silicate tax: efficiency loss per mg/L silica per year (empirical from UK water data)
+// Silicates form glassy deposits on heat exchangers, less soluble than CaCO3
+const SILICATE_EFFICIENCY_LOSS_PCT_PER_MG_PER_YEAR = 0.0012;
+
+// Assumed system flush cost for ROI calculation (£)
+const SYSTEM_FLUSH_COST_GBP = 500;
+
 export function runPredictiveMaintenanceModule(
   input: PredictiveMaintenanceInput
 ): PredictiveMaintenanceResult {
@@ -120,11 +127,48 @@ export function runPredictiveMaintenanceModule(
     );
   }
 
+  // ── Silicate Tax: annualised cost of dirty system ─────────────────────────
+  // Silicate deposits combined with magnetite/scale cause a compounding efficiency loss.
+  // Base degradation from scale (heat exchanger fouling): 0.4% per year per hardness unit
+  const scaleEfficiencyLossPct = (kettlingRiskScore / 10) * 8; // up to 8% loss at max scale
+  const magnetiteEfficiencyLossPct = (magnetiteRiskScore / 10) * 6; // up to 6% loss at max sludge
+  const silicateEfficiencyLossPct = input.silicateLevelMgL != null
+    ? input.silicateLevelMgL * SILICATE_EFFICIENCY_LOSS_PCT_PER_MG_PER_YEAR * input.systemAgeYears
+    : 0;
+
+  // Combined efficiency loss (capped at 25% – practical maximum before boiler lockout)
+  const totalEfficiencyLossPct = Math.min(25, scaleEfficiencyLossPct + magnetiteEfficiencyLossPct + silicateEfficiencyLossPct);
+
+  const annualGasSpend = input.annualGasSpendGbp ?? 0;
+  const annualCostOfDecayGbp = parseFloat(((totalEfficiencyLossPct / 100) * annualGasSpend).toFixed(2));
+
+  // ROI: how many years for a £500 flush to pay back through restored efficiency
+  let flushRoiYears: number | null = null;
+  if (annualGasSpend > 0 && annualCostOfDecayGbp > 0) {
+    flushRoiYears = parseFloat((SYSTEM_FLUSH_COST_GBP / annualCostOfDecayGbp).toFixed(1));
+  }
+
+  if (annualCostOfDecayGbp > 0) {
+    const silicateNote = input.silicateLevelMgL != null
+      ? ` (silica ${input.silicateLevelMgL} mg/L adds ${silicateEfficiencyLossPct.toFixed(1)}% decay)`
+      : '';
+    const roiNote = flushRoiYears != null
+      ? ` A £${SYSTEM_FLUSH_COST_GBP} system flush pays for itself in ${flushRoiYears} years.`
+      : '';
+    recommendations.push(
+      `💰 Dirty System Cost: ${totalEfficiencyLossPct.toFixed(1)}% efficiency loss` +
+      `${silicateNote} is costing ~£${annualCostOfDecayGbp.toFixed(0)}/year.` +
+      roiNote
+    );
+  }
+
   return {
     kettlingRiskScore,
     magnetiteRiskScore,
     overallHealthScore,
     estimatedRemainingLifeYears,
+    annualCostOfDecayGbp,
+    flushRoiYears,
     recommendations,
     criticalAlerts,
   };

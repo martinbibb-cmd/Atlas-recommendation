@@ -13,8 +13,14 @@ const MAX_VELOCITY_28MM_MS = 1.5;
 const ASHP_MAX_FLOW_TEMP_C = 55;
 const BOILER_MAX_FLOW_TEMP_C = 80;
 
+// MCS 003 / heat pump best practice: ASHP ΔT must not exceed 7°C
+const ASHP_MAX_DELTA_T_C = 7;
+
 // Noise analysis threshold for ASHP primary circuit
 const NOISE_VELOCITY_THRESHOLD_MS = 1.0;
+
+// Expansion vessel sizing: UK rule-of-thumb (BS EN 13831) = 15% of primary circuit volume
+const EXPANSION_VESSEL_PRIMARY_FRACTION = 0.15;
 
 function generateReferenceNumber(): string {
   const now = new Date();
@@ -83,6 +89,48 @@ function checkHeatLossCalculation(rooms: RoomHeatLoss[]): MCSComplianceCheck {
   };
 }
 
+function checkAshpDeltaT(
+  designFlowTempC: number,
+  designReturnTempC: number,
+  systemType: MCSReportInput['systemType'],
+): MCSComplianceCheck {
+  if (systemType === 'boiler') {
+    return {
+      check: 'ASHP ΔT Compliance',
+      passed: true,
+      detail: `✅ ASHP ΔT check not applicable for boiler systems.`,
+    };
+  }
+  const deltaT = designFlowTempC - designReturnTempC;
+  const passed = deltaT <= ASHP_MAX_DELTA_T_C;
+  return {
+    check: 'ASHP ΔT Compliance',
+    passed,
+    detail: passed
+      ? `✅ ASHP ΔT = ${deltaT}°C ≤ ${ASHP_MAX_DELTA_T_C}°C limit. High-flow low-ΔT design confirmed.`
+      : `❌ ASHP ΔT = ${deltaT}°C exceeds ${ASHP_MAX_DELTA_T_C}°C maximum for heat pumps. ` +
+        `Increase flow rate or resize emitters to reduce ΔT. High ΔT forces the compressor ` +
+        `to work harder and suppresses COP significantly.`,
+  };
+}
+
+function checkExpansionVessel(primaryVolumeL: number | undefined): MCSComplianceCheck {
+  if (primaryVolumeL == null || primaryVolumeL <= 0) {
+    return {
+      check: 'Expansion Vessel Sizing',
+      passed: false,
+      detail: `❌ Primary circuit volume not provided. Cannot size expansion vessel. ` +
+        `Measure system volume (radiators + pipework) and re-submit.`,
+    };
+  }
+  const minVesselL = parseFloat((primaryVolumeL * EXPANSION_VESSEL_PRIMARY_FRACTION).toFixed(1));
+  return {
+    check: 'Expansion Vessel Sizing',
+    passed: true,
+    detail: `✅ Minimum expansion vessel: ${minVesselL}L (15% of ${primaryVolumeL}L primary volume, BS EN 13831).`,
+  };
+}
+
 function buildNoiseAnalysis(velocityMs: number, systemType: MCSReportInput['systemType']): string {
   if (systemType === 'boiler') {
     return `Boiler system – noise analysis not required by MCS 003.`;
@@ -106,11 +154,17 @@ export function generateMCSReport(input: MCSReportInput): MCSReport {
   const velocityMs = input.hydraulicResult.velocityMs;
   const isVelocityCompliant = !input.hydraulicResult.isBottleneck;
 
+  const expansionVesselSizingL = input.primaryVolumeL != null && input.primaryVolumeL > 0
+    ? parseFloat((input.primaryVolumeL * EXPANSION_VESSEL_PRIMARY_FRACTION).toFixed(1))
+    : 0;
+
   const complianceChecks: MCSComplianceCheck[] = [
     checkVelocityCompliance(velocityMs, input.primaryPipeDiameter),
     checkFlowTemperature(input.designFlowTempC, input.systemType),
     checkDeltaT(input.designFlowTempC, input.designReturnTempC),
     checkHeatLossCalculation(input.rooms),
+    checkAshpDeltaT(input.designFlowTempC, input.designReturnTempC, input.systemType),
+    checkExpansionVessel(input.primaryVolumeL),
   ];
 
   const noiseAnalysis = buildNoiseAnalysis(velocityMs, input.systemType);
@@ -126,6 +180,7 @@ export function generateMCSReport(input: MCSReportInput): MCSReport {
     `Room-by-Room Schedule: ${input.rooms.length} rooms (see schedule below)`,
     `Primary Pipework: ${input.primaryPipeDiameter}mm – velocity ${velocityMs.toFixed(3)} m/s`,
     `Hydraulic Bottleneck: ${input.hydraulicResult.isBottleneck ? 'YES – remediation required' : 'No'}`,
+    `Expansion Vessel (min): ${expansionVesselSizingL > 0 ? `${expansionVesselSizingL}L` : 'Not calculated – primary volume required'}`,
     `Noise Analysis: ${noiseAnalysis}`,
     `Compliance Summary: ${complianceChecks.filter(c => c.passed).length}/${complianceChecks.length} checks passed`,
   ];
@@ -141,5 +196,6 @@ export function generateMCSReport(input: MCSReportInput): MCSReport {
     roomByRoomSchedule: input.rooms,
     complianceChecks,
     mcsPackSections,
+    expansionVesselSizingL,
   };
 }
