@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
 import { runEngine } from '../../engine/Engine';
 import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
+import LifestyleInteractive from '../visualizers/LifestyleInteractive';
 import EfficiencyCurve from '../visualizers/EfficiencyCurve';
 import FootprintXRay from '../visualizers/FootprintXRay';
 import InteractiveTwin from '../InteractiveTwin';
@@ -334,6 +335,18 @@ function FullSurveyResults({
           </h4>
           <InteractiveComfortClock heatLossKw={results.hydraulic.flowRateLs * 1000 / 100 || 8} />
         </div>
+      </div>
+
+      {/* Lifestyle Interactive – Day Painter Sales Closer */}
+      <div className="result-section">
+        <h3>🏠 Day Painter – Domestic Thermal Simulator</h3>
+        <p className="description" style={{ marginBottom: '0.75rem' }}>
+          Paint your 24-hour routine and watch three live curves react: the Boiler "Stepped" sprint,
+          the Heat Pump "Horizon" stability line (SPF-driven), and the Mixergy Hot Water Battery
+          State of Charge. Toggle <strong>Full Job</strong>, <strong>Power Shower</strong>, and{' '}
+          <strong>Softener</strong> to see the physics change in real-time.
+        </p>
+        <LifestyleInteractive baseInput={{ occupancySignature: lifestyle.signature }} />
       </div>
 
       {/* Hydraulic Analysis */}
