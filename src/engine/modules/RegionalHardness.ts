@@ -237,6 +237,18 @@ export function runRegionalHardness(postcode: string): RegionalHardnessResult {
       `🟡 Hard Water (${ppmLevel} ppm): Scale accumulation rate ~0.10 mm/year. ` +
       `A scale inhibitor or softener is recommended to prevent DHW efficiency loss.`
     );
+    // Bournemouth (BH) sits in the 250–290 ppm band where DHW recovery latency
+    // is measurably elevated – flag a specific DHW Efficiency Warning.
+    if (prefix === 'BH') {
+      notes.push(
+        `⚠️ DHW Efficiency Warning: Bournemouth (${prefix}) water hardness ` +
+        `(${ppmLevel} ppm, range 250–290 ppm) accelerates scale build-up on ` +
+        `DHW heat exchangers. Scale layers as thin as 1.6 mm trigger an 11% fuel ` +
+        `increase for hot water production. DHW recovery latency increases ~18 s ` +
+        `per mm of scale. Fit a scale inhibitor or WB 8000+ with a domestic side ` +
+        `softener to prevent this penalty.`
+      );
+    }
   } else if (hardnessCategory === 'moderate') {
     notes.push(
       `🟢 Moderate Water (${ppmLevel} ppm): Scale risk is low. Standard Sentinel X100 ` +

@@ -144,6 +144,18 @@ export interface NormalizerOutput {
    * Based on research: 8% efficiency drop for every 1 mm of scale accumulation.
    */
   scalingPotential: number;
+  /**
+   * Primary Sludge Risk (0–1): independent coefficient for the primary (closed
+   * heating) circuit magnetite sludge stressor.  Alias for sludgePotential,
+   * returned as a dedicated two-water output field.
+   */
+  primarySludgeRisk: number;
+  /**
+   * Secondary Scale Risk (0–1): independent coefficient for the secondary (open
+   * DHW) circuit CaCO₃/silicate scale stressor.  Alias for scalingPotential,
+   * returned as a dedicated two-water output field.
+   */
+  secondaryScaleRisk: number;
 }
 
 // ─── Maintenance ROI ──────────────────────────────────────────────────────────

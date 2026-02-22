@@ -27,7 +27,7 @@ const VAILLANT_PREFERRED_HARDNESS = new Set(['soft', 'moderate']);
 // Softener compatibility flag text (used by sales / installer tooling)
 const WB_SOFTENER_FLAG =
   'Worcester Bosch heat exchangers are uniquely compatible with salt-water ' +
-  'softeners, providing superior scale protection without voiding warranties.';
+  'softeners for DHW protection without voiding warranties.';
 
 // Primary Bypass Rule: even with a WB 8000+ Al-Si unit, the heating (primary)
 // loop must still be filled with untreated hard water + Sentinel X100 inhibitor
