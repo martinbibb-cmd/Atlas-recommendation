@@ -18,4 +18,14 @@ describe('MixergyVolumetricsModule', () => {
     const result = runMixergyVolumetricsModule();
     expect(result.heatPumpCopMultiplierPct).toBeGreaterThanOrEqual(5);
   });
+
+  it('returns 21% gas saving via active stratification', () => {
+    const result = runMixergyVolumetricsModule();
+    expect(result.gasSavingPct).toBe(21);
+  });
+
+  it('gas saving note is included in notes array', () => {
+    const result = runMixergyVolumetricsModule();
+    expect(result.notes.some(n => n.includes('21%') && n.includes('gas saving'))).toBe(true);
+  });
 });

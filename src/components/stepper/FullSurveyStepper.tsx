@@ -5,6 +5,7 @@ import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
 import LifestyleInteractive from '../visualizers/LifestyleInteractive';
 import EfficiencyCurve from '../visualizers/EfficiencyCurve';
 import FootprintXRay from '../visualizers/FootprintXRay';
+import GlassBoxPanel from '../visualizers/GlassBoxPanel';
 import InteractiveTwin from '../InteractiveTwin';
 import { exportBomToCsv, calculateBomTotal } from '../../engine/modules/WholesalerPricingAdapter';
 
@@ -525,6 +526,17 @@ function FullSurveyResults({
         <p style={{ fontSize: '0.72rem', color: '#a0aec0', marginTop: '0.5rem' }}>
           Prices are indicative trade (ex-VAT) from Wolseley/City Plumbing catalogue.
         </p>
+      </div>
+
+      {/* Glass Box – Raw Data / Physics Trace / Visual Outcome */}
+      <div className="result-section">
+        <h3>🔭 Glass Box – Physics Transparency Panel</h3>
+        <p className="description" style={{ marginBottom: '0.75rem' }}>
+          Every visual outcome is a deterministic result of the home's hydraulic and
+          thermodynamic constraints. Switch tabs to inspect the normalized data, the
+          full calculation trace, or the interactive visual outcome.
+        </p>
+        <GlassBoxPanel results={results} />
       </div>
 
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
