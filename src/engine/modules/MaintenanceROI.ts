@@ -107,7 +107,11 @@ export function runMaintenanceROI(input: MaintenanceROIInput): MaintenanceROIRes
     const silicateClause = input.isHighSilica
       ? `Based on your postcode's high silicates, `
       : `Based on your water quality, `;
+    const sludgeClause = sludgePenaltyGbpPerYear > 0
+      ? `Sludge Tax detected: `
+      : '';
     message =
+      `${sludgeClause}` +
       `${silicateClause}a professional flush will pay for itself in ` +
       `${flushPaybackYears} years through restored efficiency. ` +
       `You are currently losing £${totalAnnualCostGbp.toFixed(0)}/yr.`;

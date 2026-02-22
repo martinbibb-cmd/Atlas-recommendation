@@ -160,6 +160,16 @@ describe('MaintenanceROI – sell message', () => {
     expect(runMaintenanceROI(hardWaterNoProtection).notes.length).toBeGreaterThan(0);
     expect(runMaintenanceROI(softWaterProtected).notes.length).toBeGreaterThan(0);
   });
+
+  it('message includes "Sludge Tax detected" when no magnetic filter is fitted', () => {
+    const result = runMaintenanceROI(hardWaterNoProtection);
+    expect(result.message).toContain('Sludge Tax detected');
+  });
+
+  it('message does not include "Sludge Tax detected" when magnetic filter is fitted', () => {
+    const result = runMaintenanceROI({ ...hardWaterNoProtection, hasMagneticFilter: true });
+    expect(result.message).not.toContain('Sludge Tax detected');
+  });
 });
 
 // ─── 6. Sluggish Radiator effect ──────────────────────────────────────────────

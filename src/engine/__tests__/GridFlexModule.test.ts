@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { runGridFlexModule } from '../modules/GridFlexModule';
+import { runGridFlexModule, BH_DT_HIGH_RENEWABLES_DAY } from '../modules/GridFlexModule';
 import type { GridFlexInput, HalfHourSlot } from '../schema/EngineInputV2_3';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -155,10 +155,10 @@ describe('GridFlexModule – solar self-consumption', () => {
 // ─── totalAnnualSavingGbp ─────────────────────────────────────────────────────
 
 describe('GridFlexModule – total annual saving', () => {
-  it('total equals load shift + Solar X GBP savings', () => {
+  it('total equals load shift + Solar X GBP savings + BG rebate', () => {
     const result = runGridFlexModule({ ...baseInput, mixergySolarX: true });
     expect(result.totalAnnualSavingGbp).toBeCloseTo(
-      result.annualLoadShiftSavingGbp + result.mixergySolarXSavingGbp,
+      result.annualLoadShiftSavingGbp + result.mixergySolarXSavingGbp + result.bgRebateGbp,
       2,
     );
   });
@@ -185,5 +185,111 @@ describe('GridFlexModule – notes', () => {
   it('notes include total saving summary', () => {
     const result = runGridFlexModule(baseInput);
     expect(result.notes.some(n => n.includes('Total annual grid-flexibility saving'))).toBe(true);
+  });
+});
+
+// ─── Shifting potential ───────────────────────────────────────────────────────
+
+describe('GridFlexModule – shifting potential', () => {
+  it('shiftingPotentialFraction is 1 when tankType is not specified (default)', () => {
+    const result = runGridFlexModule(baseInput);
+    expect(result.shiftingPotentialFraction).toBe(1);
+  });
+
+  it('shiftingPotentialFraction is 0 for a combi boiler', () => {
+    const result = runGridFlexModule({ ...baseInput, tankType: 'combi' });
+    expect(result.shiftingPotentialFraction).toBe(0);
+  });
+
+  it('shiftingPotentialFraction is 1 for a Mixergy tank', () => {
+    const result = runGridFlexModule({ ...baseInput, tankType: 'mixergy' });
+    expect(result.shiftingPotentialFraction).toBe(1);
+  });
+
+  it('annualLoadShiftSavingGbp is 0 for a combi boiler (no arbitrage)', () => {
+    const result = runGridFlexModule({ ...baseInput, tankType: 'combi' });
+    expect(result.annualLoadShiftSavingGbp).toBe(0);
+  });
+
+  it('annualLoadShiftSavingGbp is positive for a Mixergy tank', () => {
+    const result = runGridFlexModule({ ...baseInput, tankType: 'mixergy' });
+    expect(result.annualLoadShiftSavingGbp).toBeGreaterThan(0);
+  });
+
+  it('notes mention combi boiler shifting potential = 0%', () => {
+    const result = runGridFlexModule({ ...baseInput, tankType: 'combi' });
+    expect(result.notes.some(n => n.includes('shifting potential = 0%'))).toBe(true);
+  });
+
+  it('notes mention Mixergy shifting potential = 100%', () => {
+    const result = runGridFlexModule({ ...baseInput, tankType: 'mixergy' });
+    expect(result.notes.some(n => n.includes('shifting potential = 100%'))).toBe(true);
+  });
+});
+
+// ─── British Gas rebate ───────────────────────────────────────────────────────
+
+describe('GridFlexModule – British Gas rebate', () => {
+  it('bgRebateGbp is 0 by default (no tankType / provider)', () => {
+    const result = runGridFlexModule(baseInput);
+    expect(result.bgRebateGbp).toBe(0);
+  });
+
+  it('bgRebateGbp is 0 for Mixergy tank without British Gas provider', () => {
+    const result = runGridFlexModule({ ...baseInput, tankType: 'mixergy', provider: 'octopus' });
+    expect(result.bgRebateGbp).toBe(0);
+  });
+
+  it('bgRebateGbp is 0 for British Gas provider without Mixergy tank', () => {
+    const result = runGridFlexModule({ ...baseInput, tankType: 'combi', provider: 'british_gas' });
+    expect(result.bgRebateGbp).toBe(0);
+  });
+
+  it('bgRebateGbp is £40 for Mixergy tank with British Gas provider', () => {
+    const result = runGridFlexModule({ ...baseInput, tankType: 'mixergy', provider: 'british_gas' });
+    expect(result.bgRebateGbp).toBe(40);
+  });
+
+  it('BG rebate is included in totalAnnualSavingGbp', () => {
+    const withRebate = runGridFlexModule({ ...baseInput, tankType: 'mixergy', provider: 'british_gas' });
+    const withoutRebate = runGridFlexModule({ ...baseInput, tankType: 'mixergy', provider: 'octopus' });
+    expect(withRebate.totalAnnualSavingGbp - withoutRebate.totalAnnualSavingGbp).toBeCloseTo(40, 1);
+  });
+
+  it('notes mention BG rebate when applicable', () => {
+    const result = runGridFlexModule({ ...baseInput, tankType: 'mixergy', provider: 'british_gas' });
+    expect(result.notes.some(n => n.includes('Mixergy Extra'))).toBe(true);
+  });
+});
+
+// ─── BH/DT High Renewables Day ───────────────────────────────────────────────
+
+describe('GridFlexModule – BH/DT simulated Agile day', () => {
+  it('BH_DT_HIGH_RENEWABLES_DAY has exactly 48 slots', () => {
+    expect(BH_DT_HIGH_RENEWABLES_DAY).toHaveLength(48);
+  });
+
+  it('all slots have slotIndex matching their array position', () => {
+    BH_DT_HIGH_RENEWABLES_DAY.forEach((slot, i) => {
+      expect(slot.slotIndex).toBe(i);
+    });
+  });
+
+  it('cheapest slot is in the 02:00–05:30 overnight window (slots 4–10)', () => {
+    const result = runGridFlexModule({
+      ...baseInput,
+      agileSlots: BH_DT_HIGH_RENEWABLES_DAY,
+      tankType: 'mixergy',
+    });
+    expect(result.optimalSlotIndex).toBeGreaterThanOrEqual(4);
+    expect(result.optimalSlotIndex).toBeLessThanOrEqual(10);
+  });
+
+  it('peak slots (16:00–20:00) are significantly more expensive than overnight slots', () => {
+    const overnight = BH_DT_HIGH_RENEWABLES_DAY.slice(4, 11);
+    const peak = BH_DT_HIGH_RENEWABLES_DAY.slice(32, 40);
+    const avgOvernight = overnight.reduce((s, sl) => s + sl.pricePerKwhPence, 0) / overnight.length;
+    const avgPeak = peak.reduce((s, sl) => s + sl.pricePerKwhPence, 0) / peak.length;
+    expect(avgPeak).toBeGreaterThan(avgOvernight * 3);
   });
 });

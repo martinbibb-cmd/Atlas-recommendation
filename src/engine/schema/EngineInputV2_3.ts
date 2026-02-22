@@ -804,6 +804,17 @@ export interface GridFlexInput {
   tankVolumeLitres?: number;
   /** Estimated annual solar surplus available for DHW diversion (kWh) */
   annualSolarSurplusKwh?: number;
+  /**
+   * DHW heat source type.
+   *  - 'combi':   Combi boiler – must fire on demand; shifting potential = 0%.
+   *  - 'mixergy': Mixergy stored cylinder – 100% shiftable as a hot-water battery.
+   */
+  tankType?: 'combi' | 'mixergy';
+  /**
+   * Energy provider identifier.
+   * Used to apply provider-specific commercial rebates (e.g. British Gas £40/yr).
+   */
+  provider?: 'british_gas' | 'octopus' | string;
 }
 
 export interface GridFlexResult {
@@ -823,6 +834,18 @@ export interface GridFlexResult {
   totalAnnualSavingGbp: number;
   /** Cylinder charge fraction achievable from solar surplus alone (0–1) */
   solarSelfConsumptionFraction: number;
+  /**
+   * Fraction of daily DHW energy that can be shifted to off-peak slots.
+   *  - 0.0 for combi boilers (must fire on demand).
+   *  - 1.0 for Mixergy stored cylinders (full hot-water battery shifting).
+   */
+  shiftingPotentialFraction: number;
+  /**
+   * British Gas "Mixergy Extra" annual rebate (GBP).
+   * Applied when tankType is 'mixergy' AND provider is 'british_gas'.
+   * Zero for all other combinations.
+   */
+  bgRebateGbp: number;
   notes: string[];
 }
 
@@ -852,3 +875,61 @@ export interface TenantConfig {
   priorityModules: string[];
 }
 
+
+// ─── Thermal Inertia Module ───────────────────────────────────────────────────
+
+/**
+ * Building fabric type classification for thermal inertia simulation.
+ *  - 'solid_brick_1930s': Pre-war solid brick construction.
+ *                         High thermal mass; Tau (τ) ≈ 55 hours.
+ *  - 'lightweight_new':   Post-1990s lightweight frame / new build.
+ *                         Low thermal mass; Tau (τ) ≈ 15 hours.
+ */
+export type BuildingFabricType = 'solid_brick_1930s' | 'lightweight_new';
+
+/**
+ * Occupancy profile for the thermal decay simulation.
+ *  - 'professional': Occupants away all day (08:00–18:00). Exposes maximum decay.
+ *  - 'home_all_day': Continuous occupancy; heat source cycling every 1–2 hours.
+ */
+export type OccupancyProfile = 'professional' | 'home_all_day';
+
+export interface ThermalInertiaInput {
+  /** Building fabric type – determines the thermal time constant (τ). */
+  fabricType: BuildingFabricType;
+  /** Occupancy profile – determines simulation window length. */
+  occupancyProfile: OccupancyProfile;
+  /** Indoor temperature at the start of the unheated period (°C). */
+  initialTempC: number;
+  /** Outdoor / ambient temperature during the unheated period (°C). */
+  outdoorTempC: number;
+  /**
+   * Duration of the unheated period to simulate (hours).
+   * Defaults to 10 hours (08:00–18:00) when occupancyProfile is 'professional'.
+   */
+  unheatedHours?: number;
+}
+
+export interface ThermalInertiaDataPoint {
+  /** Hours elapsed since the start of the unheated period. */
+  hourOffset: number;
+  /** Simulated indoor temperature at this time step (°C, 1 d.p.). */
+  tempC: number;
+}
+
+export interface ThermalInertiaResult {
+  /** Thermal time constant used (τ, hours). */
+  tauHours: number;
+  /** Indoor temperature at the end of the unheated period (°C). */
+  finalTempC: number;
+  /** Total temperature drop over the unheated period (°C). */
+  totalDropC: number;
+  /**
+   * Hour-by-hour temperature trace for charting.
+   * Each entry covers one hour of the unheated window.
+   */
+  trace: ThermalInertiaDataPoint[];
+  /** Human-readable narrative for the demo / sales meeting. */
+  narrative: string;
+  notes: string[];
+}
