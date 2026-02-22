@@ -7,14 +7,26 @@ import type {
 
 type HourlyProfile = { demand: number; label: string }[];
 
+// ── Professional profile demand constants ─────────────────────────────────────
+/** Demand fraction at the exact 07:00 and 18:00 double-peak hours. */
+const PROFESSIONAL_PEAK_DEMAND = 0.95;
+/** Demand fraction for the morning shoulder (06:00–08:00, excluding 07:00). */
+const PROFESSIONAL_MORNING_SHOULDER_DEMAND = 0.75;
+/** Demand fraction for the evening shoulder (17:00–22:00, excluding 18:00). */
+const PROFESSIONAL_EVENING_SHOULDER_DEMAND = 0.70;
+
 /**
- * Professional: double-peak demand (morning + evening)
- * Boiler wins: high reheat power (30kW) for stepped Hive/Nest profiles
+ * Professional: double-peak demand at 07:00 and 18:00 (V3 spec).
+ * Boiler wins: high reheat power (30kW) for stepped Hive/Nest profiles.
+ * The 07:00 and 18:00 hours receive the highest demand to model the
+ * precise double-peak that proves boiler superiority for this lifestyle.
  */
 function professionalProfile(): HourlyProfile {
   return Array.from({ length: 24 }, (_, h) => {
-    if (h >= 6 && h <= 8) return { demand: 0.9, label: 'morning_peak' };
-    if (h >= 17 && h <= 22) return { demand: 0.85, label: 'evening_peak' };
+    if (h === 7) return { demand: PROFESSIONAL_PEAK_DEMAND, label: 'morning_peak' };   // 07:00 peak
+    if (h === 18) return { demand: PROFESSIONAL_PEAK_DEMAND, label: 'evening_peak' };  // 18:00 peak
+    if (h >= 6 && h <= 8) return { demand: PROFESSIONAL_MORNING_SHOULDER_DEMAND, label: 'morning_peak' };
+    if (h >= 17 && h <= 22) return { demand: PROFESSIONAL_EVENING_SHOULDER_DEMAND, label: 'evening_peak' };
     if (h >= 9 && h <= 16) return { demand: 0.05, label: 'away' };
     return { demand: 0.1, label: 'night' };
   });
@@ -48,16 +60,20 @@ function shiftWorkerProfile(): HourlyProfile {
 function getProfile(signature: OccupancySignature): HourlyProfile {
   switch (signature) {
     case 'professional': return professionalProfile();
-    case 'steady_home': return steadyHomeProfile();
-    case 'shift_worker': return shiftWorkerProfile();
+    case 'steady_home':
+    case 'steady':       return steadyHomeProfile();
+    case 'shift_worker':
+    case 'shift':        return shiftWorkerProfile();
   }
 }
 
 function getRecommendedSystem(signature: OccupancySignature): LifestyleResult['recommendedSystem'] {
   switch (signature) {
     case 'professional': return 'boiler';
-    case 'steady_home': return 'ashp';
-    case 'shift_worker': return 'stored_water';
+    case 'steady_home':
+    case 'steady':       return 'ashp';
+    case 'shift_worker':
+    case 'shift':        return 'stored_water';
   }
 }
 

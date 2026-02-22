@@ -43,4 +43,47 @@ describe('CombiStressModule', () => {
     const result = runCombiStressModule({ ...baseInput, returnWaterTemp: 60 });
     expect(result.totalPenaltyKwh).toBeGreaterThan(600);
   });
+
+  // ── V3 additions – WB longevity boost ────────────────────────────────────────
+
+  it('returns 0 wbLongevityBoostPct when no softener is fitted', () => {
+    const result = runCombiStressModule({ ...baseInput, hasSoftener: false });
+    expect(result.wbLongevityBoostPct).toBe(0);
+  });
+
+  it('returns 0 wbLongevityBoostPct for softener + stainless steel (V3 field)', () => {
+    const result = runCombiStressModule({
+      ...baseInput,
+      hasSoftener: true,
+      heatExchangerMaterial: 'stainless_steel',
+    });
+    expect(result.wbLongevityBoostPct).toBe(0);
+  });
+
+  it('returns 15% wbLongevityBoostPct for softener + Al-Si (V3 heatExchangerMaterial field)', () => {
+    const result = runCombiStressModule({
+      ...baseInput,
+      hasSoftener: true,
+      heatExchangerMaterial: 'Al-Si',
+    });
+    expect(result.wbLongevityBoostPct).toBe(15);
+  });
+
+  it('returns 15% wbLongevityBoostPct for softener + al_si (V2 preferredMetallurgy field)', () => {
+    const result = runCombiStressModule({
+      ...baseInput,
+      hasSoftener: true,
+      preferredMetallurgy: 'al_si',
+    });
+    expect(result.wbLongevityBoostPct).toBe(15);
+  });
+
+  it('returns 0 wbLongevityBoostPct for Al-Si without a softener', () => {
+    const result = runCombiStressModule({
+      ...baseInput,
+      hasSoftener: false,
+      heatExchangerMaterial: 'Al-Si',
+    });
+    expect(result.wbLongevityBoostPct).toBe(0);
+  });
 });

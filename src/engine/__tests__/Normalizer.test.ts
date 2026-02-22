@@ -42,4 +42,37 @@ describe('Normalizer', () => {
     const softResult = normalizeInput({ ...baseInput, postcode: 'G1 1AA' });
     expect(hardResult.scaleRf).toBeGreaterThan(softResult.scaleRf);
   });
+
+  // ── V3 additions ────────────────────────────────────────────────────────────
+
+  it('sets scalingScaffoldCoefficient to 10.0 for a London (E) postcode', () => {
+    const result = normalizeInput({ ...baseInput, postcode: 'E1 6RF' });
+    expect(result.scalingScaffoldCoefficient).toBe(10.0);
+  });
+
+  it('sets scalingScaffoldCoefficient to 10.0 for an Essex (SS) postcode', () => {
+    const result = normalizeInput({ ...baseInput, postcode: 'SS1 1AA' });
+    expect(result.scalingScaffoldCoefficient).toBe(10.0);
+  });
+
+  it('sets scalingScaffoldCoefficient to 10.0 for an inner London (EC) postcode', () => {
+    const result = normalizeInput({ ...baseInput, postcode: 'EC1A 1BB' });
+    expect(result.scalingScaffoldCoefficient).toBe(10.0);
+  });
+
+  it('sets scalingScaffoldCoefficient to 1.0 for a non-high-silica postcode', () => {
+    const result = normalizeInput({ ...baseInput, postcode: 'G1 1AA' });
+    expect(result.scalingScaffoldCoefficient).toBe(1.0);
+  });
+
+  it('uses 6 L/kW proxy for system volume when radiatorCount is 0', () => {
+    // 10 kW boiler → 6 × 10 = 60 L
+    const result = normalizeInput({ ...baseInput, radiatorCount: 0, heatLossWatts: 10000 });
+    expect(result.systemVolumeL).toBeCloseTo(60, 0);
+  });
+
+  it('uses radiator count when it is greater than zero', () => {
+    const result = normalizeInput({ ...baseInput, radiatorCount: 8 });
+    expect(result.systemVolumeL).toBe(80);
+  });
 });

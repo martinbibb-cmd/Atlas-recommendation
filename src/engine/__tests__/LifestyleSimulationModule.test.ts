@@ -43,4 +43,36 @@ describe('LifestyleSimulationModule', () => {
     const awayTime = result.hourlyData[12].demandKw;    // 12pm (away)
     expect(morningPeak).toBeGreaterThan(awayTime);
   });
+
+  // ── V3 additions ─────────────────────────────────────────────────────────────
+
+  it('07:00 and 18:00 are the highest-demand hours for professional (double-peak spec)', () => {
+    const result = runLifestyleSimulationModule({ ...baseInput, occupancySignature: 'professional' });
+    const peak07 = result.hourlyData[7].demandKw;
+    const peak18 = result.hourlyData[18].demandKw;
+    // Both canonical peaks should exceed adjacent shoulder hours
+    const shoulder06 = result.hourlyData[6].demandKw;
+    const shoulder08 = result.hourlyData[8].demandKw;
+    const shoulder17 = result.hourlyData[17].demandKw;
+    const shoulder19 = result.hourlyData[19].demandKw;
+    expect(peak07).toBeGreaterThan(shoulder06);
+    expect(peak07).toBeGreaterThan(shoulder08);
+    expect(peak18).toBeGreaterThan(shoulder17);
+    expect(peak18).toBeGreaterThan(shoulder19);
+  });
+
+  it('V3 "steady" alias recommends ASHP (same as steady_home)', () => {
+    const result = runLifestyleSimulationModule({ ...baseInput, occupancySignature: 'steady' });
+    expect(result.recommendedSystem).toBe('ashp');
+  });
+
+  it('V3 "shift" alias recommends stored water (same as shift_worker)', () => {
+    const result = runLifestyleSimulationModule({ ...baseInput, occupancySignature: 'shift' });
+    expect(result.recommendedSystem).toBe('stored_water');
+  });
+
+  it('V3 "steady" returns 24 hours of data', () => {
+    const result = runLifestyleSimulationModule({ ...baseInput, occupancySignature: 'steady' });
+    expect(result.hourlyData).toHaveLength(24);
+  });
 });

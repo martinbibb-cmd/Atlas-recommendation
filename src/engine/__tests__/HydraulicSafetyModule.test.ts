@@ -51,4 +51,17 @@ describe('HydraulicSafetyModule', () => {
     const result = runHydraulicSafetyModule({ ...baseInput, heatLossWatts: 8000, primaryPipeDiameter: 22 });
     expect(result.ashpRequires28mm).toBe(true);
   });
+
+  // ── V3 additions – 15mm pipe support ────────────────────────────────────────
+
+  it('calculates a higher velocity for 15mm pipe vs 22mm at the same load', () => {
+    const r15 = runHydraulicSafetyModule({ ...baseInput, primaryPipeDiameter: 15, heatLossWatts: 6000 });
+    const r22 = runHydraulicSafetyModule({ ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 6000 });
+    expect(r15.velocityMs).toBeGreaterThan(r22.velocityMs);
+  });
+
+  it('returns a positive velocity for 15mm primary pipe', () => {
+    const result = runHydraulicSafetyModule({ ...baseInput, primaryPipeDiameter: 15 });
+    expect(result.velocityMs).toBeGreaterThan(0);
+  });
 });
