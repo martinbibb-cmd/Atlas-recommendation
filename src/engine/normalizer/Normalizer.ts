@@ -6,9 +6,25 @@ const HARD_WATER_PREFIXES = [
   'NR', 'OX', 'PE', 'RG', 'SG', 'SL', 'SO', 'SP', 'SS', 'TN',
   'GU', 'KT', 'RH', 'TW', 'BR', 'CR', 'DA', 'SE', 'SW', 'EC',
   'WC', 'N', 'NW', 'E', 'W', 'HA', 'UB',
+  // Kent
+  'ME', 'CT',
+  // Yorkshire (upgraded from moderate)
+  'LS', 'BD', 'HG',
+  // Lincolnshire
+  'LN',
+  // Midlands
+  'B', 'WV', 'CV', 'DY',
 ];
 
-const VERY_HARD_PREFIXES = ['HP', 'MK', 'OX', 'RG', 'SL', 'TW', 'GU', 'KT'];
+const VERY_HARD_PREFIXES = [
+  'HP', 'MK', 'OX', 'RG', 'SL', 'TW', 'GU', 'KT',
+  // Kent (300+ ppm chalk geology)
+  'ME', 'CT', 'TN', 'DA',
+  // Hertfordshire (300+ ppm)
+  'AL', 'LU',
+  // East Anglia (300+ ppm)
+  'NR', 'IP', 'CB',
+];
 
 /**
  * Silicate scaling scaffold coefficient for high-silica London/Essex areas.
@@ -23,6 +39,12 @@ const HIGH_SILICA_SCAFFOLD_COEFFICIENT = 10.0;
  * output).  Based on industry rule-of-thumb: ~6 L/kW for a typical UK system.
  */
 const VOLUME_PROXY_L_PER_KW = 6;
+
+/**
+ * Efficiency drop per 1 mm of scale accumulation on the DHW heat exchanger.
+ * Source: SEDBUK / CIBSE research – cited in problem specification.
+ */
+const SCALE_EFFICIENCY_LOSS_PCT_PER_MM = 8;
 
 /**
  * Postcodes overlying the London Basin / Thames Estuary geology.
@@ -98,11 +120,31 @@ export function normalizeInput(input: EngineInputV2_3): NormalizerOutput {
     (cacO3Level / 1000) * 0.001 +
     (silicaLevel / 1000) * 0.001 * scalingScaffoldCoefficient;
 
-  // 10-year decay: 1.6mm scale layer → ~11% efficiency collapse (spec)
+  // 10-year decay: use research figure of 8% efficiency drop per 1mm of scale accumulation.
   // Scale growth rate ~0.1mm/year in hard water
   const scaleGrowthMmPerYear = isVeryHard ? 0.16 : isHard ? 0.10 : 0.04;
   const scaleAt10Years = scaleGrowthMmPerYear * 10;
-  const tenYearEfficiencyDecayPct = Math.min(scaleAt10Years * 7, 15); // up to 15% max
+  const tenYearEfficiencyDecayPct = Math.min(scaleAt10Years * SCALE_EFFICIENCY_LOSS_PCT_PER_MM, 15); // up to 15% max
+
+  // ── Two-Water Physics ────────────────────────────────────────────────────────
+
+  // Sludge Potential (Primary circuit): 0–1 factor.
+  // Linked to system age and piping topology (Baxi research: 47% rad reduction / 7% bill increase).
+  // Scales linearly over 20 years; legacy (one_pipe/microbore) topologies reach full potential sooner.
+  const systemAge = input.systemAgeYears ?? 0;
+  const isLegacyTopology =
+    input.pipingTopology === 'one_pipe' || input.pipingTopology === 'microbore';
+  const sludgePotential = parseFloat(
+    Math.min(1, (systemAge / 20) * (isLegacyTopology ? 1.0 : 0.7)).toFixed(3)
+  );
+
+  // Scaling Potential (Secondary/DHW circuit): 0–1 factor.
+  // Linked to postcode CaCO₃ hardness (300 ppm = 1.0 base) and silicate scaffold presence.
+  // High-silica areas amplified by 1.5× because silicates are ~10× harder to remove,
+  // based on research showing 8% efficiency drop for every 1 mm of scale accumulation.
+  const scalingPotential = parseFloat(
+    Math.min(1, (cacO3Level / 300) * (isHighSilica ? 1.5 : 1.0)).toFixed(3)
+  );
 
   return {
     cacO3Level,
@@ -113,5 +155,7 @@ export function normalizeInput(input: EngineInputV2_3): NormalizerOutput {
     scaleRf,
     tenYearEfficiencyDecayPct,
     scalingScaffoldCoefficient,
+    sludgePotential,
+    scalingPotential,
   };
 }
