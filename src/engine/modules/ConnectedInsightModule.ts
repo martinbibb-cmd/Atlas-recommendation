@@ -1,4 +1,3 @@
-import { randomBytes } from 'crypto';
 import type {
   ConnectedEngineInputV2_4,
   ConnectedInsightResult,
@@ -239,15 +238,15 @@ export function calculateDsrSavings(
  */
 export function generateMagicLink(
   baseUrl: string,
-  propertyRef: string,
+  _propertyRef: string,
   nowIso?: string,
 ): MagicLinkResult {
   const now = nowIso ? new Date(nowIso) : new Date();
   const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
-  // Generate a cryptographically secure random token (16 bytes → 32 hex chars).
+  // Generate a cryptographically secure random token using the Web Crypto API.
   // No plaintext property data is embedded to prevent enumeration attacks.
-  const token = randomBytes(16).toString('base64url');
+  const token = globalThis.crypto.randomUUID().replace(/-/g, '');
 
   const url = `${baseUrl.replace(/\/$/, '')}/share/${token}?expires=${encodeURIComponent(expiresAt)}`;
 
