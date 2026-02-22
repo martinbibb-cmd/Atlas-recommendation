@@ -11,6 +11,7 @@ import { runSludgeVsScaleModule } from './modules/SludgeVsScaleModule';
 import { runSystemOptimizationModule } from './modules/SystemOptimizationModule';
 import { runMetallurgyEdgeModule } from './modules/MetallurgyEdgeModule';
 import { runMixergyLegacyModule } from './modules/MixergyLegacyModule';
+import { runSpecEdgeModule } from './modules/SpecEdgeModule';
 
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const normalizer = normalizeInput(input);
@@ -48,6 +49,18 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     dhwStorageLitres: input.dhwStorageLitres ?? 150,
   });
 
+  const specEdge = runSpecEdgeModule({
+    installationPolicy: input.installationPolicy ?? 'high_temp_retrofit',
+    heatLossWatts: input.heatLossWatts,
+    unitModulationFloorKw: input.unitModulationFloorKw ?? 3,
+    waterHardnessCategory: normalizer.waterHardnessCategory,
+    hasSoftener: input.hasSoftener ?? false,
+    hasMagneticFilter: input.hasMagneticFilter ?? false,
+    dhwTankType: input.dhwTankType,
+    annualGasSpendGbp: input.annualGasSpendGbp,
+    preferredMetallurgy: input.preferredMetallurgy,
+  });
+
   return {
     hydraulic,
     combiStress,
@@ -61,5 +74,6 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     systemOptimization,
     metallurgyEdge,
     mixergyLegacy,
+    specEdge,
   };
 }

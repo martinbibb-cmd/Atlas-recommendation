@@ -46,6 +46,10 @@ export interface EngineInputV2_3 {
   hasIotIntegration?: boolean;
   installerNetwork?: InstallerNetwork;
   dhwStorageLitres?: number;
+
+  // Spec edge
+  unitModulationFloorKw?: number;
+  dhwTankType?: DhwTankType;
 }
 
 export interface HydraulicResult {
@@ -287,6 +291,7 @@ export interface FullEngineResult {
   systemOptimization: SystemOptimizationResult;
   metallurgyEdge: MetallurgyEdgeResult;
   mixergyLegacy: MixergyLegacyResult;
+  specEdge: SpecEdgeResult;
 }
 
 // ─── Connected Insights V2.4 ──────────────────────────────────────────────────
@@ -531,4 +536,71 @@ export interface PortfolioResult {
   fleetAverageHealthScore: number;
   criticalAssetCount: number;
   complianceFailureCount: number;
+}
+
+// ─── Spec Edge Module ─────────────────────────────────────────────────────────
+
+export type DhwTankType = 'standard' | 'mixergy';
+
+export interface SpecEdgeInput {
+  /** Installation policy – drives flow temperature and SPF curves */
+  installationPolicy: InstallationPolicy;
+  /** Building design heat loss (W) */
+  heatLossWatts: number;
+  /** Unit modulation floor (kW) – used for "Motorway Cruise" longevity bonus */
+  unitModulationFloorKw: number;
+  /** Water hardness category – drives DHW scaling tax */
+  waterHardnessCategory: NormalizerOutput['waterHardnessCategory'];
+  /** True if a salt-based water softener is fitted */
+  hasSoftener: boolean;
+  /** True if an inline magnetic filter is fitted on the primary return */
+  hasMagneticFilter: boolean;
+  /** DHW tank type – enables Mixergy stratification saving when 'mixergy' */
+  dhwTankType?: DhwTankType;
+  /** Annual gas spend (GBP) – used to monetise efficiency penalties */
+  annualGasSpendGbp?: number;
+  /** Preferred heat exchanger metallurgy or 'auto' for engine recommendation */
+  preferredMetallurgy?: HeatExchangerMetallurgy | 'auto';
+}
+
+export interface SpecEdgeResult {
+  // ── Installation strategy ───────────────────────────────────────────────
+  /** Modelled design flow temperature (°C) */
+  designFlowTempC: number;
+  /** Seasonal Performance Factor range [min, max] */
+  spfRange: [number, number];
+  /** Midpoint SPF for single-figure display */
+  spfMidpoint: number;
+
+  // ── Metallurgy & longevity ──────────────────────────────────────────────
+  /** Recommended heat exchanger metallurgy */
+  recommendedMetallurgy: HeatExchangerMetallurgy;
+  /** True when unit modulation floor closely matches building heat loss (Motorway Cruise rule) */
+  longevityBonusActive: boolean;
+
+  // ── Softener compatibility ──────────────────────────────────────────────
+  /** True when WB 8000+ is boosted due to softener compatibility */
+  wbSoftenerEdgeActive: boolean;
+  /** Human-readable installer briefing flag – populated when softener edge is active */
+  softenerCompatibilityFlag?: string;
+
+  // ── Maintenance ROI ─────────────────────────────────────────────────────
+  /** Magnetite sludge tax: estimated energy bill increase (%) when no magnetic filter */
+  magnetiteSludgeTaxPct: number;
+  /** Radiator heat output reduction (%) due to magnetite when no magnetic filter */
+  radiatorHeatOutputReductionPct: number;
+  /** DHW scaling tax: fuel increase (%) for hot water in hard-water postcodes */
+  dhwScalingTaxPct: number;
+  /** Annualised Cost of Inaction (GBP/year) – sludge + scaling penalties combined */
+  annualCostOfInactionGbp: number;
+  /** Years for a professional flush to pay back through restored efficiency (null if no gas spend provided) */
+  flushPaybackYears: number | null;
+
+  // ── Mixergy saving ──────────────────────────────────────────────────────
+  /** Gas saving (%) from Mixergy stratification – set when dhwTankType is 'mixergy' */
+  mixergyGasSavingPct?: number;
+  /** Footprint reduction (%) from Mixergy versus a conventional cylinder */
+  mixergyFootprintReductionPct?: number;
+
+  notes: string[];
 }
