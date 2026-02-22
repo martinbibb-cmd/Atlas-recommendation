@@ -6,6 +6,7 @@ import { runMixergyVolumetricsModule } from './modules/MixergyVolumetricsModule'
 import { runLifestyleSimulationModule } from './modules/LifestyleSimulationModule';
 import { runRedFlagModule } from './modules/RedFlagModule';
 import { generateBom } from './modules/BomGenerator';
+import { runLegacyInfrastructureModule } from './modules/LegacyInfrastructureModule';
 
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const normalizer = normalizeInput(input);
@@ -15,6 +16,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const lifestyle = runLifestyleSimulationModule(input);
   const redFlags = runRedFlagModule(input);
   const bomItems = generateBom(input, hydraulic, redFlags);
+  const legacyInfrastructure = runLegacyInfrastructureModule(input);
 
-  return { hydraulic, combiStress, mixergy, lifestyle, normalizer, redFlags, bomItems };
+  return { hydraulic, combiStress, mixergy, lifestyle, normalizer, redFlags, bomItems, legacyInfrastructure };
 }
