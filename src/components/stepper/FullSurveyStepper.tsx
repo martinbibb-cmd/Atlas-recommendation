@@ -4,6 +4,8 @@ import { runEngine } from '../../engine/Engine';
 import ComfortClock from '../visualizers/ComfortClock';
 import EfficiencyCurve from '../visualizers/EfficiencyCurve';
 import FootprintXRay from '../visualizers/FootprintXRay';
+import InteractiveTwin from '../InteractiveTwin';
+import { exportBomToCsv, calculateBomTotal } from '../../engine/modules/WholesalerPricingAdapter';
 
 interface Props {
   onBack: () => void;
@@ -261,6 +263,32 @@ function FullSurveyResults({
   onBack: () => void;
 }) {
   const { hydraulic, combiStress, mixergy, lifestyle, normalizer, redFlags, bomItems } = results;
+  const [showTwin, setShowTwin] = useState(false);
+
+  // Approximate current efficiency from normalizer decay
+  const currentEfficiencyPct = Math.max(50, 92 - normalizer.tenYearEfficiencyDecayPct);
+  const bomTotal = calculateBomTotal(bomItems);
+
+  const handleExportCsv = () => {
+    const csv = exportBomToCsv(bomItems);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'atlas-bom.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (showTwin) {
+    return (
+      <InteractiveTwin
+        mixergy={mixergy}
+        currentEfficiencyPct={currentEfficiencyPct}
+        onBack={() => setShowTwin(false)}
+      />
+    );
+  }
 
   return (
     <div className="results-container">
@@ -443,6 +471,8 @@ function FullSurveyResults({
               <th>Item</th>
               <th>Model</th>
               <th>Qty</th>
+              <th>Unit Price</th>
+              <th>Line Total</th>
               <th>Notes</th>
             </tr>
           </thead>
@@ -452,15 +482,45 @@ function FullSurveyResults({
                 <td>{item.name}</td>
                 <td>{item.model}</td>
                 <td>{item.quantity}</td>
+                <td style={{ textAlign: 'right' }}>
+                  {item.unitPriceGbp !== undefined ? `£${item.unitPriceGbp.toFixed(2)}` : '—'}
+                </td>
+                <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                  {item.unitPriceGbp !== undefined
+                    ? `£${(item.unitPriceGbp * item.quantity).toFixed(2)}`
+                    : '—'}
+                </td>
                 <td style={{ color: '#718096', fontSize: '0.85rem' }}>{item.notes}</td>
               </tr>
             ))}
+            {bomTotal > 0 && (
+              <tr style={{ borderTop: '2px solid #e2e8f0', background: '#f7fafc' }}>
+                <td colSpan={4} style={{ fontWeight: 700, textAlign: 'right', padding: '8px' }}>
+                  Estimated Trade Total (ex-VAT):
+                </td>
+                <td style={{ fontWeight: 800, color: '#2c5282', padding: '8px' }}>
+                  £{bomTotal.toFixed(2)}
+                </td>
+                <td />
+              </tr>
+            )}
           </tbody>
         </table>
+        <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button className="next-btn" onClick={handleExportCsv} style={{ fontSize: '0.85rem', padding: '8px 16px' }}>
+            ⬇ Export BOM to CSV
+          </button>
+        </div>
+        <p style={{ fontSize: '0.72rem', color: '#a0aec0', marginTop: '0.5rem' }}>
+          Prices are indicative trade (ex-VAT) from Wolseley/City Plumbing catalogue.
+        </p>
       </div>
 
-      <div style={{ display: 'flex', gap: '1rem' }}>
+      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <button className="prev-btn" onClick={onBack}>← New Survey</button>
+        <button className="next-btn" onClick={() => setShowTwin(true)} style={{ background: '#9f7aea' }}>
+          🏠 Open Interactive Twin →
+        </button>
       </div>
     </div>
   );

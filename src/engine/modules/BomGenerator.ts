@@ -4,11 +4,13 @@ import type {
   HydraulicResult,
   RedFlagResult,
 } from '../schema/EngineInputV2_3';
+import { applyWholesalerPricing } from './WholesalerPricingAdapter';
 
 export function generateBom(
   input: EngineInputV2_3,
   hydraulic: HydraulicResult,
-  redFlags: RedFlagResult
+  redFlags: RedFlagResult,
+  includePricing: boolean = true,
 ): BomItem[] {
   const items: BomItem[] = [];
 
@@ -79,5 +81,5 @@ export function generateBom(
     });
   }
 
-  return items;
+  return includePricing ? applyWholesalerPricing(items) : items;
 }
