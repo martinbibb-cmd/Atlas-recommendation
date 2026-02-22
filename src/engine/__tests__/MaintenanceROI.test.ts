@@ -161,3 +161,32 @@ describe('MaintenanceROI – sell message', () => {
     expect(runMaintenanceROI(softWaterProtected).notes.length).toBeGreaterThan(0);
   });
 });
+
+// ─── 6. Sluggish Radiator effect ──────────────────────────────────────────────
+
+describe('MaintenanceROI – sluggish radiator effect', () => {
+  it('sluggishRadiatorActive is true when no magnetic filter is fitted', () => {
+    const result = runMaintenanceROI(hardWaterNoProtection);
+    expect(result.sluggishRadiatorActive).toBe(true);
+  });
+
+  it('sluggishRadiatorActive is false when a magnetic filter is fitted', () => {
+    const result = runMaintenanceROI({ ...hardWaterNoProtection, hasMagneticFilter: true });
+    expect(result.sluggishRadiatorActive).toBe(false);
+  });
+
+  it('radiatorHeatOutputReductionPct is 47 when sluggish radiator is active', () => {
+    const result = runMaintenanceROI(hardWaterNoProtection);
+    expect(result.radiatorHeatOutputReductionPct).toBe(47);
+  });
+
+  it('radiatorHeatOutputReductionPct is 0 when magnetic filter is fitted', () => {
+    const result = runMaintenanceROI({ ...hardWaterNoProtection, hasMagneticFilter: true });
+    expect(result.radiatorHeatOutputReductionPct).toBe(0);
+  });
+
+  it('sludge note mentions Sluggish Radiator effect when active', () => {
+    const result = runMaintenanceROI(hardWaterNoProtection);
+    expect(result.notes.some(n => n.includes('Sluggish Radiator'))).toBe(true);
+  });
+});

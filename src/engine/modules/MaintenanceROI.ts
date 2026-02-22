@@ -7,6 +7,10 @@ import type { MaintenanceROIInput, MaintenanceROIResult } from '../schema/Engine
 // radiator heat output by up to 47%.
 const SLUDGE_PENALTY_FACTOR = 0.07;
 
+// Magnetite sludge "Sluggish Radiator" effect: 47% reduction in radiator heat output
+// when no magnetic filter is present. Source: HHIC / BRE research.
+const SLUDGE_RAD_REDUCTION_PCT = 47;
+
 // DHW scale penalty: 11% of annual gas spend when postcode CaCO₃ > 200 ppm
 // and no scale inhibitor or softener is used.
 // Source: SEDBUK / CIBSE – 8% efficiency drop per 1 mm scale; 1.6 mm layer = 11% fuel increase.
@@ -41,6 +45,9 @@ export function runMaintenanceROI(input: MaintenanceROIInput): MaintenanceROIRes
     ? 0
     : parseFloat((SLUDGE_PENALTY_FACTOR * input.annualGasSpendGbp).toFixed(2));
 
+  const sluggishRadiatorActive = !input.hasMagneticFilter;
+  const radiatorHeatOutputReductionPct = sluggishRadiatorActive ? SLUDGE_RAD_REDUCTION_PCT : 0;
+
   if (input.hasMagneticFilter) {
     notes.push(
       `🧲 Sludge: Magnetic filter fitted – magnetite sludge tax cleared. ` +
@@ -50,6 +57,7 @@ export function runMaintenanceROI(input: MaintenanceROIInput): MaintenanceROIRes
     notes.push(
       `🔩 Sludge Penalty (${(SLUDGE_PENALTY_FACTOR * 100).toFixed(0)}% bill increase): ` +
       `No magnetic filter detected. Magnetite sludge costs £${sludgePenaltyGbpPerYear.toFixed(0)}/yr. ` +
+      `Sluggish Radiator effect active: ${SLUDGE_RAD_REDUCTION_PCT}% reduction in radiator heat output. ` +
       `Fit a Fernox TF1 or equivalent to eliminate this penalty.`
     );
   }
@@ -121,6 +129,8 @@ export function runMaintenanceROI(input: MaintenanceROIInput): MaintenanceROIRes
     totalAnnualCostGbp,
     flushPaybackYears,
     message,
+    sluggishRadiatorActive,
+    radiatorHeatOutputReductionPct,
     notes,
   };
 }
