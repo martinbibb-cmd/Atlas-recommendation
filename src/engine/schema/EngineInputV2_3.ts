@@ -945,3 +945,101 @@ export interface ThermalInertiaResult {
   narrative: string;
   notes: string[];
 }
+
+// ─── Survey Summary Generator ─────────────────────────────────────────────────
+
+/** A single surface element in a room used for the BS EN 12831 heat loss calculation. */
+export interface SurveySurface {
+  /** Area of the surface (m²) */
+  area: number;
+  /** U-value of the surface (W/m²K) */
+  uValue: number;
+}
+
+/** Room-level input for the MCS 003 room-by-room heat loss schedule. */
+export interface SurveySummaryRoom {
+  /** Room name (e.g. 'Living Room') */
+  name: string;
+  /** Design target temperature for this room (°C) */
+  targetTemp: number;
+  /** Surface elements for fabric heat loss calculation */
+  surfaces: SurveySurface[];
+  /** Air change rate (n, air changes per hour) – used for ventilation heat loss */
+  airChangesPerHour: number;
+  /** Room volume (m³) – used for ventilation heat loss calculation */
+  volume: number;
+  /** Installed emitter output at design conditions (W) – used for compliance check */
+  emitterOutputWatts: number;
+}
+
+/** A single line item in the Technical Bill of Materials. */
+export interface SurveyBomEntry {
+  component: string;
+  detail: string;
+}
+
+/** A single room entry in the MCS 003 heat loss schedule. */
+export interface HeatLossScheduleEntry {
+  roomName: string;
+  /** Design internal temperature (°C) */
+  designTemp: number;
+  /** Total calculated heat loss at design conditions (W) */
+  totalWatts: number;
+  /** True when installed emitter output ≥ calculated heat loss */
+  isCompliant: boolean;
+}
+
+/**
+ * A commercial insight for the design pack.
+ *  - 'pass':  Green checkmark – requirement is met.
+ *  - 'warn':  Amber/red flag – action required.
+ *  - 'info':  Blue information – supporting evidence.
+ */
+export interface CommercialInsight {
+  title: string;
+  detail: string;
+  status: 'pass' | 'warn' | 'info';
+}
+
+/** Input for the SurveySummaryGenerator. */
+export interface SurveySummaryInput {
+  /** Customer / site postcode – document reference and regional calibration key */
+  postcode: string;
+  /** Design heat loss of the property (W) */
+  heatLossWatts: number;
+  /** External design temperature (°C, e.g. −3 for southern England) */
+  outsideDesignTemp: number;
+  /** True if a salt-based water softener is fitted on the domestic side */
+  hasSoftener: boolean;
+  /** Room-by-room inputs for the BS EN 12831 heat loss schedule */
+  rooms: SurveySummaryRoom[];
+  /**
+   * True when the system volume is below the 6 L/kW ASHP threshold and a
+   * buffer vessel is required per MCS MIS 3005.
+   */
+  requiresBufferVessel: boolean;
+  /** SpecEdge result – supplies SPF, flush payback, and metallurgy flags */
+  specEdge: SpecEdgeResult;
+  /** Sludge vs Scale result – supplies annual cost-of-inaction figures */
+  sludgeVsScale: SludgeVsScaleResult;
+}
+
+/** The structured data object ready for PDF injection. */
+export interface SummaryDataPack {
+  /** Customer reference (derived from postcode) */
+  customerRef: string;
+  /** Total design heat load (kW, 1 d.p. string) */
+  totalHeatLoadKw: string;
+  /** MCS 003 room-by-room heat loss schedule */
+  heatLossSchedule: HeatLossScheduleEntry[];
+  /** Three commercial 'closing' insights for the design pack */
+  commercialInsights: CommercialInsight[];
+  /** Technical Bill of Materials */
+  bom: SurveyBomEntry[];
+  /** Maintenance ROI summary */
+  maintenanceROI: {
+    /** Years for a professional flush to pay back through restored efficiency */
+    paybackYears: string;
+    copy: string;
+  };
+}
