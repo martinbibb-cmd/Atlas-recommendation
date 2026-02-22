@@ -254,6 +254,105 @@ export interface FullEngineResult {
   legacyInfrastructure: LegacyInfrastructureResult;
 }
 
+// ─── Connected Insights V2.4 ──────────────────────────────────────────────────
+
+export type InsightProviderSource = 'octopus' | 'hive' | 'ovo' | 'manual' | 'dcc_link';
+export type InsightAuthType = 'api_key' | 'oauth_credential' | 'magic_link';
+export type SmartTariff = 'octopus_agile' | 'octopus_cosy' | 'standard_fixed';
+
+export interface ConnectedEngineInputV2_4 {
+  insightProvider: {
+    source: InsightProviderSource;
+    authType: InsightAuthType;
+    lastSynced: string; // ISO 8601
+  };
+  historicalData: {
+    /** Half-hourly gas consumption readings (kWh per half-hour slot) – Octopus/OVO API */
+    gasConsumptionHalfHourly?: number[];
+    /** Timestamped internal temperature readings from Hive thermostat */
+    internalTemperatureTelemetry?: { t: string; v: number }[];
+    /** Annual gas consumption from a manual bill entry (kWh) */
+    annualGasKwh?: number;
+  };
+  gridConstraints: {
+    smartTariff: SmartTariff;
+    hasSolarPV: boolean;
+    /** Enables "Hot Water Battery" logic for Mixergy Solar X integration */
+    mixergySolarX: boolean;
+  };
+}
+
+// ─── ConnectedInsightModule Outputs ───────────────────────────────────────────
+
+export interface ThermalDecayResult {
+  /** Thermal Time Constant τ (hours) – derived from Hive temperature history */
+  thermalTimeConstantHours: number;
+  /** Temperature drop rate when heating is off (°C/hr) */
+  coolingRateCPerHour: number;
+  /** External temperature used as baseline for the calculation (°C) */
+  referenceExternalTempC: number;
+  notes: string[];
+}
+
+export interface BaseloadIsolationResult {
+  /** Estimated annual DHW (domestic hot water) demand (kWh) */
+  estimatedDhwKwh: number;
+  /** Estimated annual space heating demand (kWh) */
+  estimatedSpaceHeatingKwh: number;
+  /** Number of detected combi ignition spikes (>19 kW peaks) */
+  highIntensitySpikeCount: number;
+  notes: string[];
+}
+
+export interface HalfHourSlot {
+  /** Half-hour index (0–47, where 0 = 00:00–00:30) */
+  slotIndex: number;
+  /** Pence per kWh for this slot */
+  pricePerKwhPence: number;
+}
+
+export interface DsrSavingsResult {
+  /** Estimated annual grid-import saving by shifting DHW to cheapest slots (kWh) */
+  annualLoadShiftSavingKwh: number;
+  /** Estimated annual saving in GBP from load shifting */
+  annualLoadShiftSavingGbp: number;
+  /** Additional saving from Mixergy Solar X battery effect (kWh), if enabled */
+  mixergySolarXSavingKwh: number;
+  /** Optimal daily half-hour slot index for DHW scheduling (0–47) */
+  optimalSlotIndex: number;
+  notes: string[];
+}
+
+export interface MagicLinkResult {
+  /** Secure one-time URL for read-only property data sharing */
+  url: string;
+  /** ISO 8601 expiration timestamp (24 hours from generation) */
+  expiresAt: string;
+  /** Unique token embedded in the URL */
+  token: string;
+}
+
+export interface ComparisonTrace {
+  /** Theoretical heat loss derived from building physics (kWh/year) */
+  theoreticalHeatLossKwh: number;
+  /** Measured consumption from provider data (kWh/year) */
+  measuredConsumptionKwh: number;
+  /** Gap between measured and theoretical (positive = worse than modelled) */
+  gapKwh: number;
+  /** Ratio of measured to theoretical (>1 means building underperforms model) */
+  ratio: number;
+}
+
+export interface ConnectedInsightResult {
+  /** 0.0–1.0 confidence score: 1.0 = half-hourly, 0.4 = manual bill */
+  dataConfidence: number;
+  thermalDecay?: ThermalDecayResult;
+  baseloadIsolation?: BaseloadIsolationResult;
+  dsrSavings?: DsrSavingsResult;
+  comparisonTrace: ComparisonTrace;
+  notes: string[];
+}
+
 // ─── Portfolio Analysis ───────────────────────────────────────────────────────
 
 export interface PortfolioProperty {
