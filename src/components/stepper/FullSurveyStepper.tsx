@@ -1,6 +1,17 @@
-import { useState } from 'react';
-import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
+import { useState, useMemo } from 'react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from 'recharts';
+import type { EngineInputV2_3, FullEngineResult, BuildingFabricType } from '../../engine/schema/EngineInputV2_3';
 import { runEngine } from '../../engine/Engine';
+import { runThermalInertiaModule } from '../../engine/modules/ThermalInertiaModule';
 import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
 import LifestyleInteractive from '../visualizers/LifestyleInteractive';
 import EfficiencyCurve from '../visualizers/EfficiencyCurve';
@@ -13,13 +24,61 @@ interface Props {
   onBack: () => void;
 }
 
-type Step = 'location' | 'building' | 'occupancy' | 'systems' | 'results';
-const STEPS: Step[] = ['location', 'building', 'occupancy', 'systems', 'results'];
+type Step = 'location' | 'hydraulic' | 'lifestyle' | 'commercial' | 'results';
+const STEPS: Step[] = ['location', 'hydraulic', 'lifestyle', 'commercial', 'results'];
+
+// Property archetype configuration: maps fabric type to display label, τ, and building mass
+const ARCHETYPES: Array<{
+  fabricType: BuildingFabricType;
+  label: string;
+  era: string;
+  tauHours: number;
+  buildingMass: EngineInputV2_3['buildingMass'];
+  description: string;
+  emoji: string;
+}> = [
+  {
+    fabricType: 'solid_brick_1930s',
+    label: '1930s Solid Brick Semi',
+    era: 'Pre-war',
+    tauHours: 55,
+    buildingMass: 'heavy',
+    description: '225mm solid brick walls. High thermal mass – slow to heat, but retains warmth all day.',
+    emoji: '🏚️',
+  },
+  {
+    fabricType: '1970s_cavity_wall',
+    label: '1970s Cavity Wall',
+    era: '1970s',
+    tauHours: 35,
+    buildingMass: 'medium',
+    description: 'Cavity wall with partial-fill insulation. Medium thermal storage – moderate response.',
+    emoji: '🏠',
+  },
+  {
+    fabricType: 'lightweight_new',
+    label: '2020s New Build',
+    era: 'Modern',
+    tauHours: 15,
+    buildingMass: 'light',
+    description: 'Timber frame / lightweight block. Low thermal mass – fast response but rapid cooling.',
+    emoji: '🏡',
+  },
+  {
+    fabricType: 'passivhaus_standard',
+    label: 'Passivhaus',
+    era: 'Super-insulated',
+    tauHours: 190.5,
+    buildingMass: 'light',
+    description: 'Super-insulated certified build. Exceptional thermal retention – ideal for heat pumps.',
+    emoji: '🌿',
+  },
+];
 
 const defaultInput: EngineInputV2_3 = {
   postcode: 'SW1A 1AA',
   dynamicMainsPressure: 2.0,
-  buildingMass: 'medium',
+  buildingMass: 'heavy',
   primaryPipeDiameter: 22,
   heatLossWatts: 8000,
   radiatorCount: 10,
@@ -29,18 +88,26 @@ const defaultInput: EngineInputV2_3 = {
   occupancySignature: 'professional',
   highOccupancy: false,
   preferCombi: false,
+  hasMagneticFilter: false,
+  installationPolicy: 'full_job',
+  dhwTankType: 'standard',
+  installerNetwork: 'british_gas',
 };
+
+type BoilerSelection = 'auto' | 'wb_8000plus' | 'vaillant';
 
 export default function FullSurveyStepper({ onBack }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('location');
   const [input, setInput] = useState<EngineInputV2_3>(defaultInput);
+  const [fabricType, setFabricType] = useState<BuildingFabricType>('solid_brick_1930s');
+  const [boilerSelection, setBoilerSelection] = useState<BoilerSelection>('auto');
   const [results, setResults] = useState<FullEngineResult | null>(null);
 
   const stepIndex = STEPS.indexOf(currentStep);
   const progress = ((stepIndex + 1) / STEPS.length) * 100;
 
   const next = () => {
-    if (currentStep === 'systems') {
+    if (currentStep === 'commercial') {
       setResults(runEngine(input));
       setCurrentStep('results');
     } else {
@@ -56,6 +123,8 @@ export default function FullSurveyStepper({ onBack }: Props) {
     }
   };
 
+  const selectedArchetype = ARCHETYPES.find(a => a.fabricType === fabricType) ?? ARCHETYPES[0];
+
   return (
     <div className="stepper-container">
       <div className="stepper-header">
@@ -68,11 +137,13 @@ export default function FullSurveyStepper({ onBack }: Props) {
 
       {currentStep === 'location' && (
         <div className="step-card">
-          <h2>📍 Location &amp; Water Quality</h2>
+          <h2>📍 Step 1: Geochemical &amp; Property Baseline</h2>
           <p className="description">
-            Your postcode determines water hardness and silicate levels, which drive
-            the 10-year "Silicate Tax" efficiency decay curve.
+            Your postcode anchors the simulation to local water chemistry. In Sherborne (DT9),
+            hardness reaches 364 ppm, triggering silicate-scaffolded scale modelling.
+            Your property archetype sets the Thermal Time Constant (τ).
           </p>
+
           <div className="form-grid">
             <div className="form-field">
               <label>Postcode</label>
@@ -80,7 +151,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
                 type="text"
                 value={input.postcode}
                 onChange={e => setInput({ ...input, postcode: e.target.value.toUpperCase() })}
-                placeholder="e.g. SW1A 1AA"
+                placeholder="e.g. BH1 1AA or DT9 3AQ"
               />
             </div>
             <div className="form-field">
@@ -95,40 +166,91 @@ export default function FullSurveyStepper({ onBack }: Props) {
               />
             </div>
           </div>
+
+          <div style={{ marginTop: '1.5rem' }}>
+            <label style={{ fontWeight: 600, display: 'block', marginBottom: '0.75rem' }}>
+              Property Archetype
+            </label>
+            <p style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '0.75rem' }}>
+              Select your property type to automatically assign the Thermal Time Constant (τ).
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem' }}>
+              {ARCHETYPES.map(arch => (
+                <button
+                  key={arch.fabricType}
+                  onClick={() => {
+                    setFabricType(arch.fabricType);
+                    setInput({ ...input, buildingMass: arch.buildingMass });
+                  }}
+                  style={{
+                    padding: '0.875rem',
+                    border: `2px solid ${fabricType === arch.fabricType ? '#3182ce' : '#e2e8f0'}`,
+                    borderRadius: '8px',
+                    background: fabricType === arch.fabricType ? '#ebf8ff' : '#fff',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{arch.emoji}</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.125rem' }}>{arch.label}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '0.5rem' }}>{arch.era}</div>
+                  <div style={{
+                    display: 'inline-block',
+                    background: fabricType === arch.fabricType ? '#3182ce' : '#edf2f7',
+                    color: fabricType === arch.fabricType ? '#fff' : '#4a5568',
+                    borderRadius: '4px',
+                    padding: '2px 8px',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                  }}>
+                    τ = {arch.tauHours}h
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.375rem', lineHeight: 1.3 }}>
+                    {arch.description}
+                  </div>
+                </button>
+              ))}
+            </div>
+            {fabricType && (
+              <div style={{
+                marginTop: '0.75rem',
+                padding: '0.75rem',
+                background: '#f0fff4',
+                border: '1px solid #9ae6b4',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                color: '#276749',
+              }}>
+                ✅ <strong>{selectedArchetype.label}</strong> selected — Thermal Time Constant τ = {selectedArchetype.tauHours} hours preset.
+              </div>
+            )}
+          </div>
+
           <div className="step-actions">
             <button className="next-btn" onClick={next}>Next →</button>
           </div>
         </div>
       )}
 
-      {currentStep === 'building' && (
+      {currentStep === 'hydraulic' && (
         <div className="step-card">
-          <h2>🏗️ Building Characteristics</h2>
+          <h2>🔧 Step 2: Hydraulic Integrity &amp; System Health</h2>
           <p className="description">
-            Building mass determines thermal inertia (τ) – how long the structure retains heat.
-            Heavy buildings are excellent thermal batteries for heat pump "low and slow" operation.
+            These data points power the British Gas HomeCare ROI calculation by identifying
+            existing system bottlenecks. A 15mm primary pipe flags "High Velocity Noise Risk"
+            for heat pumps. No magnetic filter applies a "Sludge Tax" (47% radiator output reduction).
           </p>
           <div className="form-grid">
-            <div className="form-field">
-              <label>Building Mass</label>
-              <select
-                value={input.buildingMass}
-                onChange={e => setInput({ ...input, buildingMass: e.target.value as EngineInputV2_3['buildingMass'] })}
-              >
-                <option value="light">Light (timber frame, modern)</option>
-                <option value="medium">Medium (standard brick cavity)</option>
-                <option value="heavy">Heavy (solid stone/Victorian brick)</option>
-              </select>
-            </div>
             <div className="form-field">
               <label>Primary Pipe Diameter (mm)</label>
               <select
                 value={input.primaryPipeDiameter}
                 onChange={e => setInput({ ...input, primaryPipeDiameter: +e.target.value })}
               >
-                <option value={15}>15mm</option>
+                <option value={15}>15mm ⚠️ High Velocity Noise Risk for heat pumps</option>
                 <option value={22}>22mm (standard)</option>
-                <option value={28}>28mm (large bore)</option>
+                <option value={28}>28mm (large bore – required for 19 kW+)</option>
               </select>
             </div>
             <div className="form-field">
@@ -171,6 +293,61 @@ export default function FullSurveyStepper({ onBack }: Props) {
               />
               <span>Loft conversion present</span>
             </label>
+            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+              <label>🧲 Magnetic Filter (Sludge Guard)</label>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  onClick={() => setInput({ ...input, hasMagneticFilter: true })}
+                  style={{
+                    flex: 1,
+                    padding: '0.625rem',
+                    border: `2px solid ${input.hasMagneticFilter ? '#38a169' : '#e2e8f0'}`,
+                    borderRadius: '6px',
+                    background: input.hasMagneticFilter ? '#f0fff4' : '#fff',
+                    cursor: 'pointer',
+                    fontWeight: input.hasMagneticFilter ? 700 : 400,
+                  }}
+                >
+                  ✅ Fitted – magnetite sludge captured
+                </button>
+                <button
+                  onClick={() => setInput({ ...input, hasMagneticFilter: false })}
+                  style={{
+                    flex: 1,
+                    padding: '0.625rem',
+                    border: `2px solid ${!input.hasMagneticFilter ? '#c53030' : '#e2e8f0'}`,
+                    borderRadius: '6px',
+                    background: !input.hasMagneticFilter ? '#fff5f5' : '#fff',
+                    cursor: 'pointer',
+                    fontWeight: !input.hasMagneticFilter ? 700 : 400,
+                  }}
+                >
+                  ❌ Not fitted – Sludge Tax applies (47% radiator loss)
+                </button>
+              </div>
+            </div>
+            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+              <label>Current Boiler / Heat Source</label>
+              <select
+                value={boilerSelection}
+                onChange={e => {
+                  const val = e.target.value as BoilerSelection;
+                  setBoilerSelection(val);
+                  const metallurgy = val === 'wb_8000plus' ? 'al_si' : val === 'vaillant' ? 'stainless_steel' : 'auto';
+                  setInput({ ...input, preferredMetallurgy: metallurgy });
+                }}
+              >
+                <option value="auto">Other / Unknown</option>
+                <option value="wb_8000plus">Worcester Bosch 8000+ Style (Al-Si heat exchanger)</option>
+                <option value="vaillant">Vaillant / Baxi / Other (stainless steel)</option>
+              </select>
+              {boilerSelection === 'wb_8000plus' && (
+                <p style={{ fontSize: '0.8rem', color: '#2b6cb0', marginTop: '0.375rem' }}>
+                  ℹ️ WB 8000+ "Softener Edge" logic active – checks Al-Si heat exchanger compatibility
+                  with your water softener.
+                </p>
+              )}
+            </div>
           </div>
           <div className="step-actions">
             <button className="prev-btn" onClick={prev}>← Back</button>
@@ -179,25 +356,129 @@ export default function FullSurveyStepper({ onBack }: Props) {
         </div>
       )}
 
-      {currentStep === 'occupancy' && (
+      {currentStep === 'lifestyle' && (
+        <LifestyleComfortStep
+          input={input}
+          fabricType={fabricType}
+          selectedArchetype={selectedArchetype}
+          setInput={setInput}
+          onNext={next}
+          onPrev={prev}
+        />
+      )}
+
+      {currentStep === 'commercial' && (
         <div className="step-card">
-          <h2>👥 Occupancy Profile</h2>
+          <h2>💼 Step 4: Commercial Strategy Selection</h2>
           <p className="description">
-            Your lifestyle pattern determines which heating technology wins. A professional's
-            sharp morning/evening peaks suit a fast-response boiler. Continuous occupancy
-            suits a heat pump's steady "horizon" line.
+            Choose your installation strategy to model the British Gas "Full Job" advantage.
+            A Full Job designs flow temperatures of 35–40°C, delivering SPF 3.8–4.4.
+            Adding a Mixergy Hot Water Battery unlocks a £40/year "Mixergy Extra" rebate
+            (British Gas customers) and a 21% gas saving via active stratification.
           </p>
           <div className="form-grid">
-            <div className="form-field">
-              <label>Occupancy Signature</label>
-              <select
-                value={input.occupancySignature}
-                onChange={e => setInput({ ...input, occupancySignature: e.target.value as EngineInputV2_3['occupancySignature'] })}
-              >
-                <option value="professional">Professional (double peak: morning + evening)</option>
-                <option value="steady_home">Steady Home (retired / family, continuous)</option>
-                <option value="shift_worker">Shift Worker (irregular, offset peaks)</option>
-              </select>
+            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+              <label>🏗️ Installation Policy</label>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  onClick={() => setInput({ ...input, installationPolicy: 'full_job' })}
+                  style={{
+                    flex: 1,
+                    padding: '0.875rem',
+                    border: `2px solid ${input.installationPolicy === 'full_job' ? '#3182ce' : '#e2e8f0'}`,
+                    borderRadius: '8px',
+                    background: input.installationPolicy === 'full_job' ? '#ebf8ff' : '#fff',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>✅ Full Job (British Gas)</div>
+                  <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
+                    New oversized Type 22 radiators · Design flow 35–40°C · SPF 3.8–4.4
+                  </div>
+                </button>
+                <button
+                  onClick={() => setInput({ ...input, installationPolicy: 'high_temp_retrofit' })}
+                  style={{
+                    flex: 1,
+                    padding: '0.875rem',
+                    border: `2px solid ${input.installationPolicy === 'high_temp_retrofit' ? '#c53030' : '#e2e8f0'}`,
+                    borderRadius: '8px',
+                    background: input.installationPolicy === 'high_temp_retrofit' ? '#fff5f5' : '#fff',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>⚡ Fast Fit (High Temp Retrofit)</div>
+                  <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
+                    Existing radiators retained · Design flow 50–55°C · SPF 2.9–3.1
+                  </div>
+                </button>
+              </div>
+            </div>
+            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+              <label>💧 Hot Water Storage</label>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  onClick={() => setInput({ ...input, dhwTankType: 'standard' })}
+                  style={{
+                    flex: 1,
+                    padding: '0.875rem',
+                    border: `2px solid ${input.dhwTankType !== 'mixergy' ? '#3182ce' : '#e2e8f0'}`,
+                    borderRadius: '8px',
+                    background: input.dhwTankType !== 'mixergy' ? '#ebf8ff' : '#fff',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>🫙 Standard Cylinder</div>
+                  <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
+                    Conventional stored hot water system
+                  </div>
+                </button>
+                <button
+                  onClick={() => setInput({ ...input, dhwTankType: 'mixergy' })}
+                  style={{
+                    flex: 1,
+                    padding: '0.875rem',
+                    border: `2px solid ${input.dhwTankType === 'mixergy' ? '#805ad5' : '#e2e8f0'}`,
+                    borderRadius: '8px',
+                    background: input.dhwTankType === 'mixergy' ? '#faf5ff' : '#fff',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>⚡ Mixergy Hot Water Battery</div>
+                  <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
+                    +21% gas saving · Active stratification · Top-down heating
+                  </div>
+                </button>
+              </div>
+              {input.dhwTankType === 'mixergy' && (
+                <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{
+                    padding: '0.625rem 0.875rem',
+                    background: '#faf5ff',
+                    border: '1px solid #d6bcfa',
+                    borderRadius: '6px',
+                    fontSize: '0.82rem',
+                    color: '#553c9a',
+                  }}>
+                    🎁 British Gas "Mixergy Extra" rebate: <strong>+£40/year</strong> for BG customers
+                    via active stratification load-shifting.
+                  </div>
+                  <div className="form-field">
+                    <label>Installer Network</label>
+                    <select
+                      value={input.installerNetwork ?? 'british_gas'}
+                      onChange={e => setInput({ ...input, installerNetwork: e.target.value as EngineInputV2_3['installerNetwork'] })}
+                    >
+                      <option value="british_gas">British Gas (£40/yr Mixergy Extra rebate)</option>
+                      <option value="independent">Independent Installer</option>
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="form-field">
               <label>Bathrooms</label>
@@ -222,29 +503,6 @@ export default function FullSurveyStepper({ onBack }: Props) {
           </div>
           <div className="step-actions">
             <button className="prev-btn" onClick={prev}>← Back</button>
-            <button className="next-btn" onClick={next}>Next →</button>
-          </div>
-        </div>
-      )}
-
-      {currentStep === 'systems' && (
-        <div className="step-card">
-          <h2>⚙️ Current System</h2>
-          <p className="description">
-            Tell us about any existing system preferences or constraints.
-          </p>
-          <div className="form-grid">
-            <label className="checkbox-field">
-              <input
-                type="checkbox"
-                checked={input.preferCombi}
-                onChange={e => setInput({ ...input, preferCombi: e.target.checked })}
-              />
-              <span>I prefer a combination boiler</span>
-            </label>
-          </div>
-          <div className="step-actions">
-            <button className="prev-btn" onClick={prev}>← Back</button>
             <button className="next-btn" onClick={next}>Run Analysis →</button>
           </div>
         </div>
@@ -253,6 +511,172 @@ export default function FullSurveyStepper({ onBack }: Props) {
       {currentStep === 'results' && results && (
         <FullSurveyResults results={results} onBack={onBack} />
       )}
+    </div>
+  );
+}
+
+// ─── Step 3: Lifestyle & Thermal Comfort ─────────────────────────────────────
+
+interface LifestyleStepProps {
+  input: EngineInputV2_3;
+  fabricType: BuildingFabricType;
+  selectedArchetype: { label: string; tauHours: number; fabricType: BuildingFabricType };
+  setInput: React.Dispatch<React.SetStateAction<EngineInputV2_3>>;
+  onNext: () => void;
+  onPrev: () => void;
+}
+
+function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, onNext, onPrev }: LifestyleStepProps) {
+  const thermalResult = useMemo(() => runThermalInertiaModule({
+    fabricType,
+    occupancyProfile: input.occupancySignature === 'steady_home' ? 'home_all_day' : 'professional',
+    initialTempC: 20,
+    outdoorTempC: 5,
+  }), [fabricType, input.occupancySignature]);
+
+  const dropWarning = thermalResult.totalDropC > 4;
+
+  return (
+    <div className="step-card">
+      <h2>🏠 Step 3: Lifestyle &amp; Thermal Comfort</h2>
+      <p className="description">
+        Your occupancy pattern determines which heating technology wins.
+        The exponential decay formula shows the predicted room temperature drop during
+        your absence. A drop of more than 4°C in 8 hours triggers fabric improvement recommendations.
+      </p>
+
+      <div className="form-grid">
+        <div className="form-field">
+          <label>Occupancy Signature</label>
+          <select
+            value={input.occupancySignature}
+            onChange={e => setInput({ ...input, occupancySignature: e.target.value as EngineInputV2_3['occupancySignature'] })}
+          >
+            <option value="professional">Professional (away 08:00–17:00)</option>
+            <option value="steady_home">Steady Home (retired / family, continuous)</option>
+            <option value="shift_worker">Shift Worker (irregular, offset peaks)</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Thermal Comfort Physics */}
+      <div style={{ marginTop: '1.25rem' }}>
+        <h4 style={{ marginBottom: '0.5rem', fontSize: '0.95rem', color: '#4a5568' }}>
+          🌡️ Comfort Physics – Predicted Temperature Decay
+        </h4>
+        <p style={{ fontSize: '0.82rem', color: '#718096', marginBottom: '0.75rem' }}>
+          T(t) = T<sub>outdoor</sub> + (T<sub>initial</sub> − T<sub>outdoor</sub>) × e<sup>−t/τ</sup>
+          &nbsp;— Building: <strong>{selectedArchetype.label}</strong> (τ = {selectedArchetype.tauHours}h)
+        </p>
+
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{
+            padding: '0.625rem 0.875rem',
+            background: '#f7fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+          }}>
+            <span style={{ color: '#718096' }}>Starting temp:</span> <strong>20°C</strong>
+          </div>
+          <div style={{
+            padding: '0.625rem 0.875rem',
+            background: '#f7fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+          }}>
+            <span style={{ color: '#718096' }}>Outdoor (design):</span> <strong>5°C</strong>
+          </div>
+          <div style={{
+            padding: '0.625rem 0.875rem',
+            background: '#f7fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+          }}>
+            <span style={{ color: '#718096' }}>After absence:</span>{' '}
+            <strong style={{ color: dropWarning ? '#c53030' : '#276749' }}>
+              {thermalResult.finalTempC}°C (↓{thermalResult.totalDropC}°C)
+            </strong>
+          </div>
+        </div>
+
+        <div style={{ height: 200 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={thermalResult.trace} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#edf2f7" />
+              <XAxis
+                dataKey="hourOffset"
+                tickFormatter={h => `+${h}h`}
+                tick={{ fontSize: 11 }}
+                label={{ value: 'Hours without heating', position: 'insideBottom', offset: -2, fontSize: 11 }}
+              />
+              <YAxis
+                domain={[0, 22]}
+                tick={{ fontSize: 11 }}
+                tickFormatter={v => `${v}°C`}
+              />
+              <Tooltip formatter={(v: number | undefined) => [v !== undefined ? `${v}°C` : 'N/A', 'Room temp']} />
+              <ReferenceLine y={16} stroke="#e53e3e" strokeDasharray="4 4" label={{ value: '16°C min', fontSize: 10, fill: '#e53e3e' }} />
+              <ReferenceLine
+                y={thermalResult.finalTempC}
+                stroke={dropWarning ? '#c53030' : '#38a169'}
+                strokeDasharray="3 3"
+              />
+              <Line
+                type="monotone"
+                dataKey="tempC"
+                stroke="#3182ce"
+                strokeWidth={2}
+                dot={false}
+                name="Room temperature"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {dropWarning && (
+          <div style={{
+            marginTop: '0.75rem',
+            padding: '0.625rem 0.875rem',
+            background: '#fff5f5',
+            border: '1px solid #fed7d7',
+            borderRadius: '6px',
+            fontSize: '0.82rem',
+            color: '#c53030',
+          }}>
+            ⚠️ Temperature drops <strong>{thermalResult.totalDropC}°C</strong> during absence (more than 4°C threshold).
+            The report will recommend fabric improvements (insulation upgrades) to reduce the reheat penalty.
+          </div>
+        )}
+
+        {!dropWarning && (
+          <div style={{
+            marginTop: '0.75rem',
+            padding: '0.625rem 0.875rem',
+            background: '#f0fff4',
+            border: '1px solid #9ae6b4',
+            borderRadius: '6px',
+            fontSize: '0.82rem',
+            color: '#276749',
+          }}>
+            ✅ Temperature drop of <strong>{thermalResult.totalDropC}°C</strong> is within the 4°C comfort threshold.
+            The thermal mass retains heat well during the away period.
+          </div>
+        )}
+
+        {thermalResult.notes.length > 0 && (
+          <ul className="notes-list" style={{ marginTop: '0.75rem' }}>
+            {thermalResult.notes.map((n, i) => <li key={i}>{n}</li>)}
+          </ul>
+        )}
+      </div>
+
+      <div className="step-actions">
+        <button className="prev-btn" onClick={onPrev}>← Back</button>
+        <button className="next-btn" onClick={onNext}>Next →</button>
+      </div>
     </div>
   );
 }
