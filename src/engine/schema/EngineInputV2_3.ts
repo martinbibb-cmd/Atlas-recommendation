@@ -69,6 +69,9 @@ export interface EngineInputV2_3 {
   // Spec edge
   unitModulationFloorKw?: number;
   dhwTankType?: DhwTankType;
+
+  // Grid flex
+  gridFlexInput?: GridFlexInput;
 }
 
 export interface HydraulicResult {
@@ -386,6 +389,7 @@ export interface FullEngineResult {
   metallurgyEdge: MetallurgyEdgeResult;
   mixergyLegacy: MixergyLegacyResult;
   specEdge: SpecEdgeResult;
+  gridFlex?: GridFlexResult;
 }
 
 // ─── Connected Insights V2.4 ──────────────────────────────────────────────────
