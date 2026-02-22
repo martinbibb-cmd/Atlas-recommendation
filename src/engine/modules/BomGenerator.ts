@@ -16,7 +16,7 @@ export function generateBom(
   const estimatedOccupants = input.bathroomCount * 2 + 1;
   const cylinderSizeL = Math.max(150, estimatedOccupants * 45);
 
-  if (!redFlags.rejectCombi && !input.preferCombi === false) {
+  if (!redFlags.rejectCombi && input.preferCombi) {
     // Combi route
     const combiKw = Math.ceil(input.heatLossWatts / 1000 / 5) * 5;
     items.push({
