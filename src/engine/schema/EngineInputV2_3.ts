@@ -190,6 +190,10 @@ export interface MaintenanceROIResult {
   flushPaybackYears: number | null;
   /** Human-readable sell message for the Hive HomeCare / British Gas subscription hook */
   message: string;
+  /** True when magnetite sludge is actively degrading radiator heat output (no magnetic filter) */
+  sluggishRadiatorActive: boolean;
+  /** Radiator heat output reduction (%) due to magnetite sludge – 47% when active, 0 otherwise */
+  radiatorHeatOutputReductionPct: number;
   notes: string[];
 }
 
@@ -783,5 +787,68 @@ export interface FullJobSPFResult {
    */
   annualSavingGbp: number | null;
   notes: string[];
+}
+
+// ─── Grid Flexibility & Solar X Module ───────────────────────────────────────
+
+export interface GridFlexInput {
+  /** Annual DHW energy demand to be shifted (kWh) */
+  dhwAnnualKwh: number;
+  /** Usable thermal storage capacity of the cylinder (kWh) */
+  cylinderCapacityKwh: number;
+  /** 48 half-hour Agile price slots for a representative day (p/kWh) */
+  agileSlots: HalfHourSlot[];
+  /** True if Mixergy Solar X diverter integration is enabled */
+  mixergySolarX: boolean;
+  /** Tank volume (litres) – 300L+ triggers enhanced 40% Solar X saving */
+  tankVolumeLitres?: number;
+  /** Estimated annual solar surplus available for DHW diversion (kWh) */
+  annualSolarSurplusKwh?: number;
+}
+
+export interface GridFlexResult {
+  /** Optimal half-hour slot index (0–47) for scheduling the daily DHW reheat */
+  optimalSlotIndex: number;
+  /** Price at the optimal slot (p/kWh) */
+  optimalSlotPricePence: number;
+  /** Daily average Agile price (p/kWh) across all 48 slots */
+  dailyAvgPricePence: number;
+  /** Estimated annual saving from shifting DHW load to the cheapest slot (GBP) */
+  annualLoadShiftSavingGbp: number;
+  /** Additional annual grid-import reduction from Mixergy Solar X (kWh) */
+  mixergySolarXSavingKwh: number;
+  /** Financial value of the Solar X grid-import reduction (GBP) at baseline tariff */
+  mixergySolarXSavingGbp: number;
+  /** Combined annual saving: load shift + Solar X (GBP) */
+  totalAnnualSavingGbp: number;
+  /** Cylinder charge fraction achievable from solar surplus alone (0–1) */
+  solarSelfConsumptionFraction: number;
+  notes: string[];
+}
+
+// ─── Multi-Tenant Theming ─────────────────────────────────────────────────────
+
+export type TenantId = 'bg' | 'octopus' | 'default';
+
+/**
+ * White-label tenant configuration for the Professional Portal.
+ *
+ *  - 'bg':      British Gas / Hive – prioritises Home Health Check,
+ *               WB 8000+ recommendations, and Maintenance ROI visualizer.
+ *  - 'octopus': Octopus Energy – prioritises Heat Pump SPF (Full Job vs.
+ *               Fast Fit) and the Hot Water Battery Agile savings chart.
+ *  - 'default': Neutral Atlas branding with no priority overrides.
+ */
+export interface TenantConfig {
+  tenantId: TenantId;
+  /** Display name shown in the portal header */
+  brandName: string;
+  /** Primary accent colour (CSS hex value) */
+  accentColor: string;
+  /**
+   * Ordered list of module IDs to surface as primary recommendations.
+   * Modules not listed are still available but de-prioritised.
+   */
+  priorityModules: string[];
 }
 
