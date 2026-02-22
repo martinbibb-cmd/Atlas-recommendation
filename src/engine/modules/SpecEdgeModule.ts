@@ -27,8 +27,8 @@ const VAILLANT_MODEL = 'Vaillant ecoTEC Exclusive';
 const VAILLANT_PREFERRED_HARDNESS = new Set(['soft', 'moderate']);
 
 const WB_SOFTENER_FLAG =
-  'Worcester Bosch heat exchangers are uniquely compatible with salt-water ' +
-  'softeners, providing superior scale protection without voiding warranties.';
+  'Worcester Bosch 8000 Series heat exchangers are uniquely compatible with salt-water ' +
+  'softeners for DHW protection, providing superior scale protection without voiding warranties.';
 
 // "Motorway Cruise" rule tolerance: heat loss must be within ±15% of the
 // unit's modulation floor to grant the Longevity Bonus.

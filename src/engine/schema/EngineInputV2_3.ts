@@ -132,6 +132,47 @@ export interface NormalizerOutput {
    * ceramic scaffold that is ~10× harder to remove than CaCO₃ alone.
    */
   scalingScaffoldCoefficient: number;
+  /**
+   * Sludge Potential (Primary circuit): 0–1 factor representing magnetite
+   * sludge risk linked to system age and piping topology.  At 1.0, full Baxi
+   * research impact applies: 47% radiator heat output reduction / 7% bill increase.
+   */
+  sludgePotential: number;
+  /**
+   * Scaling Potential (Secondary/DHW): 0–1 factor representing DHW heat-exchanger
+   * scale risk linked to postcode CaCO₃ hardness and silicate scaffold presence.
+   * Based on research: 8% efficiency drop for every 1 mm of scale accumulation.
+   */
+  scalingPotential: number;
+}
+
+// ─── Maintenance ROI ──────────────────────────────────────────────────────────
+
+export interface MaintenanceROIInput {
+  /** True if an inline magnetic filter is fitted on the primary return */
+  hasMagneticFilter: boolean;
+  /** CaCO₃ level from the Geochemical Normalizer (mg/L) – drives scale penalty */
+  cacO3LevelMgL: number;
+  /** True if a salt-based water softener is fitted (clears scale penalty) */
+  hasSoftener: boolean;
+  /** Annual gas spend (GBP) – used to monetise efficiency penalties */
+  annualGasSpendGbp: number;
+  /** True when the postcode overlies high-silica geology (London Basin / Thames Estuary) */
+  isHighSilica?: boolean;
+}
+
+export interface MaintenanceROIResult {
+  /** Annual cost due to magnetite sludge (GBP) – 0 when magnetic filter is fitted */
+  sludgePenaltyGbpPerYear: number;
+  /** Annual cost due to DHW scale (GBP) – 0 when softener is fitted or water is <200 ppm */
+  scalingPenaltyGbpPerYear: number;
+  /** Combined annualised Cost of Inaction (GBP/year) */
+  totalAnnualCostGbp: number;
+  /** Years for a £500 professional flush to pay back through restored efficiency (null if no cost) */
+  flushPaybackYears: number | null;
+  /** Human-readable sell message for the Hive HomeCare / British Gas subscription hook */
+  message: string;
+  notes: string[];
 }
 
 export interface RedFlagResult {
