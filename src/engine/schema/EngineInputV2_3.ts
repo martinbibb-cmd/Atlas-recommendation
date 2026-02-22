@@ -29,6 +29,23 @@ export interface EngineInputV2_3 {
 
   // Preferences
   preferCombi: boolean;
+
+  // Sludge vs Scale inputs
+  hasMagneticFilter?: boolean;
+  systemAgeYears?: number;
+  annualGasSpendGbp?: number;
+
+  // System optimization
+  installationPolicy?: InstallationPolicy;
+
+  // Metallurgy edge
+  hasSoftener?: boolean;
+  preferredMetallurgy?: HeatExchangerMetallurgy | 'auto';
+
+  // Mixergy legacy
+  hasIotIntegration?: boolean;
+  installerNetwork?: InstallerNetwork;
+  dhwStorageLitres?: number;
 }
 
 export interface HydraulicResult {
@@ -266,6 +283,10 @@ export interface FullEngineResult {
   redFlags: RedFlagResult;
   bomItems: BomItem[];
   legacyInfrastructure: LegacyInfrastructureResult;
+  sludgeVsScale: SludgeVsScaleResult;
+  systemOptimization: SystemOptimizationResult;
+  metallurgyEdge: MetallurgyEdgeResult;
+  mixergyLegacy: MixergyLegacyResult;
 }
 
 // ─── Connected Insights V2.4 ──────────────────────────────────────────────────
@@ -366,6 +387,113 @@ export interface ConnectedInsightResult {
   baseloadIsolation?: BaseloadIsolationResult;
   dsrSavings?: DsrSavingsResult;
   comparisonTrace: ComparisonTrace;
+  notes: string[];
+}
+
+// ─── Sludge vs Scale ─────────────────────────────────────────────────────────
+
+export type InstallationPolicy = 'full_job' | 'high_temp_retrofit';
+
+export interface SludgeVsScaleInput {
+  /** Piping topology of the primary circuit */
+  pipingTopology: PipingTopology;
+  /** True if an inline magnetic filter is fitted on the primary return */
+  hasMagneticFilter: boolean;
+  /** Water hardness category from the geochemical normalizer */
+  waterHardnessCategory: NormalizerOutput['waterHardnessCategory'];
+  /** Age of the system in years */
+  systemAgeYears: number;
+  /** Annual gas spend (GBP) – used to convert efficiency penalties into £/year */
+  annualGasSpendGbp?: number;
+}
+
+export interface SludgeVsScaleResult {
+  /** Primary circuit: magnetite sludge tax (% efficiency loss, 0 when not applicable) */
+  primarySludgeTaxPct: number;
+  /** DHW circuit: CaCO3/silicate scale penalty (% fuel increase for DHW only) */
+  dhwScalePenaltyPct: number;
+  /** Estimated scale thickness on DHW heat exchanger (mm) */
+  estimatedScaleThicknessMm: number;
+  /** Modelled DHW recovery latency increase due to scale (seconds per draw) */
+  dhwRecoveryLatencyIncreaseSec: number;
+  /** Annual cost attributed to primary sludge degradation (GBP, 0 if no gas spend) */
+  primarySludgeCostGbp: number;
+  /** Annual cost attributed to DHW scale degradation (GBP, 0 if no gas spend) */
+  dhwScaleCostGbp: number;
+  notes: string[];
+}
+
+// ─── System Optimization ──────────────────────────────────────────────────────
+
+export interface SystemOptimizationInput {
+  /** Installation policy – drives flow temperature and radiator sizing */
+  installationPolicy: InstallationPolicy;
+  /** Design heat loss of the property (W) */
+  heatLossWatts: number;
+  /** Number of radiators in the system */
+  radiatorCount: number;
+}
+
+export interface SystemOptimizationResult {
+  installationPolicy: InstallationPolicy;
+  /** Modelled design flow temperature (°C) */
+  designFlowTempC: number;
+  /** Seasonal Performance Factor range [min, max] */
+  spfRange: [number, number];
+  /** Midpoint SPF for single-figure display */
+  spfMidpoint: number;
+  /** Radiator type recommended/assumed for this policy */
+  radiatorType: string;
+  /** True when the policy unlocks condensing mode (return < 55 °C) */
+  condensingModeAvailable: boolean;
+  notes: string[];
+}
+
+// ─── Metallurgy Edge ─────────────────────────────────────────────────────────
+
+export type HeatExchangerMetallurgy = 'al_si' | 'stainless_steel';
+
+export interface MetallurgyEdgeInput {
+  /** True if a salt-based water softener is fitted on the domestic side */
+  hasSoftener: boolean;
+  /** Water hardness category (for scale risk context) */
+  waterHardnessCategory: NormalizerOutput['waterHardnessCategory'];
+  /** Preferred metallurgy or 'auto' for engine recommendation */
+  preferredMetallurgy?: HeatExchangerMetallurgy | 'auto';
+}
+
+export interface MetallurgyEdgeResult {
+  /** Recommended heat exchanger metallurgy for this property */
+  recommendedMetallurgy: HeatExchangerMetallurgy;
+  /** True when WB 8000+ is boosted due to softener compatibility */
+  wbSoftenerEdgeActive: boolean;
+  /** Primary reason for the recommendation */
+  recommendationReason: string;
+  /** Human-readable flag for the installer – populated when softener edge is active */
+  softenerCompatibilityFlag?: string;
+  notes: string[];
+}
+
+// ─── Mixergy Legacy ───────────────────────────────────────────────────────────
+
+export type InstallerNetwork = 'british_gas' | 'independent';
+
+export interface MixergyLegacyInput {
+  /** Whether the property already has an IoT-capable thermostat / hub */
+  hasIotIntegration: boolean;
+  /** Installer network – drives BG-exclusivity logic */
+  installerNetwork: InstallerNetwork;
+  /** DHW storage volume (litres) */
+  dhwStorageLitres: number;
+}
+
+export interface MixergyLegacyResult {
+  /** True when BG exclusive-install terms apply */
+  bgExclusivityActive: boolean;
+  /** IoT capability tier unlocked for this configuration */
+  iotTier: 'none' | 'basic' | 'full';
+  /** Estimated annual DHW saving versus a conventional cylinder (kWh) */
+  estimatedAnnualSavingKwh: number;
   notes: string[];
 }
 

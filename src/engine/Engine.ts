@@ -7,6 +7,10 @@ import { runLifestyleSimulationModule } from './modules/LifestyleSimulationModul
 import { runRedFlagModule } from './modules/RedFlagModule';
 import { generateBom } from './modules/BomGenerator';
 import { runLegacyInfrastructureModule } from './modules/LegacyInfrastructureModule';
+import { runSludgeVsScaleModule } from './modules/SludgeVsScaleModule';
+import { runSystemOptimizationModule } from './modules/SystemOptimizationModule';
+import { runMetallurgyEdgeModule } from './modules/MetallurgyEdgeModule';
+import { runMixergyLegacyModule } from './modules/MixergyLegacyModule';
 
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const normalizer = normalizeInput(input);
@@ -18,5 +22,44 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const bomItems = generateBom(input, hydraulic, redFlags);
   const legacyInfrastructure = runLegacyInfrastructureModule(input);
 
-  return { hydraulic, combiStress, mixergy, lifestyle, normalizer, redFlags, bomItems, legacyInfrastructure };
+  const sludgeVsScale = runSludgeVsScaleModule({
+    pipingTopology: input.pipingTopology ?? 'two_pipe',
+    hasMagneticFilter: input.hasMagneticFilter ?? false,
+    waterHardnessCategory: normalizer.waterHardnessCategory,
+    systemAgeYears: input.systemAgeYears ?? 0,
+    annualGasSpendGbp: input.annualGasSpendGbp,
+  });
+
+  const systemOptimization = runSystemOptimizationModule({
+    installationPolicy: input.installationPolicy ?? 'high_temp_retrofit',
+    heatLossWatts: input.heatLossWatts,
+    radiatorCount: input.radiatorCount,
+  });
+
+  const metallurgyEdge = runMetallurgyEdgeModule({
+    hasSoftener: input.hasSoftener ?? false,
+    waterHardnessCategory: normalizer.waterHardnessCategory,
+    preferredMetallurgy: input.preferredMetallurgy,
+  });
+
+  const mixergyLegacy = runMixergyLegacyModule({
+    hasIotIntegration: input.hasIotIntegration ?? false,
+    installerNetwork: input.installerNetwork ?? 'independent',
+    dhwStorageLitres: input.dhwStorageLitres ?? 150,
+  });
+
+  return {
+    hydraulic,
+    combiStress,
+    mixergy,
+    lifestyle,
+    normalizer,
+    redFlags,
+    bomItems,
+    legacyInfrastructure,
+    sludgeVsScale,
+    systemOptimization,
+    metallurgyEdge,
+    mixergyLegacy,
+  };
 }
