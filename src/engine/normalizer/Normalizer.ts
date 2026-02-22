@@ -14,6 +14,8 @@ const HARD_WATER_PREFIXES = [
   'LN',
   // Midlands
   'B', 'WV', 'CV', 'DY',
+  // Dorset / Bournemouth: Jurassic limestone / Upper Chalk aquifer
+  'BH',
 ];
 
 const VERY_HARD_PREFIXES = [
@@ -61,6 +63,9 @@ const HIGH_SILICA_PREFIXES = [
   'BR', 'CR', 'DA', 'EN', 'HA', 'IG', 'KT', 'RM', 'SM', 'TW', 'UB', 'WD',
   // Essex Thames plain
   'SS', 'CM', 'CO',
+  // Dorset Chalk / Jurassic limestone: BH (Bournemouth) and DT (Dorset) postcodes
+  // overlie the same reactive-silicate aquifer as the London Basin
+  'BH', 'DT',
 ];
 
 function getPostcodePrefix(postcode: string): string {
@@ -159,5 +164,7 @@ export function normalizeInput(input: EngineInputV2_3): NormalizerOutput {
     scalingScaffoldCoefficient,
     sludgePotential,
     scalingPotential,
+    primarySludgeRisk: sludgePotential,
+    secondaryScaleRisk: scalingPotential,
   };
 }

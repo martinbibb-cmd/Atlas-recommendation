@@ -33,6 +33,32 @@ const DHW_LATENCY_SEC_PER_MM = 18;
 // Non-two-pipe topologies where primary sludge is the dominant stressor
 const LEGACY_TOPOLOGIES = new Set(['one_pipe', 'microbore']);
 
+// ─── Standalone penalty helper ────────────────────────────────────────────────
+
+/**
+ * calculateSludgePenalty
+ *
+ * Standalone primary-circuit sludge efficiency penalty (% efficiency loss).
+ *
+ * Physics: magnetite particles settle in radiators when the system water is not
+ * refreshed.  Without a magnetic filter to capture them, accumulation is linear
+ * with system age.  At 0.5 % per year the penalty reaches the 15 % cap after
+ * 30 years – conservative versus the Baxi/HHIC research upper bound of 47 %
+ * radiator heat-output loss in severely neglected systems.
+ *
+ * @param hasMagneticFilter  True if an inline magnetic filter is fitted on the
+ *                           primary return (e.g. Fernox TF1, Magnaclean).
+ * @param systemAgeYears     Age of the heating system in years.
+ * @returns                  Efficiency penalty as a percentage (0–15).
+ */
+export function calculateSludgePenalty(
+  hasMagneticFilter: boolean,
+  systemAgeYears: number,
+): number {
+  if (hasMagneticFilter) return 0;
+  return parseFloat(Math.min(15, systemAgeYears * 0.5).toFixed(1));
+}
+
 // ─── Main Module ──────────────────────────────────────────────────────────────
 
 /**
