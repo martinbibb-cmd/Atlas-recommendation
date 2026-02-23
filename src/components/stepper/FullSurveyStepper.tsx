@@ -17,6 +17,7 @@ import { runEngine } from '../../engine/Engine';
 import { runThermalInertiaModule } from '../../engine/modules/ThermalInertiaModule';
 import { calcFlowLpm, PIPE_THRESHOLDS } from '../../engine/modules/HydraulicModule';
 import { runCombiDhwModuleV1 } from '../../engine/modules/CombiDhwModule';
+import { analysePressure } from '../../engine/modules/PressureModule';
 import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
 import LifestyleInteractive from '../visualizers/LifestyleInteractive';
 import EfficiencyCurve from '../visualizers/EfficiencyCurve';
@@ -30,8 +31,8 @@ interface Props {
   onBack: () => void;
 }
 
-type Step = 'location' | 'hydraulic' | 'lifestyle' | 'hot_water' | 'commercial' | 'results';
-const STEPS: Step[] = ['location', 'hydraulic', 'lifestyle', 'hot_water', 'commercial', 'results'];
+type Step = 'location' | 'pressure' | 'hydraulic' | 'lifestyle' | 'hot_water' | 'commercial' | 'results';
+const STEPS: Step[] = ['location', 'pressure', 'hydraulic', 'lifestyle', 'hot_water', 'commercial', 'results'];
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
 // Physical levers that drive τ derivation — replaces era-label archetype cards.
@@ -108,6 +109,37 @@ function buildDecayTrace(tauHours: number, initialTempC = 20, outdoorTempC = 5) 
 /** Recharts tooltip formatter for temperature traces. */
 function tempTooltipFormatter(v: number | undefined): [string, string] {
   return [v !== undefined ? `${v}°C` : 'N/A', 'Room temp'];
+}
+
+// ─── Pressure Behaviour Helpers ──────────────────────────────────────────────
+
+const DROP_QUALITY_COLOUR: Record<'strong' | 'moderate' | 'weak', string> = {
+  strong:   '#38a169',
+  moderate: '#d69e2e',
+  weak:     '#c53030',
+};
+const DROP_QUALITY_LABEL: Record<'strong' | 'moderate' | 'weak', string> = {
+  strong:   'Strong supply',
+  moderate: 'Moderate restriction',
+  weak:     'Significant restriction',
+};
+
+function unventedSuitability(dynamicBar: number): { label: string; colour: string; note: string } {
+  if (dynamicBar >= 1.5) return {
+    label:  '✅ Suitable for unvented',
+    colour: '#38a169',
+    note:   'Dynamic pressure ≥ 1.5 bar — adequate for unvented cylinder.',
+  };
+  if (dynamicBar >= 1.0) return {
+    label:  '⚠️ Marginal',
+    colour: '#d69e2e',
+    note:   'Dynamic 1.0–1.5 bar — check installer spec; PRV or booster may be needed.',
+  };
+  return {
+    label:  '❌ Not suitable',
+    colour: '#c53030',
+    note:   'Dynamic < 1.0 bar — combi lock-out risk; unvented cylinder excluded.',
+  };
 }
 
 // ─── DHW Behaviour Helpers ───────────────────────────────────────────────────
@@ -246,6 +278,15 @@ export default function FullSurveyStepper({ onBack }: Props) {
     [input.bathroomCount, input.peakConcurrentOutlets, input.highOccupancy],
   );
 
+  // ── Pressure derived values ─────────────────────────────────────────────────
+  const pressureAnalysis = useMemo(
+    () => analysePressure(
+      input.dynamicMainsPressureBar ?? input.dynamicMainsPressure,
+      input.staticMainsPressureBar,
+    ),
+    [input.dynamicMainsPressure, input.dynamicMainsPressureBar, input.staticMainsPressureBar],
+  );
+
   const stepIndex = STEPS.indexOf(currentStep);
   const progress = ((stepIndex + 1) / STEPS.length) * 100;
 
@@ -297,17 +338,6 @@ export default function FullSurveyStepper({ onBack }: Props) {
                 value={input.postcode}
                 onChange={e => setInput({ ...input, postcode: e.target.value.toUpperCase() })}
                 placeholder="e.g. BH1 1AA or DT9 3AQ"
-              />
-            </div>
-            <div className="form-field">
-              <label>Dynamic Mains Pressure (bar)</label>
-              <input
-                type="number"
-                min={0.5}
-                max={6}
-                step={0.5}
-                value={input.dynamicMainsPressure}
-                onChange={e => setInput({ ...input, dynamicMainsPressure: +e.target.value })}
               />
             </div>
           </div>
@@ -514,9 +544,203 @@ export default function FullSurveyStepper({ onBack }: Props) {
         </div>
       )}
 
+      {currentStep === 'pressure' && (
+        <div className="step-card">
+          <h2>💧 Step 2: Mains Supply Pressure</h2>
+          <p className="description">
+            Dynamic pressure alone is a single number with no context. The drop between static
+            (no flow) and dynamic (under flow) reveals pipe restriction and shared-mains weakness.
+            Enter both readings for a full classification — or dynamic only for a low-confidence
+            estimate.
+          </p>
+
+          {/* ─── Physics levers + live panel ─────────────────────────────── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start' }}>
+
+            {/* Left: controls */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+              {/* Static pressure */}
+              <div className="form-field">
+                <label style={{ fontWeight: 600, fontSize: '0.88rem', color: '#4a5568' }}>
+                  Static pressure (bar) — no flow
+                </label>
+                <input
+                  type="number"
+                  min={0.5}
+                  max={8}
+                  step={0.1}
+                  value={input.staticMainsPressureBar ?? ''}
+                  placeholder="e.g. 3.5 — optional"
+                  onChange={e => setInput({
+                    ...input,
+                    staticMainsPressureBar: e.target.value ? +e.target.value : undefined,
+                  })}
+                  style={{ marginTop: '0.4rem' }}
+                />
+                <div style={{ fontSize: '0.75rem', color: '#a0aec0', marginTop: '0.25rem' }}>
+                  Measured with all taps closed. Leave blank if not taken.
+                </div>
+              </div>
+
+              {/* Dynamic pressure */}
+              <div className="form-field">
+                <label style={{ fontWeight: 600, fontSize: '0.88rem', color: '#4a5568' }}>
+                  Dynamic pressure (bar) — under flow
+                </label>
+                <input
+                  type="number"
+                  min={0.1}
+                  max={8}
+                  step={0.1}
+                  value={input.dynamicMainsPressure}
+                  onChange={e => setInput({
+                    ...input,
+                    dynamicMainsPressure: +e.target.value,
+                    dynamicMainsPressureBar: +e.target.value,
+                  })}
+                  style={{ marginTop: '0.4rem' }}
+                />
+                <div style={{ fontSize: '0.75rem', color: '#a0aec0', marginTop: '0.25rem' }}>
+                  Measured with the cold tap running at full bore.
+                </div>
+              </div>
+
+              {/* Low-confidence notice */}
+              {input.staticMainsPressureBar == null && (
+                <div style={{
+                  padding: '0.5rem 0.75rem',
+                  background: '#fffff0',
+                  border: '1px solid #faf089',
+                  borderLeft: '4px solid #d69e2e',
+                  borderRadius: '4px',
+                  fontSize: '0.8rem',
+                  color: '#744210',
+                }}>
+                  ℹ️ Static pressure not entered — drop classification and supply quality unavailable.
+                  Confidence: <strong>low</strong>.
+                </div>
+              )}
+            </div>
+
+            {/* Right: live response panel */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+
+              {/* Static → Dynamic arrow gauge */}
+              <div style={{
+                padding: '1rem',
+                background: '#f7fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+              }}>
+                <div style={{ fontSize: '0.75rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.75rem' }}>
+                  Supply pressure
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  {/* Static */}
+                  <div style={{ textAlign: 'center', flex: 1 }}>
+                    <div style={{ fontSize: '0.72rem', color: '#a0aec0', marginBottom: '0.2rem' }}>Static</div>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 800, color: input.staticMainsPressureBar != null ? '#1a365d' : '#cbd5e0', lineHeight: 1 }}>
+                      {input.staticMainsPressureBar != null ? `${input.staticMainsPressureBar.toFixed(1)}` : '—'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#718096' }}>bar</div>
+                  </div>
+                  {/* Arrow */}
+                  <div style={{ fontSize: '1.4rem', color: '#a0aec0' }}>→</div>
+                  {/* Dynamic */}
+                  <div style={{ textAlign: 'center', flex: 1 }}>
+                    <div style={{ fontSize: '0.72rem', color: '#a0aec0', marginBottom: '0.2rem' }}>Dynamic</div>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1a365d', lineHeight: 1 }}>
+                      {input.dynamicMainsPressure.toFixed(1)}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#718096' }}>bar</div>
+                  </div>
+                </div>
+                {/* Drop line */}
+                {pressureAnalysis.dropBar != null && pressureAnalysis.quality != null && (
+                  <div style={{
+                    marginTop: '0.75rem',
+                    paddingTop: '0.6rem',
+                    borderTop: '1px solid #e2e8f0',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '0.85rem',
+                  }}>
+                    <span style={{ color: '#718096' }}>
+                      Drop: <strong>{pressureAnalysis.dropBar.toFixed(1)} bar</strong>
+                    </span>
+                    <span style={{
+                      padding: '0.2rem 0.55rem',
+                      background: DROP_QUALITY_COLOUR[pressureAnalysis.quality],
+                      color: '#fff',
+                      borderRadius: '4px',
+                      fontWeight: 700,
+                      fontSize: '0.78rem',
+                    }}>
+                      {DROP_QUALITY_LABEL[pressureAnalysis.quality]}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Drop bar visual */}
+              {pressureAnalysis.dropBar != null && pressureAnalysis.quality != null && (
+                <div style={{ padding: '0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#718096', marginBottom: '0.4rem' }}>
+                    Pressure drop — threshold bands
+                  </div>
+                  {/* Bar track: 0 to 2 bar */}
+                  <div style={{ position: 'relative', background: '#e2e8f0', borderRadius: '4px', height: '12px' }}>
+                    {/* Filled drop portion */}
+                    <div style={{
+                      width: `${Math.min((pressureAnalysis.dropBar / 2) * 100, 100)}%`,
+                      background: DROP_QUALITY_COLOUR[pressureAnalysis.quality],
+                      height: '100%', borderRadius: '4px', transition: 'width 0.2s',
+                    }} />
+                    {/* 0.5 bar marker */}
+                    <div style={{ position: 'absolute', left: '25%', top: '-4px', bottom: '-4px', width: '2px', background: '#d69e2e' }} />
+                    {/* 1.0 bar marker */}
+                    <div style={{ position: 'absolute', left: '50%', top: '-4px', bottom: '-4px', width: '2px', background: '#c53030' }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#a0aec0', marginTop: '0.25rem' }}>
+                    <span>0</span><span>0.5 strong</span><span>1.0 weak</span><span>2.0 bar</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Unvented suitability indicator */}
+              {(() => {
+                const suit = unventedSuitability(input.dynamicMainsPressure);
+                return (
+                  <div style={{
+                    padding: '0.6rem 0.875rem',
+                    background: '#f7fafc',
+                    borderLeft: `4px solid ${suit.colour}`,
+                    border: `1px solid ${suit.colour}44`,
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                  }}>
+                    <div style={{ fontWeight: 700, color: suit.colour, marginBottom: '0.2rem' }}>
+                      {suit.label}
+                    </div>
+                    <div style={{ color: '#4a5568' }}>{suit.note}</div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          <div className="step-actions">
+            <button className="prev-btn" onClick={prev}>← Back</button>
+            <button className="next-btn" onClick={next}>Next →</button>
+          </div>
+        </div>
+      )}
+
       {currentStep === 'hydraulic' && (
         <div className="step-card">
-          <h2>🔧 Step 2: Hydraulic Integrity</h2>
+          <h2>🔧 Step 3: Hydraulic Integrity</h2>
           <p className="description">
             Pipe size sets the flow rate ceiling. An ASHP operates at ΔT 5°C — four times
             the flow of a boiler at ΔT 20°C. Adjust the controls to see where your circuit
@@ -845,7 +1069,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
 
       {currentStep === 'hot_water' && (
         <div className="step-card">
-          <h2>🚿 Step 4: Hot Water Demand</h2>
+          <h2>🚿 Step 5: Hot Water Demand</h2>
           <p className="description">
             A combi boiler delivers one outlet at a time. Two simultaneous draws, two bathrooms,
             or continuous-occupancy patterns all break that constraint. Adjust the controls —
@@ -1058,7 +1282,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
 
       {currentStep === 'commercial' && (
         <div className="step-card">
-          <h2>💼 Step 5: Commercial Strategy Selection</h2>
+          <h2>💼 Step 6: Commercial Strategy Selection</h2>
           <p className="description">
             Choose your installation strategy to model the British Gas "Full Job" advantage.
             A Full Job designs flow temperatures of 35–40°C, delivering SPF 3.8–4.4.
@@ -1324,7 +1548,7 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
 
   return (
     <div className="step-card">
-      <h2>🏠 Step 3: Lifestyle &amp; Thermal Comfort</h2>
+      <h2>🏠 Step 4: Lifestyle &amp; Thermal Comfort</h2>
       <p className="description">
         Your occupancy pattern determines which heating technology wins.
         The exponential decay formula shows the predicted room temperature drop during
