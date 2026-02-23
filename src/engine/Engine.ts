@@ -94,6 +94,6 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     gridFlex,
   };
 
-  const engineOutput = buildEngineOutputV1(core);
+  const engineOutput = buildEngineOutputV1(core, input);
   return { ...core, engineOutput };
 }

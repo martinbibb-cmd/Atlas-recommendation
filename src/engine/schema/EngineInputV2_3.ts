@@ -43,12 +43,20 @@ export interface EngineInputV2_3 {
   bathroomCount: number;
   /** Number of people regularly resident – used for stored DHW sizing. */
   occupancyCount?: number;
+  /** Number of bedrooms – used for context summary narrative. */
+  bedrooms?: number;
   occupancySignature: OccupancySignature;
   highOccupancy: boolean;
   /** Peak simultaneous DHW outlets (e.g. 1 = single shower, 2 = shower + basin). */
   peakConcurrentOutlets?: number;
   /** Cylinder / airing-cupboard space availability. */
   availableSpace?: 'tight' | 'ok' | 'unknown';
+
+  // Future works (for context summary and feasibility notes)
+  /** Whether a loft conversion is planned or completed. */
+  futureLoftConversion?: boolean;
+  /** Whether an additional bathroom is planned. */
+  futureAddBathroom?: boolean;
 
   // Preferences
   preferCombi: boolean;
