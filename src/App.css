@@ -692,3 +692,156 @@ body {
   margin-bottom: 0.25rem;
   line-height: 1.5;
 }
+
+/* ── Dual Cockpit UX ───────────────────────────────────────────── */
+.cockpit-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 2rem;
+}
+
+.input-cockpit-layout {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 1rem;
+}
+
+.cockpit-group {
+  margin-bottom: 1.25rem;
+}
+
+.cockpit-group h3 {
+  font-size: 1rem;
+  margin-bottom: 0.65rem;
+  color: #2d3748;
+}
+
+.instrument-panel {
+  position: sticky;
+  top: 0.75rem;
+  height: fit-content;
+}
+
+.instrument-light {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem;
+  border-radius: 10px;
+  margin-bottom: 0.6rem;
+  font-weight: 700;
+}
+
+.instrument-light--pass { background: #f0fff4; border: 1px solid #9ae6b4; }
+.instrument-light--warn { background: #fffaf0; border: 1px solid #f6ad55; }
+.instrument-light--fail { background: #fff5f5; border: 1px solid #fc8181; }
+
+.instrument-unknowns {
+  margin-top: 1rem;
+  background: #f7fafc;
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.instrument-unknowns ul {
+  margin: 0.4rem 0 0 1rem;
+}
+
+.simulation-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 32, 44, 0.5);
+  display: grid;
+  place-items: center;
+  z-index: 30;
+}
+
+.simulation-panel {
+  width: min(620px, 90vw);
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+}
+
+.simulation-panel ul {
+  margin: 0.75rem 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.results-cockpit-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1rem;
+}
+
+.options-list-sticky {
+  position: sticky;
+  top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.option-select {
+  width: 100%;
+  text-align: left;
+  border-radius: 10px;
+  border: 2px solid #e2e8f0;
+  padding: 0.75rem;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+}
+
+.option-select--active {
+  box-shadow: 0 0 0 2px #3182ce;
+}
+
+.dashboard-panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1rem;
+}
+
+.dashboard-block {
+  border-top: 1px solid #edf2f7;
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.dashboard-block ul {
+  margin: 0.35rem 0 0 1rem;
+}
+
+.option--viable { border-color: #48bb78; }
+.option--caution { border-color: #ed8936; }
+.option--rejected { border-color: #fc8181; }
+
+@media (max-width: 900px) {
+  .input-cockpit-layout,
+  .results-cockpit-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .instrument-panel,
+  .options-list-sticky {
+    position: static;
+  }
+
+  .options-list-sticky {
+    overflow-x: auto;
+    flex-direction: row;
+    padding-bottom: 0.3rem;
+  }
+
+  .option-select {
+    min-width: 230px;
+  }
+}
