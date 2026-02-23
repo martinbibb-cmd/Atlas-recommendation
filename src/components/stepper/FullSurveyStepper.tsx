@@ -1877,6 +1877,67 @@ export default function FullSurveyStepper({ onBack }: Props) {
   );
 }
 
+// ─── Lifestyle Reheat Live Analysis ──────────────────────────────────────────
+
+interface LifestyleReheat {
+  boostMinutes: number;
+  reheatRisk: RiskLevel;
+  ashpSuit: RiskLevel;
+  systemMatch: Array<{ label: string; fit: 'best' | 'ok' | 'poor' }>;
+}
+
+/**
+ * Estimates reheat demand and occupancy–system fit.
+ *
+ * Boost time:
+ *   4 min per °C drop (empirical: reasonably-sized UK condensing boiler).
+ *
+ * ASHP suitability:
+ *   ASHP thrives on continuous low-temp operation (steady_home).
+ *   Long cold-start absences (professional) or erratic patterns
+ *   (shift_worker) reduce efficiency and comfort → warn.
+ *
+ * System match ordering varies by occupancy:
+ *   professional  → fast warm-up systems first (combi / stored with timer)
+ *   steady_home   → continuous low-temp first (ASHP)
+ *   shift_worker  → flexible stored systems first
+ */
+function deriveLifestyleReheat(
+  totalDropC: number,
+  occupancySignature: string,
+): LifestyleReheat {
+  const boostMinutes = Math.round(totalDropC * 4);
+
+  const reheatRisk: RiskLevel =
+    boostMinutes > 90 ? 'fail' :
+    boostMinutes > 45 ? 'warn' : 'pass';
+
+  const ashpSuit: RiskLevel = occupancySignature === 'steady_home' ? 'pass' : 'warn';
+
+  type Fit = 'best' | 'ok' | 'poor';
+  const MATCH: Record<string, Array<{ label: string; fit: Fit }>> = {
+    professional: [
+      { label: 'Combi',         fit: 'best' },
+      { label: 'Stored + timer', fit: 'ok'   },
+      { label: 'ASHP',          fit: 'poor'  },
+    ],
+    steady_home: [
+      { label: 'ASHP',          fit: 'best' },
+      { label: 'Stored',        fit: 'ok'   },
+      { label: 'Combi',         fit: 'ok'   },
+    ],
+    shift_worker: [
+      { label: 'Stored',        fit: 'best' },
+      { label: 'Combi',         fit: 'ok'   },
+      { label: 'ASHP + smart',  fit: 'poor' },
+    ],
+  };
+
+  const systemMatch = MATCH[occupancySignature] ?? MATCH['professional'];
+
+  return { boostMinutes, reheatRisk, ashpSuit, systemMatch };
+}
+
 // ─── Step 3: Lifestyle & Thermal Comfort ─────────────────────────────────────
 
 interface LifestyleStepProps {
@@ -1897,6 +1958,11 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
   }), [fabricType, input.occupancySignature]);
 
   const dropWarning = thermalResult.totalDropC > 4;
+
+  const lifestyleReheat = useMemo(
+    () => deriveLifestyleReheat(thermalResult.totalDropC, input.occupancySignature),
+    [thermalResult.totalDropC, input.occupancySignature],
+  );
 
   return (
     <div className="step-card">
@@ -2033,6 +2099,101 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
             {thermalResult.notes.map((n, i) => <li key={i}>{n}</li>)}
           </ul>
         )}
+      </div>
+
+      {/* ─── Reheat & System Match ──────────────────────────────────────── */}
+      <div style={{ marginTop: '1.25rem' }}>
+        <h4 style={{ marginBottom: '0.625rem', fontSize: '0.95rem', color: '#4a5568' }}>
+          🔁 Reheat Demand &amp; System Match
+        </h4>
+        <p style={{ fontSize: '0.82rem', color: '#718096', marginBottom: '0.75rem' }}>
+          A cold-start reheat uses ≈ 4 min per °C of drop.
+          The occupancy pattern also determines which system type can deliver comfort reliably.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'start' }}>
+
+          {/* Left: reheat metrics */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+
+            {/* Boost time */}
+            <div style={{
+              padding: '0.6rem 0.75rem',
+              background: CELL_BG[lifestyleReheat.reheatRisk],
+              border: `1.5px solid ${CELL_BORDER[lifestyleReheat.reheatRisk]}`,
+              borderRadius: '8px',
+            }}>
+              <div style={{ fontSize: '0.68rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '0.1rem' }}>
+                Reheat boost
+              </div>
+              <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#2d3748', lineHeight: 1 }}>
+                ~{lifestyleReheat.boostMinutes} min
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#718096', marginTop: '0.15rem' }}>
+                {RISK_LABEL[lifestyleReheat.reheatRisk]} · ≤45 min pass · ≤90 caution
+              </div>
+            </div>
+
+            {/* Boost progress bar */}
+            <div style={{ padding: '0.4rem 0', position: 'relative' }}>
+              <div style={{ background: '#e2e8f0', borderRadius: '4px', height: '10px', position: 'relative' }}>
+                <div style={{
+                  width: `${Math.min((lifestyleReheat.boostMinutes / 90) * 100, 100)}%`,
+                  background: RISK_COLOUR[lifestyleReheat.reheatRisk],
+                  height: '100%', borderRadius: '4px', transition: 'width 0.25s',
+                }} />
+                {/* 45-min caution marker */}
+                <div style={{ position: 'absolute', left: '50%', top: '-3px', bottom: '-3px', width: '2px', background: '#d69e2e' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.67rem', color: '#a0aec0', marginTop: '0.2rem' }}>
+                <span>0 min</span><span>45 min</span><span>90 min</span>
+              </div>
+            </div>
+
+            {/* ASHP suitability */}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '0.45rem 0.65rem',
+              background: CELL_BG[lifestyleReheat.ashpSuit],
+              border: `1px solid ${CELL_BORDER[lifestyleReheat.ashpSuit]}`,
+              borderRadius: '6px',
+              fontSize: '0.78rem',
+            }}>
+              <span style={{ color: '#4a5568' }}>ASHP suitability</span>
+              <span style={{ fontWeight: 700, color: RISK_COLOUR[lifestyleReheat.ashpSuit] }}>
+                {lifestyleReheat.ashpSuit === 'pass' ? '✅ Ideal' : '⚠️ Suboptimal'}
+              </span>
+            </div>
+          </div>
+
+          {/* Right: system match order */}
+          <div>
+            <div style={{ fontSize: '0.72rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '0.4rem' }}>
+              System fit for this occupancy
+            </div>
+            {lifestyleReheat.systemMatch.map((s, i) => {
+              const fitColour: Record<string, string> = { best: '#38a169', ok: '#d69e2e', poor: '#c53030' };
+              const fitBg:     Record<string, string> = { best: '#f0fff4', ok: '#fffff0', poor: '#fff5f5' };
+              const fitLabel:  Record<string, string> = { best: '★ Best fit', ok: '◎ OK', poor: '✕ Poor fit' };
+              return (
+                <div key={s.label} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '0.4rem 0.6rem',
+                  marginBottom: i < lifestyleReheat.systemMatch.length - 1 ? '0.3rem' : 0,
+                  background: fitBg[s.fit],
+                  border: `1px solid ${fitColour[s.fit]}33`,
+                  borderRadius: '6px',
+                  fontSize: '0.82rem',
+                }}>
+                  <span style={{ fontWeight: 600, color: '#2d3748' }}>{s.label}</span>
+                  <span style={{ fontWeight: 700, color: fitColour[s.fit], fontSize: '0.75rem' }}>
+                    {fitLabel[s.fit]}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* ─── Hive / thermal telemetry placeholder ──────────────────────── */}
