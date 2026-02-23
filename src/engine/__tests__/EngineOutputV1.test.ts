@@ -223,4 +223,84 @@ describe('EngineOutputV1 shape', () => {
     expect(result.combiDhwV1).toBeDefined();
     expect(['pass', 'warn', 'fail']).toContain(result.combiDhwV1.verdict.combiRisk);
   });
+
+  // ── StoredDhwModuleV1 driving Stored eligibility ──────────────────────────
+
+  it('storedDhwV1 is present in full engine result', () => {
+    const result = runEngine(baseInput);
+    expect(result.storedDhwV1).toBeDefined();
+    expect(['pass', 'warn']).toContain(result.storedDhwV1.verdict.storedRisk);
+  });
+
+  it('stored is caution when space is tight and high demand (2 bathrooms)', () => {
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      availableSpace: 'tight',
+      bathroomCount: 2,
+    });
+    const stored = engineOutput.eligibility.find(e => e.id === 'stored')!;
+    expect(stored.status).toBe('caution');
+  });
+
+  it('stored is viable when availableSpace is "ok" and low demand', () => {
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      availableSpace: 'ok',
+      bathroomCount: 1,
+    });
+    const stored = engineOutput.eligibility.find(e => e.id === 'stored')!;
+    expect(stored.status).toBe('viable');
+  });
+
+  it('stored is caution when availableSpace is unknown (default)', () => {
+    const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 1 });
+    const stored = engineOutput.eligibility.find(e => e.id === 'stored')!;
+    expect(stored.status).toBe('caution');
+  });
+
+  it('storedDhwV1 flags are included in engineOutput.redFlags', () => {
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      availableSpace: 'tight',
+      bathroomCount: 2,
+    });
+    const spaceFlag = engineOutput.redFlags.find(f => f.id === 'stored-space-tight');
+    expect(spaceFlag).toBeDefined();
+    expect(spaceFlag!.severity).toBe('warn');
+  });
+
+  it('Mixergy explainer present when stored recommendation is mixergy', () => {
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      availableSpace: 'ok',
+      bathroomCount: 2,
+    });
+    const explainer = engineOutput.explainers.find(e => e.id === 'stored-mixergy-suggested');
+    expect(explainer).toBeDefined();
+    expect(explainer!.body).toContain('Mixergy');
+  });
+
+  // ── Recommendation resolver V1 ────────────────────────────────────────────
+
+  it('recommendation primary is "Stored (Cylinder)" when instant is rejected (2 bathrooms)', () => {
+    const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2 });
+    expect(engineOutput.recommendation.primary).toBe('Stored (Cylinder)');
+  });
+
+  it('recommendation primary is "Stored (Cylinder)" when pressure lockout fails instant', () => {
+    const { engineOutput } = runEngine({ ...baseInput, dynamicMainsPressure: 0.5, bathroomCount: 1 });
+    expect(engineOutput.recommendation.primary).toBe('Stored (Cylinder)');
+  });
+
+  it('recommendation primary is "Air Source Heat Pump" for steady_home with viable ASHP (28mm)', () => {
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      primaryPipeDiameter: 28,
+      heatLossWatts: 8000,
+      occupancySignature: 'steady_home',
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+    });
+    expect(engineOutput.recommendation.primary).toBe('Air Source Heat Pump');
+  });
 });

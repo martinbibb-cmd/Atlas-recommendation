@@ -3,7 +3,7 @@ import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem } from
 import { ENGINE_VERSION, CONTRACT_VERSION } from '../contracts/versions';
 
 function buildEligibility(result: FullEngineResultCore): EligibilityItem[] {
-  const { redFlags, hydraulicV1, combiDhwV1 } = result;
+  const { redFlags, hydraulicV1, combiDhwV1, storedDhwV1 } = result;
   const items: EligibilityItem[] = [];
 
   // Instant eligibility is driven first by topology (redFlags.rejectCombi),
@@ -33,15 +33,31 @@ function buildEligibility(result: FullEngineResultCore): EligibilityItem[] {
     reason: instantReason,
   });
 
-  const storedReason = redFlags.reasons
+  // Stored eligibility: topology hard-reject → rejected; storedRisk=warn → caution; else viable.
+  const storedRejected = (redFlags.rejectStored ?? redFlags.rejectVented);
+  const storedReasonBase = redFlags.reasons
     .filter(r => r.includes('Stored') || r.includes('Cylinder') || r.includes('Loft'))
     .join(' ');
+
+  let storedStatus: EligibilityItem['status'];
+  let storedReason: string | undefined;
+
+  if (storedRejected) {
+    storedStatus = 'rejected';
+    storedReason = storedReasonBase || undefined;
+  } else if (storedDhwV1.verdict.storedRisk === 'warn') {
+    storedStatus = 'caution';
+    const warnFlag = storedDhwV1.flags.find(f => f.severity === 'warn');
+    storedReason = warnFlag ? `${warnFlag.title}: ${warnFlag.detail}` : undefined;
+  } else {
+    storedStatus = 'viable';
+  }
 
   items.push({
     id: 'stored',
     label: 'Stored Cylinder',
-    status: (redFlags.rejectStored ?? redFlags.rejectVented) ? 'rejected' : 'viable',
-    reason: (redFlags.rejectStored ?? redFlags.rejectVented) ? storedReason || undefined : undefined,
+    status: storedStatus,
+    reason: storedReason,
   });
 
   // ASHP eligibility is driven first by hydraulic physics, then by topology hard-fails.
@@ -132,11 +148,51 @@ function buildExplainers(result: FullEngineResultCore): ExplainerItem[] {
     });
   }
 
+  // Stored DHW: Mixergy explainer when recommended (space tight or high demand) or space warn present.
+  // Both cases benefit from the Mixergy stratification explanation.
+  const storedRec = result.storedDhwV1.recommended;
+  const spaceWarnFlag = result.storedDhwV1.flags.find(f =>
+    f.id === 'stored-space-tight' || f.id === 'stored-space-unknown',
+  );
+  if (storedRec.type === 'mixergy' || spaceWarnFlag) {
+    items.push({
+      id: 'stored-mixergy-suggested',
+      title: 'Mixergy Cylinder Suggested',
+      body:
+        `A Mixergy cylinder heats only the top portion of the tank that is actually ` +
+        `needed, providing fast usable hot water with a smaller effective footprint ` +
+        `than a conventional cylinder of equal volume. ` +
+        (spaceWarnFlag ? `This is especially beneficial given the space constraint identified. ` : '') +
+        `Mixergy's stratified heating can reduce standing losses and gas use versus ` +
+        `a fully-heated conventional cylinder.`,
+    });
+  }
+
   return items;
 }
 
 export function buildEngineOutputV1(result: FullEngineResultCore): EngineOutputV1 {
-  const primary = result.lifestyle.notes[0] ?? result.lifestyle.recommendedSystem;
+  // ── Recommendation resolver V1 ────────────────────────────────────────────
+  // Deterministic: survive physics best.
+  const instantRejected =
+    result.redFlags.rejectCombi ||
+    result.combiDhwV1.verdict.combiRisk === 'fail';
+  const ashpViable =
+    !result.redFlags.rejectAshp &&
+    result.hydraulicV1.verdict.ashpRisk !== 'fail';
+  const steadySignatures = new Set(['steady_home', 'steady']);
+  const isSteadyHome = steadySignatures.has(result.lifestyle.signature);
+
+  let primaryRecommendation: string;
+  if (instantRejected) {
+    primaryRecommendation = 'Stored (Cylinder)';
+  } else if (ashpViable && isSteadyHome) {
+    primaryRecommendation = 'Air Source Heat Pump';
+  } else {
+    // Fallback to lifestyle module output; recommendedSystem is always populated.
+    primaryRecommendation = result.lifestyle.notes[0] ?? result.lifestyle.recommendedSystem;
+  }
+
   const allReasons = [...result.redFlags.reasons, ...result.hydraulicV1.notes];
 
   // Merge combiDhwV1 flags into redFlags output
@@ -147,10 +203,18 @@ export function buildEngineOutputV1(result: FullEngineResultCore): EngineOutputV
     detail: f.detail,
   }));
 
+  // Merge storedDhwV1 flags into redFlags output
+  const storedFlags: RedFlagItem[] = result.storedDhwV1.flags.map(f => ({
+    id: f.id,
+    severity: f.severity,
+    title: f.title,
+    detail: f.detail,
+  }));
+
   return {
     eligibility: buildEligibility(result),
-    redFlags: [...buildRedFlags(allReasons), ...combiFlags],
-    recommendation: { primary },
+    redFlags: [...buildRedFlags(allReasons), ...combiFlags, ...storedFlags],
+    recommendation: { primary: primaryRecommendation },
     explainers: buildExplainers(result),
     meta: {
       engineVersion: ENGINE_VERSION,
