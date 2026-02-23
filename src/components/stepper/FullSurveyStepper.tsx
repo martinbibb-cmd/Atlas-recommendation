@@ -570,6 +570,36 @@ export default function FullSurveyStepper({ onBack }: Props) {
                 <option value="unknown">Unknown – not yet surveyed</option>
               </select>
             </div>
+            <div className="form-field">
+              <label>Bedrooms</label>
+              <select
+                value={input.bedrooms ?? ''}
+                onChange={e => setInput({ ...input, bedrooms: e.target.value ? +e.target.value : undefined })}
+              >
+                <option value="">Not specified</option>
+                <option value={1}>1</option>
+                <option value={2}>2</option>
+                <option value={3}>3</option>
+                <option value={4}>4</option>
+                <option value={5}>5+</option>
+              </select>
+            </div>
+            <label className="checkbox-field">
+              <input
+                type="checkbox"
+                checked={input.futureLoftConversion ?? false}
+                onChange={e => setInput({ ...input, futureLoftConversion: e.target.checked })}
+              />
+              <span>Loft conversion planned</span>
+            </label>
+            <label className="checkbox-field">
+              <input
+                type="checkbox"
+                checked={input.futureAddBathroom ?? false}
+                onChange={e => setInput({ ...input, futureAddBathroom: e.target.checked })}
+              />
+              <span>Additional bathroom planned</span>
+            </label>
           </div>
           <div className="step-actions">
             <button className="prev-btn" onClick={prev}>← Back</button>
@@ -771,6 +801,7 @@ function FullSurveyResults({
 }) {
   const { hydraulic, combiStress, mixergy, lifestyle, normalizer, bomItems, engineOutput } = results;
   const [showTwin, setShowTwin] = useState(false);
+  const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
 
   // Approximate current efficiency from normalizer decay
   const currentEfficiencyPct = Math.max(50, 92 - normalizer.tenYearEfficiencyDecayPct);
@@ -800,6 +831,66 @@ function FullSurveyResults({
 
   return (
     <div className="results-container">
+
+      {/* Your Situation – Context Summary */}
+      {engineOutput.contextSummary && engineOutput.contextSummary.bullets.length > 0 && (
+        <div className="result-section">
+          <h3>🏠 Your Situation</h3>
+          <ul className="context-summary-list">
+            {engineOutput.contextSummary.bullets.map((bullet, i) => (
+              <li key={i}>{bullet}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Your Options – Option Matrix V1 */}
+      {engineOutput.options && engineOutput.options.length > 0 && (
+        <div className="result-section">
+          <h3>🔍 Your Options</h3>
+          <div className="options-grid">
+            {engineOutput.options.map(card => {
+              const statusClass = card.status === 'rejected' ? 'rejected' : card.status === 'caution' ? 'caution' : 'viable';
+              const statusLabel = card.status === 'rejected' ? '❌ Not suitable' : card.status === 'caution' ? '⚠️ Possible' : '✅ Suitable';
+              const isExpanded = expandedOptionId === card.id;
+              return (
+                <div key={card.id} className={`option-card option-card--${statusClass}`}>
+                  <div
+                    className="option-card__header"
+                    onClick={() => setExpandedOptionId(isExpanded ? null : card.id)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="option-card__title">
+                      <span className="option-card__label">{card.label}</span>
+                      <span className={`option-card__status option-card__status--${statusClass}`}>{statusLabel}</span>
+                    </div>
+                    <p className="option-card__headline">{card.headline}</p>
+                    <span className="option-card__toggle">{isExpanded ? '▲ Less' : '▼ Details'}</span>
+                  </div>
+                  {isExpanded && (
+                    <div className="option-card__body">
+                      <div className="option-card__section">
+                        <strong>Why:</strong>
+                        <ul>
+                          {card.why.map((w, i) => <li key={i}>{w}</li>)}
+                        </ul>
+                      </div>
+                      {card.requirements.length > 0 && (
+                        <div className="option-card__section">
+                          <strong>Requirements / Upgrades:</strong>
+                          <ul>
+                            {card.requirements.map((r, i) => <li key={i}>{r}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Red Flags */}
       <div className="result-section">

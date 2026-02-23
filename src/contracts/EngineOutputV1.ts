@@ -26,6 +26,16 @@ export interface TraceItem {
   steps: string[];
 }
 
+export interface OptionCardV1 {
+  id: 'combi' | 'stored' | 'ashp' | 'regular_vented' | 'system_unvented';
+  label: string;
+  status: 'viable' | 'caution' | 'rejected';
+  headline: string;
+  why: string[];
+  requirements: string[];
+  evidenceIds?: string[];
+}
+
 export interface EngineOutputV1 {
   eligibility: EligibilityItem[];
   redFlags: RedFlagItem[];
@@ -35,6 +45,8 @@ export interface EngineOutputV1 {
   };
   explainers: ExplainerItem[];
   trace?: TraceItem[];
+  contextSummary?: { bullets: string[] };
+  options?: OptionCardV1[];
   meta?: {
     engineVersion: typeof ENGINE_VERSION;
     contractVersion: typeof CONTRACT_VERSION;

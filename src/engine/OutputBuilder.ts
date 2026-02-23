@@ -1,6 +1,7 @@
-import type { FullEngineResultCore } from './schema/EngineInputV2_3';
+import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
 import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem } from '../contracts/EngineOutputV1';
 import { ENGINE_VERSION, CONTRACT_VERSION } from '../contracts/versions';
+import { buildOptionMatrixV1 } from './OptionMatrixBuilder';
 
 function buildEligibility(result: FullEngineResultCore): EligibilityItem[] {
   const { redFlags, hydraulicV1, combiDhwV1, storedDhwV1 } = result;
@@ -171,7 +172,7 @@ function buildExplainers(result: FullEngineResultCore): ExplainerItem[] {
   return items;
 }
 
-export function buildEngineOutputV1(result: FullEngineResultCore): EngineOutputV1 {
+export function buildEngineOutputV1(result: FullEngineResultCore, input?: EngineInputV2_3): EngineOutputV1 {
   // ── Recommendation resolver V1 ────────────────────────────────────────────
   // Deterministic: survive physics best.
   const instantRejected =
@@ -211,11 +212,63 @@ export function buildEngineOutputV1(result: FullEngineResultCore): EngineOutputV
     detail: f.detail,
   }));
 
+  // ── Context Summary ───────────────────────────────────────────────────────
+  // Priority: when both occupancyCount and bedrooms are available, combine
+  // them in a single narrative bullet; otherwise show whichever is present.
+  const contextBullets: string[] = [];
+  if (input) {
+    const { occupancyCount, bedrooms, bathroomCount, dynamicMainsPressure,
+            currentHeatSourceType, futureLoftConversion, futureAddBathroom,
+            availableSpace } = input;
+
+    if (occupancyCount !== undefined && bedrooms !== undefined) {
+      contextBullets.push(`${occupancyCount} ${occupancyCount === 1 ? 'person' : 'people'} in a ${bedrooms}-bed property.`);
+    } else if (occupancyCount !== undefined) {
+      contextBullets.push(`${occupancyCount} ${occupancyCount === 1 ? 'person' : 'people'} in the household.`);
+    } else if (bedrooms !== undefined) {
+      contextBullets.push(`${bedrooms}-bedroom property.`);
+    }
+
+    if (bathroomCount >= 2) {
+      contextBullets.push(`${bathroomCount} bathrooms — simultaneous DHW demand is a factor.`);
+    } else {
+      contextBullets.push('Single bathroom — simultaneous demand is low.');
+    }
+
+    const pressure = dynamicMainsPressure ?? 2.0;
+    contextBullets.push(`Mains dynamic pressure: ${pressure.toFixed(1)} bar.`);
+
+    if (currentHeatSourceType) {
+      const systemLabels: Record<string, string> = {
+        combi: 'Combi boiler',
+        system: 'System boiler',
+        regular: 'Regular (heat-only) boiler',
+        ashp: 'Air source heat pump',
+        other: 'Other heat source',
+      };
+      contextBullets.push(`Current system: ${systemLabels[currentHeatSourceType] ?? currentHeatSourceType}.`);
+    }
+
+    if (futureLoftConversion) {
+      contextBullets.push('Loft conversion planned — affects tank/cylinder placement options.');
+    }
+    if (futureAddBathroom) {
+      contextBullets.push('Additional bathroom planned — increases future DHW demand.');
+    }
+    if (availableSpace === 'tight') {
+      contextBullets.push('Limited space for a cylinder — compact or Mixergy option preferred.');
+    } else if (availableSpace === 'ok') {
+      contextBullets.push('Adequate space available for a standard cylinder.');
+    }
+  }
+
   return {
     eligibility: buildEligibility(result),
     redFlags: [...buildRedFlags(allReasons), ...combiFlags, ...storedFlags],
     recommendation: { primary: primaryRecommendation },
     explainers: buildExplainers(result),
+    contextSummary: contextBullets.length > 0 ? { bullets: contextBullets } : undefined,
+    options: input ? buildOptionMatrixV1(result, input) : undefined,
     meta: {
       engineVersion: ENGINE_VERSION,
       contractVersion: CONTRACT_VERSION,
