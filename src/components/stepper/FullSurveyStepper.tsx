@@ -16,6 +16,7 @@ import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { runEngine } from '../../engine/Engine';
 import { runThermalInertiaModule } from '../../engine/modules/ThermalInertiaModule';
 import { calcFlowLpm, PIPE_THRESHOLDS } from '../../engine/modules/HydraulicModule';
+import { runCombiDhwModuleV1 } from '../../engine/modules/CombiDhwModule';
 import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
 import LifestyleInteractive from '../visualizers/LifestyleInteractive';
 import EfficiencyCurve from '../visualizers/EfficiencyCurve';
@@ -29,8 +30,8 @@ interface Props {
   onBack: () => void;
 }
 
-type Step = 'location' | 'hydraulic' | 'lifestyle' | 'commercial' | 'results';
-const STEPS: Step[] = ['location', 'hydraulic', 'lifestyle', 'commercial', 'results'];
+type Step = 'location' | 'hydraulic' | 'lifestyle' | 'hot_water' | 'commercial' | 'results';
+const STEPS: Step[] = ['location', 'hydraulic', 'lifestyle', 'hot_water', 'commercial', 'results'];
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
 // Physical levers that drive τ derivation — replaces era-label archetype cards.
@@ -107,6 +108,17 @@ function buildDecayTrace(tauHours: number, initialTempC = 20, outdoorTempC = 5) 
 /** Recharts tooltip formatter for temperature traces. */
 function tempTooltipFormatter(v: number | undefined): [string, string] {
   return [v !== undefined ? `${v}°C` : 'N/A', 'Room temp'];
+}
+
+// ─── DHW Behaviour Helpers ───────────────────────────────────────────────────
+
+/** Qualitative DHW demand band from bathrooms, outlets, and occupancy. */
+function dhwDemandBand(bathrooms: number, outlets: number, highOcc: boolean): { label: string; colour: string } {
+  const score = outlets + (bathrooms > 1 ? bathrooms - 1 : 0) + (highOcc ? 1 : 0);
+  if (score <= 1) return { label: 'Low',      colour: '#38a169' };
+  if (score === 2) return { label: 'Moderate', colour: '#d69e2e' };
+  if (score === 3) return { label: 'High',     colour: '#dd6b20' };
+  return              { label: 'Very High', colour: '#c53030' };
 }
 
 // ─── Hydraulic Behaviour Helpers ─────────────────────────────────────────────
@@ -220,6 +232,18 @@ export default function FullSurveyStepper({ onBack }: Props) {
   const flowCurveData = useMemo(
     () => buildFlowCurve(input.primaryPipeDiameter),
     [input.primaryPipeDiameter],
+  );
+
+  // ── DHW derived values — update when demand inputs change ──────────────────
+  const combiDhwLive = useMemo(() => runCombiDhwModuleV1(input), [
+    input.dynamicMainsPressure,
+    input.peakConcurrentOutlets,
+    input.bathroomCount,
+    input.occupancySignature,
+  ]);
+  const dhwBand = useMemo(
+    () => dhwDemandBand(input.bathroomCount, input.peakConcurrentOutlets ?? 1, input.highOccupancy),
+    [input.bathroomCount, input.peakConcurrentOutlets, input.highOccupancy],
   );
 
   const stepIndex = STEPS.indexOf(currentStep);
@@ -639,8 +663,8 @@ export default function FullSurveyStepper({ onBack }: Props) {
                       <XAxis dataKey="heatLossKw" tick={{ fontSize: 10 }} tickFormatter={v => `${v}kW`} />
                       <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${v}L`} />
                       <Tooltip
-                        formatter={(v: number, name: string) => [`${v} L/min`, name === 'boilerLpm' ? 'Boiler (ΔT 20°C)' : 'ASHP (ΔT 5°C)']}
-                        labelFormatter={(label: number) => `Heat loss: ${label} kW`}
+                        formatter={(v, name) => [`${v} L/min`, name === 'boilerLpm' ? 'Boiler (ΔT 20°C)' : 'ASHP (ΔT 5°C)']}
+                        labelFormatter={(label) => `Heat loss: ${label} kW`}
                       />
                       {/* Boiler warn / fail vertical thresholds */}
                       {flowCurveData.thresholds.boilerWarnKw <= 20 && (
@@ -819,9 +843,222 @@ export default function FullSurveyStepper({ onBack }: Props) {
         />
       )}
 
+      {currentStep === 'hot_water' && (
+        <div className="step-card">
+          <h2>🚿 Step 4: Hot Water Demand</h2>
+          <p className="description">
+            A combi boiler delivers one outlet at a time. Two simultaneous draws, two bathrooms,
+            or continuous-occupancy patterns all break that constraint. Adjust the controls —
+            the panel shows exactly where your household sits on that physics boundary.
+          </p>
+
+          {/* ─── Physics levers + live panel ─────────────────────────────── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start' }}>
+
+            {/* Left: controls */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+              {/* Bathrooms */}
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
+                  Bathrooms
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
+                  {[1, 2, 3, 4].map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setInput({ ...input, bathroomCount: n })}
+                      style={{
+                        padding: '0.5rem',
+                        border: `2px solid ${input.bathroomCount === n ? '#3182ce' : '#e2e8f0'}`,
+                        borderRadius: '6px',
+                        background: input.bathroomCount === n ? '#ebf8ff' : '#fff',
+                        cursor: 'pointer',
+                        fontWeight: input.bathroomCount === n ? 700 : 400,
+                        fontSize: '0.9rem',
+                        transition: 'all 0.12s',
+                      }}
+                    >
+                      {n}{n === 4 ? '+' : ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Peak concurrent outlets */}
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
+                  Peak simultaneous outlets
+                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {([
+                    { value: 1, label: '1 outlet',  sub: 'Single shower or tap' },
+                    { value: 2, label: '2 outlets',  sub: 'e.g. shower + basin simultaneously' },
+                    { value: 3, label: '3+ outlets', sub: 'Multiple simultaneous draws' },
+                  ] as Array<{ value: number; label: string; sub: string }>).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setInput({ ...input, peakConcurrentOutlets: opt.value })}
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        border: `2px solid ${(input.peakConcurrentOutlets ?? 1) === opt.value ? '#3182ce' : '#e2e8f0'}`,
+                        borderRadius: '6px',
+                        background: (input.peakConcurrentOutlets ?? 1) === opt.value ? '#ebf8ff' : '#fff',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.12s',
+                      }}
+                    >
+                      <div style={{ fontWeight: (input.peakConcurrentOutlets ?? 1) === opt.value ? 700 : 500, fontSize: '0.88rem' }}>{opt.label}</div>
+                      <div style={{ fontSize: '0.72rem', color: '#718096' }}>{opt.sub}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* High occupancy toggle */}
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
+                  Household size
+                </label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    onClick={() => setInput({ ...input, highOccupancy: false })}
+                    style={{
+                      flex: 1, padding: '0.5rem',
+                      border: `2px solid ${!input.highOccupancy ? '#3182ce' : '#e2e8f0'}`,
+                      borderRadius: '6px',
+                      background: !input.highOccupancy ? '#ebf8ff' : '#fff',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      fontWeight: !input.highOccupancy ? 700 : 400,
+                    }}
+                  >
+                    1–3 people
+                  </button>
+                  <button
+                    onClick={() => setInput({ ...input, highOccupancy: true })}
+                    style={{
+                      flex: 1, padding: '0.5rem',
+                      border: `2px solid ${input.highOccupancy ? '#c53030' : '#e2e8f0'}`,
+                      borderRadius: '6px',
+                      background: input.highOccupancy ? '#fff5f5' : '#fff',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      fontWeight: input.highOccupancy ? 700 : 400,
+                    }}
+                  >
+                    4+ people
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: live response panel */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+
+              {/* DHW demand level badge */}
+              <div style={{
+                padding: '0.875rem 1rem',
+                background: '#f7fafc',
+                border: `2px solid ${dhwBand.colour}`,
+                borderRadius: '8px',
+                display: 'flex', flexDirection: 'column', gap: '0.3rem',
+              }}>
+                <div style={{ fontSize: '0.75rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  DHW demand level
+                </div>
+                <div style={{ fontSize: '1.8rem', fontWeight: 800, color: dhwBand.colour, lineHeight: 1 }}>
+                  {dhwBand.label}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#718096' }}>
+                  {input.bathroomCount} bathroom{input.bathroomCount !== 1 ? 's' : ''} · {input.peakConcurrentOutlets ?? 1} peak outlet{(input.peakConcurrentOutlets ?? 1) !== 1 ? 's' : ''} · {input.highOccupancy ? '4+ people' : '1–3 people'}
+                </div>
+              </div>
+
+              {/* Combi overall verdict */}
+              <div style={{
+                padding: '0.6rem 0.875rem',
+                background: RISK_BG[combiDhwLive.verdict.combiRisk],
+                border: `2px solid ${RISK_COLOUR[combiDhwLive.verdict.combiRisk]}`,
+                borderRadius: '6px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <span style={{ fontSize: '0.88rem', color: '#4a5568' }}>Combi on-demand verdict</span>
+                <span style={{
+                  padding: '0.25rem 0.65rem',
+                  background: RISK_COLOUR[combiDhwLive.verdict.combiRisk],
+                  color: '#fff', borderRadius: '4px', fontWeight: 700, fontSize: '0.82rem',
+                }}>
+                  {RISK_LABEL[combiDhwLive.verdict.combiRisk]}
+                </span>
+              </div>
+
+              {/* Reason chips */}
+              {combiDhwLive.flags.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {combiDhwLive.flags.map(flag => (
+                    <div
+                      key={flag.id}
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        background: flag.severity === 'fail' ? '#fff5f5' : '#fffff0',
+                        border: `1px solid ${flag.severity === 'fail' ? '#feb2b2' : '#faf089'}`,
+                        borderLeft: `4px solid ${flag.severity === 'fail' ? '#c53030' : '#d69e2e'}`,
+                        borderRadius: '4px',
+                        fontSize: '0.82rem',
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, color: flag.severity === 'fail' ? '#c53030' : '#b7791f', marginBottom: '0.2rem' }}>
+                        {flag.title}
+                      </div>
+                      <div style={{ color: '#4a5568', lineHeight: 1.4 }}>{flag.detail}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Outlet demand vs combi capacity bars */}
+              <div style={{ padding: '0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                <div style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.5rem' }}>
+                  Outlets in use vs. combi on-demand capacity
+                </div>
+                {/* Combi limit bar (always 1) */}
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#a0aec0', marginBottom: '0.2rem' }}>Combi limit — 1 outlet</div>
+                  <div style={{ background: '#e2e8f0', borderRadius: '4px', height: '10px' }}>
+                    <div style={{ width: '33%', background: '#38a169', height: '100%', borderRadius: '4px' }} />
+                  </div>
+                </div>
+                {/* Peak demand bar */}
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: '#a0aec0', marginBottom: '0.2rem' }}>
+                    Your peak — {input.peakConcurrentOutlets ?? 1} outlet{(input.peakConcurrentOutlets ?? 1) !== 1 ? 's' : ''}
+                  </div>
+                  <div style={{ background: '#e2e8f0', borderRadius: '4px', height: '10px', position: 'relative' }}>
+                    <div style={{
+                      width: `${Math.min(((input.peakConcurrentOutlets ?? 1) / 3) * 100, 100)}%`,
+                      background: RISK_COLOUR[combiDhwLive.verdict.combiRisk],
+                      height: '100%', borderRadius: '4px', transition: 'width 0.2s',
+                    }} />
+                    {/* Combi limit marker at 33% */}
+                    <div style={{ position: 'absolute', left: '33%', top: '-3px', bottom: '-3px', width: '2px', background: '#38a169' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="step-actions">
+            <button className="prev-btn" onClick={prev}>← Back</button>
+            <button className="next-btn" onClick={next}>Next →</button>
+          </div>
+        </div>
+      )}
+
       {currentStep === 'commercial' && (
         <div className="step-card">
-          <h2>💼 Step 4: Commercial Strategy Selection</h2>
+          <h2>💼 Step 5: Commercial Strategy Selection</h2>
           <p className="description">
             Choose your installation strategy to model the British Gas "Full Job" advantage.
             A Full Job designs flow temperatures of 35–40°C, delivering SPF 3.8–4.4.
@@ -940,37 +1177,6 @@ export default function FullSurveyStepper({ onBack }: Props) {
                 <span>Show Mixergy comparison in results (even if standard cylinder selected)</span>
               </label>
             </div>
-            <div className="form-field">
-              <label>Bathrooms</label>
-              <select
-                value={input.bathroomCount}
-                onChange={e => setInput({ ...input, bathroomCount: +e.target.value })}
-              >
-                <option value={1}>1</option>
-                <option value={2}>2</option>
-                <option value={3}>3</option>
-                <option value={4}>4+</option>
-              </select>
-            </div>
-            <div className="form-field">
-              <label>Peak concurrent hot-water outlets</label>
-              <select
-                value={input.peakConcurrentOutlets ?? 1}
-                onChange={e => setInput({ ...input, peakConcurrentOutlets: +e.target.value })}
-              >
-                <option value={1}>1 (single shower / tap)</option>
-                <option value={2}>2 (e.g. shower + basin)</option>
-                <option value={3}>3+ (multiple simultaneous)</option>
-              </select>
-            </div>
-            <label className="checkbox-field">
-              <input
-                type="checkbox"
-                checked={input.highOccupancy}
-                onChange={e => setInput({ ...input, highOccupancy: e.target.checked })}
-              />
-              <span>High occupancy (4+ people)</span>
-            </label>
             <div className="form-field">
               <label>Cylinder / airing-cupboard space</label>
               <select
