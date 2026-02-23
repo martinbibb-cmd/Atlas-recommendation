@@ -559,6 +559,17 @@ export default function FullSurveyStepper({ onBack }: Props) {
               />
               <span>High occupancy (4+ people)</span>
             </label>
+            <div className="form-field">
+              <label>Cylinder / airing-cupboard space</label>
+              <select
+                value={input.availableSpace ?? 'unknown'}
+                onChange={e => setInput({ ...input, availableSpace: e.target.value as 'tight' | 'ok' | 'unknown' })}
+              >
+                <option value="ok">OK – adequate space available</option>
+                <option value="tight">Tight – limited space</option>
+                <option value="unknown">Unknown – not yet surveyed</option>
+              </select>
+            </div>
           </div>
           <div className="step-actions">
             <button className="prev-btn" onClick={prev}>← Back</button>

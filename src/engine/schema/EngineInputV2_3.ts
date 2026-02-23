@@ -41,10 +41,14 @@ export interface EngineInputV2_3 {
 
   // Occupancy
   bathroomCount: number;
+  /** Number of people regularly resident – used for stored DHW sizing. */
+  occupancyCount?: number;
   occupancySignature: OccupancySignature;
   highOccupancy: boolean;
   /** Peak simultaneous DHW outlets (e.g. 1 = single shower, 2 = shower + basin). */
   peakConcurrentOutlets?: number;
+  /** Cylinder / airing-cupboard space availability. */
+  availableSpace?: 'tight' | 'ok' | 'unknown';
 
   // Preferences
   preferCombi: boolean;
@@ -132,6 +136,32 @@ export interface CombiDhwV1Result {
     combiRisk: 'fail' | 'warn' | 'pass';
   };
   flags: CombiDhwFlagItem[];
+  assumptions: string[];
+}
+
+/** Structured flag item for StoredDhwModuleV1. */
+export interface StoredDhwFlagItem {
+  id:
+    | 'stored-space-tight'
+    | 'stored-space-unknown'
+    | 'stored-high-demand'
+    | 'stored-solves-simultaneous-demand';
+  severity: 'info' | 'warn';
+  title: string;
+  detail: string;
+}
+
+/** Result returned by StoredDhwModuleV1. */
+export interface StoredDhwV1Result {
+  verdict: {
+    /** 'warn' = caution needed; 'pass' = clear. */
+    storedRisk: 'warn' | 'pass';
+  };
+  recommended: {
+    type: 'standard' | 'mixergy' | 'unknown';
+    volumeBand: 'small' | 'medium' | 'large';
+  };
+  flags: StoredDhwFlagItem[];
   assumptions: string[];
 }
 
@@ -421,6 +451,7 @@ export interface FullEngineResultCore {
   hydraulicV1: HydraulicModuleV1Result;
   combiStress: CombiStressResult;
   combiDhwV1: CombiDhwV1Result;
+  storedDhwV1: StoredDhwV1Result;
   mixergy: MixergyResult;
   lifestyle: LifestyleResult;
   normalizer: NormalizerOutput;
