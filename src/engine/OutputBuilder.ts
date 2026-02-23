@@ -1,8 +1,8 @@
-import type { FullEngineResult } from './schema/EngineInputV2_3';
+import type { FullEngineResultCore } from './schema/EngineInputV2_3';
 import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem } from '../contracts/EngineOutputV1';
 import { ENGINE_VERSION, CONTRACT_VERSION } from '../contracts/versions';
 
-function buildEligibility(redFlags: FullEngineResult['redFlags']): EligibilityItem[] {
+function buildEligibility(redFlags: FullEngineResultCore['redFlags']): EligibilityItem[] {
   const items: EligibilityItem[] = [];
 
   const instantReason = redFlags.reasons
@@ -52,7 +52,7 @@ function buildRedFlags(reasons: string[]): RedFlagItem[] {
   });
 }
 
-function buildExplainers(result: FullEngineResult): ExplainerItem[] {
+function buildExplainers(result: FullEngineResultCore): ExplainerItem[] {
   const items: ExplainerItem[] = [];
 
   if (result.hydraulic.isBottleneck) {
@@ -83,7 +83,7 @@ function buildExplainers(result: FullEngineResult): ExplainerItem[] {
   return items;
 }
 
-export function buildEngineOutputV1(result: FullEngineResult): EngineOutputV1 {
+export function buildEngineOutputV1(result: FullEngineResultCore): EngineOutputV1 {
   const primary = result.lifestyle.notes[0] ?? result.lifestyle.recommendedSystem;
 
   return {
