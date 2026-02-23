@@ -1722,6 +1722,11 @@ export default function FullSurveyStepper({ onBack }: Props) {
           input={input}
           compareMixergy={compareMixergy}
           onBack={onBack}
+          physicsDigest={{
+            tau: derivedTau,
+            fabricType,
+            heatLossBandLabel: heatLossBand.label,
+          }}
         />
       )}
     </div>
@@ -2197,18 +2202,34 @@ function EngineeringRequirementsCard({
   );
 }
 
+interface PhysicsDigest {
+  tau: number;
+  fabricType: BuildingFabricType;
+  heatLossBandLabel: string;
+}
+
+const FABRIC_LABEL: Record<BuildingFabricType, string> = {
+  'solid_brick_1930s':  'Solid Brick',
+  '1970s_cavity_wall':  'Cavity Wall',
+  'lightweight_new':    'Lightweight',
+  'passivhaus_standard': 'Passivhaus',
+};
+
 function FullSurveyResults({
   results,
   input,
   compareMixergy,
   onBack,
+  physicsDigest,
 }: {
   results: FullEngineResult;
   input: FullSurveyModelV1;
   compareMixergy: boolean;
   onBack: () => void;
+  physicsDigest: PhysicsDigest;
 }) {
-  const { hydraulic, combiStress, mixergy, lifestyle, normalizer, engineOutput } = results;
+  const { hydraulic, combiStress, mixergy, lifestyle, normalizer, engineOutput,
+          hydraulicV1, combiDhwV1, pressureAnalysis } = results;
   const [showTwin, setShowTwin] = useState(false);
   const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
   const [activeOptionTab, setActiveOptionTab] = useState<Record<string, 'heat' | 'dhw' | 'needs' | 'why'>>({});
@@ -2217,6 +2238,49 @@ function FullSurveyResults({
   // Approximate current efficiency from normalizer decay
   const currentEfficiencyPct = Math.max(50, 92 - normalizer.tenYearEfficiencyDecayPct);
   const shouldShowMixergy = input.dhwTankType === 'mixergy' || compareMixergy;
+
+  // Physics Digest strip — pre-computed metrics from all survey modules
+  const pressRisk: RiskLevel =
+    pressureAnalysis.quality === 'strong'   ? 'pass' :
+    pressureAnalysis.quality === 'moderate' ? 'warn'  :
+    pressureAnalysis.quality === 'weak'     ? 'fail'  : 'warn';
+
+  const hlBandRisk: RiskLevel =
+    physicsDigest.heatLossBandLabel === 'Very High' ? 'fail' :
+    physicsDigest.heatLossBandLabel === 'High'      ? 'warn' : 'pass';
+
+  const digestChips: Array<{ label: string; value: string; sub: string; risk: RiskLevel }> = [
+    {
+      label: 'Pressure',
+      risk:  pressRisk,
+      value: input.dynamicMainsPressure ? `${input.dynamicMainsPressure.toFixed(1)} bar` : '— bar',
+      sub:   pressureAnalysis.quality ?? 'low confidence',
+    },
+    {
+      label: 'Hydraulics',
+      risk:  hydraulicV1.verdict.boilerRisk,
+      value: `${hydraulicV1.boiler.flowLpm.toFixed(1)} L/min`,
+      sub:   `${RISK_LABEL[hydraulicV1.verdict.boilerRisk]} · boiler`,
+    },
+    {
+      label: 'Combi DHW',
+      risk:  combiDhwV1.verdict.combiRisk,
+      value: RISK_LABEL[combiDhwV1.verdict.combiRisk],
+      sub:   `${input.bathrooms ?? 1} bath · ${input.occupants ?? 2} occ`,
+    },
+    {
+      label: 'Heat Loss',
+      risk:  hlBandRisk,
+      value: `${(input.heatLossWatts / 1000).toFixed(1)} kW`,
+      sub:   `${physicsDigest.heatLossBandLabel} band`,
+    },
+    {
+      label: 'Fabric τ',
+      risk:  hlBandRisk, // heat-loss band is the best proxy for retention quality
+      value: `${physicsDigest.tau.toFixed(0)} h`,
+      sub:   FABRIC_LABEL[physicsDigest.fabricType],
+    },
+  ];
 
   if (showTwin) {
     return (
@@ -2230,6 +2294,35 @@ function FullSurveyResults({
 
   return (
     <div className="results-container">
+
+      {/* Physics Digest Strip */}
+      <div className="result-section" style={{ paddingBottom: '0.25rem' }}>
+        <h3 style={{ marginBottom: '0.625rem' }}>📐 Physics Digest</h3>
+        <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
+          {digestChips.map(chip => (
+            <div
+              key={chip.label}
+              style={{
+                flex: '1 1 130px',
+                padding: '0.6rem 0.75rem',
+                background: CELL_BG[chip.risk],
+                border: `1.5px solid ${CELL_BORDER[chip.risk]}`,
+                borderRadius: '8px',
+              }}
+            >
+              <div style={{ fontSize: '0.68rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: '0.15rem' }}>
+                {chip.label}
+              </div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#2d3748', lineHeight: 1.2 }}>
+                {chip.value}
+              </div>
+              <div style={{ fontSize: '0.73rem', color: '#718096', marginTop: '0.15rem' }}>
+                {chip.sub}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Your Situation – Context Summary */}
       {engineOutput.contextSummary && engineOutput.contextSummary.bullets.length > 0 && (
