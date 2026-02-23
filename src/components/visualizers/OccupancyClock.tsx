@@ -70,6 +70,8 @@ export default function OccupancyClock({ initialOccupancy, onChange }: Props) {
     [onChange],
   );
 
+  const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
+
   const handleMouseDown = (hour: number) => {
     isDragging.current = true;
     const current = occupancy[hour].state;
@@ -89,43 +91,81 @@ export default function OccupancyClock({ initialOccupancy, onChange }: Props) {
     dragTarget.current = null;
   };
 
+  const handleTouchStart = (hour: number) => {
+    isDragging.current = true;
+    const current = occupancy[hour].state;
+    const target = nextState(current);
+    dragTarget.current = target;
+    applyState(hour, target);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging.current || dragTarget.current === null) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    for (let h = 0; h < cellRefs.current.length; h++) {
+      const el = cellRefs.current[h];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (
+        touch.clientX >= rect.left && touch.clientX <= rect.right &&
+        touch.clientY >= rect.top && touch.clientY <= rect.bottom
+      ) {
+        applyState(h, dragTarget.current);
+        break;
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    isDragging.current = false;
+    dragTarget.current = null;
+  };
+
   return (
     <div
       style={{ userSelect: 'none' }}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
     >
       <p style={{ fontSize: '0.78rem', color: '#718096', marginBottom: 8 }}>
         Click or drag to paint your daily routine. The engine recalculates instantly.
       </p>
 
-      {/* Hour grid */}
-      <div style={{ display: 'flex', gap: 2 }}>
-        {occupancy.map(({ hour, state }) => (
-          <div
-            key={hour}
-            title={`${String(hour).padStart(2, '0')}:00 – ${STATE_LABELS[state]}`}
-            onMouseDown={() => handleMouseDown(hour)}
-            onMouseEnter={() => handleMouseEnter(hour)}
-            style={{
-              width: 24,
-              height: 48,
-              borderRadius: 4,
-              background: STATE_COLOURS[state],
-              border: '1.5px solid #e2e8f0',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'flex-end',
-              justifyContent: 'center',
-              paddingBottom: 2,
-              fontSize: 9,
-              color: '#4a5568',
-              transition: 'background 0.1s',
-            }}
-          >
-            {hour % 6 === 0 ? `${hour}h` : ''}
-          </div>
-        ))}
+      {/* Hour grid – wrapped for mobile overflow */}
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{ display: 'flex', gap: 2, minWidth: 'max-content' }}>
+          {occupancy.map(({ hour, state }) => (
+            <div
+              key={hour}
+              ref={el => { cellRefs.current[hour] = el; }}
+              title={`${String(hour).padStart(2, '0')}:00 – ${STATE_LABELS[state]}`}
+              onMouseDown={() => handleMouseDown(hour)}
+              onMouseEnter={() => handleMouseEnter(hour)}
+              onTouchStart={() => handleTouchStart(hour)}
+              style={{
+                width: 24,
+                height: 48,
+                borderRadius: 4,
+                background: STATE_COLOURS[state],
+                border: '1.5px solid #e2e8f0',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'flex-end',
+                justifyContent: 'center',
+                paddingBottom: 2,
+                fontSize: 9,
+                color: '#4a5568',
+                transition: 'background 0.1s',
+                flexShrink: 0,
+              }}
+            >
+              {hour % 6 === 0 ? `${hour}h` : ''}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Legend */}

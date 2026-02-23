@@ -355,6 +355,12 @@ body {
   gap: 1rem;
 }
 
+@media (max-width: 480px) {
+  .verdict-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .verdict-item {
   text-align: center;
   padding: 1rem;
@@ -477,6 +483,7 @@ body {
   align-items: flex-end;
   justify-content: center;
   padding: 1rem;
+  flex-wrap: wrap;
 }
 
 .tank-visual {
@@ -529,4 +536,35 @@ body {
   font-weight: 700;
   color: #a0aec0;
   padding-bottom: 2rem;
+}
+
+/* Scrollable wrapper for wide tables */
+.bom-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Scrollable wrapper for wide flex/grid rows (e.g. 24-hour clock) */
+.clock-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 480px) {
+  .step-card {
+    padding: 1.25rem 1rem;
+  }
+
+  .result-section {
+    padding: 1rem;
+  }
+
+  .stepper-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .hero h1 {
+    font-size: 1.5rem;
+  }
 }
