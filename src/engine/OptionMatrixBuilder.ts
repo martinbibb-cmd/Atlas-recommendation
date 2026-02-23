@@ -11,7 +11,7 @@ export function buildOptionMatrixV1(
 ): OptionCardV1[] {
   const cards: OptionCardV1[] = [];
 
-  // ── Combi (Instantaneous) card ───────────────────────────────────────────
+  // ── On Demand (Combi) card ───────────────────────────────────────────────
   const combiRisk = core.combiDhwV1.verdict.combiRisk;
   const combiRejectedByTopology = core.redFlags.rejectCombi ?? false;
 
@@ -33,14 +33,14 @@ export function buildOptionMatrixV1(
   }
   if (combiWhy.length === 0) {
     combiWhy.push('No simultaneous DHW demand detected.');
-    combiWhy.push('Mains pressure is sufficient for instantaneous flow.');
+    combiWhy.push('Mains pressure is sufficient for on-demand flow.');
   }
 
   const combiRequirements: string[] = [
     'Only works well when peak outlets = 1 (single bathroom in use).',
     'Move to stored cylinder if demand grows (second bathroom, higher occupancy).',
   ];
-  if ((input.dynamicMainsPressure ?? 2.0) < 1.5) {
+  if ((core.pressureAnalysis.dynamicBar) < 1.5) {
     combiRequirements.push('Mains pressure boost may be required (< 1.5 bar detected).');
   }
 
@@ -60,7 +60,7 @@ export function buildOptionMatrixV1(
 
   // Combi DHW plane: where combi diverges hard
   const combiDhwBullets: string[] = [
-    'Instantaneous: no stored volume — heat delivery starts on demand.',
+    'On demand: no stored volume — heat delivery starts on demand.',
     'Stop/start draws cause purge loss and cold-water sandwich effect.',
   ];
   for (const f of core.combiDhwV1.flags) {
@@ -95,7 +95,7 @@ export function buildOptionMatrixV1(
     mustHave: combiRisk === 'fail' || combiRejectedByTopology
       ? ['Resolve pressure/topology barrier before installation.']
       : ['Confirm peak simultaneous outlets = 1.'],
-    likelyUpgrades: (input.dynamicMainsPressure ?? 2.0) < 1.5
+    likelyUpgrades: core.pressureAnalysis.dynamicBar < 1.5
       ? ['Mains pressure boost pump (< 1.5 bar detected).']
       : [],
     niceToHave: ['Nest/Hive smart thermostat for occupancy-led control.'],
@@ -103,7 +103,7 @@ export function buildOptionMatrixV1(
 
   cards.push({
     id: 'combi',
-    label: 'Instantaneous (Combi)',
+    label: 'On Demand (Combi)',
     status: combiStatus,
     headline: combiStatus === 'viable'
       ? 'Combi boiler suits your single-outlet demand.'
@@ -292,7 +292,7 @@ export function buildOptionMatrixV1(
 
   const ashpDhw: OptionPlane = {
     status: 'ok',
-    headline: 'DHW: stored cylinder required — ASHP cannot provide instantaneous hot water.',
+    headline: 'DHW: stored cylinder required — ASHP cannot provide on-demand hot water.',
     bullets: [
       'Indirect cylinder with immersion backup is standard for ASHP installations.',
       'Legionella cycle: weekly 60°C pasteurisation via immersion (small COP penalty).',
@@ -368,7 +368,7 @@ export function buildOptionMatrixV1(
 
   // ── Regular Vented / System Unvented (feasibility-only cards) ────────────
   const hasFutureLoftConversion = input.futureLoftConversion ?? input.hasLoftConversion ?? false;
-  const pressure = input.dynamicMainsPressure ?? 2.0;
+  const pressure = core.pressureAnalysis.dynamicBar;
   const spaceOk = input.availableSpace === 'ok';
 
   const regularStatus: OptionCardV1['status'] = hasFutureLoftConversion ? 'rejected' : spaceOk ? 'viable' : 'caution';

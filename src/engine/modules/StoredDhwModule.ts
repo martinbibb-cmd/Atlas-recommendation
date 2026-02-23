@@ -66,7 +66,7 @@ export function runStoredDhwModuleV1(
       detail:
         `${bathrooms} bathroom(s) and ${occupancy} occupant(s) suggest high simultaneous ` +
         `DHW demand. A stored cylinder eliminates the flow-rate and simultaneous-draw ` +
-        `limitations of an instantaneous (combi) system.`,
+        `limitations of an on-demand (combi) system.`,
     });
   } else {
     assumptions.push(
@@ -82,7 +82,7 @@ export function runStoredDhwModuleV1(
       severity: 'info',
       title: 'Stored cylinder solves simultaneous demand',
       detail:
-        `The instantaneous (combi) system was rejected due to simultaneous hot-water ` +
+        `The on-demand (combi) system was rejected due to simultaneous hot-water ` +
         `demand. A stored cylinder provides a buffer that meets multiple simultaneous ` +
         `draws without temperature collapse.`,
     });

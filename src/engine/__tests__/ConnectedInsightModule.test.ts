@@ -20,7 +20,7 @@ const hiveTelemetry: { t: string; v: number }[] = [
 
 /** 48 half-hour slots with mostly low consumption and two high-intensity spikes */
 const halfHourlyReadings: number[] = Array.from({ length: 48 }, (_, i) => {
-  // Slots 10 and 20 are high-intensity DHW draws (>9.5 kWh = >19 kW instantaneous)
+  // Slots 10 and 20 are high-intensity DHW draws (>9.5 kWh = >19 kW peak)
   if (i === 10 || i === 20) return 10.0;
   return 1.0; // steady space-heating baseload
 });
@@ -118,8 +118,8 @@ describe('isolateBaseload', () => {
     expect(result.estimatedSpaceHeatingKwh).toBeCloseTo(46.0, 1);
   });
 
-  it('classifies a 19 kW instantaneous slot as DHW (boundary case)', () => {
-    // 9.5 kWh × 2 = 19 kW instantaneous – exactly at threshold, not above
+  it('classifies a 19 kW peak slot as DHW (boundary case)', () => {
+    // 9.5 kWh × 2 = 19 kW peak — exactly at threshold, not above
     const borderSlot = [9.5];
     const result = isolateBaseload(borderSlot);
     expect(result.highIntensitySpikeCount).toBe(0);

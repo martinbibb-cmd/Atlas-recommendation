@@ -79,7 +79,7 @@ export default function App() {
           <div className="card-icon">⚡</div>
           <h2>Fast Choice</h2>
           <p className="card-time">~30 seconds</p>
-          <p>Instant red-flag elimination of unsuitable technology based on your home's physical constraints.</p>
+          <p>On-demand red-flag elimination of unsuitable technology based on your home's physical constraints.</p>
           <ul>
             <li>Bathroom count &amp; occupancy</li>
             <li>Loft conversion status</li>
