@@ -1,5 +1,7 @@
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 export type { EngineOutputV1 };
+import type { PressureAnalysis } from '../modules/PressureModule';
+export type { PressureAnalysis };
 
 export type OccupancySignature =
   | 'professional'
@@ -24,7 +26,11 @@ export type PipingTopology = 'two_pipe' | 'one_pipe' | 'microbore';
 export interface EngineInputV2_3 {
   // Location & Water
   postcode: string;
-  dynamicMainsPressure: number; // bar
+  dynamicMainsPressure: number; // bar (legacy field — always required for backward compatibility)
+  /** Static mains pressure (bar) — measured with no flow. */
+  staticMainsPressureBar?: number;
+  /** Dynamic mains pressure (bar) — preferred alias for new integrations. Falls back to dynamicMainsPressure. */
+  dynamicMainsPressureBar?: number;
 
   // Building
   buildingMass: BuildingMass;
@@ -499,6 +505,7 @@ export interface FullEngineResultCore {
   specEdge: SpecEdgeResult;
   gridFlex?: GridFlexResult;
   heatPumpRegime: HeatPumpRegimeModuleV1Result;
+  pressureAnalysis: PressureAnalysis;
 }
 
 /** Full engine result including the canonical V1 output contract. */

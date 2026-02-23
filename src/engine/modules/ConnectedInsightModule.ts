@@ -97,7 +97,7 @@ export function deriveThermalTimeConstant(
  * Splits half-hourly gas consumption readings into DHW spikes and steady
  * space-heating baseload.
  *
- * DHW spikes are identified as half-hour slots where the instantaneous power
+ * DHW spikes are identified as half-hour slots where the peak power
  * exceeds COMBI_SPIKE_KW_THRESHOLD (19 kW), typical of a combi boiler firing
  * for a short draw.
  *
@@ -116,9 +116,9 @@ export function isolateBaseload(halfHourlyKwh: number[]): BaseloadIsolationResul
   let spikeCount = 0;
 
   for (const kwhSlot of halfHourlyKwh) {
-    // Convert kWh in a 30-min slot to instantaneous kW (× 2)
-    const instantaneousKw = kwhSlot * 2;
-    if (instantaneousKw > COMBI_SPIKE_KW_THRESHOLD) {
+    // Convert kWh in a 30-min slot to peak kW (× 2)
+    const peakKw = kwhSlot * 2;
+    if (peakKw > COMBI_SPIKE_KW_THRESHOLD) {
       dhwKwh += kwhSlot;
       spikeCount++;
     } else {

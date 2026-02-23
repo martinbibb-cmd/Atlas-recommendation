@@ -252,7 +252,7 @@ describe('engineOutput.options via runEngine', () => {
 
   it('engineOutput.options statuses are consistent with eligibility', () => {
     const { engineOutput } = runEngine(baseInput);
-    const combiElig = engineOutput.eligibility.find(e => e.id === 'instant');
+    const combiElig = engineOutput.eligibility.find(e => e.id === 'on_demand');
     const combiCard = engineOutput.options!.find(o => o.id === 'combi');
     expect(combiElig).toBeDefined();
     expect(combiCard).toBeDefined();

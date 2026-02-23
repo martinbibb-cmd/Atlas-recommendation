@@ -16,10 +16,12 @@ export interface EngineInputV2_3Contract {
   };
   dhw: {
     /** DHW heating architecture. */
-    architecture: 'instantaneous' | 'stored_standard' | 'stored_mixergy' | 'unknown';
+    architecture: 'on_demand' | 'stored_standard' | 'stored_mixergy' | 'unknown';
   };
   services?: {
-    /** Dynamic mains pressure (bar). Optional but supported. */
+    /** Static mains pressure (bar) — measured with no flow. */
+    mainsStaticPressureBar?: number;
+    /** Dynamic mains pressure (bar) — measured under flow. */
     mainsDynamicPressureBar?: number;
   };
 }

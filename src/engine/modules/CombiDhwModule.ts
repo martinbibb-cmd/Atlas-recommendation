@@ -8,7 +8,7 @@ const SHORT_DRAW_SIGNATURES = new Set(['steady_home', 'steady', 'shift_worker', 
 /**
  * CombiDhwModuleV1
  *
- * Deterministic combi / instantaneous DHW eligibility gate based on three
+ * Deterministic combi / on-demand DHW eligibility gate based on three
  * physics-grounded rules:
  *   1. Pressure lockout   – mains dynamic pressure < 1.0 bar (hard fail)
  *   2. Simultaneous demand – peak concurrent outlets ≥ 2 OR bathrooms ≥ 2 (hard fail)

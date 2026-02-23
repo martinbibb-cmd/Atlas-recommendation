@@ -1,7 +1,7 @@
 import type { ENGINE_VERSION, CONTRACT_VERSION } from './versions';
 
 export interface EligibilityItem {
-  id: 'instant' | 'stored' | 'ashp';
+  id: 'on_demand' | 'stored' | 'ashp';
   label: string;
   status: 'viable' | 'rejected' | 'caution';
   reason?: string;

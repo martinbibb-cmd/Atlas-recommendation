@@ -31,10 +31,10 @@ describe('EngineOutputV1 shape', () => {
     expect(Array.isArray(engineOutput.explainers)).toBe(true);
   });
 
-  it('eligibility always contains instant, stored, ashp', () => {
+  it('eligibility always contains on_demand, stored, ashp', () => {
     const { engineOutput } = runEngine(baseInput);
     const ids = engineOutput.eligibility.map(e => e.id);
-    expect(ids).toContain('instant');
+    expect(ids).toContain('on_demand');
     expect(ids).toContain('stored');
     expect(ids).toContain('ashp');
   });
@@ -48,30 +48,30 @@ describe('EngineOutputV1 shape', () => {
 
   it('eligibility labels are stable for a given input', () => {
     const { engineOutput } = runEngine(baseInput);
-    const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
+    const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
     const stored = engineOutput.eligibility.find(e => e.id === 'stored')!;
     const ashp = engineOutput.eligibility.find(e => e.id === 'ashp')!;
-    expect(instant.label).toBe('Instantaneous (Combi)');
+    expect(onDemand.label).toBe('On Demand (Combi)');
     expect(stored.label).toBe('Stored Cylinder');
     expect(ashp.label).toBe('Air Source Heat Pump');
   });
 
   it('rejects combi when 2+ bathrooms + high occupancy', () => {
     const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2, highOccupancy: true });
-    const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
-    expect(instant.status).toBe('rejected');
+    const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
+    expect(onDemand.status).toBe('rejected');
   });
 
   it('rejects combi when bathroomCount >= 2 (combiDhwV1 simultaneous demand)', () => {
     const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2, highOccupancy: false });
-    const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
-    expect(instant.status).toBe('rejected');
+    const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
+    expect(onDemand.status).toBe('rejected');
   });
 
   it('combi is viable for 1 bathroom + low occupancy + professional signature', () => {
     const { engineOutput } = runEngine(baseInput);
-    const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
-    expect(instant.status).toBe('viable');
+    const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
+    expect(onDemand.status).toBe('viable');
   });
 
   it('stored is rejected when loft conversion present', () => {
@@ -158,40 +158,40 @@ describe('EngineOutputV1 shape', () => {
     expect(result.hydraulicV1.ashp.flowLpm).toBeGreaterThan(0);
   });
 
-  // ── CombiDhwModuleV1 driving Instant eligibility ──────────────────────────
+  // ── CombiDhwModuleV1 driving On Demand eligibility ───────────────────────
 
-  it('instant is rejected when pressure < 1.0 bar (combiDhwV1 pressure lockout)', () => {
+  it('on_demand is rejected when pressure < 1.0 bar (combiDhwV1 pressure lockout)', () => {
     const { engineOutput } = runEngine({ ...baseInput, dynamicMainsPressure: 0.8, bathroomCount: 1 });
-    const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
-    expect(instant.status).toBe('rejected');
+    const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
+    expect(onDemand.status).toBe('rejected');
   });
 
-  it('instant is rejected when peakConcurrentOutlets >= 2 (combiDhwV1 simultaneous demand)', () => {
+  it('on_demand is rejected when peakConcurrentOutlets >= 2 (combiDhwV1 simultaneous demand)', () => {
     const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 1, peakConcurrentOutlets: 2 });
-    const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
-    expect(instant.status).toBe('rejected');
+    const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
+    expect(onDemand.status).toBe('rejected');
   });
 
-  it('instant is caution for steady_home signature with 1 bathroom + 1 outlet', () => {
+  it('on_demand is caution for steady_home signature with 1 bathroom + 1 outlet', () => {
     const { engineOutput } = runEngine({
       ...baseInput,
       bathroomCount: 1,
       peakConcurrentOutlets: 1,
       occupancySignature: 'steady_home',
     });
-    const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
-    expect(instant.status).toBe('caution');
+    const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
+    expect(onDemand.status).toBe('caution');
   });
 
-  it('instant is caution for steady signature (V3 alias) with 1 bathroom + 1 outlet', () => {
+  it('on_demand is caution for steady signature (V3 alias) with 1 bathroom + 1 outlet', () => {
     const { engineOutput } = runEngine({
       ...baseInput,
       bathroomCount: 1,
       peakConcurrentOutlets: 1,
       occupancySignature: 'steady',
     });
-    const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
-    expect(instant.status).toBe('caution');
+    const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
+    expect(onDemand.status).toBe('caution');
   });
 
   it('combiDhwV1 flags are included in engineOutput.redFlags', () => {
@@ -282,12 +282,12 @@ describe('EngineOutputV1 shape', () => {
 
   // ── Recommendation resolver V1 ────────────────────────────────────────────
 
-  it('recommendation primary is "Stored (Cylinder)" when instant is rejected (2 bathrooms)', () => {
+  it('recommendation primary is "Stored (Cylinder)" when on_demand is rejected (2 bathrooms)', () => {
     const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2 });
     expect(engineOutput.recommendation.primary).toBe('Stored (Cylinder)');
   });
 
-  it('recommendation primary is "Stored (Cylinder)" when pressure lockout fails instant', () => {
+  it('recommendation primary is "Stored (Cylinder)" when pressure lockout fails on_demand', () => {
     const { engineOutput } = runEngine({ ...baseInput, dynamicMainsPressure: 0.5, bathroomCount: 1 });
     expect(engineOutput.recommendation.primary).toBe('Stored (Cylinder)');
   });

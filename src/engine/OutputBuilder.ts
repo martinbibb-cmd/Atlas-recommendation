@@ -7,31 +7,31 @@ function buildEligibility(result: FullEngineResultCore): EligibilityItem[] {
   const { redFlags, hydraulicV1, combiDhwV1, storedDhwV1 } = result;
   const items: EligibilityItem[] = [];
 
-  // Instant eligibility is driven first by topology (redFlags.rejectCombi),
+  // On-demand eligibility is driven first by topology (redFlags.rejectCombi),
   // then by CombiDhwModuleV1 physics verdict.
-  let instantStatus: EligibilityItem['status'];
-  let instantReason: string | undefined;
+  let onDemandStatus: EligibilityItem['status'];
+  let onDemandReason: string | undefined;
 
   if (redFlags.rejectCombi) {
-    instantStatus = 'rejected';
-    instantReason = redFlags.reasons.filter(r => r.includes('Combi')).join(' ') || undefined;
+    onDemandStatus = 'rejected';
+    onDemandReason = redFlags.reasons.filter(r => r.includes('Combi')).join(' ') || undefined;
   } else if (combiDhwV1.verdict.combiRisk === 'fail') {
-    instantStatus = 'rejected';
+    onDemandStatus = 'rejected';
     const failFlag = combiDhwV1.flags.find(f => f.severity === 'fail');
-    instantReason = failFlag ? `${failFlag.title}: ${failFlag.detail}` : undefined;
+    onDemandReason = failFlag ? `${failFlag.title}: ${failFlag.detail}` : undefined;
   } else if (combiDhwV1.verdict.combiRisk === 'warn') {
-    instantStatus = 'caution';
+    onDemandStatus = 'caution';
     const warnFlag = combiDhwV1.flags.find(f => f.severity === 'warn');
-    instantReason = warnFlag ? `${warnFlag.title}: ${warnFlag.detail}` : undefined;
+    onDemandReason = warnFlag ? `${warnFlag.title}: ${warnFlag.detail}` : undefined;
   } else {
-    instantStatus = 'viable';
+    onDemandStatus = 'viable';
   }
 
   items.push({
-    id: 'instant',
-    label: 'Instantaneous (Combi)',
-    status: instantStatus,
-    reason: instantReason,
+    id: 'on_demand',
+    label: 'On Demand (Combi)',
+    status: onDemandStatus,
+    reason: onDemandReason,
   });
 
   // Stored eligibility: topology hard-reject → rejected; storedRisk=warn → caution; else viable.
@@ -175,7 +175,7 @@ function buildExplainers(result: FullEngineResultCore): ExplainerItem[] {
 export function buildEngineOutputV1(result: FullEngineResultCore, input?: EngineInputV2_3): EngineOutputV1 {
   // ── Recommendation resolver V1 ────────────────────────────────────────────
   // Deterministic: survive physics best.
-  const instantRejected =
+  const onDemandRejected =
     result.redFlags.rejectCombi ||
     result.combiDhwV1.verdict.combiRisk === 'fail';
   const ashpViable =
@@ -185,7 +185,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
   const isSteadyHome = steadySignatures.has(result.lifestyle.signature);
 
   let primaryRecommendation: string;
-  if (instantRejected) {
+  if (onDemandRejected) {
     primaryRecommendation = 'Stored (Cylinder)';
   } else if (ashpViable && isSteadyHome) {
     primaryRecommendation = 'Air Source Heat Pump';
@@ -217,7 +217,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
   // them in a single narrative bullet; otherwise show whichever is present.
   const contextBullets: string[] = [];
   if (input) {
-    const { occupancyCount, bedrooms, bathroomCount, dynamicMainsPressure,
+    const { occupancyCount, bedrooms, bathroomCount,
             currentHeatSourceType, futureLoftConversion, futureAddBathroom,
             availableSpace } = input;
 
@@ -235,8 +235,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
       contextBullets.push('Single bathroom — simultaneous demand is low.');
     }
 
-    const pressure = dynamicMainsPressure ?? 2.0;
-    contextBullets.push(`Mains dynamic pressure: ${pressure.toFixed(1)} bar.`);
+    contextBullets.push(result.pressureAnalysis.formattedBullet);
 
     if (currentHeatSourceType) {
       const systemLabels: Record<string, string> = {

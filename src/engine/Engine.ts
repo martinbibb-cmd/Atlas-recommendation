@@ -17,6 +17,7 @@ import { runMixergyLegacyModule } from './modules/MixergyLegacyModule';
 import { runSpecEdgeModule } from './modules/SpecEdgeModule';
 import { runGridFlexModule } from './modules/GridFlexModule';
 import { runHeatPumpRegimeModuleV1 } from './modules/HeatPumpRegimeModule';
+import { analysePressure } from './modules/PressureModule';
 import { buildEngineOutputV1 } from './OutputBuilder';
 
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
@@ -77,6 +78,9 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
 
   const heatPumpRegime = runHeatPumpRegimeModuleV1(input);
 
+  const dynamicBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+  const pressureAnalysis = analysePressure(dynamicBar, input.staticMainsPressureBar);
+
   const core: FullEngineResultCore = {
     hydraulic,
     hydraulicV1,
@@ -96,6 +100,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     specEdge,
     gridFlex,
     heatPumpRegime,
+    pressureAnalysis,
   };
 
   const engineOutput = buildEngineOutputV1(core, input);

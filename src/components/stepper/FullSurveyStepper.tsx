@@ -786,7 +786,7 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
   );
 }
 
-const ELIGIBILITY_ICONS: Record<string, string> = { instant: '🔥', stored: '💧', ashp: '🌿' };
+const ELIGIBILITY_ICONS: Record<string, string> = { on_demand: '🔥', stored: '💧', ashp: '🌿' };
 
 function FullSurveyResults({
   results,
