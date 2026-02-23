@@ -10,6 +10,9 @@ import {
   ReferenceLine,
 } from 'recharts';
 import type { EngineInputV2_3, FullEngineResult, BuildingFabricType } from '../../engine/schema/EngineInputV2_3';
+import type { VisualSpecV1 } from '../../contracts/EngineOutputV1';
+import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { runEngine } from '../../engine/Engine';
 import { runThermalInertiaModule } from '../../engine/modules/ThermalInertiaModule';
 import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
@@ -75,7 +78,7 @@ const ARCHETYPES: Array<{
   },
 ];
 
-const defaultInput: EngineInputV2_3 = {
+const defaultInput: FullSurveyModelV1 = {
   postcode: 'SW1A 1AA',
   dynamicMainsPressure: 2.0,
   buildingMass: 'heavy',
@@ -92,11 +95,16 @@ const defaultInput: EngineInputV2_3 = {
   installationPolicy: 'full_job',
   dhwTankType: 'standard',
   installerNetwork: 'british_gas',
+  fullSurvey: {
+    connectedEvidence: { energyProvider: 'placeholder', hive: 'placeholder' },
+    manualEvidence: {},
+    telemetryPlaceholders: { coolingTau: null, confidence: 'none' },
+  },
 };
 
 export default function FullSurveyStepper({ onBack }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('location');
-  const [input, setInput] = useState<EngineInputV2_3>(defaultInput);
+  const [input, setInput] = useState<FullSurveyModelV1>(defaultInput);
   const [fabricType, setFabricType] = useState<BuildingFabricType>('solid_brick_1930s');
   const [compareMixergy, setCompareMixergy] = useState(false);
   const [results, setResults] = useState<FullEngineResult | null>(null);
@@ -106,7 +114,8 @@ export default function FullSurveyStepper({ onBack }: Props) {
 
   const next = () => {
     if (currentStep === 'commercial') {
-      setResults(runEngine(input));
+      // Strip fullSurvey extras — pass only the EngineInputV2_3 subset to the engine.
+      setResults(runEngine(toEngineInput(input)));
       setCurrentStep('results');
     } else {
       setCurrentStep(STEPS[stepIndex + 1]);
@@ -601,6 +610,69 @@ export default function FullSurveyStepper({ onBack }: Props) {
               <span>Additional bathroom planned</span>
             </label>
           </div>
+
+          {/* ─── Energy provider placeholder ─────────────────────────────── */}
+          <details style={{ marginTop: '1.25rem' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#4a5568' }}>
+              ⚡ Energy Consumption (optional)
+            </summary>
+            <div style={{ marginTop: '0.75rem', padding: '0.875rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <button
+                  disabled
+                  style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid #cbd5e0', background: '#edf2f7', color: '#a0aec0', cursor: 'not-allowed', fontSize: '0.85rem' }}
+                >
+                  🔌 Connect Provider (coming soon)
+                </button>
+                <span style={{ fontSize: '0.78rem', color: '#a0aec0' }}>
+                  Source: Manual (placeholder for provider sync)
+                </span>
+              </div>
+              <div className="form-grid">
+                <div className="form-field">
+                  <label>Annual gas consumption (kWh, optional)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={input.fullSurvey?.manualEvidence?.annualGasKwh ?? ''}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        manualEvidence: {
+                          ...input.fullSurvey?.manualEvidence,
+                          annualGasKwh: e.target.value ? Number(e.target.value) : undefined,
+                        },
+                      },
+                    })}
+                    placeholder="e.g. 12000"
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Annual electricity consumption (kWh, optional)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={input.fullSurvey?.manualEvidence?.annualElecKwh ?? ''}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        manualEvidence: {
+                          ...input.fullSurvey?.manualEvidence,
+                          annualElecKwh: e.target.value ? Number(e.target.value) : undefined,
+                        },
+                      },
+                    })}
+                    placeholder="e.g. 3500"
+                  />
+                </div>
+              </div>
+            </div>
+          </details>
+
           <div className="step-actions">
             <button className="prev-btn" onClick={prev}>← Back</button>
             <button className="next-btn" onClick={next}>Run Analysis →</button>
@@ -623,10 +695,10 @@ export default function FullSurveyStepper({ onBack }: Props) {
 // ─── Step 3: Lifestyle & Thermal Comfort ─────────────────────────────────────
 
 interface LifestyleStepProps {
-  input: EngineInputV2_3;
+  input: FullSurveyModelV1;
   fabricType: BuildingFabricType;
   selectedArchetype: { label: string; tauHours: number; fabricType: BuildingFabricType };
-  setInput: React.Dispatch<React.SetStateAction<EngineInputV2_3>>;
+  setInput: React.Dispatch<React.SetStateAction<FullSurveyModelV1>>;
   onNext: () => void;
   onPrev: () => void;
 }
@@ -778,6 +850,49 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
         )}
       </div>
 
+      {/* ─── Hive / thermal telemetry placeholder ──────────────────────── */}
+      <details style={{ marginTop: '1.25rem' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#4a5568' }}>
+          🌡️ Thermal Telemetry (optional)
+        </summary>
+        <div style={{ marginTop: '0.75rem', padding: '0.875rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+            <button
+              disabled
+              style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid #cbd5e0', background: '#edf2f7', color: '#a0aec0', cursor: 'not-allowed', fontSize: '0.85rem' }}
+            >
+              🔗 Connect Hive (coming soon)
+            </button>
+            <span style={{ fontSize: '0.78rem', color: '#a0aec0' }}>
+              Cooling data not connected
+            </span>
+          </div>
+          <div className="form-field">
+            <label>Thermal inertia feel (manual proxy)</label>
+            <select
+              value={input.fullSurvey?.telemetryPlaceholders?.confidence ?? 'none'}
+              onChange={e => setInput({
+                ...input,
+                fullSurvey: {
+                  ...input.fullSurvey,
+                  telemetryPlaceholders: {
+                    ...input.fullSurvey?.telemetryPlaceholders,
+                    confidence: e.target.value as 'none' | 'low' | 'high',
+                  },
+                },
+              })}
+            >
+              <option value="none">Unknown — awaiting telemetry</option>
+              <option value="low">Low — house cools quickly</option>
+              <option value="high">High — house retains heat well</option>
+            </select>
+          </div>
+          <p style={{ fontSize: '0.78rem', color: '#a0aec0', marginTop: '0.5rem' }}>
+            This proxy will be replaced by Hive cooling-tau data when connected.
+          </p>
+        </div>
+      </details>
+
       <div className="step-actions">
         <button className="prev-btn" onClick={onPrev}>← Back</button>
         <button className="next-btn" onClick={onNext}>Next →</button>
@@ -795,7 +910,7 @@ function FullSurveyResults({
   onBack,
 }: {
   results: FullEngineResult;
-  input: EngineInputV2_3;
+  input: FullSurveyModelV1;
   compareMixergy: boolean;
   onBack: () => void;
 }) {
@@ -842,6 +957,18 @@ function FullSurveyResults({
               <li key={i}>{bullet}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Engine-driven visuals — rendered by type switch, no business logic */}
+      {engineOutput.visuals && engineOutput.visuals.length > 0 && (
+        <div className="result-section">
+          <h3>📊 Physics Instruments</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
+            {engineOutput.visuals.map(visual => (
+              <VisualCard key={visual.id} spec={visual} />
+            ))}
+          </div>
         </div>
       )}
 
@@ -1190,6 +1317,117 @@ function FullSurveyResults({
           🏠 Open Interactive Twin →
         </button>
       </div>
+    </div>
+  );
+}
+
+// ─── Engine-driven visual renderer ───────────────────────────────────────────
+// No business logic — render by type switch only.
+
+function VisualCard({ spec }: { spec: VisualSpecV1 }) {
+  const cardStyle: React.CSSProperties = {
+    padding: '0.875rem',
+    background: '#f7fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: '0.85rem',
+  };
+  const titleStyle: React.CSSProperties = {
+    fontWeight: 700,
+    marginBottom: '0.5rem',
+    color: '#2d3748',
+    fontSize: '0.875rem',
+  };
+
+  if (spec.type === 'pressure_drop') {
+    const { staticBar, dynamicBar, dropBar, quality } = spec.data as {
+      staticBar?: number; dynamicBar: number; dropBar?: number; quality?: string;
+    };
+    const qualityColour = quality === 'strong' ? '#38a169' : quality === 'moderate' ? '#d69e2e' : '#e53e3e';
+    return (
+      <div style={cardStyle}>
+        <div style={titleStyle}>💧 {spec.title}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>
+          {staticBar !== undefined ? (
+            <>
+              <span style={{ fontWeight: 600 }}>{staticBar.toFixed(1)} bar</span>
+              <span style={{ color: '#a0aec0' }}>→</span>
+              <span style={{ fontWeight: 600 }}>{dynamicBar.toFixed(1)} bar</span>
+            </>
+          ) : (
+            <span style={{ fontWeight: 600 }}>{dynamicBar.toFixed(1)} bar (dynamic only)</span>
+          )}
+        </div>
+        {dropBar !== undefined && quality && (
+          <div style={{ color: qualityColour, fontWeight: 600, fontSize: '0.8rem' }}>
+            Drop: {dropBar.toFixed(1)} bar — {quality}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (spec.type === 'ashp_flow') {
+    const { boilerFlowLpm, ashpFlowLpm, multiplier, ashpRisk } = spec.data as {
+      boilerFlowLpm: number; ashpFlowLpm: number; multiplier: number; ashpRisk: string;
+    };
+    const riskColour = ashpRisk === 'pass' ? '#38a169' : ashpRisk === 'warn' ? '#d69e2e' : '#e53e3e';
+    // Scale both bars relative to the larger value (ashpFlowLpm) so boiler shows its true proportion.
+    const maxFlow = ashpFlowLpm;
+    const boilerPct = Math.min(100, (boilerFlowLpm / maxFlow) * 100);
+    const ashpPct = 100;
+    return (
+      <div style={cardStyle}>
+        <div style={titleStyle}>🌿 {spec.title}</div>
+        <div style={{ marginBottom: '0.25rem', fontSize: '0.8rem', color: '#718096' }}>Boiler</div>
+        <div style={{ background: '#4299e1', height: 10, borderRadius: 4, width: `${boilerPct}%`, marginBottom: '0.375rem' }} />
+        <div style={{ marginBottom: '0.25rem', fontSize: '0.8rem', color: '#718096' }}>ASHP ({multiplier}×)</div>
+        <div style={{ background: riskColour, height: 10, borderRadius: 4, width: `${ashpPct}%`, marginBottom: '0.375rem' }} />
+        <div style={{ fontSize: '0.8rem' }}>
+          {boilerFlowLpm.toFixed(1)} L/min → {ashpFlowLpm.toFixed(1)} L/min
+        </div>
+      </div>
+    );
+  }
+
+  if (spec.type === 'dhw_outlets') {
+    const { combiRisk, simultaneousFail } = spec.data as { combiRisk: string; simultaneousFail: boolean };
+    const colour = combiRisk === 'pass' ? '#38a169' : combiRisk === 'warn' ? '#d69e2e' : '#e53e3e';
+    return (
+      <div style={cardStyle}>
+        <div style={titleStyle}>🚿 {spec.title}</div>
+        <div style={{ color: colour, fontWeight: 600 }}>
+          {simultaneousFail ? '❌ Simultaneous demand exceeds combi capacity' : combiRisk === 'pass' ? '✅ Within combi capacity' : '⚠️ Borderline'}
+        </div>
+      </div>
+    );
+  }
+
+  if (spec.type === 'space_footprint') {
+    const { storedRisk, recommendedType, mixergyLitres, conventionalLitres, footprintSavingPct } = spec.data as {
+      storedRisk: string; recommendedType: string; mixergyLitres: number; conventionalLitres: number; footprintSavingPct: number;
+    };
+    const colour = storedRisk === 'pass' ? '#38a169' : '#d69e2e';
+    return (
+      <div style={cardStyle}>
+        <div style={titleStyle}>📦 {spec.title}</div>
+        <div style={{ color: colour, fontWeight: 600, marginBottom: '0.375rem' }}>
+          {recommendedType === 'mixergy' ? '⚡ Mixergy recommended' : '🫙 Standard cylinder'}
+        </div>
+        <div style={{ fontSize: '0.8rem', color: '#718096' }}>
+          Mixergy {mixergyLitres}L vs {conventionalLitres}L conventional — saves {footprintSavingPct}% footprint
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback for unknown visual types
+  return (
+    <div style={cardStyle}>
+      <div style={titleStyle}>{spec.title ?? spec.type}</div>
+      <pre style={{ fontSize: '0.72rem', color: '#a0aec0', overflow: 'auto' }}>
+        {JSON.stringify(spec.data, null, 2)}
+      </pre>
     </div>
   );
 }

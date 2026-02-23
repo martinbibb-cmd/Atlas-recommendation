@@ -1,5 +1,5 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
-import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem } from '../contracts/EngineOutputV1';
+import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem, VisualSpecV1 } from '../contracts/EngineOutputV1';
 import { ENGINE_VERSION, CONTRACT_VERSION } from '../contracts/versions';
 import { buildOptionMatrixV1 } from './OptionMatrixBuilder';
 
@@ -172,6 +172,70 @@ function buildExplainers(result: FullEngineResultCore): ExplainerItem[] {
   return items;
 }
 
+// ── Visual specs ──────────────────────────────────────────────────────────────
+
+function buildVisuals(result: FullEngineResultCore): VisualSpecV1[] {
+  const visuals: VisualSpecV1[] = [];
+
+  // pressure_drop — static→dynamic arrow + drop classification
+  const { pressureAnalysis } = result;
+  visuals.push({
+    id: 'pressure_drop',
+    type: 'pressure_drop',
+    title: 'Mains Pressure',
+    data: {
+      staticBar: pressureAnalysis.staticBar,
+      dynamicBar: pressureAnalysis.dynamicBar,
+      dropBar: pressureAnalysis.dropBar,
+      quality: pressureAnalysis.quality,
+    },
+  });
+
+  // ashp_flow — boiler flow vs ASHP flow multiplier
+  const { hydraulicV1 } = result;
+  visuals.push({
+    id: 'ashp_flow',
+    type: 'ashp_flow',
+    title: 'ASHP vs Boiler Flow Rate',
+    data: {
+      boilerFlowLpm: hydraulicV1.boiler.flowLpm,
+      ashpFlowLpm: hydraulicV1.ashp.flowLpm,
+      multiplier: Number((hydraulicV1.ashp.flowLpm / hydraulicV1.boiler.flowLpm).toFixed(1)),
+      ashpRisk: hydraulicV1.verdict.ashpRisk,
+    },
+  });
+
+  // dhw_outlets — combi simultaneous demand: outlets vs capacity
+  const { combiDhwV1 } = result;
+  const simultaneousFlag = combiDhwV1.flags.find(f => f.id === 'combi-simultaneous-demand');
+  visuals.push({
+    id: 'dhw_outlets',
+    type: 'dhw_outlets',
+    title: 'DHW Simultaneous Demand',
+    data: {
+      combiRisk: combiDhwV1.verdict.combiRisk,
+      simultaneousFail: !!simultaneousFlag,
+    },
+  });
+
+  // space_footprint — cylinder / buffer space from storedDhwV1
+  const { storedDhwV1, mixergy } = result;
+  visuals.push({
+    id: 'space_footprint',
+    type: 'space_footprint',
+    title: 'Cylinder Space Footprint',
+    data: {
+      storedRisk: storedDhwV1.verdict.storedRisk,
+      recommendedType: storedDhwV1.recommended.type,
+      mixergyLitres: mixergy.mixergyLitres,
+      conventionalLitres: mixergy.equivalentConventionalLitres,
+      footprintSavingPct: mixergy.footprintSavingPct,
+    },
+  });
+
+  return visuals;
+}
+
 export function buildEngineOutputV1(result: FullEngineResultCore, input?: EngineInputV2_3): EngineOutputV1 {
   // ── Recommendation resolver V1 ────────────────────────────────────────────
   // Deterministic: survive physics best.
@@ -268,6 +332,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     explainers: buildExplainers(result),
     contextSummary: contextBullets.length > 0 ? { bullets: contextBullets } : undefined,
     options: input ? buildOptionMatrixV1(result, input) : undefined,
+    visuals: buildVisuals(result),
     meta: {
       engineVersion: ENGINE_VERSION,
       contractVersion: CONTRACT_VERSION,
