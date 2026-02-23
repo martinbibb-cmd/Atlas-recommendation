@@ -15,6 +15,7 @@ import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { runEngine } from '../../engine/Engine';
 import { runThermalInertiaModule } from '../../engine/modules/ThermalInertiaModule';
+import { calcFlowLpm, PIPE_THRESHOLDS } from '../../engine/modules/HydraulicModule';
 import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
 import LifestyleInteractive from '../visualizers/LifestyleInteractive';
 import EfficiencyCurve from '../visualizers/EfficiencyCurve';
@@ -108,6 +109,42 @@ function tempTooltipFormatter(v: number | undefined): [string, string] {
   return [v !== undefined ? `${v}°C` : 'N/A', 'Room temp'];
 }
 
+// ─── Hydraulic Behaviour Helpers ─────────────────────────────────────────────
+
+const RISK_COLOUR: Record<'pass' | 'warn' | 'fail', string> = {
+  pass: '#38a169',
+  warn: '#d69e2e',
+  fail: '#c53030',
+};
+const RISK_BG: Record<'pass' | 'warn' | 'fail', string> = {
+  pass: '#f0fff4',
+  warn: '#fffff0',
+  fail: '#fff5f5',
+};
+const RISK_LABEL: Record<'pass' | 'warn' | 'fail', string> = {
+  pass: '✅ Pass',
+  warn: '⚠️ Caution',
+  fail: '❌ Fail',
+};
+
+function uiClassifyRisk(kw: number, warnKw: number, failKw: number): 'pass' | 'warn' | 'fail' {
+  if (kw >= failKw) return 'fail';
+  if (kw >= warnKw) return 'warn';
+  return 'pass';
+}
+
+/** Build a 0–20 kW flow-vs-heat-loss curve for the selected pipe, plus its thresholds. */
+function buildFlowCurve(pipeDiameter: number) {
+  const key = ([35, 28, 22, 15] as const).find(k => pipeDiameter >= k) ?? 15;
+  const thresholds = PIPE_THRESHOLDS[key];
+  const data = Array.from({ length: 21 }, (_, i) => ({
+    heatLossKw: i,
+    boilerLpm: parseFloat(calcFlowLpm(i, 20).toFixed(1)),
+    ashpLpm:   parseFloat(calcFlowLpm(i, 5).toFixed(1)),
+  }));
+  return { data, thresholds };
+}
+
 // Preset examples — secondary controls, not the primary selector
 const FABRIC_PRESETS: Array<{
   label: string;
@@ -166,6 +203,24 @@ export default function FullSurveyStepper({ onBack }: Props) {
   useEffect(() => {
     setInput(prev => ({ ...prev, buildingMass: deriveBuildingMass(wallType) }));
   }, [wallType]);
+
+  // ── Hydraulic derived values — update when pipe size or heat loss changes ──
+  const hydraulicLive = useMemo(() => {
+    const kw = input.heatLossWatts / 1000;
+    const pipeKey = ([35, 28, 22, 15] as const).find(k => input.primaryPipeDiameter >= k) ?? 15;
+    const thresholds = PIPE_THRESHOLDS[pipeKey];
+    const boilerFlowLpm = calcFlowLpm(kw, 20);
+    const ashpFlowLpm   = calcFlowLpm(kw, 5);
+    const boilerRisk    = uiClassifyRisk(kw, thresholds.boilerWarnKw, thresholds.boilerFailKw);
+    const ashpRisk      = uiClassifyRisk(kw, thresholds.ashpWarnKw,   thresholds.ashpFailKw);
+    const flowRatio     = boilerFlowLpm > 0 ? (ashpFlowLpm / boilerFlowLpm).toFixed(1) : '4.0';
+    return { kw, boilerFlowLpm, ashpFlowLpm, boilerRisk, ashpRisk, flowRatio };
+  }, [input.primaryPipeDiameter, input.heatLossWatts]);
+
+  const flowCurveData = useMemo(
+    () => buildFlowCurve(input.primaryPipeDiameter),
+    [input.primaryPipeDiameter],
+  );
 
   const stepIndex = STEPS.indexOf(currentStep);
   const progress = ((stepIndex + 1) / STEPS.length) * 100;
@@ -361,6 +416,9 @@ export default function FullSurveyStepper({ onBack }: Props) {
                   <div style={{ fontSize: '0.78rem', color: '#4a5568' }}>
                     Derived from construction + insulation + air tightness
                   </div>
+                  <div style={{ fontSize: '0.72rem', color: '#a0aec0', marginTop: '0.1rem' }}>
+                    Source: <em>UI model</em> — not engine truth
+                  </div>
                 </div>
 
                 {/* Heat loss band */}
@@ -434,35 +492,188 @@ export default function FullSurveyStepper({ onBack }: Props) {
 
       {currentStep === 'hydraulic' && (
         <div className="step-card">
-          <h2>🔧 Step 2: Hydraulic Integrity &amp; System Health</h2>
+          <h2>🔧 Step 2: Hydraulic Integrity</h2>
           <p className="description">
-            These data points power the British Gas HomeCare ROI calculation by identifying
-            existing system bottlenecks. A 15mm primary pipe flags "High Velocity Noise Risk"
-            for heat pumps. No magnetic filter applies a "Sludge Tax" (47% radiator output reduction).
+            Pipe size sets the flow rate ceiling. An ASHP operates at ΔT 5°C — four times
+            the flow of a boiler at ΔT 20°C. Adjust the controls to see where your circuit
+            sits on that curve and whether the primary pipework can sustain both technologies.
           </p>
+
+          {/* ─── Physics levers + live panel ─────────────────────────────── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start', marginBottom: '1.5rem' }}>
+
+            {/* Left: controls */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+              {/* Pipe size button group */}
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
+                  Primary Pipe Diameter
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                  {([
+                    { value: 15, label: '15 mm', sub: 'Microbore — severe ASHP limit' },
+                    { value: 22, label: '22 mm', sub: 'Standard — covers most boilers' },
+                    { value: 28, label: '28 mm', sub: 'Large bore — ASHP capable' },
+                    { value: 35, label: '35 mm', sub: 'Oversized — heat main / commercial' },
+                  ] as Array<{ value: number; label: string; sub: string }>).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setInput({ ...input, primaryPipeDiameter: opt.value })}
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        border: `2px solid ${input.primaryPipeDiameter === opt.value ? '#805ad5' : '#e2e8f0'}`,
+                        borderRadius: '6px',
+                        background: input.primaryPipeDiameter === opt.value ? '#faf5ff' : '#fff',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.12s',
+                      }}
+                    >
+                      <div style={{ fontWeight: input.primaryPipeDiameter === opt.value ? 700 : 500, fontSize: '0.88rem' }}>{opt.label}</div>
+                      <div style={{ fontSize: '0.72rem', color: '#718096' }}>{opt.sub}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Heat loss input */}
+              <div className="form-field">
+                <label style={{ fontWeight: 600, fontSize: '0.88rem', color: '#4a5568' }}>
+                  Design Heat Loss (kW)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={40}
+                  step={0.5}
+                  value={input.heatLossWatts / 1000}
+                  onChange={e => setInput({ ...input, heatLossWatts: +e.target.value * 1000 })}
+                  style={{ marginTop: '0.4rem' }}
+                />
+              </div>
+
+              {/* ΔT reference (engine authority — locked display) */}
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ flex: 1, padding: '0.5rem 0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#a0aec0' }}>Boiler ΔT</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>20°C</div>
+                </div>
+                <div style={{ flex: 1, padding: '0.5rem 0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#a0aec0' }}>ASHP ΔT</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>5°C</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: live response panel */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+
+              {/* Boiler circuit badge */}
+              <div style={{
+                padding: '0.75rem 1rem',
+                background: RISK_BG[hydraulicLive.boilerRisk],
+                border: `2px solid ${RISK_COLOUR[hydraulicLive.boilerRisk]}`,
+                borderRadius: '8px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Boiler circuit</div>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1a365d', lineHeight: 1.1 }}>
+                      {hydraulicLive.boilerFlowLpm.toFixed(1)} <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>L/min</span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#718096' }}>at ΔT 20°C</div>
+                  </div>
+                  <div style={{
+                    padding: '0.3rem 0.65rem',
+                    background: RISK_COLOUR[hydraulicLive.boilerRisk],
+                    color: '#fff',
+                    borderRadius: '4px',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                  }}>
+                    {RISK_LABEL[hydraulicLive.boilerRisk]}
+                  </div>
+                </div>
+              </div>
+
+              {/* ASHP circuit badge */}
+              <div style={{
+                padding: '0.75rem 1rem',
+                background: RISK_BG[hydraulicLive.ashpRisk],
+                border: `2px solid ${RISK_COLOUR[hydraulicLive.ashpRisk]}`,
+                borderRadius: '8px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.04em' }}>ASHP circuit</div>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1a365d', lineHeight: 1.1 }}>
+                      {hydraulicLive.ashpFlowLpm.toFixed(1)} <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>L/min</span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#718096' }}>
+                      at ΔT 5°C · <strong>{hydraulicLive.flowRatio}×</strong> boiler flow
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: '0.3rem 0.65rem',
+                    background: RISK_COLOUR[hydraulicLive.ashpRisk],
+                    color: '#fff',
+                    borderRadius: '4px',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                  }}>
+                    {RISK_LABEL[hydraulicLive.ashpRisk]}
+                  </div>
+                </div>
+              </div>
+
+              {/* Flow vs heat loss chart */}
+              <div>
+                <div style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.3rem' }}>
+                  Flow demand curve — {input.primaryPipeDiameter}mm pipe (0–20 kW)
+                </div>
+                <div style={{ height: 180 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={flowCurveData.data} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#edf2f7" />
+                      <XAxis dataKey="heatLossKw" tick={{ fontSize: 10 }} tickFormatter={v => `${v}kW`} />
+                      <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${v}L`} />
+                      <Tooltip
+                        formatter={(v: number, name: string) => [`${v} L/min`, name === 'boilerLpm' ? 'Boiler (ΔT 20°C)' : 'ASHP (ΔT 5°C)']}
+                        labelFormatter={(label: number) => `Heat loss: ${label} kW`}
+                      />
+                      {/* Boiler warn / fail vertical thresholds */}
+                      {flowCurveData.thresholds.boilerWarnKw <= 20 && (
+                        <ReferenceLine x={flowCurveData.thresholds.boilerWarnKw} stroke="#d69e2e" strokeDasharray="3 3"
+                          label={{ value: '⚠ boiler', fontSize: 9, fill: '#d69e2e', position: 'insideTopRight' }} />
+                      )}
+                      {flowCurveData.thresholds.boilerFailKw <= 20 && (
+                        <ReferenceLine x={flowCurveData.thresholds.boilerFailKw} stroke="#c53030" strokeDasharray="3 3"
+                          label={{ value: '✕ boiler', fontSize: 9, fill: '#c53030', position: 'insideTopRight' }} />
+                      )}
+                      {/* ASHP warn / fail vertical thresholds */}
+                      {flowCurveData.thresholds.ashpWarnKw <= 20 && (
+                        <ReferenceLine x={flowCurveData.thresholds.ashpWarnKw} stroke="#d69e2e" strokeDasharray="4 2"
+                          label={{ value: '⚠ ASHP', fontSize: 9, fill: '#d69e2e', position: 'insideTopLeft' }} />
+                      )}
+                      {flowCurveData.thresholds.ashpFailKw <= 20 && (
+                        <ReferenceLine x={flowCurveData.thresholds.ashpFailKw} stroke="#c53030" strokeDasharray="4 2"
+                          label={{ value: '✕ ASHP', fontSize: 9, fill: '#c53030', position: 'insideTopLeft' }} />
+                      )}
+                      {/* Current heat loss marker */}
+                      <ReferenceLine x={hydraulicLive.kw} stroke="#3182ce" strokeWidth={2}
+                        label={{ value: `${hydraulicLive.kw.toFixed(1)}kW`, fontSize: 9, fill: '#3182ce', position: 'top' }} />
+                      <Line type="monotone" dataKey="boilerLpm" stroke="#dd6b20" strokeWidth={2} dot={false} name="boilerLpm" />
+                      <Line type="monotone" dataKey="ashpLpm"   stroke="#3182ce" strokeWidth={2} dot={false} name="ashpLpm" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── Secondary system details ─────────────────────────────────── */}
           <div className="form-grid">
-            <div className="form-field">
-              <label>Primary Pipe Diameter (mm)</label>
-              <select
-                value={input.primaryPipeDiameter}
-                onChange={e => setInput({ ...input, primaryPipeDiameter: +e.target.value })}
-              >
-                <option value={15}>15mm ⚠️ High Velocity Noise Risk for heat pumps</option>
-                <option value={22}>22mm (standard)</option>
-                <option value={28}>28mm (large bore – required for 19 kW+)</option>
-              </select>
-            </div>
-            <div className="form-field">
-              <label>Heat Loss (kW)</label>
-              <input
-                type="number"
-                min={2}
-                max={40}
-                step={0.5}
-                value={input.heatLossWatts / 1000}
-                onChange={e => setInput({ ...input, heatLossWatts: +e.target.value * 1000 })}
-              />
-            </div>
             <div className="form-field">
               <label>Radiator Count</label>
               <input
