@@ -1,5 +1,132 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
-import type { OptionCardV1, OptionPlane, OptionRequirements } from '../contracts/EngineOutputV1';
+import type { OptionCardV1, OptionPlane, OptionRequirements, SensitivityItem } from '../contracts/EngineOutputV1';
+
+// ── Sensitivities builder ─────────────────────────────────────────────────────
+
+function buildSensitivities(
+  optionId: OptionCardV1['id'],
+  core: FullEngineResultCore,
+  input: EngineInputV2_3,
+): SensitivityItem[] {
+  const items: SensitivityItem[] = [];
+  const { hydraulicV1, combiDhwV1, storedDhwV1, pressureAnalysis } = core;
+  const pressure = pressureAnalysis.dynamicBar;
+  const pipeDiameter = input.primaryPipeDiameter;
+
+  if (optionId === 'ashp') {
+    if (hydraulicV1.verdict.ashpRisk === 'fail' || hydraulicV1.verdict.ashpRisk === 'warn') {
+      // Pipe upgrade would change ASHP status
+      if (pipeDiameter < 28) {
+        items.push({
+          lever: 'Primary pipe size',
+          effect: 'upgrade',
+          note: `If primaries were upgraded to 28mm (currently ${pipeDiameter}mm), ASHP hydraulic risk would be resolved — flow rate supported without erosion risk.`,
+        });
+      }
+    } else {
+      // Already viable — what would downgrade it?
+      items.push({
+        lever: 'Primary pipe size',
+        effect: 'downgrade',
+        note: `Downgrading to 22mm primaries would push ASHP into caution territory for heat loads above ~10 kW.`,
+      });
+    }
+    // Emitter upgrade note
+    items.push({
+      lever: 'Emitter upgrade appetite',
+      effect: 'upgrade',
+      note: 'Upgrading to low-temperature emitters (UFH or oversized radiators) would improve ASHP SPF from the current band, reducing running costs.',
+    });
+  }
+
+  if (optionId === 'combi') {
+    if (combiDhwV1.verdict.combiRisk === 'fail' || combiDhwV1.verdict.combiRisk === 'warn') {
+      items.push({
+        lever: 'Peak outlets at once',
+        effect: 'upgrade',
+        note: 'If peak simultaneous outlets were confirmed at 1 (single bathroom in use at a time), combi viability would improve significantly.',
+      });
+      if (pressure < 1.5) {
+        items.push({
+          lever: 'Mains pressure',
+          effect: 'upgrade',
+          note: `If mains pressure were boosted to ≥ 1.5 bar (currently ${pressure.toFixed(1)} bar), combi DHW flow would meet minimum performance threshold.`,
+        });
+      }
+    } else {
+      items.push({
+        lever: 'Peak outlets at once',
+        effect: 'downgrade',
+        note: 'Adding a second bathroom in use simultaneously would push combi into caution or rejected territory.',
+      });
+    }
+  }
+
+  if (optionId === 'stored') {
+    const recType = storedDhwV1.recommended.type;
+    if (input.availableSpace === 'tight') {
+      items.push({
+        lever: 'Available space',
+        effect: 'upgrade',
+        note: 'If more cylinder space were available (upgrade from tight to ok), a standard cylinder could be installed — Mixergy may still be preferred for efficiency.',
+      });
+    } else if (input.availableSpace !== 'ok') {
+      items.push({
+        lever: 'Available space',
+        effect: 'upgrade',
+        note: 'Confirming adequate cylinder space would remove the space-unknown caution and allow a standard indirect cylinder.',
+      });
+    }
+    if (recType === 'mixergy') {
+      items.push({
+        lever: 'Cylinder type',
+        effect: 'upgrade',
+        note: 'Switching to a Mixergy cylinder would resolve the space constraint — Mixergy heats only the top portion, providing equivalent usable hot water in a smaller effective footprint.',
+      });
+    }
+  }
+
+  if (optionId === 'system_unvented') {
+    if (pressure < 1.0) {
+      items.push({
+        lever: 'Mains pressure',
+        effect: 'upgrade',
+        note: `If mains pressure were boosted to ≥ 1.5 bar (currently ${pressure.toFixed(1)} bar), an unvented cylinder would become viable.`,
+      });
+    } else if (pressure < 1.5) {
+      items.push({
+        lever: 'Mains pressure',
+        effect: 'upgrade',
+        note: `If mains pressure reached ≥ 1.5 bar (currently ${pressure.toFixed(1)} bar), unvented cylinder would move from caution to viable — a boost pump may be sufficient.`,
+      });
+    } else {
+      items.push({
+        lever: 'Mains pressure',
+        effect: 'downgrade',
+        note: `If mains pressure dropped below 1.5 bar, unvented cylinder would require a boost pump. Below 1.0 bar it would be rejected.`,
+      });
+    }
+  }
+
+  if (optionId === 'regular_vented') {
+    const hasFutureLoftConversion = input.futureLoftConversion ?? input.hasLoftConversion ?? false;
+    if (hasFutureLoftConversion) {
+      items.push({
+        lever: 'Loft conversion plan',
+        effect: 'upgrade',
+        note: 'If the loft conversion plan were cancelled, the open-vented system with F&E header tank would become feasible again.',
+      });
+    } else {
+      items.push({
+        lever: 'Loft conversion plan',
+        effect: 'downgrade',
+        note: 'Proceeding with a loft conversion would remove the header tank space, rejecting the regular vented system option.',
+      });
+    }
+  }
+
+  return items;
+}
 
 /**
  * Builds the Option Matrix V1 — a set of option cards derived from the
@@ -117,6 +244,7 @@ export function buildOptionMatrixV1(
     dhw: combiDhw,
     engineering: combiEngineering,
     typedRequirements: combiTypedReqs,
+    sensitivities: buildSensitivities('combi', core, input),
   });
 
   // ── Stored Cylinder card ─────────────────────────────────────────────────
@@ -226,6 +354,7 @@ export function buildOptionMatrixV1(
     dhw: storedDhw,
     engineering: storedEngineering,
     typedRequirements: storedTypedReqs,
+    sensitivities: buildSensitivities('stored', core, input),
   });
 
   // ── ASHP card ────────────────────────────────────────────────────────────
@@ -364,6 +493,7 @@ export function buildOptionMatrixV1(
     dhw: ashpDhw,
     engineering: ashpEngineering,
     typedRequirements: ashpTypedReqs,
+    sensitivities: buildSensitivities('ashp', core, input),
   });
 
   // ── Regular Vented / System Unvented (feasibility-only cards) ────────────
@@ -454,6 +584,7 @@ export function buildOptionMatrixV1(
     dhw: regularDhw,
     engineering: regularEngineering,
     typedRequirements: regularTypedReqs,
+    sensitivities: buildSensitivities('regular_vented', core, input),
   });
 
   // System / unvented: needs adequate mains pressure
@@ -546,6 +677,7 @@ export function buildOptionMatrixV1(
     dhw: unventedDhw,
     engineering: unventedEngineering,
     typedRequirements: unventedTypedReqs,
+    sensitivities: buildSensitivities('system_unvented', core, input),
   });
 
   return cards;

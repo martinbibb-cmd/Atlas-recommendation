@@ -917,7 +917,8 @@ function FullSurveyResults({
   const { hydraulic, combiStress, mixergy, lifestyle, normalizer, bomItems, engineOutput } = results;
   const [showTwin, setShowTwin] = useState(false);
   const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
-  const [activeOptionTab, setActiveOptionTab] = useState<Record<string, 'heat' | 'dhw' | 'needs'>>({});
+  const [activeOptionTab, setActiveOptionTab] = useState<Record<string, 'heat' | 'dhw' | 'needs' | 'why'>>({});
+  const [visualFilter, setVisualFilter] = useState<'all' | 'relevant'>('all');
 
   // Approximate current efficiency from normalizer decay
   const currentEfficiencyPct = Math.max(50, 92 - normalizer.tenYearEfficiencyDecayPct);
@@ -963,11 +964,107 @@ function FullSurveyResults({
       {/* Engine-driven visuals — rendered by type switch, no business logic */}
       {engineOutput.visuals && engineOutput.visuals.length > 0 && (
         <div className="result-section">
-          <h3>📊 Physics Instruments</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+            <h3 style={{ margin: 0 }}>📊 Physics Instruments</h3>
+            {expandedOptionId && (
+              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.82rem' }}>
+                <button
+                  onClick={() => setVisualFilter('all')}
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: '12px',
+                    border: '1px solid #cbd5e0',
+                    background: visualFilter === 'all' ? '#3182ce' : '#fff',
+                    color: visualFilter === 'all' ? '#fff' : '#4a5568',
+                    cursor: 'pointer',
+                    fontWeight: visualFilter === 'all' ? 700 : 400,
+                  }}
+                >All</button>
+                <button
+                  onClick={() => setVisualFilter('relevant')}
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: '12px',
+                    border: '1px solid #cbd5e0',
+                    background: visualFilter === 'relevant' ? '#3182ce' : '#fff',
+                    color: visualFilter === 'relevant' ? '#fff' : '#4a5568',
+                    cursor: 'pointer',
+                    fontWeight: visualFilter === 'relevant' ? 700 : 400,
+                  }}
+                >Relevant to selected</button>
+              </div>
+            )}
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
-            {engineOutput.visuals.map(visual => (
-              <VisualCard key={visual.id} spec={visual} />
-            ))}
+            {engineOutput.visuals
+              .filter(visual => {
+                if (visualFilter === 'all' || !expandedOptionId) return true;
+                if (!visual.affectsOptionIds) return true;
+                return visual.affectsOptionIds.includes(expandedOptionId);
+              })
+              .map(visual => (
+                <VisualCard key={visual.id} spec={visual} />
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Evidence & Confidence */}
+      {engineOutput.evidence && engineOutput.evidence.length > 0 && (
+        <div className="result-section">
+          <h3>🔬 Evidence &amp; Confidence</h3>
+          <p style={{ fontSize: '0.82rem', color: '#718096', marginBottom: '0.75rem' }}>
+            What the engine knows, how it knows it, and how confident it is.
+          </p>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+              <thead>
+                <tr style={{ background: '#f7fafc', borderBottom: '2px solid #e2e8f0' }}>
+                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Input</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Value</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Source</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Confidence</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Affects</th>
+                </tr>
+              </thead>
+              <tbody>
+                {engineOutput.evidence.map(item => {
+                  const confidenceColour = item.confidence === 'high' ? '#38a169' : item.confidence === 'medium' ? '#d69e2e' : '#e53e3e';
+                  const sourceColour = item.source === 'manual' ? '#3182ce' : item.source === 'derived' ? '#805ad5' : item.source === 'assumed' ? '#d69e2e' : '#a0aec0';
+                  return (
+                    <tr key={item.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '6px 10px', fontWeight: 600, color: '#2d3748' }}>{item.label}</td>
+                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{item.value}</td>
+                      <td style={{ padding: '6px 10px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '2px 7px',
+                          borderRadius: '10px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          background: sourceColour + '22',
+                          color: sourceColour,
+                        }}>{item.source}</span>
+                      </td>
+                      <td style={{ padding: '6px 10px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '2px 7px',
+                          borderRadius: '10px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          background: confidenceColour + '22',
+                          color: confidenceColour,
+                        }}>{item.confidence}</span>
+                      </td>
+                      <td style={{ padding: '6px 10px', color: '#718096', fontSize: '0.75rem' }}>
+                        {item.affectsOptionIds.join(', ')}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -997,10 +1094,10 @@ function FullSurveyResults({
                   </div>
                   {isExpanded && (
                     <div className="option-card__body">
-                      {/* Three-section tabs: Heat / Hot Water / What needs changing */}
+                      {/* Four-section tabs: Heat / Hot Water / What needs changing / Why change? */}
                       {card.heat && card.dhw && card.engineering && card.typedRequirements && (() => {
                         const tab = activeOptionTab[card.id] ?? 'heat';
-                        const setTab = (t: 'heat' | 'dhw' | 'needs') =>
+                        const setTab = (t: 'heat' | 'dhw' | 'needs' | 'why') =>
                           setActiveOptionTab(prev => ({ ...prev, [card.id]: t }));
                         return (
                           <div className="option-card__tabs">
@@ -1017,6 +1114,12 @@ function FullSurveyResults({
                                 className={`option-card__tab-btn${tab === 'needs' ? ' option-card__tab-btn--active' : ''}`}
                                 onClick={() => setTab('needs')}
                               >🔧 What needs changing</button>
+                              {card.sensitivities && card.sensitivities.length > 0 && (
+                                <button
+                                  className={`option-card__tab-btn${tab === 'why' ? ' option-card__tab-btn--active' : ''}`}
+                                  onClick={() => setTab('why')}
+                                >🔀 What would change this?</button>
+                              )}
                             </div>
                             {tab === 'heat' && (
                               <div className="option-card__tab-panel">
@@ -1050,6 +1153,42 @@ function FullSurveyResults({
                                     <ul>{card.typedRequirements.niceToHave.map((r, i) => <li key={i}>{r}</li>)}</ul>
                                   </div>
                                 )}
+                              </div>
+                            )}
+                            {tab === 'why' && card.sensitivities && (
+                              <div className="option-card__tab-panel">
+                                <p style={{ fontSize: '0.82rem', color: '#718096', marginBottom: '0.75rem' }}>
+                                  These are the inputs that sit closest to a boundary. Changing them would shift this option&apos;s verdict.
+                                </p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                  {card.sensitivities.map((s, i) => {
+                                    const upgradeColour = s.effect === 'upgrade' ? '#38a169' : '#e53e3e';
+                                    const upgradeIcon = s.effect === 'upgrade' ? '\u2B06\uFE0F' : '\u2B07\uFE0F';
+                                    return (
+                                      <div key={i} style={{
+                                        padding: '0.625rem 0.875rem',
+                                        background: s.effect === 'upgrade' ? '#f0fff4' : '#fff5f5',
+                                        border: `1px solid ${s.effect === 'upgrade' ? '#9ae6b4' : '#fed7d7'}`,
+                                        borderRadius: '6px',
+                                        fontSize: '0.83rem',
+                                      }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                          <span>{upgradeIcon}</span>
+                                          <strong style={{ color: upgradeColour }}>{s.lever}</strong>
+                                          <span style={{
+                                            fontSize: '0.72rem',
+                                            padding: '1px 6px',
+                                            borderRadius: '8px',
+                                            background: upgradeColour + '22',
+                                            color: upgradeColour,
+                                            fontWeight: 600,
+                                          }}>{s.effect}</span>
+                                        </div>
+                                        <div style={{ color: '#4a5568', lineHeight: 1.4 }}>{s.note}</div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             )}
                           </div>

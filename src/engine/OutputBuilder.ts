@@ -1,5 +1,5 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
-import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem, VisualSpecV1 } from '../contracts/EngineOutputV1';
+import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem, VisualSpecV1, EvidenceItemV1 } from '../contracts/EngineOutputV1';
 import { ENGINE_VERSION, CONTRACT_VERSION } from '../contracts/versions';
 import { buildOptionMatrixV1 } from './OptionMatrixBuilder';
 
@@ -172,6 +172,119 @@ function buildExplainers(result: FullEngineResultCore): ExplainerItem[] {
   return items;
 }
 
+// ── Evidence items ────────────────────────────────────────────────────────────
+
+function buildEvidence(result: FullEngineResultCore, input?: EngineInputV2_3): EvidenceItemV1[] {
+  const items: EvidenceItemV1[] = [];
+
+  // Mains pressure — key gate for combi, unvented, ASHP
+  const { pressureAnalysis } = result;
+  const pressureSource = input?.dynamicMainsPressure !== undefined ? 'manual' : 'assumed';
+  items.push({
+    id: 'ev-mains-pressure-dynamic',
+    fieldPath: 'dynamicMainsPressure',
+    label: 'Mains pressure (dynamic)',
+    value: `${pressureAnalysis.dynamicBar.toFixed(1)} bar`,
+    source: pressureSource,
+    confidence: 'high',
+    affectsOptionIds: ['combi', 'system_unvented'],
+  });
+
+  if (pressureAnalysis.staticBar !== undefined && pressureAnalysis.dropBar !== undefined) {
+    items.push({
+      id: 'ev-mains-pressure-drop',
+      fieldPath: 'staticMainsPressureBar',
+      label: 'Mains pressure drop (static → dynamic)',
+      value: `${pressureAnalysis.dropBar.toFixed(1)} bar drop (${pressureAnalysis.quality ?? 'unknown'})`,
+      source: 'manual',
+      confidence: 'high',
+      affectsOptionIds: ['combi', 'system_unvented'],
+    });
+  }
+
+  // Primary pipe diameter — critical for ASHP
+  const { hydraulicV1 } = result;
+  const pipeDiameter = input?.primaryPipeDiameter;
+  items.push({
+    id: 'ev-primary-pipe',
+    fieldPath: 'primaryPipeDiameter',
+    label: 'Primary pipe diameter',
+    value: pipeDiameter !== undefined ? `${pipeDiameter} mm` : 'unknown (assumed 22 mm)',
+    source: pipeDiameter !== undefined ? 'manual' : 'assumed',
+    confidence: pipeDiameter !== undefined ? 'high' : 'low',
+    affectsOptionIds: ['ashp'],
+  });
+
+  // ASHP flow requirement — derived from hydraulicV1
+  items.push({
+    id: 'ev-ashp-flow',
+    fieldPath: 'hydraulicV1.ashp.flowLpm',
+    label: 'ASHP required flow rate',
+    value: `${hydraulicV1.ashp.flowLpm.toFixed(1)} L/min (~${(hydraulicV1.ashp.flowLpm / hydraulicV1.boiler.flowLpm).toFixed(1)}× boiler)`,
+    source: 'derived',
+    confidence: 'high',
+    affectsOptionIds: ['ashp'],
+  });
+
+  // Combi DHW verdict — simultaneous demand gate
+  const { combiDhwV1 } = result;
+  const bathroomCount = input?.bathroomCount;
+  items.push({
+    id: 'ev-combi-simultaneity',
+    fieldPath: 'bathroomCount',
+    label: 'Peak simultaneous DHW outlets',
+    value: bathroomCount !== undefined ? `${bathroomCount} bathroom${bathroomCount !== 1 ? 's' : ''}` : 'unknown',
+    source: bathroomCount !== undefined ? 'manual' : 'assumed',
+    confidence: bathroomCount !== undefined ? 'high' : 'low',
+    affectsOptionIds: ['combi'],
+  });
+  items.push({
+    id: 'ev-combi-risk',
+    fieldPath: 'combiDhwV1.verdict.combiRisk',
+    label: 'Combi DHW risk verdict',
+    value: combiDhwV1.verdict.combiRisk,
+    source: 'derived',
+    confidence: 'high',
+    affectsOptionIds: ['combi'],
+  });
+
+  // Stored DHW verdict
+  const { storedDhwV1 } = result;
+  const availableSpace = input?.availableSpace;
+  items.push({
+    id: 'ev-available-space',
+    fieldPath: 'availableSpace',
+    label: 'Available space for cylinder',
+    value: availableSpace ?? 'unknown',
+    source: availableSpace !== undefined ? 'manual' : 'placeholder',
+    confidence: availableSpace !== undefined && availableSpace !== 'unknown' ? 'high' : 'low',
+    affectsOptionIds: ['stored', 'system_unvented'],
+  });
+  items.push({
+    id: 'ev-stored-risk',
+    fieldPath: 'storedDhwV1.verdict.storedRisk',
+    label: 'Stored DHW risk verdict',
+    value: storedDhwV1.verdict.storedRisk,
+    source: 'derived',
+    confidence: 'high',
+    affectsOptionIds: ['stored', 'ashp', 'system_unvented'],
+  });
+
+  // Heat loss — drives ASHP sizing and flow requirements
+  const heatLossWatts = input?.heatLossWatts;
+  items.push({
+    id: 'ev-heat-loss',
+    fieldPath: 'heatLossWatts',
+    label: 'Design heat loss',
+    value: heatLossWatts !== undefined ? `${(heatLossWatts / 1000).toFixed(1)} kW` : 'unknown',
+    source: heatLossWatts !== undefined ? 'manual' : 'assumed',
+    confidence: heatLossWatts !== undefined ? 'high' : 'medium',
+    affectsOptionIds: ['ashp', 'combi', 'stored', 'regular_vented', 'system_unvented'],
+  });
+
+  return items;
+}
+
 // ── Visual specs ──────────────────────────────────────────────────────────────
 
 function buildVisuals(result: FullEngineResultCore): VisualSpecV1[] {
@@ -189,6 +302,7 @@ function buildVisuals(result: FullEngineResultCore): VisualSpecV1[] {
       dropBar: pressureAnalysis.dropBar,
       quality: pressureAnalysis.quality,
     },
+    affectsOptionIds: ['combi', 'system_unvented'],
   });
 
   // ashp_flow — boiler flow vs ASHP flow multiplier
@@ -203,6 +317,7 @@ function buildVisuals(result: FullEngineResultCore): VisualSpecV1[] {
       multiplier: Number((hydraulicV1.ashp.flowLpm / hydraulicV1.boiler.flowLpm).toFixed(1)),
       ashpRisk: hydraulicV1.verdict.ashpRisk,
     },
+    affectsOptionIds: ['ashp'],
   });
 
   // dhw_outlets — combi simultaneous demand: outlets vs capacity
@@ -216,6 +331,7 @@ function buildVisuals(result: FullEngineResultCore): VisualSpecV1[] {
       combiRisk: combiDhwV1.verdict.combiRisk,
       simultaneousFail: !!simultaneousFlag,
     },
+    affectsOptionIds: ['combi'],
   });
 
   // space_footprint — cylinder / buffer space from storedDhwV1
@@ -231,6 +347,7 @@ function buildVisuals(result: FullEngineResultCore): VisualSpecV1[] {
       conventionalLitres: mixergy.equivalentConventionalLitres,
       footprintSavingPct: mixergy.footprintSavingPct,
     },
+    affectsOptionIds: ['stored', 'ashp', 'system_unvented'],
   });
 
   return visuals;
@@ -332,6 +449,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     explainers: buildExplainers(result),
     contextSummary: contextBullets.length > 0 ? { bullets: contextBullets } : undefined,
     options: input ? buildOptionMatrixV1(result, input) : undefined,
+    evidence: buildEvidence(result, input),
     visuals: buildVisuals(result),
     meta: {
       engineVersion: ENGINE_VERSION,

@@ -286,3 +286,131 @@ describe('engineOutput.options via runEngine', () => {
     expect(bullets.some(b => b.includes('bathroom'))).toBe(true);
   });
 });
+
+describe('sensitivities on option cards', () => {
+  it('all 5 option cards have a sensitivities array', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    for (const card of options) {
+      expect(Array.isArray(card.sensitivities)).toBe(true);
+    }
+  });
+
+  it('each sensitivity item has lever, effect, and note fields', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    for (const card of options) {
+      for (const s of card.sensitivities ?? []) {
+        expect(typeof s.lever).toBe('string');
+        expect(s.lever.length).toBeGreaterThan(0);
+        expect(['upgrade', 'downgrade']).toContain(s.effect);
+        expect(typeof s.note).toBe('string');
+        expect(s.note.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('ASHP sensitivities mention pipe size threshold when hydraulics warn/fail (22mm + 14kW)', () => {
+    const input = { ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 14000 };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const ashp = options.find(o => o.id === 'ashp')!;
+    const pipeSensitivity = ashp.sensitivities?.find(s => s.lever === 'Primary pipe size');
+    expect(pipeSensitivity).toBeDefined();
+    expect(pipeSensitivity!.effect).toBe('upgrade');
+    expect(pipeSensitivity!.note).toContain('28mm');
+    expect(pipeSensitivity!.note).toContain('22mm');
+  });
+
+  it('ASHP sensitivities include emitter upgrade lever', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const ashp = options.find(o => o.id === 'ashp')!;
+    const emitterSensitivity = ashp.sensitivities?.find(s => s.lever === 'Emitter upgrade appetite');
+    expect(emitterSensitivity).toBeDefined();
+    expect(emitterSensitivity!.effect).toBe('upgrade');
+  });
+
+  it('ASHP sensitivities: viable pipe (28mm) shows downgrade note', () => {
+    const input = { ...baseInput, primaryPipeDiameter: 28, heatLossWatts: 14000 };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const ashp = options.find(o => o.id === 'ashp')!;
+    const pipeSensitivity = ashp.sensitivities?.find(s => s.lever === 'Primary pipe size');
+    expect(pipeSensitivity).toBeDefined();
+    expect(pipeSensitivity!.effect).toBe('downgrade');
+  });
+
+  it('combi sensitivities mention peak outlets when combi is rejected (2 bathrooms)', () => {
+    const input = { ...baseInput, bathroomCount: 2 };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const combi = options.find(o => o.id === 'combi')!;
+    const outletSensitivity = combi.sensitivities?.find(s => s.lever === 'Peak outlets at once');
+    expect(outletSensitivity).toBeDefined();
+    expect(outletSensitivity!.effect).toBe('upgrade');
+    expect(outletSensitivity!.note).toContain('1');
+  });
+
+  it('combi sensitivities show downgrade note when combi is currently viable', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const combi = options.find(o => o.id === 'combi')!;
+    const outletSensitivity = combi.sensitivities?.find(s => s.lever === 'Peak outlets at once');
+    expect(outletSensitivity).toBeDefined();
+    expect(outletSensitivity!.effect).toBe('downgrade');
+  });
+
+  it('stored sensitivities mention space when space is tight', () => {
+    const input = { ...baseInput, availableSpace: 'tight' as const };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const stored = options.find(o => o.id === 'stored')!;
+    const spaceSensitivity = stored.sensitivities?.find(s => s.lever === 'Available space');
+    expect(spaceSensitivity).toBeDefined();
+    expect(spaceSensitivity!.effect).toBe('upgrade');
+  });
+
+  it('system_unvented sensitivities mention mains pressure', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const unvented = options.find(o => o.id === 'system_unvented')!;
+    const pressureSensitivity = unvented.sensitivities?.find(s => s.lever === 'Mains pressure');
+    expect(pressureSensitivity).toBeDefined();
+  });
+
+  it('system_unvented: low pressure (< 1.0) shows upgrade sensitivity', () => {
+    const input = { ...baseInput, dynamicMainsPressure: 0.8 };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const unvented = options.find(o => o.id === 'system_unvented')!;
+    const pressureSensitivity = unvented.sensitivities?.find(s => s.lever === 'Mains pressure');
+    expect(pressureSensitivity!.effect).toBe('upgrade');
+    expect(pressureSensitivity!.note).toContain('1.5 bar');
+  });
+
+  it('regular_vented sensitivities mention loft conversion', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const regular = options.find(o => o.id === 'regular_vented')!;
+    const loftSensitivity = regular.sensitivities?.find(s => s.lever === 'Loft conversion plan');
+    expect(loftSensitivity).toBeDefined();
+  });
+
+  it('regular_vented: with loft conversion shows upgrade sensitivity', () => {
+    const input = { ...baseInput, futureLoftConversion: true };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const regular = options.find(o => o.id === 'regular_vented')!;
+    const loftSensitivity = regular.sensitivities?.find(s => s.lever === 'Loft conversion plan');
+    expect(loftSensitivity!.effect).toBe('upgrade');
+  });
+
+  it('regular_vented: without loft conversion shows downgrade sensitivity', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const regular = options.find(o => o.id === 'regular_vented')!;
+    const loftSensitivity = regular.sensitivities?.find(s => s.lever === 'Loft conversion plan');
+    expect(loftSensitivity!.effect).toBe('downgrade');
+  });
+});
