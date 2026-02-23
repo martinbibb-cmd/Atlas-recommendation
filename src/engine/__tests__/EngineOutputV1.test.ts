@@ -51,7 +51,7 @@ describe('EngineOutputV1 shape', () => {
     const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
     const stored = engineOutput.eligibility.find(e => e.id === 'stored')!;
     const ashp = engineOutput.eligibility.find(e => e.id === 'ashp')!;
-    expect(instant.label).toBe('Combi / Instantaneous');
+    expect(instant.label).toBe('Instantaneous (Combi)');
     expect(stored.label).toBe('Stored Cylinder');
     expect(ashp.label).toBe('Air Source Heat Pump');
   });
@@ -62,7 +62,13 @@ describe('EngineOutputV1 shape', () => {
     expect(instant.status).toBe('rejected');
   });
 
-  it('combi is viable for 1 bathroom + low occupancy', () => {
+  it('rejects combi when bathroomCount >= 2 (combiDhwV1 simultaneous demand)', () => {
+    const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2, highOccupancy: false });
+    const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
+    expect(instant.status).toBe('rejected');
+  });
+
+  it('combi is viable for 1 bathroom + low occupancy + professional signature', () => {
     const { engineOutput } = runEngine(baseInput);
     const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
     expect(instant.status).toBe('viable');
@@ -150,5 +156,71 @@ describe('EngineOutputV1 shape', () => {
     expect(result.hydraulicV1).toBeDefined();
     expect(result.hydraulicV1.boiler.flowLpm).toBeGreaterThan(0);
     expect(result.hydraulicV1.ashp.flowLpm).toBeGreaterThan(0);
+  });
+
+  // ── CombiDhwModuleV1 driving Instant eligibility ──────────────────────────
+
+  it('instant is rejected when pressure < 1.0 bar (combiDhwV1 pressure lockout)', () => {
+    const { engineOutput } = runEngine({ ...baseInput, dynamicMainsPressure: 0.8, bathroomCount: 1 });
+    const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
+    expect(instant.status).toBe('rejected');
+  });
+
+  it('instant is rejected when peakConcurrentOutlets >= 2 (combiDhwV1 simultaneous demand)', () => {
+    const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 1, peakConcurrentOutlets: 2 });
+    const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
+    expect(instant.status).toBe('rejected');
+  });
+
+  it('instant is caution for steady_home signature with 1 bathroom + 1 outlet', () => {
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      occupancySignature: 'steady_home',
+    });
+    const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
+    expect(instant.status).toBe('caution');
+  });
+
+  it('instant is caution for steady signature (V3 alias) with 1 bathroom + 1 outlet', () => {
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      occupancySignature: 'steady',
+    });
+    const instant = engineOutput.eligibility.find(e => e.id === 'instant')!;
+    expect(instant.status).toBe('caution');
+  });
+
+  it('combiDhwV1 flags are included in engineOutput.redFlags', () => {
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      dynamicMainsPressure: 0.5,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+    });
+    const pressureFlag = engineOutput.redFlags.find(f => f.id === 'combi-pressure-lockout');
+    expect(pressureFlag).toBeDefined();
+    expect(pressureFlag!.severity).toBe('fail');
+  });
+
+  it('short-draw explainer present when occupancy is steady_home', () => {
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      occupancySignature: 'steady_home',
+    });
+    const explainer = engineOutput.explainers.find(e => e.id === 'combi-short-draw-collapse');
+    expect(explainer).toBeDefined();
+    expect(explainer!.body).toContain('28 %');
+  });
+
+  it('combiDhwV1 is present in full engine result', () => {
+    const result = runEngine(baseInput);
+    expect(result.combiDhwV1).toBeDefined();
+    expect(['pass', 'warn', 'fail']).toContain(result.combiDhwV1.verdict.combiRisk);
   });
 });

@@ -3,6 +3,7 @@ import { normalizeInput } from './normalizer/Normalizer';
 import { runHydraulicSafetyModule } from './modules/HydraulicSafetyModule';
 import { runHydraulicModuleV1 } from './modules/HydraulicModule';
 import { runCombiStressModule } from './modules/CombiStressModule';
+import { runCombiDhwModuleV1 } from './modules/CombiDhwModule';
 import { runMixergyVolumetricsModule } from './modules/MixergyVolumetricsModule';
 import { runLifestyleSimulationModule } from './modules/LifestyleSimulationModule';
 import { runRedFlagModule } from './modules/RedFlagModule';
@@ -21,6 +22,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const hydraulic = runHydraulicSafetyModule(input);
   const hydraulicV1 = runHydraulicModuleV1(input);
   const combiStress = runCombiStressModule(input);
+  const combiDhwV1 = runCombiDhwModuleV1(input);
   const mixergy = runMixergyVolumetricsModule(input);
   const lifestyle = runLifestyleSimulationModule(input);
   const redFlags = runRedFlagModule(input);
@@ -73,6 +75,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     hydraulic,
     hydraulicV1,
     combiStress,
+    combiDhwV1,
     mixergy,
     lifestyle,
     normalizer,
