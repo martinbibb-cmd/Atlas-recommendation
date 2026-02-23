@@ -1,4 +1,4 @@
-import type { MixergyResult } from '../schema/EngineInputV2_3';
+import type { EngineInputV2_3, MixergyResult } from '../schema/EngineInputV2_3';
 
 const MIXERGY_LITRES = 150;
 const CONVENTIONAL_EQUIVALENT_LITRES = 210;
@@ -29,7 +29,18 @@ const GAS_SAVING_PCT = 21;
  * - Prevents "coil lock-out" where a conventional coil sits in already-warm water
  * - Results in 5-10% COP improvement
  */
-export function runMixergyVolumetricsModule(): MixergyResult {
+export function runMixergyVolumetricsModule(input: Pick<EngineInputV2_3, 'dhwTankType'>): MixergyResult {
+  if (input.dhwTankType !== 'mixergy') {
+    return {
+      equivalentConventionalLitres: 0,
+      mixergyLitres: 0,
+      footprintSavingPct: 0,
+      heatPumpCopMultiplierPct: 0,
+      gasSavingPct: 0,
+      notes: ['Mixergy not selected for this scenario.'],
+    };
+  }
+
   const notes: string[] = [
     `📦 Volumetric Advantage: A 150L Mixergy replaces a 210L conventional cylinder ` +
     `(${FOOTPRINT_SAVING_PCT}% footprint saving) through active top-down stratification ` +

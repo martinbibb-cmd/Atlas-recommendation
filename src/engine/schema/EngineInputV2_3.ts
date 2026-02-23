@@ -44,6 +44,12 @@ export interface EngineInputV2_3 {
   // Preferences
   preferCombi: boolean;
 
+  // Current system context (survey metadata)
+  currentHeatSourceType?: 'combi' | 'system' | 'regular' | 'ashp' | 'other';
+  currentBoilerAgeYears?: number;
+  currentBoilerOutputKw?: number;
+  makeModelText?: string;
+
   // Sludge vs Scale inputs
   hasMagneticFilter?: boolean;
   systemAgeYears?: number;
@@ -202,6 +208,9 @@ export interface MaintenanceROIResult {
 
 export interface RedFlagResult {
   rejectCombi: boolean;
+  /** Preferred field name for stored hot-water architecture eligibility. */
+  rejectStored: boolean;
+  /** @deprecated Backward-compatible alias for rejectStored. */
   rejectVented: boolean;
   flagAshp: boolean;
   /** True when one-pipe topology is detected – ASHP cannot operate without return temp >55°C */
