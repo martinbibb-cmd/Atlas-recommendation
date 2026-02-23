@@ -95,6 +95,12 @@ export interface EngineInputV2_3 {
 
   // Grid flex
   gridFlexInput?: GridFlexInput;
+
+  // Retrofit / ASHP temperature regime
+  retrofit?: {
+    /** Appetite for emitter upgrades when installing a heat pump. */
+    emitterUpgradeAppetite?: 'none' | 'some' | 'full_job';
+  };
 }
 
 export interface HydraulicResult {
@@ -451,6 +457,26 @@ export interface MCSReport {
   expansionVesselSizingL: number;
 }
 
+// ─── Heat Pump Regime Module V1 ───────────────────────────────────────────────
+
+/** Flag item emitted by HeatPumpRegimeModuleV1. */
+export interface HeatPumpRegimeFlagItem {
+  id: 'regime-flow-temp-elevated' | 'regime-cop-penalty' | 'regime-full-job-unlocks-low-temp';
+  severity: 'info' | 'warn';
+  title: string;
+  detail: string;
+}
+
+/** Result returned by HeatPumpRegimeModuleV1. */
+export interface HeatPumpRegimeModuleV1Result {
+  /** Design flow temperature band: 35°C (low-temp full job), 45°C (partial upgrade), 50°C (minimal change). */
+  designFlowTempBand: 35 | 45 | 50;
+  /** Seasonal Performance Factor band at the derived flow temp. */
+  spfBand: 'good' | 'ok' | 'poor';
+  flags: HeatPumpRegimeFlagItem[];
+  assumptions: string[];
+}
+
 // ─── Updated FullEngineResult ─────────────────────────────────────────────────
 
 /** Core module outputs — everything except the derived engineOutput contract. */
@@ -472,6 +498,7 @@ export interface FullEngineResultCore {
   mixergyLegacy: MixergyLegacyResult;
   specEdge: SpecEdgeResult;
   gridFlex?: GridFlexResult;
+  heatPumpRegime: HeatPumpRegimeModuleV1Result;
 }
 
 /** Full engine result including the canonical V1 output contract. */
