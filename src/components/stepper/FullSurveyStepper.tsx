@@ -188,6 +188,58 @@ function overallRisk(cells: RiskLevel[]): RiskLevel {
   return 'pass';
 }
 
+// ─── Stored DHW Live Analysis ─────────────────────────────────────────────────
+
+interface StoredDhwLive {
+  recommendedVolumeL: number;
+  recoveryTimeMin: number;
+  firstHourRatingL: number;
+  legionellaRisk: RiskLevel;
+  sizingRisk: RiskLevel;
+  overall: RiskLevel;
+}
+
+/**
+ * Derives real-time stored-DHW metrics from demand band + boiler power.
+ *
+ * Cylinder sizing:
+ *   Baseline volume chosen from demand band; +30 L if bathrooms > 2.
+ *
+ * Recovery time:
+ *   t_min = (V_L × 4.187 × ΔT_K) / (P_kW × 3 600) × 60
+ *   where ΔT = 45 K  (55 °C set-point − 10 °C mains)
+ *
+ * First-hour rating:
+ *   FHR = V_cylinder + (P_kW × 3600) / (4.187 × ΔT)
+ *
+ * Legionella proxy:
+ *   Very-High demand + high occupancy → intermittent draw → warn.
+ */
+function deriveStoredDhwLive(
+  heatLossWatts: number,
+  bandLabel: string,
+  bathrooms: number,
+  highOccupancy: boolean,
+): StoredDhwLive {
+  const boilerKw = Math.max(8, heatLossWatts / 1000);
+  const BASE_VOL: Record<string, number> = {
+    'Very Low': 100, 'Low': 120, 'Moderate': 160, 'High': 210, 'Very High': 270,
+  };
+  const recommendedVolumeL = (BASE_VOL[bandLabel] ?? 160) + (bathrooms > 2 ? 30 : 0);
+  const deltaTC = 45; // 55 °C − 10 °C mains
+  const energyKj = recommendedVolumeL * 4.187 * deltaTC;
+  const recoveryTimeMin = Math.round((energyKj / (boilerKw * 3600)) * 60);
+  const recoveryLPerHour = Math.round((boilerKw * 3600) / (4.187 * deltaTC));
+  const firstHourRatingL = recommendedVolumeL + recoveryLPerHour;
+
+  const legionellaRisk: RiskLevel = (bandLabel === 'Very High' && highOccupancy) ? 'warn' : 'pass';
+  const sizingRisk: RiskLevel    = recoveryTimeMin > 90 ? 'fail' : recoveryTimeMin > 60 ? 'warn' : 'pass';
+  const overall: RiskLevel       = [sizingRisk, legionellaRisk].includes('fail') ? 'fail'
+    : [sizingRisk, legionellaRisk].includes('warn') ? 'warn' : 'pass';
+
+  return { recommendedVolumeL, recoveryTimeMin, firstHourRatingL, legionellaRisk, sizingRisk, overall };
+}
+
 // ─── Pressure Behaviour Helpers ──────────────────────────────────────────────
 
 const DROP_QUALITY_COLOUR: Record<'strong' | 'moderate' | 'weak', string> = {
@@ -353,6 +405,15 @@ export default function FullSurveyStepper({ onBack }: Props) {
   const dhwBand = useMemo(
     () => dhwDemandBand(input.bathroomCount, input.peakConcurrentOutlets ?? 1, input.highOccupancy),
     [input.bathroomCount, input.peakConcurrentOutlets, input.highOccupancy],
+  );
+  const storedDhwLive = useMemo(
+    () => deriveStoredDhwLive(
+      input.heatLossWatts,
+      dhwBand.label,
+      input.bathroomCount ?? 1,
+      input.highOccupancy ?? false,
+    ),
+    [input.heatLossWatts, dhwBand.label, input.bathroomCount, input.highOccupancy],
   );
 
   // ── Pressure derived values ─────────────────────────────────────────────────
@@ -1345,6 +1406,89 @@ export default function FullSurveyStepper({ onBack }: Props) {
                     {/* Combi limit marker at 33% */}
                     <div style={{ position: 'absolute', left: '33%', top: '-3px', bottom: '-3px', width: '2px', background: '#38a169' }} />
                   </div>
+                </div>
+              </div>
+
+              {/* ── Stored DHW analysis ───────────────────────────────────── */}
+              <div style={{ borderTop: '1px dashed #cbd5e0', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
+                <div style={{ fontSize: '0.72rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '0.5rem' }}>
+                  Stored / Cylinder Analysis
+                </div>
+
+                {/* Overall stored verdict */}
+                <div style={{
+                  padding: '0.5rem 0.75rem',
+                  background: RISK_BG[storedDhwLive.overall],
+                  border: `2px solid ${RISK_COLOUR[storedDhwLive.overall]}`,
+                  borderRadius: '6px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  marginBottom: '0.5rem',
+                }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.85rem', color: '#2d3748' }}>Stored system</span>
+                  <span style={{
+                    padding: '0.15rem 0.55rem',
+                    background: RISK_COLOUR[storedDhwLive.overall],
+                    color: '#fff', borderRadius: '4px', fontWeight: 700, fontSize: '0.78rem',
+                  }}>
+                    {RISK_LABEL[storedDhwLive.overall]}
+                  </span>
+                </div>
+
+                {/* Metrics row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                  {/* Recommended cylinder */}
+                  <div style={{ padding: '0.45rem 0.6rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#a0aec0', marginBottom: '0.1rem' }}>Cylinder size</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 800, color: '#2d3748' }}>{storedDhwLive.recommendedVolumeL} L</div>
+                    <div style={{ fontSize: '0.68rem', color: '#718096' }}>recommended</div>
+                  </div>
+                  {/* First-hour rating */}
+                  <div style={{ padding: '0.45rem 0.6rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#a0aec0', marginBottom: '0.1rem' }}>First-hour rating</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 800, color: '#2d3748' }}>{storedDhwLive.firstHourRatingL} L</div>
+                    <div style={{ fontSize: '0.68rem', color: '#718096' }}>stored + 1 h recovery</div>
+                  </div>
+                </div>
+
+                {/* Recovery time bar */}
+                <div style={{ padding: '0.5rem 0.6rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px', marginBottom: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#718096' }}>Cold recovery</span>
+                    <span style={{
+                      fontSize: '0.72rem', fontWeight: 700,
+                      color: RISK_COLOUR[storedDhwLive.sizingRisk],
+                    }}>
+                      {storedDhwLive.recoveryTimeMin} min
+                    </span>
+                  </div>
+                  <div style={{ background: '#e2e8f0', borderRadius: '4px', height: '8px', position: 'relative' }}>
+                    <div style={{
+                      width: `${Math.min((storedDhwLive.recoveryTimeMin / 90) * 100, 100)}%`,
+                      background: RISK_COLOUR[storedDhwLive.sizingRisk],
+                      height: '100%', borderRadius: '4px', transition: 'width 0.2s',
+                    }} />
+                    {/* 60-min caution marker */}
+                    <div style={{ position: 'absolute', left: `${(60 / 90) * 100}%`, top: '-2px', bottom: '-2px', width: '2px', background: '#d69e2e' }} />
+                  </div>
+                  <div style={{ fontSize: '0.67rem', color: '#a0aec0', marginTop: '0.2rem' }}>
+                    ≤60 min pass · 60–90 min caution · &gt;90 min fail
+                  </div>
+                </div>
+
+                {/* Legionella row */}
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '0.4rem 0.6rem',
+                  background: CELL_BG[storedDhwLive.legionellaRisk],
+                  border: `1px solid ${CELL_BORDER[storedDhwLive.legionellaRisk]}`,
+                  borderRadius: '6px',
+                  fontSize: '0.78rem',
+                }}>
+                  <span style={{ color: '#4a5568' }}>Legionella / pasteurisation</span>
+                  <span style={{ fontWeight: 700, color: RISK_COLOUR[storedDhwLive.legionellaRisk] }}>
+                    {CELL_ICON[storedDhwLive.legionellaRisk]}
+                    {storedDhwLive.legionellaRisk === 'warn' ? ' Review setpoint' : ' No concern'}
+                  </span>
                 </div>
               </div>
             </div>
