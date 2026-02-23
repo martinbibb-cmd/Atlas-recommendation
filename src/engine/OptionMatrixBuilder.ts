@@ -16,11 +16,11 @@ function buildSensitivities(
   if (optionId === 'ashp') {
     if (hydraulicV1.verdict.ashpRisk === 'fail' || hydraulicV1.verdict.ashpRisk === 'warn') {
       // Pipe upgrade would change ASHP status
-      if (pipeDiameter < 28) {
+      if (!pipeDiameter || pipeDiameter < 28) {
         items.push({
           lever: 'Primary pipe size',
           effect: 'upgrade',
-          note: `If primaries were upgraded to 28mm (currently ${pipeDiameter}mm), ASHP hydraulic risk would be resolved — flow rate supported without erosion risk.`,
+          note: `If primaries were upgraded to 28mm${pipeDiameter ? ` (currently ${pipeDiameter}mm)` : ''}, ASHP hydraulic risk would be resolved — flow rate supported without erosion risk.`,
         });
       }
     } else {

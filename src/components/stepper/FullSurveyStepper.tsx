@@ -903,6 +903,26 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
 
 const ELIGIBILITY_ICONS: Record<string, string> = { on_demand: '🔥', stored: '💧', ashp: '🌿' };
 
+// ── Evidence badge colour helpers ─────────────────────────────────────────────
+const BADGE_ALPHA = '22';
+
+function confidenceColour(confidence: string): string {
+  if (confidence === 'high') return '#38a169';
+  if (confidence === 'medium') return '#d69e2e';
+  return '#e53e3e';
+}
+
+function sourceColour(source: string): string {
+  if (source === 'manual') return '#3182ce';
+  if (source === 'derived') return '#805ad5';
+  if (source === 'assumed') return '#d69e2e';
+  return '#a0aec0';
+}
+
+function sensitivityColour(effect: string): string {
+  return effect === 'upgrade' ? '#38a169' : '#e53e3e';
+}
+
 function FullSurveyResults({
   results,
   input,
@@ -1029,8 +1049,8 @@ function FullSurveyResults({
               </thead>
               <tbody>
                 {engineOutput.evidence.map(item => {
-                  const confidenceColour = item.confidence === 'high' ? '#38a169' : item.confidence === 'medium' ? '#d69e2e' : '#e53e3e';
-                  const sourceColour = item.source === 'manual' ? '#3182ce' : item.source === 'derived' ? '#805ad5' : item.source === 'assumed' ? '#d69e2e' : '#a0aec0';
+                  const cColour = confidenceColour(item.confidence);
+                  const sColour = sourceColour(item.source);
                   return (
                     <tr key={item.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                       <td style={{ padding: '6px 10px', fontWeight: 600, color: '#2d3748' }}>{item.label}</td>
@@ -1042,8 +1062,8 @@ function FullSurveyResults({
                           borderRadius: '10px',
                           fontSize: '0.75rem',
                           fontWeight: 600,
-                          background: sourceColour + '22',
-                          color: sourceColour,
+                          background: sColour + BADGE_ALPHA,
+                          color: sColour,
                         }}>{item.source}</span>
                       </td>
                       <td style={{ padding: '6px 10px' }}>
@@ -1053,8 +1073,8 @@ function FullSurveyResults({
                           borderRadius: '10px',
                           fontSize: '0.75rem',
                           fontWeight: 600,
-                          background: confidenceColour + '22',
-                          color: confidenceColour,
+                          background: cColour + BADGE_ALPHA,
+                          color: cColour,
                         }}>{item.confidence}</span>
                       </td>
                       <td style={{ padding: '6px 10px', color: '#718096', fontSize: '0.75rem' }}>
@@ -1162,7 +1182,7 @@ function FullSurveyResults({
                                 </p>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                   {card.sensitivities.map((s, i) => {
-                                    const upgradeColour = s.effect === 'upgrade' ? '#38a169' : '#e53e3e';
+                                    const sColour = sensitivityColour(s.effect);
                                     const upgradeIcon = s.effect === 'upgrade' ? '\u2B06\uFE0F' : '\u2B07\uFE0F';
                                     return (
                                       <div key={i} style={{
@@ -1174,13 +1194,13 @@ function FullSurveyResults({
                                       }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
                                           <span>{upgradeIcon}</span>
-                                          <strong style={{ color: upgradeColour }}>{s.lever}</strong>
+                                          <strong style={{ color: sColour }}>{s.lever}</strong>
                                           <span style={{
                                             fontSize: '0.72rem',
                                             padding: '1px 6px',
                                             borderRadius: '8px',
-                                            background: upgradeColour + '22',
-                                            color: upgradeColour,
+                                            background: sColour + BADGE_ALPHA,
+                                            color: sColour,
                                             fontWeight: 600,
                                           }}>{s.effect}</span>
                                         </div>

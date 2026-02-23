@@ -155,8 +155,10 @@ describe('EngineOutputV1 evidence block', () => {
   });
 
   it('available space evidence is placeholder when not provided', () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { availableSpace: _, ...inputWithoutSpace } = baseInput;
+    // Create input without availableSpace (using a type cast to omit the field)
+    const inputWithoutSpace = Object.fromEntries(
+      Object.entries(baseInput).filter(([k]) => k !== 'availableSpace'),
+    ) as typeof baseInput;
     const { engineOutput } = runEngine(inputWithoutSpace);
     const spaceItem = engineOutput.evidence?.find(e => e.id === 'ev-available-space');
     expect(spaceItem).toBeDefined();
