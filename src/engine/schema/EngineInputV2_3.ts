@@ -92,6 +92,14 @@ export interface HydraulicResult {
   notes: string[];
 }
 
+/** HydraulicModuleV1 – structured flow-and-risk result. */
+export interface HydraulicModuleV1Result {
+  boiler:  { deltaT: number; flowLpm: number };
+  ashp:    { deltaT: number; flowLpm: number };
+  verdict: { boilerRisk: 'pass' | 'warn' | 'fail'; ashpRisk: 'pass' | 'warn' | 'fail' };
+  notes: string[];
+}
+
 export interface CombiStressResult {
   annualPurgeLossKwh: number;
   shortDrawEfficiencyPct: number;
@@ -389,6 +397,7 @@ export interface MCSReport {
 
 export interface FullEngineResult {
   hydraulic: HydraulicResult;
+  hydraulicV1: HydraulicModuleV1Result;
   combiStress: CombiStressResult;
   mixergy: MixergyResult;
   lifestyle: LifestyleResult;

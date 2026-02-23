@@ -110,4 +110,45 @@ describe('EngineOutputV1 shape', () => {
       expect(engineOutput.recommendation.primary.length).toBeGreaterThan(0);
     }
   });
+
+  // ── HydraulicModuleV1 driving ASHP eligibility ────────────────────────────
+
+  it('ashp is rejected when hydraulicV1 ashpRisk is fail (22mm + 14kW)', () => {
+    const { engineOutput } = runEngine({ ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 14000 });
+    const ashp = engineOutput.eligibility.find(e => e.id === 'ashp')!;
+    expect(ashp.status).toBe('rejected');
+  });
+
+  it('ashp is caution when hydraulicV1 ashpRisk is warn (22mm + 8kW)', () => {
+    const { engineOutput } = runEngine({ ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 8000 });
+    const ashp = engineOutput.eligibility.find(e => e.id === 'ashp')!;
+    expect(ashp.status).toBe('caution');
+  });
+
+  it('ashp is viable for 28mm + 14kW (hydraulicV1 ashpRisk pass)', () => {
+    const { engineOutput } = runEngine({ ...baseInput, primaryPipeDiameter: 28, heatLossWatts: 14000 });
+    const ashp = engineOutput.eligibility.find(e => e.id === 'ashp')!;
+    expect(ashp.status).toBe('viable');
+  });
+
+  it('ashp rejected for 22mm + 14kW has a reason string', () => {
+    const { engineOutput } = runEngine({ ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 14000 });
+    const ashp = engineOutput.eligibility.find(e => e.id === 'ashp')!;
+    expect(typeof ashp.reason).toBe('string');
+    expect((ashp.reason as string).length).toBeGreaterThan(0);
+  });
+
+  it('hydraulic ASHP explainer present when ashpRisk is not pass', () => {
+    const { engineOutput } = runEngine({ ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 8000 });
+    const explainer = engineOutput.explainers.find(e => e.id === 'hydraulic-ashp-flow');
+    expect(explainer).toBeDefined();
+    expect(explainer!.body).toContain('4.0×');
+  });
+
+  it('hydraulicV1 is present in full engine result', () => {
+    const result = runEngine(baseInput);
+    expect(result.hydraulicV1).toBeDefined();
+    expect(result.hydraulicV1.boiler.flowLpm).toBeGreaterThan(0);
+    expect(result.hydraulicV1.ashp.flowLpm).toBeGreaterThan(0);
+  });
 });
