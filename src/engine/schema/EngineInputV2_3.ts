@@ -395,7 +395,8 @@ export interface MCSReport {
 
 // ─── Updated FullEngineResult ─────────────────────────────────────────────────
 
-export interface FullEngineResult {
+/** Core module outputs — everything except the derived engineOutput contract. */
+export interface FullEngineResultCore {
   hydraulic: HydraulicResult;
   hydraulicV1: HydraulicModuleV1Result;
   combiStress: CombiStressResult;
@@ -411,9 +412,13 @@ export interface FullEngineResult {
   mixergyLegacy: MixergyLegacyResult;
   specEdge: SpecEdgeResult;
   gridFlex?: GridFlexResult;
+}
+
+/** Full engine result including the canonical V1 output contract. */
+export type FullEngineResult = FullEngineResultCore & {
   /** Canonical engine output (V1 contract). */
   engineOutput: EngineOutputV1;
-}
+};
 
 // ─── Connected Insights V2.4 ──────────────────────────────────────────────────
 
