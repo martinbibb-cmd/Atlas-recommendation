@@ -1,4 +1,4 @@
-import type { EngineInputV2_3, FullEngineResult } from './schema/EngineInputV2_3';
+import type { EngineInputV2_3, FullEngineResult, FullEngineResultCore } from './schema/EngineInputV2_3';
 import { normalizeInput } from './normalizer/Normalizer';
 import { runHydraulicSafetyModule } from './modules/HydraulicSafetyModule';
 import { runHydraulicModuleV1 } from './modules/HydraulicModule';
@@ -69,7 +69,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     ? runGridFlexModule(input.gridFlexInput)
     : undefined;
 
-  const partialResult = {
+  const core: FullEngineResultCore = {
     hydraulic,
     hydraulicV1,
     combiStress,
@@ -87,8 +87,6 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     gridFlex,
   };
 
-  return {
-    ...partialResult,
-    engineOutput: buildEngineOutputV1(partialResult),
-  };
+  const engineOutput = buildEngineOutputV1(core);
+  return { ...core, engineOutput };
 }
