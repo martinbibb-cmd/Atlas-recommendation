@@ -31,8 +31,8 @@ interface Props {
   onBack: () => void;
 }
 
-type Step = 'location' | 'pressure' | 'hydraulic' | 'lifestyle' | 'hot_water' | 'commercial' | 'results';
-const STEPS: Step[] = ['location', 'pressure', 'hydraulic', 'lifestyle', 'hot_water', 'commercial', 'results'];
+type Step = 'location' | 'pressure' | 'hydraulic' | 'lifestyle' | 'hot_water' | 'commercial' | 'overlay' | 'results';
+const STEPS: Step[] = ['location', 'pressure', 'hydraulic', 'lifestyle', 'hot_water', 'commercial', 'overlay', 'results'];
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
 // Physical levers that drive τ derivation — replaces era-label archetype cards.
@@ -109,6 +109,83 @@ function buildDecayTrace(tauHours: number, initialTempC = 20, outdoorTempC = 5) 
 /** Recharts tooltip formatter for temperature traces. */
 function tempTooltipFormatter(v: number | undefined): [string, string] {
   return [v !== undefined ? `${v}°C` : 'N/A', 'Room temp'];
+}
+
+// ─── System Overlay Helpers ───────────────────────────────────────────────────
+
+const OVERLAY_SYSTEMS = [
+  { id: 'combi',           label: 'Combi'         },
+  { id: 'stored',          label: 'Stored'        },
+  { id: 'ashp',            label: 'ASHP'          },
+  { id: 'regular_vented',  label: 'Regular'       },
+  { id: 'system_unvented', label: 'Sys+Unvented'  },
+] as const;
+
+const OVERLAY_ROWS: Array<{ id: string; label: string; step: Step }> = [
+  { id: 'heat_delivery', label: 'Heat delivery',      step: 'hydraulic'  },
+  { id: 'hot_water',     label: 'Hot water',          step: 'hot_water'  },
+  { id: 'water_supply',  label: 'Water supply',       step: 'pressure'   },
+  { id: 'space',         label: 'Space & constraints', step: 'commercial' },
+  { id: 'future_works',  label: 'Future works',       step: 'commercial' },
+];
+
+type RiskLevel = 'pass' | 'warn' | 'fail';
+
+function deriveOverlayCell(
+  system: string,
+  row: string,
+  boilerRisk: RiskLevel,
+  ashpRisk: RiskLevel,
+  combiDhwRisk: RiskLevel,
+  dhwBandLabel: string,
+  pressureQuality: string | undefined,
+  dynamicBar: number,
+  availableSpace: string | undefined,
+  futureLoft: boolean,
+  futureBath: boolean,
+): RiskLevel {
+  const pressRisk: RiskLevel =
+    pressureQuality === 'strong'   ? 'pass' :
+    pressureQuality === 'moderate' ? 'warn' :
+    pressureQuality === 'weak'     ? 'fail' : 'warn'; // no quality = low confidence
+
+  switch (row) {
+    case 'heat_delivery':
+      return system === 'ashp' ? ashpRisk : boilerRisk;
+
+    case 'hot_water':
+      if (system === 'combi') return combiDhwRisk;
+      // Stored/ASHP/regular/unvented — multi-bathroom is fine; flag only extreme demand
+      return dhwBandLabel === 'Very High' ? 'warn' : 'pass';
+
+    case 'water_supply':
+      if (system === 'regular_vented') return 'pass'; // gravity-fed, not pressure-sensitive
+      if (system === 'combi') return dynamicBar < 1.0 ? 'fail' : pressRisk;
+      if (system === 'system_unvented') return dynamicBar < 1.5 ? 'warn' : pressRisk;
+      return dynamicBar < 1.0 ? 'warn' : pressRisk; // stored, ashp
+
+    case 'space':
+      if (system === 'combi') return 'pass'; // no cylinder needed
+      return availableSpace === 'ok' ? 'pass' : 'warn';
+
+    case 'future_works': {
+      const hasPlanned = futureLoft || futureBath;
+      if (!hasPlanned) return 'pass';
+      return system === 'combi' ? 'fail' : 'warn';
+    }
+
+    default: return 'pass';
+  }
+}
+
+const CELL_ICON: Record<RiskLevel, string> = { pass: '✅', warn: '⚠️', fail: '❌' };
+const CELL_BG:   Record<RiskLevel, string> = { pass: '#f0fff4', warn: '#fffff0', fail: '#fff5f5' };
+const CELL_BORDER: Record<RiskLevel, string> = { pass: '#9ae6b4', warn: '#faf089', fail: '#feb2b2' };
+
+function overallRisk(cells: RiskLevel[]): RiskLevel {
+  if (cells.includes('fail')) return 'fail';
+  if (cells.includes('warn')) return 'warn';
+  return 'pass';
 }
 
 // ─── Pressure Behaviour Helpers ──────────────────────────────────────────────
@@ -291,7 +368,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
   const progress = ((stepIndex + 1) / STEPS.length) * 100;
 
   const next = () => {
-    if (currentStep === 'commercial') {
+    if (currentStep === 'overlay') {
       // Strip fullSurvey extras — pass only the EngineInputV2_3 subset to the engine.
       setResults(runEngine(toEngineInput(input)));
       setCurrentStep('results');
@@ -1508,10 +1585,136 @@ export default function FullSurveyStepper({ onBack }: Props) {
 
           <div className="step-actions">
             <button className="prev-btn" onClick={prev}>← Back</button>
-            <button className="next-btn" onClick={next}>Run Analysis →</button>
+            <button className="next-btn" onClick={next}>Next →</button>
           </div>
         </div>
       )}
+
+      {currentStep === 'overlay' && (() => {
+        // Pre-compute all cell statuses
+        const cellMap: Record<string, Record<string, RiskLevel>> = {};
+        for (const sys of OVERLAY_SYSTEMS) {
+          cellMap[sys.id] = {};
+          for (const row of OVERLAY_ROWS) {
+            cellMap[sys.id][row.id] = deriveOverlayCell(
+              sys.id, row.id,
+              hydraulicLive.boilerRisk, hydraulicLive.ashpRisk,
+              combiDhwLive.verdict.combiRisk,
+              dhwBand.label,
+              pressureAnalysis.quality,
+              input.dynamicMainsPressure,
+              input.availableSpace,
+              input.futureLoftConversion ?? false,
+              input.futureAddBathroom ?? false,
+            );
+          }
+        }
+
+        return (
+          <div className="step-card">
+            <h2>🔬 Step 7: System Overlay</h2>
+            <p className="description">
+              Each cell shows how your building's physics gates each system option.
+              Click any cell to jump back to the step that controls it.
+              Green across a column = viable candidate for full analysis.
+            </p>
+
+            {/* Grid table */}
+            <div style={{ overflowX: 'auto', marginTop: '0.5rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '0.5rem 0.75rem', textAlign: 'left', color: '#718096', fontWeight: 600, fontSize: '0.78rem', borderBottom: '2px solid #e2e8f0' }}>
+                      Physics domain
+                    </th>
+                    {OVERLAY_SYSTEMS.map(sys => (
+                      <th key={sys.id} style={{ padding: '0.5rem 0.5rem', textAlign: 'center', color: '#2d3748', fontWeight: 700, borderBottom: '2px solid #e2e8f0', minWidth: '80px' }}>
+                        {sys.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {OVERLAY_ROWS.map((row, ri) => (
+                    <tr key={row.id} style={{ background: ri % 2 === 0 ? '#fff' : '#f7fafc' }}>
+                      <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600, color: '#4a5568', borderBottom: '1px solid #e2e8f0' }}>
+                        {row.label}
+                        <div style={{ fontSize: '0.7rem', color: '#a0aec0', fontWeight: 400 }}>
+                          → {row.step.replace(/_/g, ' ')}
+                        </div>
+                      </td>
+                      {OVERLAY_SYSTEMS.map(sys => {
+                        const risk = cellMap[sys.id][row.id];
+                        return (
+                          <td key={sys.id} style={{ padding: '0.35rem 0.5rem', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
+                            <button
+                              onClick={() => setCurrentStep(row.step)}
+                              title={`Jump to ${row.step.replace(/_/g, ' ')} step`}
+                              style={{
+                                width: '100%',
+                                padding: '0.35rem 0.25rem',
+                                background: CELL_BG[risk],
+                                border: `1px solid ${CELL_BORDER[risk]}`,
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '1rem',
+                                lineHeight: 1,
+                              }}
+                            >
+                              {CELL_ICON[risk]}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+
+                  {/* Overall row */}
+                  <tr style={{ background: '#edf2f7', borderTop: '2px solid #e2e8f0' }}>
+                    <td style={{ padding: '0.5rem 0.75rem', fontWeight: 700, color: '#2d3748' }}>
+                      Overall
+                    </td>
+                    {OVERLAY_SYSTEMS.map(sys => {
+                      const cells = OVERLAY_ROWS.map(r => cellMap[sys.id][r.id]);
+                      const overall = overallRisk(cells);
+                      return (
+                        <td key={sys.id} style={{ padding: '0.5rem 0.5rem', textAlign: 'center' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '0.2rem 0.5rem',
+                            background: CELL_BG[overall],
+                            border: `1px solid ${CELL_BORDER[overall]}`,
+                            borderRadius: '4px',
+                            fontSize: '0.9rem',
+                            fontWeight: 700,
+                          }}>
+                            {CELL_ICON[overall]}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Legend */}
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.875rem', fontSize: '0.78rem', color: '#718096', flexWrap: 'wrap' }}>
+              <span>✅ Pass — no constraint</span>
+              <span>⚠️ Caution — check detail</span>
+              <span>❌ Fail — blocking constraint</span>
+              <span style={{ marginLeft: 'auto', color: '#a0aec0' }}>
+                Click any cell to jump to the controlling step
+              </span>
+            </div>
+
+            <div className="step-actions">
+              <button className="prev-btn" onClick={prev}>← Back</button>
+              <button className="next-btn" onClick={next}>Run Full Analysis →</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {currentStep === 'results' && results && (
         <FullSurveyResults
