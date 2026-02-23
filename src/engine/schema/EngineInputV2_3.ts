@@ -1,3 +1,6 @@
+import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
+export type { EngineOutputV1 };
+
 export type OccupancySignature =
   | 'professional'
   | 'steady_home'
@@ -399,6 +402,8 @@ export interface FullEngineResult {
   mixergyLegacy: MixergyLegacyResult;
   specEdge: SpecEdgeResult;
   gridFlex?: GridFlexResult;
+  /** Canonical engine output (V1 contract). */
+  engineOutput: EngineOutputV1;
 }
 
 // ─── Connected Insights V2.4 ──────────────────────────────────────────────────

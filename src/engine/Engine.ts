@@ -13,6 +13,7 @@ import { runMetallurgyEdgeModule } from './modules/MetallurgyEdgeModule';
 import { runMixergyLegacyModule } from './modules/MixergyLegacyModule';
 import { runSpecEdgeModule } from './modules/SpecEdgeModule';
 import { runGridFlexModule } from './modules/GridFlexModule';
+import { buildEngineOutputV1 } from './OutputBuilder';
 
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const normalizer = normalizeInput(input);
@@ -66,7 +67,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     ? runGridFlexModule(input.gridFlexInput)
     : undefined;
 
-  return {
+  const partialResult = {
     hydraulic,
     combiStress,
     mixergy,
@@ -81,5 +82,10 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     mixergyLegacy,
     specEdge,
     gridFlex,
+  };
+
+  return {
+    ...partialResult,
+    engineOutput: buildEngineOutputV1(partialResult),
   };
 }

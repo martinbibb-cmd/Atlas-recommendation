@@ -734,6 +734,8 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
   );
 }
 
+const ELIGIBILITY_ICONS: Record<string, string> = { instant: '🔥', stored: '💧', ashp: '🌿' };
+
 function FullSurveyResults({
   results,
   input,
@@ -745,7 +747,7 @@ function FullSurveyResults({
   compareMixergy: boolean;
   onBack: () => void;
 }) {
-  const { hydraulic, combiStress, mixergy, lifestyle, normalizer, redFlags, bomItems } = results;
+  const { hydraulic, combiStress, mixergy, lifestyle, normalizer, bomItems, engineOutput } = results;
   const [showTwin, setShowTwin] = useState(false);
 
   // Approximate current efficiency from normalizer decay
@@ -781,26 +783,25 @@ function FullSurveyResults({
       <div className="result-section">
         <h3>🚩 System Eligibility</h3>
         <div className="verdict-grid">
-          <div className={`verdict-item ${redFlags.rejectCombi ? 'rejected' : 'approved'}`}>
-            <div className="verdict-icon">🔥</div>
-            <div className="verdict-label">Combi</div>
-            <div className="verdict-status">{redFlags.rejectCombi ? '❌ Rejected' : '✅ Viable'}</div>
-          </div>
-          <div className={`verdict-item ${(redFlags.rejectStored ?? redFlags.rejectVented) ? 'rejected' : 'approved'}`}>
-            <div className="verdict-icon">💧</div>
-            <div className="verdict-label">Stored (Cylinder)</div>
-            <div className="verdict-status">{(redFlags.rejectStored ?? redFlags.rejectVented) ? '❌ Rejected' : '✅ Viable'}</div>
-          </div>
-          <div className={`verdict-item ${redFlags.rejectAshp ? 'rejected' : redFlags.flagAshp ? 'flagged' : 'approved'}`}>
-            <div className="verdict-icon">🌿</div>
-            <div className="verdict-label">ASHP</div>
-            <div className="verdict-status">{redFlags.rejectAshp ? '❌ Rejected' : redFlags.flagAshp ? '⚠️ Flagged' : '✅ Viable'}</div>
-          </div>
+          {engineOutput.eligibility.map(item => {
+            const icons = ELIGIBILITY_ICONS;
+            const statusClass = item.status === 'rejected' ? 'rejected' : item.status === 'caution' ? 'flagged' : 'approved';
+            const statusLabel = item.status === 'rejected' ? '❌ Rejected' : item.status === 'caution' ? '⚠️ Caution' : '✅ Viable';
+            return (
+              <div key={item.id} className={`verdict-item ${statusClass}`}>
+                <div className="verdict-icon">{icons[item.id] ?? '🔧'}</div>
+                <div className="verdict-label">{item.label}</div>
+                <div className="verdict-status">{statusLabel}</div>
+              </div>
+            );
+          })}
         </div>
-        {redFlags.reasons.length > 0 && (
+        {engineOutput.redFlags.length > 0 && (
           <ul className="red-flag-list" style={{ marginTop: '1rem' }}>
-            {redFlags.reasons.map((r, i) => (
-              <li key={i} className={r.includes('Rejected') || r.includes('Hard Fail') || r.includes('Cut-off') ? 'reject' : 'flag'}>{r}</li>
+            {engineOutput.redFlags.map(flag => (
+              <li key={flag.id} className={flag.severity === 'fail' ? 'reject' : 'flag'}>
+                <strong>{flag.title}:</strong> {flag.detail}
+              </li>
             ))}
           </ul>
         )}
@@ -810,7 +811,7 @@ function FullSurveyResults({
       <div className="result-section">
         <h3>👥 Lifestyle Recommendation</h3>
         <div className={`recommendation-banner ${lifestyle.recommendedSystem}`}>
-          {lifestyle.notes[0]}
+          {engineOutput.recommendation.primary}
         </div>
         <div style={{ marginTop: '1rem' }}>
           <h4 style={{ marginBottom: '0.75rem', fontSize: '0.95rem', color: '#4a5568' }}>
