@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -31,52 +31,94 @@ interface Props {
 type Step = 'location' | 'hydraulic' | 'lifestyle' | 'commercial' | 'results';
 const STEPS: Step[] = ['location', 'hydraulic', 'lifestyle', 'commercial', 'results'];
 
-// Property archetype configuration: maps fabric type to display label, τ, and building mass
-const ARCHETYPES: Array<{
-  fabricType: BuildingFabricType;
+// ─── Fabric Behaviour Controls ────────────────────────────────────────────────
+// Physical levers that drive τ derivation — replaces era-label archetype cards.
+
+type WallType = 'solid_masonry' | 'cavity_insulated' | 'timber_lightweight';
+type InsulationLevel = 'poor' | 'moderate' | 'good' | 'exceptional';
+type AirTightness = 'leaky' | 'average' | 'tight' | 'passive_level';
+
+/**
+ * Base τ matrix (hours): wall construction × insulation level.
+ * Derived from CIBSE Guide A lumped-capacitance guidance and BRE field data.
+ */
+const BASE_TAU: Record<WallType, Record<InsulationLevel, number>> = {
+  solid_masonry:       { poor: 45, moderate: 55, good: 70, exceptional: 90 },
+  cavity_insulated:    { poor: 22, moderate: 35, good: 48, exceptional: 65 },
+  timber_lightweight:  { poor: 10, moderate: 15, good: 22, exceptional: 35 },
+};
+
+/** Air-tightness multiplier applied to the base τ. */
+const AIR_TIGHTNESS_FACTOR: Record<AirTightness, number> = {
+  leaky:         0.75,
+  average:       1.00,
+  tight:         1.15,
+  passive_level: 1.40,
+};
+
+/**
+ * Derive τ (thermal time constant) from the three fabric controls.
+ * Special case: timber/lightweight + exceptional + passive-level → Passivhaus τ (190.5 h).
+ */
+function deriveTau(wall: WallType, insulation: InsulationLevel, air: AirTightness): number {
+  if (wall === 'timber_lightweight' && insulation === 'exceptional' && air === 'passive_level') {
+    return 190.5; // Passivhaus standard
+  }
+  return Math.round(BASE_TAU[wall][insulation] * AIR_TIGHTNESS_FACTOR[air]);
+}
+
+/** Map slider values to the nearest BuildingFabricType for engine/module compatibility. */
+function deriveFabricType(wall: WallType, insulation: InsulationLevel, air: AirTightness): BuildingFabricType {
+  if (wall === 'timber_lightweight' && insulation === 'exceptional' && air === 'passive_level') return 'passivhaus_standard';
+  if (wall === 'solid_masonry')    return 'solid_brick_1930s';
+  if (wall === 'cavity_insulated') return '1970s_cavity_wall';
+  return 'lightweight_new';
+}
+
+/** Map wall type to buildingMass for the engine contract. */
+function deriveBuildingMass(wall: WallType): EngineInputV2_3['buildingMass'] {
+  if (wall === 'solid_masonry')   return 'heavy';
+  if (wall === 'cavity_insulated') return 'medium';
+  return 'light';
+}
+
+/** Qualitative heat-loss band based on wall + insulation. */
+function deriveHeatLossBand(wall: WallType, insulation: InsulationLevel): { label: string; colour: string } {
+  const idx = (['poor', 'moderate', 'good', 'exceptional'] as InsulationLevel[]).indexOf(insulation);
+  const wallBonus: Record<WallType, number> = { solid_masonry: 1, cavity_insulated: 0, timber_lightweight: -1 };
+  const score = idx + wallBonus[wall]; // 0-4 range
+  if (score <= 0)  return { label: 'Very High', colour: '#c53030' };
+  if (score === 1) return { label: 'High',      colour: '#dd6b20' };
+  if (score === 2) return { label: 'Moderate',  colour: '#d69e2e' };
+  if (score === 3) return { label: 'Low',        colour: '#38a169' };
+  return               { label: 'Very Low',   colour: '#276749' };
+}
+
+/** Generate a 10-hour temperature decay trace directly from τ. */
+function buildDecayTrace(tauHours: number, initialTempC = 20, outdoorTempC = 5) {
+  const deltaT = initialTempC - outdoorTempC;
+  return Array.from({ length: 11 }, (_, h) => ({
+    hourOffset: h,
+    tempC: parseFloat((outdoorTempC + deltaT * Math.exp(-h / tauHours)).toFixed(1)),
+  }));
+}
+
+/** Recharts tooltip formatter for temperature traces. */
+function tempTooltipFormatter(v: number | undefined): [string, string] {
+  return [v !== undefined ? `${v}°C` : 'N/A', 'Room temp'];
+}
+
+// Preset examples — secondary controls, not the primary selector
+const FABRIC_PRESETS: Array<{
   label: string;
-  era: string;
-  tauHours: number;
-  buildingMass: EngineInputV2_3['buildingMass'];
-  description: string;
-  emoji: string;
+  wall: WallType;
+  insulation: InsulationLevel;
+  air: AirTightness;
 }> = [
-  {
-    fabricType: 'solid_brick_1930s',
-    label: '1930s Solid Brick Semi',
-    era: 'Pre-war',
-    tauHours: 55,
-    buildingMass: 'heavy',
-    description: '225mm solid brick walls. High thermal mass – slow to heat, but retains warmth all day.',
-    emoji: '🏚️',
-  },
-  {
-    fabricType: '1970s_cavity_wall',
-    label: '1970s Cavity Wall',
-    era: '1970s',
-    tauHours: 35,
-    buildingMass: 'medium',
-    description: 'Cavity wall with partial-fill insulation. Medium thermal storage – moderate response.',
-    emoji: '🏠',
-  },
-  {
-    fabricType: 'lightweight_new',
-    label: '2020s New Build',
-    era: 'Modern',
-    tauHours: 15,
-    buildingMass: 'light',
-    description: 'Timber frame / lightweight block. Low thermal mass – fast response but rapid cooling.',
-    emoji: '🏡',
-  },
-  {
-    fabricType: 'passivhaus_standard',
-    label: 'Passivhaus',
-    era: 'Super-insulated',
-    tauHours: 190.5,
-    buildingMass: 'light',
-    description: 'Super-insulated certified build. Exceptional thermal retention – ideal for heat pumps.',
-    emoji: '🌿',
-  },
+  { label: 'Solid brick (pre-war)',  wall: 'solid_masonry',      insulation: 'poor',       air: 'leaky'   },
+  { label: '1970s cavity filled',    wall: 'cavity_insulated',   insulation: 'moderate',   air: 'average' },
+  { label: '2020s new build',        wall: 'timber_lightweight', insulation: 'moderate',   air: 'tight'   },
+  { label: 'Passivhaus',             wall: 'timber_lightweight', insulation: 'exceptional', air: 'passive_level' },
 ];
 
 const defaultInput: FullSurveyModelV1 = {
@@ -106,9 +148,24 @@ const defaultInput: FullSurveyModelV1 = {
 export default function FullSurveyStepper({ onBack }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('location');
   const [input, setInput] = useState<FullSurveyModelV1>(defaultInput);
-  const [fabricType, setFabricType] = useState<BuildingFabricType>('solid_brick_1930s');
   const [compareMixergy, setCompareMixergy] = useState(false);
   const [results, setResults] = useState<FullEngineResult | null>(null);
+
+  // ── Fabric simulation controls ─────────────────────────────────────────────
+  const [wallType, setWallType] = useState<WallType>('solid_masonry');
+  const [insulationLevel, setInsulationLevel] = useState<InsulationLevel>('moderate');
+  const [airTightness, setAirTightness] = useState<AirTightness>('average');
+
+  // Derived values — update whenever any fabric control changes
+  const derivedTau = useMemo(() => deriveTau(wallType, insulationLevel, airTightness), [wallType, insulationLevel, airTightness]);
+  const fabricType: BuildingFabricType = useMemo(() => deriveFabricType(wallType, insulationLevel, airTightness), [wallType, insulationLevel, airTightness]);
+  const heatLossBand = useMemo(() => deriveHeatLossBand(wallType, insulationLevel), [wallType, insulationLevel]);
+  const decayTrace = useMemo(() => buildDecayTrace(derivedTau), [derivedTau]);
+
+  // Keep buildingMass in engine input in sync with the wall type control
+  useEffect(() => {
+    setInput(prev => ({ ...prev, buildingMass: deriveBuildingMass(wallType) }));
+  }, [wallType]);
 
   const stepIndex = STEPS.indexOf(currentStep);
   const progress = ((stepIndex + 1) / STEPS.length) * 100;
@@ -131,7 +188,8 @@ export default function FullSurveyStepper({ onBack }: Props) {
     }
   };
 
-  const selectedArchetype = ARCHETYPES.find(a => a.fabricType === fabricType) ?? ARCHETYPES[0];
+  // selectedArchetype shape kept for LifestyleComfortStep compatibility
+  const selectedArchetype = { label: `${wallType.replace(/_/g, ' ')} / ${insulationLevel}`, tauHours: derivedTau, fabricType };
 
   return (
     <div className="stepper-container">
@@ -145,11 +203,11 @@ export default function FullSurveyStepper({ onBack }: Props) {
 
       {currentStep === 'location' && (
         <div className="step-card">
-          <h2>📍 Step 1: Geochemical &amp; Property Baseline</h2>
+          <h2>📍 Step 1: Geochemical &amp; Fabric Baseline</h2>
           <p className="description">
-            Your postcode anchors the simulation to local water chemistry. In Sherborne (DT9),
-            hardness reaches 364 ppm, triggering silicate-scaffolded scale modelling.
-            Your property archetype sets the Thermal Time Constant (τ).
+            Your postcode anchors the simulation to local water chemistry. Adjust the fabric
+            controls below to set thermal behaviour — τ (the Thermal Time Constant) is
+            derived live from physics, not from a decade label.
           </p>
 
           <div className="form-grid">
@@ -175,64 +233,197 @@ export default function FullSurveyStepper({ onBack }: Props) {
             </div>
           </div>
 
+          {/* ─── Fabric & Thermal Behaviour Controls ─────────────────────── */}
           <div style={{ marginTop: '1.5rem' }}>
-            <label style={{ fontWeight: 600, display: 'block', marginBottom: '0.75rem' }}>
-              Property Archetype
-            </label>
-            <p style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '0.75rem' }}>
-              Select your property type to automatically assign the Thermal Time Constant (τ).
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#2d3748', marginBottom: '0.25rem' }}>
+              🧱 Fabric &amp; Thermal Behaviour Controls
+            </h3>
+            <p style={{ fontSize: '0.83rem', color: '#718096', marginBottom: '1rem' }}>
+              Adjust physical levers — τ updates live. No decade labels. No era archetypes.
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem' }}>
-              {ARCHETYPES.map(arch => (
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start' }}>
+
+              {/* ── Left: Controls ─────────────────────────────────────── */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                {/* Wall Construction */}
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
+                    Wall Construction
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {([
+                      { value: 'solid_masonry',     label: 'Solid masonry',       sub: '225 mm brick / stone — high thermal mass' },
+                      { value: 'cavity_insulated',  label: 'Cavity (insulated)',  sub: 'Full or partial fill — medium mass' },
+                      { value: 'timber_lightweight',label: 'Timber / lightweight',sub: 'Frame or block — low mass, fast response' },
+                    ] as Array<{ value: WallType; label: string; sub: string }>).map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setWallType(opt.value)}
+                        style={{
+                          padding: '0.5rem 0.75rem',
+                          border: `2px solid ${wallType === opt.value ? '#3182ce' : '#e2e8f0'}`,
+                          borderRadius: '6px',
+                          background: wallType === opt.value ? '#ebf8ff' : '#fff',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.12s',
+                        }}
+                      >
+                        <div style={{ fontWeight: wallType === opt.value ? 700 : 500, fontSize: '0.88rem' }}>{opt.label}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#718096' }}>{opt.sub}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Insulation Level */}
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
+                    Insulation Level
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                    {(['poor', 'moderate', 'good', 'exceptional'] as InsulationLevel[]).map(lvl => (
+                      <button
+                        key={lvl}
+                        onClick={() => setInsulationLevel(lvl)}
+                        style={{
+                          padding: '0.45rem 0.6rem',
+                          border: `2px solid ${insulationLevel === lvl ? '#38a169' : '#e2e8f0'}`,
+                          borderRadius: '6px',
+                          background: insulationLevel === lvl ? '#f0fff4' : '#fff',
+                          cursor: 'pointer',
+                          fontWeight: insulationLevel === lvl ? 700 : 400,
+                          fontSize: '0.85rem',
+                          textTransform: 'capitalize',
+                          transition: 'all 0.12s',
+                        }}
+                      >
+                        {lvl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Air Tightness */}
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
+                    Air Tightness
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                    {([
+                      { value: 'leaky',        label: 'Leaky' },
+                      { value: 'average',      label: 'Average' },
+                      { value: 'tight',        label: 'Tight' },
+                      { value: 'passive_level',label: 'Passive-level' },
+                    ] as Array<{ value: AirTightness; label: string }>).map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setAirTightness(opt.value)}
+                        style={{
+                          padding: '0.45rem 0.6rem',
+                          border: `2px solid ${airTightness === opt.value ? '#805ad5' : '#e2e8f0'}`,
+                          borderRadius: '6px',
+                          background: airTightness === opt.value ? '#faf5ff' : '#fff',
+                          cursor: 'pointer',
+                          fontWeight: airTightness === opt.value ? 700 : 400,
+                          fontSize: '0.85rem',
+                          transition: 'all 0.12s',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Right: Live Response Panel ──────────────────────────── */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+
+                {/* Derived τ badge */}
+                <div style={{
+                  padding: '0.875rem 1rem',
+                  background: '#ebf8ff',
+                  border: '2px solid #3182ce',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.3rem',
+                }}>
+                  <div style={{ fontSize: '0.78rem', color: '#2b6cb0', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Thermal Time Constant
+                  </div>
+                  <div style={{ fontSize: '2rem', fontWeight: 800, color: '#1a365d', lineHeight: 1 }}>
+                    τ = {derivedTau}h
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#4a5568' }}>
+                    Derived from construction + insulation + air tightness
+                  </div>
+                </div>
+
+                {/* Heat loss band */}
+                <div style={{
+                  padding: '0.6rem 0.875rem',
+                  background: '#f7fafc',
+                  border: `1px solid ${heatLossBand.colour}44`,
+                  borderLeft: `4px solid ${heatLossBand.colour}`,
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                }}>
+                  <span style={{ color: '#718096' }}>Estimated heat-loss band: </span>
+                  <strong style={{ color: heatLossBand.colour }}>{heatLossBand.label}</strong>
+                </div>
+
+                {/* Live heating response curve */}
+                <div>
+                  <div style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.3rem' }}>
+                    Heating response curve — 10 h unheated window (20°C → 5°C outdoor)
+                  </div>
+                  <div style={{ height: 180 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={decayTrace} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#edf2f7" />
+                        <XAxis dataKey="hourOffset" tickFormatter={h => `+${h}h`} tick={{ fontSize: 10 }} />
+                        <YAxis domain={[0, 22]} tick={{ fontSize: 10 }} tickFormatter={v => `${v}°`} />
+                        <Tooltip formatter={tempTooltipFormatter} />
+                        <ReferenceLine y={16} stroke="#e53e3e" strokeDasharray="4 4" label={{ value: '16°C min', fontSize: 9, fill: '#e53e3e' }} />
+                        <Line type="monotone" dataKey="tempC" stroke="#3182ce" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ─── Optional presets (secondary) ────────────────────────── */}
+            <div style={{ marginTop: '1rem', paddingTop: '0.875rem', borderTop: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: '0.8rem', color: '#a0aec0', marginRight: '0.5rem' }}>Load example:</span>
+              {FABRIC_PRESETS.map(p => (
                 <button
-                  key={arch.fabricType}
+                  key={p.label}
                   onClick={() => {
-                    setFabricType(arch.fabricType);
-                    setInput({ ...input, buildingMass: arch.buildingMass });
+                    setWallType(p.wall);
+                    setInsulationLevel(p.insulation);
+                    setAirTightness(p.air);
                   }}
                   style={{
-                    padding: '0.875rem',
-                    border: `2px solid ${fabricType === arch.fabricType ? '#3182ce' : '#e2e8f0'}`,
-                    borderRadius: '8px',
-                    background: fabricType === arch.fabricType ? '#ebf8ff' : '#fff',
+                    marginRight: '0.4rem',
+                    marginBottom: '0.3rem',
+                    padding: '0.3rem 0.65rem',
+                    fontSize: '0.78rem',
+                    border: '1px solid #cbd5e0',
+                    borderRadius: '4px',
+                    background: '#f7fafc',
                     cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.15s',
+                    color: '#4a5568',
                   }}
                 >
-                  <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{arch.emoji}</div>
-                  <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.125rem' }}>{arch.label}</div>
-                  <div style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '0.5rem' }}>{arch.era}</div>
-                  <div style={{
-                    display: 'inline-block',
-                    background: fabricType === arch.fabricType ? '#3182ce' : '#edf2f7',
-                    color: fabricType === arch.fabricType ? '#fff' : '#4a5568',
-                    borderRadius: '4px',
-                    padding: '2px 8px',
-                    fontSize: '0.78rem',
-                    fontWeight: 600,
-                  }}>
-                    τ = {arch.tauHours}h
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.375rem', lineHeight: 1.3 }}>
-                    {arch.description}
-                  </div>
+                  {p.label}
                 </button>
               ))}
             </div>
-            {fabricType && (
-              <div style={{
-                marginTop: '0.75rem',
-                padding: '0.75rem',
-                background: '#f0fff4',
-                border: '1px solid #9ae6b4',
-                borderRadius: '6px',
-                fontSize: '0.85rem',
-                color: '#276749',
-              }}>
-                ✅ <strong>{selectedArchetype.label}</strong> selected — Thermal Time Constant τ = {selectedArchetype.tauHours} hours preset.
-              </div>
-            )}
           </div>
 
           <div className="step-actions">
@@ -795,7 +986,7 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
                 tick={{ fontSize: 11 }}
                 tickFormatter={v => `${v}°C`}
               />
-              <Tooltip formatter={(v: number | undefined) => [v !== undefined ? `${v}°C` : 'N/A', 'Room temp']} />
+              <Tooltip formatter={tempTooltipFormatter} />
               <ReferenceLine y={16} stroke="#e53e3e" strokeDasharray="4 4" label={{ value: '16°C min', fontSize: 10, fill: '#e53e3e' }} />
               <ReferenceLine
                 y={thermalResult.finalTempC}
