@@ -58,6 +58,18 @@ export interface OptionCardV1 {
   typedRequirements: OptionRequirements;
 }
 
+export interface VisualSpecV1 {
+  /** Stable identifier for the visual (unique within an output). */
+  id: string;
+  /** Visual type — drives the UI renderer switch. */
+  type: 'pressure_drop' | 'ashp_flow' | 'dhw_outlets' | 'space_footprint';
+  /** Optional display title. */
+  title?: string;
+  /** Type-specific data payload — consumed by the matching renderer. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any;
+}
+
 export interface EngineOutputV1 {
   eligibility: EligibilityItem[];
   redFlags: RedFlagItem[];
@@ -69,6 +81,8 @@ export interface EngineOutputV1 {
   trace?: TraceItem[];
   contextSummary?: { bullets: string[] };
   options?: OptionCardV1[];
+  /** Engine-driven visual specs. UI renders by type switch — no business logic in UI. */
+  visuals?: VisualSpecV1[];
   meta?: {
     engineVersion: typeof ENGINE_VERSION;
     contractVersion: typeof CONTRACT_VERSION;
