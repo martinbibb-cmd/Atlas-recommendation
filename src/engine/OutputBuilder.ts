@@ -2,7 +2,8 @@ import type { FullEngineResult } from './schema/EngineInputV2_3';
 import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem } from '../contracts/EngineOutputV1';
 import { ENGINE_VERSION, CONTRACT_VERSION } from '../contracts/versions';
 
-function buildEligibility(redFlags: FullEngineResult['redFlags']): EligibilityItem[] {
+function buildEligibility(result: FullEngineResult): EligibilityItem[] {
+  const { redFlags, hydraulicV1 } = result;
   const items: EligibilityItem[] = [];
 
   const instantReason = redFlags.reasons
@@ -27,15 +28,28 @@ function buildEligibility(redFlags: FullEngineResult['redFlags']): EligibilityIt
     reason: (redFlags.rejectStored ?? redFlags.rejectVented) ? storedReason || undefined : undefined,
   });
 
-  const ashpReason = redFlags.reasons
-    .filter(r => r.includes('ASHP'))
-    .join(' ');
+  // ASHP eligibility is driven first by hydraulic physics, then by topology hard-fails.
+  let ashpStatus: EligibilityItem['status'];
+  if (redFlags.rejectAshp) {
+    ashpStatus = 'rejected';
+  } else if (hydraulicV1.verdict.ashpRisk === 'fail') {
+    ashpStatus = 'rejected';
+  } else if (hydraulicV1.verdict.ashpRisk === 'warn' || redFlags.flagAshp) {
+    ashpStatus = 'caution';
+  } else {
+    ashpStatus = 'viable';
+  }
+
+  const ashpReasons = [
+    ...redFlags.reasons.filter(r => r.includes('ASHP')),
+    ...hydraulicV1.notes.filter(n => n.includes('ASHP')),
+  ].join(' ');
 
   items.push({
     id: 'ashp',
     label: 'Air Source Heat Pump',
-    status: redFlags.rejectAshp ? 'rejected' : redFlags.flagAshp ? 'caution' : 'viable',
-    reason: (redFlags.rejectAshp || redFlags.flagAshp) ? ashpReason || undefined : undefined,
+    status: ashpStatus,
+    reason: ashpStatus !== 'viable' ? ashpReasons || undefined : undefined,
   });
 
   return items;
@@ -63,6 +77,19 @@ function buildExplainers(result: FullEngineResult): ExplainerItem[] {
     });
   }
 
+  if (result.hydraulicV1.verdict.ashpRisk !== 'pass') {
+    const { ashp, boiler } = result.hydraulicV1;
+    items.push({
+      id: 'hydraulic-ashp-flow',
+      title: 'ASHP Requires ~4× Boiler Flow Rate',
+      body: `Heat pumps operate at ΔT ${ashp.deltaT}°C versus ΔT ${boiler.deltaT}°C for a boiler, ` +
+        `requiring ${ashp.flowLpm.toFixed(1)} L/min — ` +
+        `approximately ${(ashp.flowLpm / boiler.flowLpm).toFixed(1)}× the boiler demand of ` +
+        `${boiler.flowLpm.toFixed(1)} L/min. Primary pipework smaller than 28mm may clip ` +
+        `heat pump performance, cause pipe erosion, and increase noise.`,
+    });
+  }
+
   if (result.combiStress.isCondensingCompromised) {
     items.push({
       id: 'condensing-compromised',
@@ -85,10 +112,11 @@ function buildExplainers(result: FullEngineResult): ExplainerItem[] {
 
 export function buildEngineOutputV1(result: FullEngineResult): EngineOutputV1 {
   const primary = result.lifestyle.notes[0] ?? result.lifestyle.recommendedSystem;
+  const allReasons = [...result.redFlags.reasons, ...result.hydraulicV1.notes];
 
   return {
-    eligibility: buildEligibility(result.redFlags),
-    redFlags: buildRedFlags(result.redFlags.reasons),
+    eligibility: buildEligibility(result),
+    redFlags: buildRedFlags(allReasons),
     recommendation: { primary },
     explainers: buildExplainers(result),
     meta: {

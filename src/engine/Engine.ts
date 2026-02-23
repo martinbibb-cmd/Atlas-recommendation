@@ -1,6 +1,7 @@
 import type { EngineInputV2_3, FullEngineResult } from './schema/EngineInputV2_3';
 import { normalizeInput } from './normalizer/Normalizer';
 import { runHydraulicSafetyModule } from './modules/HydraulicSafetyModule';
+import { runHydraulicModuleV1 } from './modules/HydraulicModule';
 import { runCombiStressModule } from './modules/CombiStressModule';
 import { runMixergyVolumetricsModule } from './modules/MixergyVolumetricsModule';
 import { runLifestyleSimulationModule } from './modules/LifestyleSimulationModule';
@@ -18,6 +19,7 @@ import { buildEngineOutputV1 } from './OutputBuilder';
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const normalizer = normalizeInput(input);
   const hydraulic = runHydraulicSafetyModule(input);
+  const hydraulicV1 = runHydraulicModuleV1(input);
   const combiStress = runCombiStressModule(input);
   const mixergy = runMixergyVolumetricsModule(input);
   const lifestyle = runLifestyleSimulationModule(input);
@@ -69,6 +71,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
 
   const partialResult = {
     hydraulic,
+    hydraulicV1,
     combiStress,
     mixergy,
     lifestyle,
