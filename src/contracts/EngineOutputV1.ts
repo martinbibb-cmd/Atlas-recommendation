@@ -26,14 +26,36 @@ export interface TraceItem {
   steps: string[];
 }
 
+export interface OptionPlane {
+  status: 'ok' | 'caution' | 'na';
+  headline: string;
+  bullets: string[];
+  evidenceIds?: string[];
+}
+
+export interface OptionRequirements {
+  mustHave: string[];
+  likelyUpgrades: string[];
+  niceToHave: string[];
+}
+
 export interface OptionCardV1 {
   id: 'combi' | 'stored' | 'ashp' | 'regular_vented' | 'system_unvented';
   label: string;
   status: 'viable' | 'caution' | 'rejected';
   headline: string;
   why: string[];
+  /** @deprecated Use requirements.mustHave / likelyUpgrades / niceToHave instead. */
   requirements: string[];
   evidenceIds?: string[];
+  /** Wet-side hydraulics, flow temperatures, emitter suitability, cycling risk. */
+  heat: OptionPlane;
+  /** DHW pressure, simultaneity, recovery profile. */
+  dhw: OptionPlane;
+  /** Space, loft head, discharge route, buffer/header constraints. */
+  engineering: OptionPlane;
+  /** Typed requirements replacing the flat requirements[] array. */
+  typedRequirements: OptionRequirements;
 }
 
 export interface EngineOutputV1 {

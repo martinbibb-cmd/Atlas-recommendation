@@ -124,6 +124,123 @@ describe('buildOptionMatrixV1', () => {
     const unvented = options.find(o => o.id === 'system_unvented')!;
     expect(unvented.status).toBe('viable');
   });
+
+  it('each card has heat, dhw, engineering planes', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    for (const card of options) {
+      expect(card.heat).toBeDefined();
+      expect(typeof card.heat.headline).toBe('string');
+      expect(Array.isArray(card.heat.bullets)).toBe(true);
+      expect(card.heat.bullets.length).toBeGreaterThan(0);
+
+      expect(card.dhw).toBeDefined();
+      expect(typeof card.dhw.headline).toBe('string');
+      expect(Array.isArray(card.dhw.bullets)).toBe(true);
+      expect(card.dhw.bullets.length).toBeGreaterThan(0);
+
+      expect(card.engineering).toBeDefined();
+      expect(typeof card.engineering.headline).toBe('string');
+      expect(Array.isArray(card.engineering.bullets)).toBe(true);
+      expect(card.engineering.bullets.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('each card has typedRequirements with mustHave, likelyUpgrades, niceToHave', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    for (const card of options) {
+      expect(card.typedRequirements).toBeDefined();
+      expect(Array.isArray(card.typedRequirements.mustHave)).toBe(true);
+      expect(Array.isArray(card.typedRequirements.likelyUpgrades)).toBe(true);
+      expect(Array.isArray(card.typedRequirements.niceToHave)).toBe(true);
+    }
+  });
+
+  it('combi and stored heat planes both describe same boiler wet-side physics', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const combi = options.find(o => o.id === 'combi')!;
+    const stored = options.find(o => o.id === 'stored')!;
+    // Both should have 'ok' heat status (same wet-side physics)
+    expect(combi.heat.status).toBe('ok');
+    expect(stored.heat.status).toBe('ok');
+  });
+
+  it('combi DHW plane reflects combi risk verdict', () => {
+    // 2 bathrooms → combi simultaneous demand → combi DHW caution
+    const input = { ...baseInput, bathroomCount: 2 };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const combi = options.find(o => o.id === 'combi')!;
+    expect(combi.dhw.status).toBe('caution');
+  });
+
+  it('ASHP heat plane status is caution when ashpRisk is fail', () => {
+    const input = { ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 14000 };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const ashp = options.find(o => o.id === 'ashp')!;
+    expect(ashp.heat.status).toBe('caution');
+  });
+
+  it('ASHP heat plane headline reflects 35°C design flow for full_job emitter appetite', () => {
+    const input = { ...baseInput, primaryPipeDiameter: 28, heatLossWatts: 8000, retrofit: { emitterUpgradeAppetite: 'full_job' as const } };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const ashp = options.find(o => o.id === 'ashp')!;
+    expect(ashp.heat.headline).toContain('35°C');
+    expect(ashp.heat.headline).toContain('good');
+  });
+
+  it('ASHP heat plane headline reflects 50°C design flow for none emitter appetite', () => {
+    const input = { ...baseInput, primaryPipeDiameter: 28, heatLossWatts: 8000, retrofit: { emitterUpgradeAppetite: 'none' as const } };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const ashp = options.find(o => o.id === 'ashp')!;
+    expect(ashp.heat.headline).toContain('50°C');
+    expect(ashp.heat.headline).toContain('poor');
+  });
+
+  it('ASHP typedRequirements.likelyUpgrades changes when emitterUpgradeAppetite changes', () => {
+    const inputNone = { ...baseInput, primaryPipeDiameter: 28, retrofit: { emitterUpgradeAppetite: 'none' as const } };
+    const inputFull = { ...baseInput, primaryPipeDiameter: 28, retrofit: { emitterUpgradeAppetite: 'full_job' as const } };
+
+    const optionsNone = buildOptionMatrixV1(runEngine(inputNone), inputNone);
+    const optionsFull = buildOptionMatrixV1(runEngine(inputFull), inputFull);
+
+    const ashpNone = optionsNone.find(o => o.id === 'ashp')!;
+    const ashpFull = optionsFull.find(o => o.id === 'ashp')!;
+
+    // none appetite: should mention unlocking lower flow temps
+    expect(ashpNone.typedRequirements.likelyUpgrades.some(u => u.includes('unlock') || u.includes('lower flow'))).toBe(true);
+    // full_job appetite: should mention full emitter upgrade
+    expect(ashpFull.typedRequirements.likelyUpgrades.some(u => u.includes('full') || u.includes('35°C'))).toBe(true);
+  });
+
+  it('ASHP DHW plane always requires stored cylinder', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const ashp = options.find(o => o.id === 'ashp')!;
+    expect(ashp.dhw.headline).toContain('stored cylinder');
+    expect(ashp.dhw.status).toBe('ok');
+  });
+
+  it('system_unvented DHW plane status is caution for borderline pressure', () => {
+    const input = { ...baseInput, dynamicMainsPressure: 1.2 };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const unvented = options.find(o => o.id === 'system_unvented')!;
+    expect(unvented.dhw.status).toBe('caution');
+  });
+
+  it('regular_vented engineering plane is caution when loft conversion present', () => {
+    const input = { ...baseInput, futureLoftConversion: true };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const regular = options.find(o => o.id === 'regular_vented')!;
+    expect(regular.engineering.status).toBe('caution');
+  });
 });
 
 describe('engineOutput.options via runEngine', () => {

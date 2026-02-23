@@ -802,6 +802,7 @@ function FullSurveyResults({
   const { hydraulic, combiStress, mixergy, lifestyle, normalizer, bomItems, engineOutput } = results;
   const [showTwin, setShowTwin] = useState(false);
   const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
+  const [activeOptionTab, setActiveOptionTab] = useState<Record<string, 'heat' | 'dhw' | 'needs'>>({});
 
   // Approximate current efficiency from normalizer decay
   const currentEfficiencyPct = Math.max(50, 92 - normalizer.tenYearEfficiencyDecayPct);
@@ -869,20 +870,64 @@ function FullSurveyResults({
                   </div>
                   {isExpanded && (
                     <div className="option-card__body">
-                      <div className="option-card__section">
-                        <strong>Why:</strong>
-                        <ul>
-                          {card.why.map((w, i) => <li key={i}>{w}</li>)}
-                        </ul>
-                      </div>
-                      {card.requirements.length > 0 && (
-                        <div className="option-card__section">
-                          <strong>Requirements / Upgrades:</strong>
-                          <ul>
-                            {card.requirements.map((r, i) => <li key={i}>{r}</li>)}
-                          </ul>
-                        </div>
-                      )}
+                      {/* Three-section tabs: Heat / Hot Water / What needs changing */}
+                      {card.heat && card.dhw && card.engineering && card.typedRequirements && (() => {
+                        const tab = activeOptionTab[card.id] ?? 'heat';
+                        const setTab = (t: 'heat' | 'dhw' | 'needs') =>
+                          setActiveOptionTab(prev => ({ ...prev, [card.id]: t }));
+                        return (
+                          <div className="option-card__tabs">
+                            <div className="option-card__tab-bar">
+                              <button
+                                className={`option-card__tab-btn${tab === 'heat' ? ' option-card__tab-btn--active' : ''}`}
+                                onClick={() => setTab('heat')}
+                              >🔥 Heat</button>
+                              <button
+                                className={`option-card__tab-btn${tab === 'dhw' ? ' option-card__tab-btn--active' : ''}`}
+                                onClick={() => setTab('dhw')}
+                              >🚿 Hot Water</button>
+                              <button
+                                className={`option-card__tab-btn${tab === 'needs' ? ' option-card__tab-btn--active' : ''}`}
+                                onClick={() => setTab('needs')}
+                              >🔧 What needs changing</button>
+                            </div>
+                            {tab === 'heat' && (
+                              <div className="option-card__tab-panel">
+                                <p className="option-card__tab-headline">{card.heat.headline}</p>
+                                <ul>{card.heat.bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
+                              </div>
+                            )}
+                            {tab === 'dhw' && (
+                              <div className="option-card__tab-panel">
+                                <p className="option-card__tab-headline">{card.dhw.headline}</p>
+                                <ul>{card.dhw.bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
+                              </div>
+                            )}
+                            {tab === 'needs' && (
+                              <div className="option-card__tab-panel">
+                                {card.typedRequirements.mustHave.length > 0 && (
+                                  <div className="option-card__req-group">
+                                    <strong>Must have:</strong>
+                                    <ul>{card.typedRequirements.mustHave.map((r, i) => <li key={i}>{r}</li>)}</ul>
+                                  </div>
+                                )}
+                                {card.typedRequirements.likelyUpgrades.length > 0 && (
+                                  <div className="option-card__req-group">
+                                    <strong>Likely upgrades:</strong>
+                                    <ul>{card.typedRequirements.likelyUpgrades.map((r, i) => <li key={i}>{r}</li>)}</ul>
+                                  </div>
+                                )}
+                                {card.typedRequirements.niceToHave.length > 0 && (
+                                  <div className="option-card__req-group">
+                                    <strong>Nice to have:</strong>
+                                    <ul>{card.typedRequirements.niceToHave.map((r, i) => <li key={i}>{r}</li>)}</ul>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>

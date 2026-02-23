@@ -16,6 +16,7 @@ import { runMetallurgyEdgeModule } from './modules/MetallurgyEdgeModule';
 import { runMixergyLegacyModule } from './modules/MixergyLegacyModule';
 import { runSpecEdgeModule } from './modules/SpecEdgeModule';
 import { runGridFlexModule } from './modules/GridFlexModule';
+import { runHeatPumpRegimeModuleV1 } from './modules/HeatPumpRegimeModule';
 import { buildEngineOutputV1 } from './OutputBuilder';
 
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
@@ -74,6 +75,8 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     ? runGridFlexModule(input.gridFlexInput)
     : undefined;
 
+  const heatPumpRegime = runHeatPumpRegimeModuleV1(input);
+
   const core: FullEngineResultCore = {
     hydraulic,
     hydraulicV1,
@@ -92,6 +95,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     mixergyLegacy,
     specEdge,
     gridFlex,
+    heatPumpRegime,
   };
 
   const engineOutput = buildEngineOutputV1(core, input);
