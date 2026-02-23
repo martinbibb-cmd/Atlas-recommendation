@@ -3,18 +3,34 @@ import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem } from
 import { ENGINE_VERSION, CONTRACT_VERSION } from '../contracts/versions';
 
 function buildEligibility(result: FullEngineResultCore): EligibilityItem[] {
-  const { redFlags, hydraulicV1 } = result;
+  const { redFlags, hydraulicV1, combiDhwV1 } = result;
   const items: EligibilityItem[] = [];
 
-  const instantReason = redFlags.reasons
-    .filter(r => r.includes('Combi'))
-    .join(' ');
+  // Instant eligibility is driven first by topology (redFlags.rejectCombi),
+  // then by CombiDhwModuleV1 physics verdict.
+  let instantStatus: EligibilityItem['status'];
+  let instantReason: string | undefined;
+
+  if (redFlags.rejectCombi) {
+    instantStatus = 'rejected';
+    instantReason = redFlags.reasons.filter(r => r.includes('Combi')).join(' ') || undefined;
+  } else if (combiDhwV1.verdict.combiRisk === 'fail') {
+    instantStatus = 'rejected';
+    const failFlag = combiDhwV1.flags.find(f => f.severity === 'fail');
+    instantReason = failFlag ? `${failFlag.title}: ${failFlag.detail}` : undefined;
+  } else if (combiDhwV1.verdict.combiRisk === 'warn') {
+    instantStatus = 'caution';
+    const warnFlag = combiDhwV1.flags.find(f => f.severity === 'warn');
+    instantReason = warnFlag ? `${warnFlag.title}: ${warnFlag.detail}` : undefined;
+  } else {
+    instantStatus = 'viable';
+  }
 
   items.push({
     id: 'instant',
-    label: 'Combi / Instantaneous',
-    status: redFlags.rejectCombi ? 'rejected' : 'viable',
-    reason: redFlags.rejectCombi ? instantReason || undefined : undefined,
+    label: 'Instantaneous (Combi)',
+    status: instantStatus,
+    reason: instantReason,
   });
 
   const storedReason = redFlags.reasons
@@ -107,6 +123,15 @@ function buildExplainers(result: FullEngineResultCore): ExplainerItem[] {
     });
   }
 
+  const shortDrawFlag = result.combiDhwV1.flags.find(f => f.id === 'combi-short-draw-collapse');
+  if (shortDrawFlag) {
+    items.push({
+      id: 'combi-short-draw-collapse',
+      title: shortDrawFlag.title,
+      body: shortDrawFlag.detail,
+    });
+  }
+
   return items;
 }
 
@@ -114,9 +139,17 @@ export function buildEngineOutputV1(result: FullEngineResultCore): EngineOutputV
   const primary = result.lifestyle.notes[0] ?? result.lifestyle.recommendedSystem;
   const allReasons = [...result.redFlags.reasons, ...result.hydraulicV1.notes];
 
+  // Merge combiDhwV1 flags into redFlags output
+  const combiFlags: RedFlagItem[] = result.combiDhwV1.flags.map(f => ({
+    id: f.id,
+    severity: f.severity,
+    title: f.title,
+    detail: f.detail,
+  }));
+
   return {
     eligibility: buildEligibility(result),
-    redFlags: buildRedFlags(allReasons),
+    redFlags: [...buildRedFlags(allReasons), ...combiFlags],
     recommendation: { primary },
     explainers: buildExplainers(result),
     meta: {

@@ -43,6 +43,8 @@ export interface EngineInputV2_3 {
   bathroomCount: number;
   occupancySignature: OccupancySignature;
   highOccupancy: boolean;
+  /** Peak simultaneous DHW outlets (e.g. 1 = single shower, 2 = shower + basin). */
+  peakConcurrentOutlets?: number;
 
   // Preferences
   preferCombi: boolean;
@@ -113,6 +115,24 @@ export interface CombiStressResult {
    */
   wbLongevityBoostPct: number;
   notes: string[];
+}
+
+/** Structured red-flag item for CombiDhwModuleV1. */
+export interface CombiDhwFlagItem {
+  id: 'combi-pressure-lockout' | 'combi-simultaneous-demand' | 'combi-short-draw-collapse';
+  severity: 'fail' | 'warn';
+  title: string;
+  detail: string;
+}
+
+/** Result returned by CombiDhwModuleV1. */
+export interface CombiDhwV1Result {
+  verdict: {
+    /** 'fail' = hard reject; 'warn' = caution; 'pass' = clear. */
+    combiRisk: 'fail' | 'warn' | 'pass';
+  };
+  flags: CombiDhwFlagItem[];
+  assumptions: string[];
 }
 
 export interface MixergyResult {
@@ -400,6 +420,7 @@ export interface FullEngineResultCore {
   hydraulic: HydraulicResult;
   hydraulicV1: HydraulicModuleV1Result;
   combiStress: CombiStressResult;
+  combiDhwV1: CombiDhwV1Result;
   mixergy: MixergyResult;
   lifestyle: LifestyleResult;
   normalizer: NormalizerOutput;

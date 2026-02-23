@@ -540,6 +540,17 @@ export default function FullSurveyStepper({ onBack }: Props) {
                 <option value={4}>4+</option>
               </select>
             </div>
+            <div className="form-field">
+              <label>Peak concurrent hot-water outlets</label>
+              <select
+                value={input.peakConcurrentOutlets ?? 1}
+                onChange={e => setInput({ ...input, peakConcurrentOutlets: +e.target.value })}
+              >
+                <option value={1}>1 (single shower / tap)</option>
+                <option value={2}>2 (e.g. shower + basin)</option>
+                <option value={3}>3+ (multiple simultaneous)</option>
+              </select>
+            </div>
             <label className="checkbox-field">
               <input
                 type="checkbox"
