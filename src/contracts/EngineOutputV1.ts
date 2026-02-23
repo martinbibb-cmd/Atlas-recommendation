@@ -7,6 +7,23 @@ export interface EligibilityItem {
   reason?: string;
 }
 
+export interface EvidenceItemV1 {
+  /** Stable identifier unique within an output. */
+  id: string;
+  /** JSON-path-style field reference, e.g. "services.mainsDynamicPressureBar". */
+  fieldPath: string;
+  /** Human-readable label for display. */
+  label: string;
+  /** Formatted value string including units, e.g. "2.5 bar". */
+  value: string;
+  /** How this value was obtained. */
+  source: 'manual' | 'assumed' | 'placeholder' | 'derived';
+  /** Confidence in the value and its influence on the output. */
+  confidence: 'high' | 'medium' | 'low';
+  /** Which option IDs this evidence item primarily affects. */
+  affectsOptionIds: Array<'combi' | 'stored' | 'ashp' | 'regular_vented' | 'system_unvented'>;
+}
+
 export interface RedFlagItem {
   id: string;
   severity: 'info' | 'warn' | 'fail';
@@ -39,6 +56,15 @@ export interface OptionRequirements {
   niceToHave: string[];
 }
 
+export interface SensitivityItem {
+  /** The input lever that would change this outcome, e.g. "Primary pipe size". */
+  lever: string;
+  /** Direction of change: upgrade = more viable, downgrade = less viable. */
+  effect: 'upgrade' | 'downgrade';
+  /** Human-readable explanation of the boundary condition. */
+  note: string;
+}
+
 export interface OptionCardV1 {
   id: 'combi' | 'stored' | 'ashp' | 'regular_vented' | 'system_unvented';
   label: string;
@@ -56,6 +82,8 @@ export interface OptionCardV1 {
   engineering: OptionPlane;
   /** Typed requirements replacing the flat requirements[] array. */
   typedRequirements: OptionRequirements;
+  /** "What would change this outcome?" — boundary condition explanations. */
+  sensitivities?: SensitivityItem[];
 }
 
 export interface VisualSpecV1 {
@@ -68,6 +96,8 @@ export interface VisualSpecV1 {
   /** Type-specific data payload — consumed by the matching renderer. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
+  /** Option IDs this visual is primarily relevant to. Undefined = relevant to all. */
+  affectsOptionIds?: string[];
 }
 
 export interface EngineOutputV1 {
@@ -81,6 +111,8 @@ export interface EngineOutputV1 {
   trace?: TraceItem[];
   contextSummary?: { bullets: string[] };
   options?: OptionCardV1[];
+  /** Structured list of what inputs mattered and how confident we are. */
+  evidence?: EvidenceItemV1[];
   /** Engine-driven visual specs. UI renders by type switch — no business logic in UI. */
   visuals?: VisualSpecV1[];
   meta?: {
