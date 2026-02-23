@@ -21,7 +21,8 @@ import EfficiencyCurve from '../visualizers/EfficiencyCurve';
 import FootprintXRay from '../visualizers/FootprintXRay';
 import GlassBoxPanel from '../visualizers/GlassBoxPanel';
 import InteractiveTwin from '../InteractiveTwin';
-import { exportBomToCsv, calculateBomTotal } from '../../engine/modules/WholesalerPricingAdapter';
+// BOM utilities retained for internal/engineer mode — not rendered in customer cockpit
+// import { exportBomToCsv, calculateBomTotal } from '../../engine/modules/WholesalerPricingAdapter';
 
 interface Props {
   onBack: () => void;
@@ -923,6 +924,244 @@ function sensitivityColour(effect: string): string {
   return effect === 'upgrade' ? '#38a169' : '#e53e3e';
 }
 
+// ─── SystemTransitionCard ─────────────────────────────────────────────────────
+// Renders a current → proposed system architecture summary.
+// No pricing, no SKUs — architecture shift only.
+
+function SystemTransitionCard({
+  input,
+  results,
+}: {
+  input: FullSurveyModelV1;
+  results: FullEngineResult;
+}) {
+  const { hydraulic, engineOutput } = results;
+
+  // Derive current system description from survey inputs
+  const currentHeatLabel: Record<string, string> = {
+    combi: 'Combi boiler',
+    system: 'System boiler',
+    regular: 'Regular boiler',
+    ashp: 'Air Source Heat Pump',
+    other: 'Existing heat source',
+  };
+  const currentHeat = currentHeatLabel[input.currentHeatSourceType ?? ''] ?? 'Existing heating system';
+
+  const currentDhw =
+    input.currentHeatSourceType === 'combi'
+      ? 'On-demand hot water (no cylinder)'
+      : input.currentHeatSourceType === 'regular'
+      ? 'Open-vented hot water cylinder'
+      : 'Stored hot water cylinder';
+
+  const currentCircuit =
+    input.currentHeatSourceType === 'regular'
+      ? 'Open-vented, gravity-fed heating'
+      : input.currentHeatSourceType === 'combi' || input.currentHeatSourceType === 'system'
+      ? 'Sealed, pressurised heating circuit'
+      : 'Heating circuit';
+
+  const currentPipe = `${input.primaryPipeDiameter}mm primary pipework`;
+  const currentPressure = `${(input.dynamicMainsPressureBar ?? input.dynamicMainsPressure).toFixed(1)} bar dynamic mains pressure`;
+
+  // Derive proposed system from top viable option
+  const topOption = engineOutput.options?.find(o => o.status === 'viable') ?? engineOutput.options?.[0];
+
+  const proposedHeadlines: Record<string, { heat: string; dhw: string; circuit: string }> = {
+    combi: {
+      heat: 'Combi boiler',
+      dhw: 'On-demand hot water (no cylinder)',
+      circuit: 'Sealed, pressurised heating circuit',
+    },
+    stored: {
+      heat: 'System boiler',
+      dhw: 'Unvented cylinder (stored hot water)',
+      circuit: 'Sealed, pressurised heating circuit',
+    },
+    system_unvented: {
+      heat: 'System boiler',
+      dhw: 'Unvented cylinder (stored hot water)',
+      circuit: 'Sealed, pressurised heating circuit',
+    },
+    ashp: {
+      heat: 'Air Source Heat Pump',
+      dhw: 'Unvented cylinder (heat pump compatible)',
+      circuit: 'Low-temperature sealed heating circuit',
+    },
+    regular_vented: {
+      heat: 'Regular boiler',
+      dhw: 'Open-vented hot water cylinder',
+      circuit: 'Open-vented, gravity-fed heating',
+    },
+  };
+
+  const proposed = topOption ? (proposedHeadlines[topOption.id] ?? null) : null;
+  const proposedPipe =
+    hydraulic.isBottleneck || hydraulic.ashpRequires28mm
+      ? '28mm primary pipework (upgrade required)'
+      : `${input.primaryPipeDiameter}mm primary pipework (no change)`;
+  const proposedPressure = `${(input.dynamicMainsPressureBar ?? input.dynamicMainsPressure).toFixed(1)} bar dynamic mains pressure`;
+
+  const needsLoftWork =
+    input.currentHeatSourceType === 'regular' &&
+    topOption?.id !== 'regular_vented';
+
+  return (
+    <div className="result-section">
+      <h3>🔄 System Transition</h3>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr auto 1fr',
+        gap: '1rem',
+        alignItems: 'start',
+      }}>
+        {/* Current system */}
+        <div style={{
+          padding: '1rem',
+          background: '#fff5f5',
+          border: '1px solid #fed7d7',
+          borderRadius: '8px',
+        }}>
+          <div style={{ fontWeight: 700, color: '#c53030', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
+            🏠 Current System
+          </div>
+          <ul style={{ margin: 0, padding: '0 0 0 1.25rem', fontSize: '0.85rem', lineHeight: 1.7, color: '#4a5568' }}>
+            <li>{currentHeat}</li>
+            <li>{currentDhw}</li>
+            <li>{currentCircuit}</li>
+            <li>{currentPipe}</li>
+            <li>{currentPressure}</li>
+            {input.currentHeatSourceType === 'regular' && (
+              <li>Feed &amp; expansion tank in loft</li>
+            )}
+          </ul>
+        </div>
+
+        {/* Arrow divider */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '1.5rem',
+          color: '#718096',
+          paddingTop: '2rem',
+        }}>
+          ⬇
+        </div>
+
+        {/* Proposed system */}
+        <div style={{
+          padding: '1rem',
+          background: '#f0fff4',
+          border: '1px solid #9ae6b4',
+          borderRadius: '8px',
+        }}>
+          <div style={{ fontWeight: 700, color: '#276749', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
+            🚀 Proposed System
+            {topOption && (
+              <span style={{
+                marginLeft: '0.5rem',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                padding: '1px 7px',
+                borderRadius: '10px',
+                background: topOption.status === 'viable' ? '#c6f6d5' : '#fefcbf',
+                color: topOption.status === 'viable' ? '#276749' : '#744210',
+              }}>{topOption.label}</span>
+            )}
+          </div>
+          {proposed ? (
+            <ul style={{ margin: 0, padding: '0 0 0 1.25rem', fontSize: '0.85rem', lineHeight: 1.7, color: '#4a5568' }}>
+              <li>{proposed.heat}</li>
+              <li>{proposed.dhw}</li>
+              <li>{proposed.circuit}</li>
+              <li>{proposedPipe}</li>
+              <li>{proposedPressure}</li>
+              {needsLoftWork && (
+                <li>Loft feed &amp; expansion tank removed</li>
+              )}
+            </ul>
+          ) : (
+            <p style={{ fontSize: '0.85rem', color: '#718096', margin: 0 }}>
+              Complete the survey to see your proposed system.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── EngineeringRequirementsCard ──────────────────────────────────────────────
+// Renders a bullet list of engineering changes required for the transition.
+// Derived from hydraulicV1, pressureAnalysis, storedDhwV1, and combiDhwV1 flags.
+
+function EngineeringRequirementsCard({
+  input,
+  results,
+}: {
+  input: FullSurveyModelV1;
+  results: FullEngineResult;
+}) {
+  const { hydraulic, pressureAnalysis, storedDhwV1, combiDhwV1 } = results;
+
+  const items: string[] = [];
+
+  // Pipe upgrade
+  if (hydraulic.isBottleneck || hydraulic.ashpRequires28mm) {
+    items.push('Upgrade primary pipework from 22mm → 28mm');
+  }
+
+  // Sealed system conversion — only required when moving away from an open-vented regular system
+  if (input.currentHeatSourceType === 'regular') {
+    items.push('Convert to sealed, pressurised heating circuit');
+  }
+
+  // Magnetic filter — only if not already installed
+  if (!input.hasMagneticFilter) {
+    items.push('Install inline magnetic filter (BS 7593 compliance)');
+  }
+
+  // Stored DHW flags
+  for (const flag of storedDhwV1.flags) {
+    if (flag.id === 'stored-space-tight') {
+      items.push('Confirm cylinder/airing-cupboard space — space is tight');
+    }
+    if (flag.id === 'stored-high-demand') {
+      items.push('Upsize cylinder to meet high hot-water demand');
+    }
+  }
+
+  // Combi DHW flags
+  for (const flag of combiDhwV1.flags) {
+    if (flag.id === 'combi-pressure-lockout') {
+      items.push('Mains pressure boost or stored alternative — combi pressure lockout risk');
+    }
+    if (flag.id === 'combi-simultaneous-demand') {
+      items.push('Manage simultaneous DHW demand — combi cannot serve multiple outlets');
+    }
+  }
+
+  // Pressure quality
+  if (pressureAnalysis.quality === 'weak') {
+    items.push('Investigate mains supply restriction — pressure drop is significant');
+  }
+
+  // Controls upgrade — always recommended for any system change (MCS / BS 7593 best practice)
+  items.push('Upgrade heating controls (zoning, TRVs, smart thermostat)');
+
+  return (
+    <div className="result-section">
+      <h3>🛠 Engineering Changes Required</h3>
+      <ul style={{ margin: 0, padding: '0 0 0 1.25rem', lineHeight: 1.8, color: '#2d3748' }}>
+        {items.map((item, i) => (
+          <li key={i} style={{ fontSize: '0.9rem' }}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function FullSurveyResults({
   results,
   input,
@@ -934,7 +1173,7 @@ function FullSurveyResults({
   compareMixergy: boolean;
   onBack: () => void;
 }) {
-  const { hydraulic, combiStress, mixergy, lifestyle, normalizer, bomItems, engineOutput } = results;
+  const { hydraulic, combiStress, mixergy, lifestyle, normalizer, engineOutput } = results;
   const [showTwin, setShowTwin] = useState(false);
   const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
   const [activeOptionTab, setActiveOptionTab] = useState<Record<string, 'heat' | 'dhw' | 'needs' | 'why'>>({});
@@ -942,19 +1181,7 @@ function FullSurveyResults({
 
   // Approximate current efficiency from normalizer decay
   const currentEfficiencyPct = Math.max(50, 92 - normalizer.tenYearEfficiencyDecayPct);
-  const bomTotal = calculateBomTotal(bomItems);
   const shouldShowMixergy = input.dhwTankType === 'mixergy' || compareMixergy;
-
-  const handleExportCsv = () => {
-    const csv = exportBomToCsv(bomItems);
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'atlas-bom.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   if (showTwin) {
     return (
@@ -981,113 +1208,8 @@ function FullSurveyResults({
         </div>
       )}
 
-      {/* Engine-driven visuals — rendered by type switch, no business logic */}
-      {engineOutput.visuals && engineOutput.visuals.length > 0 && (
-        <div className="result-section">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-            <h3 style={{ margin: 0 }}>📊 Physics Instruments</h3>
-            {expandedOptionId && (
-              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.82rem' }}>
-                <button
-                  onClick={() => setVisualFilter('all')}
-                  style={{
-                    padding: '3px 10px',
-                    borderRadius: '12px',
-                    border: '1px solid #cbd5e0',
-                    background: visualFilter === 'all' ? '#3182ce' : '#fff',
-                    color: visualFilter === 'all' ? '#fff' : '#4a5568',
-                    cursor: 'pointer',
-                    fontWeight: visualFilter === 'all' ? 700 : 400,
-                  }}
-                >All</button>
-                <button
-                  onClick={() => setVisualFilter('relevant')}
-                  style={{
-                    padding: '3px 10px',
-                    borderRadius: '12px',
-                    border: '1px solid #cbd5e0',
-                    background: visualFilter === 'relevant' ? '#3182ce' : '#fff',
-                    color: visualFilter === 'relevant' ? '#fff' : '#4a5568',
-                    cursor: 'pointer',
-                    fontWeight: visualFilter === 'relevant' ? 700 : 400,
-                  }}
-                >Relevant to selected</button>
-              </div>
-            )}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
-            {engineOutput.visuals
-              .filter(visual => {
-                if (visualFilter === 'all' || !expandedOptionId) return true;
-                if (!visual.affectsOptionIds) return true;
-                return visual.affectsOptionIds.includes(expandedOptionId);
-              })
-              .map(visual => (
-                <VisualCard key={visual.id} spec={visual} />
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* Evidence & Confidence */}
-      {engineOutput.evidence && engineOutput.evidence.length > 0 && (
-        <div className="result-section">
-          <h3>🔬 Evidence &amp; Confidence</h3>
-          <p style={{ fontSize: '0.82rem', color: '#718096', marginBottom: '0.75rem' }}>
-            What the engine knows, how it knows it, and how confident it is.
-          </p>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-              <thead>
-                <tr style={{ background: '#f7fafc', borderBottom: '2px solid #e2e8f0' }}>
-                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Input</th>
-                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Value</th>
-                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Source</th>
-                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Confidence</th>
-                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Affects</th>
-                </tr>
-              </thead>
-              <tbody>
-                {engineOutput.evidence.map(item => {
-                  const cColour = confidenceColour(item.confidence);
-                  const sColour = sourceColour(item.source);
-                  return (
-                    <tr key={item.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '6px 10px', fontWeight: 600, color: '#2d3748' }}>{item.label}</td>
-                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{item.value}</td>
-                      <td style={{ padding: '6px 10px' }}>
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '2px 7px',
-                          borderRadius: '10px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          background: sColour + BADGE_ALPHA,
-                          color: sColour,
-                        }}>{item.source}</span>
-                      </td>
-                      <td style={{ padding: '6px 10px' }}>
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '2px 7px',
-                          borderRadius: '10px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          background: cColour + BADGE_ALPHA,
-                          color: cColour,
-                        }}>{item.confidence}</span>
-                      </td>
-                      <td style={{ padding: '6px 10px', color: '#718096', fontSize: '0.75rem' }}>
-                        {item.affectsOptionIds.join(', ')}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {/* System Transition – Current → Proposed Architecture */}
+      <SystemTransitionCard input={input} results={results} />
 
       {/* Your Options – Option Matrix V1 */}
       {engineOutput.options && engineOutput.options.length > 0 && (
@@ -1219,6 +1341,117 @@ function FullSurveyResults({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Engineering Requirements */}
+      <EngineeringRequirementsCard input={input} results={results} />
+
+      {/* Engine-driven visuals — rendered by type switch, no business logic */}
+      {engineOutput.visuals && engineOutput.visuals.length > 0 && (
+        <div className="result-section">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+            <h3 style={{ margin: 0 }}>📊 Physics Instruments</h3>
+            {expandedOptionId && (
+              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.82rem' }}>
+                <button
+                  onClick={() => setVisualFilter('all')}
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: '12px',
+                    border: '1px solid #cbd5e0',
+                    background: visualFilter === 'all' ? '#3182ce' : '#fff',
+                    color: visualFilter === 'all' ? '#fff' : '#4a5568',
+                    cursor: 'pointer',
+                    fontWeight: visualFilter === 'all' ? 700 : 400,
+                  }}
+                >All</button>
+                <button
+                  onClick={() => setVisualFilter('relevant')}
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: '12px',
+                    border: '1px solid #cbd5e0',
+                    background: visualFilter === 'relevant' ? '#3182ce' : '#fff',
+                    color: visualFilter === 'relevant' ? '#fff' : '#4a5568',
+                    cursor: 'pointer',
+                    fontWeight: visualFilter === 'relevant' ? 700 : 400,
+                  }}
+                >Relevant to selected</button>
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
+            {engineOutput.visuals
+              .filter(visual => {
+                if (visualFilter === 'all' || !expandedOptionId) return true;
+                if (!visual.affectsOptionIds) return true;
+                return visual.affectsOptionIds.includes(expandedOptionId);
+              })
+              .map(visual => (
+                <VisualCard key={visual.id} spec={visual} />
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Evidence & Confidence */}
+      {engineOutput.evidence && engineOutput.evidence.length > 0 && (
+        <div className="result-section">
+          <h3>🔬 Evidence &amp; Confidence</h3>
+          <p style={{ fontSize: '0.82rem', color: '#718096', marginBottom: '0.75rem' }}>
+            What the engine knows, how it knows it, and how confident it is.
+          </p>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+              <thead>
+                <tr style={{ background: '#f7fafc', borderBottom: '2px solid #e2e8f0' }}>
+                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Input</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Value</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Source</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Confidence</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Affects</th>
+                </tr>
+              </thead>
+              <tbody>
+                {engineOutput.evidence.map(item => {
+                  const cColour = confidenceColour(item.confidence);
+                  const sColour = sourceColour(item.source);
+                  return (
+                    <tr key={item.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '6px 10px', fontWeight: 600, color: '#2d3748' }}>{item.label}</td>
+                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{item.value}</td>
+                      <td style={{ padding: '6px 10px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '2px 7px',
+                          borderRadius: '10px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          background: sColour + BADGE_ALPHA,
+                          color: sColour,
+                        }}>{item.source}</span>
+                      </td>
+                      <td style={{ padding: '6px 10px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '2px 7px',
+                          borderRadius: '10px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          background: cColour + BADGE_ALPHA,
+                          color: cColour,
+                        }}>{item.confidence}</span>
+                      </td>
+                      <td style={{ padding: '6px 10px', color: '#718096', fontSize: '0.75rem' }}>
+                        {item.affectsOptionIds.join(', ')}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -1402,62 +1635,6 @@ function FullSurveyResults({
           )}
         </div>
       )}
-
-      {/* Bill of Materials */}
-      <div className="result-section">
-        <h3>📋 Bill of Materials</h3>
-        <div className="bom-scroll">
-          <table className="bom-table">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Model</th>
-                <th>Qty</th>
-                <th>Unit Price</th>
-                <th>Line Total</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bomItems.map((item, i) => (
-                <tr key={i}>
-                  <td>{item.name}</td>
-                  <td>{item.model}</td>
-                  <td>{item.quantity}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    {item.unitPriceGbp !== undefined ? `£${item.unitPriceGbp.toFixed(2)}` : '—'}
-                  </td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                    {item.unitPriceGbp !== undefined
-                      ? `£${(item.unitPriceGbp * item.quantity).toFixed(2)}`
-                      : '—'}
-                  </td>
-                  <td style={{ color: '#718096', fontSize: '0.85rem' }}>{item.notes}</td>
-                </tr>
-              ))}
-              {bomTotal > 0 && (
-                <tr style={{ borderTop: '2px solid #e2e8f0', background: '#f7fafc' }}>
-                  <td colSpan={4} style={{ fontWeight: 700, textAlign: 'right', padding: '8px' }}>
-                    Estimated Trade Total (ex-VAT):
-                  </td>
-                  <td style={{ fontWeight: 800, color: '#2c5282', padding: '8px' }}>
-                    £{bomTotal.toFixed(2)}
-                  </td>
-                  <td />
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <button className="next-btn" onClick={handleExportCsv} style={{ fontSize: '0.85rem', padding: '8px 16px' }}>
-            ⬇ Export BOM to CSV
-          </button>
-        </div>
-        <p style={{ fontSize: '0.72rem', color: '#a0aec0', marginTop: '0.5rem' }}>
-          Prices are indicative trade (ex-VAT) from Wolseley/City Plumbing catalogue.
-        </p>
-      </div>
 
       {/* Glass Box – Raw Data / Physics Trace / Visual Outcome */}
       <div className="result-section">

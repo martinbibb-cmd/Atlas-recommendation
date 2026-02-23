@@ -91,7 +91,7 @@ export default function App() {
           <div className="card-icon">🔬</div>
           <h2>Full Survey</h2>
           <p className="card-time">~5 minutes</p>
-          <p>Complete technical specification with bill of materials and 10-year performance projections.</p>
+          <p>Complete technical specification with system transition analysis and 10-year performance projections.</p>
           <ul>
             <li>Building mass &amp; thermal inertia</li>
             <li>Geochemical scale analysis</li>
