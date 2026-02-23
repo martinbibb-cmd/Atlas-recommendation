@@ -901,47 +901,49 @@ function FullSurveyResults({
       {/* Bill of Materials */}
       <div className="result-section">
         <h3>📋 Bill of Materials</h3>
-        <table className="bom-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Model</th>
-              <th>Qty</th>
-              <th>Unit Price</th>
-              <th>Line Total</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {bomItems.map((item, i) => (
-              <tr key={i}>
-                <td>{item.name}</td>
-                <td>{item.model}</td>
-                <td>{item.quantity}</td>
-                <td style={{ textAlign: 'right' }}>
-                  {item.unitPriceGbp !== undefined ? `£${item.unitPriceGbp.toFixed(2)}` : '—'}
-                </td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                  {item.unitPriceGbp !== undefined
-                    ? `£${(item.unitPriceGbp * item.quantity).toFixed(2)}`
-                    : '—'}
-                </td>
-                <td style={{ color: '#718096', fontSize: '0.85rem' }}>{item.notes}</td>
+        <div className="bom-scroll">
+          <table className="bom-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Model</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>Line Total</th>
+                <th>Notes</th>
               </tr>
-            ))}
-            {bomTotal > 0 && (
-              <tr style={{ borderTop: '2px solid #e2e8f0', background: '#f7fafc' }}>
-                <td colSpan={4} style={{ fontWeight: 700, textAlign: 'right', padding: '8px' }}>
-                  Estimated Trade Total (ex-VAT):
-                </td>
-                <td style={{ fontWeight: 800, color: '#2c5282', padding: '8px' }}>
-                  £{bomTotal.toFixed(2)}
-                </td>
-                <td />
-              </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {bomItems.map((item, i) => (
+                <tr key={i}>
+                  <td>{item.name}</td>
+                  <td>{item.model}</td>
+                  <td>{item.quantity}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    {item.unitPriceGbp !== undefined ? `£${item.unitPriceGbp.toFixed(2)}` : '—'}
+                  </td>
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                    {item.unitPriceGbp !== undefined
+                      ? `£${(item.unitPriceGbp * item.quantity).toFixed(2)}`
+                      : '—'}
+                  </td>
+                  <td style={{ color: '#718096', fontSize: '0.85rem' }}>{item.notes}</td>
+                </tr>
+              ))}
+              {bomTotal > 0 && (
+                <tr style={{ borderTop: '2px solid #e2e8f0', background: '#f7fafc' }}>
+                  <td colSpan={4} style={{ fontWeight: 700, textAlign: 'right', padding: '8px' }}>
+                    Estimated Trade Total (ex-VAT):
+                  </td>
+                  <td style={{ fontWeight: 800, color: '#2c5282', padding: '8px' }}>
+                    £{bomTotal.toFixed(2)}
+                  </td>
+                  <td />
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
         <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           <button className="next-btn" onClick={handleExportCsv} style={{ fontSize: '0.85rem', padding: '8px 16px' }}>
             ⬇ Export BOM to CSV
