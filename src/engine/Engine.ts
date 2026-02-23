@@ -18,7 +18,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const normalizer = normalizeInput(input);
   const hydraulic = runHydraulicSafetyModule(input);
   const combiStress = runCombiStressModule(input);
-  const mixergy = runMixergyVolumetricsModule();
+  const mixergy = runMixergyVolumetricsModule(input);
   const lifestyle = runLifestyleSimulationModule(input);
   const redFlags = runRedFlagModule(input);
   const bomItems = generateBom(input, hydraulic, redFlags);

@@ -94,13 +94,11 @@ const defaultInput: EngineInputV2_3 = {
   installerNetwork: 'british_gas',
 };
 
-type BoilerSelection = 'auto' | 'wb_8000plus' | 'vaillant';
-
 export default function FullSurveyStepper({ onBack }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('location');
   const [input, setInput] = useState<EngineInputV2_3>(defaultInput);
   const [fabricType, setFabricType] = useState<BuildingFabricType>('solid_brick_1930s');
-  const [boilerSelection, setBoilerSelection] = useState<BoilerSelection>('auto');
+  const [compareMixergy, setCompareMixergy] = useState(false);
   const [results, setResults] = useState<FullEngineResult | null>(null);
 
   const stepIndex = STEPS.indexOf(currentStep);
@@ -327,27 +325,69 @@ export default function FullSurveyStepper({ onBack }: Props) {
               </div>
             </div>
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
-              <label>Current Boiler / Heat Source</label>
+              <label>Current Heat Source</label>
               <select
-                value={boilerSelection}
-                onChange={e => {
-                  const val = e.target.value as BoilerSelection;
-                  setBoilerSelection(val);
-                  const metallurgy = val === 'wb_8000plus' ? 'al_si' : val === 'vaillant' ? 'stainless_steel' : 'auto';
-                  setInput({ ...input, preferredMetallurgy: metallurgy });
-                }}
+                value={input.currentHeatSourceType ?? 'other'}
+                onChange={e => setInput({ ...input, currentHeatSourceType: e.target.value as EngineInputV2_3['currentHeatSourceType'] })}
               >
-                <option value="auto">Other / Unknown</option>
-                <option value="wb_8000plus">Worcester Bosch 8000+ Style (Al-Si heat exchanger)</option>
-                <option value="vaillant">Vaillant / Baxi / Other (stainless steel)</option>
+                <option value="combi">Combi Boiler</option>
+                <option value="system">System Boiler</option>
+                <option value="regular">Regular / Heat-only Boiler</option>
+                <option value="ashp">Air Source Heat Pump</option>
+                <option value="other">Other / Unknown</option>
               </select>
-              {boilerSelection === 'wb_8000plus' && (
-                <p style={{ fontSize: '0.8rem', color: '#2b6cb0', marginTop: '0.375rem' }}>
-                  ℹ️ WB 8000+ "Softener Edge" logic active – checks Al-Si heat exchanger compatibility
-                  with your water softener.
-                </p>
-              )}
             </div>
+            <div className="form-field">
+              <label>Current Boiler Age (years)</label>
+              <input
+                type="number"
+                min={0}
+                max={40}
+                value={input.currentBoilerAgeYears ?? ''}
+                onChange={e => setInput({ ...input, currentBoilerAgeYears: e.target.value ? +e.target.value : undefined })}
+                placeholder="e.g. 8"
+              />
+            </div>
+            <div className="form-field">
+              <label>Current Boiler Output (kW, optional)</label>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                step={0.5}
+                value={input.currentBoilerOutputKw ?? ''}
+                onChange={e => setInput({ ...input, currentBoilerOutputKw: e.target.value ? +e.target.value : undefined })}
+                placeholder="e.g. 24"
+              />
+            </div>
+            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+              <label>Current Boiler Make / Model (optional)</label>
+              <input
+                type="text"
+                value={input.makeModelText ?? ''}
+                onChange={e => setInput({ ...input, makeModelText: e.target.value || undefined })}
+                placeholder="e.g. Worcester Greenstar 30i"
+              />
+            </div>
+            <details style={{ gridColumn: '1 / -1', marginTop: '0.25rem' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#4a5568' }}>Advanced (Engineer): Heat Exchanger Metallurgy</summary>
+              <div className="form-field" style={{ marginTop: '0.75rem' }}>
+                <label>Heat Exchanger Material Preference</label>
+                <select
+                  value={input.preferredMetallurgy ?? 'auto'}
+                  onChange={e => setInput({ ...input, preferredMetallurgy: e.target.value as EngineInputV2_3['preferredMetallurgy'] })}
+                >
+                  <option value="auto">Auto (engine recommendation)</option>
+                  <option value="al_si">Al-Si (e.g. WB 8000+ style)</option>
+                  <option value="stainless_steel">Stainless steel</option>
+                </select>
+                {input.preferredMetallurgy === 'al_si' && (
+                  <p style={{ fontSize: '0.8rem', color: '#2b6cb0', marginTop: '0.375rem' }}>
+                    ℹ️ Al-Si selection keeps WB softener-edge analysis visible where relevant.
+                  </p>
+                )}
+              </div>
+            </details>
           </div>
           <div className="step-actions">
             <button className="prev-btn" onClick={prev}>← Back</button>
@@ -479,6 +519,14 @@ export default function FullSurveyStepper({ onBack }: Props) {
                   </div>
                 </div>
               )}
+              <label className="checkbox-field" style={{ marginTop: '0.75rem' }}>
+                <input
+                  type="checkbox"
+                  checked={compareMixergy}
+                  onChange={e => setCompareMixergy(e.target.checked)}
+                />
+                <span>Show Mixergy comparison in results (even if standard cylinder selected)</span>
+              </label>
             </div>
             <div className="form-field">
               <label>Bathrooms</label>
@@ -509,7 +557,12 @@ export default function FullSurveyStepper({ onBack }: Props) {
       )}
 
       {currentStep === 'results' && results && (
-        <FullSurveyResults results={results} onBack={onBack} />
+        <FullSurveyResults
+          results={results}
+          input={input}
+          compareMixergy={compareMixergy}
+          onBack={onBack}
+        />
       )}
     </div>
   );
@@ -683,9 +736,13 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
 
 function FullSurveyResults({
   results,
+  input,
+  compareMixergy,
   onBack,
 }: {
   results: FullEngineResult;
+  input: EngineInputV2_3;
+  compareMixergy: boolean;
   onBack: () => void;
 }) {
   const { hydraulic, combiStress, mixergy, lifestyle, normalizer, redFlags, bomItems } = results;
@@ -694,6 +751,7 @@ function FullSurveyResults({
   // Approximate current efficiency from normalizer decay
   const currentEfficiencyPct = Math.max(50, 92 - normalizer.tenYearEfficiencyDecayPct);
   const bomTotal = calculateBomTotal(bomItems);
+  const shouldShowMixergy = input.dhwTankType === 'mixergy' || compareMixergy;
 
   const handleExportCsv = () => {
     const csv = exportBomToCsv(bomItems);
@@ -728,10 +786,10 @@ function FullSurveyResults({
             <div className="verdict-label">Combi</div>
             <div className="verdict-status">{redFlags.rejectCombi ? '❌ Rejected' : '✅ Viable'}</div>
           </div>
-          <div className={`verdict-item ${redFlags.rejectVented ? 'rejected' : 'approved'}`}>
+          <div className={`verdict-item ${(redFlags.rejectStored ?? redFlags.rejectVented) ? 'rejected' : 'approved'}`}>
             <div className="verdict-icon">💧</div>
-            <div className="verdict-label">Vented</div>
-            <div className="verdict-status">{redFlags.rejectVented ? '❌ Rejected' : '✅ Viable'}</div>
+            <div className="verdict-label">Stored (Cylinder)</div>
+            <div className="verdict-status">{(redFlags.rejectStored ?? redFlags.rejectVented) ? '❌ Rejected' : '✅ Viable'}</div>
           </div>
           <div className={`verdict-item ${redFlags.rejectAshp ? 'rejected' : redFlags.flagAshp ? 'flagged' : 'approved'}`}>
             <div className="verdict-icon">🌿</div>
@@ -867,36 +925,38 @@ function FullSurveyResults({
       </div>
 
       {/* Mixergy Volumetrics */}
-      <div className="result-section">
-        <h3>💧 Mixergy Cylinder Analysis</h3>
-        <div className="metric-row">
-          <span className="metric-label">Mixergy Size</span>
-          <span className="metric-value ok">{mixergy.mixergyLitres}L</span>
+      {shouldShowMixergy && (
+        <div className="result-section">
+          <h3>💧 Mixergy Cylinder Analysis</h3>
+          <div className="metric-row">
+            <span className="metric-label">Mixergy Size</span>
+            <span className="metric-value ok">{mixergy.mixergyLitres}L</span>
+          </div>
+          <div className="metric-row">
+            <span className="metric-label">Conventional Equivalent</span>
+            <span className="metric-value">{mixergy.equivalentConventionalLitres}L</span>
+          </div>
+          <div className="metric-row">
+            <span className="metric-label">Footprint Saving</span>
+            <span className="metric-value ok">{mixergy.footprintSavingPct}%</span>
+          </div>
+          <div className="metric-row">
+            <span className="metric-label">COP Multiplier (with ASHP)</span>
+            <span className="metric-value ok">+{mixergy.heatPumpCopMultiplierPct}–10%</span>
+          </div>
+          <div style={{ marginTop: '1rem' }}>
+            <h4 style={{ marginBottom: '0.75rem', fontSize: '0.95rem', color: '#4a5568' }}>
+              Footprint X-Ray: Tank Size Comparison
+            </h4>
+            <FootprintXRay mixergyLitres={mixergy.mixergyLitres} conventionalLitres={mixergy.equivalentConventionalLitres} />
+          </div>
+          {mixergy.notes.length > 0 && (
+            <ul className="notes-list" style={{ marginTop: '0.75rem' }}>
+              {mixergy.notes.map((n, i) => <li key={i}>{n}</li>)}
+            </ul>
+          )}
         </div>
-        <div className="metric-row">
-          <span className="metric-label">Conventional Equivalent</span>
-          <span className="metric-value">{mixergy.equivalentConventionalLitres}L</span>
-        </div>
-        <div className="metric-row">
-          <span className="metric-label">Footprint Saving</span>
-          <span className="metric-value ok">{mixergy.footprintSavingPct}%</span>
-        </div>
-        <div className="metric-row">
-          <span className="metric-label">COP Multiplier (with ASHP)</span>
-          <span className="metric-value ok">+{mixergy.heatPumpCopMultiplierPct}–10%</span>
-        </div>
-        <div style={{ marginTop: '1rem' }}>
-          <h4 style={{ marginBottom: '0.75rem', fontSize: '0.95rem', color: '#4a5568' }}>
-            Footprint X-Ray: Tank Size Comparison
-          </h4>
-          <FootprintXRay mixergyLitres={mixergy.mixergyLitres} conventionalLitres={mixergy.equivalentConventionalLitres} />
-        </div>
-        {mixergy.notes.length > 0 && (
-          <ul className="notes-list" style={{ marginTop: '0.75rem' }}>
-            {mixergy.notes.map((n, i) => <li key={i}>{n}</li>)}
-          </ul>
-        )}
-      </div>
+      )}
 
       {/* Bill of Materials */}
       <div className="result-section">

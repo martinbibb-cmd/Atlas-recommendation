@@ -3,7 +3,7 @@ import type { EngineInputV2_3, RedFlagResult } from '../schema/EngineInputV2_3';
 export function runRedFlagModule(input: EngineInputV2_3): RedFlagResult {
   const reasons: string[] = [];
   let rejectCombi = false;
-  let rejectVented = false;
+  let rejectStored = false;
   let flagAshp = false;
   let rejectAshp = false;
 
@@ -18,11 +18,11 @@ export function runRedFlagModule(input: EngineInputV2_3): RedFlagResult {
     );
   }
 
-  // Loft converted → Vented rejected (loss of gravity head and tank space)
+  // Loft converted → Stored cylinder branch rejected (loss of gravity head and tank space)
   if (input.hasLoftConversion) {
-    rejectVented = true;
+    rejectStored = true;
     reasons.push(
-      `🚫 Vented System Rejected: Loft conversion has eliminated the gravity "head" ` +
+      `🚫 Stored Cylinder Rejected: Loft conversion has eliminated the gravity "head" ` +
       `required for a vented F&E tank and cold water storage. Sealed system required.`
     );
   }
@@ -57,5 +57,12 @@ export function runRedFlagModule(input: EngineInputV2_3): RedFlagResult {
     );
   }
 
-  return { rejectCombi, rejectVented, flagAshp, rejectAshp, reasons };
+  return {
+    rejectCombi,
+    rejectStored,
+    rejectVented: rejectStored,
+    flagAshp,
+    rejectAshp,
+    reasons,
+  };
 }

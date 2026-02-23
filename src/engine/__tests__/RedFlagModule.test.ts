@@ -29,6 +29,7 @@ describe('RedFlagModule', () => {
 
   it('rejects vented system for loft conversion', () => {
     const result = runRedFlagModule({ ...baseInput, hasLoftConversion: true });
+    expect(result.rejectStored).toBe(true);
     expect(result.rejectVented).toBe(true);
   });
 
