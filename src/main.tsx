@@ -4,6 +4,24 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
+window.addEventListener('error', (e) => {
+  const root = document.getElementById('root')
+  if (!root) return
+  const pre = document.createElement('pre')
+  pre.style.cssText = 'padding:16px;white-space:pre-wrap'
+  pre.textContent = String(e.error || e.message)
+  root.replaceChildren(pre)
+})
+
+window.addEventListener('unhandledrejection', (e) => {
+  const root = document.getElementById('root')
+  if (!root) return
+  const pre = document.createElement('pre')
+  pre.style.cssText = 'padding:16px;white-space:pre-wrap'
+  pre.textContent = String((e as PromiseRejectionEvent).reason)
+  root.replaceChildren(pre)
+})
+
 interface ErrorBoundaryState { error: Error | null }
 
 class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
