@@ -512,7 +512,7 @@ export function buildOptionMatrixV1(
   }
   const regularRequirements: string[] = [
     'Loft must remain accessible and frost-free for header tank.',
-    'Pressure at taps will be limited by head height — power shower may need pump.',
+    'Pressure at taps will be limited by head height — high-flow showers may need a dedicated pump.',
   ];
   if (input.futureAddBathroom) {
     regularRequirements.push('Adding a bathroom will increase demand — confirm vented system can meet peak flow.');
@@ -534,7 +534,7 @@ export function buildOptionMatrixV1(
     headline: 'DHW: indirect stored cylinder via primary coil — gravity-fed pressure.',
     bullets: [
       'Hot water pressure limited by header tank head height (typically 1–2 bar).',
-      'No mains pressure at taps — power shower requires dedicated pump.',
+      'No mains pressure at taps — high-flow showers require a dedicated pump.',
       'Cylinder sizing is the primary control over DHW capacity.',
     ],
     evidenceIds: [],
