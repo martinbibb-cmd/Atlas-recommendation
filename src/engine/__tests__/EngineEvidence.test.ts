@@ -129,10 +129,10 @@ describe('EngineOutputV1 evidence block', () => {
     expect(heatLossItem!.value).toContain('kW');
   });
 
-  it('heat loss evidence affects all 5 options', () => {
+  it('heat loss evidence affects all 6 options', () => {
     const { engineOutput } = runEngine(baseInput);
     const heatLossItem = engineOutput.evidence?.find(e => e.id === 'ev-heat-loss');
-    const allOptions = ['combi', 'stored', 'ashp', 'regular_vented', 'system_unvented'];
+    const allOptions = ['combi', 'stored_vented', 'stored_unvented', 'ashp', 'regular_vented', 'system_unvented'];
     for (const opt of allOptions) {
       expect(heatLossItem!.affectsOptionIds).toContain(opt);
     }
@@ -167,7 +167,7 @@ describe('EngineOutputV1 evidence block', () => {
   });
 
   it('evidence affectsOptionIds contains valid option IDs only', () => {
-    const validIds = new Set(['combi', 'stored', 'ashp', 'regular_vented', 'system_unvented']);
+    const validIds = new Set(['combi', 'stored_vented', 'stored_unvented', 'ashp', 'regular_vented', 'system_unvented']);
     const { engineOutput } = runEngine(baseInput);
     for (const item of engineOutput.evidence ?? []) {
       for (const optId of item.affectsOptionIds) {

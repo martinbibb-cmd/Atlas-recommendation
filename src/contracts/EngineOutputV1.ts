@@ -1,7 +1,7 @@
 import type { ENGINE_VERSION, CONTRACT_VERSION } from './versions';
 
 export interface EligibilityItem {
-  id: 'on_demand' | 'stored' | 'ashp';
+  id: 'on_demand' | 'stored_vented' | 'stored_unvented' | 'ashp';
   label: string;
   status: 'viable' | 'rejected' | 'caution';
   reason?: string;
@@ -21,7 +21,7 @@ export interface EvidenceItemV1 {
   /** Confidence in the value and its influence on the output. */
   confidence: 'high' | 'medium' | 'low';
   /** Which option IDs this evidence item primarily affects. */
-  affectsOptionIds: Array<'combi' | 'stored' | 'ashp' | 'regular_vented' | 'system_unvented'>;
+  affectsOptionIds: Array<'combi' | 'stored_vented' | 'stored_unvented' | 'ashp' | 'regular_vented' | 'system_unvented'>;
 }
 
 export interface RedFlagItem {
@@ -66,7 +66,7 @@ export interface SensitivityItem {
 }
 
 export interface OptionCardV1 {
-  id: 'combi' | 'stored' | 'ashp' | 'regular_vented' | 'system_unvented';
+  id: 'combi' | 'stored_vented' | 'stored_unvented' | 'ashp' | 'regular_vented' | 'system_unvented';
   label: string;
   status: 'viable' | 'caution' | 'rejected';
   headline: string;

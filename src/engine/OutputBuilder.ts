@@ -3,7 +3,7 @@ import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem, Visua
 import { ENGINE_VERSION, CONTRACT_VERSION } from '../contracts/versions';
 import { buildOptionMatrixV1 } from './OptionMatrixBuilder';
 
-function buildEligibility(result: FullEngineResultCore): EligibilityItem[] {
+function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3): EligibilityItem[] {
   const { redFlags, hydraulicV1, combiDhwV1, storedDhwV1 } = result;
   const items: EligibilityItem[] = [];
 
@@ -34,31 +34,58 @@ function buildEligibility(result: FullEngineResultCore): EligibilityItem[] {
     reason: onDemandReason,
   });
 
-  // Stored eligibility: topology hard-reject → rejected; storedRisk=warn → caution; else viable.
-  const storedRejected = (redFlags.rejectStored ?? redFlags.rejectVented);
-  const storedReasonBase = redFlags.reasons
-    .filter(r => r.includes('Stored') || r.includes('Cylinder') || r.includes('Loft'))
-    .join(' ');
+  // Stored vented eligibility: loft conversion → caution; storedRisk=warn or tight space → caution; else viable.
+  const hasFutureLoftConversion = input?.futureLoftConversion ?? input?.hasLoftConversion ?? false;
+  const storedVentedRejected = (redFlags.rejectStored ?? redFlags.rejectVented);
+  let storedVentedStatus: EligibilityItem['status'];
+  let storedVentedReason: string | undefined;
 
-  let storedStatus: EligibilityItem['status'];
-  let storedReason: string | undefined;
-
-  if (storedRejected) {
-    storedStatus = 'rejected';
-    storedReason = storedReasonBase || undefined;
-  } else if (storedDhwV1.verdict.storedRisk === 'warn') {
-    storedStatus = 'caution';
+  if (storedVentedRejected) {
+    storedVentedStatus = 'rejected';
+    storedVentedReason = result.redFlags.reasons
+      .filter(r => r.includes('Stored') || r.includes('Cylinder') || r.includes('Loft'))
+      .join(' ') || undefined;
+  } else if (hasFutureLoftConversion || storedDhwV1.verdict.storedRisk === 'warn') {
+    storedVentedStatus = 'caution';
     const warnFlag = storedDhwV1.flags.find(f => f.severity === 'warn');
-    storedReason = warnFlag ? `${warnFlag.title}: ${warnFlag.detail}` : undefined;
+    storedVentedReason = hasFutureLoftConversion
+      ? 'Loft conversion planned — header tank space at risk.'
+      : warnFlag ? `${warnFlag.title}: ${warnFlag.detail}` : undefined;
   } else {
-    storedStatus = 'viable';
+    storedVentedStatus = 'viable';
   }
 
   items.push({
-    id: 'stored',
-    label: 'Stored Cylinder',
-    status: storedStatus,
-    reason: storedReason,
+    id: 'stored_vented',
+    label: 'Stored hot water — Vented cylinder',
+    status: storedVentedStatus,
+    reason: storedVentedReason,
+  });
+
+  // Stored unvented eligibility: mains pressure gate → caution/rejected based on cwsSupplyV1.
+  const { cwsSupplyV1, pressureAnalysis } = result;
+  const dynamicBar = pressureAnalysis.dynamicBar;
+  let storedUnventedStatus: EligibilityItem['status'];
+  let storedUnventedReason: string | undefined;
+
+  if (dynamicBar < 1.0) {
+    storedUnventedStatus = 'rejected';
+    storedUnventedReason = `Mains pressure too low (${dynamicBar.toFixed(1)} bar) — minimum 1.0 bar required.`;
+  } else if (!cwsSupplyV1.hasMeasurements) {
+    storedUnventedStatus = 'caution';
+    storedUnventedReason = 'Mains supply not characterised — need L/min @ bar measurement.';
+  } else if (cwsSupplyV1.quality === 'weak') {
+    storedUnventedStatus = 'caution';
+    storedUnventedReason = 'Mains supply is weak — boost pump likely required.';
+  } else {
+    storedUnventedStatus = 'viable';
+  }
+
+  items.push({
+    id: 'stored_unvented',
+    label: 'Stored hot water — Unvented cylinder',
+    status: storedUnventedStatus,
+    reason: storedUnventedReason,
   });
 
   // ASHP eligibility is driven first by hydraulic physics, then by topology hard-fails.
@@ -258,7 +285,7 @@ function buildEvidence(result: FullEngineResultCore, input?: EngineInputV2_3): E
     value: availableSpace ?? 'unknown',
     source: availableSpace !== undefined ? 'manual' : 'placeholder',
     confidence: availableSpace !== undefined && availableSpace !== 'unknown' ? 'high' : 'low',
-    affectsOptionIds: ['stored', 'system_unvented'],
+    affectsOptionIds: ['stored_vented', 'stored_unvented', 'system_unvented'],
   });
   items.push({
     id: 'ev-stored-risk',
@@ -267,7 +294,7 @@ function buildEvidence(result: FullEngineResultCore, input?: EngineInputV2_3): E
     value: storedDhwV1.verdict.storedRisk,
     source: 'derived',
     confidence: 'high',
-    affectsOptionIds: ['stored', 'ashp', 'system_unvented'],
+    affectsOptionIds: ['stored_vented', 'stored_unvented', 'ashp', 'system_unvented'],
   });
 
   // Heat loss — drives ASHP sizing and flow requirements
@@ -279,7 +306,7 @@ function buildEvidence(result: FullEngineResultCore, input?: EngineInputV2_3): E
     value: heatLossWatts !== undefined ? `${(heatLossWatts / 1000).toFixed(1)} kW` : 'unknown',
     source: heatLossWatts !== undefined ? 'manual' : 'assumed',
     confidence: heatLossWatts !== undefined ? 'high' : 'medium',
-    affectsOptionIds: ['ashp', 'combi', 'stored', 'regular_vented', 'system_unvented'],
+    affectsOptionIds: ['ashp', 'combi', 'stored_vented', 'stored_unvented', 'regular_vented', 'system_unvented'],
   });
 
   return items;
@@ -347,7 +374,7 @@ function buildVisuals(result: FullEngineResultCore): VisualSpecV1[] {
       conventionalLitres: mixergy.equivalentConventionalLitres,
       footprintSavingPct: mixergy.footprintSavingPct,
     },
-    affectsOptionIds: ['stored', 'ashp', 'system_unvented'],
+    affectsOptionIds: ['stored_vented', 'stored_unvented', 'ashp', 'system_unvented'],
   });
 
   return visuals;
@@ -367,7 +394,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
 
   let primaryRecommendation: string;
   if (onDemandRejected) {
-    primaryRecommendation = 'Stored (Cylinder)';
+    primaryRecommendation = 'Stored hot water — unvented cylinder';
   } else if (ashpViable && isSteadyHome) {
     primaryRecommendation = 'Air Source Heat Pump';
   } else {
@@ -448,7 +475,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
   }
 
   return {
-    eligibility: buildEligibility(result),
+    eligibility: buildEligibility(result, input),
     redFlags: [...buildRedFlags(allReasons), ...combiFlags, ...storedFlags],
     recommendation: { primary: primaryRecommendation },
     explainers: buildExplainers(result),
