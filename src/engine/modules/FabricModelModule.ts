@@ -6,9 +6,13 @@
 //      Inputs: wallType, insulationLevel, glazing, roofInsulation, airTightness
 //
 //   2. Thermal inertia driver — how spiky demand feels (lumped thermal mass)
-//      Inputs: thermalMass, then τ = f(thermalMass, insulationLevel, airTightness)
+//      Inputs: thermalMass
+//      Outputs:
+//        • thermalMassBand — pure inertia label (mass-driven only)
+//        • driftTauHours   — cooling time constant when heating is off
+//                            (leakage-driven: thermalMass × insulationLevel × airTightness)
 //
-// IMPORTANT: tauHours does NOT imply "efficient". Heavy mass slows heat loss but
+// IMPORTANT: driftTauHours does NOT imply "efficient". Heavy mass slows heat loss but
 // cannot overcome leaky fabric. Both outputs are labelled "Modelled estimate".
 //
 // References:
@@ -58,14 +62,14 @@ export interface FabricModelV1Result {
   /** Normalised loss index (0–1 proxy, higher = more loss). Null when insufficient data. */
   lossIndex: number | null;
   /**
-   * Derived thermal time constant (hours).
+   * Cooling time constant (hours) when heating is off.
    * Calculated from thermalMass × insulationLevel × airTightness.
    * Null when thermalMass is unknown.
-   * Represents "how quickly the building cools" — NOT an efficiency rating.
+   * Represents "drift time — how quickly the building cools when heating is off" — NOT an efficiency rating.
    */
-  tauHours: number | null;
-  /** Qualitative inertia band — describes demand spikiness. */
-  inertiaBand: 'spiky' | 'moderate' | 'stable' | 'unknown';
+  driftTauHours: number | null;
+  /** Pure inertia label derived solely from thermalMass — describes demand spikiness. */
+  thermalMassBand: 'light' | 'medium' | 'heavy' | 'unknown';
   /** Customer-safe explainer notes for output display. */
   notes: string[];
 }
@@ -144,17 +148,15 @@ const AIR_TIGHTNESS_TAU_FACTOR: Record<FabricAirTightness, number> = {
 // ─── Band classifiers ─────────────────────────────────────────────────────────
 
 function classifyHeatLoss(lossIndex: number): FabricModelV1Result['heatLossBand'] {
-  if (lossIndex >= 0.70) return 'very_high';
-  if (lossIndex >= 0.55) return 'high';
-  if (lossIndex >= 0.38) return 'moderate';
-  if (lossIndex >= 0.22) return 'low';
+  if (lossIndex >= 0.75) return 'very_high';
+  if (lossIndex >= 0.60) return 'high';
+  if (lossIndex >= 0.45) return 'moderate';
+  if (lossIndex >= 0.30) return 'low';
   return 'very_low';
 }
 
-function classifyInertia(tauHours: number): FabricModelV1Result['inertiaBand'] {
-  if (tauHours < 20) return 'spiky';
-  if (tauHours < 50) return 'moderate';
-  return 'stable';
+function classifyThermalMassBand(mass: Exclude<FabricThermalMass, 'unknown'>): FabricModelV1Result['thermalMassBand'] {
+  return mass;
 }
 
 // ─── Main Module ──────────────────────────────────────────────────────────────
@@ -163,8 +165,9 @@ function classifyInertia(tauHours: number): FabricModelV1Result['inertiaBand'] {
  * runFabricModelV1 — separates fabric heat-loss from thermal inertia.
  *
  * Returns two independent physics estimates:
- *  • heatLossBand / lossIndex — how hard the building leaks energy
- *  • tauHours / inertiaBand  — how spiky demand feels (slow vs fast response)
+ *  • heatLossBand / lossIndex     — how hard the building leaks energy
+ *  • thermalMassBand              — pure inertia label (mass-driven only)
+ *  • driftTauHours                — drift time when heating is off (leakage-driven)
  *
  * All outputs are labelled "Modelled estimate" — not derived from a real survey.
  */
@@ -198,11 +201,14 @@ export function runFabricModelV1(input: FabricModelV1Input): FabricModelV1Result
   const lossIndex = totalWeight > 0 ? parseFloat((weightedSum / totalWeight).toFixed(3)) : null;
   const heatLossBand = lossIndex != null ? classifyHeatLoss(lossIndex) : 'unknown';
 
-  // ── Thermal τ ──────────────────────────────────────────────────────────────
-  let tauHours: number | null = null;
-  let inertiaBand: FabricModelV1Result['inertiaBand'] = 'unknown';
-
+  // ── Thermal mass band (pure inertia — derived solely from thermalMass) ─────
   const mass = input.thermalMass;
+  const thermalMassBand: FabricModelV1Result['thermalMassBand'] =
+    mass != null && mass !== 'unknown' ? classifyThermalMassBand(mass) : 'unknown';
+
+  // ── Drift τ (cooling time constant — leakage-driven) ──────────────────────
+  let driftTauHours: number | null = null;
+
   if (mass != null && mass !== 'unknown') {
     const insul = (input.insulationLevel != null && input.insulationLevel !== 'unknown')
       ? input.insulationLevel
@@ -212,11 +218,10 @@ export function runFabricModelV1(input: FabricModelV1Input): FabricModelV1Result
     const airFactor = AIR_TIGHTNESS_TAU_FACTOR[air];
     // Passivhaus special case: light/exceptional/passive → 190.5 h
     if (mass === 'light' && insul === 'exceptional' && air === 'passive') {
-      tauHours = 190.5;
+      driftTauHours = 190.5;
     } else {
-      tauHours = Math.round(baseTau * airFactor);
+      driftTauHours = Math.round(baseTau * airFactor);
     }
-    inertiaBand = classifyInertia(tauHours);
   }
 
   // ── Notes ──────────────────────────────────────────────────────────────────
@@ -230,20 +235,18 @@ export function runFabricModelV1(input: FabricModelV1Input): FabricModelV1Result
     );
   }
 
-  if (tauHours != null) {
+  if (driftTauHours != null) {
+    const massDesc =
+      thermalMassBand === 'light'  ? 'fast temperature swings when heating cycles off' :
+      thermalMassBand === 'heavy'  ? 'slow to cool, holds warmth through unheated periods' :
+      'moderate temperature drift when unheated';
     notes.push(
-      `Thermal inertia: τ ≈ ${tauHours}h (${inertiaBand} — ${
-        inertiaBand === 'spiky'
-          ? 'fast temperature swings when heating cycles off'
-          : inertiaBand === 'stable'
-            ? 'slow to cool, holds warmth through unheated periods'
-            : 'moderate temperature drift when unheated'
-      }) (modelled estimate).`,
+      `Thermal mass: ${thermalMassBand} — drift time τ ≈ ${driftTauHours}h (${massDesc}) (modelled estimate).`,
     );
     notes.push(
-      'Note: high thermal inertia does not mean low running cost — heat-loss band drives energy bills.',
+      'Note: high thermal mass does not mean low running cost — heat-loss band drives energy bills.',
     );
   }
 
-  return { heatLossBand, lossIndex, tauHours, inertiaBand, notes };
+  return { heatLossBand, lossIndex, driftTauHours, thermalMassBand, notes };
 }
