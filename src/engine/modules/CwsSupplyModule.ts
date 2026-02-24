@@ -32,7 +32,12 @@ export interface CwsSupplyV1Result {
  */
 export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result {
   const source = input.coldWaterSource ?? 'unknown';
-  const deliveryMode = input.dhwDeliveryMode ?? 'unknown';
+
+  // Normalise legacy aliases → single canonical mode internally.
+  // tank_pumped | pumped → pumped_from_tank
+  const rawMode = input.dhwDeliveryMode ?? 'unknown';
+  const deliveryMode =
+    rawMode === 'tank_pumped' || rawMode === 'pumped' ? 'pumped_from_tank' : rawMode;
 
   const dynamicPressureBar =
     input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
@@ -44,14 +49,14 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
   // Delivery mode — add mode-specific note
   if (deliveryMode === 'gravity') {
     notes.push('Gravity-fed: flow depends on head height + pipework, not mains.');
-  } else if (deliveryMode === 'pumped_from_tank' || deliveryMode === 'tank_pumped' || deliveryMode === 'pumped') {
-    notes.push('Pumped shower: performance depends on pump + stored supply, not mains.');
+  } else if (deliveryMode === 'pumped_from_tank') {
+    notes.push('Power shower (pump from tank): performance depends on pump + stored supply, not mains.');
   } else if (deliveryMode === 'mains_mixer') {
     notes.push('Mixer (mains-fed): performance depends on mains flow/pressure under load.');
   } else if (deliveryMode === 'accumulator_supported') {
-    notes.push('Accumulator can smooth short peaks — once depleted, performance returns to mains supply.');
+    notes.push('Cannot increase mains supply. Accumulator (buffers peaks): smooths short demand peaks — once depleted, performance reverts to mains.');
   } else if (deliveryMode === 'break_tank_booster') {
-    notes.push('Break tank + booster: pump draws from stored water; mains only refills the tank over time.');
+    notes.push('Cannot increase mains supply. Break tank + booster set (pumped from storage): pump draws from stored water; mains only refills the tank over time.');
   } else if (deliveryMode === 'electric_cold_only') {
     notes.push('Electric shower: cold mains only; independent of cylinder temperature.');
   }
