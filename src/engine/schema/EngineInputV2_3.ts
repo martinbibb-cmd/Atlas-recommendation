@@ -8,6 +8,24 @@ import type { SedbukResultV1 } from '../modules/SedbukModule';
 export type { SedbukResultV1 };
 import type { BoilerSizingResultV1 } from '../modules/BoilerSizingModule';
 export type { BoilerSizingResultV1 };
+import type {
+  FabricModelV1Result,
+  FabricWallType,
+  FabricInsulationLevel,
+  FabricGlazing,
+  FabricRoofInsulation,
+  FabricAirTightness,
+  FabricThermalMass,
+} from '../modules/FabricModelModule';
+export type {
+  FabricModelV1Result,
+  FabricWallType,
+  FabricInsulationLevel,
+  FabricGlazing,
+  FabricRoofInsulation,
+  FabricAirTightness,
+  FabricThermalMass,
+};
 
 export type OccupancySignature =
   | 'professional'
@@ -61,6 +79,30 @@ export interface EngineInputV2_3 {
   radiatorCount: number;
   hasLoftConversion: boolean;
   returnWaterTemp: number; // °C
+
+  /**
+   * Structured building fabric inputs — used by FabricModelV1 to independently
+   * derive heat-loss band and thermal inertia (τ).
+   * All sub-fields are optional; unknown/missing values fall back to mid-range defaults.
+   */
+  building?: {
+    /**
+     * Fabric heat-loss controls (loss-focused).
+     * Determines how hard the building leaks energy — independent of thermal mass.
+     */
+    fabric?: {
+      wallType?: FabricWallType;
+      insulationLevel?: FabricInsulationLevel;
+      glazing?: FabricGlazing;
+      roofInsulation?: FabricRoofInsulation;
+      airTightness?: FabricAirTightness;
+    };
+    /**
+     * Thermal mass classification — determines inertia / τ (how spiky demand feels).
+     * Independent of heat loss: solid masonry can be 'heavy' yet still 'high' heat loss.
+     */
+    thermalMass?: FabricThermalMass;
+  };
 
   // Legacy infrastructure (optional, defaults to two_pipe)
   pipingTopology?: PipingTopology;
@@ -581,6 +623,11 @@ export interface FullEngineResultCore {
   sedbukV1?: SedbukResultV1;
   /** Boiler sizing result (present when current system boiler info provided). */
   sizingV1?: BoilerSizingResultV1;
+  /**
+   * Fabric model V1 result — independent heat-loss and thermal inertia estimates.
+   * Present when input.building is provided.
+   */
+  fabricModelV1?: FabricModelV1Result;
 }
 
 /** Full engine result including the canonical V1 output contract. */

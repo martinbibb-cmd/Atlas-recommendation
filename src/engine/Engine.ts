@@ -22,6 +22,7 @@ import { runCwsSupplyModuleV1 } from './modules/CwsSupplyModule';
 import { lookupSedbukV1 } from './modules/SedbukModule';
 import { runBoilerSizingModuleV1 } from './modules/BoilerSizingModule';
 import { buildEngineOutputV1 } from './OutputBuilder';
+import { runFabricModelV1 } from './modules/FabricModelModule';
 
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const normalizer = normalizeInput(input);
@@ -105,6 +106,18 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
       )
     : undefined;
 
+  // Fabric model V1 — only computed when input.building is provided
+  const fabricModelV1 = input.building
+    ? runFabricModelV1({
+        wallType:       input.building.fabric?.wallType,
+        insulationLevel: input.building.fabric?.insulationLevel,
+        glazing:        input.building.fabric?.glazing,
+        roofInsulation: input.building.fabric?.roofInsulation,
+        airTightness:   input.building.fabric?.airTightness,
+        thermalMass:    input.building.thermalMass,
+      })
+    : undefined;
+
   const core: FullEngineResultCore = {
     hydraulic,
     hydraulicV1,
@@ -128,6 +141,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     cwsSupplyV1,
     sedbukV1,
     sizingV1,
+    fabricModelV1,
   };
 
   const engineOutput = buildEngineOutputV1(core, input);
