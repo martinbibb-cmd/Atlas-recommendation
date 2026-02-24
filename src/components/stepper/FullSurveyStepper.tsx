@@ -2260,6 +2260,7 @@ function FullSurveyResults({
   const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
   const [activeOptionTab, setActiveOptionTab] = useState<Record<string, 'heat' | 'dhw' | 'needs' | 'why'>>({});
   const [visualFilter, setVisualFilter] = useState<'all' | 'relevant'>('all');
+  const [showAssumptions, setShowAssumptions] = useState(false);
   const [compareAId, setCompareAId] = useState<string>('current');
   const [compareBId, setCompareBId] = useState<string>(
     engineOutput.recommendation.primary.toLowerCase().includes('heat pump') ? 'ashp'
@@ -2294,6 +2295,72 @@ function FullSurveyResults({
               <li key={i}>{bullet}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Confidence badge + Assumptions drawer */}
+      {engineOutput.meta?.confidence && (
+        <div className="result-section" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span
+              style={{
+                display: 'inline-block',
+                padding: '3px 10px',
+                borderRadius: '12px',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                color: '#fff',
+                background:
+                  engineOutput.meta.confidence.level === 'high'   ? '#38a169' :
+                  engineOutput.meta.confidence.level === 'medium' ? '#d69e2e' : '#c53030',
+              }}
+            >
+              Confidence: {engineOutput.meta.confidence.level.charAt(0).toUpperCase() + engineOutput.meta.confidence.level.slice(1)}
+            </span>
+            {engineOutput.meta.assumptions && engineOutput.meta.assumptions.length > 0 && (
+              <button
+                onClick={() => setShowAssumptions(v => !v)}
+                style={{
+                  background: 'none',
+                  border: '1px solid #cbd5e0',
+                  borderRadius: '6px',
+                  padding: '3px 10px',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  color: '#4a5568',
+                }}
+              >
+                {showAssumptions ? '▲ Hide assumptions' : '▼ Show assumptions'}
+              </button>
+            )}
+          </div>
+          {showAssumptions && engineOutput.meta.assumptions && (
+            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {engineOutput.meta.assumptions.map(a => (
+                  <li
+                    key={a.id}
+                    style={{
+                      background: a.severity === 'warn' ? '#fffbeb' : '#f7fafc',
+                      border: `1px solid ${a.severity === 'warn' ? '#f6e05e' : '#e2e8f0'}`,
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '2px' }}>
+                      {a.severity === 'warn' ? '⚠️ ' : 'ℹ️ '}{a.title}
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>{a.detail}</div>
+                    {a.improveBy && (
+                      <div style={{ fontSize: '0.78rem', color: '#718096', marginTop: '3px' }}>
+                        💡 {a.improveBy}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

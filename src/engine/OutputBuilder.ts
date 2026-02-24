@@ -4,6 +4,7 @@ import { ENGINE_VERSION, CONTRACT_VERSION } from '../contracts/versions';
 import { buildOptionMatrixV1 } from './OptionMatrixBuilder';
 import { buildTimeline24hV1 } from './TimelineBuilder';
 import { ageFactor, cyclingFactor, DEFAULT_BOILER_KW, LOW_LOAD_THRESHOLD_RATIO } from './modules/BoilerTailoffModule';
+import { buildAssumptionsV1 } from './AssumptionsBuilder';
 
 function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3): EligibilityItem[] {
   const { redFlags, hydraulicV1, combiDhwV1, storedDhwV1 } = result;
@@ -538,9 +539,11 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     options: input ? buildOptionMatrixV1(result, input) : undefined,
     evidence: buildEvidence(result, input),
     visuals: buildVisuals(result, input),
-    meta: {
-      engineVersion: ENGINE_VERSION,
-      contractVersion: CONTRACT_VERSION,
-    },
+    meta: (() => {
+      const base = { engineVersion: ENGINE_VERSION, contractVersion: CONTRACT_VERSION };
+      if (!input) return base;
+      const { confidence, assumptions } = buildAssumptionsV1(result, input);
+      return { ...base, confidence, assumptions };
+    })(),
   };
 }
