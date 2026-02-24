@@ -32,14 +32,14 @@ describe('OutputBuilder visuals', () => {
     expect(typeof visual!.data.dynamicBar).toBe('number');
   });
 
-  it('pressure_drop visual includes staticBar and quality when static pressure is provided', () => {
+  it('pressure_drop visual includes staticBar and dropBar when static pressure is provided (no quality field)', () => {
     const input = { ...baseInput, staticMainsPressureBar: 3.5 };
     const { engineOutput } = runEngine(input);
     const visual = engineOutput.visuals?.find(v => v.type === 'pressure_drop');
     expect(visual).toBeDefined();
     expect(typeof visual!.data.staticBar).toBe('number');
     expect(typeof visual!.data.dropBar).toBe('number');
-    expect(['strong', 'moderate', 'weak']).toContain(visual!.data.quality);
+    expect(visual!.data.quality).toBeUndefined();
   });
 
   it('emits an ashp_flow visual with boiler and ASHP L/min', () => {

@@ -140,16 +140,19 @@ function deriveOverlayCell(
   ashpRisk: RiskLevel,
   combiDhwRisk: RiskLevel,
   dhwBandLabel: string,
-  pressureQuality: string | undefined,
+  cwsMeetsUnvented: boolean,
+  cwsHasMeasurements: boolean,
+  cwsInconsistent: boolean,
   dynamicBar: number,
   availableSpace: string | undefined,
   futureLoft: boolean,
   futureBath: boolean,
 ): RiskLevel {
-  const pressRisk: RiskLevel =
-    pressureQuality === 'strong'   ? 'pass' :
-    pressureQuality === 'moderate' ? 'warn' :
-    pressureQuality === 'weak'     ? 'fail' : 'warn'; // no quality = low confidence
+  // Water supply risk: based on flow-based eligibility gate, not pressure drop quality
+  const waterSupplyRisk: RiskLevel =
+    cwsInconsistent ? 'fail' :
+    !cwsHasMeasurements ? 'warn' :
+    cwsMeetsUnvented ? 'pass' : 'warn';
 
   switch (row) {
     case 'heat_delivery':
@@ -163,9 +166,9 @@ function deriveOverlayCell(
     case 'water_supply':
       if (system === 'regular_vented') return 'pass'; // gravity-fed, not pressure-sensitive
       if (system === 'stored_vented') return 'pass';  // tank-fed, not mains pressure-sensitive
-      if (system === 'combi') return dynamicBar < 1.0 ? 'fail' : pressRisk;
-      if (system === 'system_unvented' || system === 'stored_unvented') return dynamicBar < 1.5 ? 'warn' : pressRisk;
-      return dynamicBar < 1.0 ? 'warn' : pressRisk; // ashp
+      if (system === 'combi') return dynamicBar < 1.0 ? 'fail' : waterSupplyRisk;
+      if (system === 'system_unvented' || system === 'stored_unvented') return waterSupplyRisk;
+      return dynamicBar < 1.0 ? 'warn' : waterSupplyRisk; // ashp
 
     case 'space':
       if (system === 'combi') return 'pass'; // no cylinder needed
@@ -195,37 +198,33 @@ function overallRisk(cells: RiskLevel[]): RiskLevel {
 
 // ─── Pressure Behaviour Helpers ──────────────────────────────────────────────
 
-const DROP_QUALITY_COLOUR: Record<'strong' | 'moderate' | 'weak', string> = {
-  strong:   '#38a169',
-  moderate: '#d69e2e',
-  weak:     '#c53030',
-};
-const DROP_QUALITY_LABEL: Record<'strong' | 'moderate' | 'weak', string> = {
-  strong:   'Strong supply',
-  moderate: 'Moderate restriction',
-  weak:     'Significant restriction',
-};
+/** Colour for pressure drop bar indicator (diagnostic only, not eligibility). */
+const DROP_COLOUR = '#d69e2e'; // amber — drop is always just a clue
 
-function unventedSuitability(dynamicBar: number, hasDynOpPoint: boolean): { label: string; colour: string; note: string } {
-  if (dynamicBar >= 1.5 && hasDynOpPoint) return {
-    label:  '✅ Suitable for unvented',
-    colour: '#38a169',
-    note:   'Dynamic pressure ≥ 1.5 bar — adequate for unvented cylinder.',
+function unventedSuitability(
+  cwsMeetsRequirement: boolean,
+  cwsHasMeasurements: boolean,
+  cwsInconsistent: boolean,
+): { label: string; colour: string; note: string } {
+  if (cwsInconsistent) return {
+    label:  '❌ Readings inconsistent',
+    colour: '#c53030',
+    note:   'Dynamic pressure cannot exceed static — readings may be swapped or taken at different points.',
   };
-  if (dynamicBar >= 1.5) return {
+  if (!cwsHasMeasurements) return {
     label:  '⚠️ Check supply',
     colour: '#d69e2e',
-    note:   'Pressure looks OK, but need L/min @ bar to confirm stability.',
+    note:   'Need L/min @ bar measurement to assess unvented suitability.',
   };
-  if (dynamicBar >= 1.0) return {
-    label:  '⚠️ Marginal',
-    colour: '#d69e2e',
-    note:   'Dynamic 1.0–1.5 bar — check installer spec; PRV or booster may be needed.',
+  if (cwsMeetsRequirement) return {
+    label:  '✅ Suitable for unvented',
+    colour: '#38a169',
+    note:   'Supply meets unvented requirement (≥ 10 L/min @ ≥ 1 bar, or ≥ 12 L/min at gauge zero).',
   };
   return {
-    label:  '❌ Not suitable',
-    colour: '#c53030',
-    note:   'Dynamic pressure < 1.5 bar — unvented may require alternative architecture.',
+    label:  '⚠️ Marginal',
+    colour: '#d69e2e',
+    note:   'Supply does not meet unvented requirement — consider pressure boost or alternative architecture.',
   };
 }
 
@@ -800,8 +799,8 @@ export default function FullSurveyStepper({ onBack }: Props) {
                     <div style={{ fontSize: '0.75rem', color: '#718096' }}>bar</div>
                   </div>
                 </div>
-                {/* Drop line */}
-                {pressureAnalysis.dropBar != null && pressureAnalysis.quality != null && (
+                {/* Drop line — diagnostic only, not eligibility */}
+                {pressureAnalysis.dropBar != null && !pressureAnalysis.inconsistentReading && (
                   <div style={{
                     marginTop: '0.75rem',
                     paddingTop: '0.6rem',
@@ -816,48 +815,78 @@ export default function FullSurveyStepper({ onBack }: Props) {
                     </span>
                     <span style={{
                       padding: '0.2rem 0.55rem',
-                      background: DROP_QUALITY_COLOUR[pressureAnalysis.quality],
+                      background: DROP_COLOUR,
                       color: '#fff',
                       borderRadius: '4px',
                       fontWeight: 700,
                       fontSize: '0.78rem',
                     }}>
-                      {DROP_QUALITY_LABEL[pressureAnalysis.quality]}
+                      Diagnostic indicator
                     </span>
+                  </div>
+                )}
+                {/* Inconsistency warning */}
+                {pressureAnalysis.inconsistentReading && (
+                  <div style={{
+                    marginTop: '0.75rem',
+                    padding: '0.5rem 0.75rem',
+                    background: '#fff5f5',
+                    border: '1px solid #feb2b2',
+                    borderLeft: '4px solid #c53030',
+                    borderRadius: '4px',
+                    fontSize: '0.82rem',
+                    color: '#c53030',
+                    fontWeight: 700,
+                  }}>
+                    ⚠️ Readings inconsistent — dynamic cannot exceed static. Recheck measurements.
                   </div>
                 )}
               </div>
 
-              {/* Drop bar visual */}
-              {pressureAnalysis.dropBar != null && pressureAnalysis.quality != null && (
+              {/* Drop bar visual — diagnostic only */}
+              {pressureAnalysis.dropBar != null && !pressureAnalysis.inconsistentReading && (
                 <div style={{ padding: '0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
                   <div style={{ fontSize: '0.75rem', color: '#718096', marginBottom: '0.4rem' }}>
-                    Pressure drop — threshold bands
+                    Pressure drop — diagnostic indicator (restriction / shared main)
                   </div>
                   {/* Bar track: 0 to 2 bar */}
                   <div style={{ position: 'relative', background: '#e2e8f0', borderRadius: '4px', height: '12px' }}>
                     {/* Filled drop portion */}
                     <div style={{
                       width: `${Math.min((pressureAnalysis.dropBar / 2) * 100, 100)}%`,
-                      background: DROP_QUALITY_COLOUR[pressureAnalysis.quality],
+                      background: DROP_COLOUR,
                       height: '100%', borderRadius: '4px', transition: 'width 0.2s',
                     }} />
-                    {/* 0.5 bar marker */}
-                    <div style={{ position: 'absolute', left: '25%', top: '-4px', bottom: '-4px', width: '2px', background: '#d69e2e' }} />
                     {/* 1.0 bar marker */}
                     <div style={{ position: 'absolute', left: '50%', top: '-4px', bottom: '-4px', width: '2px', background: '#c53030' }} />
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#a0aec0', marginTop: '0.25rem' }}>
-                    <span>0</span><span>0.5 strong</span><span>1.0 weak</span><span>2.0 bar</span>
+                    <span>0</span><span>1.0 large drop</span><span>2.0 bar</span>
                   </div>
+                  {pressureAnalysis.dropBar >= 1.0 && (
+                    <div style={{ fontSize: '0.75rem', color: '#744210', marginTop: '0.35rem' }}>
+                      Large drop — suggests restriction or shared main. Confirm with flow test.
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Unvented suitability indicator */}
               {(() => {
-                const pressureBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
-                const hasDynOpPoint = pressureBar > 0 && (input.mainsDynamicFlowLpm ?? 0) > 0;
-                const suit = unventedSuitability(pressureBar, hasDynOpPoint);
+                const cwsResult = (() => {
+                  const flowLpm = input.mainsDynamicFlowLpm;
+                  const pressureBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+                  const staticBar = input.staticMainsPressureBar;
+                  const inconsistent = staticBar !== undefined && pressureBar > staticBar + 0.2;
+                  const hasFlow = flowLpm !== undefined && flowLpm > 0;
+                  const flow = hasFlow ? (flowLpm as number) : 0;
+                  const meetsReq = !inconsistent && hasFlow && (
+                    (flow >= 10 && pressureBar >= 1.0) ||
+                    (flow >= 12 && pressureBar <= 0.2)
+                  );
+                  return { inconsistent, hasMeasurements: hasFlow, meetsUnventedRequirement: meetsReq };
+                })();
+                const suit = unventedSuitability(cwsResult.meetsUnventedRequirement, cwsResult.hasMeasurements, cwsResult.inconsistent);
                 return (
                   <div style={{
                     padding: '0.6rem 0.875rem',
@@ -878,19 +907,23 @@ export default function FullSurveyStepper({ onBack }: Props) {
               {/* Dynamic operating point summary */}
               {(() => {
                 const pressureBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
-                const hasDynOpPoint = pressureBar > 0 && (input.mainsDynamicFlowLpm ?? 0) > 0;
+                const flowLpm = input.mainsDynamicFlowLpm;
+                const hasFlow = flowLpm !== undefined && flowLpm > 0;
+                const flow = hasFlow ? (flowLpm as number) : 0;
                 return (
                   <div style={{
                     padding: '0.75rem',
-                    background: hasDynOpPoint ? '#f0fff4' : '#fffff0',
-                    border: `1px solid ${hasDynOpPoint ? '#9ae6b4' : '#faf089'}`,
+                    background: hasFlow ? '#f0fff4' : '#fffff0',
+                    border: `1px solid ${hasFlow ? '#9ae6b4' : '#faf089'}`,
                     borderRadius: '6px',
                     fontSize: '0.82rem',
                   }}>
                     <div style={{ fontWeight: 700, color: '#2d3748', marginBottom: '0.25rem' }}>Dynamic operating point</div>
-                    {hasDynOpPoint
-                      ? <div style={{ color: '#276749' }}>✓ {input.mainsDynamicFlowLpm!.toFixed(1)} L/min @ {pressureBar.toFixed(1)} bar</div>
-                      : <div style={{ color: '#744210' }}>Flow not entered — need L/min @ bar to characterise supply.</div>
+                    {hasFlow && pressureBar !== undefined
+                      ? <div style={{ color: '#276749' }}>✓ {flow.toFixed(1)} L/min @ {pressureBar.toFixed(1)} bar</div>
+                      : hasFlow
+                      ? <div style={{ color: '#276749' }}>✓ {flow.toFixed(1)} L/min (pressure not recorded)</div>
+                      : <div style={{ color: '#744210' }}>Flow not entered — need L/min to characterise supply.</div>
                     }
                   </div>
                 );
@@ -1683,6 +1716,17 @@ export default function FullSurveyStepper({ onBack }: Props) {
       {currentStep === 'overlay' && (() => {
         // Pre-compute all cell statuses
         const cellMap: Record<string, Record<string, RiskLevel>> = {};
+        // Derive CWS evidence for overlay cell gating
+        const overlayPressureBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+        const overlayFlowLpm = input.mainsDynamicFlowLpm;
+        const overlayStaticBar = input.staticMainsPressureBar;
+        const overlayInconsistent = overlayStaticBar !== undefined && overlayPressureBar > overlayStaticBar + 0.2;
+        const overlayHasFlow = overlayFlowLpm !== undefined && overlayFlowLpm > 0;
+        const overlayFlow = overlayHasFlow ? (overlayFlowLpm as number) : 0;
+        const overlayMeetsUnvented = !overlayInconsistent && overlayHasFlow && (
+          (overlayFlow >= 10 && overlayPressureBar >= 1.0) ||
+          (overlayFlow >= 12 && overlayPressureBar <= 0.2)
+        );
         for (const sys of OVERLAY_SYSTEMS) {
           cellMap[sys.id] = {};
           for (const row of OVERLAY_ROWS) {
@@ -1691,7 +1735,9 @@ export default function FullSurveyStepper({ onBack }: Props) {
               hydraulicLive.boilerRisk, hydraulicLive.ashpRisk,
               combiDhwLive.verdict.combiRisk,
               dhwBand.label,
-              pressureAnalysis.quality,
+              overlayMeetsUnvented,
+              overlayHasFlow,
+              overlayInconsistent,
               input.dynamicMainsPressure,
               input.availableSpace,
               input.futureLoftConversion ?? false,
@@ -2272,9 +2318,11 @@ function EngineeringRequirementsCard({
     }
   }
 
-  // Pressure quality
-  if (pressureAnalysis.quality === 'weak') {
-    items.push('Investigate mains supply restriction — pressure drop is significant');
+  // Pressure diagnostic notes
+  if (pressureAnalysis.inconsistentReading) {
+    items.push('Recheck mains pressure readings — dynamic exceeds static (inconsistent)');
+  } else if (pressureAnalysis.dropBar !== undefined && pressureAnalysis.dropBar >= 1.0) {
+    items.push('Investigate mains supply restriction — large pressure drop detected');
   }
 
   // Controls upgrade — always recommended for any system change (MCS / BS 7593 best practice)

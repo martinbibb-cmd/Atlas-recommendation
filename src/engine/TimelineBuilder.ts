@@ -153,7 +153,7 @@ function buildCombiSeries(
   events: Timeline24hEvent[],
   baseEtaPct: number,
   efficiencySeries?: number[],
-  cwsQuality?: 'strong' | 'moderate' | 'weak' | 'unknown',
+  cwsUnstable?: boolean,
 ): Timeline24hSeries {
   const heatDeliveredKw: number[] = [];
   const efficiency: number[] = [];
@@ -176,9 +176,9 @@ function buildCombiSeries(
         ? Math.max(0.55, etaBase - 0.05)
         : etaBase;
 
-    // Cold flow instability: when mains supply quality is 'weak', simultaneous cold-fill
-    // appliance demand can cause combi flow-switch wobble → minor efficiency penalty.
-    if (coldFlowActive && cwsQuality === 'weak') {
+    // Cold flow instability: when mains supply is unstable (inconsistent readings or no measurements),
+    // simultaneous cold-fill appliance demand can cause combi flow-switch wobble → minor efficiency penalty.
+    if (coldFlowActive && cwsUnstable) {
       eta = Math.max(0.60, eta - 0.03);
     }
 
@@ -316,7 +316,7 @@ function buildSeriesForSystem(
   designFlowTempBand: 35 | 45 | 50,
   combiEtaPct: number,
   efficiencySeries?: number[],
-  cwsQuality?: 'strong' | 'moderate' | 'weak' | 'unknown',
+  cwsUnstable?: boolean,
 ): Timeline24hSeries {
   const label = systemLabel(systemId, input);
 
@@ -339,7 +339,7 @@ function buildSeriesForSystem(
       return buildStoredSeries(systemId, label, demandKwArr, events, true, efficiencySeries);
     case 'on_demand':
     default:
-      return buildCombiSeries(systemId, label, demandKwArr, events, combiEtaPct, efficiencySeries, cwsQuality);
+      return buildCombiSeries(systemId, label, demandKwArr, events, combiEtaPct, efficiencySeries, cwsUnstable);
   }
 }
 
@@ -394,8 +394,14 @@ export function buildTimeline24hV1(
     ? generateColdFlowLpm(events)
     : undefined;
 
-  // CWS supply quality — used to apply cold-flow instability penalty for combi systems
-  const cwsQuality = core.cwsSupplyV1?.quality;
+  // CWS supply instability — used to apply cold-flow instability penalty for combi systems.
+  // Only penalise when we have measurements that show a problem (inconsistent readings or large drop).
+  const cwsUnstable =
+    (core.cwsSupplyV1?.inconsistent === true) ||
+    (core.cwsSupplyV1?.hasMeasurements === true &&
+     core.cwsSupplyV1?.dropBar !== null &&
+     core.cwsSupplyV1?.dropBar !== undefined &&
+     core.cwsSupplyV1.dropBar >= 1.0);
 
   // SEDBUK tail-off efficiency series for the 'current' system (series A) when available
   const sedbuk = core.sedbukV1;
@@ -421,12 +427,12 @@ export function buildTimeline24hV1(
   const seriesA = buildSeriesForSystem(
     idA, input, demandKwArr, events, designFlowTempBand, combiEtaPct,
     (idA === 'current' && isBoilerBasedSystem(idA)) ? sedbukEfficiencySeries : undefined,
-    cwsQuality,
+    cwsUnstable,
   );
   const seriesB = buildSeriesForSystem(
     idB, input, demandKwArr, events, designFlowTempBand, combiEtaPct,
     undefined, // no SEDBUK tail-off series for system B
-    cwsQuality,
+    cwsUnstable,
   );
 
   const legendNotes: string[] = [

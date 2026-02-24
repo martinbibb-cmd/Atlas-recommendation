@@ -24,13 +24,13 @@ function baseInput(overrides: Partial<EngineInputV2_3> = {}): EngineInputV2_3 {
 describe('runCwsSupplyModuleV1', () => {
   // ── Dynamic pressure + flow only ────────────────────────────────────────────
 
-  it('dynamic pressure + flow only → hasMeasurements true, limitation none, quality unknown (no static)', () => {
+  it('dynamic pressure + flow only → hasMeasurements true, limitation none, no inconsistency (no static)', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({ dynamicMainsPressure: 1.0, mainsDynamicFlowLpm: 12 })
     );
     expect(result.hasMeasurements).toBe(true);
     expect(result.limitation).toBe('none');
-    expect(result.quality).toBe('unknown');
+    expect(result.inconsistent).toBe(false);
     expect(result.dynamic?.pressureBar).toBeCloseTo(1.0);
     expect(result.dynamic?.flowLpm).toBeCloseTo(12);
     expect(result.dropBar).toBeNull();
@@ -43,9 +43,57 @@ describe('runCwsSupplyModuleV1', () => {
     expect(result.notes.some(n => n.includes('12.0 L/min @ 1.0 bar'))).toBe(true);
   });
 
-  // ── Static + dynamic + flow → dropBar and quality ──────────────────────────
+  // ── Flow-only (no pressure — dynamicMainsPressure = 0) ───────────────────────
 
-  it('static 3.2 bar + dynamic 2.0 bar + flow → dropBar 1.2, quality weak', () => {
+  it('flow at 0 bar → hasMeasurements true, hasDynOpPoint true (flow-cup test)', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ dynamicMainsPressure: 0, dynamicMainsPressureBar: 0, mainsDynamicFlowLpm: 14 })
+    );
+    expect(result.hasMeasurements).toBe(true);
+    expect(result.hasDynOpPoint).toBe(true);
+    expect(result.inconsistent).toBe(false);
+  });
+
+  it('12 L/min at 0 bar → meets unvented requirement (flow-cup gate)', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ dynamicMainsPressure: 0, dynamicMainsPressureBar: 0, mainsDynamicFlowLpm: 12 })
+    );
+    expect(result.meetsUnventedRequirement).toBe(true);
+  });
+
+  it('10 L/min at 0 bar → does NOT meet unvented requirement (flow-cup needs >= 12 L/min)', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ dynamicMainsPressure: 0, dynamicMainsPressureBar: 0, mainsDynamicFlowLpm: 10 })
+    );
+    expect(result.meetsUnventedRequirement).toBe(false);
+  });
+
+  // ── Unvented eligibility gate: 10 L/min @ 1 bar OR 12 L/min @ 0 bar ────────
+
+  it('10 L/min @ 1.0 bar → meets unvented requirement', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ dynamicMainsPressure: 1.0, mainsDynamicFlowLpm: 10 })
+    );
+    expect(result.meetsUnventedRequirement).toBe(true);
+  });
+
+  it('9 L/min @ 1.0 bar → does NOT meet unvented requirement', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ dynamicMainsPressure: 1.0, mainsDynamicFlowLpm: 9 })
+    );
+    expect(result.meetsUnventedRequirement).toBe(false);
+  });
+
+  it('10 L/min @ 0.9 bar → does NOT meet unvented requirement (pressure below 1.0 bar)', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ dynamicMainsPressure: 0.9, mainsDynamicFlowLpm: 10 })
+    );
+    expect(result.meetsUnventedRequirement).toBe(false);
+  });
+
+  // ── Static + dynamic + flow → dropBar computed ──────────────────────────────
+
+  it('static 3.2 bar + dynamic 2.0 bar + flow → dropBar 1.2, no inconsistency', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({
         staticMainsPressureBar: 3.2,
@@ -55,11 +103,11 @@ describe('runCwsSupplyModuleV1', () => {
     );
     expect(result.hasMeasurements).toBe(true);
     expect(result.dropBar).toBeCloseTo(1.2);
-    expect(result.quality).toBe('weak');
+    expect(result.inconsistent).toBe(false);
     expect(result.static?.pressureBar).toBeCloseTo(3.2);
   });
 
-  it('static 3.5 bar + dynamic 3.2 bar + flow → dropBar 0.3, quality strong', () => {
+  it('static 3.5 bar + dynamic 3.2 bar + flow → dropBar 0.3', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({
         staticMainsPressureBar: 3.5,
@@ -68,10 +116,10 @@ describe('runCwsSupplyModuleV1', () => {
       })
     );
     expect(result.dropBar).toBeCloseTo(0.3);
-    expect(result.quality).toBe('strong');
+    expect(result.inconsistent).toBe(false);
   });
 
-  it('static 3.5 bar + dynamic 2.7 bar + flow → dropBar 0.8, quality moderate', () => {
+  it('static 3.5 bar + dynamic 2.7 bar + flow → dropBar 0.8', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({
         staticMainsPressureBar: 3.5,
@@ -80,7 +128,7 @@ describe('runCwsSupplyModuleV1', () => {
       })
     );
     expect(result.dropBar).toBeCloseTo(0.8);
-    expect(result.quality).toBe('moderate');
+    expect(result.inconsistent).toBe(false);
   });
 
   it('static + dynamic + flow → pressure bullet contains drop info', () => {
@@ -94,15 +142,33 @@ describe('runCwsSupplyModuleV1', () => {
     expect(result.notes.some(n => n.includes('3.2 →') && n.includes('drop'))).toBe(true);
   });
 
+  // ── Inconsistency: dynamic > static + 0.2 ───────────────────────────────────
+
+  it('dynamic > static + 0.2 → inconsistent true, dropBar null, warning note prepended', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({
+        staticMainsPressureBar: 2.0,
+        dynamicMainsPressure: 3.0, // 3.0 > 2.0 + 0.2 → inconsistent
+        mainsDynamicFlowLpm: 10,
+      })
+    );
+    expect(result.inconsistent).toBe(true);
+    expect(result.dropBar).toBeNull();
+    expect(result.meetsUnventedRequirement).toBe(false);
+    expect(result.notes[0]).toContain('inconsistent');
+  });
+
   // ── Dynamic pressure only (no flow) ─────────────────────────────────────────
 
-  it('dynamic pressure only (no flow) → hasMeasurements false, limitation unknown', () => {
+  it('dynamic pressure only (no flow) → hasMeasurements false, hasDynOpPoint false', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({ dynamicMainsPressure: 2.0 })
     );
     expect(result.hasMeasurements).toBe(false);
+    expect(result.hasDynOpPoint).toBe(false);
     expect(result.limitation).toBe('unknown');
-    expect(result.quality).toBe('unknown');
+    expect(result.inconsistent).toBe(false);
+    expect(result.meetsUnventedRequirement).toBe(false);
     expect(result.dropBar).toBeNull();
   });
 
@@ -115,12 +181,12 @@ describe('runCwsSupplyModuleV1', () => {
 
   // ── Dynamic flow = 0 → treated as absent ────────────────────────────────────
 
-  it('dynamic flow = 0 → hasMeasurements false, quality unknown (flow treated as absent)', () => {
+  it('dynamic flow = 0 → hasMeasurements false (flow treated as absent)', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({ dynamicMainsPressure: 3.0, mainsDynamicFlowLpm: 0 })
     );
     expect(result.hasMeasurements).toBe(false);
-    expect(result.quality).toBe('unknown');
+    expect(result.hasDynOpPoint).toBe(false);
     expect(result.limitation).toBe('unknown');
   });
 
