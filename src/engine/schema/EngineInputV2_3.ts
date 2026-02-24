@@ -2,6 +2,8 @@ import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 export type { EngineOutputV1 };
 import type { PressureAnalysis } from '../modules/PressureModule';
 export type { PressureAnalysis };
+import type { CwsSupplyV1Result } from '../modules/CwsSupplyModule';
+export type { CwsSupplyV1Result };
 
 export type OccupancySignature =
   | 'professional'
@@ -31,6 +33,12 @@ export interface EngineInputV2_3 {
   staticMainsPressureBar?: number;
   /** Dynamic mains pressure (bar) — preferred alias for new integrations. Falls back to dynamicMainsPressure. */
   dynamicMainsPressureBar?: number;
+  /** Dynamic flow rate at pressure (L/min) — required for a meaningful dynamic point. */
+  mainsDynamicFlowLpm?: number;
+  /** Cold-water supply source. Defaults to 'unknown'. */
+  coldWaterSource?: 'unknown' | 'mains_true' | 'mains_shared' | 'loft_tank';
+  /** DHW delivery mode — affects CWS supply notes. */
+  dhwDeliveryMode?: 'unknown' | 'gravity' | 'pumped' | 'mains_mixer' | 'mains_mixer_boosted' | 'electric_cold_only';
 
   // Building
   buildingMass: BuildingMass;
@@ -506,6 +514,7 @@ export interface FullEngineResultCore {
   gridFlex?: GridFlexResult;
   heatPumpRegime: HeatPumpRegimeModuleV1Result;
   pressureAnalysis: PressureAnalysis;
+  cwsSupplyV1: CwsSupplyV1Result;
 }
 
 /** Full engine result including the canonical V1 output contract. */
