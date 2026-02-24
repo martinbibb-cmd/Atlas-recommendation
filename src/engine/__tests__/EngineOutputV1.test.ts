@@ -306,4 +306,26 @@ describe('EngineOutputV1 shape', () => {
     });
     expect(engineOutput.recommendation.primary).toBe('Air Source Heat Pump');
   });
+
+  // ── Dynamic-pressure-only note deduplication ─────────────────────────────
+
+  it('contextSummary does not duplicate pressure info when only dynamic pressure is provided', () => {
+    // baseInput has only dynamicMainsPressure — no static, no flow.
+    // Both PressureModule.formattedBullet and CwsSupplyModule.notes would
+    // otherwise produce a "dynamic only" pressure bullet; the OutputBuilder
+    // should collapse this to a single bullet.
+    const { engineOutput } = runEngine(baseInput);
+    const bullets = engineOutput.contextSummary?.bullets ?? [];
+    const dynamicOnlyBullets = bullets.filter(b =>
+      b.toLowerCase().includes('dynamic') && b.toLowerCase().includes('bar'),
+    );
+    expect(dynamicOnlyBullets.length).toBe(1);
+  });
+
+  it('contextSummary retains CWS flow note when flow is measured', () => {
+    // When L/min is provided, the CwsSupplyModule note is NOT a duplicate.
+    const { engineOutput } = runEngine({ ...baseInput, mainsDynamicFlowLpm: 14 });
+    const bullets = engineOutput.contextSummary?.bullets ?? [];
+    expect(bullets.some(b => b.includes('L/min'))).toBe(true);
+  });
 });

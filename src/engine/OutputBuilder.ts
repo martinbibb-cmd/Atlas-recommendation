@@ -452,8 +452,14 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
 
     contextBullets.push(result.pressureAnalysis.formattedBullet);
 
-    // CWS supply notes from cwsSupplyV1 — notes are already customer-safe
+    // CWS supply notes from cwsSupplyV1 — notes are already customer-safe.
+    // When only dynamic pressure is known (no flow, no static), the CWS module
+    // emits a "Mains supply: X bar (dynamic only)" note that duplicates the
+    // pressureAnalysis.formattedBullet already pushed above — skip it.
+    const suppressDynamicOnlyDuplicate =
+      !result.cwsSupplyV1.hasMeasurements && result.pressureAnalysis.staticBar === undefined;
     for (const note of result.cwsSupplyV1.notes) {
+      if (suppressDynamicOnlyDuplicate && note.startsWith('Mains supply:')) continue;
       contextBullets.push(note);
     }
 
