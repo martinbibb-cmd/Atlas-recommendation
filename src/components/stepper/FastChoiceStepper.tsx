@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
+import type { AssumptionV1, ConfidenceV1 } from '../../contracts/EngineOutputV1';
 import { runEngine } from '../../engine/Engine';
 import { runHydraulicModuleV1 } from '../../engine/modules/HydraulicModule';
 import { runCombiDhwModuleV1 } from '../../engine/modules/CombiDhwModule';
@@ -298,6 +299,13 @@ function ResultsCockpit({
         </ul>
       </div>
 
+      {result.engineOutput.meta?.confidence && (
+        <ConfidencePanel
+          confidence={result.engineOutput.meta.confidence}
+          assumptions={result.engineOutput.meta.assumptions ?? []}
+        />
+      )}
+
       <div className="results-cockpit-layout">
         <aside className="options-column">
           <h3>Options</h3>
@@ -335,6 +343,54 @@ function ResultsCockpit({
           </div>
         </section>
       </div>
+    </div>
+  );
+}
+
+const CONFIDENCE_COLOUR: Record<ConfidenceV1['level'], string> = {
+  high:   '#38a169',
+  medium: '#d69e2e',
+  low:    '#e53e3e',
+};
+
+const CONFIDENCE_LABEL: Record<ConfidenceV1['level'], string> = {
+  high:   'High',
+  medium: 'Medium',
+  low:    'Low',
+};
+
+function ConfidencePanel({ confidence, assumptions }: { confidence: ConfidenceV1; assumptions: AssumptionV1[] }) {
+  const [open, setOpen] = useState(false);
+  const colour = CONFIDENCE_COLOUR[confidence.level];
+
+  return (
+    <div className="result-section confidence-panel">
+      <button
+        className="confidence-badge"
+        style={{ borderColor: colour, color: colour }}
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+      >
+        <span>📊 Confidence: {CONFIDENCE_LABEL[confidence.level]}</span>
+        <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem' }}>{open ? '▲ Hide' : '▼ Show assumptions'}</span>
+      </button>
+
+      {open && (
+        <div className="assumptions-drawer">
+          <h4>Model assumptions</h4>
+          <ul className="assumptions-list">
+            {assumptions.map(a => (
+              <li key={a.id} className={`assumption-item assumption--${a.severity}`}>
+                <strong>{a.title}</strong>
+                <span className="assumption-detail">{a.detail}</span>
+                {a.improveBy && (
+                  <span className="assumption-improve">💡 {a.improveBy}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

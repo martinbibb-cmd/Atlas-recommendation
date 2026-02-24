@@ -1,5 +1,26 @@
 import type { ENGINE_VERSION, CONTRACT_VERSION } from './versions';
 
+export interface AssumptionV1 {
+  id: string;
+  title: string;
+  detail: string;
+  affects: Array<'timeline_24h' | 'options' | 'recommendation' | 'context'>;
+  severity: 'info' | 'warn';
+  improveBy?: string;
+}
+
+export interface ConfidenceV1 {
+  level: 'high' | 'medium' | 'low';
+  reasons: string[];
+}
+
+export interface EngineMetaV1 {
+  engineVersion: typeof ENGINE_VERSION;
+  contractVersion: typeof CONTRACT_VERSION;
+  confidence?: ConfidenceV1;
+  assumptions?: AssumptionV1[];
+}
+
 export interface EligibilityItem {
   id: 'on_demand' | 'stored_vented' | 'stored_unvented' | 'ashp';
   label: string;
@@ -143,8 +164,5 @@ export interface EngineOutputV1 {
   evidence?: EvidenceItemV1[];
   /** Engine-driven visual specs. UI renders by type switch — no business logic in UI. */
   visuals?: VisualSpecV1[];
-  meta?: {
-    engineVersion: typeof ENGINE_VERSION;
-    contractVersion: typeof CONTRACT_VERSION;
-  };
+  meta?: EngineMetaV1;
 }
