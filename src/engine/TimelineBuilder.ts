@@ -1,16 +1,65 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
 import type { VisualSpecV1, Timeline24hV1, Timeline24hEvent, Timeline24hSeries } from '../contracts/EngineOutputV1';
 import { buildBoilerEfficiencySeriesV1 } from './modules/BoilerTailoffModule';
+import { buildAssumptionsV1 } from './AssumptionsBuilder';
 
 /** 96 time points at 15-minute intervals covering 0–1425 minutes. */
 const TIME_MINUTES = Array.from({ length: 96 }, (_, i) => i * 15);
 
-/** Default DHW event schedule for a typical UK household day. */
+/** Default DHW event schedule for a typical UK household day (used when no lifestyle profile is provided). */
 const DEFAULT_EVENTS: Timeline24hEvent[] = [
   { startMin: 420, endMin: 435, kind: 'shower',     intensity: 'med'  }, // 07:00–07:15 morning shower
   { startMin: 1140, endMin: 1170, kind: 'bath',       intensity: 'high' }, // 19:00–19:30 evening bath
   { startMin: 1200, endMin: 1245, kind: 'dishwasher', intensity: 'low'  }, // 20:00–20:45 dishwasher
 ];
+
+/**
+ * Generate DHW events deterministically from a `lifestyleProfileV1` input.
+ * Returns an array of Timeline24hEvent items reflecting the user's actual day
+ * rather than the generic template.
+ */
+export function generateDhwEventsFromProfile(
+  profile: NonNullable<EngineInputV2_3['lifestyleProfileV1']>,
+): Timeline24hEvent[] {
+  const events: Timeline24hEvent[] = [];
+
+  if (profile.morningPeakEnabled) {
+    if (profile.hasBath) {
+      // Morning bath: 07:00–07:30 at high intensity
+      events.push({ startMin: 420, endMin: 450, kind: 'bath', intensity: 'high' });
+    } else {
+      // Morning shower: 07:00–07:15 at medium intensity
+      events.push({ startMin: 420, endMin: 435, kind: 'shower', intensity: 'med' });
+    }
+    if (profile.twoSimultaneousBathrooms) {
+      // Second bathroom: 07:05–07:25 — deliberately overlaps with first event to model simultaneous demand
+      events.push({ startMin: 425, endMin: 445, kind: 'shower', intensity: 'med' });
+    }
+  }
+
+  if (profile.eveningPeakEnabled) {
+    if (profile.hasBath) {
+      // Evening bath: 19:00–19:30 at high intensity
+      events.push({ startMin: 1140, endMin: 1170, kind: 'bath', intensity: 'high' });
+    } else {
+      // Evening shower: 19:00–19:15 at medium intensity
+      events.push({ startMin: 1140, endMin: 1155, kind: 'shower', intensity: 'med' });
+    }
+    if (profile.twoSimultaneousBathrooms) {
+      // Second bathroom: 19:05–19:25 — deliberately overlaps with first event to model simultaneous demand
+      events.push({ startMin: 1145, endMin: 1165, kind: 'shower', intensity: 'med' });
+    }
+    if (profile.hasDishwasher) {
+      // Dishwasher after dinner: 20:00–20:45 at low intensity
+      events.push({ startMin: 1200, endMin: 1245, kind: 'dishwasher', intensity: 'low' });
+    }
+  } else if (profile.hasDishwasher) {
+    // Dishwasher even without an evening peak (e.g. lunch time)
+    events.push({ startMin: 780, endMin: 825, kind: 'dishwasher', intensity: 'low' });
+  }
+
+  return events;
+}
 
 /**
  * Interpolate the hourly demand kW array (24 values) to the given 15-minute
@@ -263,7 +312,9 @@ export function buildTimeline24hV1(
   // Combi base efficiency: approximate from normalizer decay
   const combiEtaPct = Math.max(50, 92 - core.normalizer.tenYearEfficiencyDecayPct);
 
-  const events = DEFAULT_EVENTS;
+  const events = input.lifestyleProfileV1
+    ? generateDhwEventsFromProfile(input.lifestyleProfileV1)
+    : DEFAULT_EVENTS;
 
   // SEDBUK tail-off efficiency series for the 'current' system (series A) when available
   const sedbuk = core.sedbukV1;
@@ -298,6 +349,22 @@ export function buildTimeline24hV1(
   ];
   if (sedbuk) {
     legendNotes.push(`Current boiler baseline (SEDBUK ${sedbuk.label}): ${sedbuk.seasonalEfficiency != null ? `${Math.round(sedbuk.seasonalEfficiency * 100)}%` : 'unknown'}.`);
+  }
+
+  // Confidence note — surface at legend level so it's visible alongside the chart
+  const { confidence } = buildAssumptionsV1(core, input);
+  const confidenceLegendLabel: Record<'high' | 'medium' | 'low', string> = {
+    high:   'High confidence (measured)',
+    medium: 'Medium confidence (assumed mains stability)',
+    low:    'Low confidence (no flow test)',
+  };
+  legendNotes.unshift(confidenceLegendLabel[confidence.level]);
+
+  // DHW schedule note
+  if (input.lifestyleProfileV1) {
+    legendNotes.push('DHW schedule: derived from your lifestyle profile (morning/evening peaks).');
+  } else {
+    legendNotes.push('DHW schedule: typical UK household defaults (no user profile provided).');
   }
 
   const payload: Timeline24hV1 = {

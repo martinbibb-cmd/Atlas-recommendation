@@ -142,7 +142,7 @@ describe('runCwsSupplyModuleV1', () => {
 
   // ── deliveryMode pumped ──────────────────────────────────────────────────────
 
-  it('deliveryMode pumped → notes mention "Pumped shower (power shower)"', () => {
+  it('deliveryMode pumped → notes mention "Tank-pumped" and "not mains"', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({
         dynamicMainsPressure: 1.5,
@@ -150,13 +150,25 @@ describe('runCwsSupplyModuleV1', () => {
         dhwDeliveryMode: 'pumped',
       })
     );
-    expect(result.notes.some(n => n.includes('Pumped shower (power shower)'))).toBe(true);
-    expect(result.notes.some(n => n.includes('pump + tank supply, not mains'))).toBe(true);
+    expect(result.notes.some(n => n.includes('Tank-pumped'))).toBe(true);
+    expect(result.notes.some(n => n.includes('not mains'))).toBe(true);
+  });
+
+  it('deliveryMode tank_pumped → same note as pumped (standardised alias)', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({
+        dynamicMainsPressure: 1.5,
+        mainsDynamicFlowLpm: 9,
+        dhwDeliveryMode: 'tank_pumped',
+      })
+    );
+    expect(result.notes.some(n => n.includes('Tank-pumped'))).toBe(true);
+    expect(result.notes.some(n => n.includes('not mains'))).toBe(true);
   });
 
   // ── deliveryMode mains_mixer ─────────────────────────────────────────────────
 
-  it('deliveryMode mains_mixer → notes mention "Mixer shower (mains)"', () => {
+  it('deliveryMode mains_mixer → notes mention "Mains mixer"', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({
         dynamicMainsPressure: 2.0,
@@ -164,7 +176,7 @@ describe('runCwsSupplyModuleV1', () => {
         dhwDeliveryMode: 'mains_mixer',
       })
     );
-    expect(result.notes.some(n => n.includes('Mixer shower (mains)'))).toBe(true);
+    expect(result.notes.some(n => n.includes('Mains mixer'))).toBe(true);
     expect(result.notes.some(n => n.includes('mains flow/pressure under load'))).toBe(true);
   });
 
@@ -181,7 +193,7 @@ describe('runCwsSupplyModuleV1', () => {
 
   // ── deliveryMode mains_mixer_boosted ─────────────────────────────────────────
 
-  it('deliveryMode mains_mixer_boosted → notes mention "Mixer + booster pump"', () => {
+  it('deliveryMode mains_mixer_boosted → notes mention "Boosted mains mixer"', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({
         dynamicMainsPressure: 2.0,
@@ -189,7 +201,7 @@ describe('runCwsSupplyModuleV1', () => {
         dhwDeliveryMode: 'mains_mixer_boosted',
       })
     );
-    expect(result.notes.some(n => n.includes('Mixer + booster pump'))).toBe(true);
+    expect(result.notes.some(n => n.includes('Boosted mains mixer'))).toBe(true);
   });
 
   // ── coldWaterSource passthrough ──────────────────────────────────────────────

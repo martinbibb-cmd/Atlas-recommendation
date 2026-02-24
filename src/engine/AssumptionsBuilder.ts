@@ -79,13 +79,15 @@ export function buildAssumptionsV1(
 
   // ── Timeline / schedule assumptions ────────────────────────────────────────
 
-  // The timeline always uses the default event schedule (no user-painted schedule in V1)
-  assumptions.push({
-    id: ASSUMPTION_IDS.DEFAULT_DHW_SCHEDULE,
-    ...ASSUMPTION_CATALOG[ASSUMPTION_IDS.DEFAULT_DHW_SCHEDULE],
-    affects: ['timeline_24h'],
-    severity: 'info',
-  });
+  // Only add the default-schedule assumption when the user hasn't provided a lifestyle profile
+  if (!input?.lifestyleProfileV1) {
+    assumptions.push({
+      id: ASSUMPTION_IDS.DEFAULT_DHW_SCHEDULE,
+      ...ASSUMPTION_CATALOG[ASSUMPTION_IDS.DEFAULT_DHW_SCHEDULE],
+      affects: ['timeline_24h'],
+      severity: 'info',
+    });
+  }
 
   // τ is always inferred from building mass slider, not measured from Hive telemetry
   assumptions.push({
@@ -118,7 +120,11 @@ export function buildAssumptionsV1(
     reasons.push('Cold-water supply lacks a flow-at-pressure measurement (L/min @ bar).');
   }
 
-  reasons.push('Daily hot-water schedule uses defaults (no painted user schedule).');
+  if (input?.lifestyleProfileV1) {
+    reasons.push('Daily hot-water schedule derived from your lifestyle profile (morning/evening peaks, bath, dishwasher).');
+  } else {
+    reasons.push('Daily hot-water schedule uses defaults (no painted user schedule).');
+  }
 
   return { confidence: { level, reasons }, assumptions };
 }
