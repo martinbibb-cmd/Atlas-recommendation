@@ -1,0 +1,57 @@
+{
+  "gcLookup": {
+    "47-583-01": { "seasonalEfficiency": 0.91, "fuel": "gas", "notes": "Worcester Bosch Greenstar 30i condensing combi" },
+    "47-583-02": { "seasonalEfficiency": 0.92, "fuel": "gas", "notes": "Worcester Bosch Greenstar 40i condensing combi" },
+    "47-047-01": { "seasonalEfficiency": 0.90, "fuel": "gas", "notes": "Ideal Logic Max 30 condensing combi" },
+    "47-047-02": { "seasonalEfficiency": 0.89, "fuel": "gas", "notes": "Ideal Logic Max 24 condensing combi" },
+    "47-021-01": { "seasonalEfficiency": 0.89, "fuel": "gas", "notes": "Vaillant ecoTEC plus 831 condensing system" },
+    "47-021-02": { "seasonalEfficiency": 0.91, "fuel": "gas", "notes": "Vaillant ecoTEC plus 837 condensing system" },
+    "47-316-01": { "seasonalEfficiency": 0.88, "fuel": "gas", "notes": "Baxi 200 combi condensing" },
+    "47-316-02": { "seasonalEfficiency": 0.90, "fuel": "gas", "notes": "Baxi 600 combi condensing" },
+    "47-600-01": { "seasonalEfficiency": 0.78, "fuel": "gas", "notes": "Potterton Profile 30e non-condensing system (legacy)" },
+    "47-600-02": { "seasonalEfficiency": 0.72, "fuel": "gas", "notes": "Potterton Suprima 40 non-condensing regular (legacy)" },
+    "47-900-01": { "seasonalEfficiency": 0.65, "fuel": "gas", "notes": "Back boiler unit (legacy, pre-1990)" }
+  },
+  "bandFallback": {
+    "non_condensing_old": {
+      "description": "Non-condensing, 16+ years",
+      "seasonalEfficiency": 0.62
+    },
+    "non_condensing_mid": {
+      "description": "Non-condensing, 6–15 years",
+      "seasonalEfficiency": 0.72
+    },
+    "non_condensing_recent": {
+      "description": "Non-condensing, 0–5 years",
+      "seasonalEfficiency": 0.76
+    },
+    "early_condensing_old": {
+      "description": "Early condensing (pre-2005), 16+ years",
+      "seasonalEfficiency": 0.80
+    },
+    "early_condensing_mid": {
+      "description": "Early condensing (pre-2005), 6–15 years",
+      "seasonalEfficiency": 0.83
+    },
+    "early_condensing_recent": {
+      "description": "Early condensing, 0–5 years",
+      "seasonalEfficiency": 0.86
+    },
+    "modern_condensing_old": {
+      "description": "Modern condensing, 16+ years",
+      "seasonalEfficiency": 0.88
+    },
+    "modern_condensing_mid": {
+      "description": "Modern condensing, 6–15 years",
+      "seasonalEfficiency": 0.90
+    },
+    "modern_condensing_recent": {
+      "description": "Modern condensing, 0–5 years",
+      "seasonalEfficiency": 0.92
+    },
+    "unknown": {
+      "description": "Unknown condensing status — assumed modern condensing",
+      "seasonalEfficiency": 0.88
+    }
+  }
+}

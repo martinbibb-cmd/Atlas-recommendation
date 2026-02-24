@@ -4,6 +4,8 @@ import type { PressureAnalysis } from '../modules/PressureModule';
 export type { PressureAnalysis };
 import type { CwsSupplyV1Result } from '../modules/CwsSupplyModule';
 export type { CwsSupplyV1Result };
+import type { SedbukResultV1 } from '../modules/SedbukModule';
+export type { SedbukResultV1 };
 
 export type OccupancySignature =
   | 'professional'
@@ -80,6 +82,19 @@ export interface EngineInputV2_3 {
   currentBoilerAgeYears?: number;
   currentBoilerOutputKw?: number;
   makeModelText?: string;
+  /** Structured current system context — used for SEDBUK baseline and tail-off model. */
+  currentSystem?: {
+    boiler?: {
+      /** Gas Council (GC) number — used for SEDBUK database lookup. */
+      gcNumber?: string;
+      /** Approximate age in years. */
+      ageYears?: number;
+      /** Boiler architecture. */
+      type?: 'combi' | 'system' | 'regular' | 'back_boiler' | 'unknown';
+      /** Whether the boiler is condensing. */
+      condensing?: 'yes' | 'no' | 'unknown';
+    };
+  };
 
   // Sludge vs Scale inputs
   hasMagneticFilter?: boolean;
@@ -515,6 +530,8 @@ export interface FullEngineResultCore {
   heatPumpRegime: HeatPumpRegimeModuleV1Result;
   pressureAnalysis: PressureAnalysis;
   cwsSupplyV1: CwsSupplyV1Result;
+  /** SEDBUK boiler efficiency baseline result (present when current system boiler info provided). */
+  sedbukV1?: SedbukResultV1;
 }
 
 /** Full engine result including the canonical V1 output contract. */

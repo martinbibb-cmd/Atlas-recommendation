@@ -106,12 +106,11 @@ describe('runCwsSupplyModuleV1', () => {
     expect(result.dropBar).toBeNull();
   });
 
-  it('dynamic pressure only → note says flow at pressure not measured', () => {
+  it('dynamic pressure only → note says add L/min @ bar to judge stability', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({ dynamicMainsPressure: 2.0 })
     );
-    expect(result.notes.some(n => n.includes('Flow at pressure not measured'))).toBe(true);
-    expect(result.notes.some(n => n.includes("Dynamic pressure alone isn't enough"))).toBe(true);
+    expect(result.notes.some(n => n.includes('2.0 bar') && n.includes('L/min @ bar'))).toBe(true);
   });
 
   // ── deliveryMode electric_cold_only ─────────────────────────────────────────
