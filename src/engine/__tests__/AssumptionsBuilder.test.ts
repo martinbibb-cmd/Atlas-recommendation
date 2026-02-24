@@ -86,7 +86,7 @@ describe('AssumptionsBuilder', () => {
     expect(engineOutput.meta?.confidence?.level).toBe('medium');
   });
 
-  it('confidence is high when all key items are provided and sizing has peakHeatLossKw', () => {
+  it('confidence is high when all key items (GC, age, nominalKw, flow) are provided', () => {
     // Provide everything: GC + age + nominalKw + flow. But sizingV1.peakHeatLossKw
     // may still be null if the engine doesn't have a contract peakHeatLossKw.
     // The heatLossWatts field maps to peakHeatLossKw via sizing; if sizingV1 is not

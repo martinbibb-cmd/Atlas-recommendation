@@ -68,7 +68,7 @@ export function buildAssumptionsV1(
   }
 
   // Peak heat loss: use sizingV1 result — null peakHeatLossKw means it was unavailable
-  if (core.sizingV1 && core.sizingV1.peakHeatLossKw == null) {
+  if (core.sizingV1 && core.sizingV1.peakHeatLossKw === null) {
     missingCount++;
     peakHeatLossMissing = true;
     assumptions.push({

@@ -2310,12 +2310,10 @@ function FullSurveyResults({
                 fontSize: '0.82rem',
                 fontWeight: 600,
                 color: '#fff',
-                background:
-                  engineOutput.meta.confidence.level === 'high'   ? '#38a169' :
-                  engineOutput.meta.confidence.level === 'medium' ? '#d69e2e' : '#c53030',
+                background: confidenceColour(engineOutput.meta.confidence.level),
               }}
             >
-              Confidence: {engineOutput.meta.confidence.level.charAt(0).toUpperCase() + engineOutput.meta.confidence.level.slice(1)}
+              Confidence: {engineOutput.meta.confidence.level[0].toUpperCase() + engineOutput.meta.confidence.level.slice(1)}
             </span>
             {engineOutput.meta.assumptions && engineOutput.meta.assumptions.length > 0 && (
               <button
