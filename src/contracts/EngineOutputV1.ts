@@ -87,6 +87,19 @@ export interface SensitivityItem {
   note: string;
 }
 
+export interface ScoreBreakdownItem {
+  id: string;
+  label: string;
+  penalty: number;
+}
+
+export interface OptionScoreV1 {
+  /** Clamped 0–100. */
+  total: number;
+  breakdown: ScoreBreakdownItem[];
+  confidencePenalty?: number;
+}
+
 export interface OptionCardV1 {
   id: 'combi' | 'stored_vented' | 'stored_unvented' | 'ashp' | 'regular_vented' | 'system_unvented';
   label: string;
@@ -106,6 +119,8 @@ export interface OptionCardV1 {
   typedRequirements: OptionRequirements;
   /** "What would change this outcome?" — boundary condition explanations. */
   sensitivities?: SensitivityItem[];
+  /** Deterministic 0–100 score with penalty breakdown. */
+  score?: OptionScoreV1;
 }
 
 /** DHW event block within a 24-hour timeline. */

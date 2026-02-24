@@ -1,5 +1,7 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
 import type { OptionCardV1, OptionPlane, OptionRequirements, SensitivityItem } from '../contracts/EngineOutputV1';
+import { scoreOptionV1 } from './OptionScoringV1';
+import { buildAssumptionsV1 } from './AssumptionsBuilder';
 
 // ── Sensitivities builder ─────────────────────────────────────────────────────
 
@@ -859,6 +861,12 @@ export function buildOptionMatrixV1(
     typedRequirements: unventedTypedReqs,
     sensitivities: buildSensitivities('system_unvented', core, input),
   });
+
+  // ── Score all option cards ────────────────────────────────────────────────
+  const { confidence, assumptions } = buildAssumptionsV1(core, input);
+  for (const card of cards) {
+    card.score = scoreOptionV1(core, input, card, confidence, assumptions);
+  }
 
   return cards;
 }
