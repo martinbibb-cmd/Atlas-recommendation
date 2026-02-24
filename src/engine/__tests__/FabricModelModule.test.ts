@@ -62,52 +62,52 @@ describe('FabricModelModule – runFabricModelV1', () => {
 
   // ── Thermal inertia ────────────────────────────────────────────────────────
 
-  it('heavy thermal mass returns stable inertiaBand', () => {
+  it('heavy thermal mass returns thermalMassBand: heavy', () => {
     const result = runFabricModelV1({
       thermalMass: 'heavy',
       insulationLevel: 'moderate',
       airTightness: 'average',
     });
-    expect(result.inertiaBand).toBe('stable');
-    expect(result.tauHours).not.toBeNull();
-    expect(result.tauHours!).toBeGreaterThan(40);
+    expect(result.thermalMassBand).toBe('heavy');
+    expect(result.driftTauHours).not.toBeNull();
+    expect(result.driftTauHours!).toBeGreaterThan(40);
   });
 
-  it('light thermal mass returns spiky inertiaBand', () => {
+  it('light thermal mass returns thermalMassBand: light', () => {
     const result = runFabricModelV1({
       thermalMass: 'light',
       insulationLevel: 'moderate',
       airTightness: 'average',
     });
-    expect(result.inertiaBand).toBe('spiky');
-    expect(result.tauHours!).toBeLessThan(20);
+    expect(result.thermalMassBand).toBe('light');
+    expect(result.driftTauHours!).toBeLessThan(20);
   });
 
-  it('tauHours is null when thermalMass is unknown', () => {
+  it('driftTauHours is null when thermalMass is unknown', () => {
     const result = runFabricModelV1({ thermalMass: 'unknown' });
-    expect(result.tauHours).toBeNull();
-    expect(result.inertiaBand).toBe('unknown');
+    expect(result.driftTauHours).toBeNull();
+    expect(result.thermalMassBand).toBe('unknown');
   });
 
-  it('tauHours is null when thermalMass is omitted', () => {
+  it('driftTauHours is null when thermalMass is omitted', () => {
     const result = runFabricModelV1({ wallType: 'solid_masonry' });
-    expect(result.tauHours).toBeNull();
-    expect(result.inertiaBand).toBe('unknown');
+    expect(result.driftTauHours).toBeNull();
+    expect(result.thermalMassBand).toBe('unknown');
   });
 
-  it('Passivhaus special case: light + exceptional + passive → tauHours = 190.5', () => {
+  it('Passivhaus special case: light + exceptional + passive → driftTauHours = 190.5', () => {
     const result = runFabricModelV1({
       thermalMass: 'light',
       insulationLevel: 'exceptional',
       airTightness: 'passive',
     });
-    expect(result.tauHours).toBe(190.5);
+    expect(result.driftTauHours).toBe(190.5);
   });
 
-  it('leaky airtightness reduces tauHours vs average', () => {
+  it('leaky airtightness reduces driftTauHours vs average', () => {
     const leaky = runFabricModelV1({ thermalMass: 'heavy', insulationLevel: 'moderate', airTightness: 'leaky' });
     const average = runFabricModelV1({ thermalMass: 'heavy', insulationLevel: 'moderate', airTightness: 'average' });
-    expect(leaky.tauHours!).toBeLessThan(average.tauHours!);
+    expect(leaky.driftTauHours!).toBeLessThan(average.driftTauHours!);
   });
 
   // ── Independence of heat-loss and inertia ─────────────────────────────────
@@ -123,8 +123,8 @@ describe('FabricModelModule – runFabricModelV1', () => {
     });
     // Heat loss should be high/very_high
     expect(['very_high', 'high']).toContain(result.heatLossBand);
-    // Inertia should be non-spiky (heavy mass with leaky air = moderate or stable)
-    expect(['moderate', 'stable']).toContain(result.inertiaBand);
+    // Inertia band should be heavy (thermalMassBand derived solely from thermalMass)
+    expect(result.thermalMassBand).toBe('heavy');
   });
 
   it('notes array is non-empty', () => {
@@ -145,6 +145,53 @@ describe('FabricModelModule – runFabricModelV1', () => {
     });
     const allNotes = result.notes.join(' ');
     expect(allNotes).toContain('heavy mass retains warmth but does not reduce leakage');
+  });
+
+  // ── 5 deterministic semantic-regression tests ──────────────────────────────
+
+  it('[semantic] heavy mass always yields thermalMassBand: heavy regardless of insulation/airtightness', () => {
+    const combos: Array<{ insulationLevel: 'poor' | 'good' | 'exceptional'; airTightness: 'leaky' | 'tight' | 'passive' }> = [
+      { insulationLevel: 'poor',        airTightness: 'leaky'   },
+      { insulationLevel: 'good',        airTightness: 'tight'   },
+      { insulationLevel: 'exceptional', airTightness: 'passive' },
+    ];
+    for (const combo of combos) {
+      const result = runFabricModelV1({ thermalMass: 'heavy', ...combo });
+      expect(result.thermalMassBand).toBe('heavy');
+    }
+  });
+
+  it('[semantic] same mass, better insulation => lossIndex decreases', () => {
+    const poor = runFabricModelV1({ wallType: 'cavity_unfilled', insulationLevel: 'poor',   thermalMass: 'medium' });
+    const good = runFabricModelV1({ wallType: 'cavity_unfilled', insulationLevel: 'good',   thermalMass: 'medium' });
+    expect(good.lossIndex!).toBeLessThan(poor.lossIndex!);
+  });
+
+  it('[semantic] same fabric, tighter airtightness => lossIndex decreases', () => {
+    const leaky  = runFabricModelV1({ wallType: 'solid_masonry', insulationLevel: 'moderate', airTightness: 'leaky'   });
+    const tight  = runFabricModelV1({ wallType: 'solid_masonry', insulationLevel: 'moderate', airTightness: 'tight'   });
+    expect(tight.lossIndex!).toBeLessThan(leaky.lossIndex!);
+  });
+
+  it('[semantic] better fabric increases driftTauHours but does not change thermalMassBand', () => {
+    const poor = runFabricModelV1({ thermalMass: 'medium', insulationLevel: 'poor',        airTightness: 'leaky'   });
+    const good = runFabricModelV1({ thermalMass: 'medium', insulationLevel: 'exceptional', airTightness: 'passive' });
+    expect(good.driftTauHours!).toBeGreaterThan(poor.driftTauHours!);
+    expect(poor.thermalMassBand).toBe('medium');
+    expect(good.thermalMassBand).toBe('medium');
+  });
+
+  it('[semantic] solid_masonry + poor + leaky stays high/very_high loss even with heavy mass', () => {
+    const result = runFabricModelV1({
+      wallType: 'solid_masonry',
+      insulationLevel: 'poor',
+      glazing: 'single',
+      roofInsulation: 'poor',
+      airTightness: 'leaky',
+      thermalMass: 'heavy',
+    });
+    expect(['high', 'very_high']).toContain(result.heatLossBand);
+    expect(result.thermalMassBand).toBe('heavy');
   });
 
 });

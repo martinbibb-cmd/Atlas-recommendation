@@ -549,14 +549,14 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
           ? `${input.building.thermalMass.charAt(0).toUpperCase() + input.building.thermalMass.slice(1)} mass`
           : undefined;
       const inertiaDesc =
-        fm.inertiaBand === 'spiky'   ? 'fast temperature swings when heating cycles off' :
-        fm.inertiaBand === 'stable'  ? 'holds warmth through unheated periods' :
-        fm.inertiaBand === 'moderate' ? 'moderate temperature drift when unheated' :
+        fm.thermalMassBand === 'light'  ? 'fast temperature swings when heating cycles off' :
+        fm.thermalMassBand === 'heavy'  ? 'holds warmth through unheated periods' :
+        fm.thermalMassBand === 'medium' ? 'moderate temperature drift when unheated' :
         undefined;
-      if (fm.inertiaBand !== 'unknown' && inertiaDesc) {
+      if (fm.thermalMassBand !== 'unknown' && inertiaDesc) {
         const massClause = inertiaMassLabel ? ` (${inertiaMassLabel})` : '';
         contextBullets.push(
-          `Thermal inertia${massClause}: ${fm.inertiaBand} — ${inertiaDesc} (modelled estimate).`,
+          `Thermal inertia${massClause}: ${fm.thermalMassBand} — ${inertiaDesc} (modelled estimate).`,
         );
       }
     }
