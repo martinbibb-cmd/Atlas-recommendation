@@ -2,6 +2,7 @@ import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInput
 import type { VisualSpecV1, Timeline24hV1, Timeline24hEvent, Timeline24hSeries } from '../contracts/EngineOutputV1';
 import { buildBoilerEfficiencySeriesV1 } from './modules/BoilerTailoffModule';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
+import { solveSystemTimeline, buildSystemConfig } from './timeline/Solver24hV1';
 
 /** 96 time points at 15-minute intervals covering 0–1425 minutes. */
 const TIME_MINUTES = Array.from({ length: 96 }, (_, i) => i * 15);
@@ -317,6 +318,7 @@ function buildSeriesForSystem(
   combiEtaPct: number,
   efficiencySeries?: number[],
   cwsUnstable?: boolean,
+  solverCore?: { peakHeatLossKw: number; tauHours: number },
 ): Timeline24hSeries {
   const label = systemLabel(systemId, input);
 
@@ -328,19 +330,54 @@ function buildSeriesForSystem(
          'on_demand')
       : systemId;
 
+  let series: Timeline24hSeries;
   switch (effectiveId) {
     case 'ashp':
-      return buildAshpSeries(systemId, label, demandKwArr, designFlowTempBand);
+      series = buildAshpSeries(systemId, label, demandKwArr, designFlowTempBand);
+      break;
     case 'stored_vented':
     case 'regular_vented':
-      return buildStoredSeries(systemId, label, demandKwArr, events, false, efficiencySeries);
+      series = buildStoredSeries(systemId, label, demandKwArr, events, false, efficiencySeries);
+      break;
     case 'stored_unvented':
     case 'system_unvented':
-      return buildStoredSeries(systemId, label, demandKwArr, events, true, efficiencySeries);
+      series = buildStoredSeries(systemId, label, demandKwArr, events, true, efficiencySeries);
+      break;
     case 'on_demand':
     default:
-      return buildCombiSeries(systemId, label, demandKwArr, events, combiEtaPct, efficiencySeries, cwsUnstable);
+      series = buildCombiSeries(systemId, label, demandKwArr, events, combiEtaPct, efficiencySeries, cwsUnstable);
+      break;
   }
+
+  // Augment series with solver-based physics fields when solver core is available
+  if (solverCore && solverCore.peakHeatLossKw > 0 && solverCore.tauHours > 0) {
+    // Derive mean baseEta for boilers: use mean of SEDBUK series when available, else combi pct
+    const baseEta = (efficiencySeries && efficiencySeries.length > 0)
+      ? efficiencySeries.reduce((a, b) => a + b, 0) / efficiencySeries.length
+      : combiEtaPct / 100;
+
+    const systemConfig = buildSystemConfig(systemId, solverCore.peakHeatLossKw, {
+      baseEta,
+      designFlowTempBand,
+      currentHeatSourceType: input.currentHeatSourceType,
+    });
+
+    const physicsResult = solveSystemTimeline(
+      { ...solverCore },
+      systemConfig,
+      events,
+    );
+
+    series = {
+      ...series,
+      roomTempC: physicsResult.roomTempC,
+      inputPowerKw: physicsResult.inputPowerKw,
+      dhwState: physicsResult.dhwState,
+      heatDemandKw: physicsResult.heatDemandKw,
+    };
+  }
+
+  return series;
 }
 
 /**
@@ -416,6 +453,11 @@ export function buildTimeline24hV1(
       })
     : undefined;
 
+  // Solver core inputs for RC 1-node building physics (new fields: roomTempC, inputPowerKw, dhwState)
+  const peakHeatLossKw = input.heatLossWatts != null ? input.heatLossWatts / 1000 : 0;
+  const tauHours = core.fabricModelV1?.driftTauHours ?? 35; // 35h = medium/moderate default
+  const solverCore = peakHeatLossKw > 0 ? { peakHeatLossKw, tauHours } : undefined;
+
   // Apply SEDBUK series to series A if it is a boiler-based system; series B uses constant model
   const isBoilerBasedSystem = (id: string): boolean => {
     const isBoiler = id === 'current'
@@ -428,11 +470,13 @@ export function buildTimeline24hV1(
     idA, input, demandKwArr, events, designFlowTempBand, combiEtaPct,
     (idA === 'current' && isBoilerBasedSystem(idA)) ? sedbukEfficiencySeries : undefined,
     cwsUnstable,
+    solverCore,
   );
   const seriesB = buildSeriesForSystem(
     idB, input, demandKwArr, events, designFlowTempBand, combiEtaPct,
     undefined, // no SEDBUK tail-off series for system B
     cwsUnstable,
+    solverCore,
   );
 
   const legendNotes: string[] = [

@@ -7,6 +7,7 @@ import {
   Tooltip,
   Legend,
   ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
 } from 'recharts';
 import type { Timeline24hV1 } from '../../contracts/EngineOutputV1';
@@ -14,6 +15,7 @@ import type { Timeline24hV1 } from '../../contracts/EngineOutputV1';
 // ── Colour palette for A/B series ────────────────────────────────────────────
 const SERIES_COLOURS = ['#3182ce', '#e53e3e'] as const;
 const DEMAND_COLOUR  = '#a0aec0';
+const SETPOINT_COLOUR = '#48bb78';
 const EVENT_COLOURS: Record<string, string> = {
   shower:         'rgba(66,153,225,0.18)',
   bath:           'rgba(128,90,213,0.18)',
@@ -41,6 +43,8 @@ function buildChartData(payload: Timeline24hV1): Record<string, number | string>
       row[`${s.id}_eff`]      = s.efficiency[i];
       if (s.comfortTempC)    row[`${s.id}_comfort`]  = s.comfortTempC[i];
       if (s.dhwOutletTempC)  row[`${s.id}_dhwTemp`]  = s.dhwOutletTempC[i];
+      if (s.roomTempC)       row[`${s.id}_roomTemp`] = s.roomTempC[i];
+      if (s.dhwState)        row[`${s.id}_dhwState`] = s.dhwState[i];
     }
     return row;
   });
@@ -57,10 +61,11 @@ interface Props {
 /**
  * Timeline24hRenderer
  *
- * Renders a single 24-hour comparative timeline with:
- *  - Heat demand baseline (grey)
- *  - Heat delivered lines for system A and B
- *  - DHW event shaded blocks
+ * Renders four 24-hour comparative charts:
+ *  1. Room Temperature (°C) with setpoint reference line
+ *  2. Heat Delivered vs Heat Demand (kW)
+ *  3. Efficiency (η / COP)
+ *  4. DHW State (% soc or % served)
  */
 export default function Timeline24hRenderer({ payload, compareAId, compareBId }: Props) {
   const data = buildChartData(payload);
@@ -80,6 +85,40 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId }:
   const seriesB = payload.series[1];
   const colourA = SERIES_COLOURS[0];
   const colourB = SERIES_COLOURS[1];
+
+  // Check whether physics-based room temp data is present
+  const hasRoomTemp = !!(seriesA?.roomTempC?.length || seriesB?.roomTempC?.length);
+  // Check whether DHW state data is present
+  const hasDhwState = !!(seriesA?.dhwState?.length || seriesB?.dhwState?.length);
+
+  /** Shared X axis props reused across all charts. */
+  const xAxisProps = {
+    dataKey: 'label' as const,
+    tick: { fontSize: 9 },
+    interval: 3,
+    tickFormatter: (_v: string, idx: number) =>
+      xTickIndices.has(idx) ? data[idx].label as string : '',
+  };
+
+  /** Shared event shading across charts. */
+  const eventShading = payload.events.map((ev, idx) => {
+    const startIdx   = Math.round(ev.startMin / 15);
+    const endIdx     = Math.round(ev.endMin   / 15);
+    const startLabel = data[Math.min(startIdx, data.length - 1)]?.label;
+    const endLabel   = data[Math.min(endIdx,   data.length - 1)]?.label;
+    return (
+      <ReferenceArea
+        key={idx}
+        x1={startLabel}
+        x2={endLabel}
+        fill={EVENT_COLOURS[ev.kind] ?? 'rgba(160,174,192,0.15)'}
+        stroke="none"
+      />
+    );
+  });
+
+  const chartMargin = { top: 4, right: 12, left: 0, bottom: 4 };
+  const subLabel = { marginTop: '0.75rem', marginBottom: '0.25rem', fontSize: '0.78rem', color: '#718096', fontWeight: 600 };
 
   return (
     <div style={{ width: '100%' }}>
@@ -101,19 +140,39 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId }:
         </div>
       )}
 
-      {/* Main heat delivered chart */}
-      <div style={{ marginBottom: '0.25rem', fontSize: '0.78rem', color: '#718096', fontWeight: 600 }}>
-        Heat Delivered (kW)
-      </div>
+      {/* Chart 1: Room Temperature */}
+      {hasRoomTemp && (
+        <>
+          <div style={subLabel}>Room Temperature (°C)</div>
+          <ResponsiveContainer width="100%" height={160}>
+            <ComposedChart key={`${chartKey}_temp`} data={data} margin={chartMargin}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis {...xAxisProps} />
+              <YAxis tick={{ fontSize: 9 }} width={32} unit="°C" domain={['auto', 'auto']} />
+              <Tooltip
+                contentStyle={{ fontSize: '0.78rem', borderRadius: '6px' }}
+                formatter={(v: number | undefined) => [v !== undefined ? `${v.toFixed(1)} °C` : ''] as [string]}
+              />
+              {eventShading}
+              {/* Setpoint reference lines */}
+              <ReferenceLine y={21} stroke={SETPOINT_COLOUR} strokeDasharray="5 3" strokeWidth={1} label={{ value: 'Setpoint', fontSize: 8, fill: SETPOINT_COLOUR }} />
+              {seriesA?.roomTempC && (
+                <Line type="monotone" dataKey={`${seriesA.id}_roomTemp`} stroke={colourA} strokeWidth={2} dot={false} name={`A: ${seriesA.label}`} />
+              )}
+              {seriesB?.roomTempC && (
+                <Line type="monotone" dataKey={`${seriesB.id}_roomTemp`} stroke={colourB} strokeWidth={2} dot={false} name={`B: ${seriesB.label}`} />
+              )}
+            </ComposedChart>
+          </ResponsiveContainer>
+        </>
+      )}
+
+      {/* Chart 2: Heat Delivered vs Demand */}
+      <div style={subLabel}>Heat Delivered vs Demand (kW)</div>
       <ResponsiveContainer width="100%" height={200}>
-        <ComposedChart key={chartKey} data={data} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
+        <ComposedChart key={chartKey} data={data} margin={chartMargin}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis
-            dataKey="label"
-            tick={{ fontSize: 9 }}
-            interval={3}
-            tickFormatter={(_v, idx) => xTickIndices.has(idx) ? data[idx].label as string : ''}
-          />
+          <XAxis {...xAxisProps} />
           <YAxis tick={{ fontSize: 9 }} width={32} unit="kW" />
           <Tooltip
             contentStyle={{ fontSize: '0.78rem', borderRadius: '6px' }}
@@ -128,108 +187,62 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId }:
               return value;
             }}
           />
-
-          {/* DHW event shading */}
-          {payload.events.map((ev, idx) => {
-            const startIdx = Math.round(ev.startMin / 15);
-            const endIdx   = Math.round(ev.endMin   / 15);
-            const startLabel = data[Math.min(startIdx, data.length - 1)]?.label;
-            const endLabel   = data[Math.min(endIdx,   data.length - 1)]?.label;
-            return (
-              <ReferenceArea
-                key={idx}
-                x1={startLabel}
-                x2={endLabel}
-                fill={EVENT_COLOURS[ev.kind] ?? 'rgba(160,174,192,0.15)'}
-                stroke="none"
-              />
-            );
-          })}
-
-          <Line
-            type="monotone"
-            dataKey="demandHeatKw"
-            stroke={DEMAND_COLOUR}
-            strokeWidth={1.5}
-            dot={false}
-            strokeDasharray="4 2"
-          />
+          {eventShading}
+          <Line type="monotone" dataKey="demandHeatKw" stroke={DEMAND_COLOUR} strokeWidth={1.5} dot={false} strokeDasharray="4 2" />
           {seriesA && (
-            <Line
-              type="monotone"
-              dataKey={`${seriesA.id}_heatKw`}
-              stroke={colourA}
-              strokeWidth={2}
-              dot={false}
-            />
+            <Line type="monotone" dataKey={`${seriesA.id}_heatKw`} stroke={colourA} strokeWidth={2} dot={false} />
           )}
           {seriesB && (
-            <Line
-              type="monotone"
-              dataKey={`${seriesB.id}_heatKw`}
-              stroke={colourB}
-              strokeWidth={2}
-              dot={false}
-            />
+            <Line type="monotone" dataKey={`${seriesB.id}_heatKw`} stroke={colourB} strokeWidth={2} dot={false} />
           )}
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* Efficiency mini-chart */}
-      <div style={{ marginTop: '0.75rem', marginBottom: '0.25rem', fontSize: '0.78rem', color: '#718096', fontWeight: 600 }}>
-        Efficiency (η / COP)
-      </div>
+      {/* Chart 3: Efficiency (η / COP) */}
+      <div style={subLabel}>Efficiency (η / COP)</div>
       <ResponsiveContainer width="100%" height={120}>
-        <ComposedChart key={`${chartKey}_eff`} data={data} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
+        <ComposedChart key={`${chartKey}_eff`} data={data} margin={chartMargin}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis
-            dataKey="label"
-            tick={{ fontSize: 9 }}
-            interval={3}
-            tickFormatter={(_v, idx) => xTickIndices.has(idx) ? data[idx].label as string : ''}
-          />
+          <XAxis {...xAxisProps} />
           <YAxis tick={{ fontSize: 9 }} width={32} domain={[0, 5]} />
           <Tooltip
             contentStyle={{ fontSize: '0.78rem', borderRadius: '6px' }}
             formatter={(v: number | undefined) => [v !== undefined ? `${v.toFixed(2)}` : ''] as [string]}
           />
-
-          {payload.events.map((ev, idx) => {
-            const startIdx = Math.round(ev.startMin / 15);
-            const endIdx   = Math.round(ev.endMin   / 15);
-            const startLabel = data[Math.min(startIdx, data.length - 1)]?.label;
-            const endLabel   = data[Math.min(endIdx,   data.length - 1)]?.label;
-            return (
-              <ReferenceArea
-                key={idx}
-                x1={startLabel}
-                x2={endLabel}
-                fill={EVENT_COLOURS[ev.kind] ?? 'rgba(160,174,192,0.15)'}
-                stroke="none"
-              />
-            );
-          })}
-
+          {eventShading}
           {seriesA && (
-            <Line
-              type="monotone"
-              dataKey={`${seriesA.id}_eff`}
-              stroke={colourA}
-              strokeWidth={1.5}
-              dot={false}
-            />
+            <Line type="monotone" dataKey={`${seriesA.id}_eff`} stroke={colourA} strokeWidth={1.5} dot={false} />
           )}
           {seriesB && (
-            <Line
-              type="monotone"
-              dataKey={`${seriesB.id}_eff`}
-              stroke={colourB}
-              strokeWidth={1.5}
-              dot={false}
-            />
+            <Line type="monotone" dataKey={`${seriesB.id}_eff`} stroke={colourB} strokeWidth={1.5} dot={false} />
           )}
         </ComposedChart>
       </ResponsiveContainer>
+
+      {/* Chart 4: DHW State */}
+      {hasDhwState && (
+        <>
+          <div style={subLabel}>DHW State (% usable / served)</div>
+          <ResponsiveContainer width="100%" height={120}>
+            <ComposedChart key={`${chartKey}_dhw`} data={data} margin={chartMargin}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis {...xAxisProps} />
+              <YAxis tick={{ fontSize: 9 }} width={32} unit="%" domain={[0, 100]} />
+              <Tooltip
+                contentStyle={{ fontSize: '0.78rem', borderRadius: '6px' }}
+                formatter={(v: number | undefined) => [v !== undefined ? `${v.toFixed(1)}%` : ''] as [string]}
+              />
+              {eventShading}
+              {seriesA?.dhwState && (
+                <Line type="monotone" dataKey={`${seriesA.id}_dhwState`} stroke={colourA} strokeWidth={1.5} dot={false} name={`A: ${seriesA.label}`} />
+              )}
+              {seriesB?.dhwState && (
+                <Line type="monotone" dataKey={`${seriesB.id}_dhwState`} stroke={colourB} strokeWidth={1.5} dot={false} name={`B: ${seriesB.label}`} />
+              )}
+            </ComposedChart>
+          </ResponsiveContainer>
+        </>
+      )}
 
       {/* DHW event legend */}
       {payload.events.length > 0 && (
@@ -260,3 +273,4 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId }:
     </div>
   );
 }
+
