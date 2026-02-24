@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ageFactor, cyclingFactor, buildBoilerEfficiencySeriesV1 } from '../modules/BoilerTailoffModule';
+import { ageFactor, cyclingFactor, oversizePenalty, buildBoilerEfficiencySeriesV1 } from '../modules/BoilerTailoffModule';
 
 describe('BoilerTailoffModule', () => {
   // ── ageFactor ────────────────────────────────────────────────────────────────
@@ -35,6 +35,44 @@ describe('BoilerTailoffModule', () => {
     });
   });
 
+  // ── oversizePenalty ──────────────────────────────────────────────────────────
+
+  describe('oversizePenalty', () => {
+    it('null → 0 (no penalty)', () => {
+      expect(oversizePenalty(null)).toBe(0);
+    });
+
+    it('undefined → 0 (no penalty)', () => {
+      expect(oversizePenalty(undefined)).toBe(0);
+    });
+
+    it('ratio ≤ 1.3 → 0%', () => {
+      expect(oversizePenalty(1.0)).toBe(0);
+      expect(oversizePenalty(1.3)).toBe(0);
+    });
+
+    it('ratio 1.31–1.8 → 3%', () => {
+      expect(oversizePenalty(1.5)).toBe(0.03);
+      expect(oversizePenalty(1.8)).toBe(0.03);
+    });
+
+    it('ratio 1.81–2.5 → 6%', () => {
+      expect(oversizePenalty(2.0)).toBe(0.06);
+      expect(oversizePenalty(2.5)).toBe(0.06);
+    });
+
+    it('ratio > 2.5 → 9%', () => {
+      expect(oversizePenalty(2.51)).toBe(0.09);
+      expect(oversizePenalty(3.3)).toBe(0.09);
+    });
+
+    it('penalty increases with oversize ratio', () => {
+      expect(oversizePenalty(1.5)).toBeGreaterThan(oversizePenalty(1.0));
+      expect(oversizePenalty(2.0)).toBeGreaterThan(oversizePenalty(1.5));
+      expect(oversizePenalty(3.0)).toBeGreaterThan(oversizePenalty(2.0));
+    });
+  });
+
   // ── cyclingFactor ─────────────────────────────────────────────────────────────
 
   describe('cyclingFactor', () => {
@@ -51,7 +89,7 @@ describe('BoilerTailoffModule', () => {
       const demand = new Array(96).fill(0.5); // all below threshold
       const cf = cyclingFactor(demand, 4.8);
       expect(cf).toBeLessThan(1.0);
-      expect(cf).toBeGreaterThanOrEqual(0.91); // max penalty is 9%
+      expect(cf).toBeGreaterThanOrEqual(0.88); // max combined penalty is 12%
     });
 
     it('high cycling produces lower factor than steady demand', () => {
@@ -160,6 +198,40 @@ describe('BoilerTailoffModule', () => {
       const min = Math.min(...series);
       const max = Math.max(...series);
       expect(max).toBeGreaterThan(min);
+    });
+
+    it('higher oversizeRatio produces lower mean efficiency than no oversize', () => {
+      const steadyDemand = new Array(96).fill(8.0);
+      const noOversizeSeries = buildBoilerEfficiencySeriesV1({
+        seasonalEfficiency: 0.90,
+        ageYears: 5,
+        demandHeatKw: steadyDemand,
+        oversizeRatio: 1.0, // well matched
+      });
+      const highOversizeSeries = buildBoilerEfficiencySeriesV1({
+        seasonalEfficiency: 0.90,
+        ageYears: 5,
+        demandHeatKw: steadyDemand,
+        oversizeRatio: 3.3, // aggressive
+      });
+      const mean = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
+      expect(mean(highOversizeSeries)).toBeLessThan(mean(noOversizeSeries));
+    });
+
+    it('oversizeRatio null behaves the same as no oversizeRatio provided', () => {
+      const demand = new Array(96).fill(8.0);
+      const withNull = buildBoilerEfficiencySeriesV1({
+        seasonalEfficiency: 0.90,
+        ageYears: 5,
+        demandHeatKw: demand,
+        oversizeRatio: null,
+      });
+      const withoutRatio = buildBoilerEfficiencySeriesV1({
+        seasonalEfficiency: 0.90,
+        ageYears: 5,
+        demandHeatKw: demand,
+      });
+      expect(withNull).toEqual(withoutRatio);
     });
   });
 });

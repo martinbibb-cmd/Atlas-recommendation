@@ -20,6 +20,7 @@ import { runHeatPumpRegimeModuleV1 } from './modules/HeatPumpRegimeModule';
 import { analysePressure } from './modules/PressureModule';
 import { runCwsSupplyModuleV1 } from './modules/CwsSupplyModule';
 import { lookupSedbukV1 } from './modules/SedbukModule';
+import { runBoilerSizingModuleV1 } from './modules/BoilerSizingModule';
 import { buildEngineOutputV1 } from './OutputBuilder';
 
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
@@ -94,6 +95,16 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
       })
     : undefined;
 
+  // Boiler sizing — only computed when currentSystem.boiler is provided
+  const peakHeatLossKw = input.heatLossWatts != null ? input.heatLossWatts / 1000 : null;
+  const sizingV1 = boilerInput
+    ? runBoilerSizingModuleV1(
+        boilerInput.nominalOutputKw,
+        boilerInput.type,
+        peakHeatLossKw,
+      )
+    : undefined;
+
   const core: FullEngineResultCore = {
     hydraulic,
     hydraulicV1,
@@ -116,6 +127,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     pressureAnalysis,
     cwsSupplyV1,
     sedbukV1,
+    sizingV1,
   };
 
   const engineOutput = buildEngineOutputV1(core, input);

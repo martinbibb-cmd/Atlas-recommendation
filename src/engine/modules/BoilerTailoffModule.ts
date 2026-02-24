@@ -9,8 +9,8 @@
 
 /** Default assumed boiler rated output in kW when unknown (typical UK combi). */
 export const DEFAULT_BOILER_KW = 24;
-/** Maximum cycling penalty applied to mean efficiency (9%). */
-const MAX_CYCLING_PENALTY = 0.09;
+/** Maximum combined cycling + oversize penalty applied to mean efficiency (12%). */
+const MAX_COMBINED_PENALTY = 0.12;
 /** Efficiency loss per unit of low-load fraction (1.5% per 10% of low-load time). */
 const CYCLING_COEFFICIENT = 0.15;
 /** Low-load threshold as a fraction of rated boiler output (20%). */
@@ -28,6 +28,23 @@ export function ageFactor(ageYears: number): number {
 }
 
 /**
+ * Oversize penalty based on oversize ratio.
+ * Returns a fractional penalty (0.0–0.09) to apply to mean efficiency.
+ *
+ * Ratio ≤ 1.3 → 0%   (well matched)
+ * Ratio ≤ 1.8 → 3%   (mild oversize)
+ * Ratio ≤ 2.5 → 6%   (oversized)
+ * Ratio > 2.5 → 9%   (aggressive oversize)
+ */
+export function oversizePenalty(oversizeRatio: number | null | undefined): number {
+  if (oversizeRatio == null) return 0;
+  if (oversizeRatio <= 1.3) return 0.00;
+  if (oversizeRatio <= 1.8) return 0.03;
+  if (oversizeRatio <= 2.5) return 0.06;
+  return 0.09;
+}
+
+/**
  * Cycling/part-load factor.
  * Fraction of timeline points where demand < lowLoadThresholdKw drives additional
  * efficiency loss: each percentage-point of "low-load" time reduces efficiency by
@@ -37,7 +54,7 @@ export function cyclingFactor(demandKw: number[], lowLoadThresholdKw: number): n
   if (demandKw.length === 0) return 1.0;
   const lowLoadPoints = demandKw.filter(d => d < lowLoadThresholdKw && d > 0).length;
   const lowLoadFraction = lowLoadPoints / demandKw.length;
-  const penalty = Math.min(MAX_CYCLING_PENALTY, lowLoadFraction * CYCLING_COEFFICIENT);
+  const penalty = Math.min(MAX_COMBINED_PENALTY, lowLoadFraction * CYCLING_COEFFICIENT);
   return 1.0 - penalty;
 }
 
@@ -53,11 +70,17 @@ export interface BoilerEfficiencySeriesArgs {
    * Defaults to 24 kW when unknown (typical UK combi).
    */
   assumedBoilerKw?: number;
+  /**
+   * Oversize ratio (nominalKw / peakHeatLossKw) from BoilerSizingModule.
+   * When provided, replaces the generic low-load cycling penalty with a
+   * physically-grounded oversize penalty.
+   */
+  oversizeRatio?: number | null;
 }
 
 /**
  * Build a 96-point efficiency series for a boiler, incorporating SEDBUK baseline,
- * age factor, and cycling factor.  Values are clamped to [0.55, 0.95].
+ * age factor, oversize penalty, and cycling factor.  Values are clamped to [0.55, 0.95].
  */
 export function buildBoilerEfficiencySeriesV1(args: BoilerEfficiencySeriesArgs): number[] {
   const {
@@ -65,6 +88,7 @@ export function buildBoilerEfficiencySeriesV1(args: BoilerEfficiencySeriesArgs):
     ageYears,
     demandHeatKw,
     assumedBoilerKw = 24,
+    oversizeRatio,
   } = args;
 
   const baseEta = seasonalEfficiency ?? 0.85;
@@ -72,9 +96,17 @@ export function buildBoilerEfficiencySeriesV1(args: BoilerEfficiencySeriesArgs):
 
   // Low-load threshold: LOW_LOAD_THRESHOLD_RATIO of assumed rated output
   const lowLoadThresholdKw = assumedBoilerKw * LOW_LOAD_THRESHOLD_RATIO;
-  const cf = cyclingFactor(demandHeatKw, lowLoadThresholdKw);
 
-  const effectiveEta = baseEta * af * cf;
+  // Low-load cycling penalty: reuse cyclingFactor and derive the penalty from it
+  const lowLoadPenalty = 1.0 - cyclingFactor(demandHeatKw, lowLoadThresholdKw);
+
+  // Oversize-driven penalty (replaces vague cycling factor when ratio is available)
+  const opPenalty = oversizePenalty(oversizeRatio);
+
+  // Combined penalty capped at MAX_COMBINED_PENALTY
+  const combinedPenalty = Math.min(MAX_COMBINED_PENALTY, opPenalty + lowLoadPenalty);
+
+  const effectiveEta = baseEta * af * (1.0 - combinedPenalty);
 
   return demandHeatKw.map(demand => {
     // Add point-level variation: very low demand (< threshold) drags efficiency
