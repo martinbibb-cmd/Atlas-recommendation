@@ -68,7 +68,7 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
   });
 
   // Stored unvented eligibility: flow-based gate using cwsSupplyV1.
-  const { cwsSupplyV1, pressureAnalysis } = result;
+  const { cwsSupplyV1 } = result;
   let storedUnventedStatus: EligibilityItem['status'];
   let storedUnventedReason: string | undefined;
 
