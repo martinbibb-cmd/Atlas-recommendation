@@ -268,11 +268,13 @@ export function buildTimeline24hV1(
   // SEDBUK tail-off efficiency series for the 'current' system (series A) when available
   const sedbuk = core.sedbukV1;
   const boilerAgeYears = input.currentSystem?.boiler?.ageYears ?? input.currentBoilerAgeYears ?? 0;
+  const oversizeRatio = core.sizingV1?.oversizeRatio ?? null;
   const sedbukEfficiencySeries = sedbuk?.seasonalEfficiency != null
     ? buildBoilerEfficiencySeriesV1({
         seasonalEfficiency: sedbuk.seasonalEfficiency,
         ageYears: boilerAgeYears,
         demandHeatKw: demandKwArr,
+        oversizeRatio,
       })
     : undefined;
 

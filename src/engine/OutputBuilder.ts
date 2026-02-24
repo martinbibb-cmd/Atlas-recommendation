@@ -506,6 +506,27 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
         );
       }
     }
+
+    // Boiler sizing context bullets
+    const sizing = result.sizingV1;
+    if (sizing) {
+      contextBullets.push(`Boiler nominal output: ${sizing.nominalKw} kW.`);
+      if (sizing.peakHeatLossKw != null) {
+        contextBullets.push(`Estimated peak heat loss: ${sizing.peakHeatLossKw.toFixed(1)} kW.`);
+      }
+      if (sizing.oversizeRatio != null) {
+        const bandDescriptions: Record<string, string> = {
+          well_matched:  'well matched',
+          mild_oversize: 'mildly oversized — some cycling losses',
+          oversized:     'oversized — increased cycling losses',
+          aggressive:    'aggressive oversizing — increased cycling losses',
+        };
+        const desc = bandDescriptions[sizing.sizingBand] ?? sizing.sizingBand;
+        contextBullets.push(
+          `Oversize ratio: ${sizing.oversizeRatio.toFixed(1)}× (${desc}).`,
+        );
+      }
+    }
   }
 
   return {

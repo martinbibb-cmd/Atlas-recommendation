@@ -6,6 +6,8 @@ import type { CwsSupplyV1Result } from '../modules/CwsSupplyModule';
 export type { CwsSupplyV1Result };
 import type { SedbukResultV1 } from '../modules/SedbukModule';
 export type { SedbukResultV1 };
+import type { BoilerSizingResultV1 } from '../modules/BoilerSizingModule';
+export type { BoilerSizingResultV1 };
 
 export type OccupancySignature =
   | 'professional'
@@ -93,6 +95,8 @@ export interface EngineInputV2_3 {
       type?: 'combi' | 'system' | 'regular' | 'back_boiler' | 'unknown';
       /** Whether the boiler is condensing. */
       condensing?: 'yes' | 'no' | 'unknown';
+      /** Nominal rated output in kW (nameplate). Used for oversize ratio calculation. */
+      nominalOutputKw?: number;
     };
   };
 
@@ -532,6 +536,8 @@ export interface FullEngineResultCore {
   cwsSupplyV1: CwsSupplyV1Result;
   /** SEDBUK boiler efficiency baseline result (present when current system boiler info provided). */
   sedbukV1?: SedbukResultV1;
+  /** Boiler sizing result (present when current system boiler info provided). */
+  sizingV1?: BoilerSizingResultV1;
 }
 
 /** Full engine result including the canonical V1 output contract. */

@@ -41,6 +41,8 @@ export interface EngineInputV2_3Contract {
       type?: 'combi' | 'system' | 'regular' | 'back_boiler' | 'unknown';
       /** Whether the boiler is condensing. */
       condensing?: 'yes' | 'no' | 'unknown';
+      /** Nominal rated output in kW (nameplate). Used for oversize ratio calculation. */
+      nominalOutputKw?: number;
     };
   };
 }
