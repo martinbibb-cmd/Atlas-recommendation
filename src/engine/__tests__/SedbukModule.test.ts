@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lookupSedbukV1 } from '../modules/SedbukModule';
+import { lookupSedbukV1, formatGcNumber } from '../modules/SedbukModule';
 
 describe('SedbukModule — lookupSedbukV1', () => {
   // ── GC lookup ──────────────────────────────────────────────────────────────
@@ -95,6 +95,26 @@ describe('SedbukModule — lookupSedbukV1', () => {
     expect(result.source).toBe('gc_lookup');
   });
 
+  // ── Junk / empty GC handling ────────────────────────────────────────────────
+
+  it('junk GC string "unknown" normalises to empty and falls back to band', () => {
+    const result = lookupSedbukV1({ gcNumber: 'unknown', condensing: 'yes', ageYears: 3 });
+    expect(result.source).toBe('band_fallback');
+    expect(result.notes.some(n => n.includes('GC not provided / invalid format'))).toBe(true);
+  });
+
+  it('junk GC string "—" normalises to empty and falls back to band', () => {
+    const result = lookupSedbukV1({ gcNumber: '—', condensing: 'no', ageYears: 10 });
+    expect(result.source).toBe('band_fallback');
+    expect(result.notes.some(n => n.includes('GC not provided / invalid format'))).toBe(true);
+  });
+
+  it('empty string GC normalises to empty and falls back to band', () => {
+    const result = lookupSedbukV1({ gcNumber: '', condensing: 'yes', ageYears: 5 });
+    // gcNumber is falsy so the guard is not entered; falls through to band fallback
+    expect(result.source).toBe('band_fallback');
+  });
+
   // ── Result shape ────────────────────────────────────────────────────────────
 
   it('result always has notes array', () => {
@@ -107,5 +127,28 @@ describe('SedbukModule — lookupSedbukV1', () => {
     expect(result.seasonalEfficiency).not.toBeNull();
     expect(result.seasonalEfficiency!).toBeGreaterThan(0);
     expect(result.seasonalEfficiency!).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('formatGcNumber', () => {
+  it('formats 7-digit string into XX-XXX-XX dashed form', () => {
+    expect(formatGcNumber('4758301')).toBe('47-583-01');
+  });
+
+  it('strips dashes before formatting dashed input', () => {
+    expect(formatGcNumber('47-583-01')).toBe('47-583-01');
+  });
+
+  it('strips spaces before formatting spaced input', () => {
+    expect(formatGcNumber('47 583 01')).toBe('47-583-01');
+  });
+
+  it('returns input unchanged when digit count is not 7', () => {
+    expect(formatGcNumber('12345')).toBe('12345');
+    expect(formatGcNumber('123456789')).toBe('123456789');
+  });
+
+  it('returns empty string unchanged', () => {
+    expect(formatGcNumber('')).toBe('');
   });
 });
