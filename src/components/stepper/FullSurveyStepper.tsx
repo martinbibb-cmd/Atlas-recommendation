@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, startTransition } from 'react';
 import {
   LineChart,
   Line,
@@ -2255,36 +2255,36 @@ function FullSurveyResults({
   compareMixergy: boolean;
   onBack: () => void;
 }) {
-  const { hydraulic, combiStress, mixergy, lifestyle, normalizer, engineOutput } = results;
+  const { hydraulic, combiStress, mixergy, lifestyle, normalizer } = results;
+  const [engineOutput, setEngineOutput] = useState(results.engineOutput);
   const [showTwin, setShowTwin] = useState(false);
   const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
   const [activeOptionTab, setActiveOptionTab] = useState<Record<string, 'heat' | 'dhw' | 'needs' | 'why'>>({});
   const [visualFilter, setVisualFilter] = useState<'all' | 'relevant'>('all');
   const [compareAId, setCompareAId] = useState<string>('current');
   const [compareBId, setCompareBId] = useState<string>(
-    engineOutput.recommendation.primary.toLowerCase().includes('heat pump') ? 'ashp'
-    : engineOutput.recommendation.primary.toLowerCase().includes('unvented') ? 'stored_unvented'
-    : engineOutput.recommendation.primary.toLowerCase().includes('vented') ? 'stored_vented'
+    results.engineOutput.recommendation.primary.toLowerCase().includes('heat pump') ? 'ashp'
+    : results.engineOutput.recommendation.primary.toLowerCase().includes('unvented') ? 'stored_unvented'
+    : results.engineOutput.recommendation.primary.toLowerCase().includes('vented') ? 'stored_vented'
     : 'on_demand',
   );
+  const [isRecomputing, setIsRecomputing] = useState(false);
 
-  // Local timeline visual — updated by rerunning the engine with the selected A/B pair
-  const [timelineVisual, setTimelineVisual] = useState<VisualSpecV1 | undefined>(
-    () => engineOutput.visuals?.find(v => v.type === 'timeline_24h'),
-  );
-  const [recomputingTimeline, setRecomputingTimeline] = useState(false);
+  // Timeline visual is always derived from engine output — single source of truth.
+  // A/B changes rerun the engine with engineConfig.timelinePair; timeline visual is rendered from the new engineOutput.
+  const timelineVisual = engineOutput.visuals?.find((v: VisualSpecV1) => v.type === 'timeline_24h');
 
-  /** Rerun the engine with the given A/B pair and update the timeline visual. */
+  /** Rerun the engine with the given A/B pair and update engineOutput (single source of truth). */
   const updateTimelinePair = (newA: string, newB: string) => {
     if (newA === compareAId && newB === compareBId) return;
-    setRecomputingTimeline(true);
-    setTimeout(() => {
+    setIsRecomputing(true);
+    startTransition(() => {
       const engineInput = toEngineInput(input);
       engineInput.engineConfig = { timelinePair: [newA, newB] };
       const out = runEngine(engineInput);
-      setTimelineVisual(out.engineOutput.visuals?.find(v => v.type === 'timeline_24h'));
-      setRecomputingTimeline(false);
-    }, 0);
+      setEngineOutput(out.engineOutput);
+      setIsRecomputing(false);
+    });
   };
 
   // Approximate current efficiency from normalizer decay
@@ -2372,7 +2372,7 @@ function FullSurveyResults({
                 </div>
               </div>
             </div>
-            {recomputingTimeline && (
+            {isRecomputing && (
               <div style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.5rem', fontStyle: 'italic' }}>
                 Recomputing…
               </div>
