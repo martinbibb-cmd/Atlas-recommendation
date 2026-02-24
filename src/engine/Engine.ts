@@ -19,6 +19,7 @@ import { runGridFlexModule } from './modules/GridFlexModule';
 import { runHeatPumpRegimeModuleV1 } from './modules/HeatPumpRegimeModule';
 import { analysePressure } from './modules/PressureModule';
 import { runCwsSupplyModuleV1 } from './modules/CwsSupplyModule';
+import { lookupSedbukV1 } from './modules/SedbukModule';
 import { buildEngineOutputV1 } from './OutputBuilder';
 
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
@@ -83,6 +84,16 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const pressureAnalysis = analysePressure(dynamicBar, input.staticMainsPressureBar);
   const cwsSupplyV1 = runCwsSupplyModuleV1(input);
 
+  // SEDBUK baseline — only computed when currentSystem.boiler is provided
+  const boilerInput = input.currentSystem?.boiler;
+  const sedbukV1 = boilerInput
+    ? lookupSedbukV1({
+        gcNumber:   boilerInput.gcNumber,
+        ageYears:   boilerInput.ageYears,
+        condensing: boilerInput.condensing,
+      })
+    : undefined;
+
   const core: FullEngineResultCore = {
     hydraulic,
     hydraulicV1,
@@ -104,6 +115,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     heatPumpRegime,
     pressureAnalysis,
     cwsSupplyV1,
+    sedbukV1,
   };
 
   const engineOutput = buildEngineOutputV1(core, input);

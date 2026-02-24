@@ -1,5 +1,6 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
 import type { VisualSpecV1, Timeline24hV1, Timeline24hEvent, Timeline24hSeries } from '../contracts/EngineOutputV1';
+import { buildBoilerEfficiencySeriesV1 } from './modules/BoilerTailoffModule';
 
 /** 96 time points at 15-minute intervals covering 0–1425 minutes. */
 const TIME_MINUTES = Array.from({ length: 96 }, (_, i) => i * 15);
@@ -36,6 +37,8 @@ function isDhwActive(minuteOfDay: number, events: Timeline24hEvent[]): boolean {
 /**
  * Build series data for a combi / on-demand boiler system.
  * η drops during simultaneous DHW events (combi stress).
+ * When `efficiencySeries` is provided it is used directly (SEDBUK tail-off model);
+ * otherwise falls back to the constant `baseEtaPct` approach.
  */
 function buildCombiSeries(
   id: string,
@@ -43,6 +46,7 @@ function buildCombiSeries(
   demandKwArr: number[],
   events: Timeline24hEvent[],
   baseEtaPct: number,
+  efficiencySeries?: number[],
 ): Timeline24hSeries {
   const heatDeliveredKw: number[] = [];
   const efficiency: number[] = [];
@@ -54,8 +58,13 @@ function buildCombiSeries(
     const demandKw = demandKwArr[i];
     const dhwActive = isDhwActive(minuteOfDay, events);
 
-    // Efficiency drops ~8% during DHW events (short-draw / combi stress)
-    const eta = dhwActive ? Math.max(0.60, baseEtaPct / 100 - 0.08) : baseEtaPct / 100;
+    // Use SEDBUK tail-off efficiency when available; otherwise apply DHW stress penalty
+    const etaBase = efficiencySeries ? efficiencySeries[i] : baseEtaPct / 100;
+    const eta = (!efficiencySeries && dhwActive)
+      ? Math.max(0.60, etaBase - 0.08)
+      : (efficiencySeries && dhwActive)
+        ? Math.max(0.55, etaBase - 0.05)
+        : etaBase;
     const delivered = demandKw * eta;
 
     // Comfort: boiler provides sharp temperature swings (fraction-driven)
@@ -77,6 +86,7 @@ function buildCombiSeries(
 /**
  * Build series data for a stored hot-water system (vented or unvented).
  * Stable DHW delivery; space heating from a system boiler.
+ * When `efficiencySeries` is provided it is used directly (SEDBUK tail-off model).
  */
 function buildStoredSeries(
   id: string,
@@ -84,6 +94,7 @@ function buildStoredSeries(
   demandKwArr: number[],
   events: Timeline24hEvent[],
   isUnvented: boolean,
+  efficiencySeries?: number[],
 ): Timeline24hSeries {
   const baseEta = 0.88; // typical system boiler efficiency
   const heatDeliveredKw: number[] = [];
@@ -98,8 +109,9 @@ function buildStoredSeries(
     const demandKw = demandKwArr[i];
     const dhwActive = isDhwActive(minuteOfDay, events);
 
-    // Stored: space heating efficiency is stable; tank absorbs DHW demand without collision
-    const delivered = demandKw * baseEta;
+    // Stored: space heating efficiency uses SEDBUK series when available, else stable baseEta
+    const eta = efficiencySeries ? efficiencySeries[i] : baseEta;
+    const delivered = demandKw * eta;
     const fraction = demandKw / peakDemand;
     const comfort = 19 + (fraction > 0.6 ? 1.5 : 0);
 
@@ -109,7 +121,7 @@ function buildStoredSeries(
       : (isUnvented ? 62 : 58);
 
     heatDeliveredKw.push(parseFloat(delivered.toFixed(3)));
-    efficiency.push(parseFloat(baseEta.toFixed(3)));
+    efficiency.push(parseFloat(eta.toFixed(3)));
     comfortTempC.push(parseFloat(comfort.toFixed(1)));
     dhwOutletTempC.push(dhwOutlet);
   }
@@ -186,6 +198,7 @@ function buildSeriesForSystem(
   events: Timeline24hEvent[],
   designFlowTempBand: 35 | 45 | 50,
   combiEtaPct: number,
+  efficiencySeries?: number[],
 ): Timeline24hSeries {
   const label = systemLabel(systemId, input);
 
@@ -202,13 +215,13 @@ function buildSeriesForSystem(
       return buildAshpSeries(systemId, label, demandKwArr, designFlowTempBand);
     case 'stored_vented':
     case 'regular_vented':
-      return buildStoredSeries(systemId, label, demandKwArr, events, false);
+      return buildStoredSeries(systemId, label, demandKwArr, events, false, efficiencySeries);
     case 'stored_unvented':
     case 'system_unvented':
-      return buildStoredSeries(systemId, label, demandKwArr, events, true);
+      return buildStoredSeries(systemId, label, demandKwArr, events, true, efficiencySeries);
     case 'on_demand':
     default:
-      return buildCombiSeries(systemId, label, demandKwArr, events, combiEtaPct);
+      return buildCombiSeries(systemId, label, demandKwArr, events, combiEtaPct, efficiencySeries);
   }
 }
 
@@ -252,14 +265,38 @@ export function buildTimeline24hV1(
 
   const events = DEFAULT_EVENTS;
 
-  const seriesA = buildSeriesForSystem(idA, input, demandKwArr, events, designFlowTempBand, combiEtaPct);
+  // SEDBUK tail-off efficiency series for the 'current' system (series A) when available
+  const sedbuk = core.sedbukV1;
+  const boilerAgeYears = input.currentSystem?.boiler?.ageYears ?? input.currentBoilerAgeYears ?? 0;
+  const sedbukEfficiencySeries = sedbuk?.seasonalEfficiency != null
+    ? buildBoilerEfficiencySeriesV1({
+        seasonalEfficiency: sedbuk.seasonalEfficiency,
+        ageYears: boilerAgeYears,
+        demandHeatKw: demandKwArr,
+      })
+    : undefined;
+
+  // Apply SEDBUK series to series A if it is a boiler-based system; series B uses constant model
+  const isBoilerBasedSystem = (id: string): boolean => {
+    const isBoiler = id === 'current'
+      ? (input.currentHeatSourceType !== 'ashp')
+      : !['ashp'].includes(id);
+    return isBoiler;
+  };
+
+  const seriesA = buildSeriesForSystem(
+    idA, input, demandKwArr, events, designFlowTempBand, combiEtaPct,
+    (idA === 'current' && isBoilerBasedSystem(idA)) ? sedbukEfficiencySeries : undefined,
+  );
   const seriesB = buildSeriesForSystem(idB, input, demandKwArr, events, designFlowTempBand, combiEtaPct);
 
   const legendNotes: string[] = [
     'Efficiency values: η for boilers (fraction); COP proxy for ASHP.',
     'DHW events: shaded blocks indicate hot-water draw periods.',
-    'v1 approximation — full SEDBUK tail-off model added in PR6.',
   ];
+  if (sedbuk) {
+    legendNotes.push(`Current boiler baseline (SEDBUK ${sedbuk.label}): ${sedbuk.seasonalEfficiency != null ? `${Math.round(sedbuk.seasonalEfficiency * 100)}%` : 'unknown'}.`);
+  }
 
   const payload: Timeline24hV1 = {
     timeMinutes: TIME_MINUTES,

@@ -30,4 +30,17 @@ export interface EngineInputV2_3Contract {
     /** Cold-water supply source. Defaults to 'unknown'. */
     coldWaterSource?: 'unknown' | 'mains_true' | 'mains_shared' | 'loft_tank';
   };
+  /** Optional current system context — used for SEDBUK baseline and tail-off model. */
+  currentSystem?: {
+    boiler?: {
+      /** Gas Council (GC) number — used for SEDBUK database lookup. */
+      gcNumber?: string;
+      /** Approximate age in years. */
+      ageYears?: number;
+      /** Boiler architecture. */
+      type?: 'combi' | 'system' | 'regular' | 'back_boiler' | 'unknown';
+      /** Whether the boiler is condensing. */
+      condensing?: 'yes' | 'no' | 'unknown';
+    };
+  };
 }

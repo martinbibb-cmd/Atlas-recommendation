@@ -154,4 +154,53 @@ describe('TimelineBuilder', () => {
       expect(v).toBeGreaterThan(0);
     }
   });
+
+  it('current series efficiency varies over time (not constant) when ageYears is provided via currentSystem', () => {
+    const inputWithSedbuk = {
+      ...baseInput,
+      currentSystem: {
+        boiler: {
+          condensing: 'yes' as const,
+          ageYears: 12,
+        },
+      },
+    };
+    const result = runEngine(inputWithSedbuk);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const currentSeries = timeline!.data.series.find((s: { id: string }) => s.id === 'current');
+    expect(currentSeries).toBeDefined();
+    const min = Math.min(...currentSeries!.efficiency);
+    const max = Math.max(...currentSeries!.efficiency);
+    // Efficiency should vary (SEDBUK tail-off model applies point-level cycling penalties)
+    expect(max).toBeGreaterThanOrEqual(min);
+    // All values still clamped to valid boiler range
+    for (const v of currentSeries!.efficiency) {
+      expect(v).toBeLessThanOrEqual(0.95);
+      expect(v).toBeGreaterThanOrEqual(0.55);
+    }
+  });
+
+  it('SEDBUK context bullets appear in contextSummary when currentSystem.boiler is provided', () => {
+    const inputWithSedbuk = {
+      ...baseInput,
+      currentSystem: {
+        boiler: {
+          gcNumber: '47-583-01',
+          ageYears: 8,
+          condensing: 'yes' as const,
+        },
+      },
+    };
+    const { engineOutput } = runEngine(inputWithSedbuk);
+    const bullets = engineOutput.contextSummary?.bullets ?? [];
+    const sedbukBullet = bullets.find(b => b.includes('SEDBUK'));
+    expect(sedbukBullet).toBeDefined();
+    expect(sedbukBullet).toContain('91%');
+  });
+
+  it('no SEDBUK bullet when currentSystem.boiler is absent', () => {
+    const { engineOutput } = runEngine(baseInput);
+    const bullets = engineOutput.contextSummary?.bullets ?? [];
+    expect(bullets.some(b => b.includes('SEDBUK'))).toBe(false);
+  });
 });

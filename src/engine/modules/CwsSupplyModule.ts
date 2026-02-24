@@ -104,11 +104,7 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
 
   // Case 2: dynamic pressure only (no flow)
   notes.push(
-    `Mains supply: ${dynamicPressureBar.toFixed(1)} bar (dynamic only). ` +
-      'Flow at pressure not measured — stability unknown.'
-  );
-  notes.push(
-    "Dynamic pressure alone isn't enough — need flow at pressure (L/min @ bar)."
+    `Mains supply: ${dynamicPressureBar.toFixed(1)} bar (dynamic only) — add L/min @ bar to judge stability.`
   );
 
   return {
