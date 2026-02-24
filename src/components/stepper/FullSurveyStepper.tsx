@@ -36,20 +36,26 @@ type Step = 'location' | 'pressure' | 'hydraulic' | 'lifestyle' | 'hot_water' | 
 const STEPS: Step[] = ['location', 'pressure', 'hydraulic', 'lifestyle', 'hot_water', 'commercial', 'overlay', 'results'];
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
-// Physical levers that drive τ derivation — replaces era-label archetype cards.
+// Two independent physics dimensions:
+//   A) Fabric heat-loss (wall type, insulation, glazing, roof, airtightness)
+//   B) Thermal inertia (mass — separate from wall type)
 
 type WallType = 'solid_masonry' | 'cavity_insulated' | 'timber_lightweight';
 type InsulationLevel = 'poor' | 'moderate' | 'good' | 'exceptional';
 type AirTightness = 'leaky' | 'average' | 'tight' | 'passive_level';
+type Glazing = 'single' | 'double' | 'triple';
+type RoofInsulation = 'poor' | 'moderate' | 'good';
+type ThermalMass = 'light' | 'medium' | 'heavy';
 
 /**
- * Base τ matrix (hours): wall construction × insulation level.
+ * Base τ matrix (hours): thermal mass × insulation level.
+ * τ is now derived from thermalMass (inertia), NOT wall type.
  * Derived from CIBSE Guide A lumped-capacitance guidance and BRE field data.
  */
-const BASE_TAU: Record<WallType, Record<InsulationLevel, number>> = {
-  solid_masonry:       { poor: 45, moderate: 55, good: 70, exceptional: 90 },
-  cavity_insulated:    { poor: 22, moderate: 35, good: 48, exceptional: 65 },
-  timber_lightweight:  { poor: 10, moderate: 15, good: 22, exceptional: 35 },
+const BASE_TAU: Record<ThermalMass, Record<InsulationLevel, number>> = {
+  heavy:  { poor: 45, moderate: 55, good: 70, exceptional: 90 },
+  medium: { poor: 22, moderate: 35, good: 48, exceptional: 65 },
+  light:  { poor: 10, moderate: 15, good: 22, exceptional: 35 },
 };
 
 /** Air-tightness multiplier applied to the base τ. */
@@ -61,41 +67,58 @@ const AIR_TIGHTNESS_FACTOR: Record<AirTightness, number> = {
 };
 
 /**
- * Derive τ (thermal time constant) from the three fabric controls.
- * Special case: timber/lightweight + exceptional + passive-level → Passivhaus τ (190.5 h).
+ * Derive τ (thermal time constant) from thermal mass + insulation + airtightness.
+ * τ reflects inertia — not efficiency or heat loss.
+ * Special case: light + exceptional + passive-level → Passivhaus τ (190.5 h).
  */
-function deriveTau(wall: WallType, insulation: InsulationLevel, air: AirTightness): number {
-  if (wall === 'timber_lightweight' && insulation === 'exceptional' && air === 'passive_level') {
+function deriveTau(mass: ThermalMass, insulation: InsulationLevel, air: AirTightness): number {
+  if (mass === 'light' && insulation === 'exceptional' && air === 'passive_level') {
     return 190.5; // Passivhaus standard
   }
-  return Math.round(BASE_TAU[wall][insulation] * AIR_TIGHTNESS_FACTOR[air]);
+  return Math.round(BASE_TAU[mass][insulation] * AIR_TIGHTNESS_FACTOR[air]);
 }
 
-/** Map slider values to the nearest BuildingFabricType for engine/module compatibility. */
-function deriveFabricType(wall: WallType, insulation: InsulationLevel, air: AirTightness): BuildingFabricType {
-  if (wall === 'timber_lightweight' && insulation === 'exceptional' && air === 'passive_level') return 'passivhaus_standard';
-  if (wall === 'solid_masonry')    return 'solid_brick_1930s';
-  if (wall === 'cavity_insulated') return '1970s_cavity_wall';
+/** Map thermal mass + insulation + airtightness to BuildingFabricType for ThermalInertiaModule. */
+function deriveFabricType(mass: ThermalMass, insulation: InsulationLevel, air: AirTightness): BuildingFabricType {
+  if (mass === 'light' && insulation === 'exceptional' && air === 'passive_level') return 'passivhaus_standard';
+  if (mass === 'heavy')  return 'solid_brick_1930s';
+  if (mass === 'medium') return '1970s_cavity_wall';
   return 'lightweight_new';
 }
 
-/** Map wall type to buildingMass for the engine contract. */
-function deriveBuildingMass(wall: WallType): EngineInputV2_3['buildingMass'] {
-  if (wall === 'solid_masonry')   return 'heavy';
-  if (wall === 'cavity_insulated') return 'medium';
-  return 'light';
+/** Map thermal mass to buildingMass for the engine contract. */
+function deriveBuildingMass(mass: ThermalMass): EngineInputV2_3['buildingMass'] {
+  return mass; // ThermalMass values match BuildingMass values exactly
 }
 
-/** Qualitative heat-loss band based on wall + insulation. */
-function deriveHeatLossBand(wall: WallType, insulation: InsulationLevel): { label: string; colour: string } {
-  const idx = (['poor', 'moderate', 'good', 'exceptional'] as InsulationLevel[]).indexOf(insulation);
-  const wallBonus: Record<WallType, number> = { solid_masonry: 1, cavity_insulated: 0, timber_lightweight: -1 };
-  const score = idx + wallBonus[wall]; // 0-4 range
-  if (score <= 0)  return { label: 'Very High', colour: '#c53030' };
-  if (score === 1) return { label: 'High',      colour: '#dd6b20' };
-  if (score === 2) return { label: 'Moderate',  colour: '#d69e2e' };
-  if (score === 3) return { label: 'Low',        colour: '#38a169' };
+/**
+ * Qualitative heat-loss band based on wall type, insulation, glazing, and roof.
+ * Solid masonry = high heat loss (leaky); it is NOT "best" just because it has high mass.
+ */
+function deriveHeatLossBand(
+  wall: WallType,
+  insulation: InsulationLevel,
+  glaz: Glazing,
+  roof: RoofInsulation,
+): { label: string; colour: string } {
+  // Score: 0 = worst heat loss, higher = better
+  const insulScore = (['poor', 'moderate', 'good', 'exceptional'] as InsulationLevel[]).indexOf(insulation); // 0–3
+  const wallScore: Record<WallType, number> = { solid_masonry: 0, cavity_insulated: 1, timber_lightweight: 2 };
+  const glazScore: Record<Glazing, number> = { single: 0, double: 1, triple: 2 };
+  const roofScore: Record<RoofInsulation, number> = { poor: 0, moderate: 1, good: 2 };
+  const total = insulScore + wallScore[wall] + glazScore[glaz] + roofScore[roof]; // 0–9
+  if (total <= 1)  return { label: 'Very High', colour: '#c53030' };
+  if (total <= 3)  return { label: 'High',      colour: '#dd6b20' };
+  if (total <= 5)  return { label: 'Moderate',  colour: '#d69e2e' };
+  if (total <= 7)  return { label: 'Low',        colour: '#38a169' };
   return               { label: 'Very Low',   colour: '#276749' };
+}
+
+/** Derive qualitative inertia band from τ. */
+function deriveInertiaBand(tauHours: number): { label: string; colour: string } {
+  if (tauHours < 20) return { label: 'Spiky',    colour: '#c53030' };
+  if (tauHours < 50) return { label: 'Moderate', colour: '#d69e2e' };
+  return                    { label: 'Stable',   colour: '#38a169' };
 }
 
 /** Generate a 10-hour temperature decay trace directly from τ. */
@@ -298,11 +321,14 @@ const FABRIC_PRESETS: Array<{
   wall: WallType;
   insulation: InsulationLevel;
   air: AirTightness;
+  glaz: Glazing;
+  roof: RoofInsulation;
+  mass: ThermalMass;
 }> = [
-  { label: 'Solid brick (pre-war)',  wall: 'solid_masonry',      insulation: 'poor',       air: 'leaky'   },
-  { label: '1970s cavity filled',    wall: 'cavity_insulated',   insulation: 'moderate',   air: 'average' },
-  { label: '2020s new build',        wall: 'timber_lightweight', insulation: 'moderate',   air: 'tight'   },
-  { label: 'Passivhaus',             wall: 'timber_lightweight', insulation: 'exceptional', air: 'passive_level' },
+  { label: 'Solid brick (pre-war)',  wall: 'solid_masonry',      insulation: 'poor',       air: 'leaky',         glaz: 'single', roof: 'poor',     mass: 'heavy'  },
+  { label: '1970s cavity filled',    wall: 'cavity_insulated',   insulation: 'moderate',   air: 'average',       glaz: 'double', roof: 'moderate', mass: 'medium' },
+  { label: '2020s new build',        wall: 'timber_lightweight', insulation: 'moderate',   air: 'tight',         glaz: 'double', roof: 'good',     mass: 'light'  },
+  { label: 'Passivhaus',             wall: 'timber_lightweight', insulation: 'exceptional', air: 'passive_level', glaz: 'triple', roof: 'good',     mass: 'light'  },
 ];
 
 const defaultInput: FullSurveyModelV1 = {
@@ -342,20 +368,45 @@ export default function FullSurveyStepper({ onBack }: Props) {
   );
 
   // ── Fabric simulation controls ─────────────────────────────────────────────
+  // Section A (heat loss): wall, insulation, glazing, roof, airtightness
+  // Section B (inertia): thermalMass (independent from wall type)
   const [wallType, setWallType] = useState<WallType>('solid_masonry');
   const [insulationLevel, setInsulationLevel] = useState<InsulationLevel>('moderate');
   const [airTightness, setAirTightness] = useState<AirTightness>('average');
+  const [glazing, setGlazing] = useState<Glazing>('single');
+  const [roofInsulation, setRoofInsulation] = useState<RoofInsulation>('poor');
+  const [thermalMass, setThermalMass] = useState<ThermalMass>('heavy');
 
   // Derived values — update whenever any fabric control changes
-  const derivedTau = useMemo(() => deriveTau(wallType, insulationLevel, airTightness), [wallType, insulationLevel, airTightness]);
-  const fabricType: BuildingFabricType = useMemo(() => deriveFabricType(wallType, insulationLevel, airTightness), [wallType, insulationLevel, airTightness]);
-  const heatLossBand = useMemo(() => deriveHeatLossBand(wallType, insulationLevel), [wallType, insulationLevel]);
+  const derivedTau = useMemo(() => deriveTau(thermalMass, insulationLevel, airTightness), [thermalMass, insulationLevel, airTightness]);
+  const fabricType: BuildingFabricType = useMemo(() => deriveFabricType(thermalMass, insulationLevel, airTightness), [thermalMass, insulationLevel, airTightness]);
+  const heatLossBand = useMemo(() => deriveHeatLossBand(wallType, insulationLevel, glazing, roofInsulation), [wallType, insulationLevel, glazing, roofInsulation]);
+  const inertiaBand = useMemo(() => deriveInertiaBand(derivedTau), [derivedTau]);
   const decayTrace = useMemo(() => buildDecayTrace(derivedTau), [derivedTau]);
 
-  // Keep buildingMass in engine input in sync with the wall type control
+  // Keep buildingMass and building.fabric in engine input in sync with the fabric controls
   useEffect(() => {
-    setInput(prev => ({ ...prev, buildingMass: deriveBuildingMass(wallType) }));
-  }, [wallType]);
+    const wallTypeForEngine =
+      wallType === 'solid_masonry'     ? 'solid_masonry' :
+      wallType === 'cavity_insulated'  ? 'cavity_filled' :
+      'timber_frame' as const;
+    const airTightnessForEngine =
+      airTightness === 'passive_level' ? 'passive' : airTightness as 'leaky' | 'average' | 'tight';
+    setInput(prev => ({
+      ...prev,
+      buildingMass: deriveBuildingMass(thermalMass),
+      building: {
+        fabric: {
+          wallType:       wallTypeForEngine,
+          insulationLevel,
+          glazing,
+          roofInsulation,
+          airTightness:   airTightnessForEngine,
+        },
+        thermalMass,
+      },
+    }));
+  }, [wallType, insulationLevel, airTightness, glazing, roofInsulation, thermalMass]);
 
   // ── Hydraulic derived values — update when pipe size or heat loss changes ──
   const hydraulicLive = useMemo(() => {
@@ -418,7 +469,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
   };
 
   // selectedArchetype shape kept for LifestyleComfortStep compatibility
-  const selectedArchetype = { label: `${wallType.replace(/_/g, ' ')} / ${insulationLevel}`, tauHours: derivedTau, fabricType };
+  const selectedArchetype = { label: `${thermalMass} mass / ${insulationLevel}`, tauHours: derivedTau, fabricType };
 
   return (
     <div className="stepper-container">
@@ -434,9 +485,9 @@ export default function FullSurveyStepper({ onBack }: Props) {
         <div className="step-card">
           <h2>📍 Step 1: Geochemical &amp; Fabric Baseline</h2>
           <p className="description">
-            Your postcode anchors the simulation to local water chemistry. Adjust the fabric
-            controls below to set thermal behaviour — τ (the Thermal Time Constant) is
-            derived live from physics, not from a decade label.
+            Your postcode anchors the simulation to local water chemistry. The fabric controls
+            below drive two independent physics estimates: <strong>how much heat leaks</strong> (fabric
+            heat-loss band) and <strong>how spiky demand feels</strong> (thermal inertia / τ).
           </p>
 
           <div className="form-grid">
@@ -451,18 +502,19 @@ export default function FullSurveyStepper({ onBack }: Props) {
             </div>
           </div>
 
-          {/* ─── Fabric & Thermal Behaviour Controls ─────────────────────── */}
+          {/* ─── Section A: Fabric heat-loss controls ─────────────────── */}
           <div style={{ marginTop: '1.5rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#2d3748', marginBottom: '0.25rem' }}>
-              🧱 Fabric &amp; Thermal Behaviour Controls
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#2d3748', marginBottom: '0.1rem' }}>
+              🧱 Section A — Fabric Heat-Loss Controls
             </h3>
-            <p style={{ fontSize: '0.83rem', color: '#718096', marginBottom: '1rem' }}>
-              Adjust physical levers — τ updates live. No decade labels. No era archetypes.
+            <p style={{ fontSize: '0.83rem', color: '#718096', marginBottom: '0.875rem' }}>
+              Drives the <em>heat-loss band</em> — how hard the building leaks energy.
+              Solid masonry without insulation leaks as badly as any wall type.
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start' }}>
 
-              {/* ── Left: Controls ─────────────────────────────────────── */}
+              {/* Left: heat-loss levers */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
                 {/* Wall Construction */}
@@ -472,9 +524,9 @@ export default function FullSurveyStepper({ onBack }: Props) {
                   </label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                     {([
-                      { value: 'solid_masonry',     label: 'Solid masonry',       sub: '225 mm brick / stone — high thermal mass' },
-                      { value: 'cavity_insulated',  label: 'Cavity (insulated)',  sub: 'Full or partial fill — medium mass' },
-                      { value: 'timber_lightweight',label: 'Timber / lightweight',sub: 'Frame or block — low mass, fast response' },
+                      { value: 'solid_masonry',      label: 'Solid masonry',       sub: '225 mm brick / stone — leaky until insulated' },
+                      { value: 'cavity_insulated',   label: 'Cavity (insulated)',  sub: 'Full or partial fill — medium baseline loss' },
+                      { value: 'timber_lightweight', label: 'Timber / lightweight', sub: 'Frame or light block — low baseline loss' },
                     ] as Array<{ value: WallType; label: string; sub: string }>).map(opt => (
                       <button
                         key={opt.value}
@@ -524,6 +576,65 @@ export default function FullSurveyStepper({ onBack }: Props) {
                   </div>
                 </div>
 
+                {/* Glazing */}
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
+                    Glazing
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.4rem' }}>
+                    {([
+                      { value: 'single', label: 'Single' },
+                      { value: 'double', label: 'Double' },
+                      { value: 'triple', label: 'Triple' },
+                    ] as Array<{ value: Glazing; label: string }>).map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setGlazing(opt.value)}
+                        style={{
+                          padding: '0.45rem 0.6rem',
+                          border: `2px solid ${glazing === opt.value ? '#3182ce' : '#e2e8f0'}`,
+                          borderRadius: '6px',
+                          background: glazing === opt.value ? '#ebf8ff' : '#fff',
+                          cursor: 'pointer',
+                          fontWeight: glazing === opt.value ? 700 : 400,
+                          fontSize: '0.85rem',
+                          transition: 'all 0.12s',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Roof Insulation */}
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
+                    Roof Insulation
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.4rem' }}>
+                    {(['poor', 'moderate', 'good'] as RoofInsulation[]).map(lvl => (
+                      <button
+                        key={lvl}
+                        onClick={() => setRoofInsulation(lvl)}
+                        style={{
+                          padding: '0.45rem 0.6rem',
+                          border: `2px solid ${roofInsulation === lvl ? '#dd6b20' : '#e2e8f0'}`,
+                          borderRadius: '6px',
+                          background: roofInsulation === lvl ? '#fffaf0' : '#fff',
+                          cursor: 'pointer',
+                          fontWeight: roofInsulation === lvl ? 700 : 400,
+                          fontSize: '0.85rem',
+                          textTransform: 'capitalize',
+                          transition: 'all 0.12s',
+                        }}
+                      >
+                        {lvl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Air Tightness */}
                 <div>
                   <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
@@ -557,10 +668,34 @@ export default function FullSurveyStepper({ onBack }: Props) {
                 </div>
               </div>
 
-              {/* ── Right: Live Response Panel ──────────────────────────── */}
+              {/* Right: Live outputs */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
 
-                {/* Derived τ badge */}
+                {/* Heat-loss band */}
+                <div style={{
+                  padding: '0.875rem 1rem',
+                  background: '#f7fafc',
+                  border: `2px solid ${heatLossBand.colour}`,
+                  borderRadius: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.3rem',
+                }}>
+                  <div style={{ fontSize: '0.78rem', color: '#718096', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Fabric Heat-Loss Band
+                  </div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: heatLossBand.colour, lineHeight: 1 }}>
+                    {heatLossBand.label}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#718096' }}>
+                    Driven by wall + insulation + glazing + roof
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#a0aec0' }}>
+                    Modelled estimate — not a measured survey value
+                  </div>
+                </div>
+
+                {/* Section B: Thermal inertia / τ */}
                 <div style={{
                   padding: '0.875rem 1rem',
                   background: '#ebf8ff',
@@ -568,36 +703,26 @@ export default function FullSurveyStepper({ onBack }: Props) {
                   borderRadius: '8px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.3rem',
+                  gap: '0.4rem',
                 }}>
                   <div style={{ fontSize: '0.78rem', color: '#2b6cb0', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Thermal Time Constant
+                    Thermal Inertia (τ)
                   </div>
-                  <div style={{ fontSize: '2rem', fontWeight: 800, color: '#1a365d', lineHeight: 1 }}>
-                    τ = {derivedTau}h
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1a365d', lineHeight: 1 }}>
+                    τ = {derivedTau}h&nbsp;
+                    <span style={{ fontSize: '1rem', fontWeight: 600, color: inertiaBand.colour }}>
+                      ({inertiaBand.label})
+                    </span>
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: '#4a5568' }}>
-                    Derived from construction + insulation + air tightness
+                  <div style={{ fontSize: '0.75rem', color: '#4a5568' }}>
+                    Derived from thermal mass + insulation + airtightness
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: '#a0aec0', marginTop: '0.1rem' }}>
-                    Source: <em>UI model</em> — not engine truth
+                  <div style={{ fontSize: '0.7rem', color: '#a0aec0' }}>
+                    Modelled estimate — high τ means slow to cool, not necessarily efficient
                   </div>
                 </div>
 
-                {/* Heat loss band */}
-                <div style={{
-                  padding: '0.6rem 0.875rem',
-                  background: '#f7fafc',
-                  border: `1px solid ${heatLossBand.colour}44`,
-                  borderLeft: `4px solid ${heatLossBand.colour}`,
-                  borderRadius: '6px',
-                  fontSize: '0.85rem',
-                }}>
-                  <span style={{ color: '#718096' }}>Estimated heat-loss band: </span>
-                  <strong style={{ color: heatLossBand.colour }}>{heatLossBand.label}</strong>
-                </div>
-
-                {/* Live heating response curve */}
+                {/* Decay trace */}
                 <div>
                   <div style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.3rem' }}>
                     Heating response curve — 10 h unheated window (20°C → 5°C outdoor)
@@ -618,6 +743,41 @@ export default function FullSurveyStepper({ onBack }: Props) {
               </div>
             </div>
 
+            {/* ─── Section B: Thermal Mass (separate from wall type) ────── */}
+            <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '2px solid #e2e8f0' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#2d3748', marginBottom: '0.2rem' }}>
+                ⚖️ Section B — Thermal Mass (Inertia)
+              </h3>
+              <p style={{ fontSize: '0.82rem', color: '#718096', marginBottom: '0.75rem' }}>
+                Sets how spiky heating demand feels. Independent of heat loss — solid brick has
+                heavy mass but can still leak badly without insulation.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+                {([
+                  { value: 'light',  label: 'Light',  sub: 'Timber / plasterboard — fast response' },
+                  { value: 'medium', label: 'Medium', sub: 'Cavity / screed — moderate inertia' },
+                  { value: 'heavy',  label: 'Heavy',  sub: 'Solid brick / concrete — slow to cool' },
+                ] as Array<{ value: ThermalMass; label: string; sub: string }>).map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setThermalMass(opt.value)}
+                    style={{
+                      padding: '0.6rem 0.75rem',
+                      border: `2px solid ${thermalMass === opt.value ? '#3182ce' : '#e2e8f0'}`,
+                      borderRadius: '6px',
+                      background: thermalMass === opt.value ? '#ebf8ff' : '#fff',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.12s',
+                    }}
+                  >
+                    <div style={{ fontWeight: thermalMass === opt.value ? 700 : 500, fontSize: '0.88rem' }}>{opt.label}</div>
+                    <div style={{ fontSize: '0.73rem', color: '#718096' }}>{opt.sub}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* ─── Optional presets (secondary) ────────────────────────── */}
             <div style={{ marginTop: '1rem', paddingTop: '0.875rem', borderTop: '1px solid #e2e8f0' }}>
               <span style={{ fontSize: '0.8rem', color: '#a0aec0', marginRight: '0.5rem' }}>Load example:</span>
@@ -628,6 +788,9 @@ export default function FullSurveyStepper({ onBack }: Props) {
                     setWallType(p.wall);
                     setInsulationLevel(p.insulation);
                     setAirTightness(p.air);
+                    setGlazing(p.glaz);
+                    setRoofInsulation(p.roof);
+                    setThermalMass(p.mass);
                   }}
                   style={{
                     marginRight: '0.4rem',
@@ -1490,10 +1653,10 @@ export default function FullSurveyStepper({ onBack }: Props) {
         <div className="step-card">
           <h2>💼 Step 6: Commercial Strategy Selection</h2>
           <p className="description">
-            Choose your installation strategy to model the British Gas "Full Job" advantage.
-            A Full Job designs flow temperatures of 35–40°C, delivering SPF 3.8–4.4.
-            Adding a Mixergy Hot Water Battery unlocks a £40/year "Mixergy Extra" rebate
-            (British Gas customers) and a 21% gas saving via active stratification.
+            Choose your installation strategy. A low flow temp design achieves 35–40°C,
+            delivering SPF 3.8–4.4. A high temp retrofit retains existing radiators
+            at 50–55°C (SPF 2.9–3.1). Adding a Mixergy Hot Water Battery delivers a
+            21% gas saving via active stratification.
           </p>
           <div className="form-grid">
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
@@ -1511,7 +1674,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
                     textAlign: 'left',
                   }}
                 >
-                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>✅ Full Job (British Gas)</div>
+                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>✅ Low flow temp design (35–40°C)</div>
                   <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
                     New oversized Type 22 radiators · Design flow 35–40°C · SPF 3.8–4.4
                   </div>
@@ -1528,7 +1691,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
                     textAlign: 'left',
                   }}
                 >
-                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>⚡ Fast Fit (High Temp Retrofit)</div>
+                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>⚡ High temp retrofit (50–55°C)</div>
                   <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
                     Existing radiators retained · Design flow 50–55°C · SPF 2.9–3.1
                   </div>
@@ -1574,25 +1737,13 @@ export default function FullSurveyStepper({ onBack }: Props) {
                 </button>
               </div>
               {input.dhwTankType === 'mixergy' && (
-                <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{
-                    padding: '0.625rem 0.875rem',
-                    background: '#faf5ff',
-                    border: '1px solid #d6bcfa',
-                    borderRadius: '6px',
-                    fontSize: '0.82rem',
-                    color: '#553c9a',
-                  }}>
-                    🎁 British Gas "Mixergy Extra" rebate: <strong>+£40/year</strong> for BG customers
-                    via active stratification load-shifting.
-                  </div>
+                <div style={{ marginTop: '0.75rem' }}>
                   <div className="form-field">
                     <label>Installer Network</label>
                     <select
-                      value={input.installerNetwork ?? 'british_gas'}
+                      value={input.installerNetwork ?? 'independent'}
                       onChange={e => setInput({ ...input, installerNetwork: e.target.value as EngineInputV2_3['installerNetwork'] })}
                     >
-                      <option value="british_gas">British Gas (£40/yr Mixergy Extra rebate)</option>
                       <option value="independent">Independent Installer</option>
                     </select>
                   </div>

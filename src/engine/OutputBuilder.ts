@@ -534,6 +534,32 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
         );
       }
     }
+
+    // Fabric model V1 context bullets — present when building inputs are provided
+    const fm = result.fabricModelV1;
+    if (fm) {
+      if (fm.heatLossBand !== 'unknown') {
+        const bandLabel = fm.heatLossBand.replace('_', ' ');
+        contextBullets.push(
+          `Fabric heat-loss estimate: ${bandLabel.charAt(0).toUpperCase() + bandLabel.slice(1)} (modelled estimate).`,
+        );
+      }
+      const inertiaMassLabel =
+        input?.building?.thermalMass && input.building.thermalMass !== 'unknown'
+          ? `${input.building.thermalMass.charAt(0).toUpperCase() + input.building.thermalMass.slice(1)} mass`
+          : undefined;
+      const inertiaDesc =
+        fm.inertiaBand === 'spiky'   ? 'fast temperature swings when heating cycles off' :
+        fm.inertiaBand === 'stable'  ? 'holds warmth through unheated periods' :
+        fm.inertiaBand === 'moderate' ? 'moderate temperature drift when unheated' :
+        undefined;
+      if (fm.inertiaBand !== 'unknown' && inertiaDesc) {
+        const massClause = inertiaMassLabel ? ` (${inertiaMassLabel})` : '';
+        contextBullets.push(
+          `Thermal inertia${massClause}: ${fm.inertiaBand} — ${inertiaDesc} (modelled estimate).`,
+        );
+      }
+    }
   }
 
   const { confidence, assumptions } = buildAssumptionsV1(result, input);
