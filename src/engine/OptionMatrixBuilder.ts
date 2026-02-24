@@ -2,6 +2,8 @@ import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInput
 import type { OptionCardV1, OptionPlane, OptionRequirements, SensitivityItem } from '../contracts/EngineOutputV1';
 import { scoreOptionV1 } from './OptionScoringV1';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
+import { PENALTY_NARRATIVES, NARRATIVE_EXCLUDED_IDS } from './scoring/penaltyNarratives';
+import type { PenaltyId } from '../contracts/scoring.penaltyIds';
 
 // ── Sensitivities builder ─────────────────────────────────────────────────────
 
@@ -866,6 +868,24 @@ export function buildOptionMatrixV1(
   const { confidence, assumptions } = buildAssumptionsV1(core, input);
   for (const card of cards) {
     card.score = scoreOptionV1(core, input, card, confidence, assumptions);
+
+    // ── Inject penalty narratives into why / requirements ─────────────────
+    // Take the top N=3 non-confidence, non-meta penalties and append any
+    // mapped why/requirement strings (deduplicated against existing bullets).
+    const topPenalties = card.score.breakdown
+      .filter(b => !NARRATIVE_EXCLUDED_IDS.has(b.id as PenaltyId))
+      .sort((a, b) => b.penalty - a.penalty)
+      .slice(0, 3);
+
+    for (const item of topPenalties) {
+      const narrative = PENALTY_NARRATIVES[item.id as PenaltyId];
+      if (narrative?.why && !card.why.includes(narrative.why)) {
+        card.why.push(narrative.why);
+      }
+      if (narrative?.requirement && !card.requirements.includes(narrative.requirement)) {
+        card.requirements.push(narrative.requirement);
+      }
+    }
   }
 
   return cards;
