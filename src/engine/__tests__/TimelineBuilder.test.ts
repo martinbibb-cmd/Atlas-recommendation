@@ -134,6 +134,34 @@ describe('TimelineBuilder', () => {
     expect(series[1].id).toBe('ashp');
   });
 
+  it('engineConfig.timelinePair is honoured by runEngine — series IDs match the requested pair', () => {
+    const engineInput = {
+      ...baseInput,
+      engineConfig: { timelinePair: ['on_demand', 'ashp'] as [string, string] },
+    };
+    const { engineOutput } = runEngine(engineInput);
+    const timeline = engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    expect(timeline).toBeDefined();
+    const { series } = timeline!.data;
+    expect(series).toHaveLength(2);
+    expect(series[0].id).toBe('on_demand');
+    expect(series[1].id).toBe('ashp');
+  });
+
+  it('engineConfig.timelinePair changes produce different series data than the default', () => {
+    const defaultResult = runEngine(baseInput);
+    const defaultTimeline = defaultResult.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+
+    const customResult = runEngine({
+      ...baseInput,
+      engineConfig: { timelinePair: ['stored_vented', 'ashp'] as [string, string] },
+    });
+    const customTimeline = customResult.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+
+    // Default series A is 'current'; custom is 'stored_vented' — IDs must differ
+    expect(defaultTimeline!.data.series[0].id).not.toBe(customTimeline!.data.series[0].id);
+  });
+
   it('ASHP series efficiency values represent COP (> 1)', () => {
     const result = runEngine(baseInput);
     const visual = buildTimeline24hV1(result, baseInput, ['on_demand', 'ashp']);

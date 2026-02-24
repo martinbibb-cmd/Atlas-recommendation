@@ -65,6 +65,9 @@ interface Props {
 export default function Timeline24hRenderer({ payload, compareAId, compareBId }: Props) {
   const data = buildChartData(payload);
 
+  // Derive a key from the active series IDs so Recharts fully remounts when the pair changes
+  const chartKey = payload.series.map(s => s.id).join('__');
+
   // Tick every 4 points = every hour (each point = 15 min)
   const xTickIndices = new Set(
     payload.timeMinutes
@@ -103,7 +106,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId }:
         Heat Delivered (kW)
       </div>
       <ResponsiveContainer width="100%" height={200}>
-        <ComposedChart data={data} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
+        <ComposedChart key={chartKey} data={data} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis
             dataKey="label"
@@ -177,7 +180,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId }:
         Efficiency (η / COP)
       </div>
       <ResponsiveContainer width="100%" height={120}>
-        <ComposedChart data={data} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
+        <ComposedChart key={`${chartKey}_eff`} data={data} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis
             dataKey="label"

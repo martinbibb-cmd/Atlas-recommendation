@@ -2268,6 +2268,25 @@ function FullSurveyResults({
     : 'on_demand',
   );
 
+  // Local timeline visual — updated by rerunning the engine with the selected A/B pair
+  const [timelineVisual, setTimelineVisual] = useState<VisualSpecV1 | undefined>(
+    () => engineOutput.visuals?.find(v => v.type === 'timeline_24h'),
+  );
+  const [recomputingTimeline, setRecomputingTimeline] = useState(false);
+
+  /** Rerun the engine with the given A/B pair and update the timeline visual. */
+  const updateTimelinePair = (newA: string, newB: string) => {
+    if (newA === compareAId && newB === compareBId) return;
+    setRecomputingTimeline(true);
+    setTimeout(() => {
+      const engineInput = toEngineInput(input);
+      engineInput.engineConfig = { timelinePair: [newA, newB] };
+      const out = runEngine(engineInput);
+      setTimelineVisual(out.engineOutput.visuals?.find(v => v.type === 'timeline_24h'));
+      setRecomputingTimeline(false);
+    }, 0);
+  };
+
   // Approximate current efficiency from normalizer decay
   const currentEfficiencyPct = Math.max(50, 92 - normalizer.tenYearEfficiencyDecayPct);
   const shouldShowMixergy = input.dhwTankType === 'mixergy' || compareMixergy;
@@ -2302,8 +2321,7 @@ function FullSurveyResults({
 
       {/* 24-Hour Compare Timeline — A/B selector + main timeline visual */}
       {(() => {
-        const timelineSpec = engineOutput.visuals?.find(v => v.type === 'timeline_24h');
-        if (!timelineSpec) return null;
+        if (!timelineVisual) return null;
         const COMPARE_SYSTEMS = [
           { id: 'current',          label: 'Current' },
           { id: 'on_demand',        label: 'Combi'   },
@@ -2335,7 +2353,7 @@ function FullSurveyResults({
                 </div>
                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                   {COMPARE_SYSTEMS.map(s => (
-                    <button key={s.id} style={btnStyle(compareAId === s.id)} onClick={() => setCompareAId(s.id)}>
+                    <button key={s.id} style={btnStyle(compareAId === s.id)} onClick={() => { setCompareAId(s.id); updateTimelinePair(s.id, compareBId); }}>
                       {s.label}
                     </button>
                   ))}
@@ -2347,14 +2365,19 @@ function FullSurveyResults({
                 </div>
                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                   {COMPARE_SYSTEMS.map(s => (
-                    <button key={s.id} style={btnStyle(compareBId === s.id)} onClick={() => setCompareBId(s.id)}>
+                    <button key={s.id} style={btnStyle(compareBId === s.id)} onClick={() => { setCompareBId(s.id); updateTimelinePair(compareAId, s.id); }}>
                       {s.label}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
-            <VisualCard spec={timelineSpec} compareAId={compareAId} compareBId={compareBId} />
+            {recomputingTimeline && (
+              <div style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.5rem', fontStyle: 'italic' }}>
+                Recomputing…
+              </div>
+            )}
+            <VisualCard spec={timelineVisual} compareAId={compareAId} compareBId={compareBId} />
           </div>
         );
       })()}

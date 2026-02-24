@@ -384,7 +384,7 @@ function buildVisuals(result: FullEngineResultCore, input?: EngineInputV2_3): Vi
 
   // timeline_24h — 24-hour A/B comparison timeline (current vs primary recommendation)
   if (input) {
-    visuals.unshift(buildTimeline24hV1(result, input));
+    visuals.unshift(buildTimeline24hV1(result, input, input.engineConfig?.timelinePair));
   }
 
   return visuals;
