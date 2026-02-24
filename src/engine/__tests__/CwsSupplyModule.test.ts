@@ -113,6 +113,32 @@ describe('runCwsSupplyModuleV1', () => {
     expect(result.notes.some(n => n.includes('2.0 bar') && n.includes('L/min @ bar'))).toBe(true);
   });
 
+  // ── Dynamic flow = 0 → treated as absent ────────────────────────────────────
+
+  it('dynamic flow = 0 → hasMeasurements false, quality unknown (flow treated as absent)', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ dynamicMainsPressure: 3.0, mainsDynamicFlowLpm: 0 })
+    );
+    expect(result.hasMeasurements).toBe(false);
+    expect(result.quality).toBe('unknown');
+    expect(result.limitation).toBe('unknown');
+  });
+
+  it('dynamic flow = 0 → note includes "L/min @ bar" (pressure-only branch)', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ dynamicMainsPressure: 3.0, mainsDynamicFlowLpm: 0 })
+    );
+    expect(result.notes.some(n => n.includes('L/min @ bar'))).toBe(true);
+  });
+
+  it('dynamic pressure >= 1.5 but no flow → hasMeasurements false, note includes "L/min @ bar"', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ dynamicMainsPressure: 2.0 })
+    );
+    expect(result.hasMeasurements).toBe(false);
+    expect(result.notes.some(n => n.includes('L/min @ bar'))).toBe(true);
+  });
+
   // ── deliveryMode electric_cold_only ─────────────────────────────────────────
 
   it('deliveryMode electric_cold_only → notes mention electric shower and independent of cylinder', () => {

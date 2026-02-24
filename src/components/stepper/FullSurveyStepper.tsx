@@ -206,11 +206,16 @@ const DROP_QUALITY_LABEL: Record<'strong' | 'moderate' | 'weak', string> = {
   weak:     'Significant restriction',
 };
 
-function unventedSuitability(dynamicBar: number): { label: string; colour: string; note: string } {
-  if (dynamicBar >= 1.5) return {
+function unventedSuitability(dynamicBar: number, hasDynOpPoint: boolean): { label: string; colour: string; note: string } {
+  if (dynamicBar >= 1.5 && hasDynOpPoint) return {
     label:  '✅ Suitable for unvented',
     colour: '#38a169',
     note:   'Dynamic pressure ≥ 1.5 bar — adequate for unvented cylinder.',
+  };
+  if (dynamicBar >= 1.5) return {
+    label:  '⚠️ Check supply',
+    colour: '#d69e2e',
+    note:   'Pressure looks OK, but need L/min @ bar to confirm stability.',
   };
   if (dynamicBar >= 1.0) return {
     label:  '⚠️ Marginal',
@@ -220,8 +225,25 @@ function unventedSuitability(dynamicBar: number): { label: string; colour: strin
   return {
     label:  '❌ Not suitable',
     colour: '#c53030',
-    note:   'Dynamic < 1.0 bar — combi lock-out risk; unvented cylinder excluded.',
+    note:   'Dynamic pressure < 1.5 bar — unvented may require alternative architecture.',
   };
+}
+
+// ─── Input parsing helpers ───────────────────────────────────────────────────
+
+/** Parse a raw input string to a number, or undefined if blank/invalid. */
+function parseOptionalNumber(raw: string): number | undefined {
+  const trimmed = raw.trim();
+  if (trimmed === '') return undefined;
+  const normalised = trimmed.replace(',', '.');
+  const n = Number(normalised);
+  return isNaN(n) ? undefined : n;
+}
+
+/** Collapse leading zeros for display (e.g. "03" → "3", "01.5" → "1.5"). Preserves "0" and "0.". */
+function normaliseNumericString(raw: string): string {
+  if (raw === '' || raw === '0' || raw.startsWith('0.')) return raw;
+  return raw.replace(/^0+(\d)/, '$1');
 }
 
 // ─── DHW Behaviour Helpers ───────────────────────────────────────────────────
@@ -313,6 +335,12 @@ export default function FullSurveyStepper({ onBack }: Props) {
   const [input, setInput] = useState<FullSurveyModelV1>(defaultInput);
   const [compareMixergy, setCompareMixergy] = useState(false);
   const [results, setResults] = useState<FullEngineResult | null>(null);
+
+  // Raw string state for iOS-friendly numeric inputs (preserves typed value, normalises on blur)
+  const [rawPressureStr, setRawPressureStr] = useState(String(defaultInput.dynamicMainsPressure));
+  const [rawFlowStr, setRawFlowStr] = useState(
+    defaultInput.mainsDynamicFlowLpm != null ? String(defaultInput.mainsDynamicFlowLpm) : ''
+  );
 
   // ── Fabric simulation controls ─────────────────────────────────────────────
   const [wallType, setWallType] = useState<WallType>('solid_masonry');
@@ -674,12 +702,20 @@ export default function FullSurveyStepper({ onBack }: Props) {
                   min={0.1}
                   max={8}
                   step={0.1}
-                  value={input.dynamicMainsPressure}
-                  onChange={e => setInput({
-                    ...input,
-                    dynamicMainsPressure: +e.target.value,
-                    dynamicMainsPressureBar: +e.target.value,
-                  })}
+                  value={rawPressureStr}
+                  onChange={e => {
+                    const raw = e.target.value;
+                    setRawPressureStr(raw);
+                    const val = parseOptionalNumber(raw);
+                    if (val !== undefined) {
+                      setInput({
+                        ...input,
+                        dynamicMainsPressure: val,
+                        dynamicMainsPressureBar: val,
+                      });
+                    }
+                  }}
+                  onBlur={() => setRawPressureStr(r => normaliseNumericString(r))}
                   style={{ marginTop: '0.4rem' }}
                 />
                 <div style={{ fontSize: '0.75rem', color: '#a0aec0', marginTop: '0.25rem' }}>
@@ -697,12 +733,16 @@ export default function FullSurveyStepper({ onBack }: Props) {
                   min={0.5}
                   max={40}
                   step={0.5}
-                  value={input.mainsDynamicFlowLpm ?? ''}
+                  value={rawFlowStr}
                   placeholder="e.g. 12 — optional"
-                  onChange={e => setInput({
-                    ...input,
-                    mainsDynamicFlowLpm: e.target.value ? +e.target.value : undefined,
-                  })}
+                  onChange={e => {
+                    const raw = e.target.value;
+                    setRawFlowStr(raw);
+                    const parsed = parseOptionalNumber(raw);
+                    const flow = parsed !== undefined && parsed > 0 ? parsed : undefined;
+                    setInput({ ...input, mainsDynamicFlowLpm: flow });
+                  }}
+                  onBlur={() => setRawFlowStr(r => normaliseNumericString(r))}
                   style={{ marginTop: '0.4rem' }}
                 />
                 <div style={{ fontSize: '0.75rem', color: '#a0aec0', marginTop: '0.25rem' }}>
@@ -815,7 +855,9 @@ export default function FullSurveyStepper({ onBack }: Props) {
 
               {/* Unvented suitability indicator */}
               {(() => {
-                const suit = unventedSuitability(input.dynamicMainsPressure);
+                const pressureBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+                const hasDynOpPoint = pressureBar > 0 && (input.mainsDynamicFlowLpm ?? 0) > 0;
+                const suit = unventedSuitability(pressureBar, hasDynOpPoint);
                 return (
                   <div style={{
                     padding: '0.6rem 0.875rem',
@@ -834,19 +876,25 @@ export default function FullSurveyStepper({ onBack }: Props) {
               })()}
 
               {/* Dynamic operating point summary */}
-              <div style={{
-                padding: '0.75rem',
-                background: input.mainsDynamicFlowLpm != null ? '#f0fff4' : '#fffff0',
-                border: `1px solid ${input.mainsDynamicFlowLpm != null ? '#9ae6b4' : '#faf089'}`,
-                borderRadius: '6px',
-                fontSize: '0.82rem',
-              }}>
-                <div style={{ fontWeight: 700, color: '#2d3748', marginBottom: '0.25rem' }}>Dynamic operating point</div>
-                {input.mainsDynamicFlowLpm != null
-                  ? <div style={{ color: '#276749' }}>✓ {input.mainsDynamicFlowLpm.toFixed(1)} L/min @ {(input.dynamicMainsPressureBar ?? input.dynamicMainsPressure ?? 0).toFixed(1)} bar</div>
-                  : <div style={{ color: '#744210' }}>Flow not entered — need L/min @ bar to characterise supply.</div>
-                }
-              </div>
+              {(() => {
+                const pressureBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+                const hasDynOpPoint = pressureBar > 0 && (input.mainsDynamicFlowLpm ?? 0) > 0;
+                return (
+                  <div style={{
+                    padding: '0.75rem',
+                    background: hasDynOpPoint ? '#f0fff4' : '#fffff0',
+                    border: `1px solid ${hasDynOpPoint ? '#9ae6b4' : '#faf089'}`,
+                    borderRadius: '6px',
+                    fontSize: '0.82rem',
+                  }}>
+                    <div style={{ fontWeight: 700, color: '#2d3748', marginBottom: '0.25rem' }}>Dynamic operating point</div>
+                    {hasDynOpPoint
+                      ? <div style={{ color: '#276749' }}>✓ {input.mainsDynamicFlowLpm!.toFixed(1)} L/min @ {pressureBar.toFixed(1)} bar</div>
+                      : <div style={{ color: '#744210' }}>Flow not entered — need L/min @ bar to characterise supply.</div>
+                    }
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
