@@ -157,7 +157,14 @@ export interface Timeline24hSeries {
 /** Payload for the timeline_24h visual type (96 points at 15-min intervals). */
 export interface Timeline24hV1 {
   timeMinutes: number[];
+  /** Thermal (space heat + DHW) demand at each 15-minute point. Cold-fill appliances are excluded. */
   demandHeatKw: number[];
+  /**
+   * Cold mains flow demand (L/min) at each 15-minute point.
+   * Driven by cold-fill appliances (dishwasher, washing machine) — NOT a thermal load.
+   * Present only when a lifestyle profile with cold-flow events is provided.
+   */
+  coldFlowLpm?: number[];
   series: Timeline24hSeries[];
   events: Timeline24hEvent[];
   legendNotes?: string[];

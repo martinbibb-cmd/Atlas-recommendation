@@ -242,6 +242,7 @@ describe('TimelineBuilder', () => {
         eveningPeakEnabled: false,
         hasBath: false,
         hasDishwasher: false,
+        hasWashingMachine: false,
         twoSimultaneousBathrooms: false,
       },
     };
@@ -260,6 +261,7 @@ describe('TimelineBuilder', () => {
         eveningPeakEnabled: true,
         hasBath: true,
         hasDishwasher: false,
+        hasWashingMachine: false,
         twoSimultaneousBathrooms: false,
       },
     };
@@ -277,6 +279,7 @@ describe('TimelineBuilder', () => {
         eveningPeakEnabled: true,
         hasBath: false,
         hasDishwasher: true,
+        hasWashingMachine: false,
         twoSimultaneousBathrooms: false,
       },
     };
@@ -294,6 +297,7 @@ describe('TimelineBuilder', () => {
         eveningPeakEnabled: false,
         hasBath: false,
         hasDishwasher: false,
+        hasWashingMachine: false,
         twoSimultaneousBathrooms: true,
       },
     };
@@ -316,6 +320,7 @@ describe('TimelineBuilder', () => {
         eveningPeakEnabled: false,
         hasBath: false,
         hasDishwasher: false,
+        hasWashingMachine: false,
         twoSimultaneousBathrooms: false,
       },
     };
@@ -342,6 +347,7 @@ describe('TimelineBuilder', () => {
         eveningPeakEnabled: true,
         hasBath: false,
         hasDishwasher: true,
+        hasWashingMachine: false,
         twoSimultaneousBathrooms: false,
       },
     };
@@ -356,5 +362,182 @@ describe('TimelineBuilder', () => {
     const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
     const legend: string[] = timeline!.data.legendNotes ?? [];
     expect(legend.some((n: string) => n.includes('defaults'))).toBe(true);
+  });
+
+  // ── Cold-fill appliances: physics-aligned modelling ──────────────────────────
+
+  it('dishwasher event does NOT reduce combi efficiency (cold-fill, not thermal DHW)', () => {
+    // Build a timeline with only a dishwasher event and no thermal DHW events
+    const inputDishwasherOnly = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: false,
+        eveningPeakEnabled: false,
+        hasBath: false,
+        hasDishwasher: true,
+        hasWashingMachine: false,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const inputNoAppliances = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: false,
+        eveningPeakEnabled: false,
+        hasBath: false,
+        hasDishwasher: false,
+        hasWashingMachine: false,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+
+    const withDishwasher = runEngine(inputDishwasherOnly);
+    const withoutDishwasher = runEngine(inputNoAppliances);
+
+    const timelineWith = withDishwasher.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const timelineWithout = withoutDishwasher.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+
+    // Combi series efficiency should be identical — dishwasher is not a thermal event
+    const combiWith = timelineWith!.data.series.find((s: { id: string }) => s.id === 'current');
+    const combiWithout = timelineWithout!.data.series.find((s: { id: string }) => s.id === 'current');
+    expect(combiWith).toBeDefined();
+    expect(combiWithout).toBeDefined();
+    expect(combiWith!.efficiency).toEqual(combiWithout!.efficiency);
+  });
+
+  it('coldFlowLpm is present in timeline payload when hasDishwasher is true', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: false,
+        eveningPeakEnabled: true,
+        hasBath: false,
+        hasDishwasher: true,
+        hasWashingMachine: false,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const { engineOutput } = runEngine(input);
+    const timeline = engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    expect(timeline!.data.coldFlowLpm).toBeDefined();
+    expect(timeline!.data.coldFlowLpm).toHaveLength(96);
+  });
+
+  it('coldFlowLpm has non-zero values during dishwasher event window', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: false,
+        eveningPeakEnabled: true,
+        hasBath: false,
+        hasDishwasher: true,
+        hasWashingMachine: false,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const { engineOutput } = runEngine(input);
+    const timeline = engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const coldFlowLpm: number[] = timeline!.data.coldFlowLpm;
+    // Dishwasher after evening peak runs 20:00–20:45 (1200–1245 min → indices 80–83)
+    const dishwasherWindow = coldFlowLpm.slice(80, 84);
+    expect(dishwasherWindow.some((v: number) => v > 0)).toBe(true);
+  });
+
+  it('coldFlowLpm is undefined when no cold-fill appliances are in the profile', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: true,
+        eveningPeakEnabled: true,
+        hasBath: false,
+        hasDishwasher: false,
+        hasWashingMachine: false,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const { engineOutput } = runEngine(input);
+    const timeline = engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    expect(timeline!.data.coldFlowLpm).toBeUndefined();
+  });
+
+  it('coldFlowLpm is populated when using default events (which include a dishwasher)', () => {
+    const result = runEngine(baseInput);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    // Default events include a dishwasher, so coldFlowLpm WILL be populated
+    // (this is expected — it ensures cold-flow is visible even in default mode)
+    expect(Array.isArray(timeline!.data.coldFlowLpm)).toBe(true);
+  });
+
+  it('hasWashingMachine generates washing_machine events', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: false,
+        eveningPeakEnabled: false,
+        hasBath: false,
+        hasDishwasher: false,
+        hasWashingMachine: true,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const { engineOutput } = runEngine(input);
+    const timeline = engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const events = timeline!.data.events as Array<{ kind: string }>;
+    expect(events.some(e => e.kind === 'washing_machine')).toBe(true);
+  });
+
+  it('washing_machine events generate non-zero coldFlowLpm', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: false,
+        eveningPeakEnabled: false,
+        hasBath: false,
+        hasDishwasher: false,
+        hasWashingMachine: true,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const { engineOutput } = runEngine(input);
+    const timeline = engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const coldFlowLpm: number[] = timeline!.data.coldFlowLpm;
+    expect(coldFlowLpm).toBeDefined();
+    expect(coldFlowLpm.some((v: number) => v > 0)).toBe(true);
+  });
+
+  it('washing_machine events do NOT affect demandHeatKw (not a thermal load)', () => {
+    const inputWithMachine = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: false,
+        eveningPeakEnabled: false,
+        hasBath: false,
+        hasDishwasher: false,
+        hasWashingMachine: true,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const inputWithoutMachine = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: false,
+        eveningPeakEnabled: false,
+        hasBath: false,
+        hasDishwasher: false,
+        hasWashingMachine: false,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const withMachine = runEngine(inputWithMachine).engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const withoutMachine = runEngine(inputWithoutMachine).engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    // demandHeatKw must be identical — washing machine is not a thermal event
+    expect(withMachine!.data.demandHeatKw).toEqual(withoutMachine!.data.demandHeatKw);
+  });
+
+  it('timeline legend includes cold-fill note', () => {
+    const result = runEngine(baseInput);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const legend: string[] = timeline!.data.legendNotes ?? [];
+    expect(legend.some((n: string) => n.toLowerCase().includes('cold-fill'))).toBe(true);
   });
 });

@@ -50,12 +50,19 @@ export function generateDhwEventsFromProfile(
       events.push({ startMin: 1145, endMin: 1165, kind: 'shower', intensity: 'med' });
     }
     if (profile.hasDishwasher) {
-      // Dishwasher after dinner: 20:00–20:45 at low intensity
+      // Dishwasher after dinner: 20:00–20:45 — cold-fill, cold flow event only (not thermal DHW)
       events.push({ startMin: 1200, endMin: 1245, kind: 'dishwasher', intensity: 'low' });
     }
   } else if (profile.hasDishwasher) {
-    // Dishwasher even without an evening peak (e.g. lunch time)
+    // Dishwasher even without an evening peak (e.g. lunch time) — cold-fill, cold flow event only
     events.push({ startMin: 780, endMin: 825, kind: 'dishwasher', intensity: 'low' });
+  }
+
+  if (profile.hasWashingMachine) {
+    // Washing machine: first fill pulse 09:00–09:10 (~10 L/min), repeat fill pulse 09:55–10:05
+    // Cold-fill only — does NOT contribute to DHW thermal demand
+    events.push({ startMin: 540, endMin: 550, kind: 'washing_machine', intensity: 'low' });
+    events.push({ startMin: 595, endMin: 605, kind: 'washing_machine', intensity: 'low' });
   }
 
   return events;
@@ -77,10 +84,55 @@ function interpolateDemandKw(minuteIdx: number, hourlyDemandKw: number[]): numbe
 }
 
 /**
- * Return true if the given minute falls within any DHW event.
+ * Return true if the given minute falls within a **thermal** DHW event
+ * (shower, bath, or sink). Cold-fill appliances (dishwasher, washing_machine)
+ * do NOT create a thermal spike and are intentionally excluded here.
  */
 function isDhwActive(minuteOfDay: number, events: Timeline24hEvent[]): boolean {
-  return events.some(e => minuteOfDay >= e.startMin && minuteOfDay < e.endMin);
+  return events.some(
+    e =>
+      minuteOfDay >= e.startMin &&
+      minuteOfDay < e.endMin &&
+      (e.kind === 'shower' || e.kind === 'bath' || e.kind === 'sink'),
+  );
+}
+
+/**
+ * Return true if the given minute falls within a cold-fill appliance event
+ * (dishwasher or washing machine). These drive cold-mains flow demand but
+ * do NOT constitute a DHW thermal load.
+ */
+function isColdFlowActive(minuteOfDay: number, events: Timeline24hEvent[]): boolean {
+  return events.some(
+    e =>
+      minuteOfDay >= e.startMin &&
+      minuteOfDay < e.endMin &&
+      (e.kind === 'dishwasher' || e.kind === 'washing_machine'),
+  );
+}
+
+/**
+ * Build a 96-point cold mains flow demand array (L/min) from cold-flow events
+ * (dishwasher and washing machine).
+ *
+ * Flow rates reflect realistic UK cold-fill appliance behaviour:
+ *   - Dishwasher:      8–12 L/min for the first fill window
+ *   - Washing machine: 6–8 L/min per fill pulse
+ *
+ * These are hydraulic loads on the cold mains, NOT thermal loads.
+ */
+function generateColdFlowLpm(events: Timeline24hEvent[]): number[] {
+  const coldFlowLpm: number[] = new Array(96).fill(0);
+  for (const event of events) {
+    if (event.kind !== 'dishwasher' && event.kind !== 'washing_machine') continue;
+    const flowLpm = event.kind === 'dishwasher' ? 10 : 7; // L/min representative values
+    const startIdx = Math.floor(event.startMin / 15);
+    const endIdx = Math.ceil(event.endMin / 15);
+    for (let i = startIdx; i < endIdx && i < 96; i++) {
+      coldFlowLpm[i] = Math.max(coldFlowLpm[i], flowLpm);
+    }
+  }
+  return coldFlowLpm;
 }
 
 /**
@@ -88,6 +140,11 @@ function isDhwActive(minuteOfDay: number, events: Timeline24hEvent[]): boolean {
  * η drops during simultaneous DHW events (combi stress).
  * When `efficiencySeries` is provided it is used directly (SEDBUK tail-off model);
  * otherwise falls back to the constant `baseEtaPct` approach.
+ *
+ * Cold-fill appliance events (dishwasher, washing machine) do NOT cause a DHW
+ * thermal penalty. However, if the cold-water supply quality is 'weak', their
+ * mains flow demand can destabilise combi flow-switch behaviour — a minor
+ * efficiency instability penalty is applied in that case.
  */
 function buildCombiSeries(
   id: string,
@@ -96,6 +153,7 @@ function buildCombiSeries(
   events: Timeline24hEvent[],
   baseEtaPct: number,
   efficiencySeries?: number[],
+  cwsQuality?: 'strong' | 'moderate' | 'weak' | 'unknown',
 ): Timeline24hSeries {
   const heatDeliveredKw: number[] = [];
   const efficiency: number[] = [];
@@ -106,14 +164,24 @@ function buildCombiSeries(
     const minuteOfDay = i * 15;
     const demandKw = demandKwArr[i];
     const dhwActive = isDhwActive(minuteOfDay, events);
+    const coldFlowActive = isColdFlowActive(minuteOfDay, events);
 
-    // Use SEDBUK tail-off efficiency when available; otherwise apply DHW stress penalty
+    // Use SEDBUK tail-off efficiency when available; otherwise apply DHW stress penalty.
+    // Cold-fill appliances (dishwasher/washing machine) are NOT thermal DHW events —
+    // they do not trigger the thermal efficiency penalty.
     const etaBase = efficiencySeries ? efficiencySeries[i] : baseEtaPct / 100;
-    const eta = (!efficiencySeries && dhwActive)
+    let eta = (!efficiencySeries && dhwActive)
       ? Math.max(0.60, etaBase - 0.08)
       : (efficiencySeries && dhwActive)
         ? Math.max(0.55, etaBase - 0.05)
         : etaBase;
+
+    // Cold flow instability: when mains supply quality is 'weak', simultaneous cold-fill
+    // appliance demand can cause combi flow-switch wobble → minor efficiency penalty.
+    if (coldFlowActive && cwsQuality === 'weak') {
+      eta = Math.max(0.60, eta - 0.03);
+    }
+
     const delivered = demandKw * eta;
 
     // Comfort: boiler provides sharp temperature swings (fraction-driven)
@@ -248,6 +316,7 @@ function buildSeriesForSystem(
   designFlowTempBand: 35 | 45 | 50,
   combiEtaPct: number,
   efficiencySeries?: number[],
+  cwsQuality?: 'strong' | 'moderate' | 'weak' | 'unknown',
 ): Timeline24hSeries {
   const label = systemLabel(systemId, input);
 
@@ -270,7 +339,7 @@ function buildSeriesForSystem(
       return buildStoredSeries(systemId, label, demandKwArr, events, true, efficiencySeries);
     case 'on_demand':
     default:
-      return buildCombiSeries(systemId, label, demandKwArr, events, combiEtaPct, efficiencySeries);
+      return buildCombiSeries(systemId, label, demandKwArr, events, combiEtaPct, efficiencySeries, cwsQuality);
   }
 }
 
@@ -316,6 +385,18 @@ export function buildTimeline24hV1(
     ? generateDhwEventsFromProfile(input.lifestyleProfileV1)
     : DEFAULT_EVENTS;
 
+  // Cold mains flow demand — driven by cold-fill appliances (dishwasher, washing machine).
+  // Only present when the profile contains cold-flow events; undefined when using defaults.
+  const hasColdFlowEvents = events.some(
+    e => e.kind === 'dishwasher' || e.kind === 'washing_machine',
+  );
+  const coldFlowLpm: number[] | undefined = hasColdFlowEvents
+    ? generateColdFlowLpm(events)
+    : undefined;
+
+  // CWS supply quality — used to apply cold-flow instability penalty for combi systems
+  const cwsQuality = core.cwsSupplyV1?.quality;
+
   // SEDBUK tail-off efficiency series for the 'current' system (series A) when available
   const sedbuk = core.sedbukV1;
   const boilerAgeYears = input.currentSystem?.boiler?.ageYears ?? input.currentBoilerAgeYears ?? 0;
@@ -340,12 +421,18 @@ export function buildTimeline24hV1(
   const seriesA = buildSeriesForSystem(
     idA, input, demandKwArr, events, designFlowTempBand, combiEtaPct,
     (idA === 'current' && isBoilerBasedSystem(idA)) ? sedbukEfficiencySeries : undefined,
+    cwsQuality,
   );
-  const seriesB = buildSeriesForSystem(idB, input, demandKwArr, events, designFlowTempBand, combiEtaPct);
+  const seriesB = buildSeriesForSystem(
+    idB, input, demandKwArr, events, designFlowTempBand, combiEtaPct,
+    undefined, // no SEDBUK tail-off series for system B
+    cwsQuality,
+  );
 
   const legendNotes: string[] = [
     'Efficiency values: η for boilers (fraction); COP proxy for ASHP.',
     'DHW events: shaded blocks indicate hot-water draw periods.',
+    'Dishwasher / washing machine: cold-fill only — no DHW thermal load.',
   ];
   if (sedbuk) {
     legendNotes.push(`Current boiler baseline (SEDBUK ${sedbuk.label}): ${sedbuk.seasonalEfficiency != null ? `${Math.round(sedbuk.seasonalEfficiency * 100)}%` : 'unknown'}.`);
@@ -370,6 +457,7 @@ export function buildTimeline24hV1(
   const payload: Timeline24hV1 = {
     timeMinutes: TIME_MINUTES,
     demandHeatKw: demandKwArr,
+    ...(coldFlowLpm !== undefined && { coldFlowLpm }),
     series: [seriesA, seriesB],
     events,
     legendNotes,
