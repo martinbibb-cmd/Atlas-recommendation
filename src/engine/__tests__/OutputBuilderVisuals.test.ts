@@ -98,7 +98,7 @@ describe('OutputBuilder visuals', () => {
   });
 
   it('all visuals have a type from the allowed set', () => {
-    const allowed = new Set(['pressure_drop', 'ashp_flow', 'dhw_outlets', 'space_footprint']);
+    const allowed = new Set(['pressure_drop', 'ashp_flow', 'dhw_outlets', 'space_footprint', 'timeline_24h']);
     const { engineOutput } = runEngine(baseInput);
     for (const v of engineOutput.visuals ?? []) {
       expect(allowed.has(v.type)).toBe(true);

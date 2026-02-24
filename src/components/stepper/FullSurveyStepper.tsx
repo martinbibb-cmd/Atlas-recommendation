@@ -24,6 +24,7 @@ import EfficiencyCurve from '../visualizers/EfficiencyCurve';
 import FootprintXRay from '../visualizers/FootprintXRay';
 import GlassBoxPanel from '../visualizers/GlassBoxPanel';
 import InteractiveTwin from '../InteractiveTwin';
+import Timeline24hRenderer from '../visualizers/Timeline24hRenderer';
 // BOM utilities retained for internal/engineer mode — not rendered in customer cockpit
 // import { exportBomToCsv, calculateBomTotal } from '../../engine/modules/WholesalerPricingAdapter';
 
@@ -2259,6 +2260,13 @@ function FullSurveyResults({
   const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
   const [activeOptionTab, setActiveOptionTab] = useState<Record<string, 'heat' | 'dhw' | 'needs' | 'why'>>({});
   const [visualFilter, setVisualFilter] = useState<'all' | 'relevant'>('all');
+  const [compareAId, setCompareAId] = useState<string>('current');
+  const [compareBId, setCompareBId] = useState<string>(
+    engineOutput.recommendation.primary.toLowerCase().includes('heat pump') ? 'ashp'
+    : engineOutput.recommendation.primary.toLowerCase().includes('unvented') ? 'stored_unvented'
+    : engineOutput.recommendation.primary.toLowerCase().includes('vented') ? 'stored_vented'
+    : 'on_demand',
+  );
 
   // Approximate current efficiency from normalizer decay
   const currentEfficiencyPct = Math.max(50, 92 - normalizer.tenYearEfficiencyDecayPct);
@@ -2291,6 +2299,65 @@ function FullSurveyResults({
 
       {/* System Transition – Current → Proposed Architecture */}
       <SystemTransitionCard input={input} results={results} />
+
+      {/* 24-Hour Compare Timeline — A/B selector + main timeline visual */}
+      {(() => {
+        const timelineSpec = engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+        if (!timelineSpec) return null;
+        const COMPARE_SYSTEMS = [
+          { id: 'current',          label: 'Current' },
+          { id: 'on_demand',        label: 'Combi'   },
+          { id: 'stored_vented',    label: 'Stored — Vented' },
+          { id: 'stored_unvented',  label: 'Stored — Unvented' },
+          { id: 'ashp',             label: 'ASHP' },
+        ] as const;
+        const btnStyle = (active: boolean): React.CSSProperties => ({
+          padding: '4px 12px',
+          borderRadius: '14px',
+          border: '1px solid #cbd5e0',
+          background: active ? '#3182ce' : '#fff',
+          color: active ? '#fff' : '#4a5568',
+          cursor: 'pointer',
+          fontWeight: active ? 700 : 400,
+          fontSize: '0.8rem',
+        });
+        return (
+          <div className="result-section">
+            <h3>📈 24-Hour Comparative Timeline</h3>
+            <p style={{ fontSize: '0.82rem', color: '#718096', marginBottom: '0.75rem' }}>
+              Compare how two heating systems behave across a typical day — heat demand, delivery, efficiency and hot water events.
+            </p>
+            {/* A/B tile selectors */}
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#3182ce', marginBottom: '0.35rem' }}>
+                  System A (blue)
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  {COMPARE_SYSTEMS.map(s => (
+                    <button key={s.id} style={btnStyle(compareAId === s.id)} onClick={() => setCompareAId(s.id)}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#e53e3e', marginBottom: '0.35rem' }}>
+                  System B (red)
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  {COMPARE_SYSTEMS.map(s => (
+                    <button key={s.id} style={btnStyle(compareBId === s.id)} onClick={() => setCompareBId(s.id)}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <VisualCard spec={timelineSpec} compareAId={compareAId} compareBId={compareBId} />
+          </div>
+        );
+      })()}
 
       {/* Your Options – Option Matrix V1 */}
       {engineOutput.options && engineOutput.options.length > 0 && (
@@ -2466,6 +2533,8 @@ function FullSurveyResults({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
             {engineOutput.visuals
               .filter(visual => {
+                // timeline_24h is rendered separately at the top
+                if (visual.type === 'timeline_24h') return false;
                 if (visualFilter === 'all' || !expandedOptionId) return true;
                 if (!visual.affectsOptionIds) return true;
                 return visual.affectsOptionIds.includes(expandedOptionId);
@@ -2741,7 +2810,7 @@ function FullSurveyResults({
 // ─── Engine-driven visual renderer ───────────────────────────────────────────
 // No business logic — render by type switch only.
 
-function VisualCard({ spec }: { spec: VisualSpecV1 }) {
+function VisualCard({ spec, compareAId, compareBId }: { spec: VisualSpecV1; compareAId?: string; compareBId?: string }) {
   const cardStyle: React.CSSProperties = {
     padding: '0.875rem',
     background: '#f7fafc',
@@ -2834,6 +2903,15 @@ function VisualCard({ spec }: { spec: VisualSpecV1 }) {
         <div style={{ fontSize: '0.8rem', color: '#718096' }}>
           Mixergy {mixergyLitres}L vs {conventionalLitres}L conventional — saves {footprintSavingPct}% footprint
         </div>
+      </div>
+    );
+  }
+
+  if (spec.type === 'timeline_24h') {
+    return (
+      <div style={{ ...cardStyle, gridColumn: '1 / -1' }}>
+        {spec.title && <div style={titleStyle}>📈 {spec.title}</div>}
+        <Timeline24hRenderer payload={spec.data} compareAId={compareAId} compareBId={compareBId} />
       </div>
     );
   }
