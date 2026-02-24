@@ -88,13 +88,13 @@ export function mixergySoCByHour(hours: HourState[]): number[] {
  *
  * At home : rapid 30 kW recovery; hits ~21 °C combi setpoint.
  * Away    : setback to 16 °C.
- * High DHW: if high-flow delivery (Pumped/Mixer+pump) is active, DHW competition drops room temp to 17.5 °C.
+ * High DHW: if high-flow delivery (pumped/mixer+pump) is active, DHW competition drops room temp to 17.5 °C.
  */
-export function boilerSteppedCurve(hours: HourState[], hasPowerShower: boolean): number[] {
+export function boilerSteppedCurve(hours: HourState[], hasHighFlowDelivery: boolean): number[] {
   return hours.map((state, h) => {
     if (state === 'dhw_demand') {
       // combi "service switching": DHW steals heat from space heating
-      return hasPowerShower ? 17.5 : 19.5;
+      return hasHighFlowDelivery ? 17.5 : 19.5;
     }
     if (state === 'home') {
       // fast reheat + slight sinusoidal variation across the day
