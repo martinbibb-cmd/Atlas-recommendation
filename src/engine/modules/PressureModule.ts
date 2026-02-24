@@ -17,7 +17,7 @@ const LARGE_DROP_THRESHOLD = 1.0;
 export interface PressureAnalysis {
   /** Static mains pressure (bar) — measured with no flow. */
   staticBar?: number;
-  /** Dynamic mains pressure (bar) — measured under flow. May be 0 for flow-cup tests. */
+  /** Dynamic mains pressure (bar) — measured under flow. */
   dynamicBar: number;
   /** Pressure drop (bar) = static − dynamic. Only set when both readings are present and consistent. */
   dropBar?: number;

@@ -43,9 +43,40 @@ describe('runCwsSupplyModuleV1', () => {
     expect(result.notes.some(n => n.includes('12.0 L/min @ 1.0 bar'))).toBe(true);
   });
 
-  // ── Flow-only (no pressure — dynamicMainsPressure = 0) ───────────────────────
+  // ── Flow-only (pressure not recorded — mainsPressureRecorded: false) ─────────
 
-  it('flow at 0 bar → hasMeasurements true, hasDynOpPoint true (flow-cup test)', () => {
+  it('flow-only, pressure not recorded (12 L/min) → meetsUnventedRequirement true', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ mainsPressureRecorded: false, mainsDynamicFlowLpm: 12 })
+    );
+    expect(result.meetsUnventedRequirement).toBe(true);
+    expect(result.hasMeasurements).toBe(true);
+    expect(result.hasDynOpPoint).toBe(false); // no pressure → no operating point
+  });
+
+  it('flow-only, pressure not recorded (11 L/min) → meetsUnventedRequirement false (needs >= 12)', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ mainsPressureRecorded: false, mainsDynamicFlowLpm: 11 })
+    );
+    expect(result.meetsUnventedRequirement).toBe(false);
+  });
+
+  it('flow-only, pressure not recorded → note says "pressure not recorded"', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ mainsPressureRecorded: false, mainsDynamicFlowLpm: 14 })
+    );
+    expect(result.notes.some(n => n.includes('pressure not recorded'))).toBe(true);
+  });
+
+  it('flow at 0 bar (explicitly entered) → does NOT meet unvented requirement', () => {
+    // 0 bar is a real entered value — it fails the ≥1.0 bar gate and is not "pressure not recorded"
+    const result = runCwsSupplyModuleV1(
+      baseInput({ dynamicMainsPressure: 0, dynamicMainsPressureBar: 0, mainsDynamicFlowLpm: 12 })
+    );
+    expect(result.meetsUnventedRequirement).toBe(false);
+  });
+
+  it('flow at 0 bar → hasMeasurements true, hasDynOpPoint true (pressure IS recorded as 0)', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({ dynamicMainsPressure: 0, dynamicMainsPressureBar: 0, mainsDynamicFlowLpm: 14 })
     );
@@ -54,21 +85,7 @@ describe('runCwsSupplyModuleV1', () => {
     expect(result.inconsistent).toBe(false);
   });
 
-  it('12 L/min at 0 bar → meets unvented requirement (flow-cup gate)', () => {
-    const result = runCwsSupplyModuleV1(
-      baseInput({ dynamicMainsPressure: 0, dynamicMainsPressureBar: 0, mainsDynamicFlowLpm: 12 })
-    );
-    expect(result.meetsUnventedRequirement).toBe(true);
-  });
-
-  it('10 L/min at 0 bar → does NOT meet unvented requirement (flow-cup needs >= 12 L/min)', () => {
-    const result = runCwsSupplyModuleV1(
-      baseInput({ dynamicMainsPressure: 0, dynamicMainsPressureBar: 0, mainsDynamicFlowLpm: 10 })
-    );
-    expect(result.meetsUnventedRequirement).toBe(false);
-  });
-
-  // ── Unvented eligibility gate: 10 L/min @ 1 bar OR 12 L/min @ 0 bar ────────
+  // ── Unvented eligibility gate: 10 L/min @ ≥ 1.0 bar OR 12 L/min with pressure not recorded ─
 
   it('10 L/min @ 1.0 bar → meets unvented requirement', () => {
     const result = runCwsSupplyModuleV1(

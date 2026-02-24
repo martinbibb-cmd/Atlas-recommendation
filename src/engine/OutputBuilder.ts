@@ -82,7 +82,7 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
     storedUnventedStatus = 'viable';
   } else {
     storedUnventedStatus = 'caution';
-    storedUnventedReason = 'Mains supply does not meet unvented requirement (10 L/min @ 1 bar or 12 L/min @ 0 bar).';
+    storedUnventedReason = 'Mains supply does not meet unvented requirement (10 L/min @ 1 bar, or 12 L/min flow-only with pressure not recorded).';
   }
 
   items.push({

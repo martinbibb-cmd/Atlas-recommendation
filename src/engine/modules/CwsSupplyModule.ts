@@ -3,11 +3,14 @@
  *
  * Models the cold-water supply (CWS) evidence from available measurements.
  * Flow-only is valid evidence — pressure is not required for hasMeasurements.
- * Dynamic pressure of 0 bar is accepted (flow-cup test at gauge zero).
+ * "Pressure not recorded" must be represented as undefined (via mainsPressureRecorded: false),
+ * NOT as 0.0 bar. A recorded 0 bar is treated as a real entered value and fails the ≥1.0 bar gate.
  *
  * Hard rule: dynamic must not exceed static + 0.2 bar (INCONSISTENCY_TOLERANCE).
  *
- * Unvented eligibility gate: flowLpm ≥ 10 @ dynamicBar ≥ 1.0  OR  flowLpm ≥ 12 @ dynamicBar ≈ 0.
+ * Unvented eligibility gate:
+ *   - flowLpm ≥ 10 AND dynamicBar ≥ 1.0  (operating-point evidence)
+ *   - OR flowLpm ≥ 12 AND dynamicBar === undefined  (flow-only evidence, pressure not recorded)
  */
 
 import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
@@ -15,11 +18,10 @@ import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
 /** Tolerance (bar) for dynamic > static inconsistency check. */
 const INCONSISTENCY_TOLERANCE = 0.2;
 
-/** Unvented requirement: 10 L/min @ ≥ 1.0 bar, or 12 L/min @ ≈ 0 bar (flow-cup). */
+/** Unvented requirement: 10 L/min @ ≥ 1.0 bar (operating-point evidence), or 12 L/min with pressure not recorded (flow-only evidence). */
 const UNVENTED_FLOW_AT_PRESSURE_LPM = 10;
 const UNVENTED_FLOW_AT_PRESSURE_BAR = 1.0;
-const UNVENTED_FLOW_CUP_LPM = 12;
-const UNVENTED_FLOW_CUP_MAX_BAR = 0.2; // "0 bar" tolerance
+const UNVENTED_FLOW_ONLY_LPM = 12;
 
 export type CwsLimitation = 'none' | 'flow' | 'pressure' | 'unknown';
 
@@ -53,10 +55,16 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
   const deliveryMode =
     rawMode === 'tank_pumped' || rawMode === 'pumped' ? 'pumped_from_tank' : rawMode;
 
-  const dynamicPressureBar =
-    input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
   const dynamicFlowLpm = input.mainsDynamicFlowLpm;
   const staticPressureBar = input.staticMainsPressureBar;
+
+  // When mainsPressureRecorded is explicitly false, treat pressure as not recorded (undefined).
+  // This represents flow-cup / bucket tests where only L/min was captured.
+  // A recorded 0 bar is a real value (pressureRecorded = true by default).
+  const pressureRecorded = input.mainsPressureRecorded !== false;
+  const dynamicPressureBar: number | undefined = pressureRecorded
+    ? (input.dynamicMainsPressureBar ?? input.dynamicMainsPressure)
+    : undefined;
 
   const notes: string[] = [];
 
@@ -75,9 +83,11 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
     notes.push('Electric shower: cold mains only; independent of cylinder temperature.');
   }
 
-  // Inconsistency check: dynamic must not exceed static + tolerance
+  // Inconsistency check: dynamic must not exceed static + tolerance.
+  // Only applicable when both pressures are present.
   const inconsistent =
     staticPressureBar !== undefined &&
+    dynamicPressureBar !== undefined &&
     dynamicPressureBar > staticPressureBar + INCONSISTENCY_TOLERANCE;
 
   if (inconsistent) {
@@ -87,8 +97,8 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
   // hasMeasurements: true when flow is present (flow-only is valid evidence)
   const hasFlow = dynamicFlowLpm !== undefined && dynamicFlowLpm > 0;
 
-  // hasDynOpPoint: true when flow is present (pressure is always defined as a number)
-  const hasDynOpPoint = hasFlow;
+  // hasDynOpPoint: true when flow AND pressure are both present (operating-point evidence)
+  const hasDynOpPoint = hasFlow && dynamicPressureBar !== undefined;
 
   // Case 1: flow present → meaningful measurement
   if (hasFlow) {
@@ -98,28 +108,35 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
 
     let dropBar: number | null = null;
 
-    if (staticPressureBar !== undefined && !inconsistent) {
+    if (staticPressureBar !== undefined && dynamicPressureBar !== undefined && !inconsistent) {
       dropBar = staticPressureBar - dynamicPressureBar;
     }
 
-    notes.push(
-      `Mains supply (dynamic): ${flow.toFixed(1)} L/min @ ${dynamicPressureBar.toFixed(1)} bar.`
-    );
+    if (dynamicPressureBar !== undefined) {
+      notes.push(
+        `Mains supply (dynamic): ${flow.toFixed(1)} L/min @ ${dynamicPressureBar.toFixed(1)} bar.`
+      );
+    } else {
+      notes.push(`Mains supply (dynamic): ${flow.toFixed(1)} L/min (pressure not recorded).`);
+    }
 
-    if (staticPressureBar !== undefined && !inconsistent && dropBar !== null) {
+    if (staticPressureBar !== undefined && dynamicPressureBar !== undefined && !inconsistent && dropBar !== null) {
       notes.push(
         `Pressure: ${staticPressureBar.toFixed(1)} → ${dynamicPressureBar.toFixed(1)} bar ` +
           `(drop ${dropBar.toFixed(1)} bar).`
       );
-    } else if (staticPressureBar === undefined) {
+    } else if (dynamicPressureBar !== undefined && staticPressureBar === undefined) {
       notes.push('Static pressure not measured — pressure-drop unknown.');
     }
 
-    // Unvented eligibility gate
+    // Unvented eligibility gate:
+    //   - Operating-point evidence: flow ≥ 10 L/min AND pressure ≥ 1.0 bar
+    //   - Flow-only evidence: flow ≥ 12 L/min AND pressure not recorded (undefined)
+    // A recorded 0 bar does NOT satisfy either gate (fails ≥1.0 bar and is not undefined).
     const meetsUnventedRequirement =
       !inconsistent && (
-        (flow >= UNVENTED_FLOW_AT_PRESSURE_LPM && dynamicPressureBar >= UNVENTED_FLOW_AT_PRESSURE_BAR) ||
-        (flow >= UNVENTED_FLOW_CUP_LPM && dynamicPressureBar <= UNVENTED_FLOW_CUP_MAX_BAR)
+        (dynamicPressureBar !== undefined && flow >= UNVENTED_FLOW_AT_PRESSURE_LPM && dynamicPressureBar >= UNVENTED_FLOW_AT_PRESSURE_BAR) ||
+        (dynamicPressureBar === undefined && flow >= UNVENTED_FLOW_ONLY_LPM)
       );
 
     return {
@@ -136,10 +153,14 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
     };
   }
 
-  // Case 2: pressure only (no flow)
-  notes.push(
-    `Mains supply: ${dynamicPressureBar.toFixed(1)} bar (dynamic only) — add L/min @ bar to judge stability.`
-  );
+  // Case 2: no flow (pressure-only or no measurements at all)
+  if (dynamicPressureBar !== undefined) {
+    notes.push(
+      `Mains supply: ${dynamicPressureBar.toFixed(1)} bar (dynamic only) — add L/min @ bar to judge stability.`
+    );
+  } else {
+    notes.push('No mains measurements recorded — add flow (L/min) and pressure (bar) to characterise supply.');
+  }
 
   return {
     source,

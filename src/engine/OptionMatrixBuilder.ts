@@ -434,14 +434,14 @@ export function buildOptionMatrixV1(
   } else if (!cwsSupplyV1.hasMeasurements) {
     storedUnventedWhy.push('Mains supply not fully characterised — need L/min @ bar measurement.');
   } else if (!cwsSupplyV1.meetsUnventedRequirement) {
-    storedUnventedWhy.push('Mains supply does not meet unvented requirement (10 L/min @ 1 bar or 12 L/min @ 0 bar).');
+    storedUnventedWhy.push('Mains supply does not meet unvented requirement (10 L/min @ 1 bar, or 12 L/min flow-only with pressure not recorded).');
   }
   for (const f of core.storedDhwV1.flags) {
     storedUnventedWhy.push(`${f.title}: ${f.detail}`);
   }
 
   const storedUnventedRequirements: string[] = [
-    'Unvented requirement: ≥ 10 L/min @ ≥ 1.0 bar, or ≥ 12 L/min at gauge zero (flow-cup test).',
+    'Unvented requirement: ≥ 10 L/min @ ≥ 1.0 bar, or ≥ 12 L/min flow-only (pressure not recorded).',
     'Unvented cylinder requires G3-qualified installer and annual servicing.',
     'Sealed circuit — no loft tanks required.',
   ];
