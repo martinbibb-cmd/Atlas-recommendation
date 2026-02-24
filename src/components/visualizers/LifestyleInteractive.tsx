@@ -10,13 +10,13 @@
  *  2. HP "Horizon" Curve      – "Low and Slow" stability; SPF from SpecEdgeModule
  *                               creates a thicker green zone for Full Job (35 °C)
  *                               vs Fast Fit (50 °C)
- *  3. Mixergy SoC Area        – Hot Water Battery charging on Agile off-peak tariff
+ *  3. Mixergy Battery remaining – Hot Water Battery charging on Agile off-peak tariff
  *                               or Solar PV, discharging on High DHW demand hours
  *
  * Interactive toggles drive the underlying SpecEdgeModule physics:
  *  • Full Job  → designFlowTemp 37 °C, SPF 3.8–4.4  (flat Horizon line)
  *  • Fast Fit  → designFlowTemp 50 °C, SPF 2.9–3.1  (dips on cold mornings)
- *  • Power Shower → peakConcurrentLpm > 12, combi efficiency collapses to <30 %
+ *  • High-flow delivery (Pumped/Mixer+pump) → peakConcurrentLpm > 12, combi efficiency collapses to <30 %
  *  • Softener  → CaCO₃ build-up rate = 0 (DHW 100 % efficient, scaling tax cleared)
  */
 
@@ -75,7 +75,10 @@ interface Props {
 export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [hours, setHours] = useState<HourState[]>(defaultHours);
   const [isFullJob, setIsFullJob] = useState(true);
-  const [hasPowerShower, setHasPowerShower] = useState(false);
+  const [waterDelivery, setWaterDelivery] = useState<'gravity' | 'pumped' | 'mixer' | 'mixer_pump' | 'electric'>('gravity');
+  const isHighFlowDelivery = waterDelivery === 'pumped' || waterDelivery === 'mixer_pump';
+  const WATER_DELIVERY_VALUES = ['gravity', 'pumped', 'mixer', 'mixer_pump', 'electric'] as const;
+  type WaterDelivery = typeof WATER_DELIVERY_VALUES[number];
   const [hasSoftener, setHasSoftener] = useState(false);
 
   const engineInput: EngineInputV2_3 = { ...DEFAULT_ENGINE_INPUT, ...baseInput };
@@ -107,8 +110,8 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
 
   const socByHour = useMemo(() => mixergySoCByHour(hours), [hours]);
   const boilerByHour = useMemo(
-    () => boilerSteppedCurve(hours, hasPowerShower),
-    [hours, hasPowerShower],
+    () => boilerSteppedCurve(hours, isHighFlowDelivery),
+    [hours, isHighFlowDelivery],
   );
   const hpByHour = useMemo(
     () => hpHorizonCurve(hours, specEdge.spfMidpoint, specEdge.designFlowTempC),
@@ -119,7 +122,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     hour: `${String(h).padStart(2, '0')}:00`,
     'Boiler (°C)': boilerByHour[h],
     'HP Horizon (°C)': hpByHour[h],
-    'Mixergy SoC (%)': socByHour[h],
+    'Battery remaining (%)': socByHour[h],
   }));
 
   // ── Interaction handlers ────────────────────────────────────────────────────
@@ -138,7 +141,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const dhwCount = hours.filter(s => s === 'dhw_demand').length;
   const awayCount = hours.filter(s => s === 'away').length;
 
-  const combiEfficiencyCollapsed = hasPowerShower && dhwCount > 0;
+  const combiEfficiencyCollapsed = isHighFlowDelivery && dhwCount > 0;
 
   return (
     <div>
@@ -209,14 +212,29 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
           inactiveColor="#c05621"
           title="Toggle British Gas Full Job (new radiators, 35 °C) vs Octopus Fast Fit (existing radiators, 50 °C)"
         />
-        <ToggleButton
-          label="💧 Power Shower"
-          active={hasPowerShower}
-          onClick={() => setHasPowerShower(p => !p)}
-          activeColor="#c53030"
-          inactiveColor="#718096"
-          title="Enable power shower (>12 L/min) – combi efficiency collapses to <30 % during High DHW hours"
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <label style={{ fontSize: '0.78rem', color: '#4a5568', fontWeight: 600 }}>
+            🚿 Shower / water delivery:
+          </label>
+          <select
+            value={waterDelivery}
+            onChange={e => {
+              const v = e.target.value;
+              if ((WATER_DELIVERY_VALUES as readonly string[]).includes(v)) {
+                setWaterDelivery(v as WaterDelivery);
+              }
+            }}
+            aria-label="Shower / water delivery type"
+            style={{ fontSize: '0.78rem', borderRadius: 6, border: '1px solid #e2e8f0', padding: '4px 8px', cursor: 'pointer' }}
+            title="Gravity = tank-fed hot+cold; Pumped = gravity + pump; Mixer = mains hot+cold; Cabinet pump = shower-integrated booster; Electric = heats cold only"
+          >
+            <option value="gravity">Gravity (tank-fed)</option>
+            <option value="pumped">Pumped (from tank)</option>
+            <option value="mixer">Mixer (mains-fed)</option>
+            <option value="mixer_pump">Mixer + cabinet pump</option>
+            <option value="electric">Electric shower (cold only)</option>
+          </select>
+        </div>
         <ToggleButton
           label="🧂 Softener"
           active={hasSoftener}
@@ -262,7 +280,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
         )}
       </div>
 
-      {/* ── Chart: Boiler Stepped + HP Horizon + Mixergy SoC ───────────────── */}
+      {/* ── Chart: Boiler Stepped + HP Horizon + Mixergy Battery remaining ─── */}
       <div style={{ height: 240, marginBottom: 8 }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
@@ -279,7 +297,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
               orientation="right"
               domain={[0, 100]}
               tick={{ fontSize: 9 }}
-              label={{ value: 'SoC %', angle: 90, position: 'insideRight', fontSize: 10 }}
+              label={{ value: 'Battery %', angle: 90, position: 'insideRight', fontSize: 10 }}
             />
             <Tooltip
               contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }}
@@ -316,11 +334,11 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
               dot={false}
               strokeDasharray={isFullJob ? undefined : '6 3'}
             />
-            {/* Mixergy SoC – Hot Water Battery area chart */}
+            {/* Mixergy Battery remaining – Hot Water Battery area chart */}
             <Area
               yAxisId="soc"
               type="monotone"
-              dataKey="Mixergy SoC (%)"
+              dataKey="Battery remaining (%)"
               fill="#bee3f8"
               stroke="#3182ce"
               strokeWidth={1.5}

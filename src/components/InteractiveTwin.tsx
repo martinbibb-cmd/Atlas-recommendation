@@ -95,9 +95,9 @@ export default function InteractiveTwin({
 
       {/* ── Mixergy State of Charge ─────────────────────────────────────── */}
       <div className="result-section">
-        <h3>💧 Mixergy State of Charge Simulation</h3>
+        <h3>💧 Mixergy Hot Water Battery</h3>
         <p className="description" style={{ marginBottom: '0.75rem' }}>
-          A {mixergy.mixergyLitres}L Mixergy at 80% SoC provides the same usable hot water
+          A {mixergy.mixergyLitres}L Mixergy at 80% battery remaining provides the same usable hot water
           as a {mixergy.equivalentConventionalLitres}L conventional cylinder fully heated —
           using {mixergy.footprintSavingPct}% less floor space.
         </p>

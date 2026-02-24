@@ -88,7 +88,7 @@ export function mixergySoCByHour(hours: HourState[]): number[] {
  *
  * At home : rapid 30 kW recovery; hits ~21 °C combi setpoint.
  * Away    : setback to 16 °C.
- * High DHW: if Power Shower is active, DHW competition drops room temp to 17.5 °C.
+ * High DHW: if high-flow delivery (Pumped/Mixer+pump) is active, DHW competition drops room temp to 17.5 °C.
  */
 export function boilerSteppedCurve(hours: HourState[], hasPowerShower: boolean): number[] {
   return hours.map((state, h) => {

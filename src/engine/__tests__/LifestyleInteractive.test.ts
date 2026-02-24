@@ -116,17 +116,17 @@ describe('boilerSteppedCurve', () => {
     });
   });
 
-  it('power shower drops dhw_demand hour to 17.5 °C', () => {
+  it('high-flow delivery drops dhw_demand hour to 17.5 °C', () => {
     const curve = boilerSteppedCurve(allDhw, true);
     curve.forEach(v => expect(v).toBe(17.5));
   });
 
-  it('without power shower dhw_demand hour is 19.5 °C', () => {
+  it('without high-flow delivery dhw_demand hour is 19.5 °C', () => {
     const curve = boilerSteppedCurve(allDhw, false);
     curve.forEach(v => expect(v).toBe(19.5));
   });
 
-  it('power shower causes lower temp than no power shower during dhw_demand', () => {
+  it('high-flow delivery causes lower temp than standard delivery during dhw_demand', () => {
     const withShower = boilerSteppedCurve(allDhw, true);
     const withoutShower = boilerSteppedCurve(allDhw, false);
     withShower.forEach((v, i) => expect(v).toBeLessThan(withoutShower[i]));
