@@ -42,10 +42,10 @@ export interface EngineInputV2_3 {
   /** Cold-water supply source. Defaults to 'unknown'. */
   coldWaterSource?: 'unknown' | 'mains_true' | 'mains_shared' | 'loft_tank';
   /** DHW delivery mode — affects CWS supply notes.
-   * Standardised modes: gravity / tank_pumped / mains_mixer / mains_mixer_boosted / electric_cold_only.
-   * 'pumped' is accepted as a legacy alias for 'tank_pumped'.
+   * Standardised modes: gravity / pumped_from_tank / mains_mixer / accumulator_supported / break_tank_booster / electric_cold_only.
+   * 'pumped' and 'tank_pumped' are accepted as legacy aliases for 'pumped_from_tank'.
    */
-  dhwDeliveryMode?: 'unknown' | 'gravity' | 'tank_pumped' | 'pumped' | 'mains_mixer' | 'mains_mixer_boosted' | 'electric_cold_only';
+  dhwDeliveryMode?: 'unknown' | 'gravity' | 'pumped_from_tank' | 'tank_pumped' | 'pumped' | 'mains_mixer' | 'accumulator_supported' | 'break_tank_booster' | 'electric_cold_only';
 
   // Building
   buildingMass: BuildingMass;

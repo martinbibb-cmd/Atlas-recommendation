@@ -16,7 +16,7 @@
  * Interactive toggles drive the underlying SpecEdgeModule physics:
  *  • Full Job  → designFlowTemp 37 °C, SPF 3.8–4.4  (flat Horizon line)
  *  • Fast Fit  → designFlowTemp 50 °C, SPF 2.9–3.1  (dips on cold mornings)
- *  • High-flow delivery (Pumped/Mixer+pump) → peakConcurrentLpm > 12, combi efficiency collapses to <30 %
+ *  • High-flow delivery (Pumped/Break-tank booster) → peakConcurrentLpm > 12, combi efficiency collapses to <30 %
  *  • Softener  → CaCO₃ build-up rate = 0 (DHW 100 % efficient, scaling tax cleared)
  */
 
@@ -75,10 +75,10 @@ interface Props {
 export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [hours, setHours] = useState<HourState[]>(defaultHours);
   const [isFullJob, setIsFullJob] = useState(true);
-  const [waterDelivery, setWaterDelivery] = useState<'gravity' | 'pumped' | 'mixer' | 'mixer_pump' | 'electric'>('gravity');
-  const isHighFlowDelivery = waterDelivery === 'pumped' || waterDelivery === 'mixer_pump';
-  const WATER_DELIVERY_VALUES = ['gravity', 'pumped', 'mixer', 'mixer_pump', 'electric'] as const;
+  const WATER_DELIVERY_VALUES = ['gravity', 'pumped', 'mains_mixer', 'accumulator_supported', 'break_tank_booster', 'electric_cold_only'] as const;
   type WaterDelivery = typeof WATER_DELIVERY_VALUES[number];
+  const [waterDelivery, setWaterDelivery] = useState<WaterDelivery>('gravity');
+  const isHighFlowDelivery = waterDelivery === 'pumped' || waterDelivery === 'break_tank_booster';
   const [hasSoftener, setHasSoftener] = useState(false);
 
   const engineInput: EngineInputV2_3 = { ...DEFAULT_ENGINE_INPUT, ...baseInput };
@@ -226,13 +226,14 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
             }}
             aria-label="Shower / water delivery type"
             style={{ fontSize: '0.78rem', borderRadius: 6, border: '1px solid #e2e8f0', padding: '4px 8px', cursor: 'pointer' }}
-            title="Gravity = tank-fed hot+cold; Pumped = gravity + pump; Mixer = mains hot+cold; Cabinet pump = shower-integrated booster; Electric = heats cold only"
+            title="Gravity = tank-fed hot+cold; Pumped = gravity + pump from tank; Mixer = mains hot+cold; Accumulator = mains with buffered peaks; Break tank = pump from stored water; Electric = heats cold only"
           >
             <option value="gravity">Gravity (tank-fed)</option>
             <option value="pumped">Pumped (from tank)</option>
-            <option value="mixer">Mixer (mains-fed)</option>
-            <option value="mixer_pump">Mixer + cabinet pump</option>
-            <option value="electric">Electric shower (cold only)</option>
+            <option value="mains_mixer">Mixer (mains-fed)</option>
+            <option value="accumulator_supported">Accumulator supported (buffers peaks)</option>
+            <option value="break_tank_booster">Break tank + booster (pumped from storage)</option>
+            <option value="electric_cold_only">Electric shower (cold only)</option>
           </select>
         </div>
         <ToggleButton
