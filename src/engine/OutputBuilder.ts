@@ -5,6 +5,8 @@ import { buildOptionMatrixV1 } from './OptionMatrixBuilder';
 import { buildTimeline24hV1 } from './TimelineBuilder';
 import { ageFactor, cyclingFactor, DEFAULT_BOILER_KW, LOW_LOAD_THRESHOLD_RATIO } from './modules/BoilerTailoffModule';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
+import { PENALTY_NARRATIVES, selectTopNarrativePenalties } from './scoring/penaltyNarratives';
+import type { PenaltyId } from '../contracts/scoring.penaltyIds';
 
 function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3): EligibilityItem[] {
   const { redFlags, hydraulicV1, combiDhwV1, storedDhwV1 } = result;
@@ -532,13 +534,36 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
 
   const { confidence, assumptions } = buildAssumptionsV1(result, input);
 
+  const options = input ? buildOptionMatrixV1(result, input) : undefined;
+  const explainers = buildExplainers(result);
+
+  // Ensure explainers list includes a stub for every explainerId referenced by
+  // a selected penalty narrative.  This prevents dangling "Learn more" links.
+  if (options) {
+    const existingIds = new Set(explainers.map(e => e.id));
+    for (const card of options) {
+      if (!card.score) continue;
+      for (const item of selectTopNarrativePenalties(card.score.breakdown)) {
+        const narrative = PENALTY_NARRATIVES[item.id as PenaltyId];
+        if (narrative?.explainerId && !existingIds.has(narrative.explainerId)) {
+          explainers.push({
+            id: narrative.explainerId,
+            title: narrative.explainerId,
+            body: 'More detail coming soon.',
+          });
+          existingIds.add(narrative.explainerId);
+        }
+      }
+    }
+  }
+
   return {
     eligibility: buildEligibility(result, input),
     redFlags: [...buildRedFlags(allReasons), ...combiFlags, ...storedFlags],
     recommendation: { primary: primaryRecommendation },
-    explainers: buildExplainers(result),
+    explainers,
     contextSummary: contextBullets.length > 0 ? { bullets: contextBullets } : undefined,
-    options: input ? buildOptionMatrixV1(result, input) : undefined,
+    options,
     evidence: buildEvidence(result, input),
     visuals: buildVisuals(result, input),
     meta: {

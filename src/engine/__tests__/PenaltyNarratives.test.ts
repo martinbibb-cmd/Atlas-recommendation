@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { PENALTY_NARRATIVES, NARRATIVE_EXCLUDED_IDS } from '../scoring/penaltyNarratives';
+import { PENALTY_NARRATIVES, NARRATIVE_EXCLUDED_IDS, selectTopNarrativePenalties } from '../scoring/penaltyNarratives';
 import { PENALTY_IDS } from '../../contracts/scoring.penaltyIds';
 import { buildOptionMatrixV1 } from '../OptionMatrixBuilder';
 import { runEngine } from '../Engine';
+import { buildEngineOutputV1 } from '../OutputBuilder';
 
 const baseInput = {
   postcode: 'SW1A 1AA',
@@ -149,5 +150,79 @@ describe('Narrative injection — why bullets are appended from penalties', () =
 
     const hasWhyBullet = unvented.why.some(w => w.includes('flow @ pressure'));
     expect(hasWhyBullet).toBe(true);
+  });
+});
+
+describe('Narrative grouping — at most one narrative per group per card', () => {
+  it('multiple water_supply penalties → only one narrative bullet injected', () => {
+    // cws.measurements_missing (water_supply) and pressure.borderline_unvented (water_supply)
+    // cannot both appear because they share the same group.
+    // At 1.2 bar with no measurements, both penalties apply to stored_unvented;
+    // but the higher-penalty one wins and the second is skipped.
+    const input = { ...baseInput, dynamicMainsPressure: 1.2 };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const unvented = options.find(o => o.id === 'stored_unvented')!;
+
+    const waterSupplyNarratives = Object.entries(PENALTY_NARRATIVES)
+      .filter(([, n]) => n?.group === 'water_supply')
+      .map(([, n]) => n!);
+
+    const injectedWaterSupplyBullets = unvented.why.filter(w =>
+      waterSupplyNarratives.some(n => n.why && w === n.why),
+    ).concat(
+      unvented.requirements.filter(r =>
+        waterSupplyNarratives.some(n => n.requirement && r === n.requirement),
+      ),
+    );
+
+    expect(injectedWaterSupplyBullets.length).toBeLessThanOrEqual(1);
+  });
+
+  it('selectTopNarrativePenalties skips second item sharing the same group', () => {
+    const breakdown = [
+      { id: PENALTY_IDS.CWS_MEASUREMENTS_MISSING, penalty: 8 },
+      { id: PENALTY_IDS.CWS_QUALITY_WEAK, penalty: 12 },
+      { id: PENALTY_IDS.BOILER_OVERSIZE_MODERATE, penalty: 8 },
+    ];
+    const selected = selectTopNarrativePenalties(breakdown, 3);
+    // cws.quality_weak (12) wins over cws.measurements_missing (8) in water_supply group
+    expect(selected.map(s => s.id)).not.toContain(PENALTY_IDS.CWS_MEASUREMENTS_MISSING);
+    expect(selected.map(s => s.id)).toContain(PENALTY_IDS.CWS_QUALITY_WEAK);
+    expect(selected.length).toBe(2);
+  });
+});
+
+describe('explainerId wiring — explainer stub is surfaced in EngineOutputV1', () => {
+  it('pressure.borderline_unvented explainerId results in explainer in engineOutput', () => {
+    // 1.2 bar dynamic with flow measurement: hasMeasurements=true, triggers pressure.borderline_unvented
+    const input = {
+      ...baseInput,
+      dynamicMainsPressure: 1.2,
+      mainsDynamicFlowLpm: 14,
+    };
+    const result = runEngine(input);
+    const output = buildEngineOutputV1(result, input);
+
+    const narrative = PENALTY_NARRATIVES[PENALTY_IDS.PRESSURE_BORDERLINE_UNVENTED]!;
+    expect(narrative.explainerId).toBeDefined();
+
+    const explainerIds = output.explainers.map(e => e.id);
+    expect(explainerIds).toContain(narrative.explainerId!);
+  });
+
+  it('explainer stub has non-empty body and id matching the narrative explainerId', () => {
+    const input = {
+      ...baseInput,
+      dynamicMainsPressure: 1.2,
+      mainsDynamicFlowLpm: 14,
+    };
+    const result = runEngine(input);
+    const output = buildEngineOutputV1(result, input);
+
+    const narrative = PENALTY_NARRATIVES[PENALTY_IDS.PRESSURE_BORDERLINE_UNVENTED]!;
+    const explainer = output.explainers.find(e => e.id === narrative.explainerId);
+    expect(explainer).toBeDefined();
+    expect(explainer!.body.length).toBeGreaterThan(0);
   });
 });
