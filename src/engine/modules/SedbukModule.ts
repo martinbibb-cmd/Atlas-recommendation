@@ -62,6 +62,19 @@ function bandKey(input: SedbukLookupInput): string {
 }
 
 /**
+ * Format a digits-only GC number into the familiar dashed display format.
+ *
+ * Pure display helper — not used for lookup.
+ * Example: '4758301' → '47-583-01'
+ * Returns the input unchanged if it does not match the 7-digit GC format.
+ */
+export function formatGcNumber(digits: string): string {
+  const d = digits.replace(/\D/g, '');
+  if (d.length !== 7) return digits;
+  return `${d.slice(0, 2)}-${d.slice(2, 5)}-${d.slice(5, 7)}`;
+}
+
+/**
  * Look up SEDBUK seasonal efficiency for a boiler.
  *
  * Priority:
@@ -75,17 +88,21 @@ export function lookupSedbukV1(input: SedbukLookupInput): SedbukResultV1 {
   // 1. GC lookup
   if (input.gcNumber) {
     const normalised = input.gcNumber.replace(/\D/g, '');
-    const entry = (sedbukData.gcLookup as Record<string, { seasonalEfficiency: number; fuel: string; notes?: string }>)[normalised];
-    if (entry) {
-      notes.push(`SEDBUK GC lookup: ${entry.notes ?? input.gcNumber}.`);
-      return {
-        source: 'gc_lookup',
-        seasonalEfficiency: entry.seasonalEfficiency,
-        label: 'SEDBUK (GC lookup)',
-        notes,
-      };
+    if (normalised.length === 0) {
+      notes.push('GC not provided / invalid format — using band fallback.');
+    } else {
+      const entry = (sedbukData.gcLookup as Record<string, { seasonalEfficiency: number; fuel: string; notes?: string }>)[normalised];
+      if (entry) {
+        notes.push(`SEDBUK GC lookup: ${entry.notes ?? input.gcNumber}.`);
+        return {
+          source: 'gc_lookup',
+          seasonalEfficiency: entry.seasonalEfficiency,
+          label: 'SEDBUK (GC lookup)',
+          notes,
+        };
+      }
+      notes.push(`GC number '${input.gcNumber}' not found in SEDBUK table — using band fallback.`);
     }
-    notes.push(`GC number '${input.gcNumber}' not found in SEDBUK table — using band fallback.`);
   }
 
   // 2. Band fallback
