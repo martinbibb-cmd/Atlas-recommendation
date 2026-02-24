@@ -1,16 +1,16 @@
 {
   "gcLookup": {
-    "47-583-01": { "seasonalEfficiency": 0.91, "fuel": "gas", "notes": "Worcester Bosch Greenstar 30i condensing combi" },
-    "47-583-02": { "seasonalEfficiency": 0.92, "fuel": "gas", "notes": "Worcester Bosch Greenstar 40i condensing combi" },
-    "47-047-01": { "seasonalEfficiency": 0.90, "fuel": "gas", "notes": "Ideal Logic Max 30 condensing combi" },
-    "47-047-02": { "seasonalEfficiency": 0.89, "fuel": "gas", "notes": "Ideal Logic Max 24 condensing combi" },
-    "47-021-01": { "seasonalEfficiency": 0.89, "fuel": "gas", "notes": "Vaillant ecoTEC plus 831 condensing system" },
-    "47-021-02": { "seasonalEfficiency": 0.91, "fuel": "gas", "notes": "Vaillant ecoTEC plus 837 condensing system" },
-    "47-316-01": { "seasonalEfficiency": 0.88, "fuel": "gas", "notes": "Baxi 200 combi condensing" },
-    "47-316-02": { "seasonalEfficiency": 0.90, "fuel": "gas", "notes": "Baxi 600 combi condensing" },
-    "47-600-01": { "seasonalEfficiency": 0.78, "fuel": "gas", "notes": "Potterton Profile 30e non-condensing system (legacy)" },
-    "47-600-02": { "seasonalEfficiency": 0.72, "fuel": "gas", "notes": "Potterton Suprima 40 non-condensing regular (legacy)" },
-    "47-900-01": { "seasonalEfficiency": 0.65, "fuel": "gas", "notes": "Back boiler unit (legacy, pre-1990)" }
+    "4758301": { "seasonalEfficiency": 0.91, "fuel": "gas", "notes": "Worcester Bosch Greenstar 30i condensing combi" },
+    "4758302": { "seasonalEfficiency": 0.92, "fuel": "gas", "notes": "Worcester Bosch Greenstar 40i condensing combi" },
+    "4704701": { "seasonalEfficiency": 0.90, "fuel": "gas", "notes": "Ideal Logic Max 30 condensing combi" },
+    "4704702": { "seasonalEfficiency": 0.89, "fuel": "gas", "notes": "Ideal Logic Max 24 condensing combi" },
+    "4702101": { "seasonalEfficiency": 0.89, "fuel": "gas", "notes": "Vaillant ecoTEC plus 831 condensing system" },
+    "4702102": { "seasonalEfficiency": 0.91, "fuel": "gas", "notes": "Vaillant ecoTEC plus 837 condensing system" },
+    "4731601": { "seasonalEfficiency": 0.88, "fuel": "gas", "notes": "Baxi 200 combi condensing" },
+    "4731602": { "seasonalEfficiency": 0.90, "fuel": "gas", "notes": "Baxi 600 combi condensing" },
+    "4760001": { "seasonalEfficiency": 0.78, "fuel": "gas", "notes": "Potterton Profile 30e non-condensing system (legacy)" },
+    "4760002": { "seasonalEfficiency": 0.72, "fuel": "gas", "notes": "Potterton Suprima 40 non-condensing regular (legacy)" },
+    "4790001": { "seasonalEfficiency": 0.65, "fuel": "gas", "notes": "Back boiler unit (legacy, pre-1990)" }
   },
   "bandFallback": {
     "non_condensing_old": {

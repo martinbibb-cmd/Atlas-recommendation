@@ -491,7 +491,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     if (sedbuk && sedbuk.seasonalEfficiency != null) {
       const basePct = Math.round(sedbuk.seasonalEfficiency * 100);
       contextBullets.push(
-        `Current boiler baseline efficiency (SEDBUK): ${basePct}% (source: ${sedbuk.label}).`,
+        `Current boiler baseline seasonal efficiency (SEDBUK): ${basePct}% (source: ${sedbuk.label}).`,
       );
       const boilerAgeYears = input.currentSystem?.boiler?.ageYears ?? input.currentBoilerAgeYears ?? 0;
       if (boilerAgeYears > 0) {
@@ -502,7 +502,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
         const adjustedLow = Math.round(sedbuk.seasonalEfficiency * af * cfLow * 100);
         const adjustedHigh = Math.round(sedbuk.seasonalEfficiency * af * 100);
         contextBullets.push(
-          `Adjusted for age/cycling: ~${adjustedLow}–${adjustedHigh}% typical under light demand.`,
+          `Modelled in-home estimate (age + cycling): ~${adjustedLow}–${adjustedHigh}% across your day.`,
         );
       }
     }

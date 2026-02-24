@@ -74,7 +74,7 @@ export function lookupSedbukV1(input: SedbukLookupInput): SedbukResultV1 {
 
   // 1. GC lookup
   if (input.gcNumber) {
-    const normalised = input.gcNumber.trim().toLowerCase().replace(/\s+/g, '-');
+    const normalised = input.gcNumber.replace(/\D/g, '');
     const entry = (sedbukData.gcLookup as Record<string, { seasonalEfficiency: number; fuel: string; notes?: string }>)[normalised];
     if (entry) {
       notes.push(`SEDBUK GC lookup: ${entry.notes ?? input.gcNumber}.`);
