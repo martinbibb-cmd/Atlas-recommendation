@@ -134,6 +134,12 @@ export interface EngineInputV2_3 {
     /** Appetite for emitter upgrades when installing a heat pump. */
     emitterUpgradeAppetite?: 'none' | 'some' | 'full_job';
   };
+
+  /** Optional engine configuration — allows callers to customise engine behaviour without changing survey data. */
+  engineConfig?: {
+    /** Explicit pair of system IDs for the 24-hour comparative timeline. Defaults to ['current', primary recommendation]. */
+    timelinePair?: [string, string];
+  };
 }
 
 export interface HydraulicResult {
