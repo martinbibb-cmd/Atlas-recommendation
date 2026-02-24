@@ -82,6 +82,7 @@ describe('buildAssumptionsV1', () => {
           eveningPeakEnabled: true,
           hasBath: false,
           hasDishwasher: true,
+          hasWashingMachine: false,
           twoSimultaneousBathrooms: false,
         },
       };
@@ -98,6 +99,7 @@ describe('buildAssumptionsV1', () => {
           eveningPeakEnabled: true,
           hasBath: false,
           hasDishwasher: true,
+          hasWashingMachine: false,
           twoSimultaneousBathrooms: false,
         },
       };

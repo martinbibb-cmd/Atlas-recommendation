@@ -121,7 +121,7 @@ export function buildAssumptionsV1(
   }
 
   if (input?.lifestyleProfileV1) {
-    reasons.push('Daily hot-water schedule derived from your lifestyle profile (morning/evening peaks, bath, dishwasher).');
+    reasons.push('Daily hot-water schedule derived from your lifestyle profile (morning/evening peaks, bath). Dishwasher and washing machine modelled as cold-flow events, not thermal load.');
   } else {
     reasons.push('Daily hot-water schedule uses defaults (no painted user schedule).');
   }

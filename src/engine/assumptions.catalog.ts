@@ -42,7 +42,7 @@ export const ASSUMPTION_CATALOG: Record<AssumptionId, {
   },
   'timeline.default_dhw_schedule': {
     title: 'Default daily hot-water schedule used',
-    detail: 'Hot-water events (morning shower, evening bath, dishwasher) follow a typical UK household day. Your actual pattern may differ.',
+    detail: 'Hot-water events (morning shower, evening bath) follow a typical UK household day. Dishwasher and washing machine are modelled as cold-mains flow events — not thermal loads. Your actual pattern may differ.',
     improveBy: 'Paint your actual daily schedule to improve timeline accuracy.',
   },
   'timeline.tau_slider_derived': {

@@ -155,8 +155,18 @@ export interface EngineInputV2_3 {
     eveningPeakEnabled: boolean;
     /** Whether a bath is taken (adds a higher-intensity DHW event vs shower-only). */
     hasBath: boolean;
-    /** Whether a dishwasher is run (adds a low-intensity DHW event in the evening). */
+    /**
+     * Whether a dishwasher is run.
+     * Modern UK dishwashers are cold-fill: they do NOT create a DHW thermal spike.
+     * This generates a cold-water flow event (8–12 L/min) — not a heat demand entry.
+     */
     hasDishwasher: boolean;
+    /**
+     * Whether a washing machine is run.
+     * Modern UK washing machines are cold-fill: they do NOT create a DHW thermal spike.
+     * This generates a cold-water flow event (6–8 L/min pulses) — not a heat demand entry.
+     */
+    hasWashingMachine: boolean;
     /** Whether two bathrooms are in use simultaneously — also feeds combi gate. */
     twoSimultaneousBathrooms: boolean;
   };
