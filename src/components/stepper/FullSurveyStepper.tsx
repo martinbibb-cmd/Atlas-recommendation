@@ -115,7 +115,7 @@ function tempTooltipFormatter(v: number | undefined): [string, string] {
 
 const OVERLAY_SYSTEMS = [
   { id: 'combi',           label: 'Combi'         },
-  { id: 'stored',          label: 'Stored'        },
+  { id: 'stored',          label: 'Cylinder'      },
   { id: 'ashp',            label: 'ASHP'          },
   { id: 'regular_vented',  label: 'Regular'       },
   { id: 'system_unvented', label: 'Sys+Unvented'  },
@@ -623,12 +623,11 @@ export default function FullSurveyStepper({ onBack }: Props) {
 
       {currentStep === 'pressure' && (
         <div className="step-card">
-          <h2>💧 Step 2: Mains Supply Pressure</h2>
+          <h2>💧 Step 2: Mains Supply &amp; Flow</h2>
           <p className="description">
-            Dynamic pressure alone is a single number with no context. The drop between static
-            (no flow) and dynamic (under flow) reveals pipe restriction and shared-mains weakness.
-            Enter both readings for a full classification — or dynamic only for a low-confidence
-            estimate.
+            A dynamic operating point (L/min @ bar) is needed to characterise supply quality — pressure
+            alone is not enough. The static-to-dynamic drop reveals pipe restriction and shared-mains
+            weakness. Enter all readings you have; partial data is better than none.
           </p>
 
           {/* ─── Physics levers + live panel ─────────────────────────────── */}
@@ -683,8 +682,31 @@ export default function FullSurveyStepper({ onBack }: Props) {
                 </div>
               </div>
 
-              {/* Low-confidence notice */}
-              {input.staticMainsPressureBar == null && (
+              {/* Dynamic flow */}
+              <div className="form-field">
+                <label style={{ fontWeight: 600, fontSize: '0.88rem', color: '#4a5568' }}>
+                  Dynamic flow (L/min) — at pressure
+                </label>
+                <input
+                  type="number"
+                  min={0.5}
+                  max={40}
+                  step={0.5}
+                  value={input.mainsDynamicFlowLpm ?? ''}
+                  placeholder="e.g. 12 — optional"
+                  onChange={e => setInput({
+                    ...input,
+                    mainsDynamicFlowLpm: e.target.value ? +e.target.value : undefined,
+                  })}
+                  style={{ marginTop: '0.4rem' }}
+                />
+                <div style={{ fontSize: '0.75rem', color: '#a0aec0', marginTop: '0.25rem' }}>
+                  Measured simultaneously with dynamic pressure. Leave blank if not taken.
+                </div>
+              </div>
+
+              {/* Operating point hint — show when only one of pressure/flow is present */}
+              {input.mainsDynamicFlowLpm == null && (
                 <div style={{
                   padding: '0.5rem 0.75rem',
                   background: '#fffff0',
@@ -694,8 +716,8 @@ export default function FullSurveyStepper({ onBack }: Props) {
                   fontSize: '0.8rem',
                   color: '#744210',
                 }}>
-                  ℹ️ Static pressure not entered — drop classification and supply quality unavailable.
-                  Confidence: <strong>low</strong>.
+                  ℹ️ Supply quality needs a dynamic operating point: L/min @ bar. Enter flow above to characterise supply.
+                  {input.staticMainsPressureBar == null && <> Drop classification also unavailable without static pressure.</>}
                 </div>
               )}
             </div>
@@ -805,6 +827,21 @@ export default function FullSurveyStepper({ onBack }: Props) {
                   </div>
                 );
               })()}
+
+              {/* Dynamic operating point summary */}
+              <div style={{
+                padding: '0.75rem',
+                background: input.mainsDynamicFlowLpm != null ? '#f0fff4' : '#fffff0',
+                border: `1px solid ${input.mainsDynamicFlowLpm != null ? '#9ae6b4' : '#faf089'}`,
+                borderRadius: '6px',
+                fontSize: '0.82rem',
+              }}>
+                <div style={{ fontWeight: 700, color: '#2d3748', marginBottom: '0.25rem' }}>Dynamic operating point</div>
+                {input.mainsDynamicFlowLpm != null
+                  ? <div style={{ color: '#276749' }}>✓ {input.mainsDynamicFlowLpm.toFixed(1)} L/min @ {(input.dynamicMainsPressureBar ?? input.dynamicMainsPressure ?? 0).toFixed(1)} bar</div>
+                  : <div style={{ color: '#744210' }}>Flow not entered — need L/min @ bar to characterise supply.</div>
+                }
+              </div>
             </div>
           </div>
 
