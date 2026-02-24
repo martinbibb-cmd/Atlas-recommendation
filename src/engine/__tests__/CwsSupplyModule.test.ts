@@ -142,7 +142,7 @@ describe('runCwsSupplyModuleV1', () => {
 
   // ── deliveryMode pumped ──────────────────────────────────────────────────────
 
-  it('deliveryMode pumped → notes mention "Pumped shower" and "not mains"', () => {
+  it('deliveryMode pumped → notes mention "Power shower (pump from tank)" and "not mains"', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({
         dynamicMainsPressure: 1.5,
@@ -150,7 +150,7 @@ describe('runCwsSupplyModuleV1', () => {
         dhwDeliveryMode: 'pumped',
       })
     );
-    expect(result.notes.some(n => n.includes('Pumped shower'))).toBe(true);
+    expect(result.notes.some(n => n.includes('Power shower (pump from tank)'))).toBe(true);
     expect(result.notes.some(n => n.includes('not mains'))).toBe(true);
   });
 
@@ -162,11 +162,11 @@ describe('runCwsSupplyModuleV1', () => {
         dhwDeliveryMode: 'tank_pumped',
       })
     );
-    expect(result.notes.some(n => n.includes('Pumped shower'))).toBe(true);
+    expect(result.notes.some(n => n.includes('Power shower (pump from tank)'))).toBe(true);
     expect(result.notes.some(n => n.includes('not mains'))).toBe(true);
   });
 
-  it('deliveryMode pumped_from_tank → notes mention "Pumped shower" and "not mains"', () => {
+  it('deliveryMode pumped_from_tank → notes mention "Power shower (pump from tank)" and "not mains"', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({
         dynamicMainsPressure: 1.5,
@@ -174,7 +174,7 @@ describe('runCwsSupplyModuleV1', () => {
         dhwDeliveryMode: 'pumped_from_tank',
       })
     );
-    expect(result.notes.some(n => n.includes('Pumped shower'))).toBe(true);
+    expect(result.notes.some(n => n.includes('Power shower (pump from tank)'))).toBe(true);
     expect(result.notes.some(n => n.includes('not mains'))).toBe(true);
   });
 
@@ -205,7 +205,7 @@ describe('runCwsSupplyModuleV1', () => {
 
   // ── deliveryMode accumulator_supported ───────────────────────────────────────
 
-  it('deliveryMode accumulator_supported → notes mention accumulator and mains supply', () => {
+  it('deliveryMode accumulator_supported → notes mention "Cannot increase mains supply", accumulator and mains supply', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({
         dynamicMainsPressure: 2.0,
@@ -213,12 +213,13 @@ describe('runCwsSupplyModuleV1', () => {
         dhwDeliveryMode: 'accumulator_supported',
       })
     );
+    expect(result.notes.some(n => n.includes('Cannot increase mains supply'))).toBe(true);
     expect(result.notes.some(n => n.includes('Accumulator') && n.includes('mains supply'))).toBe(true);
   });
 
   // ── deliveryMode break_tank_booster ──────────────────────────────────────────
 
-  it('deliveryMode break_tank_booster → notes mention break tank and mains refills', () => {
+  it('deliveryMode break_tank_booster → notes mention "Cannot increase mains supply", break tank and mains refills', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({
         dynamicMainsPressure: 2.0,
@@ -226,6 +227,7 @@ describe('runCwsSupplyModuleV1', () => {
         dhwDeliveryMode: 'break_tank_booster',
       })
     );
+    expect(result.notes.some(n => n.includes('Cannot increase mains supply'))).toBe(true);
     expect(result.notes.some(n => n.includes('Break tank') && n.includes('mains only refills'))).toBe(true);
   });
 

@@ -897,6 +897,24 @@ export function buildOptionMatrixV1(
         card.requirements.push(narrative.requirement);
       }
     }
+
+    // ── Inject delivery-mode requirements ─────────────────────────────────
+    // Normalise legacy aliases before checking (matches CwsSupplyModule logic).
+    const rawMode = input.dhwDeliveryMode ?? 'unknown';
+    const deliveryMode =
+      rawMode === 'tank_pumped' || rawMode === 'pumped' ? 'pumped_from_tank' : rawMode;
+
+    if (deliveryMode === 'accumulator_supported') {
+      const req = 'Accumulator vessel required; performance limited to stored volume during peaks.';
+      if (!card.requirements.includes(req)) {
+        card.requirements.push(req);
+      }
+    } else if (deliveryMode === 'break_tank_booster') {
+      const req = 'Break tank + booster set required; space + overflow + controls + install complexity.';
+      if (!card.requirements.includes(req)) {
+        card.requirements.push(req);
+      }
+    }
   }
 
   return cards;
