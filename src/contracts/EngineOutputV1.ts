@@ -86,11 +86,39 @@ export interface OptionCardV1 {
   sensitivities?: SensitivityItem[];
 }
 
+/** DHW event block within a 24-hour timeline. */
+export interface Timeline24hEvent {
+  startMin: number;
+  endMin: number;
+  kind: 'shower' | 'bath' | 'sink' | 'dishwasher' | 'washing_machine';
+  intensity: 'low' | 'med' | 'high';
+}
+
+/** One system's data series within a 24-hour timeline. */
+export interface Timeline24hSeries {
+  id: string;
+  label: string;
+  heatDeliveredKw: number[];
+  efficiency: number[];
+  comfortTempC?: number[];
+  dhwOutletTempC?: number[];
+  dhwFlowLpm?: number[];
+}
+
+/** Payload for the timeline_24h visual type (96 points at 15-min intervals). */
+export interface Timeline24hV1 {
+  timeMinutes: number[];
+  demandHeatKw: number[];
+  series: Timeline24hSeries[];
+  events: Timeline24hEvent[];
+  legendNotes?: string[];
+}
+
 export interface VisualSpecV1 {
   /** Stable identifier for the visual (unique within an output). */
   id: string;
   /** Visual type — drives the UI renderer switch. */
-  type: 'pressure_drop' | 'ashp_flow' | 'dhw_outlets' | 'space_footprint';
+  type: 'pressure_drop' | 'ashp_flow' | 'dhw_outlets' | 'space_footprint' | 'timeline_24h';
   /** Optional display title. */
   title?: string;
   /** Type-specific data payload — consumed by the matching renderer. */

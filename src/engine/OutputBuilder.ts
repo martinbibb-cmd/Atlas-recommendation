@@ -2,6 +2,7 @@ import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInput
 import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem, VisualSpecV1, EvidenceItemV1 } from '../contracts/EngineOutputV1';
 import { ENGINE_VERSION, CONTRACT_VERSION } from '../contracts/versions';
 import { buildOptionMatrixV1 } from './OptionMatrixBuilder';
+import { buildTimeline24hV1 } from './TimelineBuilder';
 
 function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3): EligibilityItem[] {
   const { redFlags, hydraulicV1, combiDhwV1, storedDhwV1 } = result;
@@ -314,7 +315,7 @@ function buildEvidence(result: FullEngineResultCore, input?: EngineInputV2_3): E
 
 // ── Visual specs ──────────────────────────────────────────────────────────────
 
-function buildVisuals(result: FullEngineResultCore): VisualSpecV1[] {
+function buildVisuals(result: FullEngineResultCore, input?: EngineInputV2_3): VisualSpecV1[] {
   const visuals: VisualSpecV1[] = [];
 
   // pressure_drop — static→dynamic arrow + drop classification
@@ -376,6 +377,11 @@ function buildVisuals(result: FullEngineResultCore): VisualSpecV1[] {
     },
     affectsOptionIds: ['stored_vented', 'stored_unvented', 'ashp', 'system_unvented'],
   });
+
+  // timeline_24h — 24-hour A/B comparison timeline (current vs primary recommendation)
+  if (input) {
+    visuals.unshift(buildTimeline24hV1(result, input));
+  }
 
   return visuals;
 }
@@ -482,7 +488,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     contextSummary: contextBullets.length > 0 ? { bullets: contextBullets } : undefined,
     options: input ? buildOptionMatrixV1(result, input) : undefined,
     evidence: buildEvidence(result, input),
-    visuals: buildVisuals(result),
+    visuals: buildVisuals(result, input),
     meta: {
       engineVersion: ENGINE_VERSION,
       contractVersion: CONTRACT_VERSION,
