@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildAssumptionsV1 } from '../AssumptionsBuilder';
+import { ASSUMPTION_IDS } from '../../contracts/assumptions.ids';
 import type { FullEngineResultCore, EngineInputV2_3 } from '../schema/EngineInputV2_3';
 
 /**
@@ -69,8 +70,8 @@ describe('buildAssumptionsV1', () => {
     it('still emits info assumptions for default schedule and τ', () => {
       const { assumptions } = buildAssumptionsV1(coreStub, fullySpecifiedInput);
       const infoIds = assumptions.map(a => a.id);
-      expect(infoIds).toContain('timeline-default-schedule');
-      expect(infoIds).toContain('timeline-tau-from-sliders');
+      expect(infoIds).toContain(ASSUMPTION_IDS.DEFAULT_DHW_SCHEDULE);
+      expect(infoIds).toContain(ASSUMPTION_IDS.TAU_DERIVED_FROM_SLIDERS);
     });
   });
 
@@ -88,7 +89,7 @@ describe('buildAssumptionsV1', () => {
 
     it('emits the boiler-gc-fallback assumption', () => {
       const { assumptions } = buildAssumptionsV1(coreStub, input);
-      const gcAssumption = assumptions.find(a => a.id === 'boiler-gc-fallback');
+      const gcAssumption = assumptions.find(a => a.id === ASSUMPTION_IDS.BOILER_GC_MISSING);
       expect(gcAssumption).toBeDefined();
       expect(gcAssumption!.severity).toBe('warn');
     });
@@ -100,7 +101,7 @@ describe('buildAssumptionsV1', () => {
 
     it('includes improveBy hint on the assumption', () => {
       const { assumptions } = buildAssumptionsV1(coreStub, input);
-      const gcAssumption = assumptions.find(a => a.id === 'boiler-gc-fallback');
+      const gcAssumption = assumptions.find(a => a.id === ASSUMPTION_IDS.BOILER_GC_MISSING);
       expect(gcAssumption!.improveBy).toBeTruthy();
     });
   });
@@ -113,7 +114,7 @@ describe('buildAssumptionsV1', () => {
 
     it('emits the water-flow-at-pressure-missing assumption', () => {
       const { assumptions } = buildAssumptionsV1(coreStub, input);
-      const flowAssumption = assumptions.find(a => a.id === 'water-flow-at-pressure-missing');
+      const flowAssumption = assumptions.find(a => a.id === ASSUMPTION_IDS.MAINS_FLOW_MISSING);
       expect(flowAssumption).toBeDefined();
       expect(flowAssumption!.severity).toBe('warn');
     });
@@ -125,7 +126,7 @@ describe('buildAssumptionsV1', () => {
 
     it('includes improveBy hint', () => {
       const { assumptions } = buildAssumptionsV1(coreStub, input);
-      const a = assumptions.find(a => a.id === 'water-flow-at-pressure-missing');
+      const a = assumptions.find(a => a.id === ASSUMPTION_IDS.MAINS_FLOW_MISSING);
       expect(a!.improveBy).toBeTruthy();
     });
   });
@@ -144,22 +145,22 @@ describe('buildAssumptionsV1', () => {
 
     it('emits boiler-gc-fallback when no currentSystem provided', () => {
       const { assumptions } = buildAssumptionsV1(coreStub, bareMinimumInput);
-      expect(assumptions.some(a => a.id === 'boiler-gc-fallback')).toBe(true);
+      expect(assumptions.some(a => a.id === ASSUMPTION_IDS.BOILER_GC_MISSING)).toBe(true);
     });
 
     it('emits boiler-age-assumed when no age provided', () => {
       const { assumptions } = buildAssumptionsV1(coreStub, bareMinimumInput);
-      expect(assumptions.some(a => a.id === 'boiler-age-assumed')).toBe(true);
+      expect(assumptions.some(a => a.id === ASSUMPTION_IDS.BOILER_AGE_MISSING)).toBe(true);
     });
 
     it('emits boiler-nominal-kw-default when no output kW provided', () => {
       const { assumptions } = buildAssumptionsV1(coreStub, bareMinimumInput);
-      expect(assumptions.some(a => a.id === 'boiler-nominal-kw-default')).toBe(true);
+      expect(assumptions.some(a => a.id === ASSUMPTION_IDS.BOILER_OUTPUT_DEFAULTED)).toBe(true);
     });
 
     it('emits water-flow-at-pressure-missing when no flow provided', () => {
       const { assumptions } = buildAssumptionsV1(coreStub, bareMinimumInput);
-      expect(assumptions.some(a => a.id === 'water-flow-at-pressure-missing')).toBe(true);
+      expect(assumptions.some(a => a.id === ASSUMPTION_IDS.MAINS_FLOW_MISSING)).toBe(true);
     });
   });
 

@@ -1,7 +1,8 @@
 import type { ENGINE_VERSION, CONTRACT_VERSION } from './versions';
+import type { AssumptionId } from './assumptions.ids';
 
 export interface AssumptionV1 {
-  id: string;
+  id: AssumptionId;
   title: string;
   detail: string;
   affects: Array<'timeline_24h' | 'options' | 'recommendation' | 'context'>;
