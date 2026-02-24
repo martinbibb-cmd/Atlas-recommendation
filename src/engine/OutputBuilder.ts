@@ -418,6 +418,11 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
 
     contextBullets.push(result.pressureAnalysis.formattedBullet);
 
+    // CWS supply notes from cwsSupplyV1 — notes are already customer-safe
+    for (const note of result.cwsSupplyV1.notes) {
+      contextBullets.push(note);
+    }
+
     if (currentHeatSourceType) {
       const systemLabels: Record<string, string> = {
         combi: 'Combi boiler',

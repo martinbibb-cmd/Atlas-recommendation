@@ -18,6 +18,7 @@ import { runSpecEdgeModule } from './modules/SpecEdgeModule';
 import { runGridFlexModule } from './modules/GridFlexModule';
 import { runHeatPumpRegimeModuleV1 } from './modules/HeatPumpRegimeModule';
 import { analysePressure } from './modules/PressureModule';
+import { runCwsSupplyModuleV1 } from './modules/CwsSupplyModule';
 import { buildEngineOutputV1 } from './OutputBuilder';
 
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
@@ -80,6 +81,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
 
   const dynamicBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
   const pressureAnalysis = analysePressure(dynamicBar, input.staticMainsPressureBar);
+  const cwsSupplyV1 = runCwsSupplyModuleV1(input);
 
   const core: FullEngineResultCore = {
     hydraulic,
@@ -101,6 +103,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     gridFlex,
     heatPumpRegime,
     pressureAnalysis,
+    cwsSupplyV1,
   };
 
   const engineOutput = buildEngineOutputV1(core, input);
