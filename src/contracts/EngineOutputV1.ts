@@ -1,5 +1,6 @@
 import type { ENGINE_VERSION, CONTRACT_VERSION } from './versions';
 import type { AssumptionId } from './assumptions.ids';
+import type { PenaltyId } from './scoring.penaltyIds';
 
 export interface AssumptionV1 {
   id: AssumptionId;
@@ -88,7 +89,7 @@ export interface SensitivityItem {
 }
 
 export interface ScoreBreakdownItem {
-  id: string;
+  id: PenaltyId;
   label: string;
   penalty: number;
 }
@@ -98,6 +99,8 @@ export interface OptionScoreV1 {
   total: number;
   breakdown: ScoreBreakdownItem[];
   confidencePenalty?: number;
+  /** Engine-provided score band — prevents UI from inventing thresholds. */
+  band?: 'excellent' | 'good' | 'mixed' | 'poor' | 'not_viable';
 }
 
 export interface OptionCardV1 {
