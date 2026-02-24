@@ -114,11 +114,12 @@ function tempTooltipFormatter(v: number | undefined): [string, string] {
 // ─── System Overlay Helpers ───────────────────────────────────────────────────
 
 const OVERLAY_SYSTEMS = [
-  { id: 'combi',           label: 'Combi'         },
-  { id: 'stored',          label: 'Cylinder'      },
-  { id: 'ashp',            label: 'ASHP'          },
-  { id: 'regular_vented',  label: 'Regular'       },
-  { id: 'system_unvented', label: 'Sys+Unvented'  },
+  { id: 'combi',            label: 'Combi'            },
+  { id: 'stored_vented',    label: 'Stored — vented'  },
+  { id: 'stored_unvented',  label: 'Stored — unvented' },
+  { id: 'ashp',             label: 'ASHP'             },
+  { id: 'regular_vented',   label: 'Regular'          },
+  { id: 'system_unvented',  label: 'Sys+Unvented'     },
 ] as const;
 
 const OVERLAY_ROWS: Array<{ id: string; label: string; step: Step }> = [
@@ -160,9 +161,10 @@ function deriveOverlayCell(
 
     case 'water_supply':
       if (system === 'regular_vented') return 'pass'; // gravity-fed, not pressure-sensitive
+      if (system === 'stored_vented') return 'pass';  // tank-fed, not mains pressure-sensitive
       if (system === 'combi') return dynamicBar < 1.0 ? 'fail' : pressRisk;
-      if (system === 'system_unvented') return dynamicBar < 1.5 ? 'warn' : pressRisk;
-      return dynamicBar < 1.0 ? 'warn' : pressRisk; // stored, ashp
+      if (system === 'system_unvented' || system === 'stored_unvented') return dynamicBar < 1.5 ? 'warn' : pressRisk;
+      return dynamicBar < 1.0 ? 'warn' : pressRisk; // ashp
 
     case 'space':
       if (system === 'combi') return 'pass'; // no cylinder needed
@@ -171,7 +173,9 @@ function deriveOverlayCell(
     case 'future_works': {
       const hasPlanned = futureLoft || futureBath;
       if (!hasPlanned) return 'pass';
-      return system === 'combi' ? 'fail' : 'warn';
+      if (system === 'combi') return 'fail';
+      if (system === 'stored_vented' || system === 'regular_vented') return futureLoft ? 'fail' : 'warn';
+      return 'warn';
     }
 
     default: return 'pass';
@@ -1974,7 +1978,7 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
   );
 }
 
-const ELIGIBILITY_ICONS: Record<string, string> = { on_demand: '🔥', stored: '💧', ashp: '🌿' };
+const ELIGIBILITY_ICONS: Record<string, string> = { on_demand: '🔥', stored_vented: '🫙', stored_unvented: '💧', ashp: '🌿' };
 
 // ── Evidence badge colour helpers ─────────────────────────────────────────────
 const BADGE_ALPHA = '22';
@@ -2045,9 +2049,14 @@ function SystemTransitionCard({
       dhw: 'On-demand hot water (no cylinder)',
       circuit: 'Sealed, pressurised heating circuit',
     },
-    stored: {
+    stored_vented: {
+      heat: 'Regular or system boiler',
+      dhw: 'Stored hot water — vented cylinder (gravity-fed)',
+      circuit: 'Open-vented or sealed heating circuit',
+    },
+    stored_unvented: {
       heat: 'System boiler',
-      dhw: 'Unvented cylinder (stored hot water)',
+      dhw: 'Stored hot water — unvented cylinder (mains pressure)',
       circuit: 'Sealed, pressurised heating circuit',
     },
     system_unvented: {

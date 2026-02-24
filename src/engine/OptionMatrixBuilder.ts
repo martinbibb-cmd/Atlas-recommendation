@@ -62,7 +62,7 @@ function buildSensitivities(
     }
   }
 
-  if (optionId === 'stored') {
+  if (optionId === 'stored_vented' || optionId === 'stored_unvented') {
     const recType = storedDhwV1.recommended.type;
     if (input.availableSpace === 'tight') {
       items.push({
@@ -82,6 +82,45 @@ function buildSensitivities(
         lever: 'Cylinder type',
         effect: 'upgrade',
         note: 'Switching to a Mixergy cylinder would resolve the space constraint — Mixergy heats only the top portion, providing equivalent usable hot water in a smaller effective footprint.',
+      });
+    }
+  }
+
+  if (optionId === 'stored_unvented') {
+    if (pressure < 1.0) {
+      items.push({
+        lever: 'Mains pressure',
+        effect: 'upgrade',
+        note: `If mains pressure were boosted to ≥ 1.0 bar (currently ${pressure.toFixed(1)} bar), an unvented cylinder would become viable.`,
+      });
+    } else if (pressure < 1.5) {
+      items.push({
+        lever: 'Mains pressure',
+        effect: 'upgrade',
+        note: `If mains pressure reached ≥ 1.5 bar (currently ${pressure.toFixed(1)} bar), unvented cylinder would move from caution to viable — a boost pump may be sufficient.`,
+      });
+    } else {
+      items.push({
+        lever: 'Mains pressure',
+        effect: 'downgrade',
+        note: `If mains pressure dropped below 1.5 bar, unvented cylinder would require a boost pump. Below 1.0 bar it would be rejected.`,
+      });
+    }
+  }
+
+  if (optionId === 'stored_vented') {
+    const hasFutureLoftConversion = input.futureLoftConversion ?? input.hasLoftConversion ?? false;
+    if (hasFutureLoftConversion) {
+      items.push({
+        lever: 'Loft conversion plan',
+        effect: 'upgrade',
+        note: 'If the loft conversion plan were cancelled, the vented cylinder with loft tank would become feasible again.',
+      });
+    } else {
+      items.push({
+        lever: 'Loft conversion plan',
+        effect: 'downgrade',
+        note: 'Proceeding with a loft conversion would remove the CWS/F&E header tank space, blocking a vented cylinder.',
       });
     }
   }
@@ -137,6 +176,9 @@ export function buildOptionMatrixV1(
   input: EngineInputV2_3,
 ): OptionCardV1[] {
   const cards: OptionCardV1[] = [];
+
+  // ── Shared inputs ────────────────────────────────────────────────────────
+  const hasFutureLoftConversion = input.futureLoftConversion ?? input.hasLoftConversion ?? false;
 
   // ── On Demand (Combi) card ───────────────────────────────────────────────
   const combiRisk = core.combiDhwV1.verdict.combiRisk;
@@ -247,40 +289,45 @@ export function buildOptionMatrixV1(
     sensitivities: buildSensitivities('combi', core, input),
   });
 
-  // ── Stored Cylinder card ─────────────────────────────────────────────────
+  // ── Stored hot water — Vented cylinder card ─────────────────────────────
   const storedRisk = core.storedDhwV1.verdict.storedRisk;
-  const storedRejectedByTopology = (core.redFlags.rejectStored ?? core.redFlags.rejectVented) ?? false;
 
-  let storedStatus: OptionCardV1['status'];
-  if (storedRejectedByTopology) {
-    storedStatus = 'rejected';
-  } else if (storedRisk === 'warn') {
-    storedStatus = 'caution';
+  let storedVentedStatus: OptionCardV1['status'];
+  if (hasFutureLoftConversion) {
+    storedVentedStatus = 'caution';
+  } else if (storedRisk === 'warn' || input.availableSpace === 'tight') {
+    storedVentedStatus = 'caution';
   } else {
-    storedStatus = 'viable';
+    storedVentedStatus = 'viable';
   }
 
-  const storedWhy: string[] = [
+  const storedVentedWhy: string[] = [
     'Solves simultaneity — hot water ready for multiple outlets at once.',
+    'Tank-fed / gravity or pumped capable — does not rely on mains pressure.',
   ];
   for (const f of core.storedDhwV1.flags) {
-    storedWhy.push(`${f.title}: ${f.detail}`);
+    storedVentedWhy.push(`${f.title}: ${f.detail}`);
+  }
+  if (hasFutureLoftConversion) {
+    storedVentedWhy.push('Loft conversion planned — CWS and F&E header tanks may lose their space.');
   }
 
-  const storedRequirements: string[] = [];
   const recType = core.storedDhwV1.recommended.type;
+  const storedVentedRequirements: string[] = [
+    'Loft tanks required (CWS + F&E) unless converting to sealed/unvented.',
+  ];
   if (input.availableSpace === 'tight') {
-    storedRequirements.push('Space is tight — consider Mixergy cylinder (smaller effective footprint).');
+    storedVentedRequirements.push('Space is tight — consider Mixergy cylinder (smaller effective footprint).');
   } else if (input.availableSpace === 'unknown') {
-    storedRequirements.push('Confirm airing-cupboard / utility space for cylinder installation.');
+    storedVentedRequirements.push('Confirm airing-cupboard / utility space for cylinder installation.');
   }
   if (recType === 'mixergy') {
-    storedRequirements.push('Mixergy recommended: stratified heating reduces gas use and effective tank size needed.');
+    storedVentedRequirements.push('Mixergy recommended: stratified heating reduces gas use and effective tank size needed.');
   }
 
   const storedEvidenceIds = core.storedDhwV1.flags.map(f => f.id);
 
-  const storedHeat: OptionPlane = {
+  const storedVentedHeat: OptionPlane = {
     status: 'ok',
     headline: 'Boiler wet-side heating. Identical hydraulic physics to combi and regular boiler.',
     bullets: [
@@ -291,45 +338,46 @@ export function buildOptionMatrixV1(
     evidenceIds: [],
   };
 
-  const storedDhwBullets: string[] = [
+  const storedVentedDhwBullets: string[] = [
     'Stored volume handles simultaneous draw from multiple outlets.',
+    'Gravity-fed pressure — no mains pressure required at cylinder.',
     `Recommended cylinder type: ${recType === 'mixergy' ? 'Mixergy (stratified)' : 'standard indirect'}.`,
   ];
   for (const f of core.storedDhwV1.flags) {
-    storedDhwBullets.push(`${f.title}: ${f.detail}`);
+    storedVentedDhwBullets.push(`${f.title}: ${f.detail}`);
   }
-  const storedDhw: OptionPlane = {
+  const storedVentedDhw: OptionPlane = {
     status: storedRisk === 'warn' ? 'caution' : 'ok',
     headline: storedRisk === 'warn'
       ? 'DHW: caution — space or demand flags require attention.'
       : 'DHW: stored volume suits your demand profile.',
-    bullets: storedDhwBullets,
+    bullets: storedVentedDhwBullets,
     evidenceIds: storedEvidenceIds,
   };
 
-  const storedEngineering: OptionPlane = {
-    status: storedRejectedByTopology ? 'caution' : input.availableSpace === 'tight' ? 'caution' : 'ok',
-    headline: storedRejectedByTopology
-      ? 'Engineering: loft or structural constraints block standard vented installation.'
-      : 'Engineering: cylinder space and gravity/pump requirements.',
+  const storedVentedEngineering: OptionPlane = {
+    status: hasFutureLoftConversion ? 'caution' : input.availableSpace === 'tight' ? 'caution' : 'ok',
+    headline: hasFutureLoftConversion
+      ? 'Engineering: loft conversion conflicts with CWS/F&E header tanks.'
+      : 'Engineering: loft tanks + cylinder space are key constraints.',
     bullets: [
+      hasFutureLoftConversion
+        ? 'Planned loft conversion removes header tank space — switch to sealed unvented system.'
+        : 'Loft headspace required for CWS and F&E header tanks.',
       input.availableSpace === 'tight'
         ? 'Space is tight — Mixergy or slimline cylinder may fit where standard cannot.'
         : input.availableSpace === 'ok'
         ? 'Adequate airing-cupboard or utility space for cylinder.'
         : 'Confirm cylinder space before proceeding.',
       'Indirect cylinder requires primary flow/return connections to boiler.',
-      storedRejectedByTopology
-        ? 'Loft conversion removes header tank space — sealed system (system boiler) required instead.'
-        : 'Loft headspace available for F&E header tank if open-vented system used.',
     ],
     evidenceIds: [],
   };
 
-  const storedTypedReqs: OptionRequirements = {
-    mustHave: storedRejectedByTopology
-      ? ['Loft constraint must be resolved — consider system boiler + unvented cylinder instead.']
-      : ['Confirm cylinder location and space before ordering.'],
+  const storedVentedTypedReqs: OptionRequirements = {
+    mustHave: hasFutureLoftConversion
+      ? ['Loft conflict: switch to sealed system boiler + unvented cylinder instead.']
+      : ['Loft remains accessible for CWS and F&E header tanks.', 'Confirm cylinder location and space before ordering.'],
     likelyUpgrades: recType === 'mixergy'
       ? ['Mixergy cylinder upgrade — stratified heating for reduced gas use and smaller footprint.']
       : input.availableSpace === 'unknown'
@@ -339,22 +387,155 @@ export function buildOptionMatrixV1(
   };
 
   cards.push({
-    id: 'stored',
-    label: 'Stored Cylinder',
-    status: storedStatus,
-    headline: storedStatus === 'viable'
-      ? 'Stored cylinder is a strong fit for your demand profile.'
-      : storedStatus === 'caution'
-      ? 'Stored cylinder viable but check space and cylinder sizing.'
-      : 'Stored cylinder not suitable (check loft / structural constraints).',
-    why: storedWhy,
-    requirements: storedRequirements,
+    id: 'stored_vented',
+    label: 'Stored hot water — Vented cylinder',
+    status: storedVentedStatus,
+    headline: storedVentedStatus === 'viable'
+      ? 'Vented cylinder is a strong fit — no mains pressure dependency.'
+      : storedVentedStatus === 'caution'
+      ? 'Vented cylinder viable but check loft space and cylinder sizing.'
+      : 'Vented cylinder not suitable (loft conversion conflicts with header tanks).',
+    why: storedVentedWhy,
+    requirements: storedVentedRequirements,
     evidenceIds: storedEvidenceIds,
-    heat: storedHeat,
-    dhw: storedDhw,
-    engineering: storedEngineering,
-    typedRequirements: storedTypedReqs,
-    sensitivities: buildSensitivities('stored', core, input),
+    heat: storedVentedHeat,
+    dhw: storedVentedDhw,
+    engineering: storedVentedEngineering,
+    typedRequirements: storedVentedTypedReqs,
+    sensitivities: buildSensitivities('stored_vented', core, input),
+  });
+
+  // ── Stored hot water — Unvented cylinder card ────────────────────────────
+  const { cwsSupplyV1 } = core;
+  const mainsPressure = core.pressureAnalysis.dynamicBar;
+
+  let storedUnventedStatus: OptionCardV1['status'];
+  if (mainsPressure < 1.0) {
+    storedUnventedStatus = 'rejected';
+  } else if (!cwsSupplyV1.hasMeasurements) {
+    storedUnventedStatus = 'caution';
+  } else if (cwsSupplyV1.quality === 'weak') {
+    storedUnventedStatus = 'caution';
+  } else {
+    storedUnventedStatus = 'viable';
+  }
+
+  const storedUnventedWhy: string[] = [
+    'Mains-pressure hot water throughout — no shower pump required.',
+    `Sealed circuit. System boiler typical; regular possible with external pump/expansion.`,
+    `Detected mains pressure: ${mainsPressure.toFixed(1)} bar.`,
+  ];
+  if (mainsPressure < 1.0) {
+    storedUnventedWhy.push('Mains pressure too low for unvented cylinder (< 1.0 bar).');
+  } else if (!cwsSupplyV1.hasMeasurements) {
+    storedUnventedWhy.push('Mains supply not fully characterised — need L/min @ bar measurement.');
+  } else if (cwsSupplyV1.quality === 'weak') {
+    storedUnventedWhy.push('Mains supply is weak — performance may be inadequate for unvented cylinder.');
+  }
+  for (const f of core.storedDhwV1.flags) {
+    storedUnventedWhy.push(`${f.title}: ${f.detail}`);
+  }
+
+  const storedUnventedRequirements: string[] = [
+    'Mains pressure ≥ 1.0 bar required; ≥ 1.5 bar recommended for reliable performance.',
+    'Unvented cylinder requires G3-qualified installer and annual servicing.',
+    'Sealed circuit — no loft tanks required.',
+  ];
+  if (!cwsSupplyV1.hasMeasurements) {
+    storedUnventedRequirements.push('Measure mains flow (L/min) and pressure (bar) before specifying cylinder.');
+  }
+  if (mainsPressure < 1.5 && mainsPressure >= 1.0) {
+    storedUnventedRequirements.push('Pressure boost pump may be required before installation.');
+  }
+  if (recType === 'mixergy') {
+    storedUnventedRequirements.push('Mixergy recommended: stratified heating reduces gas use and effective tank size needed.');
+  }
+
+  const storedUnventedHeat: OptionPlane = {
+    status: 'ok',
+    headline: 'Boiler wet-side heating. Sealed system — no F&E header tank needed.',
+    bullets: [
+      'High flow temperature (60–80°C) — compatible with existing radiators.',
+      'Sealed primary circuit: expansion vessel replaces header tank.',
+      'Suitable for loft conversion properties where open-vented is blocked.',
+    ],
+    evidenceIds: [],
+  };
+
+  const storedUnventedDhwBullets: string[] = [
+    'Stored volume handles simultaneous draw from multiple outlets.',
+    `Mains-pressure DHW: ${mainsPressure.toFixed(1)} bar${mainsPressure < 1.5 ? ' (borderline — min 1.5 bar recommended)' : ' (adequate)'}.`,
+    `Recommended cylinder type: ${recType === 'mixergy' ? 'Mixergy (stratified)' : 'standard indirect'}.`,
+  ];
+  if (!cwsSupplyV1.hasMeasurements) {
+    storedUnventedDhwBullets.push('Mains supply not fully characterised — measure L/min @ bar before specifying.');
+  } else if (cwsSupplyV1.quality === 'weak') {
+    storedUnventedDhwBullets.push('Mains supply is weak — consider pressure boost before cylinder.');
+  }
+  for (const f of core.storedDhwV1.flags) {
+    storedUnventedDhwBullets.push(`${f.title}: ${f.detail}`);
+  }
+  const storedUnventedDhw: OptionPlane = {
+    status: mainsPressure < 1.0 ? 'caution' : (!cwsSupplyV1.hasMeasurements || cwsSupplyV1.quality === 'weak') ? 'caution' : 'ok',
+    headline: mainsPressure < 1.0
+      ? 'DHW: mains pressure too low for unvented cylinder.'
+      : !cwsSupplyV1.hasMeasurements
+      ? 'DHW: mains supply not characterised — need L/min @ bar measurement.'
+      : cwsSupplyV1.quality === 'weak'
+      ? 'DHW: weak mains supply — boost pump likely required.'
+      : 'DHW: mains-pressure stored hot water — good flow at all outlets.',
+    bullets: storedUnventedDhwBullets,
+    evidenceIds: storedEvidenceIds,
+  };
+
+  const storedUnventedEngineering: OptionPlane = {
+    status: mainsPressure < 1.5 ? 'caution' : 'ok',
+    headline: 'Engineering: G3 compliance + discharge route are key constraints.',
+    bullets: [
+      'G3-qualified installer required — regulatory requirement for unvented cylinders.',
+      'Tundish and discharge pipe to external drain required (typically 2× pipe size).',
+      mainsPressure < 1.5
+        ? 'Pressure below 1.5 bar — pressure boost pump likely required before cylinder.'
+        : 'Mains pressure adequate — no boost pump needed.',
+      'Annual service required by regulation: PRV, expansion vessel, tundish check.',
+    ],
+    evidenceIds: [],
+  };
+
+  const storedUnventedTypedReqs: OptionRequirements = {
+    mustHave: [
+      'G3-qualified installer.',
+      'Tundish and discharge pipe routed to external drain.',
+      ...(mainsPressure < 1.0 ? ['Mains pressure must be resolved — too low for unvented cylinder.'] : []),
+      ...(!cwsSupplyV1.hasMeasurements ? ['Measure mains flow (L/min) and pressure (bar) before specifying.'] : []),
+    ],
+    likelyUpgrades: [
+      ...(mainsPressure < 1.5 && mainsPressure >= 1.0 ? ['Pressure boost pump before cylinder inlet.'] : []),
+      'Expansion vessel sized to cylinder volume.',
+    ],
+    niceToHave: [
+      'Mixergy cylinder for stratified DHW and reduced heat-up time.',
+      'Smart immersion control for off-peak electricity pricing.',
+    ],
+  };
+
+  cards.push({
+    id: 'stored_unvented',
+    label: 'Stored hot water — Unvented cylinder',
+    status: storedUnventedStatus,
+    headline: storedUnventedStatus === 'viable'
+      ? 'Unvented cylinder suits your mains pressure and demand.'
+      : storedUnventedStatus === 'caution'
+      ? 'Unvented cylinder possible — confirm mains supply measurements.'
+      : 'Unvented cylinder not suitable — mains pressure too low.',
+    why: storedUnventedWhy,
+    requirements: storedUnventedRequirements,
+    evidenceIds: storedEvidenceIds,
+    heat: storedUnventedHeat,
+    dhw: storedUnventedDhw,
+    engineering: storedUnventedEngineering,
+    typedRequirements: storedUnventedTypedReqs,
+    sensitivities: buildSensitivities('stored_unvented', core, input),
   });
 
   // ── ASHP card ────────────────────────────────────────────────────────────
@@ -497,7 +678,6 @@ export function buildOptionMatrixV1(
   });
 
   // ── Regular Vented / System Unvented (feasibility-only cards) ────────────
-  const hasFutureLoftConversion = input.futureLoftConversion ?? input.hasLoftConversion ?? false;
   const pressure = core.pressureAnalysis.dynamicBar;
   const spaceOk = input.availableSpace === 'ok';
 

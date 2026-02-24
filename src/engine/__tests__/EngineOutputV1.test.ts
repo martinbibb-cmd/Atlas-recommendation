@@ -31,11 +31,12 @@ describe('EngineOutputV1 shape', () => {
     expect(Array.isArray(engineOutput.explainers)).toBe(true);
   });
 
-  it('eligibility always contains on_demand, stored, ashp', () => {
+  it('eligibility always contains on_demand, stored_vented, stored_unvented, ashp', () => {
     const { engineOutput } = runEngine(baseInput);
     const ids = engineOutput.eligibility.map(e => e.id);
     expect(ids).toContain('on_demand');
-    expect(ids).toContain('stored');
+    expect(ids).toContain('stored_vented');
+    expect(ids).toContain('stored_unvented');
     expect(ids).toContain('ashp');
   });
 
@@ -49,10 +50,12 @@ describe('EngineOutputV1 shape', () => {
   it('eligibility labels are stable for a given input', () => {
     const { engineOutput } = runEngine(baseInput);
     const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
-    const stored = engineOutput.eligibility.find(e => e.id === 'stored')!;
+    const storedVented = engineOutput.eligibility.find(e => e.id === 'stored_vented')!;
+    const storedUnvented = engineOutput.eligibility.find(e => e.id === 'stored_unvented')!;
     const ashp = engineOutput.eligibility.find(e => e.id === 'ashp')!;
     expect(onDemand.label).toBe('On Demand (Combi)');
-    expect(stored.label).toBe('Stored Cylinder');
+    expect(storedVented.label).toBe('Stored hot water — Vented cylinder');
+    expect(storedUnvented.label).toBe('Stored hot water — Unvented cylinder');
     expect(ashp.label).toBe('Air Source Heat Pump');
   });
 
@@ -74,10 +77,10 @@ describe('EngineOutputV1 shape', () => {
     expect(onDemand.status).toBe('viable');
   });
 
-  it('stored is rejected when loft conversion present', () => {
+  it('stored_vented is rejected when existing loft conversion present', () => {
     const { engineOutput } = runEngine({ ...baseInput, hasLoftConversion: true });
-    const stored = engineOutput.eligibility.find(e => e.id === 'stored')!;
-    expect(stored.status).toBe('rejected');
+    const storedVented = engineOutput.eligibility.find(e => e.id === 'stored_vented')!;
+    expect(storedVented.status).toBe('rejected');
   });
 
   it('ashp is caution for 22mm pipes with high heat loss', () => {
@@ -232,30 +235,30 @@ describe('EngineOutputV1 shape', () => {
     expect(['pass', 'warn']).toContain(result.storedDhwV1.verdict.storedRisk);
   });
 
-  it('stored is caution when space is tight and high demand (2 bathrooms)', () => {
+  it('stored_vented is caution when space is tight and high demand (2 bathrooms)', () => {
     const { engineOutput } = runEngine({
       ...baseInput,
       availableSpace: 'tight',
       bathroomCount: 2,
     });
-    const stored = engineOutput.eligibility.find(e => e.id === 'stored')!;
-    expect(stored.status).toBe('caution');
+    const storedVented = engineOutput.eligibility.find(e => e.id === 'stored_vented')!;
+    expect(storedVented.status).toBe('caution');
   });
 
-  it('stored is viable when availableSpace is "ok" and low demand', () => {
+  it('stored_vented is viable when availableSpace is "ok" and low demand', () => {
     const { engineOutput } = runEngine({
       ...baseInput,
       availableSpace: 'ok',
       bathroomCount: 1,
     });
-    const stored = engineOutput.eligibility.find(e => e.id === 'stored')!;
-    expect(stored.status).toBe('viable');
+    const storedVented = engineOutput.eligibility.find(e => e.id === 'stored_vented')!;
+    expect(storedVented.status).toBe('viable');
   });
 
-  it('stored is caution when availableSpace is unknown (default)', () => {
+  it('stored_vented is caution when availableSpace is not specified (space unknown)', () => {
     const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 1 });
-    const stored = engineOutput.eligibility.find(e => e.id === 'stored')!;
-    expect(stored.status).toBe('caution');
+    const storedVented = engineOutput.eligibility.find(e => e.id === 'stored_vented')!;
+    expect(storedVented.status).toBe('caution');
   });
 
   it('storedDhwV1 flags are included in engineOutput.redFlags', () => {
@@ -282,14 +285,14 @@ describe('EngineOutputV1 shape', () => {
 
   // ── Recommendation resolver V1 ────────────────────────────────────────────
 
-  it('recommendation primary is "Stored (Cylinder)" when on_demand is rejected (2 bathrooms)', () => {
+  it('recommendation primary is "Stored hot water — unvented cylinder" when on_demand is rejected (2 bathrooms)', () => {
     const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2 });
-    expect(engineOutput.recommendation.primary).toBe('Stored (Cylinder)');
+    expect(engineOutput.recommendation.primary).toBe('Stored hot water — unvented cylinder');
   });
 
-  it('recommendation primary is "Stored (Cylinder)" when pressure lockout fails on_demand', () => {
+  it('recommendation primary is "Stored hot water — unvented cylinder" when pressure lockout fails on_demand', () => {
     const { engineOutput } = runEngine({ ...baseInput, dynamicMainsPressure: 0.5, bathroomCount: 1 });
-    expect(engineOutput.recommendation.primary).toBe('Stored (Cylinder)');
+    expect(engineOutput.recommendation.primary).toBe('Stored hot water — unvented cylinder');
   });
 
   it('recommendation primary is "Air Source Heat Pump" for steady_home with viable ASHP (28mm)', () => {

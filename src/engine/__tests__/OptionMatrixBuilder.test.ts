@@ -19,13 +19,14 @@ const baseInput = {
 };
 
 describe('buildOptionMatrixV1', () => {
-  it('returns all 5 option cards', () => {
+  it('returns all 6 option cards', () => {
     const result = runEngine(baseInput);
     const options = buildOptionMatrixV1(result, baseInput);
-    expect(options).toHaveLength(5);
+    expect(options).toHaveLength(6);
     const ids = options.map(o => o.id);
     expect(ids).toContain('combi');
-    expect(ids).toContain('stored');
+    expect(ids).toContain('stored_vented');
+    expect(ids).toContain('stored_unvented');
     expect(ids).toContain('ashp');
     expect(ids).toContain('regular_vented');
     expect(ids).toContain('system_unvented');
@@ -60,21 +61,21 @@ describe('buildOptionMatrixV1', () => {
     expect(combi.status).toBe('viable');
   });
 
-  it('stored card status matches storedDhwV1 verdict', () => {
-    // tight space + high demand → stored caution
+  it('stored_vented card is caution when space is tight', () => {
+    // tight space → stored_vented caution
     const input = { ...baseInput, availableSpace: 'tight' as const, bathroomCount: 2 };
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
-    const stored = options.find(o => o.id === 'stored')!;
+    const stored = options.find(o => o.id === 'stored_vented')!;
     expect(stored.status).toBe('caution');
   });
 
-  it('stored card is rejected when loft conversion present', () => {
-    const input = { ...baseInput, hasLoftConversion: true };
+  it('stored_vented card is caution when futureLoftConversion is true', () => {
+    const input = { ...baseInput, futureLoftConversion: true };
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
-    const stored = options.find(o => o.id === 'stored')!;
-    expect(stored.status).toBe('rejected');
+    const stored = options.find(o => o.id === 'stored_vented')!;
+    expect(stored.status).toBe('caution');
   });
 
   it('ashp card status matches hydraulicV1 verdict', () => {
@@ -157,11 +158,11 @@ describe('buildOptionMatrixV1', () => {
     }
   });
 
-  it('combi and stored heat planes both describe same boiler wet-side physics', () => {
+  it('combi and stored_vented heat planes both describe same boiler wet-side physics', () => {
     const result = runEngine(baseInput);
     const options = buildOptionMatrixV1(result, baseInput);
     const combi = options.find(o => o.id === 'combi')!;
-    const stored = options.find(o => o.id === 'stored')!;
+    const stored = options.find(o => o.id === 'stored_vented')!;
     // Both should have 'ok' heat status (same wet-side physics)
     expect(combi.heat.status).toBe('ok');
     expect(stored.heat.status).toBe('ok');
@@ -247,7 +248,7 @@ describe('engineOutput.options via runEngine', () => {
   it('engineOutput.options is populated when input is provided', () => {
     const { engineOutput } = runEngine(baseInput);
     expect(Array.isArray(engineOutput.options)).toBe(true);
-    expect(engineOutput.options!.length).toBe(5);
+    expect(engineOutput.options!.length).toBe(6);
   });
 
   it('engineOutput.options statuses are consistent with eligibility', () => {
@@ -288,7 +289,7 @@ describe('engineOutput.options via runEngine', () => {
 });
 
 describe('sensitivities on option cards', () => {
-  it('all 5 option cards have a sensitivities array', () => {
+  it('all 6 option cards have a sensitivities array', () => {
     const result = runEngine(baseInput);
     const options = buildOptionMatrixV1(result, baseInput);
     for (const card of options) {
@@ -361,11 +362,11 @@ describe('sensitivities on option cards', () => {
     expect(outletSensitivity!.effect).toBe('downgrade');
   });
 
-  it('stored sensitivities mention space when space is tight', () => {
+  it('stored_vented sensitivities mention space when space is tight', () => {
     const input = { ...baseInput, availableSpace: 'tight' as const };
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
-    const stored = options.find(o => o.id === 'stored')!;
+    const stored = options.find(o => o.id === 'stored_vented')!;
     const spaceSensitivity = stored.sensitivities?.find(s => s.lever === 'Available space');
     expect(spaceSensitivity).toBeDefined();
     expect(spaceSensitivity!.effect).toBe('upgrade');
@@ -412,5 +413,107 @@ describe('sensitivities on option cards', () => {
     const regular = options.find(o => o.id === 'regular_vented')!;
     const loftSensitivity = regular.sensitivities?.find(s => s.lever === 'Loft conversion plan');
     expect(loftSensitivity!.effect).toBe('downgrade');
+  });
+
+  it('stored_vented sensitivities mention loft conversion plan', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const vented = options.find(o => o.id === 'stored_vented')!;
+    const loftSensitivity = vented.sensitivities?.find(s => s.lever === 'Loft conversion plan');
+    expect(loftSensitivity).toBeDefined();
+    expect(loftSensitivity!.effect).toBe('downgrade');
+  });
+
+  it('stored_unvented sensitivities mention mains pressure', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const unvented = options.find(o => o.id === 'stored_unvented')!;
+    const pressureSensitivity = unvented.sensitivities?.find(s => s.lever === 'Mains pressure');
+    expect(pressureSensitivity).toBeDefined();
+  });
+});
+
+describe('PR4: stored_vented and stored_unvented status logic', () => {
+  it('both stored_vented and stored_unvented cards exist in output', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const ids = options.map(o => o.id);
+    expect(ids).toContain('stored_vented');
+    expect(ids).toContain('stored_unvented');
+    expect(ids).not.toContain('stored');
+  });
+
+  it('stored_unvented is rejected when mains pressure < 1.0 bar', () => {
+    const input = { ...baseInput, dynamicMainsPressure: 0.8 };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const unvented = options.find(o => o.id === 'stored_unvented')!;
+    expect(unvented.status).toBe('rejected');
+  });
+
+  it('stored_unvented is caution when hasMeasurements=false (no flow measurement)', () => {
+    // Without mainsDynamicFlowLpm, cwsSupplyV1.hasMeasurements will be false
+    const input = { ...baseInput, dynamicMainsPressure: 2.0 };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const unvented = options.find(o => o.id === 'stored_unvented')!;
+    // hasMeasurements=false when no flow measurement is given
+    expect(unvented.status).toBe('caution');
+  });
+
+  it('stored_vented is not blocked by missing mains measurements', () => {
+    // stored_vented does not require mains flow/pressure measurements
+    const input = { ...baseInput, dynamicMainsPressure: 2.0 };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const vented = options.find(o => o.id === 'stored_vented')!;
+    // Should be viable (no loft conversion, adequate space, no storedRisk warn)
+    expect(vented.status).toBe('viable');
+  });
+
+  it('stored_vented is caution when futureLoftConversion is true', () => {
+    const input = { ...baseInput, futureLoftConversion: true };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const vented = options.find(o => o.id === 'stored_vented')!;
+    expect(vented.status).toBe('caution');
+  });
+
+  it('stored_vented is caution when availableSpace is tight', () => {
+    const input = { ...baseInput, availableSpace: 'tight' as const };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const vented = options.find(o => o.id === 'stored_vented')!;
+    expect(vented.status).toBe('caution');
+  });
+
+  it('stored_vented label uses correct customer-facing copy', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const vented = options.find(o => o.id === 'stored_vented')!;
+    expect(vented.label).toBe('Stored hot water — Vented cylinder');
+  });
+
+  it('stored_unvented label uses correct customer-facing copy', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const unvented = options.find(o => o.id === 'stored_unvented')!;
+    expect(unvented.label).toBe('Stored hot water — Unvented cylinder');
+  });
+
+  it('stored_unvented requirements mention sealed circuit and system boiler', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const unvented = options.find(o => o.id === 'stored_unvented')!;
+    const allReqs = [...unvented.requirements, ...unvented.typedRequirements.mustHave];
+    expect(allReqs.some(r => r.toLowerCase().includes('sealed') || r.toLowerCase().includes('g3'))).toBe(true);
+  });
+
+  it('stored_vented requirements mention loft tanks', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const vented = options.find(o => o.id === 'stored_vented')!;
+    const allReqs = [...vented.requirements, ...vented.typedRequirements.mustHave];
+    expect(allReqs.some(r => r.toLowerCase().includes('loft'))).toBe(true);
   });
 });
