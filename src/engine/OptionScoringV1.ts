@@ -83,12 +83,15 @@ export function scoreOptionV1(
   // Track whether measurements are missing to avoid double-penalising the same uncertainty (pressure.borderline_unvented).
   let cwsMeasurementsMissing = false;
   if (UNVENTED_OPTION_IDS.has(id)) {
-    if (!cwsSupplyV1.hasMeasurements) {
+    if (cwsSupplyV1.inconsistent) {
+      breakdown.push({ id: PENALTY_IDS.CWS_QUALITY_WEAK, label: 'Pressure readings inconsistent (dynamic > static)', penalty: 12 });
+      score -= 12;
+    } else if (!cwsSupplyV1.hasMeasurements) {
       cwsMeasurementsMissing = true;
       breakdown.push({ id: PENALTY_IDS.CWS_MEASUREMENTS_MISSING, label: 'Mains flow at pressure not measured (−8)', penalty: 8 });
       score -= 8;
-    } else if (cwsSupplyV1.quality === 'weak') {
-      breakdown.push({ id: PENALTY_IDS.CWS_QUALITY_WEAK, label: 'Mains supply quality: weak', penalty: 12 });
+    } else if (!cwsSupplyV1.meetsUnventedRequirement) {
+      breakdown.push({ id: PENALTY_IDS.CWS_QUALITY_WEAK, label: 'Mains supply does not meet unvented requirement', penalty: 12 });
       score -= 12;
     }
   }

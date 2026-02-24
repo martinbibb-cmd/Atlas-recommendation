@@ -414,14 +414,14 @@ export function buildOptionMatrixV1(
   const mainsPressure = core.pressureAnalysis.dynamicBar;
 
   let storedUnventedStatus: OptionCardV1['status'];
-  if (mainsPressure < 1.0) {
-    storedUnventedStatus = 'rejected';
+  if (cwsSupplyV1.inconsistent) {
+    storedUnventedStatus = 'caution';
   } else if (!cwsSupplyV1.hasMeasurements) {
     storedUnventedStatus = 'caution';
-  } else if (cwsSupplyV1.quality === 'weak') {
-    storedUnventedStatus = 'caution';
-  } else {
+  } else if (cwsSupplyV1.meetsUnventedRequirement) {
     storedUnventedStatus = 'viable';
+  } else {
+    storedUnventedStatus = 'caution';
   }
 
   const storedUnventedWhy: string[] = [
@@ -429,19 +429,19 @@ export function buildOptionMatrixV1(
     `Sealed circuit. System boiler typical; regular possible with external pump/expansion.`,
     `Detected mains pressure: ${mainsPressure.toFixed(1)} bar.`,
   ];
-  if (mainsPressure < 1.0) {
-    storedUnventedWhy.push('Mains pressure too low for unvented cylinder (< 1.0 bar).');
+  if (cwsSupplyV1.inconsistent) {
+    storedUnventedWhy.push('Pressure readings inconsistent — recheck static and dynamic measurements.');
   } else if (!cwsSupplyV1.hasMeasurements) {
     storedUnventedWhy.push('Mains supply not fully characterised — need L/min @ bar measurement.');
-  } else if (cwsSupplyV1.quality === 'weak') {
-    storedUnventedWhy.push('Mains supply is weak — performance may be inadequate for unvented cylinder.');
+  } else if (!cwsSupplyV1.meetsUnventedRequirement) {
+    storedUnventedWhy.push('Mains supply does not meet unvented requirement (10 L/min @ 1 bar or 12 L/min @ 0 bar).');
   }
   for (const f of core.storedDhwV1.flags) {
     storedUnventedWhy.push(`${f.title}: ${f.detail}`);
   }
 
   const storedUnventedRequirements: string[] = [
-    'Mains pressure ≥ 1.0 bar required; ≥ 1.5 bar recommended for reliable performance.',
+    'Unvented requirement: ≥ 10 L/min @ ≥ 1.0 bar, or ≥ 12 L/min at gauge zero (flow-cup test).',
     'Unvented cylinder requires G3-qualified installer and annual servicing.',
     'Sealed circuit — no loft tanks required.',
   ];
@@ -471,23 +471,29 @@ export function buildOptionMatrixV1(
     `Mains-pressure DHW: ${mainsPressure.toFixed(1)} bar${mainsPressure < 1.5 ? ' (borderline — min 1.5 bar recommended)' : ' (adequate)'}.`,
     `Recommended cylinder type: ${recType === 'mixergy' ? 'Mixergy (stratified)' : 'standard indirect'}.`,
   ];
-  if (!cwsSupplyV1.hasMeasurements) {
+  if (cwsSupplyV1.inconsistent) {
+    storedUnventedDhwBullets.push('Pressure readings inconsistent — confirm measurements before proceeding.');
+  } else if (!cwsSupplyV1.hasMeasurements) {
     storedUnventedDhwBullets.push('Mains supply not fully characterised — measure L/min @ bar before specifying.');
-  } else if (cwsSupplyV1.quality === 'weak') {
-    storedUnventedDhwBullets.push('Mains supply is weak — consider pressure boost before cylinder.');
+  } else if (!cwsSupplyV1.meetsUnventedRequirement) {
+    storedUnventedDhwBullets.push('Supply does not meet unvented requirement — consider pressure boost or alternative.');
   }
   for (const f of core.storedDhwV1.flags) {
     storedUnventedDhwBullets.push(`${f.title}: ${f.detail}`);
   }
-  const storedUnventedDhw: OptionPlane = {
-    status: mainsPressure < 1.0 ? 'caution' : (!cwsSupplyV1.hasMeasurements || cwsSupplyV1.quality === 'weak') ? 'caution' : 'ok',
-    headline: mainsPressure < 1.0
-      ? 'DHW: mains pressure too low for unvented cylinder.'
+  const cwsIssue = cwsSupplyV1.inconsistent || !cwsSupplyV1.hasMeasurements || !cwsSupplyV1.meetsUnventedRequirement;
+  const storedUnventedDhwStatus: OptionPlane['status'] = cwsIssue ? 'caution' : 'ok';
+  const storedUnventedDhwHeadline =
+    cwsSupplyV1.inconsistent
+      ? 'DHW: pressure readings inconsistent — recheck measurements.'
       : !cwsSupplyV1.hasMeasurements
       ? 'DHW: mains supply not characterised — need L/min @ bar measurement.'
-      : cwsSupplyV1.quality === 'weak'
-      ? 'DHW: weak mains supply — boost pump likely required.'
-      : 'DHW: mains-pressure stored hot water — good flow at all outlets.',
+      : !cwsSupplyV1.meetsUnventedRequirement
+      ? 'DHW: supply does not meet unvented requirement — boost pump likely required.'
+      : 'DHW: mains-pressure stored hot water — good flow at all outlets.';
+  const storedUnventedDhw: OptionPlane = {
+    status: storedUnventedDhwStatus,
+    headline: storedUnventedDhwHeadline,
     bullets: storedUnventedDhwBullets,
     evidenceIds: storedEvidenceIds,
   };

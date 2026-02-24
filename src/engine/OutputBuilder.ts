@@ -67,23 +67,22 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
     reason: storedVentedReason,
   });
 
-  // Stored unvented eligibility: mains pressure gate → caution/rejected based on cwsSupplyV1.
+  // Stored unvented eligibility: flow-based gate using cwsSupplyV1.
   const { cwsSupplyV1, pressureAnalysis } = result;
-  const dynamicBar = pressureAnalysis.dynamicBar;
   let storedUnventedStatus: EligibilityItem['status'];
   let storedUnventedReason: string | undefined;
 
-  if (dynamicBar < 1.0) {
-    storedUnventedStatus = 'rejected';
-    storedUnventedReason = `Mains pressure too low (${dynamicBar.toFixed(1)} bar) — minimum 1.0 bar required.`;
+  if (cwsSupplyV1.inconsistent) {
+    storedUnventedStatus = 'caution';
+    storedUnventedReason = 'Pressure readings inconsistent (dynamic > static) — recheck measurements.';
   } else if (!cwsSupplyV1.hasMeasurements) {
     storedUnventedStatus = 'caution';
     storedUnventedReason = 'Mains supply not characterised — need L/min @ bar measurement.';
-  } else if (cwsSupplyV1.quality === 'weak') {
-    storedUnventedStatus = 'caution';
-    storedUnventedReason = 'Mains supply is weak — boost pump likely required.';
-  } else {
+  } else if (cwsSupplyV1.meetsUnventedRequirement) {
     storedUnventedStatus = 'viable';
+  } else {
+    storedUnventedStatus = 'caution';
+    storedUnventedReason = 'Mains supply does not meet unvented requirement (10 L/min @ 1 bar or 12 L/min @ 0 bar).';
   }
 
   items.push({
@@ -227,7 +226,7 @@ function buildEvidence(result: FullEngineResultCore, input?: EngineInputV2_3): E
       id: 'ev-mains-pressure-drop',
       fieldPath: 'staticMainsPressureBar',
       label: 'Mains pressure drop (static → dynamic)',
-      value: `${pressureAnalysis.dropBar.toFixed(1)} bar drop (${pressureAnalysis.quality ?? 'unknown'})`,
+      value: `${pressureAnalysis.dropBar.toFixed(1)} bar drop`,
       source: 'manual',
       confidence: 'high',
       affectsOptionIds: ['combi', 'system_unvented'],
@@ -332,7 +331,7 @@ function buildVisuals(result: FullEngineResultCore, input?: EngineInputV2_3): Vi
       staticBar: pressureAnalysis.staticBar,
       dynamicBar: pressureAnalysis.dynamicBar,
       dropBar: pressureAnalysis.dropBar,
-      quality: pressureAnalysis.quality,
+      inconsistentReading: pressureAnalysis.inconsistentReading,
     },
     affectsOptionIds: ['combi', 'system_unvented'],
   });

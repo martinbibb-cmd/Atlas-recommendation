@@ -1,28 +1,42 @@
 /**
  * CwsSupplyModule
  *
- * Models the cold-water supply (CWS) as a deterministic (L/min @ bar) dynamic point.
- * A single dynamic-pressure reading is NOT sufficient to characterise supply quality —
- * you need both pressure (bar) AND flow (L/min) to form a meaningful operating point.
+ * Models the cold-water supply (CWS) evidence from available measurements.
+ * Flow-only is valid evidence — pressure is not required for hasMeasurements.
+ * Dynamic pressure of 0 bar is accepted (flow-cup test at gauge zero).
  *
- * Pressure-drop quality (when static is also present):
- *   drop < 0.5 bar  → 'strong'
- *   0.5 ≤ drop < 1.0 → 'moderate'
- *   drop ≥ 1.0 bar  → 'weak'
+ * Hard rule: dynamic must not exceed static + 0.2 bar (INCONSISTENCY_TOLERANCE).
+ *
+ * Unvented eligibility gate: flowLpm ≥ 10 @ dynamicBar ≥ 1.0  OR  flowLpm ≥ 12 @ dynamicBar ≈ 0.
  */
 
 import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
+
+/** Tolerance (bar) for dynamic > static inconsistency check. */
+const INCONSISTENCY_TOLERANCE = 0.2;
+
+/** Unvented requirement: 10 L/min @ ≥ 1.0 bar, or 12 L/min @ ≈ 0 bar (flow-cup). */
+const UNVENTED_FLOW_AT_PRESSURE_LPM = 10;
+const UNVENTED_FLOW_AT_PRESSURE_BAR = 1.0;
+const UNVENTED_FLOW_CUP_LPM = 12;
+const UNVENTED_FLOW_CUP_MAX_BAR = 0.2; // "0 bar" tolerance
 
 export type CwsLimitation = 'none' | 'flow' | 'pressure' | 'unknown';
 
 export interface CwsSupplyV1Result {
   source: 'unknown' | 'mains_true' | 'mains_shared' | 'loft_tank';
+  /** True when flow measurement is present (regardless of pressure). */
   hasMeasurements: boolean;
+  /** True when flow is present AND dynamicBar is defined (including 0). */
+  hasDynOpPoint: boolean;
   dynamic?: { pressureBar?: number; flowLpm?: number };
   static?: { pressureBar?: number };
   dropBar?: number | null;
+  /** True when dynamicBar > staticBar + tolerance — readings are physically inconsistent. */
+  inconsistent: boolean;
+  /** True when the unvented eligibility gate is met (10 L/min @ 1 bar OR 12 L/min @ 0 bar). */
+  meetsUnventedRequirement: boolean;
   limitation: CwsLimitation;
-  quality: 'strong' | 'moderate' | 'weak' | 'unknown';
   notes: string[];
   evidenceIds?: string[];
 }
@@ -61,55 +75,68 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
     notes.push('Electric shower: cold mains only; independent of cylinder temperature.');
   }
 
-  // Case 1: both dynamic pressure AND flow present and both > 0 → meaningful dynamic point
-  if (dynamicFlowLpm !== undefined && dynamicFlowLpm > 0) {
-    const dynamic = { pressureBar: dynamicPressureBar, flowLpm: dynamicFlowLpm };
+  // Inconsistency check: dynamic must not exceed static + tolerance
+  const inconsistent =
+    staticPressureBar !== undefined &&
+    dynamicPressureBar > staticPressureBar + INCONSISTENCY_TOLERANCE;
+
+  if (inconsistent) {
+    notes.unshift('Readings inconsistent (dynamic > static) — likely swapped or measured at different points.');
+  }
+
+  // hasMeasurements: true when flow is present (flow-only is valid evidence)
+  const hasFlow = dynamicFlowLpm !== undefined && dynamicFlowLpm > 0;
+
+  // hasDynOpPoint: true when flow is present (pressure is always defined as a number)
+  const hasDynOpPoint = hasFlow;
+
+  // Case 1: flow present → meaningful measurement
+  if (hasFlow) {
+    const flow = dynamicFlowLpm as number; // narrowed by hasFlow guard
+    const dynamic = { pressureBar: dynamicPressureBar, flowLpm: flow };
     const staticResult = staticPressureBar !== undefined ? { pressureBar: staticPressureBar } : undefined;
 
     let dropBar: number | null = null;
-    let quality: CwsSupplyV1Result['quality'] = 'unknown';
 
-    if (staticPressureBar !== undefined) {
+    if (staticPressureBar !== undefined && !inconsistent) {
       dropBar = staticPressureBar - dynamicPressureBar;
-      if (dropBar < 0) {
-        // Negative drop (dynamic > static) is physically unexpected; treat as unknown.
-        dropBar = 0;
-        quality = 'unknown';
-      } else if (dropBar < 0.5) {
-        quality = 'strong';
-      } else if (dropBar < 1.0) {
-        quality = 'moderate';
-      } else {
-        quality = 'weak';
-      }
     }
 
     notes.push(
-      `Mains supply (dynamic): ${dynamicFlowLpm.toFixed(1)} L/min @ ${dynamicPressureBar.toFixed(1)} bar.`
+      `Mains supply (dynamic): ${flow.toFixed(1)} L/min @ ${dynamicPressureBar.toFixed(1)} bar.`
     );
 
-    if (staticPressureBar !== undefined && dropBar !== null) {
+    if (staticPressureBar !== undefined && !inconsistent && dropBar !== null) {
       notes.push(
         `Pressure: ${staticPressureBar.toFixed(1)} → ${dynamicPressureBar.toFixed(1)} bar ` +
-          `(drop ${dropBar.toFixed(1)} bar: ${quality}).`
+          `(drop ${dropBar.toFixed(1)} bar).`
       );
-    } else {
-      notes.push('Static pressure not measured — pressure-drop quality unknown.');
+    } else if (staticPressureBar === undefined) {
+      notes.push('Static pressure not measured — pressure-drop unknown.');
     }
+
+    // Unvented eligibility gate
+    const meetsUnventedRequirement =
+      !inconsistent && (
+        (flow >= UNVENTED_FLOW_AT_PRESSURE_LPM && dynamicPressureBar >= UNVENTED_FLOW_AT_PRESSURE_BAR) ||
+        (flow >= UNVENTED_FLOW_CUP_LPM && dynamicPressureBar <= UNVENTED_FLOW_CUP_MAX_BAR)
+      );
 
     return {
       source,
       hasMeasurements: true,
+      hasDynOpPoint,
       dynamic,
       static: staticResult,
       dropBar: staticPressureBar !== undefined ? dropBar : null,
+      inconsistent,
+      meetsUnventedRequirement,
       limitation: 'none',
-      quality,
       notes,
     };
   }
 
-  // Case 2: dynamic pressure only (no flow)
+  // Case 2: pressure only (no flow)
   notes.push(
     `Mains supply: ${dynamicPressureBar.toFixed(1)} bar (dynamic only) — add L/min @ bar to judge stability.`
   );
@@ -117,11 +144,13 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
   return {
     source,
     hasMeasurements: false,
+    hasDynOpPoint: false,
     dynamic: { pressureBar: dynamicPressureBar },
     static: staticPressureBar !== undefined ? { pressureBar: staticPressureBar } : undefined,
     dropBar: null,
+    inconsistent,
+    meetsUnventedRequirement: false,
     limitation: 'unknown',
-    quality: 'unknown',
     notes,
   };
 }

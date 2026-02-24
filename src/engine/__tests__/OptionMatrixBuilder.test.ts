@@ -443,12 +443,14 @@ describe('PR4: stored_vented and stored_unvented status logic', () => {
     expect(ids).not.toContain('stored');
   });
 
-  it('stored_unvented is rejected when mains pressure < 1.0 bar', () => {
+  it('stored_unvented is caution when mains pressure < 1.0 bar (no flow measurement — need to confirm with flow test)', () => {
+    // With new flow-based gate: low pressure alone → caution (not rejected), because 12 L/min at 0 bar is valid
     const input = { ...baseInput, dynamicMainsPressure: 0.8 };
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
     const unvented = options.find(o => o.id === 'stored_unvented')!;
-    expect(unvented.status).toBe('rejected');
+    // No flow measurement → hasMeasurements false → caution
+    expect(unvented.status).toBe('caution');
   });
 
   it('stored_unvented is caution when hasMeasurements=false (no flow measurement)', () => {
