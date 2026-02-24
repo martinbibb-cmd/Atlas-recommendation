@@ -231,4 +231,130 @@ describe('TimelineBuilder', () => {
     const bullets = engineOutput.contextSummary?.bullets ?? [];
     expect(bullets.some(b => b.includes('SEDBUK'))).toBe(false);
   });
+
+  // ── lifestyleProfileV1 → input-driven DHW events ─────────────────────────
+
+  it('lifestyleProfileV1 with morning peak generates a shower event around 07:00', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: true,
+        eveningPeakEnabled: false,
+        hasBath: false,
+        hasDishwasher: false,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const { engineOutput } = runEngine(input);
+    const timeline = engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const events = timeline!.data.events as Array<{ startMin: number; kind: string }>;
+    const morningShower = events.find(e => e.kind === 'shower' && e.startMin >= 400 && e.startMin <= 450);
+    expect(morningShower).toBeDefined();
+  });
+
+  it('lifestyleProfileV1 with hasBath generates a bath event (not shower)', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: true,
+        eveningPeakEnabled: true,
+        hasBath: true,
+        hasDishwasher: false,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const { engineOutput } = runEngine(input);
+    const timeline = engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const events = timeline!.data.events as Array<{ kind: string }>;
+    expect(events.some(e => e.kind === 'bath')).toBe(true);
+  });
+
+  it('lifestyleProfileV1 with hasDishwasher adds a dishwasher event', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: false,
+        eveningPeakEnabled: true,
+        hasBath: false,
+        hasDishwasher: true,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const { engineOutput } = runEngine(input);
+    const timeline = engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const events = timeline!.data.events as Array<{ kind: string }>;
+    expect(events.some(e => e.kind === 'dishwasher')).toBe(true);
+  });
+
+  it('lifestyleProfileV1 with twoSimultaneousBathrooms generates two temporally overlapping events at morning peak', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: true,
+        eveningPeakEnabled: false,
+        hasBath: false,
+        hasDishwasher: false,
+        twoSimultaneousBathrooms: true,
+      },
+    };
+    const { engineOutput } = runEngine(input);
+    const timeline = engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const events = timeline!.data.events as Array<{ startMin: number; endMin: number; kind: string }>;
+    const morningEvents = events.filter(e => e.startMin >= 400 && e.startMin <= 460);
+    expect(morningEvents.length).toBeGreaterThanOrEqual(2);
+    // Verify the two morning events actually overlap in time
+    const [first, second] = morningEvents;
+    const overlap = first.startMin < second.endMin && second.startMin < first.endMin;
+    expect(overlap).toBe(true);
+  });
+
+  it('lifestyleProfileV1 with no peaks generates no events', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: false,
+        eveningPeakEnabled: false,
+        hasBath: false,
+        hasDishwasher: false,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const { engineOutput } = runEngine(input);
+    const timeline = engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    expect(timeline!.data.events).toHaveLength(0);
+  });
+
+  it('timeline legend includes confidence badge note', () => {
+    const result = runEngine(baseInput);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const legend: string[] = timeline!.data.legendNotes ?? [];
+    const hasConfidenceNote = legend.some(
+      (n: string) => n.includes('confidence') || n.includes('Confidence'),
+    );
+    expect(hasConfidenceNote).toBe(true);
+  });
+
+  it('timeline legend mentions lifestyle profile when lifestyleProfileV1 is provided', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: true,
+        eveningPeakEnabled: true,
+        hasBath: false,
+        hasDishwasher: true,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const result = runEngine(input);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const legend: string[] = timeline!.data.legendNotes ?? [];
+    expect(legend.some((n: string) => n.includes('lifestyle profile'))).toBe(true);
+  });
+
+  it('timeline legend mentions defaults when no lifestyleProfileV1 is provided', () => {
+    const result = runEngine(baseInput);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const legend: string[] = timeline!.data.legendNotes ?? [];
+    expect(legend.some((n: string) => n.includes('defaults'))).toBe(true);
+  });
 });

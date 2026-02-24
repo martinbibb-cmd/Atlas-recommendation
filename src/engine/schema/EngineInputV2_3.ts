@@ -41,8 +41,11 @@ export interface EngineInputV2_3 {
   mainsDynamicFlowLpm?: number;
   /** Cold-water supply source. Defaults to 'unknown'. */
   coldWaterSource?: 'unknown' | 'mains_true' | 'mains_shared' | 'loft_tank';
-  /** DHW delivery mode — affects CWS supply notes. */
-  dhwDeliveryMode?: 'unknown' | 'gravity' | 'pumped' | 'mains_mixer' | 'mains_mixer_boosted' | 'electric_cold_only';
+  /** DHW delivery mode — affects CWS supply notes.
+   * Standardised modes: gravity / tank_pumped / mains_mixer / mains_mixer_boosted / electric_cold_only.
+   * 'pumped' is accepted as a legacy alias for 'tank_pumped'.
+   */
+  dhwDeliveryMode?: 'unknown' | 'gravity' | 'tank_pumped' | 'pumped' | 'mains_mixer' | 'mains_mixer_boosted' | 'electric_cold_only';
 
   // Building
   buildingMass: BuildingMass;
@@ -139,6 +142,23 @@ export interface EngineInputV2_3 {
   engineConfig?: {
     /** Explicit pair of system IDs for the 24-hour comparative timeline. Defaults to ['current', primary recommendation]. */
     timelinePair?: [string, string];
+  };
+
+  /**
+   * Optional lifestyle profile — drives DHW event generation in the 24-hour timeline.
+   * When present, the timeline uses input-derived events instead of the default template.
+   */
+  lifestyleProfileV1?: {
+    /** Whether there is a morning shower/bath peak (roughly 06:00–09:00). */
+    morningPeakEnabled: boolean;
+    /** Whether there is an evening shower/bath peak (roughly 18:00–22:00). */
+    eveningPeakEnabled: boolean;
+    /** Whether a bath is taken (adds a higher-intensity DHW event vs shower-only). */
+    hasBath: boolean;
+    /** Whether a dishwasher is run (adds a low-intensity DHW event in the evening). */
+    hasDishwasher: boolean;
+    /** Whether two bathrooms are in use simultaneously — also feeds combi gate. */
+    twoSimultaneousBathrooms: boolean;
   };
 }
 

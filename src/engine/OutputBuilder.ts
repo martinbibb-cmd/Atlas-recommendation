@@ -146,11 +146,11 @@ function buildExplainers(result: FullEngineResultCore): ExplainerItem[] {
     const { ashp, boiler } = result.hydraulicV1;
     items.push({
       id: 'hydraulic-ashp-flow',
-      title: 'ASHP Requires ~4× Boiler Flow Rate',
+      title: 'Heat pump primary circuit flow requirement',
       body: `Heat pumps operate at ΔT ${ashp.deltaT}°C versus ΔT ${boiler.deltaT}°C for a boiler, ` +
-        `requiring ${ashp.flowLpm.toFixed(1)} L/min — ` +
-        `approximately ${(ashp.flowLpm / boiler.flowLpm).toFixed(1)}× the boiler demand of ` +
-        `${boiler.flowLpm.toFixed(1)} L/min. Primary pipework smaller than 28mm may clip ` +
+        `requiring a primary circuit flow of ${ashp.flowLpm.toFixed(1)} L/min — ` +
+        `approximately ${(ashp.flowLpm / boiler.flowLpm).toFixed(1)}× the boiler primary circuit requirement of ` +
+        `${boiler.flowLpm.toFixed(1)} L/min. Primary pipework smaller than 28mm may restrict ` +
         `heat pump performance, cause pipe erosion, and increase noise.`,
     });
   }
@@ -337,17 +337,22 @@ function buildVisuals(result: FullEngineResultCore, input?: EngineInputV2_3): Vi
     affectsOptionIds: ['combi', 'system_unvented'],
   });
 
-  // ashp_flow — boiler flow vs ASHP flow multiplier
+  // ashp_flow — system flow requirement at design ΔT: boiler vs heat pump
   const { hydraulicV1 } = result;
   visuals.push({
     id: 'ashp_flow',
     type: 'ashp_flow',
-    title: 'ASHP vs Boiler Flow Rate',
+    title: 'System flow requirement at design ΔT',
     data: {
       boilerFlowLpm: hydraulicV1.boiler.flowLpm,
       ashpFlowLpm: hydraulicV1.ashp.flowLpm,
       multiplier: Number((hydraulicV1.ashp.flowLpm / hydraulicV1.boiler.flowLpm).toFixed(1)),
       ashpRisk: hydraulicV1.verdict.ashpRisk,
+      /** Human-readable labels for the two flow points. */
+      labels: {
+        boiler: 'Primary circuit flow requirement (boiler ΔT 20°C)',
+        ashp: 'Primary circuit flow requirement (heat pump ΔT 5°C)',
+      },
     },
     affectsOptionIds: ['ashp'],
   });

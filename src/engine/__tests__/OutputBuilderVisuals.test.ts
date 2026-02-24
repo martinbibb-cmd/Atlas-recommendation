@@ -52,6 +52,19 @@ describe('OutputBuilder visuals', () => {
     expect(typeof visual!.data.multiplier).toBe('number');
   });
 
+  it('ashp_flow visual title is "System flow requirement at design ΔT"', () => {
+    const { engineOutput } = runEngine(baseInput);
+    const visual = engineOutput.visuals?.find(v => v.type === 'ashp_flow');
+    expect(visual!.title).toBe('System flow requirement at design ΔT');
+  });
+
+  it('ashp_flow visual labels include "Primary circuit flow requirement" for both boiler and ASHP', () => {
+    const { engineOutput } = runEngine(baseInput);
+    const visual = engineOutput.visuals?.find(v => v.type === 'ashp_flow');
+    expect(visual!.data.labels?.boiler).toContain('Primary circuit flow requirement');
+    expect(visual!.data.labels?.ashp).toContain('Primary circuit flow requirement');
+  });
+
   it('ashp_flow visual multiplier is ≈ 4 (ASHP ΔT 5°C vs boiler ΔT 20°C)', () => {
     const { engineOutput } = runEngine(baseInput);
     const visual = engineOutput.visuals?.find(v => v.type === 'ashp_flow');

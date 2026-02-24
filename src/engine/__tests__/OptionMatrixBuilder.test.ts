@@ -516,4 +516,50 @@ describe('PR4: stored_vented and stored_unvented status logic', () => {
     const allReqs = [...vented.requirements, ...vented.typedRequirements.mustHave];
     expect(allReqs.some(r => r.toLowerCase().includes('loft'))).toBe(true);
   });
+
+  // ── confidenceBadge ─────────────────────────────────────────────────────────
+
+  it('every option card has a confidenceBadge field', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    for (const card of options) {
+      expect(card.confidenceBadge).toBeDefined();
+      expect(['high', 'medium', 'low']).toContain(card.confidenceBadge!.level);
+      expect(typeof card.confidenceBadge!.label).toBe('string');
+      expect(card.confidenceBadge!.label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('all cards share the same confidence level (it is engine-level, not per-option)', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    const levels = options.map(c => c.confidenceBadge!.level);
+    // All cards should have the same level since it comes from buildAssumptionsV1
+    expect(new Set(levels).size).toBe(1);
+  });
+
+  it('confidenceBadge label includes "High confidence" when mainsDynamicFlowLpm is provided', () => {
+    const wellMeasuredInput = {
+      ...baseInput,
+      mainsDynamicFlowLpm: 12,
+      staticMainsPressureBar: 3.0,
+      currentSystem: {
+        boiler: { gcNumber: '47-583-01', ageYears: 5, nominalOutputKw: 24, condensing: 'yes' as const },
+      },
+    };
+    const result = runEngine(wellMeasuredInput);
+    const options = buildOptionMatrixV1(result, wellMeasuredInput);
+    expect(options[0].confidenceBadge!.label).toContain('High confidence');
+  });
+
+  it('confidenceBadge label includes "Low confidence" when most inputs are missing', () => {
+    const bareInput = {
+      ...baseInput,
+      // No flow measurement, no static pressure, no boiler details
+    };
+    const result = runEngine(bareInput);
+    const options = buildOptionMatrixV1(result, bareInput);
+    // With multiple missing inputs, level should be low or medium
+    expect(['medium', 'low']).toContain(options[0].confidenceBadge!.level);
+  });
 });

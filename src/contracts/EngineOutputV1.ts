@@ -108,6 +108,15 @@ export interface OptionCardV1 {
   label: string;
   status: 'viable' | 'caution' | 'rejected';
   headline: string;
+  /**
+   * Confidence badge shown at the top of the option card — not buried in an evidence table.
+   * Engine-owned: prevents UI from inventing its own confidence thresholds.
+   */
+  confidenceBadge?: {
+    level: 'high' | 'medium' | 'low';
+    /** One-line label for display, e.g. "High confidence (measured)". */
+    label: string;
+  };
   why: string[];
   /** @deprecated Use requirements.mustHave / likelyUpgrades / niceToHave instead. */
   requirements: string[];

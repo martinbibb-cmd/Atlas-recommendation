@@ -67,11 +67,42 @@ describe('buildAssumptionsV1', () => {
       expect(warnAssumptions).toHaveLength(0);
     });
 
-    it('still emits info assumptions for default schedule and τ', () => {
+    it('still emits info assumptions for default schedule (when no lifestyleProfileV1) and τ', () => {
       const { assumptions } = buildAssumptionsV1(coreStub, fullySpecifiedInput);
       const infoIds = assumptions.map(a => a.id);
       expect(infoIds).toContain(ASSUMPTION_IDS.DEFAULT_DHW_SCHEDULE);
       expect(infoIds).toContain(ASSUMPTION_IDS.TAU_DERIVED_FROM_SLIDERS);
+    });
+
+    it('does NOT emit default-schedule assumption when lifestyleProfileV1 is provided', () => {
+      const inputWithProfile: EngineInputV2_3 = {
+        ...fullySpecifiedInput,
+        lifestyleProfileV1: {
+          morningPeakEnabled: true,
+          eveningPeakEnabled: true,
+          hasBath: false,
+          hasDishwasher: true,
+          twoSimultaneousBathrooms: false,
+        },
+      };
+      const { assumptions } = buildAssumptionsV1(coreStub, inputWithProfile);
+      const ids = assumptions.map(a => a.id);
+      expect(ids).not.toContain(ASSUMPTION_IDS.DEFAULT_DHW_SCHEDULE);
+    });
+
+    it('confidence reasons mention lifestyle profile when lifestyleProfileV1 is provided', () => {
+      const inputWithProfile: EngineInputV2_3 = {
+        ...fullySpecifiedInput,
+        lifestyleProfileV1: {
+          morningPeakEnabled: true,
+          eveningPeakEnabled: true,
+          hasBath: false,
+          hasDishwasher: true,
+          twoSimultaneousBathrooms: false,
+        },
+      };
+      const { confidence } = buildAssumptionsV1(coreStub, inputWithProfile);
+      expect(confidence.reasons.some(r => r.includes('lifestyle profile'))).toBe(true);
     });
   });
 

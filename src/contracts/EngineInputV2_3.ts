@@ -17,8 +17,11 @@ export interface EngineInputV2_3Contract {
   dhw: {
     /** DHW heating architecture. */
     architecture: 'on_demand' | 'stored_standard' | 'stored_mixergy' | 'unknown';
-    /** DHW delivery mode — affects which notes are relevant. */
-    deliveryMode?: 'unknown' | 'gravity' | 'pumped' | 'mains_mixer' | 'mains_mixer_boosted' | 'electric_cold_only';
+    /** DHW delivery mode — affects which notes are relevant.
+     * Standardised modes: gravity / tank_pumped / mains_mixer / mains_mixer_boosted / electric_cold_only.
+     * 'pumped' is accepted as a legacy alias for 'tank_pumped'.
+     */
+    deliveryMode?: 'unknown' | 'gravity' | 'tank_pumped' | 'pumped' | 'mains_mixer' | 'mains_mixer_boosted' | 'electric_cold_only';
   };
   services?: {
     /** Static mains pressure (bar) — measured with no flow. */

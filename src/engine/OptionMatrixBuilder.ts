@@ -866,8 +866,22 @@ export function buildOptionMatrixV1(
 
   // ── Score all option cards ────────────────────────────────────────────────
   const { confidence, assumptions } = buildAssumptionsV1(core, input);
+
+  // Derive the confidence badge label from the engine-level confidence level
+  const confidenceBadgeLabel: Record<'high' | 'medium' | 'low', string> = {
+    high:   'High confidence (measured)',
+    medium: 'Medium confidence (assumed mains stability)',
+    low:    'Low confidence (no flow test)',
+  };
+
   for (const card of cards) {
     card.score = scoreOptionV1(core, input, card, confidence, assumptions);
+
+    // ── Confidence badge — shown at top of every option card ──────────────
+    card.confidenceBadge = {
+      level: confidence.level,
+      label: confidenceBadgeLabel[confidence.level],
+    };
 
     // ── Inject penalty narratives into why / requirements ─────────────────
     // Select top N=3 penalties by value, with at most one per group, to
