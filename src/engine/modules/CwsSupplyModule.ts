@@ -61,8 +61,8 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
     notes.push('Electric shower: cold mains only; independent of cylinder temperature.');
   }
 
-  // Case 1: both dynamic pressure AND flow present → meaningful dynamic point
-  if (dynamicFlowLpm !== undefined) {
+  // Case 1: both dynamic pressure AND flow present and both > 0 → meaningful dynamic point
+  if (dynamicFlowLpm !== undefined && dynamicFlowLpm > 0) {
     const dynamic = { pressureBar: dynamicPressureBar, flowLpm: dynamicFlowLpm };
     const staticResult = staticPressureBar !== undefined ? { pressureBar: staticPressureBar } : undefined;
 
