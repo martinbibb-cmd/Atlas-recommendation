@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildOptionMatrixV1 } from '../OptionMatrixBuilder';
 import { runEngine } from '../Engine';
+import { PENALTY_IDS } from '../../contracts/scoring.penaltyIds';
 
 const baseInput = {
   postcode: 'SW1A 1AA',
@@ -47,7 +48,7 @@ describe('OptionScoringV1 — rejected option scores 0', () => {
     const combi = options.find(o => o.id === 'combi')!;
     expect(combi.status).toBe('rejected');
     expect(combi.score!.total).toBe(0);
-    expect(combi.score!.breakdown[0].id).toBe('rejected');
+    expect(combi.score!.breakdown[0].id).toBe(PENALTY_IDS.OPTION_REJECTED);
   });
 
   it('rejected ASHP (22mm + 14kW) → score 0', () => {
@@ -57,7 +58,7 @@ describe('OptionScoringV1 — rejected option scores 0', () => {
     const ashp = options.find(o => o.id === 'ashp')!;
     expect(ashp.status).toBe('rejected');
     expect(ashp.score!.total).toBe(0);
-    expect(ashp.score!.breakdown[0].id).toBe('rejected');
+    expect(ashp.score!.breakdown[0].id).toBe(PENALTY_IDS.OPTION_REJECTED);
   });
 
   it('rejected system_unvented (pressure < 1.0 bar) → score 0', () => {
@@ -78,7 +79,7 @@ describe('OptionScoringV1 — caution reduces score', () => {
     const stored = options.find(o => o.id === 'stored_vented')!;
     expect(stored.status).toBe('caution');
     // caution base penalty: -10
-    const cautionItem = stored.score!.breakdown.find(b => b.id === 'status_caution');
+    const cautionItem = stored.score!.breakdown.find(b => b.id === PENALTY_IDS.STATUS_CAUTION);
     expect(cautionItem).toBeDefined();
     expect(cautionItem!.penalty).toBe(10);
     expect(stored.score!.total).toBeLessThan(100);
@@ -101,7 +102,7 @@ describe('OptionScoringV1 — missing mains flow measurement reduces unvented sc
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
     const unvented = options.find(o => o.id === 'stored_unvented')!;
-    const noMeasItem = unvented.score!.breakdown.find(b => b.id === 'cws_no_measurements');
+    const noMeasItem = unvented.score!.breakdown.find(b => b.id === PENALTY_IDS.CWS_MEASUREMENTS_MISSING);
     expect(noMeasItem).toBeDefined();
     expect(noMeasItem!.penalty).toBe(8);
   });
@@ -111,7 +112,7 @@ describe('OptionScoringV1 — missing mains flow measurement reduces unvented sc
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
     const sysUnvented = options.find(o => o.id === 'system_unvented')!;
-    const noMeasItem = sysUnvented.score!.breakdown.find(b => b.id === 'cws_no_measurements');
+    const noMeasItem = sysUnvented.score!.breakdown.find(b => b.id === PENALTY_IDS.CWS_MEASUREMENTS_MISSING);
     expect(noMeasItem).toBeDefined();
     expect(noMeasItem!.penalty).toBe(8);
   });
@@ -122,8 +123,8 @@ describe('OptionScoringV1 — missing mains flow measurement reduces unvented sc
     const options = buildOptionMatrixV1(result, input);
     const vented = options.find(o => o.id === 'stored_vented')!;
     const combi = options.find(o => o.id === 'combi')!;
-    expect(vented.score!.breakdown.find(b => b.id === 'cws_no_measurements')).toBeUndefined();
-    expect(combi.score!.breakdown.find(b => b.id === 'cws_no_measurements')).toBeUndefined();
+    expect(vented.score!.breakdown.find(b => b.id === PENALTY_IDS.CWS_MEASUREMENTS_MISSING)).toBeUndefined();
+    expect(combi.score!.breakdown.find(b => b.id === PENALTY_IDS.CWS_MEASUREMENTS_MISSING)).toBeUndefined();
   });
 });
 
@@ -137,7 +138,7 @@ describe('OptionScoringV1 — ASHP hydraulic warn reduces ASHP score', () => {
     // ashpRisk should be 'warn' and card should be 'caution'
     expect(result.hydraulicV1.verdict.ashpRisk).toBe('warn');
     expect(ashp.status).toBe('caution');
-    const warnItem = ashp.score!.breakdown.find(b => b.id === 'ashp_hydraulic_warn');
+    const warnItem = ashp.score!.breakdown.find(b => b.id === PENALTY_IDS.ASHP_HYDRAULICS_WARN);
     expect(warnItem).toBeDefined();
     expect(warnItem!.penalty).toBe(12);
   });
@@ -148,7 +149,7 @@ describe('OptionScoringV1 — ASHP hydraulic warn reduces ASHP score', () => {
     const options = buildOptionMatrixV1(result, input);
     const ashp = options.find(o => o.id === 'ashp')!;
     expect(result.hydraulicV1.verdict.ashpRisk).toBe('pass');
-    expect(ashp.score!.breakdown.find(b => b.id === 'ashp_hydraulic_warn')).toBeUndefined();
+    expect(ashp.score!.breakdown.find(b => b.id === PENALTY_IDS.ASHP_HYDRAULICS_WARN)).toBeUndefined();
   });
 });
 
@@ -171,7 +172,7 @@ describe('OptionScoringV1 — aggressive boiler oversize reduces boiler option s
     // sizingV1 should be populated since currentSystem.boiler is provided
     if (result.sizingV1) {
       expect(result.sizingV1.sizingBand).toBe('aggressive');
-      const oversizeItem = combi.score!.breakdown.find(b => b.id === 'oversize_aggressive');
+      const oversizeItem = combi.score!.breakdown.find(b => b.id === PENALTY_IDS.BOILER_OVERSIZE_AGGRESSIVE);
       expect(oversizeItem).toBeDefined();
       expect(oversizeItem!.penalty).toBe(12);
       expect(combi.score!.total).toBeLessThanOrEqual(100 - 12);
@@ -195,7 +196,7 @@ describe('OptionScoringV1 — aggressive boiler oversize reduces boiler option s
     const storedVented = options.find(o => o.id === 'stored_vented')!;
     expect(result.sizingV1).toBeDefined();
     expect(result.sizingV1!.sizingBand).toBe('mild_oversize');
-    const oversizeItem = storedVented.score!.breakdown.find(b => b.id === 'oversize_mild');
+    const oversizeItem = storedVented.score!.breakdown.find(b => b.id === PENALTY_IDS.BOILER_OVERSIZE_MILD);
     expect(oversizeItem).toBeDefined();
     expect(oversizeItem!.penalty).toBe(4);
   });
@@ -215,7 +216,11 @@ describe('OptionScoringV1 — aggressive boiler oversize reduces boiler option s
     const options = buildOptionMatrixV1(result, input);
     const ashp = options.find(o => o.id === 'ashp')!;
     // ASHP is not boiler-based — oversize band should not appear
-    const oversizeItem = ashp.score!.breakdown.find(b => b.id.startsWith('oversize_'));
+    const oversizeItem = ashp.score!.breakdown.find(b =>
+      b.id === PENALTY_IDS.BOILER_OVERSIZE_MILD ||
+      b.id === PENALTY_IDS.BOILER_OVERSIZE_MODERATE ||
+      b.id === PENALTY_IDS.BOILER_OVERSIZE_AGGRESSIVE
+    );
     expect(oversizeItem).toBeUndefined();
   });
 });
@@ -247,9 +252,13 @@ describe('OptionScoringV1 — low confidence reduces all option scores consisten
     for (const card of options) {
       if (card.status !== 'rejected') {
         expect(card.score!.confidencePenalty).toBeGreaterThan(0);
-        // Confidence penalty should appear in breakdown
-        const confItem = card.score!.breakdown.find(b => b.id === 'confidence_penalty');
-        expect(confItem).toBeDefined();
+        // Confidence penalty should appear in breakdown as separate items
+        const hasConfidenceItem = card.score!.breakdown.some(
+          b => b.id === PENALTY_IDS.CONFIDENCE_MEDIUM ||
+               b.id === PENALTY_IDS.CONFIDENCE_LOW ||
+               b.id === PENALTY_IDS.ASSUMPTION_WARN_COUNT
+        );
+        expect(hasConfidenceItem).toBe(true);
       }
     }
   });
@@ -273,7 +282,7 @@ describe('OptionScoringV1 — space and loft penalties', () => {
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
     const vented = options.find(o => o.id === 'stored_vented')!;
-    const spaceItem = vented.score!.breakdown.find(b => b.id === 'space_tight');
+    const spaceItem = vented.score!.breakdown.find(b => b.id === PENALTY_IDS.SPACE_TIGHT);
     expect(spaceItem).toBeDefined();
     expect(spaceItem!.penalty).toBe(8);
   });
@@ -284,7 +293,7 @@ describe('OptionScoringV1 — space and loft penalties', () => {
     const options = buildOptionMatrixV1(result, input);
     const ashp = options.find(o => o.id === 'ashp')!;
     if (ashp.status !== 'rejected') {
-      const spaceItem = ashp.score!.breakdown.find(b => b.id === 'space_tight');
+      const spaceItem = ashp.score!.breakdown.find(b => b.id === PENALTY_IDS.SPACE_TIGHT);
       expect(spaceItem).toBeDefined();
       expect(spaceItem!.penalty).toBe(8);
     }
@@ -295,7 +304,7 @@ describe('OptionScoringV1 — space and loft penalties', () => {
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
     const vented = options.find(o => o.id === 'stored_vented')!;
-    const loftItem = vented.score!.breakdown.find(b => b.id === 'loft_conversion_risk');
+    const loftItem = vented.score!.breakdown.find(b => b.id === PENALTY_IDS.FUTURE_LOFT_CONFLICT);
     expect(loftItem).toBeDefined();
     expect(loftItem!.penalty).toBe(12);
   });
@@ -310,7 +319,7 @@ describe('OptionScoringV1 — space and loft penalties', () => {
     if (regular.status === 'rejected') {
       expect(regular.score!.total).toBe(0);
     } else {
-      const loftItem = regular.score!.breakdown.find(b => b.id === 'loft_conversion_risk');
+      const loftItem = regular.score!.breakdown.find(b => b.id === PENALTY_IDS.FUTURE_LOFT_CONFLICT);
       expect(loftItem).toBeDefined();
     }
   });
@@ -319,7 +328,7 @@ describe('OptionScoringV1 — space and loft penalties', () => {
     const result = runEngine(baseInput);
     const options = buildOptionMatrixV1(result, baseInput);
     const vented = options.find(o => o.id === 'stored_vented')!;
-    const loftItem = vented.score!.breakdown.find(b => b.id === 'loft_conversion_risk');
+    const loftItem = vented.score!.breakdown.find(b => b.id === PENALTY_IDS.FUTURE_LOFT_CONFLICT);
     expect(loftItem).toBeUndefined();
   });
 });
@@ -333,7 +342,7 @@ describe('OptionScoringV1 — ASHP full replacement penalty', () => {
     const ashp = options.find(o => o.id === 'ashp')!;
     expect(result.heatPumpRegime.designFlowTempBand).toBe(35);
     expect(ashp.status).not.toBe('rejected');
-    const replaceItem = ashp.score!.breakdown.find(b => b.id === 'ashp_full_emitter_replacement');
+    const replaceItem = ashp.score!.breakdown.find(b => b.id === PENALTY_IDS.ASHP_FLOWTEMP_FULL_JOB);
     expect(replaceItem).toBeDefined();
     expect(replaceItem!.penalty).toBe(10);
   });
@@ -345,7 +354,7 @@ describe('OptionScoringV1 — ASHP full replacement penalty', () => {
     const options = buildOptionMatrixV1(result, input);
     const ashp = options.find(o => o.id === 'ashp')!;
     expect(result.heatPumpRegime.designFlowTempBand).toBe(50);
-    expect(ashp.score!.breakdown.find(b => b.id === 'ashp_full_emitter_replacement')).toBeUndefined();
+    expect(ashp.score!.breakdown.find(b => b.id === PENALTY_IDS.ASHP_FLOWTEMP_FULL_JOB)).toBeUndefined();
   });
 });
 
@@ -361,6 +370,92 @@ describe('OptionScoringV1 — breakdown labels are non-empty strings', () => {
         expect(item.label.length).toBeGreaterThan(0);
         expect(typeof item.penalty).toBe('number');
         expect(item.penalty).toBeGreaterThan(0);
+      }
+    }
+  });
+});
+
+describe('OptionScoringV1 — non-overlap: missing measurements skips pressure.borderline_unvented', () => {
+  it('missing measurements does NOT also apply pressure.borderline_unvented to stored_unvented', () => {
+    // dynamicMainsPressure 1.2 bar would normally trigger pressure.borderline_unvented,
+    // but without measurements the engine must not double-penalise the same uncertainty.
+    const input = { ...baseInput, dynamicMainsPressure: 1.2 };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const unvented = options.find(o => o.id === 'stored_unvented')!;
+    if (unvented.status === 'rejected') return; // guard: not applicable if hard-rejected
+    const hasMeasurementsMissing = unvented.score!.breakdown.some(b => b.id === PENALTY_IDS.CWS_MEASUREMENTS_MISSING);
+    expect(hasMeasurementsMissing).toBe(true);
+    // pressure.borderline_unvented must be absent when measurements are missing
+    const hasPressureBorderline = unvented.score!.breakdown.some(b => b.id === PENALTY_IDS.PRESSURE_BORDERLINE_UNVENTED);
+    expect(hasPressureBorderline).toBe(false);
+  });
+
+  it('when measurements ARE present and pressure is borderline, pressure.borderline_unvented IS applied', () => {
+    // Provide mainsDynamicFlowLpm to satisfy hasMeasurements, set pressure in borderline range
+    const input = { ...baseInput, dynamicMainsPressure: 1.2, mainsDynamicFlowLpm: 18 };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const unvented = options.find(o => o.id === 'stored_unvented')!;
+    if (unvented.status === 'rejected') return;
+    const hasMeasurementsMissing = unvented.score!.breakdown.some(b => b.id === PENALTY_IDS.CWS_MEASUREMENTS_MISSING);
+    // With measurements, the missing-measurement penalty should be absent
+    expect(hasMeasurementsMissing).toBe(false);
+    // And pressure.borderline_unvented should be applied
+    const pressureItem = unvented.score!.breakdown.find(b => b.id === PENALTY_IDS.PRESSURE_BORDERLINE_UNVENTED);
+    expect(pressureItem).toBeDefined();
+    expect(pressureItem!.penalty).toBe(8);
+  });
+});
+
+describe('OptionScoringV1 — score band classification', () => {
+  const PENALTY_IDS_VALUES = Object.values(PENALTY_IDS);
+
+  it('all breakdown IDs are from the PENALTY_IDS registry', () => {
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput);
+    for (const card of options) {
+      for (const item of card.score!.breakdown) {
+        expect(PENALTY_IDS_VALUES).toContain(item.id);
+      }
+    }
+  });
+
+  it('score 0 → band not_viable', () => {
+    // rejected option → score 0
+    const input = { ...baseInput, bathroomCount: 2 };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const combi = options.find(o => o.id === 'combi')!;
+    expect(combi.score!.total).toBe(0);
+    expect(combi.score!.band).toBe('not_viable');
+  });
+
+  it('every option has a band that matches its total score', () => {
+    // Run several input variations to cover a wide range of scores
+    const inputs = [
+      baseInput,
+      { ...baseInput, availableSpace: 'tight' as const },
+      { ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 10000 },
+      { ...baseInput, futureLoftConversion: true },
+      { ...baseInput, bathroomCount: 2 },
+    ];
+    for (const input of inputs) {
+      const result = runEngine(input);
+      const options = buildOptionMatrixV1(result, input);
+      for (const card of options) {
+        const { total, band } = card.score!;
+        if (total === 0) {
+          expect(band).toBe('not_viable');
+        } else if (total <= 49) {
+          expect(band).toBe('poor');
+        } else if (total <= 69) {
+          expect(band).toBe('mixed');
+        } else if (total <= 84) {
+          expect(band).toBe('good');
+        } else {
+          expect(band).toBe('excellent');
+        }
       }
     }
   });
