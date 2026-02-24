@@ -152,6 +152,21 @@ export interface Timeline24hSeries {
   comfortTempC?: number[];
   dhwOutletTempC?: number[];
   dhwFlowLpm?: number[];
+  /** Room temperature (°C) at each 15-min step — from RC 1-node building model. */
+  roomTempC?: number[];
+  /** Fuel or electrical input power (kW) at each 15-min step. */
+  inputPowerKw?: number[];
+  /**
+   * DHW store state (0–100) at each 15-min step.
+   * Stored/ASHP: socPct (% of cylinder capacity).
+   * Combi: 100 when event is served, < 100 when capacity-limited.
+   */
+  dhwState?: number[];
+  /**
+   * Space-heat demand required to track setpoint (kW) — from RC building model.
+   * Shared baseline across both systems; stored per-series for alignment.
+   */
+  heatDemandKw?: number[];
 }
 
 /** Payload for the timeline_24h visual type (96 points at 15-min intervals). */
