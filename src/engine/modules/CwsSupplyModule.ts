@@ -41,15 +41,17 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
 
   const notes: string[] = [];
 
-  // Non-mains delivery modes — don't pretend mains governs everything
-  if (deliveryMode === 'gravity' || deliveryMode === 'pumped') {
-    notes.push(
-      `DHW delivery is ${deliveryMode} — mains pressure does not directly govern hot-water performance.`
-    );
+  // Delivery mode — add mode-specific note
+  if (deliveryMode === 'gravity') {
+    notes.push('Gravity-fed: flow depends on head height + pipework, not mains.');
+  } else if (deliveryMode === 'pumped') {
+    notes.push('Pumped shower (power shower): shower performance depends on pump + tank supply, not mains.');
+  } else if (deliveryMode === 'mains_mixer') {
+    notes.push('Mixer shower (mains): performance depends on mains flow/pressure under load.');
+  } else if (deliveryMode === 'mains_mixer_boosted') {
+    notes.push('Mixer + booster pump: check inlet conditions; booster can help but cannot create supply.');
   } else if (deliveryMode === 'electric_cold_only') {
-    notes.push(
-      'Electric system (cold only, independent of cylinder) — mains pressure only relevant for cold outlets.'
-    );
+    notes.push('Electric shower: cold mains only; independent of cylinder temperature.');
   }
 
   // Case 1: both dynamic pressure AND flow present → meaningful dynamic point
