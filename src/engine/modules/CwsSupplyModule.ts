@@ -44,12 +44,14 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
   // Delivery mode — add mode-specific note
   if (deliveryMode === 'gravity') {
     notes.push('Gravity-fed: flow depends on head height + pipework, not mains.');
-  } else if (deliveryMode === 'tank_pumped' || deliveryMode === 'pumped') {
-    notes.push('Tank-pumped (boosted gravity): shower performance depends on pump + tank supply, not mains.');
+  } else if (deliveryMode === 'pumped_from_tank' || deliveryMode === 'tank_pumped' || deliveryMode === 'pumped') {
+    notes.push('Pumped shower: performance depends on pump + stored supply, not mains.');
   } else if (deliveryMode === 'mains_mixer') {
-    notes.push('Mains mixer: performance depends on mains flow/pressure under load.');
-  } else if (deliveryMode === 'mains_mixer_boosted') {
-    notes.push('Boosted mains mixer: check inlet conditions; booster can help but cannot create supply.');
+    notes.push('Mixer (mains-fed): performance depends on mains flow/pressure under load.');
+  } else if (deliveryMode === 'accumulator_supported') {
+    notes.push('Accumulator can smooth short peaks — once depleted, performance returns to mains supply.');
+  } else if (deliveryMode === 'break_tank_booster') {
+    notes.push('Break tank + booster: pump draws from stored water; mains only refills the tank over time.');
   } else if (deliveryMode === 'electric_cold_only') {
     notes.push('Electric shower: cold mains only; independent of cylinder temperature.');
   }
