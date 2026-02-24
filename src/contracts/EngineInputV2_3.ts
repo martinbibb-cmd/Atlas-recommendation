@@ -17,6 +17,8 @@ export interface EngineInputV2_3Contract {
   dhw: {
     /** DHW heating architecture. */
     architecture: 'on_demand' | 'stored_standard' | 'stored_mixergy' | 'unknown';
+    /** DHW delivery mode — affects which notes are relevant. */
+    deliveryMode?: 'unknown' | 'gravity' | 'pumped' | 'mains_mixer' | 'mains_mixer_boosted' | 'electric_cold_only';
   };
   services?: {
     /** Static mains pressure (bar) — measured with no flow. */
@@ -27,9 +29,5 @@ export interface EngineInputV2_3Contract {
     mainsDynamicFlowLpm?: number;
     /** Cold-water supply source. Defaults to 'unknown'. */
     coldWaterSource?: 'unknown' | 'mains_true' | 'mains_shared' | 'loft_tank';
-  };
-  dhw?: {
-    /** DHW delivery mode — affects which notes are relevant. */
-    deliveryMode?: 'unknown' | 'gravity' | 'pumped' | 'mains_mixer' | 'mains_mixer_boosted' | 'electric_cold_only';
   };
 }
