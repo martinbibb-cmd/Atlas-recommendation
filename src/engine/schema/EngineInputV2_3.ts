@@ -39,6 +39,13 @@ export interface EngineInputV2_3 {
   dynamicMainsPressureBar?: number;
   /** Dynamic flow rate at pressure (L/min) — required for a meaningful dynamic point. */
   mainsDynamicFlowLpm?: number;
+  /**
+   * Set to `false` when dynamic pressure was not recorded during the flow test
+   * (e.g. flow-cup / bucket test where only L/min was captured).
+   * Defaults to `true` (pressure is assumed recorded when dynamicMainsPressure is provided).
+   * When `false`, dynamicMainsPressure is ignored for unvented eligibility gating.
+   */
+  mainsPressureRecorded?: boolean;
   /** Cold-water supply source. Defaults to 'unknown'. */
   coldWaterSource?: 'unknown' | 'mains_true' | 'mains_shared' | 'loft_tank';
   /** DHW delivery mode — affects CWS supply notes.

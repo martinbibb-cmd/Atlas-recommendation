@@ -219,7 +219,7 @@ function unventedSuitability(
   if (cwsMeetsRequirement) return {
     label:  '✅ Suitable for unvented',
     colour: '#38a169',
-    note:   'Supply meets unvented requirement (≥ 10 L/min @ ≥ 1 bar, or ≥ 12 L/min at gauge zero).',
+    note:   'Supply meets unvented requirement (≥ 10 L/min @ ≥ 1 bar, or ≥ 12 L/min flow-only with pressure not recorded).',
   };
   return {
     label:  '⚠️ Marginal',
@@ -875,14 +875,20 @@ export default function FullSurveyStepper({ onBack }: Props) {
               {(() => {
                 const cwsResult = (() => {
                   const flowLpm = input.mainsDynamicFlowLpm;
-                  const pressureBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+                  // Pressure is "not recorded" when mainsPressureRecorded is explicitly false.
+                  const pressureRecorded = input.mainsPressureRecorded !== false;
+                  const pressureBar: number | undefined = pressureRecorded
+                    ? (input.dynamicMainsPressureBar ?? input.dynamicMainsPressure)
+                    : undefined;
                   const staticBar = input.staticMainsPressureBar;
-                  const inconsistent = staticBar !== undefined && pressureBar > staticBar + 0.2;
+                  const inconsistent = staticBar !== undefined && pressureBar !== undefined && pressureBar > staticBar + 0.2;
                   const hasFlow = flowLpm !== undefined && flowLpm > 0;
                   const flow = hasFlow ? (flowLpm as number) : 0;
+                  // Operating-point evidence: flow ≥ 10 L/min AND pressure ≥ 1.0 bar
+                  // Flow-only evidence: flow ≥ 12 L/min AND pressure not recorded (undefined)
                   const meetsReq = !inconsistent && hasFlow && (
-                    (flow >= 10 && pressureBar >= 1.0) ||
-                    (flow >= 12 && pressureBar <= 0.2)
+                    (pressureBar !== undefined && flow >= 10 && pressureBar >= 1.0) ||
+                    (pressureBar === undefined && flow >= 12)
                   );
                   return { inconsistent, hasMeasurements: hasFlow, meetsUnventedRequirement: meetsReq };
                 })();
