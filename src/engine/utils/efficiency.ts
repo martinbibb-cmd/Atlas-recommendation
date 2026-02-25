@@ -69,3 +69,20 @@ export function resolveNominalEfficiencyPct(inputSedbuk?: number): number {
 export function computeCurrentEfficiencyPct(nominalPct: number, decayPct: number): number {
   return clampPct(nominalPct - decayPct);
 }
+
+/**
+ * Derive the ErP energy label class (A–G) from a nominal seasonal efficiency (percentage points).
+ *
+ * Returns the highest class whose midpoint the nominal efficiency meets or exceeds.
+ * Returns null when `nominalPct` is negative or otherwise nonsensical.
+ */
+export function deriveErpClass(nominalPct: number): ErpClass | null {
+  if (nominalPct < 0) return null;
+  if (nominalPct >= ERP_TO_NOMINAL_PCT.A) return 'A';
+  if (nominalPct >= ERP_TO_NOMINAL_PCT.B) return 'B';
+  if (nominalPct >= ERP_TO_NOMINAL_PCT.C) return 'C';
+  if (nominalPct >= ERP_TO_NOMINAL_PCT.D) return 'D';
+  if (nominalPct >= ERP_TO_NOMINAL_PCT.E) return 'E';
+  if (nominalPct >= ERP_TO_NOMINAL_PCT.F) return 'F';
+  return 'G';
+}

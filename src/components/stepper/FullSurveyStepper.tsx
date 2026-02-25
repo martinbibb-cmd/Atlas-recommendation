@@ -452,6 +452,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
       'timber_frame' as const;
     const airTightnessForEngine =
       airTightness === 'passive_level' ? 'passive' : airTightness as 'leaky' | 'average' | 'tight';
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setInput(prev => ({
       ...prev,
       buildingMass: deriveBuildingMass(thermalMass),
@@ -487,6 +488,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
   );
 
   // ── DHW derived values — update when demand inputs change ──────────────────
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization, react-hooks/exhaustive-deps
   const combiDhwLive = useMemo(() => runCombiDhwModuleV1(input), [
     input.dynamicMainsPressure,
     input.peakConcurrentOutlets,

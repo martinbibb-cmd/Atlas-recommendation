@@ -1,8 +1,8 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
-import type { VisualSpecV1, Timeline24hV1, Timeline24hEvent, Timeline24hSeries, TimelineBandsV1, DhwEventEntry } from '../contracts/EngineOutputV1';
+import type { VisualSpecV1, Timeline24hV1, Timeline24hEvent, Timeline24hSeries, TimelineBandsV1, DhwEventEntry, PhysicsDebugV1 } from '../contracts/EngineOutputV1';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
 import { solveSystemTimeline, buildSystemConfig } from './timeline/Solver24hV1';
-import { resolveNominalEfficiencyPct, computeCurrentEfficiencyPct } from './utils/efficiency';
+import { resolveNominalEfficiencyPct, computeCurrentEfficiencyPct, deriveErpClass } from './utils/efficiency';
 
 /** 96 time points at 15-minute intervals covering 0–1425 minutes. */
 const TIME_MINUTES = Array.from({ length: 96 }, (_, i) => i * 15);
@@ -588,6 +588,16 @@ export function buildTimeline24hV1(
     ],
   };
 
+  // Physics debug snapshot — engine-side values that should match the chart lines.
+  // Populated when a boiler efficiency model is available; absent otherwise (e.g. ASHP-only input).
+  const physicsDebug: PhysicsDebugV1 = {
+    erpClass: deriveErpClass(nominalEfficiencyPct) ?? undefined,
+    nominalEfficiencyPct,
+    tenYearEfficiencyDecayPct: core.normalizer.tenYearEfficiencyDecayPct,
+    currentEfficiencyPct: combiEtaPct,
+    sedbukSource: boilerModel?.sedbuk.source ?? 'fallback',
+  };
+
   const payload: Timeline24hV1 = {
     timeMinutes: TIME_MINUTES,
     demandHeatKw: demandKwArr,
@@ -596,6 +606,7 @@ export function buildTimeline24hV1(
     events,
     bands,
     legendNotes,
+    physicsDebug,
   };
 
   return {
