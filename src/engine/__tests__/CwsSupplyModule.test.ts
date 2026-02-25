@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runCwsSupplyModuleV1 } from '../modules/CwsSupplyModule';
+import { runEngine } from '../Engine';
 import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
 
 /** Minimal valid EngineInputV2_3 stub for CWS tests. */
@@ -366,5 +367,106 @@ describe('runCwsSupplyModuleV1', () => {
     );
     expect(result.dynamic?.pressureBar).toBeCloseTo(2.5);
     expect(result.notes.some(n => n.includes('2.5 bar'))).toBe(true);
+  });
+
+  // ── waterConfidenceReason codes ──────────────────────────────────────────────
+
+  it('waterConfidenceReason is "ok" for a good plausible reading', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ dynamicMainsPressure: 2.0, mainsDynamicFlowLpm: 15 })
+    );
+    expect(result.waterConfidence).toBe('good');
+    expect(result.waterConfidenceReason).toBe('ok');
+  });
+
+  it('waterConfidenceReason is "suspect_flow" when flow exceeds MAX_PLAUSIBLE_FLOW_LPM', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ dynamicMainsPressure: 2.0, mainsDynamicFlowLpm: 999 })
+    );
+    expect(result.waterConfidence).toBe('suspect');
+    expect(result.waterConfidenceReason).toBe('suspect_flow');
+    expect(result.hasSuspectFlow).toBe(true);
+  });
+
+  it('waterConfidenceReason is "dynamic_gt_static" when readings are inconsistent', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({
+        staticMainsPressureBar: 2.0,
+        dynamicMainsPressure: 3.0,
+        mainsDynamicFlowLpm: 12,
+      })
+    );
+    expect(result.waterConfidence).toBe('suspect');
+    expect(result.waterConfidenceReason).toBe('dynamic_gt_static');
+    expect(result.inconsistent).toBe(true);
+  });
+
+  it('waterConfidenceReason is "missing" when no flow is present', () => {
+    const result = runCwsSupplyModuleV1(baseInput({ dynamicMainsPressure: 2.0 }));
+    expect(result.waterConfidence).toBe('missing');
+    expect(result.waterConfidenceReason).toBe('missing');
+  });
+});
+
+// ── Suspect flow integration: blocks unvented + suppresses raw bullet ─────────
+
+describe('CwsSupplyModule — suspect flow confidence gating integration', () => {
+  const suspectFlowInput: EngineInputV2_3 = {
+    postcode: 'SW1A 1AA',
+    dynamicMainsPressure: 2.0,
+    mainsDynamicFlowLpm: 999, // clearly unrealistic flow
+    buildingMass: 'medium',
+    primaryPipeDiameter: 22,
+    heatLossWatts: 6000,
+    radiatorCount: 8,
+    hasLoftConversion: false,
+    returnWaterTemp: 55,
+    bathroomCount: 1,
+    occupancySignature: 'steady_home',
+    highOccupancy: false,
+    preferCombi: false,
+  };
+
+  it('flow=999: waterConfidence is "suspect"', () => {
+    const result = runCwsSupplyModuleV1(suspectFlowInput);
+    expect(result.waterConfidence).toBe('suspect');
+  });
+
+  it('flow=999: waterConfidenceReason is "suspect_flow"', () => {
+    const result = runCwsSupplyModuleV1(suspectFlowInput);
+    expect(result.waterConfidenceReason).toBe('suspect_flow');
+  });
+
+  it('flow=999: meetsUnventedRequirement is false (junk input must not pass gate)', () => {
+    const result = runCwsSupplyModuleV1(suspectFlowInput);
+    expect(result.meetsUnventedRequirement).toBe(false);
+  });
+
+  it('flow=999: hasSuspectFlow is true', () => {
+    const result = runCwsSupplyModuleV1(suspectFlowInput);
+    expect(result.hasSuspectFlow).toBe(true);
+  });
+
+  it('flow=999 in full engine: stored_unvented eligibility is not "viable"', () => {
+    const { engineOutput } = runEngine(suspectFlowInput);
+    const unvented = engineOutput.eligibility.find(e => e.id === 'stored_unvented');
+    expect(unvented).toBeDefined();
+    expect(unvented!.status).not.toBe('viable');
+  });
+
+  it('flow=999 in full engine: contextSummary contains a flow warning bullet', () => {
+    const { engineOutput } = runEngine(suspectFlowInput);
+    const bullets = engineOutput.contextSummary?.bullets ?? [];
+    const hasFlowWarning = bullets.some(b =>
+      b.toLowerCase().includes('unrealistic') || b.toLowerCase().includes('suspect')
+    );
+    expect(hasFlowWarning).toBe(true);
+  });
+
+  it('flow=999 in full engine: contextSummary does NOT contain a raw "999 L/min" bullet', () => {
+    const { engineOutput } = runEngine(suspectFlowInput);
+    const bullets = engineOutput.contextSummary?.bullets ?? [];
+    const hasRawFlow = bullets.some(b => b.includes('999'));
+    expect(hasRawFlow).toBe(false);
   });
 });

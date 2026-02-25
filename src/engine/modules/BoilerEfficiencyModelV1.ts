@@ -143,9 +143,11 @@ export function buildBoilerEfficiencyModelV1(
         : (sedbuk.seasonalEta ?? UNKNOWN_SEASONAL_ETA);
 
   // Age validation: ages above MAX_PLAUSIBLE_BOILER_AGE are survey-data errors.
-  // Treat as unknown to avoid propagating junk into efficiency calculations.
+  // Negative ages (bad import) and zero ages (ambiguous — could be a default/unset value)
+  // are also treated as unknown to avoid propagating junk into efficiency calculations.
   const ageIsUnrealistic =
-    input.ageYears !== undefined && input.ageYears > MAX_PLAUSIBLE_BOILER_AGE;
+    input.ageYears !== undefined &&
+    (input.ageYears < 0 || input.ageYears > MAX_PLAUSIBLE_BOILER_AGE);
   const effectiveAge = ageIsUnrealistic ? undefined : input.ageYears;
 
   const age = {

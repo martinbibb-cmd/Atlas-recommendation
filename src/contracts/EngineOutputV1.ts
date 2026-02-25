@@ -240,7 +240,8 @@ export interface Timeline24hSeries {
 
 /**
  * Physics debug data attached to a 24-hour timeline payload.
- * Only present when the engine can resolve the current boiler's efficiency baseline.
+ * Only present when the engine can resolve the current boiler's efficiency baseline
+ * AND the evaluation context has debug mode enabled (debug=true).
  * Consumed by the debug overlay (rendered when ?debug=1 is in the URL).
  */
 export interface PhysicsDebugV1 {
@@ -254,6 +255,8 @@ export interface PhysicsDebugV1 {
   currentEfficiencyPct: number;
   /** How the SEDBUK baseline was resolved: 'gc' | 'band' | 'unknown' | 'fallback'. */
   sedbukSource: 'gc' | 'band' | 'unknown' | 'fallback';
+  /** Number of timeline points — used to sanity-check hover index bounds. */
+  timelinePoints?: number;
 }
 
 /** Payload for the timeline_24h visual type (96 points at 15-min intervals). */

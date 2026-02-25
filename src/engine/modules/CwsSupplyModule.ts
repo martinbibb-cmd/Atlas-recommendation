@@ -47,6 +47,15 @@ export type CwsLimitation = 'none' | 'flow' | 'pressure' | 'unknown';
  */
 export type WaterConfidence = 'good' | 'suspect' | 'missing';
 
+/**
+ * Machine-readable reason code for the waterConfidence value.
+ *   'ok'               — confidence is 'good'; no issue.
+ *   'suspect_flow'     — flow exceeds MAX_PLAUSIBLE_FLOW_LPM (units/instrument error suspected).
+ *   'dynamic_gt_static'— dynamic pressure > static + tolerance (readings inconsistent/swapped).
+ *   'missing'          — no flow measurement present; cannot assess supply.
+ */
+export type WaterConfidenceReason = 'ok' | 'suspect_flow' | 'dynamic_gt_static' | 'missing';
+
 export interface CwsSupplyV1Result {
   source: 'unknown' | 'mains_true' | 'mains_shared' | 'loft_tank';
   /** True when flow measurement is present (regardless of pressure). */
@@ -69,6 +78,11 @@ export interface CwsSupplyV1Result {
    * UI must not present raw water readings as normal facts when confidence is 'suspect'.
    */
   waterConfidence: WaterConfidence;
+  /**
+   * Machine-readable reason code for the waterConfidence level.
+   * Provides precise, auditable context for why confidence is not 'good'.
+   */
+  waterConfidenceReason: WaterConfidenceReason;
   /**
    * True when the flow reading exceeds MAX_PLAUSIBLE_FLOW_LPM and is treated as
    * a suspect instrument/units error.  Raw values are suppressed from the display.
@@ -185,6 +199,8 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
 
     const waterConfidence: WaterConfidence =
       hasSuspectFlow || inconsistent ? 'suspect' : 'good';
+    const waterConfidenceReason: WaterConfidenceReason =
+      hasSuspectFlow ? 'suspect_flow' : inconsistent ? 'dynamic_gt_static' : 'ok';
 
     return {
       source,
@@ -198,6 +214,7 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
       limitation: 'none',
       notes,
       waterConfidence,
+      waterConfidenceReason,
       hasSuspectFlow,
     };
   }
@@ -223,6 +240,7 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
     limitation: 'unknown',
     notes,
     waterConfidence: 'missing',
+    waterConfidenceReason: 'missing',
     hasSuspectFlow: false,
   };
 }

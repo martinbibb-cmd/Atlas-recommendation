@@ -450,11 +450,13 @@ function buildSeriesForSystem(
  * @param core     Full engine result core (all module outputs).
  * @param input    Engine input (used for heat loss, lifestyle profile, etc.).
  * @param systemIds  Tuple [systemIdA, systemIdB]. Defaults to ['current', primary recommendation].
+ * @param debug    When true, populates physicsDebug in the payload for the debug overlay.
  */
 export function buildTimeline24hV1(
   core: FullEngineResultCore,
   input: EngineInputV2_3,
   systemIds?: [string, string],
+  debug?: boolean,
 ): VisualSpecV1 {
   // Resolve the recommendation for system B default
   const primaryRec = core.lifestyle.recommendedSystem === 'ashp' ? 'ashp'
@@ -589,14 +591,18 @@ export function buildTimeline24hV1(
   };
 
   // Physics debug snapshot — engine-side values that should match the chart lines.
-  // Populated when a boiler efficiency model is available; absent otherwise (e.g. ASHP-only input).
-  const physicsDebug: PhysicsDebugV1 = {
-    erpClass: deriveErpClass(nominalEfficiencyPct) ?? undefined,
-    nominalEfficiencyPct,
-    tenYearEfficiencyDecayPct: core.normalizer.tenYearEfficiencyDecayPct,
-    currentEfficiencyPct: combiEtaPct,
-    sedbukSource: boilerModel?.sedbuk.source ?? 'fallback',
-  };
+  // Populated ONLY when debug=true is passed; absent for normal production payloads.
+  // This keeps production docs clean and avoids debug noise in persisted outputs.
+  const physicsDebug: PhysicsDebugV1 | undefined = debug
+    ? {
+        erpClass: deriveErpClass(nominalEfficiencyPct) ?? undefined,
+        nominalEfficiencyPct,
+        tenYearEfficiencyDecayPct: core.normalizer.tenYearEfficiencyDecayPct,
+        currentEfficiencyPct: combiEtaPct,
+        sedbukSource: boilerModel?.sedbuk.source ?? 'fallback',
+        timelinePoints: TIME_MINUTES.length,
+      }
+    : undefined;
 
   const payload: Timeline24hV1 = {
     timeMinutes: TIME_MINUTES,

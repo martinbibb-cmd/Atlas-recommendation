@@ -776,3 +776,104 @@ describe('TimelineBuilder — new contract fields', () => {
     expect(total29).toBeGreaterThan(0);
   });
 });
+
+// ── physicsDebug: debug flag gate + source selection regression ───────────────
+
+describe('TimelineBuilder — physicsDebug debug flag + source selection', () => {
+  it('physicsDebug is undefined by default (debug flag not set)', () => {
+    const result = runEngine(baseInput);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    expect(timeline!.data.physicsDebug).toBeUndefined();
+  });
+
+  it('physicsDebug is undefined when engineConfig.debug is false', () => {
+    const input = { ...baseInput, engineConfig: { debug: false } };
+    const result = runEngine(input);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    expect(timeline!.data.physicsDebug).toBeUndefined();
+  });
+
+  it('physicsDebug is populated when engineConfig.debug is true', () => {
+    const input = { ...baseInput, engineConfig: { debug: true } };
+    const result = runEngine(input);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    expect(timeline!.data.physicsDebug).toBeDefined();
+  });
+
+  it('physicsDebug.sedbukSource is "fallback" when no boiler data is provided (no currentSystem)', () => {
+    const input = { ...baseInput, engineConfig: { debug: true } };
+    const result = runEngine(input);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    expect(timeline!.data.physicsDebug.sedbukSource).toBe('fallback');
+  });
+
+  it('physicsDebug.sedbukSource is "band" when condensing info is known but no GC number', () => {
+    const input = {
+      ...baseInput,
+      engineConfig: { debug: true },
+      currentSystem: { boiler: { condensing: 'yes' as const, ageYears: 5 } },
+    };
+    const result = runEngine(input);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    expect(timeline!.data.physicsDebug.sedbukSource).toBe('band');
+  });
+
+  it('physicsDebug.sedbukSource is "gc" when GC number matches SEDBUK database', () => {
+    const input = {
+      ...baseInput,
+      engineConfig: { debug: true },
+      currentSystem: {
+        boiler: { gcNumber: '4758301', condensing: 'yes' as const, ageYears: 5 },
+      },
+    };
+    const result = runEngine(input);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    expect(timeline!.data.physicsDebug.sedbukSource).toBe('gc');
+  });
+
+  it('physicsDebug.nominalEfficiencyPct matches currentBoilerSedbukPct (override path)', () => {
+    const input = {
+      ...baseInput,
+      currentBoilerSedbukPct: 76,
+      engineConfig: { debug: true },
+    };
+    const result = runEngine(input);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const dbg = timeline!.data.physicsDebug;
+    expect(dbg.nominalEfficiencyPct).toBe(76);
+  });
+
+  it('physicsDebug.currentEfficiencyPct = clamp(nominalEfficiencyPct - tenYearDecay, 50, 99)', () => {
+    const input = {
+      ...baseInput,
+      currentBoilerSedbukPct: 84,
+      engineConfig: { debug: true },
+    };
+    const result = runEngine(input);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const dbg = timeline!.data.physicsDebug;
+    const expectedCurrent = Math.min(99, Math.max(50, dbg.nominalEfficiencyPct - dbg.tenYearEfficiencyDecayPct));
+    expect(dbg.currentEfficiencyPct).toBeCloseTo(expectedCurrent, 1);
+  });
+
+  it('physicsDebug.timelinePoints equals 96 (15-min intervals)', () => {
+    const input = { ...baseInput, engineConfig: { debug: true } };
+    const result = runEngine(input);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    expect(timeline!.data.physicsDebug.timelinePoints).toBe(96);
+  });
+
+  it('physicsDebug is accessible via buildTimeline24hV1 with debug=true parameter', () => {
+    const result = runEngine(baseInput);
+    const visual = buildTimeline24hV1(result, baseInput, undefined, true);
+    expect(visual.data.physicsDebug).toBeDefined();
+    expect(typeof visual.data.physicsDebug.nominalEfficiencyPct).toBe('number');
+    expect(typeof visual.data.physicsDebug.currentEfficiencyPct).toBe('number');
+  });
+
+  it('physicsDebug is undefined via buildTimeline24hV1 without debug parameter', () => {
+    const result = runEngine(baseInput);
+    const visual = buildTimeline24hV1(result, baseInput);
+    expect(visual.data.physicsDebug).toBeUndefined();
+  });
+});
