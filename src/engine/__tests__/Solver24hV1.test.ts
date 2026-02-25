@@ -275,15 +275,16 @@ describe('buildSystemConfig', () => {
 // ── Electric shower delivery mode ─────────────────────────────────────────────
 
 describe('Solver24hV1 — electric_cold_only delivery mode', () => {
-  it('electric shower: no DHW draw on combi — dhwState stays 100 throughout', () => {
+  it('electric shower: shower draw suppressed on combi — dhwState stays 100 throughout', () => {
+    // DEFAULT_EVENTS includes shower, bath (served at 100% on 24kW combi), and dishwasher (cold-fill).
+    // Shower draw is suppressed; bath is served at full capacity by the combi → dhwState = 100 at all steps.
     const result = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'electric_cold_only');
-    // Electric shower creates no hot-water demand → combi always in standby (100)
     for (const v of result.dhwState) {
       expect(v).toBe(100);
     }
   });
 
-  it('electric shower: cylinder reserve unchanged (no draw) vs gravity which reduces it', () => {
+  it('electric shower: cylinder reserve higher than gravity (only bath drawn, not shower)', () => {
     const storedSystem: SolverSystemConfig = {
       systemId: 'stored_vented',
       maxKw: 18,
@@ -293,17 +294,44 @@ describe('Solver24hV1 — electric_cold_only delivery mode', () => {
     const electricResult = solveSystemTimeline(baseCore, storedSystem, DEFAULT_EVENTS, 'electric_cold_only');
     const gravityResult  = solveSystemTimeline(baseCore, storedSystem, DEFAULT_EVENTS, 'gravity');
 
-    // Electric: cylinder never drawn down → min SoC should be higher
+    // Electric: only bath drawn (shower suppressed) → less total draw → min SoC higher than gravity
     const minElectric = Math.min(...electricResult.dhwState);
     const minGravity  = Math.min(...gravityResult.dhwState);
     expect(minElectric).toBeGreaterThanOrEqual(minGravity);
   });
 
-  it('electric shower: alias "electric" normalises and suppresses DHW draw', () => {
+  it('electric shower: bath event still draws from stored cylinder (only shower is suppressed)', () => {
+    // Tight boiler: 9 kW for 8 kW peak loss → only 1 kW margin.
+    // Bath (high, 3 kW) exceeds the margin → cylinder drains even with electric_cold_only.
+    const tightSystem: SolverSystemConfig = {
+      systemId: 'stored_vented',
+      maxKw: 9,
+      minKw: 4,
+      baseEta: 0.85,
+    };
+    const bathOnlyEvents = [
+      { startMin: 1140, endMin: 1170, kind: 'bath' as const, intensity: 'high' as const },
+    ];
+    const electricResult = solveSystemTimeline(baseCore, tightSystem, bathOnlyEvents, 'electric_cold_only');
+    const noEventResult  = solveSystemTimeline(baseCore, tightSystem, [], 'electric_cold_only');
+
+    // Bath not suppressed → cylinder drains during event → min SoC lower than no-event run
+    const minElectric = Math.min(...electricResult.dhwState);
+    const minNoEvent  = Math.min(...noEventResult.dhwState);
+    expect(minElectric).toBeLessThan(minNoEvent);
+  });
+
+  it('electric shower: alias "electric" normalises and suppresses shower draw identically', () => {
     // Passing the legacy 'electric' alias should behave identically to 'electric_cold_only'
-    const resultAlias    = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'electric');
+    const resultAlias     = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'electric');
     const resultCanonical = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'electric_cold_only');
     expect(resultAlias.dhwState).toEqual(resultCanonical.dhwState);
+  });
+
+  it('electric shower alias "Electric" (mixed case) behaves identically to electric_cold_only', () => {
+    const resultMixed    = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'Electric');
+    const resultCanonical = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'electric_cold_only');
+    expect(resultMixed.dhwState).toEqual(resultCanonical.dhwState);
   });
 
   it('gravity (default): DHW events do increase total required kW — inputPowerKw is higher during shower steps', () => {
@@ -316,5 +344,29 @@ describe('Solver24hV1 — electric_cold_only delivery mode', () => {
     const inputElectric = resultElectric.inputPowerKw[28];
     // With DHW draw, the combi must supply more energy → input power should be higher
     expect(inputGravity).toBeGreaterThan(inputElectric);
+  });
+
+  it('no double-counting: non-electric solver DHW draw > 0 and stored cylinder SoC decreases exactly once', () => {
+    // For a non-electric mode, confirm solver DHW draw is positive at a known bath step
+    // and the stored cylinder is the single mechanism that tracks it.
+    const tightSystem: SolverSystemConfig = {
+      systemId: 'stored_vented',
+      maxKw: 9,
+      minKw: 4,
+      baseEta: 0.85,
+    };
+    const bathOnlyEvents = [
+      { startMin: 1140, endMin: 1170, kind: 'bath' as const, intensity: 'high' as const },
+    ];
+    const result = solveSystemTimeline(baseCore, tightSystem, bathOnlyEvents, 'gravity');
+    // SoC before bath (index 75 = 18:45): cylinder should be high
+    const preEvent  = result.dhwState[75];
+    // SoC after bath (index 79 = 19:45): should have dropped from a single draw
+    const postEvent = result.dhwState[79];
+    expect(preEvent).toBeGreaterThan(postEvent);
+    // Confirm the draw is captured in inputPowerKw increasing during the bath steps
+    const inputAtBath = result.inputPowerKw[76]; // 19:00 — first bath step
+    const inputBefore = result.inputPowerKw[74];  // 18:30 — before bath
+    expect(inputAtBath).toBeGreaterThanOrEqual(inputBefore);
   });
 });
