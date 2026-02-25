@@ -541,3 +541,176 @@ describe('TimelineBuilder', () => {
     expect(legend.some((n: string) => n.toLowerCase().includes('cold-fill'))).toBe(true);
   });
 });
+
+// ── New contract fields: performanceKind, dhwTotalKw, dhwEventsActive, bands ──
+
+describe('TimelineBuilder — new contract fields', () => {
+  it('each series has performanceKind set to "eta" for boilers and "cop" for ASHP', () => {
+    const result = runEngine(baseInput);
+    const visual = buildTimeline24hV1(result, baseInput, ['on_demand', 'ashp']);
+    const combi = visual.data.series.find((s: { id: string }) => s.id === 'on_demand');
+    const ashp  = visual.data.series.find((s: { id: string }) => s.id === 'ashp');
+    expect(combi?.performanceKind).toBe('eta');
+    expect(ashp?.performanceKind).toBe('cop');
+  });
+
+  it('stored_vented series has performanceKind "eta"', () => {
+    const result = runEngine(baseInput);
+    const visual = buildTimeline24hV1(result, baseInput, ['stored_vented', 'ashp']);
+    const stored = visual.data.series.find((s: { id: string }) => s.id === 'stored_vented');
+    expect(stored?.performanceKind).toBe('eta');
+  });
+
+  it('dhwTotalKw is populated on each series with 96 values', () => {
+    const result = runEngine(baseInput);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    for (const s of timeline!.data.series) {
+      expect(Array.isArray(s.dhwTotalKw)).toBe(true);
+      expect(s.dhwTotalKw).toHaveLength(96);
+    }
+  });
+
+  it('dhwTotalKw values are non-negative', () => {
+    const result = runEngine(baseInput);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    for (const s of timeline!.data.series) {
+      for (const v of s.dhwTotalKw ?? []) {
+        expect(v).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it('dhwTotalKw is non-zero during a shower or bath event window', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: true,
+        eveningPeakEnabled: true,
+        hasBath: false,
+        hasDishwasher: false,
+        hasWashingMachine: false,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const result = runEngine(input);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    // Morning shower at 07:00 → index 28 (minute 420 / 15 = 28)
+    const idx28 = timeline!.data.series[0].dhwTotalKw?.[28];
+    expect(idx28).toBeGreaterThan(0);
+  });
+
+  it('dhwTotalKw is 0 during dishwasher-only events (cold-fill, no thermal draw)', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: false,
+        eveningPeakEnabled: false,
+        hasBath: false,
+        hasDishwasher: true,
+        hasWashingMachine: false,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const result = runEngine(input);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    // Dishwasher at 13:00 → index 52 (minute 780 / 15 = 52)
+    const idx52 = timeline!.data.series[0].dhwTotalKw?.[52];
+    expect(idx52).toBe(0);
+  });
+
+  it('dhwEventsActive is populated on each series with 96 entries', () => {
+    const result = runEngine(baseInput);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    for (const s of timeline!.data.series) {
+      expect(Array.isArray(s.dhwEventsActive)).toBe(true);
+      expect(s.dhwEventsActive).toHaveLength(96);
+    }
+  });
+
+  it('dhwEventsActive entries are arrays (may be empty)', () => {
+    const result = runEngine(baseInput);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    for (const s of timeline!.data.series) {
+      for (const entry of s.dhwEventsActive ?? []) {
+        expect(Array.isArray(entry)).toBe(true);
+      }
+    }
+  });
+
+  it('dhwEventsActive has a non-empty entry during shower window', () => {
+    // Default events include morning shower at 07:00 (index 28)
+    const result = runEngine(baseInput);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const entry28 = timeline!.data.series[0].dhwEventsActive?.[28];
+    expect(entry28?.length).toBeGreaterThan(0);
+    expect(entry28?.[0].kind).toBe('shower');
+    expect(entry28?.[0].drawKw).toBeGreaterThan(0);
+  });
+
+  it('payload includes bands with at least a sh_on band and dhw_on bands', () => {
+    const result = runEngine(baseInput);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const bands = timeline!.data.bands?.bands ?? [];
+    expect(Array.isArray(bands)).toBe(true);
+    expect(bands.length).toBeGreaterThan(0);
+    const hasShOn  = bands.some((b: { kind: string }) => b.kind === 'sh_on');
+    const hasDhwOn = bands.some((b: { kind: string }) => b.kind === 'dhw_on');
+    expect(hasShOn).toBe(true);
+    expect(hasDhwOn).toBe(true);
+  });
+
+  it('bands have valid startMin < endMin fields', () => {
+    const result = runEngine(baseInput);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const bands = timeline!.data.bands?.bands ?? [];
+    for (const band of bands) {
+      expect(typeof band.startMin).toBe('number');
+      expect(typeof band.endMin).toBe('number');
+      expect(band.endMin).toBeGreaterThan(band.startMin);
+    }
+  });
+
+  it('dishwasher events do NOT generate dhw_on bands', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: false,
+        eveningPeakEnabled: false,
+        hasBath: false,
+        hasDishwasher: true,
+        hasWashingMachine: false,
+        twoSimultaneousBathrooms: false,
+      },
+    };
+    const result = runEngine(input);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    const bands = timeline!.data.bands?.bands ?? [];
+    // dhw_on bands come only from thermal events — dishwasher is cold-fill
+    const dhwOnBands = bands.filter((b: { kind: string }) => b.kind === 'dhw_on');
+    expect(dhwOnBands.length).toBe(0);
+  });
+
+  it('dhwTotalKw sums correctly for overlapping simultaneous events', () => {
+    const input = {
+      ...baseInput,
+      lifestyleProfileV1: {
+        morningPeakEnabled: true,
+        eveningPeakEnabled: false,
+        hasBath: false,
+        hasDishwasher: false,
+        hasWashingMachine: false,
+        twoSimultaneousBathrooms: true, // overlap at 07:05 (index 28 = 07:00, index 29 = 07:15)
+      },
+    };
+    const result = runEngine(input);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    // Index 29 covers 07:15 which overlaps both shower events (07:00–07:15 and 07:05–07:25)
+    const entry29 = timeline!.data.series[0].dhwEventsActive?.[29];
+    expect(entry29).toBeDefined();
+    // Both showers active → two entries at index 29
+    expect(entry29!.length).toBeGreaterThanOrEqual(1);
+    // Total draw should be positive
+    const total29 = timeline!.data.series[0].dhwTotalKw?.[29];
+    expect(total29).toBeGreaterThan(0);
+  });
+});
