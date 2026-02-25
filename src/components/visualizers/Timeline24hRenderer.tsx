@@ -66,6 +66,7 @@ interface Props {
   /** A/B tile IDs that are currently selected (controls which series are highlighted). */
   compareAId?: string;
   compareBId?: string;
+  onHoverIndexChange?: (index: number | null) => void;
 }
 
 /**
@@ -79,7 +80,7 @@ interface Props {
  *
  * All rows share the same X axis and vertical band annotations.
  */
-export default function Timeline24hRenderer({ payload, compareAId, compareBId }: Props) {
+export default function Timeline24hRenderer({ payload, compareAId, compareBId, onHoverIndexChange }: Props) {
   const data = buildChartData(payload);
 
   // Derive a key from the active series IDs so Recharts fully remounts when the pair changes
@@ -339,7 +340,16 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId }:
       {/* Row 4: Performance (η / COP) */}
       <div style={subLabel}>Performance ({perfLabel})</div>
       <ResponsiveContainer width="100%" height={130}>
-        <ComposedChart key={`${chartKey}_perf`} data={data} margin={chartMargin}>
+        <ComposedChart
+          key={`${chartKey}_perf`}
+          data={data}
+          margin={chartMargin}
+          onMouseMove={(state) => {
+            const hoverIndex = state?.activeTooltipIndex;
+            onHoverIndexChange?.(typeof hoverIndex === 'number' ? hoverIndex : null);
+          }}
+          onMouseLeave={() => onHoverIndexChange?.(null)}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis {...xAxisProps} />
           <YAxis tick={{ fontSize: 9 }} width={32} domain={perfDomain} />
