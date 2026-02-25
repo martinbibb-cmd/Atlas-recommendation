@@ -143,6 +143,60 @@ export interface Timeline24hEvent {
   intensity: 'low' | 'med' | 'high';
 }
 
+/** A single active DHW draw entry within a per-timestep events list. */
+export interface DhwEventEntry {
+  kind: 'shower' | 'bath' | 'sink' | 'charge';
+  drawKw: number;
+}
+
+/**
+ * Canonical per-timestep timeline point (fixed-step series).
+ * Used by both Day Painter (user-edited inputs) and Results 24h (survey engine inputs).
+ * Timestep: 15 min (288 points per day).
+ */
+export interface TimelinePointV1 {
+  /** Minutes elapsed since midnight (0–1435). */
+  minuteOfDay: number;
+  /** Space-heat demand required to track setpoint (kW). */
+  shDemandKw: number;
+  /** Indoor (room) temperature (°C) — from RC 1-node building model. */
+  indoorTempC?: number;
+  /** Outdoor temperature used in this step (°C). */
+  outdoorTempC?: number;
+  /** Heat source output (kW) — combi/boiler/ASHP delivered to system. */
+  sourceOutKw: number;
+  /** Maximum instantaneous capacity of the heat source (kW), when known. */
+  sourceMaxKw?: number;
+  /** Flow temperature at heat source outlet (°C). */
+  flowTempC?: number;
+  /** Return temperature at heat source inlet (°C). */
+  returnTempC?: number;
+  /**
+   * Performance metric value.
+   * η (0–1) for boilers; COP (> 1) for ASHP.
+   * May be negative when standing/cycling losses exceed useful output (not a bug).
+   */
+  performanceValue: number;
+  /** Indicates whether performanceValue is an efficiency fraction (η) or COP. */
+  performanceKind: 'eta' | 'cop';
+  /** Total hot-water draw from the system at this timestep (kW). */
+  dhwTotalKw: number;
+  /**
+   * Individual DHW events active at this timestep (usually 0–1 items; rarely 2 for overlap).
+   * Absent when no events are active.
+   */
+  dhwEventsActive?: DhwEventEntry[];
+}
+
+/**
+ * Band annotations spanning the full vertical extent of the chart.
+ * Rendered as background fills across all rows simultaneously.
+ * kind is open-ended: 'sh_on' | 'dhw_on' | 'defrost' | 'anti_cycle' | string
+ */
+export interface TimelineBandsV1 {
+  bands: Array<{ kind: string; startMin: number; endMin: number }>;
+}
+
 /** One system's data series within a 24-hour timeline. */
 export interface Timeline24hSeries {
   id: string;
@@ -167,6 +221,21 @@ export interface Timeline24hSeries {
    * Shared baseline across both systems; stored per-series for alignment.
    */
   heatDemandKw?: number[];
+  /**
+   * Whether performanceValue (= efficiency) is an η fraction or a COP.
+   * 'eta' for boilers; 'cop' for ASHP.
+   */
+  performanceKind?: 'eta' | 'cop';
+  /**
+   * Total hot-water draw (kW) per timestep.
+   * Drives the DHW events bar track in the renderer.
+   */
+  dhwTotalKw?: number[];
+  /**
+   * Active DHW events per timestep (parallel to timeMinutes).
+   * Each element is the list of concurrent hot-water draws at that step.
+   */
+  dhwEventsActive?: DhwEventEntry[][];
 }
 
 /** Payload for the timeline_24h visual type (96 points at 15-min intervals). */
@@ -182,6 +251,11 @@ export interface Timeline24hV1 {
   coldFlowLpm?: number[];
   series: Timeline24hSeries[];
   events: Timeline24hEvent[];
+  /**
+   * Background-band annotations (sh_on, dhw_on, defrost, anti_cycle, …).
+   * Spans all chart rows when rendered.
+   */
+  bands?: TimelineBandsV1;
   legendNotes?: string[];
 }
 

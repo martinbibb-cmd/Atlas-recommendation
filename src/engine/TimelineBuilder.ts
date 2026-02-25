@@ -1,5 +1,5 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
-import type { VisualSpecV1, Timeline24hV1, Timeline24hEvent, Timeline24hSeries } from '../contracts/EngineOutputV1';
+import type { VisualSpecV1, Timeline24hV1, Timeline24hEvent, Timeline24hSeries, TimelineBandsV1, DhwEventEntry } from '../contracts/EngineOutputV1';
 import { buildBoilerEfficiencySeriesV1 } from './modules/BoilerTailoffModule';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
 import { solveSystemTimeline, buildSystemConfig } from './timeline/Solver24hV1';
@@ -112,6 +112,30 @@ function isColdFlowActive(minuteOfDay: number, events: Timeline24hEvent[]): bool
   );
 }
 
+/** Hot-water draw (kW) per event kind × intensity. Mirrors Solver24hV1 DHW_DRAW_KW table. */
+const DHW_DRAW_KW_TABLE: Record<string, Record<string, number>> = {
+  shower: { low: 0.8, med: 1.5, high: 2.2 },
+  bath:   { low: 1.2, med: 2.0, high: 3.0 },
+  sink:   { low: 0.4, med: 0.6, high: 0.8 },
+};
+
+/**
+ * Return the list of active hot-water draw entries at `minuteOfDay` from the events schedule.
+ * Cold-fill appliances (dishwasher, washing_machine) are excluded — they are not thermal loads.
+ */
+function getActiveHotWaterDraws(minuteOfDay: number, events: Timeline24hEvent[]): DhwEventEntry[] {
+  const entries: DhwEventEntry[] = [];
+  for (const ev of events) {
+    if (minuteOfDay < ev.startMin || minuteOfDay >= ev.endMin) continue;
+    if (ev.kind === 'dishwasher' || ev.kind === 'washing_machine') continue;
+    const drawKw = DHW_DRAW_KW_TABLE[ev.kind]?.[ev.intensity] ?? 0;
+    if (drawKw > 0) {
+      entries.push({ kind: ev.kind as DhwEventEntry['kind'], drawKw });
+    }
+  }
+  return entries;
+}
+
 /**
  * Build a 96-point cold mains flow demand array (L/min) from cold-flow events
  * (dishwasher and washing machine).
@@ -160,6 +184,8 @@ function buildCombiSeries(
   const efficiency: number[] = [];
   const comfortTempC: number[] = [];
   const dhwOutletTempC: number[] = [];
+  const dhwTotalKw: number[] = [];
+  const dhwEventsActive: DhwEventEntry[][] = [];
 
   for (let i = 0; i < 96; i++) {
     const minuteOfDay = i * 15;
@@ -192,13 +218,24 @@ function buildCombiSeries(
     // DHW outlet: drops during heavy draw events
     const dhwOutlet = dhwActive ? 42 : 50;
 
+    // Per-timestep DHW draw entries
+    const activeDraws = getActiveHotWaterDraws(minuteOfDay, events);
+    const totalDhw = parseFloat(activeDraws.reduce((s, e) => s + e.drawKw, 0).toFixed(3));
+
     heatDeliveredKw.push(parseFloat(delivered.toFixed(3)));
     efficiency.push(parseFloat(eta.toFixed(3)));
     comfortTempC.push(parseFloat(comfort.toFixed(1)));
     dhwOutletTempC.push(dhwOutlet);
+    dhwTotalKw.push(totalDhw);
+    dhwEventsActive.push(activeDraws);
   }
 
-  return { id, label, heatDeliveredKw, efficiency, comfortTempC, dhwOutletTempC };
+  return {
+    id, label, heatDeliveredKw, efficiency, comfortTempC, dhwOutletTempC,
+    performanceKind: 'eta',
+    dhwTotalKw,
+    dhwEventsActive,
+  };
 }
 
 /**
@@ -219,6 +256,8 @@ function buildStoredSeries(
   const efficiency: number[] = [];
   const comfortTempC: number[] = [];
   const dhwOutletTempC: number[] = [];
+  const dhwTotalKw: number[] = [];
+  const dhwEventsActive: DhwEventEntry[][] = [];
 
   const peakDemand = Math.max(...demandKwArr) || 1;
 
@@ -238,13 +277,24 @@ function buildStoredSeries(
       ? (isUnvented ? 57 : 53)
       : (isUnvented ? 62 : 58);
 
+    // Per-timestep DHW draw entries
+    const activeDraws = getActiveHotWaterDraws(minuteOfDay, events);
+    const totalDhw = parseFloat(activeDraws.reduce((s, e) => s + e.drawKw, 0).toFixed(3));
+
     heatDeliveredKw.push(parseFloat(delivered.toFixed(3)));
     efficiency.push(parseFloat(eta.toFixed(3)));
     comfortTempC.push(parseFloat(comfort.toFixed(1)));
     dhwOutletTempC.push(dhwOutlet);
+    dhwTotalKw.push(totalDhw);
+    dhwEventsActive.push(activeDraws);
   }
 
-  return { id, label, heatDeliveredKw, efficiency, comfortTempC, dhwOutletTempC };
+  return {
+    id, label, heatDeliveredKw, efficiency, comfortTempC, dhwOutletTempC,
+    performanceKind: 'eta',
+    dhwTotalKw,
+    dhwEventsActive,
+  };
 }
 
 /**
@@ -256,6 +306,7 @@ function buildAshpSeries(
   label: string,
   demandKwArr: number[],
   designFlowTempBand: 35 | 45 | 50,
+  events: Timeline24hEvent[],
 ): Timeline24hSeries {
   // COP lookup: lower flow temp → higher COP
   const copByBand: Record<35 | 45 | 50, number> = { 35: 3.8, 45: 3.0, 50: 2.6 };
@@ -265,8 +316,11 @@ function buildAshpSeries(
   const efficiency: number[] = [];
   const comfortTempC: number[] = [];
   const dhwOutletTempC: number[] = [];
+  const dhwTotalKw: number[] = [];
+  const dhwEventsActive: DhwEventEntry[][] = [];
 
   for (let i = 0; i < 96; i++) {
+    const minuteOfDay = i * 15;
     const demandKw = demandKwArr[i];
     // ASHP "low and slow" — stable delivery matching demand
     const delivered = demandKw; // heat pump output tracks demand smoothly
@@ -275,13 +329,24 @@ function buildAshpSeries(
     // DHW from ASHP cylinder is stable
     const dhwOutlet = 55;
 
+    // Per-timestep DHW draw entries
+    const activeDraws = getActiveHotWaterDraws(minuteOfDay, events);
+    const totalDhw = parseFloat(activeDraws.reduce((s, e) => s + e.drawKw, 0).toFixed(3));
+
     heatDeliveredKw.push(parseFloat(delivered.toFixed(3)));
     efficiency.push(parseFloat(cop.toFixed(2)));
     comfortTempC.push(parseFloat(comfort.toFixed(1)));
     dhwOutletTempC.push(dhwOutlet);
+    dhwTotalKw.push(totalDhw);
+    dhwEventsActive.push(activeDraws);
   }
 
-  return { id, label, heatDeliveredKw, efficiency, comfortTempC, dhwOutletTempC };
+  return {
+    id, label, heatDeliveredKw, efficiency, comfortTempC, dhwOutletTempC,
+    performanceKind: 'cop',
+    dhwTotalKw,
+    dhwEventsActive,
+  };
 }
 
 /** Resolve a system ID to its human-readable label. */
@@ -333,7 +398,7 @@ function buildSeriesForSystem(
   let series: Timeline24hSeries;
   switch (effectiveId) {
     case 'ashp':
-      series = buildAshpSeries(systemId, label, demandKwArr, designFlowTempBand);
+      series = buildAshpSeries(systemId, label, demandKwArr, designFlowTempBand, events);
       break;
     case 'stored_vented':
     case 'regular_vented':
@@ -480,8 +545,8 @@ export function buildTimeline24hV1(
   );
 
   const legendNotes: string[] = [
-    'Efficiency values: η for boilers (fraction); COP proxy for ASHP.',
-    'DHW events: shaded blocks indicate hot-water draw periods.',
+    'Performance: η (efficiency fraction) for boilers; COP for ASHP.',
+    'DHW events: shaded bands indicate hot-water draw periods.',
     'Dishwasher / washing machine: cold-fill only — no DHW thermal load.',
   ];
   if (sedbuk) {
@@ -504,12 +569,27 @@ export function buildTimeline24hV1(
     legendNotes.push('DHW schedule: typical UK household defaults (no user profile provided).');
   }
 
+  // Build bands from thermal DHW events and space-heating schedule.
+  // dhw_on: shower / bath / sink events (hot-water draw active).
+  // sh_on: approximate heating schedule (home period 06:00–23:00).
+  const bands: TimelineBandsV1 = {
+    bands: [
+      // Space-heating "on" band covering the home occupancy window
+      { kind: 'sh_on', startMin: 360, endMin: 1380 },
+      // DHW active bands from thermal events only (cold-fill appliances excluded)
+      ...events
+        .filter(e => e.kind !== 'dishwasher' && e.kind !== 'washing_machine')
+        .map(e => ({ kind: 'dhw_on', startMin: e.startMin, endMin: e.endMin })),
+    ],
+  };
+
   const payload: Timeline24hV1 = {
     timeMinutes: TIME_MINUTES,
     demandHeatKw: demandKwArr,
     ...(coldFlowLpm !== undefined && { coldFlowLpm }),
     series: [seriesA, seriesB],
     events,
+    bands,
     legendNotes,
   };
 
