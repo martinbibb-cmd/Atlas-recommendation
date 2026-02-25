@@ -123,7 +123,7 @@ function buildRedFlags(reasons: string[]): RedFlagItem[] {
     const isFail = r.includes('Rejected') || r.includes('Hard Fail') || r.includes('Cut-off');
     const severity: RedFlagItem['severity'] = isFail ? 'fail' : 'warn';
     const colonIdx = r.indexOf(':');
-    const title = colonIdx > -1 ? r.slice(0, colonIdx).replace(/^[🚫⚠️\s]+/, '').trim() : r;
+    const title = colonIdx > -1 ? r.slice(0, colonIdx).replace(/^[🚫⚠️\s]+/u, '').trim() : r;
     const detail = colonIdx > -1 ? r.slice(colonIdx + 1).trim() : r;
     return { id: `flag-${i}`, severity, title, detail };
   });
@@ -436,27 +436,31 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
   // ── Context Summary ───────────────────────────────────────────────────────
   // Priority: when both occupancyCount and bedrooms are available, combine
   // them in a single narrative bullet; otherwise show whichever is present.
-  const contextBullets: string[] = [];
+  const contextBulletMap = new Map<string, string>();
+  const addContextBullet = (key: string, value?: string) => {
+    if (!value) return;
+    contextBulletMap.set(key, value);
+  };
   if (input) {
     const { occupancyCount, bedrooms, bathroomCount,
             currentHeatSourceType, futureLoftConversion, futureAddBathroom,
             availableSpace } = input;
 
     if (occupancyCount !== undefined && bedrooms !== undefined) {
-      contextBullets.push(`${occupancyCount} ${occupancyCount === 1 ? 'person' : 'people'} in a ${bedrooms}-bed property.`);
+      addContextBullet('occupancy', `${occupancyCount} ${occupancyCount === 1 ? 'person' : 'people'} in a ${bedrooms}-bed property.`);
     } else if (occupancyCount !== undefined) {
-      contextBullets.push(`${occupancyCount} ${occupancyCount === 1 ? 'person' : 'people'} in the household.`);
+      addContextBullet('occupancy', `${occupancyCount} ${occupancyCount === 1 ? 'person' : 'people'} in the household.`);
     } else if (bedrooms !== undefined) {
-      contextBullets.push(`${bedrooms}-bedroom property.`);
+      addContextBullet('occupancy', `${bedrooms}-bedroom property.`);
     }
 
     if (bathroomCount >= 2) {
-      contextBullets.push(`${bathroomCount} bathrooms — simultaneous DHW demand is a factor.`);
+      addContextBullet('bathrooms', `${bathroomCount} bathrooms — simultaneous DHW demand is a factor.`);
     } else {
-      contextBullets.push('Single bathroom — simultaneous demand is low.');
+      addContextBullet('bathrooms', 'Single bathroom — simultaneous demand is low.');
     }
 
-    contextBullets.push(result.pressureAnalysis.formattedBullet);
+    addContextBullet('pressure', result.pressureAnalysis.formattedBullet);
 
     // CWS supply notes from cwsSupplyV1 — notes are already customer-safe.
     // When only dynamic pressure is known (no flow, no static), the CWS module
@@ -466,7 +470,11 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
       !result.cwsSupplyV1.hasMeasurements && result.pressureAnalysis.staticBar === undefined;
     for (const note of result.cwsSupplyV1.notes) {
       if (suppressDynamicOnlyDuplicate && note.startsWith('Mains supply:')) continue;
-      contextBullets.push(note);
+      addContextBullet(`cws-${note}`, note);
+    }
+
+    if (input.mainsDynamicFlowLpm !== undefined && input.mainsDynamicFlowLpm > 60) {
+      addContextBullet('flow-warning', 'Flow reading looks unrealistic — check units before using this measurement for decisions.');
     }
 
     if (currentHeatSourceType) {
@@ -477,29 +485,29 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
         ashp: 'Air source heat pump',
         other: 'Other heat source',
       };
-      contextBullets.push(`Current system: ${systemLabels[currentHeatSourceType] ?? currentHeatSourceType}.`);
+      addContextBullet('current-system', `Current system: ${systemLabels[currentHeatSourceType] ?? currentHeatSourceType}.`);
     }
 
     if (futureLoftConversion) {
-      contextBullets.push('Loft conversion planned — affects tank/cylinder placement options.');
+      addContextBullet('future-loft', 'Loft conversion planned — affects tank/cylinder placement options.');
     }
     if (futureAddBathroom) {
-      contextBullets.push('Additional bathroom planned — increases future DHW demand.');
+      addContextBullet('future-bathroom', 'Additional bathroom planned — increases future DHW demand.');
     }
     if (availableSpace === 'tight') {
-      contextBullets.push('Limited space for a cylinder — compact or Mixergy option preferred.');
+      addContextBullet('space', 'Limited space for a cylinder — compact or Mixergy option preferred.');
     } else if (availableSpace === 'ok') {
-      contextBullets.push('Adequate space available for a standard cylinder.');
+      addContextBullet('space', 'Adequate space available for a standard cylinder.');
     }
 
     const boilerModel = result.boilerEfficiencyModelV1;
     if (boilerModel?.baselineSeasonalEta != null) {
-      contextBullets.push(
+      addContextBullet('boiler-baseline',
         `Current boiler baseline seasonal efficiency (SEDBUK): ${Math.round(boilerModel.baselineSeasonalEta * 100)}% (modelled estimate).`,
       );
     }
     if (boilerModel?.ageAdjustedEta != null) {
-      contextBullets.push(
+      addContextBullet('boiler-age-adjusted',
         `Age-adjusted boiler efficiency: ${Math.round(boilerModel.ageAdjustedEta * 100)}% (modelled estimate).`,
       );
     }
@@ -507,20 +515,22 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
       const oversizeSuffix = boilerModel.oversize?.penalty
         ? `, including oversize/cycling penalty (${Math.round(boilerModel.oversize.penalty * 100)}%)`
         : '';
-      contextBullets.push(
+      addContextBullet('boiler-in-home',
         `Modelled in-home efficiency: ${Math.round(boilerModel.inHomeAdjustedEta * 100)}% (age-adjusted${oversizeSuffix}; not measured).`,
       );
     }
     if (boilerModel?.disclaimerNotes?.length) {
-      contextBullets.push(...boilerModel.disclaimerNotes);
+      for (const [idx, note] of boilerModel.disclaimerNotes.entries()) {
+        addContextBullet(`boiler-disclaimer-${idx}`, note);
+      }
     }
 
     // Boiler sizing context bullets
     const sizing = result.sizingV1;
     if (sizing) {
-      contextBullets.push(`Boiler nominal output: ${sizing.nominalKw} kW.`);
+      addContextBullet('sizing-nominal', `Boiler nominal output: ${sizing.nominalKw} kW.`);
       if (sizing.peakHeatLossKw != null) {
-        contextBullets.push(`Estimated peak heat loss: ${sizing.peakHeatLossKw.toFixed(1)} kW.`);
+        addContextBullet('sizing-peak', `Estimated peak heat loss: ${sizing.peakHeatLossKw.toFixed(1)} kW.`);
       }
       if (sizing.oversizeRatio != null) {
         const bandDescriptions: Record<string, string> = {
@@ -530,7 +540,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
           aggressive:    'aggressive oversizing — increased cycling losses',
         };
         const desc = bandDescriptions[sizing.sizingBand] ?? sizing.sizingBand;
-        contextBullets.push(
+        addContextBullet('sizing-oversize',
           `Oversize ratio: ${sizing.oversizeRatio.toFixed(1)}× (${desc}).`,
         );
       }
@@ -541,7 +551,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     if (fm) {
       if (fm.heatLossBand !== 'unknown') {
         const bandLabel = fm.heatLossBand.replace('_', ' ');
-        contextBullets.push(
+        addContextBullet('fabric-heat-loss',
           `Fabric heat-loss estimate: ${bandLabel.charAt(0).toUpperCase() + bandLabel.slice(1)} (modelled estimate).`,
         );
       }
@@ -556,12 +566,14 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
         undefined;
       if (fm.thermalMassBand !== 'unknown' && inertiaDesc) {
         const massClause = inertiaMassLabel ? ` (${inertiaMassLabel})` : '';
-        contextBullets.push(
+        addContextBullet('fabric-inertia',
           `Thermal inertia${massClause}: ${fm.thermalMassBand} — ${inertiaDesc} (modelled estimate).`,
         );
       }
     }
   }
+
+  const contextBullets = Array.from(contextBulletMap.values());
 
   const { confidence, assumptions } = buildAssumptionsV1(result, input);
 

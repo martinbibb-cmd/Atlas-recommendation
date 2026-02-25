@@ -10,7 +10,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import type { EngineInputV2_3, FullEngineResult, BuildingFabricType } from '../../engine/schema/EngineInputV2_3';
-import type { VisualSpecV1 } from '../../contracts/EngineOutputV1';
+import type { VisualSpecV1, Timeline24hV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { runEngine } from '../../engine/Engine';
@@ -47,6 +47,76 @@ type AirTightness = 'leaky' | 'average' | 'tight' | 'passive_level';
 type Glazing = 'single' | 'double' | 'triple';
 type RoofInsulation = 'poor' | 'moderate' | 'good';
 type ThermalMass = 'light' | 'medium' | 'heavy';
+type BoilerErpClass = NonNullable<FullSurveyModelV1['currentBoilerErpClass']>;
+
+const ERP_TO_SEDBUK_PCT: Record<BoilerErpClass, number> = {
+  A: 92,
+  B: 88,
+  C: 84,
+  D: 80,
+  E: 76,
+  F: 70,
+  G: 62,
+};
+
+type InputValidationWarning = {
+  key: 'boiler_age' | 'flow_lpm' | 'static_pressure' | 'pressure_order';
+  message: string;
+};
+
+function collectInputValidationWarnings(model: FullSurveyModelV1): InputValidationWarning[] {
+  const warnings: InputValidationWarning[] = [];
+  if (model.currentBoilerAgeYears !== undefined && model.currentBoilerAgeYears > 50) {
+    warnings.push({
+      key: 'boiler_age',
+      message: 'Boiler age looks unrealistic (>50 years) — treating age as unknown for efficiency decay modelling.',
+    });
+  }
+  if (model.mainsDynamicFlowLpm !== undefined && model.mainsDynamicFlowLpm > 60) {
+    warnings.push({
+      key: 'flow_lpm',
+      message: 'Flow reading looks unrealistic (>60 L/min) — check units/readings before relying on supply decisions.',
+    });
+  }
+  if (model.staticMainsPressureBar !== undefined && model.staticMainsPressureBar > 10) {
+    warnings.push({
+      key: 'static_pressure',
+      message: 'Static pressure looks unrealistic (>10 bar) — capping value for modelling.',
+    });
+  }
+
+  const pressureBar = model.dynamicMainsPressureBar ?? model.dynamicMainsPressure;
+  if (pressureBar !== undefined && model.staticMainsPressureBar !== undefined && pressureBar > model.staticMainsPressureBar) {
+    warnings.push({
+      key: 'pressure_order',
+      message: 'Dynamic pressure is above static pressure — dynamic reading ignored for decisioning until re-measured.',
+    });
+  }
+  return warnings;
+}
+
+function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyModelV1 {
+  const sanitised: FullSurveyModelV1 = { ...model };
+  if (sanitised.currentBoilerAgeYears !== undefined && sanitised.currentBoilerAgeYears > 50) {
+    sanitised.currentBoilerAgeYears = undefined;
+  }
+  if (sanitised.mainsDynamicFlowLpm !== undefined && sanitised.mainsDynamicFlowLpm > 60) {
+    sanitised.mainsDynamicFlowLpm = undefined;
+  }
+  if (sanitised.staticMainsPressureBar !== undefined && sanitised.staticMainsPressureBar > 10) {
+    sanitised.staticMainsPressureBar = 10;
+  }
+  const dynamicPressure = sanitised.dynamicMainsPressureBar ?? sanitised.dynamicMainsPressure;
+  if (
+    sanitised.staticMainsPressureBar !== undefined
+    && dynamicPressure !== undefined
+    && dynamicPressure > sanitised.staticMainsPressureBar
+  ) {
+    sanitised.dynamicMainsPressureBar = undefined;
+    sanitised.dynamicMainsPressure = sanitised.staticMainsPressureBar;
+  }
+  return sanitised;
+}
 
 /**
  * Base τ matrix (hours): thermal mass × insulation level.
@@ -447,6 +517,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
     ),
     [input.dynamicMainsPressure, input.dynamicMainsPressureBar, input.staticMainsPressureBar],
   );
+  const inputWarnings = useMemo(() => collectInputValidationWarnings(input), [input]);
 
   const stepIndex = STEPS.indexOf(currentStep);
   const progress = ((stepIndex + 1) / STEPS.length) * 100;
@@ -454,7 +525,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
   const next = () => {
     if (currentStep === 'overlay') {
       // Strip fullSurvey extras — pass only the EngineInputV2_3 subset to the engine.
-      setResults(runEngine(toEngineInput(input)));
+      setResults(runEngine(toEngineInput(sanitiseModelForEngine(input))));
       setCurrentStep('results');
     } else {
       setCurrentStep(STEPS[stepIndex + 1]);
@@ -1400,17 +1471,55 @@ export default function FullSurveyStepper({ onBack }: Props) {
               />
             </div>
             <div className="form-field">
-              <label>Current Boiler Efficiency – SEDBUK % (optional)</label>
+              <label>Current Boiler ErP Class (A–G)</label>
+              <select
+                value={input.currentBoilerErpClass ?? ''}
+                onChange={e => {
+                  const erpClass = (e.target.value || undefined) as FullSurveyModelV1['currentBoilerErpClass'];
+                  setInput({
+                    ...input,
+                    currentBoilerErpClass: erpClass,
+                    currentBoilerSedbukPct: erpClass ? ERP_TO_SEDBUK_PCT[erpClass] : input.currentBoilerSedbukPct,
+                  });
+                }}
+              >
+                <option value="">Select class (optional)</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+                <option value="E">E</option>
+                <option value="F">F</option>
+                <option value="G">G</option>
+              </select>
+              <p style={{ fontSize: '0.78rem', color: '#718096', marginTop: '0.3rem', lineHeight: 1.4 }}>
+                Use the boiler&apos;s energy-label letter. We convert the selected ErP class to an indicative SEDBUK % for modelling.
+              </p>
+            </div>
+            <div className="form-field">
+              <label>Boiler seasonal efficiency (SEDBUK %) (optional override)</label>
               <input
                 type="number"
-                min={50}
-                max={99}
                 step={1}
                 value={input.currentBoilerSedbukPct ?? ''}
-                onChange={e => setInput({ ...input, currentBoilerSedbukPct: e.target.value ? Math.min(99, Math.max(50, +e.target.value)) : undefined })}
+                onChange={e => {
+                  const parsed = parseOptionalNumber(e.target.value);
+                  setInput({ ...input, currentBoilerSedbukPct: parsed });
+                }}
                 placeholder="e.g. 89 (leave blank to use 92% default)"
               />
+              <p style={{ fontSize: '0.78rem', color: '#718096', marginTop: '0.3rem', lineHeight: 1.4 }}>
+                SEDBUK is a percentage (typically 78–94). ErP letters are a separate rating.
+              </p>
             </div>
+            {inputWarnings.length > 0 && (
+              <div style={{ gridColumn: '1 / -1', background: '#fffaf0', border: '1px solid #fbd38d', borderRadius: '8px', padding: '0.625rem 0.875rem' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#975a16', marginBottom: '0.25rem' }}>Input validation warnings</div>
+                <ul style={{ margin: 0, paddingLeft: '1rem', color: '#744210', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                  {inputWarnings.map(w => <li key={w.key}>{w.message}</li>)}
+                </ul>
+              </div>
+            )}
             <details style={{ gridColumn: '1 / -1', marginTop: '0.25rem' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#4a5568' }}>Advanced (Engineer): Heat Exchanger Metallurgy</summary>
               <div className="form-field" style={{ marginTop: '0.75rem' }}>
@@ -2026,6 +2135,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
         <FullSurveyResults
           results={results}
           input={input}
+          validationWarnings={inputWarnings}
           compareMixergy={compareMixergy}
           onBack={onBack}
         />
@@ -2513,11 +2623,13 @@ function EngineeringRequirementsCard({
 function FullSurveyResults({
   results,
   input,
+  validationWarnings,
   compareMixergy,
   onBack,
 }: {
   results: FullEngineResult;
   input: FullSurveyModelV1;
+  validationWarnings: InputValidationWarning[];
   compareMixergy: boolean;
   onBack: () => void;
 }) {
@@ -2535,17 +2647,27 @@ function FullSurveyResults({
     : 'on_demand',
   );
   const [isRecomputing, setIsRecomputing] = useState(false);
+  const [hoveredTimelineIndex, setHoveredTimelineIndex] = useState<number | null>(null);
+  const debugEnabled = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).get('debug') === '1';
+  }, []);
 
   // Timeline visual is always derived from engine output — single source of truth.
   // A/B changes rerun the engine with engineConfig.timelinePair; timeline visual is rendered from the new engineOutput.
   const timelineVisual = engineOutput.visuals?.find((v: VisualSpecV1) => v.type === 'timeline_24h');
+  const timelinePayload: Timeline24hV1 | undefined = timelineVisual?.type === 'timeline_24h' ? timelineVisual.data as Timeline24hV1 : undefined;
+  const hoveredTimeLabel =
+    timelinePayload && hoveredTimelineIndex !== null
+      ? timelinePayload.timeMinutes?.[hoveredTimelineIndex]
+      : undefined;
 
   /** Rerun the engine with the given A/B pair and update engineOutput (single source of truth). */
   const updateTimelinePair = (newA: string, newB: string) => {
     if (newA === compareAId && newB === compareBId) return;
     setIsRecomputing(true);
     startTransition(() => {
-      const engineInput = toEngineInput(input);
+      const engineInput = toEngineInput(sanitiseModelForEngine(input));
       engineInput.engineConfig = { timelinePair: [newA, newB] };
       const out = runEngine(engineInput);
       setEngineOutput(out.engineOutput);
@@ -2578,6 +2700,11 @@ function FullSurveyResults({
       {engineOutput.contextSummary && engineOutput.contextSummary.bullets.length > 0 && (
         <div className="result-section">
           <h3>🏠 Your Situation</h3>
+          {validationWarnings.length > 0 && (
+            <div style={{ marginBottom: '0.6rem', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #fbd38d', background: '#fffaf0', color: '#744210', fontSize: '0.8rem' }}>
+              Confidence: <strong>low</strong> — one or more readings look implausible and were capped/ignored for decisioning.
+            </div>
+          )}
           <ul className="context-summary-list">
             {engineOutput.contextSummary.bullets.map((bullet, i) => (
               <li key={i}>{bullet}</li>
@@ -2647,7 +2774,30 @@ function FullSurveyResults({
                 Recomputing…
               </div>
             )}
-            <VisualCard spec={timelineVisual} compareAId={compareAId} compareBId={compareBId} />
+            <VisualCard
+              spec={timelineVisual}
+              compareAId={compareAId}
+              compareBId={compareBId}
+              onTimelineHoverIndexChange={setHoveredTimelineIndex}
+            />
+            {debugEnabled && timelinePayload?.series && (
+              <div style={{ marginTop: '0.875rem', padding: '0.625rem 0.75rem', borderRadius: '6px', background: '#1a202c', color: '#e2e8f0', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.75rem' }}>
+                <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>Debug (physics inputs)</div>
+                <div>nominalEfficiencyPct: {nominalEfficiencyPct.toFixed(1)}</div>
+                <div>tenYearEfficiencyDecayPct: {normalizer.tenYearEfficiencyDecayPct.toFixed(1)}</div>
+                <div>currentEfficiencyPct: {currentEfficiencyPct.toFixed(1)}</div>
+                <div>hoveredTime: {hoveredTimeLabel !== undefined ? `${Math.floor(hoveredTimeLabel / 60).toString().padStart(2, '0')}:${(hoveredTimeLabel % 60).toString().padStart(2, '0')}` : 'none'}</div>
+                {timelinePayload.series.map((s: { id: string; efficiency: number[]; performanceKind?: 'eta' | 'cop' }) => {
+                  const etaValue = hoveredTimelineIndex !== null ? s.efficiency[hoveredTimelineIndex] : undefined;
+                  const metric = s.performanceKind === 'cop' ? 'COP' : 'η';
+                  return (
+                    <div key={s.id}>
+                      {s.id}_{metric}: {etaValue !== undefined ? etaValue.toFixed(3) : 'n/a'}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       })()}
@@ -3103,7 +3253,17 @@ function FullSurveyResults({
 // ─── Engine-driven visual renderer ───────────────────────────────────────────
 // No business logic — render by type switch only.
 
-function VisualCard({ spec, compareAId, compareBId }: { spec: VisualSpecV1; compareAId?: string; compareBId?: string }) {
+function VisualCard({
+  spec,
+  compareAId,
+  compareBId,
+  onTimelineHoverIndexChange,
+}: {
+  spec: VisualSpecV1;
+  compareAId?: string;
+  compareBId?: string;
+  onTimelineHoverIndexChange?: (index: number | null) => void;
+}) {
   const cardStyle: React.CSSProperties = {
     padding: '0.875rem',
     background: '#f7fafc',
@@ -3204,7 +3364,12 @@ function VisualCard({ spec, compareAId, compareBId }: { spec: VisualSpecV1; comp
     return (
       <div style={{ ...cardStyle, gridColumn: '1 / -1' }}>
         {spec.title && <div style={titleStyle}>📈 {spec.title}</div>}
-        <Timeline24hRenderer payload={spec.data} compareAId={compareAId} compareBId={compareBId} />
+        <Timeline24hRenderer
+          payload={spec.data}
+          compareAId={compareAId}
+          compareBId={compareBId}
+          onHoverIndexChange={onTimelineHoverIndexChange}
+        />
       </div>
     );
   }

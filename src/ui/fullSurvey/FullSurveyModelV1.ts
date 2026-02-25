@@ -11,6 +11,8 @@ import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
  * without blocking the V1 ship.
  */
 export type FullSurveyModelV1 = EngineInputV2_3 & {
+  /** UI-only ErP class field used to suggest a SEDBUK % baseline. */
+  currentBoilerErpClass?: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
   fullSurvey?: {
     /** Future: provider OAuth / Hive OAuth connection status. */
     connectedEvidence?: {
@@ -37,6 +39,6 @@ export type FullSurveyModelV1 = EngineInputV2_3 & {
  */
 export function toEngineInput(model: FullSurveyModelV1): EngineInputV2_3 {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { fullSurvey: _fullSurvey, ...engineInput } = model;
+  const { fullSurvey: _fullSurvey, currentBoilerErpClass: _currentBoilerErpClass, ...engineInput } = model;
   return engineInput;
 }
