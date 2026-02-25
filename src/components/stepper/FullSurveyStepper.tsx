@@ -1694,7 +1694,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
                       flex: 1, padding: '0.5rem',
                       border: `2px solid ${!input.highOccupancy && input.occupancyCount === 3 ? '#d69e2e' : '#e2e8f0'}`,
                       borderRadius: '6px',
-                      background: !input.highOccupancy && input.occupancyCount === 3 ? '#fffff0' : '#fff',
+                      background: !input.highOccupancy && input.occupancyCount === 3 ? '#fefcbf' : '#fff',
                       cursor: 'pointer',
                       fontSize: '0.85rem',
                       fontWeight: !input.highOccupancy && input.occupancyCount === 3 ? 700 : 400,
