@@ -138,6 +138,10 @@ export interface EngineInputV2_3 {
   currentBoilerAgeYears?: number;
   currentBoilerOutputKw?: number;
   makeModelText?: string;
+  /** Nominal boiler efficiency from the SEDBUK database or surveyor input (%).
+   *  Used as the baseline for efficiency-decay calculations; falls back to 92 when absent.
+   *  Valid range: 50–99. */
+  currentBoilerSedbukPct?: number;
   /** Structured current system context — used for SEDBUK baseline and tail-off model. */
   currentSystem?: {
     boiler?: {

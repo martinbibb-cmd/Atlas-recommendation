@@ -478,8 +478,8 @@ export function buildTimeline24hV1(
   // ASHP design flow temp from heat pump regime module
   const designFlowTempBand = core.heatPumpRegime.designFlowTempBand;
 
-  // Combi base efficiency: approximate from normalizer decay
-  const combiEtaPct = Math.max(50, 92 - core.normalizer.tenYearEfficiencyDecayPct);
+  // Combi base efficiency: nominal SEDBUK (surveyed or 92% fallback) minus decay
+  const combiEtaPct = Math.max(50, (input.currentBoilerSedbukPct ?? 92) - core.normalizer.tenYearEfficiencyDecayPct);
 
   const events = input.lifestyleProfileV1
     ? generateDhwEventsFromProfile(input.lifestyleProfileV1)

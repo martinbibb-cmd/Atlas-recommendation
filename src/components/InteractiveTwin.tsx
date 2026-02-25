@@ -24,6 +24,8 @@ interface Props {
   mixergy: MixergyResult;
   /** Current boiler efficiency for the flush slider (post-decay) */
   currentEfficiencyPct: number;
+  /** Nominal (as-installed / SEDBUK) boiler efficiency for the flush slider */
+  nominalEfficiencyPct?: number;
   /** Annual gas spend for the saving calculation */
   annualGasSpendGbp?: number;
   onBack?: () => void;
@@ -32,6 +34,7 @@ interface Props {
 export default function InteractiveTwin({
   mixergy,
   currentEfficiencyPct,
+  nominalEfficiencyPct,
   annualGasSpendGbp = 1200,
   onBack,
 }: Props) {
@@ -89,6 +92,7 @@ export default function InteractiveTwin({
         </p>
         <SystemFlushSlider
           currentEfficiencyPct={currentEfficiencyPct}
+          nominalEfficiencyPct={nominalEfficiencyPct}
           annualGasSpendGbp={annualGasSpendGbp}
         />
       </div>
