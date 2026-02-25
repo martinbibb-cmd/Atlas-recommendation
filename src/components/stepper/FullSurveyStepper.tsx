@@ -47,7 +47,6 @@ type AirTightness = 'leaky' | 'average' | 'tight' | 'passive_level';
 type Glazing = 'single' | 'double' | 'triple';
 type RoofInsulation = 'poor' | 'moderate' | 'good';
 type ThermalMass = 'light' | 'medium' | 'heavy';
-type BoilerErpClass = NonNullable<FullSurveyModelV1['currentBoilerErpClass']>;
 
 type InputValidationWarning = {
   key: 'boiler_age' | 'flow_lpm' | 'static_pressure' | 'pressure_order';
