@@ -290,7 +290,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
             fontSize: '0.74rem', color: '#2b6cb0', background: '#ebf8ff',
             border: '1px solid #bee3f8', borderRadius: 6, padding: '4px 10px',
           }}>
-            ℹ️ Electric showers don&apos;t use stored hot water.
+            ℹ️ This only affects showers. Baths and taps still use hot water.
           </span>
         )}
         <ToggleButton
