@@ -3,6 +3,16 @@
 **Status:** completed 2026-02-25
 **Scope:** all "efficiency / eta / decay" computations in the engine + UI layers.
 
+## Background
+
+Efficiency baseline and post-decay clamp logic was duplicated inline in two places
+(`TimelineBuilder.ts` and `FullSurveyStepper.tsx`), with two independent `?? 92`
+fallback points and a `Math.max(50, ...)` that could exceed 99 under future uplift
+modelling (negative decay).  All values are in percentage points (e.g. 84, not 0.84).
+
+`clampPct(nominal - decay)` replaces `Math.max(50, nominal - decay)` everywhere,
+enforcing both floor (50) and ceiling (99) even when decay is negative (uplift).
+
 ---
 
 ## 1. Efficiency computation table
