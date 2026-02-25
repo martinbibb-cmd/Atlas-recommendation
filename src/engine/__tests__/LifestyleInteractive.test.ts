@@ -206,6 +206,16 @@ describe('normaliseDeliveryMode', () => {
     expect(normaliseDeliveryMode('electric')).toBe('electric_cold_only');
   });
 
+  it('electric_shower alias → electric_cold_only', () => {
+    expect(normaliseDeliveryMode('electric_shower')).toBe('electric_cold_only');
+  });
+
+  it('case variants of electric → electric_cold_only', () => {
+    expect(normaliseDeliveryMode('Electric')).toBe('electric_cold_only');
+    expect(normaliseDeliveryMode('ELECTRIC')).toBe('electric_cold_only');
+    expect(normaliseDeliveryMode('Electric_Shower')).toBe('electric_cold_only');
+  });
+
   it('canonical modes pass through unchanged', () => {
     const canonicals: DeliveryMode[] = [
       'gravity',
@@ -220,16 +230,22 @@ describe('normaliseDeliveryMode', () => {
       expect(normaliseDeliveryMode(m)).toBe(m);
     }
   });
+
+  it('unknown/garbage input falls back to "unknown"', () => {
+    expect(normaliseDeliveryMode('steam_powered')).toBe('unknown');
+    expect(normaliseDeliveryMode('')).toBe('unknown');
+    expect(normaliseDeliveryMode('  ')).toBe('unknown');
+  });
 });
 
 // ─── isHotWaterDrawEvent ──────────────────────────────────────────────────────
 
 describe('isHotWaterDrawEvent', () => {
-  it('returns false for electric_cold_only', () => {
+  it('returns false for electric_cold_only (mode-level check, no event kind)', () => {
     expect(isHotWaterDrawEvent('electric_cold_only')).toBe(false);
   });
 
-  it('returns true for all other canonical modes', () => {
+  it('returns true for all other canonical modes (mode-level check)', () => {
     const hotModes: DeliveryMode[] = [
       'unknown',
       'gravity',
@@ -241,6 +257,26 @@ describe('isHotWaterDrawEvent', () => {
     for (const m of hotModes) {
       expect(isHotWaterDrawEvent(m)).toBe(true);
     }
+  });
+
+  it('electric_cold_only + shower → false (shower suppressed)', () => {
+    expect(isHotWaterDrawEvent('electric_cold_only', 'shower')).toBe(false);
+  });
+
+  it('electric_cold_only + bath → true (bath still draws hot water)', () => {
+    expect(isHotWaterDrawEvent('electric_cold_only', 'bath')).toBe(true);
+  });
+
+  it('electric_cold_only + sink → true (sink still draws hot water)', () => {
+    expect(isHotWaterDrawEvent('electric_cold_only', 'sink')).toBe(true);
+  });
+
+  it('gravity + shower → true (gravity always draws)', () => {
+    expect(isHotWaterDrawEvent('gravity', 'shower')).toBe(true);
+  });
+
+  it('gravity + bath → true (gravity always draws)', () => {
+    expect(isHotWaterDrawEvent('gravity', 'bath')).toBe(true);
   });
 });
 

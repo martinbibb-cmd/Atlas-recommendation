@@ -24,35 +24,71 @@ export type DeliveryMode =
   | 'electric_cold_only';
 
 /** Legacy alias inputs accepted for backward compatibility. */
-type DeliveryModeInput = DeliveryMode | 'pumped' | 'tank_pumped' | 'mixer_pump' | 'electric';
+type DeliveryModeInput = DeliveryMode | 'pumped' | 'tank_pumped' | 'mixer_pump' | 'electric' | 'electric_shower';
+
+/** All valid canonical DeliveryMode values (used for safe fall-through validation). */
+const CANONICAL_DELIVERY_MODES: ReadonlySet<DeliveryMode> = new Set<DeliveryMode>([
+  'unknown',
+  'gravity',
+  'pumped_from_tank',
+  'mains_mixer',
+  'accumulator_supported',
+  'break_tank_booster',
+  'electric_cold_only',
+]);
 
 /**
  * Normalise a raw/legacy delivery mode string to the canonical DeliveryMode.
  * Always call this once at the boundary (UI or engine entry point) before
  * passing the mode into any physics helper.
+ *
+ * Case-insensitive: 'Electric', 'ELECTRIC', 'electric_shower' all → 'electric_cold_only'.
+ * Unknown values fall back to 'unknown' (they never pass through as invalid strings).
  */
 export function normaliseDeliveryMode(raw: string): DeliveryMode {
-  switch (raw as DeliveryModeInput) {
+  const lower = raw.trim().toLowerCase() as DeliveryModeInput;
+  switch (lower) {
     case 'pumped':
     case 'tank_pumped':
       return 'pumped_from_tank';
     case 'mixer_pump':
       return 'mains_mixer';
     case 'electric':
+    case 'electric_shower':
       return 'electric_cold_only';
     default:
-      // Return the value if it's already canonical, otherwise fall back to 'unknown'
-      return (raw as DeliveryMode) ?? 'unknown';
+      // Return the value if it's already canonical, otherwise reject to 'unknown'
+      return CANONICAL_DELIVERY_MODES.has(lower as DeliveryMode) ? (lower as DeliveryMode) : 'unknown';
   }
 }
 
 /**
- * Returns true when a shower/bath event should create a hot-water draw on the
+ * Returns true when a given DHW event should create a hot-water draw on the
  * heating system.  Electric showers heat cold mains directly and never draw
- * from the stored cylinder or combi DHW circuit.
+ * from the stored cylinder or combi DHW circuit — but only for shower events.
+ * Bath, sink, and tap events still draw stored hot water even with an electric
+ * shower delivery mode.
+ *
+ * DHW suppression exists in three layers — keep them in sync:
+ *  1. This function (Solver24hV1 per-event gate and helper mode-level gate)
+ *  2. mixergySoCByHour — treats 'dhw_demand' hours as shower-peak; 'home' hours
+ *     retain a background draw (−4 %) representing taps / kitchen / bath.
+ *  3. boilerSteppedCurve — skips combi service-switching conflict for electric.
+ *
+ * When called without an eventKind (mode-level check for helpers), electric_cold_only
+ * conservatively returns false to preserve existing helper behaviour.
+ *
+ * @param mode      Canonical DHW delivery mode.
+ * @param eventKind Optional event kind (e.g. 'shower', 'bath', 'sink').
+ *                  If provided, suppression is applied only to 'shower' events.
  */
-export function isHotWaterDrawEvent(mode: DeliveryMode): boolean {
-  return mode !== 'electric_cold_only';
+export function isHotWaterDrawEvent(mode: DeliveryMode, eventKind?: string): boolean {
+  if (mode !== 'electric_cold_only') return true;
+  // Electric cold-only: suppress shower draws only.
+  // Bath, sink, and tap events still draw from the stored cylinder.
+  if (eventKind !== undefined) return eventKind !== 'shower';
+  // Mode-level check (no event kind) — conservative: no draw (backward compatible).
+  return false;
 }
 
 // ─── Hour State type ──────────────────────────────────────────────────────────

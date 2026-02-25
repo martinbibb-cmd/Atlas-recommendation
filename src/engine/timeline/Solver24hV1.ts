@@ -171,7 +171,6 @@ export function solveSystemTimeline(
   const canonicalMode: DeliveryMode = deliveryMode
     ? normaliseDeliveryMode(deliveryMode)
     : 'unknown';
-  const hotWaterDrawEnabled = isHotWaterDrawEvent(canonicalMode);
   const {
     peakHeatLossKw,
     tauHours,
@@ -217,15 +216,15 @@ export function solveSystemTimeline(
     const spaceHeatRequiredKw = Math.max(0, heatLossKw + recoveryKw);
 
     // ── DHW demand at this timestep ───────────────────────────────────────────
-    // Electric showers heat cold mains directly — no cylinder or combi DHW draw.
-    const dhwEvent = hotWaterDrawEnabled
-      ? events.find(
-          e =>
-            minuteOfDay >= e.startMin &&
-            minuteOfDay < e.endMin &&
-            getDhwDrawKw(e) > 0,
-        )
-      : undefined;
+    // Electric showers heat cold mains directly — only shower events are suppressed.
+    // Bath, sink, and tap events still draw from the stored cylinder.
+    const dhwEvent = events.find(
+      e =>
+        minuteOfDay >= e.startMin &&
+        minuteOfDay < e.endMin &&
+        getDhwDrawKw(e) > 0 &&
+        isHotWaterDrawEvent(canonicalMode, e.kind),
+    );
     const dhwHeatKw = dhwEvent ? getDhwDrawKw(dhwEvent) : 0;
     const totalRequiredKw = spaceHeatRequiredKw + dhwHeatKw;
 
