@@ -14,6 +14,7 @@
  */
 
 import type { Timeline24hEvent } from '../../contracts/EngineOutputV1';
+import { normaliseDeliveryMode, isHotWaterDrawEvent, type DeliveryMode } from '../modules/LifestyleInteractiveHelpers';
 
 /** Number of 15-minute timesteps in 24 hours. */
 export const SOLVER_STEPS = 96;
@@ -155,16 +156,22 @@ export interface SystemSolverResult {
 /**
  * Solve a single system's 24-hour timeline using the RC 1-node building model.
  *
- * @param coreInput  Shared building / site parameters.
- * @param system     System-specific dispatch configuration.
- * @param events     DHW event schedule (from TimelineBuilder or defaults).
- * @returns          96-point series arrays.
+ * @param coreInput    Shared building / site parameters.
+ * @param system       System-specific dispatch configuration.
+ * @param events       DHW event schedule (from TimelineBuilder or defaults).
+ * @param deliveryMode DHW delivery mode — 'electric_cold_only' suppresses all DHW draws.
+ * @returns            96-point series arrays.
  */
 export function solveSystemTimeline(
   coreInput: SolverCoreInput,
   system: SolverSystemConfig,
   events: Timeline24hEvent[],
+  deliveryMode?: string,
 ): SystemSolverResult {
+  const canonicalMode: DeliveryMode = deliveryMode
+    ? normaliseDeliveryMode(deliveryMode)
+    : 'unknown';
+  const hotWaterDrawEnabled = isHotWaterDrawEvent(canonicalMode);
   const {
     peakHeatLossKw,
     tauHours,
@@ -210,12 +217,15 @@ export function solveSystemTimeline(
     const spaceHeatRequiredKw = Math.max(0, heatLossKw + recoveryKw);
 
     // ── DHW demand at this timestep ───────────────────────────────────────────
-    const dhwEvent = events.find(
-      e =>
-        minuteOfDay >= e.startMin &&
-        minuteOfDay < e.endMin &&
-        getDhwDrawKw(e) > 0,
-    );
+    // Electric showers heat cold mains directly — no cylinder or combi DHW draw.
+    const dhwEvent = hotWaterDrawEnabled
+      ? events.find(
+          e =>
+            minuteOfDay >= e.startMin &&
+            minuteOfDay < e.endMin &&
+            getDhwDrawKw(e) > 0,
+        )
+      : undefined;
     const dhwHeatKw = dhwEvent ? getDhwDrawKw(dhwEvent) : 0;
     const totalRequiredKw = spaceHeatRequiredKw + dhwHeatKw;
 

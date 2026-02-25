@@ -2,7 +2,7 @@
  * Tests for the LifestyleInteractive physics helpers.
  *
  * These helpers are exported from the component and drive the three
- * live curves: Boiler "Stepped", HP "Horizon", and Mixergy SoC.
+ * live curves: Boiler "Stepped", HP "Horizon", and Hot water reserve.
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -11,7 +11,10 @@ import {
   mixergySoCByHour,
   boilerSteppedCurve,
   hpHorizonCurve,
+  normaliseDeliveryMode,
+  isHotWaterDrawEvent,
   type HourState,
+  type DeliveryMode,
 } from '../modules/LifestyleInteractiveHelpers';
 
 // ─── defaultHours ─────────────────────────────────────────────────────────────
@@ -181,5 +184,116 @@ describe('hpHorizonCurve', () => {
     const avgHigh = highSpf.reduce((s, v) => s + v, 0) / 24;
     const avgLow = lowSpf.reduce((s, v) => s + v, 0) / 24;
     expect(avgHigh).toBeGreaterThan(avgLow);
+  });
+});
+
+// ─── normaliseDeliveryMode ────────────────────────────────────────────────────
+
+describe('normaliseDeliveryMode', () => {
+  it('pumped alias → pumped_from_tank', () => {
+    expect(normaliseDeliveryMode('pumped')).toBe('pumped_from_tank');
+  });
+
+  it('tank_pumped alias → pumped_from_tank', () => {
+    expect(normaliseDeliveryMode('tank_pumped')).toBe('pumped_from_tank');
+  });
+
+  it('mixer_pump alias → mains_mixer', () => {
+    expect(normaliseDeliveryMode('mixer_pump')).toBe('mains_mixer');
+  });
+
+  it('electric alias → electric_cold_only', () => {
+    expect(normaliseDeliveryMode('electric')).toBe('electric_cold_only');
+  });
+
+  it('canonical modes pass through unchanged', () => {
+    const canonicals: DeliveryMode[] = [
+      'gravity',
+      'pumped_from_tank',
+      'mains_mixer',
+      'accumulator_supported',
+      'break_tank_booster',
+      'electric_cold_only',
+      'unknown',
+    ];
+    for (const m of canonicals) {
+      expect(normaliseDeliveryMode(m)).toBe(m);
+    }
+  });
+});
+
+// ─── isHotWaterDrawEvent ──────────────────────────────────────────────────────
+
+describe('isHotWaterDrawEvent', () => {
+  it('returns false for electric_cold_only', () => {
+    expect(isHotWaterDrawEvent('electric_cold_only')).toBe(false);
+  });
+
+  it('returns true for all other canonical modes', () => {
+    const hotModes: DeliveryMode[] = [
+      'unknown',
+      'gravity',
+      'pumped_from_tank',
+      'mains_mixer',
+      'accumulator_supported',
+      'break_tank_booster',
+    ];
+    for (const m of hotModes) {
+      expect(isHotWaterDrawEvent(m)).toBe(true);
+    }
+  });
+});
+
+// ─── mixergySoCByHour — electric shower ──────────────────────────────────────
+
+describe('mixergySoCByHour — electric shower (electric_cold_only)', () => {
+  const allDhw: HourState[] = Array(24).fill('dhw_demand');
+
+  it('electric shower: SoC is NOT reduced during dhw_demand hours', () => {
+    const socElectric = mixergySoCByHour(allDhw, 'electric_cold_only');
+    const socGravity  = mixergySoCByHour(allDhw, 'gravity');
+    // Electric shower draws no hot water → SoC stays higher than gravity draw
+    const avgElectric = socElectric.reduce((s, v) => s + v, 0) / 24;
+    const avgGravity  = socGravity.reduce((s, v) => s + v, 0) / 24;
+    expect(avgElectric).toBeGreaterThan(avgGravity);
+  });
+
+  it('electric shower: cylinder reserve is unchanged by dhw_demand hours (same as all-away SoC pattern)', () => {
+    // All-dhw with electric should behave identically to all-away at night
+    // (no dhw discharge at all — only home-background and off-peak charging differ)
+    const allAway: HourState[] = Array(24).fill('away');
+    const socElectric = mixergySoCByHour(allDhw, 'electric_cold_only');
+    const socAway     = mixergySoCByHour(allAway, 'electric_cold_only');
+    // With electric delivery, dhw_demand is treated the same as away for the cylinder
+    expect(socElectric).toEqual(socAway);
+  });
+
+  it('electric shower: SoC values still within [0, 100]', () => {
+    const soc = mixergySoCByHour(allDhw, 'electric_cold_only');
+    soc.forEach(v => {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(100);
+    });
+  });
+});
+
+// ─── boilerSteppedCurve — electric shower ────────────────────────────────────
+
+describe('boilerSteppedCurve — electric shower (electric_cold_only)', () => {
+  const allDhw: HourState[] = Array(24).fill('dhw_demand');
+
+  it('electric shower: no combi service-switching conflict (stays at ~21°C, not 19.5°C)', () => {
+    const curveElectric = boilerSteppedCurve(allDhw, false, 'electric_cold_only');
+    const curveGravity  = boilerSteppedCurve(allDhw, false, 'gravity');
+    // Electric doesn't fight the combi → temperatures are at home level (~21°C), not the DHW-conflict level (19.5°C)
+    curveElectric.forEach(v => expect(v).toBeGreaterThan(19.5));
+    curveGravity.forEach(v => expect(v).toBeLessThanOrEqual(19.5));
+  });
+
+  it('electric shower: high-flow flag has no effect (no DHW draw means no conflict)', () => {
+    const withHighFlow    = boilerSteppedCurve(allDhw, true,  'electric_cold_only');
+    const withoutHighFlow = boilerSteppedCurve(allDhw, false, 'electric_cold_only');
+    // Both should be equal — electric cancels out the high-flow penalty
+    expect(withHighFlow).toEqual(withoutHighFlow);
   });
 });
