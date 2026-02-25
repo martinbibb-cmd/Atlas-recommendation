@@ -18,7 +18,7 @@ import { runThermalInertiaModule } from '../../engine/modules/ThermalInertiaModu
 import { calcFlowLpm, PIPE_THRESHOLDS } from '../../engine/modules/HydraulicModule';
 import { runCombiDhwModuleV1 } from '../../engine/modules/CombiDhwModule';
 import { analysePressure } from '../../engine/modules/PressureModule';
-import { resolveNominalEfficiencyPct, computeCurrentEfficiencyPct } from '../../engine/utils/efficiency';
+import { resolveNominalEfficiencyPct, computeCurrentEfficiencyPct, ERP_TO_NOMINAL_PCT } from '../../engine/utils/efficiency';
 import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
 import LifestyleInteractive from '../visualizers/LifestyleInteractive';
 import EfficiencyCurve from '../visualizers/EfficiencyCurve';
@@ -48,16 +48,6 @@ type Glazing = 'single' | 'double' | 'triple';
 type RoofInsulation = 'poor' | 'moderate' | 'good';
 type ThermalMass = 'light' | 'medium' | 'heavy';
 type BoilerErpClass = NonNullable<FullSurveyModelV1['currentBoilerErpClass']>;
-
-const ERP_TO_SEDBUK_PCT: Record<BoilerErpClass, number> = {
-  A: 92,
-  B: 88,
-  C: 84,
-  D: 80,
-  E: 76,
-  F: 70,
-  G: 62,
-};
 
 type InputValidationWarning = {
   key: 'boiler_age' | 'flow_lpm' | 'static_pressure' | 'pressure_order';
@@ -1479,7 +1469,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
                   setInput({
                     ...input,
                     currentBoilerErpClass: erpClass,
-                    currentBoilerSedbukPct: erpClass ? ERP_TO_SEDBUK_PCT[erpClass] : input.currentBoilerSedbukPct,
+                    currentBoilerSedbukPct: erpClass ? ERP_TO_NOMINAL_PCT[erpClass] : input.currentBoilerSedbukPct,
                   });
                 }}
               >
@@ -2783,7 +2773,10 @@ function FullSurveyResults({
             {debugEnabled && timelinePayload?.series && (
               <div style={{ marginTop: '0.875rem', padding: '0.625rem 0.75rem', borderRadius: '6px', background: '#1a202c', color: '#e2e8f0', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.75rem' }}>
                 <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>Debug (physics inputs)</div>
-                <div>nominalEfficiencyPct: {nominalEfficiencyPct.toFixed(1)}</div>
+                <div>erpClass: {input.currentBoilerErpClass ?? 'none'}</div>
+                <div>nominalEfficiencyPct (UI, from sedbukPct/ErP): {nominalEfficiencyPct.toFixed(1)}</div>
+                <div>boilerModel.baselineSeasonalEta: {results.boilerEfficiencyModelV1?.baselineSeasonalEta != null ? (results.boilerEfficiencyModelV1.baselineSeasonalEta * 100).toFixed(1) : 'n/a (no boiler spec)'}</div>
+                <div>boilerModel.inHomeAdjustedEta: {results.boilerEfficiencyModelV1?.inHomeAdjustedEta != null ? (results.boilerEfficiencyModelV1.inHomeAdjustedEta * 100).toFixed(1) : 'n/a'}</div>
                 <div>tenYearEfficiencyDecayPct: {normalizer.tenYearEfficiencyDecayPct.toFixed(1)}</div>
                 <div>currentEfficiencyPct: {currentEfficiencyPct.toFixed(1)}</div>
                 <div>hoveredTime: {hoveredTimeLabel !== undefined ? `${Math.floor(hoveredTimeLabel / 60).toString().padStart(2, '0')}:${(hoveredTimeLabel % 60).toString().padStart(2, '0')}` : 'none'}</div>

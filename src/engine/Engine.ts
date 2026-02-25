@@ -132,6 +132,9 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
         nominalOutputKw: boilerInput.nominalOutputKw,
         peakHeatLossKw,
         demandHeatKw96,
+        // ErP / surveyor-entered SEDBUK % — used as baseline when the SEDBUK
+        // database lookup returns no result (no GC number match or band fallback).
+        inputSedbukPct: input.currentBoilerSedbukPct,
       })
     : undefined;
 

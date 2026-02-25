@@ -18,6 +18,30 @@
 export const DEFAULT_NOMINAL_EFFICIENCY_PCT = 92;
 
 /**
+ * ErP energy-label class for boilers (A–G as printed on the appliance label).
+ * A = highest efficiency (≥ 90 % SEDBUK seasonal); G = lowest (pre-condensing, < 70 %).
+ */
+export type ErpClass = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
+
+/**
+ * Indicative SEDBUK seasonal efficiency midpoints for each ErP class (percentage points).
+ *
+ * These are representative midpoints within each band, not hard regulatory boundaries.
+ * Used when the surveyor knows the label but not the exact SEDBUK figure.
+ *
+ * Canonical source of truth — import from here; never redefine in other files.
+ */
+export const ERP_TO_NOMINAL_PCT: Record<ErpClass, number> = {
+  A: 92, // condensing A-rated (≥ 90 % SEDBUK)
+  B: 88, // high-efficiency condensing
+  C: 84, // mid-range condensing
+  D: 80, // lower condensing
+  E: 76, // marginal condensing
+  F: 70, // non-condensing / early condensing
+  G: 62, // pre-condensing / old atmospheric
+};
+
+/**
  * Clamp `n` to the closed interval [min, max].
  * Defaults reflect the valid SEDBUK / in-use boiler efficiency range (50–99 %).
  */
