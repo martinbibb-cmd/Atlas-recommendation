@@ -876,4 +876,35 @@ describe('TimelineBuilder — physicsDebug debug flag + source selection', () =>
     const visual = buildTimeline24hV1(result, baseInput);
     expect(visual.data.physicsDebug).toBeUndefined();
   });
+
+  // DHW integrity: during a high-intensity bath event, a combi system's efficiency
+  // must be lower than a stored system's due to cycling / simultaneous-draw penalties.
+  it('DHW integrity: combi efficiency is lower than stored during a bath event', () => {
+    const result = runEngine(baseInput);
+    // Compare combi (on_demand) vs stored unvented side-by-side
+    const visual = buildTimeline24hV1(result, baseInput, ['on_demand', 'stored_unvented']);
+    const { series, events } = visual.data;
+
+    const combiSeries  = series.find((s: { id: string }) => s.id === 'on_demand')!;
+    const storedSeries = series.find((s: { id: string }) => s.id === 'stored_unvented')!;
+
+    // Find the first high-intensity bath event
+    const bathEvent = events.find(
+      (e: { kind: string; intensity: string }) => e.kind === 'bath' && e.intensity === 'high',
+    );
+    expect(bathEvent).toBeDefined();
+
+    // Find the first timestep index that falls within the bath event window
+    const { timeMinutes } = visual.data;
+    const bathIdx = timeMinutes.findIndex(
+      (m: number) => m >= bathEvent!.startMin && m < bathEvent!.endMin,
+    );
+    expect(bathIdx).toBeGreaterThanOrEqual(0);
+
+    const combiEta  = combiSeries.efficiency[bathIdx];
+    const storedEta = storedSeries.efficiency[bathIdx];
+
+    // Combi cycling penalty during bath → its η must be strictly below stored η
+    expect(combiEta).toBeLessThan(storedEta);
+  });
 });
