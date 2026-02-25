@@ -21,8 +21,21 @@ import { analysePressure } from './modules/PressureModule';
 import { runCwsSupplyModuleV1 } from './modules/CwsSupplyModule';
 import { lookupSedbukV1 } from './modules/SedbukModule';
 import { runBoilerSizingModuleV1 } from './modules/BoilerSizingModule';
+import { buildBoilerEfficiencyModelV1 } from './modules/BoilerEfficiencyModelV1';
 import { buildEngineOutputV1 } from './OutputBuilder';
 import { runFabricModelV1 } from './modules/FabricModelModule';
+
+
+function interpolateDemandKw(minuteIdx: number, hourlyDemandKw: number[]): number {
+  const minute = minuteIdx * 15;
+  const hour = Math.floor(minute / 60);
+  const frac = (minute % 60) / 60;
+  const h0 = hour % 24;
+  const h1 = (hour + 1) % 24;
+  const d0 = hourlyDemandKw[h0] ?? 0;
+  const d1 = hourlyDemandKw[h1] ?? 0;
+  return Math.max(0, d0 + (d1 - d0) * frac);
+}
 
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const normalizer = normalizeInput(input);
@@ -106,6 +119,22 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
       )
     : undefined;
 
+  const demandHeatKw96 = lifestyle.hourlyData.length > 0
+    ? Array.from({ length: 96 }, (_, i) => parseFloat(interpolateDemandKw(i, lifestyle.hourlyData.map(h => h.demandKw)).toFixed(3)))
+    : undefined;
+
+  const boilerEfficiencyModelV1 = boilerInput
+    ? buildBoilerEfficiencyModelV1({
+        gcNumber: boilerInput.gcNumber,
+        ageYears: boilerInput.ageYears,
+        type: boilerInput.type,
+        condensing: boilerInput.condensing,
+        nominalOutputKw: boilerInput.nominalOutputKw,
+        peakHeatLossKw,
+        demandHeatKw96,
+      })
+    : undefined;
+
   // Fabric model V1 — only computed when input.building is provided
   const fabricModelV1 = input.building
     ? runFabricModelV1({
@@ -141,6 +170,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     cwsSupplyV1,
     sedbukV1,
     sizingV1,
+    boilerEfficiencyModelV1,
     fabricModelV1,
   };
 
