@@ -107,7 +107,7 @@ describe('efficiency lint guard', () => {
       const content = readFileSync(file, 'utf-8');
       const lines = content.split('\n');
 
-      lines.forEach((line, idx) => {
+      lines.forEach((line: string, idx: number) => {
         if (!line.includes('?? 92')) return;
         // Skip comment-only lines (JSDoc / inline comments)
         const trimmed = line.trim();
@@ -139,7 +139,7 @@ describe('efficiency lint guard', () => {
       const content = readFileSync(file, 'utf-8');
       const lines = content.split('\n');
 
-      lines.forEach((line, idx) => {
+      lines.forEach((line: string, idx: number) => {
         const trimmed = line.trim();
         // Skip comment-only lines (JSDoc / inline comments)
         if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) return;
