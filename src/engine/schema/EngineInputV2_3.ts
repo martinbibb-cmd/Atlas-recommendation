@@ -197,6 +197,11 @@ export interface EngineInputV2_3 {
   engineConfig?: {
     /** Explicit pair of system IDs for the 24-hour comparative timeline. Defaults to ['current', primary recommendation]. */
     timelinePair?: [string, string];
+    /**
+     * When true, the engine populates debug-only fields (e.g. physicsDebug) in the output.
+     * Do not set in production — debug fields may contain verbose internal state.
+     */
+    debug?: boolean;
   };
 
   /**

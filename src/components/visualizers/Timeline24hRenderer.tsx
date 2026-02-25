@@ -240,7 +240,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
   );
 
   /** Shared mouse-move handler: updates internal hover state + notifies parent. */
-  const handleMouseMove = (state: { activeTooltipIndex?: number }) => {
+  const handleMouseMove = (state: { activeTooltipIndex?: number | string | null }) => {
     const idx = state?.activeTooltipIndex;
     const resolved = typeof idx === 'number' ? idx : undefined;
     setHoverIdx(resolved);

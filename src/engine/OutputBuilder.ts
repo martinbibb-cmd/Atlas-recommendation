@@ -387,7 +387,7 @@ function buildVisuals(result: FullEngineResultCore, input?: EngineInputV2_3): Vi
 
   // timeline_24h — 24-hour A/B comparison timeline (current vs primary recommendation)
   if (input) {
-    visuals.unshift(buildTimeline24hV1(result, input, input.engineConfig?.timelinePair));
+    visuals.unshift(buildTimeline24hV1(result, input, input.engineConfig?.timelinePair, input.engineConfig?.debug));
   }
 
   return visuals;
@@ -506,9 +506,11 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
       !result.cwsSupplyV1.hasMeasurements && result.pressureAnalysis.staticBar === undefined;
     for (const note of result.cwsSupplyV1.notes) {
       // Skip raw operating-point notes when we've already shown a suspect warning.
+      // Also skip the raw-value suspect-flow note (already captured in the warning bullet above).
       if (waterConf === 'suspect' && (
         note.startsWith('Mains supply (dynamic):') ||
-        note.startsWith('Pressure:')
+        note.startsWith('Pressure:') ||
+        note.startsWith('Flow reading looks unrealistic')
       )) continue;
       if (suppressDynamicOnlyDuplicate && note.startsWith('Mains supply:')) continue;
       addContextBullet(`cws-${note}`, note);
