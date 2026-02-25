@@ -2571,7 +2571,7 @@ function FullSurveyResults({
       label: 'Combi DHW',
       risk:  combiDhwV1.verdict.combiRisk,
       value: RISK_LABEL[combiDhwV1.verdict.combiRisk],
-      sub:   `${input.bathrooms ?? 1} bath · ${input.occupants ?? 2} occ`,
+      sub:   `${input.bathroomCount ?? 1} bath · ${input.occupancyCount ?? 2} occ`,
     },
     {
       label: 'Heat Loss',
