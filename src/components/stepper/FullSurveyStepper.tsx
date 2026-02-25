@@ -1398,6 +1398,18 @@ export default function FullSurveyStepper({ onBack }: Props) {
                 placeholder="e.g. Worcester Greenstar 30i"
               />
             </div>
+            <div className="form-field">
+              <label>Current Boiler Efficiency – SEDBUK % (optional)</label>
+              <input
+                type="number"
+                min={50}
+                max={99}
+                step={1}
+                value={input.currentBoilerSedbukPct ?? ''}
+                onChange={e => setInput({ ...input, currentBoilerSedbukPct: e.target.value ? Math.min(99, Math.max(50, +e.target.value)) : undefined })}
+                placeholder="e.g. 89 (leave blank to use 92% default)"
+              />
+            </div>
             <details style={{ gridColumn: '1 / -1', marginTop: '0.25rem' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#4a5568' }}>Advanced (Engineer): Heat Exchanger Metallurgy</summary>
               <div className="form-field" style={{ marginTop: '0.75rem' }}>
@@ -2540,8 +2552,9 @@ function FullSurveyResults({
     });
   };
 
-  // Approximate current efficiency from normalizer decay
-  const currentEfficiencyPct = Math.max(50, 92 - normalizer.tenYearEfficiencyDecayPct);
+  // Derive current efficiency from surveyed SEDBUK nominal (or 92% fallback) minus decay
+  const nominalEfficiencyPct = input.currentBoilerSedbukPct ?? 92;
+  const currentEfficiencyPct = Math.max(50, nominalEfficiencyPct - normalizer.tenYearEfficiencyDecayPct);
   const shouldShowMixergy = input.dhwTankType === 'mixergy' || compareMixergy;
 
   if (showTwin) {
@@ -2549,6 +2562,7 @@ function FullSurveyResults({
       <InteractiveTwin
         mixergy={mixergy}
         currentEfficiencyPct={currentEfficiencyPct}
+        nominalEfficiencyPct={nominalEfficiencyPct}
         onBack={() => setShowTwin(false)}
       />
     );
