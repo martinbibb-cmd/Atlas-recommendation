@@ -139,13 +139,13 @@ export interface OptionCardV1 {
 export interface Timeline24hEvent {
   startMin: number;
   endMin: number;
-  kind: 'shower' | 'bath' | 'sink' | 'dishwasher' | 'washing_machine';
+  kind: 'sink' | 'bath' | 'charge' | 'cold_only' | 'dishwasher' | 'washing_machine';
   intensity: 'low' | 'med' | 'high';
 }
 
 /** A single active DHW draw entry within a per-timestep events list. */
 export interface DhwEventEntry {
-  kind: 'shower' | 'bath' | 'sink' | 'charge';
+  kind: 'sink' | 'bath' | 'charge';
   drawKw: number;
 }
 

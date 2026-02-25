@@ -9,7 +9,7 @@ const TIME_MINUTES = Array.from({ length: 96 }, (_, i) => i * 15);
 
 /** Default DHW event schedule for a typical UK household day (used when no lifestyle profile is provided). */
 const DEFAULT_EVENTS: Timeline24hEvent[] = [
-  { startMin: 420, endMin: 435, kind: 'shower',     intensity: 'med'  }, // 07:00–07:15 morning shower
+  { startMin: 420, endMin: 435, kind: 'sink',        intensity: 'med'  }, // 07:00–07:15 morning DHW draw
   { startMin: 1140, endMin: 1170, kind: 'bath',       intensity: 'high' }, // 19:00–19:30 evening bath
   { startMin: 1200, endMin: 1245, kind: 'dishwasher', intensity: 'low'  }, // 20:00–20:45 dishwasher
 ];
@@ -29,12 +29,12 @@ export function generateDhwEventsFromProfile(
       // Morning bath: 07:00–07:30 at high intensity
       events.push({ startMin: 420, endMin: 450, kind: 'bath', intensity: 'high' });
     } else {
-      // Morning shower: 07:00–07:15 at medium intensity
-      events.push({ startMin: 420, endMin: 435, kind: 'shower', intensity: 'med' });
+      // Morning DHW draw (sink): 07:00–07:15 at medium intensity
+      events.push({ startMin: 420, endMin: 435, kind: 'sink', intensity: 'med' });
     }
     if (profile.twoSimultaneousBathrooms) {
       // Second bathroom: 07:05–07:25 — deliberately overlaps with first event to model simultaneous demand
-      events.push({ startMin: 425, endMin: 445, kind: 'shower', intensity: 'med' });
+      events.push({ startMin: 425, endMin: 445, kind: 'sink', intensity: 'med' });
     }
   }
 
@@ -43,12 +43,12 @@ export function generateDhwEventsFromProfile(
       // Evening bath: 19:00–19:30 at high intensity
       events.push({ startMin: 1140, endMin: 1170, kind: 'bath', intensity: 'high' });
     } else {
-      // Evening shower: 19:00–19:15 at medium intensity
-      events.push({ startMin: 1140, endMin: 1155, kind: 'shower', intensity: 'med' });
+      // Evening DHW draw (sink): 19:00–19:15 at medium intensity
+      events.push({ startMin: 1140, endMin: 1155, kind: 'sink', intensity: 'med' });
     }
     if (profile.twoSimultaneousBathrooms) {
       // Second bathroom: 19:05–19:25 — deliberately overlaps with first event to model simultaneous demand
-      events.push({ startMin: 1145, endMin: 1165, kind: 'shower', intensity: 'med' });
+      events.push({ startMin: 1145, endMin: 1165, kind: 'sink', intensity: 'med' });
     }
     if (profile.hasDishwasher) {
       // Dishwasher after dinner: 20:00–20:45 — cold-fill, cold flow event only (not thermal DHW)
@@ -86,15 +86,15 @@ function interpolateDemandKw(minuteIdx: number, hourlyDemandKw: number[]): numbe
 
 /**
  * Return true if the given minute falls within a **thermal** DHW event
- * (shower, bath, or sink). Cold-fill appliances (dishwasher, washing_machine)
- * do NOT create a thermal spike and are intentionally excluded here.
+ * (sink, bath, or charge). Cold-fill appliances (dishwasher, washing_machine)
+ * and cold_only events do NOT create a thermal spike and are intentionally excluded here.
  */
 function isDhwActive(minuteOfDay: number, events: Timeline24hEvent[]): boolean {
   return events.some(
     e =>
       minuteOfDay >= e.startMin &&
       minuteOfDay < e.endMin &&
-      (e.kind === 'shower' || e.kind === 'bath' || e.kind === 'sink'),
+      (e.kind === 'sink' || e.kind === 'bath' || e.kind === 'charge'),
   );
 }
 
@@ -114,7 +114,6 @@ function isColdFlowActive(minuteOfDay: number, events: Timeline24hEvent[]): bool
 
 /** Hot-water draw (kW) per event kind × intensity. Mirrors Solver24hV1 DHW_DRAW_KW table. */
 const DHW_DRAW_KW_TABLE: Record<string, Record<string, number>> = {
-  shower: { low: 0.8, med: 1.5, high: 2.2 },
   bath:   { low: 1.2, med: 2.0, high: 3.0 },
   sink:   { low: 0.4, med: 0.6, high: 0.8 },
 };
@@ -127,7 +126,7 @@ function getActiveHotWaterDraws(minuteOfDay: number, events: Timeline24hEvent[])
   const entries: DhwEventEntry[] = [];
   for (const ev of events) {
     if (minuteOfDay < ev.startMin || minuteOfDay >= ev.endMin) continue;
-    if (ev.kind === 'dishwasher' || ev.kind === 'washing_machine') continue;
+    if (ev.kind === 'dishwasher' || ev.kind === 'washing_machine' || ev.kind === 'cold_only') continue;
     const drawKw = DHW_DRAW_KW_TABLE[ev.kind]?.[ev.intensity] ?? 0;
     if (drawKw > 0) {
       entries.push({ kind: ev.kind as DhwEventEntry['kind'], drawKw });

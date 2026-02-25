@@ -14,7 +14,16 @@
  */
 
 import type { Timeline24hEvent } from '../../contracts/EngineOutputV1';
-import { normaliseDeliveryMode, isHotWaterDrawEvent, type DeliveryMode } from '../modules/LifestyleInteractiveHelpers';
+
+// ── DHW Supply Path type ──────────────────────────────────────────────────────
+
+/**
+ * DHW Supply Path — what system is being asked to provide.
+ *   'hot_water_system': all sink/bath events draw from the stored cylinder or combi DHW circuit.
+ *   'cold_only':        sink/bath events do not create any hot-water draw (e.g. cold-fill only).
+ *   'mixed':            60 % of sink events are hot-water draws; bath always draws from hot-water system.
+ */
+export type DhwSupplyPath = 'hot_water_system' | 'cold_only' | 'mixed';
 
 /** Number of 15-minute timesteps in 24 hours. */
 export const SOLVER_STEPS = 96;
@@ -52,15 +61,26 @@ function getCop(flowTempBand: 35 | 45 | 50, outdoorTempC: number): number {
 
 /** DHW heat draw per event kind × intensity (kW), duration-scaled by dtHours. */
 const DHW_DRAW_KW: Record<string, Record<string, number>> = {
-  shower: { low: 0.8, med: 1.5, high: 2.2 },
   bath:   { low: 1.2, med: 2.0, high: 3.0 },
   sink:   { low: 0.4, med: 0.6, high: 0.8 },
 };
 
 /** Derive DHW heat draw (kW) for a given event, or 0 for cold-fill appliances. */
 function getDhwDrawKw(event: Timeline24hEvent): number {
-  if (event.kind === 'dishwasher' || event.kind === 'washing_machine') return 0;
+  if (event.kind === 'dishwasher' || event.kind === 'washing_machine' || event.kind === 'cold_only') return 0;
   return (DHW_DRAW_KW[event.kind]?.[event.intensity]) ?? 0;
+}
+
+/**
+ * Scale a DHW draw (kW) according to the active DHW supply path.
+ *   hot_water_system: full draw (scale = 1.0)
+ *   cold_only:        no draw (scale = 0.0) — cold-fill or electric-only supply
+ *   mixed:            0.6 × draw for sink events; full draw for bath events
+ */
+function scaleDhwDraw(rawKw: number, supplyPath: DhwSupplyPath, kind: string): number {
+  if (supplyPath === 'cold_only') return 0;
+  if (supplyPath === 'mixed' && kind === 'sink') return rawKw * 0.6;
+  return rawKw; // hot_water_system or bath in mixed
 }
 
 // ── System type helpers ───────────────────────────────────────────────────────
@@ -159,18 +179,17 @@ export interface SystemSolverResult {
  * @param coreInput    Shared building / site parameters.
  * @param system       System-specific dispatch configuration.
  * @param events       DHW event schedule (from TimelineBuilder or defaults).
- * @param deliveryMode DHW delivery mode — 'electric_cold_only' suppresses all DHW draws.
+ * @param dhwSupplyPath DHW supply path — controls how sink/bath events hit the hot-water system.
+ *                      'hot_water_system' (default): all draws; 'cold_only': no draws; 'mixed': partial.
  * @returns            96-point series arrays.
  */
 export function solveSystemTimeline(
   coreInput: SolverCoreInput,
   system: SolverSystemConfig,
   events: Timeline24hEvent[],
-  deliveryMode?: string,
+  dhwSupplyPath?: DhwSupplyPath,
 ): SystemSolverResult {
-  const canonicalMode: DeliveryMode = deliveryMode
-    ? normaliseDeliveryMode(deliveryMode)
-    : 'unknown';
+  const supplyPath: DhwSupplyPath = dhwSupplyPath ?? 'hot_water_system';
   const {
     peakHeatLossKw,
     tauHours,
@@ -216,16 +235,16 @@ export function solveSystemTimeline(
     const spaceHeatRequiredKw = Math.max(0, heatLossKw + recoveryKw);
 
     // ── DHW demand at this timestep ───────────────────────────────────────────
-    // Electric showers heat cold mains directly — only shower events are suppressed.
-    // Bath, sink, and tap events still draw from the stored cylinder.
+    // Gate hot-water draw by DHW supply path.
+    // cold_only: no draw; mixed: 0.6× sink, full bath; hot_water_system: full draw.
     const dhwEvent = events.find(
       e =>
         minuteOfDay >= e.startMin &&
         minuteOfDay < e.endMin &&
-        getDhwDrawKw(e) > 0 &&
-        isHotWaterDrawEvent(canonicalMode, e.kind),
+        getDhwDrawKw(e) > 0,
     );
-    const dhwHeatKw = dhwEvent ? getDhwDrawKw(dhwEvent) : 0;
+    const rawDhwKw = dhwEvent ? getDhwDrawKw(dhwEvent) : 0;
+    const dhwHeatKw = dhwEvent ? scaleDhwDraw(rawDhwKw, supplyPath, dhwEvent.kind) : 0;
     const totalRequiredKw = spaceHeatRequiredKw + dhwHeatKw;
 
     // ── System dispatch ───────────────────────────────────────────────────────
