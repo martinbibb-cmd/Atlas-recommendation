@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import {
   ComposedChart,
   Line,
@@ -69,6 +70,60 @@ interface Props {
   onHoverIndexChange?: (index: number | null) => void;
 }
 
+// ── Physics debug overlay (shown when ?debug=1) ───────────────────────────────
+
+function PhysicsDebugOverlay({
+  payload,
+  hoverIdx,
+}: {
+  payload: Timeline24hV1;
+  hoverIdx: number | null;
+}) {
+  const dbg = payload.physicsDebug;
+  if (!dbg) return null;
+
+  const panelStyle: React.CSSProperties = {
+    background: '#1a202c',
+    color: '#68d391',
+    fontFamily: 'monospace',
+    fontSize: '0.74rem',
+    lineHeight: 1.5,
+    padding: '8px 12px',
+    borderRadius: 6,
+    marginBottom: 10,
+    border: '1px solid #4a5568',
+  };
+  const headStyle: React.CSSProperties = { color: '#f6ad55', fontWeight: 700, marginBottom: 4 };
+  const dividerStyle: React.CSSProperties = {
+    marginTop: 5, paddingTop: 5, borderTop: '1px solid #4a5568',
+  };
+
+  return (
+    <div style={panelStyle}>
+      <div style={headStyle}>Physics Debug (?debug=1)</div>
+      <div>erpClass: <strong>{dbg.erpClass ?? 'N/A'}</strong></div>
+      <div>nominalEfficiencyPct: <strong>{dbg.nominalEfficiencyPct.toFixed(1)}%</strong></div>
+      <div>tenYearDecayPct: <strong>{dbg.tenYearEfficiencyDecayPct.toFixed(1)}%</strong></div>
+      <div>currentEfficiencyPct: <strong>{dbg.currentEfficiencyPct.toFixed(1)}%</strong></div>
+      <div>sedbukSource: <strong>{dbg.sedbukSource}</strong></div>
+      {hoverIdx !== null && (
+        <div style={dividerStyle}>
+          <div>hoverIdx: <strong>{hoverIdx}</strong>  t = {payload.timeMinutes[hoverIdx]}min ({minuteToLabel(payload.timeMinutes[hoverIdx])})</div>
+          {payload.series.map((s, idx) => {
+            const eta = s.efficiency[hoverIdx];
+            const kind = s.performanceKind === 'cop' ? 'COP' : 'η';
+            return (
+              <div key={s.id}>
+                {String.fromCharCode(65 + idx)} [{s.id}] {kind}: <strong>{eta !== undefined ? eta.toFixed(3) : 'N/A'}</strong>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Timeline24hRenderer
  *
@@ -79,9 +134,21 @@ interface Props {
  *  4. Performance (η / COP) — kind-dependent axis bounds
  *
  * All rows share the same X axis and vertical band annotations.
+ *
+ * Debug overlay: append ?debug=1 to the URL to show the physics truth panel
+ * (erpClass, nominalEfficiencyPct, decayPct, currentEfficiencyPct, hover η/COP).
  */
 export default function Timeline24hRenderer({ payload, compareAId, compareBId, onHoverIndexChange }: Props) {
   const data = buildChartData(payload);
+
+  // Internal hover index — drives the debug overlay independently of the external callback.
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
+  // Detect ?debug=1 once on mount (URL does not change during a render session).
+  const isDebug = useMemo(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug'),
+    [],
+  );
 
   // Derive a key from the active series IDs so Recharts fully remounts when the pair changes
   const chartKey = payload.series.map(s => s.id).join('__');
@@ -102,10 +169,12 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
   // Check whether physics-based room temp data is present
   const hasRoomTemp = !!(seriesA?.roomTempC?.length || seriesB?.roomTempC?.length);
 
-  // Determine performance axis bounds from series kinds
-  // If any series is COP, use cop range [0..6]; else use eta range [-0.2..1.05]
+  // Determine performance axis bounds from series kinds.
+  // For COP (heat pumps): 0–6.
+  // For boiler η: tighten to 0.5–1.0 to make efficiency swings visible.
+  // Avoid auto-scaling to huge ranges that flatten real differences.
   const hasCop = payload.series.some(s => s.performanceKind === 'cop');
-  const perfDomain = hasCop ? ([0, 6] as [number, number]) : ([-0.2, 1.05] as [number, number]);
+  const perfDomain = hasCop ? ([0, 6] as [number, number]) : ([0.5, 1.0] as [number, number]);
   const perfLabel  = hasCop ? 'COP' : 'η';
 
   /** Shared X axis props reused across all charts. */
@@ -170,8 +239,26 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
     ),
   );
 
+  /** Shared mouse-move handler: updates internal hover state + notifies parent. */
+  const handleMouseMove = (state: { activeTooltipIndex?: number }) => {
+    const idx = state?.activeTooltipIndex;
+    const resolved = typeof idx === 'number' ? idx : null;
+    setHoverIdx(resolved);
+    onHoverIndexChange?.(resolved);
+  };
+
+  const handleMouseLeave = () => {
+    setHoverIdx(null);
+    onHoverIndexChange?.(null);
+  };
+
   return (
     <div style={{ width: '100%' }}>
+      {/* Physics debug overlay — only shown when ?debug=1 */}
+      {isDebug && (
+        <PhysicsDebugOverlay payload={payload} hoverIdx={hoverIdx} />
+      )}
+
       {/* A/B compare labels */}
       {(compareAId || compareBId) && (
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem', fontSize: '0.82rem', flexWrap: 'wrap' }}>
@@ -193,7 +280,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
       {/* Row 1: Space Heat Demand (+ optional indoor temp) */}
       <div style={subLabel}>Space Heat Demand (kW)</div>
       <ResponsiveContainer width="100%" height={160}>
-        <ComposedChart key={`${chartKey}_demand`} data={data} margin={chartMargin}>
+        <ComposedChart key={`${chartKey}_demand`} data={data} margin={chartMargin} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis {...xAxisProps} />
           <YAxis tick={{ fontSize: 9 }} width={32} unit="kW" />
@@ -261,7 +348,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
       {/* Row 2: DHW Events — hot-water draw bar track */}
       <div style={subLabel}>DHW Events — Hot-water Draw (kW)</div>
       <ResponsiveContainer width="100%" height={110}>
-        <ComposedChart key={`${chartKey}_dhwbar`} data={data} margin={chartMargin}>
+        <ComposedChart key={`${chartKey}_dhwbar`} data={data} margin={chartMargin} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis {...xAxisProps} />
           <YAxis tick={{ fontSize: 9 }} width={32} unit="kW" />
@@ -299,7 +386,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
       {/* Row 3: Heat Source Output */}
       <div style={subLabel}>Heat Source Output (kW)</div>
       <ResponsiveContainer width="100%" height={160}>
-        <ComposedChart key={`${chartKey}_output`} data={data} margin={chartMargin}>
+        <ComposedChart key={`${chartKey}_output`} data={data} margin={chartMargin} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis {...xAxisProps} />
           <YAxis tick={{ fontSize: 9 }} width={32} unit="kW" />
@@ -344,11 +431,8 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
           key={`${chartKey}_perf`}
           data={data}
           margin={chartMargin}
-          onMouseMove={(state) => {
-            const hoverIndex = state?.activeTooltipIndex;
-            onHoverIndexChange?.(typeof hoverIndex === 'number' ? hoverIndex : null);
-          }}
-          onMouseLeave={() => onHoverIndexChange?.(null)}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis {...xAxisProps} />

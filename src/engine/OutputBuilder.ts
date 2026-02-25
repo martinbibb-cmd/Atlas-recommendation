@@ -123,7 +123,7 @@ function buildRedFlags(reasons: string[]): RedFlagItem[] {
     const isFail = r.includes('Rejected') || r.includes('Hard Fail') || r.includes('Cut-off');
     const severity: RedFlagItem['severity'] = isFail ? 'fail' : 'warn';
     const colonIdx = r.indexOf(':');
-    const title = colonIdx > -1 ? r.slice(0, colonIdx).replace(/^[🚫⚠️\s]+/u, '').trim() : r;
+    const title = colonIdx > -1 ? r.slice(0, colonIdx).replace(/^[^\p{L}\p{N}]+/u, '').trim() : r;
     const detail = colonIdx > -1 ? r.slice(colonIdx + 1).trim() : r;
     return { id: `flag-${i}`, severity, title, detail };
   });
@@ -436,11 +436,23 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
   // ── Context Summary ───────────────────────────────────────────────────────
   // Priority: when both occupancyCount and bedrooms are available, combine
   // them in a single narrative bullet; otherwise show whichever is present.
-  const contextBulletMap = new Map<string, string>();
+  //
+  // Bullets are written into two separate maps:
+  //   warningBulletMap  — data-quality / measurement problems (shown first)
+  //   factBulletMap     — normal survey facts (shown after warnings)
+  // This ensures warnings are never buried at the bottom of the summary.
+  const warningBulletMap = new Map<string, string>();
+  const factBulletMap    = new Map<string, string>();
+
+  const addWarningBullet = (key: string, value?: string) => {
+    if (!value) return;
+    warningBulletMap.set(key, value);
+  };
   const addContextBullet = (key: string, value?: string) => {
     if (!value) return;
-    contextBulletMap.set(key, value);
+    factBulletMap.set(key, value);
   };
+
   if (input) {
     const { occupancyCount, bedrooms, bathroomCount,
             currentHeatSourceType, futureLoftConversion, futureAddBathroom,
@@ -460,21 +472,46 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
       addContextBullet('bathrooms', 'Single bathroom — simultaneous demand is low.');
     }
 
-    addContextBullet('pressure', result.pressureAnalysis.formattedBullet);
+    // ── Mains pressure / flow — gated on water-reading confidence ──────────
+    // 'good':    show the raw operating point as a fact.
+    // 'suspect': suppress raw values; show a data-quality warning instead.
+    // 'missing': show a single "not measured" note.
+    const waterConf = result.cwsSupplyV1.waterConfidence;
 
-    // CWS supply notes from cwsSupplyV1 — notes are already customer-safe.
-    // When only dynamic pressure is known (no flow, no static), the CWS module
-    // emits a "Mains supply: X bar (dynamic only)" note that duplicates the
-    // pressureAnalysis.formattedBullet already pushed above — skip it.
+    if (waterConf === 'suspect') {
+      // Suppress the raw pressure bullet — we do not want to present junk as a fact.
+      if (result.cwsSupplyV1.hasSuspectFlow) {
+        addWarningBullet('flow-warning',
+          `Flow reading looks unrealistic — check units / instrument. Not used for eligibility.`);
+      } else if (result.cwsSupplyV1.inconsistent) {
+        addWarningBullet('pressure-warning',
+          'Mains pressure readings inconsistent (dynamic > static) — likely swapped or measured at different points. Recheck before specifying system.');
+      }
+      // Still show the pressure-only bullet when we have no flow but have a pressure reading,
+      // so the surveyor knows what was captured (just not trusted).
+      if (!result.cwsSupplyV1.hasMeasurements && result.pressureAnalysis.dynamicBar !== undefined) {
+        addContextBullet('pressure', result.pressureAnalysis.formattedBullet);
+      }
+    } else if (waterConf === 'missing') {
+      // No flow — show the pressure-only bullet if one exists; otherwise skip.
+      addContextBullet('pressure', result.pressureAnalysis.formattedBullet);
+    } else {
+      // 'good' — show raw readings as a normal fact.
+      addContextBullet('pressure', result.pressureAnalysis.formattedBullet);
+    }
+
+    // CWS supply notes from cwsSupplyV1 — already customer-safe, but skip raw
+    // operating-point notes when confidence is suspect (already warned above).
     const suppressDynamicOnlyDuplicate =
       !result.cwsSupplyV1.hasMeasurements && result.pressureAnalysis.staticBar === undefined;
     for (const note of result.cwsSupplyV1.notes) {
+      // Skip raw operating-point notes when we've already shown a suspect warning.
+      if (waterConf === 'suspect' && (
+        note.startsWith('Mains supply (dynamic):') ||
+        note.startsWith('Pressure:')
+      )) continue;
       if (suppressDynamicOnlyDuplicate && note.startsWith('Mains supply:')) continue;
       addContextBullet(`cws-${note}`, note);
-    }
-
-    if (input.mainsDynamicFlowLpm !== undefined && input.mainsDynamicFlowLpm > 60) {
-      addContextBullet('flow-warning', 'Flow reading looks unrealistic — check units before using this measurement for decisions.');
     }
 
     if (currentHeatSourceType) {
@@ -501,12 +538,21 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     }
 
     const boilerModel = result.boilerEfficiencyModelV1;
+
+    // Boiler age sanity warning — shown before efficiency numbers.
+    if (boilerModel?.ageIsUnrealistic) {
+      addWarningBullet('boiler-age-warning',
+        `Boiler age input (${input.currentSystem?.boiler?.ageYears ?? input.currentBoilerAgeYears} years) appears unrealistic — treated as unknown. Check survey data. Age decay not applied.`,
+      );
+    }
+
     if (boilerModel?.baselineSeasonalEta != null) {
       addContextBullet('boiler-baseline',
         `Current boiler baseline seasonal efficiency (SEDBUK): ${Math.round(boilerModel.baselineSeasonalEta * 100)}% (modelled estimate).`,
       );
     }
-    if (boilerModel?.ageAdjustedEta != null) {
+    // Only show age-adjusted figure when age is plausible (otherwise same as baseline).
+    if (boilerModel?.ageAdjustedEta != null && !boilerModel.ageIsUnrealistic) {
       addContextBullet('boiler-age-adjusted',
         `Age-adjusted boiler efficiency: ${Math.round(boilerModel.ageAdjustedEta * 100)}% (modelled estimate).`,
       );
@@ -573,7 +619,11 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     }
   }
 
-  const contextBullets = Array.from(contextBulletMap.values());
+  // Warnings first, then normal facts — ensures data-quality issues are never buried.
+  const contextBullets = [
+    ...Array.from(warningBulletMap.values()),
+    ...Array.from(factBulletMap.values()),
+  ];
 
   const { confidence, assumptions } = buildAssumptionsV1(result, input);
 

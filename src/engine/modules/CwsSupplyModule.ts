@@ -11,6 +11,12 @@
  * Unvented eligibility gate:
  *   - flowLpm ≥ 10 AND dynamicBar ≥ 1.0  (operating-point evidence)
  *   - OR flowLpm ≥ 12 AND dynamicBar === undefined  (flow-only evidence, pressure not recorded)
+ *
+ * Water confidence levels:
+ *   - 'good':    plausible flow (≤ MAX_PLAUSIBLE_FLOW_LPM) and consistent readings
+ *   - 'suspect': flow > MAX_PLAUSIBLE_FLOW_LPM (unrealistic — check units/instrument)
+ *                OR readings are physically inconsistent (dynamic > static)
+ *   - 'missing': no flow measurement at all
  */
 
 import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
@@ -23,7 +29,23 @@ const UNVENTED_FLOW_AT_PRESSURE_LPM = 10;
 const UNVENTED_FLOW_AT_PRESSURE_BAR = 1.0;
 const UNVENTED_FLOW_ONLY_LPM = 12;
 
+/**
+ * Threshold above which a flow reading is treated as unrealistic / unit-error suspect.
+ * 60 L/min is already above a normal UK mains supply (typical 10–25 L/min).
+ * Readings above this should not be used to inform eligibility decisions.
+ */
+export const MAX_PLAUSIBLE_FLOW_LPM = 60;
+
 export type CwsLimitation = 'none' | 'flow' | 'pressure' | 'unknown';
+
+/**
+ * Confidence in mains water readings.
+ *   'good'    — plausible, consistent readings; safe to use for eligibility and display.
+ *   'suspect' — readings are physically inconsistent OR flow is unrealistically high.
+ *               Do not present raw values as facts; show a warning instead.
+ *   'missing' — no flow measurement; eligibility cannot be confirmed.
+ */
+export type WaterConfidence = 'good' | 'suspect' | 'missing';
 
 export interface CwsSupplyV1Result {
   source: 'unknown' | 'mains_true' | 'mains_shared' | 'loft_tank';
@@ -41,6 +63,17 @@ export interface CwsSupplyV1Result {
   limitation: CwsLimitation;
   notes: string[];
   evidenceIds?: string[];
+  /**
+   * Confidence in the mains water readings.
+   * 'suspect' when flow > MAX_PLAUSIBLE_FLOW_LPM or readings are inconsistent.
+   * UI must not present raw water readings as normal facts when confidence is 'suspect'.
+   */
+  waterConfidence: WaterConfidence;
+  /**
+   * True when the flow reading exceeds MAX_PLAUSIBLE_FLOW_LPM and is treated as
+   * a suspect instrument/units error.  Raw values are suppressed from the display.
+   */
+  hasSuspectFlow: boolean;
 }
 
 /**
@@ -100,6 +133,9 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
   // hasDynOpPoint: true when flow AND pressure are both present (operating-point evidence)
   const hasDynOpPoint = hasFlow && dynamicPressureBar !== undefined;
 
+  // Suspect flow: above the plausible threshold — most likely a units/instrument error.
+  const hasSuspectFlow = hasFlow && (dynamicFlowLpm as number) > MAX_PLAUSIBLE_FLOW_LPM;
+
   // Case 1: flow present → meaningful measurement
   if (hasFlow) {
     const flow = dynamicFlowLpm as number; // narrowed by hasFlow guard
@@ -112,7 +148,12 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
       dropBar = staticPressureBar - dynamicPressureBar;
     }
 
-    if (dynamicPressureBar !== undefined) {
+    if (hasSuspectFlow) {
+      // Replace the normal operating-point note with a warning — do NOT show the raw number as a fact.
+      notes.push(
+        `Flow reading looks unrealistic (${flow.toFixed(0)} L/min) — check units / instrument. Reading not used for eligibility.`
+      );
+    } else if (dynamicPressureBar !== undefined) {
       notes.push(
         `Mains supply (dynamic): ${flow.toFixed(1)} L/min @ ${dynamicPressureBar.toFixed(1)} bar.`
       );
@@ -120,12 +161,12 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
       notes.push(`Mains supply (dynamic): ${flow.toFixed(1)} L/min (pressure not recorded).`);
     }
 
-    if (staticPressureBar !== undefined && dynamicPressureBar !== undefined && !inconsistent && dropBar !== null) {
+    if (!hasSuspectFlow && staticPressureBar !== undefined && dynamicPressureBar !== undefined && !inconsistent && dropBar !== null) {
       notes.push(
         `Pressure: ${staticPressureBar.toFixed(1)} → ${dynamicPressureBar.toFixed(1)} bar ` +
           `(drop ${dropBar.toFixed(1)} bar).`
       );
-    } else if (dynamicPressureBar !== undefined && staticPressureBar === undefined) {
+    } else if (!hasSuspectFlow && dynamicPressureBar !== undefined && staticPressureBar === undefined) {
       notes.push('Static pressure not measured — pressure-drop unknown.');
     }
 
@@ -133,11 +174,17 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
     //   - Operating-point evidence: flow ≥ 10 L/min AND pressure ≥ 1.0 bar
     //   - Flow-only evidence: flow ≥ 12 L/min AND pressure not recorded (undefined)
     // A recorded 0 bar does NOT satisfy either gate (fails ≥1.0 bar and is not undefined).
+    // Suspect flow (above MAX_PLAUSIBLE_FLOW_LPM) never satisfies the gate — junk inputs
+    // must not be allowed to pass eligibility checks.
     const meetsUnventedRequirement =
-      !inconsistent && (
+      !inconsistent &&
+      !hasSuspectFlow && (
         (dynamicPressureBar !== undefined && flow >= UNVENTED_FLOW_AT_PRESSURE_LPM && dynamicPressureBar >= UNVENTED_FLOW_AT_PRESSURE_BAR) ||
         (dynamicPressureBar === undefined && flow >= UNVENTED_FLOW_ONLY_LPM)
       );
+
+    const waterConfidence: WaterConfidence =
+      hasSuspectFlow || inconsistent ? 'suspect' : 'good';
 
     return {
       source,
@@ -150,6 +197,8 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
       meetsUnventedRequirement,
       limitation: 'none',
       notes,
+      waterConfidence,
+      hasSuspectFlow,
     };
   }
 
@@ -173,5 +222,7 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
     meetsUnventedRequirement: false,
     limitation: 'unknown',
     notes,
+    waterConfidence: 'missing',
+    hasSuspectFlow: false,
   };
 }

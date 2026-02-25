@@ -238,6 +238,24 @@ export interface Timeline24hSeries {
   dhwEventsActive?: DhwEventEntry[][];
 }
 
+/**
+ * Physics debug data attached to a 24-hour timeline payload.
+ * Only present when the engine can resolve the current boiler's efficiency baseline.
+ * Consumed by the debug overlay (rendered when ?debug=1 is in the URL).
+ */
+export interface PhysicsDebugV1 {
+  /** Derived ErP energy label class (A–G) based on nominal efficiency. */
+  erpClass?: string;
+  /** Nominal (as-installed) SEDBUK seasonal efficiency (percentage points, e.g. 92). */
+  nominalEfficiencyPct: number;
+  /** 10-year scale/sludge-based efficiency decay from water chemistry (percentage points). */
+  tenYearEfficiencyDecayPct: number;
+  /** Current (post-decay) efficiency used for the timeline (percentage points). */
+  currentEfficiencyPct: number;
+  /** How the SEDBUK baseline was resolved: 'gc' | 'band' | 'unknown' | 'fallback'. */
+  sedbukSource: 'gc' | 'band' | 'unknown' | 'fallback';
+}
+
 /** Payload for the timeline_24h visual type (96 points at 15-min intervals). */
 export interface Timeline24hV1 {
   timeMinutes: number[];
@@ -257,6 +275,11 @@ export interface Timeline24hV1 {
    */
   bands?: TimelineBandsV1;
   legendNotes?: string[];
+  /**
+   * Physics debug snapshot — populated when the engine resolves a boiler baseline.
+   * Rendered in the chart debug overlay when ?debug=1 is in the URL.
+   */
+  physicsDebug?: PhysicsDebugV1;
 }
 
 export interface VisualSpecV1 {

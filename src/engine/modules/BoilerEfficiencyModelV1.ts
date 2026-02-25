@@ -31,6 +31,12 @@ export interface BoilerEfficiencyModelInputV1 {
   inputSedbukPct?: number;
 }
 
+/**
+ * Boiler ages above this threshold are treated as unrealistic survey-data errors.
+ * A boiler cannot be 100+ years old; treat the age as unknown and suppress age decay.
+ */
+export const MAX_PLAUSIBLE_BOILER_AGE = 100;
+
 export interface BoilerEfficiencyModelV1 {
   sedbuk: {
     seasonalEta?: number;
@@ -50,6 +56,11 @@ export interface BoilerEfficiencyModelV1 {
   inHomeAdjustedEta?: number;
   etaSeries96?: number[];
   disclaimerNotes: string[];
+  /**
+   * True when the supplied ageYears is above MAX_PLAUSIBLE_BOILER_AGE.
+   * Age decay is NOT applied when true — the value is treated as unknown.
+   */
+  ageIsUnrealistic?: boolean;
 }
 
 /** Piecewise age multiplier shared by timeline + context outputs. */
@@ -130,11 +141,22 @@ export function buildBoilerEfficiencyModelV1(
       : input.inputSedbukPct != null
         ? input.inputSedbukPct / 100
         : (sedbuk.seasonalEta ?? UNKNOWN_SEASONAL_ETA);
+
+  // Age validation: ages above MAX_PLAUSIBLE_BOILER_AGE are survey-data errors.
+  // Treat as unknown to avoid propagating junk into efficiency calculations.
+  const ageIsUnrealistic =
+    input.ageYears !== undefined && input.ageYears > MAX_PLAUSIBLE_BOILER_AGE;
+  const effectiveAge = ageIsUnrealistic ? undefined : input.ageYears;
+
   const age = {
-    factor: ageFactor(input.ageYears),
-    notes: [
-      `Age degradation factor applied from boiler age (${input.ageYears ?? 'unknown'} years).`,
-    ],
+    factor: ageFactor(effectiveAge),
+    notes: ageIsUnrealistic
+      ? [
+          `Boiler age input (${input.ageYears} years) is unrealistic — treated as unknown. Age decay not applied. Check survey data.`,
+        ]
+      : [
+          `Age degradation factor applied from boiler age (${input.ageYears ?? 'unknown'} years).`,
+        ],
   };
 
   const ageAdjustedEta = clampEta(baselineSeasonalEta * age.factor);
@@ -178,6 +200,7 @@ export function buildBoilerEfficiencyModelV1(
     ageAdjustedEta,
     inHomeAdjustedEta,
     ...(etaSeries96 ? { etaSeries96 } : {}),
+    ...(ageIsUnrealistic ? { ageIsUnrealistic: true } : {}),
     disclaimerNotes: [
       'Modelled estimate (not measured).',
       `Baseline efficiency source: ${baselineSource}.`,

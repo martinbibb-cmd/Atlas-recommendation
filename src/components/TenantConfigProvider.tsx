@@ -63,6 +63,7 @@ export function TenantConfigProvider({ tenantId = 'default', children }: TenantC
  * Returns the active tenant configuration from the nearest TenantConfigProvider.
  * Falls back to the 'default' (Atlas) configuration if no provider is present.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTenantConfig(): TenantConfig {
   return useContext(TenantContext);
 }
@@ -73,6 +74,7 @@ export function useTenantConfig(): TenantConfig {
  * Returns the built-in configuration for a given tenant ID without requiring
  * React context (useful in pure-logic tests or server-side code).
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function getTenantConfig(tenantId: TenantId): TenantConfig {
   return TENANT_CONFIGS[tenantId] ?? TENANT_CONFIGS.default;
 }
