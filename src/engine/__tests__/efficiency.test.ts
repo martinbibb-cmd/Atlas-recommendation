@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   clampPct,
   resolveNominalEfficiencyPct,
@@ -62,5 +64,56 @@ describe('computeCurrentEfficiencyPct', () => {
 
   it('zero decay returns nominal unchanged', () => {
     expect(computeCurrentEfficiencyPct(84, 0)).toBe(84);
+  });
+});
+
+// ── Lint guard: single source of truth for ?? 92 ──────────────────────────────
+
+/**
+ * Collect all .ts / .tsx source files under src/ recursively.
+ */
+function collectSourceFiles(dir: string): string[] {
+  const entries = readdirSync(dir, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectSourceFiles(full));
+    } else if (entry.isFile() && /\.(ts|tsx)$/.test(entry.name)) {
+      files.push(full);
+    }
+  }
+  return files;
+}
+
+describe('efficiency lint guard', () => {
+  it('?? 92 appears only inside resolveNominalEfficiencyPct — no rogue fallbacks', () => {
+    const srcRoot = join(__dirname, '../../');
+    const files = collectSourceFiles(srcRoot);
+
+    const violations: string[] = [];
+
+    for (const file of files) {
+      // Skip test files — they may reference 92 in assertions about expected behaviour
+      if (/\.(test|spec)\.(ts|tsx)$/.test(file) || file.includes('__tests__')) continue;
+
+      const content = readFileSync(file, 'utf-8');
+      const lines = content.split('\n');
+
+      lines.forEach((line, idx) => {
+        if (!line.includes('?? 92')) return;
+        // Skip comment-only lines (JSDoc / inline comments)
+        const trimmed = line.trim();
+        if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) return;
+        // The only permitted code occurrence is in efficiency.ts: clampPct(inputSedbuk ?? 92)
+        const isPermittedFile = file.endsWith('efficiency.ts');
+        const isPermittedLine = isPermittedFile && line.includes('clampPct(inputSedbuk ?? 92)');
+        if (!isPermittedLine) {
+          violations.push(`${file}:${idx + 1}: ${trimmed}`);
+        }
+      });
+    }
+
+    expect(violations).toEqual([]);
   });
 });

@@ -4,6 +4,8 @@
  * These are the single source of truth for clamping, fallback, and post-decay
  * efficiency calculations. All call sites (TimelineBuilder, FullSurveyStepper,
  * etc.) must use these helpers so that the logic stays consistent and testable.
+ *
+ * All values are in percentage points (e.g. 84, not 0.84).
  */
 
 /**
@@ -28,8 +30,8 @@ export function resolveNominalEfficiencyPct(inputSedbuk?: number): number {
 /**
  * Compute the current (post-decay) boiler efficiency percentage.
  *
- * Uses `clampPct` on the result so that both a very low decay *and* any future
- * uplift (modelled as a negative decay) are bounded to the valid 50–99 % range.
+ * `clampPct(nominal - decay)` replaces `Math.max(50, nominal - decay)` everywhere,
+ * enforcing both floor (50) and ceiling (99) even when decay is negative (uplift).
  */
 export function computeCurrentEfficiencyPct(nominalPct: number, decayPct: number): number {
   return clampPct(nominalPct - decayPct);
