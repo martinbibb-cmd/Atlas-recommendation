@@ -6,6 +6,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   DEFAULT_NOMINAL_EFFICIENCY_PCT,
+  ERP_TO_NOMINAL_PCT,
   clampPct,
   resolveNominalEfficiencyPct,
   computeCurrentEfficiencyPct,
@@ -14,6 +15,33 @@ import {
 describe('DEFAULT_NOMINAL_EFFICIENCY_PCT', () => {
   it('equals 92 (industry-standard SEDBUK nominal fallback)', () => {
     expect(DEFAULT_NOMINAL_EFFICIENCY_PCT).toBe(92);
+  });
+});
+
+describe('ERP_TO_NOMINAL_PCT', () => {
+  it('covers all seven classes A–G', () => {
+    const classes = ['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const;
+    for (const cls of classes) {
+      expect(ERP_TO_NOMINAL_PCT[cls]).toBeDefined();
+    }
+  });
+
+  it('is strictly decreasing from A to G', () => {
+    const classes = ['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const;
+    for (let i = 0; i < classes.length - 1; i++) {
+      expect(ERP_TO_NOMINAL_PCT[classes[i]]).toBeGreaterThan(ERP_TO_NOMINAL_PCT[classes[i + 1]]);
+    }
+  });
+
+  it('A class maps to the same value as DEFAULT_NOMINAL_EFFICIENCY_PCT', () => {
+    expect(ERP_TO_NOMINAL_PCT['A']).toBe(DEFAULT_NOMINAL_EFFICIENCY_PCT);
+  });
+
+  it('all values are within the valid SEDBUK range [50, 99]', () => {
+    for (const pct of Object.values(ERP_TO_NOMINAL_PCT)) {
+      expect(pct).toBeGreaterThanOrEqual(50);
+      expect(pct).toBeLessThanOrEqual(99);
+    }
   });
 });
 

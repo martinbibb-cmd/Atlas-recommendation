@@ -21,6 +21,14 @@ export interface BoilerEfficiencyModelInputV1 {
   nominalOutputKw?: number;
   peakHeatLossKw?: number | null;
   demandHeatKw96?: number[];
+  /**
+   * Surveyor-entered or ErP-derived SEDBUK % (percentage points, e.g. 84).
+   * Used as the baseline seasonal efficiency when the SEDBUK database lookup
+   * does not return a result (no GC number match). Takes precedence over the
+   * generic `UNKNOWN_SEASONAL_ETA` fallback so that ErP class selections
+   * actually drive the engine model.
+   */
+  inputSedbukPct?: number;
 }
 
 export interface BoilerEfficiencyModelV1 {
@@ -107,7 +115,21 @@ export function buildBoilerEfficiencyModelV1(
     condensing: input.condensing,
   });
 
-  const baselineSeasonalEta = sedbuk.seasonalEta ?? UNKNOWN_SEASONAL_ETA;
+  // Baseline priority:
+  //   1. SEDBUK GC database match (highest confidence — actual boiler record)
+  //   2. Surveyor/ErP-derived inputSedbukPct (specific to this boiler's label)
+  //   3. SEDBUK band fallback (general estimate from condensing status + age)
+  //   4. Generic unknown fallback (no boiler data whatsoever)
+  //
+  // inputSedbukPct takes priority over the band fallback because an ErP class label
+  // (or a directly-entered SEDBUK %) is more specific than a broad age/condensing
+  // band estimate. The GC lookup always wins as it names the exact appliance.
+  const baselineSeasonalEta =
+    sedbuk.source === 'gc' && sedbuk.seasonalEta != null
+      ? sedbuk.seasonalEta
+      : input.inputSedbukPct != null
+        ? input.inputSedbukPct / 100
+        : (sedbuk.seasonalEta ?? UNKNOWN_SEASONAL_ETA);
   const age = {
     factor: ageFactor(input.ageYears),
     notes: [
@@ -139,6 +161,15 @@ export function buildBoilerEfficiencyModelV1(
     ? shapeEtaSeries(input.demandHeatKw96, inHomeAdjustedEta, input.nominalOutputKw ?? 24)
     : undefined;
 
+  const baselineSource =
+    sedbuk.source === 'gc'
+      ? 'SEDBUK database (GC number match)'
+      : input.inputSedbukPct != null
+        ? 'ErP / SEDBUK % entered by surveyor'
+        : sedbuk.source === 'band'
+          ? 'SEDBUK band estimate (condensing + age)'
+          : 'industry fallback (no boiler data)';
+
   return {
     sedbuk,
     age,
@@ -149,6 +180,7 @@ export function buildBoilerEfficiencyModelV1(
     ...(etaSeries96 ? { etaSeries96 } : {}),
     disclaimerNotes: [
       'Modelled estimate (not measured).',
+      `Baseline efficiency source: ${baselineSource}.`,
       'In-home efficiency is inferred from SEDBUK baseline, age and sizing assumptions.',
     ],
   };
