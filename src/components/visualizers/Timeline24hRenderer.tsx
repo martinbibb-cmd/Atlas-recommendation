@@ -239,8 +239,12 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
     ),
   );
 
-  /** Shared mouse-move handler: updates internal hover state + notifies parent. */
-  const handleMouseMove = (state: { activeTooltipIndex?: number }) => {
+  /** Shared mouse-move handler: updates internal hover state + notifies parent.
+   * Uses any to satisfy Recharts v3 CategoricalChartFunc signature — activeTooltipIndex
+   * can be number | null in Recharts internals, extracted safely below.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleMouseMove = (state: any) => {
     const idx = state?.activeTooltipIndex;
     const resolved = typeof idx === 'number' ? idx : null;
     setHoverIdx(resolved);
