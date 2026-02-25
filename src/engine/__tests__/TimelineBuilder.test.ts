@@ -545,7 +545,7 @@ describe('TimelineBuilder', () => {
 
   it('given currentBoilerSedbukPct=84, combi efficiency baseline uses 84 not 92 (regression guard)', () => {
     // At minute 0 (midnight) there are no DHW events, so eta = combiEtaPct / 100 exactly.
-    // combiEtaPct = max(50, clamp(84, 50, 99) − decay) = max(50, 84 − decay)
+    // combiEtaPct = clamp(84 − decay, 50, 99)
     const inputWithSedbuk = { ...baseInput, currentBoilerSedbukPct: 84 };
     const result = runEngine(inputWithSedbuk);
     const visual = buildTimeline24hV1(result, inputWithSedbuk, ['on_demand', 'stored_vented']);
@@ -560,7 +560,7 @@ describe('TimelineBuilder', () => {
 
   it('when currentBoilerSedbukPct is absent, combi efficiency falls back to 92 baseline (fallback path)', () => {
     // At minute 0 (midnight) there are no DHW events, so eta = combiEtaPct / 100 exactly.
-    // combiEtaPct = max(50, 92 − decay)
+    // combiEtaPct = clamp(92 − decay, 50, 99)
     const result = runEngine(baseInput); // no currentBoilerSedbukPct
     const visual = buildTimeline24hV1(result, baseInput, ['on_demand', 'stored_vented']);
     const combiSeries = visual.data.series.find((s: { id: string }) => s.id === 'on_demand');
@@ -568,6 +568,39 @@ describe('TimelineBuilder', () => {
     const decay = result.normalizer.tenYearEfficiencyDecayPct;
     const expectedEta = Math.max(50, 92 - decay) / 100;
     expect(combiSeries!.efficiency[0]).toBeCloseTo(expectedEta, 2);
+  });
+
+  it('out-of-range sedbuk=150 clamps nominal to 99 and post-decay also clamps to [50,99]', () => {
+    // Nominal 150 must clamp to 99 before decay is applied; after decay the result
+    // must still be within [50, 99] — verifying both the pre- and post-decay clamp.
+    const inputHigh = { ...baseInput, currentBoilerSedbukPct: 150 };
+    const result = runEngine(inputHigh);
+    const visual = buildTimeline24hV1(result, inputHigh, ['on_demand', 'stored_vented']);
+    const combiSeries = visual.data.series.find((s: { id: string }) => s.id === 'on_demand');
+    expect(combiSeries).toBeDefined();
+    // At midnight (index 0) no DHW events; eta = combiEtaPct / 100
+    const eta0 = combiSeries!.efficiency[0];
+    expect(eta0).toBeLessThanOrEqual(0.99);
+    expect(eta0).toBeGreaterThanOrEqual(0.50);
+    // Nominal must have been clamped to 99, so efficiency[0] must equal
+    // clamp(99 - decay, 50, 99) / 100
+    const decay = result.normalizer.tenYearEfficiencyDecayPct;
+    const expectedEta = Math.min(99, Math.max(50, 99 - decay)) / 100;
+    expect(eta0).toBeCloseTo(expectedEta, 2);
+  });
+
+  it('out-of-range sedbuk=5 clamps nominal to 50 and post-decay also clamps to [50,99]', () => {
+    // Nominal 5 must clamp up to 50; after decay the floor of 50 must hold.
+    const inputLow = { ...baseInput, currentBoilerSedbukPct: 5 };
+    const result = runEngine(inputLow);
+    const visual = buildTimeline24hV1(result, inputLow, ['on_demand', 'stored_vented']);
+    const combiSeries = visual.data.series.find((s: { id: string }) => s.id === 'on_demand');
+    expect(combiSeries).toBeDefined();
+    const eta0 = combiSeries!.efficiency[0];
+    expect(eta0).toBeLessThanOrEqual(0.99);
+    expect(eta0).toBeGreaterThanOrEqual(0.50);
+    // Nominal clamped to 50; decay can only push it towards 50, so result stays at 50
+    expect(eta0).toBeCloseTo(0.50, 2);
   });
 });
 

@@ -18,6 +18,7 @@ import { runThermalInertiaModule } from '../../engine/modules/ThermalInertiaModu
 import { calcFlowLpm, PIPE_THRESHOLDS } from '../../engine/modules/HydraulicModule';
 import { runCombiDhwModuleV1 } from '../../engine/modules/CombiDhwModule';
 import { analysePressure } from '../../engine/modules/PressureModule';
+import { resolveNominalEfficiencyPct, computeCurrentEfficiencyPct } from '../../engine/utils/efficiency';
 import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
 import LifestyleInteractive from '../visualizers/LifestyleInteractive';
 import EfficiencyCurve from '../visualizers/EfficiencyCurve';
@@ -2553,9 +2554,10 @@ function FullSurveyResults({
   };
 
   // Derive current efficiency from surveyed SEDBUK nominal (or 92% fallback) minus decay.
-  // Clamp to 50–99 so the calculation is robust even for persisted docs or bypassed validators.
-  const nominalEfficiencyPct = Math.min(99, Math.max(50, input.currentBoilerSedbukPct ?? 92));
-  const currentEfficiencyPct = Math.max(50, nominalEfficiencyPct - normalizer.tenYearEfficiencyDecayPct);
+  // resolveNominalEfficiencyPct is the single fallback + clamp point; post-decay
+  // result is also clamped via computeCurrentEfficiencyPct.
+  const nominalEfficiencyPct = resolveNominalEfficiencyPct(input.currentBoilerSedbukPct);
+  const currentEfficiencyPct = computeCurrentEfficiencyPct(nominalEfficiencyPct, normalizer.tenYearEfficiencyDecayPct);
   const shouldShowMixergy = input.dhwTankType === 'mixergy' || compareMixergy;
 
   if (showTwin) {
