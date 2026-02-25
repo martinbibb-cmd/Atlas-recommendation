@@ -2,6 +2,7 @@ import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInput
 import type { VisualSpecV1, Timeline24hV1, Timeline24hEvent, Timeline24hSeries, TimelineBandsV1, DhwEventEntry } from '../contracts/EngineOutputV1';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
 import { solveSystemTimeline, buildSystemConfig } from './timeline/Solver24hV1';
+import { resolveNominalEfficiencyPct, computeCurrentEfficiencyPct } from './utils/efficiency';
 
 /** 96 time points at 15-minute intervals covering 0–1425 minutes. */
 const TIME_MINUTES = Array.from({ length: 96 }, (_, i) => i * 15);
@@ -479,10 +480,10 @@ export function buildTimeline24hV1(
   const designFlowTempBand = core.heatPumpRegime.designFlowTempBand;
 
   // Combi base efficiency: nominal SEDBUK (surveyed or 92% fallback) minus decay.
-  // Clamp nominal to 50–99 so the calculation is robust even when input comes from
-  // outside the UI (e.g. imported JSON, older persisted docs, or a bypassed validator).
-  const nominalEfficiencyPct = Math.min(99, Math.max(50, input.currentBoilerSedbukPct ?? 92));
-  const combiEtaPct = Math.max(50, nominalEfficiencyPct - core.normalizer.tenYearEfficiencyDecayPct);
+  // resolveNominalEfficiencyPct is the single fallback + clamp point; post-decay
+  // result is also clamped so future uplift (negative decay) stays within range.
+  const nominalEfficiencyPct = resolveNominalEfficiencyPct(input.currentBoilerSedbukPct);
+  const combiEtaPct = computeCurrentEfficiencyPct(nominalEfficiencyPct, core.normalizer.tenYearEfficiencyDecayPct);
 
   const events = input.lifestyleProfileV1
     ? generateDhwEventsFromProfile(input.lifestyleProfileV1)
