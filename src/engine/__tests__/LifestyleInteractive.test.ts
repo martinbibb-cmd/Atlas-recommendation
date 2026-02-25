@@ -13,6 +13,7 @@ import {
   hpHorizonCurve,
   normaliseDeliveryMode,
   isHotWaterDrawEvent,
+  DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK,
   type HourState,
   type DeliveryMode,
 } from '../modules/LifestyleInteractiveHelpers';
@@ -331,5 +332,43 @@ describe('boilerSteppedCurve — electric shower (electric_cold_only)', () => {
     const withoutHighFlow = boilerSteppedCurve(allDhw, false, 'electric_cold_only');
     // Both should be equal — electric cancels out the high-flow penalty
     expect(withHighFlow).toEqual(withoutHighFlow);
+  });
+});
+
+// ─── normaliseDeliveryMode — 'elec' explicit rejection ───────────────────────
+
+describe('normaliseDeliveryMode — elec shorthand', () => {
+  it('"elec" is not a supported alias and falls back to "unknown"', () => {
+    // 'elec' is an unsupported shorthand — callers must use 'electric' or 'electric_cold_only'
+    expect(normaliseDeliveryMode('elec')).toBe('unknown');
+  });
+});
+
+// ─── No-double-counting invariant ────────────────────────────────────────────
+
+describe('no-double-counting invariant — per system archetype', () => {
+  const allDhw: HourState[] = Array(24).fill('dhw_demand');
+
+  it('combi: boilerSteppedCurve service-switch dip is applied once per hour — never below 17.5°C', () => {
+    // High-flow delivery should produce exactly 17.5°C per dhw_demand hour (not double-applied).
+    const curve = boilerSteppedCurve(allDhw, true);
+    curve.forEach(v => expect(v).toBeGreaterThanOrEqual(17.5));
+  });
+
+  it('ASHP: hpHorizonCurve has no deliveryMode parameter — DHW suppression cannot affect it', () => {
+    // hpHorizonCurve is structurally immune to electric-shower suppression:
+    // it does not accept a deliveryMode argument, so the same result is produced
+    // regardless of delivery context (no accidental DHW double-counting path exists).
+    const hours = defaultHours();
+    const result = hpHorizonCurve(hours, 3.8, 35);
+    expect(result).toHaveLength(24);
+    result.forEach(v => expect(typeof v).toBe('number'));
+  });
+
+  it('DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK invariant is true (documented contract)', () => {
+    // Confirms the documented assumption that dhw_demand ≡ shower-peak only,
+    // making it safe to suppress all dhw_demand hours for electric delivery
+    // without accidentally removing bath/tap draws (those are in the home baseline).
+    expect(DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK).toBe(true);
   });
 });

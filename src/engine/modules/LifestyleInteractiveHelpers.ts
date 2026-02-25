@@ -95,6 +95,14 @@ export function isHotWaterDrawEvent(mode: DeliveryMode, eventKind?: string): boo
 
 export type HourState = 'away' | 'home' | 'dhw_demand';
 
+/**
+ * Invariant: the 'dhw_demand' hour state represents shower-peak demand only.
+ * Background tap / kitchen / bath draws are captured by the flat −4 %/hr 'home' draw.
+ * This allows electric-shower mode to suppress all 'dhw_demand' hours without
+ * accidentally removing non-shower DHW from the model.
+ */
+export const DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK = true; // taps handled by baseline
+
 export const STATE_LABELS: Record<HourState, string> = {
   away: 'Away',
   home: 'At Home',
@@ -156,6 +164,8 @@ export function mixergySoCByHour(hours: HourState[], deliveryMode: DeliveryMode 
     const isHighDhw = hours[h] === 'dhw_demand';
     const isHome = hours[h] === 'home';
 
+    // Electric-shower suppression is safe here because DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK —
+    // 'dhw_demand' hours model shower-peak only; tap/kitchen draws remain in the home baseline.
     if (isOffPeak) {
       current = Math.min(100, current + 8);
     } else if (isSolar) {
