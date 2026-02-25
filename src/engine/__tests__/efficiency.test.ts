@@ -2,10 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  DEFAULT_NOMINAL_EFFICIENCY_PCT,
   clampPct,
   resolveNominalEfficiencyPct,
   computeCurrentEfficiencyPct,
 } from '../utils/efficiency';
+
+describe('DEFAULT_NOMINAL_EFFICIENCY_PCT', () => {
+  it('equals 92 (industry-standard SEDBUK nominal fallback)', () => {
+    expect(DEFAULT_NOMINAL_EFFICIENCY_PCT).toBe(92);
+  });
+});
 
 describe('clampPct', () => {
   it('returns value unchanged when within range', () => {
@@ -105,10 +112,41 @@ describe('efficiency lint guard', () => {
         // Skip comment-only lines (JSDoc / inline comments)
         const trimmed = line.trim();
         if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) return;
-        // The only permitted code occurrence is in efficiency.ts: clampPct(inputSedbuk ?? 92)
+        // The only permitted code occurrence is in efficiency.ts: clampPct(inputSedbuk ?? DEFAULT_NOMINAL_EFFICIENCY_PCT)
         const isPermittedFile = file.endsWith('efficiency.ts');
-        const isPermittedLine = isPermittedFile && line.includes('clampPct(inputSedbuk ?? 92)');
+        const isPermittedLine = isPermittedFile && line.includes('clampPct(inputSedbuk ?? DEFAULT_NOMINAL_EFFICIENCY_PCT)');
         if (!isPermittedLine) {
+          violations.push(`${file}:${idx + 1}: ${trimmed}`);
+        }
+      });
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it('numeric literal 92 does not appear in production code outside efficiency.ts — use DEFAULT_NOMINAL_EFFICIENCY_PCT', () => {
+    const srcRoot = join(__dirname, '../../');
+    const files = collectSourceFiles(srcRoot);
+
+    const violations: string[] = [];
+
+    for (const file of files) {
+      // Skip test files — they may reference 92 in assertions about expected behaviour
+      if (/\.(test|spec)\.(ts|tsx)$/.test(file) || file.includes('__tests__')) continue;
+      // efficiency.ts is the single permitted home for the literal 92
+      if (file.endsWith('efficiency.ts')) continue;
+
+      const content = readFileSync(file, 'utf-8');
+      const lines = content.split('\n');
+
+      lines.forEach((line, idx) => {
+        const trimmed = line.trim();
+        // Skip comment-only lines (JSDoc / inline comments)
+        if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) return;
+        // Strip string literals to avoid flagging UI labels/placeholders (e.g. placeholder="use 92% default")
+        const stripped = trimmed.replace(/"[^"]*"/g, '""').replace(/'[^']*'/g, "''");
+        // Match standalone numeric 92 (not 0.92, 920, etc.)
+        if (/(?<![.\w])92(?!\w)/.test(stripped)) {
           violations.push(`${file}:${idx + 1}: ${trimmed}`);
         }
       });
