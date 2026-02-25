@@ -36,13 +36,11 @@ import { runLifestyleSimulationModule } from '../../engine/modules/LifestyleSimu
 import { runSpecEdgeModule } from '../../engine/modules/SpecEdgeModule';
 import {
   type HourState,
-  type DeliveryMode,
   STATE_LABELS,
   STATE_COLOURS,
   STATE_CYCLE,
   defaultHours,
   nextState,
-  isHotWaterDrawEvent,
   mixergySoCByHour,
   boilerSteppedCurve,
   hpHorizonCurve,
@@ -59,9 +57,15 @@ const DHW_SUPPLY_PATH_LABELS: Record<DhwSupplyPath, string> = {
   mixed:            'Mixed (some hot, some cold-only)',
 };
 
-/** Map DHW supply path to a canonical DeliveryMode for existing physics helpers. */
-function supplyPathToDeliveryMode(path: DhwSupplyPath): DeliveryMode {
-  return path === 'cold_only' ? 'electric_cold_only' : 'gravity';
+/** Map DHW supply path to a fractional draw scalar for physics helpers.
+ *   hot_water_system → 1.0 (full draw)
+ *   mixed            → 0.6 (partial: 60% of sink events, full bath events)
+ *   cold_only        → 0.0 (no draw — cold-fill / electric supply only)
+ */
+function supplyPathToDhwDrawScalar(path: DhwSupplyPath): number {
+  if (path === 'cold_only') return 0.0;
+  if (path === 'mixed') return 0.6;
+  return 1.0; // hot_water_system
 }
 
 // ─── System switcher ──────────────────────────────────────────────────────────
@@ -104,8 +108,9 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [isFullJob, setIsFullJob] = useState(true);
   const [selectedSystem, setSelectedSystem] = useState<DayPainterSystem>('combi');
   const [dhwSupplyPath, setDhwSupplyPath] = useState<DhwSupplyPath>('hot_water_system');
-  // Map supply path to delivery mode for existing physics helpers
-  const deliveryMode: DeliveryMode = supplyPathToDeliveryMode(dhwSupplyPath);
+  // Derive a fractional draw scalar from the selected supply path so that each
+  // option produces a visibly different curve (mixed ≠ hot_water_system).
+  const dhwDrawScalar = supplyPathToDhwDrawScalar(dhwSupplyPath);
   const isColdOnly = dhwSupplyPath === 'cold_only';
   const [hasSoftener, setHasSoftener] = useState(false);
 
@@ -137,12 +142,12 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   // ── Derived curve data ──────────────────────────────────────────────────────
 
   const socByHour = useMemo(
-    () => mixergySoCByHour(hours, deliveryMode),
-    [hours, deliveryMode],
+    () => mixergySoCByHour(hours, 'gravity', dhwDrawScalar),
+    [hours, dhwDrawScalar],
   );
   const boilerByHour = useMemo(
-    () => boilerSteppedCurve(hours, false, deliveryMode),
-    [hours, deliveryMode],
+    () => boilerSteppedCurve(hours, false, 'gravity', dhwDrawScalar),
+    [hours, dhwDrawScalar],
   );
   const hpByHour = useMemo(
     () => hpHorizonCurve(hours, specEdge.spfMidpoint, specEdge.designFlowTempC),
@@ -182,7 +187,15 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
 
   // Combi efficiency collapses when DHW draws hot water and demand hours are active
   const combiEfficiencyCollapsed =
-    isHotWaterDrawEvent(deliveryMode) && dhwCount > 0;
+    dhwDrawScalar > 0 && dhwCount > 0;
+
+  // DHW draw today: approximate kWh drawn from the hot-water system based on
+  // the hour pattern and the selected supply-path scalar.
+  // dhw_demand hour: 18% SoC draw × 5 kWh cylinder = 0.9 kWh (scaled)
+  // home hour: 4% SoC draw × 5 kWh cylinder = 0.2 kWh (scaled)
+  const dhwDrawKwhToday = parseFloat(
+    ((dhwCount * 0.9 + homeCount * 0.2) * dhwDrawScalar).toFixed(1),
+  );
 
   return (
     <div>
@@ -331,6 +344,12 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
         <StatBadge label="At Home" value={`${homeCount}h`} color="#276749" bg="#f0fff4" />
         <StatBadge label="High DHW" value={`${dhwCount}h`} color="#c53030" bg="#fff5f5" />
         <StatBadge label="Away" value={`${awayCount}h`} color="#2c5282" bg="#ebf8ff" />
+        <StatBadge
+          label="DHW draw today"
+          value={`${dhwDrawKwhToday} kWh`}
+          color={dhwDrawScalar === 0 ? '#2c5282' : dhwDrawScalar < 1 ? '#c05621' : '#c53030'}
+          bg={dhwDrawScalar === 0 ? '#ebf8ff' : dhwDrawScalar < 1 ? '#fffaf0' : '#fff5f5'}
+        />
         {combiEfficiencyCollapsed && (
           <StatBadge
             label="Combi Efficiency"

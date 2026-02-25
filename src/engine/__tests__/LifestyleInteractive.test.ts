@@ -372,3 +372,90 @@ describe('no-double-counting invariant — per system archetype', () => {
     expect(DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK).toBe(true);
   });
 });
+
+// ─── dhwDrawScalar — mixergySoCByHour ────────────────────────────────────────
+
+describe('mixergySoCByHour — dhwDrawScalar (supply path scaling)', () => {
+  const allDhw: HourState[] = Array(24).fill('dhw_demand');
+  const allHome: HourState[] = Array(24).fill('home');
+
+  it('scalar=0.0 (cold_only): SoC identical to scalar=0.0 gravity — no draws', () => {
+    const socCold  = mixergySoCByHour(allDhw, 'gravity', 0.0);
+    const socAway  = mixergySoCByHour(Array(24).fill('away'), 'gravity', 0.0);
+    // With scalar=0, dhw_demand draws nothing — pattern same as away (no draws)
+    expect(socCold).toEqual(socAway);
+  });
+
+  it('scalar=0.6 (mixed): SoC is strictly between cold_only (0.0) and hot_water_system (1.0) for dhw_demand pattern', () => {
+    const socCold  = mixergySoCByHour(allDhw, 'gravity', 0.0);
+    const socMixed = mixergySoCByHour(allDhw, 'gravity', 0.6);
+    const socFull  = mixergySoCByHour(allDhw, 'gravity', 1.0);
+    const avg = (arr: number[]) => arr.reduce((s, v) => s + v, 0) / 24;
+    expect(avg(socMixed)).toBeLessThan(avg(socCold));   // mixed draws more than cold_only
+    expect(avg(socMixed)).toBeGreaterThan(avg(socFull)); // mixed draws less than hot_water_system
+  });
+
+  it('scalar=1.0 (hot_water_system): same as calling without scalar when deliveryMode is gravity', () => {
+    const socScalar  = mixergySoCByHour(allDhw, 'gravity', 1.0);
+    const socDefault = mixergySoCByHour(allDhw, 'gravity');
+    expect(socScalar).toEqual(socDefault);
+  });
+
+  it('scalar=0.6: home background draw is also scaled — lower average than scalar=1.0', () => {
+    const socMixed = mixergySoCByHour(allHome, 'gravity', 0.6);
+    const socFull  = mixergySoCByHour(allHome, 'gravity', 1.0);
+    const avg = (arr: number[]) => arr.reduce((s, v) => s + v, 0) / 24;
+    expect(avg(socMixed)).toBeGreaterThan(avg(socFull));
+  });
+
+  it('scalar overrides deliveryMode: scalar=0.0 on gravity still produces no draw', () => {
+    // scalar takes precedence over deliveryMode=gravity which would normally produce full draw
+    const socNoScalar = mixergySoCByHour(allDhw, 'gravity');
+    const socZero     = mixergySoCByHour(allDhw, 'gravity', 0.0);
+    const avg = (arr: number[]) => arr.reduce((s, v) => s + v, 0) / 24;
+    expect(avg(socZero)).toBeGreaterThan(avg(socNoScalar));
+  });
+});
+
+// ─── dhwDrawScalar — boilerSteppedCurve ──────────────────────────────────────
+
+describe('boilerSteppedCurve — dhwDrawScalar (supply path scaling)', () => {
+  const allDhw: HourState[] = Array(24).fill('dhw_demand');
+
+  it('scalar=0.0 (cold_only): no conflict — all temps above 19.5°C', () => {
+    const curve = boilerSteppedCurve(allDhw, false, 'gravity', 0.0);
+    curve.forEach(v => expect(v).toBeGreaterThan(19.5));
+  });
+
+  it('scalar=1.0 (hot_water_system): full conflict — all temps exactly 19.5°C', () => {
+    const curve = boilerSteppedCurve(allDhw, false, 'gravity', 1.0);
+    curve.forEach(v => expect(v).toBe(19.5));
+  });
+
+  it('scalar=0.6 (mixed): partial conflict — temps strictly between scalar=0.0 and scalar=1.0', () => {
+    const curveCold  = boilerSteppedCurve(allDhw, false, 'gravity', 0.0);
+    const curveMixed = boilerSteppedCurve(allDhw, false, 'gravity', 0.6);
+    const curveFull  = boilerSteppedCurve(allDhw, false, 'gravity', 1.0);
+    curveMixed.forEach((v, i) => {
+      expect(v).toBeLessThan(curveCold[i]);  // partial conflict is cooler than no conflict
+      expect(v).toBeGreaterThan(curveFull[i]); // partial conflict is warmer than full conflict
+    });
+  });
+
+  it('scalar=1.0 + high-flow: full conflict — all temps exactly 17.5°C', () => {
+    const curve = boilerSteppedCurve(allDhw, true, 'gravity', 1.0);
+    curve.forEach(v => expect(v).toBe(17.5));
+  });
+
+  it('scalar=0.0 + high-flow: no conflict — high-flow has no effect when scalar=0', () => {
+    const curveHighFlow = boilerSteppedCurve(allDhw, true,  'gravity', 0.0);
+    const curveNoFlow   = boilerSteppedCurve(allDhw, false, 'gravity', 0.0);
+    expect(curveHighFlow).toEqual(curveNoFlow);
+  });
+
+  it('scalar overrides deliveryMode: scalar=0.0 on gravity produces no conflict', () => {
+    const curveGravity = boilerSteppedCurve(allDhw, false, 'gravity');         // full conflict
+    const curveZero    = boilerSteppedCurve(allDhw, false, 'gravity', 0.0);    // no conflict via scalar
+    curveZero.forEach((v, i) => expect(v).toBeGreaterThan(curveGravity[i]));
+  });
+});

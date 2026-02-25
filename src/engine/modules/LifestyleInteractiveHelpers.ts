@@ -150,12 +150,19 @@ export function nextState(current: HourState): HourState {
  *
  * Tank charges during Octopus Agile off-peak slots (01:00–06:00, +8 %/hr)
  * and from any Solar PV window (10:00–16:00, +5 %/hr).
- * DHW demand is drawn for each 'dhw_demand' hour (−18 %) and 'home' hour (−4 %)
- * UNLESS the delivery mode is electric_cold_only (electric showers never draw
- * from the stored cylinder or combi DHW circuit).
+ * DHW demand is drawn for each 'dhw_demand' hour (−18 %) and 'home' hour (−4 %),
+ * scaled by dhwDrawScalar (0.0 = no draw, 0.6 = mixed/partial, 1.0 = full draw).
+ * When dhwDrawScalar is not provided, it is derived from deliveryMode:
+ *   electric_cold_only → 0.0; all other modes → 1.0.
+ *
+ * @param dhwDrawScalar Optional fractional draw scale (0.0–1.0). Pass directly
+ *   from the DHW Supply Path: hot_water_system=1.0, mixed=0.6, cold_only=0.0.
+ *   Overrides deliveryMode when provided.
  */
-export function mixergySoCByHour(hours: HourState[], deliveryMode: DeliveryMode = 'unknown'): number[] {
-  const drawsHotWater = isHotWaterDrawEvent(deliveryMode);
+export function mixergySoCByHour(hours: HourState[], deliveryMode: DeliveryMode = 'unknown', dhwDrawScalar?: number): number[] {
+  const scalar = dhwDrawScalar !== undefined
+    ? dhwDrawScalar
+    : isHotWaterDrawEvent(deliveryMode) ? 1.0 : 0.0;
   const soc: number[] = [];
   let current = 60; // start at 60% SoC
   for (let h = 0; h < 24; h++) {
@@ -164,16 +171,14 @@ export function mixergySoCByHour(hours: HourState[], deliveryMode: DeliveryMode 
     const isHighDhw = hours[h] === 'dhw_demand';
     const isHome = hours[h] === 'home';
 
-    // Electric-shower suppression is safe here because DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK —
-    // 'dhw_demand' hours model shower-peak only; tap/kitchen draws remain in the home baseline.
     if (isOffPeak) {
       current = Math.min(100, current + 8);
     } else if (isSolar) {
       current = Math.min(100, current + 5);
-    } else if (isHighDhw && drawsHotWater) {
-      current = Math.max(0, current - 18); // shower / bath draw
+    } else if (isHighDhw) {
+      current = Math.max(0, current - 18 * scalar); // scaled peak DHW draw
     } else if (isHome) {
-      current = Math.max(0, current - 4);  // background DHW draw
+      current = Math.max(0, current - 4 * scalar);  // scaled background DHW draw
     }
     soc.push(parseFloat(current.toFixed(1)));
   }
@@ -185,19 +190,27 @@ export function mixergySoCByHour(hours: HourState[], deliveryMode: DeliveryMode 
  *
  * At home : rapid 30 kW recovery; hits ~21 °C combi setpoint.
  * Away    : setback to 16 °C.
- * High DHW: if high-flow delivery (pumped/mixer+pump) is active, DHW competition drops room temp to 17.5 °C.
- *           Electric shower (cold only) does NOT cause a DHW/space-heat conflict.
+ * High DHW: temperature is interpolated between the no-conflict value (~21 °C) and
+ *           the full-conflict value (17.5 °C with high-flow, 19.5 °C otherwise)
+ *           according to dhwDrawScalar:
+ *             scalar=1.0 → full conflict (hot_water_system)
+ *             scalar=0.6 → partial conflict (mixed)
+ *             scalar=0.0 → no conflict (cold_only / electric)
+ *
+ * @param dhwDrawScalar Optional fractional draw scale (0.0–1.0). Pass directly
+ *   from the DHW Supply Path: hot_water_system=1.0, mixed=0.6, cold_only=0.0.
+ *   Overrides deliveryMode when provided.
  */
-export function boilerSteppedCurve(hours: HourState[], hasHighFlowDelivery: boolean, deliveryMode: DeliveryMode = 'unknown'): number[] {
-  const drawsHotWater = isHotWaterDrawEvent(deliveryMode);
+export function boilerSteppedCurve(hours: HourState[], hasHighFlowDelivery: boolean, deliveryMode: DeliveryMode = 'unknown', dhwDrawScalar?: number): number[] {
+  const scalar = dhwDrawScalar !== undefined
+    ? dhwDrawScalar
+    : isHotWaterDrawEvent(deliveryMode) ? 1.0 : 0.0;
   return hours.map((state, h) => {
     if (state === 'dhw_demand') {
-      if (!drawsHotWater) {
-        // Electric shower: no hot-water draw → no combi service-switching conflict
-        return parseFloat((21 + Math.sin((h / 24) * Math.PI * 2) * 0.5).toFixed(2));
-      }
-      // combi "service switching": DHW steals heat from space heating
-      return hasHighFlowDelivery ? 17.5 : 19.5;
+      const noConflictTemp = 21 + Math.sin((h / 24) * Math.PI * 2) * 0.5;
+      const conflictTemp = hasHighFlowDelivery ? 17.5 : 19.5;
+      // Interpolate: scalar=1.0 → full conflict; scalar=0.0 → no conflict
+      return parseFloat((conflictTemp + (noConflictTemp - conflictTemp) * (1 - scalar)).toFixed(2));
     }
     if (state === 'home') {
       // fast reheat + slight sinusoidal variation across the day
