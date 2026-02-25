@@ -2638,7 +2638,7 @@ function FullSurveyResults({
     : 'on_demand',
   );
   const [isRecomputing, setIsRecomputing] = useState(false);
-  const [hoveredTimelineIndex, setHoveredTimelineIndex] = useState<number | null>(null);
+  const [hoveredTimelineIndex, setHoveredTimelineIndex] = useState<number | undefined>(undefined);
   const debugEnabled = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return new URLSearchParams(window.location.search).get('debug') === '1';
@@ -2649,7 +2649,7 @@ function FullSurveyResults({
   const timelineVisual = engineOutput.visuals?.find((v: VisualSpecV1) => v.type === 'timeline_24h');
   const timelinePayload: Timeline24hV1 | undefined = timelineVisual?.type === 'timeline_24h' ? timelineVisual.data as Timeline24hV1 : undefined;
   const hoveredTimeLabel =
-    timelinePayload && hoveredTimelineIndex !== null
+    timelinePayload && hoveredTimelineIndex !== undefined
       ? timelinePayload.timeMinutes?.[hoveredTimelineIndex]
       : undefined;
 
@@ -2782,7 +2782,7 @@ function FullSurveyResults({
                 <div>currentEfficiencyPct: {currentEfficiencyPct.toFixed(1)}</div>
                 <div>hoveredTime: {hoveredTimeLabel !== undefined ? `${Math.floor(hoveredTimeLabel / 60).toString().padStart(2, '0')}:${(hoveredTimeLabel % 60).toString().padStart(2, '0')}` : 'none'}</div>
                 {timelinePayload.series.map((s: { id: string; efficiency: number[]; performanceKind?: 'eta' | 'cop' }) => {
-                  const etaValue = hoveredTimelineIndex !== null ? s.efficiency[hoveredTimelineIndex] : undefined;
+                  const etaValue = hoveredTimelineIndex !== undefined ? s.efficiency[hoveredTimelineIndex] : undefined;
                   const metric = s.performanceKind === 'cop' ? 'COP' : 'η';
                   return (
                     <div key={s.id}>
@@ -3256,7 +3256,7 @@ function VisualCard({
   spec: VisualSpecV1;
   compareAId?: string;
   compareBId?: string;
-  onTimelineHoverIndexChange?: (index: number | null) => void;
+  onTimelineHoverIndexChange?: (index: number | undefined) => void;
 }) {
   const cardStyle: React.CSSProperties = {
     padding: '0.875rem',

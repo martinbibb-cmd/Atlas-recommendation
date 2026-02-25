@@ -67,7 +67,7 @@ interface Props {
   /** A/B tile IDs that are currently selected (controls which series are highlighted). */
   compareAId?: string;
   compareBId?: string;
-  onHoverIndexChange?: (index: number | null) => void;
+  onHoverIndexChange?: (index: number | undefined) => void;
 }
 
 // ── Physics debug overlay (shown when ?debug=1) ───────────────────────────────
@@ -77,7 +77,7 @@ function PhysicsDebugOverlay({
   hoverIdx,
 }: {
   payload: Timeline24hV1;
-  hoverIdx: number | null;
+  hoverIdx: number | undefined;
 }) {
   const dbg = payload.physicsDebug;
   if (!dbg) return null;
@@ -106,7 +106,7 @@ function PhysicsDebugOverlay({
       <div>tenYearDecayPct: <strong>{dbg.tenYearEfficiencyDecayPct.toFixed(1)}%</strong></div>
       <div>currentEfficiencyPct: <strong>{dbg.currentEfficiencyPct.toFixed(1)}%</strong></div>
       <div>sedbukSource: <strong>{dbg.sedbukSource}</strong></div>
-      {hoverIdx !== null && (
+      {hoverIdx !== undefined && (
         <div style={dividerStyle}>
           <div>hoverIdx: <strong>{hoverIdx}</strong>  t = {payload.timeMinutes[hoverIdx]}min ({minuteToLabel(payload.timeMinutes[hoverIdx])})</div>
           {payload.series.map((s, idx) => {
@@ -142,7 +142,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
   const data = buildChartData(payload);
 
   // Internal hover index — drives the debug overlay independently of the external callback.
-  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const [hoverIdx, setHoverIdx] = useState<number | undefined>(undefined);
 
   // Detect ?debug=1 once on mount (URL does not change during a render session).
   const isDebug = useMemo(
@@ -242,14 +242,14 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
   /** Shared mouse-move handler: updates internal hover state + notifies parent. */
   const handleMouseMove = (state: { activeTooltipIndex?: number }) => {
     const idx = state?.activeTooltipIndex;
-    const resolved = typeof idx === 'number' ? idx : null;
+    const resolved = typeof idx === 'number' ? idx : undefined;
     setHoverIdx(resolved);
     onHoverIndexChange?.(resolved);
   };
 
   const handleMouseLeave = () => {
-    setHoverIdx(null);
-    onHoverIndexChange?.(null);
+    setHoverIdx(undefined);
+    onHoverIndexChange?.(undefined);
   };
 
   return (
