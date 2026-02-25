@@ -2552,8 +2552,9 @@ function FullSurveyResults({
     });
   };
 
-  // Derive current efficiency from surveyed SEDBUK nominal (or 92% fallback) minus decay
-  const nominalEfficiencyPct = input.currentBoilerSedbukPct ?? 92;
+  // Derive current efficiency from surveyed SEDBUK nominal (or 92% fallback) minus decay.
+  // Clamp to 50–99 so the calculation is robust even for persisted docs or bypassed validators.
+  const nominalEfficiencyPct = Math.min(99, Math.max(50, input.currentBoilerSedbukPct ?? 92));
   const currentEfficiencyPct = Math.max(50, nominalEfficiencyPct - normalizer.tenYearEfficiencyDecayPct);
   const shouldShowMixergy = input.dhwTankType === 'mixergy' || compareMixergy;
 

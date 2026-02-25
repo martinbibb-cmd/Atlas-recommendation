@@ -24,8 +24,8 @@ interface Props {
   mixergy: MixergyResult;
   /** Current boiler efficiency for the flush slider (post-decay) */
   currentEfficiencyPct: number;
-  /** Nominal (as-installed / SEDBUK) boiler efficiency for the flush slider */
-  nominalEfficiencyPct?: number;
+  /** Nominal (as-installed / SEDBUK) boiler efficiency for the flush slider — required; caller supplies ?? 92 fallback */
+  nominalEfficiencyPct: number;
   /** Annual gas spend for the saving calculation */
   annualGasSpendGbp?: number;
   onBack?: () => void;

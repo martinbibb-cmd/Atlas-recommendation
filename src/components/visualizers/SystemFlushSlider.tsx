@@ -16,15 +16,15 @@ import { useState } from 'react';
 interface Props {
   /** Current boiler efficiency percentage (post-sludge/scale decay) */
   currentEfficiencyPct: number;
-  /** Nominal (as-installed) boiler efficiency percentage */
-  nominalEfficiencyPct?: number;
+  /** Nominal (as-installed) boiler efficiency percentage — required; caller supplies ?? 92 fallback */
+  nominalEfficiencyPct: number;
   /** Annual gas spend in GBP (used to compute £ saving) */
   annualGasSpendGbp?: number;
 }
 
 export default function SystemFlushSlider({
   currentEfficiencyPct,
-  nominalEfficiencyPct = 92,
+  nominalEfficiencyPct,
   annualGasSpendGbp = 1200,
 }: Props) {
   // 0 = no service, 100 = full power-flush + inhibitor dose + filter clean
