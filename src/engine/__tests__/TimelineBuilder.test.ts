@@ -540,6 +540,35 @@ describe('TimelineBuilder', () => {
     const legend: string[] = timeline!.data.legendNotes ?? [];
     expect(legend.some((n: string) => n.toLowerCase().includes('cold-fill'))).toBe(true);
   });
+
+  // ── SEDBUK baseline regression: currentBoilerSedbukPct wiring ─────────────
+
+  it('given currentBoilerSedbukPct=84, combi efficiency baseline uses 84 not 92 (regression guard)', () => {
+    // At minute 0 (midnight) there are no DHW events, so eta = combiEtaPct / 100 exactly.
+    // combiEtaPct = max(50, clamp(84, 50, 99) − decay) = max(50, 84 − decay)
+    const inputWithSedbuk = { ...baseInput, currentBoilerSedbukPct: 84 };
+    const result = runEngine(inputWithSedbuk);
+    const visual = buildTimeline24hV1(result, inputWithSedbuk, ['on_demand', 'stored_vented']);
+    const combiSeries = visual.data.series.find((s: { id: string }) => s.id === 'on_demand');
+    expect(combiSeries).toBeDefined();
+    const decay = result.normalizer.tenYearEfficiencyDecayPct;
+    const expectedEta = Math.max(50, 84 - decay) / 100;
+    // Must match the surveyed SEDBUK value, not the 92% magic-number fallback
+    expect(combiSeries!.efficiency[0]).toBeCloseTo(expectedEta, 2);
+    expect(combiSeries!.efficiency[0]).not.toBeCloseTo(Math.max(50, 92 - decay) / 100, 2);
+  });
+
+  it('when currentBoilerSedbukPct is absent, combi efficiency falls back to 92 baseline (fallback path)', () => {
+    // At minute 0 (midnight) there are no DHW events, so eta = combiEtaPct / 100 exactly.
+    // combiEtaPct = max(50, 92 − decay)
+    const result = runEngine(baseInput); // no currentBoilerSedbukPct
+    const visual = buildTimeline24hV1(result, baseInput, ['on_demand', 'stored_vented']);
+    const combiSeries = visual.data.series.find((s: { id: string }) => s.id === 'on_demand');
+    expect(combiSeries).toBeDefined();
+    const decay = result.normalizer.tenYearEfficiencyDecayPct;
+    const expectedEta = Math.max(50, 92 - decay) / 100;
+    expect(combiSeries!.efficiency[0]).toBeCloseTo(expectedEta, 2);
+  });
 });
 
 // ── New contract fields: performanceKind, dhwTotalKw, dhwEventsActive, bands ──
