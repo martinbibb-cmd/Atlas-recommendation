@@ -86,7 +86,7 @@ describe('TimelineBuilder', () => {
   it('all events have valid kind and intensity', () => {
     const result = runEngine(baseInput);
     const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
-    const validKinds = new Set(['shower', 'bath', 'sink', 'dishwasher', 'washing_machine']);
+    const validKinds = new Set(['sink', 'bath', 'charge', 'cold_only', 'dishwasher', 'washing_machine']);
     const validIntensities = new Set(['low', 'med', 'high']);
     for (const ev of timeline!.data.events) {
       expect(validKinds.has(ev.kind)).toBe(true);
@@ -234,7 +234,7 @@ describe('TimelineBuilder', () => {
 
   // ── lifestyleProfileV1 → input-driven DHW events ─────────────────────────
 
-  it('lifestyleProfileV1 with morning peak generates a shower event around 07:00', () => {
+  it('lifestyleProfileV1 with morning peak generates a sink event around 07:00', () => {
     const input = {
       ...baseInput,
       lifestyleProfileV1: {
@@ -249,11 +249,11 @@ describe('TimelineBuilder', () => {
     const { engineOutput } = runEngine(input);
     const timeline = engineOutput.visuals?.find(v => v.type === 'timeline_24h');
     const events = timeline!.data.events as Array<{ startMin: number; kind: string }>;
-    const morningShower = events.find(e => e.kind === 'shower' && e.startMin >= 400 && e.startMin <= 450);
-    expect(morningShower).toBeDefined();
+    const morningSink = events.find(e => e.kind === 'sink' && e.startMin >= 400 && e.startMin <= 450);
+    expect(morningSink).toBeDefined();
   });
 
-  it('lifestyleProfileV1 with hasBath generates a bath event (not shower)', () => {
+  it('lifestyleProfileV1 with hasBath generates a bath event (not sink)', () => {
     const input = {
       ...baseInput,
       lifestyleProfileV1: {
@@ -580,7 +580,7 @@ describe('TimelineBuilder — new contract fields', () => {
     }
   });
 
-  it('dhwTotalKw is non-zero during a shower or bath event window', () => {
+  it('dhwTotalKw is non-zero during a sink or bath event window', () => {
     const input = {
       ...baseInput,
       lifestyleProfileV1: {
@@ -594,7 +594,7 @@ describe('TimelineBuilder — new contract fields', () => {
     };
     const result = runEngine(input);
     const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
-    // Morning shower at 07:00 → index 28 (minute 420 / 15 = 28)
+    // Morning sink at 07:00 → index 28 (minute 420 / 15 = 28)
     const idx28 = timeline!.data.series[0].dhwTotalKw?.[28];
     expect(idx28).toBeGreaterThan(0);
   });
@@ -637,13 +637,13 @@ describe('TimelineBuilder — new contract fields', () => {
     }
   });
 
-  it('dhwEventsActive has a non-empty entry during shower window', () => {
-    // Default events include morning shower at 07:00 (index 28)
+  it('dhwEventsActive has a non-empty entry during morning DHW draw window', () => {
+    // Default events include morning sink at 07:00 (index 28)
     const result = runEngine(baseInput);
     const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
     const entry28 = timeline!.data.series[0].dhwEventsActive?.[28];
     expect(entry28?.length).toBeGreaterThan(0);
-    expect(entry28?.[0].kind).toBe('shower');
+    expect(entry28?.[0].kind).toBe('sink');
     expect(entry28?.[0].drawKw).toBeGreaterThan(0);
   });
 
@@ -704,10 +704,10 @@ describe('TimelineBuilder — new contract fields', () => {
     };
     const result = runEngine(input);
     const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
-    // Index 29 covers 07:15 which overlaps both shower events (07:00–07:15 and 07:05–07:25)
+    // Index 29 covers 07:15 which overlaps both sink events (07:00–07:15 and 07:05–07:25)
     const entry29 = timeline!.data.series[0].dhwEventsActive?.[29];
     expect(entry29).toBeDefined();
-    // Both showers active → two entries at index 29
+    // Both sink draws active → two entries at index 29
     expect(entry29!.length).toBeGreaterThanOrEqual(1);
     // Total draw should be positive
     const total29 = timeline!.data.series[0].dhwTotalKw?.[29];

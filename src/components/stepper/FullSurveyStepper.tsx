@@ -2930,7 +2930,7 @@ function FullSurveyResults({
         <p className="description" style={{ marginBottom: '0.75rem' }}>
           Paint your 24-hour routine and watch three live curves react: the Boiler "Stepped" sprint,
           the Heat Pump "Horizon" stability line (SPF-driven), and the Mixergy Hot Water Battery
-          State of Charge. Toggle <strong>Full Job</strong>, <strong>Water delivery</strong>, and{' '}
+          State of Charge. Toggle <strong>Full Job</strong>, <strong>DHW Supply Path</strong>, and{' '}
           <strong>Softener</strong> to see the physics change in real-time.
         </p>
         <LifestyleInteractive baseInput={{ occupancySignature: lifestyle.signature }} />

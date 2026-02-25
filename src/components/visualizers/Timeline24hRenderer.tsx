@@ -28,7 +28,6 @@ const BAND_COLOURS: Record<string, string> = {
 
 /** Colour for DHW bar chart by kind. */
 const DHW_BAR_COLOURS: Record<string, string> = {
-  shower:  '#4299e1',
   bath:    '#805ad5',
   sink:    '#38a169',
   charge:  '#dd6b20',
@@ -277,7 +276,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId }:
           {seriesA && (
             <Bar
               dataKey={`${seriesA.id}_dhwTotalKw`}
-              fill={DHW_BAR_COLOURS[dhwKinds[0] ?? 'shower'] ?? '#4299e1'}
+              fill={DHW_BAR_COLOURS[dhwKinds[0] ?? 'sink'] ?? '#38a169'}
               opacity={0.85}
               name={`A: ${seriesA.label}`}
               isAnimationActive={false}

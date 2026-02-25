@@ -6,12 +6,13 @@ import {
   DELTA_T_DESIGN,
   type SolverCoreInput,
   type SolverSystemConfig,
+  type DhwSupplyPath,
 } from '../../engine/timeline/Solver24hV1';
 
 // ── Shared fixtures ────────────────────────────────────────────────────────────
 
 const DEFAULT_EVENTS = [
-  { startMin: 420, endMin: 435, kind: 'shower' as const, intensity: 'med' as const },
+  { startMin: 420, endMin: 435, kind: 'sink' as const, intensity: 'med' as const },
   { startMin: 1140, endMin: 1170, kind: 'bath' as const, intensity: 'high' as const },
   { startMin: 1200, endMin: 1245, kind: 'dishwasher' as const, intensity: 'low' as const },
 ];
@@ -272,101 +273,158 @@ describe('buildSystemConfig', () => {
   });
 });
 
-// ── Electric shower delivery mode ─────────────────────────────────────────────
+// ── DHW Supply Path ───────────────────────────────────────────────────────────
 
-describe('Solver24hV1 — electric_cold_only delivery mode', () => {
-  it('electric shower: shower draw suppressed on combi — dhwState stays 100 throughout', () => {
-    // DEFAULT_EVENTS includes shower, bath (served at 100% on 24kW combi), and dishwasher (cold-fill).
-    // Shower draw is suppressed; bath is served at full capacity by the combi → dhwState = 100 at all steps.
-    const result = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'electric_cold_only');
+describe('Solver24hV1 — DHW supply path: cold_only', () => {
+  it('cold_only: DHW hot-water draw series is zero — dhwState stays 100 for combi throughout', () => {
+    // DEFAULT_EVENTS includes sink (med), bath (high), and dishwasher.
+    // cold_only suppresses all hot-water draws → combi dhwState = 100 at all steps.
+    const result = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'cold_only');
     for (const v of result.dhwState) {
       expect(v).toBe(100);
     }
   });
 
-  it('electric shower: cylinder reserve higher than gravity (only bath drawn, not shower)', () => {
+  it('cold_only: stored cylinder reserve unchanged (never drawn)', () => {
     const storedSystem: SolverSystemConfig = {
       systemId: 'stored_vented',
       maxKw: 18,
       minKw: 4,
       baseEta: 0.85,
     };
-    const electricResult = solveSystemTimeline(baseCore, storedSystem, DEFAULT_EVENTS, 'electric_cold_only');
-    const gravityResult  = solveSystemTimeline(baseCore, storedSystem, DEFAULT_EVENTS, 'gravity');
+    const coldResult = solveSystemTimeline(baseCore, storedSystem, DEFAULT_EVENTS, 'cold_only');
+    const hotResult  = solveSystemTimeline(baseCore, storedSystem, DEFAULT_EVENTS, 'hot_water_system');
 
-    // Electric: only bath drawn (shower suppressed) → less total draw → min SoC higher than gravity
-    const minElectric = Math.min(...electricResult.dhwState);
-    const minGravity  = Math.min(...gravityResult.dhwState);
-    expect(minElectric).toBeGreaterThanOrEqual(minGravity);
+    // cold_only: cylinder never drawn → min SoC higher than hot_water_system
+    const minCold = Math.min(...coldResult.dhwState);
+    const minHot  = Math.min(...hotResult.dhwState);
+    expect(minCold).toBeGreaterThanOrEqual(minHot);
   });
 
-  it('electric shower: bath event still draws from stored cylinder (only shower is suppressed)', () => {
-    // Tight boiler: 9 kW for 8 kW peak loss → only 1 kW margin.
-    // Bath (high, 3 kW) exceeds the margin → cylinder drains even with electric_cold_only.
+  it('cold_only: no combi DHW conflict — inputPowerKw at sink step equals hot_water_system non-event step', () => {
+    const resultCold = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'cold_only');
+    const resultHot  = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'hot_water_system');
+    // Step 28 = minute 420 = sink event window
+    const inputCold = resultCold.inputPowerKw[28];
+    const inputHot  = resultHot.inputPowerKw[28];
+    // With hot_water_system, the combi must supply more energy → input power should be higher
+    expect(inputHot).toBeGreaterThan(inputCold);
+  });
+});
+
+describe('Solver24hV1 — DHW supply path: hot_water_system', () => {
+  it('hot_water_system: DHW events increase total required kW — inputPowerKw is higher during sink step', () => {
+    const resultHot      = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'hot_water_system');
+    const resultColdOnly = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'cold_only');
+    // Step 28 = minute 420 = sink event window
+    const inputHot      = resultHot.inputPowerKw[28];
+    const inputColdOnly = resultColdOnly.inputPowerKw[28];
+    expect(inputHot).toBeGreaterThan(inputColdOnly);
+  });
+
+  it('hot_water_system (default): same result as calling solver with no supply path', () => {
+    const resultExplicit = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'hot_water_system');
+    const resultDefault  = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS);
+    expect(resultExplicit.dhwState).toEqual(resultDefault.dhwState);
+    expect(resultExplicit.inputPowerKw).toEqual(resultDefault.inputPowerKw);
+  });
+
+  it('bath event draws from stored cylinder (SoC drops during bath window)', () => {
     const tightSystem: SolverSystemConfig = {
       systemId: 'stored_vented',
       maxKw: 9,
       minKw: 4,
       baseEta: 0.85,
     };
-    const bathOnlyEvents = [
+    const bathEvents = [
       { startMin: 1140, endMin: 1170, kind: 'bath' as const, intensity: 'high' as const },
     ];
-    const electricResult = solveSystemTimeline(baseCore, tightSystem, bathOnlyEvents, 'electric_cold_only');
-    const noEventResult  = solveSystemTimeline(baseCore, tightSystem, [], 'electric_cold_only');
-
-    // Bath not suppressed → cylinder drains during event → min SoC lower than no-event run
-    const minElectric = Math.min(...electricResult.dhwState);
-    const minNoEvent  = Math.min(...noEventResult.dhwState);
-    expect(minElectric).toBeLessThan(minNoEvent);
-  });
-
-  it('electric shower: alias "electric" normalises and suppresses shower draw identically', () => {
-    // Passing the legacy 'electric' alias should behave identically to 'electric_cold_only'
-    const resultAlias     = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'electric');
-    const resultCanonical = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'electric_cold_only');
-    expect(resultAlias.dhwState).toEqual(resultCanonical.dhwState);
-  });
-
-  it('electric shower alias "Electric" (mixed case) behaves identically to electric_cold_only', () => {
-    const resultMixed    = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'Electric');
-    const resultCanonical = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'electric_cold_only');
-    expect(resultMixed.dhwState).toEqual(resultCanonical.dhwState);
-  });
-
-  it('gravity (default): DHW events do increase total required kW — inputPowerKw is higher during shower steps', () => {
-    // With gravity, shower creates a DHW draw on the combi → input power rises during event steps.
-    // Compare electric (no draw) vs gravity (draw) for the same combi system.
-    const resultGravity  = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'gravity');
-    const resultElectric = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'electric_cold_only');
-    // Step 28 = minute 420 = shower event window
-    const inputGravity  = resultGravity.inputPowerKw[28];
-    const inputElectric = resultElectric.inputPowerKw[28];
-    // With DHW draw, the combi must supply more energy → input power should be higher
-    expect(inputGravity).toBeGreaterThan(inputElectric);
-  });
-
-  it('no double-counting: non-electric solver DHW draw > 0 and stored cylinder SoC decreases exactly once', () => {
-    // For a non-electric mode, confirm solver DHW draw is positive at a known bath step
-    // and the stored cylinder is the single mechanism that tracks it.
-    const tightSystem: SolverSystemConfig = {
-      systemId: 'stored_vented',
-      maxKw: 9,
-      minKw: 4,
-      baseEta: 0.85,
-    };
-    const bathOnlyEvents = [
-      { startMin: 1140, endMin: 1170, kind: 'bath' as const, intensity: 'high' as const },
-    ];
-    const result = solveSystemTimeline(baseCore, tightSystem, bathOnlyEvents, 'gravity');
-    // SoC before bath (index 75 = 18:45): cylinder should be high
+    const result = solveSystemTimeline(baseCore, tightSystem, bathEvents, 'hot_water_system');
     const preEvent  = result.dhwState[75];
-    // SoC after bath (index 79 = 19:45): should have dropped from a single draw
     const postEvent = result.dhwState[79];
     expect(preEvent).toBeGreaterThan(postEvent);
-    // Confirm the draw is captured in inputPowerKw increasing during the bath steps
-    const inputAtBath = result.inputPowerKw[76]; // 19:00 — first bath step
-    const inputBefore = result.inputPowerKw[74];  // 18:30 — before bath
+  });
+});
+
+describe('Solver24hV1 — DHW supply path: mixed', () => {
+  it('mixed: sink draw is partial (60%) — inputPowerKw at sink step is between cold_only and hot_water_system', () => {
+    const resultCold  = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'cold_only');
+    const resultMixed = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'mixed');
+    const resultHot   = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'hot_water_system');
+    // Step 28 = minute 420 = sink event window
+    const inputCold  = resultCold.inputPowerKw[28];
+    const inputMixed = resultMixed.inputPowerKw[28];
+    const inputHot   = resultHot.inputPowerKw[28];
+    // mixed should be strictly between cold_only (0 draw) and hot_water_system (full draw)
+    expect(inputMixed).toBeGreaterThan(inputCold);
+    expect(inputMixed).toBeLessThan(inputHot);
+  });
+
+  it('mixed: bath always draws from hot-water system (same as hot_water_system for bath-only events)', () => {
+    const tightSystem: SolverSystemConfig = {
+      systemId: 'stored_vented',
+      maxKw: 9,
+      minKw: 4,
+      baseEta: 0.85,
+    };
+    const bathOnlyEvents = [
+      { startMin: 1140, endMin: 1170, kind: 'bath' as const, intensity: 'high' as const },
+    ];
+    const resultMixed = solveSystemTimeline(baseCore, tightSystem, bathOnlyEvents, 'mixed');
+    const resultHot   = solveSystemTimeline(baseCore, tightSystem, bathOnlyEvents, 'hot_water_system');
+    // Bath draw is identical in both modes → cylinder SoC should match exactly
+    expect(resultMixed.dhwState).toEqual(resultHot.dhwState);
+  });
+
+  it('mixed: partial sink draws affect stored cylinder reserve (SoC lower than cold_only)', () => {
+    // Use a system whose maxKw exactly matches the peak space-heat requirement.
+    // This leaves no excess capacity to reheat the cylinder during a sink draw,
+    // so the 60% mixed draw is not instantly offset.
+    const tightSystem: SolverSystemConfig = {
+      systemId: 'stored_vented',
+      maxKw: 8, // exactly equal to peak heat loss — no headroom for instant cylinder reheat
+      minKw: 4,
+      baseEta: 0.85,
+    };
+    const sinkOnlyEvents = [
+      { startMin: 420, endMin: 435, kind: 'sink' as const, intensity: 'med' as const },
+    ];
+    const resultCold  = solveSystemTimeline(baseCore, tightSystem, sinkOnlyEvents, 'cold_only');
+    const resultMixed = solveSystemTimeline(baseCore, tightSystem, sinkOnlyEvents, 'mixed');
+    const minCold  = Math.min(...resultCold.dhwState);
+    const minMixed = Math.min(...resultMixed.dhwState);
+    // mixed draws 60% of the sink → cylinder drains more than cold_only (0%)
+    expect(minMixed).toBeLessThan(minCold);
+  });
+});
+
+// ── No double-counting: non-cold solver DHW draw > 0 ─────────────────────────
+
+describe('Solver24hV1 — no double-counting', () => {
+  it('hot_water_system DHW draw > 0 and stored cylinder SoC decreases exactly once', () => {
+    const tightSystem: SolverSystemConfig = {
+      systemId: 'stored_vented',
+      maxKw: 9,
+      minKw: 4,
+      baseEta: 0.85,
+    };
+    const bathOnlyEvents = [
+      { startMin: 1140, endMin: 1170, kind: 'bath' as const, intensity: 'high' as const },
+    ];
+    const result = solveSystemTimeline(baseCore, tightSystem, bathOnlyEvents, 'hot_water_system');
+    const preEvent  = result.dhwState[75];
+    const postEvent = result.dhwState[79];
+    expect(preEvent).toBeGreaterThan(postEvent);
+    const inputAtBath = result.inputPowerKw[76];
+    const inputBefore = result.inputPowerKw[74];
     expect(inputAtBath).toBeGreaterThanOrEqual(inputBefore);
+  });
+
+  it('DhwSupplyPath type is exported and accepts valid values', () => {
+    const paths: DhwSupplyPath[] = ['hot_water_system', 'cold_only', 'mixed'];
+    for (const path of paths) {
+      const result = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, path);
+      expect(result.dhwState).toHaveLength(SOLVER_STEPS);
+    }
   });
 });

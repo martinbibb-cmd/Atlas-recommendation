@@ -13,8 +13,10 @@
  *  2. HP "Horizon" Curve      – "Low and Slow" stability; SPF from SpecEdgeModule
  *  3. Hot water reserve (%)   – Stored hot-water reserve (charging / discharging)
  *
- * Shower / water delivery modes are mapped to canonical DeliveryMode values.
- * Electric showers do NOT create a hot-water draw on the heating system.
+ * DHW Supply Path controls whether DHW events hit the hot-water system:
+ *   'hot_water_system': all sink/bath draws go to the system (default).
+ *   'cold_only':        no DHW draws hit the system (cold-fill / electric supply only).
+ *   'mixed':            partial draws — 60% of sinks, full baths.
  */
 
 import { useState, useMemo } from 'react';
@@ -40,13 +42,27 @@ import {
   STATE_CYCLE,
   defaultHours,
   nextState,
-  normaliseDeliveryMode,
   isHotWaterDrawEvent,
   mixergySoCByHour,
   boilerSteppedCurve,
   hpHorizonCurve,
 } from '../../engine/modules/LifestyleInteractiveHelpers';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
+
+// ─── DHW Supply Path ──────────────────────────────────────────────────────────
+
+type DhwSupplyPath = 'hot_water_system' | 'cold_only' | 'mixed';
+
+const DHW_SUPPLY_PATH_LABELS: Record<DhwSupplyPath, string> = {
+  hot_water_system: 'Hot-water system (taps/baths draw from stored/combi)',
+  cold_only:        'Cold-only (electric supply — doesn\'t hit hot water)',
+  mixed:            'Mixed (some hot, some cold-only)',
+};
+
+/** Map DHW supply path to a canonical DeliveryMode for existing physics helpers. */
+function supplyPathToDeliveryMode(path: DhwSupplyPath): DeliveryMode {
+  return path === 'cold_only' ? 'electric_cold_only' : 'gravity';
+}
 
 // ─── System switcher ──────────────────────────────────────────────────────────
 
@@ -87,12 +103,10 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [hours, setHours] = useState<HourState[]>(defaultHours);
   const [isFullJob, setIsFullJob] = useState(true);
   const [selectedSystem, setSelectedSystem] = useState<DayPainterSystem>('combi');
-  // Raw value from the dropdown — normalised to canonical DeliveryMode immediately
-  const [rawDelivery, setRawDelivery] = useState<string>('gravity');
-  const deliveryMode: DeliveryMode = normaliseDeliveryMode(rawDelivery);
-  const isHighFlowDelivery =
-    deliveryMode === 'pumped_from_tank' || deliveryMode === 'mains_mixer';
-  const isElectric = deliveryMode === 'electric_cold_only';
+  const [dhwSupplyPath, setDhwSupplyPath] = useState<DhwSupplyPath>('hot_water_system');
+  // Map supply path to delivery mode for existing physics helpers
+  const deliveryMode: DeliveryMode = supplyPathToDeliveryMode(dhwSupplyPath);
+  const isColdOnly = dhwSupplyPath === 'cold_only';
   const [hasSoftener, setHasSoftener] = useState(false);
 
   const engineInput: EngineInputV2_3 = { ...DEFAULT_ENGINE_INPUT, ...baseInput };
@@ -127,8 +141,8 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     [hours, deliveryMode],
   );
   const boilerByHour = useMemo(
-    () => boilerSteppedCurve(hours, isHighFlowDelivery, deliveryMode),
-    [hours, isHighFlowDelivery, deliveryMode],
+    () => boilerSteppedCurve(hours, false, deliveryMode),
+    [hours, deliveryMode],
   );
   const hpByHour = useMemo(
     () => hpHorizonCurve(hours, specEdge.spfMidpoint, specEdge.designFlowTempC),
@@ -166,9 +180,9 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const dhwCount  = hours.filter(s => s === 'dhw_demand').length;
   const awayCount = hours.filter(s => s === 'away').length;
 
-  // Combi efficiency collapses only when high-flow delivery draws hot water
+  // Combi efficiency collapses when DHW draws hot water and demand hours are active
   const combiEfficiencyCollapsed =
-    isHighFlowDelivery && isHotWaterDrawEvent(deliveryMode) && dhwCount > 0;
+    isHotWaterDrawEvent(deliveryMode) && dhwCount > 0;
 
   return (
     <div>
@@ -268,29 +282,26 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
         />
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <label style={{ fontSize: '0.78rem', color: '#4a5568', fontWeight: 600 }}>
-            🚿 Shower / water delivery:
+            💧 DHW Supply Path:
           </label>
           <select
-            value={rawDelivery}
-            onChange={e => setRawDelivery(e.target.value)}
-            aria-label="Shower / water delivery type"
+            value={dhwSupplyPath}
+            onChange={e => setDhwSupplyPath(e.target.value as DhwSupplyPath)}
+            aria-label="DHW supply path"
             style={{ fontSize: '0.78rem', borderRadius: 6, border: '1px solid #e2e8f0', padding: '4px 8px', cursor: 'pointer' }}
-            title="Gravity = tank-fed; Power shower = pump from tank; Mixer = mains-fed; Electric = heats cold mains only"
+            title="Hot-water system: taps/baths draw from stored/combi. Cold-only: no DHW draw. Mixed: partial draws."
           >
-            <option value="gravity">Gravity (tank-fed)</option>
-            <option value="pumped_from_tank">Power shower (pump from tank)</option>
-            <option value="mains_mixer">Mixer (mains-fed)</option>
-            <option value="accumulator_supported">Accumulator (buffers peaks)</option>
-            <option value="break_tank_booster">Break tank + booster set</option>
-            <option value="electric_cold_only">Electric shower (cold only)</option>
+            {(Object.keys(DHW_SUPPLY_PATH_LABELS) as DhwSupplyPath[]).map(path => (
+              <option key={path} value={path}>{DHW_SUPPLY_PATH_LABELS[path]}</option>
+            ))}
           </select>
         </div>
-        {isElectric && (
+        {isColdOnly && (
           <span style={{
             fontSize: '0.74rem', color: '#2b6cb0', background: '#ebf8ff',
             border: '1px solid #bee3f8', borderRadius: 6, padding: '4px 10px',
           }}>
-            ℹ️ This only affects showers. Baths and taps still use hot water.
+            ℹ️ Cold-only: sink/bath events do not draw from the hot-water system.
           </span>
         )}
         <ToggleButton
