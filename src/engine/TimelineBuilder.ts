@@ -1,6 +1,5 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
 import type { VisualSpecV1, Timeline24hV1, Timeline24hEvent, Timeline24hSeries, TimelineBandsV1, DhwEventEntry } from '../contracts/EngineOutputV1';
-import { buildBoilerEfficiencySeriesV1 } from './modules/BoilerTailoffModule';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
 import { solveSystemTimeline, buildSystemConfig } from './timeline/Solver24hV1';
 
@@ -504,18 +503,18 @@ export function buildTimeline24hV1(
      core.cwsSupplyV1?.dropBar !== undefined &&
      core.cwsSupplyV1.dropBar >= 1.0);
 
-  // SEDBUK tail-off efficiency series for the 'current' system (series A) when available
-  const sedbuk = core.sedbukV1;
-  const boilerAgeYears = input.currentSystem?.boiler?.ageYears ?? input.currentBoilerAgeYears ?? 0;
-  const oversizeRatio = core.sizingV1?.oversizeRatio ?? null;
-  const sedbukEfficiencySeries = sedbuk?.seasonalEfficiency != null
-    ? buildBoilerEfficiencySeriesV1({
-        seasonalEfficiency: sedbuk.seasonalEfficiency,
-        ageYears: boilerAgeYears,
-        demandHeatKw: demandKwArr,
-        oversizeRatio,
-      })
-    : undefined;
+  // Canonical current-boiler efficiency model from engine core.
+  const boilerModel = core.boilerEfficiencyModelV1;
+  const currentSystemType = input.currentSystem?.boiler?.type
+    ?? (input.currentHeatSourceType === 'system' ? 'system'
+      : input.currentHeatSourceType === 'regular' ? 'regular'
+      : input.currentHeatSourceType === 'combi' ? 'combi'
+      : 'unknown');
+
+  const currentEfficiencySeries = currentSystemType === 'combi'
+    ? (boilerModel?.etaSeries96
+      ?? (boilerModel?.inHomeAdjustedEta != null ? new Array(96).fill(boilerModel.inHomeAdjustedEta) : undefined))
+    : (boilerModel?.ageAdjustedEta != null ? new Array(96).fill(boilerModel.ageAdjustedEta) : undefined);
 
   // Solver core inputs for RC 1-node building physics (new fields: roomTempC, inputPowerKw, dhwState)
   const peakHeatLossKw = input.heatLossWatts != null ? input.heatLossWatts / 1000 : 0;
@@ -532,7 +531,7 @@ export function buildTimeline24hV1(
 
   const seriesA = buildSeriesForSystem(
     idA, input, demandKwArr, events, designFlowTempBand, combiEtaPct,
-    (idA === 'current' && isBoilerBasedSystem(idA)) ? sedbukEfficiencySeries : undefined,
+    (idA === 'current' && isBoilerBasedSystem(idA)) ? currentEfficiencySeries : undefined,
     cwsUnstable,
     solverCore,
   );
@@ -548,8 +547,11 @@ export function buildTimeline24hV1(
     'DHW events: shaded bands indicate hot-water draw periods.',
     'Dishwasher / washing machine: cold-fill only — no DHW thermal load.',
   ];
-  if (sedbuk) {
-    legendNotes.push(`Current boiler baseline (SEDBUK ${sedbuk.label}): ${sedbuk.seasonalEfficiency != null ? `${Math.round(sedbuk.seasonalEfficiency * 100)}%` : 'unknown'}.`);
+  if (boilerModel?.baselineSeasonalEta != null) {
+    legendNotes.push(`Current boiler baseline (SEDBUK): ${Math.round(boilerModel.baselineSeasonalEta * 100)}% (modelled estimate).`);
+  }
+  if (boilerModel?.disclaimerNotes?.length) {
+    legendNotes.push(...boilerModel.disclaimerNotes);
   }
 
   // Confidence note — surface at legend level so it's visible alongside the chart

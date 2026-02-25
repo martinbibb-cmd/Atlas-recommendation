@@ -8,6 +8,8 @@ import type { SedbukResultV1 } from '../modules/SedbukModule';
 export type { SedbukResultV1 };
 import type { BoilerSizingResultV1 } from '../modules/BoilerSizingModule';
 export type { BoilerSizingResultV1 };
+import type { BoilerEfficiencyModelV1 } from '../modules/BoilerEfficiencyModelV1';
+export type { BoilerEfficiencyModelV1 };
 import type {
   FabricModelV1Result,
   FabricWallType,
@@ -623,6 +625,8 @@ export interface FullEngineResultCore {
   sedbukV1?: SedbukResultV1;
   /** Boiler sizing result (present when current system boiler info provided). */
   sizingV1?: BoilerSizingResultV1;
+  /** Canonical current-boiler efficiency model consumed by timeline + day painter surfaces. */
+  boilerEfficiencyModelV1?: BoilerEfficiencyModelV1;
   /**
    * Fabric model V1 result — independent heat-loss and thermal inertia estimates.
    * Present when input.building is provided.

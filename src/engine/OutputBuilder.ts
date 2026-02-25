@@ -3,7 +3,6 @@ import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem, Visua
 import { ENGINE_VERSION, CONTRACT_VERSION } from '../contracts/versions';
 import { buildOptionMatrixV1 } from './OptionMatrixBuilder';
 import { buildTimeline24hV1 } from './TimelineBuilder';
-import { ageFactor, cyclingFactor, DEFAULT_BOILER_KW, LOW_LOAD_THRESHOLD_RATIO } from './modules/BoilerTailoffModule';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
 import { PENALTY_NARRATIVES, selectTopNarrativePenalties } from './scoring/penaltyNarratives';
 import type { PenaltyId } from '../contracts/scoring.penaltyIds';
@@ -493,25 +492,27 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
       contextBullets.push('Adequate space available for a standard cylinder.');
     }
 
-    // SEDBUK boiler efficiency context bullets
-    const sedbuk = result.sedbukV1;
-    if (sedbuk && sedbuk.seasonalEfficiency != null) {
-      const basePct = Math.round(sedbuk.seasonalEfficiency * 100);
+    const boilerModel = result.boilerEfficiencyModelV1;
+    if (boilerModel?.baselineSeasonalEta != null) {
       contextBullets.push(
-        `Current boiler baseline seasonal efficiency (SEDBUK): ${basePct}% (source: ${sedbuk.label}).`,
+        `Current boiler baseline seasonal efficiency (SEDBUK): ${Math.round(boilerModel.baselineSeasonalEta * 100)}% (modelled estimate).`,
       );
-      const boilerAgeYears = input.currentSystem?.boiler?.ageYears ?? input.currentBoilerAgeYears ?? 0;
-      if (boilerAgeYears > 0) {
-        const af = ageFactor(boilerAgeYears);
-        // cycling penalty range: 0% (no cycling) to max 9% (high cycling)
-        const lowLoadKw = DEFAULT_BOILER_KW * LOW_LOAD_THRESHOLD_RATIO;
-        const cfLow = cyclingFactor(new Array(96).fill(0.1), lowLoadKw); // high cycling
-        const adjustedLow = Math.round(sedbuk.seasonalEfficiency * af * cfLow * 100);
-        const adjustedHigh = Math.round(sedbuk.seasonalEfficiency * af * 100);
-        contextBullets.push(
-          `Modelled in-home estimate (age + cycling): ~${adjustedLow}–${adjustedHigh}% across your day.`,
-        );
-      }
+    }
+    if (boilerModel?.ageAdjustedEta != null) {
+      contextBullets.push(
+        `Age-adjusted boiler efficiency: ${Math.round(boilerModel.ageAdjustedEta * 100)}% (modelled estimate).`,
+      );
+    }
+    if (boilerModel?.inHomeAdjustedEta != null) {
+      const oversizeSuffix = boilerModel.oversize?.penalty
+        ? `, including oversize/cycling penalty (${Math.round(boilerModel.oversize.penalty * 100)}%)`
+        : '';
+      contextBullets.push(
+        `Modelled in-home efficiency: ${Math.round(boilerModel.inHomeAdjustedEta * 100)}% (age-adjusted${oversizeSuffix}; not measured).`,
+      );
+    }
+    if (boilerModel?.disclaimerNotes?.length) {
+      contextBullets.push(...boilerModel.disclaimerNotes);
     }
 
     // Boiler sizing context bullets
