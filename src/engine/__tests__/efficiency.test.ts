@@ -1,3 +1,6 @@
+// This file uses Node built-ins (node:fs, node:path) and runs under Vitest (Node environment).
+// It is excluded from the tsconfig.app.json project, which is part of the tsc -b build graph,
+// so these imports do not pollute the browser type environment.
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -107,6 +110,8 @@ describe('efficiency lint guard', () => {
       const content = readFileSync(file, 'utf-8');
       const lines = content.split('\n');
 
+      // Explicit types below are belt-and-suspenders: strict mode doesn't need them here,
+      // but they also help if tests are typechecked separately later.
       lines.forEach((line: string, idx: number) => {
         if (!line.includes('?? 92')) return;
         // Skip comment-only lines (JSDoc / inline comments)
@@ -139,6 +144,8 @@ describe('efficiency lint guard', () => {
       const content = readFileSync(file, 'utf-8');
       const lines = content.split('\n');
 
+      // Explicit types below are belt-and-suspenders: strict mode doesn't need them here,
+      // but they also help if tests are typechecked separately later.
       lines.forEach((line: string, idx: number) => {
         const trimmed = line.trim();
         // Skip comment-only lines (JSDoc / inline comments)
