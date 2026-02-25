@@ -2,22 +2,19 @@
  * LifestyleInteractive – "Day Painter" Sales Closer
  *
  * A 24-hour interactive simulation where users paint their daily routine
- * (At Home / Away / High DHW Demand) and see in real-time how a British Gas
- * "Full Job" heat pump or a Mixergy Hot Water Battery performs.
+ * (At Home / Away / High DHW Demand) and see in real-time how their selected
+ * heating system performs.
  *
- * Three dynamic curves are rendered together:
+ * One system is shown at a time.  A pill switcher lets users compare:
+ *   Combi | Stored–Vented | Stored–Unvented | ASHP
+ *
+ * Curves rendered:
  *  1. Boiler "Stepped" Curve  – 30 kW Sprinter, rapid reheat to 21 °C setpoint
  *  2. HP "Horizon" Curve      – "Low and Slow" stability; SPF from SpecEdgeModule
- *                               creates a thicker green zone for Full Job (35 °C)
- *                               vs Fast Fit (50 °C)
- *  3. Mixergy Battery remaining – Hot Water Battery charging on Agile off-peak tariff
- *                               or Solar PV, discharging on High DHW demand hours
+ *  3. Hot water reserve (%)   – Stored hot-water reserve (charging / discharging)
  *
- * Interactive toggles drive the underlying SpecEdgeModule physics:
- *  • Full Job  → designFlowTemp 37 °C, SPF 3.8–4.4  (flat Horizon line)
- *  • Fast Fit  → designFlowTemp 50 °C, SPF 2.9–3.1  (dips on cold mornings)
- *  • High-flow delivery (Pumped/Mixer+pump) → peakConcurrentLpm > 12, combi efficiency collapses to <30 %
- *  • Softener  → CaCO₃ build-up rate = 0 (DHW 100 % efficient, scaling tax cleared)
+ * Shower / water delivery modes are mapped to canonical DeliveryMode values.
+ * Electric showers do NOT create a hot-water draw on the heating system.
  */
 
 import { useState, useMemo } from 'react';
@@ -37,16 +34,30 @@ import { runLifestyleSimulationModule } from '../../engine/modules/LifestyleSimu
 import { runSpecEdgeModule } from '../../engine/modules/SpecEdgeModule';
 import {
   type HourState,
+  type DeliveryMode,
   STATE_LABELS,
   STATE_COLOURS,
   STATE_CYCLE,
   defaultHours,
   nextState,
+  normaliseDeliveryMode,
+  isHotWaterDrawEvent,
   mixergySoCByHour,
   boilerSteppedCurve,
   hpHorizonCurve,
 } from '../../engine/modules/LifestyleInteractiveHelpers';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
+
+// ─── System switcher ──────────────────────────────────────────────────────────
+
+type DayPainterSystem = 'combi' | 'stored_vented' | 'stored_unvented' | 'ashp';
+
+const SYSTEM_LABELS: Record<DayPainterSystem, string> = {
+  combi:           'Combi',
+  stored_vented:   'Stored — Vented',
+  stored_unvented: 'Stored — Unvented',
+  ashp:            'ASHP',
+};
 
 // ─── Default engine input ─────────────────────────────────────────────────────
 
@@ -75,10 +86,13 @@ interface Props {
 export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [hours, setHours] = useState<HourState[]>(defaultHours);
   const [isFullJob, setIsFullJob] = useState(true);
-  const [waterDelivery, setWaterDelivery] = useState<'gravity' | 'pumped' | 'mixer' | 'mixer_pump' | 'electric'>('gravity');
-  const isHighFlowDelivery = waterDelivery === 'pumped' || waterDelivery === 'mixer_pump';
-  const WATER_DELIVERY_VALUES = ['gravity', 'pumped', 'mixer', 'mixer_pump', 'electric'] as const;
-  type WaterDelivery = typeof WATER_DELIVERY_VALUES[number];
+  const [selectedSystem, setSelectedSystem] = useState<DayPainterSystem>('combi');
+  // Raw value from the dropdown — normalised to canonical DeliveryMode immediately
+  const [rawDelivery, setRawDelivery] = useState<string>('gravity');
+  const deliveryMode: DeliveryMode = normaliseDeliveryMode(rawDelivery);
+  const isHighFlowDelivery =
+    deliveryMode === 'pumped_from_tank' || deliveryMode === 'mains_mixer';
+  const isElectric = deliveryMode === 'electric_cold_only';
   const [hasSoftener, setHasSoftener] = useState(false);
 
   const engineInput: EngineInputV2_3 = { ...DEFAULT_ENGINE_INPUT, ...baseInput };
@@ -108,22 +122,33 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
 
   // ── Derived curve data ──────────────────────────────────────────────────────
 
-  const socByHour = useMemo(() => mixergySoCByHour(hours), [hours]);
+  const socByHour = useMemo(
+    () => mixergySoCByHour(hours, deliveryMode),
+    [hours, deliveryMode],
+  );
   const boilerByHour = useMemo(
-    () => boilerSteppedCurve(hours, isHighFlowDelivery),
-    [hours, isHighFlowDelivery],
+    () => boilerSteppedCurve(hours, isHighFlowDelivery, deliveryMode),
+    [hours, isHighFlowDelivery, deliveryMode],
   );
   const hpByHour = useMemo(
     () => hpHorizonCurve(hours, specEdge.spfMidpoint, specEdge.designFlowTempC),
     [hours, specEdge],
   );
 
-  const chartData = Array.from({ length: 24 }, (_, h) => ({
-    hour: `${String(h).padStart(2, '0')}:00`,
-    'Boiler (°C)': boilerByHour[h],
-    'HP Horizon (°C)': hpByHour[h],
-    'Battery remaining (%)': socByHour[h],
-  }));
+  // Derive which curve series to render for the selected system
+  const showBoiler   = selectedSystem === 'combi' || selectedSystem === 'stored_vented' || selectedSystem === 'stored_unvented';
+  const showHp       = selectedSystem === 'ashp';
+  const showHwReserve = selectedSystem !== 'combi'; // stored systems & ASHP have a cylinder
+
+  const chartData = Array.from({ length: 24 }, (_, h) => {
+    const row: Record<string, string | number> = {
+      hour: `${String(h).padStart(2, '0')}:00`,
+    };
+    if (showBoiler)    row['Boiler (°C)']             = boilerByHour[h];
+    if (showHp)        row['HP Horizon (°C)']          = hpByHour[h];
+    if (showHwReserve) row['Hot water reserve (%)']    = socByHour[h];
+    return row;
+  });
 
   // ── Interaction handlers ────────────────────────────────────────────────────
 
@@ -138,10 +163,12 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   // ── Derived counts ──────────────────────────────────────────────────────────
 
   const homeCount = hours.filter(s => s === 'home').length;
-  const dhwCount = hours.filter(s => s === 'dhw_demand').length;
+  const dhwCount  = hours.filter(s => s === 'dhw_demand').length;
   const awayCount = hours.filter(s => s === 'away').length;
 
-  const combiEfficiencyCollapsed = isHighFlowDelivery && dhwCount > 0;
+  // Combi efficiency collapses only when high-flow delivery draws hot water
+  const combiEfficiencyCollapsed =
+    isHighFlowDelivery && isHotWaterDrawEvent(deliveryMode) && dhwCount > 0;
 
   return (
     <div>
@@ -150,8 +177,35 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
         <strong style={{ color: '#276749' }}>At Home</strong> →{' '}
         <strong style={{ color: '#c53030' }}>High DHW</strong> →{' '}
         <strong style={{ color: '#2c5282' }}>Away</strong>.
-        Toggles update all three curves in real-time.
+        Toggles update the curve in real-time.
       </p>
+
+      {/* ── System pill switcher ──────────────────────────────────────────────── */}
+      <div
+        style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: 10 }}
+        role="group"
+        aria-label="Select heating system"
+      >
+        {(Object.keys(SYSTEM_LABELS) as DayPainterSystem[]).map(sys => (
+          <button
+            key={sys}
+            onClick={() => setSelectedSystem(sys)}
+            aria-pressed={selectedSystem === sys}
+            style={{
+              padding: '5px 14px',
+              borderRadius: 20,
+              border: `1.5px solid ${selectedSystem === sys ? '#3182ce' : '#e2e8f0'}`,
+              background: selectedSystem === sys ? '#ebf8ff' : '#f7fafc',
+              color: selectedSystem === sys ? '#2b6cb0' : '#718096',
+              fontSize: '0.78rem',
+              fontWeight: selectedSystem === sys ? 700 : 400,
+              cursor: 'pointer',
+            }}
+          >
+            {SYSTEM_LABELS[sys]}
+          </button>
+        ))}
+      </div>
 
       {/* ── 24-hour Day Painter ─────────────────────────────────────────────── */}
       <div
@@ -217,24 +271,28 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
             🚿 Shower / water delivery:
           </label>
           <select
-            value={waterDelivery}
-            onChange={e => {
-              const v = e.target.value;
-              if ((WATER_DELIVERY_VALUES as readonly string[]).includes(v)) {
-                setWaterDelivery(v as WaterDelivery);
-              }
-            }}
+            value={rawDelivery}
+            onChange={e => setRawDelivery(e.target.value)}
             aria-label="Shower / water delivery type"
             style={{ fontSize: '0.78rem', borderRadius: 6, border: '1px solid #e2e8f0', padding: '4px 8px', cursor: 'pointer' }}
-            title="Gravity = tank-fed hot+cold; Pumped = gravity + pump; Mixer = mains hot+cold; Cabinet pump = shower-integrated booster; Electric = heats cold only"
+            title="Gravity = tank-fed; Power shower = pump from tank; Mixer = mains-fed; Electric = heats cold mains only"
           >
             <option value="gravity">Gravity (tank-fed)</option>
-            <option value="pumped">Pumped (from tank)</option>
-            <option value="mixer">Mixer (mains-fed)</option>
-            <option value="mixer_pump">Mixer + cabinet pump</option>
-            <option value="electric">Electric shower (cold only)</option>
+            <option value="pumped_from_tank">Power shower (pump from tank)</option>
+            <option value="mains_mixer">Mixer (mains-fed)</option>
+            <option value="accumulator_supported">Accumulator (buffers peaks)</option>
+            <option value="break_tank_booster">Break tank + booster set</option>
+            <option value="electric_cold_only">Electric shower (cold only)</option>
           </select>
         </div>
+        {isElectric && (
+          <span style={{
+            fontSize: '0.74rem', color: '#2b6cb0', background: '#ebf8ff',
+            border: '1px solid #bee3f8', borderRadius: 6, padding: '4px 10px',
+          }}>
+            ℹ️ Electric showers don&apos;t use stored hot water.
+          </span>
+        )}
         <ToggleButton
           label="🧂 Softener"
           active={hasSoftener}
@@ -280,7 +338,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
         )}
       </div>
 
-      {/* ── Chart: Boiler Stepped + HP Horizon + Mixergy Battery remaining ─── */}
+      {/* ── Chart: single selected system ──────────────────────────────────── */}
       <div style={{ height: 240, marginBottom: 8 }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
@@ -293,11 +351,11 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
               label={{ value: '°C', angle: -90, position: 'insideLeft', fontSize: 10 }}
             />
             <YAxis
-              yAxisId="soc"
+              yAxisId="reserve"
               orientation="right"
               domain={[0, 100]}
               tick={{ fontSize: 9 }}
-              label={{ value: 'Battery %', angle: 90, position: 'insideRight', fontSize: 10 }}
+              label={{ value: 'Reserve %', angle: 90, position: 'insideRight', fontSize: 10 }}
             />
             <Tooltip
               contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }}
@@ -316,34 +374,40 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
               label={{ value: '21°C', fontSize: 9, fill: '#276749' }}
             />
             {/* Boiler "Stepped" Curve – 30 kW Sprinter */}
-            <Line
-              yAxisId="temp"
-              type="stepAfter"
-              dataKey="Boiler (°C)"
-              stroke="#ed8936"
-              strokeWidth={2.5}
-              dot={false}
-            />
+            {showBoiler && (
+              <Line
+                yAxisId="temp"
+                type="stepAfter"
+                dataKey="Boiler (°C)"
+                stroke="#ed8936"
+                strokeWidth={2.5}
+                dot={false}
+              />
+            )}
             {/* HP "Horizon" Curve – SPF-driven flat or dipping line */}
-            <Line
-              yAxisId="temp"
-              type="monotone"
-              dataKey="HP Horizon (°C)"
-              stroke="#48bb78"
-              strokeWidth={2.5}
-              dot={false}
-              strokeDasharray={isFullJob ? undefined : '6 3'}
-            />
-            {/* Mixergy Battery remaining – Hot Water Battery area chart */}
-            <Area
-              yAxisId="soc"
-              type="monotone"
-              dataKey="Battery remaining (%)"
-              fill="#bee3f8"
-              stroke="#3182ce"
-              strokeWidth={1.5}
-              fillOpacity={0.35}
-            />
+            {showHp && (
+              <Line
+                yAxisId="temp"
+                type="monotone"
+                dataKey="HP Horizon (°C)"
+                stroke="#48bb78"
+                strokeWidth={2.5}
+                dot={false}
+                strokeDasharray={isFullJob ? undefined : '6 3'}
+              />
+            )}
+            {/* Hot water reserve – stored cylinder area chart */}
+            {showHwReserve && (
+              <Area
+                yAxisId="reserve"
+                type="monotone"
+                dataKey="Hot water reserve (%)"
+                fill="#bee3f8"
+                stroke="#3182ce"
+                strokeWidth={1.5}
+                fillOpacity={0.35}
+              />
+            )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>

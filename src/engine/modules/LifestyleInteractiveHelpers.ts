@@ -7,6 +7,54 @@
  * unit-testable in isolation.
  */
 
+// ─── Delivery mode type ───────────────────────────────────────────────────────
+
+/**
+ * Canonical DHW delivery modes.
+ * Legacy aliases ('pumped', 'tank_pumped', 'mixer_pump') are normalised to
+ * canonical values via normaliseDeliveryMode().
+ */
+export type DeliveryMode =
+  | 'unknown'
+  | 'gravity'
+  | 'pumped_from_tank'
+  | 'mains_mixer'
+  | 'accumulator_supported'
+  | 'break_tank_booster'
+  | 'electric_cold_only';
+
+/** Legacy alias inputs accepted for backward compatibility. */
+type DeliveryModeInput = DeliveryMode | 'pumped' | 'tank_pumped' | 'mixer_pump' | 'electric';
+
+/**
+ * Normalise a raw/legacy delivery mode string to the canonical DeliveryMode.
+ * Always call this once at the boundary (UI or engine entry point) before
+ * passing the mode into any physics helper.
+ */
+export function normaliseDeliveryMode(raw: string): DeliveryMode {
+  switch (raw as DeliveryModeInput) {
+    case 'pumped':
+    case 'tank_pumped':
+      return 'pumped_from_tank';
+    case 'mixer_pump':
+      return 'mains_mixer';
+    case 'electric':
+      return 'electric_cold_only';
+    default:
+      // Return the value if it's already canonical, otherwise fall back to 'unknown'
+      return (raw as DeliveryMode) ?? 'unknown';
+  }
+}
+
+/**
+ * Returns true when a shower/bath event should create a hot-water draw on the
+ * heating system.  Electric showers heat cold mains directly and never draw
+ * from the stored cylinder or combi DHW circuit.
+ */
+export function isHotWaterDrawEvent(mode: DeliveryMode): boolean {
+  return mode !== 'electric_cold_only';
+}
+
 // ─── Hour State type ──────────────────────────────────────────────────────────
 
 export type HourState = 'away' | 'home' | 'dhw_demand';
@@ -54,13 +102,16 @@ export function nextState(current: HourState): HourState {
 // ─── Physics helpers ──────────────────────────────────────────────────────────
 
 /**
- * Derive Mixergy State of Charge (%) hour-by-hour.
+ * Derive hot-water reserve State of Charge (%) hour-by-hour.
  *
  * Tank charges during Octopus Agile off-peak slots (01:00–06:00, +8 %/hr)
  * and from any Solar PV window (10:00–16:00, +5 %/hr).
- * DHW demand is drawn for each 'dhw_demand' hour (−18 %) and 'home' hour (−4 %).
+ * DHW demand is drawn for each 'dhw_demand' hour (−18 %) and 'home' hour (−4 %)
+ * UNLESS the delivery mode is electric_cold_only (electric showers never draw
+ * from the stored cylinder or combi DHW circuit).
  */
-export function mixergySoCByHour(hours: HourState[]): number[] {
+export function mixergySoCByHour(hours: HourState[], deliveryMode: DeliveryMode = 'unknown'): number[] {
+  const drawsHotWater = isHotWaterDrawEvent(deliveryMode);
   const soc: number[] = [];
   let current = 60; // start at 60% SoC
   for (let h = 0; h < 24; h++) {
@@ -73,7 +124,7 @@ export function mixergySoCByHour(hours: HourState[]): number[] {
       current = Math.min(100, current + 8);
     } else if (isSolar) {
       current = Math.min(100, current + 5);
-    } else if (isHighDhw) {
+    } else if (isHighDhw && drawsHotWater) {
       current = Math.max(0, current - 18); // shower / bath draw
     } else if (isHome) {
       current = Math.max(0, current - 4);  // background DHW draw
@@ -89,10 +140,16 @@ export function mixergySoCByHour(hours: HourState[]): number[] {
  * At home : rapid 30 kW recovery; hits ~21 °C combi setpoint.
  * Away    : setback to 16 °C.
  * High DHW: if high-flow delivery (pumped/mixer+pump) is active, DHW competition drops room temp to 17.5 °C.
+ *           Electric shower (cold only) does NOT cause a DHW/space-heat conflict.
  */
-export function boilerSteppedCurve(hours: HourState[], hasHighFlowDelivery: boolean): number[] {
+export function boilerSteppedCurve(hours: HourState[], hasHighFlowDelivery: boolean, deliveryMode: DeliveryMode = 'unknown'): number[] {
+  const drawsHotWater = isHotWaterDrawEvent(deliveryMode);
   return hours.map((state, h) => {
     if (state === 'dhw_demand') {
+      if (!drawsHotWater) {
+        // Electric shower: no hot-water draw → no combi service-switching conflict
+        return parseFloat((21 + Math.sin((h / 24) * Math.PI * 2) * 0.5).toFixed(2));
+      }
       // combi "service switching": DHW steals heat from space heating
       return hasHighFlowDelivery ? 17.5 : 19.5;
     }

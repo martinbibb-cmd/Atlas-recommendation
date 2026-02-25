@@ -271,3 +271,50 @@ describe('buildSystemConfig', () => {
     expect(DELTA_T_DESIGN).toBe(16);
   });
 });
+
+// ── Electric shower delivery mode ─────────────────────────────────────────────
+
+describe('Solver24hV1 — electric_cold_only delivery mode', () => {
+  it('electric shower: no DHW draw on combi — dhwState stays 100 throughout', () => {
+    const result = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'electric_cold_only');
+    // Electric shower creates no hot-water demand → combi always in standby (100)
+    for (const v of result.dhwState) {
+      expect(v).toBe(100);
+    }
+  });
+
+  it('electric shower: cylinder reserve unchanged (no draw) vs gravity which reduces it', () => {
+    const storedSystem: SolverSystemConfig = {
+      systemId: 'stored_vented',
+      maxKw: 18,
+      minKw: 4,
+      baseEta: 0.85,
+    };
+    const electricResult = solveSystemTimeline(baseCore, storedSystem, DEFAULT_EVENTS, 'electric_cold_only');
+    const gravityResult  = solveSystemTimeline(baseCore, storedSystem, DEFAULT_EVENTS, 'gravity');
+
+    // Electric: cylinder never drawn down → min SoC should be higher
+    const minElectric = Math.min(...electricResult.dhwState);
+    const minGravity  = Math.min(...gravityResult.dhwState);
+    expect(minElectric).toBeGreaterThanOrEqual(minGravity);
+  });
+
+  it('electric shower: alias "electric" normalises and suppresses DHW draw', () => {
+    // Passing the legacy 'electric' alias should behave identically to 'electric_cold_only'
+    const resultAlias    = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'electric');
+    const resultCanonical = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'electric_cold_only');
+    expect(resultAlias.dhwState).toEqual(resultCanonical.dhwState);
+  });
+
+  it('gravity (default): DHW events do increase total required kW — inputPowerKw is higher during shower steps', () => {
+    // With gravity, shower creates a DHW draw on the combi → input power rises during event steps.
+    // Compare electric (no draw) vs gravity (draw) for the same combi system.
+    const resultGravity  = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'gravity');
+    const resultElectric = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'electric_cold_only');
+    // Step 28 = minute 420 = shower event window
+    const inputGravity  = resultGravity.inputPowerKw[28];
+    const inputElectric = resultElectric.inputPowerKw[28];
+    // With DHW draw, the combi must supply more energy → input power should be higher
+    expect(inputGravity).toBeGreaterThan(inputElectric);
+  });
+});
