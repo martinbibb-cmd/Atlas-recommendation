@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
+import { DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
 
 // Simulates efficiency as a function of draw duration (seconds)
 function generateDrawData() {
@@ -26,7 +27,7 @@ function generateDrawData() {
     }
 
     // Mixergy: top-down stratification maintains stable ~95% efficiency
-    const mixergyEff = 92 + Math.random() * 3;
+    const mixergyEff = DEFAULT_NOMINAL_EFFICIENCY_PCT + Math.random() * 3;
 
     return {
       seconds: `${seconds}s`,
