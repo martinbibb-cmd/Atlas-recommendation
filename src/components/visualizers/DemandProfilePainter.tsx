@@ -183,9 +183,9 @@ export default function DemandProfilePainter({ baseInput = {} }: Props) {
 
   const toggleDhwLpm = (h: number) => {
     setProfile(prev => {
-      const next = [...prev.dhwLpm];
+      const next = [...prev.dhwMixedLpm40];
       next[h] = nextDhwIntensity(next[h]);
-      return { ...prev, dhwLpm: next, source: 'user_edit' };
+      return { ...prev, dhwMixedLpm40: next, source: 'user_edit' };
     });
   };
 
@@ -200,9 +200,9 @@ export default function DemandProfilePainter({ baseInput = {} }: Props) {
   const resetRow = (row: 'heat' | 'dhw' | 'cold') => {
     setProfile(prev => ({
       ...prev,
-      heatIntent: row === 'heat' ? [...measuredProfile.heatIntent] : prev.heatIntent,
-      dhwLpm:     row === 'dhw'  ? [...measuredProfile.dhwLpm]     : prev.dhwLpm,
-      coldLpm:    row === 'cold' ? [...measuredProfile.coldLpm]     : prev.coldLpm,
+      heatIntent:    row === 'heat' ? [...measuredProfile.heatIntent]    : prev.heatIntent,
+      dhwMixedLpm40: row === 'dhw'  ? [...measuredProfile.dhwMixedLpm40] : prev.dhwMixedLpm40,
+      coldLpm:       row === 'cold' ? [...measuredProfile.coldLpm]        : prev.coldLpm,
       source: 'measured',
     }));
   };
@@ -314,10 +314,10 @@ export default function DemandProfilePainter({ baseInput = {} }: Props) {
       {/* ── Row 2: DHW Demand Painter ──────────────────────────────────────── */}
       <PainterRow
         label="🚿 DHW Demand"
-        sublabel="Off → Low → Medium → High → Peak (L/min)"
-        hours={profile.dhwLpm}
-        getColour={h => DHW_INTENSITY_COLOURS[profile.dhwLpm[h] as DhwIntensity] ?? '#f7fafc'}
-        getLabel={h => DHW_INTENSITY_LABELS[profile.dhwLpm[h] as DhwIntensity] ?? `${profile.dhwLpm[h]} L/min`}
+        sublabel="Off → Low → Medium → High → Peak (L/min mixed @ 40 °C)"
+        hours={profile.dhwMixedLpm40}
+        getColour={h => DHW_INTENSITY_COLOURS[profile.dhwMixedLpm40[h] as DhwIntensity] ?? '#f7fafc'}
+        getLabel={h => DHW_INTENSITY_LABELS[profile.dhwMixedLpm40[h] as DhwIntensity] ?? `${profile.dhwMixedLpm40[h]} L/min`}
         onToggle={toggleDhwLpm}
         onReset={() => resetRow('dhw')}
         legend={DHW_INTENSITY_STEPS.map(s => ({ label: DHW_INTENSITY_LABELS[s], colour: DHW_INTENSITY_COLOURS[s] }))}

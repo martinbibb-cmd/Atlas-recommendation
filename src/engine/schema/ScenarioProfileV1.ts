@@ -2,19 +2,24 @@
  * ScenarioProfileV1 — User-editable day profile for the Demand Profile Painter.
  *
  * This type is UI-owned but engine-consumable: the UI paints three independent
- * 24-hour channels; the engine's `applyScenarioOverrides` converts them into
+ * channels across the day; the engine's `applyScenarioOverrides` converts them into
  * deterministic physics outputs for System A vs System B comparison.
  *
  * Physics rules:
  *  - Q_CH_demand_kw is derived from heatIntent + heatLossWatts (no random values)
- *  - Q_DHW_demand_kw is derived from dhwLpm × ΔT (35 °C rise by convention)
+ *  - Q_DHW_demand_kw is derived from dhwMixedLpm40 × ΔT (35 °C rise by convention)
  *  - Combi service-switching: when DHW demand is active, CH output drops to 0
  *  - Boiler η uses computeCurrentEfficiencyPct from efficiency.ts (clamped 50–99 %)
  *  - ASHP COP uses spfMidpoint from SpecEdgeModule (physics-driven)
+ *
+ * Resolution contract:
+ *  - Array length N must equal 1440 / resolutionMins (enforced at runtime).
+ *  - 60-min resolution → 24 slices; 5-min resolution → 288 slices.
+ *  - Never hardcode "24" or "per hour" — always derive from resolutionMins.
  */
 
 import type { EngineInputV2_3 } from './EngineInputV2_3';
-import { computeCurrentEfficiencyPct, DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../utils/efficiency';
+import { computeCurrentEfficiencyPct, getNominalEfficiencyPct } from '../utils/efficiency';
 
 // ─── Heat Intent ──────────────────────────────────────────────────────────────
 
@@ -67,16 +72,26 @@ const BOILER_MAX_DHW_KW = 30;
 const COMBI_DHW_ETA_DECAY_PCT = 20;
 
 /**
- * Boiler η decay during a DHW purge event (percentage points).
- * Applied for one "slot" when dhwLpm transitions from 0 to >0 (a new draw).
- * This models the purge dump before real condensate forms — η briefly goes below zero.
+ * Net energy wasted per combi purge event (kW, averaged over the resolution period).
  *
- * Chosen so that DEFAULT_NOMINAL_EFFICIENCY_PCT − COMBI_PURGE_ETA_DECAY_PCT < 0,
- * producing a negative effective η that represents net energy dumped during the
- * cold heat-exchanger flush.  The exact magnitude (18 pp below zero) matches
- * industry estimates for the initial purge volume in a typical 24 kW combi.
+ * A purge occurs when the first DHW draw fires after an idle period.  The boiler
+ * fires at near-full rate but the heat exchanger is cold; the initial volume of water
+ * passes through cold and is dumped to drain rather than delivered usefully.
+ *
+ * Modelled as a fixed negative delivered-heat quantity so the renderer can display
+ * qDeliveredKw < 0 directly — NOT computed via η algebra.
+ * Typical 24kW combi: ~0.8L heat-exchanger volume × 4.186 kJ/(kg·°C) × 35 °C
+ * ≈ 117 kJ ≈ 0.032 kWh over a 2-min flush.  Averaged over a 60-min slice and
+ * uplifted for the full heat-exchanger warm-up transient: ~2.3 kW.
  */
-const COMBI_PURGE_ETA_DECAY_PCT = DEFAULT_NOMINAL_EFFICIENCY_PCT + 18;
+const COMBI_PURGE_DUMP_KW = 2.3;
+
+/**
+ * Assumed boiler fuel-input rate during a DHW purge event (kW).
+ * The boiler fires at near-full rate during the purge transient.
+ * Used to derive η = qDeliveredKw / fuelInputKw (naturally negative during purge).
+ */
+const COMBI_PURGE_FUEL_INPUT_KW = 28;
 
 // ─── System archetype ─────────────────────────────────────────────────────────
 
@@ -89,23 +104,36 @@ export type ComparisonSystemType = 'combi' | 'stored_vented' | 'stored_unvented'
 // ─── ScenarioProfileV1 ────────────────────────────────────────────────────────
 
 /**
- * UI-editable scenario profile for one 24-hour day.
+ * UI-editable scenario profile for one day.
  *
- * All arrays have exactly 24 elements (one per hour, resolution = 60 min).
+ * Array length N must equal 1440 / resolutionMins.
+ * At 60-min resolution N = 24; at 5-min resolution N = 288.
  * Physics is derived entirely from these arrays + EngineInputV2_3 — the UI
  * never invents any physics values.
  */
 export interface ScenarioProfileV1 {
-  /** Space-heating intent for each hour. 0=off, 1=setback, 2=comfort. */
+  /** Space-heating intent for each time-slice. 0=off, 1=setback, 2=comfort. */
   heatIntent: HeatIntentLevel[];
-  /** Hot-water demand for each hour (L/min; 0 = no draw). */
-  dhwLpm: number[];
-  /** Cold-water draw for each hour (L/min; 0 = no draw). Optional in rendering. */
+  /**
+   * Hot-water demand for each time-slice (L/min MIXED @ 40 °C; 0 = no draw).
+   *
+   * "Mixed @ 40 °C" means the flow rate of blended hot+cold water at the tap
+   * outlet measured at 40 °C delivery temperature.  The physics engine converts
+   * this to a thermal demand using a 35 °C ΔT (cold inlet 10 °C → blended 45 °C).
+   * The field name encodes both the unit (L/min) and the mixing convention (40 °C)
+   * to prevent future ambiguity with "hot-only" flows.
+   */
+  dhwMixedLpm40: number[];
+  /** Cold-water draw for each time-slice (L/min; 0 = no draw). Optional in rendering. */
   coldLpm: number[];
   /** Whether this profile has been user-edited or reflects the measured baseline. */
   source: 'measured' | 'user_edit';
-  /** Timeline resolution (minutes). Always 60 for the 24-hour painter. */
-  resolutionMins: 60;
+  /**
+   * Timeline resolution in minutes.
+   * Array length N must equal 1440 / resolutionMins.
+   * Common values: 60 (24 slices/day), 30 (48), 15 (96), 5 (288).
+   */
+  resolutionMins: number;
 }
 
 // ─── Per-hour physics output ──────────────────────────────────────────────────
@@ -173,23 +201,23 @@ function combiHourPhysics(
   qDhwDemandKw: number,
   isPurgePulse: boolean,
 ): SystemHourPhysicsV1 {
-  const nominalEtaPct = DEFAULT_NOMINAL_EFFICIENCY_PCT;
+  const nominalEtaPct = getNominalEfficiencyPct();
 
   if (qDhwDemandKw > 0) {
     // Service-switching: CH is off while DHW is being served
     const qToDhwKw = Math.min(qDhwDemandKw, BOILER_MAX_DHW_KW);
 
-    const decayPct = isPurgePulse ? COMBI_PURGE_ETA_DECAY_PCT : COMBI_DHW_ETA_DECAY_PCT;
-    // computeCurrentEfficiencyPct clamps to [50, 99], so we bypass clamping for purge
-    const etaPct = isPurgePulse
-      ? nominalEtaPct - decayPct // may be negative (purge dump)
-      : computeCurrentEfficiencyPct(nominalEtaPct, decayPct);
-    const eta = etaPct / 100;
+    if (isPurgePulse) {
+      // Purge event: model as explicit negative delivered heat (energy/heat-flow, NOT η algebra).
+      // The boiler fires at COMBI_PURGE_FUEL_INPUT_KW but all heat goes to warming the cold
+      // heat exchanger; net delivered heat is negative (cold water flushed to drain).
+      const qDeliveredKw = -COMBI_PURGE_DUMP_KW;
+      const eta = qDeliveredKw / COMBI_PURGE_FUEL_INPUT_KW; // naturally negative
+      return { qToChKw: 0, qToDhwKw: qDeliveredKw, etaOrCop: eta, qDumpKw: COMBI_PURGE_DUMP_KW };
+    }
 
-    // Q_dump: energy wasted during purge (stored coolant flushed)
-    const qDumpKw = isPurgePulse ? Math.max(0, -eta * qToDhwKw) : 0;
-
-    return { qToChKw: 0, qToDhwKw, etaOrCop: eta, qDumpKw };
+    const eta = computeCurrentEfficiencyPct(nominalEtaPct, COMBI_DHW_ETA_DECAY_PCT) / 100;
+    return { qToChKw: 0, qToDhwKw, etaOrCop: eta, qDumpKw: 0 };
   }
 
   if (qChDemandKw > 0) {
@@ -215,7 +243,7 @@ function storedBoilerHourPhysics(
   qChDemandKw: number,
   qDhwDemandKw: number,
 ): SystemHourPhysicsV1 {
-  const nominalEtaPct = DEFAULT_NOMINAL_EFFICIENCY_PCT;
+  const nominalEtaPct = getNominalEfficiencyPct();
   const qToChKw = Math.min(qChDemandKw, BOILER_MAX_CH_KW);
   const qToDhwKw = Math.min(qDhwDemandKw, BOILER_MAX_DHW_KW);
   const eta = computeCurrentEfficiencyPct(nominalEtaPct, 0) / 100;
@@ -297,14 +325,14 @@ function computeSystemHourPhysics(
 // ─── Purge pulse detection ────────────────────────────────────────────────────
 
 /**
- * Return a boolean array indicating which hours are "purge pulse" hours.
- * A purge pulse is the first hour of a new DHW draw sequence (dhwLpm transitions
+ * Return a boolean array indicating which time-slices are "purge pulse" slices.
+ * A purge pulse is the first slice of a new DHW draw sequence (dhwMixedLpm40 transitions
  * from 0 to > 0).  This is where the combi flushes stored cold water from the
  * heat exchanger before condensate forms.
  */
-function detectPurgePulses(dhwLpm: number[]): boolean[] {
-  return dhwLpm.map((lpm, h) => {
-    const prevLpm = h === 0 ? 0 : dhwLpm[h - 1];
+function detectPurgePulses(dhwMixedLpm40: number[]): boolean[] {
+  return dhwMixedLpm40.map((lpm, h) => {
+    const prevLpm = h === 0 ? 0 : dhwMixedLpm40[h - 1];
     return lpm > 0 && prevLpm === 0;
   });
 }
@@ -333,34 +361,49 @@ const DHW_MAX_PLAUSIBLE_LPM = 9;
  *  - Away (setback) (09:00–16:00)
  *  - Evening comfort (17:00–21:00)
  *  - Night setback (22:00–05:00)
- * DHW default is derived from bathroomCount × 1.5 L/min per bathroom per active hour.
+ * DHW default is derived from bathroomCount × 1.5 L/min per bathroom per active slice.
+ *
+ * @param input          Normalised engine input.
+ * @param resolutionMins Timeline resolution (minutes per slice). Default: 60.
  */
-export function defaultScenarioProfile(input: EngineInputV2_3): ScenarioProfileV1 {
-  const heatIntent: HeatIntentLevel[] = Array.from({ length: 24 }, (_, h) => {
-    if ((h >= 6 && h <= 8) || (h >= 17 && h <= 21)) return 2; // comfort
-    if (h >= 9 && h <= 16) return 1;                           // setback
-    return 1;                                                   // night setback
+export function defaultScenarioProfile(input: EngineInputV2_3, resolutionMins = 60): ScenarioProfileV1 {
+  const N = 1440 / resolutionMins;
+
+  const heatIntent: HeatIntentLevel[] = Array.from({ length: N }, (_, i) => {
+    // Convert slice index to hour-of-day for schedule lookup
+    const h = (i * resolutionMins) / 60;
+    if ((h >= 6 && h < 9) || (h >= 17 && h < 22)) return 2; // comfort
+    return 1;                                                  // setback
   });
 
-  // Default DHW: bathroom-count heuristic — DHW_LPM_PER_BATHROOM per bathroom during peak hours
+  // Default DHW: bathroom-count heuristic — DHW_LPM_PER_BATHROOM per bathroom during peak slices
   const bathrooms = input.bathroomCount ?? 1;
   const peakDhwLpm = Math.min(bathrooms * DHW_LPM_PER_BATHROOM, DHW_MAX_PLAUSIBLE_LPM);
-  const dhwLpm: number[] = Array.from({ length: 24 }, (_, h) => {
-    if (h >= 6 && h <= 8) return peakDhwLpm;       // morning peak
-    if (h >= 19 && h <= 21) return peakDhwLpm * 0.5; // evening lighter use
+  const dhwMixedLpm40: number[] = Array.from({ length: N }, (_, i) => {
+    const h = (i * resolutionMins) / 60;
+    if (h >= 6 && h < 9) return peakDhwLpm;         // morning peak
+    if (h >= 19 && h < 22) return peakDhwLpm * 0.5; // evening lighter use
     return 0;
   });
 
-  const coldLpm: number[] = Array(24).fill(0);
+  const coldLpm: number[] = Array(N).fill(0);
 
-  return { heatIntent, dhwLpm, coldLpm, source: 'measured', resolutionMins: 60 };
+  return { heatIntent, dhwMixedLpm40, coldLpm, source: 'measured', resolutionMins };
 }
 
 /**
- * Apply ScenarioProfileV1 overrides to derive 24-hour physics for System A vs System B.
+ * Apply ScenarioProfileV1 overrides to derive physics for System A vs System B.
  *
  * This is the single physics gateway for the Demand Profile Painter.
  * The UI never computes physics directly — it calls this function.
+ *
+ * Fairness guarantee:
+ *  ONE shared DemandTimeline is built from the profile; BOTH system simulations
+ *  run against the SAME timeline.  System selection never affects demand values.
+ *
+ * Resolution invariant:
+ *  profile.heatIntent.length, profile.dhwMixedLpm40.length, and profile.coldLpm.length
+ *  must all equal 1440 / profile.resolutionMins.  Throws if violated.
  *
  * @param engineInput  Normalised engine input (provides heatLossWatts, bathroomCount etc.).
  * @param profile      User-edited (or measured) day profile.
@@ -375,26 +418,84 @@ export function applyScenarioOverrides(
   systemBType: ComparisonSystemType,
   spfMidpoint: number,
 ): ScenarioPhysicsOutputV1 {
+  // ── Resolution invariant ────────────────────────────────────────────────────
+  const N = 1440 / profile.resolutionMins;
+  if (
+    profile.heatIntent.length !== N ||
+    profile.dhwMixedLpm40.length !== N ||
+    profile.coldLpm.length !== N
+  ) {
+    throw new Error(
+      `ScenarioProfileV1 array length mismatch: expected ${N} slices ` +
+      `(1440 / resolutionMins=${profile.resolutionMins}) but got ` +
+      `heatIntent=${profile.heatIntent.length}, ` +
+      `dhwMixedLpm40=${profile.dhwMixedLpm40.length}, ` +
+      `coldLpm=${profile.coldLpm.length}.`,
+    );
+  }
+
   const heatLossKw = engineInput.heatLossWatts / W_PER_KW;
-  const purgePulses = detectPurgePulses(profile.dhwLpm);
+  const purgePulses = detectPurgePulses(profile.dhwMixedLpm40);
 
-  const hourly: ScenarioHourOutputV1[] = Array.from({ length: 24 }, (_, h) => {
-    const intent = profile.heatIntent[h] ?? 1;
+  // Build ONE shared demand timeline — both systems are run against the same values.
+  // This is the "fair comparison" contract: demand is never influenced by system choice.
+  const hourly: ScenarioHourOutputV1[] = Array.from({ length: N }, (_, i) => {
+    const intent = profile.heatIntent[i] ?? 1;
     const qChDemandKw = parseFloat((HEAT_INTENT_FRACTION[intent] * heatLossKw).toFixed(3));
-    const qDhwDemandKw = parseFloat(dhwLpmToKw(profile.dhwLpm[h] ?? 0).toFixed(3));
+    const qDhwDemandKw = parseFloat(dhwLpmToKw(profile.dhwMixedLpm40[i] ?? 0).toFixed(3));
 
-    const systemA = computeSystemHourPhysics(systemAType, qChDemandKw, qDhwDemandKw, h, spfMidpoint, purgePulses[h]);
-    const systemB = computeSystemHourPhysics(systemBType, qChDemandKw, qDhwDemandKw, h, spfMidpoint, purgePulses[h]);
+    // Derive the hour-of-day from the slice index for COP cold-morning calculations
+    const hourOfDay = (i * profile.resolutionMins) / 60;
+
+    const systemA = computeSystemHourPhysics(systemAType, qChDemandKw, qDhwDemandKw, hourOfDay, spfMidpoint, purgePulses[i]);
+    const systemB = computeSystemHourPhysics(systemBType, qChDemandKw, qDhwDemandKw, hourOfDay, spfMidpoint, purgePulses[i]);
 
     return {
-      hour: h,
+      hour: i,
       qChDemandKw,
       qDhwDemandKw,
-      coldLpm: profile.coldLpm[h] ?? 0,
+      coldLpm: profile.coldLpm[i] ?? 0,
       systemA,
       systemB,
     };
   });
 
   return { hourly, systemAType, systemBType };
+}
+
+/**
+ * Assert that two ScenarioPhysicsOutputV1 results share the same demand timeline.
+ *
+ * Throws if the demand channels (qChDemandKw, qDhwDemandKw, coldLpm) differ between
+ * the two outputs at any slice.  Use this to guard against future refactors that
+ * could accidentally bias one system with a different demand profile.
+ *
+ * Example:
+ * ```ts
+ * const resultAB = applyScenarioOverrides(input, profile, 'combi', 'ashp', spf);
+ * const resultBA = applyScenarioOverrides(input, profile, 'ashp', 'combi', spf);
+ * assertDemandTimelinesEqual(resultAB, resultBA); // invariant: demand is system-agnostic
+ * ```
+ */
+export function assertDemandTimelinesEqual(
+  a: ScenarioPhysicsOutputV1,
+  b: ScenarioPhysicsOutputV1,
+): void {
+  if (a.hourly.length !== b.hourly.length) {
+    throw new Error(
+      `assertDemandTimelinesEqual: length mismatch ${a.hourly.length} vs ${b.hourly.length}`,
+    );
+  }
+  for (let i = 0; i < a.hourly.length; i++) {
+    const ra = a.hourly[i];
+    const rb = b.hourly[i];
+    if (ra.qChDemandKw !== rb.qChDemandKw || ra.qDhwDemandKw !== rb.qDhwDemandKw || ra.coldLpm !== rb.coldLpm) {
+      throw new Error(
+        `assertDemandTimelinesEqual: demand mismatch at slice ${i}: ` +
+        `qCH=${ra.qChDemandKw} vs ${rb.qChDemandKw}, ` +
+        `qDHW=${ra.qDhwDemandKw} vs ${rb.qDhwDemandKw}, ` +
+        `coldLpm=${ra.coldLpm} vs ${rb.coldLpm}`,
+      );
+    }
+  }
 }
