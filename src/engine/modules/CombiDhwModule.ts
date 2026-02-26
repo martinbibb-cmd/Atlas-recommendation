@@ -5,6 +5,56 @@ const PRESSURE_LOCKOUT_BAR = 1.0;
 /** Occupancy signatures that imply continuous / family-style use (short-draw risk). */
 const SHORT_DRAW_SIGNATURES = new Set(['steady_home', 'steady', 'shift_worker', 'shift']);
 
+// ─── Probabilistic DHW overlap model ─────────────────────────────────────────
+
+/**
+ * Estimate the probability that ≥2 hot water draws overlap during the morning
+ * peak (06:00–09:00) given occupancy count and bathroom count.
+ *
+ * Model: during a 3-hour morning window, each person takes one shower/bath draw
+ * with an average duration of 7 minutes (combi industry standard).  Assuming
+ * uniform random start times within the 180-minute window, the probability
+ * that any two draws overlap is derived from the Poisson overlap approximation:
+ *
+ *   P(overlap) = 1 − exp(−λ)
+ *
+ * where λ = n × (n − 1) / 2 × (drawDurationMin / windowMin) scales with the
+ * number of person-pairs and the fractional draw duration within the window.
+ *
+ * Capped at 0.99 to avoid numerical certainty.
+ *
+ * @param occupancyCount  Number of people regularly resident.
+ * @param bathroomCount   Number of bathrooms (≥2 means near-certain overlap; hard gate).
+ * @returns Probability 0–1, or null when inputs are insufficient.
+ */
+export function estimateMorningOverlapProbability(
+  occupancyCount: number | undefined,
+  bathroomCount: number,
+): number | null {
+  if (occupancyCount == null || occupancyCount <= 0) return null;
+
+  // With ≥2 bathrooms, draws CAN be simultaneous by design → near-certain conflict.
+  if (bathroomCount >= 2) {
+    // Hard simultaneous-demand gate: high probability (not 1.0 to stay probabilistic)
+    const n = occupancyCount;
+    const pairs = (n * (n - 1)) / 2;
+    const lambda = pairs * (7 / 180);
+    return parseFloat(Math.min(0.99, 1 - Math.exp(-lambda * 2)).toFixed(2));
+  }
+
+  // Single bathroom: simultaneous draws require queueing.
+  // λ scales with number of pairs × fractional draw time.
+  const n = occupancyCount;
+  if (n <= 1) return 0;
+
+  const pairs = (n * (n - 1)) / 2;
+  const drawDurationMin = 7;  // combi DHW draw duration (minutes)
+  const windowMin = 180;      // morning peak window (3 hours)
+  const lambda = pairs * (drawDurationMin / windowMin);
+
+  return parseFloat(Math.min(0.99, 1 - Math.exp(-lambda)).toFixed(2));
+}
+
 /**
  * CombiDhwModuleV1
  *
@@ -98,5 +148,23 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3): CombiDhwV1Result {
     combiRisk = 'pass';
   }
 
-  return { verdict: { combiRisk }, flags, assumptions };
+  // ── Probabilistic morning overlap estimate ───────────────────────────────
+  const morningOverlapProbability = estimateMorningOverlapProbability(
+    input.occupancyCount,
+    input.bathroomCount,
+  );
+
+  if (morningOverlapProbability !== null) {
+    const pctLabel = `${Math.round(morningOverlapProbability * 100)}%`;
+    assumptions.push(
+      `Probabilistic DHW overlap model: estimated ${pctLabel} chance that ≥2 simultaneous ` +
+      `hot-water draws overlap during the morning peak (06:00–09:00) based on ` +
+      `${input.occupancyCount} occupants and ${input.bathroomCount} bathroom(s). ` +
+      `Derived from Poisson overlap approximation with 7-min draw duration in a 3-hour window.`,
+    );
+  } else {
+    assumptions.push('Morning overlap probability: occupancyCount not provided — estimate omitted.');
+  }
+
+  return { verdict: { combiRisk }, morningOverlapProbability, flags, assumptions };
 }

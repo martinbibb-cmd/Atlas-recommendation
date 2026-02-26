@@ -106,3 +106,75 @@ describe('HeatPumpRegimeModuleV1', () => {
     expect(copFlag?.severity).toBe('info');
   });
 });
+
+// ─── Bilinear COP curve ───────────────────────────────────────────────────────
+
+import { computeAshpCop } from '../modules/HeatPumpRegimeModule';
+
+describe('computeAshpCop – bilinear model', () => {
+  it('returns REF_COP ≈ 4.1 at reference conditions (+7°C outdoor, 35°C flow)', () => {
+    expect(computeAshpCop(7, 35)).toBeCloseTo(4.1, 1);
+  });
+
+  it('COP drops as flow temperature increases (higher flow → worse COP)', () => {
+    expect(computeAshpCop(7, 50)).toBeLessThan(computeAshpCop(7, 35));
+    expect(computeAshpCop(7, 45)).toBeLessThan(computeAshpCop(7, 35));
+  });
+
+  it('COP increases as outdoor temperature rises', () => {
+    expect(computeAshpCop(15, 35)).toBeGreaterThan(computeAshpCop(7, 35));
+    expect(computeAshpCop(7, 35)).toBeGreaterThan(computeAshpCop(-3, 35));
+  });
+
+  it('COP at +7°C outdoor / 50°C flow is approximately 3.05 (fast-fit midpoint)', () => {
+    expect(computeAshpCop(7, 50)).toBeCloseTo(3.05, 1);
+  });
+
+  it('COP is always within credible physical range [1.5, 5.0]', () => {
+    const extremes = [
+      computeAshpCop(-10, 70),  // extreme cold + very high flow
+      computeAshpCop(20, 20),   // very warm + very low flow
+    ];
+    extremes.forEach(cop => {
+      expect(cop).toBeGreaterThanOrEqual(1.5);
+      expect(cop).toBeLessThanOrEqual(5.0);
+    });
+  });
+});
+
+describe('HeatPumpRegimeModuleV1 – bilinear COP estimates', () => {
+  it('designCopEstimate is present in the result', () => {
+    const result = runHeatPumpRegimeModuleV1(baseInput);
+    expect(typeof result.designCopEstimate).toBe('number');
+  });
+
+  it('coldMorningCopEstimate is present in the result', () => {
+    const result = runHeatPumpRegimeModuleV1(baseInput);
+    expect(typeof result.coldMorningCopEstimate).toBe('number');
+  });
+
+  it('full_job (35°C) has higher designCopEstimate than fast_fit (50°C)', () => {
+    const fullJob = runHeatPumpRegimeModuleV1({
+      ...baseInput,
+      retrofit: { emitterUpgradeAppetite: 'full_job' },
+    });
+    const noUpgrade = runHeatPumpRegimeModuleV1({
+      ...baseInput,
+      retrofit: { emitterUpgradeAppetite: 'none' },
+    });
+    expect(fullJob.designCopEstimate).toBeGreaterThan(noUpgrade.designCopEstimate);
+  });
+
+  it('coldMorningCopEstimate is lower than designCopEstimate (cold penalty)', () => {
+    const result = runHeatPumpRegimeModuleV1({
+      ...baseInput,
+      retrofit: { emitterUpgradeAppetite: 'full_job' },
+    });
+    expect(result.coldMorningCopEstimate).toBeLessThan(result.designCopEstimate);
+  });
+
+  it('assumptions array mentions the bilinear COP model', () => {
+    const result = runHeatPumpRegimeModuleV1(baseInput);
+    expect(result.assumptions.some(a => a.toLowerCase().includes('bilinear'))).toBe(true);
+  });
+});

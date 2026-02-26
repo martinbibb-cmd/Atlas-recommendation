@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { runCombiDhwModuleV1 } from '../modules/CombiDhwModule';
+import { runCombiDhwModuleV1, estimateMorningOverlapProbability } from '../modules/CombiDhwModule';
 import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
 
 const baseInput: EngineInputV2_3 = {
@@ -181,5 +181,82 @@ describe('runCombiDhwModuleV1', () => {
     });
     expect(result.flags.some(f => f.id === 'combi-three-person-caution')).toBe(false);
     expect(result.verdict.combiRisk).toBe('fail');
+  });
+
+  // ── morningOverlapProbability ─────────────────────────────────────────────
+
+  it('morningOverlapProbability is null when occupancyCount is not provided', () => {
+    const result = runCombiDhwModuleV1({ ...baseInput, bathroomCount: 1 });
+    expect(result.morningOverlapProbability).toBeNull();
+  });
+
+  it('morningOverlapProbability is 0 for a single-person household', () => {
+    const result = runCombiDhwModuleV1({ ...baseInput, bathroomCount: 1, occupancyCount: 1 });
+    expect(result.morningOverlapProbability).toBe(0);
+  });
+
+  it('morningOverlapProbability is > 0 for multi-person households', () => {
+    const result = runCombiDhwModuleV1({ ...baseInput, bathroomCount: 1, occupancyCount: 3 });
+    expect(result.morningOverlapProbability).toBeGreaterThan(0);
+  });
+
+  it('morningOverlapProbability increases with household size', () => {
+    const r2 = runCombiDhwModuleV1({ ...baseInput, bathroomCount: 1, occupancyCount: 2 });
+    const r4 = runCombiDhwModuleV1({ ...baseInput, bathroomCount: 1, occupancyCount: 4 });
+    expect(r4.morningOverlapProbability!).toBeGreaterThan(r2.morningOverlapProbability!);
+  });
+
+  it('morningOverlapProbability is higher with 2 bathrooms vs 1 bathroom (same occupancy)', () => {
+    const r1bath = runCombiDhwModuleV1({ ...baseInput, bathroomCount: 1, occupancyCount: 3 });
+    const r2bath = runCombiDhwModuleV1({ ...baseInput, bathroomCount: 2, occupancyCount: 3 });
+    expect(r2bath.morningOverlapProbability!).toBeGreaterThanOrEqual(r1bath.morningOverlapProbability!);
+  });
+
+  it('morningOverlapProbability is always in [0, 1]', () => {
+    [1, 2, 3, 4, 5].forEach(n => {
+      const r = runCombiDhwModuleV1({ ...baseInput, bathroomCount: 1, occupancyCount: n });
+      if (r.morningOverlapProbability !== null) {
+        expect(r.morningOverlapProbability).toBeGreaterThanOrEqual(0);
+        expect(r.morningOverlapProbability).toBeLessThanOrEqual(1);
+      }
+    });
+  });
+
+  it('adds probability context to assumptions when occupancyCount is provided', () => {
+    const result = runCombiDhwModuleV1({ ...baseInput, bathroomCount: 1, occupancyCount: 3 });
+    expect(result.assumptions.some(a => a.includes('Probabilistic DHW overlap'))).toBe(true);
+  });
+});
+
+// ─── estimateMorningOverlapProbability unit tests ─────────────────────────────
+
+describe('estimateMorningOverlapProbability', () => {
+  it('returns null when occupancyCount is undefined', () => {
+    expect(estimateMorningOverlapProbability(undefined, 1)).toBeNull();
+  });
+
+  it('returns null when occupancyCount is 0', () => {
+    expect(estimateMorningOverlapProbability(0, 1)).toBeNull();
+  });
+
+  it('returns 0 for a single occupant (no pairs possible)', () => {
+    expect(estimateMorningOverlapProbability(1, 1)).toBe(0);
+  });
+
+  it('returns a positive probability for 2 occupants', () => {
+    expect(estimateMorningOverlapProbability(2, 1)).toBeGreaterThan(0);
+  });
+
+  it('probability is bounded to [0, 0.99]', () => {
+    // High occupancy + 2 bathrooms → should not exceed 0.99
+    const p = estimateMorningOverlapProbability(10, 2);
+    expect(p!).toBeLessThanOrEqual(0.99);
+    expect(p!).toBeGreaterThanOrEqual(0);
+  });
+
+  it('2-bathroom model yields higher probability than 1-bathroom for same occupancy', () => {
+    const p1 = estimateMorningOverlapProbability(3, 1);
+    const p2 = estimateMorningOverlapProbability(3, 2);
+    expect(p2!).toBeGreaterThanOrEqual(p1!);
   });
 });

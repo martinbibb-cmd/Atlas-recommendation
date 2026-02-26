@@ -76,3 +76,46 @@ describe('LifestyleSimulationModule', () => {
     expect(result.hourlyData).toHaveLength(24);
   });
 });
+
+// ─── Dynamic thermal coupling ─────────────────────────────────────────────────
+
+describe('LifestyleSimulationModule – dynamic room temperature coupling', () => {
+  it('each hourlyData entry includes boilerRoomTempC and ashpRoomTempC', () => {
+    const result = runLifestyleSimulationModule(baseInput);
+    result.hourlyData.forEach(h => {
+      expect(typeof h.boilerRoomTempC).toBe('number');
+      expect(typeof h.ashpRoomTempC).toBe('number');
+    });
+  });
+
+  it('room temperatures are within physically plausible range [10, 26]', () => {
+    const result = runLifestyleSimulationModule(baseInput);
+    result.hourlyData.forEach(h => {
+      expect(h.boilerRoomTempC).toBeGreaterThanOrEqual(10);
+      expect(h.boilerRoomTempC).toBeLessThanOrEqual(26);
+      expect(h.ashpRoomTempC).toBeGreaterThanOrEqual(10);
+      expect(h.ashpRoomTempC).toBeLessThanOrEqual(26);
+    });
+  });
+
+  it('ASHP trace has lower variance than boiler trace for professional profile (flat horizon)', () => {
+    const result = runLifestyleSimulationModule({ ...baseInput, occupancySignature: 'professional' });
+    const ashpTemps  = result.hourlyData.map(h => h.ashpRoomTempC);
+    const boilerTemps = result.hourlyData.map(h => h.boilerRoomTempC);
+    const variance = (arr: number[]) => {
+      const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+      return arr.reduce((s, v) => s + (v - mean) ** 2, 0) / arr.length;
+    };
+    // ASHP modulates → lower variance; boiler steps → higher variance
+    expect(variance(ashpTemps)).toBeLessThan(variance(boilerTemps));
+  });
+
+  it('heavy building mass produces lower temperature range than light mass (more thermal inertia)', () => {
+    const heavy = runLifestyleSimulationModule({ ...baseInput, occupancySignature: 'professional', buildingMass: 'heavy' });
+    const light  = runLifestyleSimulationModule({ ...baseInput, occupancySignature: 'professional', buildingMass: 'light' });
+    const range = (arr: number[]) => Math.max(...arr) - Math.min(...arr);
+    // Heavier building damps boiler oscillations more
+    expect(range(heavy.hourlyData.map(h => h.boilerRoomTempC)))
+      .toBeLessThanOrEqual(range(light.hourlyData.map(h => h.boilerRoomTempC)));
+  });
+});
