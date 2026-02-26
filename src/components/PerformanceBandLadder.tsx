@@ -153,7 +153,7 @@ export default function PerformanceBandLadder({
   const [hoveredMarker, setHoveredMarker] = useState<string | null>(null);
 
   const markers: MarkerDef[] = [
-    { key: 'new_baseline',   label: 'New boiler baseline',   pct: newBaselinePct,       color: '#3182ce' },
+    { key: 'new_baseline',   label: 'New plant baseline (current standard)',   pct: newBaselinePct,       color: '#3182ce' },
     { key: 'as_manufactured', label: 'As manufactured',       pct: nominalPct,           color: '#2d3748' },
     { key: 'restored',        label: 'After clean & protect', pct: restoredPct,          color: '#276749', dashed: true },
     { key: 'current',         label: 'Likely current',        pct: currentEffectivePct,  color: '#c05621' },

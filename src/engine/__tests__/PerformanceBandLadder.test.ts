@@ -4,10 +4,11 @@
  * These tests cover:
  *  - borderlineLabel() — borderline band-boundary detection
  *  - shouldShowHydraulics() — gate logic for the hydraulics recovery step
+ *  - copyPolicy — no finance/currency phrases in static panel copy
  */
 import { describe, it, expect } from 'vitest';
 import { borderlineLabel } from '../../components/PerformanceBandLadder';
-import { shouldShowHydraulics } from '../../components/RecoveryStepsPanel';
+import { shouldShowHydraulics, CORE_STEPS, COMPLIANCE_FOOTER, buildHydraulicsBody } from '../../components/RecoveryStepsPanel';
 import type { HydraulicModuleV1Result } from '../schema/EngineInputV2_3';
 
 // ─── Shared fixtures ──────────────────────────────────────────────────────────
@@ -148,4 +149,45 @@ describe('shouldShowHydraulics', () => {
     const h = makeHydraulic({ verdict: { boilerRisk: 'pass', ashpRisk: 'warn' } });
     expect(shouldShowHydraulics('ashp', 'ashp', h)).toBe(true);
   });
+});
+
+// ─── copyPolicy ───────────────────────────────────────────────────────────────
+
+/**
+ * Forbidden finance phrases — none of these must appear in static panel copy.
+ * This protects the feature from inadvertently introducing FCA/ASA-risk language.
+ */
+const FORBIDDEN_PHRASES = ['£', 'per month', 'APR', 'finance', 'credit', 'BNPL', 'apply'];
+
+describe('copyPolicy: RecoveryStepsPanel static copy is finance-free', () => {
+  // Test step titles + bodies only; the compliance footer is exempt because
+  // it intentionally names "finance" in a negating disclaimer context.
+  const stepCopy = CORE_STEPS.flatMap(s => [s.title, s.body]).join('\n').toLowerCase();
+
+  for (const phrase of FORBIDDEN_PHRASES) {
+    it(`does not contain "${phrase}"`, () => {
+      expect(stepCopy).not.toContain(phrase.toLowerCase());
+    });
+  }
+});
+
+describe('copyPolicy: hydraulics step body is finance-free', () => {
+  // Test all three code paths through buildHydraulicsBody with representative inputs.
+  const hydraulicVariants: HydraulicModuleV1Result[] = [
+    // fail path (velocityPenalty > 0.3)
+    makeHydraulic({ velocityPenalty: 0.5, effectiveCOP: 2.8, verdict: { boilerRisk: 'pass', ashpRisk: 'fail' }, ashp: { deltaT: 5, flowLpm: 22, velocityMs: 2.1 } }),
+    // warn path (velocityPenalty > 0.1)
+    makeHydraulic({ velocityPenalty: 0.2, effectiveCOP: 3.0, verdict: { boilerRisk: 'pass', ashpRisk: 'warn' }, ashp: { deltaT: 5, flowLpm: 18, velocityMs: 1.7 } }),
+    // fallback path (ashpRisk !== 'pass', low velocity)
+    makeHydraulic({ velocityPenalty: 0, verdict: { boilerRisk: 'pass', ashpRisk: 'warn' }, ashp: { deltaT: 5, flowLpm: 12, velocityMs: 0.5 } }),
+  ];
+
+  for (const phrase of FORBIDDEN_PHRASES) {
+    it(`does not contain "${phrase}" in any hydraulics body variant`, () => {
+      for (const h of hydraulicVariants) {
+        const body = buildHydraulicsBody(h, 3.2).toLowerCase();
+        expect(body).not.toContain(phrase.toLowerCase());
+      }
+    });
+  }
 });

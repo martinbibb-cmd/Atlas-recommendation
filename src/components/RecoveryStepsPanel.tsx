@@ -16,7 +16,7 @@
  */
 
 import type { HydraulicModuleV1Result } from '../engine/schema/EngineInputV2_3';
-import { BASE_ASHP_COP } from '../engine/modules/HydraulicModule';
+import { DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../engine/utils/efficiency';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -28,6 +28,13 @@ export interface RecoveryStepsPanelProps {
   hydraulic: HydraulicModuleV1Result;
   /** Marker key currently hovered on the band ladder (from onMarkerHover). */
   highlightedMarker?: string | null;
+  /**
+   * Design COP from HeatPumpRegimeModuleV1Result.
+   * When provided, COP-loss % is derived from engine outputs
+   * (designCopEstimate vs hydraulic.effectiveCOP) rather than a UI constant.
+   * When absent the COP-loss % sentence is omitted (graceful fallback).
+   */
+  designCopEstimate?: number;
 }
 
 // ── Step definitions ──────────────────────────────────────────────────────────
@@ -65,6 +72,49 @@ export function shouldShowHydraulics(
   );
 }
 
+// ── Static step definitions (module-level for testability) ────────────────────
+
+/**
+ * Core recovery steps shown in all configurations.
+ * Exported for copy-policy tests — no finance/currency phrases allowed here.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export const CORE_STEPS: Step[] = [
+  {
+    id: 'annual_service',
+    icon: '🔍',
+    title: 'Annual service (safety + combustion check)',
+    body: 'Covers burner, heat exchanger, and controls. Helps maintain safe operation and correct combustion in line with Gas Safe practice; not a circuit clean.',
+    linkedMarkers: [],
+  },
+  {
+    id: 'clean_protect',
+    icon: '🧲',
+    title: 'Clean & protect on replacement',
+    body: 'Power-flush, full inhibitor dose, and inline magnetic filter. Removes accumulated magnetite and scale that reduce flow, increase ΔT, and force the boiler to cycle more aggressively.',
+    linkedMarkers: ['current', 'restored'],
+  },
+  {
+    id: 'controls',
+    icon: '🎛️',
+    title: 'Controls that reduce cycling',
+    body: 'Load compensation or weather compensation slows unnecessary on/off cycling, which accounts for a significant share of in-service efficiency loss in residential systems.',
+    linkedMarkers: ['current'],
+  },
+  {
+    id: 'new_plant',
+    icon: '🏭',
+    title: 'New plant baseline (current standard)',
+    body: `A current-standard condensing boiler enters service at or above ${DEFAULT_NOMINAL_EFFICIENCY_PCT} % SEDBUK seasonal — the band A/B threshold. This alone closes the gap between the "likely current" and "new plant baseline" markers.`,
+    linkedMarkers: ['new_baseline', 'as_manufactured'],
+  },
+];
+
+/** Compliance footer note — must contain no pricing or finance content. */
+// eslint-disable-next-line react-refresh/only-export-components
+export const COMPLIANCE_FOOTER =
+  'This section provides technical performance guidance only. It does not include pricing, savings, or finance information.';
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function RecoveryStepsPanel({
@@ -72,50 +122,20 @@ export default function RecoveryStepsPanel({
   systemBType,
   hydraulic,
   highlightedMarker,
+  designCopEstimate,
 }: RecoveryStepsPanelProps) {
 
   const showHydraulics = shouldShowHydraulics(systemAType, systemBType, hydraulic);
-
-  const coreSteps: Step[] = [
-    {
-      id: 'annual_service',
-      icon: '🔍',
-      title: 'Annual service',
-      body: 'A gas-safe combustion check keeps the appliance running safely and maintains the manufacturer warranty. This is not a circuit clean — it addresses the burner, heat exchanger, and controls.',
-      linkedMarkers: [],
-    },
-    {
-      id: 'clean_protect',
-      icon: '🧲',
-      title: 'Clean & protect on replacement',
-      body: 'Power-flush, full inhibitor dose, and inline magnetic filter. Removes accumulated magnetite and scale that reduce flow, increase ΔT, and force the boiler to cycle more aggressively.',
-      linkedMarkers: ['current', 'restored'],
-    },
-    {
-      id: 'controls',
-      icon: '🎛️',
-      title: 'Controls that reduce cycling',
-      body: 'Load compensation or weather compensation slows unnecessary on/off cycling, which accounts for a significant share of in-service efficiency loss in residential systems.',
-      linkedMarkers: ['current'],
-    },
-    {
-      id: 'new_plant',
-      icon: '🏭',
-      title: 'New plant baseline',
-      body: 'A current-standard condensing boiler enters service at or above 92 % SEDBUK seasonal — the band A/B threshold. This alone closes the gap between the "likely current" and "new baseline" markers.',
-      linkedMarkers: ['new_baseline', 'as_manufactured'],
-    },
-  ];
 
   const hydraulicsStep: Step = {
     id: 'hydraulics',
     icon: '💧',
     title: 'Primary circuit: design-flow compliance',
-    body: buildHydraulicsBody(hydraulic),
+    body: buildHydraulicsBody(hydraulic, designCopEstimate),
     linkedMarkers: ['current'],
   };
 
-  const steps = showHydraulics ? [...coreSteps, hydraulicsStep] : coreSteps;
+  const steps = showHydraulics ? [...CORE_STEPS, hydraulicsStep] : CORE_STEPS;
 
   return (
     <div>
@@ -166,24 +186,34 @@ export default function RecoveryStepsPanel({
           </div>
         );
       })}
+      <p style={{
+        marginTop: 8, fontSize: '0.65rem', color: '#718096',
+        lineHeight: 1.4, fontStyle: 'italic',
+      }}>
+        {COMPLIANCE_FOOTER}
+      </p>
     </div>
   );
 }
 
 // ── Hydraulics body builder ────────────────────────────────────────────────────
 
-function buildHydraulicsBody(hydraulic: HydraulicModuleV1Result): string {
+// eslint-disable-next-line react-refresh/only-export-components
+export function buildHydraulicsBody(hydraulic: HydraulicModuleV1Result, designCopEstimate?: number): string {
   const { velocityPenalty, effectiveCOP, verdict, ashp } = hydraulic;
   const velocityMs = ashp.velocityMs.toFixed(2);
   const risk = verdict.ashpRisk;
 
   if (risk === 'fail' || velocityPenalty > 0.3) {
-    const copLoss = ((1 - effectiveCOP / BASE_ASHP_COP) * 100).toFixed(0);
+    const copLossSuffix =
+      designCopEstimate != null
+        ? ` The velocity penalty is reducing seasonal performance by approximately ${(Math.max(0, 1 - effectiveCOP / designCopEstimate) * 100).toFixed(0)}%.`
+        : '';
     return (
       `Heat pumps need stable design flow. Your current primary circuit is operating above ` +
-      `the recommended velocity band (${velocityMs} m/s), which reduces COP and can limit output. ` +
-      `The velocity penalty is reducing seasonal performance by approximately ${copLoss}%. ` +
-      `Upgrading primary to 28 mm (where required) restores compliant flow and stabilises COP.`
+      `the recommended velocity band (${velocityMs} m/s), which reduces COP and can limit output.` +
+      copLossSuffix +
+      ` Upgrading primary to 28 mm (where required) restores compliant flow and stabilises COP.`
     );
   }
 
