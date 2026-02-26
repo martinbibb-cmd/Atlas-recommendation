@@ -244,8 +244,20 @@ export interface HydraulicResult {
 /** HydraulicModuleV1 – structured flow-and-risk result. */
 export interface HydraulicModuleV1Result {
   boiler:  { deltaT: number; flowLpm: number };
-  ashp:    { deltaT: number; flowLpm: number };
+  ashp:    { deltaT: number; flowLpm: number; velocityMs: number };
   verdict: { boilerRisk: 'pass' | 'warn' | 'fail'; ashpRisk: 'pass' | 'warn' | 'fail' };
+  /**
+   * Continuous velocity penalty for the ASHP circuit (0–1).
+   * Derived from: clamp((velocity_m_s − 1.5) / 1.0, 0, 1).
+   * 0 = no penalty (velocity ≤ 1.5 m/s); 1 = full 25 % COP penalty (velocity ≥ 2.5 m/s).
+   */
+  velocityPenalty: number;
+  /**
+   * Effective ASHP COP after applying the velocity penalty.
+   * effectiveCOP = baseCOP × (1 − 0.25 × velocityPenalty).
+   * baseCOP is the midpoint SPF from the design flow-temp band.
+   */
+  effectiveCOP: number;
   notes: string[];
 }
 
@@ -278,6 +290,16 @@ export interface CombiDhwV1Result {
     /** 'fail' = hard reject; 'warn' = caution; 'pass' = clear. */
     combiRisk: 'fail' | 'warn' | 'pass';
   };
+  /**
+   * Estimated probability (0–1) that a combi boiler will fail to satisfy
+   * simultaneous DHW demand during the morning peak (06:00–09:00).
+   *
+   * Derived from a lightweight probabilistic model based on occupancy count
+   * and bathroom count — not a full Monte Carlo simulation, but a principled
+   * Poisson-overlap approximation.  Null when insufficient data (occupancyCount
+   * and bathroomCount are not both provided).
+   */
+  morningOverlapProbability: number | null;
   flags: CombiDhwFlagItem[];
   assumptions: string[];
 }
@@ -328,6 +350,17 @@ export interface OccupancyHour {
   boilerTempC: number;
   heatPumpTempC: number;
   storedWaterTempC: number;
+  /**
+   * Dynamically-coupled room temperature (°C) for the boiler scenario.
+   * Derived from: T_room[t+1] = T_room[t] + (Q_plant[t] − Q_loss[t]) × dt / C_building.
+   * This replaces the former affine proxy (18 + demand × 4) with a physics-based trace.
+   */
+  boilerRoomTempC: number;
+  /**
+   * Dynamically-coupled room temperature (°C) for the ASHP scenario.
+   * ASHP modulates proportionally to demand, producing a flatter, more stable trace.
+   */
+  ashpRoomTempC: number;
 }
 
 export interface LifestyleResult {
@@ -602,6 +635,17 @@ export interface HeatPumpRegimeModuleV1Result {
   designFlowTempBand: 35 | 45 | 50;
   /** Seasonal Performance Factor band at the derived flow temp. */
   spfBand: 'good' | 'ok' | 'poor';
+  /**
+   * Bilinear COP estimate at standard EN14511 test conditions (+7 °C outdoor).
+   * Derived from: COP = REF_COP + OUTDOOR_SENSITIVITY × (outdoorTemp − 7) − FLOW_TEMP_SENSITIVITY × (flowTemp − 35).
+   * Provides a physics-based point estimate rather than a band label.
+   */
+  designCopEstimate: number;
+  /**
+   * Bilinear COP estimate at cold-morning design conditions (−3 °C outdoor).
+   * Lower than designCopEstimate; useful for worst-case morning sizing checks.
+   */
+  coldMorningCopEstimate: number;
   flags: HeatPumpRegimeFlagItem[];
   assumptions: string[];
 }

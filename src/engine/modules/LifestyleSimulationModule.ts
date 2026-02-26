@@ -3,6 +3,7 @@ import type {
   LifestyleResult,
   OccupancyHour,
   OccupancySignature,
+  BuildingMass,
 } from '../schema/EngineInputV2_3';
 
 type HourlyProfile = { demand: number; label: string }[];
@@ -14,6 +15,47 @@ const PROFESSIONAL_PEAK_DEMAND = 0.95;
 const PROFESSIONAL_MORNING_SHOULDER_DEMAND = 0.75;
 /** Demand fraction for the evening shoulder (17:00–22:00, excluding 18:00). */
 const PROFESSIONAL_EVENING_SHOULDER_DEMAND = 0.70;
+
+// ── Dynamic thermal model constants ──────────────────────────────────────────
+
+/** UK design outdoor temperature (°C) — SAP 2012 design point. */
+const DESIGN_OUTDOOR_TEMP_C = -3;
+
+/** UK design indoor temperature (°C). */
+const DESIGN_INDOOR_TEMP_C = 21;
+
+/** Design ΔT (K) used to derive UA coefficient from heat-loss data. */
+const DESIGN_DELTA_T_K = DESIGN_INDOOR_TEMP_C - DESIGN_OUTDOOR_TEMP_C; // 24 K
+
+/** Seconds per hour — used to scale kJ/K thermal capacity to kW power step. */
+const SECONDS_PER_HOUR = 3600;
+
+/**
+ * Effective thermal capacity of the building fabric (kJ/K), keyed by BuildingMass.
+ *
+ * Represents the lumped-capacitance C_building in the first-order model:
+ *   T_room[t+1] = T_room[t] + (Q_plant[t] − Q_loss[t]) × dt / C_building
+ *
+ * The τ values quoted are approximate time constants (τ = C / UA) at a typical
+ * UA of 0.33 kW/K (8 kW heat loss at 24 K design ΔT).
+ *
+ * References: CIBSE Guide A Table 5.13 effective thermal admittance; BRE IP14/88.
+ */
+const C_BUILDING_KJ_PER_K: Record<BuildingMass, number> = {
+  light:  20_000, // timber frame / cavity block  (C ≈ 20 MJ/K, τ ≈ 17 h at typical UA)
+  medium: 50_000, // 1970s cavity wall semi        (C ≈ 50 MJ/K, τ ≈ 42 h at typical UA)
+  heavy: 100_000, // 1930s solid brick             (C ≈ 100 MJ/K, τ ≈ 83 h at typical UA)
+};
+
+/**
+ * Boiler sprint power (kW) — rapid reheat from cold.
+ * When demand fraction exceeds the sprint threshold, the boiler fires at full
+ * output; otherwise it is off (stepped curve, not modulating).
+ */
+const BOILER_SPRINT_KW = 30;
+
+/** Demand fraction threshold above which the boiler fires at BOILER_SPRINT_KW. */
+const BOILER_FIRE_THRESHOLD = 0.3;
 
 /**
  * Professional: double-peak demand at 07:00 and 18:00 (V3 spec).
@@ -77,14 +119,68 @@ function getRecommendedSystem(signature: OccupancySignature): LifestyleResult['r
   }
 }
 
+/**
+ * Build the 24-hour dynamic room-temperature trace using the first-order model:
+ *
+ *   T_room[t+1] = T_room[t] + (Q_plant[t] − Q_loss[t]) × dt / C_building
+ *
+ * where:
+ *   Q_loss[t] = UA × (T_room[t] − T_outdoor)   [kW]
+ *   UA = heatLossKw / DESIGN_DELTA_T_K           [kW/K]
+ *   dt = 3600 s
+ *   C_building in kJ/K
+ *
+ * @param profile   Hourly demand fraction array (length 24).
+ * @param plantKwFn Maps (hour, demandFraction) → plant output kW for this system.
+ * @param heatLossKw Design heat loss at standard conditions (kW).
+ * @param cBuilding  Effective thermal capacity of the building fabric (kJ/K).
+ * @returns Array of 24 room temperatures (°C, 1 d.p.).
+ */
+function buildDynamicRoomTrace(
+  profile: HourlyProfile,
+  plantKwFn: (h: number, demand: number) => number,
+  heatLossKw: number,
+  cBuilding: number,
+): number[] {
+  const UA = heatLossKw / DESIGN_DELTA_T_K; // kW/K
+  let roomTemp = DESIGN_INDOOR_TEMP_C;
+  return profile.map((hour, h) => {
+    const qPlant = plantKwFn(h, hour.demand);
+    const qLoss  = UA * (roomTemp - DESIGN_OUTDOOR_TEMP_C);
+    roomTemp += (qPlant - qLoss) * SECONDS_PER_HOUR / cBuilding;
+    // Soft-clamp to physically plausible indoor range
+    roomTemp = Math.min(26, Math.max(10, roomTemp));
+    return parseFloat(roomTemp.toFixed(1));
+  });
+}
+
 export function runLifestyleSimulationModule(input: EngineInputV2_3): LifestyleResult {
   const profile = getProfile(input.occupancySignature);
   const heatLossKw = input.heatLossWatts / 1000;
+  const cBuilding = C_BUILDING_KJ_PER_K[input.buildingMass];
+
+  // ── Dynamic room traces ──────────────────────────────────────────────────
+  // Boiler: steps at BOILER_SPRINT_KW when demand ≥ threshold, else off.
+  const boilerRoomTrace = buildDynamicRoomTrace(
+    profile,
+    (_h, demand) => demand >= BOILER_FIRE_THRESHOLD ? BOILER_SPRINT_KW : 0,
+    heatLossKw,
+    cBuilding,
+  );
+
+  // ASHP: modulates proportionally — "low and slow", flat horizon.
+  const ashpRoomTrace = buildDynamicRoomTrace(
+    profile,
+    (_h, demand) => demand * heatLossKw,
+    heatLossKw,
+    cBuilding,
+  );
 
   const hourlyData: OccupancyHour[] = profile.map((hour, h) => {
     const demandKw = hour.demand * heatLossKw;
 
-    // Boiler: rapid response but sharp temperature swings
+    // Legacy proxy fields retained for backward compatibility with existing UI renderers.
+    // Boiler: rapid response but sharp temperature swings (affine proxy)
     const boilerTempC = 18 + hour.demand * 4;
 
     // ASHP: flat "horizon" line, slow response, exploits building mass
@@ -93,7 +189,15 @@ export function runLifestyleSimulationModule(input: EngineInputV2_3): LifestyleR
     // Stored water: stable but peaks delayed
     const storedWaterTempC = 19 + (hour.demand > 0.6 ? 1.5 : 0);
 
-    return { hour: h, demandKw, boilerTempC, heatPumpTempC, storedWaterTempC };
+    return {
+      hour: h,
+      demandKw,
+      boilerTempC,
+      heatPumpTempC,
+      storedWaterTempC,
+      boilerRoomTempC: boilerRoomTrace[h],
+      ashpRoomTempC: ashpRoomTrace[h],
+    };
   });
 
   const recommendedSystem = getRecommendedSystem(input.occupancySignature);

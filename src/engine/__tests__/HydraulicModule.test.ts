@@ -125,3 +125,58 @@ describe('PIPE_THRESHOLDS constants', () => {
     expect(PIPE_THRESHOLDS[28].ashpWarnKw).toBeGreaterThan(PIPE_THRESHOLDS[22].ashpWarnKw);
   });
 });
+
+describe('HydraulicModuleV1 – progressive velocity penalty', () => {
+  it('returns velocityPenalty = 0 when ASHP velocity is within the safe band', () => {
+    // 28mm pipe + 8kW → low velocity, no penalty
+    const result = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 28, heatLossWatts: 8000 });
+    expect(result.velocityPenalty).toBe(0);
+  });
+
+  it('returns velocityPenalty > 0 when ASHP velocity exceeds 1.5 m/s', () => {
+    // 15mm pipe + 5kW → very high velocity on narrow pipe
+    const result = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 15, heatLossWatts: 5000 });
+    expect(result.velocityPenalty).toBeGreaterThan(0);
+  });
+
+  it('velocityPenalty is clamped to [0, 1]', () => {
+    const r1 = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 28, heatLossWatts: 8000 });
+    const r2 = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 15, heatLossWatts: 30000 });
+    expect(r1.velocityPenalty).toBeGreaterThanOrEqual(0);
+    expect(r1.velocityPenalty).toBeLessThanOrEqual(1);
+    expect(r2.velocityPenalty).toBeGreaterThanOrEqual(0);
+    expect(r2.velocityPenalty).toBeLessThanOrEqual(1);
+  });
+
+  it('effectiveCOP is lower when velocityPenalty > 0', () => {
+    const lowPenalty = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 28, heatLossWatts: 8000 });
+    const highPenalty = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 15, heatLossWatts: 8000 });
+    expect(highPenalty.effectiveCOP).toBeLessThanOrEqual(lowPenalty.effectiveCOP);
+  });
+
+  it('effectiveCOP = baseCOP when velocityPenalty = 0', () => {
+    const result = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 28, heatLossWatts: 8000 });
+    // base COP is 3.2; with no penalty effectiveCOP should equal 3.2
+    expect(result.effectiveCOP).toBeCloseTo(3.2, 1);
+  });
+
+  it('ashp.velocityMs is positive for all pipe sizes', () => {
+    [15, 22, 28].forEach(diameter => {
+      const result = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: diameter, heatLossWatts: 8000 });
+      expect(result.ashp.velocityMs).toBeGreaterThan(0);
+    });
+  });
+
+  it('wider pipe gives lower ASHP velocity at the same load', () => {
+    const r22 = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 10000 });
+    const r28 = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 28, heatLossWatts: 10000 });
+    expect(r22.ashp.velocityMs).toBeGreaterThan(r28.ashp.velocityMs);
+  });
+
+  it('velocity penalty note is added when penalty > 0', () => {
+    const result = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 15, heatLossWatts: 5000 });
+    if (result.velocityPenalty > 0) {
+      expect(result.notes.some(n => n.includes('Velocity Penalty'))).toBe(true);
+    }
+  });
+});
