@@ -2748,6 +2748,9 @@ function FullSurveyResults({
         mixergy={mixergy}
         currentEfficiencyPct={currentEfficiencyPct}
         nominalEfficiencyPct={nominalEfficiencyPct}
+        hydraulic={results.hydraulicV1}
+        systemAType={compareAId}
+        systemBType={compareBId}
         onBack={() => setShowTwin(false)}
       />
     );
