@@ -22,6 +22,7 @@ import { runRegionalHardness } from '../../engine/modules/RegionalHardness';
 import { resolveNominalEfficiencyPct, computeCurrentEfficiencyPct, ERP_TO_NOMINAL_PCT } from '../../engine/utils/efficiency';
 import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
 import LifestyleInteractive from '../visualizers/LifestyleInteractive';
+import DemandProfilePainter from '../visualizers/DemandProfilePainter';
 import EfficiencyCurve from '../visualizers/EfficiencyCurve';
 import FootprintXRay from '../visualizers/FootprintXRay';
 import GlassBoxPanel from '../visualizers/GlassBoxPanel';
@@ -3149,6 +3150,21 @@ function FullSurveyResults({
           </h4>
           <InteractiveComfortClock heatLossKw={results.hydraulic.flowRateLs * 1000 / 100 || 8} />
         </div>
+      </div>
+
+      {/* Demand Profile Painter – Three-channel editor + System A vs B comparison */}
+      <div className="result-section">
+        <h3>🎛️ Demand Profile Painter — System Comparison</h3>
+        <p className="description" style={{ marginBottom: '0.75rem' }}>
+          Paint three independent demand channels (Heat Intent, DHW, Cold Draw) and watch
+          two systems respond in real-time. Graph A shows demand vs plant output (kW);
+          Graph B shows efficiency or COP. No scores — pure behaviour comparison.
+        </p>
+        <DemandProfilePainter baseInput={{
+          occupancySignature: lifestyle.signature,
+          heatLossWatts: input.heatLossWatts,
+          bathroomCount: input.bathroomCount,
+        }} />
       </div>
 
       {/* Lifestyle Interactive – Day Painter Sales Closer */}
