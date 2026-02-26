@@ -6,6 +6,8 @@
  *  - applyScenarioOverrides produces deterministic physics for each system archetype
  *  - Combi service-switching: CH drops to 0 during DHW hours
  *  - Combi purge: η goes negative on the first DHW draw after idle
+ *  - Combi purge energy scales correctly with timeline resolution (kWh-based constants)
+ *  - Shared DemandSliceV1 ensures demand is identical for both system simulations
  *  - ASHP: COP reflects spfMidpoint with cold-morning dip
  *  - Stored systems: no service-switching penalty
  */
@@ -15,6 +17,8 @@ import {
   applyScenarioOverrides,
   assertDemandTimelinesEqual,
   dhwLpmToKw,
+  COMBI_PURGE_DUMP_KWH,
+  COMBI_PURGE_FUEL_INPUT_KWH,
   type HeatIntentLevel,
   type ScenarioProfileV1,
   type ComparisonSystemType,
@@ -286,6 +290,68 @@ describe('applyScenarioOverrides — combi purge pulse', () => {
     };
     const out = applyScenarioOverrides(BASE_INPUT, profile, 'stored_vented', 'ashp', SPF_MIDPOINT);
     expect(out.hourly[6].systemA.etaOrCop).toBeCloseTo(0.92, 2);
+  });
+});
+
+// ─── Purge kWh scaling ────────────────────────────────────────────────────────
+
+describe('combi purge — kWh-based constants scale with resolution', () => {
+  it('COMBI_PURGE_DUMP_KWH and COMBI_PURGE_FUEL_INPUT_KWH are exported', () => {
+    expect(typeof COMBI_PURGE_DUMP_KWH).toBe('number');
+    expect(typeof COMBI_PURGE_FUEL_INPUT_KWH).toBe('number');
+    expect(COMBI_PURGE_DUMP_KWH).toBeGreaterThan(0);
+    expect(COMBI_PURGE_FUEL_INPUT_KWH).toBeGreaterThan(COMBI_PURGE_DUMP_KWH);
+  });
+
+  it('purge qDumpKw at 5-min resolution is 12× larger than at 60-min resolution', () => {
+    // Same kWh but 5-min slices are 1/12th of an hour, so kW must be 12× higher
+    const dhwMixedLpm40_60 = Array(24).fill(0);
+    dhwMixedLpm40_60[6] = 3;
+    const profile60: ScenarioProfileV1 = {
+      heatIntent: Array(24).fill(0) as HeatIntentLevel[],
+      dhwMixedLpm40: dhwMixedLpm40_60,
+      coldLpm: Array(24).fill(0),
+      source: 'measured',
+      resolutionMins: 60,
+    };
+
+    // Build a 5-min resolution profile (288 slices): slice 72 = hour 6 (72 × 5 = 360 min)
+    const N5 = 1440 / 5; // 288
+    const dhwMixedLpm40_5 = Array(N5).fill(0);
+    dhwMixedLpm40_5[72] = 3; // slice 72 = 360 min into day = hour 6 at 5-min resolution
+    const profile5: ScenarioProfileV1 = {
+      heatIntent: Array(N5).fill(0) as HeatIntentLevel[],
+      dhwMixedLpm40: dhwMixedLpm40_5,
+      coldLpm: Array(N5).fill(0),
+      source: 'measured',
+      resolutionMins: 5,
+    };
+
+    const out60 = applyScenarioOverrides(BASE_INPUT, profile60, 'combi', 'ashp', SPF_MIDPOINT);
+    const out5  = applyScenarioOverrides(BASE_INPUT, profile5,  'combi', 'ashp', SPF_MIDPOINT);
+
+    const dumpKw60 = out60.hourly[6].systemA.qDumpKw;
+    const dumpKw5  = out5.hourly[72].systemA.qDumpKw;
+
+    // 5-min kW = kWh / (5/60) = kWh × 12; 60-min kW = kWh / 1
+    expect(dumpKw5).toBeCloseTo(dumpKw60 * 12, 5);
+  });
+
+  it('purge total energy (kWh) is constant across resolutions', () => {
+    // Energy = kW × sliceHours must equal COMBI_PURGE_DUMP_KWH regardless of resolution
+    const dhwMixedLpm40 = Array(24).fill(0);
+    dhwMixedLpm40[6] = 3;
+    const profile: ScenarioProfileV1 = {
+      heatIntent: Array(24).fill(0) as HeatIntentLevel[],
+      dhwMixedLpm40,
+      coldLpm: Array(24).fill(0),
+      source: 'measured',
+      resolutionMins: 60,
+    };
+    const out = applyScenarioOverrides(BASE_INPUT, profile, 'combi', 'ashp', SPF_MIDPOINT);
+    const dumpKw = out.hourly[6].systemA.qDumpKw;
+    const dumpKwh = dumpKw * (60 / 60); // kW × sliceHours
+    expect(dumpKwh).toBeCloseTo(COMBI_PURGE_DUMP_KWH, 5);
   });
 });
 

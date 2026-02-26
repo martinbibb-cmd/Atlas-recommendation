@@ -72,7 +72,7 @@ const BOILER_MAX_DHW_KW = 30;
 const COMBI_DHW_ETA_DECAY_PCT = 20;
 
 /**
- * Net energy wasted per combi purge event (kW, averaged over the resolution period).
+ * Net energy wasted per combi purge event (kWh, per purge occurrence).
  *
  * A purge occurs when the first DHW draw fires after an idle period.  The boiler
  * fires at near-full rate but the heat exchanger is cold; the initial volume of water
@@ -81,17 +81,24 @@ const COMBI_DHW_ETA_DECAY_PCT = 20;
  * Modelled as a fixed negative delivered-heat quantity so the renderer can display
  * qDeliveredKw < 0 directly — NOT computed via η algebra.
  * Typical 24kW combi: ~0.8L heat-exchanger volume × 4.186 kJ/(kg·°C) × 35 °C
- * ≈ 117 kJ ≈ 0.032 kWh over a 2-min flush.  Averaged over a 60-min slice and
- * uplifted for the full heat-exchanger warm-up transient: ~2.3 kW.
+ * ≈ 117 kJ ≈ 0.032 kWh over a 2-min flush, uplifted for warm-up transient: ~0.04 kWh.
+ *
+ * Stored as kWh so it scales correctly with timeline resolution:
+ *   purgeKw = COMBI_PURGE_DUMP_KWH / (resolutionMins / 60)
+ * At 60-min resolution: 0.04 kWh ÷ 1 h = 0.04 kW (tiny, averaged over the full slice)
+ * At 5-min resolution:  0.04 kWh ÷ (5/60 h) = 0.04 × 12 = 0.48 kW (realistic instantaneous impact)
  */
-const COMBI_PURGE_DUMP_KW = 2.3;
+export const COMBI_PURGE_DUMP_KWH = 0.04;
 
 /**
- * Assumed boiler fuel-input rate during a DHW purge event (kW).
- * The boiler fires at near-full rate during the purge transient.
+ * Assumed boiler fuel consumed during a DHW purge event (kWh, per purge occurrence).
+ * The boiler fires at near-full rate during the ~2-min purge transient.
  * Used to derive η = qDeliveredKw / fuelInputKw (naturally negative during purge).
+ *
+ * Stored as kWh so it scales correctly with timeline resolution:
+ *   fuelInputKw = COMBI_PURGE_FUEL_INPUT_KWH / (resolutionMins / 60)
  */
-const COMBI_PURGE_FUEL_INPUT_KW = 28;
+export const COMBI_PURGE_FUEL_INPUT_KWH = 0.5;
 
 // ─── System archetype ─────────────────────────────────────────────────────────
 
@@ -186,7 +193,7 @@ export interface ScenarioPhysicsOutputV1 {
 // ─── System physics functions ─────────────────────────────────────────────────
 
 /**
- * Compute one hour's physics for a combi boiler.
+ * Compute one time-slice's physics for a combi boiler.
  *
  * Service-switching rule: when DHW demand is active, CH output is cut to zero.
  * η is penalised during DHW draw; a purge event (first draw in a new sequence)
@@ -194,12 +201,14 @@ export interface ScenarioPhysicsOutputV1 {
  *
  * @param qChDemandKw  Space-heating demand (kW).
  * @param qDhwDemandKw DHW demand (kW).
- * @param isPurgePulse Whether this hour is the first DHW draw after an idle period.
+ * @param isPurgePulse Whether this slice is the first DHW draw after an idle period.
+ * @param resolutionMins Timeline resolution (minutes per slice) — used to convert purge kWh → kW.
  */
 function combiHourPhysics(
   qChDemandKw: number,
   qDhwDemandKw: number,
   isPurgePulse: boolean,
+  resolutionMins: number,
 ): SystemHourPhysicsV1 {
   const nominalEtaPct = getNominalEfficiencyPct();
 
@@ -209,11 +218,14 @@ function combiHourPhysics(
 
     if (isPurgePulse) {
       // Purge event: model as explicit negative delivered heat (energy/heat-flow, NOT η algebra).
-      // The boiler fires at COMBI_PURGE_FUEL_INPUT_KW but all heat goes to warming the cold
-      // heat exchanger; net delivered heat is negative (cold water flushed to drain).
-      const qDeliveredKw = -COMBI_PURGE_DUMP_KW;
-      const eta = qDeliveredKw / COMBI_PURGE_FUEL_INPUT_KW; // naturally negative
-      return { qToChKw: 0, qToDhwKw: qDeliveredKw, etaOrCop: eta, qDumpKw: COMBI_PURGE_DUMP_KW };
+      // Convert kWh → kW for this resolution slice so purge energy is constant regardless of
+      // timeline resolution (5-min vs 60-min).
+      const sliceHours = resolutionMins / 60;
+      const purgeDumpKw = COMBI_PURGE_DUMP_KWH / sliceHours;
+      const purgeFuelKw = COMBI_PURGE_FUEL_INPUT_KWH / sliceHours;
+      const qDeliveredKw = -purgeDumpKw;
+      const eta = qDeliveredKw / purgeFuelKw; // naturally negative
+      return { qToChKw: 0, qToDhwKw: qDeliveredKw, etaOrCop: eta, qDumpKw: purgeDumpKw };
     }
 
     const eta = computeCurrentEfficiencyPct(nominalEtaPct, COMBI_DHW_ETA_DECAY_PCT) / 100;
@@ -294,7 +306,7 @@ function ashpHourPhysics(
 }
 
 /**
- * Dispatch physics for a given system type and hour.
+ * Dispatch physics for a given system type and time-slice.
  *
  * @param systemType     Which system archetype to compute.
  * @param qChDemandKw    Space-heating demand (kW).
@@ -302,6 +314,7 @@ function ashpHourPhysics(
  * @param hour           Hour of day (0–23).
  * @param spfMidpoint    ASHP SPF midpoint (used for ASHP only).
  * @param isPurgePulse   Whether this is the first DHW draw after idle (combi purge).
+ * @param resolutionMins Timeline resolution (minutes per slice).
  */
 function computeSystemHourPhysics(
   systemType: ComparisonSystemType,
@@ -310,10 +323,11 @@ function computeSystemHourPhysics(
   hour: number,
   spfMidpoint: number,
   isPurgePulse: boolean,
+  resolutionMins: number,
 ): SystemHourPhysicsV1 {
   switch (systemType) {
     case 'combi':
-      return combiHourPhysics(qChDemandKw, qDhwDemandKw, isPurgePulse);
+      return combiHourPhysics(qChDemandKw, qDhwDemandKw, isPurgePulse, resolutionMins);
     case 'stored_vented':
     case 'stored_unvented':
       return storedBoilerHourPhysics(qChDemandKw, qDhwDemandKw);
@@ -335,6 +349,30 @@ function detectPurgePulses(dhwMixedLpm40: number[]): boolean[] {
     const prevLpm = h === 0 ? 0 : dhwMixedLpm40[h - 1];
     return lpm > 0 && prevLpm === 0;
   });
+}
+
+// ─── Shared demand timeline ───────────────────────────────────────────────────
+
+/**
+ * A single time-slice of shared demand — computed once in a first pass, then
+ * consumed by BOTH system simulations.
+ *
+ * Passing the exact same reference object to both simulations makes demand
+ * divergence architecturally impossible, not merely detectable.
+ */
+export interface DemandSliceV1 {
+  /** Slice index (0-based). */
+  index: number;
+  /** Hour of day (fractional; e.g. 7.5 for 07:30 at 30-min resolution). */
+  hourOfDay: number;
+  /** Space-heating demand (kW). */
+  qChDemandKw: number;
+  /** DHW demand (kW). */
+  qDhwDemandKw: number;
+  /** Cold-water draw (L/min). */
+  coldLpm: number;
+  /** Whether this slice is the first DHW draw after an idle period (combi purge trigger). */
+  isPurgePulse: boolean;
 }
 
 // ─── Core exports ─────────────────────────────────────────────────────────────
@@ -437,24 +475,50 @@ export function applyScenarioOverrides(
   const heatLossKw = engineInput.heatLossWatts / W_PER_KW;
   const purgePulses = detectPurgePulses(profile.dhwMixedLpm40);
 
-  // Build ONE shared demand timeline — both systems are run against the same values.
-  // This is the "fair comparison" contract: demand is never influenced by system choice.
-  const hourly: ScenarioHourOutputV1[] = Array.from({ length: N }, (_, i) => {
+  // ── Pass 1: build ONE shared demand timeline ────────────────────────────────
+  // Both system simulations receive the SAME DemandSliceV1 reference objects.
+  // This makes demand divergence architecturally impossible, not merely detectable.
+  const demandTimeline: DemandSliceV1[] = Array.from({ length: N }, (_, i) => {
     const intent = profile.heatIntent[i] ?? 1;
     const qChDemandKw = parseFloat((HEAT_INTENT_FRACTION[intent] * heatLossKw).toFixed(3));
     const qDhwDemandKw = parseFloat(dhwLpmToKw(profile.dhwMixedLpm40[i] ?? 0).toFixed(3));
-
-    // Derive the hour-of-day from the slice index for COP cold-morning calculations
     const hourOfDay = (i * profile.resolutionMins) / 60;
-
-    const systemA = computeSystemHourPhysics(systemAType, qChDemandKw, qDhwDemandKw, hourOfDay, spfMidpoint, purgePulses[i]);
-    const systemB = computeSystemHourPhysics(systemBType, qChDemandKw, qDhwDemandKw, hourOfDay, spfMidpoint, purgePulses[i]);
-
     return {
-      hour: i,
+      index: i,
+      hourOfDay,
       qChDemandKw,
       qDhwDemandKw,
       coldLpm: profile.coldLpm[i] ?? 0,
+      isPurgePulse: purgePulses[i],
+    };
+  });
+
+  // ── Pass 2: run both system simulations against the shared demand timeline ──
+  const hourly: ScenarioHourOutputV1[] = demandTimeline.map(slice => {
+    const systemA = computeSystemHourPhysics(
+      systemAType,
+      slice.qChDemandKw,
+      slice.qDhwDemandKw,
+      slice.hourOfDay,
+      spfMidpoint,
+      slice.isPurgePulse,
+      profile.resolutionMins,
+    );
+    const systemB = computeSystemHourPhysics(
+      systemBType,
+      slice.qChDemandKw,
+      slice.qDhwDemandKw,
+      slice.hourOfDay,
+      spfMidpoint,
+      slice.isPurgePulse,
+      profile.resolutionMins,
+    );
+
+    return {
+      hour: slice.index,
+      qChDemandKw: slice.qChDemandKw,
+      qDhwDemandKw: slice.qDhwDemandKw,
+      coldLpm: slice.coldLpm,
       systemA,
       systemB,
     };
