@@ -41,13 +41,16 @@ const MIN_COP = 1.5;
 const MAX_COP = 5.0;
 
 /**
- * Bilinear ASHP COP approximation.
+ * Affine (planar) ASHP COP approximation.
  *
  * COP = REF_COP
  *       + OUTDOOR_TEMP_SENSITIVITY × (outdoorTempC − REF_OUTDOOR_TEMP_C)
  *       − FLOW_TEMP_SENSITIVITY    × (flowTempC    − REF_FLOW_TEMP_C)
  *
- * Calibrated anchor points:
+ * This is a separable planar model (no cross-product term).  It is equivalent
+ * to bilinear interpolation only when the 4th corner COP(−3 °C, 50 °C) equals
+ * the affine-predicted value (2.05), which holds here — all four corners are
+ * self-consistent with the plane.  Explicitly documented anchor points:
  *   COP(+7°C, 35°C) ≈ 4.10  (full-job optimal)
  *   COP(+7°C, 50°C) ≈ 3.05  (fast-fit at EN14511 outdoor temp)
  *   COP(−3°C, 35°C) ≈ 3.10  (cold morning, low-temp system)
@@ -106,7 +109,7 @@ export function runHeatPumpRegimeModuleV1(input: EngineInputV2_3): HeatPumpRegim
   const assumptions: string[] = [
     'Lower flow temps increase SPF; high flow temps collapse COP.',
     'SPF estimated at design conditions — actual performance varies with climate and occupancy.',
-    `Bilinear COP model: REF_COP=${REF_COP} at +${REF_OUTDOOR_TEMP_C}°C outdoor / ${REF_FLOW_TEMP_C}°C flow. ` +
+    `Affine COP plane model: REF_COP=${REF_COP} at +${REF_OUTDOOR_TEMP_C}°C outdoor / ${REF_FLOW_TEMP_C}°C flow. ` +
     `Sensitivity: +${OUTDOOR_TEMP_SENSITIVITY} COP gain per °C outdoor warming, ` +
     `${FLOW_TEMP_SENSITIVITY} COP loss per °C flow temp increase above ${REF_FLOW_TEMP_C}°C.`,
   ];

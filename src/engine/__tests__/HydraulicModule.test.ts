@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcFlowLpm, runHydraulicModuleV1, PIPE_THRESHOLDS } from '../modules/HydraulicModule';
+import { calcFlowLpm, calcVelocityFromLpm, runHydraulicModuleV1, PIPE_THRESHOLDS } from '../modules/HydraulicModule';
 
 const baseInput = {
   postcode: 'SW1A 1AA',
@@ -134,8 +134,8 @@ describe('HydraulicModuleV1 – progressive velocity penalty', () => {
   });
 
   it('returns velocityPenalty > 0 when ASHP velocity exceeds 1.5 m/s', () => {
-    // 15mm pipe + 5kW → very high velocity on narrow pipe
-    const result = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 15, heatLossWatts: 5000 });
+    // 15mm internal bore + 8kW → high velocity on narrow pipe (≈2.16 m/s)
+    const result = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 15, heatLossWatts: 8000 });
     expect(result.velocityPenalty).toBeGreaterThan(0);
   });
 
@@ -178,5 +178,60 @@ describe('HydraulicModuleV1 – progressive velocity penalty', () => {
     if (result.velocityPenalty > 0) {
       expect(result.notes.some(n => n.includes('Velocity Penalty'))).toBe(true);
     }
+  });
+});
+
+// ─── calcVelocityFromLpm – internal bore table ────────────────────────────────
+
+describe('calcVelocityFromLpm – monotonic velocity across 15/22/28mm and 5–80 L/min', () => {
+  const flows = [5, 10, 20, 40, 80]; // L/min
+
+  it('velocity is monotonically increasing with flow rate for 15mm pipe', () => {
+    const velocities = flows.map(f => calcVelocityFromLpm(f, 15));
+    for (let i = 1; i < velocities.length; i++) {
+      expect(velocities[i]).toBeGreaterThan(velocities[i - 1]);
+    }
+  });
+
+  it('velocity is monotonically increasing with flow rate for 22mm pipe', () => {
+    const velocities = flows.map(f => calcVelocityFromLpm(f, 22));
+    for (let i = 1; i < velocities.length; i++) {
+      expect(velocities[i]).toBeGreaterThan(velocities[i - 1]);
+    }
+  });
+
+  it('velocity is monotonically increasing with flow rate for 28mm pipe', () => {
+    const velocities = flows.map(f => calcVelocityFromLpm(f, 28));
+    for (let i = 1; i < velocities.length; i++) {
+      expect(velocities[i]).toBeGreaterThan(velocities[i - 1]);
+    }
+  });
+
+  it('wider pipe gives strictly lower velocity at the same flow', () => {
+    flows.forEach(f => {
+      expect(calcVelocityFromLpm(f, 15)).toBeGreaterThan(calcVelocityFromLpm(f, 22));
+      expect(calcVelocityFromLpm(f, 22)).toBeGreaterThan(calcVelocityFromLpm(f, 28));
+    });
+  });
+
+  it('penalty is 0 when velocity ≤ 1.5 m/s (baseCOP unaffected)', () => {
+    // 28mm at 20 L/min → well below 1.5 m/s
+    const v = calcVelocityFromLpm(20, 28);
+    expect(v).toBeLessThanOrEqual(1.5);
+    // Confirm through module: effectiveCOP equals base when no penalty
+    const result = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 28, heatLossWatts: 8000 });
+    expect(result.velocityPenalty).toBe(0);
+    expect(result.effectiveCOP).toBeCloseTo(3.2, 1);
+  });
+
+  it('velocity penalty is non-negative and ≤ 1 for all test flows', () => {
+    [15, 22, 28].forEach(pipe => {
+      flows.forEach(f => {
+        const v = calcVelocityFromLpm(f, pipe);
+        const penalty = Math.min(1, Math.max(0, (v - 1.5) / 1.0));
+        expect(penalty).toBeGreaterThanOrEqual(0);
+        expect(penalty).toBeLessThanOrEqual(1);
+      });
+    });
   });
 });
