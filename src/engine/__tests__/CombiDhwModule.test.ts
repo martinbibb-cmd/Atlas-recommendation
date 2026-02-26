@@ -145,4 +145,41 @@ describe('runCombiDhwModuleV1', () => {
     expect(result.verdict.combiRisk).toBe('fail');
     expect(result.flags.length).toBe(2); // pressure-lockout + short-draw
   });
+
+  // ── Rule 4: Three-person household caution ───────────────────────────────
+
+  it('adds warn for occupancyCount === 3 when no simultaneous-demand fail', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      occupancyCount: 3,
+    });
+    const flag = result.flags.find(f => f.id === 'combi-three-person-caution');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('warn');
+    expect(result.verdict.combiRisk).toBe('warn');
+  });
+
+  it('occupancyCount === 2 does not add three-person caution', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      occupancyCount: 2,
+    });
+    expect(result.flags.some(f => f.id === 'combi-three-person-caution')).toBe(false);
+    expect(result.verdict.combiRisk).toBe('pass');
+  });
+
+  it('three-person caution is suppressed when simultaneous-demand fail is already raised', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 2,
+      peakConcurrentOutlets: 1,
+      occupancyCount: 3,
+    });
+    expect(result.flags.some(f => f.id === 'combi-three-person-caution')).toBe(false);
+    expect(result.verdict.combiRisk).toBe('fail');
+  });
 });
