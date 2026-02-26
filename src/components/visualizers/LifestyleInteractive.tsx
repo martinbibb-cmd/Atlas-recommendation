@@ -257,7 +257,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   // ── Graph D: DHW Deliverability (combi only) ──────────────────────────────
   // Requested L/min @40°C vs delivered L/min after scale capacity derate.
   const dhwDerateFraction = sludge.dhwCapacityDeratePct;
-  const dhwDeliverabilityData = lifestyle.hourlyData.map((row, h) => {
+  const dhwDeliverabilityData = lifestyle.hourlyData.map((_row, h) => {
     const isDhwHour = hours[h] === 'dhw_demand';
     const isHomeHour = hours[h] === 'home';
     const requestedLpm = isDhwHour ? DHW_REQUESTED_LPM : isHomeHour ? HOME_REQUESTED_LPM : 0;
