@@ -95,10 +95,22 @@ function classifyRisk(
   return 'pass';
 }
 
-export function runHydraulicModuleV1(input: EngineInputV2_3): HydraulicModuleV1Result {
+export function runHydraulicModuleV1(input: EngineInputV2_3, flowDeratePct = 0): HydraulicModuleV1Result {
   const heatLossKw = input.heatLossWatts / 1000;
-  const boilerFlowLpm = calcFlowLpm(heatLossKw, BOILER_DELTA_T);
-  const ashpFlowLpm   = calcFlowLpm(heatLossKw, ASHP_DELTA_T);
+
+  // ── Design flow rates ─────────────────────────────────────────────────────
+  const designBoilerFlowLpm = calcFlowLpm(heatLossKw, BOILER_DELTA_T);
+  const designAshpFlowLpm   = calcFlowLpm(heatLossKw, ASHP_DELTA_T);
+
+  // ── Apply sludge flow derate to effective required flow ───────────────────
+  // effectiveFlowRequired = designFlowLpm / (1 − flowDeratePct)
+  // This raises velocity, increases velocityPenalty, reduces effectiveCOP for
+  // ASHP, and increases CH shortfall for boilers — no fake η reduction needed.
+  // Cap at 0.50 as a safety guard against extreme/invalid inputs; the expected
+  // maximum from SludgeVsScaleModule is 0.20 (MAX_FLOW_DERATE).
+  const clampedDerate = Math.min(flowDeratePct, 0.50); // 0.50 = safety guard (expected max: 0.20)
+  const boilerFlowLpm = clampedDerate > 0 ? designBoilerFlowLpm / (1 - clampedDerate) : designBoilerFlowLpm;
+  const ashpFlowLpm   = clampedDerate > 0 ? designAshpFlowLpm   / (1 - clampedDerate) : designAshpFlowLpm;
 
   // ── Velocity calculation for ASHP circuit ─────────────────────────────────
   const ashpVelocityMs = calcVelocityFromLpm(ashpFlowLpm, input.primaryPipeDiameter);
@@ -175,6 +187,7 @@ export function runHydraulicModuleV1(input: EngineInputV2_3): HydraulicModuleV1R
     verdict: { boilerRisk, ashpRisk },
     velocityPenalty,
     effectiveCOP,
+    flowDeratePct: clampedDerate,
     notes,
   };
 }

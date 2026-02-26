@@ -5,6 +5,15 @@ const PRESSURE_LOCKOUT_BAR = 1.0;
 /** Occupancy signatures that imply continuous / family-style use (short-draw risk). */
 const SHORT_DRAW_SIGNATURES = new Set(['steady_home', 'steady', 'shift_worker', 'shift']);
 
+// ─── DHW capacity constants ───────────────────────────────────────────────────
+
+/**
+ * Nominal combi boiler peak DHW heat output (kW).
+ * Represents a typical UK combi in DHW mode (e.g. Worcester Bosch 28i).
+ * At Cp=4.19, ΔT=25°C (cold 15°C → 40°C): ~14 L/min deliverable.
+ */
+const NOMINAL_COMBI_DHW_KW = 25;
+
 // ─── Probabilistic DHW overlap model ─────────────────────────────────────────
 
 /** Average hot-water draw duration per event during a shower/bath peak (minutes). */
@@ -69,8 +78,13 @@ export function estimateMorningOverlapProbability(
  *   1. Pressure lockout   – mains dynamic pressure < 1.0 bar (hard fail)
  *   2. Simultaneous demand – peak concurrent outlets ≥ 2 OR bathrooms ≥ 2 (hard fail)
  *   3. Short-draw collapse – continuous-occupancy signature (warn)
+ *
+ * @param input               Engine survey input.
+ * @param dhwCapacityDeratePct Scale-induced DHW capacity derate (0–0.20) from
+ *                             SludgeVsScaleModule.  Applied as:
+ *                             maxQtoDhwKwDerated = NOMINAL_COMBI_DHW_KW × (1 − derate).
  */
-export function runCombiDhwModuleV1(input: EngineInputV2_3): CombiDhwV1Result {
+export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct = 0): CombiDhwV1Result {
   const flags: CombiDhwFlagItem[] = [];
   const assumptions: string[] = [];
 
@@ -172,5 +186,36 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3): CombiDhwV1Result {
     assumptions.push('Morning overlap probability: occupancyCount not provided — estimate omitted.');
   }
 
-  return { verdict: { combiRisk }, morningOverlapProbability, flags, assumptions };
+  // ── DHW capacity derate from scale ──────────────────────────────────────
+  // Scale on the combi heat exchanger reduces max DHW output power.
+  // maxQtoDhwKw × (1 − dhwCapacityDeratePct) = derated peak output.
+  // Cap at 0.50 as a safety guard against extreme/invalid inputs; the expected
+  // maximum from SludgeVsScaleModule is 0.20 (MAX_DHW_CAPACITY_DERATE).
+  const clampedDhwDerate = Math.min(dhwCapacityDeratePct, 0.50); // 0.50 = safety guard (expected max: 0.20)
+  const maxQtoDhwKw = NOMINAL_COMBI_DHW_KW;
+  const maxQtoDhwKwDerated = parseFloat(
+    (maxQtoDhwKw * (1 - clampedDhwDerate)).toFixed(1)
+  );
+
+  if (clampedDhwDerate > 0) {
+    // Compute deliverable L/min from derated output: Q/(Cp×ΔT)×60 at ΔT=25°C (15→40°C)
+    const deliverableLpm = parseFloat(
+      (maxQtoDhwKwDerated * 60 / (4.19 * 25)).toFixed(1)
+    );
+    assumptions.push(
+      `DHW Capacity Derate: scale on combi HX reduces peak output from ${maxQtoDhwKw} kW to ` +
+      `${maxQtoDhwKwDerated} kW (−${(clampedDhwDerate * 100).toFixed(1)}%). ` +
+      `Deliverable flow @40°C: ~${deliverableLpm} L/min (nominal ~${parseFloat((maxQtoDhwKw * 60 / (4.19 * 25)).toFixed(1))} L/min).`
+    );
+  }
+
+  return {
+    verdict: { combiRisk },
+    morningOverlapProbability,
+    flags,
+    assumptions,
+    maxQtoDhwKw,
+    maxQtoDhwKwDerated,
+    dhwCapacityDeratePct: clampedDhwDerate,
+  };
 }
