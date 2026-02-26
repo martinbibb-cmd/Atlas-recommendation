@@ -102,7 +102,7 @@ export function runSludgeVsScaleModule(input: SludgeVsScaleInput): SludgeVsScale
 
   // cyclingLossPct: proportional to flowDeratePct, max MAX_CYCLING_LOSS.
   // Applied by LifestyleSimulationModule when loadFrac < 0.25 (low-load cycling).
-  const cyclingLossPct = parseFloat((flowDeratePct * 0.25).toFixed(3));
+  const cyclingLossPct = parseFloat(Math.min(flowDeratePct * 0.25, MAX_CYCLING_LOSS).toFixed(3));
 
   if (sludgeTaxApplies) {
     notes.push(
