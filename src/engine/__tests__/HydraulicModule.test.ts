@@ -67,9 +67,13 @@ describe('HydraulicModuleV1 – 22mm pipe', () => {
     expect(result.verdict.ashpRisk).toBe('fail');
   });
 
-  it('22mm + 14kW ASHP fail note includes "ASHP Rejected"', () => {
+  it('22mm + 14kW ASHP fail note shows required flow, safe limit and upgrade path', () => {
     const result = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 14000 });
-    expect(result.notes.some(n => n.includes('ASHP Rejected'))).toBe(true);
+    const note = result.notes.find(n => n.includes('ASHP at ΔT'));
+    expect(note).toBeDefined();
+    expect(note).toContain('L/min');
+    expect(note).toContain('22mm pipe max safe flow');
+    expect(note).toContain('Upgrade to 28mm');
   });
 
   it('22mm + 19kW → boiler warn', () => {

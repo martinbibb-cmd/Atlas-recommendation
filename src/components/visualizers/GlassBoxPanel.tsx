@@ -19,6 +19,7 @@ import type { FullEngineResult } from '../../engine/schema/EngineInputV2_3';
 import InteractiveComfortClock from './InteractiveComfortClock';
 import FootprintXRay from './FootprintXRay';
 import EfficiencyCurve from './EfficiencyCurve';
+import HydraulicVelocityBar from './HydraulicVelocityBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -108,7 +109,12 @@ function RawDataTab({ results }: { results: FullEngineResult }) {
         <ConfidenceBadge label="Calculated – pipe diameter & heat loss" />
         <div style={{ marginTop: 10 }}>
           <MetricRow label="Flow Rate" value={(hydraulic.flowRateLs * 1000).toFixed(2)} unit="L/min" />
-          <MetricRow label="Pipe Velocity" value={hydraulic.velocityMs.toFixed(3)} unit="m/s" highlight={hydraulic.velocityMs > 1.5 ? 'warn' : 'ok'} />
+          <div style={{ padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
+            <span style={{ fontSize: '0.85rem', color: '#718096' }}>Pipe Velocity</span>
+            <div style={{ marginTop: 6 }}>
+              <HydraulicVelocityBar velocityMs={hydraulic.velocityMs} />
+            </div>
+          </div>
           <MetricRow label="Hydraulic Bottleneck" value={hydraulic.isBottleneck ? '⚠️ YES' : '✅ No'} highlight={hydraulic.isBottleneck ? 'warn' : 'ok'} />
           <MetricRow label="Safety Cut-off Risk" value={hydraulic.isSafetyCutoffRisk ? '🚨 YES' : '✅ No'} highlight={hydraulic.isSafetyCutoffRisk ? 'warn' : 'ok'} />
           <MetricRow label="ASHP Requires 28mm Primary" value={hydraulic.ashpRequires28mm ? 'Yes – upgrade required' : 'No'} highlight={hydraulic.ashpRequires28mm ? 'warn' : 'ok'} />

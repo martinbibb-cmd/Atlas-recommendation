@@ -342,6 +342,15 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
           📊 Graph 1 — Services Demand (what the home needs)
         </div>
+        {/* Fairness badge: both systems use the identical demand timeline */}
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          background: '#f0fff4', border: '1px solid #9ae6b4',
+          borderRadius: 6, padding: '3px 10px',
+          fontSize: '0.72rem', color: '#276749', marginBottom: 6,
+        }}>
+          🟢 Demand timeline identical for both systems
+        </div>
         <div style={{ height: 180, marginBottom: 8 }}>
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={demandChartData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>

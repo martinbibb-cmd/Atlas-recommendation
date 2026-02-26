@@ -111,4 +111,29 @@ describe('analysePressure', () => {
     // Large drop note should be added (drop >= 1.0)
     expect(result.notes.some(n => n.includes('Large pressure drop'))).toBe(true);
   });
+
+  // ── Guardrails for unphysical inputs ─────────────────────────────────────
+
+  it('static > 8 bar → gauge-error note added and static capped to 8 bar', () => {
+    const result = analysePressure(3.0, 10.0);
+    expect(result.staticBar).toBe(8.0);
+    expect(result.notes.some(n => n.includes('gauge error or unit mismatch'))).toBe(true);
+    expect(result.notes.some(n => n.includes('capped to 8 bar'))).toBe(true);
+  });
+
+  it('static exactly 8 bar → no gauge-error note (within credible range)', () => {
+    const result = analysePressure(3.0, 8.0);
+    expect(result.notes.every(n => !n.includes('gauge error'))).toBe(true);
+  });
+
+  it('dynamic drop = 0 with positive static → unit-mismatch note added', () => {
+    const result = analysePressure(3.5, 3.5);
+    expect(result.dropBar).toBeCloseTo(0);
+    expect(result.notes.some(n => n.includes('Dynamic drop = 0'))).toBe(true);
+  });
+
+  it('dynamic drop = 0 at static = 0 → no unit-mismatch note (trivially zero)', () => {
+    const result = analysePressure(0, 0);
+    expect(result.notes.every(n => !n.includes('Dynamic drop = 0'))).toBe(true);
+  });
 });
