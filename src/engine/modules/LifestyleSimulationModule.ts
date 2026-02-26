@@ -36,12 +36,15 @@ const SECONDS_PER_HOUR = 3600;
  * Represents the lumped-capacitance C_building in the first-order model:
  *   T_room[t+1] = T_room[t] + (Q_plant[t] − Q_loss[t]) × dt / C_building
  *
+ * The τ values quoted are approximate time constants (τ = C / UA) at a typical
+ * UA of 0.33 kW/K (8 kW heat loss at 24 K design ΔT).
+ *
  * References: CIBSE Guide A Table 5.13 effective thermal admittance; BRE IP14/88.
  */
 const C_BUILDING_KJ_PER_K: Record<BuildingMass, number> = {
-  light:  20_000, // timber frame / cavity block (τ ≈ 15 h)
-  medium: 50_000, // 1970s cavity wall semi     (τ ≈ 35 h)
-  heavy: 100_000, // 1930s solid brick           (τ ≈ 55 h)
+  light:  20_000, // timber frame / cavity block  (C ≈ 20 MJ/K, τ ≈ 17 h at typical UA)
+  medium: 50_000, // 1970s cavity wall semi        (C ≈ 50 MJ/K, τ ≈ 42 h at typical UA)
+  heavy: 100_000, // 1930s solid brick             (C ≈ 100 MJ/K, τ ≈ 83 h at typical UA)
 };
 
 /**

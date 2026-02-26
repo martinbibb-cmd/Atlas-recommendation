@@ -7,6 +7,20 @@ const SHORT_DRAW_SIGNATURES = new Set(['steady_home', 'steady', 'shift_worker', 
 
 // ─── Probabilistic DHW overlap model ─────────────────────────────────────────
 
+/** Average hot-water draw duration per event during a shower/bath peak (minutes). */
+const MORNING_PEAK_DRAW_DURATION_MIN = 7;
+
+/** Duration of the morning DHW peak window (minutes): 06:00–09:00 = 3 hours. */
+const MORNING_PEAK_WINDOW_MIN = 180;
+
+/**
+ * Lambda multiplier for multi-bathroom configurations.
+ * When ≥2 bathrooms are available, simultaneous draws do not require
+ * physical queueing — any two users CAN draw at the same time.  Doubling
+ * the Poisson rate approximates this "no-queue" availability effect.
+ */
+const MULTI_BATHROOM_LAMBDA_MULTIPLIER = 2;
+
 /**
  * Estimate the probability that ≥2 hot water draws overlap during the morning
  * peak (06:00–09:00) given occupancy count and bathroom count.
@@ -33,24 +47,16 @@ export function estimateMorningOverlapProbability(
 ): number | null {
   if (occupancyCount == null || occupancyCount <= 0) return null;
 
-  // With ≥2 bathrooms, draws CAN be simultaneous by design → near-certain conflict.
-  if (bathroomCount >= 2) {
-    // Hard simultaneous-demand gate: high probability (not 1.0 to stay probabilistic)
-    const n = occupancyCount;
-    const pairs = (n * (n - 1)) / 2;
-    const lambda = pairs * (7 / 180);
-    return parseFloat(Math.min(0.99, 1 - Math.exp(-lambda * 2)).toFixed(2));
-  }
-
-  // Single bathroom: simultaneous draws require queueing.
-  // λ scales with number of pairs × fractional draw time.
   const n = occupancyCount;
   if (n <= 1) return 0;
 
   const pairs = (n * (n - 1)) / 2;
-  const drawDurationMin = 7;  // combi DHW draw duration (minutes)
-  const windowMin = 180;      // morning peak window (3 hours)
-  const lambda = pairs * (drawDurationMin / windowMin);
+  const baseLambda = pairs * (MORNING_PEAK_DRAW_DURATION_MIN / MORNING_PEAK_WINDOW_MIN);
+
+  // With ≥2 bathrooms draws CAN be simultaneous (no queue) → scale lambda up.
+  const lambda = bathroomCount >= 2
+    ? baseLambda * MULTI_BATHROOM_LAMBDA_MULTIPLIER
+    : baseLambda;
 
   return parseFloat(Math.min(0.99, 1 - Math.exp(-lambda)).toFixed(2));
 }

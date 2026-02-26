@@ -10,13 +10,22 @@ const VELOCITY_UPPER_M_S = 1.5;
 
 /**
  * Pipe inner cross-sectional area (m²) keyed by nominal outer diameter (mm).
- * Based on EN 1057 copper tube bore dimensions.
+ *
+ * Bore dimensions derived from EN 1057 "Copper and copper alloys — Seamless,
+ * round copper tubes for water and gas in sanitary and heating applications":
+ *   15 mm OD → ~12.0 mm bore → r = 6.0 mm
+ *   22 mm OD → ~20.0 mm bore → r = 10.0 mm
+ *   28 mm OD → ~26.0 mm bore → r = 13.0 mm
+ *   35 mm OD → ~32.6 mm bore → r = 16.3 mm
+ *
+ * Note: diameters > 35 mm (e.g. 42 mm, 54 mm) are not in scope for domestic
+ * primary circuits and will fall back to the 35 mm entry via resolveThresholds().
  */
 const PIPE_BORE_AREA_M2: Record<number, number> = {
-  15: Math.PI * (0.006) ** 2,   // ~12 mm bore → r = 6 mm
-  22: Math.PI * (0.010) ** 2,   // ~20 mm bore → r = 10 mm
-  28: Math.PI * (0.013) ** 2,   // ~26 mm bore → r = 13 mm
-  35: Math.PI * (0.016) ** 2,   // ~32 mm bore → r = 16 mm
+  15: Math.PI * (0.006)  ** 2,  // r = 6.0 mm (EN 1057, 15 mm OD)
+  22: Math.PI * (0.010)  ** 2,  // r = 10.0 mm (EN 1057, 22 mm OD)
+  28: Math.PI * (0.013)  ** 2,  // r = 13.0 mm (EN 1057, 28 mm OD)
+  35: Math.PI * (0.0163) ** 2,  // r = 16.3 mm (EN 1057, 35 mm OD)
 };
 
 /**

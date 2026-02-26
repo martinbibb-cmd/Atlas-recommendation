@@ -116,6 +116,6 @@ describe('LifestyleSimulationModule – dynamic room temperature coupling', () =
     const range = (arr: number[]) => Math.max(...arr) - Math.min(...arr);
     // Heavier building damps boiler oscillations more
     expect(range(heavy.hourlyData.map(h => h.boilerRoomTempC)))
-      .toBeLessThanOrEqual(range(light.hourlyData.map(h => h.boilerRoomTempC)));
+      .toBeLessThan(range(light.hourlyData.map(h => h.boilerRoomTempC)));
   });
 });

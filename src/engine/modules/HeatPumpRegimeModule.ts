@@ -107,7 +107,8 @@ export function runHeatPumpRegimeModuleV1(input: EngineInputV2_3): HeatPumpRegim
     'Lower flow temps increase SPF; high flow temps collapse COP.',
     'SPF estimated at design conditions — actual performance varies with climate and occupancy.',
     `Bilinear COP model: REF_COP=${REF_COP} at +${REF_OUTDOOR_TEMP_C}°C outdoor / ${REF_FLOW_TEMP_C}°C flow. ` +
-    `Sensitivity: +${OUTDOOR_TEMP_SENSITIVITY}/°C outdoor, −${FLOW_TEMP_SENSITIVITY}/°C flow.`,
+    `Sensitivity: +${OUTDOOR_TEMP_SENSITIVITY} COP gain per °C outdoor warming, ` +
+    `${FLOW_TEMP_SENSITIVITY} COP loss per °C flow temp increase above ${REF_FLOW_TEMP_C}°C.`,
   ];
 
   if (designFlowTempBand === 50) {
