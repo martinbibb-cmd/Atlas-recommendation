@@ -28,6 +28,8 @@ import FootprintXRay from '../visualizers/FootprintXRay';
 import GlassBoxPanel from '../visualizers/GlassBoxPanel';
 import InteractiveTwin from '../InteractiveTwin';
 import Timeline24hRenderer from '../visualizers/Timeline24hRenderer';
+import SystemConditionImpact from '../visualizers/SystemConditionImpact';
+import { computeConditionImpactMetrics } from '../../engine/modules/SystemConditionImpactModule';
 // BOM utilities retained for internal/engineer mode — not rendered in customer cockpit
 // import { exportBomToCsv, calculateBomTotal } from '../../engine/modules/WholesalerPricingAdapter';
 
@@ -3209,6 +3211,17 @@ function FullSurveyResults({
             {hydraulic.notes.map((n, i) => <li key={i}>{n}</li>)}
           </ul>
         )}
+      </div>
+
+      {/* System Condition Impact — Before vs After Flush + Filter */}
+      <div className="result-section">
+        <SystemConditionImpact impact={computeConditionImpactMetrics(
+          results.sludgeVsScale,
+          results.hydraulic.velocityMs,
+          nominalEfficiencyPct,
+          currentEfficiencyPct,
+          input.systemAgeYears ?? 0,
+        )} />
       </div>
 
       {/* Combi Efficiency */}
