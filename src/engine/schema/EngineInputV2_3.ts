@@ -266,7 +266,7 @@ export interface CombiStressResult {
 
 /** Structured red-flag item for CombiDhwModuleV1. */
 export interface CombiDhwFlagItem {
-  id: 'combi-pressure-lockout' | 'combi-simultaneous-demand' | 'combi-short-draw-collapse';
+  id: 'combi-pressure-lockout' | 'combi-simultaneous-demand' | 'combi-short-draw-collapse' | 'combi-three-person-caution';
   severity: 'fail' | 'warn';
   title: string;
   detail: string;
