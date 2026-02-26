@@ -40,17 +40,10 @@ function interpolateDemandKw(minuteIdx: number, hourlyDemandKw: number[]): numbe
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const normalizer = normalizeInput(input);
   const hydraulic = runHydraulicSafetyModule(input);
-  const hydraulicV1 = runHydraulicModuleV1(input);
-  const combiStress = runCombiStressModule(input);
-  const combiDhwV1 = runCombiDhwModuleV1(input);
-  const combiSimultaneousFailed = combiDhwV1.flags.some(f => f.id === 'combi-simultaneous-demand');
-  const storedDhwV1 = runStoredDhwModuleV1(input, combiSimultaneousFailed);
-  const mixergy = runMixergyVolumetricsModule(input);
-  const lifestyle = runLifestyleSimulationModule(input);
-  const redFlags = runRedFlagModule(input);
-  const bomItems = generateBom(input, hydraulic, redFlags);
-  const legacyInfrastructure = runLegacyInfrastructureModule(input);
 
+  // ── Sludge vs Scale must run before HydraulicModule and LifestyleSimulationModule ──
+  // so that flowDeratePct, cyclingLossPct and dhwCapacityDeratePct can be wired into
+  // the correct physical channels (flow restriction, cycling loss, DHW capacity derate).
   const sludgeVsScale = runSludgeVsScaleModule({
     pipingTopology: input.pipingTopology ?? 'two_pipe',
     hasMagneticFilter: input.hasMagneticFilter ?? false,
@@ -58,6 +51,25 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     systemAgeYears: input.systemAgeYears ?? 0,
     annualGasSpendGbp: input.annualGasSpendGbp,
   });
+
+  // Wire flowDeratePct into HydraulicModule: effectiveFlow = designFlow / (1 − flowDeratePct)
+  const hydraulicV1 = runHydraulicModuleV1(input, sludgeVsScale.flowDeratePct);
+
+  const combiStress = runCombiStressModule(input);
+
+  // Wire dhwCapacityDeratePct into CombiDhwModule: maxQtoDhwKw *= (1 − dhwCapacityDeratePct)
+  const combiDhwV1 = runCombiDhwModuleV1(input, sludgeVsScale.dhwCapacityDeratePct);
+  const combiSimultaneousFailed = combiDhwV1.flags.some(f => f.id === 'combi-simultaneous-demand');
+  const storedDhwV1 = runStoredDhwModuleV1(input, combiSimultaneousFailed);
+  const mixergy = runMixergyVolumetricsModule(input);
+
+  // Wire cyclingLossPct into LifestyleSimulationModule: fuelInput *= (1 + cyclingLossPct)
+  // when loadFrac < 0.25 (low-load short-cycling from sludge-restricted dirty system).
+  const lifestyle = runLifestyleSimulationModule(input, sludgeVsScale.cyclingLossPct);
+
+  const redFlags = runRedFlagModule(input);
+  const bomItems = generateBom(input, hydraulic, redFlags);
+  const legacyInfrastructure = runLegacyInfrastructureModule(input);
 
   const systemOptimization = runSystemOptimizationModule({
     installationPolicy: input.installationPolicy ?? 'high_temp_retrofit',

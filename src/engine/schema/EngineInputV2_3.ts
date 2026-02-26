@@ -258,6 +258,12 @@ export interface HydraulicModuleV1Result {
    * baseCOP is the midpoint SPF from the design flow-temp band.
    */
   effectiveCOP: number;
+  /**
+   * Applied CH loop flow derate from SludgeVsScaleModule (0–0.20).
+   * effectiveFlow = designFlow / (1 − flowDeratePct).
+   * 0 when no sludge issue (clean system or filter fitted).
+   */
+  flowDeratePct: number;
   notes: string[];
 }
 
@@ -302,6 +308,22 @@ export interface CombiDhwV1Result {
   morningOverlapProbability: number | null;
   flags: CombiDhwFlagItem[];
   assumptions: string[];
+  /**
+   * Nominal combi DHW max heat output (kW) before scale derate.
+   * Based on typical UK combi peak DHW output rating.
+   */
+  maxQtoDhwKw: number;
+  /**
+   * Derated combi DHW max heat output (kW) after applying scale penalty.
+   * maxQtoDhwKwDerated = maxQtoDhwKw × (1 − dhwCapacityDeratePct).
+   * Lower output reduces deliverable L/min @40°C and increases unmet demand.
+   */
+  maxQtoDhwKwDerated: number;
+  /**
+   * Applied DHW capacity derate fraction (0–0.20) from SludgeVsScaleModule.
+   * Scale on the combi heat exchanger reduces peak DHW output.
+   */
+  dhwCapacityDeratePct: number;
 }
 
 /** Structured flag item for StoredDhwModuleV1. */
@@ -361,6 +383,12 @@ export interface OccupancyHour {
    * ASHP modulates proportionally to demand, producing a flatter, more stable trace.
    */
   ashpRoomTempC: number;
+  /**
+   * Additional fuel wasted (kW) due to sludge-induced short-cycling when load fraction
+   * is below 0.25.  Zero for clean systems or hours above the threshold.
+   * cyclingFuelPenaltyKw = demandKw × cyclingLossPct (when loadFrac < 0.25).
+   */
+  cyclingFuelPenaltyKw: number;
 }
 
 export interface LifestyleResult {
@@ -812,10 +840,26 @@ export interface SludgeVsScaleInput {
 }
 
 export interface SludgeVsScaleResult {
-  /** Primary circuit: magnetite sludge tax (% efficiency loss, 0 when not applicable) */
-  primarySludgeTaxPct: number;
-  /** DHW circuit: CaCO3/silicate scale penalty (% fuel increase for DHW only) */
-  dhwScalePenaltyPct: number;
+  /**
+   * CH loop: flow restriction factor (0–0.20) caused by magnetite sludge.
+   * Used by HydraulicModule: effectiveFlowRequired = designFlowLpm / (1 − flowDeratePct).
+   * This raises velocity, increases velocityPenalty, reduces effectiveCOP for ASHP,
+   * and increases CH shortfall for boilers. Zero when no sludge issue or filter fitted.
+   */
+  flowDeratePct: number;
+  /**
+   * CH loop: additional cycling fuel loss fraction (0–0.05) at low load, caused by
+   * sludge-induced short-cycling (dirty system fires/stops more frequently).
+   * Applied by LifestyleSimulationModule when loadFrac < 0.25.
+   */
+  cyclingLossPct: number;
+  /**
+   * DHW circuit: combi heat-exchanger capacity derate (0–0.20) caused by CaCO3/silicate
+   * scale. Applied by CombiDhwModule: maxQtoDhwKw *= (1 − dhwCapacityDeratePct).
+   * Reduces deliverable L/min @40°C and increases unmet demand during peak draw.
+   * Scale does NOT affect the CH loop for sealed systems.
+   */
+  dhwCapacityDeratePct: number;
   /** Estimated scale thickness on DHW heat exchanger (mm) */
   estimatedScaleThicknessMm: number;
   /** Modelled DHW recovery latency increase due to scale (seconds per draw) */

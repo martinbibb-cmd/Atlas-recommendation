@@ -5,12 +5,14 @@ import type {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-// Primary circuit sludge tax range (% efficiency loss) when no magnetic filter is fitted
-// on a legacy/non-two-pipe system.  Physics: magnetite settled in radiators reduces
-// heat output by up to 47%; a 7–15% system-level efficiency loss is the conservative
-// operating band cited by HHIC and Boiler Plus guidance.
-const SLUDGE_TAX_MIN_PCT = 7;
-const SLUDGE_TAX_MAX_PCT = 15;
+// CH loop: maximum flow derate from magnetite sludge (dimensionless, 0–0.20).
+// At 0.20, effectiveFlowRequired = designFlowLpm / 0.80 → +25% velocity → raises
+// velocityPenalty and reduces effectiveCOP for ASHP; increases CH shortfall for boilers.
+const MAX_FLOW_DERATE = 0.20;
+
+// CH loop: maximum cycling fuel loss fraction (0–0.05) at low load.
+// Derived as MAX_FLOW_DERATE × 0.25 → cyclingLossPct = flowDeratePct × 0.25.
+const MAX_CYCLING_LOSS = 0.05;
 
 // Scale growth on DHW heat exchanger / cylinder coil (mm per year) by water hardness.
 // CaCO3/silicate deposits accumulate only in the open secondary circuit because fresh
@@ -22,9 +24,14 @@ const DHW_SCALE_GROWTH_MM_PER_YEAR: Record<string, number> = {
   very_hard: 0.20,
 };
 
-// Threshold at which scale causes the 11% DHW fuel penalty (SEDBUK / CIBSE data)
-const SCALE_PENALTY_THRESHOLD_MM = 1.6;
-const SCALE_PENALTY_AT_THRESHOLD_PCT = 11; // % fuel increase for DHW only
+// DHW capacity derate: scale thickness at which derate reaches its maximum.
+// At 3.2 mm, the combi HX is effectively dead (MAX_DHW_CAPACITY_DERATE = 0.20).
+const DHW_DERATE_MAX_THICKNESS_MM = 3.2;
+const MAX_DHW_CAPACITY_DERATE = 0.20;
+
+// Scale threshold at which a DHW capacity derate warning note is emitted (mm).
+// Below this threshold, scale is building but notes use cautionary language.
+const DHW_SCALE_WARNING_THRESHOLD_MM = 1.6;
 
 // DHW recovery latency increase per mm of scale on secondary heat exchanger
 // Empirical estimate: ~18 s/mm additional wait for hot water at 1.6mm scale
@@ -66,42 +73,50 @@ export function calculateSludgePenalty(
  *
  * Models the "Two-Water" distinction between:
  *  - Primary circuit (closed loop): magnetite sludge is the dominant stressor.
- *    Scale is not the primary issue because the water is not constantly refreshed.
+ *    Sludge causes FLOW RESTRICTION (flowDeratePct) and CYCLING LOSS (cyclingLossPct),
+ *    NOT a direct combustion η reduction.  Scale does not affect the sealed CH loop.
  *  - DHW circuit (open / secondary): CaCO3 and silicate scale accumulate with
- *    every fresh-water draw and degrade heat-exchanger efficiency over time.
+ *    every fresh-water draw and REDUCE MAX DHW CAPACITY (dhwCapacityDeratePct),
+ *    causing flow droop, shortfall during peak draw, and more spiky η traces.
  */
 export function runSludgeVsScaleModule(input: SludgeVsScaleInput): SludgeVsScaleResult {
   const notes: string[] = [];
 
-  // ── Primary circuit: Magnetite sludge tax ────────────────────────────────
-  // Apply only for non-two-pipe (legacy) topologies without a magnetic filter.
-  // Two-pipe systems share the same closed-circuit sludge risk but the module
-  // focuses on the elevated risk of legacy plumbing where radiator bypass/loop
-  // geometry accelerates sludge deposition.
+  // ── Primary circuit: Magnetite sludge → flow derate + cycling loss ───────
+  // Route sludge into flow restriction and low-load cycling, NOT blanket η loss.
+  // Two-pipe systems share closed-circuit sludge risk but this module focuses on
+  // the elevated risk of legacy plumbing where radiator loop geometry accelerates
+  // sludge deposition.
   const isLegacyTopology = LEGACY_TOPOLOGIES.has(input.pipingTopology);
   const sludgeTaxApplies = isLegacyTopology && !input.hasMagneticFilter;
 
-  // Scale sludge tax linearly from min to max over 15 years without a filter.
-  const sludgeTaxPct = sludgeTaxApplies
+  // flowDeratePct: 0 → MAX_FLOW_DERATE over 15 years without a filter.
+  // effectiveFlowRequired = designFlowLpm / (1 − flowDeratePct)
+  // → raises velocity → increases velocityPenalty → reduces effectiveCOP (ASHP)
+  // → increases CH shortfall (boiler).
+  const flowDeratePct = sludgeTaxApplies
     ? parseFloat(
-        Math.min(
-          SLUDGE_TAX_MAX_PCT,
-          SLUDGE_TAX_MIN_PCT + ((SLUDGE_TAX_MAX_PCT - SLUDGE_TAX_MIN_PCT) * Math.min(input.systemAgeYears, 15)) / 15
-        ).toFixed(1)
+        Math.min(MAX_FLOW_DERATE, (Math.min(input.systemAgeYears, 15) / 15) * MAX_FLOW_DERATE).toFixed(3)
       )
     : 0;
 
+  // cyclingLossPct: proportional to flowDeratePct, max MAX_CYCLING_LOSS.
+  // Applied by LifestyleSimulationModule when loadFrac < 0.25 (low-load cycling).
+  const cyclingLossPct = parseFloat((flowDeratePct * 0.25).toFixed(3));
+
   if (sludgeTaxApplies) {
     notes.push(
-      `🔩 Primary Sludge Tax (${sludgeTaxPct}% efficiency loss): ` +
+      `🔩 CH Flow Derate (${(flowDeratePct * 100).toFixed(1)}%): ` +
       `${input.pipingTopology} topology without a magnetic filter. ` +
-      `Magnetite particles settle in radiators and reduce heat output by up to 47%. ` +
+      `Magnetite sludge restricts primary circuit flow — required flow increases by ` +
+      `${(flowDeratePct / (1 - flowDeratePct) * 100).toFixed(1)}%, raising velocity and ` +
+      `velocity penalty. Cycling loss at low load: ${(cyclingLossPct * 100).toFixed(1)}%. ` +
       `Fit a magnetic filter (e.g. Fernox TF1) and power-flush to restore performance.`
     );
   } else if (isLegacyTopology && input.hasMagneticFilter) {
     notes.push(
       `🧲 Magnetic Filter Active: Magnetite sludge in the ${input.pipingTopology} ` +
-      `primary circuit is being captured. No primary sludge tax applied.`
+      `primary circuit is being captured. No flow derate or cycling penalty applied.`
     );
   } else {
     notes.push(
@@ -110,48 +125,45 @@ export function runSludgeVsScaleModule(input: SludgeVsScaleInput): SludgeVsScale
     );
   }
 
-  // ── DHW circuit: CaCO3 / silicate scale ─────────────────────────────────
+  // ── DHW circuit: CaCO3 / silicate scale → capacity derate ───────────────
+  // Scale reduces the max DHW output power of the combi HX. This:
+  //  • Reduces deliverable L/min @40°C
+  //  • Increases unmet demand during peak draw
+  //  • Increases purge frequency organically
+  // Scale does NOT affect the sealed CH loop.
   const scaleGrowthMmPerYear =
     DHW_SCALE_GROWTH_MM_PER_YEAR[input.waterHardnessCategory] ?? 0.05;
   const estimatedScaleThicknessMm = parseFloat(
     (scaleGrowthMmPerYear * input.systemAgeYears).toFixed(2)
   );
 
-  // 11% penalty scales proportionally once the 1.6mm threshold is reached.
-  const dhwScalePenaltyPct =
-    estimatedScaleThicknessMm >= SCALE_PENALTY_THRESHOLD_MM
-      ? parseFloat(
-          Math.min(
-            20, // practical ceiling – beyond this the heat exchanger is effectively dead
-            SCALE_PENALTY_AT_THRESHOLD_PCT *
-              (estimatedScaleThicknessMm / SCALE_PENALTY_THRESHOLD_MM)
-          ).toFixed(1)
-        )
-      : parseFloat(
-          (
-            (estimatedScaleThicknessMm / SCALE_PENALTY_THRESHOLD_MM) *
-            SCALE_PENALTY_AT_THRESHOLD_PCT
-          ).toFixed(1)
-        );
+  // dhwCapacityDeratePct: 0 → MAX_DHW_CAPACITY_DERATE over DHW_DERATE_MAX_THICKNESS_MM.
+  // Applied: maxQtoDhwKw *= (1 − dhwCapacityDeratePct)
+  const dhwCapacityDeratePct = parseFloat(
+    Math.min(
+      MAX_DHW_CAPACITY_DERATE,
+      (estimatedScaleThicknessMm / DHW_DERATE_MAX_THICKNESS_MM) * MAX_DHW_CAPACITY_DERATE
+    ).toFixed(3)
+  );
 
   const dhwRecoveryLatencyIncreaseSec = parseFloat(
     (estimatedScaleThicknessMm * DHW_LATENCY_SEC_PER_MM).toFixed(0)
   );
 
-  if (estimatedScaleThicknessMm >= SCALE_PENALTY_THRESHOLD_MM) {
+  if (estimatedScaleThicknessMm >= DHW_SCALE_WARNING_THRESHOLD_MM) {
     notes.push(
-      `🔥 DHW Scale Penalty (${dhwScalePenaltyPct}% fuel increase for hot water): ` +
-      `Estimated ${estimatedScaleThicknessMm}mm CaCO3/silicate layer on secondary heat ` +
+      `🔥 DHW Capacity Derate (${(dhwCapacityDeratePct * 100).toFixed(1)}%): ` +
+      `Estimated ${estimatedScaleThicknessMm}mm CaCO3/silicate layer on DHW heat ` +
       `exchanger in a ${input.waterHardnessCategory.replace('_', ' ')} water area. ` +
-      `A 1.6mm scale layer alone causes an 11% fuel increase for hot water only. ` +
+      `Scale reduces max combi DHW output — expect flow droop and shortfall during peak draw. ` +
       `DHW recovery is ~${dhwRecoveryLatencyIncreaseSec}s slower per draw.`
     );
   } else if (estimatedScaleThicknessMm > 0) {
     notes.push(
       `💧 DHW Scale Building: ${estimatedScaleThicknessMm}mm estimated scale on DHW ` +
       `circuit (${input.waterHardnessCategory.replace('_', ' ')} water). ` +
-      `${dhwScalePenaltyPct > 0 ? `Current penalty: ${dhwScalePenaltyPct}%. ` : ''}` +
-      `Scale inhibitor or softener treatment recommended before the 1.6mm threshold.`
+      `${dhwCapacityDeratePct > 0 ? `Current capacity derate: ${(dhwCapacityDeratePct * 100).toFixed(1)}%. ` : ''}` +
+      `Scale inhibitor or softener treatment recommended.`
     );
   } else {
     notes.push(`✅ DHW Circuit: Negligible scale accumulation detected.`);
@@ -160,29 +172,32 @@ export function runSludgeVsScaleModule(input: SludgeVsScaleInput): SludgeVsScale
   // ── Cost attribution ──────────────────────────────────────────────────────
   const annualGasSpend = input.annualGasSpendGbp ?? 0;
 
-  // Assume DHW accounts for ~30% of total gas spend (UK average)
+  // DHW accounts for ~30% of total gas spend (UK average).
+  // Scale capacity derate increases fuel needed to meet demand.
   const dhwGasSpendGbp = annualGasSpend * 0.3;
   const dhwScaleCostGbp = parseFloat(
-    ((dhwScalePenaltyPct / 100) * dhwGasSpendGbp).toFixed(2)
+    (dhwCapacityDeratePct * dhwGasSpendGbp).toFixed(2)
   );
 
-  // Primary sludge tax applies across the whole heating circuit
+  // Flow derate increases heating gas spend proportionally (higher velocity
+  // means higher pump demand and reduced heat transfer efficiency).
   const heatingGasSpendGbp = annualGasSpend * 0.7;
   const primarySludgeCostGbp = parseFloat(
-    ((sludgeTaxPct / 100) * heatingGasSpendGbp).toFixed(2)
+    (flowDeratePct * heatingGasSpendGbp).toFixed(2)
   );
 
   if (annualGasSpend > 0 && (dhwScaleCostGbp > 0 || primarySludgeCostGbp > 0)) {
     notes.push(
-      `💰 Water Quality Cost: Primary sludge £${primarySludgeCostGbp.toFixed(0)}/yr + ` +
-      `DHW scale £${dhwScaleCostGbp.toFixed(0)}/yr = ` +
+      `💰 Water Quality Cost: CH flow derate £${primarySludgeCostGbp.toFixed(0)}/yr + ` +
+      `DHW scale capacity derate £${dhwScaleCostGbp.toFixed(0)}/yr = ` +
       `£${(primarySludgeCostGbp + dhwScaleCostGbp).toFixed(0)}/yr wasted.`
     );
   }
 
   return {
-    primarySludgeTaxPct: sludgeTaxPct,
-    dhwScalePenaltyPct,
+    flowDeratePct,
+    cyclingLossPct,
+    dhwCapacityDeratePct,
     estimatedScaleThicknessMm,
     dhwRecoveryLatencyIncreaseSec,
     primarySludgeCostGbp,

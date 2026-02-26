@@ -163,7 +163,7 @@ export function buildDynamicRoomTrace(
   });
 }
 
-export function runLifestyleSimulationModule(input: EngineInputV2_3): LifestyleResult {
+export function runLifestyleSimulationModule(input: EngineInputV2_3, cyclingLossPct = 0): LifestyleResult {
   const profile = getProfile(input.occupancySignature);
   const heatLossKw = input.heatLossWatts / 1000;
   const cBuilding = C_BUILDING_KJ_PER_K[input.buildingMass];
@@ -198,6 +198,14 @@ export function runLifestyleSimulationModule(input: EngineInputV2_3): LifestyleR
     // Stored water: stable but peaks delayed
     const storedWaterTempC = 19 + (hour.demand > 0.6 ? 1.5 : 0);
 
+    // Cycling fuel penalty: applied when load fraction < 0.25 (low-load short-cycling).
+    // A sludge-restricted circuit causes the boiler to fire/stop more frequently at
+    // low demand because restricted flow overshoots the setpoint faster.
+    // cyclingFuelPenaltyKw = demandKw × cyclingLossPct when loadFrac < 0.25.
+    const cyclingFuelPenaltyKw = hour.demand < 0.25 && cyclingLossPct > 0
+      ? parseFloat((demandKw * cyclingLossPct).toFixed(3))
+      : 0;
+
     return {
       hour: h,
       demandKw,
@@ -206,6 +214,7 @@ export function runLifestyleSimulationModule(input: EngineInputV2_3): LifestyleR
       storedWaterTempC,
       boilerRoomTempC: boilerRoomTrace[h],
       ashpRoomTempC: ashpRoomTrace[h],
+      cyclingFuelPenaltyKw,
     };
   });
 
