@@ -18,6 +18,7 @@ import { runThermalInertiaModule } from '../../engine/modules/ThermalInertiaModu
 import { calcFlowLpm, PIPE_THRESHOLDS } from '../../engine/modules/HydraulicModule';
 import { runCombiDhwModuleV1 } from '../../engine/modules/CombiDhwModule';
 import { analysePressure } from '../../engine/modules/PressureModule';
+import { runRegionalHardness } from '../../engine/modules/RegionalHardness';
 import { resolveNominalEfficiencyPct, computeCurrentEfficiencyPct, ERP_TO_NOMINAL_PCT } from '../../engine/utils/efficiency';
 import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
 import LifestyleInteractive from '../visualizers/LifestyleInteractive';
@@ -41,7 +42,7 @@ const STEPS: Step[] = ['location', 'pressure', 'hydraulic', 'lifestyle', 'hot_wa
 //   A) Fabric heat-loss (wall type, insulation, glazing, roof, airtightness)
 //   B) Thermal inertia (mass — separate from wall type)
 
-type WallType = 'solid_masonry' | 'cavity_insulated' | 'timber_lightweight';
+type WallType = 'solid_masonry' | 'cavity_insulated' | 'cavity_uninsulated' | 'timber_lightweight';
 type InsulationLevel = 'poor' | 'moderate' | 'good' | 'exceptional';
 type AirTightness = 'leaky' | 'average' | 'tight' | 'passive_level';
 type Glazing = 'single' | 'double' | 'triple';
@@ -163,7 +164,7 @@ function deriveHeatLossBand(
 ): { label: string; colour: string } {
   // Score: 0 = worst heat loss, higher = better
   const insulScore = (['poor', 'moderate', 'good', 'exceptional'] as InsulationLevel[]).indexOf(insulation); // 0–3
-  const wallScore: Record<WallType, number> = { solid_masonry: 0, cavity_insulated: 1, timber_lightweight: 2 };
+  const wallScore: Record<WallType, number> = { solid_masonry: 0, cavity_uninsulated: 0, cavity_insulated: 1, timber_lightweight: 2 };
   const glazScore: Record<Glazing, number> = { single: 0, double: 1, triple: 2 };
   const roofScore: Record<RoofInsulation, number> = { poor: 0, moderate: 1, good: 2 };
   const total = insulScore + wallScore[wall] + glazScore[glaz] + roofScore[roof]; // 0–9
@@ -375,7 +376,7 @@ function buildFlowCurve(pipeDiameter: number) {
   return { data, thresholds };
 }
 
-// Preset examples — secondary controls, not the primary selector
+// Preset examples — promoted to a primary "home type" selector in Step 1
 const FABRIC_PRESETS: Array<{
   label: string;
   wall: WallType;
@@ -385,10 +386,11 @@ const FABRIC_PRESETS: Array<{
   roof: RoofInsulation;
   mass: ThermalMass;
 }> = [
-  { label: 'Solid brick (pre-war)',  wall: 'solid_masonry',      insulation: 'poor',       air: 'leaky',         glaz: 'single', roof: 'poor',     mass: 'heavy'  },
-  { label: '1970s cavity filled',    wall: 'cavity_insulated',   insulation: 'moderate',   air: 'average',       glaz: 'double', roof: 'moderate', mass: 'medium' },
-  { label: '2020s new build',        wall: 'timber_lightweight', insulation: 'moderate',   air: 'tight',         glaz: 'double', roof: 'good',     mass: 'light'  },
-  { label: 'Passivhaus',             wall: 'timber_lightweight', insulation: 'exceptional', air: 'passive_level', glaz: 'triple', roof: 'good',     mass: 'light'  },
+  { label: 'Solid brick (pre-war)',          wall: 'solid_masonry',      insulation: 'poor',       air: 'leaky',         glaz: 'single', roof: 'poor',     mass: 'heavy'  },
+  { label: '1970s cavity filled',            wall: 'cavity_insulated',   insulation: 'moderate',   air: 'average',       glaz: 'double', roof: 'moderate', mass: 'medium' },
+  { label: 'Turn of century / high-exposure',wall: 'cavity_uninsulated', insulation: 'poor',       air: 'leaky',         glaz: 'single', roof: 'poor',     mass: 'heavy'  },
+  { label: '2020s new build',                wall: 'timber_lightweight', insulation: 'moderate',   air: 'tight',         glaz: 'double', roof: 'good',     mass: 'light'  },
+  { label: 'Passivhaus',                     wall: 'timber_lightweight', insulation: 'exceptional', air: 'passive_level', glaz: 'triple', roof: 'good',     mass: 'light'  },
 ];
 
 const defaultInput: FullSurveyModelV1 = {
@@ -421,6 +423,10 @@ export default function FullSurveyStepper({ onBack }: Props) {
   const [compareMixergy, setCompareMixergy] = useState(false);
   const [results, setResults] = useState<FullEngineResult | null>(null);
 
+  // Water hardness search: shows a live preview when the user clicks "Search"
+  const [hardnessPreview, setHardnessPreview] = useState<ReturnType<typeof runRegionalHardness> | null>(null);
+  const searchHardness = () => setHardnessPreview(runRegionalHardness(input.postcode));
+
   // Raw string state for iOS-friendly numeric inputs (preserves typed value, normalises on blur)
   const [rawPressureStr, setRawPressureStr] = useState(String(defaultInput.dynamicMainsPressure));
   const [rawFlowStr, setRawFlowStr] = useState(
@@ -447,8 +453,9 @@ export default function FullSurveyStepper({ onBack }: Props) {
   // Keep buildingMass and building.fabric in engine input in sync with the fabric controls
   useEffect(() => {
     const wallTypeForEngine =
-      wallType === 'solid_masonry'     ? 'solid_masonry' :
-      wallType === 'cavity_insulated'  ? 'cavity_filled' :
+      wallType === 'solid_masonry'        ? 'solid_masonry' :
+      wallType === 'cavity_insulated'     ? 'cavity_filled' :
+      wallType === 'cavity_uninsulated'   ? 'solid_masonry' :
       'timber_frame' as const;
     const airTightnessForEngine =
       airTightness === 'passive_level' ? 'passive' : airTightness as 'leaky' | 'average' | 'tight';
@@ -556,12 +563,46 @@ export default function FullSurveyStepper({ onBack }: Props) {
           <div className="form-grid">
             <div className="form-field">
               <label>Postcode</label>
-              <input
-                type="text"
-                value={input.postcode}
-                onChange={e => setInput({ ...input, postcode: e.target.value.toUpperCase() })}
-                placeholder="e.g. BH1 1AA or DT9 3AQ"
-              />
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={input.postcode}
+                  onChange={e => { setInput({ ...input, postcode: e.target.value.toUpperCase() }); setHardnessPreview(null); }}
+                  placeholder="e.g. BH1 1AA or DT9 3AQ"
+                  style={{ flex: 1 }}
+                  onKeyDown={e => { if (e.key === 'Enter') searchHardness(); }}
+                />
+                <button
+                  onClick={searchHardness}
+                  style={{
+                    padding: '0.45rem 0.9rem',
+                    background: '#3182ce',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  🔍 Search
+                </button>
+              </div>
+              {hardnessPreview && (
+                <div style={{
+                  marginTop: '0.5rem',
+                  padding: '0.5rem 0.75rem',
+                  background: hardnessPreview.hardnessCategory === 'soft' ? '#f0fff4' : hardnessPreview.hardnessCategory === 'very_hard' ? '#fff5f5' : '#fffaf0',
+                  border: `1px solid ${hardnessPreview.hardnessCategory === 'soft' ? '#68d391' : hardnessPreview.hardnessCategory === 'very_hard' ? '#fc8181' : '#fbd38d'}`,
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  color: '#2d3748',
+                }}>
+                  <strong>Water hardness: {hardnessPreview.hardnessCategory.replace('_', ' ').toUpperCase()}</strong> ({hardnessPreview.ppmLevel} ppm)
+                  <div style={{ color: '#718096', marginTop: '0.2rem' }}>{hardnessPreview.description}</div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -575,6 +616,40 @@ export default function FullSurveyStepper({ onBack }: Props) {
               Solid masonry without insulation leaks as badly as any wall type.
             </p>
 
+            {/* ── Home type quick-select (auto-populates fabric controls) ── */}
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
+                🏠 Home type (auto-fills construction &amp; insulation)
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                {FABRIC_PRESETS.map(p => (
+                  <button
+                    key={p.label}
+                    onClick={() => {
+                      setWallType(p.wall);
+                      setInsulationLevel(p.insulation);
+                      setAirTightness(p.air);
+                      setGlazing(p.glaz);
+                      setRoofInsulation(p.roof);
+                      setThermalMass(p.mass);
+                    }}
+                    style={{
+                      padding: '0.4rem 0.75rem',
+                      fontSize: '0.82rem',
+                      border: '1px solid #cbd5e0',
+                      borderRadius: '6px',
+                      background: '#f7fafc',
+                      cursor: 'pointer',
+                      color: '#4a5568',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start' }}>
 
               {/* Left: heat-loss levers */}
@@ -587,9 +662,10 @@ export default function FullSurveyStepper({ onBack }: Props) {
                   </label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                     {([
-                      { value: 'solid_masonry',      label: 'Solid masonry',       sub: '225 mm brick / stone — leaky until insulated' },
-                      { value: 'cavity_insulated',   label: 'Cavity (insulated)',  sub: 'Full or partial fill — medium baseline loss' },
-                      { value: 'timber_lightweight', label: 'Timber / lightweight', sub: 'Frame or light block — low baseline loss' },
+                      { value: 'solid_masonry',      label: 'Solid masonry',           sub: '225 mm brick / stone — leaky until insulated' },
+                      { value: 'cavity_uninsulated',  label: 'Cavity (uninsulated)',    sub: 'Empty cavity — high exposure / turn of century homes' },
+                      { value: 'cavity_insulated',    label: 'Cavity (insulated)',      sub: 'Full or partial fill — medium baseline loss' },
+                      { value: 'timber_lightweight',  label: 'Timber / lightweight',    sub: 'Frame or light block — low baseline loss' },
                     ] as Array<{ value: WallType; label: string; sub: string }>).map(opt => (
                       <button
                         key={opt.value}
@@ -841,36 +917,6 @@ export default function FullSurveyStepper({ onBack }: Props) {
               </div>
             </div>
 
-            {/* ─── Optional presets (secondary) ────────────────────────── */}
-            <div style={{ marginTop: '1rem', paddingTop: '0.875rem', borderTop: '1px solid #e2e8f0' }}>
-              <span style={{ fontSize: '0.8rem', color: '#a0aec0', marginRight: '0.5rem' }}>Load example:</span>
-              {FABRIC_PRESETS.map(p => (
-                <button
-                  key={p.label}
-                  onClick={() => {
-                    setWallType(p.wall);
-                    setInsulationLevel(p.insulation);
-                    setAirTightness(p.air);
-                    setGlazing(p.glaz);
-                    setRoofInsulation(p.roof);
-                    setThermalMass(p.mass);
-                  }}
-                  style={{
-                    marginRight: '0.4rem',
-                    marginBottom: '0.3rem',
-                    padding: '0.3rem 0.65rem',
-                    fontSize: '0.78rem',
-                    border: '1px solid #cbd5e0',
-                    borderRadius: '4px',
-                    background: '#f7fafc',
-                    cursor: 'pointer',
-                    color: '#4a5568',
-                  }}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="step-actions">
@@ -1622,28 +1668,42 @@ export default function FullSurveyStepper({ onBack }: Props) {
                 </div>
               </div>
 
-              {/* High occupancy toggle */}
+              {/* Household size — 3 granular tiers */}
               <div>
                 <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
                   Household size
                 </label>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button
-                    onClick={() => setInput({ ...input, highOccupancy: false })}
+                    onClick={() => setInput({ ...input, highOccupancy: false, occupancyCount: 2 })}
                     style={{
                       flex: 1, padding: '0.5rem',
-                      border: `2px solid ${!input.highOccupancy ? '#3182ce' : '#e2e8f0'}`,
+                      border: `2px solid ${!input.highOccupancy && (input.occupancyCount ?? 2) <= 2 ? '#3182ce' : '#e2e8f0'}`,
                       borderRadius: '6px',
-                      background: !input.highOccupancy ? '#ebf8ff' : '#fff',
+                      background: !input.highOccupancy && (input.occupancyCount ?? 2) <= 2 ? '#ebf8ff' : '#fff',
                       cursor: 'pointer',
                       fontSize: '0.85rem',
-                      fontWeight: !input.highOccupancy ? 700 : 400,
+                      fontWeight: !input.highOccupancy && (input.occupancyCount ?? 2) <= 2 ? 700 : 400,
                     }}
                   >
-                    1–3 people
+                    1–2 people
                   </button>
                   <button
-                    onClick={() => setInput({ ...input, highOccupancy: true })}
+                    onClick={() => setInput({ ...input, highOccupancy: false, occupancyCount: 3 })}
+                    style={{
+                      flex: 1, padding: '0.5rem',
+                      border: `2px solid ${!input.highOccupancy && input.occupancyCount === 3 ? '#d69e2e' : '#e2e8f0'}`,
+                      borderRadius: '6px',
+                      background: !input.highOccupancy && input.occupancyCount === 3 ? '#fefcbf' : '#fff',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      fontWeight: !input.highOccupancy && input.occupancyCount === 3 ? 700 : 400,
+                    }}
+                  >
+                    3 people ⚠️
+                  </button>
+                  <button
+                    onClick={() => setInput({ ...input, highOccupancy: true, occupancyCount: 4 })}
                     style={{
                       flex: 1, padding: '0.5rem',
                       border: `2px solid ${input.highOccupancy ? '#c53030' : '#e2e8f0'}`,
@@ -1657,6 +1717,11 @@ export default function FullSurveyStepper({ onBack }: Props) {
                     4+ people
                   </button>
                 </div>
+                {!input.highOccupancy && input.occupancyCount === 3 && (
+                  <p style={{ fontSize: '0.75rem', color: '#975a16', marginTop: '0.3rem', lineHeight: 1.4 }}>
+                    ⚠️ 3 people is a borderline case — a combi boiler may struggle during simultaneous draws. Consider a stored system.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1678,7 +1743,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
                   {dhwBand.label}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#718096' }}>
-                  {input.bathroomCount} bathroom{input.bathroomCount !== 1 ? 's' : ''} · {input.peakConcurrentOutlets ?? 1} peak outlet{(input.peakConcurrentOutlets ?? 1) !== 1 ? 's' : ''} · {input.highOccupancy ? '4+ people' : '1–3 people'}
+                  {input.bathroomCount} bathroom{input.bathroomCount !== 1 ? 's' : ''} · {input.peakConcurrentOutlets ?? 1} peak outlet{(input.peakConcurrentOutlets ?? 1) !== 1 ? 's' : ''} · {input.highOccupancy ? '4+ people' : input.occupancyCount === 3 ? '3 people (borderline)' : '1–2 people'}
                 </div>
               </div>
 

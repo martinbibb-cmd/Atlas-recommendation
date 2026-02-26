@@ -4,11 +4,17 @@ import {
   classifySizingBand,
   type BoilerSizingResultV1,
 } from './BoilerSizingModule';
+import { DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../utils/efficiency';
 
 export type BoilerType = 'combi' | 'system' | 'regular' | 'back_boiler' | 'unknown';
 export type OversizeBand = 'well_matched' | 'mild_oversize' | 'oversized' | 'aggressive';
 
-const UNKNOWN_SEASONAL_ETA = 0.84;
+/**
+ * Final-resort efficiency fallback when no GC number, no ErP label, and no band
+ * estimate are available.  Aligns with the industry-standard 92% nominal used
+ * throughout the engine rather than a lower arbitrary value.
+ */
+const UNKNOWN_SEASONAL_ETA = DEFAULT_NOMINAL_EFFICIENCY_PCT / 100;
 const MIN_ETA = 0.55;
 const MAX_ETA = 0.95;
 const POINT_LOW_LOAD_PENALTY = 0.02;
