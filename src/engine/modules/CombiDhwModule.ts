@@ -75,6 +75,19 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3): CombiDhwV1Result {
     );
   }
 
+  // ── Rule 4: Three-person household caution ───────────────────────────────
+  if (input.occupancyCount === 3 && !simultaneousFail) {
+    flags.push({
+      id: 'combi-three-person-caution',
+      severity: 'warn',
+      title: '3-person household: borderline combi demand',
+      detail:
+        'Three occupants create borderline simultaneous DHW demand. A combi may cope on 1 bathroom ' +
+        'but expect reduced comfort margins during back-to-back morning showers. ' +
+        'A stored system removes this risk entirely.',
+    });
+  }
+
   // ── Determine overall combiRisk verdict ──────────────────────────────────
   let combiRisk: CombiDhwV1Result['verdict']['combiRisk'];
   if (flags.some(f => f.severity === 'fail')) {

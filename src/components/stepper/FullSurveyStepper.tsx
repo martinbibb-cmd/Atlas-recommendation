@@ -501,6 +501,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
     input.peakConcurrentOutlets,
     input.bathroomCount,
     input.occupancySignature,
+    input.occupancyCount,
   ]);
   const dhwBand = useMemo(
     () => dhwDemandBand(input.bathroomCount, input.peakConcurrentOutlets ?? 1, input.highOccupancy),
@@ -586,7 +587,7 @@ export default function FullSurveyStepper({ onBack }: Props) {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  🔍 Search
+                  Submit
                 </button>
               </div>
               {hardnessPreview && (

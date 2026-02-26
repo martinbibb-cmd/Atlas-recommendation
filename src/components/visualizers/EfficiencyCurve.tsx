@@ -26,8 +26,8 @@ function generateDrawData() {
       combiEff = Math.min(95, 78 + (seconds - 30) * 0.5);
     }
 
-    // Mixergy: top-down stratification maintains stable ~95% efficiency
-    const mixergyEff = DEFAULT_NOMINAL_EFFICIENCY_PCT + Math.random() * 3;
+    // Mixergy: top-down stratification maintains stable ~95% efficiency (deterministic)
+    const mixergyEff = DEFAULT_NOMINAL_EFFICIENCY_PCT + 3;
 
     return {
       seconds: `${seconds}s`,

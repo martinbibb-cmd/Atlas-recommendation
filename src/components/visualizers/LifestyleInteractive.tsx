@@ -8,15 +8,12 @@
  * One system is shown at a time.  A pill switcher lets users compare:
  *   Combi | Stored–Vented | Stored–Unvented | ASHP
  *
- * Curves rendered:
- *  1. Boiler "Stepped" Curve  – 30 kW Sprinter, rapid reheat to 21 °C setpoint
- *  2. HP "Horizon" Curve      – "Low and Slow" stability; SPF from SpecEdgeModule
- *  3. Hot water reserve (%)   – Stored hot-water reserve (charging / discharging)
+ * Dual-chart layout:
+ *  Graph 1 (Demand)         – kW demand from LifestyleSimulationModule (Heat + DHW load)
+ *  Graph 2 (System Response) – Boiler stepped curve / HP horizon curve + hot-water reserve
  *
- * DHW Supply Path controls whether DHW events hit the hot-water system:
- *   'hot_water_system': all sink/bath draws go to the system (default).
- *   'cold_only':        no DHW draws hit the system (cold-fill / electric supply only).
- *   'mixed':            partial draws — 60% of sinks, full baths.
+ * Demand is driven by household size and bathroom count heuristics — no shower
+ * dropdown is exposed.  DHW draws always go to the hot-water system (scalar = 1.0).
  */
 
 import { useState, useMemo } from 'react';
@@ -47,27 +44,6 @@ import {
 } from '../../engine/modules/LifestyleInteractiveHelpers';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 
-// ─── DHW Supply Path ──────────────────────────────────────────────────────────
-
-type DhwSupplyPath = 'hot_water_system' | 'cold_only' | 'mixed';
-
-const DHW_SUPPLY_PATH_LABELS: Record<DhwSupplyPath, string> = {
-  hot_water_system: 'Hot-water system (taps/baths draw from stored/combi)',
-  cold_only:        'Cold-only (electric supply — doesn\'t hit hot water)',
-  mixed:            'Mixed (some hot, some cold-only)',
-};
-
-/** Map DHW supply path to a fractional draw scalar for physics helpers.
- *   hot_water_system → 1.0 (full draw)
- *   mixed            → 0.6 (partial: 60% of sink events, full bath events)
- *   cold_only        → 0.0 (no draw — cold-fill / electric supply only)
- */
-function supplyPathToDhwDrawScalar(path: DhwSupplyPath): number {
-  if (path === 'cold_only') return 0.0;
-  if (path === 'mixed') return 0.6;
-  return 1.0; // hot_water_system
-}
-
 // ─── System switcher ──────────────────────────────────────────────────────────
 
 type DayPainterSystem = 'combi' | 'stored_vented' | 'stored_unvented' | 'ashp';
@@ -96,6 +72,15 @@ const DEFAULT_ENGINE_INPUT: EngineInputV2_3 = {
   preferCombi: false,
 };
 
+// ─── Demand chart physics constants ──────────────────────────────────────────
+
+/** Fraction of cylinder capacity drawn per "High DHW" hour (18 % × 5 kWh = 0.9 kWh). */
+const DHW_DEMAND_DRAW_FRACTION = 0.18;
+/** Fraction of cylinder capacity drawn during ordinary "At Home" hours (4 % × 5 kWh = 0.2 kWh). */
+const HOME_DRAW_FRACTION = 0.04;
+/** Y-axis upper bound for the demand chart: 120 % of peak heat-loss to leave headroom. */
+const DEMAND_Y_AXIS_SCALE_FACTOR = 1.2;
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -107,11 +92,9 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [hours, setHours] = useState<HourState[]>(defaultHours);
   const [isFullJob, setIsFullJob] = useState(true);
   const [selectedSystem, setSelectedSystem] = useState<DayPainterSystem>('combi');
-  const [dhwSupplyPath, setDhwSupplyPath] = useState<DhwSupplyPath>('hot_water_system');
-  // Derive a fractional draw scalar from the selected supply path so that each
-  // option produces a visibly different curve (mixed ≠ hot_water_system).
-  const dhwDrawScalar = supplyPathToDhwDrawScalar(dhwSupplyPath);
-  const isColdOnly = dhwSupplyPath === 'cold_only';
+  // DHW draws always go to the hot-water system — demand is driven by household
+  // size and bathroom count heuristics (no user-facing supply-path selector).
+  const dhwDrawScalar = 1.0;
   const [hasSoftener, setHasSoftener] = useState(false);
 
   const engineInput: EngineInputV2_3 = { ...DEFAULT_ENGINE_INPUT, ...baseInput };
@@ -179,22 +162,32 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     });
   };
 
-  // ── Derived counts ──────────────────────────────────────────────────────────
+  // ── Demand chart data (Graph 1: Technical Truth) ────────────────────────────
+  // Source: lifestyle.hourlyData from LifestyleSimulationModule (deterministic,
+  // physics-driven).  Shows the raw kW load regardless of which system is chosen.
+  // DHW demand is approximated from the user's painted high-DHW hours scaled by
+  // heatLossKw so the two series share a meaningful unit.
+  const heatLossKw = engineInput.heatLossWatts / 1000;
+  const demandChartData = lifestyle.hourlyData.map((row, h) => ({
+    hour: `${String(h).padStart(2, '0')}:00`,
+    'Heat (kW)':  parseFloat(row.demandKw.toFixed(2)),
+    'DHW (kW)':   parseFloat(
+      ((hours[h] === 'dhw_demand' ? DHW_DEMAND_DRAW_FRACTION : hours[h] === 'home' ? HOME_DRAW_FRACTION : 0) * heatLossKw).toFixed(2),
+    ),
+  }));
 
   const homeCount = hours.filter(s => s === 'home').length;
   const dhwCount  = hours.filter(s => s === 'dhw_demand').length;
   const awayCount = hours.filter(s => s === 'away').length;
 
-  // Combi efficiency collapses when DHW draws hot water and demand hours are active
-  const combiEfficiencyCollapsed =
-    dhwDrawScalar > 0 && dhwCount > 0;
+  // Combi efficiency collapses when DHW demand hours are active
+  const combiEfficiencyCollapsed = dhwCount > 0;
 
-  // DHW draw today: approximate kWh drawn from the hot-water system based on
-  // the hour pattern and the selected supply-path scalar.
-  // dhw_demand hour: 18% SoC draw × 5 kWh cylinder = 0.9 kWh (scaled)
-  // home hour: 4% SoC draw × 5 kWh cylinder = 0.2 kWh (scaled)
+  // DHW draw today: approximate kWh drawn from the hot-water system.
+  // dhw_demand hour: 18% SoC draw × 5 kWh cylinder = 0.9 kWh
+  // home hour: 4% SoC draw × 5 kWh cylinder = 0.2 kWh
   const dhwDrawKwhToday = parseFloat(
-    ((dhwCount * 0.9 + homeCount * 0.2) * dhwDrawScalar).toFixed(1),
+    (dhwCount * 0.9 + homeCount * 0.2).toFixed(1),
   );
 
   return (
@@ -293,30 +286,6 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
           inactiveColor="#c05621"
           title="Toggle British Gas Full Job (new radiators, 35 °C) vs Octopus Fast Fit (existing radiators, 50 °C)"
         />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <label style={{ fontSize: '0.78rem', color: '#4a5568', fontWeight: 600 }}>
-            💧 DHW Supply Path:
-          </label>
-          <select
-            value={dhwSupplyPath}
-            onChange={e => setDhwSupplyPath(e.target.value as DhwSupplyPath)}
-            aria-label="DHW supply path"
-            style={{ fontSize: '0.78rem', borderRadius: 6, border: '1px solid #e2e8f0', padding: '4px 8px', cursor: 'pointer' }}
-            title="Hot-water system: taps/baths draw from stored/combi. Cold-only: no DHW draw. Mixed: partial draws."
-          >
-            {(Object.keys(DHW_SUPPLY_PATH_LABELS) as DhwSupplyPath[]).map(path => (
-              <option key={path} value={path}>{DHW_SUPPLY_PATH_LABELS[path]}</option>
-            ))}
-          </select>
-        </div>
-        {isColdOnly && (
-          <span style={{
-            fontSize: '0.74rem', color: '#2b6cb0', background: '#ebf8ff',
-            border: '1px solid #bee3f8', borderRadius: 6, padding: '4px 10px',
-          }}>
-            ℹ️ Cold-only: sink/bath events do not draw from the hot-water system.
-          </span>
-        )}
         <ToggleButton
           label="🧂 Softener"
           active={hasSoftener}
@@ -347,8 +316,8 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
         <StatBadge
           label="DHW draw today"
           value={`${dhwDrawKwhToday} kWh`}
-          color={dhwDrawScalar === 0 ? '#2c5282' : dhwDrawScalar < 1 ? '#c05621' : '#c53030'}
-          bg={dhwDrawScalar === 0 ? '#ebf8ff' : dhwDrawScalar < 1 ? '#fffaf0' : '#fff5f5'}
+          color={dhwCount > 0 ? '#c53030' : '#276749'}
+          bg={dhwCount > 0 ? '#fff5f5' : '#f0fff4'}
         />
         {combiEfficiencyCollapsed && (
           <StatBadge
@@ -368,8 +337,56 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
         )}
       </div>
 
-      {/* ── Chart: single selected system ──────────────────────────────────── */}
-      <div style={{ height: 240, marginBottom: 8 }}>
+      {/* ── Graph 1: Technical Truth — Services Demand ─────────────────────── */}
+      <div style={{ marginBottom: 4 }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
+          📊 Graph 1 — Services Demand (what the home needs)
+        </div>
+        <div style={{ height: 180, marginBottom: 8 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={demandChartData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="hour" tick={{ fontSize: 9 }} interval={3} />
+              <YAxis
+                domain={[0, Math.ceil(heatLossKw * DEMAND_Y_AXIS_SCALE_FACTOR)]}
+                tick={{ fontSize: 9 }}
+                label={{ value: 'kW', angle: -90, position: 'insideLeft', fontSize: 10 }}
+              />
+              <Tooltip
+                contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }}
+                formatter={(value: number | undefined, name: string | undefined) => [
+                  value !== undefined ? `${value.toFixed(2)} kW` : '',
+                  name ?? '',
+                ]}
+              />
+              <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: 6 }} />
+              <Area
+                type="monotone"
+                dataKey="Heat (kW)"
+                fill="#fed7aa"
+                stroke="#ed8936"
+                strokeWidth={2}
+                fillOpacity={0.5}
+              />
+              <Area
+                type="monotone"
+                dataKey="DHW (kW)"
+                fill="#bee3f8"
+                stroke="#3182ce"
+                strokeWidth={2}
+                fillOpacity={0.5}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* ── Graph 2: System Response — Boiler Modulation & Efficiency ──────── */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
+          ⚙️ Graph 2 — System Response ({SYSTEM_LABELS[selectedSystem]})
+        </div>
+        <div style={{ height: 200, marginBottom: 8 }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -440,6 +457,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
             )}
           </ComposedChart>
         </ResponsiveContainer>
+        </div>
       </div>
 
       {/* ── Recommendation note from LifestyleSimulationModule ─────────────── */}
