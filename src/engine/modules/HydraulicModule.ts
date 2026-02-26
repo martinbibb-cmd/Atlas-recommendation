@@ -66,16 +66,19 @@ export function runHydraulicModuleV1(input: EngineInputV2_3): HydraulicModuleV1R
     );
   }
 
+  // Safe capacity for current pipe at ASHP ΔT = flow at the warn threshold
+  const ashpSafeFlowLpm = calcFlowLpm(thresholds.ashpWarnKw, ASHP_DELTA_T);
+
   if (ashpRisk === 'fail') {
     notes.push(
-      `🚫 ASHP Rejected: Heat pumps operate at ΔT ${ASHP_DELTA_T}°C, requiring ` +
-      `${ashpFlowLpm.toFixed(1)} L/min — approximately ${(ashpFlowLpm / boilerFlowLpm).toFixed(1)}× ` +
-      `the boiler flow. ${input.primaryPipeDiameter}mm primaries cannot sustain this without ` +
-      `exceeding velocity limits; pipe noise, erosion, and efficiency loss are inevitable.`
+      `❌ ASHP at ΔT ${ASHP_DELTA_T}°C requires ${ashpFlowLpm.toFixed(1)} L/min\n` +
+      `▸ ${input.primaryPipeDiameter}mm pipe max safe flow: ~${ashpSafeFlowLpm.toFixed(0)} L/min\n` +
+      `▸ Velocity = ${(ashpFlowLpm / ashpSafeFlowLpm).toFixed(1)}× safe limit\n` +
+      `▸ Upgrade to 28mm would enable this option.`
     );
   } else if (ashpRisk === 'warn') {
     notes.push(
-      `⚠️ Hydraulic Warning: ASHP at ΔT ${ASHP_DELTA_T}°C demands ${ashpFlowLpm.toFixed(1)} L/min ` +
+      `⚠️ ASHP at ΔT ${ASHP_DELTA_T}°C demands ${ashpFlowLpm.toFixed(1)} L/min ` +
       `(~${(ashpFlowLpm / boilerFlowLpm).toFixed(1)}× boiler flow). ` +
       `${input.primaryPipeDiameter}mm primary pipework is marginal — performance may be clipped ` +
       `and pipe erosion is possible. Consider upgrading to 28mm.`

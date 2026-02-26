@@ -13,6 +13,8 @@
 const INCONSISTENCY_TOLERANCE = 0.2;
 /** Drop threshold (bar) above which a large-drop warning note is added. */
 const LARGE_DROP_THRESHOLD = 1.0;
+/** Maximum credible static pressure (bar) — above this is likely a gauge error. */
+const MAX_CREDIBLE_STATIC_BAR = 8.0;
 
 export interface PressureAnalysis {
   /** Static mains pressure (bar) — measured with no flow. */
@@ -38,6 +40,16 @@ export interface PressureAnalysis {
 export function analysePressure(dynamicBar: number, staticBar?: number): PressureAnalysis {
   const notes: string[] = [];
 
+  // Guardrail: static pressure > 8 bar is likely a gauge error or unit mismatch
+  if (staticBar !== undefined && staticBar > MAX_CREDIBLE_STATIC_BAR) {
+    notes.push(
+      `This looks like a gauge error or unit mismatch (possibly kPa entered as bar). ` +
+      `Static pressure ${staticBar.toFixed(1)} bar exceeds the 8 bar credible limit — ` +
+      `capped to ${MAX_CREDIBLE_STATIC_BAR.toFixed(0)} bar for modelling.`
+    );
+    staticBar = MAX_CREDIBLE_STATIC_BAR;
+  }
+
   if (staticBar !== undefined) {
     // Hard rule: dynamic must not exceed static (within tolerance)
     if (dynamicBar > staticBar + INCONSISTENCY_TOLERANCE) {
@@ -49,6 +61,14 @@ export function analysePressure(dynamicBar: number, staticBar?: number): Pressur
     }
 
     const dropBar = staticBar - dynamicBar;
+
+    // Guardrail: zero dynamic drop with high static may indicate instrument error
+    if (Math.abs(dropBar) < 0.001 && staticBar > 0) {
+      notes.push(
+        `Dynamic drop = 0 — this may indicate a gauge error or unit mismatch ` +
+        `(possibly L/sec). Confirm readings with a separate flow test.`
+      );
+    }
 
     if (dropBar >= LARGE_DROP_THRESHOLD) {
       notes.push('Large pressure drop suggests restriction/shared main — confirm with a flow test.');
