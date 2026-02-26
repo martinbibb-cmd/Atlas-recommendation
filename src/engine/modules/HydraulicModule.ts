@@ -39,7 +39,7 @@ const PIPE_ID_MM_TO_AREA_M2: Record<number, number> = {
  * Base ASHP COP used when computing the velocity-penalised effective COP.
  * Represents a typical seasonal performance factor at standard conditions.
  */
-const BASE_ASHP_COP = 3.2;
+export const BASE_ASHP_COP = 3.2;
 
 /**
  * Clamp a value to [min, max].

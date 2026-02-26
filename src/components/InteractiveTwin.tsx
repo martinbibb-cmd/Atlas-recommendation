@@ -1,19 +1,24 @@
 /**
  * InteractiveTwin
  *
- * The "Interactive Twin" presentation layer.  Combines three interactive
+ * The "Interactive Twin" presentation layer.  Combines interactive
  * visualisers into one educational simulation panel:
  *
- *   1. OccupancyClock  – drag-and-drop 24-hour routine painter
- *   2. SystemFlushSlider – maintenance recovery scenario
- *   3. MixergyTankVisualizer – State of Charge animated tank
+ *   1. PerformanceBandLadder + RecoveryStepsPanel – SEDBUK band ladder with contextual steps
+ *   2. OccupancyClock  – drag-and-drop 24-hour routine painter
+ *   3. SystemFlushSlider – maintenance recovery scenario
+ *   4. MixergyTankVisualizer – State of Charge animated tank
  */
 import { useState } from 'react';
 import OccupancyClock from './visualizers/OccupancyClock';
 import type { HourOccupancy } from './visualizers/OccupancyClock';
 import SystemFlushSlider from './visualizers/SystemFlushSlider';
 import MixergyTankVisualizer from './visualizers/MixergyTankVisualizer';
-import type { MixergyResult } from '../engine/schema/EngineInputV2_3';
+import type { HydraulicModuleV1Result, MixergyResult } from '../engine/schema/EngineInputV2_3';
+import { getNominalEfficiencyPct } from '../engine/utils/efficiency';
+import PerformanceBandLadder from './PerformanceBandLadder';
+import RecoveryStepsPanel from './RecoveryStepsPanel';
+import type { SystemType } from './RecoveryStepsPanel';
 
 /** Minimum home-hours per day to favour a heat pump's "continuous low-level" profile */
 const HEAT_PUMP_HOME_HOURS_THRESHOLD = 14;
@@ -28,6 +33,18 @@ interface Props {
   nominalEfficiencyPct: number;
   /** Annual gas spend for the saving calculation */
   annualGasSpendGbp?: number;
+  /** Hydraulic module result — used to gate the hydraulics recovery step. */
+  hydraulic?: HydraulicModuleV1Result;
+  /** System type for compare side A (e.g. 'ashp', 'boiler'). */
+  systemAType?: SystemType;
+  /** System type for compare side B. */
+  systemBType?: SystemType;
+  /** Post clean & protect efficiency (defaults to nominalEfficiencyPct when omitted). */
+  restoredPct?: number;
+  /** Confidence in the currentEfficiencyPct estimate. */
+  confidence?: 'high' | 'medium' | 'low';
+  /** Top degradation contributors (label + valuePct). */
+  contributors?: { label: string; valuePct: number }[];
   onBack?: () => void;
 }
 
@@ -36,11 +53,35 @@ export default function InteractiveTwin({
   currentEfficiencyPct,
   nominalEfficiencyPct,
   annualGasSpendGbp = 1200,
+  hydraulic,
+  systemAType,
+  systemBType,
+  restoredPct,
+  confidence = 'medium',
+  contributors = [],
   onBack,
 }: Props) {
   const [occupancy, setOccupancy] = useState<HourOccupancy[]>([]);
+  const [hoveredMarker, setHoveredMarker] = useState<string | null>(null);
   const homeHours = occupancy.filter(o => o.state === 'home').length;
   const awayHours = occupancy.filter(o => o.state === 'away').length;
+
+  const newBaselinePct = getNominalEfficiencyPct();
+  const effectiveRestoredPct = restoredPct ?? nominalEfficiencyPct;
+
+  // Minimal no-penalty hydraulic result used when caller does not provide one.
+  // ΔT values: boiler 20°C, ASHP 5°C (standard design assumptions).
+  // effectiveCOP 3.2 = BASE_ASHP_COP baseline (no velocity degradation).
+  const fallbackHydraulic: HydraulicModuleV1Result = {
+    boiler: { deltaT: 20, flowLpm: 0 },  // standard boiler design ΔT
+    ashp: { deltaT: 5, flowLpm: 0, velocityMs: 0 },  // standard ASHP design ΔT
+    verdict: { boilerRisk: 'pass', ashpRisk: 'pass' },
+    velocityPenalty: 0,
+    effectiveCOP: 3.2,  // BASE_ASHP_COP — no velocity penalty applied
+    flowDeratePct: 0,
+    notes: [],
+  };
+  const effectiveHydraulic = hydraulic ?? fallbackHydraulic;
 
   return (
     <div className="stepper-container">
@@ -51,6 +92,41 @@ export default function InteractiveTwin({
         <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#2d3748', margin: 0 }}>
           🏠 Interactive Twin Simulation
         </h2>
+      </div>
+
+      {/* ── Performance Band Ladder + Recovery Steps ─────────────────────── */}
+      <div className="result-section">
+        <h3>📊 Efficiency Band Analysis</h3>
+        <p className="description" style={{ marginBottom: '0.75rem' }}>
+          Compare current seasonal performance against SEDBUK bands and see the recovery steps
+          that will restore or raise your system's efficiency band.
+        </p>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(160px, 220px) 1fr',
+          gap: '1.5rem',
+          alignItems: 'flex-start',
+        }}>
+          <div>
+            <PerformanceBandLadder
+              nominalPct={nominalEfficiencyPct}
+              currentEffectivePct={currentEfficiencyPct}
+              restoredPct={effectiveRestoredPct}
+              newBaselinePct={newBaselinePct}
+              confidence={confidence}
+              contributors={contributors}
+              onMarkerHover={setHoveredMarker}
+            />
+          </div>
+          <div>
+            <RecoveryStepsPanel
+              systemAType={systemAType}
+              systemBType={systemBType}
+              hydraulic={effectiveHydraulic}
+              highlightedMarker={hoveredMarker}
+            />
+          </div>
+        </div>
       </div>
 
       {/* ── Occupancy Clock ─────────────────────────────────────────────── */}
