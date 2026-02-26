@@ -3221,6 +3221,10 @@ function FullSurveyResults({
           nominalEfficiencyPct,
           currentEfficiencyPct,
           input.systemAgeYears ?? 0,
+          input.currentHeatSourceType === 'combi' ? {
+            maxQtoDhwKw: results.combiDhwV1.maxQtoDhwKw,
+            maxQtoDhwKwDerated: results.combiDhwV1.maxQtoDhwKwDerated,
+          } : undefined,
         )} />
       </div>
 
