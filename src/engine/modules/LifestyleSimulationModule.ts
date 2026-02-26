@@ -19,7 +19,7 @@ const PROFESSIONAL_EVENING_SHOULDER_DEMAND = 0.70;
 // ── Dynamic thermal model constants ──────────────────────────────────────────
 
 /** UK design outdoor temperature (°C) — SAP 2012 design point. */
-const DESIGN_OUTDOOR_TEMP_C = -3;
+export const DESIGN_OUTDOOR_TEMP_C = -3;
 
 /** UK design indoor temperature (°C). */
 const DESIGN_INDOOR_TEMP_C = 21;
@@ -130,13 +130,17 @@ function getRecommendedSystem(signature: OccupancySignature): LifestyleResult['r
  *   dt = 3600 s
  *   C_building in kJ/K
  *
+ * Assumption: T_outdoor is fixed at DESIGN_OUTDOOR_TEMP_C (−3 °C, SAP 2012
+ * design point).  This is appropriate for sizing/comparison purposes but will
+ * underestimate temperatures when actual outdoor temps are milder.
+ *
  * @param profile   Hourly demand fraction array (length 24).
  * @param plantKwFn Maps (hour, demandFraction) → plant output kW for this system.
  * @param heatLossKw Design heat loss at standard conditions (kW).
  * @param cBuilding  Effective thermal capacity of the building fabric (kJ/K).
  * @returns Array of 24 room temperatures (°C, 1 d.p.).
  */
-function buildDynamicRoomTrace(
+export function buildDynamicRoomTrace(
   profile: HourlyProfile,
   plantKwFn: (h: number, demand: number) => number,
   heatLossKw: number,

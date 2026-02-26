@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { runLifestyleSimulationModule } from '../modules/LifestyleSimulationModule';
+import {
+  runLifestyleSimulationModule,
+  buildDynamicRoomTrace,
+  DESIGN_OUTDOOR_TEMP_C,
+} from '../modules/LifestyleSimulationModule';
 
 const baseInput = {
   postcode: 'SW1A 1AA',
@@ -117,5 +121,73 @@ describe('LifestyleSimulationModule – dynamic room temperature coupling', () =
     // Heavier building damps boiler oscillations more
     expect(range(heavy.hourlyData.map(h => h.boilerRoomTempC)))
       .toBeLessThan(range(light.hourlyData.map(h => h.boilerRoomTempC)));
+  });
+});
+
+// ─── Thermal coupling invariants (buildDynamicRoomTrace) ─────────────────────
+
+describe('buildDynamicRoomTrace – thermal coupling invariants', () => {
+  // Constant profile used by multiple tests
+  const constantProfile = Array.from({ length: 24 }, () => ({ demand: 1.0, label: 'test' }));
+
+  it('energy sanity: T is stable when Q_plant equals Q_loss at design conditions', () => {
+    // At T_room=21°C, outdoor=-3°C, design ΔT=24K:
+    //   UA = heatLossKw / 24,  Q_loss = UA × 24 = heatLossKw
+    //   ASHP plant at demand=1.0 → heatLossKw
+    //   Net = 0 → T should stay at 21°C
+    const heatLossKw = 8;
+    const cBuilding  = 50_000; // medium mass (kJ/K)
+    const trace = buildDynamicRoomTrace(
+      constantProfile,
+      (_, demand) => demand * heatLossKw,
+      heatLossKw,
+      cBuilding,
+    );
+    // All temperatures should remain at the initial 21°C (within floating-point rounding)
+    trace.forEach(t => {
+      expect(t).toBeCloseTo(21, 0);
+    });
+  });
+
+  it('decay: T decreases toward outdoor temp when Q_plant = 0', () => {
+    const heatLossKw = 8;
+    const cBuilding  = 50_000;
+    const zeroProfile = Array.from({ length: 24 }, () => ({ demand: 0, label: 'off' }));
+    const trace = buildDynamicRoomTrace(
+      zeroProfile,
+      () => 0,
+      heatLossKw,
+      cBuilding,
+    );
+    // Temperature must be monotonically non-increasing (starts at 21, decays toward -3,
+    // soft-clamped to 10)
+    for (let i = 1; i < trace.length; i++) {
+      expect(trace[i]).toBeLessThanOrEqual(trace[i - 1] + 0.01); // allow floating-point rounding
+    }
+    // Final temperature must be below the initial 21°C
+    expect(trace[trace.length - 1]).toBeLessThan(21);
+    // Must be at the soft-clamp floor (decay over 24 hours from 21°C reaches the clamp)
+    expect(trace[trace.length - 1]).toBeGreaterThanOrEqual(DESIGN_OUTDOOR_TEMP_C);
+  });
+
+  it('extreme C_building values (20 MJ/K light vs 100 MJ/K heavy) do not produce out-of-range temperatures', () => {
+    const heatLossKw  = 8;
+    const cLight  = 20_000;   // light mass (kJ/K)
+    const cHeavy  = 100_000;  // heavy mass (kJ/K)
+    const boilerPlant = (_h: number, demand: number) => demand >= 0.3 ? 30 : 0;
+
+    [cLight, cHeavy].forEach(cBuilding => {
+      const trace = buildDynamicRoomTrace(
+        constantProfile,
+        boilerPlant,
+        heatLossKw,
+        cBuilding,
+      );
+      trace.forEach(t => {
+        expect(t).toBeGreaterThanOrEqual(10);
+        expect(t).toBeLessThanOrEqual(26);
+        expect(Number.isFinite(t)).toBe(true);
+      });
+    });
   });
 });

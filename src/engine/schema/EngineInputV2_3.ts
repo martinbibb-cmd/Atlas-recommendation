@@ -636,13 +636,13 @@ export interface HeatPumpRegimeModuleV1Result {
   /** Seasonal Performance Factor band at the derived flow temp. */
   spfBand: 'good' | 'ok' | 'poor';
   /**
-   * Bilinear COP estimate at standard EN14511 test conditions (+7 °C outdoor).
+   * Affine (planar) COP estimate at standard EN14511 test conditions (+7 °C outdoor).
    * Derived from: COP = REF_COP + OUTDOOR_SENSITIVITY × (outdoorTemp − 7) − FLOW_TEMP_SENSITIVITY × (flowTemp − 35).
    * Provides a physics-based point estimate rather than a band label.
    */
   designCopEstimate: number;
   /**
-   * Bilinear COP estimate at cold-morning design conditions (−3 °C outdoor).
+   * Affine (planar) COP estimate at cold-morning design conditions (−3 °C outdoor).
    * Lower than designCopEstimate; useful for worst-case morning sizing checks.
    */
   coldMorningCopEstimate: number;

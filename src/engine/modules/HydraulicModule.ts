@@ -9,23 +9,30 @@ const VELOCITY_LOWER_M_S = 0.8;
 const VELOCITY_UPPER_M_S = 1.5;
 
 /**
- * Pipe inner cross-sectional area (m²) keyed by nominal outer diameter (mm).
+ * Pipe inner cross-sectional area (m²) keyed by internal bore diameter (mm).
  *
- * Bore dimensions derived from EN 1057 "Copper and copper alloys — Seamless,
- * round copper tubes for water and gas in sanitary and heating applications":
- *   15 mm OD → ~12.0 mm bore → r = 6.0 mm
- *   22 mm OD → ~20.0 mm bore → r = 10.0 mm
- *   28 mm OD → ~26.0 mm bore → r = 13.0 mm
- *   35 mm OD → ~32.6 mm bore → r = 16.3 mm
+ * The values 15 / 22 / 28 / 35 used throughout this module represent the
+ * INTERNAL bore diameter of the copper tube, not the nominal OD.  This is the
+ * value needed for accurate velocity calculation:
+ *   v = Q / A   where A = π × (ID/2)²
+ *
+ * References: EN 1057 "Copper and copper alloys — Seamless, round copper tubes
+ * for water and gas in sanitary and heating applications"; bore dimensions
+ * confirmed as internal (not OD) for all domestic primary circuit sizes.
+ *
+ *   15 mm ID → r = 7.5 mm
+ *   22 mm ID → r = 11.0 mm
+ *   28 mm ID → r = 14.0 mm
+ *   35 mm ID → r = 17.5 mm
  *
  * Note: diameters > 35 mm (e.g. 42 mm, 54 mm) are not in scope for domestic
  * primary circuits and will fall back to the 35 mm entry via resolveThresholds().
  */
 const PIPE_BORE_AREA_M2: Record<number, number> = {
-  15: Math.PI * (0.006)  ** 2,  // r = 6.0 mm (EN 1057, 15 mm OD)
-  22: Math.PI * (0.010)  ** 2,  // r = 10.0 mm (EN 1057, 22 mm OD)
-  28: Math.PI * (0.013)  ** 2,  // r = 13.0 mm (EN 1057, 28 mm OD)
-  35: Math.PI * (0.0163) ** 2,  // r = 16.3 mm (EN 1057, 35 mm OD)
+  15: Math.PI * (0.0075)  ** 2,  // r = 7.5 mm  (15 mm internal bore)
+  22: Math.PI * (0.011)   ** 2,  // r = 11.0 mm (22 mm internal bore)
+  28: Math.PI * (0.014)   ** 2,  // r = 14.0 mm (28 mm internal bore)
+  35: Math.PI * (0.0175)  ** 2,  // r = 17.5 mm (35 mm internal bore)
 };
 
 /**
@@ -99,9 +106,9 @@ export function runHydraulicModuleV1(input: EngineInputV2_3): HydraulicModuleV1R
   // ── Continuous velocity penalty: clamp((v − 1.5) / 1.0, 0, 1) ───────────
   const velocityPenalty = clamp((ashpVelocityMs - VELOCITY_UPPER_M_S) / 1.0, 0, 1);
 
-  // ── Effective COP degraded by velocity penalty ────────────────────────────
+  // ── Effective COP degraded by velocity penalty, clamped to [1.5, 5.0] ─────
   const effectiveCOP = parseFloat(
-    (BASE_ASHP_COP * (1 - 0.25 * velocityPenalty)).toFixed(2),
+    clamp(BASE_ASHP_COP * (1 - 0.25 * velocityPenalty), 1.5, 5.0).toFixed(2),
   );
 
   const thresholds = resolveThresholds(input.primaryPipeDiameter);

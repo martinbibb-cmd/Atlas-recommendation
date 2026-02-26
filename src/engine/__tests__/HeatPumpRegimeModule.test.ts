@@ -173,8 +173,8 @@ describe('HeatPumpRegimeModuleV1 – bilinear COP estimates', () => {
     expect(result.coldMorningCopEstimate).toBeLessThan(result.designCopEstimate);
   });
 
-  it('assumptions array mentions the bilinear COP model', () => {
+  it('assumptions array mentions the affine COP plane model', () => {
     const result = runHeatPumpRegimeModuleV1(baseInput);
-    expect(result.assumptions.some(a => a.toLowerCase().includes('bilinear'))).toBe(true);
+    expect(result.assumptions.some(a => a.toLowerCase().includes('affine'))).toBe(true);
   });
 });
