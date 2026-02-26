@@ -13,6 +13,7 @@ import { describe, it, expect } from 'vitest';
 import {
   defaultScenarioProfile,
   applyScenarioOverrides,
+  assertDemandTimelinesEqual,
   dhwLpmToKw,
   type HeatIntentLevel,
   type ScenarioProfileV1,
@@ -63,7 +64,7 @@ describe('defaultScenarioProfile', () => {
 
   it('returns exactly 24 elements in each array', () => {
     expect(profile.heatIntent).toHaveLength(24);
-    expect(profile.dhwLpm).toHaveLength(24);
+    expect(profile.dhwMixedLpm40).toHaveLength(24);
     expect(profile.coldLpm).toHaveLength(24);
   });
 
@@ -88,9 +89,9 @@ describe('defaultScenarioProfile', () => {
   });
 
   it('DHW L/min is positive during morning peak hours (06–08)', () => {
-    expect(profile.dhwLpm[6]).toBeGreaterThan(0);
-    expect(profile.dhwLpm[7]).toBeGreaterThan(0);
-    expect(profile.dhwLpm[8]).toBeGreaterThan(0);
+    expect(profile.dhwMixedLpm40[6]).toBeGreaterThan(0);
+    expect(profile.dhwMixedLpm40[7]).toBeGreaterThan(0);
+    expect(profile.dhwMixedLpm40[8]).toBeGreaterThan(0);
   });
 
   it('cold draw is all-zero in measured baseline', () => {
@@ -100,7 +101,7 @@ describe('defaultScenarioProfile', () => {
   it('bathroomCount=3 produces higher peak DHW than bathroomCount=1', () => {
     const p1 = defaultScenarioProfile({ ...BASE_INPUT, bathroomCount: 1 });
     const p3 = defaultScenarioProfile({ ...BASE_INPUT, bathroomCount: 3 });
-    expect(p3.dhwLpm[7]).toBeGreaterThan(p1.dhwLpm[7]);
+    expect(p3.dhwMixedLpm40[7]).toBeGreaterThan(p1.dhwMixedLpm40[7]);
   });
 });
 
@@ -116,7 +117,7 @@ describe('applyScenarioOverrides — demand channels', () => {
   it('heatIntent=2 (comfort) maps to 100% of heatLossWatts / 1000 kW', () => {
     const profile: ScenarioProfileV1 = {
       heatIntent: Array(24).fill(2) as HeatIntentLevel[],
-      dhwLpm: Array(24).fill(0),
+      dhwMixedLpm40: Array(24).fill(0),
       coldLpm: Array(24).fill(0),
       source: 'measured',
       resolutionMins: 60,
@@ -130,7 +131,7 @@ describe('applyScenarioOverrides — demand channels', () => {
   it('heatIntent=0 (off) maps to 0 kW', () => {
     const profile: ScenarioProfileV1 = {
       heatIntent: Array(24).fill(0) as HeatIntentLevel[],
-      dhwLpm: Array(24).fill(0),
+      dhwMixedLpm40: Array(24).fill(0),
       coldLpm: Array(24).fill(0),
       source: 'measured',
       resolutionMins: 60,
@@ -144,7 +145,7 @@ describe('applyScenarioOverrides — demand channels', () => {
   it('heatIntent=1 (setback) maps to 40% of heatLossWatts', () => {
     const profile: ScenarioProfileV1 = {
       heatIntent: Array(24).fill(1) as HeatIntentLevel[],
-      dhwLpm: Array(24).fill(0),
+      dhwMixedLpm40: Array(24).fill(0),
       coldLpm: Array(24).fill(0),
       source: 'measured',
       resolutionMins: 60,
@@ -155,10 +156,10 @@ describe('applyScenarioOverrides — demand channels', () => {
     });
   });
 
-  it('dhwLpm=3 maps to ~7.33 kW demand', () => {
+  it('dhwMixedLpm40=3 maps to ~7.33 kW demand', () => {
     const profile: ScenarioProfileV1 = {
       heatIntent: Array(24).fill(0) as HeatIntentLevel[],
-      dhwLpm: Array(24).fill(3),
+      dhwMixedLpm40: Array(24).fill(3),
       coldLpm: Array(24).fill(0),
       source: 'measured',
       resolutionMins: 60,
@@ -172,7 +173,7 @@ describe('applyScenarioOverrides — demand channels', () => {
   it('coldLpm values are passed through to output', () => {
     const profile: ScenarioProfileV1 = {
       heatIntent: Array(24).fill(0) as HeatIntentLevel[],
-      dhwLpm: Array(24).fill(0),
+      dhwMixedLpm40: Array(24).fill(0),
       coldLpm: Array(24).fill(3),
       source: 'measured',
       resolutionMins: 60,
@@ -190,7 +191,7 @@ describe('applyScenarioOverrides — combi service-switching', () => {
   it('when DHW demand is active, CH output is 0 for combi', () => {
     const profile: ScenarioProfileV1 = {
       heatIntent: Array(24).fill(2) as HeatIntentLevel[], // comfort all day
-      dhwLpm: Array(24).fill(3),                           // DHW on all day
+      dhwMixedLpm40: Array(24).fill(3),                   // DHW on all day
       coldLpm: Array(24).fill(0),
       source: 'measured',
       resolutionMins: 60,
@@ -204,7 +205,7 @@ describe('applyScenarioOverrides — combi service-switching', () => {
   it('stored system delivers both CH and DHW simultaneously', () => {
     const profile: ScenarioProfileV1 = {
       heatIntent: Array(24).fill(2) as HeatIntentLevel[],
-      dhwLpm: Array(24).fill(3),
+      dhwMixedLpm40: Array(24).fill(3),
       coldLpm: Array(24).fill(0),
       source: 'measured',
       resolutionMins: 60,
@@ -219,7 +220,7 @@ describe('applyScenarioOverrides — combi service-switching', () => {
   it('combi η is reduced during DHW hours (not full 92%)', () => {
     const profile: ScenarioProfileV1 = {
       heatIntent: Array(24).fill(2) as HeatIntentLevel[],
-      dhwLpm: [0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+      dhwMixedLpm40: [0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
       coldLpm: Array(24).fill(0),
       source: 'measured',
       resolutionMins: 60,
@@ -235,29 +236,32 @@ describe('applyScenarioOverrides — combi service-switching', () => {
 // ─── Combi purge pulse ────────────────────────────────────────────────────────
 
 describe('applyScenarioOverrides — combi purge pulse', () => {
-  it('first DHW draw after idle produces negative η (purge dump)', () => {
+  it('first DHW draw after idle produces negative η (purge dump, energy-flow model)', () => {
     // Hour 5: idle → Hour 6: first DHW draw → purge pulse
-    const dhwLpm = Array(24).fill(0);
-    dhwLpm[6] = 3; // only hour 6 has DHW
+    const dhwMixedLpm40 = Array(24).fill(0);
+    dhwMixedLpm40[6] = 3; // only hour 6 has DHW
     const profile: ScenarioProfileV1 = {
       heatIntent: Array(24).fill(0) as HeatIntentLevel[],
-      dhwLpm,
+      dhwMixedLpm40,
       coldLpm: Array(24).fill(0),
       source: 'measured',
       resolutionMins: 60,
     };
     const out = applyScenarioOverrides(BASE_INPUT, profile, 'combi', 'ashp', SPF_MIDPOINT);
-    // Hour 6 is a purge pulse (previous hour had 0 DHW)
+    // Hour 6 is a purge pulse: qToDhwKw < 0 (negative delivery) and etaOrCop < 0
+    expect(out.hourly[6].systemA.qToDhwKw).toBeLessThan(0);
     expect(out.hourly[6].systemA.etaOrCop).toBeLessThan(0);
+    // qDumpKw is positive (energy wasted)
+    expect(out.hourly[6].systemA.qDumpKw).toBeGreaterThan(0);
   });
 
   it('second consecutive DHW draw is not a purge pulse — η penalty only', () => {
-    const dhwLpm = Array(24).fill(0);
-    dhwLpm[6] = 3;
-    dhwLpm[7] = 3; // consecutive draw after purge
+    const dhwMixedLpm40 = Array(24).fill(0);
+    dhwMixedLpm40[6] = 3;
+    dhwMixedLpm40[7] = 3; // consecutive draw after purge
     const profile: ScenarioProfileV1 = {
       heatIntent: Array(24).fill(0) as HeatIntentLevel[],
-      dhwLpm,
+      dhwMixedLpm40,
       coldLpm: Array(24).fill(0),
       source: 'measured',
       resolutionMins: 60,
@@ -266,14 +270,16 @@ describe('applyScenarioOverrides — combi purge pulse', () => {
     // Hour 7 follows a DHW draw → not a purge → η clamped to [0.50, 0.99]
     expect(out.hourly[7].systemA.etaOrCop).toBeGreaterThanOrEqual(0.50);
     expect(out.hourly[7].systemA.etaOrCop).toBeLessThanOrEqual(0.99);
+    // qToDhwKw is positive (real delivery)
+    expect(out.hourly[7].systemA.qToDhwKw).toBeGreaterThan(0);
   });
 
   it('stored system has no purge pulse — η stays at 0.92 during first DHW draw', () => {
-    const dhwLpm = Array(24).fill(0);
-    dhwLpm[6] = 3;
+    const dhwMixedLpm40 = Array(24).fill(0);
+    dhwMixedLpm40[6] = 3;
     const profile: ScenarioProfileV1 = {
       heatIntent: Array(24).fill(0) as HeatIntentLevel[],
-      dhwLpm,
+      dhwMixedLpm40,
       coldLpm: Array(24).fill(0),
       source: 'measured',
       resolutionMins: 60,
@@ -289,7 +295,7 @@ describe('applyScenarioOverrides — ASHP COP', () => {
   it('ASHP COP equals spfMidpoint (no cold dip) during daytime hours', () => {
     const profile: ScenarioProfileV1 = {
       heatIntent: Array(24).fill(2) as HeatIntentLevel[],
-      dhwLpm: Array(24).fill(0),
+      dhwMixedLpm40: Array(24).fill(0),
       coldLpm: Array(24).fill(0),
       source: 'measured',
       resolutionMins: 60,
@@ -304,7 +310,7 @@ describe('applyScenarioOverrides — ASHP COP', () => {
   it('ASHP cold-morning COP is lower than daytime COP (hours 0–6)', () => {
     const profile: ScenarioProfileV1 = {
       heatIntent: Array(24).fill(2) as HeatIntentLevel[],
-      dhwLpm: Array(24).fill(0),
+      dhwMixedLpm40: Array(24).fill(0),
       coldLpm: Array(24).fill(0),
       source: 'measured',
       resolutionMins: 60,
@@ -356,5 +362,50 @@ describe('applyScenarioOverrides — both systems share same demand', () => {
         expect(out.systemBType).toBe(b);
       }
     }
+  });
+});
+
+// ─── Resolution invariant ─────────────────────────────────────────────────────
+
+describe('applyScenarioOverrides — resolution invariant', () => {
+  it('N = 1440 / resolutionMins: 60-min resolution → 24 slices', () => {
+    const profile = defaultScenarioProfile(BASE_INPUT, 60);
+    expect(profile.heatIntent).toHaveLength(24);
+    expect(profile.dhwMixedLpm40).toHaveLength(24);
+    expect(profile.coldLpm).toHaveLength(24);
+    expect(profile.resolutionMins).toBe(60);
+    // Should not throw
+    expect(() => applyScenarioOverrides(BASE_INPUT, profile, 'combi', 'ashp', SPF_MIDPOINT)).not.toThrow();
+  });
+
+  it('mismatched array length throws with a clear message', () => {
+    const profile: ScenarioProfileV1 = {
+      heatIntent: Array(24).fill(1) as HeatIntentLevel[],
+      dhwMixedLpm40: Array(24).fill(0), // wrong: 24 but resolutionMins=30 expects 48
+      coldLpm: Array(24).fill(0),
+      source: 'measured',
+      resolutionMins: 30,
+    };
+    expect(() => applyScenarioOverrides(BASE_INPUT, profile, 'combi', 'ashp', SPF_MIDPOINT))
+      .toThrow(/array length mismatch/i);
+  });
+});
+
+// ─── assertDemandTimelinesEqual ───────────────────────────────────────────────
+
+describe('assertDemandTimelinesEqual', () => {
+  it('passes when two outputs are built from the same profile', () => {
+    const profile = defaultScenarioProfile(BASE_INPUT);
+    const outAB = applyScenarioOverrides(BASE_INPUT, profile, 'combi', 'ashp', SPF_MIDPOINT);
+    const outBA = applyScenarioOverrides(BASE_INPUT, profile, 'ashp', 'combi', SPF_MIDPOINT);
+    expect(() => assertDemandTimelinesEqual(outAB, outBA)).not.toThrow();
+  });
+
+  it('throws when demand timelines differ', () => {
+    const profile1 = defaultScenarioProfile({ ...BASE_INPUT, heatLossWatts: 8000 });
+    const profile2 = defaultScenarioProfile({ ...BASE_INPUT, heatLossWatts: 12000 });
+    const out1 = applyScenarioOverrides(BASE_INPUT, profile1, 'combi', 'ashp', SPF_MIDPOINT);
+    const out2 = applyScenarioOverrides({ ...BASE_INPUT, heatLossWatts: 12000 }, profile2, 'combi', 'ashp', SPF_MIDPOINT);
+    expect(() => assertDemandTimelinesEqual(out1, out2)).toThrow();
   });
 });

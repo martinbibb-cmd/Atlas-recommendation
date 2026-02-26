@@ -71,6 +71,17 @@ export function computeCurrentEfficiencyPct(nominalPct: number, decayPct: number
 }
 
 /**
+ * Return the nominal boiler efficiency percentage.
+ *
+ * Use this function (not the raw constant) in physics modules so that all
+ * call sites can be found and audited. Literals like `92` in module code
+ * are prohibited — always call `getNominalEfficiencyPct()` instead.
+ */
+export function getNominalEfficiencyPct(): number {
+  return DEFAULT_NOMINAL_EFFICIENCY_PCT;
+}
+
+/**
  * Derive the ErP energy label class (A–G) from a nominal seasonal efficiency (percentage points).
  *
  * Returns the highest class whose midpoint the nominal efficiency meets or exceeds.
