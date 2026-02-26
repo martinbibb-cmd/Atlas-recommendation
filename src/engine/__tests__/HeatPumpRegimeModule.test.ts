@@ -107,11 +107,11 @@ describe('HeatPumpRegimeModuleV1', () => {
   });
 });
 
-// ─── Bilinear COP curve ───────────────────────────────────────────────────────
+// ─── Affine (planar) COP curve ────────────────────────────────────────────────
 
-import { computeAshpCop } from '../modules/HeatPumpRegimeModule';
+import { computeAshpCop, describeCopModelAssumptions } from '../modules/HeatPumpRegimeModule';
 
-describe('computeAshpCop – bilinear model', () => {
+describe('computeAshpCop – affine (planar) model', () => {
   it('returns REF_COP ≈ 4.1 at reference conditions (+7°C outdoor, 35°C flow)', () => {
     expect(computeAshpCop(7, 35)).toBeCloseTo(4.1, 1);
   });
@@ -142,7 +142,7 @@ describe('computeAshpCop – bilinear model', () => {
   });
 });
 
-describe('HeatPumpRegimeModuleV1 – bilinear COP estimates', () => {
+describe('HeatPumpRegimeModuleV1 – affine (planar) COP estimates', () => {
   it('designCopEstimate is present in the result', () => {
     const result = runHeatPumpRegimeModuleV1(baseInput);
     expect(typeof result.designCopEstimate).toBe('number');
@@ -176,5 +176,52 @@ describe('HeatPumpRegimeModuleV1 – bilinear COP estimates', () => {
   it('assumptions array mentions the affine COP plane model', () => {
     const result = runHeatPumpRegimeModuleV1(baseInput);
     expect(result.assumptions.some(a => a.toLowerCase().includes('affine'))).toBe(true);
+  });
+});
+
+// ─── describeCopModelAssumptions ─────────────────────────────────────────────
+
+describe('describeCopModelAssumptions', () => {
+  it('returns all four anchor corners', () => {
+    const info = describeCopModelAssumptions();
+    expect(info.corners).toHaveLength(4);
+  });
+
+  it('corner (+7°C, 35°C) ≈ 4.10 (full-job optimal)', () => {
+    const info = describeCopModelAssumptions();
+    const corner = info.corners.find(c => c.outdoorTempC === 7 && c.flowTempC === 35);
+    expect(corner?.cop).toBeCloseTo(4.10, 1);
+  });
+
+  it('corner (+7°C, 50°C) ≈ 3.05 (fast-fit at EN14511 outdoor)', () => {
+    const info = describeCopModelAssumptions();
+    const corner = info.corners.find(c => c.outdoorTempC === 7 && c.flowTempC === 50);
+    expect(corner?.cop).toBeCloseTo(3.05, 1);
+  });
+
+  it('corner (−3°C, 35°C) ≈ 3.10 (cold morning, low-temp system)', () => {
+    const info = describeCopModelAssumptions();
+    const corner = info.corners.find(c => c.outdoorTempC === -3 && c.flowTempC === 35);
+    expect(corner?.cop).toBeCloseTo(3.10, 1);
+  });
+
+  it('corner (−3°C, 50°C) ≈ 2.05 (cold morning, high-temp system — self-consistent derived value)', () => {
+    const info = describeCopModelAssumptions();
+    const corner = info.corners.find(c => c.outdoorTempC === -3 && c.flowTempC === 50);
+    expect(corner?.cop).toBeCloseTo(2.05, 1);
+  });
+
+  it('clamp range is [1.5, 5.0]', () => {
+    const info = describeCopModelAssumptions();
+    expect(info.clampMin).toBe(1.5);
+    expect(info.clampMax).toBe(5.0);
+  });
+
+  it('all corner COP values are within the clamp range', () => {
+    const info = describeCopModelAssumptions();
+    info.corners.forEach(c => {
+      expect(c.cop).toBeGreaterThanOrEqual(info.clampMin);
+      expect(c.cop).toBeLessThanOrEqual(info.clampMax);
+    });
   });
 });

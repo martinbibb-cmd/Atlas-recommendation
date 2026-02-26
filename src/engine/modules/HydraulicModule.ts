@@ -28,7 +28,7 @@ const VELOCITY_UPPER_M_S = 1.5;
  * Note: diameters > 35 mm (e.g. 42 mm, 54 mm) are not in scope for domestic
  * primary circuits and will fall back to the 35 mm entry via resolveThresholds().
  */
-const PIPE_BORE_AREA_M2: Record<number, number> = {
+const PIPE_ID_MM_TO_AREA_M2: Record<number, number> = {
   15: Math.PI * (0.0075)  ** 2,  // r = 7.5 mm  (15 mm internal bore)
   22: Math.PI * (0.011)   ** 2,  // r = 11.0 mm (22 mm internal bore)
   28: Math.PI * (0.014)   ** 2,  // r = 14.0 mm (28 mm internal bore)
@@ -63,7 +63,7 @@ export function calcFlowLpm(powerKw: number, deltaT: number): number {
 export function calcVelocityFromLpm(flowLpm: number, pipeDiameterMm: number): number {
   const areas = [35, 28, 22, 15] as const;
   const key = areas.find(k => pipeDiameterMm >= k) ?? 15;
-  const area = PIPE_BORE_AREA_M2[key];
+  const area = PIPE_ID_MM_TO_AREA_M2[key];
   return (flowLpm / 1000 / 60) / area;
 }
 

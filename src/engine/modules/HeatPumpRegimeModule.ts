@@ -67,7 +67,34 @@ export function computeAshpCop(outdoorTempC: number, flowTempC: number): number 
 }
 
 /**
- * HeatPumpRegimeModuleV1
+ * Returns the four explicit anchor points of the affine COP plane, the clamp
+ * range, and the sensitivity coefficients — useful for UI/debug display without
+ * duplicating the model constants.
+ */
+export function describeCopModelAssumptions(): {
+  corners: Array<{ outdoorTempC: number; flowTempC: number; cop: number }>;
+  clampMin: number;
+  clampMax: number;
+  refCop: number;
+  outdoorSensitivity: number;
+  flowSensitivity: number;
+} {
+  return {
+    corners: [
+      { outdoorTempC:  7, flowTempC: 35, cop: computeAshpCop( 7, 35) },
+      { outdoorTempC:  7, flowTempC: 50, cop: computeAshpCop( 7, 50) },
+      { outdoorTempC: -3, flowTempC: 35, cop: computeAshpCop(-3, 35) },
+      { outdoorTempC: -3, flowTempC: 50, cop: computeAshpCop(-3, 50) },
+    ],
+    clampMin: MIN_COP,
+    clampMax: MAX_COP,
+    refCop: REF_COP,
+    outdoorSensitivity: OUTDOOR_TEMP_SENSITIVITY,
+    flowSensitivity: FLOW_TEMP_SENSITIVITY,
+  };
+}
+
+/**
  *
  * Derives the design flow temperature band and expected SPF band for an ASHP
  * installation based on the installer / homeowner's emitter upgrade appetite.
@@ -101,7 +128,7 @@ export function runHeatPumpRegimeModuleV1(input: EngineInputV2_3): HeatPumpRegim
       break;
   }
 
-  // ── Bilinear COP estimates ────────────────────────────────────────────────
+  // ── Affine (planar) COP estimates ────────────────────────────────────────
   const designCopEstimate = computeAshpCop(STANDARD_OUTDOOR_TEMP_C, designFlowTempBand);
   const coldMorningCopEstimate = computeAshpCop(COLD_MORNING_OUTDOOR_TEMP_C, designFlowTempBand);
 
