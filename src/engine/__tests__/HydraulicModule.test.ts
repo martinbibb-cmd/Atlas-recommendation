@@ -234,4 +234,12 @@ describe('calcVelocityFromLpm – monotonic velocity across 15/22/28mm and 5–8
       });
     });
   });
+
+  it('unit sanity: velocity at 60 L/min in 15mm ID pipe is in (0, 10) m/s', () => {
+    // Catches accidental unit flips (L/min ↔ L/s).
+    // Expected: (0.001 m³/s) / (π × 0.0075² m²) ≈ 5.66 m/s — well within (0, 10).
+    const v = calcVelocityFromLpm(60, 15);
+    expect(v).toBeGreaterThan(0);
+    expect(v).toBeLessThan(10);
+  });
 });

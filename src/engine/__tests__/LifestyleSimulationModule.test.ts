@@ -190,4 +190,18 @@ describe('buildDynamicRoomTrace – thermal coupling invariants', () => {
       });
     });
   });
+
+  it('outdoorTempC override: warmer outdoor temp produces higher equilibrium than design (-3°C)', () => {
+    const heatLossKw = 8;
+    const cBuilding  = 50_000;
+    const zeroPlant  = () => 0;
+    const warmProfile = Array.from({ length: 24 }, () => ({ demand: 0, label: 'off' }));
+
+    // With plant off, temperature decays toward outdoor.
+    // Warmer outdoor → higher final temperature.
+    const traceDefault = buildDynamicRoomTrace(warmProfile, zeroPlant, heatLossKw, cBuilding);
+    const traceWarm    = buildDynamicRoomTrace(warmProfile, zeroPlant, heatLossKw, cBuilding, 10);
+
+    expect(traceWarm[23]).toBeGreaterThan(traceDefault[23]);
+  });
 });

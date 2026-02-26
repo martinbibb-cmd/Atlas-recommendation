@@ -138,6 +138,10 @@ function getRecommendedSystem(signature: OccupancySignature): LifestyleResult['r
  * @param plantKwFn Maps (hour, demandFraction) → plant output kW for this system.
  * @param heatLossKw Design heat loss at standard conditions (kW).
  * @param cBuilding  Effective thermal capacity of the building fabric (kJ/K).
+ * @param outdoorTempC Optional outdoor temperature override (°C).
+ *                     Defaults to DESIGN_OUTDOOR_TEMP_C (−3 °C, SAP 2012 design point).
+ *                     Provide a different value to model milder conditions or run tests
+ *                     with arbitrary boundary conditions without refactoring call sites.
  * @returns Array of 24 room temperatures (°C, 1 d.p.).
  */
 export function buildDynamicRoomTrace(
@@ -145,12 +149,13 @@ export function buildDynamicRoomTrace(
   plantKwFn: (h: number, demand: number) => number,
   heatLossKw: number,
   cBuilding: number,
+  outdoorTempC: number = DESIGN_OUTDOOR_TEMP_C,
 ): number[] {
   const UA = heatLossKw / DESIGN_DELTA_T_K; // kW/K
   let roomTemp = DESIGN_INDOOR_TEMP_C;
   return profile.map((hour, h) => {
     const qPlant = plantKwFn(h, hour.demand);
-    const qLoss  = UA * (roomTemp - DESIGN_OUTDOOR_TEMP_C);
+    const qLoss  = UA * (roomTemp - outdoorTempC);
     roomTemp += (qPlant - qLoss) * SECONDS_PER_HOUR / cBuilding;
     // Soft-clamp to physically plausible indoor range
     roomTemp = Math.min(26, Math.max(10, roomTemp));
