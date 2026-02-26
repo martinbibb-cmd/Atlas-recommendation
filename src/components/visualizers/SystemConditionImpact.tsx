@@ -35,7 +35,12 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { ConditionImpactResult } from '../../engine/modules/SystemConditionImpactModule';
-import { VELOCITY_LOWER_M_S, VELOCITY_UPPER_M_S } from '../../engine/modules/SystemConditionImpactModule';
+import {
+  VELOCITY_LOWER_M_S,
+  VELOCITY_UPPER_M_S,
+  COMFORT_SETPOINT_C,
+  COMFORT_BAND_HALF_K,
+} from '../../engine/modules/SystemConditionImpactModule';
 
 interface Props {
   impact: ConditionImpactResult;
@@ -197,8 +202,8 @@ export default function SystemConditionImpact({ impact }: Props) {
               <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
               {/* Comfort band shading */}
               <ReferenceArea
-                y1={comfortTrace[0]?.bandLowC ?? 20.5}
-                y2={comfortTrace[0]?.bandHighC ?? 21.5}
+                y1={comfortTrace[0]?.bandLowC ?? (COMFORT_SETPOINT_C - COMFORT_BAND_HALF_K)}
+                y2={comfortTrace[0]?.bandHighC ?? (COMFORT_SETPOINT_C + COMFORT_BAND_HALF_K)}
                 fill="#ebf8ff"
                 fillOpacity={0.6}
                 label={{ value: 'Comfort band', position: 'insideTopRight', fontSize: 9, fill: BLUE_500 }}
@@ -270,7 +275,7 @@ export default function SystemConditionImpact({ impact }: Props) {
                 y2={VELOCITY_UPPER_M_S}
                 fill={GREEN_LIGHT}
                 fillOpacity={0.5}
-                label={{ value: 'Safe band 0.8–1.5 m/s', position: 'insideTopRight', fontSize: 9, fill: GREEN }}
+                label={{ value: `Safe band ${VELOCITY_LOWER_M_S}–${VELOCITY_UPPER_M_S} m/s`, position: 'insideTopRight', fontSize: 9, fill: GREEN }}
               />
               <ReferenceLine y={VELOCITY_UPPER_M_S} stroke={AMBER} strokeDasharray="4 2" strokeWidth={1} />
               <Area

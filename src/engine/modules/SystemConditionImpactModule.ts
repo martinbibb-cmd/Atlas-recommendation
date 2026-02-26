@@ -15,7 +15,6 @@
  *  - System stress metrics (cycling, run time, purge) are derived from sludge data.
  */
 
-import type { SludgeVsScaleResult } from '../schema/EngineInputV2_3';
 
 // Recommended hydraulic velocity band for primary copper pipework (m/s)
 const VELOCITY_LOWER_M_S = 0.8;
@@ -68,6 +67,24 @@ export function computeDesignVelocityMs(
   flowDeratePct: number,
 ): number {
   return parseFloat((asFoundVelocityMs * (1 - flowDeratePct)).toFixed(2));
+}
+
+/**
+ * ConditionImpactSludgeInput
+ *
+ * Typed parameter interface for the sludge metrics required by
+ * computeConditionImpactMetrics.  Using a named interface (rather than an
+ * intersection of Pick and an object literal) avoids ambiguity at the call site.
+ */
+export interface ConditionImpactSludgeInput {
+  /** Sludge-induced primary flow restriction (fraction, 0–0.20). */
+  flowDeratePct: number;
+  /** DHW heat-exchanger scale derate (fraction, 0–0.20). */
+  dhwCapacityDeratePct: number;
+  /** Estimated scale thickness on DHW HX (mm). */
+  estimatedScaleThicknessMm: number;
+  /** Short-cycling fuel loss fraction (fraction, 0–0.05). Optional — defaults to 0. */
+  cyclingLossPct?: number;
 }
 
 export interface ConditionMetrics {
@@ -140,9 +157,7 @@ export interface ConditionImpactResult {
  * @param opts          Optional extra data for DHW deliverability and debug panel.
  */
 export function computeConditionImpactMetrics(
-  sludge: Pick<SludgeVsScaleResult, 'flowDeratePct' | 'dhwCapacityDeratePct' | 'estimatedScaleThicknessMm'> & {
-    cyclingLossPct?: number;
-  },
+  sludge: ConditionImpactSludgeInput,
   velocityMs: number,
   nominalEffPct: number,
   currentEffPct: number,
@@ -251,6 +266,12 @@ const C_BUILDING_KJ_PER_K = 50_000;
 /** Heating schedule: boiler fires during these hours (24-hour schedule typical UK). */
 const HEATING_START_HOUR = 6;
 const HEATING_END_HOUR = 22;
+/**
+ * Upper clamp for computed room temperature (°C).
+ * Prevents the model from overshooting beyond a physically plausible warm-room
+ * temperature on the design-point heating day (−3 °C outdoor).
+ */
+const MAX_ROOM_TEMP_C = 22;
 
 // ─── DHW deliverability model constants ───────────────────────────────────────
 
@@ -310,6 +331,14 @@ const BASE_PURGE_EVENTS_PER_DAY = 4;
  * no filter accrues ~50 % of the maximum derate — consistent with HHIC data.
  */
 const SLUDGE_DERATE_PER_YEAR = 0.005;
+
+/**
+ * Scaling factor used to convert the fractional cycling loss (0–0.05) to an
+ * additional purge event count per day.  A cycling loss of 0.05 (5 %) equates
+ * to 5 extra purge events, consistent with SAP short-cycle purge modelling.
+ * This converts a dimensionless fraction to events/day (multiply by 100).
+ */
+const CYCLING_LOSS_TO_PURGE_EVENTS_SCALE = 100;
 
 // ─── New interfaces ───────────────────────────────────────────────────────────
 
@@ -420,8 +449,8 @@ export function computeComfortTrace(flowDeratePct: number): ComfortHourPoint[] {
     const dTRestored =
       (restoredQ - UA_KW_PER_K * (restoredTemp - OUTDOOR_DESIGN_TEMP_C)) * dtSec / C_BUILDING_KJ_PER_K;
 
-    asFoundTemp = Math.min(22, Math.max(OUTDOOR_DESIGN_TEMP_C, asFoundTemp + dTAsFound));
-    restoredTemp = Math.min(22, Math.max(OUTDOOR_DESIGN_TEMP_C, restoredTemp + dTRestored));
+    asFoundTemp = Math.min(MAX_ROOM_TEMP_C, Math.max(OUTDOOR_DESIGN_TEMP_C, asFoundTemp + dTAsFound));
+    restoredTemp = Math.min(MAX_ROOM_TEMP_C, Math.max(OUTDOOR_DESIGN_TEMP_C, restoredTemp + dTRestored));
   }
 
   return trace;
@@ -518,7 +547,7 @@ export function computeSystemStress(
 
   // Purge events: base + sludge-driven short-firing increase
   const purgeEvents = Math.round(
-    BASE_PURGE_EVENTS_PER_DAY + effectiveCyclingLoss * 100,
+    BASE_PURGE_EVENTS_PER_DAY + effectiveCyclingLoss * CYCLING_LOSS_TO_PURGE_EVENTS_SCALE,
   );
 
   return { cyclingEventsPerDay, avgRunTimeMinutes, purgeEvents };
@@ -538,4 +567,4 @@ export function computeSludgeRiskIn3Yr(currentFlowDeratePct: number): number {
 }
 
 // ─── Constants re-exported for the visualiser ─────────────────────────────────
-export { VELOCITY_LOWER_M_S, VELOCITY_UPPER_M_S };
+export { VELOCITY_LOWER_M_S, VELOCITY_UPPER_M_S, COMFORT_SETPOINT_C, COMFORT_BAND_HALF_K };
