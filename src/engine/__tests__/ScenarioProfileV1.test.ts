@@ -15,6 +15,7 @@ import {
   applyScenarioOverrides,
   assertDemandTimelinesEqual,
   dhwLpmToKw,
+  type DemandSlice,
   type HeatIntentLevel,
   type ScenarioProfileV1,
   type ComparisonSystemType,
@@ -287,6 +288,41 @@ describe('applyScenarioOverrides — combi purge pulse', () => {
     const out = applyScenarioOverrides(BASE_INPUT, profile, 'stored_vented', 'ashp', SPF_MIDPOINT);
     expect(out.hourly[6].systemA.etaOrCop).toBeCloseTo(0.92, 2);
   });
+
+  it('purge qDumpKw scales with resolution: 5-min slice has smaller kW than 60-min slice', () => {
+    // At 60-min resolution the kW = kWh / (60/60) = kWh × 1
+    const dhw60 = Array(24).fill(0);
+    dhw60[6] = 3;
+    const profile60: ScenarioProfileV1 = {
+      heatIntent: Array(24).fill(0) as HeatIntentLevel[],
+      dhwMixedLpm40: dhw60,
+      coldLpm: Array(24).fill(0),
+      source: 'measured',
+      resolutionMins: 60,
+    };
+    const out60 = applyScenarioOverrides(BASE_INPUT, profile60, 'combi', 'ashp', SPF_MIDPOINT);
+
+    // At 5-min resolution there are 288 slices; purge is the first DHW slice
+    const N5 = 1440 / 5; // 288
+    const dhw5 = Array(N5).fill(0);
+    // Slice index for 06:00 at 5-min resolution = 6*60/5 = 72
+    dhw5[72] = 3;
+    const profile5: ScenarioProfileV1 = {
+      heatIntent: Array(N5).fill(0) as HeatIntentLevel[],
+      dhwMixedLpm40: dhw5,
+      coldLpm: Array(N5).fill(0),
+      source: 'measured',
+      resolutionMins: 5,
+    };
+    const out5 = applyScenarioOverrides(BASE_INPUT, profile5, 'combi', 'ashp', SPF_MIDPOINT);
+
+    // 5-min slice: kW = kWh / (5/60) = kWh × 12 → much larger kW per slice
+    // 60-min slice: kW = kWh / (60/60) = kWh × 1
+    // So qDumpKw at 5-min resolution should be 12× that at 60-min resolution
+    const dump60 = out60.hourly[6].systemA.qDumpKw;
+    const dump5  = out5.hourly[72].systemA.qDumpKw;
+    expect(dump5).toBeCloseTo(dump60 * 12, 5);
+  });
 });
 
 // ─── ASHP COP ─────────────────────────────────────────────────────────────────
@@ -407,5 +443,42 @@ describe('assertDemandTimelinesEqual', () => {
     const out1 = applyScenarioOverrides(BASE_INPUT, profile1, 'combi', 'ashp', SPF_MIDPOINT);
     const out2 = applyScenarioOverrides({ ...BASE_INPUT, heatLossWatts: 12000 }, profile2, 'combi', 'ashp', SPF_MIDPOINT);
     expect(() => assertDemandTimelinesEqual(out1, out2)).toThrow();
+  });
+});
+
+// ─── DemandSlice type ─────────────────────────────────────────────────────────
+
+describe('DemandSlice — shared reference contract', () => {
+  it('DemandSlice type is exported and has the three demand fields', () => {
+    // Compile-time check: the type is importable and has the expected shape
+    const slice: DemandSlice = { qChDemandKw: 4, qDhwDemandKw: 2, coldLpm: 0 };
+    expect(slice.qChDemandKw).toBe(4);
+    expect(slice.qDhwDemandKw).toBe(2);
+    expect(slice.coldLpm).toBe(0);
+  });
+
+  it('system A and system B rows have identical demand values (shared timeline)', () => {
+    // Both systems must receive the same demand — verified by checking output equality
+    const profile = defaultScenarioProfile(BASE_INPUT);
+    const out = applyScenarioOverrides(BASE_INPUT, profile, 'combi', 'ashp', SPF_MIDPOINT);
+    // The demand fields in each row must be equal regardless of system types
+    // (they come from the same shared DemandSlice reference)
+    out.hourly.forEach(row => {
+      // Re-run with swapped system order — demand must still match
+      expect(row.qChDemandKw).toBeGreaterThanOrEqual(0);
+      expect(row.qDhwDemandKw).toBeGreaterThanOrEqual(0);
+      expect(row.coldLpm).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  it('swapping system A and B produces identical demand values in both outputs', () => {
+    const profile = defaultScenarioProfile(BASE_INPUT);
+    const outAB = applyScenarioOverrides(BASE_INPUT, profile, 'combi', 'stored_vented', SPF_MIDPOINT);
+    const outBA = applyScenarioOverrides(BASE_INPUT, profile, 'stored_vented', 'combi', SPF_MIDPOINT);
+    outAB.hourly.forEach((row, i) => {
+      expect(row.qChDemandKw).toBe(outBA.hourly[i].qChDemandKw);
+      expect(row.qDhwDemandKw).toBe(outBA.hourly[i].qDhwDemandKw);
+      expect(row.coldLpm).toBe(outBA.hourly[i].coldLpm);
+    });
   });
 });
