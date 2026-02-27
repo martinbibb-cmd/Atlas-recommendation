@@ -120,6 +120,7 @@ export const oldBoilerRealityScenario: StoryScenario<OldBoilerRealityInputs> = {
   outputFocus: [
     'band_ladder',
     'recovery_steps',
+    'inputs_summary',
   ],
   escalationAllowed: true,
 };

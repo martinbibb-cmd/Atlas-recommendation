@@ -30,7 +30,11 @@ export type OutputPanel =
   | 'dhw_overlap_notes'
   | 'band_ladder'
   | 'recovery_steps'
-  | 'behaviour_bullets';
+  | 'behaviour_bullets'
+  | 'demand_graph'
+  | 'efficiency_graph'
+  | 'hydraulics'
+  | 'inputs_summary';
 
 // ── System archetype identifiers ─────────────────────────────────────────────
 
