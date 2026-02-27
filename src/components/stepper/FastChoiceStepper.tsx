@@ -72,22 +72,34 @@ function LegacyInputCockpit({ onBack }: { onBack: () => void }) {
   const [heatLossMode, setHeatLossMode] = useState<HeatLossMode>('known');
 
   const quickChecks = useMemo(() => {
+    const unknowns: string[] = [];
+    if (pressureMode === 'unknown') unknowns.push('Dynamic mains pressure unknown');
+    if (pipeMode === 'unknown') unknowns.push('Primary pipe size unknown');
+    if (heatLossMode === 'unknown') unknowns.push('Heat loss unknown');
+
+    // When required inputs are unknown, do not run engine modules with hardcoded defaults.
+    // Instrument lights must show 'data-required' so the UI clearly signals missing data.
+    const hasRequiredKnowns = pressureMode === 'known' && pipeMode === 'known';
+    if (!hasRequiredKnowns) {
+      return {
+        ashpHydraulics: 'data-required' as const,
+        combiDhw: 'data-required' as const,
+        storedSpace: 'data-required' as const,
+        unknowns,
+      };
+    }
+
     const candidateInput: EngineInputV2_3 = {
       ...input,
-      dynamicMainsPressure: pressureMode === 'known' ? input.dynamicMainsPressure : 2,
-      primaryPipeDiameter: pipeMode === 'known' ? input.primaryPipeDiameter : 22,
-      heatLossWatts: heatLossMode === 'known' ? input.heatLossWatts : 8000,
+      dynamicMainsPressure: input.dynamicMainsPressure,
+      primaryPipeDiameter: input.primaryPipeDiameter,
+      heatLossWatts: heatLossMode === 'known' ? input.heatLossWatts : defaultInput.heatLossWatts,
       peakConcurrentOutlets: input.peakConcurrentOutlets ?? (input.bathroomCount >= 2 ? 2 : 1),
     };
 
     const hydraulics = runHydraulicModuleV1(candidateInput);
     const combi = runCombiDhwModuleV1(candidateInput);
     const stored = runStoredDhwModuleV1(candidateInput, combi.flags.some(f => f.id === 'combi-simultaneous-demand'));
-
-    const unknowns: string[] = [];
-    if (pressureMode === 'unknown') unknowns.push('Dynamic mains pressure unknown');
-    if (pipeMode === 'unknown') unknowns.push('Primary pipe size unknown');
-    if (heatLossMode === 'unknown') unknowns.push('Heat loss unknown');
 
     return {
       ashpHydraulics: hydraulics.verdict.ashpRisk,
@@ -97,11 +109,14 @@ function LegacyInputCockpit({ onBack }: { onBack: () => void }) {
     };
   }, [input, pressureMode, pipeMode, heatLossMode]);
 
+  // Simulation can only run when all required known inputs have actual values.
+  const canRunSimulation = pressureMode === 'known' && pipeMode === 'known';
+
   const engineInput: EngineInputV2_3 = {
     ...input,
     dynamicMainsPressure: pressureMode === 'known' ? input.dynamicMainsPressure : 2,
     primaryPipeDiameter: pipeMode === 'known' ? input.primaryPipeDiameter : 22,
-    heatLossWatts: heatLossMode === 'known' ? input.heatLossWatts : 8000,
+    heatLossWatts: heatLossMode === 'known' ? input.heatLossWatts : defaultInput.heatLossWatts,
   };
 
   const runSimulation = async () => {
@@ -259,7 +274,21 @@ function LegacyInputCockpit({ onBack }: { onBack: () => void }) {
           </CockpitGroup>
 
           <div className="step-actions">
-            <button className="next-btn" onClick={runSimulation}>Run Simulation</button>
+            <button
+              className="next-btn"
+              onClick={runSimulation}
+              disabled={!canRunSimulation}
+              aria-describedby={!canRunSimulation ? 'sim-data-required-msg' : undefined}
+              title={!canRunSimulation ? 'Set Primary pipe size and Mains pressure to Known before running' : undefined}
+              style={!canRunSimulation ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+            >
+              Run Simulation
+            </button>
+            {!canRunSimulation && (
+              <p id="sim-data-required-msg" style={{ fontSize: '0.78rem', color: '#718096', marginTop: '0.4rem' }}>
+                Set &quot;Primary pipe size&quot; and &quot;Mains pressure&quot; to <strong>Known</strong> to enable simulation.
+              </p>
+            )}
           </div>
         </div>
 
@@ -267,7 +296,7 @@ function LegacyInputCockpit({ onBack }: { onBack: () => void }) {
           <h2>🧭 Instrument Lights</h2>
           <InstrumentLight title="ASHP hydraulics" status={quickChecks.ashpHydraulics} />
           <InstrumentLight title="Combi DHW" status={quickChecks.combiDhw} />
-          <InstrumentLight title="Stored space / demand" status={quickChecks.storedSpace === 'pass' ? 'pass' : 'warn'} />
+          <InstrumentLight title="Stored space / demand" status={quickChecks.storedSpace === 'pass' ? 'pass' : quickChecks.storedSpace === 'data-required' ? 'data-required' : 'warn'} />
 
           <div className="instrument-unknowns">
             <h4>Unknowns</h4>
@@ -478,7 +507,15 @@ function InputNumber({
   );
 }
 
-function InstrumentLight({ title, status }: { title: string; status: 'pass' | 'warn' | 'fail' }) {
+function InstrumentLight({ title, status }: { title: string; status: 'pass' | 'warn' | 'fail' | 'data-required' }) {
+  if (status === 'data-required') {
+    return (
+      <div className="instrument-light instrument-light--unknown">
+        <strong>{title}</strong>
+        <span style={{ color: '#718096' }}>Data Required for Engine</span>
+      </div>
+    );
+  }
   return (
     <div className={`instrument-light instrument-light--${status}`}>
       <strong>{title}</strong>
