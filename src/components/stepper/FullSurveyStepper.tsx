@@ -364,6 +364,11 @@ const RISK_LABEL: Record<'pass' | 'warn' | 'fail', string> = {
   fail: '❌ Fail',
 };
 
+const ASHP_COP_LABEL: Record<'pass' | 'caution', string> = {
+  pass: '✅ Acceptable',
+  caution: '⚠️ Borderline Physics',
+};
+
 function uiClassifyRisk(kw: number, warnKw: number, failKw: number): 'pass' | 'warn' | 'fail' {
   if (kw >= failKw) return 'fail';
   if (kw >= warnKw) return 'warn';
@@ -1274,7 +1279,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     { value: 28, label: '28 mm', sub: 'Large bore — ASHP capable' },
                     { value: 35, label: '35 mm', sub: 'Oversized — heat main / commercial' },
                   ] as Array<{ value: number; label: string; sub: string }>).map(opt => {
-                    const is22Bottleneck = opt.value === 22 && hydraulicLive.boilerRisk !== 'pass';
+                    const is22Bottleneck = opt.value === 22 && input.heatLossWatts > 8000;
                     return (
                       <button
                         key={opt.value}
@@ -1293,7 +1298,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                           <span style={{ fontWeight: input.primaryPipeDiameter === opt.value ? 700 : 500, fontSize: '0.88rem' }}>{opt.label}</span>
                           {is22Bottleneck && (
                             <span style={{ fontSize: '0.65rem', fontWeight: 700, background: '#fed7d7', color: '#c53030', padding: '1px 5px', borderRadius: '4px' }}>
-                              ⚠️ Bottleneck
+                              ⚠️ Physics Alert: flow velocity exceeds 1.5 m/s
                             </span>
                           )}
                         </div>
@@ -1466,6 +1471,11 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                       {/* Current heat loss marker */}
                       <ReferenceLine x={hydraulicLive.kw} stroke="#3182ce" strokeWidth={2}
                         label={{ value: `${hydraulicLive.kw.toFixed(1)}kW`, fontSize: 9, fill: '#3182ce', position: 'top' }} />
+                      {/* 28mm Stabilized Path — shown when 22mm is in Fail zone */}
+                      {input.primaryPipeDiameter === 22 && hydraulicLive.boilerRisk === 'fail' && PIPE_THRESHOLDS[28].ashpWarnKw <= 20 && (
+                        <ReferenceLine x={PIPE_THRESHOLDS[28].ashpWarnKw} stroke="#38a169" strokeDasharray="3 3"
+                          label={{ value: '28mm Stabilized', fontSize: 9, fill: '#38a169', position: 'insideTopLeft' }} />
+                      )}
                       <Line type="monotone" dataKey="boilerLpm" stroke={hydraulicLive.boilerRisk !== 'pass' ? '#c53030' : '#dd6b20'} strokeWidth={2} dot={false} name="boilerLpm" />
                       <Line type="monotone" dataKey="ashpLpm"   stroke="#3182ce" strokeWidth={2} dot={false} name="ashpLpm" />
                     </LineChart>
@@ -1585,7 +1595,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
               />
             </div>
             <div className="form-field">
-              <label>Current Boiler ErP Class (A–G) — lookup helper only</label>
+              <label>Efficiency lookup helper (ErP)</label>
               <select
                 value={input.currentBoilerErpClass ?? ''}
                 onChange={e => {
@@ -3251,7 +3261,7 @@ function FullSurveyResults({
         <div className="metric-row">
           <span className="metric-label">COP Viability</span>
           <span className={`metric-value ${ashpCopStatus === 'caution' ? 'warning' : 'ok'}`}>
-            {ashpCopStatus === 'caution' ? '⚠️ Borderline — COP ≤ 3.0' : '✅ Acceptable'}
+            {ASHP_COP_LABEL[ashpCopStatus]}
           </span>
         </div>
         {ashpCopStatus === 'caution' && (
@@ -3414,6 +3424,10 @@ function FullSurveyResults({
           <span className={`metric-value ${currentEfficiencyPct < 80 ? 'warning' : 'ok'}`}>
             {currentEfficiencyPct.toFixed(1)}% — ErP {deriveErpClass(currentEfficiencyPct) ?? 'n/a'}
           </span>
+        </div>
+        <div className="metric-row">
+          <span className="metric-label">Boiler ErP (from entered SEDBUK %)</span>
+          <span className="metric-value">{deriveErpClass(nominalEfficiencyPct) ?? 'n/a'}</span>
         </div>
       </div>
 
