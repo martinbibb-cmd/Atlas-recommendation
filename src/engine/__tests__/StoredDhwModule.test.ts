@@ -133,3 +133,95 @@ describe('runStoredDhwModuleV1', () => {
     expect(result.recommended.type).toBe('mixergy');
   });
 });
+
+// ─── Unvented / vented cold-water source tests ────────────────────────────────
+
+describe('runStoredDhwModuleV1 — vented vs unvented logic', () => {
+  it('unvented with unknown flow → warns about unconfirmed mains flow', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseInput,
+      coldWaterSource: 'mains_true',
+      availableSpace: 'ok',
+      bathroomCount: 1,
+    });
+    const flag = result.flags.find(f => f.id === 'stored-unvented-flow-unknown');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('warn');
+    expect(result.verdict.storedRisk).toBe('warn');
+  });
+
+  it('unvented with low measured flow → warns about performance', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseInput,
+      coldWaterSource: 'mains_true',
+      availableSpace: 'ok',
+      bathroomCount: 1,
+      mainsDynamicFlowLpm: 12,
+      mainsDynamicFlowLpmKnown: true,
+    });
+    const flag = result.flags.find(f => f.id === 'stored-unvented-low-flow');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('warn');
+    expect(result.verdict.storedRisk).toBe('warn');
+  });
+
+  it('unvented with adequate measured flow (>= 18 L/min) → no mains flow warn', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseInput,
+      coldWaterSource: 'mains_true',
+      availableSpace: 'ok',
+      bathroomCount: 1,
+      mainsDynamicFlowLpm: 25,
+      mainsDynamicFlowLpmKnown: true,
+    });
+    expect(result.flags.some(f => f.id === 'stored-unvented-low-flow')).toBe(false);
+    expect(result.flags.some(f => f.id === 'stored-unvented-flow-unknown')).toBe(false);
+  });
+
+  it('unvented with adequate mains flow: space-unknown flag is info, not warn', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseInput,
+      coldWaterSource: 'mains_true',
+      availableSpace: 'unknown',
+      bathroomCount: 1,
+      mainsDynamicFlowLpm: 30,
+      mainsDynamicFlowLpmKnown: true,
+    });
+    const spaceFlag = result.flags.find(f => f.id === 'stored-space-unknown');
+    expect(spaceFlag).toBeDefined();
+    expect(spaceFlag!.severity).toBe('info');
+    // No warn flags → verdict should be pass
+    expect(result.verdict.storedRisk).toBe('pass');
+  });
+
+  it('vented (loft_tank): space-unknown keeps warn severity (mains gate not relevant)', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseInput,
+      coldWaterSource: 'loft_tank',
+      availableSpace: 'unknown',
+      bathroomCount: 1,
+    });
+    const spaceFlag = result.flags.find(f => f.id === 'stored-space-unknown');
+    expect(spaceFlag).toBeDefined();
+    expect(spaceFlag!.severity).toBe('warn');
+    expect(result.verdict.storedRisk).toBe('warn');
+  });
+});
+
+// ─── Regression tests for specific screenshot scenarios ───────────────────────
+
+describe('runStoredDhwModuleV1 — scenario regressions', () => {
+  it('regression #2: 7+ occupants, 2 bath, unvented, mainsFlow=30 → pass (not caution)', () => {
+    // Previously returned 'warn' (Caution) — incorrectly for unvented with good mains
+    const result = runStoredDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 2,
+      occupancyCount: 7,
+      availableSpace: 'unknown',
+      coldWaterSource: 'mains_true',
+      mainsDynamicFlowLpm: 30,
+      mainsDynamicFlowLpmKnown: true,
+    });
+    expect(result.verdict.storedRisk).toBe('pass');
+  });
+});

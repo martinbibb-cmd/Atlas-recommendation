@@ -59,14 +59,20 @@ describe('EngineOutputV1 shape', () => {
     expect(ashp.label).toBe('Air Source Heat Pump');
   });
 
-  it('rejects combi when 2+ bathrooms + high occupancy', () => {
-    const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2, highOccupancy: true });
+  it('rejects combi when 2+ bathrooms + high occupancy + peakConcurrentOutlets=2', () => {
+    const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2, highOccupancy: true, peakConcurrentOutlets: 2 });
     const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
     expect(onDemand.status).toBe('rejected');
   });
 
-  it('rejects combi when bathroomCount >= 2 (combiDhwV1 simultaneous demand)', () => {
+  it('gives combi caution (not rejected) when bathroomCount >= 2 but peakConcurrentOutlets < 2', () => {
     const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2, highOccupancy: false });
+    const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
+    expect(onDemand.status).toBe('caution');
+  });
+
+  it('rejects combi when peakConcurrentOutlets >= 2 (explicit simultaneous demand)', () => {
+    const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2, peakConcurrentOutlets: 2 });
     const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
     expect(onDemand.status).toBe('rejected');
   });
@@ -285,8 +291,8 @@ describe('EngineOutputV1 shape', () => {
 
   // ── Recommendation resolver V1 ────────────────────────────────────────────
 
-  it('recommendation primary is "Stored hot water — unvented cylinder" when on_demand is rejected (2 bathrooms)', () => {
-    const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2 });
+  it('recommendation primary is "Stored hot water — unvented cylinder" when on_demand is rejected (2 bathrooms, 2 outlets)', () => {
+    const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2, peakConcurrentOutlets: 2 });
     expect(engineOutput.recommendation.primary).toBe('Stored hot water — unvented cylinder');
   });
 

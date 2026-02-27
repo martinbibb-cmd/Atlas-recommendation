@@ -2,6 +2,12 @@ import type { EngineInputV2_3, CombiDhwV1Result, CombiDhwFlagItem } from '../sch
 
 const PRESSURE_LOCKOUT_BAR = 1.0;
 
+/** Minimum L/min per hot-water outlet for a combi to deliver acceptable flow. */
+const REQUIRED_LPM_PER_OUTLET = 9;
+
+/** Occupancy threshold above which combi DHW intensity is flagged as high. */
+const HIGH_OCCUPANCY_THRESHOLD = 5;
+
 /** Occupancy signatures that imply continuous / family-style use (short-draw risk). */
 const SHORT_DRAW_SIGNATURES = new Set(['steady_home', 'steady', 'shift_worker', 'shift']);
 
@@ -103,14 +109,11 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
 
   // ── Rule 2: Simultaneous demand ──────────────────────────────────────────
   const outlets = input.peakConcurrentOutlets ?? null;
-  const simultaneousFail =
-    (outlets !== null && outlets >= 2) || input.bathroomCount >= 2;
+  const simultaneousFail = outlets !== null && outlets >= 2;
+  const simultaneousWarn = !simultaneousFail && input.bathroomCount >= 2;
 
   if (simultaneousFail) {
-    const demandSource =
-      outlets !== null && outlets >= 2
-        ? `${outlets} concurrent outlets`
-        : `${input.bathroomCount} bathrooms`;
+    const demandSource = `${outlets} concurrent outlets`;
     flags.push({
       id: 'combi-simultaneous-demand',
       severity: 'fail',
@@ -119,6 +122,17 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
         `${demandSource} detected. A combi boiler cannot sustain adequate flow to ` +
         `two or more simultaneous DHW points – expect cold-water interruptions and ` +
         `temperature oscillation between users.`,
+    });
+  } else if (simultaneousWarn) {
+    const demandSource = `${input.bathroomCount} bathrooms`;
+    flags.push({
+      id: 'combi-simultaneous-demand',
+      severity: 'warn',
+      title: 'Hot water starvation likely',
+      detail:
+        `${demandSource} detected. With multiple bathrooms and simultaneous use, a combi ` +
+        `boiler may struggle to deliver adequate flow to two DHW points at once – consider ` +
+        `whether simultaneous draws are likely before specifying combi.`,
     });
   } else if (outlets === null) {
     assumptions.push(
@@ -146,7 +160,7 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
   }
 
   // ── Rule 4: Three-person household caution ───────────────────────────────
-  if (input.occupancyCount === 3 && !simultaneousFail) {
+  if (input.occupancyCount === 3 && !simultaneousFail && !simultaneousWarn) {
     flags.push({
       id: 'combi-three-person-caution',
       severity: 'warn',
@@ -156,6 +170,47 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
         'but expect reduced comfort margins during back-to-back morning showers. ' +
         'A stored system removes this risk entirely.',
     });
+  }
+
+  // ── Rule 5: Large household DHW intensity ───────────────────────────────
+  if (
+    input.occupancyCount != null &&
+    input.occupancyCount >= HIGH_OCCUPANCY_THRESHOLD &&
+    !simultaneousFail
+  ) {
+    flags.push({
+      id: 'combi-large-household',
+      severity: 'warn',
+      title: `Large household (${input.occupancyCount} people): high sequential DHW demand`,
+      detail:
+        `${input.occupancyCount} occupants create very high sequential hot-water demand even ` +
+        `with a single bathroom. During the morning peak, back-to-back shower draws are ` +
+        `near-certain, and a combi cannot maintain adequate temperature across all draws ` +
+        `without extended wait times. A stored cylinder removes this limitation.`,
+    });
+  }
+
+  // ── Rule 6: Mains flow adequacy ─────────────────────────────────────────
+  if (input.mainsDynamicFlowLpmKnown && input.mainsDynamicFlowLpm != null) {
+    const peakOutlets = Math.max(1, outlets ?? 1);
+    const requiredLpm = REQUIRED_LPM_PER_OUTLET * peakOutlets;
+    if (input.mainsDynamicFlowLpm < requiredLpm && !simultaneousFail) {
+      const sev: CombiDhwFlagItem['severity'] = peakOutlets >= 2 ? 'fail' : 'warn';
+      flags.push({
+        id: 'combi-flow-inadequate',
+        severity: sev,
+        title: 'Mains flow may be insufficient for combi delivery',
+        detail:
+          `Measured mains flow ${input.mainsDynamicFlowLpm} L/min is below the ` +
+          `~${requiredLpm} L/min needed for ${peakOutlets} outlet(s) at ΔT 25°C. ` +
+          `Expect reduced shower temperature or pressure, especially during peak demand.`,
+      });
+    }
+  } else if (input.mainsDynamicFlowLpm == null) {
+    assumptions.push(
+      'Mains dynamic flow not provided – flow adequacy check skipped. ' +
+      'Record a measured L/min reading to enable this gate.',
+    );
   }
 
   // ── Determine overall combiRisk verdict ──────────────────────────────────

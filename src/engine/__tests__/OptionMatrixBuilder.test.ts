@@ -46,10 +46,10 @@ describe('buildOptionMatrixV1', () => {
     }
   });
 
-  it('combi card status matches combiDhwV1 verdict', () => {
-    // 2 bathrooms → simultaneous demand → combi rejected
-    const result = runEngine({ ...baseInput, bathroomCount: 2 });
-    const options = buildOptionMatrixV1(result, { ...baseInput, bathroomCount: 2 });
+  it('combi card status matches combiDhwV1 verdict — rejected when peakConcurrentOutlets >= 2', () => {
+    // 2 bathrooms + 2 concurrent outlets → simultaneous demand → combi rejected
+    const result = runEngine({ ...baseInput, bathroomCount: 2, peakConcurrentOutlets: 2 });
+    const options = buildOptionMatrixV1(result, { ...baseInput, bathroomCount: 2, peakConcurrentOutlets: 2 });
     const combi = options.find(o => o.id === 'combi')!;
     expect(combi.status).toBe('rejected');
   });

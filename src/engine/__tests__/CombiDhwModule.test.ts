@@ -48,12 +48,12 @@ describe('runCombiDhwModuleV1', () => {
 
   // ── Rule 2: Simultaneous demand ──────────────────────────────────────────
 
-  it('returns fail when bathroomCount >= 2', () => {
+  it('returns warn (not fail) when bathroomCount >= 2 but peakConcurrentOutlets < 2', () => {
     const result = runCombiDhwModuleV1({ ...baseInput, bathroomCount: 2, peakConcurrentOutlets: 1 });
-    expect(result.verdict.combiRisk).toBe('fail');
+    expect(result.verdict.combiRisk).toBe('warn');
     const flag = result.flags.find(f => f.id === 'combi-simultaneous-demand');
     expect(flag).toBeDefined();
-    expect(flag!.severity).toBe('fail');
+    expect(flag!.severity).toBe('warn');
     expect(flag!.title).toBe('Hot water starvation likely');
   });
 
@@ -172,7 +172,7 @@ describe('runCombiDhwModuleV1', () => {
     expect(result.verdict.combiRisk).toBe('pass');
   });
 
-  it('three-person caution is suppressed when simultaneous-demand fail is already raised', () => {
+  it('three-person caution is suppressed when simultaneous-demand risk is already flagged', () => {
     const result = runCombiDhwModuleV1({
       ...baseInput,
       bathroomCount: 2,
@@ -180,7 +180,8 @@ describe('runCombiDhwModuleV1', () => {
       occupancyCount: 3,
     });
     expect(result.flags.some(f => f.id === 'combi-three-person-caution')).toBe(false);
-    expect(result.verdict.combiRisk).toBe('fail');
+    // bathroomCount >= 2 with outlets < 2 → warn (not fail)
+    expect(result.verdict.combiRisk).toBe('warn');
   });
 
   // ── morningOverlapProbability ─────────────────────────────────────────────
@@ -225,6 +226,131 @@ describe('runCombiDhwModuleV1', () => {
   it('adds probability context to assumptions when occupancyCount is provided', () => {
     const result = runCombiDhwModuleV1({ ...baseInput, bathroomCount: 1, occupancyCount: 3 });
     expect(result.assumptions.some(a => a.includes('Probabilistic DHW overlap'))).toBe(true);
+  });
+});
+
+// ─── Rule 5: Large household tests ────────────────────────────────────────────
+
+describe('runCombiDhwModuleV1 — large household rule', () => {
+  it('adds warn for occupancyCount >= 5 with 1 bathroom and 1 outlet', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      occupancyCount: 5,
+    });
+    const flag = result.flags.find(f => f.id === 'combi-large-household');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('warn');
+    expect(result.verdict.combiRisk).toBe('warn');
+  });
+
+  it('adds warn for occupancyCount = 7', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      occupancyCount: 7,
+    });
+    expect(result.flags.some(f => f.id === 'combi-large-household')).toBe(true);
+  });
+
+  it('does NOT add large-household flag when occupancyCount < 5', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      occupancyCount: 4,
+    });
+    expect(result.flags.some(f => f.id === 'combi-large-household')).toBe(false);
+  });
+
+  it('large-household flag is suppressed when simultaneous-demand fail already raised', () => {
+    // outlets >= 2 → fail already; no need to double-warn
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 2,
+      peakConcurrentOutlets: 2,
+      occupancyCount: 7,
+    });
+    expect(result.flags.some(f => f.id === 'combi-large-household')).toBe(false);
+    expect(result.verdict.combiRisk).toBe('fail');
+  });
+});
+
+// ─── Rule 6: Mains flow adequacy tests ───────────────────────────────────────
+
+describe('runCombiDhwModuleV1 — mains flow adequacy rule', () => {
+  it('adds warn when measured flow < 9 L/min with single outlet', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      mainsDynamicFlowLpm: 6,
+      mainsDynamicFlowLpmKnown: true,
+    });
+    const flag = result.flags.find(f => f.id === 'combi-flow-inadequate');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('warn');
+  });
+
+  it('does NOT add flow flag when measured flow >= 9 L/min (adequate)', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      mainsDynamicFlowLpm: 12,
+      mainsDynamicFlowLpmKnown: true,
+    });
+    expect(result.flags.some(f => f.id === 'combi-flow-inadequate')).toBe(false);
+  });
+
+  it('adds assumption when mainsDynamicFlowLpm is not provided', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+    });
+    expect(result.assumptions.some(a => a.includes('Mains dynamic flow not provided'))).toBe(true);
+  });
+
+  it('does NOT add flow flag when mainsDynamicFlowLpmKnown is false (estimated value)', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      mainsDynamicFlowLpm: 6,
+      mainsDynamicFlowLpmKnown: false,
+    });
+    expect(result.flags.some(f => f.id === 'combi-flow-inadequate')).toBe(false);
+  });
+});
+
+// ─── Regression tests for specific screenshot scenarios ───────────────────────
+
+describe('runCombiDhwModuleV1 — scenario regressions', () => {
+  it('regression #1: 7+ occupants, 1 bath, outlets=1, mainsFlow=12 → warn/fail (not pass)', () => {
+    // Previously returned 'pass' (Suitable) — incorrectly
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      occupancyCount: 7,
+      mainsDynamicFlowLpm: 12,
+      mainsDynamicFlowLpmKnown: true,
+    });
+    expect(['warn', 'fail']).toContain(result.verdict.combiRisk);
+    expect(result.flags.some(f => f.id === 'combi-large-household')).toBe(true);
+  });
+
+  it('regression #1b: peakConcurrentOutlets=2 (often, 2 bath) → fail as before', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 2,
+      peakConcurrentOutlets: 2,
+      occupancyCount: 7,
+    });
+    expect(result.verdict.combiRisk).toBe('fail');
   });
 });
 

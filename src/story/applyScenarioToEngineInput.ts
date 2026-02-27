@@ -160,22 +160,26 @@ export function applyCombiSwitchInputs(
     ? inputs.mainsFlowLpm
     : deriveConservativeFlowLpm(inputs.occupancyCount, inputs.hotWaterDemand);
 
+  // 'often' with ≥2 bathrooms → two simultaneous draws are realistic → outlets = 2 (hard fail gate).
+  // 'sometimes' with ≥2 bathrooms is a soft risk — the engine's bathroomCount≥2 warn covers it.
+  // Any other combination → treat as single concurrent outlet.
   const peakConcurrentOutlets =
-    inputs.simultaneousUse === 'often' ? Math.min(inputs.bathroomCount, 2)
-    : inputs.simultaneousUse === 'sometimes' && inputs.bathroomCount >= 2 ? 2
-    : 1;
+    inputs.simultaneousUse === 'often' && inputs.bathroomCount >= 2 ? 2 : 1;
 
   const coldWaterSource: EngineInputV2_3['coldWaterSource'] =
     inputs.storedType === 'vented' ? 'loft_tank' : 'mains_true';
 
   return {
     ...(COMBI_SWITCH_BASE as EngineInputV2_3),
-    occupancyCount:       inputs.occupancyCount,
-    bathroomCount:        inputs.bathroomCount,
-    mainsDynamicFlowLpm:  flowLpm,
-    mainsPressureRecorded: inputs.mainsFlowLpmKnown,
+    occupancyCount:            inputs.occupancyCount,
+    bathroomCount:             inputs.bathroomCount,
+    mainsDynamicFlowLpm:       flowLpm,
+    mainsDynamicFlowLpmKnown:  inputs.mainsFlowLpmKnown,
+    // mainsPressureRecorded is intentionally not set here — we only measured flow,
+    // not static/dynamic pressure.  Setting it would incorrectly signal that
+    // dynamicMainsPressure is a measured value.
     peakConcurrentOutlets,
-    highOccupancy:        inputs.occupancyCount >= 5,
+    highOccupancy:             inputs.occupancyCount >= 5,
     coldWaterSource,
   };
 }
