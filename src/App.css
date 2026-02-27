@@ -845,3 +845,127 @@ body {
     min-width: 230px;
   }
 }
+
+/* ── Modelling Notice ─────────────────────────────────────────── */
+.modelling-notice {
+  background: #ebf8ff;
+  border: 1px solid #bee3f8;
+  border-radius: 8px;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.85rem;
+  color: #2c5282;
+}
+
+.modelling-notice strong {
+  display: block;
+  font-size: 0.88rem;
+  margin-bottom: 0.35rem;
+  color: #1a365d;
+}
+
+.modelling-notice p {
+  margin: 0 0 0.35rem;
+  line-height: 1.5;
+}
+
+.modelling-notice-meta {
+  font-size: 0.78rem;
+  color: #4a5568;
+  margin-top: 0.4rem;
+}
+
+/* ── Governance Pages ─────────────────────────────────────────── */
+.governance-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.governance-content {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-top: 1rem;
+}
+
+.governance-content h1 {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 0.75rem;
+}
+
+.governance-content h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 1.5rem 0 0.5rem;
+}
+
+.governance-lead {
+  font-size: 1.05rem;
+  color: #4a5568;
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.governance-content p {
+  color: #4a5568;
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+}
+
+.governance-content ul {
+  margin: 0 0 1rem 1.25rem;
+  color: #4a5568;
+  line-height: 1.7;
+}
+
+.governance-disclaimer {
+  background: #f7fafc;
+  border-left: 4px solid #3182ce;
+  border-radius: 4px;
+  padding: 0.85rem 1rem;
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  color: #2d3748;
+  line-height: 1.6;
+}
+
+/* ── Site Footer ──────────────────────────────────────────────── */
+.site-footer {
+  margin-top: 3rem;
+  padding: 1.5rem 1rem;
+  border-top: 1px solid #e2e8f0;
+  text-align: center;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.footer-link {
+  background: none;
+  border: none;
+  color: #718096;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.footer-link:hover {
+  color: #2d3748;
+}
+
+.footer-meta {
+  font-size: 0.78rem;
+  color: #a0aec0;
+}

@@ -2,9 +2,14 @@ import { useState } from 'react';
 import FastChoiceStepper from './components/stepper/FastChoiceStepper';
 import FullSurveyStepper from './components/stepper/FullSurveyStepper';
 import PortfolioDashboard from './components/PortfolioDashboard';
+import Footer from './components/Footer';
+import ScopePage from './components/governance/ScopePage';
+import MethodologyPage from './components/governance/MethodologyPage';
+import NeutralityPage from './components/governance/NeutralityPage';
+import PrivacyPage from './components/governance/PrivacyPage';
 import './App.css';
 
-type Journey = 'landing' | 'fast' | 'full' | 'portfolio';
+type Journey = 'landing' | 'fast' | 'full' | 'portfolio' | 'scope' | 'methodology' | 'neutrality' | 'privacy';
 
 // Demo portfolio for the Housing Association dashboard
 import type { PortfolioProperty } from './engine/schema/EngineInputV2_3';
@@ -63,6 +68,10 @@ export default function App() {
   if (journey === 'fast') return <FastChoiceStepper onBack={() => setJourney('landing')} />;
   if (journey === 'full') return <FullSurveyStepper onBack={() => setJourney('landing')} />;
   if (journey === 'portfolio') return <PortfolioDashboard properties={demoPortfolio} onBack={() => setJourney('landing')} />;
+  if (journey === 'scope') return <ScopePage onBack={() => setJourney('landing')} />;
+  if (journey === 'methodology') return <MethodologyPage onBack={() => setJourney('landing')} />;
+  if (journey === 'neutrality') return <NeutralityPage onBack={() => setJourney('landing')} />;
+  if (journey === 'privacy') return <PrivacyPage onBack={() => setJourney('landing')} />;
 
   return (
     <div className="landing">
@@ -112,6 +121,7 @@ export default function App() {
           <button className="cta-btn" style={{ background: '#9f7aea' }}>View Portfolio →</button>
         </div>
       </div>
+      <Footer onNavigate={setJourney} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, startTransition } from 'react';
+import ModellingNotice from '../ModellingNotice';
 import {
   LineChart,
   Line,
@@ -2758,6 +2759,8 @@ function FullSurveyResults({
 
   return (
     <div className="results-container">
+
+      <ModellingNotice />
 
       {/* Your Situation – Context Summary */}
       {engineOutput.contextSummary && engineOutput.contextSummary.bullets.length > 0 && (

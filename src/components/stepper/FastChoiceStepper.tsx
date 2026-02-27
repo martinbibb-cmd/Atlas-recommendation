@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import ModellingNotice from '../ModellingNotice';
 import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
 import type { AssumptionV1, ConfidenceV1 } from '../../contracts/EngineOutputV1';
 import { runEngine } from '../../engine/Engine';
@@ -291,6 +292,8 @@ function ResultsCockpit({
         <button className="prev-btn" onClick={onEditInputs}>Edit Inputs</button>
         <span className="step-label">Results Cockpit</span>
       </div>
+
+      <ModellingNotice />
 
       <div className="result-section">
         <h3>🏠 Your Situation</h3>
