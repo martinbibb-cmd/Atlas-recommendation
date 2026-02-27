@@ -209,7 +209,7 @@ function OldBoilerRealityShell({
         <div className="scenario-shell__output">
           <h3>Performance band ladder</h3>
 
-          <div className={`story-confidence-badge story-confidence-badge--${bandData.confidence}`}
+          <div className={`story-confidence-badge story-confidence-badge--${bandData.confidence}`}>
             Confidence: <strong>{bandData.confidence}</strong>
             {' '}(estimated — not an official reclassification)
           </div>
