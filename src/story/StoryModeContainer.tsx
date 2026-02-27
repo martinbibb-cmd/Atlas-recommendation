@@ -8,12 +8,17 @@
  *   Step A: ScenarioSelector (tile grid)
  *   Step B: ScenarioShell   (inputs + live output)
  *
+ * Shared basics (occupancyCount, bathroomCount, mainsFlowLpm, etc.) persist
+ * across scenario switches and are merged into each scenario's defaults when
+ * a scenario is opened.
+ *
  * Escalation:
  *   When the advisor clicks "Explore Full Detail", onEscalate is called with
  *   the current partial engine input so that FullSurveyStepper can prefill.
  */
 import { useState } from 'react';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
+import type { StorySharedBasics } from './scenarioRegistry';
 import ScenarioSelector from './ScenarioSelector';
 import ScenarioShell from './ScenarioShell';
 
@@ -39,23 +44,37 @@ type StoryStep = 'select' | 'scenario';
 export default function StoryModeContainer({ onBack, onEscalate }: Props) {
   const [step, setStep]               = useState<StoryStep>('select');
   const [selectedId, setSelectedId]   = useState<string | null>(null);
+  const [sharedBasics, setSharedBasics] = useState<StorySharedBasics>({});
 
   function handleSelectScenario(id: string) {
     setSelectedId(id);
     setStep('scenario');
   }
 
+  function handleSwitchScenario(id: string) {
+    setSelectedId(id);
+    // keep step as 'scenario' and sharedBasics intact
+  }
+
   function handleBackToSelector() {
     setStep('select');
     setSelectedId(null);
+    // sharedBasics intentionally preserved
+  }
+
+  function handleSharedBasicsChange(update: Partial<StorySharedBasics>) {
+    setSharedBasics(prev => ({ ...prev, ...update }));
   }
 
   if (step === 'scenario' && selectedId !== null) {
     return (
       <ScenarioShell
         scenarioId={selectedId}
+        sharedBasics={sharedBasics}
         onBack={handleBackToSelector}
+        onSwitch={handleSwitchScenario}
         onEscalate={onEscalate}
+        onSharedBasicsChange={handleSharedBasicsChange}
       />
     );
   }

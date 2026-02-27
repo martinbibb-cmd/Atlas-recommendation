@@ -11,8 +11,12 @@
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import { combiSwitchScenario } from './scenarios/combiSwitch';
 import { oldBoilerRealityScenario } from './scenarios/oldBoilerReality';
+import { heatPumpViabilityScenario } from './scenarios/heatPumpViability';
+import type { HeatPumpViabilityInputs } from './scenarios/heatPumpViability';
 export { combiSwitchScenario } from './scenarios/combiSwitch';
 export { oldBoilerRealityScenario } from './scenarios/oldBoilerReality';
+export { heatPumpViabilityScenario } from './scenarios/heatPumpViability';
+export type { HeatPumpViabilityInputs } from './scenarios/heatPumpViability';
 
 // ── Scenario field keys ───────────────────────────────────────────────────────
 
@@ -77,7 +81,40 @@ export interface OldBoilerRealityInputs {
   filterPresent: 'yes' | 'no' | 'unknown';
 }
 
-export type ScenarioInputs = CombiSwitchInputs | OldBoilerRealityInputs;
+export type ScenarioInputs = CombiSwitchInputs | OldBoilerRealityInputs | HeatPumpViabilityInputs;
+
+// ── Shared basics (cross-scenario state) ──────────────────────────────────────
+
+/**
+ * Fields that are shared across scenarios and should persist when the advisor
+ * switches between scenarios or returns to the selector.
+ *
+ * Rules:
+ *   - If a scenario edits a shared field → it syncs the value here.
+ *   - When opening a scenario → shared values are merged into scenario defaults.
+ *   - Scenario-specific fields (e.g. storedType) stay local to that scenario.
+ */
+export interface StorySharedBasics {
+  occupancyCount?: number;
+  bathroomCount?: number;
+  mainsFlowLpm?: number;
+  mainsFlowUnknown?: boolean;
+  heatLossWatts?: number;
+  heatLossKnown?: boolean;
+}
+
+/**
+ * The keys that belong to StorySharedBasics.
+ * Used to identify which scenario fields should be synced up to shared state.
+ */
+export const SHARED_BASICS_KEYS = [
+  'occupancyCount',
+  'bathroomCount',
+  'mainsFlowLpm',
+  'mainsFlowUnknown',
+  'heatLossWatts',
+  'heatLossKnown',
+] as const satisfies ReadonlyArray<keyof StorySharedBasics>;
 
 // ── Scenario definition ───────────────────────────────────────────────────────
 
@@ -111,4 +148,5 @@ export interface StoryScenario<TInputs extends ScenarioInputs = ScenarioInputs> 
 export const STORY_SCENARIOS: StoryScenario<any>[] = [
   combiSwitchScenario,
   oldBoilerRealityScenario,
+  heatPumpViabilityScenario,
 ];
