@@ -111,6 +111,12 @@ const COMBI_SWITCH_BASE: Partial<EngineInputV2_3> = {
  *
  * When mainsFlowLpmKnown is false, a conservative flow estimate is derived from
  * hotWaterDemand and occupancyCount rather than using an arbitrary default.
+ *
+ * storedType maps to coldWaterSource for the System B compare context:
+ *   'vented'   → coldWaterSource 'loft_tank'  (open-vented / gravity-fed)
+ *   'unvented' → coldWaterSource 'mains_true' (mains-pressure unvented)
+ *
+ * User choice is the source of truth — storedType is never auto-inferred.
  */
 export function applyCombiSwitchInputs(
   inputs: CombiSwitchInputs,
@@ -124,6 +130,9 @@ export function applyCombiSwitchInputs(
     : inputs.simultaneousUse === 'sometimes' && inputs.bathroomCount >= 2 ? 2
     : 1;
 
+  const coldWaterSource: EngineInputV2_3['coldWaterSource'] =
+    inputs.storedType === 'vented' ? 'loft_tank' : 'mains_true';
+
   return {
     ...(COMBI_SWITCH_BASE as EngineInputV2_3),
     occupancyCount:       inputs.occupancyCount,
@@ -132,6 +141,7 @@ export function applyCombiSwitchInputs(
     mainsPressureRecorded: inputs.mainsFlowLpmKnown,
     peakConcurrentOutlets,
     highOccupancy:        inputs.occupancyCount >= 5,
+    coldWaterSource,
   };
 }
 

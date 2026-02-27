@@ -48,6 +48,8 @@ describe('scenarioRegistry integrity', () => {
     expect(typeof d.mainsFlowLpmKnown).toBe('boolean');
     expect(d.mainsFlowLpm).toBeGreaterThanOrEqual(6);
     expect(['low', 'medium', 'high']).toContain(d.hotWaterDemand);
+    expect(['vented', 'unvented']).toContain(d.storedType);
+    expect(d.storedType).toBe('unvented');
   });
 
   it('old_boiler_reality defaults are valid OldBoilerRealityInputs', () => {

@@ -69,6 +69,8 @@ function CombiSwitchShell({
   const combiFail = checks.combi.flags.some(f => f.severity === 'fail');
   const combiWarn = checks.combi.flags.some(f => f.severity === 'warn');
 
+  const storedTileTitle = inputs.storedType === 'vented' ? 'Stored (Vented)' : 'Stored (Unvented)';
+
   return (
     <div className="scenario-shell">
       <div className="scenario-shell__header">
@@ -89,6 +91,28 @@ function CombiSwitchShell({
         <div className="scenario-shell__output">
           <h3>Live output</h3>
 
+          {/* Stored cylinder type toggle */}
+          <div className="story-stored-type-toggle">
+            <span className="story-stored-type-toggle__label">Stored cylinder:</span>
+            <div className="chip-group">
+              {(['unvented', 'vented'] as const).map(type => (
+                <button
+                  key={type}
+                  type="button"
+                  className={`chip-btn${inputs.storedType === type ? ' chip-btn--active' : ''}`}
+                  onClick={() => setInputs(prev => ({ ...prev, storedType: type }))}
+                >
+                  {type === 'unvented' ? 'Unvented' : 'Vented'}
+                </button>
+              ))}
+            </div>
+            <p className="story-stored-type-toggle__hint">
+              {inputs.storedType === 'vented'
+                ? 'Vented = tank-fed (loft), stable delivery, not "mains pressure"'
+                : 'Unvented = mains pressure, subject to mains flow'}
+            </p>
+          </div>
+
           {/* System comparison tiles */}
           <div className="story-comparison-tiles">
             <SystemTile
@@ -97,7 +121,7 @@ function CombiSwitchShell({
               flags={checks.combi.flags.map(f => f.title)}
             />
             <SystemTile
-              title="Stored (Unvented)"
+              title={storedTileTitle}
               status={checks.stored.verdict.storedRisk}
               flags={[]}
             />
