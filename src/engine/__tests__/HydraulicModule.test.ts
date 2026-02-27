@@ -243,3 +243,16 @@ describe('calcVelocityFromLpm – monotonic velocity across 15/22/28mm and 5–8
     expect(v).toBeLessThan(10);
   });
 });
+
+// ─── Regression tests for specific screenshot scenarios ───────────────────────
+
+describe('HydraulicModuleV1 — scenario regressions', () => {
+  it('regression #3: HeatLoss=13.5kW, primary=22mm → ashpRisk is warn or fail (not pass)', () => {
+    // Previously this was silently "pass" at the verdict level, leading to a
+    // "Good candidate" ASHP badge even though 22mm is marginal for 13.5 kW.
+    const result = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 13500 });
+    expect(result.verdict.ashpRisk).not.toBe('pass');
+    // 13.5 kW is between ashpWarnKw (8) and ashpFailKw (14) for 22mm → 'warn'
+    expect(result.verdict.ashpRisk).toBe('warn');
+  });
+});

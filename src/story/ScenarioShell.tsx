@@ -360,6 +360,14 @@ function OldBoilerRealityShell({
 
 // ── Heat Pump Viability Shell ─────────────────────────────────────────────────
 
+// Assumed tariffs for economic framing when no live data is available (UK mid-2024 averages).
+const ASSUMED_ELEC_PENCE_PER_KWH = 28;
+const ASSUMED_GAS_PENCE_PER_KWH  = 7;
+const ASSUMED_BOILER_EFFICIENCY   = 0.90; // condensing boiler in-service efficiency
+
+/** COP threshold below which a cost-risk warning is shown. */
+const COP_COST_WARNING_THRESHOLD = 3.1;
+
 const VERDICT_LABEL: Record<'good' | 'possible' | 'limited', string> = {
   good:     'Good candidate',
   possible: 'Possible — with caveats',
@@ -412,9 +420,31 @@ function HeatPumpViabilityShell({
   const viabilityData = useMemo(() => {
     const flowTempC = deriveHeatPumpFlowTempC(inputs.radiatorsType);
     const cop       = estimateHeatPumpCop(flowTempC);
-    const verdict   = deriveHeatPumpViabilityVerdict(inputs);
-    return { flowTempC, cop, verdict };
-  }, [inputs]);
+
+    // Base verdict from scenario inputs.
+    let verdict = deriveHeatPumpViabilityVerdict(inputs);
+
+    // Downgrade from 'good' when ASHP hydraulic risk is non-trivial.
+    // Both known and estimated heat-loss values warrant a downgrade: if the
+    // pipe is already at the warn/fail threshold even on a default assumption,
+    // "Good candidate" is over-confident.
+    if (verdict === 'good' && hydraulic.verdict.ashpRisk !== 'pass') {
+      verdict = 'possible';
+    }
+
+    // Economic framing: cost per useful kWh (assumed tariffs, shown with caveat).
+    const hpCostPerUsefulKwh  = parseFloat((ASSUMED_ELEC_PENCE_PER_KWH / cop).toFixed(1));
+    const gasCostPerUsefulKwh = parseFloat((ASSUMED_GAS_PENCE_PER_KWH / ASSUMED_BOILER_EFFICIENCY).toFixed(1));
+    let costComparison: 'cheaper' | 'similar' | 'more_expensive';
+    if (hpCostPerUsefulKwh < gasCostPerUsefulKwh * 0.95) costComparison = 'cheaper';
+    else if (hpCostPerUsefulKwh > gasCostPerUsefulKwh * 1.05) costComparison = 'more_expensive';
+    else costComparison = 'similar';
+
+    return { flowTempC, cop, verdict, hpCostPerUsefulKwh, gasCostPerUsefulKwh, costComparison };
+  }, [inputs, hydraulic]);
+
+  // True when primary pipe upgrade is recommended (22 mm on high heat-loss load).
+  const ashpPipeUpgradeNeeded = hydraulic.verdict.ashpRisk !== 'pass';
 
   return (
     <div className="scenario-shell">
@@ -451,10 +481,36 @@ function HeatPumpViabilityShell({
                   Design flow temperature:{' '}
                   <strong>{viabilityData.flowTempC} °C</strong>
                   {' '}({RADIATOR_TYPE_LABEL[inputs.radiatorsType]})
+                  {viabilityData.flowTempC >= 50 && (
+                    <strong className="story-hp-flow-label"> — fast fit / compromise</strong>
+                  )}
+                  {viabilityData.flowTempC <= 40 && (
+                    <strong className="story-hp-flow-label"> — full job / best case</strong>
+                  )}
                 </li>
                 <li>
                   Indicative seasonal COP:{' '}
                   <strong>{viabilityData.cop.toFixed(1)}</strong>
+                </li>
+                {viabilityData.cop <= COP_COST_WARNING_THRESHOLD && (
+                  <li className="story-hp-cost-warning">
+                    ⚠️ COP {viabilityData.cop.toFixed(1)} at {viabilityData.flowTempC}°C is in the "fast fit / compromise" zone.
+                    Performance is acceptable but may not beat gas on cost unless electricity is unusually cheap
+                    or gas unusually expensive.
+                  </li>
+                )}
+                <li>
+                  Running cost (assumed: {ASSUMED_ELEC_PENCE_PER_KWH}p/kWh elec,{' '}
+                  {ASSUMED_GAS_PENCE_PER_KWH}p/kWh gas):{' '}
+                  <strong>
+                    HP ~{viabilityData.hpCostPerUsefulKwh}p vs gas ~{viabilityData.gasCostPerUsefulKwh}p
+                    {' '}per useful kWh
+                  </strong>
+                  {' '}—{' '}
+                  {viabilityData.costComparison === 'cheaper' && 'likely cheaper than gas'}
+                  {viabilityData.costComparison === 'similar' && 'broadly similar to gas'}
+                  {viabilityData.costComparison === 'more_expensive' && 'likely more expensive than gas'}
+                  {' '}(assumed tariffs)
                 </li>
                 <li>
                   {inputs.comfortPreference === 'fast_response'
@@ -491,6 +547,12 @@ function HeatPumpViabilityShell({
                 )}
                 {inputs.primaryPipeDiameter === 15 && inputs.primaryPipeDiameterKnown && (
                   <li>15 mm primary pipe → hydraulic separator and low-loss header recommended.</li>
+                )}
+                {ashpPipeUpgradeNeeded && inputs.primaryPipeDiameter !== 15 && (
+                  <li>
+                    Upgrade primary circuit to 28 mm (or install hydraulic separation / low-loss
+                    header) — heat load exceeds safe capacity of current pipework at ASHP ΔT.
+                  </li>
                 )}
                 {inputs.comfortPreference === 'fast_response' && (
                   <li>Fast pick-up preference → discuss weather compensation controls and buffer vessel.</li>

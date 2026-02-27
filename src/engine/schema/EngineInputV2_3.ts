@@ -60,6 +60,12 @@ export interface EngineInputV2_3 {
   /** Dynamic flow rate at pressure (L/min) — required for a meaningful dynamic point. */
   mainsDynamicFlowLpm?: number;
   /**
+   * Set to `true` when mainsDynamicFlowLpm is a real measured reading (flow cup / bucket
+   * test or flow meter).  When `false` or absent, the value is a conservative estimate
+   * derived from household demand heuristics and must not be used as a hard gate.
+   */
+  mainsDynamicFlowLpmKnown?: boolean;
+  /**
    * Set to `false` when dynamic pressure was not recorded during the flow test
    * (e.g. flow-cup / bucket test where only L/min was captured).
    * Defaults to `true` (pressure is assumed recorded when dynamicMainsPressure is provided).
@@ -284,7 +290,13 @@ export interface CombiStressResult {
 
 /** Structured red-flag item for CombiDhwModuleV1. */
 export interface CombiDhwFlagItem {
-  id: 'combi-pressure-lockout' | 'combi-simultaneous-demand' | 'combi-short-draw-collapse' | 'combi-three-person-caution';
+  id:
+    | 'combi-pressure-lockout'
+    | 'combi-simultaneous-demand'
+    | 'combi-short-draw-collapse'
+    | 'combi-three-person-caution'
+    | 'combi-large-household'
+    | 'combi-flow-inadequate';
   severity: 'fail' | 'warn';
   title: string;
   detail: string;
@@ -332,7 +344,9 @@ export interface StoredDhwFlagItem {
     | 'stored-space-tight'
     | 'stored-space-unknown'
     | 'stored-high-demand'
-    | 'stored-solves-simultaneous-demand';
+    | 'stored-solves-simultaneous-demand'
+    | 'stored-unvented-low-flow'
+    | 'stored-unvented-flow-unknown';
   severity: 'info' | 'warn';
   title: string;
   detail: string;

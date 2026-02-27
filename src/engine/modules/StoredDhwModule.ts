@@ -1,13 +1,18 @@
 import type { EngineInputV2_3, StoredDhwV1Result, StoredDhwFlagItem } from '../schema/EngineInputV2_3';
 
+/** Minimum mains dynamic flow (L/min) for an unvented cylinder to perform well. */
+const UNVENTED_MIN_ADEQUATE_LPM = 18;
+
 /**
  * StoredDhwModuleV1
  *
  * Deterministic stored-cylinder (DHW) eligibility and sizing-proxy module based
- * on three physics / practical rules:
- *   1. Space gate  – available cylinder space is tight or unknown → warn
- *   2. Demand gate – high occupancy or many bathrooms → recommend larger volume / Mixergy
- *   3. Combi fallback – if combi simultaneous-demand fails, flag that Stored solves it
+ * on four physics / practical rules:
+ *   1. Space gate      – available cylinder space is tight or unknown → warn (suppressed
+ *                        for unvented when mains flow is confirmed adequate)
+ *   2. Vented/unvented – for unvented (mains_true), gates on mains flow adequacy
+ *   3. Demand gate     – high occupancy or many bathrooms → recommend larger volume / Mixergy
+ *   4. Combi fallback  – if combi simultaneous-demand fails, flag that Stored solves it
  */
 export function runStoredDhwModuleV1(
   input: EngineInputV2_3,
@@ -19,8 +24,57 @@ export function runStoredDhwModuleV1(
   const space = input.availableSpace ?? 'unknown';
   const bathrooms = input.bathroomCount ?? 1;
   const occupancy = input.occupancyCount ?? (input.highOccupancy ? 4 : 2);
+  const coldWaterSource = input.coldWaterSource ?? 'unknown';
 
   const isHighDemand = bathrooms >= 2 || occupancy >= 4;
+
+  // ── Rule 2 (new): Unvented mains-flow gate ────────────────────────────────
+  // For unvented (mains-pressure) cylinders the principal viability check is
+  // whether the mains supply can sustain the demand.  For vented (loft-tank)
+  // systems this is not a gate because gravity-fed supply is normally adequate
+  // for domestic cylinders.
+  const isUnvented = coldWaterSource === 'mains_true' || coldWaterSource === 'mains_shared';
+  const mainsFlowKnown = input.mainsDynamicFlowLpmKnown === true && input.mainsDynamicFlowLpm != null;
+  const mainsFlowAdequate =
+    mainsFlowKnown && input.mainsDynamicFlowLpm! >= UNVENTED_MIN_ADEQUATE_LPM;
+
+  if (isUnvented) {
+    if (mainsFlowKnown && !mainsFlowAdequate) {
+      flags.push({
+        id: 'stored-unvented-low-flow',
+        severity: 'warn',
+        title: 'Mains flow below optimal for unvented cylinder',
+        detail:
+          `Measured mains flow ${input.mainsDynamicFlowLpm} L/min is below the ` +
+          `~${UNVENTED_MIN_ADEQUATE_LPM} L/min recommended for an unvented cylinder. ` +
+          `The system will still work but simultaneous draws may disappoint — ` +
+          `shower experience may be weak when multiple outlets run together.`,
+      });
+    } else if (!mainsFlowKnown) {
+      flags.push({
+        id: 'stored-unvented-flow-unknown',
+        severity: 'warn',
+        title: 'Mains flow not confirmed for unvented cylinder',
+        detail:
+          `Unvented cylinder viability depends on adequate mains flow (≥${UNVENTED_MIN_ADEQUATE_LPM} L/min). ` +
+          `No measured reading has been provided — carry out a flow test before specifying an unvented cylinder.`,
+      });
+    } else {
+      assumptions.push(
+        `Unvented (mains-pressure) cylinder: measured mains flow ` +
+        `${input.mainsDynamicFlowLpm} L/min ≥ ${UNVENTED_MIN_ADEQUATE_LPM} L/min — mains supply adequate.`,
+      );
+    }
+  } else if (coldWaterSource === 'loft_tank') {
+    assumptions.push('Vented (gravity-fed) cylinder: loft-tank supply — mains flow gate not applicable.');
+  }
+
+  // ── Rule 1: Space gate ────────────────────────────────────────────────────
+  // For unvented systems with confirmed adequate mains flow, space-unknown is
+  // downgraded to 'info' (the key viability question is answered; space is a
+  // physical constraint to survey, not a system-viability gate).
+  const spaceUnknownSeverity: StoredDhwFlagItem['severity'] =
+    isUnvented && mainsFlowAdequate ? 'info' : 'warn';
 
   // ── Rule 1a: Space tight + high demand → Mixergy recommended ────────────
   if (space === 'tight' && isHighDemand) {
@@ -44,10 +98,10 @@ export function runStoredDhwModuleV1(
         `considered to avoid installation issues.`,
     });
   } else if (space === 'unknown') {
-    // ── Rule 1c: Space unknown → warn ────────────────────────────────────────
+    // ── Rule 1c: Space unknown → warn (or info for unvented with adequate mains) ──
     flags.push({
       id: 'stored-space-unknown',
-      severity: 'warn',
+      severity: spaceUnknownSeverity,
       title: 'Cylinder space not confirmed',
       detail:
         `Available space for a cylinder has not been confirmed. Survey the airing ` +

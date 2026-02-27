@@ -41,8 +41,8 @@ describe('OptionScoringV1 — card score shape', () => {
 });
 
 describe('OptionScoringV1 — rejected option scores 0', () => {
-  it('rejected combi (2 bathrooms) → score 0', () => {
-    const input = { ...baseInput, bathroomCount: 2 };
+  it('rejected combi (2 bathrooms + 2 outlets) → score 0', () => {
+    const input = { ...baseInput, bathroomCount: 2, peakConcurrentOutlets: 2 };
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
     const combi = options.find(o => o.id === 'combi')!;
@@ -422,8 +422,8 @@ describe('OptionScoringV1 — score band classification', () => {
   });
 
   it('score 0 → band not_viable', () => {
-    // rejected option → score 0
-    const input = { ...baseInput, bathroomCount: 2 };
+    // rejected option (explicit concurrent outlets) → score 0
+    const input = { ...baseInput, bathroomCount: 2, peakConcurrentOutlets: 2 };
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
     const combi = options.find(o => o.id === 'combi')!;
