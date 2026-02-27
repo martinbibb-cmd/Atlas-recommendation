@@ -139,6 +139,7 @@ describe('applyCombiSwitchInputs', () => {
     mainsFlowLpmKnown: false,
     mainsFlowLpm: 12,
     hotWaterDemand: 'medium',
+    storedType: 'unvented',
   };
 
   it('derives conservative flow when mainsFlowLpmKnown is false', () => {
@@ -170,6 +171,16 @@ describe('applyCombiSwitchInputs', () => {
   it('sets highOccupancy=false for <5 occupants', () => {
     const result = applyCombiSwitchInputs({ ...base, occupancyCount: 3 });
     expect(result.highOccupancy).toBe(false);
+  });
+
+  it('storedType vented sets coldWaterSource to loft_tank', () => {
+    const result = applyCombiSwitchInputs({ ...base, storedType: 'vented' });
+    expect(result.coldWaterSource).toBe('loft_tank');
+  });
+
+  it('storedType unvented sets coldWaterSource to mains_true', () => {
+    const result = applyCombiSwitchInputs({ ...base, storedType: 'unvented' });
+    expect(result.coldWaterSource).toBe('mains_true');
   });
 });
 

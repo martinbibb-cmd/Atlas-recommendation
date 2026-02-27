@@ -51,6 +51,8 @@ export interface CombiSwitchInputs {
   mainsFlowLpmKnown: boolean;
   mainsFlowLpm: number;
   hotWaterDemand: 'low' | 'medium' | 'high';
+  /** Advisor-selected stored cylinder type for System B comparison. */
+  storedType: 'vented' | 'unvented';
 }
 
 /**
@@ -109,6 +111,7 @@ const combiSwitchScenario: StoryScenario<CombiSwitchInputs> = {
     'mainsFlowLpmKnown',
     'mainsFlowLpm',
     'hotWaterDemand',
+    'storedType',
   ],
   defaults: {
     occupancyCount: 2,
@@ -117,6 +120,7 @@ const combiSwitchScenario: StoryScenario<CombiSwitchInputs> = {
     mainsFlowLpmKnown: false,
     mainsFlowLpm: 12,
     hotWaterDemand: 'medium',
+    storedType: 'unvented',
   },
   compareDefaults: {
     systemA: 'combi',
