@@ -38,6 +38,8 @@ import {
   resolveNominalEfficiencyPct,
 } from '../engine/utils/efficiency';
 import StoryEscalation from './StoryEscalation';
+import { shouldShowPanel } from './rendering/shouldShowPanel';
+import type { OutputPanel } from './scenarioRegistry';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -57,6 +59,9 @@ function CombiSwitchShell({
   onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
 }) {
   const [inputs, setInputs] = useState<CombiSwitchInputs>(combiSwitchScenario.defaults);
+
+  const show = (panel: OutputPanel) =>
+    shouldShowPanel(combiSwitchScenario.outputFocus, panel);
 
   const engineInput = useMemo(() => applyCombiSwitchInputs(inputs), [inputs]);
 
@@ -106,7 +111,7 @@ function CombiSwitchShell({
         {/* Left: inputs */}
         <div className="scenario-shell__inputs">
           <CombiSwitchInputPanel inputs={inputs} onChange={setInputs} />
-          <InputsSummary engineInput={engineInput} />
+          {show('inputs_summary') && <InputsSummary engineInput={engineInput} />}
         </div>
 
         {/* Right: live output */}
@@ -182,6 +187,9 @@ function OldBoilerRealityShell({
   const [inputs, setInputs] = useState<OldBoilerRealityInputs>(oldBoilerRealityScenario.defaults);
   const [hoveredMarker, setHoveredMarker] = useState<string | null>(null);
 
+  const show = (panel: OutputPanel) =>
+    shouldShowPanel(oldBoilerRealityScenario.outputFocus, panel);
+
   const engineInput = useMemo(() => applyOldBoilerRealityInputs(inputs), [inputs]);
 
   const hydraulic = useMemo(() => runHydraulicModuleV1(engineInput), [engineInput]);
@@ -226,35 +234,43 @@ function OldBoilerRealityShell({
         {/* Left: inputs */}
         <div className="scenario-shell__inputs">
           <OldBoilerRealityInputPanel inputs={inputs} onChange={setInputs} />
-          <InputsSummary engineInput={engineInput} />
+          {show('inputs_summary') && <InputsSummary engineInput={engineInput} />}
         </div>
 
         {/* Right: live output */}
         <div className="scenario-shell__output">
-          <h3>Performance band ladder</h3>
+          {show('band_ladder') && (
+            <>
+              <h3>Performance band ladder</h3>
 
-          <div className={`story-confidence-badge story-confidence-badge--${bandData.confidence}`}>
-            Confidence: <strong>{bandData.confidence}</strong>
-            {' '}(estimated — not an official reclassification)
-          </div>
+              <div className={`story-confidence-badge story-confidence-badge--${bandData.confidence}`}>
+                Confidence: <strong>{bandData.confidence}</strong>
+                {' '}(estimated — not an official reclassification)
+              </div>
 
-          <PerformanceBandLadder
-            nominalPct={bandData.nominalPct}
-            currentEffectivePct={bandData.currentPct}
-            restoredPct={bandData.restoredPct}
-            newBaselinePct={bandData.newBaselinePct}
-            confidence={bandData.confidence}
-            contributors={bandData.contributors}
-            onMarkerHover={setHoveredMarker}
-          />
+              <PerformanceBandLadder
+                nominalPct={bandData.nominalPct}
+                currentEffectivePct={bandData.currentPct}
+                restoredPct={bandData.restoredPct}
+                newBaselinePct={bandData.newBaselinePct}
+                confidence={bandData.confidence}
+                contributors={bandData.contributors}
+                onMarkerHover={setHoveredMarker}
+              />
+            </>
+          )}
 
-          <h3 style={{ marginTop: 24 }}>Recovery steps</h3>
-          <RecoveryStepsPanel
-            systemAType="combi"
-            systemBType="combi"
-            hydraulic={hydraulic}
-            highlightedMarker={hoveredMarker}
-          />
+          {show('recovery_steps') && (
+            <>
+              <h3 style={{ marginTop: 24 }}>Recovery steps</h3>
+              <RecoveryStepsPanel
+                systemAType="combi"
+                systemBType="combi"
+                hydraulic={hydraulic}
+                highlightedMarker={hoveredMarker}
+              />
+            </>
+          )}
 
           {oldBoilerRealityScenario.escalationAllowed && (
             <StoryEscalation onEscalate={onEscalate} prefill={engineInput} />

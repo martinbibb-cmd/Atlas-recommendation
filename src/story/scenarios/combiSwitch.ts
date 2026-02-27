@@ -82,10 +82,9 @@ export const combiSwitchScenario: StoryScenario<CombiSwitchInputs> = {
     systemB: 'stored_unvented',
   },
   outputFocus: [
-    'demand_vs_plant',
-    'efficiency_curve',
-    'dhw_overlap_notes',
-    'behaviour_bullets',
+    'demand_graph',
+    'efficiency_graph',
+    'inputs_summary',
   ],
   escalationAllowed: true,
 };
