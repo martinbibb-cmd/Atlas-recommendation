@@ -26,6 +26,10 @@ export default function ScenarioSelector({ onSelect }: Props) {
             onSelect={() => onSelect(scenario.id)}
           />
         ))}
+        <PlaceholderCard
+          title="Heat pump enquiry"
+          description="Assess whether an air source heat pump is viable for this property."
+        />
       </div>
     </div>
   );
@@ -45,6 +49,24 @@ function ScenarioCard({
       <p className="story-scenario-card__description">{scenario.description}</p>
       <button className="cta-btn story-scenario-card__cta" onClick={e => { e.stopPropagation(); onSelect(); }}>
         Start →
+      </button>
+    </div>
+  );
+}
+
+function PlaceholderCard({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="story-scenario-card story-scenario-card--placeholder" aria-disabled="true">
+      <h3 className="story-scenario-card__title">{title}</h3>
+      <p className="story-scenario-card__description">{description}</p>
+      <button className="cta-btn story-scenario-card__cta" disabled>
+        Coming soon
       </button>
     </div>
   );

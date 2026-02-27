@@ -10,7 +10,9 @@
 
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import { combiSwitchScenario } from './scenarios/combiSwitch';
+import { oldBoilerRealityScenario } from './scenarios/oldBoilerReality';
 export { combiSwitchScenario } from './scenarios/combiSwitch';
+export { oldBoilerRealityScenario } from './scenarios/oldBoilerReality';
 
 // ── Scenario field keys ───────────────────────────────────────────────────────
 
@@ -99,42 +101,6 @@ export interface StoryScenario<TInputs extends ScenarioInputs = ScenarioInputs> 
   escalationAllowed: boolean;
 }
 
-// ── Scenario: Old Boiler Reality Check ───────────────────────────────────────
-
-const oldBoilerRealityScenario: StoryScenario<OldBoilerRealityInputs> = {
-  id: 'old_boiler_reality',
-  title: 'Boiler is old',
-  description: "Compare the as-manufactured rating against likely real-world performance today.",
-  advisorIntent: "Let's compare the as-manufactured rating vs likely real-world performance today.",
-  fields: [
-    'boilerAgeYears',
-    'manufacturedBand',
-    'manufacturedSedbukPctKnown',
-    'manufacturedSedbukPct',
-    'controlsType',
-    'systemCleanliness',
-    'filterPresent',
-  ],
-  defaults: {
-    boilerAgeYears: 10,
-    manufacturedBand: 'A',
-    manufacturedSedbukPctKnown: false,
-    manufacturedSedbukPct: 90,
-    controlsType: 'basic_stat',
-    systemCleanliness: 'unknown',
-    filterPresent: 'unknown',
-  },
-  compareDefaults: {
-    systemA: 'combi',
-    systemB: 'combi',
-  },
-  outputFocus: [
-    'band_ladder',
-    'recovery_steps',
-  ],
-  escalationAllowed: true,
-};
-
 // ── Registry ──────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -142,5 +108,3 @@ export const STORY_SCENARIOS: StoryScenario<any>[] = [
   combiSwitchScenario,
   oldBoilerRealityScenario,
 ];
-
-export { oldBoilerRealityScenario };
