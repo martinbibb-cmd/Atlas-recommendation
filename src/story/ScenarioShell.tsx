@@ -11,16 +11,31 @@
  *   - PerformanceBandLadder with 4 markers
  *   - RecoveryStepsPanel
  *
+ * Heat Pump Viability:
+ *   - Hydraulics (pipe-sizing)
+ *   - COP estimate (efficiency_graph)
+ *   - Inputs summary
+ *
  * Optional StoryEscalation button when scenario.escalationAllowed === true.
+ *
+ * Shared basics (occupancyCount, bathroomCount, etc.) are merged into each
+ * sub-shell's initial state and synced back on every change.
  */
 import { useState, useMemo } from 'react';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
-import type { CombiSwitchInputs, OldBoilerRealityInputs } from './scenarioRegistry';
-import { combiSwitchScenario, oldBoilerRealityScenario } from './scenarioRegistry';
-import { CombiSwitchInputPanel, OldBoilerRealityInputPanel } from './ScenarioInputPanel';
+import type { CombiSwitchInputs, OldBoilerRealityInputs, StorySharedBasics } from './scenarioRegistry';
+import { combiSwitchScenario, oldBoilerRealityScenario, heatPumpViabilityScenario, STORY_SCENARIOS } from './scenarioRegistry';
+import type { HeatPumpViabilityInputs } from './scenarios/heatPumpViability';
+import {
+  deriveHeatPumpFlowTempC,
+  estimateHeatPumpCop,
+  deriveHeatPumpViabilityVerdict,
+} from './scenarios/heatPumpViability';
+import { CombiSwitchInputPanel, OldBoilerRealityInputPanel, HeatPumpViabilityInputPanel } from './ScenarioInputPanel';
 import {
   applyCombiSwitchInputs,
   applyOldBoilerRealityInputs,
+  applyHeatPumpViabilityInputs,
   sludgeDerateByCleanlinessStatus,
   controlsCyclingPenaltyPct,
   deriveOldBoilerConfidence,
@@ -45,23 +60,79 @@ import type { OutputPanel } from './scenarioRegistry';
 
 interface Props {
   scenarioId: string;
+  sharedBasics: StorySharedBasics;
   onBack: () => void;
+  onSwitch: (id: string) => void;
   onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
+  onSharedBasicsChange: (update: Partial<StorySharedBasics>) => void;
+}
+
+// ── Shared header with "← Scenarios" and scenario switcher ───────────────────
+
+function ScenarioHeader({
+  currentId,
+  title,
+  onBack,
+  onSwitch,
+}: {
+  currentId: string;
+  title: string;
+  onBack: () => void;
+  onSwitch: (id: string) => void;
+}) {
+  return (
+    <div className="scenario-shell__header">
+      <button className="back-btn" onClick={onBack}>← Scenarios</button>
+      <span className="step-label">{title}</span>
+      <select
+        className="scenario-switch-select"
+        value={currentId}
+        onChange={e => onSwitch(e.target.value)}
+        aria-label="Switch scenario"
+      >
+        {STORY_SCENARIOS.map(s => (
+          <option key={s.id} value={s.id}>{s.title}</option>
+        ))}
+      </select>
+    </div>
+  );
 }
 
 // ── Combi Switch Shell ─────────────────────────────────────────────────────────
 
 function CombiSwitchShell({
   onBack,
+  onSwitch,
   onEscalate,
+  sharedBasics,
+  onSharedBasicsChange,
 }: {
   onBack: () => void;
+  onSwitch: (id: string) => void;
   onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
+  sharedBasics: StorySharedBasics;
+  onSharedBasicsChange: (update: Partial<StorySharedBasics>) => void;
 }) {
-  const [inputs, setInputs] = useState<CombiSwitchInputs>(combiSwitchScenario.defaults);
+  const [inputs, setInputs] = useState<CombiSwitchInputs>(() => ({
+    ...combiSwitchScenario.defaults,
+    ...(sharedBasics.occupancyCount !== undefined && { occupancyCount: sharedBasics.occupancyCount }),
+    ...(sharedBasics.bathroomCount !== undefined && { bathroomCount: sharedBasics.bathroomCount }),
+    ...(sharedBasics.mainsFlowLpm !== undefined && { mainsFlowLpm: sharedBasics.mainsFlowLpm }),
+    ...(sharedBasics.mainsFlowLpm !== undefined && !sharedBasics.mainsFlowUnknown && { mainsFlowLpmKnown: true }),
+  }));
 
   const show = (panel: OutputPanel) =>
     shouldShowPanel(combiSwitchScenario.outputFocus, panel);
+
+  function handleInputChange(newInputs: CombiSwitchInputs) {
+    setInputs(newInputs);
+    onSharedBasicsChange({
+      occupancyCount:    newInputs.occupancyCount,
+      bathroomCount:     newInputs.bathroomCount,
+      mainsFlowLpm:      newInputs.mainsFlowLpm,
+      mainsFlowUnknown:  !newInputs.mainsFlowLpmKnown,
+    });
+  }
 
   const engineInput = useMemo(() => applyCombiSwitchInputs(inputs), [inputs]);
 
@@ -78,10 +149,12 @@ function CombiSwitchShell({
 
   return (
     <div className="scenario-shell">
-      <div className="scenario-shell__header">
-        <button className="back-btn" onClick={onBack}>← Back</button>
-        <span className="step-label">{combiSwitchScenario.title}</span>
-      </div>
+      <ScenarioHeader
+        currentId="combi_switch"
+        title={combiSwitchScenario.title}
+        onBack={onBack}
+        onSwitch={onSwitch}
+      />
 
       <ModellingNotice />
 
@@ -94,7 +167,7 @@ function CombiSwitchShell({
               key={type}
               type="button"
               className={`chip-btn${inputs.storedType === type ? ' chip-btn--active' : ''}`}
-              onClick={() => setInputs(prev => ({ ...prev, storedType: type }))}
+              onClick={() => handleInputChange({ ...inputs, storedType: type })}
             >
               {type === 'unvented' ? 'Unvented' : 'Vented'}
             </button>
@@ -110,7 +183,7 @@ function CombiSwitchShell({
       <div className="scenario-shell__layout">
         {/* Left: inputs */}
         <div className="scenario-shell__inputs">
-          <CombiSwitchInputPanel inputs={inputs} onChange={setInputs} />
+          <CombiSwitchInputPanel inputs={inputs} onChange={handleInputChange} />
           {show('inputs_summary') && <InputsSummary engineInput={engineInput} />}
         </div>
 
@@ -179,9 +252,11 @@ function CombiSwitchShell({
 
 function OldBoilerRealityShell({
   onBack,
+  onSwitch,
   onEscalate,
 }: {
   onBack: () => void;
+  onSwitch: (id: string) => void;
   onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
 }) {
   const [inputs, setInputs] = useState<OldBoilerRealityInputs>(oldBoilerRealityScenario.defaults);
@@ -223,10 +298,12 @@ function OldBoilerRealityShell({
 
   return (
     <div className="scenario-shell">
-      <div className="scenario-shell__header">
-        <button className="back-btn" onClick={onBack}>← Back</button>
-        <span className="step-label">{oldBoilerRealityScenario.title}</span>
-      </div>
+      <ScenarioHeader
+        currentId="old_boiler_reality"
+        title={oldBoilerRealityScenario.title}
+        onBack={onBack}
+        onSwitch={onSwitch}
+      />
 
       <ModellingNotice />
 
@@ -274,6 +351,157 @@ function OldBoilerRealityShell({
 
           {oldBoilerRealityScenario.escalationAllowed && (
             <StoryEscalation onEscalate={onEscalate} prefill={engineInput} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Heat Pump Viability Shell ─────────────────────────────────────────────────
+
+const VERDICT_LABEL: Record<'good' | 'possible' | 'limited', string> = {
+  good:     'Good candidate',
+  possible: 'Possible — with caveats',
+  limited:  'Significant constraints',
+};
+
+const VERDICT_STATUS: Record<'good' | 'possible' | 'limited', 'pass' | 'warn' | 'fail'> = {
+  good:     'pass',
+  possible: 'warn',
+  limited:  'fail',
+};
+
+const RADIATOR_TYPE_LABEL: Record<HeatPumpViabilityInputs['radiatorsType'], string> = {
+  mostly_doubles: 'low-temp ready',
+  mixed:          'mixed emitters',
+  mostly_singles: 'high-temp required',
+};
+
+function HeatPumpViabilityShell({
+  onBack,
+  onSwitch,
+  sharedBasics,
+  onSharedBasicsChange,
+}: {
+  onBack: () => void;
+  onSwitch: (id: string) => void;
+  sharedBasics: StorySharedBasics;
+  onSharedBasicsChange: (update: Partial<StorySharedBasics>) => void;
+}) {
+  const [inputs, setInputs] = useState<HeatPumpViabilityInputs>(() => ({
+    ...heatPumpViabilityScenario.defaults,
+    ...(sharedBasics.heatLossWatts !== undefined && { heatLossWatts: sharedBasics.heatLossWatts }),
+    ...(sharedBasics.heatLossKnown !== undefined && { heatLossKnown: sharedBasics.heatLossKnown }),
+  }));
+
+  const show = (panel: OutputPanel) =>
+    shouldShowPanel(heatPumpViabilityScenario.outputFocus, panel);
+
+  function handleInputChange(newInputs: HeatPumpViabilityInputs) {
+    setInputs(newInputs);
+    onSharedBasicsChange({
+      heatLossWatts: newInputs.heatLossWatts,
+      heatLossKnown: newInputs.heatLossKnown,
+    });
+  }
+
+  const engineInput = useMemo(() => applyHeatPumpViabilityInputs(inputs), [inputs]);
+  const hydraulic   = useMemo(() => runHydraulicModuleV1(engineInput), [engineInput]);
+
+  const viabilityData = useMemo(() => {
+    const flowTempC = deriveHeatPumpFlowTempC(inputs.radiatorsType);
+    const cop       = estimateHeatPumpCop(flowTempC);
+    const verdict   = deriveHeatPumpViabilityVerdict(inputs);
+    return { flowTempC, cop, verdict };
+  }, [inputs]);
+
+  return (
+    <div className="scenario-shell">
+      <ScenarioHeader
+        currentId="heat_pump_viability"
+        title={heatPumpViabilityScenario.title}
+        onBack={onBack}
+        onSwitch={onSwitch}
+      />
+
+      <ModellingNotice />
+
+      <div className="scenario-shell__layout">
+        {/* Left: inputs */}
+        <div className="scenario-shell__inputs">
+          <HeatPumpViabilityInputPanel inputs={inputs} onChange={handleInputChange} />
+          {show('inputs_summary') && <InputsSummary engineInput={engineInput} />}
+        </div>
+
+        {/* Right: live output */}
+        <div className="scenario-shell__output">
+          <h3>Viability assessment</h3>
+
+          {/* Verdict tile */}
+          <div className={`story-system-tile story-system-tile--${VERDICT_STATUS[viabilityData.verdict]}`}>
+            <strong>{VERDICT_LABEL[viabilityData.verdict]}</strong>
+          </div>
+
+          {show('efficiency_graph') && (
+            <div className="story-hp-cop-summary">
+              <h4>Estimated performance</h4>
+              <ul>
+                <li>
+                  Design flow temperature:{' '}
+                  <strong>{viabilityData.flowTempC} °C</strong>
+                  {' '}({RADIATOR_TYPE_LABEL[inputs.radiatorsType]})
+                </li>
+                <li>
+                  Indicative seasonal COP:{' '}
+                  <strong>{viabilityData.cop.toFixed(1)}</strong>
+                </li>
+                <li>
+                  {inputs.comfortPreference === 'fast_response'
+                    ? 'Fast pick-up preference → heat pump works best with continuous low-level heating.'
+                    : 'Steady background heat preference → well suited to heat pump rhythm.'}
+                </li>
+              </ul>
+            </div>
+          )}
+
+          {show('hydraulics') && (
+            <div className="story-hp-hydraulics">
+              <h4>Hydraulics</h4>
+              <ul>
+                <li>
+                  Primary pipe:{' '}
+                  <strong>{inputs.primaryPipeDiameterKnown ? `${inputs.primaryPipeDiameter} mm` : '22 mm (assumed)'}</strong>
+                  {inputs.primaryPipeDiameter === 15 && inputs.primaryPipeDiameterKnown
+                    ? ' — 15 mm may restrict flow; hydraulic separator likely required.'
+                    : ''}
+                </li>
+                <li>
+                  ASHP circuit: <strong>{hydraulic.verdict.ashpRisk}</strong>
+                  {' '}(effective COP: {hydraulic.effectiveCOP.toFixed(1)})
+                </li>
+              </ul>
+              <h4>What would need to change</h4>
+              <ul>
+                {!inputs.outdoorSpace && (
+                  <li>No outdoor space — ASHP siting not possible without external unit location.</li>
+                )}
+                {inputs.radiatorsType === 'mostly_singles' && (
+                  <li>Singles-dominated system → consider double-panel upgrade or fan-coil addition.</li>
+                )}
+                {inputs.primaryPipeDiameter === 15 && inputs.primaryPipeDiameterKnown && (
+                  <li>15 mm primary pipe → hydraulic separator and low-loss header recommended.</li>
+                )}
+                {inputs.comfortPreference === 'fast_response' && (
+                  <li>Fast pick-up preference → discuss weather compensation controls and buffer vessel.</li>
+                )}
+              </ul>
+              {inputs.outdoorSpace && inputs.radiatorsType !== 'mostly_singles' && (
+                <p className="story-hp-next-step">
+                  Property looks broadly suitable — detailed heat loss survey recommended to size correctly.
+                </p>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -344,16 +572,40 @@ function InputsSummary({ engineInput }: { engineInput: Partial<EngineInputV2_3> 
 
 // ── Main dispatcher ───────────────────────────────────────────────────────────
 
-export default function ScenarioShell({ scenarioId, onBack, onEscalate }: Props) {
+export default function ScenarioShell({ scenarioId, sharedBasics, onBack, onSwitch, onEscalate, onSharedBasicsChange }: Props) {
   if (scenarioId === 'combi_switch') {
-    return <CombiSwitchShell onBack={onBack} onEscalate={onEscalate} />;
+    return (
+      <CombiSwitchShell
+        onBack={onBack}
+        onSwitch={onSwitch}
+        onEscalate={onEscalate}
+        sharedBasics={sharedBasics}
+        onSharedBasicsChange={onSharedBasicsChange}
+      />
+    );
   }
   if (scenarioId === 'old_boiler_reality') {
-    return <OldBoilerRealityShell onBack={onBack} onEscalate={onEscalate} />;
+    return (
+      <OldBoilerRealityShell
+        onBack={onBack}
+        onSwitch={onSwitch}
+        onEscalate={onEscalate}
+      />
+    );
+  }
+  if (scenarioId === 'heat_pump_viability') {
+    return (
+      <HeatPumpViabilityShell
+        onBack={onBack}
+        onSwitch={onSwitch}
+        sharedBasics={sharedBasics}
+        onSharedBasicsChange={onSharedBasicsChange}
+      />
+    );
   }
   return (
     <div className="scenario-shell">
-      <button className="back-btn" onClick={onBack}>← Back</button>
+      <button className="back-btn" onClick={onBack}>← Scenarios</button>
       <p>Unknown scenario: {scenarioId}</p>
     </div>
   );

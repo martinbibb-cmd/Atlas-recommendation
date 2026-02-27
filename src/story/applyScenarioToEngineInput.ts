@@ -10,6 +10,7 @@
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import { ERP_TO_NOMINAL_PCT } from '../engine/utils/efficiency';
 import type { CombiSwitchInputs, OldBoilerRealityInputs, ScenarioInputs, SystemArchetypeId } from './scenarioRegistry';
+import type { HeatPumpViabilityInputs } from './scenarios/heatPumpViability';
 
 // ── Compare context types ─────────────────────────────────────────────────────
 
@@ -225,6 +226,43 @@ export function applyOldBoilerRealityInputs(
   };
 }
 
+// ── Heat Pump Viability: scenario inputs → EngineInputV2_3 partial ────────────
+
+const HEAT_PUMP_BASE: Partial<EngineInputV2_3> = {
+  postcode:            'SW1A 1AA',
+  dynamicMainsPressure: 2,
+  buildingMass:        'medium',
+  primaryPipeDiameter: 22,
+  heatLossWatts:       8000,
+  radiatorCount:       10,
+  hasLoftConversion:   false,
+  returnWaterTemp:     45,
+  bathroomCount:       1,
+  occupancyCount:      2,
+  occupancySignature:  'steady_home',
+  highOccupancy:       false,
+  preferCombi:         false,
+  availableSpace:      'unknown',
+  currentHeatSourceType: 'combi',
+};
+
+/**
+ * Map HeatPumpViabilityInputs to a full EngineInputV2_3 ready for the engine.
+ *
+ * primaryPipeDiameter falls back to 22 mm when not known.
+ * heatLossWatts falls back to the base default (8 kW) when not known.
+ */
+export function applyHeatPumpViabilityInputs(
+  inputs: HeatPumpViabilityInputs,
+): EngineInputV2_3 {
+  return {
+    ...(HEAT_PUMP_BASE as EngineInputV2_3),
+    heatLossWatts:       inputs.heatLossKnown ? inputs.heatLossWatts : 8000,
+    primaryPipeDiameter: inputs.primaryPipeDiameterKnown ? inputs.primaryPipeDiameter : 22,
+    availableSpace:      inputs.outdoorSpace ? 'ok' : 'tight',
+  };
+}
+
 // ── Unified entry point ───────────────────────────────────────────────────────
 
 /**
@@ -245,6 +283,10 @@ export function applyScenarioToEngineInput(
 export function applyScenarioToEngineInput(
   scenarioId: 'old_boiler_reality',
   state: OldBoilerRealityInputs,
+): ScenarioEngineOutput;
+export function applyScenarioToEngineInput(
+  scenarioId: 'heat_pump_viability',
+  state: HeatPumpViabilityInputs,
 ): ScenarioEngineOutput;
 export function applyScenarioToEngineInput(
   scenarioId: string,
@@ -270,6 +312,16 @@ export function applyScenarioToEngineInput(
     const engineInput = applyOldBoilerRealityInputs(inputs);
     const compareContext: CompareContext = {
       systemA: 'combi',
+      systemB: 'combi',
+    };
+    return { engineInput, compareContext };
+  }
+
+  if (scenarioId === 'heat_pump_viability') {
+    const inputs = state as HeatPumpViabilityInputs;
+    const engineInput = applyHeatPumpViabilityInputs(inputs);
+    const compareContext: CompareContext = {
+      systemA: 'ashp',
       systemB: 'combi',
     };
     return { engineInput, compareContext };

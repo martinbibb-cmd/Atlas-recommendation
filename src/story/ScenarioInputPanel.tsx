@@ -2,12 +2,13 @@
  * ScenarioInputPanel.tsx
  *
  * Renders a compact, scenario-scoped input panel.
- * Supports both combi_switch and old_boiler_reality scenarios.
+ * Supports combi_switch, old_boiler_reality, and heat_pump_viability scenarios.
  *
  * No Shower dropdown selectors — demand is driven by household size and
  * bathroom count heuristics only (per custom_instruction rule 6).
  */
 import type { CombiSwitchInputs, OldBoilerRealityInputs } from './scenarioRegistry';
+import type { HeatPumpViabilityInputs } from './scenarios/heatPumpViability';
 
 // ── Shared chip button ────────────────────────────────────────────────────────
 
@@ -293,6 +294,124 @@ export function OldBoilerRealityInputPanel({ inputs, onChange }: OldBoilerPanelP
           ]}
           value={inputs.filterPresent}
           onChange={v => set('filterPresent', v)}
+        />
+      </section>
+    </div>
+  );
+}
+
+// ── Heat Pump Viability input panel ──────────────────────────────────────────
+
+interface HeatPumpViabilityPanelProps {
+  inputs: HeatPumpViabilityInputs;
+  onChange: (inputs: HeatPumpViabilityInputs) => void;
+}
+
+export function HeatPumpViabilityInputPanel({ inputs, onChange }: HeatPumpViabilityPanelProps) {
+  function set<K extends keyof HeatPumpViabilityInputs>(key: K, value: HeatPumpViabilityInputs[K]) {
+    onChange({ ...inputs, [key]: value });
+  }
+
+  return (
+    <div className="scenario-input-panel">
+      <p className="scenario-input-panel__intent">
+        Let&apos;s assess what an air source heat pump would need to perform well here.
+      </p>
+
+      <section className="cockpit-group">
+        <h4>Heat loss</h4>
+
+        <ChipGroup
+          label="Heat loss known?"
+          options={[
+            { value: 'known',   label: 'Known' },
+            { value: 'unknown', label: 'Unknown' },
+          ]}
+          value={inputs.heatLossKnown ? 'known' : 'unknown'}
+          onChange={v => set('heatLossKnown', v === 'known')}
+        />
+
+        {inputs.heatLossKnown && (
+          <div className="form-field">
+            <label className="form-field__label">
+              Heat loss (W): {inputs.heatLossWatts}
+            </label>
+            <input
+              type="range"
+              min={2000}
+              max={20000}
+              step={500}
+              value={inputs.heatLossWatts}
+              onChange={e => set('heatLossWatts', Number(e.target.value))}
+              className="range-input"
+            />
+            <div className="range-labels">
+              <span>2 kW</span>
+              <span>20 kW</span>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="cockpit-group">
+        <h4>Emitters &amp; pipework</h4>
+
+        <ChipGroup
+          label="Radiators"
+          options={[
+            { value: 'mostly_doubles', label: 'Mostly doubles' },
+            { value: 'mixed',          label: 'Mixed' },
+            { value: 'mostly_singles', label: 'Mostly singles' },
+          ]}
+          value={inputs.radiatorsType}
+          onChange={v => set('radiatorsType', v)}
+        />
+
+        <ChipGroup
+          label="Primary pipe size known?"
+          options={[
+            { value: 'known',   label: 'Known' },
+            { value: 'unknown', label: 'Unknown' },
+          ]}
+          value={inputs.primaryPipeDiameterKnown ? 'known' : 'unknown'}
+          onChange={v => set('primaryPipeDiameterKnown', v === 'known')}
+        />
+
+        {inputs.primaryPipeDiameterKnown && (
+          <ChipGroup
+            label="Primary pipe diameter (mm)"
+            options={[
+              { value: '15', label: '15 mm' },
+              { value: '22', label: '22 mm' },
+              { value: '28', label: '28 mm' },
+            ]}
+            value={String(inputs.primaryPipeDiameter)}
+            onChange={v => set('primaryPipeDiameter', Number(v) as 15 | 22 | 28)}
+          />
+        )}
+      </section>
+
+      <section className="cockpit-group">
+        <h4>Comfort &amp; siting</h4>
+
+        <ChipGroup
+          label="Comfort preference"
+          options={[
+            { value: 'steady_heat',   label: 'Steady background heat' },
+            { value: 'fast_response', label: 'Fast pick-up' },
+          ]}
+          value={inputs.comfortPreference}
+          onChange={v => set('comfortPreference', v)}
+        />
+
+        <ChipGroup
+          label="Outdoor space available?"
+          options={[
+            { value: 'yes', label: 'Yes' },
+            { value: 'no',  label: 'No' },
+          ]}
+          value={inputs.outdoorSpace ? 'yes' : 'no'}
+          onChange={v => set('outdoorSpace', v === 'yes')}
         />
       </section>
     </div>
