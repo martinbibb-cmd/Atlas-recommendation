@@ -36,6 +36,8 @@ import { computeConditionImpactMetrics } from '../../engine/modules/SystemCondit
 
 interface Props {
   onBack: () => void;
+  /** Optional prefill state from Story Mode escalation. */
+  prefill?: Partial<FullSurveyModelV1>;
 }
 
 type Step = 'location' | 'pressure' | 'hydraulic' | 'lifestyle' | 'hot_water' | 'commercial' | 'overlay' | 'results';
@@ -421,9 +423,13 @@ const defaultInput: FullSurveyModelV1 = {
   },
 };
 
-export default function FullSurveyStepper({ onBack }: Props) {
+export default function FullSurveyStepper({ onBack, prefill }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('location');
-  const [input, setInput] = useState<FullSurveyModelV1>(defaultInput);
+  const [input, setInput] = useState<FullSurveyModelV1>(() =>
+    prefill ? { ...defaultInput, ...prefill } : defaultInput
+  );
+  const [prefillActive] = useState<boolean>(!!prefill);
+  const [showPrefillBanner, setShowPrefillBanner] = useState<boolean>(!!prefill);
   const [compareMixergy, setCompareMixergy] = useState(false);
   const [results, setResults] = useState<FullEngineResult | null>(null);
 
@@ -548,6 +554,25 @@ export default function FullSurveyStepper({ onBack }: Props) {
 
   return (
     <div className="stepper-container">
+      {showPrefillBanner && prefillActive && (
+        <div className="prefill-banner" role="status">
+          <span>Prefilled from Story Mode.</span>
+          <button
+            type="button"
+            className="prefill-banner__reset"
+            onClick={() => { setInput(defaultInput); setShowPrefillBanner(false); }}
+          >
+            Reset to defaults
+          </button>
+          <button
+            type="button"
+            className="prefill-banner__dismiss"
+            onClick={() => setShowPrefillBanner(false)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       <div className="stepper-header">
         <button className="back-btn" onClick={prev}>← Back</button>
         <div className="progress-bar">

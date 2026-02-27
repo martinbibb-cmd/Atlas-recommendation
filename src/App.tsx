@@ -7,6 +7,7 @@ import ScopePage from './components/governance/ScopePage';
 import MethodologyPage from './components/governance/MethodologyPage';
 import NeutralityPage from './components/governance/NeutralityPage';
 import PrivacyPage from './components/governance/PrivacyPage';
+import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import './App.css';
 
 type Journey = 'landing' | 'fast' | 'full' | 'portfolio' | 'scope' | 'methodology' | 'neutrality' | 'privacy';
@@ -64,9 +65,15 @@ const demoPortfolio: PortfolioProperty[] = [
 
 export default function App() {
   const [journey, setJourney] = useState<Journey>('landing');
+  const [fullSurveyPrefill, setFullSurveyPrefill] = useState<Partial<EngineInputV2_3> | undefined>();
 
-  if (journey === 'fast') return <FastChoiceStepper onBack={() => setJourney('landing')} />;
-  if (journey === 'full') return <FullSurveyStepper onBack={() => setJourney('landing')} />;
+  function handleEscalate(prefill: Partial<EngineInputV2_3>) {
+    setFullSurveyPrefill(prefill);
+    setJourney('full');
+  }
+
+  if (journey === 'fast') return <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} />;
+  if (journey === 'full') return <FullSurveyStepper onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }} prefill={fullSurveyPrefill} />;
   if (journey === 'portfolio') return <PortfolioDashboard properties={demoPortfolio} onBack={() => setJourney('landing')} />;
   if (journey === 'scope') return <ScopePage onBack={() => setJourney('landing')} />;
   if (journey === 'methodology') return <MethodologyPage onBack={() => setJourney('landing')} />;
@@ -85,16 +92,16 @@ export default function App() {
       </div>
       <div className="journey-cards">
         <div className="journey-card fast" onClick={() => setJourney('fast')}>
-          <div className="card-icon">⚡</div>
-          <h2>Fast Choice</h2>
-          <p className="card-time">~30 seconds</p>
-          <p>On-demand red-flag elimination of unsuitable technology based on your home's physical constraints.</p>
+          <div className="card-icon">📖</div>
+          <h2>Story Toolbox</h2>
+          <p className="card-time">~1 minute</p>
+          <p>Advisor-led scenario mode. Select a situation, enter a handful of inputs, and see live physics-driven output.</p>
           <ul>
-            <li>Bathroom count &amp; occupancy</li>
-            <li>Loft conversion status</li>
-            <li>Pipe diameter &amp; heat loss</li>
+            <li>Combi vs Stored comparison</li>
+            <li>Old boiler reality check</li>
+            <li>Escalate to Full Survey with prefilled values</li>
           </ul>
-          <button className="cta-btn">Start Fast Filter →</button>
+          <button className="cta-btn">Start Story →</button>
         </div>
         <div className="journey-card full" onClick={() => setJourney('full')}>
           <div className="card-icon">🔬</div>

@@ -6,9 +6,12 @@ import { runEngine } from '../../engine/Engine';
 import { runHydraulicModuleV1 } from '../../engine/modules/HydraulicModule';
 import { runCombiDhwModuleV1 } from '../../engine/modules/CombiDhwModule';
 import { runStoredDhwModuleV1 } from '../../engine/modules/StoredDhwModule';
+import StoryModeContainer, { ENABLE_STORY_MODE } from '../../story/StoryModeContainer';
 
 interface Props {
   onBack: () => void;
+  /** Called when Story Mode escalates to Full Survey. */
+  onEscalate?: (prefill: Partial<EngineInputV2_3>) => void;
 }
 
 type ViewMode = 'input' | 'results';
@@ -42,7 +45,22 @@ const STATUS_LABEL: Record<'pass' | 'warn' | 'fail', string> = {
   fail: 'Fail',
 };
 
-export default function FastChoiceStepper({ onBack }: Props) {
+export default function FastChoiceStepper({ onBack, onEscalate }: Props) {
+  // Route to Story Mode when the feature flag is enabled.
+  if (ENABLE_STORY_MODE) {
+    return (
+      <StoryModeContainer
+        onBack={onBack}
+        onEscalate={onEscalate ?? (() => { /* no-op when caller does not handle */ })}
+      />
+    );
+  }
+  // Feature flag is off — render legacy Input Cockpit.
+  return <LegacyInputCockpit onBack={onBack} />;
+}
+
+/** Legacy Input Cockpit — rendered only when ENABLE_STORY_MODE is false. */
+function LegacyInputCockpit({ onBack }: { onBack: () => void }) {
   const [view, setView] = useState<ViewMode>('input');
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [selectedOptionId, setSelectedOptionId] = useState<string>('combi');
