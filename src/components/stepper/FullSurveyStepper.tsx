@@ -20,7 +20,7 @@ import { calcFlowLpm, PIPE_THRESHOLDS } from '../../engine/modules/HydraulicModu
 import { runCombiDhwModuleV1 } from '../../engine/modules/CombiDhwModule';
 import { analysePressure } from '../../engine/modules/PressureModule';
 import { runRegionalHardness } from '../../engine/modules/RegionalHardness';
-import { resolveNominalEfficiencyPct, computeCurrentEfficiencyPct, ERP_TO_NOMINAL_PCT } from '../../engine/utils/efficiency';
+import { resolveNominalEfficiencyPct, computeCurrentEfficiencyPct, ERP_TO_NOMINAL_PCT, deriveErpClass } from '../../engine/utils/efficiency';
 import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
 import LifestyleInteractive from '../visualizers/LifestyleInteractive';
 import DemandProfilePainter from '../visualizers/DemandProfilePainter';
@@ -432,6 +432,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   const [showPrefillBanner, setShowPrefillBanner] = useState<boolean>(!!prefill);
   const [compareMixergy, setCompareMixergy] = useState(false);
   const [results, setResults] = useState<FullEngineResult | null>(null);
+  const [systemPlanType, setSystemPlanType] = useState<'y_plan' | 's_plan'>('s_plan');
 
   // Water hardness search: shows a live preview when the user clicks "Search"
   const [hardnessPreview, setHardnessPreview] = useState<ReturnType<typeof runRegionalHardness> | null>(null);
@@ -1272,25 +1273,71 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     { value: 22, label: '22 mm', sub: 'Standard — covers most boilers' },
                     { value: 28, label: '28 mm', sub: 'Large bore — ASHP capable' },
                     { value: 35, label: '35 mm', sub: 'Oversized — heat main / commercial' },
-                  ] as Array<{ value: number; label: string; sub: string }>).map(opt => (
+                  ] as Array<{ value: number; label: string; sub: string }>).map(opt => {
+                    const is22Bottleneck = opt.value === 22 && hydraulicLive.boilerRisk !== 'pass';
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => setInput({ ...input, primaryPipeDiameter: opt.value })}
+                        style={{
+                          padding: '0.5rem 0.75rem',
+                          border: `2px solid ${input.primaryPipeDiameter === opt.value ? '#805ad5' : '#e2e8f0'}`,
+                          borderRadius: '6px',
+                          background: input.primaryPipeDiameter === opt.value ? '#faf5ff' : '#fff',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.12s',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span style={{ fontWeight: input.primaryPipeDiameter === opt.value ? 700 : 500, fontSize: '0.88rem' }}>{opt.label}</span>
+                          {is22Bottleneck && (
+                            <span style={{ fontSize: '0.65rem', fontWeight: 700, background: '#fed7d7', color: '#c53030', padding: '1px 5px', borderRadius: '4px' }}>
+                              ⚠️ Bottleneck
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#718096' }}>{opt.sub}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* System Architecture button group */}
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
+                  System Architecture
+                </label>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  {([
+                    { value: 's_plan' as const, label: 'S-Plan (Twin 2-port)', sub: 'Independent zone valves' },
+                    { value: 'y_plan' as const, label: 'Y-Plan (3-port)', sub: 'Combined mid-position valve' },
+                  ]).map(opt => (
                     <button
                       key={opt.value}
-                      onClick={() => setInput({ ...input, primaryPipeDiameter: opt.value })}
+                      onClick={() => setSystemPlanType(opt.value)}
                       style={{
+                        flex: 1,
                         padding: '0.5rem 0.75rem',
-                        border: `2px solid ${input.primaryPipeDiameter === opt.value ? '#805ad5' : '#e2e8f0'}`,
+                        border: `2px solid ${systemPlanType === opt.value ? '#3182ce' : '#e2e8f0'}`,
                         borderRadius: '6px',
-                        background: input.primaryPipeDiameter === opt.value ? '#faf5ff' : '#fff',
+                        background: systemPlanType === opt.value ? '#ebf8ff' : '#fff',
                         cursor: 'pointer',
                         textAlign: 'left',
                         transition: 'all 0.12s',
                       }}
                     >
-                      <div style={{ fontWeight: input.primaryPipeDiameter === opt.value ? 700 : 500, fontSize: '0.88rem' }}>{opt.label}</div>
+                      <div style={{ fontWeight: systemPlanType === opt.value ? 700 : 500, fontSize: '0.88rem' }}>{opt.label}</div>
                       <div style={{ fontSize: '0.72rem', color: '#718096' }}>{opt.sub}</div>
                     </button>
                   ))}
                 </div>
+                {systemPlanType === 'y_plan' && (
+                  <p style={{ fontSize: '0.75rem', color: '#744210', marginTop: '0.3rem', background: '#fffaf0', padding: '0.3rem 0.5rem', borderRadius: '4px' }}>
+                    Y-Plan: check mid-position valve travel — poor calibration can cause simultaneous CH+DHW demand contention.
+                  </p>
+                )}
               </div>
 
               {/* Heat loss input */}
@@ -1419,7 +1466,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                       {/* Current heat loss marker */}
                       <ReferenceLine x={hydraulicLive.kw} stroke="#3182ce" strokeWidth={2}
                         label={{ value: `${hydraulicLive.kw.toFixed(1)}kW`, fontSize: 9, fill: '#3182ce', position: 'top' }} />
-                      <Line type="monotone" dataKey="boilerLpm" stroke="#dd6b20" strokeWidth={2} dot={false} name="boilerLpm" />
+                      <Line type="monotone" dataKey="boilerLpm" stroke={hydraulicLive.boilerRisk !== 'pass' ? '#c53030' : '#dd6b20'} strokeWidth={2} dot={false} name="boilerLpm" />
                       <Line type="monotone" dataKey="ashpLpm"   stroke="#3182ce" strokeWidth={2} dot={false} name="ashpLpm" />
                     </LineChart>
                   </ResponsiveContainer>
@@ -1538,7 +1585,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
               />
             </div>
             <div className="form-field">
-              <label>Current Boiler ErP Class (A–G)</label>
+              <label>Current Boiler ErP Class (A–G) — lookup helper only</label>
               <select
                 value={input.currentBoilerErpClass ?? ''}
                 onChange={e => {
@@ -1560,11 +1607,11 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                 <option value="G">G</option>
               </select>
               <p style={{ fontSize: '0.78rem', color: '#718096', marginTop: '0.3rem', lineHeight: 1.4 }}>
-                Use the boiler&apos;s energy-label letter. We convert the selected ErP class to an indicative SEDBUK % for modelling.
+                Lookup helper only: select the label letter to pre-fill a SEDBUK % baseline. The engine models using the SEDBUK percentage below.
               </p>
             </div>
             <div className="form-field">
-              <label>Boiler seasonal efficiency (SEDBUK %) (optional override)</label>
+              <label>Boiler seasonal efficiency (SEDBUK %) — enter directly or use ErP lookup above</label>
               <input
                 type="number"
                 step={1}
@@ -1576,7 +1623,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                 placeholder="e.g. 89 (leave blank to use 92% default)"
               />
               <p style={{ fontSize: '0.78rem', color: '#718096', marginTop: '0.3rem', lineHeight: 1.4 }}>
-                SEDBUK is a percentage (typically 78–94). ErP letters are a separate rating.
+                Enter SEDBUK % directly (typically 78–94). The ErP letter is displayed on results as a derived output.
               </p>
             </div>
             {inputWarnings.length > 0 && (
@@ -2720,6 +2767,7 @@ function FullSurveyResults({
   onBack: () => void;
 }) {
   const { hydraulic, combiStress, mixergy, lifestyle, normalizer } = results;
+  const regime = results.heatPumpRegime;
   const [engineOutput, setEngineOutput] = useState(results.engineOutput);
   const [showTwin, setShowTwin] = useState(false);
   const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
@@ -2738,6 +2786,12 @@ function FullSurveyResults({
     if (typeof window === 'undefined') return false;
     return new URLSearchParams(window.location.search).get('debug') === '1';
   }, []);
+
+  // UI-level ASHP COP override: treat COP ≤ 3.0 as "Borderline/Caution" regardless of engine verdict.
+  const ashpCopStatus = useMemo<'pass' | 'caution'>(() => {
+    if (regime.designCopEstimate <= 3.0) return 'caution';
+    return 'pass';
+  }, [regime.designCopEstimate]);
 
   // Timeline visual is always derived from engine output — single source of truth.
   // A/B changes rerun the engine with engineConfig.timelinePair; timeline visual is rendered from the new engineOutput.
@@ -2879,7 +2933,7 @@ function FullSurveyResults({
                 <div>boilerModel.baselineSeasonalEta: {results.boilerEfficiencyModelV1?.baselineSeasonalEta != null ? (results.boilerEfficiencyModelV1.baselineSeasonalEta * 100).toFixed(1) : 'n/a (no boiler spec)'}</div>
                 <div>boilerModel.inHomeAdjustedEta: {results.boilerEfficiencyModelV1?.inHomeAdjustedEta != null ? (results.boilerEfficiencyModelV1.inHomeAdjustedEta * 100).toFixed(1) : 'n/a'}</div>
                 <div>tenYearEfficiencyDecayPct: {normalizer.tenYearEfficiencyDecayPct.toFixed(1)}</div>
-                <div>currentEfficiencyPct: {currentEfficiencyPct.toFixed(1)}</div>
+                <div>currentEfficiencyPct: {currentEfficiencyPct.toFixed(1)}% (ErP {deriveErpClass(currentEfficiencyPct) ?? 'n/a'})</div>
                 <div>hoveredTime: {hoveredTimeLabel !== undefined ? `${Math.floor(hoveredTimeLabel / 60).toString().padStart(2, '0')}:${(hoveredTimeLabel % 60).toString().padStart(2, '0')}` : 'none'}</div>
                 {timelinePayload.series.map((s: { id: string; efficiency: number[]; performanceKind?: 'eta' | 'cop' }) => {
                   const etaValue = hoveredTimelineIndex !== undefined ? s.efficiency[hoveredTimelineIndex] : undefined;
@@ -3171,6 +3225,42 @@ function FullSurveyResults({
         )}
       </div>
 
+      {/* ASHP COP Analysis — UI-level COP threshold check */}
+      <div className="result-section">
+        <h3>🌿 ASHP Design COP Analysis</h3>
+        <div className="metric-row">
+          <span className="metric-label">Design COP Estimate (+7°C outdoor)</span>
+          <span className={`metric-value ${ashpCopStatus === 'caution' ? 'warning' : 'ok'}`}>
+            {regime.designCopEstimate.toFixed(2)}
+          </span>
+        </div>
+        <div className="metric-row">
+          <span className="metric-label">Cold-Morning COP (−3°C outdoor)</span>
+          <span className="metric-value">{regime.coldMorningCopEstimate.toFixed(2)}</span>
+        </div>
+        <div className="metric-row">
+          <span className="metric-label">Design Flow Temp Band</span>
+          <span className="metric-value">{regime.designFlowTempBand}°C</span>
+        </div>
+        <div className="metric-row">
+          <span className="metric-label">Seasonal Performance Band</span>
+          <span className={`metric-value ${regime.spfBand === 'poor' ? 'warning' : regime.spfBand === 'ok' ? '' : 'ok'}`}>
+            {regime.spfBand.toUpperCase()}
+          </span>
+        </div>
+        <div className="metric-row">
+          <span className="metric-label">COP Viability</span>
+          <span className={`metric-value ${ashpCopStatus === 'caution' ? 'warning' : 'ok'}`}>
+            {ashpCopStatus === 'caution' ? '⚠️ Borderline — COP ≤ 3.0' : '✅ Acceptable'}
+          </span>
+        </div>
+        {ashpCopStatus === 'caution' && (
+          <p style={{ fontSize: '0.8rem', color: '#744210', marginTop: '0.5rem', background: '#fffaf0', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #fbd38d' }}>
+            ⚠️ Borderline COP: at {regime.designCopEstimate.toFixed(2)} this ASHP is on the economic margin. Consider a full-job radiator upgrade to achieve ≤{regime.designFlowTempBand}°C flow temperature and improve COP.
+          </p>
+        )}
+      </div>
+
       {/* Lifestyle Recommendation */}
       <div className="result-section">
         <h3>👥 Lifestyle Recommendation</h3>
@@ -3259,9 +3349,10 @@ function FullSurveyResults({
         )} />
       </div>
 
-      {/* Combi Efficiency */}
+      {/* Combi Efficiency / Scaling — only relevant for combi boilers */}
+      {input.currentHeatSourceType === 'combi' && (
       <div className="result-section">
-        <h3>📉 Combi Efficiency Analysis</h3>
+        <h3>📉 Combi Efficiency Analysis — Scaling &amp; Plate Heat Exchanger</h3>
         <div className="metric-row">
           <span className="metric-label">Annual Purge Loss</span>
           <span className="metric-value warning">{combiStress.annualPurgeLossKwh} kWh/yr</span>
@@ -3289,6 +3380,7 @@ function FullSurveyResults({
           </div>
         </div>
       </div>
+      )}
 
       {/* Water Quality */}
       <div className="result-section">
@@ -3315,6 +3407,12 @@ function FullSurveyResults({
           <span className="metric-label">10-Year Efficiency Decay</span>
           <span className={`metric-value ${normalizer.tenYearEfficiencyDecayPct > 8 ? 'warning' : 'ok'}`}>
             {normalizer.tenYearEfficiencyDecayPct.toFixed(1)}%
+          </span>
+        </div>
+        <div className="metric-row">
+          <span className="metric-label">Current Boiler Efficiency (post-decay)</span>
+          <span className={`metric-value ${currentEfficiencyPct < 80 ? 'warning' : 'ok'}`}>
+            {currentEfficiencyPct.toFixed(1)}% — ErP {deriveErpClass(currentEfficiencyPct) ?? 'n/a'}
           </span>
         </div>
       </div>
