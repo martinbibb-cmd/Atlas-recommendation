@@ -9,7 +9,41 @@
 
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import { ERP_TO_NOMINAL_PCT } from '../engine/utils/efficiency';
-import type { CombiSwitchInputs, OldBoilerRealityInputs } from './scenarioRegistry';
+import type { CombiSwitchInputs, OldBoilerRealityInputs, ScenarioInputs, SystemArchetypeId } from './scenarioRegistry';
+
+// ── Compare context types ─────────────────────────────────────────────────────
+
+/**
+ * Water-delivery archetype identifier used exclusively for System B stored
+ * scenarios.
+ *
+ * 'open_vented'  → gravity-fed / tank-fed (loft tank)
+ * 'unvented'     → mains-pressure unvented cylinder
+ */
+export type WaterArchetypeId = 'open_vented' | 'unvented';
+
+/**
+ * Describes the two systems in a side-by-side comparison.
+ * Returned alongside the EngineInputV2_3 by applyScenarioToEngineInput.
+ */
+export interface CompareContext {
+  /** System A archetype (typically the incumbent or reference system). */
+  systemA: SystemArchetypeId;
+  /** System B archetype (the alternative being evaluated). */
+  systemB: SystemArchetypeId;
+  /**
+   * Water-delivery archetype for System B when it is a stored system.
+   * Derived exclusively from the user's storedType selection — never
+   * auto-inferred.
+   */
+  systemBWaterArchetype?: WaterArchetypeId;
+}
+
+/** Combined output of the unified applyScenarioToEngineInput function. */
+export interface ScenarioEngineOutput {
+  engineInput: EngineInputV2_3;
+  compareContext: CompareContext;
+}
 
 // ── Conservative flow-rate derivation (when mains flow is unknown) ────────────
 
@@ -189,4 +223,57 @@ export function applyOldBoilerRealityInputs(
       },
     },
   };
+}
+
+// ── Unified entry point ───────────────────────────────────────────────────────
+
+/**
+ * Unified glue function — takes a scenarioId + scenario state and produces:
+ *   - engineInput:    full EngineInputV2_3 ready for engine modules
+ *   - compareContext: system A/B archetype IDs + water archetype for stored systems
+ *
+ * storedType → systemBWaterArchetype mapping (combi_switch only):
+ *   'vented'   → 'open_vented'  (gravity-fed / loft-tank)
+ *   'unvented' → 'unvented'     (mains-pressure cylinder)
+ *
+ * No physics here — pure data translation.
+ */
+export function applyScenarioToEngineInput(
+  scenarioId: 'combi_switch',
+  state: CombiSwitchInputs,
+): ScenarioEngineOutput;
+export function applyScenarioToEngineInput(
+  scenarioId: 'old_boiler_reality',
+  state: OldBoilerRealityInputs,
+): ScenarioEngineOutput;
+export function applyScenarioToEngineInput(
+  scenarioId: string,
+  state: ScenarioInputs,
+): ScenarioEngineOutput {
+  if (scenarioId === 'combi_switch') {
+    const inputs = state as CombiSwitchInputs;
+    const engineInput = applyCombiSwitchInputs(inputs);
+    const systemBWaterArchetype: WaterArchetypeId =
+      inputs.storedType === 'vented' ? 'open_vented' : 'unvented';
+    const systemB: SystemArchetypeId =
+      inputs.storedType === 'vented' ? 'stored_vented' : 'stored_unvented';
+    const compareContext: CompareContext = {
+      systemA: 'combi',
+      systemB,
+      systemBWaterArchetype,
+    };
+    return { engineInput, compareContext };
+  }
+
+  if (scenarioId === 'old_boiler_reality') {
+    const inputs = state as OldBoilerRealityInputs;
+    const engineInput = applyOldBoilerRealityInputs(inputs);
+    const compareContext: CompareContext = {
+      systemA: 'combi',
+      systemB: 'combi',
+    };
+    return { engineInput, compareContext };
+  }
+
+  throw new Error(`applyScenarioToEngineInput: unknown scenarioId "${scenarioId}"`);
 }

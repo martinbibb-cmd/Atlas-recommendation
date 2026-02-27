@@ -9,6 +9,8 @@
  */
 
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
+import { combiSwitchScenario } from './scenarios/combiSwitch';
+export { combiSwitchScenario } from './scenarios/combiSwitch';
 
 // ── Scenario field keys ───────────────────────────────────────────────────────
 
@@ -97,44 +99,6 @@ export interface StoryScenario<TInputs extends ScenarioInputs = ScenarioInputs> 
   escalationAllowed: boolean;
 }
 
-// ── Scenario: Combi vs Stored ─────────────────────────────────────────────────
-
-const combiSwitchScenario: StoryScenario<CombiSwitchInputs> = {
-  id: 'combi_switch',
-  title: 'Switching to a combi',
-  description: 'Compare how a combi and a stored-water system behave in your household.',
-  advisorIntent: "Let's see how hot water and heating behave in your household.",
-  fields: [
-    'occupancyCount',
-    'bathroomCount',
-    'simultaneousUse',
-    'mainsFlowLpmKnown',
-    'mainsFlowLpm',
-    'hotWaterDemand',
-    'storedType',
-  ],
-  defaults: {
-    occupancyCount: 2,
-    bathroomCount: 1,
-    simultaneousUse: 'rare',
-    mainsFlowLpmKnown: false,
-    mainsFlowLpm: 12,
-    hotWaterDemand: 'medium',
-    storedType: 'unvented',
-  },
-  compareDefaults: {
-    systemA: 'combi',
-    systemB: 'stored_unvented',
-  },
-  outputFocus: [
-    'demand_vs_plant',
-    'efficiency_curve',
-    'dhw_overlap_notes',
-    'behaviour_bullets',
-  ],
-  escalationAllowed: true,
-};
-
 // ── Scenario: Old Boiler Reality Check ───────────────────────────────────────
 
 const oldBoilerRealityScenario: StoryScenario<OldBoilerRealityInputs> = {
@@ -179,4 +143,4 @@ export const STORY_SCENARIOS: StoryScenario<any>[] = [
   oldBoilerRealityScenario,
 ];
 
-export { combiSwitchScenario, oldBoilerRealityScenario };
+export { oldBoilerRealityScenario };

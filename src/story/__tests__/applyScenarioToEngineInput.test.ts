@@ -6,6 +6,7 @@ import {
   deriveOldBoilerConfidence,
   applyCombiSwitchInputs,
   applyOldBoilerRealityInputs,
+  applyScenarioToEngineInput,
 } from '../applyScenarioToEngineInput';
 import type { CombiSwitchInputs, OldBoilerRealityInputs } from '../scenarioRegistry';
 import { ERP_TO_NOMINAL_PCT } from '../../engine/utils/efficiency';
@@ -231,5 +232,73 @@ describe('applyOldBoilerRealityInputs', () => {
   it('band mapping is stable at G boundary', () => {
     const result = applyOldBoilerRealityInputs({ ...base, manufacturedBand: 'G', manufacturedSedbukPctKnown: false });
     expect(result.currentBoilerSedbukPct).toBe(ERP_TO_NOMINAL_PCT['G']);
+  });
+});
+
+// ── applyScenarioToEngineInput (unified) ──────────────────────────────────────
+
+describe('applyScenarioToEngineInput', () => {
+  const combiBase: CombiSwitchInputs = {
+    occupancyCount: 2,
+    bathroomCount: 1,
+    simultaneousUse: 'rare',
+    mainsFlowLpmKnown: false,
+    mainsFlowLpm: 12,
+    hotWaterDemand: 'medium',
+    storedType: 'unvented',
+  };
+
+  it('combi_switch storedType vented → compareContext.systemBWaterArchetype === open_vented', () => {
+    const { compareContext } = applyScenarioToEngineInput('combi_switch', { ...combiBase, storedType: 'vented' });
+    expect(compareContext.systemBWaterArchetype).toBe('open_vented');
+  });
+
+  it('combi_switch storedType unvented → compareContext.systemBWaterArchetype === unvented', () => {
+    const { compareContext } = applyScenarioToEngineInput('combi_switch', { ...combiBase, storedType: 'unvented' });
+    expect(compareContext.systemBWaterArchetype).toBe('unvented');
+  });
+
+  it('combi_switch storedType vented → systemB archetype is stored_vented', () => {
+    const { compareContext } = applyScenarioToEngineInput('combi_switch', { ...combiBase, storedType: 'vented' });
+    expect(compareContext.systemB).toBe('stored_vented');
+  });
+
+  it('combi_switch storedType unvented → systemB archetype is stored_unvented', () => {
+    const { compareContext } = applyScenarioToEngineInput('combi_switch', { ...combiBase, storedType: 'unvented' });
+    expect(compareContext.systemB).toBe('stored_unvented');
+  });
+
+  it('combi_switch systemA is always combi', () => {
+    const { compareContext } = applyScenarioToEngineInput('combi_switch', combiBase);
+    expect(compareContext.systemA).toBe('combi');
+  });
+
+  it('combi_switch unknown mains flow → derived engineInput value within expected range', () => {
+    const { engineInput } = applyScenarioToEngineInput('combi_switch', {
+      ...combiBase,
+      mainsFlowLpmKnown: false,
+      hotWaterDemand: 'medium',
+      occupancyCount: 2,
+    });
+    // Conservative derived flow for 2 people, medium demand should be 12 L/min
+    expect(engineInput.mainsDynamicFlowLpm).toBeGreaterThanOrEqual(6);
+    expect(engineInput.mainsDynamicFlowLpm).toBeLessThanOrEqual(20);
+    expect(engineInput.mainsDynamicFlowLpm).toBe(deriveConservativeFlowLpm(2, 'medium'));
+  });
+
+  it('old_boiler_reality returns compare context with systemA=combi, systemB=combi', () => {
+    const oldBoilerBase: OldBoilerRealityInputs = {
+      boilerAgeYears: 10,
+      manufacturedBand: 'A',
+      manufacturedSedbukPctKnown: false,
+      manufacturedSedbukPct: 90,
+      controlsType: 'basic_stat',
+      systemCleanliness: 'unknown',
+      filterPresent: 'unknown',
+    };
+    const { compareContext } = applyScenarioToEngineInput('old_boiler_reality', oldBoilerBase);
+    expect(compareContext.systemA).toBe('combi');
+    expect(compareContext.systemB).toBe('combi');
+    expect(compareContext.systemBWaterArchetype).toBeUndefined();
   });
 });
