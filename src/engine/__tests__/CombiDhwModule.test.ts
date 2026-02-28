@@ -70,12 +70,12 @@ describe('runCombiDhwModuleV1', () => {
 
   // ── Rule 2: Simultaneous demand ──────────────────────────────────────────
 
-  it('returns warn (not fail) when bathroomCount >= 2 but peakConcurrentOutlets < 2', () => {
+  it('returns fail when bathroomCount >= 2 even if peakConcurrentOutlets < 2', () => {
     const result = runCombiDhwModuleV1({ ...baseInput, bathroomCount: 2, peakConcurrentOutlets: 1 });
-    expect(result.verdict.combiRisk).toBe('warn');
+    expect(result.verdict.combiRisk).toBe('fail');
     const flag = result.flags.find(f => f.id === 'combi-simultaneous-demand');
     expect(flag).toBeDefined();
-    expect(flag!.severity).toBe('warn');
+    expect(flag!.severity).toBe('fail');
     expect(flag!.title).toBe('Hot water starvation likely');
   });
 
@@ -202,8 +202,8 @@ describe('runCombiDhwModuleV1', () => {
       occupancyCount: 3,
     });
     expect(result.flags.some(f => f.id === 'combi-three-person-caution')).toBe(false);
-    // bathroomCount >= 2 with outlets < 2 → warn (not fail)
-    expect(result.verdict.combiRisk).toBe('warn');
+    // bathroomCount >= 2 is now a hard fail
+    expect(result.verdict.combiRisk).toBe('fail');
   });
 
   // ── morningOverlapProbability ─────────────────────────────────────────────
@@ -254,17 +254,17 @@ describe('runCombiDhwModuleV1', () => {
 // ─── Rule 5: Large household tests ────────────────────────────────────────────
 
 describe('runCombiDhwModuleV1 — large household rule', () => {
-  it('adds warn for occupancyCount >= 5 with 1 bathroom and 1 outlet', () => {
+  it('adds fail for occupancyCount >= 4 with 1 bathroom and 1 outlet', () => {
     const result = runCombiDhwModuleV1({
       ...baseInput,
       bathroomCount: 1,
       peakConcurrentOutlets: 1,
-      occupancyCount: 5,
+      occupancyCount: 4,
     });
     const flag = result.flags.find(f => f.id === 'combi-large-household');
     expect(flag).toBeDefined();
-    expect(flag!.severity).toBe('warn');
-    expect(result.verdict.combiRisk).toBe('warn');
+    expect(flag!.severity).toBe('fail');
+    expect(result.verdict.combiRisk).toBe('fail');
   });
 
   it('adds warn for occupancyCount = 7', () => {
@@ -277,12 +277,12 @@ describe('runCombiDhwModuleV1 — large household rule', () => {
     expect(result.flags.some(f => f.id === 'combi-large-household')).toBe(true);
   });
 
-  it('does NOT add large-household flag when occupancyCount < 5', () => {
+  it('does NOT add large-household flag when occupancyCount < 4', () => {
     const result = runCombiDhwModuleV1({
       ...baseInput,
       bathroomCount: 1,
       peakConcurrentOutlets: 1,
-      occupancyCount: 4,
+      occupancyCount: 3,
     });
     expect(result.flags.some(f => f.id === 'combi-large-household')).toBe(false);
   });
@@ -361,7 +361,7 @@ describe('runCombiDhwModuleV1 — scenario regressions', () => {
       mainsDynamicFlowLpm: 12,
       mainsDynamicFlowLpmKnown: true,
     });
-    expect(['warn', 'fail']).toContain(result.verdict.combiRisk);
+    expect(result.verdict.combiRisk).toBe('fail');
     expect(result.flags.some(f => f.id === 'combi-large-household')).toBe(true);
   });
 
@@ -379,8 +379,8 @@ describe('runCombiDhwModuleV1 — scenario regressions', () => {
 // ─── Phase 3 combi suitability domain expectations ───────────────────────────
 
 describe('runCombiDhwModuleV1 — Phase 3 domain rule expectations', () => {
-  it('occupancy 4, 1 bath, 1 outlet, professional signature → suitable (pass)', () => {
-    // 4 occupants with 1 bath and no simultaneous use risk does not trigger large-household or simultaneous-demand flags
+  it('occupancy 4, 1 bath, 1 outlet, professional signature → combiRisk fail', () => {
+    // Occupancy >=4 triggers the large-household hard gate
     const result = runCombiDhwModuleV1({
       ...baseInput,
       occupancyCount: 4,
@@ -388,9 +388,8 @@ describe('runCombiDhwModuleV1 — Phase 3 domain rule expectations', () => {
       peakConcurrentOutlets: 1,
       occupancySignature: 'professional',
     });
-    // Large-household rule only fires at occupancyCount >= 5
-    expect(result.flags.some(f => f.id === 'combi-large-household')).toBe(false);
-    expect(result.verdict.combiRisk).toBe('pass');
+    expect(result.flags.some(f => f.id === 'combi-large-household')).toBe(true);
+    expect(result.verdict.combiRisk).toBe('fail');
   });
 
   it('occupancy ≤ 2, 1 bath → combiRisk pass (single household)', () => {
@@ -416,13 +415,13 @@ describe('runCombiDhwModuleV1 — Phase 3 domain rule expectations', () => {
     expect(result.flags.some(f => f.id === 'combi-three-person-caution')).toBe(true);
   });
 
-  it('bathroomCount >= 2 → combiRisk at least warn (simultaneous demand gate)', () => {
+  it('bathroomCount >= 2 → combiRisk fail (hard simultaneous demand gate)', () => {
     const result = runCombiDhwModuleV1({
       ...baseInput,
       bathroomCount: 2,
       peakConcurrentOutlets: 1,
     });
-    expect(['warn', 'fail']).toContain(result.verdict.combiRisk);
+    expect(result.verdict.combiRisk).toBe('fail');
     expect(result.flags.some(f => f.id === 'combi-simultaneous-demand')).toBe(true);
   });
 
