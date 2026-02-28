@@ -30,8 +30,6 @@ interface Band {
   maxPct: number;         // inclusive upper bound
   color: string;          // fill colour
   description: string;    // 1-line "what it usually feels like"
-  /** Relative height multiplier (G = tallest to emphasise the loss). */
-  heightRatio: number;
 }
 
 const BANDS: Band[] = [
@@ -39,43 +37,43 @@ const BANDS: Band[] = [
     label: 'A', minPct: 90, maxPct: Infinity,
     color: '#276749',
     description: 'Efficient condensing — low bills, comfortable heat output year-round.',
-    heightRatio: 1,
+    
   },
   {
     label: 'B', minPct: 86, maxPct: 89,
     color: '#38a169',
     description: 'High-efficiency condensing — very close to band A in running cost.',
-    heightRatio: 1,
+    
   },
   {
     label: 'C', minPct: 82, maxPct: 85,
     color: '#68d391',
     description: 'Mid-range condensing — good performance, modest room for improvement.',
-    heightRatio: 1.05,
+    
   },
   {
     label: 'D', minPct: 78, maxPct: 81,
     color: '#f6e05e',
     description: 'Lower condensing — noticeable running-cost gap vs new plant.',
-    heightRatio: 1.1,
+    
   },
   {
     label: 'E', minPct: 74, maxPct: 77,
     color: '#f6ad55',
     description: 'Marginal condensing — annual spend is materially higher than A/B.',
-    heightRatio: 1.15,
+    
   },
   {
     label: 'F', minPct: 70, maxPct: 73,
     color: '#fc8181',
     description: 'Non-condensing or very early condensing — significant cost penalty.',
-    heightRatio: 1.2,
+    
   },
   {
     label: 'G', minPct: 0, maxPct: 69,
     color: '#e53e3e',
     description: 'Pre-condensing atmospheric boiler — heat loss is materially above modern plant.',
-    heightRatio: 1.3,
+    
   },
 ];
 
@@ -164,19 +162,19 @@ export default function PerformanceBandLadder({
   const MIN_PCT = 50;
   const MAX_PCT = 99;
 
-  // Total height ratio sum for proportional band heights
-  const totalRatio = BANDS.reduce((s, b) => s + b.heightRatio, 0);
-
-  // Build band segments (top-down) using reduce to avoid mid-render reassignment
-  const bandSegments = BANDS.reduce<Array<Band & { y: number; height: number }>>(
-    (acc, band) => {
-      const yStart = acc.length > 0 ? acc[acc.length - 1].y + acc[acc.length - 1].height : 0;
-      const h = (band.heightRatio / totalRatio) * CHART_HEIGHT;
-      acc.push({ ...band, y: yStart, height: h });
-      return acc;
-    },
-    [],
-  );
+  // Build band segments directly from SEDBUK percentage boundaries so the
+  // coloured ladder aligns exactly with the marker/tick scale.
+  const bandSegments = BANDS.map((band) => {
+    const topPct = Math.min(MAX_PCT, band.maxPct === Infinity ? MAX_PCT : band.maxPct);
+    const bottomPct = Math.max(MIN_PCT, band.minPct);
+    const yTop = pctToPosition(topPct, MIN_PCT, MAX_PCT) * CHART_HEIGHT;
+    const yBottom = pctToPosition(bottomPct, MIN_PCT, MAX_PCT) * CHART_HEIGHT;
+    return {
+      ...band,
+      y: yTop,
+      height: Math.max(8, yBottom - yTop),
+    };
+  });
 
   return (
     <div style={{ position: 'relative', userSelect: 'none' }}>

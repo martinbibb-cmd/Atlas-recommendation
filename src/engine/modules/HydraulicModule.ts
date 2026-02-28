@@ -72,7 +72,7 @@ export function calcVelocityFromLpm(flowLpm: number, pipeDiameterMm: number): nu
  * Conservative values calibrated to copper pipe velocity / erosion limits.
  */
 export const PIPE_THRESHOLDS = {
-  15: { boilerWarnKw: 4,  boilerFailKw: 6,  ashpWarnKw: 2,  ashpFailKw: 4  },
+  15: { boilerWarnKw: 3,  boilerFailKw: 4,  ashpWarnKw: 2,  ashpFailKw: 4  },
   22: { boilerWarnKw: 19, boilerFailKw: 26, ashpWarnKw: 8,  ashpFailKw: 14 },
   28: { boilerWarnKw: 30, boilerFailKw: 40, ashpWarnKw: 15, ashpFailKw: 22 },
   35: { boilerWarnKw: 40, boilerFailKw: 55, ashpWarnKw: 20, ashpFailKw: 30 },

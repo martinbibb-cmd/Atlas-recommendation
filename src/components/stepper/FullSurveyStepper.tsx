@@ -91,6 +91,12 @@ function collectInputValidationWarnings(model: FullSurveyModelV1): InputValidati
   return warnings;
 }
 
+function normalizePostcodeOutward(raw: string): string {
+  const cleaned = raw.toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim();
+  const [outward = ''] = cleaned.split(/\s+/);
+  return outward;
+}
+
 function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyModelV1 {
   const sanitised: FullSurveyModelV1 = { ...model };
   if (sanitised.currentBoilerAgeYears !== undefined && sanitised.currentBoilerAgeYears > 50) {
@@ -591,9 +597,10 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
         <div className="step-card">
           <h2>📍 Step 1: Geochemical &amp; Fabric Baseline</h2>
           <p className="description">
-            Your postcode anchors the simulation to local water chemistry. The fabric controls
-            below drive two independent physics estimates: <strong>how much heat leaks</strong> (fabric
-            heat-loss band) and <strong>how spiky demand feels</strong> (thermal inertia / τ).
+            Your postcode outward code anchors the simulation to local water chemistry (e.g. SW1A,
+            BH, DT). The fabric controls below drive two independent physics estimates:
+            <strong>how much heat leaks</strong> (fabric heat-loss band) and <strong>how spiky demand feels</strong>
+            (thermal inertia / τ).
           </p>
 
           <div className="form-grid">
@@ -603,8 +610,8 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                 <input
                   type="text"
                   value={input.postcode}
-                  onChange={e => { setInput({ ...input, postcode: e.target.value.toUpperCase() }); setHardnessPreview(null); }}
-                  placeholder="e.g. BH1 1AA or DT9 3AQ"
+                  onChange={e => { setInput({ ...input, postcode: normalizePostcodeOutward(e.target.value) }); setHardnessPreview(null); }}
+                  placeholder="e.g. SW1A, BH or DT"
                   style={{ flex: 1 }}
                   onKeyDown={e => { if (e.key === 'Enter') searchHardness(); }}
                 />

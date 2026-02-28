@@ -100,9 +100,9 @@ describe('HydraulicModuleV1 – 28mm pipe', () => {
 });
 
 describe('HydraulicModuleV1 – 15mm pipe', () => {
-  it('15mm + 5kW → boiler warn or fail (beyond small loads)', () => {
+  it('15mm + 5kW → boiler fail (hard gate above ~4kW)', () => {
     const result = runHydraulicModuleV1({ ...baseInput, primaryPipeDiameter: 15, heatLossWatts: 5000 });
-    expect(['warn', 'fail']).toContain(result.verdict.boilerRisk);
+    expect(result.verdict.boilerRisk).toBe('fail');
   });
 
   it('15mm + 6kW → boiler fail', () => {

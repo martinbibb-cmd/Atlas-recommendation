@@ -5,8 +5,8 @@ const PRESSURE_LOCKOUT_BAR = 1.0;
 /** Minimum L/min per hot-water outlet for a combi to deliver acceptable flow. */
 const REQUIRED_LPM_PER_OUTLET = 9;
 
-/** Occupancy threshold above which combi DHW intensity is flagged as high. */
-const HIGH_OCCUPANCY_THRESHOLD = 5;
+/** Occupancy threshold above which combi should be rejected in favour of stored DHW. */
+const LARGE_HOUSEHOLD_FAIL_THRESHOLD = 4;
 
 /** Occupancy signatures that imply continuous / family-style use (short-draw risk). */
 const SHORT_DRAW_SIGNATURES = new Set(['steady_home', 'steady', 'shift_worker', 'shift']);
@@ -111,11 +111,12 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
 
   // ── Rule 2: Simultaneous demand ──────────────────────────────────────────
   const outlets = input.peakConcurrentOutlets ?? null;
-  const simultaneousFail = outlets !== null && outlets >= 2;
-  const simultaneousWarn = !simultaneousFail && input.bathroomCount >= 2;
+  const simultaneousFail = (outlets !== null && outlets >= 2) || input.bathroomCount >= 2;
 
   if (simultaneousFail) {
-    const demandSource = `${outlets} concurrent outlets`;
+    const demandSource = outlets !== null && outlets >= 2
+      ? `${outlets} concurrent outlets`
+      : `${input.bathroomCount} bathrooms`;
     flags.push({
       id: 'combi-simultaneous-demand',
       severity: 'fail',
@@ -124,17 +125,6 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
         `${demandSource} detected. A combi boiler cannot sustain adequate flow to ` +
         `two or more simultaneous DHW points – expect cold-water interruptions and ` +
         `temperature oscillation between users.`,
-    });
-  } else if (simultaneousWarn) {
-    const demandSource = `${input.bathroomCount} bathrooms`;
-    flags.push({
-      id: 'combi-simultaneous-demand',
-      severity: 'warn',
-      title: 'Hot water starvation likely',
-      detail:
-        `${demandSource} detected. With multiple bathrooms and simultaneous use, a combi ` +
-        `boiler may struggle to deliver adequate flow to two DHW points at once – consider ` +
-        `whether simultaneous draws are likely before specifying combi.`,
     });
   } else if (outlets === null) {
     assumptions.push(
@@ -162,7 +152,7 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
   }
 
   // ── Rule 4: Three-person household caution ───────────────────────────────
-  if (input.occupancyCount === 3 && !simultaneousFail && !simultaneousWarn) {
+  if (input.occupancyCount === 3 && !simultaneousFail) {
     flags.push({
       id: 'combi-three-person-caution',
       severity: 'warn',
@@ -177,18 +167,17 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
   // ── Rule 5: Large household DHW intensity ───────────────────────────────
   if (
     input.occupancyCount != null &&
-    input.occupancyCount >= HIGH_OCCUPANCY_THRESHOLD &&
+    input.occupancyCount >= LARGE_HOUSEHOLD_FAIL_THRESHOLD &&
     !simultaneousFail
   ) {
     flags.push({
       id: 'combi-large-household',
-      severity: 'warn',
-      title: `Large household (${input.occupancyCount} people): high sequential DHW demand`,
+      severity: 'fail',
+      title: `Large household (${input.occupancyCount} people): combi rejected`,
       detail:
-        `${input.occupancyCount} occupants create very high sequential hot-water demand even ` +
-        `with a single bathroom. During the morning peak, back-to-back shower draws are ` +
-        `near-certain, and a combi cannot maintain adequate temperature across all draws ` +
-        `without extended wait times. A stored cylinder removes this limitation.`,
+        `${input.occupancyCount} occupants create sustained DHW demand beyond practical combi ` +
+        `comfort margins, even with a single bathroom. Specify a stored cylinder (vented or ` +
+        `unvented) to avoid repeated hot-water recovery delays at peak times.`,
     });
   }
 
