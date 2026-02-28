@@ -35,6 +35,28 @@ describe('runCombiDhwModuleV1', () => {
     expect(flag!.title).toBe('Combi safety cut-off risk');
   });
 
+  it('dynamicMainsPressureBar alias takes precedence over dynamicMainsPressure', () => {
+    // dynamicMainsPressureBar = 0.8 (low) should trigger lockout even though legacy field is fine
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      dynamicMainsPressure: 2.5,
+      dynamicMainsPressureBar: 0.8,
+      peakConcurrentOutlets: 1,
+    });
+    expect(result.verdict.combiRisk).toBe('fail');
+    expect(result.flags.some(f => f.id === 'combi-pressure-lockout')).toBe(true);
+  });
+
+  it('dynamicMainsPressureBar alias: adequate pressure passes lockout check', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      dynamicMainsPressure: 0.5, // would fail if used
+      dynamicMainsPressureBar: 2.0, // preferred field — should pass
+      peakConcurrentOutlets: 1,
+    });
+    expect(result.flags.some(f => f.id === 'combi-pressure-lockout')).toBe(false);
+  });
+
   it('returns pass when dynamicMainsPressure is exactly 1.0 bar', () => {
     const result = runCombiDhwModuleV1({ ...baseInput, dynamicMainsPressure: 1.0, peakConcurrentOutlets: 1 });
     expect(result.flags.some(f => f.id === 'combi-pressure-lockout')).toBe(false);
@@ -349,6 +371,66 @@ describe('runCombiDhwModuleV1 — scenario regressions', () => {
       bathroomCount: 2,
       peakConcurrentOutlets: 2,
       occupancyCount: 7,
+    });
+    expect(result.verdict.combiRisk).toBe('fail');
+  });
+});
+
+// ─── Phase 3 combi suitability domain expectations ───────────────────────────
+
+describe('runCombiDhwModuleV1 — Phase 3 domain rule expectations', () => {
+  it('occupancy 4, 1 bath, 1 outlet, professional signature → suitable (pass)', () => {
+    // 4 occupants with 1 bath and no simultaneous use risk does not trigger large-household or simultaneous-demand flags
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      occupancyCount: 4,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      occupancySignature: 'professional',
+    });
+    // Large-household rule only fires at occupancyCount >= 5
+    expect(result.flags.some(f => f.id === 'combi-large-household')).toBe(false);
+    expect(result.verdict.combiRisk).toBe('pass');
+  });
+
+  it('occupancy ≤ 2, 1 bath → combiRisk pass (single household)', () => {
+    [1, 2].forEach(occupancyCount => {
+      const result = runCombiDhwModuleV1({
+        ...baseInput,
+        occupancyCount,
+        bathroomCount: 1,
+        peakConcurrentOutlets: 1,
+      });
+      expect(result.verdict.combiRisk).toBe('pass');
+    });
+  });
+
+  it('occupancy 3, 1 bath → combiRisk warn (borderline demand — three-person caution)', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      occupancyCount: 3,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+    });
+    expect(result.verdict.combiRisk).toBe('warn');
+    expect(result.flags.some(f => f.id === 'combi-three-person-caution')).toBe(true);
+  });
+
+  it('bathroomCount >= 2 → combiRisk at least warn (simultaneous demand gate)', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 2,
+      peakConcurrentOutlets: 1,
+    });
+    expect(['warn', 'fail']).toContain(result.verdict.combiRisk);
+    expect(result.flags.some(f => f.id === 'combi-simultaneous-demand')).toBe(true);
+  });
+
+  it('peakConcurrentOutlets >= 2 → combiRisk fail (hard simultaneous-demand gate)', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 2,
     });
     expect(result.verdict.combiRisk).toBe('fail');
   });

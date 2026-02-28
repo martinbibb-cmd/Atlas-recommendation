@@ -15,10 +15,11 @@ const SHORT_DRAW_SIGNATURES = new Set(['steady_home', 'steady', 'shift_worker', 
 
 /**
  * Nominal combi boiler peak DHW heat output (kW).
- * Represents a typical UK combi in DHW mode (e.g. Worcester Bosch 28i).
- * At Cp=4.19, ΔT=25°C (cold 15°C → 40°C): ~14 L/min deliverable.
+ * Represents a typical UK combi in DHW priority mode (e.g. Worcester Bosch 32i).
+ * At Cp=4.19, ΔT=25°C (cold 15°C → 40°C): ~17 L/min deliverable.
+ * 30 kW is the realistic order-of-magnitude for UK combi DHW heat transfer capacity.
  */
-const NOMINAL_COMBI_DHW_KW = 25;
+const NOMINAL_COMBI_DHW_KW = 30;
 
 // ─── Probabilistic DHW overlap model ─────────────────────────────────────────
 
@@ -95,13 +96,14 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
   const assumptions: string[] = [];
 
   // ── Rule 1: Pressure lockout ─────────────────────────────────────────────
-  if (input.dynamicMainsPressure != null && input.dynamicMainsPressure < PRESSURE_LOCKOUT_BAR) {
+  const dynamicBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+  if (dynamicBar != null && dynamicBar < PRESSURE_LOCKOUT_BAR) {
     flags.push({
       id: 'combi-pressure-lockout',
       severity: 'fail',
       title: 'Combi safety cut-off risk',
       detail:
-        `Dynamic mains pressure ${input.dynamicMainsPressure.toFixed(1)} bar is below the ` +
+        `Dynamic mains pressure ${dynamicBar.toFixed(1)} bar is below the ` +
         `${PRESSURE_LOCKOUT_BAR.toFixed(1)} bar minimum required for safe combi operation. ` +
         `The unit will lock out during simultaneous draws, causing cold-water slugs.`,
     });

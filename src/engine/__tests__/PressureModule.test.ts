@@ -32,13 +32,13 @@ describe('analysePressure', () => {
     expect(result.staticBar).toBe(3.5);
     expect(result.dynamicBar).toBe(1.8);
     expect(result.dropBar).toBeCloseTo(1.7);
-    expect(result.notes.some(n => n.includes('Large pressure drop'))).toBe(true);
+    expect(result.notes.some(n => n.includes('Large static-to-dynamic drop'))).toBe(true);
   });
 
   it('drop exactly 1.0 bar → large-drop note added', () => {
     const result = analysePressure(2.5, 3.5);
     expect(result.dropBar).toBeCloseTo(1.0);
-    expect(result.notes.some(n => n.includes('Large pressure drop'))).toBe(true);
+    expect(result.notes.some(n => n.includes('Large static-to-dynamic drop'))).toBe(true);
   });
 
   it('drop exactly 0.5 bar → no large-drop note', () => {
@@ -109,7 +109,7 @@ describe('analysePressure', () => {
     expect(result.inconsistentReading).toBeUndefined();
     expect(result.dropBar).toBeCloseTo(3.5);
     // Large drop note should be added (drop >= 1.0)
-    expect(result.notes.some(n => n.includes('Large pressure drop'))).toBe(true);
+    expect(result.notes.some(n => n.includes('Large static-to-dynamic drop'))).toBe(true);
   });
 
   // ── Guardrails for unphysical inputs ─────────────────────────────────────
