@@ -71,7 +71,7 @@ export function analysePressure(dynamicBar: number, staticBar?: number): Pressur
     }
 
     if (dropBar >= LARGE_DROP_THRESHOLD) {
-      notes.push('Large pressure drop suggests restriction/shared main — confirm with a flow test.');
+      notes.push('Large static-to-dynamic drop recorded — a flow test (L/min) is needed to determine if this is a restriction or normal supply behaviour.');
     }
 
     const formattedBullet =

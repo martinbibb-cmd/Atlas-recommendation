@@ -277,15 +277,16 @@ const MAX_ROOM_TEMP_C = 22;
 
 /**
  * Nominal combi boiler peak DHW heat output (kW).
- * Typical UK combi (e.g. Worcester Bosch 28i) in DHW priority mode.
+ * Realistic order-of-magnitude for UK combi DHW heat transfer capacity.
+ * At Cp=4.19, ΔT=25°C (cold 15°C → 40°C): ~17 L/min deliverable.
  */
-const NOMINAL_COMBI_DHW_KW = 25;
+const NOMINAL_COMBI_DHW_KW = 30;
 /**
  * Litres per minute per kW at the 40 °C mixed target.
  * Mixed target 40 °C from 15 °C cold, Cp = 4.186 kJ/(kg·K), density ≈ 1 kg/L:
  *   ṁ (kg/s) = Q_kW × 1000 / (4186 × 25) = Q_kW × 0.00956 kg/s per kW
  *   L/min    = ṁ × 60                     ≈ Q_kW × 0.574 L/min per kW
- * Sanity check: 25 kW × 0.574 ≈ 14.3 L/min — consistent with UK combi data sheets.
+ * Sanity check: 30 kW × 0.574 ≈ 17.2 L/min — consistent with UK combi data sheets.
  */
 const LPM_PER_KW_AT_40C = 0.574;
 
@@ -293,7 +294,7 @@ const LPM_PER_KW_AT_40C = 0.574;
  * Standard 24-hour DHW demand profile (L/min @40 °C mixed).
  * Models a 3-person household with 1 bathroom during a UK weekday.
  * Morning peak (07:00) represents two moderate draws (e.g., 2 × 6 L/min = 12 L/min),
- * which sits within a healthy combi's nominal capacity (~14.3 L/min) but exceeds
+ * which sits within a healthy combi's nominal capacity (~17.2 L/min at 30 kW) but exceeds
  * the derated capacity when scale has reduced HX output.
  * Index = hour (0–23).
  */
