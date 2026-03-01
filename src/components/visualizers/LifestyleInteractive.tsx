@@ -51,6 +51,13 @@ import {
   mixergySoCByHour,
   boilerSteppedCurve,
   hpHorizonCurve,
+  type WaterSlotState,
+  WATER_SLOT_LABELS,
+  WATER_SLOT_COLOURS,
+  WATER_SLOT_CYCLE,
+  defaultWaterSlots,
+  nextWaterState,
+  waterSlotsToHourlyKw,
 } from '../../engine/modules/LifestyleInteractiveHelpers';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import {
@@ -134,6 +141,7 @@ interface Props {
 
 export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [hours, setHours] = useState<HourState[]>(defaultHours);
+  const [waterSlots, setWaterSlots] = useState<WaterSlotState[]>(defaultWaterSlots);
   const [isFullJob, setIsFullJob] = useState(true);
   const [selectedSystem, setSelectedSystem] = useState<DayPainterSystem>('combi');
   const [conditionScenario, setConditionScenario] = useState<ConditionScenario>('as_found');
@@ -234,23 +242,41 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     });
   };
 
+  const toggleWaterSlot = (slotIdx: number) => {
+    setWaterSlots(prev => {
+      const next = [...prev];
+      next[slotIdx] = nextWaterState(next[slotIdx]);
+      return next;
+    });
+  };
+
   // ── Demand chart data (Graph 1: Technical Truth) ────────────────────────────
   // Source: lifestyle.hourlyData from LifestyleSimulationModule (deterministic,
   // physics-driven).  Shows the raw kW load regardless of which system is chosen.
-  // DHW demand is approximated from the user's painted high-DHW hours scaled by
-  // heatLossKw so the two series share a meaningful unit.
+  // DHW demand: when the water painter has any slots set, those drive the DHW kW
+  // series; otherwise the heating painter heuristic (dhw_demand / home hours) is used.
   const heatLossKw = engineInput.heatLossWatts / 1000;
+  const anyWaterPainted = waterSlots.some(s => s !== 'none');
+  const waterDhwByHour = useMemo(
+    () => waterSlotsToHourlyKw(waterSlots, computeRequiredKw(showerFlowLpm, dhwDeltaT)),
+    // computeRequiredKw is a pure imported function — it is stable and does not need to be
+    // listed as a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [waterSlots, showerFlowLpm, dhwDeltaT],
+  );
   const demandChartData = lifestyle.hourlyData.map((row, h) => ({
     hour: `${String(h).padStart(2, '0')}:00`,
     'Heat (kW)':  parseFloat(row.demandKw.toFixed(2)),
-    'DHW (kW)':   parseFloat(
-      (hours[h] === 'dhw_demand'
-        ? computeRequiredKw(showerFlowLpm, dhwDeltaT)
-        : hours[h] === 'home'
-          ? computeRequiredKw(showerFlowLpm * 0.25, dhwDeltaT)
-          : 0
-      ).toFixed(2),
-    ),
+    'DHW (kW)':   anyWaterPainted
+      ? waterDhwByHour[h]
+      : parseFloat(
+          (hours[h] === 'dhw_demand'
+            ? computeRequiredKw(showerFlowLpm, dhwDeltaT)
+            : hours[h] === 'home'
+              ? computeRequiredKw(showerFlowLpm * 0.25, dhwDeltaT)
+              : 0
+          ).toFixed(2),
+        ),
   }));
 
   // ── Graph C: Comfort Stability ─────────────────────────────────────────────
@@ -400,6 +426,95 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
             {STATE_LABELS[s]}
           </span>
         ))}
+      </div>
+
+      {/* ── 💧 Water Usage Painter (5-min increments) ────────────────────────── */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
+          💧 Water Usage Painter
+          <span style={{ fontSize: '0.68rem', fontWeight: 400, color: '#718096', marginLeft: 6 }}>
+            Click to cycle: None → Hot → Cold (5-min slots)
+          </span>
+        </div>
+        {/* Column minute headers */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '28px repeat(12, 1fr)',
+          gap: 1,
+          marginBottom: 2,
+        }}>
+          <div />
+          {Array.from({ length: 12 }, (_, i) => (
+            <div
+              key={i}
+              style={{ fontSize: '0.48rem', color: '#a0aec0', textAlign: 'center', lineHeight: '1' }}
+            >
+              :{String(i * 5).padStart(2, '0')}
+            </div>
+          ))}
+        </div>
+        {/* 24 hour rows × 12 five-minute slot columns */}
+        {Array.from({ length: 24 }, (_, h) => (
+          <div
+            key={h}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '28px repeat(12, 1fr)',
+              gap: 1,
+              marginBottom: 1,
+            }}
+          >
+            <div style={{
+              fontSize: '0.52rem', color: '#718096',
+              lineHeight: '20px', textAlign: 'right', paddingRight: 3,
+            }}>
+              {String(h).padStart(2, '0')}:
+            </div>
+            {Array.from({ length: 12 }, (_, m) => {
+              const slotIdx = h * 12 + m;
+              const state = waterSlots[slotIdx];
+              const timeLabel = `${String(h).padStart(2, '0')}:${String(m * 5).padStart(2, '0')}`;
+              return (
+                <button
+                  key={m}
+                  onClick={() => toggleWaterSlot(slotIdx)}
+                  title={`${timeLabel} – ${WATER_SLOT_LABELS[state]}`}
+                  aria-label={`${timeLabel} – ${WATER_SLOT_LABELS[state]}`}
+                  aria-pressed={state !== 'none'}
+                  style={{
+                    height: 20,
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 2,
+                    background: WATER_SLOT_COLOURS[state],
+                    cursor: 'pointer',
+                    padding: 0,
+                  }}
+                />
+              );
+            })}
+          </div>
+        ))}
+        {/* Water painter legend */}
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: 6 }}>
+          {WATER_SLOT_CYCLE.map(s => (
+            <span
+              key={s}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: '#4a5568' }}
+            >
+              <span style={{
+                width: 12, height: 12, borderRadius: 3,
+                background: WATER_SLOT_COLOURS[s], border: '1px solid #a0aec0',
+                display: 'inline-block',
+              }} />
+              {WATER_SLOT_LABELS[s]}
+            </span>
+          ))}
+          {anyWaterPainted && (
+            <span style={{ fontSize: '0.72rem', color: '#3182ce', alignSelf: 'center' }}>
+              💡 Driving DHW demand in Graph 1
+            </span>
+          )}
+        </div>
       </div>
 
       {/* ── Toggles ────────────────────────────────────────────────────────── */}

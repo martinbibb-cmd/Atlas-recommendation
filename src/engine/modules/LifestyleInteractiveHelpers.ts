@@ -220,6 +220,62 @@ export function boilerSteppedCurve(hours: HourState[], hasHighFlowDelivery: bool
   });
 }
 
+// ─── Water slot types ─────────────────────────────────────────────────────────
+
+/** State of a single 5-minute water usage slot in the water painter. */
+export type WaterSlotState = 'none' | 'hot' | 'cold';
+
+export const WATER_SLOT_LABELS: Record<WaterSlotState, string> = {
+  none: 'No usage',
+  hot:  'Hot water',
+  cold: 'Cold water',
+};
+
+export const WATER_SLOT_COLOURS: Record<WaterSlotState, string> = {
+  none: '#f7fafc',
+  hot:  '#fc8181',
+  cold: '#bee3f8',
+};
+
+export const WATER_SLOT_CYCLE: WaterSlotState[] = ['none', 'hot', 'cold'];
+
+/** Cycles to the next WaterSlotState: none → hot → cold → none. */
+export function nextWaterState(current: WaterSlotState): WaterSlotState {
+  const idx = WATER_SLOT_CYCLE.indexOf(current);
+  return WATER_SLOT_CYCLE[(idx + 1) % WATER_SLOT_CYCLE.length];
+}
+
+/** Returns the default 288-slot (24 h × 12 five-min intervals) water usage pattern: all 'none'. */
+export function defaultWaterSlots(): WaterSlotState[] {
+  return Array(288).fill('none');
+}
+
+/**
+ * Aggregates 5-minute water slot painter data into a 24-element hourly kW array.
+ *
+ * Each 5-minute "hot" slot contributes `hotKwInstantaneous` for its window.
+ * The returned value per hour is the time-weighted average kW over that hour:
+ *   hourlyKw[h] = hotSlotCount × hotKwInstantaneous / 12
+ *
+ * Cold slots contribute 0 kW (cold mains water — no heat energy drawn from the system).
+ *
+ * @param slots              288-element WaterSlotState array (24 h × 12 five-min slots).
+ * @param hotKwInstantaneous Instantaneous kW demand during a single hot-water 5-min draw.
+ */
+export function waterSlotsToHourlyKw(slots: WaterSlotState[], hotKwInstantaneous: number): number[] {
+  if (slots.length !== 288) {
+    throw new RangeError(`waterSlotsToHourlyKw: expected 288 slots, got ${slots.length}`);
+  }
+  return Array.from({ length: 24 }, (_, h) => {
+    const start = h * 12;
+    let hotCount = 0;
+    for (let i = 0; i < 12; i++) {
+      if (slots[start + i] === 'hot') hotCount++;
+    }
+    return parseFloat((hotCount * hotKwInstantaneous / 12).toFixed(2));
+  });
+}
+
 /**
  * HP "Horizon" Curve – room temperature stability (°C).
  *

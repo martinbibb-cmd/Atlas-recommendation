@@ -16,6 +16,10 @@ import {
   DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK,
   type HourState,
   type DeliveryMode,
+  nextWaterState,
+  defaultWaterSlots,
+  waterSlotsToHourlyKw,
+  type WaterSlotState,
 } from '../modules/LifestyleInteractiveHelpers';
 
 // ─── defaultHours ─────────────────────────────────────────────────────────────
@@ -457,5 +461,89 @@ describe('boilerSteppedCurve — dhwDrawScalar (supply path scaling)', () => {
     const curveGravity = boilerSteppedCurve(allDhw, false, 'gravity');         // full conflict
     const curveZero    = boilerSteppedCurve(allDhw, false, 'gravity', 0.0);    // no conflict via scalar
     curveZero.forEach((v, i) => expect(v).toBeGreaterThan(curveGravity[i]));
+  });
+});
+
+// ─── nextWaterState ───────────────────────────────────────────────────────────
+
+describe('nextWaterState', () => {
+  it('cycles none → hot → cold → none', () => {
+    expect(nextWaterState('none')).toBe('hot');
+    expect(nextWaterState('hot')).toBe('cold');
+    expect(nextWaterState('cold')).toBe('none');
+  });
+});
+
+// ─── defaultWaterSlots ────────────────────────────────────────────────────────
+
+describe('defaultWaterSlots', () => {
+  it('returns exactly 288 entries (24 h × 12 five-min slots)', () => {
+    expect(defaultWaterSlots()).toHaveLength(288);
+  });
+
+  it('all slots are initially "none"', () => {
+    defaultWaterSlots().forEach(s => expect(s).toBe('none'));
+  });
+});
+
+// ─── waterSlotsToHourlyKw ─────────────────────────────────────────────────────
+
+describe('waterSlotsToHourlyKw', () => {
+  const hotKw = 15;
+
+  it('returns exactly 24 hourly values', () => {
+    expect(waterSlotsToHourlyKw(defaultWaterSlots(), hotKw)).toHaveLength(24);
+  });
+
+  it('throws RangeError when slots array length is not 288', () => {
+    expect(() => waterSlotsToHourlyKw(Array(100).fill('none') as WaterSlotState[], 15)).toThrow(RangeError);
+    expect(() => waterSlotsToHourlyKw(Array(289).fill('none') as WaterSlotState[], 15)).toThrow(RangeError);
+  });
+
+  it('returns all zeros when all slots are "none"', () => {
+    const result = waterSlotsToHourlyKw(defaultWaterSlots(), hotKw);
+    result.forEach(v => expect(v).toBe(0));
+  });
+
+  it('returns all zeros when all slots are "cold" (no heat energy drawn)', () => {
+    const coldSlots: WaterSlotState[] = Array(288).fill('cold');
+    const result = waterSlotsToHourlyKw(coldSlots, hotKw);
+    result.forEach(v => expect(v).toBe(0));
+  });
+
+  it('full hour of hot slots gives hotKw (12/12 = 1.0 ratio)', () => {
+    const slots: WaterSlotState[] = Array(288).fill('none');
+    for (let i = 0; i < 12; i++) slots[6 * 12 + i] = 'hot'; // hour 6 all hot
+    const result = waterSlotsToHourlyKw(slots, hotKw);
+    expect(result[6]).toBe(hotKw);
+  });
+
+  it('half hour of hot slots gives hotKw / 2 (6/12 = 0.5 ratio)', () => {
+    const slots: WaterSlotState[] = Array(288).fill('none');
+    for (let i = 0; i < 6; i++) slots[7 * 12 + i] = 'hot'; // first 6 slots of hour 7
+    const result = waterSlotsToHourlyKw(slots, hotKw);
+    expect(result[7]).toBeCloseTo(hotKw / 2, 5);
+  });
+
+  it('single hot slot gives hotKw / 12', () => {
+    const slots: WaterSlotState[] = Array(288).fill('none');
+    slots[0] = 'hot'; // first slot of hour 0
+    const result = waterSlotsToHourlyKw(slots, hotKw);
+    expect(result[0]).toBeCloseTo(hotKw / 12, 5);
+  });
+
+  it('hot slots in one hour do not bleed into adjacent hours', () => {
+    const slots: WaterSlotState[] = Array(288).fill('none');
+    for (let i = 0; i < 12; i++) slots[10 * 12 + i] = 'hot'; // all of hour 10
+    const result = waterSlotsToHourlyKw(slots, hotKw);
+    expect(result[9]).toBe(0);
+    expect(result[10]).toBe(hotKw);
+    expect(result[11]).toBe(0);
+  });
+
+  it('all slots hot → every hour returns hotKw', () => {
+    const allHot: WaterSlotState[] = Array(288).fill('hot');
+    const result = waterSlotsToHourlyKw(allHot, hotKw);
+    result.forEach(v => expect(v).toBe(hotKw));
   });
 });
