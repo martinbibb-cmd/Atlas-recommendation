@@ -56,8 +56,8 @@ export function storedTypeToSystemArchetype(
  */
 export const combiSwitchScenario: StoryScenario<CombiSwitchInputs> = {
   id: 'combi_switch',
-  title: 'Switching to a combi',
-  description: 'Compare how a combi and a stored-water system behave in your household.',
+  title: 'Combi vs Stored',
+  description: 'Compare how a combi boiler and a stored-water system behave in your household.',
   advisorIntent: "Let's see how hot water and heating behave in your household.",
   fields: [
     'occupancyCount',

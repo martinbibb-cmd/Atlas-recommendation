@@ -1269,6 +1269,12 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
             </div>
           </div>
 
+          {input.mainsDynamicFlowLpm == null && (
+            <div className="step-indicative-warning" role="alert">
+              <span aria-hidden="true">⚠️</span>{' '}
+              <strong>Indicative only</strong> — dynamic flow not entered. Supply-quality decisions will use estimated defaults. Enter L/min above for a reliable result.
+            </div>
+          )}
           <div className="step-actions">
             <button className="prev-btn" onClick={prev}>← Back</button>
             <button className="next-btn" onClick={next}>Next →</button>

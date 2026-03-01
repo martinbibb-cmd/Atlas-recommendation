@@ -276,6 +276,17 @@ body {
   margin-top: 1.5rem;
 }
 
+.step-indicative-warning {
+  padding: 0.5rem 0.75rem;
+  background: #fff5f5;
+  border: 1px solid #fc8181;
+  border-left: 4px solid #e53e3e;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #9b2c2c;
+  margin-bottom: 0.5rem;
+}
+
 .next-btn {
   padding: 0.75rem 2rem;
   background: #3182ce;
@@ -1258,6 +1269,50 @@ body {
 .story-inputs-summary__value {
   font-family: monospace;
   margin-left: 0.5rem;
+  color: #2d3748;
+}
+
+/* HP Assumptions panel — pinned next to the viability verdict */
+.hp-assumptions-panel {
+  margin-top: 0.5rem;
+  border: 1px solid #faf089;
+  border-left: 4px solid #d69e2e;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fffff0;
+}
+
+.hp-assumptions-panel__toggle {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.78rem;
+  color: #744210;
+  cursor: pointer;
+}
+
+.hp-assumptions-panel__toggle:hover { background: #fefcbf; }
+
+.hp-assumptions-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0.75rem 0.5rem;
+  font-size: 0.75rem;
+  color: #4a5568;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.hp-assumptions-panel__key {
+  font-weight: 600;
+  color: #744210;
+}
+
+.hp-assumptions-panel__value {
+  margin-left: 0.4rem;
   color: #2d3748;
 }
 

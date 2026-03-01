@@ -26,6 +26,7 @@ function ChipButton({
     <button
       type="button"
       className={`chip-btn${active ? ' chip-btn--active' : ''}`}
+      aria-pressed={active}
       onClick={onClick}
     >
       {label}

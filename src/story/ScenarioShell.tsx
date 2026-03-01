@@ -721,6 +721,57 @@ const RADIATOR_TYPE_LABEL: Record<HeatPumpViabilityInputs['radiatorsType'], stri
   mostly_singles: 'high-temp required',
 };
 
+/**
+ * Assumptions in use panel — shown when one or more heat pump viability
+ * inputs are defaulted rather than measured.
+ *
+ * This gives the advisor a single, consistent view of what's assumed vs.
+ * known, pinned next to the verdict where it matters most.
+ */
+function HeatPumpAssumptionsPanel({ inputs }: { inputs: HeatPumpViabilityInputs }) {
+  const [open, setOpen] = useState(false);
+  const defaults = heatPumpViabilityScenario.defaults;
+  const assumptions: { label: string; value: string }[] = [];
+
+  if (!inputs.heatLossKnown) {
+    assumptions.push({
+      label: 'Fabric heat loss',
+      value: `${defaults.heatLossWatts / 1000} kW (assumed — measure for accuracy)`,
+    });
+  }
+  if (!inputs.primaryPipeDiameterKnown) {
+    assumptions.push({
+      label: 'Primary pipe diameter',
+      value: `${defaults.primaryPipeDiameter} mm (assumed — check to confirm)`,
+    });
+  }
+
+  if (assumptions.length === 0) return null;
+
+  return (
+    <div className="hp-assumptions-panel">
+      <button
+        type="button"
+        className="hp-assumptions-panel__toggle"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+      >
+        📋 {open ? '▲ Hide' : '▼ Show'} assumptions driving this answer ({assumptions.length})
+      </button>
+      {open && (
+        <ul className="hp-assumptions-panel__list">
+          {assumptions.map(a => (
+            <li key={a.label}>
+              <span className="hp-assumptions-panel__key">{a.label}:</span>
+              <span className="hp-assumptions-panel__value">{a.value}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function HeatPumpViabilityShell({
   onBack,
   onSwitch,
@@ -807,6 +858,11 @@ function HeatPumpViabilityShell({
           <div className={`story-system-tile story-system-tile--${VERDICT_STATUS[viabilityData.verdict]}`}>
             <strong>{VERDICT_LABEL[viabilityData.verdict]}</strong>
           </div>
+
+          {/* Assumptions in use — shown when any input is defaulted */}
+          {(!inputs.heatLossKnown || !inputs.primaryPipeDiameterKnown) && (
+            <HeatPumpAssumptionsPanel inputs={inputs} />
+          )}
 
           {show('efficiency_graph') && (
             <div className="story-hp-cop-summary">
