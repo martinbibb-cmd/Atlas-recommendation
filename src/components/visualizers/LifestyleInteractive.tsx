@@ -53,6 +53,17 @@ import {
   hpHorizonCurve,
 } from '../../engine/modules/LifestyleInteractiveHelpers';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
+import {
+  COLD_SUPPLY_TEMP_PRESETS,
+  COMBI_HOT_OUT_PRESETS,
+  OUTLET_FLOW_PRESETS_LPM,
+  NOMINAL_COMBI_DHW_KW,
+  computeHeatLimitLpm,
+  computeRequiredKw,
+  type SeasonPreset,
+  type DhwModePreset,
+  type ShowerPreset,
+} from '../../engine/presets/DhwFlowPresets';
 
 // ─── System switcher ──────────────────────────────────────────────────────────
 
@@ -97,29 +108,20 @@ const SLUDGE_INPUT_AFTER_FLUSH = {
   hasMagneticFilter: true, // magnetic filter fitted + power flush
 };
 
-// Nominal combi DHW output (kW) and Cp×ΔT for deliverable L/min computation
-const NOMINAL_COMBI_DHW_KW = 25;
-/** Specific heat of water (kJ per litre per °C) */
-const WATER_SPECIFIC_HEAT_KJ_PER_L_K = 4.19;
-/** ΔT for combi DHW delivery: cold mains ~15°C → 40°C = 25 K */
-const DHW_DELTA_T_C = 25;
-const CP_DELTA_T = WATER_SPECIFIC_HEAT_KJ_PER_L_K * DHW_DELTA_T_C; // 104.75 kJ/(L·K)
+// Nominal combi DHW output is imported from DhwFlowPresets (NOMINAL_COMBI_DHW_KW = 30 kW).
 
 /** Indoor comfort setpoint (°C) — used for Graph C below-setpoint calculations. */
 const COMFORT_SETPOINT_C = 21;
 
 // ─── Demand chart physics constants ──────────────────────────────────────────
 
-/** Fraction of cylinder capacity drawn per "High DHW" hour (18 % × 5 kWh = 0.9 kWh). */
-const DHW_DEMAND_DRAW_FRACTION = 0.18;
-/** Fraction of cylinder capacity drawn during ordinary "At Home" hours (4 % × 5 kWh = 0.2 kWh). */
-const HOME_DRAW_FRACTION = 0.04;
 /** Y-axis upper bound for the demand chart: 120 % of peak heat-loss to leave headroom. */
 const DEMAND_Y_AXIS_SCALE_FACTOR = 1.2;
-/** Requested hot-water draw rate (L/min @40°C) during a High DHW hour. */
-const DHW_REQUESTED_LPM = parseFloat((NOMINAL_COMBI_DHW_KW * 60 / CP_DELTA_T).toFixed(1)); // ~14.3 L/min
-/** Requested hot-water draw rate (L/min @40°C) during an At Home hour (background use). */
-const HOME_REQUESTED_LPM = parseFloat((DHW_REQUESTED_LPM * 0.25).toFixed(1)); // ~3.6 L/min
+
+/** Convert a snake_case or lowercase preset key to title case for display. */
+function titleCase(s: string): string {
+  return s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -139,6 +141,18 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   // size and bathroom count heuristics (no user-facing supply-path selector).
   const dhwDrawScalar = 1.0;
   const [hasSoftener, setHasSoftener] = useState(false);
+
+  // ── DHW concurrency presets — drive all flow & kW calculations ─────────────
+  const [season, setSeason]       = useState<SeasonPreset>('typical');
+  const [dhwMode, setDhwMode]     = useState<DhwModePreset>('normal');
+  const [showerType, setShowerType] = useState<ShowerPreset>('mixer');
+
+  // Derived physics from presets
+  const coldWaterTempC  = COLD_SUPPLY_TEMP_PRESETS[season];
+  const combiHotOutTempC = COMBI_HOT_OUT_PRESETS[dhwMode];
+  const showerFlowLpm   = OUTLET_FLOW_PRESETS_LPM[showerType];
+  const dhwDeltaT       = combiHotOutTempC - coldWaterTempC;
+  const heatLimitLpm    = computeHeatLimitLpm(NOMINAL_COMBI_DHW_KW, dhwDeltaT);
 
   const engineInput: EngineInputV2_3 = { ...DEFAULT_ENGINE_INPUT, ...baseInput };
 
@@ -230,7 +244,12 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     hour: `${String(h).padStart(2, '0')}:00`,
     'Heat (kW)':  parseFloat(row.demandKw.toFixed(2)),
     'DHW (kW)':   parseFloat(
-      ((hours[h] === 'dhw_demand' ? DHW_DEMAND_DRAW_FRACTION : hours[h] === 'home' ? HOME_DRAW_FRACTION : 0) * heatLossKw).toFixed(2),
+      (hours[h] === 'dhw_demand'
+        ? computeRequiredKw(showerFlowLpm, dhwDeltaT)
+        : hours[h] === 'home'
+          ? computeRequiredKw(showerFlowLpm * 0.25, dhwDeltaT)
+          : 0
+      ).toFixed(2),
     ),
   }));
 
@@ -255,14 +274,21 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   );
 
   // ── Graph D: DHW Deliverability (combi only) ──────────────────────────────
-  // Requested L/min @40°C vs delivered L/min after scale capacity derate.
+  // Requested L/min: shower preset flow during High DHW, 25% of that during At Home.
+  // Delivered: capped at heat limit first, then scale-derated.
   const dhwDerateFraction = sludge.dhwCapacityDeratePct;
   const dhwDeliverabilityData = lifestyle.hourlyData.map((_row, h) => {
-    const isDhwHour = hours[h] === 'dhw_demand';
+    const isDhwHour  = hours[h] === 'dhw_demand';
     const isHomeHour = hours[h] === 'home';
-    const requestedLpm = isDhwHour ? DHW_REQUESTED_LPM : isHomeHour ? HOME_REQUESTED_LPM : 0;
-    const deliveredLpm = parseFloat((requestedLpm * (1 - dhwDerateFraction)).toFixed(1));
-    const shortfallLpm = parseFloat((requestedLpm - deliveredLpm).toFixed(1));
+    const requestedLpm = isDhwHour
+      ? showerFlowLpm
+      : isHomeHour
+        ? parseFloat((showerFlowLpm * 0.25).toFixed(1))
+        : 0;
+    // Cap at heat limit, then apply scale derate
+    const heatCapLpm   = Math.min(requestedLpm, heatLimitLpm);
+    const deliveredLpm = parseFloat((heatCapLpm * (1 - dhwDerateFraction)).toFixed(1));
+    const shortfallLpm = parseFloat(Math.max(0, requestedLpm - deliveredLpm).toFixed(1));
     return {
       hour: `${String(h).padStart(2, '0')}:00`,
       'Requested (L/min)': requestedLpm,
@@ -270,6 +296,11 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
       'Shortfall (L/min)': shortfallLpm,
     };
   });
+
+  // Peak single-shower delivered flow (for scale-derate badge) — avoids repeating the formula.
+  const peakDeliveredLpm = parseFloat(
+    (Math.min(showerFlowLpm, heatLimitLpm) * (1 - dhwDerateFraction)).toFixed(1),
+  );
 
   const homeCount = hours.filter(s => s === 'home').length;
   const dhwCount  = hours.filter(s => s === 'dhw_demand').length;
@@ -727,31 +758,113 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
       {selectedSystem === 'combi' && (
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
-            🚿 Graph D — DHW Deliverability @40°C (Combi)
+            🚿 Graph D — DHW Deliverability (Combi)
             <span style={{
               marginLeft: 8, fontSize: '0.7rem', fontWeight: 400, color: '#718096',
             }}>
               ({conditionScenario === 'as_found' ? '🔴 As Found' : '🟢 After Flush'})
             </span>
           </div>
+
+          {/* ── DHW preset selectors ───────────────────────────────────────── */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: 8 }}>
+            {/* Season */}
+            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.7rem', color: '#718096' }}>Season:</span>
+              {(Object.keys(COLD_SUPPLY_TEMP_PRESETS) as SeasonPreset[]).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setSeason(s)}
+                  aria-pressed={season === s}
+                  style={{
+                    padding: '3px 10px', borderRadius: 14,
+                    border: `1.5px solid ${season === s ? '#3182ce' : '#e2e8f0'}`,
+                    background: season === s ? '#ebf8ff' : '#f7fafc',
+                    color: season === s ? '#2b6cb0' : '#718096',
+                    fontSize: '0.72rem', fontWeight: season === s ? 700 : 400, cursor: 'pointer',
+                  }}
+                >
+                  {titleCase(s)} ({COLD_SUPPLY_TEMP_PRESETS[s]}°C)
+                </button>
+              ))}
+            </div>
+            {/* DHW mode */}
+            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.7rem', color: '#718096' }}>Hot out:</span>
+              {(Object.keys(COMBI_HOT_OUT_PRESETS) as DhwModePreset[]).map(m => (
+                <button
+                  key={m}
+                  onClick={() => setDhwMode(m)}
+                  aria-pressed={dhwMode === m}
+                  style={{
+                    padding: '3px 10px', borderRadius: 14,
+                    border: `1.5px solid ${dhwMode === m ? '#805ad5' : '#e2e8f0'}`,
+                    background: dhwMode === m ? '#faf5ff' : '#f7fafc',
+                    color: dhwMode === m ? '#6b46c1' : '#718096',
+                    fontSize: '0.72rem', fontWeight: dhwMode === m ? 700 : 400, cursor: 'pointer',
+                  }}
+                >
+                  {titleCase(m)} ({COMBI_HOT_OUT_PRESETS[m]}°C)
+                </button>
+              ))}
+            </div>
+            {/* Shower type */}
+            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.7rem', color: '#718096' }}>Shower:</span>
+              {(Object.keys(OUTLET_FLOW_PRESETS_LPM) as ShowerPreset[]).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setShowerType(t)}
+                  aria-pressed={showerType === t}
+                  style={{
+                    padding: '3px 10px', borderRadius: 14,
+                    border: `1.5px solid ${showerType === t ? '#276749' : '#e2e8f0'}`,
+                    background: showerType === t ? '#f0fff4' : '#f7fafc',
+                    color: showerType === t ? '#276749' : '#718096',
+                    fontSize: '0.72rem', fontWeight: showerType === t ? 700 : 400, cursor: 'pointer',
+                  }}
+                >
+                  {titleCase(t)} ({OUTLET_FLOW_PRESETS_LPM[t]} L/min)
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Physics summary badge */}
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: showerFlowLpm > heatLimitLpm ? '#fff5f5' : '#f0fff4',
+            border: `1px solid ${showerFlowLpm > heatLimitLpm ? '#fed7d7' : '#9ae6b4'}`,
+            borderRadius: 6, padding: '3px 10px',
+            fontSize: '0.72rem',
+            color: showerFlowLpm > heatLimitLpm ? '#c53030' : '#276749',
+            marginBottom: 6,
+          }}>
+            ΔT {dhwDeltaT.toFixed(1)}°C · Heat limit {heatLimitLpm.toFixed(1)} L/min · Shower {showerFlowLpm} L/min
+            {showerFlowLpm > heatLimitLpm
+              ? ` ⚠️ Shortfall — needs ${computeRequiredKw(showerFlowLpm, dhwDeltaT).toFixed(1)} kW (combi: ${NOMINAL_COMBI_DHW_KW} kW)`
+              : ' ✅ Within capacity'}
+          </div>
+
           {sludge.dhwCapacityDeratePct > 0 && (
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               background: '#fff5f5', border: '1px solid #fed7d7',
               borderRadius: 6, padding: '3px 10px',
-              fontSize: '0.72rem', color: '#c53030', marginBottom: 6,
+              fontSize: '0.72rem', color: '#c53030', marginBottom: 6, marginLeft: 6,
             }}>
               💧 Scale derate {(sludge.dhwCapacityDeratePct * 100).toFixed(1)}% —
-              nominal {DHW_REQUESTED_LPM} L/min → delivered {parseFloat((DHW_REQUESTED_LPM * (1 - sludge.dhwCapacityDeratePct)).toFixed(1))} L/min
+              heat limit {heatLimitLpm.toFixed(1)} L/min → delivered {peakDeliveredLpm} L/min
             </div>
           )}
+
           <div style={{ height: 160, marginBottom: 8 }}>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={dhwDeliverabilityData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="hour" tick={{ fontSize: 9 }} interval={3} />
                 <YAxis
-                  domain={[0, Math.ceil(DHW_REQUESTED_LPM * 1.2)]}
+                  domain={[0, Math.ceil(Math.max(showerFlowLpm, heatLimitLpm) * 1.2)]}
                   tick={{ fontSize: 9 }}
                   label={{ value: 'L/min', angle: -90, position: 'insideLeft', fontSize: 10 }}
                 />
@@ -763,6 +876,13 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
                   ]}
                 />
                 <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: 6 }} />
+                {/* Heat limit reference line */}
+                <ReferenceLine
+                  y={heatLimitLpm}
+                  stroke="#e53e3e"
+                  strokeDasharray="5 3"
+                  label={{ value: `Heat limit ${heatLimitLpm.toFixed(1)} L/min`, fontSize: 9, fill: '#c53030', position: 'insideTopRight' }}
+                />
                 <Area
                   type="stepAfter"
                   dataKey="Requested (L/min)"
@@ -778,7 +898,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
                   strokeWidth={2}
                   dot={false}
                 />
-                {sludge.dhwCapacityDeratePct > 0 && (
+                {dhwDeliverabilityData.some(d => (d['Shortfall (L/min)'] as number) > 0) && (
                   <Area
                     type="stepAfter"
                     dataKey="Shortfall (L/min)"
