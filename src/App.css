@@ -1320,3 +1320,117 @@ body {
   margin-left: auto;
   font-size: 0.9rem;
 }
+
+/* ── DHW flow & concurrency panel (combi_switch story scenario) ────────────── */
+
+.story-dhw-flow-panel {
+  background: #f7fafc;
+  border: 1px solid #bee3f8;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.story-dhw-flow-panel h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #2b6cb0;
+  margin: 0 0 0.5rem;
+}
+
+.story-dhw-live-sentence {
+  font-size: 0.82rem;
+  color: #2d3748;
+  line-height: 1.55;
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.65rem;
+  background: #ebf8ff;
+  border-radius: 5px;
+  border-left: 3px solid #3182ce;
+}
+
+/* kW callout row */
+.story-dhw-preset-callouts {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.story-dhw-callout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid #bee3f8;
+  background: #fff;
+  font-size: 0.72rem;
+  color: #4a5568;
+  min-width: 72px;
+}
+
+.story-dhw-callout--selected {
+  border-color: #3182ce;
+  background: #ebf8ff;
+  color: #2b6cb0;
+}
+
+.story-dhw-callout--over {
+  border-color: #fc8181;
+  background: #fff5f5;
+  color: #742a2a;
+}
+
+.story-dhw-callout--selected.story-dhw-callout--over {
+  border-color: #c53030;
+  background: #fff5f5;
+  color: #9b2c2c;
+}
+
+.story-dhw-callout__label {
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+
+.story-dhw-callout__flow {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.story-dhw-callout__kw {
+  font-size: 0.7rem;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.story-dhw-callout__badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #c53030;
+  background: #fff5f5;
+  border: 1px solid #fc8181;
+  border-radius: 3px;
+  padding: 0.05rem 0.25rem;
+}
+
+.story-dhw-shortfall-note {
+  font-size: 0.78rem;
+  color: #742a2a;
+  background: #fff5f5;
+  border: 1px solid #fc8181;
+  border-radius: 5px;
+  padding: 0.4rem 0.6rem;
+  margin: 0.5rem 0 0;
+}
+
+.story-dhw-ok-note {
+  font-size: 0.78rem;
+  color: #22543d;
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-radius: 5px;
+  padding: 0.4rem 0.6rem;
+  margin: 0.5rem 0 0;
+}

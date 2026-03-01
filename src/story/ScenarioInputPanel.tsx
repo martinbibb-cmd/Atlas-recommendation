@@ -179,6 +179,42 @@ export function CombiSwitchInputPanel({ inputs, onChange }: CombiSwitchPanelProp
           />
         )}
       </section>
+
+      <section className="cockpit-group">
+        <h4>DHW sizing presets</h4>
+
+        <ChipGroup
+          label="Cold supply (season)"
+          options={[
+            { value: 'winter',  label: 'Winter (5°C)' },
+            { value: 'typical', label: 'Typical (10°C)' },
+            { value: 'summer',  label: 'Summer (15°C)' },
+          ]}
+          value={inputs.season}
+          onChange={v => set('season', v)}
+        />
+
+        <ChipGroup
+          label="DHW mode (combi target)"
+          options={[
+            { value: 'normal', label: 'Normal (50°C)' },
+            { value: 'high',   label: 'High (55°C)' },
+          ]}
+          value={inputs.dhwMode}
+          onChange={v => set('dhwMode', v)}
+        />
+
+        <ChipGroup
+          label="Shower type"
+          options={[
+            { value: 'mixer',      label: 'Mixer (10 L/min)' },
+            { value: 'mixer_high', label: 'Mixer high (12 L/min)' },
+            { value: 'rainfall',   label: 'Rainfall (16 L/min)' },
+          ]}
+          value={inputs.showerPreset}
+          onChange={v => set('showerPreset', v)}
+        />
+      </section>
     </div>
   );
 }
