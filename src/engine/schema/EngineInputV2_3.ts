@@ -103,6 +103,12 @@ export interface EngineInputV2_3 {
    * Default: 10 L/min (representative shower/bath draw).
    */
   dhwMixedFlowLpm?: number;
+  /**
+   * Target combi DHW outlet temperature (°C) for flow physics calculations.
+   * Represents the hot water temperature leaving the combi heat exchanger.
+   * Default: 50 °C (typical UK domestic combi DHW outlet).
+   */
+  combiHotOutTempC?: number;
 
   // Building
   buildingMass: BuildingMass;
@@ -320,7 +326,8 @@ export interface CombiDhwFlagItem {
     | 'combi-short-draw-collapse'
     | 'combi-three-person-caution'
     | 'combi-large-household'
-    | 'combi-flow-inadequate';
+    | 'combi-flow-inadequate'
+    | 'combi-dhw-shortfall';
   severity: 'fail' | 'warn';
   title: string;
   detail: string;
@@ -360,6 +367,18 @@ export interface CombiDhwV1Result {
    * Scale on the combi heat exchanger reduces peak DHW output.
    */
   dhwCapacityDeratePct: number;
+  /**
+   * DHW heat required (kW) computed from actual mains flow and temperature delta.
+   * kW = 0.0697 × mainsDynamicFlowLpm × (combiHotOutTempC − coldWaterTempC).
+   * null when mainsDynamicFlowLpm is not a confirmed measured reading.
+   */
+  dhwRequiredKw: number | null;
+  /**
+   * Deliverable hot-water flow (L/min) when dhwRequiredKw exceeds derated combi output.
+   * Computed as: maxQtoDhwKwDerated / (0.0697 × deltaTC).
+   * null when no shortfall exists or no measured flow data is available.
+   */
+  deliveredFlowLpm: number | null;
 }
 
 /** Structured flag item for StoredDhwModuleV1. */
@@ -628,7 +647,7 @@ export interface PredictiveMaintenanceResult {
 
 export interface AntiLegionellaInput {
   dhwStorageLitres: number;
-  systemType: 'conventional' | 'mixergy';
+  systemType: 'conventional' | 'mixergy' | 'combi';
   weeklyHighTempCycleEnabled: boolean;
   highTempCycleTempC: number;           // typically 60–65°C
   mixergyStratificationEnabled?: boolean;
