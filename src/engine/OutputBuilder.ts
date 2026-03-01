@@ -1,9 +1,11 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
-import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem, VisualSpecV1, EvidenceItemV1 } from '../contracts/EngineOutputV1';
+import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem, VisualSpecV1, EvidenceItemV1, VerdictV1, InfluenceSummaryV1 } from '../contracts/EngineOutputV1';
 import { ENGINE_VERSION, CONTRACT_VERSION } from '../contracts/versions';
 import { buildOptionMatrixV1 } from './OptionMatrixBuilder';
 import { buildTimeline24hV1 } from './TimelineBuilder';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
+import { buildBehaviourTimelineV1 } from './BehaviourTimelineBuilder';
+import { buildLimitersV1 } from './LimitersBuilder';
 import { PENALTY_NARRATIVES, selectTopNarrativePenalties } from './scoring/penaltyNarratives';
 import type { PenaltyId } from '../contracts/scoring.penaltyIds';
 
@@ -652,6 +654,54 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     }
   }
 
+  // ── Behaviour Console additions ───────────────────────────────────────────
+
+  const behaviourTimeline = input ? buildBehaviourTimelineV1(result, input) : undefined;
+  const limiters = input ? buildLimitersV1(result, input) : undefined;
+
+  // Centralised verdict object
+  const verdict: VerdictV1 | undefined = input ? (() => {
+    const allRedFlags = [...buildRedFlags(allReasons), ...combiFlags, ...storedFlags];
+    const hasFailFlag = allRedFlags.some(f => f.severity === 'fail');
+    const hasWarnFlag = allRedFlags.some(f => f.severity === 'warn');
+    const verdictStatus: VerdictV1['status'] = hasFailFlag ? 'fail' : hasWarnFlag ? 'caution' : 'good';
+    const verdictReasons = limiters?.limiters.slice(0, 3).map(l => l.impact.summary) ?? [];
+    return {
+      title: primaryRecommendation,
+      status: verdictStatus,
+      reasons: verdictReasons,
+      confidence: confidence ?? { level: 'low', reasons: ['Insufficient data for confidence assessment.'] },
+      assumptionsUsed: assumptions ?? [],
+    };
+  })() : undefined;
+
+  // Domain influence summary (approximate % split across heat / DHW / hydraulics)
+  const influenceSummary: InfluenceSummaryV1 | undefined = input ? (() => {
+    const failLimiters = limiters?.limiters.filter(l => l.severity === 'fail') ?? [];
+    const dhwFail = failLimiters.some(
+      l => l.id === 'mains-flow-constraint' || l.id === 'combi-concurrency-constraint',
+    );
+    const hydFail = failLimiters.some(l => l.id === 'primary-pipe-constraint');
+    const allCount = (assumptions ?? []).length;
+    return {
+      heat: {
+        influencePct: 30,
+        topDrivers: ['Occupancy profile', 'Building heat loss'],
+        assumptionsCount: Math.ceil(allCount * 0.4),
+      },
+      dhw: {
+        influencePct: dhwFail ? 50 : 35,
+        topDrivers: ['Bathroom count', 'Mains flow rate'],
+        assumptionsCount: Math.ceil(allCount * 0.4),
+      },
+      hydraulics: {
+        influencePct: hydFail ? 40 : 35,
+        topDrivers: ['Primary pipe diameter', 'System flow requirement'],
+        assumptionsCount: Math.floor(allCount * 0.2),
+      },
+    };
+  })() : undefined;
+
   return {
     eligibility: buildEligibility(result, input),
     redFlags: [...buildRedFlags(allReasons), ...combiFlags, ...storedFlags],
@@ -667,5 +717,9 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
       confidence,
       assumptions,
     },
+    behaviourTimeline,
+    limiters,
+    verdict,
+    influenceSummary,
   };
 }
