@@ -22,8 +22,6 @@ import { analysePressure } from '../../engine/modules/PressureModule';
 import { runRegionalHardness } from '../../engine/modules/RegionalHardness';
 import { resolveNominalEfficiencyPct, computeCurrentEfficiencyPct, ERP_TO_NOMINAL_PCT, deriveErpClass } from '../../engine/utils/efficiency';
 import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
-import LifestyleInteractive from '../visualizers/LifestyleInteractive';
-import DemandProfilePainter from '../visualizers/DemandProfilePainter';
 import EfficiencyCurve from '../visualizers/EfficiencyCurve';
 import FootprintXRay from '../visualizers/FootprintXRay';
 import GlassBoxPanel from '../visualizers/GlassBoxPanel';
@@ -31,6 +29,20 @@ import InteractiveTwin from '../InteractiveTwin';
 import Timeline24hRenderer from '../visualizers/Timeline24hRenderer';
 import SystemConditionImpact from '../visualizers/SystemConditionImpact';
 import { computeConditionImpactMetrics } from '../../engine/modules/SystemConditionImpactModule';
+import DayPainterResults from '../daypainter/DayPainterResults';
+import {
+  getFabricPreset,
+  type WallType,
+  type InsulationLevel,
+  type AirTightness,
+  type Glazing,
+  type RoofInsulation,
+  type ThermalMass,
+  type DwellingForm,
+  type AgeBand,
+  type SizeProxy,
+  type InsulationToggle,
+} from '../../engine/presets/FabricPresets';
 // BOM utilities retained for internal/engineer mode — not rendered in customer cockpit
 // import { exportBomToCsv, calculateBomTotal } from '../../engine/modules/WholesalerPricingAdapter';
 
@@ -47,13 +59,6 @@ const STEPS: Step[] = ['location', 'pressure', 'hydraulic', 'lifestyle', 'hot_wa
 // Two independent physics dimensions:
 //   A) Fabric heat-loss (wall type, insulation, glazing, roof, airtightness)
 //   B) Thermal inertia (mass — separate from wall type)
-
-type WallType = 'solid_masonry' | 'cavity_insulated' | 'cavity_uninsulated' | 'timber_lightweight';
-type InsulationLevel = 'poor' | 'moderate' | 'good' | 'exceptional';
-type AirTightness = 'leaky' | 'average' | 'tight' | 'passive_level';
-type Glazing = 'single' | 'double' | 'triple';
-type RoofInsulation = 'poor' | 'moderate' | 'good';
-type ThermalMass = 'light' | 'medium' | 'heavy';
 
 type InputValidationWarning = {
   key: 'boiler_age' | 'flow_lpm' | 'static_pressure' | 'pressure_order';
@@ -393,23 +398,6 @@ function buildFlowCurve(pipeDiameter: number) {
   return { data, thresholds };
 }
 
-// Preset examples — promoted to a primary "home type" selector in Step 1
-const FABRIC_PRESETS: Array<{
-  label: string;
-  wall: WallType;
-  insulation: InsulationLevel;
-  air: AirTightness;
-  glaz: Glazing;
-  roof: RoofInsulation;
-  mass: ThermalMass;
-}> = [
-  { label: 'Solid brick (pre-war)',          wall: 'solid_masonry',      insulation: 'poor',       air: 'leaky',         glaz: 'single', roof: 'poor',     mass: 'heavy'  },
-  { label: '1970s cavity filled',            wall: 'cavity_insulated',   insulation: 'moderate',   air: 'average',       glaz: 'double', roof: 'moderate', mass: 'medium' },
-  { label: 'Turn of century / high-exposure',wall: 'cavity_uninsulated', insulation: 'poor',       air: 'leaky',         glaz: 'single', roof: 'poor',     mass: 'heavy'  },
-  { label: '2020s new build',                wall: 'timber_lightweight', insulation: 'moderate',   air: 'tight',         glaz: 'double', roof: 'good',     mass: 'light'  },
-  { label: 'Passivhaus',                     wall: 'timber_lightweight', insulation: 'exceptional', air: 'passive_level', glaz: 'triple', roof: 'good',     mass: 'light'  },
-];
-
 const defaultInput: FullSurveyModelV1 = {
   postcode: 'SW1A 1AA',
   dynamicMainsPressure: 2.0,
@@ -464,6 +452,26 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   const [glazing, setGlazing] = useState<Glazing>('single');
   const [roofInsulation, setRoofInsulation] = useState<RoofInsulation>('poor');
   const [thermalMass, setThermalMass] = useState<ThermalMass>('heavy');
+  const [dwellingForm, setDwellingForm] = useState<DwellingForm>('semi');
+  const [ageBand, setAgeBand] = useState<AgeBand>('1970_90');
+  const [sizeProxy, setSizeProxy] = useState<SizeProxy>('medium');
+  const [insulationToggle, setInsulationToggle] = useState<InsulationToggle>('ok');
+  const [presetMode, setPresetMode] = useState<'preset' | 'custom'>('preset');
+  const [showAdvancedFabric, setShowAdvancedFabric] = useState(false);
+
+  useEffect(() => {
+    const preset = getFabricPreset(dwellingForm, ageBand, sizeProxy, insulationToggle);
+    setWallType(preset.wall);
+    setInsulationLevel(preset.insulation);
+    setAirTightness(preset.air);
+    setGlazing(preset.glaz);
+    setRoofInsulation(preset.roof);
+    setThermalMass(preset.mass);
+    setInput(prev => ({ ...prev, heatLossWatts: preset.heatLossWatts }));
+    setPresetMode('preset');
+  }, [dwellingForm, ageBand, sizeProxy, insulationToggle]);
+
+  const markCustom = () => setPresetMode('custom');
 
   // Derived values — update whenever any fabric control changes
   const derivedTau = useMemo(() => deriveTau(thermalMass, insulationLevel, airTightness), [thermalMass, insulationLevel, airTightness]);
@@ -659,40 +667,47 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
               Solid masonry without insulation leaks as badly as any wall type.
             </p>
 
-            {/* ── Home type quick-select (auto-populates fabric controls) ── */}
+            {/* ── Building preset selectors (3-click completion) ── */}
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
-                🏠 Home type (auto-fills construction &amp; insulation)
+                🏠 Building preset (form + age + size)
               </label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                {FABRIC_PRESETS.map(p => (
-                  <button
-                    key={p.label}
-                    onClick={() => {
-                      setWallType(p.wall);
-                      setInsulationLevel(p.insulation);
-                      setAirTightness(p.air);
-                      setGlazing(p.glaz);
-                      setRoofInsulation(p.roof);
-                      setThermalMass(p.mass);
-                    }}
-                    style={{
-                      padding: '0.4rem 0.75rem',
-                      fontSize: '0.82rem',
-                      border: '1px solid #cbd5e0',
-                      borderRadius: '6px',
-                      background: '#f7fafc',
-                      cursor: 'pointer',
-                      color: '#4a5568',
-                      fontWeight: 500,
-                    }}
-                  >
-                    {p.label}
-                  </button>
-                ))}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(140px, 1fr))', gap: '0.5rem' }}>
+                <select value={dwellingForm} onChange={e => setDwellingForm(e.target.value as DwellingForm)}>
+                  <option value="detached">Detached</option>
+                  <option value="semi">Semi</option>
+                  <option value="terrace">Terrace</option>
+                  <option value="flat">Flat</option>
+                </select>
+                <select value={ageBand} onChange={e => setAgeBand(e.target.value as AgeBand)}>
+                  <option value="pre1930">Pre-1930</option>
+                  <option value="1930_70">1930-70</option>
+                  <option value="1970_90">1970-90</option>
+                  <option value="1990_2010">1990-2010</option>
+                  <option value="2010plus">2010+</option>
+                </select>
+                <select value={sizeProxy} onChange={e => setSizeProxy(e.target.value as SizeProxy)}>
+                  <option value="small">Small</option>
+                  <option value="medium">Medium</option>
+                  <option value="large">Large</option>
+                </select>
+                <select value={insulationToggle} onChange={e => setInsulationToggle(e.target.value as InsulationToggle)}>
+                  <option value="poor">Insulation: Poor</option>
+                  <option value="ok">Insulation: OK</option>
+                  <option value="good">Insulation: Good</option>
+                </select>
+              </div>
+              <div style={{ fontSize: '0.74rem', color: '#718096', marginTop: '0.35rem' }}>
+                Mode: <strong>{presetMode === 'preset' ? 'Preset-derived' : 'Custom override'}</strong>
+                {' · '}
+                <button onClick={() => setShowAdvancedFabric(v => !v)} style={{ border: 'none', background: 'transparent', color: '#3182ce', cursor: 'pointer' }}>
+                  {showAdvancedFabric ? 'Hide advanced controls' : 'Show advanced controls'}
+                </button>
               </div>
             </div>
 
+            {showAdvancedFabric && (
+              <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start' }}>
 
               {/* Left: heat-loss levers */}
@@ -712,7 +727,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     ] as Array<{ value: WallType; label: string; sub: string }>).map(opt => (
                       <button
                         key={opt.value}
-                        onClick={() => setWallType(opt.value)}
+                        onClick={() => { markCustom(); setWallType(opt.value); }}
                         style={{
                           padding: '0.5rem 0.75rem',
                           border: `2px solid ${wallType === opt.value ? '#3182ce' : '#e2e8f0'}`,
@@ -739,7 +754,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     {(['poor', 'moderate', 'good', 'exceptional'] as InsulationLevel[]).map(lvl => (
                       <button
                         key={lvl}
-                        onClick={() => setInsulationLevel(lvl)}
+                        onClick={() => { markCustom(); setInsulationLevel(lvl); }}
                         style={{
                           padding: '0.45rem 0.6rem',
                           border: `2px solid ${insulationLevel === lvl ? '#38a169' : '#e2e8f0'}`,
@@ -771,7 +786,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     ] as Array<{ value: Glazing; label: string }>).map(opt => (
                       <button
                         key={opt.value}
-                        onClick={() => setGlazing(opt.value)}
+                        onClick={() => { markCustom(); setGlazing(opt.value); }}
                         style={{
                           padding: '0.45rem 0.6rem',
                           border: `2px solid ${glazing === opt.value ? '#3182ce' : '#e2e8f0'}`,
@@ -798,7 +813,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     {(['poor', 'moderate', 'good'] as RoofInsulation[]).map(lvl => (
                       <button
                         key={lvl}
-                        onClick={() => setRoofInsulation(lvl)}
+                        onClick={() => { markCustom(); setRoofInsulation(lvl); }}
                         style={{
                           padding: '0.45rem 0.6rem',
                           border: `2px solid ${roofInsulation === lvl ? '#dd6b20' : '#e2e8f0'}`,
@@ -831,7 +846,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     ] as Array<{ value: AirTightness; label: string }>).map(opt => (
                       <button
                         key={opt.value}
-                        onClick={() => setAirTightness(opt.value)}
+                        onClick={() => { markCustom(); setAirTightness(opt.value); }}
                         style={{
                           padding: '0.45rem 0.6rem',
                           border: `2px solid ${airTightness === opt.value ? '#805ad5' : '#e2e8f0'}`,
@@ -942,7 +957,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                 ] as Array<{ value: ThermalMass; label: string; sub: string }>).map(opt => (
                   <button
                     key={opt.value}
-                    onClick={() => setThermalMass(opt.value)}
+                    onClick={() => { markCustom(); setThermalMass(opt.value); }}
                     style={{
                       padding: '0.6rem 0.75rem',
                       border: `2px solid ${thermalMass === opt.value ? '#3182ce' : '#e2e8f0'}`,
@@ -959,6 +974,8 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                 ))}
               </div>
             </div>
+              </>
+            )}
 
           </div>
 
@@ -3292,31 +3309,20 @@ function FullSurveyResults({
         </div>
       </div>
 
-      {/* Demand Profile Painter – Three-channel editor + System A vs B comparison */}
+      {/* Day Painter — canonical causes vs effects page */}
       <div className="result-section">
-        <h3>🎛️ Demand Profile Painter — System Comparison</h3>
+        <h3>🖌️ Day Painter — Current vs Proposed Behaviour</h3>
         <p className="description" style={{ marginBottom: '0.75rem' }}>
-          Paint three independent demand channels (Heat Intent, DHW, Cold Draw) and watch
-          two systems respond in real-time. Graph A shows demand vs plant output (kW);
-          Graph B shows efficiency or COP. No scores — pure behaviour comparison.
+          Same usage events and programmes are applied to both systems. The model tracks CH/DHW switching,
+          internal temperature response from heat-loss + inertia, and separates losses <strong>via flue</strong>
+          from heat <strong>dumped to CH circuit</strong>.
         </p>
-        <DemandProfilePainter baseInput={{
-          occupancySignature: lifestyle.signature,
-          heatLossWatts: input.heatLossWatts,
-          bathroomCount: input.bathroomCount,
-        }} />
-      </div>
-
-      {/* Lifestyle Interactive – Day Painter Sales Closer */}
-      <div className="result-section">
-        <h3>🏠 Day Painter – Domestic Thermal Simulator</h3>
-        <p className="description" style={{ marginBottom: '0.75rem' }}>
-          Paint your 24-hour routine and watch three live curves react: the Boiler "Stepped" sprint,
-          the Heat Pump "Horizon" stability line (SPF-driven), and the Mixergy Hot Water Battery
-          State of Charge. Toggle <strong>Full Job</strong>, <strong>DHW Supply Path</strong>, and{' '}
-          <strong>Softener</strong> to see the physics change in real-time.
-        </p>
-        <LifestyleInteractive baseInput={{ occupancySignature: lifestyle.signature }} />
+        <DayPainterResults
+          heatLossWatts={input.heatLossWatts}
+          tauHours={results.fabricModelV1?.driftTauHours ?? (input.buildingMass === 'heavy' ? 68 : input.buildingMass === 'light' ? 24 : 42)}
+          currentSystem={input.currentHeatSourceType === 'combi' ? 'combi' : input.dhwTankType === 'mixergy' ? 'mixergy' : 'stored'}
+          proposedSystem={engineOutput.recommendation.primary.toLowerCase().includes('heat pump') ? 'ashp' : engineOutput.recommendation.primary.toLowerCase().includes('combi') ? 'combi' : input.dhwTankType === 'mixergy' ? 'mixergy' : 'stored'}
+        />
       </div>
 
       {/* Hydraulic Analysis */}
