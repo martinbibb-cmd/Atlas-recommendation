@@ -1,7 +1,7 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
 import type { VisualSpecV1, Timeline24hV1, Timeline24hEvent, Timeline24hSeries, TimelineBandsV1, DhwEventEntry, PhysicsDebugV1 } from '../contracts/EngineOutputV1';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
-import { solveSystemTimeline, buildSystemConfig } from './timeline/Solver24hV1';
+import { solveSystemTimeline, buildSystemConfig, dhwKwFromFlow, DHW_COLD_WATER_TEMP_C, DHW_TARGET_HOT_TEMP_C } from './timeline/Solver24hV1';
 import { resolveNominalEfficiencyPct, computeCurrentEfficiencyPct, deriveErpClass } from './utils/efficiency';
 
 /** 96 time points at 15-minute intervals covering 0–1425 minutes. */
@@ -112,10 +112,11 @@ function isColdFlowActive(minuteOfDay: number, events: Timeline24hEvent[]): bool
   );
 }
 
-/** Hot-water draw (kW) per event kind × intensity. Mirrors Solver24hV1 DHW_DRAW_KW table. */
+/** Hot-water draw (kW) per event kind × intensity. Derived from dhwKwFromFlow() with ΔT = DHW_TARGET_HOT_TEMP_C − DHW_COLD_WATER_TEMP_C = 35°C. */
+const DHW_DELTA_T_C = DHW_TARGET_HOT_TEMP_C - DHW_COLD_WATER_TEMP_C;
 const DHW_DRAW_KW_TABLE: Record<string, Record<string, number>> = {
-  bath:   { low: 1.2, med: 2.0, high: 3.0 },
-  sink:   { low: 0.4, med: 0.6, high: 0.8 },
+  bath:   { low: dhwKwFromFlow(6, DHW_DELTA_T_C), med: dhwKwFromFlow(9, DHW_DELTA_T_C), high: dhwKwFromFlow(12, DHW_DELTA_T_C) },
+  sink:   { low: dhwKwFromFlow(2, DHW_DELTA_T_C), med: dhwKwFromFlow(4, DHW_DELTA_T_C), high: dhwKwFromFlow(6,  DHW_DELTA_T_C) },
 };
 
 /**
