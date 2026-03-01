@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   solveSystemTimeline,
   buildSystemConfig,
+  dhwKwFromFlow,
+  DHW_COLD_WATER_TEMP_C,
+  DHW_TARGET_HOT_TEMP_C,
   SOLVER_STEPS,
   DELTA_T_DESIGN,
   type SolverCoreInput,
@@ -347,17 +350,18 @@ describe('Solver24hV1 — DHW supply path: hot_water_system', () => {
 });
 
 describe('Solver24hV1 — DHW supply path: mixed', () => {
-  it('mixed: sink draw is partial (60%) — inputPowerKw at sink step is between cold_only and hot_water_system', () => {
-    const resultCold  = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'cold_only');
+  it('mixed: sink draw is partial (60%) — inputPowerKw at sink step is below hot_water_system', () => {
     const resultMixed = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'mixed');
     const resultHot   = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, 'hot_water_system');
-    // Step 28 = minute 420 = sink event window
-    const inputCold  = resultCold.inputPowerKw[28];
+    // Step 28 = minute 420 = sink event window.
+    // mixed: combi delivers 60% of sink DHW; hot_water_system: combi delivers 100%.
+    // Under combi DHW priority, CH is interrupted so the comparison is purely on DHW output.
     const inputMixed = resultMixed.inputPowerKw[28];
     const inputHot   = resultHot.inputPowerKw[28];
-    // mixed should be strictly between cold_only (0 draw) and hot_water_system (full draw)
-    expect(inputMixed).toBeGreaterThan(inputCold);
+    // 60% DHW draw requires less input than 100% draw
     expect(inputMixed).toBeLessThan(inputHot);
+    // mixed delivers some DHW (> 0 input attributed to the event)
+    expect(inputMixed).toBeGreaterThan(0);
   });
 
   it('mixed: bath always draws from hot-water system (same as hot_water_system for bath-only events)', () => {
@@ -426,5 +430,111 @@ describe('Solver24hV1 — no double-counting', () => {
       const result = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS, path);
       expect(result.dhwState).toHaveLength(SOLVER_STEPS);
     }
+  });
+});
+
+// ── dhwKwFromFlow physics helper ──────────────────────────────────────────────
+
+describe('dhwKwFromFlow — physics helper', () => {
+  it('12 L/min at ΔT 35°C yields ~29 kW (one shower hits full combi output)', () => {
+    // 0.0697 × 12 × 35 = 29.274 kW — a single shower demands nearly 30 kW
+    expect(dhwKwFromFlow(12, 35)).toBeCloseTo(29.3, 0);
+  });
+
+  it('24 L/min at ΔT 35°C yields ~58 kW (two simultaneous showers exceed combi capacity)', () => {
+    expect(dhwKwFromFlow(24, 35)).toBeCloseTo(58.6, 0);
+  });
+
+  it('returns 0 when deltaTc is 0', () => {
+    expect(dhwKwFromFlow(12, 0)).toBe(0);
+  });
+
+  it('clamps negative deltaTc to 0 (no negative heat transfer)', () => {
+    expect(dhwKwFromFlow(12, -10)).toBe(0);
+  });
+
+  it('DHW_COLD_WATER_TEMP_C and DHW_TARGET_HOT_TEMP_C yield ΔT 35°C', () => {
+    expect(DHW_TARGET_HOT_TEMP_C - DHW_COLD_WATER_TEMP_C).toBe(35);
+  });
+
+  it('is proportional to flow — doubling flow doubles kW', () => {
+    const kw6  = dhwKwFromFlow(6, 35);
+    const kw12 = dhwKwFromFlow(12, 35);
+    expect(kw12).toBeCloseTo(kw6 * 2, 5);
+  });
+});
+
+// ── Combi DHW priority dispatch ───────────────────────────────────────────────
+
+describe('Solver24hV1 — combi DHW priority (CH interrupted during DHW events)', () => {
+  const sinkMedEvents = [
+    { startMin: 420, endMin: 435, kind: 'sink' as const, intensity: 'med' as const },
+  ];
+  const bathHighEvents = [
+    { startMin: 420, endMin: 435, kind: 'bath' as const, intensity: 'high' as const },
+  ];
+
+  it('combi heatDeliveredKw during DHW event reflects DHW kW (not spaceHeat + DHW)', () => {
+    // sink med: 0.0697 × 4 × 35 ≈ 9.76 kW — combi delivers DHW only
+    const result = solveSystemTimeline(baseCore, combiSystem, sinkMedEvents);
+    // Step 28 = minute 420 = sink event window
+    // With DHW priority, delivered = min(maxKw, dhwKw) ≈ 9.76 kW, not spaceHeat + 9.76
+    const deliveredAtEvent = result.heatDeliveredKw[28];
+    expect(deliveredAtEvent).toBeCloseTo(9.76, 0); // DHW kW only
+    expect(deliveredAtEvent).toBeLessThan(combiSystem.maxKw!);
+  });
+
+  it('bath high event: delivered kW is capped at combi maxKw (shortfall produced)', () => {
+    // bath high: 0.0697 × 12 × 35 ≈ 29.3 kW > combiSystem.maxKw (24 kW)
+    const result = solveSystemTimeline(baseCore, combiSystem, bathHighEvents);
+    const deliveredAtEvent = result.heatDeliveredKw[28];
+    expect(deliveredAtEvent).toBeCloseTo(combiSystem.maxKw!, 1);
+  });
+
+  it('bath high: dhwShortfallKw > 0 when DHW demand exceeds combi maxKw', () => {
+    // Demand ~29.3 kW, maxKw = 24 → shortfall ≈ 5.3 kW
+    const result = solveSystemTimeline(baseCore, combiSystem, bathHighEvents);
+    const shortfall = result.dhwShortfallKw[28];
+    expect(shortfall).toBeGreaterThan(0);
+    expect(shortfall).toBeCloseTo(29.3 - 24, 0);
+  });
+
+  it('sink med: dhwShortfallKw = 0 when DHW demand is within combi maxKw', () => {
+    // sink med ≈ 9.76 kW < 24 kW → no shortfall
+    const result = solveSystemTimeline(baseCore, combiSystem, sinkMedEvents);
+    expect(result.dhwShortfallKw[28]).toBe(0);
+  });
+
+  it('stored system: dhwShortfallKw is always 0 (cylinder buffers demand)', () => {
+    const storedSystem: SolverSystemConfig = {
+      systemId: 'stored_vented',
+      maxKw: 9,
+      minKw: 4,
+      baseEta: 0.85,
+    };
+    const result = solveSystemTimeline(baseCore, storedSystem, bathHighEvents);
+    for (const v of result.dhwShortfallKw) {
+      expect(v).toBe(0);
+    }
+  });
+
+  it('dhwShortfallKw array has 96 entries and no NaN', () => {
+    const result = solveSystemTimeline(baseCore, combiSystem, DEFAULT_EVENTS);
+    expect(result.dhwShortfallKw).toHaveLength(SOLVER_STEPS);
+    for (const v of result.dhwShortfallKw) {
+      expect(isNaN(v)).toBe(false);
+    }
+  });
+
+  it('combi dhwState < 100 during bath high event (capacity-limited)', () => {
+    // bath high ~29.3 kW > 24 kW maxKw → partial service → dhwState < 100
+    const result = solveSystemTimeline(baseCore, combiSystem, bathHighEvents);
+    expect(result.dhwState[28]).toBeLessThan(100);
+  });
+
+  it('combi dhwState = 100 during sink med event (demand within capacity)', () => {
+    // sink med ~9.76 kW < 24 kW → fully served
+    const result = solveSystemTimeline(baseCore, combiSystem, sinkMedEvents);
+    expect(result.dhwState[28]).toBeCloseTo(100, 1);
   });
 });
