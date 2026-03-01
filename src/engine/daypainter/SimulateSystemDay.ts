@@ -1,6 +1,12 @@
 import type { DayModelV1, HeatLevel } from './BuildDayModel';
 
-export type DaySystemType = 'combi' | 'stored' | 'mixergy' | 'ashp';
+export type DaySystemType =
+  | 'combi'
+  | 'open_vented'
+  | 'mixergy_open_vented'
+  | 'unvented'
+  | 'mixergy_unvented'
+  | 'heat_pump';
 
 export interface SimSlice {
   idx: number;
@@ -28,6 +34,14 @@ function heatDemandFactor(level: HeatLevel): number {
   return 0;
 }
 
+function isMixergyType(t: DaySystemType): boolean {
+  return t === 'mixergy_open_vented' || t === 'mixergy_unvented';
+}
+
+function isStoredType(t: DaySystemType): boolean {
+  return t !== 'combi';
+}
+
 export function simulateSystemDay(params: {
   dayModel: DayModelV1;
   systemType: DaySystemType;
@@ -40,7 +54,9 @@ export function simulateSystemDay(params: {
   let indoorC = 19;
   let cylinderC = 55;
   const targetComfortC = 20.5;
-  const tankCapKwhPerC = systemType === 'mixergy' ? 0.2 : 0.28;
+
+  // Cylinder thermal capacity: Mixergy stratification → effectively smaller usable mass
+  const tankCapKwhPerC = isMixergyType(systemType) ? 0.2 : 0.28;
 
   return Array.from({ length: 288 }, (_, idx) => {
     const minute = idx * STEP_MINS;
@@ -79,24 +95,35 @@ export function simulateSystemDay(params: {
         }
         flueLossKw = plantOutputKw * 0.07;
       }
-    } else {
-      const tankTarget = systemType === 'mixergy' ? 52 : 55;
-      const tankMin = systemType === 'mixergy' ? 43 : 46;
+    } else if (isStoredType(systemType)) {
+      // Stored systems: open_vented, unvented, mixergy_open_vented, mixergy_unvented, heat_pump
+      // Target temperatures differ: Mixergy needs lower top-up; heat pump runs cooler
+      const tankTarget = isMixergyType(systemType) ? 52 : (systemType === 'heat_pump' ? 50 : 55);
+      const tankMin    = isMixergyType(systemType) ? 43 : (systemType === 'heat_pump' ? 42 : 46);
+
       const drawnKwh = dhwTapDemandKw * STEP_HOURS;
       cylinderC -= drawnKwh / tankCapKwhPerC;
       cylinderC = Math.max(35, cylinderC);
+
       const needsReheat = cylinderC < tankTarget - 1 || (dhwActive && cylinderC < tankMin);
       if (needsReheat) {
-        cylinderReheatKw = systemType === 'ashp' ? 4 : systemType === 'mixergy' ? 8 : 10;
+        // Heat pump output is limited; Mixergy resistive element is 8 kW; gas stored is 10 kW
+        cylinderReheatKw = systemType === 'heat_pump' ? 4 : isMixergyType(systemType) ? 8 : 10;
       }
-      plantOutputKw = Math.min(systemType === 'ashp' ? 12 : 30, chDemandKw + cylinderReheatKw);
+
+      // Plant output cap: heat pump limited to ~12 kW combined; gas to 30 kW
+      const plantCap = systemType === 'heat_pump' ? 12 : 30;
+      plantOutputKw = Math.min(plantCap, chDemandKw + cylinderReheatKw);
       chDeliveredKw = Math.min(chDemandKw, plantOutputKw);
       dhwDeliveredKw = dhwTapDemandKw;
+
       if (cylinderReheatKw > 0) {
         cylinderC += (cylinderReheatKw * STEP_HOURS) / tankCapKwhPerC;
       }
       cylinderC -= cylinderLossKw * STEP_HOURS / tankCapKwhPerC;
-      flueLossKw = systemType === 'ashp' ? 0 : plantOutputKw * 0.06;
+
+      // Heat pump: no flue; gas stored: ~6 % flue loss
+      flueLossKw = systemType === 'heat_pump' ? 0 : plantOutputKw * 0.06;
     }
 
     const netHeatToBuildingKw = chDeliveredKw + dumpToChKw - passiveLossKw;
