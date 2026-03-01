@@ -25,6 +25,14 @@ import { useState, useMemo } from 'react';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import type { CombiSwitchInputs, OldBoilerRealityInputs, StorySharedBasics } from './scenarioRegistry';
 import { combiSwitchScenario, oldBoilerRealityScenario, heatPumpViabilityScenario, STORY_SCENARIOS } from './scenarioRegistry';
+import {
+  COLD_SUPPLY_TEMP_PRESETS,
+  COMBI_HOT_OUT_PRESETS,
+  OUTLET_FLOW_PRESETS_LPM,
+  NOMINAL_COMBI_DHW_KW,
+  computeHeatLimitLpm,
+  computeRequiredKw,
+} from '../engine/presets/DhwFlowPresets';
 import type { HeatPumpViabilityInputs } from './scenarios/heatPumpViability';
 import {
   deriveHeatPumpFlowTempC,
@@ -55,6 +63,185 @@ import {
 import StoryEscalation from './StoryEscalation';
 import { shouldShowPanel } from './rendering/shouldShowPanel';
 import type { OutputPanel } from './scenarioRegistry';
+
+// ── DHW flow concurrency graph ────────────────────────────────────────────────
+
+/**
+ * DhwFlowGraph
+ *
+ * Physics-honest SVG bar chart for the DHW flow/season preset panel.
+ *
+ * X-axis: concurrent outlets (1 / 2 / 3)
+ * Y-axis: flow demand in L/min
+ *
+ * Each bar = n × showerPreset flow (stacked band per outlet).
+ * Horizontal overlay lines:
+ *   — combi heat limit (solid red) = kW_max / (0.0697 × ΔT) — varies with season + DHW mode
+ *   — mains supply limit (dashed blue) = measured mainsFlowLpm when known
+ *
+ * Bars above the heat limit are coloured amber/red to signal "shortfall risk".
+ */
+function DhwFlowGraph({
+  showerFlowLpm,
+  heatLimitLpm,
+  mainsLimitLpm,
+}: {
+  showerFlowLpm: number;
+  heatLimitLpm: number;
+  mainsLimitLpm: number | null;
+}) {
+  const OUTLETS = [1, 2, 3] as const;
+  const demands = OUTLETS.map(n => n * showerFlowLpm);
+
+  // Y-axis ceiling: max of all demands + 20% headroom, or at least heat limit + 4
+  const maxDemand = Math.max(...demands);
+  const yMax = Math.max(maxDemand * 1.25, heatLimitLpm + 4, (mainsLimitLpm ?? 0) + 4);
+
+  const SVG_W = 280;
+  const SVG_H = 160;
+  const PAD_L = 36;
+  const PAD_R = 12;
+  const PAD_T = 12;
+  const PAD_B = 28;
+  const chartW = SVG_W - PAD_L - PAD_R;
+  const chartH = SVG_H - PAD_T - PAD_B;
+
+  const barW = chartW / OUTLETS.length;
+  const barGap = barW * 0.18;
+  const barInner = barW - barGap * 2;
+
+  function yPx(val: number) {
+    return PAD_T + chartH - (val / yMax) * chartH;
+  }
+  function hPx(val: number) {
+    return (val / yMax) * chartH;
+  }
+
+  const heatLimitY = yPx(heatLimitLpm);
+  const mainsLimitY = mainsLimitLpm !== null ? yPx(mainsLimitLpm) : null;
+
+  // Y-axis tick values (round numbers)
+  const tickCount = 4;
+  const tickStep = Math.ceil(yMax / tickCount / 2) * 2;
+  const ticks: number[] = [];
+  for (let t = 0; t <= yMax; t += tickStep) ticks.push(t);
+
+  return (
+    <svg
+      width={SVG_W}
+      height={SVG_H}
+      style={{ display: 'block', overflow: 'visible' }}
+      aria-label="DHW flow vs combi heat limit"
+    >
+      {/* Y-axis ticks + labels */}
+      {ticks.map(t => (
+        <g key={t}>
+          <line
+            x1={PAD_L - 4} y1={yPx(t)}
+            x2={PAD_L + chartW} y2={yPx(t)}
+            stroke="#e2e8f0" strokeWidth={1}
+          />
+          <text
+            x={PAD_L - 6} y={yPx(t) + 4}
+            textAnchor="end" fontSize={9} fill="#718096"
+          >
+            {t}
+          </text>
+        </g>
+      ))}
+
+      {/* Y-axis label */}
+      <text
+        x={10} y={PAD_T + chartH / 2}
+        textAnchor="middle" fontSize={9} fill="#718096"
+        transform={`rotate(-90,10,${PAD_T + chartH / 2})`}
+      >
+        L/min
+      </text>
+
+      {/* Outlet bars */}
+      {OUTLETS.map((n, i) => {
+        const demand = demands[i];
+        const barH = hPx(demand);
+        const x = PAD_L + i * barW + barGap;
+        const y = yPx(demand);
+        const overLimit = demand > heatLimitLpm;
+        const safeH = Math.min(barH, hPx(heatLimitLpm));
+        const overH = barH - safeH;
+
+        return (
+          <g key={n}>
+            {/* Safe portion (below heat limit) */}
+            <rect
+              x={x} y={y + (overLimit ? overH : 0)}
+              width={barInner}
+              height={overLimit ? safeH : barH}
+              fill="#63b3ed"
+              rx={2}
+            />
+            {/* Over-limit portion (above heat limit) */}
+            {overLimit && overH > 0 && (
+              <rect
+                x={x} y={y}
+                width={barInner} height={overH}
+                fill="#fc8181"
+                rx={2}
+              />
+            )}
+            {/* Demand label inside/above bar */}
+            <text
+              x={x + barInner / 2}
+              y={Math.min(y - 3, PAD_T + chartH - 3)}
+              textAnchor="middle"
+              fontSize={9}
+              fontWeight={overLimit ? 700 : 500}
+              fill={overLimit ? '#c53030' : '#2b6cb0'}
+            >
+              {demand.toFixed(0)}
+            </text>
+            {/* X-axis label */}
+            <text
+              x={x + barInner / 2} y={SVG_H - PAD_B + 14}
+              textAnchor="middle" fontSize={9} fill="#4a5568"
+            >
+              {n === 1 ? '1 outlet' : `${n} outlets`}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Combi heat limit line */}
+      <line
+        x1={PAD_L} y1={heatLimitY}
+        x2={PAD_L + chartW} y2={heatLimitY}
+        stroke="#e53e3e" strokeWidth={2} strokeDasharray="0"
+      />
+      <text
+        x={PAD_L + chartW - 2} y={heatLimitY - 3}
+        textAnchor="end" fontSize={8} fill="#e53e3e" fontWeight={700}
+      >
+        Combi limit {heatLimitLpm.toFixed(1)} L/min
+      </text>
+
+      {/* Mains supply limit line (when known) */}
+      {mainsLimitY !== null && mainsLimitLpm !== null && (
+        <>
+          <line
+            x1={PAD_L} y1={mainsLimitY}
+            x2={PAD_L + chartW} y2={mainsLimitY}
+            stroke="#3182ce" strokeWidth={1.5} strokeDasharray="4 3"
+          />
+          <text
+            x={PAD_L + chartW - 2} y={mainsLimitY - 3}
+            textAnchor="end" fontSize={8} fill="#3182ce"
+          >
+            Mains {mainsLimitLpm} L/min
+          </text>
+        </>
+      )}
+    </svg>
+  );
+}
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -147,6 +334,21 @@ function CombiSwitchShell({
 
   const storedTileTitle = inputs.storedType === 'vented' ? 'Stored (Vented)' : 'Stored (Unvented)';
 
+  // ── DHW flow physics (derived from presets, not from engine round-trip) ──────
+  const dhwPhysics = useMemo(() => {
+    const coldC    = COLD_SUPPLY_TEMP_PRESETS[inputs.season];
+    const hotC     = COMBI_HOT_OUT_PRESETS[inputs.dhwMode];
+    const deltaT   = hotC - coldC;
+    const showerLpm = OUTLET_FLOW_PRESETS_LPM[inputs.showerPreset];
+    const heatLimitLpm = computeHeatLimitLpm(NOMINAL_COMBI_DHW_KW, deltaT);
+    const requiredKw   = computeRequiredKw(showerLpm, deltaT);
+    const shortfallLpm = showerLpm > heatLimitLpm
+      ? parseFloat((showerLpm - heatLimitLpm).toFixed(1))
+      : null;
+    const mainsLimitLpm = inputs.mainsFlowLpmKnown ? inputs.mainsFlowLpm : null;
+    return { coldC, hotC, deltaT, showerLpm, heatLimitLpm, requiredKw, shortfallLpm, mainsLimitLpm };
+  }, [inputs.season, inputs.dhwMode, inputs.showerPreset, inputs.mainsFlowLpmKnown, inputs.mainsFlowLpm]);
+
   return (
     <div className="scenario-shell">
       <ScenarioHeader
@@ -208,6 +410,72 @@ function CombiSwitchShell({
               status={checks.stored.verdict.storedRisk}
               flags={[]}
             />
+          </div>
+
+          {/* ── DHW flow & concurrency panel ─────────────────────────────── */}
+          <div className="story-dhw-flow-panel">
+            <h4>Water power &amp; concurrency</h4>
+
+            {/* Live sentence */}
+            <p className="story-dhw-live-sentence">
+              At <strong>{inputs.season === 'winter' ? 'Winter' : inputs.season === 'summer' ? 'Summer' : 'Typical'} ({dhwPhysics.coldC}°C)</strong>{' '}
+              cold supply and <strong>{dhwPhysics.hotC}°C DHW</strong>, a {NOMINAL_COMBI_DHW_KW} kW combi can sustain{' '}
+              <strong style={{ color: '#2b6cb0' }}>~{dhwPhysics.heatLimitLpm.toFixed(1)} L/min</strong>.
+              {dhwPhysics.shortfallLpm !== null ? (
+                <span style={{ color: '#c53030', fontWeight: 600 }}>
+                  {' '}Your {inputs.showerPreset === 'mixer' ? 'Mixer' : inputs.showerPreset === 'mixer_high' ? 'Mixer high' : 'Rainfall'} shower ({dhwPhysics.showerLpm} L/min) needs{' '}
+                  {dhwPhysics.requiredKw.toFixed(1)} kW — shortfall of {dhwPhysics.shortfallLpm} L/min.
+                </span>
+              ) : (
+                <span style={{ color: '#276749' }}>
+                  {' '}Your {inputs.showerPreset === 'mixer' ? 'Mixer' : inputs.showerPreset === 'mixer_high' ? 'Mixer high' : 'Rainfall'} shower ({dhwPhysics.showerLpm} L/min) needs{' '}
+                  {dhwPhysics.requiredKw.toFixed(1)} kW — within capacity.
+                </span>
+              )}
+            </p>
+
+            {/* kW callout row for all shower presets */}
+            <div className="story-dhw-preset-callouts">
+              {(Object.entries(OUTLET_FLOW_PRESETS_LPM) as [keyof typeof OUTLET_FLOW_PRESETS_LPM, number][]).map(([key, lpm]) => {
+                const kw = computeRequiredKw(lpm, dhwPhysics.deltaT);
+                const over = lpm > dhwPhysics.heatLimitLpm;
+                const isSelected = inputs.showerPreset === key;
+                const label = key === 'mixer' ? 'Mixer' : key === 'mixer_high' ? 'Mixer high' : 'Rainfall';
+                return (
+                  <div
+                    key={key}
+                    className={`story-dhw-callout${isSelected ? ' story-dhw-callout--selected' : ''}${over ? ' story-dhw-callout--over' : ''}`}
+                  >
+                    <span className="story-dhw-callout__label">{label}</span>
+                    <span className="story-dhw-callout__flow">{lpm} L/min</span>
+                    <span className="story-dhw-callout__kw">{kw.toFixed(1)} kW</span>
+                    {over && <span className="story-dhw-callout__badge">Over limit</span>}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Concurrency graph */}
+            <div style={{ marginTop: '0.75rem', overflowX: 'auto' }}>
+              <DhwFlowGraph
+                showerFlowLpm={dhwPhysics.showerLpm}
+                heatLimitLpm={dhwPhysics.heatLimitLpm}
+                mainsLimitLpm={dhwPhysics.mainsLimitLpm}
+              />
+            </div>
+
+            {/* Shortfall or OK call-to-action */}
+            {dhwPhysics.shortfallLpm !== null ? (
+              <p className="story-dhw-shortfall-note">
+                ⚠️ <strong>{inputs.season === 'winter' ? 'Winter risk' : 'Shortfall'}</strong> — this combi cannot sustain {dhwPhysics.showerLpm} L/min at {dhwPhysics.hotC}°C when cold water is {dhwPhysics.coldC}°C.
+                Flow will be throttled or temperature will droop.
+              </p>
+            ) : (
+              <p className="story-dhw-ok-note">
+                ✅ Within capacity for a single {inputs.showerPreset === 'mixer' ? 'mixer' : inputs.showerPreset === 'mixer_high' ? 'high-flow mixer' : 'rainfall'} shower.
+                Select &quot;{inputs.season === 'winter' ? 'Summer' : 'Winter'}&quot; season or &quot;Rainfall&quot; to see where the combi struggles.
+              </p>
+            )}
           </div>
 
           {/* Behaviour bullets */}

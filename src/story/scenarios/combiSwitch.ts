@@ -67,6 +67,9 @@ export const combiSwitchScenario: StoryScenario<CombiSwitchInputs> = {
     'mainsFlowLpm',
     'hotWaterDemand',
     'storedType',
+    'season',
+    'dhwMode',
+    'showerPreset',
   ],
   defaults: {
     occupancyCount: 2,
@@ -76,6 +79,9 @@ export const combiSwitchScenario: StoryScenario<CombiSwitchInputs> = {
     mainsFlowLpm: 12,
     hotWaterDemand: 'medium',
     storedType: 'unvented',
+    season: 'typical',
+    dhwMode: 'normal',
+    showerPreset: 'mixer',
   },
   compareDefaults: {
     systemA: 'combi',

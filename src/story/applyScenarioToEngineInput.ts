@@ -11,6 +11,10 @@ import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import { ERP_TO_NOMINAL_PCT } from '../engine/utils/efficiency';
 import type { CombiSwitchInputs, OldBoilerRealityInputs, ScenarioInputs, SystemArchetypeId } from './scenarioRegistry';
 import type { HeatPumpViabilityInputs } from './scenarios/heatPumpViability';
+import {
+  COLD_SUPPLY_TEMP_PRESETS,
+  COMBI_HOT_OUT_PRESETS,
+} from '../engine/presets/DhwFlowPresets';
 
 // ── Compare context types ─────────────────────────────────────────────────────
 
@@ -169,6 +173,10 @@ export function applyCombiSwitchInputs(
   const coldWaterSource: EngineInputV2_3['coldWaterSource'] =
     inputs.storedType === 'vented' ? 'loft_tank' : 'mains_true';
 
+  // Map DHW presets to engine temperature inputs.
+  const coldWaterTempC  = COLD_SUPPLY_TEMP_PRESETS[inputs.season];
+  const combiHotOutTempC = COMBI_HOT_OUT_PRESETS[inputs.dhwMode];
+
   return {
     ...(COMBI_SWITCH_BASE as EngineInputV2_3),
     occupancyCount:            inputs.occupancyCount,
@@ -181,6 +189,8 @@ export function applyCombiSwitchInputs(
     peakConcurrentOutlets,
     highOccupancy:             inputs.occupancyCount >= 5,
     coldWaterSource,
+    coldWaterTempC,
+    combiHotOutTempC,
   };
 }
 

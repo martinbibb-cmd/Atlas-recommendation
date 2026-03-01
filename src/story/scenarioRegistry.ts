@@ -9,6 +9,8 @@
  */
 
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
+import type { SeasonPreset, DhwModePreset, ShowerPreset } from '../engine/presets/DhwFlowPresets';
+export type { SeasonPreset, DhwModePreset, ShowerPreset };
 import { combiSwitchScenario } from './scenarios/combiSwitch';
 import { oldBoilerRealityScenario } from './scenarios/oldBoilerReality';
 import { heatPumpViabilityScenario } from './scenarios/heatPumpViability';
@@ -65,6 +67,13 @@ export interface CombiSwitchInputs {
   hotWaterDemand: 'low' | 'medium' | 'high';
   /** Advisor-selected stored cylinder type for System B comparison. */
   storedType: 'vented' | 'unvented';
+  // ── DHW flow presets ──────────────────────────────────────────────────────
+  /** Cold-supply season preset → coldWaterTempC. */
+  season: SeasonPreset;
+  /** Combi DHW outlet temperature mode preset → combiHotOutTempC. */
+  dhwMode: DhwModePreset;
+  /** Shower type preset → outlet flow L/min for physics callouts. */
+  showerPreset: ShowerPreset;
 }
 
 /**

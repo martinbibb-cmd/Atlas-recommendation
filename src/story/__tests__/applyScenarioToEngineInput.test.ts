@@ -141,6 +141,9 @@ describe('applyCombiSwitchInputs', () => {
     mainsFlowLpm: 12,
     hotWaterDemand: 'medium',
     storedType: 'unvented',
+    season: 'typical',
+    dhwMode: 'normal',
+    showerPreset: 'mixer',
   };
 
   it('derives conservative flow when mainsFlowLpmKnown is false', () => {
@@ -182,6 +185,31 @@ describe('applyCombiSwitchInputs', () => {
   it('storedType unvented sets coldWaterSource to mains_true', () => {
     const result = applyCombiSwitchInputs({ ...base, storedType: 'unvented' });
     expect(result.coldWaterSource).toBe('mains_true');
+  });
+
+  it('season winter sets coldWaterTempC to 5', () => {
+    const result = applyCombiSwitchInputs({ ...base, season: 'winter' });
+    expect(result.coldWaterTempC).toBe(5);
+  });
+
+  it('season typical sets coldWaterTempC to 10', () => {
+    const result = applyCombiSwitchInputs({ ...base, season: 'typical' });
+    expect(result.coldWaterTempC).toBe(10);
+  });
+
+  it('season summer sets coldWaterTempC to 15', () => {
+    const result = applyCombiSwitchInputs({ ...base, season: 'summer' });
+    expect(result.coldWaterTempC).toBe(15);
+  });
+
+  it('dhwMode normal sets combiHotOutTempC to 50', () => {
+    const result = applyCombiSwitchInputs({ ...base, dhwMode: 'normal' });
+    expect(result.combiHotOutTempC).toBe(50);
+  });
+
+  it('dhwMode high sets combiHotOutTempC to 55', () => {
+    const result = applyCombiSwitchInputs({ ...base, dhwMode: 'high' });
+    expect(result.combiHotOutTempC).toBe(55);
   });
 });
 
