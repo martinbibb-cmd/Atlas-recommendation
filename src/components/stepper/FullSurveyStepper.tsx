@@ -375,11 +375,6 @@ const RISK_LABEL: Record<'pass' | 'warn' | 'fail', string> = {
   fail: '❌ Fail',
 };
 
-const ASHP_COP_LABEL: Record<'pass' | 'caution', string> = {
-  pass: '✅ Acceptable',
-  caution: '⚠️ Borderline Physics',
-};
-
 function uiClassifyRisk(kw: number, warnKw: number, failKw: number): 'pass' | 'warn' | 'fail' {
   if (kw >= failKw) return 'fail';
   if (kw >= warnKw) return 'warn';
@@ -399,8 +394,8 @@ function buildFlowCurve(pipeDiameter: number) {
 }
 
 const defaultInput: FullSurveyModelV1 = {
-  postcode: 'SW1A 1AA',
-  dynamicMainsPressure: 2.0,
+  postcode: '',
+  dynamicMainsPressure: 1.0,
   buildingMass: 'heavy',
   primaryPipeDiameter: 22,
   heatLossWatts: 8000,
@@ -431,7 +426,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   const [showPrefillBanner, setShowPrefillBanner] = useState<boolean>(!!prefill);
   const [compareMixergy, setCompareMixergy] = useState(false);
   const [results, setResults] = useState<FullEngineResult | null>(null);
-  const [systemPlanType, setSystemPlanType] = useState<'y_plan' | 's_plan'>('s_plan');
+  const [systemPlanType, setSystemPlanType] = useState<'y_plan' | 's_plan'>('y_plan');
 
   // Water hardness search: shows a live preview when the user clicks "Search"
   const [hardnessPreview, setHardnessPreview] = useState<ReturnType<typeof runRegionalHardness> | null>(null);
@@ -1193,13 +1188,11 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     <div style={{ position: 'absolute', left: '50%', top: '-4px', bottom: '-4px', width: '2px', background: '#c53030' }} />
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#a0aec0', marginTop: '0.25rem' }}>
-                    <span>0</span><span>1.0 large drop</span><span>2.0 bar</span>
+                    <span>0</span><span>1.0 diagnostic marker</span><span>2.0 bar</span>
                   </div>
-                  {pressureAnalysis.dropBar >= 1.0 && (
-                    <div style={{ fontSize: '0.75rem', color: '#744210', marginTop: '0.35rem' }}>
-                      Large drop — suggests restriction or shared main. Confirm with flow test.
-                    </div>
-                  )}
+                  <div style={{ fontSize: '0.75rem', color: '#4a5568', marginTop: '0.35rem' }}>
+                    Dynamic pressure under flow is normally lower than static pressure.
+                  </div>
                 </div>
               )}
 
@@ -2774,8 +2767,6 @@ function EngineeringRequirementsCard({
   // Pressure diagnostic notes
   if (pressureAnalysis.inconsistentReading) {
     items.push('Recheck mains pressure readings — dynamic exceeds static (inconsistent)');
-  } else if (pressureAnalysis.dropBar !== undefined && pressureAnalysis.dropBar >= 1.0) {
-    items.push('Investigate mains supply restriction — large pressure drop detected');
   }
 
   // Controls upgrade — always recommended for any system change (MCS / BS 7593 best practice)
@@ -2826,12 +2817,6 @@ function FullSurveyResults({
     if (typeof window === 'undefined') return false;
     return new URLSearchParams(window.location.search).get('debug') === '1';
   }, []);
-
-  // UI-level ASHP COP override: treat COP ≤ 3.0 as "Borderline/Caution" regardless of engine verdict.
-  const ashpCopStatus = useMemo<'pass' | 'caution'>(() => {
-    if (regime.designCopEstimate <= 3.0) return 'caution';
-    return 'pass';
-  }, [regime.designCopEstimate]);
 
   // Timeline visual is always derived from engine output — single source of truth.
   // A/B changes rerun the engine with engineConfig.timelinePair; timeline visual is rendered from the new engineOutput.
@@ -3265,14 +3250,12 @@ function FullSurveyResults({
         )}
       </div>
 
-      {/* ASHP COP Analysis — UI-level COP threshold check */}
+      {/* ASHP COP Analysis — informational only (engine verdict remains source of truth) */}
       <div className="result-section">
         <h3>🌿 ASHP Design COP Analysis</h3>
         <div className="metric-row">
           <span className="metric-label">Design COP Estimate (+7°C outdoor)</span>
-          <span className={`metric-value ${ashpCopStatus === 'caution' ? 'warning' : 'ok'}`}>
-            {regime.designCopEstimate.toFixed(2)}
-          </span>
+          <span className="metric-value">{regime.designCopEstimate.toFixed(2)}</span>
         </div>
         <div className="metric-row">
           <span className="metric-label">Cold-Morning COP (−3°C outdoor)</span>
@@ -3290,15 +3273,8 @@ function FullSurveyResults({
         </div>
         <div className="metric-row">
           <span className="metric-label">COP Viability</span>
-          <span className={`metric-value ${ashpCopStatus === 'caution' ? 'warning' : 'ok'}`}>
-            {ASHP_COP_LABEL[ashpCopStatus]}
-          </span>
+          <span className="metric-value">See engine eligibility and verdict panels</span>
         </div>
-        {ashpCopStatus === 'caution' && (
-          <p style={{ fontSize: '0.8rem', color: '#744210', marginTop: '0.5rem', background: '#fffaf0', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #fbd38d' }}>
-            ⚠️ Borderline COP: at {regime.designCopEstimate.toFixed(2)} this ASHP is on the economic margin. Consider a full-job radiator upgrade to achieve ≤{regime.designFlowTempBand}°C flow temperature and improve COP.
-          </p>
-        )}
       </div>
 
       {/* Lifestyle Recommendation */}

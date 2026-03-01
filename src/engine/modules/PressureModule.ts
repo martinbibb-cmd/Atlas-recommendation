@@ -11,8 +11,6 @@
 
 /** Tolerance (bar) for dynamic > static inconsistency check. */
 const INCONSISTENCY_TOLERANCE = 0.2;
-/** Drop threshold (bar) above which a large-drop warning note is added. */
-const LARGE_DROP_THRESHOLD = 1.0;
 /** Maximum credible static pressure (bar) — above this is likely a gauge error. */
 const MAX_CREDIBLE_STATIC_BAR = 8.0;
 
@@ -68,10 +66,6 @@ export function analysePressure(dynamicBar: number, staticBar?: number): Pressur
         `Dynamic drop = 0 — this may indicate a gauge error or unit mismatch ` +
         `(possibly L/sec). Confirm readings with a separate flow test.`
       );
-    }
-
-    if (dropBar >= LARGE_DROP_THRESHOLD) {
-      notes.push('Large static-to-dynamic drop recorded — a flow test (L/min) is needed to determine if this is a restriction or normal supply behaviour.');
     }
 
     const formattedBullet =

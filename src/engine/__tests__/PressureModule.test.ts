@@ -27,18 +27,18 @@ describe('analysePressure', () => {
     expect(result.notes.length).toBe(0);
   });
 
-  it('3.5 / 1.8 bar → dropBar 1.7 → large-drop note added', () => {
+  it('3.5 / 1.8 bar → dropBar 1.7 (diagnostic only, no warning note)', () => {
     const result = analysePressure(1.8, 3.5);
     expect(result.staticBar).toBe(3.5);
     expect(result.dynamicBar).toBe(1.8);
     expect(result.dropBar).toBeCloseTo(1.7);
-    expect(result.notes.some(n => n.includes('Large static-to-dynamic drop'))).toBe(true);
+    expect(result.notes.some(n => n.includes('Large static-to-dynamic drop'))).toBe(false);
   });
 
-  it('drop exactly 1.0 bar → large-drop note added', () => {
+  it('drop exactly 1.0 bar → no large-drop note', () => {
     const result = analysePressure(2.5, 3.5);
     expect(result.dropBar).toBeCloseTo(1.0);
-    expect(result.notes.some(n => n.includes('Large static-to-dynamic drop'))).toBe(true);
+    expect(result.notes.some(n => n.includes('Large static-to-dynamic drop'))).toBe(false);
   });
 
   it('drop exactly 0.5 bar → no large-drop note', () => {
@@ -108,8 +108,8 @@ describe('analysePressure', () => {
     const result = analysePressure(0, 3.5);
     expect(result.inconsistentReading).toBeUndefined();
     expect(result.dropBar).toBeCloseTo(3.5);
-    // Large drop note should be added (drop >= 1.0)
-    expect(result.notes.some(n => n.includes('Large static-to-dynamic drop'))).toBe(true);
+    // Large pressure drops are diagnostic only and should not generate warnings
+    expect(result.notes.some(n => n.includes('Large static-to-dynamic drop'))).toBe(false);
   });
 
   // ── Guardrails for unphysical inputs ─────────────────────────────────────
