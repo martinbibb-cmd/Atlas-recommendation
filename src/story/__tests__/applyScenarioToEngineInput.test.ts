@@ -144,6 +144,11 @@ describe('applyCombiSwitchInputs', () => {
     season: 'typical',
     dhwMode: 'normal',
     showerPreset: 'mixer',
+    combiKw: 30,
+    propertyType: 'medium_house',
+    showersPerDay: 2,
+    showerDurationPreset: 'standard',
+    bathsPerDay: 0,
   };
 
   it('derives conservative flow when mainsFlowLpmKnown is false', () => {
@@ -210,6 +215,21 @@ describe('applyCombiSwitchInputs', () => {
   it('dhwMode high sets combiHotOutTempC to 55', () => {
     const result = applyCombiSwitchInputs({ ...base, dhwMode: 'high' });
     expect(result.combiHotOutTempC).toBe(55);
+  });
+
+  it('combiKw is passed through as currentBoilerOutputKw', () => {
+    expect(applyCombiSwitchInputs({ ...base, combiKw: 24 }).currentBoilerOutputKw).toBe(24);
+    expect(applyCombiSwitchInputs({ ...base, combiKw: 36 }).currentBoilerOutputKw).toBe(36);
+  });
+
+  it('propertyType flat maps heatLossWatts to 3000', () => {
+    const result = applyCombiSwitchInputs({ ...base, propertyType: 'flat' });
+    expect(result.heatLossWatts).toBe(3000);
+  });
+
+  it('propertyType large_house maps heatLossWatts to 12000', () => {
+    const result = applyCombiSwitchInputs({ ...base, propertyType: 'large_house' });
+    expect(result.heatLossWatts).toBe(12000);
   });
 });
 

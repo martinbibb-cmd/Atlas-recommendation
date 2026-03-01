@@ -14,6 +14,7 @@ import type { HeatPumpViabilityInputs } from './scenarios/heatPumpViability';
 import {
   COLD_SUPPLY_TEMP_PRESETS,
   COMBI_HOT_OUT_PRESETS,
+  PROPERTY_HEAT_LOSS_PRESETS,
 } from '../engine/presets/DhwFlowPresets';
 
 // ── Compare context types ─────────────────────────────────────────────────────
@@ -174,8 +175,11 @@ export function applyCombiSwitchInputs(
     inputs.storedType === 'vented' ? 'loft_tank' : 'mains_true';
 
   // Map DHW presets to engine temperature inputs.
-  const coldWaterTempC  = COLD_SUPPLY_TEMP_PRESETS[inputs.season];
+  const coldWaterTempC   = COLD_SUPPLY_TEMP_PRESETS[inputs.season];
   const combiHotOutTempC = COMBI_HOT_OUT_PRESETS[inputs.dhwMode];
+
+  // Map property type to heat loss in watts for the engine.
+  const heatLossWatts = PROPERTY_HEAT_LOSS_PRESETS[inputs.propertyType];
 
   return {
     ...(COMBI_SWITCH_BASE as EngineInputV2_3),
@@ -191,6 +195,8 @@ export function applyCombiSwitchInputs(
     coldWaterSource,
     coldWaterTempC,
     combiHotOutTempC,
+    heatLossWatts,
+    currentBoilerOutputKw:     inputs.combiKw,
   };
 }
 

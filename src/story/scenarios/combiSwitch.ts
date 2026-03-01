@@ -70,6 +70,11 @@ export const combiSwitchScenario: StoryScenario<CombiSwitchInputs> = {
     'season',
     'dhwMode',
     'showerPreset',
+    'combiKw',
+    'propertyType',
+    'showersPerDay',
+    'showerDurationPreset',
+    'bathsPerDay',
   ],
   defaults: {
     occupancyCount: 2,
@@ -82,6 +87,11 @@ export const combiSwitchScenario: StoryScenario<CombiSwitchInputs> = {
     season: 'typical',
     dhwMode: 'normal',
     showerPreset: 'mixer',
+    combiKw: 30,
+    propertyType: 'medium_house',
+    showersPerDay: 2,
+    showerDurationPreset: 'standard',
+    bathsPerDay: 0,
   },
   compareDefaults: {
     systemA: 'combi',

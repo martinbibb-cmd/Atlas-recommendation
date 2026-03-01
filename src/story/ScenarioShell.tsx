@@ -29,9 +29,11 @@ import {
   COLD_SUPPLY_TEMP_PRESETS,
   COMBI_HOT_OUT_PRESETS,
   OUTLET_FLOW_PRESETS_LPM,
-  NOMINAL_COMBI_DHW_KW,
+  SHOWER_DURATION_PRESETS,
+  PROPERTY_HEAT_LOSS_PRESETS,
   computeHeatLimitLpm,
   computeRequiredKw,
+  computeDailyDhwLitres,
 } from '../engine/presets/DhwFlowPresets';
 import type { HeatPumpViabilityInputs } from './scenarios/heatPumpViability';
 import {
@@ -336,18 +338,46 @@ function CombiSwitchShell({
 
   // ── DHW flow physics (derived from presets, not from engine round-trip) ──────
   const dhwPhysics = useMemo(() => {
-    const coldC    = COLD_SUPPLY_TEMP_PRESETS[inputs.season];
-    const hotC     = COMBI_HOT_OUT_PRESETS[inputs.dhwMode];
-    const deltaT   = hotC - coldC;
+    const coldC     = COLD_SUPPLY_TEMP_PRESETS[inputs.season];
+    const hotC      = COMBI_HOT_OUT_PRESETS[inputs.dhwMode];
+    const deltaT    = hotC - coldC;
     const showerLpm = OUTLET_FLOW_PRESETS_LPM[inputs.showerPreset];
-    const heatLimitLpm = computeHeatLimitLpm(NOMINAL_COMBI_DHW_KW, deltaT);
+
+    // System type: use selected combiKw (not hardcoded 30)
+    const heatLimitLpm = computeHeatLimitLpm(inputs.combiKw, deltaT);
     const requiredKw   = computeRequiredKw(showerLpm, deltaT);
     const shortfallLpm = showerLpm > heatLimitLpm
       ? parseFloat((showerLpm - heatLimitLpm).toFixed(1))
       : null;
     const mainsLimitLpm = inputs.mainsFlowLpmKnown ? inputs.mainsFlowLpm : null;
-    return { coldC, hotC, deltaT, showerLpm, heatLimitLpm, requiredKw, shortfallLpm, mainsLimitLpm };
-  }, [inputs.season, inputs.dhwMode, inputs.showerPreset, inputs.mainsFlowLpmKnown, inputs.mainsFlowLpm]);
+
+    // Customer usage modelling
+    const durationMin    = SHOWER_DURATION_PRESETS[inputs.showerDurationPreset];
+    const dailyDhwLitres = computeDailyDhwLitres(
+      inputs.showersPerDay, durationMin, showerLpm, inputs.bathsPerDay,
+    );
+    const peakDrawMinutes = inputs.showersPerDay * durationMin;
+    const heatLossKw      = PROPERTY_HEAT_LOSS_PRESETS[inputs.propertyType] / 1000;
+
+    // Morning peak kW = space heating kW + shower kW (back-to-back draws)
+    // Combi supplies DHW in priority mode, so space heating is suspended during draws.
+    // Peak demand is just the DHW kW.
+    const peakDhwKw = requiredKw;
+
+    // Sizing verdict: does the selected combi kW cover the peak DHW draw?
+    const sizingOk = inputs.combiKw >= peakDhwKw;
+
+    return {
+      coldC, hotC, deltaT, showerLpm, heatLimitLpm, requiredKw, shortfallLpm,
+      mainsLimitLpm, durationMin, dailyDhwLitres, peakDrawMinutes, heatLossKw,
+      peakDhwKw, sizingOk,
+    };
+  }, [
+    inputs.season, inputs.dhwMode, inputs.showerPreset, inputs.combiKw,
+    inputs.mainsFlowLpmKnown, inputs.mainsFlowLpm,
+    inputs.showerDurationPreset, inputs.showersPerDay, inputs.bathsPerDay,
+    inputs.propertyType,
+  ]);
 
   return (
     <div className="scenario-shell">
@@ -419,7 +449,7 @@ function CombiSwitchShell({
             {/* Live sentence */}
             <p className="story-dhw-live-sentence">
               At <strong>{inputs.season === 'winter' ? 'Winter' : inputs.season === 'summer' ? 'Summer' : 'Typical'} ({dhwPhysics.coldC}°C)</strong>{' '}
-              cold supply and <strong>{dhwPhysics.hotC}°C DHW</strong>, a {NOMINAL_COMBI_DHW_KW} kW combi can sustain{' '}
+              cold supply and <strong>{dhwPhysics.hotC}°C DHW</strong>, a {inputs.combiKw} kW combi can sustain{' '}
               <strong style={{ color: '#2b6cb0' }}>~{dhwPhysics.heatLimitLpm.toFixed(1)} L/min</strong>.
               {dhwPhysics.shortfallLpm !== null ? (
                 <span style={{ color: '#c53030', fontWeight: 600 }}>
@@ -476,6 +506,38 @@ function CombiSwitchShell({
                 Select &quot;{inputs.season === 'winter' ? 'Summer' : 'Winter'}&quot; season or &quot;Rainfall&quot; to see where the combi struggles.
               </p>
             )}
+          </div>
+
+          {/* ── Customer usage & heat summary ─────────────────────────── */}
+          <div className="story-usage-summary">
+            <h4>Customer usage model</h4>
+            <div className="story-usage-grid">
+              <div className="story-usage-stat">
+                <span className="story-usage-stat__value">{dhwPhysics.dailyDhwLitres} L</span>
+                <span className="story-usage-stat__label">est. daily hot water</span>
+              </div>
+              <div className="story-usage-stat">
+                <span className="story-usage-stat__value">{dhwPhysics.peakDrawMinutes} min</span>
+                <span className="story-usage-stat__label">morning peak draw</span>
+              </div>
+              <div className="story-usage-stat">
+                <span className="story-usage-stat__value">{dhwPhysics.peakDhwKw.toFixed(1)} kW</span>
+                <span className="story-usage-stat__label">peak DHW demand</span>
+              </div>
+              <div className="story-usage-stat">
+                <span className="story-usage-stat__value">~{dhwPhysics.heatLossKw.toFixed(0)} kW</span>
+                <span className="story-usage-stat__label">
+                  {inputs.propertyType === 'flat' ? 'flat' : inputs.propertyType === 'small_house' ? 'small house' : inputs.propertyType === 'medium_house' ? 'medium house' : 'large house'} heat demand
+                </span>
+              </div>
+            </div>
+            {/* Sizing note */}
+            <p className={`story-usage-sizing-note story-usage-sizing-note--${dhwPhysics.sizingOk ? 'ok' : 'warn'}`}>
+              {dhwPhysics.sizingOk
+                ? `✅ ${inputs.combiKw} kW combi covers the ${dhwPhysics.peakDhwKw.toFixed(1)} kW peak DHW draw for this usage pattern.`
+                : `⚠️ ${inputs.combiKw} kW combi is under-sized — ${dhwPhysics.peakDhwKw.toFixed(1)} kW needed for a ${inputs.showerPreset === 'mixer' ? 'mixer' : inputs.showerPreset === 'mixer_high' ? 'high-flow mixer' : 'rainfall'} shower at ${dhwPhysics.coldC}°C cold supply.`
+              }
+            </p>
           </div>
 
           {/* Behaviour bullets */}
