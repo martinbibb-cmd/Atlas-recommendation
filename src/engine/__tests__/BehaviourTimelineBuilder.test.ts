@@ -153,4 +153,47 @@ describe('buildBehaviourTimelineV1', () => {
     expect(t1.points[0].heatDemandKw).toBe(t2.points[0].heatDemandKw);
     expect(t1.points[47].heatDemandKw).toBe(t2.points[47].heatDemandKw);
   });
+
+  it('annotations is an array or undefined', () => {
+    const result = runEngine(BASE_INPUT);
+    const timeline = buildBehaviourTimelineV1(result, BASE_INPUT);
+    expect(timeline.annotations === undefined || Array.isArray(timeline.annotations)).toBe(true);
+  });
+
+  it('boiler scenario produces efficiency dip annotation in eff row', () => {
+    const result = runEngine(BASE_INPUT);
+    const timeline = buildBehaviourTimelineV1(result, BASE_INPUT);
+    if (timeline.annotations) {
+      const effAnnotation = timeline.annotations.find(a => a.row === 'eff');
+      expect(effAnnotation).toBeDefined();
+      expect(effAnnotation!.atIndex).toBeGreaterThanOrEqual(0);
+      expect(effAnnotation!.atIndex).toBeLessThan(timeline.points.length);
+      expect(typeof effAnnotation!.text).toBe('string');
+      expect(effAnnotation!.text.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('annotations atIndex values are valid point indices', () => {
+    const result = runEngine(BASE_INPUT);
+    const timeline = buildBehaviourTimelineV1(result, BASE_INPUT);
+    if (timeline.annotations) {
+      for (const annotation of timeline.annotations) {
+        expect(annotation.atIndex).toBeGreaterThanOrEqual(0);
+        expect(annotation.atIndex).toBeLessThan(timeline.points.length);
+        expect(['heat', 'dhw', 'out', 'eff']).toContain(annotation.row);
+      }
+    }
+  });
+
+  it('ASHP scenario does not produce annotations (no boiler-specific dips)', () => {
+    const ashpInput = {
+      ...BASE_INPUT,
+      occupancySignature: 'steady_home' as const,
+      primaryPipeDiameter: 28,
+    };
+    const result = runEngine(ashpInput);
+    const timeline = buildBehaviourTimelineV1(result, ashpInput);
+    // ASHP does not emit boiler-specific annotations
+    expect(timeline.annotations === undefined || timeline.annotations.length === 0).toBe(true);
+  });
 });

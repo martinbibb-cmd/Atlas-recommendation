@@ -9,6 +9,8 @@ export interface AssumptionV1 {
   affects: Array<'timeline_24h' | 'options' | 'recommendation' | 'context'>;
   severity: 'info' | 'warn';
   improveBy?: string;
+  /** Grouping for collapsible chip display in the verdict panel. */
+  group?: 'missing-data' | 'defaults' | 'derived';
 }
 
 export interface ConfidenceV1 {
@@ -348,6 +350,19 @@ export interface BehaviourTimelineV1 {
     details?: string;
     severity: 'info' | 'warn';
   }>;
+
+  /**
+   * Optional callout annotations anchored to specific timeline points.
+   * Customer mode: max 2 shown; Engineer mode: all shown.
+   */
+  annotations?: Array<{
+    /** Index into `points` array where the annotation is anchored. */
+    atIndex: number;
+    /** Short human-readable callout text. */
+    text: string;
+    /** Which chart row this annotation belongs to. */
+    row: 'heat' | 'dhw' | 'out' | 'eff';
+  }>;
 }
 
 // ─── Limiters (V1) ────────────────────────────────────────────────────────────
@@ -435,6 +450,23 @@ export interface VerdictV1 {
   confidence: ConfidenceV1;
   /** Centralised list of assumptions surfaced at the verdict level. */
   assumptionsUsed: AssumptionV1[];
+  /**
+   * Decision context: "comparison" when multiple technologies were evaluated and
+   * the verdict reflects why one was preferred over another; "single-tech" otherwise.
+   */
+  context?: 'comparison' | 'single-tech';
+  /**
+   * Technologies that were compared against the primary recommendation.
+   * Only present when context is "comparison".
+   * e.g. ["ASHP"] when boiler is recommended over heat pump.
+   */
+  comparedTechnologies?: string[];
+  /**
+   * Plain English sentence explaining the primary reason for this recommendation
+   * over the compared alternatives.
+   * e.g. "Boiler recommended over ASHP for fast reheat and current pipework constraints"
+   */
+  primaryReason?: string;
 }
 
 export interface EngineOutputV1 {

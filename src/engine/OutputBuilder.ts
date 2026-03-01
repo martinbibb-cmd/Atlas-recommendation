@@ -666,12 +666,33 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     const hasWarnFlag = allRedFlags.some(f => f.severity === 'warn');
     const verdictStatus: VerdictV1['status'] = hasFailFlag ? 'fail' : hasWarnFlag ? 'caution' : 'good';
     const verdictReasons = limiters?.limiters.slice(0, 3).map(l => l.impact.summary) ?? [];
+
+    // Detect whether this is a comparison outcome (ASHP was evaluated but not recommended)
+    const pipeLimiter = limiters?.limiters.find(l => l.id === 'primary-pipe-constraint');
+    const flowTempLimiter = limiters?.limiters.find(l => l.id === 'flow-temp-too-high-for-ashp');
+    const ashpLimiterPresent = (pipeLimiter ?? flowTempLimiter) != null;
+    const isBoilerRecommendation =
+      primaryRecommendation !== 'Air Source Heat Pump';
+    const isComparison = ashpLimiterPresent && isBoilerRecommendation;
+
+    let primaryReason: string | undefined;
+    if (isComparison) {
+      if (pipeLimiter) {
+        primaryReason = 'Boiler recommended over ASHP — primary pipework requires upgrading for heat pump flow rates';
+      } else if (flowTempLimiter) {
+        primaryReason = 'Boiler recommended over ASHP — existing system flow temperatures are too high for heat pump operation';
+      }
+    }
+
     return {
       title: primaryRecommendation,
       status: verdictStatus,
       reasons: verdictReasons,
       confidence: confidence ?? { level: 'low', reasons: ['Insufficient data for confidence assessment.'] },
       assumptionsUsed: assumptions ?? [],
+      context: isComparison ? 'comparison' : 'single-tech',
+      comparedTechnologies: isComparison ? ['ASHP'] : undefined,
+      primaryReason,
     };
   })() : undefined;
 

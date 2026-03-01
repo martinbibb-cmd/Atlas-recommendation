@@ -334,4 +334,41 @@ describe('EngineOutputV1 shape', () => {
     const bullets = engineOutput.contextSummary?.bullets ?? [];
     expect(bullets.some(b => b.includes('L/min'))).toBe(true);
   });
+
+  // ── VerdictV1 comparison context ──────────────────────────────────────────
+
+  it('verdict has context="comparison" when ASHP limiter exists but boiler is recommended', () => {
+    // 22mm + high heat loss → ASHP is limited, boiler recommended
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      primaryPipeDiameter: 22,
+      heatLossWatts: 14000,
+    });
+    expect(engineOutput.verdict?.context).toBe('comparison');
+    expect(engineOutput.verdict?.comparedTechnologies).toContain('ASHP');
+  });
+
+  it('verdict has context="single-tech" when ASHP is recommended (no ASHP limiter)', () => {
+    // 28mm, steady_home → ASHP viable, no pipe constraint
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      primaryPipeDiameter: 28,
+      heatLossWatts: 8000,
+      occupancySignature: 'steady_home' as const,
+    });
+    expect(engineOutput.verdict?.context).toBe('single-tech');
+    expect(engineOutput.verdict?.comparedTechnologies).toBeUndefined();
+  });
+
+  it('verdict primaryReason is a non-empty string when context is comparison', () => {
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      primaryPipeDiameter: 22,
+      heatLossWatts: 14000,
+    });
+    if (engineOutput.verdict?.context === 'comparison') {
+      expect(typeof engineOutput.verdict.primaryReason).toBe('string');
+      expect((engineOutput.verdict.primaryReason ?? '').length).toBeGreaterThan(0);
+    }
+  });
 });

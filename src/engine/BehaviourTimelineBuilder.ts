@@ -198,11 +198,42 @@ export function buildBehaviourTimelineV1(
   void engineAssumptions;
   void addedIds;
 
+  // ── Annotations: callouts anchored to notable timeline points ───────────
+  const annotations: BehaviourTimelineV1['annotations'] = [];
+
+  if (!isAshp) {
+    // DHW saturation annotation: find the first index where appliance is at cap during DHW
+    const dhwSatIdx = points.findIndex(
+      p => p.dhwDemandKw > 0.1 && p.applianceCapKw != null && p.applianceOutKw >= p.applianceCapKw * 0.98,
+    );
+    if (dhwSatIdx >= 0) {
+      annotations.push({
+        atIndex: dhwSatIdx,
+        text: `DHW demand forces max output at ${points[dhwSatIdx].t}`,
+        row: 'out',
+      });
+    }
+
+    // Efficiency dip annotation: find the index of minimum efficiency
+    const effPoints = points
+      .map((p, i) => ({ i, eff: p.efficiency }))
+      .filter(x => x.eff != null);
+    if (effPoints.length > 0) {
+      const minEffEntry = effPoints.reduce((min, x) => (x.eff! < min.eff! ? x : min), effPoints[0]);
+      annotations.push({
+        atIndex: minEffEntry.i,
+        text: `Min ${(minEffEntry.eff! * 100).toFixed(0)}% efficiency`,
+        row: 'eff',
+      });
+    }
+  }
+
   return {
     timezone: 'Europe/London',
     resolutionMins: RESOLUTION_MINS,
     points,
     labels: { applianceName, efficiencyLabel },
     assumptionsUsed,
+    annotations: annotations.length > 0 ? annotations : undefined,
   };
 }
