@@ -29,7 +29,7 @@ import InteractiveTwin from '../InteractiveTwin';
 import Timeline24hRenderer from '../visualizers/Timeline24hRenderer';
 import SystemConditionImpact from '../visualizers/SystemConditionImpact';
 import { computeConditionImpactMetrics } from '../../engine/modules/SystemConditionImpactModule';
-import DayPainterResults from '../daypainter/DayPainterResults';
+import LifestyleInteractive from '../visualizers/LifestyleInteractive';
 import {
   getFabricPreset,
   type WallType,
@@ -3317,39 +3317,12 @@ function FullSurveyResults({
 
       {/* Day Painter — canonical causes vs effects page */}
       <div className="result-section">
-        <h3>🖌️ Day Painter — Current vs Proposed Behaviour</h3>
+        <h3>🖌️ Day Painter — Interactive System Simulation</h3>
         <p className="description" style={{ marginBottom: '0.75rem' }}>
-          Same usage events and programmes are applied to both systems. The model tracks CH/DHW switching,
-          internal temperature response from heat-loss + inertia, and separates losses <strong>via flue</strong>
-          from heat <strong>dumped to CH circuit</strong>.
+          Paint your 24-hour routine and see how the selected heating system responds in real time.
+          Graph 1 shows demand load; Graph 2 shows system output and hot-water reserve.
         </p>
-        <DayPainterResults
-          heatLossWatts={input.heatLossWatts}
-          tauHours={results.fabricModelV1?.driftTauHours ?? (input.buildingMass === 'heavy' ? 68 : input.buildingMass === 'light' ? 24 : 42)}
-          currentSystem={
-            input.currentHeatSourceType === 'combi' ? 'combi' :
-            input.currentHeatSourceType === 'ashp'  ? 'heat_pump' :
-            // 'system' boilers typically paired with unvented cylinders;
-            // 'regular' boilers typically paired with open-vented cylinders.
-            (() => {
-              const isMixergy = input.dhwTankType === 'mixergy';
-              const isUnvented = input.currentHeatSourceType === 'system';
-              if (isMixergy) return isUnvented ? 'mixergy_unvented' : 'mixergy_open_vented';
-              return isUnvented ? 'unvented' : 'open_vented';
-            })()
-          }
-          proposedSystem={
-            (() => {
-              const rec = engineOutput.recommendation.primary.toLowerCase();
-              if (rec.includes('heat pump')) return 'heat_pump';
-              if (rec.includes('combi'))     return 'combi';
-              const isMixergy = rec.includes('mixergy') || input.dhwTankType === 'mixergy';
-              const isUnvented = rec.includes('unvented');
-              if (isMixergy) return isUnvented ? 'mixergy_unvented' : 'mixergy_open_vented';
-              return isUnvented ? 'unvented' : 'open_vented';
-            })()
-          }
-        />
+        <LifestyleInteractive baseInput={toEngineInput(sanitiseModelForEngine(input))} />
       </div>
 
       {/* Hydraulic Analysis */}
