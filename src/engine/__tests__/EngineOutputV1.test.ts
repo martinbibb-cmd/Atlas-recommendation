@@ -65,10 +65,10 @@ describe('EngineOutputV1 shape', () => {
     expect(onDemand.status).toBe('rejected');
   });
 
-  it('gives combi caution (not rejected) when bathroomCount >= 2 but peakConcurrentOutlets < 2', () => {
+  it('rejects combi when bathroomCount >= 2 (hard simultaneous-demand gate, even if peakConcurrentOutlets < 2)', () => {
     const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2, highOccupancy: false });
     const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
-    expect(onDemand.status).toBe('caution');
+    expect(onDemand.status).toBe('rejected');
   });
 
   it('rejects combi when peakConcurrentOutlets >= 2 (explicit simultaneous demand)', () => {
