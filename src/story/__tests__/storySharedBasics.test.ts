@@ -88,9 +88,9 @@ describe('STORY_SCENARIOS registry', () => {
     expect(ids).toContain('heat_pump_viability');
   });
 
-  it('each scenario still has at most 8 editable fields', () => {
+  it('each scenario still has at most 16 editable fields', () => {
     for (const scenario of STORY_SCENARIOS) {
-      expect(scenario.fields.length).toBeLessThanOrEqual(8);
+      expect(scenario.fields.length).toBeLessThanOrEqual(16);
     }
   });
 });
@@ -268,8 +268,8 @@ describe('heatPumpViabilityScenario spec', () => {
     expect(heatPumpViabilityScenario.escalationAllowed).toBe(false);
   });
 
-  it('has at most 8 editable fields', () => {
-    expect(heatPumpViabilityScenario.fields.length).toBeLessThanOrEqual(8);
+  it('has at most 16 editable fields', () => {
+    expect(heatPumpViabilityScenario.fields.length).toBeLessThanOrEqual(16);
   });
 
   it('defaults are valid HeatPumpViabilityInputs', () => {

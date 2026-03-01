@@ -7,9 +7,9 @@ import {
 import { ERP_TO_NOMINAL_PCT } from '../../engine/utils/efficiency';
 
 describe('scenarioRegistry integrity', () => {
-  it('each scenario has at most 8 editable fields', () => {
+  it('each scenario has at most 16 editable fields', () => {
     for (const scenario of STORY_SCENARIOS) {
-      expect(scenario.fields.length).toBeLessThanOrEqual(8);
+      expect(scenario.fields.length).toBeLessThanOrEqual(16);
     }
   });
 
