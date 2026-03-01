@@ -69,7 +69,6 @@ import {
   computeRequiredKw,
   type SeasonPreset,
   type DhwModePreset,
-  type ShowerPreset,
 } from '../../engine/presets/DhwFlowPresets';
 
 // ─── System switcher ──────────────────────────────────────────────────────────
@@ -159,12 +158,12 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   // ── DHW concurrency presets — drive all flow & kW calculations ─────────────
   const [season, setSeason]       = useState<SeasonPreset>('typical');
   const [dhwMode, setDhwMode]     = useState<DhwModePreset>('normal');
-  const [showerType, setShowerType] = useState<ShowerPreset>('mixer');
-
   // Derived physics from presets
   const coldWaterTempC  = COLD_SUPPLY_TEMP_PRESETS[season];
   const combiHotOutTempC = COMBI_HOT_OUT_PRESETS[dhwMode];
-  const showerFlowLpm   = OUTLET_FLOW_PRESETS_LPM[showerType];
+  // Shower flow is fixed at the standard mixer preset — demand is driven by
+  // household size and bathroom count heuristics, not a user-facing selector.
+  const showerFlowLpm   = OUTLET_FLOW_PRESETS_LPM['mixer'];
   const dhwDeltaT       = combiHotOutTempC - coldWaterTempC;
   const heatLimitLpm    = computeHeatLimitLpm(NOMINAL_COMBI_DHW_KW, dhwDeltaT);
 
@@ -966,26 +965,6 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
                   }}
                 >
                   {titleCase(m)} ({COMBI_HOT_OUT_PRESETS[m]}°C)
-                </button>
-              ))}
-            </div>
-            {/* Shower type */}
-            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.7rem', color: '#718096' }}>Shower:</span>
-              {(Object.keys(OUTLET_FLOW_PRESETS_LPM) as ShowerPreset[]).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setShowerType(t)}
-                  aria-pressed={showerType === t}
-                  style={{
-                    padding: '3px 10px', borderRadius: 14,
-                    border: `1.5px solid ${showerType === t ? '#276749' : '#e2e8f0'}`,
-                    background: showerType === t ? '#f0fff4' : '#f7fafc',
-                    color: showerType === t ? '#276749' : '#718096',
-                    fontSize: '0.72rem', fontWeight: showerType === t ? 700 : 400, cursor: 'pointer',
-                  }}
-                >
-                  {titleCase(t)} ({OUTLET_FLOW_PRESETS_LPM[t]} L/min)
                 </button>
               ))}
             </div>
