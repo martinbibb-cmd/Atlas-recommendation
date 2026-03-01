@@ -59,7 +59,7 @@ const BOILER_FIRE_THRESHOLD = 0.3;
 
 /**
  * Professional: double-peak demand at 07:00 and 18:00 (V3 spec).
- * Boiler wins: high reheat power (30kW) for stepped Hive/Nest profiles.
+ * Boiler wins: high reheat power (30kW) for stepped Hive profiles.
  * The 07:00 and 18:00 hours receive the highest demand to model the
  * precise double-peak that proves boiler superiority for this lifestyle.
  */
@@ -223,7 +223,7 @@ export function runLifestyleSimulationModule(input: EngineInputV2_3, cyclingLoss
   const systemDescriptions: Record<typeof recommendedSystem, string> = {
     boiler:
       '🔥 Boiler Recommended: High reheat power (30kW) raises temperature 3°C in 30 mins, ' +
-      'matching Hive/Nest stepped profiles for double-peak professional lifestyle.',
+      'matching Hive stepped profiles for double-peak professional lifestyle.',
     ashp:
       '🌿 ASHP Recommended: "Low and slow" 24/7 equilibrium line exploits building ' +
       'thermal mass (τ) as a thermal battery for continuous occupancy.',

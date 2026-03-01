@@ -79,7 +79,7 @@ export function runMixergyLegacyModule(input: MixergyLegacyInput): MixergyLegacy
     iotTier = NO_IOT_TIER;
     notes.push(
       `📡 IoT Tier: NONE — No smart hub detected. Mixergy cylinder will operate in ` +
-      `standard time-clock mode. Adding a compatible hub (Hive, Nest, or Mixergy ` +
+      `standard time-clock mode. Adding a compatible hub (Hive or Mixergy ` +
       `Controller) unlocks smart scheduling and up to 20% additional energy saving.`
     );
   }
