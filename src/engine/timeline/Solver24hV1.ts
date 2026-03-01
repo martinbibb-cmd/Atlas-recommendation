@@ -59,16 +59,50 @@ function getCop(flowTempBand: 35 | 45 | 50, outdoorTempC: number): number {
   return COP_TABLE[flowTempBand][cond];
 }
 
-/** DHW heat draw per event kind × intensity (kW), duration-scaled by dtHours. */
-const DHW_DRAW_KW: Record<string, Record<string, number>> = {
-  bath:   { low: 1.2, med: 2.0, high: 3.0 },
-  sink:   { low: 0.4, med: 0.6, high: 0.8 },
+// ── DHW physics constants ─────────────────────────────────────────────────────
+
+/** Cold mains water temperature (°C) — UK default. */
+export const DHW_COLD_WATER_TEMP_C = 10;
+
+/** Target hot outlet temperature (°C) — typical UK domestic DHW supply. */
+export const DHW_TARGET_HOT_TEMP_C = 45;
+
+/**
+ * DHW heat conversion factor: Cp / 60 (kW per L/min per °C).
+ * Derived from specific heat capacity of water: Cp = 4.186 kJ/(kg·K), 1 L ≈ 1 kg.
+ * Dividing by 60 converts from kJ/(min·K) to kW/K.
+ */
+const DHW_KW_PER_LPM_PER_K = 4.186 / 60; // ≈ 0.0697
+
+/**
+ * Compute DHW heat transfer rate from volumetric flow and temperature rise.
+ *
+ *   kW = DHW_KW_PER_LPM_PER_K × flowLpm × deltaTc
+ *
+ * @param flowLpm  Volumetric flow rate (L/min).
+ * @param deltaTc  Temperature rise across the heat exchanger (°C). Clamped to ≥ 0.
+ */
+export function dhwKwFromFlow(flowLpm: number, deltaTc: number): number {
+  return DHW_KW_PER_LPM_PER_K * flowLpm * Math.max(0, deltaTc);
+}
+
+/**
+ * Hot-water draw flow rate (L/min) per event kind × intensity.
+ * Replaces the old arbitrary-kW table: values now derived via dhwKwFromFlow()
+ * so that a single high-intensity bath event (~12 L/min) approaches full
+ * combi output (~29 kW at ΔT 35°C), matching real-world physics.
+ */
+const DHW_FLOW_LPM: Record<string, Record<string, number>> = {
+  bath:   { low: 6, med: 9, high: 12 },
+  sink:   { low: 2, med: 4, high:  6 },
 };
 
 /** Derive DHW heat draw (kW) for a given event, or 0 for cold-fill appliances. */
 function getDhwDrawKw(event: Timeline24hEvent): number {
   if (event.kind === 'dishwasher' || event.kind === 'washing_machine' || event.kind === 'cold_only') return 0;
-  return (DHW_DRAW_KW[event.kind]?.[event.intensity]) ?? 0;
+  const flowLpm = DHW_FLOW_LPM[event.kind]?.[event.intensity] ?? 0;
+  const deltaTc = DHW_TARGET_HOT_TEMP_C - DHW_COLD_WATER_TEMP_C;
+  return dhwKwFromFlow(flowLpm, deltaTc);
 }
 
 /**
@@ -169,6 +203,12 @@ export interface SystemSolverResult {
    * For combi: 100 when event is served, < 100 when capacity-limited.
    */
   dhwState: number[];
+  /**
+   * DHW shortfall (kW) — excess DHW demand above combi max output, per step.
+   * Non-zero only for combi (on_demand) systems when a DHW event exceeds maxKw.
+   * Always 0 for stored / ASHP systems (cylinder buffers demand).
+   */
+  dhwShortfallKw: number[];
 }
 
 // ── Core solver ───────────────────────────────────────────────────────────────
@@ -215,6 +255,7 @@ export function solveSystemTimeline(
   const efficiency: number[] = [];
   const inputPowerKw: number[] = [];
   const dhwState: number[] = [];
+  const dhwShortfallKw: number[] = [];
 
   // Start at home setpoint
   let Troom = setpointHomeC;
@@ -250,13 +291,23 @@ export function solveSystemTimeline(
     // ── System dispatch ───────────────────────────────────────────────────────
     let delivered: number;
     let eta: number;
+    // Combi DHW priority: when a DHW event is active, the burner is driven toward
+    // DHW kW (capped by maxKw) and CH is fully interrupted.  A single shower at
+    // ~12 L/min can already demand ~29 kW — the boiler cannot simultaneously heat
+    // radiators.  Stored / ASHP systems use a cylinder to buffer DHW and do NOT
+    // need this interruption.
+    const isCombiDhwMode = !hasStoredCylinder && !isAshp && dhwHeatKw > 0;
 
     if (isAshp) {
       const cop = getCop(flowTempBand, outdoorTempC);
       delivered = Math.min(totalRequiredKw, maxKw);
       eta = cop;
+    } else if (isCombiDhwMode) {
+      // DHW priority: burner output = min(maxKw, dhwRequiredKw); CH = 0
+      delivered = Math.min(maxKw, dhwHeatKw);
+      eta = baseEta;
     } else {
-      // Boiler
+      // Boiler space-heat dispatch (no DHW event or stored system)
       if (totalRequiredKw <= 0) {
         delivered = 0;
         eta = baseEta;
@@ -274,18 +325,23 @@ export function solveSystemTimeline(
     const inputKw = eta > 0 ? delivered / eta : 0;
 
     // ── Room temperature update (space heat only) ─────────────────────────────
-    const spaceDelivered = Math.min(delivered, spaceHeatRequiredKw);
+    // Combi DHW mode: CH is interrupted — space heat delivered = 0.
+    const spaceDelivered = isCombiDhwMode ? 0 : Math.min(delivered, spaceHeatRequiredKw);
     const netHeatKw = spaceDelivered - heatLossKw;
     const dT = (netHeatKw * DT_HOURS) / C;
     Troom = Math.max(outdoorTempC, Troom + dT);
 
     // ── DHW cylinder / state tracking ─────────────────────────────────────────
     let dhwStateVal: number;
+    let shortfallKw = 0;
 
     if (!hasStoredCylinder) {
-      // Combi: no cylinder — event served at 100% when capacity available
+      // Combi: no cylinder — DHW served directly from burner
       if (dhwHeatKw > 0) {
-        const served = delivered >= totalRequiredKw ? 100 : (delivered / totalRequiredKw) * 100;
+        // delivered = min(maxKw, dhwHeatKw) in DHW mode; shortfall = excess demand.
+        // dhwHeatKw > 0 is the invariant here, so division below is safe.
+        shortfallKw = Math.max(0, dhwHeatKw - maxKw);
+        const served = (delivered / dhwHeatKw) * 100;
         dhwStateVal = Math.max(0, Math.min(100, served));
       } else {
         dhwStateVal = 100; // standby
@@ -309,9 +365,10 @@ export function solveSystemTimeline(
     efficiency.push(parseFloat(eta.toFixed(3)));
     inputPowerKw.push(parseFloat(inputKw.toFixed(3)));
     dhwState.push(parseFloat(dhwStateVal.toFixed(1)));
+    dhwShortfallKw.push(parseFloat(shortfallKw.toFixed(3)));
   }
 
-  return { roomTempC, heatDeliveredKw, heatDemandKw, efficiency, inputPowerKw, dhwState };
+  return { roomTempC, heatDeliveredKw, heatDemandKw, efficiency, inputPowerKw, dhwState, dhwShortfallKw };
 }
 
 // ── High-level system config builders ────────────────────────────────────────
