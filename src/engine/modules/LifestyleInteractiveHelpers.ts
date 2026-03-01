@@ -277,6 +277,46 @@ export function waterSlotsToHourlyKw(slots: WaterSlotState[], hotKwInstantaneous
 }
 
 /**
+ * Aggregates 5-minute water slot painter data into separate hourly L/min arrays
+ * for hot (DHW) and cold (DCW) draws.
+ *
+ * Treats DHW and DCW independently so that:
+ *  - Hot draws are checked against the combi heat limit.
+ *  - Cold draws (appliance fills, cold-only taps) only consume mains flow — they
+ *    do not draw heat from the boiler.
+ *
+ * The returned value per hour is the time-weighted average L/min over that hour:
+ *   hourlyLpm[h] = slotCount × lpmInstantaneous / 12
+ *
+ * @param slots                288-element WaterSlotState array (24 h × 12 five-min slots).
+ * @param hotLpmInstantaneous  Instantaneous mixed flow during a hot-water slot (L/min).
+ * @param coldLpmInstantaneous Instantaneous cold draw rate during a cold slot (L/min).
+ */
+export function waterSlotsToHourlyFlows(
+  slots: WaterSlotState[],
+  hotLpmInstantaneous: number,
+  coldLpmInstantaneous: number,
+): { hotLpmByHour: number[]; coldLpmByHour: number[] } {
+  if (slots.length !== 288) {
+    throw new RangeError(`waterSlotsToHourlyFlows: expected 288 slots, got ${slots.length}`);
+  }
+  const hotLpmByHour: number[] = [];
+  const coldLpmByHour: number[] = [];
+  for (let h = 0; h < 24; h++) {
+    const start = h * 12;
+    let hotCount = 0;
+    let coldCount = 0;
+    for (let i = 0; i < 12; i++) {
+      if (slots[start + i] === 'hot') hotCount++;
+      else if (slots[start + i] === 'cold') coldCount++;
+    }
+    hotLpmByHour.push(parseFloat((hotCount * hotLpmInstantaneous / 12).toFixed(2)));
+    coldLpmByHour.push(parseFloat((coldCount * coldLpmInstantaneous / 12).toFixed(2)));
+  }
+  return { hotLpmByHour, coldLpmByHour };
+}
+
+/**
  * HP "Horizon" Curve – room temperature stability (°C).
  *
  * Full Job (SPF ≈ 4.2, 35 °C flow) → efficiency factor ≈ 1.0 → flat horizon.

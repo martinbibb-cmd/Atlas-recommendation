@@ -57,7 +57,7 @@ import {
   WATER_SLOT_CYCLE,
   defaultWaterSlots,
   nextWaterState,
-  waterSlotsToHourlyKw,
+  waterSlotsToHourlyFlows,
 } from '../../engine/modules/LifestyleInteractiveHelpers';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import {
@@ -119,6 +119,12 @@ const SLUDGE_INPUT_AFTER_FLUSH = {
 
 /** Indoor comfort setpoint (°C) — used for Graph C below-setpoint calculations. */
 const COMFORT_SETPOINT_C = 21;
+
+/**
+ * Default cold-water draw rate (L/min) for "cold" slots in the Water Usage Painter.
+ * Represents a typical UK washing machine or dishwasher cold fill.
+ */
+const COLD_DRAW_LPM_DEFAULT = 5;
 
 // ─── Demand chart physics constants ──────────────────────────────────────────
 
@@ -257,13 +263,21 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   // series; otherwise the heating painter heuristic (dhw_demand / home hours) is used.
   const heatLossKw = engineInput.heatLossWatts / 1000;
   const anyWaterPainted = waterSlots.some(s => s !== 'none');
-  const waterDhwByHour = useMemo(
-    () => waterSlotsToHourlyKw(waterSlots, computeRequiredKw(showerFlowLpm, dhwDeltaT)),
-    // computeRequiredKw is a pure imported function — it is stable and does not need to be
-    // listed as a dependency.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [waterSlots, showerFlowLpm, dhwDeltaT],
+  const anyWaterCold    = waterSlots.some(s => s === 'cold');
+
+  // Unified water painter → per-hour L/min (hot DHW and cold DCW separately).
+  // Using waterSlotsToHourlyFlows keeps DHW and DCW as independent channels so
+  // Graph D can apply the heat limit only to the hot draw.
+  const waterFlows = useMemo(
+    () => waterSlotsToHourlyFlows(waterSlots, showerFlowLpm, COLD_DRAW_LPM_DEFAULT),
+    [waterSlots, showerFlowLpm],
   );
+
+  // kW series for Graph 1 — derived from hot L/min via ΔT (reactive to presets)
+  const waterDhwByHour = waterFlows.hotLpmByHour.map(
+    lpm => parseFloat(computeRequiredKw(lpm, dhwDeltaT).toFixed(2)),
+  );
+
   const demandChartData = lifestyle.hourlyData.map((row, h) => ({
     hour: `${String(h).padStart(2, '0')}:00`,
     'Heat (kW)':  parseFloat(row.demandKw.toFixed(2)),
@@ -300,30 +314,62 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   );
 
   // ── Graph D: DHW Deliverability (combi only) ──────────────────────────────
-  // Requested L/min: shower preset flow during High DHW, 25% of that during At Home.
-  // Delivered: capped at heat limit first, then scale-derated.
+  // DHW and DCW are treated as independent channels:
+  //   Hot (DHW) demand → checked against combi heat limit AND scale derate.
+  //   Cold (DCW) demand → cold mains only; no heat drawn; shown for mains context.
+  //
+  // Data source priority:
+  //   1. Water Painter slots (anyWaterPainted) — per-5-min slot resolution from
+  //      waterFlows.hotLpmByHour / coldLpmByHour.
+  //   2. Hour-level painter heuristic (High DHW / At Home / Away) — fallback when
+  //      no water slots are painted.
+  //
+  // This means Graph D and Graph 1 are always driven by the same underlying data.
   const dhwDerateFraction = sludge.dhwCapacityDeratePct;
+
+  // Hot fraction of a mixed draw at the outlet (40 °C mixed target, UK standard).
+  // hotFrac = (mixedTarget - coldC) / (hotC - coldC)
+  // Transparent to users: shows why high ΔT (winter / 55 °C) raises the kW per L/min.
+  const MIXED_TARGET_C = 40;
+  const hotFraction = dhwDeltaT > 0
+    ? parseFloat(Math.min(1, (MIXED_TARGET_C - coldWaterTempC) / dhwDeltaT).toFixed(2))
+    : 1;
+
   const dhwDeliverabilityData = lifestyle.hourlyData.map((_row, h) => {
-    const isDhwHour  = hours[h] === 'dhw_demand';
-    const isHomeHour = hours[h] === 'home';
-    const requestedLpm = isDhwHour
-      ? showerFlowLpm
-      : isHomeHour
-        ? parseFloat((showerFlowLpm * 0.25).toFixed(1))
-        : 0;
-    // Cap at heat limit, then apply scale derate
-    const heatCapLpm   = Math.min(requestedLpm, heatLimitLpm);
-    const deliveredLpm = parseFloat((heatCapLpm * (1 - dhwDerateFraction)).toFixed(1));
-    const shortfallLpm = parseFloat(Math.max(0, requestedLpm - deliveredLpm).toFixed(1));
+    let requestedHotLpm: number;
+    let coldDrawLpm: number;
+
+    if (anyWaterPainted) {
+      // Water Painter is the authoritative source — both hot and cold tracks
+      requestedHotLpm = waterFlows.hotLpmByHour[h];
+      coldDrawLpm     = waterFlows.coldLpmByHour[h];
+    } else {
+      // Fallback: derive from hour-level painter state
+      const isDhwHour  = hours[h] === 'dhw_demand';
+      const isHomeHour = hours[h] === 'home';
+      requestedHotLpm = isDhwHour
+        ? showerFlowLpm
+        : isHomeHour
+          ? parseFloat((showerFlowLpm * 0.25).toFixed(1))
+          : 0;
+      coldDrawLpm = 0;
+    }
+
+    // Heat limit applies to the hot (DHW) draw only — cold mains bypasses the boiler
+    const heatCapHotLpm = Math.min(requestedHotLpm, heatLimitLpm);
+    const deliveredLpm  = parseFloat((heatCapHotLpm * (1 - dhwDerateFraction)).toFixed(1));
+    const shortfallLpm  = parseFloat(Math.max(0, requestedHotLpm - deliveredLpm).toFixed(1));
+
     return {
       hour: `${String(h).padStart(2, '0')}:00`,
-      'Requested (L/min)': requestedLpm,
-      'Delivered (L/min)': deliveredLpm,
-      'Shortfall (L/min)': shortfallLpm,
+      'Requested (L/min)':  requestedHotLpm,
+      'Cold draw (L/min)':  coldDrawLpm,
+      'Delivered (L/min)':  deliveredLpm,
+      'Shortfall (L/min)':  shortfallLpm,
     };
   });
 
-  // Peak single-shower delivered flow (for scale-derate badge) — avoids repeating the formula.
+  // Peak single-shower delivered flow (for scale-derate badge)
   const peakDeliveredLpm = parseFloat(
     (Math.min(showerFlowLpm, heatLimitLpm) * (1 - dhwDerateFraction)).toFixed(1),
   );
@@ -955,7 +1001,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
             color: showerFlowLpm > heatLimitLpm ? '#c53030' : '#276749',
             marginBottom: 6,
           }}>
-            ΔT {dhwDeltaT.toFixed(1)}°C · Heat limit {heatLimitLpm.toFixed(1)} L/min · Shower {showerFlowLpm} L/min
+            ΔT {dhwDeltaT.toFixed(1)}°C · Hot fraction {(hotFraction * 100).toFixed(0)}% · Heat limit {heatLimitLpm.toFixed(1)} L/min · Shower {showerFlowLpm} L/min
             {showerFlowLpm > heatLimitLpm
               ? ` ⚠️ Shortfall — needs ${computeRequiredKw(showerFlowLpm, dhwDeltaT).toFixed(1)} kW (combi: ${NOMINAL_COMBI_DHW_KW} kW)`
               : ' ✅ Within capacity'}
@@ -973,13 +1019,30 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
             </div>
           )}
 
+          {/* Data source indicator */}
+          {anyWaterPainted && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: '#ebf8ff', border: '1px solid #90cdf4',
+              borderRadius: 6, padding: '3px 10px',
+              fontSize: '0.72rem', color: '#2b6cb0', marginBottom: 6, marginLeft: 6,
+            }}>
+              💡 Graph driven by Water Painter slots
+              {anyWaterCold && ' · Cold draw (DCW) shown — not heat-limited'}
+            </div>
+          )}
+
           <div style={{ height: 160, marginBottom: 8 }}>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={dhwDeliverabilityData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="hour" tick={{ fontSize: 9 }} interval={3} />
                 <YAxis
-                  domain={[0, Math.ceil(Math.max(showerFlowLpm, heatLimitLpm) * 1.2)]}
+                  domain={[0, Math.ceil(Math.max(
+                    showerFlowLpm,
+                    heatLimitLpm,
+                    anyWaterCold ? COLD_DRAW_LPM_DEFAULT : 0,
+                  ) * 1.2)]}
                   tick={{ fontSize: 9 }}
                   label={{ value: 'L/min', angle: -90, position: 'insideLeft', fontSize: 10 }}
                 />
@@ -991,13 +1054,14 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
                   ]}
                 />
                 <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: 6 }} />
-                {/* Heat limit reference line */}
+                {/* Heat limit — applies to DHW (hot) only; cold draw bypasses this */}
                 <ReferenceLine
                   y={heatLimitLpm}
                   stroke="#e53e3e"
                   strokeDasharray="5 3"
                   label={{ value: `Heat limit ${heatLimitLpm.toFixed(1)} L/min`, fontSize: 9, fill: '#c53030', position: 'insideTopRight' }}
                 />
+                {/* Hot DHW requested */}
                 <Area
                   type="stepAfter"
                   dataKey="Requested (L/min)"
@@ -1006,6 +1070,19 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
                   strokeWidth={1.5}
                   fillOpacity={0.3}
                 />
+                {/* Cold DCW — separate channel, no heat limit applies */}
+                {anyWaterCold && (
+                  <Area
+                    type="stepAfter"
+                    dataKey="Cold draw (L/min)"
+                    fill="#c6f6d5"
+                    stroke="#48bb78"
+                    strokeWidth={1}
+                    fillOpacity={0.25}
+                    strokeDasharray="3 2"
+                  />
+                )}
+                {/* Delivered hot flow */}
                 <Line
                   type="stepAfter"
                   dataKey="Delivered (L/min)"
