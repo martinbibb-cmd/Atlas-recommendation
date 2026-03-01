@@ -118,6 +118,7 @@ export function buildLimitersV1(
       },
       confidence: input.primaryPipeDiameter != null ? 'high' : 'medium',
       sources: [
+        { kind: 'derived', note: 'Required ASHP flow derived from heat loss and design ΔT assumption.' },
         input.primaryPipeDiameter != null
           ? { kind: 'measured', note: `Primary pipe diameter confirmed as ${pipeDiameter}mm.` }
           : { kind: 'assumed', note: 'Primary pipe assumed 22mm (UK default).' },

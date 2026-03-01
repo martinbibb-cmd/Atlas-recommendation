@@ -115,6 +115,35 @@ function RowLabel({ label, callout }: { label: string; callout: string }) {
   );
 }
 
+// ── Annotation callout ────────────────────────────────────────────────────────
+
+function AnnotationCallout({ text }: { text: string }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        bottom: 4,
+        right: 8,
+        background: '#fff3cd',
+        border: '1px solid #f59e0b',
+        borderRadius: 4,
+        padding: '2px 7px',
+        fontSize: 10,
+        color: '#92400e',
+        pointerEvents: 'none',
+        zIndex: 1,
+        maxWidth: '60%',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      }}
+      title={text}
+    >
+      📌 {text}
+    </div>
+  );
+}
+
 // ── "Insufficient data" overlay ───────────────────────────────────────────────
 
 function InsufficientDataOverlay({ height }: { height: number }) {
@@ -221,6 +250,13 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
   const hasDhwData  = pts.some(p => p.dhwDemandKw > 0);
   const hasEffData  = pts.some(p => (p.efficiency ?? p.cop) != null);
 
+  // Annotations by row
+  const annotations = timeline.annotations ?? [];
+  const outAnnotation = annotations.find(a => a.row === 'out');
+  const effAnnotation = annotations.find(a => a.row === 'eff');
+  const dhwAnnotation = annotations.find(a => a.row === 'dhw');
+  const heatAnnotation = annotations.find(a => a.row === 'heat');
+
   return (
     <div
       className="behaviour-timeline-panel"
@@ -272,6 +308,7 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
           callout={`Peak ${peakHeatKw.toFixed(1)} kW`}
         />
         {!hasHeatData && <InsufficientDataOverlay height={ROW_HEIGHT} />}
+        {heatAnnotation && <AnnotationCallout text={heatAnnotation.text} />}
         <ResponsiveContainer width="100%" height={ROW_HEIGHT}>
           <AreaChart
             data={pts}
@@ -316,6 +353,7 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
           callout={peakDhwKw > 0 ? `Peak ${peakDhwKw.toFixed(1)} kW @ ${peakDhwTime}` : 'No DHW demand'}
         />
         {!hasDhwData && <InsufficientDataOverlay height={ROW_HEIGHT} />}
+        {dhwAnnotation && <AnnotationCallout text={dhwAnnotation.text} />}
         <ResponsiveContainer width="100%" height={ROW_HEIGHT}>
           <BarChart
             data={pts}
@@ -360,6 +398,7 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
               : `Peak ${Math.max(...pts.map(p => p.applianceOutKw)).toFixed(1)} kW`
           }
         />
+        {outAnnotation && <AnnotationCallout text={outAnnotation.text} />}
         <ResponsiveContainer width="100%" height={ROW_HEIGHT}>
           <AreaChart
             data={pts}
@@ -412,7 +451,8 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
         </ResponsiveContainer>
       </div>
 
-      {/* Row 4: Efficiency / COP */}
+      {/* Row 4: Efficiency / COP. Callout shows "Min X%" — temporal context (when the dip
+          occurs) is provided by effAnnotation rendered below the label. */}
       <div style={{ position: 'relative' }}>
         <RowLabel
           label={timeline.labels.efficiencyLabel}
@@ -420,10 +460,11 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
             isAshp
               ? `Min COP ${minCop.toFixed(1)}`
               : hasEffData
-              ? `Drops to ${(minEfficiency * 100).toFixed(0)}% during cycling`
+              ? `Min ${(minEfficiency * 100).toFixed(0)}%`
               : 'No data'
           }
         />
+        {effAnnotation && <AnnotationCallout text={effAnnotation.text} />}
         {!hasEffData && <InsufficientDataOverlay height={ROW_HEIGHT} />}
         <ResponsiveContainer width="100%" height={ROW_HEIGHT}>
           <LineChart

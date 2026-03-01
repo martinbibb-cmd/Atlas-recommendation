@@ -7,7 +7,8 @@
  * All data comes from the single `verdict` prop — this panel must never
  * re-derive the verdict.
  */
-import type { VerdictV1 } from '../../contracts/EngineOutputV1';
+import { useState } from 'react';
+import type { VerdictV1, AssumptionV1 } from '../../contracts/EngineOutputV1';
 
 interface Props {
   verdict: VerdictV1;
@@ -25,6 +26,113 @@ const CONFIDENCE_LABELS: Record<string, string> = {
   low:    '🔴 Low confidence',
 };
 
+const GROUP_LABELS: Record<NonNullable<AssumptionV1['group']>, string> = {
+  'missing-data': 'Missing survey data',
+  'defaults':     'Defaults applied',
+  'derived':      'Derived values',
+};
+
+/** Chip for a single assumption. */
+function AssumptionChip({ a }: { a: AssumptionV1 }) {
+  return (
+    <span
+      title={a.detail}
+      style={{
+        background: a.severity === 'warn' ? '#fef3c7' : '#ebf8ff',
+        border: `1px solid ${a.severity === 'warn' ? '#f59e0b' : '#90cdf4'}`,
+        borderRadius: 4,
+        padding: '2px 7px',
+        fontSize: 11,
+        color: a.severity === 'warn' ? '#92400e' : '#2b6cb0',
+        cursor: a.detail ? 'help' : 'default',
+      }}
+    >
+      {a.severity === 'warn' ? '⚠ ' : 'ℹ '}{a.title}
+    </span>
+  );
+}
+
+/** Renders assumptions grouped by their `group` field when there are 4+ chips. */
+function AssumptionsSection({ assumptions, borderColor }: { assumptions: AssumptionV1[]; borderColor: string }) {
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
+  if (assumptions.length === 0) return null;
+
+  // If < 4 assumptions, render flat chips (no grouping overhead)
+  if (assumptions.length < 4) {
+    return (
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {assumptions.map(a => <AssumptionChip key={a.id} a={a} />)}
+      </div>
+    );
+  }
+
+  // Group assumptions
+  const grouped: Record<string, AssumptionV1[]> = {};
+  const ungrouped: AssumptionV1[] = [];
+  for (const a of assumptions) {
+    if (a.group) {
+      grouped[a.group] = grouped[a.group] ?? [];
+      grouped[a.group].push(a);
+    } else {
+      ungrouped.push(a);
+    }
+  }
+
+  const hasGroups = Object.keys(grouped).length > 0;
+
+  if (!hasGroups) {
+    // All ungrouped — flat chips
+    return (
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {assumptions.map(a => <AssumptionChip key={a.id} a={a} />)}
+      </div>
+    );
+  }
+
+  const toggleGroup = (key: string) =>
+    setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {/* Render grouped sections */}
+      {(Object.keys(grouped) as Array<NonNullable<AssumptionV1['group']>>).map(group => {
+        const items = grouped[group];
+        const isOpen = expandedGroups[group] ?? false;
+        return (
+          <div key={group}>
+            <button
+              onClick={() => toggleGroup(group)}
+              style={{
+                background: 'none',
+                border: `1px solid ${borderColor}44`,
+                borderRadius: 4,
+                padding: '2px 8px',
+                fontSize: 11,
+                cursor: 'pointer',
+                color: '#4a5568',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+              aria-expanded={isOpen}
+            >
+              {isOpen ? '▾' : '▸'} {GROUP_LABELS[group]} ({items.length})
+            </button>
+            {isOpen && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4, paddingLeft: 8 }}>
+                {items.map(a => <AssumptionChip key={a.id} a={a} />)}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {/* Ungrouped chips inline */}
+      {ungrouped.map(a => <AssumptionChip key={a.id} a={a} />)}
+    </div>
+  );
+}
+
 export default function PrimaryVerdictPanel({ verdict }: Props) {
   const style = STATUS_STYLES[verdict.status];
 
@@ -40,7 +148,7 @@ export default function PrimaryVerdictPanel({ verdict }: Props) {
       }}
     >
       {/* Status badge + title */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
         <span
           style={{
             background: style.text,
@@ -57,6 +165,23 @@ export default function PrimaryVerdictPanel({ verdict }: Props) {
         </span>
         <h2 style={{ margin: 0, color: style.text, fontSize: 20 }}>{verdict.title}</h2>
       </div>
+
+      {/* Comparison context line */}
+      {verdict.context === 'comparison' && verdict.comparedTechnologies && (
+        <div
+          style={{
+            fontSize: 13,
+            color: style.text,
+            opacity: 0.85,
+            marginBottom: 12,
+            paddingLeft: 2,
+          }}
+        >
+          {verdict.primaryReason
+            ? `Decision context: ${verdict.primaryReason}`
+            : `Compared against: ${verdict.comparedTechnologies.join(', ')} — see Active Limiters below`}
+        </div>
+      )}
 
       {/* Reasons */}
       {verdict.reasons.length > 0 && (
@@ -90,25 +215,7 @@ export default function PrimaryVerdictPanel({ verdict }: Props) {
         </div>
 
         {verdict.assumptionsUsed.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {verdict.assumptionsUsed.map(a => (
-              <span
-                key={a.id}
-                title={a.detail}
-                style={{
-                  background: a.severity === 'warn' ? '#fef3c7' : '#ebf8ff',
-                  border: `1px solid ${a.severity === 'warn' ? '#f59e0b' : '#90cdf4'}`,
-                  borderRadius: 4,
-                  padding: '2px 7px',
-                  fontSize: 11,
-                  color: a.severity === 'warn' ? '#92400e' : '#2b6cb0',
-                  cursor: a.detail ? 'help' : 'default',
-                }}
-              >
-                {a.severity === 'warn' ? '⚠ ' : 'ℹ '}{a.title}
-              </span>
-            ))}
-          </div>
+          <AssumptionsSection assumptions={verdict.assumptionsUsed} borderColor={style.text} />
         )}
       </div>
     </div>

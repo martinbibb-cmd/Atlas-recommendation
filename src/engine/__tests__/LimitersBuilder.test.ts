@@ -141,4 +141,39 @@ describe('buildLimitersV1', () => {
     expect(result.engineOutput.limiters).toBeDefined();
     expect(Array.isArray(result.engineOutput.limiters!.limiters)).toBe(true);
   });
+
+  it('primary-pipe-constraint always has a derived source for the required flow', () => {
+    // The "Required ASHP flow" is always derived (from heat loss + ΔT), not measured
+    const input = { ...BASE_INPUT, primaryPipeDiameter: 22, heatLossWatts: 14000 };
+    const result = runEngine(input);
+    const { limiters } = buildLimitersV1(result, input);
+    const pipeConstraint = limiters.find(l => l.id === 'primary-pipe-constraint');
+    expect(pipeConstraint).toBeDefined();
+    const derivedSource = pipeConstraint!.sources.find(s => s.kind === 'derived');
+    expect(derivedSource).toBeDefined();
+    expect(derivedSource!.note).toContain('derived');
+  });
+
+  it('primary-pipe-constraint has measured pipe source when diameter is provided', () => {
+    const input = { ...BASE_INPUT, primaryPipeDiameter: 22, heatLossWatts: 14000 };
+    const result = runEngine(input);
+    const { limiters } = buildLimitersV1(result, input);
+    const pipeConstraint = limiters.find(l => l.id === 'primary-pipe-constraint');
+    expect(pipeConstraint).toBeDefined();
+    const measuredSource = pipeConstraint!.sources.find(s => s.kind === 'measured');
+    expect(measuredSource).toBeDefined();
+  });
+
+  it('primary-pipe-constraint has assumed pipe source when diameter is not provided', () => {
+    const input = { ...BASE_INPUT, heatLossWatts: 14000 };
+    // Remove primaryPipeDiameter to trigger assumed path
+    const { primaryPipeDiameter: _, ...inputNoPipe } = input as typeof input & { primaryPipeDiameter?: number };
+    const result = runEngine(inputNoPipe as typeof input);
+    const { limiters } = buildLimitersV1(result, inputNoPipe as typeof input);
+    const pipeConstraint = limiters.find(l => l.id === 'primary-pipe-constraint');
+    if (pipeConstraint) {
+      const assumedSource = pipeConstraint.sources.find(s => s.kind === 'assumed');
+      expect(assumedSource).toBeDefined();
+    }
+  });
 });

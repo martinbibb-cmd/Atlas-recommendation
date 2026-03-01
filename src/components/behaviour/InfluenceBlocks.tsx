@@ -147,6 +147,19 @@ function InfluenceBlock({
 }
 
 export default function InfluenceBlocks({ summary }: Props) {
+  // Determine the dominant domain for the "What this means" sentence
+  const dominantKey = (Object.keys(summary) as Array<keyof InfluenceSummaryV1>).reduce(
+    (best, key) => (summary[key].influencePct > summary[best].influencePct ? key : best),
+    'heat' as keyof InfluenceSummaryV1,
+  );
+
+  const WHAT_THIS_MEANS: Record<keyof InfluenceSummaryV1, string> = {
+    heat:       'What this means: Heat demand drives the system sizing decision.',
+    dhw:        'What this means: DHW requirements drive system selection — hot water delivery is the binding constraint.',
+    hydraulics: 'What this means: Hydraulic constraints determine which systems are viable for this property.',
+  };
+  const whatThisMeans = WHAT_THIS_MEANS[dominantKey];
+
   return (
     <div className="influence-blocks" style={{ marginBottom: 20 }}>
       <h3
@@ -173,6 +186,9 @@ export default function InfluenceBlocks({ summary }: Props) {
           />
         ))}
       </div>
+      <p style={{ margin: '10px 0 0', fontSize: 12, color: '#718096', fontStyle: 'italic' }}>
+        {whatThisMeans}
+      </p>
     </div>
   );
 }
