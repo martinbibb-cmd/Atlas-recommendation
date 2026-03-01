@@ -348,6 +348,56 @@ describe('runCombiDhwModuleV1 — mains flow adequacy rule', () => {
   });
 });
 
+// ─── DHW flow physics (dhwRequiredKw / deliveredFlowLpm) ─────────────────────
+
+describe('runCombiDhwModuleV1 — DHW flow physics', () => {
+  it('dhwRequiredKw and deliveredFlowLpm are null when mainsDynamicFlowLpmKnown is false', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      mainsDynamicFlowLpm: 12,
+      mainsDynamicFlowLpmKnown: false,
+    });
+    expect(result.dhwRequiredKw).toBeNull();
+    expect(result.deliveredFlowLpm).toBeNull();
+    expect(result.flags.some(f => f.id === 'combi-dhw-shortfall')).toBe(false);
+  });
+
+  it('dhwRequiredKw ≈ 33.5 kW and shortfall flag raised for 12 L/min at deltaT 40°C', () => {
+    // 0.0697 × 12 × 40 ≈ 33.46 kW — exceeds nominal 30 kW combi output
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      mainsDynamicFlowLpm: 12,
+      mainsDynamicFlowLpmKnown: true,
+      coldWaterTempC: 10,
+      combiHotOutTempC: 50, // deltaT = 40°C
+    });
+    expect(result.dhwRequiredKw).toBeCloseTo(33.46, 1);
+    expect(result.flags.some(f => f.id === 'combi-dhw-shortfall')).toBe(true);
+    expect(result.deliveredFlowLpm).not.toBeNull();
+    // deliveredFlowLpm = 30 / (0.0697 × 40) ≈ 10.75 L/min
+    expect(result.deliveredFlowLpm!).toBeCloseTo(10.8, 0);
+  });
+
+  it('no shortfall flag and deliveredFlowLpm equals input flow when demand is within capacity', () => {
+    // 0.0697 × 5 × 40 ≈ 13.94 kW — within 30 kW combi output
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      mainsDynamicFlowLpm: 5,
+      mainsDynamicFlowLpmKnown: true,
+      coldWaterTempC: 10,
+      combiHotOutTempC: 50, // deltaT = 40°C
+    });
+    expect(result.flags.some(f => f.id === 'combi-dhw-shortfall')).toBe(false);
+    expect(result.deliveredFlowLpm).toBe(5);
+  });
+});
+
 // ─── Regression tests for specific screenshot scenarios ───────────────────────
 
 describe('runCombiDhwModuleV1 — scenario regressions', () => {

@@ -297,6 +297,7 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
           `${combiHotOutTempC}°C — expect reduced shower temperature or pressure.`,
       });
     } else {
+      deliveredFlowLpm = input.mainsDynamicFlowLpm;
       assumptions.push(
         `DHW flow physics: ${input.mainsDynamicFlowLpm} L/min at ΔT ${deltaTC}°C requires ` +
         `${dhwRequiredKw.toFixed(1)} kW — within derated combi output of ${maxQtoDhwKwDerated} kW.`
