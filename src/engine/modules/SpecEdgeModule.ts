@@ -190,7 +190,7 @@ export function runSpecEdgeModule(input: SpecEdgeInput): SpecEdgeResult {
       `🔩 Magnetite Sludge Tax: No magnetic filter detected. Engine models a ` +
       `${magnetiteSludgeTaxPct}% energy bill increase and a ` +
       `${radiatorHeatOutputReductionPct}% reduction in radiator heat output. ` +
-      `Fit a Fernox TF1 or equivalent to eliminate this penalty (Hive "Check Engine" alert active).`
+      `Fit a Fernox TF1 or equivalent to eliminate this penalty (magnetite alert active).`
     );
   } else {
     notes.push(
