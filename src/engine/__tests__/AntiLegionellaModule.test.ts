@@ -80,3 +80,25 @@ describe('AntiLegionellaModule', () => {
     expect(result.notes.length).toBeGreaterThan(0);
   });
 });
+
+describe('AntiLegionellaModule — combi guard', () => {
+  const combiInput: AntiLegionellaInput = {
+    dhwStorageLitres: 0,
+    systemType: 'combi',
+    weeklyHighTempCycleEnabled: true,
+    highTempCycleTempC: 60,
+    nominalSCOP: 3.5,
+  };
+
+  it('returns annualLegionellaCycles=0 for combi', () => {
+    expect(runAntiLegionellaModule(combiInput).annualLegionellaCycles).toBe(0);
+  });
+
+  it('returns annualPenaltyKwh=0 for combi', () => {
+    expect(runAntiLegionellaModule(combiInput).annualPenaltyKwh).toBe(0);
+  });
+
+  it('returns effectiveSCOP equal to nominalSCOP for combi', () => {
+    expect(runAntiLegionellaModule(combiInput).effectiveSCOP).toBe(combiInput.nominalSCOP);
+  });
+});
