@@ -30,6 +30,18 @@ function calcHeatingEnergyKwh(
 }
 
 export function runAntiLegionellaModule(input: AntiLegionellaInput): AntiLegionellaResult {
+  // Combi boilers have no stored cylinder — legionella thermal cycling is not applicable.
+  if (input.systemType === 'combi') {
+    return {
+      annualLegionellaCycles: 0,
+      energyPerCycleKwh: 0,
+      annualPenaltyKwh: 0,
+      effectiveSCOP: input.nominalSCOP,
+      scopPenaltyPct: 0,
+      notes: ['Combi boiler: no stored cylinder — Legionella thermal disinfection cycle not applicable.'],
+    };
+  }
+
   const notes: string[] = [];
   const annualLegionellaCycles = input.weeklyHighTempCycleEnabled
     ? STANDARD_WEEKLY_CYCLES_PER_YEAR

@@ -21,6 +21,29 @@ const SHORT_DRAW_SIGNATURES = new Set(['steady_home', 'steady', 'shift_worker', 
  */
 const NOMINAL_COMBI_DHW_KW = 30;
 
+// ─── DHW flow physics ─────────────────────────────────────────────────────────
+
+/** Cp / 60: kW per (L/min) per °C. From specific heat of water: 4.186 kJ/(kg·K) ÷ 60 s/min. */
+const DHW_KW_PER_LPM_PER_K = 4.186 / 60; // ≈ 0.0697
+
+/** UK default cold-water mains temperature (°C). */
+const COMBI_COLD_WATER_TEMP_C = 10;
+
+/** Default combi DHW outlet temperature (°C) — hot water leaving the heat exchanger. */
+const COMBI_HOT_OUT_TEMP_C = 50;
+
+/**
+ * Compute DHW heat transfer rate from volumetric flow and temperature rise.
+ *
+ *   kW = DHW_KW_PER_LPM_PER_K × flowLpm × deltaTc
+ *
+ * @param flowLpm   Volumetric flow rate (L/min).
+ * @param deltaTc   Temperature rise (°C). Clamped to ≥ 0.
+ */
+function dhwKwFromFlow(flowLpm: number, deltaTc: number): number {
+  return DHW_KW_PER_LPM_PER_K * flowLpm * Math.max(0, deltaTc);
+}
+
 // ─── Probabilistic DHW overlap model ─────────────────────────────────────────
 
 /** Average hot-water draw duration per event during a shower/bath peak (minutes). */
@@ -204,16 +227,6 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
     );
   }
 
-  // ── Determine overall combiRisk verdict ──────────────────────────────────
-  let combiRisk: CombiDhwV1Result['verdict']['combiRisk'];
-  if (flags.some(f => f.severity === 'fail')) {
-    combiRisk = 'fail';
-  } else if (flags.some(f => f.severity === 'warn')) {
-    combiRisk = 'warn';
-  } else {
-    combiRisk = 'pass';
-  }
-
   // ── Probabilistic morning overlap estimate ───────────────────────────────
   const morningOverlapProbability = estimateMorningOverlapProbability(
     input.occupancyCount,
@@ -255,6 +268,52 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
     );
   }
 
+  // ── DHW flow physics: required kW from actual mains flow ──────────────────
+  // kW = 0.0697 × flowLpm × ΔT — physics-based demand from real measurements.
+  // Only computed when a confirmed measured flow reading is available to avoid
+  // false shortfall flags from estimated values.
+  const coldWaterTempC = input.coldWaterTempC ?? COMBI_COLD_WATER_TEMP_C;
+  const combiHotOutTempC = input.combiHotOutTempC ?? COMBI_HOT_OUT_TEMP_C;
+  const deltaTC = combiHotOutTempC - coldWaterTempC;
+
+  let dhwRequiredKw: number | null = null;
+  let deliveredFlowLpm: number | null = null;
+
+  if (input.mainsDynamicFlowLpmKnown && input.mainsDynamicFlowLpm != null && deltaTC > 0) {
+    dhwRequiredKw = parseFloat(dhwKwFromFlow(input.mainsDynamicFlowLpm, deltaTC).toFixed(2));
+
+    if (dhwRequiredKw > maxQtoDhwKwDerated) {
+      deliveredFlowLpm = parseFloat(
+        (maxQtoDhwKwDerated / (DHW_KW_PER_LPM_PER_K * deltaTC)).toFixed(1)
+      );
+      flags.push({
+        id: 'combi-dhw-shortfall',
+        severity: 'fail',
+        title: 'Combi DHW shortfall: demand exceeds capacity',
+        detail:
+          `Mains flow ${input.mainsDynamicFlowLpm} L/min at ΔT ${deltaTC}°C requires ` +
+          `${dhwRequiredKw.toFixed(1)} kW, which exceeds the derated combi output of ` +
+          `${maxQtoDhwKwDerated} kW. Only ~${deliveredFlowLpm} L/min can be sustained at ` +
+          `${combiHotOutTempC}°C — expect reduced shower temperature or pressure.`,
+      });
+    } else {
+      assumptions.push(
+        `DHW flow physics: ${input.mainsDynamicFlowLpm} L/min at ΔT ${deltaTC}°C requires ` +
+        `${dhwRequiredKw.toFixed(1)} kW — within derated combi output of ${maxQtoDhwKwDerated} kW.`
+      );
+    }
+  }
+
+  // Re-evaluate combiRisk after shortfall flag may have been added
+  let combiRisk: CombiDhwV1Result['verdict']['combiRisk'];
+  if (flags.some(f => f.severity === 'fail')) {
+    combiRisk = 'fail';
+  } else if (flags.some(f => f.severity === 'warn')) {
+    combiRisk = 'warn';
+  } else {
+    combiRisk = 'pass';
+  }
+
   return {
     verdict: { combiRisk },
     morningOverlapProbability,
@@ -263,5 +322,7 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
     maxQtoDhwKw,
     maxQtoDhwKwDerated,
     dhwCapacityDeratePct: clampedDhwDerate,
+    dhwRequiredKw,
+    deliveredFlowLpm,
   };
 }
