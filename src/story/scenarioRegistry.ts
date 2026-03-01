@@ -156,7 +156,7 @@ export interface StoryScenario<TInputs extends ScenarioInputs = ScenarioInputs> 
   advisorIntent: string;
   /**
    * Ordered list of field keys (from ScenarioInputs) that are editable in
-   * this scenario.  Must contain <= 8 entries.
+   * this scenario.  Must contain <= 16 entries.
    */
   fields: (keyof TInputs)[];
   /** Default values for ScenarioInputs. */
