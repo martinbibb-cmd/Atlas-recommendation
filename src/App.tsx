@@ -7,8 +7,36 @@ import ScopePage from './components/governance/ScopePage';
 import MethodologyPage from './components/governance/MethodologyPage';
 import NeutralityPage from './components/governance/NeutralityPage';
 import PrivacyPage from './components/governance/PrivacyPage';
+import BehaviourConsolePage from './components/behaviour/BehaviourConsolePage';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
+import { runEngine } from './engine/Engine';
 import './App.css';
+
+/** Detect ?console=1 feature flag in the URL once at app startup. */
+const CONSOLE_MODE_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('console') === '1';
+
+/**
+ * Demo engine input used when the ?console=1 flag is set.
+ * Produces a realistic UK combi-vs-stored scenario for demonstration.
+ */
+const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
+  postcode: 'SW1A 1AA',
+  dynamicMainsPressure: 1.8,
+  mainsDynamicFlowLpm: 14,
+  primaryPipeDiameter: 22,
+  heatLossWatts: 8000,
+  radiatorCount: 10,
+  bathroomCount: 1,
+  occupancyCount: 3,
+  hasLoftConversion: false,
+  returnWaterTemp: 45,
+  occupancySignature: 'professional',
+  buildingMass: 'medium',
+  highOccupancy: false,
+  preferCombi: true,
+};
 
 type Journey = 'landing' | 'fast' | 'full' | 'portfolio' | 'scope' | 'methodology' | 'neutrality' | 'privacy';
 
@@ -72,6 +100,20 @@ export default function App() {
     setJourney('full');
   }
 
+  // ?console=1 feature flag — render Behaviour Console with demo engine output.
+  if (CONSOLE_MODE_ENABLED) {
+    const { engineOutput } = runEngine(CONSOLE_DEMO_INPUT);
+    return (
+      <BehaviourConsolePage
+        output={engineOutput}
+        onBack={() => {
+          // Remove ?console=1 and reload to return to the landing page.
+          window.location.href = window.location.pathname;
+        }}
+      />
+    );
+  }
+
   if (journey === 'fast') return <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} />;
   if (journey === 'full') return <FullSurveyStepper onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }} prefill={fullSurveyPrefill} />;
   if (journey === 'portfolio') return <PortfolioDashboard properties={demoPortfolio} onBack={() => setJourney('landing')} />;
@@ -126,6 +168,18 @@ export default function App() {
             <li>Proactive maintenance scheduling</li>
           </ul>
           <button className="cta-btn" style={{ background: '#9f7aea' }}>View Portfolio →</button>
+        </div>
+        <div className="journey-card full" onClick={() => { window.location.search = '?console=1'; }} style={{ borderColor: '#38a169' }}>
+          <div className="card-icon">📊</div>
+          <h2>Behaviour Console</h2>
+          <p className="card-time">New · Demo</p>
+          <p>Timeline-first presentation with a single dominant Behaviour Console view.</p>
+          <ul>
+            <li>24-hour system behaviour timeline</li>
+            <li>Active limiters &amp; constraints</li>
+            <li>Domain influence breakdown</li>
+          </ul>
+          <button className="cta-btn" style={{ background: '#38a169' }}>Open Console →</button>
         </div>
       </div>
       <Footer onNavigate={setJourney} />

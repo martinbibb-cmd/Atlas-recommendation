@@ -299,6 +299,144 @@ export interface VisualSpecV1 {
   affectsOptionIds?: string[];
 }
 
+// ─── Behaviour Timeline (V1) ──────────────────────────────────────────────────
+
+/**
+ * A single point in the BehaviourTimelineV1 series.
+ * The timeline renderer must not run physics — all values are pre-normalised.
+ */
+export interface TimelineSeriesPoint {
+  /** ISO timestamp or "HH:MM" label for the X axis. */
+  t: string;
+  /** Space-heat demand (kW ≥ 0). */
+  heatDemandKw: number;
+  /** DHW demand (kW ≥ 0). */
+  dhwDemandKw: number;
+  /** Total delivered output from the appliance (kW ≥ 0). */
+  applianceOutKw: number;
+  /** Optional constant capacity line (kW). */
+  applianceCapKw?: number;
+  /** Boiler efficiency fraction (0–1). Present for boiler systems. */
+  efficiency?: number;
+  /** Heat pump COP (> 1). Present for ASHP systems. */
+  cop?: number;
+  /** Operating mode at this timestep. */
+  mode?: 'space' | 'dhw' | 'mixed' | 'idle';
+}
+
+/**
+ * Complete 24-hour behaviour timeline produced by the engine.
+ * The UI renderer must be "dumb" — draw only; no physics.
+ */
+export interface BehaviourTimelineV1 {
+  timezone: 'Europe/London';
+  resolutionMins: 5 | 10 | 15;
+  points: TimelineSeriesPoint[];
+
+  labels: {
+    /** e.g. "Combi Boiler", "System Boiler", "ASHP" */
+    applianceName: string;
+    efficiencyLabel: 'Efficiency' | 'COP';
+  };
+
+  /**
+   * Assumptions surfaced near the timeline — shown as info/warn badges.
+   */
+  assumptionsUsed: Array<{
+    id: string;
+    label: string;
+    details?: string;
+    severity: 'info' | 'warn';
+  }>;
+}
+
+// ─── Limiters (V1) ────────────────────────────────────────────────────────────
+
+export type LimiterSeverity = 'info' | 'warn' | 'fail';
+
+export interface LimiterMetric {
+  label: string;
+  value: number;
+  unit: 'kW' | 'L/min' | 'm/s' | 'kPa' | '%' | 'COP';
+}
+
+export interface LimiterFix {
+  id: string;
+  label: string;
+  deltaHint?: string;
+}
+
+export interface LimiterV1 {
+  id:
+    | 'mains-flow-constraint'
+    | 'combi-concurrency-constraint'
+    | 'primary-pipe-constraint'
+    | 'cycling-loss-penalty'
+    | 'flow-temp-too-high-for-ashp'
+    | 'radiator-output-insufficient'
+    | string;
+
+  title: string;
+  severity: LimiterSeverity;
+
+  observed: LimiterMetric;
+  limit: LimiterMetric;
+
+  impact: {
+    summary: string;
+    detail?: string;
+  };
+
+  confidence: 'high' | 'medium' | 'low';
+
+  sources: Array<{
+    kind: 'measured' | 'assumed' | 'derived';
+    id?: string;
+    note?: string;
+  }>;
+
+  suggestedFixes: LimiterFix[];
+
+  /** Optional index ranges within BehaviourTimelineV1.points for highlighting. */
+  activeWindows?: Array<{ startIndex: number; endIndex: number }>;
+}
+
+export interface LimitersV1 {
+  limiters: LimiterV1[];
+}
+
+// ─── Influence Summary (V1) ───────────────────────────────────────────────────
+
+export interface InfluenceBlockV1 {
+  /** 0–100 percentage influence this domain has on the overall verdict. */
+  influencePct: number;
+  /** Top 2 influencing factors (plain English). */
+  topDrivers: string[];
+  /** Count of assumptions in this domain. */
+  assumptionsCount: number;
+}
+
+export interface InfluenceSummaryV1 {
+  heat: InfluenceBlockV1;
+  dhw: InfluenceBlockV1;
+  hydraulics: InfluenceBlockV1;
+}
+
+// ─── Verdict (V1) ─────────────────────────────────────────────────────────────
+
+export interface VerdictV1 {
+  /** Plain English title for the primary recommendation. */
+  title: string;
+  /** Traffic-light status. */
+  status: 'good' | 'caution' | 'fail';
+  /** Up to 3 human-readable reasons for this verdict. */
+  reasons: string[];
+  /** Confidence from the engine. */
+  confidence: ConfidenceV1;
+  /** Centralised list of assumptions surfaced at the verdict level. */
+  assumptionsUsed: AssumptionV1[];
+}
+
 export interface EngineOutputV1 {
   eligibility: EligibilityItem[];
   redFlags: RedFlagItem[];
@@ -315,4 +453,12 @@ export interface EngineOutputV1 {
   /** Engine-driven visual specs. UI renders by type switch — no business logic in UI. */
   visuals?: VisualSpecV1[];
   meta?: EngineMetaV1;
+  /** Pre-normalised 24h behaviour timeline for the Behaviour Console UI. */
+  behaviourTimeline?: BehaviourTimelineV1;
+  /** First-class named constraints explaining the verdict. */
+  limiters?: LimitersV1;
+  /** Centralised verdict object — all panels must reference this, not re-derive. */
+  verdict?: VerdictV1;
+  /** Domain influence summary for InfluenceBlocks UI panel. */
+  influenceSummary?: InfluenceSummaryV1;
 }
