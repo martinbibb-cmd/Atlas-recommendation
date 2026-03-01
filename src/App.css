@@ -1277,6 +1277,13 @@ body {
   margin-bottom: 0.75rem;
 }
 
+.story-stored-type-toggle__hint--recommendation {
+  font-size: 0.82rem;
+  color: #276749;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
 .story-escalation__btn {
   font-size: 0.875rem;
 }

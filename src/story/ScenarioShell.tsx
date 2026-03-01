@@ -178,6 +178,11 @@ function CombiSwitchShell({
             ? 'Vented = tank-fed (loft), stable delivery, not "mains pressure"'
             : 'Unvented = mains pressure, subject to mains flow'}
         </p>
+        {inputs.mainsFlowLpmKnown && inputs.mainsFlowLpm >= 18 && inputs.storedType === 'vented' && (
+          <p className="story-stored-type-toggle__hint story-stored-type-toggle__hint--recommendation">
+            ✅ Mains flow ≥ 18 L/min confirmed — unvented recommended
+          </p>
+        )}
       </div>
 
       <div className="scenario-shell__layout">

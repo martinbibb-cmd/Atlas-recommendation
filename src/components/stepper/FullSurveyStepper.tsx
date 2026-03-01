@@ -605,7 +605,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
 
           <div className="form-grid">
             <div className="form-field">
-              <label>Postcode</label>
+              <label>Postcode outward code (first two characters, e.g. SW, BH, DT)</label>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 <input
                   type="text"
