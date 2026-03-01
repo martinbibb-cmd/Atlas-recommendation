@@ -271,7 +271,7 @@ export function buildOptionMatrixV1(
     likelyUpgrades: core.pressureAnalysis.dynamicBar < 1.5
       ? ['Mains pressure boost pump (< 1.5 bar detected).']
       : [],
-    niceToHave: ['Nest/Hive smart thermostat for occupancy-led control.'],
+    niceToHave: ['Hive smart thermostat for occupancy-led control.'],
   };
 
   cards.push({
