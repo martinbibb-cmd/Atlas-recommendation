@@ -106,7 +106,7 @@ export function runThermalInertiaModule(input: ThermalInertiaInput): ThermalIner
     notes.push(
       `⚠️ Comfort alert: indoor temperature falls to ${finalTempC}°C during the away period. ` +
       `This is below the 16°C WHO minimum comfort threshold and will feel cold on return. ` +
-      `A Hive smart thermostat with "Eco Away" mode can prevent over-shooting the reheat.`,
+      `A smart thermostat with eco-away mode can prevent over-shooting the reheat.`,
     );
   }
 
@@ -143,7 +143,7 @@ function buildNarrative(
       `The cavity wall construction offers moderate thermal storage. ` +
       `After ${hours} hours without heating the indoor temperature drops by ${totalDropC}°C ` +
       `to ${finalTempC}°C. ` +
-      `A Hive smart schedule can pre-heat this building efficiently before occupants return, ` +
+      `A smart schedule can pre-heat this building efficiently before occupants return, ` +
       `avoiding unnecessary heat loss during extended unoccupied periods.`
     );
   } else if (input.fabricType === 'passivhaus_standard') {
@@ -163,7 +163,7 @@ function buildNarrative(
       `${finalTempC < 16
         ? `At ${finalTempC}°C the home is cold on return and requires a high-power reheat burst, ` +
           `which increases peak gas demand and reduces boiler efficiency.`
-        : `Smart scheduling (e.g. Hive Active Heating) can pre-heat this building efficiently ` +
+        : `Smart scheduling can pre-heat this building efficiently ` +
           `before occupants return.`
       }`
     );

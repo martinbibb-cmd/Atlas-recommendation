@@ -111,6 +111,19 @@ export default function EngineerDetails({ output }: Props) {
                 <KV label="Confidence" value={output.verdict.confidence.level} />
               </>
             )}
+            <div
+              style={{
+                marginTop: 8,
+                fontSize: 11,
+                color: '#92400e',
+                background: '#fef3c7',
+                border: '1px solid #f59e0b',
+                borderRadius: 4,
+                padding: '4px 8px',
+              }}
+            >
+              ⚠ Intermittent stepped schedules can increase cycling; weather compensation / load matching preferred where available.
+            </div>
           </Section>
 
           {/* Evidence items */}
