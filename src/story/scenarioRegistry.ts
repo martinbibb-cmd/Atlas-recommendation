@@ -9,8 +9,14 @@
  */
 
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
-import type { SeasonPreset, DhwModePreset, ShowerPreset } from '../engine/presets/DhwFlowPresets';
-export type { SeasonPreset, DhwModePreset, ShowerPreset };
+import type {
+  SeasonPreset, DhwModePreset, ShowerPreset,
+  CombiOutputKw, PropertyType, ShowerDurationPreset,
+} from '../engine/presets/DhwFlowPresets';
+export type {
+  SeasonPreset, DhwModePreset, ShowerPreset,
+  CombiOutputKw, PropertyType, ShowerDurationPreset,
+};
 import { combiSwitchScenario } from './scenarios/combiSwitch';
 import { oldBoilerRealityScenario } from './scenarios/oldBoilerReality';
 import { heatPumpViabilityScenario } from './scenarios/heatPumpViability';
@@ -74,6 +80,18 @@ export interface CombiSwitchInputs {
   dhwMode: DhwModePreset;
   /** Shower type preset → outlet flow L/min for physics callouts. */
   showerPreset: ShowerPreset;
+  // ── System type ───────────────────────────────────────────────────────────
+  /** Combi boiler DHW output kW — drives the heat-limit line on the graph. */
+  combiKw: CombiOutputKw;
+  // ── Customer usage modelling ──────────────────────────────────────────────
+  /** Property type → indicative peak heat demand (for sizing context). */
+  propertyType: PropertyType;
+  /** Number of showers taken per day (for daily DHW volume estimate). */
+  showersPerDay: 1 | 2 | 3 | 4;
+  /** Average shower duration preset → minutes per draw. */
+  showerDurationPreset: ShowerDurationPreset;
+  /** Number of baths per day (0 / 1 / 2+, for daily DHW volume). */
+  bathsPerDay: 0 | 1 | 2;
 }
 
 /**

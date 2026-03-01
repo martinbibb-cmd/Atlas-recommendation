@@ -8,6 +8,7 @@
  * bathroom count heuristics only (per custom_instruction rule 6).
  */
 import type { CombiSwitchInputs, OldBoilerRealityInputs } from './scenarioRegistry';
+import { COMBI_OUTPUT_KW_OPTIONS } from '../engine/presets/DhwFlowPresets';
 import type { HeatPumpViabilityInputs } from './scenarios/heatPumpViability';
 
 // ── Shared chip button ────────────────────────────────────────────────────────
@@ -214,6 +215,87 @@ export function CombiSwitchInputPanel({ inputs, onChange }: CombiSwitchPanelProp
           value={inputs.showerPreset}
           onChange={v => set('showerPreset', v)}
         />
+      </section>
+
+      <section className="cockpit-group">
+        <h4>System type</h4>
+
+        {/* Combi output kW — drives heat-limit line on the graph */}
+        <div className="form-field">
+          <label className="form-field__label">Combi boiler output (kW)</label>
+          <div className="chip-group">
+            {COMBI_OUTPUT_KW_OPTIONS.map(kw => (
+              <ChipButton
+                key={kw}
+                label={`${kw} kW`}
+                active={inputs.combiKw === kw}
+                onClick={() => set('combiKw', kw)}
+              />
+            ))}
+          </div>
+          <p className="form-field__hint">
+            Larger combi → higher heat-limit line on the concurrency graph.
+          </p>
+        </div>
+
+        {/* Property type — heat demand context */}
+        <ChipGroup
+          label="Property type"
+          options={[
+            { value: 'flat',         label: 'Flat (~3 kW)' },
+            { value: 'small_house',  label: 'Small house (~5 kW)' },
+            { value: 'medium_house', label: 'Medium house (~8 kW)' },
+            { value: 'large_house',  label: 'Large house (~12 kW)' },
+          ]}
+          value={inputs.propertyType}
+          onChange={v => set('propertyType', v)}
+        />
+      </section>
+
+      <section className="cockpit-group">
+        <h4>Daily water &amp; heat usage</h4>
+
+        {/* Showers per day */}
+        <div className="form-field">
+          <label className="form-field__label">Showers per day</label>
+          <div className="chip-group">
+            {([1, 2, 3, 4] as const).map(n => (
+              <ChipButton
+                key={n}
+                label={n === 4 ? '4+' : String(n)}
+                active={inputs.showersPerDay === n}
+                onClick={() => set('showersPerDay', n)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Shower duration */}
+        <ChipGroup
+          label="Shower duration"
+          options={[
+            { value: 'quick',    label: 'Quick (5 min)' },
+            { value: 'standard', label: 'Standard (8 min)' },
+            { value: 'long',     label: 'Long (12 min)' },
+          ]}
+          value={inputs.showerDurationPreset}
+          onChange={v => set('showerDurationPreset', v)}
+        />
+
+        {/* Baths per day */}
+        <div className="form-field">
+          <label className="form-field__label">Baths per day</label>
+          <div className="chip-group">
+            {([0, 1, 2] as const).map(n => (
+              <ChipButton
+                key={n}
+                label={n === 2 ? '2+' : String(n)}
+                active={inputs.bathsPerDay === n}
+                onClick={() => set('bathsPerDay', n)}
+              />
+            ))}
+          </div>
+        </div>
       </section>
     </div>
   );
