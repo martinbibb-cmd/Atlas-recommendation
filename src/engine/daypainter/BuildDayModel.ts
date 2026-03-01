@@ -38,15 +38,14 @@ function eventFlowLpm(event: DayEvent): number {
   return event.flowLpm ?? 0;
 }
 
-export function buildDefaultDayModel(): DayModelV1 {
-  const events: DayEvent[] = [
-    { type: 'shower', startMin: 7 * 60 + 10, durationMin: 10, flowLpm: 10 },
-    { type: 'handwash', startMin: 8 * 60 + 10, durationMin: 2, flowLpm: 2 },
-    { type: 'coldFillAppliance', startMin: 13 * 60, durationMin: 10, flowLpm: 2, applianceType: 'dishwasher' },
-    { type: 'shower', startMin: 19 * 60 + 20, durationMin: 8, flowLpm: 9 },
-    { type: 'bath', startMin: 21 * 60, durationMin: 12, litres: 90 },
-  ];
-
+/**
+ * Build a DayModelV1 from an arbitrary list of DayEvent objects.
+ *
+ * Cold-fill appliance events (dishwasher / washing machine) are excluded from
+ * the dhwMixedLpmByStep array — they draw cold mains directly and do not
+ * create a DHW heat load on the boiler or cylinder.
+ */
+export function buildDayModelFromEvents(events: DayEvent[]): DayModelV1 {
   const dhwMixedLpmByStep = Array.from({ length: STEPS_PER_DAY }, (_, step) => {
     const minute = step * STEP_MINS;
     return events.reduce((sum, event) => {
@@ -64,4 +63,15 @@ export function buildDefaultDayModel(): DayModelV1 {
     events,
     dhwMixedLpmByStep,
   };
+}
+
+export function buildDefaultDayModel(): DayModelV1 {
+  const events: DayEvent[] = [
+    { type: 'shower', startMin: 7 * 60 + 10, durationMin: 10, flowLpm: 10 },
+    { type: 'handwash', startMin: 8 * 60 + 10, durationMin: 2, flowLpm: 2 },
+    { type: 'coldFillAppliance', startMin: 13 * 60, durationMin: 10, flowLpm: 2, applianceType: 'dishwasher' },
+    { type: 'shower', startMin: 19 * 60 + 20, durationMin: 8, flowLpm: 9 },
+    { type: 'bath', startMin: 21 * 60, durationMin: 12, litres: 90 },
+  ];
+  return buildDayModelFromEvents(events);
 }

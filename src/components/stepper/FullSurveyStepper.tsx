@@ -3320,8 +3320,29 @@ function FullSurveyResults({
         <DayPainterResults
           heatLossWatts={input.heatLossWatts}
           tauHours={results.fabricModelV1?.driftTauHours ?? (input.buildingMass === 'heavy' ? 68 : input.buildingMass === 'light' ? 24 : 42)}
-          currentSystem={input.currentHeatSourceType === 'combi' ? 'combi' : input.dhwTankType === 'mixergy' ? 'mixergy' : 'stored'}
-          proposedSystem={engineOutput.recommendation.primary.toLowerCase().includes('heat pump') ? 'ashp' : engineOutput.recommendation.primary.toLowerCase().includes('combi') ? 'combi' : input.dhwTankType === 'mixergy' ? 'mixergy' : 'stored'}
+          currentSystem={
+            input.currentHeatSourceType === 'combi' ? 'combi' :
+            input.currentHeatSourceType === 'ashp'  ? 'heat_pump' :
+            // 'system' boilers typically paired with unvented cylinders;
+            // 'regular' boilers typically paired with open-vented cylinders.
+            (() => {
+              const isMixergy = input.dhwTankType === 'mixergy';
+              const isUnvented = input.currentHeatSourceType === 'system';
+              if (isMixergy) return isUnvented ? 'mixergy_unvented' : 'mixergy_open_vented';
+              return isUnvented ? 'unvented' : 'open_vented';
+            })()
+          }
+          proposedSystem={
+            (() => {
+              const rec = engineOutput.recommendation.primary.toLowerCase();
+              if (rec.includes('heat pump')) return 'heat_pump';
+              if (rec.includes('combi'))     return 'combi';
+              const isMixergy = rec.includes('mixergy') || input.dhwTankType === 'mixergy';
+              const isUnvented = rec.includes('unvented');
+              if (isMixergy) return isUnvented ? 'mixergy_unvented' : 'mixergy_open_vented';
+              return isUnvented ? 'unvented' : 'open_vented';
+            })()
+          }
         />
       </div>
 
