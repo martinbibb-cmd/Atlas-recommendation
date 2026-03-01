@@ -1,4 +1,8 @@
 import type { EngineInputV2_3, StoredDhwV1Result, StoredDhwFlagItem } from '../schema/EngineInputV2_3';
+import {
+  computeTapMixing,
+  DEFAULT_STORED_BOILER_STORE_TEMP_C,
+} from '../utils/dhwMixing';
 
 /** Minimum mains dynamic flow (L/min) for an unvented cylinder to perform well. */
 const UNVENTED_MIN_ADEQUATE_LPM = 18;
@@ -166,5 +170,11 @@ export function runStoredDhwModuleV1(
     recommended: { type: recommendedType, volumeBand },
     flags,
     assumptions,
+    dhwMixing: computeTapMixing({
+      storeTempC: input.storeTempC ?? DEFAULT_STORED_BOILER_STORE_TEMP_C,
+      tapTargetTempC: input.tapTargetTempC,
+      coldWaterTempC: input.coldWaterTempC,
+      mixedFlowLpm: input.dhwMixedFlowLpm,
+    }),
   };
 }

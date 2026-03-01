@@ -1,5 +1,7 @@
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 export type { EngineOutputV1 };
+import type { TapMixingResult } from '../utils/dhwMixing';
+export type { TapMixingResult };
 import type { PressureAnalysis } from '../modules/PressureModule';
 export type { PressureAnalysis };
 import type { CwsSupplyV1Result } from '../modules/CwsSupplyModule';
@@ -79,6 +81,28 @@ export interface EngineInputV2_3 {
    * 'pumped' and 'tank_pumped' are accepted as legacy aliases for 'pumped_from_tank'.
    */
   dhwDeliveryMode?: 'unknown' | 'gravity' | 'pumped_from_tank' | 'tank_pumped' | 'pumped' | 'mains_mixer' | 'accumulator_supported' | 'break_tank_booster' | 'electric_cold_only';
+  /**
+   * Incoming cold-water mains temperature (°C) for DHW tap-mixing calculations.
+   * Default: 10 °C (UK annual mean ground-water average).
+   */
+  coldWaterTempC?: number;
+  /**
+   * Target mixed temperature at the tap outlet (°C).
+   * Default: 40 °C (comfortable wash/shower).
+   */
+  tapTargetTempC?: number;
+  /**
+   * Cylinder/store setpoint temperature (°C) for DHW mixing ratio calculations.
+   * Defaults: stored boiler 55 °C; ASHP store 50 °C.
+   * A lower store temperature requires a higher hot fraction to reach tap temperature,
+   * increasing cylinder depletion rate even though energy to the user is the same.
+   */
+  storeTempC?: number;
+  /**
+   * Total mixed flow at the tap outlet (L/min) for DHW mixing calculations.
+   * Default: 10 L/min (representative shower/bath draw).
+   */
+  dhwMixedFlowLpm?: number;
 
   // Building
   buildingMass: BuildingMass;
@@ -364,6 +388,16 @@ export interface StoredDhwV1Result {
   };
   flags: StoredDhwFlagItem[];
   assumptions: string[];
+  /**
+   * Tap mixing physics for this stored system.
+   *
+   * Captures the hot/cold mixing ratio required to deliver the target tap
+   * temperature from this cylinder's store setpoint.  Lower store temperatures
+   * (e.g. 50 °C ASHP) require a higher hot fraction than hotter cylinders
+   * (e.g. 60 °C boiler store), affecting cylinder depletion rate and cold-draw
+   * series even when the energy delivered to the user is identical.
+   */
+  dhwMixing: TapMixingResult;
 }
 
 export interface MixergyResult {
