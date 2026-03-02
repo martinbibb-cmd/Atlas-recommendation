@@ -261,16 +261,13 @@ export function buildPathwaysV1(
   // ── Pathway 1: Direct ASHP ────────────────────────────────────────────────
   if (ashpViable && ashpHydraulicPass && !screedLeakRisk && !primaryPipeConstraintFail) {
     const flowKnown = flowLpm !== undefined && !flowLow;
-    pathways.push(buildDirectAshpPathway(1, flowKnown));
+    pathways.push(buildDirectAshpPathway(pathways.length + 1, flowKnown));
   }
 
   // ── Pathway 2: Boiler + Mixergy Enablement ────────────────────────────────
   if (ashpViable && (screedLeakRisk || primaryPipeConstraintFail)) {
-    // Rank 1 when futureReadiness is priority; otherwise rank 2
-    const rank =
-      assumptions.futureReadinessPriority === 'high' && pathways.length === 0 ? 1 : pathways.length + 1;
     pathways.push(
-      buildBoilerMixergyEnablementPathway(rank, screedLeakRisk, primaryPipeConstraintFail),
+      buildBoilerMixergyEnablementPathway(pathways.length + 1, screedLeakRisk, primaryPipeConstraintFail),
     );
   }
 
@@ -281,9 +278,7 @@ export function buildPathwaysV1(
 
   // ── Pathway 4: Combi Single Tech ──────────────────────────────────────────
   if (combiViable && assumptions.disruptionTolerance === 'low') {
-    // Rank 1 when disruption is low and no other pathway placed yet; otherwise last
-    const rank = pathways.length === 0 ? 1 : pathways.length + 1;
-    pathways.push(buildCombiSingleTechPathway(rank));
+    pathways.push(buildCombiSingleTechPathway(pathways.length + 1));
   }
 
   // ── Fallback: always offer at least one pathway ───────────────────────────

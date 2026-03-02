@@ -176,7 +176,7 @@ function PathwayCard({
           padding: '10px 12px',
           cursor: 'pointer',
         }}
-        onClick={() => setExpanded(e => !e)}
+        onClick={() => setExpanded(prev => !prev)}
         role="button"
         aria-expanded={expanded}
       >

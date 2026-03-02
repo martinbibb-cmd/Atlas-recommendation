@@ -111,7 +111,7 @@ export default function CustomerSummaryPanel({ plan, selectedPathwayId }: Props)
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }).catch(() => {
-      // Fallback: select the textarea text
+      // Clipboard API unavailable — no fallback needed; user can manually select the textarea
     });
   }
 
