@@ -30,6 +30,14 @@ const DHW_DELTA_T_C = DHW_TARGET_C - COLD_INLET_C; // 30 °C
 /** @deprecated Use DHW_KW_PER_LPM_PER_K from DhwFlowPresets. Internal alias for compatibility. */
 const DHW_KW_PER_LPM_PER_C = DHW_KW_PER_LPM_PER_K;
 
+// ── Heating demand constants ──────────────────────────────────────────────────
+/** Design indoor comfort temperature (°C) — full demand. */
+const COMFORT_TEMP_C = 21;
+/** Setback temperature (°C) — background heating. */
+const SETBACK_TEMP_C = 16;
+/** Minimum heating fraction applied when a band is active (setback floor). */
+const MINIMUM_HEATING_FRACTION = 0.40;
+
 /**
  * Flow rate (L/min) for each DhwEventV1 profile.
  * Mirrors OUTLET_FLOW_PRESETS_LPM in DhwFlowPresets — do not duplicate magic numbers.
@@ -134,13 +142,11 @@ export function programToHourlyDemandKw(
 function heatingFractionAtMinute(dayProfile: DayProfileV1, minuteOfDay: number): number {
   for (const band of dayProfile.heatingBands) {
     if (minuteOfDay >= band.startMin && minuteOfDay < band.endMin) {
-      // Map target temperature to a demand fraction using design ΔT (24 K).
-      // targetC ~21 → fraction ~1.0; targetC ~16 → fraction ~0.40.
-      const DESIGN_INDOOR_C = 21;
-      const SETBACK_C = 16;
-      const span = DESIGN_INDOOR_C - SETBACK_C;
-      const fraction = Math.max(0, Math.min(1, (band.targetC - SETBACK_C) / span));
-      return Math.max(0.40, fraction); // at least setback
+      // Map target temperature to a demand fraction using design ΔT.
+      // targetC ~COMFORT_TEMP_C → fraction ~1.0; targetC ~SETBACK_TEMP_C → fraction ~MINIMUM_HEATING_FRACTION.
+      const span = COMFORT_TEMP_C - SETBACK_TEMP_C;
+      const fraction = Math.max(0, Math.min(1, (band.targetC - SETBACK_TEMP_C) / span));
+      return Math.max(MINIMUM_HEATING_FRACTION, fraction); // at least setback
     }
   }
   return 0; // off when no band covers this minute

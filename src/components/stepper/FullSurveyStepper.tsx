@@ -2869,7 +2869,6 @@ function FullSurveyResults({
     : results.engineOutput.recommendation.primary.toLowerCase().includes('unvented') ? 'stored_unvented'
     : results.engineOutput.recommendation.primary.toLowerCase().includes('vented') ? 'stored_vented'
     : 'on_demand';
-  const [, setHoveredTimelineIndex] = useState<number | undefined>(undefined);
   const [selectedPathwayId, setSelectedPathwayId] = useState<string | undefined>(undefined);
   const [expertOpen, setExpertOpen] = useState(false);
   /** Hive-style day profile — the new primary input for the Day Schedule Panel. */
@@ -3289,7 +3288,6 @@ function FullSurveyResults({
               payload={timelinePayload}
               compareAId={compareAId}
               compareBId={compareBId}
-              onHoverIndexChange={setHoveredTimelineIndex}
             />
           </div>
         )}

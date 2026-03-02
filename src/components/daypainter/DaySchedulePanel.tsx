@@ -67,6 +67,12 @@ const KIND_LABELS: Record<DhwEventV1['kind'], string> = {
 
 const DURATION_OPTIONS = [5, 8, 10, 12, 15, 20];
 
+// ── Temperature bounds for heating setpoint inputs ────────────────────────────
+/** Minimum allowed heating setpoint (°C) — frost protection floor. */
+const MIN_HEATING_TEMP_C = 14;
+/** Maximum allowed heating setpoint (°C) — over-heat prevention ceiling. */
+const MAX_HEATING_TEMP_C = 25;
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const sectionStyle: CSSProperties = {
@@ -156,8 +162,8 @@ function HeatingScheduleBands({
           <label style={{ fontSize: '0.78rem', color: '#718096' }}>Temp</label>
           <input
             type="number"
-            min={14}
-            max={25}
+            min={MIN_HEATING_TEMP_C}
+            max={MAX_HEATING_TEMP_C}
             style={{ ...inputStyle, width: '52px' }}
             value={band.targetC}
             onChange={(e) => update(i, { targetC: Number(e.target.value) })}

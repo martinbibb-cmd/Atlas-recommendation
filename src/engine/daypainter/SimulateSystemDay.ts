@@ -8,6 +8,29 @@ export type DaySystemType =
   | 'mixergy_unvented'
   | 'heat_pump';
 
+// ── Cylinder standing-loss constants ─────────────────────────────────────────
+
+/**
+ * Conventional vented/unvented cylinder standing heat loss (kW).
+ * ~1.9 kWh/day for a 210L tank (BS EN 12897 standing-loss category).
+ */
+const CONVENTIONAL_CYLINDER_LOSS_KW = 0.08;
+
+/**
+ * Mixergy cylinder standing heat loss (kW).
+ * Top-down stratification keeps the cold lower portion near ambient, so
+ * effective heat-loss surface area is smaller.  ~37% reduction vs conventional,
+ * consistent with Mixergy's 21% whole-system gas-saving field data (the saving
+ * applies to total DHW energy, of which standing loss is a part).
+ */
+const MIXERGY_STANDING_LOSS_KW = 0.05;
+
+/**
+ * Heat-pump cylinder standing heat loss (kW).
+ * Typically better-insulated than a standard vented cylinder.
+ */
+const HEAT_PUMP_CYLINDER_LOSS_KW = 0.06;
+
 export interface SimSlice {
   idx: number;
   timeLabel: string;
@@ -81,10 +104,10 @@ export function simulateSystemDay(params: {
      * heat_pump: better-insulated cylinder than a typical vented tank.
      * conventional: 0.08 kW ≈ 1.9 kWh/day standing loss for a 210L tank.
      */
-    const cylinderLossKw = isMixergyType(systemType) ? 0.05
-      : systemType === 'heat_pump' ? 0.06
+    const cylinderLossKw = isMixergyType(systemType) ? MIXERGY_STANDING_LOSS_KW
+      : systemType === 'heat_pump' ? HEAT_PUMP_CYLINDER_LOSS_KW
       : systemType === 'combi' ? 0
-      : 0.08;
+      : CONVENTIONAL_CYLINDER_LOSS_KW;
     let flueLossKw = 0;
     let dumpToChKw = 0;
 
