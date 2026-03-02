@@ -1,12 +1,14 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import ModellingNotice from '../ModellingNotice';
-import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
+import type { EngineInputV2_3, FullEngineResult, ExpertAssumptionsV1 } from '../../engine/schema/EngineInputV2_3';
 import type { AssumptionV1, ConfidenceV1 } from '../../contracts/EngineOutputV1';
 import { runEngine } from '../../engine/Engine';
 import { runHydraulicModuleV1 } from '../../engine/modules/HydraulicModule';
 import { runCombiDhwModuleV1 } from '../../engine/modules/CombiDhwModule';
 import { runStoredDhwModuleV1 } from '../../engine/modules/StoredDhwModule';
 import StoryModeContainer, { ENABLE_STORY_MODE } from '../../story/StoryModeContainer';
+import ExpertPanel from '../visualizers/ExpertPanel';
+import CustomerSummaryPanel from '../visualizers/CustomerSummaryPanel';
 
 interface Props {
   onBack: () => void;
@@ -65,6 +67,7 @@ function LegacyInputCockpit({ onBack }: { onBack: () => void }) {
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [selectedOptionId, setSelectedOptionId] = useState<string>('combi');
   const [isSimulating, setIsSimulating] = useState(false);
+  const [expertAssumptions, setExpertAssumptions] = useState<ExpertAssumptionsV1>({});
 
   const [input, setInput] = useState<EngineInputV2_3>(defaultInput);
   const [pressureMode, setPressureMode] = useState<PressureMode>('known');
@@ -140,6 +143,12 @@ function LegacyInputCockpit({ onBack }: { onBack: () => void }) {
         result={results}
         selectedOptionId={selectedOptionId}
         onSelectOption={setSelectedOptionId}
+        expertAssumptions={expertAssumptions}
+        onAssumptionsChange={ea => {
+          setExpertAssumptions(ea);
+          const updatedInput = { ...engineInput, expertAssumptions: ea };
+          setResults(runEngine(updatedInput));
+        }}
       />
     );
   }
@@ -322,15 +331,24 @@ function ResultsCockpit({
   result,
   selectedOptionId,
   onSelectOption,
+  expertAssumptions,
+  onAssumptionsChange,
 }: {
   onBack: () => void;
   onEditInputs: () => void;
   result: FullEngineResult;
   selectedOptionId: string;
   onSelectOption: (id: string) => void;
+  expertAssumptions: ExpertAssumptionsV1;
+  onAssumptionsChange: (ea: ExpertAssumptionsV1) => void;
 }) {
   const options = result.engineOutput.options ?? [];
   const selected = options.find(option => option.id === selectedOptionId) ?? options[0];
+  const [selectedPathwayId, setSelectedPathwayId] = useState<string | undefined>(undefined);
+  const [expertOpen, setExpertOpen] = useState(false);
+
+  const plan = result.engineOutput.plans;
+  const selectedPathway = plan?.pathways.find(p => p.id === selectedPathwayId);
 
   return (
     <div className="cockpit-page">
@@ -354,6 +372,34 @@ function ResultsCockpit({
           confidence={result.engineOutput.meta.confidence}
           assumptions={result.engineOutput.meta.assumptions ?? []}
         />
+      )}
+
+      {/* Expert pathway planning section */}
+      {plan && (
+        <div className="result-section">
+          <button
+            style={{ width: '100%', textAlign: 'left', padding: '0.6rem 0.75rem', borderRadius: '7px', border: '1px solid #d6bcfa', background: expertOpen ? '#faf5ff' : '#fdf4ff', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem', color: '#6b46c1', display: 'flex', justifyContent: 'space-between' }}
+            onClick={() => setExpertOpen(o => !o)}
+            aria-expanded={expertOpen}
+          >
+            <span>🧭 Expert Pathway Planning</span>
+            <span style={{ fontSize: '0.75rem', color: '#9f7aea' }}>{expertOpen ? '▲ Collapse' : '▼ Expand'}</span>
+          </button>
+          {expertOpen && (
+            <div style={{ marginTop: '0.75rem' }}>
+              <ExpertPanel
+                plan={plan}
+                expertAssumptions={expertAssumptions}
+                selectedPathwayId={selectedPathwayId}
+                onAssumptionsChange={onAssumptionsChange}
+                onSelectPathway={setSelectedPathwayId}
+              />
+              <div style={{ marginTop: '1rem' }}>
+                <CustomerSummaryPanel pathway={selectedPathway} />
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       <div className="results-cockpit-layout">

@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-import type { EngineInputV2_3, FullEngineResult, BuildingFabricType } from '../../engine/schema/EngineInputV2_3';
+import type { EngineInputV2_3, FullEngineResult, BuildingFabricType, ExpertAssumptionsV1 } from '../../engine/schema/EngineInputV2_3';
 import type { EngineOutputV1, VisualSpecV1, Timeline24hV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
@@ -30,6 +30,8 @@ import Timeline24hRenderer from '../visualizers/Timeline24hRenderer';
 import SystemConditionImpact from '../visualizers/SystemConditionImpact';
 import { computeConditionImpactMetrics } from '../../engine/modules/SystemConditionImpactModule';
 import LifestyleInteractive from '../visualizers/LifestyleInteractive';
+import ExpertPanel from '../visualizers/ExpertPanel';
+import CustomerSummaryPanel from '../visualizers/CustomerSummaryPanel';
 import {
   getFabricPreset,
   type WallType,
@@ -429,6 +431,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   const [showPrefillBanner, setShowPrefillBanner] = useState<boolean>(!!prefill);
   const [compareMixergy, setCompareMixergy] = useState(false);
   const [results, setResults] = useState<FullEngineResult | null>(null);
+  const [expertAssumptions, setExpertAssumptions] = useState<ExpertAssumptionsV1>({});
   const [systemPlanType, setSystemPlanType] = useState<'y_plan' | 's_plan'>('y_plan');
 
   // Live physics overlay: runs a lightweight engine pass on every step for real-time feedback.
@@ -2345,6 +2348,13 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
           validationWarnings={inputWarnings}
           compareMixergy={compareMixergy}
           onBack={onBack}
+          expertAssumptions={expertAssumptions}
+          onAssumptionsChange={ea => {
+            setExpertAssumptions(ea);
+            const engineInput = toEngineInput(sanitiseModelForEngine(input));
+            engineInput.expertAssumptions = ea;
+            setResults(runEngine(engineInput));
+          }}
         />
       )}
     </div>
@@ -2831,12 +2841,16 @@ function FullSurveyResults({
   validationWarnings,
   compareMixergy,
   onBack,
+  expertAssumptions,
+  onAssumptionsChange,
 }: {
   results: FullEngineResult;
   input: FullSurveyModelV1;
   validationWarnings: InputValidationWarning[];
   compareMixergy: boolean;
   onBack: () => void;
+  expertAssumptions: ExpertAssumptionsV1;
+  onAssumptionsChange: (ea: ExpertAssumptionsV1) => void;
 }) {
   const { hydraulic, combiStress, mixergy, lifestyle, normalizer } = results;
   const regime = results.heatPumpRegime;
@@ -2854,6 +2868,8 @@ function FullSurveyResults({
   );
   const [isRecomputing, setIsRecomputing] = useState(false);
   const [hoveredTimelineIndex, setHoveredTimelineIndex] = useState<number | undefined>(undefined);
+  const [selectedPathwayId, setSelectedPathwayId] = useState<string | undefined>(undefined);
+  const [expertOpen, setExpertOpen] = useState(false);
   const debugEnabled = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return new URLSearchParams(window.location.search).get('debug') === '1';
@@ -2887,6 +2903,7 @@ function FullSurveyResults({
   const nominalEfficiencyPct = resolveNominalEfficiencyPct(input.currentBoilerSedbukPct);
   const currentEfficiencyPct = computeCurrentEfficiencyPct(nominalEfficiencyPct, normalizer.tenYearEfficiencyDecayPct);
   const shouldShowMixergy = input.dhwTankType === 'mixergy' || compareMixergy;
+  const selectedPathway = results.engineOutput.plans?.pathways.find(p => p.id === selectedPathwayId);
 
   if (showTwin) {
     return (
@@ -3513,6 +3530,34 @@ function FullSurveyResults({
         </p>
         <GlassBoxPanel results={results} />
       </div>
+
+      {/* Expert Pathway Planning */}
+      {results.engineOutput.plans && (
+        <div className="result-section">
+          <button
+            style={{ width: '100%', textAlign: 'left', padding: '0.6rem 0.75rem', borderRadius: '7px', border: '1px solid #d6bcfa', background: expertOpen ? '#faf5ff' : '#fdf4ff', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem', color: '#6b46c1', display: 'flex', justifyContent: 'space-between' }}
+            onClick={() => setExpertOpen(o => !o)}
+            aria-expanded={expertOpen}
+          >
+            <span>🧭 Expert Pathway Planning</span>
+            <span style={{ fontSize: '0.75rem', color: '#9f7aea' }}>{expertOpen ? '▲ Collapse' : '▼ Expand'}</span>
+          </button>
+          {expertOpen && (
+            <div style={{ marginTop: '0.75rem' }}>
+              <ExpertPanel
+                plan={results.engineOutput.plans}
+                expertAssumptions={expertAssumptions}
+                selectedPathwayId={selectedPathwayId}
+                onAssumptionsChange={onAssumptionsChange}
+                onSelectPathway={setSelectedPathwayId}
+              />
+              <div style={{ marginTop: '1rem' }}>
+                <CustomerSummaryPanel pathway={selectedPathway} />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <button className="prev-btn" onClick={onBack}>← New Survey</button>
