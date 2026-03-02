@@ -84,6 +84,15 @@ export function buildBehaviourTimelineV1(
   const isAshp = lifestyle.recommendedSystem === 'ashp';
   const applianceCap = isAshp ? heatLossKw * 1.2 : 30;
 
+  // A combi boiler enforces DHW priority lockout: when DHW demand is present
+  // the CH circuit is fully cut off (deliveredHeatKw = 0).
+  // System boilers and regular boilers do NOT have this lockout because
+  // they serve DHW via a separate cylinder (priority handled externally).
+  // When no boiler type is specified, default to combi behaviour (most common
+  // UK residential installation type).
+  const boilerType = input.currentSystem?.boiler?.type;
+  const isCombi = !isAshp && (boilerType === 'combi' || boilerType == null || boilerType === 'unknown');
+
   // ── Efficiency baseline ───────────────────────────────────────────────────
   let baseEtaFraction: number;
   if (boilerEfficiencyModelV1?.inHomeAdjustedEta != null) {
@@ -137,6 +146,23 @@ export function buildBehaviourTimelineV1(
       );
     }
 
+    const mode = resolveMode(heatDemandKw, dhwDemandKw);
+
+    // ── Combi DHW priority lockout ───────────────────────────────────────
+    // When DHW demand exists for a combi boiler, the CH circuit is fully cut:
+    //   deliveredHeatKw = 0, deliveredDhwKw = applianceOutKw
+    //   unmetHeatKw = heatDemandKw (house cools during DHW ticks)
+    let deliveredHeatKw: number | undefined;
+    let deliveredDhwKw: number | undefined;
+    let unmetHeatKw: number | undefined;
+
+    if (isCombi) {
+      const dhwLockout = mode === 'dhw' || mode === 'mixed';
+      deliveredHeatKw = dhwLockout ? 0 : parseFloat(applianceOutKw.toFixed(3));
+      deliveredDhwKw = dhwLockout ? parseFloat(Math.min(applianceCap, dhwDemandKw).toFixed(3)) : 0;
+      unmetHeatKw = dhwLockout ? parseFloat(heatDemandKw.toFixed(3)) : 0;
+    }
+
     return {
       t: indexToHHMM(idx),
       heatDemandKw,
@@ -144,7 +170,8 @@ export function buildBehaviourTimelineV1(
       applianceOutKw,
       applianceCapKw: parseFloat(applianceCap.toFixed(1)),
       ...(isAshp ? { cop } : { efficiency }),
-      mode: resolveMode(heatDemandKw, dhwDemandKw),
+      mode,
+      ...(isCombi ? { deliveredHeatKw, deliveredDhwKw, unmetHeatKw } : {}),
     };
   });
 
@@ -232,7 +259,7 @@ export function buildBehaviourTimelineV1(
     timezone: 'Europe/London',
     resolutionMins: RESOLUTION_MINS,
     points,
-    labels: { applianceName, efficiencyLabel },
+    labels: { applianceName, efficiencyLabel, ...(isCombi ? { isCombi: true } : {}) },
     assumptionsUsed,
     annotations: annotations.length > 0 ? annotations : undefined,
   };
