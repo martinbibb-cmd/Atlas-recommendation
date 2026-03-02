@@ -464,6 +464,12 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
     return null;
   }, [currentStep]);
 
+  // Detect ?debug=1 once on mount — same pattern as Timeline24hRenderer's PhysicsDebugOverlay.
+  const isDebug = useMemo(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug'),
+    [],
+  );
+
   // Water hardness search: shows a live preview when the user clicks "Search"
   const [hardnessPreview, setHardnessPreview] = useState<ReturnType<typeof runRegionalHardness> | null>(null);
   const searchHardness = () => setHardnessPreview(runRegionalHardness(input.postcode));
@@ -3295,7 +3301,7 @@ function FullSurveyResults({
           profile={dayProfile}
           onChange={updateDayProfile}
         />
-        {timelineDebug && (
+        {isDebug && timelineDebug && (
           <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: '#4a5568' }}>
             Engine output — max heat {timelineDebug.maxHeatDemandKw.toFixed(2)} kW · max DHW {timelineDebug.maxDhwDemandKw.toFixed(2)} kW · max output {timelineDebug.maxApplianceOutKw.toFixed(2)} kW · first-point hash {timelineDebug.firstPointHash}
           </div>
