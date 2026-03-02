@@ -100,7 +100,7 @@ function buildBoilerMixergyEnablementPathway(
     id: 'boiler_mixergy_enablement',
     title: 'Boiler + Mixergy now, ASHP later',
     rationale:
-      'ASHP is the best long-term outcome, but current constraints make immediate ' +
+      'ASHP is the best long-term option if prerequisites are met, but current constraints make immediate ' +
       'installation inadvisable. A new efficient boiler paired with a Mixergy smart cylinder ' +
       'is a legitimate engineering strategy: it delivers reliable DHW today, ' +
       'reduces cycling losses, and keeps the ASHP pathway open for later.',

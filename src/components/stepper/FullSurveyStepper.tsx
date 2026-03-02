@@ -2838,6 +2838,24 @@ function EngineeringRequirementsCard({
   );
 }
 
+/** Display labels for the system-B comparison picker. */
+const COMPARE_B_LABELS: Record<string, string> = {
+  on_demand:       'Combi / On-demand',
+  stored_vented:   'Stored vented',
+  stored_unvented: 'Stored unvented',
+  ashp:            'Heat pump',
+};
+
+/** Deterministic checksum for debug overlay — djb2-style hash of string content. */
+function debugChecksum(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h) ^ s.charCodeAt(i);
+    h = h >>> 0; // keep as unsigned 32-bit
+  }
+  return h;
+}
+
 function FullSurveyResults({
   results,
   input,
@@ -2862,13 +2880,17 @@ function FullSurveyResults({
   const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
   const [activeOptionTab, setActiveOptionTab] = useState<Record<string, 'heat' | 'dhw' | 'needs' | 'why'>>({});
   const [visualFilter, setVisualFilter] = useState<'all' | 'relevant'>('all');
-  /** System IDs for the Behaviour Timeline — initialised from the recommendation. */
+  /** System IDs for the Behaviour Timeline — A is always current; B is user-owned state. */
   const compareAId = 'current';
-  const compareBId =
+  const recommendedBId =
     results.engineOutput.recommendation.primary.toLowerCase().includes('heat pump') ? 'ashp'
     : results.engineOutput.recommendation.primary.toLowerCase().includes('unvented') ? 'stored_unvented'
     : results.engineOutput.recommendation.primary.toLowerCase().includes('vented') ? 'stored_vented'
     : 'on_demand';
+  /** User-controlled system-B selector — never overwritten by engine reruns. */
+  const [compareBId, setCompareBId] = useState(recommendedBId);
+  /** Monotonically-incrementing engine run counter — used by ?debug=1 overlay. */
+  const [engineRunId, setEngineRunId] = useState(0);
   const [selectedPathwayId, setSelectedPathwayId] = useState<string | undefined>(undefined);
   const [expertOpen, setExpertOpen] = useState(false);
   /** Hive-style day profile — the new primary input for the Day Schedule Panel. */
@@ -2882,12 +2904,15 @@ function FullSurveyResults({
         maxHeatDemandKw: Math.max(0, ...timelinePayload.demandHeatKw),
         maxDhwDemandKw: Math.max(0, ...timelinePayload.series.flatMap(s => s.dhwTotalKw ?? [])),
         maxApplianceOutKw: Math.max(0, ...timelinePayload.series.flatMap(s => s.heatDeliveredKw)),
-        firstPointHash: JSON.stringify({
+        /** Checksum of dayProfile JSON — changes when any field changes. */
+        inputHash: debugChecksum(JSON.stringify(dayProfile)),
+        /** Checksum of first timeline point — changes when engine output changes. */
+        timelineHash: debugChecksum(JSON.stringify({
           t: timelinePayload.timeMinutes[0],
           demand: timelinePayload.demandHeatKw[0],
           outputA: timelinePayload.series[0]?.heatDeliveredKw[0],
           dhwA: timelinePayload.series[0]?.dhwTotalKw?.[0] ?? 0,
-        }).length,
+        })),
       }
     : undefined;
 
@@ -2914,6 +2939,7 @@ function FullSurveyResults({
       const engineInput = toEngineInput(sanitiseModelForEngine(input));
       engineInput.dayProfile = profile;
       const out = runEngine(engineInput);
+      setEngineRunId(n => n + 1);
       setEngineOutput(out.engineOutput);
     });
   };
@@ -3302,12 +3328,35 @@ function FullSurveyResults({
           onChange={updateDayProfile}
         />
         {isDebug && timelineDebug && (
-          <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: '#4a5568' }}>
-            Engine output — max heat {timelineDebug.maxHeatDemandKw.toFixed(2)} kW · max DHW {timelineDebug.maxDhwDemandKw.toFixed(2)} kW · max output {timelineDebug.maxApplianceOutKw.toFixed(2)} kW · first-point hash {timelineDebug.firstPointHash}
+          <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: '#4a5568', fontFamily: 'monospace' }}>
+            engineRunId={engineRunId} · inputHash={timelineDebug.inputHash} · timelineHash={timelineDebug.timelineHash}
+            {' '}· max heat {timelineDebug.maxHeatDemandKw.toFixed(2)} kW · max DHW {timelineDebug.maxDhwDemandKw.toFixed(2)} kW
           </div>
         )}
         {timelinePayload && (
           <div style={{ marginTop: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.82rem', color: '#4a5568', fontWeight: 600 }}>Compare against:</span>
+              {(['on_demand', 'stored_vented', 'stored_unvented', 'ashp'] as const).map(id => (
+                <button
+                  key={id}
+                  onClick={() => setCompareBId(id)}
+                  style={{
+                    padding: '2px 10px',
+                    borderRadius: '10px',
+                    border: '1px solid',
+                    borderColor: compareBId === id ? '#3182ce' : '#cbd5e0',
+                    background: compareBId === id ? '#ebf8ff' : '#fff',
+                    color: compareBId === id ? '#2b6cb0' : '#4a5568',
+                    cursor: 'pointer',
+                    fontSize: '0.78rem',
+                    fontWeight: compareBId === id ? 700 : 400,
+                  }}
+                >
+                  {COMPARE_B_LABELS[id] ?? id}
+                </button>
+              ))}
+            </div>
             <Timeline24hRenderer
               payload={timelinePayload}
               compareAId={compareAId}
