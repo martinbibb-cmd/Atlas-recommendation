@@ -301,6 +301,31 @@ export interface EngineInputV2_3 {
     /** Service completion 0 (as-found) → 100 (full power-flush). */
     serviceLevelPct: number;
   };
+
+  /**
+   * Optional painted 24-hour day programme — driven by the Day Painter UI.
+   * When present, overrides the default DHW event template and the occupancy-
+   * based demand profile used by TimelineBuilder.
+   * All arrays must be exactly 24 elements (one value per hour, 00:00–23:00).
+   */
+  dayProgram?: {
+    /**
+     * Heat intent per hour.
+     * 0 = off (no heating), 1 = setback (~16 °C), 2 = comfort (~21 °C).
+     */
+    heatIntent: number[];
+    /**
+     * DHW mixed-flow demand per hour (L/min at 40 °C).
+     * Zero means no hot-water demand in that hour.
+     */
+    dhwLpm: number[];
+    /**
+     * Cold-fill demand per hour (L/min).
+     * Driven by cold-fill appliances (dishwasher, washing machine).
+     * Not a thermal load — tracked for pressure / flow analysis only.
+     */
+    coldLpm: number[];
+  };
 }
 
 export interface HydraulicResult {

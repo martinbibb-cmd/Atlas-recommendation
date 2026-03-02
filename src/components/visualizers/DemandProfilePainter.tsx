@@ -121,14 +121,28 @@ function nextColdIntensity(cur: number): ColdIntensity {
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+/** The painted day programme emitted by DemandProfilePainter. Matches EngineInputV2_3.dayProgram. */
+export interface PainterDayProgram {
+  heatIntent: number[];
+  dhwLpm: number[];
+  coldLpm: number[];
+}
+
 interface Props {
   /** Partial base engine input — merged with defaults. */
   baseInput?: Partial<EngineInputV2_3>;
+  /**
+   * When provided, called on every profile edit with the current painted programme.
+   * The parent should store the result in EngineInputV2_3.dayProgram and rerun the engine
+   * so that Timeline24hRenderer reflects the painted day.
+   * When absent, the component falls back to its internal physics comparison (local physics mode).
+   */
+  onDayProgramChange?: (program: PainterDayProgram) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function DemandProfilePainter({ baseInput = {} }: Props) {
+export default function DemandProfilePainter({ baseInput = {}, onDayProgramChange }: Props) {
   const engineInput: EngineInputV2_3 = { ...DEFAULT_ENGINE_INPUT, ...baseInput };
 
   // ── Measured profile (from engine input) ─────────────────────────────────
@@ -142,6 +156,16 @@ export default function DemandProfilePainter({ baseInput = {} }: Props) {
 
   // ── Editable profile state ────────────────────────────────────────────────
   const [profile, setProfile] = useState<ScenarioProfileV1>(() => ({ ...measuredProfile }));
+
+  // ── Emit dayProgram when a change handler is wired ────────────────────────
+  const emitDayProgram = (p: ScenarioProfileV1) => {
+    if (!onDayProgramChange) return;
+    onDayProgramChange({
+      heatIntent: [...p.heatIntent],
+      dhwLpm: [...p.dhwMixedLpm40],
+      coldLpm: [...p.coldLpm],
+    });
+  };
 
   // ── System selectors ──────────────────────────────────────────────────────
   const [systemA, setSystemA] = useState<ComparisonSystemType>('combi');
@@ -177,7 +201,9 @@ export default function DemandProfilePainter({ baseInput = {} }: Props) {
     setProfile(prev => {
       const next = [...prev.heatIntent] as HeatIntentLevel[];
       next[h] = nextHeatIntent(next[h]);
-      return { ...prev, heatIntent: next, source: 'user_edit' };
+      const updated: ScenarioProfileV1 = { ...prev, heatIntent: next, source: 'user_edit' };
+      emitDayProgram(updated);
+      return updated;
     });
   };
 
@@ -185,7 +211,9 @@ export default function DemandProfilePainter({ baseInput = {} }: Props) {
     setProfile(prev => {
       const next = [...prev.dhwMixedLpm40];
       next[h] = nextDhwIntensity(next[h]);
-      return { ...prev, dhwMixedLpm40: next, source: 'user_edit' };
+      const updated: ScenarioProfileV1 = { ...prev, dhwMixedLpm40: next, source: 'user_edit' };
+      emitDayProgram(updated);
+      return updated;
     });
   };
 
@@ -193,21 +221,30 @@ export default function DemandProfilePainter({ baseInput = {} }: Props) {
     setProfile(prev => {
       const next = [...prev.coldLpm];
       next[h] = nextColdIntensity(next[h]);
-      return { ...prev, coldLpm: next, source: 'user_edit' };
+      const updated: ScenarioProfileV1 = { ...prev, coldLpm: next, source: 'user_edit' };
+      emitDayProgram(updated);
+      return updated;
     });
   };
 
   const resetRow = (row: 'heat' | 'dhw' | 'cold') => {
-    setProfile(prev => ({
-      ...prev,
-      heatIntent:    row === 'heat' ? [...measuredProfile.heatIntent]    : prev.heatIntent,
-      dhwMixedLpm40: row === 'dhw'  ? [...measuredProfile.dhwMixedLpm40] : prev.dhwMixedLpm40,
-      coldLpm:       row === 'cold' ? [...measuredProfile.coldLpm]        : prev.coldLpm,
-      source: 'measured',
-    }));
+    setProfile(prev => {
+      const updated: ScenarioProfileV1 = {
+        ...prev,
+        heatIntent:    row === 'heat' ? [...measuredProfile.heatIntent]    : prev.heatIntent,
+        dhwMixedLpm40: row === 'dhw'  ? [...measuredProfile.dhwMixedLpm40] : prev.dhwMixedLpm40,
+        coldLpm:       row === 'cold' ? [...measuredProfile.coldLpm]        : prev.coldLpm,
+        source: 'measured',
+      };
+      emitDayProgram(updated);
+      return updated;
+    });
   };
 
-  const resetAll = () => setProfile({ ...measuredProfile });
+  const resetAll = () => {
+    setProfile({ ...measuredProfile });
+    emitDayProgram(measuredProfile);
+  };
 
   // ── Chart data ────────────────────────────────────────────────────────────
 
@@ -241,7 +278,8 @@ export default function DemandProfilePainter({ baseInput = {} }: Props) {
         <em>Edits change the scenario; click Reset to return to measured profile.</em>
       </p>
 
-      {/* ── System selectors ───────────────────────────────────────────────── */}
+      {/* ── System selectors (local physics mode only) ─────────────────── */}
+      {!onDayProgramChange && (
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
         <span style={{ fontSize: '0.78rem', color: '#718096', fontWeight: 600 }}>Compare:</span>
         <div role="group" aria-label="Select System A">
@@ -298,6 +336,7 @@ export default function DemandProfilePainter({ baseInput = {} }: Props) {
           </span>
         )}
       </div>
+      )}
 
       {/* ── Row 1: Heat Intent Painter ─────────────────────────────────────── */}
       <PainterRow
@@ -335,7 +374,8 @@ export default function DemandProfilePainter({ baseInput = {} }: Props) {
         legend={COLD_INTENSITY_STEPS.map(s => ({ label: COLD_INTENSITY_LABELS[s], colour: COLD_INTENSITY_COLOURS[s] }))}
       />
 
-      {/* ── Graph A: Demand vs Plant Output ───────────────────────────────── */}
+      {/* ── Graph A: Demand vs Plant Output (local physics mode only) ───── */}
+      {!onDayProgramChange && (
       <div style={{ marginTop: 20, marginBottom: 4 }}>
         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
           📊 Graph A — Demand vs Plant Output (kW)
@@ -370,8 +410,10 @@ export default function DemandProfilePainter({ baseInput = {} }: Props) {
           </ResponsiveContainer>
         </div>
       </div>
+      )}
 
-      {/* ── Graph B: Efficiency / COP ──────────────────────────────────────── */}
+      {/* ── Graph B: Efficiency / COP (local physics mode only) ─────────── */}
+      {!onDayProgramChange && (
       <div style={{ marginBottom: 8 }}>
         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
           ⚡ Graph B — Efficiency / COP (behaviour, not score)
@@ -416,6 +458,12 @@ export default function DemandProfilePainter({ baseInput = {} }: Props) {
           </ResponsiveContainer>
         </div>
       </div>
+      )}
+      {onDayProgramChange && (
+        <p style={{ fontSize: '0.78rem', color: '#718096', marginTop: 8 }}>
+          ✅ Painting drives the engine — the 24h timeline below updates instantly.
+        </p>
+      )}
     </div>
   );
 }

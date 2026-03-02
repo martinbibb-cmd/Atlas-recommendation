@@ -8,13 +8,16 @@
  *   2. OccupancyClock  – drag-and-drop 24-hour routine painter (drives EngineInput when baseInput provided)
  *   3. SystemFlushSlider – maintenance recovery scenario (drives EngineInput when baseInput provided)
  *   4. MixergyTankVisualizer – State of Charge animated tank
+ *   5. Timeline24hRenderer – 24-hour comparative timeline, updated by every engine rerun
  */
 import { startTransition, useEffect, useRef, useState } from 'react';
 import OccupancyClock from './visualizers/OccupancyClock';
 import type { HourOccupancy } from './visualizers/OccupancyClock';
 import SystemFlushSlider from './visualizers/SystemFlushSlider';
 import MixergyTankVisualizer from './visualizers/MixergyTankVisualizer';
+import Timeline24hRenderer from './visualizers/Timeline24hRenderer';
 import type { EngineInputV2_3, HydraulicModuleV1Result, MixergyResult, OccupancySignature } from '../engine/schema/EngineInputV2_3';
+import type { Timeline24hV1, VisualSpecV1 } from '../contracts/EngineOutputV1';
 import { computeCurrentEfficiencyPct, getNominalEfficiencyPct } from '../engine/utils/efficiency';
 import { runEngine } from '../engine/Engine';
 import PerformanceBandLadder from './PerformanceBandLadder';
@@ -92,6 +95,8 @@ export default function InteractiveTwin({
   const [twinCurrentEfficiencyPct, setTwinCurrentEfficiencyPct] = useState(currentEfficiencyPct);
   const [twinDailyDemandKwh, setTwinDailyDemandKwh] = useState<number | null>(null);
   const [twinRecommendedSystem, setTwinRecommendedSystem] = useState<'boiler' | 'ashp' | 'stored_water' | null>(null);
+  /** Live 24h timeline updated on every engine rerun — rendered below the Flush slider. */
+  const [twinTimelinePayload, setTwinTimelinePayload] = useState<Timeline24hV1 | null>(null);
 
   // Keep the ref in sync when the parent passes a fresh baseInput (e.g. survey step change).
   useEffect(() => {
@@ -107,6 +112,11 @@ export default function InteractiveTwin({
       const dailyDemandKwh = out.lifestyle.hourlyData.reduce((sum, h) => sum + h.demandKw, 0);
       setTwinDailyDemandKwh(parseFloat(dailyDemandKwh.toFixed(1)));
       setTwinRecommendedSystem(out.lifestyle.recommendedSystem);
+      // Extract the 24h timeline visual so the renderer shows a live response.
+      const timelineVisual = out.engineOutput.visuals?.find((v: VisualSpecV1) => v.type === 'timeline_24h');
+      if (timelineVisual?.type === 'timeline_24h') {
+        setTwinTimelinePayload(timelineVisual.data as Timeline24hV1);
+      }
     });
   };
 
@@ -257,6 +267,22 @@ export default function InteractiveTwin({
           animate
         />
       </div>
+
+      {/* ── Live 24h Timeline — updates with every occupancy / flush change ── */}
+      {twinTimelinePayload && (
+        <div className="result-section">
+          <h3>📈 Live 24h System Response</h3>
+          <p className="description" style={{ marginBottom: '0.75rem' }}>
+            This timeline reflects every change you make above — occupancy pattern, system flush level —
+            running through the full engine. Row labels: Space Heat Demand · DHW Events · Heat Source Output · Performance.
+          </p>
+          <Timeline24hRenderer
+            payload={twinTimelinePayload}
+            compareAId={systemAType}
+            compareBId={systemBType}
+          />
+        </div>
+      )}
     </div>
   );
 }
