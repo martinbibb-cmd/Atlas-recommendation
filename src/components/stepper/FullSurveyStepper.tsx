@@ -11,7 +11,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import type { EngineInputV2_3, FullEngineResult, BuildingFabricType } from '../../engine/schema/EngineInputV2_3';
-import type { VisualSpecV1, Timeline24hV1 } from '../../contracts/EngineOutputV1';
+import type { EngineOutputV1, VisualSpecV1, Timeline24hV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { runEngine } from '../../engine/Engine';
@@ -43,6 +43,9 @@ import {
   type SizeProxy,
   type InsulationToggle,
 } from '../../engine/presets/FabricPresets';
+import LivePhysicsOverlay, { type OverlayStepKey } from '../../ui/overlay/LivePhysicsOverlay';
+import ConstraintsGrid from '../../ui/panels/ConstraintsGrid';
+import DeltaStrip from '../../ui/panels/DeltaStrip';
 // BOM utilities retained for internal/engineer mode — not rendered in customer cockpit
 // import { exportBomToCsv, calculateBomTotal } from '../../engine/modules/WholesalerPricingAdapter';
 
@@ -428,6 +431,33 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [systemPlanType, setSystemPlanType] = useState<'y_plan' | 's_plan'>('y_plan');
 
+  // Live physics overlay: runs a lightweight engine pass on every step for real-time feedback.
+  // Debounced so it doesn't block every keystroke.
+  const [liveEngineOutput, setLiveEngineOutput] = useState<EngineOutputV1 | null>(null);
+  const [prevEngineOutput, setPrevEngineOutput] = useState<EngineOutputV1 | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const engineInput = toEngineInput(sanitiseModelForEngine(input));
+      const out = runEngine(engineInput);
+      setLiveEngineOutput(prev => {
+        setPrevEngineOutput(prev);
+        return out.engineOutput;
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input]);
+
+  /** Maps survey step names to LivePhysicsOverlay step keys. */
+  const overlayStepKey: OverlayStepKey | null = useMemo(() => {
+    if (currentStep === 'location')   return 'shell';
+    if (currentStep === 'pressure')   return 'supply';
+    if (currentStep === 'lifestyle')  return 'life';
+    if (currentStep === 'hot_water')  return 'storage';
+    return null;
+  }, [currentStep]);
+
   // Water hardness search: shows a live preview when the user clicks "Search"
   const [hardnessPreview, setHardnessPreview] = useState<ReturnType<typeof runRegionalHardness> | null>(null);
   const searchHardness = () => setHardnessPreview(runRegionalHardness(input.postcode));
@@ -595,6 +625,17 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
         </div>
         <span className="step-label">Step {stepIndex + 1} of {STEPS.length}</span>
       </div>
+
+      {/* Live physics overlay — shown on steps that have a step key mapping */}
+      {liveEngineOutput && overlayStepKey && (
+        <div style={{ maxWidth: '100%' }}>
+          <DeltaStrip previous={prevEngineOutput} current={liveEngineOutput} />
+          <LivePhysicsOverlay
+            engineOutput={liveEngineOutput}
+            activeStepKey={overlayStepKey}
+          />
+        </div>
+      )}
 
       {currentStep === 'location' && (
         <div className="step-card">
@@ -3219,6 +3260,14 @@ function FullSurveyResults({
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Constraints Grid — replaces pass/fail tiles with physics-grounded observed vs limit rows */}
+      {engineOutput.limiters && engineOutput.limiters.limiters.length > 0 && (
+        <div className="result-section">
+          <h3>⚖️ Physics Constraints</h3>
+          <ConstraintsGrid limiters={engineOutput.limiters} />
         </div>
       )}
 

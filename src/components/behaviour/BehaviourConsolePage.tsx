@@ -21,7 +21,7 @@ import { useState } from 'react';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import PrimaryVerdictPanel from './PrimaryVerdictPanel';
 import BehaviourTimelinePanel from './BehaviourTimelinePanel';
-import LimitersPanel from './LimitersPanel';
+import ConstraintsGrid from '../../ui/panels/ConstraintsGrid';
 import InfluenceBlocks from './InfluenceBlocks';
 import EngineerDetails from './EngineerDetails';
 
@@ -148,9 +148,9 @@ export default function BehaviourConsolePage({ output, onBack }: Props) {
         </div>
       )}
 
-      {/* 3. Limiters */}
+      {/* 3. Constraints Grid (replaces pass/fail tiles — shows observed vs limit + fixes) */}
       {limiters ? (
-        <LimitersPanel limiters={limiters} />
+        <ConstraintsGrid limiters={limiters} />
       ) : (
         <div
           style={{

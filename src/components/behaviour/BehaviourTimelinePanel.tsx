@@ -387,6 +387,21 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
               dot={false}
               isAnimationActive={false}
             />
+            {/* Delivered heat overlay: shows actual CH delivery vs demand.
+                For combi boilers in DHW priority mode, deliveredHeatKw drops to 0
+                revealing the unmet demand gap. */}
+            {isCombi && (
+              <Area
+                type="monotone"
+                dataKey="deliveredHeatKw"
+                stroke="#38a169"
+                fill="#c6f6d5"
+                fillOpacity={0.5}
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+              />
+            )}
           </AreaChart>
         </ResponsiveContainer>
       </div>
