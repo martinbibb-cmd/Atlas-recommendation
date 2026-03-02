@@ -612,6 +612,7 @@ export interface SolarBoostResult {
 }
 
 
+export interface OccupancyHour {
   hour: number;       // 0-23
   demandKw: number;   // kW demand
   boilerTempC: number;
