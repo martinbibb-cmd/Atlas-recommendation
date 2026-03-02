@@ -324,6 +324,23 @@ export interface TimelineSeriesPoint {
   cop?: number;
   /** Operating mode at this timestep. */
   mode?: 'space' | 'dhw' | 'mixed' | 'idle';
+  /**
+   * Actual heat delivered to CH circuit (kW).
+   * For a combi boiler in DHW priority mode this is 0 (lockout).
+   * Equal to applianceOutKw for non-lockout ticks.
+   */
+  deliveredHeatKw?: number;
+  /**
+   * Actual DHW delivered (kW).
+   * For a combi in DHW priority: equals applianceOutKw.
+   * For space-only ticks: 0.
+   */
+  deliveredDhwKw?: number;
+  /**
+   * Unmet space-heat demand (kW) due to DHW priority lockout.
+   * Non-zero only for combi ticks where mode is 'dhw' or 'mixed'.
+   */
+  unmetHeatKw?: number;
 }
 
 /**
@@ -339,6 +356,11 @@ export interface BehaviourTimelineV1 {
     /** e.g. "Combi Boiler", "System Boiler", "ASHP" */
     applianceName: string;
     efficiencyLabel: 'Efficiency' | 'COP';
+    /**
+     * True when the appliance is a combi boiler with DHW priority lockout.
+     * The renderer uses this to show lockout band shading on the heat demand row.
+     */
+    isCombi?: boolean;
   };
 
   /**

@@ -23,6 +23,7 @@ import {
   Bar,
   LineChart,
   Line,
+  ReferenceArea,
   ReferenceLine,
   XAxis,
   YAxis,
@@ -173,10 +174,23 @@ function InsufficientDataOverlay({ height }: { height: number }) {
 const ROW_HEIGHT = 110;
 const COMMON_MARGIN = { top: 4, right: 16, left: 0, bottom: 0 };
 
+/**
+ * Fixed maximum kW for the DHW Y-axis.
+ * UK combi peak DHW output ≈ 30 kW; 35 kW gives headroom for unvented/ASHP DHW.
+ * Hard-locked so axis scale is consistent across all system comparisons.
+ */
+const DHW_AXIS_MAX_KW = 35;
+
+/** Background fill colour for the combi DHW-priority lockout band (blue = "losing comfort"). */
+const LOCKOUT_BAND_COLOR = '#3182ce';
+/** Opacity of the lockout band overlay — subtle enough not to obscure the area curve. */
+const LOCKOUT_BAND_OPACITY = 0.08;
+
 export default function BehaviourTimelinePanel({ timeline }: Props) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   const isAshp = timeline.labels.efficiencyLabel === 'COP';
+  const isCombi = timeline.labels.isCombi ?? false;
   const pts = timeline.points;
 
   // Derived callout values
@@ -206,6 +220,26 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
     pts[0]?.applianceCapKw ?? 0,
     5,
   );
+
+  // Combi lockout bands: contiguous DHW-priority windows (mode 'dhw' or 'mixed').
+  // Rendered as background fills on the heat demand row to show when CH is cut off.
+  const lockoutBands: Array<{ x1: string; x2: string }> = [];
+  if (isCombi) {
+    let bandStart: string | null = null;
+    for (let i = 0; i < pts.length; i++) {
+      const m = pts[i].mode;
+      const inLockout = m === 'dhw' || m === 'mixed';
+      if (inLockout && bandStart === null) {
+        bandStart = pts[i].t;
+      } else if (!inLockout && bandStart !== null) {
+        lockoutBands.push({ x1: bandStart, x2: pts[i - 1].t });
+        bandStart = null;
+      }
+    }
+    if (bandStart !== null) {
+      lockoutBands.push({ x1: bandStart, x2: pts[pts.length - 1].t });
+    }
+  }
 
   // Shared chart event handlers using the Recharts parameter shape
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -333,6 +367,17 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
                 strokeDasharray="3 3"
               />
             )}
+            {/* Lockout band shading: CH is cut during DHW priority ticks */}
+            {lockoutBands.map((band, i) => (
+              <ReferenceArea
+                key={i}
+                x1={band.x1}
+                x2={band.x2}
+                fill={LOCKOUT_BAND_COLOR}
+                fillOpacity={LOCKOUT_BAND_OPACITY}
+                strokeOpacity={0}
+              />
+            ))}
             <Area
               type="monotone"
               dataKey="heatDemandKw"
@@ -365,7 +410,7 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis {...xAxisProps} hide />
             <YAxis
-              domain={[0, Math.max(peakDhwKw * 1.2, 5)]}
+              domain={[0, DHW_AXIS_MAX_KW]}
               tick={{ fontSize: 10, fill: '#718096' }}
               width={32}
               tickFormatter={v => v.toFixed(0)}

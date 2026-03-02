@@ -197,3 +197,110 @@ describe('buildBehaviourTimelineV1', () => {
     expect(timeline.annotations === undefined || timeline.annotations.length === 0).toBe(true);
   });
 });
+
+// ─── Combi DHW priority lockout ───────────────────────────────────────────────
+
+describe('buildBehaviourTimelineV1 — combi priority lockout', () => {
+  // Combi scenario: professional occupancy (boiler recommended), 2 occupants
+  // → DHW demand at 07:00–08:00 and 19:00–20:00
+  const COMBI_INPUT = {
+    ...BASE_INPUT,
+    occupancyCount: 2,
+    currentSystem: {
+      boiler: { type: 'combi' as const, ageYears: 5, condensing: 'yes' as const, nominalOutputKw: 30 },
+    },
+  };
+
+  it('labels.isCombi is true for a combi boiler scenario', () => {
+    const result = runEngine(COMBI_INPUT);
+    const timeline = buildBehaviourTimelineV1(result, COMBI_INPUT);
+    expect(timeline.labels.isCombi).toBe(true);
+  });
+
+  it('labels.isCombi is false (or absent) for an ASHP scenario', () => {
+    const ashpInput = {
+      ...BASE_INPUT,
+      occupancySignature: 'steady_home' as const,
+      primaryPipeDiameter: 28,
+    };
+    const result = runEngine(ashpInput);
+    const timeline = buildBehaviourTimelineV1(result, ashpInput);
+    expect(timeline.labels.isCombi).toBeFalsy();
+  });
+
+  it('deliveredHeatKw is 0 for all DHW-priority ticks (combi lockout)', () => {
+    const result = runEngine(COMBI_INPUT);
+    const timeline = buildBehaviourTimelineV1(result, COMBI_INPUT);
+    const dhwTicks = timeline.points.filter(p => p.mode === 'dhw' || p.mode === 'mixed');
+    expect(dhwTicks.length).toBeGreaterThan(0);
+    for (const pt of dhwTicks) {
+      expect(pt.deliveredHeatKw).toBe(0);
+    }
+  });
+
+  it('deliveredDhwKw equals applianceOutKw during DHW-priority ticks', () => {
+    const result = runEngine(COMBI_INPUT);
+    const timeline = buildBehaviourTimelineV1(result, COMBI_INPUT);
+    const dhwTicks = timeline.points.filter(p => p.mode === 'dhw' || p.mode === 'mixed');
+    for (const pt of dhwTicks) {
+      // deliveredDhwKw should serve the DHW demand (up to appliance cap)
+      expect(pt.deliveredDhwKw).toBeGreaterThan(0);
+      expect(pt.deliveredDhwKw!).toBeLessThanOrEqual((pt.applianceCapKw ?? 30) + 0.001);
+    }
+  });
+
+  it('unmetHeatKw equals heatDemandKw during DHW-priority ticks', () => {
+    const result = runEngine(COMBI_INPUT);
+    const timeline = buildBehaviourTimelineV1(result, COMBI_INPUT);
+    const dhwTicks = timeline.points.filter(
+      p => (p.mode === 'dhw' || p.mode === 'mixed') && p.heatDemandKw > 0.1,
+    );
+    for (const pt of dhwTicks) {
+      expect(pt.unmetHeatKw).toBeCloseTo(pt.heatDemandKw, 3);
+    }
+  });
+
+  it('deliveredHeatKw equals applianceOutKw for space-only ticks', () => {
+    const result = runEngine(COMBI_INPUT);
+    const timeline = buildBehaviourTimelineV1(result, COMBI_INPUT);
+    const spaceTicks = timeline.points.filter(p => p.mode === 'space');
+    // May be zero ticks if all heat demand coincides with DHW — skip if none
+    for (const pt of spaceTicks) {
+      expect(pt.deliveredHeatKw).toBeCloseTo(pt.applianceOutKw, 3);
+      expect(pt.deliveredDhwKw).toBe(0);
+      expect(pt.unmetHeatKw).toBe(0);
+    }
+  });
+
+  it('deliveredHeatKw, deliveredDhwKw, unmetHeatKw are absent for ASHP points', () => {
+    const ashpInput = {
+      ...BASE_INPUT,
+      occupancySignature: 'steady_home' as const,
+      primaryPipeDiameter: 28,
+    };
+    const result = runEngine(ashpInput);
+    const timeline = buildBehaviourTimelineV1(result, ashpInput);
+    for (const pt of timeline.points) {
+      expect(pt.deliveredHeatKw).toBeUndefined();
+      expect(pt.deliveredDhwKw).toBeUndefined();
+      expect(pt.unmetHeatKw).toBeUndefined();
+    }
+  });
+
+  it('system boiler does not set deliveredHeatKw (no lockout)', () => {
+    const systemBoilerInput = {
+      ...BASE_INPUT,
+      occupancyCount: 2,
+      currentSystem: {
+        boiler: { type: 'system' as const, ageYears: 5, condensing: 'yes' as const, nominalOutputKw: 28 },
+      },
+    };
+    const result = runEngine(systemBoilerInput);
+    const timeline = buildBehaviourTimelineV1(result, systemBoilerInput);
+    // System boiler: no combi lockout
+    expect(timeline.labels.isCombi).toBeFalsy();
+    for (const pt of timeline.points) {
+      expect(pt.deliveredHeatKw).toBeUndefined();
+    }
+  });
+});
