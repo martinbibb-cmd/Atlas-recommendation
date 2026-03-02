@@ -19,6 +19,13 @@ const SERIES_COLOURS = ['#3182ce', '#e53e3e'] as const;
 const DEMAND_COLOUR  = '#a0aec0';
 const SETPOINT_COLOUR = '#48bb78';
 
+// ── Axis clamp ceilings ───────────────────────────────────────────────────────
+const HEAT_DEMAND_CLAMP_KW = 30;
+const HEAT_OUTPUT_CLAMP_KW = 40;
+
+/** Style for the inline "⚠︎ clipped at N kW" warning appended to row sub-labels. */
+const clippedLabelStyle: React.CSSProperties = { color: '#e53e3e', fontSize: '0.72rem', marginLeft: '0.4rem' };
+
 /** Band fill colours by kind. */
 const BAND_COLOURS: Record<string, string> = {
   sh_on:      'rgba(72,187,120,0.07)',
@@ -43,6 +50,19 @@ function minuteToLabel(min: number): string {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+/** Compact stable signature for an array of numbers: len:min:max:sumRounded:first:last */
+function seriesSig(values: readonly number[]): string {
+  if (values.length === 0) return '0:0:0:0:0:0';
+  let min = values[0], max = values[0], sum = 0;
+  for (const v of values) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+    sum += v;
+  }
+  const sumR = Math.round(sum * 100) / 100;
+  return `${values.length}:${min.toFixed(2)}:${max.toFixed(2)}:${sumR}:${values[0].toFixed(2)}:${values[values.length - 1].toFixed(2)}`;
 }
 
 function roundUpToNice(value: number): number {
@@ -164,20 +184,20 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
 
   const maxDemandHeatKw = Math.max(0, ...payload.demandHeatKw);
   const maxOutputKw = Math.max(0, ...payload.series.flatMap(s => s.heatDeliveredKw));
-  const maxDhwKw = Math.max(0, ...payload.series.flatMap(s => s.dhwTotalKw ?? []));
 
-  // Derive a key from IDs + data signature so Recharts remounts when a new engine run lands.
+  // Per-series deterministic key: remounts only when actual data changes, not on every render.
   const chartKey = [
-    payload.series.map(s => s.id).join('__'),
-    payload.timeMinutes.length,
-    maxDemandHeatKw.toFixed(3),
-    maxOutputKw.toFixed(3),
-    maxDhwKw.toFixed(3),
+    payload.series.map(s =>
+      `${s.id}|${seriesSig(s.heatDeliveredKw)}|${seriesSig(s.dhwTotalKw ?? [])}`
+    ).join('__'),
+    seriesSig(payload.demandHeatKw),
     payload.events.length,
   ].join('__');
 
-  const heatDemandYMax = clamp(roundUpToNice(maxDemandHeatKw * 1.15), 4, 30);
-  const heatOutputYMax = clamp(roundUpToNice(maxOutputKw * 1.15), 4, 40);
+  const heatDemandYMax = clamp(roundUpToNice(maxDemandHeatKw * 1.15), 4, HEAT_DEMAND_CLAMP_KW);
+  const heatOutputYMax = clamp(roundUpToNice(maxOutputKw * 1.15), 4, HEAT_OUTPUT_CLAMP_KW);
+  const heatDemandClipped = maxDemandHeatKw > HEAT_DEMAND_CLAMP_KW;
+  const heatOutputClipped = maxOutputKw > HEAT_OUTPUT_CLAMP_KW;
 
   // Tick every 4 points = every hour (each point = 15 min)
   const xTickIndices = new Set(
@@ -304,7 +324,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
       )}
 
       {/* Row 1: Space Heat Demand (+ optional indoor temp) */}
-      <div style={subLabel}>Space Heat Demand (kW)</div>
+      <div style={subLabel}>Space Heat Demand (kW){heatDemandClipped && <span style={clippedLabelStyle}>⚠︎ clipped at {HEAT_DEMAND_CLAMP_KW} kW</span>}</div>
       <ResponsiveContainer width="100%" height={160}>
         <ComposedChart key={`${chartKey}_demand`} data={data} margin={chartMargin} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -410,7 +430,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
       </ResponsiveContainer>
 
       {/* Row 3: Heat Source Output */}
-      <div style={subLabel}>Heat Source Output (kW)</div>
+      <div style={subLabel}>Heat Source Output (kW){heatOutputClipped && <span style={clippedLabelStyle}>⚠︎ clipped at {HEAT_OUTPUT_CLAMP_KW} kW</span>}</div>
       <ResponsiveContainer width="100%" height={160}>
         <ComposedChart key={`${chartKey}_output`} data={data} margin={chartMargin} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
