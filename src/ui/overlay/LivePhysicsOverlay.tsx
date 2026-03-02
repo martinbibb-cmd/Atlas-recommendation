@@ -16,14 +16,32 @@
  */
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 
+// ── Canonical limiter IDs from LimiterV1 contract ────────────────────────────
+
+/** IDs for limiters relevant to the Shell (heat loss / fabric) panel. */
+const SHELL_LIMITER_IDS = new Set([
+  'radiator-output-insufficient',
+  'flow-temp-too-high-for-ashp',
+]);
+
+/** IDs for limiters relevant to the Supply (mains / pressure) panel. */
+const SUPPLY_LIMITER_IDS = new Set([
+  'mains-flow-constraint',
+  'combi-concurrency-constraint',
+]);
+
+/** IDs for limiters relevant to the Storage (DHW / system) panel. */
+const STORAGE_LIMITER_IDS = new Set([
+  'combi-concurrency-constraint',
+  'cycling-loss-penalty',
+]);
+
 export type OverlayStepKey = 'shell' | 'supply' | 'life' | 'storage';
 
 interface Props {
   engineOutput: EngineOutputV1;
   activeStepKey: OverlayStepKey;
 }
-
-// ── Shared styles ─────────────────────────────────────────────────────────────
 
 const PANEL_STYLE: React.CSSProperties = {
   background: '#f7fafc',
@@ -81,7 +99,7 @@ function ShellPanel({ engineOutput }: { engineOutput: EngineOutputV1 }) {
 
   // Top heat-loss limiter from the constraints list
   const heatLimiter = engineOutput.limiters?.limiters.find(
-    l => l.id.includes('radiator') || l.id.includes('heat-loss') || l.id.includes('flow-temp'),
+    l => SHELL_LIMITER_IDS.has(l.id),
   );
 
   return (
@@ -117,10 +135,10 @@ function ShellPanel({ engineOutput }: { engineOutput: EngineOutputV1 }) {
 
 function SupplyPanel({ engineOutput }: { engineOutput: EngineOutputV1 }) {
   const mainsLimiter = engineOutput.limiters?.limiters.find(
-    l => l.id.includes('mains-flow') || l.id.includes('mains') || l.id.includes('pressure'),
+    l => SUPPLY_LIMITER_IDS.has(l.id) && l.id !== 'combi-concurrency-constraint',
   );
   const combiConcurrency = engineOutput.limiters?.limiters.find(
-    l => l.id.includes('combi-concurrency'),
+    l => l.id === 'combi-concurrency-constraint',
   );
 
   return (
@@ -210,7 +228,7 @@ function LifePanel({ engineOutput }: { engineOutput: EngineOutputV1 }) {
 function StoragePanel({ engineOutput }: { engineOutput: EngineOutputV1 }) {
   const topOption = engineOutput.options?.find(o => o.status === 'viable') ?? engineOutput.options?.[0];
   const dhwLimiter = engineOutput.limiters?.limiters.find(
-    l => l.id.includes('combi-concurrency') || l.id.includes('cycling'),
+    l => STORAGE_LIMITER_IDS.has(l.id),
   );
 
   const statusColour: Record<string, string> = {

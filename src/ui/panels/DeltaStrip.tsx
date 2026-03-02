@@ -121,10 +121,10 @@ function directionColour(direction: Delta['direction'], upIsGood?: boolean): str
   return upIsGood ? '#e53e3e' : '#276749'; // 'down'
 }
 
-function directionArrow(direction: Delta['direction'], upIsGood?: boolean): string {
+function directionArrow(direction: Delta['direction']): string {
   if (direction === 'same') return '→';
   if (direction === 'changed') return '↔';
-  if (direction === 'up') return upIsGood ? '↑ ' : '↑ ';
+  if (direction === 'up') return '↑ ';
   return '↓ ';
 }
 
@@ -164,7 +164,7 @@ export default function DeltaStrip({ previous, current }: Props) {
       </span>
       {deltas.map((d, i) => {
         const colour = directionColour(d.direction, d.upIsGood);
-        const arrow = directionArrow(d.direction, d.upIsGood);
+        const arrow = directionArrow(d.direction);
         return (
           <span key={i} style={{ color: '#4a5568' }}>
             <span style={{ color: '#718096' }}>{d.label}:</span>{' '}
