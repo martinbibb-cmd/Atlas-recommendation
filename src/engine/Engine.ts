@@ -39,6 +39,13 @@ function interpolateDemandKw(minuteIdx: number, hourlyDemandKw: number[]): numbe
 
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const normalizer = normalizeInput(input);
+
+  // Apply maintenance service level: a power-flush/filter service proportionally
+  // recovers the 10-year efficiency decay.  0 = as-found, 100 = fully restored.
+  if (input.maintenance?.serviceLevelPct) {
+    normalizer.tenYearEfficiencyDecayPct *= (1 - input.maintenance.serviceLevelPct / 100);
+  }
+
   const hydraulic = runHydraulicSafetyModule(input);
 
   // ── Sludge vs Scale must run before HydraulicModule and LifestyleSimulationModule ──

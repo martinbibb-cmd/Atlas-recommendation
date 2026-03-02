@@ -20,12 +20,15 @@ interface Props {
   nominalEfficiencyPct: number;
   /** Annual gas spend in GBP (used to compute £ saving) */
   annualGasSpendGbp?: number;
+  /** Called whenever the slider moves so a parent can propagate the value into the engine. */
+  onChange?: (serviceLevelPct: number) => void;
 }
 
 export default function SystemFlushSlider({
   currentEfficiencyPct,
   nominalEfficiencyPct,
   annualGasSpendGbp = 1200,
+  onChange,
 }: Props) {
   // 0 = no service, 100 = full power-flush + inhibitor dose + filter clean
   const [maintenanceLevel, setMaintenanceLevel] = useState(0);
@@ -60,7 +63,11 @@ export default function SystemFlushSlider({
         max={100}
         step={1}
         value={maintenanceLevel}
-        onChange={e => setMaintenanceLevel(+e.target.value)}
+        onChange={e => {
+          const v = +e.target.value;
+          setMaintenanceLevel(v);
+          onChange?.(v);
+        }}
         style={{ width: '100%', cursor: 'pointer' }}
         aria-label="Maintenance level slider"
       />

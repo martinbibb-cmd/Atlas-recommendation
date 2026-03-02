@@ -29,7 +29,6 @@ import InteractiveTwin from '../InteractiveTwin';
 import Timeline24hRenderer from '../visualizers/Timeline24hRenderer';
 import SystemConditionImpact from '../visualizers/SystemConditionImpact';
 import { computeConditionImpactMetrics } from '../../engine/modules/SystemConditionImpactModule';
-import LifestyleInteractive from '../visualizers/LifestyleInteractive';
 import ExpertPanel from '../visualizers/ExpertPanel';
 import CustomerSummaryPanel from '../visualizers/CustomerSummaryPanel';
 import {
@@ -2914,6 +2913,7 @@ function FullSurveyResults({
         hydraulic={results.hydraulicV1}
         systemAType={compareAId}
         systemBType={compareBId}
+        baseInput={toEngineInput(sanitiseModelForEngine(input))}
         onBack={() => setShowTwin(false)}
       />
     );
@@ -3358,14 +3358,22 @@ function FullSurveyResults({
       </div>
 
       {/* Day Painter — canonical causes vs effects page */}
-      <div className="result-section">
-        <h3>🖌️ Day Painter — Interactive System Simulation</h3>
-        <p className="description" style={{ marginBottom: '0.75rem' }}>
-          Paint your 24-hour routine and see how the selected heating system responds in real time.
-          Graph 1 shows demand load; Graph 2 shows system output and hot-water reserve.
-        </p>
-        <LifestyleInteractive baseInput={toEngineInput(sanitiseModelForEngine(input))} />
-      </div>
+      {timelinePayload && (
+        <div className="result-section">
+          <h3>🖌️ Day Painter — 24-Hour System Simulation</h3>
+          <p className="description" style={{ marginBottom: '0.75rem' }}>
+            The comparative timeline below is generated directly from the engine.
+            Switch systems with the A/B selector above to see how each one responds to your profile.
+            Row labels: Space Heat Demand · DHW Events · Heat Source Output · Performance.
+          </p>
+          <Timeline24hRenderer
+            payload={timelinePayload}
+            compareAId={compareAId}
+            compareBId={compareBId}
+            onHoverIndexChange={setHoveredTimelineIndex}
+          />
+        </div>
+      )}
 
       {/* Hydraulic Analysis */}
       <div className="result-section">
