@@ -2877,6 +2877,19 @@ function FullSurveyResults({
   // Timeline visual is always derived from engine output — single source of truth.
   const timelineVisual = engineOutput.visuals?.find((v: VisualSpecV1) => v.type === 'timeline_24h');
   const timelinePayload: Timeline24hV1 | undefined = timelineVisual?.type === 'timeline_24h' ? timelineVisual.data as Timeline24hV1 : undefined;
+  const timelineDebug = timelinePayload
+    ? {
+        maxHeatDemandKw: Math.max(0, ...timelinePayload.demandHeatKw),
+        maxDhwDemandKw: Math.max(0, ...timelinePayload.series.flatMap(s => s.dhwTotalKw ?? [])),
+        maxApplianceOutKw: Math.max(0, ...timelinePayload.series.flatMap(s => s.heatDeliveredKw)),
+        firstPointHash: JSON.stringify({
+          t: timelinePayload.timeMinutes[0],
+          demand: timelinePayload.demandHeatKw[0],
+          outputA: timelinePayload.series[0]?.heatDeliveredKw[0],
+          dhwA: timelinePayload.series[0]?.dhwTotalKw?.[0] ?? 0,
+        }).length,
+      }
+    : undefined;
 
   /** Rerun the engine with a new painted day programme (legacy painter). */
   const updateDayProgram = (program: PainterDayProgram) => {
@@ -3282,6 +3295,11 @@ function FullSurveyResults({
           profile={dayProfile}
           onChange={updateDayProfile}
         />
+        {timelineDebug && (
+          <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: '#4a5568' }}>
+            Engine output — max heat {timelineDebug.maxHeatDemandKw.toFixed(2)} kW · max DHW {timelineDebug.maxDhwDemandKw.toFixed(2)} kW · max output {timelineDebug.maxApplianceOutKw.toFixed(2)} kW · first-point hash {timelineDebug.firstPointHash}
+          </div>
+        )}
         {timelinePayload && (
           <div style={{ marginTop: '1rem' }}>
             <Timeline24hRenderer
