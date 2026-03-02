@@ -41,6 +41,18 @@ function minuteToLabel(min: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function roundUpToNice(value: number): number {
+  if (value <= 0) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const normalized = value / magnitude;
+  const nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return nice * magnitude;
+}
+
 /** Build the Recharts data array from the Timeline24hV1 payload. */
 function buildChartData(payload: Timeline24hV1): Record<string, number | string>[] {
   return payload.timeMinutes.map((min, i) => {
@@ -150,8 +162,22 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
     [],
   );
 
-  // Derive a key from the active series IDs so Recharts fully remounts when the pair changes
-  const chartKey = payload.series.map(s => s.id).join('__');
+  const maxDemandHeatKw = Math.max(0, ...payload.demandHeatKw);
+  const maxOutputKw = Math.max(0, ...payload.series.flatMap(s => s.heatDeliveredKw));
+  const maxDhwKw = Math.max(0, ...payload.series.flatMap(s => s.dhwTotalKw ?? []));
+
+  // Derive a key from IDs + data signature so Recharts remounts when a new engine run lands.
+  const chartKey = [
+    payload.series.map(s => s.id).join('__'),
+    payload.timeMinutes.length,
+    maxDemandHeatKw.toFixed(3),
+    maxOutputKw.toFixed(3),
+    maxDhwKw.toFixed(3),
+    payload.events.length,
+  ].join('__');
+
+  const heatDemandYMax = clamp(roundUpToNice(maxDemandHeatKw * 1.15), 4, 30);
+  const heatOutputYMax = clamp(roundUpToNice(maxOutputKw * 1.15), 4, 40);
 
   // Tick every 4 points = every hour (each point = 15 min)
   const xTickIndices = new Set(
@@ -283,7 +309,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
         <ComposedChart key={`${chartKey}_demand`} data={data} margin={chartMargin} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis {...xAxisProps} />
-          <YAxis tick={{ fontSize: 9 }} width={32} unit="kW" />
+          <YAxis tick={{ fontSize: 9 }} width={32} unit="kW" domain={[0, heatDemandYMax]} />
           <Tooltip
             contentStyle={{ fontSize: '0.78rem', borderRadius: '6px' }}
             formatter={(v: number | undefined) => [v !== undefined ? `${v.toFixed(2)} kW` : ''] as [string]}
@@ -351,7 +377,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
         <ComposedChart key={`${chartKey}_dhwbar`} data={data} margin={chartMargin} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis {...xAxisProps} />
-          <YAxis tick={{ fontSize: 9 }} width={32} unit="kW" />
+          <YAxis tick={{ fontSize: 9 }} width={32} unit="kW" domain={[0, 35]} />
           <Tooltip
             contentStyle={{ fontSize: '0.78rem', borderRadius: '6px' }}
             formatter={(v: number | undefined, name: string | undefined) => {
@@ -389,7 +415,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
         <ComposedChart key={`${chartKey}_output`} data={data} margin={chartMargin} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis {...xAxisProps} />
-          <YAxis tick={{ fontSize: 9 }} width={32} unit="kW" />
+          <YAxis tick={{ fontSize: 9 }} width={32} unit="kW" domain={[0, heatOutputYMax]} />
           <Tooltip
             contentStyle={{ fontSize: '0.78rem', borderRadius: '6px' }}
             formatter={(v: number | undefined) => [v !== undefined ? `${v.toFixed(2)} kW` : ''] as [string]}

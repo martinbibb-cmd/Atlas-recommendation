@@ -90,6 +90,12 @@ const bandRowStyle: CSSProperties = {
   flexWrap: 'wrap',
 };
 
+const heatingRingColor = (targetC: number): string => {
+  if (targetC >= 22) return '#e53e3e';
+  if (targetC >= 21) return '#ed8936';
+  return '#dd6b20';
+};
+
 const inputStyle: CSSProperties = {
   padding: '2px 6px',
   border: '1px solid #cbd5e0',
@@ -140,36 +146,54 @@ function HeatingScheduleBands({
 
   return (
     <div style={sectionStyle}>
-      <div style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.88rem' }}>
-        🌡️ Heating Schedule
+      <div style={{ fontWeight: 600, marginBottom: '0.25rem', fontSize: '1rem', color: '#2d3748' }}>
+        🌡️ Heating
+      </div>
+      <div style={{ fontSize: '0.84rem', color: '#718096', marginBottom: '0.6rem' }}>
+        Heating schedule is active
       </div>
       {bands.map((band, i) => (
-        <div key={i} style={bandRowStyle}>
-          <label style={{ fontSize: '0.78rem', color: '#718096' }}>Start</label>
-          <input
-            type="time"
-            style={inputStyle}
-            value={minutesToHHMM(band.startMin)}
-            onChange={(e) => update(i, { startMin: hhmmToMinutes(e.target.value) })}
-          />
-          <label style={{ fontSize: '0.78rem', color: '#718096' }}>End</label>
-          <input
-            type="time"
-            style={inputStyle}
-            value={minutesToHHMM(band.endMin)}
-            onChange={(e) => update(i, { endMin: hhmmToMinutes(e.target.value) })}
-          />
-          <label style={{ fontSize: '0.78rem', color: '#718096' }}>Temp</label>
+        <div key={i} style={{ ...bandRowStyle, background: '#fff', border: '1px solid #edf2f7', padding: '0.55rem 0.6rem' }}>
+          <div style={{
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            border: `3px solid ${heatingRingColor(band.targetC)}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 600,
+            color: '#2d3748',
+            fontSize: '1rem',
+            background: '#fff',
+          }}>
+            {band.targetC}°
+          </div>
+          <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+            <input
+              type="time"
+              style={inputStyle}
+              value={minutesToHHMM(band.startMin)}
+              onChange={(e) => update(i, { startMin: hhmmToMinutes(e.target.value) })}
+            />
+            <span style={{ color: '#4a5568', fontWeight: 600 }}>–</span>
+            <input
+              type="time"
+              style={inputStyle}
+              value={minutesToHHMM(band.endMin)}
+              onChange={(e) => update(i, { endMin: hhmmToMinutes(e.target.value) })}
+            />
+          </div>
           <input
             type="number"
             min={MIN_HEATING_TEMP_C}
             max={MAX_HEATING_TEMP_C}
-            style={{ ...inputStyle, width: '52px' }}
+            style={{ ...inputStyle, width: '56px', marginLeft: 'auto' }}
             value={band.targetC}
             onChange={(e) => update(i, { targetC: Number(e.target.value) })}
+            aria-label="Target temperature"
           />
-          <span style={{ fontSize: '0.78rem', color: '#718096' }}>°C</span>
-          <button style={btnSmallStyle} onClick={() => remove(i)}>✕</button>
+          <button style={btnSmallStyle} onClick={() => remove(i)} aria-label="Remove heating band">✕</button>
         </div>
       ))}
       <button style={addBtnStyle} onClick={add}>+ Add band</button>
