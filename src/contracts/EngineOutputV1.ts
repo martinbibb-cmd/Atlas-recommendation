@@ -16,6 +16,10 @@ export interface AssumptionV1 {
 export interface ConfidenceV1 {
   level: 'high' | 'medium' | 'low';
   reasons: string[];
+  /** Inputs that are unknown and affect confidence in this assessment. */
+  unknowns?: string[];
+  /** How to resolve the unknowns and increase confidence. */
+  unlockBy?: string[];
 }
 
 export interface EngineMetaV1 {
@@ -459,6 +463,42 @@ export interface InfluenceSummaryV1 {
   hydraulics: InfluenceBlockV1;
 }
 
+// ─── Pathway Planning (V1) ────────────────────────────────────────────────────
+
+export interface PathwayPrerequisiteV1 {
+  id: string;
+  text: string;
+  /** Reference to a LimiterV1.id that drives this prerequisite. */
+  limiterRef?: string;
+  /** Future event that would unlock this pathway, e.g. 'mains-upgrade-next-year'. */
+  triggerEvent?: string;
+}
+
+export type PathwayOptionId =
+  | 'direct_ashp'
+  | 'boiler_mixergy_enablement'
+  | 'convert_later_unvented'
+  | 'combi_single_tech';
+
+export interface PathwayOptionV1 {
+  id: PathwayOptionId;
+  title: string;
+  whenOffered: string;
+  rationale: string[];
+  prerequisites: PathwayPrerequisiteV1[];
+  outcomeToday: string[];
+  outcomeAfterTrigger?: string[];
+  confidence: ConfidenceV1;
+  rank: number;
+}
+
+export interface PlanV1 {
+  pathways: PathwayOptionV1[];
+  sharedConstraints: Array<{ limiterId: string; summary: string }>;
+  /** Set by UI when the expert selects a pathway; engine never forces a selection. */
+  selectedPathwayId?: PathwayOptionId;
+}
+
 // ─── Verdict (V1) ─────────────────────────────────────────────────────────────
 
 export interface VerdictV1 {
@@ -515,4 +555,6 @@ export interface EngineOutputV1 {
   verdict?: VerdictV1;
   /** Domain influence summary for InfluenceBlocks UI panel. */
   influenceSummary?: InfluenceSummaryV1;
+  /** Expert-first pathway planning layer — engine offers 2–3 paths; expert selects one. */
+  plans?: PlanV1;
 }

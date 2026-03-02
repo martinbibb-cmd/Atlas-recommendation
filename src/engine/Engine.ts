@@ -24,6 +24,7 @@ import { runBoilerSizingModuleV1 } from './modules/BoilerSizingModule';
 import { buildBoilerEfficiencyModelV1 } from './modules/BoilerEfficiencyModelV1';
 import { buildEngineOutputV1 } from './OutputBuilder';
 import { runFabricModelV1 } from './modules/FabricModelModule';
+import { buildPathwaysV1, snapshotFromResult } from './modules/PathwayBuilderModule';
 
 
 function interpolateDemandKw(minuteIdx: number, hourlyDemandKw: number[]): number {
@@ -190,5 +191,15 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
   };
 
   const engineOutput = buildEngineOutputV1(core, input);
+
+  // ── Pathway Planning (expert-first layer) ────────────────────────────────
+  const pathwaySnapshot = snapshotFromResult(engineOutput, {
+    mainsDynamicFlowLpm: input.mainsDynamicFlowLpm,
+    screedLeakRisk: false, // Extend when a screed-risk signal is available in EngineInputV2_3
+    primaryPipeDiameter: input.primaryPipeDiameter,
+  });
+  const plans = buildPathwaysV1(pathwaySnapshot, input.expertAssumptions);
+  engineOutput.plans = plans;
+
   return { ...core, engineOutput };
 }

@@ -1,4 +1,17 @@
 /** Normalized input contract accepted by the engine (V2.3). */
+export interface ExpertAssumptionsV1 {
+  /** How much physical disruption the customer is willing to accept. */
+  disruptionTolerance: 'low' | 'med' | 'high';
+  /** Appetite for screed-leak risk (relevant for UFH / wet screed). */
+  screedLeakRiskTolerance: 'cautious' | 'normal';
+  /** Whether outstanding DHW experience is a priority over cost. */
+  dhwExperiencePriority: 'high' | 'normal';
+  /** Whether future-proofing (e.g. ready for ASHP later) is a priority. */
+  futureReadinessPriority: 'high' | 'normal';
+  /** Primary weighting: comfort-led, balanced, or cost-led. */
+  comfortVsCost: 'comfort' | 'balanced' | 'cost';
+}
+
 export interface EngineInputV2_3Contract {
   infrastructure: {
     /** Primary pipe size in mm. */
@@ -48,4 +61,6 @@ export interface EngineInputV2_3Contract {
       nominalOutputKw?: number;
     };
   };
+  /** Expert-tunable assumptions for pathway ranking and messaging. Physics unchanged. */
+  expertAssumptions?: ExpertAssumptionsV1;
 }

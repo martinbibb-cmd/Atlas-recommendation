@@ -10,8 +10,8 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-import type { EngineInputV2_3, FullEngineResult, BuildingFabricType } from '../../engine/schema/EngineInputV2_3';
-import type { EngineOutputV1, VisualSpecV1, Timeline24hV1 } from '../../contracts/EngineOutputV1';
+import type { EngineInputV2_3, FullEngineResult, BuildingFabricType, ExpertAssumptionsV1 } from '../../engine/schema/EngineInputV2_3';
+import type { EngineOutputV1, VisualSpecV1, Timeline24hV1, PathwayOptionId } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { runEngine } from '../../engine/Engine';
@@ -46,6 +46,8 @@ import {
 import LivePhysicsOverlay, { type OverlayStepKey } from '../../ui/overlay/LivePhysicsOverlay';
 import ConstraintsGrid from '../../ui/panels/ConstraintsGrid';
 import DeltaStrip from '../../ui/panels/DeltaStrip';
+import ExpertPanel from '../visualizers/ExpertPanel';
+import CustomerSummaryPanel from '../visualizers/CustomerSummaryPanel';
 // BOM utilities retained for internal/engineer mode — not rendered in customer cockpit
 // import { exportBomToCsv, calculateBomTotal } from '../../engine/modules/WholesalerPricingAdapter';
 
@@ -57,6 +59,14 @@ interface Props {
 
 type Step = 'location' | 'pressure' | 'hydraulic' | 'lifestyle' | 'hot_water' | 'commercial' | 'overlay' | 'results';
 const STEPS: Step[] = ['location', 'pressure', 'hydraulic', 'lifestyle', 'hot_water', 'commercial', 'overlay', 'results'];
+
+const DEFAULT_EXPERT_ASSUMPTIONS: ExpertAssumptionsV1 = {
+  disruptionTolerance: 'med',
+  screedLeakRiskTolerance: 'normal',
+  dhwExperiencePriority: 'normal',
+  futureReadinessPriority: 'normal',
+  comfortVsCost: 'balanced',
+};
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
 // Two independent physics dimensions:
@@ -2846,6 +2856,9 @@ function FullSurveyResults({
   const [activeOptionTab, setActiveOptionTab] = useState<Record<string, 'heat' | 'dhw' | 'needs' | 'why'>>({});
   const [visualFilter, setVisualFilter] = useState<'all' | 'relevant'>('all');
   const [compareAId, setCompareAId] = useState<string>('current');
+  const [expertOpen, setExpertOpen] = useState(false);
+  const [expertAssumptions, setExpertAssumptions] = useState<ExpertAssumptionsV1>(DEFAULT_EXPERT_ASSUMPTIONS);
+  const [selectedPathwayId, setSelectedPathwayId] = useState<PathwayOptionId | undefined>(undefined);
   const [compareBId, setCompareBId] = useState<string>(
     results.engineOutput.recommendation.primary.toLowerCase().includes('heat pump') ? 'ashp'
     : results.engineOutput.recommendation.primary.toLowerCase().includes('unvented') ? 'stored_unvented'
@@ -3513,6 +3526,44 @@ function FullSurveyResults({
         </p>
         <GlassBoxPanel results={results} />
       </div>
+
+      {/* Expert Pathway Planner */}
+      {engineOutput.plans && (
+        <div className="result-section">
+          <button
+            onClick={() => setExpertOpen(o => !o)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              marginBottom: expertOpen ? 12 : 0,
+            }}
+            aria-expanded={expertOpen}
+          >
+            <h3 style={{ margin: 0, fontSize: '1rem', color: '#2d3748' }}>🧭 Expert Pathway Planner</h3>
+            <span style={{ fontSize: '0.78rem', color: '#718096' }}>{expertOpen ? '▲ Hide' : '▼ Show'}</span>
+          </button>
+          {expertOpen && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <ExpertPanel
+                plan={engineOutput.plans}
+                assumptions={expertAssumptions}
+                onAssumptionsChange={setExpertAssumptions}
+                selectedPathwayId={selectedPathwayId}
+                onSelectPathway={setSelectedPathwayId}
+              />
+              <CustomerSummaryPanel
+                plan={engineOutput.plans}
+                selectedPathwayId={selectedPathwayId}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <button className="prev-btn" onClick={onBack}>← New Survey</button>

@@ -1,12 +1,14 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import ModellingNotice from '../ModellingNotice';
-import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
-import type { AssumptionV1, ConfidenceV1 } from '../../contracts/EngineOutputV1';
+import type { EngineInputV2_3, FullEngineResult, ExpertAssumptionsV1 } from '../../engine/schema/EngineInputV2_3';
+import type { AssumptionV1, ConfidenceV1, PathwayOptionId } from '../../contracts/EngineOutputV1';
 import { runEngine } from '../../engine/Engine';
 import { runHydraulicModuleV1 } from '../../engine/modules/HydraulicModule';
 import { runCombiDhwModuleV1 } from '../../engine/modules/CombiDhwModule';
 import { runStoredDhwModuleV1 } from '../../engine/modules/StoredDhwModule';
 import StoryModeContainer, { ENABLE_STORY_MODE } from '../../story/StoryModeContainer';
+import ExpertPanel from '../visualizers/ExpertPanel';
+import CustomerSummaryPanel from '../visualizers/CustomerSummaryPanel';
 
 interface Props {
   onBack: () => void;
@@ -43,6 +45,14 @@ const STATUS_LABEL: Record<'pass' | 'warn' | 'fail', string> = {
   pass: 'Pass',
   warn: 'Caution',
   fail: 'Fail',
+};
+
+const DEFAULT_EXPERT_ASSUMPTIONS: ExpertAssumptionsV1 = {
+  disruptionTolerance: 'med',
+  screedLeakRiskTolerance: 'normal',
+  dhwExperiencePriority: 'normal',
+  futureReadinessPriority: 'normal',
+  comfortVsCost: 'balanced',
 };
 
 export default function FastChoiceStepper({ onBack, onEscalate }: Props) {
@@ -332,6 +342,10 @@ function ResultsCockpit({
   const options = result.engineOutput.options ?? [];
   const selected = options.find(option => option.id === selectedOptionId) ?? options[0];
 
+  const [expertOpen, setExpertOpen] = useState(false);
+  const [expertAssumptions, setExpertAssumptions] = useState<ExpertAssumptionsV1>(DEFAULT_EXPERT_ASSUMPTIONS);
+  const [selectedPathwayId, setSelectedPathwayId] = useState<PathwayOptionId | undefined>(undefined);
+
   return (
     <div className="cockpit-page">
       <div className="stepper-header">
@@ -393,6 +407,44 @@ function ResultsCockpit({
           </div>
         </section>
       </div>
+
+      {/* ── Expert Pathway Section ────────────────────────────────────────────── */}
+      {result.engineOutput.plans && (
+        <div className="result-section" style={{ marginTop: '1.5rem' }}>
+          <button
+            onClick={() => setExpertOpen(o => !o)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              marginBottom: expertOpen ? 12 : 0,
+            }}
+            aria-expanded={expertOpen}
+          >
+            <h3 style={{ margin: 0, fontSize: '1rem', color: '#2d3748' }}>🧭 Expert Pathway Planner</h3>
+            <span style={{ fontSize: '0.78rem', color: '#718096' }}>{expertOpen ? '▲ Hide' : '▼ Show'}</span>
+          </button>
+          {expertOpen && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <ExpertPanel
+                plan={result.engineOutput.plans}
+                assumptions={expertAssumptions}
+                onAssumptionsChange={setExpertAssumptions}
+                selectedPathwayId={selectedPathwayId}
+                onSelectPathway={setSelectedPathwayId}
+              />
+              <CustomerSummaryPanel
+                plan={result.engineOutput.plans}
+                selectedPathwayId={selectedPathwayId}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
