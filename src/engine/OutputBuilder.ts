@@ -6,6 +6,7 @@ import { buildTimeline24hV1 } from './TimelineBuilder';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
 import { buildBehaviourTimelineV1 } from './BehaviourTimelineBuilder';
 import { buildLimitersV1 } from './LimitersBuilder';
+import { buildPathwaysV1 } from './modules/PathwayBuilderModule';
 import { PENALTY_NARRATIVES, selectTopNarrativePenalties } from './scoring/penaltyNarratives';
 import type { PenaltyId } from '../contracts/scoring.penaltyIds';
 
@@ -723,6 +724,9 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     };
   })() : undefined;
 
+  // Expert-facing pathway plan — 2–3 options with prerequisites and outcomes
+  const plans = input ? buildPathwaysV1(result, input, input.expertAssumptions) : undefined;
+
   return {
     eligibility: buildEligibility(result, input),
     redFlags: [...buildRedFlags(allReasons), ...combiFlags, ...storedFlags],
@@ -742,5 +746,6 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     limiters,
     verdict,
     influenceSummary,
+    plans,
   };
 }

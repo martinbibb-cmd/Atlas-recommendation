@@ -51,6 +51,24 @@ export type BuildingMass = 'light' | 'medium' | 'heavy';
 
 export type PipingTopology = 'two_pipe' | 'one_pipe' | 'microbore';
 
+/**
+ * Expert assumption overrides — inputs to pathway ranking, not the physics simulation.
+ * Experts disagree about risk appetite and priorities, not about physics outcomes.
+ * All fields are optional; defaults are applied when absent.
+ */
+export interface ExpertAssumptionsV1 {
+  /** How much disruption to the property the customer will accept. Default: 'low'. */
+  disruptionTolerance?: 'low' | 'med' | 'high';
+  /** Risk appetite for screed-floor pipe leaks during underfloor heating work. Default: 'cautious'. */
+  screedLeakRiskTolerance?: 'cautious' | 'normal';
+  /** Whether DHW experience (reliable hot water) is a priority. Default: 'normal'. */
+  dhwExperiencePriority?: 'high' | 'normal';
+  /** Whether future-readiness (heat-pump pathway) is a priority. Default: 'normal'. */
+  futureReadinessPriority?: 'high' | 'normal';
+  /** Comfort vs running cost trade-off. Default: 'balanced'. */
+  comfortVsRunningCost?: 'comfort' | 'balanced' | 'cost';
+}
+
 export interface EngineInputV2_3 {
   // Location & Water
   postcode: string;
@@ -266,6 +284,12 @@ export interface EngineInputV2_3 {
     /** Whether two bathrooms are in use simultaneously — also feeds combi gate. */
     twoSimultaneousBathrooms: boolean;
   };
+
+  /**
+   * Optional expert assumption overrides — experts disagree about risk appetite,
+   * not about physics.  These dials feed pathway ranking only (not the physics sim).
+   */
+  expertAssumptions?: ExpertAssumptionsV1;
 }
 
 export interface HydraulicResult {
