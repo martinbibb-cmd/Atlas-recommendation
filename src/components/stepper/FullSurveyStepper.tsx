@@ -2840,13 +2840,6 @@ function EngineeringRequirementsCard({
   );
 }
 
-/** Display labels for the system-B comparison picker. */
-const COMPARE_B_LABELS: Record<string, string> = {
-  on_demand:       'Combi / On-demand',
-  stored_vented:   'Stored vented',
-  stored_unvented: 'Stored unvented',
-  ashp:            'Heat pump',
-};
 
 /** Deterministic checksum for debug overlay — djb2-style hash of string content. */
 function debugChecksum(s: string): number {
@@ -2889,8 +2882,8 @@ function FullSurveyResults({
     : results.engineOutput.recommendation.primary.toLowerCase().includes('unvented') ? 'stored_unvented'
     : results.engineOutput.recommendation.primary.toLowerCase().includes('vented') ? 'stored_vented'
     : 'on_demand';
-  /** User-controlled system-B selector — never overwritten by engine reruns. */
-  const [compareBId, setCompareBId] = useState(recommendedBId);
+  /** System-B ID for the InteractiveTwin and visual-card timeline renderers — derived from engine recommendation. */
+  const compareBId = recommendedBId;
   /** Monotonically-incrementing engine run counter — used by ?debug=1 overlay. */
   const [engineRunId, setEngineRunId] = useState(0);
   const [selectedPathwayId, setSelectedPathwayId] = useState<string | undefined>(undefined);
@@ -2925,6 +2918,7 @@ function FullSurveyResults({
         maxHeatDemandKw: Math.max(0, ...timelinePayload.demandHeatKw),
         maxDhwDemandKw: Math.max(0, ...timelinePayload.series.flatMap(s => s.dhwTotalKw ?? [])),
         maxApplianceOutKw: Math.max(0, ...timelinePayload.series.flatMap(s => s.heatDeliveredKw)),
+        heatBandsCount: dayProfile.heatingBands.length,
         /** Checksum of dayProfile JSON — changes when any field changes. */
         inputHash: debugChecksum(JSON.stringify(dayProfile)),
         /** Checksum of first timeline point — changes when engine output changes. */
@@ -2959,6 +2953,33 @@ function FullSurveyResults({
     startTransition(() => {
       const engineInput = toEngineInput(sanitiseModelForEngine(input));
       engineInput.dayProfile = profile;
+      engineInput.engineConfig = { timelinePair: [daySystemA, daySystemB] };
+      const out = runEngine(engineInput);
+      setEngineRunId(n => n + 1);
+      setEngineOutput(out.engineOutput);
+    });
+  };
+
+  /** Rerun the engine with a new System A selection — updates the timeline pair. */
+  const updateDaySystemA = (sys: ComparisonSystemType) => {
+    setDaySystemA(sys);
+    startTransition(() => {
+      const engineInput = toEngineInput(sanitiseModelForEngine(input));
+      engineInput.dayProfile = dayProfile;
+      engineInput.engineConfig = { timelinePair: [sys, daySystemB] };
+      const out = runEngine(engineInput);
+      setEngineRunId(n => n + 1);
+      setEngineOutput(out.engineOutput);
+    });
+  };
+
+  /** Rerun the engine with a new System B selection — updates the timeline pair. */
+  const updateDaySystemB = (sys: ComparisonSystemType) => {
+    setDaySystemB(sys);
+    startTransition(() => {
+      const engineInput = toEngineInput(sanitiseModelForEngine(input));
+      engineInput.dayProfile = dayProfile;
+      engineInput.engineConfig = { timelinePair: [daySystemA, sys] };
       const out = runEngine(engineInput);
       setEngineRunId(n => n + 1);
       setEngineOutput(out.engineOutput);
@@ -3349,8 +3370,8 @@ function FullSurveyResults({
         <CompareSystemPicker
           systemA={daySystemA}
           systemB={daySystemB}
-          onSystemAChange={setDaySystemA}
-          onSystemBChange={setDaySystemB}
+          onSystemAChange={updateDaySystemA}
+          onSystemBChange={updateDaySystemB}
           suggestedB={suggestedDaySystemB}
         />
 
@@ -3360,38 +3381,16 @@ function FullSurveyResults({
         />
         {isDebug && timelineDebug && (
           <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: '#4a5568', fontFamily: 'monospace' }}>
-            engineRunId={engineRunId} · inputHash={timelineDebug.inputHash} · timelineHash={timelineDebug.timelineHash}
+            engineRunId={engineRunId} · heatBandsCount={timelineDebug.heatBandsCount} · inputHash={timelineDebug.inputHash} · timelineHash={timelineDebug.timelineHash}
             {' '}· max heat {timelineDebug.maxHeatDemandKw.toFixed(2)} kW · max DHW {timelineDebug.maxDhwDemandKw.toFixed(2)} kW
           </div>
         )}
         {timelinePayload && (
           <div style={{ marginTop: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.82rem', color: '#4a5568', fontWeight: 600 }}>Compare against:</span>
-              {(['on_demand', 'stored_vented', 'stored_unvented', 'ashp'] as const).map(id => (
-                <button
-                  key={id}
-                  onClick={() => setCompareBId(id)}
-                  style={{
-                    padding: '2px 10px',
-                    borderRadius: '10px',
-                    border: '1px solid',
-                    borderColor: compareBId === id ? '#3182ce' : '#cbd5e0',
-                    background: compareBId === id ? '#ebf8ff' : '#fff',
-                    color: compareBId === id ? '#2b6cb0' : '#4a5568',
-                    cursor: 'pointer',
-                    fontSize: '0.78rem',
-                    fontWeight: compareBId === id ? 700 : 400,
-                  }}
-                >
-                  {COMPARE_B_LABELS[id] ?? id}
-                </button>
-              ))}
-            </div>
             <Timeline24hRenderer
               payload={timelinePayload}
-              compareAId={compareAId}
-              compareBId={compareBId}
+              compareAId={daySystemA}
+              compareBId={daySystemB}
             />
           </div>
         )}

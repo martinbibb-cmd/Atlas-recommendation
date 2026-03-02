@@ -362,7 +362,11 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
           <YAxis tick={{ fontSize: 9 }} width={32} unit="kW" domain={[0, heatDemandYMax]} />
           <Tooltip
             contentStyle={{ fontSize: '0.78rem', borderRadius: '6px' }}
-            formatter={(v: number | undefined) => [v !== undefined ? `${v.toFixed(2)} kW` : ''] as [string]}
+            formatter={(v: number | undefined, name: string | undefined) => {
+              if (v === undefined) return [''] as [string];
+              const isTemp = typeof name === 'string' && name.endsWith('°C');
+              return [isTemp ? `${v.toFixed(1)} °C` : `${v.toFixed(2)} kW`, name ?? ''] as [string, string];
+            }}
           />
           {bandShading}
           <Line
