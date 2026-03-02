@@ -103,6 +103,18 @@ export default function InteractiveTwin({
     if (baseInput) twinInputRef.current = baseInput;
   }, [baseInput]);
 
+  // Seed the timeline on mount when baseInput is available, so the chart isn't blank
+  // before the user makes a first interaction.
+  // Intentionally empty deps: we only want to seed once at mount. Subsequent baseInput
+  // changes are handled by the handleOccupancyChange / handleFlushChange callbacks which
+  // already call rerunEngine with the latest twinInputRef.current.
+  useEffect(() => {
+    if (baseInput && twinTimelinePayload === null) {
+      rerunEngine(baseInput);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /** Rerun the engine with the current twin input (already mutated by caller) and update state. */
   const rerunEngine = (twinInput: EngineInputV2_3) => {
     startTransition(() => {
