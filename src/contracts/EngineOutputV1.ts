@@ -16,6 +16,10 @@ export interface AssumptionV1 {
 export interface ConfidenceV1 {
   level: 'high' | 'medium' | 'low';
   reasons: string[];
+  /** Inputs that are unknown and reduce confidence in this output. */
+  unknowns?: string[];
+  /** Actions that would resolve unknowns and increase confidence. */
+  unlockBy?: string[];
 }
 
 export interface EngineMetaV1 {
@@ -491,6 +495,60 @@ export interface VerdictV1 {
   primaryReason?: string;
 }
 
+// ─── Pathway Planning (V1) ────────────────────────────────────────────────────
+
+/**
+ * A prerequisite step that must happen before this pathway is viable.
+ * Linked to a limiter ID so the UI can cross-reference constraint details.
+ */
+export interface PathwayPrerequisiteV1 {
+  /** Human-readable description, e.g. "Upgrade primary pipework to 28 mm". */
+  description: string;
+  /** Optional trigger event that unlocks this step, e.g. "Drive dug up for supply upgrade". */
+  triggerEvent?: string;
+  /** ID of the LimiterV1 this prerequisite addresses. */
+  limiterRef?: string;
+}
+
+/**
+ * A single pathway option produced by the engine.
+ * The expert selects one; the engine documents consequences and prerequisites.
+ */
+export interface PathwayOptionV1 {
+  /** Stable identifier for this pathway option. */
+  id: string;
+  /** Short human-readable title, e.g. "Boiler + Mixergy now, ASHP later". */
+  title: string;
+  /** One-line rationale driven by the current constraints. */
+  rationale: string;
+  /** What the customer experiences today under this pathway. */
+  outcomeToday: string;
+  /** What changes after the trigger event (if any). */
+  outcomeAfterTrigger?: string;
+  /** Ordered list of prerequisites this pathway depends on. */
+  prerequisites: PathwayPrerequisiteV1[];
+  /** Confidence and unknowns for this specific pathway. */
+  confidence: ConfidenceV1;
+  /**
+   * Relative ranking hint: 1 = most recommended under current assumptions.
+   * The expert may override by selecting any pathway.
+   */
+  rank: number;
+}
+
+/**
+ * The full plan output: 2–3 pathway options with audit metadata.
+ * The expert selects one; the selected pathway id is stored outside the engine.
+ */
+export interface PlanV1 {
+  pathways: PathwayOptionV1[];
+  /**
+   * Constraints that all pathways share — facts the expert cannot change
+   * without altering the underlying physics assumptions.
+   */
+  sharedConstraints: string[];
+}
+
 export interface EngineOutputV1 {
   eligibility: EligibilityItem[];
   redFlags: RedFlagItem[];
@@ -515,4 +573,6 @@ export interface EngineOutputV1 {
   verdict?: VerdictV1;
   /** Domain influence summary for InfluenceBlocks UI panel. */
   influenceSummary?: InfluenceSummaryV1;
+  /** 2–3 pathway options for expert selection — engine provides physics truth; expert selects the plan. */
+  plans?: PlanV1;
 }
