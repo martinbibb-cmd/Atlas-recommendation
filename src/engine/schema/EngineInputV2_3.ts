@@ -290,6 +290,17 @@ export interface EngineInputV2_3 {
    * not about physics.  These dials feed pathway ranking only (not the physics sim).
    */
   expertAssumptions?: ExpertAssumptionsV1;
+
+  /**
+   * Optional maintenance intervention — simulates the effect of a system service
+   * (power-flush, inhibitor dose, filter clean) on efficiency recovery.
+   * When present, `serviceLevelPct` reduces the effective 10-year efficiency decay
+   * proportionally: 0 = as-found, 100 = fully restored to nominal.
+   */
+  maintenance?: {
+    /** Service completion 0 (as-found) → 100 (full power-flush). */
+    serviceLevelPct: number;
+  };
 }
 
 export interface HydraulicResult {
