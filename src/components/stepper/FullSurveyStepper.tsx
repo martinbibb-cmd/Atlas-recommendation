@@ -464,12 +464,6 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
     return null;
   }, [currentStep]);
 
-  // Detect ?debug=1 once on mount — same pattern as Timeline24hRenderer's PhysicsDebugOverlay.
-  const isDebug = useMemo(
-    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug'),
-    [],
-  );
-
   // Water hardness search: shows a live preview when the user clicks "Search"
   const [hardnessPreview, setHardnessPreview] = useState<ReturnType<typeof runRegionalHardness> | null>(null);
   const searchHardness = () => setHardnessPreview(runRegionalHardness(input.postcode));
@@ -2896,6 +2890,12 @@ function FullSurveyResults({
         }).length,
       }
     : undefined;
+
+  // Detect ?debug=1 — same pattern as Timeline24hRenderer's PhysicsDebugOverlay.
+  const isDebug = useMemo(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug'),
+    [],
+  );
 
   /** Rerun the engine with a new painted day programme (legacy painter). */
   const updateDayProgram = (program: PainterDayProgram) => {

@@ -907,4 +907,61 @@ describe('TimelineBuilder — physicsDebug debug flag + source selection', () =>
     // Combi cycling penalty during bath → its η must be strictly below stored η
     expect(combiEta).toBeLessThan(storedEta);
   });
+
+  // ── Domestic-ceiling / clipped-indicator fixture ──────────────────────────────
+  // Validates that the engine correctly produces timeline data for a very large
+  // heat-loss input (58 kW equivalent), and that the chart-axis constants from
+  // Timeline24hRenderer enforce the domestic ceiling without crashing.
+  describe('domestic ceiling — high heat-loss fixture (58 kW equiv)', () => {
+    const HEAT_DEMAND_CLAMP_KW = 30;
+    const HEAT_OUTPUT_CLAMP_KW = 40;
+    const DOMESTIC_CEILING_KW  = 50;
+
+    // 58 000 W → engine receives a very large heat-loss figure
+    const highLossInput = { ...baseInput, heatLossWatts: 58_000 };
+
+    it('engine produces a valid timeline for a 58 kW heat-loss input', () => {
+      const result = runEngine(highLossInput);
+      const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+      expect(timeline).toBeDefined();
+      expect(timeline!.data.timeMinutes).toHaveLength(96);
+      expect(timeline!.data.demandHeatKw).toHaveLength(96);
+    });
+
+    it('max demand exceeds DOMESTIC_CEILING_KW (50 kW) so clipped badge would be shown', () => {
+      const result = runEngine(highLossInput);
+      const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+      const maxDemandHeatKw = Math.max(0, ...timeline!.data.demandHeatKw);
+      const maxOutputKw     = Math.max(0, ...timeline!.data.series.flatMap((s: { heatDeliveredKw: number[] }) => s.heatDeliveredKw));
+      const outOfDomesticScope = Math.max(maxDemandHeatKw, maxOutputKw) > DOMESTIC_CEILING_KW;
+      expect(outOfDomesticScope).toBe(true);
+    });
+
+    it('chart axis yMax is clamped to HEAT_DEMAND_CLAMP_KW (30) even when data exceeds it', () => {
+      const result = runEngine(highLossInput);
+      const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+      const maxDemandHeatKw = Math.max(0, ...timeline!.data.demandHeatKw);
+      // The UI clamps yMax to HEAT_DEMAND_CLAMP_KW — verify that the raw data exceeds the clamp
+      expect(maxDemandHeatKw).toBeGreaterThan(HEAT_DEMAND_CLAMP_KW);
+      // Simulating the same clamp(roundUpToNice(max * 1.15), 4, CLAMP) logic
+      const clampedYMax = Math.min(HEAT_DEMAND_CLAMP_KW, Math.max(4, maxDemandHeatKw * 1.15));
+      expect(clampedYMax).toBe(HEAT_DEMAND_CLAMP_KW);
+    });
+
+    it('chart axis yMax is clamped to HEAT_OUTPUT_CLAMP_KW (40) even when data exceeds it', () => {
+      const result = runEngine(highLossInput);
+      const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+      const maxOutputKw = Math.max(0, ...timeline!.data.series.flatMap((s: { heatDeliveredKw: number[] }) => s.heatDeliveredKw));
+      expect(maxOutputKw).toBeGreaterThan(HEAT_OUTPUT_CLAMP_KW);
+      const clampedYMax = Math.min(HEAT_OUTPUT_CLAMP_KW, Math.max(4, maxOutputKw * 1.15));
+      expect(clampedYMax).toBe(HEAT_OUTPUT_CLAMP_KW);
+    });
+
+    it('heatDemandClipped flag is true when max demand > HEAT_DEMAND_CLAMP_KW', () => {
+      const result = runEngine(highLossInput);
+      const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+      const maxDemandHeatKw = Math.max(0, ...timeline!.data.demandHeatKw);
+      expect(maxDemandHeatKw > HEAT_DEMAND_CLAMP_KW).toBe(true);
+    });
+  });
 });

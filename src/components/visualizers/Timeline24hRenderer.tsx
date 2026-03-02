@@ -22,8 +22,14 @@ const SETPOINT_COLOUR = '#48bb78';
 // ── Axis clamp ceilings ───────────────────────────────────────────────────────
 const HEAT_DEMAND_CLAMP_KW = 30;
 const HEAT_OUTPUT_CLAMP_KW = 40;
+/** Hard upper ceiling — anything above this is out of domestic scope. */
+const DOMESTIC_CEILING_KW = 50;
 
-/** Style for the inline "⚠︎ clipped at N kW" warning appended to row sub-labels. */
+/** Tooltip / banner copy for values that exceed the domestic chart scale. */
+const CLIPPED_TOOLTIP = 'Value exceeds domestic chart scale; check heat-loss inputs or property type.';
+const OUT_OF_SCOPE_COPY = `These charts are scaled for domestic systems. Values above ${DOMESTIC_CEILING_KW} kW usually indicate a non-domestic property or an input error.`;
+
+/** Style for the inline "⚠︎ Clipped (max N kW)" warning appended to row sub-labels. */
 const clippedLabelStyle: React.CSSProperties = { color: '#e53e3e', fontSize: '0.72rem', marginLeft: '0.4rem' };
 
 /** Band fill colours by kind. */
@@ -198,6 +204,8 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
   const heatOutputYMax = clamp(roundUpToNice(maxOutputKw * 1.15), 4, HEAT_OUTPUT_CLAMP_KW);
   const heatDemandClipped = maxDemandHeatKw > HEAT_DEMAND_CLAMP_KW;
   const heatOutputClipped = maxOutputKw > HEAT_OUTPUT_CLAMP_KW;
+  /** True when any value exceeds the domestic ceiling — likely an input error or non-domestic property. */
+  const outOfDomesticScope = Math.max(maxDemandHeatKw, maxOutputKw) > DOMESTIC_CEILING_KW;
 
   // Tick every 4 points = every hour (each point = 15 min)
   const xTickIndices = new Set(
@@ -323,8 +331,30 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
         </div>
       )}
 
+      {/* Out-of-domestic-scope warning banner — shown when any value exceeds 50 kW */}
+      {outOfDomesticScope && (
+        <div
+          title={CLIPPED_TOOLTIP}
+          style={{
+            background: '#fff5f5',
+            border: '1px solid #fc8181',
+            borderRadius: 6,
+            padding: '6px 10px',
+            marginBottom: '0.5rem',
+            fontSize: '0.78rem',
+            color: '#c53030',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+          }}
+        >
+          <span>⚠︎ Out of domestic scope — check inputs</span>
+          <span style={{ fontWeight: 400, color: '#9b2c2c' }}>{OUT_OF_SCOPE_COPY}</span>
+        </div>
+      )}
+
       {/* Row 1: Space Heat Demand (+ optional indoor temp) */}
-      <div style={subLabel}>Space Heat Demand (kW){heatDemandClipped && <span style={clippedLabelStyle}>⚠︎ clipped at {HEAT_DEMAND_CLAMP_KW} kW</span>}</div>
+      <div style={subLabel}>Space Heat Demand (kW){heatDemandClipped && <span style={clippedLabelStyle} title={CLIPPED_TOOLTIP}>⚠︎ Clipped (max {Math.round(maxDemandHeatKw)} kW)</span>}</div>
       <ResponsiveContainer width="100%" height={160}>
         <ComposedChart key={`${chartKey}_demand`} data={data} margin={chartMargin} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -430,7 +460,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
       </ResponsiveContainer>
 
       {/* Row 3: Heat Source Output */}
-      <div style={subLabel}>Heat Source Output (kW){heatOutputClipped && <span style={clippedLabelStyle}>⚠︎ clipped at {HEAT_OUTPUT_CLAMP_KW} kW</span>}</div>
+      <div style={subLabel}>Heat Source Output (kW){heatOutputClipped && <span style={clippedLabelStyle} title={CLIPPED_TOOLTIP}>⚠︎ Clipped (max {Math.round(maxOutputKw)} kW)</span>}</div>
       <ResponsiveContainer width="100%" height={160}>
         <ComposedChart key={`${chartKey}_output`} data={data} margin={chartMargin} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
