@@ -128,7 +128,7 @@ describe('programToHourlyDemandKw', () => {
     prog.heatIntent[7] = 2; // comfort
     prog.dhwLpm[7] = 6;     // high DHW ~12.6 kW
     const result = programToHourlyDemandKw(prog, 8);
-    // 8 kW SH + (4.186/60) * 6 * 30 ≈ 8 + 12.56 = 20.56 kW
+    // 8 kW space-heat + (4.186/60) * 6 * 30 ≈ 8 + 12.56 = 20.56 kW
     expect(result[7]).toBeGreaterThan(8);
     expect(result[7]).toBeCloseTo(8 + (4.186 / 60) * 6 * 30, 2);
   });

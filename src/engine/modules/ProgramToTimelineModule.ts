@@ -13,7 +13,7 @@
 import type { Timeline24hEvent } from '../../contracts/EngineOutputV1';
 
 /** DHW heat conversion factor: Cp / 60 (kW per L/min per °C). */
-const DHW_KW_PER_LPM_PER_K = 4.186 / 60;
+const DHW_KW_PER_LPM_PER_C = 4.186 / 60;
 
 /** Cold inlet temperature (°C). */
 const COLD_INLET_C = 10;
@@ -101,7 +101,7 @@ export function programToHourlyDemandKw(
   return Array.from({ length: 24 }, (_, h) => {
     const intent = dayProgram.heatIntent[h] ?? 0;
     const shKw = heatLossKw * (HEAT_INTENT_FRACTION[intent] ?? 0);
-    const dhwKw = DHW_KW_PER_LPM_PER_K * (dayProgram.dhwLpm[h] ?? 0) * DHW_DELTA_T_C;
+    const dhwKw = DHW_KW_PER_LPM_PER_C * (dayProgram.dhwLpm[h] ?? 0) * DHW_DELTA_T_C;
     return parseFloat((shKw + dhwKw).toFixed(3));
   });
 }
