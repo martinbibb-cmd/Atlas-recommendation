@@ -27,6 +27,8 @@ import FootprintXRay from '../visualizers/FootprintXRay';
 import GlassBoxPanel from '../visualizers/GlassBoxPanel';
 import InteractiveTwin from '../InteractiveTwin';
 import Timeline24hRenderer from '../visualizers/Timeline24hRenderer';
+import DemandProfilePainter from '../visualizers/DemandProfilePainter';
+import type { PainterDayProgram } from '../visualizers/DemandProfilePainter';
 import SystemConditionImpact from '../visualizers/SystemConditionImpact';
 import { computeConditionImpactMetrics } from '../../engine/modules/SystemConditionImpactModule';
 import ExpertPanel from '../visualizers/ExpertPanel';
@@ -2869,6 +2871,8 @@ function FullSurveyResults({
   const [hoveredTimelineIndex, setHoveredTimelineIndex] = useState<number | undefined>(undefined);
   const [selectedPathwayId, setSelectedPathwayId] = useState<string | undefined>(undefined);
   const [expertOpen, setExpertOpen] = useState(false);
+  /** Current day programme from the Day Painter — stored here so it persists across rerenders. */
+  const [dayProgram, setDayProgram] = useState<PainterDayProgram | undefined>(undefined);
   const debugEnabled = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return new URLSearchParams(window.location.search).get('debug') === '1';
@@ -2890,9 +2894,22 @@ function FullSurveyResults({
     startTransition(() => {
       const engineInput = toEngineInput(sanitiseModelForEngine(input));
       engineInput.engineConfig = { timelinePair: [newA, newB] };
+      if (dayProgram) engineInput.dayProgram = dayProgram;
       const out = runEngine(engineInput);
       setEngineOutput(out.engineOutput);
       setIsRecomputing(false);
+    });
+  };
+
+  /** Rerun the engine with a new painted day programme — updates timeline24h in-place. */
+  const updateDayProgram = (program: PainterDayProgram) => {
+    setDayProgram(program);
+    startTransition(() => {
+      const engineInput = toEngineInput(sanitiseModelForEngine(input));
+      engineInput.dayProgram = program;
+      engineInput.engineConfig = { timelinePair: [compareAId, compareBId] };
+      const out = runEngine(engineInput);
+      setEngineOutput(out.engineOutput);
     });
   };
 
@@ -3362,16 +3379,22 @@ function FullSurveyResults({
         <div className="result-section">
           <h3>🖌️ Day Painter — 24-Hour System Simulation</h3>
           <p className="description" style={{ marginBottom: '0.75rem' }}>
-            The comparative timeline below is generated directly from the engine.
-            Switch systems with the A/B selector above to see how each one responds to your profile.
-            Row labels: Space Heat Demand · DHW Events · Heat Source Output · Performance.
+            Paint your day below — click any hour block to cycle its intensity. Every edit
+            reruns the engine so the timeline rows update instantly to show how each system
+            responds. Row labels: Space Heat Demand · DHW Events · Heat Source Output · Performance.
           </p>
-          <Timeline24hRenderer
-            payload={timelinePayload}
-            compareAId={compareAId}
-            compareBId={compareBId}
-            onHoverIndexChange={setHoveredTimelineIndex}
+          <DemandProfilePainter
+            baseInput={toEngineInput(sanitiseModelForEngine(input))}
+            onDayProgramChange={updateDayProgram}
           />
+          <div style={{ marginTop: '1rem' }}>
+            <Timeline24hRenderer
+              payload={timelinePayload}
+              compareAId={compareAId}
+              compareBId={compareBId}
+              onHoverIndexChange={setHoveredTimelineIndex}
+            />
+          </div>
         </div>
       )}
 
