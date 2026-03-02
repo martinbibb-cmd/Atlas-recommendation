@@ -29,6 +29,8 @@ import InteractiveTwin from '../InteractiveTwin';
 import Timeline24hRenderer from '../visualizers/Timeline24hRenderer';
 import DemandProfilePainter from '../visualizers/DemandProfilePainter';
 import type { PainterDayProgram } from '../visualizers/DemandProfilePainter';
+import DaySchedulePanel, { defaultDayProfile } from '../daypainter/DaySchedulePanel';
+import type { DayProfileV1 } from '../../contracts/EngineInputV2_3';
 import SystemConditionImpact from '../visualizers/SystemConditionImpact';
 import { computeConditionImpactMetrics } from '../../engine/modules/SystemConditionImpactModule';
 import ExpertPanel from '../visualizers/ExpertPanel';
@@ -2860,54 +2862,39 @@ function FullSurveyResults({
   const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
   const [activeOptionTab, setActiveOptionTab] = useState<Record<string, 'heat' | 'dhw' | 'needs' | 'why'>>({});
   const [visualFilter, setVisualFilter] = useState<'all' | 'relevant'>('all');
-  const [compareAId, setCompareAId] = useState<string>('current');
-  const [compareBId, setCompareBId] = useState<string>(
+  /** System IDs for the Behaviour Timeline — initialised from the recommendation. */
+  const compareAId = 'current';
+  const compareBId =
     results.engineOutput.recommendation.primary.toLowerCase().includes('heat pump') ? 'ashp'
     : results.engineOutput.recommendation.primary.toLowerCase().includes('unvented') ? 'stored_unvented'
     : results.engineOutput.recommendation.primary.toLowerCase().includes('vented') ? 'stored_vented'
-    : 'on_demand',
-  );
-  const [isRecomputing, setIsRecomputing] = useState(false);
-  const [hoveredTimelineIndex, setHoveredTimelineIndex] = useState<number | undefined>(undefined);
+    : 'on_demand';
+  const [, setHoveredTimelineIndex] = useState<number | undefined>(undefined);
   const [selectedPathwayId, setSelectedPathwayId] = useState<string | undefined>(undefined);
   const [expertOpen, setExpertOpen] = useState(false);
-  /** Current day programme from the Day Painter — stored here so it persists across rerenders. */
-  const [dayProgram, setDayProgram] = useState<PainterDayProgram | undefined>(undefined);
-  const debugEnabled = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return new URLSearchParams(window.location.search).get('debug') === '1';
-  }, []);
+  /** Hive-style day profile — the new primary input for the Day Schedule Panel. */
+  const [dayProfile, setDayProfile] = useState<DayProfileV1>(defaultDayProfile);
 
   // Timeline visual is always derived from engine output — single source of truth.
-  // A/B changes rerun the engine with engineConfig.timelinePair; timeline visual is rendered from the new engineOutput.
   const timelineVisual = engineOutput.visuals?.find((v: VisualSpecV1) => v.type === 'timeline_24h');
   const timelinePayload: Timeline24hV1 | undefined = timelineVisual?.type === 'timeline_24h' ? timelineVisual.data as Timeline24hV1 : undefined;
-  const hoveredTimeLabel =
-    timelinePayload && hoveredTimelineIndex !== undefined
-      ? timelinePayload.timeMinutes?.[hoveredTimelineIndex]
-      : undefined;
 
-  /** Rerun the engine with the given A/B pair and update engineOutput (single source of truth). */
-  const updateTimelinePair = (newA: string, newB: string) => {
-    if (newA === compareAId && newB === compareBId) return;
-    setIsRecomputing(true);
-    startTransition(() => {
-      const engineInput = toEngineInput(sanitiseModelForEngine(input));
-      engineInput.engineConfig = { timelinePair: [newA, newB] };
-      if (dayProgram) engineInput.dayProgram = dayProgram;
-      const out = runEngine(engineInput);
-      setEngineOutput(out.engineOutput);
-      setIsRecomputing(false);
-    });
-  };
-
-  /** Rerun the engine with a new painted day programme — updates timeline24h in-place. */
+  /** Rerun the engine with a new painted day programme (legacy painter). */
   const updateDayProgram = (program: PainterDayProgram) => {
-    setDayProgram(program);
     startTransition(() => {
       const engineInput = toEngineInput(sanitiseModelForEngine(input));
       engineInput.dayProgram = program;
-      engineInput.engineConfig = { timelinePair: [compareAId, compareBId] };
+      const out = runEngine(engineInput);
+      setEngineOutput(out.engineOutput);
+    });
+  };
+
+  /** Rerun the engine with a new Hive-style day profile — dayProfile takes priority over dayProgram. */
+  const updateDayProfile = (profile: DayProfileV1) => {
+    setDayProfile(profile);
+    startTransition(() => {
+      const engineInput = toEngineInput(sanitiseModelForEngine(input));
+      engineInput.dayProfile = profile;
       const out = runEngine(engineInput);
       setEngineOutput(out.engineOutput);
     });
@@ -2960,95 +2947,6 @@ function FullSurveyResults({
 
       {/* System Transition – Current → Proposed Architecture */}
       <SystemTransitionCard input={input} results={results} />
-
-      {/* 24-Hour Compare Timeline — A/B selector + main timeline visual */}
-      {(() => {
-        if (!timelineVisual) return null;
-        const COMPARE_SYSTEMS = [
-          { id: 'current',          label: 'Current' },
-          { id: 'on_demand',        label: 'Combi'   },
-          { id: 'stored_vented',    label: 'Stored — Vented' },
-          { id: 'stored_unvented',  label: 'Stored — Unvented' },
-          { id: 'ashp',             label: 'ASHP' },
-        ] as const;
-        const btnStyle = (active: boolean): React.CSSProperties => ({
-          padding: '4px 12px',
-          borderRadius: '14px',
-          border: '1px solid #cbd5e0',
-          background: active ? '#3182ce' : '#fff',
-          color: active ? '#fff' : '#4a5568',
-          cursor: 'pointer',
-          fontWeight: active ? 700 : 400,
-          fontSize: '0.8rem',
-        });
-        return (
-          <div className="result-section">
-            <h3>📈 24-Hour Comparative Timeline</h3>
-            <p style={{ fontSize: '0.82rem', color: '#718096', marginBottom: '0.75rem' }}>
-              Compare how two heating systems behave across a typical day — heat demand, delivery, efficiency and hot water events.
-            </p>
-            {/* A/B tile selectors */}
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-              <div>
-                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#3182ce', marginBottom: '0.35rem' }}>
-                  System A (blue)
-                </div>
-                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                  {COMPARE_SYSTEMS.map(s => (
-                    <button key={s.id} style={btnStyle(compareAId === s.id)} onClick={() => { setCompareAId(s.id); updateTimelinePair(s.id, compareBId); }}>
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#e53e3e', marginBottom: '0.35rem' }}>
-                  System B (red)
-                </div>
-                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                  {COMPARE_SYSTEMS.map(s => (
-                    <button key={s.id} style={btnStyle(compareBId === s.id)} onClick={() => { setCompareBId(s.id); updateTimelinePair(compareAId, s.id); }}>
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {isRecomputing && (
-              <div style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.5rem', fontStyle: 'italic' }}>
-                Recomputing…
-              </div>
-            )}
-            <VisualCard
-              spec={timelineVisual}
-              compareAId={compareAId}
-              compareBId={compareBId}
-              onTimelineHoverIndexChange={setHoveredTimelineIndex}
-            />
-            {debugEnabled && timelinePayload?.series && (
-              <div style={{ marginTop: '0.875rem', padding: '0.625rem 0.75rem', borderRadius: '6px', background: '#1a202c', color: '#e2e8f0', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.75rem' }}>
-                <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>Debug (physics inputs)</div>
-                <div>erpClass: {input.currentBoilerErpClass ?? 'none'}</div>
-                <div>nominalEfficiencyPct (UI, from sedbukPct/ErP): {nominalEfficiencyPct.toFixed(1)}</div>
-                <div>boilerModel.baselineSeasonalEta: {results.boilerEfficiencyModelV1?.baselineSeasonalEta != null ? (results.boilerEfficiencyModelV1.baselineSeasonalEta * 100).toFixed(1) : 'n/a (no boiler spec)'}</div>
-                <div>boilerModel.inHomeAdjustedEta: {results.boilerEfficiencyModelV1?.inHomeAdjustedEta != null ? (results.boilerEfficiencyModelV1.inHomeAdjustedEta * 100).toFixed(1) : 'n/a'}</div>
-                <div>tenYearEfficiencyDecayPct: {normalizer.tenYearEfficiencyDecayPct.toFixed(1)}</div>
-                <div>currentEfficiencyPct: {currentEfficiencyPct.toFixed(1)}% (ErP {deriveErpClass(currentEfficiencyPct) ?? 'n/a'})</div>
-                <div>hoveredTime: {hoveredTimeLabel !== undefined ? `${Math.floor(hoveredTimeLabel / 60).toString().padStart(2, '0')}:${(hoveredTimeLabel % 60).toString().padStart(2, '0')}` : 'none'}</div>
-                {timelinePayload.series.map((s: { id: string; efficiency: number[]; performanceKind?: 'eta' | 'cop' }) => {
-                  const etaValue = hoveredTimelineIndex !== undefined ? s.efficiency[hoveredTimelineIndex] : undefined;
-                  const metric = s.performanceKind === 'cop' ? 'COP' : 'η';
-                  return (
-                    <div key={s.id}>
-                      {s.id}_{metric}: {etaValue !== undefined ? etaValue.toFixed(3) : 'n/a'}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })()}
 
       {/* Your Options – Option Matrix V1 */}
       {engineOutput.options && engineOutput.options.length > 0 && (
@@ -3374,19 +3272,18 @@ function FullSurveyResults({
         </div>
       </div>
 
-      {/* Day Painter — canonical causes vs effects page */}
-      {timelinePayload && (
-        <div className="result-section">
-          <h3>🖌️ Day Painter — 24-Hour System Simulation</h3>
-          <p className="description" style={{ marginBottom: '0.75rem' }}>
-            Paint your day below — click any hour block to cycle its intensity. Every edit
-            reruns the engine so the timeline rows update instantly to show how each system
-            responds. Row labels: Space Heat Demand · DHW Events · Heat Source Output · Performance.
-          </p>
-          <DemandProfilePainter
-            baseInput={toEngineInput(sanitiseModelForEngine(input))}
-            onDayProgramChange={updateDayProgram}
-          />
+      {/* Day Painter — Hive-style schedule + legacy painter */}
+      <div className="result-section">
+        <h3>🖌️ Day Painter — Schedule &amp; Events</h3>
+        <p className="description" style={{ marginBottom: '0.75rem' }}>
+          Set your heating schedule and hot-water draw events for a typical day.
+          Every edit reruns the engine so the timeline below updates instantly.
+        </p>
+        <DaySchedulePanel
+          profile={dayProfile}
+          onChange={updateDayProfile}
+        />
+        {timelinePayload && (
           <div style={{ marginTop: '1rem' }}>
             <Timeline24hRenderer
               payload={timelinePayload}
@@ -3395,8 +3292,17 @@ function FullSurveyResults({
               onHoverIndexChange={setHoveredTimelineIndex}
             />
           </div>
-        </div>
-      )}
+        )}
+        <details style={{ marginTop: '1rem' }}>
+          <summary style={{ cursor: 'pointer', fontSize: '0.82rem', color: '#718096' }}>
+            Legacy hour-block painter
+          </summary>
+          <DemandProfilePainter
+            baseInput={toEngineInput(sanitiseModelForEngine(input))}
+            onDayProgramChange={updateDayProgram}
+          />
+        </details>
+      </div>
 
       {/* Hydraulic Analysis */}
       <div className="result-section">

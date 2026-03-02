@@ -3,7 +3,7 @@ import type { VisualSpecV1, Timeline24hV1, Timeline24hEvent, Timeline24hSeries, 
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
 import { solveSystemTimeline, buildSystemConfig, dhwKwFromFlow, DHW_COLD_WATER_TEMP_C, DHW_TARGET_HOT_TEMP_C } from './timeline/Solver24hV1';
 import { resolveNominalEfficiencyPct, computeCurrentEfficiencyPct, deriveErpClass } from './utils/efficiency';
-import { programToTimelineEvents } from './modules/ProgramToTimelineModule';
+import { programToTimelineEvents, dayProfileToTimelineEvents } from './modules/ProgramToTimelineModule';
 
 /** 96 time points at 15-minute intervals covering 0–1425 minutes. */
 const TIME_MINUTES = Array.from({ length: 96 }, (_, i) => i * 15);
@@ -489,7 +489,9 @@ export function buildTimeline24hV1(
   const nominalEfficiencyPct = resolveNominalEfficiencyPct(input.currentBoilerSedbukPct);
   const combiEtaPct = computeCurrentEfficiencyPct(nominalEfficiencyPct, core.normalizer.tenYearEfficiencyDecayPct);
 
-  const events = input.dayProgram
+  const events = input.dayProfile
+    ? dayProfileToTimelineEvents(input.dayProfile)
+    : input.dayProgram
     ? programToTimelineEvents(input.dayProgram)
     : input.lifestyleProfileV1
     ? generateDhwEventsFromProfile(input.lifestyleProfileV1)

@@ -1,5 +1,7 @@
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 export type { EngineOutputV1 };
+import type { DayProfileV1, HeatingBandV1, DhwHeatBandV1, DhwEventV1 } from '../../contracts/EngineInputV2_3';
+export type { DayProfileV1, HeatingBandV1, DhwHeatBandV1, DhwEventV1 };
 import type { TapMixingResult } from '../utils/dhwMixing';
 export type { TapMixingResult };
 import type { PressureAnalysis } from '../modules/PressureModule';
@@ -326,6 +328,13 @@ export interface EngineInputV2_3 {
      */
     coldLpm: number[];
   };
+
+  /**
+   * Hive-style single-day profile — the canonical Day Painter input.
+   * When present, takes priority over the legacy dayProgram.
+   * Paint → dayProfile → engine → timeline output (single data path).
+   */
+  dayProfile?: DayProfileV1;
 }
 
 export interface HydraulicResult {

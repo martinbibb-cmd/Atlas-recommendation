@@ -67,4 +67,56 @@ export interface EngineInputV2_3Contract {
   };
   /** Expert assumption overrides — ranking and messaging only; physics unchanged. */
   expertAssumptions?: ExpertAssumptionsV1;
+  /**
+   * Hive-style day profile — single-day schedule for the Day Painter.
+   * When present, overrides the legacy dayProgram and occupancy-based demand.
+   * This is the primary input path; painter → dayProfile → engine → timeline output.
+   */
+  dayProfile?: DayProfileV1;
+}
+
+/**
+ * A single heating schedule band (Hive-style).
+ * startMin / endMin are minutes elapsed since midnight (0–1439).
+ * targetC is the desired room temperature in °C.
+ */
+export interface HeatingBandV1 {
+  startMin: number;
+  endMin: number;
+  targetC: number;
+}
+
+/**
+ * A single hot-water schedule band.
+ * ON = cylinder heating enabled; OFF = setback / economy.
+ */
+export interface DhwHeatBandV1 {
+  startMin: number;
+  endMin: number;
+  on: boolean;
+}
+
+/**
+ * A single DHW draw event (shower, bath, taps).
+ * profile drives the L/min rate used for heat-demand calculation.
+ */
+export interface DhwEventV1 {
+  startMin: number;
+  durationMin: number;
+  kind: 'shower' | 'bath' | 'taps';
+  /** Flow profile — mixer10 ≈ 10 L/min, mixer12 ≈ 12 L/min, rainfall16 ≈ 16 L/min. */
+  profile: 'mixer10' | 'mixer12' | 'rainfall16';
+}
+
+/**
+ * Hive-style single-day profile — the canonical Day Painter input.
+ * This replaces the legacy heatIntent/dhwLpm/coldLpm arrays.
+ */
+export interface DayProfileV1 {
+  /** Heating schedule bands (thermostat setpoints across 24 h). */
+  heatingBands: HeatingBandV1[];
+  /** Hot-water heating schedule bands (cylinder charge schedule). */
+  dhwHeatBands: DhwHeatBandV1[];
+  /** DHW draw events (shower, bath, taps) positioned on the 24 h timeline. */
+  dhwEvents: DhwEventV1[];
 }

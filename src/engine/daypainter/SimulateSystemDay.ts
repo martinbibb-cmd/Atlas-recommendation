@@ -73,7 +73,18 @@ export function simulateSystemDay(params: {
     let chDeliveredKw = 0;
     let dhwDeliveredKw = 0;
     let cylinderReheatKw = 0;
-    let cylinderLossKw = 0.08;
+    /**
+     * Standing cylinder heat loss (kW).
+     * Mixergy: reduced loss because only the hot stratified layer loses heat —
+     * the cold bottom half of the tank is near ambient and contributes minimal loss.
+     * Field data: ~21% gas saving vs conventional (MixergyVolumetricsModule.GAS_SAVING_PCT).
+     * heat_pump: better-insulated cylinder than a typical vented tank.
+     * conventional: 0.08 kW ≈ 1.9 kWh/day standing loss for a 210L tank.
+     */
+    const cylinderLossKw = isMixergyType(systemType) ? 0.05
+      : systemType === 'heat_pump' ? 0.06
+      : systemType === 'combi' ? 0
+      : 0.08;
     let flueLossKw = 0;
     let dumpToChKw = 0;
 
