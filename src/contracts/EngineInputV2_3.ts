@@ -1,3 +1,20 @@
+/**
+ * Expert assumption overrides — inputs to pathway ranking, not the physics simulation.
+ * All fields are optional; defaults are applied when absent.
+ */
+export interface ExpertAssumptionsV1 {
+  /** How much disruption to the property the customer will accept. Default: 'low'. */
+  disruptionTolerance?: 'low' | 'med' | 'high';
+  /** Risk appetite for screed-floor pipe leaks during underfloor heating work. Default: 'cautious'. */
+  screedLeakRiskTolerance?: 'cautious' | 'normal';
+  /** Whether DHW experience (reliable hot water) is a priority. Default: 'normal'. */
+  dhwExperiencePriority?: 'high' | 'normal';
+  /** Whether future-readiness (heat-pump pathway) is a priority. Default: 'normal'. */
+  futureReadinessPriority?: 'high' | 'normal';
+  /** Comfort vs running cost trade-off. Default: 'balanced'. */
+  comfortVsRunningCost?: 'comfort' | 'balanced' | 'cost';
+}
+
 /** Normalized input contract accepted by the engine (V2.3). */
 export interface EngineInputV2_3Contract {
   infrastructure: {
@@ -48,4 +65,6 @@ export interface EngineInputV2_3Contract {
       nominalOutputKw?: number;
     };
   };
+  /** Expert assumption overrides — ranking and messaging only; physics unchanged. */
+  expertAssumptions?: ExpertAssumptionsV1;
 }
