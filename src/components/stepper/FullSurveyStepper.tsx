@@ -29,6 +29,8 @@ import InteractiveTwin from '../InteractiveTwin';
 import Timeline24hRenderer from '../visualizers/Timeline24hRenderer';
 import DemandProfilePainter from '../visualizers/DemandProfilePainter';
 import type { PainterDayProgram } from '../visualizers/DemandProfilePainter';
+import CompareSystemPicker from '../compare/CompareSystemPicker';
+import type { ComparisonSystemType } from '../../engine/schema/ScenarioProfileV1';
 import DaySchedulePanel, { defaultDayProfile } from '../daypainter/DaySchedulePanel';
 import type { DayProfileV1 } from '../../contracts/EngineInputV2_3';
 import SystemConditionImpact from '../visualizers/SystemConditionImpact';
@@ -2896,6 +2898,25 @@ function FullSurveyResults({
   /** Hive-style day profile — the new primary input for the Day Schedule Panel. */
   const [dayProfile, setDayProfile] = useState<DayProfileV1>(defaultDayProfile);
 
+  /**
+   * Day Painter A/B system selectors — owned here so they are always visible and
+   * never overridden by engine reruns or pathway suggestions.
+   * System A defaults to 'combi' (typical current-system baseline).
+   * System B defaults to 'stored_unvented' to provide a meaningful initial comparison
+   * without silently pre-selecting ASHP.
+   */
+  const [daySystemA, setDaySystemA] = useState<ComparisonSystemType>('combi');
+  const [daySystemB, setDaySystemB] = useState<ComparisonSystemType>('stored_unvented');
+  /**
+   * Pathway suggestion for System B — derived from the engine recommendation but
+   * shown only as a "Suggested: X" badge, never forced as the active selection.
+   */
+  const suggestedDaySystemB: ComparisonSystemType =
+    results.engineOutput.recommendation.primary.toLowerCase().includes('heat pump') ? 'ashp'
+    : results.engineOutput.recommendation.primary.toLowerCase().includes('unvented') ? 'stored_unvented'
+    : results.engineOutput.recommendation.primary.toLowerCase().includes('vented') ? 'stored_vented'
+    : 'combi';
+
   // Timeline visual is always derived from engine output — single source of truth.
   const timelineVisual = engineOutput.visuals?.find((v: VisualSpecV1) => v.type === 'timeline_24h');
   const timelinePayload: Timeline24hV1 | undefined = timelineVisual?.type === 'timeline_24h' ? timelineVisual.data as Timeline24hV1 : undefined;
@@ -3323,6 +3344,16 @@ function FullSurveyResults({
           Set your heating schedule and hot-water draw events for a typical day.
           Every edit reruns the engine so the timeline below updates instantly.
         </p>
+
+        {/* ── A/B system selector — always visible, never overridden by pathway engine ── */}
+        <CompareSystemPicker
+          systemA={daySystemA}
+          systemB={daySystemB}
+          onSystemAChange={setDaySystemA}
+          onSystemBChange={setDaySystemB}
+          suggestedB={suggestedDaySystemB}
+        />
+
         <DaySchedulePanel
           profile={dayProfile}
           onChange={updateDayProfile}
@@ -3366,11 +3397,15 @@ function FullSurveyResults({
         )}
         <details style={{ marginTop: '1rem' }}>
           <summary style={{ cursor: 'pointer', fontSize: '0.82rem', color: '#718096' }}>
-            Legacy hour-block painter
+            Physics comparison (hour-block painter)
           </summary>
           <DemandProfilePainter
             baseInput={toEngineInput(sanitiseModelForEngine(input))}
             onDayProgramChange={updateDayProgram}
+            systemA={daySystemA}
+            systemB={daySystemB}
+            onSystemAChange={setDaySystemA}
+            onSystemBChange={setDaySystemB}
           />
         </details>
       </div>

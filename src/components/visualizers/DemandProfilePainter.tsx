@@ -138,11 +138,36 @@ interface Props {
    * When absent, the component falls back to its internal physics comparison (local physics mode).
    */
   onDayProgramChange?: (program: PainterDayProgram) => void;
+  /**
+   * Controlled System A selection — when provided together with `systemB`, the parent
+   * owns both system selections.  The internal selector UI is suppressed and comparison
+   * graphs are rendered even when `onDayProgramChange` is wired.
+   * Must be provided together with `systemB`; providing only one has no effect.
+   */
+  systemA?: ComparisonSystemType;
+  /**
+   * Controlled System B selection — when provided together with `systemA`, the parent
+   * owns both system selections.  The internal selector UI is suppressed and comparison
+   * graphs are rendered even when `onDayProgramChange` is wired.
+   * Must be provided together with `systemA`; providing only one has no effect.
+   */
+  systemB?: ComparisonSystemType;
+  /** Called when the user changes System A via the internal selector (uncontrolled mode only). */
+  onSystemAChange?: (sys: ComparisonSystemType) => void;
+  /** Called when the user changes System B via the internal selector (uncontrolled mode only). */
+  onSystemBChange?: (sys: ComparisonSystemType) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function DemandProfilePainter({ baseInput = {}, onDayProgramChange }: Props) {
+export default function DemandProfilePainter({
+  baseInput = {},
+  onDayProgramChange,
+  systemA: systemAProp,
+  systemB: systemBProp,
+  onSystemAChange,
+  onSystemBChange,
+}: Props) {
   const engineInput: EngineInputV2_3 = { ...DEFAULT_ENGINE_INPUT, ...baseInput };
 
   // ── Measured profile (from engine input) ─────────────────────────────────
@@ -168,8 +193,20 @@ export default function DemandProfilePainter({ baseInput = {}, onDayProgramChang
   };
 
   // ── System selectors ──────────────────────────────────────────────────────
-  const [systemA, setSystemA] = useState<ComparisonSystemType>('combi');
-  const [systemB, setSystemB] = useState<ComparisonSystemType>('ashp');
+  // Internal state is used only when the parent does not supply controlled props.
+  const [systemAState, setSystemAState] = useState<ComparisonSystemType>('combi');
+  const [systemBState, setSystemBState] = useState<ComparisonSystemType>('ashp');
+
+  const isControlled = systemAProp !== undefined && systemBProp !== undefined;
+  const systemA = isControlled ? systemAProp : systemAState;
+  const systemB = isControlled ? systemBProp : systemBState;
+
+  const handleSystemAChange = (sys: ComparisonSystemType) => {
+    if (isControlled) { onSystemAChange?.(sys); } else { setSystemAState(sys); }
+  };
+  const handleSystemBChange = (sys: ComparisonSystemType) => {
+    if (isControlled) { onSystemBChange?.(sys); } else { setSystemBState(sys); }
+  };
 
   // ── SpecEdge for SPF (used by ASHP physics) ───────────────────────────────
   const specEdge = useMemo(
@@ -278,8 +315,8 @@ export default function DemandProfilePainter({ baseInput = {}, onDayProgramChang
         <em>Edits change the scenario; click Reset to return to measured profile.</em>
       </p>
 
-      {/* ── System selectors (local physics mode only) ─────────────────── */}
-      {!onDayProgramChange && (
+      {/* ── System selectors (uncontrolled / local physics mode only) ──── */}
+      {!onDayProgramChange && !isControlled && (
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
         <span style={{ fontSize: '0.78rem', color: '#718096', fontWeight: 600 }}>Compare:</span>
         <div role="group" aria-label="Select System A">
@@ -287,7 +324,7 @@ export default function DemandProfilePainter({ baseInput = {}, onDayProgramChang
           {(Object.keys(SYSTEM_LABELS) as ComparisonSystemType[]).map(sys => (
             <button
               key={sys}
-              onClick={() => setSystemA(sys)}
+              onClick={() => handleSystemAChange(sys)}
               aria-pressed={systemA === sys}
               style={{
                 padding: '3px 10px', borderRadius: 20, marginRight: 4,
@@ -306,7 +343,7 @@ export default function DemandProfilePainter({ baseInput = {}, onDayProgramChang
           {(Object.keys(SYSTEM_LABELS) as ComparisonSystemType[]).map(sys => (
             <button
               key={sys}
-              onClick={() => setSystemB(sys)}
+              onClick={() => handleSystemBChange(sys)}
               aria-pressed={systemB === sys}
               style={{
                 padding: '3px 10px', borderRadius: 20, marginRight: 4,
@@ -374,8 +411,8 @@ export default function DemandProfilePainter({ baseInput = {}, onDayProgramChang
         legend={COLD_INTENSITY_STEPS.map(s => ({ label: COLD_INTENSITY_LABELS[s], colour: COLD_INTENSITY_COLOURS[s] }))}
       />
 
-      {/* ── Graph A: Demand vs Plant Output (local physics mode only) ───── */}
-      {!onDayProgramChange && (
+      {/* ── Graph A: Demand vs Plant Output — shown in local and controlled mode ── */}
+      {(!onDayProgramChange || isControlled) && (
       <div style={{ marginTop: 20, marginBottom: 4 }}>
         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
           📊 Graph A — Demand vs Plant Output (kW)
@@ -412,8 +449,8 @@ export default function DemandProfilePainter({ baseInput = {}, onDayProgramChang
       </div>
       )}
 
-      {/* ── Graph B: Efficiency / COP (local physics mode only) ─────────── */}
-      {!onDayProgramChange && (
+      {/* ── Graph B: Efficiency / COP — shown in local and controlled mode ──── */}
+      {(!onDayProgramChange || isControlled) && (
       <div style={{ marginBottom: 8 }}>
         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
           ⚡ Graph B — Efficiency / COP (behaviour, not score)
@@ -459,7 +496,7 @@ export default function DemandProfilePainter({ baseInput = {}, onDayProgramChang
         </div>
       </div>
       )}
-      {onDayProgramChange && (
+      {onDayProgramChange && !isControlled && (
         <p style={{ fontSize: '0.78rem', color: '#718096', marginTop: 8 }}>
           ✅ Painting drives the engine — the 24h timeline below updates instantly.
         </p>
