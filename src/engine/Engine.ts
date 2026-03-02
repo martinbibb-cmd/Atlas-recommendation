@@ -24,6 +24,8 @@ import { runBoilerSizingModuleV1 } from './modules/BoilerSizingModule';
 import { buildBoilerEfficiencyModelV1 } from './modules/BoilerEfficiencyModelV1';
 import { buildEngineOutputV1 } from './OutputBuilder';
 import { runFabricModelV1 } from './modules/FabricModelModule';
+import { runSmartTopUpController } from './modules/SmartTopUpController';
+import { runSolarBoostModule } from './modules/SolarBoostModule';
 
 
 function interpolateDemandKw(minuteIdx: number, hourlyDemandKw: number[]): number {
@@ -169,6 +171,16 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
       })
     : undefined;
 
+  // Smart top-up controller — only computed for Mixergy cylinders
+  const smartTopUp = input.dhwTankType === 'mixergy'
+    ? runSmartTopUpController(input)
+    : undefined;
+
+  // Solar boost module — only computed when solarBoost.enabled is true
+  const solarBoost = input.solarBoost?.enabled
+    ? runSolarBoostModule(input)
+    : undefined;
+
   const core: FullEngineResultCore = {
     hydraulic,
     hydraulicV1,
@@ -194,6 +206,8 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     sizingV1,
     boilerEfficiencyModelV1,
     fabricModelV1,
+    smartTopUp,
+    solarBoost,
   };
 
   const engineOutput = buildEngineOutputV1(core, input);

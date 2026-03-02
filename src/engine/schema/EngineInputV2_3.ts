@@ -335,6 +335,41 @@ export interface EngineInputV2_3 {
    * Paint → dayProfile → engine → timeline output (single data path).
    */
   dayProfile?: DayProfileV1;
+
+  /**
+   * Mixergy cylinder control strategy.
+   * - 'smart' (default): profile-based top-slice charging; learns from dayProfile or
+   *   falls back to default morning+evening peaks; minimises ad-hoc boosts and
+   *   keeps a useful hot-water buffer.
+   * - 'manual_boosty': heats more of the tank more often; higher average temperature
+   *   increases standing losses and boiler firing events.
+   * Only meaningful when dhwTankType === 'mixergy'.
+   */
+  mixergyControlMode?: 'smart' | 'manual_boosty';
+
+  /**
+   * Solar boost energy input to the cylinder.
+   * Adds free heat to the cylinder during periods of solar availability,
+   * reducing boiler/HP reheat demand later in the day.
+   * Requires a PV diverter or solar thermal coil path.
+   */
+  solarBoost?: {
+    /** Whether solar boost is active for this scenario. */
+    enabled: boolean;
+    /** Energy source for the solar boost. */
+    source: 'PV_diverter' | 'solar_thermal';
+    /**
+     * Peak power delivery to the cylinder (kW).
+     * Defaults: PV_diverter ~2.5 kW, solar_thermal ~1.5 kW.
+     */
+    powerKw?: number;
+    /**
+     * Solar availability preset — determines the midday charging window and
+     * typical availability fraction.
+     * Defaults to 'shoulder' when absent.
+     */
+    profilePreset?: 'summer' | 'shoulder' | 'winter';
+  };
 }
 
 export interface HydraulicResult {
@@ -502,7 +537,81 @@ export interface MixergyResult {
   notes: string[];
 }
 
-export interface OccupancyHour {
+// ─── Smart Top-Up Controller ───────────────────────────────────────────────────
+
+/** A single scheduled charging event produced by SmartTopUpController. */
+export interface TopUpChargeEvent {
+  /** Start hour (0–23). */
+  startHour: number;
+  /** Duration in whole hours (typically 1–3). */
+  durationHours: number;
+  /** Cylinder slice heated: 'top_slice' (smart) or 'full_tank' (manual_boosty). */
+  sliceMode: 'top_slice' | 'full_tank';
+  /** Estimated heat input for this event (kWh). */
+  heatInputKwh: number;
+}
+
+/** Result returned by SmartTopUpController. */
+export interface SmartTopUpResult {
+  /** Control mode that produced this result. */
+  controlMode: 'smart' | 'manual_boosty';
+  /**
+   * Scheduled charge events across the 24-hour day.
+   * Smart mode uses short top-slice events; manual_boosty uses more full-tank events.
+   */
+  chargeEvents: TopUpChargeEvent[];
+  /**
+   * Hourly available hot-water buffer (litres at 40 °C mixed) across the day.
+   * Length 24, one value per hour.
+   */
+  bufferLitresHourly: number[];
+  /**
+   * Whether an emergency full-tank boost was triggered at any point (buffer breached).
+   * Healthy smart operation → false.
+   */
+  emergencyBoostTriggered: boolean;
+  /**
+   * Total standing losses across the day (kWh).
+   * Higher in manual_boosty mode due to higher average tank temperature.
+   */
+  standingLossKwh: number;
+  /** Total boiler firing events (charge events + emergency boost if triggered). */
+  totalFiringEvents: number;
+  notes: string[];
+}
+
+// ─── Solar Boost Module ────────────────────────────────────────────────────────
+
+/** A single hour-level solar heat contribution to the cylinder. */
+export interface SolarBoostHour {
+  /** Hour (0–23). */
+  hour: number;
+  /** Solar heat delivered to the cylinder this hour (kW). */
+  solarHeatKw: number;
+}
+
+/** Result returned by SolarBoostModule. */
+export interface SolarBoostResult {
+  /** Whether solar boost is active for this result. */
+  enabled: boolean;
+  /** Energy source used. */
+  source: 'PV_diverter' | 'solar_thermal' | 'none';
+  /** Total solar heat input to the cylinder across the day (kWh). */
+  totalSolarInputKwh: number;
+  /**
+   * Estimated reduction in boiler/HP charging demand due to stored solar heat (kWh).
+   * This is the amount of boiler/HP firing that can be displaced.
+   */
+  boilerDemandReductionKwh: number;
+  /**
+   * Hourly solar heat delivery curve (kW).
+   * Non-zero during the midday solar window; zero outside.
+   */
+  hourlyProfile: SolarBoostHour[];
+  notes: string[];
+}
+
+
   hour: number;       // 0-23
   demandKw: number;   // kW demand
   boilerTempC: number;
@@ -849,6 +958,16 @@ export interface FullEngineResultCore {
    * Present when input.building is provided.
    */
   fabricModelV1?: FabricModelV1Result;
+  /**
+   * Smart top-up controller result — profile-based Mixergy charge scheduling.
+   * Present when dhwTankType === 'mixergy'.
+   */
+  smartTopUp?: SmartTopUpResult;
+  /**
+   * Solar boost result — midday solar heat input to the cylinder.
+   * Present when solarBoost.enabled is true.
+   */
+  solarBoost?: SolarBoostResult;
 }
 
 /** Full engine result including the canonical V1 output contract. */
