@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
+import { sanitiseModelForEngine } from '../../ui/fullSurvey/sanitiseModelForEngine';
 import { runEngine } from '../Engine';
 import { normalizeInput } from '../normalizer/Normalizer';
 import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
+import { ageFactor } from '../modules/BoilerEfficiencyModelV1';
 
 const baseEngineFields = {
   postcode: 'SW1A 1AA',
@@ -213,5 +215,63 @@ describe('Engine — boiler age drives efficiency decay via currentSystem.boiler
     const oldModel   = runEngine(oldInput).boilerEfficiencyModelV1!;
 
     expect(youngModel.ageAdjustedEta!).toBeGreaterThan(oldModel.ageAdjustedEta!);
+  });
+});
+
+// ── sanitiseModelForEngine — boiler bridge regression ────────────────────────
+
+describe('sanitiseModelForEngine — boiler bridge', () => {
+  const baseSurvey: FullSurveyModelV1 = {
+    postcode: 'SW1A 1AA',
+    dynamicMainsPressure: 2.5,
+    buildingMass: 'medium' as const,
+    primaryPipeDiameter: 22,
+    heatLossWatts: 8000,
+    radiatorCount: 10,
+    hasLoftConversion: false,
+    returnWaterTemp: 45,
+    bathroomCount: 1,
+    occupancySignature: 'professional' as const,
+    highOccupancy: false,
+    preferCombi: true,
+  };
+
+  it('bridges flat fields into currentSystem.boiler when no nested boiler existed', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      currentHeatSourceType: 'combi',
+      currentBoilerAgeYears: 12,
+      currentBoilerOutputKw: 28,
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.currentSystem?.boiler?.ageYears).toBe(12);
+    expect(result.currentSystem?.boiler?.type).toBe('combi');
+    expect(result.currentSystem?.boiler?.nominalOutputKw).toBe(28);
+  });
+
+  it('does not overwrite an explicitly provided currentSystem.boiler.ageYears', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      currentHeatSourceType: 'combi',
+      currentBoilerAgeYears: 5,   // flat field — should NOT win
+      currentSystem: {
+        boiler: { type: 'combi', ageYears: 10 },  // nested — should be preserved
+      },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.currentSystem?.boiler?.ageYears).toBe(10);
+  });
+
+  it('bridges correctly into the engine pipeline (boilerEfficiencyModelV1 built)', () => {
+    const ageYears = 10;
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      currentHeatSourceType: 'combi',
+      currentBoilerAgeYears: ageYears,
+    };
+    const engineInput = toEngineInput(sanitiseModelForEngine(model));
+    const result = runEngine(engineInput);
+    expect(result.boilerEfficiencyModelV1).toBeDefined();
+    expect(result.boilerEfficiencyModelV1!.age.factor).toBe(ageFactor(ageYears));
   });
 });

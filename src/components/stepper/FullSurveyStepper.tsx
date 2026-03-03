@@ -14,6 +14,7 @@ import type { EngineInputV2_3, FullEngineResult, BuildingFabricType, ExpertAssum
 import type { EngineOutputV1, VisualSpecV1, Timeline24hV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
+import { sanitiseModelForEngine } from '../../ui/fullSurvey/sanitiseModelForEngine';
 import { runEngine } from '../../engine/Engine';
 import { runThermalInertiaModule } from '../../engine/modules/ThermalInertiaModule';
 import { calcFlowLpm, PIPE_THRESHOLDS } from '../../engine/modules/HydraulicModule';
@@ -110,52 +111,6 @@ function normalizePostcodeOutward(raw: string): string {
   const cleaned = raw.toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim();
   const [outward = ''] = cleaned.split(/\s+/);
   return outward;
-}
-
-function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyModelV1 {
-  const sanitised: FullSurveyModelV1 = { ...model };
-  if (sanitised.currentBoilerAgeYears !== undefined && sanitised.currentBoilerAgeYears > 50) {
-    sanitised.currentBoilerAgeYears = undefined;
-  }
-  if (sanitised.mainsDynamicFlowLpm !== undefined && sanitised.mainsDynamicFlowLpm > 60) {
-    sanitised.mainsDynamicFlowLpm = undefined;
-  }
-  if (sanitised.staticMainsPressureBar !== undefined && sanitised.staticMainsPressureBar > 10) {
-    sanitised.staticMainsPressureBar = 10;
-  }
-  const dynamicPressure = sanitised.dynamicMainsPressureBar ?? sanitised.dynamicMainsPressure;
-  if (
-    sanitised.staticMainsPressureBar !== undefined
-    && dynamicPressure !== undefined
-    && dynamicPressure > sanitised.staticMainsPressureBar
-  ) {
-    sanitised.dynamicMainsPressureBar = undefined;
-    sanitised.dynamicMainsPressure = sanitised.staticMainsPressureBar;
-  }
-
-  // Bridge flat survey fields into currentSystem.boiler so the engine's
-  // BoilerEfficiencyModelV1 can apply age-decay and oversize calculations.
-  // currentHeatSourceType only covers boiler-based systems (combi/system/regular).
-  const boilerType = sanitised.currentHeatSourceType === 'combi'
-    || sanitised.currentHeatSourceType === 'system'
-    || sanitised.currentHeatSourceType === 'regular'
-    ? sanitised.currentHeatSourceType as 'combi' | 'system' | 'regular'
-    : undefined;
-
-  if (boilerType !== undefined || sanitised.currentBoilerAgeYears !== undefined || sanitised.currentBoilerOutputKw !== undefined) {
-    const existingBoiler = sanitised.currentSystem?.boiler ?? {};
-    sanitised.currentSystem = {
-      ...sanitised.currentSystem,
-      boiler: {
-        ...existingBoiler,
-        type: existingBoiler.type ?? boilerType,
-        ageYears: existingBoiler.ageYears ?? sanitised.currentBoilerAgeYears,
-        nominalOutputKw: existingBoiler.nominalOutputKw ?? sanitised.currentBoilerOutputKw,
-      },
-    };
-  }
-
-  return sanitised;
 }
 
 /**
