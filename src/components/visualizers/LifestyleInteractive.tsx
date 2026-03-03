@@ -443,7 +443,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
               background: STATE_COLOURS[state],
               cursor: 'pointer',
               fontSize: '0.55rem',
-              color: state === 'away' ? '#a0aec0' : '#2d3748',
+              color: state === 'away' ? '#718096' : '#2d3748',
               padding: 0,
               lineHeight: '36px',
               fontWeight: state !== 'away' ? 700 : 400,
@@ -492,7 +492,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
           {Array.from({ length: 12 }, (_, i) => (
             <div
               key={i}
-              style={{ fontSize: '0.48rem', color: '#a0aec0', textAlign: 'center', lineHeight: '1' }}
+              style={{ fontSize: '0.48rem', color: '#718096', textAlign: 'center', lineHeight: '1' }}
             >
               :{String(i * 5).padStart(2, '0')}
             </div>

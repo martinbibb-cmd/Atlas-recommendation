@@ -170,7 +170,7 @@ export default function PortfolioDashboard({ properties, onBack }: Props) {
         )}
       </div>
 
-      <p style={{ fontSize: '0.75rem', color: '#a0aec0', marginTop: '0.5rem' }}>
+      <p style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.5rem' }}>
         Click any row to expand compliance alerts and recommended actions.
       </p>
     </div>

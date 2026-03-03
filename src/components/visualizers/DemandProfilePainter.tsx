@@ -525,7 +525,7 @@ function PainterRow({ label, sublabel, hours, getColour, getLabel, onToggle, onR
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 4 }}>
         <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#2d3748' }}>{label}</span>
-        <span style={{ fontSize: '0.68rem', color: '#a0aec0' }}>{sublabel}</span>
+        <span style={{ fontSize: '0.68rem', color: '#718096' }}>{sublabel}</span>
         <button
           onClick={onReset}
           style={{

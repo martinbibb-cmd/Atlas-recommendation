@@ -225,7 +225,7 @@ export default function PerformanceBandLadder({
                 position: 'absolute', top: yPos - 6, left: 0,
                 width: '100%', pointerEvents: 'none',
               }}>
-                <span style={{ fontSize: '0.65rem', color: '#a0aec0', paddingLeft: 4 }}>
+                <span style={{ fontSize: '0.65rem', color: '#718096', paddingLeft: 4 }}>
                   {tick}%
                 </span>
                 <div style={{
@@ -323,11 +323,11 @@ export default function PerformanceBandLadder({
                     )}
                     {m.key === 'current' && (
                       <>
-                        <div style={{ color: '#a0aec0', fontSize: '0.7rem' }}>
+                        <div style={{ color: '#718096', fontSize: '0.7rem' }}>
                           Confidence: <strong style={{ color: '#fff' }}>{confidence}</strong>
                         </div>
                         {contributors.length > 0 && (
-                          <div style={{ marginTop: 4, color: '#a0aec0', fontSize: '0.7rem' }}>
+                          <div style={{ marginTop: 4, color: '#718096', fontSize: '0.7rem' }}>
                             Top factors:
                             {contributors.map(c => (
                               <div key={c.label} style={{ color: '#e2e8f0' }}>
@@ -339,17 +339,17 @@ export default function PerformanceBandLadder({
                       </>
                     )}
                     {m.key === 'restored' && (
-                      <div style={{ color: '#a0aec0', fontSize: '0.7rem' }}>
+                      <div style={{ color: '#718096', fontSize: '0.7rem' }}>
                         After flush, inhibitor & filter service
                       </div>
                     )}
                     {m.key === 'new_baseline' && (
-                      <div style={{ color: '#a0aec0', fontSize: '0.7rem' }}>
+                      <div style={{ color: '#718096', fontSize: '0.7rem' }}>
                         Current new condensing boiler standard
                       </div>
                     )}
                     {m.key === 'as_manufactured' && (
-                      <div style={{ color: '#a0aec0', fontSize: '0.7rem' }}>
+                      <div style={{ color: '#718096', fontSize: '0.7rem' }}>
                         Original SEDBUK seasonal rating at install
                       </div>
                     )}
@@ -381,7 +381,7 @@ export default function PerformanceBandLadder({
 
       {/* Footnote */}
       <p style={{
-        marginTop: 10, fontSize: '0.65rem', color: '#a0aec0',
+        marginTop: 10, fontSize: '0.65rem', color: '#718096',
         lineHeight: 1.4,
       }}>
         Equivalent band reflects estimated seasonal efficiency under current operating conditions; not an official reclassification.

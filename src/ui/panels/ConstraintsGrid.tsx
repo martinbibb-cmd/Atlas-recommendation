@@ -93,7 +93,7 @@ function ConstraintRow({ limiter }: { limiter: LimiterV1 }) {
         <span style={{ fontSize: 13, fontWeight: 600, color: '#2d3748' }}>
           {limiter.limit.value} {limiter.limit.unit}
         </span>
-        <div style={{ fontSize: 10, color: '#a0aec0', marginTop: 2 }}>
+        <div style={{ fontSize: 10, color: '#718096', marginTop: 2 }}>
           {limiter.observed.label}
         </div>
       </td>

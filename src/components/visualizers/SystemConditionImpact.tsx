@@ -137,7 +137,7 @@ export default function SystemConditionImpact({ impact }: Props) {
       <p style={{ fontSize: '0.82rem', color: GREY_500, marginBottom: '0.25rem' }}>
         Same system. Same house. Different internal condition.
       </p>
-      <p style={{ fontSize: '0.75rem', color: '#a0aec0', marginBottom: '1.25rem', fontStyle: 'italic' }}>
+      <p style={{ fontSize: '0.75rem', color: '#718096', marginBottom: '1.25rem', fontStyle: 'italic' }}>
         This comparison isolates internal system condition only.
         Demand, building fabric and weather are identical.
       </p>
@@ -447,7 +447,7 @@ export default function SystemConditionImpact({ impact }: Props) {
             <div>• DHW HX derate: {debugPanel.dhwCapacityDeratePct.toFixed(1)}%</div>
             <div>• Effective COP shift: {debugPanel.effectiveCOPShift.toFixed(2)}</div>
             {hasAnyDegradation && sludgeRiskIn3yrPct > debugPanel.flowDeratePct && (
-              <div style={{ marginTop: '0.5rem', color: '#a0aec0', fontStyle: 'italic' }}>
+              <div style={{ marginTop: '0.5rem', color: '#718096', fontStyle: 'italic' }}>
                 If untreated, sludge risk projects to {sludgeRiskIn3yrPct.toFixed(1)}% in 3 years.
               </div>
             )}

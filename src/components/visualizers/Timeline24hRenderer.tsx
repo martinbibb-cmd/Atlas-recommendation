@@ -565,7 +565,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
           <ReferenceLine y={0} stroke="#e2e8f0" strokeWidth={1} />
           {/* Boiler η = 1 reference */}
           {!hasCop && (
-            <ReferenceLine y={1} stroke="#e2e8f0" strokeDasharray="4 2" strokeWidth={1} label={{ value: 'η 1.0', fontSize: 7, fill: '#a0aec0' }} />
+            <ReferenceLine y={1} stroke="#e2e8f0" strokeDasharray="4 2" strokeWidth={1} label={{ value: 'η 1.0', fontSize: 7, fill: '#718096' }} />
           )}
           {bandShading}
           {seriesA && (
@@ -611,7 +611,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
 
       {/* Legend notes */}
       {payload.legendNotes && payload.legendNotes.length > 0 && (
-        <ul style={{ marginTop: '0.5rem', paddingLeft: '1rem', fontSize: '0.72rem', color: '#a0aec0' }}>
+        <ul style={{ marginTop: '0.5rem', paddingLeft: '1rem', fontSize: '0.72rem', color: '#718096' }}>
           {payload.legendNotes.map((note, i) => (
             <li key={i}>{note}</li>
           ))}
