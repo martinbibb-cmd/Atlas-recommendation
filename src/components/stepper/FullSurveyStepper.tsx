@@ -569,8 +569,13 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   const stepIndex = STEPS.indexOf(currentStep);
   const progress = ((stepIndex + 1) / STEPS.length) * 100;
 
-  const next = () => {
+  // Scroll to top whenever the active step changes so the user always sees the
+  // top of the new step — prevents "mid-page carryover" between steps.
+  useEffect(() => {
     window.scrollTo(0, 0);
+  }, [currentStep]);
+
+  const next = () => {
     if (currentStep === 'overlay') {
       // Strip fullSurvey extras — pass only the EngineInputV2_3 subset to the engine.
       setResults(runEngine(toEngineInput(sanitiseModelForEngine(input))));
@@ -581,7 +586,6 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   };
 
   const prev = () => {
-    window.scrollTo(0, 0);
     if (stepIndex === 0) {
       onBack();
     } else {
