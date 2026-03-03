@@ -635,6 +635,17 @@ export interface OccupancyHour {
    * cyclingFuelPenaltyKw = demandKw × cyclingLossPct (when loadFrac < 0.25).
    */
   cyclingFuelPenaltyKw: number;
+  /**
+   * Stored-cylinder water temperature (°C) at the end of this hour.
+   * Derived from the 110 L cylinder simulation:
+   *   Full charge → CYLINDER_MAX_TEMP_C (60 °C); empty → CYLINDER_MIN_USABLE_TEMP_C (40 °C).
+   */
+  cylinderTempC: number;
+  /**
+   * Usable stored hot-water volume (L) remaining at the end of this hour.
+   * Based on a 110 L cylinder; proportional to cylinderTempC above the 40 °C minimum.
+   */
+  cylinderVolumeL: number;
 }
 
 export interface LifestyleResult {

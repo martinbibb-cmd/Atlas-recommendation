@@ -421,7 +421,7 @@ export default function DemandProfilePainter({
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={graphAData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="hour" tick={{ fontSize: 9 }} interval={3} />
+              <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={["00:00","06:00","12:00","18:00","23:00"]} />
               <YAxis
                 tick={{ fontSize: 9 }}
                 label={{ value: 'kW', angle: -90, position: 'insideLeft', fontSize: 10 }}
@@ -459,7 +459,7 @@ export default function DemandProfilePainter({
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={graphBData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="hour" tick={{ fontSize: 9 }} interval={3} />
+              <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={["00:00","06:00","12:00","18:00","23:00"]} />
               <YAxis
                 domain={[Math.min(-0.1, parseFloat((etaMin - 0.05).toFixed(2))), parseFloat((etaMax + 0.1).toFixed(2))]}
                 tick={{ fontSize: 9 }}
