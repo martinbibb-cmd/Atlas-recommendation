@@ -59,12 +59,6 @@ const PROFILE_LABELS: Record<DhwEventV1['profile'], string> = {
   rainfall16: 'Rainfall 16 L/min',
 };
 
-const KIND_LABELS: Record<DhwEventV1['kind'], string> = {
-  shower: 'Shower',
-  bath:   'Bath',
-  taps:   'Taps',
-};
-
 const DURATION_OPTIONS = [5, 8, 10, 12, 15, 20];
 
 // ── Temperature bounds for heating setpoint inputs ────────────────────────────
@@ -337,7 +331,7 @@ function DhwEventsTimeline({
             {minutesToHHMM(ev.startMin)}
           </span>
           <span style={{ fontSize: '0.78rem', color: '#2d3748' }}>
-            {KIND_LABELS[ev.kind]} · {PROFILE_LABELS[ev.profile]} · {ev.durationMin} min
+            {PROFILE_LABELS[ev.profile]} · {ev.durationMin} min
           </span>
           <button style={btnSmallStyle} onClick={() => remove(i)}>✕</button>
         </div>

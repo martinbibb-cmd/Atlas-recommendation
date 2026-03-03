@@ -97,13 +97,14 @@ export interface DhwHeatBandV1 {
 }
 
 /**
- * A single DHW draw event (shower, bath, taps).
+ * A single DHW draw event.
+ * Demand is derived from flow profile + duration only — fixture label has no effect on physics.
  * profile drives the L/min rate used for heat-demand calculation.
  */
 export interface DhwEventV1 {
   startMin: number;
   durationMin: number;
-  kind: 'shower' | 'bath' | 'taps';
+  kind: 'taps';
   /** Flow profile — mixer10 ≈ 10 L/min, mixer12 ≈ 12 L/min, rainfall16 ≈ 16 L/min. */
   profile: 'mixer10' | 'mixer12' | 'rainfall16';
 }
