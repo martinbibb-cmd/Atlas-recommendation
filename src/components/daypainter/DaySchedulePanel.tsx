@@ -326,7 +326,7 @@ function DhwEventsTimeline({
       </div>
 
       {events.length === 0 && (
-        <div style={{ fontSize: '0.8rem', color: '#a0aec0', marginBottom: '0.5rem' }}>
+        <div style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '0.5rem' }}>
           No events — tap a time below to add.
         </div>
       )}

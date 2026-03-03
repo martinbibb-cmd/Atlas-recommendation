@@ -143,13 +143,14 @@ function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyModelV1 {
     : undefined;
 
   if (boilerType !== undefined || sanitised.currentBoilerAgeYears !== undefined || sanitised.currentBoilerOutputKw !== undefined) {
+    const existingBoiler = sanitised.currentSystem?.boiler ?? {};
     sanitised.currentSystem = {
       ...sanitised.currentSystem,
       boiler: {
-        ...sanitised.currentSystem?.boiler,
-        ...(boilerType !== undefined && !sanitised.currentSystem?.boiler?.type ? { type: boilerType } : {}),
-        ...(sanitised.currentBoilerAgeYears !== undefined && !sanitised.currentSystem?.boiler?.ageYears ? { ageYears: sanitised.currentBoilerAgeYears } : {}),
-        ...(sanitised.currentBoilerOutputKw !== undefined && !sanitised.currentSystem?.boiler?.nominalOutputKw ? { nominalOutputKw: sanitised.currentBoilerOutputKw } : {}),
+        ...existingBoiler,
+        type: existingBoiler.type ?? boilerType,
+        ageYears: existingBoiler.ageYears ?? sanitised.currentBoilerAgeYears,
+        nominalOutputKw: existingBoiler.nominalOutputKw ?? sanitised.currentBoilerOutputKw,
       },
     };
   }
@@ -494,11 +495,10 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
 
   // Raw string state for iOS-friendly numeric inputs (preserves typed value, normalises on blur)
   const [rawPressureStr, setRawPressureStr] = useState(String(prefill?.dynamicMainsPressure ?? defaultInput.dynamicMainsPressure));
-  const [rawFlowStr, setRawFlowStr] = useState(
-    (prefill?.mainsDynamicFlowLpm ?? defaultInput.mainsDynamicFlowLpm) != null
-      ? String(prefill?.mainsDynamicFlowLpm ?? defaultInput.mainsDynamicFlowLpm)
-      : ''
-  );
+  const [rawFlowStr, setRawFlowStr] = useState(() => {
+    const initialFlow = prefill?.mainsDynamicFlowLpm ?? defaultInput.mainsDynamicFlowLpm;
+    return initialFlow != null ? String(initialFlow) : '';
+  });
 
   // ── Fabric simulation controls ─────────────────────────────────────────────
   // Section A (heat loss): wall, insulation, glazing, roof, airtightness
@@ -1088,7 +1088,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                   })}
                   style={{ marginTop: '0.4rem' }}
                 />
-                <div style={{ fontSize: '0.75rem', color: '#a0aec0', marginTop: '0.25rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.25rem' }}>
                   Measured with all taps closed. Leave blank if not taken.
                 </div>
               </div>
@@ -1109,17 +1109,17 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     setRawPressureStr(raw);
                     const val = parseOptionalNumber(raw);
                     if (val !== undefined) {
-                      setInput({
-                        ...input,
+                      setInput(prev => ({
+                        ...prev,
                         dynamicMainsPressure: val,
                         dynamicMainsPressureBar: val,
-                      });
+                      }));
                     }
                   }}
                   onBlur={() => setRawPressureStr(r => normaliseNumericString(r))}
                   style={{ marginTop: '0.4rem' }}
                 />
-                <div style={{ fontSize: '0.75rem', color: '#a0aec0', marginTop: '0.25rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.25rem' }}>
                   Measured with the cold tap running at full bore.
                 </div>
               </div>
@@ -1141,12 +1141,12 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     setRawFlowStr(raw);
                     const parsed = parseOptionalNumber(raw);
                     const flow = parsed !== undefined && parsed > 0 ? parsed : undefined;
-                    setInput({ ...input, mainsDynamicFlowLpm: flow });
+                    setInput(prev => ({ ...prev, mainsDynamicFlowLpm: flow }));
                   }}
                   onBlur={() => setRawFlowStr(r => normaliseNumericString(r))}
                   style={{ marginTop: '0.4rem' }}
                 />
-                <div style={{ fontSize: '0.75rem', color: '#a0aec0', marginTop: '0.25rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.25rem' }}>
                   Measured simultaneously with dynamic pressure. Leave blank if not taken.
                 </div>
               </div>
