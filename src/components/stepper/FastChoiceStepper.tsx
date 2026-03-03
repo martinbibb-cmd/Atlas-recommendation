@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import ModellingNotice from '../ModellingNotice';
 import type { EngineInputV2_3, FullEngineResult, ExpertAssumptionsV1 } from '../../engine/schema/EngineInputV2_3';
 import type { AssumptionV1, ConfidenceV1 } from '../../contracts/EngineOutputV1';
@@ -73,6 +73,12 @@ function LegacyInputCockpit({ onBack }: { onBack: () => void }) {
   const [pressureMode, setPressureMode] = useState<PressureMode>('known');
   const [pipeMode, setPipeMode] = useState<PipeMode>('known');
   const [heatLossMode, setHeatLossMode] = useState<HeatLossMode>('known');
+
+  // Scroll to top whenever the view switches (input ↔ results) so the user
+  // always sees the top of the new view — prevents mid-page carryover.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [view]);
 
   const quickChecks = useMemo(() => {
     const unknowns: string[] = [];
