@@ -400,7 +400,6 @@ const defaultInput: FullSurveyModelV1 = {
   dhwTankType: 'standard',
   installerNetwork: 'british_gas',
   fullSurvey: {
-    connectedEvidence: { energyProvider: 'placeholder', hive: 'placeholder' },
     manualEvidence: {},
     telemetryPlaceholders: { coolingTau: null, confidence: 'none' },
   },
@@ -2129,14 +2128,15 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
             </label>
           </div>
 
-          {/* ─── Energy provider placeholder ─────────────────────────────── */}
+          {/* ─── Energy Consumption ───────────────────────────────────────── */}
           <details style={{ marginTop: '1.25rem' }}>
             <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#4a5568' }}>
               ⚡ Energy Consumption (optional)
             </summary>
             <div style={{ marginTop: '0.75rem', padding: '0.875rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
               <p style={{ fontSize: '0.82rem', color: '#4a5568', marginTop: 0, marginBottom: '0.75rem', lineHeight: 1.5 }}>
-                Enter your annual meter readings to improve estimate accuracy. Find these on your energy bills or via your smart meter in-home display.
+                If you know your annual gas or electricity usage, enter it below.
+                You can find this on your bill or online account.
               </p>
               <div className="form-grid">
                 <div className="form-field">
@@ -2180,6 +2180,11 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                   />
                 </div>
               </div>
+              {!input.fullSurvey?.manualEvidence?.annualGasKwh && !input.fullSurvey?.manualEvidence?.annualElecKwh && (
+                <p style={{ fontSize: '0.78rem', color: '#718096', marginTop: '0.5rem', marginBottom: 0 }}>
+                  Using estimated consumption based on heat loss and occupancy.
+                </p>
+              )}
             </div>
           </details>
 
@@ -2507,7 +2512,7 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
         )}
       </div>
 
-      {/* ─── Hive / thermal telemetry placeholder ──────────────────────── */}
+      {/* ─── Thermal Telemetry ───────────────────────────────────────────── */}
       <details style={{ marginTop: '1.25rem' }}>
         <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#4a5568' }}>
           🌡️ Thermal Telemetry (optional)
@@ -2531,14 +2536,11 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
                 },
               })}
             >
-              <option value="none">Unknown — awaiting telemetry</option>
+              <option value="none">Unknown</option>
               <option value="low">Low — house cools quickly</option>
               <option value="high">High — house retains heat well</option>
             </select>
           </div>
-          <p style={{ fontSize: '0.78rem', color: '#a0aec0', marginTop: '0.5rem' }}>
-            This proxy will be replaced by Hive cooling-tau data when connected.
-          </p>
         </div>
       </details>
 
