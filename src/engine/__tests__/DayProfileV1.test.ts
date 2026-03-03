@@ -194,6 +194,44 @@ describe('Engine integration: dayProfile takes priority over dayProgram', () => 
     expect(tl?.events?.some((e: { startMin: number }) => e.startMin === 430)).toBe(true);
     expect(tl?.events?.some((e: { startMin: number }) => e.startMin === 1320)).toBe(false);
   });
+
+  it('heatingBands in dayProfile drive demandHeatKw — a full-day band produces non-zero demand', () => {
+    const profileWithBands: DayProfileV1 = {
+      heatingBands: [{ startMin: 0, endMin: 1440, targetC: 21 }], // all-day comfort band
+      dhwHeatBands: [],
+      dhwEvents: [],
+    };
+
+    const withBands = runEngine({ ...BASE_INPUT, dayProfile: profileWithBands });
+    const tlWith = withBands.engineOutput.visuals?.find(v => v.type === 'timeline_24h')?.data;
+
+    // All-day comfort band should produce significant heat demand across all 96 time points
+    const maxWithBands = Math.max(0, ...(tlWith?.demandHeatKw ?? []));
+    const minWithBands = Math.min(...(tlWith?.demandHeatKw ?? []));
+
+    // All-day comfort band → demand should be non-zero and fairly consistent (no zero hours)
+    expect(maxWithBands).toBeGreaterThan(1);   // at least 1 kW from an 8 kW heat-loss house
+    expect(minWithBands).toBeGreaterThan(0);   // no zero-demand slots in an all-day band
+  });
+
+  it('heatingBands with higher targetC produce higher demandHeatKw than lower targetC', () => {
+    const makeProfile = (targetC: number): DayProfileV1 => ({
+      heatingBands: [{ startMin: 480, endMin: 540, targetC }], // 08:00–09:00 only
+      dhwHeatBands: [],
+      dhwEvents: [],
+    });
+
+    const outHigh = runEngine({ ...BASE_INPUT, dayProfile: makeProfile(21) });
+    const outLow  = runEngine({ ...BASE_INPUT, dayProfile: makeProfile(16) });
+
+    const tlHigh = outHigh.engineOutput.visuals?.find(v => v.type === 'timeline_24h')?.data;
+    const tlLow  = outLow.engineOutput.visuals?.find(v => v.type === 'timeline_24h')?.data;
+
+    const peakHigh = Math.max(0, ...(tlHigh?.demandHeatKw ?? []));
+    const peakLow  = Math.max(0, ...(tlLow?.demandHeatKw ?? []));
+
+    expect(peakHigh).toBeGreaterThan(peakLow);
+  });
 });
 
 // ── Mixergy standing loss vs conventional ─────────────────────────────────────

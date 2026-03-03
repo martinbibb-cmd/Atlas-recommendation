@@ -3,10 +3,13 @@ import type { VisualSpecV1, Timeline24hV1, Timeline24hEvent, Timeline24hSeries, 
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
 import { solveSystemTimeline, buildSystemConfig, dhwKwFromFlow, DHW_COLD_WATER_TEMP_C, DHW_TARGET_HOT_TEMP_C } from './timeline/Solver24hV1';
 import { resolveNominalEfficiencyPct, computeCurrentEfficiencyPct, deriveErpClass } from './utils/efficiency';
-import { programToTimelineEvents, dayProfileToTimelineEvents } from './modules/ProgramToTimelineModule';
+import { programToTimelineEvents, dayProfileToTimelineEvents, dayProfileToHourlyDemandKw } from './modules/ProgramToTimelineModule';
 
 /** 96 time points at 15-minute intervals covering 0–1425 minutes. */
 const TIME_MINUTES = Array.from({ length: 96 }, (_, i) => i * 15);
+
+/** Fallback heat-loss assumption (kW) when no heatLossWatts is provided in the engine input. */
+const DEFAULT_HEAT_LOSS_KW = 8;
 
 /** Default DHW event schedule for a typical UK household day (used when no lifestyle profile is provided). */
 const DEFAULT_EVENTS: Timeline24hEvent[] = [
@@ -467,8 +470,14 @@ export function buildTimeline24hV1(
 
   const [idA, idB] = systemIds ?? ['current', primaryRec];
 
-  // Build hourly demand array (kW) from lifestyle module output (24 values)
-  const hourlyDemandKw = core.lifestyle.hourlyData.map(h => h.demandKw);
+  // Build hourly demand array (kW).
+  // When a Hive-style dayProfile with heatingBands is provided, derive demand directly
+  // from the bands so that user edits to the schedule visibly move the heat curve.
+  // Fall back to lifestyle module output (occupancy profiles) when no dayProfile.
+  const heatLossKw = input.heatLossWatts != null ? input.heatLossWatts / 1000 : DEFAULT_HEAT_LOSS_KW;
+  const hourlyDemandKw = (input.dayProfile?.heatingBands?.length ?? 0) > 0
+    ? dayProfileToHourlyDemandKw(input.dayProfile!, heatLossKw)
+    : core.lifestyle.hourlyData.map(h => h.demandKw);
 
   // Expand 24-hour demand to 96 15-min points via linear interpolation
   const demandKwArr: number[] = TIME_MINUTES.map((_, i) =>

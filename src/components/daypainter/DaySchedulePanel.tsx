@@ -73,6 +73,17 @@ const MIN_HEATING_TEMP_C = 14;
 /** Maximum allowed heating setpoint (°C) — over-heat prevention ceiling. */
 const MAX_HEATING_TEMP_C = 25;
 
+/**
+ * Parse a temperature string from a number input field.
+ * Strips non-digit characters, parses as integer, and clamps to the valid range.
+ * Returns `null` when the raw value is empty or unparseable (keeps previous state).
+ */
+function parseTemperatureInput(raw: string): number | null {
+  const n = parseInt(raw.replace(/[^\d]/g, ''), 10);
+  if (isNaN(n)) return null;
+  return Math.max(MIN_HEATING_TEMP_C, Math.min(MAX_HEATING_TEMP_C, n));
+}
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const sectionStyle: CSSProperties = {
@@ -188,9 +199,23 @@ function HeatingScheduleBands({
             type="number"
             min={MIN_HEATING_TEMP_C}
             max={MAX_HEATING_TEMP_C}
-            style={{ ...inputStyle, width: '56px', marginLeft: 'auto' }}
+            style={{
+              ...inputStyle,
+              width: '56px',
+              marginLeft: 'auto',
+              borderColor: (band.targetC < MIN_HEATING_TEMP_C || band.targetC > MAX_HEATING_TEMP_C)
+                ? '#e53e3e'
+                : '#cbd5e0',
+            }}
             value={band.targetC}
-            onChange={(e) => update(i, { targetC: Number(e.target.value) })}
+            onChange={(e) => {
+              const n = parseTemperatureInput(e.target.value);
+              if (n !== null) update(i, { targetC: n });
+            }}
+            onBlur={(e) => {
+              const n = parseTemperatureInput(e.target.value);
+              update(i, { targetC: n ?? MIN_HEATING_TEMP_C });
+            }}
             aria-label="Target temperature"
           />
           <button style={btnSmallStyle} onClick={() => remove(i)} aria-label="Remove heating band">✕</button>
