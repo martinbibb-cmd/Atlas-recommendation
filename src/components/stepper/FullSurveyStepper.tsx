@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, startTransition } from 'react';
+import { deriveRawPressureStr, deriveRawFlowStr } from './pressureFlowHelpers';
 import ModellingNotice from '../ModellingNotice';
 import {
   LineChart,
@@ -448,11 +449,16 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   const [hardnessPreview, setHardnessPreview] = useState<ReturnType<typeof runRegionalHardness> | null>(null);
   const searchHardness = () => setHardnessPreview(runRegionalHardness(input.postcode));
 
-  // Raw string state for iOS-friendly numeric inputs (preserves typed value, normalises on blur)
-  const [rawPressureStr, setRawPressureStr] = useState(String(prefill?.dynamicMainsPressure ?? defaultInput.dynamicMainsPressure));
+  // Raw string state for iOS-friendly numeric inputs (preserves typed value, normalises on blur).
+  // Derived from the same initial-input object as `input` so Story Mode / restored-model prefills
+  // appear correctly on first render without a string/numeric mismatch.
+  const [rawPressureStr, setRawPressureStr] = useState(() => {
+    const init = prefill ? { ...defaultInput, ...prefill } : defaultInput;
+    return deriveRawPressureStr(init);
+  });
   const [rawFlowStr, setRawFlowStr] = useState(() => {
-    const initialFlow = prefill?.mainsDynamicFlowLpm ?? defaultInput.mainsDynamicFlowLpm;
-    return initialFlow != null ? String(initialFlow) : '';
+    const init = prefill ? { ...defaultInput, ...prefill } : defaultInput;
+    return deriveRawFlowStr(init);
   });
 
   // ── Fabric simulation controls ─────────────────────────────────────────────
@@ -1037,10 +1043,10 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                   step={0.1}
                   value={input.staticMainsPressureBar ?? ''}
                   placeholder="e.g. 3.5 — optional"
-                  onChange={e => setInput({
-                    ...input,
+                  onChange={e => setInput(prev => ({
+                    ...prev,
                     staticMainsPressureBar: e.target.value ? +e.target.value : undefined,
-                  })}
+                  }))}
                   style={{ marginTop: '0.4rem' }}
                 />
                 <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.25rem' }}>
