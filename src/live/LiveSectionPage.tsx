@@ -125,9 +125,10 @@ function LiveUsageSection({
               padding: '0.4rem 1rem',
               fontSize: '0.875rem',
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: 'default',
+              opacity: 0.7,
             }}
-            onClick={() => {/* CTA: prompt surveyor to add usage schedule */}}
+            disabled
           >
             Add usage schedule
           </button>
