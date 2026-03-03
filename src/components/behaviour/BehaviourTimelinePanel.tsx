@@ -40,21 +40,21 @@ interface Props {
 // ── Shared axis formatting ────────────────────────────────────────────────────
 
 /** Show only every 4th label (every hour at 15-min resolution). */
-function xTickFormatter(value: string, index: number): string {
-  return index % 4 === 0 ? value : '';
+function xTickFormatter(value: number): string {
+  if (value % 6 !== 0 && value !== 24) return '';
+  return `${Math.round(value)}`;
 }
 
 // ── Tooltip ───────────────────────────────────────────────────────────────────
 
 interface TooltipProps {
   active?: boolean;
-  label?: string;
   isAshp: boolean;
   allData: TimelineSeriesPoint[];
   hoverIndex: number | null;
 }
 
-function SharedTooltip({ active, label, isAshp, allData, hoverIndex }: TooltipProps) {
+function SharedTooltip({ active, isAshp, allData, hoverIndex }: TooltipProps) {
   if (!active || hoverIndex === null) return null;
   const pt = allData[hoverIndex];
   if (!pt) return null;
@@ -71,15 +71,17 @@ function SharedTooltip({ active, label, isAshp, allData, hoverIndex }: TooltipPr
         pointerEvents: 'none',
       }}
     >
-      <div style={{ fontWeight: 700, marginBottom: 6, color: '#2d3748' }}>🕐 {label ?? pt.t}</div>
+      <div style={{ fontWeight: 700, marginBottom: 6, color: '#2d3748' }}>🕐 {pt.t}</div>
       <div style={{ color: '#e53e3e' }}>Heat demand: <b>{pt.heatDemandKw.toFixed(2)} kW</b></div>
-      <div style={{ color: '#3182ce' }}>DHW demand: <b>{pt.dhwDemandKw.toFixed(2)} kW</b></div>
+      <div style={{ color: '#3182ce' }}>DHW draw demand: <b>{(pt.dhwDrawDemandKw ?? pt.dhwDemandKw).toFixed(2)} kW</b></div>
       <div style={{ color: '#38a169' }}>
         Appliance output: <b>{pt.applianceOutKw.toFixed(2)} kW</b>
         {pt.applianceCapKw != null && (
           <span style={{ color: '#718096' }}> / cap {pt.applianceCapKw} kW</span>
         )}
       </div>
+      <div style={{ color: '#2f855a' }}>Space heat output: <b>{(pt.spaceHeatOutKw ?? pt.applianceOutKw).toFixed(2)} kW</b></div>
+      <div style={{ color: '#2b6cb0' }}>DHW appliance output: <b>{(pt.dhwApplianceOutKw ?? 0).toFixed(2)} kW</b></div>
       <div style={{ color: '#805ad5' }}>
         {isAshp ? 'COP' : 'Efficiency'}:{' '}
         <b>
@@ -195,8 +197,8 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
 
   // Derived callout values
   const peakHeatKw = Math.max(...pts.map(p => p.heatDemandKw));
-  const peakDhwKw  = Math.max(...pts.map(p => p.dhwDemandKw));
-  const peakDhwIdx = pts.findIndex(p => p.dhwDemandKw === peakDhwKw);
+  const peakDhwKw  = Math.max(...pts.map(p => p.dhwApplianceOutKw ?? p.dhwDemandKw));
+  const peakDhwIdx = pts.findIndex(p => (p.dhwApplianceOutKw ?? p.dhwDemandKw) === peakDhwKw);
   const peakDhwTime = pts[peakDhwIdx]?.t ?? '';
 
   // Saturation: how many 15-min steps is appliance at cap?
@@ -223,21 +225,21 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
 
   // Combi lockout bands: contiguous DHW-priority windows (mode 'dhw' or 'mixed').
   // Rendered as background fills on the heat demand row to show when CH is cut off.
-  const lockoutBands: Array<{ x1: string; x2: string }> = [];
+  const lockoutBands: Array<{ x1: number; x2: number }> = [];
   if (isCombi) {
-    let bandStart: string | null = null;
+    let bandStart: number | null = null;
     for (let i = 0; i < pts.length; i++) {
       const m = pts[i].mode;
       const inLockout = m === 'dhw' || m === 'mixed';
       if (inLockout && bandStart === null) {
-        bandStart = pts[i].t;
+        bandStart = pts[i].tHour;
       } else if (!inLockout && bandStart !== null) {
-        lockoutBands.push({ x1: bandStart, x2: pts[i - 1].t });
+        lockoutBands.push({ x1: bandStart, x2: pts[i - 1].tHour });
         bandStart = null;
       }
     }
     if (bandStart !== null) {
-      lockoutBands.push({ x1: bandStart, x2: pts[pts.length - 1].t });
+      lockoutBands.push({ x1: bandStart, x2: pts[pts.length - 1].tHour });
     }
   }
 
@@ -273,7 +275,10 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
   };
 
   const xAxisProps = {
-    dataKey: 't',
+    type: 'number' as const,
+    dataKey: 'tHour',
+    domain: [0, 24] as [number, number],
+    ticks: [0, 6, 12, 18, 24],
     tickFormatter: xTickFormatter,
     tick: { fontSize: 10, fill: '#718096' },
     interval: 0,
@@ -281,7 +286,7 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
   };
 
   const hasHeatData = pts.some(p => p.heatDemandKw > 0);
-  const hasDhwData  = pts.some(p => p.dhwDemandKw > 0);
+  const hasDhwData  = pts.some(p => (p.dhwApplianceOutKw ?? p.dhwDemandKw) > 0);
   const hasEffData  = pts.some(p => (p.efficiency ?? p.cop) != null);
 
   // Annotations by row
@@ -362,7 +367,7 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
             <Tooltip {...tooltipProps} />
             {hoverIndex != null && (
               <ReferenceLine
-                x={pts[hoverIndex]?.t}
+                x={pts[hoverIndex]?.tHour}
                 stroke="#718096"
                 strokeDasharray="3 3"
               />
@@ -433,13 +438,13 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
             <Tooltip {...tooltipProps} />
             {hoverIndex != null && (
               <ReferenceLine
-                x={pts[hoverIndex]?.t}
+                x={pts[hoverIndex]?.tHour}
                 stroke="#718096"
                 strokeDasharray="3 3"
               />
             )}
             <Bar
-              dataKey="dhwDemandKw"
+              dataKey="dhwApplianceOutKw"
               fill="#3182ce"
               opacity={0.75}
               isAnimationActive={false}
@@ -478,7 +483,7 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
             <Tooltip {...tooltipProps} />
             {hoverIndex != null && (
               <ReferenceLine
-                x={pts[hoverIndex]?.t}
+                x={pts[hoverIndex]?.tHour}
                 stroke="#718096"
                 strokeDasharray="3 3"
               />
@@ -545,7 +550,7 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
             <Tooltip {...tooltipProps} />
             {hoverIndex != null && (
               <ReferenceLine
-                x={pts[hoverIndex]?.t}
+                x={pts[hoverIndex]?.tHour}
                 stroke="#718096"
                 strokeDasharray="3 3"
               />

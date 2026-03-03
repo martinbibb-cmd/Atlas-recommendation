@@ -328,10 +328,18 @@ export interface VisualSpecV1 {
 export interface TimelineSeriesPoint {
   /** ISO timestamp or "HH:MM" label for the X axis. */
   t: string;
+  /** Hour-of-day scalar (0.00 → 23.75) for numeric chart axes. */
+  tHour: number;
   /** Space-heat demand (kW ≥ 0). */
   heatDemandKw: number;
   /** DHW demand (kW ≥ 0). */
   dhwDemandKw: number;
+  /** DHW draw demand at the tap (kW ≥ 0). */
+  dhwDrawDemandKw?: number;
+  /** Appliance output allocated to DHW production (kW ≥ 0). */
+  dhwApplianceOutKw?: number;
+  /** Appliance output allocated to space heating (kW ≥ 0). */
+  spaceHeatOutKw?: number;
   /** Total delivered output from the appliance (kW ≥ 0). */
   applianceOutKw: number;
   /** Optional constant capacity line (kW). */

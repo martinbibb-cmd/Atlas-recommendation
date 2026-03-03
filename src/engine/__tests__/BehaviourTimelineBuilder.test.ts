@@ -303,4 +303,47 @@ describe('buildBehaviourTimelineV1 — combi priority lockout', () => {
       expect(pt.deliveredHeatKw).toBeUndefined();
     }
   });
+
+
+  it('exposes numeric tHour axis values from 0 to 23.75 in 0.25h steps', () => {
+    const result = runEngine(COMBI_INPUT);
+    const timeline = buildBehaviourTimelineV1(result, COMBI_INPUT);
+    expect(timeline.points[0].tHour).toBe(0);
+    expect(timeline.points[95].tHour).toBe(23.75);
+    expect(timeline.points[1].tHour - timeline.points[0].tHour).toBeCloseTo(0.25, 5);
+  });
+
+  it('combi uses DHW draw demand directly and pauses CH while draw is active', () => {
+    const result = runEngine(COMBI_INPUT);
+    const timeline = buildBehaviourTimelineV1(result, COMBI_INPUT);
+    const drawTicks = timeline.points.filter(p => (p.dhwDrawDemandKw ?? 0) > 0.1);
+    expect(drawTicks.length).toBeGreaterThan(0);
+    for (const pt of drawTicks) {
+      expect(pt.spaceHeatOutKw).toBe(0);
+      expect(pt.dhwApplianceOutKw).toBeGreaterThan(0);
+      expect(pt.dhwApplianceOutKw!).toBeLessThanOrEqual(pt.applianceCapKw ?? 30);
+    }
+  });
+
+  it('stored systems decouple tap draw from appliance output and reheat in scheduled bands', () => {
+    const systemBoilerInput = {
+      ...BASE_INPUT,
+      occupancyCount: 2,
+      currentSystem: {
+        boiler: { type: 'system' as const, ageYears: 5, condensing: 'yes' as const, nominalOutputKw: 28 },
+      },
+    };
+    const result = runEngine(systemBoilerInput);
+    const timeline = buildBehaviourTimelineV1(result, systemBoilerInput);
+
+    expect(timeline.points.every(p => (p.dhwDrawDemandKw ?? 0) === 0)).toBe(true);
+
+    const reheatTicks = timeline.points.filter(p => (p.dhwApplianceOutKw ?? 0) > 0);
+    expect(reheatTicks.length).toBeGreaterThan(0);
+    for (const pt of reheatTicks) {
+      expect(pt.spaceHeatOutKw).toBe(0);
+      expect([5, 6, 17, 18, 19]).toContain(Math.floor(pt.tHour));
+    }
+  });
+
 });
