@@ -69,16 +69,20 @@ const DURATION_OPTIONS = [5, 8, 10, 12, 15, 20];
 
 // ── Temperature bounds for heating setpoint inputs ────────────────────────────
 /** Minimum allowed heating setpoint (°C) — frost protection floor. */
-const MIN_HEATING_TEMP_C = 10;
+export const MIN_HEATING_TEMP_C = 10;
 /** Maximum allowed heating setpoint (°C) — over-heat prevention ceiling. */
-const MAX_HEATING_TEMP_C = 30;
+export const MAX_HEATING_TEMP_C = 30;
 
 /**
  * Parse a temperature string from a number input field.
  * Strips non-digit characters, parses as integer, and clamps to the valid range.
  * Returns `null` when the raw value is empty or unparseable (keeps previous state).
+ *
+ * Exported for unit testing — prevents regression of the "509°" bug where a time
+ * string like "05:09" was accidentally routed through this parser and produced 509.
+ * With clamping: parseInt("0509", 10) = 509 → Math.min(30, 509) = 30 (safe).
  */
-function parseTemperatureInput(raw: string): number | null {
+export function parseTemperatureInput(raw: string): number | null {
   const n = parseInt(raw.replace(/[^\d]/g, ''), 10);
   if (isNaN(n)) return null;
   return Math.max(MIN_HEATING_TEMP_C, Math.min(MAX_HEATING_TEMP_C, n));
