@@ -291,17 +291,34 @@ describe('EngineOutputV1 shape', () => {
 
   // ── Recommendation resolver V1 ────────────────────────────────────────────
 
-  it('recommendation primary is "Stored hot water — unvented cylinder" when on_demand is rejected (2 bathrooms, 2 outlets)', () => {
-    const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2, peakConcurrentOutlets: 2 });
-    expect(engineOutput.recommendation.primary).toBe('Stored hot water — unvented cylinder');
+  it('recommendation primary is "Stored hot water — Unvented cylinder" when on_demand is rejected and stored unvented is viable', () => {
+    // 2 bathrooms + 2 concurrent outlets → combi rejected; 14 L/min @ 2.5 bar → stored unvented viable
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      bathroomCount: 2,
+      peakConcurrentOutlets: 2,
+      mainsDynamicFlowLpm: 14,   // qualifies stored_unvented (10 L/min @ 1 bar threshold)
+      currentBoilerAgeYears: 10, // reduces missingKeyCount for medium confidence
+      currentBoilerOutputKw: 24, // reduces missingKeyCount for medium confidence
+    });
+    expect(engineOutput.recommendation.primary).toBe('Stored hot water — Unvented cylinder');
   });
 
-  it('recommendation primary is "Stored hot water — unvented cylinder" when pressure lockout fails on_demand', () => {
-    const { engineOutput } = runEngine({ ...baseInput, dynamicMainsPressure: 0.5, bathroomCount: 1 });
-    expect(engineOutput.recommendation.primary).toBe('Stored hot water — unvented cylinder');
+  it('recommendation primary is "Multiple options need review" when pressure lockout fails on_demand with no single viable option', () => {
+    // 0.5 bar → combi rejected; stored unvented caution (0.5 bar < 1 bar gate); ASHP caution (22mm)
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      dynamicMainsPressure: 0.5,
+      bathroomCount: 1,
+      mainsDynamicFlowLpm: 14,   // flow present but pressure below 1 bar → stored unvented stays caution
+      currentBoilerAgeYears: 10,
+      currentBoilerOutputKw: 24,
+    });
+    expect(engineOutput.recommendation.primary).toBe('Multiple options need review');
   });
 
-  it('recommendation primary is "Air Source Heat Pump" for steady_home with viable ASHP (28mm)', () => {
+  it('recommendation primary is "Air Source Heat Pump" for steady_home with viable ASHP (28mm) and medium confidence', () => {
+    // 28mm + 8kW → ASHP viable; on_demand caution (steady_home); stored unvented caution (9 L/min < 10)
     const { engineOutput } = runEngine({
       ...baseInput,
       primaryPipeDiameter: 28,
@@ -309,8 +326,33 @@ describe('EngineOutputV1 shape', () => {
       occupancySignature: 'steady_home',
       bathroomCount: 1,
       peakConcurrentOutlets: 1,
+      mainsDynamicFlowLpm: 9,    // below unvented gate (< 10 L/min at pressure) → stored unvented stays caution
+      currentBoilerAgeYears: 10, // reduces missingKeyCount for medium confidence
+      currentBoilerOutputKw: 24, // reduces missingKeyCount for medium confidence
     });
     expect(engineOutput.recommendation.primary).toBe('Air Source Heat Pump');
+  });
+
+  it('recommendation primary is NOT "Air Source Heat Pump" when ASHP is caution (22mm pipes + steady_home)', () => {
+    // Regression: ASHP with primary-pipe caution must NOT be auto-recommended
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      primaryPipeDiameter: 22,
+      heatLossWatts: 8000,
+      occupancySignature: 'steady_home',
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      mainsDynamicFlowLpm: 9,    // below unvented gate → stored unvented caution
+      currentBoilerAgeYears: 10,
+      currentBoilerOutputKw: 24,
+    });
+    expect(engineOutput.recommendation.primary).not.toBe('Air Source Heat Pump');
+  });
+
+  it('recommendation primary is "Recommendation withheld" when confidence is low', () => {
+    // baseInput has low confidence (missing GC, age, output, flow) → recommendation withheld
+    const { engineOutput } = runEngine(baseInput);
+    expect(engineOutput.recommendation.primary).toBe('Recommendation withheld — not enough measured data');
   });
 
   // ── Dynamic-pressure-only note deduplication ─────────────────────────────
