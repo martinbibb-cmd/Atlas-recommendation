@@ -73,7 +73,7 @@ export default function App() {
   }
 
   if (journey === 'fast') return <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} />;
-  if (journey === 'full') return <FullSurveyStepper onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }} prefill={fullSurveyPrefill} onComplete={handleSurveyComplete} />;
+  if (journey === 'full') return <FullSurveyStepper onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }} prefill={fullSurveyPrefill} />;
   if (journey === 'live' && liveResult && liveInput) return <LiveHubPage result={liveResult} input={liveInput} onBack={() => setJourney('full')} />;
   if (journey === 'scope') return <ScopePage onBack={() => setJourney('landing')} />;
   if (journey === 'methodology') return <MethodologyPage onBack={() => setJourney('landing')} />;
