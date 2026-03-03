@@ -1,0 +1,294 @@
+/*
+ * LiveHubPage — iPad-first layout styles.
+ *
+ * Rules:
+ *  - Minimum 56px tap targets
+ *  - Generous padding (24px+)
+ *  - 2-column grid in portrait, 3-column in landscape
+ *  - Wide readable typography
+ */
+
+/* ── Hub container ─────────────────────────────────────────────────────────── */
+.live-hub {
+  min-height: 100vh;
+  background: #f7fafc;
+  padding-bottom: 3rem;
+}
+
+/* ── Sticky verdict strip ──────────────────────────────────────────────────── */
+.live-hub__verdict-strip {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #1a202c;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.live-hub__verdict-strip-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.live-hub__back-btn {
+  background: transparent;
+  color: #a0aec0;
+  border: 1px solid #4a5568;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  min-height: 40px;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.live-hub__back-btn:hover {
+  color: #fff;
+  border-color: #718096;
+}
+
+.live-hub__verdict-chips {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.live-hub__verdict-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: 8px;
+  min-width: 120px;
+}
+
+.live-hub__verdict-chip--pass,
+.live-hub__verdict-chip--ok {
+  background: rgba(72, 187, 120, 0.15);
+  border: 1px solid rgba(72, 187, 120, 0.4);
+}
+
+.live-hub__verdict-chip--warn {
+  background: rgba(246, 173, 85, 0.15);
+  border: 1px solid rgba(246, 173, 85, 0.4);
+}
+
+.live-hub__verdict-chip--fail {
+  background: rgba(245, 101, 101, 0.15);
+  border: 1px solid rgba(245, 101, 101, 0.4);
+}
+
+.live-hub__verdict-chip--recommendation {
+  background: rgba(99, 179, 237, 0.15);
+  border: 1px solid rgba(99, 179, 237, 0.4);
+  flex: 1;
+  min-width: 180px;
+}
+
+.live-hub__verdict-label {
+  font-size: 0.7rem;
+  color: #a0aec0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.live-hub__verdict-value {
+  font-size: 0.85rem;
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.live-hub__verdict-value--recommendation {
+  color: #bee3f8;
+}
+
+/* ── Hub header ────────────────────────────────────────────────────────────── */
+.live-hub__header {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 1rem;
+}
+
+.live-hub__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.5rem;
+}
+
+.live-hub__subtitle {
+  font-size: 1rem;
+  color: #718096;
+  margin: 0;
+}
+
+/* ── Tile grid ─────────────────────────────────────────────────────────────── */
+.live-hub__grid {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: grid;
+  gap: 1rem;
+  /* 2-column default (portrait iPad) */
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* 3-column on wider viewports (landscape iPad / desktop) */
+@media (min-width: 900px) {
+  .live-hub__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* 1-column on small phones */
+@media (max-width: 480px) {
+  .live-hub__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Individual tile ───────────────────────────────────────────────────────── */
+.live-hub__tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.375rem;
+  padding: 1.5rem;
+  min-height: 180px;
+  background: #fff;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+.live-hub__tile:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.live-hub__tile:active {
+  transform: translateY(0);
+}
+
+.live-hub__tile--watch {
+  border-color: #fbd38d;
+  background: #fffaf0;
+}
+
+.live-hub__tile--missing {
+  border-color: #e2e8f0;
+  background: #f7fafc;
+  opacity: 0.7;
+}
+
+.live-hub__tile-icon {
+  font-size: 1.75rem;
+  line-height: 1;
+  margin-bottom: 0.125rem;
+}
+
+.live-hub__tile-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a202c;
+  line-height: 1.2;
+}
+
+.live-hub__tile-subtitle {
+  font-size: 0.82rem;
+  color: #718096;
+  line-height: 1.4;
+  flex: 1;
+}
+
+/* ── Status chip on tile ───────────────────────────────────────────────────── */
+.live-hub__tile-chip {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: auto;
+}
+
+.live-hub__tile-chip--ok {
+  background: #c6f6d5;
+  color: #276749;
+}
+
+.live-hub__tile-chip--watch {
+  background: #feebc8;
+  color: #7b341e;
+}
+
+.live-hub__tile-chip--missing {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+/* ── Section page wrapper ──────────────────────────────────────────────────── */
+.live-section {
+  min-height: 100vh;
+  background: #f7fafc;
+  padding-bottom: 3rem;
+}
+
+.live-section__header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #1a202c;
+  color: #fff;
+  padding: 0.875rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.live-section__back-btn {
+  background: transparent;
+  color: #a0aec0;
+  border: 1px solid #4a5568;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  min-height: 40px;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.live-section__back-btn:hover {
+  color: #fff;
+  border-color: #718096;
+}
+
+.live-section__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin: 0;
+}
+
+.live-section__body {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.live-section__body .result-section {
+  margin-bottom: 1.5rem;
+}
