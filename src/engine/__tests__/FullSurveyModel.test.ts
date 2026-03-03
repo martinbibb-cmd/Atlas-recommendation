@@ -146,3 +146,72 @@ describe('EngineInputV2_3 — currentBoilerSedbukPct contract', () => {
     expect(correctCurrent).toBe(Math.max(50, (input.currentBoilerSedbukPct ?? 92) - decay));
   });
 });
+
+// ── Boiler age → efficiency decay (sanitiseModelForEngine bridge) ─────────────
+// These tests verify that when currentSystem.boiler.ageYears is populated (which
+// sanitiseModelForEngine does by bridging from currentBoilerAgeYears), the engine
+// correctly applies age degradation to the boiler efficiency model.
+
+describe('Engine — boiler age drives efficiency decay via currentSystem.boiler', () => {
+  const baseInput = {
+    ...baseEngineFields,
+    postcode: 'SW1A 1AA',
+  };
+
+  it('boilerEfficiencyModelV1 is undefined without currentSystem.boiler', () => {
+    const result = runEngine(baseInput);
+    // Without currentSystem.boiler the engine cannot build a boiler efficiency model
+    expect(result.boilerEfficiencyModelV1).toBeUndefined();
+  });
+
+  it('boilerEfficiencyModelV1 is built when currentSystem.boiler is provided', () => {
+    const input = {
+      ...baseInput,
+      currentSystem: {
+        boiler: { type: 'combi' as const, ageYears: 10 },
+      },
+    };
+    const result = runEngine(input);
+    expect(result.boilerEfficiencyModelV1).toBeDefined();
+  });
+
+  it('age factor is < 1 for a 10-year-old boiler (efficiency decay applied)', () => {
+    const input = {
+      ...baseInput,
+      currentSystem: {
+        boiler: { type: 'combi' as const, ageYears: 10 },
+      },
+    };
+    const result = runEngine(input);
+    const model = result.boilerEfficiencyModelV1;
+    expect(model).toBeDefined();
+    // 10 years → ageFactor 0.97 per BoilerEfficiencyModelV1
+    expect(model!.age.factor).toBe(0.97);
+    // Age-adjusted eta must be below baseline
+    expect(model!.ageAdjustedEta!).toBeLessThan(model!.baselineSeasonalEta!);
+  });
+
+  it('a new boiler (0 years) has no age decay (factor = 1.0)', () => {
+    const input = {
+      ...baseInput,
+      currentSystem: {
+        boiler: { type: 'combi' as const, ageYears: 0 },
+      },
+    };
+    const result = runEngine(input);
+    const model = result.boilerEfficiencyModelV1;
+    expect(model).toBeDefined();
+    expect(model!.age.factor).toBe(1.0);
+    expect(model!.ageAdjustedEta).toBe(model!.baselineSeasonalEta);
+  });
+
+  it('older boiler (20+ years) has greater decay than a 5-year-old boiler', () => {
+    const youngInput = { ...baseInput, currentSystem: { boiler: { type: 'combi' as const, ageYears: 5 } } };
+    const oldInput   = { ...baseInput, currentSystem: { boiler: { type: 'combi' as const, ageYears: 20 } } };
+
+    const youngModel = runEngine(youngInput).boilerEfficiencyModelV1!;
+    const oldModel   = runEngine(oldInput).boilerEfficiencyModelV1!;
+
+    expect(youngModel.ageAdjustedEta!).toBeGreaterThan(oldModel.ageAdjustedEta!);
+  });
+});
