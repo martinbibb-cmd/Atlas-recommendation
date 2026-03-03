@@ -116,7 +116,7 @@ const inputStyle: CSSProperties = {
   border: '1px solid #cbd5e0',
   borderRadius: '4px',
   fontSize: '0.82rem',
-  width: '74px',
+  width: '88px',
 };
 
 const btnSmallStyle: CSSProperties = {
@@ -302,7 +302,6 @@ function DhwEventsTimeline({
   onChange: (events: DhwEventV1[]) => void;
 }) {
   const [addMinute, setAddMinute] = useState<string>('07:00');
-  const [addKind, setAddKind] = useState<DhwEventV1['kind']>('shower');
   const [addProfile, setAddProfile] = useState<DhwEventV1['profile']>('mixer10');
   const [addDuration, setAddDuration] = useState<number>(8);
 
@@ -312,7 +311,7 @@ function DhwEventsTimeline({
       {
         startMin: hhmmToMinutes(addMinute),
         durationMin: addDuration,
-        kind: addKind,
+        kind: 'taps',
         profile: addProfile,
       },
     ]);
@@ -364,15 +363,6 @@ function DhwEventsTimeline({
           value={addMinute}
           onChange={(e) => setAddMinute(e.target.value)}
         />
-        <select
-          style={{ ...inputStyle, width: 'auto' }}
-          value={addKind}
-          onChange={(e) => setAddKind(e.target.value as DhwEventV1['kind'])}
-        >
-          {(Object.keys(KIND_LABELS) as DhwEventV1['kind'][]).map((k) => (
-            <option key={k} value={k}>{KIND_LABELS[k]}</option>
-          ))}
-        </select>
         <select
           style={{ ...inputStyle, width: 'auto' }}
           value={addProfile}

@@ -132,6 +132,28 @@ function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyModelV1 {
     sanitised.dynamicMainsPressureBar = undefined;
     sanitised.dynamicMainsPressure = sanitised.staticMainsPressureBar;
   }
+
+  // Bridge flat survey fields into currentSystem.boiler so the engine's
+  // BoilerEfficiencyModelV1 can apply age-decay and oversize calculations.
+  // currentHeatSourceType only covers boiler-based systems (combi/system/regular).
+  const boilerType = sanitised.currentHeatSourceType === 'combi'
+    || sanitised.currentHeatSourceType === 'system'
+    || sanitised.currentHeatSourceType === 'regular'
+    ? sanitised.currentHeatSourceType as 'combi' | 'system' | 'regular'
+    : undefined;
+
+  if (boilerType !== undefined || sanitised.currentBoilerAgeYears !== undefined || sanitised.currentBoilerOutputKw !== undefined) {
+    sanitised.currentSystem = {
+      ...sanitised.currentSystem,
+      boiler: {
+        ...sanitised.currentSystem?.boiler,
+        ...(boilerType !== undefined && !sanitised.currentSystem?.boiler?.type ? { type: boilerType } : {}),
+        ...(sanitised.currentBoilerAgeYears !== undefined && !sanitised.currentSystem?.boiler?.ageYears ? { ageYears: sanitised.currentBoilerAgeYears } : {}),
+        ...(sanitised.currentBoilerOutputKw !== undefined && !sanitised.currentSystem?.boiler?.nominalOutputKw ? { nominalOutputKw: sanitised.currentBoilerOutputKw } : {}),
+      },
+    };
+  }
+
   return sanitised;
 }
 
@@ -471,9 +493,11 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   const searchHardness = () => setHardnessPreview(runRegionalHardness(input.postcode));
 
   // Raw string state for iOS-friendly numeric inputs (preserves typed value, normalises on blur)
-  const [rawPressureStr, setRawPressureStr] = useState(String(defaultInput.dynamicMainsPressure));
+  const [rawPressureStr, setRawPressureStr] = useState(String(prefill?.dynamicMainsPressure ?? defaultInput.dynamicMainsPressure));
   const [rawFlowStr, setRawFlowStr] = useState(
-    defaultInput.mainsDynamicFlowLpm != null ? String(defaultInput.mainsDynamicFlowLpm) : ''
+    (prefill?.mainsDynamicFlowLpm ?? defaultInput.mainsDynamicFlowLpm) != null
+      ? String(prefill?.mainsDynamicFlowLpm ?? defaultInput.mainsDynamicFlowLpm)
+      : ''
   );
 
   // ── Fabric simulation controls ─────────────────────────────────────────────
@@ -585,6 +609,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   const progress = ((stepIndex + 1) / STEPS.length) * 100;
 
   const next = () => {
+    window.scrollTo(0, 0);
     if (currentStep === 'overlay') {
       // Strip fullSurvey extras — pass only the EngineInputV2_3 subset to the engine.
       setResults(runEngine(toEngineInput(sanitiseModelForEngine(input))));
@@ -595,6 +620,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   };
 
   const prev = () => {
+    window.scrollTo(0, 0);
     if (stepIndex === 0) {
       onBack();
     } else {
@@ -1990,10 +2016,10 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
         <div className="step-card">
           <h2>💼 Step 6: Commercial Strategy Selection</h2>
           <p className="description">
-            Choose your installation strategy. A low flow temp design achieves 35–40°C,
-            delivering SPF 3.8–4.4. A high temp retrofit retains existing radiators
-            at 50–55°C (SPF 2.9–3.1). Adding a Mixergy Hot Water Battery delivers a
-            21% gas saving via active stratification.
+            Choose your installation strategy. A full system upgrade uses low flow temperatures
+            (35–40°C) suitable for heat pumps or high-efficiency boilers, delivering SPF 3.8–4.4.
+            A high temp retrofit retains existing radiators at 50–55°C (SPF 2.9–3.1 for heat pumps).
+            Adding a Mixergy Hot Water Battery delivers a 21% gas saving via active stratification.
           </p>
           <div className="form-grid">
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
@@ -2011,9 +2037,9 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     textAlign: 'left',
                   }}
                 >
-                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>✅ Low flow temp design (35–40°C)</div>
+                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>✅ Full upgrade — low flow temp (35–40°C)</div>
                   <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
-                    New oversized Type 22 radiators · Design flow 35–40°C · SPF 3.8–4.4
+                    New oversized Type 22 radiators · Design flow 35–40°C · Best suited for heat pump or high-efficiency combi
                   </div>
                 </button>
                 <button
@@ -2028,9 +2054,9 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     textAlign: 'left',
                   }}
                 >
-                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>⚡ High temp retrofit (50–55°C)</div>
+                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>⚡ Retrofit — high flow temp (50–55°C)</div>
                   <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
-                    Existing radiators retained · Design flow 50–55°C · SPF 2.9–3.1
+                    Existing radiators retained · Design flow 50–55°C · Suitable for like-for-like replacement
                   </div>
                 </button>
               </div>
@@ -2144,17 +2170,9 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
               ⚡ Energy Consumption (optional)
             </summary>
             <div style={{ marginTop: '0.75rem', padding: '0.875rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                <button
-                  disabled
-                  style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid #cbd5e0', background: '#edf2f7', color: '#a0aec0', cursor: 'not-allowed', fontSize: '0.85rem' }}
-                >
-                  🔌 Connect Provider (coming soon)
-                </button>
-                <span style={{ fontSize: '0.78rem', color: '#a0aec0' }}>
-                  Source: Manual (placeholder for provider sync)
-                </span>
-              </div>
+              <p style={{ fontSize: '0.82rem', color: '#4a5568', marginTop: 0, marginBottom: '0.75rem', lineHeight: 1.5 }}>
+                Enter your annual meter readings to improve estimate accuracy. Find these on your energy bills or via your smart meter in-home display.
+              </p>
               <div className="form-grid">
                 <div className="form-field">
                   <label>Annual gas consumption (kWh, optional)</label>
@@ -2530,17 +2548,9 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
           🌡️ Thermal Telemetry (optional)
         </summary>
         <div style={{ marginTop: '0.75rem', padding: '0.875rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-            <button
-              disabled
-              style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid #cbd5e0', background: '#edf2f7', color: '#a0aec0', cursor: 'not-allowed', fontSize: '0.85rem' }}
-            >
-              🔗 Connect Hive (coming soon)
-            </button>
-            <span style={{ fontSize: '0.78rem', color: '#a0aec0' }}>
-              Cooling data not connected
-            </span>
-          </div>
+          <p style={{ fontSize: '0.82rem', color: '#4a5568', marginTop: 0, marginBottom: '0.75rem', lineHeight: 1.5 }}>
+            Manually indicate how quickly your home loses heat. This improves the thermal inertia model used to calculate heating schedules and boiler cycling estimates.
+          </p>
           <div className="form-field">
             <label>Thermal inertia feel (manual proxy)</label>
             <select
