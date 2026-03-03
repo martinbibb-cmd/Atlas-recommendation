@@ -62,10 +62,20 @@ interface Props {
   onBack: () => void;
   /** Optional prefill state from Story Mode escalation. */
   prefill?: Partial<FullSurveyModelV1>;
+  /**
+   * Called when the survey reaches the results stage.
+   * The caller is responsible for displaying results (e.g. LiveHubPage).
+   * When provided, Step 8 (results) is no longer rendered inline.
+   */
+  onComplete?: (result: FullEngineResult, input: FullSurveyModelV1) => void;
 }
 
 type Step = 'location' | 'pressure' | 'hydraulic' | 'lifestyle' | 'hot_water' | 'commercial' | 'overlay' | 'results';
-const STEPS: Step[] = ['location', 'pressure', 'hydraulic', 'lifestyle', 'hot_water', 'commercial', 'overlay', 'results'];
+/** Step 8 ("results") is intentionally excluded — the survey ends at "overlay"
+ *  and, when onComplete is provided, the caller handles results via the callback.
+ *  Without onComplete, the stepper falls back to rendering results inline as
+ *  before, preserving backwards compatibility. */
+const STEPS: Step[] = ['location', 'pressure', 'hydraulic', 'lifestyle', 'hot_water', 'commercial', 'overlay'];
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
 // Two independent physics dimensions:
@@ -405,7 +415,7 @@ const defaultInput: FullSurveyModelV1 = {
   },
 };
 
-export default function FullSurveyStepper({ onBack, prefill }: Props) {
+export default function FullSurveyStepper({ onBack, prefill, onComplete }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('location');
   const [input, setInput] = useState<FullSurveyModelV1>(() =>
     prefill ? { ...defaultInput, ...prefill } : defaultInput
@@ -577,8 +587,13 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   const next = () => {
     if (currentStep === 'overlay') {
       // Strip fullSurvey extras — pass only the EngineInputV2_3 subset to the engine.
-      setResults(runEngine(toEngineInput(sanitiseModelForEngine(input))));
-      setCurrentStep('results');
+      const engineResult = runEngine(toEngineInput(sanitiseModelForEngine(input)));
+      setResults(engineResult);
+      if (onComplete) {
+        onComplete(engineResult, input);
+      } else {
+        setCurrentStep('results');
+      }
     } else {
       setCurrentStep(STEPS[stepIndex + 1]);
     }

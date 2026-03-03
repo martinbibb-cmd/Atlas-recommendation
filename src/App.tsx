@@ -7,7 +7,9 @@ import MethodologyPage from './components/governance/MethodologyPage';
 import NeutralityPage from './components/governance/NeutralityPage';
 import PrivacyPage from './components/governance/PrivacyPage';
 import BehaviourConsolePage from './components/behaviour/BehaviourConsolePage';
-import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
+import LiveHubPage from './live/LiveHubPage';
+import type { EngineInputV2_3, FullEngineResult } from './engine/schema/EngineInputV2_3';
+import type { FullSurveyModelV1 } from './ui/fullSurvey/FullSurveyModelV1';
 import { runEngine } from './engine/Engine';
 import './App.css';
 
@@ -37,15 +39,23 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   preferCombi: true,
 };
 
-type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy';
+type Journey = 'landing' | 'fast' | 'full' | 'live' | 'scope' | 'methodology' | 'neutrality' | 'privacy';
 
 export default function App() {
   const [journey, setJourney] = useState<Journey>('landing');
   const [fullSurveyPrefill, setFullSurveyPrefill] = useState<Partial<EngineInputV2_3> | undefined>();
+  const [liveResult, setLiveResult] = useState<FullEngineResult | null>(null);
+  const [liveInput, setLiveInput] = useState<FullSurveyModelV1 | null>(null);
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
     setJourney('full');
+  }
+
+  function handleSurveyComplete(result: FullEngineResult, input: FullSurveyModelV1) {
+    setLiveResult(result);
+    setLiveInput(input);
+    setJourney('live');
   }
 
   // ?console=1 feature flag — render Behaviour Console with demo engine output.
@@ -63,7 +73,8 @@ export default function App() {
   }
 
   if (journey === 'fast') return <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} />;
-  if (journey === 'full') return <FullSurveyStepper onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }} prefill={fullSurveyPrefill} />;
+  if (journey === 'full') return <FullSurveyStepper onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }} prefill={fullSurveyPrefill} onComplete={handleSurveyComplete} />;
+  if (journey === 'live' && liveResult && liveInput) return <LiveHubPage result={liveResult} input={liveInput} onBack={() => setJourney('full')} />;
   if (journey === 'scope') return <ScopePage onBack={() => setJourney('landing')} />;
   if (journey === 'methodology') return <MethodologyPage onBack={() => setJourney('landing')} />;
   if (journey === 'neutrality') return <NeutralityPage onBack={() => setJourney('landing')} />;
