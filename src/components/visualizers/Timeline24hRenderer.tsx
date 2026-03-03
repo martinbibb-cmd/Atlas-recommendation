@@ -86,6 +86,7 @@ function buildChartData(payload: Timeline24hV1): Record<string, number | string>
       label: minuteToLabel(min),
       demandHeatKw: payload.demandHeatKw[i],
     };
+    if (payload.targetTempC) row['targetTempC'] = payload.targetTempC[i];
     for (const s of payload.series) {
       row[`${s.id}_heatKw`]    = s.heatDeliveredKw[i];
       row[`${s.id}_eff`]       = s.efficiency[i];
@@ -144,9 +145,20 @@ function PhysicsDebugOverlay({
       <div>tenYearDecayPct: <strong>{dbg.tenYearEfficiencyDecayPct.toFixed(1)}%</strong></div>
       <div>currentEfficiencyPct: <strong>{dbg.currentEfficiencyPct.toFixed(1)}%</strong></div>
       <div>sedbukSource: <strong>{dbg.sedbukSource}</strong></div>
+      <div>heatBandsCount: <strong style={{ color: (dbg.heatBandsCount ?? 0) > 0 ? '#68d391' : '#fc8181' }}>{dbg.heatBandsCount ?? 0}</strong>{(dbg.heatBandsCount ?? 0) === 0 ? ' (using occupancy fallback)' : ' (schedule-driven)'}</div>
       {hoverIdx !== undefined && (
         <div style={dividerStyle}>
           <div>hoverIdx: <strong>{hoverIdx}</strong>  t = {payload.timeMinutes[hoverIdx]}min ({minuteToLabel(payload.timeMinutes[hoverIdx])})</div>
+          {payload.targetTempC && (
+            <div>
+              activeTargetC: <strong style={{ color: payload.targetTempC[hoverIdx] > 0 ? '#68d391' : '#fc8181' }}>
+                {payload.targetTempC[hoverIdx] > 0 ? `${payload.targetTempC[hoverIdx].toFixed(1)} °C` : 'off (no active band)'}
+              </strong>
+              {(dbg.heatBandsCount ?? 0) > 0 && payload.targetTempC[hoverIdx] === 0 && (
+                <span style={{ color: '#f6ad55', marginLeft: 6 }}>⚠ heatBandsCount {`>`} 0 but activeTargetC=0 → band lookup miss?</span>
+              )}
+            </div>
+          )}
           {payload.series.map((s, idx) => {
             const eta = s.efficiency[hoverIdx];
             const kind = s.performanceKind === 'cop' ? 'COP' : 'η';
@@ -222,6 +234,11 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
 
   // Check whether physics-based room temp data is present
   const hasRoomTemp = !!(seriesA?.roomTempC?.length || seriesB?.roomTempC?.length);
+
+  // Check whether a target temperature schedule is present (from heating bands)
+  const hasTargetTemp = !!(payload.targetTempC?.length);
+  // Combined flag — right axis is needed when room temp OR target temp is available
+  const hasRightAxis = hasRoomTemp || hasTargetTemp;
 
   // Determine performance axis bounds from series kinds.
   // For COP (heat pumps): 0–6.
@@ -377,6 +394,21 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
             dot={false}
             name="Space heat demand"
           />
+          {/* Target temperature step line — derived from heating schedule bands.
+              Proof-of-wiring: if this line doesn't change when bands are edited,
+              the schedule is not being read by the engine. */}
+          {hasTargetTemp && (
+            <Line
+              type="stepAfter"
+              dataKey="targetTempC"
+              stroke={SETPOINT_COLOUR}
+              strokeWidth={1.5}
+              strokeDasharray="5 3"
+              dot={false}
+              yAxisId="right"
+              name="Target temp °C"
+            />
+          )}
           {/* Optional indoor temp lines (faint) */}
           {hasRoomTemp && seriesA?.roomTempC && (
             <Line
@@ -402,7 +434,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
               name={`B indoor °C`}
             />
           )}
-          {hasRoomTemp && (
+          {hasRightAxis && (
             <YAxis
               yAxisId="right"
               orientation="right"
@@ -412,7 +444,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
               domain={['auto', 'auto']}
             />
           )}
-          {hasRoomTemp && (
+          {hasRightAxis && (
             <ReferenceLine
               yAxisId="right"
               y={21}

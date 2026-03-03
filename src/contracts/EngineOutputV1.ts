@@ -263,6 +263,12 @@ export interface PhysicsDebugV1 {
   sedbukSource: 'gc' | 'band' | 'unknown' | 'fallback';
   /** Number of timeline points — used to sanity-check hover index bounds. */
   timelinePoints?: number;
+  /**
+   * Number of heating bands from `dayProfile.heatingBands`.
+   * When > 0 the heat demand curve is driven by the schedule.
+   * When 0 the lifestyle occupancy-profile fallback is in use.
+   */
+  heatBandsCount?: number;
 }
 
 /** Payload for the timeline_24h visual type (96 points at 15-min intervals). */
@@ -276,6 +282,14 @@ export interface Timeline24hV1 {
    * Present only when a lifestyle profile with cold-flow events is provided.
    */
   coldFlowLpm?: number[];
+  /**
+   * Heating-schedule target temperature (°C) at each 15-minute point.
+   * Derived from `dayProfile.heatingBands` when a Hive-style day profile is provided.
+   * Present only when the user has painted a heating schedule; absent otherwise.
+   * Rendered as a faint step line on the Space Heat Demand chart so edits to the
+   * heating schedule are immediately visible as a proof-of-wiring signal.
+   */
+  targetTempC?: number[];
   series: Timeline24hSeries[];
   events: Timeline24hEvent[];
   /**

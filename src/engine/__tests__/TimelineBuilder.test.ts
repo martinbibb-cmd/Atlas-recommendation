@@ -965,3 +965,78 @@ describe('TimelineBuilder — physicsDebug debug flag + source selection', () =>
     });
   });
 });
+
+// ── targetTempC — heating schedule proof line ─────────────────────────────────
+
+import type { DayProfileV1 } from '../../contracts/EngineInputV2_3';
+
+describe('TimelineBuilder — targetTempC (heating schedule proof line)', () => {
+  it('targetTempC is absent when no dayProfile is provided', () => {
+    const result = runEngine(baseInput);
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    expect(timeline!.data.targetTempC).toBeUndefined();
+  });
+
+  it('targetTempC is absent when dayProfile has no heating bands', () => {
+    const emptyProfile: DayProfileV1 = { heatingBands: [], dhwHeatBands: [], dhwEvents: [] };
+    const result = runEngine({ ...baseInput, dayProfile: emptyProfile });
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    expect(timeline!.data.targetTempC).toBeUndefined();
+  });
+
+  it('targetTempC is present and has 96 points when heatingBands are provided', () => {
+    const profile: DayProfileV1 = {
+      heatingBands: [{ startMin: 360, endMin: 540, targetC: 21 }],
+      dhwHeatBands: [],
+      dhwEvents: [],
+    };
+    const result = runEngine({ ...baseInput, dayProfile: profile });
+    const timeline = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
+    expect(timeline!.data.targetTempC).toHaveLength(96);
+  });
+
+  it('targetTempC reflects the band targetC during the band window', () => {
+    const profile: DayProfileV1 = {
+      heatingBands: [{ startMin: 6 * 60, endMin: 8 * 60, targetC: 21 }], // 06:00–08:00
+      dhwHeatBands: [],
+      dhwEvents: [],
+    };
+    const result = runEngine({ ...baseInput, dayProfile: profile });
+    const tl = result.engineOutput.visuals?.find(v => v.type === 'timeline_24h')!.data;
+    // 96 points: point 24 = minute 360 (06:00), point 31 = minute 465 (07:45)
+    // Band 06:00–08:00 = minutes 360–480 → indices 24–31
+    expect(tl.targetTempC[24]).toBe(21);
+    expect(tl.targetTempC[31]).toBe(21);
+    // Outside the band (e.g. 00:00 = index 0) should be 0 (off)
+    expect(tl.targetTempC[0]).toBe(0);
+  });
+
+  it('targetTempC changes when band targetC is changed — proves engine reads schedule', () => {
+    const makeProfile = (targetC: number): DayProfileV1 => ({
+      heatingBands: [{ startMin: 6 * 60, endMin: 8 * 60, targetC }],
+      dhwHeatBands: [],
+      dhwEvents: [],
+    });
+    const result21 = runEngine({ ...baseInput, dayProfile: makeProfile(21) });
+    const result18 = runEngine({ ...baseInput, dayProfile: makeProfile(18) });
+    const tl21 = result21.engineOutput.visuals?.find(v => v.type === 'timeline_24h')!.data;
+    const tl18 = result18.engineOutput.visuals?.find(v => v.type === 'timeline_24h')!.data;
+    // Index 24 = minute 360 = 06:00 — inside the band
+    expect(tl21.targetTempC[24]).toBe(21);
+    expect(tl18.targetTempC[24]).toBe(18);
+  });
+
+  it('demandHeatKw changes when targetC changes — confirms heat demand responds to schedule', () => {
+    const makeProfile = (targetC: number): DayProfileV1 => ({
+      heatingBands: [{ startMin: 6 * 60, endMin: 8 * 60, targetC }],
+      dhwHeatBands: [],
+      dhwEvents: [],
+    });
+    const result21 = runEngine({ ...baseInput, dayProfile: makeProfile(21) });
+    const result16 = runEngine({ ...baseInput, dayProfile: makeProfile(16) });
+    const maxDemand21 = Math.max(...result21.engineOutput.visuals?.find(v => v.type === 'timeline_24h')!.data.demandHeatKw);
+    const maxDemand16 = Math.max(...result16.engineOutput.visuals?.find(v => v.type === 'timeline_24h')!.data.demandHeatKw);
+    // Higher targetC → higher demand fraction → higher demandHeatKw
+    expect(maxDemand21).toBeGreaterThan(maxDemand16);
+  });
+});
