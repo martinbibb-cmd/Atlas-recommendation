@@ -27,7 +27,7 @@ import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
 import EfficiencyCurve from '../visualizers/EfficiencyCurve';
 import FootprintXRay from '../visualizers/FootprintXRay';
 import GlassBoxPanel from '../visualizers/GlassBoxPanel';
-import InteractiveTwin from '../InteractiveTwin';
+
 import Timeline24hRenderer from '../visualizers/Timeline24hRenderer';
 import DemandProfilePainter from '../visualizers/DemandProfilePainter';
 import type { PainterDayProgram } from '../visualizers/DemandProfilePainter';
@@ -62,19 +62,11 @@ interface Props {
   onBack: () => void;
   /** Optional prefill state from Story Mode escalation. */
   prefill?: Partial<FullSurveyModelV1>;
-  /**
-   * Called when the survey reaches the results stage.
-   * The caller is responsible for displaying results (e.g. LiveHubPage).
-   * When provided, Step 8 (results) is no longer rendered inline.
-   */
-  onComplete?: (result: FullEngineResult, input: FullSurveyModelV1) => void;
 }
 
-type Step = 'location' | 'pressure' | 'hydraulic' | 'lifestyle' | 'hot_water' | 'commercial' | 'overlay' | 'results';
+type Step = 'location' | 'pressure' | 'hydraulic' | 'lifestyle' | 'hot_water' | 'commercial' | 'overlay';
 /** Step 8 ("results") is intentionally excluded — the survey ends at "overlay"
- *  and, when onComplete is provided, the caller handles results via the callback.
- *  Without onComplete, the stepper falls back to rendering results inline as
- *  before, preserving backwards compatibility. */
+ *  and the stepper transitions to hub mode after the engine run. */
 const STEPS: Step[] = ['location', 'pressure', 'hydraulic', 'lifestyle', 'hot_water', 'commercial', 'overlay'];
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
@@ -415,7 +407,7 @@ const defaultInput: FullSurveyModelV1 = {
   },
 };
 
-export default function FullSurveyStepper({ onBack, prefill, onComplete }: Props) {
+export default function FullSurveyStepper({ onBack, prefill }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('location');
   const [input, setInput] = useState<FullSurveyModelV1>(() =>
     prefill ? { ...defaultInput, ...prefill } : defaultInput
@@ -424,6 +416,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete }: Props
   const [showPrefillBanner, setShowPrefillBanner] = useState<boolean>(!!prefill);
   const [compareMixergy, setCompareMixergy] = useState(false);
   const [results, setResults] = useState<FullEngineResult | null>(null);
+  const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
   const [expertAssumptions, setExpertAssumptions] = useState<ExpertAssumptionsV1>({});
   const [systemPlanType, setSystemPlanType] = useState<'y_plan' | 's_plan'>('y_plan');
 
@@ -589,14 +582,10 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete }: Props
       // Strip fullSurvey extras — pass only the EngineInputV2_3 subset to the engine.
       const engineResult = runEngine(toEngineInput(sanitiseModelForEngine(input)));
       setResults(engineResult);
-      if (onComplete) {
-        onComplete(engineResult, input);
-      } else {
-        setCurrentStep('results');
-      }
-    } else {
-      setCurrentStep(STEPS[stepIndex + 1]);
+      setMode('hub');
+      return;
     }
+    setCurrentStep(STEPS[stepIndex + 1]);
   };
 
   const prev = () => {
@@ -609,6 +598,27 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete }: Props
 
   // selectedArchetype shape kept for LifestyleComfortStep compatibility
   const selectedArchetype = { label: `${thermalMass} mass / ${insulationLevel}`, tauHours: derivedTau, fabricType };
+
+  if (mode === 'hub') {
+    return (
+      <div className="stepper-container">
+        <div className="stepper-header">
+          <button className="back-btn" onClick={onBack}>← Back</button>
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `100%` }} />
+          </div>
+        </div>
+
+        <div className="step-card">
+          <h2>Control Room</h2>
+          <p>Hub coming next PR.</p>
+          <button className="prev-btn" onClick={() => setMode('stepper')}>
+            ← Back to steps
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="stepper-container">
@@ -2352,22 +2362,6 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete }: Props
         );
       })()}
 
-      {currentStep === 'results' && results && (
-        <FullSurveyResults
-          results={results}
-          input={input}
-          validationWarnings={inputWarnings}
-          compareMixergy={compareMixergy}
-          onBack={onBack}
-          expertAssumptions={expertAssumptions}
-          onAssumptionsChange={ea => {
-            setExpertAssumptions(ea);
-            const engineInput = toEngineInput(sanitiseModelForEngine(input));
-            engineInput.expertAssumptions = ea;
-            setResults(runEngine(engineInput));
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -2866,7 +2860,6 @@ function FullSurveyResults({
   const { hydraulic, combiStress, mixergy, lifestyle, normalizer } = results;
   const regime = results.heatPumpRegime;
   const [engineOutput, setEngineOutput] = useState(results.engineOutput);
-  const [showTwin, setShowTwin] = useState(false);
   const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
   const [activeOptionTab, setActiveOptionTab] = useState<Record<string, 'heat' | 'dhw' | 'needs' | 'why'>>({});
   const [visualFilter, setVisualFilter] = useState<'all' | 'relevant'>('all');
@@ -2877,7 +2870,7 @@ function FullSurveyResults({
     : results.engineOutput.recommendation.primary.toLowerCase().includes('unvented') ? 'stored_unvented'
     : results.engineOutput.recommendation.primary.toLowerCase().includes('vented') ? 'stored_vented'
     : 'on_demand';
-  /** System-B ID for the InteractiveTwin and visual-card timeline renderers — derived from engine recommendation. */
+  /** System-B ID for the visual-card timeline renderers — derived from engine recommendation. */
   const compareBId = recommendedBId;
   /** Monotonically-incrementing engine run counter — used by ?debug=1 overlay. */
   const [engineRunId, setEngineRunId] = useState(0);
@@ -2988,21 +2981,6 @@ function FullSurveyResults({
   const currentEfficiencyPct = computeCurrentEfficiencyPct(nominalEfficiencyPct, normalizer.tenYearEfficiencyDecayPct);
   const shouldShowMixergy = input.dhwTankType === 'mixergy' || compareMixergy;
   const selectedPathway = results.engineOutput.plans?.pathways.find(p => p.id === selectedPathwayId);
-
-  if (showTwin) {
-    return (
-      <InteractiveTwin
-        mixergy={mixergy}
-        currentEfficiencyPct={currentEfficiencyPct}
-        nominalEfficiencyPct={nominalEfficiencyPct}
-        hydraulic={results.hydraulicV1}
-        systemAType={compareAId}
-        systemBType={compareBId}
-        baseInput={toEngineInput(sanitiseModelForEngine(input))}
-        onBack={() => setShowTwin(false)}
-      />
-    );
-  }
 
   return (
     <div className="results-container">
@@ -3598,9 +3576,6 @@ function FullSurveyResults({
 
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <button className="prev-btn" onClick={onBack}>← New Survey</button>
-        <button className="next-btn" onClick={() => setShowTwin(true)} style={{ background: '#9f7aea' }}>
-          🏠 Open Interactive Twin →
-        </button>
       </div>
     </div>
   );
