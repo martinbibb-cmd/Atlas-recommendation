@@ -2001,9 +2001,9 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     textAlign: 'left',
                   }}
                 >
-                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>✅ Full upgrade — low flow temp (35–40°C)</div>
+                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>✅ Full upgrade (low-temp design)</div>
                   <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
-                    New oversized Type 22 radiators · Design flow 35–40°C · Best suited for heat pump or high-efficiency combi
+                    Assumes radiators/controls can be upgraded so the system runs 35–45°C most of the time.
                   </div>
                 </button>
                 <button
@@ -2018,12 +2018,15 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     textAlign: 'left',
                   }}
                 >
-                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>⚡ Retrofit — high flow temp (50–55°C)</div>
+                  <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>⚡ Like-for-like retrofit (higher temp)</div>
                   <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
-                    Existing radiators retained · Design flow 50–55°C · Suitable for like-for-like replacement
+                    Assumes existing emitters stay; needs higher flow temps to hit comfort on cold days.
                   </div>
                 </button>
               </div>
+              <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '0.5rem' }}>
+                Low-temp is usually more efficient but may require emitter upgrades; like-for-like prioritises minimal changes.
+              </p>
             </div>
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
               <label>💧 Hot Water Storage</label>
