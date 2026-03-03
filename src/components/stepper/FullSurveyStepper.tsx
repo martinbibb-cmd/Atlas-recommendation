@@ -599,24 +599,17 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   // selectedArchetype shape kept for LifestyleComfortStep compatibility
   const selectedArchetype = { label: `${thermalMass} mass / ${insulationLevel}`, tauHours: derivedTau, fabricType };
 
-  if (mode === 'hub') {
+  if (mode === 'hub' && results) {
     return (
-      <div className="stepper-container">
-        <div className="stepper-header">
-          <button className="back-btn" onClick={onBack}>← Back</button>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `100%` }} />
-          </div>
-        </div>
-
-        <div className="step-card">
-          <h2>Control Room</h2>
-          <p>Hub coming next PR.</p>
-          <button className="prev-btn" onClick={() => setMode('stepper')}>
-            ← Back to steps
-          </button>
-        </div>
-      </div>
+      <FullSurveyResults
+        results={results}
+        input={input}
+        validationWarnings={collectInputValidationWarnings(input)}
+        compareMixergy={compareMixergy}
+        onBack={onBack}
+        expertAssumptions={expertAssumptions}
+        onAssumptionsChange={setExpertAssumptions}
+      />
     );
   }
 
@@ -3188,7 +3181,7 @@ function FullSurveyResults({
                 return visual.affectsOptionIds.includes(expandedOptionId);
               })
               .map(visual => (
-                <VisualCard key={visual.id} spec={visual} />
+                <VisualCard key={visual.id} spec={visual} compareAId={compareAId} compareBId={compareBId} />
               ))}
           </div>
         </div>
