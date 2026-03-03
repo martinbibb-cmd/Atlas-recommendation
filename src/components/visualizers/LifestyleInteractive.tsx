@@ -37,7 +37,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-import { runLifestyleSimulationModule } from '../../engine/modules/LifestyleSimulationModule';
+import { runLifestyleSimulationModule, CYLINDER_VOLUME_L } from '../../engine/modules/LifestyleSimulationModule';
 import { runSpecEdgeModule } from '../../engine/modules/SpecEdgeModule';
 import { runSludgeVsScaleModule } from '../../engine/modules/SludgeVsScaleModule';
 import { runHydraulicModuleV1 } from '../../engine/modules/HydraulicModule';
@@ -48,9 +48,6 @@ import {
   STATE_CYCLE,
   defaultHours,
   nextState,
-  mixergySoCByHour,
-  boilerSteppedCurve,
-  hpHorizonCurve,
   type WaterSlotState,
   WATER_SLOT_LABELS,
   WATER_SLOT_COLOURS,
@@ -150,9 +147,6 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [isFullJob, setIsFullJob] = useState(true);
   const [selectedSystem, setSelectedSystem] = useState<DayPainterSystem>('combi');
   const [conditionScenario, setConditionScenario] = useState<ConditionScenario>('as_found');
-  // DHW draws always go to the hot-water system — demand is driven by household
-  // size and bathroom count heuristics (no user-facing supply-path selector).
-  const dhwDrawScalar = 1.0;
   const [hasSoftener, setHasSoftener] = useState(false);
 
   // ── DHW concurrency presets — drive all flow & kW calculations ─────────────
@@ -209,32 +203,22 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
 
   // ── Derived curve data ──────────────────────────────────────────────────────
 
-  const socByHour = useMemo(
-    () => mixergySoCByHour(hours, 'gravity', dhwDrawScalar),
-    [hours, dhwDrawScalar],
-  );
-  const boilerByHour = useMemo(
-    () => boilerSteppedCurve(hours, false, 'gravity', dhwDrawScalar),
-    [hours, dhwDrawScalar],
-  );
-  const hpByHour = useMemo(
-    () => hpHorizonCurve(hours, specEdge.spfMidpoint, specEdge.designFlowTempC),
-    [hours, specEdge],
-  );
-
   // Derive which curve series to render for the selected system
   const showBoiler   = selectedSystem === 'combi' || selectedSystem === 'stored_vented' || selectedSystem === 'stored_unvented';
   const showHp       = selectedSystem === 'ashp';
   const showHwReserve = selectedSystem !== 'combi'; // stored systems & ASHP have a cylinder
 
-  const chartData = Array.from({ length: 24 }, (_, h) => {
-    const row: Record<string, string | number> = {
+  // Graph 2 data sourced entirely from engine results (lifestyle.hourlyData).
+  // boilerRoomTempC and ashpRoomTempC come from the physics-based dynamic room trace.
+  // Cylinder reserve % derived from engine cylinderVolumeL (110 L cylinder).
+  const chartData = lifestyle.hourlyData.map((row, h) => {
+    const entry: Record<string, string | number> = {
       hour: `${String(h).padStart(2, '0')}:00`,
     };
-    if (showBoiler)    row['Boiler (°C)']             = boilerByHour[h];
-    if (showHp)        row['HP Horizon (°C)']          = hpByHour[h];
-    if (showHwReserve) row['Hot water reserve (%)']    = socByHour[h];
-    return row;
+    if (showBoiler)    entry['Boiler Room (°C)']       = row.boilerRoomTempC;
+    if (showHp)        entry['HP Room (°C)']            = row.ashpRoomTempC;
+    if (showHwReserve) entry['Hot water reserve (%)']   = parseFloat((row.cylinderVolumeL / CYLINDER_VOLUME_L * 100).toFixed(1));
+    return entry;
   });
 
   // ── Interaction handlers ────────────────────────────────────────────────────
@@ -258,8 +242,8 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   // ── Demand chart data (Graph 1: Technical Truth) ────────────────────────────
   // Source: lifestyle.hourlyData from LifestyleSimulationModule (deterministic,
   // physics-driven).  Shows the raw kW load regardless of which system is chosen.
-  // DHW demand: when the water painter has any slots set, those drive the DHW kW
-  // series; otherwise the heating painter heuristic (dhw_demand / home hours) is used.
+  // DHW demand: when the water painter has slots set, those drive the DHW kW series.
+  // When no slots are painted, DHW = 0 (no phantom events from the hour painter).
   const heatLossKw = engineInput.heatLossWatts / 1000;
   const anyWaterPainted = waterSlots.some(s => s !== 'none');
   const anyWaterCold    = waterSlots.some(s => s === 'cold');
@@ -280,16 +264,8 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const demandChartData = lifestyle.hourlyData.map((row, h) => ({
     hour: `${String(h).padStart(2, '0')}:00`,
     'Heat (kW)':  parseFloat(row.demandKw.toFixed(2)),
-    'DHW (kW)':   anyWaterPainted
-      ? waterDhwByHour[h]
-      : parseFloat(
-          (hours[h] === 'dhw_demand'
-            ? computeRequiredKw(showerFlowLpm, dhwDeltaT)
-            : hours[h] === 'home'
-              ? computeRequiredKw(showerFlowLpm * 0.25, dhwDeltaT)
-              : 0
-          ).toFixed(2),
-        ),
+    // DHW series: Water Painter slots when painted; 0 otherwise (no phantom events).
+    'DHW (kW)':   anyWaterPainted ? waterDhwByHour[h] : 0,
   }));
 
   // ── Graph C: Comfort Stability ─────────────────────────────────────────────
@@ -386,6 +362,15 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const dhwDrawKwhToday = parseFloat(
     (dhwCount * 0.9 + homeCount * 0.2).toFixed(1),
   );
+
+  // ── Graph S: Stored Cylinder — temperature and volume (engine results) ───────
+  // Only shown for stored systems (stored_vented, stored_unvented, ashp).
+  // Data comes entirely from lifestyle.hourlyData (cylinderTempC, cylinderVolumeL).
+  const storedCylinderData = lifestyle.hourlyData.map((row, h) => ({
+    hour: `${String(h).padStart(2, '0')}:00`,
+    'Cylinder Temp (°C)': row.cylinderTempC,
+    'Volume Available (L)': row.cylinderVolumeL,
+  }));
 
   return (
     <div>
@@ -722,7 +707,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={demandChartData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="hour" tick={{ fontSize: 9 }} interval={3} />
+              <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={["00:00","06:00","12:00","18:00","23:00"]} />
               <YAxis
                 domain={[0, Math.ceil(heatLossKw * DEMAND_Y_AXIS_SCALE_FACTOR)]}
                 tick={{ fontSize: 9 }}
@@ -766,7 +751,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="hour" tick={{ fontSize: 9 }} interval={3} />
+            <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={["00:00","06:00","12:00","18:00","23:00"]} />
             <YAxis
               yAxisId="temp"
               domain={[14, 23]}
@@ -796,27 +781,26 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
               strokeDasharray="4 3"
               label={{ value: '21°C', fontSize: 9, fill: '#276749' }}
             />
-            {/* Boiler "Stepped" Curve – 30 kW Sprinter */}
+            {/* Boiler room temperature from engine physics — replaces UI-derived stepped curve */}
             {showBoiler && (
               <Line
                 yAxisId="temp"
-                type="stepAfter"
-                dataKey="Boiler (°C)"
+                type="monotone"
+                dataKey="Boiler Room (°C)"
                 stroke="#ed8936"
                 strokeWidth={2.5}
                 dot={false}
               />
             )}
-            {/* HP "Horizon" Curve – SPF-driven flat or dipping line */}
+            {/* HP room temperature from engine physics — replaces UI-derived horizon curve */}
             {showHp && (
               <Line
                 yAxisId="temp"
                 type="monotone"
-                dataKey="HP Horizon (°C)"
+                dataKey="HP Room (°C)"
                 stroke="#48bb78"
                 strokeWidth={2.5}
                 dot={false}
-                strokeDasharray={isFullJob ? undefined : '6 3'}
               />
             )}
             {/* Hot water reserve – stored cylinder area chart */}
@@ -835,6 +819,73 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
         </ResponsiveContainer>
         </div>
       </div>
+
+      {/* ── Graph S: Stored Cylinder — temperature and volume ──────────────── */}
+      {selectedSystem !== 'combi' && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
+            🛢️ Graph S — Stored Cylinder ({CYLINDER_VOLUME_L} L)
+            <span style={{ marginLeft: 8, fontSize: '0.7rem', fontWeight: 400, color: '#718096' }}>
+              (temperature °C and usable volume L from engine — 24 h)
+            </span>
+          </div>
+          <div style={{ height: 180, marginBottom: 8 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={storedCylinderData} margin={{ top: 5, right: 40, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={["00:00","06:00","12:00","18:00","23:00"]} />
+                <YAxis
+                  yAxisId="temp"
+                  domain={[38, 62]}
+                  tick={{ fontSize: 9 }}
+                  label={{ value: '°C', angle: -90, position: 'insideLeft', fontSize: 10 }}
+                />
+                <YAxis
+                  yAxisId="vol"
+                  orientation="right"
+                  domain={[0, CYLINDER_VOLUME_L]}
+                  tick={{ fontSize: 9 }}
+                  label={{ value: 'L', angle: 90, position: 'insideRight', fontSize: 10 }}
+                />
+                <Tooltip
+                  contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }}
+                  formatter={(value: number | undefined, name: string | undefined) => [
+                    value !== undefined
+                      ? name === 'Cylinder Temp (°C)' ? `${value.toFixed(1)} °C` : `${value.toFixed(1)} L`
+                      : '',
+                    name ?? '',
+                  ]}
+                />
+                <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: 6 }} />
+                <ReferenceLine
+                  yAxisId="temp"
+                  y={40}
+                  stroke="#e53e3e"
+                  strokeDasharray="4 2"
+                  label={{ value: '40°C min usable', fontSize: 8, fill: '#c53030', position: 'insideTopRight' }}
+                />
+                <Line
+                  yAxisId="temp"
+                  type="monotone"
+                  dataKey="Cylinder Temp (°C)"
+                  stroke="#c05621"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Area
+                  yAxisId="vol"
+                  type="monotone"
+                  dataKey="Volume Available (L)"
+                  fill="#bee3f8"
+                  stroke="#3182ce"
+                  strokeWidth={1.5}
+                  fillOpacity={0.35}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* ── Graph C: Comfort Stability ──────────────────────────────────────── */}
       <div style={{ marginBottom: 8 }}>
@@ -861,7 +912,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={comfortChartData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="hour" tick={{ fontSize: 9 }} interval={3} />
+              <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={["00:00","06:00","12:00","18:00","23:00"]} />
               <YAxis
                 yAxisId="temp"
                 domain={[14, 26]}
@@ -1015,7 +1066,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={dhwDeliverabilityData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="hour" tick={{ fontSize: 9 }} interval={3} />
+                <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={["00:00","06:00","12:00","18:00","23:00"]} />
                 <YAxis
                   domain={[0, Math.ceil(Math.max(
                     showerFlowLpm,

@@ -163,6 +163,58 @@ export function buildDynamicRoomTrace(
   });
 }
 
+// ── Stored cylinder simulation constants ─────────────────────────────────────
+
+/** Nominal cylinder volume (L) for the stored-water chart. */
+export const CYLINDER_VOLUME_L = 110;
+
+/** Maximum charge temperature (°C) — boiler store setpoint. */
+const CYLINDER_MAX_TEMP_C = 60;
+
+/** Minimum usable temperature (°C) at the tap (40 °C mixed-outlet target). */
+const CYLINDER_MIN_USABLE_TEMP_C = 40;
+
+/**
+ * Simulate a 110 L stored-cylinder temperature and usable volume through 24 hours.
+ *
+ * Charge / draw rules (driven by occupancy demand fraction — no UI input required):
+ *   demand ≥ 0.6  → peak DHW draw (−18 % SoC per hour)
+ *   demand ≥ 0.25 → background home draw (−4 % SoC per hour)
+ *   demand < 0.1  → off-peak recharge (+8 % SoC per hour, simulates timer charge)
+ *
+ * SoC maps linearly to temperature:
+ *   100 % → CYLINDER_MAX_TEMP_C (60 °C)
+ *     0 % → CYLINDER_MIN_USABLE_TEMP_C (40 °C)
+ * Usable volume = SoC × CYLINDER_VOLUME_L / 100
+ *
+ * @param profile Hourly demand fraction array (length 24).
+ * @returns Arrays of cylinder temperature (°C) and usable volume (L).
+ */
+function buildCylinderTrace(profile: HourlyProfile): { cylinderTempByHour: number[]; cylinderVolByHour: number[] } {
+  let soc = 100; // start fully charged
+  const cylinderTempByHour: number[] = [];
+  const cylinderVolByHour: number[] = [];
+
+  for (let h = 0; h < 24; h++) {
+    const demand = profile[h].demand;
+    if (demand >= 0.6) {
+      soc = Math.max(0, soc - 18);
+    } else if (demand >= 0.25) {
+      soc = Math.max(0, soc - 4);
+    } else if (demand < 0.1) {
+      soc = Math.min(100, soc + 8);
+    }
+    const tempC = parseFloat(
+      (CYLINDER_MIN_USABLE_TEMP_C + (soc / 100) * (CYLINDER_MAX_TEMP_C - CYLINDER_MIN_USABLE_TEMP_C)).toFixed(1),
+    );
+    const volumeL = parseFloat(((soc / 100) * CYLINDER_VOLUME_L).toFixed(1));
+    cylinderTempByHour.push(tempC);
+    cylinderVolByHour.push(volumeL);
+  }
+
+  return { cylinderTempByHour, cylinderVolByHour };
+}
+
 export function runLifestyleSimulationModule(input: EngineInputV2_3, cyclingLossPct = 0): LifestyleResult {
   const profile = getProfile(input.occupancySignature);
   const heatLossKw = input.heatLossWatts / 1000;
@@ -184,6 +236,9 @@ export function runLifestyleSimulationModule(input: EngineInputV2_3, cyclingLoss
     heatLossKw,
     cBuilding,
   );
+
+  // ── Stored cylinder simulation ───────────────────────────────────────────
+  const { cylinderTempByHour, cylinderVolByHour } = buildCylinderTrace(profile);
 
   const hourlyData: OccupancyHour[] = profile.map((hour, h) => {
     const demandKw = hour.demand * heatLossKw;
@@ -215,6 +270,8 @@ export function runLifestyleSimulationModule(input: EngineInputV2_3, cyclingLoss
       boilerRoomTempC: boilerRoomTrace[h],
       ashpRoomTempC: ashpRoomTrace[h],
       cyclingFuelPenaltyKw,
+      cylinderTempC: cylinderTempByHour[h],
+      cylinderVolumeL: cylinderVolByHour[h],
     };
   });
 

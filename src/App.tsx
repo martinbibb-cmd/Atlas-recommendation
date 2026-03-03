@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import FastChoiceStepper from './components/stepper/FastChoiceStepper';
 import FullSurveyStepper from './components/stepper/FullSurveyStepper';
-import PortfolioDashboard from './components/PortfolioDashboard';
 import Footer from './components/Footer';
 import ScopePage from './components/governance/ScopePage';
 import MethodologyPage from './components/governance/MethodologyPage';
@@ -38,58 +37,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   preferCombi: true,
 };
 
-type Journey = 'landing' | 'fast' | 'full' | 'portfolio' | 'scope' | 'methodology' | 'neutrality' | 'privacy';
-
-// Demo portfolio for the Housing Association dashboard
-import type { PortfolioProperty } from './engine/schema/EngineInputV2_3';
-const CURRENT_YEAR = new Date().getFullYear();
-const demoPortfolio: PortfolioProperty[] = [
-  {
-    assetId: 'HA-001',
-    address: '14 Ferndale Road, Birmingham, B15 2TH',
-    maintenanceInput: {
-      systemAgeYears: 14,
-      boilerModelYear: CURRENT_YEAR - 14,
-      waterHardnessCategory: 'hard',
-      hasScaleInhibitor: false,
-      hasMagneticFilter: false,
-      annualServicedByEngineer: false,
-    },
-    lastMcsReviewYear: undefined,
-    lastLegionellaAssessmentYear: CURRENT_YEAR - 3,
-    lastDynamicPressureBar: 1.2,
-  },
-  {
-    assetId: 'HA-002',
-    address: '7 Oak Avenue, Manchester, M14 5GQ',
-    maintenanceInput: {
-      systemAgeYears: 5,
-      boilerModelYear: CURRENT_YEAR - 5,
-      waterHardnessCategory: 'moderate',
-      hasScaleInhibitor: true,
-      hasMagneticFilter: true,
-      annualServicedByEngineer: true,
-    },
-    lastMcsReviewYear: CURRENT_YEAR - 2,
-    lastLegionellaAssessmentYear: CURRENT_YEAR - 1,
-    lastDynamicPressureBar: 1.8,
-  },
-  {
-    assetId: 'HA-003',
-    address: '22 Elm Street, Leeds, LS6 2BU',
-    maintenanceInput: {
-      systemAgeYears: 10,
-      boilerModelYear: CURRENT_YEAR - 10,
-      waterHardnessCategory: 'very_hard',
-      hasScaleInhibitor: false,
-      hasMagneticFilter: true,
-      annualServicedByEngineer: true,
-    },
-    lastMcsReviewYear: CURRENT_YEAR - 6,
-    lastLegionellaAssessmentYear: CURRENT_YEAR - 1,
-    lastDynamicPressureBar: 0.4,
-  },
-];
+type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy';
 
 export default function App() {
   const [journey, setJourney] = useState<Journey>('landing');
@@ -116,7 +64,6 @@ export default function App() {
 
   if (journey === 'fast') return <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} />;
   if (journey === 'full') return <FullSurveyStepper onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }} prefill={fullSurveyPrefill} />;
-  if (journey === 'portfolio') return <PortfolioDashboard properties={demoPortfolio} onBack={() => setJourney('landing')} />;
   if (journey === 'scope') return <ScopePage onBack={() => setJourney('landing')} />;
   if (journey === 'methodology') return <MethodologyPage onBack={() => setJourney('landing')} />;
   if (journey === 'neutrality') return <NeutralityPage onBack={() => setJourney('landing')} />;
@@ -156,18 +103,6 @@ export default function App() {
             <li>24-hour comfort simulation</li>
           </ul>
           <button className="cta-btn">Start Full Survey →</button>
-        </div>
-        <div className="journey-card full" onClick={() => setJourney('portfolio')} style={{ borderColor: '#9f7aea' }}>
-          <div className="card-icon">🏘️</div>
-          <h2>Portfolio Dashboard</h2>
-          <p className="card-time">Housing Associations</p>
-          <p>Fleet-level risk ranking and compliance tracking for landlords and housing associations.</p>
-          <ul>
-            <li>Kettling &amp; sludge risk ranking</li>
-            <li>MCS &amp; Legionella compliance</li>
-            <li>Proactive maintenance scheduling</li>
-          </ul>
-          <button className="cta-btn" style={{ background: '#9f7aea' }}>View Portfolio →</button>
         </div>
         <div className="journey-card full" onClick={() => { window.location.search = '?console=1'; }} style={{ borderColor: '#38a169' }}>
           <div className="card-icon">📊</div>
