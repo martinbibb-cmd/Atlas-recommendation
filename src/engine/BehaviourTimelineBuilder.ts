@@ -41,6 +41,10 @@ function interpolateHourly(idx: number, hourly: number[]): number {
   return Math.max(0, d0 + (d1 - d0) * frac);
 }
 
+function indexToHourFloat(idx: number): number {
+  return parseFloat(((idx * RESOLUTION_MINS) / 60).toFixed(2));
+}
+
 /**
  * Determine operating mode for a timestep.
  */
@@ -119,14 +123,37 @@ export function buildBehaviourTimelineV1(
   const efficiencyLabel: BehaviourTimelineV1['labels']['efficiencyLabel'] =
     isAshp ? 'COP' : 'Efficiency';
 
+  // Stored DHW decoupling model:
+  // - tap draw is decoupled from immediate appliance output
+  // - appliance output appears in fixed reheat windows only
+  const storedReheatHours = new Set([5, 6, 17, 18, 19]);
+  const storedReheatSteps = Array.from({ length: POINTS_PER_DAY }, (_, idx) => idx)
+    .filter(idx => storedReheatHours.has(Math.floor((idx * RESOLUTION_MINS) / 60)));
+  const dailyDhwEnergyKwh = hourlyDhwKw.reduce((sum, kw) => sum + kw, 0);
+  const storedReheatKw = storedReheatSteps.length > 0
+    ? Math.min(applianceCap, dailyDhwEnergyKwh / (storedReheatSteps.length * (RESOLUTION_MINS / 60)))
+    : 0;
+  const storedReheatStepSet = new Set(storedReheatSteps);
+
   // ── Build 96 points ───────────────────────────────────────────────────────
   const points: TimelineSeriesPoint[] = Array.from({ length: POINTS_PER_DAY }, (_, idx) => {
     const heatDemandKw = parseFloat(interpolateHourly(idx, hourlyDemandKw).toFixed(3));
-    const dhwDemandKw = parseFloat(interpolateHourly(idx, hourlyDhwKw).toFixed(3));
+    const rawDhwDrawDemandKw = parseFloat(interpolateHourly(idx, hourlyDhwKw).toFixed(3));
+    const dhwDrawDemandKw = isCombi ? rawDhwDrawDemandKw : 0;
+    const storedDhwCallKw = !isAshp && !isCombi && storedReheatStepSet.has(idx)
+      ? parseFloat(storedReheatKw.toFixed(3))
+      : 0;
+    const dhwDemandKw = parseFloat((isCombi ? dhwDrawDemandKw : storedDhwCallKw).toFixed(3));
 
     // Appliance output: capped at applianceCap, serves heat + DHW demand.
-    const totalDemand = heatDemandKw + dhwDemandKw;
-    const applianceOutKw = parseFloat(Math.min(applianceCap, totalDemand).toFixed(3));
+    const hasDhwPriorityCall = dhwDemandKw > 0.1;
+    const dhwApplianceOutKw = hasDhwPriorityCall
+      ? parseFloat(Math.min(applianceCap, dhwDemandKw).toFixed(3))
+      : 0;
+    const spaceHeatOutKw = hasDhwPriorityCall
+      ? 0
+      : parseFloat(Math.min(applianceCap, heatDemandKw).toFixed(3));
+    const applianceOutKw = parseFloat((spaceHeatOutKw + dhwApplianceOutKw).toFixed(3));
 
     // Efficiency / COP
     let efficiency: number | undefined;
@@ -165,8 +192,12 @@ export function buildBehaviourTimelineV1(
 
     return {
       t: indexToHHMM(idx),
+      tHour: indexToHourFloat(idx),
       heatDemandKw,
       dhwDemandKw,
+      dhwDrawDemandKw,
+      dhwApplianceOutKw,
+      spaceHeatOutKw,
       applianceOutKw,
       applianceCapKw: parseFloat(applianceCap.toFixed(1)),
       ...(isAshp ? { cop } : { efficiency }),
