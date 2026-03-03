@@ -69,9 +69,9 @@ const DURATION_OPTIONS = [5, 8, 10, 12, 15, 20];
 
 // ── Temperature bounds for heating setpoint inputs ────────────────────────────
 /** Minimum allowed heating setpoint (°C) — frost protection floor. */
-const MIN_HEATING_TEMP_C = 14;
+const MIN_HEATING_TEMP_C = 10;
 /** Maximum allowed heating setpoint (°C) — over-heat prevention ceiling. */
-const MAX_HEATING_TEMP_C = 25;
+const MAX_HEATING_TEMP_C = 30;
 
 /**
  * Parse a temperature string from a number input field.

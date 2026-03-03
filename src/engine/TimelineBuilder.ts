@@ -585,7 +585,9 @@ export function buildTimeline24hV1(
   legendNotes.unshift(confidenceLegendLabel[confidence.level]);
 
   // DHW schedule note
-  if (input.lifestyleProfileV1) {
+  if (input.dayProfile) {
+    legendNotes.push('DHW schedule: from your painted heating schedule (day profile).');
+  } else if (input.lifestyleProfileV1) {
     legendNotes.push('DHW schedule: derived from your lifestyle profile (morning/evening peaks).');
   } else {
     legendNotes.push('DHW schedule: typical UK household defaults (no user profile provided).');
@@ -593,17 +595,39 @@ export function buildTimeline24hV1(
 
   // Build bands from thermal DHW events and space-heating schedule.
   // dhw_on: shower / bath / sink events (hot-water draw active).
-  // sh_on: approximate heating schedule (home period 06:00–23:00).
+  // sh_on: derived from actual heating bands when dayProfile is present;
+  //        falls back to approximate home period (06:00–23:00) otherwise.
+  const heatingBands = input.dayProfile?.heatingBands ?? [];
+  const shOnBands: TimelineBandsV1['bands'] = heatingBands.length > 0
+    ? heatingBands.map(b => ({ kind: 'sh_on' as const, startMin: b.startMin, endMin: b.endMin }))
+    : [{ kind: 'sh_on' as const, startMin: 360, endMin: 1380 }];
+
   const bands: TimelineBandsV1 = {
     bands: [
-      // Space-heating "on" band covering the home occupancy window
-      { kind: 'sh_on', startMin: 360, endMin: 1380 },
+      ...shOnBands,
       // DHW active bands from thermal events only (cold-fill appliances excluded)
       ...events
         .filter(e => e.kind !== 'dishwasher' && e.kind !== 'washing_machine')
         .map(e => ({ kind: 'dhw_on', startMin: e.startMin, endMin: e.endMin })),
     ],
   };
+
+  // Target temperature step line (°C) — derived from dayProfile.heatingBands.
+  // Built as a 96-point array at 15-min intervals so it aligns with the timeline X axis.
+  // Only present when a heating schedule is provided; renderers show it as a faint
+  // proof-of-wiring step line — if it doesn't change when bands are edited, the schedule
+  // isn't being read by the engine.
+  const heatBandsCount = heatingBands.length;
+  const targetTempC: number[] | undefined = heatBandsCount > 0
+    ? TIME_MINUTES.map((minute) => {
+        for (const band of heatingBands) {
+          if (minute >= band.startMin && minute < band.endMin) {
+            return band.targetC;
+          }
+        }
+        return 0; // heating off (no active band)
+      })
+    : undefined;
 
   // Physics debug snapshot — engine-side values that should match the chart lines.
   // Populated ONLY when debug=true is passed; absent for normal production payloads.
@@ -616,6 +640,7 @@ export function buildTimeline24hV1(
         currentEfficiencyPct: combiEtaPct,
         sedbukSource: boilerModel?.sedbuk.source ?? 'fallback',
         timelinePoints: TIME_MINUTES.length,
+        heatBandsCount,
       }
     : undefined;
 
@@ -623,6 +648,7 @@ export function buildTimeline24hV1(
     timeMinutes: TIME_MINUTES,
     demandHeatKw: demandKwArr,
     ...(coldFlowLpm !== undefined && { coldFlowLpm }),
+    ...(targetTempC !== undefined && { targetTempC }),
     series: [seriesA, seriesB],
     events,
     bands,
