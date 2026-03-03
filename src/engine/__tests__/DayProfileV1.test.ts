@@ -55,7 +55,7 @@ describe('dayProfileToTimelineEvents', () => {
     const profile: DayProfileV1 = {
       ...EMPTY_PROFILE,
       dhwEvents: [
-        { startMin: 7 * 60 + 10, durationMin: 10, kind: 'shower', profile: 'mixer10' },
+        { startMin: 7 * 60 + 10, durationMin: 10, kind: 'taps', profile: 'mixer10' },
       ],
     };
     const events = dayProfileToTimelineEvents(profile);
@@ -69,7 +69,7 @@ describe('dayProfileToTimelineEvents', () => {
     const profile: DayProfileV1 = {
       ...EMPTY_PROFILE,
       dhwEvents: [
-        { startMin: 480, durationMin: 5, kind: 'shower', profile: 'rainfall16' },
+        { startMin: 480, durationMin: 5, kind: 'taps', profile: 'rainfall16' },
       ],
     };
     const events = dayProfileToTimelineEvents(profile);
@@ -80,7 +80,7 @@ describe('dayProfileToTimelineEvents', () => {
     const profile: DayProfileV1 = {
       ...EMPTY_PROFILE,
       dhwEvents: [
-        { startMin: 480, durationMin: 5, kind: 'shower', profile: 'mixer10' },
+        { startMin: 480, durationMin: 5, kind: 'taps', profile: 'mixer10' },
       ],
     };
     const events = dayProfileToTimelineEvents(profile);
@@ -91,8 +91,8 @@ describe('dayProfileToTimelineEvents', () => {
     const profile: DayProfileV1 = {
       ...EMPTY_PROFILE,
       dhwEvents: [
-        { startMin: 420, durationMin: 10, kind: 'shower', profile: 'mixer10' },
-        { startMin: 1140, durationMin: 15, kind: 'bath', profile: 'mixer12' },
+        { startMin: 420, durationMin: 10, kind: 'taps', profile: 'mixer10' },
+        { startMin: 1140, durationMin: 15, kind: 'taps', profile: 'mixer12' },
       ],
     };
     const events = dayProfileToTimelineEvents(profile);
@@ -127,7 +127,7 @@ describe('dayProfileToHourlyDemandKw', () => {
       ...EMPTY_PROFILE,
       heatingBands: [{ startMin: 7 * 60, endMin: 8 * 60, targetC: 21 }],
       dhwEvents: [
-        { startMin: 7 * 60 + 10, durationMin: 10, kind: 'shower', profile: 'mixer10' },
+        { startMin: 7 * 60 + 10, durationMin: 10, kind: 'taps', profile: 'mixer10' },
       ],
     };
     const result = dayProfileToHourlyDemandKw(profile, 8);
@@ -138,7 +138,7 @@ describe('dayProfileToHourlyDemandKw', () => {
   it('rainfall16 event produces higher DHW demand than mixer10 event of same duration', () => {
     const makeProfile = (p: DayProfileV1['dhwEvents'][0]['profile']): DayProfileV1 => ({
       ...EMPTY_PROFILE,
-      dhwEvents: [{ startMin: 7 * 60, durationMin: 15, kind: 'shower', profile: p }],
+      dhwEvents: [{ startMin: 7 * 60, durationMin: 15, kind: 'taps', profile: p }],
     });
     const rainfallResult = dayProfileToHourlyDemandKw(makeProfile('rainfall16'), 8);
     const mixerResult = dayProfileToHourlyDemandKw(makeProfile('mixer10'), 8);
@@ -153,7 +153,7 @@ describe('Engine integration: dayProfile takes priority over dayProgram', () => 
     const profile: DayProfileV1 = {
       heatingBands: [{ startMin: 360, endMin: 540, targetC: 21 }],
       dhwHeatBands: [{ startMin: 360, endMin: 480, on: true }],
-      dhwEvents: [{ startMin: 430, durationMin: 10, kind: 'shower', profile: 'mixer10' }],
+      dhwEvents: [{ startMin: 430, durationMin: 10, kind: 'taps', profile: 'mixer10' }],
     };
     expect(() => runEngine({ ...BASE_INPUT, dayProfile: profile })).not.toThrow();
   });
@@ -162,7 +162,7 @@ describe('Engine integration: dayProfile takes priority over dayProgram', () => 
     const profile: DayProfileV1 = {
       heatingBands: [],
       dhwHeatBands: [],
-      dhwEvents: [{ startMin: 430, durationMin: 10, kind: 'shower', profile: 'mixer10' }],
+      dhwEvents: [{ startMin: 430, durationMin: 10, kind: 'taps', profile: 'mixer10' }],
     };
     const out = runEngine({ ...BASE_INPUT, dayProfile: profile });
     const timelineVisual = out.engineOutput.visuals?.find(v => v.type === 'timeline_24h');
@@ -184,7 +184,7 @@ describe('Engine integration: dayProfile takes priority over dayProgram', () => 
     const dayProfile: DayProfileV1 = {
       heatingBands: [],
       dhwHeatBands: [],
-      dhwEvents: [{ startMin: 430, durationMin: 10, kind: 'shower', profile: 'mixer10' }],
+      dhwEvents: [{ startMin: 430, durationMin: 10, kind: 'taps', profile: 'mixer10' }],
     };
 
     const out = runEngine({ ...BASE_INPUT, dayProfile, dayProgram });
