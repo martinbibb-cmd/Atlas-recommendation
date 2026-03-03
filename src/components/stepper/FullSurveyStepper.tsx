@@ -418,7 +418,6 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   const [compareMixergy, setCompareMixergy] = useState(false);
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
-  const [expertAssumptions, setExpertAssumptions] = useState<ExpertAssumptionsV1>({});
   const [systemPlanType, setSystemPlanType] = useState<'y_plan' | 's_plan'>('y_plan');
 
   // Live physics overlay: runs a lightweight engine pass on every step for real-time feedback.
@@ -2830,7 +2829,7 @@ function debugChecksum(s: string): number {
   return h;
 }
 
-function FullSurveyResults({
+export function FullSurveyResults({
   results,
   input,
   validationWarnings,
