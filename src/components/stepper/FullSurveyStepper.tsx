@@ -921,7 +921,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                   <div style={{ fontSize: '0.75rem', color: '#718096' }}>
                     Driven by wall + insulation + glazing + roof
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: '#a0aec0' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#718096' }}>
                     Modelled estimate — not a measured survey value
                   </div>
                 </div>
@@ -948,7 +948,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                   <div style={{ fontSize: '0.75rem', color: '#4a5568' }}>
                     Derived from thermal mass + insulation + airtightness
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: '#a0aec0' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#718096' }}>
                     Modelled estimate — high τ means slow to cool, not necessarily efficient
                   </div>
                 </div>
@@ -1148,17 +1148,17 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   {/* Static */}
                   <div style={{ textAlign: 'center', flex: 1 }}>
-                    <div style={{ fontSize: '0.72rem', color: '#a0aec0', marginBottom: '0.2rem' }}>Static</div>
+                    <div style={{ fontSize: '0.72rem', color: '#718096', marginBottom: '0.2rem' }}>Static</div>
                     <div style={{ fontSize: '1.6rem', fontWeight: 800, color: input.staticMainsPressureBar != null ? '#1a365d' : '#cbd5e0', lineHeight: 1 }}>
                       {input.staticMainsPressureBar != null ? `${input.staticMainsPressureBar.toFixed(1)}` : '—'}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: '#718096' }}>bar</div>
                   </div>
                   {/* Arrow */}
-                  <div style={{ fontSize: '1.4rem', color: '#a0aec0' }}>→</div>
+                  <div style={{ fontSize: '1.4rem', color: '#718096' }}>→</div>
                   {/* Dynamic */}
                   <div style={{ textAlign: 'center', flex: 1 }}>
-                    <div style={{ fontSize: '0.72rem', color: '#a0aec0', marginBottom: '0.2rem' }}>Dynamic</div>
+                    <div style={{ fontSize: '0.72rem', color: '#718096', marginBottom: '0.2rem' }}>Dynamic</div>
                     <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1a365d', lineHeight: 1 }}>
                       {input.dynamicMainsPressure.toFixed(1)}
                     </div>
@@ -1226,7 +1226,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     {/* 1.0 bar marker */}
                     <div style={{ position: 'absolute', left: '50%', top: '-4px', bottom: '-4px', width: '2px', background: '#c53030' }} />
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#a0aec0', marginTop: '0.25rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#718096', marginTop: '0.25rem' }}>
                     <span>0</span><span>1.0 diagnostic marker</span><span>2.0 bar</span>
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#4a5568', marginTop: '0.35rem' }}>
@@ -1426,11 +1426,11 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
               {/* ΔT reference (engine authority — locked display) */}
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <div style={{ flex: 1, padding: '0.5rem 0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#a0aec0' }}>Boiler ΔT</div>
+                  <div style={{ fontSize: '0.72rem', color: '#718096' }}>Boiler ΔT</div>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>20°C</div>
                 </div>
                 <div style={{ flex: 1, padding: '0.5rem 0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#a0aec0' }}>ASHP ΔT</div>
+                  <div style={{ fontSize: '0.72rem', color: '#718096' }}>ASHP ΔT</div>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>5°C</div>
                 </div>
               </div>
@@ -1945,14 +1945,14 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                 </div>
                 {/* Combi limit bar (always 1) */}
                 <div style={{ marginBottom: '0.5rem' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#a0aec0', marginBottom: '0.2rem' }}>Combi limit — 1 outlet</div>
+                  <div style={{ fontSize: '0.72rem', color: '#718096', marginBottom: '0.2rem' }}>Combi limit — 1 outlet</div>
                   <div style={{ background: '#e2e8f0', borderRadius: '4px', height: '10px' }}>
                     <div style={{ width: '33%', background: '#38a169', height: '100%', borderRadius: '4px' }} />
                   </div>
                 </div>
                 {/* Peak demand bar */}
                 <div>
-                  <div style={{ fontSize: '0.72rem', color: '#a0aec0', marginBottom: '0.2rem' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#718096', marginBottom: '0.2rem' }}>
                     Your peak — {input.peakConcurrentOutlets ?? 1} outlet{(input.peakConcurrentOutlets ?? 1) !== 1 ? 's' : ''}
                   </div>
                   <div style={{ background: '#e2e8f0', borderRadius: '4px', height: '10px', position: 'relative' }}>
@@ -2260,7 +2260,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     <tr key={row.id} style={{ background: ri % 2 === 0 ? '#fff' : '#f7fafc' }}>
                       <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600, color: '#4a5568', borderBottom: '1px solid #e2e8f0' }}>
                         {row.label}
-                        <div style={{ fontSize: '0.7rem', color: '#a0aec0', fontWeight: 400 }}>
+                        <div style={{ fontSize: '0.7rem', color: '#718096', fontWeight: 400 }}>
                           → {row.step.replace(/_/g, ' ')}
                         </div>
                       </td>
@@ -2324,7 +2324,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
               <span>✅ Pass — no constraint</span>
               <span>⚠️ Caution — check detail</span>
               <span>❌ Fail — blocking constraint</span>
-              <span style={{ marginLeft: 'auto', color: '#a0aec0' }}>
+              <span style={{ marginLeft: 'auto', color: '#718096' }}>
                 Click any cell to jump to the controlling step
               </span>
             </div>
@@ -2570,7 +2570,7 @@ function sourceColour(source: string): string {
   if (source === 'manual') return '#3182ce';
   if (source === 'derived') return '#805ad5';
   if (source === 'assumed') return '#d69e2e';
-  return '#a0aec0';
+  return '#718096';
 }
 
 function sensitivityColour(effect: string): string {
@@ -3631,7 +3631,7 @@ function VisualCard({
           {staticBar !== undefined ? (
             <>
               <span style={{ fontWeight: 600 }}>{staticBar.toFixed(1)} bar</span>
-              <span style={{ color: '#a0aec0' }}>→</span>
+              <span style={{ color: '#718096' }}>→</span>
               <span style={{ fontWeight: 600 }}>{dynamicBar.toFixed(1)} bar</span>
             </>
           ) : (
@@ -3719,7 +3719,7 @@ function VisualCard({
   return (
     <div style={cardStyle}>
       <div style={titleStyle}>{spec.title ?? spec.type}</div>
-      <pre style={{ fontSize: '0.72rem', color: '#a0aec0', overflow: 'auto' }}>
+      <pre style={{ fontSize: '0.72rem', color: '#718096', overflow: 'auto' }}>
         {JSON.stringify(spec.data, null, 2)}
       </pre>
     </div>

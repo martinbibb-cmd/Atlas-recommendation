@@ -134,7 +134,7 @@ function InfluenceBlock({
         <div
           style={{
             fontSize: 11,
-            color: '#a0aec0',
+            color: '#718096',
             borderTop: `1px solid ${border}`,
             paddingTop: 6,
           }}

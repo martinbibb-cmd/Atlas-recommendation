@@ -107,7 +107,7 @@ export default function InteractiveComfortClock({ heatLossKw = 8 }: Props) {
               background: home ? '#48bb78' : '#edf2f7',
               cursor: 'pointer',
               fontSize: '0.6rem',
-              color: home ? '#fff' : '#a0aec0',
+              color: home ? '#fff' : '#718096',
               padding: 0,
               lineHeight: '32px',
             }}

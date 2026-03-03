@@ -168,7 +168,7 @@ export default function DeltaStrip({ previous, current }: Props) {
         return (
           <span key={i} style={{ color: '#4a5568' }}>
             <span style={{ color: '#718096' }}>{d.label}:</span>{' '}
-            <span style={{ textDecoration: 'line-through', color: '#a0aec0' }}>{d.from}</span>
+            <span style={{ textDecoration: 'line-through', color: '#718096' }}>{d.from}</span>
             {' '}
             <span style={{ color: colour, fontWeight: 700 }}>{arrow}{d.to}</span>
           </span>

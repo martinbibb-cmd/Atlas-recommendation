@@ -96,7 +96,7 @@ export default function EngineerDetails({ output }: Props) {
         aria-expanded={open}
       >
         <span>🔬 Engineer Details</span>
-        <span style={{ fontSize: 18, color: '#a0aec0' }}>{open ? '▲' : '▼'}</span>
+        <span style={{ fontSize: 18, color: '#718096' }}>{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (

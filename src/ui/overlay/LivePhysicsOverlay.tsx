@@ -123,7 +123,7 @@ function ShellPanel({ engineOutput }: { engineOutput: EngineOutputV1 }) {
         />
       )}
       {(!heatLimiter && !confidence) && (
-        <div style={{ color: '#a0aec0', fontSize: 12, paddingTop: 4 }}>
+        <div style={{ color: '#718096', fontSize: 12, paddingTop: 4 }}>
           Complete more steps to surface constraints.
         </div>
       )}
@@ -157,7 +157,7 @@ function SupplyPanel({ engineOutput }: { engineOutput: EngineOutputV1 }) {
           />
         </>
       ) : (
-        <div style={{ color: '#a0aec0', fontSize: 12, paddingTop: 4 }}>
+        <div style={{ color: '#718096', fontSize: 12, paddingTop: 4 }}>
           No mains constraints flagged.
         </div>
       )}
@@ -256,7 +256,7 @@ function StoragePanel({ engineOutput }: { engineOutput: EngineOutputV1 }) {
           />
         </>
       ) : (
-        <div style={{ color: '#a0aec0', fontSize: 12, paddingTop: 4 }}>
+        <div style={{ color: '#718096', fontSize: 12, paddingTop: 4 }}>
           Run full analysis to see system recommendations.
         </div>
       )}

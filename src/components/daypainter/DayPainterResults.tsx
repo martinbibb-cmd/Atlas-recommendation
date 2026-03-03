@@ -202,7 +202,7 @@ export default function DayPainterResults({ heatLossWatts, tauHours, currentSyst
             onChange={e => setCustomHeatKw(Number(e.target.value))}
             style={{ width: '100%', accentColor: '#3182ce' }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.63rem', color: '#a0aec0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.63rem', color: '#718096' }}>
             <span>2 kW</span><span>20 kW</span>
           </div>
         </div>
@@ -219,7 +219,7 @@ export default function DayPainterResults({ heatLossWatts, tauHours, currentSyst
 
         {/* Scheduled events list */}
         {events.length === 0 ? (
-          <p style={{ fontSize: '0.78rem', color: '#a0aec0', margin: '0 0 0.6rem' }}>
+          <p style={{ fontSize: '0.78rem', color: '#718096', margin: '0 0 0.6rem' }}>
             No draws scheduled — add events below.
           </p>
         ) : (
@@ -240,7 +240,7 @@ export default function DayPainterResults({ heatLossWatts, tauHours, currentSyst
                   <span style={{ color: '#718096' }}>
                     {minuteToHM(ev.startMin)} – {minuteToHM(end)}
                   </span>
-                  <span style={{ color: '#a0aec0', fontSize: '0.72rem' }}>
+                  <span style={{ color: '#718096', fontSize: '0.72rem' }}>
                     ({ev.durationMin} min{cold ? ' · cold fill' : ''})
                   </span>
                   <button

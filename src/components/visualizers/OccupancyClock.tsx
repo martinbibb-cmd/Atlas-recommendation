@@ -194,7 +194,7 @@ export default function OccupancyClock({ initialOccupancy, onChange }: Props) {
             {STATE_LABELS[s]}
           </span>
         ))}
-        <span style={{ fontSize: '0.75rem', color: '#a0aec0' }}>← drag to paint →</span>
+        <span style={{ fontSize: '0.75rem', color: '#718096' }}>← drag to paint →</span>
       </div>
     </div>
   );

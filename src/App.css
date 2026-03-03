@@ -545,7 +545,7 @@ body {
 .vs-text {
   font-size: 1.2rem;
   font-weight: 700;
-  color: #a0aec0;
+  color: #718096;
   padding-bottom: 2rem;
 }
 
@@ -978,7 +978,7 @@ body {
 
 .footer-meta {
   font-size: 0.78rem;
-  color: #a0aec0;
+  color: #718096;
 }
 
 /* ── Story Mode ─────────────────────────────────────────────────────────────── */
@@ -1126,7 +1126,7 @@ body {
   display: flex;
   justify-content: space-between;
   font-size: 0.7rem;
-  color: #a0aec0;
+  color: #718096;
 }
 
 /* System comparison tiles */
