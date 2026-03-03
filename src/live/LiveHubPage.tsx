@@ -13,6 +13,7 @@ import { useState } from 'react';
 import type { FullEngineResult } from '../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
 import LiveSectionPage from './LiveSectionPage';
+import VerdictStrip from '../components/live/VerdictStrip';
 import './LiveHubPage.css';
 
 export type LiveSection =
@@ -129,8 +130,6 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
   const [activeSection, setActiveSection] = useState<LiveSection | null>(null);
 
   const { engineOutput } = result;
-  const combiVerdict = result.combiDhwV1.verdict.combiRisk;
-  const storedVerdict = result.storedDhwV1.verdict.storedRisk;
 
   if (activeSection) {
     return (
@@ -156,20 +155,7 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
             ← Back
           </button>
           <div className="live-hub__verdict-chips">
-            <div className={`live-hub__verdict-chip live-hub__verdict-chip--${combiVerdict}`}>
-              <span className="live-hub__verdict-label">Combi</span>
-              <span className="live-hub__verdict-value">
-                {combiVerdict === 'fail' ? '❌ Not suitable'
-                  : combiVerdict === 'warn' ? '⚠️ Caution'
-                  : '✅ Viable'}
-              </span>
-            </div>
-            <div className={`live-hub__verdict-chip live-hub__verdict-chip--${storedVerdict}`}>
-              <span className="live-hub__verdict-label">Stored</span>
-              <span className="live-hub__verdict-value">
-                {storedVerdict === 'warn' ? '⚠️ Caution' : '✅ Viable'}
-              </span>
-            </div>
+            <VerdictStrip result={result} />
             <div className="live-hub__verdict-chip live-hub__verdict-chip--recommendation">
               <span className="live-hub__verdict-label">Recommendation</span>
               <span className="live-hub__verdict-value live-hub__verdict-value--recommendation">
