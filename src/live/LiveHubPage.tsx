@@ -13,6 +13,7 @@ import { useState } from 'react';
 import type { FullEngineResult } from '../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
 import LiveSectionPage from './LiveSectionPage';
+import VerdictStrip from '../components/live/VerdictStrip';
 import './LiveHubPage.css';
 
 export type LiveSection =
@@ -128,10 +129,6 @@ const STATUS_LABEL: Record<'ok' | 'watch' | 'missing', string> = {
 export default function LiveHubPage({ result, input, onBack }: Props) {
   const [activeSection, setActiveSection] = useState<LiveSection | null>(null);
 
-  const { engineOutput } = result;
-  const combiVerdict = result.combiDhwV1.verdict.combiRisk;
-  const storedVerdict = result.storedDhwV1.verdict.storedRisk;
-
   if (activeSection) {
     return (
       <LiveSectionPage
@@ -146,39 +143,7 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
   return (
     <div className="live-hub">
       {/* ── Sticky verdict strip ─────────────────────────────────────── */}
-      <div className="live-hub__verdict-strip">
-        <div className="live-hub__verdict-strip-inner">
-          <button
-            className="live-hub__back-btn"
-            onClick={onBack}
-            aria-label="Back to survey"
-          >
-            ← Back
-          </button>
-          <div className="live-hub__verdict-chips">
-            <div className={`live-hub__verdict-chip live-hub__verdict-chip--${combiVerdict}`}>
-              <span className="live-hub__verdict-label">Combi</span>
-              <span className="live-hub__verdict-value">
-                {combiVerdict === 'fail' ? '❌ Not suitable'
-                  : combiVerdict === 'warn' ? '⚠️ Caution'
-                  : '✅ Viable'}
-              </span>
-            </div>
-            <div className={`live-hub__verdict-chip live-hub__verdict-chip--${storedVerdict}`}>
-              <span className="live-hub__verdict-label">Stored</span>
-              <span className="live-hub__verdict-value">
-                {storedVerdict === 'warn' ? '⚠️ Caution' : '✅ Viable'}
-              </span>
-            </div>
-            <div className="live-hub__verdict-chip live-hub__verdict-chip--recommendation">
-              <span className="live-hub__verdict-label">Recommendation</span>
-              <span className="live-hub__verdict-value live-hub__verdict-value--recommendation">
-                {engineOutput.recommendation.primary}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <VerdictStrip result={result} onBack={onBack} backLabel="← Back" />
 
       {/* ── Hub title ────────────────────────────────────────────────── */}
       <div className="live-hub__header">
