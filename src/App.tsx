@@ -7,6 +7,7 @@ import MethodologyPage from './components/governance/MethodologyPage';
 import NeutralityPage from './components/governance/NeutralityPage';
 import PrivacyPage from './components/governance/PrivacyPage';
 import BehaviourConsolePage from './components/behaviour/BehaviourConsolePage';
+import HubPage from './components/hub/HubPage';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
 import './App.css';
@@ -15,6 +16,11 @@ import './App.css';
 const CONSOLE_MODE_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('console') === '1';
+
+/** Detect ?hub=1 feature flag for the Hub / Control Room. */
+const HUB_MODE_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('hub') === '1';
 
 /**
  * Demo engine input used when the ?console=1 flag is set.
@@ -46,6 +52,20 @@ export default function App() {
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
     setJourney('full');
+  }
+
+  // ?hub=1 feature flag — render Hub / Control Room with demo engine output.
+  if (HUB_MODE_ENABLED) {
+    const hubResult = runEngine(CONSOLE_DEMO_INPUT);
+    return (
+      <HubPage
+        result={hubResult}
+        input={CONSOLE_DEMO_INPUT}
+        onBack={() => {
+          window.location.href = window.location.pathname;
+        }}
+      />
+    );
   }
 
   // ?console=1 feature flag — render Behaviour Console with demo engine output.
@@ -103,6 +123,18 @@ export default function App() {
             <li>24-hour comfort simulation</li>
           </ul>
           <button className="cta-btn">Start Full Survey →</button>
+        </div>
+        <div className="journey-card journey-card--hub" onClick={() => { window.location.search = '?hub=1'; }}>
+          <div className="card-icon">🎛️</div>
+          <h2>Hub / Control Room</h2>
+          <p className="card-time">New · iPad-first</p>
+          <p>Physics-driven analysis panels with real engine output.</p>
+          <ul>
+            <li>Physics constraints — water power &amp; concurrency</li>
+            <li>Combi vs Stored verdict tiles</li>
+            <li>Season-aware flow calculations</li>
+          </ul>
+          <button className="cta-btn cta-btn--hub">Open Hub →</button>
         </div>
         <div className="journey-card full" onClick={() => { window.location.search = '?console=1'; }} style={{ borderColor: '#38a169' }}>
           <div className="card-icon">📊</div>
