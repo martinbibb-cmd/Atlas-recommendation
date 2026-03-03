@@ -47,7 +47,9 @@ interface Props {
   onBack?: () => void;
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// Visual scale for the bar chart: bars extend to 1.5× the combi limit so there is
+// headroom to show "over limit" bars without clipping at the track boundary.
+const BAR_CHART_SCALE_FACTOR = 1.5;
 
 export default function PhysicsConstraintsPanel({ result, input }: Props) {
   const [season, setSeason] = useState<Season>('typical');
@@ -95,6 +97,8 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
     peakHeatKw = Math.max(...points.map(p => p.heatDemandKw));
 
     // Daily hot water in litres: integrate DHW energy → kWh → litres
+    // Physics: E(kJ) = mass(kg) × cp × ΔT  →  mass(kg) ≈ volume(L)
+    //   totalDhwKwh × 3600 gives kJ; dividing by (cp × ΔT) gives litres
     const resolutionH = (timeline.resolutionMins ?? 15) / 60;
     const totalDhwKwh = points.reduce((sum, p) => sum + p.dhwDemandKw * resolutionH, 0);
     const cp = 4.186; // kJ/(kg·°C)
@@ -192,9 +196,9 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
           <div className="bar-chart" role="img" aria-label="Concurrency bar chart">
             {[1, 2, 3].map(outlets => {
               const totalFlow = selectedFlow * outlets;
-              const pct = Math.min(100, (totalFlow / (combiLimitFlow * 1.5)) * 100);
+              const pct = Math.min(100, (totalFlow / (combiLimitFlow * BAR_CHART_SCALE_FACTOR)) * 100);
               const overBar = totalFlow > combiLimitFlow;
-              const limitPct = Math.min(100, (combiLimitFlow / (combiLimitFlow * 1.5)) * 100);
+              const limitPct = Math.min(100, (combiLimitFlow / (combiLimitFlow * BAR_CHART_SCALE_FACTOR)) * 100);
               return (
                 <div key={outlets} className="bar-chart__row">
                   <span className="bar-chart__label">{outlets} outlet{outlets > 1 ? 's' : ''}</span>
@@ -238,7 +242,7 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
             value={peakDhwKw !== null ? `${peakDhwKw.toFixed(1)} kW` : '—'}
           />
           <MiniCard
-            label="Medium house heat demand"
+            label="Peak heat demand"
             value={peakHeatKw !== null ? `${peakHeatKw.toFixed(1)} kW` : '—'}
           />
         </div>
