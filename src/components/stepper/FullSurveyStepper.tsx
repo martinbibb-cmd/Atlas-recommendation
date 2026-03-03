@@ -27,6 +27,7 @@ import InteractiveComfortClock from '../visualizers/InteractiveComfortClock';
 import EfficiencyCurve from '../visualizers/EfficiencyCurve';
 import FootprintXRay from '../visualizers/FootprintXRay';
 import GlassBoxPanel from '../visualizers/GlassBoxPanel';
+import LiveHubPage from '../../live/LiveHubPage';
 
 import Timeline24hRenderer from '../visualizers/Timeline24hRenderer';
 import DemandProfilePainter from '../visualizers/DemandProfilePainter';
@@ -601,14 +602,10 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
 
   if (mode === 'hub' && results) {
     return (
-      <FullSurveyResults
-        results={results}
+      <LiveHubPage
+        result={results}
         input={input}
-        validationWarnings={collectInputValidationWarnings(input)}
-        compareMixergy={compareMixergy}
-        onBack={onBack}
-        expertAssumptions={expertAssumptions}
-        onAssumptionsChange={setExpertAssumptions}
+        onBack={() => setMode('stepper')}
       />
     );
   }

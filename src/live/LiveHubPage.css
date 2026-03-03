@@ -652,3 +652,72 @@
     padding: 1.5rem;
   }
 }
+
+/* ── VerdictStrip component ────────────────────────────────────────────────── */
+.verdict-strip {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  padding: 16px 24px;
+  background: #f7f8fa;
+  border-bottom: 1px solid #e3e6eb;
+}
+
+.verdict-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.verdict-tile__label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #718096;
+  margin: 0;
+}
+
+.verdict-tile__pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.verdict-tile__pill--pass,
+.verdict-tile__pill--ok {
+  background: #c6f6d5;
+  color: #276749;
+}
+
+.verdict-tile__pill--warn {
+  background: #feebc8;
+  color: #7b341e;
+}
+
+.verdict-tile__pill--fail {
+  background: #fed7d7;
+  color: #9b2c2c;
+}
+
+.verdict-tile__pill--info {
+  background: #ebf8ff;
+  color: #2b6cb0;
+}
+
+@media (max-width: 600px) {
+  .verdict-strip {
+    grid-template-columns: 1fr 1fr;
+    padding: 12px 16px;
+  }
+}
