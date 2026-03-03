@@ -71,8 +71,70 @@ function LiveUsageSection({
   const { storedDhwV1 } = result;
   const storedRisk = storedDhwV1.verdict.storedRisk;
 
+  // Determine whether the minimum usage inputs are present.
+  const hasOccupancy = input.occupancyCount != null;
+  const hasBathrooms = input.bathroomCount != null;
+  const hasMissingInputs = !hasOccupancy || !hasBathrooms;
+
   return (
     <>
+      {hasMissingInputs && (
+        <div
+          className="result-section"
+          style={{
+            background: '#fffbeb',
+            border: '1px solid #f59e0b',
+            borderRadius: '8px',
+            padding: '0.75rem 1rem',
+            marginBottom: '1rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <span
+              style={{
+                background: '#f59e0b',
+                color: '#fff',
+                borderRadius: '4px',
+                padding: '2px 8px',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
+              Missing inputs
+            </span>
+            <span style={{ fontSize: '0.9rem', color: '#92400e', fontWeight: 600 }}>
+              Usage model incomplete
+            </span>
+          </div>
+          <p style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', color: '#78350f' }}>
+            {!hasOccupancy && !hasBathrooms
+              ? 'Occupant count and bathroom count are required for usage modelling.'
+              : !hasOccupancy
+              ? 'Occupant count is required for usage modelling.'
+              : 'Bathroom count is required for usage modelling.'}
+          </p>
+          <button
+            className="cta-btn"
+            style={{
+              background: '#f59e0b',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '0.4rem 1rem',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: 'default',
+              opacity: 0.7,
+            }}
+            disabled
+          >
+            Add usage schedule
+          </button>
+        </div>
+      )}
+
       <div className="result-section">
         <h3>Occupancy Profile</h3>
         <div className="metric-row">

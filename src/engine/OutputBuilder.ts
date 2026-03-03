@@ -397,25 +397,35 @@ function buildVisuals(result: FullEngineResultCore, input?: EngineInputV2_3): Vi
 }
 
 export function buildEngineOutputV1(result: FullEngineResultCore, input?: EngineInputV2_3): EngineOutputV1 {
-  // ── Recommendation resolver V1 ────────────────────────────────────────────
-  // Deterministic: survive physics best.
-  const onDemandRejected =
-    result.redFlags.rejectCombi ||
-    result.combiDhwV1.verdict.combiRisk === 'fail';
-  const ashpViable =
-    !result.redFlags.rejectAshp &&
-    result.hydraulicV1.verdict.ashpRisk !== 'fail';
-  const steadySignatures = new Set(['steady_home', 'steady']);
-  const isSteadyHome = steadySignatures.has(result.lifestyle.signature);
+  // ── Eligibility & confidence — computed early for the recommendation hierarchy ──
+  const eligibilityItems = buildEligibility(result, input);
+  const { confidence, assumptions } = buildAssumptionsV1(result, input);
 
+  // ── Recommendation resolver V1 ────────────────────────────────────────────
+  // Deterministic hierarchy — no scoring, no heuristics:
+  //   1. Confidence gate: low confidence → withheld
+  //   2. Only viable (not caution/rejected) options qualify for a recommendation
+  //   3. Exactly one viable → recommend it
+  //   4. Multiple viable → "Multiple suitable options"
+  //   5. No viable → fall back through caution options; if still ambiguous, surface
+  //      "Multiple options need review"
   let primaryRecommendation: string;
-  if (onDemandRejected) {
-    primaryRecommendation = 'Stored hot water — unvented cylinder';
-  } else if (ashpViable && isSteadyHome) {
-    primaryRecommendation = 'Air Source Heat Pump';
+  if (confidence?.level === 'low') {
+    primaryRecommendation = 'Recommendation withheld — not enough measured data';
   } else {
-    // Fallback to lifestyle module output; recommendedSystem is always populated.
-    primaryRecommendation = result.lifestyle.notes[0] ?? result.lifestyle.recommendedSystem;
+    const viableItems = eligibilityItems.filter(e => e.status === 'viable');
+    if (viableItems.length === 1) {
+      primaryRecommendation = viableItems[0].label;
+    } else if (viableItems.length > 1) {
+      primaryRecommendation = 'Multiple suitable options';
+    } else {
+      const cautionItems = eligibilityItems.filter(e => e.status === 'caution');
+      if (cautionItems.length === 1) {
+        primaryRecommendation = cautionItems[0].label;
+      } else {
+        primaryRecommendation = 'Multiple options need review';
+      }
+    }
   }
 
   const allReasons = [...result.redFlags.reasons, ...result.hydraulicV1.notes];
@@ -630,7 +640,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     ...Array.from(factBulletMap.values()),
   ];
 
-  const { confidence, assumptions } = buildAssumptionsV1(result, input);
+  // confidence and assumptions computed at the top of this function for the hierarchy.
 
   const options = input ? buildOptionMatrixV1(result, input) : undefined;
   const explainers = buildExplainers(result);
@@ -728,7 +738,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
   const plans = input ? buildPathwaysV1(result, input, input.expertAssumptions) : undefined;
 
   return {
-    eligibility: buildEligibility(result, input),
+    eligibility: eligibilityItems,
     redFlags: [...buildRedFlags(allReasons), ...combiFlags, ...storedFlags],
     recommendation: { primary: primaryRecommendation },
     explainers,

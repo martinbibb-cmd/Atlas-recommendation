@@ -35,6 +35,7 @@ interface Props {
 function sectionStatus(
   section: LiveSection,
   result: FullEngineResult,
+  input?: FullSurveyModelV1,
 ): 'ok' | 'watch' | 'missing' {
   const { engineOutput } = result;
   switch (section) {
@@ -48,6 +49,9 @@ function sectionStatus(
       return combiRisk === 'fail' ? 'watch' : combiRisk === 'warn' ? 'watch' : 'ok';
     }
     case 'usage': {
+      const hasOccupancy = input?.occupancyCount != null;
+      const hasBathrooms = input?.bathroomCount != null;
+      if (!hasOccupancy || !hasBathrooms) return 'missing';
       const storedRisk = result.storedDhwV1.verdict.storedRisk;
       return storedRisk === 'warn' ? 'watch' : 'ok';
     }
@@ -126,6 +130,28 @@ const STATUS_LABEL: Record<'ok' | 'watch' | 'missing', string> = {
   missing: 'Missing',
 };
 
+const WITHHELD_PREFIX = 'Recommendation withheld';
+const MULTIPLE_PREFIX = 'Multiple';
+
+/** Maps the deterministic recommendation string to a chip modifier class and label. */
+function recommendationChipKind(primary: string): 'recommended' | 'multiple' | 'withheld' {
+  if (primary.startsWith(WITHHELD_PREFIX)) return 'withheld';
+  if (primary.startsWith(MULTIPLE_PREFIX)) return 'multiple';
+  return 'recommended';
+}
+
+function RecommendationChip({ primary }: { primary: string }) {
+  const kind = recommendationChipKind(primary);
+  return (
+    <div className={`live-hub__verdict-chip live-hub__verdict-chip--${kind}`}>
+      <span className="live-hub__verdict-label">Recommendation</span>
+      <span className={`live-hub__verdict-value live-hub__verdict-value--${kind}`}>
+        {primary}
+      </span>
+    </div>
+  );
+}
+
 export default function LiveHubPage({ result, input, onBack }: Props) {
   const [activeSection, setActiveSection] = useState<LiveSection | null>(null);
 
@@ -156,12 +182,7 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
           </button>
           <div className="live-hub__verdict-chips">
             <VerdictStrip result={result} />
-            <div className="live-hub__verdict-chip live-hub__verdict-chip--recommendation">
-              <span className="live-hub__verdict-label">Recommendation</span>
-              <span className="live-hub__verdict-value live-hub__verdict-value--recommendation">
-                {engineOutput.recommendation.primary}
-              </span>
-            </div>
+            <RecommendationChip primary={engineOutput.recommendation.primary} />
           </div>
         </div>
       </div>
@@ -177,7 +198,7 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
       {/* ── Tile grid ────────────────────────────────────────────────── */}
       <div className="live-hub__grid">
         {TILE_CONFIG.map(tile => {
-          const status = sectionStatus(tile.id, result);
+          const status = sectionStatus(tile.id, result, input);
           return (
             <button
               key={tile.id}
