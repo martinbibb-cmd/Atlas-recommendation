@@ -31,6 +31,7 @@ const SECTION_TITLES: Record<LiveSection, string> = {
   constraints: '⚖️ Physics Constraints',
   chemistry: '🧪 Geochemical Analysis',
   glassbox: '🔭 Glass Box',
+  hub: '🎛️ Control Room',
 };
 
 export default function LiveSectionPage({ section, result, input, onBack }: Props) {
