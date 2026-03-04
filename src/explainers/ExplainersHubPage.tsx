@@ -23,10 +23,9 @@ import {
 import type { CapacityChainResult } from './lego/model/dhwModel';
 import { LabCanvas } from './lego/animation/render/LabCanvas';
 import { InstrumentStrip } from './lego/animation/render/InstrumentStrip';
-import type { LabControls, LabFrame, OutletControl, SystemType } from './lego/animation/types';
+import type { LabControls, OutletControl } from './lego/animation/types';
 import { defaultOutlets } from './lego/animation/types';
 import { computeCapacitySummary } from './lego/animation/capacitySummary';
-import { cylinderTempC } from './lego/animation/storage';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -76,14 +75,6 @@ const KIND_LABELS: Record<OutletControl['kind'], string> = {
   bath: 'Bath',
 };
 
-const OUTLET_KINDS: OutletControl['kind'][] = ['shower_mixer', 'basin', 'bath'];
-
-const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
-  combi:              'Combi — on-demand',
-  unvented_cylinder:  'Unvented cylinder — mains-fed',
-  vented_cylinder:    'Vented cylinder — tank-fed',
-};
-
 // ─── View ─────────────────────────────────────────────────────────────────────
 
 type Page = 'hub' | 'preset' | 'builder';
@@ -92,72 +83,48 @@ export default function ExplainersHubPage({ onBack }: Props) {
   const [page, setPage] = useState<Page>('hub');
   const [selectedPreset, setSelectedPreset] = useState<LegoScenario | null>(null);
 
-  // Shared controls
-  const [systemType, setSystemType] = useState<SystemType>('combi');
+  // Combi-only for now — system type selector is hidden.
   const [coldInletC, setColdInletC] = useState<LabControls['coldInletC']>(10);
   const [combiDhwKw, setCombiDhwKw] = useState(30);
   const [mainsDynamicFlowLpm, setMainsDynamicFlowLpm] = useState(12);
   const [pipeDiameterMm, setPipeDiameterMm] = useState<LabControls['pipeDiameterMm']>(15);
   const [outlets, setOutlets] = useState<OutletControl[]>(defaultOutlets());
 
-  // Cylinder-specific controls
-  const [cylinderVolumeL, setCylinderVolumeL] = useState(180);
-  const [cylinderInitialTempC, setCylinderInitialTempC] = useState(55);
-  const [cylinderReheatKw, setCylinderReheatKw] = useState(12);
-  const [headMeters, setHeadMeters] = useState(3);
-
-  // Latest simulation frame (for live store temp in instrument strip).
-  // useState setters have stable identity, so setLatestFrame can be passed directly as onFrame.
-  const [latestFrame, setLatestFrame] = useState<LabFrame | null>(null);
-
-  const isCylinder = systemType === 'unvented_cylinder' || systemType === 'vented_cylinder';
-
   const labControls: LabControls = {
-    systemType,
+    systemType: 'combi',
     coldInletC,
     dhwSetpointC: 50,
     combiDhwKw,
     mainsDynamicFlowLpm,
     pipeDiameterMm,
     outlets,
-    cylinder: isCylinder ? {
-      volumeL: cylinderVolumeL,
-      initialTempC: cylinderInitialTempC,
-      reheatKw: cylinderReheatKw,
-    } : undefined,
-    vented: systemType === 'vented_cylinder' ? { headMeters } : undefined,
   };
 
   const labSummary = computeCapacitySummary(labControls);
-
-  // storeTempC for InstrumentStrip: read from latest rendered frame when available
-  const storeTempC = (isCylinder && latestFrame?.cylinderStore)
-    ? cylinderTempC({ store: latestFrame.cylinderStore, coldInletC })
-    : undefined;
 
   /** Update a single field of one outlet by id, preserving all other outlet data. */
   function updateOutlet(id: OutletControl['id'], patch: Partial<Omit<OutletControl, 'id'>>) {
     setOutlets(prev => prev.map(o => o.id === id ? { ...o, ...patch } : o));
   }
 
-  /** Load a Lab preset — replaces all controls at once. */
+  /** Load a combi Lab preset — replaces controls at once. Non-combi presets are skipped (UI only shows combi). */
   function loadLabPreset(preset: LabPreset) {
+    if (preset.controls.systemType !== 'combi') {
+      if (import.meta.env.DEV) {
+        console.warn(`[DemoLab] Preset "${preset.id}" (${preset.controls.systemType}) skipped — combi-only mode.`)
+      }
+      return;
+    }
     const c = preset.controls;
-    setSystemType(c.systemType);
     setColdInletC(c.coldInletC);
     setCombiDhwKw(c.combiDhwKw);
     setMainsDynamicFlowLpm(c.mainsDynamicFlowLpm);
     setPipeDiameterMm(c.pipeDiameterMm);
     setOutlets(c.outlets);
-    if (c.cylinder) {
-      setCylinderVolumeL(c.cylinder.volumeL);
-      setCylinderInitialTempC(c.cylinder.initialTempC);
-      setCylinderReheatKw(c.cylinder.reheatKw);
-    }
-    if (c.vented) {
-      setHeadMeters(c.vented.headMeters);
-    }
   }
+
+  // Only show combi presets in the quick-load strip.
+  const combiPresets = LAB_PRESETS.filter(p => p.controls.systemType === 'combi');
 
   if (page === 'builder') {
     return (
@@ -202,9 +169,9 @@ export default function ExplainersHubPage({ onBack }: Props) {
       <section className="explainers-section demo-lab-section" style={{ marginTop: '2rem' }}>
         <h2 className="explainers-section__title">Animation (beta)</h2>
 
-        {/* Quick-load presets strip */}
+        {/* Quick-load presets strip — combi only */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '1rem' }}>
-          {LAB_PRESETS.map(preset => (
+          {combiPresets.map(preset => (
             <button
               key={preset.id}
               className="hub-tile"
@@ -212,9 +179,7 @@ export default function ExplainersHubPage({ onBack }: Props) {
               onClick={() => loadLabPreset(preset)}
               title={preset.description}
             >
-              <span className="hub-tile__icon">
-                {preset.controls.systemType === 'combi' ? '🔥' : '🛢'}
-              </span>
+              <span className="hub-tile__icon">🔥</span>
               <span className="hub-tile__title" style={{ fontSize: 12 }}>{preset.label}</span>
             </button>
           ))}
@@ -228,29 +193,12 @@ export default function ExplainersHubPage({ onBack }: Props) {
             <LabCanvas
               controls={labControls}
               summary={labSummary}
-              onFrame={setLatestFrame}
             />
           </div>
 
           {/* Right: controls drawer */}
           <aside className="demo-lab-controls panel-card">
             <h3 className="demo-lab-controls__title">Controls</h3>
-
-            {/* System type */}
-            <div className="demo-lab-field">
-              <span className="demo-lab-field__label">System type</span>
-              <div className="demo-lab-field__seg">
-                {(Object.keys(SYSTEM_TYPE_LABELS) as SystemType[]).map(t => (
-                  <button
-                    key={t}
-                    className={`demo-lab-seg-btn${systemType === t ? ' demo-lab-seg-btn--active' : ''}`}
-                    onClick={() => setSystemType(t)}
-                  >
-                    {SYSTEM_TYPE_LABELS[t]}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {/* Cold inlet */}
             <div className="demo-lab-field">
@@ -268,95 +216,33 @@ export default function ExplainersHubPage({ onBack }: Props) {
               </div>
             </div>
 
-            {/* Combi kW (combi only) */}
-            {systemType === 'combi' && (
-              <div className="demo-lab-field">
-                <label className="demo-lab-field__label" htmlFor="lab-kw">
-                  Combi output: <strong>{combiDhwKw} kW</strong>
-                </label>
-                <input
-                  id="lab-kw"
-                  className="demo-lab-field__range"
-                  type="range" min={24} max={40} step={1}
-                  value={combiDhwKw}
-                  onChange={e => setCombiDhwKw(Number(e.target.value))}
-                />
-              </div>
-            )}
+            {/* Combi output */}
+            <div className="demo-lab-field">
+              <label className="demo-lab-field__label" htmlFor="lab-kw">
+                Combi output: <strong>{combiDhwKw} kW</strong>
+              </label>
+              <input
+                id="lab-kw"
+                className="demo-lab-field__range"
+                type="range" min={24} max={40} step={1}
+                value={combiDhwKw}
+                onChange={e => setCombiDhwKw(Number(e.target.value))}
+              />
+            </div>
 
-            {/* Cylinder controls (cylinder types only) */}
-            {isCylinder && (
-              <>
-                <div className="demo-lab-field">
-                  <label className="demo-lab-field__label" htmlFor="lab-cyl-vol">
-                    Cylinder volume: <strong>{cylinderVolumeL} L</strong>
-                  </label>
-                  <input
-                    id="lab-cyl-vol"
-                    className="demo-lab-field__range"
-                    type="range" min={100} max={300} step={25}
-                    value={cylinderVolumeL}
-                    onChange={e => setCylinderVolumeL(Number(e.target.value))}
-                  />
-                </div>
-                <div className="demo-lab-field">
-                  <label className="demo-lab-field__label" htmlFor="lab-cyl-temp">
-                    Initial store temp: <strong>{cylinderInitialTempC} °C</strong>
-                  </label>
-                  <input
-                    id="lab-cyl-temp"
-                    className="demo-lab-field__range"
-                    type="range" min={30} max={80} step={5}
-                    value={cylinderInitialTempC}
-                    onChange={e => setCylinderInitialTempC(Number(e.target.value))}
-                  />
-                </div>
-                <div className="demo-lab-field">
-                  <label className="demo-lab-field__label" htmlFor="lab-cyl-reheat">
-                    Reheat power: <strong>{cylinderReheatKw} kW</strong>
-                  </label>
-                  <input
-                    id="lab-cyl-reheat"
-                    className="demo-lab-field__range"
-                    type="range" min={0} max={30} step={1}
-                    value={cylinderReheatKw}
-                    onChange={e => setCylinderReheatKw(Number(e.target.value))}
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Vented head (vented cylinder only) */}
-            {systemType === 'vented_cylinder' && (
-              <div className="demo-lab-field">
-                <label className="demo-lab-field__label" htmlFor="lab-head">
-                  Head pressure: <strong>{headMeters} m</strong>
-                </label>
-                <input
-                  id="lab-head"
-                  className="demo-lab-field__range"
-                  type="range" min={1} max={10} step={0.5}
-                  value={headMeters}
-                  onChange={e => setHeadMeters(Number(e.target.value))}
-                />
-              </div>
-            )}
-
-            {/* Mains flow (mains-fed systems) */}
-            {systemType !== 'vented_cylinder' && (
-              <div className="demo-lab-field">
-                <label className="demo-lab-field__label" htmlFor="lab-mains">
-                  Mains flow: <strong>{mainsDynamicFlowLpm} L/min</strong>
-                </label>
-                <input
-                  id="lab-mains"
-                  className="demo-lab-field__range"
-                  type="range" min={6} max={25} step={1}
-                  value={mainsDynamicFlowLpm}
-                  onChange={e => setMainsDynamicFlowLpm(Number(e.target.value))}
-                />
-              </div>
-            )}
+            {/* Mains flow */}
+            <div className="demo-lab-field">
+              <label className="demo-lab-field__label" htmlFor="lab-mains">
+                Mains flow: <strong>{mainsDynamicFlowLpm} L/min</strong>
+              </label>
+              <input
+                id="lab-mains"
+                className="demo-lab-field__range"
+                type="range" min={6} max={25} step={1}
+                value={mainsDynamicFlowLpm}
+                onChange={e => setMainsDynamicFlowLpm(Number(e.target.value))}
+              />
+            </div>
 
             {/* Pipe diameter */}
             <div className="demo-lab-field">
@@ -385,7 +271,7 @@ export default function ExplainersHubPage({ onBack }: Props) {
                   key={outlet.id}
                   className={`demo-lab-outlet-card${outlet.enabled ? ' demo-lab-outlet-card--enabled' : ''}`}
                 >
-                  {/* Header row: toggle + kind */}
+                  {/* Header row: toggle + kind label (read-only) */}
                   <div className="demo-lab-outlet-card__header">
                     <label className="demo-lab-outlet-card__toggle">
                       <input
@@ -395,15 +281,9 @@ export default function ExplainersHubPage({ onBack }: Props) {
                       />
                       <strong>Outlet {outlet.id}</strong>
                     </label>
-                    <select
-                      className="demo-lab-outlet-card__kind"
-                      value={outlet.kind}
-                      onChange={e => updateOutlet(outlet.id, { kind: e.target.value as OutletControl['kind'] })}
-                    >
-                      {OUTLET_KINDS.map(k => (
-                        <option key={k} value={k}>{KIND_LABELS[k]}</option>
-                      ))}
-                    </select>
+                    <span className="demo-lab-outlet-card__kind-label">
+                      {KIND_LABELS[outlet.kind]}
+                    </span>
                   </div>
 
                   {/* Demand slider */}
@@ -433,7 +313,7 @@ export default function ExplainersHubPage({ onBack }: Props) {
         </div>
 
         {/* Bottom: instrument strip */}
-        <InstrumentStrip summary={labSummary} storeTempC={storeTempC} />
+        <InstrumentStrip summary={labSummary} />
       </section>
 
       {/* ── Presets ─────────────────────────────────────────────────────── */}

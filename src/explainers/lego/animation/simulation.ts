@@ -35,9 +35,14 @@ const S_SPLIT = 0.82
 const S_FAILSAFE = 0.995
 
 /**
- * Maximum DHW setpoint (°C) used by the animation, regardless of the UI slider value.
- * Prevents the thermal palette from looking superheated at higher customer-unsafe settings.
+ * Animation setpoint bounds (°C).
+ * Tokens are clamped to [MIN_ANIMATION_SETPOINT_C, MAX_ANIMATION_SETPOINT_C] so the thermal
+ * palette always looks realistic for customers — never "superheated" at high values and
+ * never unrealistically cold at low values.
+ * 45 °C is the minimum usable domestic hot-water temperature (below this the animation
+ * palette would show water that looks barely warm, which misrepresents combi DHW performance).
  */
+const MIN_ANIMATION_SETPOINT_C = 45
 const MAX_ANIMATION_SETPOINT_C = 55
 
 /** Prevent division-by-zero when a token barely moves in a tick. */
@@ -172,9 +177,9 @@ export function stepSimulation(params: {
   // kW_required = 0.06977 × flowLpm × (setpointC − coldInletC)
   // kW_actual   = min(combiDhwKw, kW_required)
   // This prevents superheating at low flow and produces outlet-temp droop at high flow.
-  // Clamp to MAX_ANIMATION_SETPOINT_C so the animation palette does not look superheated
-  // even when the UI slider is set higher than a customer-safe value.
-  const setpointC = Math.min(controls.dhwSetpointC, MAX_ANIMATION_SETPOINT_C)
+  // Clamp to [45, MAX_ANIMATION_SETPOINT_C] so the animation palette stays realistic:
+  // above 55 °C looks superheated; below 45 °C looks unrealistically cold for domestic DHW.
+  const setpointC = clamp(controls.dhwSetpointC, MIN_ANIMATION_SETPOINT_C, MAX_ANIMATION_SETPOINT_C)
   const mDot = hydraulicFlowLpm / 60 // kg/s
   const kWRequired = 0.06977 * hydraulicFlowLpm * (setpointC - controls.coldInletC)
   const kWActual = Math.min(controls.combiDhwKw, kWRequired)
