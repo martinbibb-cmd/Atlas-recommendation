@@ -2039,3 +2039,421 @@ body {
   color: #7b341e;
   border: 1px solid #f6ad55;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Lego Blocks Explainer System
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Explainers hub ───────────────────────────────────────────────────────── */
+.explainers-section {
+  margin-top: 1.5rem;
+}
+
+.explainers-section__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0 0 0.875rem;
+}
+
+/* ── Performance Graphic View ────────────────────────────────────────────── */
+.perf-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.perf-view__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+}
+
+.perf-view__desc {
+  font-size: 0.84rem;
+  color: #718096;
+  margin: 0;
+}
+
+.perf-view__bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.perf-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.perf-bar-row__label {
+  width: 13rem;
+  font-size: 0.8rem;
+  color: #4a5568;
+  flex-shrink: 0;
+}
+
+.perf-bar-row__badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.perf-bar-row__badge--limit {
+  color: #e53e3e;
+}
+
+.perf-bar-row__track {
+  flex: 1;
+  height: 20px;
+  background: #edf2f7;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.perf-bar-row__fill {
+  height: 100%;
+  background: #4299e1;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.perf-bar-row__fill--limit {
+  background: #e53e3e;
+}
+
+.perf-bar-row__unknown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 0.5rem;
+  font-size: 0.75rem;
+  color: #a0aec0;
+}
+
+.perf-bar-row__value {
+  width: 5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #2d3748;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.perf-view__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.perf-view__demand-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.84rem;
+  color: #4a5568;
+}
+
+.perf-view__demand-value {
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.perf-view__verdict {
+  padding: 0.75rem 0.875rem;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+.perf-view__verdict--ok {
+  background: #f0fff4;
+  color: #22543d;
+  border: 1px solid #9ae6b4;
+}
+
+.perf-view__verdict--warn {
+  background: #fffaf0;
+  color: #7b341e;
+  border: 1px solid #f6ad55;
+}
+
+.perf-view__notes {
+  margin: 0;
+  padding: 0 0 0 1.25rem;
+  font-size: 0.78rem;
+  color: #718096;
+}
+
+/* ── Plumbing Stack View ──────────────────────────────────────────────────── */
+.stack-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.stack-view__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+}
+
+.stack-view__desc {
+  font-size: 0.84rem;
+  color: #718096;
+  margin: 0;
+}
+
+.stack-view__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.stack-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.stack-row--limit {
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+}
+
+.stack-row__icon-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 2rem;
+  flex-shrink: 0;
+}
+
+.stack-row__icon {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.stack-row__connector {
+  width: 2px;
+  flex: 1;
+  min-height: 1.25rem;
+  background: #cbd5e0;
+  border-radius: 1px;
+  margin-top: 0.25rem;
+}
+
+.stack-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.1rem 0;
+}
+
+.stack-row__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.stack-row__badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #e53e3e;
+}
+
+.stack-row__params {
+  font-size: 0.73rem;
+  color: #718096;
+}
+
+/* ── System Flow View ────────────────────────────────────────────────────── */
+.sysflow-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-x: auto;
+}
+
+.sysflow-view__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+}
+
+.sysflow-view__desc {
+  font-size: 0.84rem;
+  color: #718096;
+  margin: 0;
+}
+
+.sysflow-view__pipeline {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  min-width: max-content;
+  padding: 0.5rem 0;
+}
+
+.sysflow-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.sysflow-col__header {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.5rem;
+  text-align: center;
+  padding: 0 0.5rem;
+}
+
+.sysflow-col__blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.sysflow-block {
+  padding: 0.5rem 0.75rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  min-width: 8rem;
+  text-align: center;
+}
+
+.sysflow-block--limit {
+  border-color: #e53e3e;
+  background: #fff5f5;
+}
+
+.sysflow-block__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.sysflow-block__badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #e53e3e;
+}
+
+.sysflow-col__arrow {
+  position: absolute;
+  right: -1.1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1rem;
+  color: #a0aec0;
+  z-index: 1;
+}
+
+/* ── Lego Scenario Builder ────────────────────────────────────────────────── */
+.lego-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem;
+  max-width: 720px;
+}
+
+.lego-builder__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.lego-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.lego-field__label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.lego-field__select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background: #fff;
+  color: #2d3748;
+}
+
+.lego-field__range {
+  width: 100%;
+  accent-color: #4299e1;
+}
+
+.lego-builder__view-toggle {
+  align-self: flex-start;
+}
+
+.lego-builder__view {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.lego-builder__issues {
+  background: #fffaf0;
+  border: 1px solid #f6ad55;
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.lego-builder__issues-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #7b341e;
+  margin: 0 0 0.5rem;
+}
+
+.lego-builder__issues-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.lego-issue {
+  font-size: 0.82rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+}
+
+.lego-issue--error {
+  background: #fff5f5;
+  color: #742a2a;
+  border: 1px solid #fc8181;
+}
+
+.lego-issue--warn {
+  background: #fffaf0;
+  color: #7b341e;
+  border: 1px solid #f6ad55;
+}

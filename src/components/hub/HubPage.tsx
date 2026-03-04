@@ -9,10 +9,11 @@
 import { useState } from 'react';
 import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import PhysicsConstraintsPanel from './panels/PhysicsConstraintsPanel';
+import ExplainersHubPage from '../../explainers/ExplainersHubPage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type PanelId = 'physics_constraints' | 'system_sizing' | 'hydraulic_limits';
+type PanelId = 'physics_constraints' | 'system_sizing' | 'hydraulic_limits' | 'explainers';
 
 interface HubTile {
   id: PanelId;
@@ -44,6 +45,13 @@ const HUB_TILES: HubTile[] = [
     subtitle: 'Pipe & pressure constraints',
     available: false,
   },
+  {
+    id: 'explainers',
+    icon: '🧱',
+    title: 'Explainers',
+    subtitle: 'System diagrams & scenario builder',
+    available: true,
+  },
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -71,6 +79,10 @@ export default function HubPage({ result, input, onBack }: HubPageProps) {
         <PhysicsConstraintsPanel result={result} input={input} onBack={() => setActivePanel(null)} />
       </div>
     );
+  }
+
+  if (activePanel === 'explainers') {
+    return <ExplainersHubPage onBack={() => setActivePanel(null)} />;
   }
 
   return (
