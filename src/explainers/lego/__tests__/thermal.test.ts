@@ -238,15 +238,16 @@ describe('stepSimulation', () => {
         { id: 'C', enabled: true, kind: 'bath',         demandLpm: 18 },
       ],
     }
-    // Place three MAIN tokens just before the splitter with IDs that map to each outlet.
+    // Place three MAIN tokens just before the splitter (s=0.81) with IDs that map to each outlet.
+    // With v=0.1 and dt=0.1s: sNext = 0.82 → crosses S_SPLIT=0.82 → branch fires.
     // With total demand = 33, cycle = 33:
     //   token 0  → r = 0  → outlet A  (0 < 10)
     //   token 10 → r = 10 → outlet B  (10 >= 10, 10 < 15)
     //   token 15 → r = 15 → outlet C  (15 >= 15)
     const tokens = [
-      { id: 't_0',  s: 0.96, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
-      { id: 't_10', s: 0.96, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
-      { id: 't_15', s: 0.96, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
+      { id: 't_0',  s: 0.81, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
+      { id: 't_10', s: 0.81, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
+      { id: 't_15', s: 0.81, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
     ]
     const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 16, outletSamples: emptyOutletSamples }
     const next = stepSimulation({ frame, dtMs: 100, controls })
@@ -274,9 +275,10 @@ describe('stepSimulation', () => {
         { id: 'C', enabled: false, kind: 'bath',         demandLpm: 18 },
       ],
     }
+    // Tokens just before S_SPLIT=0.82 so the crossing check fires.
     const tokens = [
-      { id: 't_0',  s: 0.96, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
-      { id: 't_50', s: 0.96, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
+      { id: 't_0',  s: 0.81, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
+      { id: 't_50', s: 0.81, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
     ]
     const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 51, outletSamples: emptyOutletSamples }
     const next = stepSimulation({ frame, dtMs: 100, controls })
@@ -312,6 +314,52 @@ describe('stepSimulation', () => {
     }
     for (const tk of current.tokens) {
       expect(tk.hJPerKg).toBeLessThanOrEqual(maxH + 1)
+    }
+  })
+
+  it('failsafe: MAIN token that skips past S_SPLIT is still routed when active outlets exist', () => {
+    // Token at s=0.994 with large velocity: sNext will jump past S_SPLIT without crossing it.
+    // The failsafe (sNext >= 0.995) must route it to an outlet.
+    const controls: LabControls = {
+      ...defaultControls,
+      outlets: [
+        { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin',       demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath',        demandLpm: 18 },
+      ],
+    }
+    // With v=0.01 and dt=0.1s: sNext = 0.994 + 0.001 = 0.995 → failsafe fires.
+    const tokens = [{ id: 't_0', s: 0.994, v: 0.01, p: 0.5, hJPerKg: 0, route: 'MAIN' as const }]
+    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 1, outletSamples: emptyOutletSamples }
+    const next = stepSimulation({ frame, dtMs: 100, controls })
+
+    const t = next.tokens.find(tk => tk.id === 't_0')
+    expect(t).toBeDefined()
+    expect(t!.route).not.toBe('MAIN')
+  })
+
+  it('setpoint cap: animation setpoint is clamped to 55 °C regardless of UI value', () => {
+    // With dhwSetpointC=70 (above cap), tokens must never exceed the heat content for 55 °C.
+    const coldInletC = 10
+    const capTempC = 55
+    const maxHAtCap = tempToHeatJPerKg({ coldInletC, tempC: capTempC })
+    const controls: LabControls = {
+      ...defaultControls,
+      dhwSetpointC: 70, // above cap
+      combiDhwKw: 30,
+      mainsDynamicFlowLpm: 1,
+      outlets: [{ id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 1 }],
+    }
+    // Token inside the HEX zone
+    const tokens = [{ id: 't_0', s: 0.5, v: 0.001, p: 0.5, hJPerKg: 0, route: 'MAIN' as const }]
+    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 1, outletSamples: emptyOutletSamples }
+
+    let current = frame
+    for (let i = 0; i < 30; i++) {
+      current = stepSimulation({ frame: current, dtMs: 1000, controls })
+    }
+    for (const tk of current.tokens) {
+      expect(tk.hJPerKg).toBeLessThanOrEqual(maxHAtCap + 1)
     }
   })
 })
