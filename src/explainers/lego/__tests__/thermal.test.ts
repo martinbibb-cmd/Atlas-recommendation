@@ -193,4 +193,125 @@ describe('stepSimulation', () => {
     expect(coldToken).toBeDefined()
     expect(coldToken!.hJPerKg).toBe(0)
   })
+
+  it('clamps token temperature to the DHW setpoint after HEX injection', () => {
+    // A token already at maximum setpoint heat content passing through the HEX zone.
+    // Even with a very high combi kW, the token must not exceed the setpoint.
+    const coldInletC = 10
+    const dhwSetpointC = 50
+    const maxH = (dhwSetpointC - coldInletC) * 4180 // 167 200 J/kg
+    const controls: LabControls = {
+      ...defaultControls,
+      coldInletC,
+      dhwSetpointC,
+      combiDhwKw: 100, // deliberately oversized
+      mainsDynamicFlowLpm: 1, // low flow so kW_required is also low
+      outlets: [{ id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 1 }],
+    }
+    // Token inside the HEX zone, already at the setpoint
+    const tokens = [{ id: 't_0', s: 0.5, v: 0.001, p: 0.5, hJPerKg: maxH, route: 'MAIN' as const }]
+    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 1, outletSamples: emptyOutletSamples }
+
+    // Run many steps — token must never rise above maxH
+    let current = frame
+    for (let i = 0; i < 20; i++) {
+      current = stepSimulation({ frame: current, dtMs: 100, controls })
+    }
+    const found = current.tokens.find(tk => tk.id === 't_0')
+    if (found) {
+      expect(found.hJPerKg).toBeLessThanOrEqual(maxH + 1) // allow ≤1 J/kg float rounding
+    }
+    // At minimum, no token in the frame should be superheated
+    for (const tk of current.tokens) {
+      expect(tk.hJPerKg).toBeLessThanOrEqual(maxH + 1)
+    }
+  })
+
+  it('routes tokens to multiple outlets when more than one is enabled', () => {
+    // Outlets A (demand 10), B (demand 5), C (demand 18) — all enabled.
+    // With the demand-proportional cycle fix the first full cycle covers all three outlets.
+    const controls: LabControls = {
+      ...defaultControls,
+      outlets: [
+        { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: true, kind: 'basin',        demandLpm: 5 },
+        { id: 'C', enabled: true, kind: 'bath',         demandLpm: 18 },
+      ],
+    }
+    // Place three MAIN tokens just before the splitter with IDs that map to each outlet.
+    // With total demand = 33, cycle = 33:
+    //   token 0  → r = 0  → outlet A  (0 < 10)
+    //   token 10 → r = 10 → outlet B  (10 >= 10, 10 < 15)
+    //   token 15 → r = 15 → outlet C  (15 >= 15)
+    const tokens = [
+      { id: 't_0',  s: 0.96, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
+      { id: 't_10', s: 0.96, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
+      { id: 't_15', s: 0.96, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
+    ]
+    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 16, outletSamples: emptyOutletSamples }
+    const next = stepSimulation({ frame, dtMs: 100, controls })
+
+    // Each token should have been routed to its expected outlet
+    const t0  = next.tokens.find(t => t.id === 't_0')
+    const t10 = next.tokens.find(t => t.id === 't_10')
+    const t15 = next.tokens.find(t => t.id === 't_15')
+
+    expect(t0).toBeDefined()
+    expect(t10).toBeDefined()
+    expect(t15).toBeDefined()
+
+    expect(t0!.route).toBe('A')
+    expect(t10!.route).toBe('B')
+    expect(t15!.route).toBe('C')
+  })
+
+  it('always routes to the sole active outlet when only one is enabled', () => {
+    const controls: LabControls = {
+      ...defaultControls,
+      outlets: [
+        { id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: true,  kind: 'basin',        demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 18 },
+      ],
+    }
+    const tokens = [
+      { id: 't_0',  s: 0.96, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
+      { id: 't_50', s: 0.96, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
+    ]
+    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 51, outletSamples: emptyOutletSamples }
+    const next = stepSimulation({ frame, dtMs: 100, controls })
+
+    for (const t of next.tokens) {
+      if (t.route !== 'MAIN') {
+        expect(t.route).toBe('B')
+      }
+    }
+  })
+
+  it('setpoint modulation: high combi kW with low flow stays at setpoint, not above', () => {
+    // With 100 kW boiler and 1 L/min flow:
+    // kW_required = 0.06977 × 1 × (50 − 10) = 2.79 kW
+    // kW_actual   = min(100, 2.79)           = 2.79 kW
+    // Token should rise to ~setpoint, not beyond.
+    const coldInletC = 10
+    const dhwSetpointC = 50
+    const maxH = (dhwSetpointC - coldInletC) * 4180
+    const controls: LabControls = {
+      ...defaultControls,
+      combiDhwKw: 100,
+      mainsDynamicFlowLpm: 1,
+      outlets: [{ id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 1 }],
+    }
+    // Token at start of HEX zone, cold
+    const tokens = [{ id: 't_0', s: 0.38, v: 0.001, p: 0.5, hJPerKg: 0, route: 'MAIN' as const }]
+    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 1, outletSamples: emptyOutletSamples }
+
+    let current = frame
+    for (let i = 0; i < 50; i++) {
+      current = stepSimulation({ frame: current, dtMs: 1000, controls })
+    }
+    for (const tk of current.tokens) {
+      expect(tk.hJPerKg).toBeLessThanOrEqual(maxH + 1)
+    }
+  })
 })
