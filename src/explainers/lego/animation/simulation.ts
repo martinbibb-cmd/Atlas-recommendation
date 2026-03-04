@@ -2,7 +2,7 @@
 
 import type { LabControls, LabFrame, LabToken, OutletId, OutletControl } from './types'
 import { pipeDiameterCapacityLpm } from '../model/dhwModel'
-import { heatToTempC } from './thermal'
+import { heatToTempC, tempToHeatJPerKg } from './thermal'
 import {
   createCylinderStore,
   cylinderTempC,
@@ -21,7 +21,9 @@ const HEX_END = 0.62
 
 /**
  * Tokens on MAIN reaching this threshold are assigned to an outlet branch.
- * This corresponds to the splitter node at the end of the trunk polyline.
+ * Uses a range-based crossing check: token is routed when it crosses from
+ * below S_SPLIT to at or above S_SPLIT in a single tick.
+ * Placed near the end of the trunk so the split happens close to the splitter node.
  */
 const S_SPLIT = 0.97
 
@@ -87,8 +89,28 @@ function ensureCylinderStore(frame: LabFrame, controls: LabControls): CylinderSt
   })
 }
 
-/** Precision bucket for deterministic weighted outlet selection using token IDs. */
-const OUTLET_SELECTION_PRECISION = 10000
+/**
+ * Deterministic weighted outlet selection using token ID.
+ *
+ * Uses the sequential token ID modulo a small demand-proportional cycle so
+ * tokens are visibly distributed across outlets within the first cycle —
+ * no Math.random needed, and no thousands-of-tokens warm-up period.
+ */
+function pickOutletDeterministic(outlets: OutletControl[], tokenNumId: number): OutletId {
+  const active = outlets.filter(o => o.enabled && o.demandLpm > 0)
+  if (active.length === 0) return 'A'
+  if (active.length === 1) return active[0].id
+  const total = active.reduce((s, o) => s + o.demandLpm, 0)
+  // Small cycle proportional to total demand so distribution is visible immediately.
+  const cycle = Math.max(active.length, Math.round(total))
+  const demandPosition = (tokenNumId % cycle) / cycle * total
+  let acc = 0
+  for (const o of active) {
+    acc += o.demandLpm
+    if (demandPosition < acc) return o.id
+  }
+  return active[active.length - 1].id
+}
 
 /** EMA weight applied to the previous outlet temperature sample. */
 const EMA_WEIGHT_PREVIOUS = 0.9
@@ -98,26 +120,6 @@ const EMA_WEIGHT_CURRENT = 0.1
 /** Extract the numeric part of a token ID (e.g. 't_42' → 42). */
 function extractTokenNumId(tokenId: string): number {
   return parseInt(tokenId.replace('t_', ''), 10)
-}
-
-/**
- * Deterministic weighted outlet selection using token ID.
- *
- * Uses the sequential token ID (modulo a precision bucket) to pick an outlet
- * proportionally to each active outlet's demand — no Math.random needed.
- */
-function pickOutletDeterministic(outlets: OutletControl[], tokenNumId: number): OutletId {
-  const active = outlets.filter(o => o.enabled && o.demandLpm > 0)
-  if (active.length === 0) return 'A'
-  const total = active.reduce((s, o) => s + o.demandLpm, 0)
-  // Scale tokenId into [0, total) using a precision bucket.
-  const r = (tokenNumId % OUTLET_SELECTION_PRECISION) / OUTLET_SELECTION_PRECISION * total
-  let acc = 0
-  for (const o of active) {
-    acc += o.demandLpm
-    if (r < acc) return o.id
-  }
-  return active[active.length - 1].id
 }
 
 export function stepSimulation(params: {
@@ -152,9 +154,18 @@ export function stepSimulation(params: {
   }
 
   // ── Combi heat injection values (only used when systemType === 'combi') ───
+  // Setpoint modulation: compute the heat rate required to reach the setpoint for
+  // the current flow, then cap at the boiler's rated output.
+  // kW_required = 0.06977 × flowLpm × (setpointC − coldInletC)
+  // kW_actual   = min(combiDhwKw, kW_required)
+  // This prevents superheating at low flow and produces outlet-temp droop at high flow.
   const mDot = hydraulicFlowLpm / 60 // kg/s
-  const qDot = controls.combiDhwKw * 1000 // kW -> J/s
+  const kWRequired = 0.06977 * hydraulicFlowLpm * (controls.dhwSetpointC - controls.coldInletC)
+  const kWActual = Math.min(controls.combiDhwKw, kWRequired)
+  const qDot = kWActual * 1000 // kW -> J/s
   const dhPerKgPerSecond = mDot > 0 ? qDot / mDot : 0
+  // Maximum heat content corresponding to the DHW setpoint (used to clamp tokens)
+  const maxHSetpoint = tempToHeatJPerKg({ coldInletC: controls.coldInletC, tempC: controls.dhwSetpointC })
 
   // ── Cylinder store ────────────────────────────────────────────────────────
   let store = isCylinder ? ensureCylinderStore(frame, controls) : undefined
@@ -227,12 +238,15 @@ export function stepSimulation(params: {
           const overlapEnd = Math.min(sNext, HEX_END)
           const frac = clamp((overlapEnd - overlapStart) / Math.max(MIN_MOVEMENT_EPSILON, sNext - sPrev), 0, 1)
           h += dhPerKgPerSecond * dt * frac
+          // Clamp token heat content so it never exceeds the DHW setpoint temperature.
+          if (h > maxHSetpoint) h = maxHSetpoint
         }
       }
       // Cylinder: no HEX zone — tokens already carry store heat from spawn.
 
-      // At the splitter: assign token to an outlet branch and reset s
-      if (sNext >= S_SPLIT) {
+      // At the splitter: assign token to an outlet branch and reset s.
+      // Range-based crossing check fires exactly once per token.
+      if (sPrev < S_SPLIT && sNext >= S_SPLIT) {
         const targetOutlet = pickOutletDeterministic(controls.outlets, extractTokenNumId(t.id))
         return { ...t, s: 0, v, p, hJPerKg: h, route: targetOutlet }
       }
