@@ -21,7 +21,8 @@ import {
 import type { CapacityChainResult } from './lego/model/dhwModel';
 import { LabCanvas } from './lego/animation/render/LabCanvas';
 import { InstrumentStrip } from './lego/animation/render/InstrumentStrip';
-import type { LabControls } from './lego/animation/types';
+import type { LabControls, OutletControl } from './lego/animation/types';
+import { defaultOutlets } from './lego/animation/types';
 import { computeCapacitySummary } from './lego/animation/capacitySummary';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -64,6 +65,16 @@ function computeForPreset(scenario: LegoScenario): CapacityChainResult {
   return computeCapacityChain(components);
 }
 
+// ─── Outlet kind labels ───────────────────────────────────────────────────────
+
+const KIND_LABELS: Record<OutletControl['kind'], string> = {
+  shower_mixer: 'Shower',
+  basin: 'Basin',
+  bath: 'Bath',
+};
+
+const OUTLET_KINDS: OutletControl['kind'][] = ['shower_mixer', 'basin', 'bath'];
+
 // ─── View ─────────────────────────────────────────────────────────────────────
 
 type Page = 'hub' | 'preset' | 'builder';
@@ -75,8 +86,8 @@ export default function ExplainersHubPage({ onBack }: Props) {
   const [combiDhwKw, setCombiDhwKw] = useState(30);
   const [mainsDynamicFlowLpm, setMainsDynamicFlowLpm] = useState(12);
   const [pipeDiameterMm, setPipeDiameterMm] = useState<LabControls['pipeDiameterMm']>(15);
-  const [outlets, setOutlets] = useState<LabControls['outlets']>(1);
-  const [demandPerOutletLpm, setDemandPerOutletLpm] = useState(10);
+  const [outlets, setOutlets] = useState<OutletControl[]>(defaultOutlets());
+
   const labControls: LabControls = {
     coldInletC,
     dhwSetpointC: 50,
@@ -84,10 +95,14 @@ export default function ExplainersHubPage({ onBack }: Props) {
     mainsDynamicFlowLpm,
     pipeDiameterMm,
     outlets,
-    demandPerOutletLpm,
   };
 
   const labSummary = computeCapacitySummary(labControls);
+
+  /** Update a single field of one outlet by id, preserving all other outlet data. */
+  function updateOutlet(id: OutletControl['id'], patch: Partial<Omit<OutletControl, 'id'>>) {
+    setOutlets(prev => prev.map(o => o.id === id ? { ...o, ...patch } : o));
+  }
 
   if (page === 'builder') {
     return (
@@ -204,35 +219,61 @@ export default function ExplainersHubPage({ onBack }: Props) {
               </div>
             </div>
 
-            {/* Outlets */}
+            {/* Per-outlet cards */}
             <div className="demo-lab-field">
               <span className="demo-lab-field__label">Outlets</span>
-              <div className="demo-lab-field__seg">
-                {([1, 2, 3] as LabControls['outlets'][]).map(o => (
-                  <button
-                    key={o}
-                    className={`demo-lab-seg-btn${outlets === o ? ' demo-lab-seg-btn--active' : ''}`}
-                    onClick={() => setOutlets(o)}
-                  >
-                    {o}
-                  </button>
-                ))}
-              </div>
             </div>
+            {outlets.map(outlet => {
+              const delivered = labSummary.outletDeliveredLpm[outlet.id];
+              return (
+                <div
+                  key={outlet.id}
+                  className={`demo-lab-outlet-card${outlet.enabled ? ' demo-lab-outlet-card--enabled' : ''}`}
+                >
+                  {/* Header row: toggle + kind */}
+                  <div className="demo-lab-outlet-card__header">
+                    <label className="demo-lab-outlet-card__toggle">
+                      <input
+                        type="checkbox"
+                        checked={outlet.enabled}
+                        onChange={e => updateOutlet(outlet.id, { enabled: e.target.checked })}
+                      />
+                      <strong>Outlet {outlet.id}</strong>
+                    </label>
+                    <select
+                      className="demo-lab-outlet-card__kind"
+                      value={outlet.kind}
+                      onChange={e => updateOutlet(outlet.id, { kind: e.target.value as OutletControl['kind'] })}
+                    >
+                      {OUTLET_KINDS.map(k => (
+                        <option key={k} value={k}>{KIND_LABELS[k]}</option>
+                      ))}
+                    </select>
+                  </div>
 
-            {/* Demand per outlet */}
-            <div className="demo-lab-field">
-              <label className="demo-lab-field__label" htmlFor="lab-demand">
-                Demand/outlet: <strong>{demandPerOutletLpm} L/min</strong>
-              </label>
-              <input
-                id="lab-demand"
-                className="demo-lab-field__range"
-                type="range" min={4} max={20} step={1}
-                value={demandPerOutletLpm}
-                onChange={e => setDemandPerOutletLpm(Number(e.target.value))}
-              />
-            </div>
+                  {/* Demand slider */}
+                  <div className="demo-lab-outlet-card__demand">
+                    <label htmlFor={`lab-outlet-${outlet.id}-demand`} className="demo-lab-field__label">
+                      Demand: <strong>{outlet.demandLpm} L/min</strong>
+                    </label>
+                    <input
+                      id={`lab-outlet-${outlet.id}-demand`}
+                      className="demo-lab-field__range"
+                      type="range" min={2} max={25} step={1}
+                      value={outlet.demandLpm}
+                      onChange={e => updateOutlet(outlet.id, { demandLpm: Number(e.target.value) })}
+                    />
+                  </div>
+
+                  {/* Readout */}
+                  {outlet.enabled && (
+                    <div className="demo-lab-outlet-card__readout">
+                      <span>{delivered.toFixed(1)} L/min delivered</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </aside>
         </div>
 

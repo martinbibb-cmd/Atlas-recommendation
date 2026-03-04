@@ -5,7 +5,17 @@
 
 import { describe, it, expect } from 'vitest';
 import { computeCapacitySummary } from '../animation/capacitySummary';
-import type { LabControls } from '../animation/types';
+import type { LabControls, OutletControl } from '../animation/types';
+
+/** Helpers to build outlet arrays for tests. */
+function outlets(count: 1 | 2 | 3, demandLpm: number): OutletControl[] {
+  const ALL: OutletControl[] = [
+    { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm },
+    { id: 'B', enabled: true,  kind: 'basin',        demandLpm },
+    { id: 'C', enabled: true,  kind: 'bath',         demandLpm },
+  ];
+  return ALL.slice(0, count);
+}
 
 const BASE: LabControls = {
   coldInletC: 10,
@@ -13,13 +23,12 @@ const BASE: LabControls = {
   combiDhwKw: 30,
   mainsDynamicFlowLpm: 18,
   pipeDiameterMm: 22,
-  outlets: 1,
-  demandPerOutletLpm: 8,
+  outlets: outlets(1, 8),
 };
 
 describe('computeCapacitySummary — basic values', () => {
-  it('calculates demand as outlets × demandPerOutlet', () => {
-    const s = computeCapacitySummary({ ...BASE, outlets: 2, demandPerOutletLpm: 6 });
+  it('calculates demand as sum of enabled outlet demands', () => {
+    const s = computeCapacitySummary({ ...BASE, outlets: outlets(2, 6) });
     expect(s.demandTotalLpm).toBe(12);
   });
 
@@ -43,6 +52,16 @@ describe('computeCapacitySummary — basic values', () => {
     const s = computeCapacitySummary({ ...BASE, combiDhwKw: 30 });
     expect(s.thermalCapLpm).toBeCloseTo(10.748, 1);
   });
+
+  it('disabled outlets are excluded from demand', () => {
+    const mixedOutlets: OutletControl[] = [
+      { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm: 10 },
+      { id: 'B', enabled: false, kind: 'basin',        demandLpm: 5 },
+      { id: 'C', enabled: false, kind: 'bath',         demandLpm: 18 },
+    ];
+    const s = computeCapacitySummary({ ...BASE, outlets: mixedOutlets });
+    expect(s.demandTotalLpm).toBe(10);
+  });
 });
 
 describe('computeCapacitySummary — hydraulicFlowLpm', () => {
@@ -50,8 +69,8 @@ describe('computeCapacitySummary — hydraulicFlowLpm', () => {
     const s = computeCapacitySummary({
       ...BASE,
       mainsDynamicFlowLpm: 10,
-      pipeDiameterMm: 22,  // cap = 30
-      demandPerOutletLpm: 20, outlets: 1, // demand = 20
+      pipeDiameterMm: 22,   // cap = 30
+      outlets: outlets(1, 20), // demand = 20
     });
     // min(20, 10, 30) = 10
     expect(s.hydraulicFlowLpm).toBe(10);
@@ -89,14 +108,23 @@ describe('computeCapacitySummary — limitingComponent', () => {
     });
     expect(s.limitingComponent).toBe('Thermal');
   });
+
+  it('identifies Demand as bottleneck when no outlets are enabled', () => {
+    const noOutlets: OutletControl[] = [
+      { id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 10 },
+      { id: 'B', enabled: false, kind: 'basin',        demandLpm: 5 },
+      { id: 'C', enabled: false, kind: 'bath',         demandLpm: 18 },
+    ];
+    const s = computeCapacitySummary({ ...BASE, outlets: noOutlets });
+    expect(s.limitingComponent).toBe('Demand');
+  });
 });
 
 describe('computeCapacitySummary — warnings', () => {
   it('emits no warnings when demand is comfortably below all caps', () => {
     const s = computeCapacitySummary({
       ...BASE,
-      outlets: 1,
-      demandPerOutletLpm: 5,   // demand = 5, well below all caps
+      outlets: outlets(1, 5),  // demand = 5, well below all caps
       mainsDynamicFlowLpm: 20,
       pipeDiameterMm: 22,
       combiDhwKw: 30,
@@ -107,8 +135,7 @@ describe('computeCapacitySummary — warnings', () => {
   it('emits thermal warning when demand exceeds thermal cap', () => {
     const s = computeCapacitySummary({
       ...BASE,
-      outlets: 2,
-      demandPerOutletLpm: 8,   // demand = 16 > thermal ≈ 10.7
+      outlets: outlets(2, 8),  // demand = 16 > thermal ≈ 10.7
       mainsDynamicFlowLpm: 25,
       pipeDiameterMm: 22,
       combiDhwKw: 30,
@@ -119,8 +146,7 @@ describe('computeCapacitySummary — warnings', () => {
   it('emits supply warning when demand exceeds supply cap', () => {
     const s = computeCapacitySummary({
       ...BASE,
-      outlets: 3,
-      demandPerOutletLpm: 8,   // demand = 24 > supply = 20
+      outlets: outlets(3, 8),  // demand = 24 > supply = 20
       mainsDynamicFlowLpm: 20,
       pipeDiameterMm: 22,
       combiDhwKw: 40,
@@ -132,12 +158,32 @@ describe('computeCapacitySummary — warnings', () => {
     // demand = 3 × 10 = 30; supply = 12; pipe = 15; thermal ≈ 10.7
     const s = computeCapacitySummary({
       ...BASE,
-      outlets: 3,
-      demandPerOutletLpm: 10,
+      outlets: outlets(3, 10),
       mainsDynamicFlowLpm: 12,
       pipeDiameterMm: 15,
       combiDhwKw: 30,
     });
     expect(s.warnings.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('computeCapacitySummary — outletDeliveredLpm', () => {
+  it('splits flow proportionally to outlet demands', () => {
+    // A = 10 L/min, B = 10 L/min; total = 20, hydraulic = min(20, 18, 30) = 18
+    const twoOutlets: OutletControl[] = [
+      { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 10 },
+      { id: 'B', enabled: true, kind: 'basin',        demandLpm: 10 },
+      { id: 'C', enabled: false, kind: 'bath',        demandLpm: 18 },
+    ];
+    const s = computeCapacitySummary({ ...BASE, outlets: twoOutlets, mainsDynamicFlowLpm: 18 });
+    expect(s.outletDeliveredLpm.A).toBeCloseTo(9, 1);
+    expect(s.outletDeliveredLpm.B).toBeCloseTo(9, 1);
+    expect(s.outletDeliveredLpm.C).toBe(0);
+  });
+
+  it('gives 0 delivered to disabled outlets', () => {
+    const s = computeCapacitySummary({ ...BASE });
+    expect(s.outletDeliveredLpm.B).toBe(0);
+    expect(s.outletDeliveredLpm.C).toBe(0);
   });
 });
