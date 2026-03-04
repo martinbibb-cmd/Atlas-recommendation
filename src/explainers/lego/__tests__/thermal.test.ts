@@ -127,6 +127,7 @@ describe('createColdTokens', () => {
 
 describe('stepSimulation', () => {
   const defaultControls: LabControls = {
+    systemType: 'combi',
     coldInletC: 10,
     dhwSetpointC: 50,
     combiDhwKw: 30,

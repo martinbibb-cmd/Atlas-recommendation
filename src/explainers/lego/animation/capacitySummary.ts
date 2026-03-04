@@ -19,13 +19,24 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
   const activeOutlets = c.outlets.filter(o => o.enabled && o.demandLpm > 0)
   const demandTotalLpm = activeOutlets.reduce((sum, o) => sum + o.demandLpm, 0)
 
-  const supplyCapLpm = c.mainsDynamicFlowLpm
+  const isCylinder = c.systemType === 'unvented_cylinder' || c.systemType === 'vented_cylinder'
+
+  // Supply cap: vented cylinders are limited by head pressure
+  const ventedCap = c.systemType === 'vented_cylinder' && c.vented
+    ? Math.min(c.mainsDynamicFlowLpm, c.vented.headMeters * 6)
+    : Infinity
+  const supplyCapLpm = c.systemType === 'vented_cylinder' ? ventedCap : c.mainsDynamicFlowLpm
+
   const pipeCapLpm = pipeDiameterCapacityLpm(c.pipeDiameterMm) ?? Infinity
-  const thermalCapLpm = computeCombiThermalLimit({
-    dhwOutputKw: c.combiDhwKw,
-    coldTempC: c.coldInletC,
-    setpointC: c.dhwSetpointC,
-  })
+
+  // Thermal cap: only meaningful for combi; cylinders deliver from store (no fixed rate limit here)
+  const thermalCapLpm = isCylinder
+    ? Infinity
+    : computeCombiThermalLimit({
+        dhwOutputKw: c.combiDhwKw,
+        coldTempC: c.coldInletC,
+        setpointC: c.dhwSetpointC,
+      })
 
   const hydraulicFlowLpm = Math.min(demandTotalLpm, supplyCapLpm, pipeCapLpm)
 
@@ -44,9 +55,12 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
   }
 
   const warnings: string[] = []
-  if (demandTotalLpm > thermalCapLpm) warnings.push('Demand exceeds combi thermal capacity → outlet temperature droop')
-  if (demandTotalLpm > pipeCapLpm) warnings.push('Demand exceeds distribution capacity → flow throttled by pipework')
-  if (demandTotalLpm > supplyCapLpm) warnings.push('Demand exceeds supply capacity → flow throttled by mains')
+  if (!isCylinder && demandTotalLpm > thermalCapLpm)
+    warnings.push('Demand exceeds combi thermal capacity → outlet temperature droop')
+  if (demandTotalLpm > pipeCapLpm)
+    warnings.push('Demand exceeds distribution capacity → flow throttled by pipework')
+  if (demandTotalLpm > supplyCapLpm)
+    warnings.push('Demand exceeds supply capacity → flow throttled by mains')
 
   // Split hydraulic flow proportionally to each active outlet's demand
   const outletDeliveredLpm: Record<OutletId, number> = { A: 0, B: 0, C: 0 }

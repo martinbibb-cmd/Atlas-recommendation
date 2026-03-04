@@ -1,5 +1,7 @@
 // src/explainers/lego/animation/types.ts
 
+import type { CylinderStore } from './storage'
+
 export type OutletId = 'A' | 'B' | 'C'
 export type OutletKind = 'shower_mixer' | 'basin' | 'bath'
 
@@ -36,13 +38,36 @@ export type LabToken = {
   route: LabRoute
 }
 
+/** Distinguishes combi (on-demand) from stored hot water systems. */
+export type SystemType = 'combi' | 'unvented_cylinder' | 'vented_cylinder'
+
+export type CylinderControls = {
+  volumeL: number       // e.g. 150 / 180 / 210
+  initialTempC: number  // e.g. 55
+  reheatKw: number      // boiler/coil power into the store, e.g. 12
+}
+
+export type VentedControls = {
+  headMeters: number    // e.g. 3
+}
+
 export type LabControls = {
-  // DHW (combi) controls
+  systemType: SystemType
+
   coldInletC: 5 | 10 | 15
   dhwSetpointC: number        // default 50
-  combiDhwKw: number          // e.g. 24..40
+
+  // supply + distribution
   mainsDynamicFlowLpm: number // e.g. 6..25
   pipeDiameterMm: 15 | 22     // v1
+
+  // combi-only
+  combiDhwKw: number          // e.g. 24..40
+
+  // cylinder-only
+  cylinder?: CylinderControls
+  vented?: VentedControls
+
   outlets: OutletControl[]    // A/B/C per-outlet demand configuration
 }
 
@@ -58,4 +83,6 @@ export type LabFrame = {
   nextTokenId: number
   /** Per-outlet temperature samples (EMA from tokens exiting each branch). */
   outletSamples: Record<OutletId, OutletSample>
+  /** Cylinder thermal store state (only present for cylinder system types). */
+  cylinderStore?: CylinderStore
 }
