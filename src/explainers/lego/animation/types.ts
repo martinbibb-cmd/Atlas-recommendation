@@ -13,10 +13,21 @@ export type LabToken = {
 }
 
 export type LabControls = {
+  // DHW (combi) controls
   coldInletC: 5 | 10 | 15
+  dhwSetpointC: number        // default 50
+  combiDhwKw: number          // e.g. 24..40
+  mainsDynamicFlowLpm: number // e.g. 6..25
+  pipeDiameterMm: 15 | 22     // v1
+  outlets: 1 | 2 | 3
+  demandPerOutletLpm: number  // e.g. 4..20
 }
 
 export type LabFrame = {
   nowMs: number
   tokens: LabToken[]
+  /** Fractional spawn carry-over (deterministic, avoids Math.random). */
+  spawnAccumulator: number
+  /** Monotonically increasing counter for unique token IDs. */
+  nextTokenId: number
 }

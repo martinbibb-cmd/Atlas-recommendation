@@ -14,7 +14,7 @@ import {
   createColdTokens,
   stepSimulation,
 } from '../animation/simulation';
-import type { LabFrame } from '../animation/types';
+import type { LabFrame, LabControls } from '../animation/types';
 
 // ─── tempToThermalColor ───────────────────────────────────────────────────────
 
@@ -126,36 +126,60 @@ describe('createColdTokens', () => {
 // ─── stepSimulation ──────────────────────────────────────────────────────────
 
 describe('stepSimulation', () => {
+  const defaultControls: LabControls = {
+    coldInletC: 10,
+    dhwSetpointC: 50,
+    combiDhwKw: 30,
+    mainsDynamicFlowLpm: 12,
+    pipeDiameterMm: 15,
+    outlets: 1,
+    demandPerOutletLpm: 10,
+  }
+
   it('advances token positions forward', () => {
     const initial = createColdTokens({ count: 3, velocity: 0.1, pressure: 0.5 })
-    const frame: LabFrame = { nowMs: 0, tokens: initial }
-    const next = stepSimulation({ frame, dtMs: 1000, controls: { coldInletC: 10 } })
+    const frame: LabFrame = { nowMs: 0, tokens: initial, spawnAccumulator: 0, nextTokenId: 0 }
+    const next = stepSimulation({ frame, dtMs: 1000, controls: defaultControls })
 
-    for (let i = 0; i < next.tokens.length; i++) {
-      // s advances by v * dt = 0.1 * 1.0 = 0.1
-      const expectedS = Math.min(1, initial[i].s + 0.1)
-      expect(next.tokens[i].s).toBeCloseTo(expectedS, 5)
+    for (const orig of initial) {
+      const moved = next.tokens.find(t => t.id === orig.id)
+      // Token should have advanced (velocity proxy > 0)
+      expect(moved).toBeDefined()
+      expect(moved!.s).toBeGreaterThan(orig.s)
     }
   })
 
   it('advances the simulation clock', () => {
-    const initial = createColdTokens({ count: 1, velocity: 0.1, pressure: 0.5 })
-    const frame: LabFrame = { nowMs: 1000, tokens: initial }
-    const next = stepSimulation({ frame, dtMs: 500, controls: { coldInletC: 10 } })
+    const frame: LabFrame = { nowMs: 1000, tokens: [], spawnAccumulator: 0, nextTokenId: 0 }
+    const next = stepSimulation({ frame, dtMs: 500, controls: defaultControls })
     expect(next.nowMs).toBe(1500)
   })
 
-  it('clamps token s to 1 when it would exceed bounds', () => {
-    const tokens = [{ id: 't_0', s: 0.95, v: 0.2, p: 0.5, hJPerKg: 0 }]
-    const frame: LabFrame = { nowMs: 0, tokens }
-    const next = stepSimulation({ frame, dtMs: 1000, controls: { coldInletC: 10 } })
-    expect(next.tokens[0].s).toBe(1)
+  it('removes tokens that exit the path (s >= 0.999)', () => {
+    const tokens = [{ id: 't_exit', s: 0.99, v: 0.1, p: 0.5, hJPerKg: 0 }]
+    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 0 }
+    const next = stepSimulation({ frame, dtMs: 1000, controls: defaultControls })
+    const exited = next.tokens.find(t => t.id === 't_exit')
+    expect(exited).toBeUndefined()
   })
 
-  it('preserves hJPerKg (no heat injection in PR1)', () => {
-    const tokens = [{ id: 't_0', s: 0.5, v: 0.1, p: 0.5, hJPerKg: 0 }]
-    const frame: LabFrame = { nowMs: 0, tokens }
-    const next = stepSimulation({ frame, dtMs: 500, controls: { coldInletC: 10 } })
-    expect(next.tokens[0].hJPerKg).toBe(0)
+  it('injects heat into tokens passing through the HEX zone', () => {
+    // Place a token in the middle of the HEX zone with tiny velocity so it stays there
+    const tokens = [{ id: 't_hex', s: 0.5, v: 0.001, p: 0.5, hJPerKg: 0 }]
+    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 0 }
+    const next = stepSimulation({ frame, dtMs: 100, controls: defaultControls })
+    const hexToken = next.tokens.find(t => t.id === 't_hex')
+    expect(hexToken).toBeDefined()
+    expect(hexToken!.hJPerKg).toBeGreaterThan(0)
+  })
+
+  it('does not inject heat into tokens before the HEX zone', () => {
+    // Place a token well before the HEX zone (s=0.1) with tiny velocity so it stays clear
+    const tokens = [{ id: 't_cold', s: 0.1, v: 0.001, p: 0.5, hJPerKg: 0 }]
+    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 0 }
+    const next = stepSimulation({ frame, dtMs: 100, controls: defaultControls })
+    const coldToken = next.tokens.find(t => t.id === 't_cold')
+    expect(coldToken).toBeDefined()
+    expect(coldToken!.hJPerKg).toBe(0)
   })
 })
