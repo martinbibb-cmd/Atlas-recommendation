@@ -7,6 +7,7 @@ import MethodologyPage from './components/governance/MethodologyPage';
 import NeutralityPage from './components/governance/NeutralityPage';
 import PrivacyPage from './components/governance/PrivacyPage';
 import BehaviourConsolePage from './components/behaviour/BehaviourConsolePage';
+import ExplainersHubPage from './explainers/ExplainersHubPage';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
 import './App.css';
@@ -15,6 +16,11 @@ import './App.css';
 const CONSOLE_MODE_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('console') === '1';
+
+/** Detect ?lab=1 feature flag — renders Demo Lab directly for previewing. */
+const LAB_MODE_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('lab') === '1';
 
 /**
  * Demo engine input used when the ?console=1 flag is set.
@@ -60,6 +66,11 @@ export default function App() {
         }}
       />
     );
+  }
+
+  // ?lab=1 feature flag — render Demo Lab directly.
+  if (LAB_MODE_ENABLED) {
+    return <ExplainersHubPage onBack={() => { window.location.href = window.location.pathname; }} />;
   }
 
   if (journey === 'fast') return <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} />;
