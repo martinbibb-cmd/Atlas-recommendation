@@ -14,6 +14,7 @@ import type { FullEngineResult } from '../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
 import LiveSectionPage from './LiveSectionPage';
 import VerdictStrip from '../components/live/VerdictStrip';
+import HubPage from '../components/hub/HubPage';
 import './LiveHubPage.css';
 
 export type LiveSection =
@@ -23,7 +24,8 @@ export type LiveSection =
   | 'evidence'
   | 'constraints'
   | 'chemistry'
-  | 'glassbox';
+  | 'glassbox'
+  | 'hub';
 
 interface Props {
   result: FullEngineResult;
@@ -70,6 +72,8 @@ function sectionStatus(
       return decay > 8 ? 'watch' : 'ok';
     }
     case 'glassbox':
+      return 'ok';
+    case 'hub':
       return 'ok';
   }
 }
@@ -122,6 +126,12 @@ const TILE_CONFIG: Array<{
     title: 'Glass Box',
     subtitle: 'Full physics trace & raw calculation detail',
   },
+  {
+    id: 'hub',
+    icon: '🎛️',
+    title: 'Control Room',
+    subtitle: 'Demo Lab · Physics explainers & sandbox',
+  },
 ];
 
 const STATUS_LABEL: Record<'ok' | 'watch' | 'missing', string> = {
@@ -156,6 +166,16 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
   const [activeSection, setActiveSection] = useState<LiveSection | null>(null);
 
   const { engineOutput } = result;
+
+  if (activeSection === 'hub') {
+    return (
+      <HubPage
+        result={result}
+        input={input}
+        onBack={() => setActiveSection(null)}
+      />
+    );
+  }
 
   if (activeSection) {
     return (
