@@ -28,6 +28,13 @@ All AI-assisted code contributions must follow the rules below.
 - `cavity_uninsulated` must always be treated as a **high heat-loss** band (same score as `solid_masonry`).
 - Never conflate wall-type (heat loss) with thermal mass (inertia / τ) — these are independent physics dimensions.
 
+## Terminology
+
+- All user-facing text (UI copy, explanation strings, PDF output) must use only terms defined in `docs/atlas-terminology.md`.
+- **Never** use: "gravity system", "low pressure system", "high pressure system", or "instantaneous hot water".
+- Correct replacements: "tank-fed hot water", "tank-fed supply", "mains-fed supply", "on-demand hot water".
+- Engine-internal identifiers (TypeScript enums/field names) are implementation details and are not subject to this rule.
+
 ## Layout
 
 - The Twin Visualiser (`LifestyleInteractive.tsx`) renders two charts:
