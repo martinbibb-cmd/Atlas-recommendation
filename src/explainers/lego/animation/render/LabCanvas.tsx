@@ -2,7 +2,7 @@
 
 import React from 'react'
 import type { LabControls, LabFrame } from '../types'
-import { createColdTokens, stepSimulation } from '../simulation'
+import { stepSimulation } from '../simulation'
 import { TokensLayer } from './TokensLayer'
 
 /** Baseline frame time at 60 fps (ms). */
@@ -15,9 +15,14 @@ export function LabCanvas(props: {
 }) {
   const { controls } = props
 
+  const controlsRef = React.useRef(controls)
+  React.useLayoutEffect(() => { controlsRef.current = controls })
+
   const [frame, setFrame] = React.useState<LabFrame>(() => ({
     nowMs: 0,
-    tokens: createColdTokens({ count: 80, velocity: 0.12, pressure: 0.6 }),
+    tokens: [],
+    spawnAccumulator: 0,
+    nextTokenId: 0,
   }))
 
   const lastTsRef = React.useRef<number | null>(null)
@@ -30,20 +35,29 @@ export function LabCanvas(props: {
       lastTsRef.current = ts
       const dtMs = last === null ? DEFAULT_FRAME_TIME_MS : Math.min(MAX_FRAME_TIME_MS, ts - last) // cap dt
 
-      setFrame(prev => stepSimulation({ frame: prev, dtMs, controls }))
+      setFrame(prev => stepSimulation({ frame: prev, dtMs, controls: controlsRef.current }))
 
       raf = requestAnimationFrame(loop)
     }
 
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [controls.coldInletC])
+  }, [])
 
   return (
     <svg width="100%" viewBox="0 0 1000 240" style={{ display: 'block' }}>
-      {/* Simple guide path */}
+      {/* Simple guide path — drawn first so HEX rect renders on top */}
       <path d="M 80 120 L 880 120" stroke="#cfd8e3" strokeWidth={14} strokeLinecap="round" />
       <path d="M 80 120 L 880 120" stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round" />
+
+      {/* HEX zone */}
+      <rect x={380} y={78} width={240} height={84} rx={18} fill="#eef2f7" stroke="#c9d4e2" />
+      <text x={500} y={105} textAnchor="middle" fontSize={16} fill="#334155" fontWeight={700}>
+        Combi DHW HEX
+      </text>
+      <text x={500} y={128} textAnchor="middle" fontSize={12} fill="#64748b">
+        heat added here
+      </text>
 
       <TokensLayer tokens={frame.tokens} coldInletC={controls.coldInletC} />
     </svg>

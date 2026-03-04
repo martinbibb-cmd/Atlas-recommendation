@@ -70,7 +70,20 @@ export default function ExplainersHubPage({ onBack }: Props) {
   const [page, setPage] = useState<Page>('hub');
   const [selectedPreset, setSelectedPreset] = useState<LegoScenario | null>(null);
   const [coldInletC, setColdInletC] = useState<LabControls['coldInletC']>(10);
-  const labControls: LabControls = { coldInletC };
+  const [combiDhwKw, setCombiDhwKw] = useState(30);
+  const [mainsDynamicFlowLpm, setMainsDynamicFlowLpm] = useState(12);
+  const [pipeDiameterMm, setPipeDiameterMm] = useState<LabControls['pipeDiameterMm']>(15);
+  const [outlets, setOutlets] = useState<LabControls['outlets']>(1);
+  const [demandPerOutletLpm, setDemandPerOutletLpm] = useState(10);
+  const labControls: LabControls = {
+    coldInletC,
+    dhwSetpointC: 50,
+    combiDhwKw,
+    mainsDynamicFlowLpm,
+    pipeDiameterMm,
+    outlets,
+    demandPerOutletLpm,
+  };
 
   if (page === 'builder') {
     return (
@@ -114,26 +127,97 @@ export default function ExplainersHubPage({ onBack }: Props) {
       {/* ── Thermal token animation (beta) ──────────────────────────── */}
       <section className="explainers-section" style={{ marginTop: '2rem' }}>
         <h2 className="explainers-section__title">Animation (beta)</h2>
-        <div style={{ marginBottom: '0.75rem' }}>
-          <label style={{ marginRight: '0.5rem', fontWeight: 500 }}>Cold inlet:</label>
-          {([5, 10, 15] as LabControls['coldInletC'][]).map(c => (
-            <button
-              key={c}
-              onClick={() => setColdInletC(c)}
-              style={{
-                marginRight: '0.25rem',
-                padding: '0.25rem 0.75rem',
-                fontWeight: coldInletC === c ? 700 : 400,
-                background: coldInletC === c ? '#1e3a5f' : '#eaf0f7',
-                color: coldInletC === c ? '#fff' : '#1e3a5f',
-                border: '1px solid #1e3a5f',
-                borderRadius: 4,
-                cursor: 'pointer',
-              }}
-            >
-              {c} °C
-            </button>
-          ))}
+        <div style={{ marginBottom: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+          <span>
+            <label style={{ marginRight: '0.5rem', fontWeight: 500 }}>Cold inlet:</label>
+            {([5, 10, 15] as LabControls['coldInletC'][]).map(c => (
+              <button
+                key={c}
+                onClick={() => setColdInletC(c)}
+                style={{
+                  marginRight: '0.25rem',
+                  padding: '0.25rem 0.75rem',
+                  fontWeight: coldInletC === c ? 700 : 400,
+                  background: coldInletC === c ? '#1e3a5f' : '#eaf0f7',
+                  color: coldInletC === c ? '#fff' : '#1e3a5f',
+                  border: '1px solid #1e3a5f',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                {c} °C
+              </button>
+            ))}
+          </span>
+          <label style={{ fontWeight: 500 }}>
+            Combi kW: <strong>{combiDhwKw}</strong>
+            <input
+              type="range" min={24} max={40} step={1}
+              value={combiDhwKw}
+              onChange={e => setCombiDhwKw(Number(e.target.value))}
+              style={{ marginLeft: '0.5rem', verticalAlign: 'middle' }}
+            />
+          </label>
+          <label style={{ fontWeight: 500 }}>
+            Mains flow: <strong>{mainsDynamicFlowLpm} L/min</strong>
+            <input
+              type="range" min={6} max={25} step={1}
+              value={mainsDynamicFlowLpm}
+              onChange={e => setMainsDynamicFlowLpm(Number(e.target.value))}
+              style={{ marginLeft: '0.5rem', verticalAlign: 'middle' }}
+            />
+          </label>
+          <span>
+            <label style={{ marginRight: '0.5rem', fontWeight: 500 }}>Pipe:</label>
+            {([15, 22] as LabControls['pipeDiameterMm'][]).map(d => (
+              <button
+                key={d}
+                onClick={() => setPipeDiameterMm(d)}
+                style={{
+                  marginRight: '0.25rem',
+                  padding: '0.25rem 0.75rem',
+                  fontWeight: pipeDiameterMm === d ? 700 : 400,
+                  background: pipeDiameterMm === d ? '#1e3a5f' : '#eaf0f7',
+                  color: pipeDiameterMm === d ? '#fff' : '#1e3a5f',
+                  border: '1px solid #1e3a5f',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                {d} mm
+              </button>
+            ))}
+          </span>
+          <span>
+            <label style={{ marginRight: '0.5rem', fontWeight: 500 }}>Outlets:</label>
+            {([1, 2, 3] as LabControls['outlets'][]).map(o => (
+              <button
+                key={o}
+                onClick={() => setOutlets(o)}
+                style={{
+                  marginRight: '0.25rem',
+                  padding: '0.25rem 0.75rem',
+                  fontWeight: outlets === o ? 700 : 400,
+                  background: outlets === o ? '#1e3a5f' : '#eaf0f7',
+                  color: outlets === o ? '#fff' : '#1e3a5f',
+                  border: '1px solid #1e3a5f',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                {o}
+              </button>
+            ))}
+          </span>
+          <label style={{ fontWeight: 500 }}>
+            Demand/outlet: <strong>{demandPerOutletLpm} L/min</strong>
+            <input
+              type="range" min={4} max={20} step={1}
+              value={demandPerOutletLpm}
+              onChange={e => setDemandPerOutletLpm(Number(e.target.value))}
+              style={{ marginLeft: '0.5rem', verticalAlign: 'middle' }}
+            />
+          </label>
         </div>
         <LabCanvas controls={labControls} />
       </section>
