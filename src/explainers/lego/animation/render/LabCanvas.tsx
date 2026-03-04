@@ -1,7 +1,7 @@
 // src/explainers/lego/animation/render/LabCanvas.tsx
 
 import React from 'react'
-import type { LabControls, LabFrame } from '../types'
+import type { LabControls, LabFrame, OutletId } from '../types'
 import type { CapacitySummary } from '../capacitySummary'
 import { stepSimulation } from '../simulation'
 import { TokensLayer } from './TokensLayer'
@@ -17,6 +17,19 @@ const MAX_FRAME_TIME_MS = 50
 // Use positions from pathMap (single source of truth)
 const P = SCHEMATIC_P
 
+const OUTLET_LABELS: Record<OutletId, string> = { A: 'Outlet A', B: 'Outlet B', C: 'Outlet C' }
+const OUTLET_KIND_LABELS: Record<string, string> = {
+  shower_mixer: 'Shower',
+  basin: 'Basin',
+  bath: 'Bath',
+}
+
+const EMPTY_OUTLET_SAMPLES: LabFrame['outletSamples'] = {
+  A: { tempC: 0, count: 0 },
+  B: { tempC: 0, count: 0 },
+  C: { tempC: 0, count: 0 },
+}
+
 export function LabCanvas(props: {
   controls: LabControls
   summary: CapacitySummary
@@ -31,6 +44,7 @@ export function LabCanvas(props: {
     tokens: [],
     spawnAccumulator: 0,
     nextTokenId: 0,
+    outletSamples: { ...EMPTY_OUTLET_SAMPLES },
   }))
 
   const lastTsRef = React.useRef<number | null>(null)
@@ -61,11 +75,21 @@ export function LabCanvas(props: {
   const boilerGlow  = glowFor('Thermal')
   const mainsGlow   = glowFor('Supply')
 
-  const { main: mainPolyline, branch1, branch2 } = buildPolylines(controls.outlets)
+  const { main: polyMain, branchA, branchB, branchC } = buildPolylines()
+
+  // Outlet positions for SVG rendering
+  const outletYMap: Record<OutletId, number> = {
+    A: P.outlet1Y,
+    B: P.outlet2Y,
+    C: P.outlet3Y,
+  }
+
+  const enabledOutlets = controls.outlets.filter(o => o.enabled)
+  const hasMultipleOutlets = enabledOutlets.length > 1 || controls.outlets.some(o => !o.enabled && o.id !== 'A')
 
   return (
     <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
-      <svg width="100%" viewBox="0 0 1000 240" style={{ display: 'block' }}>
+      <svg width="100%" viewBox="0 0 1000 260" style={{ display: 'block' }}>
         <defs>
           <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="6" result="coloredBlur" />
@@ -111,62 +135,69 @@ export function LabCanvas(props: {
           stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
         />
 
-        {/* ── Outlets ────────────────────────────────────────────────────── */}
-        {controls.outlets === 1 ? (
-          <>
-            <path
-              d={`M ${P.splitX} ${P.splitY} L ${P.outlet1X} ${P.splitY}`}
-              stroke="#cfd8e3" strokeWidth={16} strokeLinecap="round"
-            />
-            <path
-              d={`M ${P.splitX} ${P.splitY} L ${P.outlet1X} ${P.splitY}`}
-              stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
-            />
-            <text x={P.outlet1X + 4} y={P.splitY + 4} textAnchor="start" fontSize={12} fill="#334155">
-              Outlet
-            </text>
-          </>
-        ) : (
-          <>
-            {/* Splitter symbol */}
-            <circle cx={P.splitX} cy={P.splitY} r={8} fill="#8aa1b6" />
-
-            {/* Branch to outlet A */}
-            <path
-              d={`M ${P.splitX} ${P.splitY} L ${P.outlet1X} ${P.outlet1Y}`}
-              stroke="#cfd8e3" strokeWidth={16} strokeLinecap="round"
-            />
-            <path
-              d={`M ${P.splitX} ${P.splitY} L ${P.outlet1X} ${P.outlet1Y}`}
-              stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
-            />
-            <text x={P.outlet1X + 4} y={P.outlet1Y - 4} textAnchor="start" fontSize={12} fill="#334155">
-              Outlet A
-            </text>
-
-            {/* Branch to outlet B */}
-            <path
-              d={`M ${P.splitX} ${P.splitY} L ${P.outlet2X} ${P.outlet2Y}`}
-              stroke="#cfd8e3" strokeWidth={16} strokeLinecap="round"
-            />
-            <path
-              d={`M ${P.splitX} ${P.splitY} L ${P.outlet2X} ${P.outlet2Y}`}
-              stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
-            />
-            <text x={P.outlet2X + 4} y={P.outlet2Y + 16} textAnchor="start" fontSize={12} fill="#334155">
-              Outlet B
-            </text>
-          </>
+        {/* ── Splitter node ──────────────────────────────────────────────── */}
+        {hasMultipleOutlets && (
+          <circle cx={P.splitX} cy={P.splitY} r={9} fill="#8aa1b6" />
         )}
+
+        {/* ── Outlet branches ────────────────────────────────────────────── */}
+        {(controls.outlets as typeof controls.outlets).map(outlet => {
+          const oy = outletYMap[outlet.id]
+          const isEnabled = outlet.enabled
+          const strokeColor = isEnabled ? '#cfd8e3' : '#e2e8f0'
+          const centerStroke = isEnabled ? '#8aa1b6' : '#cbd5e1'
+          const delivered = summary.outletDeliveredLpm[outlet.id]
+          const sample = frame.outletSamples[outlet.id]
+
+          return (
+            <g key={outlet.id}>
+              {/* Branch pipe */}
+              <path
+                d={`M ${P.splitX} ${P.splitY} L ${P.outlet1X} ${oy}`}
+                stroke={strokeColor} strokeWidth={16} strokeLinecap="round"
+                opacity={isEnabled ? 1 : 0.4}
+              />
+              <path
+                d={`M ${P.splitX} ${P.splitY} L ${P.outlet1X} ${oy}`}
+                stroke={centerStroke} strokeWidth={2} strokeLinecap="round"
+                opacity={isEnabled ? 1 : 0.4}
+              />
+
+              {/* Outlet label */}
+              <text x={P.outlet1X + 6} y={oy - 8} textAnchor="start" fontSize={12} fill={isEnabled ? '#334155' : '#94a3b8'} fontWeight={600}>
+                {OUTLET_LABELS[outlet.id]} · {OUTLET_KIND_LABELS[outlet.kind]}
+              </text>
+
+              {/* Readout badge: delivered L/min + temperature */}
+              {isEnabled && (
+                <g>
+                  <text x={P.outlet1X + 6} y={oy + 8} textAnchor="start" fontSize={11} fill="#0f766e">
+                    {delivered.toFixed(1)} L/min
+                  </text>
+                  {sample.count > 0 && (
+                    <text x={P.outlet1X + 6} y={oy + 22} textAnchor="start" fontSize={11} fill="#b45309">
+                      ~{sample.tempC.toFixed(0)} °C
+                    </text>
+                  )}
+                </g>
+              )}
+              {!isEnabled && (
+                <text x={P.outlet1X + 6} y={oy + 8} textAnchor="start" fontSize={11} fill="#94a3b8">
+                  off
+                </text>
+              )}
+            </g>
+          )
+        })}
 
         {/* ── Tokens ─────────────────────────────────────────────────────── */}
         <TokensLayer
           tokens={frame.tokens}
           coldInletC={controls.coldInletC}
-          mainPolyline={mainPolyline}
-          branch1={branch1}
-          branch2={branch2}
-          outlets={controls.outlets}
+          polyMain={polyMain}
+          polyA={branchA}
+          polyB={branchB}
+          polyC={branchC}
         />
       </svg>
 

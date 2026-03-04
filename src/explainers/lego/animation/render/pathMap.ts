@@ -42,23 +42,29 @@ export function mapSToPath(s: number, pts: Pt[]): Pt {
 // ─── Schematic node positions (single source of truth for the DHW schematic) ──
 
 export const SCHEMATIC_P = {
-  mainsX: 90, mainsY: 120,
-  boilerX: 420, boilerY: 120,
-  splitX: 700, splitY: 120,
-  outlet1X: 900, outlet1Y: 90,
-  outlet2X: 900, outlet2Y: 150,
+  mainsX: 90,  mainsY: 130,
+  boilerX: 420, boilerY: 130,
+  splitX: 700,  splitY: 130,
+  outlet1X: 900, outlet1Y: 75,   // Outlet A (top)
+  outlet2X: 900, outlet2Y: 130,  // Outlet B (middle)
+  outlet3X: 900, outlet3Y: 185,  // Outlet C (bottom)
 }
 
-export type SchematicPolylines = { main: Pt[]; branch1: Pt[]; branch2: Pt[] }
+export type SchematicPolylines = {
+  main: Pt[]
+  branchA: Pt[]
+  branchB: Pt[]
+  branchC: Pt[]
+}
 
 /**
- * Build the main flow polyline (used to animate tokens along the schematic).
+ * Build the main flow polyline and three outlet branch polylines.
  *
- * For single-outlet scenarios the polyline ends at the outlet directly.
- * For multi-outlet scenarios it ends at the splitter node; TokensLayer
- * branches tokens from there based on token-id parity.
+ * The trunk (main) runs from mains → boiler → splitter.
+ * Each branch runs from the splitter to its respective outlet endpoint.
+ * Branches are always defined so TokensLayer can route A/B/C unconditionally.
  */
-export function buildPolylines(outlets: number): SchematicPolylines {
+export function buildPolylines(): SchematicPolylines {
   const trunk: Pt[] = [
     { x: SCHEMATIC_P.mainsX, y: SCHEMATIC_P.mainsY },
     { x: SCHEMATIC_P.boilerX - 60, y: SCHEMATIC_P.boilerY },   // boiler entry
@@ -66,17 +72,19 @@ export function buildPolylines(outlets: number): SchematicPolylines {
     { x: SCHEMATIC_P.splitX, y: SCHEMATIC_P.splitY },
   ]
 
-  if (outlets === 1) {
-    return {
-      main: [...trunk, { x: SCHEMATIC_P.outlet1X, y: SCHEMATIC_P.splitY }],
-      branch1: [],
-      branch2: [],
-    }
-  }
-
   return {
     main: trunk,
-    branch1: [{ x: SCHEMATIC_P.splitX, y: SCHEMATIC_P.splitY }, { x: SCHEMATIC_P.outlet1X, y: SCHEMATIC_P.outlet1Y }],
-    branch2: [{ x: SCHEMATIC_P.splitX, y: SCHEMATIC_P.splitY }, { x: SCHEMATIC_P.outlet2X, y: SCHEMATIC_P.outlet2Y }],
+    branchA: [
+      { x: SCHEMATIC_P.splitX, y: SCHEMATIC_P.splitY },
+      { x: SCHEMATIC_P.outlet1X, y: SCHEMATIC_P.outlet1Y },
+    ],
+    branchB: [
+      { x: SCHEMATIC_P.splitX, y: SCHEMATIC_P.splitY },
+      { x: SCHEMATIC_P.outlet2X, y: SCHEMATIC_P.outlet2Y },
+    ],
+    branchC: [
+      { x: SCHEMATIC_P.splitX, y: SCHEMATIC_P.splitY },
+      { x: SCHEMATIC_P.outlet3X, y: SCHEMATIC_P.outlet3Y },
+    ],
   }
 }

@@ -1,7 +1,8 @@
 // src/explainers/lego/animation/simulation.ts
 
-import type { LabControls, LabFrame, LabToken } from './types'
+import type { LabControls, LabFrame, LabToken, OutletId, OutletControl } from './types'
 import { pipeDiameterCapacityLpm } from '../model/dhwModel'
+import { heatToTempC } from './thermal'
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
@@ -10,6 +11,12 @@ function clamp(n: number, min: number, max: number) {
 // Path positions (0..1)
 const HEX_START = 0.38
 const HEX_END = 0.62
+
+/**
+ * Tokens on MAIN reaching this threshold are assigned to an outlet branch.
+ * This corresponds to the splitter node at the end of the trunk polyline.
+ */
+const S_SPLIT = 0.97
 
 /** Prevent division-by-zero when a token barely moves in a tick. */
 const MIN_MOVEMENT_EPSILON = 1e-6
@@ -45,6 +52,26 @@ function pressureProxy(params: { mainsFlowLpm: number }) {
   return clamp(params.mainsFlowLpm / 20, 0.35, 1.1)
 }
 
+/**
+ * Deterministic weighted outlet selection using token ID.
+ *
+ * Uses the sequential token ID (modulo a precision bucket) to pick an outlet
+ * proportionally to each active outlet's demand — no Math.random needed.
+ */
+function pickOutletDeterministic(outlets: OutletControl[], tokenNumId: number): OutletId {
+  const active = outlets.filter(o => o.enabled && o.demandLpm > 0)
+  if (active.length === 0) return 'A'
+  const total = active.reduce((s, o) => s + o.demandLpm, 0)
+  // Scale tokenId into [0, total) using a precision bucket of 10 000.
+  const r = (tokenNumId % 10000) / 10000 * total
+  let acc = 0
+  for (const o of active) {
+    acc += o.demandLpm
+    if (r < acc) return o.id
+  }
+  return active[active.length - 1].id
+}
+
 export function stepSimulation(params: {
   frame: LabFrame
   dtMs: number
@@ -53,7 +80,8 @@ export function stepSimulation(params: {
   const { frame, dtMs, controls } = params
   const dt = dtMs / 1000
 
-  const demandTotalLpm = controls.outlets * controls.demandPerOutletLpm
+  const activeOutlets = controls.outlets.filter(o => o.enabled && o.demandLpm > 0)
+  const demandTotalLpm = activeOutlets.reduce((sum, o) => sum + o.demandLpm, 0)
 
   const pipeCap = pipeDiameterCapacityLpm(controls.pipeDiameterMm) ?? Infinity
 
@@ -84,7 +112,7 @@ export function stepSimulation(params: {
   let tokens: LabToken[] = [...frame.tokens]
   let nextId = frame.nextTokenId
 
-  // Add spawns at s = 0 with deterministic sequential IDs
+  // Add spawns at s = 0 on MAIN with deterministic sequential IDs
   for (let i = 0; i < spawnCount; i++) {
     tokens.push({
       id: `t_${nextId++}`,
@@ -92,17 +120,21 @@ export function stepSimulation(params: {
       v,
       p,
       hJPerKg: 0,
+      route: 'MAIN',
     })
   }
 
-  // Step + heat injection through HEX zone
-  tokens = tokens
-    .map(t => {
-      const sPrev = t.s
-      const sNext = clamp(t.s + t.v * dt, 0, 1)
+  // EMA outlet samples — carry forward and update in this tick
+  const outletSamples = { ...frame.outletSamples }
 
-      let h = t.hJPerKg
+  // Step + heat injection (MAIN only) + splitter assignment
+  tokens = tokens.map(t => {
+    const sPrev = t.s
+    const sNext = clamp(t.s + t.v * dt, 0, 1)
 
+    let h = t.hJPerKg
+
+    if (t.route === 'MAIN') {
       // If the token overlaps the HEX zone during this tick, add heat.
       const inHexNow = sPrev < HEX_END && sNext > HEX_START
 
@@ -116,16 +148,44 @@ export function stepSimulation(params: {
         h += dhPerKgPerSecond * dt * frac
       }
 
+      // At the splitter: assign token to an outlet branch and reset s
+      if (sNext >= S_SPLIT) {
+        const numId = parseInt(t.id.replace('t_', ''), 10)
+        const targetOutlet = pickOutletDeterministic(controls.outlets, numId)
+        return { ...t, s: 0, v, p, hJPerKg: h, route: targetOutlet }
+      }
+
       return { ...t, s: sNext, v, p, hJPerKg: h }
-    })
-    // Remove tokens that exit the path
-    .filter(t => t.s < 0.999)
+    }
+
+    // Branch token — advance along its outlet path
+    return { ...t, s: sNext, v, p, hJPerKg: h }
+  })
+
+  // Sample tokens exiting outlet branches → update EMA, then remove them
+  tokens = tokens.filter(t => {
+    if (t.route !== 'MAIN' && t.s >= 0.98) {
+      const tempC = heatToTempC({ coldInletC: controls.coldInletC, hJPerKg: t.hJPerKg })
+      const outletId = t.route as OutletId
+      const prev = outletSamples[outletId]
+      outletSamples[outletId] = {
+        // Exponential moving average — smooths over several frames
+        tempC: prev.count === 0 ? tempC : prev.tempC * 0.9 + tempC * 0.1,
+        count: prev.count + 1,
+      }
+      return false
+    }
+    // Drop stray MAIN tokens that somehow escape without branching
+    if (t.route === 'MAIN' && t.s >= 0.999) return false
+    return true
+  })
 
   return {
     nowMs: frame.nowMs + dtMs,
     tokens,
     spawnAccumulator,
     nextTokenId: nextId,
+    outletSamples,
   }
 }
 
@@ -145,6 +205,7 @@ export function createColdTokens(params: {
       v: params.velocity,
       p: params.pressure,
       hJPerKg: 0,
+      route: 'MAIN',
     })
   }
   return tokens
