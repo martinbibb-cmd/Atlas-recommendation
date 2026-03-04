@@ -35,6 +35,12 @@ const TEMPLATE_LABELS: Record<SystemTemplate, string> = {
   unvented: 'Unvented cylinder — mains-fed',
 };
 
+const COLD_TEMP_LABEL: Record<5 | 10 | 15, string> = {
+  5:  '5 °C (winter)',
+  10: '10 °C',
+  15: '15 °C (summer)',
+};
+
 // ─── Builder state ────────────────────────────────────────────────────────────
 
 interface BuilderState {
@@ -225,7 +231,7 @@ export default function LegoScenarioBuilder() {
                   className={`segment-control__btn${state.coldTempC === t ? ' segment-control__btn--active' : ''}`}
                   onClick={() => set('coldTempC', t)}
                 >
-                  {t} °C{t === 5 ? ' (winter)' : t === 15 ? ' (summer)' : ''}
+                  {COLD_TEMP_LABEL[t]}
                 </button>
               ))}
             </div>

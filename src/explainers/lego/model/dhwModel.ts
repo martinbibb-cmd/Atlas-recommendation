@@ -45,8 +45,20 @@ export function computeCombiThermalLimit({ dhwOutputKw, coldTempC, setpointC }: 
 
 // ─── Pipe capacity lookup (diameter-based rough model) ───────────────────────
 
-/** Approximate maximum domestic flow capacity by nominal pipe diameter.
- *  Values are conservative service limits, not full Darcy-Weisbach results. */
+/**
+ * Approximate maximum domestic flow capacity by nominal pipe diameter.
+ *
+ * Values are conservative service limits derived from BS 6700 / BS EN 806
+ * guidance on maximum flow velocities (≤ 3 m/s) for domestic cold/hot
+ * water services. These are NOT precise Darcy-Weisbach results.
+ *
+ * Diameter  Max velocity  Rough capacity
+ *  10 mm       3 m/s      ~6  L/min
+ *  12 mm       3 m/s      ~9  L/min
+ *  15 mm       3 m/s      ~15 L/min
+ *  22 mm       3 m/s      ~30 L/min
+ *  28 mm       3 m/s      ~50 L/min
+ */
 const PIPE_CAPACITY_LPM: Record<number, number> = {
   10: 6,
   12: 9,

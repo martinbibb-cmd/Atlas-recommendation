@@ -60,7 +60,7 @@ export default function SystemFlowView({ scenario, computed }: Props) {
       <h3 className="sysflow-view__title">{scenario.meta.name}</h3>
       <p className="sysflow-view__desc">{scenario.meta.description}</p>
 
-      <div className="sysflow-view__pipeline" role="img" aria-label="System flow diagram">
+      <div className="sysflow-view__pipeline" role="region" aria-label="System flow diagram">
         {columns.map((cat, colIdx) => (
           <div key={cat} className="sysflow-col">
             <div className="sysflow-col__header">{CATEGORY_LABEL[cat]}</div>
