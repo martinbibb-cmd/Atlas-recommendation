@@ -23,9 +23,22 @@ const HEX_END = 0.62
  * Tokens on MAIN reaching this threshold are assigned to an outlet branch.
  * Uses a range-based crossing check: token is routed when it crosses from
  * below S_SPLIT to at or above S_SPLIT in a single tick.
- * Placed near the end of the trunk so the split happens close to the splitter node.
+ * Placed at 0.82 so the split happens clearly at the splitter node, well before
+ * the end of the trunk, giving visually distinct branching.
+ * A failsafe at sNext >= S_FAILSAFE ensures MAIN tokens are always routed when
+ * active outlets exist, even if the tick step skips over S_SPLIT.
  */
-const S_SPLIT = 0.97
+const S_SPLIT = 0.82
+
+/** Failsafe: MAIN tokens that reach or pass this position without crossing S_SPLIT
+ * (possible with large tick steps) are force-routed to an outlet. */
+const S_FAILSAFE = 0.995
+
+/**
+ * Maximum DHW setpoint (°C) used by the animation, regardless of the UI slider value.
+ * Prevents the thermal palette from looking superheated at higher customer-unsafe settings.
+ */
+const MAX_ANIMATION_SETPOINT_C = 55
 
 /** Prevent division-by-zero when a token barely moves in a tick. */
 const MIN_MOVEMENT_EPSILON = 1e-6
@@ -159,13 +172,16 @@ export function stepSimulation(params: {
   // kW_required = 0.06977 × flowLpm × (setpointC − coldInletC)
   // kW_actual   = min(combiDhwKw, kW_required)
   // This prevents superheating at low flow and produces outlet-temp droop at high flow.
+  // Clamp to MAX_ANIMATION_SETPOINT_C so the animation palette does not look superheated
+  // even when the UI slider is set higher than a customer-safe value.
+  const setpointC = Math.min(controls.dhwSetpointC, MAX_ANIMATION_SETPOINT_C)
   const mDot = hydraulicFlowLpm / 60 // kg/s
-  const kWRequired = 0.06977 * hydraulicFlowLpm * (controls.dhwSetpointC - controls.coldInletC)
+  const kWRequired = 0.06977 * hydraulicFlowLpm * (setpointC - controls.coldInletC)
   const kWActual = Math.min(controls.combiDhwKw, kWRequired)
   const qDot = kWActual * 1000 // kW -> J/s
   const dhPerKgPerSecond = mDot > 0 ? qDot / mDot : 0
   // Maximum heat content corresponding to the DHW setpoint (used to clamp tokens)
-  const maxHSetpoint = tempToHeatJPerKg({ coldInletC: controls.coldInletC, tempC: controls.dhwSetpointC })
+  const maxHSetpoint = tempToHeatJPerKg({ coldInletC: controls.coldInletC, tempC: setpointC })
 
   // ── Cylinder store ────────────────────────────────────────────────────────
   let store = isCylinder ? ensureCylinderStore(frame, controls) : undefined
@@ -245,8 +261,12 @@ export function stepSimulation(params: {
       // Cylinder: no HEX zone — tokens already carry store heat from spawn.
 
       // At the splitter: assign token to an outlet branch and reset s.
-      // Range-based crossing check fires exactly once per token.
-      if (sPrev < S_SPLIT && sNext >= S_SPLIT) {
+      // Use a robust threshold and a failsafe near the end so MAIN tokens never "escape".
+      const shouldBranch =
+        (sPrev < S_SPLIT && sNext >= S_SPLIT) ||
+        (sNext >= S_FAILSAFE && activeOutlets.length > 0) // failsafe
+
+      if (shouldBranch) {
         const targetOutlet = pickOutletDeterministic(controls.outlets, extractTokenNumId(t.id))
         return { ...t, s: 0, v, p, hJPerKg: h, route: targetOutlet }
       }
