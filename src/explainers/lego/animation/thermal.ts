@@ -11,7 +11,7 @@ export type ThermalBand = {
  *
  * Tuned for domestic DHW/CH ranges (0–85°C).
  */
-const THERMAL_BANDS: ThermalBand[] = [
+export const THERMAL_BANDS: ThermalBand[] = [
   { t: 0,  hex: '#07162b' }, // deep navy
   { t: 10, hex: '#0b3b7a' }, // blue
   { t: 20, hex: '#0f7aa7' }, // cyan-blue
