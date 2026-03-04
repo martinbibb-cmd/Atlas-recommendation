@@ -48,8 +48,8 @@ const HUB_TILES: HubTile[] = [
   {
     id: 'explainers',
     icon: '🧱',
-    title: 'Explainers',
-    subtitle: 'System diagrams & scenario builder',
+    title: 'Demo Lab',
+    subtitle: 'Physics explainers & sandbox',
     available: true,
   },
 ];

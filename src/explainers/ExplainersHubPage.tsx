@@ -72,7 +72,7 @@ export default function ExplainersHubPage({ onBack }: Props) {
     return (
       <div className="hub-page">
         <div className="hub-page__header">
-          <button className="hub-back-btn" onClick={() => setPage('hub')}>← Back to Explainers</button>
+          <button className="hub-back-btn" onClick={() => setPage('hub')}>← Back to Demo Lab</button>
           <h2 className="hub-page__panel-title">Build a scenario</h2>
         </div>
         <LegoScenarioBuilder />
@@ -85,7 +85,7 @@ export default function ExplainersHubPage({ onBack }: Props) {
     return (
       <div className="hub-page">
         <div className="hub-page__header">
-          <button className="hub-back-btn" onClick={() => setPage('hub')}>← Back to Explainers</button>
+          <button className="hub-back-btn" onClick={() => setPage('hub')}>← Back to Demo Lab</button>
           <h2 className="hub-page__panel-title">{selectedPreset.meta.name}</h2>
         </div>
         <div className="panel-card">
@@ -102,8 +102,8 @@ export default function ExplainersHubPage({ onBack }: Props) {
           <button className="hub-back-btn" onClick={onBack}>← Back</button>
         )}
         <div>
-          <h1 className="hub-page__title">Explainers</h1>
-          <p className="hub-page__subtitle">Physics-based system explainers and scenario builder</p>
+          <h1 className="hub-page__title">Demo Lab</h1>
+          <p className="hub-page__subtitle">Physics explainers & sandbox</p>
         </div>
       </div>
 
