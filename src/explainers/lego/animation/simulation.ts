@@ -2,7 +2,7 @@
 
 import type { LabControls, LabFrame, LabToken, OutletId, OutletControl } from './types'
 import { pipeDiameterCapacityLpm } from '../model/dhwModel'
-import { heatToTempC, tempToHeatJPerKg } from './thermal'
+import { heatToTempC } from './thermal'
 import {
   createCylinderStore,
   cylinderTempC,
