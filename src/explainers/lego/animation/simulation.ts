@@ -2,7 +2,14 @@
 
 import type { LabControls, LabFrame, LabToken, OutletId, OutletControl } from './types'
 import { pipeDiameterCapacityLpm } from '../model/dhwModel'
-import { heatToTempC } from './thermal'
+import { heatToTempC, tempToHeatJPerKg } from './thermal'
+import {
+  createCylinderStore,
+  cylinderTempC,
+  addReheatEnergy,
+  removeDrawEnergy,
+} from './storage'
+import type { CylinderStore } from './storage'
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
@@ -45,11 +52,39 @@ function velocityProxy(params: { flowLpm: number; diameterMm: number }) {
 }
 
 /**
- * Pressure proxy (token size). If you later add pressure model,
- * this becomes derived. For now it tracks supply "strength".
+ * Pressure proxy (token size) for mains-fed (combi or unvented cylinder).
  */
 function pressureProxy(params: { mainsFlowLpm: number }) {
   return clamp(params.mainsFlowLpm / 20, 0.35, 1.1)
+}
+
+/**
+ * Pressure proxy for a vented (tank-fed) cylinder.
+ * Vented head pressure feels "weaker" than mains supply.
+ */
+function ventedPressureProxy(params: { headMeters: number }) {
+  return clamp((params.headMeters * 0.1) / 1.5, 0.25, 0.8)
+}
+
+/**
+ * Optional vented supply flow cap: simple proxy (headMeters * 6 L/min per metre of head).
+ * The factor 6 is an empirical demo proxy — roughly 0.1 bar per metre × ~60 L/min per bar.
+ */
+function ventedSupplyCapLpm(params: { mainsFlowLpm: number; headMeters: number }) {
+  return Math.min(params.mainsFlowLpm, params.headMeters * 6)
+}
+
+/**
+ * Ensure the cylinder store is initialised if the frame doesn't have one yet.
+ */
+function ensureCylinderStore(frame: LabFrame, controls: LabControls): CylinderStore {
+  if (frame.cylinderStore) return frame.cylinderStore
+  const cyl = controls.cylinder ?? { volumeL: 180, initialTempC: 55, reheatKw: 12 }
+  return createCylinderStore({
+    volumeL: cyl.volumeL,
+    coldInletC: controls.coldInletC,
+    initialTempC: cyl.initialTempC,
+  })
 }
 
 /** Precision bucket for deterministic weighted outlet selection using token IDs. */
@@ -93,25 +128,60 @@ export function stepSimulation(params: {
   const { frame, dtMs, controls } = params
   const dt = dtMs / 1000
 
+  const isCylinder = controls.systemType === 'unvented_cylinder' || controls.systemType === 'vented_cylinder'
+
   const activeOutlets = controls.outlets.filter(o => o.enabled && o.demandLpm > 0)
   const demandTotalLpm = activeOutlets.reduce((sum, o) => sum + o.demandLpm, 0)
 
   const pipeCap = pipeDiameterCapacityLpm(controls.pipeDiameterMm) ?? Infinity
 
+  // For vented cylinders: apply a head-pressure-derived flow cap.
+  const ventedCap = controls.systemType === 'vented_cylinder' && controls.vented
+    ? ventedSupplyCapLpm({ mainsFlowLpm: controls.mainsDynamicFlowLpm, headMeters: controls.vented.headMeters })
+    : Infinity
+
   // "What flow can physically pass through the system?"
-  // This governs token count/speed (the hydraulic throughput).
-  const hydraulicFlowLpm = Math.min(demandTotalLpm, controls.mainsDynamicFlowLpm, pipeCap)
+  const hydraulicFlowLpm = Math.min(demandTotalLpm, controls.mainsDynamicFlowLpm, pipeCap, ventedCap)
 
-  // Mass flow (kg/s) ~ L/s (water)
+  // ── Pressure proxy ────────────────────────────────────────────────────────
+  let p: number
+  if (controls.systemType === 'vented_cylinder' && controls.vented) {
+    p = ventedPressureProxy({ headMeters: controls.vented.headMeters })
+  } else {
+    p = pressureProxy({ mainsFlowLpm: controls.mainsDynamicFlowLpm })
+  }
+
+  // ── Combi heat injection values (only used when systemType === 'combi') ───
   const mDot = hydraulicFlowLpm / 60 // kg/s
-
-  // Heat rate in J/s
   const qDot = controls.combiDhwKw * 1000 // kW -> J/s
-
-  // Natural thermal droop: when demand flow > thermal capacity, mDot is larger,
-  // so dhPerKgPerSecond (heat per kg of water) falls — tokens exit cooler.
-  // No hard cutoff needed; the physics encode the droop automatically.
   const dhPerKgPerSecond = mDot > 0 ? qDot / mDot : 0
+
+  // ── Cylinder store ────────────────────────────────────────────────────────
+  let store = isCylinder ? ensureCylinderStore(frame, controls) : undefined
+
+  if (isCylinder && store) {
+    // Reheat adds energy every tick regardless of draw.
+    const reheatKw = controls.cylinder?.reheatKw ?? 12
+    store = addReheatEnergy({ store, reheatKw, dtS: dt })
+
+    // Drawdown: remove energy proportional to delivered hot flow.
+    if (demandTotalLpm > 0) {
+      const storeTmp = cylinderTempC({ store, coldInletC: controls.coldInletC })
+      store = removeDrawEnergy({
+        store,
+        coldInletC: controls.coldInletC,
+        drawLpm: hydraulicFlowLpm,
+        deliveredTempC: storeTmp,
+        dtS: dt,
+      })
+    }
+  }
+
+  // ── Heat content for cylinder-spawned tokens ──────────────────────────────
+  // Tokens from a cylinder carry the store temperature as their heat content.
+  const cylinderHJPerKg = (isCylinder && store)
+    ? store.energyJ / store.volumeL // J/kg above cold baseline
+    : 0
 
   // Spawn tokens using a deterministic carry-over accumulator (no Math.random).
   const spawnRate = tokensPerSecondFromLpm(hydraulicFlowLpm)
@@ -120,19 +190,19 @@ export function stepSimulation(params: {
   const spawnAccumulator = rawAccumulator - spawnCount // carry fractional part forward
 
   const v = velocityProxy({ flowLpm: hydraulicFlowLpm, diameterMm: controls.pipeDiameterMm })
-  const p = pressureProxy({ mainsFlowLpm: controls.mainsDynamicFlowLpm })
 
   let tokens: LabToken[] = [...frame.tokens]
   let nextId = frame.nextTokenId
 
-  // Add spawns at s = 0 on MAIN with deterministic sequential IDs
+  // Add spawns at s = 0 on MAIN with deterministic sequential IDs.
+  // Cylinder tokens start warm (heat from store); combi tokens start cold.
   for (let i = 0; i < spawnCount; i++) {
     tokens.push({
       id: `t_${nextId++}`,
       s: 0,
       v,
       p,
-      hJPerKg: 0,
+      hJPerKg: isCylinder ? cylinderHJPerKg : 0,
       route: 'MAIN',
     })
   }
@@ -140,7 +210,7 @@ export function stepSimulation(params: {
   // EMA outlet samples — carry forward and update in this tick
   const outletSamples = { ...frame.outletSamples }
 
-  // Step + heat injection (MAIN only) + splitter assignment
+  // Step + heat injection (MAIN only for combi) + splitter assignment
   tokens = tokens.map(t => {
     const sPrev = t.s
     const sNext = clamp(t.s + t.v * dt, 0, 1)
@@ -148,18 +218,18 @@ export function stepSimulation(params: {
     let h = t.hJPerKg
 
     if (t.route === 'MAIN') {
-      // If the token overlaps the HEX zone during this tick, add heat.
-      const inHexNow = sPrev < HEX_END && sNext > HEX_START
+      if (!isCylinder) {
+        // Combi: inject heat as the token passes through the HEX zone.
+        const inHexNow = sPrev < HEX_END && sNext > HEX_START
 
-      if (inHexNow) {
-        // scale by fraction of tick spent in the HEX zone
-        const overlapStart = Math.max(sPrev, HEX_START)
-        const overlapEnd = Math.min(sNext, HEX_END)
-        const frac = clamp((overlapEnd - overlapStart) / Math.max(MIN_MOVEMENT_EPSILON, sNext - sPrev), 0, 1)
-
-        // Add heat content. This is the "passable heat" foundation.
-        h += dhPerKgPerSecond * dt * frac
+        if (inHexNow) {
+          const overlapStart = Math.max(sPrev, HEX_START)
+          const overlapEnd = Math.min(sNext, HEX_END)
+          const frac = clamp((overlapEnd - overlapStart) / Math.max(MIN_MOVEMENT_EPSILON, sNext - sPrev), 0, 1)
+          h += dhPerKgPerSecond * dt * frac
+        }
       }
+      // Cylinder: no HEX zone — tokens already carry store heat from spawn.
 
       // At the splitter: assign token to an outlet branch and reset s
       if (sNext >= S_SPLIT) {
@@ -198,6 +268,7 @@ export function stepSimulation(params: {
     spawnAccumulator,
     nextTokenId: nextId,
     outletSamples,
+    cylinderStore: store,
   }
 }
 

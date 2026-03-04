@@ -18,6 +18,7 @@ function outlets(count: 1 | 2 | 3, demandLpm: number): OutletControl[] {
 }
 
 const BASE: LabControls = {
+  systemType: 'combi',
   coldInletC: 10,
   dhwSetpointC: 50,
   combiDhwKw: 30,
