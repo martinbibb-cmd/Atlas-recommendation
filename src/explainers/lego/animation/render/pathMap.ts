@@ -62,7 +62,8 @@ export type SchematicPolylines = {
  *
  * The trunk (main) runs from mains → boiler → splitter.
  * Each branch runs from the splitter to its respective outlet endpoint.
- * Branches are always defined so TokensLayer can route A/B/C unconditionally.
+ * All three branches are always defined. The caller (LabCanvas/TokensLayer) is
+ * responsible for dimming or hiding disabled outlets — the path geometry is always present.
  */
 export function buildPolylines(): SchematicPolylines {
   const trunk: Pt[] = [

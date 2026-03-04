@@ -84,8 +84,8 @@ export function LabCanvas(props: {
     C: P.outlet3Y,
   }
 
-  const enabledOutlets = controls.outlets.filter(o => o.enabled)
-  const hasMultipleOutlets = enabledOutlets.length > 1 || controls.outlets.some(o => !o.enabled && o.id !== 'A')
+  // The splitter node is always visible since we always have 3 defined outlet branches.
+  const showSplitter = true
 
   return (
     <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
@@ -136,7 +136,7 @@ export function LabCanvas(props: {
         />
 
         {/* ── Splitter node ──────────────────────────────────────────────── */}
-        {hasMultipleOutlets && (
+        {showSplitter && (
           <circle cx={P.splitX} cy={P.splitY} r={9} fill="#8aa1b6" />
         )}
 

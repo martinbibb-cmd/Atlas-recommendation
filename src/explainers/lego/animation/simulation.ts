@@ -52,6 +52,19 @@ function pressureProxy(params: { mainsFlowLpm: number }) {
   return clamp(params.mainsFlowLpm / 20, 0.35, 1.1)
 }
 
+/** Precision bucket for deterministic weighted outlet selection using token IDs. */
+const OUTLET_SELECTION_PRECISION = 10000
+
+/** EMA weight applied to the previous outlet temperature sample. */
+const EMA_WEIGHT_PREVIOUS = 0.9
+/** EMA weight applied to the incoming outlet temperature sample. */
+const EMA_WEIGHT_CURRENT = 0.1
+
+/** Extract the numeric part of a token ID (e.g. 't_42' → 42). */
+function extractTokenNumId(tokenId: string): number {
+  return parseInt(tokenId.replace('t_', ''), 10)
+}
+
 /**
  * Deterministic weighted outlet selection using token ID.
  *
@@ -62,8 +75,8 @@ function pickOutletDeterministic(outlets: OutletControl[], tokenNumId: number): 
   const active = outlets.filter(o => o.enabled && o.demandLpm > 0)
   if (active.length === 0) return 'A'
   const total = active.reduce((s, o) => s + o.demandLpm, 0)
-  // Scale tokenId into [0, total) using a precision bucket of 10 000.
-  const r = (tokenNumId % 10000) / 10000 * total
+  // Scale tokenId into [0, total) using a precision bucket.
+  const r = (tokenNumId % OUTLET_SELECTION_PRECISION) / OUTLET_SELECTION_PRECISION * total
   let acc = 0
   for (const o of active) {
     acc += o.demandLpm
@@ -150,8 +163,7 @@ export function stepSimulation(params: {
 
       // At the splitter: assign token to an outlet branch and reset s
       if (sNext >= S_SPLIT) {
-        const numId = parseInt(t.id.replace('t_', ''), 10)
-        const targetOutlet = pickOutletDeterministic(controls.outlets, numId)
+        const targetOutlet = pickOutletDeterministic(controls.outlets, extractTokenNumId(t.id))
         return { ...t, s: 0, v, p, hJPerKg: h, route: targetOutlet }
       }
 
@@ -170,7 +182,7 @@ export function stepSimulation(params: {
       const prev = outletSamples[outletId]
       outletSamples[outletId] = {
         // Exponential moving average — smooths over several frames
-        tempC: prev.count === 0 ? tempC : prev.tempC * 0.9 + tempC * 0.1,
+        tempC: prev.count === 0 ? tempC : prev.tempC * EMA_WEIGHT_PREVIOUS + tempC * EMA_WEIGHT_CURRENT,
         count: prev.count + 1,
       }
       return false

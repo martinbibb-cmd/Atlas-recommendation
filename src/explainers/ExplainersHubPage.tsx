@@ -99,7 +99,7 @@ export default function ExplainersHubPage({ onBack }: Props) {
 
   const labSummary = computeCapacitySummary(labControls);
 
-  /** Update a single field of one outlet by id. */
+  /** Update a single field of one outlet by id, preserving all other outlet data. */
   function updateOutlet(id: OutletControl['id'], patch: Partial<Omit<OutletControl, 'id'>>) {
     setOutlets(prev => prev.map(o => o.id === id ? { ...o, ...patch } : o));
   }
