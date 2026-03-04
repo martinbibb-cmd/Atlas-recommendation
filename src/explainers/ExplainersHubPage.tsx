@@ -19,6 +19,8 @@ import {
   computeCapacityChain,
 } from './lego/model/dhwModel';
 import type { CapacityChainResult } from './lego/model/dhwModel';
+import { LabCanvas } from './lego/animation/render/LabCanvas';
+import type { LabControls } from './lego/animation/types';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +69,8 @@ type Page = 'hub' | 'preset' | 'builder';
 export default function ExplainersHubPage({ onBack }: Props) {
   const [page, setPage] = useState<Page>('hub');
   const [selectedPreset, setSelectedPreset] = useState<LegoScenario | null>(null);
+  const [coldInletC, setColdInletC] = useState<LabControls['coldInletC']>(10);
+  const labControls: LabControls = { coldInletC };
 
   if (page === 'builder') {
     return (
@@ -106,6 +110,33 @@ export default function ExplainersHubPage({ onBack }: Props) {
           <p className="hub-page__subtitle">Physics explainers & sandbox</p>
         </div>
       </div>
+
+      {/* ── Thermal token animation (beta) ──────────────────────────── */}
+      <section className="explainers-section" style={{ marginTop: '2rem' }}>
+        <h2 className="explainers-section__title">Animation (beta)</h2>
+        <div style={{ marginBottom: '0.75rem' }}>
+          <label style={{ marginRight: '0.5rem', fontWeight: 500 }}>Cold inlet:</label>
+          {([5, 10, 15] as LabControls['coldInletC'][]).map(c => (
+            <button
+              key={c}
+              onClick={() => setColdInletC(c)}
+              style={{
+                marginRight: '0.25rem',
+                padding: '0.25rem 0.75rem',
+                fontWeight: coldInletC === c ? 700 : 400,
+                background: coldInletC === c ? '#1e3a5f' : '#eaf0f7',
+                color: coldInletC === c ? '#fff' : '#1e3a5f',
+                border: '1px solid #1e3a5f',
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
+            >
+              {c} °C
+            </button>
+          ))}
+        </div>
+        <LabCanvas controls={labControls} />
+      </section>
 
       {/* ── Presets ─────────────────────────────────────────────────────── */}
       <section className="explainers-section">
