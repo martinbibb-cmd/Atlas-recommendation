@@ -36,6 +36,13 @@ export type LabToken = {
   hJPerKg: number
   // which polyline this token is currently on
   route: LabRoute
+  /**
+   * Outlet pre-assigned at spawn time so the draw junction upstream of the
+   * boiler already "knows" where this packet of water is destined.
+   * Tokens without a pre-assignment (e.g. manually created in tests) fall
+   * back to the hash-based deterministic roulette at the split point.
+   */
+  assignedOutlet?: OutletId
 }
 
 /** Distinguishes combi (on-demand) from stored hot water systems. */

@@ -11,14 +11,20 @@ interface ThermalLegendProps {
 /**
  * A compact FLIR-style vertical gradient legend.
  * Renders a colour bar from cold inlet to DHW setpoint with °C labels.
+ * The required-temperature (setpoint) marker uses a thicker orange stroke
+ * with a subtle glow and a CSS-transition so it animates smoothly when the
+ * target temperature changes.
  */
 export function ThermalLegend({ coldInletC, setpointC, bands }: ThermalLegendProps) {
   const gradientId = 'thermal-legend-grad'
+  const glowId     = 'setpoint-glow'
 
   // Build gradient stops from the thermal palette
   const minT = bands[0].t
   const maxT = bands[bands.length - 1].t
   const range = maxT - minT || 1
+
+  const setpointYPos = 10 + 100 - ((Math.min(setpointC, maxT) - minT) / range) * 100
 
   return (
     <svg width={60} height={150} aria-label="Thermal colour legend">
@@ -29,6 +35,15 @@ export function ThermalLegend({ coldInletC, setpointC, bands }: ThermalLegendPro
             return <stop key={i} offset={`${offset.toFixed(1)}%`} stopColor={b.hex} />
           })}
         </linearGradient>
+
+        {/* Glow filter for the required-temperature marker */}
+        <filter id={glowId} x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="2.5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
 
       {/* Colour bar */}
@@ -45,18 +60,28 @@ export function ThermalLegend({ coldInletC, setpointC, bands }: ThermalLegendPro
         )
       })()}
 
-      {/* Setpoint tick — labelled "Target" so it reads as the setpoint anchor */}
-      {(() => {
-        const clampedSetpoint = Math.min(setpointC, maxT)
-        const yPos = 10 + 100 - ((clampedSetpoint - minT) / range) * 100
-        return (
-          <>
-            <line x1={10} y1={yPos} x2={30} y2={yPos} stroke="#b45309" strokeWidth={1.5} />
-            <text x={32} y={yPos - 3} fontSize={9} fill="#b45309" fontWeight={600}>Target</text>
-            <text x={32} y={yPos + 7} fontSize={9} fill="#b45309">{setpointC} °C</text>
-          </>
-        )
-      })()}
+      {/*
+        Setpoint tick — orange, thicker, subtle glow, and CSS-transition so it
+        eases smoothly to its new position when the required temperature changes.
+        `transform: translateY(...)` is used (rather than a `y` attribute) because
+        CSS transitions only animate transform / opacity on SVG elements in all
+        major browsers.
+      */}
+      <g
+        style={{
+          transform: `translateY(${setpointYPos}px)`,
+          transition: 'transform 300ms ease-in-out',
+        }}
+      >
+        <line
+          x1={8} y1={0} x2={32} y2={0}
+          stroke="#ea580c"
+          strokeWidth={2.5}
+          filter={`url(#${glowId})`}
+        />
+        <text x={32} y={-4} fontSize={9} fill="#ea580c" fontWeight={700}>Target</text>
+        <text x={32} y={8}  fontSize={9} fill="#ea580c">{setpointC} °C</text>
+      </g>
 
       {/* Legend label */}
       <text

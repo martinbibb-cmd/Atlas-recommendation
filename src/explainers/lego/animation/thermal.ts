@@ -6,20 +6,30 @@ export type ThermalBand = {
 }
 
 /**
- * DHW-friendly palette with six human-round anchor stops.
- * Stops are chosen so each 10 °C step maps to an easily-recognised colour,
- * matching the "cold=blue, warm=yellow, hot=red" mental model customers expect.
+ * DHW-friendly palette with seven human-round anchor stops.
+ * Anchors are chosen to match the "cold=blue → green → yellow → orange=target → red=hot"
+ * mental model customers expect for domestic hot-water temperatures.
  *
- * Domain: 10–60 °C (clamped outside this range).
+ * Domain: 5–65 °C (clamped outside this range).
  * Interpolation: HSL (perceptually smoother than RGB for hue-spanning transitions).
+ *
+ * Stop rationale:
+ *   5 °C  – deep blue    : cold mains / inlet
+ *  15 °C  – blue/cyan    : cool
+ *  25 °C  – green        : warm (tepid)
+ *  38 °C  – yellow       : warm shower threshold
+ *  45 °C  – orange       : required target (DHW setpoint region) — kept visually distinct
+ *  55 °C  – red          : hot / store peak
+ *  65 °C  – deep red     : upper clamp (Legionella territory)
  */
 export const THERMAL_BANDS: ThermalBand[] = [
-  { t: 10, hex: '#1a4fd6' }, // deep blue   (cold supply / inlet)
-  { t: 20, hex: '#06b6d4' }, // cyan        (lukewarm)
-  { t: 30, hex: '#22c55e' }, // green       (warm)
-  { t: 40, hex: '#facc15' }, // yellow      (hot domestic use threshold)
-  { t: 50, hex: '#f97316' }, // orange      (DHW setpoint region)
-  { t: 60, hex: '#dc2626' }, // red         (full-heat / store peak)
+  { t:  5, hex: '#1e3a8a' }, // deep blue   (cold mains)
+  { t: 15, hex: '#0ea5e9' }, // cyan-blue   (cool)
+  { t: 25, hex: '#22c55e' }, // green       (warm / tepid)
+  { t: 38, hex: '#facc15' }, // yellow      (warm shower threshold)
+  { t: 45, hex: '#f97316' }, // orange      (required target / DHW setpoint)
+  { t: 55, hex: '#dc2626' }, // red         (hot / store peak)
+  { t: 65, hex: '#7f1d1d' }, // deep red    (upper clamp)
 ]
 
 function clamp(n: number, min: number, max: number) {
@@ -123,11 +133,11 @@ export function tempToThermalColor(tempC: number): string {
 }
 
 /**
- * Round a temperature to the nearest 5 °C for human-readable display
+ * Round a temperature to the nearest 1 °C for human-readable display
  * in tooltips, badges, and legend labels.
  */
 export function roundTempC(tempC: number): number {
-  return Math.round(tempC / 5) * 5
+  return Math.round(tempC)
 }
 
 /**

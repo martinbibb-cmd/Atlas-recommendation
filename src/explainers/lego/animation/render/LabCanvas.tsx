@@ -8,7 +8,7 @@ import { createCylinderStore, cylinderTempC } from '../storage'
 import { TokensLayer } from './TokensLayer'
 import { ThermalLegend } from './ThermalLegend'
 import { THERMAL_BANDS, tempToThermalColor, roundTempC } from '../thermal'
-import { buildPolylines, SCHEMATIC_P } from './pathMap'
+import { buildPolylines, SCHEMATIC_P, branchSvgPath } from './pathMap'
 
 /** Baseline frame time at 60 fps (ms). */
 const DEFAULT_FRAME_TIME_MS = 16
@@ -124,6 +124,11 @@ export function LabCanvas(props: {
   const { main: polyMain, branchA, branchB, branchC } = buildPolylines()
 
   // Outlet positions for SVG rendering
+  const outletXMap: Record<OutletId, number> = {
+    A: P.outlet1X,
+    B: P.outlet2X,
+    C: P.outlet3X,
+  }
   const outletYMap: Record<OutletId, number> = {
     A: P.outlet1Y,
     B: P.outlet2Y,
@@ -246,47 +251,49 @@ export function LabCanvas(props: {
 
         {/* ── Outlet branches ────────────────────────────────────────────── */}
         {(controls.outlets as typeof controls.outlets).map(outlet => {
+          const ox = outletXMap[outlet.id]
           const oy = outletYMap[outlet.id]
           const isEnabled = outlet.enabled
           const strokeColor = isEnabled ? '#cfd8e3' : '#e2e8f0'
           const centerStroke = isEnabled ? '#8aa1b6' : '#cbd5e1'
           const delivered = summary.outletDeliveredLpm[outlet.id]
           const sample = frame.outletSamples[outlet.id]
+          const pathD = branchSvgPath(P.splitX, P.splitY, ox, oy, P.branchBendR)
 
           return (
             <g key={outlet.id}>
-              {/* Branch pipe */}
+              {/* Branch pipe — 90° off-take + swept bend */}
               <path
-                d={`M ${P.splitX} ${P.splitY} L ${P.outlet1X} ${oy}`}
-                stroke={strokeColor} strokeWidth={16} strokeLinecap="round"
+                d={pathD}
+                stroke={strokeColor} strokeWidth={16} strokeLinecap="round" fill="none"
                 opacity={isEnabled ? 1 : 0.4}
               />
               <path
-                d={`M ${P.splitX} ${P.splitY} L ${P.outlet1X} ${oy}`}
-                stroke={centerStroke} strokeWidth={2} strokeLinecap="round"
+                d={pathD}
+                stroke={centerStroke} strokeWidth={2} strokeLinecap="round" fill="none"
                 opacity={isEnabled ? 1 : 0.4}
               />
 
               {/* Outlet label */}
-              <text x={P.outlet1X + 6} y={oy - 8} textAnchor="start" fontSize={12} fill={isEnabled ? '#334155' : '#94a3b8'} fontWeight={600}>
+              <text x={ox + 6} y={oy - 8} textAnchor="start" fontSize={12} fill={isEnabled ? '#334155' : '#94a3b8'} fontWeight={600}>
                 {OUTLET_LABELS[outlet.id]} · {OUTLET_KIND_LABELS[outlet.kind]}
               </text>
 
               {/* Readout badge: delivered L/min + temperature */}
               {isEnabled && (
                 <g>
-                  <text x={P.outlet1X + 6} y={oy + 8} textAnchor="start" fontSize={11} fill="#0f766e">
+                  <text x={ox + 6} y={oy + 8} textAnchor="start" fontSize={11} fill="#0f766e">
                     {delivered.toFixed(1)} L/min
                   </text>
                   {sample.count > 0 && (
-                    <text x={P.outlet1X + 6} y={oy + 22} textAnchor="start" fontSize={11} fill="#b45309">
+                    <text x={ox + 6} y={oy + 22} textAnchor="start" fontSize={11} fill="#b45309">
                       ~{roundTempC(sample.tempC)} °C
                     </text>
                   )}
                 </g>
               )}
               {!isEnabled && (
-                <text x={P.outlet1X + 6} y={oy + 8} textAnchor="start" fontSize={11} fill="#94a3b8">
+                <text x={ox + 6} y={oy + 8} textAnchor="start" fontSize={11} fill="#94a3b8">
                   off
                 </text>
               )}
