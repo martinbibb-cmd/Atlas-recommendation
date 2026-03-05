@@ -184,7 +184,7 @@ export function LabCanvas(props: {
   const fillColor = storeTempC !== null ? tempToThermalColor(storeTempC) : '#cfd8e3'
 
   return (
-    <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
+    <div style={{ position: 'relative', display: 'block', width: '100%', minWidth: 700 }}>
       <svg width="100%" viewBox="0 0 1000 260" style={{ display: 'block' }}>
         <defs>
           <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -342,13 +342,14 @@ export function LabCanvas(props: {
           polyC={branchC}
           hydraulicFlowLpm={summary.hydraulicFlowLpm}
           demandTotalLpm={summary.demandTotalLpm}
+          postHexThermalColor={postHexThermalColor}
         />
       </svg>
 
       {/* ── Usable hot water indicator (cylinder only) ─────────────────── */}
       {isCylinder && usableHot !== null && (
         <div style={{
-          position: 'absolute', top: 8, left: 8,
+          position: 'absolute', top: 8, right: 8,
           background: usableHot ? '#dcfce7' : '#fee2e2',
           border: `1px solid ${usableHot ? '#16a34a' : '#dc2626'}`,
           borderRadius: 8,
@@ -363,7 +364,7 @@ export function LabCanvas(props: {
       )}
 
       {/* ── Thermal legend overlay ─────────────────────────────────────── */}
-      <div style={{ position: 'absolute', top: 8, right: 8, pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', top: 8, left: 8, pointerEvents: 'none' }}>
         <ThermalLegend
           coldInletC={controls.coldInletC}
           setpointC={controls.dhwSetpointC}
@@ -371,6 +372,35 @@ export function LabCanvas(props: {
           achievedTempC={!isCylinder ? summary.achievedOutTempC : undefined}
         />
       </div>
+
+      {/* ── "Can't hit target" callout (combi only) ───────────────────── */}
+      {combiIsFailing && summary.achievedOutTempC !== undefined && (
+        <div
+          role="alert"
+          aria-live="polite"
+          style={{
+            position: 'absolute', bottom: 8, right: 8,
+            background: '#fef2f2',
+            border: '1px solid #fca5a5',
+            borderRadius: 8,
+            padding: '6px 10px',
+            fontSize: 11,
+            fontWeight: 700,
+            color: '#b91c1c',
+            pointerEvents: 'none',
+            zIndex: 20,
+            lineHeight: 1.5,
+          }}
+        >
+          <div>⚠ Can&apos;t hit target</div>
+          <div style={{ fontWeight: 400 }}>
+            −{Math.abs(roundTempC(controls.dhwSetpointC - summary.achievedOutTempC))} °C short
+          </div>
+          <div style={{ fontWeight: 400, fontSize: 10, color: '#7f1d1d' }}>
+            Need {controls.dhwSetpointC} °C
+          </div>
+        </div>
+      )}
     </div>
   )
 }

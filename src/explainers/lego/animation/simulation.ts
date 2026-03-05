@@ -17,7 +17,8 @@ function clamp(n: number, min: number, max: number) {
 
 // Path positions (0..1)
 const HEX_START = 0.38
-const HEX_END = 0.62
+/** Exported so TokensLayer can derive per-token segment colour without storing temp on the token. */
+export const HEX_END = 0.62
 
 /**
  * Tokens on MAIN reaching this threshold are assigned to an outlet branch.
