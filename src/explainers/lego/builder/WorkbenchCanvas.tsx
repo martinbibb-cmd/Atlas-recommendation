@@ -104,7 +104,12 @@ export default function WorkbenchCanvas({
           const midX = (from.x + to.x) / 2;
           const points = `${from.x},${from.y} ${midX},${from.y} ${midX},${to.y} ${to.x},${to.y}`;
 
-          return <polyline key={edge.id} points={points} className="pipe-line" fill="none" />;
+          const edgeClass =
+            edge.meta?.roleFrom === 'unknown' || edge.meta?.roleTo === 'unknown'
+              ? 'pipe-line softwarn'
+              : 'pipe-line'
+
+          return <polyline key={edge.id} points={points} className={edgeClass} fill="none" />;
         })}
 
         {pendingPort
