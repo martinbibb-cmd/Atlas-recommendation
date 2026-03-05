@@ -8,6 +8,7 @@ import NeutralityPage from './components/governance/NeutralityPage';
 import PrivacyPage from './components/governance/PrivacyPage';
 import BehaviourConsolePage from './components/behaviour/BehaviourConsolePage';
 import ExplainersHubPage from './explainers/ExplainersHubPage';
+import LabShell from './components/lab/LabShell';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
 import './App.css';
@@ -43,7 +44,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   preferCombi: true,
 };
 
-type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy';
+type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab';
 
 export default function App() {
   const [journey, setJourney] = useState<Journey>('landing');
@@ -79,6 +80,7 @@ export default function App() {
   if (journey === 'methodology') return <MethodologyPage onBack={() => setJourney('landing')} />;
   if (journey === 'neutrality') return <NeutralityPage onBack={() => setJourney('landing')} />;
   if (journey === 'privacy') return <PrivacyPage onBack={() => setJourney('landing')} />;
+  if (journey === 'lab') return <LabShell onHome={() => setJourney('landing')} />;
 
   return (
     <div className="landing">
@@ -126,6 +128,18 @@ export default function App() {
             <li>Domain influence breakdown</li>
           </ul>
           <button className="cta-btn" style={{ background: '#38a169' }}>Open Console →</button>
+        </div>
+        <div className="journey-card full" onClick={() => setJourney('lab')} style={{ borderColor: '#805ad5' }}>
+          <div className="card-icon">🧱</div>
+          <h2>System Lab</h2>
+          <p className="card-time">New · Beta</p>
+          <p>Build-your-own heating system from first principles. Component-based physics builder.</p>
+          <ul>
+            <li>On-demand hot water simulation</li>
+            <li>Pipe capacity &amp; flow analysis</li>
+            <li>System component palette</li>
+          </ul>
+          <button className="cta-btn" style={{ background: '#805ad5' }}>Open System Lab →</button>
         </div>
       </div>
       <Footer onNavigate={setJourney} />
