@@ -239,9 +239,14 @@ describe('computeCapacitySummary — achievedOutTempC and requiredKw (combi)', (
     expect(s.requiredKw).toBeUndefined();
   });
 
-  it('cold_tap flow bypasses HEX in combi thermal calculation', () => {
+  it('bound cold-only outlet flow bypasses HEX in combi thermal calculation', () => {
     const s = computeCapacitySummary({
       ...BASE,
+      graphFacts: {
+        hotFedOutletNodeIds: ['node_hot'],
+        coldOnlyOutletNodeIds: ['node_cold'],
+      },
+      outletBindings: { A: 'node_cold', B: 'node_hot' },
       outlets: [
         { id: 'A', enabled: true, kind: 'cold_tap', demandLpm: 4 },
         { id: 'B', enabled: true, kind: 'basin', demandLpm: 8 },
@@ -250,6 +255,8 @@ describe('computeCapacitySummary — achievedOutTempC and requiredKw (combi)', (
     })
     // hydraulic=12 L/min but only 8 L/min crosses HEX, so boiler meets setpoint.
     expect(s.hydraulicFlowLpm).toBeCloseTo(12, 5)
+    expect(s.hexFlowLpm).toBeCloseTo(8, 5)
+    expect(s.coldBypassLpm).toBeCloseTo(4, 5)
     expect(s.achievedOutTempC).toBeCloseTo(50, 5)
   })
 });

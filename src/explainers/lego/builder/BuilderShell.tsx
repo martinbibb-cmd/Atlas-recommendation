@@ -13,6 +13,17 @@ function uid(prefix = 'n') {
 
 const EMPTY_GRAPH: BuildGraph = { nodes: [], edges: [] }
 
+const isOutletKind = (kind: PartKind) =>
+  kind === 'tap_outlet' || kind === 'bath_outlet' || kind === 'shower_outlet'
+
+const nextFreeSlot = (bindings: Partial<Record<'A' | 'B' | 'C', string>> | undefined) => {
+  const b = bindings ?? {}
+  if (!b.A) return 'A'
+  if (!b.B) return 'B'
+  if (!b.C) return 'C'
+  return null
+}
+
 export default function BuilderShell({ initial }: { initial?: BuildGraph }) {
   const [graph, setGraph] = useState<BuildGraph>(initial ?? EMPTY_GRAPH)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -44,7 +55,23 @@ export default function BuilderShell({ initial }: { initial?: BuildGraph }) {
       r: 0,
     }
 
-    setGraph(current => ({ ...current, nodes: [...current.nodes, node] }))
+    setGraph(current => {
+      const nodes = [...current.nodes, node]
+      if (!isOutletKind(kind)) {
+        return { ...current, nodes }
+      }
+
+      const slot = nextFreeSlot(current.outletBindings)
+      if (!slot) {
+        return { ...current, nodes }
+      }
+
+      return {
+        ...current,
+        nodes,
+        outletBindings: { ...(current.outletBindings ?? {}), [slot]: node.id },
+      }
+    })
     setSelectedId(node.id)
   }
 
@@ -121,15 +148,45 @@ export default function BuilderShell({ initial }: { initial?: BuildGraph }) {
       return
     }
 
-    setGraph(current => ({
-      ...current,
-      nodes: current.nodes.filter(node => node.id !== selectedId),
-      edges: current.edges.filter(
-        edge => edge.from.nodeId !== selectedId && edge.to.nodeId !== selectedId,
-      ),
-    }))
+    setGraph(current => {
+      const nextBindings = (Object.entries(current.outletBindings ?? {}) as Array<['A' | 'B' | 'C', string]>).reduce(
+        (acc, [slot, nodeId]) => {
+          if (nodeId !== selectedId) acc[slot] = nodeId
+          return acc
+        },
+        {} as Partial<Record<'A' | 'B' | 'C', string>>,
+      )
+
+      return {
+        ...current,
+        nodes: current.nodes.filter(node => node.id !== selectedId),
+        edges: current.edges.filter(
+          edge => edge.from.nodeId !== selectedId && edge.to.nodeId !== selectedId,
+        ),
+        outletBindings: nextBindings,
+      }
+    })
     setPendingPort(current => (current?.nodeId === selectedId ? null : current))
     setSelectedId(null)
+  }
+
+  const bindings = graph.outletBindings ?? {}
+  const selectedIsOutlet = selected ? isOutletKind(selected.kind) : false
+
+  const assignSelectedTo = (slot: 'A' | 'B' | 'C') => {
+    if (!selected || !selectedIsOutlet) return
+    setGraph(current => ({
+      ...current,
+      outletBindings: { ...(current.outletBindings ?? {}), [slot]: selected.id },
+    }))
+  }
+
+  const clearSlot = (slot: 'A' | 'B' | 'C') => {
+    setGraph(current => {
+      const next = { ...(current.outletBindings ?? {}) }
+      delete next[slot]
+      return { ...current, outletBindings: next }
+    })
   }
 
   return (
@@ -172,6 +229,34 @@ export default function BuilderShell({ initial }: { initial?: BuildGraph }) {
               🗑️ Delete
             </button>
           </div>
+
+          <div className="bindings">
+            <div className="bindings-title">Outlet bindings</div>
+            {(['A', 'B', 'C'] as const).map(slot => (
+              <div className="bind-row" key={slot}>
+                <div className="bind-slot">Outlet {slot}</div>
+                <div className="bind-val">{bindings[slot] ? `${bindings[slot]!.slice(0, 10)}…` : '—'}</div>
+
+                <button
+                  className="bind-btn"
+                  disabled={!selectedIsOutlet}
+                  onClick={() => assignSelectedTo(slot)}
+                  title={selectedIsOutlet ? 'Assign selected outlet token' : 'Select an outlet token first'}
+                >
+                  Assign
+                </button>
+
+                <button
+                  className="bind-btn danger"
+                  disabled={!bindings[slot]}
+                  onClick={() => clearSlot(slot)}
+                  title="Clear binding"
+                >
+                  Clear
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
         <WorkbenchCanvas
@@ -182,6 +267,7 @@ export default function BuilderShell({ initial }: { initial?: BuildGraph }) {
           onMove={moveNode}
           onPortTap={onPortTap}
           onCancelPending={cancelPending}
+          outletBindings={bindings}
         />
       </div>
     </div>

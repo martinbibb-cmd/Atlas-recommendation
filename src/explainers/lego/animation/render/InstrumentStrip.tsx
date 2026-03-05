@@ -107,6 +107,11 @@ export function InstrumentStrip({ summary, storeTempC, combiDhwKw }: InstrumentS
         </span>
       </div>
 
+
+      <div className="caps-debug">
+        HEX {summary.hexFlowLpm.toFixed(1)} L/min · bypass {summary.coldBypassLpm.toFixed(1)} · hot-fed {summary.hotFedCount}
+      </div>
+
       {/* Warnings */}
       {summary.warnings.length > 0 && (
         <div className="instrument-strip__warnings">

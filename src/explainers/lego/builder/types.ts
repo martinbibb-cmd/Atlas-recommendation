@@ -50,7 +50,10 @@ export interface PortDef {
 export interface BuildGraph {
   nodes: BuildNode[];
   edges: BuildEdge[];
+  outletBindings?: Partial<Record<OutletSlotId, string>>;
 }
+
+export type OutletSlotId = 'A' | 'B' | 'C';
 
 export interface PaletteItem {
   kind: PartKind;

@@ -7,7 +7,7 @@ export default function PalettePanel({ onPick }: { onPick: (kind: PartKind) => v
     <div className="palette">
       <div className="palette-head">
         <div className="palette-title">Palette</div>
-        <div className="palette-sub">Tap to add a part.</div>
+        <div className="palette-sub">Tap to add a part. Outlet tokens auto-bind to A/B/C.</div>
       </div>
 
       <div className="palette-grid">

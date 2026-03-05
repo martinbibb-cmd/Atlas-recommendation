@@ -97,6 +97,7 @@ export type LabControls = {
     hotFedOutletNodeIds: string[]
     coldOnlyOutletNodeIds: string[]
   }
+  outletBindings?: Partial<Record<'A' | 'B' | 'C', string>>
 }
 
 /** Rolling EMA temperature sample collected from tokens exiting an outlet branch. */

@@ -15,6 +15,13 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
 }
 
+function slotForOutletId(outletId: string): 'A' | 'B' | 'C' | null {
+  if (outletId === 'A' || outletId === 'OutletA') return 'A'
+  if (outletId === 'B' || outletId === 'OutletB') return 'B'
+  if (outletId === 'C' || outletId === 'OutletC') return 'C'
+  return null
+}
+
 // Path positions (0..1)
 const HEX_START = 0.38
 /** Exported so TokensLayer can derive per-token segment colour without storing temp on the token. */
@@ -245,32 +252,32 @@ export function stepSimulation(params: {
   // The hot-branch velocity for a TMV outlet is based on F_h, not F_out.
   type TmvToken = { F_h: number; F_c: number; T_h: number; saturated: boolean }
   const tmvOutletMap: Partial<Record<OutletId, TmvToken>> = {}
+  const bindings = controls.outletBindings ?? {}
   const hotFedIds = new Set(controls.graphFacts?.hotFedOutletNodeIds ?? [])
   const coldOnlyIds = new Set(controls.graphFacts?.coldOnlyOutletNodeIds ?? [])
-  const hasGraphFacts = !!controls.graphFacts
   let hexFlowLpm = 0
 
   for (const o of activeOutlets) {
-    const builderNodeId = o.builderNodeId
-    const isColdOnly =
-      (builderNodeId && coldOnlyIds.has(builderNodeId)) ||
-      (!hasGraphFacts && o.kind === 'cold_tap')
-    const isHotFed = builderNodeId ? hotFedIds.has(builderNodeId) : false
+    const slot = slotForOutletId(o.id)
+    const nodeId = slot ? bindings[slot] : undefined
 
-    if (isColdOnly) {
+    if (nodeId && coldOnlyIds.has(nodeId)) {
       continue
     }
-    if (isHotFed || !builderNodeId) {
+    if (nodeId && hotFedIds.has(nodeId)) {
       hexFlowLpm += outletActualLpm[o.id]
+      continue
     }
+
+    // fallback: treat unbound outlets as hot-fed (keeps old behaviour)
+    hexFlowLpm += outletActualLpm[o.id]
   }
 
   if (!isCylinder && hasDraw) {
     for (const o of activeOutlets) {
-      const builderNodeId = o.builderNodeId
-      const isColdOnly =
-        (builderNodeId && coldOnlyIds.has(builderNodeId)) ||
-        (!hasGraphFacts && o.kind === 'cold_tap')
+      const slot = slotForOutletId(o.id)
+      const nodeId = slot ? bindings[slot] : undefined
+      const isColdOnly = !!(nodeId && coldOnlyIds.has(nodeId))
       if (isColdOnly) {
         outletActualLpm[o.id] = 0
         continue

@@ -15,8 +15,8 @@
 
 .builder-toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   padding: 10px 12px;
   border-bottom: 1px solid #edf2f7;
   background: #f7fafc;
@@ -61,6 +61,8 @@
 .builder-actions {
   display: flex;
   gap: 8px;
+  align-items: center;
+  margin-top: 8px;
 }
 
 .builder-btn {
@@ -231,4 +233,65 @@
   .workbench {
     height: 70vh;
   }
+}
+
+.bindings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid #edf2f7;
+  background: #fff;
+}
+
+.bindings-title {
+  font-weight: 900;
+  font-size: 0.82rem;
+  color: #2d3748;
+}
+
+.bind-row {
+  display: grid;
+  grid-template-columns: 82px 1fr 74px 64px;
+  gap: 8px;
+  align-items: center;
+}
+
+.bind-slot {
+  font-weight: 900;
+  font-size: 0.8rem;
+  color: #4a5568;
+}
+
+.bind-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: #2d3748;
+}
+
+.bind-btn {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 10px;
+  padding: 6px 8px;
+  font-weight: 900;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.bind-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bind-btn.danger {
+  border-color: #fed7d7;
+}
+
+.token-bind {
+  margin-top: 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #805ad5;
 }
