@@ -6,25 +6,20 @@ export type ThermalBand = {
 }
 
 /**
- * A FLIR-ish palette anchored so the DHW setpoint cap (55 °C) maps to yellow.
- * Smoothly interpolated so it looks like a thermal image.
+ * DHW-friendly palette with six human-round anchor stops.
+ * Stops are chosen so each 10 °C step maps to an easily-recognised colour,
+ * matching the "cold=blue, warm=yellow, hot=red" mental model customers expect.
  *
- * Gradient: cold inlet (blue) → mid-range (green) → target/setpoint (yellow) →
- *           overshoot (amber/orange) → hot (red).
- *
- * Tuned for domestic DHW/CH ranges (0–85°C).
+ * Domain: 10–60 °C (clamped outside this range).
+ * Interpolation: HSL (perceptually smoother than RGB for hue-spanning transitions).
  */
 export const THERMAL_BANDS: ThermalBand[] = [
-  { t: 0,  hex: '#07162b' }, // deep navy
-  { t: 10, hex: '#0b3b7a' }, // blue
-  { t: 20, hex: '#0f7aa7' }, // cyan-blue
-  { t: 30, hex: '#16b3a5' }, // teal
-  { t: 40, hex: '#4cd66a' }, // green
-  { t: 55, hex: '#f5e642' }, // yellow — target/setpoint anchor (55 °C cap)
-  { t: 65, hex: '#ffc14a' }, // amber
-  { t: 75, hex: '#ff7b3a' }, // orange
-  { t: 85, hex: '#ff3b2f' }, // hot red-orange (still thermal, not "error")
-  { t: 90, hex: '#fff2e8' }, // near-white hot
+  { t: 10, hex: '#1a4fd6' }, // deep blue   (cold supply / inlet)
+  { t: 20, hex: '#06b6d4' }, // cyan        (lukewarm)
+  { t: 30, hex: '#22c55e' }, // green       (warm)
+  { t: 40, hex: '#facc15' }, // yellow      (hot domestic use threshold)
+  { t: 50, hex: '#f97316' }, // orange      (DHW setpoint region)
+  { t: 60, hex: '#dc2626' }, // red         (full-heat / store peak)
 ]
 
 function clamp(n: number, min: number, max: number) {
@@ -48,14 +43,69 @@ function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t
 }
 
-function lerpHex(aHex: string, bHex: string, t: number) {
-  const a = hexToRgb(aHex)
-  const b = hexToRgb(bHex)
-  return rgbToHex(lerp(a.r, b.r, t), lerp(a.g, b.g, t), lerp(a.b, b.b, t))
+// ── HSL conversion helpers ──────────────────────────────────────────────────
+
+function hue2rgb(p: number, q: number, t: number): number {
+  if (t < 0) t += 1
+  if (t > 1) t -= 1
+  if (t < 1 / 6) return p + (q - p) * 6 * t
+  if (t < 1 / 2) return q
+  if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
+  return p
+}
+
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  const rn = r / 255, gn = g / 255, bn = b / 255
+  const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn)
+  const l = (max + min) / 2
+  if (max === min) return [0, 0, l]
+  const d = max - min
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+  let h = 0
+  if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6
+  else if (max === gn) h = ((bn - rn) / d + 2) / 6
+  else h = ((rn - gn) / d + 4) / 6
+  return [h, s, l]
+}
+
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  if (s === 0) {
+    const v = Math.round(l * 255)
+    return [v, v, v]
+  }
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+  const p = 2 * l - q
+  return [
+    Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
+    Math.round(hue2rgb(p, q, h) * 255),
+    Math.round(hue2rgb(p, q, h - 1 / 3) * 255),
+  ]
 }
 
 /**
- * Convert temperature °C to a smooth thermal colour.
+ * Interpolate between two hex colours in HSL space.
+ * HSL interpolation is perceptually smoother than RGB for hue-spanning gradients
+ * (avoids the muddy mid-tones produced by linear RGB blending).
+ */
+function lerpHex(aHex: string, bHex: string, t: number) {
+  const aRgb = hexToRgb(aHex)
+  const bRgb = hexToRgb(bHex)
+  const [ah, as_, al] = rgbToHsl(aRgb.r, aRgb.g, aRgb.b)
+  const [bh, bs, bl] = rgbToHsl(bRgb.r, bRgb.g, bRgb.b)
+  // Shortest hue path (handles wrap-around at 0/1 boundary)
+  let dh = bh - ah
+  if (dh > 0.5) dh -= 1
+  if (dh < -0.5) dh += 1
+  const h = ((ah + dh * t) % 1 + 1) % 1
+  const s = lerp(as_, bs, t)
+  const l = lerp(al, bl, t)
+  const [r, g, b] = hslToRgb(h, s, l)
+  return rgbToHex(r, g, b)
+}
+
+/**
+ * Convert temperature °C to a smooth thermal colour using the DHW palette.
+ * Temperatures outside [10, 60] °C are clamped to the palette endpoints.
  */
 export function tempToThermalColor(tempC: number): string {
   const t = clamp(tempC, THERMAL_BANDS[0].t, THERMAL_BANDS[THERMAL_BANDS.length - 1].t)
@@ -70,6 +120,14 @@ export function tempToThermalColor(tempC: number): string {
   }
 
   return THERMAL_BANDS[THERMAL_BANDS.length - 1].hex
+}
+
+/**
+ * Round a temperature to the nearest 5 °C for human-readable display
+ * in tooltips, badges, and legend labels.
+ */
+export function roundTempC(tempC: number): number {
+  return Math.round(tempC / 5) * 5
 }
 
 /**
