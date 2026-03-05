@@ -7,6 +7,13 @@ import type { TmvOutcome } from './thermal'
 
 export type { TmvOutcome }
 
+function slotForOutletId(outletId: string): 'A' | 'B' | 'C' | null {
+  if (outletId === 'A' || outletId === 'OutletA') return 'A'
+  if (outletId === 'B' || outletId === 'OutletB') return 'B'
+  if (outletId === 'C' || outletId === 'OutletC') return 'C'
+  return null
+}
+
 export type CapacitySummary = {
   demandTotalLpm: number
   supplyCapLpm: number
@@ -39,6 +46,9 @@ export type CapacitySummary = {
    * the target shower temperature).
    */
   tmvSaturated?: boolean
+  hexFlowLpm: number
+  coldBypassLpm: number
+  hotFedCount: number
 }
 
 export function computeCapacitySummary(c: LabControls): CapacitySummary {
@@ -96,31 +106,33 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
     }
   }
 
+  const bindings = c.outletBindings ?? {}
   const hotFedIds = new Set(c.graphFacts?.hotFedOutletNodeIds ?? [])
   const coldOnlyIds = new Set(c.graphFacts?.coldOnlyOutletNodeIds ?? [])
-  const hasGraphFacts = !!c.graphFacts
 
   let hexFlowLpm = 0
+  let coldBypassLpm = 0
+  let hotFedCount = 0
 
   for (const o of activeOutlets) {
     const delivered = outletDeliveredLpm[o.id]
-    const builderNodeId = o.builderNodeId
+    const slot = slotForOutletId(o.id)
+    const nodeId = slot ? bindings[slot] : undefined
 
-    if (builderNodeId && coldOnlyIds.has(builderNodeId)) {
+    if (nodeId && coldOnlyIds.has(nodeId)) {
+      coldBypassLpm += delivered
       continue
     }
 
-    if (builderNodeId && hotFedIds.has(builderNodeId)) {
+    if (nodeId && hotFedIds.has(nodeId)) {
       hexFlowLpm += delivered
+      hotFedCount += 1
       continue
     }
 
-    // Legacy fallback for unbound outlets.
-    if (!hasGraphFacts && o.kind === 'cold_tap') {
-      continue
-    }
-
+    // fallback: treat unbound outlets as hot-fed (keeps old behaviour)
     hexFlowLpm += delivered
+    hotFedCount += 1
   }
 
   // Combi thermal outcome: compute achieved outlet temperature from HEX flow (hydraulic minus bypass).
@@ -194,5 +206,8 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
     requiredKw,
     tmvOutcomes,
     tmvSaturated,
+    hexFlowLpm,
+    coldBypassLpm,
+    hotFedCount,
   }
 }

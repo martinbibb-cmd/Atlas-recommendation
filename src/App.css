@@ -2612,6 +2612,13 @@ body {
   color: #c05621;
 }
 
+.caps-debug {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: #718096;
+  font-weight: 800;
+}
+
 .instrument-strip__warnings {
   display: flex;
   flex-wrap: wrap;

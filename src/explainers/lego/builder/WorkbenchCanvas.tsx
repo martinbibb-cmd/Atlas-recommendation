@@ -31,6 +31,7 @@ export default function WorkbenchCanvas({
   onMove,
   onPortTap,
   onCancelPending,
+  outletBindings,
 }: {
   graph: BuildGraph;
   selectedId: string | null;
@@ -39,6 +40,7 @@ export default function WorkbenchCanvas({
   onMove: (id: string, x: number, y: number) => void;
   onPortTap: (ref: PortRef) => void;
   onCancelPending: () => void;
+  outletBindings?: Partial<Record<'A' | 'B' | 'C', string>>;
 }) {
   const nodesById = useMemo(() => {
     const mapped = new Map<string, BuildNode>();
@@ -134,6 +136,7 @@ export default function WorkbenchCanvas({
 
       {graph.nodes.map(node => {
         const ports = portsForKind(node.kind);
+        const slot = (['A', 'B', 'C'] as const).find(key => outletBindings?.[key] === node.id)
 
         return (
           <div
@@ -151,6 +154,7 @@ export default function WorkbenchCanvas({
           >
             <div className="token-emoji">{kindEmoji(node.kind)}</div>
             <div className="token-text">{kindLabel(node.kind)}</div>
+            {slot ? <div className="token-bind">Outlet {slot}</div> : null}
 
             {ports.map(port => {
               const isPending =
