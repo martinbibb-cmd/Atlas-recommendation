@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { BuildGraph, BuildNode, PartKind } from './types';
+import type { BuildGraph, BuildNode, PartKind, PortRef } from './types';
 import PalettePanel from './PalettePanel';
 import WorkbenchCanvas from './WorkbenchCanvas';
 import './builder.css';
@@ -13,6 +13,7 @@ const EMPTY_GRAPH: BuildGraph = { nodes: [], edges: [] };
 export default function BuilderShell({ initial }: { initial?: BuildGraph }) {
   const [graph, setGraph] = useState<BuildGraph>(initial ?? EMPTY_GRAPH);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pendingPort, setPendingPort] = useState<PortRef | null>(null);
 
   const selected = useMemo(
     () => graph.nodes.find(node => node.id === selectedId) ?? null,
@@ -39,6 +40,48 @@ export default function BuilderShell({ initial }: { initial?: BuildGraph }) {
     }));
   };
 
+  const addEdge = (from: PortRef, to: PortRef) => {
+    const exists = graph.edges.some(
+      edge =>
+        (edge.from.nodeId === from.nodeId &&
+          edge.from.portId === from.portId &&
+          edge.to.nodeId === to.nodeId &&
+          edge.to.portId === to.portId) ||
+        (edge.from.nodeId === to.nodeId &&
+          edge.from.portId === to.portId &&
+          edge.to.nodeId === from.nodeId &&
+          edge.to.portId === from.portId),
+    );
+    if (exists) {
+      return;
+    }
+
+    setGraph(current => ({
+      ...current,
+      edges: [...current.edges, { id: uid('edge'), from, to }],
+    }));
+  };
+
+  const onPortTap = (ref: PortRef) => {
+    if (!pendingPort) {
+      setPendingPort(ref);
+      return;
+    }
+
+    const a = pendingPort;
+    const b = ref;
+
+    if (a.nodeId === b.nodeId && a.portId === b.portId) {
+      setPendingPort(null);
+      return;
+    }
+
+    addEdge(a, b);
+    setPendingPort(null);
+  };
+
+  const cancelPending = () => setPendingPort(null);
+
   const rotateSelected = (deltaDeg: number) => {
     if (!selectedId) {
       return;
@@ -60,8 +103,11 @@ export default function BuilderShell({ initial }: { initial?: BuildGraph }) {
     setGraph(current => ({
       ...current,
       nodes: current.nodes.filter(node => node.id !== selectedId),
-      edges: current.edges.filter(edge => edge.fromNodeId !== selectedId && edge.toNodeId !== selectedId),
+      edges: current.edges.filter(
+        edge => edge.from.nodeId !== selectedId && edge.to.nodeId !== selectedId,
+      ),
     }));
+    setPendingPort(current => (current?.nodeId === selectedId ? null : current));
     setSelectedId(null);
   };
 
@@ -73,9 +119,17 @@ export default function BuilderShell({ initial }: { initial?: BuildGraph }) {
 
       <div className="builder-right">
         <div className="builder-toolbar">
-          <div className="builder-title">🧱 Build your system</div>
+          <div className="builder-title">
+            🧱 Build your system
+            {pendingPort ? <span className="connect-pill">Connecting… tap another port</span> : null}
+          </div>
 
           <div className="builder-actions">
+            {pendingPort ? (
+              <button className="builder-btn" onClick={cancelPending} title="Cancel connecting">
+                ✕ Cancel
+              </button>
+            ) : null}
             <button
               className="builder-btn"
               disabled={!selected}
@@ -98,8 +152,11 @@ export default function BuilderShell({ initial }: { initial?: BuildGraph }) {
         <WorkbenchCanvas
           graph={graph}
           selectedId={selectedId}
+          pendingPort={pendingPort}
           onSelect={setSelectedId}
           onMove={moveNode}
+          onPortTap={onPortTap}
+          onCancelPending={cancelPending}
         />
       </div>
     </div>

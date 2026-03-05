@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import type { BuildGraph, BuildNode, PartKind } from './types';
+import type { BuildGraph, BuildNode, PartKind, PortRef } from './types';
 import { PALETTE } from './palette';
+import { portsForKind, TOKEN_H, TOKEN_W } from './ports';
 import './builder.css';
 
 function kindLabel(kind: PartKind) {
@@ -12,16 +13,32 @@ function kindEmoji(kind: PartKind) {
   return PALETTE.find(p => p.kind === kind)?.emoji ?? '🧩';
 }
 
+function portAbs(node: BuildNode, portId: string) {
+  const ports = portsForKind(node.kind);
+  const port = ports.find(item => item.id === portId);
+  if (!port) {
+    return { x: node.x, y: node.y };
+  }
+
+  return { x: node.x + port.dx, y: node.y + port.dy };
+}
+
 export default function WorkbenchCanvas({
   graph,
   selectedId,
+  pendingPort,
   onSelect,
   onMove,
+  onPortTap,
+  onCancelPending,
 }: {
   graph: BuildGraph;
   selectedId: string | null;
+  pendingPort: PortRef | null;
   onSelect: (id: string | null) => void;
   onMove: (id: string, x: number, y: number) => void;
+  onPortTap: (ref: PortRef) => void;
+  onCancelPending: () => void;
 }) {
   const nodesById = useMemo(() => {
     const mapped = new Map<string, BuildNode>();
@@ -65,23 +82,92 @@ export default function WorkbenchCanvas({
   };
 
   return (
-    <div className="workbench" onPointerDown={() => onSelect(null)}>
-      <div className="workbench-hint">• Tap a Palette item to place • Drag to move • Tap empty space to deselect</div>
+    <div
+      className="workbench"
+      onPointerDown={() => {
+        onSelect(null);
+        onCancelPending();
+      }}
+    >
+      <div className="workbench-hint">• Tap a Palette item to place • Drag to move • Tap port → port to connect</div>
 
-      {graph.nodes.map(node => (
-        <div
-          key={node.id}
-          className={`token ${node.id === selectedId ? 'selected' : ''}`}
-          style={{ transform: `translate(${node.x}px, ${node.y}px) rotate(${node.r}deg)` }}
-          onPointerDown={e => handlePointerDown(e, node.id)}
-          role="button"
-          aria-label={kindLabel(node.kind)}
-          title={kindLabel(node.kind)}
-        >
-          <div className="token-emoji">{kindEmoji(node.kind)}</div>
-          <div className="token-text">{kindLabel(node.kind)}</div>
-        </div>
-      ))}
+      <svg className="pipes" width="100%" height="100%">
+        {graph.edges.map(edge => {
+          const fromNode = nodesById.get(edge.from.nodeId);
+          const toNode = nodesById.get(edge.to.nodeId);
+          if (!fromNode || !toNode) {
+            return null;
+          }
+
+          const from = portAbs(fromNode, edge.from.portId);
+          const to = portAbs(toNode, edge.to.portId);
+          const midX = (from.x + to.x) / 2;
+          const points = `${from.x},${from.y} ${midX},${from.y} ${midX},${to.y} ${to.x},${to.y}`;
+
+          return <polyline key={edge.id} points={points} className="pipe-line" fill="none" />;
+        })}
+
+        {pendingPort
+          ? (() => {
+              const fromNode = nodesById.get(pendingPort.nodeId);
+              if (!fromNode) {
+                return null;
+              }
+
+              const from = portAbs(fromNode, pendingPort.portId);
+              const to = { x: from.x + 80, y: from.y };
+              return (
+                <polyline
+                  points={`${from.x},${from.y} ${to.x},${to.y}`}
+                  className="pipe-line pending"
+                  fill="none"
+                />
+              );
+            })()
+          : null}
+      </svg>
+
+      {graph.nodes.map(node => {
+        const ports = portsForKind(node.kind);
+
+        return (
+          <div
+            key={node.id}
+            className={`token ${node.id === selectedId ? 'selected' : ''}`}
+            style={{
+              width: TOKEN_W,
+              height: TOKEN_H,
+              transform: `translate(${node.x}px, ${node.y}px) rotate(${node.r}deg)`,
+            }}
+            onPointerDown={e => handlePointerDown(e, node.id)}
+            role="button"
+            aria-label={kindLabel(node.kind)}
+            title={kindLabel(node.kind)}
+          >
+            <div className="token-emoji">{kindEmoji(node.kind)}</div>
+            <div className="token-text">{kindLabel(node.kind)}</div>
+
+            {ports.map(port => {
+              const isPending =
+                pendingPort && pendingPort.nodeId === node.id && pendingPort.portId === port.id;
+
+              return (
+                <button
+                  key={port.id}
+                  className={`port ${isPending ? 'pending' : ''}`}
+                  style={{ left: port.dx - 6, top: port.dy - 6 }}
+                  title={port.id}
+                  onPointerDown={event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onPortTap({ nodeId: node.id, portId: port.id });
+                  }}
+                />
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }
