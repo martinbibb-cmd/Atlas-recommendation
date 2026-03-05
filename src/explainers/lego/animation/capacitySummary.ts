@@ -2,7 +2,10 @@
 
 import type { LabControls, OutletId } from './types'
 import { computeCombiThermalLimit, pipeDiameterCapacityLpm } from '../model/dhwModel'
-import { computeCombiOutletTemp } from './thermal'
+import { computeCombiOutletTemp, computeTmvMixer } from './thermal'
+import type { TmvOutcome } from './thermal'
+
+export type { TmvOutcome }
 
 export type CapacitySummary = {
   demandTotalLpm: number
@@ -16,8 +19,8 @@ export type CapacitySummary = {
   outletDeliveredLpm: Record<OutletId, number>
   /**
    * Achieved combi outlet temperature (°C) — only present for combi system type.
-   * Derived from boilerKw, hydraulicFlowLpm, and coldInletC using:
-   *   ΔT = (boilerKw × 60) / (flowLpm × 4.19)
+   * For TMV outlets this is the boiler hot-side temperature (T_h), not the mixed
+   * delivery temperature (see tmvOutcomes for T_mix per outlet).
    */
   achievedOutTempC?: number
   /**
@@ -25,6 +28,17 @@ export type CapacitySummary = {
    * Only present for combi system type. Used to show "Required: XX kW vs Boiler: YY kW".
    */
   requiredKw?: number
+  /**
+   * Per-outlet thermostatic mixer valve (TMV) outcomes.
+   * Present only for combi system type when at least one shower_mixer outlet has
+   * `tmvEnabled = true`.  Undefined entries indicate the outlet has no TMV.
+   */
+  tmvOutcomes?: Record<OutletId, TmvOutcome | undefined>
+  /**
+   * True when at least one TMV outlet is saturated (hot supply too cool to reach
+   * the target shower temperature).
+   */
+  tmvSaturated?: boolean
 }
 
 export function computeCapacitySummary(c: LabControls): CapacitySummary {
@@ -93,6 +107,52 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
       })
     : undefined
 
+  // ── TMV outcomes (combi only) ─────────────────────────────────────────────
+  // For each active shower_mixer outlet with tmvEnabled, compute the mixer physics.
+  // The boiler hot-side temperature (T_h) is computed from the hot-side flow (F_h)
+  // through the HEX — which is less than the full outlet demand (F_out), because
+  // the cold supply bypass (F_c = F_out − F_h) bypasses the HEX entirely.
+  let tmvOutcomes: Record<OutletId, TmvOutcome | undefined> | undefined
+  let tmvSaturated: boolean | undefined
+  let achievedOutTempC = combiThermal?.achievedOutTempC
+  let requiredKw = combiThermal?.requiredKw
+
+  if (!isCylinder && hydraulicFlowLpm > 0) {
+    const tmvActive = activeOutlets.some(
+      o => o.kind === 'shower_mixer' && o.tmvEnabled
+    )
+
+    if (tmvActive) {
+      tmvOutcomes = { A: undefined, B: undefined, C: undefined }
+      let anyTmvSaturated = false
+      let firstTmvT_h: number | undefined
+
+      for (const o of activeOutlets) {
+        if (o.kind === 'shower_mixer' && o.tmvEnabled) {
+          const F_out = outletDeliveredLpm[o.id]
+          const outcome = computeTmvMixer({
+            boilerKw: c.combiDhwKw,
+            coldInTempC: c.coldInletC,
+            showerDeliveredLpm: F_out,
+            targetTempC: o.tmvTargetTempC ?? 40,
+          })
+          tmvOutcomes[o.id] = outcome
+          if (outcome.saturated) anyTmvSaturated = true
+          if (firstTmvT_h === undefined) firstTmvT_h = outcome.T_h
+        }
+      }
+
+      tmvSaturated = anyTmvSaturated
+
+      // Override achievedOutTempC with the boiler hot-side temperature from the
+      // first TMV outlet — this drives the post-HEX pipe colour in the animation.
+      if (firstTmvT_h !== undefined) {
+        achievedOutTempC = firstTmvT_h
+        // requiredKw stays as-is (informational only for non-TMV display)
+      }
+    }
+  }
+
   return {
     demandTotalLpm,
     supplyCapLpm,
@@ -102,7 +162,9 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
     limitingComponent,
     warnings,
     outletDeliveredLpm,
-    achievedOutTempC: combiThermal?.achievedOutTempC,
-    requiredKw: combiThermal?.requiredKw,
+    achievedOutTempC,
+    requiredKw,
+    tmvOutcomes,
+    tmvSaturated,
   }
 }

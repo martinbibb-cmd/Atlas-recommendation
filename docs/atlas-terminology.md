@@ -212,7 +212,54 @@ The following terms must never appear in Atlas UI copy, explanations, or PDF out
 
 ---
 
-## 9. Why this matters
+## 9. Thermostatic Mixer Valve (TMV) Terminology
+
+### Thermostatic mixer valve (TMV)
+
+**Definition:** A valve that blends hot and cold water supplies to deliver water at a stable, preset temperature to an outlet.
+
+**Common application:** Mixer showers, healthcare hand-wash outlets.
+
+**Key properties:**
+- Blends hot supply with cold supply to reach a target delivery temperature.
+- When the hot supply is too cold to reach the target, the valve opens fully (saturates) and delivers less than the target temperature.
+- Reduces the flow of hot water through the boiler heat exchanger compared to a non-mixed outlet at the same user flow rate.
+
+> **Atlas rule:** Use **TMV** (abbreviation acceptable after first use). Never use "mixing valve" alone — it is ambiguous. In user-facing copy always write "Thermostatic mixer valve (TMV)" on first use.
+
+---
+
+### Cold supply (cold branch)
+
+**Definition:** The cold-water branch from the supply tee to the thermostatic mixer valve.
+
+> **Note:** "Cold supply" here refers to the pre-mix cold feed — it is distinct from the cold mains supply to the boiler.
+
+---
+
+### Hot supply (hot branch)
+
+**Definition:** The branch that carries heated water from the boiler heat exchanger to the thermostatic mixer valve.
+
+---
+
+### Mixed water temperature
+
+**Definition:** The outlet temperature produced at the thermostatic mixer valve after blending the hot and cold supplies.
+
+> **Atlas rule:** Use "mixed water temperature" or "delivered temperature" in UI copy. Do not use "output temperature" (ambiguous with boiler output).
+
+---
+
+### Mixer saturated
+
+**Definition:** The condition where the hot supply is too cool to allow the thermostatic mixer valve to reach the target temperature. The valve opens fully to 100% hot and the delivered temperature falls below the target.
+
+> **Atlas rule:** Use "TMV saturated" or "can't reach target temperature" in UI alerts.
+
+---
+
+## 10. Why this matters
 
 This vocabulary layer prevents three common industry confusions:
 
@@ -224,7 +271,7 @@ Atlas uses more precise language than common industry slang, which increases tru
 
 ---
 
-## 10. Governance
+## 11. Governance
 
 This document is the single source of truth for Atlas terminology.
 

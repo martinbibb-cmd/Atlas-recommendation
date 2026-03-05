@@ -213,3 +213,103 @@ export function computeCombiOutletTemp(params: {
   const requiredKw = (safeLpm * CP_WATER_KJ_PER_KG_C * Math.max(targetTempC - coldInletC, 0)) / 60
   return { achievedOutTempC, meetsTarget, deficitC, requiredKw }
 }
+
+/**
+ * Result of thermostatic mixer valve (TMV) shower physics.
+ */
+export type TmvOutcome = {
+  /** Hot-side flow through the boiler heat exchanger (L/min). */
+  F_h: number
+  /** Cold bypass flow (L/min) — bypasses the heat exchanger entirely. */
+  F_c: number
+  /** Achieved boiler hot-side outlet temperature (°C). */
+  T_h: number
+  /** Delivered mixed shower temperature (°C). */
+  T_mix: number
+  /**
+   * True when the hot supply is too cool to reach the target temperature.
+   * The thermostatic mixer valve opens fully to 100% hot (saturated);
+   * the delivered temperature falls below the target.
+   */
+  saturated: boolean
+  /** Degrees below target when saturated (0 when not saturated). */
+  shortfallC: number
+}
+
+/**
+ * Thermostatic Mixer Valve (TMV) shower physics (lab-only).
+ *
+ * The mains supply splits at a tee before the boiler:
+ *   Branch 1 (cold supply):  cold → cold bypass → mixer
+ *   Branch 2 (hot supply):   cold → boiler heat exchanger → hot → mixer
+ *
+ * The mixer blends hot and cold to reach a target shower temperature (T_t).
+ * If the boiler cannot produce hot enough water at the available hot-side flow,
+ * the mixer saturates (runs 100 % hot) and the delivered temperature is below T_t.
+ *
+ * Algorithm (per problem statement §PHYSICS):
+ *   1. Estimate T_h if the full shower flow went through the HEX (worst case):
+ *        T_h_guess = T_c + (boilerKw × 60) / (F_out × cp)
+ *   2. Compute the hot fraction needed:
+ *        f_h      = (T_t − T_c) / max(1e-6, T_h_guess − T_c)
+ *        F_h      = clamp(f_h, 0, 1) × F_out
+ *        F_c      = F_out − F_h
+ *   3. Re-solve T_h with only F_h through the HEX:
+ *        T_h = T_c + (boilerKw × 60) / (max(F_h, 1e-6) × cp)
+ *   4. Feasibility check:
+ *        If T_h < T_t → mixer saturated; F_h = F_out, F_c = 0, T_mix = T_h
+ *        Else         → T_mix = T_t
+ *
+ * Key insight: the mixer reduces how much water needs heating (F_h < F_out),
+ * so the boiler achieves a higher T_h for the same rated output.  This makes
+ * a combi boiler more efficient at meeting the shower target for a given kW.
+ */
+export function computeTmvMixer(params: {
+  boilerKw: number
+  coldInTempC: number
+  /** Mixed outlet (shower delivered) flow rate (L/min). */
+  showerDeliveredLpm: number
+  /** Shower target temperature — °C. */
+  targetTempC: number
+}): TmvOutcome {
+  const { boilerKw, coldInTempC: T_c, showerDeliveredLpm: F_out, targetTempC: T_t } = params
+  const safeF = Math.max(F_out, 1e-6)
+
+  // Step 1: estimate T_h assuming all shower flow went through the HEX.
+  const T_h_guess = T_c + (boilerKw * 60) / (safeF * CP_WATER_KJ_PER_KG_C)
+
+  let F_h: number
+  let F_c: number
+  let T_h: number
+  let T_mix: number
+  let saturated: boolean
+
+  if (T_h_guess <= T_c + 0.1) {
+    // No meaningful heat available from boiler.
+    F_h = F_out; F_c = 0
+    T_h = T_c; T_mix = T_c; saturated = true
+  } else {
+    // Step 2: hot fraction required.
+    const f_h_raw = (T_t - T_c) / Math.max(1e-6, T_h_guess - T_c)
+    const f_h = clamp(f_h_raw, 0, 1)
+    F_h = f_h * F_out
+    F_c = F_out - F_h
+
+    // Step 3: actual boiler hot-side temperature with only F_h through HEX.
+    T_h = T_c + (boilerKw * 60) / (Math.max(F_h, 1e-6) * CP_WATER_KJ_PER_KG_C)
+
+    // Step 4: feasibility — can the mixer reach the target?
+    if (T_h < T_t) {
+      // Mixer saturated: run full hot, delivered temp is T_h (below target).
+      saturated = true
+      F_h = F_out; F_c = 0
+      T_mix = T_h
+    } else {
+      saturated = false
+      T_mix = T_t
+    }
+  }
+
+  const shortfallC = saturated ? Math.max(0, T_t - T_mix) : 0
+  return { F_h, F_c, T_h, T_mix, saturated, shortfallC }
+}

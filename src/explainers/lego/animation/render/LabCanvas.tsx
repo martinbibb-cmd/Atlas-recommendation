@@ -125,7 +125,23 @@ export function LabCanvas(props: {
   const boilerGlow = glowFor('Thermal')
   const mainsGlow  = glowFor('Supply')
 
-  const { main: polyMain, branchA, branchB, branchC } = buildPolylines()
+  // ── TMV state ──────────────────────────────────────────────────────────────
+  // Detect if outlet A is an active TMV shower_mixer.
+  const outletA = controls.outlets.find(o => o.id === 'A')
+  const tmvOutletAActive = !isCylinder &&
+    outletA?.enabled === true &&
+    outletA?.kind === 'shower_mixer' &&
+    outletA?.tmvEnabled === true &&
+    summary.hydraulicFlowLpm > 0
+
+  const tmvOutcomeA = summary.tmvOutcomes?.A
+  const tmvSaturated = summary.tmvSaturated === true
+
+  // Build polylines — when TMV outlet A is active, outlet A branch ends at the
+  // mixer node rather than the full outlet terminal.
+  const { main: polyMain, branchA, branchB, branchC, coldBypassA } = buildPolylines({
+    tmvOutletA: tmvOutletAActive,
+  })
 
   // Post-HEX pipe and outlet branch colour — driven by achieved outlet temperature (combi),
   // or store temperature (cylinder), so the visual matches what the water actually delivers.
@@ -140,11 +156,24 @@ export function LabCanvas(props: {
     return undefined
   })()
 
-  // Combi thermal failure indicator
-  const combiIsFailing = !isCylinder &&
-    summary.achievedOutTempC !== undefined &&
-    summary.achievedOutTempC < controls.dhwSetpointC - 0.5 &&
-    summary.hydraulicFlowLpm > 0
+  // Cold supply bypass colour — always cold-inlet colour.
+  const coldSupplyColor = tempToThermalColor(controls.coldInletC)
+
+  // Mixed-water outlet colour (outlet A → mixer → terminal) — T_mix from TMV outcome,
+  // or same as hot-branch colour if no TMV.
+  const mixedOutletColor: string | undefined = tmvOutletAActive && tmvOutcomeA
+    ? tempToThermalColor(tmvOutcomeA.T_mix)
+    : postHexThermalColor
+
+  // Combi thermal failure indicator:
+  // - TMV mode: failing = TMV saturated (T_mix < T_t)
+  // - Non-TMV mode: failing = boiler outlet below setpoint
+  const combiIsFailing = !isCylinder && summary.hydraulicFlowLpm > 0 && (
+    tmvOutletAActive
+      ? tmvSaturated
+      : (summary.achievedOutTempC !== undefined &&
+         summary.achievedOutTempC < controls.dhwSetpointC - 0.5)
+  )
 
   // Outlet positions for SVG rendering
   const outletXMap: Record<OutletId, number> = {
@@ -185,7 +214,7 @@ export function LabCanvas(props: {
 
   return (
     <div style={{ position: 'relative', display: 'block', width: '100%', minWidth: 700 }}>
-      <svg width="100%" viewBox="0 0 1000 260" style={{ display: 'block' }}>
+      <svg width="100%" viewBox="0 0 1000 270" style={{ display: 'block' }}>
         <defs>
           <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="6" result="coloredBlur" />
@@ -199,18 +228,86 @@ export function LabCanvas(props: {
           </clipPath>
         </defs>
 
+        {/* ── TMV cold supply bypass (above boiler, only when TMV active) ──── */}
+        {tmvOutletAActive && (
+          <g>
+            {/* Cold supply pipe: tee → above boiler → mixer */}
+            <path
+              d={`M ${P.teeX} ${P.teeY} L ${P.teeX} ${P.coldBypassY} L ${P.mixerAX} ${P.coldBypassY} L ${P.mixerAX} ${P.mixerAY}`}
+              stroke={coldSupplyColor} strokeWidth={16} strokeLinecap="round" fill="none"
+              opacity={THERMAL_COLOR_OPACITY}
+            />
+            <path
+              d={`M ${P.teeX} ${P.teeY} L ${P.teeX} ${P.coldBypassY} L ${P.mixerAX} ${P.coldBypassY} L ${P.mixerAX} ${P.mixerAY}`}
+              stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round" fill="none"
+            />
+            {/* Cold supply label */}
+            <text x={P.teeX + (P.mixerAX - P.teeX) / 2} y={P.coldBypassY - 6}
+              fontSize={9} fill="#0ea5e9" textAnchor="middle">
+              Cold supply {tmvOutcomeA ? `${tmvOutcomeA.F_c.toFixed(1)} L/min` : ''}
+            </text>
+
+            {/* Pre-boiler tee node */}
+            <circle cx={P.teeX} cy={P.teeY} r={8} fill="#64748b" />
+            <text x={P.teeX} y={P.teeY + 20} fontSize={9} fill="#64748b" textAnchor="middle">Tee</text>
+
+            {/* Thermostatic mixer valve node */}
+            <circle cx={P.mixerAX} cy={P.mixerAY} r={10} fill="#f59e0b" stroke="#92400e" strokeWidth={2} />
+            <text x={P.mixerAX} y={P.mixerAY - 14} fontSize={9} fill="#92400e" textAnchor="middle" fontWeight={700}>
+              TMV
+            </text>
+
+            {/* Mixed-water outlet: mixer → shower terminal */}
+            <path
+              d={`M ${P.mixerAX} ${P.mixerAY} L ${P.outlet1X} ${P.outlet1Y}`}
+              stroke={mixedOutletColor ?? '#cfd8e3'} strokeWidth={16} strokeLinecap="round"
+              opacity={mixedOutletColor ? THERMAL_COLOR_OPACITY : 1}
+            />
+            <path
+              d={`M ${P.mixerAX} ${P.mixerAY} L ${P.outlet1X} ${P.outlet1Y}`}
+              stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
+            />
+
+            {/* Hot supply label (post-HEX branch to mixer) */}
+            {tmvOutcomeA && (
+              <text
+                x={(P.splitX + P.mixerAX) / 2}
+                y={P.outlet1Y - 8}
+                fontSize={9} fill="#b45309" textAnchor="middle"
+              >
+                Hot supply {tmvOutcomeA.F_h.toFixed(1)} L/min · {roundTempC(tmvOutcomeA.T_h)} °C
+              </text>
+            )}
+          </g>
+        )}
+
         {/* ── Mains segment ──────────────────────────────────────────────── */}
+        {/* When TMV active: only draw from mains to pre-boiler tee. */}
         <path
-          d={`M ${P.mainsX} ${P.mainsY} L ${P.boilerX - 60} ${P.boilerY}`}
+          d={`M ${P.mainsX} ${P.mainsY} L ${tmvOutletAActive ? P.teeX : P.boilerX - 60} ${P.mainsY}`}
           stroke="#cfd8e3" strokeWidth={16} strokeLinecap="round" filter={mainsGlow}
         />
         <path
-          d={`M ${P.mainsX} ${P.mainsY} L ${P.boilerX - 60} ${P.boilerY}`}
+          d={`M ${P.mainsX} ${P.mainsY} L ${tmvOutletAActive ? P.teeX : P.boilerX - 60} ${P.mainsY}`}
           stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
         />
         <text x={P.mainsX - 4} y={P.mainsY - 18} fontSize={11} fill="#64748b" textAnchor="start">
           {controls.systemType === 'vented_cylinder' ? 'Cold feed' : 'Mains'}
         </text>
+
+        {/* Tee → boiler entry segment (when TMV active, shown in cold colour) */}
+        {tmvOutletAActive && (
+          <>
+            <path
+              d={`M ${P.teeX} ${P.teeY} L ${P.boilerX - 60} ${P.boilerY}`}
+              stroke="#cfd8e3" strokeWidth={16} strokeLinecap="round"
+            />
+            <path
+              d={`M ${P.teeX} ${P.teeY} L ${P.boilerX - 60} ${P.boilerY}`}
+              stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
+            />
+          </>
+        )}
 
         {/* ── Boiler HEX box (combi) OR Cylinder tank (stored) ───────────── */}
         {!isCylinder ? (
@@ -281,14 +378,23 @@ export function LabCanvas(props: {
           const centerStroke = isEnabled ? '#8aa1b6' : '#cbd5e1'
           const delivered = summary.outletDeliveredLpm[outlet.id]
           const sample = frame.outletSamples[outlet.id]
-          const pathD = branchSvgPath(P.splitX, P.splitY, ox, oy, P.branchBendR)
+
+          // For TMV outlet A: branch goes to mixer (mixerAX, mixerAY), not terminal.
+          const isTmvA = outlet.id === 'A' && tmvOutletAActive
+          const branchEndX = isTmvA ? P.mixerAX : ox
+          const branchEndY = isTmvA ? P.mixerAY : oy
+          const pathD = branchSvgPath(P.splitX, P.splitY, branchEndX, branchEndY, P.branchBendR)
+
+          // Colour for this branch: TMV outlet A hot branch uses hot colour (T_h),
+          // mixed outlet is drawn separately; other outlets use postHexThermalColor.
+          const branchColor = isEnabled ? (postHexThermalColor ?? '#cfd8e3') : '#e2e8f0'
 
           return (
             <g key={outlet.id}>
               {/* Branch pipe — 90° off-take + swept bend */}
               <path
                 d={pathD}
-                stroke={isEnabled ? (postHexThermalColor ?? '#cfd8e3') : '#e2e8f0'}
+                stroke={branchColor}
                 strokeWidth={16} strokeLinecap="round" fill="none"
                 opacity={isEnabled ? (postHexThermalColor ? THERMAL_COLOR_OPACITY : 1) : 0.4}
               />
@@ -315,8 +421,21 @@ export function LabCanvas(props: {
                       ~{roundTempC(sample.tempC)} °C
                     </text>
                   )}
-                  {/* Show achieved vs target when combi can't hit target */}
-                  {!isCylinder && summary.achievedOutTempC !== undefined && combiIsFailing && (
+                  {/* TMV outlet A: show target and mixed temp */}
+                  {isTmvA && tmvOutcomeA && (
+                    <>
+                      <text x={ox + 6} y={oy + 36} textAnchor="start" fontSize={10}
+                        fill={tmvSaturated ? '#b91c1c' : '#0f766e'}>
+                        Mix: {roundTempC(tmvOutcomeA.T_mix)} °C
+                        {tmvSaturated ? ' ⚠' : ' ✓'}
+                      </text>
+                      <text x={ox + 6} y={oy + 50} textAnchor="start" fontSize={10} fill="#64748b">
+                        Target: {outletA?.tmvTargetTempC ?? 40} °C
+                      </text>
+                    </>
+                  )}
+                  {/* Show achieved vs target when non-TMV combi can't hit target */}
+                  {!isCylinder && !isTmvA && summary.achievedOutTempC !== undefined && combiIsFailing && (
                     <text x={ox + 6} y={oy + 36} textAnchor="start" fontSize={10} fill="#b91c1c">
                       ⚠ target {controls.dhwSetpointC} °C
                     </text>
@@ -340,6 +459,7 @@ export function LabCanvas(props: {
           polyA={branchA}
           polyB={branchB}
           polyC={branchC}
+          polyColdA={coldBypassA}
           hydraulicFlowLpm={summary.hydraulicFlowLpm}
           demandTotalLpm={summary.demandTotalLpm}
           postHexThermalColor={postHexThermalColor}
@@ -367,14 +487,56 @@ export function LabCanvas(props: {
       <div style={{ position: 'absolute', top: 8, left: 8, pointerEvents: 'none' }}>
         <ThermalLegend
           coldInletC={controls.coldInletC}
-          setpointC={controls.dhwSetpointC}
+          setpointC={tmvOutletAActive && outletA?.tmvTargetTempC
+            ? outletA.tmvTargetTempC
+            : controls.dhwSetpointC}
           bands={THERMAL_BANDS}
           achievedTempC={!isCylinder ? summary.achievedOutTempC : undefined}
         />
       </div>
 
-      {/* ── "Can't hit target" callout (combi only) ───────────────────── */}
-      {combiIsFailing && summary.achievedOutTempC !== undefined && (
+      {/* ── TMV status callout (combi + TMV mode) ─────────────────────── */}
+      {tmvOutletAActive && tmvOutcomeA && (
+        <div
+          style={{
+            position: 'absolute', bottom: 8, left: 8,
+            background: '#fffbeb',
+            border: '1px solid #fcd34d',
+            borderRadius: 8,
+            padding: '6px 10px',
+            fontSize: 11,
+            pointerEvents: 'none',
+            zIndex: 20,
+            lineHeight: 1.6,
+            maxWidth: 210,
+          }}
+        >
+          <div style={{ fontWeight: 700, color: '#92400e' }}>
+            Thermostatic mixer valve (TMV)
+          </div>
+          <div style={{ color: '#78350f' }}>
+            Cold in: {controls.coldInletC} °C
+          </div>
+          <div style={{ color: '#b45309' }}>
+            Hot supply: {roundTempC(tmvOutcomeA.T_h)} °C
+          </div>
+          <div style={{ color: '#0f766e' }}>
+            Target: {outletA?.tmvTargetTempC ?? 40} °C
+          </div>
+          <div style={{ fontWeight: 600, color: tmvSaturated ? '#b91c1c' : '#065f46' }}>
+            Delivered: {roundTempC(tmvOutcomeA.T_mix)} °C
+            {tmvSaturated ? ' ⚠' : ' ✓'}
+          </div>
+          {tmvOutcomeA.F_c > 0.05 && (
+            <div style={{ color: '#0369a1', fontSize: 10 }}>
+              Cold bypass: {tmvOutcomeA.F_c.toFixed(1)} L/min
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── "Can't hit target" callout (combi only, non-TMV or TMV saturated) ── */}
+      {combiIsFailing && (
         <div
           role="alert"
           aria-live="polite"
@@ -392,13 +554,31 @@ export function LabCanvas(props: {
             lineHeight: 1.5,
           }}
         >
-          <div>⚠ Can&apos;t hit target</div>
-          <div style={{ fontWeight: 400 }}>
-            −{Math.abs(roundTempC(controls.dhwSetpointC - summary.achievedOutTempC))} °C short
-          </div>
-          <div style={{ fontWeight: 400, fontSize: 10, color: '#7f1d1d' }}>
-            Need {controls.dhwSetpointC} °C
-          </div>
+          {tmvOutletAActive && tmvOutcomeA ? (
+            <>
+              <div>⚠ TMV saturated: can&apos;t reach target</div>
+              <div style={{ fontWeight: 400 }}>
+                −{roundTempC(tmvOutcomeA.shortfallC)} °C short
+              </div>
+              <div style={{ fontWeight: 400, fontSize: 10, color: '#7f1d1d' }}>
+                Need {outletA?.tmvTargetTempC ?? 40} °C · hot supply {roundTempC(tmvOutcomeA.T_h)} °C
+              </div>
+            </>
+          ) : (
+            <>
+              <div>⚠ Can&apos;t hit target</div>
+              {summary.achievedOutTempC !== undefined && (
+                <>
+                  <div style={{ fontWeight: 400 }}>
+                    −{Math.abs(roundTempC(controls.dhwSetpointC - summary.achievedOutTempC))} °C short
+                  </div>
+                  <div style={{ fontWeight: 400, fontSize: 10, color: '#7f1d1d' }}>
+                    Need {controls.dhwSetpointC} °C
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
