@@ -2,6 +2,7 @@
 
 import type { LabToken } from '../types'
 import { heatToTempC, tempToThermalColor } from '../thermal'
+import { HEX_END } from '../simulation'
 import { mapSToPath } from './pathMap'
 import type { Pt } from './pathMap'
 
@@ -19,8 +20,16 @@ export function TokensLayer(props: {
   hydraulicFlowLpm: number
   /** Total demand requested (L/min) — used for throttle shape morphing. */
   demandTotalLpm: number
+  /**
+   * The colour that post-HEX pipe segments use (from achieved outlet temp or
+   * cylinder store temp). When supplied every token in the post-HEX segment
+   * (MAIN s ≥ HEX_END, or any branch) is tinted with the same colour, so
+   * token and pipe colours always stay in sync regardless of the token's
+   * stored heat content.
+   */
+  postHexThermalColor?: string
 }) {
-  const { tokens, coldInletC, polyMain, polyA, polyB, polyC, hydraulicFlowLpm, demandTotalLpm } = props
+  const { tokens, coldInletC, polyMain, polyA, polyB, polyC, hydraulicFlowLpm, demandTotalLpm, postHexThermalColor } = props
 
   // throttle ∈ [1, 3]: 1 = demand fully met, 3 = badly throttled/restricted.
   // Guard demandTotalLpm === 0 explicitly (no demand → no restriction).
@@ -31,8 +40,21 @@ export function TokensLayer(props: {
   return (
     <>
       {tokens.map(t => {
-        const tempC = heatToTempC({ coldInletC, hJPerKg: t.hJPerKg })
-        const fill = tempToThermalColor(tempC)
+        // Derive colour from the segment the token is currently in, not from
+        // the token's stored heat content.  This keeps tokens in sync with
+        // the pipe-segment colour which is driven by summary.achievedOutTempC
+        // (combi) or cylinderTempC (stored), both of which may differ from
+        // the animation-clamped heat injected on the token.
+        //
+        // Pre-HEX  (MAIN, s < HEX_END):  use the cold-inlet colour.
+        // Post-HEX (MAIN s ≥ HEX_END, or any branch): use postHexThermalColor
+        //          when provided; otherwise fall back to heatToTempC so
+        //          cylinder tokens (which carry real store heat) still render
+        //          correctly when the prop is absent.
+        const isPostHex = t.route !== 'MAIN' || t.s >= HEX_END
+        const fill = (isPostHex && postHexThermalColor)
+          ? postHexThermalColor
+          : tempToThermalColor(heatToTempC({ coldInletC, hJPerKg: t.hJPerKg }))
 
         const poly =
           t.route === 'MAIN' ? polyMain :
