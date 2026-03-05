@@ -1,8 +1,8 @@
 // src/explainers/lego/animation/simulation.ts
 
-import type { LabControls, LabFrame, LabToken, OutletId, OutletControl } from './types'
+import type { LabControls, LabFrame, LabToken, OutletId, OutletControl, SystemMode } from './types'
 import { pipeDiameterCapacityLpm } from '../model/dhwModel'
-import { heatToTempC, tempToHeatJPerKg, computeTmvMixer } from './thermal'
+import { heatToTempC, tempToHeatJPerKg, computeTmvMixer, clampAnimationSetpointC } from './thermal'
 import {
   createCylinderStore,
   cylinderTempC,
@@ -57,9 +57,6 @@ const S_FAILSAFE = 0.995
  * 45 °C is the minimum usable domestic hot-water temperature (below this the animation
  * palette would show water that looks barely warm, which misrepresents combi DHW performance).
  */
-const MIN_ANIMATION_SETPOINT_C = 45
-const MAX_ANIMATION_SETPOINT_C = 55
-
 /** Prevent division-by-zero when a token barely moves in a tick. */
 const MIN_MOVEMENT_EPSILON = 1e-6
 
@@ -214,6 +211,9 @@ export function stepSimulation(params: {
   const dt = dtMs / 1000
 
   const isCylinder = controls.systemType === 'unvented_cylinder' || controls.systemType === 'vented_cylinder'
+  const heatSourceType = controls.heatSourceType ?? (controls.systemType === 'combi' ? 'combi' : 'system_boiler')
+  const isCombi = heatSourceType === 'combi'
+  const hasStored = controls.graphFacts?.hasStoredDhw ?? isCylinder
 
   const activeOutlets = controls.outlets.filter(o => o.enabled && o.demandLpm > 0)
   const demandTotalLpm = activeOutlets.reduce((sum, o) => sum + o.demandLpm, 0)
@@ -273,7 +273,7 @@ export function stepSimulation(params: {
     hexFlowLpm += outletActualLpm[o.id]
   }
 
-  if (!isCylinder && hasDraw) {
+  if (isCombi && hasDraw) {
     for (const o of activeOutlets) {
       const slot = slotForOutletId(o.id)
       const nodeId = slot ? bindings[slot] : undefined
@@ -310,37 +310,39 @@ export function stepSimulation(params: {
     p = pressureProxy({ mainsFlowLpm: controls.mainsDynamicFlowLpm })
   }
 
-  // ── Combi heat injection values (only used when systemType === 'combi') ───
-  // Setpoint modulation: compute the heat rate required to reach the setpoint for
-  // the flow that actually passes through the HEX (hexFlowLpm — excludes TMV cold
-  // bypass flows), then cap at the boiler's rated output.
-  //
-  // When a TMV outlet is active, hexFlowLpm < hydraulicFlowLpm because F_c bypasses
-  // the HEX.  This makes dhPerKgPerSecond higher (less water, same heat → higher T_h),
-  // which correctly represents the boiler heating a reduced hot-side stream.
-  //
-  // kW_required = 0.06977 × hexFlowLpm × (setpointC − coldInletC)
-  // kW_actual   = min(combiDhwKw, kW_required)
-  // Clamp to [45, MAX_ANIMATION_SETPOINT_C] so the animation palette stays realistic.
-  const setpointC = clamp(controls.dhwSetpointC, MIN_ANIMATION_SETPOINT_C, MAX_ANIMATION_SETPOINT_C)
-  const effectiveHexFlow = hexFlowLpm  // accounts for TMV cold bypass
-  const mDot = effectiveHexFlow / 60 // kg/s
+  const setpointC = clampAnimationSetpointC(controls.dhwSetpointC)
+  const effectiveHexFlow = hexFlowLpm
+  const mDot = effectiveHexFlow / 60
   const kWRequired = 0.06977 * effectiveHexFlow * (setpointC - controls.coldInletC)
-  const kWActual = Math.min(controls.combiDhwKw, kWRequired)
-  const qDot = kWActual * 1000 // kW -> J/s
+
+  let store = hasStored ? ensureCylinderStore(frame, controls) : undefined
+  const reheatTargetC = controls.dhwReheatTargetC ?? 55
+  const reheatHysteresisC = controls.dhwReheatHysteresisC ?? 6
+  const heatingDemandKw = controls.heatDemandKw ?? 0
+  const hotDrawActive = hexFlowLpm > 0.01
+
+  let storeNeedsReheat = frame.storeNeedsReheat ?? false
+  if (store) {
+    const storeTopC = cylinderTempC({ store, coldInletC: controls.coldInletC })
+    if (!storeNeedsReheat && storeTopC < reheatTargetC - reheatHysteresisC) storeNeedsReheat = true
+    if (storeNeedsReheat && storeTopC >= reheatTargetC) storeNeedsReheat = false
+  }
+
+  let mode: SystemMode = 'idle'
+  if (isCombi) {
+    if (hotDrawActive) mode = 'dhw_draw'
+    else if (heatingDemandKw > 0.1) mode = 'heating'
+  } else {
+    if (heatingDemandKw > 0.1) mode = 'heating'
+    else if (hasStored && storeNeedsReheat) mode = 'dhw_reheat'
+  }
+
+  const kWActual = isCombi && mode === 'dhw_draw' ? Math.min(controls.combiDhwKw, kWRequired) : 0
+  const qDot = kWActual * 1000
   const dhPerKgPerSecond = mDot > 0 ? qDot / mDot : 0
-  // Maximum heat content corresponding to the DHW setpoint (used to clamp tokens)
   const maxHSetpoint = tempToHeatJPerKg({ coldInletC: controls.coldInletC, tempC: setpointC })
 
-  // ── Cylinder store ────────────────────────────────────────────────────────
-  let store = isCylinder ? ensureCylinderStore(frame, controls) : undefined
-
-  if (isCylinder && store) {
-    // Reheat adds energy every tick regardless of draw.
-    const reheatKw = controls.cylinder?.reheatKw ?? 12
-    store = addReheatEnergy({ store, reheatKw, dtS: dt })
-
-    // Drawdown: remove energy proportional to delivered hot flow.
+  if (store) {
     if (demandTotalLpm > 0) {
       const storeTmp = cylinderTempC({ store, coldInletC: controls.coldInletC })
       store = removeDrawEnergy({
@@ -351,11 +353,16 @@ export function stepSimulation(params: {
         dtS: dt,
       })
     }
+
+    if (mode === 'dhw_reheat') {
+      const reheatKw = controls.cylinder?.reheatKw ?? 12
+      store = addReheatEnergy({ store, reheatKw, dtS: dt })
+    }
   }
 
   // ── Heat content for cylinder-spawned tokens ──────────────────────────────
   // Tokens from a cylinder carry the store temperature as their heat content.
-  const cylinderHJPerKg = (isCylinder && store)
+  const cylinderHJPerKg = (hasStored && store)
     ? store.energyJ / store.volumeL // J/kg above cold baseline
     : 0
 
@@ -416,7 +423,7 @@ export function stepSimulation(params: {
       s: 0,
       v: tokenV,
       p,
-      hJPerKg: isCylinder ? cylinderHJPerKg : 0,
+      hJPerKg: hasStored ? cylinderHJPerKg : 0,
       route,
       assignedOutlet,
     })
@@ -439,7 +446,7 @@ export function stepSimulation(params: {
     }
 
     if (t.route === 'MAIN') {
-      if (!isCylinder) {
+      if (isCombi) {
         // Combi: inject heat as the token passes through the HEX zone.
         const inHexNow = sPrev < HEX_END && sNext > HEX_START
 
@@ -528,6 +535,8 @@ export function stepSimulation(params: {
     nextTokenId: nextId,
     outletSamples,
     cylinderStore: store,
+    systemMode: mode,
+    storeNeedsReheat,
   }
 }
 

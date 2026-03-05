@@ -1,8 +1,8 @@
 // src/explainers/lego/animation/capacitySummary.ts
 
-import type { LabControls, OutletId } from './types'
+import type { LabControls, OutletId, SystemMode } from './types'
 import { computeCombiThermalLimit, pipeDiameterCapacityLpm } from '../model/dhwModel'
-import { computeCombiOutletTemp, computeTmvMixer } from './thermal'
+import { clampAnimationSetpointC, computeCombiOutletTemp, computeTmvMixer } from './thermal'
 import type { TmvOutcome } from './thermal'
 
 export type { TmvOutcome }
@@ -49,6 +49,8 @@ export type CapacitySummary = {
   hexFlowLpm: number
   coldBypassLpm: number
   hotFedCount: number
+  mode: SystemMode
+  badges: string[]
 }
 
 export function computeCapacitySummary(c: LabControls): CapacitySummary {
@@ -56,6 +58,9 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
   const demandTotalLpm = activeOutlets.reduce((sum, o) => sum + o.demandLpm, 0)
 
   const isCylinder = c.systemType === 'unvented_cylinder' || c.systemType === 'vented_cylinder'
+  const heatSourceType = c.heatSourceType ?? (c.systemType === 'combi' ? 'combi' : 'system_boiler')
+  const isCombi = heatSourceType === 'combi'
+  const hasStoredDhw = c.graphFacts?.hasStoredDhw ?? isCylinder
 
   // Supply cap: vented cylinders are limited by head pressure
   const ventedCap = c.systemType === 'vented_cylinder' && c.vented
@@ -66,7 +71,7 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
   const pipeCapLpm = pipeDiameterCapacityLpm(c.pipeDiameterMm) ?? Infinity
 
   // Thermal cap: only meaningful for combi; cylinders deliver from store (no fixed rate limit here)
-  const thermalCapLpm = isCylinder
+  const thermalCapLpm = !isCombi
     ? Infinity
     : computeCombiThermalLimit({
         dhwOutputKw: c.combiDhwKw,
@@ -91,7 +96,7 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
   }
 
   const warnings: string[] = []
-  if (!isCylinder && demandTotalLpm > thermalCapLpm)
+  if (isCombi && demandTotalLpm > thermalCapLpm)
     warnings.push('Demand exceeds combi thermal capacity → outlet temperature droop')
   if (demandTotalLpm > pipeCapLpm)
     warnings.push('Demand exceeds distribution capacity → flow throttled by pipework')
@@ -137,12 +142,12 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
 
   // Combi thermal outcome: compute achieved outlet temperature from HEX flow (hydraulic minus bypass).
   // Only meaningful when there is active flow through the HEX and the system is a combi.
-  const combiThermal = !isCylinder && hexFlowLpm > 0
+  const combiThermal = isCombi && hexFlowLpm > 0
     ? computeCombiOutletTemp({
         boilerKw: c.combiDhwKw,
         flowLpm: hexFlowLpm,
         coldInletC: c.coldInletC,
-        targetTempC: c.dhwSetpointC,
+        targetTempC: clampAnimationSetpointC(c.dhwSetpointC),
       })
     : undefined
 
@@ -156,7 +161,7 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
   let achievedOutTempC = combiThermal?.achievedOutTempC
   let requiredKw = combiThermal?.requiredKw
 
-  if (!isCylinder && hydraulicFlowLpm > 0) {
+  if (isCombi && hydraulicFlowLpm > 0) {
     const tmvActive = activeOutlets.some(
       o => o.kind === 'shower_mixer' && o.tmvEnabled
     )
@@ -193,6 +198,21 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
     }
   }
 
+  const heatingDemandKw = c.heatDemandKw ?? 0
+  const hotDrawActive = hexFlowLpm > 0.01
+  let mode: SystemMode = 'idle'
+  if (isCombi) {
+    if (hotDrawActive) mode = 'dhw_draw'
+    else if (heatingDemandKw > 0.1) mode = 'heating'
+  } else {
+    if (heatingDemandKw > 0.1) mode = 'heating'
+    else if (hasStoredDhw) mode = 'dhw_reheat'
+  }
+
+  const badges: string[] = []
+  if (isCombi && mode === 'dhw_draw') badges.push('During DHW draw, CH paused')
+  if (hasStoredDhw) badges.push('DHW draw uses store; reheat scheduled')
+
   return {
     demandTotalLpm,
     supplyCapLpm,
@@ -209,5 +229,7 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
     hexFlowLpm,
     coldBypassLpm,
     hotFedCount,
+    mode,
+    badges,
   }
 }

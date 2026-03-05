@@ -4,6 +4,7 @@ import { portsForKind } from './ports'
 export interface GraphFacts {
   hotFedOutletNodeIds: string[]
   coldOnlyOutletNodeIds: string[]
+  hasStoredDhw: boolean
 }
 
 function refKey(ref: PortRef) {
@@ -72,8 +73,10 @@ export function deriveFacts(graph: BuildGraph): GraphFacts {
   const coldReach = bfs(coldStarts, adj)
 
   const outletKinds = new Set(['tap_outlet', 'bath_outlet', 'shower_outlet'])
+  const cylinderKinds = new Set(['dhw_unvented_cylinder', 'dhw_mixergy', 'dhw_vented_cylinder'])
   const hotFedOutletNodeIds: string[] = []
   const coldOnlyOutletNodeIds: string[] = []
+  const hasStoredDhw = graph.nodes.some(node => cylinderKinds.has(node.kind))
 
   for (const node of graph.nodes) {
     if (!outletKinds.has(node.kind)) continue
@@ -88,5 +91,5 @@ export function deriveFacts(graph: BuildGraph): GraphFacts {
     else if (coldFed) coldOnlyOutletNodeIds.push(node.id)
   }
 
-  return { hotFedOutletNodeIds, coldOnlyOutletNodeIds }
+  return { hotFedOutletNodeIds, coldOnlyOutletNodeIds, hasStoredDhw }
 }

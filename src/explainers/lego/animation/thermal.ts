@@ -36,6 +36,14 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
 }
 
+const MIN_ANIMATION_SETPOINT_C = 45
+const MAX_ANIMATION_SETPOINT_C = 55
+
+export function clampAnimationSetpointC(setpointC: number): number {
+  return clamp(setpointC, MIN_ANIMATION_SETPOINT_C, MAX_ANIMATION_SETPOINT_C)
+}
+
+
 function hexToRgb(hex: string) {
   const h = hex.replace('#', '')
   const r = parseInt(h.slice(0, 2), 16)
