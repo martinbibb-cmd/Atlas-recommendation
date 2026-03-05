@@ -229,7 +229,8 @@ describe('stepSimulation', () => {
 
   it('routes tokens to multiple outlets when more than one is enabled', () => {
     // Outlets A (demand 10), B (demand 5), C (demand 18) — all enabled.
-    // With the demand-proportional cycle fix the first full cycle covers all three outlets.
+    // With hash-based routing (hash01 with multiplicative pre-mix) different token IDs
+    // land at different outlets deterministically within the first few tokens.
     const controls: LabControls = {
       ...defaultControls,
       outlets: [
@@ -239,31 +240,34 @@ describe('stepSimulation', () => {
       ],
     }
     // Place three MAIN tokens just before the splitter (s=0.81) with IDs that map to each outlet.
-    // With v=0.1 and dt=0.1s: sNext = 0.82 → crosses S_SPLIT=0.82 → branch fires.
-    // With total demand = 33, cycle = 33:
-    //   token 0  → r = 0  → outlet A  (0 < 10)
-    //   token 10 → r = 10 → outlet B  (10 >= 10, 10 < 15)
-    //   token 15 → r = 15 → outlet C  (15 >= 15)
+    // With v=0.1 and dt=0.1s: sNext = 0.82.
+    // Per-token splitAt (S_SPLIT + jitter, clamped to [0.75, 0.95]) must fall in (0.81, 0.82]
+    // for the crossing check to fire in this single tick.
+    //
+    // Verified values with the hash-based implementation (total demand = 33):
+    //   token 15 → hash01(15) ≈ 0.065 → r ≈ 2.2  → outlet A  (splitAt ≈ 0.810 ∈ (0.81,0.82] ✓)
+    //   token 0  → hash01(0)  ≈ 0.317 → r ≈ 10.5 → outlet B  (splitAt ≈ 0.815 ∈ (0.81,0.82] ✓)
+    //   token 9  → hash01(9)  ≈ 0.718 → r ≈ 23.7 → outlet C  (splitAt ≈ 0.820 ∈ (0.81,0.82] ✓)
     const tokens = [
-      { id: 't_0',  s: 0.81, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
-      { id: 't_10', s: 0.81, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
       { id: 't_15', s: 0.81, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
+      { id: 't_0',  s: 0.81, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
+      { id: 't_9',  s: 0.81, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
     ]
     const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 16, outletSamples: emptyOutletSamples }
     const next = stepSimulation({ frame, dtMs: 100, controls })
 
     // Each token should have been routed to its expected outlet
-    const t0  = next.tokens.find(t => t.id === 't_0')
-    const t10 = next.tokens.find(t => t.id === 't_10')
     const t15 = next.tokens.find(t => t.id === 't_15')
+    const t0  = next.tokens.find(t => t.id === 't_0')
+    const t9  = next.tokens.find(t => t.id === 't_9')
 
-    expect(t0).toBeDefined()
-    expect(t10).toBeDefined()
     expect(t15).toBeDefined()
+    expect(t0).toBeDefined()
+    expect(t9).toBeDefined()
 
-    expect(t0!.route).toBe('A')
-    expect(t10!.route).toBe('B')
-    expect(t15!.route).toBe('C')
+    expect(t15!.route).toBe('A')
+    expect(t0!.route).toBe('B')
+    expect(t9!.route).toBe('C')
   })
 
   it('always routes to the sole active outlet when only one is enabled', () => {
