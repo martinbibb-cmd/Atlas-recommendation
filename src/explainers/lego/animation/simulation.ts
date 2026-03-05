@@ -249,11 +249,17 @@ export function stepSimulation(params: {
 
   if (!isCylinder && hasDraw) {
     for (const o of activeOutlets) {
+      if (o.kind === 'cold_tap') {
+        // Cold-only draw bypasses HEX entirely.
+        hexFlowLpm = Math.max(0, hexFlowLpm - outletActualLpm[o.id])
+        continue
+      }
       if (o.kind === 'shower_mixer' && o.tmvEnabled) {
         const F_out = outletActualLpm[o.id]
         if (F_out > 0) {
           const outcome = computeTmvMixer({
             boilerKw: controls.combiDhwKw,
+            combiSetpointC: controls.dhwSetpointC,
             coldInTempC: controls.coldInletC,
             showerDeliveredLpm: F_out,
             targetTempC: o.tmvTargetTempC ?? 40,

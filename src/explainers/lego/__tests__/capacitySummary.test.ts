@@ -198,12 +198,9 @@ describe('computeCapacitySummary — achievedOutTempC and requiredKw (combi)', (
     expect(typeof s.achievedOutTempC).toBe('number');
   });
 
-  it('achievedOutTempC matches computeCombiOutletTemp formula', () => {
-    // demand = 8 L/min, supply = 18 → hydraulic = 8 L/min
-    // ΔT = (30 × 60) / (8 × 4.19) = 1800 / 33.52 ≈ 53.7 → out ≈ 63.7 °C (capped by palette but value is real)
+  it('achievedOutTempC is capped at setpoint when boiler can meet demand', () => {
     const s = computeCapacitySummary({ ...BASE, outlets: outlets(1, 8) });
-    const expected = 10 + (30 * 60) / (8 * 4.19);
-    expect(s.achievedOutTempC!).toBeCloseTo(expected, 1);
+    expect(s.achievedOutTempC!).toBeCloseTo(50, 5);
   });
 
   it('achievedOutTempC drops when flow increases through the same boiler', () => {
@@ -241,6 +238,20 @@ describe('computeCapacitySummary — achievedOutTempC and requiredKw (combi)', (
     expect(s.achievedOutTempC).toBeUndefined();
     expect(s.requiredKw).toBeUndefined();
   });
+
+  it('cold_tap flow bypasses HEX in combi thermal calculation', () => {
+    const s = computeCapacitySummary({
+      ...BASE,
+      outlets: [
+        { id: 'A', enabled: true, kind: 'cold_tap', demandLpm: 4 },
+        { id: 'B', enabled: true, kind: 'basin', demandLpm: 8 },
+        { id: 'C', enabled: false, kind: 'bath', demandLpm: 18 },
+      ],
+    })
+    // hydraulic=12 L/min but only 8 L/min crosses HEX, so boiler meets setpoint.
+    expect(s.hydraulicFlowLpm).toBeCloseTo(12, 5)
+    expect(s.achievedOutTempC).toBeCloseTo(50, 5)
+  })
 });
 
 // ─── computeCapacitySummary — TMV outcomes ────────────────────────────────────
@@ -289,7 +300,7 @@ describe('computeCapacitySummary — tmvOutcomes (combi + shower_mixer with TMV)
     expect(s.achievedOutTempC).toBeCloseTo(outcome.T_h, 1)
   })
 
-  it('achievedOutTempC is higher with TMV than without (same demand, boiler heats less water)', () => {
+  it('achievedOutTempC is not above setpoint with or without TMV when capacity is sufficient', () => {
     const withTmv    = computeCapacitySummary(tmvControls)
     const withoutTmv = computeCapacitySummary({
       ...tmvControls,
@@ -300,7 +311,8 @@ describe('computeCapacitySummary — tmvOutcomes (combi + shower_mixer with TMV)
       ],
     })
     // With TMV, F_h < F_out → boiler heats less water → T_h is higher.
-    expect(withTmv.achievedOutTempC!).toBeGreaterThan(withoutTmv.achievedOutTempC!)
+    expect(withTmv.achievedOutTempC!).toBeCloseTo(50, 5)
+    expect(withoutTmv.achievedOutTempC!).toBeCloseTo(50, 5)
   })
 
   it('tmvSaturated is true when boiler cannot reach target', () => {

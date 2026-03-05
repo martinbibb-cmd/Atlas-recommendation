@@ -206,11 +206,12 @@ export function computeCombiOutletTemp(params: {
 } {
   const { boilerKw, flowLpm, coldInletC, targetTempC } = params
   const safeLpm = Math.max(flowLpm, 1e-6)
-  const deltaT = (boilerKw * 60) / (safeLpm * CP_WATER_KJ_PER_KG_C)
-  const achievedOutTempC = coldInletC + deltaT
-  const deficitC = targetTempC - achievedOutTempC
-  const meetsTarget = achievedOutTempC >= targetTempC - 0.5
   const requiredKw = (safeLpm * CP_WATER_KJ_PER_KG_C * Math.max(targetTempC - coldInletC, 0)) / 60
+  const meetsTarget = boilerKw >= requiredKw - 1e-6
+  const achievedOutTempC = meetsTarget
+    ? targetTempC
+    : coldInletC + (boilerKw * 60) / (safeLpm * CP_WATER_KJ_PER_KG_C)
+  const deficitC = targetTempC - achievedOutTempC
   return { achievedOutTempC, meetsTarget, deficitC, requiredKw }
 }
 
@@ -266,17 +267,30 @@ export type TmvOutcome = {
  */
 export function computeTmvMixer(params: {
   boilerKw: number
+  combiSetpointC: number
   coldInTempC: number
   /** Mixed outlet (shower delivered) flow rate (L/min). */
   showerDeliveredLpm: number
   /** Shower target temperature — °C. */
   targetTempC: number
 }): TmvOutcome {
-  const { boilerKw, coldInTempC: T_c, showerDeliveredLpm: F_out, targetTempC: T_t } = params
+  const {
+    boilerKw,
+    combiSetpointC,
+    coldInTempC: T_c,
+    showerDeliveredLpm: F_out,
+    targetTempC: T_t,
+  } = params
   const safeF = Math.max(F_out, 1e-6)
 
-  // Step 1: estimate T_h assuming all shower flow went through the HEX.
-  const T_h_guess = T_c + (boilerKw * 60) / (safeF * CP_WATER_KJ_PER_KG_C)
+  const hotAllFlow = computeCombiOutletTemp({
+    boilerKw,
+    flowLpm: safeF,
+    coldInletC: T_c,
+    targetTempC: combiSetpointC,
+  })
+
+  const T_h_avail = hotAllFlow.achievedOutTempC
 
   let F_h: number
   let F_c: number
@@ -284,19 +298,25 @@ export function computeTmvMixer(params: {
   let T_mix: number
   let saturated: boolean
 
-  if (T_h_guess <= T_c + 0.1) {
+  if (T_h_avail <= T_c + 0.1) {
     // No meaningful heat available from boiler.
     F_h = F_out; F_c = 0
     T_h = T_c; T_mix = T_c; saturated = true
   } else {
     // Step 2: hot fraction required.
-    const f_h_raw = (T_t - T_c) / Math.max(1e-6, T_h_guess - T_c)
+    const f_h_raw = (T_t - T_c) / Math.max(1e-6, T_h_avail - T_c)
     const f_h = clamp(f_h_raw, 0, 1)
     F_h = f_h * F_out
     F_c = F_out - F_h
 
     // Step 3: actual boiler hot-side temperature with only F_h through HEX.
-    T_h = T_c + (boilerKw * 60) / (Math.max(F_h, 1e-6) * CP_WATER_KJ_PER_KG_C)
+    const hotBranch = computeCombiOutletTemp({
+      boilerKw,
+      flowLpm: Math.max(F_h, 1e-6),
+      coldInletC: T_c,
+      targetTempC: combiSetpointC,
+    })
+    T_h = hotBranch.achievedOutTempC
 
     // Step 4: feasibility — can the mixer reach the target?
     if (T_h < T_t) {

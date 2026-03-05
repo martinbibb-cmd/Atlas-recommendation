@@ -27,6 +27,7 @@ const OUTLET_KIND_LABELS: Record<string, string> = {
   shower_mixer: 'Shower',
   basin: 'Basin',
   bath: 'Bath',
+  cold_tap: 'Cold tap',
 }
 
 const EMPTY_OUTLET_SAMPLES: LabFrame['outletSamples'] = {
