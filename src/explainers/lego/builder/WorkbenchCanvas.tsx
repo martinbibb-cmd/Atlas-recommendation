@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { BuildGraph, BuildNode, PartKind, PortRef } from './types';
 import { PALETTE } from './palette';
@@ -6,6 +6,10 @@ import { portsForKind, TOKEN_H, TOKEN_W } from './ports';
 import { findSnapCandidate, portAbs as snapPortAbs } from './snapConnect';
 import { routePipe } from './router';
 import './builder.css';
+
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 2;
+const ZOOM_SENSITIVITY = 0.001;
 
 function kindLabel(kind: PartKind) {
   return PALETTE.find(p => p.kind === kind)?.label ?? kind;
@@ -62,6 +66,48 @@ export default function WorkbenchCanvas({
     graphRef.current = graph;
   });
 
+  // ── Pan / zoom ─────────────────────────────────────────────────────────────
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+
+  // Mutable refs so closure-captured handlers always read the latest values.
+  const panRef = useRef({ x: 0, y: 0 });
+  const zoomRef = useRef(1);
+  useEffect(() => { panRef.current = pan; }, [pan]);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+
+  const panningRef = useRef(false);
+  const panStartRef = useRef({ x: 0, y: 0 });
+  const panOriginRef = useRef({ x: 0, y: 0 });
+
+  // Auto-center the canvas when the very first node is placed.
+  const prevNodeCountRef = useRef(graph.nodes.length);
+  useEffect(() => {
+    const prev = prevNodeCountRef.current;
+    prevNodeCountRef.current = graph.nodes.length;
+    if (prev === 0 && graph.nodes.length === 1) {
+      const node = graph.nodes[0];
+      const container = containerRef.current;
+      if (!container) return;
+      const { width, height } = container.getBoundingClientRect();
+      setPan({ x: width / 2 - node.x, y: height / 2 - node.y });
+    }
+  }, [graph.nodes]);
+
+  // Non-passive wheel listener so preventDefault() actually prevents page scroll.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoom(z => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z - e.deltaY * ZOOM_SENSITIVITY)));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // ── Node drag ──────────────────────────────────────────────────────────────
   const handlePointerDown = (e: ReactPointerEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -82,8 +128,9 @@ export default function WorkbenchCanvas({
     target.setPointerCapture(e.pointerId);
 
     const onMoveEvt = (ev: PointerEvent) => {
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
+      // Divide by zoom so a screen-pixel maps to one world-pixel at 1× zoom.
+      const dx = (ev.clientX - startX) / zoomRef.current;
+      const dy = (ev.clientY - startY) / zoomRef.current;
       onMove(id, originX + dx, originY + dy);
     };
 
@@ -119,112 +166,146 @@ export default function WorkbenchCanvas({
     return snapPortAbs(toNode, cand.to.portId);
   }, [graph, selectedId, onAutoConnect]);
 
+  // ── Background pan handlers ────────────────────────────────────────────────
+  const handleWrapPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    onSelect(null);
+    onCancelPending();
+    panningRef.current = true;
+    panStartRef.current = { x: e.clientX, y: e.clientY };
+    panOriginRef.current = { ...panRef.current };
+    (e.currentTarget).setPointerCapture(e.pointerId);
+  };
+
+  const handleWrapPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!panningRef.current) return;
+    const dx = e.clientX - panStartRef.current.x;
+    const dy = e.clientY - panStartRef.current.y;
+    setPan({ x: panOriginRef.current.x + dx, y: panOriginRef.current.y + dy });
+  };
+
+  const handleWrapPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (panningRef.current) {
+      panningRef.current = false;
+      (e.currentTarget).releasePointerCapture(e.pointerId);
+    }
+  };
+
   return (
     <div
-      className="workbench"
-      onPointerDown={() => {
-        onSelect(null);
-        onCancelPending();
-      }}
+      ref={containerRef}
+      className="canvas-wrap"
+      onPointerDown={handleWrapPointerDown}
+      onPointerMove={handleWrapPointerMove}
+      onPointerUp={handleWrapPointerUp}
     >
-      <div className="workbench-hint">• Tap a Palette item to place • Drag to move • Drag near a port to snap-connect • Tap port → port to connect</div>
+      <div className="workbench-hint">
+        • Tap a Palette item to place • Drag to move • Drag near a port to snap-connect •
+        Tap port → port to connect • Scroll to zoom • Drag background to pan
+      </div>
 
-      <svg className="pipes" width="100%" height="100%">
-        {graph.edges.map(edge => {
-          const fromNode = nodesById.get(edge.from.nodeId);
-          const toNode = nodesById.get(edge.to.nodeId);
-          if (!fromNode || !toNode) {
-            return null;
-          }
+      <div
+        className="canvas-world"
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transformOrigin: '0 0',
+        }}
+      >
+        <svg className="pipes">
+          {graph.edges.map(edge => {
+            const fromNode = nodesById.get(edge.from.nodeId);
+            const toNode = nodesById.get(edge.to.nodeId);
+            if (!fromNode || !toNode) {
+              return null;
+            }
 
-          const from = portAbs(fromNode, edge.from.portId);
-          const to = portAbs(toNode, edge.to.portId);
-          const points = routePipe(from, to);
+            const from = portAbs(fromNode, edge.from.portId);
+            const to = portAbs(toNode, edge.to.portId);
+            const points = routePipe(from, to);
 
-          const edgeClass =
-            edge.meta?.roleFrom === 'unknown' || edge.meta?.roleTo === 'unknown'
-              ? 'pipe-line softwarn'
-              : 'pipe-line'
+            const edgeClass =
+              edge.meta?.roleFrom === 'unknown' || edge.meta?.roleTo === 'unknown'
+                ? 'pipe-line softwarn'
+                : 'pipe-line';
 
-          const highlighted = edge.id === highlightEdgeId
+            const highlighted = edge.id === highlightEdgeId;
+            const finalClass = highlighted ? `${edgeClass} highlighted` : edgeClass;
 
-          const finalClass = highlighted ? `${edgeClass} highlighted` : edgeClass
+            return <polyline key={edge.id} points={points} className={finalClass} fill="none" />;
+          })}
 
-          return <polyline key={edge.id} points={points} className={finalClass} fill="none" />;
+          {pendingPort
+            ? (() => {
+                const fromNode = nodesById.get(pendingPort.nodeId);
+                if (!fromNode) {
+                  return null;
+                }
+
+                const from = portAbs(fromNode, pendingPort.portId);
+                const to = { x: from.x + 80, y: from.y };
+                return (
+                  <polyline
+                    points={`${from.x},${from.y} ${to.x},${to.y}`}
+                    className="pipe-line pending"
+                    fill="none"
+                  />
+                );
+              })()
+            : null}
+
+          {snapGhost ? (
+            <circle
+              cx={snapGhost.x}
+              cy={snapGhost.y}
+              r={10}
+              className="snap-ghost"
+            />
+          ) : null}
+        </svg>
+
+        {graph.nodes.map(node => {
+          const ports = portsForKind(node.kind);
+          const slot = (['A', 'B', 'C'] as const).find(key => outletBindings?.[key] === node.id);
+
+          return (
+            <div
+              key={node.id}
+              className={`token ${node.id === selectedId ? 'selected' : ''} ${node.id === highlightNodeId ? 'highlighted' : ''}`}
+              style={{
+                width: TOKEN_W,
+                height: TOKEN_H,
+                transform: `translate(${node.x}px, ${node.y}px) rotate(${node.r}deg)`,
+              }}
+              onPointerDown={e => handlePointerDown(e, node.id)}
+              role="button"
+              aria-label={kindLabel(node.kind)}
+              title={kindLabel(node.kind)}
+            >
+              <div className="token-emoji">{kindEmoji(node.kind)}</div>
+              <div className="token-text">{kindLabel(node.kind)}</div>
+              {slot ? <div className="token-bind">Outlet {slot}</div> : null}
+
+              {ports.map(port => {
+                const isPending =
+                  pendingPort && pendingPort.nodeId === node.id && pendingPort.portId === port.id;
+
+                return (
+                  <button
+                    key={port.id}
+                    className={`port ${isPending ? 'pending' : ''}`}
+                    style={{ left: port.dx - 6, top: port.dy - 6 }}
+                    title={port.id}
+                    onPointerDown={event => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onPortTap({ nodeId: node.id, portId: port.id });
+                    }}
+                  />
+                );
+              })}
+            </div>
+          );
         })}
-
-        {pendingPort
-          ? (() => {
-              const fromNode = nodesById.get(pendingPort.nodeId);
-              if (!fromNode) {
-                return null;
-              }
-
-              const from = portAbs(fromNode, pendingPort.portId);
-              const to = { x: from.x + 80, y: from.y };
-              return (
-                <polyline
-                  points={`${from.x},${from.y} ${to.x},${to.y}`}
-                  className="pipe-line pending"
-                  fill="none"
-                />
-              );
-            })()
-          : null}
-
-        {snapGhost ? (
-          <circle
-            cx={snapGhost.x}
-            cy={snapGhost.y}
-            r={10}
-            className="snap-ghost"
-          />
-        ) : null}
-      </svg>
-
-      {graph.nodes.map(node => {
-        const ports = portsForKind(node.kind);
-        const slot = (['A', 'B', 'C'] as const).find(key => outletBindings?.[key] === node.id)
-
-        return (
-          <div
-            key={node.id}
-            className={`token ${node.id === selectedId ? 'selected' : ''} ${node.id === highlightNodeId ? 'highlighted' : ''}`}
-            style={{
-              width: TOKEN_W,
-              height: TOKEN_H,
-              transform: `translate(${node.x}px, ${node.y}px) rotate(${node.r}deg)`,
-            }}
-            onPointerDown={e => handlePointerDown(e, node.id)}
-            role="button"
-            aria-label={kindLabel(node.kind)}
-            title={kindLabel(node.kind)}
-          >
-            <div className="token-emoji">{kindEmoji(node.kind)}</div>
-            <div className="token-text">{kindLabel(node.kind)}</div>
-            {slot ? <div className="token-bind">Outlet {slot}</div> : null}
-
-            {ports.map(port => {
-              const isPending =
-                pendingPort && pendingPort.nodeId === node.id && pendingPort.portId === port.id;
-
-              return (
-                <button
-                  key={port.id}
-                  className={`port ${isPending ? 'pending' : ''}`}
-                  style={{ left: port.dx - 6, top: port.dy - 6 }}
-                  title={port.id}
-                  onPointerDown={event => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onPortTap({ nodeId: node.id, portId: port.id });
-                  }}
-                />
-              );
-            })}
-          </div>
-        );
-      })}
+      </div>
     </div>
   );
 }
