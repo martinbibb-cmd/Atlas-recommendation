@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { BuildGraph, BuildNode, PartKind, PortDef, PortRef } from './types'
+import type { BuildGraph, PartKind, PortDef, PortRef } from './types'
 import PresetPanel from './PresetPanel'
 import PalettePanel from './PalettePanel'
 import WorkbenchCanvas from './WorkbenchCanvas'
@@ -8,6 +8,7 @@ import { portsForKind } from './ports'
 import { validateGraph, type GraphWarning } from './graphValidate'
 import { deriveFacts } from './graphDerive'
 import { PRESETS } from './presets'
+import { smartAdd } from './smartAttach'
 import './builder.css'
 
 function uid(prefix = 'n') {
@@ -29,15 +30,8 @@ const cloneGraph = (graph: BuildGraph): BuildGraph => ({
 })
 
 const isOutletKind = (kind: PartKind) =>
-  kind === 'tap_outlet' || kind === 'bath_outlet' || kind === 'shower_outlet'
+  kind === 'tap_outlet' || kind === 'bath_outlet' || kind === 'shower_outlet' || kind === 'cold_tap_outlet'
 
-const nextFreeSlot = (bindings: Partial<Record<'A' | 'B' | 'C', string>> | undefined) => {
-  const b = bindings ?? {}
-  if (!b.A) return 'A'
-  if (!b.B) return 'B'
-  if (!b.C) return 'C'
-  return null
-}
 
 export default function BuilderShell({
   initial,
@@ -72,33 +66,12 @@ export default function BuilderShell({
   const hardBlock = (aRole: PortDef['role'], bRole: PortDef['role']) =>
     (aRole === 'hot' && bRole === 'cold') || (aRole === 'cold' && bRole === 'hot')
 
-  const addNode = (kind: PartKind, at?: { x: number; y: number }) => {
-    const node: BuildNode = {
-      id: uid('node'),
-      kind,
-      x: at?.x ?? 520,
-      y: at?.y ?? 260,
-      r: 0,
-    }
-
+  const pickFromPalette = (kind: PartKind) => {
     setGraph(current => {
-      const nodes = [...current.nodes, node]
-      if (!isOutletKind(kind)) {
-        return { ...current, nodes }
-      }
-
-      const slot = nextFreeSlot(current.outletBindings)
-      if (!slot) {
-        return { ...current, nodes }
-      }
-
-      return {
-        ...current,
-        nodes,
-        outletBindings: { ...(current.outletBindings ?? {}), [slot]: node.id },
-      }
+      const { nextGraph, placedNodeId } = smartAdd(current, kind)
+      setSelectedId(placedNodeId)
+      return nextGraph
     })
-    setSelectedId(node.id)
   }
 
   const moveNode = (id: string, x: number, y: number) => {
@@ -239,7 +212,7 @@ export default function BuilderShell({
     <div className="builder-wrap">
       <div className="builder-left">
         <PresetPanel onLoad={loadPreset} />
-        <PalettePanel onPick={addNode} />
+        <PalettePanel onPick={pickFromPalette} />
       </div>
 
       <div className="builder-right">

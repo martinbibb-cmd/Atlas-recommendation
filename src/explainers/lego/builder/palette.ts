@@ -9,7 +9,7 @@ export const PALETTE: PaletteItem[] = [
   { kind: 'dhw_mixergy', label: 'Mixergy', emoji: '🟦' },
   { kind: 'dhw_vented_cylinder', label: 'Vented Cylinder', emoji: '🪣' },
   { kind: 'feed_and_expansion', label: 'Feed & Expansion', emoji: '🫙' },
-  { kind: 'open_vent', label: 'Open Vent', emoji: '🫧' },
+  { kind: 'open_vent', label: 'CH open vent (safety)', emoji: '🫧' },
   { kind: 'cws_cistern', label: 'CWS Cistern', emoji: '🛢️' },
   { kind: 'pump', label: 'Pump', emoji: '🌀' },
   { kind: 'zone_valve', label: 'Zone Valve', emoji: '🚪' },
@@ -21,4 +21,5 @@ export const PALETTE: PaletteItem[] = [
   { kind: 'tap_outlet', label: 'Tap', emoji: '🚰' },
   { kind: 'bath_outlet', label: 'Bath', emoji: '🛁' },
   { kind: 'shower_outlet', label: 'Shower', emoji: '🚿' },
+  { kind: 'cold_tap_outlet', label: 'Cold tap', emoji: '🧊' },
 ];

@@ -18,7 +18,8 @@ export type PartKind =
   | 'ufh_loop'
   | 'tap_outlet'
   | 'bath_outlet'
-  | 'shower_outlet';
+  | 'shower_outlet'
+  | 'cold_tap_outlet';
 
 export interface BuildNode {
   id: string;

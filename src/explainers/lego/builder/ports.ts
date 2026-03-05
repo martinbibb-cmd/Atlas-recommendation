@@ -35,8 +35,13 @@ export function portsForKind(kind: PartKind): PortDef[] {
       ];
 
     case 'feed_and_expansion':
+      return [{ id: 'feed_in', dx: R, dy: MID_Y, role: 'unknown' }];
+
     case 'open_vent':
-      return [{ id: 'vent', dx: R, dy: MID_Y, role: 'unknown' }];
+      return [
+        { id: 'vent_in', dx: L, dy: MID_Y, role: 'unknown' },
+        { id: 'vent_out', dx: R, dy: MID_Y, role: 'unknown' },
+      ];
 
     case 'cws_cistern':
       return [{ id: 'cold_out', dx: R, dy: MID_Y, role: 'cold' }];
@@ -88,6 +93,9 @@ export function portsForKind(kind: PartKind): PortDef[] {
         { id: 'hot_in', dx: L, dy: T + 18, role: 'hot' },
         { id: 'cold_in', dx: L, dy: B - 18, role: 'cold' },
       ];
+
+    case 'cold_tap_outlet':
+      return [{ id: 'cold_in', dx: L, dy: MID_Y, role: 'cold' }];
 
     default:
       return [
