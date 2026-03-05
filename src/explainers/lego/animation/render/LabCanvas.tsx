@@ -7,7 +7,7 @@ import { stepSimulation } from '../simulation'
 import { createCylinderStore, cylinderTempC } from '../storage'
 import { TokensLayer } from './TokensLayer'
 import { ThermalLegend } from './ThermalLegend'
-import { THERMAL_BANDS, tempToThermalColor } from '../thermal'
+import { THERMAL_BANDS, tempToThermalColor, roundTempC } from '../thermal'
 import { buildPolylines, SCHEMATIC_P } from './pathMap'
 
 /** Baseline frame time at 60 fps (ms). */
@@ -223,7 +223,7 @@ export function LabCanvas(props: {
             </text>
             {storeTempC !== null && (
               <text x={P.boilerX + 30} y={P.boilerY + 24} textAnchor="middle" fontSize={11} fill="#b45309">
-                {storeTempC.toFixed(0)} °C
+                {roundTempC(storeTempC)} °C
               </text>
             )}
           </g>
@@ -280,7 +280,7 @@ export function LabCanvas(props: {
                   </text>
                   {sample.count > 0 && (
                     <text x={P.outlet1X + 6} y={oy + 22} textAnchor="start" fontSize={11} fill="#b45309">
-                      ~{sample.tempC.toFixed(0)} °C
+                      ~{roundTempC(sample.tempC)} °C
                     </text>
                   )}
                 </g>

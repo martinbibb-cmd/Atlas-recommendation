@@ -56,14 +56,22 @@ const MAX_ANIMATION_SETPOINT_C = 55
 const MIN_MOVEMENT_EPSILON = 1e-6
 
 /**
- * Convert flow to a token spawn rate.
- * We use a stable "tokens per litre" constant so visuals scale nicely.
+ * Spawn-rate constant: tokens per second per sqrt(L/min).
+ * sqrt compression keeps high flows from generating a firehose while still
+ * making 6 vs 14 vs 24 L/min clearly distinguishable.
+ * Tuned so that at ~10 L/min the spawn density matches the previous linear rate.
  */
-const TOKENS_PER_LITRE = 2.2
+const K_SPAWN = 0.12
 
-function tokensPerSecondFromLpm(flowLpm: number) {
-  const litresPerSecond = flowLpm / 60
-  return litresPerSecond * TOKENS_PER_LITRE
+/**
+ * Convert flow to a token spawn rate using sqrt compression.
+ * spawnPerSec ≈ K_SPAWN × √flowLpm
+ * - 6 L/min  → ~0.29 tokens/s
+ * - 10 L/min → ~0.38 tokens/s
+ * - 20 L/min → ~0.54 tokens/s
+ */
+function spawnPerSec(flowLpm: number): number {
+  return K_SPAWN * Math.sqrt(Math.max(flowLpm, 0))
 }
 
 /**
@@ -206,6 +214,16 @@ export function stepSimulation(params: {
   // No draw → velocity must be zero so tokens stop immediately.
   const hasDraw = hydraulicFlowLpm > 0.01
 
+  // ── Per-outlet actual LPM ─────────────────────────────────────────────────
+  // Scale each outlet's demand proportionally by the hydraulic throttle factor.
+  // Tokens branching to an outlet use this value for their individual velocity,
+  // so visually faster branch = more flow to that branch.
+  const outletScale = demandTotalLpm > 0 ? hydraulicFlowLpm / demandTotalLpm : 0
+  const outletActualLpm: Record<OutletId, number> = { A: 0, B: 0, C: 0 }
+  for (const o of activeOutlets) {
+    outletActualLpm[o.id] = o.demandLpm * outletScale
+  }
+
   // ── Pressure proxy ────────────────────────────────────────────────────────
   let p: number
   if (controls.systemType === 'vented_cylinder' && controls.vented) {
@@ -259,8 +277,7 @@ export function stepSimulation(params: {
     : 0
 
   // Spawn tokens using a deterministic carry-over accumulator (no Math.random).
-  const spawnRate = tokensPerSecondFromLpm(hydraulicFlowLpm)
-  const rawAccumulator = frame.spawnAccumulator + spawnRate * dt
+  const rawAccumulator = frame.spawnAccumulator + spawnPerSec(hydraulicFlowLpm) * dt
   const spawnCount = Math.floor(rawAccumulator)
   const spawnAccumulator = rawAccumulator - spawnCount // carry fractional part forward
 
@@ -322,14 +339,26 @@ export function stepSimulation(params: {
 
       if (shouldBranch) {
         const targetOutlet = pickOutletDeterministic(controls.outlets, extractTokenNumId(t.id))
-        return { ...t, s: 0, v, p, hJPerKg: h, route: targetOutlet }
+        // Per-outlet velocity: branch tokens move at a speed reflecting that outlet's
+        // individual flow, making flow differences between branches visually distinct.
+        const branchFlow = outletActualLpm[targetOutlet] ?? 0
+        const branchV = hasDraw
+          ? velocityProxy({ flowLpm: branchFlow, diameterMm: controls.pipeDiameterMm })
+          : 0
+        return { ...t, s: 0, v: branchV, p, hJPerKg: h, route: targetOutlet }
       }
 
       return { ...t, s: sNext, v, p, hJPerKg: h }
     }
 
-    // Branch token — advance along its outlet path
-    return { ...t, s: sNext, v, p, hJPerKg: h }
+    // Branch token — update velocity to reflect this outlet's current actual flow.
+    // When the outlet has zero flow (disabled or throttled), fall back to the main
+    // velocity so stale tokens can drain naturally to the exit.
+    const branchFlow = outletActualLpm[t.route as OutletId] ?? 0
+    const branchV = (hasDraw && branchFlow > 0.01)
+      ? velocityProxy({ flowLpm: branchFlow, diameterMm: controls.pipeDiameterMm })
+      : v
+    return { ...t, s: sNext, v: branchV, p, hJPerKg: h }
   })
 
   // Sample tokens exiting outlet branches → update EMA, then remove them
