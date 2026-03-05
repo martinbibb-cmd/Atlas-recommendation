@@ -23,3 +23,11 @@ export const PALETTE: PaletteItem[] = [
   { kind: 'shower_outlet', label: 'Shower', emoji: '🚿' },
   { kind: 'cold_tap_outlet', label: 'Cold tap', emoji: '🧊' },
 ];
+
+/** Tee tokens are auto-inserted by drag-connect; they can also be placed manually. */
+export const PALETTE_ADVANCED: PaletteItem[] = [
+  { kind: 'tee_hot', label: 'Hot Tee', emoji: '🔱' },
+  { kind: 'tee_cold', label: 'Cold Tee', emoji: '❄️' },
+  { kind: 'tee_ch_flow', label: 'CH Flow Tee', emoji: '↗️' },
+  { kind: 'tee_ch_return', label: 'CH Return Tee', emoji: '↙️' },
+];

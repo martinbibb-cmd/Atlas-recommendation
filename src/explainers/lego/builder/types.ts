@@ -19,7 +19,11 @@ export type PartKind =
   | 'tap_outlet'
   | 'bath_outlet'
   | 'shower_outlet'
-  | 'cold_tap_outlet';
+  | 'cold_tap_outlet'
+  | 'tee_hot'
+  | 'tee_cold'
+  | 'tee_ch_flow'
+  | 'tee_ch_return';
 
 export interface BuildNode {
   id: string;
@@ -51,6 +55,8 @@ export interface PortDef {
   dx: number;
   dy: number;
   role?: 'cold' | 'hot' | 'flow' | 'return' | 'store' | 'outlet' | 'unknown';
+  /** When true, this port can accept multiple direct connections without requiring a tee. */
+  multi?: boolean;
 }
 
 export interface BuildGraph {

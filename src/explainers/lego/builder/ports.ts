@@ -97,6 +97,34 @@ export function portsForKind(kind: PartKind): PortDef[] {
     case 'cold_tap_outlet':
       return [{ id: 'cold_in', dx: L, dy: MID_Y, role: 'cold' }];
 
+    case 'tee_hot':
+      return [
+        { id: 'in', dx: L, dy: MID_Y, role: 'hot' },
+        { id: 'out1', dx: R, dy: T + 18, role: 'hot' },
+        { id: 'out2', dx: R, dy: B - 18, role: 'hot' },
+      ];
+
+    case 'tee_cold':
+      return [
+        { id: 'in', dx: L, dy: MID_Y, role: 'cold' },
+        { id: 'out1', dx: R, dy: T + 18, role: 'cold' },
+        { id: 'out2', dx: R, dy: B - 18, role: 'cold' },
+      ];
+
+    case 'tee_ch_flow':
+      return [
+        { id: 'in', dx: L, dy: MID_Y, role: 'flow' },
+        { id: 'out1', dx: R, dy: T + 18, role: 'flow' },
+        { id: 'out2', dx: R, dy: B - 18, role: 'flow' },
+      ];
+
+    case 'tee_ch_return':
+      return [
+        { id: 'in', dx: R, dy: MID_Y, role: 'return' },
+        { id: 'out1', dx: L, dy: T + 18, role: 'return' },
+        { id: 'out2', dx: L, dy: B - 18, role: 'return' },
+      ];
+
     default:
       return [
         { id: 'in', dx: L, dy: MID_Y, role: 'unknown' },
