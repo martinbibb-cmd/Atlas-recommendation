@@ -364,8 +364,9 @@ export function stepSimulation(params: {
       const tmv = tmvOutletMap[assignedOutlet]!
       const F_out = (tmv.F_h + tmv.F_c) || 1
       const coldFraction = tmv.F_c / F_out
-      // Deterministic split: use a prime-multiplied hash so cold bypass tokens
+      // Deterministic split: use a large prime multiplier so cold bypass tokens
       // interleave with hot tokens rather than appearing in blocks.
+      // (Any large prime avoids patterns caused by sequential IDs.)
       const h01 = hash01(nextId * 3571)
       if (h01 < coldFraction) {
         route = 'COLD_A'

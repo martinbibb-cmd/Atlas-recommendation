@@ -63,7 +63,7 @@ export const SCHEMATIC_P = {
   mixerAX: 845, mixerAY: 75,
   /**
    * Y-coordinate for the cold supply bypass horizontal run above the boiler.
-   * Must be above the boiler box top (boilerY − 44 = 86) to avoid overlap.
+   * Must be < 86 (= boilerY − 44, the top edge of the boiler box) to avoid overlap.
    */
   coldBypassY: 55,
 }

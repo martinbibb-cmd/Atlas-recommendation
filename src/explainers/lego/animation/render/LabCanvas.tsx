@@ -214,7 +214,7 @@ export function LabCanvas(props: {
 
   return (
     <div style={{ position: 'relative', display: 'block', width: '100%', minWidth: 700 }}>
-      <svg width="100%" viewBox="0 0 1000 270" style={{ display: 'block' }}>
+      <svg width="100%" viewBox="0 0 1000 260" style={{ display: 'block' }}>
         <defs>
           <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="6" result="coloredBlur" />

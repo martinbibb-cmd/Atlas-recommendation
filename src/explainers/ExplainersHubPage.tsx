@@ -265,6 +265,9 @@ export default function ExplainersHubPage({ onBack }: Props) {
             </div>
             {outlets.map(outlet => {
               const delivered = labSummary.outletDeliveredLpm[outlet.id];
+              const tmvOutcome = outlet.kind === 'shower_mixer' && outlet.tmvEnabled
+                ? labSummary.tmvOutcomes?.[outlet.id]
+                : undefined;
               return (
                 <div
                   key={outlet.id}
@@ -333,14 +336,11 @@ export default function ExplainersHubPage({ onBack }: Props) {
                   {outlet.enabled && (
                     <div className="demo-lab-outlet-card__readout">
                       <span>{delivered.toFixed(1)} L/min delivered</span>
-                      {outlet.kind === 'shower_mixer' && outlet.tmvEnabled && labSummary.tmvOutcomes?.[outlet.id] && (() => {
-                        const tmv = labSummary.tmvOutcomes![outlet.id]!;
-                        return (
-                          <span style={{ marginLeft: 8, color: tmv.saturated ? '#b91c1c' : '#0f766e', fontWeight: 600 }}>
-                            · {Math.round(tmv.T_mix)} °C{tmv.saturated ? ' ⚠' : ' ✓'}
-                          </span>
-                        );
-                      })()}
+                      {tmvOutcome && (
+                        <span style={{ marginLeft: 8, color: tmvOutcome.saturated ? '#b91c1c' : '#0f766e', fontWeight: 600 }}>
+                          · {Math.round(tmvOutcome.T_mix)} °C{tmvOutcome.saturated ? ' ⚠' : ' ✓'}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>

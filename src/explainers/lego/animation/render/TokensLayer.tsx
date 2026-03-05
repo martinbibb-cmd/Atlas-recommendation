@@ -68,7 +68,12 @@ export function TokensLayer(props: {
           t.route === 'MAIN'    ? polyMain :
           t.route === 'A'       ? polyA :
           t.route === 'B'       ? polyB :
-          t.route === 'COLD_A'  ? (polyColdA.length > 0 ? polyColdA : polyA) : polyC
+          t.route === 'COLD_A'  ? (() => {
+            if (import.meta.env?.DEV && polyColdA.length === 0) {
+              console.warn('[TokensLayer] COLD_A token present but polyColdA is empty — TMV polyline missing')
+            }
+            return polyColdA.length > 0 ? polyColdA : polyA
+          })() : polyC
 
         const pos = mapSToPath(t.s, poly)
 
