@@ -129,17 +129,21 @@ export default function App() {
           </ul>
           <button className="cta-btn" style={{ background: '#38a169' }}>Open Console →</button>
         </div>
-        <div className="journey-card full" onClick={() => setJourney('lab')} style={{ borderColor: '#805ad5' }}>
+        <div
+          className="journey-card full"
+          onClick={() => { window.location.search = '?lab=1'; }}
+          style={{ borderColor: '#805ad5' }}
+        >
           <div className="card-icon">🧱</div>
           <h2>System Lab</h2>
-          <p className="card-time">New · Beta</p>
-          <p>Build-your-own heating system from first principles. Component-based physics builder.</p>
+          <p className="card-time">Demo · Builder</p>
+          <p>Flow + thermal lab with Lego-style system building and presets.</p>
           <ul>
-            <li>On-demand hot water simulation</li>
-            <li>Pipe capacity &amp; flow analysis</li>
-            <li>System component palette</li>
+            <li>Preset scenarios + quick load</li>
+            <li>Live instruments (flow/pressure/heat)</li>
+            <li>Build-your-own system (next)</li>
           </ul>
-          <button className="cta-btn" style={{ background: '#805ad5' }}>Open System Lab →</button>
+          <button className="cta-btn" style={{ background: '#805ad5' }}>Open Lab →</button>
         </div>
       </div>
       <Footer onNavigate={setJourney} />
