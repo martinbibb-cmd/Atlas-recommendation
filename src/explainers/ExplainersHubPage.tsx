@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { DHW_PRESETS } from './lego/presets/dhwPresets';
 import { LAB_PRESETS } from './lego/animation/labPresets';
 import type { LabPreset } from './lego/animation/labPresets';
-import LegoScenarioBuilder from './lego/builder/LegoScenarioBuilder';
+import BuilderShell from './lego/builder/BuilderShell';
 import PerformanceGraphicView from './lego/views/PerformanceGraphicView';
 import type { LegoScenario } from './lego/schema/legoTypes';
 import {
@@ -132,7 +132,7 @@ export default function ExplainersHubPage({ onBack }: Props) {
           <button className="hub-back-btn" onClick={() => setPage('hub')}>← Back to Demo Lab</button>
           <h2 className="hub-page__panel-title">Build a scenario</h2>
         </div>
-        <LegoScenarioBuilder />
+        <BuilderShell />
       </div>
     );
   }
