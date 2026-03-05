@@ -30,6 +30,13 @@ const HEX_END = 0.62
  */
 const S_SPLIT = 0.82
 
+/**
+ * Maximum per-token jitter applied to the split threshold (±SPLIT_JITTER).
+ * Each token gets a deterministic offset derived from its ID so the branch
+ * assignments stagger slightly, breaking visible "clump" patterns.
+ */
+const SPLIT_JITTER = 0.015
+
 /** Failsafe: MAIN tokens that reach or pass this position without crossing S_SPLIT
  * (possible with large tick steps) are force-routed to an outlet. */
 const S_FAILSAFE = 0.995
@@ -108,24 +115,57 @@ function ensureCylinderStore(frame: LabFrame, controls: LabControls): CylinderSt
 }
 
 /**
+ * Deterministic pseudo-random value in [0, 1) derived from an integer seed.
+ *
+ * A Knuth-multiplicative pre-mix (`(n+1) * 0x9e3779b9`) spreads sequential
+ * small integers (0, 1, 2, …) across all 32 bits before the xorshift
+ * finalizer runs.  Without this step the raw xorshift produces near-zero
+ * outputs for small inputs, causing all early tokens to route to the first
+ * outlet.  The +1 ensures n=0 (the first token) doesn't produce a degenerate
+ * zero: Math.imul(0, k) = 0 for any k, giving the same degenerate output
+ * as no hashing at all.
+ *
+ * Stable across runs (same seed → same output), no Math.random.
+ */
+function hash01(n: number): number {
+  // Pre-mix: spread sequential small IDs across the full 32-bit range.
+  let x = Math.imul(n + 1, 0x9e3779b9) >>> 0
+  // Xorshift finalizer for additional avalanche.
+  x ^= x << 13
+  x ^= x >>> 17
+  x ^= x << 5
+  return (x >>> 0) / 4294967296
+}
+
+/**
  * Deterministic weighted outlet selection using token ID.
  *
- * Uses the sequential token ID modulo a small demand-proportional cycle so
- * tokens are visibly distributed across outlets within the first cycle —
- * no Math.random needed, and no thousands-of-tokens warm-up period.
+ * Uses hash01() to map each token ID to a pseudo-random position in
+ * [0, totalDemand), then selects the outlet whose cumulative demand
+ * bracket contains that position (weighted roulette).
+ *
+ * Compared to the old modulo-cycle approach this breaks the visible
+ * "one-pipe-at-a-time" rotation pattern: token IDs that are close
+ * together (101, 102, 103…) map to scattered positions rather than
+ * marching through outlets in sequence.
+ *
+ * Properties:
+ *  - still deterministic (no Math.random)
+ *  - well-mixed across outlets within any short window
+ *  - proportional to demandLpm weights
  */
 function pickOutletDeterministic(outlets: OutletControl[], tokenNumId: number): OutletId {
   const active = outlets.filter(o => o.enabled && o.demandLpm > 0)
   if (active.length === 0) return 'A'
   if (active.length === 1) return active[0].id
+
   const total = active.reduce((s, o) => s + o.demandLpm, 0)
-  // Small cycle proportional to total demand so distribution is visible immediately.
-  const cycle = Math.max(active.length, Math.round(total))
-  const demandPosition = (tokenNumId % cycle) / cycle * total
+  const r = hash01(tokenNumId) * total
+
   let acc = 0
   for (const o of active) {
     acc += o.demandLpm
-    if (demandPosition < acc) return o.id
+    if (r < acc) return o.id
   }
   return active[active.length - 1].id
 }
@@ -272,8 +312,12 @@ export function stepSimulation(params: {
 
       // At the splitter: assign token to an outlet branch and reset s.
       // Use a robust threshold and a failsafe near the end so MAIN tokens never "escape".
+      // A small per-token jitter (derived from the same hash) staggers the exact split
+      // position so tokens don't all branch as a clump at the same s value.
+      const tokenJitter = (hash01(extractTokenNumId(t.id) * 7919) - 0.5) * 2 * SPLIT_JITTER
+      const splitAt = clamp(S_SPLIT + tokenJitter, 0.75, 0.95)
       const shouldBranch =
-        (sPrev < S_SPLIT && sNext >= S_SPLIT) ||
+        (sPrev < splitAt && sNext >= splitAt) ||
         (sNext >= S_FAILSAFE && activeOutlets.length > 0) // failsafe
 
       if (shouldBranch) {
