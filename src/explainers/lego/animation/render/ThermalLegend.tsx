@@ -1,11 +1,18 @@
 // src/explainers/lego/animation/render/ThermalLegend.tsx
 
 import type { ThermalBand } from '../thermal'
+import { tempToThermalColor, roundTempC } from '../thermal'
 
 interface ThermalLegendProps {
   coldInletC: number
   setpointC: number
   bands: ThermalBand[]
+  /**
+   * Achieved combi outlet temperature (°C). When provided and differs from
+   * setpointC by more than 0.5 °C, a second marker is drawn and a deficit
+   * badge is shown to indicate temperature collapse.
+   */
+  achievedTempC?: number
 }
 
 /**
@@ -14,8 +21,12 @@ interface ThermalLegendProps {
  * The required-temperature (setpoint) marker uses a thicker orange stroke
  * with a subtle glow and a CSS-transition so it animates smoothly when the
  * target temperature changes.
+ *
+ * When `achievedTempC` is supplied (combi mode), a second marker shows the
+ * achieved outlet temperature. If it falls below the setpoint a ⚠️ deficit
+ * badge is rendered below the colour bar.
  */
-export function ThermalLegend({ coldInletC, setpointC, bands }: ThermalLegendProps) {
+export function ThermalLegend({ coldInletC, setpointC, bands, achievedTempC }: ThermalLegendProps) {
   const gradientId = 'thermal-legend-grad'
   const glowId     = 'setpoint-glow'
 
@@ -26,8 +37,19 @@ export function ThermalLegend({ coldInletC, setpointC, bands }: ThermalLegendPro
 
   const setpointYPos = 10 + 100 - ((Math.min(setpointC, maxT) - minT) / range) * 100
 
+  const showAchieved = achievedTempC !== undefined
+  const isFailing = showAchieved && achievedTempC < setpointC - 0.5
+  const deficitC = showAchieved ? setpointC - achievedTempC : 0
+  const achievedYPos = showAchieved
+    ? 10 + 100 - ((Math.min(Math.max(achievedTempC, minT), maxT) - minT) / range) * 100
+    : 0
+  const achievedColor = showAchieved ? tempToThermalColor(achievedTempC) : '#334155'
+
+  // SVG height grows when the deficit badge is shown
+  const svgHeight = isFailing ? 200 : 150
+
   return (
-    <svg width={60} height={150} aria-label="Thermal colour legend">
+    <svg width={120} height={svgHeight} aria-label="Thermal colour legend">
       <defs>
         <linearGradient id={gradientId} x1="0" y1="1" x2="0" y2="0">
           {bands.map((b, i) => {
@@ -83,6 +105,29 @@ export function ThermalLegend({ coldInletC, setpointC, bands }: ThermalLegendPro
         <text x={32} y={8}  fontSize={9} fill="#ea580c">{setpointC} °C</text>
       </g>
 
+      {/* Achieved outlet temperature marker (combi only) */}
+      {showAchieved && (
+        <g
+          style={{
+            transform: `translateY(${achievedYPos}px)`,
+            transition: 'transform 200ms ease-in-out',
+          }}
+        >
+          <line
+            x1={8} y1={0} x2={32} y2={0}
+            stroke={achievedColor}
+            strokeWidth={isFailing ? 2.5 : 1.5}
+            strokeDasharray={isFailing ? '3 2' : undefined}
+          />
+          <text x={32} y={-4} fontSize={9} fill={achievedColor} fontWeight={isFailing ? 700 : 400}>
+            Achieved
+          </text>
+          <text x={32} y={8} fontSize={9} fill={achievedColor}>
+            {roundTempC(achievedTempC)} °C
+          </text>
+        </g>
+      )}
+
       {/* Legend label */}
       <text
         x={18}
@@ -94,7 +139,23 @@ export function ThermalLegend({ coldInletC, setpointC, bands }: ThermalLegendPro
         °C
       </text>
 
-      <title>Thermal palette: cold inlet {coldInletC} °C → setpoint {setpointC} °C</title>
+      {/* Deficit badge — only shown when achieved is below target */}
+      {isFailing && (
+        <g transform="translate(4, 138)">
+          <rect x={0} y={0} width={112} height={54} rx={6} fill="#fef2f2" stroke="#fca5a5" strokeWidth={1} />
+          <text x={6} y={14} fontSize={9} fill="#b91c1c" fontWeight={700}>
+            ⚠ Can&apos;t hit target
+          </text>
+          <text x={6} y={26} fontSize={9} fill="#b91c1c">
+            −{Math.abs(roundTempC(deficitC))} °C short
+          </text>
+          <text x={6} y={40} fontSize={8} fill="#7f1d1d">
+            Need {roundTempC(achievedTempC + deficitC)} °C
+          </text>
+        </g>
+      )}
+
+      <title>Thermal palette: cold inlet {coldInletC} °C → setpoint {setpointC} °C{showAchieved ? ` → achieved ${roundTempC(achievedTempC)} °C` : ''}</title>
     </svg>
   )
 }

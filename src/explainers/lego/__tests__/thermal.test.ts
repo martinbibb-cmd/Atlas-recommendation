@@ -1,6 +1,6 @@
 /**
  * Tests for thermal animation primitives:
- * thermal.ts — tempToThermalColor, heatToTempC, tempToHeatJPerKg
+ * thermal.ts — tempToThermalColor, heatToTempC, tempToHeatJPerKg, computeCombiOutletTemp
  * simulation.ts — stepSimulation, createColdTokens
  */
 
@@ -9,6 +9,8 @@ import {
   tempToThermalColor,
   heatToTempC,
   tempToHeatJPerKg,
+  computeCombiOutletTemp,
+  CP_WATER_KJ_PER_KG_C,
 } from '../animation/thermal';
 import {
   createColdTokens,
@@ -81,6 +83,73 @@ describe('tempToHeatJPerKg', () => {
       tempC: heatToTempC({ coldInletC, hJPerKg: original }),
     })
     expect(roundTripped).toBeCloseTo(original, 1)
+  })
+})
+
+// ─── computeCombiOutletTemp ───────────────────────────────────────────────────
+
+describe('computeCombiOutletTemp', () => {
+  it('CP_WATER_KJ_PER_KG_C is 4.19', () => {
+    expect(CP_WATER_KJ_PER_KG_C).toBe(4.19)
+  })
+
+  it('cold 10 °C, 30 kW, 12 L/min → achieved ≈ 45.8 °C (just below 50 °C target)', () => {
+    // ΔT = (30 × 60) / (12 × 4.19) = 1800 / 50.28 ≈ 35.8 °C → out ≈ 45.8 °C
+    const result = computeCombiOutletTemp({ boilerKw: 30, flowLpm: 12, coldInletC: 10, targetTempC: 50 })
+    expect(result.achievedOutTempC).toBeCloseTo(45.8, 0)
+    expect(result.meetsTarget).toBe(false) // 45.8 < 50 - 0.5 = 49.5
+  })
+
+  it('cold 10 °C, 30 kW, 23 L/min → achieved ≈ 28.7 °C (well below target)', () => {
+    // ΔT = 1800 / (23 × 4.19) = 1800 / 96.37 ≈ 18.7 °C → out ≈ 28.7 °C
+    const result = computeCombiOutletTemp({ boilerKw: 30, flowLpm: 23, coldInletC: 10, targetTempC: 50 })
+    expect(result.achievedOutTempC).toBeCloseTo(28.7, 0)
+    expect(result.meetsTarget).toBe(false)
+  })
+
+  it('meetsTarget is true when achievedOutTempC >= targetTempC - 0.5', () => {
+    // Low flow: boiler can hit target comfortably
+    const result = computeCombiOutletTemp({ boilerKw: 30, flowLpm: 2, coldInletC: 10, targetTempC: 50 })
+    // ΔT = 1800 / (2 × 4.19) = 1800 / 8.38 ≈ 214.8 °C → clamped well above 50
+    expect(result.meetsTarget).toBe(true)
+  })
+
+  it('meetsTarget is true within 0.5 °C tolerance', () => {
+    // At exactly thermalCapLpm the outlet should be just at or above target
+    // requiredKw = flowLpm × 4.19 × (50-10) / 60 = flowLpm × 4.19 × 40 / 60
+    // At flowLpm = 30 × 60 / (4.19 × 40) ≈ 10.75 L/min, achievedOutTempC ≈ 50 °C
+    const capLpm = (30 * 60) / (4.19 * 40)
+    const result = computeCombiOutletTemp({ boilerKw: 30, flowLpm: capLpm, coldInletC: 10, targetTempC: 50 })
+    expect(result.achievedOutTempC).toBeCloseTo(50, 1)
+    expect(result.meetsTarget).toBe(true)
+  })
+
+  it('deficitC is positive when failing and zero when meeting target', () => {
+    const failing = computeCombiOutletTemp({ boilerKw: 30, flowLpm: 23, coldInletC: 10, targetTempC: 50 })
+    expect(failing.deficitC).toBeGreaterThan(0)
+
+    const passing = computeCombiOutletTemp({ boilerKw: 30, flowLpm: 2, coldInletC: 10, targetTempC: 50 })
+    expect(passing.deficitC).toBeLessThan(0) // surplus: target - achieved < 0
+  })
+
+  it('requiredKw increases linearly with flowLpm', () => {
+    const r1 = computeCombiOutletTemp({ boilerKw: 30, flowLpm: 10, coldInletC: 10, targetTempC: 50 })
+    const r2 = computeCombiOutletTemp({ boilerKw: 30, flowLpm: 20, coldInletC: 10, targetTempC: 50 })
+    expect(r2.requiredKw).toBeCloseTo(r1.requiredKw * 2, 1)
+  })
+
+  it('requiredKw formula: flowLpm × cp × ΔT / 60', () => {
+    const flowLpm = 10
+    const deltaT = 50 - 10
+    const expected = (flowLpm * CP_WATER_KJ_PER_KG_C * deltaT) / 60
+    const result = computeCombiOutletTemp({ boilerKw: 30, flowLpm, coldInletC: 10, targetTempC: 50 })
+    expect(result.requiredKw).toBeCloseTo(expected, 3)
+  })
+
+  it('handles zero flow without division by zero (uses 1e-6 guard)', () => {
+    const result = computeCombiOutletTemp({ boilerKw: 30, flowLpm: 0, coldInletC: 10, targetTempC: 50 })
+    expect(Number.isFinite(result.achievedOutTempC)).toBe(true)
+    expect(result.achievedOutTempC).toBeGreaterThan(10)
   })
 })
 

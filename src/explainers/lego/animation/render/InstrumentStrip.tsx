@@ -6,6 +6,8 @@ interface InstrumentStripProps {
   summary: CapacitySummary
   /** Store temperature (°C) — only provided for cylinder system types. */
   storeTempC?: number
+  /** Combi boiler rated DHW output (kW) — used to show required vs boiler kW. */
+  combiDhwKw?: number
 }
 
 const COMPONENT_LABELS: Record<CapacitySummary['limitingComponent'], string> = {
@@ -22,10 +24,16 @@ const USABLE_HOT_THRESHOLD_C = 45
  * Instrument strip — shows computed capacity values, the bottleneck component,
  * and any active warnings as chips.
  */
-export function InstrumentStrip({ summary, storeTempC }: InstrumentStripProps) {
+export function InstrumentStrip({ summary, storeTempC, combiDhwKw }: InstrumentStripProps) {
   const { limitingComponent } = summary
   const isCylinder = storeTempC !== undefined
   const usableHot = isCylinder ? storeTempC >= USABLE_HOT_THRESHOLD_C : undefined
+
+  // Combi thermal outcome readouts
+  const achievedOutTempC = summary.achievedOutTempC
+  const requiredKw = summary.requiredKw
+  const combiIsFailing = achievedOutTempC !== undefined && combiDhwKw !== undefined &&
+    requiredKw !== undefined && requiredKw > combiDhwKw + 0.5
 
   return (
     <div className="instrument-strip">
@@ -52,6 +60,22 @@ export function InstrumentStrip({ summary, storeTempC }: InstrumentStripProps) {
             label="Thermal cap"
             value={`${summary.thermalCapLpm === Infinity ? '∞' : summary.thermalCapLpm.toFixed(1)} L/min`}
             highlight={limitingComponent === 'Thermal'}
+          />
+        )}
+        {!isCylinder && achievedOutTempC !== undefined && (
+          <InstrumentReadout
+            label="Achieved temp"
+            value={`${Math.round(achievedOutTempC)} °C`}
+            highlight={combiIsFailing}
+          />
+        )}
+        {!isCylinder && requiredKw !== undefined && combiDhwKw !== undefined && (
+          <InstrumentReadout
+            label={combiIsFailing ? 'Required kW' : 'Boiler kW'}
+            value={combiIsFailing
+              ? `${requiredKw.toFixed(1)} kW (boiler: ${combiDhwKw} kW)`
+              : `${combiDhwKw} kW`}
+            highlight={combiIsFailing}
           />
         )}
         {isCylinder && (

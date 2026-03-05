@@ -188,3 +188,57 @@ describe('computeCapacitySummary — outletDeliveredLpm', () => {
     expect(s.outletDeliveredLpm.C).toBe(0);
   });
 });
+
+// ─── computeCapacitySummary — achievedOutTempC & requiredKw ──────────────────
+
+describe('computeCapacitySummary — achievedOutTempC and requiredKw (combi)', () => {
+  it('provides achievedOutTempC for a combi system with active flow', () => {
+    const s = computeCapacitySummary({ ...BASE, outlets: outlets(1, 8) });
+    expect(s.achievedOutTempC).toBeDefined();
+    expect(typeof s.achievedOutTempC).toBe('number');
+  });
+
+  it('achievedOutTempC matches computeCombiOutletTemp formula', () => {
+    // demand = 8 L/min, supply = 18 → hydraulic = 8 L/min
+    // ΔT = (30 × 60) / (8 × 4.19) = 1800 / 33.52 ≈ 53.7 → out ≈ 63.7 °C (capped by palette but value is real)
+    const s = computeCapacitySummary({ ...BASE, outlets: outlets(1, 8) });
+    const expected = 10 + (30 * 60) / (8 * 4.19);
+    expect(s.achievedOutTempC!).toBeCloseTo(expected, 1);
+  });
+
+  it('achievedOutTempC drops when flow increases through the same boiler', () => {
+    const low  = computeCapacitySummary({ ...BASE, outlets: outlets(1, 5) });
+    const high = computeCapacitySummary({ ...BASE, outlets: outlets(1, 16), mainsDynamicFlowLpm: 25 });
+    expect(high.achievedOutTempC!).toBeLessThan(low.achievedOutTempC!);
+  });
+
+  it('provides requiredKw for a combi system with active flow', () => {
+    const s = computeCapacitySummary({ ...BASE, outlets: outlets(1, 8) });
+    expect(s.requiredKw).toBeDefined();
+    // requiredKw = flowLpm × 4.19 × (50 - 10) / 60
+    const expected = (8 * 4.19 * 40) / 60;
+    expect(s.requiredKw!).toBeCloseTo(expected, 2);
+  });
+
+  it('achievedOutTempC and requiredKw are undefined when there is no active flow', () => {
+    const noOutlets: OutletControl[] = [
+      { id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 10 },
+      { id: 'B', enabled: false, kind: 'basin',        demandLpm: 5 },
+      { id: 'C', enabled: false, kind: 'bath',         demandLpm: 18 },
+    ];
+    const s = computeCapacitySummary({ ...BASE, outlets: noOutlets });
+    expect(s.achievedOutTempC).toBeUndefined();
+    expect(s.requiredKw).toBeUndefined();
+  });
+
+  it('achievedOutTempC and requiredKw are undefined for cylinder systems', () => {
+    const s = computeCapacitySummary({
+      ...BASE,
+      systemType: 'unvented_cylinder',
+      cylinder: { volumeL: 180, initialTempC: 55, reheatKw: 12 },
+      outlets: outlets(1, 8),
+    });
+    expect(s.achievedOutTempC).toBeUndefined();
+    expect(s.requiredKw).toBeUndefined();
+  });
+});

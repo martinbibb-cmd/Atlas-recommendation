@@ -2,6 +2,7 @@
 
 import type { LabControls, OutletId } from './types'
 import { computeCombiThermalLimit, pipeDiameterCapacityLpm } from '../model/dhwModel'
+import { computeCombiOutletTemp } from './thermal'
 
 export type CapacitySummary = {
   demandTotalLpm: number
@@ -13,6 +14,17 @@ export type CapacitySummary = {
   warnings: string[]
   /** Hydraulic flow delivered to each outlet, split proportionally by outlet demand. */
   outletDeliveredLpm: Record<OutletId, number>
+  /**
+   * Achieved combi outlet temperature (°C) — only present for combi system type.
+   * Derived from boilerKw, hydraulicFlowLpm, and coldInletC using:
+   *   ΔT = (boilerKw × 60) / (flowLpm × 4.19)
+   */
+  achievedOutTempC?: number
+  /**
+   * Boiler kW required to reach the DHW setpoint at the current hydraulic flow rate.
+   * Only present for combi system type. Used to show "Required: XX kW vs Boiler: YY kW".
+   */
+  requiredKw?: number
 }
 
 export function computeCapacitySummary(c: LabControls): CapacitySummary {
@@ -70,6 +82,17 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
     }
   }
 
+  // Combi thermal outcome: compute achieved outlet temperature from actual hydraulic flow.
+  // Only meaningful when there is active flow and the system is a combi.
+  const combiThermal = !isCylinder && hydraulicFlowLpm > 0
+    ? computeCombiOutletTemp({
+        boilerKw: c.combiDhwKw,
+        flowLpm: hydraulicFlowLpm,
+        coldInletC: c.coldInletC,
+        targetTempC: c.dhwSetpointC,
+      })
+    : undefined
+
   return {
     demandTotalLpm,
     supplyCapLpm,
@@ -79,5 +102,7 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
     limitingComponent,
     warnings,
     outletDeliveredLpm,
+    achievedOutTempC: combiThermal?.achievedOutTempC,
+    requiredKw: combiThermal?.requiredKw,
   }
 }
