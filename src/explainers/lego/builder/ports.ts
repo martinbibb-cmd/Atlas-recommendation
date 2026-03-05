@@ -38,6 +38,9 @@ export function portsForKind(kind: PartKind): PortDef[] {
     case 'open_vent':
       return [{ id: 'vent', dx: R, dy: MID_Y, role: 'unknown' }];
 
+    case 'cws_cistern':
+      return [{ id: 'cold_out', dx: R, dy: MID_Y, role: 'cold' }];
+
     case 'dhw_unvented_cylinder':
     case 'dhw_mixergy':
     case 'dhw_vented_cylinder':
