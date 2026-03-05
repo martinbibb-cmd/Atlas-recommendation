@@ -77,7 +77,7 @@ export function deriveFacts(graph: BuildGraph): GraphFacts {
   }
   const coldReach = bfs(coldStarts, adj)
 
-  const outletKinds = new Set(['tap_outlet', 'bath_outlet', 'shower_outlet'])
+  const outletKinds = new Set(['tap_outlet', 'bath_outlet', 'shower_outlet', 'cold_tap_outlet'])
   const cylinderKinds = new Set(['dhw_unvented_cylinder', 'dhw_mixergy', 'dhw_vented_cylinder'])
   const hotFedOutletNodeIds: string[] = []
   const coldOnlyOutletNodeIds: string[] = []
