@@ -3,8 +3,9 @@ import type { BuildGraph, BuildNode, PartKind, PortDef, PortRef } from './types'
 import PresetPanel from './PresetPanel'
 import PalettePanel from './PalettePanel'
 import WorkbenchCanvas from './WorkbenchCanvas'
+import WarningPanel from './WarningPanel'
 import { portsForKind } from './ports'
-import { validateGraph } from './graphValidate'
+import { validateGraph, type GraphWarning } from './graphValidate'
 import { deriveFacts } from './graphDerive'
 import { PRESETS } from './presets'
 import './builder.css'
@@ -41,13 +42,18 @@ const nextFreeSlot = (bindings: Partial<Record<'A' | 'B' | 'C', string>> | undef
 export default function BuilderShell({
   initial,
   onControlsPatch,
+  onRun,
 }: {
   initial?: BuildGraph
   onControlsPatch?: (patch: Record<string, unknown>) => void
+  onRun?: (graph: BuildGraph) => void
 }) {
   const [graph, setGraph] = useState<BuildGraph>(initial ?? EMPTY_GRAPH)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pendingPort, setPendingPort] = useState<PortRef | null>(null)
+  const [showWarnings, setShowWarnings] = useState(false)
+  const [highlightNodeId, setHighlightNodeId] = useState<string | null>(null)
+  const [highlightEdgeId, setHighlightEdgeId] = useState<string | null>(null)
 
   const selected = useMemo(
     () => graph.nodes.find(node => node.id === selectedId) ?? null,
@@ -150,6 +156,16 @@ export default function BuilderShell({
 
   const cancelPending = () => setPendingPort(null)
 
+  const clearHighlights = () => {
+    setHighlightNodeId(null)
+    setHighlightEdgeId(null)
+  }
+
+  const onSelectWarning = (warning: GraphWarning) => {
+    setHighlightNodeId(warning.nodeId ?? null)
+    setHighlightEdgeId(warning.edgeId ?? null)
+  }
+
   const rotateSelected = (deltaDeg: number) => {
     if (!selectedId) {
       return
@@ -230,7 +246,11 @@ export default function BuilderShell({
         <div className="builder-toolbar">
           <div className="builder-title">
             🧱 Build your system
-            {warnings.length ? <span className="warn-pill">{warnings.length} warnings</span> : null}
+            {warnings.length ? (
+              <button className="warn-pill" onClick={() => setShowWarnings(current => !current)}>
+                {warnings.length} warnings
+              </button>
+            ) : null}
             {pendingPort ? <span className="connect-pill">Connecting… tap another port</span> : null}
           </div>
 
@@ -243,6 +263,9 @@ export default function BuilderShell({
                 ✕ Cancel
               </button>
             ) : null}
+            <button className="builder-btn" onClick={() => onRun?.(cloneGraph(graph))}>
+              ▶ Run system
+            </button>
             <button
               className="builder-btn"
               disabled={!selected}
@@ -259,6 +282,11 @@ export default function BuilderShell({
             >
               🗑️ Delete
             </button>
+            {(highlightEdgeId || highlightNodeId) && (
+              <button className="builder-btn" onClick={clearHighlights}>
+                Clear highlight
+              </button>
+            )}
           </div>
 
           <div className="bindings">
@@ -293,6 +321,8 @@ export default function BuilderShell({
         <WorkbenchCanvas
           graph={graph}
           selectedId={selectedId}
+          highlightNodeId={highlightNodeId}
+          highlightEdgeId={highlightEdgeId}
           pendingPort={pendingPort}
           onSelect={setSelectedId}
           onMove={moveNode}
@@ -300,6 +330,13 @@ export default function BuilderShell({
           onCancelPending={cancelPending}
           outletBindings={bindings}
         />
+        {showWarnings ? (
+          <WarningPanel
+            warnings={warnings}
+            onSelectWarning={onSelectWarning}
+            onClose={() => setShowWarnings(false)}
+          />
+        ) : null}
       </div>
     </div>
   )

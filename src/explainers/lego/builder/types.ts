@@ -8,6 +8,7 @@ export type PartKind =
   | 'dhw_vented_cylinder'
   | 'feed_and_expansion'
   | 'open_vent'
+  | 'cws_cistern'
   | 'pump'
   | 'zone_valve'
   | 'three_port_valve'

@@ -62,10 +62,15 @@ export function deriveFacts(graph: BuildGraph): GraphFacts {
   }
   const hotReach = bfs(hotStarts, adj)
 
+  const coldSupplyKinds = new Set(['heat_source_combi', 'cws_cistern'])
   const coldStarts: string[] = []
   for (const node of graph.nodes) {
     for (const port of portsForKind(node.kind)) {
-      if (port.role === 'cold' && (port.id.includes('cold') || port.id === 'cold_in')) {
+      const isColdSupplyPort =
+        port.role === 'cold' &&
+        ((node.kind === 'cws_cistern' && port.id === 'cold_out') ||
+          (coldSupplyKinds.has(node.kind) && port.id === 'cold_in'))
+      if (isColdSupplyPort) {
         coldStarts.push(`${node.id}:${port.id}`)
       }
     }

@@ -26,6 +26,8 @@ function portAbs(node: BuildNode, portId: string) {
 export default function WorkbenchCanvas({
   graph,
   selectedId,
+  highlightNodeId,
+  highlightEdgeId,
   pendingPort,
   onSelect,
   onMove,
@@ -35,6 +37,8 @@ export default function WorkbenchCanvas({
 }: {
   graph: BuildGraph;
   selectedId: string | null;
+  highlightNodeId?: string | null;
+  highlightEdgeId?: string | null;
   pendingPort: PortRef | null;
   onSelect: (id: string | null) => void;
   onMove: (id: string, x: number, y: number) => void;
@@ -111,7 +115,11 @@ export default function WorkbenchCanvas({
               ? 'pipe-line softwarn'
               : 'pipe-line'
 
-          return <polyline key={edge.id} points={points} className={edgeClass} fill="none" />;
+          const highlighted = edge.id === highlightEdgeId
+
+          const finalClass = highlighted ? `${edgeClass} highlighted` : edgeClass
+
+          return <polyline key={edge.id} points={points} className={finalClass} fill="none" />;
         })}
 
         {pendingPort
@@ -141,7 +149,7 @@ export default function WorkbenchCanvas({
         return (
           <div
             key={node.id}
-            className={`token ${node.id === selectedId ? 'selected' : ''}`}
+            className={`token ${node.id === selectedId ? 'selected' : ''} ${node.id === highlightNodeId ? 'highlighted' : ''}`}
             style={{
               width: TOKEN_W,
               height: TOKEN_H,
