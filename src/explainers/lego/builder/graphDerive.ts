@@ -56,7 +56,6 @@ export function deriveFacts(graph: BuildGraph): GraphFacts {
 
   const hotStarts: string[] = []
   for (const node of graph.nodes) {
-    if (node.kind !== 'heat_source_boiler') continue
     const hasHotOut = portsForKind(node.kind).some(port => port.id === 'hot_out')
     if (hasHotOut) hotStarts.push(`${node.id}:hot_out`)
   }
