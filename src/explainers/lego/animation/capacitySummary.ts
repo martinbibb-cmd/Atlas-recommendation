@@ -96,12 +96,21 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
     }
   }
 
-  // Combi thermal outcome: compute achieved outlet temperature from actual hydraulic flow.
-  // Only meaningful when there is active flow and the system is a combi.
-  const combiThermal = !isCylinder && hydraulicFlowLpm > 0
+  let hexFlowLpm = hydraulicFlowLpm
+
+  // cold-only outlets fully bypass HEX
+  for (const o of activeOutlets) {
+    if (o.kind === 'cold_tap') {
+      hexFlowLpm = Math.max(0, hexFlowLpm - outletDeliveredLpm[o.id])
+    }
+  }
+
+  // Combi thermal outcome: compute achieved outlet temperature from HEX flow (hydraulic minus bypass).
+  // Only meaningful when there is active flow through the HEX and the system is a combi.
+  const combiThermal = !isCylinder && hexFlowLpm > 0
     ? computeCombiOutletTemp({
         boilerKw: c.combiDhwKw,
-        flowLpm: hydraulicFlowLpm,
+        flowLpm: hexFlowLpm,
         coldInletC: c.coldInletC,
         targetTempC: c.dhwSetpointC,
       })
@@ -132,6 +141,7 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
           const F_out = outletDeliveredLpm[o.id]
           const outcome = computeTmvMixer({
             boilerKw: c.combiDhwKw,
+            combiSetpointC: c.dhwSetpointC,
             coldInTempC: c.coldInletC,
             showerDeliveredLpm: F_out,
             targetTempC: o.tmvTargetTempC ?? 40,

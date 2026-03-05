@@ -3,7 +3,7 @@
 import type { CylinderStore } from './storage'
 
 export type OutletId = 'A' | 'B' | 'C'
-export type OutletKind = 'shower_mixer' | 'basin' | 'bath'
+export type OutletKind = 'shower_mixer' | 'basin' | 'bath' | 'cold_tap'
 
 export type OutletControl = {
   id: OutletId
