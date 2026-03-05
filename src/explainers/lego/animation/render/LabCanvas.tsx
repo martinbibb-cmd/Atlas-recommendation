@@ -15,6 +15,10 @@ const DEFAULT_FRAME_TIME_MS = 16
 /** Maximum allowed dt to prevent large jumps after tab suspension (ms). */
 const MAX_FRAME_TIME_MS = 50
 
+/** Opacity applied to thermally-coloured pipe segments so the centre-line
+ *  marker remains visible on top of the warm fill. */
+const THERMAL_COLOR_OPACITY = 0.75
+
 // Use positions from pathMap (single source of truth)
 const P = SCHEMATIC_P
 
@@ -122,6 +126,25 @@ export function LabCanvas(props: {
   const mainsGlow  = glowFor('Supply')
 
   const { main: polyMain, branchA, branchB, branchC } = buildPolylines()
+
+  // Post-HEX pipe and outlet branch colour — driven by achieved outlet temperature (combi),
+  // or store temperature (cylinder), so the visual matches what the water actually delivers.
+  const postHexThermalColor: string | undefined = (() => {
+    if (!isCylinder && summary.achievedOutTempC !== undefined && summary.hydraulicFlowLpm > 0) {
+      return tempToThermalColor(summary.achievedOutTempC)
+    }
+    if (isCylinder && frame.cylinderStore) {
+      const storeT = cylinderTempC({ store: frame.cylinderStore, coldInletC: controls.coldInletC })
+      return tempToThermalColor(storeT)
+    }
+    return undefined
+  })()
+
+  // Combi thermal failure indicator
+  const combiIsFailing = !isCylinder &&
+    summary.achievedOutTempC !== undefined &&
+    summary.achievedOutTempC < controls.dhwSetpointC - 0.5 &&
+    summary.hydraulicFlowLpm > 0
 
   // Outlet positions for SVG rendering
   const outletXMap: Record<OutletId, number> = {
@@ -237,7 +260,8 @@ export function LabCanvas(props: {
         {/* ── Pipe to splitter ───────────────────────────────────────────── */}
         <path
           d={`M ${P.boilerX + 120} ${P.boilerY} L ${P.splitX} ${P.splitY}`}
-          stroke="#cfd8e3" strokeWidth={16} strokeLinecap="round" filter={pipeGlow}
+          stroke={postHexThermalColor ?? '#cfd8e3'} strokeWidth={16} strokeLinecap="round" filter={pipeGlow}
+          opacity={postHexThermalColor ? THERMAL_COLOR_OPACITY : 1}
         />
         <path
           d={`M ${P.boilerX + 120} ${P.boilerY} L ${P.splitX} ${P.splitY}`}
@@ -265,8 +289,9 @@ export function LabCanvas(props: {
               {/* Branch pipe — 90° off-take + swept bend */}
               <path
                 d={pathD}
-                stroke={strokeColor} strokeWidth={16} strokeLinecap="round" fill="none"
-                opacity={isEnabled ? 1 : 0.4}
+                stroke={isEnabled ? (postHexThermalColor ?? '#cfd8e3') : '#e2e8f0'}
+                strokeWidth={16} strokeLinecap="round" fill="none"
+                opacity={isEnabled ? (postHexThermalColor ? THERMAL_COLOR_OPACITY : 1) : 0.4}
               />
               <path
                 d={pathD}
@@ -286,8 +311,15 @@ export function LabCanvas(props: {
                     {delivered.toFixed(1)} L/min
                   </text>
                   {sample.count > 0 && (
-                    <text x={ox + 6} y={oy + 22} textAnchor="start" fontSize={11} fill="#b45309">
+                    <text x={ox + 6} y={oy + 22} textAnchor="start" fontSize={11}
+                      fill={combiIsFailing ? '#b91c1c' : '#b45309'}>
                       ~{roundTempC(sample.tempC)} °C
+                    </text>
+                  )}
+                  {/* Show achieved vs target when combi can't hit target */}
+                  {!isCylinder && summary.achievedOutTempC !== undefined && combiIsFailing && (
+                    <text x={ox + 6} y={oy + 36} textAnchor="start" fontSize={10} fill="#b91c1c">
+                      ⚠ target {controls.dhwSetpointC} °C
                     </text>
                   )}
                 </g>
@@ -337,6 +369,7 @@ export function LabCanvas(props: {
           coldInletC={controls.coldInletC}
           setpointC={controls.dhwSetpointC}
           bands={THERMAL_BANDS}
+          achievedTempC={!isCylinder ? summary.achievedOutTempC : undefined}
         />
       </div>
     </div>

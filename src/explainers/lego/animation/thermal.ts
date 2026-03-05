@@ -141,6 +141,16 @@ export function roundTempC(tempC: number): number {
 }
 
 /**
+ * Specific heat capacity of water in kJ/(kg·°C).
+ * Conventional DHW-physics value; 1 L of water ≈ 1 kg.
+ * Source: CIBSE Guide C (2001) Table 2.1 — water at ~40 °C (typical DHW range);
+ * value is stable across the 10–60 °C domestic hot-water temperature band.
+ * Used for the combi outlet-temperature formula:
+ *   ΔT (°C) = (P_kW × 60) / (flow_L/min × CP_WATER_KJ_PER_KG_C)
+ */
+export const CP_WATER_KJ_PER_KG_C = 4.19
+
+/**
  * Specific heat capacity of water (J/kgK).
  * Used to convert between heat content and temperature rise.
  */
@@ -166,4 +176,40 @@ export function heatToTempC(params: { coldInletC: number; hJPerKg: number }): nu
 export function tempToHeatJPerKg(params: { coldInletC: number; tempC: number }): number {
   const deltaT = params.tempC - params.coldInletC
   return deltaT * WATER_SPECIFIC_HEAT_CAPACITY_J_PER_KG_K
+}
+
+/**
+ * Combi outlet temperature physics (lab-only).
+ *
+ * A fixed boiler output in kW heats a flowing stream at `flowLpm` L/min.
+ * Because 1 L ≈ 1 kg and cp ≈ 4.19 kJ/(kg·°C):
+ *
+ *   ΔT (°C)        = (boilerKw × 60) / (flowLpm × CP_WATER_KJ_PER_KG_C)
+ *   achievedOutTempC = coldInletC + ΔT
+ *   requiredKw       = (flowLpm × CP_WATER_KJ_PER_KG_C × (targetTempC − coldInletC)) / 60
+ *   meetsTarget      = achievedOutTempC >= targetTempC − 0.5  (0.5 °C tolerance)
+ *   deficitC         = targetTempC − achievedOutTempC  (positive when failing)
+ *
+ * Higher flow through the same fixed-kW boiler reduces ΔT, so the outlet
+ * temperature drops below target — the key combi trade-off this lab visualises.
+ */
+export function computeCombiOutletTemp(params: {
+  boilerKw: number
+  flowLpm: number
+  coldInletC: number
+  targetTempC: number
+}): {
+  achievedOutTempC: number
+  meetsTarget: boolean
+  deficitC: number
+  requiredKw: number
+} {
+  const { boilerKw, flowLpm, coldInletC, targetTempC } = params
+  const safeLpm = Math.max(flowLpm, 1e-6)
+  const deltaT = (boilerKw * 60) / (safeLpm * CP_WATER_KJ_PER_KG_C)
+  const achievedOutTempC = coldInletC + deltaT
+  const deficitC = targetTempC - achievedOutTempC
+  const meetsTarget = achievedOutTempC >= targetTempC - 0.5
+  const requiredKw = (safeLpm * CP_WATER_KJ_PER_KG_C * Math.max(targetTempC - coldInletC, 0)) / 60
+  return { achievedOutTempC, meetsTarget, deficitC, requiredKw }
 }

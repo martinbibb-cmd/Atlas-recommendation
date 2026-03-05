@@ -313,7 +313,7 @@ export default function ExplainersHubPage({ onBack }: Props) {
         </div>
 
         {/* Bottom: instrument strip */}
-        <InstrumentStrip summary={labSummary} />
+        <InstrumentStrip summary={labSummary} combiDhwKw={labControls.systemType === 'combi' ? labControls.combiDhwKw : undefined} />
       </section>
 
       {/* ── Presets ─────────────────────────────────────────────────────── */}
