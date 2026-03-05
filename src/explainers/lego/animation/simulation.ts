@@ -245,15 +245,37 @@ export function stepSimulation(params: {
   // The hot-branch velocity for a TMV outlet is based on F_h, not F_out.
   type TmvToken = { F_h: number; F_c: number; T_h: number; saturated: boolean }
   const tmvOutletMap: Partial<Record<OutletId, TmvToken>> = {}
-  let hexFlowLpm = hydraulicFlowLpm  // reduced by cold bypasses
+  const hotFedIds = new Set(controls.graphFacts?.hotFedOutletNodeIds ?? [])
+  const coldOnlyIds = new Set(controls.graphFacts?.coldOnlyOutletNodeIds ?? [])
+  const hasGraphFacts = !!controls.graphFacts
+  let hexFlowLpm = 0
+
+  for (const o of activeOutlets) {
+    const builderNodeId = o.builderNodeId
+    const isColdOnly =
+      (builderNodeId && coldOnlyIds.has(builderNodeId)) ||
+      (!hasGraphFacts && o.kind === 'cold_tap')
+    const isHotFed = builderNodeId ? hotFedIds.has(builderNodeId) : false
+
+    if (isColdOnly) {
+      continue
+    }
+    if (isHotFed || !builderNodeId) {
+      hexFlowLpm += outletActualLpm[o.id]
+    }
+  }
 
   if (!isCylinder && hasDraw) {
     for (const o of activeOutlets) {
-      if (o.kind === 'cold_tap') {
-        // Cold-only draw bypasses HEX entirely.
-        hexFlowLpm = Math.max(0, hexFlowLpm - outletActualLpm[o.id])
+      const builderNodeId = o.builderNodeId
+      const isColdOnly =
+        (builderNodeId && coldOnlyIds.has(builderNodeId)) ||
+        (!hasGraphFacts && o.kind === 'cold_tap')
+      if (isColdOnly) {
+        outletActualLpm[o.id] = 0
         continue
       }
+
       if (o.kind === 'shower_mixer' && o.tmvEnabled) {
         const F_out = outletActualLpm[o.id]
         if (F_out > 0) {

@@ -28,10 +28,16 @@ export interface PortRef {
   portId: string;
 }
 
+export interface EdgeMeta {
+  roleFrom?: PortDef['role'];
+  roleTo?: PortDef['role'];
+}
+
 export interface BuildEdge {
   id: string;
   from: PortRef;
   to: PortRef;
+  meta?: EdgeMeta;
 }
 
 export interface PortDef {

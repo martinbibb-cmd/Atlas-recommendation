@@ -22,6 +22,8 @@ export type OutletControl = {
    * Defaults to 40 °C.
    */
   tmvTargetTempC?: number
+  /** Builder graph node ID for topology-derived hot/cold path semantics. */
+  builderNodeId?: string
 }
 
 /** Default outlet configuration: A (shower, enabled, TMV on), B (basin), C (bath). */
@@ -91,6 +93,10 @@ export type LabControls = {
   vented?: VentedControls
 
   outlets: OutletControl[]    // A/B/C per-outlet demand configuration
+  graphFacts?: {
+    hotFedOutletNodeIds: string[]
+    coldOnlyOutletNodeIds: string[]
+  }
 }
 
 /** Rolling EMA temperature sample collected from tokens exiting an outlet branch. */

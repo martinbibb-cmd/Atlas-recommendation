@@ -96,13 +96,31 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
     }
   }
 
-  let hexFlowLpm = hydraulicFlowLpm
+  const hotFedIds = new Set(c.graphFacts?.hotFedOutletNodeIds ?? [])
+  const coldOnlyIds = new Set(c.graphFacts?.coldOnlyOutletNodeIds ?? [])
+  const hasGraphFacts = !!c.graphFacts
 
-  // cold-only outlets fully bypass HEX
+  let hexFlowLpm = 0
+
   for (const o of activeOutlets) {
-    if (o.kind === 'cold_tap') {
-      hexFlowLpm = Math.max(0, hexFlowLpm - outletDeliveredLpm[o.id])
+    const delivered = outletDeliveredLpm[o.id]
+    const builderNodeId = o.builderNodeId
+
+    if (builderNodeId && coldOnlyIds.has(builderNodeId)) {
+      continue
     }
+
+    if (builderNodeId && hotFedIds.has(builderNodeId)) {
+      hexFlowLpm += delivered
+      continue
+    }
+
+    // Legacy fallback for unbound outlets.
+    if (!hasGraphFacts && o.kind === 'cold_tap') {
+      continue
+    }
+
+    hexFlowLpm += delivered
   }
 
   // Combi thermal outcome: compute achieved outlet temperature from HEX flow (hydraulic minus bypass).
