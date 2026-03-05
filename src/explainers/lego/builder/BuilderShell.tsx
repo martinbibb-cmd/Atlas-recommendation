@@ -9,6 +9,8 @@ import { validateGraph, type GraphWarning } from './graphValidate'
 import { deriveFacts } from './graphDerive'
 import { PRESETS } from './presets'
 import { smartAdd } from './smartAttach'
+import { portAbs } from './snapConnect'
+import { insertTee } from './tee'
 import './builder.css'
 
 function uid(prefix = 'n') {
@@ -107,6 +109,84 @@ export default function BuilderShell({
       ...current,
       edges: [...current.edges, { id: uid('edge'), from, to, meta: { roleFrom, roleTo } }],
     }))
+  }
+
+  /**
+   * Called by WorkbenchCanvas when a drag ends within snap distance of a
+   * compatible port.  Handles three cases:
+   *   1. Duplicate edge — ignored.
+   *   2. Target port free — add edge directly.
+   *   3. Target port occupied and not multi — insert a tee and rewire.
+   *
+   * After connecting, nudges the moving node so the two snapped ports align
+   * precisely.
+   */
+  const onAutoConnect = (from: PortRef, to: PortRef) => {
+    setGraph(current => {
+      // Guard: don't create duplicate edges.
+      const duplicate = current.edges.some(
+        e =>
+          (e.from.nodeId === from.nodeId && e.from.portId === from.portId &&
+            e.to.nodeId === to.nodeId && e.to.portId === to.portId) ||
+          (e.from.nodeId === to.nodeId && e.from.portId === to.portId &&
+            e.to.nodeId === from.nodeId && e.to.portId === from.portId),
+      )
+      if (duplicate) return current
+
+      const fromNode = current.nodes.find(n => n.id === from.nodeId)
+      const toNode = current.nodes.find(n => n.id === to.nodeId)
+      if (!fromNode || !toNode) return current
+
+      const fromPortDef = portsForKind(fromNode.kind).find(p => p.id === from.portId)
+      const toPortDef = portsForKind(toNode.kind).find(p => p.id === to.portId)
+      const roleFrom = fromPortDef?.role ?? 'unknown'
+      const roleTo = toPortDef?.role ?? 'unknown'
+
+      // Hard-block hot↔cold
+      if (hardBlock(roleFrom, roleTo)) return current
+
+      // Check if target port is already occupied.
+      const toOccupied = current.edges.some(
+        e =>
+          (e.from.nodeId === to.nodeId && e.from.portId === to.portId) ||
+          (e.to.nodeId === to.nodeId && e.to.portId === to.portId),
+      )
+      const toIsMulti = toPortDef?.multi ?? false
+
+      let nextGraph: BuildGraph
+      if (!toOccupied || toIsMulti) {
+        // Simple case: just add the edge.
+        nextGraph = {
+          ...current,
+          edges: [
+            ...current.edges,
+            { id: uid('edge'), from, to, meta: { roleFrom, roleTo } },
+          ],
+        }
+      } else {
+        // Target port is already taken — insert a tee.
+      // Determine the fluid role for tee selection; outlet/store fall back to flow.
+      const rawRole = roleTo !== 'unknown' ? roleTo : roleFrom
+      const teeRole: 'hot' | 'cold' | 'flow' | 'return' | 'unknown' =
+        rawRole === 'hot' || rawRole === 'cold' || rawRole === 'flow' || rawRole === 'return'
+          ? rawRole
+          : 'unknown'
+      nextGraph = insertTee({ graph: current, target: to, incoming: from, role: teeRole })
+      }
+
+      // Nudge the moving node so its port aligns exactly with the target port.
+      const fromAbs = portAbs(fromNode, from.portId)
+      const toAbs = portAbs(toNode, to.portId)
+      const shiftX = toAbs.x - fromAbs.x
+      const shiftY = toAbs.y - fromAbs.y
+
+      return {
+        ...nextGraph,
+        nodes: nextGraph.nodes.map(n =>
+          n.id === from.nodeId ? { ...n, x: n.x + shiftX, y: n.y + shiftY } : n,
+        ),
+      }
+    })
   }
 
   const onPortTap = (ref: PortRef) => {
@@ -301,6 +381,7 @@ export default function BuilderShell({
           onMove={moveNode}
           onPortTap={onPortTap}
           onCancelPending={cancelPending}
+          onAutoConnect={onAutoConnect}
           outletBindings={bindings}
         />
         {showWarnings ? (

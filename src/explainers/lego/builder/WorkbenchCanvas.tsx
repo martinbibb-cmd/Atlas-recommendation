@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { BuildGraph, BuildNode, PartKind, PortRef } from './types';
 import { PALETTE } from './palette';
 import { portsForKind, TOKEN_H, TOKEN_W } from './ports';
+import { findSnapCandidate, portAbs as snapPortAbs } from './snapConnect';
+import { routePipe } from './router';
 import './builder.css';
 
 function kindLabel(kind: PartKind) {
@@ -33,6 +35,7 @@ export default function WorkbenchCanvas({
   onMove,
   onPortTap,
   onCancelPending,
+  onAutoConnect,
   outletBindings,
 }: {
   graph: BuildGraph;
@@ -44,6 +47,7 @@ export default function WorkbenchCanvas({
   onMove: (id: string, x: number, y: number) => void;
   onPortTap: (ref: PortRef) => void;
   onCancelPending: () => void;
+  onAutoConnect?: (from: PortRef, to: PortRef) => void;
   outletBindings?: Partial<Record<'A' | 'B' | 'C', string>>;
 }) {
   const nodesById = useMemo(() => {
@@ -51,6 +55,12 @@ export default function WorkbenchCanvas({
     graph.nodes.forEach(node => mapped.set(node.id, node));
     return mapped;
   }, [graph.nodes]);
+
+  // Keep a ref so pointer-up closures always read the latest graph state.
+  const graphRef = useRef(graph);
+  useEffect(() => {
+    graphRef.current = graph;
+  });
 
   const handlePointerDown = (e: ReactPointerEvent, id: string) => {
     e.preventDefault();
@@ -81,11 +91,33 @@ export default function WorkbenchCanvas({
       target.releasePointerCapture(ev.pointerId);
       window.removeEventListener('pointermove', onMoveEvt);
       window.removeEventListener('pointerup', onUpEvt);
+
+      // Snap-to-port detection uses the latest graph state via the ref.
+      if (onAutoConnect) {
+        const cand = findSnapCandidate({
+          graph: graphRef.current,
+          movingNodeId: id,
+          maxDistPx: 36,
+        });
+        if (cand) {
+          onAutoConnect(cand.from, cand.to);
+        }
+      }
     };
 
     window.addEventListener('pointermove', onMoveEvt);
     window.addEventListener('pointerup', onUpEvt);
   };
+
+  // Compute snap ghost: closest candidate port while a node is selected.
+  const snapGhost = useMemo(() => {
+    if (!selectedId || !onAutoConnect) return null;
+    const cand = findSnapCandidate({ graph, movingNodeId: selectedId, maxDistPx: 36 });
+    if (!cand) return null;
+    const toNode = graph.nodes.find(n => n.id === cand.to.nodeId);
+    if (!toNode) return null;
+    return snapPortAbs(toNode, cand.to.portId);
+  }, [graph, selectedId, onAutoConnect]);
 
   return (
     <div
@@ -95,7 +127,7 @@ export default function WorkbenchCanvas({
         onCancelPending();
       }}
     >
-      <div className="workbench-hint">• Tap a Palette item to place • Drag to move • Tap port → port to connect</div>
+      <div className="workbench-hint">• Tap a Palette item to place • Drag to move • Drag near a port to snap-connect • Tap port → port to connect</div>
 
       <svg className="pipes" width="100%" height="100%">
         {graph.edges.map(edge => {
@@ -107,8 +139,7 @@ export default function WorkbenchCanvas({
 
           const from = portAbs(fromNode, edge.from.portId);
           const to = portAbs(toNode, edge.to.portId);
-          const midX = (from.x + to.x) / 2;
-          const points = `${from.x},${from.y} ${midX},${from.y} ${midX},${to.y} ${to.x},${to.y}`;
+          const points = routePipe(from, to);
 
           const edgeClass =
             edge.meta?.roleFrom === 'unknown' || edge.meta?.roleTo === 'unknown'
@@ -140,6 +171,15 @@ export default function WorkbenchCanvas({
               );
             })()
           : null}
+
+        {snapGhost ? (
+          <circle
+            cx={snapGhost.x}
+            cy={snapGhost.y}
+            r={10}
+            className="snap-ghost"
+          />
+        ) : null}
       </svg>
 
       {graph.nodes.map(node => {

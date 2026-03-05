@@ -109,7 +109,10 @@ export function validateGraph(graph: BuildGraph): GraphWarning[] {
 
   for (const [key, count] of portUse.entries()) {
     if (count > 1) {
-      const [nodeId] = key.split(':')
+      const [nodeId, portId] = key.split(':')
+      const node = graph.nodes.find(n => n.id === nodeId)
+      const portDef = node ? portsForKind(node.kind).find(p => p.id === portId) : undefined
+      if (portDef?.multi) continue
       warnings.push({
         id: `multi_${key}`,
         level: 'warn',
