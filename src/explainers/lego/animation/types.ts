@@ -4,6 +4,8 @@ import type { CylinderStore } from './storage'
 
 export type OutletId = 'A' | 'B' | 'C'
 export type OutletKind = 'shower_mixer' | 'basin' | 'bath' | 'cold_tap'
+export type HeatSourceType = 'combi' | 'system_boiler' | 'regular_boiler' | 'heat_pump'
+export type SystemMode = 'idle' | 'heating' | 'dhw_draw' | 'dhw_reheat'
 
 export type OutletControl = {
   id: OutletId
@@ -77,6 +79,7 @@ export type VentedControls = {
 
 export type LabControls = {
   systemType: SystemType
+  heatSourceType?: HeatSourceType
 
   coldInletC: 5 | 10 | 15
   dhwSetpointC: number        // default 50
@@ -96,7 +99,11 @@ export type LabControls = {
   graphFacts?: {
     hotFedOutletNodeIds: string[]
     coldOnlyOutletNodeIds: string[]
+    hasStoredDhw?: boolean
   }
+  heatDemandKw?: number
+  dhwReheatHysteresisC?: number
+  dhwReheatTargetC?: number
   outletBindings?: Partial<Record<'A' | 'B' | 'C', string>>
 }
 
@@ -114,4 +121,6 @@ export type LabFrame = {
   outletSamples: Record<OutletId, OutletSample>
   /** Cylinder thermal store state (only present for cylinder system types). */
   cylinderStore?: CylinderStore
+  systemMode?: SystemMode
+  storeNeedsReheat?: boolean
 }
