@@ -27,6 +27,17 @@
   color: #2d3748;
 }
 
+.connect-pill {
+  margin-left: 10px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  padding: 5px 8px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #805ad5;
+}
+
 .builder-actions {
   display: flex;
   gap: 8px;
@@ -99,8 +110,7 @@
   position: relative;
   height: calc(100vh - 170px);
   min-height: 520px;
-  background:
-    linear-gradient(#f1f5f9 1px, transparent 1px),
+  background: linear-gradient(#f1f5f9 1px, transparent 1px),
     linear-gradient(90deg, #f1f5f9 1px, transparent 1px);
   background-size: 28px 28px;
   touch-action: none;
@@ -119,6 +129,27 @@
   backdrop-filter: blur(4px);
 }
 
+.pipes {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.pipe-line {
+  stroke: #1e293b;
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.25;
+}
+
+.pipe-line.pending {
+  stroke-dasharray: 14 10;
+  opacity: 0.35;
+}
+
 .token {
   position: absolute;
   left: 0;
@@ -131,6 +162,7 @@
   box-shadow: 0 6px 18px rgb(15 23 42 / 8%);
   transform-origin: 0 0;
   user-select: none;
+  z-index: 2;
 }
 
 .token.selected {
@@ -148,6 +180,22 @@
   font-weight: 900;
   color: #2d3748;
   margin-top: 2px;
+}
+
+.port {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 2px solid #0f172a;
+  background: #fff;
+  padding: 0;
+  cursor: pointer;
+}
+
+.port.pending {
+  border-color: #805ad5;
+  box-shadow: 0 0 0 4px rgb(128 90 213 / 18%);
 }
 
 @media (max-width: 900px) {

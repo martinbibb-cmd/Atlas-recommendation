@@ -23,10 +23,22 @@ export interface BuildNode {
   r: number;
 }
 
+export interface PortRef {
+  nodeId: string;
+  portId: string;
+}
+
 export interface BuildEdge {
   id: string;
-  fromNodeId: string;
-  toNodeId: string;
+  from: PortRef;
+  to: PortRef;
+}
+
+export interface PortDef {
+  id: string;
+  dx: number;
+  dy: number;
+  role?: 'cold' | 'hot' | 'flow' | 'return' | 'store' | 'outlet' | 'unknown';
 }
 
 export interface BuildGraph {
