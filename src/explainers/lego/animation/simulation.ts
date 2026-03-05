@@ -59,16 +59,25 @@ const MIN_MOVEMENT_EPSILON = 1e-6
  * Spawn-rate constant: tokens per second per sqrt(L/min).
  * sqrt compression keeps high flows from generating a firehose while still
  * making 6 vs 14 vs 24 L/min clearly distinguishable.
- * Tuned so that at ~10 L/min the spawn density matches the previous linear rate.
+ * Increased from 0.12 to 2.0 so that density differences are immediately
+ * visible at practical DHW flow rates (6–30 L/min).
  */
-const K_SPAWN = 0.12
+const K_SPAWN = 2.0
+
+/**
+ * Hard cap on total live tokens.  Prevents unbounded growth on slow devices
+ * if the frame budget is tight.  4 000 is comfortably above what the eye can
+ * resolve but low enough to stay well within typical GPU/CPU budgets.
+ */
+const MAX_TOKENS = 4000
 
 /**
  * Convert flow to a token spawn rate using sqrt compression.
  * spawnPerSec ≈ K_SPAWN × √flowLpm
- * - 6 L/min  → ~0.29 tokens/s
- * - 10 L/min → ~0.38 tokens/s
- * - 20 L/min → ~0.54 tokens/s
+ * - 6 L/min  → ~4.9 tokens/s  (a few dots on screen)
+ * - 14 L/min → ~7.5 tokens/s  (clearly denser stream)
+ * - 25 L/min → ~10 tokens/s   (thick stream)
+ * Zero flow → zero spawn (no phantom flow).
  */
 function spawnPerSec(flowLpm: number): number {
   return K_SPAWN * Math.sqrt(Math.max(flowLpm, 0))
@@ -290,7 +299,19 @@ export function stepSimulation(params: {
 
   // Add spawns at s = 0 on MAIN with deterministic sequential IDs.
   // Cylinder tokens start warm (heat from store); combi tokens start cold.
+  // Each token is pre-assigned to an outlet at spawn time (using the same
+  // weighted-roulette logic that previously fired at the split point) so the
+  // "draw junction" upstream of the boiler immediately reflects where each
+  // packet of water is headed.  This also ensures per-outlet flow rates are
+  // visible as proportional token densities on each branch.
   for (let i = 0; i < spawnCount; i++) {
+    // Only spawn if we are below the hard token cap.
+    if (tokens.length >= MAX_TOKENS) break
+
+    const assignedOutlet = activeOutlets.length > 0
+      ? pickOutletDeterministic(controls.outlets, nextId)
+      : undefined
+
     tokens.push({
       id: `t_${nextId++}`,
       s: 0,
@@ -298,6 +319,7 @@ export function stepSimulation(params: {
       p,
       hJPerKg: isCylinder ? cylinderHJPerKg : 0,
       route: 'MAIN',
+      assignedOutlet,
     })
   }
 
@@ -338,7 +360,11 @@ export function stepSimulation(params: {
         (sNext >= S_FAILSAFE && activeOutlets.length > 0) // failsafe
 
       if (shouldBranch) {
-        const targetOutlet = pickOutletDeterministic(controls.outlets, extractTokenNumId(t.id))
+        // Use the outlet pre-assigned at spawn time (draw-junction semantics).
+        // Fall back to deterministic hash-roulette for tokens created without
+        // a pre-assignment (e.g. manually constructed tokens in tests).
+        const targetOutlet = t.assignedOutlet
+          ?? pickOutletDeterministic(controls.outlets, extractTokenNumId(t.id))
         // Per-outlet velocity: branch tokens move at a speed reflecting that outlet's
         // individual flow, making flow differences between branches visually distinct.
         const branchFlow = outletActualLpm[targetOutlet] ?? 0
