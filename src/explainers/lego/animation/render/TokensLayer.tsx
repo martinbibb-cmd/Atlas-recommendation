@@ -16,6 +16,8 @@ export function TokensLayer(props: {
   polyA: Pt[]
   polyB: Pt[]
   polyC: Pt[]
+  /** Cold supply bypass polyline for TMV outlet A. May be empty when TMV is off. */
+  polyColdA: Pt[]
   /** Actual hydraulic flow delivered (L/min) — used for throttle shape morphing. */
   hydraulicFlowLpm: number
   /** Total demand requested (L/min) — used for throttle shape morphing. */
@@ -26,10 +28,12 @@ export function TokensLayer(props: {
    * (MAIN s ≥ HEX_END, or any branch) is tinted with the same colour, so
    * token and pipe colours always stay in sync regardless of the token's
    * stored heat content.
+   * Cold supply bypass tokens (COLD_A) always use the cold inlet colour and
+   * are never overridden by this prop.
    */
   postHexThermalColor?: string
 }) {
-  const { tokens, coldInletC, polyMain, polyA, polyB, polyC, hydraulicFlowLpm, demandTotalLpm, postHexThermalColor } = props
+  const { tokens, coldInletC, polyMain, polyA, polyB, polyC, polyColdA, hydraulicFlowLpm, demandTotalLpm, postHexThermalColor } = props
 
   // throttle ∈ [1, 3]: 1 = demand fully met, 3 = badly throttled/restricted.
   // Guard demandTotalLpm === 0 explicitly (no demand → no restriction).
@@ -46,20 +50,30 @@ export function TokensLayer(props: {
         // (combi) or cylinderTempC (stored), both of which may differ from
         // the animation-clamped heat injected on the token.
         //
+        // Cold supply bypass (COLD_A): always cold-inlet colour — these tokens
+        // bypass the HEX and carry no heat.
         // Pre-HEX  (MAIN, s < HEX_END):  use the cold-inlet colour.
-        // Post-HEX (MAIN s ≥ HEX_END, or any branch): use postHexThermalColor
-        //          when provided; otherwise fall back to heatToTempC so
-        //          cylinder tokens (which carry real store heat) still render
-        //          correctly when the prop is absent.
-        const isPostHex = t.route !== 'MAIN' || t.s >= HEX_END
-        const fill = (isPostHex && postHexThermalColor)
-          ? postHexThermalColor
-          : tempToThermalColor(heatToTempC({ coldInletC, hJPerKg: t.hJPerKg }))
+        // Post-HEX (MAIN s ≥ HEX_END, or any branch except COLD_A): use
+        //          postHexThermalColor when provided; otherwise fall back to
+        //          heatToTempC so cylinder tokens still render correctly.
+        const isColdBypass = t.route === 'COLD_A'
+        const isPostHex = !isColdBypass && (t.route !== 'MAIN' || t.s >= HEX_END)
+        const fill = isColdBypass
+          ? tempToThermalColor(coldInletC)  // cold supply — always cold colour
+          : (isPostHex && postHexThermalColor)
+            ? postHexThermalColor
+            : tempToThermalColor(heatToTempC({ coldInletC, hJPerKg: t.hJPerKg }))
 
         const poly =
-          t.route === 'MAIN' ? polyMain :
-          t.route === 'A'    ? polyA :
-          t.route === 'B'    ? polyB : polyC
+          t.route === 'MAIN'    ? polyMain :
+          t.route === 'A'       ? polyA :
+          t.route === 'B'       ? polyB :
+          t.route === 'COLD_A'  ? (() => {
+            if (import.meta.env?.DEV && polyColdA.length === 0) {
+              console.warn('[TokensLayer] COLD_A token present but polyColdA is empty — TMV polyline missing')
+            }
+            return polyColdA.length > 0 ? polyColdA : polyA
+          })() : polyC
 
         const pos = mapSToPath(t.s, poly)
 

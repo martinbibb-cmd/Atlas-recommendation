@@ -10,19 +10,34 @@ export type OutletControl = {
   enabled: boolean
   kind: OutletKind
   demandLpm: number
+  /**
+   * Whether a thermostatic mixer valve (TMV) is installed on this outlet.
+   * Only meaningful for `shower_mixer` outlets.
+   * Defaults to `true` for shower_mixer in `defaultOutlets()`.
+   */
+  tmvEnabled?: boolean
+  /**
+   * Target shower delivery temperature when TMV is installed (°C).
+   * The TMV blends hot and cold supplies to reach this temperature.
+   * Defaults to 40 °C.
+   */
+  tmvTargetTempC?: number
 }
 
-/** Default outlet configuration: A (shower, enabled), B (basin), C (bath). */
+/** Default outlet configuration: A (shower, enabled, TMV on), B (basin), C (bath). */
 export function defaultOutlets(): OutletControl[] {
   return [
-    { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm: 10 },
+    { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm: 10, tmvEnabled: true,  tmvTargetTempC: 40 },
     { id: 'B', enabled: false, kind: 'basin',        demandLpm: 5 },
     { id: 'C', enabled: false, kind: 'bath',         demandLpm: 18 },
   ]
 }
 
-/** Which path segment a token is currently travelling. */
-export type LabRoute = 'MAIN' | 'A' | 'B' | 'C'
+/**
+ * Which path segment a token is currently travelling.
+ * COLD_A: cold supply bypass to outlet A's thermostatic mixer valve (bypasses HEX).
+ */
+export type LabRoute = 'MAIN' | 'A' | 'B' | 'C' | 'COLD_A'
 
 export type LabToken = {
   id: string

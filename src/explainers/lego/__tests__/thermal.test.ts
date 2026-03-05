@@ -472,3 +472,96 @@ describe('stepSimulation', () => {
     expect(next.tokens).toHaveLength(0)
   })
 })
+
+// ─── computeTmvMixer ─────────────────────────────────────────────────────────
+
+import { computeTmvMixer } from '../animation/thermal'
+
+describe('computeTmvMixer — basic physics', () => {
+  // Baseline: 30 kW boiler, cold inlet 10 °C, 10 L/min shower, target 40 °C.
+
+  it('returns a TmvOutcome with all required fields', () => {
+    const r = computeTmvMixer({ boilerKw: 30, coldInTempC: 10, showerDeliveredLpm: 10, targetTempC: 40 })
+    expect(typeof r.F_h).toBe('number')
+    expect(typeof r.F_c).toBe('number')
+    expect(typeof r.T_h).toBe('number')
+    expect(typeof r.T_mix).toBe('number')
+    expect(typeof r.saturated).toBe('boolean')
+    expect(typeof r.shortfallC).toBe('number')
+  })
+
+  it('F_h + F_c ≈ F_out when not saturated', () => {
+    const F_out = 10
+    const r = computeTmvMixer({ boilerKw: 30, coldInTempC: 10, showerDeliveredLpm: F_out, targetTempC: 40 })
+    expect(r.F_h + r.F_c).toBeCloseTo(F_out, 5)
+  })
+
+  it('T_mix equals targetTempC when not saturated (within 0.1 °C)', () => {
+    const r = computeTmvMixer({ boilerKw: 30, coldInTempC: 10, showerDeliveredLpm: 10, targetTempC: 40 })
+    expect(r.saturated).toBe(false)
+    expect(r.T_mix).toBeCloseTo(40, 1)
+  })
+
+  it('F_h < F_out when not saturated (cold bypass takes some flow)', () => {
+    const r = computeTmvMixer({ boilerKw: 30, coldInTempC: 10, showerDeliveredLpm: 10, targetTempC: 40 })
+    expect(r.F_h).toBeLessThan(10)
+    expect(r.F_c).toBeGreaterThan(0)
+  })
+
+  it('T_h > targetTempC when not saturated (boiler hot side is hotter than target)', () => {
+    const r = computeTmvMixer({ boilerKw: 30, coldInTempC: 10, showerDeliveredLpm: 10, targetTempC: 40 })
+    expect(r.T_h).toBeGreaterThan(40)
+  })
+
+  it('shortfallC is 0 when not saturated', () => {
+    const r = computeTmvMixer({ boilerKw: 30, coldInTempC: 10, showerDeliveredLpm: 10, targetTempC: 40 })
+    expect(r.shortfallC).toBe(0)
+  })
+})
+
+describe('computeTmvMixer — saturation', () => {
+  it('saturates when shower flow is too high for the boiler to maintain target', () => {
+    // Very high flow: boiler can only heat to below target.
+    // 30 kW, cold 10 °C, 60 L/min: T_h_guess = 10 + (30×60)/(60×4.19) ≈ 17.2 °C < 40 °C
+    const r = computeTmvMixer({ boilerKw: 30, coldInTempC: 10, showerDeliveredLpm: 60, targetTempC: 40 })
+    expect(r.saturated).toBe(true)
+    expect(r.F_c).toBe(0)        // saturated: all hot, no cold bypass
+    expect(r.F_h).toBeCloseTo(60, 5)  // all flow through HEX
+    expect(r.T_mix).toBeLessThan(40)  // delivered temp below target
+    expect(r.shortfallC).toBeGreaterThan(0)
+  })
+
+  it('shortfallC = targetTempC - T_mix when saturated', () => {
+    const r = computeTmvMixer({ boilerKw: 30, coldInTempC: 10, showerDeliveredLpm: 60, targetTempC: 40 })
+    expect(r.shortfallC).toBeCloseTo(r.T_mix < 40 ? 40 - r.T_mix : 0, 5)
+  })
+
+  it('does not saturate with a very powerful boiler', () => {
+    // 100 kW boiler, modest flow: plenty of heat available.
+    const r = computeTmvMixer({ boilerKw: 100, coldInTempC: 10, showerDeliveredLpm: 10, targetTempC: 40 })
+    expect(r.saturated).toBe(false)
+    expect(r.T_mix).toBeCloseTo(40, 1)
+  })
+})
+
+describe('computeTmvMixer — boiler temperature correctness', () => {
+  it('T_h is computed from F_h through HEX (not from total flow)', () => {
+    // When TMV is active, F_h < F_out, so T_h = T_c + boilerKw*60/(F_h*cp)
+    // should be higher than if the full F_out went through the HEX.
+    const r    = computeTmvMixer({ boilerKw: 30, coldInTempC: 10, showerDeliveredLpm: 10, targetTempC: 40 })
+    const T_h_no_tmv = 10 + (30 * 60) / (10 * 4.19)  // T_h if full flow through HEX
+
+    expect(r.saturated).toBe(false)
+    // With TMV, F_h < F_out → boiler heats less water → T_h > T_h_no_tmv
+    expect(r.T_h).toBeGreaterThan(T_h_no_tmv)
+    // T_h must satisfy the boiler formula: T_c + boilerKw*60/(F_h*cp)
+    const T_h_check = 10 + (30 * 60) / (r.F_h * 4.19)
+    expect(r.T_h).toBeCloseTo(T_h_check, 3)
+  })
+
+  it('T_h >= T_t when not saturated', () => {
+    const r = computeTmvMixer({ boilerKw: 30, coldInTempC: 10, showerDeliveredLpm: 10, targetTempC: 40 })
+    expect(r.saturated).toBe(false)
+    expect(r.T_h).toBeGreaterThanOrEqual(40)
+  })
+})

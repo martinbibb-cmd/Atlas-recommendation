@@ -242,3 +242,103 @@ describe('computeCapacitySummary — achievedOutTempC and requiredKw (combi)', (
     expect(s.requiredKw).toBeUndefined();
   });
 });
+
+// ─── computeCapacitySummary — TMV outcomes ────────────────────────────────────
+
+describe('computeCapacitySummary — tmvOutcomes (combi + shower_mixer with TMV)', () => {
+  const tmvOutlet: OutletControl = {
+    id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 10,
+    tmvEnabled: true, tmvTargetTempC: 40,
+  }
+
+  const tmvControls: LabControls = {
+    ...BASE,
+    outlets: [
+      tmvOutlet,
+      { id: 'B', enabled: false, kind: 'basin', demandLpm: 5 },
+      { id: 'C', enabled: false, kind: 'bath',  demandLpm: 18 },
+    ],
+  }
+
+  it('provides tmvOutcomes for a combi system with a TMV outlet', () => {
+    const s = computeCapacitySummary(tmvControls)
+    expect(s.tmvOutcomes).toBeDefined()
+    expect(s.tmvOutcomes?.A).toBeDefined()
+  })
+
+  it('tmvOutcomes.A has correct structure', () => {
+    const s = computeCapacitySummary(tmvControls)
+    const outcome = s.tmvOutcomes!.A!
+    expect(typeof outcome.F_h).toBe('number')
+    expect(typeof outcome.F_c).toBe('number')
+    expect(typeof outcome.T_h).toBe('number')
+    expect(typeof outcome.T_mix).toBe('number')
+    expect(typeof outcome.saturated).toBe('boolean')
+  })
+
+  it('T_mix ≈ target when boiler has enough capacity', () => {
+    const s = computeCapacitySummary(tmvControls)
+    const outcome = s.tmvOutcomes!.A!
+    expect(outcome.saturated).toBe(false)
+    expect(outcome.T_mix).toBeCloseTo(40, 1)
+  })
+
+  it('achievedOutTempC reflects T_h (boiler hot-side) when TMV is active', () => {
+    const s = computeCapacitySummary(tmvControls)
+    const outcome = s.tmvOutcomes!.A!
+    expect(s.achievedOutTempC).toBeCloseTo(outcome.T_h, 1)
+  })
+
+  it('achievedOutTempC is higher with TMV than without (same demand, boiler heats less water)', () => {
+    const withTmv    = computeCapacitySummary(tmvControls)
+    const withoutTmv = computeCapacitySummary({
+      ...tmvControls,
+      outlets: [
+        { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin', demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath',  demandLpm: 18 },
+      ],
+    })
+    // With TMV, F_h < F_out → boiler heats less water → T_h is higher.
+    expect(withTmv.achievedOutTempC!).toBeGreaterThan(withoutTmv.achievedOutTempC!)
+  })
+
+  it('tmvSaturated is true when boiler cannot reach target', () => {
+    const highDemandControls: LabControls = {
+      ...tmvControls,
+      outlets: [
+        { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 60,
+          tmvEnabled: true, tmvTargetTempC: 40 },
+        { id: 'B', enabled: false, kind: 'basin', demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath',  demandLpm: 18 },
+      ],
+      mainsDynamicFlowLpm: 60,
+      pipeDiameterMm: 22,
+    }
+    const s = computeCapacitySummary(highDemandControls)
+    expect(s.tmvSaturated).toBe(true)
+    expect(s.tmvOutcomes?.A?.saturated).toBe(true)
+  })
+
+  it('no tmvOutcomes for cylinder systems', () => {
+    const s = computeCapacitySummary({
+      ...tmvControls,
+      systemType: 'unvented_cylinder',
+      cylinder: { volumeL: 180, initialTempC: 55, reheatKw: 12 },
+    })
+    expect(s.tmvOutcomes).toBeUndefined()
+  })
+
+  it('no tmvOutcomes when tmvEnabled is false', () => {
+    const s = computeCapacitySummary({
+      ...tmvControls,
+      outlets: [
+        { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 10, tmvEnabled: false },
+        { id: 'B', enabled: false, kind: 'basin', demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath',  demandLpm: 18 },
+      ],
+    })
+    expect(s.tmvOutcomes).toBeUndefined()
+    expect(s.tmvSaturated).toBeUndefined()
+  })
+})

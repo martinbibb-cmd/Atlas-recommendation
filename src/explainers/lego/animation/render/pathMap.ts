@@ -50,6 +50,22 @@ export const SCHEMATIC_P = {
   outlet3X: 900, outlet3Y: 185,  // Outlet C (bottom)
   /** Corner radius used for the 90°-off-take + swept-bend geometry on branches A and C. */
   branchBendR: 25,
+  /**
+   * Pre-boiler tee position — where the cold supply bypass branches off before
+   * the boiler heat exchanger.  Only rendered when a TMV outlet is active.
+   */
+  teeX: 280, teeY: 130,
+  /**
+   * Thermostatic mixer valve (TMV) position for outlet A — where the cold supply
+   * bypass meets the hot supply branch.  The mixed-water outlet continues from here
+   * to the shower terminal (outlet1X, outlet1Y).
+   */
+  mixerAX: 845, mixerAY: 75,
+  /**
+   * Y-coordinate for the cold supply bypass horizontal run above the boiler.
+   * Must be < 86 (= boilerY − 44, the top edge of the boiler box) to avoid overlap.
+   */
+  coldBypassY: 55,
 }
 
 export type SchematicPolylines = {
@@ -57,10 +73,17 @@ export type SchematicPolylines = {
   branchA: Pt[]
   branchB: Pt[]
   branchC: Pt[]
+  /**
+   * Cold supply bypass polyline for outlet A's thermostatic mixer valve (TMV).
+   * Runs from the pre-boiler tee, above the boiler, to the mixer node.
+   * Empty array when `tmvOutletA` is false — always build but conditionally render.
+   */
+  coldBypassA: Pt[]
 }
 
 /**
- * Build the main flow polyline and three outlet branch polylines.
+ * Build the main flow polyline and three outlet branch polylines, plus the
+ * optional cold supply bypass for outlet A's thermostatic mixer valve (TMV).
  *
  * The trunk (main) runs from mains → boiler → splitter.
  * Each branch uses a 90° off-take (perpendicular to the trunk) followed by a
@@ -69,9 +92,21 @@ export type SchematicPolylines = {
  * All three branches are always defined. The caller (LabCanvas/TokensLayer) is
  * responsible for dimming or hiding disabled outlets — the path geometry is
  * always present.
+ *
+ * When `tmvOutletA` is true, outlet A's branch ends at the mixer node (mixerAX,
+ * mixerAY) rather than the full outlet terminal.  The mixed-water segment from
+ * mixer to terminal is rendered separately by LabCanvas.
  */
-export function buildPolylines(): SchematicPolylines {
-  const { splitX, splitY, outlet1X, outlet1Y, outlet2X, outlet2Y, outlet3X, outlet3Y, branchBendR: R } = SCHEMATIC_P
+export function buildPolylines(opts?: { tmvOutletA?: boolean }): SchematicPolylines {
+  const {
+    splitX, splitY, outlet1X, outlet1Y, outlet2X, outlet2Y, outlet3X, outlet3Y,
+    branchBendR: R, teeX, teeY, mixerAX, mixerAY, coldBypassY,
+  } = SCHEMATIC_P
+
+  const tmvA = opts?.tmvOutletA ?? false
+  // Outlet A terminal: full terminal if no TMV; mixer node if TMV active.
+  const a1X = tmvA ? mixerAX : outlet1X
+  const a1Y = tmvA ? mixerAY : outlet1Y
 
   const trunk: Pt[] = [
     { x: SCHEMATIC_P.mainsX, y: SCHEMATIC_P.mainsY },
@@ -80,16 +115,16 @@ export function buildPolylines(): SchematicPolylines {
     { x: splitX, y: splitY },
   ]
 
-  // Branch A: 90° up then swept bend right → horizontal to outlet
-  //   Vertical leg:  (splitX, splitY) → (splitX, outlet1Y + R)
-  //   Bend corner:   elbow at (splitX, outlet1Y)   (control point for quadratic)
-  //   Bend end:      (splitX + R, outlet1Y)
-  //   Horizontal:    → (outlet1X, outlet1Y)
+  // Branch A: 90° up then swept bend right → horizontal to outlet (or mixer when TMV).
+  //   Vertical leg:  (splitX, splitY) → (splitX, a1Y + R)
+  //   Bend corner:   elbow at (splitX, a1Y)
+  //   Bend end:      (splitX + R, a1Y)
+  //   Horizontal:    → (a1X, a1Y)
   const branchA: Pt[] = [
-    { x: splitX,         y: splitY         },
-    { x: splitX,         y: outlet1Y + R   },  // foot of vertical leg
-    { x: splitX + R,     y: outlet1Y       },  // end of swept bend (approximates arc)
-    { x: outlet1X,       y: outlet1Y       },
+    { x: splitX,         y: splitY       },
+    { x: splitX,         y: a1Y + R      },  // foot of vertical leg
+    { x: splitX + R,     y: a1Y          },  // end of swept bend
+    { x: a1X,            y: a1Y          },
   ]
 
   // Branch B: same elevation as trunk — simple horizontal run
@@ -110,7 +145,17 @@ export function buildPolylines(): SchematicPolylines {
     { x: outlet3X,       y: outlet3Y       },
   ]
 
-  return { main: trunk, branchA, branchB, branchC }
+  // Cold supply bypass for TMV outlet A:
+  //   Tee (teeX, teeY) → UP to (teeX, coldBypassY) → RIGHT to (mixerAX, coldBypassY)
+  //   → DOWN to mixer (mixerAX, mixerAY)
+  const coldBypassA: Pt[] = tmvA ? [
+    { x: teeX,    y: teeY         },
+    { x: teeX,    y: coldBypassY  },
+    { x: mixerAX, y: coldBypassY  },
+    { x: mixerAX, y: mixerAY      },
+  ] : []
+
+  return { main: trunk, branchA, branchB, branchC, coldBypassA }
 }
 
 /**

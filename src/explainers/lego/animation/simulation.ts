@@ -2,7 +2,7 @@
 
 import type { LabControls, LabFrame, LabToken, OutletId, OutletControl } from './types'
 import { pipeDiameterCapacityLpm } from '../model/dhwModel'
-import { heatToTempC, tempToHeatJPerKg } from './thermal'
+import { heatToTempC, tempToHeatJPerKg, computeTmvMixer } from './thermal'
 import {
   createCylinderStore,
   cylinderTempC,
@@ -234,6 +234,39 @@ export function stepSimulation(params: {
     outletActualLpm[o.id] = o.demandLpm * outletScale
   }
 
+  // ── TMV per-outlet outcomes (combi only) ─────────────────────────────────
+  // For each active shower_mixer outlet with tmvEnabled, compute the TMV mixer
+  // physics.  This gives:
+  //   F_h — hot-side flow through the boiler HEX (< F_out)
+  //   F_c — cold supply bypass flow (bypasses HEX entirely)
+  //   T_h — achieved boiler hot-side outlet temperature
+  //
+  // hexFlowLpm = total flow through the HEX = hydraulicFlowLpm − Σ(F_c for TMV outlets)
+  // The hot-branch velocity for a TMV outlet is based on F_h, not F_out.
+  type TmvToken = { F_h: number; F_c: number; T_h: number; saturated: boolean }
+  const tmvOutletMap: Partial<Record<OutletId, TmvToken>> = {}
+  let hexFlowLpm = hydraulicFlowLpm  // reduced by cold bypasses
+
+  if (!isCylinder && hasDraw) {
+    for (const o of activeOutlets) {
+      if (o.kind === 'shower_mixer' && o.tmvEnabled) {
+        const F_out = outletActualLpm[o.id]
+        if (F_out > 0) {
+          const outcome = computeTmvMixer({
+            boilerKw: controls.combiDhwKw,
+            coldInTempC: controls.coldInletC,
+            showerDeliveredLpm: F_out,
+            targetTempC: o.tmvTargetTempC ?? 40,
+          })
+          tmvOutletMap[o.id] = outcome
+          hexFlowLpm = Math.max(0, hexFlowLpm - outcome.F_c)
+          // Hot branch for this outlet carries F_h tokens, not the full F_out.
+          outletActualLpm[o.id] = outcome.F_h
+        }
+      }
+    }
+  }
+
   // ── Pressure proxy ────────────────────────────────────────────────────────
   let p: number
   if (controls.systemType === 'vented_cylinder' && controls.vented) {
@@ -244,15 +277,20 @@ export function stepSimulation(params: {
 
   // ── Combi heat injection values (only used when systemType === 'combi') ───
   // Setpoint modulation: compute the heat rate required to reach the setpoint for
-  // the current flow, then cap at the boiler's rated output.
-  // kW_required = 0.06977 × flowLpm × (setpointC − coldInletC)
+  // the flow that actually passes through the HEX (hexFlowLpm — excludes TMV cold
+  // bypass flows), then cap at the boiler's rated output.
+  //
+  // When a TMV outlet is active, hexFlowLpm < hydraulicFlowLpm because F_c bypasses
+  // the HEX.  This makes dhPerKgPerSecond higher (less water, same heat → higher T_h),
+  // which correctly represents the boiler heating a reduced hot-side stream.
+  //
+  // kW_required = 0.06977 × hexFlowLpm × (setpointC − coldInletC)
   // kW_actual   = min(combiDhwKw, kW_required)
-  // This prevents superheating at low flow and produces outlet-temp droop at high flow.
-  // Clamp to [45, MAX_ANIMATION_SETPOINT_C] so the animation palette stays realistic:
-  // above 55 °C looks superheated; below 45 °C looks unrealistically cold for domestic DHW.
+  // Clamp to [45, MAX_ANIMATION_SETPOINT_C] so the animation palette stays realistic.
   const setpointC = clamp(controls.dhwSetpointC, MIN_ANIMATION_SETPOINT_C, MAX_ANIMATION_SETPOINT_C)
-  const mDot = hydraulicFlowLpm / 60 // kg/s
-  const kWRequired = 0.06977 * hydraulicFlowLpm * (setpointC - controls.coldInletC)
+  const effectiveHexFlow = hexFlowLpm  // accounts for TMV cold bypass
+  const mDot = effectiveHexFlow / 60 // kg/s
+  const kWRequired = 0.06977 * effectiveHexFlow * (setpointC - controls.coldInletC)
   const kWActual = Math.min(controls.combiDhwKw, kWRequired)
   const qDot = kWActual * 1000 // kW -> J/s
   const dhPerKgPerSecond = mDot > 0 ? qDot / mDot : 0
@@ -305,6 +343,12 @@ export function stepSimulation(params: {
   // "draw junction" upstream of the boiler immediately reflects where each
   // packet of water is headed.  This also ensures per-outlet flow rates are
   // visible as proportional token densities on each branch.
+  //
+  // TMV cold supply bypass: tokens assigned to a TMV shower_mixer outlet are
+  // split at the pre-boiler tee — a deterministic hash (cold fraction = F_c/F_out)
+  // decides whether each such token goes on the cold supply bypass (COLD_A) or the
+  // hot branch (MAIN → HEX → outlet A).  Cold bypass tokens start cold and stay
+  // cold; they follow the cold bypass polyline and bypass the HEX entirely.
   for (let i = 0; i < spawnCount; i++) {
     // Only spawn if we are below the hard token cap.
     if (tokens.length >= MAX_TOKENS) break
@@ -313,13 +357,32 @@ export function stepSimulation(params: {
       ? pickOutletDeterministic(controls.outlets, nextId)
       : undefined
 
+    // Determine route: check if this token should take the cold supply bypass.
+    let route: LabToken['route'] = 'MAIN'
+    let tokenV = v
+    if (assignedOutlet && tmvOutletMap[assignedOutlet]) {
+      const tmv = tmvOutletMap[assignedOutlet]!
+      const F_out = (tmv.F_h + tmv.F_c) || 1
+      const coldFraction = tmv.F_c / F_out
+      // Deterministic split: use a large prime multiplier so cold bypass tokens
+      // interleave with hot tokens rather than appearing in blocks.
+      // (Any large prime avoids patterns caused by sequential IDs.)
+      const h01 = hash01(nextId * 3571)
+      if (h01 < coldFraction) {
+        route = 'COLD_A'
+        tokenV = hasDraw
+          ? velocityProxy({ flowLpm: Math.max(tmv.F_c, 0.1), diameterMm: controls.pipeDiameterMm })
+          : 0
+      }
+    }
+
     tokens.push({
       id: `t_${nextId++}`,
       s: 0,
-      v,
+      v: tokenV,
       p,
       hJPerKg: isCylinder ? cylinderHJPerKg : 0,
-      route: 'MAIN',
+      route,
       assignedOutlet,
     })
   }
@@ -333,6 +396,12 @@ export function stepSimulation(params: {
     const sNext = clamp(t.s + t.v * dt, 0, 1)
 
     let h = t.hJPerKg
+
+    // ── Cold supply bypass tokens (COLD_A) ────────────────────────────────
+    // These bypass the HEX entirely — no heat injection, just advance toward exit.
+    if (t.route === 'COLD_A') {
+      return { ...t, s: sNext, hJPerKg: 0 }
+    }
 
     if (t.route === 'MAIN') {
       if (!isCylinder) {
@@ -368,6 +437,7 @@ export function stepSimulation(params: {
           ?? pickOutletDeterministic(controls.outlets, extractTokenNumId(t.id))
         // Per-outlet velocity: branch tokens move at a speed reflecting that outlet's
         // individual flow, making flow differences between branches visually distinct.
+        // For TMV outlets outletActualLpm[targetOutlet] is F_h (hot-side flow).
         const branchFlow = outletActualLpm[targetOutlet] ?? 0
         const branchV = hasDraw
           ? velocityProxy({ flowLpm: branchFlow, diameterMm: controls.pipeDiameterMm })
@@ -378,7 +448,7 @@ export function stepSimulation(params: {
       return { ...t, s: sNext, v, p, hJPerKg: h }
     }
 
-    // Branch token — update velocity to reflect this outlet's current actual flow.
+    // Branch token (A / B / C) — update velocity to reflect this outlet's current actual flow.
     // When the outlet has zero flow (disabled or throttled), fall back to the main
     // velocity so stale tokens can drain naturally to the exit.
     const branchFlow = outletActualLpm[t.route as OutletId] ?? 0
@@ -388,11 +458,16 @@ export function stepSimulation(params: {
     return { ...t, s: sNext, v: branchV, p, hJPerKg: h }
   })
 
-  // Sample tokens exiting outlet branches → update EMA, then remove them
+  // Sample tokens exiting outlet branches → update EMA, then remove them.
+  // COLD_A tokens map to outlet 'A' for the purpose of the EMA sample.
   tokens = tokens.filter(t => {
-    if (t.route !== 'MAIN' && t.s >= 0.98) {
+    const isBranch = t.route !== 'MAIN'
+    const isColdBypass = t.route === 'COLD_A'
+
+    if (isBranch && t.s >= 0.98) {
       const tempC = heatToTempC({ coldInletC: controls.coldInletC, hJPerKg: t.hJPerKg })
-      const outletId = t.route as OutletId
+      // COLD_A tokens are counted as outlet A samples (cold supply portion of the mix).
+      const outletId: OutletId = isColdBypass ? 'A' : (t.route as OutletId)
       const prev = outletSamples[outletId]
       outletSamples[outletId] = {
         // Exponential moving average — smooths over several frames

@@ -83,7 +83,6 @@ export default function ExplainersHubPage({ onBack }: Props) {
   const [page, setPage] = useState<Page>('hub');
   const [selectedPreset, setSelectedPreset] = useState<LegoScenario | null>(null);
 
-  // Combi-only for now — system type selector is hidden.
   const [coldInletC, setColdInletC] = useState<LabControls['coldInletC']>(10);
   const [combiDhwKw, setCombiDhwKw] = useState(30);
   const [mainsDynamicFlowLpm, setMainsDynamicFlowLpm] = useState(12);
@@ -266,6 +265,9 @@ export default function ExplainersHubPage({ onBack }: Props) {
             </div>
             {outlets.map(outlet => {
               const delivered = labSummary.outletDeliveredLpm[outlet.id];
+              const tmvOutcome = outlet.kind === 'shower_mixer' && outlet.tmvEnabled
+                ? labSummary.tmvOutcomes?.[outlet.id]
+                : undefined;
               return (
                 <div
                   key={outlet.id}
@@ -300,10 +302,45 @@ export default function ExplainersHubPage({ onBack }: Props) {
                     />
                   </div>
 
+                  {/* TMV controls — only for shower_mixer outlets */}
+                  {outlet.kind === 'shower_mixer' && (
+                    <div className="demo-lab-outlet-card__tmv">
+                      <label className="demo-lab-field__label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={outlet.tmvEnabled ?? false}
+                          onChange={e => updateOutlet(outlet.id, { tmvEnabled: e.target.checked })}
+                        />
+                        Thermostatic mixer valve (TMV)
+                      </label>
+                      {outlet.tmvEnabled && (
+                        <div style={{ marginTop: 6 }}>
+                          <span className="demo-lab-field__label">Target temperature</span>
+                          <div className="demo-lab-field__seg" style={{ marginTop: 4 }}>
+                            {([38, 40, 42] as number[]).map(t => (
+                              <button
+                                key={t}
+                                className={`demo-lab-seg-btn${(outlet.tmvTargetTempC ?? 40) === t ? ' demo-lab-seg-btn--active' : ''}`}
+                                onClick={() => updateOutlet(outlet.id, { tmvTargetTempC: t })}
+                              >
+                                {t} °C
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Readout */}
                   {outlet.enabled && (
                     <div className="demo-lab-outlet-card__readout">
                       <span>{delivered.toFixed(1)} L/min delivered</span>
+                      {tmvOutcome && (
+                        <span style={{ marginLeft: 8, color: tmvOutcome.saturated ? '#b91c1c' : '#0f766e', fontWeight: 600 }}>
+                          · {Math.round(tmvOutcome.T_mix)} °C{tmvOutcome.saturated ? ' ⚠' : ' ✓'}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
