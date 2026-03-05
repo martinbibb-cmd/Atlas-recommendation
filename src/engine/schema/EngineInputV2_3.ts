@@ -1212,6 +1212,59 @@ export interface MixergyLegacyResult {
   notes: string[];
 }
 
+// ─── Mixergy Stratification (5-layer model) ───────────────────────────────────
+
+/**
+ * Snapshot of the cylinder's thermal state as five equal-volume layers.
+ * Layer 0 = top (draw-off point, heat injection zone).
+ * Layer 4 = bottom (cold inlet diffusion zone).
+ */
+export interface MixergyLayerState {
+  /** Temperature of each of the 5 layers (°C), index 0 = top, 4 = bottom. */
+  temp: [number, number, number, number, number];
+  /** Volume of each layer in litres (= totalVolumeLitres / 5). */
+  layerVolLitres: number;
+}
+
+/**
+ * Input for a single timestep of the Mixergy 5-layer stratification model.
+ *
+ * Physical layout:
+ *  - Cold inlet is diffused at the base → layer 4 receives cold make-up water.
+ *  - Heat source (coil/immersion) sits in the top 20 % → energy added to layer 0 only.
+ *  - Mixergy pump draws from the base and injects over the top of the HEX region
+ *    → directional advection that gradually expands the hot zone downward.
+ */
+export interface MixergyStratificationInput {
+  /** Current layer temperatures (°C); modified in-place and returned as nextState. */
+  state: MixergyLayerState;
+  /** Duration of this timestep (seconds). */
+  dtSeconds: number;
+  /** Volume drawn off at the hot outlet during this timestep (litres). */
+  drawLitres: number;
+  /** Cold mains make-up temperature (°C) fed into the base. */
+  coldInTempC: number;
+  /** Heat power applied to the top layer (kW); 0 when no heating. */
+  heatPowerKw: number;
+  /** Pump flow rate (L/min); 0 when pump is off. */
+  pumpFlowLpm: number;
+  /** Target delivery temperature for usable-litre calculation (°C). */
+  targetDhwTempC: number;
+}
+
+/** Output metrics produced by one timestep of the stratification model. */
+export interface MixergyStratificationResult {
+  /** Layer temperatures after the timestep (°C). */
+  nextState: MixergyLayerState;
+  /** Temperature delivered at the draw-off point (top of cylinder) (°C). */
+  deliveredTempC: number;
+  /**
+   * Usable volume of hot water remaining in the cylinder (litres).
+   * A layer counts as "usable" when its temperature ≥ targetDhwTempC − 5 °C.
+   */
+  usableHotLitres: number;
+}
+
 // ─── Portfolio Analysis ───────────────────────────────────────────────────────
 
 export interface PortfolioProperty {
