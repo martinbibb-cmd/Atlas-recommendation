@@ -143,6 +143,8 @@ export function roundTempC(tempC: number): number {
 /**
  * Specific heat capacity of water in kJ/(kg·°C).
  * Conventional DHW-physics value; 1 L of water ≈ 1 kg.
+ * Source: CIBSE Guide C (2001) Table 2.1 — water at ~40 °C (typical DHW range);
+ * value is stable across the 10–60 °C domestic hot-water temperature band.
  * Used for the combi outlet-temperature formula:
  *   ΔT (°C) = (P_kW × 60) / (flow_L/min × CP_WATER_KJ_PER_KG_C)
  */

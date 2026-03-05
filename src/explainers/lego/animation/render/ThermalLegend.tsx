@@ -49,7 +49,7 @@ export function ThermalLegend({ coldInletC, setpointC, bands, achievedTempC }: T
   const svgHeight = isFailing ? 200 : 150
 
   return (
-    <svg width={120} height={svgHeight} aria-label="Thermal colour legend">
+    <svg width={120} height={svgHeight} aria-label={isFailing ? 'Thermal colour legend with temperature deficit warning' : 'Thermal colour legend'}>
       <defs>
         <linearGradient id={gradientId} x1="0" y1="1" x2="0" y2="0">
           {bands.map((b, i) => {
@@ -150,7 +150,7 @@ export function ThermalLegend({ coldInletC, setpointC, bands, achievedTempC }: T
             −{Math.abs(roundTempC(deficitC))} °C short
           </text>
           <text x={6} y={40} fontSize={8} fill="#7f1d1d">
-            Need {roundTempC(achievedTempC + deficitC)} °C
+            Need {setpointC} °C
           </text>
         </g>
       )}

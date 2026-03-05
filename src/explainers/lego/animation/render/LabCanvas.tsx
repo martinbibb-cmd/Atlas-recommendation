@@ -15,6 +15,10 @@ const DEFAULT_FRAME_TIME_MS = 16
 /** Maximum allowed dt to prevent large jumps after tab suspension (ms). */
 const MAX_FRAME_TIME_MS = 50
 
+/** Opacity applied to thermally-coloured pipe segments so the centre-line
+ *  marker remains visible on top of the warm fill. */
+const THERMAL_COLOR_OPACITY = 0.75
+
 // Use positions from pathMap (single source of truth)
 const P = SCHEMATIC_P
 
@@ -257,7 +261,7 @@ export function LabCanvas(props: {
         <path
           d={`M ${P.boilerX + 120} ${P.boilerY} L ${P.splitX} ${P.splitY}`}
           stroke={postHexThermalColor ?? '#cfd8e3'} strokeWidth={16} strokeLinecap="round" filter={pipeGlow}
-          opacity={postHexThermalColor ? 0.75 : 1}
+          opacity={postHexThermalColor ? THERMAL_COLOR_OPACITY : 1}
         />
         <path
           d={`M ${P.boilerX + 120} ${P.boilerY} L ${P.splitX} ${P.splitY}`}
@@ -287,7 +291,7 @@ export function LabCanvas(props: {
                 d={pathD}
                 stroke={isEnabled ? (postHexThermalColor ?? '#cfd8e3') : '#e2e8f0'}
                 strokeWidth={16} strokeLinecap="round" fill="none"
-                opacity={isEnabled ? (postHexThermalColor ? 0.75 : 1) : 0.4}
+                opacity={isEnabled ? (postHexThermalColor ? THERMAL_COLOR_OPACITY : 1) : 0.4}
               />
               <path
                 d={pathD}
