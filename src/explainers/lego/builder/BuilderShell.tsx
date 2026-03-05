@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
 import type { BuildGraph, BuildNode, PartKind, PortDef, PortRef } from './types'
+import PresetPanel from './PresetPanel'
 import PalettePanel from './PalettePanel'
 import WorkbenchCanvas from './WorkbenchCanvas'
 import { portsForKind } from './ports'
 import { validateGraph } from './graphValidate'
 import { deriveFacts } from './graphDerive'
+import { PRESETS } from './presets'
 import './builder.css'
 
 function uid(prefix = 'n') {
@@ -12,6 +14,18 @@ function uid(prefix = 'n') {
 }
 
 const EMPTY_GRAPH: BuildGraph = { nodes: [], edges: [] }
+
+
+const cloneGraph = (graph: BuildGraph): BuildGraph => ({
+  nodes: graph.nodes.map(node => ({ ...node })),
+  edges: graph.edges.map(edge => ({
+    ...edge,
+    from: { ...edge.from },
+    to: { ...edge.to },
+    meta: edge.meta ? { ...edge.meta } : undefined,
+  })),
+  outletBindings: graph.outletBindings ? { ...graph.outletBindings } : undefined,
+})
 
 const isOutletKind = (kind: PartKind) =>
   kind === 'tap_outlet' || kind === 'bath_outlet' || kind === 'shower_outlet'
@@ -24,7 +38,13 @@ const nextFreeSlot = (bindings: Partial<Record<'A' | 'B' | 'C', string>> | undef
   return null
 }
 
-export default function BuilderShell({ initial }: { initial?: BuildGraph }) {
+export default function BuilderShell({
+  initial,
+  onControlsPatch,
+}: {
+  initial?: BuildGraph
+  onControlsPatch?: (patch: Record<string, unknown>) => void
+}) {
   const [graph, setGraph] = useState<BuildGraph>(initial ?? EMPTY_GRAPH)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pendingPort, setPendingPort] = useState<PortRef | null>(null)
@@ -181,6 +201,16 @@ export default function BuilderShell({ initial }: { initial?: BuildGraph }) {
     }))
   }
 
+
+  const loadPreset = (presetId: string) => {
+    const preset = PRESETS.find(item => item.id === presetId)
+    if (!preset) return
+    setGraph(cloneGraph(preset.graph))
+    setSelectedId(null)
+    setPendingPort(null)
+    onControlsPatch?.((preset.controlsPatch ?? {}) as Record<string, unknown>)
+  }
+
   const clearSlot = (slot: 'A' | 'B' | 'C') => {
     setGraph(current => {
       const next = { ...(current.outletBindings ?? {}) }
@@ -192,6 +222,7 @@ export default function BuilderShell({ initial }: { initial?: BuildGraph }) {
   return (
     <div className="builder-wrap">
       <div className="builder-left">
+        <PresetPanel onLoad={loadPreset} />
         <PalettePanel onPick={addNode} />
       </div>
 

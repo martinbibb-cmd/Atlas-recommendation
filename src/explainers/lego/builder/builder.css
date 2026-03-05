@@ -295,3 +295,47 @@
   font-weight: 800;
   color: #805ad5;
 }
+
+.presets {
+  padding: 10px;
+  border-bottom: 1px solid #edf2f7;
+  background: #fff;
+}
+
+.presets-title {
+  font-weight: 900;
+  color: #2d3748;
+}
+
+.presets-sub {
+  font-size: 0.82rem;
+  color: #718096;
+  margin-top: 2px;
+}
+
+.presets-list {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preset-item {
+  border: 1px solid #edf2f7;
+  background: #f7fafc;
+  border-radius: 12px;
+  padding: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.preset-head {
+  font-weight: 900;
+  color: #2d3748;
+}
+
+.preset-blurb {
+  margin-top: 4px;
+  font-size: 0.82rem;
+  color: #4a5568;
+}

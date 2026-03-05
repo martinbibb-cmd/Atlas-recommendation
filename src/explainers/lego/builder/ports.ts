@@ -11,14 +11,32 @@ const MID_Y = TOKEN_H / 2;
 
 export function portsForKind(kind: PartKind): PortDef[] {
   switch (kind) {
-    case 'heat_source_boiler':
-    case 'heat_source_ashp':
+    case 'heat_source_combi':
       return [
-        { id: 'flow_out', dx: R, dy: MID_Y, role: 'flow' },
-        { id: 'return_in', dx: L, dy: MID_Y, role: 'return' },
+        { id: 'ch_flow_out', dx: R, dy: MID_Y, role: 'flow' },
+        { id: 'ch_return_in', dx: L, dy: MID_Y, role: 'return' },
         { id: 'cold_in', dx: L, dy: B, role: 'cold' },
         { id: 'hot_out', dx: R, dy: B, role: 'hot' },
       ];
+
+    case 'heat_source_system_boiler':
+    case 'heat_source_regular_boiler':
+      return [
+        { id: 'ch_flow_out', dx: R, dy: MID_Y, role: 'flow' },
+        { id: 'ch_return_in', dx: L, dy: MID_Y, role: 'return' },
+        { id: 'coil_flow', dx: R, dy: B, role: 'flow' },
+        { id: 'coil_return', dx: L, dy: B, role: 'return' },
+      ];
+
+    case 'heat_source_heat_pump':
+      return [
+        { id: 'flow_out', dx: R, dy: MID_Y, role: 'flow' },
+        { id: 'return_in', dx: L, dy: MID_Y, role: 'return' },
+      ];
+
+    case 'feed_and_expansion':
+    case 'open_vent':
+      return [{ id: 'vent', dx: R, dy: MID_Y, role: 'unknown' }];
 
     case 'dhw_unvented_cylinder':
     case 'dhw_mixergy':
