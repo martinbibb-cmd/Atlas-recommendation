@@ -278,7 +278,6 @@ export function LabCanvas(props: {
           const ox = outletXMap[outlet.id]
           const oy = outletYMap[outlet.id]
           const isEnabled = outlet.enabled
-          const strokeColor = isEnabled ? '#cfd8e3' : '#e2e8f0'
           const centerStroke = isEnabled ? '#8aa1b6' : '#cbd5e1'
           const delivered = summary.outletDeliveredLpm[outlet.id]
           const sample = frame.outletSamples[outlet.id]
