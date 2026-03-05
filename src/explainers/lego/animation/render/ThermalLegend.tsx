@@ -21,7 +21,7 @@ export function ThermalLegend({ coldInletC, setpointC, bands }: ThermalLegendPro
   const range = maxT - minT || 1
 
   return (
-    <svg width={52} height={140} aria-label="Thermal colour legend">
+    <svg width={60} height={150} aria-label="Thermal colour legend">
       <defs>
         <linearGradient id={gradientId} x1="0" y1="1" x2="0" y2="0">
           {bands.map((b, i) => {
@@ -45,14 +45,15 @@ export function ThermalLegend({ coldInletC, setpointC, bands }: ThermalLegendPro
         )
       })()}
 
-      {/* Setpoint tick */}
+      {/* Setpoint tick — labelled "Target" so it reads as the setpoint anchor */}
       {(() => {
         const clampedSetpoint = Math.min(setpointC, maxT)
         const yPos = 10 + 100 - ((clampedSetpoint - minT) / range) * 100
         return (
           <>
-            <line x1={10} y1={yPos} x2={30} y2={yPos} stroke="#334155" strokeWidth={1} />
-            <text x={32} y={yPos + 4} fontSize={9} fill="#334155">{setpointC} °C</text>
+            <line x1={10} y1={yPos} x2={30} y2={yPos} stroke="#b45309" strokeWidth={1.5} />
+            <text x={32} y={yPos - 3} fontSize={9} fill="#b45309" fontWeight={600}>Target</text>
+            <text x={32} y={yPos + 7} fontSize={9} fill="#b45309">{setpointC} °C</text>
           </>
         )
       })()}

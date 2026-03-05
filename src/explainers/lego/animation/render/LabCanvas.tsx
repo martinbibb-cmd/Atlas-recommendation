@@ -302,6 +302,8 @@ export function LabCanvas(props: {
           polyA={branchA}
           polyB={branchB}
           polyC={branchC}
+          hydraulicFlowLpm={summary.hydraulicFlowLpm}
+          demandTotalLpm={summary.demandTotalLpm}
         />
       </svg>
 

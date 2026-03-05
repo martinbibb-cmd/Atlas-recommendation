@@ -362,4 +362,40 @@ describe('stepSimulation', () => {
       expect(tk.hJPerKg).toBeLessThanOrEqual(maxHAtCap + 1)
     }
   })
+
+  it('no draw: tokens clear immediately when all outlets disabled', () => {
+    // All outlets disabled → hydraulicFlowLpm = 0 → hasDraw = false → tokens must be empty.
+    const controls: LabControls = {
+      ...defaultControls,
+      outlets: [
+        { id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 18 },
+      ],
+    }
+    // Pre-populate some tokens at various positions
+    const tokens = [
+      { id: 't_0', s: 0.1, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
+      { id: 't_1', s: 0.5, v: 0.1, p: 0.5, hJPerKg: 0, route: 'A'    as const },
+    ]
+    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 1, nextTokenId: 2, outletSamples: emptyOutletSamples }
+    const next = stepSimulation({ frame, dtMs: 100, controls })
+    // All tokens must be cleared when there is no draw
+    expect(next.tokens).toHaveLength(0)
+  })
+
+  it('no draw: velocity is zero so no new tokens are spawned', () => {
+    // All outlets disabled → spawn rate = 0 → no tokens spawned even with spawnAccumulator = 0.
+    const controls: LabControls = {
+      ...defaultControls,
+      outlets: [
+        { id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 18 },
+      ],
+    }
+    const frame: LabFrame = { nowMs: 0, tokens: [], spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples }
+    const next = stepSimulation({ frame, dtMs: 1000, controls })
+    expect(next.tokens).toHaveLength(0)
+  })
 })
