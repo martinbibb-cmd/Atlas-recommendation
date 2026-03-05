@@ -6,8 +6,11 @@ export type ThermalBand = {
 }
 
 /**
- * A FLIR-ish palette without hard "traffic light" semantics.
+ * A FLIR-ish palette anchored so the DHW setpoint cap (55 °C) maps to yellow.
  * Smoothly interpolated so it looks like a thermal image.
+ *
+ * Gradient: cold inlet (blue) → mid-range (green) → target/setpoint (yellow) →
+ *           overshoot (amber/orange) → hot (red).
  *
  * Tuned for domestic DHW/CH ranges (0–85°C).
  */
@@ -17,10 +20,10 @@ export const THERMAL_BANDS: ThermalBand[] = [
   { t: 20, hex: '#0f7aa7' }, // cyan-blue
   { t: 30, hex: '#16b3a5' }, // teal
   { t: 40, hex: '#4cd66a' }, // green
-  { t: 50, hex: '#d9e85b' }, // yellow-green
-  { t: 60, hex: '#ffc14a' }, // amber
-  { t: 70, hex: '#ff7b3a' }, // orange
-  { t: 80, hex: '#ff3b2f' }, // hot red-orange (still thermal, not "error")
+  { t: 55, hex: '#f5e642' }, // yellow — target/setpoint anchor (55 °C cap)
+  { t: 65, hex: '#ffc14a' }, // amber
+  { t: 75, hex: '#ff7b3a' }, // orange
+  { t: 85, hex: '#ff3b2f' }, // hot red-orange (still thermal, not "error")
   { t: 90, hex: '#fff2e8' }, // near-white hot
 ]
 

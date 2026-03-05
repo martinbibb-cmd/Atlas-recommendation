@@ -163,6 +163,9 @@ export function stepSimulation(params: {
   // "What flow can physically pass through the system?"
   const hydraulicFlowLpm = Math.min(demandTotalLpm, controls.mainsDynamicFlowLpm, pipeCap, ventedCap)
 
+  // No draw → velocity must be zero so tokens stop immediately.
+  const hasDraw = hydraulicFlowLpm > 0.01
+
   // ── Pressure proxy ────────────────────────────────────────────────────────
   let p: number
   if (controls.systemType === 'vented_cylinder' && controls.vented) {
@@ -221,7 +224,9 @@ export function stepSimulation(params: {
   const spawnCount = Math.floor(rawAccumulator)
   const spawnAccumulator = rawAccumulator - spawnCount // carry fractional part forward
 
-  const v = velocityProxy({ flowLpm: hydraulicFlowLpm, diameterMm: controls.pipeDiameterMm })
+  const v = hasDraw
+    ? velocityProxy({ flowLpm: hydraulicFlowLpm, diameterMm: controls.pipeDiameterMm })
+    : 0
 
   let tokens: LabToken[] = [...frame.tokens]
   let nextId = frame.nextTokenId
@@ -300,6 +305,11 @@ export function stepSimulation(params: {
     if (t.route === 'MAIN' && t.s >= 0.999) return false
     return true
   })
+
+  // No draw: clear all tokens so the animation stops cleanly.
+  if (!hasDraw) {
+    tokens = []
+  }
 
   return {
     nowMs: frame.nowMs + dtMs,
