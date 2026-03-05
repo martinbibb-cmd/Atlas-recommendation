@@ -206,12 +206,11 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
     else if (heatingDemandKw > 0.1) mode = 'heating'
   } else {
     if (heatingDemandKw > 0.1) mode = 'heating'
-    else if (hasStoredDhw) mode = 'dhw_reheat'
   }
 
   const badges: string[] = []
-  if (isCombi && mode === 'dhw_draw') badges.push('During DHW draw, CH paused')
-  if (hasStoredDhw) badges.push('DHW draw uses store; reheat scheduled')
+  if (hasStoredDhw) badges.push('DHW draw uses stored energy; heat source reheats later')
+  if (isCombi && mode === 'dhw_draw') badges.push('Combi diverting: CH paused during DHW draw')
 
   return {
     demandTotalLpm,
