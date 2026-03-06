@@ -1,4 +1,41 @@
-import type { EngineInputV2_3, CombiDhwV1Result, CombiDhwFlagItem } from '../schema/EngineInputV2_3';
+import type { EngineInputV2_3, CombiDhwV1Result, CombiDhwFlagItem, CombiDhwRampPhase } from '../schema/EngineInputV2_3';
+
+/**
+ * Terminology rule
+ *
+ * Do not describe combi hot water as "instantaneous".
+ * Use "on-demand hot water".
+ *
+ * Reason:
+ * Combi systems require ignition, ramp-up, and stabilisation.
+ * The simulator models this behaviour and should not imply
+ * zero response time.
+ */
+
+// ─── Combi DHW ramp phase boundaries (seconds from tap open) ─────────────────
+
+const RAMP_IGNITION_PURGE_END_S = 2;
+const RAMP_TEMPERATURE_RAMP_END_S = 6;
+const RAMP_STABILISING_END_S = 10;
+
+/**
+ * Return the combi DHW ramp phase for a given elapsed draw time.
+ *
+ * Phase timing (seconds from tap open):
+ *   ignition_purge    0 – 2 s   fan start, gas valve, combustion ignition
+ *   temperature_ramp  2 – 6 s   heat exchanger temperature rising
+ *   stabilising       6 – 10 s  flow temperature approaching steady-state
+ *   steady           10 s +    nominal delivery temperature reached
+ *
+ * @param elapsedS  Elapsed time in seconds since the hot-water draw started (≥ 0).
+ * @returns The current {@link CombiDhwRampPhase}.
+ */
+export function getCombiDhwRampPhase(elapsedS: number): CombiDhwRampPhase {
+  if (elapsedS < RAMP_IGNITION_PURGE_END_S) return 'ignition_purge';
+  if (elapsedS < RAMP_TEMPERATURE_RAMP_END_S) return 'temperature_ramp';
+  if (elapsedS < RAMP_STABILISING_END_S) return 'stabilising';
+  return 'steady';
+}
 
 const PRESSURE_LOCKOUT_BAR = 1.0;
 

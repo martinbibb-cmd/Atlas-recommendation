@@ -422,6 +422,28 @@ export interface CombiStressResult {
   notes: string[];
 }
 
+/**
+ * Combi DHW ramp phase.
+ *
+ * Terminology rule — do not describe combi hot water as "instantaneous".
+ * Use "on-demand hot water".
+ *
+ * Reason: combi systems require ignition, ramp-up, and stabilisation before
+ * delivering water at the target temperature. The simulator models this
+ * behaviour and must not imply zero response time.
+ *
+ * Phase timing (seconds from tap open):
+ *   ignition_purge    0 – 2 s   fan start, gas valve open, combustion ignition
+ *   temperature_ramp  2 – 6 s   heat exchanger temperature rising
+ *   stabilising       6 – 10 s  flow temperature approaching steady-state
+ *   steady           10 s +    nominal delivery temperature reached
+ */
+export type CombiDhwRampPhase =
+  | 'ignition_purge'
+  | 'temperature_ramp'
+  | 'stabilising'
+  | 'steady';
+
 /** Structured red-flag item for CombiDhwModuleV1. */
 export interface CombiDhwFlagItem {
   id:
