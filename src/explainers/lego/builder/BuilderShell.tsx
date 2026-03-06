@@ -19,10 +19,25 @@ import { smartAdd } from './smartAttach'
 import { portAbs } from './snapConnect'
 import { insertTee } from './tee'
 import { graphToLabControls } from './graphToControls'
+import {
+  type PlayState,
+  type OutletDemandState,
+  type OutletDemandPreset,
+  PLAY_SCENARIOS,
+  PRESETS_FOR_KIND,
+  applyPresetToOutlet,
+  applyScenario,
+  playStateToOutletControls,
+} from '../state/playState'
+import { createDefaultPlayState } from '../state/createDefaultPlayState'
 import './builder.css'
 
 /** The two phases of the lab experience. */
 type LabMode = 'build' | 'play'
+
+/** Minimum flow rate (L/min) applied when a previously-off outlet is toggled on
+ *  without an active preset, to avoid immediately jumping to 0 L/min. */
+const DEFAULT_TOGGLE_FLOW_LPM = 5
 
 function uid(prefix = 'n') {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`
@@ -61,6 +76,12 @@ export default function BuilderShell({
   const [savedControlsPatch, setSavedControlsPatch] = useState<Partial<LabControls>>({})
   /** Whether the left palette panel is visible in build mode. */
   const [paletteOpen, setPaletteOpen] = useState(true)
+  /**
+   * Interactive play-state — outlet demands controlled by the user.
+   * Null before the first time Play mode is entered.
+   * Simulation input = savedGraph + playState (not a hard-coded demo scenario).
+   */
+  const [playState, setPlayState] = useState<PlayState | null>(null)
   /** Live cylinder store temperature (°C) tracked from LabCanvas onFrame. */
   const [playStoreTempC, setPlayStoreTempC] = useState<number | undefined>(undefined)
 
@@ -339,20 +360,80 @@ export default function BuilderShell({
 
   /**
    * Save the current graph and switch to Play mode.
+   * Initialises play-state from the saved graph so simulation starts from
+   * sensible per-outlet defaults (not hard-coded demo values).
    * Simulation always runs against the snapshot, never the live draft.
    */
   const enterPlay = useCallback(() => {
-    setSavedGraph(cloneGraph(normalizedGraph))
+    const snapshot = cloneGraph(normalizedGraph)
+    setSavedGraph(snapshot)
+    setPlayState(createDefaultPlayState(snapshot))
     setPlayStoreTempC(undefined)
     setMode('play')
   }, [normalizedGraph])
 
+  // ── Play-mode outlet control callbacks ────────────────────────────────────
+
+  /**
+   * Update a single outlet's demand state.
+   * Clears `selectedPresetId` so the controls no longer reflect a preset
+   * once the user makes a manual change.
+   */
+  const updatePlayDemand = useCallback(
+    (outletId: string, patch: Partial<OutletDemandState>) => {
+      setPlayState(current => {
+        if (!current) return current
+        return {
+          ...current,
+          demands: current.demands.map(d =>
+            d.outletId === outletId ? { ...d, ...patch } : d,
+          ),
+          selectedPresetId: null,
+        }
+      })
+    },
+    [],
+  )
+
+  /** Apply a scenario preset — populates all outlet controls, remains editable afterwards. */
+  const applyPlayScenario = useCallback((scenarioId: string) => {
+    setPlayState(current => (current ? applyScenario(current, scenarioId) : current))
+  }, [])
+
+  /** Apply a quick preset to a single outlet. */
+  const applyOutletPreset = useCallback(
+    (outletId: string, preset: OutletDemandPreset) => {
+      setPlayState(current => {
+        if (!current) return current
+        return {
+          ...current,
+          demands: current.demands.map(d =>
+            d.outletId === outletId ? applyPresetToOutlet(d, preset) : d,
+          ),
+          selectedPresetId: null,
+        }
+      })
+    },
+    [],
+  )
+
   // ── Play-mode derived values ───────────────────────────────────────────────
 
-  const playControls = useMemo(
-    () => (savedGraph ? graphToLabControls(savedGraph, savedControlsPatch) : null),
-    [savedGraph, savedControlsPatch],
-  )
+  const playControls = useMemo(() => {
+    if (!savedGraph) return null
+    const outletControls = playState
+      ? playStateToOutletControls(playState.demands)
+      : undefined
+    const coldInletRaw = playState?.inletTempC ?? 10
+    const coldInletC: 5 | 10 | 15 =
+      coldInletRaw <= 7 ? 5 : coldInletRaw <= 12 ? 10 : 15
+    return graphToLabControls(savedGraph, {
+      ...savedControlsPatch,
+      ...(outletControls ? { outlets: outletControls } : {}),
+      coldInletC,
+      dhwSetpointC: playState?.hotSupplyTargetC ?? 50,
+    })
+  }, [savedGraph, savedControlsPatch, playState])
 
   const playSummary = useMemo(
     () => (playControls ? computeCapacitySummary(playControls) : null),
@@ -381,20 +462,93 @@ export default function BuilderShell({
           </span>
         </div>
 
-        {playControls && playSummary ? (
-          <div className="play-canvas-wrap">
-            <div className="demo-lab-canvas">
-              <LabCanvas
-                controls={playControls}
-                summary={playSummary}
-                onFrame={handleFrame}
-              />
+        {playControls && playSummary && playState ? (
+          <div className="play-layout">
+            {/* ── Canvas column ──────────────────────────────────────────── */}
+            <div className="play-canvas-col">
+              <div className="demo-lab-canvas">
+                <LabCanvas
+                  controls={playControls}
+                  summary={playSummary}
+                  onFrame={handleFrame}
+                />
+              </div>
             </div>
-            <InstrumentStrip
-              summary={playSummary}
-              storeTempC={playStoreTempC}
-              combiDhwKw={playControls.systemType === 'combi' ? playControls.combiDhwKw : undefined}
-            />
+
+            {/* ── Controls column ────────────────────────────────────────── */}
+            <div className="play-controls-col">
+
+              {/* Scenario presets */}
+              <div className="play-section">
+                <div className="play-section-title">Quick scenarios</div>
+                <div className="play-scenario-grid">
+                  {PLAY_SCENARIOS.map(scenario => (
+                    <button
+                      key={scenario.id}
+                      className={`play-scenario-btn${playState.selectedPresetId === scenario.id ? ' play-scenario-btn--active' : ''}`}
+                      onClick={() => applyPlayScenario(scenario.id)}
+                    >
+                      {scenario.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Per-outlet controls */}
+              <div className="play-section">
+                <div className="play-section-title">Outlets</div>
+                <div className="play-outlet-list">
+                  {playState.demands.map(demand => {
+                    const presets = PRESETS_FOR_KIND[demand.kind]
+                    return (
+                      <div key={demand.outletId} className={`play-outlet-card${demand.enabled ? ' play-outlet-card--active' : ''}`}>
+                        <div className="play-outlet-header">
+                          <span className="play-outlet-label">{demand.label}</span>
+                          <button
+                            className={`play-outlet-toggle${demand.enabled ? ' play-outlet-toggle--on' : ''}`}
+                            onClick={() => updatePlayDemand(demand.outletId, {
+                              enabled: !demand.enabled,
+                              targetFlowLpm: demand.enabled ? 0 : (demand.targetFlowLpm || DEFAULT_TOGGLE_FLOW_LPM),
+                              preset: demand.enabled ? 'off' : (demand.preset === 'off' ? undefined : demand.preset),
+                            })}
+                            aria-pressed={demand.enabled}
+                          >
+                            {demand.enabled ? 'On' : 'Off'}
+                          </button>
+                        </div>
+                        <div className="play-outlet-presets">
+                          {presets.map(preset => (
+                            <button
+                              key={preset}
+                              className={`play-preset-btn${demand.preset === preset ? ' play-preset-btn--active' : ''}`}
+                              onClick={() => applyOutletPreset(demand.outletId, preset)}
+                            >
+                              {preset}
+                            </button>
+                          ))}
+                        </div>
+                        {demand.enabled && (
+                          <div className="play-outlet-flow">
+                            {demand.targetFlowLpm.toFixed(1)} L/min
+                            {demand.targetTempC !== undefined ? ` @ ${demand.targetTempC}°C` : ''}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Result summary */}
+              <div className="play-section">
+                <div className="play-section-title">Result</div>
+                <InstrumentStrip
+                  summary={playSummary}
+                  storeTempC={playStoreTempC}
+                  combiDhwKw={playControls.systemType === 'combi' ? playControls.combiDhwKw : undefined}
+                />
+              </div>
+            </div>
           </div>
         ) : (
           <div className="play-empty">
