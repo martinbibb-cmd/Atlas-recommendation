@@ -47,18 +47,67 @@ export type OutletDemandState = {
   targetTempC?: number
 }
 
-// ─── Aggregate play state ─────────────────────────────────────────────────────
+// ─── Supply conditions ────────────────────────────────────────────────────────
+
+/**
+ * Presets for CWS (cold-water storage cistern) tank head pressure.
+ * Used by vented cylinder systems where head pressure determines supply flow capacity.
+ *
+ * poor    — low head (≤ 1.5 m): shower may struggle
+ * typical — normal domestic head (3 m)
+ * good    — high head (5 m): good gravity supply
+ */
+export type CwsHeadPreset = 'poor' | 'typical' | 'good'
+
+/** Metres of head for each CWS head preset. */
+export const CWS_HEAD_METERS: Record<CwsHeadPreset, number> = {
+  poor:    1.5,
+  typical: 3.0,
+  good:    5.0,
+}
+
+/**
+ * User-configurable supply conditions for Play mode.
+ *
+ * These are kept separate from the outlet demand controls so the user can
+ * reason about the supply side of the system independently from demand.
+ *
+ * mainsDynamicFlowLpm — only relevant for mains-fed systems (combi, unvented).
+ * cwsHeadPreset       — only relevant for vented (tank-fed) cylinder systems.
+ */
+export type SupplyConditions = {
+  /** Cold supply inlet temperature (°C). Applies to all system types. */
+  inletTempC: number
+  /**
+   * Dynamic mains flow rate (L/min).
+   * Only relevant for mains-fed systems (combi, unvented cylinder).
+   * Ignored for vented cylinders (tank-fed supply).
+   */
+  mainsDynamicFlowLpm?: number
+  /**
+   * CWS tank head preset.
+   * Only relevant for vented (tank-fed) cylinder systems.
+   * Ignored for mains-fed systems.
+   */
+  cwsHeadPreset?: CwsHeadPreset
+}
 
 export type PlayState = {
   demands: OutletDemandState[]
   /** Central-heating demand state. */
   heating: HeatingDemandState
-  /** Cold inlet temperature (°C) — fed from mains. */
+  /** Cold inlet temperature (°C) — fed from mains or CWS tank. */
   inletTempC: number
   /** DHW setpoint / hot supply target (°C). */
   hotSupplyTargetC: number
   /** Currently selected scenario preset ID, or null when manually edited. */
   selectedPresetId?: string | null
+  /**
+   * User-configurable supply conditions.
+   * These drive the supply-side limits in the simulation.
+   * Populated by createDefaultPlayState and editable in Play mode.
+   */
+  supplyConditions: SupplyConditions
 }
 
 // ─── Preset flow / temperature reference values ───────────────────────────────

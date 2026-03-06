@@ -23,7 +23,10 @@ import {
   type OutletDemandState,
   type OutletDemandPreset,
   type HeatingDemandState,
+  type SupplyConditions,
+  type CwsHeadPreset,
   type OperatingMode,
+  CWS_HEAD_METERS,
   PLAY_SCENARIOS,
   PRESETS_FOR_KIND,
   applyPresetToOutlet,
@@ -32,6 +35,7 @@ import {
   determineOperatingMode,
 } from '../state/playState'
 import { createDefaultPlayState } from '../state/createDefaultPlayState'
+import { resolveSystemTopology, dhwSourceDescription } from '../sim/resolveSystemTopology'
 import './builder.css'
 
 /** The two phases of the lab experience. */
@@ -458,6 +462,21 @@ export default function BuilderShell({
     })
   }, [])
 
+  /** Update supply conditions (mains flow, CWS head, inlet temp). Clears selectedPresetId. */
+  const updateSupplyConditions = useCallback((patch: Partial<SupplyConditions>) => {
+    setPlayState(current => {
+      if (!current) return current
+      // Also keep inletTempC in sync at the top level
+      const next: PlayState = {
+        ...current,
+        supplyConditions: { ...current.supplyConditions, ...patch },
+        selectedPresetId: null,
+      }
+      if (patch.inletTempC !== undefined) next.inletTempC = patch.inletTempC
+      return next
+    })
+  }, [])
+
   // ── Play-mode derived values ───────────────────────────────────────────────
 
   const playControls = useMemo(() => {
@@ -465,21 +484,43 @@ export default function BuilderShell({
     const outletControls = playState
       ? playStateToOutletControls(playState.demands)
       : undefined
-    const coldInletRaw = playState?.inletTempC ?? 10
+    const supply = playState?.supplyConditions
+    const coldInletRaw = supply?.inletTempC ?? playState?.inletTempC ?? 10
     const coldInletC: 5 | 10 | 15 =
       coldInletRaw <= 7 ? 5 : coldInletRaw <= 12 ? 10 : 15
+
+    // Resolve head meters from the CWS head preset for vented systems.
+    const cwsHeadPreset = supply?.cwsHeadPreset
+    const ventedOverride = cwsHeadPreset
+      ? { vented: { headMeters: CWS_HEAD_METERS[cwsHeadPreset] } }
+      : {}
+
+    // For mains-fed systems, allow play-state to override the dynamic flow rate.
+    const mainsDynamicFlowLpm = supply?.mainsDynamicFlowLpm
+    const mainsOverride = mainsDynamicFlowLpm !== undefined
+      ? { mainsDynamicFlowLpm }
+      : {}
+
     return graphToLabControls(savedGraph, {
       ...savedControlsPatch,
       ...(outletControls ? { outlets: outletControls } : {}),
       coldInletC,
       dhwSetpointC: playState?.hotSupplyTargetC ?? 50,
       ...(playState?.heating ? { heatingDemand: playState.heating } : {}),
+      ...ventedOverride,
+      ...mainsOverride,
     })
   }, [savedGraph, savedControlsPatch, playState])
 
   const playSummary = useMemo(
     () => (playControls ? computeCapacitySummary(playControls) : null),
     [playControls],
+  )
+
+  /** Resolved topology from the saved graph — drives topology-aware UI. */
+  const playTopology = useMemo(
+    () => (savedGraph ? resolveSystemTopology(savedGraph) : null),
+    [savedGraph],
   )
 
   /** Callback from LabCanvas to track live cylinder store temperature and system mode. */
@@ -495,14 +536,19 @@ export default function BuilderShell({
   // ── Play mode render ───────────────────────────────────────────────────────
 
   if (mode === 'play') {
+    // Resolve the correct SystemType to pass to determineOperatingMode.
+    // This must reflect the actual graph topology so vented vs unvented vs combi
+    // are all handled correctly.
+    const playSystemType = playControls?.systemType ?? 'combi'
+
     return (
       <div className="builder-wrap builder-wrap--play">
         <div className="play-topbar">
           <button className="builder-btn" onClick={() => setMode('build')}>← Edit</button>
           <span className="play-mode-label">▶ Play mode</span>
           <span className="play-mode-hint">
-            {playControls
-              ? `Simulating saved graph — ${playControls.systemType.replace(/_/g, ' ')}`
+            {playTopology
+              ? dhwSourceDescription(playTopology)
               : 'No saved graph — go back to Build and save first'}
           </span>
         </div>
@@ -632,7 +678,17 @@ export default function BuilderShell({
                 <div className="play-section-title">Operating mode</div>
                 <OperatingModePanel
                   systemMode={playSystemMode}
-                  operatingMode={determineOperatingMode(playState, playControls.systemType === 'combi' ? 'combi' : 'unvented_cylinder')}
+                  operatingMode={determineOperatingMode(playState, playSystemType)}
+                />
+              </div>
+
+              {/* Supply conditions — topology-aware controls */}
+              <div className="play-section">
+                <div className="play-section-title">Supply conditions</div>
+                <SupplyConditionsPanel
+                  supplyConditions={playState.supplyConditions}
+                  systemType={playSystemType}
+                  onChange={updateSupplyConditions}
                 />
               </div>
             </div>
@@ -849,6 +905,87 @@ function OperatingModePanel({
         <div className="play-operating-mode__live">
           <span className="play-operating-mode__label">Live:</span>
           <span className="play-operating-mode__value">{SYSTEM_MODE_LABELS[systemMode]}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Supply conditions panel ───────────────────────────────────────────────────
+
+const CWS_HEAD_PRESET_LABELS: Record<CwsHeadPreset, string> = {
+  poor:    'Poor  (1.5 m)',
+  typical: 'Typical (3 m)',
+  good:    'Good  (5 m)',
+}
+
+function SupplyConditionsPanel({
+  supplyConditions,
+  systemType,
+  onChange,
+}: {
+  supplyConditions: SupplyConditions
+  systemType: string
+  onChange: (patch: Partial<SupplyConditions>) => void
+}) {
+  const isVented = systemType === 'vented_cylinder'
+
+  return (
+    <div className="play-supply-conditions">
+      {/* Cold inlet temperature — applies to all system types */}
+      <div className="play-supply-row">
+        <label className="play-supply-label">Cold inlet temp</label>
+        <div className="play-supply-btns">
+          {([5, 10, 15] as const).map(t => (
+            <button
+              key={t}
+              className={`play-preset-btn${supplyConditions.inletTempC === t ? ' play-preset-btn--active' : ''}`}
+              onClick={() => onChange({ inletTempC: t })}
+            >
+              {t} °C
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Vented: CWS head preset */}
+      {isVented && (
+        <div className="play-supply-row">
+          <label className="play-supply-label">Tank-fed head</label>
+          <div className="play-supply-btns">
+            {(['poor', 'typical', 'good'] as CwsHeadPreset[]).map(preset => (
+              <button
+                key={preset}
+                className={`play-preset-btn${supplyConditions.cwsHeadPreset === preset ? ' play-preset-btn--active' : ''}`}
+                onClick={() => onChange({ cwsHeadPreset: preset })}
+              >
+                {CWS_HEAD_PRESET_LABELS[preset]}
+              </button>
+            ))}
+          </div>
+          {supplyConditions.cwsHeadPreset && (
+            <div className="play-outlet-flow">
+              Head: {CWS_HEAD_METERS[supplyConditions.cwsHeadPreset].toFixed(1)} m
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mains-fed: dynamic flow rate */}
+      {!isVented && (
+        <div className="play-supply-row">
+          <label className="play-supply-label">Mains flow</label>
+          <div className="play-supply-btns">
+            {([8, 14, 20] as const).map(lpm => (
+              <button
+                key={lpm}
+                className={`play-preset-btn${supplyConditions.mainsDynamicFlowLpm === lpm ? ' play-preset-btn--active' : ''}`}
+                onClick={() => onChange({ mainsDynamicFlowLpm: lpm })}
+              >
+                {lpm} L/min
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

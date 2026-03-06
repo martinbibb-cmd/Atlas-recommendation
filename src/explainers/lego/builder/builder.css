@@ -973,3 +973,31 @@
   font-size: 0.82rem;
   color: #4a5568;
 }
+
+/* ── Supply conditions panel ───────────────────────────────────── */
+
+.play-supply-conditions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.play-supply-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.play-supply-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.play-supply-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}

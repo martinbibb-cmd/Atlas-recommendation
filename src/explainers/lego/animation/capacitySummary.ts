@@ -62,9 +62,11 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
   const isCombi = heatSourceType === 'combi'
   const hasStoredDhw = c.graphFacts?.hasStoredDhw ?? isCylinder
 
-  // Supply cap: vented cylinders are limited by head pressure
+  // Supply cap:
+  //  - vented cylinders are limited by head pressure only (tank-fed, not mains-fed)
+  //  - all other system types are limited by mains dynamic flow rate
   const ventedCap = c.systemType === 'vented_cylinder' && c.vented
-    ? Math.min(c.mainsDynamicFlowLpm, c.vented.headMeters * 6)
+    ? c.vented.headMeters * 6
     : Infinity
   const supplyCapLpm = c.systemType === 'vented_cylinder' ? ventedCap : c.mainsDynamicFlowLpm
 
@@ -100,8 +102,12 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
     warnings.push('Demand exceeds combi thermal capacity → outlet temperature droop')
   if (demandTotalLpm > pipeCapLpm)
     warnings.push('Demand exceeds distribution capacity → flow throttled by pipework')
-  if (demandTotalLpm > supplyCapLpm)
-    warnings.push('Demand exceeds supply capacity → flow throttled by mains')
+  if (demandTotalLpm > supplyCapLpm) {
+    const supplyLabel = c.systemType === 'vented_cylinder'
+      ? 'tank-fed supply (head pressure)'
+      : 'mains supply'
+    warnings.push(`Demand exceeds supply capacity → flow throttled by ${supplyLabel}`)
+  }
 
   // Split hydraulic flow proportionally to each active outlet's demand
   const outletDeliveredLpm: Record<OutletId, number> = { A: 0, B: 0, C: 0 }

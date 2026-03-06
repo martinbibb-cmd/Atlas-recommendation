@@ -129,11 +129,16 @@ function ventedPressureProxy(params: { headMeters: number }) {
 }
 
 /**
- * Optional vented supply flow cap: simple proxy (headMeters * 6 L/min per metre of head).
- * The factor 6 is an empirical demo proxy — roughly 0.1 bar per metre × ~60 L/min per bar.
+ * Vented (tank-fed) supply flow cap: head pressure proxy only.
+ * Factor of 6 L/min per metre of head is an empirical demo proxy
+ * (roughly 0.1 bar per metre × ~60 L/min per bar).
+ *
+ * Mains dynamic flow is NOT included: a vented cylinder is fed from a
+ * cold-water storage cistern, not the mains, so mains pressure is not
+ * the limiting factor for a vented system.
  */
-function ventedSupplyCapLpm(params: { mainsFlowLpm: number; headMeters: number }) {
-  return Math.min(params.mainsFlowLpm, params.headMeters * 6)
+function ventedSupplyCapLpm(params: { headMeters: number }) {
+  return params.headMeters * 6
 }
 
 /**
@@ -233,13 +238,18 @@ export function stepSimulation(params: {
 
   const pipeCap = pipeDiameterCapacityLpm(controls.pipeDiameterMm) ?? Infinity
 
-  // For vented cylinders: apply a head-pressure-derived flow cap.
+  // For vented cylinders: apply a head-pressure-derived flow cap (no mains factor).
+  // Mains dynamic flow is not a limiting factor for a vented (tank-fed) system.
   const ventedCap = controls.systemType === 'vented_cylinder' && controls.vented
-    ? ventedSupplyCapLpm({ mainsFlowLpm: controls.mainsDynamicFlowLpm, headMeters: controls.vented.headMeters })
+    ? ventedSupplyCapLpm({ headMeters: controls.vented.headMeters })
     : Infinity
 
   // "What flow can physically pass through the system?"
-  const hydraulicFlowLpm = Math.min(demandTotalLpm, controls.mainsDynamicFlowLpm, pipeCap, ventedCap)
+  // For vented systems: mains dynamic flow is excluded (tank-fed supply, not mains-pressure).
+  // For all other systems: mains dynamic flow is a hard cap.
+  const hydraulicFlowLpm = controls.systemType === 'vented_cylinder'
+    ? Math.min(demandTotalLpm, pipeCap, ventedCap)
+    : Math.min(demandTotalLpm, controls.mainsDynamicFlowLpm, pipeCap)
 
   // No draw → velocity must be zero so tokens stop immediately.
   const hasDraw = hydraulicFlowLpm > 0.01
