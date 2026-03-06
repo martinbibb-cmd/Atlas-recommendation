@@ -1,10 +1,9 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import type { BuildGraph, PartKind, PortDef, PortRef } from './types'
 import type { LabControls } from '../animation/types'
 import PresetPanel from './PresetPanel'
 import PalettePanel from './PalettePanel'
 import WorkbenchCanvas from './WorkbenchCanvas'
-import WarningPanel from './WarningPanel'
 import { LabCanvas } from '../animation/render/LabCanvas'
 import { InstrumentStrip } from '../animation/render/InstrumentStrip'
 import { computeCapacitySummary } from '../animation/capacitySummary'
@@ -89,7 +88,9 @@ export default function BuilderShell({
   /** Controls patch stored when a preset is loaded; merged into LabControls on play. */
   const [savedControlsPatch, setSavedControlsPatch] = useState<Partial<LabControls>>({})
   /** Whether the left palette panel is visible in build mode. */
-  const [paletteOpen, setPaletteOpen] = useState(true)
+  const [paletteOpen, setPaletteOpen] = useState(() => window.innerWidth >= 1200)
+  /** Whether the screen is narrow (tablet / mobile) — drives drawer vs pinned behaviour. */
+  const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 1200)
   /**
    * Interactive play-state — outlet demands controlled by the user.
    * Null before the first time Play mode is entered.
@@ -105,9 +106,16 @@ export default function BuilderShell({
   const [graph, setGraph] = useState<BuildGraph>(initial ?? EMPTY_GRAPH)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pendingPort, setPendingPort] = useState<PortRef | null>(null)
-  const [showWarnings, setShowWarnings] = useState(false)
+  const [warnStripExpanded, setWarnStripExpanded] = useState(false)
   const [highlightNodeId, setHighlightNodeId] = useState<string | null>(null)
   const [highlightEdgeId, setHighlightEdgeId] = useState<string | null>(null)
+
+  // Track screen width to update the narrow-screen flag
+  useEffect(() => {
+    const handleResize = () => setIsNarrow(window.innerWidth < 1200)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const selected = useMemo(
     () => graph.nodes.find(node => node.id === selectedId) ?? null,
@@ -133,6 +141,10 @@ export default function BuilderShell({
       setSelectedId(placedNodeId)
       return nextGraph
     })
+    // Auto-close palette on tablet/mobile after placing a component
+    if (isNarrow) {
+      setPaletteOpen(false)
+    }
   }
 
   const moveNode = (id: string, x: number, y: number) => {
@@ -641,7 +653,16 @@ export default function BuilderShell({
   // ── Build mode render ──────────────────────────────────────────────────────
 
   return (
-    <div className={`builder-wrap${paletteOpen ? '' : ' palette-collapsed'}`}>
+    <div className={`builder-wrap${paletteOpen ? '' : ' palette-collapsed'}`} style={{ position: 'relative' }}>
+      {/* Backdrop — only rendered/visible on narrow screens while palette is open */}
+      {paletteOpen && isNarrow && (
+        <div
+          className="palette-backdrop"
+          onClick={() => setPaletteOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {paletteOpen && (
         <div className="builder-left">
           <PresetPanel onLoad={loadPreset} onLoadConcept={loadConceptPreset} />
@@ -652,14 +673,6 @@ export default function BuilderShell({
       <div className="builder-right">
         {/* ── Mode bar ──────────────────────────────────────────────────── */}
         <div className="builder-mode-bar">
-          <button
-            className="palette-toggle-btn"
-            onClick={() => setPaletteOpen(v => !v)}
-            title={paletteOpen ? 'Hide palette' : 'Show palette'}
-            aria-label={paletteOpen ? 'Hide palette' : 'Show palette'}
-          >
-            {paletteOpen ? '✕' : '☰'}
-          </button>
           <span className="builder-mode-label">🧱 Build</span>
           <div className="builder-mode-bar__spacer" />
           <button
@@ -676,17 +689,20 @@ export default function BuilderShell({
           >
             ▶ Play
           </button>
+          <button
+            className="toolbox-btn"
+            onClick={() => setPaletteOpen(v => !v)}
+            title={paletteOpen ? 'Hide toolbox' : 'Open toolbox'}
+            aria-label={paletteOpen ? 'Hide toolbox' : 'Open toolbox'}
+          >
+            🧰 {paletteOpen ? 'Close' : 'Toolbox'}
+          </button>
         </div>
 
         <div className="builder-canvas-area">
           <div className="builder-toolbar">
           <div className="builder-title">
             Build your system
-            {warnings.length ? (
-              <button className="warn-pill" onClick={() => setShowWarnings(current => !current)}>
-                {warnings.length} warnings
-              </button>
-            ) : null}
             {pendingPort ? <span className="connect-pill">Connecting… tap another port</span> : null}
           </div>
 
@@ -765,14 +781,35 @@ export default function BuilderShell({
           onAutoConnect={onAutoConnect}
           outletBindings={bindings}
         />
+
+        {/* ── Warning strip — non-blocking bottom bar ────────────────── */}
+        {warnings.length > 0 && (
+          <div className={`warn-strip${warnStripExpanded ? ' warn-strip--expanded' : ''}`}>
+            <div
+              className="warn-strip-bar"
+              onClick={() => setWarnStripExpanded(v => !v)}
+              role="button"
+              aria-expanded={warnStripExpanded}
+            >
+              <span className="warn-strip-count">⚠ {warnings.length} warning{warnings.length !== 1 ? 's' : ''}</span>
+              <span className="warn-strip-toggle">{warnStripExpanded ? '▲ collapse' : '▼ expand'}</span>
+            </div>
+            {warnStripExpanded && (
+              <div className="warn-strip-list">
+                {warnings.map((w, i) => (
+                  <button
+                    key={i}
+                    className={`warn-strip-item${w.level === 'error' ? ' error' : ''}`}
+                    onClick={() => { onSelectWarning(w); setWarnStripExpanded(false) }}
+                  >
+                    {w.level === 'error' ? '✖' : '⚠'} {w.title}: {w.message}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         </div>
-        {showWarnings ? (
-          <WarningPanel
-            warnings={warnings}
-            onSelectWarning={onSelectWarning}
-            onClose={() => setShowWarnings(false)}
-          />
-        ) : null}
       </div>
     </div>
   )
