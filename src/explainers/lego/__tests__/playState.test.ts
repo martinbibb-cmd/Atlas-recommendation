@@ -8,6 +8,7 @@ import {
   applyScenario,
   outletDemandToControl,
   playStateToOutletControls,
+  determineOperatingMode,
   PRESET_FLOWS,
   PLAY_SCENARIOS,
   type OutletDemandState,
@@ -40,6 +41,7 @@ function makePlayState(overrides: Partial<PlayState> = {}): PlayState {
       makeOutlet({ outletId: 'B', kind: 'basin',  enabled: false, preset: 'off',    targetFlowLpm: 0 }),
       makeOutlet({ outletId: 'C', kind: 'bath',   enabled: false, preset: 'off',    targetFlowLpm: 0 }),
     ],
+    heating: { enabled: false, demandLevel: 1, targetFlowTempC: 70 },
     inletTempC: 10,
     hotSupplyTargetC: 50,
     selectedPresetId: null,
@@ -299,5 +301,98 @@ describe('createDefaultPlayState', () => {
   it('starts with selectedPresetId=null', () => {
     const state = createDefaultPlayState(makeEmptyGraph())
     expect(state.selectedPresetId).toBeNull()
+  })
+
+  it('initialises heating with enabled=false', () => {
+    const state = createDefaultPlayState(makeEmptyGraph())
+    expect(state.heating).toBeDefined()
+    expect(state.heating.enabled).toBe(false)
+  })
+
+  it('initialises heating with a default flow temperature', () => {
+    const state = createDefaultPlayState(makeEmptyGraph())
+    expect(state.heating.targetFlowTempC).toBeDefined()
+    expect(state.heating.targetFlowTempC).toBeGreaterThan(0)
+  })
+})
+
+// ─── applyScenario with heatingPatch ─────────────────────────────────────────
+
+describe('applyScenario — heating-related scenarios', () => {
+  it('heating-only scenario enables heating and turns off all outlets', () => {
+    const state = makePlayState()
+    const next = applyScenario(state, 'heating-only')
+    expect(next.heating.enabled).toBe(true)
+    for (const d of next.demands) expect(d.enabled).toBe(false)
+    expect(next.selectedPresetId).toBe('heating-only')
+  })
+
+  it('heating-and-shower scenario enables heating and outlet A', () => {
+    const state = makePlayState()
+    const next = applyScenario(state, 'heating-and-shower')
+    expect(next.heating.enabled).toBe(true)
+    expect(next.demands.find(d => d.outletId === 'A')?.enabled).toBe(true)
+  })
+
+  it('all-off scenario does not change heating state (no heatingPatch)', () => {
+    const state = makePlayState({ heating: { enabled: true, demandLevel: 1 } })
+    const next = applyScenario(state, 'all-off')
+    expect(next.heating.enabled).toBe(true)
+  })
+})
+
+// ─── determineOperatingMode ───────────────────────────────────────────────────
+
+describe('determineOperatingMode', () => {
+  it('returns IDLE when no heating and no DHW', () => {
+    const state = makePlayState({
+      demands: [
+        makeOutlet({ outletId: 'A', kind: 'shower', enabled: false, targetFlowLpm: 0 }),
+        makeOutlet({ outletId: 'B', kind: 'basin',  enabled: false, targetFlowLpm: 0 }),
+        makeOutlet({ outletId: 'C', kind: 'bath',   enabled: false, targetFlowLpm: 0 }),
+      ],
+      heating: { enabled: false },
+    })
+    expect(determineOperatingMode(state)).toBe('IDLE')
+  })
+
+  it('returns DHW_ONLY when DHW active and no heating', () => {
+    const state = makePlayState({
+      heating: { enabled: false },
+    })
+    expect(determineOperatingMode(state)).toBe('DHW_ONLY')
+  })
+
+  it('returns CH_ONLY when heating active and no DHW', () => {
+    const state = makePlayState({
+      demands: [
+        makeOutlet({ outletId: 'A', kind: 'shower', enabled: false, targetFlowLpm: 0 }),
+        makeOutlet({ outletId: 'B', kind: 'basin',  enabled: false, targetFlowLpm: 0 }),
+        makeOutlet({ outletId: 'C', kind: 'bath',   enabled: false, targetFlowLpm: 0 }),
+      ],
+      heating: { enabled: true, demandLevel: 1 },
+    })
+    expect(determineOperatingMode(state)).toBe('CH_ONLY')
+  })
+
+  it('combi: returns DHW_ONLY when both heating and DHW active (DHW priority)', () => {
+    const state = makePlayState({
+      heating: { enabled: true, demandLevel: 1 },
+    })
+    expect(determineOperatingMode(state, 'combi')).toBe('DHW_ONLY')
+  })
+
+  it('cylinder: returns CH_AND_DHW when both heating and DHW active', () => {
+    const state = makePlayState({
+      heating: { enabled: true, demandLevel: 1 },
+    })
+    expect(determineOperatingMode(state, 'unvented_cylinder')).toBe('CH_AND_DHW')
+  })
+
+  it('defaults to combi behaviour when systemType not provided', () => {
+    const state = makePlayState({
+      heating: { enabled: true, demandLevel: 1 },
+    })
+    expect(determineOperatingMode(state)).toBe('DHW_ONLY')
   })
 })

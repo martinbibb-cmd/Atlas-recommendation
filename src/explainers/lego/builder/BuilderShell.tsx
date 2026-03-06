@@ -23,11 +23,14 @@ import {
   type PlayState,
   type OutletDemandState,
   type OutletDemandPreset,
+  type HeatingDemandState,
+  type OperatingMode,
   PLAY_SCENARIOS,
   PRESETS_FOR_KIND,
   applyPresetToOutlet,
   applyScenario,
   playStateToOutletControls,
+  determineOperatingMode,
 } from '../state/playState'
 import { createDefaultPlayState } from '../state/createDefaultPlayState'
 import './builder.css'
@@ -38,6 +41,17 @@ type LabMode = 'build' | 'play'
 /** Minimum flow rate (L/min) applied when a previously-off outlet is toggled on
  *  without an active preset, to avoid immediately jumping to 0 L/min. */
 const DEFAULT_TOGGLE_FLOW_LPM = 5
+
+/** Default CH flow temperature (°C) shown in Play mode when no explicit value is set. */
+const DEFAULT_CH_FLOW_TEMP_C = 70
+
+/** Demand-level values for CH control buttons (off / low / normal / high). */
+const CH_DEMAND_LEVEL: Record<'off' | 'low' | 'normal' | 'high', number> = {
+  off:    0,
+  low:    0.4,
+  normal: 0.7,
+  high:   1.0,
+}
 
 function uid(prefix = 'n') {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`
@@ -84,6 +98,8 @@ export default function BuilderShell({
   const [playState, setPlayState] = useState<PlayState | null>(null)
   /** Live cylinder store temperature (°C) tracked from LabCanvas onFrame. */
   const [playStoreTempC, setPlayStoreTempC] = useState<number | undefined>(undefined)
+  /** Live system mode tracked from LabCanvas onFrame. */
+  const [playSystemMode, setPlaySystemMode] = useState<LabFrame['systemMode']>(undefined)
 
   // ── Graph edit state ───────────────────────────────────────────────────────
   const [graph, setGraph] = useState<BuildGraph>(initial ?? EMPTY_GRAPH)
@@ -369,6 +385,7 @@ export default function BuilderShell({
     setSavedGraph(snapshot)
     setPlayState(createDefaultPlayState(snapshot))
     setPlayStoreTempC(undefined)
+    setPlaySystemMode(undefined)
     setMode('play')
   }, [normalizedGraph])
 
@@ -417,6 +434,18 @@ export default function BuilderShell({
     [],
   )
 
+  /** Update the central-heating demand state. Clears selectedPresetId. */
+  const updateHeatingDemand = useCallback((patch: Partial<HeatingDemandState>) => {
+    setPlayState(current => {
+      if (!current) return current
+      return {
+        ...current,
+        heating: { ...current.heating, ...patch },
+        selectedPresetId: null,
+      }
+    })
+  }, [])
+
   // ── Play-mode derived values ───────────────────────────────────────────────
 
   const playControls = useMemo(() => {
@@ -432,6 +461,7 @@ export default function BuilderShell({
       ...(outletControls ? { outlets: outletControls } : {}),
       coldInletC,
       dhwSetpointC: playState?.hotSupplyTargetC ?? 50,
+      ...(playState?.heating ? { heatingDemand: playState.heating } : {}),
     })
   }, [savedGraph, savedControlsPatch, playState])
 
@@ -440,10 +470,13 @@ export default function BuilderShell({
     [playControls],
   )
 
-  /** Callback from LabCanvas to track live cylinder store temperature. */
+  /** Callback from LabCanvas to track live cylinder store temperature and system mode. */
   const handleFrame = useCallback((frame: LabFrame) => {
     if (frame.cylinderStore && playControls) {
       setPlayStoreTempC(cylinderTempC({ store: frame.cylinderStore, coldInletC: playControls.coldInletC }))
+    }
+    if (frame.systemMode !== undefined) {
+      setPlaySystemMode(frame.systemMode)
     }
   }, [playControls])
 
@@ -491,6 +524,39 @@ export default function BuilderShell({
                       {scenario.label}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Central-heating demand */}
+              <div className="play-section">
+                <div className="play-section-title">Heating demand</div>
+                <div className="play-heating-controls">
+                  <div className="play-heating-row">
+                    {(['off', 'low', 'normal', 'high'] as const).map(level => {
+                      const isOff = level === 'off'
+                      const active = isOff
+                        ? !playState.heating.enabled
+                        : playState.heating.enabled && playState.heating.demandLevel === CH_DEMAND_LEVEL[level]
+                      return (
+                        <button
+                          key={level}
+                          className={`play-preset-btn${active ? ' play-preset-btn--active' : ''}`}
+                          onClick={() => updateHeatingDemand(
+                            isOff
+                              ? { enabled: false }
+                              : { enabled: true, demandLevel: CH_DEMAND_LEVEL[level] },
+                          )}
+                        >
+                          {level}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {playState.heating.enabled && (
+                    <div className="play-outlet-flow">
+                      Flow temp: {playState.heating.targetFlowTempC ?? DEFAULT_CH_FLOW_TEMP_C} °C
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -546,6 +612,15 @@ export default function BuilderShell({
                   summary={playSummary}
                   storeTempC={playStoreTempC}
                   combiDhwKw={playControls.systemType === 'combi' ? playControls.combiDhwKw : undefined}
+                />
+              </div>
+
+              {/* Operating mode */}
+              <div className="play-section">
+                <div className="play-section-title">Operating mode</div>
+                <OperatingModePanel
+                  systemMode={playSystemMode}
+                  operatingMode={determineOperatingMode(playState, playControls.systemType === 'combi' ? 'combi' : 'unvented_cylinder')}
                 />
               </div>
             </div>
@@ -699,6 +774,46 @@ export default function BuilderShell({
           />
         ) : null}
       </div>
+    </div>
+  )
+}
+
+// ─── Operating mode panel ──────────────────────────────────────────────────────
+
+const SYSTEM_MODE_LABELS: Record<NonNullable<LabFrame['systemMode']>, string> = {
+  idle:        'Idle — no demand',
+  heating:     'Heating circulation active',
+  dhw_draw:    'On-demand hot water active',
+  dhw_reheat:  'Cylinder reheat active',
+}
+
+const OPERATING_MODE_LABELS: Record<OperatingMode, string> = {
+  IDLE:            'Idle',
+  CH_ONLY:         'Heating only',
+  DHW_ONLY:        'On-demand hot water only',
+  CH_AND_DHW:      'Heating and hot water',
+  CYLINDER_REHEAT: 'Cylinder reheat',
+}
+
+function OperatingModePanel({
+  systemMode,
+  operatingMode,
+}: {
+  systemMode: LabFrame['systemMode']
+  operatingMode: OperatingMode
+}) {
+  return (
+    <div className="play-operating-mode">
+      <div className="play-operating-mode__expected">
+        <span className="play-operating-mode__label">Expected:</span>
+        <span className="play-operating-mode__value">{OPERATING_MODE_LABELS[operatingMode]}</span>
+      </div>
+      {systemMode !== undefined && (
+        <div className="play-operating-mode__live">
+          <span className="play-operating-mode__label">Live:</span>
+          <span className="play-operating-mode__value">{SYSTEM_MODE_LABELS[systemMode]}</span>
+        </div>
+      )}
     </div>
   )
 }
