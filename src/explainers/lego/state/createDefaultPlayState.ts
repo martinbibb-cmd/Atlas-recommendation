@@ -79,6 +79,8 @@ function labelForKind(kind: PlayOutletKind, slot: OutletId): string {
 const DEFAULT_COLD_INLET_C = 10
 /** Default DHW setpoint / hot supply target temperature (°C). */
 const DEFAULT_HOT_SUPPLY_TARGET_C = 50
+/** Default central-heating flow temperature to emitters (°C). */
+const DEFAULT_CH_FLOW_TEMP_C = 70
 
 /**
  * Inspect a saved BuildGraph and produce a default PlayState with one
@@ -117,6 +119,11 @@ export function createDefaultPlayState(graph: BuildGraph): PlayState {
 
   return {
     demands,
+    heating: {
+      enabled: false,
+      demandLevel: 1,
+      targetFlowTempC: DEFAULT_CH_FLOW_TEMP_C,
+    },
     inletTempC: DEFAULT_COLD_INLET_C,
     hotSupplyTargetC: DEFAULT_HOT_SUPPLY_TARGET_C,
     selectedPresetId: null,

@@ -4,7 +4,9 @@
 // PlayState drives the simulation instead of hard-coded demo values —
 // simulation input = savedGraphSnapshot + playState.
 
-import type { OutletControl, OutletId } from '../animation/types'
+import type { OutletControl, OutletId, HeatingDemandState, SystemType } from '../animation/types'
+
+export type { HeatingDemandState }
 
 // ─── Outlet demand preset identifiers ────────────────────────────────────────
 
@@ -49,6 +51,8 @@ export type OutletDemandState = {
 
 export type PlayState = {
   demands: OutletDemandState[]
+  /** Central-heating demand state. */
+  heating: HeatingDemandState
   /** Cold inlet temperature (°C) — fed from mains. */
   inletTempC: number
   /** DHW setpoint / hot supply target (°C). */
@@ -93,6 +97,8 @@ export type PlayScenario = {
   label: string
   /** Partial patch applied to demands — slots not mentioned remain unchanged. */
   patch: Partial<Record<OutletId, OutletDemandPreset>>
+  /** Optional heating demand override applied by this scenario. */
+  heatingPatch?: Partial<HeatingDemandState>
 }
 
 export const PLAY_SCENARIOS: PlayScenario[] = [
@@ -126,6 +132,18 @@ export const PLAY_SCENARIOS: PlayScenario[] = [
     label: 'Two hot outlets',
     patch: { A: 'normal', B: 'off', C: 'fill' },
   },
+  {
+    id: 'heating-only',
+    label: 'Heating only',
+    patch: { A: 'off', B: 'off', C: 'off' },
+    heatingPatch: { enabled: true, demandLevel: 1 },
+  },
+  {
+    id: 'heating-and-shower',
+    label: 'Heating + shower',
+    patch: { A: 'normal', B: 'off', C: 'off' },
+    heatingPatch: { enabled: true, demandLevel: 1 },
+  },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -151,6 +169,7 @@ export function applyPresetToOutlet(
 /**
  * Apply a scenario preset to the full PlayState.
  * Slots not mentioned in the scenario patch are left unchanged.
+ * If the scenario has a heatingPatch, it is merged into the heating state.
  * Sets `selectedPresetId` to the scenario's id.
  */
 export function applyScenario(playState: PlayState, scenarioId: string): PlayState {
@@ -162,7 +181,11 @@ export function applyScenario(playState: PlayState, scenarioId: string): PlaySta
     return presetId !== undefined ? applyPresetToOutlet(outlet, presetId) : outlet
   })
 
-  return { ...playState, demands: nextDemands, selectedPresetId: scenarioId }
+  const nextHeating: HeatingDemandState = scenario.heatingPatch
+    ? { ...playState.heating, ...scenario.heatingPatch }
+    : playState.heating
+
+  return { ...playState, demands: nextDemands, heating: nextHeating, selectedPresetId: scenarioId }
 }
 
 /**
@@ -206,4 +229,48 @@ export function playStateToOutletControls(demands: OutletDemandState[]): OutletC
     // Disabled placeholder for unrepresented slots
     return { id: slot, enabled: false, kind: 'basin' as const, demandLpm: 0 }
   })
+}
+
+// ─── Operating mode ───────────────────────────────────────────────────────────
+
+/**
+ * High-level operating mode derived from play state.
+ *
+ * Maps to the simulation's SystemMode but expressed in terms more useful for
+ * UI display:
+ *   IDLE           — no heating or DHW demand
+ *   CH_ONLY        — heating active, no DHW draw
+ *   DHW_ONLY       — DHW outlets active, no heating
+ *   CH_AND_DHW     — both active (cylinder/heat-pump systems)
+ *   CYLINDER_REHEAT — store temperature below setpoint; reheat needed
+ */
+export type OperatingMode = 'IDLE' | 'CH_ONLY' | 'DHW_ONLY' | 'CH_AND_DHW' | 'CYLINDER_REHEAT'
+
+/**
+ * Derive the expected operating mode from the current play state and an
+ * optional system type hint.
+ *
+ * For combi systems, DHW always takes priority — CH_AND_DHW is not possible.
+ * For cylinder/heat-pump systems, heating and DHW can run simultaneously.
+ */
+export function determineOperatingMode(
+  playState: PlayState,
+  systemType: SystemType = 'combi',
+): OperatingMode {
+  const hasDhw = playState.demands.some(d => d.enabled && d.kind !== 'cold_tap')
+  const hasHeating = playState.heating.enabled
+
+  if (!hasDhw && !hasHeating) return 'IDLE'
+
+  const isCombi = systemType === 'combi'
+
+  if (hasDhw && !hasHeating) return 'DHW_ONLY'
+  if (hasHeating && !hasDhw) return 'CH_ONLY'
+
+  // Both heating and DHW are active
+  if (isCombi) {
+    // Combi: DHW priority — heating is interrupted during a draw
+    return 'DHW_ONLY'
+  }
+  return 'CH_AND_DHW'
 }
