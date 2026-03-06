@@ -149,12 +149,12 @@ export function validateGraph(graph: BuildGraph): GraphWarning[] {
       return returnStarts.some(start => hasPath(adjacency, start, returnPort))
     })
 
-    if (!anyFlowReach && !anyReturnReach) {
+    if (!anyFlowReach || !anyReturnReach) {
       warnings.push({
         id: `emitter_path_${node.id}`,
         level: 'warn',
         title: 'Emitter not on CH circuit',
-        message: 'Emitter is connected but not reachable from the heat source.',
+        message: 'Emitter is connected but not reachable from the heat source on both sides.',
         hint: 'Its flow_in should be on the flow side and return_out should route back to the heat source return.',
         nodeId: node.id,
       })

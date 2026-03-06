@@ -143,12 +143,14 @@ export function normalizeGraph(graph: BuildGraph): BuildGraph {
       const other: PortRef =
         e.from.nodeId === nodeId && e.from.portId === portId ? e.to : e.from
 
+      // Branch edges flow from insert output → downstream port,
+      // preserving the physical direction: insert distributes to consumers.
       next.edges = [
         ...next.edges,
         {
           id: uid('e'),
-          from: other,
-          to: { nodeId: insertId, portId: outPorts[idx] },
+          from: { nodeId: insertId, portId: outPorts[idx] },
+          to: other,
         },
       ]
     })
