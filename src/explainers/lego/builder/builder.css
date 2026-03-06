@@ -438,6 +438,128 @@
   }
 }
 
+/* ── Responsive drawer palette (tablet / mobile ≤ 1199px) ────────────────── */
+
+@media (max-width: 1199px) {
+  /* Canvas always takes full width; palette does not reserve space */
+  .builder-wrap {
+    grid-template-columns: 1fr;
+  }
+
+  .builder-wrap.palette-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  /* Palette floats as an overlay drawer */
+  .builder-left {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 300px;
+    max-width: 85vw;
+    z-index: 200;
+    box-shadow: 4px 0 20px rgb(0 0 0 / 18%);
+    overflow-y: auto;
+    border-radius: 0 12px 12px 0;
+  }
+
+  /* Semi-transparent backdrop behind drawer */
+  .palette-backdrop {
+    display: block;
+  }
+}
+
+/* Backdrop — hidden by default, shown on tablet/mobile when palette is open */
+.palette-backdrop {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgb(15 23 42 / 40%);
+  z-index: 199;
+  cursor: pointer;
+}
+
+/* Toolbox button — compact on mobile, wider on desktop */
+.toolbox-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  font-weight: 900;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toolbox-btn:hover {
+  background: #edf2f7;
+}
+
+/* ── Warning strip (bottom of canvas, non-blocking) ──────────────────────── */
+
+.warn-strip {
+  border-top: 1px solid #feebc8;
+  background: #fffaf0;
+  padding: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease;
+  max-height: 36px;
+  flex-shrink: 0;
+}
+
+.warn-strip.warn-strip--expanded {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.warn-strip-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.warn-strip-count {
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: #c05621;
+}
+
+.warn-strip-toggle {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #718096;
+}
+
+.warn-strip-list {
+  padding: 4px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.warn-strip-item {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #c05621;
+  cursor: pointer;
+}
+
+.warn-strip-item.error {
+  color: #c53030;
+}
+
+.warn-strip-item:hover {
+  text-decoration: underline;
+}
+
 /* ── Mode bar ──────────────────────────────────────────────────────────────── */
 
 .builder-mode-bar {
