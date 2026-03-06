@@ -11,7 +11,7 @@
  * 50 °C ASHP cylinder, which means the ASHP cylinder depletes faster in L/min
  * terms even though the energy delivered to the user is identical.
  *
- * Combi boilers bypass this function entirely — their DHW is an instantaneous
+ * Combi boilers bypass this function entirely — their DHW is an on-demand
  * heat-exchanger response, not a cylinder draw.
  */
 
