@@ -1864,14 +1864,14 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                 <label className="checkbox-field">
                   <input
                     type="checkbox"
-                    checked={input.fullSurvey?.heatingCondition?.radiatorsColdeAtBottom ?? false}
+                    checked={input.fullSurvey?.heatingCondition?.radiatorsColdAtBottom ?? false}
                     onChange={e => setInput({
                       ...input,
                       fullSurvey: {
                         ...input.fullSurvey,
                         heatingCondition: {
                           ...input.fullSurvey?.heatingCondition,
-                          radiatorsColdeAtBottom: e.target.checked,
+                          radiatorsColdAtBottom: e.target.checked,
                         },
                       },
                     })}

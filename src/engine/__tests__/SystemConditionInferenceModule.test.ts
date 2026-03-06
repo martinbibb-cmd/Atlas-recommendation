@@ -8,7 +8,7 @@ const cleanSystem: SystemConditionInferenceInput = {
   heatingCondition: {
     systemCircuitType: 'sealed',
     pumpingOverObserved: false,
-    radiatorsColdeAtBottom: false,
+    radiatorsColdAtBottom: false,
     radiatorsHeatingUnevenly: false,
     bleedWaterColour: 'clear',
     magneticDebrisEvidence: false,
@@ -30,7 +30,7 @@ const heavilyFouledOpenVented: SystemConditionInferenceInput = {
   heatingCondition: {
     systemCircuitType: 'open_vented',
     pumpingOverObserved: false,
-    radiatorsColdeAtBottom: true,
+    radiatorsColdAtBottom: true,
     radiatorsHeatingUnevenly: true,
     bleedWaterColour: 'black',
     magneticDebrisEvidence: true,
@@ -140,7 +140,7 @@ describe('inferSystemConditionFlags — sludgeRisk', () => {
 
   it('is "moderate" for a single heating symptom', () => {
     const result = inferSystemConditionFlags({
-      heatingCondition: { radiatorsColdeAtBottom: true },
+      heatingCondition: { radiatorsColdAtBottom: true },
     });
     expect(result.sludgeRisk).toBe('moderate');
   });

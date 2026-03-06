@@ -78,7 +78,7 @@ const PLATE_HEX_DEGRADED_AGE_YEARS = 10;
 
 function countHeatingSymptoms(hc: HeatingConditionDiagnosticsV1): number {
   let count = 0;
-  if (hc.radiatorsColdeAtBottom)            count++;
+  if (hc.radiatorsColdAtBottom)            count++;
   if (hc.radiatorsHeatingUnevenly)          count++;
   if (hc.bleedWaterColour === 'brown' || hc.bleedWaterColour === 'black') count++;
   if (hc.magneticDebrisEvidence)            count++;

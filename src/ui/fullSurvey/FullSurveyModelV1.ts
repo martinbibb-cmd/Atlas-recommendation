@@ -17,7 +17,7 @@ export interface HeatingConditionDiagnosticsV1 {
    */
   pumpingOverObserved?: boolean;
   /** Radiators cold at the bottom — typical sign of magnetite sludge settling. */
-  radiatorsColdeAtBottom?: boolean;
+  radiatorsColdAtBottom?: boolean;
   /** Radiators heating unevenly across the circuit. */
   radiatorsHeatingUnevenly?: boolean;
   /** Colour of water when a radiator was bled. Clear = good; brown/black = sludge present. */
