@@ -5,6 +5,8 @@ export interface GraphFacts {
   hotFedOutletNodeIds: string[]
   coldOnlyOutletNodeIds: string[]
   hasStoredDhw: boolean
+  /** True when the graph contains a combi boiler, which provides DHW internally. */
+  hasCombiDhw: boolean
 }
 
 function refKey(ref: PortRef) {
@@ -84,6 +86,7 @@ export function deriveFacts(graph: BuildGraph): GraphFacts {
   const hotFedOutletNodeIds: string[] = []
   const coldOnlyOutletNodeIds: string[] = []
   const hasStoredDhw = graph.nodes.some(node => cylinderKinds.has(node.kind))
+  const hasCombiDhw = graph.nodes.some(node => node.kind === 'heat_source_combi')
 
   for (const node of graph.nodes) {
     if (!outletKinds.has(node.kind)) continue
@@ -98,5 +101,5 @@ export function deriveFacts(graph: BuildGraph): GraphFacts {
     else if (coldFed) coldOnlyOutletNodeIds.push(node.id)
   }
 
-  return { hotFedOutletNodeIds, coldOnlyOutletNodeIds, hasStoredDhw }
+  return { hotFedOutletNodeIds, coldOnlyOutletNodeIds, hasStoredDhw, hasCombiDhw }
 }

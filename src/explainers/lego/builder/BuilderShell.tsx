@@ -298,7 +298,8 @@ export default function BuilderShell({
       </div>
 
       <div className="builder-right">
-        <div className="builder-toolbar">
+        <div className="builder-canvas-area">
+          <div className="builder-toolbar">
           <div className="builder-title">
             🧱 Build your system
             {warnings.length ? (
@@ -311,6 +312,7 @@ export default function BuilderShell({
 
           <div className="builder-actions">
             <span className="builder-facts">
+              {facts.hasCombiDhw ? 'DHW: on-demand · ' : ''}
               HEX-fed: {facts.hotFedOutletNodeIds.length} · Cold-only: {facts.coldOnlyOutletNodeIds.length}
             </span>
             {pendingPort ? (
@@ -386,6 +388,7 @@ export default function BuilderShell({
           onAutoConnect={onAutoConnect}
           outletBindings={bindings}
         />
+        </div>
         {showWarnings ? (
           <WarningPanel
             warnings={warnings}

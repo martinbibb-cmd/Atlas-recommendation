@@ -34,6 +34,41 @@ function buildAdjacency(graph: BuildGraph) {
   return adj
 }
 
+/**
+ * Extended adjacency includes the explicit pipe edges PLUS intra-node
+ * connections: every port on a node is treated as bidirectionally connected
+ * to all other ports on the same node.  This models the physical reality
+ * that fluid can traverse through a component in either direction
+ * (e.g. pump in ↔ pump out, valve in ↔ valve out_a / out_b) and prevents
+ * false "not reachable" warnings for valid direct-combi or pump-in-circuit
+ * layouts.
+ *
+ * Only used for the heat-source reachability check; the "open ports"
+ * check still uses the standard adjacency so it correctly detects
+ * unconnected ports.
+ */
+function buildExtendedAdjacency(graph: BuildGraph) {
+  const adj = buildAdjacency(graph)
+
+  const push = (a: string, b: string) => {
+    if (!adj.has(a)) adj.set(a, [])
+    if (!adj.has(b)) adj.set(b, [])
+    adj.get(a)!.push(b)
+    adj.get(b)!.push(a)
+  }
+
+  for (const node of graph.nodes) {
+    const portKeys = portsForKind(node.kind).map(p => `${node.id}:${p.id}`)
+    for (let i = 0; i < portKeys.length; i++) {
+      for (let j = i + 1; j < portKeys.length; j++) {
+        push(portKeys[i], portKeys[j])
+      }
+    }
+  }
+
+  return adj
+}
+
 function hasPath(adj: Map<string, string[]>, start: string, goal: string) {
   const seen = new Set<string>()
   const queue = [start]
@@ -105,6 +140,8 @@ export function validateGraph(graph: BuildGraph): GraphWarning[] {
   // user-fixable system error.
 
   const adjacency = buildAdjacency(graph)
+  // Build extended adjacency once; used for reachability checks below.
+  const extAdjacency = buildExtendedAdjacency(graph)
 
   const heatSources = graph.nodes.filter(
     n =>
@@ -139,23 +176,25 @@ export function validateGraph(graph: BuildGraph): GraphWarning[] {
     // source is present; otherwise a partly-built graph would produce noise.
     if (heatSources.length === 0) continue
 
+    // Use the extended adjacency (which includes intra-node port connections)
+    // so the path search can traverse through pumps, zone valves, etc.
     const anyFlowReach = heatSources.some(hs => {
       const flowStarts = [`${hs.id}:ch_flow_out`, `${hs.id}:flow_out`]
-      return flowStarts.some(start => hasPath(adjacency, start, flowPort))
+      return flowStarts.some(start => hasPath(extAdjacency, start, flowPort))
     })
 
     const anyReturnReach = heatSources.some(hs => {
       const returnStarts = [`${hs.id}:ch_return_in`, `${hs.id}:return_in`]
-      return returnStarts.some(start => hasPath(adjacency, start, returnPort))
+      return returnStarts.some(start => hasPath(extAdjacency, start, returnPort))
     })
 
     if (!anyFlowReach || !anyReturnReach) {
       warnings.push({
         id: `emitter_path_${node.id}`,
         level: 'warn',
-        title: 'Emitter not on CH circuit',
-        message: 'Emitter is connected but not reachable from the heat source on both sides.',
-        hint: 'Its flow_in should be on the flow side and return_out should route back to the heat source return.',
+        title: 'Emitter not reachable from heat source',
+        message: 'No hydraulic path from the heat source to this emitter on both the flow and return sides.',
+        hint: 'Trace a pipe path from the heat source flow output to flow_in, and from return_out back to the heat source return input.',
         nodeId: node.id,
       })
     }
