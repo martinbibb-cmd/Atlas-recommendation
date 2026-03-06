@@ -252,6 +252,22 @@ export function LabCanvas(props: {
   const fillY = cylY + (cylH - fillH)
   const fillColor = storeTempC !== null ? tempToThermalColor(storeTempC) : '#cfd8e3'
 
+  // ── Emitter / CH circuit layout constants ─────────────────────────────────
+  // These are derived from the emitter box position and size so that the CH
+  // supply path and arrowhead stay in sync if the emitter box is repositioned.
+  const emitterX = 90
+  const emitterY = 220
+  const emitterW = 130
+  const emitterH = 36
+  const emitterRightX = emitterX + emitterW            // 220 — right edge of emitter box
+  const emitterCenterY = emitterY + Math.round(emitterH / 2)  // 238 — centre of emitter box
+
+  // ── CWS cistern layout constants (vented systems only) ────────────────────
+  const cwsX = 325
+  const cwsY = 28
+  const cwsW = 90
+  const cwsH = 30
+
   return (
     <div style={{ position: 'relative', display: 'block', width: '100%', minWidth: 700 }}>
       <svg width="100%" viewBox="0 0 1000 275" style={{ display: 'block' }}>
@@ -410,22 +426,22 @@ export function LabCanvas(props: {
         {controls.systemType === 'vented_cylinder' && (
           <g>
             {/* CWS cistern box above the cylinder cold_in */}
-            <rect x={325} y={28} width={90} height={30} rx={4}
+            <rect x={cwsX} y={cwsY} width={cwsW} height={cwsH} rx={4}
               fill="#e0f2fe" stroke="#0ea5e9" strokeWidth={1.5}
             />
-            <text x={370} y={41} textAnchor="middle" fontSize={9} fill="#0369a1" fontWeight={600}>CWS cistern</text>
-            <text x={370} y={53} textAnchor="middle" fontSize={8} fill="#0369a1">gravity feed</text>
+            <text x={cwsX + cwsW / 2} y={cwsY + 13} textAnchor="middle" fontSize={9} fill="#0369a1" fontWeight={600}>CWS cistern</text>
+            <text x={cwsX + cwsW / 2} y={cwsY + 25} textAnchor="middle" fontSize={8} fill="#0369a1">gravity feed</text>
             {/* Gravity-drop cold feed pipe: cistern bottom → cylinder cold_in (top edge) */}
             <path
-              d={`M ${370} ${58} L ${cylX + 10} ${cylY}`}
+              d={`M ${cwsX + cwsW / 2} ${cwsY + cwsH} L ${cylX + 10} ${cylY}`}
               stroke={coldSupplyColor} strokeWidth={10} strokeLinecap="round"
               opacity={THERMAL_COLOR_OPACITY}
             />
             <path
-              d={`M ${370} ${58} L ${cylX + 10} ${cylY}`}
+              d={`M ${cwsX + cwsW / 2} ${cwsY + cwsH} L ${cylX + 10} ${cylY}`}
               stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
             />
-            {/* Downward arrow indicating gravity direction */}
+            {/* Downward arrow indicating gravity direction at the cylinder cold_in */}
             <polygon
               points={`${cylX + 6},${cylY - 4} ${cylX + 14},${cylY - 4} ${cylX + 10},${cylY + 2}`}
               fill="#0ea5e9" opacity={0.9}
@@ -719,27 +735,30 @@ export function LabCanvas(props: {
                 Routed from the left edge of the component box so it does not cross
                 the valve position indicator (centred at the box mid-point). */}
             <path
-              d={`M ${cylX} ${cylY + cylH} L ${cylX} 238 L 220 238`}
+              d={`M ${cylX} ${cylY + cylH} L ${cylX} ${emitterCenterY} L ${emitterRightX} ${emitterCenterY}`}
               stroke="#f97316" strokeWidth={3} fill="none" strokeLinecap="round"
               opacity={0.8}
             />
-            {/* Arrowhead pointing left into the emitter box */}
-            <polygon points="222,234 230,238 222,242" fill="#f97316" opacity={0.8} />
-            {/* CH supply label */}
-            <text x={Math.round((cylX + 220) / 2)} y={230} textAnchor="middle" fontSize={9} fill="#ea580c">
+            {/* Arrowhead pointing left into the emitter box — tip at emitterRightX */}
+            <polygon
+              points={`${emitterRightX + 2},${emitterCenterY - 4} ${emitterRightX + 10},${emitterCenterY} ${emitterRightX + 2},${emitterCenterY + 4}`}
+              fill="#f97316" opacity={0.8}
+            />
+            {/* CH supply label centred on the horizontal run */}
+            <text x={Math.round((cylX + emitterRightX) / 2)} y={emitterCenterY - 8} textAnchor="middle" fontSize={9} fill="#ea580c">
               CH supply
             </text>
             {/* Radiator box */}
-            <rect x={90} y={220} width={130} height={36} rx={5}
+            <rect x={emitterX} y={emitterY} width={emitterW} height={emitterH} rx={5}
               fill="#fff7ed" stroke="#f97316" strokeWidth={1.5}
             />
-            <text x={155} y={233} textAnchor="middle" fontSize={10} fill="#9a3412" fontWeight={700}>Radiators</text>
-            <text x={155} y={247} textAnchor="middle" fontSize={9} fill="#c2410c">heating active</text>
+            <text x={emitterX + emitterW / 2} y={emitterY + 13} textAnchor="middle" fontSize={10} fill="#9a3412" fontWeight={700}>Radiators</text>
+            <text x={emitterX + emitterW / 2} y={emitterY + 27} textAnchor="middle" fontSize={9} fill="#c2410c">heating active</text>
             {/* Upward heat-wave glyphs — staggered animation delays for a rising effect. */}
             {([0, 1, 2, 3, 4] as const).map(i => (
               <text
                 key={i}
-                x={102 + i * 14} y={215}
+                x={emitterX + 12 + i * 14} y={emitterY - 5}
                 textAnchor="middle" fontSize={12} fill="#f97316"
                 style={{ animation: `heat-rise 1.5s ease-out ${(i * 0.22).toFixed(2)}s infinite` }}
               >~</text>
