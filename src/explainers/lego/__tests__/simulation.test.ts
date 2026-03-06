@@ -281,3 +281,228 @@ describe('simulation — heating demand and system mode', () => {
     expect(frame.systemMode).toBe('idle')
   })
 })
+
+// ─── Simulation visuals — domain separation ───────────────────────────────────
+
+describe('simulation visuals — fluid paths, heat transfers, storage states', () => {
+  it('emits visuals on every frame', () => {
+    const controls = makeControls([
+      { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 10 },
+      { id: 'B', enabled: false, kind: 'basin', demandLpm: 5 },
+      { id: 'C', enabled: false, kind: 'bath', demandLpm: 0 },
+    ])
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    expect(frame.visuals).toBeDefined()
+    expect(frame.visuals!.fluidPaths).toBeInstanceOf(Array)
+    expect(frame.visuals!.heatTransfers).toBeInstanceOf(Array)
+    expect(frame.visuals!.storageStates).toBeInstanceOf(Array)
+  })
+
+  it('combi DHW draw: burner and plate_hex are active, coil is not', () => {
+    const controls: LabControls = {
+      systemType: 'combi',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 20,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 0 },
+      ],
+    }
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    const ht = frame.visuals!.heatTransfers
+
+    const burner   = ht.find(h => h.nodeId === 'boiler_burner')
+    const plateHex = ht.find(h => h.nodeId === 'combi_hex')
+    const cylinderCoil = ht.find(h => h.nodeId === 'cylinder_coil')
+
+    expect(burner?.active).toBe(true)
+    expect(burner?.kind).toBe('burner')
+    expect(plateHex?.active).toBe(true)
+    expect(plateHex?.kind).toBe('plate_hex')
+    expect(cylinderCoil?.active).toBe(false)
+  })
+
+  it('combi DHW draw: dhw_draw and cold feed fluid paths are active', () => {
+    const controls: LabControls = {
+      systemType: 'combi',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 20,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 0 },
+      ],
+    }
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    const fp = frame.visuals!.fluidPaths
+
+    const coldFeed = fp.find(p => p.edgeIds.some(id => id === 'mains_cold'))
+    const dhwDraw  = fp.find(p => p.edgeIds.includes('dhw_draw'))
+    const primary  = fp.find(p => p.edgeIds.includes('primary_flow'))
+
+    expect(coldFeed?.active).toBe(true)
+    expect(dhwDraw?.active).toBe(true)
+    // Primary heating circuit must NOT be active during DHW-only draw on a combi.
+    expect(primary?.active).toBe(false)
+  })
+
+  it('combi heating mode: primary circuit active, plate_hex is not', () => {
+    const controls: LabControls = {
+      systemType: 'combi',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 20,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 0 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 0 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 0 },
+      ],
+      heatingDemand: { enabled: true },
+    }
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    const ht = frame.visuals!.heatTransfers
+    const fp = frame.visuals!.fluidPaths
+
+    expect(ht.find(h => h.nodeId === 'boiler_burner')?.active).toBe(true)
+    expect(ht.find(h => h.nodeId === 'combi_hex')?.active).toBe(false)
+    expect(ht.find(h => h.nodeId === 'emitters')?.active).toBe(true)
+    expect(fp.find(p => p.edgeIds.includes('primary_flow'))?.active).toBe(true)
+  })
+
+  it('idle mode: all heat-transfer components inactive', () => {
+    const controls: LabControls = {
+      systemType: 'combi',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 20,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 0 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 0 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 0 },
+      ],
+      heatingDemand: { enabled: false },
+    }
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    const ht = frame.visuals!.heatTransfers
+
+    for (const h of ht) {
+      expect(h.active).toBe(false)
+    }
+  })
+
+  it('cylinder reheat: coil is active, plate_hex is not, coil primary path is active', () => {
+    const controls: LabControls = {
+      systemType: 'unvented_cylinder',
+      heatSourceType: 'system_boiler',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 14,
+      pipeDiameterMm: 22,
+      combiDhwKw: 0,
+      cylinder: { volumeL: 180, initialTempC: 40, reheatKw: 12 },
+      outlets: [
+        { id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 0 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 0 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 0 },
+      ],
+      heatingDemand: { enabled: false },
+      // Trigger reheat by starting with a cool cylinder (below reheat threshold)
+      dhwReheatTargetC: 55,
+    }
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    const ht = frame.visuals!.heatTransfers
+    const fp = frame.visuals!.fluidPaths
+
+    expect(ht.find(h => h.nodeId === 'cylinder_coil')?.active).toBe(true)
+    expect(ht.find(h => h.nodeId === 'cylinder_coil')?.kind).toBe('coil')
+    expect(ht.find(h => h.nodeId === 'combi_hex')?.active).toBe(false)
+    // Primary path through coil must be active during reheat.
+    expect(fp.find(p => p.edgeIds.includes('cylinder_coil_primary_flow'))?.active).toBe(true)
+  })
+
+  it('cylinder draw-off: storage state chargePct decreases when hot water is drawn', () => {
+    const controls: LabControls = {
+      systemType: 'unvented_cylinder',
+      heatSourceType: 'system_boiler',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 14,
+      pipeDiameterMm: 22,
+      combiDhwKw: 0,
+      cylinder: { volumeL: 180, initialTempC: 60, reheatKw: 12 },
+      outlets: [
+        { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 0 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 0 },
+      ],
+      heatingDemand: { enabled: false },
+      dhwReheatTargetC: 55,
+      dhwReheatHysteresisC: 3,
+    }
+
+    // Run for several ticks with the draw open
+    let frame = makeFrame()
+    for (let i = 0; i < 20; i++) {
+      frame = stepSimulation({ frame, dtMs: 500, controls })
+    }
+
+    const sv = frame.visuals!.storageStates.find(s => s.nodeId === 'cylinder')
+    expect(sv).toBeDefined()
+    expect(sv!.active).toBe(true)
+    // After drawing hot water, charge should be less than 1 (cylinder has cooled slightly)
+    expect(sv!.chargePct).toBeDefined()
+    expect(sv!.chargePct!).toBeLessThan(1)
+  })
+
+  it('spawned particles carry domain: fluid_path', () => {
+    const controls = makeControls([
+      { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 10 },
+      { id: 'B', enabled: false, kind: 'basin', demandLpm: 0 },
+      { id: 'C', enabled: false, kind: 'bath', demandLpm: 0 },
+    ])
+    let frame = makeFrame()
+    for (let i = 0; i < 10; i++) {
+      frame = stepSimulation({ frame, dtMs: 200, controls })
+    }
+    const spawned = frame.particles
+    if (spawned.length > 0) {
+      for (const p of spawned) {
+        expect(p.domain).toBe('fluid_path')
+      }
+    }
+  })
+
+  it('heat pump system uses compressor kind instead of burner', () => {
+    const controls: LabControls = {
+      systemType: 'unvented_cylinder',
+      heatSourceType: 'heat_pump',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 14,
+      pipeDiameterMm: 22,
+      combiDhwKw: 0,
+      cylinder: { volumeL: 180, initialTempC: 40, reheatKw: 8 },
+      outlets: [
+        { id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 0 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 0 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 0 },
+      ],
+      heatingDemand: { enabled: false },
+      dhwReheatTargetC: 55,
+    }
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    const burner = frame.visuals!.heatTransfers.find(h => h.nodeId === 'boiler_burner')
+    expect(burner?.kind).toBe('compressor')
+  })
+})

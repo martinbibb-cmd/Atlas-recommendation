@@ -1,6 +1,6 @@
 // src/explainers/lego/animation/simulation.ts
 
-import type { LabControls, LabFrame, FlowParticle, OutletId, OutletControl, SystemMode } from './types'
+import type { LabControls, LabFrame, FlowParticle, OutletId, OutletControl, SystemMode, SimulationVisuals } from './types'
 import { pipeDiameterCapacityLpm } from '../model/dhwModel'
 import { heatToTempC, tempToHeatJPerKg, computeTmvMixer, clampAnimationSetpointC } from './thermal'
 import {
@@ -81,6 +81,13 @@ const MAX_TOKENS = 4000
  * no explicit heatDemandKw is supplied.  Represents a modest whole-house heating load.
  */
 const DEFAULT_HEATING_DEMAND_KW = 10
+
+/**
+ * Reference maximum temperature (°C) for the cylinder charge fraction.
+ * chargePct = 0 at cold inlet, 1 at this temperature.
+ * Must match the constant of the same name in LabCanvas.tsx.
+ */
+const CYLINDER_FILL_MAX_C = 80
 
 /**
  * Convert flow to a token spawn rate using sqrt compression.
@@ -448,6 +455,7 @@ export function stepSimulation(params: {
       hJPerKg: hasStored ? cylinderHJPerKg : 0,
       route,
       assignedOutlet,
+      domain: 'fluid_path',
     })
   }
 
@@ -550,6 +558,105 @@ export function stepSimulation(params: {
     particles = []
   }
 
+  // ── Compute simulation visuals ──────────────────────────────────────────────
+  // Three domains are computed separately so the renderer can use each for the
+  // correct visual purpose (no cross-domain confusion).
+
+  // Named cold-supply edge ID: vented cylinders use a cold-feed header (tank-fed),
+  // all other system types use the mains cold supply.
+  const coldSupplyEdgeId = controls.systemType === 'vented_cylinder' ? 'cold_feed' : 'mains_cold'
+
+  // 1. Fluid paths — water physically moving through pipes.
+  //    Each entry identifies a named pipe segment and whether it is currently live.
+  const visuals: SimulationVisuals = {
+    fluidPaths: [
+      // Cold mains/feed supply into the system — active whenever there is hydraulic flow.
+      {
+        edgeIds: [coldSupplyEdgeId],
+        direction: 'forward',
+        active: hasDraw,
+        flowLpm: hasDraw ? hydraulicFlowLpm : 0,
+      },
+      // DHW draw-off — hot water leaving the system toward outlets.
+      {
+        edgeIds: ['dhw_draw'],
+        direction: 'forward',
+        active: hasDraw,
+        flowLpm: hasDraw ? hydraulicFlowLpm : 0,
+      },
+      // Primary heating circuit — boiler → emitters → return.
+      // Active whenever space-heating is running.
+      {
+        edgeIds: ['primary_flow', 'primary_return'],
+        direction: 'forward',
+        active: mode === 'heating',
+        flowLpm: mode === 'heating' ? heatingDemandKw / 0.07 : 0, // rough proxy L/min
+      },
+      // Primary circuit through the cylinder coil — separate from DHW domestic draw.
+      // Active only during cylinder reheat; domestic water NEVER travels this path.
+      {
+        edgeIds: ['cylinder_coil_primary_flow', 'cylinder_coil_primary_return'],
+        direction: 'forward',
+        active: mode === 'dhw_reheat',
+        flowLpm: mode === 'dhw_reheat' ? (controls.cylinder?.reheatKw ?? 12) / 0.07 : 0,
+      },
+    ],
+
+    // 2. Heat transfers — energy moving across components (not fluid).
+    //    Each entry represents a component that is actively transferring heat.
+    heatTransfers: [
+      // Boiler burner — active during any mode that requires the burner to fire.
+      {
+        nodeId: 'boiler_burner',
+        active: mode === 'dhw_draw' || mode === 'heating' || mode === 'dhw_reheat',
+        intensity: mode !== 'idle' ? 1.0 : 0,
+        kind: heatSourceType === 'heat_pump' ? 'compressor' : 'burner',
+      },
+      // Plate heat exchanger — active only during combi DHW draw.
+      // Not present on cylinder systems (the coil serves this role).
+      {
+        nodeId: 'combi_hex',
+        active: isCombi && mode === 'dhw_draw',
+        intensity: isCombi && mode === 'dhw_draw' ? 1.0 : 0,
+        kind: 'plate_hex',
+      },
+      // Cylinder coil — active during reheat.
+      // Represents heat moving from the primary circuit into the stored water.
+      // This is NOT domestic water — it is the primary circuit passing through the coil.
+      {
+        nodeId: 'cylinder_coil',
+        active: hasStored && mode === 'dhw_reheat',
+        intensity: hasStored && mode === 'dhw_reheat' ? 1.0 : 0,
+        kind: 'coil',
+      },
+      // Emitters — active during heating mode (radiators / underfloor releasing heat into the room).
+      {
+        nodeId: 'emitters',
+        active: mode === 'heating',
+        intensity: mode === 'heating' ? clamp((controls.heatingDemand?.demandLevel ?? 1), 0, 1) : 0,
+        kind: 'emitter',
+      },
+    ],
+
+    // 3. Storage states — thermal condition of vessels.
+    //    Only present for cylinder system types.
+    storageStates: hasStored && store
+      ? [
+          {
+            nodeId: 'cylinder',
+            active: true,
+            // Charge fraction: 0 at cold inlet, 1 at CYLINDER_FILL_MAX_C (same scale as renderer).
+            chargePct: Math.max(0, Math.min(1,
+              (cylinderTempC({ store, coldInletC: controls.coldInletC }) - controls.coldInletC) /
+              (CYLINDER_FILL_MAX_C - controls.coldInletC)
+            )),
+            // hotTopPct reserved for future Mixergy stratification.
+            hotTopPct: undefined,
+          },
+        ]
+      : [],
+  }
+
   return {
     nowMs: frame.nowMs + dtMs,
     particles,
@@ -559,6 +666,7 @@ export function stepSimulation(params: {
     cylinderStore: store,
     systemMode: mode,
     storeNeedsReheat,
+    visuals,
   }
 }
 
