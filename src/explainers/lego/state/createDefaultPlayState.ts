@@ -16,7 +16,6 @@ import {
   type PlayOutletKind,
   type OutletDemandPreset,
   type SupplyConditions,
-  CWS_HEAD_METERS,
   PRESET_FLOWS,
 } from './playState'
 import { resolveSystemTopology } from '../sim/resolveSystemTopology'
