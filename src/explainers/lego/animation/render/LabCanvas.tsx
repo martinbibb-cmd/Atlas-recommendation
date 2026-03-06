@@ -78,8 +78,14 @@ export function LabCanvas(props: {
   controls: LabControls
   summary: CapacitySummary
   onFrame?: (frame: LabFrame) => void
+  /**
+   * When true, shows the optional open-vent cue on vented cylinder systems.
+   * Intended for expert / debug mode only — keep hidden in the default customer-
+   * facing Play view to avoid clutter.
+   */
+  expertMode?: boolean
 }) {
-  const { controls, summary, onFrame } = props
+  const { controls, summary, onFrame, expertMode = false } = props
 
   const controlsRef = React.useRef(controls)
   React.useLayoutEffect(() => { controlsRef.current = controls })
@@ -446,6 +452,28 @@ export function LabCanvas(props: {
               points={`${cylX + 6},${cylY - 4} ${cylX + 14},${cylY - 4} ${cylX + 10},${cylY + 2}`}
               fill="#0ea5e9" opacity={0.9}
             />
+            {/* Label below the CWS cistern — confirms tank-fed (not mains-fed) supply */}
+            <text x={cwsX + cwsW / 2} y={cwsY + cwsH + 11} textAnchor="middle" fontSize={8} fill="#0369a1">
+              Tank-fed cold supply
+            </text>
+          </g>
+        )}
+
+        {/* ── Open vent cue — expert/debug mode only, vented cylinders ────── */}
+        {/* A faint rising dashed line from the cylinder top represents the
+            classic open-vent safety pipe.  Hidden in the default customer view
+            to avoid clutter; revealed when expertMode is true.                */}
+        {expertMode && controls.systemType === 'vented_cylinder' && (
+          <g opacity={0.45}>
+            <line
+              x1={cylX + cylW - 15} y1={cylY}
+              x2={cylX + cylW - 15} y2={12}
+              stroke="#0ea5e9" strokeWidth={2} strokeDasharray="4 3"
+              strokeLinecap="round"
+            />
+            <text x={cylX + cylW - 5} y={10} fontSize={8} fill="#0369a1" textAnchor="start">
+              open vent
+            </text>
           </g>
         )}
 
