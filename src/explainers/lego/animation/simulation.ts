@@ -462,7 +462,9 @@ export function stepSimulation(params: {
       s: 0,
       v: tokenV,
       p,
-      hJPerKg: hasStored ? cylinderHJPerKg : 0,
+      // Cylinder MAIN tokens start cold (they represent cold-feed refilling at cold_in).
+      // Store heat is applied when the token branches to an outlet (hot_out draw-off).
+      hJPerKg: 0,
       route,
       assignedOutlet,
       domain: 'fluid_path',
@@ -499,7 +501,8 @@ export function stepSimulation(params: {
           if (h > maxHSetpoint) h = maxHSetpoint
         }
       }
-      // Cylinder: no HEX zone — tokens already carry store heat from spawn.
+      // Cylinder: no HEX zone — MAIN tokens stay cold (cold feed entering cold_in).
+      // Store heat is applied at the branch point when tokens exit via hot_out.
 
       // At the splitter: assign token to an outlet branch and reset s.
       // Use a robust threshold and a failsafe near the end so MAIN tokens never "escape".
@@ -524,7 +527,11 @@ export function stepSimulation(params: {
         const branchV = hasDraw
           ? velocityProxy({ flowLpm: branchFlow, diameterMm: controls.pipeDiameterMm })
           : 0
-        return { ...t, s: 0, v: branchV, p, hJPerKg: h, route: targetOutlet }
+        // Stored-system tokens branch at hot_out carrying the cylinder store temperature.
+        // MAIN tokens are cold (cold feed entering cold_in); once they branch to an outlet
+        // they represent the stored hot water drawn from hot_out — assign store heat here.
+        const branchHJPerKg = hasStored ? cylinderHJPerKg : h
+        return { ...t, s: 0, v: branchV, p, hJPerKg: branchHJPerKg, route: targetOutlet }
       }
 
       return { ...t, s: sNext, v, p, hJPerKg: h }

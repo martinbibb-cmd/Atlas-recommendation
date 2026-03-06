@@ -398,8 +398,40 @@ export function LabCanvas(props: {
           stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
         />
         <text x={P.mainsX - 4} y={P.mainsY - 18} fontSize={11} fill="#64748b" textAnchor="start">
-          {controls.systemType === 'vented_cylinder' ? 'Cold feed' : 'Mains'}
+          {controls.systemType === 'vented_cylinder' ? 'Cold feed (tank-fed)' : 'Mains'}
         </text>
+
+        {/* ── CWS cistern indicator — vented / tank-fed systems only ──────── */}
+        {/* Shows that the cold supply is gravity-fed from a cold-water storage
+            cistern above, not from the mains under pressure.  The animated cold
+            feed tokens still flow along the horizontal trunk path, representing
+            the horizontal distribution run from the cistern to the cylinder
+            cold_in port — consistent with real open-vented plumbing. */}
+        {controls.systemType === 'vented_cylinder' && (
+          <g>
+            {/* CWS cistern box above the cylinder cold_in */}
+            <rect x={325} y={28} width={90} height={30} rx={4}
+              fill="#e0f2fe" stroke="#0ea5e9" strokeWidth={1.5}
+            />
+            <text x={370} y={41} textAnchor="middle" fontSize={9} fill="#0369a1" fontWeight={600}>CWS cistern</text>
+            <text x={370} y={53} textAnchor="middle" fontSize={8} fill="#0369a1">gravity feed</text>
+            {/* Gravity-drop cold feed pipe: cistern bottom → cylinder cold_in (top edge) */}
+            <path
+              d={`M ${370} ${58} L ${cylX + 10} ${cylY}`}
+              stroke={coldSupplyColor} strokeWidth={10} strokeLinecap="round"
+              opacity={THERMAL_COLOR_OPACITY}
+            />
+            <path
+              d={`M ${370} ${58} L ${cylX + 10} ${cylY}`}
+              stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
+            />
+            {/* Downward arrow indicating gravity direction */}
+            <polygon
+              points={`${cylX + 6},${cylY - 4} ${cylX + 14},${cylY - 4} ${cylX + 10},${cylY + 2}`}
+              fill="#0ea5e9" opacity={0.9}
+            />
+          </g>
+        )}
 
         {/* Tee → boiler entry segment (when TMV active, shown in cold colour) */}
         {tmvOutletAActive && (
@@ -482,16 +514,17 @@ export function LabCanvas(props: {
              * The coil glow activates when the primary circuit is passing heat
              * into the stored water (reheat mode).  The domestic draw path is
              * entirely separate — stored water leaves from hot_out at the top,
-             * mains/cold enters cold_in at the bottom; neither path is the
-             * primary circuit.
+             * cold feed enters cold_in; neither path is the primary circuit.
+             * When CH is active, the boiler fires for the heating circuit;
+             * a burner-pulse indicator is shown to make the heat source visible.
              */}
             {/* Cylinder tank background */}
             <rect
               x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
               fill="#f1f5f9"
-              stroke={coilActive ? '#f97316' : '#c9d4e2'}
-              strokeWidth={coilActive ? 2.5 : 2}
-              filter={coilActive ? HEAT_GLOW : undefined}
+              stroke={(coilActive || emittersActive) ? '#f97316' : '#c9d4e2'}
+              strokeWidth={(coilActive || emittersActive) ? 2.5 : 2}
+              filter={(coilActive || emittersActive) ? HEAT_GLOW : undefined}
             />
             {/* Thermal fill — clips to rounded rect */}
             <rect
@@ -507,13 +540,36 @@ export function LabCanvas(props: {
               {controls.systemType === 'vented_cylinder' ? 'Vented cylinder' : 'Unvented cylinder'}
             </text>
             <text x={P.boilerX + 30} y={P.boilerY + 8} textAnchor="middle" fontSize={11}
-              fill={coilActive ? '#c2410c' : '#64748b'}>
-              {coilActive ? 'coil reheating store' : 'Stored hot water'}
+              fill={(coilActive || emittersActive) ? '#c2410c' : '#64748b'}>
+              {coilActive ? 'coil reheating store' : emittersActive ? 'boiler firing — CH' : 'Stored hot water'}
             </text>
             {storeTempC !== null && (
               <text x={P.boilerX + 30} y={P.boilerY + 24} textAnchor="middle" fontSize={11} fill="#b45309">
                 {roundTempC(storeTempC)} °C
               </text>
+            )}
+            {/* Burner / compressor activity pulse — visible when heating is active.
+                Shown in the left region of the box, same as the combi HEX indicator. */}
+            {burnerActive && (
+              <g>
+                <circle
+                  cx={cylX + 20} cy={cylY + cylH / 2}
+                  r={9}
+                  fill={isCompressor ? '#67e8f9' : '#fb923c'}
+                  style={{
+                    animation: isCompressor
+                      ? 'compressor-pulse 2s ease-in-out infinite'
+                      : 'burner-pulse 0.9s ease-in-out infinite',
+                  }}
+                />
+                <text
+                  x={cylX + 20} y={cylY + cylH / 2 + 5}
+                  textAnchor="middle" fontSize={11}
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {isCompressor ? '⚡' : '🔥'}
+                </text>
+              </g>
             )}
             {/* ── Valve position indicator ──────────────────────────────────
                 Shows which port the 3-port diverter valve is currently
@@ -654,9 +710,25 @@ export function LabCanvas(props: {
 
         {/* ── Emitter / radiator heat-emission indicator ─────────────────── */}
         {/* Shown when the primary heating circuit is actively emitting heat.
-            Rendered below the main schematic so it does not clutter the DHW path. */}
+            Rendered below the main schematic so it does not clutter the DHW path.
+            Includes a CH supply path from the heat source (component box) to the
+            radiators, so the origin of heating energy is always visible. */}
         {emittersActive && (
           <g>
+            {/* CH primary supply pipe — heat source left-edge → down → right to emitter.
+                Routed from the left edge of the component box so it does not cross
+                the valve position indicator (centred at the box mid-point). */}
+            <path
+              d={`M ${cylX} ${cylY + cylH} L ${cylX} 238 L 220 238`}
+              stroke="#f97316" strokeWidth={3} fill="none" strokeLinecap="round"
+              opacity={0.8}
+            />
+            {/* Arrowhead pointing left into the emitter box */}
+            <polygon points="222,234 230,238 222,242" fill="#f97316" opacity={0.8} />
+            {/* CH supply label */}
+            <text x={Math.round((cylX + 220) / 2)} y={230} textAnchor="middle" fontSize={9} fill="#ea580c">
+              CH supply
+            </text>
             {/* Radiator box */}
             <rect x={90} y={220} width={130} height={36} rx={5}
               fill="#fff7ed" stroke="#f97316" strokeWidth={1.5}
