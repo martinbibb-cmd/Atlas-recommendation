@@ -113,33 +113,23 @@ export function resolveSystemTopology(graph: BuildGraph): ResolvedSystemTopology
   // Vented cylinder is fed from a CWS cistern (tank-fed, not mains-fed).
   // Unvented cylinder and Mixergy are mains-fed.
   // Combi is mains-fed (on-demand).
-  // All cylinder types deliver from stored hot water.
-  const hasCwsCistern = nodes.some(n => n.kind === 'cws_cistern')
-
   let dhwSupplyType: ResolvedSystemTopology['dhwSupplyType'] = 'none'
 
   if (dhwServiceType === 'combi') {
     dhwSupplyType = 'mains'
   } else if (dhwServiceType === 'vented_cylinder') {
-    // A vented cylinder should always be tank-fed (CWS cistern); infer from node presence.
-    dhwSupplyType = hasCwsCistern ? 'cws_tank' : 'cws_tank' // vented is always tank-fed
+    // A vented cylinder is always tank-fed (CWS cistern), regardless of
+    // whether an explicit cws_cistern node is present in the graph.
+    dhwSupplyType = 'cws_tank'
   } else if (dhwServiceType === 'unvented_cylinder' || dhwServiceType === 'mixergy') {
     dhwSupplyType = 'mains'
   }
 
-  // Cylinder systems additionally deliver from stored hot water.
-  // This is the draw-off supply type at the outlet.
+  // isStoredSystem is used for hasPrimaryCoil determination below.
   const isStoredSystem =
     dhwServiceType === 'vented_cylinder' ||
     dhwServiceType === 'unvented_cylinder' ||
     dhwServiceType === 'mixergy'
-
-  if (isStoredSystem) {
-    dhwSupplyType = dhwSupplyType === 'cws_tank' ? 'cws_tank' : 'mains'
-    // Note: 'stored' indicates the draw-off path. We keep the replenishment
-    // supply type (cws_tank / mains) as the primary dhwSupplyType since that
-    // determines the limiting factors.
-  }
 
   // ── Primary heat source ────────────────────────────────────────────────────
   const heatSourceNode = nodes.find(n => HEAT_SOURCE_KINDS.has(n.kind))
@@ -206,7 +196,7 @@ export function supplyBottleneckLabel(topology: ResolvedSystemTopology): string 
 export function dhwSourceDescription(topology: ResolvedSystemTopology): string {
   switch (topology.dhwServiceType) {
     case 'combi':
-      return 'On-demand hot water (mains-fed plate HEX)'
+      return 'On-demand hot water (mains-fed)'
     case 'vented_cylinder':
       return 'Stored hot water (tank-fed, vented cylinder)'
     case 'unvented_cylinder':
