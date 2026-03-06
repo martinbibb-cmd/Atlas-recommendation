@@ -39,6 +39,21 @@ const EMPTY_OUTLET_SAMPLES: LabFrame['outletSamples'] = {
 /** Usable hot-water threshold (°C): minimum delivery temperature for comfortable domestic hot water use. */
 const USABLE_HOT_THRESHOLD_C = 45
 
+/**
+ * Reference maximum temperature (°C) for the cylinder fill fraction display.
+ * 0 = cold inlet, 1 = this temperature.  Matches the calculation in simulation.ts.
+ */
+const CYLINDER_FILL_MAX_C = 80
+
+/**
+ * Compute the cylinder fill fraction from a store temperature.
+ * Extracted as a shared helper so the renderer and simulation use the same formula.
+ * Returns a value in [0, 1].
+ */
+function cylinderChargePct(storeTempC: number, coldInletC: number): number {
+  return Math.max(0, Math.min(1, (storeTempC - coldInletC) / (CYLINDER_FILL_MAX_C - coldInletC)))
+}
+
 function makeInitialFrame(controls: LabControls): LabFrame {
   const isCylinder = controls.systemType === 'unvented_cylinder' || controls.systemType === 'vented_cylinder'
   const cylinderStore =
@@ -191,6 +206,18 @@ export function LabCanvas(props: {
   // The splitter node is always visible since we always have 3 defined outlet branches.
   const showSplitter = true
 
+  // ── Simulation visuals — heat-transfer domain ─────────────────────────────
+  // Derive active states from the structured visuals emitted by stepSimulation().
+  // This separates "component is firing" (heat transfer) from "component is a bottleneck"
+  // (capacity limiting, used for the existing boilerGlow).
+  const visuals = frame.visuals
+  const burnerActive = visuals?.heatTransfers.find(h => h.nodeId === 'boiler_burner')?.active ?? false
+  const plateHexActive = visuals?.heatTransfers.find(h => h.nodeId === 'combi_hex')?.active ?? false
+  const coilActive = visuals?.heatTransfers.find(h => h.nodeId === 'cylinder_coil')?.active ?? false
+
+  // Heat-transfer glow filter references — applied to the component in the SVG.
+  const HEAT_GLOW = 'url(#heat-glow)'
+
   // Cylinder store display values
   const storeTempC =
     isCylinder && frame.cylinderStore
@@ -198,11 +225,13 @@ export function LabCanvas(props: {
       : null
   const usableHot = storeTempC !== null ? storeTempC >= USABLE_HOT_THRESHOLD_C : null
 
-  // Cylinder tank fill: 0% at coldInletC, 100% at 80 °C
-  const cylinderFillFraction =
-    storeTempC !== null
-      ? Math.max(0, Math.min(1, (storeTempC - controls.coldInletC) / (80 - controls.coldInletC)))
-      : 0
+  // Cylinder tank fill — prefer visuals.storageStates (authoritative simulation output)
+  // and fall back to direct store calculation for backwards compatibility.
+  const cylinderFillFraction = (() => {
+    const sv = visuals?.storageStates.find(s => s.nodeId === 'cylinder')
+    if (sv?.active && sv.chargePct !== undefined) return sv.chargePct
+    return storeTempC !== null ? cylinderChargePct(storeTempC, controls.coldInletC) : 0
+  })()
 
   // Cylinder tank SVG dimensions (replaces HEX box)
   const cylX = P.boilerX - 60
@@ -219,6 +248,20 @@ export function LabCanvas(props: {
         <defs>
           <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="6" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          {/* Warm amber glow used when a heat-transfer component is actively firing. */}
+          <filter id="heat-glow" x="-60%" y="-60%" width="220%" height="220%">
+            <feColorMatrix type="matrix"
+              values="1 0.4 0 0 0.1
+                      0 0.7 0 0 0
+                      0 0   0 0 0
+                      0 0   0 1 0"
+              result="warmed" />
+            <feGaussianBlur in="warmed" stdDeviation="5" result="coloredBlur" />
             <feMerge>
               <feMergeNode in="coloredBlur" />
               <feMergeNode in="SourceGraphic" />
@@ -313,23 +356,45 @@ export function LabCanvas(props: {
         {/* ── Boiler HEX box (combi) OR Cylinder tank (stored) ───────────── */}
         {!isCylinder ? (
           <g>
+            {/*
+             * Heat-transfer domain: combi plate HEX.
+             * The `heat-glow` filter activates when the burner/plate-HEX are
+             * transferring heat (DHW draw mode).  This is distinct from the
+             * capacity-limit glow (boilerGlow) which fires when the boiler is
+             * the flow-limiting component.
+             */}
             <rect
               x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
-              fill="#eef2f7" stroke="#c9d4e2" filter={boilerGlow}
+              fill="#eef2f7"
+              stroke={plateHexActive ? '#f97316' : '#c9d4e2'}
+              strokeWidth={plateHexActive ? 2.5 : 1}
+              filter={plateHexActive ? HEAT_GLOW : boilerGlow}
             />
             <text x={P.boilerX + 30} y={P.boilerY - 6} textAnchor="middle" fontSize={16} fill="#334155" fontWeight={700}>
               Combi DHW HEX
             </text>
-            <text x={P.boilerX + 30} y={P.boilerY + 16} textAnchor="middle" fontSize={12} fill="#64748b">
-              heat added here
+            <text x={P.boilerX + 30} y={P.boilerY + 16} textAnchor="middle" fontSize={12}
+              fill={burnerActive ? '#c2410c' : '#64748b'}>
+              {burnerActive ? 'burner firing · heat transfer active' : 'heat added here'}
             </text>
           </g>
         ) : (
           <g>
+            {/*
+             * Storage-state domain: indirect cylinder.
+             * The coil glow activates when the primary circuit is passing heat
+             * into the stored water (reheat mode).  The domestic draw path is
+             * entirely separate — stored water leaves from hot_out at the top,
+             * mains/cold enters cold_in at the bottom; neither path is the
+             * primary circuit.
+             */}
             {/* Cylinder tank background */}
             <rect
               x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
-              fill="#f1f5f9" stroke="#c9d4e2" strokeWidth={2}
+              fill="#f1f5f9"
+              stroke={coilActive ? '#f97316' : '#c9d4e2'}
+              strokeWidth={coilActive ? 2.5 : 2}
+              filter={coilActive ? HEAT_GLOW : undefined}
             />
             {/* Thermal fill — clips to rounded rect */}
             <rect
@@ -344,8 +409,9 @@ export function LabCanvas(props: {
             <text x={P.boilerX + 30} y={P.boilerY - 10} textAnchor="middle" fontSize={13} fill="#334155" fontWeight={700}>
               {controls.systemType === 'vented_cylinder' ? 'Vented cylinder' : 'Unvented cylinder'}
             </text>
-            <text x={P.boilerX + 30} y={P.boilerY + 8} textAnchor="middle" fontSize={11} fill="#64748b">
-              Stored hot water
+            <text x={P.boilerX + 30} y={P.boilerY + 8} textAnchor="middle" fontSize={11}
+              fill={coilActive ? '#c2410c' : '#64748b'}>
+              {coilActive ? 'coil reheating store' : 'Stored hot water'}
             </text>
             {storeTempC !== null && (
               <text x={P.boilerX + 30} y={P.boilerY + 24} textAnchor="middle" fontSize={11} fill="#b45309">

@@ -18,6 +18,94 @@ export type SystemMode = 'idle' | 'heating' | 'dhw_draw' | 'dhw_reheat'
 export type SimulationDomain = 'fluid_path' | 'heat_transfer' | 'storage_state'
 
 /**
+ * A named hydraulic path through the system — water physically moving in pipes.
+ *
+ * `edgeIds` reference the logical pipe segments that form this path.
+ * Semantic IDs are used here (e.g. 'primary_circuit', 'dhw_draw', 'cold_feed',
+ * 'cylinder_coil_primary') because the visual schematic does not yet expose
+ * formal builder graph edge IDs.
+ */
+export type FluidPathVisual = {
+  /** Logical identifiers for the pipe segments forming this path. */
+  edgeIds: string[]
+  /** Direction water flows along this path. */
+  direction: 'forward' | 'reverse'
+  /** Whether this path is actively carrying flow right now. */
+  active: boolean
+  /** Approximate flow rate through this path (L/min). */
+  flowLpm?: number
+}
+
+/**
+ * The type of heat-exchange component doing the energy transfer.
+ * This deliberately distinguishes the heat source from the transfer site.
+ */
+export type HeatTransferKind =
+  | 'burner'        // gas/oil burner inside a boiler
+  | 'plate_hex'     // plate heat exchanger (combi DHW transfer)
+  | 'coil'          // immersion coil inside a cylinder
+  | 'emitter'       // radiator or underfloor emitting heat into a room
+  | 'compressor'    // heat pump compressor (refrigerant circuit)
+
+/**
+ * A component that is actively transferring heat (not fluid flow).
+ * The visual style is a glow or pulse localised to the component.
+ */
+export type HeatTransferVisual = {
+  /** Semantic node identifier for the component (e.g. 'boiler_burner', 'combi_hex', 'cylinder_coil'). */
+  nodeId: string
+  /** Whether this component is actively transferring heat right now. */
+  active: boolean
+  /** Normalised intensity 0–1 (used for animation brightness). */
+  intensity?: number
+  /** What kind of heat exchange this component performs. */
+  kind: HeatTransferKind
+}
+
+/**
+ * The thermal state of a storage vessel (cylinder, buffer, etc.).
+ * The visual style is a fill level or gradient inside the vessel body.
+ */
+export type StorageStateVisual = {
+  /** Semantic node identifier for the vessel (e.g. 'cylinder'). */
+  nodeId: string
+  /** Whether this vessel is currently tracked by the simulation. */
+  active: boolean
+  /**
+   * Fractional charge 0–1 (0 = cold inlet temp, 1 = 80 °C — conventional upper
+   * working temperature used as the reference maximum for cylinder fill displays).
+   * Used to drive the fill-level indicator inside the vessel.
+   */
+  chargePct?: number
+  /**
+   * Fraction of the vessel volume that is "usably hot" (above usable threshold).
+   * For future Mixergy stratification rendering (top-down hot band).
+   */
+  hotTopPct?: number
+}
+
+/**
+ * Complete set of visual outputs emitted by `stepSimulation()` for each frame.
+ *
+ * Renderers must consume these three arrays separately so that:
+ *  - moving fluid dots only appear on `fluidPaths`
+ *  - glow/pulse effects only appear at `heatTransfers`
+ *  - fill/gradient changes only appear on `storageStates`
+ *
+ * This prevents the visual confusion of implying that domestic hot water
+ * travels through a boiler coil, or that stored hot water is the same
+ * circuit as the primary water.
+ */
+export type SimulationVisuals = {
+  /** Active hydraulic paths — water moving through pipes. */
+  fluidPaths: FluidPathVisual[]
+  /** Active heat-transfer sites — energy moving across components. */
+  heatTransfers: HeatTransferVisual[]
+  /** Current thermal state of storage vessels. */
+  storageStates: StorageStateVisual[]
+}
+
+/**
  * Heating demand state — controls the space-heating part of Play mode.
  *
  * For MVP, `enabled` is sufficient to gate CH simulation.
@@ -163,4 +251,16 @@ export type LabFrame = {
   cylinderStore?: CylinderStore
   systemMode?: SystemMode
   storeNeedsReheat?: boolean
+  /**
+   * Structured visual domains emitted by the simulation each frame.
+   *
+   * Consumers must use each array for its dedicated visual purpose:
+   * - `fluidPaths`   → moving-dot / flow-line animation (water in pipes)
+   * - `heatTransfers` → glow / pulse at components (energy transfer sites)
+   * - `storageStates` → fill / gradient inside vessels (stored thermal state)
+   *
+   * This separation prevents misleading visuals such as domestic water
+   * appearing to travel through the primary circuit.
+   */
+  visuals?: SimulationVisuals
 }
