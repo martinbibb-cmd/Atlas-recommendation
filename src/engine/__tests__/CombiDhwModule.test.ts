@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { runCombiDhwModuleV1, estimateMorningOverlapProbability } from '../modules/CombiDhwModule';
+import { runCombiDhwModuleV1, estimateMorningOverlapProbability, getCombiDhwRampPhase } from '../modules/CombiDhwModule';
 import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
 
 const baseInput: EngineInputV2_3 = {
@@ -515,5 +515,41 @@ describe('estimateMorningOverlapProbability', () => {
     const p1 = estimateMorningOverlapProbability(3, 1);
     const p2 = estimateMorningOverlapProbability(3, 2);
     expect(p2!).toBeGreaterThanOrEqual(p1!);
+  });
+});
+
+// ─── getCombiDhwRampPhase ─────────────────────────────────────────────────────
+
+describe('getCombiDhwRampPhase', () => {
+  it('returns ignition_purge at 0 s (tap just opened)', () => {
+    expect(getCombiDhwRampPhase(0)).toBe('ignition_purge');
+  });
+
+  it('returns ignition_purge at 1 s (within 0–2 s window)', () => {
+    expect(getCombiDhwRampPhase(1)).toBe('ignition_purge');
+  });
+
+  it('returns temperature_ramp at exactly 2 s (boundary)', () => {
+    expect(getCombiDhwRampPhase(2)).toBe('temperature_ramp');
+  });
+
+  it('returns temperature_ramp at 4 s (within 2–6 s window)', () => {
+    expect(getCombiDhwRampPhase(4)).toBe('temperature_ramp');
+  });
+
+  it('returns stabilising at exactly 6 s (boundary)', () => {
+    expect(getCombiDhwRampPhase(6)).toBe('stabilising');
+  });
+
+  it('returns stabilising at 8 s (within 6–10 s window)', () => {
+    expect(getCombiDhwRampPhase(8)).toBe('stabilising');
+  });
+
+  it('returns steady at exactly 10 s (boundary)', () => {
+    expect(getCombiDhwRampPhase(10)).toBe('steady');
+  });
+
+  it('returns steady at 60 s (long draw)', () => {
+    expect(getCombiDhwRampPhase(60)).toBe('steady');
   });
 });

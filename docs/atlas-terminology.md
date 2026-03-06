@@ -203,12 +203,67 @@ These terms describe how water pressure is provided, not the hot water type.
 
 The following terms must never appear in Atlas UI copy, explanations, or PDF output.
 
-| Avoid                    | Use instead               |
-|--------------------------|---------------------------|
-| Gravity system           | Tank-fed hot water        |
-| Low pressure system      | Tank-fed supply           |
-| High pressure system     | Mains-fed supply          |
-| Instantaneous hot water  | On-demand hot water       |
+| Avoid                    | Use instead                         |
+|--------------------------|-------------------------------------|
+| Gravity system           | Tank-fed hot water                  |
+| Low pressure system      | Tank-fed supply                     |
+| High pressure system     | Mains-fed supply                    |
+| Instantaneous hot water  | On-demand hot water                 |
+| Unlimited hot water      | Stored hot water / thermal capacity |
+| Powerful shower          | Supply-limited / flow-limited       |
+| High performance         | Thermal capacity / recovery time    |
+
+---
+
+## 8a. Preferred Vocabulary
+
+Use these terms in all Atlas UI copy, explanations, and PDF output in preference to informal or marketing-derived alternatives.
+
+| Preferred term      | Notes                                                              |
+|---------------------|--------------------------------------------------------------------|
+| On-demand hot water | Water heated only when a tap is opened (e.g. combi boiler).       |
+| Stored hot water    | Hot water drawn from a pre-heated cylinder.                        |
+| Thermal capacity    | The amount of heat energy a system can store or deliver.           |
+| Supply-limited      | Output constrained by the incoming water supply.                   |
+| Flow-limited        | Output constrained by pipe diameter or pressure.                   |
+| Recovery time       | Time required to reheat a cylinder to its target temperature.      |
+
+---
+
+## 8b. System-Specific Description Phrases
+
+Use these exact phrases in UI copy when describing each system type.
+
+### Combination boiler (combi)
+
+> On-demand hot water heated through a plate heat exchanger.
+
+### Unvented cylinder
+
+> Stored hot water supplied at mains pressure.
+
+### Vented cylinder
+
+> Stored hot water supplied by gravity from a cold water storage tank.
+
+### Mixergy cylinder
+
+> Stored hot water with top-down heating and active stratification.
+
+---
+
+## 8c. Combi DHW Ramp Behaviour
+
+Combi boilers do **not** produce hot water instantaneously. There is a measurable response sequence from the moment a tap opens to steady delivered temperature:
+
+| Phase            | Elapsed time | Description                                            |
+|------------------|--------------|--------------------------------------------------------|
+| Ignition + purge | 0 – 2 s      | Fan starts, gas valve opens, combustion ignites.       |
+| Temperature ramp | 2 – 6 s      | Heat exchanger temperature rising toward setpoint.     |
+| Stabilising      | 6 – 10 s     | Flow temperature approaching steady-state.             |
+| Steady output    | 10 s +       | Nominal delivery temperature reached.                  |
+
+> **Atlas rule:** UI copy must not imply zero response time for combi hot water. Use language such as "reaches temperature within seconds" rather than "instant" or "immediate".
 
 ---
 
