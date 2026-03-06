@@ -1,9 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import type { BuildGraph, PartKind, PortDef, PortRef } from './types'
+import type { LabControls } from '../animation/types'
 import PresetPanel from './PresetPanel'
 import PalettePanel from './PalettePanel'
 import WorkbenchCanvas from './WorkbenchCanvas'
 import WarningPanel from './WarningPanel'
+import { LabCanvas } from '../animation/render/LabCanvas'
+import { InstrumentStrip } from '../animation/render/InstrumentStrip'
+import { computeCapacitySummary } from '../animation/capacitySummary'
+import type { LabFrame } from '../animation/types'
+import { cylinderTempC } from '../animation/storage'
 import { portsForKind } from './ports'
 import { validateGraph, type GraphWarning } from './graphValidate'
 import { deriveFacts } from './graphDerive'
@@ -12,7 +18,11 @@ import { PRESETS } from './presets'
 import { smartAdd } from './smartAttach'
 import { portAbs } from './snapConnect'
 import { insertTee } from './tee'
+import { graphToLabControls } from './graphToControls'
 import './builder.css'
+
+/** The two phases of the lab experience. */
+type LabMode = 'build' | 'play'
 
 function uid(prefix = 'n') {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`
@@ -39,12 +49,22 @@ const isOutletKind = (kind: PartKind) =>
 export default function BuilderShell({
   initial,
   onControlsPatch,
-  onRun,
 }: {
   initial?: BuildGraph
   onControlsPatch?: (patch: Record<string, unknown>) => void
-  onRun?: (graph: BuildGraph) => void
 }) {
+  // ── Mode state ─────────────────────────────────────────────────────────────
+  const [mode, setMode] = useState<LabMode>('build')
+  /** Saved snapshot — immutable input for the simulation. Null until first save. */
+  const [savedGraph, setSavedGraph] = useState<BuildGraph | null>(null)
+  /** Controls patch stored when a preset is loaded; merged into LabControls on play. */
+  const [savedControlsPatch, setSavedControlsPatch] = useState<Partial<LabControls>>({})
+  /** Whether the left palette panel is visible in build mode. */
+  const [paletteOpen, setPaletteOpen] = useState(true)
+  /** Live cylinder store temperature (°C) tracked from LabCanvas onFrame. */
+  const [playStoreTempC, setPlayStoreTempC] = useState<number | undefined>(undefined)
+
+  // ── Graph edit state ───────────────────────────────────────────────────────
   const [graph, setGraph] = useState<BuildGraph>(initial ?? EMPTY_GRAPH)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pendingPort, setPendingPort] = useState<PortRef | null>(null)
@@ -279,7 +299,9 @@ export default function BuilderShell({
     setGraph(cloneGraph(preset.graph))
     setSelectedId(null)
     setPendingPort(null)
-    onControlsPatch?.((preset.controlsPatch ?? {}) as Record<string, unknown>)
+    const patch = (preset.controlsPatch ?? {}) as Partial<LabControls>
+    setSavedControlsPatch(patch)
+    onControlsPatch?.(patch as Record<string, unknown>)
   }
 
   const clearSlot = (slot: 'A' | 'B' | 'C') => {
@@ -290,18 +312,129 @@ export default function BuilderShell({
     })
   }
 
-  return (
-    <div className="builder-wrap">
-      <div className="builder-left">
-        <PresetPanel onLoad={loadPreset} />
-        <PalettePanel onPick={pickFromPalette} />
+  // ── Save / Play actions ────────────────────────────────────────────────────
+
+  /** Snapshot the current graph as the immutable simulation input. */
+  const saveDraft = useCallback(() => {
+    setSavedGraph(cloneGraph(normalizedGraph))
+  }, [normalizedGraph])
+
+  /**
+   * Save the current graph and switch to Play mode.
+   * Simulation always runs against the snapshot, never the live draft.
+   */
+  const enterPlay = useCallback(() => {
+    setSavedGraph(cloneGraph(normalizedGraph))
+    setPlayStoreTempC(undefined)
+    setMode('play')
+  }, [normalizedGraph])
+
+  // ── Play-mode derived values ───────────────────────────────────────────────
+
+  const playControls = useMemo(
+    () => (savedGraph ? graphToLabControls(savedGraph, savedControlsPatch) : null),
+    [savedGraph, savedControlsPatch],
+  )
+
+  const playSummary = useMemo(
+    () => (playControls ? computeCapacitySummary(playControls) : null),
+    [playControls],
+  )
+
+  /** Callback from LabCanvas to track live cylinder store temperature. */
+  const handleFrame = useCallback((frame: LabFrame) => {
+    if (frame.cylinderStore && playControls) {
+      setPlayStoreTempC(cylinderTempC({ store: frame.cylinderStore, coldInletC: playControls.coldInletC }))
+    }
+  }, [playControls])
+
+  // ── Play mode render ───────────────────────────────────────────────────────
+
+  if (mode === 'play') {
+    return (
+      <div className="builder-wrap builder-wrap--play">
+        <div className="play-topbar">
+          <button className="builder-btn" onClick={() => setMode('build')}>← Edit</button>
+          <span className="play-mode-label">▶ Play mode</span>
+          <span className="play-mode-hint">
+            {playControls
+              ? `Simulating saved graph — ${playControls.systemType.replace(/_/g, ' ')}`
+              : 'No saved graph — go back to Build and save first'}
+          </span>
+        </div>
+
+        {playControls && playSummary ? (
+          <div className="play-canvas-wrap">
+            <div className="demo-lab-canvas">
+              <LabCanvas
+                controls={playControls}
+                summary={playSummary}
+                onFrame={handleFrame}
+              />
+            </div>
+            <InstrumentStrip
+              summary={playSummary}
+              storeTempC={playStoreTempC}
+              combiDhwKw={playControls.systemType === 'combi' ? playControls.combiDhwKw : undefined}
+            />
+          </div>
+        ) : (
+          <div className="play-empty">
+            <p className="play-empty__text">
+              No graph saved yet. Go back to Build mode, wire up your system, then press{' '}
+              <strong>Save</strong> or <strong>Play</strong>.
+            </p>
+            <button className="builder-btn" onClick={() => setMode('build')}>← Back to Build</button>
+          </div>
+        )}
       </div>
+    )
+  }
+
+  // ── Build mode render ──────────────────────────────────────────────────────
+
+  return (
+    <div className={`builder-wrap${paletteOpen ? '' : ' palette-collapsed'}`}>
+      {paletteOpen && (
+        <div className="builder-left">
+          <PresetPanel onLoad={loadPreset} />
+          <PalettePanel onPick={pickFromPalette} />
+        </div>
+      )}
 
       <div className="builder-right">
+        {/* ── Mode bar ──────────────────────────────────────────────────── */}
+        <div className="builder-mode-bar">
+          <button
+            className="palette-toggle-btn"
+            onClick={() => setPaletteOpen(v => !v)}
+            title={paletteOpen ? 'Hide palette' : 'Show palette'}
+            aria-label={paletteOpen ? 'Hide palette' : 'Show palette'}
+          >
+            {paletteOpen ? '✕' : '☰'}
+          </button>
+          <span className="builder-mode-label">🧱 Build</span>
+          <div className="builder-mode-bar__spacer" />
+          <button
+            className="builder-btn"
+            onClick={saveDraft}
+            title="Save current graph as simulation snapshot"
+          >
+            💾 Save
+          </button>
+          <button
+            className="builder-btn builder-btn--play"
+            onClick={enterPlay}
+            title="Save and switch to Play mode"
+          >
+            ▶ Play
+          </button>
+        </div>
+
         <div className="builder-canvas-area">
           <div className="builder-toolbar">
           <div className="builder-title">
-            🧱 Build your system
+            Build your system
             {warnings.length ? (
               <button className="warn-pill" onClick={() => setShowWarnings(current => !current)}>
                 {warnings.length} warnings
@@ -320,9 +453,6 @@ export default function BuilderShell({
                 ✕ Cancel
               </button>
             ) : null}
-            <button className="builder-btn" onClick={() => onRun?.(cloneGraph(normalizedGraph))}>
-              ▶ Run system
-            </button>
             <button
               className="builder-btn"
               disabled={!selected}
