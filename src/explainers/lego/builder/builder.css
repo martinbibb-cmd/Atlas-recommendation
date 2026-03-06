@@ -257,6 +257,40 @@
   cursor: pointer;
 }
 
+/* ── Port circuit colours ──────────────────────────────────────────────────── */
+
+/* DHW hot — red */
+.port--hot {
+  border-color: #c53030;
+  background: #fff5f5;
+}
+
+/* DHW cold — blue */
+.port--cold {
+  border-color: #2b6cb0;
+  background: #ebf8ff;
+}
+
+/* Primary / heating flow — orange */
+.port--flow {
+  border-color: #c05621;
+  background: #fffaf0;
+}
+
+/* Primary / heating return — purple */
+.port--return {
+  border-color: #6b46c1;
+  background: #faf5ff;
+}
+
+/* Storage / outlet / unknown — default grey */
+.port--store,
+.port--outlet,
+.port--unknown {
+  border-color: #718096;
+  background: #f7fafc;
+}
+
 .port-label {
   position: absolute;
   top: 14px;
@@ -273,6 +307,15 @@
   pointer-events: none;
   z-index: 10;
   line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.port-arrow {
+  font-size: 0.65rem;
+  color: #718096;
+  flex-shrink: 0;
 }
 
 .port.pending {
