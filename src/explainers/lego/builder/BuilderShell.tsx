@@ -14,7 +14,7 @@ import { portsForKind } from './ports'
 import { validateGraph, type GraphWarning } from './graphValidate'
 import { deriveFacts } from './graphDerive'
 import { normalizeGraph } from './normalizeGraph'
-import { PRESETS } from './presets'
+import { PRESETS, CONCEPT_PRESETS, resolveConceptPreset } from './presets'
 import { smartAdd } from './smartAttach'
 import { portAbs } from './snapConnect'
 import { insertTee } from './tee'
@@ -304,6 +304,24 @@ export default function BuilderShell({
     onControlsPatch?.(patch as Record<string, unknown>)
   }
 
+  /**
+   * Load a concept-driven preset.
+   * Calls `generateGraphFromConcept(concept)` to produce the graph on the fly,
+   * then loads it into the builder — replacing any current graph.
+   * This is the PR3 topology-driven entry point.
+   */
+  const loadConceptPreset = (conceptPresetId: string) => {
+    const conceptPreset = CONCEPT_PRESETS.find(item => item.id === conceptPresetId)
+    if (!conceptPreset) return
+    const resolved = resolveConceptPreset(conceptPreset)
+    setGraph(cloneGraph(resolved.graph))
+    setSelectedId(null)
+    setPendingPort(null)
+    const patch = (resolved.controlsPatch ?? {}) as Partial<LabControls>
+    setSavedControlsPatch(patch)
+    onControlsPatch?.(patch as Record<string, unknown>)
+  }
+
   const clearSlot = (slot: 'A' | 'B' | 'C') => {
     setGraph(current => {
       const next = { ...(current.outletBindings ?? {}) }
@@ -397,7 +415,7 @@ export default function BuilderShell({
     <div className={`builder-wrap${paletteOpen ? '' : ' palette-collapsed'}`}>
       {paletteOpen && (
         <div className="builder-left">
-          <PresetPanel onLoad={loadPreset} />
+          <PresetPanel onLoad={loadPreset} onLoadConcept={loadConceptPreset} />
           <PalettePanel onPick={pickFromPalette} />
         </div>
       )}
