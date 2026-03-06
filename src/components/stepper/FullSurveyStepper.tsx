@@ -12,9 +12,10 @@ import {
 } from 'recharts';
 import type { EngineInputV2_3, FullEngineResult, BuildingFabricType } from '../../engine/schema/EngineInputV2_3';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
-import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import type { FullSurveyModelV1, HeatingConditionDiagnosticsV1, DhwConditionDiagnosticsV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { sanitiseModelForEngine } from '../../ui/fullSurvey/sanitiseModelForEngine';
+import { inferSystemConditionFlags } from '../../engine/modules/SystemConditionInferenceModule';
 import { runEngine } from '../../engine/Engine';
 import { runThermalInertiaModule } from '../../engine/modules/ThermalInertiaModule';
 import { calcFlowLpm, PIPE_THRESHOLDS } from '../../engine/modules/HydraulicModule';
@@ -549,6 +550,19 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
     [input.dynamicMainsPressure, input.dynamicMainsPressureBar, input.staticMainsPressureBar],
   );
   const inputWarnings = useMemo(() => collectInputValidationWarnings(input), [input]);
+
+  // ── System condition inference — heating + DHW diagnostics ─────────────────
+  const systemConditionFlags = useMemo(() => inferSystemConditionFlags({
+    heatingCondition: input.fullSurvey?.heatingCondition,
+    dhwCondition: input.fullSurvey?.dhwCondition,
+    waterHardnessCategory: hardnessPreview?.hardnessCategory,
+    systemAgeYears: input.systemAgeYears,
+  }), [
+    input.fullSurvey?.heatingCondition,
+    input.fullSurvey?.dhwCondition,
+    hardnessPreview?.hardnessCategory,
+    input.systemAgeYears,
+  ]);
 
   const stepIndex = STEPS.indexOf(currentStep);
   const progress = ((stepIndex + 1) / STEPS.length) * 100;
@@ -1722,12 +1736,274 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
               </div>
             </details>
           </div>
+
+          {/* ─── Heating Circuit Condition Diagnostics ──────────────────── */}
+          <details style={{ marginTop: '1.25rem' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#4a5568' }}>
+              🔍 Heating Circuit Condition (site observations)
+            </summary>
+            <div style={{ marginTop: '0.75rem', padding: '0.875rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+              <p style={{ fontSize: '0.82rem', color: '#4a5568', marginTop: 0, marginBottom: '0.75rem', lineHeight: 1.5 }}>
+                Record what you observed on site. These observations feed the sludge and open vented circuit fault diagnostics — they do not directly change the physics model yet.
+              </p>
+
+              {/* Pumping over — always first, prominent */}
+              <div className="form-field" style={{ gridColumn: '1 / -1', marginBottom: '0.75rem' }}>
+                <label style={{ fontWeight: 700 }}>⚠️ Pumping over observed?</label>
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                  <button
+                    onClick={() => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        heatingCondition: {
+                          ...input.fullSurvey?.heatingCondition,
+                          pumpingOverObserved: true,
+                        },
+                      },
+                    })}
+                    style={{
+                      flex: 1,
+                      padding: '0.625rem',
+                      border: `2px solid ${input.fullSurvey?.heatingCondition?.pumpingOverObserved === true ? '#c53030' : '#e2e8f0'}`,
+                      borderRadius: '6px',
+                      background: input.fullSurvey?.heatingCondition?.pumpingOverObserved === true ? '#fff5f5' : '#fff',
+                      cursor: 'pointer',
+                      fontWeight: input.fullSurvey?.heatingCondition?.pumpingOverObserved === true ? 700 : 400,
+                    }}
+                  >
+                    🚨 Yes — water rising up open vent pipe
+                  </button>
+                  <button
+                    onClick={() => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        heatingCondition: {
+                          ...input.fullSurvey?.heatingCondition,
+                          pumpingOverObserved: false,
+                        },
+                      },
+                    })}
+                    style={{
+                      flex: 1,
+                      padding: '0.625rem',
+                      border: `2px solid ${input.fullSurvey?.heatingCondition?.pumpingOverObserved === false ? '#38a169' : '#e2e8f0'}`,
+                      borderRadius: '6px',
+                      background: input.fullSurvey?.heatingCondition?.pumpingOverObserved === false ? '#f0fff4' : '#fff',
+                      cursor: 'pointer',
+                      fontWeight: input.fullSurvey?.heatingCondition?.pumpingOverObserved === false ? 700 : 400,
+                    }}
+                  >
+                    ✅ No — not observed
+                  </button>
+                </div>
+              </div>
+
+              {/* Pumping over hard advisory */}
+              {systemConditionFlags.pumpingOverPresent && (
+                <div style={{ marginBottom: '0.75rem', padding: '0.75rem', background: '#fff5f5', border: '2px solid #c53030', borderRadius: '6px' }}>
+                  <div style={{ fontWeight: 700, color: '#c53030', marginBottom: '0.4rem' }}>⛔ Open vented circuit fault — hard advisory</div>
+                  {systemConditionFlags.pumpingOverAdvisory.map((msg, i) => (
+                    <p key={i} style={{ margin: 0, marginTop: i > 0 ? '0.4rem' : 0, fontSize: '0.85rem', color: '#742a2a', lineHeight: 1.5 }}>
+                      {msg}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              <div className="form-grid">
+                {/* Circuit type */}
+                <div className="form-field">
+                  <label>Circuit type</label>
+                  <select
+                    value={input.fullSurvey?.heatingCondition?.systemCircuitType ?? ''}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        heatingCondition: {
+                          ...input.fullSurvey?.heatingCondition,
+                          systemCircuitType: (e.target.value || undefined) as HeatingConditionDiagnosticsV1['systemCircuitType'],
+                        },
+                      },
+                    })}
+                  >
+                    <option value="">Not recorded</option>
+                    <option value="open_vented">Open vented central heating</option>
+                    <option value="sealed">Sealed heating system</option>
+                    <option value="unknown">Unknown</option>
+                  </select>
+                </div>
+
+                {/* Bleed water colour */}
+                <div className="form-field">
+                  <label>Bleed water colour</label>
+                  <select
+                    value={input.fullSurvey?.heatingCondition?.bleedWaterColour ?? ''}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        heatingCondition: {
+                          ...input.fullSurvey?.heatingCondition,
+                          bleedWaterColour: (e.target.value || undefined) as HeatingConditionDiagnosticsV1['bleedWaterColour'],
+                        },
+                      },
+                    })}
+                  >
+                    <option value="">Not recorded</option>
+                    <option value="clear">Clear (good)</option>
+                    <option value="brown">Brown (magnetite sludge present)</option>
+                    <option value="black">Black (heavy magnetite sludge)</option>
+                    <option value="unknown">Unknown</option>
+                  </select>
+                </div>
+
+                {/* Symptom checkboxes */}
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={input.fullSurvey?.heatingCondition?.radiatorsColdAtBottom ?? false}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        heatingCondition: {
+                          ...input.fullSurvey?.heatingCondition,
+                          radiatorsColdAtBottom: e.target.checked,
+                        },
+                      },
+                    })}
+                  />
+                  <span>Radiators cold at bottom</span>
+                </label>
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={input.fullSurvey?.heatingCondition?.radiatorsHeatingUnevenly ?? false}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        heatingCondition: {
+                          ...input.fullSurvey?.heatingCondition,
+                          radiatorsHeatingUnevenly: e.target.checked,
+                        },
+                      },
+                    })}
+                  />
+                  <span>Radiators heating unevenly</span>
+                </label>
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={input.fullSurvey?.heatingCondition?.magneticDebrisEvidence ?? false}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        heatingCondition: {
+                          ...input.fullSurvey?.heatingCondition,
+                          magneticDebrisEvidence: e.target.checked,
+                        },
+                      },
+                    })}
+                  />
+                  <span>Magnetic debris / sludge in filter</span>
+                </label>
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={input.fullSurvey?.heatingCondition?.pumpSpeedHigh ?? false}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        heatingCondition: {
+                          ...input.fullSurvey?.heatingCondition,
+                          pumpSpeedHigh: e.target.checked,
+                        },
+                      },
+                    })}
+                  />
+                  <span>Pump speed set to maximum</span>
+                </label>
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={input.fullSurvey?.heatingCondition?.repeatedPumpOrValveReplacements ?? false}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        heatingCondition: {
+                          ...input.fullSurvey?.heatingCondition,
+                          repeatedPumpOrValveReplacements: e.target.checked,
+                        },
+                      },
+                    })}
+                  />
+                  <span>Repeated pump / valve replacements</span>
+                </label>
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={input.fullSurvey?.heatingCondition?.boilerCavitationOrNoise ?? false}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        heatingCondition: {
+                          ...input.fullSurvey?.heatingCondition,
+                          boilerCavitationOrNoise: e.target.checked,
+                        },
+                      },
+                    })}
+                  />
+                  <span>Boiler cavitation / circuit noise</span>
+                </label>
+              </div>
+
+              {/* Live sludge risk badge */}
+              <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.78rem', color: '#718096' }}>Inferred sludge risk:</span>
+                <span style={{
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '4px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  background: systemConditionFlags.sludgeRisk === 'high' ? '#fff5f5' : systemConditionFlags.sludgeRisk === 'moderate' ? '#fffff0' : '#f0fff4',
+                  color: systemConditionFlags.sludgeRisk === 'high' ? '#c53030' : systemConditionFlags.sludgeRisk === 'moderate' ? '#b7791f' : '#276749',
+                  border: `1px solid ${systemConditionFlags.sludgeRisk === 'high' ? '#feb2b2' : systemConditionFlags.sludgeRisk === 'moderate' ? '#faf089' : '#9ae6b4'}`,
+                }}>
+                  {systemConditionFlags.sludgeRisk.toUpperCase()}
+                </span>
+                {systemConditionFlags.openVentedFaultRisk !== 'none' && (
+                  <>
+                    <span style={{ fontSize: '0.78rem', color: '#718096' }}>Open vented circuit fault risk:</span>
+                    <span style={{
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: '4px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      background: systemConditionFlags.openVentedFaultRisk === 'likely' ? '#fff5f5' : '#fffff0',
+                      color: systemConditionFlags.openVentedFaultRisk === 'likely' ? '#c53030' : '#b7791f',
+                      border: `1px solid ${systemConditionFlags.openVentedFaultRisk === 'likely' ? '#feb2b2' : '#faf089'}`,
+                    }}>
+                      {systemConditionFlags.openVentedFaultRisk.toUpperCase()}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </details>
           <div className="step-actions">
             <button className="prev-btn" onClick={prev}>← Back</button>
             <button className="next-btn" onClick={next}>Next →</button>
           </div>
         </div>
-      )}
+      )} 
 
       {currentStep === 'lifestyle' && (
         <LifestyleComfortStep
@@ -1964,6 +2240,174 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
               </div>
             </div>
           </div>
+
+          {/* ─── DHW Circuit Condition Diagnostics ──────────────────────── */}
+          <details style={{ marginTop: '1.25rem' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#4a5568' }}>
+              🔍 DHW Circuit Condition (site observations)
+            </summary>
+            <div style={{ marginTop: '0.75rem', padding: '0.875rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+              <p style={{ fontSize: '0.82rem', color: '#4a5568', marginTop: 0, marginBottom: '0.75rem', lineHeight: 1.5 }}>
+                Record observations about the hot water cylinder or combi plate heat exchanger. These feed the scale and DHW condition diagnostics.
+              </p>
+              <div className="form-grid">
+                {/* Plate HEX age (combi only) */}
+                <div className="form-field">
+                  <label>Combi plate heat exchanger age (years)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={30}
+                    step={1}
+                    value={typeof input.fullSurvey?.dhwCondition?.plateHexAgeYears === 'number' ? input.fullSurvey.dhwCondition.plateHexAgeYears : ''}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        dhwCondition: {
+                          ...input.fullSurvey?.dhwCondition,
+                          plateHexAgeYears: e.target.value ? Number(e.target.value) : 'unknown',
+                        },
+                      },
+                    })}
+                    placeholder="e.g. 8 (leave blank if unknown)"
+                  />
+                </div>
+
+                {/* Cylinder age estimate */}
+                <div className="form-field">
+                  <label>Cylinder age estimate</label>
+                  <select
+                    value={input.fullSurvey?.dhwCondition?.cylinderAgeEstimate ?? ''}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        dhwCondition: {
+                          ...input.fullSurvey?.dhwCondition,
+                          cylinderAgeEstimate: (e.target.value || undefined) as DhwConditionDiagnosticsV1['cylinderAgeEstimate'],
+                        },
+                      },
+                    })}
+                  >
+                    <option value="">Not recorded</option>
+                    <option value="under_5">Under 5 years</option>
+                    <option value="5_to_10">5–10 years</option>
+                    <option value="10_to_15">10–15 years</option>
+                    <option value="over_15">Over 15 years</option>
+                    <option value="unknown">Unknown</option>
+                  </select>
+                </div>
+
+                {/* Cylinder material */}
+                <div className="form-field">
+                  <label>Cylinder type</label>
+                  <select
+                    value={input.fullSurvey?.dhwCondition?.cylinderMaterial ?? ''}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        dhwCondition: {
+                          ...input.fullSurvey?.dhwCondition,
+                          cylinderMaterial: (e.target.value || undefined) as DhwConditionDiagnosticsV1['cylinderMaterial'],
+                        },
+                      },
+                    })}
+                  >
+                    <option value="">Not recorded</option>
+                    <option value="copper_vented">Copper — tank-fed hot water (vented)</option>
+                    <option value="stainless_unvented">Stainless — mains-fed supply (unvented)</option>
+                    <option value="unknown">Unknown</option>
+                  </select>
+                </div>
+
+                {/* Symptom checkboxes */}
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={input.fullSurvey?.dhwCondition?.kettlingOrScaleSymptoms ?? false}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        dhwCondition: {
+                          ...input.fullSurvey?.dhwCondition,
+                          kettlingOrScaleSymptoms: e.target.checked,
+                        },
+                      },
+                    })}
+                  />
+                  <span>Kettling or scale noise on heat exchanger / coil</span>
+                </label>
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={input.fullSurvey?.dhwCondition?.immersionFailureHistory ?? false}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        dhwCondition: {
+                          ...input.fullSurvey?.dhwCondition,
+                          immersionFailureHistory: e.target.checked,
+                        },
+                      },
+                    })}
+                  />
+                  <span>Immersion heater failure history</span>
+                </label>
+              </div>
+
+              {/* Live scale risk + condition badges */}
+              <div style={{ marginTop: '0.75rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.78rem', color: '#718096' }}>Inferred scale risk:</span>
+                <span style={{
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '4px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  background: systemConditionFlags.scaleRisk === 'high' ? '#fff5f5' : systemConditionFlags.scaleRisk === 'moderate' ? '#fffff0' : '#f0fff4',
+                  color: systemConditionFlags.scaleRisk === 'high' ? '#c53030' : systemConditionFlags.scaleRisk === 'moderate' ? '#b7791f' : '#276749',
+                  border: `1px solid ${systemConditionFlags.scaleRisk === 'high' ? '#feb2b2' : systemConditionFlags.scaleRisk === 'moderate' ? '#faf089' : '#9ae6b4'}`,
+                }}>
+                  {systemConditionFlags.scaleRisk.toUpperCase()}
+                </span>
+                {systemConditionFlags.cylinderAgeBand !== 'unknown' && (
+                  <>
+                    <span style={{ fontSize: '0.78rem', color: '#718096' }}>Cylinder:</span>
+                    <span style={{
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: '4px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      background: systemConditionFlags.cylinderAgeBand === 'aged' ? '#fffff0' : '#f0fff4',
+                      color: systemConditionFlags.cylinderAgeBand === 'aged' ? '#b7791f' : '#276749',
+                      border: `1px solid ${systemConditionFlags.cylinderAgeBand === 'aged' ? '#faf089' : '#9ae6b4'}`,
+                    }}>
+                      {systemConditionFlags.cylinderAgeBand.toUpperCase()}
+                    </span>
+                  </>
+                )}
+                {systemConditionFlags.plateHexCondition !== 'unknown' && (
+                  <>
+                    <span style={{ fontSize: '0.78rem', color: '#718096' }}>Plate HEX:</span>
+                    <span style={{
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: '4px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      background: systemConditionFlags.plateHexCondition === 'degraded' ? '#fffff0' : '#f0fff4',
+                      color: systemConditionFlags.plateHexCondition === 'degraded' ? '#b7791f' : '#276749',
+                      border: `1px solid ${systemConditionFlags.plateHexCondition === 'degraded' ? '#faf089' : '#9ae6b4'}`,
+                    }}>
+                      {systemConditionFlags.plateHexCondition.toUpperCase()}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </details>
 
           <div className="step-actions">
             <button className="prev-btn" onClick={prev}>← Back</button>
