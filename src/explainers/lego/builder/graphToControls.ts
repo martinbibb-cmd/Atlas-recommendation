@@ -8,6 +8,7 @@ import type { BuildGraph } from './types'
 import type { LabControls, SystemType } from '../animation/types'
 import { defaultOutlets } from '../animation/types'
 import { deriveFacts } from './graphDerive'
+import { resolveSystemTopology } from '../sim/resolveSystemTopology'
 
 /**
  * Convert a `BuildGraph` (node-link topology) plus an optional `Partial<LabControls>`
@@ -66,6 +67,7 @@ export function graphToLabControls(
   }
 
   // ── Merge patch (overrides base, but graphFacts + outletBindings are pinned) ─
+  const topology = resolveSystemTopology(graph)
   return {
     ...base,
     ...patch,
@@ -76,5 +78,8 @@ export function graphToLabControls(
       hasStoredDhw: facts.hasStoredDhw,
     },
     outletBindings: graph.outletBindings,
+    // Control topology drives S-plan simultaneous CH + reheat behaviour.
+    // Patch may not override this — it must always reflect the drawn graph.
+    controlTopology: topology.controlTopology,
   }
 }

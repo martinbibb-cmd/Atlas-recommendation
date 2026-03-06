@@ -680,3 +680,86 @@ describe('simulation — cylinder token heat domain (cold feed / hot draw-off)',
     }
   })
 })
+
+// ─── S-plan simultaneous CH + reheat ──────────────────────────────────────────
+
+describe('S-plan simultaneous CH + reheat (heating_and_reheat mode)', () => {
+  function makeSPlanControls(extraProps: Partial<LabControls> = {}): LabControls {
+    return {
+      systemType: 'unvented_cylinder',
+      heatSourceType: 'system_boiler',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 14,
+      pipeDiameterMm: 22,
+      combiDhwKw: 0,
+      cylinder: { volumeL: 180, initialTempC: 40, reheatKw: 12 },
+      outlets: [
+        { id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 0 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 0 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 0 },
+      ],
+      heatingDemand: { enabled: true, targetFlowTempC: 70, demandLevel: 0.7 },
+      controlTopology: 's_plan',
+      dhwReheatTargetC: 55,
+      ...extraProps,
+    }
+  }
+
+  it('enters heating_and_reheat when CH active + store cold + S-plan topology', () => {
+    const controls = makeSPlanControls()
+    // initialTempC = 40, reheatTargetC = 55 → store needs reheat; CH also enabled
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    expect(frame.systemMode).toBe('heating_and_reheat')
+  })
+
+  it('burner, coil, and emitters are all active in heating_and_reheat mode', () => {
+    const controls = makeSPlanControls()
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    const ht = frame.visuals!.heatTransfers
+    expect(ht.find(h => h.nodeId === 'boiler_burner')?.active).toBe(true)
+    expect(ht.find(h => h.nodeId === 'cylinder_coil')?.active).toBe(true)
+    expect(ht.find(h => h.nodeId === 'emitters')?.active).toBe(true)
+    // Plate HEX must remain inactive (it is combi-only)
+    expect(ht.find(h => h.nodeId === 'combi_hex')?.active).toBe(false)
+  })
+
+  it('both primary CH path and coil path are active in heating_and_reheat mode', () => {
+    const controls = makeSPlanControls()
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    const fp = frame.visuals!.fluidPaths
+    expect(fp.find(p => p.edgeIds.includes('primary_flow'))?.active).toBe(true)
+    expect(fp.find(p => p.edgeIds.includes('cylinder_coil_primary_flow'))?.active).toBe(true)
+  })
+
+  it('reheat energy is applied during heating_and_reheat — cylinder temperature rises', () => {
+    const controls = makeSPlanControls()
+    let frame = makeFrame()
+    for (let i = 0; i < 20; i++) {
+      frame = stepSimulation({ frame, dtMs: 500, controls })
+    }
+    const sv = frame.visuals!.storageStates.find(s => s.nodeId === 'cylinder')
+    expect(sv).toBeDefined()
+    // After several ticks with reheat running, chargePct should have increased above 0
+    expect(sv!.chargePct!).toBeGreaterThan(0)
+  })
+
+  it('non-S-plan cylinder with heating blocks reheat (only heating mode)', () => {
+    const controls = makeSPlanControls({ controlTopology: 'none' })
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    // Without S-plan topology, CH blocks simultaneous reheat
+    expect(frame.systemMode).toBe('heating')
+  })
+
+  it('y_plan with heating blocks simultaneous reheat', () => {
+    const controls = makeSPlanControls({ controlTopology: 'y_plan' })
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    expect(frame.systemMode).toBe('heating')
+  })
+
+  it('s_plan_multi_zone also allows simultaneous heating and reheat', () => {
+    const controls = makeSPlanControls({ controlTopology: 's_plan_multi_zone' })
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    expect(frame.systemMode).toBe('heating_and_reheat')
+  })
+})

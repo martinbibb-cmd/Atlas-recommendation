@@ -5,7 +5,14 @@ import type { CylinderStore } from './storage'
 export type OutletId = 'A' | 'B' | 'C'
 export type OutletKind = 'shower_mixer' | 'basin' | 'bath' | 'cold_tap'
 export type HeatSourceType = 'combi' | 'system_boiler' | 'regular_boiler' | 'heat_pump'
-export type SystemMode = 'idle' | 'heating' | 'dhw_draw' | 'dhw_reheat'
+export type SystemMode = 'idle' | 'heating' | 'dhw_draw' | 'dhw_reheat' | 'heating_and_reheat'
+
+/**
+ * Control topology — how primary heat distribution is controlled.
+ * Mirrors the identifiers in ResolvedSystemTopology so that simulation
+ * and UI layers share the same vocabulary without importing from sim/.
+ */
+export type ControlTopologyKind = 'none' | 'y_plan' | 's_plan' | 's_plan_multi_zone' | 'hp_diverter'
 
 /**
  * Simulation domain — distinguishes how energy or fluid is moving.
@@ -233,6 +240,12 @@ export type LabControls = {
   dhwReheatHysteresisC?: number
   dhwReheatTargetC?: number
   outletBindings?: Partial<Record<'A' | 'B' | 'C', string>>
+  /**
+   * Control topology — drives S-plan simultaneous CH + reheat behaviour.
+   * Derived from the builder graph topology in graphToLabControls.
+   * Defaults to 'none' when absent (safe fallback: no simultaneous operation).
+   */
+  controlTopology?: ControlTopologyKind
 }
 
 /** Rolling EMA temperature sample collected from tokens exiting an outlet branch. */

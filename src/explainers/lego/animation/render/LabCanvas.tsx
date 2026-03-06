@@ -231,6 +231,13 @@ export function LabCanvas(props: {
   // Current system operating mode — used by the valve position indicator.
   const systemMode = frame.systemMode ?? 'idle'
 
+  // Convenience flags derived from systemMode — reduce repeated condition expressions.
+  const isChActive = systemMode === 'heating' || systemMode === 'heating_and_reheat'
+  const isHwActive = systemMode === 'dhw_reheat' || systemMode === 'heating_and_reheat'
+  // True for S-plan topologies that use two independent zone valves.
+  const isSPlanTopology =
+    controls.controlTopology === 's_plan' || controls.controlTopology === 's_plan_multi_zone'
+
   // Heat-transfer glow filter references — applied to the component in the SVG.
   const HEAT_GLOW = 'url(#heat-glow)'
 
@@ -408,20 +415,27 @@ export function LabCanvas(props: {
           </g>
         )}
 
-        {/* ── Mains segment ──────────────────────────────────────────────── */}
-        {/* When TMV active: only draw from mains to pre-boiler tee. */}
-        <path
-          d={`M ${P.mainsX} ${P.mainsY} L ${tmvOutletAActive ? P.teeX : P.boilerX - 60} ${P.mainsY}`}
-          stroke="url(#grad-cold-supply)" strokeWidth={16} strokeLinecap="round" filter={mainsGlow}
-          opacity={THERMAL_COLOR_OPACITY}
-        />
-        <path
-          d={`M ${P.mainsX} ${P.mainsY} L ${tmvOutletAActive ? P.teeX : P.boilerX - 60} ${P.mainsY}`}
-          stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
-        />
-        <text x={P.mainsX - 4} y={P.mainsY - 18} fontSize={11} fill="#64748b" textAnchor="start">
-          {controls.systemType === 'vented_cylinder' ? 'Cold feed (tank-fed)' : 'Mains'}
-        </text>
+        {/* ── Mains / cold supply segment ────────────────────────────────── */}
+        {/* Hidden for vented cylinders: the CWS cistern block below provides the
+            gravity-fed cold supply path.  Showing both would create a misleading
+            duplicate cold feed (the side blue feed bug).                         */}
+        {controls.systemType !== 'vented_cylinder' && (
+          <>
+            {/* When TMV active: only draw from mains to pre-boiler tee. */}
+            <path
+              d={`M ${P.mainsX} ${P.mainsY} L ${tmvOutletAActive ? P.teeX : P.boilerX - 60} ${P.mainsY}`}
+              stroke="url(#grad-cold-supply)" strokeWidth={16} strokeLinecap="round" filter={mainsGlow}
+              opacity={THERMAL_COLOR_OPACITY}
+            />
+            <path
+              d={`M ${P.mainsX} ${P.mainsY} L ${tmvOutletAActive ? P.teeX : P.boilerX - 60} ${P.mainsY}`}
+              stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
+            />
+            <text x={P.mainsX - 4} y={P.mainsY - 18} fontSize={11} fill="#64748b" textAnchor="start">
+              Mains
+            </text>
+          </>
+        )}
 
         {/* ── CWS cistern indicator — vented / tank-fed systems only ──────── */}
         {/* Shows that the cold supply is gravity-fed from a cold-water storage
@@ -437,17 +451,33 @@ export function LabCanvas(props: {
             />
             <text x={cwsX + cwsW / 2} y={cwsY + 13} textAnchor="middle" fontSize={9} fill="#0369a1" fontWeight={600}>CWS cistern</text>
             <text x={cwsX + cwsW / 2} y={cwsY + 25} textAnchor="middle" fontSize={8} fill="#0369a1">gravity feed</text>
-            {/* Gravity-drop cold feed pipe: cistern bottom → cylinder cold_in (top edge) */}
+            {/* Gravity-drop cold feed pipe: cistern bottom → cylinder cold_in (top edge)
+                Rendered in blue (#0ea5e9 + tint) to signal cold / gravity supply. */}
             <path
               d={`M ${cwsX + cwsW / 2} ${cwsY + cwsH} L ${cylX + 10} ${cylY}`}
-              stroke={coldSupplyColor} strokeWidth={10} strokeLinecap="round"
-              opacity={THERMAL_COLOR_OPACITY}
+              stroke="#bae6fd" strokeWidth={10} strokeLinecap="round"
+              opacity={0.85}
             />
             <path
               d={`M ${cwsX + cwsW / 2} ${cwsY + cwsH} L ${cylX + 10} ${cylY}`}
-              stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
+              stroke="#0ea5e9" strokeWidth={2} strokeLinecap="round"
             />
-            {/* Downward arrow indicating gravity direction at the cylinder cold_in */}
+            {/* Mid-pipe downward arrow — reinforces gravity direction */}
+            {(() => {
+              const x1 = cwsX + cwsW / 2
+              const y1 = cwsY + cwsH
+              const x2 = cylX + 10
+              const y2 = cylY
+              const mx = (x1 + x2) / 2
+              const my = (y1 + y2) / 2
+              return (
+                <polygon
+                  points={`${mx - 5},${my - 5} ${mx + 5},${my - 5} ${mx},${my + 5}`}
+                  fill="#0ea5e9" opacity={0.85}
+                />
+              )
+            })()}
+            {/* Downward arrow at cylinder cold_in entry */}
             <polygon
               points={`${cylX + 6},${cylY - 4} ${cylX + 14},${cylY - 4} ${cylX + 10},${cylY + 2}`}
               fill="#0ea5e9" opacity={0.9}
@@ -585,7 +615,13 @@ export function LabCanvas(props: {
             </text>
             <text x={P.boilerX + 30} y={P.boilerY + 8} textAnchor="middle" fontSize={11}
               fill={(coilActive || emittersActive) ? '#c2410c' : '#64748b'}>
-              {coilActive ? 'coil reheating store' : emittersActive ? 'boiler firing — CH' : 'Stored hot water'}
+              {systemMode === 'heating_and_reheat'
+                ? 'CH + coil reheat (S-plan)'
+                : coilActive
+                  ? 'coil reheating store'
+                  : emittersActive
+                    ? 'boiler firing — CH'
+                    : 'Stored hot water'}
             </text>
             {storeTempC !== null && (
               <text x={P.boilerX + 30} y={P.boilerY + 24} textAnchor="middle" fontSize={11} fill="#b45309">
@@ -616,30 +652,34 @@ export function LabCanvas(props: {
               </g>
             )}
             {/* ── Valve position indicator ──────────────────────────────────
-                Shows which port the 3-port diverter valve is currently
-                directing flow to (CH = space heating, HW = cylinder reheat).
+                Shows which port/zone the valve is currently directing flow to.
+                For Y-plan (3-port valve): one direction at a time.
+                For S-plan (zone valves): both CH and HW can be active simultaneously.
                 Positioned just below the cylinder body.                       */}
             <g transform={`translate(${cylX + cylW / 2}, ${cylY + cylH + 16})`}>
-              <text textAnchor="middle" fontSize={8} fill="#94a3b8" y={-3}>3-port valve</text>
+              <text textAnchor="middle" fontSize={8} fill="#94a3b8" y={-3}>
+                {isSPlanTopology ? 'zone valves' : '3-port valve'}
+              </text>
               {/* CH label */}
               <text
                 x={-30} y={14} textAnchor="middle" fontSize={9}
-                fill={systemMode === 'heating' ? '#f97316' : '#94a3b8'}
-                fontWeight={systemMode === 'heating' ? 700 : 400}
+                fill={isChActive ? '#f97316' : '#94a3b8'}
+                fontWeight={isChActive ? 700 : 400}
               >CH</text>
               {/* Centre dot */}
               <circle cx={0} cy={10} r={4} fill={systemMode === 'idle' ? '#94a3b8' : '#475569'} />
               {/* HW label */}
               <text
                 x={30} y={14} textAnchor="middle" fontSize={9}
-                fill={systemMode === 'dhw_reheat' ? '#0284c7' : '#94a3b8'}
-                fontWeight={systemMode === 'dhw_reheat' ? 700 : 400}
+                fill={isHwActive ? '#0284c7' : '#94a3b8'}
+                fontWeight={isHwActive ? 700 : 400}
               >HW</text>
-              {/* Direction arrow line */}
-              {systemMode === 'heating' && (
+              {/* Direction arrow line — CH side */}
+              {isChActive && (
                 <line x1={-4} y1={10} x2={-22} y2={10} stroke="#f97316" strokeWidth={2} strokeLinecap="round" />
               )}
-              {systemMode === 'dhw_reheat' && (
+              {/* Direction arrow line — HW side */}
+              {isHwActive && (
                 <line x1={4} y1={10} x2={22} y2={10} stroke="#0284c7" strokeWidth={2} strokeLinecap="round" />
               )}
             </g>

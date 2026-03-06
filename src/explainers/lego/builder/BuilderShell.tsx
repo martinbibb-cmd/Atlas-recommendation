@@ -678,7 +678,7 @@ export default function BuilderShell({
                 <div className="play-section-title">Operating mode</div>
                 <OperatingModePanel
                   systemMode={playSystemMode}
-                  operatingMode={determineOperatingMode(playState, playSystemType)}
+                  operatingMode={determineOperatingMode(playState, playSystemType, playTopology?.controlTopology)}
                 />
               </div>
 
@@ -709,7 +709,13 @@ export default function BuilderShell({
   // ── Build mode render ──────────────────────────────────────────────────────
 
   return (
-    <div className={`builder-wrap${paletteOpen ? '' : ' palette-collapsed'}`} style={{ position: 'relative' }}>
+    <div
+      className={`builder-wrap${paletteOpen ? '' : ' palette-collapsed'}`}
+      style={{
+        position: 'relative',
+        gridTemplateColumns: paletteOpen ? '320px 1fr' : '1fr',
+      }}
+    >
       {/* Backdrop — only rendered/visible on narrow screens while palette is open */}
       {paletteOpen && isNarrow && (
         <div
@@ -874,10 +880,11 @@ export default function BuilderShell({
 // ─── Operating mode panel ──────────────────────────────────────────────────────
 
 const SYSTEM_MODE_LABELS: Record<NonNullable<LabFrame['systemMode']>, string> = {
-  idle:        'Idle — no demand',
-  heating:     'Heating circulation active',
-  dhw_draw:    'On-demand hot water active',
-  dhw_reheat:  'Cylinder reheat active',
+  idle:                'Idle — no demand',
+  heating:             'Heating circulation active',
+  dhw_draw:            'On-demand hot water active',
+  dhw_reheat:          'Cylinder reheat active',
+  heating_and_reheat:  'Heating + cylinder reheat (S-plan)',
 }
 
 const OPERATING_MODE_LABELS: Record<OperatingMode, string> = {
