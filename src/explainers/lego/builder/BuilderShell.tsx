@@ -7,6 +7,7 @@ import WarningPanel from './WarningPanel'
 import { portsForKind } from './ports'
 import { validateGraph, type GraphWarning } from './graphValidate'
 import { deriveFacts } from './graphDerive'
+import { normalizeGraph } from './normalizeGraph'
 import { PRESETS } from './presets'
 import { smartAdd } from './smartAttach'
 import { portAbs } from './snapConnect'
@@ -56,7 +57,8 @@ export default function BuilderShell({
     [graph.nodes, selectedId],
   )
 
-  const warnings = useMemo(() => validateGraph(graph), [graph])
+  const normalizedGraph = useMemo(() => normalizeGraph(graph), [graph])
+  const warnings = useMemo(() => validateGraph(normalizedGraph), [normalizedGraph])
   const facts = useMemo(() => deriveFacts(graph), [graph])
 
   const getRole = (nodeId: string, portId: string): PortDef['role'] => {
@@ -316,7 +318,7 @@ export default function BuilderShell({
                 ✕ Cancel
               </button>
             ) : null}
-            <button className="builder-btn" onClick={() => onRun?.(cloneGraph(graph))}>
+            <button className="builder-btn" onClick={() => onRun?.(cloneGraph(normalizedGraph))}>
               ▶ Run system
             </button>
             <button

@@ -125,6 +125,25 @@ export function portsForKind(kind: PartKind): PortDef[] {
         { id: 'out2', dx: L, dy: B - 18, role: 'return' },
       ];
 
+    case 'manifold_hot':
+      return [
+        { id: 'in', dx: L, dy: MID_Y, role: 'hot' },
+        { id: 'out1', dx: R, dy: 14, role: 'hot' },
+        { id: 'out2', dx: R, dy: 28, role: 'hot' },
+        { id: 'out3', dx: R, dy: 46, role: 'hot' },
+        { id: 'out4', dx: R, dy: 60, role: 'hot' },
+      ];
+
+    case 'manifold_cold':
+      return [
+        { id: 'in', dx: L, dy: MID_Y, role: 'cold' },
+        { id: 'out1', dx: R, dy: 8, role: 'cold' },
+        { id: 'out2', dx: R, dy: 21, role: 'cold' },
+        { id: 'out3', dx: R, dy: 34, role: 'cold' },
+        { id: 'out4', dx: R, dy: 52, role: 'cold' },
+        { id: 'out5', dx: R, dy: 65, role: 'cold' },
+      ];
+
     default:
       return [
         { id: 'in', dx: L, dy: MID_Y, role: 'unknown' },

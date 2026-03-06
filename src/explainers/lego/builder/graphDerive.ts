@@ -69,7 +69,9 @@ export function deriveFacts(graph: BuildGraph): GraphFacts {
       const isColdSupplyPort =
         port.role === 'cold' &&
         ((node.kind === 'cws_cistern' && port.id === 'cold_out') ||
-          (coldSupplyKinds.has(node.kind) && port.id === 'cold_in'))
+          (coldSupplyKinds.has(node.kind) && port.id === 'cold_in') ||
+          // manifold_cold:in with no upstream connection acts as a mains entry
+          (node.kind === 'manifold_cold' && port.id === 'in'))
       if (isColdSupplyPort) {
         coldStarts.push(`${node.id}:${port.id}`)
       }
