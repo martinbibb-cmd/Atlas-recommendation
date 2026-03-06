@@ -23,7 +23,9 @@ export type PartKind =
   | 'tee_hot'
   | 'tee_cold'
   | 'tee_ch_flow'
-  | 'tee_ch_return';
+  | 'tee_ch_return'
+  | 'manifold_hot'
+  | 'manifold_cold';
 
 export interface BuildNode {
   id: string;

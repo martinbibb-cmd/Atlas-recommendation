@@ -99,45 +99,63 @@ export function validateGraph(graph: BuildGraph): GraphWarning[] {
     }
   }
 
-  const portUse = new Map<string, number>()
-  for (const edge of graph.edges) {
-    const fromKey = `${edge.from.nodeId}:${edge.from.portId}`
-    const toKey = `${edge.to.nodeId}:${edge.to.portId}`
-    portUse.set(fromKey, (portUse.get(fromKey) ?? 0) + 1)
-    portUse.set(toKey, (portUse.get(toKey) ?? 0) + 1)
-  }
-
-  for (const [key, count] of portUse.entries()) {
-    if (count > 1) {
-      const [nodeId, portId] = key.split(':')
-      const node = graph.nodes.find(n => n.id === nodeId)
-      const portDef = node ? portsForKind(node.kind).find(p => p.id === portId) : undefined
-      if (portDef?.multi) continue
-      warnings.push({
-        id: `multi_${key}`,
-        level: 'warn',
-        title: 'Port used multiple times',
-        message: `Port ${key} is connected ${count} times.`,
-        hint: 'Use a dedicated splitter/valve token, or keep one physical connection per port.',
-        nodeId,
-      })
-    }
-  }
+  // "Port used multiple times" warnings are intentionally omitted here.
+  // The graph normalisation pass (normalizeGraph) auto-inserts tee/manifold
+  // nodes for branching ports, so raw multi-use is a builder artefact, not a
+  // user-fixable system error.
 
   const adjacency = buildAdjacency(graph)
+
+  const heatSources = graph.nodes.filter(
+    n =>
+      n.kind === 'heat_source_combi' ||
+      n.kind === 'heat_source_system_boiler' ||
+      n.kind === 'heat_source_regular_boiler' ||
+      n.kind === 'heat_source_heat_pump',
+  )
 
   for (const node of graph.nodes) {
     if (node.kind !== 'radiator_loop' && node.kind !== 'ufh_loop') continue
 
-    const start = `${node.id}:flow_in`
-    const goal = `${node.id}:return_out`
-    if (!hasPath(adjacency, start, goal)) {
+    const flowPort = `${node.id}:flow_in`
+    const returnPort = `${node.id}:return_out`
+
+    const flowConnected = (adjacency.get(flowPort) ?? []).length > 0
+    const returnConnected = (adjacency.get(returnPort) ?? []).length > 0
+
+    if (!flowConnected || !returnConnected) {
       warnings.push({
-        id: `loop_${node.id}`,
+        id: `emitter_open_${node.id}`,
         level: 'warn',
-        title: 'Emitter loop is not closed',
-        message: 'Emitters should have a complete path from flow_in to return_out.',
-        hint: 'Connect CH flow into flow_in and route return_out back to the heat source return side.',
+        title: 'Emitter loop is not connected on both sides',
+        message: 'Emitters must be connected on both the flow and return sides.',
+        hint: 'Connect CH flow into flow_in and connect return_out back to the heat source return side.',
+        nodeId: node.id,
+      })
+      continue
+    }
+
+    // Only run the heat-source reachability check when at least one heat
+    // source is present; otherwise a partly-built graph would produce noise.
+    if (heatSources.length === 0) continue
+
+    const anyFlowReach = heatSources.some(hs => {
+      const flowStarts = [`${hs.id}:ch_flow_out`, `${hs.id}:flow_out`]
+      return flowStarts.some(start => hasPath(adjacency, start, flowPort))
+    })
+
+    const anyReturnReach = heatSources.some(hs => {
+      const returnStarts = [`${hs.id}:ch_return_in`, `${hs.id}:return_in`]
+      return returnStarts.some(start => hasPath(adjacency, start, returnPort))
+    })
+
+    if (!anyFlowReach || !anyReturnReach) {
+      warnings.push({
+        id: `emitter_path_${node.id}`,
+        level: 'warn',
+        title: 'Emitter not on CH circuit',
+        message: 'Emitter is connected but not reachable from the heat source on both sides.',
+        hint: 'Its flow_in should be on the flow side and return_out should route back to the heat source return.',
         nodeId: node.id,
       })
     }
