@@ -1,6 +1,6 @@
 // src/explainers/lego/animation/render/TokensLayer.tsx
 
-import type { LabToken } from '../types'
+import type { FlowParticle } from '../types'
 import { heatToTempC, tempToThermalColor } from '../thermal'
 import { HEX_END } from '../simulation'
 import { mapSToPath } from './pathMap'
@@ -10,7 +10,7 @@ import type { Pt } from './pathMap'
 const THROTTLE_EPSILON = 0.01
 
 export function TokensLayer(props: {
-  tokens: LabToken[]
+  particles: FlowParticle[]
   coldInletC: number
   polyMain: Pt[]
   polyA: Pt[]
@@ -33,7 +33,7 @@ export function TokensLayer(props: {
    */
   postHexThermalColor?: string
 }) {
-  const { tokens, coldInletC, polyMain, polyA, polyB, polyC, polyColdA, hydraulicFlowLpm, demandTotalLpm, postHexThermalColor } = props
+  const { particles, coldInletC, polyMain, polyA, polyB, polyC, polyColdA, hydraulicFlowLpm, demandTotalLpm, postHexThermalColor } = props
 
   // throttle ∈ [1, 3]: 1 = demand fully met, 3 = badly throttled/restricted.
   // Guard demandTotalLpm === 0 explicitly (no demand → no restriction).
@@ -43,7 +43,7 @@ export function TokensLayer(props: {
 
   return (
     <>
-      {tokens.map(t => {
+      {particles.map(t => {
         // Derive colour from the segment the token is currently in, not from
         // the token's stored heat content.  This keeps tokens in sync with
         // the pipe-segment colour which is driven by summary.achievedOutTempC

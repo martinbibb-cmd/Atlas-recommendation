@@ -218,19 +218,19 @@ describe('stepSimulation', () => {
 
   it('advances token positions forward', () => {
     const initial = createColdTokens({ count: 3, velocity: 0.1, pressure: 0.5 })
-    const frame: LabFrame = { nowMs: 0, tokens: initial, spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples }
+    const frame: LabFrame = { nowMs: 0, particles: initial, spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples }
     const next = stepSimulation({ frame, dtMs: 1000, controls: defaultControls })
 
     for (const orig of initial) {
       // Token might have branched — check by id in the result set
-      const moved = next.tokens.find(t => t.id === orig.id)
+      const moved = next.particles.find(t => t.id === orig.id)
       // Token should either have advanced or been assigned to a branch (s reset)
-      expect(moved !== undefined || next.tokens.length > 0).toBe(true)
+      expect(moved !== undefined || next.particles.length > 0).toBe(true)
     }
   })
 
   it('advances the simulation clock', () => {
-    const frame: LabFrame = { nowMs: 1000, tokens: [], spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples }
+    const frame: LabFrame = { nowMs: 1000, particles: [], spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples }
     const next = stepSimulation({ frame, dtMs: 500, controls: defaultControls })
     expect(next.nowMs).toBe(1500)
   })
@@ -238,18 +238,18 @@ describe('stepSimulation', () => {
   it('removes branch tokens that exit the path (s >= 0.98)', () => {
     // A token already on branch A near the end
     const tokens = [{ id: 't_exit', s: 0.99, v: 0.1, p: 0.5, hJPerKg: 0, route: 'A' as const }]
-    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples }
+    const frame: LabFrame = { nowMs: 0, particles: tokens, spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples }
     const next = stepSimulation({ frame, dtMs: 1000, controls: defaultControls })
-    const exited = next.tokens.find(t => t.id === 't_exit')
+    const exited = next.particles.find(t => t.id === 't_exit')
     expect(exited).toBeUndefined()
   })
 
   it('injects heat into tokens passing through the HEX zone', () => {
     // Place a MAIN token in the middle of the HEX zone with tiny velocity so it stays there
     const tokens = [{ id: 't_hex', s: 0.5, v: 0.001, p: 0.5, hJPerKg: 0, route: 'MAIN' as const }]
-    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples }
+    const frame: LabFrame = { nowMs: 0, particles: tokens, spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples }
     const next = stepSimulation({ frame, dtMs: 100, controls: defaultControls })
-    const hexToken = next.tokens.find(t => t.id === 't_hex')
+    const hexToken = next.particles.find(t => t.id === 't_hex')
     expect(hexToken).toBeDefined()
     expect(hexToken!.hJPerKg).toBeGreaterThan(0)
   })
@@ -257,9 +257,9 @@ describe('stepSimulation', () => {
   it('does not inject heat into tokens before the HEX zone', () => {
     // Place a MAIN token well before the HEX zone (s=0.1) with tiny velocity so it stays clear
     const tokens = [{ id: 't_cold', s: 0.1, v: 0.001, p: 0.5, hJPerKg: 0, route: 'MAIN' as const }]
-    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples }
+    const frame: LabFrame = { nowMs: 0, particles: tokens, spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples }
     const next = stepSimulation({ frame, dtMs: 100, controls: defaultControls })
-    const coldToken = next.tokens.find(t => t.id === 't_cold')
+    const coldToken = next.particles.find(t => t.id === 't_cold')
     expect(coldToken).toBeDefined()
     expect(coldToken!.hJPerKg).toBe(0)
   })
@@ -280,19 +280,19 @@ describe('stepSimulation', () => {
     }
     // Token inside the HEX zone, already at the setpoint
     const tokens = [{ id: 't_0', s: 0.5, v: 0.001, p: 0.5, hJPerKg: maxH, route: 'MAIN' as const }]
-    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 1, outletSamples: emptyOutletSamples }
+    const frame: LabFrame = { nowMs: 0, particles: tokens, spawnAccumulator: 0, nextTokenId: 1, outletSamples: emptyOutletSamples }
 
     // Run many steps — token must never rise above maxH
     let current = frame
     for (let i = 0; i < 20; i++) {
       current = stepSimulation({ frame: current, dtMs: 100, controls })
     }
-    const found = current.tokens.find(tk => tk.id === 't_0')
+    const found = current.particles.find(tk => tk.id === 't_0')
     if (found) {
       expect(found.hJPerKg).toBeLessThanOrEqual(maxH + 1) // allow ≤1 J/kg float rounding
     }
     // At minimum, no token in the frame should be superheated
-    for (const tk of current.tokens) {
+    for (const tk of current.particles) {
       expect(tk.hJPerKg).toBeLessThanOrEqual(maxH + 1)
     }
   })
@@ -323,13 +323,13 @@ describe('stepSimulation', () => {
       { id: 't_0',  s: 0.81, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
       { id: 't_9',  s: 0.81, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
     ]
-    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 16, outletSamples: emptyOutletSamples }
+    const frame: LabFrame = { nowMs: 0, particles: tokens, spawnAccumulator: 0, nextTokenId: 16, outletSamples: emptyOutletSamples }
     const next = stepSimulation({ frame, dtMs: 100, controls })
 
     // Each token should have been routed to its expected outlet
-    const t15 = next.tokens.find(t => t.id === 't_15')
-    const t0  = next.tokens.find(t => t.id === 't_0')
-    const t9  = next.tokens.find(t => t.id === 't_9')
+    const t15 = next.particles.find(t => t.id === 't_15')
+    const t0  = next.particles.find(t => t.id === 't_0')
+    const t9  = next.particles.find(t => t.id === 't_9')
 
     expect(t15).toBeDefined()
     expect(t0).toBeDefined()
@@ -354,10 +354,10 @@ describe('stepSimulation', () => {
       { id: 't_0',  s: 0.81, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
       { id: 't_50', s: 0.81, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
     ]
-    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 51, outletSamples: emptyOutletSamples }
+    const frame: LabFrame = { nowMs: 0, particles: tokens, spawnAccumulator: 0, nextTokenId: 51, outletSamples: emptyOutletSamples }
     const next = stepSimulation({ frame, dtMs: 100, controls })
 
-    for (const t of next.tokens) {
+    for (const t of next.particles) {
       if (t.route !== 'MAIN') {
         expect(t.route).toBe('B')
       }
@@ -380,13 +380,13 @@ describe('stepSimulation', () => {
     }
     // Token at start of HEX zone, cold
     const tokens = [{ id: 't_0', s: 0.38, v: 0.001, p: 0.5, hJPerKg: 0, route: 'MAIN' as const }]
-    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 1, outletSamples: emptyOutletSamples }
+    const frame: LabFrame = { nowMs: 0, particles: tokens, spawnAccumulator: 0, nextTokenId: 1, outletSamples: emptyOutletSamples }
 
     let current = frame
     for (let i = 0; i < 50; i++) {
       current = stepSimulation({ frame: current, dtMs: 1000, controls })
     }
-    for (const tk of current.tokens) {
+    for (const tk of current.particles) {
       expect(tk.hJPerKg).toBeLessThanOrEqual(maxH + 1)
     }
   })
@@ -404,10 +404,10 @@ describe('stepSimulation', () => {
     }
     // With v=0.01 and dt=0.1s: sNext = 0.994 + 0.001 = 0.995 → failsafe fires.
     const tokens = [{ id: 't_0', s: 0.994, v: 0.01, p: 0.5, hJPerKg: 0, route: 'MAIN' as const }]
-    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 1, outletSamples: emptyOutletSamples }
+    const frame: LabFrame = { nowMs: 0, particles: tokens, spawnAccumulator: 0, nextTokenId: 1, outletSamples: emptyOutletSamples }
     const next = stepSimulation({ frame, dtMs: 100, controls })
 
-    const t = next.tokens.find(tk => tk.id === 't_0')
+    const t = next.particles.find(tk => tk.id === 't_0')
     expect(t).toBeDefined()
     expect(t!.route).not.toBe('MAIN')
   })
@@ -426,13 +426,13 @@ describe('stepSimulation', () => {
     }
     // Token inside the HEX zone
     const tokens = [{ id: 't_0', s: 0.5, v: 0.001, p: 0.5, hJPerKg: 0, route: 'MAIN' as const }]
-    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 0, nextTokenId: 1, outletSamples: emptyOutletSamples }
+    const frame: LabFrame = { nowMs: 0, particles: tokens, spawnAccumulator: 0, nextTokenId: 1, outletSamples: emptyOutletSamples }
 
     let current = frame
     for (let i = 0; i < 30; i++) {
       current = stepSimulation({ frame: current, dtMs: 1000, controls })
     }
-    for (const tk of current.tokens) {
+    for (const tk of current.particles) {
       expect(tk.hJPerKg).toBeLessThanOrEqual(maxHAtCap + 1)
     }
   })
@@ -452,10 +452,10 @@ describe('stepSimulation', () => {
       { id: 't_0', s: 0.1, v: 0.1, p: 0.5, hJPerKg: 0, route: 'MAIN' as const },
       { id: 't_1', s: 0.5, v: 0.1, p: 0.5, hJPerKg: 0, route: 'A'    as const },
     ]
-    const frame: LabFrame = { nowMs: 0, tokens, spawnAccumulator: 1, nextTokenId: 2, outletSamples: emptyOutletSamples }
+    const frame: LabFrame = { nowMs: 0, particles: tokens, spawnAccumulator: 1, nextTokenId: 2, outletSamples: emptyOutletSamples }
     const next = stepSimulation({ frame, dtMs: 100, controls })
     // All tokens must be cleared when there is no draw
-    expect(next.tokens).toHaveLength(0)
+    expect(next.particles).toHaveLength(0)
   })
 
   it('no draw: velocity is zero so no new tokens are spawned', () => {
@@ -468,9 +468,9 @@ describe('stepSimulation', () => {
         { id: 'C', enabled: false, kind: 'bath',         demandLpm: 18 },
       ],
     }
-    const frame: LabFrame = { nowMs: 0, tokens: [], spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples }
+    const frame: LabFrame = { nowMs: 0, particles: [], spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples }
     const next = stepSimulation({ frame, dtMs: 1000, controls })
-    expect(next.tokens).toHaveLength(0)
+    expect(next.particles).toHaveLength(0)
   })
 })
 

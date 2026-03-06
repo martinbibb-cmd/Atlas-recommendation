@@ -24,7 +24,7 @@ function makeControls(outlets: OutletControl[]): LabControls {
 function makeFrame(): LabFrame {
   return {
     nowMs: 0,
-    tokens: [],
+    particles: [],
     spawnAccumulator: 0,
     nextTokenId: 0,
     outletSamples: {
@@ -48,7 +48,7 @@ function collectRoutedOutlets(
   const seen = new Set<string>()
   for (let i = 0; i < tickCount; i++) {
     frame = stepSimulation({ frame, dtMs, controls })
-    for (const t of frame.tokens) {
+    for (const t of frame.particles) {
       if (t.route !== 'MAIN') seen.add(t.route)
     }
   }
@@ -123,8 +123,8 @@ describe('outlet routing — hash-based distribution', () => {
     for (let i = 0; i < 50; i++) frame2 = stepSimulation({ frame: frame2, dtMs, controls })
 
     // Token routes must be identical
-    const routes1 = frame1.tokens.map(t => `${t.id}:${t.route}`)
-    const routes2 = frame2.tokens.map(t => `${t.id}:${t.route}`)
+    const routes1 = frame1.particles.map(t => `${t.id}:${t.route}`)
+    const routes2 = frame2.particles.map(t => `${t.id}:${t.route}`)
     expect(routes1).toEqual(routes2)
   })
 
@@ -146,7 +146,7 @@ describe('outlet routing — hash-based distribution', () => {
     const firstBranchRoute: string[] = []
     for (let i = 0; i < 80; i++) {
       frame = stepSimulation({ frame, dtMs, controls })
-      for (const t of frame.tokens) {
+      for (const t of frame.particles) {
         if (t.route !== 'MAIN' && !seenIds.has(t.id)) {
           seenIds.add(t.id)
           firstBranchRoute.push(t.route)
