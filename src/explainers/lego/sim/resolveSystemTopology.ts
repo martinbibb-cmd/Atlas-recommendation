@@ -52,12 +52,6 @@ export type ResolvedSystemTopology = {
 
 // ─── Node-kind sets ───────────────────────────────────────────────────────────
 
-const CYLINDER_KINDS = new Set<PartKind>([
-  'dhw_vented_cylinder',
-  'dhw_unvented_cylinder',
-  'dhw_mixergy',
-])
-
 const HEAT_SOURCE_KINDS = new Set<PartKind>([
   'heat_source_combi',
   'heat_source_system_boiler',
