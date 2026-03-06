@@ -42,8 +42,8 @@ const ventedCylinder: LegoScenario = {
     ],
     edges: [
       { fromBlockId: 'tank1', fromPortId: 'out', toBlockId: 'pipe1', toPortId: 'in' },
-      { fromBlockId: 'pipe1', fromPortId: 'out', toBlockId: 'cyl1',  toPortId: 'in' },
-      { fromBlockId: 'cyl1',  fromPortId: 'out', toBlockId: 'draw1', toPortId: 'in' },
+      { fromBlockId: 'pipe1', fromPortId: 'out', toBlockId: 'cyl1',  toPortId: 'cold_in' },
+      { fromBlockId: 'cyl1',  fromPortId: 'hot_out', toBlockId: 'draw1', toPortId: 'in' },
     ],
   },
 };
@@ -81,8 +81,8 @@ const unventedCylinder: LegoScenario = {
     ],
     edges: [
       { fromBlockId: 'mains1', fromPortId: 'out',  toBlockId: 'inlet1', toPortId: 'in' },
-      { fromBlockId: 'inlet1', fromPortId: 'out',  toBlockId: 'cyl2',   toPortId: 'in' },
-      { fromBlockId: 'cyl2',   fromPortId: 'out',  toBlockId: 'draw2',  toPortId: 'in' },
+      { fromBlockId: 'inlet1', fromPortId: 'out',  toBlockId: 'cyl2',   toPortId: 'cold_in' },
+      { fromBlockId: 'cyl2',   fromPortId: 'hot_out',  toBlockId: 'draw2',  toPortId: 'in' },
     ],
   },
 };
@@ -198,6 +198,96 @@ const twoOutlets: LegoScenario = {
   },
 };
 
+// ─── 6. System boiler + vented cylinder — full heating + DHW ──────────────────
+
+const systemBoilerVentedCylinder: LegoScenario = {
+  meta: {
+    name: 'System boiler + vented cylinder — heating and DHW',
+    description: 'Open-vented system boiler heating radiators via CH circuit and indirectly heating a vented cylinder via primary coil. Domestic hot water comes from stored cylinder volume, not directly from the boiler.',
+    tags: ['system_boiler', 'vented', 'cylinder', 'coil', 'ch', 'heating'],
+  },
+  graph: {
+    blocks: [
+      {
+        id: 'boiler1',
+        type: 'boiler_primary',
+        params: { outputKw: 24 },
+      },
+      {
+        id: 'cyl3',
+        type: 'cylinder_vented',
+        params: { volumeL: 150, coilKw: 12 },
+      },
+      {
+        id: 'tank2',
+        type: 'tank_head',
+        params: { headMeters: 3 },
+      },
+      {
+        id: 'draw7',
+        type: 'draw_event',
+        params: { flowLpm: 10, durationMin: 8, label: 'Shower' },
+      },
+    ],
+    edges: [
+      // Primary coil circuit: boiler → cylinder coil → boiler
+      { fromBlockId: 'boiler1', fromPortId: 'out',           toBlockId: 'cyl3',   toPortId: 'coil_flow_in' },
+      { fromBlockId: 'cyl3',   fromPortId: 'coil_return_out', toBlockId: 'boiler1', toPortId: 'in' },
+      // Domestic water circuit: tank cold feed → cylinder → hot draw-off
+      { fromBlockId: 'tank2',  fromPortId: 'out',            toBlockId: 'cyl3',   toPortId: 'cold_in' },
+      { fromBlockId: 'cyl3',   fromPortId: 'hot_out',        toBlockId: 'draw7',  toPortId: 'in' },
+    ],
+  },
+};
+
+// ─── 7. Unvented cylinder with boiler coil — full primary + DHW ───────────────
+
+const systemBoilerUnventedCylinder: LegoScenario = {
+  meta: {
+    name: 'System boiler + unvented cylinder — heating and DHW',
+    description: 'Mains-pressure sealed system. Boiler heats an unvented cylinder via primary coil. Domestic hot water is stored and drawn from the cylinder, completely separate from the primary circuit.',
+    tags: ['system_boiler', 'unvented', 'cylinder', 'coil', 'heating'],
+  },
+  graph: {
+    blocks: [
+      {
+        id: 'boiler2',
+        type: 'boiler_primary',
+        params: { outputKw: 24 },
+      },
+      {
+        id: 'mains5',
+        type: 'mains_supply',
+        params: { staticPressureBar: 3.5, dynamicFlowLpm: 18, confidence: 'med' },
+      },
+      {
+        id: 'inlet2',
+        type: 'unvented_inlet_group',
+        params: { setPressureBar: 3, maxFlowLpm: 18 },
+      },
+      {
+        id: 'cyl4',
+        type: 'cylinder_unvented',
+        params: { volumeL: 180, coilKw: 14 },
+      },
+      {
+        id: 'draw8',
+        type: 'draw_event',
+        params: { flowLpm: 12, durationMin: 8, label: 'Shower' },
+      },
+    ],
+    edges: [
+      // Primary coil circuit: boiler → cylinder coil → boiler
+      { fromBlockId: 'boiler2', fromPortId: 'out',           toBlockId: 'cyl4',    toPortId: 'coil_flow_in' },
+      { fromBlockId: 'cyl4',   fromPortId: 'coil_return_out', toBlockId: 'boiler2', toPortId: 'in' },
+      // Domestic water circuit: mains → inlet group → cylinder → hot draw-off
+      { fromBlockId: 'mains5', fromPortId: 'out',  toBlockId: 'inlet2', toPortId: 'in' },
+      { fromBlockId: 'inlet2', fromPortId: 'out',  toBlockId: 'cyl4',   toPortId: 'cold_in' },
+      { fromBlockId: 'cyl4',   fromPortId: 'hot_out', toBlockId: 'draw8',  toPortId: 'in' },
+    ],
+  },
+};
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 export const DHW_PRESETS: LegoScenario[] = [
@@ -206,4 +296,6 @@ export const DHW_PRESETS: LegoScenario[] = [
   combiTypical,
   combiWinter,
   twoOutlets,
+  systemBoilerVentedCylinder,
+  systemBoilerUnventedCylinder,
 ];

@@ -30,8 +30,8 @@ describe('validateGraph — cylinder_unvented rule', () => {
         { id: 'draw',  type: 'draw_event',          params: { flowLpm: 10 } },
       ],
       edges: [
-        { fromBlockId: 'mains', fromPortId: 'out', toBlockId: 'cyl',  toPortId: 'in' },
-        { fromBlockId: 'cyl',   fromPortId: 'out', toBlockId: 'draw', toPortId: 'in' },
+        { fromBlockId: 'mains', fromPortId: 'out',     toBlockId: 'cyl',  toPortId: 'cold_in' },
+        { fromBlockId: 'cyl',   fromPortId: 'hot_out', toBlockId: 'draw', toPortId: 'in' },
       ],
     };
     const issues = validateGraph(graph);
@@ -39,7 +39,7 @@ describe('validateGraph — cylinder_unvented rule', () => {
     expect(errors.some(e => e.message.toLowerCase().includes('inlet control group'))).toBe(true);
   });
 
-  it('passes when cylinder_unvented has unvented_inlet_group upstream', () => {
+  it('passes when cylinder_unvented has unvented_inlet_group upstream on cold_in', () => {
     const graph: LegoGraph = {
       blocks: [
         { id: 'mains',  type: 'mains_supply',         params: {} },
@@ -48,9 +48,9 @@ describe('validateGraph — cylinder_unvented rule', () => {
         { id: 'draw',   type: 'draw_event',             params: { flowLpm: 10 } },
       ],
       edges: [
-        { fromBlockId: 'mains',  fromPortId: 'out', toBlockId: 'inlet', toPortId: 'in' },
-        { fromBlockId: 'inlet',  fromPortId: 'out', toBlockId: 'cyl',   toPortId: 'in' },
-        { fromBlockId: 'cyl',    fromPortId: 'out', toBlockId: 'draw',  toPortId: 'in' },
+        { fromBlockId: 'mains',  fromPortId: 'out',     toBlockId: 'inlet', toPortId: 'in' },
+        { fromBlockId: 'inlet',  fromPortId: 'out',     toBlockId: 'cyl',   toPortId: 'cold_in' },
+        { fromBlockId: 'cyl',    fromPortId: 'hot_out', toBlockId: 'draw',  toPortId: 'in' },
       ],
     };
     const issues = validateGraph(graph);
@@ -111,6 +111,125 @@ describe('validateGraph — port compatibility', () => {
     const issues = validateGraph(graph);
     const errors = issues.filter(i => i.severity === 'error');
     expect(errors).toHaveLength(0);
+  });
+});
+
+// ─── Circuit kind compatibility (cross-circuit connections) ───────────────────
+
+describe('validateGraph — circuit kind compatibility', () => {
+  it('errors when primary heating flow is wired to cylinder domestic cold inlet (circuit mismatch)', () => {
+    const graph: LegoGraph = {
+      blocks: [
+        { id: 'boiler', type: 'boiler_primary',    params: { outputKw: 24 } },
+        { id: 'cyl',    type: 'cylinder_unvented',  params: { volumeL: 150 } },
+        { id: 'mains',  type: 'mains_supply',       params: {} },
+        { id: 'inlet',  type: 'unvented_inlet_group', params: {} },
+        { id: 'draw',   type: 'draw_event',          params: { flowLpm: 10 } },
+      ],
+      edges: [
+        { fromBlockId: 'mains',  fromPortId: 'out',     toBlockId: 'inlet',  toPortId: 'in' },
+        { fromBlockId: 'inlet',  fromPortId: 'out',     toBlockId: 'cyl',    toPortId: 'cold_in' },
+        // Wrong: primary heating flow going into domestic cold_in instead of coil_flow_in
+        { fromBlockId: 'boiler', fromPortId: 'out',     toBlockId: 'cyl',    toPortId: 'cold_in' },
+        { fromBlockId: 'cyl',    fromPortId: 'hot_out', toBlockId: 'draw',   toPortId: 'in' },
+      ],
+    };
+    const issues = validateGraph(graph);
+    const errors = issues.filter(i => i.severity === 'error');
+    // Should get at least one circuit mismatch or heating-into-cold-inlet error
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('errors when heating_flow is routed to dhw_hot inlet', () => {
+    const graph: LegoGraph = {
+      blocks: [
+        { id: 'hp',  type: 'heat_pump_primary',   params: { maxFlowTempC: 55 } },
+        { id: 'mains', type: 'mains_supply',       params: {} },
+        { id: 'inlet', type: 'unvented_inlet_group', params: {} },
+        { id: 'cyl',   type: 'cylinder_unvented',  params: { volumeL: 150 } },
+        { id: 'draw',  type: 'draw_event',          params: { flowLpm: 10 } },
+      ],
+      edges: [
+        { fromBlockId: 'mains',  fromPortId: 'out',     toBlockId: 'inlet', toPortId: 'in' },
+        { fromBlockId: 'inlet',  fromPortId: 'out',     toBlockId: 'cyl',   toPortId: 'cold_in' },
+        // Wrong: heat pump heating_flow connected to domestic cold inlet instead of coil
+        { fromBlockId: 'hp',     fromPortId: 'out',     toBlockId: 'cyl',   toPortId: 'cold_in' },
+        { fromBlockId: 'cyl',    fromPortId: 'hot_out', toBlockId: 'draw',  toPortId: 'in' },
+      ],
+    };
+    const issues = validateGraph(graph);
+    const errors = issues.filter(i => i.severity === 'error');
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('passes when boiler primary_flow connects to cylinder coil_flow_in', () => {
+    const graph: LegoGraph = {
+      blocks: [
+        { id: 'boiler', type: 'boiler_primary',       params: { outputKw: 24 } },
+        { id: 'mains',  type: 'mains_supply',         params: {} },
+        { id: 'inlet',  type: 'unvented_inlet_group',  params: {} },
+        { id: 'cyl',    type: 'cylinder_unvented',     params: { volumeL: 150, coilKw: 12 } },
+        { id: 'draw',   type: 'draw_event',             params: { flowLpm: 10 } },
+      ],
+      edges: [
+        // Primary coil circuit (correct)
+        { fromBlockId: 'boiler', fromPortId: 'out',            toBlockId: 'cyl',    toPortId: 'coil_flow_in' },
+        { fromBlockId: 'cyl',    fromPortId: 'coil_return_out', toBlockId: 'boiler', toPortId: 'in' },
+        // Domestic water circuit (correct)
+        { fromBlockId: 'mains',  fromPortId: 'out',            toBlockId: 'inlet',  toPortId: 'in' },
+        { fromBlockId: 'inlet',  fromPortId: 'out',            toBlockId: 'cyl',    toPortId: 'cold_in' },
+        { fromBlockId: 'cyl',    fromPortId: 'hot_out',        toBlockId: 'draw',   toPortId: 'in' },
+      ],
+    };
+    const issues = validateGraph(graph);
+    const errors = issues.filter(i => i.severity === 'error');
+    expect(errors).toHaveLength(0);
+  });
+});
+
+// ─── Cylinder coil connection warnings ───────────────────────────────────────
+
+describe('validateGraph — cylinder coil warnings', () => {
+  it('warns when a heat source is present but cylinder coil_flow_in is not connected', () => {
+    const graph: LegoGraph = {
+      blocks: [
+        { id: 'boiler', type: 'boiler_primary',       params: { outputKw: 24 } },
+        { id: 'mains',  type: 'mains_supply',         params: {} },
+        { id: 'inlet',  type: 'unvented_inlet_group',  params: {} },
+        { id: 'cyl',    type: 'cylinder_unvented',     params: { volumeL: 150 } },
+        { id: 'draw',   type: 'draw_event',             params: { flowLpm: 10 } },
+      ],
+      edges: [
+        // Domestic side only — coil not connected
+        { fromBlockId: 'mains',  fromPortId: 'out',     toBlockId: 'inlet', toPortId: 'in' },
+        { fromBlockId: 'inlet',  fromPortId: 'out',     toBlockId: 'cyl',   toPortId: 'cold_in' },
+        { fromBlockId: 'cyl',    fromPortId: 'hot_out', toBlockId: 'draw',  toPortId: 'in' },
+      ],
+    };
+    const issues = validateGraph(graph);
+    const warnings = issues.filter(i => i.severity === 'warn');
+    expect(warnings.some(w => w.message.toLowerCase().includes('coil not connected'))).toBe(true);
+  });
+
+  it('does not warn about unconnected coil when no heat source is present (partial graph)', () => {
+    const graph: LegoGraph = {
+      blocks: [
+        { id: 'mains',  type: 'mains_supply',         params: {} },
+        { id: 'inlet',  type: 'unvented_inlet_group',  params: {} },
+        { id: 'cyl',    type: 'cylinder_unvented',     params: { volumeL: 150 } },
+        { id: 'draw',   type: 'draw_event',             params: { flowLpm: 10 } },
+      ],
+      edges: [
+        { fromBlockId: 'mains',  fromPortId: 'out',     toBlockId: 'inlet', toPortId: 'in' },
+        { fromBlockId: 'inlet',  fromPortId: 'out',     toBlockId: 'cyl',   toPortId: 'cold_in' },
+        { fromBlockId: 'cyl',    fromPortId: 'hot_out', toBlockId: 'draw',  toPortId: 'in' },
+      ],
+    };
+    const issues = validateGraph(graph);
+    const coilWarnings = issues.filter(
+      i => i.severity === 'warn' && i.message.toLowerCase().includes('coil not connected'),
+    );
+    expect(coilWarnings).toHaveLength(0);
   });
 });
 

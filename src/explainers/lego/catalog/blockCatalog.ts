@@ -147,8 +147,8 @@ export const BLOCK_CATALOG: Record<BlockType, CatalogEntry> = {
     category: 'heat_source',
     defaultParams: { outputKw: 24 },
     ports: [
-      { id: 'in',  type: 'heating_return', direction: 'in' },
-      { id: 'out', type: 'heating_flow',   direction: 'out' },
+      { id: 'in',  type: 'heating_return', direction: 'in',  circuit: 'heating_return' },
+      { id: 'out', type: 'heating_flow',   direction: 'out', circuit: 'heating_flow' },
     ],
     paramSchema: {
       outputKw:    { type: 'number', min: 6, max: 50 },
@@ -161,8 +161,8 @@ export const BLOCK_CATALOG: Record<BlockType, CatalogEntry> = {
     category: 'heat_source',
     defaultParams: { maxFlowTempC: 55, copAt35: 3.5 },
     ports: [
-      { id: 'in',  type: 'heating_return', direction: 'in' },
-      { id: 'out', type: 'heating_flow',   direction: 'out' },
+      { id: 'in',  type: 'heating_return', direction: 'in',  circuit: 'heating_return' },
+      { id: 'out', type: 'heating_flow',   direction: 'out', circuit: 'heating_flow' },
     ],
     paramSchema: {
       maxFlowTempC: { type: 'number', min: 35, max: 65 },
@@ -191,10 +191,13 @@ export const BLOCK_CATALOG: Record<BlockType, CatalogEntry> = {
     category: 'storage',
     defaultParams: { volumeL: 150 },
     ports: [
-      { id: 'in',       type: 'cold_water', direction: 'in' },
-      { id: 'out',      type: 'hot_water',  direction: 'out' },
-      { id: 'coil_in',  type: 'heat',       direction: 'in' },
-      { id: 'coil_out', type: 'heat',       direction: 'out' },
+      // Domestic water side
+      { id: 'cold_in',        type: 'cold_water',    direction: 'in',  circuit: 'dhw_cold' },
+      { id: 'hot_out',        type: 'hot_water',     direction: 'out', circuit: 'dhw_hot' },
+      { id: 'vent',           type: 'water',         direction: 'out', circuit: 'vent' },
+      // Primary heating coil side (boiler heats cylinder through coil — not direct hot-water supply)
+      { id: 'coil_flow_in',   type: 'heating_flow',  direction: 'in',  circuit: 'primary_flow' },
+      { id: 'coil_return_out',type: 'heating_return', direction: 'out', circuit: 'primary_return' },
     ],
     paramSchema: {
       volumeL: { type: 'number', min: 50, max: 400 },
@@ -207,11 +210,34 @@ export const BLOCK_CATALOG: Record<BlockType, CatalogEntry> = {
     category: 'storage',
     defaultParams: { volumeL: 150 },
     ports: [
-      { id: 'in',  type: 'cold_water', direction: 'in' },
-      { id: 'out', type: 'hot_water',  direction: 'out' },
+      // Domestic water side
+      { id: 'cold_in',        type: 'cold_water',    direction: 'in',  circuit: 'dhw_cold' },
+      { id: 'hot_out',        type: 'hot_water',     direction: 'out', circuit: 'dhw_hot' },
+      // Primary heating coil side (boiler heats cylinder through coil — not direct hot-water supply)
+      { id: 'coil_flow_in',   type: 'heating_flow',  direction: 'in',  circuit: 'primary_flow' },
+      { id: 'coil_return_out',type: 'heating_return', direction: 'out', circuit: 'primary_return' },
     ],
     paramSchema: {
       volumeL: { type: 'number', min: 50, max: 400 },
+      coilKw:  { type: 'number', min: 0, max: 30 },
+    },
+  },
+
+  cylinder_mixergy: {
+    label: 'Mixergy cylinder (stratified)',
+    category: 'storage',
+    defaultParams: { volumeL: 180 },
+    ports: [
+      // Domestic water side
+      { id: 'cold_in',        type: 'cold_water',    direction: 'in',  circuit: 'dhw_cold' },
+      { id: 'hot_out',        type: 'hot_water',     direction: 'out', circuit: 'dhw_hot' },
+      // Primary heating coil side (indirect heating via coil)
+      { id: 'coil_flow_in',   type: 'heating_flow',  direction: 'in',  circuit: 'primary_flow' },
+      { id: 'coil_return_out',type: 'heating_return', direction: 'out', circuit: 'primary_return' },
+    ],
+    paramSchema: {
+      volumeL: { type: 'number', min: 100, max: 400 },
+      coilKw:  { type: 'number', min: 0, max: 30 },
     },
   },
 

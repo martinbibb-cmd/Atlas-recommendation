@@ -77,6 +77,12 @@ const K_SPAWN = 2.0
 const MAX_TOKENS = 4000
 
 /**
+ * Default heating demand power (kW) used when HeatingDemandState.enabled is true but
+ * no explicit heatDemandKw is supplied.  Represents a modest whole-house heating load.
+ */
+const DEFAULT_HEATING_DEMAND_KW = 10
+
+/**
  * Convert flow to a token spawn rate using sqrt compression.
  * spawnPerSec ≈ K_SPAWN × √flowLpm
  * - 6 L/min  → ~4.9 tokens/s  (a few dots on screen)
@@ -231,6 +237,13 @@ export function stepSimulation(params: {
   // No draw → velocity must be zero so tokens stop immediately.
   const hasDraw = hydraulicFlowLpm > 0.01
 
+  // ── Resolve heating demand ────────────────────────────────────────────────
+  // Structured HeatingDemandState takes precedence over legacy scalar heatDemandKw.
+  const heatingDemandKw = controls.heatingDemand?.enabled
+    ? (controls.heatingDemand.demandLevel ?? 1) * (controls.heatDemandKw ?? DEFAULT_HEATING_DEMAND_KW)
+    : (controls.heatDemandKw ?? 0)
+  const heatingEnabled = controls.heatingDemand?.enabled ?? (heatingDemandKw > 0.1)
+
   // ── Per-outlet actual LPM ─────────────────────────────────────────────────
   // Scale each outlet's demand proportionally by the hydraulic throttle factor.
   // Tokens branching to an outlet use this value for their individual velocity,
@@ -318,7 +331,6 @@ export function stepSimulation(params: {
   let store = hasStored ? ensureCylinderStore(frame, controls) : undefined
   const reheatTargetC = controls.dhwReheatTargetC ?? 55
   const reheatHysteresisC = controls.dhwReheatHysteresisC ?? 6
-  const heatingDemandKw = controls.heatDemandKw ?? 0
   const hotDrawActive = hexFlowLpm > 0.01
 
   let storeNeedsReheat = frame.storeNeedsReheat ?? false
@@ -328,12 +340,22 @@ export function stepSimulation(params: {
     if (storeNeedsReheat && storeTopC >= reheatTargetC) storeNeedsReheat = false
   }
 
+  // ── System mode resolution ────────────────────────────────────────────────
+  // For a combi:
+  //   - DHW draw takes priority (CH is interrupted/paused during active hot-water draw)
+  //   - Heating runs only when there is no DHW demand
+  // For system/regular boiler + cylinder:
+  //   - CH and cylinder reheat can both be needed; mode priorities follow:
+  //     1. heating (emitter circuit active)
+  //     2. dhw_reheat (cylinder needs topping up)
+  //     3. idle
   let mode: SystemMode = 'idle'
   if (isCombi) {
+    // DHW priority: on a combi, hot-water draw interrupts CH
     if (hotDrawActive) mode = 'dhw_draw'
-    else if (heatingDemandKw > 0.1) mode = 'heating'
+    else if (heatingEnabled) mode = 'heating'
   } else {
-    if (heatingDemandKw > 0.1) mode = 'heating'
+    if (heatingEnabled) mode = 'heating'
     else if (hasStored && storeNeedsReheat) mode = 'dhw_reheat'
   }
 
