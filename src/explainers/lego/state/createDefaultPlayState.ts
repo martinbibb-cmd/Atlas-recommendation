@@ -15,8 +15,11 @@ import {
   type OutletDemandState,
   type PlayOutletKind,
   type OutletDemandPreset,
+  type SupplyConditions,
+  CWS_HEAD_METERS,
   PRESET_FLOWS,
 } from './playState'
+import { resolveSystemTopology } from '../sim/resolveSystemTopology'
 
 // ─── Node-kind → outlet kind ──────────────────────────────────────────────────
 
@@ -90,6 +93,9 @@ const DEFAULT_CH_FLOW_TEMP_C = 70
  * - Unbound slots fall back to a sensible default per slot position.
  * - Only slot A starts enabled so the simulation does not begin with
  *   simultaneous demand across every outlet.
+ * - Supply conditions are initialised to topology-appropriate defaults:
+ *   vented cylinders start with a 'typical' CWS head preset;
+ *   mains-fed systems start with a typical mains flow rate.
  */
 export function createDefaultPlayState(graph: BuildGraph): PlayState {
   const bindings = graph.outletBindings ?? {}
@@ -117,6 +123,20 @@ export function createDefaultPlayState(graph: BuildGraph): PlayState {
     }
   })
 
+  // Derive topology to set appropriate supply condition defaults.
+  const topology = resolveSystemTopology(graph)
+  const isVented = topology.dhwServiceType === 'vented_cylinder'
+
+  const supplyConditions: SupplyConditions = isVented
+    ? {
+        inletTempC: DEFAULT_COLD_INLET_C,
+        cwsHeadPreset: 'typical',
+      }
+    : {
+        inletTempC: DEFAULT_COLD_INLET_C,
+        mainsDynamicFlowLpm: 14,
+      }
+
   return {
     demands,
     heating: {
@@ -127,5 +147,6 @@ export function createDefaultPlayState(graph: BuildGraph): PlayState {
     inletTempC: DEFAULT_COLD_INLET_C,
     hotSupplyTargetC: DEFAULT_HOT_SUPPLY_TARGET_C,
     selectedPresetId: null,
+    supplyConditions,
   }
 }
