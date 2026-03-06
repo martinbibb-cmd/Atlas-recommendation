@@ -1,0 +1,146 @@
+/**
+ * Tests for graphToLabControls — the Build→Play conversion utility.
+ */
+
+import { describe, it, expect } from 'vitest'
+import { graphToLabControls } from '../builder/graphToControls'
+import type { BuildGraph } from '../builder/types'
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function emptyGraph(): BuildGraph {
+  return { nodes: [], edges: [] }
+}
+
+function combiGraph(): BuildGraph {
+  return {
+    nodes: [
+      { id: 'hs', kind: 'heat_source_combi', x: 100, y: 100, r: 0 },
+      { id: 'sh', kind: 'shower_outlet', x: 300, y: 100, r: 0 },
+    ],
+    edges: [
+      { id: 'e1', from: { nodeId: 'hs', portId: 'hot_out' }, to: { nodeId: 'sh', portId: 'hot_in' } },
+    ],
+    outletBindings: { A: 'sh' },
+  }
+}
+
+function unventedCylinderGraph(): BuildGraph {
+  return {
+    nodes: [
+      { id: 'hs', kind: 'heat_source_system_boiler', x: 100, y: 100, r: 0 },
+      { id: 'cyl', kind: 'dhw_unvented_cylinder', x: 300, y: 100, r: 0 },
+      { id: 'sh', kind: 'shower_outlet', x: 500, y: 100, r: 0 },
+    ],
+    edges: [
+      { id: 'e1', from: { nodeId: 'cyl', portId: 'hot_out' }, to: { nodeId: 'sh', portId: 'hot_in' } },
+    ],
+    outletBindings: { A: 'sh' },
+  }
+}
+
+function ventedCylinderGraph(): BuildGraph {
+  return {
+    nodes: [
+      { id: 'hs', kind: 'heat_source_regular_boiler', x: 100, y: 100, r: 0 },
+      { id: 'cyl', kind: 'dhw_vented_cylinder', x: 300, y: 100, r: 0 },
+      { id: 'sh', kind: 'shower_outlet', x: 500, y: 100, r: 0 },
+    ],
+    edges: [],
+  }
+}
+
+// ── System type inference ──────────────────────────────────────────────────────
+
+describe('graphToLabControls — systemType inference', () => {
+  it('infers combi for a graph with a combi heat source', () => {
+    const controls = graphToLabControls(combiGraph())
+    expect(controls.systemType).toBe('combi')
+  })
+
+  it('infers unvented_cylinder for a graph with an unvented cylinder', () => {
+    const controls = graphToLabControls(unventedCylinderGraph())
+    expect(controls.systemType).toBe('unvented_cylinder')
+  })
+
+  it('infers vented_cylinder for a graph with a vented cylinder', () => {
+    const controls = graphToLabControls(ventedCylinderGraph())
+    expect(controls.systemType).toBe('vented_cylinder')
+  })
+
+  it('falls back to combi for an empty graph', () => {
+    const controls = graphToLabControls(emptyGraph())
+    expect(controls.systemType).toBe('combi')
+  })
+
+  it('patch systemType overrides topology inference', () => {
+    // Graph has no combi boiler but patch says combi
+    const controls = graphToLabControls(unventedCylinderGraph(), { systemType: 'combi' })
+    expect(controls.systemType).toBe('combi')
+  })
+})
+
+// ── Cylinder defaults ──────────────────────────────────────────────────────────
+
+describe('graphToLabControls — cylinder defaults', () => {
+  it('adds cylinder defaults for unvented_cylinder topology', () => {
+    const controls = graphToLabControls(unventedCylinderGraph())
+    expect(controls.cylinder).toBeDefined()
+    expect(controls.cylinder?.volumeL).toBe(180)
+    expect(controls.cylinder?.initialTempC).toBe(55)
+    expect(controls.cylinder?.reheatKw).toBe(12)
+  })
+
+  it('adds vented defaults for vented_cylinder topology', () => {
+    const controls = graphToLabControls(ventedCylinderGraph())
+    expect(controls.vented).toBeDefined()
+    expect(controls.vented?.headMeters).toBe(3)
+  })
+
+  it('does not add cylinder defaults for combi graph', () => {
+    const controls = graphToLabControls(combiGraph())
+    expect(controls.cylinder).toBeUndefined()
+    expect(controls.vented).toBeUndefined()
+  })
+})
+
+// ── graphFacts and outletBindings always come from graph ──────────────────────
+
+describe('graphToLabControls — graphFacts pinned to graph', () => {
+  it('derives graphFacts.hotFedOutletNodeIds from graph topology', () => {
+    const controls = graphToLabControls(combiGraph())
+    // shower_outlet 'sh' is connected to hot_out so it should be hot-fed
+    expect(controls.graphFacts?.hotFedOutletNodeIds).toContain('sh')
+  })
+
+  it('graphFacts patch override is ignored — always uses live graph', () => {
+    const controls = graphToLabControls(combiGraph(), {
+      graphFacts: { hotFedOutletNodeIds: ['stale_id'], coldOnlyOutletNodeIds: [], hasStoredDhw: false },
+    })
+    expect(controls.graphFacts?.hotFedOutletNodeIds).not.toContain('stale_id')
+  })
+
+  it('copies outletBindings from graph', () => {
+    const controls = graphToLabControls(combiGraph())
+    expect(controls.outletBindings).toEqual({ A: 'sh' })
+  })
+})
+
+// ── Patch merging ──────────────────────────────────────────────────────────────
+
+describe('graphToLabControls — patch merging', () => {
+  it('applies combiDhwKw from patch', () => {
+    const controls = graphToLabControls(combiGraph(), { combiDhwKw: 40 })
+    expect(controls.combiDhwKw).toBe(40)
+  })
+
+  it('applies coldInletC from patch', () => {
+    const controls = graphToLabControls(combiGraph(), { coldInletC: 5 })
+    expect(controls.coldInletC).toBe(5)
+  })
+
+  it('falls back to default mainsDynamicFlowLpm when patch omits it', () => {
+    const controls = graphToLabControls(combiGraph())
+    expect(controls.mainsDynamicFlowLpm).toBe(14)
+  })
+})
