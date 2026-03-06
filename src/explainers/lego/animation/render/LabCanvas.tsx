@@ -215,6 +215,16 @@ export function LabCanvas(props: {
   const plateHexActive = visuals?.heatTransfers.find(h => h.nodeId === 'combi_hex')?.active ?? false
   const coilActive = visuals?.heatTransfers.find(h => h.nodeId === 'cylinder_coil')?.active ?? false
 
+  // Emitter activity — drives the radiator heat-emission visual.
+  const emittersActive = visuals?.heatTransfers.find(h => h.nodeId === 'emitters')?.active ?? false
+
+  // Heat-source kind — distinguishes heat-pump compressor from gas/oil burner.
+  const heatSourceKind = visuals?.heatTransfers.find(h => h.nodeId === 'boiler_burner')?.kind ?? 'burner'
+  const isCompressor = heatSourceKind === 'compressor'
+
+  // Current system operating mode — used by the valve position indicator.
+  const systemMode = frame.systemMode ?? 'idle'
+
   // Heat-transfer glow filter references — applied to the component in the SVG.
   const HEAT_GLOW = 'url(#heat-glow)'
 
@@ -244,7 +254,7 @@ export function LabCanvas(props: {
 
   return (
     <div style={{ position: 'relative', display: 'block', width: '100%', minWidth: 700 }}>
-      <svg width="100%" viewBox="0 0 1000 260" style={{ display: 'block' }}>
+      <svg width="100%" viewBox="0 0 1000 275" style={{ display: 'block' }}>
         <defs>
           <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="6" result="coloredBlur" />
@@ -268,6 +278,57 @@ export function LabCanvas(props: {
             </feMerge>
           </filter>
           <clipPath id="cyl-clip">
+            <rect x={cylX} y={cylY} width={cylW} height={cylH} rx={18} />
+          </clipPath>
+
+          {/* ── CSS keyframe animations for visual realism cues ────────────── */}
+          <style>{`
+            @keyframes burner-pulse {
+              0%, 100% { opacity: 0.55; }
+              50%       { opacity: 1.0; }
+            }
+            @keyframes compressor-pulse {
+              0%, 100% { opacity: 0.4; }
+              50%       { opacity: 0.85; }
+            }
+            @keyframes hex-shimmer {
+              0%   { transform: translateX(-40px); opacity: 0.85; }
+              75%  { transform: translateX(190px); opacity: 0.35; }
+              100% { transform: translateX(190px); opacity: 0; }
+            }
+            @keyframes heat-rise {
+              0%   { transform: translateY(0px);   opacity: 0.8; }
+              100% { transform: translateY(-18px); opacity: 0; }
+            }
+            @keyframes outlet-glow {
+              0%, 100% { opacity: 0.18; }
+              50%       { opacity: 0.55; }
+            }
+          `}</style>
+
+          {/* ── Pipe temperature gradients ─────────────────────────────────── */}
+          {/* Cold supply: light sky entering → saturated sky toward the heat source */}
+          <linearGradient
+            id="grad-cold-supply"
+            x1={P.mainsX} y1={0} x2={P.boilerX - 60} y2={0}
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%"   stopColor="#7dd3fc" />
+            <stop offset="100%" stopColor="#0284c7" />
+          </linearGradient>
+
+          {/* DHW hot output: orange leaving the heat source → red at the splitter */}
+          <linearGradient
+            id="grad-dhw-hot"
+            x1={P.boilerX + 120} y1={0} x2={P.splitX} y2={0}
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%"   stopColor="#f97316" />
+            <stop offset="100%" stopColor="#dc2626" />
+          </linearGradient>
+
+          {/* Clip region for the plate-HEX shimmer highlight — matches the heat-source box boundary */}
+          <clipPath id="heat-src-clip">
             <rect x={cylX} y={cylY} width={cylW} height={cylH} rx={18} />
           </clipPath>
         </defs>
@@ -329,7 +390,8 @@ export function LabCanvas(props: {
         {/* When TMV active: only draw from mains to pre-boiler tee. */}
         <path
           d={`M ${P.mainsX} ${P.mainsY} L ${tmvOutletAActive ? P.teeX : P.boilerX - 60} ${P.mainsY}`}
-          stroke="#cfd8e3" strokeWidth={16} strokeLinecap="round" filter={mainsGlow}
+          stroke="url(#grad-cold-supply)" strokeWidth={16} strokeLinecap="round" filter={mainsGlow}
+          opacity={THERMAL_COLOR_OPACITY}
         />
         <path
           d={`M ${P.mainsX} ${P.mainsY} L ${tmvOutletAActive ? P.teeX : P.boilerX - 60} ${P.mainsY}`}
@@ -344,7 +406,8 @@ export function LabCanvas(props: {
           <>
             <path
               d={`M ${P.teeX} ${P.teeY} L ${P.boilerX - 60} ${P.boilerY}`}
-              stroke="#cfd8e3" strokeWidth={16} strokeLinecap="round"
+              stroke={coldSupplyColor} strokeWidth={16} strokeLinecap="round"
+              opacity={THERMAL_COLOR_OPACITY}
             />
             <path
               d={`M ${P.teeX} ${P.teeY} L ${P.boilerX - 60} ${P.boilerY}`}
@@ -370,6 +433,18 @@ export function LabCanvas(props: {
               strokeWidth={plateHexActive ? 2.5 : 1}
               filter={plateHexActive ? HEAT_GLOW : boilerGlow}
             />
+            {/* Plate-HEX shimmer highlight — slides across the box during active heat exchange.
+                Clip prevents it from overflowing the rounded rect. */}
+            {plateHexActive && (
+              <g clipPath="url(#heat-src-clip)">
+                <rect
+                  x={cylX} y={cylY}
+                  width={28} height={cylH}
+                  fill="white" opacity={0.35}
+                  style={{ animation: 'hex-shimmer 1.5s ease-in-out infinite' }}
+                />
+              </g>
+            )}
             <text x={P.boilerX + 30} y={P.boilerY - 6} textAnchor="middle" fontSize={16} fill="#334155" fontWeight={700}>
               Combi DHW HEX
             </text>
@@ -377,6 +452,28 @@ export function LabCanvas(props: {
               fill={burnerActive ? '#c2410c' : '#64748b'}>
               {burnerActive ? 'burner firing · heat transfer active' : 'heat added here'}
             </text>
+            {/* Burner / compressor activity pulse — small indicator in the left region of the box. */}
+            {burnerActive && (
+              <g>
+                <circle
+                  cx={cylX + 20} cy={cylY + cylH / 2}
+                  r={9}
+                  fill={isCompressor ? '#67e8f9' : '#fb923c'}
+                  style={{
+                    animation: isCompressor
+                      ? 'compressor-pulse 2s ease-in-out infinite'
+                      : 'burner-pulse 0.9s ease-in-out infinite',
+                  }}
+                />
+                <text
+                  x={cylX + 20} y={cylY + cylH / 2 + 5}
+                  textAnchor="middle" fontSize={11}
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {isCompressor ? '⚡' : '🔥'}
+                </text>
+              </g>
+            )}
           </g>
         ) : (
           <g>
@@ -418,13 +515,42 @@ export function LabCanvas(props: {
                 {roundTempC(storeTempC)} °C
               </text>
             )}
+            {/* ── Valve position indicator ──────────────────────────────────
+                Shows which port the 3-port diverter valve is currently
+                directing flow to (CH = space heating, HW = cylinder reheat).
+                Positioned just below the cylinder body.                       */}
+            <g transform={`translate(${cylX + cylW / 2}, ${cylY + cylH + 16})`}>
+              <text textAnchor="middle" fontSize={8} fill="#94a3b8" y={-3}>3-port valve</text>
+              {/* CH label */}
+              <text
+                x={-30} y={14} textAnchor="middle" fontSize={9}
+                fill={systemMode === 'heating' ? '#f97316' : '#94a3b8'}
+                fontWeight={systemMode === 'heating' ? 700 : 400}
+              >CH</text>
+              {/* Centre dot */}
+              <circle cx={0} cy={10} r={4} fill={systemMode === 'idle' ? '#94a3b8' : '#475569'} />
+              {/* HW label */}
+              <text
+                x={30} y={14} textAnchor="middle" fontSize={9}
+                fill={systemMode === 'dhw_reheat' ? '#0284c7' : '#94a3b8'}
+                fontWeight={systemMode === 'dhw_reheat' ? 700 : 400}
+              >HW</text>
+              {/* Direction arrow line */}
+              {systemMode === 'heating' && (
+                <line x1={-4} y1={10} x2={-22} y2={10} stroke="#f97316" strokeWidth={2} strokeLinecap="round" />
+              )}
+              {systemMode === 'dhw_reheat' && (
+                <line x1={4} y1={10} x2={22} y2={10} stroke="#0284c7" strokeWidth={2} strokeLinecap="round" />
+              )}
+            </g>
           </g>
         )}
 
         {/* ── Pipe to splitter ───────────────────────────────────────────── */}
         <path
           d={`M ${P.boilerX + 120} ${P.boilerY} L ${P.splitX} ${P.splitY}`}
-          stroke={postHexThermalColor ?? '#cfd8e3'} strokeWidth={16} strokeLinecap="round" filter={pipeGlow}
+          stroke={postHexThermalColor ? 'url(#grad-dhw-hot)' : '#cfd8e3'}
+          strokeWidth={16} strokeLinecap="round" filter={pipeGlow}
           opacity={postHexThermalColor ? THERMAL_COLOR_OPACITY : 1}
         />
         <path
@@ -458,6 +584,14 @@ export function LabCanvas(props: {
 
           return (
             <g key={outlet.id}>
+              {/* Active outlet glow ring — pulsing halo around the outlet terminal. */}
+              {isEnabled && (
+                <circle
+                  cx={ox} cy={oy} r={19}
+                  fill={postHexThermalColor ?? '#f97316'}
+                  style={{ animation: 'outlet-glow 1.6s ease-in-out infinite' }}
+                />
+              )}
               {/* Branch pipe — 90° off-take + swept bend */}
               <path
                 d={pathD}
@@ -517,6 +651,29 @@ export function LabCanvas(props: {
             </g>
           )
         })}
+
+        {/* ── Emitter / radiator heat-emission indicator ─────────────────── */}
+        {/* Shown when the primary heating circuit is actively emitting heat.
+            Rendered below the main schematic so it does not clutter the DHW path. */}
+        {emittersActive && (
+          <g>
+            {/* Radiator box */}
+            <rect x={90} y={220} width={130} height={36} rx={5}
+              fill="#fff7ed" stroke="#f97316" strokeWidth={1.5}
+            />
+            <text x={155} y={233} textAnchor="middle" fontSize={10} fill="#9a3412" fontWeight={700}>Radiators</text>
+            <text x={155} y={247} textAnchor="middle" fontSize={9} fill="#c2410c">heating active</text>
+            {/* Upward heat-wave glyphs — staggered animation delays for a rising effect. */}
+            {([0, 1, 2, 3, 4] as const).map(i => (
+              <text
+                key={i}
+                x={102 + i * 14} y={215}
+                textAnchor="middle" fontSize={12} fill="#f97316"
+                style={{ animation: `heat-rise 1.5s ease-out ${(i * 0.22).toFixed(2)}s infinite` }}
+              >~</text>
+            ))}
+          </g>
+        )}
 
         {/* ── Flow Particles ──────────────────────────────────────────────── */}
         <TokensLayer
