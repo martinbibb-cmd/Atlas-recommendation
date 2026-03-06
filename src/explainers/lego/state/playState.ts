@@ -4,7 +4,7 @@
 // PlayState drives the simulation instead of hard-coded demo values —
 // simulation input = savedGraphSnapshot + playState.
 
-import type { OutletControl, OutletId, HeatingDemandState, SystemType } from '../animation/types'
+import type { OutletControl, OutletId, HeatingDemandState, SystemType, ControlTopologyKind } from '../animation/types'
 
 export type { HeatingDemandState }
 
@@ -301,10 +301,17 @@ export type OperatingMode = 'IDLE' | 'CH_ONLY' | 'DHW_ONLY' | 'CH_AND_DHW' | 'CY
  *
  * For combi systems, DHW always takes priority — CH_AND_DHW is not possible.
  * For cylinder/heat-pump systems, heating and DHW can run simultaneously.
+ *
+ * Control topology determines simultaneous operation:
+ *   S-plan    — both CH and cylinder reheat allowed at the same time.
+ *   Y-plan    — 3-port valve decides routing; treated as CH_AND_DHW when both active.
+ *   Combi     — DHW draw pauses CH (no simultaneous mode).
+ *   hp_diverter — prioritises DHW (treated as DHW_ONLY when both active).
  */
 export function determineOperatingMode(
   playState: PlayState,
   systemType: SystemType = 'combi',
+  controlTopology: ControlTopologyKind = 'none',
 ): OperatingMode {
   const hasDhw = playState.demands.some(d => d.enabled && d.kind !== 'cold_tap')
   const hasHeating = playState.heating.enabled
@@ -321,5 +328,13 @@ export function determineOperatingMode(
     // Combi: DHW priority — heating is interrupted during a draw
     return 'DHW_ONLY'
   }
+  // Non-combi path: combi systems already returned above.
+  if (controlTopology === 'hp_diverter') {
+    // Heat-pump diverter: DHW takes priority over space heating
+    return 'DHW_ONLY'
+  }
+  // S-plan and Y-plan both allow CH and DHW simultaneously at the UI level.
+  // (S-plan also runs simultaneous reheat in the simulation; Y-plan valve position
+  //  determines actual routing but we display CH_AND_DHW for both.)
   return 'CH_AND_DHW'
 }

@@ -144,3 +144,55 @@ describe('graphToLabControls — patch merging', () => {
     expect(controls.mainsDynamicFlowLpm).toBe(14)
   })
 })
+
+// ── controlTopology derivation ─────────────────────────────────────────────────
+
+function sPlanGraph(): BuildGraph {
+  // System boiler + 2 zone valves = S-plan topology
+  return {
+    nodes: [
+      { id: 'hs',   kind: 'heat_source_system_boiler', x: 100, y: 200, r: 0 },
+      { id: 'cyl',  kind: 'dhw_unvented_cylinder',     x: 400, y: 100, r: 0 },
+      { id: 'rads', kind: 'radiator',                  x: 400, y: 300, r: 0 },
+      { id: 'zv1',  kind: 'zone_valve',                x: 280, y: 100, r: 0 },
+      { id: 'zv2',  kind: 'zone_valve',                x: 280, y: 300, r: 0 },
+    ],
+    edges: [],
+  }
+}
+
+function yPlanGraph(): BuildGraph {
+  // Regular boiler + 3-port valve = Y-plan topology
+  return {
+    nodes: [
+      { id: 'hs',  kind: 'heat_source_regular_boiler', x: 100, y: 200, r: 0 },
+      { id: 'cyl', kind: 'dhw_vented_cylinder',        x: 400, y: 100, r: 0 },
+      { id: 'rads', kind: 'radiator',                  x: 400, y: 300, r: 0 },
+      { id: 'v3',  kind: 'three_port_valve',           x: 280, y: 200, r: 0 },
+    ],
+    edges: [],
+  }
+}
+
+describe('graphToLabControls — controlTopology derivation', () => {
+  it('derives s_plan topology for a graph with 2 zone valves', () => {
+    const controls = graphToLabControls(sPlanGraph())
+    expect(controls.controlTopology).toBe('s_plan')
+  })
+
+  it('derives y_plan topology for a graph with a three-port valve', () => {
+    const controls = graphToLabControls(yPlanGraph())
+    expect(controls.controlTopology).toBe('y_plan')
+  })
+
+  it('derives none topology for a plain combi graph', () => {
+    const controls = graphToLabControls(combiGraph())
+    expect(controls.controlTopology).toBe('none')
+  })
+
+  it('controlTopology is always derived from graph — patch cannot override it', () => {
+    // Even if someone passes a stale/wrong topology in the patch, the graph wins
+    const controls = graphToLabControls(sPlanGraph(), { controlTopology: 'none' })
+    expect(controls.controlTopology).toBe('s_plan')
+  })
+})

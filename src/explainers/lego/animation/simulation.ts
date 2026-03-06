@@ -363,17 +363,25 @@ export function stepSimulation(params: {
   //   - Heating runs only when there is no DHW demand
   // For system/regular boiler + cylinder:
   //   - CH and cylinder reheat can both be needed; mode priorities follow:
-  //     1. heating (emitter circuit active)
-  //     2. dhw_reheat (cylinder needs topping up)
-  //     3. idle
+  //     S-plan (two zone valves):  CH and reheat run simultaneously → 'heating_and_reheat'
+  //     Y-plan (3-port valve):     valve position dictates routing; treat as exclusive
+  //     default:                   1. heating  2. dhw_reheat  3. idle
+  const controlTopology = controls.controlTopology ?? 'none'
+  const isSPlan = controlTopology === 's_plan' || controlTopology === 's_plan_multi_zone'
   let mode: SystemMode = 'idle'
   if (isCombi) {
     // DHW priority: on a combi, hot-water draw interrupts CH
     if (hotDrawActive) mode = 'dhw_draw'
     else if (heatingEnabled) mode = 'heating'
   } else {
-    if (heatingEnabled) mode = 'heating'
-    else if (hasStored && storeNeedsReheat) mode = 'dhw_reheat'
+    if (heatingEnabled && hasStored && storeNeedsReheat && isSPlan) {
+      // S-plan: both zone valves can open simultaneously
+      mode = 'heating_and_reheat'
+    } else if (heatingEnabled) {
+      mode = 'heating'
+    } else if (hasStored && storeNeedsReheat) {
+      mode = 'dhw_reheat'
+    }
   }
 
   const kWActual = isCombi && mode === 'dhw_draw' ? Math.min(controls.combiDhwKw, kWRequired) : 0
@@ -393,7 +401,7 @@ export function stepSimulation(params: {
       })
     }
 
-    if (mode === 'dhw_reheat') {
+    if (mode === 'dhw_reheat' || mode === 'heating_and_reheat') {
       const reheatKw = controls.cylinder?.reheatKw ?? 12
       store = addReheatEnergy({ store, reheatKw, dtS: dt })
     }
@@ -602,20 +610,21 @@ export function stepSimulation(params: {
         flowLpm: hasDraw ? hydraulicFlowLpm : 0,
       },
       // Primary heating circuit — boiler → emitters → return.
-      // Active whenever space-heating is running.
+      // Active whenever space-heating is running (including S-plan simultaneous mode).
       {
         edgeIds: ['primary_flow', 'primary_return'],
         direction: 'forward',
-        active: mode === 'heating',
-        flowLpm: mode === 'heating' ? heatingDemandKw / 0.07 : 0, // rough proxy L/min
+        active: mode === 'heating' || mode === 'heating_and_reheat',
+        flowLpm: (mode === 'heating' || mode === 'heating_and_reheat') ? heatingDemandKw / 0.07 : 0, // rough proxy L/min
       },
       // Primary circuit through the cylinder coil — separate from DHW domestic draw.
       // Active only during cylinder reheat; domestic water NEVER travels this path.
+      // Also active during S-plan simultaneous mode (heating_and_reheat).
       {
         edgeIds: ['cylinder_coil_primary_flow', 'cylinder_coil_primary_return'],
         direction: 'forward',
-        active: mode === 'dhw_reheat',
-        flowLpm: mode === 'dhw_reheat' ? (controls.cylinder?.reheatKw ?? 12) / 0.07 : 0,
+        active: mode === 'dhw_reheat' || mode === 'heating_and_reheat',
+        flowLpm: (mode === 'dhw_reheat' || mode === 'heating_and_reheat') ? (controls.cylinder?.reheatKw ?? 12) / 0.07 : 0,
       },
     ],
 
@@ -625,7 +634,7 @@ export function stepSimulation(params: {
       // Boiler burner — active during any mode that requires the burner to fire.
       {
         nodeId: 'boiler_burner',
-        active: mode === 'dhw_draw' || mode === 'heating' || mode === 'dhw_reheat',
+        active: mode === 'dhw_draw' || mode === 'heating' || mode === 'dhw_reheat' || mode === 'heating_and_reheat',
         intensity: mode !== 'idle' ? 1.0 : 0,
         kind: heatSourceType === 'heat_pump' ? 'compressor' : 'burner',
       },
@@ -642,15 +651,15 @@ export function stepSimulation(params: {
       // This is NOT domestic water — it is the primary circuit passing through the coil.
       {
         nodeId: 'cylinder_coil',
-        active: hasStored && mode === 'dhw_reheat',
-        intensity: hasStored && mode === 'dhw_reheat' ? 1.0 : 0,
+        active: hasStored && (mode === 'dhw_reheat' || mode === 'heating_and_reheat'),
+        intensity: hasStored && (mode === 'dhw_reheat' || mode === 'heating_and_reheat') ? 1.0 : 0,
         kind: 'coil',
       },
       // Emitters — active during heating mode (radiators / underfloor releasing heat into the room).
       {
         nodeId: 'emitters',
-        active: mode === 'heating',
-        intensity: mode === 'heating' ? clamp((controls.heatingDemand?.demandLevel ?? 1), 0, 1) : 0,
+        active: mode === 'heating' || mode === 'heating_and_reheat',
+        intensity: (mode === 'heating' || mode === 'heating_and_reheat') ? clamp((controls.heatingDemand?.demandLevel ?? 1), 0, 1) : 0,
         kind: 'emitter',
       },
     ],
