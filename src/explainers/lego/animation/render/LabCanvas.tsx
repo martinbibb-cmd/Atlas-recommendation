@@ -102,6 +102,7 @@ export function LabCanvas(props: {
   const prevSystemTypeRef = React.useRef(controls.systemType)
   const prevCylVolumeRef  = React.useRef(controls.cylinder?.volumeL)
   const prevCylTempRef    = React.useRef(controls.cylinder?.initialTempC)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     const typeChanged = prevSystemTypeRef.current !== controls.systemType
     const volChanged  = prevCylVolumeRef.current  !== controls.cylinder?.volumeL
@@ -112,7 +113,7 @@ export function LabCanvas(props: {
       prevCylTempRef.current    = controls.cylinder?.initialTempC
       setFrame(makeInitialFrame(controls))
     }
-  }) // run every render and gate on ref comparison — safe because setFrame is only called on actual change
+  }) // runs every render — intentional: gates on ref comparison, only calls setFrame on actual change
 
   const lastTsRef = React.useRef<number | null>(null)
 
@@ -222,9 +223,6 @@ export function LabCanvas(props: {
   const plateHexActive = visuals?.heatTransfers.find(h => h.nodeId === 'combi_hex')?.active ?? false
   const coilActive = visuals?.heatTransfers.find(h => h.nodeId === 'cylinder_coil')?.active ?? false
 
-  // Emitter activity — drives the radiator heat-emission visual.
-  const emittersActive = visuals?.heatTransfers.find(h => h.nodeId === 'emitters')?.active ?? false
-
   // Heat-source kind — distinguishes heat-pump compressor from gas/oil burner.
   const heatSourceKind = visuals?.heatTransfers.find(h => h.nodeId === 'boiler_burner')?.kind ?? 'burner'
   const isCompressor = heatSourceKind === 'compressor'
@@ -254,6 +252,15 @@ export function LabCanvas(props: {
   // 'dhw_firing' → stronger orange-red (PR 15).
   const activityKind = heatSourceActivity?.kind ?? 'idle'
   const isDhwFiring  = activityKind === 'dhw_firing'
+
+  // Use scene model flags to gate renderer decisions rather than re-deriving from
+  // raw controls/frame.  This is the core contract of the PlaySceneModel layer:
+  //   scene.metadata.showHeatSource  → heat-source indicator must be visible
+  //   scene.metadata.showHeatingPath → CH supply path + emitter block must be visible
+  // These are equivalent to the corresponding simulation-visual flags when the
+  // simulation is running, but more robust when visuals are absent (first frame).
+  const showHeatSourceIndicator = scene.metadata.showHeatSource
+  const showHeatingPathAndEmitters = scene.metadata.showHeatingPath
 
   // Cylinder store display values
   const storeTempC =
@@ -633,14 +640,16 @@ export function LabCanvas(props: {
              * cold feed enters cold_in; neither path is the primary circuit.
              * When CH is active, the boiler fires for the heating circuit;
              * a burner-pulse indicator is shown to make the heat source visible.
+             * scene.metadata.showHeatSource / showHeatingPath drive these flags
+             * so the renderer does not have to re-derive them from systemMode.
              */}
             {/* Cylinder tank background */}
             <rect
               x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
               fill="#f1f5f9"
-              stroke={(coilActive || emittersActive) ? '#f97316' : '#c9d4e2'}
-              strokeWidth={(coilActive || emittersActive) ? 2.5 : 2}
-              filter={(coilActive || emittersActive) ? HEAT_GLOW : undefined}
+              stroke={(coilActive || showHeatingPathAndEmitters) ? '#f97316' : '#c9d4e2'}
+              strokeWidth={(coilActive || showHeatingPathAndEmitters) ? 2.5 : 2}
+              filter={(coilActive || showHeatingPathAndEmitters) ? HEAT_GLOW : undefined}
             />
             {/* Thermal fill — clips to rounded rect */}
             <rect
@@ -656,12 +665,12 @@ export function LabCanvas(props: {
               {controls.systemType === 'vented_cylinder' ? 'Vented cylinder' : 'Unvented cylinder'}
             </text>
             <text x={P.boilerX + 30} y={P.boilerY + 8} textAnchor="middle" fontSize={11}
-              fill={(coilActive || emittersActive) ? '#c2410c' : '#64748b'}>
+              fill={(coilActive || showHeatingPathAndEmitters) ? '#c2410c' : '#64748b'}>
               {systemMode === 'heating_and_reheat'
                 ? 'CH + coil reheat (S-plan)'
                 : coilActive
                   ? 'coil reheating store'
-                  : emittersActive
+                  : showHeatingPathAndEmitters
                     ? 'boiler firing — CH'
                     : 'Stored hot water'}
             </text>
@@ -670,13 +679,15 @@ export function LabCanvas(props: {
                 {roundTempC(storeTempC)} °C
               </text>
             )}
-            {/* Burner / compressor activity pulse — visible when heating is active.
-                Shown in the left region of the box, same as the combi HEX indicator.
+            {/* Burner / compressor activity pulse — visible when heat source is active.
+                Driven by scene.metadata.showHeatSource so the indicator is always
+                present whenever the system is in a non-idle mode, even on the first
+                frame before simulation visuals have been emitted.
                 Fill and animation vary by activity kind (PR 15):
                   ch_firing   → amber (#fb923c), moderate burner-pulse
                   dhw_firing  → orange-red (#ea580c), faster dhw-burst
                   compressor  → cyan (#67e8f9), slow compressor-pulse */}
-            {burnerActive && (
+            {showHeatSourceIndicator && (
               <g>
                 <circle
                   cx={cylX + 20} cy={cylY + cylH / 2}
@@ -844,8 +855,10 @@ export function LabCanvas(props: {
         {/* Shown when the primary heating circuit is actively emitting heat.
             Rendered below the main schematic so it does not clutter the DHW path.
             Includes a CH supply path from the heat source (component box) to the
-            radiators, so the origin of heating energy is always visible. */}
-        {emittersActive && (
+            radiators, so the origin of heating energy is always visible.
+            scene.metadata.showHeatingPath gates this section so the renderer
+            does not independently re-derive the CH-active flag. */}
+        {showHeatingPathAndEmitters && (
           <g>
             {/* CH primary supply pipe — heat source left-edge → down → right to emitter.
                 Routed from the left edge of the component box so it does not cross
