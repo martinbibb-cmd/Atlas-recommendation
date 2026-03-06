@@ -288,6 +288,8 @@ export default function WorkbenchCanvas({
                 const isPending =
                   pendingPort && pendingPort.nodeId === node.id && pendingPort.portId === port.id;
 
+                const showLabel = node.id === selectedId || pendingPort !== null;
+
                 return (
                   <button
                     key={port.id}
@@ -299,7 +301,11 @@ export default function WorkbenchCanvas({
                       event.stopPropagation();
                       onPortTap({ nodeId: node.id, portId: port.id });
                     }}
-                  />
+                  >
+                    {showLabel && (
+                      <span className="port-label">{port.id}</span>
+                    )}
+                  </button>
                 );
               })}
             </div>

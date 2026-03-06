@@ -10,6 +10,24 @@
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   background: #fff;
+}
+
+.builder-left {
+  overflow: hidden;
+}
+
+.builder-right {
+  display: flex;
+  flex-direction: row;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.builder-canvas-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -239,6 +257,24 @@
   cursor: pointer;
 }
 
+.port-label {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #2d3748;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 1px 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  line-height: 1.2;
+}
+
 .port.pending {
   border-color: #805ad5;
   box-shadow: 0 0 0 4px rgb(128 90 213 / 18%);
@@ -246,18 +282,13 @@
 
 
 .warnpanel {
-  position: absolute;
-  top: 58px;
-  right: 12px;
-  width: 360px;
-  max-width: calc(100% - 24px);
-  max-height: calc(100vh - 90px);
-  overflow: auto;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  width: 300px;
+  flex-shrink: 0;
+  border-left: 1px solid #e2e8f0;
   background: #fff;
-  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18);
-  z-index: 20;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .warnpanel-head {
