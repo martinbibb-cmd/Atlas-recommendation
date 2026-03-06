@@ -1,6 +1,6 @@
 /**
- * Tests for simulation.ts — focuses on the hash-based outlet routing and
- * split-jitter behaviour introduced to eliminate "one-pipe-at-a-time" trains.
+ * Tests for simulation.ts — focuses on the hash-based outlet routing,
+ * split-jitter behaviour, and heating demand simulation modes.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -174,5 +174,110 @@ describe('split jitter — per-token branch threshold staggering', () => {
     const seen = collectRoutedOutlets(makeControls(outlets), 60)
     // At least one outlet should be reached if the sim ran correctly
     expect(seen.size).toBeGreaterThanOrEqual(1)
+  })
+})
+
+// ─── Heating demand modes ─────────────────────────────────────────────────────
+
+describe('simulation — heating demand and system mode', () => {
+  it('combi enters dhw_draw mode when outlet is active, regardless of heating demand', () => {
+    const controls: LabControls = {
+      systemType: 'combi',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 20,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin', demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath', demandLpm: 0 },
+      ],
+      // Heating is also demanded
+      heatingDemand: { enabled: true, targetFlowTempC: 70 },
+    }
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    // DHW draw should take priority over CH on a combi
+    expect(frame.systemMode).toBe('dhw_draw')
+  })
+
+  it('combi enters heating mode when no DHW draw and heating is demanded', () => {
+    const controls: LabControls = {
+      systemType: 'combi',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 20,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin', demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath', demandLpm: 0 },
+      ],
+      heatingDemand: { enabled: true, targetFlowTempC: 70, demandLevel: 1 },
+    }
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    expect(frame.systemMode).toBe('heating')
+  })
+
+  it('combi is idle when no DHW demand and no heating demanded', () => {
+    const controls: LabControls = {
+      systemType: 'combi',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 20,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin', demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath', demandLpm: 0 },
+      ],
+      heatingDemand: { enabled: false },
+    }
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    expect(frame.systemMode).toBe('idle')
+  })
+
+  it('system boiler + cylinder enters heating mode when heating is demanded', () => {
+    const controls: LabControls = {
+      systemType: 'unvented_cylinder',
+      heatSourceType: 'system_boiler',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 14,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      cylinder: { volumeL: 180, initialTempC: 55, reheatKw: 12 },
+      outlets: [
+        { id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin', demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath', demandLpm: 0 },
+      ],
+      heatingDemand: { enabled: true },
+    }
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    expect(frame.systemMode).toBe('heating')
+  })
+
+  it('structured heatingDemand.enabled=false falls back to heatDemandKw=0 → idle', () => {
+    const controls: LabControls = {
+      systemType: 'combi',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 20,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 0 },
+        { id: 'B', enabled: false, kind: 'basin', demandLpm: 0 },
+        { id: 'C', enabled: false, kind: 'bath', demandLpm: 0 },
+      ],
+      heatingDemand: { enabled: false },
+      heatDemandKw: 5, // should be ignored when heatingDemand is provided
+    }
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    // heatingDemand.enabled = false wins over heatDemandKw
+    expect(frame.systemMode).toBe('idle')
   })
 })

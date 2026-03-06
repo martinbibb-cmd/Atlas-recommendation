@@ -7,6 +7,36 @@ export type OutletKind = 'shower_mixer' | 'basin' | 'bath' | 'cold_tap'
 export type HeatSourceType = 'combi' | 'system_boiler' | 'regular_boiler' | 'heat_pump'
 export type SystemMode = 'idle' | 'heating' | 'dhw_draw' | 'dhw_reheat'
 
+/**
+ * Simulation domain — distinguishes how energy or fluid is moving.
+ *
+ * Used to animate correctly:
+ *  - fluid_path: water physically moving through pipes
+ *  - heat_transfer: energy crossing the cylinder coil (glow/pulse visual)
+ *  - storage_state: stored energy changing inside a cylinder (fill level / stratification)
+ */
+export type SimulationDomain = 'fluid_path' | 'heat_transfer' | 'storage_state'
+
+/**
+ * Heating demand state — controls the space-heating part of Play mode.
+ *
+ * For MVP, `enabled` is sufficient to gate CH simulation.
+ * `targetFlowTempC` and `demandLevel` allow richer future scenarios.
+ */
+export type HeatingDemandState = {
+  /** Whether the central-heating demand is active. */
+  enabled: boolean
+  /** Target flow temperature to emitters (°C). Defaults to 70 °C for standard radiators. */
+  targetFlowTempC?: number
+  /**
+   * Simple 0–1 scalar representing emitter demand (heat loss proxy).
+   * 0 = no heating required, 1 = maximum heating demand.
+   */
+  demandLevel?: number
+  /** Active zone IDs for multi-zone systems. */
+  activeZones?: string[]
+}
+
 export type OutletControl = {
   id: OutletId
   enabled: boolean
@@ -62,6 +92,11 @@ export type FlowParticle = {
    * back to the hash-based deterministic roulette at the split point.
    */
   assignedOutlet?: OutletId
+  /**
+   * Simulation domain tag — describes what this particle represents physically.
+   * Defaults to 'fluid_path' when not set.
+   */
+  domain?: SimulationDomain
 }
 
 /** Distinguishes combi (on-demand) from stored hot water systems. */
@@ -102,6 +137,11 @@ export type LabControls = {
     hasStoredDhw?: boolean
   }
   heatDemandKw?: number
+  /**
+   * Structured heating demand state.  When present, takes precedence over the
+   * legacy scalar `heatDemandKw`.  Play mode UI populates this field.
+   */
+  heatingDemand?: HeatingDemandState
   dhwReheatHysteresisC?: number
   dhwReheatTargetC?: number
   outletBindings?: Partial<Record<'A' | 'B' | 'C', string>>
