@@ -9,6 +9,7 @@ import { TokensLayer } from './TokensLayer'
 import { ThermalLegend } from './ThermalLegend'
 import { THERMAL_BANDS, tempToThermalColor, roundTempC } from '../thermal'
 import { buildPolylines, SCHEMATIC_P, branchSvgPath } from './pathMap'
+import { buildPlaySceneModel } from '../../playScene/buildPlaySceneModel'
 
 /** Baseline frame time at 60 fps (ms). */
 const DEFAULT_FRAME_TIME_MS = 16
@@ -241,6 +242,19 @@ export function LabCanvas(props: {
   // Heat-transfer glow filter references — applied to the component in the SVG.
   const HEAT_GLOW = 'url(#heat-glow)'
 
+  // ── Play Scene Model ───────────────────────────────────────────────────────
+  // Build an explicit scene description from controls + frame.
+  // The renderer uses scene.metadata flags instead of repeating inline
+  // systemType checks, which prevents contradictions like duplicate cold feeds
+  // or a missing heat source when heating is active.
+  const scene = buildPlaySceneModel(controls, frame)
+  const heatSourceSceneNode = scene.nodes.find(n => n.role === 'heat_source')
+  const heatSourceActivity  = heatSourceSceneNode?.activity
+  // Activity kind for differentiated glow: 'ch_firing' → soft amber,
+  // 'dhw_firing' → stronger orange-red (PR 15).
+  const activityKind = heatSourceActivity?.kind ?? 'idle'
+  const isDhwFiring  = activityKind === 'dhw_firing'
+
   // Cylinder store display values
   const storeTempC =
     isCylinder && frame.cylinderStore
@@ -306,6 +320,20 @@ export function LabCanvas(props: {
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          {/* Stronger orange-red glow for DHW firing — higher demand visual cue (PR 15). */}
+          <filter id="dhw-glow" x="-70%" y="-70%" width="240%" height="240%">
+            <feColorMatrix type="matrix"
+              values="1 0.6 0 0 0.2
+                      0 0.5 0 0 0
+                      0 0   0 0 0
+                      0 0   0 1 0"
+              result="warmed" />
+            <feGaussianBlur in="warmed" stdDeviation="8" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
           <clipPath id="cyl-clip">
             <rect x={cylX} y={cylY} width={cylW} height={cylH} rx={18} />
           </clipPath>
@@ -315,6 +343,10 @@ export function LabCanvas(props: {
             @keyframes burner-pulse {
               0%, 100% { opacity: 0.55; }
               50%       { opacity: 1.0; }
+            }
+            @keyframes dhw-burst {
+              0%, 100% { opacity: 0.7; }
+              40%       { opacity: 1.0; }
             }
             @keyframes compressor-pulse {
               0%, 100% { opacity: 0.4; }
@@ -418,8 +450,10 @@ export function LabCanvas(props: {
         {/* ── Mains / cold supply segment ────────────────────────────────── */}
         {/* Hidden for vented cylinders: the CWS cistern block below provides the
             gravity-fed cold supply path.  Showing both would create a misleading
-            duplicate cold feed (the side blue feed bug).                         */}
-        {controls.systemType !== 'vented_cylinder' && (
+            duplicate cold feed (the side blue feed bug).
+            scene.metadata.showGenericColdFeed encodes this rule explicitly so the
+            renderer does not have to re-derive it from systemType.               */}
+        {scene.metadata.showGenericColdFeed && (
           <>
             {/* When TMV active: only draw from mains to pre-boiler tee. */}
             <path
@@ -442,8 +476,10 @@ export function LabCanvas(props: {
             cistern above, not from the mains under pressure.  The animated cold
             feed tokens still flow along the horizontal trunk path, representing
             the horizontal distribution run from the cistern to the cylinder
-            cold_in port — consistent with real open-vented plumbing. */}
-        {controls.systemType === 'vented_cylinder' && (
+            cold_in port — consistent with real open-vented plumbing.
+            scene.metadata.showCwsRefill encodes this rule explicitly so the
+            renderer does not have to re-derive it from systemType.              */}
+        {scene.metadata.showCwsRefill && (
           <g>
             {/* CWS cistern box above the cylinder cold_in */}
             <rect x={cwsX} y={cwsY} width={cwsW} height={cwsH} rx={4}
@@ -537,7 +573,7 @@ export function LabCanvas(props: {
               fill="#eef2f7"
               stroke={plateHexActive ? '#f97316' : '#c9d4e2'}
               strokeWidth={plateHexActive ? 2.5 : 1}
-              filter={plateHexActive ? HEAT_GLOW : boilerGlow}
+              filter={plateHexActive ? (isDhwFiring ? 'url(#dhw-glow)' : HEAT_GLOW) : boilerGlow}
             />
             {/* Plate-HEX shimmer highlight — slides across the box during active heat exchange.
                 Clip prevents it from overflowing the rounded rect. */}
@@ -558,17 +594,23 @@ export function LabCanvas(props: {
               fill={burnerActive ? '#c2410c' : '#64748b'}>
               {burnerActive ? 'burner firing · heat transfer active' : 'heat added here'}
             </text>
-            {/* Burner / compressor activity pulse — small indicator in the left region of the box. */}
+            {/* Burner / compressor activity pulse — small indicator in the left region of the box.
+                Fill and animation vary by activity kind (PR 15):
+                  ch_firing   → amber (#fb923c), moderate burner-pulse
+                  dhw_firing  → orange-red (#ea580c), faster dhw-burst
+                  compressor  → cyan (#67e8f9), slow compressor-pulse */}
             {burnerActive && (
               <g>
                 <circle
                   cx={cylX + 20} cy={cylY + cylH / 2}
                   r={9}
-                  fill={isCompressor ? '#67e8f9' : '#fb923c'}
+                  fill={isCompressor ? '#67e8f9' : isDhwFiring ? '#ea580c' : '#fb923c'}
                   style={{
                     animation: isCompressor
                       ? 'compressor-pulse 2s ease-in-out infinite'
-                      : 'burner-pulse 0.9s ease-in-out infinite',
+                      : isDhwFiring
+                        ? 'dhw-burst 0.6s ease-in-out infinite'
+                        : 'burner-pulse 0.9s ease-in-out infinite',
                   }}
                 />
                 <text
@@ -629,17 +671,23 @@ export function LabCanvas(props: {
               </text>
             )}
             {/* Burner / compressor activity pulse — visible when heating is active.
-                Shown in the left region of the box, same as the combi HEX indicator. */}
+                Shown in the left region of the box, same as the combi HEX indicator.
+                Fill and animation vary by activity kind (PR 15):
+                  ch_firing   → amber (#fb923c), moderate burner-pulse
+                  dhw_firing  → orange-red (#ea580c), faster dhw-burst
+                  compressor  → cyan (#67e8f9), slow compressor-pulse */}
             {burnerActive && (
               <g>
                 <circle
                   cx={cylX + 20} cy={cylY + cylH / 2}
                   r={9}
-                  fill={isCompressor ? '#67e8f9' : '#fb923c'}
+                  fill={isCompressor ? '#67e8f9' : isDhwFiring ? '#ea580c' : '#fb923c'}
                   style={{
                     animation: isCompressor
                       ? 'compressor-pulse 2s ease-in-out infinite'
-                      : 'burner-pulse 0.9s ease-in-out infinite',
+                      : isDhwFiring
+                        ? 'dhw-burst 0.6s ease-in-out infinite'
+                        : 'burner-pulse 0.9s ease-in-out infinite',
                   }}
                 />
                 <text
