@@ -271,7 +271,62 @@ Atlas uses more precise language than common industry slang, which increases tru
 
 ---
 
-## 11. Governance
+## 11. System Condition Diagnostics
+
+These terms describe observable system-condition evidence collected during a site survey.
+
+### Pumping over
+
+**Definition:** A condition in an open vented heating circuit where the circulating pump forces water up the open vent pipe, causing water to discharge into the feed and expansion tank.
+
+**Causes:**
+- Blockage or restriction between the cold feed and the open vent connection
+- Poor pipe geometry or incorrect neutral point location
+- Pump pressure exceeding the available static head
+
+**Atlas rule:** Pumping over is a **hydraulic circuit fault**, not a general sludge indicator. It is modelled separately from sludge risk as it typically requires a mechanical or layout correction (repiping) rather than chemical treatment alone. Always raise a hard advisory when pumping over is reported.
+
+> **Correct phrasing in UI:** "Pumping over indicates a circulation fault around the feed-and-vent connection, typically due to a blockage or poor pipe geometry. This is usually a mechanical issue and may require repiping rather than chemical treatment alone."
+
+---
+
+### Feed-and-vent connection
+
+**Definition:** The section of an open vented heating circuit where the cold feed pipe and the open vent pipe connect to the primary circuit, establishing the neutral (zero pressure) point.
+
+**Significance:** Correct geometry at this point is essential to prevent pumping over. Restrictions here are the most common cause of pumping over.
+
+---
+
+### Open vented circuit fault
+
+**Definition:** A fault condition on an open vented central heating circuit that causes abnormal hydraulic behaviour, including pumping over, air ingress, or unstable pressures.
+
+**Atlas rule:** Distinguish open vented circuit faults from general sludge risk — they have different root causes and different remedies.
+
+---
+
+### Magnetite sludge
+
+**Definition:** Black iron oxide particles (Fe₃O₄) that circulate in and settle within a central heating system, reducing radiator output and restricting flow.
+
+**Occurs in:** All heating circuits; accumulates faster in open vented systems due to oxygen ingress.
+
+**Remediation:** Power-flush and fit a magnetic filter (e.g. Fernox TF1, Magnaclean).
+
+---
+
+### Scale (limescale)
+
+**Definition:** Calcium carbonate (CaCO₃) deposits that accumulate on DHW heat exchanger surfaces when hard mains water is heated repeatedly.
+
+**Occurs in:** DHW circuit only (open secondary circuit). Does not form in the sealed primary heating loop.
+
+**Remediation:** Scale inhibitor, softener, or descaling treatment.
+
+---
+
+## 12. Governance
 
 This document is the single source of truth for Atlas terminology.
 
