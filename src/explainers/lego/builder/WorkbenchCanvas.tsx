@@ -11,6 +11,10 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
 const ZOOM_SENSITIVITY = 0.001;
 
+// Directional arrow symbols used in port labels
+const ARROW_OUT = '→';
+const ARROW_IN  = '←';
+
 function kindLabel(kind: PartKind) {
   return PALETTE.find(p => p.kind === kind)?.label ?? kind;
 }
@@ -290,12 +294,20 @@ export default function WorkbenchCanvas({
 
                 const showLabel = node.id === selectedId || pendingPort !== null;
 
+                // Directional arrow: → for out, ← for in
+                const arrow =
+                  port.direction === 'out' ? ARROW_OUT :
+                  port.direction === 'in'  ? ARROW_IN  :
+                  null;
+
+                const displayLabel = port.label ?? port.id;
+
                 return (
                   <button
                     key={port.id}
-                    className={`port ${isPending ? 'pending' : ''}`}
+                    className={`port port--${port.role ?? 'unknown'} ${isPending ? 'pending' : ''}`}
                     style={{ left: port.dx - 6, top: port.dy - 6 }}
-                    title={port.id}
+                    title={`${displayLabel}${arrow ? ` ${arrow}` : ''}`}
                     onPointerDown={event => {
                       event.preventDefault();
                       event.stopPropagation();
@@ -303,7 +315,10 @@ export default function WorkbenchCanvas({
                     }}
                   >
                     {showLabel && (
-                      <span className="port-label">{port.id}</span>
+                      <span className="port-label">
+                        {arrow ? <span className="port-arrow">{arrow}</span> : null}
+                        {displayLabel}
+                      </span>
                     )}
                   </button>
                 );

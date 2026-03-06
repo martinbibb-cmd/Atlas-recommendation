@@ -57,6 +57,10 @@ export interface PortDef {
   dx: number;
   dy: number;
   role?: 'cold' | 'hot' | 'flow' | 'return' | 'store' | 'outlet' | 'unknown';
+  /** Human-readable label shown next to the port circle. */
+  label?: string;
+  /** Flow direction through this port — used to render arrows and guide snapping. */
+  direction?: 'in' | 'out' | 'bidirectional';
   /** When true, this port can accept multiple direct connections without requiring a tee. */
   multi?: boolean;
 }
