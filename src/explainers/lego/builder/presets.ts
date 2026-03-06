@@ -1,5 +1,13 @@
 import type { LabControls } from '../animation/types';
 import type { BuildGraph, BuildNode, PartKind } from './types';
+import {
+  CANONICAL_COMBI,
+  CANONICAL_REGULAR_BOILER,
+  CANONICAL_SYSTEM_BOILER,
+  CANONICAL_HEAT_PUMP,
+  type SystemConceptModel,
+} from '../model/types';
+import { generateGraphFromConcept } from '../model/generateGraphFromConcept';
 
 export interface LabPreset {
   id: string;
@@ -225,3 +233,97 @@ export const PRESETS: LabPreset[] = [
     },
   },
 ];
+
+// ─── Concept-driven presets ───────────────────────────────────────────────────
+
+/**
+ * A concept preset pairs a human-readable title + blurb with a
+ * `SystemConceptModel`.  The builder calls `generateGraphFromConcept(concept)`
+ * to produce the `BuildGraph` at load time; no static graph is stored here.
+ */
+export interface ConceptPreset {
+  id: string;
+  title: string;
+  blurb: string;
+  concept: SystemConceptModel;
+  controlsPatch?: Partial<LabControls>;
+}
+
+/**
+ * Canonical concept presets — these drive graph generation from a
+ * `SystemConceptModel` rather than from a static node list.
+ *
+ * Selecting one of these presets calls:
+ *   `generateGraphFromConcept(preset.concept)` → builder state
+ *
+ * This is the PR3 topology-driven flow.
+ */
+export const CONCEPT_PRESETS: ConceptPreset[] = [
+  {
+    id: 'concept_combi',
+    title: '⚡ Combi — on-demand mains-fed supply',
+    blurb: 'System boiler with integrated plate HEX. No cylinder. Radiators.',
+    concept: CANONICAL_COMBI,
+    controlsPatch: {
+      heatSourceType: 'combi',
+      combiDhwKw: 30,
+      dhwSetpointC: 55,
+      coldInletC: 10,
+      mainsDynamicFlowLpm: 14,
+    },
+  },
+  {
+    id: 'concept_regular_yplan',
+    title: '🔁 Regular boiler — Y-plan + vented cylinder',
+    blurb: 'Open-vented circuit. 3-port valve. Tank-fed hot water from CWS cistern.',
+    concept: CANONICAL_REGULAR_BOILER,
+    controlsPatch: {
+      heatSourceType: 'regular_boiler',
+      coldInletC: 10,
+      mainsDynamicFlowLpm: 15,
+      dhwReheatTargetC: 55,
+      dhwReheatHysteresisC: 6,
+    },
+  },
+  {
+    id: 'concept_system_splan',
+    title: '🔒 System boiler — S-plan + unvented cylinder',
+    blurb: 'Sealed circuit. Two zone valves. Mains-fed unvented hot water.',
+    concept: CANONICAL_SYSTEM_BOILER,
+    controlsPatch: {
+      heatSourceType: 'system_boiler',
+      coldInletC: 10,
+      mainsDynamicFlowLpm: 18,
+      dhwReheatTargetC: 55,
+      dhwReheatHysteresisC: 6,
+    },
+  },
+  {
+    id: 'concept_heat_pump',
+    title: '🌿 Heat pump — buffer + UFH + unvented cylinder',
+    blurb: 'Low-temperature primary circuit with buffer. UFH emitters. Mains-fed cylinder.',
+    concept: CANONICAL_HEAT_PUMP,
+    controlsPatch: {
+      heatSourceType: 'heat_pump',
+      coldInletC: 10,
+      mainsDynamicFlowLpm: 18,
+      dhwReheatTargetC: 55,
+      dhwReheatHysteresisC: 6,
+    },
+  },
+];
+
+/**
+ * Resolve a concept preset to a `LabPreset` by running the concept through
+ * `generateGraphFromConcept`.  The resulting graph is a fresh generated copy
+ * each time — no stale state.
+ */
+export function resolveConceptPreset(preset: ConceptPreset): LabPreset {
+  return {
+    id: preset.id,
+    title: preset.title,
+    blurb: preset.blurb,
+    graph: generateGraphFromConcept(preset.concept),
+    controlsPatch: preset.controlsPatch,
+  };
+}
