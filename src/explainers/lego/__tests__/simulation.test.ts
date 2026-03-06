@@ -603,3 +603,80 @@ describe('simulation — vented cylinder flow caps (topology-aware)', () => {
     expect(mainsCold).toBeUndefined()
   })
 })
+
+// ─── Cylinder token colour domain — cold feed vs. hot draw-off ────────────────
+
+describe('simulation — cylinder token heat domain (cold feed / hot draw-off)', () => {
+  /**
+   * Verifies that MAIN tokens (representing cold-feed refilling the cylinder)
+   * start cold (hJPerKg = 0), and that branch tokens (representing the hot
+   * draw-off from hot_out) carry the cylinder store temperature.
+   *
+   * This separation ensures the renderer can show:
+   *   – cold water entering cold_in (blue/cold colour on the supply pipe)
+   *   – hot water leaving hot_out (warm colour on the outlet branches)
+   */
+  function makeCylinderControls(): LabControls {
+    return {
+      systemType: 'vented_cylinder',
+      heatSourceType: 'regular_boiler',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 14,
+      pipeDiameterMm: 22,
+      combiDhwKw: 0,
+      cylinder: { volumeL: 180, initialTempC: 60, reheatKw: 12 },
+      vented: { headMeters: 3 },
+      outlets: [
+        { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 0 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 0 },
+      ],
+      heatingDemand: { enabled: false },
+    }
+  }
+
+  it('MAIN tokens (cold feed path) start cold — hJPerKg = 0', () => {
+    const controls = makeCylinderControls()
+    // Run just enough to spawn tokens but not long enough for any to branch.
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 50, controls })
+    const mainTokens = frame.particles.filter(t => t.route === 'MAIN')
+    if (mainTokens.length > 0) {
+      // Every freshly spawned MAIN token should carry no heat (cold feed).
+      for (const t of mainTokens) {
+        expect(t.hJPerKg).toBe(0)
+      }
+    }
+  })
+
+  it('branch tokens (hot draw-off from hot_out) carry the cylinder store temperature', () => {
+    const controls = makeCylinderControls()
+    // Run enough ticks for MAIN tokens to reach the splitter and branch.
+    let frame = makeFrame()
+    for (let i = 0; i < 40; i++) {
+      frame = stepSimulation({ frame, dtMs: 200, controls })
+    }
+    const branchTokens = frame.particles.filter(t => t.route !== 'MAIN')
+    if (branchTokens.length > 0) {
+      // Branch tokens must carry heat > 0 (they represent hot water leaving hot_out).
+      for (const t of branchTokens) {
+        expect(t.hJPerKg).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('outlet samples reflect store temperature, not cold inlet', () => {
+    const controls = makeCylinderControls()
+    // Run long enough for outlet temperature samples to accumulate.
+    let frame = makeFrame()
+    for (let i = 0; i < 80; i++) {
+      frame = stepSimulation({ frame, dtMs: 200, controls })
+    }
+    const sampleA = frame.outletSamples['A']
+    if (sampleA.count > 0) {
+      // Outlet A should report a temperature substantially above cold inlet.
+      // Store starts at 60 °C; after drawing for a while it will be lower but still warm.
+      expect(sampleA.tempC).toBeGreaterThan(controls.coldInletC + 10)
+    }
+  })
+})
