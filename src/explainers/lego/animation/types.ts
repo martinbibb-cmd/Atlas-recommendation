@@ -38,12 +38,12 @@ export function defaultOutlets(): OutletControl[] {
 }
 
 /**
- * Which path segment a token is currently travelling.
+ * Which path segment a flow particle is currently travelling.
  * COLD_A: cold supply bypass to outlet A's thermostatic mixer valve (bypasses HEX).
  */
 export type LabRoute = 'MAIN' | 'A' | 'B' | 'C' | 'COLD_A'
 
-export type LabToken = {
+export type FlowParticle = {
   id: string
   // 0..1 along the current route's polyline
   s: number
@@ -53,12 +53,12 @@ export type LabToken = {
   p: number
   // heat content above cold baseline (proxy, use J/kg style units)
   hJPerKg: number
-  // which polyline this token is currently on
+  // which polyline this particle is currently on
   route: LabRoute
   /**
    * Outlet pre-assigned at spawn time so the draw junction upstream of the
    * boiler already "knows" where this packet of water is destined.
-   * Tokens without a pre-assignment (e.g. manually created in tests) fall
+   * Particles without a pre-assignment (e.g. manually created in tests) fall
    * back to the hash-based deterministic roulette at the split point.
    */
   assignedOutlet?: OutletId
@@ -112,12 +112,12 @@ export type OutletSample = { tempC: number; count: number }
 
 export type LabFrame = {
   nowMs: number
-  tokens: LabToken[]
+  particles: FlowParticle[]
   /** Fractional spawn carry-over (deterministic, avoids Math.random). */
   spawnAccumulator: number
-  /** Monotonically increasing counter for unique token IDs. */
+  /** Monotonically increasing counter for unique particle IDs. */
   nextTokenId: number
-  /** Per-outlet temperature samples (EMA from tokens exiting each branch). */
+  /** Per-outlet temperature samples (EMA from particles exiting each branch). */
   outletSamples: Record<OutletId, OutletSample>
   /** Cylinder thermal store state (only present for cylinder system types). */
   cylinderStore?: CylinderStore

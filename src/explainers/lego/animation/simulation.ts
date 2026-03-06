@@ -1,6 +1,6 @@
 // src/explainers/lego/animation/simulation.ts
 
-import type { LabControls, LabFrame, LabToken, OutletId, OutletControl, SystemMode } from './types'
+import type { LabControls, LabFrame, FlowParticle, OutletId, OutletControl, SystemMode } from './types'
 import { pipeDiameterCapacityLpm } from '../model/dhwModel'
 import { heatToTempC, tempToHeatJPerKg, computeTmvMixer, clampAnimationSetpointC } from './thermal'
 import {
@@ -375,7 +375,7 @@ export function stepSimulation(params: {
     ? velocityProxy({ flowLpm: hydraulicFlowLpm, diameterMm: controls.pipeDiameterMm })
     : 0
 
-  let tokens: LabToken[] = [...frame.tokens]
+  let particles: FlowParticle[] = [...frame.particles]
   let nextId = frame.nextTokenId
 
   // Add spawns at s = 0 on MAIN with deterministic sequential IDs.
@@ -392,22 +392,22 @@ export function stepSimulation(params: {
   // hot branch (MAIN → HEX → outlet A).  Cold bypass tokens start cold and stay
   // cold; they follow the cold bypass polyline and bypass the HEX entirely.
   for (let i = 0; i < spawnCount; i++) {
-    // Only spawn if we are below the hard token cap.
-    if (tokens.length >= MAX_TOKENS) break
+    // Only spawn if we are below the hard particle cap.
+    if (particles.length >= MAX_TOKENS) break
 
     const assignedOutlet = activeOutlets.length > 0
       ? pickOutletDeterministic(controls.outlets, nextId)
       : undefined
 
-    // Determine route: check if this token should take the cold supply bypass.
-    let route: LabToken['route'] = 'MAIN'
+    // Determine route: check if this particle should take the cold supply bypass.
+    let route: FlowParticle['route'] = 'MAIN'
     let tokenV = v
     if (assignedOutlet && tmvOutletMap[assignedOutlet]) {
       const tmv = tmvOutletMap[assignedOutlet]!
       const F_out = (tmv.F_h + tmv.F_c) || 1
       const coldFraction = tmv.F_c / F_out
-      // Deterministic split: use a large prime multiplier so cold bypass tokens
-      // interleave with hot tokens rather than appearing in blocks.
+      // Deterministic split: use a large prime multiplier so cold bypass particles
+      // interleave with hot particles rather than appearing in blocks.
       // (Any large prime avoids patterns caused by sequential IDs.)
       const h01 = hash01(nextId * 3571)
       if (h01 < coldFraction) {
@@ -418,7 +418,7 @@ export function stepSimulation(params: {
       }
     }
 
-    tokens.push({
+    particles.push({
       id: `t_${nextId++}`,
       s: 0,
       v: tokenV,
@@ -433,7 +433,7 @@ export function stepSimulation(params: {
   const outletSamples = { ...frame.outletSamples }
 
   // Step + heat injection (MAIN only for combi) + splitter assignment
-  tokens = tokens.map(t => {
+  particles = particles.map(t => {
     const sPrev = t.s
     const sNext = clamp(t.s + t.v * dt, 0, 1)
 
@@ -500,9 +500,9 @@ export function stepSimulation(params: {
     return { ...t, s: sNext, v: branchV, p, hJPerKg: h }
   })
 
-  // Sample tokens exiting outlet branches → update EMA, then remove them.
-  // COLD_A tokens map to outlet 'A' for the purpose of the EMA sample.
-  tokens = tokens.filter(t => {
+  // Sample particles exiting outlet branches → update EMA, then remove them.
+  // COLD_A particles map to outlet 'A' for the purpose of the EMA sample.
+  particles = particles.filter(t => {
     const isBranch = t.route !== 'MAIN'
     const isColdBypass = t.route === 'COLD_A'
 
@@ -523,14 +523,14 @@ export function stepSimulation(params: {
     return true
   })
 
-  // No draw: clear all tokens so the animation stops cleanly.
+  // No draw: clear all particles so the animation stops cleanly.
   if (!hasDraw) {
-    tokens = []
+    particles = []
   }
 
   return {
     nowMs: frame.nowMs + dtMs,
-    tokens,
+    particles,
     spawnAccumulator,
     nextTokenId: nextId,
     outletSamples,
@@ -541,16 +541,16 @@ export function stepSimulation(params: {
 }
 
 /**
- * Helper to create an initial set of cold tokens, evenly distributed along the path.
+ * Helper to create an initial set of cold particles, evenly distributed along the path.
  */
 export function createColdTokens(params: {
   count: number
   velocity: number
   pressure: number
-}): LabToken[] {
-  const tokens: LabToken[] = []
+}): FlowParticle[] {
+  const particles: FlowParticle[] = []
   for (let i = 0; i < params.count; i++) {
-    tokens.push({
+    particles.push({
       id: `t_${i}`,
       s: i / params.count, // evenly distributed along the path
       v: params.velocity,
@@ -559,5 +559,5 @@ export function createColdTokens(params: {
       route: 'MAIN',
     })
   }
-  return tokens
+  return particles
 }

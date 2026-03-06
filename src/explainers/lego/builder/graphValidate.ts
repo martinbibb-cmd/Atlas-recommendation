@@ -172,7 +172,7 @@ export function validateGraph(graph: BuildGraph): GraphWarning[] {
         level: 'warn',
         title: 'F&E cistern missing',
         message: 'Regular boiler systems should include a Feed & Expansion cistern.',
-        hint: 'Add a Feed & Expansion token and connect it to the heating circuit.',
+        hint: 'Add a Feed & Expansion part and connect it to the heating circuit.',
       })
     } else if (!anyPortConnected(graph, feNode.id)) {
       warnings.push({
@@ -180,7 +180,7 @@ export function validateGraph(graph: BuildGraph): GraphWarning[] {
         level: 'warn',
         title: 'F&E cistern not connected',
         message: 'Feed & Expansion is present but not connected to the CH circuit.',
-        hint: 'Connect the F&E token into the open-vented heating side.',
+        hint: 'Connect the F&E part into the open-vented heating side.',
         nodeId: feNode.id,
       })
     }

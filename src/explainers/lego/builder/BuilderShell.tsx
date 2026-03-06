@@ -355,7 +355,7 @@ export default function BuilderShell({
                   className="bind-btn"
                   disabled={!selectedIsOutlet}
                   onClick={() => assignSelectedTo(slot)}
-                  title={selectedIsOutlet ? 'Assign selected outlet token' : 'Select an outlet token first'}
+                  title={selectedIsOutlet ? 'Assign selected outlet node' : 'Select an outlet node first'}
                 >
                   Assign
                 </button>

@@ -24,7 +24,7 @@ export const PALETTE: PaletteItem[] = [
   { kind: 'cold_tap_outlet', label: 'Cold tap', emoji: '🧊' },
 ];
 
-/** Tee tokens are auto-inserted by drag-connect; they can also be placed manually. */
+/** Tee nodes are auto-inserted by drag-connect; they can also be placed manually. */
 export const PALETTE_ADVANCED: PaletteItem[] = [
   { kind: 'tee_hot', label: 'Hot Tee', emoji: '🔱' },
   { kind: 'tee_cold', label: 'Cold Tee', emoji: '❄️' },

@@ -51,7 +51,7 @@ function makeInitialFrame(controls: LabControls): LabFrame {
       : undefined
   return {
     nowMs: 0,
-    tokens: [],
+    particles: [],
     spawnAccumulator: 0,
     nextTokenId: 0,
     outletSamples: { ...EMPTY_OUTLET_SAMPLES },
@@ -452,9 +452,9 @@ export function LabCanvas(props: {
           )
         })}
 
-        {/* ── Tokens ─────────────────────────────────────────────────────── */}
+        {/* ── Flow Particles ──────────────────────────────────────────────── */}
         <TokensLayer
-          tokens={frame.tokens}
+          particles={frame.particles}
           coldInletC={controls.coldInletC}
           polyMain={polyMain}
           polyA={branchA}
