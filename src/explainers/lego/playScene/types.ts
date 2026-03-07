@@ -80,6 +80,15 @@ export type PlaySceneEdge = {
   from: string
   to: string
   kind: PlaySceneEdgeKind
+  /**
+   * Circuit domain for domain-aware rendering (PR5).
+   *
+   * heating  — space-heating circuit (boiler → radiators/UFH → boiler)
+   * primary  — primary circuit in stored systems (boiler → cylinder coil → boiler)
+   * dhw      — domestic hot-water path (heat source / cylinder → outlets)
+   * cold     — cold-water supply (mains or gravity from CWS)
+   */
+  domain?: 'heating' | 'primary' | 'dhw' | 'cold'
   visible: boolean
   active?: boolean
   direction?: 'forward' | 'reverse'

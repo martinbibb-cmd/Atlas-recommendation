@@ -341,6 +341,20 @@ export function LabCanvas(props: {
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          {/* Purple glow for the primary circuit (boiler ↔ cylinder coil) — PR5. */}
+          <filter id="primary-glow" x="-60%" y="-60%" width="220%" height="220%">
+            <feColorMatrix type="matrix"
+              values="0.5 0 0.5 0 0.1
+                      0   0 0.8 0 0
+                      0.3 0 1   0 0.1
+                      0   0 0   1 0"
+              result="tinted" />
+            <feGaussianBlur in="tinted" stdDeviation="5" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
           <clipPath id="cyl-clip">
             <rect x={cylX} y={cylY} width={cylW} height={cylH} rx={18} />
           </clipPath>
@@ -643,13 +657,17 @@ export function LabCanvas(props: {
              * scene.metadata.showHeatSource / showHeatingPath drive these flags
              * so the renderer does not have to re-derive them from systemMode.
              */}
-            {/* Cylinder tank background */}
+            {/* Cylinder tank background
+                PR5 domain-aware border:
+                  primary (coil active)  → purple stroke + primary-glow
+                  heating (CH active)    → orange stroke + heat-glow
+                  idle                   → grey stroke, no filter            */}
             <rect
               x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
               fill="#f1f5f9"
-              stroke={(coilActive || showHeatingPathAndEmitters) ? '#f97316' : '#c9d4e2'}
-              strokeWidth={(coilActive || showHeatingPathAndEmitters) ? 2.5 : 2}
-              filter={(coilActive || showHeatingPathAndEmitters) ? HEAT_GLOW : undefined}
+              stroke={(coilActive || isHwActive) ? '#7c3aed' : (showHeatingPathAndEmitters) ? '#f97316' : '#c9d4e2'}
+              strokeWidth={(coilActive || isHwActive || showHeatingPathAndEmitters) ? 2.5 : 2}
+              filter={(coilActive || isHwActive) ? 'url(#primary-glow)' : showHeatingPathAndEmitters ? HEAT_GLOW : undefined}
             />
             {/* Thermal fill — clips to rounded rect */}
             <rect
@@ -679,6 +697,54 @@ export function LabCanvas(props: {
                 {roundTempC(storeTempC)} °C
               </text>
             )}
+            {/* ── Primary coil symbol — PR5: always visible, never hidden ──────
+                Represents the immersion coil (primary circuit) permanently plumbed
+                inside the cylinder.  Purple = primary domain.
+                Fades to 0.25 opacity when the coil is not actively reheating so
+                the structural circuit remains visible without implying flow.
+                Positioned at the bottom-right of the cylinder interior where it
+                does not overlap the boiler indicator or the centred text labels.  */}
+            {(() => {
+              // Highlight the coil when the primary circuit is actively transferring
+              // heat (coilActive = simulation visuals, isHwActive = system mode fallback
+              // for the first frame before visuals are available).
+              const shouldHighlightCoil = coilActive || isHwActive
+              // Coil symbol: 3-pass horizontal element in bottom-right of cylinder
+              const cx0 = cylX + cylW - 35  // left edge of coil symbol
+              const cx1 = cylX + cylW - 13  // right edge of coil symbol
+              const cy0 = cylY + 63         // top pass Y
+              const cyPitch = 8             // gap between passes
+              return (
+                <g opacity={shouldHighlightCoil ? 1 : 0.25}>
+                  {/* 3 horizontal coil passes */}
+                  {([0, 1, 2] as const).map(i => (
+                    <line
+                      key={i}
+                      x1={cx0} y1={cy0 + i * cyPitch}
+                      x2={cx1} y2={cy0 + i * cyPitch}
+                      stroke="#7c3aed" strokeWidth={2} strokeLinecap="round"
+                    />
+                  ))}
+                  {/* Right-side U-turn: pass 0 → pass 1 */}
+                  <path
+                    d={`M ${cx1} ${cy0} Q ${cx1 + 4} ${cy0 + cyPitch / 2} ${cx1} ${cy0 + cyPitch}`}
+                    stroke="#7c3aed" strokeWidth={2} fill="none" strokeLinecap="round"
+                  />
+                  {/* Left-side U-turn: pass 1 → pass 2 */}
+                  <path
+                    d={`M ${cx0} ${cy0 + cyPitch} Q ${cx0 - 4} ${cy0 + cyPitch * 1.5} ${cx0} ${cy0 + cyPitch * 2}`}
+                    stroke="#7c3aed" strokeWidth={2} fill="none" strokeLinecap="round"
+                  />
+                  {/* Domain label */}
+                  <text
+                    x={(cx0 + cx1) / 2} y={cy0 - 5}
+                    textAnchor="middle" fontSize={7} fill="#7c3aed"
+                  >
+                    {shouldHighlightCoil ? 'coil ▶' : 'Primary coil'}
+                  </text>
+                </g>
+              )
+            })()}
             {/* Burner / compressor activity pulse — visible when heat source is active.
                 Always rendered (PR5 — never hide the boiler indicator).
                 Opacity drops to 0.35 when idle so the full topology remains visible
@@ -746,14 +812,18 @@ export function LabCanvas(props: {
                 fill={isHwActive ? '#0284c7' : '#94a3b8'}
                 fontWeight={isHwActive ? 700 : 400}
               >HW</text>
-              {/* Direction arrow line — CH side */}
-              {isChActive && (
-                <line x1={-4} y1={10} x2={-22} y2={10} stroke="#f97316" strokeWidth={2} strokeLinecap="round" />
-              )}
-              {/* Direction arrow line — HW side */}
-              {isHwActive && (
-                <line x1={4} y1={10} x2={22} y2={10} stroke="#0284c7" strokeWidth={2} strokeLinecap="round" />
-              )}
+              {/* Direction arrow line — CH side (PR5: always visible, faded when inactive) */}
+              <line
+                x1={-4} y1={10} x2={-22} y2={10}
+                stroke="#f97316" strokeWidth={2} strokeLinecap="round"
+                opacity={isChActive ? 1 : 0.2}
+              />
+              {/* Direction arrow line — HW side (PR5: always visible, faded when inactive) */}
+              <line
+                x1={4} y1={10} x2={22} y2={10}
+                stroke="#0284c7" strokeWidth={2} strokeLinecap="round"
+                opacity={isHwActive ? 1 : 0.2}
+              />
             </g>
           </g>
         )}
@@ -926,6 +996,26 @@ export function LabCanvas(props: {
           demandTotalLpm={summary.demandTotalLpm}
           postHexThermalColor={postHexThermalColor}
         />
+
+        {/* ── Domain colour legend — PR5 ────────────────────────────────── */}
+        {/* Shows the four circuit domains so the schematic is self-explanatory.
+            Positioned in the lower-right quadrant, clear of all pipe/outlet paths. */}
+        <g transform="translate(730, 215)">
+          <text x={0} y={0} fontSize={8} fill="#64748b" fontWeight={600}>Circuit domains</text>
+          {(
+            [
+              { color: '#f97316', label: 'Heating' },
+              { color: '#7c3aed', label: 'Primary' },
+              { color: '#dc2626', label: 'Hot water' },
+              { color: '#0284c7', label: 'Cold' },
+            ] as const
+          ).map(({ color, label }, i) => (
+            <g key={label} transform={`translate(0, ${11 + i * 13})`}>
+              <rect x={0} y={-7} width={18} height={7} rx={2} fill={color} opacity={0.75} />
+              <text x={22} y={0} fontSize={7.5} fill="#475569">{label}</text>
+            </g>
+          ))}
+        </g>
       </svg>
 
       {/* ── Usable hot water indicator (cylinder only) ─────────────────── */}

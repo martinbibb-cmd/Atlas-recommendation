@@ -212,18 +212,30 @@ export function buildPlaySceneModel(
   }
 
   // ── Edges ──────────────────────────────────────────────────────────────────
+  //
+  // PR5: ALL structural edges are emitted unconditionally so the renderer can
+  // show the full system topology at all times.  The `active` flag (not
+  // `visible`) drives opacity/animation styling — inactive edges are rendered
+  // faded (not removed).
 
   const edges: PlaySceneEdge[] = []
 
-  // CH flow / return — visible when heating is active.
-  if (isChActive) {
+  // CH flow / return — always present when a heating circuit is configured or
+  // currently active.  Using `hasHeatingDemand || isChActive` ensures that:
+  //   1. Structure is always shown when the graph has emitters (hasHeatingDemand),
+  //      even while CH is off — inactive edges render faded (PR5).
+  //   2. Edges also appear when heating is live (isChActive) even if graphFacts
+  //      are not set, which covers presets that pre-date graphFacts propagation.
+  // `active` reflects whether CH is currently running.
+  if (hasHeatingDemand || isChActive) {
     edges.push({
       id: 'ch_flow',
       from: 'heat_source',
       to: 'radiators',
       kind: 'ch_flow',
+      domain: 'heating',
       visible: true,
-      active: true,
+      active: isChActive,
       direction: 'forward',
     })
     edges.push({
@@ -231,48 +243,57 @@ export function buildPlaySceneModel(
       from: 'radiators',
       to: 'heat_source',
       kind: 'ch_return',
+      domain: 'heating',
       visible: true,
-      active: true,
+      active: isChActive,
       direction: 'forward',
     })
   }
 
-  // DHW hot draw — visible when there is a domestic hot-water draw.
-  if (mode === 'dhw_draw') {
-    edges.push({
-      id: 'dhw_hot',
-      from: isCylinder ? 'cylinder' : 'heat_source',
-      to: 'outlet_manifold',
-      kind: 'dhw_hot',
-      visible: true,
-      active: true,
-      direction: 'forward',
-    })
-  }
+  // DHW hot draw — always present for all system types (the hot-water path from
+  // heat source / cylinder to the outlet manifold is always part of the topology).
+  // `active` is true only while a domestic draw is actually occurring.
+  edges.push({
+    id: 'dhw_hot',
+    from: isCylinder ? 'cylinder' : 'heat_source',
+    to: 'outlet_manifold',
+    kind: 'dhw_hot',
+    domain: 'dhw',
+    visible: true,
+    active: mode === 'dhw_draw',
+    direction: 'forward',
+  })
 
   // Tank refill edge — vented cylinder: gravity feed from CWS cistern into store.
+  // Always present for vented systems; passive (no active pump).
   if (isVented) {
     edges.push({
       id: 'tank_refill',
       from: 'cws',
       to: 'cylinder',
       kind: 'tank_refill',
+      domain: 'cold',
       visible: true,
       active: false, // passive gravity feed; no active pump
       direction: 'forward',
     })
   }
 
-  // Primary coil — cylinder reheat path from heat source into the cylinder coil.
-  // S-plan allows this simultaneously with CH (heating_and_reheat mode).
-  if (isCylinder && (mode === 'dhw_reheat' || mode === 'heating_and_reheat')) {
+  // Primary coil — always present for cylinder systems (the coil is permanently
+  // plumbed in; it does not come and go with demand).  S-plan allows this
+  // simultaneously with CH (heating_and_reheat mode).
+  // `active` is true during dhw_reheat and heating_and_reheat; otherwise the
+  // coil renders faded to show the structural circuit without implying flow.
+  if (isCylinder) {
+    const isCoilActive = mode === 'dhw_reheat' || mode === 'heating_and_reheat'
     edges.push({
       id: 'coil_flow',
       from: 'heat_source',
       to: 'cylinder',
       kind: 'coil_flow',
+      domain: 'primary',
       visible: true,
-      active: true,
+      active: isCoilActive,
       direction: 'forward',
     })
     edges.push({
@@ -280,8 +301,9 @@ export function buildPlaySceneModel(
       from: 'cylinder',
       to: 'heat_source',
       kind: 'coil_return',
+      domain: 'primary',
       visible: true,
-      active: true,
+      active: isCoilActive,
       direction: 'forward',
     })
   }

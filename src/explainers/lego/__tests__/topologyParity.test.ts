@@ -150,10 +150,16 @@ describe('topologyParity — heating-only activation in play scene model', () =>
     }
   })
 
-  it('heating-only → no coil_flow or coil_return edges emitted', () => {
+  it('heating-only → coil edges present but inactive (PR5: always show structure)', () => {
+    // PR5: coil edges are always emitted for cylinder systems so the primary
+    // circuit is always visible in the schematic.  During heating-only mode the
+    // coil is not firing so the edges carry active=false (rendered faded).
     const scene = buildPlaySceneModel(controls, makeFrame({ systemMode: 'heating' }))
     const coilEdges = scene.edges.filter(e => e.kind === 'coil_flow' || e.kind === 'coil_return')
-    expect(coilEdges.length).toBe(0)
+    expect(coilEdges.length).toBe(2)
+    for (const edge of coilEdges) {
+      expect(edge.active).toBe(false)
+    }
   })
 
   it('CH edges go heat_source → radiators, not heat_source → cylinder', () => {
@@ -203,10 +209,17 @@ describe('topologyParity — stored DHW draw', () => {
     expect(coilReturn.to).toBe('heat_source')
   })
 
-  it('stored DHW draw does not add CH emitter edges (radiators off during DHW-only)', () => {
+  it('stored DHW draw → CH emitter edges present but inactive (PR5: always show structure)', () => {
+    // PR5: CH edges are always emitted when hasHeatingCircuit=true so the heating
+    // branch remains visible in the schematic even when only DHW is active.
+    // The edges carry active=false (rendered faded) to show structure without
+    // implying flow.
     const scene = buildPlaySceneModel(controls, makeFrame({ systemMode: 'dhw_draw' }))
     const chEdges = scene.edges.filter(e => e.kind === 'ch_flow' || e.kind === 'ch_return')
-    expect(chEdges.length).toBe(0)
+    expect(chEdges.length).toBe(2)
+    for (const edge of chEdges) {
+      expect(edge.active).toBe(false)
+    }
   })
 
   it('S-plan simultaneous mode → both ch_flow AND coil_flow edges present', () => {
