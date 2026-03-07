@@ -230,6 +230,13 @@ export type LabControls = {
     hotFedOutletNodeIds: string[]
     coldOnlyOutletNodeIds: string[]
     hasStoredDhw?: boolean
+    /**
+     * True when the build graph contains at least one heating emitter node
+     * (radiator_loop or ufh_loop).  Used by the play-scene renderer to show
+     * emitters in the schematic even when the heating demand is currently off,
+     * so the system topology is always visible regardless of demand state.
+     */
+    hasHeatingCircuit?: boolean
   }
   heatDemandKw?: number
   /**

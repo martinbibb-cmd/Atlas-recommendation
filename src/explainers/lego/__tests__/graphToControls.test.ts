@@ -145,7 +145,50 @@ describe('graphToLabControls — patch merging', () => {
   })
 })
 
-// ── controlTopology derivation ─────────────────────────────────────────────────
+// ── hasHeatingCircuit propagation ─────────────────────────────────────────────
+
+function systemWithRadiatorLoopGraph(): BuildGraph {
+  return {
+    nodes: [
+      { id: 'hs',  kind: 'heat_source_system_boiler', x: 100, y: 100, r: 0 },
+      { id: 'cyl', kind: 'dhw_unvented_cylinder',     x: 300, y: 100, r: 0 },
+      { id: 'rad', kind: 'radiator_loop',             x: 300, y: 300, r: 0 },
+    ],
+    edges: [],
+  }
+}
+
+function systemWithUfhLoopGraph(): BuildGraph {
+  return {
+    nodes: [
+      { id: 'hs',  kind: 'heat_source_system_boiler', x: 100, y: 100, r: 0 },
+      { id: 'ufh', kind: 'ufh_loop',                  x: 300, y: 300, r: 0 },
+    ],
+    edges: [],
+  }
+}
+
+describe('graphToLabControls — hasHeatingCircuit in graphFacts', () => {
+  it('sets hasHeatingCircuit true when graph has a radiator_loop', () => {
+    const controls = graphToLabControls(systemWithRadiatorLoopGraph())
+    expect(controls.graphFacts?.hasHeatingCircuit).toBe(true)
+  })
+
+  it('sets hasHeatingCircuit true when graph has a ufh_loop', () => {
+    const controls = graphToLabControls(systemWithUfhLoopGraph())
+    expect(controls.graphFacts?.hasHeatingCircuit).toBe(true)
+  })
+
+  it('sets hasHeatingCircuit false when graph has no heating emitters', () => {
+    const controls = graphToLabControls(combiGraph())
+    expect(controls.graphFacts?.hasHeatingCircuit).toBe(false)
+  })
+
+  it('sets hasHeatingCircuit false for a DHW-only system (no emitters)', () => {
+    const controls = graphToLabControls(unventedCylinderGraph())
+    expect(controls.graphFacts?.hasHeatingCircuit).toBe(false)
+  })
+})
 
 function sPlanGraph(): BuildGraph {
   // System boiler + 2 zone valves = S-plan topology

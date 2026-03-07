@@ -360,3 +360,106 @@ describe('buildPlaySceneModel — edges', () => {
     expect(kinds).toContain('ch_return')
   })
 })
+
+// ─── hasHeatingCircuit graph-fact regression tests ────────────────────────────
+//
+// Regression guard for the state-parity fix:
+//   - When the build graph contains heating emitters, radiators must be shown in
+//     play mode even when heating demand is currently off.
+//   - Radiators must stay on the heating circuit; they must not appear re-parented
+//     to the cylinder when DHW is active and CH is off.
+
+describe('buildPlaySceneModel — heating circuit from build graph topology', () => {
+  const cylinderControlsWithEmitters = makeBaseControls({
+    systemType: 'unvented_cylinder',
+    graphFacts: {
+      hotFedOutletNodeIds: [],
+      coldOnlyOutletNodeIds: [],
+      hasStoredDhw: true,
+      hasHeatingCircuit: true,
+    },
+  })
+
+  it('radiators visible when graphFacts.hasHeatingCircuit is true, even with heating off', () => {
+    // Heating demand is off (default frame, no heatingDemand on controls)
+    const scene = buildPlaySceneModel(cylinderControlsWithEmitters, makeBaseFrame({ systemMode: 'idle' }))
+    const radiators = scene.nodes.find(n => n.role === 'radiators')
+    expect(radiators?.visible).toBe(true)
+  })
+
+  it('radiators not active when heating is off (only visible, not glowing)', () => {
+    const scene = buildPlaySceneModel(cylinderControlsWithEmitters, makeBaseFrame({ systemMode: 'idle' }))
+    const radiators = scene.nodes.find(n => n.role === 'radiators')
+    expect(radiators?.active).toBe(false)
+    expect(radiators?.activity?.kind).toBe('idle')
+  })
+
+  it('radiators visible when heating is on (hasHeatingCircuit + heatingDemand both true)', () => {
+    const controlsWithDemand = makeBaseControls({
+      ...cylinderControlsWithEmitters,
+      heatingDemand: { enabled: true, demandLevel: 1.0, targetFlowTempC: 70 },
+    })
+    const scene = buildPlaySceneModel(controlsWithDemand, makeBaseFrame({ systemMode: 'heating' }))
+    const radiators = scene.nodes.find(n => n.role === 'radiators')
+    expect(radiators?.visible).toBe(true)
+    expect(radiators?.active).toBe(true)
+  })
+
+  it('radiators are NOT re-parented to cylinder when DHW is active and CH is off', () => {
+    // Simulates: heating OFF, hot water ON (DHW draw)
+    const scene = buildPlaySceneModel(
+      cylinderControlsWithEmitters,
+      makeBaseFrame({ systemMode: 'dhw_draw' }),
+    )
+    const radiators = scene.nodes.find(n => n.role === 'radiators')
+    // Radiators should still be visible (topology exists) but not active
+    expect(radiators?.visible).toBe(true)
+    expect(radiators?.active).toBe(false)
+    // No CH flow/return edges when heating is off
+    const edgeKinds = scene.edges.map(e => e.kind)
+    expect(edgeKinds).not.toContain('ch_flow')
+    expect(edgeKinds).not.toContain('ch_return')
+    // DHW hot edge should go from cylinder (not radiators)
+    const dhwEdge = scene.edges.find(e => e.kind === 'dhw_hot')
+    expect(dhwEdge).toBeDefined()
+    expect(dhwEdge?.from).toBe('cylinder')
+    expect(dhwEdge?.to).not.toBe('radiators')
+  })
+
+  it('radiators hidden when graphFacts.hasHeatingCircuit is false and heating is off', () => {
+    // DHW-only system with no emitters drawn — radiators should not be shown
+    const dhwOnlyControls = makeBaseControls({
+      systemType: 'unvented_cylinder',
+      graphFacts: {
+        hotFedOutletNodeIds: [],
+        coldOnlyOutletNodeIds: [],
+        hasStoredDhw: true,
+        hasHeatingCircuit: false,
+      },
+    })
+    const scene = buildPlaySceneModel(dhwOnlyControls, makeBaseFrame({ systemMode: 'idle' }))
+    const radiators = scene.nodes.find(n => n.role === 'radiators')
+    expect(radiators?.visible).toBe(false)
+  })
+
+  it('edit and play produce the same component inventory — combi with heating', () => {
+    // When graphFacts.hasHeatingCircuit is true, play scene includes radiators
+    const combiWithEmitters = makeBaseControls({
+      systemType: 'combi',
+      graphFacts: {
+        hotFedOutletNodeIds: [],
+        coldOnlyOutletNodeIds: [],
+        hasStoredDhw: false,
+        hasHeatingCircuit: true,
+      },
+    })
+    const scene = buildPlaySceneModel(combiWithEmitters, makeBaseFrame({ systemMode: 'idle' }))
+    // The schematic should include: heat_source + radiators (because topology says so)
+    const roles = scene.nodes.map(n => n.role)
+    expect(roles).toContain('heat_source')
+    expect(roles).toContain('radiators')
+    // No cylinder for combi
+    expect(roles).not.toContain('cylinder')
+    expect(roles).not.toContain('cws')
+  })
+})

@@ -130,7 +130,13 @@ export function buildPlaySceneModel(
   const isActive    = isChActive || isDhwActive
 
   // Whether the CH circuit has any heating demand configured.
+  // Radiators are also shown when the build graph contains emitter nodes so that
+  // the system topology is always represented in the schematic, even when heating
+  // is currently switched off.  The `active` flag (not `visible`) governs the
+  // activity glow — emitters are active only when CH is running.
+  const hasHeatingEmittersInGraph = controls.graphFacts?.hasHeatingCircuit === true
   const hasHeatingDemand =
+    hasHeatingEmittersInGraph ||
     (controls.heatingDemand?.enabled === true) ||
     (controls.heatDemandKw !== undefined && controls.heatDemandKw > 0)
 
