@@ -12,6 +12,21 @@
 //   → PlaySceneModel        ← this file
 //   → renderer (LabCanvas)
 
+// ─── Outlet service classification ────────────────────────────────────────────
+
+/**
+ * Classifies an outlet by which water service it draws from.
+ *
+ * cold_only — outlet draws cold supply only; must NOT appear on the hot branch,
+ *             must NOT contribute to DHW demand, and must NOT deplete a cylinder store.
+ * mixed     — outlet draws both hot and cold (e.g. basin, bath, shower with TMV).
+ * hot_only  — outlet draws hot water only (rarely needed; present for completeness).
+ *
+ * The renderer and simulation use this to gate hot-service logic so that cold taps
+ * are never treated as hot-service outlets (PR16 fix).
+ */
+export type OutletServiceClass = 'cold_only' | 'mixed' | 'hot_only'
+
 // ─── Node roles ───────────────────────────────────────────────────────────────
 
 export type PlaySceneNodeRole =
@@ -168,5 +183,12 @@ export type PlaySceneModel = {
      * slots.  Undefined when graphFacts are absent (legacy controls).
      */
     outletCount?: number
+    /**
+     * Number of cold-only outlets (e.g. cold taps) in the build graph.
+     * These outlets draw from cold supply only and must never be shown on the
+     * hot-water branch or contribute to DHW demand.
+     * Undefined when graphFacts are absent (legacy controls).
+     */
+    coldOnlyOutletCount?: number
   }
 }

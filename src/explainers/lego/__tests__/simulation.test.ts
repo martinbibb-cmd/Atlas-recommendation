@@ -763,3 +763,102 @@ describe('S-plan simultaneous CH + reheat (heating_and_reheat mode)', () => {
     expect(frame.systemMode).toBe('heating_and_reheat')
   })
 })
+
+// ─── PR16: cold-only outlets — DHW demand and store depletion ─────────────────
+// Cold taps draw from cold supply only.  They must NOT:
+//   • activate the dhw_draw fluid path
+//   • deplete the cylinder store
+//   • cause the boiler to fire for DHW
+// Only hot-service outlets (shower, basin, bath) should trigger those effects.
+
+describe('PR16 — cold-only outlets do not activate DHW demand or deplete store', () => {
+  // Controls for an unvented cylinder system with:
+  //   Slot A: shower (hot-fed)
+  //   Slot C: cold tap (cold-only, bound to a coldOnlyOutletNodeIds node)
+  function makeColdTapControls(enableShower: boolean, enableColdTap: boolean): LabControls {
+    return {
+      systemType: 'unvented_cylinder',
+      heatSourceType: 'system_boiler',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 14,
+      pipeDiameterMm: 22,
+      combiDhwKw: 0,
+      cylinder: { volumeL: 180, initialTempC: 75, reheatKw: 12 },
+      outlets: [
+        { id: 'A', enabled: enableShower, kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false,         kind: 'basin',         demandLpm: 0 },
+        { id: 'C', enabled: enableColdTap, kind: 'cold_tap',      demandLpm: 5 },
+      ],
+      heatingDemand: { enabled: false },
+      // Reheat target below initial temp so reheat never triggers in these tests.
+      dhwReheatTargetC: 55,
+      dhwReheatHysteresisC: 3,
+      outletBindings: { A: 'node_shower', C: 'node_cold_tap' },
+      graphFacts: {
+        hotFedOutletNodeIds:   ['node_shower'],
+        coldOnlyOutletNodeIds: ['node_cold_tap'],
+        hasHeatingCircuit: false,
+      },
+    }
+  }
+
+  it('cold tap alone: dhw_draw fluid path is NOT active', () => {
+    const controls = makeColdTapControls(false, true)
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    const fp = frame.visuals!.fluidPaths
+    const dhwDraw = fp.find(p => p.edgeIds.includes('dhw_draw'))
+    // Only cold tap enabled — dhw_draw must be inactive (PR16 fix).
+    expect(dhwDraw?.active).toBe(false)
+  })
+
+  it('cold tap alone: cylinder store is NOT depleted', () => {
+    const controls = makeColdTapControls(false, true)
+    // Run for many ticks to accumulate any depletion.
+    let frame = makeFrame()
+    for (let i = 0; i < 30; i++) {
+      frame = stepSimulation({ frame, dtMs: 500, controls })
+    }
+    const sv = frame.visuals!.storageStates.find(s => s.nodeId === 'cylinder')
+    // Store should remain near its initial charge (initialTempC=75, chargePct≈0.93).
+    // No hot draw → no depletion.  Allow a small margin for rounding.
+    expect(sv?.chargePct).toBeDefined()
+    expect(sv!.chargePct!).toBeGreaterThan(0.90)
+  })
+
+  it('cold tap alone: system remains idle (boiler does not fire for cold tap)', () => {
+    const controls = makeColdTapControls(false, true)
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    // No heating demand, no hot draw → system must be idle.
+    expect(frame.systemMode).toBe('idle')
+  })
+
+  it('shower alone: dhw_draw IS active', () => {
+    const controls = makeColdTapControls(true, false)
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    const fp = frame.visuals!.fluidPaths
+    const dhwDraw = fp.find(p => p.edgeIds.includes('dhw_draw'))
+    expect(dhwDraw?.active).toBe(true)
+  })
+
+  it('shower + cold tap together: dhw_draw is active (shower is hot-fed)', () => {
+    const controls = makeColdTapControls(true, true)
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    const fp = frame.visuals!.fluidPaths
+    const dhwDraw = fp.find(p => p.edgeIds.includes('dhw_draw'))
+    // Shower (hot-fed) is active → dhw_draw should be active.
+    expect(dhwDraw?.active).toBe(true)
+  })
+
+  it('shower + cold tap: cylinder IS depleted (shower draws hot water)', () => {
+    const controls = makeColdTapControls(true, true)
+    let frame = makeFrame()
+    for (let i = 0; i < 30; i++) {
+      frame = stepSimulation({ frame, dtMs: 500, controls })
+    }
+    const sv = frame.visuals!.storageStates.find(s => s.nodeId === 'cylinder')
+    // Shower is drawing hot water → store should have decreased.
+    expect(sv?.chargePct).toBeDefined()
+    expect(sv!.chargePct!).toBeLessThan(0.95)
+  })
+})

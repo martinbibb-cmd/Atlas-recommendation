@@ -200,6 +200,10 @@ function buildSceneForKind(
     (controls.graphFacts?.hotFedOutletNodeIds.length ?? 0) +
     (controls.graphFacts?.coldOnlyOutletNodeIds.length ?? 0)
 
+  // Cold-only outlet count — outlets that draw from cold supply only (e.g. cold taps).
+  // Used by the renderer to separate them from the hot branch.
+  const coldOnlyOutletCount = controls.graphFacts?.coldOnlyOutletNodeIds.length ?? 0
+
   const metadata: PlaySceneModel['metadata'] = {
     sceneLayoutKind,
     // Vented cylinder uses tank-fed supply: hide generic mains cold feed to
@@ -223,6 +227,8 @@ function buildSceneForKind(
     controlTopologyKind: controls.controlTopology ?? 'none',
     // Outlet count from built graph — shown in outlet manifold label.
     outletCount: outletCount > 0 ? outletCount : undefined,
+    // Cold-only outlet count — drives cold-tap rendering in Play scene.
+    coldOnlyOutletCount: coldOnlyOutletCount > 0 ? coldOnlyOutletCount : undefined,
   }
 
   // ── Nodes ──────────────────────────────────────────────────────────────────

@@ -390,12 +390,16 @@ export function stepSimulation(params: {
   const maxHSetpoint = tempToHeatJPerKg({ coldInletC: controls.coldInletC, tempC: setpointC })
 
   if (store) {
-    if (demandTotalLpm > 0) {
+    // Only deplete the cylinder store when hot-service outlets are drawing.
+    // Cold-only outlets (cold taps) draw from cold supply and must NOT deplete
+    // stored hot water — hotDrawActive is gated by hexFlowLpm which already
+    // excludes cold-only outlet demand (PR16 fix).
+    if (hotDrawActive) {
       const storeTmp = cylinderTempC({ store, coldInletC: controls.coldInletC })
       store = removeDrawEnergy({
         store,
         coldInletC: controls.coldInletC,
-        drawLpm: hydraulicFlowLpm,
+        drawLpm: hexFlowLpm,
         deliveredTempC: storeTmp,
         dtS: dt,
       })
@@ -603,11 +607,13 @@ export function stepSimulation(params: {
         flowLpm: hasDraw ? hydraulicFlowLpm : 0,
       },
       // DHW draw-off — hot water leaving the system toward outlets.
+      // Only active when hot-service outlets are drawing; cold-only outlets (cold taps)
+      // draw from cold supply and must not activate the DHW path (PR16 fix).
       {
         edgeIds: ['dhw_draw'],
         direction: 'forward',
-        active: hasDraw,
-        flowLpm: hasDraw ? hydraulicFlowLpm : 0,
+        active: hotDrawActive,
+        flowLpm: hotDrawActive ? hexFlowLpm : 0,
       },
       // Primary heating circuit — boiler → emitters → return.
       // Active whenever space-heating is running (including S-plan simultaneous mode).
