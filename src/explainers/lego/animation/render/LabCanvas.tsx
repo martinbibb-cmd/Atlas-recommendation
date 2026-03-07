@@ -1389,7 +1389,7 @@ export function LabCanvas(props: {
                           textAnchor="middle" fontSize={9}
                           fill={isEnabled ? '#0369a1' : '#94a3b8'}
                         >
-                          Cold tap (cold only)
+                          Cold tap
                         </text>
                         {isEnabled && delivered > 0 && (
                           <text
@@ -1408,13 +1408,13 @@ export function LabCanvas(props: {
                       </g>
                     )
                   })}
-                  {/* Cold-only domain label */}
+                  {/* Cold service branch domain label */}
                   <text
                     x={P.mainsX + 50 + (coldOnlyOuts.length - 1) * 40}
                     y={P.mainsY + 48}
                     textAnchor="start" fontSize={8} fill="#0369a1"
                   >
-                    Cold supply only
+                    Cold service branch
                   </text>
                 </g>
               )}
