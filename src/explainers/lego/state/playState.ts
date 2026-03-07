@@ -74,6 +74,7 @@ export const CWS_HEAD_METERS: Record<CwsHeadPreset, number> = {
  *
  * mainsDynamicFlowLpm — only relevant for mains-fed systems (combi, unvented).
  * cwsHeadPreset       — only relevant for vented (tank-fed) cylinder systems.
+ * combiDhwKw          — only relevant for combi systems; overrides the default 30 kW output.
  */
 export type SupplyConditions = {
   /** Cold supply inlet temperature (°C). Applies to all system types. */
@@ -90,6 +91,12 @@ export type SupplyConditions = {
    * Ignored for mains-fed systems.
    */
   cwsHeadPreset?: CwsHeadPreset
+  /**
+   * Combi boiler DHW output override (kW).
+   * Only relevant for combi systems.  Typical range: 24–40 kW.
+   * When absent the simulation uses its built-in default (30 kW).
+   */
+  combiDhwKw?: number
 }
 
 export type PlayState = {

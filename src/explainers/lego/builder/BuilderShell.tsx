@@ -18,7 +18,7 @@ import { PRESETS, CONCEPT_PRESETS, resolveConceptPreset } from './presets'
 import { smartAdd } from './smartAttach'
 import { portAbs } from './snapConnect'
 import { insertTee } from './tee'
-import { graphToLabControls } from './graphToControls'
+import { graphToLabControls, DEFAULT_COMBI_DHW_KW } from './graphToControls'
 import {
   type PlayState,
   type OutletDemandState,
@@ -629,6 +629,12 @@ export default function BuilderShell({
       ? { mainsDynamicFlowLpm }
       : {}
 
+    // For combi systems, allow play-state to override the DHW output (kW).
+    const combiDhwKw = supply?.combiDhwKw
+    const combiDhwOverride = combiDhwKw !== undefined
+      ? { combiDhwKw }
+      : {}
+
     return graphToLabControls(savedGraph, {
       ...savedControlsPatch,
       ...(outletControls ? { outlets: outletControls } : {}),
@@ -637,6 +643,7 @@ export default function BuilderShell({
       ...(playState?.heating ? { heatingDemand: playState.heating } : {}),
       ...ventedOverride,
       ...mainsOverride,
+      ...combiDhwOverride,
     })
   }, [savedGraph, savedControlsPatch, playState])
 
@@ -881,7 +888,7 @@ export default function BuilderShell({
       className={`builder-wrap${paletteOpen ? '' : ' palette-collapsed'}`}
       style={{
         position: 'relative',
-        gridTemplateColumns: paletteOpen ? '320px 1fr' : '1fr',
+        gridTemplateColumns: (paletteOpen && !isNarrow) ? '320px 1fr' : '1fr',
       }}
     >
       {/* Desktop side panel — only shown on wide screens (≥1200px) */}
@@ -1222,6 +1229,27 @@ function SupplyConditionsPanel({
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Combi: DHW output override */}
+      {systemType === 'combi' && (
+        <div className="play-supply-row">
+          <label className="play-supply-label">Boiler DHW output</label>
+          <div className="play-supply-btns">
+            {([24, 28, 32, 36, 40] as const).map(kw => (
+              <button
+                key={kw}
+                className={`play-preset-btn${supplyConditions.combiDhwKw === kw ? ' play-preset-btn--active' : ''}`}
+                onClick={() => onChange({ combiDhwKw: kw })}
+              >
+                {kw} kW
+              </button>
+            ))}
+          </div>
+          {supplyConditions.combiDhwKw === undefined && (
+            <div className="play-outlet-flow">Default: {DEFAULT_COMBI_DHW_KW} kW</div>
+          )}
         </div>
       )}
     </div>

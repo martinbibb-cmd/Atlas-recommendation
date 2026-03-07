@@ -23,6 +23,10 @@ import { resolveSystemTopology } from '../sim/resolveSystemTopology'
  * graphFacts and outletBindings are always sourced from the live graph so the
  * simulation reflects the drawn topology rather than stale preset data.
  */
+/** Default combi boiler DHW output (kW). Used as the simulation base value and
+ *  displayed in the Play sidebar when no override has been selected. */
+export const DEFAULT_COMBI_DHW_KW = 30
+
 export function graphToLabControls(
   graph: BuildGraph,
   patch: Partial<LabControls> = {},
@@ -58,7 +62,7 @@ export function graphToLabControls(
     systemType: resolvedSystemType,
     coldInletC: 10,
     dhwSetpointC: 50,
-    combiDhwKw: 30,
+    combiDhwKw: DEFAULT_COMBI_DHW_KW,
     mainsDynamicFlowLpm: 14,
     pipeDiameterMm: 15,
     outlets: defaultOutlets(),
