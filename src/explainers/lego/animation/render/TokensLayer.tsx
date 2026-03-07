@@ -25,15 +25,27 @@ export function TokensLayer(props: {
   /**
    * The colour that post-HEX pipe segments use (from achieved outlet temp or
    * cylinder store temp). When supplied every token in the post-HEX segment
-   * (MAIN s ≥ HEX_END, or any branch) is tinted with the same colour, so
+   * (MAIN s ≥ hexEnd, or any branch) is tinted with the same colour, so
    * token and pipe colours always stay in sync regardless of the token's
    * stored heat content.
    * Cold supply bypass tokens (COLD_A) always use the cold inlet colour and
    * are never overridden by this prop.
    */
   postHexThermalColor?: string
+  /**
+   * Override the s-fraction at which MAIN tokens transition from cold to
+   * post-HEX colour.  When undefined the default `HEX_END` constant from
+   * simulation.ts is used (combi systems).  Pass `STORED_HEX_END` for
+   * stored-cylinder systems so the colour transition happens at the cylinder
+   * top exit rather than the boiler exit.
+   */
+  hexEnd?: number
 }) {
-  const { particles, coldInletC, polyMain, polyA, polyB, polyC, polyColdA, hydraulicFlowLpm, demandTotalLpm, postHexThermalColor } = props
+  const { particles, coldInletC, polyMain, polyA, polyB, polyC, polyColdA, hydraulicFlowLpm, demandTotalLpm, postHexThermalColor, hexEnd } = props
+
+  // Effective HEX end: use caller-supplied value for stored systems (STORED_HEX_END),
+  // or fall back to the default combi constant.
+  const effectiveHexEnd = hexEnd ?? HEX_END
 
   // throttle ∈ [1, 3]: 1 = demand fully met, 3 = badly throttled/restricted.
   // Guard demandTotalLpm === 0 explicitly (no demand → no restriction).
@@ -57,7 +69,7 @@ export function TokensLayer(props: {
         //          postHexThermalColor when provided; otherwise fall back to
         //          heatToTempC so cylinder tokens still render correctly.
         const isColdBypass = t.route === 'COLD_A'
-        const isPostHex = !isColdBypass && (t.route !== 'MAIN' || t.s >= HEX_END)
+        const isPostHex = !isColdBypass && (t.route !== 'MAIN' || t.s >= effectiveHexEnd)
         const fill = isColdBypass
           ? tempToThermalColor(coldInletC)  // cold supply — always cold colour
           : (isPostHex && postHexThermalColor)
