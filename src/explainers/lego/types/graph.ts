@@ -216,7 +216,7 @@ export function isConnectionSemanticallyValid(args: {
  * connections are surfaced in dev/lab mode without blocking editing.
  */
 export function warnInvalidEdges(edges: LabEdge[], nodes: LabNode[]): void {
-  if (process.env.NODE_ENV === 'production') return
+  if (import.meta.env.PROD) return
   for (const edge of edges) {
     const fromNode = nodes.find(n => n.id === edge.fromNodeId)
     const toNode   = nodes.find(n => n.id === edge.toNodeId)
