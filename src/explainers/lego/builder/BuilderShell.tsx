@@ -36,6 +36,7 @@ import {
 } from '../state/playState'
 import { createDefaultPlayState } from '../state/createDefaultPlayState'
 import { resolveSystemTopology, dhwSourceDescription } from '../sim/resolveSystemTopology'
+import { buildGraphToLabGraph, compareGraphShape } from '../types/graph'
 import './builder.css'
 
 /** The two phases of the lab experience. */
@@ -134,6 +135,12 @@ export default function BuilderShell({
   const normalizedGraph = useMemo(() => normalizeGraph(graph), [graph])
   const warnings = useMemo(() => validateGraph(normalizedGraph), [normalizedGraph])
   const facts = useMemo(() => deriveFacts(graph), [graph])
+
+  /**
+   * Authoritative LabGraph for Edit mode.
+   * Play mode must consume a deep clone of this — never rebuild from template.
+   */
+  const editorGraph = useMemo(() => buildGraphToLabGraph(normalizedGraph), [normalizedGraph])
 
   const getRole = (nodeId: string, portId: string): PortDef['role'] => {
     const node = graph.nodes.find(item => item.id === nodeId)
@@ -402,9 +409,13 @@ export default function BuilderShell({
    * Simulation always runs against the snapshot, never the live draft.
    * Any error-level graph warnings are captured and surfaced as a visible
    * banner in Play mode (PR3 — validate graph before entering play).
+   *
+   * PR1: Play receives a deep clone of the authoritative editorGraph.
+   * No template-based graph reconstruction happens here.
    */
   const enterPlay = useCallback(() => {
-    const snapshot = cloneGraph(normalizedGraph)
+    // Deep-clone the normalised editor graph — Play must never rebuild topology.
+    const snapshot = structuredClone(normalizedGraph)
     const graphErrors = warnings.filter(w => w.level === 'error')
     setPlayModeGraphErrors(graphErrors)
     setSavedGraph(snapshot)
@@ -412,7 +423,33 @@ export default function BuilderShell({
     setPlayStoreTempC(undefined)
     setPlaySystemMode(undefined)
     setMode('play')
-  }, [normalizedGraph, warnings])
+
+    // Dev-only parity check: confirm play graph is structurally identical to
+    // the editor graph.  Any mismatch here means a second topology source has
+    // crept in — fix it before PR1 merges.
+    if (import.meta.env.DEV) {
+      const playLab = buildGraphToLabGraph(snapshot)
+      const parity = compareGraphShape(editorGraph, playLab)
+      const allOk =
+        parity.nodeCountEqual &&
+        parity.edgeCountEqual &&
+        parity.sameNodeIds &&
+        parity.sameEdgeIds
+      if (!allOk) {
+        console.warn('[Lab] ⚠ Graph parity FAIL on play entry', parity, {
+          editorNodes: editorGraph.nodes.map(n => n.id),
+          playNodes: playLab.nodes.map(n => n.id),
+          editorEdges: editorGraph.edges.map(e => e.id),
+          playEdges: playLab.edges.map(e => e.id),
+        })
+      } else {
+        console.debug('[Lab] ✓ Graph parity OK', {
+          nodes: editorGraph.nodes.length,
+          edges: editorGraph.edges.length,
+        })
+      }
+    }
+  }, [normalizedGraph, warnings, editorGraph])
 
   // ── Play-mode outlet control callbacks ────────────────────────────────────
 
