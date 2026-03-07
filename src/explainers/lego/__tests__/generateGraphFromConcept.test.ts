@@ -119,7 +119,7 @@ describe('generateGraphFromConcept — regular boiler + Y-plan + vented cylinder
 
   it('connects boiler CH flow to three_port_valve', () => {
     const edge = graph.edges.find(
-      e => e.from.nodeId === 'hs' && e.from.portId === 'ch_flow_out' && e.to.nodeId === 'v3',
+      e => e.from.nodeId === 'hs' && e.from.portId === 'flow_out' && e.to.nodeId === 'v3',
     );
     expect(edge).toBeDefined();
   });

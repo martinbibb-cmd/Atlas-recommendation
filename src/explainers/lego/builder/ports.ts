@@ -13,19 +13,17 @@ export function portsForKind(kind: PartKind): PortDef[] {
   switch (kind) {
     case 'heat_source_combi':
       return [
-        { id: 'ch_flow_out',   dx: R, dy: MID_Y, role: 'flow',   label: 'flow',   direction: 'out' },
-        { id: 'ch_return_in',  dx: L, dy: MID_Y, role: 'return', label: 'return', direction: 'in'  },
-        { id: 'cold_in',       dx: L, dy: B,     role: 'cold',   label: 'cold',   direction: 'in'  },
-        { id: 'hot_out',       dx: R, dy: B,     role: 'hot',    label: 'hot',    direction: 'out' },
+        { id: 'flow_out',     dx: R, dy: MID_Y, role: 'flow',   label: 'flow',    direction: 'out' },
+        { id: 'return_in',    dx: L, dy: MID_Y, role: 'return', label: 'return',  direction: 'in'  },
+        { id: 'cold_in',      dx: L, dy: B,     role: 'cold',   label: 'dcw in',  direction: 'in'  },
+        { id: 'hot_out',      dx: R, dy: B,     role: 'hot',    label: 'dhw out', direction: 'out' },
       ];
 
     case 'heat_source_system_boiler':
     case 'heat_source_regular_boiler':
       return [
-        { id: 'ch_flow_out',  dx: R, dy: MID_Y, role: 'flow',   label: 'flow',        direction: 'out' },
-        { id: 'ch_return_in', dx: L, dy: MID_Y, role: 'return', label: 'return',       direction: 'in'  },
-        { id: 'coil_flow',    dx: R, dy: B,     role: 'flow',   label: 'coil flow',    direction: 'out' },
-        { id: 'coil_return',  dx: L, dy: B,     role: 'return', label: 'coil return',  direction: 'in'  },
+        { id: 'flow_out',   dx: R, dy: MID_Y, role: 'flow',   label: 'flow',   direction: 'out' },
+        { id: 'return_in',  dx: L, dy: MID_Y, role: 'return', label: 'return', direction: 'in'  },
       ];
 
     case 'heat_source_heat_pump':
@@ -50,10 +48,10 @@ export function portsForKind(kind: PartKind): PortDef[] {
     case 'dhw_mixergy':
     case 'dhw_vented_cylinder':
       return [
-        { id: 'cold_in',      dx: L, dy: B,     role: 'cold',   label: 'cold in',     direction: 'in'  },
-        { id: 'hot_out',      dx: R, dy: T,     role: 'hot',    label: 'hot out',      direction: 'out' },
-        { id: 'coil_flow',    dx: R, dy: MID_Y, role: 'flow',   label: 'coil flow',    direction: 'in'  },
-        { id: 'coil_return',  dx: L, dy: MID_Y, role: 'return', label: 'coil return',  direction: 'out' },
+        { id: 'cold_in',      dx: L, dy: B,     role: 'cold',   label: 'cold in',  direction: 'in'  },
+        { id: 'hot_out',      dx: R, dy: T,     role: 'hot',    label: 'hot out',  direction: 'out' },
+        { id: 'coil_flow',    dx: R, dy: MID_Y, role: 'flow',   label: 'flow',     direction: 'in'  },
+        { id: 'coil_return',  dx: L, dy: MID_Y, role: 'return', label: 'return',   direction: 'out' },
       ];
 
     case 'pump':
@@ -73,10 +71,10 @@ export function portsForKind(kind: PartKind): PortDef[] {
     case 'buffer':
     case 'low_loss_header':
       return [
-        { id: 'primary_flow',     dx: L, dy: T + 18, role: 'flow',   label: 'pri flow',   direction: 'in'  },
-        { id: 'primary_return',   dx: L, dy: B - 18, role: 'return', label: 'pri return',  direction: 'out' },
-        { id: 'secondary_flow',   dx: R, dy: T + 18, role: 'flow',   label: 'sec flow',    direction: 'out' },
-        { id: 'secondary_return', dx: R, dy: B - 18, role: 'return', label: 'sec return',  direction: 'in'  },
+        { id: 'primary_flow',     dx: L, dy: T + 18, role: 'flow',   label: 'src flow',   direction: 'in'  },
+        { id: 'primary_return',   dx: L, dy: B - 18, role: 'return', label: 'src return', direction: 'out' },
+        { id: 'secondary_flow',   dx: R, dy: T + 18, role: 'flow',   label: 'load flow',  direction: 'out' },
+        { id: 'secondary_return', dx: R, dy: B - 18, role: 'return', label: 'load return', direction: 'in'  },
       ];
 
     case 'radiator_loop':

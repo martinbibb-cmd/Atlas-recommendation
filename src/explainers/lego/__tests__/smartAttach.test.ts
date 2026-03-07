@@ -61,16 +61,16 @@ describe('smartAdd — emitters form a CH loop', () => {
     let g = smartAdd(emptyGraph(), 'heat_source_combi').nextGraph
     g = smartAdd(g, 'radiator_loop').nextGraph
 
-    expect(hasEdge(g, 'heat_source_combi', 'ch_flow_out', 'radiator_loop', 'flow_in')).toBe(true)
-    expect(hasEdge(g, 'radiator_loop', 'return_out', 'heat_source_combi', 'ch_return_in')).toBe(true)
+    expect(hasEdge(g, 'heat_source_combi', 'flow_out', 'radiator_loop', 'flow_in')).toBe(true)
+    expect(hasEdge(g, 'radiator_loop', 'return_out', 'heat_source_combi', 'return_in')).toBe(true)
   })
 
   it('auto-connects UFH loop to system boiler CH ports', () => {
     let g = smartAdd(emptyGraph(), 'heat_source_system_boiler').nextGraph
     g = smartAdd(g, 'ufh_loop').nextGraph
 
-    expect(hasEdge(g, 'heat_source_system_boiler', 'ch_flow_out', 'ufh_loop', 'flow_in')).toBe(true)
-    expect(hasEdge(g, 'ufh_loop', 'return_out', 'heat_source_system_boiler', 'ch_return_in')).toBe(true)
+    expect(hasEdge(g, 'heat_source_system_boiler', 'flow_out', 'ufh_loop', 'flow_in')).toBe(true)
+    expect(hasEdge(g, 'ufh_loop', 'return_out', 'heat_source_system_boiler', 'return_in')).toBe(true)
   })
 
   it('connects emitters to heat pump flow/return ports', () => {
@@ -88,7 +88,7 @@ describe('smartAdd — emitters form a CH loop', () => {
     g = smartAdd(g, 'radiator_loop').nextGraph
     // Both rads should each have their own flow_in/return_out connected — just check no duplicates
     const flowEdges = g.edges.filter(
-      e => e.from.portId === 'ch_flow_out' || e.to.portId === 'ch_flow_out',
+      e => e.from.portId === 'flow_out' || e.to.portId === 'flow_out',
     )
     expect(flowEdges.length).toBe(2) // one per rad loop
   })
@@ -120,37 +120,38 @@ describe('smartAdd — vented cylinder', () => {
     expect(cwsNodes.length).toBe(1)
   })
 
-  it('connects regular boiler coil ports to vented cylinder coil ports', () => {
+  it('does not auto-connect cylinder coil to regular boiler (boiler has no coil ports)', () => {
     let g = smartAdd(emptyGraph(), 'heat_source_regular_boiler').nextGraph
     g = smartAdd(g, 'dhw_vented_cylinder').nextGraph
 
+    // Boiler no longer has coil_flow/coil_return ports — no direct coil auto-connection
     expect(
       hasEdge(g, 'heat_source_regular_boiler', 'coil_flow', 'dhw_vented_cylinder', 'coil_flow'),
-    ).toBe(true)
+    ).toBe(false)
     expect(
       hasEdge(g, 'dhw_vented_cylinder', 'coil_return', 'heat_source_regular_boiler', 'coil_return'),
-    ).toBe(true)
+    ).toBe(false)
   })
 })
 
 // ─── Unvented / Mixergy cylinder ─────────────────────────────────────────────
 
 describe('smartAdd — unvented and Mixergy cylinder', () => {
-  it('connects system boiler coil to unvented cylinder', () => {
+  it('does not auto-connect cylinder coil to system boiler (boiler has no coil ports)', () => {
     let g = smartAdd(emptyGraph(), 'heat_source_system_boiler').nextGraph
     g = smartAdd(g, 'dhw_unvented_cylinder').nextGraph
 
     expect(
       hasEdge(g, 'heat_source_system_boiler', 'coil_flow', 'dhw_unvented_cylinder', 'coil_flow'),
-    ).toBe(true)
+    ).toBe(false)
   })
 
-  it('connects system boiler coil to Mixergy', () => {
+  it('does not auto-connect Mixergy coil to system boiler (boiler has no coil ports)', () => {
     let g = smartAdd(emptyGraph(), 'heat_source_system_boiler').nextGraph
     g = smartAdd(g, 'dhw_mixergy').nextGraph
 
     expect(hasEdge(g, 'heat_source_system_boiler', 'coil_flow', 'dhw_mixergy', 'coil_flow')).toBe(
-      true,
+      false,
     )
   })
 
@@ -214,12 +215,12 @@ describe('smartAdd — cold_tap_outlet', () => {
 // ─── Regular boiler safety tokens ────────────────────────────────────────────
 
 describe('smartAdd — regular boiler safety tokens', () => {
-  it('connects open vent vent_in to regular boiler ch_flow_out', () => {
+  it('connects open vent vent_in to regular boiler flow_out', () => {
     let g = smartAdd(emptyGraph(), 'heat_source_regular_boiler').nextGraph
     g = smartAdd(g, 'open_vent').nextGraph
 
     expect(
-      hasEdge(g, 'heat_source_regular_boiler', 'ch_flow_out', 'open_vent', 'vent_in'),
+      hasEdge(g, 'heat_source_regular_boiler', 'flow_out', 'open_vent', 'vent_in'),
     ).toBe(true)
   })
 
@@ -284,6 +285,6 @@ describe('smartAdd — anchor priority', () => {
     g = smartAdd(g, 'heat_source_combi').nextGraph
     g = smartAdd(g, 'radiator_loop').nextGraph
 
-    expect(hasEdge(g, 'heat_source_combi', 'ch_flow_out', 'radiator_loop', 'flow_in')).toBe(true)
+    expect(hasEdge(g, 'heat_source_combi', 'flow_out', 'radiator_loop', 'flow_in')).toBe(true)
   })
 })

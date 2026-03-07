@@ -31,13 +31,13 @@ describe('emitter reachability — direct connection', () => {
       edges: [
         {
           id: 'e1',
-          from: { nodeId: boilerId, portId: 'ch_flow_out' },
+          from: { nodeId: boilerId, portId: 'flow_out' },
           to:   { nodeId: radId,    portId: 'flow_in' },
         },
         {
           id: 'e2',
           from: { nodeId: radId,    portId: 'return_out' },
-          to:   { nodeId: boilerId, portId: 'ch_return_in' },
+          to:   { nodeId: boilerId, portId: 'return_in' },
         },
       ],
     }
@@ -59,13 +59,13 @@ describe('emitter reachability — direct connection', () => {
       edges: [
         {
           id: 'e1',
-          from: { nodeId: boilerId, portId: 'ch_flow_out' },
+          from: { nodeId: boilerId, portId: 'flow_out' },
           to:   { nodeId: radId,    portId: 'flow_in' },
         },
         {
           id: 'e2',
           from: { nodeId: radId,    portId: 'return_out' },
-          to:   { nodeId: boilerId, portId: 'ch_return_in' },
+          to:   { nodeId: boilerId, portId: 'return_in' },
         },
       ],
     }
@@ -93,7 +93,7 @@ describe('emitter reachability — pump on flow side', () => {
       edges: [
         {
           id: 'e1',
-          from: { nodeId: boilerId, portId: 'ch_flow_out' },
+          from: { nodeId: boilerId, portId: 'flow_out' },
           to:   { nodeId: pumpId,   portId: 'in' },
         },
         {
@@ -104,7 +104,7 @@ describe('emitter reachability — pump on flow side', () => {
         {
           id: 'e3',
           from: { nodeId: radId,    portId: 'return_out' },
-          to:   { nodeId: boilerId, portId: 'ch_return_in' },
+          to:   { nodeId: boilerId, portId: 'return_in' },
         },
       ],
     }
@@ -128,7 +128,7 @@ describe('emitter reachability — pump on flow side', () => {
       edges: [
         {
           id: 'e1',
-          from: { nodeId: boilerId, portId: 'ch_flow_out' },
+          from: { nodeId: boilerId, portId: 'flow_out' },
           to:   { nodeId: radId,    portId: 'flow_in' },
         },
         {
@@ -139,7 +139,7 @@ describe('emitter reachability — pump on flow side', () => {
         {
           id: 'e3',
           from: { nodeId: pumpId,   portId: 'out' },
-          to:   { nodeId: boilerId, portId: 'ch_return_in' },
+          to:   { nodeId: boilerId, portId: 'return_in' },
         },
       ],
     }
@@ -167,7 +167,7 @@ describe('emitter reachability — zone valve on flow side', () => {
       edges: [
         {
           id: 'e1',
-          from: { nodeId: boilerId, portId: 'ch_flow_out' },
+          from: { nodeId: boilerId, portId: 'flow_out' },
           to:   { nodeId: valveId,  portId: 'in' },
         },
         {
@@ -178,7 +178,7 @@ describe('emitter reachability — zone valve on flow side', () => {
         {
           id: 'e3',
           from: { nodeId: radId,    portId: 'return_out' },
-          to:   { nodeId: boilerId, portId: 'ch_return_in' },
+          to:   { nodeId: boilerId, portId: 'return_in' },
         },
       ],
     }
@@ -206,7 +206,7 @@ describe('emitter reachability — genuine errors still flagged', () => {
         {
           id: 'e1',
           from: { nodeId: radId,    portId: 'return_out' },
-          to:   { nodeId: boilerId, portId: 'ch_return_in' },
+          to:   { nodeId: boilerId, portId: 'return_in' },
         },
       ],
     }
@@ -249,13 +249,13 @@ describe('emitter reachability — genuine errors still flagged', () => {
         // Radiator connected only to the other boiler
         {
           id: 'e1',
-          from: { nodeId: otherBoilerId, portId: 'ch_flow_out' },
+          from: { nodeId: otherBoilerId, portId: 'flow_out' },
           to:   { nodeId: radId,         portId: 'flow_in' },
         },
         {
           id: 'e2',
           from: { nodeId: radId,         portId: 'return_out' },
-          to:   { nodeId: otherBoilerId, portId: 'ch_return_in' },
+          to:   { nodeId: otherBoilerId, portId: 'return_in' },
         },
       ],
     }

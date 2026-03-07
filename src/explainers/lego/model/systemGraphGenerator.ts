@@ -126,8 +126,8 @@ function buildCombiGraph(emitters: EmitterKind[]): BuildGraph {
     node('rads', emitterKind,         520, 420),
   ];
   const edges: BuildEdge[] = [
-    edge('ch1', 'hs',   'ch_flow_out',  'rads', 'flow_in',      'heating'),
-    edge('ch2', 'rads', 'return_out',   'hs',   'ch_return_in', 'heating'),
+    edge('ch1', 'hs',   'flow_out',     'rads', 'flow_in',      'heating'),
+    edge('ch2', 'rads', 'return_out',   'hs',   'return_in',    'heating'),
     edge('hot_link', 'hs', 'hot_out',  'mh', 'in',              'dhw'),
     edge('cold_link','hs', 'cold_in',  'mc', 'in',              'cold'),
   ];
@@ -136,8 +136,8 @@ function buildCombiGraph(emitters: EmitterKind[]): BuildGraph {
   if (primaryEmitter === 'mixed') {
     nodes.push(node('ufh', 'ufh_loop', 520, 540));
     edges.push(
-      edge('ufh1', 'hs',  'ch_flow_out',  'ufh', 'flow_in',      'heating'),
-      edge('ufh2', 'ufh', 'return_out',   'hs',  'ch_return_in', 'heating'),
+      edge('ufh1', 'hs',  'flow_out',    'ufh', 'flow_in',      'heating'),
+      edge('ufh2', 'ufh', 'return_out',  'hs',  'return_in',    'heating'),
     );
   }
 
@@ -192,15 +192,15 @@ export function buildStoredYPlan(
 
   const edges: BuildEdge[] = [
     // ── Heating branch: boiler → 3-port valve.out_a → radiators → boiler ──────
-    edge('b1', 'hs',   'ch_flow_out',  'v3',  'in',           'heating'),
-    edge('b2', 'v3',   'out_a',        'rads','flow_in',       'heating'),
-    edge('b3', 'rads', 'return_out',   'hs',  'ch_return_in', 'heating'),
+    edge('b1', 'hs',   'flow_out',    'v3',  'in',           'heating'),
+    edge('b2', 'v3',   'out_a',       'rads','flow_in',       'heating'),
+    edge('b3', 'rads', 'return_out',  'hs',  'return_in',    'heating'),
     // ── Primary branch: 3-port valve.out_b → cylinder coil → boiler ──────────
     edge('b4', 'v3',  'out_b',        'cyl', 'coil_flow',    'primary'),
-    edge('b5', 'cyl', 'coil_return',  'hs',  'ch_return_in', 'primary'),
+    edge('b5', 'cyl', 'coil_return',  'hs',  'return_in',    'primary'),
     // ── Feed-and-expansion and open vent (open-vented circuit) ────────────────
-    edge('fe1', 'fe', 'feed_in',  'hs', 'ch_return_in', 'heating'),
-    edge('ov1', 'ov', 'vent_in',  'hs', 'ch_flow_out',  'heating'),
+    edge('fe1', 'fe', 'feed_in',  'hs', 'return_in',  'heating'),
+    edge('ov1', 'ov', 'vent_in',  'hs', 'flow_out',   'heating'),
     // ── DHW hot draw-off: cylinder.hot_out → manifold_hot ────────────────────
     edge('hot_link', 'cyl', 'hot_out', 'mh', 'in',         'dhw'),
     // ── Cold branch: CWS cistern → manifold_cold → cylinder.cold_in ──────────
@@ -255,16 +255,16 @@ export function buildStoredSPlan(
 
   const edges: BuildEdge[] = [
     // ── Boiler → pump → tee (shared trunk) ──────────────────────────────────
-    edge('p1',  'hs',    'ch_flow_out', 'pump',  'in',         'heating'),
-    edge('p2',  'pump',  'out',         'tee_f', 'in',         'heating'),
-    edge('pf1', 'tee_f', 'out1',        'zch',   'in',         'heating'),
-    edge('pf2', 'tee_f', 'out2',        'zcyl',  'in',         'primary'),
+    edge('p1',  'hs',    'flow_out',  'pump',  'in',         'heating'),
+    edge('p2',  'pump',  'out',       'tee_f', 'in',         'heating'),
+    edge('pf1', 'tee_f', 'out1',     'zch',   'in',         'heating'),
+    edge('pf2', 'tee_f', 'out2',     'zcyl',  'in',         'primary'),
     // ── Heating branch: zoneValveCH → radiators → boiler ─────────────────────
-    edge('ch1', 'zch',  'out_a',      'rads', 'flow_in',       'heating'),
-    edge('ch2', 'rads', 'return_out', 'hs',   'ch_return_in',  'heating'),
+    edge('ch1', 'zch',  'out_a',      'rads', 'flow_in',      'heating'),
+    edge('ch2', 'rads', 'return_out', 'hs',   'return_in',    'heating'),
     // ── Primary branch: zoneValveHW → cylinder coil → boiler ─────────────────
-    edge('cy1', 'zcyl', 'out_a',       'cyl', 'coil_flow',     'primary'),
-    edge('cy2', 'cyl',  'coil_return', 'hs',  'ch_return_in',  'primary'),
+    edge('cy1', 'zcyl', 'out_a',       'cyl', 'coil_flow',    'primary'),
+    edge('cy2', 'cyl',  'coil_return', 'hs',  'return_in',    'primary'),
     // ── DHW hot draw-off: cylinder.hot_out → manifold_hot ────────────────────
     edge('hot_link', 'cyl', 'hot_out', 'mh', 'in',             'dhw'),
     // ── Cold branch (open mains): manifold_cold → cylinder.cold_in ───────────
