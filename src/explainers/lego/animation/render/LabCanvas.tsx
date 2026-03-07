@@ -149,14 +149,8 @@ export function LabCanvas(props: {
   controls: LabControls
   summary: CapacitySummary
   onFrame?: (frame: LabFrame) => void
-  /**
-   * When true, shows the optional open-vent cue on vented cylinder systems.
-   * Intended for expert / debug mode only — keep hidden in the default customer-
-   * facing Play view to avoid clutter.
-   */
-  expertMode?: boolean
 }) {
-  const { controls, summary, onFrame, expertMode = false } = props
+  const { controls, summary, onFrame } = props
 
   const controlsRef = React.useRef(controls)
   React.useLayoutEffect(() => { controlsRef.current = controls })
@@ -370,6 +364,13 @@ export function LabCanvas(props: {
   // Cold-supply pipe Y for stored unvented systems: runs below both boxes to avoid
   // passing through the heat source area (cold feed goes to cylinder, not boiler).
   const storedColdFeedY = cylY + cylH + 6  // just below both boxes
+
+  // ── Stored-system valve layout ────────────────────────────────────────────
+  // The control valve sits below the heat source box on the source flow path.
+  // All topologies (Y-plan, S-plan, none) share the same vertical anchor so that
+  // the CH supply path can originate from a consistent point below the valve.
+  const storedValveY = heatSrcBoxY + heatSrcBoxH + 22   // valve centre Y
+  const storedValveBottomY = storedValveY + Math.max(VALVE_DIAMOND_HALF_H, ZONE_VALVE_RADIUS) + 2
 
   // ── Emitter / CH circuit layout constants ─────────────────────────────────
   // These are derived from the emitter box position and size so that the CH
@@ -669,12 +670,13 @@ export function LabCanvas(props: {
           </g>
         )}
 
-        {/* ── Open vent cue — expert/debug mode only, vented cylinders ────── */}
-        {/* A faint rising dashed line from the cylinder top represents the
-            classic open-vent safety pipe.  Hidden in the default customer view
-            to avoid clutter; revealed when expertMode is true.                */}
-        {expertMode && controls.systemType === 'vented_cylinder' && (
-          <g opacity={0.45}>
+        {/* ── Open vent cue — simplified indicator for vented cylinders ────── */}
+        {/* A faint dashed line from the cylinder top represents the open-vent
+            safety pipe connecting to the cistern above.  Shown for all vented
+            cylinder systems (not expert-only) as a simplified conceptual indicator
+            of the open-vented storage convention — no pipe-for-pipe geometry.     */}
+        {controls.systemType === 'vented_cylinder' && (
+          <g opacity={0.5}>
             <line
               x1={cylX + cylW - 15} y1={cylY}
               x2={cylX + cylW - 15} y2={12}
@@ -857,22 +859,22 @@ export function LabCanvas(props: {
             >
               {isCompressor ? 'Heat Pump' : 'Boiler'}
             </text>
-            {/* CH port indicators — simplified to 2 ports (CH flow + CH return) */}
+            {/* CH port indicators — simplified to 2 ports (flow out + return in) */}
             <text
               x={heatSrcBoxX + heatSrcBoxW - 6} y={heatSrcBoxY + 32}
               textAnchor="end" fontSize={8}
-              fill={isChActive ? '#f97316' : '#94a3b8'}
-              fontWeight={isChActive ? 700 : 400}
+              fill={showHeatSourceIndicator ? '#f97316' : '#94a3b8'}
+              fontWeight={showHeatSourceIndicator ? 700 : 400}
             >
-              CH flow →
+              Flow →
             </text>
             <text
               x={heatSrcBoxX + 6} y={heatSrcBoxY + 32}
               textAnchor="start" fontSize={8}
-              fill={isChActive ? '#f97316' : '#94a3b8'}
-              fontWeight={isChActive ? 700 : 400}
+              fill={showHeatSourceIndicator ? '#f97316' : '#94a3b8'}
+              fontWeight={showHeatSourceIndicator ? 700 : 400}
             >
-              ← CH return
+              ← Return
             </text>
             {/* Operating mode status */}
             <text
@@ -880,13 +882,9 @@ export function LabCanvas(props: {
               textAnchor="middle" fontSize={10}
               fill={showHeatSourceIndicator ? (isCompressor ? '#0891b2' : '#c2410c') : '#64748b'}
             >
-              {systemMode === 'heating_and_reheat'
-                ? 'CH + coil (S-plan)'
-                : systemMode === 'dhw_reheat'
-                  ? 'coil reheat'
-                  : isChActive
-                    ? (isCompressor ? 'compressor · CH' : 'burner · CH')
-                    : 'standby'}
+              {showHeatSourceIndicator
+                ? (isCompressor ? 'compressor running' : 'firing')
+                : 'standby'}
             </text>
             {/* Flame / compressor indicator — always visible, fades when idle (PR5).
                 Never inside the cylinder box — the heat source is a SEPARATE appliance. */}
@@ -1058,16 +1056,46 @@ export function LabCanvas(props: {
               )
             })()}
 
-            {/* ── Control valve indicator — sits between heat source and cylinder ─
-                Controls mediate routing from the heat source to the CH circuit and
-                the cylinder coil.  Rendered below both appliance boxes so it is
-                clearly a branch device, not embedded in either appliance.
-                Position: horizontally centred over the primary coil bridge gap.    */}
+            {/* ── Control valve — sits on the source flow path below the heat source ─
+                Scene grammar: Source → Control → Load(s) → Common return.
+                The valve is the routing decision point.  It sits directly below the
+                heat source box so source flow visibly passes through it before
+                branching to CH (heating load) or HW (cylinder coil / hot-water load).
+                Position: centred below the heat source box at storedValveY.          */}
             {(() => {
               const topologyKind = scene.metadata.controlTopologyKind ?? 'none'
-              // Centre horizontally between heat source and cylinder boxes.
-              const cx = (heatSrcBoxX + heatSrcBoxW / 2 + cylX + cylW / 2) / 2
-              const cy = heatSrcBoxY + heatSrcBoxH + 22
+              // Anchor valve directly below the heat source box on the source flow path.
+              const cx = heatSrcCenterX
+              const cy = storedValveY
+              // Right edge of heat source box — needed to draw the HW branch to the coil.
+              const srcRightX = heatSrcBoxX + heatSrcBoxW
+              // Primary coil flow Y — where the HW branch meets the coil bridge.
+              const coilFlowY = heatSrcBoxY + 30
+
+              // Source flow line: from heat source flow port (bottom-centre) down to
+              // the valve.  This makes the source-to-valve path visible.
+              const srcFlowLineEndY = topologyKind === 'y_plan'
+                ? cy - VALVE_DIAMOND_HALF_H - 2
+                : cy - ZONE_VALVE_RADIUS - 2
+              const srcFlowLine = (
+                <line
+                  x1={cx} y1={heatSrcBoxY + heatSrcBoxH}
+                  x2={cx} y2={srcFlowLineEndY}
+                  stroke="#f97316" strokeWidth={2.5} strokeLinecap="round"
+                  opacity={showHeatSourceIndicator ? 0.85 : 0.3}
+                />
+              )
+
+              // Source tee line shared by s_plan / hp_diverter: a short horizontal bar
+              // at the valve level connects the two zone valve circles, showing that
+              // source flow arrives at the tee before splitting to CH and HW.
+              const srcTeeLine = (
+                <line
+                  x1={cx - 30 + ZONE_VALVE_RADIUS} y1={cy}
+                  x2={cx + 30 - ZONE_VALVE_RADIUS} y2={cy}
+                  stroke="#94a3b8" strokeWidth={1.5} strokeLinecap="round" opacity={0.5}
+                />
+              )
 
               if (topologyKind === 'y_plan') {
                 const halfW = VALVE_DIAMOND_HALF_W
@@ -1077,7 +1105,8 @@ export function LabCanvas(props: {
                 const valveActive = isChActive || isHwActive
                 return (
                   <g>
-                    <text x={cx} y={cy - 15} textAnchor="middle" fontSize={8} fill="#94a3b8">
+                    {srcFlowLine}
+                    <text x={cx} y={cy - halfH - 5} textAnchor="middle" fontSize={8} fill="#94a3b8">
                       {controlTopologyLabel(topologyKind, false)}
                     </text>
                     <polygon
@@ -1090,6 +1119,7 @@ export function LabCanvas(props: {
                       fill={valveActive ? '#92400e' : '#94a3b8'}>
                       {isChActive ? '→CH' : isHwActive ? '→HW' : '3P'}
                     </text>
+                    {/* CH branch: valve left → heating load */}
                     <line x1={cx - halfW} y1={cy} x2={cx - halfW - 20} y2={cy}
                       stroke="#f97316" strokeWidth={2.5} strokeLinecap="round" opacity={routingToCh ? 1 : 0.2} />
                     <polygon
@@ -1097,13 +1127,19 @@ export function LabCanvas(props: {
                       fill="#f97316" opacity={routingToCh ? 1 : 0.2} />
                     <text x={cx - halfW - 28} y={cy + 4} textAnchor="end" fontSize={9}
                       fill={routingToCh ? '#f97316' : '#94a3b8'} fontWeight={routingToCh ? 700 : 400}>CH</text>
+                    {/* HW branch: valve right → right to source edge → up to primary coil */}
+                    <path
+                      d={`M ${cx + halfW} ${cy} L ${srcRightX} ${cy} L ${srcRightX} ${coilFlowY}`}
+                      stroke="#7c3aed" strokeWidth={2} strokeDasharray="5 3" fill="none"
+                      strokeLinecap="round" opacity={routingToHw ? 0.9 : 0.2}
+                    />
                     <line x1={cx + halfW} y1={cy} x2={cx + halfW + 20} y2={cy}
-                      stroke="#0284c7" strokeWidth={2.5} strokeLinecap="round" opacity={routingToHw ? 1 : 0.2} />
+                      stroke="#7c3aed" strokeWidth={2.5} strokeLinecap="round" opacity={routingToHw ? 1 : 0.2} />
                     <polygon
                       points={`${cx + halfW + 16},${cy - 4} ${cx + halfW + 24},${cy} ${cx + halfW + 16},${cy + 4}`}
-                      fill="#0284c7" opacity={routingToHw ? 1 : 0.2} />
+                      fill="#7c3aed" opacity={routingToHw ? 1 : 0.2} />
                     <text x={cx + halfW + 28} y={cy + 4} textAnchor="start" fontSize={9}
-                      fill={routingToHw ? '#0284c7' : '#94a3b8'} fontWeight={routingToHw ? 700 : 400}>HW</text>
+                      fill={routingToHw ? '#7c3aed' : '#94a3b8'} fontWeight={routingToHw ? 700 : 400}>HW</text>
                   </g>
                 )
               }
@@ -1114,9 +1150,12 @@ export function LabCanvas(props: {
                 const r = ZONE_VALVE_RADIUS
                 return (
                   <g>
-                    <text x={cx} y={cy - 22} textAnchor="middle" fontSize={8} fill="#94a3b8">
+                    {srcFlowLine}
+                    <text x={cx} y={cy - r - 14} textAnchor="middle" fontSize={8} fill="#94a3b8">
                       {controlTopologyLabel(topologyKind, false)}
                     </text>
+                    {/* Source tee: flow line arrives and branches left (CH) and right (HW) */}
+                    {srcTeeLine}
                     <circle cx={chX} cy={cy} r={r}
                       fill={isChActive ? '#fff7ed' : '#f8fafc'}
                       stroke={isChActive ? '#f97316' : '#94a3b8'}
@@ -1148,9 +1187,12 @@ export function LabCanvas(props: {
                 const r = ZONE_VALVE_RADIUS
                 return (
                   <g>
-                    <text x={cx} y={cy - 22} textAnchor="middle" fontSize={8} fill="#94a3b8">
+                    {srcFlowLine}
+                    <text x={cx} y={cy - r - 14} textAnchor="middle" fontSize={8} fill="#94a3b8">
                       {controlTopologyLabel(topologyKind, false)}
                     </text>
+                    {/* Source tee: flow line arrives and branches left (CH) and right (HW) */}
+                    {srcTeeLine}
                     <circle cx={chX} cy={cy} r={r}
                       fill={isChActive ? '#ecfeff' : '#f8fafc'}
                       stroke={isChActive ? '#0891b2' : '#94a3b8'}
@@ -1167,9 +1209,10 @@ export function LabCanvas(props: {
                 )
               }
 
-              // No topology — minimal CH/HW labels
+              // No topology — show flow label and simple CH/HW indicators
               return (
                 <g>
+                  {srcFlowLine}
                   <text x={cx} y={cy - 3} textAnchor="middle" fontSize={8} fill="#94a3b8">
                     {controlTopologyLabel(topologyKind, isSPlanTopology)}
                   </text>
@@ -1434,15 +1477,16 @@ export function LabCanvas(props: {
         {showHeatingPathAndEmitters && (
           <g opacity={isChActive ? 1 : 0.35}>
             {/* CH primary supply pipe.
-                Stored systems (PR16): from heat source box centre-bottom → down → left to emitter.
-                  Origin: (heatSrcCenterX, cylY+cylH)
+                Stored systems: from valve bottom → down → left to emitter.
+                  Origin: (heatSrcCenterX, storedValveBottomY)
                   Goes: vertical to emitterCenterY, then horizontal left to emitterRightX.
+                  The valve is the routing device; CH supply originates from the valve output.
                 Combi systems: from combined boiler/HEX box bottom → same routing.
                   Origin: (cylX+20, cylY+cylH)
                 The heat source is unambiguously the boiler, not the cylinder/store. */}
             {isStoredLayout ? (
               <path
-                d={`M ${heatSrcCenterX} ${heatSrcBoxY + heatSrcBoxH} L ${heatSrcCenterX} ${emitterCenterY} L ${emitterRightX} ${emitterCenterY}`}
+                d={`M ${heatSrcCenterX} ${storedValveBottomY} L ${heatSrcCenterX} ${emitterCenterY} L ${emitterRightX} ${emitterCenterY}`}
                 stroke="#f97316" strokeWidth={3} fill="none" strokeLinecap="round"
                 opacity={0.8}
               />
@@ -1485,6 +1529,40 @@ export function LabCanvas(props: {
                 style={{ animation: `heat-rise 1.5s ease-out ${(i * 0.22).toFixed(2)}s infinite` }}
               >~</text>
             ))}
+          </g>
+        )}
+
+        {/* ── Common return bus — stored systems only ─────────────────────── */}
+        {/* Scene grammar: all loads (CH emitters + primary coil) return to a
+            common return path back to the heat source.  A faint dashed line
+            below the emitter box represents this shared return bus, showing
+            the user that all heating returns merge before going back to source.
+            Keeps the return side visually simple — not pipe-for-pipe.          */}
+        {isStoredLayout && showHeatingPathAndEmitters && (
+          <g opacity={isChActive || coilActive ? 0.55 : 0.2}>
+            {(() => {
+              const retY   = emitterY + emitterH + 10
+              const retMidX = emitterX + Math.round((heatSrcCenterX - emitterX) / 2)
+              return (
+                <>
+                  <line
+                    x1={emitterX} y1={retY}
+                    x2={heatSrcCenterX} y2={retY}
+                    stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 3" strokeLinecap="round"
+                  />
+                  <polygon
+                    points={`${heatSrcCenterX - 5},${retY - 4} ${heatSrcCenterX + 2},${retY} ${heatSrcCenterX - 5},${retY + 4}`}
+                    fill="#94a3b8"
+                  />
+                  <text
+                    x={retMidX} y={retY - 2}
+                    textAnchor="middle" fontSize={7} fill="#94a3b8"
+                  >
+                    Common return
+                  </text>
+                </>
+              )
+            })()}
           </g>
         )}
 
