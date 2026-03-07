@@ -395,6 +395,59 @@ function buildSceneForKind(
     })
   }
 
+  // ── Valve / control-topology nodes — structural PR15 ─────────────────────
+  //
+  // These nodes represent the physical control valves in the system topology.
+  // They are emitted structurally (not just as metadata labels) so the renderer
+  // can draw visually distinct shapes for each topology kind:
+  //   y_plan          → one 3-port valve diamond that routes CH or HW
+  //   s_plan          → two independent zone valve circles (may open together)
+  //   s_plan_multi_zone → same as s_plan; renderer may add an extra indication
+  //   none / other    → no valve nodes emitted
+  //
+  // active on each node reflects the valve's current open/closed state.
+  const controlTopology = controls.controlTopology ?? 'none'
+
+  const valveNodes: PlaySceneNode[] = []
+
+  if (controlTopology === 'y_plan') {
+    // Single 3-port valve: routes boiler output to CH or cylinder coil — not both.
+    // active reflects whether the valve is currently diverting to any circuit.
+    valveNodes.push({
+      id: 'valve_3port',
+      role: 'valve',
+      visible: true,
+      active: isChActive || cylinderNeedsReheat,
+      x: 0,
+      y: 0,
+      data: {
+        valveKind: 'three_port',
+        // Which circuit the valve is currently directing flow to.
+        targetDomain: isChActive ? 'heating' : cylinderNeedsReheat ? 'primary' : 'none',
+      },
+    })
+  } else if (controlTopology === 's_plan' || controlTopology === 's_plan_multi_zone') {
+    // Two (or more) independent zone valves — CH and HW can open simultaneously.
+    valveNodes.push({
+      id: 'valve_ch',
+      role: 'valve',
+      visible: true,
+      active: isChActive,
+      x: 0,
+      y: 0,
+      data: { valveKind: 'zone_valve', domain: 'heating' },
+    })
+    valveNodes.push({
+      id: 'valve_hw',
+      role: 'valve',
+      visible: true,
+      active: cylinderNeedsReheat,
+      x: 0,
+      y: 0,
+      data: { valveKind: 'zone_valve', domain: 'primary' },
+    })
+  }
+
   // ── Assemble scene ─────────────────────────────────────────────────────────
 
   const nodes: PlaySceneNode[] = [
@@ -402,6 +455,7 @@ function buildSceneForKind(
     ...(cylinderNode ? [cylinderNode] : []),
     ...(cwsNode ? [cwsNode] : []),
     radiatorsNode,
+    ...valveNodes,
   ]
 
   return { nodes, edges, metadata }
