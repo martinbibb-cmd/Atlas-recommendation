@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { BuildGraph, PartKind, PortDef, PortRef } from './types'
-import type { LabControls } from '../animation/types'
+import type { LabControls, SystemType, DerivedSystemKind } from '../animation/types'
 import PresetPanel from './PresetPanel'
 import PalettePanel from './PalettePanel'
 import WorkbenchCanvas, { clampTrayPosition, isNarrowLayout } from './WorkbenchCanvas'
@@ -676,6 +676,15 @@ export default function BuilderShell({
     // are all handled correctly.
     const playSystemType = playControls?.systemType ?? 'combi'
 
+    // High-level system kind for UI gating (combi-only controls, stored-only controls).
+    // Always derived from the graph — never falls back to 'combi' blindly.
+    // heat_pump and stored systems both hide combi-only controls.
+    const playSystemKind = playControls?.systemKind ?? (
+      (playSystemType === 'unvented_cylinder' || playSystemType === 'vented_cylinder')
+        ? 'stored'
+        : 'combi'
+    )
+
     return (
       <div className="builder-wrap builder-wrap--play">
         <div className="play-topbar">
@@ -844,7 +853,7 @@ export default function BuilderShell({
                 <InstrumentStrip
                   summary={playSummary}
                   storeTempC={playStoreTempC}
-                  combiDhwKw={playControls.systemType === 'combi' ? playControls.combiDhwKw : undefined}
+                  combiDhwKw={playSystemKind === 'combi' ? playControls.combiDhwKw : undefined}
                 />
               </div>
 
@@ -863,6 +872,7 @@ export default function BuilderShell({
                 <SupplyConditionsPanel
                   supplyConditions={playState.supplyConditions}
                   systemType={playSystemType}
+                  systemKind={playSystemKind}
                   onChange={updateSupplyConditions}
                 />
               </div>
@@ -1165,13 +1175,18 @@ const CWS_HEAD_PRESET_LABELS: Record<CwsHeadPreset, string> = {
 function SupplyConditionsPanel({
   supplyConditions,
   systemType,
+  systemKind,
   onChange,
 }: {
   supplyConditions: SupplyConditions
-  systemType: string
+  systemType: SystemType
+  /** High-level system kind — gates combi-only controls (combiDhwKw). */
+  systemKind?: DerivedSystemKind
   onChange: (patch: Partial<SupplyConditions>) => void
 }) {
   const isVented = systemType === 'vented_cylinder'
+  // Use systemKind when available (preferred); fall back to legacy systemType check.
+  const isCombi = systemKind !== undefined ? systemKind === 'combi' : systemType === 'combi'
 
   return (
     <div className="play-supply-conditions">
@@ -1232,8 +1247,8 @@ function SupplyConditionsPanel({
         </div>
       )}
 
-      {/* Combi: DHW output override */}
-      {systemType === 'combi' && (
+      {/* Combi: DHW output override — hidden for stored and heat-pump systems */}
+      {isCombi && (
         <div className="play-supply-row">
           <label className="play-supply-label">Boiler DHW output</label>
           <div className="play-supply-btns">

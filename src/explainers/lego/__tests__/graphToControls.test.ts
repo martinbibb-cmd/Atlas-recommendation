@@ -239,3 +239,49 @@ describe('graphToLabControls — controlTopology derivation', () => {
     expect(controls.controlTopology).toBe('s_plan')
   })
 })
+
+// ── systemKind — single-source-of-truth from graph ────────────────────────────
+
+function heatPumpGraph(): BuildGraph {
+  return {
+    nodes: [
+      { id: 'hp',  kind: 'heat_source_heat_pump',     x: 100, y: 100, r: 0 },
+      { id: 'cyl', kind: 'dhw_unvented_cylinder',     x: 300, y: 100, r: 0 },
+    ],
+    edges: [],
+  }
+}
+
+describe('graphToLabControls — systemKind derived from graph', () => {
+  it('sets systemKind combi for a combi graph', () => {
+    const controls = graphToLabControls(combiGraph())
+    expect(controls.systemKind).toBe('combi')
+  })
+
+  it('sets systemKind stored for an unvented cylinder graph', () => {
+    const controls = graphToLabControls(unventedCylinderGraph())
+    expect(controls.systemKind).toBe('stored')
+  })
+
+  it('sets systemKind stored for a vented cylinder graph', () => {
+    const controls = graphToLabControls(ventedCylinderGraph())
+    expect(controls.systemKind).toBe('stored')
+  })
+
+  it('sets systemKind heat_pump for a heat pump graph', () => {
+    const controls = graphToLabControls(heatPumpGraph())
+    expect(controls.systemKind).toBe('heat_pump')
+  })
+
+  it('systemKind is always from graph — patch cannot override it to combi', () => {
+    // A stored-system graph must NOT be classified as combi even if the patch
+    // tries to set systemType to combi.  systemKind is pinned to the graph.
+    const controls = graphToLabControls(unventedCylinderGraph(), { systemType: 'combi' })
+    expect(controls.systemKind).toBe('stored')
+  })
+
+  it('systemKind defaults to combi for empty graph', () => {
+    const controls = graphToLabControls(emptyGraph())
+    expect(controls.systemKind).toBe('combi')
+  })
+})

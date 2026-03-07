@@ -9,6 +9,7 @@ import type { LabControls, SystemType } from '../animation/types'
 import { defaultOutlets } from '../animation/types'
 import { deriveFacts } from './graphDerive'
 import { resolveSystemTopology } from '../sim/resolveSystemTopology'
+import { deriveSystemKindFromGraph } from './deriveSystemKind'
 
 /**
  * Convert a `BuildGraph` (node-link topology) plus an optional `Partial<LabControls>`
@@ -72,10 +73,16 @@ export function graphToLabControls(
 
   // ── Merge patch (overrides base, but graphFacts + outletBindings are pinned) ─
   const topology = resolveSystemTopology(graph)
+
+  // systemKind is ALWAYS derived from the graph — never from the patch.
+  // This is the single source of truth for Play mode system classification.
+  const systemKind = deriveSystemKindFromGraph(graph)
+
   return {
     ...base,
     ...patch,
     // Always derive these from the live graph so topology changes are respected.
+    systemKind,
     graphFacts: {
       hotFedOutletNodeIds: facts.hotFedOutletNodeIds,
       coldOnlyOutletNodeIds: facts.coldOnlyOutletNodeIds,
