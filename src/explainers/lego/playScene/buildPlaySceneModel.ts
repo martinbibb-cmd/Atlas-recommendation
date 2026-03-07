@@ -170,6 +170,11 @@ function buildSceneForKind(
     frame.visuals?.fluidPaths.find(p => p.edgeIds.includes('dhw_draw'))?.active
     ?? (mode === 'dhw_draw')
 
+  // deriveActiveDomains expects DerivedSystemKind for its systemKind parameter.
+  // sceneLayoutKind is always set from the graph-derived systemKind (by the dispatcher
+  // in buildPlaySceneModel), so the two values are semantically equivalent here.
+  // Domain routing rules are the same for stored and heat_pump (independent circuits),
+  // so the combi vs non-combi distinction is all that matters.
   const activeDomains = deriveActiveDomains({
     systemKind: sceneLayoutKind,
     heatingDemand: isChActive,

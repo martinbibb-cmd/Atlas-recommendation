@@ -1197,12 +1197,15 @@ export function LabCanvas(props: {
           zIndex: 30,
           whiteSpace: 'nowrap',
         }}>
+          {/* Compare sceneLayoutKind to the expected layout derived from the same
+              fallback logic used by buildPlaySceneModel (systemKind or isCylinder).
+              Shows green when they match, red when they do not. */}
           kind: <span style={{ color: '#38bdf8' }}>{controls.systemKind ?? '(legacy)'}</span>
           {' · '}
           layout: <span style={{
-            color: scene.metadata.sceneLayoutKind === (controls.systemKind ?? 'combi')
-              ? '#4ade80'
-              : '#f87171',
+            color: scene.metadata.sceneLayoutKind === (
+              controls.systemKind ?? (isCylinder ? 'stored' : 'combi')
+            ) ? '#4ade80' : '#f87171',
           }}>{scene.metadata.sceneLayoutKind}</span>
         </div>
       )}
