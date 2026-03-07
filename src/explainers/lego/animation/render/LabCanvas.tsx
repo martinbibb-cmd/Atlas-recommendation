@@ -363,7 +363,14 @@ export function LabCanvas(props: {
   const heatSrcCenterX = heatSrcBoxX + heatSrcBoxW / 2  // 127  (approx centre)
   // Cold-supply pipe Y for stored unvented systems: runs below both boxes to avoid
   // passing through the heat source area (cold feed goes to cylinder, not boiler).
-  const storedColdFeedY = cylY + cylH + 6  // just below both boxes
+  // ── Cold rail Y — shared cold-supply rail for all layout kinds ───────────
+  // Runs just below the appliance boxes (HEX for combi; heat source + cylinder
+  // for stored/HP).  All cold-water paths branch from this rail:
+  //   combi     — U-shaped route: mains → down → rail → up into HEX cold_in
+  //   stored    — horizontal rail at same Y, branching up into cylinder bottom
+  //   open-vent — CWS gravity feed drops to the same level, then branches up
+  //   cold taps — branch downward from this rail (never on the hot service)
+  const coldRailY = cylY + cylH + 6  // just below both appliance boxes (≈180 px)
 
   // ── Stored-system valve layout ────────────────────────────────────────────
   // The control valve sits below the heat source box on the source flow path.
@@ -495,6 +502,21 @@ export function LabCanvas(props: {
             <stop offset="100%" stopColor="#dc2626" />
           </linearGradient>
 
+          {/* Combi DHW warm-up: the HEX ramps cold mains water to hot.
+              The pipe from HEX exit to splitter shows this transition so the
+              output does not look instantly fully hot.
+              cold blue (HEX entry side) → warm yellow → orange → hot red. */}
+          <linearGradient
+            id="grad-combi-warmup"
+            x1={P.boilerX + 120} y1={0} x2={P.splitX} y2={0}
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%"   stopColor="#7dd3fc" />
+            <stop offset="20%"  stopColor="#fbbf24" />
+            <stop offset="55%"  stopColor="#f97316" />
+            <stop offset="100%" stopColor="#dc2626" />
+          </linearGradient>
+
           {/* Clip region for the plate-HEX shimmer highlight — matches the heat-source box boundary */}
           <clipPath id="heat-src-clip">
             <rect x={cylX} y={cylY} width={cylW} height={cylH} rx={18} />
@@ -567,24 +589,24 @@ export function LabCanvas(props: {
         {scene.metadata.showGenericColdFeed && (
           isStoredLayout ? (
             // ── Stored system cold supply — routes below both appliance boxes ──
-            // mains (left) → horizontal below boxes → cylinder cold_in (bottom-left)
+            // mains (left) → cold rail (horizontal) → cylinder cold_in (bottom)
             <>
               <path
-                d={`M ${P.mainsX} ${storedColdFeedY} L ${cylX + 30} ${storedColdFeedY}`}
+                d={`M ${P.mainsX} ${coldRailY} L ${cylX + 30} ${coldRailY}`}
                 stroke="url(#grad-cold-supply)" strokeWidth={12} strokeLinecap="round"
                 opacity={THERMAL_COLOR_OPACITY}
               />
               <path
-                d={`M ${P.mainsX} ${storedColdFeedY} L ${cylX + 30} ${storedColdFeedY}`}
+                d={`M ${P.mainsX} ${coldRailY} L ${cylX + 30} ${coldRailY}`}
                 stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
               />
               {/* Short vertical entry into cylinder bottom */}
               <path
-                d={`M ${cylX + 30} ${storedColdFeedY} L ${cylX + 30} ${cylY + cylH}`}
+                d={`M ${cylX + 30} ${coldRailY} L ${cylX + 30} ${cylY + cylH}`}
                 stroke="#bae6fd" strokeWidth={8} strokeLinecap="round" opacity={0.85}
               />
               <path
-                d={`M ${cylX + 30} ${storedColdFeedY} L ${cylX + 30} ${cylY + cylH}`}
+                d={`M ${cylX + 30} ${coldRailY} L ${cylX + 30} ${cylY + cylH}`}
                 stroke="#0ea5e9" strokeWidth={2} strokeLinecap="round"
               />
               {/* Downward arrow at cylinder cold_in entry */}
@@ -592,25 +614,42 @@ export function LabCanvas(props: {
                 points={`${cylX + 25},${cylY + cylH - 5} ${cylX + 35},${cylY + cylH - 5} ${cylX + 30},${cylY + cylH + 1}`}
                 fill="#0ea5e9" opacity={0.9}
               />
-              <text x={P.mainsX - 4} y={storedColdFeedY - 6} fontSize={10} fill="#0369a1" textAnchor="start">
-                Cold feed
+              <text x={P.mainsX - 4} y={coldRailY - 6} fontSize={10} fill="#0369a1" textAnchor="start">
+                Cold rail
               </text>
             </>
           ) : (
-            // ── Combi / mains — straight horizontal run ──────────────────────
+            // ── Combi — U-shaped cold rail: mains → down → rail → up into HEX cold_in ──
+            // Rather than running a straight pipe at the same level as the hot trunk
+            // (which implies cold and hot share a single pipe), the cold supply drops
+            // from the mains entry point to the cold rail below the HEX box, runs
+            // along that rail, then rises into the HEX cold_in.  This clearly shows:
+            //   cold rail (bottom) → branch up into combi HEX
+            //   hot trunk (right)  ← hot water exits the HEX on the opposite side
             <>
-              {/* When TMV active: only draw from mains to pre-boiler tee. */}
+              {/* U-shaped cold supply: mains → cold rail → HEX cold_in */}
+              {/* When TMV active: only route to pre-boiler tee, not all the way to HEX */}
               <path
-                d={`M ${P.mainsX} ${P.mainsY} L ${tmvOutletAActive ? P.teeX : P.boilerX - 60} ${P.mainsY}`}
-                stroke="url(#grad-cold-supply)" strokeWidth={16} strokeLinecap="round" filter={mainsGlow}
+                d={
+                  tmvOutletAActive
+                    ? `M ${P.mainsX} ${P.mainsY} L ${P.mainsX} ${coldRailY} L ${P.teeX} ${coldRailY} L ${P.teeX} ${P.mainsY}`
+                    : `M ${P.mainsX} ${P.mainsY} L ${P.mainsX} ${coldRailY} L ${cylX} ${coldRailY} L ${cylX} ${P.mainsY}`
+                }
+                stroke="url(#grad-cold-supply)" strokeWidth={16} strokeLinecap="round"
+                strokeLinejoin="round" filter={mainsGlow}
                 opacity={THERMAL_COLOR_OPACITY}
               />
               <path
-                d={`M ${P.mainsX} ${P.mainsY} L ${tmvOutletAActive ? P.teeX : P.boilerX - 60} ${P.mainsY}`}
-                stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
+                d={
+                  tmvOutletAActive
+                    ? `M ${P.mainsX} ${P.mainsY} L ${P.mainsX} ${coldRailY} L ${P.teeX} ${coldRailY} L ${P.teeX} ${P.mainsY}`
+                    : `M ${P.mainsX} ${P.mainsY} L ${P.mainsX} ${coldRailY} L ${cylX} ${coldRailY} L ${cylX} ${P.mainsY}`
+                }
+                stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
               />
-              <text x={P.mainsX - 4} y={P.mainsY - 18} fontSize={11} fill="#64748b" textAnchor="start">
-                Mains
+              {/* Cold rail label at the bottom horizontal segment */}
+              <text x={P.mainsX - 4} y={coldRailY - 6} fontSize={11} fill="#64748b" textAnchor="start">
+                Cold rail (mains)
               </text>
             </>
           )
@@ -632,15 +671,18 @@ export function LabCanvas(props: {
             />
             <text x={cwsX + cwsW / 2} y={cwsY + 13} textAnchor="middle" fontSize={9} fill="#0369a1" fontWeight={600}>CWS cistern</text>
             <text x={cwsX + cwsW / 2} y={cwsY + 25} textAnchor="middle" fontSize={8} fill="#0369a1">gravity feed</text>
-            {/* Gravity-drop cold feed pipe: cistern bottom → cylinder cold_in (top edge)
-                Rendered in blue (#0ea5e9 + tint) to signal cold / gravity supply. */}
+            {/* Gravity-drop cold feed pipe: cistern bottom → cylinder cold_in (BOTTOM).
+                The cold supply enters the cylinder at the BOTTOM (cold_in port), not the top.
+                The section of the pipe inside the cylinder rect is hidden behind it — only
+                the visible drop from the cistern to the cylinder top edge is rendered;
+                the cold_in arrow below explicitly marks where cold enters.           */}
             <path
-              d={`M ${cwsX + cwsW / 2} ${cwsY + cwsH} L ${cylX + 10} ${cylY}`}
+              d={`M ${cwsX + cwsW / 2} ${cwsY + cwsH} L ${cylX + 10} ${cylY + cylH}`}
               stroke="#bae6fd" strokeWidth={10} strokeLinecap="round"
               opacity={0.85}
             />
             <path
-              d={`M ${cwsX + cwsW / 2} ${cwsY + cwsH} L ${cylX + 10} ${cylY}`}
+              d={`M ${cwsX + cwsW / 2} ${cwsY + cwsH} L ${cylX + 10} ${cylY + cylH}`}
               stroke="#0ea5e9" strokeWidth={2} strokeLinecap="round"
             />
             {/* Mid-pipe downward arrow — reinforces gravity direction */}
@@ -648,7 +690,7 @@ export function LabCanvas(props: {
               const x1 = cwsX + cwsW / 2
               const y1 = cwsY + cwsH
               const x2 = cylX + 10
-              const y2 = cylY
+              const y2 = cylY + cylH  // bottom of cylinder (cold_in port)
               const mx = (x1 + x2) / 2
               const my = (y1 + y2) / 2
               return (
@@ -658,9 +700,9 @@ export function LabCanvas(props: {
                 />
               )
             })()}
-            {/* Downward arrow at cylinder cold_in entry */}
+            {/* Downward arrow at cylinder cold_in entry (bottom of cylinder) */}
             <polygon
-              points={`${cylX + 6},${cylY - 4} ${cylX + 14},${cylY - 4} ${cylX + 10},${cylY + 2}`}
+              points={`${cylX + 6},${cylY + cylH - 4} ${cylX + 14},${cylY + cylH - 4} ${cylX + 10},${cylY + cylH + 2}`}
               fill="#0ea5e9" opacity={0.9}
             />
             {/* Label below the CWS cistern — confirms tank-fed (not mains-fed) supply */}
@@ -1056,6 +1098,49 @@ export function LabCanvas(props: {
               )
             })()}
 
+            {/* ── Cylinder domestic port labels (cold in bottom, hot out top) ─────
+                Reinforces the vertical domestic path story:
+                  cold enters at the bottom cold_in port
+                  stored water heats via the coil
+                  hot leaves from the top hot_out port
+                The heating coil remains on the right side (primary domain).         */}
+            {!scene.metadata.isMixergy && (
+              <>
+                {/* "↓ cold in" — bottom-left of cylinder */}
+                <text
+                  x={cylX + 8} y={cylY + cylH - 6}
+                  textAnchor="start" fontSize={8}
+                  fill="#0369a1" fontWeight={600}
+                >
+                  ↓ cold in
+                </text>
+                {/* "↑ hot out" — top area, left of coil symbol */}
+                <text
+                  x={cylX + 8} y={cylY + 11}
+                  textAnchor="start" fontSize={8}
+                  fill="#b45309" fontWeight={600}
+                >
+                  ↑ hot out
+                </text>
+              </>
+            )}
+
+            {/* ── Hot output tap — cylinder top → DHW trunk (stored/HP only) ─────
+                Shows that hot water exits from NEAR THE TOP of the cylinder and
+                routes down to the main DHW trunk, not from the centre of the box.
+                The short vertical segment at the cylinder right edge (X = cylX+cylW)
+                bridges cylY+12 (top area) down to P.boilerY (trunk level), meeting
+                the existing "pipe to splitter" at exactly (cylX+cylW, P.boilerY).    */}
+            <path
+              d={`M ${cylX + cylW} ${cylY + 12} L ${cylX + cylW} ${P.boilerY}`}
+              stroke={postHexThermalColor ?? '#cfd8e3'} strokeWidth={12} strokeLinecap="round"
+              opacity={postHexThermalColor ? THERMAL_COLOR_OPACITY : 0.5}
+            />
+            <path
+              d={`M ${cylX + cylW} ${cylY + 12} L ${cylX + cylW} ${P.boilerY}`}
+              stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
+            />
+
             {/* ── Control valve — sits on the source flow path below the heat source ─
                 Scene grammar: Source → Control → Load(s) → Common return.
                 The valve is the routing decision point.  It sits directly below the
@@ -1232,9 +1317,15 @@ export function LabCanvas(props: {
         )}
 
         {/* ── Pipe to splitter ───────────────────────────────────────────── */}
+        {/* Combi: uses the warm-up gradient (blue at HEX exit → warm → hot red at
+            splitter) to show that the DHW output ramps from cold mains to hot,
+            rather than appearing instantly fully hot.
+            Stored/HP: uses plain orange→red gradient (water is already hot in store). */}
         <path
           d={`M ${P.boilerX + 120} ${P.boilerY} L ${P.splitX} ${P.splitY}`}
-          stroke={postHexThermalColor ? 'url(#grad-dhw-hot)' : '#cfd8e3'}
+          stroke={postHexThermalColor
+            ? (scene.metadata.sceneLayoutKind === 'combi' ? 'url(#grad-combi-warmup)' : 'url(#grad-dhw-hot)')
+            : '#cfd8e3'}
           strokeWidth={16} strokeLinecap="round" filter={pipeGlow}
           opacity={postHexThermalColor ? THERMAL_COLOR_OPACITY : 1}
         />
@@ -1375,28 +1466,28 @@ export function LabCanvas(props: {
 
               {/* ── Cold-only service endpoints (PR16) ────────────────────── */}
               {/* Cold taps draw from cold supply only — they must NOT appear on the
-                  hot branch from the splitter.  Rendered separately in the cold domain
-                  (blue colour scheme) below the mains entry, branching from the cold
-                  supply pipe.  No temperature readout (always at cold-inlet temp).     */}
+                  hot branch from the splitter.  Rendered on the cold rail so the
+                  viewer can immediately see they are cold-service only.
+                  No temperature readout (always at cold-inlet temp).                */}
               {coldOnlyOuts.length > 0 && (
                 <g>
                   {coldOnlyOuts.map((outlet, i) => {
-                    const coldBranchX = P.mainsX + 50 + i * 80   // staggered along cold supply
-                    const coldBranchY = P.mainsY + 55             // below the cold supply pipe
+                    const coldBranchX = P.mainsX + 50 + i * 80   // staggered along cold rail
+                    const coldBranchY = coldRailY + 30            // below the cold rail
                     const isEnabled = outlet.enabled
                     const delivered = summary.outletDeliveredLpm[outlet.id]
                     return (
                       <g key={outlet.id}>
-                        {/* Cold supply branch — vertical drop from mains */}
+                        {/* Cold supply branch — drop from cold rail to tap terminal */}
                         <line
-                          x1={coldBranchX} y1={P.mainsY}
+                          x1={coldBranchX} y1={coldRailY}
                           x2={coldBranchX} y2={coldBranchY}
                           stroke={coldSupplyColor}
                           strokeWidth={10} strokeLinecap="round"
                           opacity={isEnabled ? THERMAL_COLOR_OPACITY : 0.4}
                         />
                         <line
-                          x1={coldBranchX} y1={P.mainsY}
+                          x1={coldBranchX} y1={coldRailY}
                           x2={coldBranchX} y2={coldBranchY}
                           stroke={isEnabled ? '#0ea5e9' : '#cbd5e1'}
                           strokeWidth={2} strokeLinecap="round"
