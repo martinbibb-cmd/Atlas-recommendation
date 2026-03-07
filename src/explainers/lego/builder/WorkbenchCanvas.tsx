@@ -30,6 +30,42 @@ export function clampPan(pan: { x: number; y: number }): { x: number; y: number 
   }
 }
 
+/**
+ * Number of pixels reserved at the bottom of the workbench canvas for the
+ * Build / Save / Play footer button strip.  A draggable palette tray must
+ * stay above this line so controls remain accessible.
+ * Exported for unit testing.
+ */
+export const TRAY_FOOTER_RESERVE_PX = 48
+
+/**
+ * Clamp a floating palette-tray position so it stays within the visible
+ * workbench bounds and never slides over the footer button strip.
+ *
+ * Rules (PR7 — palette tray dead-zone fix):
+ *  - X clamped to [0, workbenchWidth − trayWidth − 8]
+ *  - Y clamped to [0, workbenchHeight − trayHeight − TRAY_FOOTER_RESERVE_PX]
+ *
+ * @param pos           Requested top-left position (px, relative to workbench).
+ * @param workbenchSize Width and height of the workbench canvas element.
+ * @param traySize      Width and height of the palette tray element.
+ * @returns             Clamped position that fits within the workbench.
+ *
+ * Exported for unit testing.
+ */
+export function clampTrayPosition(
+  pos: { x: number; y: number },
+  workbenchSize: { width: number; height: number },
+  traySize: { width: number; height: number },
+): { x: number; y: number } {
+  const maxX = Math.max(0, workbenchSize.width - traySize.width - 8)
+  const maxY = Math.max(0, workbenchSize.height - traySize.height - TRAY_FOOTER_RESERVE_PX)
+  return {
+    x: Math.max(0, Math.min(pos.x, maxX)),
+    y: Math.max(0, Math.min(pos.y, maxY)),
+  }
+}
+
 // Directional arrow symbols used in port labels
 const ARROW_OUT = '→';
 const ARROW_IN  = '←';

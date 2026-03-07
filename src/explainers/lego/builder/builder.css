@@ -654,6 +654,35 @@
   font-weight: 700;
 }
 
+/* PR3 — graph validation error banner shown in Play mode when bad wiring is detected */
+.play-graph-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #fef2f2;
+  border-bottom: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.play-graph-error-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+.play-graph-error-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.play-graph-error-dismiss {
+  flex-shrink: 0;
+  padding: 2px 8px !important;
+  font-size: 0.75rem !important;
+}
+
 /* Two-column layout: canvas left, controls right */
 .play-layout {
   display: flex;

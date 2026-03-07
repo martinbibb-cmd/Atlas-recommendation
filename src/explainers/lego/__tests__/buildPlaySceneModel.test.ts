@@ -97,10 +97,10 @@ describe('buildPlaySceneModel — heat source visibility', () => {
     expect(scene.metadata.showHeatSource).toBe(true)
   })
 
-  it('marks showHeatSource false when idle', () => {
+  it('marks showHeatSource true even when idle (heat source always visible, PR5)', () => {
     const frame = makeBaseFrame({ systemMode: 'idle' })
     const scene = buildPlaySceneModel(makeBaseControls(), frame)
-    expect(scene.metadata.showHeatSource).toBe(false)
+    expect(scene.metadata.showHeatSource).toBe(true)
   })
 
   it('marks showHeatSource true when heating_and_reheat (S-plan)', () => {
@@ -121,7 +121,7 @@ describe('buildPlaySceneModel — showHeatingPath', () => {
     expect(scene.metadata.showHeatingPath).toBe(true)
   })
 
-  it('false when DHW only', () => {
+  it('false when DHW only and no heating circuit in graph', () => {
     const scene = buildPlaySceneModel(
       makeBaseControls(),
       makeBaseFrame({ systemMode: 'dhw_draw' }),
@@ -134,6 +134,21 @@ describe('buildPlaySceneModel — showHeatingPath', () => {
       makeBaseControls(),
       makeBaseFrame({ systemMode: 'heating_and_reheat' }),
     )
+    expect(scene.metadata.showHeatingPath).toBe(true)
+  })
+
+  it('true when heating circuit present in graph even while system is idle (PR5 — always show)', () => {
+    // graphFacts.hasHeatingCircuit signals that the build graph contains emitters,
+    // so the heating path should remain visible (faintly) even when CH is off.
+    const controls: LabControls = {
+      ...makeBaseControls(),
+      graphFacts: {
+        hotFedOutletNodeIds: [],
+        coldOnlyOutletNodeIds: [],
+        hasHeatingCircuit: true,
+      },
+    }
+    const scene = buildPlaySceneModel(controls, makeBaseFrame({ systemMode: 'idle' }))
     expect(scene.metadata.showHeatingPath).toBe(true)
   })
 })
