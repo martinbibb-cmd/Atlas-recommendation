@@ -11,6 +11,25 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
 const ZOOM_SENSITIVITY = 0.001;
 
+/**
+ * Maximum pan offset in any direction (px).
+ * Prevents nodes from being panned so far off-screen that the canvas
+ * becomes a dead zone with no visible content or interactive area.
+ * Exported for unit testing.
+ */
+export const PAN_CLAMP_PX = 3000
+
+/**
+ * Clamp a pan offset so neither axis exceeds PAN_CLAMP_PX.
+ * Exported for unit testing.
+ */
+export function clampPan(pan: { x: number; y: number }): { x: number; y: number } {
+  return {
+    x: Math.max(-PAN_CLAMP_PX, Math.min(PAN_CLAMP_PX, pan.x)),
+    y: Math.max(-PAN_CLAMP_PX, Math.min(PAN_CLAMP_PX, pan.y)),
+  }
+}
+
 // Directional arrow symbols used in port labels
 const ARROW_OUT = '→';
 const ARROW_IN  = '←';
@@ -184,7 +203,7 @@ export default function WorkbenchCanvas({
     if (!panningRef.current) return;
     const dx = e.clientX - panStartRef.current.x;
     const dy = e.clientY - panStartRef.current.y;
-    setPan({ x: panOriginRef.current.x + dx, y: panOriginRef.current.y + dy });
+    setPan(clampPan({ x: panOriginRef.current.x + dx, y: panOriginRef.current.y + dy }));
   };
 
   const handleWrapPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {

@@ -76,6 +76,9 @@ export function graphToLabControls(
       hotFedOutletNodeIds: facts.hotFedOutletNodeIds,
       coldOnlyOutletNodeIds: facts.coldOnlyOutletNodeIds,
       hasStoredDhw: facts.hasStoredDhw,
+      // Carry the heating-circuit presence flag so the play renderer can show
+      // emitters from the build graph even when heating demand is currently off.
+      hasHeatingCircuit: topology.hasHeatingCircuit,
     },
     outletBindings: graph.outletBindings,
     // Control topology drives S-plan simultaneous CH + reheat behaviour.

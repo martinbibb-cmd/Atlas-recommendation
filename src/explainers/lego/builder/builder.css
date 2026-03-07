@@ -183,6 +183,9 @@
   border-radius: 10px;
   padding: 6px 10px;
   backdrop-filter: blur(4px);
+  /* Exclude hint from canvas pointer capture so drag-to-pan on the background
+     works correctly and nodes positioned behind the hint remain reachable. */
+  pointer-events: none;
 }
 
 .pipes {
