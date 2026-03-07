@@ -259,6 +259,19 @@ export type LabControls = {
      * so the system topology is always visible regardless of demand state.
      */
     hasHeatingCircuit?: boolean
+    /**
+     * True when the built graph uses a Mixergy thermal store (dhw_mixergy node).
+     * Distinct from a standard unvented cylinder: Mixergy uses top-down
+     * stratification and exhibits reduced boiler cycling.
+     * Drives the Play scene cylinder label and topology indicator.
+     */
+    isMixergy?: boolean
+    /**
+     * Number of zone valves present in the built graph.
+     * 0 = no zone valves (Y-plan or uncontrolled).
+     * ≥2 = S-plan; drives the Play scene control-topology indicator.
+     */
+    zoneValveCount?: number
   }
   heatDemandKw?: number
   /**

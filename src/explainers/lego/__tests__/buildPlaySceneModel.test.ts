@@ -1061,3 +1061,98 @@ describe('buildCombiPlayScene / buildStoredPlayScene / buildHeatPumpPlayScene', 
     expect(scene.metadata.sceneLayoutKind).not.toBe('combi')
   })
 })
+
+// ─── isMixergy metadata flag ──────────────────────────────────────────────────
+
+describe('buildPlaySceneModel — isMixergy metadata', () => {
+  it('isMixergy is true when graphFacts.isMixergy is set', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'unvented_cylinder',
+        systemKind: 'stored',
+        graphFacts: {
+          hotFedOutletNodeIds: ['sh'],
+          coldOnlyOutletNodeIds: [],
+          isMixergy: true,
+        },
+      }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.isMixergy).toBe(true)
+  })
+
+  it('isMixergy is false when graphFacts.isMixergy is absent', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'unvented_cylinder',
+        systemKind: 'stored',
+        graphFacts: {
+          hotFedOutletNodeIds: ['sh'],
+          coldOnlyOutletNodeIds: [],
+        },
+      }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.isMixergy).toBe(false)
+  })
+
+  it('isMixergy is false for a standard combi (no graphFacts)', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'combi', systemKind: 'combi' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.isMixergy).toBe(false)
+  })
+})
+
+// ─── controlTopologyKind metadata flag ───────────────────────────────────────
+
+describe('buildPlaySceneModel — controlTopologyKind metadata', () => {
+  it('controlTopologyKind defaults to none when controlTopology absent', () => {
+    const scene = buildPlaySceneModel(makeBaseControls(), makeBaseFrame())
+    expect(scene.metadata.controlTopologyKind).toBe('none')
+  })
+
+  it('controlTopologyKind reflects s_plan from controls.controlTopology', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'unvented_cylinder', systemKind: 'stored', controlTopology: 's_plan' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.controlTopologyKind).toBe('s_plan')
+  })
+
+  it('controlTopologyKind reflects y_plan from controls.controlTopology', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'unvented_cylinder', systemKind: 'stored', controlTopology: 'y_plan' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.controlTopologyKind).toBe('y_plan')
+  })
+})
+
+// ─── outletCount metadata field ───────────────────────────────────────────────
+
+describe('buildPlaySceneModel — outletCount metadata', () => {
+  it('outletCount is set from graphFacts hot-fed + cold-only combined', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'unvented_cylinder',
+        systemKind: 'stored',
+        graphFacts: {
+          hotFedOutletNodeIds: ['sh1', 'sh2'],
+          coldOnlyOutletNodeIds: ['ct1'],
+        },
+      }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.outletCount).toBe(3)
+  })
+
+  it('outletCount is undefined when no graphFacts provided', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'combi' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.outletCount).toBeUndefined()
+  })
+})

@@ -285,3 +285,67 @@ describe('graphToLabControls — systemKind derived from graph', () => {
     expect(controls.systemKind).toBe('combi')
   })
 })
+
+// ── isMixergy in graphFacts ───────────────────────────────────────────────────
+
+function mixergyGraph(): BuildGraph {
+  return {
+    nodes: [
+      { id: 'hs',  kind: 'heat_source_system_boiler', x: 100, y: 100, r: 0 },
+      { id: 'mix', kind: 'dhw_mixergy',               x: 300, y: 100, r: 0 },
+      { id: 'sh',  kind: 'shower_outlet',              x: 500, y: 100, r: 0 },
+    ],
+    edges: [
+      { id: 'e1', from: { nodeId: 'mix', portId: 'hot_out' }, to: { nodeId: 'sh', portId: 'hot_in' } },
+    ],
+    outletBindings: { A: 'sh' },
+  }
+}
+
+describe('graphToLabControls — isMixergy in graphFacts', () => {
+  it('sets isMixergy true for a Mixergy cylinder graph', () => {
+    const controls = graphToLabControls(mixergyGraph())
+    expect(controls.graphFacts?.isMixergy).toBe(true)
+  })
+
+  it('isMixergy is false for a standard unvented cylinder graph', () => {
+    const controls = graphToLabControls(unventedCylinderGraph())
+    expect(controls.graphFacts?.isMixergy).toBe(false)
+  })
+
+  it('isMixergy is false for a combi graph', () => {
+    const controls = graphToLabControls(combiGraph())
+    expect(controls.graphFacts?.isMixergy).toBe(false)
+  })
+})
+
+// ── zoneValveCount in graphFacts ──────────────────────────────────────────────
+
+function sPlanMixergyGraph(): BuildGraph {
+  return {
+    nodes: [
+      { id: 'hs',  kind: 'heat_source_system_boiler', x: 100, y: 100, r: 0 },
+      { id: 'mix', kind: 'dhw_mixergy',               x: 300, y: 100, r: 0 },
+      { id: 'zv1', kind: 'zone_valve',                x: 200, y:  80, r: 0 },
+      { id: 'zv2', kind: 'zone_valve',                x: 200, y: 120, r: 0 },
+    ],
+    edges: [],
+  }
+}
+
+describe('graphToLabControls — zoneValveCount in graphFacts', () => {
+  it('sets zoneValveCount to 2 for an S-plan graph with two zone valves', () => {
+    const controls = graphToLabControls(sPlanMixergyGraph())
+    expect(controls.graphFacts?.zoneValveCount).toBe(2)
+  })
+
+  it('sets zoneValveCount to 0 for a combi graph with no zone valves', () => {
+    const controls = graphToLabControls(combiGraph())
+    expect(controls.graphFacts?.zoneValveCount).toBe(0)
+  })
+
+  it('sets zoneValveCount to 0 for an unvented cylinder graph with no zone valves', () => {
+    const controls = graphToLabControls(unventedCylinderGraph())
+    expect(controls.graphFacts?.zoneValveCount).toBe(0)
+  })
+})
