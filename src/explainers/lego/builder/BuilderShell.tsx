@@ -1,9 +1,10 @@
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { BuildGraph, PartKind, PortDef, PortRef } from './types'
 import type { LabControls } from '../animation/types'
 import PresetPanel from './PresetPanel'
 import PalettePanel from './PalettePanel'
-import WorkbenchCanvas from './WorkbenchCanvas'
+import WorkbenchCanvas, { clampTrayPosition } from './WorkbenchCanvas'
 import { LabCanvas } from '../animation/render/LabCanvas'
 import { InstrumentStrip } from '../animation/render/InstrumentStrip'
 import { computeCapacitySummary } from '../animation/capacitySummary'
@@ -127,12 +128,64 @@ export default function BuilderShell({
    */
   const [labGraphValidation, setLabGraphValidation] = useState<GraphValidationResult | null>(null)
 
-  // Track screen width to update the narrow-screen flag
+  // ── Floating palette tray (narrow screens) ────────────────────────────────
+  /** Top-left position of the floating palette tray, in px relative to the
+   *  workbench container.  Starts at top-left with a small gutter. */
+  const [trayPos, setTrayPos] = useState({ x: 8, y: 8 })
+  /** Ref to the workbench container element used to measure drag bounds. */
+  const workbenchRef = useRef<HTMLDivElement>(null)
+  /** Ref to the floating palette tray element used to measure its size. */
+  const trayRef = useRef<HTMLDivElement>(null)
+  /** Mutable store for active tray drag: pointer start + tray position at drag start. */
+  const trayDragOriginRef = useRef<{ ptr: { x: number; y: number }; tray: { x: number; y: number } } | null>(null)
+
+  /** Return a clamped copy of `pos` using live DOM rects. */
+  const clampedTrayPos = useCallback((pos: { x: number; y: number }) => {
+    const wb = workbenchRef.current
+    const tr = trayRef.current
+    if (!wb || !tr) return pos
+    const wRect = wb.getBoundingClientRect()
+    const tRect = tr.getBoundingClientRect()
+    return clampTrayPosition(pos, { width: wRect.width, height: wRect.height }, { width: tRect.width, height: tRect.height })
+  }, [])
+
+  const onTrayPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    trayDragOriginRef.current = {
+      ptr: { x: e.clientX, y: e.clientY },
+      tray: { ...trayPos },
+    }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const onTrayPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!trayDragOriginRef.current) return
+    const dx = e.clientX - trayDragOriginRef.current.ptr.x
+    const dy = e.clientY - trayDragOriginRef.current.ptr.y
+    const next = {
+      x: trayDragOriginRef.current.tray.x + dx,
+      y: trayDragOriginRef.current.tray.y + dy,
+    }
+    setTrayPos(clampedTrayPos(next))
+  }
+
+  const onTrayPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!trayDragOriginRef.current) return
+    trayDragOriginRef.current = null
+    e.currentTarget.releasePointerCapture(e.pointerId)
+  }
+
+  // Single resize listener: updates the narrow-screen flag AND re-clamps the
+  // floating tray so it stays within the (possibly resized) workbench bounds.
   useEffect(() => {
-    const handleResize = () => setIsNarrow(window.innerWidth < 1200)
+    function handleResize() {
+      setIsNarrow(window.innerWidth < 1200)
+      setTrayPos(prev => clampedTrayPos(prev))
+    }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  }, [clampedTrayPos])
 
   const selected = useMemo(
     () => graph.nodes.find(node => node.id === selectedId) ?? null,
@@ -831,16 +884,8 @@ export default function BuilderShell({
         gridTemplateColumns: paletteOpen ? '320px 1fr' : '1fr',
       }}
     >
-      {/* Backdrop — only rendered/visible on narrow screens while palette is open */}
-      {paletteOpen && isNarrow && (
-        <div
-          className="palette-backdrop"
-          onClick={() => setPaletteOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {paletteOpen && (
+      {/* Desktop side panel — only shown on wide screens (≥1200px) */}
+      {paletteOpen && !isNarrow && (
         <div className="builder-left">
           <PresetPanel onLoad={loadPreset} onLoadConcept={loadConceptPreset} />
           <PalettePanel onPick={pickFromPalette} />
@@ -979,19 +1024,54 @@ export default function BuilderShell({
           </div>
         </div>
 
-        <WorkbenchCanvas
-          graph={graph}
-          selectedId={selectedId}
-          highlightNodeId={highlightNodeId}
-          highlightEdgeId={highlightEdgeId}
-          pendingPort={pendingPort}
-          onSelect={setSelectedId}
-          onMove={moveNode}
-          onPortTap={onPortTap}
-          onCancelPending={cancelPending}
-          onAutoConnect={onAutoConnect}
-          outletBindings={bindings}
-        />
+        {/* workbench-container is the authoritative bounding box for the
+            floating palette tray.  position:relative makes it the containing
+            block; overflow:hidden clips the tray at the canvas edge. */}
+        <div ref={workbenchRef} className="workbench-container">
+          <WorkbenchCanvas
+            graph={graph}
+            selectedId={selectedId}
+            highlightNodeId={highlightNodeId}
+            highlightEdgeId={highlightEdgeId}
+            pendingPort={pendingPort}
+            onSelect={setSelectedId}
+            onMove={moveNode}
+            onPortTap={onPortTap}
+            onCancelPending={cancelPending}
+            onAutoConnect={onAutoConnect}
+            outletBindings={bindings}
+          />
+
+          {/* Floating draggable palette tray — narrow screens only.
+              Positioned absolute inside workbench-container so it cannot
+              slide outside the canvas or over the mode-bar dead zone. */}
+          {isNarrow && paletteOpen && (
+            <div
+              ref={trayRef}
+              className="palette-tray"
+              style={{ transform: `translate(${trayPos.x}px, ${trayPos.y}px)` }}
+            >
+              {/* Drag handle — pointer events here drive tray repositioning */}
+              <div
+                className="palette-tray__handle"
+                onPointerDown={onTrayPointerDown}
+                onPointerMove={onTrayPointerMove}
+                onPointerUp={onTrayPointerUp}
+              >
+                <span className="palette-tray__grip">⠿ Palette</span>
+                <button
+                  className="palette-tray__close"
+                  onClick={() => setPaletteOpen(false)}
+                  onPointerDown={e => e.stopPropagation()}
+                  aria-label="Close palette tray"
+                >
+                  ✕
+                </button>
+              </div>
+              <PalettePanel onPick={pickFromPalette} />
+            </div>
+          )}
+        </div>
 
         {/* ── Warning strip — non-blocking bottom bar ────────────────── */}
         {warnings.length > 0 && (

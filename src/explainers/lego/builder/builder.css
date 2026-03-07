@@ -31,6 +31,79 @@
   overflow: hidden;
 }
 
+/* Authoritative bounding box for the floating palette tray.
+   Wraps WorkbenchCanvas and serves as the position:relative container
+   so the tray is bounded to the actual canvas, not the outer shell.
+   This naturally excludes the mode-bar (Build/Save/Play/Toolbox) above
+   and the builder-toolbar from the tray's movement area. */
+.workbench-container {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Floating draggable palette tray — overlaid on the canvas on narrow screens.
+   Positioned absolute within .workbench-container; clampTrayPosition keeps
+   it inside the canvas bounds and above the reserved footer strip. */
+.palette-tray {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 280px;
+  max-width: calc(100% - 16px);
+  max-height: calc(100% - 56px); /* TRAY_FOOTER_RESERVE_PX (48) + 8 gutter */
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 18%);
+  z-index: 200;
+  touch-action: none;
+}
+
+/* Drag handle at the top of the tray — pointer events drive repositioning. */
+.palette-tray__handle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid #edf2f7;
+  background: #f7fafc;
+  border-radius: 11px 11px 0 0;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.palette-tray__handle:active {
+  cursor: grabbing;
+}
+
+.palette-tray__grip {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #718096;
+}
+
+.palette-tray__close {
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  cursor: pointer;
+  color: #718096;
+  padding: 2px 6px;
+  border-radius: 6px;
+  line-height: 1;
+  /* Prevent pointer capture on the close button from triggering drag */
+  touch-action: auto;
+}
+
+.palette-tray__close:hover {
+  background: #edf2f7;
+  color: #2d3748;
+}
+
 .builder-toolbar {
   display: flex;
   flex-direction: column;
@@ -441,10 +514,10 @@
   }
 }
 
-/* ── Responsive drawer palette (tablet / mobile ≤ 1199px) ────────────────── */
+/* ── Responsive layout (tablet / mobile ≤ 1199px) ────────────────────────── */
 
 @media (max-width: 1199px) {
-  /* Canvas always takes full width; palette does not reserve space */
+  /* Canvas always takes full width; desktop side panel not shown */
   .builder-wrap {
     grid-template-columns: 1fr;
   }
@@ -453,27 +526,12 @@
     grid-template-columns: 1fr;
   }
 
-  /* Palette floats as an overlay drawer */
-  .builder-left {
-    position: absolute;
-    left: 0;
-    top: 0;
-    height: 100%;
-    width: 300px;
-    max-width: 85vw;
-    z-index: 200;
-    box-shadow: 4px 0 20px rgb(0 0 0 / 18%);
-    overflow-y: auto;
-    border-radius: 0 12px 12px 0;
-  }
-
-  /* Semi-transparent backdrop behind drawer */
-  .palette-backdrop {
-    display: block;
-  }
+  /* On narrow screens the palette tray floats over the canvas
+     (see .palette-tray / .palette-tray__handle).  The desktop
+     side-panel (.builder-left) is not rendered at this breakpoint. */
 }
 
-/* Backdrop — hidden by default, shown on tablet/mobile when palette is open */
+/* Backdrop — kept in CSS for future use but not actively shown */
 .palette-backdrop {
   display: none;
   position: absolute;
