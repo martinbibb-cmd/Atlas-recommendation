@@ -23,6 +23,7 @@ import type {
   ActivityKind,
   PlaySceneActivity,
 } from './types'
+import { deriveActiveDomains } from './deriveActiveDomains'
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -123,11 +124,46 @@ export function buildPlaySceneModel(
   const systemType = controls.systemType
   const isVented   = systemType === 'vented_cylinder'
   const isCylinder = isVented || systemType === 'unvented_cylinder'
+  const isCombi    = systemType === 'combi'
   const mode       = frame.systemMode ?? 'idle'
 
-  const isChActive  = mode === 'heating'  || mode === 'heating_and_reheat'
-  const isDhwActive = mode === 'dhw_draw' || mode === 'dhw_reheat'
-  const isActive    = isChActive || isDhwActive
+  // ── Derive active domains ────────────────────────────────────────────────
+  //
+  // These four booleans are the single source of truth for which circuits
+  // are live this frame.  All edge.active assignments below derive from them
+  // via deriveActiveDomains() — avoiding scattered conditional logic that
+  // could falsely activate the wrong branches.
+
+  // Space-heating circuit running (boiler firing into the CH circuit).
+  const isChActive = mode === 'heating' || mode === 'heating_and_reheat'
+
+  // Cylinder coil reheating the store.  Driven by simulation hysteresis —
+  // NOT by a tap opening.  A DHW draw depletes the store over time; the
+  // threshold/hysteresis in simulation.ts decides when recovery begins.
+  const cylinderNeedsReheat = mode === 'dhw_reheat' || mode === 'heating_and_reheat'
+
+  // Domestic hot-water draw in progress.
+  //
+  // For combi systems the simulation sets mode = 'dhw_draw' when outlets
+  // are open, so mode alone is sufficient.
+  //
+  // For stored (cylinder) systems the simulation does NOT set mode =
+  // 'dhw_draw' — a domestic draw simply depletes the stored energy while
+  // the mode tracks reheat state separately.  We therefore detect stored
+  // DHW draw from the 'dhw_draw' fluid path emitted by simulation visuals.
+  //
+  // Falls back to mode === 'dhw_draw' when visuals are not yet populated
+  // (e.g. on the very first render before a simulation frame has run).
+  const dhwDraw =
+    frame.visuals?.fluidPaths.find(p => p.edgeIds.includes('dhw_draw'))?.active
+    ?? (mode === 'dhw_draw')
+
+  const activeDomains = deriveActiveDomains({
+    systemKind: isCombi ? 'combi' : 'stored',
+    heatingDemand: isChActive,
+    dhwDraw,
+    cylinderNeedsReheat,
+  })
 
   // Whether the CH circuit has any heating demand configured.
   // Radiators are also shown when the build graph contains emitter nodes so that
@@ -164,23 +200,36 @@ export function buildPlaySceneModel(
 
   // Heat source — always present and always visible (PR5: full topology always shown).
   // The activity kind / intensity drives the renderer glow/pulse independently of visibility.
+  //
+  // The heat source fires when:
+  //   combi  — CH is running OR DHW draw is active (plate HEX fires on demand)
+  //   stored — CH is running OR cylinder coil reheat is active
+  // A stored DHW draw does NOT require the heat source: heat comes from stored energy.
+  const heatSourceIsActive =
+    activeDomains.heating ||
+    activeDomains.primary ||
+    (isCombi && activeDomains.dhw)
+
   const heatSourceNode: PlaySceneNode = {
     id: 'heat_source',
     role: 'heat_source',
     visible: true,
-    active: isActive,
+    active: heatSourceIsActive,
     x: 0,
     y: 0,
     activity: deriveHeatSourceActivity(frame),
   }
 
   // Cylinder / thermal store — present for cylinder system types only.
+  // Active when hot water is being drawn from the store OR when the coil
+  // is reheating the store.  A stored DHW draw uses energy from the cylinder
+  // even though the boiler is not firing, so the cylinder must be shown active.
   const cylinderNode: PlaySceneNode | null = isCylinder
     ? {
         id: 'cylinder',
         role: 'cylinder',
         visible: true,
-        active: isDhwActive,
+        active: activeDomains.dhw || activeDomains.primary,
         x: 0,
         y: 0,
         activity: deriveCylinderActivity(frame),
@@ -205,7 +254,7 @@ export function buildPlaySceneModel(
     id: 'radiators',
     role: 'radiators',
     visible: hasHeatingDemand,
-    active: isChActive,
+    active: activeDomains.heating,
     x: 0,
     y: 0,
     activity: emitterAct,
@@ -226,8 +275,8 @@ export function buildPlaySceneModel(
   //      even while CH is off — inactive edges render faded (PR5).
   //   2. Edges also appear when heating is live (isChActive) even if graphFacts
   //      are not set, which covers presets that pre-date graphFacts propagation.
-  // `active` reflects whether CH is currently running.
-  if (hasHeatingDemand || isChActive) {
+  // `active` reflects whether CH is currently running (domain-driven).
+  if (hasHeatingDemand || activeDomains.heating) {
     edges.push({
       id: 'ch_flow',
       from: 'heat_source',
@@ -235,7 +284,7 @@ export function buildPlaySceneModel(
       kind: 'ch_flow',
       domain: 'heating',
       visible: true,
-      active: isChActive,
+      active: activeDomains.heating,
       direction: 'forward',
     })
     edges.push({
@@ -245,14 +294,22 @@ export function buildPlaySceneModel(
       kind: 'ch_return',
       domain: 'heating',
       visible: true,
-      active: isChActive,
+      active: activeDomains.heating,
       direction: 'forward',
     })
   }
 
   // DHW hot draw — always present for all system types (the hot-water path from
   // heat source / cylinder to the outlet manifold is always part of the topology).
-  // `active` is true only while a domestic draw is actually occurring.
+  //
+  // `active` is true when a domestic draw is in progress (activeDomains.dhw).
+  //
+  // KEY: For combi, mode === 'dhw_draw' implies the draw.
+  //      For stored (cylinder) systems, the simulation does NOT use mode = 'dhw_draw'.
+  //      A stored DHW draw is detected from the dhw_draw fluid path in visuals,
+  //      which is active whenever hasDraw is true.  Using activeDomains.dhw
+  //      (derived from that path) ensures this edge correctly shows flow during
+  //      a stored tap draw, independent of cylinder reheat state.
   edges.push({
     id: 'dhw_hot',
     from: isCylinder ? 'cylinder' : 'heat_source',
@@ -260,7 +317,7 @@ export function buildPlaySceneModel(
     kind: 'dhw_hot',
     domain: 'dhw',
     visible: true,
-    active: mode === 'dhw_draw',
+    active: activeDomains.dhw,
     direction: 'forward',
   })
 
@@ -282,10 +339,11 @@ export function buildPlaySceneModel(
   // Primary coil — always present for cylinder systems (the coil is permanently
   // plumbed in; it does not come and go with demand).  S-plan allows this
   // simultaneously with CH (heating_and_reheat mode).
-  // `active` is true during dhw_reheat and heating_and_reheat; otherwise the
-  // coil renders faded to show the structural circuit without implying flow.
+  //
+  // `active` is true only when the cylinder store needs reheat (activeDomains.primary).
+  // A domestic tap draw depletes the store over time, but the coil does NOT fire
+  // on every draw — only when the hysteresis threshold has been crossed.
   if (isCylinder) {
-    const isCoilActive = mode === 'dhw_reheat' || mode === 'heating_and_reheat'
     edges.push({
       id: 'coil_flow',
       from: 'heat_source',
@@ -293,7 +351,7 @@ export function buildPlaySceneModel(
       kind: 'coil_flow',
       domain: 'primary',
       visible: true,
-      active: isCoilActive,
+      active: activeDomains.primary,
       direction: 'forward',
     })
     edges.push({
@@ -303,7 +361,7 @@ export function buildPlaySceneModel(
       kind: 'coil_return',
       domain: 'primary',
       visible: true,
-      active: isCoilActive,
+      active: activeDomains.primary,
       direction: 'forward',
     })
   }
