@@ -48,10 +48,12 @@ export function portsForKind(kind: PartKind): PortDef[] {
     case 'dhw_mixergy':
     case 'dhw_vented_cylinder':
       return [
-        { id: 'cold_in',      dx: L, dy: B,     role: 'cold',   label: 'cold in',  direction: 'in'  },
-        { id: 'hot_out',      dx: R, dy: T,     role: 'hot',    label: 'hot out',  direction: 'out' },
-        { id: 'coil_flow',    dx: R, dy: MID_Y, role: 'flow',   label: 'flow',     direction: 'in'  },
-        { id: 'coil_return',  dx: L, dy: MID_Y, role: 'return', label: 'return',   direction: 'out' },
+        // Primary heating circuit — left side (coil)
+        { id: 'coil_flow',    dx: L, dy: T + 18, role: 'flow',   label: 'flow',     direction: 'in'  },
+        { id: 'coil_return',  dx: L, dy: B - 18, role: 'return', label: 'return',   direction: 'out' },
+        // Domestic water circuit — right side
+        { id: 'hot_out',      dx: R, dy: T,       role: 'hot',    label: 'hot out',  direction: 'out' },
+        { id: 'cold_in',      dx: R, dy: B,       role: 'cold',   label: 'cold in',  direction: 'in'  },
       ];
 
     case 'pump':
@@ -63,9 +65,9 @@ export function portsForKind(kind: PartKind): PortDef[] {
     case 'zone_valve':
     case 'three_port_valve':
       return [
-        { id: 'in',    dx: L, dy: MID_Y,   role: 'flow', label: 'port A',  direction: 'in'  },
-        { id: 'out_a', dx: R, dy: T + 18,  role: 'flow', label: 'port AB', direction: 'out' },
-        { id: 'out_b', dx: R, dy: B - 18,  role: 'flow', label: 'port B',  direction: 'out' },
+        { id: 'in',    dx: L, dy: MID_Y,   role: 'flow', label: 'flow in', direction: 'in'  },
+        { id: 'out_a', dx: R, dy: T + 18,  role: 'flow', label: 'hw out',  direction: 'out' },
+        { id: 'out_b', dx: R, dy: B - 18,  role: 'flow', label: 'ch out',  direction: 'out' },
       ];
 
     case 'buffer':
