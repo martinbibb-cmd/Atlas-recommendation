@@ -102,7 +102,7 @@ export const PRESETS: LabPreset[] = [
         e('b2', 'v3',   'out_a',        'rads','flow_in',     'heating'),
         e('b3', 'rads', 'return_out',   'hs',  'ch_return_in','heating'),
         e('b4', 'v3',   'out_b',        'cyl', 'coil_flow',   'primary'),
-        e('b5', 'cyl',  'coil_return',  'hs',  'coil_return', 'primary'),
+        e('b5', 'cyl',  'coil_return',  'hs',  'ch_return_in','primary'),
         // F&E and open vent
         e('fe1', 'fe',  'feed_in',      'hs',  'ch_return_in','heating'),
         e('ov1', 'ov',  'vent_in',      'hs',  'ch_flow_out', 'heating'),
@@ -161,7 +161,7 @@ export const PRESETS: LabPreset[] = [
         e('ch2', 'rads', 'return_out',  'hs',   'ch_return_in',  'heating'),
         // Cylinder coil zone
         e('cy1', 'zcyl', 'out_a',       'cyl',  'coil_flow',     'primary'),
-        e('cy2', 'cyl',  'coil_return', 'hs',   'coil_return',   'primary'),
+        e('cy2', 'cyl',  'coil_return', 'hs',   'ch_return_in',  'primary'),
         // Hot distribution via manifold
         e('hot_link',  'cyl', 'hot_out', 'mh', 'in',             'dhw'),
         e('mh_sh',     'mh',  'out1',   'sh',   'hot_in',        'dhw'),

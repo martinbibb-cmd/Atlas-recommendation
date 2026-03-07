@@ -146,34 +146,41 @@ export function getAllowedPorts(kind: string): PortRole[] {
   }
 }
 
+// Transitional port roles shared across multiple domains.  Manifolds, tees, pumps
+// and valves pass fluid through without a domain-specific role — 'in'/'out' are the
+// generic pass-through roles for these distribution nodes.
+const TRANSITIONAL_PORTS = new Set<PortRole>(['in', 'out'])
+
 /**
  * Return true when the given PortRole is physically valid on the given domain.
  *
  * heating  — only flow/return (plus transitional in/out)
  * primary  — flow/return for the heating-fluid path + coil_flow/coil_return at the cylinder
- * dhw      — hot_out and cold_in (domestic draw-off)
- * cold     — cold_in for domestic cold supply; 'in'/'out' allowed for transitional
+ * dhw      — hot_out and cold_in (domestic draw-off); in/out for transitional
+ *             distribution nodes (manifold_hot, tee_hot, etc.)
+ * cold     — cold_in for domestic cold supply; in/out for transitional
  *             distribution nodes (manifold_cold, tee_cold, etc.)
  */
 export function isPortAllowedForDomain(port: PortRole, domain: CircuitDomain): boolean {
   switch (domain) {
     case 'heating':
-      return port === 'flow' || port === 'return' || port === 'in' || port === 'out'
+      return port === 'flow' || port === 'return' || TRANSITIONAL_PORTS.has(port)
     case 'primary':
       return (
         port === 'flow' ||
         port === 'return' ||
         port === 'coil_flow' ||
         port === 'coil_return' ||
-        port === 'in' ||
-        port === 'out'
+        TRANSITIONAL_PORTS.has(port)
       )
     case 'dhw':
-      return port === 'hot_out' || port === 'cold_in'
+      // hot_out / cold_in are the canonical domestic draw-off ports.
+      // Transitional in/out are allowed for distribution manifolds and tees.
+      return port === 'hot_out' || port === 'cold_in' || TRANSITIONAL_PORTS.has(port)
     case 'cold':
-      // cold_in is the canonical cold-supply port; 'in'/'out' are allowed for
-      // transitional distribution nodes (manifold_cold, tee_cold, pipe tees)
-      return port === 'cold_in' || port === 'in' || port === 'out'
+      // cold_in is the canonical cold-supply port.
+      // Transitional in/out are allowed for distribution manifolds and tees.
+      return port === 'cold_in' || TRANSITIONAL_PORTS.has(port)
     default:
       return false
   }

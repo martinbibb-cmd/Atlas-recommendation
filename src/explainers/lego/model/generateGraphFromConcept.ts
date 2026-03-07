@@ -10,14 +10,16 @@
  *   hotWaterService === 'combi_plate_hex'
  *     → combi system (system_boiler + integrated plate HEX, no cylinder)
  *
- *   controls === 'y_plan'
- *     → regular boiler + 3-port valve + vented cylinder (open-vented circuit)
- *
- *   controls === 's_plan'
- *     → system boiler + 2 × zone valves + cylinder (sealed circuit)
- *
  *   heatSource === 'heat_pump'
  *     → heat pump + buffer + emitter loops + cylinder
+ *
+ *   all stored systems (boiler + cylinder)
+ *     → buildStoredTopology dispatcher
+ *       ├─ controls === 'y_plan' → buildStoredYPlan (regular boiler + 3-port + vented cylinder)
+ *       └─ controls === 's_plan' → buildStoredSPlan (system boiler + zone valves + cylinder)
+ *
+ * Stored systems always use dedicated, domain-correct topology builders that produce
+ * separate heating, primary, cold, and DHW branches.
  *
  * Users can still edit the generated graph afterwards.
  *
@@ -26,7 +28,12 @@
 
 import type { BuildGraph } from '../builder/types';
 import type { SystemConceptModel } from './types';
-import { conceptModelToGraph } from './systemGraphGenerator';
+import {
+  conceptModelToGraph,
+  buildStoredTopology,
+  buildStoredYPlan,
+  buildStoredSPlan,
+} from './systemGraphGenerator';
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -37,7 +44,10 @@ import { conceptModelToGraph } from './systemGraphGenerator';
  *  - contains valid node connections for the selected system topology
  *  - uses sensible grid positions (ready to render without editing)
  *  - has correct port wiring for heating and domestic circuits
- *  - passes graph validation with no warnings on the four canonical systems
+ *  - passes graph validation with no errors on the four canonical systems
+ *
+ * For stored systems (boiler + cylinder), heating and cylinder-coil branches
+ * are generated separately so emitters are never attached to the cylinder body.
  *
  * Users can modify the graph in the builder after generation.
  *
@@ -49,3 +59,7 @@ import { conceptModelToGraph } from './systemGraphGenerator';
 export function generateGraphFromConcept(concept: SystemConceptModel): BuildGraph {
   return conceptModelToGraph(concept);
 }
+
+// Re-export dedicated stored-system builders so tests and other consumers can
+// reference them directly without importing from the internal systemGraphGenerator.
+export { buildStoredTopology, buildStoredYPlan, buildStoredSPlan };
