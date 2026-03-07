@@ -376,6 +376,115 @@ describe('buildPlaySceneModel — edges', () => {
   })
 })
 
+// ─── PR5 — always-present edges and domain info ───────────────────────────────
+//
+// PR5 requires ALL structural edges to be emitted at all times so the renderer
+// can show the full system topology.  The `active` flag (not `visible`) drives
+// opacity/animation styling — inactive edges render faded, never removed.
+
+describe('buildPlaySceneModel — PR5 full topology (always-emit edges)', () => {
+  const cylinderWithEmitters = makeBaseControls({
+    systemType: 'unvented_cylinder',
+    graphFacts: {
+      hotFedOutletNodeIds: [],
+      coldOnlyOutletNodeIds: [],
+      hasStoredDhw: true,
+      hasHeatingCircuit: true,
+    },
+  })
+
+  it('coil edges always present for cylinder systems, even when idle', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'unvented_cylinder' }),
+      makeBaseFrame({ systemMode: 'idle' }),
+    )
+    const kinds = scene.edges.map(e => e.kind)
+    expect(kinds).toContain('coil_flow')
+    expect(kinds).toContain('coil_return')
+  })
+
+  it('coil edges active=false when not in reheat mode', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'unvented_cylinder' }),
+      makeBaseFrame({ systemMode: 'idle' }),
+    )
+    const coilFlow = scene.edges.find(e => e.kind === 'coil_flow')
+    expect(coilFlow?.active).toBe(false)
+  })
+
+  it('coil edges active=true during dhw_reheat', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'unvented_cylinder' }),
+      makeBaseFrame({ systemMode: 'dhw_reheat' }),
+    )
+    expect(scene.edges.find(e => e.kind === 'coil_flow')?.active).toBe(true)
+    expect(scene.edges.find(e => e.kind === 'coil_return')?.active).toBe(true)
+  })
+
+  it('CH edges present when hasHeatingCircuit=true and CH is off (active=false)', () => {
+    const scene = buildPlaySceneModel(
+      cylinderWithEmitters,
+      makeBaseFrame({ systemMode: 'idle' }),
+    )
+    const chFlow = scene.edges.find(e => e.kind === 'ch_flow')
+    expect(chFlow).toBeDefined()
+    expect(chFlow?.active).toBe(false)
+  })
+
+  it('CH edges active=true when heating is on', () => {
+    const scene = buildPlaySceneModel(
+      cylinderWithEmitters,
+      makeBaseFrame({ systemMode: 'heating' }),
+    )
+    expect(scene.edges.find(e => e.kind === 'ch_flow')?.active).toBe(true)
+    expect(scene.edges.find(e => e.kind === 'ch_return')?.active).toBe(true)
+  })
+
+  it('dhw_hot always present for all system types', () => {
+    for (const systemType of ['combi', 'unvented_cylinder', 'vented_cylinder'] as const) {
+      const scene = buildPlaySceneModel(
+        makeBaseControls({ systemType }),
+        makeBaseFrame({ systemMode: 'idle' }),
+      )
+      expect(scene.edges.find(e => e.kind === 'dhw_hot')).toBeDefined()
+    }
+  })
+
+  it('dhw_hot active=false when idle, active=true during dhw_draw', () => {
+    const idleScene = buildPlaySceneModel(makeBaseControls(), makeBaseFrame({ systemMode: 'idle' }))
+    expect(idleScene.edges.find(e => e.kind === 'dhw_hot')?.active).toBe(false)
+
+    const drawScene = buildPlaySceneModel(makeBaseControls(), makeBaseFrame({ systemMode: 'dhw_draw' }))
+    expect(drawScene.edges.find(e => e.kind === 'dhw_hot')?.active).toBe(true)
+  })
+
+  it('edges carry correct domain labels', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'unvented_cylinder',
+        graphFacts: {
+          hotFedOutletNodeIds: [],
+          coldOnlyOutletNodeIds: [],
+          hasStoredDhw: true,
+          hasHeatingCircuit: true,
+        },
+      }),
+      makeBaseFrame({ systemMode: 'heating' }),
+    )
+    expect(scene.edges.find(e => e.kind === 'ch_flow')?.domain).toBe('heating')
+    expect(scene.edges.find(e => e.kind === 'coil_flow')?.domain).toBe('primary')
+    expect(scene.edges.find(e => e.kind === 'dhw_hot')?.domain).toBe('dhw')
+  })
+
+  it('tank_refill carries cold domain for vented cylinder', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'vented_cylinder' }),
+      makeBaseFrame(),
+    )
+    expect(scene.edges.find(e => e.kind === 'tank_refill')?.domain).toBe('cold')
+  })
+})
+
 // ─── hasHeatingCircuit graph-fact regression tests ────────────────────────────
 //
 // Regression guard for the state-parity fix:
@@ -430,10 +539,14 @@ describe('buildPlaySceneModel — heating circuit from build graph topology', ()
     // Radiators should still be visible (topology exists) but not active
     expect(radiators?.visible).toBe(true)
     expect(radiators?.active).toBe(false)
-    // No CH flow/return edges when heating is off
-    const edgeKinds = scene.edges.map(e => e.kind)
-    expect(edgeKinds).not.toContain('ch_flow')
-    expect(edgeKinds).not.toContain('ch_return')
+    // PR5: CH flow/return edges are always emitted when heating circuit exists,
+    // but they are inactive (active: false) when CH is off.
+    const chFlowEdge = scene.edges.find(e => e.kind === 'ch_flow')
+    const chReturnEdge = scene.edges.find(e => e.kind === 'ch_return')
+    expect(chFlowEdge).toBeDefined()
+    expect(chFlowEdge?.active).toBe(false)
+    expect(chReturnEdge).toBeDefined()
+    expect(chReturnEdge?.active).toBe(false)
     // DHW hot edge should go from cylinder (not radiators)
     const dhwEdge = scene.edges.find(e => e.kind === 'dhw_hot')
     expect(dhwEdge).toBeDefined()
