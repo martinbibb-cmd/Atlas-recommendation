@@ -591,3 +591,241 @@ describe('buildPlaySceneModel — heating circuit from build graph topology', ()
     expect(roles).not.toContain('cws')
   })
 })
+
+// ─── PR6: domain-driven activation ───────────────────────────────────────────
+//
+// Acceptance criteria from PR6:
+//   AC1: Stored CH-only   — heating active, dhw inactive, primary inactive
+//   AC2: Stored DHW draw  — dhw active, heating not falsely on, primary off unless reheat
+//   AC3: Stored reheat    — primary active, dhw not required
+//   AC4: Combi DHW        — dhw active, no cylinder/coil activation
+//   AC5: Domain-driven    — edge.active driven centrally via activeDomains
+
+// Helper: make a stored cylinder controls object with optional graphFacts
+function makeStoredControls(overrides: Partial<LabControls> = {}): LabControls {
+  return makeBaseControls({
+    systemType: 'unvented_cylinder',
+    cylinder: { volumeL: 150, initialTempC: 55, reheatKw: 12 },
+    graphFacts: {
+      hotFedOutletNodeIds: [],
+      coldOnlyOutletNodeIds: [],
+      hasStoredDhw: true,
+      hasHeatingCircuit: true,
+    },
+    ...overrides,
+  })
+}
+
+// Helper: make a frame with the dhw_draw fluid path active (simulates stored DHW draw)
+function makeStoredDhwDrawFrame(overrides: Partial<LabFrame> = {}): LabFrame {
+  return makeBaseFrame({
+    systemMode: 'idle', // stored systems stay idle or heating; not 'dhw_draw'
+    visuals: makeVisuals({
+      fluidPaths: [
+        { edgeIds: ['dhw_draw'], direction: 'forward', active: true, flowLpm: 10 },
+      ],
+    }),
+    ...overrides,
+  })
+}
+
+describe('buildPlaySceneModel — AC1: stored CH-only', () => {
+  it('heating edges are active when mode=heating', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeBaseFrame({ systemMode: 'heating' }))
+    const chFlow = scene.edges.find(e => e.id === 'ch_flow')
+    expect(chFlow?.active).toBe(true)
+    const chReturn = scene.edges.find(e => e.id === 'ch_return')
+    expect(chReturn?.active).toBe(true)
+  })
+
+  it('dhw_hot edge is inactive during CH-only (no tap open)', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeBaseFrame({ systemMode: 'heating' }))
+    const dhwHot = scene.edges.find(e => e.id === 'dhw_hot')
+    expect(dhwHot?.active).toBe(false)
+  })
+
+  it('coil edges are inactive during CH-only (no reheat needed)', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeBaseFrame({ systemMode: 'heating' }))
+    const coilFlow = scene.edges.find(e => e.id === 'coil_flow')
+    expect(coilFlow?.active).toBe(false)
+    const coilReturn = scene.edges.find(e => e.id === 'coil_return')
+    expect(coilReturn?.active).toBe(false)
+  })
+
+  it('radiators node is active during CH-only', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeBaseFrame({ systemMode: 'heating' }))
+    const radiators = scene.nodes.find(n => n.role === 'radiators')
+    expect(radiators?.active).toBe(true)
+  })
+
+  it('cylinder node is NOT active during CH-only (no draw, no reheat)', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeBaseFrame({ systemMode: 'heating' }))
+    const cylinder = scene.nodes.find(n => n.role === 'cylinder')
+    expect(cylinder?.active).toBe(false)
+  })
+})
+
+describe('buildPlaySceneModel — AC2: stored DHW draw (full cylinder)', () => {
+  it('dhw_hot edge is active when a tap is open on a stored system', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeStoredDhwDrawFrame())
+    const dhwHot = scene.edges.find(e => e.id === 'dhw_hot')
+    expect(dhwHot?.active).toBe(true)
+  })
+
+  it('heating edges are NOT active during DHW draw only', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeStoredDhwDrawFrame())
+    const chFlow = scene.edges.find(e => e.id === 'ch_flow')
+    expect(chFlow?.active).toBe(false)
+    const chReturn = scene.edges.find(e => e.id === 'ch_return')
+    expect(chReturn?.active).toBe(false)
+  })
+
+  it('coil edges are NOT active during DHW draw when cylinder still has charge', () => {
+    // storeNeedsReheat is false (cylinder not yet depleted) → no reheat → coil off
+    const scene = buildPlaySceneModel(makeStoredControls(), makeStoredDhwDrawFrame({ systemMode: 'idle' }))
+    const coilFlow = scene.edges.find(e => e.id === 'coil_flow')
+    expect(coilFlow?.active).toBe(false)
+  })
+
+  it('cylinder node is active when a tap is open (hot water being drawn)', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeStoredDhwDrawFrame())
+    const cylinder = scene.nodes.find(n => n.role === 'cylinder')
+    expect(cylinder?.active).toBe(true)
+  })
+
+  it('radiators node is NOT active during DHW draw only', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeStoredDhwDrawFrame())
+    const radiators = scene.nodes.find(n => n.role === 'radiators')
+    expect(radiators?.active).toBe(false)
+  })
+
+  it('heat source is NOT active during stored DHW draw (energy from cylinder, not boiler)', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeStoredDhwDrawFrame())
+    const heatSource = scene.nodes.find(n => n.role === 'heat_source')
+    expect(heatSource?.active).toBe(false)
+  })
+})
+
+describe('buildPlaySceneModel — AC3: stored cylinder reheat', () => {
+  it('coil edges are active during dhw_reheat mode', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeBaseFrame({ systemMode: 'dhw_reheat' }))
+    const coilFlow = scene.edges.find(e => e.id === 'coil_flow')
+    expect(coilFlow?.active).toBe(true)
+    const coilReturn = scene.edges.find(e => e.id === 'coil_return')
+    expect(coilReturn?.active).toBe(true)
+  })
+
+  it('dhw_hot edge is NOT active during reheat alone (no draw in progress)', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeBaseFrame({ systemMode: 'dhw_reheat' }))
+    const dhwHot = scene.edges.find(e => e.id === 'dhw_hot')
+    expect(dhwHot?.active).toBe(false)
+  })
+
+  it('heating edges are NOT active during reheat alone', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeBaseFrame({ systemMode: 'dhw_reheat' }))
+    const chFlow = scene.edges.find(e => e.id === 'ch_flow')
+    expect(chFlow?.active).toBe(false)
+  })
+
+  it('cylinder node is active during reheat (coil heating the store)', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeBaseFrame({ systemMode: 'dhw_reheat' }))
+    const cylinder = scene.nodes.find(n => n.role === 'cylinder')
+    expect(cylinder?.active).toBe(true)
+  })
+
+  it('heating + reheat simultaneously (S-plan): heating and primary both active', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeBaseFrame({ systemMode: 'heating_and_reheat' }))
+    expect(scene.edges.find(e => e.id === 'ch_flow')?.active).toBe(true)
+    expect(scene.edges.find(e => e.id === 'coil_flow')?.active).toBe(true)
+    expect(scene.edges.find(e => e.id === 'dhw_hot')?.active).toBe(false)
+  })
+})
+
+describe('buildPlaySceneModel — AC4: combi DHW draw', () => {
+  it('dhw_hot edge is active during combi dhw_draw mode', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'combi' }),
+      makeBaseFrame({ systemMode: 'dhw_draw' }),
+    )
+    const dhwHot = scene.edges.find(e => e.id === 'dhw_hot')
+    expect(dhwHot?.active).toBe(true)
+  })
+
+  it('no coil edges are emitted for combi (no cylinder)', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'combi' }),
+      makeBaseFrame({ systemMode: 'dhw_draw' }),
+    )
+    expect(scene.edges.find(e => e.id === 'coil_flow')).toBeUndefined()
+    expect(scene.edges.find(e => e.id === 'coil_return')).toBeUndefined()
+  })
+
+  it('no cylinder node is emitted for combi', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'combi' }),
+      makeBaseFrame({ systemMode: 'dhw_draw' }),
+    )
+    expect(scene.nodes.find(n => n.role === 'cylinder')).toBeUndefined()
+  })
+
+  it('heating is suspended during combi DHW draw (combi priority)', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'combi',
+        heatingDemand: { enabled: true, demandLevel: 1 },
+      }),
+      makeBaseFrame({ systemMode: 'dhw_draw' }),
+    )
+    const chFlow = scene.edges.find(e => e.id === 'ch_flow')
+    // ch_flow may not be emitted if heating is not configured, but if it is,
+    // it must be inactive during DHW draw on combi.
+    if (chFlow) {
+      expect(chFlow.active).toBe(false)
+    }
+  })
+})
+
+describe('buildPlaySceneModel — AC5: domain-driven edge activation', () => {
+  it('all heating-domain edges share the same active state', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeBaseFrame({ systemMode: 'heating' }))
+    const heatingEdges = scene.edges.filter(e => e.domain === 'heating')
+    expect(heatingEdges.length).toBeGreaterThan(0)
+    for (const e of heatingEdges) {
+      expect(e.active).toBe(true)
+    }
+  })
+
+  it('all primary-domain edges share the same active state during reheat', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeBaseFrame({ systemMode: 'dhw_reheat' }))
+    const primaryEdges = scene.edges.filter(e => e.domain === 'primary')
+    expect(primaryEdges.length).toBeGreaterThan(0)
+    for (const e of primaryEdges) {
+      expect(e.active).toBe(true)
+    }
+  })
+
+  it('primary-domain edges are inactive when not reheating', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeBaseFrame({ systemMode: 'heating' }))
+    const primaryEdges = scene.edges.filter(e => e.domain === 'primary')
+    for (const e of primaryEdges) {
+      expect(e.active).toBe(false)
+    }
+  })
+
+  it('dhw-domain edges are inactive when no draw and no combi dhw_draw', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeBaseFrame({ systemMode: 'heating' }))
+    const dhwEdges = scene.edges.filter(e => e.domain === 'dhw')
+    for (const e of dhwEdges) {
+      expect(e.active).toBe(false)
+    }
+  })
+
+  it('stored DHW draw activates dhw-domain edges (via visuals fluid path)', () => {
+    const scene = buildPlaySceneModel(makeStoredControls(), makeStoredDhwDrawFrame())
+    const dhwEdges = scene.edges.filter(e => e.domain === 'dhw')
+    expect(dhwEdges.length).toBeGreaterThan(0)
+    for (const e of dhwEdges) {
+      expect(e.active).toBe(true)
+    }
+  })
+})
