@@ -306,3 +306,68 @@ describe('clampTrayPosition — palette tray must stay inside workbench', () => 
     expect(result.y).toBe(0)
   })
 })
+
+// ─── 6. Edit → Play graph node/edge id parity (real canonical presets) ────────
+//
+// PR8 regression: entering Play mode must not reconstruct or rename nodes/edges.
+// The play graph is a structuredClone of the edit graph, so ids are identical.
+
+import { buildGraphToLabGraph, compareGraphShape } from '../types/graph'
+import { CANONICAL_COMBI, CANONICAL_HEAT_PUMP } from '../model/types'
+
+describe('topologyParity — edit→play id preservation (real canonical presets)', () => {
+  for (const [name, concept] of [
+    ['S-plan system boiler', CANONICAL_SYSTEM_BOILER],
+    ['Y-plan regular boiler', CANONICAL_REGULAR_BOILER],
+    ['Combi', CANONICAL_COMBI],
+    ['Heat pump', CANONICAL_HEAT_PUMP],
+  ] as const) {
+    it(`${name}: structuredClone play snapshot has identical node/edge ids`, () => {
+      const buildGraph  = generateGraphFromConcept(concept)
+      const editorLab   = buildGraphToLabGraph(buildGraph)
+      const playCopy    = buildGraphToLabGraph(structuredClone(buildGraph))
+      const parity      = compareGraphShape(editorLab, playCopy)
+      expect(parity.nodeCountEqual).toBe(true)
+      expect(parity.edgeCountEqual).toBe(true)
+      expect(parity.sameNodeIds).toBe(true)
+      expect(parity.sameEdgeIds).toBe(true)
+    })
+  }
+
+  it('stored S-plan play snapshot preserves primary-domain (coil) edges', () => {
+    const buildGraph = generateGraphFromConcept(CANONICAL_SYSTEM_BOILER)
+    const playGraph  = buildGraphToLabGraph(structuredClone(buildGraph))
+    const coilEdges  = playGraph.edges.filter(
+      e => e.domain === 'primary',
+    )
+    expect(coilEdges.length).toBeGreaterThan(0)
+  })
+
+  it('stored S-plan play snapshot preserves heating-domain edges', () => {
+    const buildGraph    = generateGraphFromConcept(CANONICAL_SYSTEM_BOILER)
+    const playGraph     = buildGraphToLabGraph(structuredClone(buildGraph))
+    const heatingEdges  = playGraph.edges.filter(e => e.domain === 'heating')
+    expect(heatingEdges.length).toBeGreaterThan(0)
+  })
+
+  it('stored S-plan play snapshot preserves dhw-domain edges', () => {
+    const buildGraph  = generateGraphFromConcept(CANONICAL_SYSTEM_BOILER)
+    const playGraph   = buildGraphToLabGraph(structuredClone(buildGraph))
+    const dhwEdges    = playGraph.edges.filter(e => e.domain === 'dhw')
+    expect(dhwEdges.length).toBeGreaterThan(0)
+  })
+
+  it('stored S-plan play snapshot preserves cold-domain edges', () => {
+    const buildGraph  = generateGraphFromConcept(CANONICAL_SYSTEM_BOILER)
+    const playGraph   = buildGraphToLabGraph(structuredClone(buildGraph))
+    const coldEdges   = playGraph.edges.filter(e => e.domain === 'cold')
+    expect(coldEdges.length).toBeGreaterThan(0)
+  })
+
+  it('combi play snapshot has NO primary-domain edges (no cylinder coil)', () => {
+    const buildGraph = generateGraphFromConcept(CANONICAL_COMBI)
+    const playGraph  = buildGraphToLabGraph(structuredClone(buildGraph))
+    const coilEdges  = playGraph.edges.filter(e => e.domain === 'primary')
+    expect(coilEdges).toHaveLength(0)
+  })
+})

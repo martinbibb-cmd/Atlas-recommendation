@@ -39,6 +39,26 @@ export function clampPan(pan: { x: number; y: number }): { x: number; y: number 
 export const TRAY_FOOTER_RESERVE_PX = 48
 
 /**
+ * Viewport width (px) below which the builder switches from the pinned desktop
+ * side-panel to the floating draggable palette tray.
+ * Matches the CSS breakpoint and the `isNarrow` useState initialiser.
+ * Exported for unit testing.
+ */
+export const NARROW_LAYOUT_BREAKPOINT_PX = 1200
+
+/**
+ * Returns true when the given viewport width is in the narrow (tablet/mobile)
+ * range where the floating draggable palette tray is shown instead of the
+ * pinned desktop side-panel.
+ *
+ * Extracted as a pure helper so it can be unit-tested without a DOM.
+ * Exported for unit testing.
+ */
+export function isNarrowLayout(windowWidth: number): boolean {
+  return windowWidth < NARROW_LAYOUT_BREAKPOINT_PX
+}
+
+/**
  * Clamp a floating palette-tray position so it stays within the visible
  * workbench bounds and never slides over the footer button strip.
  *

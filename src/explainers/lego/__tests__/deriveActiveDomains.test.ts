@@ -159,3 +159,97 @@ describe('deriveActiveDomains — stored', () => {
     expect(d.heating).toBe(false)
   })
 })
+
+// ─── PR8 boundary-condition regression tests ─────────────────────────────────
+//
+// These tests lock in the subtle "don't regress" cases identified in PR8.
+// Each scenario is named after the system state it models so future
+// "helpful simplifications" that break stored behaviour will surface here.
+
+describe('PR8 boundary — stored draw with charged cylinder', () => {
+  // Cylinder has charge — no reheat needed.  Only DHW draw is active.
+  // Primary coil must NOT fire — the stored energy is enough.
+  it('dhw: true, cold: true, primary: false, heating: false', () => {
+    const d = deriveActiveDomains(storedInput({
+      dhwDraw: true,
+      cylinderNeedsReheat: false,
+    }))
+    expect(d.dhw).toBe(true)
+    expect(d.cold).toBe(true)
+    expect(d.primary).toBe(false)
+    expect(d.heating).toBe(false)
+  })
+})
+
+describe('PR8 boundary — stored draw plus heating call', () => {
+  // Tap is open AND thermostat is calling for heat.
+  // Both heating and DHW circuits run; primary coil fires only if reheat needed.
+  it('dhwDraw + heatingDemand, no reheat: heating true, dhw true, primary false', () => {
+    const d = deriveActiveDomains(storedInput({
+      heatingDemand: true,
+      dhwDraw: true,
+      cylinderNeedsReheat: false,
+    }))
+    expect(d.heating).toBe(true)
+    expect(d.dhw).toBe(true)
+    expect(d.cold).toBe(true)
+    expect(d.primary).toBe(false)
+  })
+
+  it('dhwDraw + heatingDemand + reheat: all four domains active', () => {
+    const d = deriveActiveDomains(storedInput({
+      heatingDemand: true,
+      dhwDraw: true,
+      cylinderNeedsReheat: true,
+    }))
+    expect(d.heating).toBe(true)
+    expect(d.dhw).toBe(true)
+    expect(d.cold).toBe(true)
+    expect(d.primary).toBe(true)
+  })
+})
+
+describe('PR8 boundary — stored reheat only (no draw, no CH)', () => {
+  // Store dropped below threshold; coil fires but no tap open and no CH demand.
+  it('primary: true, heating: false, dhw: false, cold: false', () => {
+    const d = deriveActiveDomains(storedInput({
+      cylinderNeedsReheat: true,
+    }))
+    expect(d.primary).toBe(true)
+    expect(d.heating).toBe(false)
+    expect(d.dhw).toBe(false)
+    expect(d.cold).toBe(false)
+  })
+})
+
+describe('PR8 boundary — combi DHW priority / CH suspension', () => {
+  // On a combi, a hot-water draw suspends the heating circuit.
+  // This is the "simplified priority model" documented in deriveActiveDomains.
+  it('combi DHW draw suspends heating even when thermostat is calling', () => {
+    const d = deriveActiveDomains(combiInput({
+      heatingDemand: true,
+      dhwDraw: true,
+    }))
+    expect(d.dhw).toBe(true)
+    expect(d.cold).toBe(true)
+    expect(d.heating).toBe(false)
+    expect(d.primary).toBe(false)
+  })
+
+  it('combi DHW draw alone: dhw + cold on, heating + primary off', () => {
+    const d = deriveActiveDomains(combiInput({ dhwDraw: true }))
+    expect(d.dhw).toBe(true)
+    expect(d.cold).toBe(true)
+    expect(d.heating).toBe(false)
+    expect(d.primary).toBe(false)
+  })
+
+  it('combi primary is NEVER active regardless of cylinderNeedsReheat', () => {
+    // Combi systems have no cylinder — the reheat flag must be ignored.
+    const d = deriveActiveDomains(combiInput({
+      dhwDraw: true,
+      cylinderNeedsReheat: true,
+    }))
+    expect(d.primary).toBe(false)
+  })
+})
