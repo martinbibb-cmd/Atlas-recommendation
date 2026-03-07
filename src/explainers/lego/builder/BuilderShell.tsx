@@ -4,7 +4,7 @@ import type { BuildGraph, PartKind, PortDef, PortRef } from './types'
 import type { LabControls } from '../animation/types'
 import PresetPanel from './PresetPanel'
 import PalettePanel from './PalettePanel'
-import WorkbenchCanvas, { clampTrayPosition } from './WorkbenchCanvas'
+import WorkbenchCanvas, { clampTrayPosition, isNarrowLayout } from './WorkbenchCanvas'
 import { LabCanvas } from '../animation/render/LabCanvas'
 import { InstrumentStrip } from '../animation/render/InstrumentStrip'
 import { computeCapacitySummary } from '../animation/capacitySummary'
@@ -95,9 +95,9 @@ export default function BuilderShell({
   /** Controls patch stored when a preset is loaded; merged into LabControls on play. */
   const [savedControlsPatch, setSavedControlsPatch] = useState<Partial<LabControls>>({})
   /** Whether the left palette panel is visible in build mode. */
-  const [paletteOpen, setPaletteOpen] = useState(() => window.innerWidth >= 1200)
+  const [paletteOpen, setPaletteOpen] = useState(() => !isNarrowLayout(window.innerWidth))
   /** Whether the screen is narrow (tablet / mobile) — drives drawer vs pinned behaviour. */
-  const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 1200)
+  const [isNarrow, setIsNarrow] = useState(() => isNarrowLayout(window.innerWidth))
   /**
    * Interactive play-state — outlet demands controlled by the user.
    * Null before the first time Play mode is entered.
@@ -180,7 +180,7 @@ export default function BuilderShell({
   // floating tray so it stays within the (possibly resized) workbench bounds.
   useEffect(() => {
     function handleResize() {
-      setIsNarrow(window.innerWidth < 1200)
+      setIsNarrow(isNarrowLayout(window.innerWidth))
       setTrayPos(prev => clampedTrayPos(prev))
     }
     window.addEventListener('resize', handleResize)
