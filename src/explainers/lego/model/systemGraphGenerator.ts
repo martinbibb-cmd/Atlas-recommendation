@@ -29,6 +29,7 @@
 
 import type { BuildGraph, BuildEdge, BuildNode, PartKind } from '../builder/types';
 import type { SystemConceptModel, EmitterKind, HotWaterServiceKind } from './types';
+import type { CircuitDomain } from '../types/graph';
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
 
@@ -36,11 +37,12 @@ function node(id: string, kind: PartKind, x: number, y: number): BuildNode {
   return { id, kind, x, y, r: 0 };
 }
 
-function edge(id: string, fromNode: string, fromPort: string, toNode: string, toPort: string): BuildEdge {
+function edge(id: string, fromNode: string, fromPort: string, toNode: string, toPort: string, domain?: CircuitDomain): BuildEdge {
   return {
     id,
     from: { nodeId: fromNode, portId: fromPort },
     to: { nodeId: toNode, portId: toPort },
+    ...(domain !== undefined ? { domain } : {}),
   };
 }
 
@@ -87,13 +89,13 @@ function buildOutletCluster(
 
   const edges: BuildEdge[] = [
     // Hot distribution
-    edge('mh_sh',   'mh', 'out1', 'sh',   'hot_in'),
-    edge('mh_bath', 'mh', 'out2', 'bath', 'hot_in'),
-    edge('mh_tap1', 'mh', 'out3', 'tap1', 'hot_in'),
+    edge('mh_sh',   'mh', 'out1', 'sh',   'hot_in',  'dhw'),
+    edge('mh_bath', 'mh', 'out2', 'bath', 'hot_in',  'dhw'),
+    edge('mh_tap1', 'mh', 'out3', 'tap1', 'hot_in',  'dhw'),
     // Cold distribution
-    edge('mc_sh',   'mc', 'out2', 'sh',   'cold_in'),
-    edge('mc_bath', 'mc', 'out3', 'bath', 'cold_in'),
-    edge('mc_tap1', 'mc', 'out4', 'tap1', 'cold_in'),
+    edge('mc_sh',   'mc', 'out2', 'sh',   'cold_in', 'cold'),
+    edge('mc_bath', 'mc', 'out3', 'bath', 'cold_in', 'cold'),
+    edge('mc_tap1', 'mc', 'out4', 'tap1', 'cold_in', 'cold'),
   ];
 
   return { nodes, edges };
@@ -116,18 +118,18 @@ function buildCombiGraph(emitters: EmitterKind[]): BuildGraph {
     node('rads', emitterKind,         520, 420),
   ];
   const edges: BuildEdge[] = [
-    edge('ch1', 'hs',   'ch_flow_out',  'rads', 'flow_in'),
-    edge('ch2', 'rads', 'return_out',   'hs',   'ch_return_in'),
-    edge('hot_link', 'hs', 'hot_out',  'mh', 'in'),
-    edge('cold_link','hs', 'cold_in',  'mc', 'in'),
+    edge('ch1', 'hs',   'ch_flow_out',  'rads', 'flow_in',      'heating'),
+    edge('ch2', 'rads', 'return_out',   'hs',   'ch_return_in', 'heating'),
+    edge('hot_link', 'hs', 'hot_out',  'mh', 'in',              'dhw'),
+    edge('cold_link','hs', 'cold_in',  'mc', 'in',              'cold'),
   ];
 
   // Include a UFH loop alongside radiators for 'mixed' emitters
   if (primaryEmitter === 'mixed') {
     nodes.push(node('ufh', 'ufh_loop', 520, 540));
     edges.push(
-      edge('ufh1', 'hs',  'ch_flow_out',  'ufh', 'flow_in'),
-      edge('ufh2', 'ufh', 'return_out',   'hs',  'ch_return_in'),
+      edge('ufh1', 'hs',  'ch_flow_out',  'ufh', 'flow_in',      'heating'),
+      edge('ufh2', 'ufh', 'return_out',   'hs',  'ch_return_in', 'heating'),
     );
   }
 
@@ -164,19 +166,19 @@ function buildRegularBoilerYPlanGraph(emitters: EmitterKind[]): BuildGraph {
 
   const edges: BuildEdge[] = [
     // CH loop via 3-port valve
-    edge('b1', 'hs',   'ch_flow_out',  'v3',  'in'),
-    edge('b2', 'v3',   'out_a',        'rads','flow_in'),
-    edge('b3', 'rads', 'return_out',   'hs',  'ch_return_in'),
-    edge('b4', 'v3',   'out_b',        'cyl', 'coil_flow'),
-    edge('b5', 'cyl',  'coil_return',  'hs',  'coil_return'),
+    edge('b1', 'hs',   'ch_flow_out',  'v3',  'in',          'heating'),
+    edge('b2', 'v3',   'out_a',        'rads','flow_in',      'heating'),
+    edge('b3', 'rads', 'return_out',   'hs',  'ch_return_in', 'heating'),
+    edge('b4', 'v3',   'out_b',        'cyl', 'coil_flow',    'primary'),
+    edge('b5', 'cyl',  'coil_return',  'hs',  'coil_return',  'primary'),
     // F&E and open vent
-    edge('fe1', 'fe',  'feed_in',  'hs',  'ch_return_in'),
-    edge('ov1', 'ov',  'vent_in',  'hs',  'ch_flow_out'),
+    edge('fe1', 'fe',  'feed_in',  'hs',  'ch_return_in', 'heating'),
+    edge('ov1', 'ov',  'vent_in',  'hs',  'ch_flow_out',  'heating'),
     // Hot manifold link
-    edge('hot_link', 'cyl', 'hot_out', 'mh', 'in'),
+    edge('hot_link', 'cyl', 'hot_out', 'mh', 'in',            'dhw'),
     // CWS cistern → manifold_cold → cylinder cold_in + outlets
-    edge('cws_mc',  'cws', 'cold_out', 'mc',  'in'),
-    edge('mc_cyl',  'mc',  'out1',     'cyl', 'cold_in'),
+    edge('cws_mc',  'cws', 'cold_out', 'mc',  'in',           'cold'),
+    edge('mc_cyl',  'mc',  'out1',     'cyl', 'cold_in',      'cold'),
   ];
 
   const { nodes: outletNodes, edges: outletEdges } = buildOutletCluster(
@@ -217,20 +219,20 @@ function buildSystemBoilerSPlanGraph(
 
   const edges: BuildEdge[] = [
     // Boiler → pump → tee → zone valves
-    edge('p1',  'hs',    'ch_flow_out', 'pump',  'in'),
-    edge('p2',  'pump',  'out',         'tee_f', 'in'),
-    edge('pf1', 'tee_f', 'out1',        'zch',   'in'),
-    edge('pf2', 'tee_f', 'out2',        'zcyl',  'in'),
+    edge('p1',  'hs',    'ch_flow_out', 'pump',  'in',          'heating'),
+    edge('p2',  'pump',  'out',         'tee_f', 'in',          'heating'),
+    edge('pf1', 'tee_f', 'out1',        'zch',   'in',          'heating'),
+    edge('pf2', 'tee_f', 'out2',        'zcyl',  'in',          'primary'),
     // CH zone
-    edge('ch1', 'zch',  'out_a',      'rads', 'flow_in'),
-    edge('ch2', 'rads', 'return_out', 'hs',   'ch_return_in'),
+    edge('ch1', 'zch',  'out_a',      'rads', 'flow_in',        'heating'),
+    edge('ch2', 'rads', 'return_out', 'hs',   'ch_return_in',   'heating'),
     // Cylinder coil zone
-    edge('cy1', 'zcyl', 'out_a',       'cyl', 'coil_flow'),
-    edge('cy2', 'cyl',  'coil_return', 'hs',  'coil_return'),
+    edge('cy1', 'zcyl', 'out_a',       'cyl', 'coil_flow',      'primary'),
+    edge('cy2', 'cyl',  'coil_return', 'hs',  'coil_return',    'primary'),
     // Hot manifold link
-    edge('hot_link', 'cyl', 'hot_out', 'mh', 'in'),
+    edge('hot_link', 'cyl', 'hot_out', 'mh', 'in',              'dhw'),
     // Cold manifold link (open in = mains pressure entry) → cylinder cold_in
-    edge('mc_cyl', 'mc', 'out1', 'cyl', 'cold_in'),
+    edge('mc_cyl', 'mc', 'out1', 'cyl', 'cold_in',              'cold'),
   ];
 
   const { nodes: outletNodes, edges: outletEdges } = buildOutletCluster(
@@ -271,25 +273,25 @@ function buildHeatPumpGraph(
 
   const edges: BuildEdge[] = [
     // Heat pump → buffer primary loop
-    edge('h1', 'hp',  'flow_out',       'buf', 'primary_flow'),
-    edge('h2', 'buf', 'primary_return', 'hp',  'return_in'),
+    edge('h1', 'hp',  'flow_out',       'buf', 'primary_flow',   'primary'),
+    edge('h2', 'buf', 'primary_return', 'hp',  'return_in',      'primary'),
     // Buffer secondary → tee → emitter loop
-    edge('s0',  'buf',    'secondary_flow',   'tee_sf', 'in'),
-    edge('sf1', 'tee_sf', 'out1',             'rads',   'flow_in'),
-    edge('sr1', 'rads',   'return_out',       'tee_sr', 'out1'),
-    edge('s5',  'tee_sr', 'in',               'buf',    'secondary_return'),
+    edge('s0',  'buf',    'secondary_flow',   'tee_sf', 'in',    'heating'),
+    edge('sf1', 'tee_sf', 'out1',             'rads',   'flow_in','heating'),
+    edge('sr1', 'rads',   'return_out',       'tee_sr', 'out1',  'heating'),
+    edge('s5',  'tee_sr', 'in',               'buf',    'secondary_return', 'heating'),
     // Hot manifold link
-    edge('hot_link', 'cyl', 'hot_out', 'mh', 'in'),
+    edge('hot_link', 'cyl', 'hot_out', 'mh', 'in',               'dhw'),
     // Cold manifold link → cylinder cold_in
-    edge('mc_cyl', 'mc', 'out1', 'cyl', 'cold_in'),
+    edge('mc_cyl', 'mc', 'out1', 'cyl', 'cold_in',               'cold'),
   ];
 
   // Include UFH loop for 'mixed' or when the primary emitter is not already UFH
   if (primaryEmitter === 'mixed') {
     nodes.push(node('ufh', 'ufh_loop', 700, 440));
     edges.push(
-      edge('sf2', 'tee_sf', 'out2', 'ufh',    'flow_in'),
-      edge('sr2', 'ufh',    'return_out', 'tee_sr', 'out2'),
+      edge('sf2', 'tee_sf', 'out2', 'ufh',    'flow_in',         'heating'),
+      edge('sr2', 'ufh',    'return_out', 'tee_sr', 'out2',      'heating'),
     );
   }
 

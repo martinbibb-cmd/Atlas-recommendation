@@ -1,5 +1,6 @@
 import type { LabControls } from '../animation/types';
-import type { BuildGraph, BuildNode, PartKind } from './types';
+import type { BuildGraph, BuildNode, BuildEdge, PartKind } from './types';
+import type { CircuitDomain } from '../types/graph';
 import {
   CANONICAL_COMBI,
   CANONICAL_REGULAR_BOILER,
@@ -18,10 +19,16 @@ export interface LabPreset {
 }
 
 const n = (id: string, kind: PartKind, x: number, y: number): BuildNode => ({ id, kind, x, y, r: 0 });
-const e = (id: string, aNode: string, aPort: string, bNode: string, bPort: string) => ({
+const e = (
+  id: string,
+  aNode: string, aPort: string,
+  bNode: string, bPort: string,
+  domain?: CircuitDomain,
+): BuildEdge => ({
   id,
   from: { nodeId: aNode, portId: aPort },
-  to: { nodeId: bNode, portId: bPort },
+  to:   { nodeId: bNode, portId: bPort },
+  ...(domain !== undefined ? { domain } : {}),
 });
 
 export const PRESETS: LabPreset[] = [
@@ -43,21 +50,21 @@ export const PRESETS: LabPreset[] = [
       ],
       edges: [
         // CH loop
-        e('ch1', 'hs',  'ch_flow_out', 'rads', 'flow_in'),
-        e('ch2', 'rads','return_out',  'hs',   'ch_return_in'),
+        e('ch1', 'hs',  'ch_flow_out', 'rads', 'flow_in',  'heating'),
+        e('ch2', 'rads','return_out',  'hs',   'ch_return_in', 'heating'),
         // Hot distribution via manifold
-        e('hot_link',  'hs',  'hot_out', 'mh', 'in'),
-        e('mh_sh',     'mh',  'out1',    'sh',      'hot_in'),
-        e('mh_bath',   'mh',  'out2',    'bath',    'hot_in'),
-        e('mh_tap1',   'mh',  'out3',    'tap1',    'hot_in'),
-        e('mh_tap2',   'mh',  'out4',    'tap2',    'hot_in'),
+        e('hot_link',  'hs',  'hot_out', 'mh', 'in',       'dhw'),
+        e('mh_sh',     'mh',  'out1',    'sh',      'hot_in',  'dhw'),
+        e('mh_bath',   'mh',  'out2',    'bath',    'hot_in',  'dhw'),
+        e('mh_tap1',   'mh',  'out3',    'tap1',    'hot_in',  'dhw'),
+        e('mh_tap2',   'mh',  'out4',    'tap2',    'hot_in',  'dhw'),
         // Cold distribution via manifold (combi cold_in is the mains entry)
-        e('cold_link', 'hs',  'cold_in', 'mc', 'in'),
-        e('mc_sh',     'mc',  'out1',    'sh',      'cold_in'),
-        e('mc_bath',   'mc',  'out2',    'bath',    'cold_in'),
-        e('mc_tap1',   'mc',  'out3',    'tap1',    'cold_in'),
-        e('mc_tap2',   'mc',  'out4',    'tap2',    'cold_in'),
-        e('mc_ctap',   'mc',  'out5',    'coldtap', 'cold_in'),
+        e('cold_link', 'hs',  'cold_in', 'mc', 'in',       'cold'),
+        e('mc_sh',     'mc',  'out1',    'sh',      'cold_in', 'cold'),
+        e('mc_bath',   'mc',  'out2',    'bath',    'cold_in', 'cold'),
+        e('mc_tap1',   'mc',  'out3',    'tap1',    'cold_in', 'cold'),
+        e('mc_tap2',   'mc',  'out4',    'tap2',    'cold_in', 'cold'),
+        e('mc_ctap',   'mc',  'out5',    'coldtap', 'cold_in', 'cold'),
       ],
       outletBindings: { A: 'sh', B: 'bath', C: 'tap1' },
     },
@@ -91,27 +98,27 @@ export const PRESETS: LabPreset[] = [
       ],
       edges: [
         // CH loop via 3-port valve
-        e('b1', 'hs',   'ch_flow_out',  'v3',  'in'),
-        e('b2', 'v3',   'out_a',        'rads','flow_in'),
-        e('b3', 'rads', 'return_out',   'hs',  'ch_return_in'),
-        e('b4', 'v3',   'out_b',        'cyl', 'coil_flow'),
-        e('b5', 'cyl',  'coil_return',  'hs',  'coil_return'),
+        e('b1', 'hs',   'ch_flow_out',  'v3',  'in',         'heating'),
+        e('b2', 'v3',   'out_a',        'rads','flow_in',     'heating'),
+        e('b3', 'rads', 'return_out',   'hs',  'ch_return_in','heating'),
+        e('b4', 'v3',   'out_b',        'cyl', 'coil_flow',   'primary'),
+        e('b5', 'cyl',  'coil_return',  'hs',  'coil_return', 'primary'),
         // F&E and open vent
-        e('fe1', 'fe',  'feed_in',      'hs',  'ch_return_in'),
-        e('ov1', 'ov',  'vent_in',      'hs',  'ch_flow_out'),
+        e('fe1', 'fe',  'feed_in',      'hs',  'ch_return_in','heating'),
+        e('ov1', 'ov',  'vent_in',      'hs',  'ch_flow_out', 'heating'),
         // Hot distribution via manifold
-        e('hot_link',  'cyl', 'hot_out', 'mh', 'in'),
-        e('mh_sh',     'mh',  'out1',   'sh',   'hot_in'),
-        e('mh_bath',   'mh',  'out2',   'bath', 'hot_in'),
-        e('mh_tap1',   'mh',  'out3',   'tap1', 'hot_in'),
-        e('mh_tap2',   'mh',  'out4',   'tap2', 'hot_in'),
+        e('hot_link',  'cyl', 'hot_out', 'mh', 'in',         'dhw'),
+        e('mh_sh',     'mh',  'out1',   'sh',   'hot_in',    'dhw'),
+        e('mh_bath',   'mh',  'out2',   'bath', 'hot_in',    'dhw'),
+        e('mh_tap1',   'mh',  'out3',   'tap1', 'hot_in',    'dhw'),
+        e('mh_tap2',   'mh',  'out4',   'tap2', 'hot_in',    'dhw'),
         // Cold distribution — CWS feeds manifold; manifold feeds cylinder + outlets
-        e('cws_mc',  'cws', 'cold_out', 'mc',  'in'),
-        e('mc_cyl',  'mc',  'out1',     'cyl', 'cold_in'),
-        e('mc_sh',   'mc',  'out2',     'sh',  'cold_in'),
-        e('mc_bath', 'mc',  'out3',     'bath','cold_in'),
-        e('mc_tap1', 'mc',  'out4',     'tap1','cold_in'),
-        e('mc_tap2', 'mc',  'out5',     'tap2','cold_in'),
+        e('cws_mc',  'cws', 'cold_out', 'mc',  'in',        'cold'),
+        e('mc_cyl',  'mc',  'out1',     'cyl', 'cold_in',   'cold'),
+        e('mc_sh',   'mc',  'out2',     'sh',  'cold_in',   'cold'),
+        e('mc_bath', 'mc',  'out3',     'bath','cold_in',   'cold'),
+        e('mc_tap1', 'mc',  'out4',     'tap1','cold_in',   'cold'),
+        e('mc_tap2', 'mc',  'out5',     'tap2','cold_in',   'cold'),
       ],
       outletBindings: { A: 'sh', B: 'bath', C: 'tap1' },
     },
@@ -145,28 +152,28 @@ export const PRESETS: LabPreset[] = [
       ],
       edges: [
         // Boiler → pump → tee → zone valves
-        e('p1',  'hs',    'ch_flow_out', 'pump',  'in'),
-        e('p2',  'pump',  'out',         'tee_f', 'in'),
-        e('pf1', 'tee_f', 'out1',        'zch',   'in'),
-        e('pf2', 'tee_f', 'out2',        'zcyl',  'in'),
+        e('p1',  'hs',    'ch_flow_out', 'pump',  'in',          'heating'),
+        e('p2',  'pump',  'out',         'tee_f', 'in',          'heating'),
+        e('pf1', 'tee_f', 'out1',        'zch',   'in',          'heating'),
+        e('pf2', 'tee_f', 'out2',        'zcyl',  'in',          'primary'),
         // CH zone
-        e('ch1', 'zch',  'out_a',       'rads', 'flow_in'),
-        e('ch2', 'rads', 'return_out',  'hs',   'ch_return_in'),
+        e('ch1', 'zch',  'out_a',       'rads', 'flow_in',       'heating'),
+        e('ch2', 'rads', 'return_out',  'hs',   'ch_return_in',  'heating'),
         // Cylinder coil zone
-        e('cy1', 'zcyl', 'out_a',       'cyl',  'coil_flow'),
-        e('cy2', 'cyl',  'coil_return', 'hs',   'coil_return'),
+        e('cy1', 'zcyl', 'out_a',       'cyl',  'coil_flow',     'primary'),
+        e('cy2', 'cyl',  'coil_return', 'hs',   'coil_return',   'primary'),
         // Hot distribution via manifold
-        e('hot_link',  'cyl', 'hot_out', 'mh', 'in'),
-        e('mh_sh',     'mh',  'out1',   'sh',   'hot_in'),
-        e('mh_bath',   'mh',  'out2',   'bath', 'hot_in'),
-        e('mh_tap1',   'mh',  'out3',   'tap1', 'hot_in'),
-        e('mh_tap2',   'mh',  'out4',   'tap2', 'hot_in'),
+        e('hot_link',  'cyl', 'hot_out', 'mh', 'in',             'dhw'),
+        e('mh_sh',     'mh',  'out1',   'sh',   'hot_in',        'dhw'),
+        e('mh_bath',   'mh',  'out2',   'bath', 'hot_in',        'dhw'),
+        e('mh_tap1',   'mh',  'out3',   'tap1', 'hot_in',        'dhw'),
+        e('mh_tap2',   'mh',  'out4',   'tap2', 'hot_in',        'dhw'),
         // Cold distribution via manifold (open in = mains pressure entry)
-        e('mc_cyl',  'mc', 'out1', 'cyl',  'cold_in'),
-        e('mc_sh',   'mc', 'out2', 'sh',   'cold_in'),
-        e('mc_bath', 'mc', 'out3', 'bath', 'cold_in'),
-        e('mc_tap1', 'mc', 'out4', 'tap1', 'cold_in'),
-        e('mc_tap2', 'mc', 'out5', 'tap2', 'cold_in'),
+        e('mc_cyl',  'mc', 'out1', 'cyl',  'cold_in',           'cold'),
+        e('mc_sh',   'mc', 'out2', 'sh',   'cold_in',           'cold'),
+        e('mc_bath', 'mc', 'out3', 'bath', 'cold_in',           'cold'),
+        e('mc_tap1', 'mc', 'out4', 'tap1', 'cold_in',           'cold'),
+        e('mc_tap2', 'mc', 'out5', 'tap2', 'cold_in',           'cold'),
       ],
       outletBindings: { A: 'sh', B: 'bath', C: 'tap1' },
     },
@@ -200,27 +207,27 @@ export const PRESETS: LabPreset[] = [
       ],
       edges: [
         // Heat pump → buffer primary loop
-        e('h1', 'hp',  'flow_out',        'buf',   'primary_flow'),
-        e('h2', 'buf', 'primary_return',  'hp',    'return_in'),
+        e('h1', 'hp',  'flow_out',        'buf',   'primary_flow',     'primary'),
+        e('h2', 'buf', 'primary_return',  'hp',    'return_in',        'primary'),
         // Buffer secondary → tee → emitters
-        e('s0',  'buf',    'secondary_flow',   'tee_sf', 'in'),
-        e('sf1', 'tee_sf', 'out1',             'rads',   'flow_in'),
-        e('sf2', 'tee_sf', 'out2',             'ufh',    'flow_in'),
-        e('sr1', 'rads',   'return_out',       'tee_sr', 'out1'),
-        e('sr2', 'ufh',    'return_out',       'tee_sr', 'out2'),
-        e('s5',  'tee_sr', 'in',               'buf',    'secondary_return'),
+        e('s0',  'buf',    'secondary_flow',   'tee_sf', 'in',         'heating'),
+        e('sf1', 'tee_sf', 'out1',             'rads',   'flow_in',    'heating'),
+        e('sf2', 'tee_sf', 'out2',             'ufh',    'flow_in',    'heating'),
+        e('sr1', 'rads',   'return_out',       'tee_sr', 'out1',       'heating'),
+        e('sr2', 'ufh',    'return_out',       'tee_sr', 'out2',       'heating'),
+        e('s5',  'tee_sr', 'in',               'buf',    'secondary_return', 'heating'),
         // Hot distribution via manifold
-        e('hot_link',  'cyl', 'hot_out', 'mh', 'in'),
-        e('mh_sh',     'mh',  'out1',   'sh',   'hot_in'),
-        e('mh_bath',   'mh',  'out2',   'bath', 'hot_in'),
-        e('mh_tap1',   'mh',  'out3',   'tap1', 'hot_in'),
-        e('mh_tap2',   'mh',  'out4',   'tap2', 'hot_in'),
+        e('hot_link',  'cyl', 'hot_out', 'mh', 'in',                  'dhw'),
+        e('mh_sh',     'mh',  'out1',   'sh',   'hot_in',             'dhw'),
+        e('mh_bath',   'mh',  'out2',   'bath', 'hot_in',             'dhw'),
+        e('mh_tap1',   'mh',  'out3',   'tap1', 'hot_in',             'dhw'),
+        e('mh_tap2',   'mh',  'out4',   'tap2', 'hot_in',             'dhw'),
         // Cold distribution via manifold (open in = mains pressure entry)
-        e('mc_cyl',  'mc', 'out1', 'cyl',  'cold_in'),
-        e('mc_sh',   'mc', 'out2', 'sh',   'cold_in'),
-        e('mc_bath', 'mc', 'out3', 'bath', 'cold_in'),
-        e('mc_tap1', 'mc', 'out4', 'tap1', 'cold_in'),
-        e('mc_tap2', 'mc', 'out5', 'tap2', 'cold_in'),
+        e('mc_cyl',  'mc', 'out1', 'cyl',  'cold_in',                 'cold'),
+        e('mc_sh',   'mc', 'out2', 'sh',   'cold_in',                 'cold'),
+        e('mc_bath', 'mc', 'out3', 'bath', 'cold_in',                 'cold'),
+        e('mc_tap1', 'mc', 'out4', 'tap1', 'cold_in',                 'cold'),
+        e('mc_tap2', 'mc', 'out5', 'tap2', 'cold_in',                 'cold'),
       ],
       outletBindings: { A: 'sh', B: 'bath', C: 'tap1' },
     },

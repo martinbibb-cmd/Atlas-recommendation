@@ -49,6 +49,9 @@ export interface BuildEdge {
   id: string;
   from: PortRef;
   to: PortRef;
+  /** Explicit circuit domain for this edge.  When omitted, buildGraphToLabGraph()
+   *  infers the domain from the port IDs as a migration fallback. */
+  domain?: import('../types/graph').CircuitDomain;
   meta?: EdgeMeta;
 }
 
