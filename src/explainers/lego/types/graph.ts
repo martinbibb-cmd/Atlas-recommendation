@@ -270,6 +270,41 @@ export function buildGraphToLabGraph(graph: BuildGraph): LabGraph {
   return labGraph
 }
 
+// ─── Play-entry graph validation result types ─────────────────────────────────
+
+/**
+ * Severity of a graph validation issue.
+ * 'error'   — blocks Play entry in dev/lab mode.
+ * 'warning' — shown but does not block Play.
+ */
+export type GraphValidationSeverity = 'error' | 'warning'
+
+/**
+ * A single structured issue produced by validateLabGraph().
+ * code    — machine-readable rule identifier (e.g. 'EMITTER_WRONG_DOMAIN').
+ * severity — 'error' blocks play; 'warning' is advisory only.
+ * message  — human-readable description of the problem.
+ * edgeId   — the offending edge id when relevant.
+ * nodeId   — the offending node id when relevant.
+ */
+export interface GraphValidationIssue {
+  code: string
+  severity: GraphValidationSeverity
+  message: string
+  edgeId?: string
+  nodeId?: string
+}
+
+/**
+ * Aggregate result returned by validateLabGraph().
+ * ok     — true when there are no error-severity issues.
+ * issues — flat list of all issues found (any severity).
+ */
+export interface GraphValidationResult {
+  ok: boolean
+  issues: GraphValidationIssue[]
+}
+
 // ─── Parity helper ────────────────────────────────────────────────────────────
 
 /**
