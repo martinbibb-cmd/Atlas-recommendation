@@ -53,13 +53,14 @@
   width: 280px;
   max-width: calc(100% - 16px);
   max-height: calc(100% - 56px); /* TRAY_FOOTER_RESERVE_PX (48) + 8 gutter */
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgb(15 23 42 / 18%);
   z-index: 200;
-  touch-action: none;
 }
 
 /* Drag handle at the top of the tray — pointer events drive repositioning. */
@@ -78,6 +79,17 @@
 
 .palette-tray__handle:active {
   cursor: grabbing;
+}
+
+/* Scrollable body — holds PalettePanel and grows to fill remaining tray height.
+   min-height:0 is required so flexbox actually allows the child to shrink and
+   overflow-y to kick in (common iPad/flex gotcha). */
+.palette-tray__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 .palette-tray__grip {
