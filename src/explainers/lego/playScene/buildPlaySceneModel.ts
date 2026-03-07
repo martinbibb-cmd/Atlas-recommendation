@@ -14,6 +14,19 @@
 //   - Heat source must always be visible when CH or DHW is active.
 //   - Activity kinds (ch_firing, dhw_firing, reheat, emitting) drive glow/pulse intensity.
 //   - S-plan allows CH and DHW (coil reheat) simultaneously.
+//
+// Scene layout selection
+// ─────────────────────
+// buildPlaySceneModel() dispatches to an explicit scene builder based on systemKind:
+//
+//   combi      → buildCombiPlayScene()      — combi boiler, plate HEX, on-demand DHW
+//   stored     → buildStoredPlayScene()     — boiler + cylinder / thermal store
+//   heat_pump  → buildHeatPumpPlayScene()   — heat pump source, optional cylinder
+//
+// The renderer (LabCanvas) reads scene.metadata.sceneLayoutKind to select the
+// visual skeleton.  It must NEVER branch on controls.systemType or a locally-derived
+// isCylinder flag for this purpose, to prevent heat_pump systems from falling back
+// to the combi HEX layout.
 
 import type { LabControls, LabFrame, DerivedSystemKind } from '../animation/types'
 import type {
@@ -103,37 +116,28 @@ function deriveEmitterActivity(frame: LabFrame): PlaySceneActivity {
   return makeActivity('emitting', emitterEntry.intensity ?? 0.6)
 }
 
-// ─── Main builder ─────────────────────────────────────────────────────────────
+// ─── Shared inner builder ─────────────────────────────────────────────────────
 
 /**
- * Build an explicit PlaySceneModel from LabControls + LabFrame.
+ * Core scene-building logic shared by all three scene-kind builders.
  *
- * This function encodes all topology-specific display rules so the
- * renderer (LabCanvas) does not need to independently infer them.
- *
- * Call this once per render frame inside LabCanvas before drawing:
- *
- *   const scene = buildPlaySceneModel(controls, frame)
- *   // → use scene.metadata.showGenericColdFeed instead of controls.systemType checks
- *   // → use scene.nodes for activity-driven glow/pulse
+ * All three exported builders (buildCombiPlayScene, buildStoredPlayScene,
+ * buildHeatPumpPlayScene) delegate here after resolving the authoritative
+ * `sceneLayoutKind`.  This single implementation prevents drift between
+ * the three paths while still allowing the renderer to branch on
+ * `scene.metadata.sceneLayoutKind` without any inline systemType guessing.
  */
-export function buildPlaySceneModel(
+function buildSceneForKind(
   controls: LabControls,
   frame: LabFrame,
+  sceneLayoutKind: 'combi' | 'stored' | 'heat_pump',
 ): PlaySceneModel {
   const systemType = controls.systemType
   const isVented   = systemType === 'vented_cylinder'
   const isCylinder = isVented || systemType === 'unvented_cylinder'
 
-  // Use the graph-derived systemKind as the authoritative source for domain routing.
-  // Fall back to a coarse mapping from systemType for legacy LabControls objects
-  // (pre-dates the systemKind field) so existing presets continue to work.
-  const systemKind: DerivedSystemKind =
-    controls.systemKind ??
-    (isCylinder ? 'stored' : 'combi')
-
-  const isCombi    = systemKind === 'combi'
-  const mode       = frame.systemMode ?? 'idle'
+  const isCombi = sceneLayoutKind === 'combi'
+  const mode    = frame.systemMode ?? 'idle'
 
   // ── Derive active domains ────────────────────────────────────────────────
   //
@@ -166,8 +170,13 @@ export function buildPlaySceneModel(
     frame.visuals?.fluidPaths.find(p => p.edgeIds.includes('dhw_draw'))?.active
     ?? (mode === 'dhw_draw')
 
+  // deriveActiveDomains expects DerivedSystemKind for its systemKind parameter.
+  // sceneLayoutKind is always set from the graph-derived systemKind (by the dispatcher
+  // in buildPlaySceneModel), so the two values are semantically equivalent here.
+  // Domain routing rules are the same for stored and heat_pump (independent circuits),
+  // so the combi vs non-combi distinction is all that matters.
   const activeDomains = deriveActiveDomains({
-    systemKind,
+    systemKind: sceneLayoutKind,
     heatingDemand: isChActive,
     dhwDraw,
     cylinderNeedsReheat,
@@ -187,6 +196,7 @@ export function buildPlaySceneModel(
   // ── Metadata (topology display flags) ──────────────────────────────────────
 
   const metadata: PlaySceneModel['metadata'] = {
+    sceneLayoutKind,
     // Vented cylinder uses tank-fed supply: hide generic mains cold feed to
     // prevent the duplicate side cold feed bug.
     showGenericColdFeed: !isVented,
@@ -384,4 +394,109 @@ export function buildPlaySceneModel(
   ]
 
   return { nodes, edges, metadata }
+}
+
+// ─── Explicit scene builders ──────────────────────────────────────────────────
+//
+// These three public builders make the scene-kind selection explicit and testable.
+// The renderer selects between them via scene.metadata.sceneLayoutKind.
+// They share the same internal implementation (buildSceneForKind) to prevent drift.
+
+/**
+ * Build a Play scene for a combi boiler system.
+ *
+ * Scene includes:
+ *   - heat source (combi boiler with plate HEX)
+ *   - emitter branch if heating is configured
+ *   - DHW path from heat source to outlets (on-demand, no cylinder)
+ *   - generic mains cold feed
+ *
+ * sceneLayoutKind = 'combi'
+ */
+export function buildCombiPlayScene(
+  controls: LabControls,
+  frame: LabFrame,
+): PlaySceneModel {
+  return buildSceneForKind(controls, frame, 'combi')
+}
+
+/**
+ * Build a Play scene for a stored hot-water system (boiler + cylinder).
+ *
+ * Scene includes:
+ *   - heat source (boiler)
+ *   - cylinder / thermal store (with thermal fill display)
+ *   - primary coil path (boiler → coil → store)
+ *   - emitter branch if heating is configured
+ *   - DHW outlet path from cylinder
+ *   - mains cold feed (unvented) or CWS cistern (vented)
+ *
+ * sceneLayoutKind = 'stored'
+ */
+export function buildStoredPlayScene(
+  controls: LabControls,
+  frame: LabFrame,
+): PlaySceneModel {
+  return buildSceneForKind(controls, frame, 'stored')
+}
+
+/**
+ * Build a Play scene for a heat pump system.
+ *
+ * Scene includes:
+ *   - heat pump source (compressor; cyan indicator instead of flame)
+ *   - cylinder / thermal store if the system has stored DHW (heat_pump + cylinder)
+ *   - primary coil path if a cylinder is present
+ *   - emitter branch if heating is configured
+ *   - DHW outlet path from heat pump or cylinder
+ *
+ * sceneLayoutKind = 'heat_pump'
+ *
+ * Note: a heat pump without a cylinder uses the same on-demand hot water topology
+ * as a combi (no plate HEX, but direct mains-fed supply from the heat pump).
+ * The renderer distinguishes this from the combi layout via sceneLayoutKind.
+ */
+export function buildHeatPumpPlayScene(
+  controls: LabControls,
+  frame: LabFrame,
+): PlaySceneModel {
+  return buildSceneForKind(controls, frame, 'heat_pump')
+}
+
+// ─── Main builder (public API) ────────────────────────────────────────────────
+
+/**
+ * Build an explicit PlaySceneModel from LabControls + LabFrame.
+ *
+ * Dispatches to the appropriate scene builder based on the graph-derived
+ * systemKind.  The renderer (LabCanvas) reads scene.metadata.sceneLayoutKind
+ * to select the visual scene skeleton — it must NEVER re-derive this from
+ * controls.systemType or a local isCylinder check.
+ *
+ * Call this once per render frame inside LabCanvas before drawing:
+ *
+ *   const scene = buildPlaySceneModel(controls, frame)
+ *   // → use scene.metadata.sceneLayoutKind to select the visual layout
+ *   // → use scene.metadata.showGenericColdFeed instead of controls.systemType checks
+ *   // → use scene.nodes for activity-driven glow/pulse
+ */
+export function buildPlaySceneModel(
+  controls: LabControls,
+  frame: LabFrame,
+): PlaySceneModel {
+  const systemType = controls.systemType
+  const isCylinder = systemType === 'vented_cylinder' || systemType === 'unvented_cylinder'
+
+  // Use the graph-derived systemKind as the authoritative source for domain routing.
+  // Fall back to a coarse mapping from systemType for legacy LabControls objects
+  // (pre-dates the systemKind field) so existing presets continue to work.
+  const systemKind: DerivedSystemKind =
+    controls.systemKind ??
+    (isCylinder ? 'stored' : 'combi')
+
+  switch (systemKind) {
+    case 'heat_pump': return buildHeatPumpPlayScene(controls, frame)
+    case 'stored':    return buildStoredPlayScene(controls, frame)
+    default:          return buildCombiPlayScene(controls, frame)
+  }
 }

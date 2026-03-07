@@ -903,3 +903,161 @@ describe('buildPlaySceneModel — regression: stored systems do not produce comb
     expect(scene.nodes.find(n => n.role === 'cylinder')).toBeDefined()
   })
 })
+
+// ─── sceneLayoutKind — scene skeleton selector ───────────────────────────────
+
+describe('buildPlaySceneModel — sceneLayoutKind', () => {
+  it('combi system produces sceneLayoutKind combi', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'combi', systemKind: 'combi' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.sceneLayoutKind).toBe('combi')
+  })
+
+  it('stored system (unvented_cylinder) produces sceneLayoutKind stored', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'unvented_cylinder', systemKind: 'stored' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.sceneLayoutKind).toBe('stored')
+  })
+
+  it('stored system (vented_cylinder) produces sceneLayoutKind stored', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'vented_cylinder', systemKind: 'stored' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.sceneLayoutKind).toBe('stored')
+  })
+
+  it('heat_pump with cylinder produces sceneLayoutKind heat_pump (not stored or combi)', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'unvented_cylinder', systemKind: 'heat_pump' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.sceneLayoutKind).toBe('heat_pump')
+    expect(scene.metadata.sceneLayoutKind).not.toBe('combi')
+    expect(scene.metadata.sceneLayoutKind).not.toBe('stored')
+  })
+
+  it('heat_pump WITHOUT cylinder produces sceneLayoutKind heat_pump (not combi)', () => {
+    // This is the core regression: a heat pump without a stored cylinder must not
+    // fall back to the combi HEX layout even though controls.systemType is 'combi'.
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'combi', systemKind: 'heat_pump' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.sceneLayoutKind).toBe('heat_pump')
+    expect(scene.metadata.sceneLayoutKind).not.toBe('combi')
+  })
+
+  it('legacy controls (no systemKind) with unvented_cylinder produce sceneLayoutKind stored', () => {
+    // Verify backwards compatibility: pre-systemKind controls still get stored layout.
+    const controls: LabControls = {
+      systemType: 'unvented_cylinder',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 14,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 18 },
+      ],
+    }
+    const scene = buildPlaySceneModel(controls, makeBaseFrame())
+    expect(scene.metadata.sceneLayoutKind).toBe('stored')
+    expect(scene.metadata.sceneLayoutKind).not.toBe('combi')
+  })
+
+  it('legacy controls (no systemKind) with combi produce sceneLayoutKind combi', () => {
+    const controls: LabControls = {
+      systemType: 'combi',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 14,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 18 },
+      ],
+    }
+    const scene = buildPlaySceneModel(controls, makeBaseFrame())
+    expect(scene.metadata.sceneLayoutKind).toBe('combi')
+  })
+})
+
+// ─── explicit sub-builders ────────────────────────────────────────────────────
+
+import {
+  buildCombiPlayScene,
+  buildStoredPlayScene,
+  buildHeatPumpPlayScene,
+} from '../playScene/buildPlaySceneModel'
+
+describe('buildCombiPlayScene / buildStoredPlayScene / buildHeatPumpPlayScene', () => {
+  it('buildCombiPlayScene always returns sceneLayoutKind combi', () => {
+    const scene = buildCombiPlayScene(makeBaseControls(), makeBaseFrame())
+    expect(scene.metadata.sceneLayoutKind).toBe('combi')
+  })
+
+  it('buildStoredPlayScene always returns sceneLayoutKind stored', () => {
+    const scene = buildStoredPlayScene(
+      makeBaseControls({ systemType: 'unvented_cylinder' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.sceneLayoutKind).toBe('stored')
+  })
+
+  it('buildHeatPumpPlayScene always returns sceneLayoutKind heat_pump', () => {
+    const scene = buildHeatPumpPlayScene(
+      makeBaseControls({ systemType: 'unvented_cylinder' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.sceneLayoutKind).toBe('heat_pump')
+  })
+
+  it('buildHeatPumpPlayScene without cylinder: no cylinder node, no coil edges', () => {
+    // Heat pump without cylinder: on-demand hot water, no thermal store
+    const scene = buildHeatPumpPlayScene(
+      makeBaseControls({ systemType: 'combi' }),  // no cylinder
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.sceneLayoutKind).toBe('heat_pump')
+    expect(scene.nodes.find(n => n.role === 'cylinder')).toBeUndefined()
+    expect(scene.edges.find(e => e.id === 'coil_flow')).toBeUndefined()
+    expect(scene.edges.find(e => e.id === 'coil_return')).toBeUndefined()
+  })
+
+  it('buildHeatPumpPlayScene with cylinder: cylinder node and coil edges present', () => {
+    const scene = buildHeatPumpPlayScene(
+      makeBaseControls({ systemType: 'unvented_cylinder' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.sceneLayoutKind).toBe('heat_pump')
+    expect(scene.nodes.find(n => n.role === 'cylinder')).toBeDefined()
+    expect(scene.edges.find(e => e.id === 'coil_flow')).toBeDefined()
+    expect(scene.edges.find(e => e.id === 'coil_return')).toBeDefined()
+  })
+
+  it('buildStoredPlayScene: stored graph must not produce combi scene label', () => {
+    const scene = buildStoredPlayScene(
+      makeBaseControls({ systemType: 'unvented_cylinder' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.sceneLayoutKind).not.toBe('combi')
+    expect(scene.nodes.find(n => n.role === 'cylinder')).toBeDefined()
+  })
+
+  it('buildHeatPumpPlayScene: heat pump graph must not produce combi scene label', () => {
+    const scene = buildHeatPumpPlayScene(
+      makeBaseControls({ systemType: 'combi', systemKind: 'heat_pump' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.sceneLayoutKind).not.toBe('combi')
+  })
+})
