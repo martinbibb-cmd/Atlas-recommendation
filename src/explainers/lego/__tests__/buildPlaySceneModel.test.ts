@@ -1130,6 +1130,183 @@ describe('buildPlaySceneModel — controlTopologyKind metadata', () => {
   })
 })
 
+// ─── PR15: structural valve nodes ────────────────────────────────────────────
+//
+// PR15 requires that valve topology is represented as structural nodes in the
+// PlaySceneModel — not just metadata labels.  This allows the renderer to draw
+// visually distinct shapes for Y-plan (single 3-port diamond) vs S-plan (two
+// independent zone valve circles).
+
+describe('buildPlaySceneModel — PR15 valve nodes (graph-driven structure)', () => {
+  it('no valve nodes when controlTopology is none (or absent)', () => {
+    const scene = buildPlaySceneModel(makeBaseControls(), makeBaseFrame())
+    const valveNodes = scene.nodes.filter(n => n.role === 'valve')
+    expect(valveNodes).toHaveLength(0)
+  })
+
+  it('Y-plan emits exactly one valve node with valveKind three_port', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'vented_cylinder',
+        systemKind: 'stored',
+        controlTopology: 'y_plan',
+      }),
+      makeBaseFrame(),
+    )
+    const valveNodes = scene.nodes.filter(n => n.role === 'valve')
+    expect(valveNodes).toHaveLength(1)
+    expect(valveNodes[0].id).toBe('valve_3port')
+    expect(valveNodes[0].data?.valveKind).toBe('three_port')
+  })
+
+  it('S-plan emits exactly two valve nodes, both with valveKind zone_valve', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'unvented_cylinder',
+        systemKind: 'stored',
+        controlTopology: 's_plan',
+      }),
+      makeBaseFrame(),
+    )
+    const valveNodes = scene.nodes.filter(n => n.role === 'valve')
+    expect(valveNodes).toHaveLength(2)
+    for (const v of valveNodes) {
+      expect(v.data?.valveKind).toBe('zone_valve')
+    }
+  })
+
+  it('S-plan multi-zone emits exactly two valve nodes, both with valveKind zone_valve', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'unvented_cylinder',
+        systemKind: 'stored',
+        controlTopology: 's_plan_multi_zone',
+      }),
+      makeBaseFrame(),
+    )
+    const valveNodes = scene.nodes.filter(n => n.role === 'valve')
+    expect(valveNodes).toHaveLength(2)
+    for (const v of valveNodes) {
+      expect(v.data?.valveKind).toBe('zone_valve')
+    }
+  })
+
+  it('S-plan CH valve is active when heating is on, HW valve is inactive', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'unvented_cylinder',
+        systemKind: 'stored',
+        controlTopology: 's_plan',
+        graphFacts: {
+          hotFedOutletNodeIds: [],
+          coldOnlyOutletNodeIds: [],
+          hasHeatingCircuit: true,
+        },
+      }),
+      makeBaseFrame({ systemMode: 'heating' }),
+    )
+    const chValve = scene.nodes.find(n => n.role === 'valve' && n.id === 'valve_ch')
+    const hwValve = scene.nodes.find(n => n.role === 'valve' && n.id === 'valve_hw')
+    expect(chValve?.active).toBe(true)
+    expect(hwValve?.active).toBe(false)
+  })
+
+  it('S-plan both valves active during heating_and_reheat (S-plan simultaneous)', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'unvented_cylinder',
+        systemKind: 'stored',
+        controlTopology: 's_plan',
+      }),
+      makeBaseFrame({ systemMode: 'heating_and_reheat' }),
+    )
+    const chValve = scene.nodes.find(n => n.role === 'valve' && n.id === 'valve_ch')
+    const hwValve = scene.nodes.find(n => n.role === 'valve' && n.id === 'valve_hw')
+    expect(chValve?.active).toBe(true)
+    expect(hwValve?.active).toBe(true)
+  })
+
+  it('Y-plan valve active when heating is on; targetDomain is heating', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'vented_cylinder',
+        systemKind: 'stored',
+        controlTopology: 'y_plan',
+        graphFacts: {
+          hotFedOutletNodeIds: [],
+          coldOnlyOutletNodeIds: [],
+          hasHeatingCircuit: true,
+        },
+      }),
+      makeBaseFrame({ systemMode: 'heating' }),
+    )
+    const valve = scene.nodes.find(n => n.role === 'valve' && n.id === 'valve_3port')
+    expect(valve?.active).toBe(true)
+    expect(valve?.data?.targetDomain).toBe('heating')
+  })
+
+  it('Y-plan valve active during reheat; targetDomain is primary', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'vented_cylinder',
+        systemKind: 'stored',
+        controlTopology: 'y_plan',
+      }),
+      makeBaseFrame({ systemMode: 'dhw_reheat' }),
+    )
+    const valve = scene.nodes.find(n => n.role === 'valve' && n.id === 'valve_3port')
+    expect(valve?.active).toBe(true)
+    expect(valve?.data?.targetDomain).toBe('primary')
+  })
+
+  it('Y-plan valve inactive when idle; targetDomain is none', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'vented_cylinder',
+        systemKind: 'stored',
+        controlTopology: 'y_plan',
+      }),
+      makeBaseFrame({ systemMode: 'idle' }),
+    )
+    const valve = scene.nodes.find(n => n.role === 'valve' && n.id === 'valve_3port')
+    expect(valve?.active).toBe(false)
+    expect(valve?.data?.targetDomain).toBe('none')
+  })
+
+  it('valve nodes are visible regardless of active state (always shown)', () => {
+    // For Y-plan idle
+    const idleScene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'vented_cylinder', controlTopology: 'y_plan' }),
+      makeBaseFrame({ systemMode: 'idle' }),
+    )
+    const idleValve = idleScene.nodes.find(n => n.role === 'valve')
+    expect(idleValve?.visible).toBe(true)
+
+    // For S-plan idle
+    const splanScene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'unvented_cylinder', controlTopology: 's_plan' }),
+      makeBaseFrame({ systemMode: 'idle' }),
+    )
+    for (const v of splanScene.nodes.filter(n => n.role === 'valve')) {
+      expect(v.visible).toBe(true)
+    }
+  })
+
+  it('S-plan valve domain data distinguishes CH from HW valves', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'unvented_cylinder',
+        controlTopology: 's_plan',
+      }),
+      makeBaseFrame(),
+    )
+    const chValve = scene.nodes.find(n => n.role === 'valve' && n.id === 'valve_ch')
+    const hwValve = scene.nodes.find(n => n.role === 'valve' && n.id === 'valve_hw')
+    expect(chValve?.data?.domain).toBe('heating')
+    expect(hwValve?.data?.domain).toBe('primary')
+  })
+})
+
 // ─── outletCount metadata field ───────────────────────────────────────────────
 
 describe('buildPlaySceneModel — outletCount metadata', () => {

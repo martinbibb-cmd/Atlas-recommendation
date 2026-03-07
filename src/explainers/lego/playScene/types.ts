@@ -145,24 +145,27 @@ export type PlaySceneModel = {
     showCylinderAsStore: boolean
     /**
      * True when the built graph uses a Mixergy thermal store.
-     * Drives the cylinder label in the Play schematic ("Mixergy cylinder")
-     * and a reduced-cycling note.
+     * Drives both the cylinder label ("Mixergy cylinder") and the
+     * visual cylinder representation: Mixergy uses a top-down hot-band fill
+     * (active stratification) instead of the standard bottom-up fill.
      */
     isMixergy?: boolean
     /**
      * Control topology derived from the built graph.
-     * Used to label the valve/zone-valve indicator below the cylinder.
-     * 'none'             → no zone valves or 3-port valve identified
-     * 'y_plan'           → 3-port motorised valve (mid-position)
-     * 's_plan'           → two zone valves (CH + HW)
-     * 's_plan_multi_zone'→ three or more zone valves
+     * Used to select the structural valve rendering in the Play schematic —
+     * NOT just a label.
+     * 'none'             → no zone valves or 3-port valve; no valve node rendered
+     * 'y_plan'           → 3-port motorised valve (single diamond node, routes CH or HW)
+     * 's_plan'           → two independent zone valves (two circle nodes, may open together)
+     * 's_plan_multi_zone'→ three or more zone valves (multiple circle nodes)
      * 'hp_diverter'      → heat pump with buffer/low-loss header
      */
     controlTopologyKind?: 'none' | 'y_plan' | 's_plan' | 's_plan_multi_zone' | 'hp_diverter'
     /**
-     * Total number of outlet nodes (hot-fed + cold-only) present in the build
-     * graph.  Displayed in the outlet manifold label so the Play schematic
-     * reflects the actual tap/bath/shower arrangement.
+     * Total number of outlet branch nodes (hot-fed + cold-only) present in the
+     * build graph.  The renderer uses this to limit displayed outlet branches to
+     * the actual graph-derived count rather than always showing all three A/B/C
+     * slots.  Undefined when graphFacts are absent (legacy controls).
      */
     outletCount?: number
   }

@@ -46,6 +46,17 @@ const USABLE_HOT_THRESHOLD_C = 45
  */
 const CYLINDER_FILL_MAX_C = 80
 
+/** Opacity of the Mixergy top-down hot band overlay (purple tint). */
+const MIXERGY_FILL_OPACITY = 0.18
+
+/** Half-width of the Y-plan 3-port valve diamond shape (pixels). */
+const VALVE_DIAMOND_HALF_W = 16
+/** Half-height of the Y-plan 3-port valve diamond shape (pixels). */
+const VALVE_DIAMOND_HALF_H = 10
+
+/** Radius of each S-plan zone valve circle (pixels). */
+const ZONE_VALVE_RADIUS = 8
+
 /**
  * Compute the cylinder fill fraction from a store temperature.
  * Extracted as a shared helper so the renderer and simulation use the same formula.
@@ -93,8 +104,10 @@ function controlTopologyLabel(
 
 
 function makeInitialFrame(controls: LabControls): LabFrame {
+  const isCylinderSystem =
+    controls.systemType === 'unvented_cylinder' || controls.systemType === 'vented_cylinder'
   const cylinderStore =
-    isCylinder && controls.cylinder
+    isCylinderSystem && controls.cylinder
       ? createCylinderStore({
           volumeL: controls.cylinder.volumeL,
           coldInletC: controls.coldInletC,
@@ -748,11 +761,23 @@ export function LabCanvas(props: {
               strokeWidth={(coilActive || isHwActive || showHeatingPathAndEmitters) ? 2.5 : 2}
               filter={(coilActive || isHwActive) ? 'url(#primary-glow)' : showHeatingPathAndEmitters ? HEAT_GLOW : undefined}
             />
-            {/* Thermal fill — clips to rounded rect */}
-            <rect
-              x={cylX} y={fillY} width={cylW} height={fillH}
-              fill={fillColor} opacity={0.75} clipPath="url(#cyl-clip)"
-            />
+            {/* Thermal fill — clips to rounded rect.
+                Standard cylinder: fills from the bottom up (conventional warm-water level).
+                Mixergy cylinder:  fills from the TOP DOWN (active top-down stratification),
+                using a distinct purple tint to signal the different thermal physics.
+                This structural difference makes Mixergy visually distinct from a
+                standard cylinder — not just a relabelled schematic.              */}
+            {scene.metadata.isMixergy ? (
+              <rect
+                x={cylX} y={cylY} width={cylW} height={fillH}
+                fill="#7c3aed" opacity={MIXERGY_FILL_OPACITY} clipPath="url(#cyl-clip)"
+              />
+            ) : (
+              <rect
+                x={cylX} y={fillY} width={cylW} height={fillH}
+                fill={fillColor} opacity={0.75} clipPath="url(#cyl-clip)"
+              />
+            )}
             {/* Border overlay */}
             <rect
               x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
@@ -776,11 +801,19 @@ export function LabCanvas(props: {
                 {roundTempC(storeTempC)} °C
               </text>
             )}
-            {/* Mixergy stratification note — only for Mixergy cylinders (top-down hot band). */}
+            {/* Mixergy: top-down heat label — reinforces the structural fill direction
+                and distinguishes it from standard cylinders in the legend area.
+                The fill already communicates stratification visually; this label
+                reinforces it for clarity.                                          */}
             {scene.metadata.isMixergy && (
-              <text x={P.boilerX + 30} y={P.boilerY + 38} textAnchor="middle" fontSize={9} fill="#7c3aed">
-                stratified · reduced cycling
-              </text>
+              <>
+                <text x={cylX + 8} y={cylY + 13} textAnchor="start" fontSize={8} fill="#7c3aed">
+                  ↓ hot
+                </text>
+                <text x={P.boilerX + 30} y={P.boilerY + 38} textAnchor="middle" fontSize={9} fill="#7c3aed">
+                  top-down stratification · reduced cycling
+                </text>
+              </>
             )}
             {/* ── Primary coil symbol — PR5: always visible, never hidden ──────
                 Represents the immersion coil (primary circuit) permanently plumbed
@@ -874,42 +907,186 @@ export function LabCanvas(props: {
                 {isCompressor ? 'Heat pump' : 'Boiler'}
               </text>
             </g>
-            {/* ── Valve position indicator ──────────────────────────────────
-                Shows which port/zone the valve is currently directing flow to.
-                For Y-plan (3-port valve): one direction at a time.
-                For S-plan (zone valves): both CH and HW can be active simultaneously.
-                Positioned just below the cylinder body.                       */}
-            <g transform={`translate(${cylX + cylW / 2}, ${cylY + cylH + 16})`}>
-              <text textAnchor="middle" fontSize={8} fill="#94a3b8" y={-3}>
-                {controlTopologyLabel(scene.metadata.controlTopologyKind, isSPlanTopology)}
-              </text>
-              {/* CH label */}
-              <text
-                x={-30} y={14} textAnchor="middle" fontSize={9}
-                fill={isChActive ? '#f97316' : '#94a3b8'}
-                fontWeight={isChActive ? 700 : 400}
-              >CH</text>
-              {/* Centre dot */}
-              <circle cx={0} cy={10} r={4} fill={systemMode === 'idle' ? '#94a3b8' : '#475569'} />
-              {/* HW label */}
-              <text
-                x={30} y={14} textAnchor="middle" fontSize={9}
-                fill={isHwActive ? '#0284c7' : '#94a3b8'}
-                fontWeight={isHwActive ? 700 : 400}
-              >HW</text>
-              {/* Direction arrow line — CH side (PR5: always visible, faded when inactive) */}
-              <line
-                x1={-4} y1={10} x2={-22} y2={10}
-                stroke="#f97316" strokeWidth={2} strokeLinecap="round"
-                opacity={isChActive ? 1 : 0.2}
-              />
-              {/* Direction arrow line — HW side (PR5: always visible, faded when inactive) */}
-              <line
-                x1={4} y1={10} x2={22} y2={10}
-                stroke="#0284c7" strokeWidth={2} strokeLinecap="round"
-                opacity={isHwActive ? 1 : 0.2}
-              />
-            </g>
+            {/* ── Valve / control-topology structural indicator — PR15 ─────────
+                Graph-driven structural rendering: the valve shape changes based on
+                the built graph control topology, not just a text label.
+                - Y-plan (3-port):  single diamond node → routes to CH or HW (mutually exclusive)
+                - S-plan (zone valves): two separate circle nodes → CH and HW independently
+                - hp_diverter: same two-circle layout (HP buffer / low-loss header)
+                - none: just CH / HW direction labels, no valve shape rendered         */}
+            {(() => {
+              const topologyKind = scene.metadata.controlTopologyKind ?? 'none'
+              const cx = cylX + cylW / 2
+              const cy = cylY + cylH + 18
+
+              if (topologyKind === 'y_plan') {
+                // ── 3-port valve (Y-plan) — single diamond shape ────────────────
+                // The diamond routes boiler output to CH or HW — not both at once.
+                // Active side highlighted; inactive side faded.
+                const halfW = VALVE_DIAMOND_HALF_W
+                const halfH = VALVE_DIAMOND_HALF_H
+                const routingToCh = isChActive
+                const routingToHw = isHwActive && !isChActive
+                const valveActive = isChActive || isHwActive
+                return (
+                  <g>
+                    {/* 3-port valve label */}
+                    <text x={cx} y={cy - 15} textAnchor="middle" fontSize={8} fill="#94a3b8">
+                      {controlTopologyLabel(topologyKind, false)}
+                    </text>
+                    {/* Diamond valve body */}
+                    <polygon
+                      points={`${cx},${cy - halfH} ${cx + halfW},${cy} ${cx},${cy + halfH} ${cx - halfW},${cy}`}
+                      fill={valveActive ? '#fef3c7' : '#f8fafc'}
+                      stroke={valveActive ? '#d97706' : '#94a3b8'}
+                      strokeWidth={valveActive ? 2 : 1.5}
+                    />
+                    <text x={cx} y={cy + 4} textAnchor="middle" fontSize={8}
+                      fill={valveActive ? '#92400e' : '#94a3b8'}>
+                      {isChActive ? '→CH' : isHwActive ? '→HW' : '3P'}
+                    </text>
+                    {/* CH branch arrow */}
+                    <line
+                      x1={cx - halfW} y1={cy} x2={cx - halfW - 20} y2={cy}
+                      stroke="#f97316" strokeWidth={2.5} strokeLinecap="round"
+                      opacity={routingToCh ? 1 : 0.2}
+                    />
+                    <polygon
+                      points={`${cx - halfW - 24},${cy - 4} ${cx - halfW - 16},${cy} ${cx - halfW - 24},${cy + 4}`}
+                      fill="#f97316"
+                      opacity={routingToCh ? 1 : 0.2}
+                    />
+                    <text x={cx - halfW - 28} y={cy + 4} textAnchor="end" fontSize={9}
+                      fill={routingToCh ? '#f97316' : '#94a3b8'}
+                      fontWeight={routingToCh ? 700 : 400}>CH</text>
+                    {/* HW branch arrow */}
+                    <line
+                      x1={cx + halfW} y1={cy} x2={cx + halfW + 20} y2={cy}
+                      stroke="#0284c7" strokeWidth={2.5} strokeLinecap="round"
+                      opacity={routingToHw ? 1 : 0.2}
+                    />
+                    <polygon
+                      points={`${cx + halfW + 16},${cy - 4} ${cx + halfW + 24},${cy} ${cx + halfW + 16},${cy + 4}`}
+                      fill="#0284c7"
+                      opacity={routingToHw ? 1 : 0.2}
+                    />
+                    <text x={cx + halfW + 28} y={cy + 4} textAnchor="start" fontSize={9}
+                      fill={routingToHw ? '#0284c7' : '#94a3b8'}
+                      fontWeight={routingToHw ? 700 : 400}>HW</text>
+                  </g>
+                )
+              }
+
+              if (topologyKind === 's_plan' || topologyKind === 's_plan_multi_zone') {
+                // ── S-plan zone valves — two independent circles ─────────────────
+                // CH zone valve (left circle) and HW zone valve (right circle) can
+                // both be open simultaneously (S-plan independence).
+                const chX = cx - 30
+                const hwX = cx + 30
+                const r = ZONE_VALVE_RADIUS
+                return (
+                  <g>
+                    <text x={cx} y={cy - 22} textAnchor="middle" fontSize={8} fill="#94a3b8">
+                      {controlTopologyLabel(topologyKind, false)}
+                    </text>
+                    {/* CH zone valve circle */}
+                    <circle cx={chX} cy={cy} r={r}
+                      fill={isChActive ? '#fff7ed' : '#f8fafc'}
+                      stroke={isChActive ? '#f97316' : '#94a3b8'}
+                      strokeWidth={isChActive ? 2 : 1.5}
+                    />
+                    <text x={chX} y={cy + 4} textAnchor="middle" fontSize={7}
+                      fill={isChActive ? '#f97316' : '#94a3b8'}
+                      fontWeight={isChActive ? 700 : 400}>CH</text>
+                    {/* CH open/closed indicator */}
+                    <text x={chX} y={cy - r - 4} textAnchor="middle" fontSize={8}
+                      fill={isChActive ? '#16a34a' : '#94a3b8'}>
+                      {isChActive ? '▲' : '▽'}
+                    </text>
+                    {/* HW zone valve circle */}
+                    <circle cx={hwX} cy={cy} r={r}
+                      fill={isHwActive ? '#eff6ff' : '#f8fafc'}
+                      stroke={isHwActive ? '#0284c7' : '#94a3b8'}
+                      strokeWidth={isHwActive ? 2 : 1.5}
+                    />
+                    <text x={hwX} y={cy + 4} textAnchor="middle" fontSize={7}
+                      fill={isHwActive ? '#0284c7' : '#94a3b8'}
+                      fontWeight={isHwActive ? 700 : 400}>HW</text>
+                    {/* HW open/closed indicator */}
+                    <text x={hwX} y={cy - r - 4} textAnchor="middle" fontSize={8}
+                      fill={isHwActive ? '#16a34a' : '#94a3b8'}>
+                      {isHwActive ? '▲' : '▽'}
+                    </text>
+                    {/* Simultaneous indicator — only shown when both are open (S-plan benefit) */}
+                    {isChActive && isHwActive && (
+                      <text x={cx} y={cy + r + 12} textAnchor="middle" fontSize={7} fill="#16a34a">
+                        simultaneous ✓
+                      </text>
+                    )}
+                  </g>
+                )
+              }
+
+              if (topologyKind === 'hp_diverter') {
+                // ── HP diverter — two independent circles (similar to S-plan) ────
+                const chX = cx - 30
+                const hwX = cx + 30
+                const r = ZONE_VALVE_RADIUS
+                return (
+                  <g>
+                    <text x={cx} y={cy - 22} textAnchor="middle" fontSize={8} fill="#94a3b8">
+                      {controlTopologyLabel(topologyKind, false)}
+                    </text>
+                    <circle cx={chX} cy={cy} r={r}
+                      fill={isChActive ? '#ecfeff' : '#f8fafc'}
+                      stroke={isChActive ? '#0891b2' : '#94a3b8'}
+                      strokeWidth={isChActive ? 2 : 1.5}
+                    />
+                    <text x={chX} y={cy + 4} textAnchor="middle" fontSize={7}
+                      fill={isChActive ? '#0891b2' : '#94a3b8'}
+                      fontWeight={isChActive ? 700 : 400}>CH</text>
+                    <circle cx={hwX} cy={cy} r={r}
+                      fill={isHwActive ? '#ecfeff' : '#f8fafc'}
+                      stroke={isHwActive ? '#0891b2' : '#94a3b8'}
+                      strokeWidth={isHwActive ? 2 : 1.5}
+                    />
+                    <text x={hwX} y={cy + 4} textAnchor="middle" fontSize={7}
+                      fill={isHwActive ? '#0891b2' : '#94a3b8'}
+                      fontWeight={isHwActive ? 700 : 400}>HW</text>
+                  </g>
+                )
+              }
+
+              // ── No valve / unknown topology — minimal CH/HW labels only ────────
+              return (
+                <g>
+                  <text x={cx} y={cy - 3} textAnchor="middle" fontSize={8} fill="#94a3b8">
+                    {controlTopologyLabel(topologyKind, isSPlanTopology)}
+                  </text>
+                  <text
+                    x={cx - 30} y={cy + 14} textAnchor="middle" fontSize={9}
+                    fill={isChActive ? '#f97316' : '#94a3b8'}
+                    fontWeight={isChActive ? 700 : 400}
+                  >CH</text>
+                  <circle cx={cx} cy={cy + 10} r={4} fill={systemMode === 'idle' ? '#94a3b8' : '#475569'} />
+                  <text
+                    x={cx + 30} y={cy + 14} textAnchor="middle" fontSize={9}
+                    fill={isHwActive ? '#0284c7' : '#94a3b8'}
+                    fontWeight={isHwActive ? 700 : 400}
+                  >HW</text>
+                  <line
+                    x1={cx - 4} y1={cy + 10} x2={cx - 22} y2={cy + 10}
+                    stroke="#f97316" strokeWidth={2} strokeLinecap="round"
+                    opacity={isChActive ? 1 : 0.2}
+                  />
+                  <line
+                    x1={cx + 4} y1={cy + 10} x2={cx + 22} y2={cy + 10}
+                    stroke="#0284c7" strokeWidth={2} strokeLinecap="round"
+                    opacity={isHwActive ? 1 : 0.2}
+                  />
+                </g>
+              )
+            })()}
           </g>
         )}
 
@@ -942,51 +1119,61 @@ export function LabCanvas(props: {
         )}
 
         {/* ── Outlet branches ────────────────────────────────────────────── */}
-        {(controls.outlets as typeof controls.outlets).map(outlet => {
-          const ox = outletXMap[outlet.id]
-          const oy = outletYMap[outlet.id]
-          const isEnabled = outlet.enabled
-          const centerStroke = isEnabled ? '#8aa1b6' : '#cbd5e1'
-          const delivered = summary.outletDeliveredLpm[outlet.id]
-          const sample = frame.outletSamples[outlet.id]
+        {/* PR15: when the built graph's outlet count is known, only render outlet
+            branches that correspond to real graph outlets.  Extra A/B/C slots that
+            are not backed by a graph node are omitted entirely (not just faded),
+            so the schematic shows the actual plumbing, not a preset maximum.
+            When graphFacts are absent (legacy controls), fall back to all outlets. */}
+        {(() => {
+          const graphOutletCount = scene.metadata.outletCount
+          const visibleOutlets = graphOutletCount !== undefined
+            ? controls.outlets.slice(0, Math.max(1, graphOutletCount))
+            : controls.outlets
+          return visibleOutlets.map(outlet => {
+            const ox = outletXMap[outlet.id]
+            const oy = outletYMap[outlet.id]
+            const isEnabled = outlet.enabled
+            const centerStroke = isEnabled ? '#8aa1b6' : '#cbd5e1'
+            const delivered = summary.outletDeliveredLpm[outlet.id]
+            const sample = frame.outletSamples[outlet.id]
 
-          // For TMV outlet A: branch goes to mixer (mixerAX, mixerAY), not terminal.
-          const isTmvA = outlet.id === 'A' && tmvOutletAActive
-          const branchEndX = isTmvA ? P.mixerAX : ox
-          const branchEndY = isTmvA ? P.mixerAY : oy
-          const pathD = branchSvgPath(P.splitX, P.splitY, branchEndX, branchEndY, P.branchBendR)
+            // For TMV outlet A: branch goes to mixer (mixerAX, mixerAY), not terminal.
+            const isTmvA = outlet.id === 'A' && tmvOutletAActive
+            const branchEndX = isTmvA ? P.mixerAX : ox
+            const branchEndY = isTmvA ? P.mixerAY : oy
+            const pathD = branchSvgPath(P.splitX, P.splitY, branchEndX, branchEndY, P.branchBendR)
 
-          // Colour for this branch: TMV outlet A hot branch uses hot colour (T_h),
-          // mixed outlet is drawn separately; other outlets use postHexThermalColor.
-          const branchColor = isEnabled ? (postHexThermalColor ?? '#cfd8e3') : '#e2e8f0'
+            // Colour for this branch: TMV outlet A hot branch uses hot colour (T_h),
+            // mixed outlet is drawn separately; other outlets use postHexThermalColor.
+            const branchColor = isEnabled ? (postHexThermalColor ?? '#cfd8e3') : '#e2e8f0'
 
-          return (
-            <g key={outlet.id}>
-              {/* Active outlet glow ring — pulsing halo around the outlet terminal. */}
-              {isEnabled && (
-                <circle
-                  cx={ox} cy={oy} r={19}
-                  fill={postHexThermalColor ?? '#f97316'}
-                  style={{ animation: 'outlet-glow 1.6s ease-in-out infinite' }}
+            return (
+              <g key={outlet.id}>
+                {/* Active outlet glow ring — pulsing halo around the outlet terminal. */}
+                {isEnabled && (
+                  <circle
+                    cx={ox} cy={oy} r={19}
+                    fill={postHexThermalColor ?? '#f97316'}
+                    style={{ animation: 'outlet-glow 1.6s ease-in-out infinite' }}
+                  />
+                )}
+                {/* Branch pipe — 90° off-take + swept bend */}
+                <path
+                  d={pathD}
+                  stroke={branchColor}
+                  strokeWidth={16} strokeLinecap="round" fill="none"
+                  opacity={isEnabled ? (postHexThermalColor ? THERMAL_COLOR_OPACITY : 1) : 0.4}
                 />
-              )}
-              {/* Branch pipe — 90° off-take + swept bend */}
-              <path
-                d={pathD}
-                stroke={branchColor}
-                strokeWidth={16} strokeLinecap="round" fill="none"
-                opacity={isEnabled ? (postHexThermalColor ? THERMAL_COLOR_OPACITY : 1) : 0.4}
-              />
-              <path
-                d={pathD}
-                stroke={centerStroke} strokeWidth={2} strokeLinecap="round" fill="none"
-                opacity={isEnabled ? 1 : 0.4}
-              />
+                <path
+                  d={pathD}
+                  stroke={centerStroke} strokeWidth={2} strokeLinecap="round" fill="none"
+                  opacity={isEnabled ? 1 : 0.4}
+                />
 
-              {/* Outlet label */}
-              <text x={ox + 6} y={oy - 8} textAnchor="start" fontSize={12} fill={isEnabled ? '#334155' : '#94a3b8'} fontWeight={600}>
-                {OUTLET_LABELS[outlet.id]} · {OUTLET_KIND_LABELS[outlet.kind]}
-              </text>
+                {/* Outlet label */}
+                <text x={ox + 6} y={oy - 8} textAnchor="start" fontSize={12} fill={isEnabled ? '#334155' : '#94a3b8'} fontWeight={600}>
+                  {OUTLET_LABELS[outlet.id]} · {OUTLET_KIND_LABELS[outlet.kind]}
+                </text>
 
               {/* Readout badge: delivered L/min + temperature */}
               {isEnabled && (
@@ -1028,7 +1215,8 @@ export function LabCanvas(props: {
               )}
             </g>
           )
-        })}
+        })
+        })()}
 
         {/* ── Emitter / radiator heat-emission indicator ─────────────────── */}
         {/* Rendered whenever the graph contains a heating circuit (PR5: always
