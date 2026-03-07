@@ -15,7 +15,7 @@
 //   - Activity kinds (ch_firing, dhw_firing, reheat, emitting) drive glow/pulse intensity.
 //   - S-plan allows CH and DHW (coil reheat) simultaneously.
 
-import type { LabControls, LabFrame } from '../animation/types'
+import type { LabControls, LabFrame, DerivedSystemKind } from '../animation/types'
 import type {
   PlaySceneModel,
   PlaySceneNode,
@@ -124,7 +124,15 @@ export function buildPlaySceneModel(
   const systemType = controls.systemType
   const isVented   = systemType === 'vented_cylinder'
   const isCylinder = isVented || systemType === 'unvented_cylinder'
-  const isCombi    = systemType === 'combi'
+
+  // Use the graph-derived systemKind as the authoritative source for domain routing.
+  // Fall back to a coarse mapping from systemType for legacy LabControls objects
+  // (pre-dates the systemKind field) so existing presets continue to work.
+  const systemKind: DerivedSystemKind =
+    controls.systemKind ??
+    (isCylinder ? 'stored' : 'combi')
+
+  const isCombi    = systemKind === 'combi'
   const mode       = frame.systemMode ?? 'idle'
 
   // ── Derive active domains ────────────────────────────────────────────────
@@ -159,7 +167,7 @@ export function buildPlaySceneModel(
     ?? (mode === 'dhw_draw')
 
   const activeDomains = deriveActiveDomains({
-    systemKind: isCombi ? 'combi' : 'stored',
+    systemKind,
     heatingDemand: isChActive,
     dhwDraw,
     cylinderNeedsReheat,

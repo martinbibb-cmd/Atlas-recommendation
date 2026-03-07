@@ -197,6 +197,21 @@ export type FlowParticle = {
 /** Distinguishes combi (on-demand) from stored hot water systems. */
 export type SystemType = 'combi' | 'unvented_cylinder' | 'vented_cylinder'
 
+/**
+ * High-level system kind for Play mode domain routing and UI gating.
+ *
+ * Collapses the fine-grained SystemType into three operational categories:
+ *   combi     — on-demand DHW from an integrated plate HEX; no storage cylinder.
+ *   stored    — DHW from a thermal store (unvented or vented cylinder, Mixergy).
+ *   heat_pump — heat pump as primary heat source (with or without cylinder).
+ *
+ * Use this type — not SystemType — anywhere Play mode needs to branch on
+ * high-level system behaviour (domain routing, combi-only control gating, etc.).
+ * SystemType is retained for simulation hydraulics where the vented/unvented
+ * distinction still matters (e.g. CWS head pressure calculations).
+ */
+export type DerivedSystemKind = 'combi' | 'stored' | 'heat_pump'
+
 export type CylinderControls = {
   volumeL: number       // e.g. 150 / 180 / 210
   initialTempC: number  // e.g. 55
@@ -209,6 +224,13 @@ export type VentedControls = {
 
 export type LabControls = {
   systemType: SystemType
+  /**
+   * High-level system kind derived from the built graph topology.
+   * Populated by graphToLabControls and NEVER overridden by a patch.
+   * Use this field — not systemType — for Play mode domain routing and UI gating.
+   * Absent only in legacy LabControls objects that pre-date this field.
+   */
+  systemKind?: DerivedSystemKind
   heatSourceType?: HeatSourceType
 
   coldInletC: 5 | 10 | 15

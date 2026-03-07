@@ -36,8 +36,9 @@ export interface DeriveDomainInput {
    *   'combi'              → 'combi'
    *   'unvented_cylinder'  → 'stored'
    *   'vented_cylinder'    → 'stored'
+   *   'heat_pump'          → treated as 'stored' (HP + cylinder = independent circuits)
    */
-  systemKind: 'combi' | 'stored'
+  systemKind: 'combi' | 'stored' | 'heat_pump'
   /** True when the boiler is actively firing for space heating (CH circuit running). */
   heatingDemand: boolean
   /** True when a domestic hot-water tap is open (draw in progress). */
@@ -87,7 +88,8 @@ export function deriveActiveDomains({
     }
   }
 
-  // Stored system (unvented or vented cylinder):
+  // Stored system (unvented or vented cylinder) or heat pump:
+  // Heating and DHW draw are independent circuits.
   return {
     heating: heatingDemand,
     // Primary coil active only when the store needs recovery — not merely

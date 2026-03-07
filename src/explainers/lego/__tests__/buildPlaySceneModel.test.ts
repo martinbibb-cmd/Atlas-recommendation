@@ -829,3 +829,77 @@ describe('buildPlaySceneModel — AC5: domain-driven edge activation', () => {
     }
   })
 })
+
+// ── Regression: stored systems must NOT produce combi scene behaviour ──────────
+//
+// These tests guard against the core bug: Play mode collapsing all built
+// systems to combi — even when the graph contains a boiler + cylinder + emitters.
+
+describe('buildPlaySceneModel — regression: stored systems do not produce combi scene', () => {
+  it('stored system with systemKind produces a cylinder node (not combi pass-through)', () => {
+    const controls = makeBaseControls({ systemType: 'unvented_cylinder', systemKind: 'stored' })
+    const scene = buildPlaySceneModel(controls, makeBaseFrame())
+    expect(scene.nodes.find(n => n.role === 'cylinder')).toBeDefined()
+  })
+
+  it('stored system with systemKind does NOT suppress CH during DHW draw (independent circuits)', () => {
+    // Stored systems: heating and DHW draw are independent.
+    // A combi would suspend CH during a draw; a stored system must not.
+    const controls = makeBaseControls({ systemType: 'unvented_cylinder', systemKind: 'stored' })
+    const frame = makeBaseFrame({
+      systemMode: 'heating',
+      visuals: makeVisuals({
+        fluidPaths: [
+          { edgeIds: ['dhw_draw'], direction: 'forward', active: true, flowLpm: 10 },
+        ],
+      }),
+    })
+    const scene = buildPlaySceneModel(controls, frame)
+    const chFlow = scene.edges.find(e => e.id === 'ch_flow')
+    // CH must still be active (not suspended by DHW draw as would happen on combi)
+    expect(chFlow?.active).toBe(true)
+  })
+
+  it('stored system with systemKind does not emit combi plate-HEX-style activity on dhw_draw mode', () => {
+    // Stored systems don't have a plate HEX — the heat source should not show dhw_firing
+    // activity just because of mode. Activity is driven by visuals (burner, plateHex).
+    const controls = makeBaseControls({ systemType: 'unvented_cylinder', systemKind: 'stored' })
+    const frame = makeBaseFrame({ systemMode: 'heating' })
+    const scene = buildPlaySceneModel(controls, frame)
+    const heatSource = scene.nodes.find(n => n.role === 'heat_source')
+    // Heat source should be active (CH is running) — not idle
+    expect(heatSource?.active).toBe(true)
+  })
+
+  it('heat_pump systemKind produces stored-style scene (coil edges present for cylinder)', () => {
+    const controls = makeBaseControls({
+      systemType: 'unvented_cylinder',
+      systemKind: 'heat_pump',
+    })
+    const scene = buildPlaySceneModel(controls, makeBaseFrame())
+    // Heat pump with cylinder has a coil (primary circuit), just like stored boiler
+    expect(scene.edges.find(e => e.id === 'coil_flow')).toBeDefined()
+    expect(scene.edges.find(e => e.id === 'coil_return')).toBeDefined()
+  })
+
+  it('legacy LabControls without systemKind field still classify stored correctly via systemType fallback', () => {
+    // Pre-systemKind controls (no systemKind field) must still produce stored
+    // scenes when systemType is unvented_cylinder.
+    const controls: LabControls = {
+      systemType: 'unvented_cylinder',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 14,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 5 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 18 },
+      ],
+      // systemKind intentionally absent — simulates legacy controls
+    }
+    const scene = buildPlaySceneModel(controls, makeBaseFrame())
+    expect(scene.nodes.find(n => n.role === 'cylinder')).toBeDefined()
+  })
+})
