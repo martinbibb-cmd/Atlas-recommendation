@@ -142,7 +142,7 @@ describe('compareGraphShape', () => {
       nodes: a.nodes,
       edges: [
         a.edges[0],
-        { id: 'wrong-edge-id', fromNodeId: 'x', fromPort: 'p', toNodeId: 'y', toPort: 'q' },
+        { id: 'wrong-edge-id', fromNodeId: 'x', fromPort: 'flow', toNodeId: 'y', toPort: 'return', domain: 'heating' },
       ],
     }
     const result = compareGraphShape(a, b)
