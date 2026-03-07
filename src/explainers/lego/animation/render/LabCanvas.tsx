@@ -8,7 +8,7 @@ import { createCylinderStore, cylinderTempC } from '../storage'
 import { TokensLayer } from './TokensLayer'
 import { ThermalLegend } from './ThermalLegend'
 import { THERMAL_BANDS, tempToThermalColor, roundTempC } from '../thermal'
-import { buildPolylines, SCHEMATIC_P, branchSvgPath } from './pathMap'
+import { buildPolylines, SCHEMATIC_P, branchSvgPath, STORED_HEX_END } from './pathMap'
 import { buildPlaySceneModel } from '../../playScene/buildPlaySceneModel'
 
 /** Baseline frame time at 60 fps (ms). */
@@ -227,8 +227,12 @@ export function LabCanvas(props: {
 
   // Build polylines — when TMV outlet A is active, outlet A branch ends at the
   // mixer node rather than the full outlet terminal.
+  // For stored-cylinder systems (isCylinder && isStoredLayout) use the domestic
+  // circuit trunk (cold rail → cylinder → splitter) so particles never travel
+  // through the heat-source box on the domestic path.
   const { main: polyMain, branchA, branchB, branchC, coldBypassA } = buildPolylines({
     tmvOutletA: tmvOutletAActive,
+    isStoredCylinder: isCylinder && isStoredLayout,
   })
 
   // Post-HEX pipe and outlet branch colour — driven by achieved outlet temperature (combi),
@@ -341,11 +345,12 @@ export function LabCanvas(props: {
     return storeTempC !== null ? cylinderChargePct(storeTempC, controls.coldInletC) : 0
   })()
 
-  // Cylinder tank SVG dimensions (replaces HEX box)
-  const cylX = P.boilerX - 60
-  const cylY = P.boilerY - 44
-  const cylW = 180
-  const cylH = 88
+  // Cylinder tank SVG dimensions — derived from SCHEMATIC_P so pathMap and
+  // LabCanvas always share the same geometry.
+  const cylX = P.cylX
+  const cylY = P.cylY
+  const cylW = P.cylW
+  const cylH = P.cylH
   const fillH = cylH * cylinderFillFraction
   const fillY = cylY + (cylH - fillH)
   const fillColor = storeTempC !== null ? tempToThermalColor(storeTempC) : '#cfd8e3'
@@ -370,7 +375,12 @@ export function LabCanvas(props: {
   //   stored    — horizontal rail at same Y, branching up into cylinder bottom
   //   open-vent — CWS gravity feed drops to the same level, then branches up
   //   cold taps — branch downward from this rail (never on the hot service)
-  const coldRailY = cylY + cylH + 6  // just below both appliance boxes (≈180 px)
+  const coldRailY = P.coldRailY  // just below both appliance boxes (≈180 px)
+
+  // Cylinder port coordinates — derived from SCHEMATIC_P named offsets so
+  // LabCanvas and pathMap always agree on where cold_in / hot_out sit.
+  const cylColdInX = cylX + P.cylColdInOffsetX  // 390 — cold_in entry X (30 px from left)
+  const cylHotOutY = cylY + P.cylHotOutOffsetY  //  98 — hot_out Y (12 px from top)
 
   // ── Stored-system valve layout ────────────────────────────────────────────
   // The control valve sits below the heat source box on the source flow path.
@@ -592,26 +602,26 @@ export function LabCanvas(props: {
             // mains (left) → cold rail (horizontal) → cylinder cold_in (bottom)
             <>
               <path
-                d={`M ${P.mainsX} ${coldRailY} L ${cylX + 30} ${coldRailY}`}
+                d={`M ${P.mainsX} ${coldRailY} L ${cylColdInX} ${coldRailY}`}
                 stroke="url(#grad-cold-supply)" strokeWidth={12} strokeLinecap="round"
                 opacity={THERMAL_COLOR_OPACITY}
               />
               <path
-                d={`M ${P.mainsX} ${coldRailY} L ${cylX + 30} ${coldRailY}`}
+                d={`M ${P.mainsX} ${coldRailY} L ${cylColdInX} ${coldRailY}`}
                 stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
               />
               {/* Short vertical entry into cylinder bottom */}
               <path
-                d={`M ${cylX + 30} ${coldRailY} L ${cylX + 30} ${cylY + cylH}`}
+                d={`M ${cylColdInX} ${coldRailY} L ${cylColdInX} ${cylY + cylH}`}
                 stroke="#bae6fd" strokeWidth={8} strokeLinecap="round" opacity={0.85}
               />
               <path
-                d={`M ${cylX + 30} ${coldRailY} L ${cylX + 30} ${cylY + cylH}`}
+                d={`M ${cylColdInX} ${coldRailY} L ${cylColdInX} ${cylY + cylH}`}
                 stroke="#0ea5e9" strokeWidth={2} strokeLinecap="round"
               />
               {/* Downward arrow at cylinder cold_in entry */}
               <polygon
-                points={`${cylX + 25},${cylY + cylH - 5} ${cylX + 35},${cylY + cylH - 5} ${cylX + 30},${cylY + cylH + 1}`}
+                points={`${cylColdInX - 5},${cylY + cylH - 5} ${cylColdInX + 5},${cylY + cylH - 5} ${cylColdInX},${cylY + cylH + 1}`}
                 fill="#0ea5e9" opacity={0.9}
               />
               <text x={P.mainsX - 4} y={coldRailY - 6} fontSize={10} fill="#0369a1" textAnchor="start">
@@ -1129,15 +1139,15 @@ export function LabCanvas(props: {
                 Shows that hot water exits from NEAR THE TOP of the cylinder and
                 routes down to the main DHW trunk, not from the centre of the box.
                 The short vertical segment at the cylinder right edge (X = cylX+cylW)
-                bridges cylY+12 (top area) down to P.boilerY (trunk level), meeting
+                bridges cylHotOutY (top area) down to P.boilerY (trunk level), meeting
                 the existing "pipe to splitter" at exactly (cylX+cylW, P.boilerY).    */}
             <path
-              d={`M ${cylX + cylW} ${cylY + 12} L ${cylX + cylW} ${P.boilerY}`}
+              d={`M ${cylX + cylW} ${cylHotOutY} L ${cylX + cylW} ${P.boilerY}`}
               stroke={postHexThermalColor ?? '#cfd8e3'} strokeWidth={12} strokeLinecap="round"
               opacity={postHexThermalColor ? THERMAL_COLOR_OPACITY : 0.5}
             />
             <path
-              d={`M ${cylX + cylW} ${cylY + 12} L ${cylX + cylW} ${P.boilerY}`}
+              d={`M ${cylX + cylW} ${cylHotOutY} L ${cylX + cylW} ${P.boilerY}`}
               stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
             />
 
@@ -1669,6 +1679,7 @@ export function LabCanvas(props: {
           hydraulicFlowLpm={summary.hydraulicFlowLpm}
           demandTotalLpm={summary.demandTotalLpm}
           postHexThermalColor={postHexThermalColor}
+          hexEnd={isCylinder && isStoredLayout ? STORED_HEX_END : undefined}
         />
 
         {/* ── Domain colour legend — PR5 ────────────────────────────────── */}

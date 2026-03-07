@@ -66,6 +66,37 @@ export const SCHEMATIC_P = {
    * Must be < 86 (= boilerY − 44, the top edge of the boiler box) to avoid overlap.
    */
   coldBypassY: 55,
+
+  // ── Cylinder layout for stored / heat_pump systems ────────────────────────
+  // Derived from boilerX / boilerY.  LabCanvas derives its local cylinder
+  // constants from these values so the two files are always in sync.
+  /** Left edge of the cylinder box (= boilerX − 60). */
+  cylX: 360,
+  /** Top edge of the cylinder box (= boilerY − 44). */
+  cylY: 86,
+  /** Width of the cylinder box. */
+  cylW: 180,
+  /** Height of the cylinder box. */
+  cylH: 88,
+  /**
+   * Y-coordinate of the cold-supply rail for stored / heat-pump systems.
+   * Runs just below both appliance boxes (= cylY + cylH + 6 = 180).
+   * All cold-water paths branch from this rail.
+   * Note: in SVG coordinates, higher Y = lower on screen. coldRailY (180) is
+   * numerically greater than the cylinder bottom (cylY + cylH = 174), meaning
+   * the rail sits visually below the cylinder box.
+   */
+  coldRailY: 180,
+  /**
+   * Horizontal offset from cylX to the cold_in entry point on the cylinder.
+   * Cold supply enters 30 px from the left edge of the cylinder box.
+   */
+  cylColdInOffsetX: 30,
+  /**
+   * Vertical offset from cylY to the hot_out port on the cylinder.
+   * Hot water exits 12 px below the top edge of the cylinder box.
+   */
+  cylHotOutOffsetY: 12,
 }
 
 export type SchematicPolylines = {
@@ -81,11 +112,66 @@ export type SchematicPolylines = {
   coldBypassA: Pt[]
 }
 
+// ── Stored-system HEX-equivalent threshold ────────────────────────────────────
+//
+// For stored (cylinder) systems the "heat exchange" is the cylinder itself:
+//   cold particles travel along the cold rail and enter the cylinder at the
+//   bottom (cold_in), rise through the store, and exit hot from the top (hot_out).
+//
+// STORED_HEX_END is the s-fraction along the stored trunk at which particles
+// exit the cylinder interior and begin the hot-output run to the splitter.
+// TokensLayer uses this to colour MAIN particles correctly for stored systems:
+//   s < STORED_HEX_END  → cold (blue) — cold rail + cylinder interior
+//   s ≥ STORED_HEX_END  → postHexThermalColor (hot) — cylinder top → splitter
+//
+// Geometry (see buildPolylines `isStoredCylinder` branch below):
+//   Seg 1: mainsX(90) → cylColdInX(390) along coldRailY(180)      len = 300
+//   Seg 2: (390,180)  → cylColdIn(390,174)  [entry to cyl bottom]  len = 6
+//   Seg 3: (390,174)  → cylTopLeft(390,98)  [rise inside cylinder]  len = 76
+//   Seg 4: (390,98)   → cylHotOut(540,98)   [across cyl to hot_out] len = 150
+//   Seg 5: (540,98)   → (540,130)           [down to trunk level]   len = 32
+//   Seg 6: (540,130)  → splitter(700,130)                           len = 160
+//                                                             total = 724
+//
+// STORED_HEX_END = (seg1 + seg2 + seg3) / total = 382 / 724 ≈ 0.527
+// This positions the colour transition right at the cylinder top exit.
+export const STORED_HEX_END: number = (() => {
+  const { mainsX, boilerY, splitX, cylX, cylY, cylW, cylH, coldRailY,
+          cylColdInOffsetX, cylHotOutOffsetY } = SCHEMATIC_P
+  const cylColdInX  = cylX + cylColdInOffsetX  // 390 — cold_in entry X
+  const cylColdInY  = cylY + cylH              // 174 — bottom of cylinder
+  const cylHotOutX  = cylX + cylW              // 540 — hot_out X (right edge)
+  const cylHotOutY  = cylY + cylHotOutOffsetY  //  98 — hot_out Y (near top)
+
+  // In SVG coordinates Y increases downward, so:
+  //   coldRailY (180) > cylColdInY (174): rail is numerically larger → visually below cyl bottom
+  //   cylColdInY (174) > cylHotOutY (98): bottom is numerically larger → particles rise (Y decreases)
+  const seg1 = cylColdInX - mainsX           // 300 — cold rail horizontal
+  const seg2 = coldRailY  - cylColdInY       //   6 — short rise into cyl bottom
+  const seg3 = cylColdInY - cylHotOutY       //  76 — rise through cylinder interior
+  const seg4 = cylHotOutX - cylColdInX       // 150 — across cyl to hot_out
+  const seg5 = boilerY    - cylHotOutY       //  32 — drop to trunk level
+  const seg6 = splitX     - cylHotOutX       // 160 — to splitter
+  const total = seg1 + seg2 + seg3 + seg4 + seg5 + seg6  // 724
+
+  return (seg1 + seg2 + seg3) / total        // ≈ 0.527
+})()
+
 /**
  * Build the main flow polyline and three outlet branch polylines, plus the
  * optional cold supply bypass for outlet A's thermostatic mixer valve (TMV).
  *
- * The trunk (main) runs from mains → boiler → splitter.
+ * Combi / heat-pump-no-cylinder trunk:
+ *   mains → boiler entry → boiler exit → splitter.
+ *
+ * Stored-cylinder trunk (`isStoredCylinder: true`):
+ *   mains (at cold-rail Y) → cold rail → cylinder cold_in (bottom) →
+ *   up through cylinder interior → cylinder hot_out (top-right) →
+ *   trunk level → splitter.
+ *   This separates the domestic circuit (cold supply → cylinder → outlets)
+ *   from the primary circuit (heat source → coil → heat source) so that
+ *   particles never travel through the boiler/heat-pump box on the domestic path.
+ *
  * Each branch uses a 90° off-take (perpendicular to the trunk) followed by a
  * swept bend that transitions back to horizontal before reaching the outlet.
  * Branch B (same elevation as the trunk) is a plain horizontal extension.
@@ -97,7 +183,15 @@ export type SchematicPolylines = {
  * mixerAY) rather than the full outlet terminal.  The mixed-water segment from
  * mixer to terminal is rendered separately by LabCanvas.
  */
-export function buildPolylines(opts?: { tmvOutletA?: boolean }): SchematicPolylines {
+export function buildPolylines(opts?: {
+  tmvOutletA?: boolean
+  /**
+   * When true, builds a stored-cylinder domestic trunk that routes cold supply
+   * through the cold rail → cylinder (not through the boiler/heat-pump box).
+   * Set to `true` when `isCylinder && isStoredLayout` in LabCanvas.
+   */
+  isStoredCylinder?: boolean
+}): SchematicPolylines {
   const {
     splitX, splitY, outlet1X, outlet1Y, outlet2X, outlet2Y, outlet3X, outlet3Y,
     branchBendR: R, teeX, teeY, mixerAX, mixerAY, coldBypassY,
@@ -108,12 +202,46 @@ export function buildPolylines(opts?: { tmvOutletA?: boolean }): SchematicPolyli
   const a1X = tmvA ? mixerAX : outlet1X
   const a1Y = tmvA ? mixerAY : outlet1Y
 
-  const trunk: Pt[] = [
-    { x: SCHEMATIC_P.mainsX, y: SCHEMATIC_P.mainsY },
-    { x: SCHEMATIC_P.boilerX - 60, y: SCHEMATIC_P.boilerY },   // boiler entry
-    { x: SCHEMATIC_P.boilerX + 120, y: SCHEMATIC_P.boilerY },  // boiler exit
-    { x: splitX, y: splitY },
-  ]
+  // ── Main trunk ─────────────────────────────────────────────────────────────
+  let trunk: Pt[]
+
+  if (opts?.isStoredCylinder) {
+    // Stored-cylinder domestic trunk: cold supply never passes through the heat source.
+    //
+    //   mains (at cold-rail Y)
+    //     → cold rail horizontal to cylinder cold_in X
+    //     → short rise into cylinder bottom (cold_in port)
+    //     → rise through cylinder interior to near-top
+    //     → horizontal across cylinder to hot_out (right edge, near top)
+    //     → drop to trunk level
+    //     → splitter
+    //
+    // Particles are cold from mains to cylHotOutY row (s < STORED_HEX_END)
+    // and use postHexThermalColor (cylinder store temp) beyond that point.
+    const { mainsX, boilerY, cylX, cylY, cylW, cylH, coldRailY,
+            cylColdInOffsetX, cylHotOutOffsetY } = SCHEMATIC_P
+    const cylColdInX = cylX + cylColdInOffsetX  // 390
+    const cylColdInY = cylY + cylH              // 174
+    const cylHotOutX = cylX + cylW              // 540
+    const cylHotOutY = cylY + cylHotOutOffsetY  //  98
+    trunk = [
+      { x: mainsX,      y: coldRailY  },   // (90,  180) — mains at cold-rail level
+      { x: cylColdInX,  y: coldRailY  },   // (390, 180) — cold rail to below cylinder
+      { x: cylColdInX,  y: cylColdInY },   // (390, 174) — cylinder cold_in (bottom)
+      { x: cylColdInX,  y: cylHotOutY },   // (390,  98) — rise through cylinder interior
+      { x: cylHotOutX,  y: cylHotOutY },   // (540,  98) — across cylinder to hot_out
+      { x: cylHotOutX,  y: boilerY    },   // (540, 130) — drop to trunk level
+      { x: splitX,      y: splitY     },   // (700, 130) — splitter
+    ]
+  } else {
+    // Combi / heat-pump-without-cylinder trunk: mains → heat-source → splitter.
+    trunk = [
+      { x: SCHEMATIC_P.mainsX, y: SCHEMATIC_P.mainsY },
+      { x: SCHEMATIC_P.boilerX - 60, y: SCHEMATIC_P.boilerY },   // boiler/HP entry
+      { x: SCHEMATIC_P.boilerX + 120, y: SCHEMATIC_P.boilerY },  // boiler/HP exit
+      { x: splitX, y: splitY },
+    ]
+  }
 
   // Branch A: 90° up then swept bend right → horizontal to outlet (or mixer when TMV).
   //   Vertical leg:  (splitX, splitY) → (splitX, a1Y + R)
