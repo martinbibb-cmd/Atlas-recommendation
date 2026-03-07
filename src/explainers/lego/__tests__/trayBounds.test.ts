@@ -219,3 +219,58 @@ describe('clampTrayPosition — footer dead-zone protection', () => {
     expect(TRAY_FOOTER_RESERVE_PX).toBeGreaterThanOrEqual(40)
   })
 })
+
+// ─── 7. PR9 — narrow-screen dead-column guard ─────────────────────────────────
+//
+// When the user was on a wide screen with the palette open (paletteOpen=true)
+// and then resizes to a narrow screen, isNarrowLayout must return true so the
+// grid template can switch to '1fr' and not render a dead 320 px column.
+//
+// The guard logic (pseudocode from BuilderShell):
+//   gridTemplateColumns = (paletteOpen && !isNarrow) ? '320px 1fr' : '1fr'
+//
+// This section tests the pure boolean predicate that drives that expression.
+
+describe('PR9 narrow-screen dead-column guard — paletteOpen && !isNarrow logic', () => {
+  function shouldShowSidePanel(paletteOpen: boolean, windowWidth: number): boolean {
+    const narrow = isNarrowLayout(windowWidth)
+    return paletteOpen && !narrow
+  }
+
+  function gridColumns(paletteOpen: boolean, windowWidth: number): string {
+    return shouldShowSidePanel(paletteOpen, windowWidth) ? '320px 1fr' : '1fr'
+  }
+
+  it('wide screen + palette open → side panel visible, two-column grid', () => {
+    expect(shouldShowSidePanel(true, 1440)).toBe(true)
+    expect(gridColumns(true, 1440)).toBe('320px 1fr')
+  })
+
+  it('wide screen + palette closed → side panel hidden, single-column grid', () => {
+    expect(shouldShowSidePanel(false, 1440)).toBe(false)
+    expect(gridColumns(false, 1440)).toBe('1fr')
+  })
+
+  it('narrow screen + palette open → side panel hidden (no dead column), single-column grid', () => {
+    // This is the regression case: palette state is still open from a previous
+    // wide-screen session, but the screen is now narrow.  The grid must NOT
+    // emit a 320 px dead column.
+    expect(shouldShowSidePanel(true, 900)).toBe(false)
+    expect(gridColumns(true, 900)).toBe('1fr')
+  })
+
+  it('narrow screen + palette closed → side panel hidden, single-column grid', () => {
+    expect(shouldShowSidePanel(false, 900)).toBe(false)
+    expect(gridColumns(false, 900)).toBe('1fr')
+  })
+
+  it('at the exact breakpoint (≥1200px) with palette open → side panel is visible', () => {
+    expect(shouldShowSidePanel(true, NARROW_LAYOUT_BREAKPOINT_PX)).toBe(true)
+    expect(gridColumns(true, NARROW_LAYOUT_BREAKPOINT_PX)).toBe('320px 1fr')
+  })
+
+  it('one pixel below breakpoint with palette open → side panel hidden (narrow)', () => {
+    expect(shouldShowSidePanel(true, NARROW_LAYOUT_BREAKPOINT_PX - 1)).toBe(false)
+    expect(gridColumns(true, NARROW_LAYOUT_BREAKPOINT_PX - 1)).toBe('1fr')
+  })
+})

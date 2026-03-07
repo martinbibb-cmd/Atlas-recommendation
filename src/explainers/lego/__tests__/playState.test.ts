@@ -396,3 +396,39 @@ describe('determineOperatingMode', () => {
     expect(determineOperatingMode(state)).toBe('DHW_ONLY')
   })
 })
+
+// ─── PR10 — combiDhwKw in SupplyConditions ────────────────────────────────────
+
+describe('SupplyConditions — combiDhwKw field', () => {
+  it('createDefaultPlayState leaves combiDhwKw undefined by default', () => {
+    const state = createDefaultPlayState(makeEmptyGraph())
+    expect(state.supplyConditions.combiDhwKw).toBeUndefined()
+  })
+
+  it('combiDhwKw can be set in supplyConditions', () => {
+    const state = createDefaultPlayState(makeEmptyGraph())
+    const updated: typeof state = {
+      ...state,
+      supplyConditions: { ...state.supplyConditions, combiDhwKw: 32 },
+    }
+    expect(updated.supplyConditions.combiDhwKw).toBe(32)
+  })
+
+  it('SupplyConditions accepts all expected combi kW values', () => {
+    const base = createDefaultPlayState(makeEmptyGraph()).supplyConditions
+    const values = [24, 28, 32, 36, 40] as const
+    for (const kw of values) {
+      const sc = { ...base, combiDhwKw: kw }
+      expect(sc.combiDhwKw).toBe(kw)
+    }
+  })
+
+  it('SupplyConditions with combiDhwKw undefined is valid (uses simulation default)', () => {
+    const sc: import('../state/playState').SupplyConditions = {
+      inletTempC: 10,
+      mainsDynamicFlowLpm: 14,
+      // combiDhwKw intentionally absent → simulation uses its default (30 kW)
+    }
+    expect(sc.combiDhwKw).toBeUndefined()
+  })
+})
