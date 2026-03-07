@@ -1333,3 +1333,59 @@ describe('buildPlaySceneModel — outletCount metadata', () => {
     expect(scene.metadata.outletCount).toBeUndefined()
   })
 })
+
+// ─── PR16: coldOnlyOutletCount metadata ───────────────────────────────────────
+
+describe('buildPlaySceneModel — coldOnlyOutletCount metadata (PR16)', () => {
+  it('coldOnlyOutletCount reflects the number of cold-only outlets in graphFacts', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'unvented_cylinder',
+        graphFacts: {
+          hotFedOutletNodeIds: ['sh1'],
+          coldOnlyOutletNodeIds: ['ct1', 'ct2'],
+        },
+      }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.coldOnlyOutletCount).toBe(2)
+  })
+
+  it('coldOnlyOutletCount is 0/undefined when all outlets are hot-fed', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'unvented_cylinder',
+        graphFacts: {
+          hotFedOutletNodeIds: ['sh1', 'sh2'],
+          coldOnlyOutletNodeIds: [],
+        },
+      }),
+      makeBaseFrame(),
+    )
+    // 0 cold-only outlets → value is undefined (not stored)
+    expect(scene.metadata.coldOnlyOutletCount).toBeUndefined()
+  })
+
+  it('outletCount equals hotFed + coldOnly combined', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({
+        systemType: 'unvented_cylinder',
+        graphFacts: {
+          hotFedOutletNodeIds: ['sh1'],
+          coldOnlyOutletNodeIds: ['ct1'],
+        },
+      }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.outletCount).toBe(2)
+    expect(scene.metadata.coldOnlyOutletCount).toBe(1)
+  })
+
+  it('coldOnlyOutletCount is undefined when no graphFacts provided', () => {
+    const scene = buildPlaySceneModel(
+      makeBaseControls({ systemType: 'combi' }),
+      makeBaseFrame(),
+    )
+    expect(scene.metadata.coldOnlyOutletCount).toBeUndefined()
+  })
+})

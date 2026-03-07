@@ -1,7 +1,7 @@
 // src/explainers/lego/animation/render/LabCanvas.tsx
 
 import React from 'react'
-import type { LabControls, LabFrame, OutletId } from '../types'
+import type { LabControls, LabFrame, OutletId, OutletControl } from '../types'
 import type { CapacitySummary } from '../capacitySummary'
 import { stepSimulation } from '../simulation'
 import { createCylinderStore, cylinderTempC } from '../storage'
@@ -56,6 +56,27 @@ const VALVE_DIAMOND_HALF_H = 10
 
 /** Radius of each S-plan zone valve circle (pixels). */
 const ZONE_VALVE_RADIUS = 8
+
+/**
+ * Determine whether an outlet control is cold-only (draws from cold supply only,
+ * never from the hot-water service).
+ *
+ * An outlet is cold-only when:
+ *   1. Its kind is 'cold_tap' (always cold regardless of graph facts), OR
+ *   2. Its bound builder graph node ID appears in graphFacts.coldOnlyOutletNodeIds.
+ *
+ * Cold-only outlets must:
+ *   - NOT appear on the hot branch from the splitter
+ *   - NOT contribute to DHW demand
+ *   - NOT consume stored hot water
+ *   - Be rendered with a cold (blue) colour scheme
+ */
+function isColdOnlyOutlet(outlet: OutletControl, controls: LabControls): boolean {
+  if (outlet.kind === 'cold_tap') return true
+  const bindings = controls.outletBindings ?? {}
+  const nodeId = bindings[outlet.id as OutletId]
+  return !!(nodeId && controls.graphFacts?.coldOnlyOutletNodeIds.includes(nodeId))
+}
 
 /**
  * Compute the cylinder fill fraction from a store temperature.
@@ -335,6 +356,21 @@ export function LabCanvas(props: {
   const fillY = cylY + (cylH - fillH)
   const fillColor = storeTempC !== null ? tempToThermalColor(storeTempC) : '#cfd8e3'
 
+  // ── Stored-system heat source box layout (PR16) ───────────────────────────
+  // For stored/heat_pump systems, the boiler or heat pump is a SEPARATE node
+  // rendered to the LEFT of the cylinder box.  It connects to the cylinder via
+  // the primary coil and to the heating emitters via the CH supply.
+  // This prevents the cylinder from visually appearing to be the heat source.
+  const isStoredLayout = scene.metadata.sceneLayoutKind !== 'combi'
+  const heatSrcBoxX = cylX - 165        // left edge of heat source box
+  const heatSrcBoxY = cylY              // top — same height as cylinder
+  const heatSrcBoxW = 145              // narrower than the cylinder box
+  const heatSrcBoxH = cylH             // same height as cylinder
+  const heatSrcCenterX = heatSrcBoxX + heatSrcBoxW / 2  // 127  (approx centre)
+  // Cold-supply pipe Y for stored unvented systems: runs below both boxes to avoid
+  // passing through the heat source area (cold feed goes to cylinder, not boiler).
+  const storedColdFeedY = cylY + cylH + 6  // just below both boxes
+
   // ── Emitter / CH circuit layout constants ─────────────────────────────────
   // These are derived from the emitter box position and size so that the CH
   // supply path and arrowhead stay in sync if the emitter box is repositioned.
@@ -523,22 +559,60 @@ export function LabCanvas(props: {
             duplicate cold feed (the side blue feed bug).
             scene.metadata.showGenericColdFeed encodes this rule explicitly so the
             renderer does not have to re-derive it from systemType.               */}
+        {/* For stored/heat_pump systems (PR16): the cold supply feeds the CYLINDER,
+            not the boiler.  Route below the heat source box to avoid visual confusion
+            that implies cold water passes through the boiler.
+            For combi systems: unchanged horizontal run at P.mainsY.              */}
         {scene.metadata.showGenericColdFeed && (
-          <>
-            {/* When TMV active: only draw from mains to pre-boiler tee. */}
-            <path
-              d={`M ${P.mainsX} ${P.mainsY} L ${tmvOutletAActive ? P.teeX : P.boilerX - 60} ${P.mainsY}`}
-              stroke="url(#grad-cold-supply)" strokeWidth={16} strokeLinecap="round" filter={mainsGlow}
-              opacity={THERMAL_COLOR_OPACITY}
-            />
-            <path
-              d={`M ${P.mainsX} ${P.mainsY} L ${tmvOutletAActive ? P.teeX : P.boilerX - 60} ${P.mainsY}`}
-              stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
-            />
-            <text x={P.mainsX - 4} y={P.mainsY - 18} fontSize={11} fill="#64748b" textAnchor="start">
-              Mains
-            </text>
-          </>
+          isStoredLayout ? (
+            // ── Stored system cold supply — routes below both appliance boxes ──
+            // mains (left) → horizontal below boxes → cylinder cold_in (bottom-left)
+            <>
+              <path
+                d={`M ${P.mainsX} ${storedColdFeedY} L ${cylX + 30} ${storedColdFeedY}`}
+                stroke="url(#grad-cold-supply)" strokeWidth={12} strokeLinecap="round"
+                opacity={THERMAL_COLOR_OPACITY}
+              />
+              <path
+                d={`M ${P.mainsX} ${storedColdFeedY} L ${cylX + 30} ${storedColdFeedY}`}
+                stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
+              />
+              {/* Short vertical entry into cylinder bottom */}
+              <path
+                d={`M ${cylX + 30} ${storedColdFeedY} L ${cylX + 30} ${cylY + cylH}`}
+                stroke="#bae6fd" strokeWidth={8} strokeLinecap="round" opacity={0.85}
+              />
+              <path
+                d={`M ${cylX + 30} ${storedColdFeedY} L ${cylX + 30} ${cylY + cylH}`}
+                stroke="#0ea5e9" strokeWidth={2} strokeLinecap="round"
+              />
+              {/* Downward arrow at cylinder cold_in entry */}
+              <polygon
+                points={`${cylX + 25},${cylY + cylH - 5} ${cylX + 35},${cylY + cylH - 5} ${cylX + 30},${cylY + cylH + 1}`}
+                fill="#0ea5e9" opacity={0.9}
+              />
+              <text x={P.mainsX - 4} y={storedColdFeedY - 6} fontSize={10} fill="#0369a1" textAnchor="start">
+                Cold feed
+              </text>
+            </>
+          ) : (
+            // ── Combi / mains — straight horizontal run ──────────────────────
+            <>
+              {/* When TMV active: only draw from mains to pre-boiler tee. */}
+              <path
+                d={`M ${P.mainsX} ${P.mainsY} L ${tmvOutletAActive ? P.teeX : P.boilerX - 60} ${P.mainsY}`}
+                stroke="url(#grad-cold-supply)" strokeWidth={16} strokeLinecap="round" filter={mainsGlow}
+                opacity={THERMAL_COLOR_OPACITY}
+              />
+              <path
+                d={`M ${P.mainsX} ${P.mainsY} L ${tmvOutletAActive ? P.teeX : P.boilerX - 60} ${P.mainsY}`}
+                stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round"
+              />
+              <text x={P.mainsX - 4} y={P.mainsY - 18} fontSize={11} fill="#64748b" textAnchor="start">
+                Mains
+              </text>
+            </>
+          )
         )}
 
         {/* ── CWS cistern indicator — vented / tank-fed systems only ──────── */}
@@ -739,140 +813,86 @@ export function LabCanvas(props: {
         ) : (
           <g>
             {/*
-             * Storage-state domain: indirect cylinder.
-             * The coil glow activates when the primary circuit is passing heat
-             * into the stored water (reheat mode).  The domestic draw path is
-             * entirely separate — stored water leaves from hot_out at the top,
-             * cold feed enters cold_in; neither path is the primary circuit.
-             * When CH is active, the boiler fires for the heating circuit;
-             * a burner-pulse indicator is shown to make the heat source visible.
-             * scene.metadata.showHeatSource / showHeatingPath drive these flags
-             * so the renderer does not have to re-derive them from systemMode.
+             * PR16: Stored / heat-pump system — heat source and cylinder are SEPARATE nodes.
+             *
+             * Layout (left to right):
+             *   [Heat Source box]  primary coil  [Cylinder (DHW store)]  DHW hot →  [splitter]
+             *        ↓ CH supply
+             *   [Emitters / radiators]
+             *
+             * The heat source (boiler or heat pump) is rendered as its own appliance
+             * block to the LEFT of the cylinder store.  The two blocks are connected
+             * by the primary coil circuit (not the domestic hot-water path).
+             *
+             * This explicitly shows:
+             *   • CH flow / CH return ports on the heat source (simplified to 2 ports).
+             *   • Primary coil as the indirect heat-transfer link to the store.
+             *   • DHW draw as a completely separate path from the cylinder hot-out.
+             *   • Heating emitters as a CH branch below the heat source.
              */}
-            {/* Cylinder tank background
-                PR5 domain-aware border:
-                  primary (coil active)  → purple stroke + primary-glow
-                  heating (CH active)    → orange stroke + heat-glow
-                  idle                   → grey stroke, no filter            */}
+
+            {/* ── Heat source box (separate from cylinder — PR16) ────────────── */}
+            {/* Simplified to 2 hydraulic ports: CH flow (right) and CH return (left).
+                The primary coil connection to the cylinder is shown as a bridge pipe,
+                not as additional ports on the heat source.                          */}
             <rect
-              x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
-              fill="#f1f5f9"
-              stroke={(coilActive || isHwActive) ? '#7c3aed' : (showHeatingPathAndEmitters) ? '#f97316' : '#c9d4e2'}
-              strokeWidth={(coilActive || isHwActive || showHeatingPathAndEmitters) ? 2.5 : 2}
-              filter={(coilActive || isHwActive) ? 'url(#primary-glow)' : showHeatingPathAndEmitters ? HEAT_GLOW : undefined}
+              x={heatSrcBoxX} y={heatSrcBoxY} width={heatSrcBoxW} height={heatSrcBoxH} rx={12}
+              fill={isCompressor ? '#ecfeff' : '#fefce8'}
+              stroke={
+                showHeatSourceIndicator
+                  ? (isCompressor ? '#0891b2' : isDhwFiring ? '#ea580c' : '#f97316')
+                  : '#c9d4e2'
+              }
+              strokeWidth={showHeatSourceIndicator ? 2.5 : 1.5}
+              filter={
+                showHeatSourceIndicator
+                  ? (isDhwFiring ? 'url(#dhw-glow)' : isCompressor ? 'url(#primary-glow)' : HEAT_GLOW)
+                  : boilerGlow
+              }
             />
-            {/* Thermal fill — clips to rounded rect.
-                Standard cylinder: fills from the bottom up (conventional warm-water level).
-                Mixergy cylinder:  fills from the TOP DOWN (active top-down stratification),
-                using a distinct purple tint to signal the different thermal physics.
-                This structural difference makes Mixergy visually distinct from a
-                standard cylinder — not just a relabelled schematic.              */}
-            {scene.metadata.isMixergy ? (
-              <rect
-                x={cylX} y={cylY} width={cylW} height={fillH}
-                fill="#7c3aed" opacity={MIXERGY_FILL_OPACITY} clipPath="url(#cyl-clip)"
-              />
-            ) : (
-              <rect
-                x={cylX} y={fillY} width={cylW} height={fillH}
-                fill={fillColor} opacity={0.75} clipPath="url(#cyl-clip)"
-              />
-            )}
-            {/* Border overlay */}
-            <rect
-              x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
-              fill="none" stroke="#94a3b8" strokeWidth={2}
-            />
-            <text x={P.boilerX + 30} y={P.boilerY - 10} textAnchor="middle" fontSize={13} fill="#334155" fontWeight={700}>
-              {cylinderLabel(scene.metadata.sceneLayoutKind, controls.systemType, scene.metadata.isMixergy)}
+            {/* Heat source label */}
+            <text
+              x={heatSrcBoxX + heatSrcBoxW / 2} y={heatSrcBoxY + 16}
+              textAnchor="middle" fontSize={12} fill={isCompressor ? '#0e7490' : '#334155'} fontWeight={700}
+            >
+              {isCompressor ? 'Heat Pump' : 'Boiler'}
             </text>
-            <text x={P.boilerX + 30} y={P.boilerY + 8} textAnchor="middle" fontSize={11}
-              fill={(coilActive || showHeatingPathAndEmitters) ? '#c2410c' : '#64748b'}>
+            {/* CH port indicators — simplified to 2 ports (CH flow + CH return) */}
+            <text
+              x={heatSrcBoxX + heatSrcBoxW - 6} y={heatSrcBoxY + 32}
+              textAnchor="end" fontSize={8}
+              fill={isChActive ? '#f97316' : '#94a3b8'}
+              fontWeight={isChActive ? 700 : 400}
+            >
+              CH flow →
+            </text>
+            <text
+              x={heatSrcBoxX + 6} y={heatSrcBoxY + 32}
+              textAnchor="start" fontSize={8}
+              fill={isChActive ? '#f97316' : '#94a3b8'}
+              fontWeight={isChActive ? 700 : 400}
+            >
+              ← CH return
+            </text>
+            {/* Operating mode status */}
+            <text
+              x={heatSrcBoxX + heatSrcBoxW / 2} y={heatSrcBoxY + 48}
+              textAnchor="middle" fontSize={10}
+              fill={showHeatSourceIndicator ? (isCompressor ? '#0891b2' : '#c2410c') : '#64748b'}
+            >
               {systemMode === 'heating_and_reheat'
-                ? 'CH + coil reheat (S-plan)'
-                : coilActive
-                  ? 'coil reheating store'
-                  : showHeatingPathAndEmitters
-                    ? (scene.metadata.sceneLayoutKind === 'heat_pump' ? 'heat pump running — CH' : 'boiler firing — CH')
-                    : 'Stored hot water'}
+                ? 'CH + coil (S-plan)'
+                : systemMode === 'dhw_reheat'
+                  ? 'coil reheat'
+                  : isChActive
+                    ? (isCompressor ? 'compressor · CH' : 'burner · CH')
+                    : 'standby'}
             </text>
-            {storeTempC !== null && (
-              <text x={P.boilerX + 30} y={P.boilerY + 24} textAnchor="middle" fontSize={11} fill="#b45309">
-                {roundTempC(storeTempC)} °C
-              </text>
-            )}
-            {/* Mixergy: top-down heat label — reinforces the structural fill direction
-                and distinguishes it from standard cylinders in the legend area.
-                The fill already communicates stratification visually; this label
-                reinforces it for clarity.                                          */}
-            {scene.metadata.isMixergy && (
-              <>
-                <text x={cylX + 8} y={cylY + 13} textAnchor="start" fontSize={8} fill="#7c3aed">
-                  ↓ hot
-                </text>
-                <text x={P.boilerX + 30} y={P.boilerY + 38} textAnchor="middle" fontSize={9} fill="#7c3aed">
-                  top-down stratification · reduced cycling
-                </text>
-              </>
-            )}
-            {/* ── Primary coil symbol — PR5: always visible, never hidden ──────
-                Represents the immersion coil (primary circuit) permanently plumbed
-                inside the cylinder.  Purple = primary domain.
-                Fades to 0.25 opacity when the coil is not actively reheating so
-                the structural circuit remains visible without implying flow.
-                Positioned at the bottom-right of the cylinder interior where it
-                does not overlap the boiler indicator or the centred text labels.  */}
-            {(() => {
-              // Highlight the coil when the primary circuit is actively transferring
-              // heat (coilActive = simulation visuals, isHwActive = system mode fallback
-              // for the first frame before visuals are available).
-              const shouldHighlightCoil = coilActive || isHwActive
-              // Coil symbol: 3-pass horizontal element in bottom-right of cylinder
-              const cx0 = cylX + cylW - 35  // left edge of coil symbol
-              const cx1 = cylX + cylW - 13  // right edge of coil symbol
-              const cy0 = cylY + 63         // top pass Y
-              const cyPitch = 8             // gap between passes
-              return (
-                <g opacity={shouldHighlightCoil ? 1 : 0.25}>
-                  {/* 3 horizontal coil passes */}
-                  {([0, 1, 2] as const).map(i => (
-                    <line
-                      key={i}
-                      x1={cx0} y1={cy0 + i * cyPitch}
-                      x2={cx1} y2={cy0 + i * cyPitch}
-                      stroke="#7c3aed" strokeWidth={2} strokeLinecap="round"
-                    />
-                  ))}
-                  {/* Right-side U-turn: pass 0 → pass 1 */}
-                  <path
-                    d={`M ${cx1} ${cy0} Q ${cx1 + 4} ${cy0 + cyPitch / 2} ${cx1} ${cy0 + cyPitch}`}
-                    stroke="#7c3aed" strokeWidth={2} fill="none" strokeLinecap="round"
-                  />
-                  {/* Left-side U-turn: pass 1 → pass 2 */}
-                  <path
-                    d={`M ${cx0} ${cy0 + cyPitch} Q ${cx0 - 4} ${cy0 + cyPitch * 1.5} ${cx0} ${cy0 + cyPitch * 2}`}
-                    stroke="#7c3aed" strokeWidth={2} fill="none" strokeLinecap="round"
-                  />
-                  {/* Domain label */}
-                  <text
-                    x={(cx0 + cx1) / 2} y={cy0 - 5}
-                    textAnchor="middle" fontSize={7} fill="#7c3aed"
-                  >
-                    {shouldHighlightCoil ? 'coil ▶' : 'Primary coil'}
-                  </text>
-                </g>
-              )
-            })()}
-            {/* Burner / compressor activity pulse — visible when heat source is active.
-                Always rendered (PR5 — never hide the boiler indicator).
-                Opacity drops to 0.35 when idle so the full topology remains visible
-                even at rest.  Fill and animation reflect the current activity kind:
-                  ch_firing   → amber (#fb923c), moderate burner-pulse
-                  dhw_firing  → orange-red (#ea580c), faster dhw-burst
-                  compressor  → cyan (#67e8f9), slow compressor-pulse */}
-            <g opacity={showHeatSourceIndicator ? 1 : 0.35}>
+            {/* Flame / compressor indicator — always visible, fades when idle (PR5).
+                Never inside the cylinder box — the heat source is a SEPARATE appliance. */}
+            <g opacity={showHeatSourceIndicator ? 1 : 0.3}>
               <circle
-                cx={cylX + 20} cy={cylY + cylH / 2}
+                cx={heatSrcBoxX + 20} cy={heatSrcBoxY + heatSrcBoxH / 2 + 12}
                 r={9}
                 fill={
                   !showHeatSourceIndicator ? '#94a3b8'
@@ -891,38 +911,165 @@ export function LabCanvas(props: {
                 }}
               />
               <text
-                x={cylX + 20} y={cylY + cylH / 2 + 5}
+                x={heatSrcBoxX + 20} y={heatSrcBoxY + heatSrcBoxH / 2 + 17}
                 textAnchor="middle" fontSize={11}
                 style={{ pointerEvents: 'none', userSelect: 'none' }}
               >
                 {isCompressor ? '⚡' : '🔥'}
               </text>
-              {/* "Boiler" label beneath the flame icon — distinguishes the heat source
-                  from the DHW store so the CH supply path is clearly boiler-sourced. */}
-              <text
-                x={cylX + 20} y={cylY + cylH / 2 + 20}
-                textAnchor="middle" fontSize={8} fill="#92400e"
-                style={{ pointerEvents: 'none', userSelect: 'none' }}
-              >
-                {isCompressor ? 'Heat pump' : 'Boiler'}
-              </text>
             </g>
-            {/* ── Valve / control-topology structural indicator — PR15 ─────────
-                Graph-driven structural rendering: the valve shape changes based on
-                the built graph control topology, not just a text label.
-                - Y-plan (3-port):  single diamond node → routes to CH or HW (mutually exclusive)
-                - S-plan (zone valves): two separate circle nodes → CH and HW independently
-                - hp_diverter: same two-circle layout (HP buffer / low-loss header)
-                - none: just CH / HW direction labels, no valve shape rendered         */}
+
+            {/* ── Primary coil bridge — heat source → cylinder coil ───────────── */}
+            {/* Connects the right side of the heat source box to the cylinder coil.
+                Two short parallel pipes in the 20px gap represent:
+                  upper: primary coil flow  (heat source → cylinder coil entry)
+                  lower: primary coil return (cylinder coil exit → heat source)
+                Both are coloured purple (primary domain) and fade when the coil is idle. */}
+            {(() => {
+              const gapLeft  = heatSrcBoxX + heatSrcBoxW   // = right edge of heat source
+              const gapRight = cylX                          // = left edge of cylinder
+              const flowY    = heatSrcBoxY + 30             // upper pipe (coil flow)
+              const retY     = heatSrcBoxY + heatSrcBoxH - 30  // lower pipe (coil return)
+              const coilOpacity = (coilActive || isHwActive) ? 1 : 0.25
+              return (
+                <g opacity={coilOpacity}>
+                  {/* Coil flow pipe */}
+                  <line
+                    x1={gapLeft} y1={flowY} x2={gapRight} y2={flowY}
+                    stroke="#7c3aed" strokeWidth={3} strokeLinecap="round"
+                  />
+                  <polygon
+                    points={`${gapRight - 6},${flowY - 4} ${gapRight},${flowY} ${gapRight - 6},${flowY + 4}`}
+                    fill="#7c3aed"
+                  />
+                  {/* Coil return pipe */}
+                  <line
+                    x1={gapRight} y1={retY} x2={gapLeft} y2={retY}
+                    stroke="#7c3aed" strokeWidth={3} strokeLinecap="round"
+                  />
+                  <polygon
+                    points={`${gapLeft + 6},${retY - 4} ${gapLeft},${retY} ${gapLeft + 6},${retY + 4}`}
+                    fill="#7c3aed"
+                  />
+                  {/* Primary domain label in the gap */}
+                  <text
+                    x={(gapLeft + gapRight) / 2} y={heatSrcBoxY + heatSrcBoxH / 2 + 4}
+                    textAnchor="middle" fontSize={7} fill="#7c3aed"
+                  >
+                    {(coilActive || isHwActive) ? 'primary ▶' : 'primary coil'}
+                  </text>
+                </g>
+              )
+            })()}
+
+            {/* ── Cylinder (DHW store only) — PR16: no flame inside ───────────── */}
+            {/* The cylinder is purely the thermal store.  The heat source has been
+                separated into its own box above.  The coil symbol inside the cylinder
+                still represents the immersion coil (permanently plumbed in).        */}
+            {/* Cylinder tank background — domain-aware border:
+                  primary (coil active)  → purple stroke + primary-glow
+                  heating (CH active)    → orange stroke + heat-glow
+                  idle                   → grey stroke, no filter            */}
+            <rect
+              x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
+              fill="#f1f5f9"
+              stroke={(coilActive || isHwActive) ? '#7c3aed' : '#c9d4e2'}
+              strokeWidth={(coilActive || isHwActive) ? 2.5 : 2}
+              filter={(coilActive || isHwActive) ? 'url(#primary-glow)' : undefined}
+            />
+            {/* Thermal fill — clips to rounded rect.
+                Standard cylinder: fills from the bottom up (conventional warm-water level).
+                Mixergy cylinder:  fills from the TOP DOWN (active top-down stratification),
+                using a distinct purple tint to signal the different thermal physics.  */}
+            {scene.metadata.isMixergy ? (
+              <rect
+                x={cylX} y={cylY} width={cylW} height={fillH}
+                fill="#7c3aed" opacity={MIXERGY_FILL_OPACITY} clipPath="url(#cyl-clip)"
+              />
+            ) : (
+              <rect
+                x={cylX} y={fillY} width={cylW} height={fillH}
+                fill={fillColor} opacity={0.75} clipPath="url(#cyl-clip)"
+              />
+            )}
+            {/* Border overlay */}
+            <rect
+              x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
+              fill="none" stroke="#94a3b8" strokeWidth={2}
+            />
+            {/* DHW store label — centred, clear of coil symbol (right side) */}
+            <text x={cylX + cylW / 2 - 15} y={cylY + 22} textAnchor="middle" fontSize={12} fill="#334155" fontWeight={700}>
+              {cylinderLabel(scene.metadata.sceneLayoutKind, controls.systemType, scene.metadata.isMixergy)}
+            </text>
+            {/* Store mode / status text */}
+            <text x={cylX + cylW / 2 - 15} y={cylY + 38} textAnchor="middle" fontSize={10}
+              fill={(coilActive || isHwActive) ? '#c2410c' : '#64748b'}>
+              {(coilActive || isHwActive)
+                ? (systemMode === 'heating_and_reheat' ? 'coil reheat (S-plan)' : 'coil reheating store')
+                : 'stored hot water'}
+            </text>
+            {storeTempC !== null && (
+              <text x={cylX + cylW / 2 - 15} y={cylY + 52} textAnchor="middle" fontSize={11} fill="#b45309">
+                {roundTempC(storeTempC)} °C
+              </text>
+            )}
+            {/* Mixergy: top-down heat label */}
+            {scene.metadata.isMixergy && (
+              <>
+                <text x={cylX + 8} y={cylY + 13} textAnchor="start" fontSize={8} fill="#7c3aed">
+                  ↓ hot
+                </text>
+                <text x={cylX + cylW / 2 - 15} y={cylY + 66} textAnchor="middle" fontSize={8} fill="#7c3aed">
+                  top-down stratification · reduced cycling
+                </text>
+              </>
+            )}
+            {/* ── Primary coil symbol — PR5: always visible ─────────────────────
+                Represents the immersion coil permanently plumbed inside the cylinder.
+                Purple = primary domain. Fades when coil is not actively reheating. */}
+            {(() => {
+              const shouldHighlightCoil = coilActive || isHwActive
+              const cx0 = cylX + cylW - 35
+              const cx1 = cylX + cylW - 13
+              const cy0 = cylY + 60
+              const cyPitch = 8
+              return (
+                <g opacity={shouldHighlightCoil ? 1 : 0.25}>
+                  {([0, 1, 2] as const).map(i => (
+                    <line
+                      key={i}
+                      x1={cx0} y1={cy0 + i * cyPitch}
+                      x2={cx1} y2={cy0 + i * cyPitch}
+                      stroke="#7c3aed" strokeWidth={2} strokeLinecap="round"
+                    />
+                  ))}
+                  <path
+                    d={`M ${cx1} ${cy0} Q ${cx1 + 4} ${cy0 + cyPitch / 2} ${cx1} ${cy0 + cyPitch}`}
+                    stroke="#7c3aed" strokeWidth={2} fill="none" strokeLinecap="round"
+                  />
+                  <path
+                    d={`M ${cx0} ${cy0 + cyPitch} Q ${cx0 - 4} ${cy0 + cyPitch * 1.5} ${cx0} ${cy0 + cyPitch * 2}`}
+                    stroke="#7c3aed" strokeWidth={2} fill="none" strokeLinecap="round"
+                  />
+                  <text x={(cx0 + cx1) / 2} y={cy0 - 5} textAnchor="middle" fontSize={7} fill="#7c3aed">
+                    {shouldHighlightCoil ? 'coil ▶' : 'Primary coil'}
+                  </text>
+                </g>
+              )
+            })()}
+
+            {/* ── Control valve indicator — sits between heat source and cylinder ─
+                Controls mediate routing from the heat source to the CH circuit and
+                the cylinder coil.  Rendered below both appliance boxes so it is
+                clearly a branch device, not embedded in either appliance.
+                Position: horizontally centred over the primary coil bridge gap.    */}
             {(() => {
               const topologyKind = scene.metadata.controlTopologyKind ?? 'none'
-              const cx = cylX + cylW / 2
-              const cy = cylY + cylH + 18
+              // Centre horizontally between heat source and cylinder boxes.
+              const cx = (heatSrcBoxX + heatSrcBoxW / 2 + cylX + cylW / 2) / 2
+              const cy = heatSrcBoxY + heatSrcBoxH + 22
 
               if (topologyKind === 'y_plan') {
-                // ── 3-port valve (Y-plan) — single diamond shape ────────────────
-                // The diamond routes boiler output to CH or HW — not both at once.
-                // Active side highlighted; inactive side faded.
                 const halfW = VALVE_DIAMOND_HALF_W
                 const halfH = VALVE_DIAMOND_HALF_H
                 const routingToCh = isChActive
@@ -930,11 +1077,9 @@ export function LabCanvas(props: {
                 const valveActive = isChActive || isHwActive
                 return (
                   <g>
-                    {/* 3-port valve label */}
                     <text x={cx} y={cy - 15} textAnchor="middle" fontSize={8} fill="#94a3b8">
                       {controlTopologyLabel(topologyKind, false)}
                     </text>
-                    {/* Diamond valve body */}
                     <polygon
                       points={`${cx},${cy - halfH} ${cx + halfW},${cy} ${cx},${cy + halfH} ${cx - halfW},${cy}`}
                       fill={valveActive ? '#fef3c7' : '#f8fafc'}
@@ -945,42 +1090,25 @@ export function LabCanvas(props: {
                       fill={valveActive ? '#92400e' : '#94a3b8'}>
                       {isChActive ? '→CH' : isHwActive ? '→HW' : '3P'}
                     </text>
-                    {/* CH branch arrow */}
-                    <line
-                      x1={cx - halfW} y1={cy} x2={cx - halfW - 20} y2={cy}
-                      stroke="#f97316" strokeWidth={2.5} strokeLinecap="round"
-                      opacity={routingToCh ? 1 : 0.2}
-                    />
+                    <line x1={cx - halfW} y1={cy} x2={cx - halfW - 20} y2={cy}
+                      stroke="#f97316" strokeWidth={2.5} strokeLinecap="round" opacity={routingToCh ? 1 : 0.2} />
                     <polygon
                       points={`${cx - halfW - 24},${cy - 4} ${cx - halfW - 16},${cy} ${cx - halfW - 24},${cy + 4}`}
-                      fill="#f97316"
-                      opacity={routingToCh ? 1 : 0.2}
-                    />
+                      fill="#f97316" opacity={routingToCh ? 1 : 0.2} />
                     <text x={cx - halfW - 28} y={cy + 4} textAnchor="end" fontSize={9}
-                      fill={routingToCh ? '#f97316' : '#94a3b8'}
-                      fontWeight={routingToCh ? 700 : 400}>CH</text>
-                    {/* HW branch arrow */}
-                    <line
-                      x1={cx + halfW} y1={cy} x2={cx + halfW + 20} y2={cy}
-                      stroke="#0284c7" strokeWidth={2.5} strokeLinecap="round"
-                      opacity={routingToHw ? 1 : 0.2}
-                    />
+                      fill={routingToCh ? '#f97316' : '#94a3b8'} fontWeight={routingToCh ? 700 : 400}>CH</text>
+                    <line x1={cx + halfW} y1={cy} x2={cx + halfW + 20} y2={cy}
+                      stroke="#0284c7" strokeWidth={2.5} strokeLinecap="round" opacity={routingToHw ? 1 : 0.2} />
                     <polygon
                       points={`${cx + halfW + 16},${cy - 4} ${cx + halfW + 24},${cy} ${cx + halfW + 16},${cy + 4}`}
-                      fill="#0284c7"
-                      opacity={routingToHw ? 1 : 0.2}
-                    />
+                      fill="#0284c7" opacity={routingToHw ? 1 : 0.2} />
                     <text x={cx + halfW + 28} y={cy + 4} textAnchor="start" fontSize={9}
-                      fill={routingToHw ? '#0284c7' : '#94a3b8'}
-                      fontWeight={routingToHw ? 700 : 400}>HW</text>
+                      fill={routingToHw ? '#0284c7' : '#94a3b8'} fontWeight={routingToHw ? 700 : 400}>HW</text>
                   </g>
                 )
               }
 
               if (topologyKind === 's_plan' || topologyKind === 's_plan_multi_zone') {
-                // ── S-plan zone valves — two independent circles ─────────────────
-                // CH zone valve (left circle) and HW zone valve (right circle) can
-                // both be open simultaneously (S-plan independence).
                 const chX = cx - 30
                 const hwX = cx + 30
                 const r = ZONE_VALVE_RADIUS
@@ -989,35 +1117,22 @@ export function LabCanvas(props: {
                     <text x={cx} y={cy - 22} textAnchor="middle" fontSize={8} fill="#94a3b8">
                       {controlTopologyLabel(topologyKind, false)}
                     </text>
-                    {/* CH zone valve circle */}
                     <circle cx={chX} cy={cy} r={r}
                       fill={isChActive ? '#fff7ed' : '#f8fafc'}
                       stroke={isChActive ? '#f97316' : '#94a3b8'}
-                      strokeWidth={isChActive ? 2 : 1.5}
-                    />
+                      strokeWidth={isChActive ? 2 : 1.5} />
                     <text x={chX} y={cy + 4} textAnchor="middle" fontSize={7}
-                      fill={isChActive ? '#f97316' : '#94a3b8'}
-                      fontWeight={isChActive ? 700 : 400}>CH</text>
-                    {/* CH open/closed indicator */}
+                      fill={isChActive ? '#f97316' : '#94a3b8'} fontWeight={isChActive ? 700 : 400}>CH</text>
                     <text x={chX} y={cy - r - 4} textAnchor="middle" fontSize={8}
-                      fill={isChActive ? '#16a34a' : '#94a3b8'}>
-                      {isChActive ? '▲' : '▽'}
-                    </text>
-                    {/* HW zone valve circle */}
+                      fill={isChActive ? '#16a34a' : '#94a3b8'}>{isChActive ? '▲' : '▽'}</text>
                     <circle cx={hwX} cy={cy} r={r}
                       fill={isHwActive ? '#eff6ff' : '#f8fafc'}
                       stroke={isHwActive ? '#0284c7' : '#94a3b8'}
-                      strokeWidth={isHwActive ? 2 : 1.5}
-                    />
+                      strokeWidth={isHwActive ? 2 : 1.5} />
                     <text x={hwX} y={cy + 4} textAnchor="middle" fontSize={7}
-                      fill={isHwActive ? '#0284c7' : '#94a3b8'}
-                      fontWeight={isHwActive ? 700 : 400}>HW</text>
-                    {/* HW open/closed indicator */}
+                      fill={isHwActive ? '#0284c7' : '#94a3b8'} fontWeight={isHwActive ? 700 : 400}>HW</text>
                     <text x={hwX} y={cy - r - 4} textAnchor="middle" fontSize={8}
-                      fill={isHwActive ? '#16a34a' : '#94a3b8'}>
-                      {isHwActive ? '▲' : '▽'}
-                    </text>
-                    {/* Simultaneous indicator — only shown when both are open (S-plan benefit) */}
+                      fill={isHwActive ? '#16a34a' : '#94a3b8'}>{isHwActive ? '▲' : '▽'}</text>
                     {isChActive && isHwActive && (
                       <text x={cx} y={cy + r + 12} textAnchor="middle" fontSize={7} fill="#16a34a">
                         simultaneous ✓
@@ -1028,7 +1143,6 @@ export function LabCanvas(props: {
               }
 
               if (topologyKind === 'hp_diverter') {
-                // ── HP diverter — two independent circles (similar to S-plan) ────
                 const chX = cx - 30
                 const hwX = cx + 30
                 const r = ZONE_VALVE_RADIUS
@@ -1040,50 +1154,34 @@ export function LabCanvas(props: {
                     <circle cx={chX} cy={cy} r={r}
                       fill={isChActive ? '#ecfeff' : '#f8fafc'}
                       stroke={isChActive ? '#0891b2' : '#94a3b8'}
-                      strokeWidth={isChActive ? 2 : 1.5}
-                    />
+                      strokeWidth={isChActive ? 2 : 1.5} />
                     <text x={chX} y={cy + 4} textAnchor="middle" fontSize={7}
-                      fill={isChActive ? '#0891b2' : '#94a3b8'}
-                      fontWeight={isChActive ? 700 : 400}>CH</text>
+                      fill={isChActive ? '#0891b2' : '#94a3b8'} fontWeight={isChActive ? 700 : 400}>CH</text>
                     <circle cx={hwX} cy={cy} r={r}
                       fill={isHwActive ? '#ecfeff' : '#f8fafc'}
                       stroke={isHwActive ? '#0891b2' : '#94a3b8'}
-                      strokeWidth={isHwActive ? 2 : 1.5}
-                    />
+                      strokeWidth={isHwActive ? 2 : 1.5} />
                     <text x={hwX} y={cy + 4} textAnchor="middle" fontSize={7}
-                      fill={isHwActive ? '#0891b2' : '#94a3b8'}
-                      fontWeight={isHwActive ? 700 : 400}>HW</text>
+                      fill={isHwActive ? '#0891b2' : '#94a3b8'} fontWeight={isHwActive ? 700 : 400}>HW</text>
                   </g>
                 )
               }
 
-              // ── No valve / unknown topology — minimal CH/HW labels only ────────
+              // No topology — minimal CH/HW labels
               return (
                 <g>
                   <text x={cx} y={cy - 3} textAnchor="middle" fontSize={8} fill="#94a3b8">
                     {controlTopologyLabel(topologyKind, isSPlanTopology)}
                   </text>
-                  <text
-                    x={cx - 30} y={cy + 14} textAnchor="middle" fontSize={9}
-                    fill={isChActive ? '#f97316' : '#94a3b8'}
-                    fontWeight={isChActive ? 700 : 400}
-                  >CH</text>
+                  <text x={cx - 30} y={cy + 14} textAnchor="middle" fontSize={9}
+                    fill={isChActive ? '#f97316' : '#94a3b8'} fontWeight={isChActive ? 700 : 400}>CH</text>
                   <circle cx={cx} cy={cy + 10} r={4} fill={systemMode === 'idle' ? '#94a3b8' : '#475569'} />
-                  <text
-                    x={cx + 30} y={cy + 14} textAnchor="middle" fontSize={9}
-                    fill={isHwActive ? '#0284c7' : '#94a3b8'}
-                    fontWeight={isHwActive ? 700 : 400}
-                  >HW</text>
-                  <line
-                    x1={cx - 4} y1={cy + 10} x2={cx - 22} y2={cy + 10}
-                    stroke="#f97316" strokeWidth={2} strokeLinecap="round"
-                    opacity={isChActive ? 1 : 0.2}
-                  />
-                  <line
-                    x1={cx + 4} y1={cy + 10} x2={cx + 22} y2={cy + 10}
-                    stroke="#0284c7" strokeWidth={2} strokeLinecap="round"
-                    opacity={isHwActive ? 1 : 0.2}
-                  />
+                  <text x={cx + 30} y={cy + 14} textAnchor="middle" fontSize={9}
+                    fill={isHwActive ? '#0284c7' : '#94a3b8'} fontWeight={isHwActive ? 700 : 400}>HW</text>
+                  <line x1={cx - 4} y1={cy + 10} x2={cx - 22} y2={cy + 10}
+                    stroke="#f97316" strokeWidth={2} strokeLinecap="round" opacity={isChActive ? 1 : 0.2} />
+                  <line x1={cx + 4} y1={cy + 10} x2={cx + 22} y2={cy + 10}
+                    stroke="#0284c7" strokeWidth={2} strokeLinecap="round" opacity={isHwActive ? 1 : 0.2} />
                 </g>
               )
             })()}
@@ -1124,134 +1222,257 @@ export function LabCanvas(props: {
             are not backed by a graph node are omitted entirely (not just faded),
             so the schematic shows the actual plumbing, not a preset maximum.
             When graphFacts are absent (legacy controls), fall back to all outlets. */}
+        {/* ── Outlet branches (hot-fed only) ──────────────────────────────── */}
+        {/* PR15: when the built graph's outlet count is known, only render outlet
+            branches that correspond to real graph outlets.  Extra A/B/C slots that
+            are not backed by a graph node are omitted entirely (not just faded),
+            so the schematic shows the actual plumbing, not a preset maximum.
+            PR16: cold-only outlets (cold taps) are excluded from this hot branch
+            and rendered separately below as cold-service outlets.
+            When graphFacts are absent (legacy controls), fall back to all outlets. */}
         {(() => {
           const graphOutletCount = scene.metadata.outletCount
           const visibleOutlets = graphOutletCount !== undefined
             ? controls.outlets.slice(0, Math.max(1, graphOutletCount))
             : controls.outlets
-          return visibleOutlets.map(outlet => {
-            const ox = outletXMap[outlet.id]
-            const oy = outletYMap[outlet.id]
-            const isEnabled = outlet.enabled
-            const centerStroke = isEnabled ? '#8aa1b6' : '#cbd5e1'
-            const delivered = summary.outletDeliveredLpm[outlet.id]
-            const sample = frame.outletSamples[outlet.id]
 
-            // For TMV outlet A: branch goes to mixer (mixerAX, mixerAY), not terminal.
-            const isTmvA = outlet.id === 'A' && tmvOutletAActive
-            const branchEndX = isTmvA ? P.mixerAX : ox
-            const branchEndY = isTmvA ? P.mixerAY : oy
-            const pathD = branchSvgPath(P.splitX, P.splitY, branchEndX, branchEndY, P.branchBendR)
+          // Separate hot-fed outlets from cold-only outlets (PR16).
+          const hotOutlets    = visibleOutlets.filter(o => !isColdOnlyOutlet(o, controls))
+          const coldOnlyOuts  = visibleOutlets.filter(o => isColdOnlyOutlet(o, controls))
 
-            // Colour for this branch: TMV outlet A hot branch uses hot colour (T_h),
-            // mixed outlet is drawn separately; other outlets use postHexThermalColor.
-            const branchColor = isEnabled ? (postHexThermalColor ?? '#cfd8e3') : '#e2e8f0'
+          return (
+            <>
+              {/* ── Hot-service branches ─────────────────────────────────── */}
+              {hotOutlets.map(outlet => {
+                const ox = outletXMap[outlet.id]
+                const oy = outletYMap[outlet.id]
+                const isEnabled = outlet.enabled
+                const centerStroke = isEnabled ? '#8aa1b6' : '#cbd5e1'
+                const delivered = summary.outletDeliveredLpm[outlet.id]
+                const sample = frame.outletSamples[outlet.id]
 
-            return (
-              <g key={outlet.id}>
-                {/* Active outlet glow ring — pulsing halo around the outlet terminal. */}
-                {isEnabled && (
-                  <circle
-                    cx={ox} cy={oy} r={19}
-                    fill={postHexThermalColor ?? '#f97316'}
-                    style={{ animation: 'outlet-glow 1.6s ease-in-out infinite' }}
-                  />
-                )}
-                {/* Branch pipe — 90° off-take + swept bend */}
-                <path
-                  d={pathD}
-                  stroke={branchColor}
-                  strokeWidth={16} strokeLinecap="round" fill="none"
-                  opacity={isEnabled ? (postHexThermalColor ? THERMAL_COLOR_OPACITY : 1) : 0.4}
-                />
-                <path
-                  d={pathD}
-                  stroke={centerStroke} strokeWidth={2} strokeLinecap="round" fill="none"
-                  opacity={isEnabled ? 1 : 0.4}
-                />
+                // For TMV outlet A: branch goes to mixer (mixerAX, mixerAY), not terminal.
+                const isTmvA = outlet.id === 'A' && tmvOutletAActive
+                const branchEndX = isTmvA ? P.mixerAX : ox
+                const branchEndY = isTmvA ? P.mixerAY : oy
+                const pathD = branchSvgPath(P.splitX, P.splitY, branchEndX, branchEndY, P.branchBendR)
 
-                {/* Outlet label */}
-                <text x={ox + 6} y={oy - 8} textAnchor="start" fontSize={12} fill={isEnabled ? '#334155' : '#94a3b8'} fontWeight={600}>
-                  {OUTLET_LABELS[outlet.id]} · {OUTLET_KIND_LABELS[outlet.kind]}
-                </text>
+                // Colour for this branch: other outlets use postHexThermalColor.
+                const branchColor = isEnabled ? (postHexThermalColor ?? '#cfd8e3') : '#e2e8f0'
 
-              {/* Readout badge: delivered L/min + temperature */}
-              {isEnabled && (
+                return (
+                  <g key={outlet.id}>
+                    {/* Active outlet glow ring — pulsing halo around the outlet terminal. */}
+                    {isEnabled && (
+                      <circle
+                        cx={ox} cy={oy} r={19}
+                        fill={postHexThermalColor ?? '#f97316'}
+                        style={{ animation: 'outlet-glow 1.6s ease-in-out infinite' }}
+                      />
+                    )}
+                    {/* Branch pipe — 90° off-take + swept bend */}
+                    <path
+                      d={pathD}
+                      stroke={branchColor}
+                      strokeWidth={16} strokeLinecap="round" fill="none"
+                      opacity={isEnabled ? (postHexThermalColor ? THERMAL_COLOR_OPACITY : 1) : 0.4}
+                    />
+                    <path
+                      d={pathD}
+                      stroke={centerStroke} strokeWidth={2} strokeLinecap="round" fill="none"
+                      opacity={isEnabled ? 1 : 0.4}
+                    />
+
+                    {/* Outlet label */}
+                    <text x={ox + 6} y={oy - 8} textAnchor="start" fontSize={12} fill={isEnabled ? '#334155' : '#94a3b8'} fontWeight={600}>
+                      {OUTLET_LABELS[outlet.id]} · {OUTLET_KIND_LABELS[outlet.kind]}
+                    </text>
+
+                    {/* Readout badge: delivered L/min + temperature */}
+                    {isEnabled && (
+                      <g>
+                        <text x={ox + 6} y={oy + 8} textAnchor="start" fontSize={11} fill="#0f766e">
+                          {delivered.toFixed(1)} L/min
+                        </text>
+                        {sample.count > 0 && (
+                          <text x={ox + 6} y={oy + 22} textAnchor="start" fontSize={11}
+                            fill={combiIsFailing ? '#b91c1c' : '#b45309'}>
+                            ~{roundTempC(sample.tempC)} °C
+                          </text>
+                        )}
+                        {/* TMV outlet A: show target and mixed temp */}
+                        {isTmvA && tmvOutcomeA && (
+                          <>
+                            <text x={ox + 6} y={oy + 36} textAnchor="start" fontSize={10}
+                              fill={tmvSaturated ? '#b91c1c' : '#0f766e'}>
+                              Mix: {roundTempC(tmvOutcomeA.T_mix)} °C
+                              {tmvSaturated ? ' ⚠' : ' ✓'}
+                            </text>
+                            <text x={ox + 6} y={oy + 50} textAnchor="start" fontSize={10} fill="#64748b">
+                              Target: {outletA?.tmvTargetTempC ?? 40} °C
+                            </text>
+                          </>
+                        )}
+                        {/* Show achieved vs target when non-TMV combi can't hit target */}
+                        {!isCylinder && !isTmvA && summary.achievedOutTempC !== undefined && combiIsFailing && (
+                          <text x={ox + 6} y={oy + 36} textAnchor="start" fontSize={10} fill="#b91c1c">
+                            ⚠ target {controls.dhwSetpointC} °C
+                          </text>
+                        )}
+                      </g>
+                    )}
+                    {!isEnabled && (
+                      <text x={ox + 6} y={oy + 8} textAnchor="start" fontSize={11} fill="#94a3b8">
+                        off
+                      </text>
+                    )}
+                  </g>
+                )
+              })}
+
+              {/* ── Cold-only service endpoints (PR16) ────────────────────── */}
+              {/* Cold taps draw from cold supply only — they must NOT appear on the
+                  hot branch from the splitter.  Rendered separately in the cold domain
+                  (blue colour scheme) below the mains entry, branching from the cold
+                  supply pipe.  No temperature readout (always at cold-inlet temp).     */}
+              {coldOnlyOuts.length > 0 && (
                 <g>
-                  <text x={ox + 6} y={oy + 8} textAnchor="start" fontSize={11} fill="#0f766e">
-                    {delivered.toFixed(1)} L/min
+                  {coldOnlyOuts.map((outlet, i) => {
+                    const coldBranchX = P.mainsX + 50 + i * 80   // staggered along cold supply
+                    const coldBranchY = P.mainsY + 55             // below the cold supply pipe
+                    const isEnabled = outlet.enabled
+                    const delivered = summary.outletDeliveredLpm[outlet.id]
+                    return (
+                      <g key={outlet.id}>
+                        {/* Cold supply branch — vertical drop from mains */}
+                        <line
+                          x1={coldBranchX} y1={P.mainsY}
+                          x2={coldBranchX} y2={coldBranchY}
+                          stroke={coldSupplyColor}
+                          strokeWidth={10} strokeLinecap="round"
+                          opacity={isEnabled ? THERMAL_COLOR_OPACITY : 0.4}
+                        />
+                        <line
+                          x1={coldBranchX} y1={P.mainsY}
+                          x2={coldBranchX} y2={coldBranchY}
+                          stroke={isEnabled ? '#0ea5e9' : '#cbd5e1'}
+                          strokeWidth={2} strokeLinecap="round"
+                          opacity={isEnabled ? 1 : 0.4}
+                        />
+                        {/* Cold tap terminal circle */}
+                        {isEnabled && (
+                          <circle
+                            cx={coldBranchX} cy={coldBranchY}
+                            r={14}
+                            fill={coldSupplyColor}
+                            opacity={0.2}
+                            style={{ animation: 'outlet-glow 1.6s ease-in-out infinite' }}
+                          />
+                        )}
+                        <circle
+                          cx={coldBranchX} cy={coldBranchY}
+                          r={9}
+                          fill={isEnabled ? '#e0f2fe' : '#f8fafc'}
+                          stroke={isEnabled ? '#0284c7' : '#94a3b8'}
+                          strokeWidth={isEnabled ? 2 : 1.5}
+                        />
+                        {/* Cold-only label */}
+                        <text
+                          x={coldBranchX} y={coldBranchY + 20}
+                          textAnchor="middle" fontSize={10}
+                          fill={isEnabled ? '#0369a1' : '#94a3b8'} fontWeight={600}
+                        >
+                          {OUTLET_LABELS[outlet.id]}
+                        </text>
+                        <text
+                          x={coldBranchX} y={coldBranchY + 32}
+                          textAnchor="middle" fontSize={9}
+                          fill={isEnabled ? '#0369a1' : '#94a3b8'}
+                        >
+                          Cold tap (cold only)
+                        </text>
+                        {isEnabled && delivered > 0 && (
+                          <text
+                            x={coldBranchX} y={coldBranchY + 44}
+                            textAnchor="middle" fontSize={9} fill="#0284c7"
+                          >
+                            {delivered.toFixed(1)} L/min
+                          </text>
+                        )}
+                        {!isEnabled && (
+                          <text
+                            x={coldBranchX} y={coldBranchY + 44}
+                            textAnchor="middle" fontSize={9} fill="#94a3b8"
+                          >off</text>
+                        )}
+                      </g>
+                    )
+                  })}
+                  {/* Cold-only domain label */}
+                  <text
+                    x={P.mainsX + 50 + (coldOnlyOuts.length - 1) * 40}
+                    y={P.mainsY + 48}
+                    textAnchor="start" fontSize={8} fill="#0369a1"
+                  >
+                    Cold supply only
                   </text>
-                  {sample.count > 0 && (
-                    <text x={ox + 6} y={oy + 22} textAnchor="start" fontSize={11}
-                      fill={combiIsFailing ? '#b91c1c' : '#b45309'}>
-                      ~{roundTempC(sample.tempC)} °C
-                    </text>
-                  )}
-                  {/* TMV outlet A: show target and mixed temp */}
-                  {isTmvA && tmvOutcomeA && (
-                    <>
-                      <text x={ox + 6} y={oy + 36} textAnchor="start" fontSize={10}
-                        fill={tmvSaturated ? '#b91c1c' : '#0f766e'}>
-                        Mix: {roundTempC(tmvOutcomeA.T_mix)} °C
-                        {tmvSaturated ? ' ⚠' : ' ✓'}
-                      </text>
-                      <text x={ox + 6} y={oy + 50} textAnchor="start" fontSize={10} fill="#64748b">
-                        Target: {outletA?.tmvTargetTempC ?? 40} °C
-                      </text>
-                    </>
-                  )}
-                  {/* Show achieved vs target when non-TMV combi can't hit target */}
-                  {!isCylinder && !isTmvA && summary.achievedOutTempC !== undefined && combiIsFailing && (
-                    <text x={ox + 6} y={oy + 36} textAnchor="start" fontSize={10} fill="#b91c1c">
-                      ⚠ target {controls.dhwSetpointC} °C
-                    </text>
-                  )}
                 </g>
               )}
-              {!isEnabled && (
-                <text x={ox + 6} y={oy + 8} textAnchor="start" fontSize={11} fill="#94a3b8">
-                  off
-                </text>
-              )}
-            </g>
+            </>
           )
-        })
         })()}
 
         {/* ── Emitter / radiator heat-emission indicator ─────────────────── */}
         {/* Rendered whenever the graph contains a heating circuit (PR5: always
             show full topology).  Opacity drops to 0.35 when CH is inactive so the
             structure remains visible but clearly faint while DHW-only or idle.
-            When active the CH supply path is drawn from the boiler indicator
-            position (inside the composite box) — NOT from the cylinder domestic
-            side — so the heat source is unambiguously the boiler, not the store.
-            scene.metadata.showHeatingPath gates this whole section; the renderer
-            does not independently re-derive the CH-active flag.                 */}
+            For stored systems (PR16): CH supply path originates from the HEAT SOURCE
+            box, not from the cylinder.  This makes the CH circuit clearly separate
+            from the DHW domain.
+            For combi systems: supply path originates from the combined boiler/HEX box.
+            scene.metadata.showHeatingPath gates this whole section.               */}
         {showHeatingPathAndEmitters && (
           <g opacity={isChActive ? 1 : 0.35}>
-            {/* CH primary supply pipe — routed from directly below the boiler
-                indicator (cylX+20) so the path clearly originates at the boiler,
-                not at the cylinder DHW store edge.
-                Path: boiler bottom (cylX+20, cylY+cylH) → down → left to emitter. */}
-            <path
-              d={`M ${cylX + 20} ${cylY + cylH} L ${cylX + 20} ${emitterCenterY} L ${emitterRightX} ${emitterCenterY}`}
-              stroke="#f97316" strokeWidth={3} fill="none" strokeLinecap="round"
-              opacity={0.8}
-            />
+            {/* CH primary supply pipe.
+                Stored systems (PR16): from heat source box centre-bottom → down → left to emitter.
+                  Origin: (heatSrcCenterX, cylY+cylH)
+                  Goes: vertical to emitterCenterY, then horizontal left to emitterRightX.
+                Combi systems: from combined boiler/HEX box bottom → same routing.
+                  Origin: (cylX+20, cylY+cylH)
+                The heat source is unambiguously the boiler, not the cylinder/store. */}
+            {isStoredLayout ? (
+              <path
+                d={`M ${heatSrcCenterX} ${heatSrcBoxY + heatSrcBoxH} L ${heatSrcCenterX} ${emitterCenterY} L ${emitterRightX} ${emitterCenterY}`}
+                stroke="#f97316" strokeWidth={3} fill="none" strokeLinecap="round"
+                opacity={0.8}
+              />
+            ) : (
+              <path
+                d={`M ${cylX + 20} ${cylY + cylH} L ${cylX + 20} ${emitterCenterY} L ${emitterRightX} ${emitterCenterY}`}
+                stroke="#f97316" strokeWidth={3} fill="none" strokeLinecap="round"
+                opacity={0.8}
+              />
+            )}
             {/* Arrowhead pointing left into the emitter box — tip at emitterRightX */}
             <polygon
               points={`${emitterRightX + 2},${emitterCenterY - 4} ${emitterRightX + 10},${emitterCenterY} ${emitterRightX + 2},${emitterCenterY + 4}`}
               fill="#f97316" opacity={0.8}
             />
-            {/* CH supply label centred on the horizontal run */}
-            <text x={Math.round((cylX + 20 + emitterRightX) / 2)} y={emitterCenterY - 8} textAnchor="middle" fontSize={9} fill="#ea580c">
+            {/* CH supply label — centred on the horizontal run */}
+            <text
+              x={Math.round(((isStoredLayout ? heatSrcCenterX : cylX + 20) + emitterRightX) / 2)}
+              y={emitterCenterY - 8}
+              textAnchor="middle" fontSize={9} fill="#ea580c"
+            >
               CH supply
             </text>
-            {/* Radiator box */}
+            {/* Radiator / emitter box — the CH circuit load.
+                Labelled as a distinct "CH heating circuit" to reinforce separation
+                from the DHW service branch.  Heat-wave glyphs animate when active. */}
             <rect x={emitterX} y={emitterY} width={emitterW} height={emitterH} rx={5}
               fill={isChActive ? '#fff7ed' : '#f8fafc'} stroke={isChActive ? '#f97316' : '#94a3b8'} strokeWidth={1.5}
             />
-            <text x={emitterX + emitterW / 2} y={emitterY + 13} textAnchor="middle" fontSize={10} fill={isChActive ? '#9a3412' : '#64748b'} fontWeight={700}>Radiators</text>
+            <text x={emitterX + emitterW / 2} y={emitterY + 13} textAnchor="middle" fontSize={10} fill={isChActive ? '#9a3412' : '#64748b'} fontWeight={700}>Radiators (CH)</text>
             <text x={emitterX + emitterW / 2} y={emitterY + 27} textAnchor="middle" fontSize={9} fill={isChActive ? '#c2410c' : '#94a3b8'}>
               {isChActive ? 'heating active' : 'heating off'}
             </text>
