@@ -8,6 +8,7 @@ const R = TOKEN_W;
 const T = 0;
 const B = TOKEN_H;
 const MID_Y = TOKEN_H / 2;
+const MID_X = TOKEN_W / 2;
 
 export function portsForKind(kind: PartKind): PortDef[] {
   switch (kind) {
@@ -49,11 +50,11 @@ export function portsForKind(kind: PartKind): PortDef[] {
     case 'dhw_vented_cylinder':
       return [
         // Primary heating circuit — left side (coil)
-        { id: 'coil_flow',    dx: L, dy: T + 18, role: 'flow',   label: 'flow',     direction: 'in'  },
-        { id: 'coil_return',  dx: L, dy: B - 18, role: 'return', label: 'return',   direction: 'out' },
-        // Domestic water circuit — right side
-        { id: 'hot_out',      dx: R, dy: T,       role: 'hot',    label: 'hot out',  direction: 'out' },
-        { id: 'cold_in',      dx: R, dy: B,       role: 'cold',   label: 'cold in',  direction: 'in'  },
+        { id: 'coil_flow',    dx: L,     dy: T + 18, role: 'flow',   label: 'flow',    direction: 'in'  },
+        { id: 'coil_return',  dx: L,     dy: B - 18, role: 'return', label: 'return',  direction: 'out' },
+        // Domestic water circuit — top (hot out) and bottom (cold in)
+        { id: 'hot_out',      dx: MID_X, dy: T,      role: 'hot',    label: 'hot out', direction: 'out' },
+        { id: 'cold_in',      dx: MID_X, dy: B,      role: 'cold',   label: 'cold in', direction: 'in'  },
       ];
 
     case 'pump':

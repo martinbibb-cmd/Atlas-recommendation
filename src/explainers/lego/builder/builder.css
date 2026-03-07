@@ -400,6 +400,12 @@
   gap: 2px;
 }
 
+/* Flip label above the port button for ports positioned in the bottom half */
+.port-label--above {
+  top: auto;
+  bottom: 14px;
+}
+
 .port-arrow {
   font-size: 0.65rem;
   color: #718096;
@@ -501,6 +507,33 @@
 .token.highlighted {
   border-color: #d97706;
   box-shadow: 0 10px 24px rgb(217 119 6 / 20%);
+}
+
+/* ── Role-specific token styles ───────────────────────────────────────────── */
+
+/* Heat sources (system / regular boiler, heat pump) — warm orange tint */
+.token--source {
+  background: linear-gradient(135deg, #fffbf5 0%, #fff8f0 100%);
+  border-color: #c05621;
+}
+
+/* Combi boiler — split background: warm CH zone (top) / blue DHW zone (bottom) */
+.token--combi {
+  background: linear-gradient(180deg, #fffbf5 55%, #ebf8ff 55%);
+  border-color: #c05621;
+}
+
+/* Cylinder — cool blue tint to show stored water; slightly rounded top/bottom */
+.token--cylinder {
+  background: linear-gradient(180deg, #f0f8ff 0%, #ebf8ff 100%);
+  border-color: #2b6cb0;
+  border-radius: 14px 14px 18px 18px;
+}
+
+/* Emitters (radiators, UFH) — subtle purple/warm tint for heat delivery */
+.token--emitter {
+  background: linear-gradient(135deg, #faf5ff 0%, #f7fafc 100%);
+  border-color: #6b46c1;
 }
 
 .snap-ghost {
