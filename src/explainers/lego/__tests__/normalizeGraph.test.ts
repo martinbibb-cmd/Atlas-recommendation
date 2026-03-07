@@ -145,8 +145,8 @@ describe('normalizeGraph — already-clean graph', () => {
         { id: 'rads',kind: 'radiator_loop',     x: 300, y: 0, r: 0 },
       ],
       edges: [
-        { id: 'ch1', from: { nodeId: 'hs', portId: 'ch_flow_out' }, to: { nodeId: 'rads', portId: 'flow_in' } },
-        { id: 'ch2', from: { nodeId: 'rads', portId: 'return_out' }, to: { nodeId: 'hs', portId: 'ch_return_in' } },
+        { id: 'ch1', from: { nodeId: 'hs', portId: 'flow_out' }, to: { nodeId: 'rads', portId: 'flow_in' } },
+        { id: 'ch2', from: { nodeId: 'rads', portId: 'return_out' }, to: { nodeId: 'hs', portId: 'return_in' } },
       ],
     }
 
@@ -202,8 +202,8 @@ describe('validateGraph — emitter connectivity (no false positive for simple c
         { id: 'rads', kind: 'radiator_loop',     x: 300, y: 0, r: 0 },
       ],
       edges: [
-        { id: 'ch1', from: { nodeId: 'hs',   portId: 'ch_flow_out'  }, to: { nodeId: 'rads', portId: 'flow_in'    } },
-        { id: 'ch2', from: { nodeId: 'rads', portId: 'return_out'   }, to: { nodeId: 'hs',   portId: 'ch_return_in'} },
+        { id: 'ch1', from: { nodeId: 'hs',   portId: 'flow_out'   }, to: { nodeId: 'rads', portId: 'flow_in'  } },
+        { id: 'ch2', from: { nodeId: 'rads', portId: 'return_out' }, to: { nodeId: 'hs',   portId: 'return_in'} },
       ],
     }
 
@@ -220,7 +220,7 @@ describe('validateGraph — emitter connectivity (no false positive for simple c
       ],
       edges: [
         // Only the return side is connected
-        { id: 'ch2', from: { nodeId: 'rads', portId: 'return_out' }, to: { nodeId: 'hs', portId: 'ch_return_in' } },
+        { id: 'ch2', from: { nodeId: 'rads', portId: 'return_out' }, to: { nodeId: 'hs', portId: 'return_in' } },
       ],
     }
 

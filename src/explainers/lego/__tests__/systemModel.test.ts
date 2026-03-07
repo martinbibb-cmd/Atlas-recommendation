@@ -122,7 +122,7 @@ describe('conceptModelToGraph — combi', () => {
 
   it('connects CH flow from boiler to radiator_loop', () => {
     const chFlowEdge = graph.edges.find(
-      e => e.from.nodeId === 'hs' && e.from.portId === 'ch_flow_out' &&
+      e => e.from.nodeId === 'hs' && e.from.portId === 'flow_out' &&
            e.to.portId === 'flow_in',
     );
     expect(chFlowEdge).toBeDefined();
@@ -161,7 +161,7 @@ describe('conceptModelToGraph — regular boiler + Y-plan + vented cylinder', ()
 
   it('connects boiler CH flow to three_port_valve', () => {
     const edge = graph.edges.find(
-      e => e.from.nodeId === 'hs' && e.from.portId === 'ch_flow_out' &&
+      e => e.from.nodeId === 'hs' && e.from.portId === 'flow_out' &&
            e.to.nodeId === 'v3',
     );
     expect(edge).toBeDefined();

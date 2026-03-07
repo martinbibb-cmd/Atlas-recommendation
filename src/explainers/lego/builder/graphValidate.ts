@@ -179,13 +179,13 @@ export function validateGraph(graph: BuildGraph): GraphWarning[] {
     // Use the extended adjacency (which includes intra-node port connections)
     // so the path search can traverse through pumps, zone valves, etc.
     const anyFlowReach = heatSources.some(hs => {
-      const flowStarts = [`${hs.id}:ch_flow_out`, `${hs.id}:flow_out`]
-      return flowStarts.some(start => hasPath(extAdjacency, start, flowPort))
+      const flowStart = `${hs.id}:flow_out`
+      return hasPath(extAdjacency, flowStart, flowPort)
     })
 
     const anyReturnReach = heatSources.some(hs => {
-      const returnStarts = [`${hs.id}:ch_return_in`, `${hs.id}:return_in`]
-      return returnStarts.some(start => hasPath(extAdjacency, start, returnPort))
+      const returnStart = `${hs.id}:return_in`
+      return hasPath(extAdjacency, returnStart, returnPort)
     })
 
     if (!anyFlowReach || !anyReturnReach) {

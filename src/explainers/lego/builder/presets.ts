@@ -50,8 +50,8 @@ export const PRESETS: LabPreset[] = [
       ],
       edges: [
         // CH loop
-        e('ch1', 'hs',  'ch_flow_out', 'rads', 'flow_in',  'heating'),
-        e('ch2', 'rads','return_out',  'hs',   'ch_return_in', 'heating'),
+        e('ch1', 'hs',  'flow_out',  'rads', 'flow_in',  'heating'),
+        e('ch2', 'rads','return_out', 'hs',   'return_in', 'heating'),
         // Hot distribution via manifold
         e('hot_link',  'hs',  'hot_out', 'mh', 'in',       'dhw'),
         e('mh_sh',     'mh',  'out1',    'sh',      'hot_in',  'dhw'),
@@ -98,14 +98,14 @@ export const PRESETS: LabPreset[] = [
       ],
       edges: [
         // CH loop via 3-port valve
-        e('b1', 'hs',   'ch_flow_out',  'v3',  'in',         'heating'),
-        e('b2', 'v3',   'out_a',        'rads','flow_in',     'heating'),
-        e('b3', 'rads', 'return_out',   'hs',  'ch_return_in','heating'),
-        e('b4', 'v3',   'out_b',        'cyl', 'coil_flow',   'primary'),
-        e('b5', 'cyl',  'coil_return',  'hs',  'ch_return_in','primary'),
+        e('b1', 'hs',   'flow_out',   'v3',  'in',         'heating'),
+        e('b2', 'v3',   'out_a',      'rads','flow_in',     'heating'),
+        e('b3', 'rads', 'return_out', 'hs',  'return_in',  'heating'),
+        e('b4', 'v3',   'out_b',      'cyl', 'coil_flow',  'primary'),
+        e('b5', 'cyl',  'coil_return','hs',  'return_in',  'primary'),
         // F&E and open vent
-        e('fe1', 'fe',  'feed_in',      'hs',  'ch_return_in','heating'),
-        e('ov1', 'ov',  'vent_in',      'hs',  'ch_flow_out', 'heating'),
+        e('fe1', 'fe',  'feed_in',    'hs',  'return_in',  'heating'),
+        e('ov1', 'ov',  'vent_in',    'hs',  'flow_out',   'heating'),
         // Hot distribution via manifold
         e('hot_link',  'cyl', 'hot_out', 'mh', 'in',         'dhw'),
         e('mh_sh',     'mh',  'out1',   'sh',   'hot_in',    'dhw'),
@@ -152,16 +152,16 @@ export const PRESETS: LabPreset[] = [
       ],
       edges: [
         // Boiler → pump → tee → zone valves
-        e('p1',  'hs',    'ch_flow_out', 'pump',  'in',          'heating'),
-        e('p2',  'pump',  'out',         'tee_f', 'in',          'heating'),
-        e('pf1', 'tee_f', 'out1',        'zch',   'in',          'heating'),
-        e('pf2', 'tee_f', 'out2',        'zcyl',  'in',          'primary'),
+        e('p1',  'hs',    'flow_out',   'pump',  'in',          'heating'),
+        e('p2',  'pump',  'out',        'tee_f', 'in',          'heating'),
+        e('pf1', 'tee_f', 'out1',       'zch',   'in',          'heating'),
+        e('pf2', 'tee_f', 'out2',       'zcyl',  'in',          'primary'),
         // CH zone
-        e('ch1', 'zch',  'out_a',       'rads', 'flow_in',       'heating'),
-        e('ch2', 'rads', 'return_out',  'hs',   'ch_return_in',  'heating'),
+        e('ch1', 'zch',  'out_a',      'rads', 'flow_in',       'heating'),
+        e('ch2', 'rads', 'return_out', 'hs',   'return_in',     'heating'),
         // Cylinder coil zone
-        e('cy1', 'zcyl', 'out_a',       'cyl',  'coil_flow',     'primary'),
-        e('cy2', 'cyl',  'coil_return', 'hs',   'ch_return_in',  'primary'),
+        e('cy1', 'zcyl', 'out_a',       'cyl',  'coil_flow',    'primary'),
+        e('cy2', 'cyl',  'coil_return', 'hs',   'return_in',    'primary'),
         // Hot distribution via manifold
         e('hot_link',  'cyl', 'hot_out', 'mh', 'in',             'dhw'),
         e('mh_sh',     'mh',  'out1',   'sh',   'hot_in',        'dhw'),

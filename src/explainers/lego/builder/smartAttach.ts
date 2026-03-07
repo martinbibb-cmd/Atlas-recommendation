@@ -105,9 +105,8 @@ function findAnchor(nodes: BuildNode[]): BuildNode | null {
 }
 
 /** Returns the CH-circuit flow-out and return-in port IDs for a heat source. */
-function heatSourcePorts(kind: PartKind): { flowOut: string; returnIn: string } {
-  if (kind === 'heat_source_heat_pump') return { flowOut: 'flow_out', returnIn: 'return_in' }
-  return { flowOut: 'ch_flow_out', returnIn: 'ch_return_in' }
+function heatSourcePorts(_kind: PartKind): { flowOut: string; returnIn: string } {
+  return { flowOut: 'flow_out', returnIn: 'return_in' }
 }
 
 // ─── smartAdd ────────────────────────────────────────────────────────────────
@@ -168,16 +167,6 @@ export function smartAdd(
       nodes = [...nodes, cwsNode]
       edges = tryAddEdge(edges, cwsNode.id, 'cold_out', newNode.id, 'cold_in')
     }
-
-    // System / regular boiler: connect coil ports
-    if (
-      anchor &&
-      (anchor.kind === 'heat_source_system_boiler' ||
-        anchor.kind === 'heat_source_regular_boiler')
-    ) {
-      edges = tryAddEdge(edges, anchor.id, 'coil_flow', newNode.id, 'coil_flow')
-      edges = tryAddEdge(edges, newNode.id, 'coil_return', anchor.id, 'coil_return')
-    }
   }
 
   // ── Outlets ───────────────────────────────────────────────────────────────
@@ -211,7 +200,7 @@ export function smartAdd(
 
   // ── Regular-boiler safety tokens ──────────────────────────────────────────
   if (kind === 'open_vent' && anchor && anchor.kind === 'heat_source_regular_boiler') {
-    edges = tryAddEdge(edges, anchor.id, 'ch_flow_out', newNode.id, 'vent_in')
+    edges = tryAddEdge(edges, anchor.id, 'flow_out', newNode.id, 'vent_in')
   }
 
   if (kind === 'feed_and_expansion') {
