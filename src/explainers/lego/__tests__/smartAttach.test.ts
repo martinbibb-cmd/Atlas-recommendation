@@ -181,6 +181,27 @@ describe('smartAdd — outlets (hot + cold)', () => {
 
     expect(hasEdge(g, 'dhw_unvented_cylinder', 'hot_out', 'tap_outlet', 'hot_in')).toBe(true)
   })
+
+  it('connects tap cold supply from cylinder cold_in (shared mains junction) on unvented stored system', () => {
+    // Unvented cylinder — no CWS cistern, so cold rail is the cylinder's cold_in
+    let g = smartAdd(emptyGraph(), 'heat_source_system_boiler').nextGraph
+    g = smartAdd(g, 'dhw_unvented_cylinder').nextGraph
+    g = smartAdd(g, 'tap_outlet').nextGraph
+
+    expect(hasEdge(g, 'dhw_unvented_cylinder', 'cold_in', 'tap_outlet', 'cold_in')).toBe(true)
+  })
+
+  it('connects tap cold supply from CWS cold_out on vented stored system', () => {
+    // Vented cylinder — CWS is auto-added and is the authoritative cold source
+    let g = smartAdd(emptyGraph(), 'heat_source_regular_boiler').nextGraph
+    g = smartAdd(g, 'dhw_vented_cylinder').nextGraph // auto-adds CWS
+    g = smartAdd(g, 'tap_outlet').nextGraph
+
+    expect(hasEdge(g, 'dhw_vented_cylinder', 'hot_out', 'tap_outlet', 'hot_in')).toBe(true)
+    expect(hasEdge(g, 'cws_cistern', 'cold_out', 'tap_outlet', 'cold_in')).toBe(true)
+    // Must NOT connect from cylinder cold_in (that's the CWS→cylinder feed, not a distribution rail)
+    expect(hasEdge(g, 'dhw_vented_cylinder', 'cold_in', 'tap_outlet', 'cold_in')).toBe(false)
+  })
 })
 
 // ─── Cold tap outlet ─────────────────────────────────────────────────────────

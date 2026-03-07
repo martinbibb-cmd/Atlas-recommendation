@@ -176,10 +176,11 @@ export function smartAdd(
     const combi = nodes.find(n => n.kind === 'heat_source_combi' && n.id !== newNode.id)
     // Cold rail: the point from which outlets draw their cold supply
     const coldRailNode = cylinder ?? combi
+    // CWS cistern is the preferred cold source for vented stored systems
+    const cwsNode = nodes.find(n => n.kind === 'cws_cistern' && n.id !== newNode.id)
 
     if (kind === 'cold_tap_outlet') {
       // Cold-only — never connect hot. Prefer CWS direct feed, then the shared cold rail.
-      const cwsNode = nodes.find(n => n.kind === 'cws_cistern' && n.id !== newNode.id)
       const coldSource = cwsNode ?? coldRailNode
       if (coldSource) {
         const coldPortId = cwsNode ? 'cold_out' : 'cold_in'
@@ -191,9 +192,11 @@ export function smartAdd(
       if (hotSource) {
         edges = tryAddEdge(edges, hotSource.id, 'hot_out', newNode.id, 'hot_in')
       }
-      // cold_in on the cylinder (or combi) acts as the shared cold-water distribution rail
-      if (coldRailNode) {
-        edges = tryAddEdge(edges, coldRailNode.id, 'cold_in', newNode.id, 'cold_in')
+      // Cold supply: prefer CWS cistern (vented stored systems), fall back to cylinder/combi cold_in as the shared cold rail junction
+      const coldSource = cwsNode ?? coldRailNode
+      if (coldSource) {
+        const coldPortId = cwsNode ? 'cold_out' : 'cold_in'
+        edges = tryAddEdge(edges, coldSource.id, coldPortId, newNode.id, 'cold_in')
       }
     }
   }
