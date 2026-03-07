@@ -1085,7 +1085,9 @@ export default function BuilderShell({
                   ✕
                 </button>
               </div>
-              <PalettePanel onPick={pickFromPalette} />
+              <div className="palette-tray__body">
+                <PalettePanel onPick={pickFromPalette} />
+              </div>
             </div>
           )}
         </div>
