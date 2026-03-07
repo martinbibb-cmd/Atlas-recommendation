@@ -22,6 +22,14 @@
  *     → heat_source_heat_pump, buffer, tee_ch_flow, tee_ch_return,
  *       emitter loop(s), dhw_unvented_cylinder, manifold_hot, manifold_cold, outlets
  *
+ * For stored systems, graphs are generated through `buildStoredTopology()` which
+ * dispatches to `buildStoredYPlan()` or `buildStoredSPlan()`.  Each branch
+ * produces four explicit circuit domains:
+ *   heating  — boiler ↔ emitters (radiators / UFH)
+ *   primary  — boiler ↔ cylinder coil
+ *   cold     — mains / CWS cistern → cylinder cold_in
+ *   dhw      — cylinder hot_out → outlets
+ *
  * Expert/engineer detail (feed-and-vent points, expansion vessel, ABV,
  * wiring centre) is either absent from the graph or placed only where
  * physically required (e.g. open-vent on a regular-boiler Y-plan system).
@@ -144,14 +152,32 @@ function buildCombiGraph(emitters: EmitterKind[]): BuildGraph {
   };
 }
 
+// ─── Stored-system topology builders ─────────────────────────────────────────
+
 /**
- * Regular boiler + Y-plan + vented cylinder variant.
+ * Stored Y-plan topology: regular boiler + 3-port valve + vented cylinder.
  *
- * Open-vented primary circuit with feed-and-expansion cistern and open vent.
- * 3-port valve diverts flow between CH and cylinder coil.
- * CWS cistern feeds the vented cylinder cold-water inlet.
+ * Branch structure:
+ *   heating — boiler.ch_flow_out → 3-port valve → radiators → boiler.ch_return_in
+ *   primary — 3-port valve → cylinder.coil_flow → cylinder.coil_return → boiler.ch_return_in
+ *   cold    — CWS cistern → manifold_cold → cylinder.cold_in
+ *   dhw     — cylinder.hot_out → manifold_hot → outlets
+ *
+ * Open-vented primary circuit: feed-and-expansion cistern and open vent are
+ * included as physically required components.
+ *
+ * Note: Y-plan is an open-vented topology and is always paired with a vented
+ * cylinder (dhw_vented_cylinder).  The `hotWaterService` parameter is accepted
+ * for API symmetry with `buildStoredSPlan` but the cylinder kind is fixed.
+ *
+ * Radiators connect only on the heating domain.
+ * Cylinder coil connects only on the primary domain.
+ * Cylinder domestic side (cold_in / hot_out) uses cold / dhw domains only.
  */
-function buildRegularBoilerYPlanGraph(emitters: EmitterKind[]): BuildGraph {
+export function buildStoredYPlan(
+  _hotWaterService: HotWaterServiceKind,
+  emitters: EmitterKind[],
+): BuildGraph {
   const emitterKind = emitterKindToPartKind(emitters[0] ?? 'radiators');
 
   const nodes: BuildNode[] = [
@@ -165,20 +191,21 @@ function buildRegularBoilerYPlanGraph(emitters: EmitterKind[]): BuildGraph {
   ];
 
   const edges: BuildEdge[] = [
-    // CH loop via 3-port valve
-    edge('b1', 'hs',   'ch_flow_out',  'v3',  'in',          'heating'),
-    edge('b2', 'v3',   'out_a',        'rads','flow_in',      'heating'),
+    // ── Heating branch: boiler → 3-port valve.out_a → radiators → boiler ──────
+    edge('b1', 'hs',   'ch_flow_out',  'v3',  'in',           'heating'),
+    edge('b2', 'v3',   'out_a',        'rads','flow_in',       'heating'),
     edge('b3', 'rads', 'return_out',   'hs',  'ch_return_in', 'heating'),
-    edge('b4', 'v3',   'out_b',        'cyl', 'coil_flow',    'primary'),
-    edge('b5', 'cyl',  'coil_return',  'hs',  'coil_return',  'primary'),
-    // F&E and open vent
-    edge('fe1', 'fe',  'feed_in',  'hs',  'ch_return_in', 'heating'),
-    edge('ov1', 'ov',  'vent_in',  'hs',  'ch_flow_out',  'heating'),
-    // Hot manifold link
-    edge('hot_link', 'cyl', 'hot_out', 'mh', 'in',            'dhw'),
-    // CWS cistern → manifold_cold → cylinder cold_in + outlets
-    edge('cws_mc',  'cws', 'cold_out', 'mc',  'in',           'cold'),
-    edge('mc_cyl',  'mc',  'out1',     'cyl', 'cold_in',      'cold'),
+    // ── Primary branch: 3-port valve.out_b → cylinder coil → boiler ──────────
+    edge('b4', 'v3',  'out_b',        'cyl', 'coil_flow',    'primary'),
+    edge('b5', 'cyl', 'coil_return',  'hs',  'ch_return_in', 'primary'),
+    // ── Feed-and-expansion and open vent (open-vented circuit) ────────────────
+    edge('fe1', 'fe', 'feed_in',  'hs', 'ch_return_in', 'heating'),
+    edge('ov1', 'ov', 'vent_in',  'hs', 'ch_flow_out',  'heating'),
+    // ── DHW hot draw-off: cylinder.hot_out → manifold_hot ────────────────────
+    edge('hot_link', 'cyl', 'hot_out', 'mh', 'in',         'dhw'),
+    // ── Cold branch: CWS cistern → manifold_cold → cylinder.cold_in ──────────
+    edge('cws_mc', 'cws', 'cold_out', 'mc',  'in',         'cold'),
+    edge('mc_cyl', 'mc',  'out1',     'cyl', 'cold_in',    'cold'),
   ];
 
   const { nodes: outletNodes, edges: outletEdges } = buildOutletCluster(
@@ -193,14 +220,23 @@ function buildRegularBoilerYPlanGraph(emitters: EmitterKind[]): BuildGraph {
 }
 
 /**
- * System boiler + S-plan + cylinder variant.
+ * Stored S-plan topology: system boiler + 2 × zone valves + cylinder.
  *
- * Integrated pump feeds a tee that splits into two zone valves:
- *  - CH zone → radiator loop
- *  - Cylinder zone → coil
- * Mains cold supply enters via manifold_cold (open in).
+ * Branch structure:
+ *   heating — boiler → pump → tee → zoneValveCH → radiators → boiler
+ *   primary — boiler → pump → tee → zoneValveHW → cylinder.coil_flow
+ *             → cylinder.coil_return → boiler
+ *   cold    — manifold_cold (open mains entry) → cylinder.cold_in
+ *   dhw     — cylinder.hot_out → manifold_hot → outlets
+ *
+ * Sealed circuit: no feed-and-expansion or open vent (integrated pump +
+ * expansion vessel inside the system boiler body).
+ *
+ * Radiators connect only on the heating domain.
+ * Cylinder coil connects only on the primary domain.
+ * Cylinder domestic side (cold_in / hot_out) uses cold / dhw domains only.
  */
-function buildSystemBoilerSPlanGraph(
+export function buildStoredSPlan(
   hotWaterService: HotWaterServiceKind,
   emitters: EmitterKind[],
 ): BuildGraph {
@@ -218,21 +254,21 @@ function buildSystemBoilerSPlanGraph(
   ];
 
   const edges: BuildEdge[] = [
-    // Boiler → pump → tee → zone valves
-    edge('p1',  'hs',    'ch_flow_out', 'pump',  'in',          'heating'),
-    edge('p2',  'pump',  'out',         'tee_f', 'in',          'heating'),
-    edge('pf1', 'tee_f', 'out1',        'zch',   'in',          'heating'),
-    edge('pf2', 'tee_f', 'out2',        'zcyl',  'in',          'primary'),
-    // CH zone
-    edge('ch1', 'zch',  'out_a',      'rads', 'flow_in',        'heating'),
-    edge('ch2', 'rads', 'return_out', 'hs',   'ch_return_in',   'heating'),
-    // Cylinder coil zone
-    edge('cy1', 'zcyl', 'out_a',       'cyl', 'coil_flow',      'primary'),
-    edge('cy2', 'cyl',  'coil_return', 'hs',  'coil_return',    'primary'),
-    // Hot manifold link
-    edge('hot_link', 'cyl', 'hot_out', 'mh', 'in',              'dhw'),
-    // Cold manifold link (open in = mains pressure entry) → cylinder cold_in
-    edge('mc_cyl', 'mc', 'out1', 'cyl', 'cold_in',              'cold'),
+    // ── Boiler → pump → tee (shared trunk) ──────────────────────────────────
+    edge('p1',  'hs',    'ch_flow_out', 'pump',  'in',         'heating'),
+    edge('p2',  'pump',  'out',         'tee_f', 'in',         'heating'),
+    edge('pf1', 'tee_f', 'out1',        'zch',   'in',         'heating'),
+    edge('pf2', 'tee_f', 'out2',        'zcyl',  'in',         'primary'),
+    // ── Heating branch: zoneValveCH → radiators → boiler ─────────────────────
+    edge('ch1', 'zch',  'out_a',      'rads', 'flow_in',       'heating'),
+    edge('ch2', 'rads', 'return_out', 'hs',   'ch_return_in',  'heating'),
+    // ── Primary branch: zoneValveHW → cylinder coil → boiler ─────────────────
+    edge('cy1', 'zcyl', 'out_a',       'cyl', 'coil_flow',     'primary'),
+    edge('cy2', 'cyl',  'coil_return', 'hs',  'ch_return_in',  'primary'),
+    // ── DHW hot draw-off: cylinder.hot_out → manifold_hot ────────────────────
+    edge('hot_link', 'cyl', 'hot_out', 'mh', 'in',             'dhw'),
+    // ── Cold branch (open mains): manifold_cold → cylinder.cold_in ───────────
+    edge('mc_cyl', 'mc', 'out1', 'cyl', 'cold_in',             'cold'),
   ];
 
   const { nodes: outletNodes, edges: outletEdges } = buildOutletCluster(
@@ -244,6 +280,24 @@ function buildSystemBoilerSPlanGraph(
     edges: [...edges, ...outletEdges],
     outletBindings: { A: 'sh', B: 'bath', C: 'tap1' },
   };
+}
+
+/**
+ * Stored-system topology dispatcher.
+ *
+ * Routes to the correct dedicated builder based on the controls topology:
+ *   y_plan → buildStoredYPlan  (regular boiler + 3-port valve + vented cylinder)
+ *   s_plan → buildStoredSPlan  (system boiler + zone valves + cylinder)
+ *
+ * Falls back to the S-plan builder for any other stored-system combination.
+ * Combis must NOT be routed through this function (use buildCombiGraph instead).
+ */
+export function buildStoredTopology(model: SystemConceptModel): BuildGraph {
+  if (model.controls === 'y_plan') {
+    return buildStoredYPlan(model.hotWaterService, model.emitters);
+  }
+  // s_plan, s_plan_multi_zone, or any fallback stored system
+  return buildStoredSPlan(model.hotWaterService, model.emitters);
 }
 
 /**
@@ -315,16 +369,18 @@ function buildHeatPumpGraph(
  * `graphToLabControls()` to produce simulation parameters for Play mode.
  *
  * Routing logic:
- *   1. system_boiler + combi_plate_hex          → combi graph
- *   2. regular_boiler + y_plan + vented_cylinder → Y-plan vented graph
- *   3. system_boiler + s_plan / none             → S-plan cylinder graph
- *   4. heat_pump                                 → heat pump buffer graph
+ *   1. hotWaterService === 'combi_plate_hex'       → combi graph (no cylinder)
+ *   2. heatSource === 'heat_pump'                  → heat pump buffer graph
+ *   3. stored system (any cylinder kind)           → buildStoredTopology dispatcher
+ *      ├─ controls === 'y_plan'                    → buildStoredYPlan
+ *      └─ controls === 's_plan' / other            → buildStoredSPlan
  *
- * If the combination is not explicitly handled, a best-effort graph is
- * returned using the closest matching variant.
+ * Stored systems always route through `buildStoredTopology` so that heating,
+ * primary, cold, and DHW branches are generated separately and correctly.
+ * Combis never reach the stored-system path.
  */
 export function conceptModelToGraph(model: SystemConceptModel): BuildGraph {
-  const { heatSource, hotWaterService, controls, emitters } = model;
+  const { heatSource, hotWaterService, emitters } = model;
 
   // Combi — integrated plate HEX, no separate cylinder
   if (hotWaterService === 'combi_plate_hex') {
@@ -336,19 +392,8 @@ export function conceptModelToGraph(model: SystemConceptModel): BuildGraph {
     return buildHeatPumpGraph(hotWaterService, emitters);
   }
 
-  // Regular boiler — typically Y-plan with vented cylinder
-  if (heatSource === 'regular_boiler' && controls === 'y_plan') {
-    return buildRegularBoilerYPlanGraph(emitters);
-  }
-
-  // System boiler (or regular boiler with s_plan) — S-plan with cylinder
-  if (
-    heatSource === 'system_boiler' ||
-    (heatSource === 'regular_boiler' && controls === 's_plan')
-  ) {
-    return buildSystemBoilerSPlanGraph(hotWaterService, emitters);
-  }
-
-  // Fallback: regular boiler with Y-plan vented graph
-  return buildRegularBoilerYPlanGraph(emitters);
+  // All stored-system variants (boiler + cylinder) route through the dedicated
+  // stored-system topology dispatcher which generates correct, separate branches
+  // for heating, primary, cold, and DHW domains.
+  return buildStoredTopology(model);
 }
