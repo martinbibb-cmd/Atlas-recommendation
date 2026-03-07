@@ -128,13 +128,6 @@ export default function BuilderShell({
    */
   const [labGraphValidation, setLabGraphValidation] = useState<GraphValidationResult | null>(null)
 
-  // Track screen width to update the narrow-screen flag
-  useEffect(() => {
-    const handleResize = () => setIsNarrow(window.innerWidth < 1200)
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
   // ── Floating palette tray (narrow screens) ────────────────────────────────
   /** Top-left position of the floating palette tray, in px relative to the
    *  workbench container.  Starts at top-left with a small gutter. */
@@ -183,21 +176,16 @@ export default function BuilderShell({
     e.currentTarget.releasePointerCapture(e.pointerId)
   }
 
-  // Re-clamp tray position when the window is resized or layout changes.
+  // Single resize listener: updates the narrow-screen flag AND re-clamps the
+  // floating tray so it stays within the (possibly resized) workbench bounds.
   useEffect(() => {
     function handleResize() {
-      setTrayPos(prev => {
-        const wb = workbenchRef.current
-        const tr = trayRef.current
-        if (!wb || !tr) return prev
-        const wRect = wb.getBoundingClientRect()
-        const tRect = tr.getBoundingClientRect()
-        return clampTrayPosition(prev, { width: wRect.width, height: wRect.height }, { width: tRect.width, height: tRect.height })
-      })
+      setIsNarrow(window.innerWidth < 1200)
+      setTrayPos(prev => clampedTrayPos(prev))
     }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  }, [clampedTrayPos])
 
   const selected = useMemo(
     () => graph.nodes.find(node => node.id === selectedId) ?? null,
