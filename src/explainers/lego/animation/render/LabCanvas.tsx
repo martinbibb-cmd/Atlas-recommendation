@@ -204,6 +204,15 @@ export function LabCanvas(props: {
 
   const isCylinder = controls.systemType === 'unvented_cylinder' || controls.systemType === 'vented_cylinder'
 
+  // ── Play Scene Model ───────────────────────────────────────────────────────
+  // Build an explicit scene description from controls + frame.
+  // The renderer uses scene.metadata flags instead of repeating inline
+  // systemType checks, which prevents contradictions like duplicate cold feeds
+  // or a missing heat source when heating is active.
+  // Declared early so isStoredLayout is available for buildPolylines() below.
+  const scene = buildPlaySceneModel(controls, frame)
+  const isStoredLayout = scene.metadata.sceneLayoutKind !== 'combi'
+
   const GLOW = 'url(#glow)'
   const NONE = 'none'
   const glowFor = (component: CapacitySummary['limitingComponent']) =>
@@ -308,12 +317,6 @@ export function LabCanvas(props: {
   // Heat-transfer glow filter references — applied to the component in the SVG.
   const HEAT_GLOW = 'url(#heat-glow)'
 
-  // ── Play Scene Model ───────────────────────────────────────────────────────
-  // Build an explicit scene description from controls + frame.
-  // The renderer uses scene.metadata flags instead of repeating inline
-  // systemType checks, which prevents contradictions like duplicate cold feeds
-  // or a missing heat source when heating is active.
-  const scene = buildPlaySceneModel(controls, frame)
   const heatSourceSceneNode = scene.nodes.find(n => n.role === 'heat_source')
   const heatSourceActivity  = heatSourceSceneNode?.activity
   // Activity kind for differentiated glow: 'ch_firing' → soft amber,
@@ -360,7 +363,6 @@ export function LabCanvas(props: {
   // rendered to the LEFT of the cylinder box.  It connects to the cylinder via
   // the primary coil and to the heating emitters via the CH supply.
   // This prevents the cylinder from visually appearing to be the heat source.
-  const isStoredLayout = scene.metadata.sceneLayoutKind !== 'combi'
   const heatSrcBoxX = cylX - 165        // left edge of heat source box
   const heatSrcBoxY = cylY              // top — same height as cylinder
   const heatSrcBoxW = 145              // narrower than the cylinder box
