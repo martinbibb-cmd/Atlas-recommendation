@@ -1075,17 +1075,19 @@ export default function BuilderShell({
                 onPointerMove={onTrayPointerMove}
                 onPointerUp={onTrayPointerUp}
               >
-                <span className="palette-tray__grip">⠿ Palette</span>
+                <span className="palette-tray__grip">⠿ Toolbox</span>
                 <button
                   className="palette-tray__close"
                   onClick={() => setPaletteOpen(false)}
                   onPointerDown={e => e.stopPropagation()}
-                  aria-label="Close palette tray"
+                  aria-label="Close toolbox tray"
                 >
                   ✕
                 </button>
               </div>
               <div className="palette-tray__body">
+                {/* Prebuilt setups and concept presets — restored alongside palette */}
+                <PresetPanel onLoad={loadPreset} onLoadConcept={loadConceptPreset} />
                 <PalettePanel onPick={pickFromPalette} />
               </div>
             </div>

@@ -55,8 +55,44 @@ function cylinderChargePct(storeTempC: number, coldInletC: number): number {
   return Math.max(0, Math.min(1, (storeTempC - coldInletC) / (CYLINDER_FILL_MAX_C - coldInletC)))
 }
 
+/**
+ * Return the cylinder label for the Play schematic.
+ * Uses the scene metadata instead of raw controls.systemType to ensure
+ * Mixergy cylinders are labelled distinctly from standard unvented cylinders.
+ */
+function cylinderLabel(
+  sceneLayoutKind: 'combi' | 'stored' | 'heat_pump',
+  systemType: string,
+  isMixergy: boolean | undefined,
+): string {
+  if (sceneLayoutKind === 'heat_pump') {
+    return systemType === 'vented_cylinder' ? 'HP (tank-fed store)' : 'HP (mains-fed store)'
+  }
+  if (systemType === 'vented_cylinder') return 'Vented cylinder'
+  if (isMixergy) return 'Mixergy cylinder'
+  return 'Unvented cylinder'
+}
+
+/**
+ * Return the valve/control-topology indicator label for the Play schematic.
+ * Uses scene.metadata.controlTopologyKind (graph-derived) when available,
+ * falling back to the legacy isSPlanTopology flag for backwards compatibility.
+ */
+function controlTopologyLabel(
+  controlTopologyKind: string | undefined,
+  isSPlanFallback: boolean,
+): string {
+  switch (controlTopologyKind) {
+    case 's_plan_multi_zone': return 'zone valves (multi-zone)'
+    case 's_plan':            return 'zone valves (S-plan)'
+    case 'y_plan':            return '3-port valve (Y-plan)'
+    case 'hp_diverter':       return 'HP diverter valve'
+    default:                  return isSPlanFallback ? 'zone valves' : '3-port valve'
+  }
+}
+
+
 function makeInitialFrame(controls: LabControls): LabFrame {
-  const isCylinder = controls.systemType === 'unvented_cylinder' || controls.systemType === 'vented_cylinder'
   const cylinderStore =
     isCylinder && controls.cylinder
       ? createCylinderStore({
@@ -723,9 +759,7 @@ export function LabCanvas(props: {
               fill="none" stroke="#94a3b8" strokeWidth={2}
             />
             <text x={P.boilerX + 30} y={P.boilerY - 10} textAnchor="middle" fontSize={13} fill="#334155" fontWeight={700}>
-              {scene.metadata.sceneLayoutKind === 'heat_pump'
-                ? (controls.systemType === 'vented_cylinder' ? 'HP (tank-fed store)' : 'HP (mains-fed store)')
-                : controls.systemType === 'vented_cylinder' ? 'Vented cylinder' : 'Unvented cylinder'}
+              {cylinderLabel(scene.metadata.sceneLayoutKind, controls.systemType, scene.metadata.isMixergy)}
             </text>
             <text x={P.boilerX + 30} y={P.boilerY + 8} textAnchor="middle" fontSize={11}
               fill={(coilActive || showHeatingPathAndEmitters) ? '#c2410c' : '#64748b'}>
@@ -740,6 +774,12 @@ export function LabCanvas(props: {
             {storeTempC !== null && (
               <text x={P.boilerX + 30} y={P.boilerY + 24} textAnchor="middle" fontSize={11} fill="#b45309">
                 {roundTempC(storeTempC)} °C
+              </text>
+            )}
+            {/* Mixergy stratification note — only for Mixergy cylinders (top-down hot band). */}
+            {scene.metadata.isMixergy && (
+              <text x={P.boilerX + 30} y={P.boilerY + 38} textAnchor="middle" fontSize={9} fill="#7c3aed">
+                stratified · reduced cycling
               </text>
             )}
             {/* ── Primary coil symbol — PR5: always visible, never hidden ──────
@@ -841,7 +881,7 @@ export function LabCanvas(props: {
                 Positioned just below the cylinder body.                       */}
             <g transform={`translate(${cylX + cylW / 2}, ${cylY + cylH + 16})`}>
               <text textAnchor="middle" fontSize={8} fill="#94a3b8" y={-3}>
-                {isSPlanTopology ? 'zone valves' : '3-port valve'}
+                {controlTopologyLabel(scene.metadata.controlTopologyKind, isSPlanTopology)}
               </text>
               {/* CH label */}
               <text
@@ -888,6 +928,17 @@ export function LabCanvas(props: {
         {/* ── Splitter node ──────────────────────────────────────────────── */}
         {showSplitter && (
           <circle cx={P.splitX} cy={P.splitY} r={9} fill="#8aa1b6" />
+        )}
+        {/* Outlet count from built graph — labels the junction node with the
+            actual number of outlets wired in the builder, so the Play schematic
+            reflects the custom topology even when not all A/B/C slots are used. */}
+        {scene.metadata.outletCount !== undefined && scene.metadata.outletCount > 0 && (
+          <text
+            x={P.splitX} y={P.splitY - 18}
+            textAnchor="middle" fontSize={9} fill="#64748b"
+          >
+            {scene.metadata.outletCount} outlet{scene.metadata.outletCount !== 1 ? 's' : ''} (built)
+          </text>
         )}
 
         {/* ── Outlet branches ────────────────────────────────────────────── */}

@@ -195,6 +195,11 @@ function buildSceneForKind(
 
   // ── Metadata (topology display flags) ──────────────────────────────────────
 
+  // Outlet count from the built graph — hot-fed + cold-only outlets combined.
+  const outletCount =
+    (controls.graphFacts?.hotFedOutletNodeIds.length ?? 0) +
+    (controls.graphFacts?.coldOnlyOutletNodeIds.length ?? 0)
+
   const metadata: PlaySceneModel['metadata'] = {
     sceneLayoutKind,
     // Vented cylinder uses tank-fed supply: hide generic mains cold feed to
@@ -212,6 +217,12 @@ function buildSceneForKind(
     // Cylinder systems render the DHW vessel as a thermal store (with fill level),
     // never as a simple pass-through pipe.
     showCylinderAsStore: isCylinder,
+    // Mixergy thermal store — label and reduced-cycling note differ from standard cylinder.
+    isMixergy: controls.graphFacts?.isMixergy === true,
+    // Control topology — drives valve/zone-valve indicator label in Play schematic.
+    controlTopologyKind: controls.controlTopology ?? 'none',
+    // Outlet count from built graph — shown in outlet manifold label.
+    outletCount: outletCount > 0 ? outletCount : undefined,
   }
 
   // ── Nodes ──────────────────────────────────────────────────────────────────

@@ -78,6 +78,9 @@ export function graphToLabControls(
   // This is the single source of truth for Play mode system classification.
   const systemKind = deriveSystemKindFromGraph(graph)
 
+  // Count zone valves directly from graph nodes for Play scene topology indicator.
+  const zoneValveCount = graph.nodes.filter(n => n.kind === 'zone_valve').length
+
   return {
     ...base,
     ...patch,
@@ -90,6 +93,11 @@ export function graphToLabControls(
       // Carry the heating-circuit presence flag so the play renderer can show
       // emitters from the build graph even when heating demand is currently off.
       hasHeatingCircuit: topology.hasHeatingCircuit,
+      // Mixergy cylinder — distinct from a standard unvented cylinder.
+      // Drives the Play scene label ("Mixergy cylinder") and topology indicator.
+      isMixergy: topology.dhwServiceType === 'mixergy',
+      // Zone valve count — drives control-topology indicator in Play schematic.
+      zoneValveCount,
     },
     outletBindings: graph.outletBindings,
     // Control topology drives S-plan simultaneous CH + reheat behaviour.

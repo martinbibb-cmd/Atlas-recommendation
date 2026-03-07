@@ -143,5 +143,27 @@ export type PlaySceneModel = {
     showHeatSource: boolean
     showHeatingPath: boolean
     showCylinderAsStore: boolean
+    /**
+     * True when the built graph uses a Mixergy thermal store.
+     * Drives the cylinder label in the Play schematic ("Mixergy cylinder")
+     * and a reduced-cycling note.
+     */
+    isMixergy?: boolean
+    /**
+     * Control topology derived from the built graph.
+     * Used to label the valve/zone-valve indicator below the cylinder.
+     * 'none'             → no zone valves or 3-port valve identified
+     * 'y_plan'           → 3-port motorised valve (mid-position)
+     * 's_plan'           → two zone valves (CH + HW)
+     * 's_plan_multi_zone'→ three or more zone valves
+     * 'hp_diverter'      → heat pump with buffer/low-loss header
+     */
+    controlTopologyKind?: 'none' | 'y_plan' | 's_plan' | 's_plan_multi_zone' | 'hp_diverter'
+    /**
+     * Total number of outlet nodes (hot-fed + cold-only) present in the build
+     * graph.  Displayed in the outlet manifold label so the Play schematic
+     * reflects the actual tap/bath/shower arrangement.
+     */
+    outletCount?: number
   }
 }
