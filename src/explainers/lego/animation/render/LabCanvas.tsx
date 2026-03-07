@@ -680,36 +680,49 @@ export function LabCanvas(props: {
               </text>
             )}
             {/* Burner / compressor activity pulse — visible when heat source is active.
-                Driven by scene.metadata.showHeatSource so the indicator is always
-                present whenever the system is in a non-idle mode, even on the first
-                frame before simulation visuals have been emitted.
-                Fill and animation vary by activity kind (PR 15):
+                Always rendered (PR5 — never hide the boiler indicator).
+                Opacity drops to 0.35 when idle so the full topology remains visible
+                even at rest.  Fill and animation reflect the current activity kind:
                   ch_firing   → amber (#fb923c), moderate burner-pulse
                   dhw_firing  → orange-red (#ea580c), faster dhw-burst
                   compressor  → cyan (#67e8f9), slow compressor-pulse */}
-            {showHeatSourceIndicator && (
-              <g>
-                <circle
-                  cx={cylX + 20} cy={cylY + cylH / 2}
-                  r={9}
-                  fill={isCompressor ? '#67e8f9' : isDhwFiring ? '#ea580c' : '#fb923c'}
-                  style={{
-                    animation: isCompressor
-                      ? 'compressor-pulse 2s ease-in-out infinite'
-                      : isDhwFiring
-                        ? 'dhw-burst 0.6s ease-in-out infinite'
-                        : 'burner-pulse 0.9s ease-in-out infinite',
-                  }}
-                />
-                <text
-                  x={cylX + 20} y={cylY + cylH / 2 + 5}
-                  textAnchor="middle" fontSize={11}
-                  style={{ pointerEvents: 'none', userSelect: 'none' }}
-                >
-                  {isCompressor ? '⚡' : '🔥'}
-                </text>
-              </g>
-            )}
+            <g opacity={showHeatSourceIndicator ? 1 : 0.35}>
+              <circle
+                cx={cylX + 20} cy={cylY + cylH / 2}
+                r={9}
+                fill={
+                  !showHeatSourceIndicator ? '#94a3b8'
+                  : isCompressor ? '#67e8f9'
+                  : isDhwFiring ? '#ea580c'
+                  : '#fb923c'
+                }
+                style={{
+                  animation: showHeatSourceIndicator
+                    ? (isCompressor
+                        ? 'compressor-pulse 2s ease-in-out infinite'
+                        : isDhwFiring
+                          ? 'dhw-burst 0.6s ease-in-out infinite'
+                          : 'burner-pulse 0.9s ease-in-out infinite')
+                    : 'none',
+                }}
+              />
+              <text
+                x={cylX + 20} y={cylY + cylH / 2 + 5}
+                textAnchor="middle" fontSize={11}
+                style={{ pointerEvents: 'none', userSelect: 'none' }}
+              >
+                {isCompressor ? '⚡' : '🔥'}
+              </text>
+              {/* "Boiler" label beneath the flame icon — distinguishes the heat source
+                  from the DHW store so the CH supply path is clearly boiler-sourced. */}
+              <text
+                x={cylX + 20} y={cylY + cylH / 2 + 20}
+                textAnchor="middle" fontSize={8} fill="#92400e"
+                style={{ pointerEvents: 'none', userSelect: 'none' }}
+              >
+                {isCompressor ? 'Heat pump' : 'Boiler'}
+              </text>
+            </g>
             {/* ── Valve position indicator ──────────────────────────────────
                 Shows which port/zone the valve is currently directing flow to.
                 For Y-plan (3-port valve): one direction at a time.
@@ -852,19 +865,22 @@ export function LabCanvas(props: {
         })}
 
         {/* ── Emitter / radiator heat-emission indicator ─────────────────── */}
-        {/* Shown when the primary heating circuit is actively emitting heat.
-            Rendered below the main schematic so it does not clutter the DHW path.
-            Includes a CH supply path from the heat source (component box) to the
-            radiators, so the origin of heating energy is always visible.
-            scene.metadata.showHeatingPath gates this section so the renderer
-            does not independently re-derive the CH-active flag. */}
+        {/* Rendered whenever the graph contains a heating circuit (PR5: always
+            show full topology).  Opacity drops to 0.35 when CH is inactive so the
+            structure remains visible but clearly faint while DHW-only or idle.
+            When active the CH supply path is drawn from the boiler indicator
+            position (inside the composite box) — NOT from the cylinder domestic
+            side — so the heat source is unambiguously the boiler, not the store.
+            scene.metadata.showHeatingPath gates this whole section; the renderer
+            does not independently re-derive the CH-active flag.                 */}
         {showHeatingPathAndEmitters && (
-          <g>
-            {/* CH primary supply pipe — heat source left-edge → down → right to emitter.
-                Routed from the left edge of the component box so it does not cross
-                the valve position indicator (centred at the box mid-point). */}
+          <g opacity={isChActive ? 1 : 0.35}>
+            {/* CH primary supply pipe — routed from directly below the boiler
+                indicator (cylX+20) so the path clearly originates at the boiler,
+                not at the cylinder DHW store edge.
+                Path: boiler bottom (cylX+20, cylY+cylH) → down → left to emitter. */}
             <path
-              d={`M ${cylX} ${cylY + cylH} L ${cylX} ${emitterCenterY} L ${emitterRightX} ${emitterCenterY}`}
+              d={`M ${cylX + 20} ${cylY + cylH} L ${cylX + 20} ${emitterCenterY} L ${emitterRightX} ${emitterCenterY}`}
               stroke="#f97316" strokeWidth={3} fill="none" strokeLinecap="round"
               opacity={0.8}
             />
@@ -874,17 +890,19 @@ export function LabCanvas(props: {
               fill="#f97316" opacity={0.8}
             />
             {/* CH supply label centred on the horizontal run */}
-            <text x={Math.round((cylX + emitterRightX) / 2)} y={emitterCenterY - 8} textAnchor="middle" fontSize={9} fill="#ea580c">
+            <text x={Math.round((cylX + 20 + emitterRightX) / 2)} y={emitterCenterY - 8} textAnchor="middle" fontSize={9} fill="#ea580c">
               CH supply
             </text>
             {/* Radiator box */}
             <rect x={emitterX} y={emitterY} width={emitterW} height={emitterH} rx={5}
-              fill="#fff7ed" stroke="#f97316" strokeWidth={1.5}
+              fill={isChActive ? '#fff7ed' : '#f8fafc'} stroke={isChActive ? '#f97316' : '#94a3b8'} strokeWidth={1.5}
             />
-            <text x={emitterX + emitterW / 2} y={emitterY + 13} textAnchor="middle" fontSize={10} fill="#9a3412" fontWeight={700}>Radiators</text>
-            <text x={emitterX + emitterW / 2} y={emitterY + 27} textAnchor="middle" fontSize={9} fill="#c2410c">heating active</text>
-            {/* Upward heat-wave glyphs — staggered animation delays for a rising effect. */}
-            {([0, 1, 2, 3, 4] as const).map(i => (
+            <text x={emitterX + emitterW / 2} y={emitterY + 13} textAnchor="middle" fontSize={10} fill={isChActive ? '#9a3412' : '#64748b'} fontWeight={700}>Radiators</text>
+            <text x={emitterX + emitterW / 2} y={emitterY + 27} textAnchor="middle" fontSize={9} fill={isChActive ? '#c2410c' : '#94a3b8'}>
+              {isChActive ? 'heating active' : 'heating off'}
+            </text>
+            {/* Upward heat-wave glyphs — only animate when CH is actually active. */}
+            {isChActive && ([0, 1, 2, 3, 4] as const).map(i => (
               <text
                 key={i}
                 x={emitterX + 12 + i * 14} y={emitterY - 5}

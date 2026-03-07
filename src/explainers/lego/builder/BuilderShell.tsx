@@ -113,6 +113,11 @@ export default function BuilderShell({
   const [warnStripExpanded, setWarnStripExpanded] = useState(false)
   const [highlightNodeId, setHighlightNodeId] = useState<string | null>(null)
   const [highlightEdgeId, setHighlightEdgeId] = useState<string | null>(null)
+  /**
+   * Graph warnings captured at the moment Play mode was entered.
+   * Shown as a non-blocking banner in Play mode (PR3 — visible debug warning).
+   */
+  const [playModeGraphErrors, setPlayModeGraphErrors] = useState<import('./graphValidate').GraphWarning[]>([])
 
   // Track screen width to update the narrow-screen flag
   useEffect(() => {
@@ -395,15 +400,19 @@ export default function BuilderShell({
    * Initialises play-state from the saved graph so simulation starts from
    * sensible per-outlet defaults (not hard-coded demo values).
    * Simulation always runs against the snapshot, never the live draft.
+   * Any error-level graph warnings are captured and surfaced as a visible
+   * banner in Play mode (PR3 — validate graph before entering play).
    */
   const enterPlay = useCallback(() => {
     const snapshot = cloneGraph(normalizedGraph)
+    const graphErrors = warnings.filter(w => w.level === 'error')
+    setPlayModeGraphErrors(graphErrors)
     setSavedGraph(snapshot)
     setPlayState(createDefaultPlayState(snapshot))
     setPlayStoreTempC(undefined)
     setPlaySystemMode(undefined)
     setMode('play')
-  }, [normalizedGraph])
+  }, [normalizedGraph, warnings])
 
   // ── Play-mode outlet control callbacks ────────────────────────────────────
 
@@ -552,6 +561,24 @@ export default function BuilderShell({
               : 'No saved graph — go back to Build and save first'}
           </span>
         </div>
+
+        {/* PR3 — visible graph-error banner in Play mode (dev feedback for bad topology) */}
+        {playModeGraphErrors.length > 0 && (
+          <div className="play-graph-error-banner" role="alert">
+            <span className="play-graph-error-icon">⚠</span>
+            <span className="play-graph-error-text">
+              Graph has {playModeGraphErrors.length} error{playModeGraphErrors.length !== 1 ? 's' : ''}:{' '}
+              {playModeGraphErrors.map(e => e.title).join(' · ')}
+            </span>
+            <button
+              className="builder-btn play-graph-error-dismiss"
+              onClick={() => setPlayModeGraphErrors([])}
+              aria-label="Dismiss graph errors"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {playControls && playSummary && playState ? (
           <div className="play-layout">

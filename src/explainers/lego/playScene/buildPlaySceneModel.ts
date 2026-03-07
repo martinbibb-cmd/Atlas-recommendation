@@ -148,11 +148,13 @@ export function buildPlaySceneModel(
     showGenericColdFeed: !isVented,
     // CWS cistern and gravity-drop cold feed only for vented / tank-fed systems.
     showCwsRefill: isVented,
-    // Heat source must always be visible whenever the system is active.
-    // Fixes: "heating active but no boiler shown".
-    showHeatSource: isActive,
-    // Show CH supply path from heat source to emitters only when CH is active.
-    showHeatingPath: isChActive,
+    // Heat source is always visible (PR5: never hide the boiler, even when idle).
+    // The activity glow/animation in the renderer differentiates active vs idle.
+    showHeatSource: true,
+    // Show CH supply path and emitter block whenever heating is configured in the
+    // graph or currently active.  This keeps the full topology visible at all times;
+    // the renderer applies faint opacity when inactive (PR5 — no structure hidden).
+    showHeatingPath: hasHeatingDemand || isChActive,
     // Cylinder systems render the DHW vessel as a thermal store (with fill level),
     // never as a simple pass-through pipe.
     showCylinderAsStore: isCylinder,
@@ -160,11 +162,12 @@ export function buildPlaySceneModel(
 
   // ── Nodes ──────────────────────────────────────────────────────────────────
 
-  // Heat source — always present; visible when active, or when combi (always shown).
+  // Heat source — always present and always visible (PR5: full topology always shown).
+  // The activity kind / intensity drives the renderer glow/pulse independently of visibility.
   const heatSourceNode: PlaySceneNode = {
     id: 'heat_source',
     role: 'heat_source',
-    visible: metadata.showHeatSource || !isCylinder,
+    visible: true,
     active: isActive,
     x: 0,
     y: 0,
