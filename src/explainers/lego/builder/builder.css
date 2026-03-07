@@ -657,7 +657,7 @@
 /* PR3 — graph validation error banner shown in Play mode when bad wiring is detected */
 .play-graph-error-banner {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   padding: 6px 12px;
   background: #fef2f2;
@@ -677,10 +677,75 @@
   min-width: 0;
 }
 
+.play-graph-error-issue {
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 2px;
+  opacity: 0.9;
+}
+
 .play-graph-error-dismiss {
   flex-shrink: 0;
   padding: 2px 8px !important;
   font-size: 0.75rem !important;
+}
+
+/* PR3 — Build mode validation panel: shown when Play is blocked by graph errors */
+.build-graph-validation-panel {
+  margin: 0 12px 0;
+  padding: 8px 12px;
+  background: #fff5f5;
+  border: 1px solid #fc8181;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.build-graph-validation-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.build-graph-validation-panel__title {
+  flex: 1;
+  font-weight: 800;
+  color: #c53030;
+}
+
+.build-graph-validation-panel__dismiss {
+  flex-shrink: 0;
+  padding: 2px 8px !important;
+  font-size: 0.75rem !important;
+}
+
+.build-graph-validation-panel__list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.build-graph-validation-panel__item {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.build-graph-validation-panel__item--error {
+  color: #c53030;
+}
+
+.build-graph-validation-panel__item--warning {
+  color: #c05621;
+}
+
+/* Play button variant — blocked state (errors present) */
+.builder-btn--play-blocked {
+  border-color: #fc8181 !important;
+  background: #fff5f5 !important;
+  color: #c53030 !important;
 }
 
 /* Two-column layout: canvas left, controls right */

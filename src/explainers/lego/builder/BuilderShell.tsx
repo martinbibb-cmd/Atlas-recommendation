@@ -36,7 +36,8 @@ import {
 } from '../state/playState'
 import { createDefaultPlayState } from '../state/createDefaultPlayState'
 import { resolveSystemTopology, dhwSourceDescription } from '../sim/resolveSystemTopology'
-import { buildGraphToLabGraph, compareGraphShape } from '../types/graph'
+import { buildGraphToLabGraph, compareGraphShape, type GraphValidationResult } from '../types/graph'
+import { validateLabGraph } from '../validation/validateLabGraph'
 import './builder.css'
 
 /** The two phases of the lab experience. */
@@ -119,6 +120,12 @@ export default function BuilderShell({
    * Shown as a non-blocking banner in Play mode (PR3 — visible debug warning).
    */
   const [playModeGraphErrors, setPlayModeGraphErrors] = useState<import('./graphValidate').GraphWarning[]>([])
+  /**
+   * Structured result from validateLabGraph() run at play entry (PR3).
+   * Set in build mode when errors block play so the user can see what to fix.
+   * Cleared when Play is successfully entered or when the user dismisses.
+   */
+  const [labGraphValidation, setLabGraphValidation] = useState<GraphValidationResult | null>(null)
 
   // Track screen width to update the narrow-screen flag
   useEffect(() => {
@@ -135,6 +142,12 @@ export default function BuilderShell({
   const normalizedGraph = useMemo(() => normalizeGraph(graph), [graph])
   const warnings = useMemo(() => validateGraph(normalizedGraph), [normalizedGraph])
   const facts = useMemo(() => deriveFacts(graph), [graph])
+
+  // Clear any stale build-mode validation result when the graph changes
+  // so the panel doesn't show outdated issues after the user edits.
+  useEffect(() => {
+    setLabGraphValidation(null)
+  }, [normalizedGraph])
 
   /**
    * Authoritative LabGraph for Edit mode.
@@ -412,10 +425,26 @@ export default function BuilderShell({
    *
    * PR1: Play receives a deep clone of the authoritative editorGraph.
    * No template-based graph reconstruction happens here.
+   *
+   * PR3: validateLabGraph runs against the LabGraph before entering play.
+   * In dev/lab mode errors block play entry — the issues are shown inline.
+   * In production the app proceeds but still shows the banner.
    */
   const enterPlay = useCallback(() => {
     // Deep-clone the normalised editor graph — Play must never rebuild topology.
     const snapshot = structuredClone(normalizedGraph)
+
+    // PR3 — run LabGraph semantic validation before entering play.
+    const labValidation = validateLabGraph(editorGraph)
+    setLabGraphValidation(labValidation)
+
+    if (import.meta.env.DEV && !labValidation.ok) {
+      // Block play entry in dev mode when there are error-severity issues.
+      // The validation panel in build mode will surface what needs fixing.
+      console.warn('[Lab] ⚠ Play blocked — graph validation errors', labValidation.issues)
+      return
+    }
+
     const graphErrors = warnings.filter(w => w.level === 'error')
     setPlayModeGraphErrors(graphErrors)
     setSavedGraph(snapshot)
@@ -617,6 +646,28 @@ export default function BuilderShell({
           </div>
         )}
 
+        {/* PR3 — LabGraph validation issues banner in Play mode (warnings that didn't block entry) */}
+        {labGraphValidation && labGraphValidation.issues.length > 0 && (
+          <div className="play-graph-error-banner" role="alert">
+            <span className="play-graph-error-icon">⚠</span>
+            <div className="play-graph-error-text">
+              <div>Graph validation: {labGraphValidation.ok ? 'warnings' : 'errors'}</div>
+              {labGraphValidation.issues.map((issue, i) => (
+                <div key={i} className="play-graph-error-issue">
+                  {issue.severity === 'error' ? '✖' : '⚠'} {issue.message}
+                </div>
+              ))}
+            </div>
+            <button
+              className="builder-btn play-graph-error-dismiss"
+              onClick={() => setLabGraphValidation(null)}
+              aria-label="Dismiss validation issues"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {playControls && playSummary && playState ? (
           <div className="play-layout">
             {/* ── Canvas column ──────────────────────────────────────────── */}
@@ -809,11 +860,15 @@ export default function BuilderShell({
             💾 Save
           </button>
           <button
-            className="builder-btn builder-btn--play"
+            className={`builder-btn builder-btn--play${labGraphValidation && !labGraphValidation.ok ? ' builder-btn--play-blocked' : ''}`}
             onClick={enterPlay}
-            title="Save and switch to Play mode"
+            title={
+              labGraphValidation && !labGraphValidation.ok
+                ? `Graph has ${labGraphValidation.issues.filter(i => i.severity === 'error').length} error(s) — fix before playing`
+                : 'Save and switch to Play mode'
+            }
           >
-            ▶ Play
+            ▶ Play{labGraphValidation && !labGraphValidation.ok ? ' ✖' : ''}
           </button>
           <button
             className="toolbox-btn"
@@ -824,6 +879,36 @@ export default function BuilderShell({
             🧰 {paletteOpen ? 'Close' : 'Toolbox'}
           </button>
         </div>
+
+        {/* PR3 — graph validation panel: shown in build mode when Play is blocked */}
+        {labGraphValidation && labGraphValidation.issues.length > 0 && (
+          <div className="build-graph-validation-panel" role="alert">
+            <div className="build-graph-validation-panel__header">
+              <span className="build-graph-validation-panel__title">
+                {labGraphValidation.ok
+                  ? '⚠ Graph warnings'
+                  : '✖ Graph validation failed — fix before playing'}
+              </span>
+              <button
+                className="builder-btn build-graph-validation-panel__dismiss"
+                onClick={() => setLabGraphValidation(null)}
+                aria-label="Dismiss validation panel"
+              >
+                ✕
+              </button>
+            </div>
+            <ul className="build-graph-validation-panel__list">
+              {labGraphValidation.issues.map((issue, i) => (
+                <li
+                  key={i}
+                  className={`build-graph-validation-panel__item build-graph-validation-panel__item--${issue.severity}`}
+                >
+                  {issue.severity === 'error' ? '✖' : '⚠'} {issue.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="builder-canvas-area">
           <div className="builder-toolbar">
