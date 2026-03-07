@@ -98,6 +98,23 @@ function kindEmoji(kind: PartKind) {
   return PALETTE.find(p => p.kind === kind)?.emoji ?? '🧩';
 }
 
+/** Maps a PartKind to a CSS modifier class for role-specific token styling. */
+function kindClass(kind: PartKind): string {
+  if (kind === 'heat_source_combi') return 'token--combi';
+  if (
+    kind === 'heat_source_system_boiler' ||
+    kind === 'heat_source_regular_boiler' ||
+    kind === 'heat_source_heat_pump'
+  ) return 'token--source';
+  if (
+    kind === 'dhw_unvented_cylinder' ||
+    kind === 'dhw_mixergy' ||
+    kind === 'dhw_vented_cylinder'
+  ) return 'token--cylinder';
+  if (kind === 'radiator_loop' || kind === 'ufh_loop') return 'token--emitter';
+  return '';
+}
+
 function portAbs(node: BuildNode, portId: string) {
   const ports = portsForKind(node.kind);
   const port = ports.find(item => item.id === portId);
@@ -348,7 +365,7 @@ export default function WorkbenchCanvas({
           return (
             <div
               key={node.id}
-              className={`token ${node.id === selectedId ? 'selected' : ''} ${node.id === highlightNodeId ? 'highlighted' : ''}`}
+              className={['token', kindClass(node.kind), node.id === selectedId ? 'selected' : '', node.id === highlightNodeId ? 'highlighted' : ''].filter(Boolean).join(' ')}
               style={{
                 width: TOKEN_W,
                 height: TOKEN_H,
@@ -377,6 +394,10 @@ export default function WorkbenchCanvas({
 
                 const displayLabel = port.label ?? port.id;
 
+                // Flip label above the port button when the port is in the bottom half
+                // of the token so the label doesn't clip outside the canvas area.
+                const labelAbove = port.dy > TOKEN_H * 0.5;
+
                 return (
                   <button
                     key={port.id}
@@ -390,7 +411,7 @@ export default function WorkbenchCanvas({
                     }}
                   >
                     {showLabel && (
-                      <span className="port-label">
+                      <span className={`port-label${labelAbove ? ' port-label--above' : ''}`}>
                         {arrow ? <span className="port-arrow">{arrow}</span> : null}
                         {displayLabel}
                       </span>
