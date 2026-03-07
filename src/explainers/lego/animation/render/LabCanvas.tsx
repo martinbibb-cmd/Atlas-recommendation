@@ -579,8 +579,8 @@ export function LabCanvas(props: {
           </>
         )}
 
-        {/* ── Boiler HEX box (combi) OR Cylinder tank (stored) ───────────── */}
-        {!isCylinder ? (
+        {/* ── Boiler HEX box (combi) OR Cylinder tank (stored/heat_pump with cylinder) OR Heat pump (no cylinder) ── */}
+        {scene.metadata.sceneLayoutKind === 'combi' ? (
           <g>
             {/*
              * Heat-transfer domain: combi plate HEX.
@@ -644,6 +644,49 @@ export function LabCanvas(props: {
               </g>
             )}
           </g>
+        ) : scene.metadata.sceneLayoutKind === 'heat_pump' && !isCylinder ? (
+          <g>
+            {/*
+             * Heat pump without cylinder — on-demand hot water, no plate HEX.
+             * The heat pump acts as the sole heat source for both CH and DHW.
+             * Shows a compressor indicator (⚡) instead of a burner flame (🔥)
+             * to make the heat source visually distinct from a combi boiler.
+             * sceneLayoutKind = 'heat_pump' ensures this branch is selected
+             * even though controls.systemType may be 'combi' (no cylinder).
+             */}
+            <rect
+              x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
+              fill="#ecfeff"
+              stroke={burnerActive ? '#0891b2' : '#a5f3fc'}
+              strokeWidth={burnerActive ? 2.5 : 1}
+              filter={burnerActive ? 'url(#primary-glow)' : boilerGlow}
+            />
+            <text x={P.boilerX + 30} y={P.boilerY - 6} textAnchor="middle" fontSize={16} fill="#0e7490" fontWeight={700}>
+              Heat Pump
+            </text>
+            <text x={P.boilerX + 30} y={P.boilerY + 16} textAnchor="middle" fontSize={12}
+              fill={burnerActive ? '#0891b2' : '#64748b'}>
+              {burnerActive ? 'compressor running · heat transfer active' : 'on-demand hot water'}
+            </text>
+            {/* Compressor activity indicator */}
+            {burnerActive && (
+              <g>
+                <circle
+                  cx={cylX + 20} cy={cylY + cylH / 2}
+                  r={9}
+                  fill="#67e8f9"
+                  style={{ animation: 'compressor-pulse 2s ease-in-out infinite' }}
+                />
+                <text
+                  x={cylX + 20} y={cylY + cylH / 2 + 5}
+                  textAnchor="middle" fontSize={11}
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  ⚡
+                </text>
+              </g>
+            )}
+          </g>
         ) : (
           <g>
             {/*
@@ -680,7 +723,9 @@ export function LabCanvas(props: {
               fill="none" stroke="#94a3b8" strokeWidth={2}
             />
             <text x={P.boilerX + 30} y={P.boilerY - 10} textAnchor="middle" fontSize={13} fill="#334155" fontWeight={700}>
-              {controls.systemType === 'vented_cylinder' ? 'Vented cylinder' : 'Unvented cylinder'}
+              {scene.metadata.sceneLayoutKind === 'heat_pump'
+                ? (controls.systemType === 'vented_cylinder' ? 'HP (tank-fed store)' : 'HP (mains-fed store)')
+                : controls.systemType === 'vented_cylinder' ? 'Vented cylinder' : 'Unvented cylinder'}
             </text>
             <text x={P.boilerX + 30} y={P.boilerY + 8} textAnchor="middle" fontSize={11}
               fill={(coilActive || showHeatingPathAndEmitters) ? '#c2410c' : '#64748b'}>
@@ -689,7 +734,7 @@ export function LabCanvas(props: {
                 : coilActive
                   ? 'coil reheating store'
                   : showHeatingPathAndEmitters
-                    ? 'boiler firing — CH'
+                    ? (scene.metadata.sceneLayoutKind === 'heat_pump' ? 'heat pump running — CH' : 'boiler firing — CH')
                     : 'Stored hot water'}
             </text>
             {storeTempC !== null && (
@@ -1131,6 +1176,34 @@ export function LabCanvas(props: {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* ── DEV-mode scene debug badge ──────────────────────────────────── */}
+      {/* Shows derived systemKind and selected sceneLayoutKind so mismatch
+          between classification and rendering is immediately visible.
+          Remove once scene-layout selection is stable.                    */}
+      {import.meta.env.DEV && (
+        <div style={{
+          position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(15,23,42,0.85)',
+          border: '1px solid #334155',
+          borderRadius: 6,
+          padding: '3px 10px',
+          fontSize: 10,
+          fontFamily: 'monospace',
+          color: '#94a3b8',
+          pointerEvents: 'none',
+          zIndex: 30,
+          whiteSpace: 'nowrap',
+        }}>
+          kind: <span style={{ color: '#38bdf8' }}>{controls.systemKind ?? '(legacy)'}</span>
+          {' · '}
+          layout: <span style={{
+            color: scene.metadata.sceneLayoutKind === (controls.systemKind ?? 'combi')
+              ? '#4ade80'
+              : '#f87171',
+          }}>{scene.metadata.sceneLayoutKind}</span>
         </div>
       )}
     </div>

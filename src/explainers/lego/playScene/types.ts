@@ -119,6 +119,12 @@ export type PlaySceneModel = {
   /**
    * Explicit topology display flags.
    *
+   * sceneLayoutKind      — which visual scene skeleton to render.
+   *                        'combi'     — combi boiler with plate HEX (on-demand DHW, no cylinder).
+   *                        'stored'    — boiler with separate cylinder / thermal store.
+   *                        'heat_pump' — heat pump source; may or may not have a cylinder.
+   *                        The renderer branches on this field — NOT on systemType or isCylinder —
+   *                        ensuring heat pump systems are never rendered as the combi HEX layout.
    * showGenericColdFeed  — show the mains cold-supply pipe (combi / unvented).
    *                        Set false for vented cylinders to prevent the
    *                        duplicate-side-cold-feed bug.
@@ -131,6 +137,7 @@ export type PlaySceneModel = {
    *                        (not as a simple pass-through pipe).
    */
   metadata: {
+    sceneLayoutKind: 'combi' | 'stored' | 'heat_pump'
     showGenericColdFeed: boolean
     showCwsRefill: boolean
     showHeatSource: boolean
