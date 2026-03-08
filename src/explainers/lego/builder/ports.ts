@@ -63,6 +63,11 @@ export function portsForKind(kind: PartKind): PortDef[] {
         { id: 'out', dx: R, dy: MID_Y, role: 'flow', label: 'out', direction: 'out' },
       ];
 
+    case 'sealed_system_kit':
+      return [
+        { id: 'circuit_in', dx: R, dy: MID_Y, role: 'flow', label: 'circuit', direction: 'in' },
+      ];
+
     case 'zone_valve':
     case 'three_port_valve':
       return [
