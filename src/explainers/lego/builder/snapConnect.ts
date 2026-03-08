@@ -1,5 +1,5 @@
 import type { BuildGraph, BuildNode, PortDef, PortRef } from './types';
-import { portsForKind } from './ports';
+import { getPortDefs } from './portDefs';
 
 export interface SnapCandidate {
   from: PortRef;
@@ -9,7 +9,7 @@ export interface SnapCandidate {
 
 /** Absolute canvas position of a port on a given node. */
 export function portAbs(node: BuildNode, portId: string): { x: number; y: number; role: PortDef['role'] } {
-  const p = portsForKind(node.kind).find(x => x.id === portId);
+  const p = getPortDefs(node.kind).find(x => x.id === portId);
   if (!p) return { x: node.x, y: node.y, role: 'unknown' };
   return { x: node.x + p.dx, y: node.y + p.dy, role: p.role ?? 'unknown' };
 }
@@ -37,7 +37,7 @@ export function findSnapCandidate(params: {
   const moving = graph.nodes.find(n => n.id === movingNodeId);
   if (!moving) return null;
 
-  const movingPorts = portsForKind(moving.kind);
+  const movingPorts = getPortDefs(moving.kind);
   let best: SnapCandidate | null = null;
 
   for (const mp of movingPorts) {
@@ -45,7 +45,7 @@ export function findSnapCandidate(params: {
 
     for (const other of graph.nodes) {
       if (other.id === movingNodeId) continue;
-      const ops = portsForKind(other.kind);
+      const ops = getPortDefs(other.kind);
 
       for (const op of ops) {
         const ob = portAbs(other, op.id);

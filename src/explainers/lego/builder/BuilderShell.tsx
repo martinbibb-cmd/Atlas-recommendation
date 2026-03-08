@@ -10,7 +10,7 @@ import { InstrumentStrip } from '../animation/render/InstrumentStrip'
 import { computeCapacitySummary } from '../animation/capacitySummary'
 import type { LabFrame } from '../animation/types'
 import { cylinderTempC } from '../animation/storage'
-import { portsForKind } from './ports'
+import { getPortDefs } from './portDefs'
 import { validateGraph, type GraphWarning } from './graphValidate'
 import { deriveFacts } from './graphDerive'
 import { normalizeGraph } from './normalizeGraph'
@@ -211,7 +211,7 @@ export default function BuilderShell({
   const getRole = (nodeId: string, portId: string): PortDef['role'] => {
     const node = graph.nodes.find(item => item.id === nodeId)
     if (!node) return 'unknown'
-    return portsForKind(node.kind).find(port => port.id === portId)?.role ?? 'unknown'
+    return getPortDefs(node.kind).find(port => port.id === portId)?.role ?? 'unknown'
   }
 
   const hardBlock = (aRole: PortDef['role'], bRole: PortDef['role']) =>
@@ -290,8 +290,8 @@ export default function BuilderShell({
       const toNode = current.nodes.find(n => n.id === to.nodeId)
       if (!fromNode || !toNode) return current
 
-      const fromPortDef = portsForKind(fromNode.kind).find(p => p.id === from.portId)
-      const toPortDef = portsForKind(toNode.kind).find(p => p.id === to.portId)
+      const fromPortDef = getPortDefs(fromNode.kind).find(p => p.id === from.portId)
+      const toPortDef = getPortDefs(toNode.kind).find(p => p.id === to.portId)
       const roleFrom = fromPortDef?.role ?? 'unknown'
       const roleTo = toPortDef?.role ?? 'unknown'
 
