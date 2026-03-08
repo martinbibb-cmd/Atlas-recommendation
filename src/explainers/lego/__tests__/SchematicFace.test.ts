@@ -131,6 +131,147 @@ describe('SchematicFaceToken — play-mode positioned token', () => {
   })
 })
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Recursively collect all text-node strings from a React element tree. */
+function collectText(node: unknown): string {
+  if (node == null || typeof node === 'boolean') return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  const el = node as { props?: { children?: unknown } }
+  if (!el.props) return ''
+  const { children } = el.props
+  if (Array.isArray(children)) return children.map(collectText).join('')
+  return collectText(children)
+}
+
+// ─── New visual language: DCW/DHW, supply labels, routing-device labels ───────
+
+describe('combi boiler — DCW IN / DHW OUT visual distinction', () => {
+  it('contains "DCW IN" text', () => {
+    const el = SchematicFaceContent({ kind: 'heat_source_combi', label: 'Combi' })
+    expect(collectText(el)).toContain('DCW IN')
+  })
+
+  it('contains "DHW OUT" text', () => {
+    const el = SchematicFaceContent({ kind: 'heat_source_combi', label: 'Combi' })
+    expect(collectText(el)).toContain('DHW OUT')
+  })
+
+  it('contains "COMBI BOILER" label', () => {
+    const el = SchematicFaceContent({ kind: 'heat_source_combi', label: 'Combi' })
+    expect(collectText(el)).toContain('COMBI BOILER')
+  })
+})
+
+describe('cylinder visual distinctions', () => {
+  it('vented cylinder contains "TANK-FED"', () => {
+    const el = SchematicFaceContent({ kind: 'dhw_vented_cylinder', label: 'Vented' })
+    expect(collectText(el)).toContain('TANK-FED')
+  })
+
+  it('unvented cylinder contains "MAINS-FED"', () => {
+    const el = SchematicFaceContent({ kind: 'dhw_unvented_cylinder', label: 'Unvented' })
+    expect(collectText(el)).toContain('MAINS-FED')
+  })
+
+  it('mixergy contains "MIXERGY"', () => {
+    const el = SchematicFaceContent({ kind: 'dhw_mixergy', label: 'Mixergy' })
+    expect(collectText(el)).toContain('MIXERGY')
+  })
+
+  it('mixergy contains "TOP-ENTRY HX" band label', () => {
+    const el = SchematicFaceContent({ kind: 'dhw_mixergy', label: 'Mixergy' })
+    expect(collectText(el)).toContain('TOP-ENTRY HX')
+  })
+
+  it('vented and unvented faces differ (different supply labels)', () => {
+    const vented   = collectText(SchematicFaceContent({ kind: 'dhw_vented_cylinder',   label: 'V' }))
+    const unvented = collectText(SchematicFaceContent({ kind: 'dhw_unvented_cylinder', label: 'U' }))
+    expect(vented).not.toBe(unvented)
+  })
+
+  it('all three cylinder kinds contain HOT OUT and COLD IN direction labels', () => {
+    const kinds: PartKind[] = ['dhw_unvented_cylinder', 'dhw_vented_cylinder', 'dhw_mixergy']
+    kinds.forEach(kind => {
+      const text = collectText(SchematicFaceContent({ kind, label: kind }))
+      expect(text).toContain('HOT OUT')
+      expect(text).toContain('COLD IN')
+    })
+  })
+})
+
+describe('valve routing-device visual language', () => {
+  it('Y-plan valve contains "Y-PLAN" label', () => {
+    const el = SchematicFaceContent({ kind: 'three_port_valve', label: 'Y-plan' })
+    expect(collectText(el)).toContain('Y-PLAN')
+  })
+
+  it('zone valve contains "S-PLAN" label', () => {
+    const el = SchematicFaceContent({ kind: 'zone_valve', label: 'Zone' })
+    expect(collectText(el)).toContain('S-PLAN')
+  })
+
+  it('Y-plan and zone valve faces are visually distinct', () => {
+    const yplan = collectText(SchematicFaceContent({ kind: 'three_port_valve', label: 'Y' }))
+    const splan = collectText(SchematicFaceContent({ kind: 'zone_valve',       label: 'S' }))
+    expect(yplan).not.toBe(splan)
+  })
+})
+
+describe('heat source labels', () => {
+  it('system boiler contains "SYSTEM BOILER"', () => {
+    const el = SchematicFaceContent({ kind: 'heat_source_system_boiler', label: 'System' })
+    expect(collectText(el)).toContain('SYSTEM BOILER')
+  })
+
+  it('regular boiler contains "REGULAR BOILER"', () => {
+    const el = SchematicFaceContent({ kind: 'heat_source_regular_boiler', label: 'Regular' })
+    expect(collectText(el)).toContain('REGULAR BOILER')
+  })
+
+  it('heat pump contains "HEAT PUMP"', () => {
+    const el = SchematicFaceContent({ kind: 'heat_source_heat_pump', label: 'HP' })
+    expect(collectText(el)).toContain('HEAT PUMP')
+  })
+})
+
+describe('support component labels', () => {
+  it('pump contains "PUMP"', () => {
+    const el = SchematicFaceContent({ kind: 'pump', label: 'Pump' })
+    expect(collectText(el)).toContain('PUMP')
+  })
+
+  it('buffer contains "BUFFER"', () => {
+    const el = SchematicFaceContent({ kind: 'buffer', label: 'Buffer' })
+    expect(collectText(el)).toContain('BUFFER')
+  })
+
+  it('low_loss_header contains "LLH"', () => {
+    const el = SchematicFaceContent({ kind: 'low_loss_header', label: 'LLH' })
+    expect(collectText(el)).toContain('LLH')
+  })
+
+  it('sealed_system_kit contains "SEALED KIT"', () => {
+    const el = SchematicFaceContent({ kind: 'sealed_system_kit', label: 'Sealed' })
+    expect(collectText(el)).toContain('SEALED KIT')
+  })
+
+  it('open_vent contains "OPEN VENT"', () => {
+    const el = SchematicFaceContent({ kind: 'open_vent', label: 'Vent' })
+    expect(collectText(el)).toContain('OPEN VENT')
+  })
+
+  it('feed_and_expansion contains "FEED"', () => {
+    const el = SchematicFaceContent({ kind: 'feed_and_expansion', label: 'FE' })
+    expect(collectText(el)).toContain('FEED')
+  })
+
+  it('cws_cistern contains "CWS CISTERN"', () => {
+    const el = SchematicFaceContent({ kind: 'cws_cistern', label: 'CWS' })
+    expect(collectText(el)).toContain('CWS CISTERN')
+  })
+})
+
 // ─── Visual identity: SchematicFace and SchematicFaceToken use the same viewBox ─
 
 describe('visual identity — Builder and Play share the same viewBox', () => {
