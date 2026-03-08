@@ -1,4 +1,4 @@
-import type { BuildGraph, PortRef } from './types'
+import type { BuildGraph, PortRef, OutletModel, ColdSourceKind, OutletServiceClass } from './types'
 import { getPortDefs } from './portDefs'
 
 export interface GraphFacts {
@@ -7,6 +7,15 @@ export interface GraphFacts {
   hasStoredDhw: boolean
   /** True when the graph contains a combi boiler, which provides DHW internally. */
   hasCombiDhw: boolean
+  /**
+   * Per-outlet service model: service class (mixed/cold_only/hot_only) and the
+   * cold-supply rail kind (mains or cws) for every outlet node in the graph.
+   *
+   * Populated by deriveFacts so that builder UI and Play mode can show which
+   * cold rail each outlet is connected to and warn on pressure mismatches in
+   * open-vented systems.
+   */
+  outletModels: Record<string, OutletModel>
 }
 
 function refKey(ref: PortRef) {
@@ -64,22 +73,39 @@ export function deriveFacts(graph: BuildGraph): GraphFacts {
   }
   const hotReach = bfs(hotStarts, adj)
 
-  const coldSupplyKinds = new Set(['heat_source_combi', 'cws_cistern'])
-  const coldStarts: string[] = []
+  // ── Cold supply BFS — split by source kind ──────────────────────────────────
+  //
+  // CWS starts: gravity-fed cold from the Cold Water Storage cistern.
+  //   Used by open-vented systems for both the vented cylinder and cold outlets
+  //   that need to pressure-match the gravity-fed hot side.
+  //
+  // Mains starts: pressurised DCW from the mains.
+  //   combi cold_in (DCW in), all ports on manifold_cold (which distributes
+  //   mains cold — starting from all ports covers both direct connections to
+  //   manifold:in and the typical manifold:outN → outlet:cold_in topology).
+
+  const cwsColdStarts: string[] = []
+  const mainsColdStarts: string[] = []
+
   for (const node of graph.nodes) {
     for (const port of getPortDefs(node.kind)) {
-      const isColdSupplyPort =
-        port.role === 'cold' &&
-        ((node.kind === 'cws_cistern' && port.id === 'cold_out') ||
-          (coldSupplyKinds.has(node.kind) && port.id === 'cold_in') ||
-          // manifold_cold:in with no upstream connection acts as a mains entry
-          (node.kind === 'manifold_cold' && port.id === 'in'))
-      if (isColdSupplyPort) {
-        coldStarts.push(`${node.id}:${port.id}`)
+      if (node.kind === 'cws_cistern' && port.id === 'cold_out') {
+        cwsColdStarts.push(`${node.id}:${port.id}`)
+      } else if (node.kind === 'heat_source_combi' && port.id === 'cold_in') {
+        // Combi cold_in is the mains DCW entry point.
+        mainsColdStarts.push(`${node.id}:${port.id}`)
+      } else if (node.kind === 'manifold_cold') {
+        // manifold_cold distributes mains cold.  Start from both the inlet
+        // (for edge cases where manifold:in is wired directly to an outlet) and
+        // from every output port so the typical manifold:outN → outlet:cold_in
+        // topology is correctly detected as mains-fed.
+        mainsColdStarts.push(`${node.id}:${port.id}`)
       }
     }
   }
-  const coldReach = bfs(coldStarts, adj)
+
+  const cwsColdReach = bfs(cwsColdStarts, adj)
+  const mainsColdReach = bfs(mainsColdStarts, adj)
 
   const outletKinds = new Set(['tap_outlet', 'bath_outlet', 'shower_outlet', 'cold_tap_outlet'])
   const cylinderKinds = new Set(['dhw_unvented_cylinder', 'dhw_mixergy', 'dhw_vented_cylinder'])
@@ -88,6 +114,8 @@ export function deriveFacts(graph: BuildGraph): GraphFacts {
   const hasStoredDhw = graph.nodes.some(node => cylinderKinds.has(node.kind))
   const hasCombiDhw = graph.nodes.some(node => node.kind === 'heat_source_combi')
 
+  const outletModels: Record<string, OutletModel> = {}
+
   for (const node of graph.nodes) {
     if (!outletKinds.has(node.kind)) continue
 
@@ -95,11 +123,28 @@ export function deriveFacts(graph: BuildGraph): GraphFacts {
     const coldInKey = `${node.id}:cold_in`
 
     const hotFed = hotReach.has(hotInKey)
-    const coldFed = coldReach.has(coldInKey)
+    const cwsColdFed = cwsColdReach.has(coldInKey)
+    const mainsColdFed = mainsColdReach.has(coldInKey)
+    const coldFed = cwsColdFed || mainsColdFed
 
+    // Backward-compatible outlet lists
     if (hotFed) hotFedOutletNodeIds.push(node.id)
     else if (coldFed) coldOnlyOutletNodeIds.push(node.id)
+
+    // Detailed outlet model: service class + cold source kind
+    const serviceClass: OutletServiceClass =
+      hotFed && coldFed ? 'mixed' :
+      hotFed ? 'hot_only' :
+      'cold_only'
+
+    // Prefer CWS when both rails reach the outlet (open-vented with mains backup)
+    const coldSourceKind: ColdSourceKind | undefined =
+      cwsColdFed ? 'cws' :
+      mainsColdFed ? 'mains' :
+      undefined
+
+    outletModels[node.id] = { serviceClass, coldSourceKind }
   }
 
-  return { hotFedOutletNodeIds, coldOnlyOutletNodeIds, hasStoredDhw, hasCombiDhw }
+  return { hotFedOutletNodeIds, coldOnlyOutletNodeIds, hasStoredDhw, hasCombiDhw, outletModels }
 }

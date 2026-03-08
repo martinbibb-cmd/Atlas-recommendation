@@ -1,6 +1,7 @@
 // src/explainers/lego/animation/types.ts
 
 import type { CylinderStore } from './storage'
+import type { OutletModel } from '../builder/types'
 
 export type OutletId = 'A' | 'B' | 'C'
 export type OutletKind = 'shower_mixer' | 'basin' | 'bath' | 'cold_tap'
@@ -272,6 +273,18 @@ export type LabControls = {
      * ≥2 = S-plan; drives the Play scene control-topology indicator.
      */
     zoneValveCount?: number
+    /**
+     * Per-outlet service model: maps each outlet builder node ID to its
+     * OutletModel (service class + cold source kind).
+     *
+     * cold source kind indicates which cold rail feeds the outlet:
+     *   mains — pressurised mains cold rail (combi / unvented systems).
+     *   cws   — gravity-fed CWS cold rail (open-vented systems, for pressure matching).
+     *
+     * Used by the Play renderer to distinguish mains and CWS cold rails and
+     * to flag pressure mismatches in open-vented systems.
+     */
+    outletModels?: Record<string, OutletModel>
   }
   heatDemandKw?: number
   /**
