@@ -270,6 +270,35 @@ export function validateGraph(graph: BuildGraph): GraphWarning[] {
           nodeId: cwsNode.id,
         })
       }
+
+      // ── Pressure-match check for open-vented mixed outlets ─────────────────
+      //
+      // In an open-vented system the hot side is gravity-fed from the CWS.
+      // Bath, shower and basin (tap) outlets that also take cold from mains will
+      // have a pressure mismatch — the mains-pressure cold will overpower the
+      // gravity-fed hot.  Warn when such an outlet's cold_in is connected but
+      // NOT reachable from the CWS rail.
+      const pressureMatchedKinds = new Set<PartKind>(['bath_outlet', 'shower_outlet', 'tap_outlet'])
+      for (const node of graph.nodes) {
+        if (!pressureMatchedKinds.has(node.kind)) continue
+        const coldInKey = `${node.id}:cold_in`
+        // Only warn when cold_in is actually wired to something
+        if ((adjacency.get(coldInKey) ?? []).length === 0) continue
+        if (!hasPath(adjacency, cwsPort, coldInKey)) {
+          const outletLabel =
+            node.kind === 'bath_outlet' ? 'Bath' :
+            node.kind === 'shower_outlet' ? 'Shower' :
+            /* tap_outlet */ 'Tap'
+          warnings.push({
+            id: `pressure_mismatch_${node.id}`,
+            level: 'warn',
+            title: 'Cold supply pressure mismatch',
+            message: `${outletLabel} outlet cold supply is not from the CWS rail on an open-vented system.`,
+            hint: 'Connect the cold supply for bath/shower/basin outlets from the CWS cistern so pressure matches the gravity-fed hot side.',
+            nodeId: node.id,
+          })
+        }
+      }
     }
   }
 

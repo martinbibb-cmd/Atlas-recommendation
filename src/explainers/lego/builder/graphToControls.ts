@@ -98,6 +98,8 @@ export function graphToLabControls(
       isMixergy: topology.dhwServiceType === 'mixergy',
       // Zone valve count — drives control-topology indicator in Play schematic.
       zoneValveCount,
+      // Per-outlet service model: cold source kind (mains/cws) and service class.
+      outletModels: facts.outletModels,
     },
     outletBindings: graph.outletBindings,
     // Control topology drives S-plan simultaneous CH + reheat behaviour.

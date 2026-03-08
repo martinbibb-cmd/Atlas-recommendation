@@ -1,3 +1,38 @@
+// ─── Domestic cold-source model ───────────────────────────────────────────────
+
+/**
+ * The physical cold-supply rail from which a cold or mixed outlet draws its
+ * cold water.
+ *
+ * mains — pressurised mains cold rail (DCW); used in combi and unvented systems.
+ * cws   — gravity-fed cold rail from the Cold Water Storage cistern; used in
+ *         open-vented systems so bath/shower/basin cold pressure matches the
+ *         vented hot side.
+ */
+export type ColdSourceKind = 'mains' | 'cws'
+
+/**
+ * The service class of a domestic outlet — describes which supply types the
+ * outlet draws from.
+ *
+ * mixed    — outlet uses both hot and cold supplies (bath, shower, basin mixer).
+ * cold_only — outlet draws only cold water (cold tap, drinking-water tap).
+ * hot_only  — outlet draws only hot water (rare; e.g. a direct hot-fill outlet).
+ */
+export type OutletServiceClass = 'cold_only' | 'mixed' | 'hot_only'
+
+/**
+ * Model for a single domestic outlet, capturing its service class and the
+ * cold-supply rail it is connected to.
+ *
+ * coldSourceKind is undefined when no cold supply is connected (e.g. a
+ * hot-only outlet or a disconnected outlet node).
+ */
+export interface OutletModel {
+  serviceClass: OutletServiceClass
+  coldSourceKind?: ColdSourceKind
+}
+
 export type PartKind =
   | 'heat_source_combi'
   | 'heat_source_system_boiler'
