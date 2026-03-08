@@ -162,7 +162,7 @@ export default function WorkbenchCanvas({
   onPortTap: (ref: PortRef) => void;
   onCancelPending: () => void;
   onAutoConnect?: (from: PortRef, to: PortRef) => void;
-  outletBindings?: Partial<Record<'A' | 'B' | 'C', string>>;
+  outletBindings?: Record<string, string>;
 }) {
   const nodesById = useMemo(() => {
     const mapped = new Map<string, BuildNode>();
@@ -374,7 +374,7 @@ export default function WorkbenchCanvas({
 
         {graph.nodes.map(node => {
           const ports = getPortDefs(node.kind);
-          const slot = (['A', 'B', 'C'] as const).find(key => outletBindings?.[key] === node.id);
+          const slot = Object.entries(outletBindings ?? {}).find(([, id]) => id === node.id)?.[0];
 
           return (
             <div
