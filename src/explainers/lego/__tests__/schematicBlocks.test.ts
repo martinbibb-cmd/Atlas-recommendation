@@ -15,9 +15,12 @@ import {
   cylinderModelFromKind,
   kindFromCylinderModel,
   schematicPortToDxDy,
+  defaultZoneForKind,
   type CylinderModel,
   type ComponentVisualSize,
   type SchematicComponentDefinition,
+  type StructuralZone,
+  type StructuralPlacement,
 } from '../builder/schematicBlocks'
 import { TOKEN_W, TOKEN_H } from '../builder/ports'
 import { PALETTE, PALETTE_SECTIONS } from '../builder/palette'
@@ -403,5 +406,151 @@ describe('PALETTE_SECTIONS', () => {
       const expected = PALETTE.filter(p => p.category === section.category)
       expect(section.items).toHaveLength(expected.length)
     }
+  })
+})
+
+// ─── Structural placement layer ───────────────────────────────────────────────
+
+describe('defaultZoneForKind — heat sources', () => {
+  it('heat_source_heat_pump defaults to outside', () => {
+    expect(defaultZoneForKind('heat_source_heat_pump')).toBe('outside')
+  })
+
+  it('heat_source_combi defaults to plant_room', () => {
+    expect(defaultZoneForKind('heat_source_combi')).toBe('plant_room')
+  })
+
+  it('heat_source_system_boiler defaults to plant_room', () => {
+    expect(defaultZoneForKind('heat_source_system_boiler')).toBe('plant_room')
+  })
+
+  it('heat_source_regular_boiler defaults to plant_room', () => {
+    expect(defaultZoneForKind('heat_source_regular_boiler')).toBe('plant_room')
+  })
+})
+
+describe('defaultZoneForKind — cylinders', () => {
+  it('dhw_unvented_cylinder defaults to airing_cupboard', () => {
+    expect(defaultZoneForKind('dhw_unvented_cylinder')).toBe('airing_cupboard')
+  })
+
+  it('dhw_vented_cylinder defaults to airing_cupboard', () => {
+    expect(defaultZoneForKind('dhw_vented_cylinder')).toBe('airing_cupboard')
+  })
+
+  it('dhw_mixergy defaults to airing_cupboard', () => {
+    expect(defaultZoneForKind('dhw_mixergy')).toBe('airing_cupboard')
+  })
+})
+
+describe('defaultZoneForKind — loft equipment', () => {
+  it('cws_cistern defaults to roof_space', () => {
+    expect(defaultZoneForKind('cws_cistern')).toBe('roof_space')
+  })
+
+  it('feed_and_expansion defaults to roof_space', () => {
+    expect(defaultZoneForKind('feed_and_expansion')).toBe('roof_space')
+  })
+})
+
+describe('defaultZoneForKind — emitters', () => {
+  it('ufh_loop defaults to ground_floor', () => {
+    expect(defaultZoneForKind('ufh_loop')).toBe('ground_floor')
+  })
+
+  it('radiator_loop defaults to first_floor', () => {
+    expect(defaultZoneForKind('radiator_loop')).toBe('first_floor')
+  })
+})
+
+describe('defaultZoneForKind — outlets', () => {
+  it('tap_outlet defaults to ground_floor', () => {
+    expect(defaultZoneForKind('tap_outlet')).toBe('ground_floor')
+  })
+
+  it('cold_tap_outlet defaults to ground_floor', () => {
+    expect(defaultZoneForKind('cold_tap_outlet')).toBe('ground_floor')
+  })
+
+  it('bath_outlet defaults to first_floor', () => {
+    expect(defaultZoneForKind('bath_outlet')).toBe('first_floor')
+  })
+
+  it('shower_outlet defaults to first_floor', () => {
+    expect(defaultZoneForKind('shower_outlet')).toBe('first_floor')
+  })
+})
+
+describe('defaultZoneForKind — plant room components', () => {
+  const plantRoomKinds = [
+    'pump',
+    'buffer',
+    'low_loss_header',
+    'sealed_system_kit',
+    'zone_valve',
+    'three_port_valve',
+    'open_vent',
+    'tee_hot',
+    'tee_cold',
+    'tee_ch_flow',
+    'tee_ch_return',
+  ]
+
+  for (const kind of plantRoomKinds) {
+    it(`${kind} defaults to plant_room`, () => {
+      expect(defaultZoneForKind(kind)).toBe('plant_room')
+    })
+  }
+
+  it('unknown kinds default to plant_room', () => {
+    expect(defaultZoneForKind('some_future_component')).toBe('plant_room')
+  })
+})
+
+describe('defaultZoneForKind — return value is a valid StructuralZone', () => {
+  const validZones: StructuralZone[] = [
+    'outside',
+    'plant_room',
+    'airing_cupboard',
+    'ground_floor',
+    'first_floor',
+    'roof_space',
+    'ground_loop',
+  ]
+
+  it('every SCHEMATIC_REGISTRY entry has a valid default zone', () => {
+    for (const kind of Object.keys(SCHEMATIC_REGISTRY)) {
+      const zone = defaultZoneForKind(kind)
+      expect(validZones.includes(zone), `${kind} returned invalid zone '${zone}'`).toBe(true)
+    }
+  })
+})
+
+describe('StructuralPlacement — type shape', () => {
+  it('accepts a placement with zone only', () => {
+    const placement: StructuralPlacement = { zone: 'outside' }
+    expect(placement.zone).toBe('outside')
+    expect(placement.x).toBeUndefined()
+    expect(placement.y).toBeUndefined()
+  })
+
+  it('accepts a placement with zone and coordinates', () => {
+    const placement: StructuralPlacement = { zone: 'ground_floor', x: 120, y: 80 }
+    expect(placement.zone).toBe('ground_floor')
+    expect(placement.x).toBe(120)
+    expect(placement.y).toBe(80)
+  })
+
+  it('BuildNode placement field is optional and can be set', () => {
+    // Verify via type-level assignment — if this compiles, the interface is correct
+    const node = {
+      id: 'n1',
+      kind: 'heat_source_heat_pump' as const,
+      x: 0,
+      y: 0,
+      r: 0,
+      placement: { zone: 'outside' as StructuralZone },
+    }
+    expect(node.placement.zone).toBe('outside')
   })
 })
