@@ -3,6 +3,18 @@ import type {
   DhwConditionDiagnosticsV1,
 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { NormalizerOutput } from '../schema/EngineInputV2_3';
+import {
+  inferDhwUseBand,
+  inferPlateHexCondition,
+  inferCylinderCondition,
+} from './ComponentConditionModule';
+import type {
+  PlateHexCondition,
+  CylinderCondition,
+  WaterConditionInputs,
+  UsageInputs,
+  CylinderInputs,
+} from './ComponentConditionModule';
 
 // ─── Output types ─────────────────────────────────────────────────────────────
 
@@ -39,10 +51,22 @@ export interface SystemConditionFlags {
   scaleRisk: RiskLevel;
   /** Combi plate heat exchanger condition band. */
   plateHexCondition: ConditionBand;
+  /**
+   * Rich combi plate HEX condition inferred from water quality, usage intensity,
+   * and observed hot-water performance symptoms. Includes foulingFactor for
+   * physics application and confidence rating.
+   */
+  plateHexDetail: PlateHexCondition;
   /** Cylinder age band (for coil recovery and standing loss estimates). */
   cylinderAgeBand: AgeBand;
   /** Cylinder coil heat-transfer condition band. */
   coilCondition: ConditionBand;
+  /**
+   * Rich cylinder condition inferred from cylinder type, water quality, usage
+   * intensity, and observed retention / recovery symptoms. Includes
+   * insulationFactor and coilTransferFactor for physics application.
+   */
+  cylinderDetail: CylinderCondition;
   /**
    * Advisory messages for the pumping over flag, when present.
    * Empty when pumpingOverPresent is false.
@@ -59,6 +83,12 @@ export interface SystemConditionInferenceInput {
   waterHardnessCategory?: NormalizerOutput['waterHardnessCategory'];
   /** System age in years — used as a proxy sludge risk multiplier when direct symptoms absent. */
   systemAgeYears?: number;
+  /** Number of regularly resident occupants — used to infer DHW use band. */
+  occupancyCount?: number;
+  /** Number of bathrooms — used alongside occupancyCount to infer DHW use band. */
+  bathroomCount?: number;
+  /** Peak number of simultaneously open hot-water outlets — refines DHW use band. */
+  peakConcurrentOutlets?: number;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -93,6 +123,54 @@ function countDhwScaleSymptoms(dc: DhwConditionDiagnosticsV1): number {
   if (dc.kettlingOrScaleSymptoms)   count++;
   if (dc.immersionFailureHistory)   count++;
   return count;
+}
+
+/**
+ * Builds UsageInputs from the inference input, deriving dhwUseBand from
+ * occupancy, bathroom count, and peak concurrent outlets.
+ */
+function buildUsageInputs(input: SystemConditionInferenceInput): UsageInputs {
+  const occupancy       = input.occupancyCount ?? 2;
+  const bathroomCount   = input.bathroomCount  ?? 1;
+  const peakOutlets     = input.peakConcurrentOutlets;
+  return {
+    dhwUseBand:          inferDhwUseBand(occupancy, bathroomCount, peakOutlets),
+    occupancy,
+    simultaneousUseLikely: (peakOutlets ?? 0) >= 2,
+  };
+}
+
+/**
+ * Maps cylinderAgeEstimate survey field to CylinderInputs ageBand.
+ */
+function cylinderAgeEstimateToAgeBand(
+  estimate: DhwConditionDiagnosticsV1['cylinderAgeEstimate'],
+): CylinderInputs['ageBand'] {
+  switch (estimate) {
+    case 'under_5':  return '<5';
+    case '5_to_10':  return '5-10';
+    case '10_to_15': return '10-20';
+    case 'over_15':  return '20+';
+    default:         return undefined;
+  }
+}
+
+/**
+ * Resolves the cylinder type from survey fields.
+ * cylinderType (new explicit field) takes precedence over the older
+ * cylinderMaterial field which is mapped to a best-fit type.
+ */
+function resolveCylinderType(
+  dc: DhwConditionDiagnosticsV1,
+): CylinderInputs['cylinderType'] {
+  if (dc.cylinderType) return dc.cylinderType;
+  // Fall back to mapping from the older cylinderMaterial field
+  switch (dc.cylinderMaterial) {
+    case 'copper_vented':      return 'copper';
+    case 'stainless_unvented': return 'modern_factory';
+    case 'unknown':
+    default:                   return 'unknown';
+  }
 }
 
 // ─── Main Module ──────────────────────────────────────────────────────────────
@@ -187,7 +265,7 @@ export function inferSystemConditionFlags(
     scaleRisk = 'moderate';
   }
 
-  // ── Plate HEX condition ───────────────────────────────────────────────────
+  // ── Plate HEX condition (legacy ConditionBand) ────────────────────────────
   let plateHexCondition: ConditionBand = 'unknown';
   if (dc.plateHexAgeYears !== undefined && dc.plateHexAgeYears !== 'unknown') {
     plateHexCondition = dc.plateHexAgeYears >= PLATE_HEX_DEGRADED_AGE_YEARS
@@ -197,6 +275,21 @@ export function inferSystemConditionFlags(
   } else if (dc.kettlingOrScaleSymptoms === true) {
     plateHexCondition = 'degraded';
   }
+
+  // ── Plate HEX detail (rich multi-input model) ─────────────────────────────
+  const waterForCondition = {
+    hardnessBand: (input.waterHardnessCategory ?? 'soft') as WaterConditionInputs['hardnessBand'],
+    softenerPresent: dc.softenerPresent ?? false,
+  };
+  const usageForCondition = buildUsageInputs(input);
+  const plateHexDetail = inferPlateHexCondition(
+    waterForCondition,
+    usageForCondition,
+    {
+      applianceAgeYears: typeof dc.plateHexAgeYears === 'number' ? dc.plateHexAgeYears : undefined,
+      hotWaterPerformanceBand: dc.hotWaterPerformanceBand,
+    },
+  );
 
   // ── Cylinder age band ─────────────────────────────────────────────────────
   let cylinderAgeBand: AgeBand = 'unknown';
@@ -219,14 +312,29 @@ export function inferSystemConditionFlags(
     coilCondition = scaleRisk === 'moderate' ? 'degraded' : 'good';
   }
 
+  // ── Cylinder detail (rich multi-input model) ──────────────────────────────
+  const cylinderAgeBandInput = cylinderAgeEstimateToAgeBand(dc.cylinderAgeEstimate);
+  const resolvedCylinderType = resolveCylinderType(dc);
+  const cylinderDetail = inferCylinderCondition(
+    waterForCondition,
+    usageForCondition,
+    {
+      cylinderType: resolvedCylinderType,
+      ageBand: cylinderAgeBandInput,
+      retentionBand: dc.cylinderRetentionBand,
+    },
+  );
+
   return {
     sludgeRisk,
     openVentedFaultRisk,
     pumpingOverPresent,
     scaleRisk,
     plateHexCondition,
+    plateHexDetail,
     cylinderAgeBand,
     coilCondition,
+    cylinderDetail,
     pumpingOverAdvisory,
   };
 }
