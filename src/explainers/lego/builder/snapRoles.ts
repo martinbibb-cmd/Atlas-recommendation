@@ -81,7 +81,7 @@ export function getSnapRole(kind: PartKind): SnapRole {
   const role = ROLE_MAP[kind]
   if (role === undefined) {
     // Warn in non-production environments so new PartKinds don't silently bypass snap rules.
-    if (typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production') {
+    if (import.meta.env.DEV) {
       console.warn(`[snapRoles] No SnapRole defined for PartKind "${kind}" — defaulting to "support"`)
     }
     return 'support'
