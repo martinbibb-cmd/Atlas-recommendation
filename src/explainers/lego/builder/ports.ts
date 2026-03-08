@@ -14,23 +14,27 @@ export function portsForKind(kind: PartKind): PortDef[] {
   switch (kind) {
     case 'heat_source_combi':
       return [
-        { id: 'flow_out',     dx: R, dy: MID_Y, role: 'flow',   label: 'flow',    direction: 'out' },
-        { id: 'return_in',    dx: L, dy: MID_Y, role: 'return', label: 'return',  direction: 'in'  },
-        { id: 'cold_in',      dx: L, dy: B,     role: 'cold',   label: 'dcw in',  direction: 'in'  },
-        { id: 'hot_out',      dx: R, dy: B,     role: 'hot',    label: 'dhw out', direction: 'out' },
+        // CH circuit — both ports on right: flow near top, return near bottom
+        { id: 'flow_out',     dx: R, dy: T + 18, role: 'flow',   label: 'flow',    direction: 'out' },
+        { id: 'return_in',    dx: R, dy: B - 18, role: 'return', label: 'return',  direction: 'in'  },
+        // DHW circuit
+        { id: 'cold_in',      dx: L, dy: B,      role: 'cold',   label: 'dcw in',  direction: 'in'  },
+        { id: 'hot_out',      dx: R, dy: B,      role: 'hot',    label: 'dhw out', direction: 'out' },
       ];
 
     case 'heat_source_system_boiler':
     case 'heat_source_regular_boiler':
       return [
-        { id: 'flow_out',   dx: R, dy: MID_Y, role: 'flow',   label: 'flow',   direction: 'out' },
-        { id: 'return_in',  dx: L, dy: MID_Y, role: 'return', label: 'return', direction: 'in'  },
+        // Both CH ports on right: flow near top, return near bottom
+        { id: 'flow_out',   dx: R, dy: T + 18, role: 'flow',   label: 'flow',   direction: 'out' },
+        { id: 'return_in',  dx: R, dy: B - 18, role: 'return', label: 'return', direction: 'in'  },
       ];
 
     case 'heat_source_heat_pump':
       return [
-        { id: 'flow_out',   dx: R, dy: MID_Y, role: 'flow',   label: 'flow',   direction: 'out' },
-        { id: 'return_in',  dx: L, dy: MID_Y, role: 'return', label: 'return', direction: 'in'  },
+        // Both CH ports on right: flow near top, return near bottom
+        { id: 'flow_out',   dx: R, dy: T + 18, role: 'flow',   label: 'flow',   direction: 'out' },
+        { id: 'return_in',  dx: R, dy: B - 18, role: 'return', label: 'return', direction: 'in'  },
       ];
 
     case 'feed_and_expansion':

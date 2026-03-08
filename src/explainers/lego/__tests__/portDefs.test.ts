@@ -68,14 +68,15 @@ describe('getPortDefs — registry-first for migrated kinds', () => {
 // ─── Key port coordinate spot-checks ─────────────────────────────────────────
 
 describe('getPortDefs — key component spot-checks', () => {
-  it('heat_source_combi: flow_out on right mid-Y, return_in on left mid-Y', () => {
+  it('heat_source_combi: flow_out on right near top, return_in on right near bottom', () => {
     const ports = getPortDefs('heat_source_combi')
     const flow = ports.find(p => p.id === 'flow_out')!
     const ret  = ports.find(p => p.id === 'return_in')!
+    // Both CH ports on right (system side)
     expect(flow.dx).toBe(170)   // right edge
-    expect(flow.dy).toBe(37)    // mid-height (74 * 0.5)
-    expect(ret.dx).toBe(0)      // left edge
-    expect(ret.dy).toBe(37)
+    expect(flow.dy).toBe(18)    // near top: 18/74 * 74 = 18
+    expect(ret.dx).toBe(170)    // right edge
+    expect(ret.dy).toBe(56)     // near bottom: (74-18)/74 * 74 = 56
   })
 
   it('cylinder: coil ports on left, hot_out on top-centre, cold_in on bottom-centre', () => {
