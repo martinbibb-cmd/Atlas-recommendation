@@ -30,7 +30,7 @@ export type PartKind =
 
 // ─── Re-exports from schematic block library ──────────────────────────────────
 
-export type { CylinderModel, StorageKind, SupplyKind, HeatSourceKind } from './schematicBlocks'
+export type { CylinderModel, StorageKind, SupplyKind, HeatSourceKind } from './schematicBlocks';
 
 export interface BuildNode {
   id: string;
@@ -101,13 +101,13 @@ export type PaletteCategory =
   | 'controls'
   | 'emitters'
   | 'system_support'
-  | 'outlets'
+  | 'outlets';
 
 /**
  * One collapsible section in the component palette.
  */
 export interface PaletteSection {
-  category: PaletteCategory
-  label: string
-  items: PaletteItem[]
+  category: PaletteCategory;
+  label: string;
+  items: PaletteItem[];
 }

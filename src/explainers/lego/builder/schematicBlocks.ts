@@ -53,8 +53,8 @@ export type SupplyKind = 'vented' | 'unvented'
  * is used for it — it is expressed via CylinderModel directly when needed.
  */
 export interface CylinderModel {
-  storageKind: StorageKind
-  supplyKind: SupplyKind
+  storageKind: StorageKind;
+  supplyKind: SupplyKind;
 }
 
 // ─── Shared port definition ───────────────────────────────────────────────────
@@ -70,15 +70,15 @@ export interface CylinderModel {
  * `semanticRole` — the hydraulic/thermal domain this port belongs to
  */
 export interface SchematicPortDef {
-  id: string
-  label: string
-  side: 'left' | 'right' | 'top' | 'bottom'
+  id: string;
+  label: string;
+  side: 'left' | 'right' | 'top' | 'bottom';
   /** Normalised position along the named side (0–1). */
-  x: number
+  x: number;
   /** Reserved for future stacking; currently always 0. */
-  y: number
-  direction: 'in' | 'out' | 'bidirectional'
-  semanticRole?: 'flow' | 'return' | 'hot' | 'cold' | 'vent' | 'feed' | 'unknown'
+  y: number;
+  direction: 'in' | 'out' | 'bidirectional';
+  semanticRole?: 'flow' | 'return' | 'hot' | 'cold' | 'vent' | 'feed' | 'unknown';
 }
 
 /**
@@ -86,10 +86,10 @@ export interface SchematicPortDef {
  * Play mode renderer.  Width and height are in canvas units (px at 1×).
  */
 export interface SchematicComponentDefinition {
-  kind: string
-  width: number
-  height: number
-  ports: SchematicPortDef[]
+  kind: string;
+  width: number;
+  height: number;
+  ports: SchematicPortDef[];
 }
 
 // ─── Canonical component registry ─────────────────────────────────────────────
