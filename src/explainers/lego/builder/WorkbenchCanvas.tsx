@@ -1,6 +1,6 @@
 import { useMemo, useRef, useEffect, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import type { BuildGraph, BuildNode, PartKind, PortDef, PortRef } from './types';
+import type { BuildGraph, BuildNode, PartKind, PortRef } from './types';
 import { PALETTE } from './palette';
 import { TOKEN_H, TOKEN_W } from './ports';
 import { getPortDefs } from './portDefs';
