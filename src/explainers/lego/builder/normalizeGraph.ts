@@ -1,5 +1,5 @@
 import type { BuildEdge, BuildGraph, PartKind, PortRef } from './types'
-import { portsForKind } from './ports'
+import { getPortDefs } from './portDefs'
 
 const uid = (p = 'n') =>
   `${p}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`
@@ -14,7 +14,7 @@ function edgeUsesPort(e: BuildEdge, ref: PortRef): boolean {
 function roleForPort(graph: BuildGraph, ref: PortRef): string {
   const node = graph.nodes.find(n => n.id === ref.nodeId)
   if (!node) return 'unknown'
-  return portsForKind(node.kind).find(p => p.id === ref.portId)?.role ?? 'unknown'
+  return getPortDefs(node.kind).find(p => p.id === ref.portId)?.role ?? 'unknown'
 }
 
 function teeKindForRole(role: string): PartKind {
@@ -82,7 +82,7 @@ export function normalizeGraph(graph: BuildGraph): BuildGraph {
     // Skip explicitly multi-enabled ports.
     const owner = next.nodes.find(n => n.id === nodeId)
     if (!owner) continue
-    const portDef = portsForKind(owner.kind).find(p => p.id === portId)
+    const portDef = getPortDefs(owner.kind).find(p => p.id === portId)
     if (portDef?.multi) continue
 
     const role = roleForPort(next, ref)

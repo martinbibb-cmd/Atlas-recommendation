@@ -2,8 +2,8 @@ import { useMemo, useRef, useEffect, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { BuildGraph, BuildNode, PartKind, PortDef, PortRef } from './types';
 import { PALETTE } from './palette';
-import { portsForKind, TOKEN_H, TOKEN_W } from './ports';
-import { SCHEMATIC_REGISTRY, schematicPortToDxDy } from './schematicBlocks';
+import { TOKEN_H, TOKEN_W } from './ports';
+import { getPortDefs } from './portDefs';
 import { SchematicFace } from './SchematicFace';
 import { findSnapCandidate, portAbs as snapPortAbs } from './snapConnect';
 import { routePipe } from './router';
@@ -127,29 +127,6 @@ function kindClass(kind: PartKind): string {
     kind === 'cws_cistern'
   ) return 'token--support';
   return '';
-}
-
-/**
- * Derive port definitions from the schematic registry when available,
- * falling back to the legacy portsForKind() for components not yet in
- * the registry (tees, manifolds, outlets).
- */
-function getPortDefs(kind: PartKind): PortDef[] {
-  const reg = SCHEMATIC_REGISTRY[kind];
-  if (reg) {
-    return reg.ports.map(p => {
-      const { dx, dy } = schematicPortToDxDy(p, reg.width, reg.height);
-      return {
-        id: p.id,
-        dx,
-        dy,
-        role: (p.semanticRole as PortDef['role']) ?? 'unknown',
-        label: p.label,
-        direction: p.direction,
-      };
-    });
-  }
-  return portsForKind(kind);
 }
 
 function portAbs(node: BuildNode, portId: string) {

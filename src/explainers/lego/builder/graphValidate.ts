@@ -1,5 +1,5 @@
 import type { BuildGraph, PartKind, PortDef, PortRef } from './types'
-import { portsForKind } from './ports'
+import { getPortDefs } from './portDefs'
 
 export interface GraphWarning {
   id: string
@@ -58,7 +58,7 @@ function buildExtendedAdjacency(graph: BuildGraph) {
   }
 
   for (const node of graph.nodes) {
-    const portKeys = portsForKind(node.kind).map(p => `${node.id}:${p.id}`)
+    const portKeys = getPortDefs(node.kind).map(p => `${node.id}:${p.id}`)
     for (let i = 0; i < portKeys.length; i++) {
       for (let j = i + 1; j < portKeys.length; j++) {
         push(portKeys[i], portKeys[j])
@@ -96,7 +96,7 @@ function anyPortConnected(graph: BuildGraph, nodeId: string) {
 function portRole(graph: BuildGraph, nodeId: string, portId: string): PortDef['role'] {
   const node = graph.nodes.find(n => n.id === nodeId)
   if (!node) return 'unknown'
-  return portsForKind(node.kind).find(p => p.id === portId)?.role ?? 'unknown'
+  return getPortDefs(node.kind).find(p => p.id === portId)?.role ?? 'unknown'
 }
 
 function roleCompatible(a: PortDef['role'], b: PortDef['role']) {

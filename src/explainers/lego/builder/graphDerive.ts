@@ -1,5 +1,5 @@
 import type { BuildGraph, PortRef } from './types'
-import { portsForKind } from './ports'
+import { getPortDefs } from './portDefs'
 
 export interface GraphFacts {
   hotFedOutletNodeIds: string[]
@@ -59,7 +59,7 @@ export function deriveFacts(graph: BuildGraph): GraphFacts {
 
   const hotStarts: string[] = []
   for (const node of graph.nodes) {
-    const hasHotOut = portsForKind(node.kind).some(port => port.id === 'hot_out')
+    const hasHotOut = getPortDefs(node.kind).some(port => port.id === 'hot_out')
     if (hasHotOut) hotStarts.push(`${node.id}:hot_out`)
   }
   const hotReach = bfs(hotStarts, adj)
@@ -67,7 +67,7 @@ export function deriveFacts(graph: BuildGraph): GraphFacts {
   const coldSupplyKinds = new Set(['heat_source_combi', 'cws_cistern'])
   const coldStarts: string[] = []
   for (const node of graph.nodes) {
-    for (const port of portsForKind(node.kind)) {
+    for (const port of getPortDefs(node.kind)) {
       const isColdSupplyPort =
         port.role === 'cold' &&
         ((node.kind === 'cws_cistern' && port.id === 'cold_out') ||
