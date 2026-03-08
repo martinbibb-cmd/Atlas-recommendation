@@ -61,12 +61,21 @@ function tryAddEdge(
   return [...edges, makeEdge(fromNodeId, fromPortId, toNodeId, toPortId)]
 }
 
-function nextOutletSlot(
-  bindings: Partial<Record<'A' | 'B' | 'C', string>>,
-): 'A' | 'B' | 'C' | null {
-  if (!bindings.A) return 'A'
-  if (!bindings.B) return 'B'
-  if (!bindings.C) return 'C'
+/**
+ * Return the next available outlet slot label for a given set of existing bindings.
+ *
+ * Generates uppercase letter labels sequentially: A, B, C, D, E, …
+ * Up to 26 outlets are supported (A–Z).  Returns null only when all 26
+ * letter slots are occupied, which is not a realistic scenario.
+ *
+ * Previously returned only 'A' | 'B' | 'C'; now supports an arbitrary
+ * outlet count by generating the next unused letter.
+ */
+function nextOutletSlot(bindings: Record<string, string>): string | null {
+  const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  for (const letter of LETTERS) {
+    if (!bindings[letter]) return letter
+  }
   return null
 }
 

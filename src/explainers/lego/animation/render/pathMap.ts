@@ -110,6 +110,11 @@ export type SchematicPolylines = {
    * Empty array when `tmvOutletA` is false — always build but conditionally render.
    */
   coldBypassA: Pt[]
+  /**
+   * Dynamic outlet branches beyond the first three (D, E, F, …).
+   * Keyed by slot label.  Always present — empty array when no extra outlets exist.
+   */
+  extraBranches: Record<string, Pt[]>
 }
 
 // ── Stored-system HEX-equivalent threshold ────────────────────────────────────
@@ -158,8 +163,8 @@ export const STORED_HEX_END: number = (() => {
 })()
 
 /**
- * Build the main flow polyline and three outlet branch polylines, plus the
- * optional cold supply bypass for outlet A's thermostatic mixer valve (TMV).
+ * Build the main flow polyline and outlet branch polylines, plus the optional
+ * cold supply bypass for the first outlet's TMV.
  *
  * Combi / heat-pump-no-cylinder trunk:
  *   mains → boiler entry → boiler exit → splitter.
@@ -168,16 +173,11 @@ export const STORED_HEX_END: number = (() => {
  *   mains (at cold-rail Y) → cold rail → cylinder cold_in (bottom) →
  *   up through cylinder interior → cylinder hot_out (top-right) →
  *   trunk level → splitter.
- *   This separates the domestic circuit (cold supply → cylinder → outlets)
- *   from the primary circuit (heat source → coil → heat source) so that
- *   particles never travel through the boiler/heat-pump box on the domestic path.
  *
- * Each branch uses a 90° off-take (perpendicular to the trunk) followed by a
- * swept bend that transitions back to horizontal before reaching the outlet.
- * Branch B (same elevation as the trunk) is a plain horizontal extension.
- * All three branches are always defined. The caller (LabCanvas/TokensLayer) is
- * responsible for dimming or hiding disabled outlets — the path geometry is
- * always present.
+ * The first three branches (A, B, C) use the legacy named SCHEMATIC_P positions
+ * so existing geometry stays unchanged.  Any additional outlets (D, E, …) are
+ * stacked below outlet C with a fixed 55 px vertical spacing and land at the
+ * same X as outlet C.
  *
  * When `tmvOutletA` is true, outlet A's branch ends at the mixer node (mixerAX,
  * mixerAY) rather than the full outlet terminal.  The mixed-water segment from
@@ -191,6 +191,12 @@ export function buildPolylines(opts?: {
    * Set to `true` when `isCylinder && isStoredLayout` in LabCanvas.
    */
   isStoredCylinder?: boolean
+  /**
+   * Slot labels for additional outlets beyond the first three (A, B, C).
+   * Each label (e.g. 'D', 'E', …) produces a branch polyline stored in
+   * `extraBranches` keyed by the label.
+   */
+  extraOutletSlots?: string[]
 }): SchematicPolylines {
   const {
     splitX, splitY, outlet1X, outlet1Y, outlet2X, outlet2Y, outlet3X, outlet3Y,
@@ -207,17 +213,6 @@ export function buildPolylines(opts?: {
 
   if (opts?.isStoredCylinder) {
     // Stored-cylinder domestic trunk: cold supply never passes through the heat source.
-    //
-    //   mains (at cold-rail Y)
-    //     → cold rail horizontal to cylinder cold_in X
-    //     → short rise into cylinder bottom (cold_in port)
-    //     → rise through cylinder interior to near-top
-    //     → horizontal across cylinder to hot_out (right edge, near top)
-    //     → drop to trunk level
-    //     → splitter
-    //
-    // Particles are cold from mains to cylHotOutY row (s < STORED_HEX_END)
-    // and use postHexThermalColor (cylinder store temp) beyond that point.
     const { mainsX, boilerY, cylX, cylY, cylW, cylH, coldRailY,
             cylColdInOffsetX, cylHotOutOffsetY } = SCHEMATIC_P
     const cylColdInX = cylX + cylColdInOffsetX  // 390
@@ -244,10 +239,6 @@ export function buildPolylines(opts?: {
   }
 
   // Branch A: 90° up then swept bend right → horizontal to outlet (or mixer when TMV).
-  //   Vertical leg:  (splitX, splitY) → (splitX, a1Y + R)
-  //   Bend corner:   elbow at (splitX, a1Y)
-  //   Bend end:      (splitX + R, a1Y)
-  //   Horizontal:    → (a1X, a1Y)
   const branchA: Pt[] = [
     { x: splitX,         y: splitY       },
     { x: splitX,         y: a1Y + R      },  // foot of vertical leg
@@ -262,10 +253,6 @@ export function buildPolylines(opts?: {
   ]
 
   // Branch C: 90° down then swept bend right → horizontal to outlet
-  //   Vertical leg:  (splitX, splitY) → (splitX, outlet3Y - R)
-  //   Bend corner:   elbow at (splitX, outlet3Y)
-  //   Bend end:      (splitX + R, outlet3Y)
-  //   Horizontal:    → (outlet3X, outlet3Y)
   const branchC: Pt[] = [
     { x: splitX,         y: splitY         },
     { x: splitX,         y: outlet3Y - R   },  // foot of vertical leg
@@ -274,8 +261,6 @@ export function buildPolylines(opts?: {
   ]
 
   // Cold supply bypass for TMV outlet A:
-  //   Tee (teeX, teeY) → UP to (teeX, coldBypassY) → RIGHT to (mixerAX, coldBypassY)
-  //   → DOWN to mixer (mixerAX, mixerAY)
   const coldBypassA: Pt[] = tmvA ? [
     { x: teeX,    y: teeY         },
     { x: teeX,    y: coldBypassY  },
@@ -283,7 +268,25 @@ export function buildPolylines(opts?: {
     { x: mixerAX, y: mixerAY      },
   ] : []
 
-  return { main: trunk, branchA, branchB, branchC, coldBypassA }
+  // ── Extra outlet branches (D, E, F, …) ─────────────────────────────────────
+  // Stacked below outlet C, spaced 55 px apart vertically.
+  // Each extra branch uses the same X position as outlet C.
+  const EXTRA_BRANCH_SPACING = 55
+  const extraBranches: Record<string, Pt[]> = {}
+  const extraSlots = opts?.extraOutletSlots ?? []
+  for (let i = 0; i < extraSlots.length; i++) {
+    const label = extraSlots[i]
+    const oy = outlet3Y + (i + 1) * EXTRA_BRANCH_SPACING
+    const ox = outlet3X
+    extraBranches[label] = [
+      { x: splitX,         y: splitY  },
+      { x: splitX,         y: oy - R  },   // foot of vertical leg
+      { x: splitX + R,     y: oy      },   // end of swept bend
+      { x: ox,             y: oy      },
+    ]
+  }
+
+  return { main: trunk, branchA, branchB, branchC, coldBypassA, extraBranches }
 }
 
 /**

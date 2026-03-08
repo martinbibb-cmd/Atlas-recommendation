@@ -189,3 +189,43 @@ describe('STORED_HEX_END', () => {
     expect(STORED_HEX_END).toBeLessThan(S_SPLIT)
   })
 })
+
+// ── buildPolylines — extra outlet branches ────────────────────────────────────
+
+describe('buildPolylines — extra outlet branches (D, E)', () => {
+  it('returns empty extraBranches when no extraOutletSlots provided', () => {
+    const { extraBranches } = buildPolylines()
+    expect(Object.keys(extraBranches)).toHaveLength(0)
+  })
+
+  it('returns one extra branch per slot label provided', () => {
+    const { extraBranches } = buildPolylines({ extraOutletSlots: ['D', 'E'] })
+    expect(Object.keys(extraBranches)).toHaveLength(2)
+    expect(extraBranches['D']).toBeDefined()
+    expect(extraBranches['E']).toBeDefined()
+  })
+
+  it('extra branch D starts at the splitter', () => {
+    const { extraBranches } = buildPolylines({ extraOutletSlots: ['D'] })
+    const { splitX, splitY } = SCHEMATIC_P
+    expect(extraBranches['D'][0]).toEqual({ x: splitX, y: splitY })
+  })
+
+  it('extra branch D is positioned below branch C', () => {
+    const { extraBranches } = buildPolylines({ extraOutletSlots: ['D'] })
+    const { outlet3Y } = SCHEMATIC_P
+    const dEndY = extraBranches['D'][extraBranches['D'].length - 1].y
+    // D should be below C (outlet3Y)
+    expect(dEndY).toBeGreaterThan(outlet3Y)
+  })
+
+  it('extra branches stack vertically with equal spacing', () => {
+    const { extraBranches } = buildPolylines({ extraOutletSlots: ['D', 'E', 'F'] })
+    const dY = extraBranches['D'][extraBranches['D'].length - 1].y
+    const eY = extraBranches['E'][extraBranches['E'].length - 1].y
+    const fY = extraBranches['F'][extraBranches['F'].length - 1].y
+    const deSpacing = eY - dY
+    const efSpacing = fY - eY
+    expect(deSpacing).toBeCloseTo(efSpacing, 1)
+  })
+})

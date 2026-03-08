@@ -18,6 +18,11 @@ export function TokensLayer(props: {
   polyC: Pt[]
   /** Cold supply bypass polyline for TMV outlet A. May be empty when TMV is off. */
   polyColdA: Pt[]
+  /**
+   * Dynamic outlet branch polylines for outlets beyond A, B, C.
+   * Keyed by outlet slot label (e.g. 'D', 'E', …).
+   */
+  extraPolylines?: Record<string, Pt[]>
   /** Actual hydraulic flow delivered (L/min) — used for throttle shape morphing. */
   hydraulicFlowLpm: number
   /** Total demand requested (L/min) — used for throttle shape morphing. */
@@ -41,7 +46,8 @@ export function TokensLayer(props: {
    */
   hexEnd?: number
 }) {
-  const { particles, coldInletC, polyMain, polyA, polyB, polyC, polyColdA, hydraulicFlowLpm, demandTotalLpm, postHexThermalColor, hexEnd } = props
+  const { particles, coldInletC, polyMain, polyA, polyB, polyC, polyColdA,
+          extraPolylines, hydraulicFlowLpm, demandTotalLpm, postHexThermalColor, hexEnd } = props
 
   // Effective HEX end: use caller-supplied value for stored systems (STORED_HEX_END),
   // or fall back to the default combi constant.
@@ -76,16 +82,21 @@ export function TokensLayer(props: {
             ? postHexThermalColor
             : tempToThermalColor(heatToTempC({ coldInletC, hJPerKg: t.hJPerKg }))
 
+        // Resolve which polyline this token should travel along.
+        // A/B/C use the named legacy props; extra slots use extraPolylines.
         const poly =
-          t.route === 'MAIN'    ? polyMain :
-          t.route === 'A'       ? polyA :
-          t.route === 'B'       ? polyB :
-          t.route === 'COLD_A'  ? (() => {
+          t.route === 'MAIN'   ? polyMain :
+          t.route === 'A'      ? polyA :
+          t.route === 'B'      ? polyB :
+          t.route === 'COLD_A' ? (() => {
             if (import.meta.env?.DEV && polyColdA.length === 0) {
               console.warn('[TokensLayer] COLD_A token present but polyColdA is empty — TMV polyline missing')
             }
             return polyColdA.length > 0 ? polyColdA : polyA
-          })() : polyC
+          })() :
+          t.route === 'C'      ? polyC :
+          // Dynamic extra branch (D, E, F, …) — look up in extraPolylines.
+          (extraPolylines?.[t.route] ?? polyC)
 
         const pos = mapSToPath(t.s, poly)
 

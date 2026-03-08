@@ -1,9 +1,14 @@
 // src/explainers/lego/animation/types.ts
 
 import type { CylinderStore } from './storage'
-import type { OutletModel } from '../builder/types'
+import type { OutletModel, OutletServiceClass, ColdSourceKind } from '../builder/types'
 
-export type OutletId = 'A' | 'B' | 'C'
+/**
+ * Outlet identifier — a string slot label (e.g. 'A', 'B', 'C', 'D', …).
+ * Previously restricted to 'A' | 'B' | 'C'; now open-ended to support
+ * an arbitrary number of outlets derived from the builder graph.
+ */
+export type OutletId = string
 export type OutletKind = 'shower_mixer' | 'basin' | 'bath' | 'cold_tap'
 export type HeatSourceType = 'combi' | 'system_boiler' | 'regular_boiler' | 'heat_pump'
 export type SystemMode = 'idle' | 'heating' | 'dhw_draw' | 'dhw_reheat' | 'heating_and_reheat'
@@ -139,6 +144,23 @@ export type OutletControl = {
   kind: OutletKind
   demandLpm: number
   /**
+   * Service class derived from the builder graph topology.
+   * hot_only  — outlet draws only from the hot-water service.
+   * cold_only — outlet draws only from cold supply (cold tap, drinking-water tap).
+   * mixed     — outlet uses both hot and cold supplies (shower, basin, bath).
+   *
+   * When absent the renderer falls back to graph-fact lookups for backward
+   * compatibility with presets and legacy LabControls objects.
+   */
+  serviceClass?: OutletServiceClass
+  /**
+   * Cold-supply rail this outlet is connected to.
+   * mains — pressurised mains cold rail (combi / unvented systems).
+   * cws   — gravity-fed CWS cold rail (open-vented systems).
+   * Absent for hot-only outlets or disconnected nodes.
+   */
+  coldSourceKind?: ColdSourceKind
+  /**
    * Whether a thermostatic mixer valve (TMV) is installed on this outlet.
    * Only meaningful for `shower_mixer` outlets.
    * Defaults to `true` for shower_mixer in `defaultOutlets()`.
@@ -165,9 +187,15 @@ export function defaultOutlets(): OutletControl[] {
 
 /**
  * Which path segment a flow particle is currently travelling.
- * COLD_A: cold supply bypass to outlet A's thermostatic mixer valve (bypasses HEX).
+ *
+ * 'MAIN'   — trunk path from cold supply through the heat source to the splitter.
+ * 'COLD_A' — cold supply bypass to the first TMV outlet (bypasses the HEX).
+ * Any other string — outlet branch identified by the outlet slot label (e.g. 'A', 'B', 'D', …).
+ *
+ * Previously restricted to 'MAIN' | 'A' | 'B' | 'C' | 'COLD_A'; now open-ended
+ * so that branch tokens carry the dynamic outlet slot label.
  */
-export type LabRoute = 'MAIN' | 'A' | 'B' | 'C' | 'COLD_A'
+export type LabRoute = string
 
 export type FlowParticle = {
   id: string
@@ -294,7 +322,7 @@ export type LabControls = {
   heatingDemand?: HeatingDemandState
   dhwReheatHysteresisC?: number
   dhwReheatTargetC?: number
-  outletBindings?: Partial<Record<'A' | 'B' | 'C', string>>
+  outletBindings?: Record<string, string>
   /**
    * Control topology — drives S-plan simultaneous CH + reheat behaviour.
    * Derived from the builder graph topology in graphToLabControls.
@@ -313,8 +341,9 @@ export type LabFrame = {
   spawnAccumulator: number
   /** Monotonically increasing counter for unique particle IDs. */
   nextTokenId: number
-  /** Per-outlet temperature samples (EMA from particles exiting each branch). */
-  outletSamples: Record<OutletId, OutletSample>
+  /** Per-outlet temperature samples (EMA from particles exiting each branch).
+   *  Keyed by outlet slot label (e.g. 'A', 'B', 'C', 'D', …). */
+  outletSamples: Record<string, OutletSample>
   /** Cylinder thermal store state (only present for cylinder system types). */
   cylinderStore?: CylinderStore
   systemMode?: SystemMode

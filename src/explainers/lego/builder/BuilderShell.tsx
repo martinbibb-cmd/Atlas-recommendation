@@ -391,12 +391,9 @@ export default function BuilderShell({
     }
 
     setGraph(current => {
-      const nextBindings = (Object.entries(current.outletBindings ?? {}) as Array<['A' | 'B' | 'C', string]>).reduce(
-        (acc, [slot, nodeId]) => {
-          if (nodeId !== selectedId) acc[slot] = nodeId
-          return acc
-        },
-        {} as Partial<Record<'A' | 'B' | 'C', string>>,
+      // Remove the deleted node from outletBindings (any slot that references it).
+      const nextBindings = Object.fromEntries(
+        Object.entries(current.outletBindings ?? {}).filter(([, nodeId]) => nodeId !== selectedId)
       )
 
       return {
@@ -415,7 +412,7 @@ export default function BuilderShell({
   const bindings = graph.outletBindings ?? {}
   const selectedIsOutlet = selected ? isOutletKind(selected.kind) : false
 
-  const assignSelectedTo = (slot: 'A' | 'B' | 'C') => {
+  const assignSelectedTo = (slot: string) => {
     if (!selected || !selectedIsOutlet) return
     setGraph(current => ({
       ...current,
@@ -453,7 +450,7 @@ export default function BuilderShell({
     onControlsPatch?.(patch as Record<string, unknown>)
   }
 
-  const clearSlot = (slot: 'A' | 'B' | 'C') => {
+  const clearSlot = (slot: string) => {
     setGraph(current => {
       const next = { ...(current.outletBindings ?? {}) }
       delete next[slot]
@@ -1014,30 +1011,47 @@ export default function BuilderShell({
 
           <div className="bindings">
             <div className="bindings-title">Outlet bindings</div>
-            {(['A', 'B', 'C'] as const).map(slot => (
-              <div className="bind-row" key={slot}>
-                <div className="bind-slot">Outlet {slot}</div>
-                <div className="bind-val">{bindings[slot] ? `${bindings[slot]!.slice(0, 10)}…` : '—'}</div>
+            {/* Render one row per bound slot, plus one row per unbound letter
+                from A to the next available slot so the user can assign
+                outlet nodes to new positions. */}
+            {(() => {
+              // All currently used slots plus the next available (for assignment).
+              const usedSlots = Object.keys(bindings).sort()
+              // Show next free slot so the user can assign to it.
+              const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+              const nextFree = [...LETTERS].find(l => !bindings[l]) ?? null
+              const displaySlots = [...usedSlots, ...(nextFree && !usedSlots.includes(nextFree) ? [nextFree] : [])]
+              // Always show at least A, B, C for discoverability.
+              for (const l of ['A', 'B', 'C']) {
+                if (!displaySlots.includes(l)) displaySlots.push(l)
+              }
+              displaySlots.sort()
 
-                <button
-                  className="bind-btn"
-                  disabled={!selectedIsOutlet}
-                  onClick={() => assignSelectedTo(slot)}
-                  title={selectedIsOutlet ? 'Assign selected outlet node' : 'Select an outlet node first'}
-                >
-                  Assign
-                </button>
+              return displaySlots.map(slot => (
+                <div className="bind-row" key={slot}>
+                  <div className="bind-slot">Outlet {slot}</div>
+                  <div className="bind-val">{bindings[slot] ? `${bindings[slot]!.slice(0, 10)}…` : '—'}</div>
 
-                <button
-                  className="bind-btn danger"
-                  disabled={!bindings[slot]}
-                  onClick={() => clearSlot(slot)}
-                  title="Clear binding"
-                >
-                  Clear
-                </button>
-              </div>
-            ))}
+                  <button
+                    className="bind-btn"
+                    disabled={!selectedIsOutlet}
+                    onClick={() => assignSelectedTo(slot)}
+                    title={selectedIsOutlet ? 'Assign selected outlet node' : 'Select an outlet node first'}
+                  >
+                    Assign
+                  </button>
+
+                  <button
+                    className="bind-btn danger"
+                    disabled={!bindings[slot]}
+                    onClick={() => clearSlot(slot)}
+                    title="Clear binding"
+                  >
+                    Clear
+                  </button>
+                </div>
+              ))
+            })()}
           </div>
         </div>
 

@@ -1,6 +1,6 @@
 // src/explainers/lego/animation/simulation.ts
 
-import type { LabControls, LabFrame, FlowParticle, OutletId, OutletControl, SystemMode, SimulationVisuals } from './types'
+import type { LabControls, LabFrame, FlowParticle, OutletControl, SystemMode, SimulationVisuals } from './types'
 import { pipeDiameterCapacityLpm } from '../model/dhwModel'
 import { heatToTempC, tempToHeatJPerKg, computeTmvMixer, clampAnimationSetpointC } from './thermal'
 import {
@@ -13,13 +13,6 @@ import type { CylinderStore } from './storage'
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
-}
-
-function slotForOutletId(outletId: string): 'A' | 'B' | 'C' | null {
-  if (outletId === 'A' || outletId === 'OutletA') return 'A'
-  if (outletId === 'B' || outletId === 'OutletB') return 'B'
-  if (outletId === 'C' || outletId === 'OutletC') return 'C'
-  return null
 }
 
 // Path positions (0..1)
@@ -194,9 +187,11 @@ function hash01(n: number): number {
  *  - well-mixed across outlets within any short window
  *  - proportional to demandLpm weights
  */
-function pickOutletDeterministic(outlets: OutletControl[], tokenNumId: number): OutletId {
+function pickOutletDeterministic(outlets: OutletControl[], tokenNumId: number): string {
   const active = outlets.filter(o => o.enabled && o.demandLpm > 0)
-  if (active.length === 0) return 'A'
+  // Fall back to the first outlet (or 'A') when nothing is active.
+  const fallback = active[0]?.id ?? outlets[0]?.id ?? 'A'
+  if (active.length === 0) return fallback
   if (active.length === 1) return active[0].id
 
   const total = active.reduce((s, o) => s + o.demandLpm, 0)
@@ -265,8 +260,12 @@ export function stepSimulation(params: {
   // Scale each outlet's demand proportionally by the hydraulic throttle factor.
   // Tokens branching to an outlet use this value for their individual velocity,
   // so visually faster branch = more flow to that branch.
+  // Keyed by outlet slot label (e.g. 'A', 'B', 'C', 'D', …).
   const outletScale = demandTotalLpm > 0 ? hydraulicFlowLpm / demandTotalLpm : 0
-  const outletActualLpm: Record<OutletId, number> = { A: 0, B: 0, C: 0 }
+  const outletActualLpm: Record<string, number> = {}
+  for (const o of controls.outlets) {
+    outletActualLpm[o.id] = 0
+  }
   for (const o of activeOutlets) {
     outletActualLpm[o.id] = o.demandLpm * outletScale
   }
@@ -281,33 +280,39 @@ export function stepSimulation(params: {
   // hexFlowLpm = total flow through the HEX = hydraulicFlowLpm − Σ(F_c for TMV outlets)
   // The hot-branch velocity for a TMV outlet is based on F_h, not F_out.
   type TmvToken = { F_h: number; F_c: number; T_h: number; saturated: boolean }
-  const tmvOutletMap: Partial<Record<OutletId, TmvToken>> = {}
-  const bindings = controls.outletBindings ?? {}
+  const tmvOutletMap: Record<string, TmvToken> = {}
   const hotFedIds = new Set(controls.graphFacts?.hotFedOutletNodeIds ?? [])
   const coldOnlyIds = new Set(controls.graphFacts?.coldOnlyOutletNodeIds ?? [])
   let hexFlowLpm = 0
 
   for (const o of activeOutlets) {
-    const slot = slotForOutletId(o.id)
-    const nodeId = slot ? bindings[slot] : undefined
+    // Determine whether this outlet is cold-only using the priority chain:
+    //   1. outlet.serviceClass (authoritative when populated by graphToLabControls)
+    //   2. kind === 'cold_tap' fallback
+    //   3. graph-fact lookup via builderNodeId or outletBindings
+    const isColdByKind = o.kind === 'cold_tap'
+    const nodeId = o.builderNodeId ?? controls.outletBindings?.[o.id]
+    const isColdByFact = !!(nodeId && coldOnlyIds.has(nodeId))
+    const isColdOnly =
+      o.serviceClass === 'cold_only' ||
+      (o.serviceClass === undefined && (isColdByKind || isColdByFact))
 
-    if (nodeId && coldOnlyIds.has(nodeId)) {
+    if (isColdOnly) {
       continue
     }
-    if (nodeId && hotFedIds.has(nodeId)) {
-      hexFlowLpm += outletActualLpm[o.id]
-      continue
-    }
 
-    // fallback: treat unbound outlets as hot-fed (keeps old behaviour)
     hexFlowLpm += outletActualLpm[o.id]
   }
 
   if (isCombi && hasDraw) {
     for (const o of activeOutlets) {
-      const slot = slotForOutletId(o.id)
-      const nodeId = slot ? bindings[slot] : undefined
-      const isColdOnly = !!(nodeId && coldOnlyIds.has(nodeId))
+      const nodeId = o.builderNodeId ?? controls.outletBindings?.[o.id]
+      const isColdByKind = o.kind === 'cold_tap'
+      const isColdByFact = !!(nodeId && coldOnlyIds.has(nodeId))
+      const isColdOnly =
+        o.serviceClass === 'cold_only' ||
+        (o.serviceClass === undefined && (isColdByKind || isColdByFact))
+
       if (isColdOnly) {
         outletActualLpm[o.id] = 0
         continue
@@ -483,8 +488,14 @@ export function stepSimulation(params: {
     })
   }
 
-  // EMA outlet samples — carry forward and update in this tick
-  const outletSamples = { ...frame.outletSamples }
+  // EMA outlet samples — carry forward any existing entries and ensure every
+  // current outlet has an initial entry so the map never has missing keys.
+  const outletSamples: Record<string, { tempC: number; count: number }> = { ...frame.outletSamples }
+  for (const o of controls.outlets) {
+    if (!outletSamples[o.id]) {
+      outletSamples[o.id] = { tempC: 0, count: 0 }
+    }
+  }
 
   // Step + heat injection (MAIN only for combi) + splitter assignment
   particles = particles.map(t => {
@@ -549,10 +560,10 @@ export function stepSimulation(params: {
       return { ...t, s: sNext, v, p, hJPerKg: h }
     }
 
-    // Branch token (A / B / C) — update velocity to reflect this outlet's current actual flow.
+    // Branch token — update velocity to reflect this outlet's current actual flow.
     // When the outlet has zero flow (disabled or throttled), fall back to the main
     // velocity so stale tokens can drain naturally to the exit.
-    const branchFlow = outletActualLpm[t.route as OutletId] ?? 0
+    const branchFlow = outletActualLpm[t.route] ?? 0
     const branchV = (hasDraw && branchFlow > 0.01)
       ? velocityProxy({ flowLpm: branchFlow, diameterMm: controls.pipeDiameterMm })
       : v
@@ -560,16 +571,19 @@ export function stepSimulation(params: {
   })
 
   // Sample particles exiting outlet branches → update EMA, then remove them.
-  // COLD_A particles map to outlet 'A' for the purpose of the EMA sample.
+  // COLD_A particles are counted as samples for the first outlet ('A' or the
+  // first slot label) because the cold bypass feeds the TMV on the first outlet.
+  const firstOutletId = controls.outlets[0]?.id ?? 'A'
   particles = particles.filter(t => {
     const isBranch = t.route !== 'MAIN'
     const isColdBypass = t.route === 'COLD_A'
 
     if (isBranch && t.s >= 0.98) {
       const tempC = heatToTempC({ coldInletC: controls.coldInletC, hJPerKg: t.hJPerKg })
-      // COLD_A tokens are counted as outlet A samples (cold supply portion of the mix).
-      const outletId: OutletId = isColdBypass ? 'A' : (t.route as OutletId)
-      const prev = outletSamples[outletId]
+      // COLD_A tokens are counted as samples for the first outlet (cold supply
+      // portion of the TMV mix on the first outlet).
+      const outletId = isColdBypass ? firstOutletId : t.route
+      const prev = outletSamples[outletId] ?? { tempC: 0, count: 0 }
       outletSamples[outletId] = {
         // Exponential moving average — smooths over several frames
         tempC: prev.count === 0 ? tempC : prev.tempC * EMA_WEIGHT_PREVIOUS + tempC * EMA_WEIGHT_CURRENT,

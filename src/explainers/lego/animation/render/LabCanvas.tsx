@@ -1,7 +1,7 @@
 // src/explainers/lego/animation/render/LabCanvas.tsx
 
 import React from 'react'
-import type { LabControls, LabFrame, OutletId, OutletControl } from '../types'
+import type { LabControls, LabFrame, OutletControl } from '../types'
 import type { CapacitySummary } from '../capacitySummary'
 import { stepSimulation } from '../simulation'
 import { createCylinderStore, cylinderTempC } from '../storage'
@@ -24,7 +24,11 @@ const THERMAL_COLOR_OPACITY = 0.75
 // Use positions from pathMap (single source of truth)
 const P = SCHEMATIC_P
 
-const OUTLET_LABELS: Record<OutletId, string> = { A: 'Outlet A', B: 'Outlet B', C: 'Outlet C' }
+/** Return a human-readable label for an outlet slot (e.g. 'A' → 'Outlet A'). */
+function outletLabel(slotId: string): string {
+  return `Outlet ${slotId}`
+}
+
 const OUTLET_KIND_LABELS: Record<string, string> = {
   shower_mixer: 'Shower',
   basin: 'Basin',
@@ -32,10 +36,17 @@ const OUTLET_KIND_LABELS: Record<string, string> = {
   cold_tap: 'Cold tap',
 }
 
-const EMPTY_OUTLET_SAMPLES: LabFrame['outletSamples'] = {
-  A: { tempC: 0, count: 0 },
-  B: { tempC: 0, count: 0 },
-  C: { tempC: 0, count: 0 },
+/** Build an empty outlet-samples map from the current outlet list. */
+function emptyOutletSamples(outlets: OutletControl[]): LabFrame['outletSamples'] {
+  const samples: LabFrame['outletSamples'] = {}
+  for (const o of outlets) {
+    samples[o.id] = { tempC: 0, count: 0 }
+  }
+  // Always include A/B/C so legacy paths that index directly still work.
+  if (!samples['A']) samples['A'] = { tempC: 0, count: 0 }
+  if (!samples['B']) samples['B'] = { tempC: 0, count: 0 }
+  if (!samples['C']) samples['C'] = { tempC: 0, count: 0 }
+  return samples
 }
 
 /** Usable hot-water threshold (°C): minimum delivery temperature for comfortable domestic hot water use. */
@@ -60,9 +71,12 @@ const ZONE_VALVE_RADIUS = 8
  * Determine whether an outlet control is cold-only (draws from cold supply only,
  * never from the hot-water service).
  *
- * An outlet is cold-only when:
- *   1. Its kind is 'cold_tap' (always cold regardless of graph facts), OR
- *   2. Its bound builder graph node ID appears in graphFacts.coldOnlyOutletNodeIds.
+ * Priority order:
+ *   1. Outlet-level `serviceClass` field (populated by graphToLabControls from
+ *      topology analysis) — authoritative when present.
+ *   2. `kind === 'cold_tap'` — always cold regardless of graph facts.
+ *   3. Graph-fact lookup via `builderNodeId` or `outletBindings` — backward
+ *      compat for older LabControls objects that predate the serviceClass field.
  *
  * Cold-only outlets must:
  *   - NOT appear on the hot branch from the splitter
@@ -71,9 +85,15 @@ const ZONE_VALVE_RADIUS = 8
  *   - Be rendered with a cold (blue) colour scheme
  */
 function isColdOnlyOutlet(outlet: OutletControl, controls: LabControls): boolean {
+  // 1. Outlet-level service class (authoritative)
+  if (outlet.serviceClass === 'cold_only') return true
+  if (outlet.serviceClass === 'mixed' || outlet.serviceClass === 'hot_only') return false
+
+  // 2. Kind-based fallback
   if (outlet.kind === 'cold_tap') return true
-  const bindings = controls.outletBindings ?? {}
-  const nodeId = bindings[outlet.id as OutletId]
+
+  // 3. Graph-fact lookup (backward compat)
+  const nodeId = outlet.builderNodeId ?? controls.outletBindings?.[outlet.id]
   return !!(nodeId && controls.graphFacts?.coldOnlyOutletNodeIds.includes(nodeId))
 }
 
@@ -153,7 +173,7 @@ function makeInitialFrame(controls: LabControls): LabFrame {
     particles: [],
     spawnAccumulator: 0,
     nextTokenId: 0,
-    outletSamples: { ...EMPTY_OUTLET_SAMPLES },
+    outletSamples: emptyOutletSamples(controls.outlets),
     cylinderStore,
   }
 }
@@ -236,15 +256,21 @@ export function LabCanvas(props: {
   const mainsGlow  = glowFor('Supply')
 
   // ── TMV state ──────────────────────────────────────────────────────────────
-  // Detect if outlet A is an active TMV shower_mixer.
-  const outletA = controls.outlets.find(o => o.id === 'A')
+  // The TMV always lives on the first hot outlet (slot 'A' in the standard
+  // assignment scheme).  We use the first hot outlet as the reference instead
+  // of hard-coding slot 'A' so the logic stays correct for graphs where outlet
+  // nodes are assigned starting from a letter other than A.
+  const tmvReferenceOutlet = controls.outlets.find(o => !isColdOnlyOutlet(o, controls))
   const tmvOutletAActive = !isCylinder &&
-    outletA?.enabled === true &&
-    outletA?.kind === 'shower_mixer' &&
-    outletA?.tmvEnabled === true &&
+    tmvReferenceOutlet?.enabled === true &&
+    tmvReferenceOutlet?.kind === 'shower_mixer' &&
+    tmvReferenceOutlet?.tmvEnabled === true &&
     summary.hydraulicFlowLpm > 0
 
-  const tmvOutcomeA = summary.tmvOutcomes?.A
+  // The outletA alias is kept for backward-compat references below (e.g. display
+  // of tmvTargetTempC in the sidebar).  It is the same as tmvReferenceOutlet.
+  const outletA = tmvReferenceOutlet
+  const tmvOutcomeA = tmvReferenceOutlet ? summary.tmvOutcomes?.[tmvReferenceOutlet.id] : undefined
   const tmvSaturated = summary.tmvSaturated === true
 
   // Build polylines — when TMV outlet A is active, outlet A branch ends at the
@@ -252,9 +278,13 @@ export function LabCanvas(props: {
   // For stored-cylinder systems (isCylinder && isStoredLayout) use the domestic
   // circuit trunk (cold rail → cylinder → splitter) so particles never travel
   // through the heat-source box on the domestic path.
-  const { main: polyMain, branchA, branchB, branchC, coldBypassA } = buildPolylines({
+  const extraSlots = controls.outlets.filter(o => !isColdOnlyOutlet(o, controls)).slice(3).map(o => o.id)
+  const {
+    main: polyMain, branchA, branchB, branchC, coldBypassA, extraBranches,
+  } = buildPolylines({
     tmvOutletA: tmvOutletAActive,
     isStoredCylinder: isCylinder && isStoredLayout,
+    extraOutletSlots: extraSlots,
   })
 
   // Post-HEX pipe and outlet branch colour — driven by achieved outlet temperature (combi),
@@ -289,19 +319,29 @@ export function LabCanvas(props: {
          summary.achievedOutTempC < controls.dhwSetpointC - 0.5)
   )
 
-  // Outlet positions for SVG rendering
-  const outletXMap: Record<OutletId, number> = {
-    A: P.outlet1X,
-    B: P.outlet2X,
-    C: P.outlet3X,
-  }
-  const outletYMap: Record<OutletId, number> = {
-    A: P.outlet1Y,
-    B: P.outlet2Y,
-    C: P.outlet3Y,
-  }
+  // ── Dynamic outlet positions ──────────────────────────────────────────────
+  // The first three outlets use the fixed SCHEMATIC_P positions (A, B, C).
+  // Additional outlets (D, E, …) are stacked below outlet C, 55 px apart.
+  const EXTRA_BRANCH_SPACING = 55
+  const hotOutlets = controls.outlets.filter(o => !isColdOnlyOutlet(o, controls))
+  const outletXMap: Record<string, number> = {}
+  const outletYMap: Record<string, number> = {}
+  hotOutlets.forEach((outlet, index) => {
+    switch (index) {
+      case 0: outletXMap[outlet.id] = P.outlet1X; outletYMap[outlet.id] = P.outlet1Y; break
+      case 1: outletXMap[outlet.id] = P.outlet2X; outletYMap[outlet.id] = P.outlet2Y; break
+      case 2: outletXMap[outlet.id] = P.outlet3X; outletYMap[outlet.id] = P.outlet3Y; break
+      default:
+        // Extra outlets stacked below outlet C.
+        outletXMap[outlet.id] = P.outlet3X
+        outletYMap[outlet.id] = P.outlet3Y + (index - 2) * EXTRA_BRANCH_SPACING
+    }
+  })
 
-  // The splitter node is always visible since we always have 3 defined outlet branches.
+  // Slots for extra outlets (beyond A, B, C) — used by buildPolylines + TokensLayer.
+  const extraHotOutletSlots = hotOutlets.slice(3).map(o => o.id)
+
+  // The splitter node is always visible since we always have at least one outlet branch.
   const showSplitter = true
 
   // ── Simulation visuals — heat-transfer domain ─────────────────────────────
@@ -1470,7 +1510,7 @@ export function LabCanvas(props: {
 
                     {/* Outlet label */}
                     <text x={ox + 6} y={oy - 8} textAnchor="start" fontSize={12} fill={isEnabled ? '#334155' : '#94a3b8'} fontWeight={600}>
-                      {OUTLET_LABELS[outlet.id]} · {OUTLET_KIND_LABELS[outlet.kind]}
+                      {outletLabel(outlet.id)} · {OUTLET_KIND_LABELS[outlet.kind]}
                     </text>
 
                     {/* Readout badge: delivered L/min + temperature */}
@@ -1567,7 +1607,7 @@ export function LabCanvas(props: {
                           textAnchor="middle" fontSize={10}
                           fill={isEnabled ? '#0369a1' : '#94a3b8'} fontWeight={600}
                         >
-                          {OUTLET_LABELS[outlet.id]}
+                          {outletLabel(outlet.id)}
                         </text>
                         <text
                           x={coldBranchX} y={coldBranchY + 32}
@@ -1726,6 +1766,7 @@ export function LabCanvas(props: {
           polyB={branchB}
           polyC={branchC}
           polyColdA={coldBypassA}
+          extraPolylines={extraBranches}
           hydraulicFlowLpm={summary.hydraulicFlowLpm}
           demandTotalLpm={summary.demandTotalLpm}
           postHexThermalColor={postHexThermalColor}
