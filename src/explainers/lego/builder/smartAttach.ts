@@ -148,15 +148,23 @@ export function smartAdd(
     if (slot) outletBindings = { ...outletBindings, [slot]: newNode.id }
   }
 
-  // ── Emitters (rads / UFH) → anchor CH flow only ──────────────────────────
+  // ── Emitters (rads / UFH) → anchor CH flow and auto-common return ──────────
   if (EMITTER_KINDS.has(kind) && anchor) {
-    const { flowOut } = heatSourcePorts(anchor.kind)
+    const { flowOut, returnIn } = heatSourcePorts(anchor.kind)
     edges = tryAddEdge(edges, anchor.id, flowOut, newNode.id, 'flow_in')
-    // Return connection is intentionally left unwired so the user controls it.
+    // Auto-common return: wire the emitter's return leg back to the heat source
+    // so the user never needs to manually draw every return merge.
+    edges = tryAddEdge(edges, newNode.id, 'return_out', anchor.id, returnIn)
   }
 
   // ── Cylinders ─────────────────────────────────────────────────────────────
   if (CYLINDER_KINDS.has(kind)) {
+    // Auto-wire CH coil to heat source (flow → coil_flow, coil_return → return)
+    if (anchor) {
+      const { flowOut, returnIn } = heatSourcePorts(anchor.kind)
+      edges = tryAddEdge(edges, anchor.id, flowOut, newNode.id, 'coil_flow')
+      edges = tryAddEdge(edges, newNode.id, 'coil_return', anchor.id, returnIn)
+    }
     // Vented cylinder: auto-add CWS if absent and connect it
     if (kind === 'dhw_vented_cylinder' && !nodes.find(n => n.kind === 'cws_cistern')) {
       const cwsPos = nextPosition(nodes.map(n => ({ x: n.x, y: n.y })), {
