@@ -10,6 +10,7 @@ export type PartKind =
   | 'open_vent'
   | 'cws_cistern'
   | 'pump'
+  | 'sealed_system_kit'
   | 'zone_valve'
   | 'three_port_valve'
   | 'buffer'
@@ -26,6 +27,10 @@ export type PartKind =
   | 'tee_ch_return'
   | 'manifold_hot'
   | 'manifold_cold';
+
+// ─── Re-exports from schematic block library ──────────────────────────────────
+
+export type { CylinderModel, StorageKind, SupplyKind, HeatSourceKind } from './schematicBlocks';
 
 export interface BuildNode {
   id: string;
@@ -80,4 +85,29 @@ export interface PaletteItem {
   kind: PartKind;
   label: string;
   emoji: string;
+  /** Which toolbox category this item belongs to. */
+  category: PaletteCategory;
+}
+
+/**
+ * Component palette categories.
+ *
+ * Maps directly to the toolbox sections in PalettePanel.
+ * Every PaletteItem must declare a category.
+ */
+export type PaletteCategory =
+  | 'heat_sources'
+  | 'cylinders'
+  | 'controls'
+  | 'emitters'
+  | 'system_support'
+  | 'outlets';
+
+/**
+ * One collapsible section in the component palette.
+ */
+export interface PaletteSection {
+  category: PaletteCategory;
+  label: string;
+  items: PaletteItem[];
 }

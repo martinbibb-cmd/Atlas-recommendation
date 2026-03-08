@@ -1159,6 +1159,36 @@
   text-align: left;
 }
 
+.palette-section {
+  margin-top: 4px;
+}
+
+.palette-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: #edf2f7;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.palette-section-label {
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: #4a5568;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.palette-section-chevron {
+  font-size: 0.65rem;
+  color: #718096;
+}
+
 .palette-grid-advanced {
   margin-top: 6px;
 }
