@@ -7,6 +7,7 @@ import { getPortDefs } from './portDefs';
 import { SchematicFace } from './SchematicFace';
 import { findSnapCandidate, portAbs as snapPortAbs } from './snapConnect';
 import { routePipe } from './router';
+import { allZoneBands, ZONE_BAND_WIDTH, ZONE_BAND_X } from './zoneBands';
 import './builder.css';
 
 const MIN_ZOOM = 0.5;
@@ -331,6 +332,30 @@ export default function WorkbenchCanvas({
           transformOrigin: '0 0',
         }}
       >
+        {/* ── Structural zone bands — rendered behind all schematic content ── */}
+        <svg className="zone-bands" aria-hidden="true">
+          {allZoneBands().map(band => (
+            <g key={band.zone}>
+              <rect
+                x={ZONE_BAND_X}
+                y={band.y}
+                width={ZONE_BAND_WIDTH}
+                height={band.height}
+                fill={band.fill}
+                stroke={band.stroke}
+                strokeWidth={1}
+              />
+              <text
+                x={ZONE_BAND_X + 20}
+                y={band.y + 22}
+                className="zone-band-label"
+              >
+                {band.label}
+              </text>
+            </g>
+          ))}
+        </svg>
+
         <svg className="pipes">
           {graph.edges.map(edge => {
             const fromNode = nodesById.get(edge.from.nodeId);
