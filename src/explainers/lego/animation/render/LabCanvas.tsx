@@ -1,7 +1,7 @@
 // src/explainers/lego/animation/render/LabCanvas.tsx
 
 import React from 'react'
-import type { LabControls, LabFrame, OutletControl } from '../types'
+import type { LabControls, LabFrame, OutletControl, SimTimeState } from '../types'
 import type { CapacitySummary } from '../capacitySummary'
 import { stepSimulation } from '../simulation'
 import { createCylinderStore, cylinderTempC } from '../storage'
@@ -157,6 +157,23 @@ function controlTopologyLabel(
 }
 
 
+/**
+ * Format elapsed simulated seconds as a human-readable time string.
+ * ≤ 60 min: "Nm NNs"   e.g. "3m 22s"
+ * > 60 min: "Nh NNm"   e.g. "1h 05m"
+ */
+function formatSimTime(totalSeconds: number): string {
+  const s = Math.floor(totalSeconds)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  if (h > 0) return `${h}h ${m.toString().padStart(2, '0')}m`
+  return `${m}m ${sec.toString().padStart(2, '0')}s`
+}
+
+/** Supported time-scale multiplier values. */
+const TIME_SCALE_OPTIONS: readonly number[] = [1, 10, 60, 300, 1800]
+
 function makeInitialFrame(controls: LabControls): LabFrame {
   const isCylinderSystem =
     controls.systemType === 'unvented_cylinder' || controls.systemType === 'vented_cylinder'
@@ -175,6 +192,8 @@ function makeInitialFrame(controls: LabControls): LabFrame {
     nextTokenId: 0,
     outletSamples: emptyOutletSamples(controls.outlets),
     cylinderStore,
+    simTimeSeconds: 0,
+    standingLossKwhTotal: isCylinderSystem ? 0 : undefined,
   }
 }
 
@@ -192,6 +211,17 @@ export function LabCanvas(props: {
   React.useLayoutEffect(() => { onFrameRef.current = onFrame })
 
   const [frame, setFrame] = React.useState<LabFrame>(() => makeInitialFrame(controls))
+
+  // ── Simulation time-scale state ────────────────────────────────────────────
+  // timeScale and isPaused are UI controls; simTimeSeconds lives in the frame.
+  // Use a ref so the animation loop always reads the latest value without
+  // needing to be recreated.
+  const [simTimeState, setSimTimeState] = React.useState<SimTimeState>({
+    timeScale: 1,
+    isPaused: false,
+  })
+  const simTimeStateRef = React.useRef(simTimeState)
+  React.useLayoutEffect(() => { simTimeStateRef.current = simTimeState })
 
   // Reset cylinder store when systemType or cylinder params change.
   // We explicitly track the primitive values that should trigger a reset;
@@ -220,19 +250,33 @@ export function LabCanvas(props: {
     const loop = (ts: number) => {
       const last = lastTsRef.current
       lastTsRef.current = ts
-      const dtMs = last === null ? DEFAULT_FRAME_TIME_MS : Math.min(MAX_FRAME_TIME_MS, ts - last)
+      const realDtMs = last === null ? DEFAULT_FRAME_TIME_MS : Math.min(MAX_FRAME_TIME_MS, ts - last)
 
-      setFrame(prev => {
-        const next = stepSimulation({ frame: prev, dtMs, controls: controlsRef.current })
-        onFrameRef.current?.(next)
-        return next
-      })
+      const { timeScale, isPaused } = simTimeStateRef.current
+      if (!isPaused) {
+        // Scale the integration timestep — physics stays in real units.
+        const simDtMs = realDtMs * timeScale
+        setFrame(prev => {
+          const next = stepSimulation({ frame: prev, dtMs: simDtMs, controls: controlsRef.current })
+          onFrameRef.current?.(next)
+          return next
+        })
+      }
 
       raf = requestAnimationFrame(loop)
     }
 
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
+  }, [])
+
+  /** Advance simulation by a fixed number of simulated seconds (step mode). */
+  const handleStep = React.useCallback((stepSeconds: number) => {
+    setFrame(prev => stepSimulation({
+      frame: prev,
+      dtMs: stepSeconds * 1000,
+      controls: controlsRef.current,
+    }))
   }, [])
 
   const isCylinder = controls.systemType === 'unvented_cylinder' || controls.systemType === 'vented_cylinder'
@@ -1961,6 +2005,72 @@ export function LabCanvas(props: {
           }}>{scene.metadata.sceneLayoutKind}</span>
         </div>
       )}
+
+      {/* ── Simulation time controls ─────────────────────────────────────── */}
+      {/* Speed up, pause, step, and display simulated time / standing loss.
+          Physics always stays in real units — only the integration timestep is
+          scaled, so all kW and kWh values remain auditable.                  */}
+      <div className="sim-time-bar">
+        {/* Pause / play toggle */}
+        <button
+          className={`sim-time-bar__btn${simTimeState.isPaused ? ' sim-time-bar__btn--pause' : ''}`}
+          onClick={() => setSimTimeState(s => ({ ...s, isPaused: !s.isPaused }))}
+          title={simTimeState.isPaused ? 'Resume simulation' : 'Pause simulation'}
+        >
+          {simTimeState.isPaused ? '▶ Play' : '⏸ Pause'}
+        </button>
+
+        {/* Time-scale selector */}
+        <span className="sim-time-bar__label">Speed:</span>
+        {TIME_SCALE_OPTIONS.map(scale => (
+          <button
+            key={scale}
+            className={`sim-time-bar__btn${simTimeState.timeScale === scale && !simTimeState.isPaused ? ' sim-time-bar__btn--active' : ''}`}
+            onClick={() => setSimTimeState(s => ({ ...s, timeScale: scale, isPaused: false }))}
+            title={scale === 1 ? 'Real time' : `1 real second = ${scale} simulated seconds`}
+          >
+            {scale >= 3600
+              ? `${scale / 3600}h/s`
+              : scale >= 60
+                ? `${scale / 60}m/s`
+                : `${scale}×`}
+          </button>
+        ))}
+
+        {/* Step controls */}
+        <span className="sim-time-bar__divider" />
+        <button
+          className="sim-time-bar__btn"
+          onClick={() => handleStep(60)}
+          title="Advance simulation by 1 simulated minute"
+        >
+          +1 min
+        </button>
+        <button
+          className="sim-time-bar__btn"
+          onClick={() => handleStep(900)}
+          title="Advance simulation by 15 simulated minutes"
+        >
+          +15 min
+        </button>
+
+        {/* Status badges */}
+        <span className="sim-time-bar__divider" />
+        <span className="sim-time-bar__badge" title="Elapsed simulated time">
+          ⏱ {formatSimTime(frame.simTimeSeconds ?? 0)}
+        </span>
+        <span className="sim-time-bar__badge" title="Current time scale">
+          {simTimeState.timeScale}×
+        </span>
+        {isCylinder && frame.standingLossKwhTotal !== undefined && (
+          <span
+            className="sim-time-bar__badge sim-time-bar__badge--loss"
+            title="Cumulative standing heat loss since simulation start"
+          >
+            Loss: {frame.standingLossKwhTotal.toFixed(3)} kWh
+          </span>
+        )}
+      </div>
     </div>
   )
 }
