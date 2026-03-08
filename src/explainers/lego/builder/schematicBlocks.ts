@@ -82,6 +82,22 @@ export interface SchematicPortDef {
 }
 
 /**
+ * Visual hierarchy tier for a schematic component.
+ *
+ * large  — major plant (heat source, cylinder, buffer/LLH, emitters).
+ *          Rendered as full schematic blocks that dominate the canvas.
+ *
+ * medium — routing / control devices (pump, zone valve, 3-port valve).
+ *          Rendered as compact inline schematic symbols.  Hit area keeps
+ *          the full TOKEN_W × TOKEN_H rectangle for touch usability.
+ *
+ * small  — support accessories (sealed system kit, open vent, F&E tank).
+ *          Rendered as minimal annotation symbols attached to the flow
+ *          spine.  Still fully interactive.
+ */
+export type ComponentVisualSize = 'large' | 'medium' | 'small';
+
+/**
  * Shared component contract used by both the builder token renderer and the
  * Play mode renderer.  Width and height are in canvas units (px at 1×).
  */
@@ -90,6 +106,8 @@ export interface SchematicComponentDefinition {
   width: number;
   height: number;
   ports: SchematicPortDef[];
+  /** Visual hierarchy tier — controls rendering weight and token styling. */
+  visualSize: ComponentVisualSize;
 }
 
 // ─── Canonical component registry ─────────────────────────────────────────────
@@ -132,6 +150,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'heat_source_combi',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'large',
     ports: [
       // CH circuit — both ports on right (system side): flow near top, return near bottom
       { id: 'flow_out',  label: 'flow',    side: 'right', x: 18 / TOKEN_H,            y: 0, direction: 'out', semanticRole: 'flow'    },
@@ -146,6 +165,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'heat_source_system_boiler',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'large',
     ports: [
       // Both CH ports on right (system side): flow near top, return near bottom
       { id: 'flow_out',  label: 'flow',   side: 'right', x: 18 / TOKEN_H,             y: 0, direction: 'out', semanticRole: 'flow'   },
@@ -157,6 +177,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'heat_source_regular_boiler',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'large',
     ports: [
       // Both CH ports on right (system side): flow near top, return near bottom
       { id: 'flow_out',  label: 'flow',   side: 'right', x: 18 / TOKEN_H,             y: 0, direction: 'out', semanticRole: 'flow'   },
@@ -168,6 +189,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'heat_source_heat_pump',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'large',
     ports: [
       // Both CH ports on right (system side): flow near top, return near bottom
       { id: 'flow_out',  label: 'flow',   side: 'right', x: 18 / TOKEN_H,             y: 0, direction: 'out', semanticRole: 'flow'   },
@@ -181,6 +203,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'dhw_unvented_cylinder',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'large',
     ports: [
       // Primary heating circuit on left (coil)
       { id: 'coil_flow',   label: 'flow',    side: 'left',   x: 18 / TOKEN_H, y: 0, direction: 'in',  semanticRole: 'flow'   },
@@ -195,6 +218,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'dhw_vented_cylinder',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'large',
     ports: [
       { id: 'coil_flow',   label: 'flow',    side: 'left',   x: 18 / TOKEN_H, y: 0, direction: 'in',  semanticRole: 'flow'   },
       { id: 'coil_return', label: 'return',  side: 'left',   x: (TOKEN_H - 18) / TOKEN_H, y: 0, direction: 'out', semanticRole: 'return' },
@@ -207,6 +231,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'dhw_mixergy',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'large',
     ports: [
       // Mixergy top-entry heat exchanger: coil ports on left, near top
       { id: 'coil_flow',   label: 'flow',    side: 'left',   x: 18 / TOKEN_H, y: 0, direction: 'in',  semanticRole: 'flow'   },
@@ -224,6 +249,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'three_port_valve',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'medium',
     ports: [
       { id: 'in',    label: 'flow in', side: 'left',  x: 0.5,            y: 0, direction: 'in',  semanticRole: 'flow'   },
       { id: 'out_a', label: 'hw out',  side: 'right', x: 18 / TOKEN_H,   y: 0, direction: 'out', semanticRole: 'flow'   },
@@ -236,6 +262,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'zone_valve',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'medium',
     ports: [
       { id: 'in',    label: 'flow in',  side: 'left',  x: 0.5, y: 0, direction: 'in',  semanticRole: 'flow' },
       { id: 'out_a', label: 'flow out', side: 'right', x: 0.5, y: 0, direction: 'out', semanticRole: 'flow' },
@@ -248,6 +275,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'radiator_loop',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'large',
     ports: [
       { id: 'flow_in',    label: 'flow',   side: 'left',  x: 0.5, y: 0, direction: 'in',  semanticRole: 'flow'   },
       { id: 'return_out', label: 'return', side: 'right', x: 0.5, y: 0, direction: 'out', semanticRole: 'return' },
@@ -258,6 +286,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'ufh_loop',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'large',
     ports: [
       { id: 'flow_in',    label: 'flow',   side: 'left',  x: 0.5, y: 0, direction: 'in',  semanticRole: 'flow'   },
       { id: 'return_out', label: 'return', side: 'right', x: 0.5, y: 0, direction: 'out', semanticRole: 'return' },
@@ -271,6 +300,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'buffer',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'large',
     ports: [
       { id: 'primary_flow',     label: 'src flow',    side: 'left',  x: 18 / TOKEN_H,            y: 0, direction: 'in',  semanticRole: 'flow'   },
       { id: 'primary_return',   label: 'src return',  side: 'left',  x: (TOKEN_H - 18) / TOKEN_H, y: 0, direction: 'out', semanticRole: 'return' },
@@ -283,6 +313,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'low_loss_header',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'large',
     ports: [
       { id: 'primary_flow',     label: 'src flow',    side: 'left',  x: 18 / TOKEN_H,            y: 0, direction: 'in',  semanticRole: 'flow'   },
       { id: 'primary_return',   label: 'src return',  side: 'left',  x: (TOKEN_H - 18) / TOKEN_H, y: 0, direction: 'out', semanticRole: 'return' },
@@ -295,6 +326,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'pump',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'medium',
     ports: [
       { id: 'in',  label: 'in',  side: 'left',  x: 0.5, y: 0, direction: 'in',  semanticRole: 'flow' },
       { id: 'out', label: 'out', side: 'right', x: 0.5, y: 0, direction: 'out', semanticRole: 'flow' },
@@ -309,6 +341,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'sealed_system_kit',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'small',
     ports: [
       { id: 'circuit_in', label: 'circuit', side: 'right', x: 0.5, y: 0, direction: 'in', semanticRole: 'flow' },
     ],
@@ -318,6 +351,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'open_vent',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'small',
     ports: [
       { id: 'vent_in',  label: 'vent in',  side: 'left',  x: 0.5, y: 0, direction: 'in',  semanticRole: 'vent' },
       { id: 'vent_out', label: 'vent out', side: 'right', x: 0.5, y: 0, direction: 'out', semanticRole: 'vent' },
@@ -328,6 +362,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'feed_and_expansion',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'small',
     ports: [
       { id: 'feed_in', label: 'feed', side: 'right', x: 0.5, y: 0, direction: 'in', semanticRole: 'feed' },
     ],
@@ -337,6 +372,7 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     kind: 'cws_cistern',
     width: TOKEN_W,
     height: TOKEN_H,
+    visualSize: 'large',
     ports: [
       { id: 'cold_out', label: 'cold', side: 'right', x: 0.5, y: 0, direction: 'out', semanticRole: 'cold' },
     ],

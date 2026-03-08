@@ -110,22 +110,26 @@ function kindClass(kind: PartKind): string {
     kind === 'dhw_vented_cylinder'
   ) return 'token--cylinder';
   if (kind === 'radiator_loop' || kind === 'ufh_loop') return 'token--emitter';
-  if (kind === 'three_port_valve' || kind === 'zone_valve') return 'token--control';
+  if (kind === 'buffer' || kind === 'low_loss_header') return 'token--support';
+  // Routing devices — compact inline symbols (pump, zone valve, 3-port valve)
+  if (
+    kind === 'pump' ||
+    kind === 'three_port_valve' ||
+    kind === 'zone_valve'
+  ) return 'token--routing';
+  // Small support accessories (sealed kit, open vent, F&E tank)
+  if (
+    kind === 'sealed_system_kit' ||
+    kind === 'open_vent' ||
+    kind === 'feed_and_expansion'
+  ) return 'token--support-small';
   if (
     kind === 'tap_outlet' ||
     kind === 'bath_outlet' ||
     kind === 'shower_outlet' ||
     kind === 'cold_tap_outlet'
   ) return 'token--outlet';
-  if (
-    kind === 'buffer' ||
-    kind === 'low_loss_header' ||
-    kind === 'pump' ||
-    kind === 'sealed_system_kit' ||
-    kind === 'open_vent' ||
-    kind === 'feed_and_expansion' ||
-    kind === 'cws_cistern'
-  ) return 'token--support';
+  if (kind === 'cws_cistern') return 'token--support';
   return '';
 }
 

@@ -544,13 +544,34 @@
   border-style: dashed;
 }
 
+/* Routing devices (pump, zone valve, 3-port valve) — compact inline symbols.
+   Transparent background and thin neutral border so they read as schematic
+   annotations on the flow spine rather than competing with major plant blocks. */
+.token--routing {
+  background: #fff;
+  border-color: #a0aec0;
+  border-width: 1.5px;
+  box-shadow: 0 2px 6px rgb(15 23 42 / 5%);
+}
+
+/* Small support accessories (sealed kit, open vent, F&E tank) — minimal
+   annotation symbols.  Nearly transparent so they fade into the background
+   while remaining fully interactive. */
+.token--support-small {
+  background: transparent;
+  border-color: #cbd5e0;
+  border-style: dashed;
+  border-width: 1px;
+  box-shadow: none;
+}
+
 /* Outlets (tap, bath, shower, cold tap) — teal tint */
 .token--outlet {
   background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%);
   border-color: #319795;
 }
 
-/* System support (buffer, pump, kit, etc.) — neutral grey-blue */
+/* System support (buffer, LLH, CWS cistern) — neutral grey-blue */
 .token--support {
   background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
   border-color: #4a5568;

@@ -16,6 +16,7 @@ import {
   kindFromCylinderModel,
   schematicPortToDxDy,
   type CylinderModel,
+  type ComponentVisualSize,
   type SchematicComponentDefinition,
 } from '../builder/schematicBlocks'
 import { TOKEN_W, TOKEN_H } from '../builder/ports'
@@ -58,12 +59,57 @@ describe('SCHEMATIC_REGISTRY — structure', () => {
   })
 
   it('every definition has the expected shape', () => {
+    const validSizes: ComponentVisualSize[] = ['large', 'medium', 'small']
     for (const [kind, def] of Object.entries(SCHEMATIC_REGISTRY)) {
       expect(def.kind).toBe(kind)
       expect(typeof def.width).toBe('number')
       expect(typeof def.height).toBe('number')
       expect(Array.isArray(def.ports)).toBe(true)
       expect(def.ports.length).toBeGreaterThan(0)
+      expect(validSizes).toContain(def.visualSize)
+    }
+  })
+
+  it('major plant components have visualSize "large"', () => {
+    const largePlant = [
+      'heat_source_combi',
+      'heat_source_system_boiler',
+      'heat_source_regular_boiler',
+      'heat_source_heat_pump',
+      'dhw_unvented_cylinder',
+      'dhw_vented_cylinder',
+      'dhw_mixergy',
+      'buffer',
+      'low_loss_header',
+      'radiator_loop',
+      'ufh_loop',
+      'cws_cistern',
+    ]
+    for (const kind of largePlant) {
+      expect(
+        (SCHEMATIC_REGISTRY[kind] as SchematicComponentDefinition).visualSize,
+        `${kind} should be large`,
+      ).toBe('large')
+    }
+  })
+
+  it('routing devices have visualSize "medium"', () => {
+    const routing = ['pump', 'zone_valve', 'three_port_valve']
+    for (const kind of routing) {
+      expect(
+        (SCHEMATIC_REGISTRY[kind] as SchematicComponentDefinition).visualSize,
+        `${kind} should be medium`,
+      ).toBe('medium')
+    }
+  })
+
+  it('support accessories have visualSize "small"', () => {
+    const support = ['sealed_system_kit', 'open_vent', 'feed_and_expansion']
+    for (const kind of support) {
+      expect(
+        (SCHEMATIC_REGISTRY[kind] as SchematicComponentDefinition).visualSize,
+        `${kind} should be small`,
+      ).toBe('small')
     }
   })
 

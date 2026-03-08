@@ -201,14 +201,14 @@ describe('cylinder visual distinctions', () => {
 })
 
 describe('valve routing-device visual language', () => {
-  it('Y-plan valve contains "Y-PLAN" label', () => {
+  it('3-port valve contains "3-PORT VALVE" label', () => {
     const el = SchematicFaceContent({ kind: 'three_port_valve', label: 'Y-plan' })
-    expect(collectText(el)).toContain('Y-PLAN')
+    expect(collectText(el)).toContain('3-PORT VALVE')
   })
 
-  it('zone valve contains "S-PLAN" label', () => {
+  it('zone valve contains "ZONE VALVE" label', () => {
     const el = SchematicFaceContent({ kind: 'zone_valve', label: 'Zone' })
-    expect(collectText(el)).toContain('S-PLAN')
+    expect(collectText(el)).toContain('ZONE VALVE')
   })
 
   it('Y-plan and zone valve faces are visually distinct', () => {
@@ -261,9 +261,9 @@ describe('support component labels', () => {
     expect(collectText(el)).toContain('OPEN VENT')
   })
 
-  it('feed_and_expansion contains "FEED"', () => {
+  it('feed_and_expansion contains "F&E TANK"', () => {
     const el = SchematicFaceContent({ kind: 'feed_and_expansion', label: 'FE' })
-    expect(collectText(el)).toContain('FEED')
+    expect(collectText(el)).toContain('F&E TANK')
   })
 
   it('cws_cistern contains "CWS CISTERN"', () => {
