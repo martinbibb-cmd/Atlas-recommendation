@@ -354,6 +354,62 @@ describe('findSnapCandidate with role-based snap rules', () => {
     expect(snapToHeatSource).toBeFalsy()
   })
 
+  // ── Vent/feed-before-pump graph-context constraints ───────────────────────
+
+  it('open_vent does NOT snap to pump when pump is already in graph', () => {
+    // Vented systems: open vent must sit before the pump — never after.
+    // When a pump exists, open_vent can only snap to a heat source.
+    // pump 'out': dx=R=170, dy=MID_Y=37 → abs (170+170, 37) = (340, 37) if pump at x=170
+    // open_vent 'vent_in': dx=L=0, dy=MID_Y=37 → place at x=340, y=0 → abs (340, 37) dist=0
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi',  x: 0, y: 0, r: 0 },
+      { id: 'pump',  kind: 'pump',               x: 170, y: 0, r: 0 },
+      { id: 'ov',    kind: 'open_vent',           x: 340, y: 0, r: 0 },
+    ])
+    const cand = findSnapCandidate({ graph, movingNodeId: 'ov', maxDistPx: 36 })
+    const snapToPump = cand && cand.to.nodeId === 'pump'
+    expect(snapToPump).toBeFalsy()
+  })
+
+  it('open_vent CAN snap to heat source when pump is in graph', () => {
+    // Vent must be able to connect to the heat source regardless of pump presence.
+    // combi flow_out: abs (170, 18)
+    // open_vent 'vent_in': dx=L=0, dy=MID_Y=37 → place at x=170, y=18-37=-19 → abs (170, 18)
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi',  x: 0, y: 0, r: 0 },
+      { id: 'pump',  kind: 'pump',               x: 0, y: 100, r: 0 },
+      { id: 'ov',    kind: 'open_vent',           x: 170, y: -19, r: 0 },
+    ])
+    const cand = findSnapCandidate({ graph, movingNodeId: 'ov', maxDistPx: 36 })
+    expect(cand).not.toBeNull()
+    expect(cand!.to.nodeId).toBe('combi')
+  })
+
+  it('feed_and_expansion does NOT snap to pump when pump is already in graph', () => {
+    // F&E cistern tap must also obey the before-pump rule.
+    // pump 'out': abs (340, 37) if pump at x=170
+    // feed_and_expansion 'feed_in': dx=R=170, dy=MID_Y=37 → place at x=170, y=0 → abs (340, 37)
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi',  x: 0, y: 0, r: 0 },
+      { id: 'pump',  kind: 'pump',               x: 170, y: 0, r: 0 },
+      { id: 'fe',    kind: 'feed_and_expansion',  x: 170, y: 0, r: 0 },
+    ])
+    const cand = findSnapCandidate({ graph, movingNodeId: 'fe', maxDistPx: 36 })
+    const snapToPump = cand && cand.to.nodeId === 'pump'
+    expect(snapToPump).toBeFalsy()
+  })
+
+  it('open_vent CAN snap anywhere on flow when no pump is in graph', () => {
+    // Without a pump the vent can go anywhere it can connect (flow only).
+    // pump not in graph → free placement on flow
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
+      { id: 'ov',    kind: 'open_vent',          x: 170, y: -19, r: 0 },
+    ])
+    const cand = findSnapCandidate({ graph, movingNodeId: 'ov', maxDistPx: 36 })
+    expect(cand).not.toBeNull()
+  })
+
   // Verifies that rolesCompatible still blocks hot↔cold (unchanged behaviour)
   it('still blocks hot ↔ cold regardless of snap roles', () => {
     expect(rolesCompatible('hot', 'cold')).toBe(false)

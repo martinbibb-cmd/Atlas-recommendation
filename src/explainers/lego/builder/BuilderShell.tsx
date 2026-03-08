@@ -16,7 +16,7 @@ import { deriveFacts } from './graphDerive'
 import { normalizeGraph } from './normalizeGraph'
 import { PRESETS, CONCEPT_PRESETS, resolveConceptPreset } from './presets'
 import { smartAdd } from './smartAttach'
-import { portAbs } from './snapConnect'
+import { portAbs, isTopologyAllowed } from './snapConnect'
 import { insertTee } from './tee'
 import { graphToLabControls, DEFAULT_COMBI_DHW_KW } from './graphToControls'
 import {
@@ -255,6 +255,9 @@ export default function BuilderShell({
     const roleFrom = getRole(from.nodeId, from.portId)
     const roleTo = getRole(to.nodeId, to.portId)
     if (hardBlock(roleFrom, roleTo)) {
+      return
+    }
+    if (!isTopologyAllowed(graph, from, to)) {
       return
     }
 

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { rolesCompatible, findSnapCandidate, portAbs } from '../builder/snapConnect'
+import { rolesCompatible, findSnapCandidate, portAbs, isTopologyAllowed } from '../builder/snapConnect'
 import type { BuildGraph } from '../builder/types'
 
 // ─── rolesCompatible ─────────────────────────────────────────────────────────
@@ -143,5 +143,126 @@ describe('findSnapCandidate', () => {
     const cand = findSnapCandidate({ graph, movingNodeId: 'combi', maxDistPx: 36 })
     expect(cand).not.toBeNull()
     expect(cand!.to.nodeId).toBe('rad1')
+  })
+})
+
+// ─── isTopologyAllowed ────────────────────────────────────────────────────────
+
+describe('isTopologyAllowed — manual port-tap topology enforcement', () => {
+  it('allows a simple pump → flow connection', () => {
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
+      { id: 'pump',  kind: 'pump',              x: 170, y: 0, r: 0 },
+    ])
+    expect(isTopologyAllowed(
+      graph,
+      { nodeId: 'pump',  portId: 'in' },
+      { nodeId: 'combi', portId: 'flow_out' },
+    )).toBe(true)
+  })
+
+  it('blocks pump from connecting to heat source return port', () => {
+    // pump.in (role=flow) → combi.return_in (role=return) — blocked by isSnapAllowed
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
+      { id: 'pump',  kind: 'pump',              x: 170, y: 0, r: 0 },
+    ])
+    expect(isTopologyAllowed(
+      graph,
+      { nodeId: 'pump',  portId: 'in' },
+      { nodeId: 'combi', portId: 'return_in' },
+    )).toBe(false)
+  })
+
+  it('blocks control from bypassing pump to heat source when pump is in graph', () => {
+    // zone_valve.in (role=flow) → combi.flow_out — blocked because pump is present
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
+      { id: 'pump',  kind: 'pump',              x: 0, y: 100, r: 0 },
+      { id: 'valve', kind: 'zone_valve',         x: 0, y: 200, r: 0 },
+    ])
+    expect(isTopologyAllowed(
+      graph,
+      { nodeId: 'valve', portId: 'in' },
+      { nodeId: 'combi', portId: 'flow_out' },
+    )).toBe(false)
+  })
+
+  it('allows control to connect to heat source when no pump in graph', () => {
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
+      { id: 'valve', kind: 'zone_valve',         x: 0, y: 100, r: 0 },
+    ])
+    expect(isTopologyAllowed(
+      graph,
+      { nodeId: 'valve', portId: 'in' },
+      { nodeId: 'combi', portId: 'flow_out' },
+    )).toBe(true)
+  })
+
+  it('blocks load from bypassing control to heat source when control is in graph', () => {
+    // radiator.flow_in → combi.flow_out — blocked because control is present
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
+      { id: 'valve', kind: 'zone_valve',         x: 0, y: 100, r: 0 },
+      { id: 'rad',   kind: 'radiator_loop',       x: 0, y: 200, r: 0 },
+    ])
+    expect(isTopologyAllowed(
+      graph,
+      { nodeId: 'rad',   portId: 'flow_in' },
+      { nodeId: 'combi', portId: 'flow_out' },
+    )).toBe(false)
+  })
+
+  it('allows load return port to connect to heat source return even when control is in graph', () => {
+    // radiator.return_out → combi.return_in — return path always allowed
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
+      { id: 'valve', kind: 'zone_valve',         x: 0, y: 100, r: 0 },
+      { id: 'rad',   kind: 'radiator_loop',       x: 0, y: 200, r: 0 },
+    ])
+    expect(isTopologyAllowed(
+      graph,
+      { nodeId: 'rad',   portId: 'return_out' },
+      { nodeId: 'combi', portId: 'return_in' },
+    )).toBe(true)
+  })
+
+  it('blocks open_vent from connecting to pump when pump is in graph', () => {
+    // open_vent.vent_out → pump.in — blocked: vent must stay before pump
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
+      { id: 'pump',  kind: 'pump',              x: 0, y: 100, r: 0 },
+      { id: 'ov',    kind: 'open_vent',          x: 0, y: 200, r: 0 },
+    ])
+    expect(isTopologyAllowed(
+      graph,
+      { nodeId: 'ov',   portId: 'vent_out' },
+      { nodeId: 'pump', portId: 'in' },
+    )).toBe(false)
+  })
+
+  it('allows open_vent to connect to heat source when pump is in graph', () => {
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
+      { id: 'pump',  kind: 'pump',              x: 0, y: 100, r: 0 },
+      { id: 'ov',    kind: 'open_vent',          x: 0, y: 200, r: 0 },
+    ])
+    expect(isTopologyAllowed(
+      graph,
+      { nodeId: 'ov',    portId: 'vent_in' },
+      { nodeId: 'combi', portId: 'flow_out' },
+    )).toBe(true)
+  })
+
+  it('is symmetric — same result regardless of tap order', () => {
+    // Tapping combi first, then pump.in should give the same result as pump first.
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
+      { id: 'pump',  kind: 'pump',              x: 170, y: 0, r: 0 },
+    ])
+    const forward  = isTopologyAllowed(graph, { nodeId: 'combi', portId: 'flow_out' }, { nodeId: 'pump', portId: 'in' })
+    const backward = isTopologyAllowed(graph, { nodeId: 'pump',  portId: 'in' }, { nodeId: 'combi', portId: 'flow_out' })
+    expect(forward).toBe(backward)
   })
 })
