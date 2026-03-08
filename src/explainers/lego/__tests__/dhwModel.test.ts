@@ -1,6 +1,6 @@
 /**
  * Tests for the Lego DHW model: kwForFlow, flowForKw, computeCombiThermalLimit,
- * pipeDiameterCapacityLpm, and computeCapacityChain.
+ * pipeDiameterCapacityLpm, computeCapacityChain, and computeCombiWarmUpFraction.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -10,6 +10,8 @@ import {
   computeCombiThermalLimit,
   pipeDiameterCapacityLpm,
   computeCapacityChain,
+  computeCombiWarmUpFraction,
+  DEFAULT_COMBI_WARMUP_LAG_SECONDS,
 } from '../model/dhwModel';
 
 // ─── kwForFlow / flowForKw ────────────────────────────────────────────────────
@@ -112,5 +114,48 @@ describe('computeCapacityChain', () => {
     ]);
     expect(result.maxFlowLpm).toBe(12);
     expect(result.limitingComponent).toBe('Pipe');
+  });
+});
+
+// ─── computeCombiWarmUpFraction ───────────────────────────────────────────────
+
+describe('computeCombiWarmUpFraction', () => {
+  it('returns 0 at draw age 0 (cold water at draw start)', () => {
+    expect(computeCombiWarmUpFraction({ drawAgeSeconds: 0 })).toBe(0);
+  });
+
+  it('returns 1 at draw age equal to lag (full output reached)', () => {
+    expect(computeCombiWarmUpFraction({ drawAgeSeconds: DEFAULT_COMBI_WARMUP_LAG_SECONDS })).toBe(1);
+  });
+
+  it('returns 1 beyond the lag period (steady state, no overshoot)', () => {
+    expect(computeCombiWarmUpFraction({ drawAgeSeconds: DEFAULT_COMBI_WARMUP_LAG_SECONDS * 2 })).toBe(1);
+  });
+
+  it('returns 0.5 at half the lag period', () => {
+    expect(computeCombiWarmUpFraction({
+      drawAgeSeconds: DEFAULT_COMBI_WARMUP_LAG_SECONDS / 2,
+    })).toBeCloseTo(0.5, 5);
+  });
+
+  it('respects a custom lagSeconds override', () => {
+    // 5 s draw age with a 10 s custom lag → 50 %
+    expect(computeCombiWarmUpFraction({ drawAgeSeconds: 5, lagSeconds: 10 })).toBeCloseTo(0.5, 5);
+  });
+
+  it('returns 1 immediately when lagSeconds is 0 (no warm-up delay)', () => {
+    expect(computeCombiWarmUpFraction({ drawAgeSeconds: 0, lagSeconds: 0 })).toBe(1);
+  });
+
+  it('ramps monotonically from 0 to 1 over the lag period', () => {
+    const lag = DEFAULT_COMBI_WARMUP_LAG_SECONDS;
+    const fractions = [0, lag / 4, lag / 2, (3 * lag) / 4, lag].map(
+      t => computeCombiWarmUpFraction({ drawAgeSeconds: t }),
+    );
+    for (let i = 1; i < fractions.length; i++) {
+      expect(fractions[i]).toBeGreaterThanOrEqual(fractions[i - 1]);
+    }
+    expect(fractions[0]).toBe(0);
+    expect(fractions[fractions.length - 1]).toBe(1);
   });
 });

@@ -862,3 +862,110 @@ describe('PR16 — cold-only outlets do not activate DHW demand or deplete store
     expect(sv!.chargePct!).toBeLessThan(0.95)
   })
 })
+
+// ─── Combi warm-up lag ────────────────────────────────────────────────────────
+// When a combi DHW draw starts, the heat exchanger is cold.
+// The simulation must deliver cold water in the first frame (combiDrawAgeSeconds = 0)
+// and ramp up to full heat over DEFAULT_COMBI_WARMUP_LAG_SECONDS seconds.
+
+describe('combi warm-up lag', () => {
+  function makeCombiControls(): LabControls {
+    return {
+      systemType: 'combi',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 14,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 10 },
+      ],
+    }
+  }
+
+  it('combiDrawAgeSeconds starts at 0 and increments each draw frame', () => {
+    const controls = makeCombiControls()
+    let frame = makeFrame()
+    // First draw frame
+    frame = stepSimulation({ frame, dtMs: 200, controls })
+    expect(frame.systemMode).toBe('dhw_draw')
+    // After first step (dt = 0.2 s) draw age should be ~0.2 s
+    expect(frame.combiDrawAgeSeconds).toBeCloseTo(0.2, 3)
+    // After another 0.2 s step, draw age should be ~0.4 s
+    frame = stepSimulation({ frame, dtMs: 200, controls })
+    expect(frame.combiDrawAgeSeconds).toBeCloseTo(0.4, 3)
+  })
+
+  it('combiDrawAgeSeconds resets to 0 when draw stops', () => {
+    const controls = makeCombiControls()
+    let frame = makeFrame()
+    // Run for several ticks while drawing
+    for (let i = 0; i < 5; i++) {
+      frame = stepSimulation({ frame, dtMs: 200, controls })
+    }
+    expect(frame.combiDrawAgeSeconds).toBeGreaterThan(0)
+
+    // Stop the draw
+    const idleControls: LabControls = {
+      ...controls,
+      outlets: [{ id: 'A', enabled: false, kind: 'shower_mixer', demandLpm: 10 }],
+    }
+    frame = stepSimulation({ frame, dtMs: 200, controls: idleControls })
+    expect(frame.systemMode).toBe('idle')
+    expect(frame.combiDrawAgeSeconds).toBe(0)
+  })
+
+  it('combiDrawAgeSeconds is absent for cylinder system types', () => {
+    const controls: LabControls = {
+      systemType: 'unvented_cylinder',
+      heatSourceType: 'system_boiler',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 14,
+      pipeDiameterMm: 22,
+      combiDhwKw: 0,
+      cylinder: { volumeL: 180, initialTempC: 55, reheatKw: 12 },
+      outlets: [{ id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 10 }],
+    }
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    expect(frame.combiDrawAgeSeconds).toBeUndefined()
+  })
+
+  it('outlet tokens are cold on the first draw frame (warmUpFraction = 0)', () => {
+    // After many ticks the tokens exiting the branch should have near-cold temperature
+    // at the very start of a fresh draw (combiDrawAgeSeconds starts at 0 in the
+    // first frame, so warmUpFraction = 0 → no heat injected yet).
+    // We can verify by looking at the EMA outlet sample after one very short tick
+    // in which a token has crossed the HEX but was spawned with zero heat budget.
+    //
+    // Strategy: run ONE very long tick (large dtMs) on a fresh frame so tokens
+    // advance far in a single step; examine that outlet samples reflect cold water.
+    const controls = makeCombiControls()
+    // Use a single 5-second tick so tokens advance quickly.
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 5000, controls })
+    // In the first frame warmUpFraction is 0 (prevCombiDrawAgeS = 0).
+    // All tokens that passed through the HEX in this first step should have received
+    // zero heat.  Any branch-exiting tokens sampled this frame should be at cold temp.
+    const sampleA = frame.outletSamples['A']
+    if (sampleA && sampleA.count > 0) {
+      // Temperature should be near cold inlet (10 °C); allow 5 °C margin
+      expect(sampleA.tempC).toBeLessThan(15)
+    }
+  })
+
+  it('outlet temperature rises toward setpoint after the warm-up period', () => {
+    // Run the simulation well beyond DEFAULT_COMBI_WARMUP_LAG_SECONDS = 20 s.
+    // After warm-up, tokens should be receiving full heat and outlet EMA should
+    // approach the DHW setpoint.
+    const controls = makeCombiControls()
+    let frame = makeFrame()
+    // 200 × 200 ms = 40 s simulated time (2× the default 20 s lag)
+    for (let i = 0; i < 200; i++) {
+      frame = stepSimulation({ frame, dtMs: 200, controls })
+    }
+    const sampleA = frame.outletSamples['A']
+    // After 40 s draw the EMA should show water well above cold inlet.
+    expect(sampleA?.count).toBeGreaterThan(0)
+    expect(sampleA!.tempC).toBeGreaterThan(30)
+  })
+})
