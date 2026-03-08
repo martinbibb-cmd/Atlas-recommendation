@@ -151,6 +151,28 @@ describe('isSnapAllowed — load', () => {
   })
 })
 
+describe('isSnapAllowed — return_common', () => {
+  it('allows return_common on return', () => {
+    expect(isSnapAllowed('return_common', 'return', 'return')).toBe(true)
+  })
+
+  it('allows return_common on unknown port', () => {
+    expect(isSnapAllowed('return_common', 'return', 'unknown')).toBe(true)
+  })
+
+  it('blocks return_common on flow — return tee must not connect to flow pipe', () => {
+    expect(isSnapAllowed('return_common', 'return', 'flow')).toBe(false)
+  })
+
+  it('blocks return_common on DHW hot', () => {
+    expect(isSnapAllowed('return_common', 'return', 'hot')).toBe(false)
+  })
+
+  it('blocks return_common on domestic cold', () => {
+    expect(isSnapAllowed('return_common', 'return', 'cold')).toBe(false)
+  })
+})
+
 describe('isSnapAllowed — heat_source / storage / support / outlet', () => {
   it('heat_source has no additional restriction', () => {
     expect(isSnapAllowed('heat_source', 'flow', 'return')).toBe(true)
@@ -237,7 +259,7 @@ describe('findSnapCandidate with role-based snap rules', () => {
     expect(snapToReturn).toBeFalsy()
   })
 
-  it('radiator (load) snaps to flow', () => {
+  it('radiator (load) snaps to flow when no controls in graph', () => {
     // radiator flow_in: dx=L=0, dy=MID_Y=37 → abs (175, 37) for x=175, y=0
     // combi flow_out: abs (170, 18)
     // Place so they are close enough
@@ -248,6 +270,47 @@ describe('findSnapCandidate with role-based snap rules', () => {
     const cand = findSnapCandidate({ graph, movingNodeId: 'rad', maxDistPx: 36 })
     expect(cand).not.toBeNull()
     expect(cand!.to.nodeId).toBe('combi')
+  })
+
+  it('radiator (load) does NOT snap directly to heat source when a zone_valve exists in graph', () => {
+    // Controls are present → load must not bypass them by snapping to heat_source directly.
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
+      { id: 'valve', kind: 'zone_valve', x: 0, y: 0, r: 0 },   // control in graph
+      { id: 'rad', kind: 'radiator_loop', x: 173, y: 0, r: 0 }, // near combi flow_out
+    ])
+    const cand = findSnapCandidate({ graph, movingNodeId: 'rad', maxDistPx: 36 })
+    // The snap to combi's flow port must be blocked because a zone_valve exists
+    const snapToHeatSource = cand && cand.to.nodeId === 'combi'
+    expect(snapToHeatSource).toBeFalsy()
+  })
+
+  it('radiator (load) does NOT snap directly to pump when a zone_valve exists in graph', () => {
+    // pump 'out' port close to rad flow_in; valve in graph should block this
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
+      { id: 'pump', kind: 'pump', x: 200, y: 0, r: 0 },
+      { id: 'valve', kind: 'zone_valve', x: 0, y: 100, r: 0 },  // control in graph
+      { id: 'rad', kind: 'radiator_loop', x: 370, y: 0, r: 0 }, // near pump 'out'
+    ])
+    const cand = findSnapCandidate({ graph, movingNodeId: 'rad', maxDistPx: 36 })
+    // Must not snap to the pump when controls exist
+    const snapToPump = cand && cand.to.nodeId === 'pump'
+    expect(snapToPump).toBeFalsy()
+  })
+
+  it('radiator (load) CAN snap to zone_valve output when zone_valve is in graph', () => {
+    // zone_valve out_a is a valid target for a load when controls are present
+    // zone_valve 'out_a': dx=R=170, dy=T+18=18 → abs at x=0: (170, 18)
+    // rad flow_in: dx=L=0, dy=MID_Y=37 → place rad at x=170, y=18-37=-19
+    const graph = makeGraph([
+      { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
+      { id: 'valve', kind: 'zone_valve', x: 0, y: 0, r: 0 },
+      { id: 'rad', kind: 'radiator_loop', x: 170, y: -19, r: 0 },
+    ])
+    const cand = findSnapCandidate({ graph, movingNodeId: 'rad', maxDistPx: 36 })
+    expect(cand).not.toBeNull()
+    expect(cand!.to.nodeId).toBe('valve')
   })
 
   // Verifies that rolesCompatible still blocks hot↔cold (unchanged behaviour)
