@@ -99,8 +99,10 @@ export function portsForKind(kind: PartKind): PortDef[] {
     case 'radiator_loop':
     case 'ufh_loop':
       return [
-        { id: 'flow_in',    dx: L, dy: MID_Y, role: 'flow',   label: 'flow',   direction: 'in'  },
-        { id: 'return_out', dx: R, dy: MID_Y, role: 'return', label: 'return', direction: 'out' },
+        // Both ports on left (single-side): flow near top, return near bottom.
+        // Matches SCHEMATIC_REGISTRY geometry.
+        { id: 'flow_in',    dx: L, dy: T + 18, role: 'flow',   label: 'flow',   direction: 'in'  },
+        { id: 'return_out', dx: L, dy: B - 18, role: 'return', label: 'return', direction: 'out' },
       ];
 
     case 'tap_outlet':

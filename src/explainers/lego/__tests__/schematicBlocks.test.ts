@@ -204,10 +204,11 @@ describe('canonical grammar — controls', () => {
 })
 
 describe('canonical grammar — emitters', () => {
-  it('radiator_loop has flow_in (left) and return_out (right)', () => {
+  it('radiator_loop has both flow_in and return_out on the left side (single-side grammar)', () => {
     const def = SCHEMATIC_REGISTRY['radiator_loop'] as SchematicComponentDefinition
     expect(def.ports.find(p => p.id === 'flow_in')?.side).toBe('left')
-    expect(def.ports.find(p => p.id === 'return_out')?.side).toBe('right')
+    // Both CH ports on the left — emitters use single-side port grammar
+    expect(def.ports.find(p => p.id === 'return_out')?.side).toBe('left')
   })
 })
 

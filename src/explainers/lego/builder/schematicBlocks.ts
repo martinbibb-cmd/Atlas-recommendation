@@ -12,10 +12,10 @@
  *
  * Canonical visible grammar
  * ─────────────────────────
- *  Regular / system boiler : flow_out (R), return_in (L)
- *  Combi                   : flow_out (R), return_in (L), cold_in (L, bottom), hot_out (R, bottom)
+ *  Regular / system boiler : flow_out (R, top), return_in (R, bottom)  — both ports on right
+ *  Combi                   : flow_out (R, top), return_in (R, bottom), cold_in (L, bottom), hot_out (R, bottom)
  *  Cylinder                : coil_flow (L, top), coil_return (L, bottom), hot_out (T, centre), cold_in (B, centre)
- *  Emitters                : flow_in (L), return_out (R)
+ *  Emitters                : flow_in (L, top), return_out (L, bottom)  — both ports on left (single-side)
  *  Y-plan valve            : flow_in (L), hw_out (R, top), ch_out (R, bottom)
  *  S-plan zone valve       : flow_in (L), flow_out (R)
  *  S-plan+ zone manifold   : flow_in (L), zone_out_n (R, evenly spaced)
@@ -277,8 +277,11 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     height: TOKEN_H,
     visualSize: 'large',
     ports: [
-      { id: 'flow_in',    label: 'flow',   side: 'left',  x: 0.5, y: 0, direction: 'in',  semanticRole: 'flow'   },
-      { id: 'return_out', label: 'return', side: 'right', x: 0.5, y: 0, direction: 'out', semanticRole: 'return' },
+      // Both CH ports on left (single-side): flow near top, return near bottom.
+      // This matches hydraulic schematic grammar where emitters hang off the
+      // flow/return rails on a single connection face.
+      { id: 'flow_in',    label: 'flow',   side: 'left', x: 18 / TOKEN_H,             y: 0, direction: 'in',  semanticRole: 'flow'   },
+      { id: 'return_out', label: 'return', side: 'left', x: (TOKEN_H - 18) / TOKEN_H, y: 0, direction: 'out', semanticRole: 'return' },
     ],
   },
 
@@ -288,8 +291,9 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     height: TOKEN_H,
     visualSize: 'large',
     ports: [
-      { id: 'flow_in',    label: 'flow',   side: 'left',  x: 0.5, y: 0, direction: 'in',  semanticRole: 'flow'   },
-      { id: 'return_out', label: 'return', side: 'right', x: 0.5, y: 0, direction: 'out', semanticRole: 'return' },
+      // Both CH ports on left (single-side): flow near top, return near bottom.
+      { id: 'flow_in',    label: 'flow',   side: 'left', x: 18 / TOKEN_H,             y: 0, direction: 'in',  semanticRole: 'flow'   },
+      { id: 'return_out', label: 'return', side: 'left', x: (TOKEN_H - 18) / TOKEN_H, y: 0, direction: 'out', semanticRole: 'return' },
     ],
   },
 
@@ -375,6 +379,59 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     visualSize: 'large',
     ports: [
       { id: 'cold_out', label: 'cold', side: 'right', x: 0.5, y: 0, direction: 'out', semanticRole: 'cold' },
+    ],
+  },
+
+  // ── Tees / branch-points ──────────────────────────────────────────────────
+  // Rendered as compact junction nodes (inline branch symbols).
+  // These are used as simple one-to-many branch points, NOT as big rectangles.
+
+  tee_hot: {
+    kind: 'tee_hot',
+    width: TOKEN_W,
+    height: TOKEN_H,
+    visualSize: 'small',
+    ports: [
+      { id: 'in',   label: 'in',   side: 'left',  x: 0.5,              y: 0, direction: 'in',  semanticRole: 'hot' },
+      { id: 'out1', label: 'out1', side: 'right', x: 18 / TOKEN_H,     y: 0, direction: 'out', semanticRole: 'hot' },
+      { id: 'out2', label: 'out2', side: 'right', x: (TOKEN_H - 18) / TOKEN_H, y: 0, direction: 'out', semanticRole: 'hot' },
+    ],
+  },
+
+  tee_cold: {
+    kind: 'tee_cold',
+    width: TOKEN_W,
+    height: TOKEN_H,
+    visualSize: 'small',
+    ports: [
+      { id: 'in',   label: 'in',   side: 'left',  x: 0.5,              y: 0, direction: 'in',  semanticRole: 'cold' },
+      { id: 'out1', label: 'out1', side: 'right', x: 18 / TOKEN_H,     y: 0, direction: 'out', semanticRole: 'cold' },
+      { id: 'out2', label: 'out2', side: 'right', x: (TOKEN_H - 18) / TOKEN_H, y: 0, direction: 'out', semanticRole: 'cold' },
+    ],
+  },
+
+  tee_ch_flow: {
+    kind: 'tee_ch_flow',
+    width: TOKEN_W,
+    height: TOKEN_H,
+    visualSize: 'small',
+    ports: [
+      { id: 'in',   label: 'in',   side: 'left',  x: 0.5,              y: 0, direction: 'in',  semanticRole: 'flow' },
+      { id: 'out1', label: 'out1', side: 'right', x: 18 / TOKEN_H,     y: 0, direction: 'out', semanticRole: 'flow' },
+      { id: 'out2', label: 'out2', side: 'right', x: (TOKEN_H - 18) / TOKEN_H, y: 0, direction: 'out', semanticRole: 'flow' },
+    ],
+  },
+
+  /** Return tee: single inbound from right (return spine), two outbound on left. */
+  tee_ch_return: {
+    kind: 'tee_ch_return',
+    width: TOKEN_W,
+    height: TOKEN_H,
+    visualSize: 'small',
+    ports: [
+      { id: 'in',   label: 'in',   side: 'right', x: 0.5,              y: 0, direction: 'in',  semanticRole: 'return' },
+      { id: 'out1', label: 'out1', side: 'left',  x: 18 / TOKEN_H,     y: 0, direction: 'out', semanticRole: 'return' },
+      { id: 'out2', label: 'out2', side: 'left',  x: (TOKEN_H - 18) / TOKEN_H, y: 0, direction: 'out', semanticRole: 'return' },
     ],
   },
 }
