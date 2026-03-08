@@ -679,21 +679,23 @@ export function LabCanvas(props: {
           </clipPath>
         </defs>
 
-        {/* ── Structural zone overlays — subtle labelled backgrounds ────────── */}
+        {/* ── Structural zone overlays — passive tinted backgrounds only ─────── */}
+        {/* No strokes: zone rects must never draw borders over pipes/components.
+            Labels are corner-only; pointer-events none and aria-hidden.           */}
         <g aria-hidden="true" style={{ pointerEvents: 'none' }}>
           {/* Living areas zone (outlets): always visible */}
           <rect x={640} y={44} width={356} height={188} rx={6}
-            fill="rgba(219,234,254,0.15)" stroke="rgba(96,165,250,0.2)" strokeWidth={1} />
+            fill="rgba(219,234,254,0.12)" />
           <text x={648} y={56} fontSize={9} fontWeight={600}
-            fill="#60a5fa" opacity={0.75} letterSpacing="0.04em">
+            fill="#60a5fa" opacity={0.65} letterSpacing="0.04em">
             LIVING AREAS
           </text>
 
           {/* Emitter zone — ground / first floor */}
           <rect x={84} y={213} width={142} height={50} rx={4}
-            fill="rgba(220,252,231,0.18)" stroke="rgba(34,197,94,0.22)" strokeWidth={1} />
+            fill="rgba(220,252,231,0.14)" />
           <text x={91} y={224} fontSize={8} fontWeight={600}
-            fill="#22c55e" opacity={0.75} letterSpacing="0.04em">
+            fill="#22c55e" opacity={0.65} letterSpacing="0.04em">
             GROUND FLOOR
           </text>
 
@@ -701,9 +703,9 @@ export function LabCanvas(props: {
           {isStoredLayout && (
             <>
               <rect x={cylX - 4} y={cylY - 14} width={cylW + 8} height={cylH + 18} rx={6}
-                fill="rgba(186,230,253,0.14)" stroke="rgba(14,165,233,0.2)" strokeWidth={1} />
+                fill="rgba(186,230,253,0.12)" />
               <text x={cylX + 2} y={cylY - 4} fontSize={9} fontWeight={600}
-                fill="#0ea5e9" opacity={0.72} letterSpacing="0.04em">
+                fill="#0ea5e9" opacity={0.65} letterSpacing="0.04em">
                 AIRING CUPBOARD
               </text>
             </>
@@ -713,9 +715,9 @@ export function LabCanvas(props: {
           {controls.systemType === 'vented_cylinder' && (
             <>
               <rect x={cwsX - 4} y={cwsY - 4} width={cwsW + 8} height={cwsH + 8} rx={4}
-                fill="rgba(203,213,225,0.18)" stroke="rgba(100,116,139,0.22)" strokeWidth={1} />
+                fill="rgba(203,213,225,0.14)" />
               <text x={cwsX + 2} y={cwsY - 6} fontSize={8} fontWeight={600}
-                fill="#94a3b8" opacity={0.8} letterSpacing="0.04em">
+                fill="#94a3b8" opacity={0.72} letterSpacing="0.04em">
                 ROOF SPACE
               </text>
             </>
@@ -726,24 +728,20 @@ export function LabCanvas(props: {
             <>
               <rect x={heatSrcBoxX - 4} y={heatSrcBoxY - 14} width={heatSrcBoxW + 8} height={heatSrcBoxH + 18} rx={6}
                 fill={scene.metadata.sceneLayoutKind === 'heat_pump'
-                  ? 'rgba(209,250,229,0.14)'
-                  : 'rgba(254,243,199,0.14)'}
-                stroke={scene.metadata.sceneLayoutKind === 'heat_pump'
-                  ? 'rgba(16,185,129,0.22)'
-                  : 'rgba(234,179,8,0.22)'}
-                strokeWidth={1} />
+                  ? 'rgba(209,250,229,0.12)'
+                  : 'rgba(254,243,199,0.12)'} />
               <text x={heatSrcBoxX + 2} y={heatSrcBoxY - 4} fontSize={9} fontWeight={600}
                 fill={scene.metadata.sceneLayoutKind === 'heat_pump' ? '#10b981' : '#d97706'}
-                opacity={0.72} letterSpacing="0.04em">
+                opacity={0.65} letterSpacing="0.04em">
                 {scene.metadata.sceneLayoutKind === 'heat_pump' ? 'OUTSIDE' : 'PLANT ROOM'}
               </text>
             </>
           ) : (
             <>
               <rect x={270} y={78} width={310} height={100} rx={6}
-                fill="rgba(254,243,199,0.14)" stroke="rgba(234,179,8,0.22)" strokeWidth={1} />
+                fill="rgba(254,243,199,0.12)" />
               <text x={278} y={90} fontSize={9} fontWeight={600}
-                fill="#d97706" opacity={0.72} letterSpacing="0.04em">
+                fill="#d97706" opacity={0.65} letterSpacing="0.04em">
                 PLANT ROOM
               </text>
             </>
@@ -1771,7 +1769,10 @@ export function LabCanvas(props: {
                       </g>
                     )}
                     {coldOnlyOuts.map((outlet, i) => {
-                    const coldBranchX = P.mainsX + 50 + i * 80   // staggered along cold rail
+                    // Start cold-tap branches to the right of the emitter box (emitterRightX = 220)
+                    // so they never visually land on top of the radiator group.
+                    // Spacing: 80 px per tap; first tap at X = 240.
+                    const coldBranchX = emitterRightX + 20 + i * 80
                     const coldBranchY = coldRailY + 30            // below the cold rail
                     const isEnabled = outlet.enabled
                     const delivered = summary.outletDeliveredLpm[outlet.id]
@@ -1857,7 +1858,7 @@ export function LabCanvas(props: {
                   })}
                   {/* Cold service branch domain label */}
                   <text
-                    x={P.mainsX + 50 + (coldOnlyOuts.length - 1) * 40}
+                    x={emitterRightX + 20}
                     y={P.mainsY + 48}
                     textAnchor="start" fontSize={8} fill="#0369a1"
                   >
@@ -2133,37 +2134,6 @@ export function LabCanvas(props: {
               )}
             </>
           )}
-        </div>
-      )}
-
-      {/* ── DEV-mode scene debug badge ──────────────────────────────────── */}
-      {/* Shows derived systemKind and selected sceneLayoutKind so mismatch
-          between classification and rendering is immediately visible.
-          Remove once scene-layout selection is stable.                    */}
-      {import.meta.env.DEV && (
-        <div style={{
-          position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(15,23,42,0.85)',
-          border: '1px solid #334155',
-          borderRadius: 6,
-          padding: '3px 10px',
-          fontSize: 10,
-          fontFamily: 'monospace',
-          color: '#94a3b8',
-          pointerEvents: 'none',
-          zIndex: 30,
-          whiteSpace: 'nowrap',
-        }}>
-          {/* Compare sceneLayoutKind to the expected layout derived from the same
-              fallback logic used by buildPlaySceneModel (systemKind or isCylinder).
-              Shows green when they match, red when they do not. */}
-          kind: <span style={{ color: '#38bdf8' }}>{controls.systemKind ?? '(legacy)'}</span>
-          {' · '}
-          layout: <span style={{
-            color: scene.metadata.sceneLayoutKind === (
-              controls.systemKind ?? (isCylinder ? 'stored' : 'combi')
-            ) ? '#4ade80' : '#f87171',
-          }}>{scene.metadata.sceneLayoutKind}</span>
         </div>
       )}
 
