@@ -338,9 +338,6 @@ export function LabCanvas(props: {
     }
   })
 
-  // Slots for extra outlets (beyond A, B, C) — used by buildPolylines + TokensLayer.
-  const extraHotOutletSlots = hotOutlets.slice(3).map(o => o.id)
-
   // The splitter node is always visible since we always have at least one outlet branch.
   const showSplitter = true
 

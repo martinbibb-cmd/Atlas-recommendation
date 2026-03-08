@@ -281,7 +281,6 @@ export function stepSimulation(params: {
   // The hot-branch velocity for a TMV outlet is based on F_h, not F_out.
   type TmvToken = { F_h: number; F_c: number; T_h: number; saturated: boolean }
   const tmvOutletMap: Record<string, TmvToken> = {}
-  const hotFedIds = new Set(controls.graphFacts?.hotFedOutletNodeIds ?? [])
   const coldOnlyIds = new Set(controls.graphFacts?.coldOnlyOutletNodeIds ?? [])
   let hexFlowLpm = 0
 

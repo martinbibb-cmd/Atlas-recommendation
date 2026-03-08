@@ -84,8 +84,8 @@ function SharedControls({
 }: {
   playState: PlayState
   onScenario: (id: string) => void
-  onOutletPreset: (outletId: 'A' | 'B' | 'C', preset: OutletDemandPreset) => void
-  onOutletToggle: (outletId: 'A' | 'B' | 'C', enabled: boolean) => void
+  onOutletPreset: (outletId: string, preset: OutletDemandPreset) => void
+  onOutletToggle: (outletId: string, enabled: boolean) => void
   onHeatingDemand: (patch: Partial<HeatingDemandState>) => void
   onSupplyConditions: (patch: Partial<SupplyConditions>) => void
 }) {
@@ -289,7 +289,7 @@ export default function CompareModeShell({
   }, [updatePlayState])
 
   const handleOutletPreset = useCallback(
-    (outletId: 'A' | 'B' | 'C', preset: OutletDemandPreset) => {
+    (outletId: string, preset: OutletDemandPreset) => {
       updatePlayState(prev => ({
         ...prev,
         demands: prev.demands.map(d =>
@@ -302,7 +302,7 @@ export default function CompareModeShell({
   )
 
   const handleOutletToggle = useCallback(
-    (outletId: 'A' | 'B' | 'C', enabled: boolean) => {
+    (outletId: string, enabled: boolean) => {
       updatePlayState(prev => ({
         ...prev,
         demands: prev.demands.map(d => {
