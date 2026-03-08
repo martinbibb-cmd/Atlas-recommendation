@@ -123,6 +123,13 @@ function kindClass(kind: PartKind): string {
     kind === 'open_vent' ||
     kind === 'feed_and_expansion'
   ) return 'token--support-small';
+  // Tee / junction symbols — tiny branch-point nodes, not major components
+  if (
+    kind === 'tee_cold' ||
+    kind === 'tee_hot' ||
+    kind === 'tee_ch_flow' ||
+    kind === 'tee_ch_return'
+  ) return 'token--support-small';
   if (
     kind === 'tap_outlet' ||
     kind === 'bath_outlet' ||

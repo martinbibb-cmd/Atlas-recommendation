@@ -8,6 +8,84 @@ export interface SnapCandidate {
   dist: number;
 }
 
+/**
+ * Returns true if a manual edge between the two ports is permitted by the
+ * topology rules.  Mirrors the graph-context constraint checks in
+ * findSnapCandidate so that port-tap connections obey the same sequencing:
+ *
+ *   heat_source → pump → [control] → load
+ *   heat_source ← [open_vent / F&E]    (vented systems, before pump)
+ *
+ * Checks are symmetric: either node may have been tapped first.
+ *
+ * Also enforces basic role-level snap constraints (isSnapAllowed) for both
+ * endpoints so that e.g. a pump port cannot be manually connected to a return
+ * or domestic cold pipe.
+ */
+export function isTopologyAllowed(
+  graph: BuildGraph,
+  from: PortRef,
+  to: PortRef,
+): boolean {
+  const fromNode = graph.nodes.find(n => n.id === from.nodeId);
+  const toNode   = graph.nodes.find(n => n.id === to.nodeId);
+  if (!fromNode || !toNode) return true;
+
+  const fromPortDef = getPortDefs(fromNode.kind).find(p => p.id === from.portId);
+  const toPortDef   = getPortDefs(toNode.kind).find(p => p.id === to.portId);
+  const fromRole = fromPortDef?.role ?? 'unknown';
+  const toRole   = toPortDef?.role ?? 'unknown';
+
+  // Basic role-level snap constraints for both endpoints.
+  if (!isSnapAllowed(getSnapRole(fromNode.kind), fromRole, toRole)) return false;
+  if (!isSnapAllowed(getSnapRole(toNode.kind), toRole, fromRole)) return false;
+
+  const hasPump    = graph.nodes.some(n => getSnapRole(n.kind) === 'pump');
+  const hasControl = graph.nodes.some(n => getSnapRole(n.kind) === 'control');
+
+  // Graph-context: controls must not bypass pump.
+  if (hasPump) {
+    if (
+      getSnapRole(fromNode.kind) === 'control' &&
+      fromRole === 'flow' &&
+      getSnapRole(toNode.kind) === 'heat_source'
+    ) return false;
+    if (
+      getSnapRole(toNode.kind) === 'control' &&
+      toRole === 'flow' &&
+      getSnapRole(fromNode.kind) === 'heat_source'
+    ) return false;
+  }
+
+  // Graph-context: loads must not bypass controls.
+  if (hasControl) {
+    if (
+      getSnapRole(fromNode.kind) === 'load' &&
+      fromRole === 'flow' &&
+      (getSnapRole(toNode.kind) === 'heat_source' || getSnapRole(toNode.kind) === 'pump')
+    ) return false;
+    if (
+      getSnapRole(toNode.kind) === 'load' &&
+      toRole === 'flow' &&
+      (getSnapRole(fromNode.kind) === 'heat_source' || getSnapRole(fromNode.kind) === 'pump')
+    ) return false;
+  }
+
+  // Graph-context: open vent / F&E must sit before the pump.
+  if (hasPump) {
+    if (
+      getSnapRole(fromNode.kind) === 'open_vent_feed' &&
+      getSnapRole(toNode.kind) !== 'heat_source'
+    ) return false;
+    if (
+      getSnapRole(toNode.kind) === 'open_vent_feed' &&
+      getSnapRole(fromNode.kind) !== 'heat_source'
+    ) return false;
+  }
+
+  return true;
+}
+
 /** Absolute canvas position of a port on a given node. */
 export function portAbs(node: BuildNode, portId: string): { x: number; y: number; role: PortDef['role'] } {
   const p = getPortDefs(node.kind).find(x => x.id === portId);
@@ -84,6 +162,18 @@ export function findSnapCandidate(params: {
           ma.role === 'flow' &&
           (getSnapRole(other.kind) === 'heat_source' || getSnapRole(other.kind) === 'pump') &&
           graph.nodes.some(n => n.id !== movingNodeId && getSnapRole(n.kind) === 'control')
+        ) continue;
+
+        // Graph-context constraint: open vent / F&E must sit before the pump.
+        // When the graph already contains a pump, vent/feed components may only
+        // snap to the heat source — never to any post-pump component.  This
+        // enforces the vented-system layout:
+        //   heat_source ← [open_vent / F&E] … pump → loads
+        // If no pump is present yet, free placement on flow is allowed.
+        if (
+          getSnapRole(moving.kind) === 'open_vent_feed' &&
+          getSnapRole(other.kind) !== 'heat_source' &&
+          graph.nodes.some(n => n.id !== movingNodeId && getSnapRole(n.kind) === 'pump')
         ) continue;
 
         const cand: SnapCandidate = {

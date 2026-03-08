@@ -23,6 +23,16 @@ import { portsForKind } from './ports';
 import { SCHEMATIC_REGISTRY, schematicPortToDxDy } from './schematicBlocks';
 
 /**
+ * Schematic semantic roles that map to a valid PortDef role directly.
+ * Roles not in this set (e.g. 'vent', 'feed') are treated as 'unknown'
+ * for snap-compatibility purposes — the component-level isSnapAllowed
+ * constraint enforces the correct placement rules for those components.
+ */
+const VALID_PORT_ROLES = new Set<string>([
+  'cold', 'hot', 'flow', 'return', 'store', 'outlet', 'unknown',
+]);
+
+/**
  * Derive port definitions for a component kind.
  *
  * For kinds registered in SCHEMATIC_REGISTRY the positions are computed from
@@ -37,11 +47,14 @@ export function getPortDefs(kind: PartKind): PortDef[] {
   if (reg) {
     return reg.ports.map(p => {
       const { dx, dy } = schematicPortToDxDy(p, reg.width, reg.height);
+      const semanticRole = p.semanticRole ?? 'unknown';
       return {
         id: p.id,
         dx,
         dy,
-        role: (p.semanticRole as PortDef['role']) ?? 'unknown',
+        role: (VALID_PORT_ROLES.has(semanticRole)
+          ? semanticRole as PortDef['role']
+          : 'unknown'),
         label: p.label,
         direction: p.direction,
       };
