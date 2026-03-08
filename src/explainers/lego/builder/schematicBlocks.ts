@@ -133,10 +133,12 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     width: TOKEN_W,
     height: TOKEN_H,
     ports: [
-      { id: 'flow_out',  label: 'flow',    side: 'right', x: 0.5,  y: 0, direction: 'out', semanticRole: 'flow'    },
-      { id: 'return_in', label: 'return',  side: 'left',  x: 0.5,  y: 0, direction: 'in',  semanticRole: 'return'  },
-      { id: 'cold_in',   label: 'dcw in',  side: 'left',  x: 1.0,  y: 0, direction: 'in',  semanticRole: 'cold'    },
-      { id: 'hot_out',   label: 'dhw out', side: 'right', x: 1.0,  y: 0, direction: 'out', semanticRole: 'hot'     },
+      // CH circuit — both ports on right (system side): flow near top, return near bottom
+      { id: 'flow_out',  label: 'flow',    side: 'right', x: 18 / TOKEN_H,            y: 0, direction: 'out', semanticRole: 'flow'    },
+      { id: 'return_in', label: 'return',  side: 'right', x: (TOKEN_H - 18) / TOKEN_H, y: 0, direction: 'in',  semanticRole: 'return'  },
+      // DHW circuit — cold in on left, hot out on right
+      { id: 'cold_in',   label: 'dcw in',  side: 'left',  x: 1.0,                      y: 0, direction: 'in',  semanticRole: 'cold'    },
+      { id: 'hot_out',   label: 'dhw out', side: 'right', x: 1.0,                      y: 0, direction: 'out', semanticRole: 'hot'     },
     ],
   },
 
@@ -145,8 +147,9 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     width: TOKEN_W,
     height: TOKEN_H,
     ports: [
-      { id: 'flow_out',  label: 'flow',   side: 'right', x: 0.5, y: 0, direction: 'out', semanticRole: 'flow'   },
-      { id: 'return_in', label: 'return', side: 'left',  x: 0.5, y: 0, direction: 'in',  semanticRole: 'return' },
+      // Both CH ports on right (system side): flow near top, return near bottom
+      { id: 'flow_out',  label: 'flow',   side: 'right', x: 18 / TOKEN_H,             y: 0, direction: 'out', semanticRole: 'flow'   },
+      { id: 'return_in', label: 'return', side: 'right', x: (TOKEN_H - 18) / TOKEN_H, y: 0, direction: 'in',  semanticRole: 'return' },
     ],
   },
 
@@ -155,8 +158,9 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     width: TOKEN_W,
     height: TOKEN_H,
     ports: [
-      { id: 'flow_out',  label: 'flow',   side: 'right', x: 0.5, y: 0, direction: 'out', semanticRole: 'flow'   },
-      { id: 'return_in', label: 'return', side: 'left',  x: 0.5, y: 0, direction: 'in',  semanticRole: 'return' },
+      // Both CH ports on right (system side): flow near top, return near bottom
+      { id: 'flow_out',  label: 'flow',   side: 'right', x: 18 / TOKEN_H,             y: 0, direction: 'out', semanticRole: 'flow'   },
+      { id: 'return_in', label: 'return', side: 'right', x: (TOKEN_H - 18) / TOKEN_H, y: 0, direction: 'in',  semanticRole: 'return' },
     ],
   },
 
@@ -165,8 +169,9 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
     width: TOKEN_W,
     height: TOKEN_H,
     ports: [
-      { id: 'flow_out',  label: 'flow',   side: 'right', x: 0.5, y: 0, direction: 'out', semanticRole: 'flow'   },
-      { id: 'return_in', label: 'return', side: 'left',  x: 0.5, y: 0, direction: 'in',  semanticRole: 'return' },
+      // Both CH ports on right (system side): flow near top, return near bottom
+      { id: 'flow_out',  label: 'flow',   side: 'right', x: 18 / TOKEN_H,             y: 0, direction: 'out', semanticRole: 'flow'   },
+      { id: 'return_in', label: 'return', side: 'right', x: (TOKEN_H - 18) / TOKEN_H, y: 0, direction: 'in',  semanticRole: 'return' },
     ],
   },
 

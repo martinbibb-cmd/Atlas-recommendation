@@ -148,11 +148,11 @@ export function smartAdd(
     if (slot) outletBindings = { ...outletBindings, [slot]: newNode.id }
   }
 
-  // ── Emitters (rads / UFH) → anchor CH loop ────────────────────────────────
+  // ── Emitters (rads / UFH) → anchor CH flow only ──────────────────────────
   if (EMITTER_KINDS.has(kind) && anchor) {
-    const { flowOut, returnIn } = heatSourcePorts(anchor.kind)
+    const { flowOut } = heatSourcePorts(anchor.kind)
     edges = tryAddEdge(edges, anchor.id, flowOut, newNode.id, 'flow_in')
-    edges = tryAddEdge(edges, newNode.id, 'return_out', anchor.id, returnIn)
+    // Return connection is intentionally left unwired so the user controls it.
   }
 
   // ── Cylinders ─────────────────────────────────────────────────────────────

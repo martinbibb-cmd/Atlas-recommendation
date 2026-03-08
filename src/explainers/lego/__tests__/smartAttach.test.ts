@@ -56,37 +56,37 @@ describe('smartAdd — placement', () => {
 
 // ─── Emitters → CH loop ──────────────────────────────────────────────────────
 
-describe('smartAdd — emitters form a CH loop', () => {
-  it('auto-connects rads flow_in and return_out to combi CH ports', () => {
+describe('smartAdd — emitters: flow auto-connect only', () => {
+  it('auto-connects rads flow_in to combi flow_out but does NOT wire return', () => {
     let g = smartAdd(emptyGraph(), 'heat_source_combi').nextGraph
     g = smartAdd(g, 'radiator_loop').nextGraph
 
     expect(hasEdge(g, 'heat_source_combi', 'flow_out', 'radiator_loop', 'flow_in')).toBe(true)
-    expect(hasEdge(g, 'radiator_loop', 'return_out', 'heat_source_combi', 'return_in')).toBe(true)
+    // Return connection is left for the user to wire manually
+    expect(hasEdge(g, 'radiator_loop', 'return_out', 'heat_source_combi', 'return_in')).toBe(false)
   })
 
-  it('auto-connects UFH loop to system boiler CH ports', () => {
+  it('auto-connects UFH flow_in to system boiler flow_out but does NOT wire return', () => {
     let g = smartAdd(emptyGraph(), 'heat_source_system_boiler').nextGraph
     g = smartAdd(g, 'ufh_loop').nextGraph
 
     expect(hasEdge(g, 'heat_source_system_boiler', 'flow_out', 'ufh_loop', 'flow_in')).toBe(true)
-    expect(hasEdge(g, 'ufh_loop', 'return_out', 'heat_source_system_boiler', 'return_in')).toBe(true)
+    expect(hasEdge(g, 'ufh_loop', 'return_out', 'heat_source_system_boiler', 'return_in')).toBe(false)
   })
 
-  it('connects emitters to heat pump flow/return ports', () => {
+  it('auto-connects radiator flow_in to heat pump flow_out but does NOT wire return', () => {
     let g = smartAdd(emptyGraph(), 'heat_source_heat_pump').nextGraph
     g = smartAdd(g, 'radiator_loop').nextGraph
 
     expect(hasEdge(g, 'heat_source_heat_pump', 'flow_out', 'radiator_loop', 'flow_in')).toBe(true)
-    expect(hasEdge(g, 'radiator_loop', 'return_out', 'heat_source_heat_pump', 'return_in')).toBe(true)
+    expect(hasEdge(g, 'radiator_loop', 'return_out', 'heat_source_heat_pump', 'return_in')).toBe(false)
   })
 
-  it('does not create duplicate emitter edges if added twice', () => {
+  it('does not create duplicate flow edges if radiator added twice', () => {
     let g = smartAdd(emptyGraph(), 'heat_source_combi').nextGraph
     g = smartAdd(g, 'radiator_loop').nextGraph
-    // Add a second rad loop — should still only produce one edge per port pairing for the first
     g = smartAdd(g, 'radiator_loop').nextGraph
-    // Both rads should each have their own flow_in/return_out connected — just check no duplicates
+    // Both rads get their own flow_in connected — check no duplicates
     const flowEdges = g.edges.filter(
       e => e.from.portId === 'flow_out' || e.to.portId === 'flow_out',
     )

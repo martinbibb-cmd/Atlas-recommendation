@@ -89,13 +89,14 @@ describe('SCHEMATIC_REGISTRY — structure', () => {
 // ─── Canonical grammar ────────────────────────────────────────────────────────
 
 describe('canonical grammar — heat sources', () => {
-  it('regular boiler has only flow_out (right) and return_in (left)', () => {
+  it('regular boiler has only flow_out (right) and return_in (right)', () => {
     const def = SCHEMATIC_REGISTRY['heat_source_regular_boiler'] as SchematicComponentDefinition
     const ids = def.ports.map(p => p.id)
     expect(ids).toContain('flow_out')
     expect(ids).toContain('return_in')
+    // Both CH ports exit on the right (system side)
     expect(def.ports.find(p => p.id === 'flow_out')?.side).toBe('right')
-    expect(def.ports.find(p => p.id === 'return_in')?.side).toBe('left')
+    expect(def.ports.find(p => p.id === 'return_in')?.side).toBe('right')
   })
 
   it('combi has 4 ports: flow_out, return_in, cold_in, hot_out', () => {
@@ -107,10 +108,13 @@ describe('canonical grammar — heat sources', () => {
     expect(ids).toContain('hot_out')
   })
 
-  it('combi flow_out is on right, return_in is on left', () => {
+  it('combi CH ports (flow_out, return_in) are both on right; DHW cold_in on left', () => {
     const def = SCHEMATIC_REGISTRY['heat_source_combi'] as SchematicComponentDefinition
+    // Both CH hydraulic ports exit on the right (system side)
     expect(def.ports.find(p => p.id === 'flow_out')?.side).toBe('right')
-    expect(def.ports.find(p => p.id === 'return_in')?.side).toBe('left')
+    expect(def.ports.find(p => p.id === 'return_in')?.side).toBe('right')
+    // DHW cold inlet stays on left
+    expect(def.ports.find(p => p.id === 'cold_in')?.side).toBe('left')
   })
 })
 
