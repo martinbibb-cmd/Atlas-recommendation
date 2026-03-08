@@ -105,6 +105,20 @@ function cylinderLabel(
 }
 
 /**
+ * Derive the PartKind for the cylinder schematic face from scene metadata.
+ * Used by both the SchematicFaceToken face and the coil/fill overlays so that
+ * both use the same builder token visual.
+ */
+function cylinderFaceKindFromMeta(
+  systemType: string,
+  isMixergy: boolean | undefined,
+): 'dhw_mixergy' | 'dhw_vented_cylinder' | 'dhw_unvented_cylinder' {
+  if (isMixergy) return 'dhw_mixergy'
+  if (systemType === 'vented_cylinder') return 'dhw_vented_cylinder'
+  return 'dhw_unvented_cylinder'
+}
+
+/**
  * Return the valve/control-topology indicator label for the Play schematic.
  * Uses scene.metadata.controlTopologyKind (graph-derived) when available,
  * falling back to the legacy isSPlanTopology flag for backwards compatibility.
@@ -409,11 +423,10 @@ export function LabCanvas(props: {
   // ── Cylinder schematic face kind ──────────────────────────────────────────
   // Derived from scene metadata + systemType so both the face visual and the
   // coil/fill overlays use the same kind as the builder token.
-  const cylinderFaceKind = scene.metadata.isMixergy
-    ? 'dhw_mixergy' as const
-    : controls.systemType === 'vented_cylinder'
-      ? 'dhw_vented_cylinder' as const
-      : 'dhw_unvented_cylinder' as const
+  const cylinderFaceKind = cylinderFaceKindFromMeta(
+    controls.systemType,
+    scene.metadata.isMixergy,
+  )
 
   return (
     <div style={{ position: 'relative', display: 'block', width: '100%', minWidth: 700 }}>

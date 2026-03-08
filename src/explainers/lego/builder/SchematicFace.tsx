@@ -18,22 +18,22 @@
  * that "Play" looks like "running the built schematic", not a separate diagram.
  */
 
-import React from 'react'
-import type { PartKind } from './types'
-import { PALETTE } from './palette'
+import React from 'react';
+import type { PartKind } from './types';
+import { PALETTE } from './palette';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function kindEmoji(kind: PartKind): string {
-  return PALETTE.find(p => p.kind === kind)?.emoji ?? '🧩'
+  return PALETTE.find(p => p.kind === kind)?.emoji ?? '🧩';
 }
 
 // ─── SchematicFaceContent ─────────────────────────────────────────────────────
 
 interface SchematicFaceProps {
-  kind: PartKind
-  label: string
-  slot?: string
+  kind: PartKind;
+  label: string;
+  slot?: string;
 }
 
 /**
@@ -50,7 +50,7 @@ export function SchematicFaceContent({
     <text x="85" y="69" textAnchor="middle" fontSize="7" fill="#805ad5" fontWeight="700">
       Outlet {slot}
     </text>
-  ) : null
+  ) : null;
 
   // ── Combi boiler: split CH / DHW zones ──────────────────────────────────
   if (kind === 'heat_source_combi') {
@@ -70,7 +70,7 @@ export function SchematicFaceContent({
 
   // ── System / regular boiler: simple 2-port heat source ──────────────────
   if (kind === 'heat_source_system_boiler' || kind === 'heat_source_regular_boiler') {
-    const shortLabel = kind === 'heat_source_system_boiler' ? 'SYSTEM' : 'REGULAR'
+    const shortLabel = kind === 'heat_source_system_boiler' ? 'SYSTEM' : 'REGULAR';
     return (
       <>
         <rect x="10" y="5" width="150" height="64" rx="8" fill="none" stroke="#c05621" strokeWidth="1.5" opacity="0.3"/>
@@ -101,7 +101,7 @@ export function SchematicFaceContent({
   ) {
     const typeLabel =
       kind === 'dhw_mixergy' ? 'MIXERGY' :
-      kind === 'dhw_unvented_cylinder' ? 'UNVENTED' : 'VENTED'
+      kind === 'dhw_unvented_cylinder' ? 'UNVENTED' : 'VENTED';
     return (
       <>
         {/* Cylinder body — inset left to leave room for coil path */}
@@ -219,16 +219,16 @@ export function SchematicFace({
 // ─── SchematicFaceToken (positioned play-mode token) ─────────────────────────
 
 interface SchematicFaceTokenProps {
-  kind: PartKind
-  label: string
+  kind: PartKind;
+  label: string;
   /** Left edge of the token in the parent SVG coordinate space. */
-  x: number
+  x: number;
   /** Top edge of the token in the parent SVG coordinate space. */
-  y: number
+  y: number;
   /** Rendered width of the token (content is scaled from 170 to this width). */
-  width: number
+  width: number;
   /** Rendered height of the token (content is scaled from 74 to this height). */
-  height: number
+  height: number;
 }
 
 /**
