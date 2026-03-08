@@ -1,5 +1,6 @@
 import type { BuildGraph, BuildNode, PortDef, PortRef } from './types';
 import { getPortDefs } from './portDefs';
+import { getSnapRole, isSnapAllowed } from './snapRoles';
 
 export interface SnapCandidate {
   from: PortRef;
@@ -54,6 +55,9 @@ export function findSnapCandidate(params: {
         const d = Math.sqrt(dx * dx + dy * dy);
         if (d > maxDistPx) continue;
         if (!rolesCompatible(ma.role, ob.role)) continue;
+        // Role-based snap constraint: component placement rules take precedence
+        // over pure port-role compatibility (e.g. pump only on flow, not return).
+        if (!isSnapAllowed(getSnapRole(moving.kind), ma.role, ob.role)) continue;
 
         const cand: SnapCandidate = {
           from: { nodeId: movingNodeId, portId: mp.id },
