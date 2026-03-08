@@ -16,16 +16,59 @@
  *
  * Both Builder and Play must render the same face for a given component kind so
  * that "Play" looks like "running the built schematic", not a separate diagram.
+ *
+ * Visual grammar
+ * ──────────────
+ *  Heat sources  : warm orange fill + casing, both CH ports on right, flame symbol
+ *  Cylinders     : blue fill + casing, coil on left, hot-out top, cold-in bottom
+ *  Controls      : purple fill, routing-device visuals (Y-plan ≠ S-plan)
+ *  Emitters      : indigo fill, recognisable radiator fins / UFH serpentine
+ *  Support       : neutral grey fill, component-specific schematic shapes
+ *  Port dots     : half-visible filled circles at canonical edge positions
  */
 
 import React from 'react';
 import type { PartKind } from './types';
 import { PALETTE } from './palette';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Shared sub-components ───────────────────────────────────────────────────
 
 function kindEmoji(kind: PartKind): string {
   return PALETTE.find(p => p.kind === kind)?.emoji ?? '🧩';
+}
+
+/**
+ * Filled port-dot at an exact edge position.
+ * Half the circle sits outside the viewBox to visually indicate "connection here".
+ */
+function PortDot({
+  cx, cy, fill, stroke,
+}: {
+  cx: number; cy: number; fill: string; stroke: string;
+}): React.ReactElement {
+  return <circle cx={cx} cy={cy} r="3.5" fill={fill} stroke={stroke} strokeWidth="1" />;
+}
+
+/**
+ * SVG-only flame symbol (no emoji).
+ * Centre point is (cx, cy); total height ~18px, width ~14px.
+ */
+function Flame({ cx = 85, cy = 28 }: { cx?: number; cy?: number }): React.ReactElement {
+  const x = cx; const y = cy;
+  return (
+    <g>
+      {/* Outer flame body */}
+      <path
+        d={`M${x},${y+9} Q${x-8},${y+2} ${x-5},${y-6} Q${x-2},${y-13} ${x},${y-11} Q${x+2},${y-13} ${x+5},${y-6} Q${x+8},${y+2} ${x},${y+9} Z`}
+        fill="#f6ad55" stroke="#c05621" strokeWidth="0.8" opacity="0.9"
+      />
+      {/* Inner highlight */}
+      <path
+        d={`M${x},${y+4} Q${x-3},${y} ${x-2},${y-5} Q${x},${y-8} ${x+2},${y-5} Q${x+3},${y} ${x},${y+4} Z`}
+        fill="#fbd38d" opacity="0.75"
+      />
+    </g>
+  );
 }
 
 // ─── SchematicFaceContent ─────────────────────────────────────────────────────
@@ -40,6 +83,9 @@ interface SchematicFaceProps {
  * Inner SVG content for a component schematic face.
  * Returns SVG child elements only — no outer <svg> wrapper.
  * The coordinate space is 170×74 (TOKEN_W × TOKEN_H).
+ *
+ * Port dots sit at the exact canonical port positions from SCHEMATIC_REGISTRY
+ * so that what the builder shows matches what Play animates.
  */
 export function SchematicFaceContent({
   kind,
@@ -52,149 +98,454 @@ export function SchematicFaceContent({
     </text>
   ) : null;
 
-  // ── Combi boiler: split CH / DHW zones ──────────────────────────────────
+  // ── Combi boiler: CH zone (top) / DHW zone (bottom) ──────────────────────
   if (kind === 'heat_source_combi') {
     return (
       <>
+        {/* CH zone fill (top) */}
+        <rect x="1" y="1" width="168" height="40" rx="6" fill="rgba(237,137,54,0.10)" />
+        {/* DHW zone fill (bottom) */}
+        <rect x="1" y="38" width="168" height="35" rx="6" fill="rgba(43,108,176,0.10)" />
+        {/* Casing outline */}
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="none" stroke="#c05621" strokeWidth="1.8" />
         {/* CH / DHW zone divider */}
-        <line x1="8" y1="42" x2="162" y2="42" stroke="#93c5fd" strokeWidth="1" strokeDasharray="4 3" opacity="0.65"/>
-        {/* Boiler casing outline */}
-        <rect x="10" y="5" width="150" height="64" rx="8" fill="none" stroke="#c05621" strokeWidth="1.5" opacity="0.3"/>
-        <text x="85" y="20" textAnchor="middle" fontSize="9" fontWeight="800" fill="#7b341e">CH</text>
-        <text x="85" y="36" textAnchor="middle" fontSize="15">🔥</text>
-        <text x="85" y="58" textAnchor="middle" fontSize="9" fontWeight="800" fill="#2c5282">DCW / DHW</text>
+        <line x1="6" y1="40" x2="164" y2="40" stroke="#93c5fd" strokeWidth="1" strokeDasharray="3 2" opacity="0.8" />
+        {/* Flame in CH zone */}
+        <Flame cx={78} cy={22} />
+        {/* CH label */}
+        <text x="23" y="18" fontSize="8" fontWeight="800" fill="#7b341e">CH</text>
+        {/* COMBI sub-label */}
+        <text x="85" y="35" textAnchor="middle" fontSize="6.5" fontWeight="700" fill="#9c4221" opacity="0.85">COMBI BOILER</text>
+        {/* DCW IN label (DHW zone, left) */}
+        <text x="11" y="57" fontSize="6.5" fontWeight="700" fill="#2b6cb0">▶ DCW IN</text>
+        {/* DHW OUT label (DHW zone, right) */}
+        <text x="159" y="57" textAnchor="end" fontSize="6.5" fontWeight="700" fill="#c05621">DHW OUT ▶</text>
+        {/* CH flow port (right, y=18) */}
+        <PortDot cx={170} cy={18} fill="#f6ad55" stroke="#c05621" />
+        {/* CH return port (right, y=56) */}
+        <PortDot cx={170} cy={56} fill="#90cdf4" stroke="#2b6cb0" />
+        {/* cold_in port (left, y=74) */}
+        <PortDot cx={0} cy={74} fill="#90cdf4" stroke="#2b6cb0" />
+        {/* hot_out port (right, y=74) */}
+        <PortDot cx={170} cy={74} fill="#fbd38d" stroke="#c05621" />
         {slotBadge}
       </>
-    )
+    );
   }
 
-  // ── System / regular boiler: simple 2-port heat source ──────────────────
-  if (kind === 'heat_source_system_boiler' || kind === 'heat_source_regular_boiler') {
-    const shortLabel = kind === 'heat_source_system_boiler' ? 'SYSTEM' : 'REGULAR';
+  // ── System boiler ─────────────────────────────────────────────────────────
+  if (kind === 'heat_source_system_boiler') {
     return (
       <>
-        <rect x="10" y="5" width="150" height="64" rx="8" fill="none" stroke="#c05621" strokeWidth="1.5" opacity="0.3"/>
-        <text x="85" y="30" textAnchor="middle" fontSize="18">🔥</text>
-        <text x="85" y="50" textAnchor="middle" fontSize="9" fontWeight="800" fill="#7b341e">{shortLabel} BOILER</text>
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(237,137,54,0.08)" />
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="none" stroke="#c05621" strokeWidth="1.8" />
+        <Flame cx={70} cy={32} />
+        {/* Expansion vessel (sealed system indicator) */}
+        <ellipse cx="126" cy="32" rx="13" ry="18" fill="rgba(237,137,54,0.12)" stroke="#c05621" strokeWidth="1.1" opacity="0.55" />
+        <line x1="113" y1="32" x2="139" y2="32" stroke="#c05621" strokeWidth="1" strokeDasharray="2 2" opacity="0.45" />
+        <text x="126" y="28" textAnchor="middle" fontSize="5.5" fill="#9c4221" opacity="0.7">EXP</text>
+        <text x="126" y="37" textAnchor="middle" fontSize="5.5" fill="#9c4221" opacity="0.7">VES</text>
+        <text x="85" y="59" textAnchor="middle" fontSize="8" fontWeight="800" fill="#7b341e">SYSTEM BOILER</text>
+        {/* CH flow port (right, y=18) */}
+        <PortDot cx={170} cy={18} fill="#f6ad55" stroke="#c05621" />
+        {/* CH return port (right, y=56) */}
+        <PortDot cx={170} cy={56} fill="#90cdf4" stroke="#2b6cb0" />
         {slotBadge}
       </>
-    )
+    );
   }
 
-  // ── Heat pump: 2-port heat source with efficiency focus ──────────────────
+  // ── Regular boiler (open-vented) ──────────────────────────────────────────
+  if (kind === 'heat_source_regular_boiler') {
+    return (
+      <>
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(237,137,54,0.08)" />
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="none" stroke="#c05621" strokeWidth="1.8" />
+        <Flame cx={70} cy={32} />
+        {/* F&E tank indicator (open-vented circuit) */}
+        <rect x="116" y="7" width="28" height="24" rx="3" fill="rgba(74,85,104,0.12)" stroke="#4a5568" strokeWidth="1" opacity="0.6" />
+        <path d="M130 7 V3" stroke="#4a5568" strokeWidth="1.2" opacity="0.6" />
+        <circle cx="130" cy="2" r="2" fill="none" stroke="#4a5568" strokeWidth="1" opacity="0.6" />
+        <text x="130" y="23" textAnchor="middle" fontSize="5.5" fill="#4a5568" opacity="0.7">F&E</text>
+        <text x="85" y="58" textAnchor="middle" fontSize="8" fontWeight="800" fill="#7b341e">REGULAR BOILER</text>
+        {/* CH flow port (right, y=18) */}
+        <PortDot cx={170} cy={18} fill="#f6ad55" stroke="#c05621" />
+        {/* CH return port (right, y=56) */}
+        <PortDot cx={170} cy={56} fill="#90cdf4" stroke="#2b6cb0" />
+        {slotBadge}
+      </>
+    );
+  }
+
+  // ── Heat pump ─────────────────────────────────────────────────────────────
   if (kind === 'heat_source_heat_pump') {
     return (
       <>
-        <rect x="10" y="5" width="150" height="64" rx="8" fill="none" stroke="#276749" strokeWidth="1.5" opacity="0.3"/>
-        <text x="85" y="30" textAnchor="middle" fontSize="18">♻️</text>
-        <text x="85" y="50" textAnchor="middle" fontSize="9" fontWeight="800" fill="#22543d">HEAT PUMP</text>
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(39,103,73,0.09)" />
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="none" stroke="#276749" strokeWidth="1.8" />
+        {/* Compressor body */}
+        <circle cx="66" cy="35" r="20" fill="rgba(39,103,73,0.12)" stroke="#276749" strokeWidth="1.4" />
+        {/* Rotation arcs (suggest compressor motion) */}
+        <path d="M60 21 Q48 35 60 49" fill="none" stroke="#276749" strokeWidth="1.3" strokeLinecap="round" />
+        <path d="M72 21 Q84 35 72 49" fill="none" stroke="#276749" strokeWidth="1.3" strokeLinecap="round" />
+        <text x="66" y="34" textAnchor="middle" fontSize="7" fontWeight="800" fill="#22543d">COP</text>
+        <text x="66" y="43" textAnchor="middle" fontSize="6" fill="#22543d" opacity="0.8">3–4 ×</text>
+        {/* Outdoor coil / fin grid */}
+        <rect x="104" y="12" width="54" height="42" rx="4" fill="none" stroke="#276749" strokeWidth="1.1" opacity="0.5" />
+        {Array.from({ length: 6 }, (_, i) => 16 + i * 6).map((yy) => (
+          <line key={yy} x1="108" y1={yy} x2="154" y2={yy} stroke="#276749" strokeWidth="0.9" opacity="0.35" />
+        ))}
+        <text x="131" y="60" textAnchor="middle" fontSize="5.5" fill="#22543d" opacity="0.7">AIR SOURCE</text>
+        <text x="85" y="67" textAnchor="middle" fontSize="7.5" fontWeight="800" fill="#22543d">HEAT PUMP</text>
+        {/* CH flow port (right, y=18) */}
+        <PortDot cx={170} cy={18} fill="#68d391" stroke="#276749" />
+        {/* CH return port (right, y=56) */}
+        <PortDot cx={170} cy={56} fill="#c6f6d5" stroke="#276749" />
         {slotBadge}
       </>
-    )
+    );
   }
 
-  // ── Cylinder: left coil, top hot, bottom cold ────────────────────────────
+  // ── Cylinders ──────────────────────────────────────────────────────────────
   if (
     kind === 'dhw_unvented_cylinder' ||
     kind === 'dhw_vented_cylinder' ||
     kind === 'dhw_mixergy'
   ) {
-    const typeLabel =
-      kind === 'dhw_mixergy' ? 'MIXERGY' :
-      kind === 'dhw_unvented_cylinder' ? 'UNVENTED' : 'VENTED';
+    const isMixergy = kind === 'dhw_mixergy';
+    const isVented  = kind === 'dhw_vented_cylinder';
+    const supplyLabel = isMixergy ? 'MIXERGY' : isVented ? 'TANK-FED' : 'MAINS-FED';
+    const typeLabel   = isVented  ? 'VENTED'  : 'UNVENTED';
+    const mainLabelY  = isMixergy ? 40 : 34;
     return (
       <>
-        {/* Cylinder body — inset left to leave room for coil path */}
-        <rect x="26" y="3" width="120" height="68" rx="20" fill="none" stroke="#2b6cb0" strokeWidth="1.5" opacity="0.55"/>
+        {/* Cylinder body (inset left to leave room for coil path) */}
+        <rect x="26" y="2" width="122" height="70" rx="18" fill="rgba(43,108,176,0.09)" stroke="#2b6cb0" strokeWidth="1.6" />
         {/* Mixergy top-entry HX band */}
-        {kind === 'dhw_mixergy' && (
-          <rect x="26" y="3" width="120" height="16" rx="12" fill="none"
-                stroke="#c05621" strokeWidth="1" strokeDasharray="3 2" opacity="0.55"/>
+        {isMixergy && (
+          <>
+            <rect x="26" y="2" width="122" height="20" rx="14"
+              fill="rgba(192,86,33,0.13)" stroke="#c05621" strokeWidth="1.1" strokeDasharray="3 2" />
+            <text x="87" y="16" textAnchor="middle" fontSize="5.5" fontWeight="800" fill="#9c4221">TOP-ENTRY HX</text>
+          </>
         )}
-        {/* Coil indicator on the left face: matches coil_flow (T+18) / coil_return (B-18) ports */}
-        <path d="M26,20 Q13,24 26,30 Q13,35 26,40 Q13,45 26,52"
-              fill="none" stroke="#c05621" strokeWidth="2" opacity="0.65"/>
-        {/* Type label */}
-        <text x="86" y="30" textAnchor="middle" fontSize="8" fontWeight="800" fill="#2c5282">{typeLabel}</text>
-        <text x="86" y="48" textAnchor="middle" fontSize="13">💧</text>
+        {/* Coil path on left face (matches coil_flow y=18 / coil_return y=56) */}
+        <path d="M26,20 Q12,24 26,30 Q12,36 26,42 Q12,48 26,54"
+          fill="none" stroke="#c05621" strokeWidth="2" opacity="0.7" />
+        {/* Supply type label */}
+        <text x="87" y={mainLabelY} textAnchor="middle" fontSize="8" fontWeight="800" fill="#2c5282">
+          {supplyLabel}
+        </text>
+        {/* Vented / unvented badge */}
+        {!isMixergy && (
+          <text x="87" y={mainLabelY + 12} textAnchor="middle" fontSize="6.5" fill="#2b6cb0" fontWeight="600">
+            {typeLabel}
+          </text>
+        )}
+        {/* Supply-pressure decoration */}
+        {isVented ? (
+          /* Vented: gravity droplet (tank-fed / CWS) */
+          <>
+            <circle cx="143" cy="16" r="5" fill="rgba(43,108,176,0.25)" stroke="#2b6cb0" strokeWidth="1" opacity="0.65" />
+            <path d="M143 11 V7" stroke="#2b6cb0" strokeWidth="1" opacity="0.6" />
+            <text x="143" y="29" textAnchor="middle" fontSize="5" fill="#2b6cb0" opacity="0.6">CWS</text>
+          </>
+        ) : !isMixergy ? (
+          /* Unvented: mains pressure wavy lines */
+          <>
+            <path d="M134 18 Q138 15 142 18 Q146 21 150 18" fill="none" stroke="#2b6cb0" strokeWidth="1" opacity="0.6" />
+            <path d="M134 24 Q138 21 142 24 Q146 27 150 24" fill="none" stroke="#2b6cb0" strokeWidth="1" opacity="0.6" />
+            <text x="142" y="34" textAnchor="middle" fontSize="5" fill="#2b6cb0" opacity="0.6">MAINS</text>
+          </>
+        ) : null}
+        {/* hot_out label + port (top, x=85, y=0) */}
+        <text x="85" y="12" textAnchor="middle" fontSize="5.5" fill="#9c4221">HOT OUT ↑</text>
+        <PortDot cx={85} cy={0} fill="#fbd38d" stroke="#c05621" />
+        {/* cold_in label + port (bottom, x=85, y=74) */}
+        <text x="85" y="67" textAnchor="middle" fontSize="5.5" fill="#2c5282">↓ COLD IN</text>
+        <PortDot cx={85} cy={74} fill="#90cdf4" stroke="#2b6cb0" />
+        {/* coil_flow port (left, y=18) */}
+        <PortDot cx={0} cy={18} fill="#f6ad55" stroke="#c05621" />
+        {/* coil_return port (left, y=56) */}
+        <PortDot cx={0} cy={56} fill="#90cdf4" stroke="#2b6cb0" />
         {slotBadge}
       </>
-    )
+    );
   }
 
-  // ── Three-port valve (Y-plan): visually distinct routing device ──────────
+  // ── Three-port valve (Y-plan): routing device with two outputs ────────────
   if (kind === 'three_port_valve') {
     return (
       <>
-        {/* Valve body ellipse */}
-        <ellipse cx="82" cy="37" rx="42" ry="28" fill="none" stroke="#6b46c1" strokeWidth="1.5" opacity="0.55"/>
-        {/* Flow paths */}
-        <line x1="0"   y1="37" x2="40"  y2="37" stroke="#6b46c1" strokeWidth="1.5" opacity="0.5"/>
-        <line x1="124" y1="37" x2="170" y2="18" stroke="#6b46c1" strokeWidth="1.5" opacity="0.5"/>
-        <line x1="124" y1="37" x2="170" y2="56" stroke="#6b46c1" strokeWidth="1.5" opacity="0.5"/>
-        {/* Junction node */}
-        <circle cx="124" cy="37" r="3" fill="#6b46c1" opacity="0.5"/>
-        <text x="82" y="32" textAnchor="middle" fontSize="8"  fontWeight="800" fill="#553c9a">Y-PLAN</text>
-        <text x="82" y="43" textAnchor="middle" fontSize="7"  fill="#553c9a">3-port valve</text>
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(107,70,193,0.07)" />
+        {/* Valve body */}
+        <circle cx="80" cy="37" r="24" fill="rgba(107,70,193,0.10)" stroke="#6b46c1" strokeWidth="1.5" />
+        {/* Actuator head (top) */}
+        <rect x="70" y="2" width="20" height="9" rx="2" fill="rgba(107,70,193,0.15)" stroke="#6b46c1" strokeWidth="1.2" />
+        <line x1="80" y1="11" x2="80" y2="13" stroke="#6b46c1" strokeWidth="1.5" />
+        {/* Input pipe (left centre → valve body) */}
+        <line x1="1" y1="37" x2="56" y2="37" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
+        {/* Upper output pipe (valve body → right, toward y=18) */}
+        <line x1="104" y1="37" x2="138" y2="20" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
+        <line x1="138" y1="20" x2="169" y2="18" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
+        {/* Lower output pipe (valve body → right, toward y=56) */}
+        <line x1="104" y1="37" x2="138" y2="54" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
+        <line x1="138" y1="54" x2="169" y2="56" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
+        {/* Junction dot */}
+        <circle cx="104" cy="37" r="3.5" fill="#6b46c1" opacity="0.7" />
+        {/* Y-PLAN label */}
+        <text x="80" y="33" textAnchor="middle" fontSize="8" fontWeight="800" fill="#553c9a">Y-PLAN</text>
+        <text x="80" y="44" textAnchor="middle" fontSize="6.5" fill="#553c9a">3-port valve</text>
+        {/* Route labels */}
+        <text x="158" y="17" textAnchor="end" fontSize="5.5" fill="#553c9a" opacity="0.8">HW</text>
+        <text x="158" y="54" textAnchor="end" fontSize="5.5" fill="#553c9a" opacity="0.8">CH</text>
+        {/* Port indicators */}
+        <PortDot cx={0}   cy={37} fill="#b794f4" stroke="#6b46c1" />
+        <PortDot cx={170} cy={18} fill="#b794f4" stroke="#6b46c1" />
+        <PortDot cx={170} cy={56} fill="#b794f4" stroke="#6b46c1" />
         {slotBadge}
       </>
-    )
+    );
   }
 
-  // ── Zone valve (S-plan): simple through-flow valve with actuator ─────────
+  // ── Zone valve (S-plan): simple motorised through-valve ───────────────────
   if (kind === 'zone_valve') {
     return (
       <>
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(107,70,193,0.07)" />
         {/* Pipe stubs */}
-        <line x1="0"   y1="37" x2="57"  y2="37" stroke="#6b46c1" strokeWidth="1.5" opacity="0.5"/>
-        <line x1="113" y1="37" x2="170" y2="37" stroke="#6b46c1" strokeWidth="1.5" opacity="0.5"/>
+        <line x1="1"   y1="37" x2="59"  y2="37" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
+        <line x1="111" y1="37" x2="169" y2="37" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
         {/* Valve disc */}
-        <circle cx="85" cy="37" r="26" fill="none" stroke="#6b46c1" strokeWidth="1.5" opacity="0.55"/>
+        <circle cx="85" cy="37" r="26" fill="rgba(107,70,193,0.10)" stroke="#6b46c1" strokeWidth="1.5" />
         {/* Actuator stem */}
-        <line x1="85" y1="11" x2="85" y2="4"  stroke="#6b46c1" strokeWidth="2"   opacity="0.5"/>
-        <rect  x="75" y="2"  width="20" height="7" rx="2" fill="none" stroke="#6b46c1" strokeWidth="1.2" opacity="0.5"/>
-        <text x="85" y="33" textAnchor="middle" fontSize="8" fontWeight="800" fill="#553c9a">ZONE</text>
-        <text x="85" y="44" textAnchor="middle" fontSize="7" fill="#553c9a">VALVE</text>
+        <line x1="85" y1="11" x2="85" y2="4" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
+        {/* Actuator head */}
+        <rect x="73" y="1" width="24" height="8" rx="2" fill="rgba(107,70,193,0.15)" stroke="#6b46c1" strokeWidth="1.2" />
+        {/* Gate indicator (diagonal slash inside disc = open state shown in builder) */}
+        <line x1="73" y1="29" x2="97" y2="45" stroke="#6b46c1" strokeWidth="1" strokeDasharray="3 2" opacity="0.5" />
+        {/* S-PLAN label */}
+        <text x="85" y="33" textAnchor="middle" fontSize="8" fontWeight="800" fill="#553c9a">S-PLAN</text>
+        <text x="85" y="44" textAnchor="middle" fontSize="6.5" fill="#553c9a">ZONE VALVE</text>
+        {/* Port indicators */}
+        <PortDot cx={0}   cy={37} fill="#b794f4" stroke="#6b46c1" />
+        <PortDot cx={170} cy={37} fill="#b794f4" stroke="#6b46c1" />
         {slotBadge}
       </>
-    )
+    );
   }
 
-  // ── Radiator loop: fin-panel emitter ────────────────────────────────────
+  // ── Radiator loop: classic fin-panel emitter ──────────────────────────────
   if (kind === 'radiator_loop') {
     return (
       <>
-        {[0, 1, 2, 3, 4, 5, 6].map(i => (
-          <rect key={i} x={22 + i * 18} y="14" width="12" height="44" rx="3"
-                fill="none" stroke="#6b46c1" strokeWidth="1.2" opacity="0.5"/>
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(85,60,154,0.06)" />
+        {/* Top header pipe */}
+        <line x1="16" y1="16" x2="154" y2="16" stroke="#6b46c1" strokeWidth="2.2" opacity="0.65" strokeLinecap="round" />
+        {/* Bottom header pipe */}
+        <line x1="16" y1="56" x2="154" y2="56" stroke="#6b46c1" strokeWidth="2.2" opacity="0.65" strokeLinecap="round" />
+        {/* Six fins */}
+        {[0, 1, 2, 3, 4, 5].map(i => (
+          <rect key={i} x={20 + i * 22} y="16" width="14" height="40" rx="3"
+            fill="rgba(107,70,193,0.12)" stroke="#6b46c1" strokeWidth="1.2" opacity="0.7" />
         ))}
+        {/* RADIATORS label */}
         <text x="85" y="68" textAnchor="middle" fontSize="7" fontWeight="800" fill="#553c9a">RADIATORS</text>
+        {/* Port indicators (flow in left, return out right, both y=37) */}
+        <PortDot cx={0}   cy={37} fill="#b794f4" stroke="#6b46c1" />
+        <PortDot cx={170} cy={37} fill="#b794f4" stroke="#6b46c1" />
         {slotBadge}
       </>
-    )
+    );
   }
 
-  // ── UFH loop: serpentine emitter ─────────────────────────────────────────
+  // ── UFH loop: serpentine-coil emitter ─────────────────────────────────────
   if (kind === 'ufh_loop') {
     return (
       <>
-        <path d="M20,20 H150 V37 H20 V54 H150"
-              fill="none" stroke="#6b46c1" strokeWidth="1.5" opacity="0.5"/>
-        <text x="85" y="70" textAnchor="middle" fontSize="7" fontWeight="800" fill="#553c9a">UNDERFLOOR HEATING</text>
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(85,60,154,0.06)" />
+        {/* Serpentine coil — four horizontal runs with U-bends */}
+        {/* Run 1: left → right */}
+        <line x1="16" y1="15" x2="148" y2="15" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
+        {/* Right U-bend */}
+        <path d="M148 15 Q156 15 156 23 Q156 31 148 31"
+          fill="none" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
+        {/* Run 2: right → left */}
+        <line x1="148" y1="31" x2="16" y2="31" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
+        {/* Left U-bend */}
+        <path d="M16 31 Q8 31 8 39 Q8 47 16 47"
+          fill="none" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
+        {/* Run 3: left → right */}
+        <line x1="16" y1="47" x2="148" y2="47" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
+        {/* Right U-bend */}
+        <path d="M148 47 Q156 47 156 55 Q156 59 148 59"
+          fill="none" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
+        {/* Run 4: right → left (tail) */}
+        <line x1="148" y1="59" x2="16" y2="59" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
+        {/* UFH label */}
+        <text x="85" y="70" textAnchor="middle" fontSize="6.5" fontWeight="800" fill="#553c9a">UNDERFLOOR HEATING</text>
+        {/* Port indicators (flow in left, return out right, both y=37) */}
+        <PortDot cx={0}   cy={37} fill="#b794f4" stroke="#6b46c1" />
+        <PortDot cx={170} cy={37} fill="#b794f4" stroke="#6b46c1" />
         {slotBadge}
       </>
-    )
+    );
   }
 
-  // ── Generic fallback: emoji + label in SVG ───────────────────────────────
-  const emoji = kindEmoji(kind)
+  // ── Pump ──────────────────────────────────────────────────────────────────
+  if (kind === 'pump') {
+    return (
+      <>
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(74,85,104,0.07)" />
+        {/* Pipe stubs */}
+        <line x1="1"   y1="37" x2="59"  y2="37" stroke="#4a5568" strokeWidth="2" opacity="0.7" />
+        <line x1="111" y1="37" x2="169" y2="37" stroke="#4a5568" strokeWidth="2" opacity="0.7" />
+        {/* Flow direction arrowhead */}
+        <polygon points="156,37 148,33 148,41" fill="#4a5568" opacity="0.55" />
+        {/* Pump body */}
+        <circle cx="85" cy="37" r="26" fill="rgba(74,85,104,0.10)" stroke="#4a5568" strokeWidth="1.5" />
+        {/* Impeller blades */}
+        <path d="M79 27 Q85 31 79 47" fill="none" stroke="#4a5568" strokeWidth="1.3" opacity="0.6" />
+        <path d="M91 27 Q85 31 91 47" fill="none" stroke="#4a5568" strokeWidth="1.3" opacity="0.6" />
+        {/* Impeller hub */}
+        <circle cx="85" cy="37" r="4" fill="#4a5568" opacity="0.4" />
+        {/* PUMP label */}
+        <text x="85" y="67" textAnchor="middle" fontSize="8.5" fontWeight="800" fill="#2d3748">PUMP</text>
+        {/* Port indicators (both y=37) */}
+        <PortDot cx={0}   cy={37} fill="#a0aec0" stroke="#4a5568" />
+        <PortDot cx={170} cy={37} fill="#a0aec0" stroke="#4a5568" />
+        {slotBadge}
+      </>
+    );
+  }
+
+  // ── Buffer / Low-loss header ───────────────────────────────────────────────
+  if (kind === 'buffer' || kind === 'low_loss_header') {
+    const kindLabel = kind === 'buffer' ? 'BUFFER' : 'LLH';
+    return (
+      <>
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(74,85,104,0.07)" />
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="none" stroke="#4a5568" strokeWidth="1.5" />
+        {/* Primary / secondary separator */}
+        <line x1="85" y1="6" x2="85" y2="68" stroke="#4a5568" strokeWidth="1" strokeDasharray="3 2" opacity="0.45" />
+        {/* Zone labels */}
+        <text x="43" y="38" textAnchor="middle" fontSize="6" fill="#4a5568" opacity="0.7">PRIMARY</text>
+        <text x="127" y="38" textAnchor="middle" fontSize="6" fill="#4a5568" opacity="0.7">SECONDARY</text>
+        {/* Component label */}
+        <text x="85" y="65" textAnchor="middle" fontSize="8.5" fontWeight="800" fill="#2d3748">{kindLabel}</text>
+        {/* Port indicators: primary (left) — flow y=18, return y=56 */}
+        <PortDot cx={0}   cy={18} fill="#f6ad55" stroke="#c05621" />
+        <PortDot cx={0}   cy={56} fill="#90cdf4" stroke="#2b6cb0" />
+        {/* Port indicators: secondary (right) — flow y=18, return y=56 */}
+        <PortDot cx={170} cy={18} fill="#f6ad55" stroke="#c05621" />
+        <PortDot cx={170} cy={56} fill="#90cdf4" stroke="#2b6cb0" />
+        {slotBadge}
+      </>
+    );
+  }
+
+  // ── Sealed system kit (expansion vessel + PRV + fill loop) ────────────────
+  if (kind === 'sealed_system_kit') {
+    return (
+      <>
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(74,85,104,0.07)" />
+        {/* Expansion vessel */}
+        <ellipse cx="60" cy="36" rx="34" ry="24" fill="rgba(74,85,104,0.10)" stroke="#4a5568" strokeWidth="1.4" />
+        <line x1="26" y1="36" x2="94" y2="36" stroke="#4a5568" strokeWidth="1" strokeDasharray="3 2" opacity="0.45" />
+        <text x="60" y="30" textAnchor="middle" fontSize="6.5" fill="#4a5568">EXP. VES.</text>
+        {/* PRV */}
+        <circle cx="130" cy="27" r="14" fill="rgba(229,62,62,0.08)" stroke="#e53e3e" strokeWidth="1.2" opacity="0.7" />
+        <path d="M130 13 V9" stroke="#e53e3e" strokeWidth="1.5" opacity="0.7" />
+        <text x="130" y="24" textAnchor="middle" fontSize="6" fontWeight="800" fill="#c53030" opacity="0.8">PRV</text>
+        <text x="130" y="34" textAnchor="middle" fontSize="5.5" fill="#c53030" opacity="0.7">3 bar</text>
+        {/* Fill loop stub */}
+        <path d="M130 41 V53 H148" fill="none" stroke="#2b6cb0" strokeWidth="1.2" opacity="0.5" />
+        <text x="149" y="57" fontSize="5.5" fill="#2b6cb0" opacity="0.7">FILL</text>
+        {/* SEALED KIT label */}
+        <text x="85" y="67" textAnchor="middle" fontSize="7.5" fontWeight="800" fill="#2d3748">SEALED KIT</text>
+        {/* Port indicator (right, y=37) */}
+        <PortDot cx={170} cy={37} fill="#a0aec0" stroke="#4a5568" />
+        {slotBadge}
+      </>
+    );
+  }
+
+  // ── Open vent (safety pipe rising from circuit) ───────────────────────────
+  if (kind === 'open_vent') {
+    return (
+      <>
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(74,85,104,0.07)" />
+        {/* Horizontal pipe (at port level y=37) */}
+        <line x1="1" y1="37" x2="169" y2="37" stroke="#4a5568" strokeWidth="2" opacity="0.65" />
+        {/* Vent pipe rising from centre */}
+        <line x1="85" y1="37" x2="85" y2="11" stroke="#4a5568" strokeWidth="2" opacity="0.65" />
+        {/* Open top indicator (arc) */}
+        <path d="M78 13 Q85 7 92 13" fill="none" stroke="#4a5568" strokeWidth="1.5" opacity="0.65" />
+        {/* OPEN VENT label */}
+        <text x="85" y="55" textAnchor="middle" fontSize="7.5" fontWeight="800" fill="#2d3748">OPEN VENT</text>
+        {/* Port indicators (both y=37) */}
+        <PortDot cx={0}   cy={37} fill="#a0aec0" stroke="#4a5568" />
+        <PortDot cx={170} cy={37} fill="#a0aec0" stroke="#4a5568" />
+        {slotBadge}
+      </>
+    );
+  }
+
+  // ── Feed & expansion tank ─────────────────────────────────────────────────
+  if (kind === 'feed_and_expansion') {
+    return (
+      <>
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(74,85,104,0.07)" />
+        {/* F&E tank body */}
+        <rect x="18" y="5" width="96" height="50" rx="5" fill="rgba(74,85,104,0.10)" stroke="#4a5568" strokeWidth="1.4" />
+        {/* Water level line inside tank */}
+        <line x1="18" y1="35" x2="114" y2="35" stroke="#2b6cb0" strokeWidth="1" opacity="0.4" />
+        {/* Float ball arm and ball */}
+        <line x1="104" y1="28" x2="124" y2="20" stroke="#4a5568" strokeWidth="1" opacity="0.55" />
+        <circle cx="128" cy="17" r="7" fill="rgba(74,85,104,0.18)" stroke="#4a5568" strokeWidth="1" opacity="0.6" />
+        {/* Feed pipe (right at y=37) */}
+        <line x1="114" y1="37" x2="169" y2="37" stroke="#4a5568" strokeWidth="1.8" opacity="0.65" />
+        {/* FEED & EXP. label */}
+        <text x="80" y="66" textAnchor="middle" fontSize="7.5" fontWeight="800" fill="#2d3748">FEED &amp; EXP.</text>
+        <PortDot cx={170} cy={37} fill="#a0aec0" stroke="#4a5568" />
+        {slotBadge}
+      </>
+    );
+  }
+
+  // ── CWS cistern ───────────────────────────────────────────────────────────
+  if (kind === 'cws_cistern') {
+    return (
+      <>
+        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(43,108,176,0.08)" />
+        {/* Cistern body */}
+        <rect x="12" y="4" width="120" height="54" rx="4" fill="rgba(43,108,176,0.12)" stroke="#2b6cb0" strokeWidth="1.4" />
+        {/* Water surface (undulating line) */}
+        <path d="M12 30 Q32 26 52 30 Q72 34 92 30 Q112 26 132 30"
+          fill="none" stroke="#2b6cb0" strokeWidth="1" opacity="0.55" />
+        {/* Float valve arm */}
+        <line x1="108" y1="26" x2="130" y2="18" stroke="#4a5568" strokeWidth="1.1" opacity="0.55" />
+        <circle cx="133" cy="16" r="6" fill="rgba(43,108,176,0.20)" stroke="#2b6cb0" strokeWidth="1" opacity="0.6" />
+        {/* Cold outlet pipe (right at y=37) */}
+        <line x1="132" y1="37" x2="169" y2="37" stroke="#2b6cb0" strokeWidth="1.8" opacity="0.65" />
+        {/* CWS CISTERN label */}
+        <text x="66" y="69" textAnchor="middle" fontSize="7" fontWeight="800" fill="#2c5282">CWS CISTERN</text>
+        {/* Port indicator (right, y=37) */}
+        <PortDot cx={170} cy={37} fill="#90cdf4" stroke="#2b6cb0" />
+        {slotBadge}
+      </>
+    );
+  }
+
+  // ── Generic fallback: emoji + label ──────────────────────────────────────
+  const emoji = kindEmoji(kind);
   return (
     <>
       <text x="85" y="30" textAnchor="middle" fontSize="20">{emoji}</text>
       <text x="85" y="50" textAnchor="middle" fontSize="9" fontWeight="800" fill="#2d3748">{label}</text>
       {slotBadge}
     </>
-  )
+  );
 }
 
 // ─── SchematicFace (standalone builder token) ─────────────────────────────────
