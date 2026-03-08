@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { DHW_PRESETS } from './lego/presets/dhwPresets';
 import LegoScenarioBuilder from './lego/builder/LegoScenarioBuilder';
 import BuilderShell from './lego/builder/BuilderShell';
+import PropertyLayoutView from './lego/builder/PropertyLayoutView';
 import PerformanceGraphicView from './lego/views/PerformanceGraphicView';
 import type { LegoScenario } from './lego/schema/legoTypes';
 import {
@@ -63,7 +64,7 @@ function computeForPreset(scenario: LegoScenario): CapacityChainResult {
 
 // ─── View ─────────────────────────────────────────────────────────────────────
 
-type Page = 'hub' | 'preset' | 'builder';
+type Page = 'hub' | 'preset' | 'builder' | 'house_view';
 
 export default function ExplainersHubPage({ onBack }: Props) {
   const [page, setPage] = useState<Page>('hub');
@@ -77,6 +78,18 @@ export default function ExplainersHubPage({ onBack }: Props) {
           <h2 className="hub-page__panel-title">Build a scenario</h2>
         </div>
         <LegoScenarioBuilder />
+      </div>
+    );
+  }
+
+  if (page === 'house_view') {
+    return (
+      <div className="hub-page">
+        <div className="hub-page__header">
+          <button className="hub-back-btn" onClick={() => setPage('hub')}>← Back to Demo Lab</button>
+          <h2 className="hub-page__panel-title">House View</h2>
+        </div>
+        <PropertyLayoutView />
       </div>
     );
   }
@@ -107,6 +120,18 @@ export default function ExplainersHubPage({ onBack }: Props) {
           <p className="hub-page__subtitle">Physics explainers & sandbox</p>
         </div>
       </div>
+
+      {/* ── House View ───────────────────────────────────────────────────── */}
+      <section className="explainers-section" style={{ marginTop: '2rem' }}>
+        <h2 className="explainers-section__title">House View</h2>
+        <div className="hub-tile-grid">
+          <button className="hub-tile" onClick={() => setPage('house_view')}>
+            <span className="hub-tile__icon">🏠</span>
+            <span className="hub-tile__title">Property Layout</span>
+            <span className="hub-tile__subtitle">Place your system on a preset house map — boiler, cylinder and heat pump at real anchor positions.</span>
+          </button>
+        </div>
+      </section>
 
       {/* ── iPad-first Lab layout ────────────────────────────────────────── */}
       <section className="explainers-section demo-lab-section" style={{ marginTop: '2rem' }}>
