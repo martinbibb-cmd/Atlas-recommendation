@@ -141,9 +141,14 @@ export function isSnapAllowed(
       if (movingPortRole === 'return') return targetPortRole === 'return' || targetPortRole === 'unknown'
       return true
 
+    case 'return_common':
+      // Return-merging tees live exclusively on the return spine — never on flow
+      // or domestic circuits.  Allowing them to snap to flow-typed ports would
+      // produce backwards pipe topology.
+      return targetPortRole === 'return' || targetPortRole === 'unknown'
+
     case 'heat_source':
     case 'storage':
-    case 'return_common':
     case 'support':
     case 'outlet':
     default:
