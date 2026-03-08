@@ -38,14 +38,35 @@ export interface HeatingConditionDiagnosticsV1 {
  * Survey-layer observations about the DHW (open secondary) circuit.
  * These are site-visible symptoms captured by the surveyor.
  * They are not physics model inputs — they feed the diagnostic inference layer.
+ *
+ * Preferred approach: ask about observed performance (hotWaterPerformanceBand,
+ * cylinderRetentionBand) rather than specialist component age. Age fields are
+ * retained as optional supporting inputs but are no longer the primary signal.
  */
 export interface DhwConditionDiagnosticsV1 {
-  /** Approximate age of the combi plate heat exchanger in years, or 'unknown'. */
+  /** Approximate age of the combi plate heat exchanger in years, or 'unknown'. Supporting input — prefer hotWaterPerformanceBand. */
   plateHexAgeYears?: number | 'unknown';
-  /** Age band estimate of the hot water cylinder. */
+  /**
+   * Observed combi hot-water performance — primary plate HEX condition signal.
+   * Ask: "How is the hot water performing?"
+   */
+  hotWaterPerformanceBand?: 'good' | 'slightly_reduced' | 'fluctuating' | 'poor';
+  /** Age band estimate of the hot water cylinder. Supporting input — prefer cylinderRetentionBand. */
   cylinderAgeEstimate?: 'under_5' | '5_to_10' | '10_to_15' | 'over_15' | 'unknown';
-  /** Cylinder construction type — informs coil condition and standing loss estimate. */
+  /**
+   * Cylinder construction / insulation type.
+   * Ask: "What best describes the cylinder?"
+   */
+  cylinderType?: 'modern_factory' | 'foam_lagged' | 'copper' | 'mixergy' | 'unknown';
+  /** Cylinder construction type (material) — informs coil condition and standing loss estimate. */
   cylinderMaterial?: 'copper_vented' | 'stainless_unvented' | 'unknown';
+  /**
+   * Observed hot-water retention / recovery performance.
+   * Ask: "How well does the cylinder hold heat?"
+   */
+  cylinderRetentionBand?: 'good' | 'average' | 'poor';
+  /** Whether a water softener is installed — reduces scale risk on plate HEX and coil. */
+  softenerPresent?: boolean;
   /** History of immersion heater failure — indicator of scale or corrosion in the DHW circuit. */
   immersionFailureHistory?: boolean;
   /** Kettling or scale-related noise on the combi heat exchanger or cylinder coil. */
