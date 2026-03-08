@@ -2,6 +2,10 @@
 
 import type { CylinderStore } from './storage'
 import type { OutletModel, OutletServiceClass, ColdSourceKind } from '../builder/types'
+import type { ChHeatBalance, HeatingLoad } from './chModel'
+
+export type { HeatingLoad } from './chModel'
+export type { ChHeatBalance } from './chModel'
 
 /**
  * Outlet identifier — a string slot label (e.g. 'A', 'B', 'C', 'D', …).
@@ -121,8 +125,16 @@ export type SimulationVisuals = {
 /**
  * Heating demand state — controls the space-heating part of Play mode.
  *
- * For MVP, `enabled` is sufficient to gate CH simulation.
- * `targetFlowTempC` and `demandLevel` allow richer future scenarios.
+ * Supports two models:
+ *
+ * Legacy scalar model (backwards-compatible):
+ *   `demandLevel` (0–1) × `heatDemandKw` on LabControls gives heating kW.
+ *
+ * Numerical CH load model (Layer A — energy balance):
+ *   When `emitterLoads` is provided the simulation calls `computeChHeatBalance()`
+ *   to derive delivered kW and return temperature from real physics:
+ *     Q = ṁ × cₚ × ΔT
+ *   This makes the CH animation numerically driven rather than illustrative.
  */
 export type HeatingDemandState = {
   /** Whether the central-heating demand is active. */
@@ -132,10 +144,33 @@ export type HeatingDemandState = {
   /**
    * Simple 0–1 scalar representing emitter demand (heat loss proxy).
    * 0 = no heating required, 1 = maximum heating demand.
+   * Ignored when `emitterLoads` is provided (numerical model takes precedence).
    */
   demandLevel?: number
   /** Active zone IDs for multi-zone systems. */
   activeZones?: string[]
+  /**
+   * Maximum output the heat source can deliver to the CH circuit (kW).
+   * Used by the numerical CH load model when `emitterLoads` is provided.
+   * When absent, falls back to `heatDemandKw` on LabControls.
+   */
+  sourceOutputKw?: number
+  /**
+   * Active emitter branches with individual load demands.
+   *
+   * When present, the simulation uses `computeChHeatBalance()` to derive:
+   *   - delivered kW (limited by `sourceOutputKw`)
+   *   - return temperature (from Q = ṁ × cₚ × ΔT)
+   *
+   * When absent the legacy `demandLevel` scalar model is used.
+   */
+  emitterLoads?: HeatingLoad[]
+  /**
+   * Primary-circuit volumetric flow rate (L/s).
+   * When absent, derived from `sourceOutputKw` at the conventional 20 °C
+   * design ΔT (UK standard 70/50 °C radiator design point).
+   */
+  flowRateLps?: number
 }
 
 export type OutletControl = {
@@ -348,6 +383,16 @@ export type LabFrame = {
   cylinderStore?: CylinderStore
   systemMode?: SystemMode
   storeNeedsReheat?: boolean
+  /**
+   * Central-heating energy balance computed for this frame.
+   *
+   * Present whenever `heatingDemand.emitterLoads` is provided in LabControls.
+   * Consumers (LabCanvas) use this to colour CH flow/return pipes and display
+   * numerically derived flow and return temperatures.
+   *
+   * Absent when the legacy scalar `demandLevel` model is in use.
+   */
+  chBalance?: ChHeatBalance
   /**
    * Structured visual domains emitted by the simulation each frame.
    *

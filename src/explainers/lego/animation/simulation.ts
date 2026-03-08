@@ -10,6 +10,8 @@ import {
   removeDrawEnergy,
 } from './storage'
 import type { CylinderStore } from './storage'
+import { computeChHeatBalance } from './chModel'
+import type { ChHeatBalance } from './chModel'
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
@@ -255,6 +257,24 @@ export function stepSimulation(params: {
     ? (controls.heatingDemand.demandLevel ?? 1) * (controls.heatDemandKw ?? DEFAULT_HEATING_DEMAND_KW)
     : (controls.heatDemandKw ?? 0)
   const heatingEnabled = controls.heatingDemand?.enabled ?? (heatingDemandKw > 0.1)
+
+  // ── Numerical CH load model (Layer A — energy balance) ────────────────────
+  // When emitterLoads are provided, use computeChHeatBalance() to derive:
+  //   - delivered kW (limited by source output)
+  //   - return temperature (from Q = ṁ × cₚ × ΔT)
+  // This makes the CH animation numerically driven rather than illustrative.
+  const hd = controls.heatingDemand
+  const chBalance: ChHeatBalance | undefined = (hd?.enabled && hd.emitterLoads)
+    ? computeChHeatBalance({
+        sourceOutputKw: hd.sourceOutputKw ?? controls.heatDemandKw ?? DEFAULT_HEATING_DEMAND_KW,
+        loads: hd.emitterLoads,
+        targetFlowTempC: hd.targetFlowTempC ?? 70,
+        flowRateLps: hd.flowRateLps,
+      })
+    : undefined
+
+  // Use chBalance.deliveredKw when available; fall back to the legacy scalar.
+  const effectiveHeatingKw = chBalance?.deliveredKw ?? heatingDemandKw
 
   // ── Per-outlet actual LPM ─────────────────────────────────────────────────
   // Scale each outlet's demand proportionally by the hydraulic throttle factor.
@@ -630,11 +650,15 @@ export function stepSimulation(params: {
       },
       // Primary heating circuit — boiler → emitters → return.
       // Active whenever space-heating is running (including S-plan simultaneous mode).
+      // Flow rate: use the numerical model (chBalance.flowRateLps × 60) when available,
+      // otherwise fall back to the legacy rough proxy (effectiveHeatingKw / 0.07).
       {
         edgeIds: ['primary_flow', 'primary_return'],
         direction: 'forward',
         active: mode === 'heating' || mode === 'heating_and_reheat',
-        flowLpm: (mode === 'heating' || mode === 'heating_and_reheat') ? heatingDemandKw / 0.07 : 0, // rough proxy L/min
+        flowLpm: (mode === 'heating' || mode === 'heating_and_reheat')
+          ? (chBalance ? chBalance.flowRateLps * 60 : effectiveHeatingKw / 0.07)
+          : 0,
       },
       // Primary circuit through the cylinder coil — separate from DHW domestic draw.
       // Active only during cylinder reheat; domestic water NEVER travels this path.
@@ -675,10 +699,16 @@ export function stepSimulation(params: {
         kind: 'coil',
       },
       // Emitters — active during heating mode (radiators / underfloor releasing heat into the room).
+      // Intensity: when chBalance is available use delivered/demand ratio for a physically
+      // grounded signal; otherwise fall back to the legacy demandLevel scalar.
       {
         nodeId: 'emitters',
         active: mode === 'heating' || mode === 'heating_and_reheat',
-        intensity: (mode === 'heating' || mode === 'heating_and_reheat') ? clamp((controls.heatingDemand?.demandLevel ?? 1), 0, 1) : 0,
+        intensity: (mode === 'heating' || mode === 'heating_and_reheat')
+          ? (chBalance && chBalance.totalDemandKw > 0
+              ? clamp(chBalance.deliveredKw / chBalance.totalDemandKw, 0, 1)
+              : clamp((controls.heatingDemand?.demandLevel ?? 1), 0, 1))
+          : 0,
         kind: 'emitter',
       },
     ],
@@ -711,6 +741,7 @@ export function stepSimulation(params: {
     cylinderStore: store,
     systemMode: mode,
     storeNeedsReheat,
+    chBalance,
     visuals,
   }
 }
