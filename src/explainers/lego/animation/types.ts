@@ -427,6 +427,18 @@ export type LabFrame = {
    * Useful for the "Tank loss: X kWh over last N sim-minutes" badge.
    */
   standingLossKwhTotal?: number
+  /**
+   * Elapsed seconds since the current combi DHW draw started.
+   *
+   * Used by the numerical DHW warm-up lag model: the heat-exchanger output
+   * ramps from 0 (cold water at draw start) to full output over
+   * DEFAULT_COMBI_WARMUP_LAG_SECONDS seconds.
+   *
+   * Incremented each frame while mode === 'dhw_draw'.
+   * Reset to zero when the draw ends (mode changes away from 'dhw_draw').
+   * Only present when systemType is 'combi'.
+   */
+  combiDrawAgeSeconds?: number
 }
 
 /**

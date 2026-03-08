@@ -1,7 +1,7 @@
 // src/explainers/lego/animation/simulation.ts
 
 import type { LabControls, LabFrame, FlowParticle, OutletControl, SystemMode, SimulationVisuals } from './types'
-import { pipeDiameterCapacityLpm } from '../model/dhwModel'
+import { pipeDiameterCapacityLpm, computeCombiWarmUpFraction } from '../model/dhwModel'
 import { heatToTempC, tempToHeatJPerKg, computeTmvMixer, clampAnimationSetpointC } from './thermal'
 import {
   createCylinderStore,
@@ -415,6 +415,22 @@ export function stepSimulation(params: {
   const dhPerKgPerSecond = mDot > 0 ? qDot / mDot : 0
   const maxHSetpoint = tempToHeatJPerKg({ coldInletC: controls.coldInletC, tempC: setpointC })
 
+  // ── Combi warm-up lag ─────────────────────────────────────────────────────
+  // When a combi draw starts the heat exchanger is cold; heat output ramps
+  // from zero to full over DEFAULT_COMBI_WARMUP_LAG_SECONDS seconds.
+  // warmUpFraction is derived from the *previous* frame's draw age so that
+  // the very first frame of a draw correctly delivers cold water (fraction = 0).
+  const prevCombiDrawAgeS = frame.combiDrawAgeSeconds ?? 0
+  const warmUpFraction = isCombi
+    ? computeCombiWarmUpFraction({ drawAgeSeconds: prevCombiDrawAgeS })
+    : 1
+  // Update draw age: increment while drawing, reset to zero when draw stops.
+  const combiDrawAgeSeconds = (isCombi && mode === 'dhw_draw')
+    ? prevCombiDrawAgeS + dt
+    : 0
+  // Effective per-kg heat injection rate includes warm-up scaling.
+  const effectiveDhPerKgPerSecond = dhPerKgPerSecond * warmUpFraction
+
   if (store) {
     // Only deplete the cylinder store when hot-service outlets are drawing.
     // Cold-only outlets (cold taps) draw from cold supply and must NOT deplete
@@ -548,7 +564,7 @@ export function stepSimulation(params: {
           const overlapStart = Math.max(sPrev, HEX_START)
           const overlapEnd = Math.min(sNext, HEX_END)
           const frac = clamp((overlapEnd - overlapStart) / Math.max(MIN_MOVEMENT_EPSILON, sNext - sPrev), 0, 1)
-          h += dhPerKgPerSecond * dt * frac
+          h += effectiveDhPerKgPerSecond * dt * frac
           // Clamp token heat content so it never exceeds the DHW setpoint temperature.
           if (h > maxHSetpoint) h = maxHSetpoint
         }
@@ -765,6 +781,7 @@ export function stepSimulation(params: {
     visuals,
     simTimeSeconds: (frame.simTimeSeconds ?? 0) + dt,
     standingLossKwhTotal,
+    combiDrawAgeSeconds: isCombi ? combiDrawAgeSeconds : undefined,
   }
 }
 

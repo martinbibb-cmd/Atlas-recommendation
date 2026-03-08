@@ -245,9 +245,14 @@ describe('stepSimulation', () => {
   })
 
   it('injects heat into tokens passing through the HEX zone', () => {
-    // Place a MAIN token in the middle of the HEX zone with tiny velocity so it stays there
+    // Place a MAIN token in the middle of the HEX zone with tiny velocity so it stays there.
+    // Set combiDrawAgeSeconds to the full lag so warm-up has completed and full heat is injected.
     const tokens = [{ id: 't_hex', s: 0.5, v: 0.001, p: 0.5, hJPerKg: 0, route: 'MAIN' as const }]
-    const frame: LabFrame = { nowMs: 0, particles: tokens, spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples }
+    const frame: LabFrame = {
+      nowMs: 0, particles: tokens, spawnAccumulator: 0, nextTokenId: 0, outletSamples: emptyOutletSamples,
+      // Simulate a draw that has already warmed up past the lag period.
+      combiDrawAgeSeconds: 20,
+    }
     const next = stepSimulation({ frame, dtMs: 100, controls: defaultControls })
     const hexToken = next.particles.find(t => t.id === 't_hex')
     expect(hexToken).toBeDefined()

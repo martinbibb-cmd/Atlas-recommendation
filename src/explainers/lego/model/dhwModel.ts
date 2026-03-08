@@ -87,6 +87,45 @@ export interface CapacityChainResult {
   notes: string[];
 }
 
+// ─── Combi warm-up lag ────────────────────────────────────────────────────────
+
+/**
+ * Default warm-up lag for a combi boiler (seconds).
+ *
+ * Represents the time from when a hot-water draw starts to when the burner
+ * is at full output and the heat exchanger has reached operating temperature.
+ * Typical domestic combi boilers take 15–25 s to deliver full-temperature
+ * hot water when drawing from cold.
+ */
+export const DEFAULT_COMBI_WARMUP_LAG_SECONDS = 20
+
+/**
+ * Fraction of full heat-exchanger output delivered at a given draw age.
+ *
+ * Models the warm-up transient: when a draw first starts the heat exchanger
+ * is cold and delivers no heat (fraction = 0).  Over `lagSeconds` the fraction
+ * ramps linearly to 1 (full output).
+ *
+ * This makes the simulation show cold water at the start of a combi draw,
+ * visibly warming up over the warm-up period — an important distinction
+ * versus a stored-DHW system which delivers hot water almost immediately
+ * from the first outlet opening.
+ *
+ * @param drawAgeSeconds  Seconds since the current DHW draw started (≥ 0).
+ * @param lagSeconds      Warm-up period length in seconds.
+ *                        Defaults to DEFAULT_COMBI_WARMUP_LAG_SECONDS (20 s).
+ */
+export function computeCombiWarmUpFraction(params: {
+  drawAgeSeconds: number
+  lagSeconds?: number
+}): number {
+  const lag = params.lagSeconds ?? DEFAULT_COMBI_WARMUP_LAG_SECONDS
+  if (lag <= 0) return 1
+  return Math.min(params.drawAgeSeconds / lag, 1)
+}
+
+// ─── Capacity chain ───────────────────────────────────────────────────────────
+
 /**
  * Compute the overall max flow from a chain of components.
  * Each component may supply an optional capacity; the overall limit
