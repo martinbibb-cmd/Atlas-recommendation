@@ -214,10 +214,13 @@ function buildSceneForKind(
     // Heat source is always visible (PR5: never hide the boiler, even when idle).
     // The activity glow/animation in the renderer differentiates active vs idle.
     showHeatSource: true,
-    // Show CH supply path and emitter block whenever heating is configured in the
-    // graph or currently active.  This keeps the full topology visible at all times;
-    // the renderer applies faint opacity when inactive (PR5 — no structure hidden).
-    showHeatingPath: hasHeatingDemand || isChActive,
+    // Show CH supply path and emitter block whenever:
+    //   - heating is configured in the graph or currently active (always show topology), OR
+    //   - system is stored/heat_pump (CH circuit is structurally always present — never
+    //     hide it just because DHW is the current scenario or graphFacts is absent).
+    // The renderer applies faint opacity (0.35) when CH is inactive so structure
+    // remains visible without implying the circuit is live.  (PR5 + fix.)
+    showHeatingPath: hasHeatingDemand || isChActive || !isCombi,
     // Cylinder systems render the DHW vessel as a thermal store (with fill level),
     // never as a simple pass-through pipe.
     showCylinderAsStore: isCylinder,

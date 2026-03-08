@@ -342,8 +342,6 @@ export default function WorkbenchCanvas({
                 width={ZONE_BAND_WIDTH}
                 height={band.height}
                 fill={band.fill}
-                stroke={band.stroke}
-                strokeWidth={1}
               />
               <text
                 x={ZONE_BAND_X + 20}
