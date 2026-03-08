@@ -354,3 +354,35 @@ describe('smartAdd — anchor priority', () => {
     expect(hasEdge(g, 'heat_source_combi', 'flow_out', 'radiator_loop', 'flow_in')).toBe(true)
   })
 })
+
+// ─── Dynamic outlet slot allocation ───────────────────────────────────────────
+
+describe('smartAdd — dynamic outlet slot allocation beyond A/B/C', () => {
+  it('assigns A to the first outlet, B to the second, C to the third', () => {
+    let g = emptyGraph()
+    g = smartAdd(g, 'shower_outlet').nextGraph
+    g = smartAdd(g, 'bath_outlet').nextGraph
+    g = smartAdd(g, 'cold_tap_outlet').nextGraph
+    const slots = Object.keys(g.outletBindings ?? {}).sort()
+    expect(slots).toEqual(['A', 'B', 'C'])
+  })
+
+  it('assigns D to the fourth outlet node added', () => {
+    let g = emptyGraph()
+    g = smartAdd(g, 'shower_outlet').nextGraph
+    g = smartAdd(g, 'bath_outlet').nextGraph
+    g = smartAdd(g, 'cold_tap_outlet').nextGraph
+    g = smartAdd(g, 'shower_outlet').nextGraph
+    const slots = Object.keys(g.outletBindings ?? {}).sort()
+    expect(slots).toContain('D')
+    expect(slots).toHaveLength(4)
+  })
+
+  it('assigns E to the fifth outlet node added', () => {
+    let g = emptyGraph()
+    for (let i = 0; i < 5; i++) g = smartAdd(g, 'shower_outlet').nextGraph
+    const slots = Object.keys(g.outletBindings ?? {}).sort()
+    expect(slots).toContain('E')
+    expect(slots).toHaveLength(5)
+  })
+})

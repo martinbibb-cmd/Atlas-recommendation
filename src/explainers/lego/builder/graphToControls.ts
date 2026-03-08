@@ -4,8 +4,8 @@
 // Called when the user transitions from Build mode to Play mode so the animation
 // runs with parameters inferred from the drawn topology.
 
-import type { BuildGraph } from './types'
-import type { LabControls, SystemType } from '../animation/types'
+import type { BuildGraph, PartKind } from './types'
+import type { LabControls, OutletControl, OutletKind, SystemType } from '../animation/types'
 import { defaultOutlets } from '../animation/types'
 import { deriveFacts } from './graphDerive'
 import { resolveSystemTopology } from '../sim/resolveSystemTopology'
@@ -27,6 +27,118 @@ import { deriveSystemKindFromGraph } from './deriveSystemKind'
 /** Default combi boiler DHW output (kW). Used as the simulation base value and
  *  displayed in the Play sidebar when no override has been selected. */
 export const DEFAULT_COMBI_DHW_KW = 30
+
+// ─── Outlet-kind helpers ───────────────────────────────────────────────────────
+
+const OUTLET_PART_KINDS = new Set<PartKind>([
+  'tap_outlet', 'bath_outlet', 'shower_outlet', 'cold_tap_outlet',
+])
+
+/** Map a builder PartKind to the Play-mode OutletKind. */
+function outletKindFromPartKind(partKind: PartKind): OutletKind {
+  switch (partKind) {
+    case 'shower_outlet':   return 'shower_mixer'
+    case 'bath_outlet':     return 'bath'
+    case 'tap_outlet':      return 'basin'
+    case 'cold_tap_outlet': return 'cold_tap'
+    default:                return 'basin'
+  }
+}
+
+/** Default demand flow rate (L/min) for each outlet kind. */
+function defaultDemandLpm(kind: OutletKind): number {
+  switch (kind) {
+    case 'shower_mixer': return 10
+    case 'bath':         return 18
+    case 'cold_tap':     return 6
+    case 'basin':
+    default:             return 5
+  }
+}
+
+/** Slot labels are uppercase letters A, B, C, D, … */
+const SLOT_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+/**
+ * Build an `OutletControl[]` from the outlet nodes present in the graph.
+ *
+ * Each outlet node in the build graph becomes one entry in the list.
+ * Slot labels (A, B, C, …) are assigned in the order the nodes appear.
+ * Service class and cold source kind are populated from `outletModels`.
+ *
+ * Falls back to `defaultOutlets()` when the graph contains no outlet nodes
+ * (e.g. standalone demo presets that don't use the builder graph).
+ */
+function outletsFromGraph(
+  graph: BuildGraph,
+  outletModels: ReturnType<typeof deriveFacts>['outletModels'],
+): { outlets: OutletControl[]; outletBindings: Record<string, string> } {
+  const outletNodes = graph.nodes.filter(n => OUTLET_PART_KINDS.has(n.kind))
+
+  if (outletNodes.length === 0) {
+    return {
+      outlets: defaultOutlets(),
+      outletBindings: graph.outletBindings ?? {},
+    }
+  }
+
+  // Use the existing graph outletBindings as the primary slot→node mapping when
+  // available (preserving manually assigned slot positions from the builder UI).
+  // Fill in any outlet nodes not yet bound by assigning them the next free letter.
+  const existingBindings: Record<string, string> = { ...(graph.outletBindings ?? {}) }
+
+  // Build a reverse lookup: nodeId → slotLabel from existing bindings.
+  const nodeToSlot: Record<string, string> = {}
+  for (const [slot, nodeId] of Object.entries(existingBindings)) {
+    nodeToSlot[nodeId] = slot
+  }
+
+  // Assign slots to outlet nodes not yet in the existing bindings.
+  const assignedBindings: Record<string, string> = { ...existingBindings }
+  for (const node of outletNodes) {
+    if (!nodeToSlot[node.id]) {
+      // Find next free letter
+      let assigned = false
+      for (const letter of SLOT_LETTERS) {
+        if (!assignedBindings[letter]) {
+          assignedBindings[letter] = node.id
+          nodeToSlot[node.id] = letter
+          assigned = true
+          break
+        }
+      }
+      if (!assigned) break // more than 26 outlets — shouldn't happen
+    }
+  }
+
+  // Build the outlet list ordered by slot letter so A, B, C, … are in order.
+  const sortedEntries = Object.entries(assignedBindings).sort(([a], [b]) => a.localeCompare(b))
+
+  const outlets: OutletControl[] = []
+  for (const [slot, nodeId] of sortedEntries) {
+    const node = graph.nodes.find(n => n.id === nodeId)
+    if (!node || !OUTLET_PART_KINDS.has(node.kind)) continue
+
+    const kind = outletKindFromPartKind(node.kind)
+    const model = outletModels[nodeId]
+
+    const outlet: OutletControl = {
+      id: slot,
+      // Only the first outlet starts enabled so the simulation does not begin
+      // with simultaneous demand across all outlets.
+      enabled: outlets.length === 0,
+      kind,
+      demandLpm: defaultDemandLpm(kind),
+      builderNodeId: nodeId,
+      ...(model ? { serviceClass: model.serviceClass, coldSourceKind: model.coldSourceKind } : {}),
+      // Enable TMV by default for shower outlets.
+      ...(kind === 'shower_mixer' ? { tmvEnabled: true, tmvTargetTempC: 40 } : {}),
+    }
+    outlets.push(outlet)
+  }
+
+  return { outlets, outletBindings: assignedBindings }
+}
 
 export function graphToLabControls(
   graph: BuildGraph,
@@ -58,6 +170,14 @@ export function graphToLabControls(
   const ventedDefaults =
     resolvedSystemType === 'vented_cylinder' ? { headMeters: 3 } : undefined
 
+  // ── Derive outlets from graph topology ─────────────────────────────────────
+  // When the graph contains outlet nodes, build a dynamic outlet list with
+  // service class and cold source kind populated from the topology analysis.
+  // When the graph is empty (standalone presets), fall back to the static
+  // three-slot defaults so legacy presets continue to work unchanged.
+  const { outlets: derivedOutlets, outletBindings: derivedBindings } =
+    outletsFromGraph(graph, facts.outletModels)
+
   // ── Base defaults ──────────────────────────────────────────────────────────
   const base: LabControls = {
     systemType: resolvedSystemType,
@@ -66,7 +186,7 @@ export function graphToLabControls(
     combiDhwKw: DEFAULT_COMBI_DHW_KW,
     mainsDynamicFlowLpm: 14,
     pipeDiameterMm: 15,
-    outlets: defaultOutlets(),
+    outlets: derivedOutlets,
     ...(cylinderDefaults ? { cylinder: cylinderDefaults } : {}),
     ...(ventedDefaults ? { vented: ventedDefaults } : {}),
   }
@@ -101,7 +221,8 @@ export function graphToLabControls(
       // Per-outlet service model: cold source kind (mains/cws) and service class.
       outletModels: facts.outletModels,
     },
-    outletBindings: graph.outletBindings,
+    // outletBindings is derived from the graph; patch may not override it.
+    outletBindings: derivedBindings,
     // Control topology drives S-plan simultaneous CH + reheat behaviour.
     // Patch may not override this — it must always reflect the drawn graph.
     controlTopology: topology.controlTopology,

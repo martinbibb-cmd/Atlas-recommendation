@@ -4,12 +4,11 @@
 // start with sensible per-outlet defaults matching the drawn topology.
 //
 // Precedence:
-//   1. Graph outletBindings resolve which node is bound to each slot (A/B/C).
+//   1. Graph outletBindings resolve which node is bound to each slot.
 //   2. The node kind determines the outlet kind and default flow rate.
 //   3. Slots with no binding fall back to kind inferred from the slot position.
 
 import type { BuildGraph, PartKind } from '../builder/types'
-import type { OutletId } from '../animation/types'
 import {
   type PlayState,
   type OutletDemandState,
@@ -32,12 +31,16 @@ function outletKindFromNodeKind(nodeKind: PartKind | undefined): PlayOutletKind 
   }
 }
 
-// ─── Slot-position fallback ───────────────────────────────────────────────────
+// ─── Slot-position fallback (for unbound slots) ───────────────────────────────
 
-const SLOT_FALLBACK_KIND: Record<OutletId, PlayOutletKind> = {
-  A: 'shower',
-  B: 'basin',
-  C: 'bath',
+/**
+ * Return a sensible default outlet kind when a slot has no binding in the graph.
+ * Uses the slot index to pick: 0→shower, 1→basin, 2→bath, higher→basin.
+ */
+function fallbackKindForIndex(index: number): PlayOutletKind {
+  if (index === 0) return 'shower'
+  if (index === 2) return 'bath'
+  return 'basin'
 }
 
 // ─── Defaults per outlet kind ─────────────────────────────────────────────────
@@ -63,7 +66,7 @@ function defaultsForKind(kind: PlayOutletKind): OutletDefaults {
 
 // ─── Label per outlet kind ────────────────────────────────────────────────────
 
-function labelForKind(kind: PlayOutletKind, slot: OutletId): string {
+function labelForKind(kind: PlayOutletKind, slot: string): string {
   const kindLabels: Record<PlayOutletKind, string> = {
     shower:    'Shower',
     basin:     'Basin',
@@ -86,19 +89,26 @@ const DEFAULT_CH_FLOW_TEMP_C = 70
 
 /**
  * Inspect a saved BuildGraph and produce a default PlayState with one
- * OutletDemandState per slot (A, B, C).
+ * OutletDemandState per outlet node present in the graph.
  *
  * - Bound outlet nodes drive the outlet kind and label.
- * - Unbound slots fall back to a sensible default per slot position.
- * - Only slot A starts enabled so the simulation does not begin with
+ * - Unbound slot labels fall back to a sensible default for that position.
+ * - Only the first slot starts enabled so the simulation does not begin with
  *   simultaneous demand across every outlet.
+ * - If the graph has no outlet nodes (standalone presets), fall back to the
+ *   legacy three-slot A/B/C defaults for backward compatibility.
  * - Supply conditions are initialised to topology-appropriate defaults:
  *   vented cylinders start with a 'typical' CWS head preset;
  *   mains-fed systems start with a typical mains flow rate.
  */
 export function createDefaultPlayState(graph: BuildGraph): PlayState {
   const bindings = graph.outletBindings ?? {}
-  const slots: OutletId[] = ['A', 'B', 'C']
+
+  // Determine the ordered list of slots: use the binding keys sorted
+  // alphabetically so the Play UI always shows A, B, C, D, … in order.
+  // If no bindings exist at all, fall back to the legacy A/B/C defaults.
+  const boundSlots = Object.keys(bindings).sort()
+  const slots: string[] = boundSlots.length > 0 ? boundSlots : ['A', 'B', 'C']
 
   const demands: OutletDemandState[] = slots.map((slot, index) => {
     const nodeId = bindings[slot]
@@ -106,7 +116,7 @@ export function createDefaultPlayState(graph: BuildGraph): PlayState {
 
     const kind: PlayOutletKind = node
       ? outletKindFromNodeKind(node.kind)
-      : SLOT_FALLBACK_KIND[slot]
+      : fallbackKindForIndex(index)
 
     const defs = defaultsForKind(kind)
 

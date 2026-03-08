@@ -1,18 +1,11 @@
 // src/explainers/lego/animation/capacitySummary.ts
 
-import type { LabControls, OutletId, SystemMode } from './types'
+import type { LabControls, SystemMode } from './types'
 import { computeCombiThermalLimit, pipeDiameterCapacityLpm } from '../model/dhwModel'
 import { clampAnimationSetpointC, computeCombiOutletTemp, computeTmvMixer } from './thermal'
 import type { TmvOutcome } from './thermal'
 
 export type { TmvOutcome }
-
-function slotForOutletId(outletId: string): 'A' | 'B' | 'C' | null {
-  if (outletId === 'A' || outletId === 'OutletA') return 'A'
-  if (outletId === 'B' || outletId === 'OutletB') return 'B'
-  if (outletId === 'C' || outletId === 'OutletC') return 'C'
-  return null
-}
 
 export type CapacitySummary = {
   demandTotalLpm: number
@@ -23,7 +16,7 @@ export type CapacitySummary = {
   limitingComponent: 'Supply' | 'Pipe' | 'Thermal' | 'Demand'
   warnings: string[]
   /** Hydraulic flow delivered to each outlet, split proportionally by outlet demand. */
-  outletDeliveredLpm: Record<OutletId, number>
+  outletDeliveredLpm: Record<string, number>
   /**
    * Achieved combi outlet temperature (°C) — only present for combi system type.
    * For TMV outlets this is the boiler hot-side temperature (T_h), not the mixed
@@ -40,7 +33,7 @@ export type CapacitySummary = {
    * Present only for combi system type when at least one shower_mixer outlet has
    * `tmvEnabled = true`.  Undefined entries indicate the outlet has no TMV.
    */
-  tmvOutcomes?: Record<OutletId, TmvOutcome | undefined>
+  tmvOutcomes?: Record<string, TmvOutcome | undefined>
   /**
    * True when at least one TMV outlet is saturated (hot supply too cool to reach
    * the target shower temperature).
@@ -51,6 +44,33 @@ export type CapacitySummary = {
   hotFedCount: number
   mode: SystemMode
   badges: string[]
+}
+
+/**
+ * Determine whether an outlet is cold-only.
+ *
+ * Priority order:
+ *   1. Outlet-level `serviceClass` field (populated by graphToLabControls from
+ *      topology analysis) — authoritative when present.
+ *   2. `kind === 'cold_tap'` — always cold regardless of graph facts.
+ *   3. Graph-fact lookup via `builderNodeId` or `outletBindings` — backward
+ *      compat for older LabControls objects that predate the serviceClass field.
+ */
+function isColdOnlyInSummary(
+  outlet: LabControls['outlets'][number],
+  c: LabControls,
+): boolean {
+  // 1. Outlet-level service class (authoritative)
+  if (outlet.serviceClass === 'cold_only') return true
+  if (outlet.serviceClass === 'mixed' || outlet.serviceClass === 'hot_only') return false
+
+  // 2. Kind-based fallback
+  if (outlet.kind === 'cold_tap') return true
+
+  // 3. Graph-fact lookup (backward compat)
+  const coldOnlyIds = new Set(c.graphFacts?.coldOnlyOutletNodeIds ?? [])
+  const nodeId = outlet.builderNodeId ?? c.outletBindings?.[outlet.id]
+  return !!(nodeId && coldOnlyIds.has(nodeId))
 }
 
 export function computeCapacitySummary(c: LabControls): CapacitySummary {
@@ -109,39 +129,30 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
     warnings.push(`Demand exceeds supply capacity → flow throttled by ${supplyLabel}`)
   }
 
-  // Split hydraulic flow proportionally to each active outlet's demand
-  const outletDeliveredLpm: Record<OutletId, number> = { A: 0, B: 0, C: 0 }
+  // Split hydraulic flow proportionally to each active outlet's demand.
+  // Keyed by outlet id (slot label, e.g. 'A', 'B', 'C', 'D', …).
+  const outletDeliveredLpm: Record<string, number> = {}
+  for (const o of c.outlets) {
+    outletDeliveredLpm[o.id] = 0
+  }
   if (demandTotalLpm > 0) {
     for (const o of activeOutlets) {
       outletDeliveredLpm[o.id] = hydraulicFlowLpm * (o.demandLpm / demandTotalLpm)
     }
   }
 
-  const bindings = c.outletBindings ?? {}
-  const hotFedIds = new Set(c.graphFacts?.hotFedOutletNodeIds ?? [])
-  const coldOnlyIds = new Set(c.graphFacts?.coldOnlyOutletNodeIds ?? [])
-
   let hexFlowLpm = 0
   let coldBypassLpm = 0
   let hotFedCount = 0
 
   for (const o of activeOutlets) {
-    const delivered = outletDeliveredLpm[o.id]
-    const slot = slotForOutletId(o.id)
-    const nodeId = slot ? bindings[slot] : undefined
+    const delivered = outletDeliveredLpm[o.id] ?? 0
 
-    if (nodeId && coldOnlyIds.has(nodeId)) {
+    if (isColdOnlyInSummary(o, c)) {
       coldBypassLpm += delivered
       continue
     }
 
-    if (nodeId && hotFedIds.has(nodeId)) {
-      hexFlowLpm += delivered
-      hotFedCount += 1
-      continue
-    }
-
-    // fallback: treat unbound outlets as hot-fed (keeps old behaviour)
     hexFlowLpm += delivered
     hotFedCount += 1
   }
@@ -159,10 +170,7 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
 
   // ── TMV outcomes (combi only) ─────────────────────────────────────────────
   // For each active shower_mixer outlet with tmvEnabled, compute the mixer physics.
-  // The boiler hot-side temperature (T_h) is computed from the hot-side flow (F_h)
-  // through the HEX — which is less than the full outlet demand (F_out), because
-  // the cold supply bypass (F_c = F_out − F_h) bypasses the HEX entirely.
-  let tmvOutcomes: Record<OutletId, TmvOutcome | undefined> | undefined
+  let tmvOutcomes: Record<string, TmvOutcome | undefined> | undefined
   let tmvSaturated: boolean | undefined
   let achievedOutTempC = combiThermal?.achievedOutTempC
   let requiredKw = combiThermal?.requiredKw
@@ -173,13 +181,13 @@ export function computeCapacitySummary(c: LabControls): CapacitySummary {
     )
 
     if (tmvActive) {
-      tmvOutcomes = { A: undefined, B: undefined, C: undefined }
+      tmvOutcomes = {}
       let anyTmvSaturated = false
       let firstTmvT_h: number | undefined
 
       for (const o of activeOutlets) {
         if (o.kind === 'shower_mixer' && o.tmvEnabled) {
-          const F_out = outletDeliveredLpm[o.id]
+          const F_out = outletDeliveredLpm[o.id] ?? 0
           const outcome = computeTmvMixer({
             boilerKw: c.combiDhwKw,
             combiSetpointC: c.dhwSetpointC,

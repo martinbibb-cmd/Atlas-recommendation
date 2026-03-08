@@ -220,19 +220,23 @@ describe('outletDemandToControl', () => {
 // ─── playStateToOutletControls ────────────────────────────────────────────────
 
 describe('playStateToOutletControls', () => {
-  it('returns exactly 3 controls for slots A, B, C', () => {
+  it('returns exactly 3 controls for a 3-slot state', () => {
     const state = makePlayState()
     const controls = playStateToOutletControls(state.demands)
     expect(controls).toHaveLength(3)
     expect(controls.map(c => c.id)).toEqual(['A', 'B', 'C'])
   })
 
-  it('fills missing slots with disabled placeholder', () => {
+  it('returns only the supplied demands (no automatic back-fill)', () => {
+    // Dynamic model: only outlet A → only 1 control returned.
     const controls = playStateToOutletControls([
       makeOutlet({ outletId: 'A' }),
     ])
-    expect(controls.find(c => c.id === 'B')?.enabled).toBe(false)
-    expect(controls.find(c => c.id === 'C')?.enabled).toBe(false)
+    expect(controls).toHaveLength(1)
+    expect(controls[0].id).toBe('A')
+    // B and C are not in the list
+    expect(controls.find(c => c.id === 'B')).toBeUndefined()
+    expect(controls.find(c => c.id === 'C')).toBeUndefined()
   })
 
   it('preserves enabled state from demands', () => {

@@ -4,7 +4,7 @@
 // PlayState drives the simulation instead of hard-coded demo values —
 // simulation input = savedGraphSnapshot + playState.
 
-import type { OutletControl, OutletId, HeatingDemandState, SystemType, ControlTopologyKind } from '../animation/types'
+import type { OutletControl, HeatingDemandState, SystemType, ControlTopologyKind } from '../animation/types'
 
 export type { HeatingDemandState }
 
@@ -33,8 +33,8 @@ export type PlayOutletKind =
 // ─── Per-outlet demand state ──────────────────────────────────────────────────
 
 export type OutletDemandState = {
-  /** Outlet slot identifier ('A' | 'B' | 'C'). */
-  outletId: OutletId
+  /** Outlet slot identifier (e.g. 'A', 'B', 'C', 'D', …). */
+  outletId: string
   /** Human-readable label shown in the control panel. */
   label: string
   kind: PlayOutletKind
@@ -151,8 +151,8 @@ export const PRESETS_FOR_KIND: Record<PlayOutletKind, OutletDemandPreset[]> = {
 export type PlayScenario = {
   id: string
   label: string
-  /** Partial patch applied to demands — slots not mentioned remain unchanged. */
-  patch: Partial<Record<OutletId, OutletDemandPreset>>
+  /** Partial patch applied to demands — slot IDs not mentioned remain unchanged. */
+  patch: Partial<Record<string, OutletDemandPreset>>
   /** Optional heating demand override applied by this scenario. */
   heatingPatch?: Partial<HeatingDemandState>
 }
@@ -273,18 +273,23 @@ export function outletDemandToControl(demand: OutletDemandState): OutletControl 
 
 /**
  * Convert all OutletDemandState entries in a PlayState to OutletControl[].
- * Ensures exactly the three slots A, B, C are represented — missing slots are
- * filled with a disabled placeholder so the simulation never receives a
- * shorter-than-expected outlet array.
+ *
+ * Supports an arbitrary number of outlet slots — whatever is present in the
+ * `demands` array is converted directly (one-to-one).
+ *
+ * For backward compatibility, when the demands array does not include all of
+ * 'A', 'B', 'C', disabled placeholder entries are added for any missing legacy
+ * slot so that code which indexes the array by position still works.
  */
 export function playStateToOutletControls(demands: OutletDemandState[]): OutletControl[] {
-  const slots: OutletId[] = ['A', 'B', 'C']
-  return slots.map(slot => {
-    const demand = demands.find(d => d.outletId === slot)
-    if (demand) return outletDemandToControl(demand)
-    // Disabled placeholder for unrepresented slots
-    return { id: slot, enabled: false, kind: 'basin' as const, demandLpm: 0 }
-  })
+  if (demands.length === 0) {
+    // No demands at all — return the three legacy disabled placeholders.
+    return ['A', 'B', 'C'].map(slot => ({
+      id: slot, enabled: false, kind: 'basin' as const, demandLpm: 0,
+    }))
+  }
+
+  return demands.map(demand => outletDemandToControl(demand))
 }
 
 // ─── Operating mode ───────────────────────────────────────────────────────────

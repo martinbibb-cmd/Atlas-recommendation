@@ -349,3 +349,109 @@ describe('graphToLabControls — zoneValveCount in graphFacts', () => {
     expect(controls.graphFacts?.zoneValveCount).toBe(0)
   })
 })
+
+// ── Dynamic outlet model ───────────────────────────────────────────────────────
+
+describe('graphToLabControls — dynamic outlet model', () => {
+  it('generates outlets from graph outlet nodes (not fixed 3 defaults)', () => {
+    const controls = graphToLabControls(combiGraph())
+    // combiGraph has 1 outlet node (shower_outlet 'sh') — should produce 1 outlet
+    expect(controls.outlets).toHaveLength(1)
+    expect(controls.outlets[0].id).toBe('A')
+    expect(controls.outlets[0].kind).toBe('shower_mixer')
+  })
+
+  it('generates dynamic outlet for a graph with 4 outlet nodes', () => {
+    const graph: BuildGraph = {
+      nodes: [
+        { id: 'hs', kind: 'heat_source_combi', x: 100, y: 100, r: 0 },
+        { id: 'sh1', kind: 'shower_outlet',    x: 300, y:  50, r: 0 },
+        { id: 'bt1', kind: 'bath_outlet',      x: 300, y: 150, r: 0 },
+        { id: 'ct1', kind: 'cold_tap_outlet',  x: 300, y: 250, r: 0 },
+      ],
+      edges: [],
+    }
+    const controls = graphToLabControls(graph)
+    // shower + bath + cold_tap = 3 OUTLET_PART_KINDS nodes
+    expect(controls.outlets).toHaveLength(3)
+  })
+
+  it('assigns slot A to the first outlet, B to second, C to third', () => {
+    const graph: BuildGraph = {
+      nodes: [
+        { id: 'hs', kind: 'heat_source_combi', x: 100, y: 100, r: 0 },
+        { id: 'sh', kind: 'shower_outlet', x: 300, y:  50, r: 0 },
+        { id: 'bt', kind: 'bath_outlet',   x: 300, y: 150, r: 0 },
+        { id: 'ct', kind: 'cold_tap_outlet', x: 300, y: 250, r: 0 },
+      ],
+      edges: [],
+    }
+    const controls = graphToLabControls(graph)
+    expect(controls.outlets).toHaveLength(3)
+    const ids = controls.outlets.map(o => o.id)
+    expect(ids).toContain('A')
+    expect(ids).toContain('B')
+    expect(ids).toContain('C')
+  })
+
+  it('sets serviceClass and coldSourceKind from outletModels', () => {
+    const controls = graphToLabControls(combiGraph())
+    // combiGraph shower is hot-fed, not cold-only
+    const showerOutlet = controls.outlets.find(o => o.kind === 'shower_mixer')
+    expect(showerOutlet).toBeDefined()
+    // serviceClass should be set (either mixed or hot_only for a shower)
+    expect(showerOutlet?.serviceClass).toBeDefined()
+  })
+
+  it('only the first outlet starts enabled', () => {
+    const graph: BuildGraph = {
+      nodes: [
+        { id: 'hs', kind: 'heat_source_combi', x: 100, y: 100, r: 0 },
+        { id: 'sh', kind: 'shower_outlet', x: 300, y:  50, r: 0 },
+        { id: 'bt', kind: 'bath_outlet',   x: 300, y: 150, r: 0 },
+      ],
+      edges: [],
+    }
+    const controls = graphToLabControls(graph)
+    const sortedById = [...controls.outlets].sort((a, b) => a.id.localeCompare(b.id))
+    expect(sortedById[0].enabled).toBe(true)
+    for (const o of sortedById.slice(1)) {
+      expect(o.enabled).toBe(false)
+    }
+  })
+
+  it('falls back to defaultOutlets() for empty graph (no outlet nodes)', () => {
+    const controls = graphToLabControls(emptyGraph())
+    // Empty graph → no outlet nodes → fall back to default 3 outlets
+    expect(controls.outlets).toHaveLength(3)
+    expect(controls.outlets.map(o => o.id)).toEqual(['A', 'B', 'C'])
+  })
+
+  it('outletBindings maps slot labels to builder node IDs', () => {
+    const controls = graphToLabControls(combiGraph())
+    expect(controls.outletBindings).toBeDefined()
+    expect(controls.outletBindings!['A']).toBe('sh')
+  })
+})
+
+// ── smartAttach — nextOutletSlot beyond C ─────────────────────────────────────
+// (These tests exercise the slot-allocation logic indirectly via graphToLabControls)
+
+describe('graphToLabControls — supports more than 3 outlets', () => {
+  it('assigns slot D to a 4th outlet node', () => {
+    const graph: BuildGraph = {
+      nodes: [
+        { id: 'hs',  kind: 'heat_source_combi', x: 100, y: 100, r: 0 },
+        { id: 'sh1', kind: 'shower_outlet',     x: 300, y:  50, r: 0 },
+        { id: 'bt1', kind: 'bath_outlet',       x: 300, y: 150, r: 0 },
+        { id: 'ct1', kind: 'cold_tap_outlet',   x: 300, y: 250, r: 0 },
+        { id: 'sh2', kind: 'shower_outlet',     x: 300, y: 350, r: 0 },
+      ],
+      edges: [],
+    }
+    const controls = graphToLabControls(graph)
+    expect(controls.outlets).toHaveLength(4)
+    const ids = controls.outlets.map(o => o.id).sort()
+    expect(ids).toEqual(['A', 'B', 'C', 'D'])
+  })
+})

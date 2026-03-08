@@ -111,10 +111,24 @@ export interface PortDef {
 export interface BuildGraph {
   nodes: BuildNode[];
   edges: BuildEdge[];
-  outletBindings?: Partial<Record<OutletSlotId, string>>;
+  /**
+   * Maps outlet slot labels (e.g. 'A', 'B', 'C', 'D', …) to the graph node ID
+   * of the outlet node assigned to that slot.  The slot labels are generated
+   * sequentially by `nextOutletSlot()` in smartAttach.ts.
+   *
+   * Previously typed as `Partial<Record<OutletSlotId, string>>` with a hard
+   * maximum of three slots (A / B / C).  Now a plain `Record<string, string>`
+   * so that an arbitrary number of outlets can be bound.
+   */
+  outletBindings?: Record<string, string>;
 }
 
-export type OutletSlotId = 'A' | 'B' | 'C';
+/**
+ * Outlet slot identifier — a single uppercase letter ('A', 'B', 'C', 'D', …).
+ * Generated sequentially by `nextOutletSlot()` in smartAttach.ts.
+ * Previously restricted to 'A' | 'B' | 'C'; now an open string type.
+ */
+export type OutletSlotId = string;
 
 export interface PaletteItem {
   kind: PartKind;

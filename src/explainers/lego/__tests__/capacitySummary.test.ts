@@ -182,11 +182,29 @@ describe('computeCapacitySummary — outletDeliveredLpm', () => {
     expect(s.outletDeliveredLpm.C).toBe(0);
   });
 
-  it('gives 0 delivered to disabled outlets', () => {
-    const s = computeCapacitySummary({ ...BASE });
-    expect(s.outletDeliveredLpm.B).toBe(0);
-    expect(s.outletDeliveredLpm.C).toBe(0);
-  });
+  it('gives 0 delivered to disabled outlets in the same outlet list', () => {
+    // Three outlets declared but only A enabled — B and C are present with 0.
+    const threeOutlets: OutletControl[] = [
+      { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm: 8 },
+      { id: 'B', enabled: false, kind: 'basin',        demandLpm: 5 },
+      { id: 'C', enabled: false, kind: 'bath',         demandLpm: 18 },
+    ]
+    const s = computeCapacitySummary({ ...BASE, outlets: threeOutlets })
+    expect(s.outletDeliveredLpm.B).toBe(0)
+    expect(s.outletDeliveredLpm.C).toBe(0)
+  })
+
+  it('dynamic outlet list: only the outlets in the list appear in outletDeliveredLpm', () => {
+    // When only outlet A is in the list, B and C are absent from the map.
+    const s = computeCapacitySummary({ ...BASE })
+    // A is delivered (only enabled outlet)
+    expect(s.outletDeliveredLpm.A).toBeGreaterThan(0)
+    // B and C are not in the outlet list — they must not appear in the map
+    expect(s.outletDeliveredLpm.B).toBeUndefined()
+    expect(s.outletDeliveredLpm.C).toBeUndefined()
+    // The map should contain exactly one key: 'A'
+    expect(Object.keys(s.outletDeliveredLpm)).toEqual(['A'])
+  })
 });
 
 // ─── computeCapacitySummary — achievedOutTempC & requiredKw ──────────────────
