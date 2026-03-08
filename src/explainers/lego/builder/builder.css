@@ -307,7 +307,7 @@
   left: 0;
   top: 0;
   width: 170px;
-  padding: 10px;
+  padding: 0;
   border-radius: 14px;
   border: 2px solid #cbd5e0;
   background: #fff;
@@ -315,6 +315,7 @@
   transform-origin: 0 0;
   user-select: none;
   z-index: 2;
+  overflow: visible;
 }
 
 .token.selected {
@@ -534,6 +535,32 @@
 .token--emitter {
   background: linear-gradient(135deg, #faf5ff 0%, #f7fafc 100%);
   border-color: #6b46c1;
+}
+
+/* Controls (zone valve, three-port valve) — indigo tint, visually distinct from appliances */
+.token--control {
+  background: linear-gradient(135deg, #f5f0ff 0%, #ede9fe 100%);
+  border-color: #6b46c1;
+  border-style: dashed;
+}
+
+/* Outlets (tap, bath, shower, cold tap) — teal tint */
+.token--outlet {
+  background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%);
+  border-color: #319795;
+}
+
+/* System support (buffer, pump, kit, etc.) — neutral grey-blue */
+.token--support {
+  background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+  border-color: #4a5568;
+}
+
+/* Schematic face SVG — fills the token rectangle, non-interactive */
+.token-face {
+  display: block;
+  pointer-events: none;
+  border-radius: 12px;
 }
 
 .snap-ghost {

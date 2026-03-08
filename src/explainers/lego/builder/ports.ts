@@ -69,7 +69,14 @@ export function portsForKind(kind: PartKind): PortDef[] {
       ];
 
     case 'zone_valve':
+      // S-plan: independent 2-port through-flow valve (one per zone)
+      return [
+        { id: 'in',    dx: L, dy: MID_Y, role: 'flow', label: 'flow in',  direction: 'in'  },
+        { id: 'out_a', dx: R, dy: MID_Y, role: 'flow', label: 'flow out', direction: 'out' },
+      ];
+
     case 'three_port_valve':
+      // Y-plan: single 3-port motorised valve routing flow to CH or HW
       return [
         { id: 'in',    dx: L, dy: MID_Y,   role: 'flow', label: 'flow in', direction: 'in'  },
         { id: 'out_a', dx: R, dy: T + 18,  role: 'flow', label: 'hw out',  direction: 'out' },

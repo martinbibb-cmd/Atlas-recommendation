@@ -1,8 +1,9 @@
 import { useMemo, useRef, useEffect, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import type { BuildGraph, BuildNode, PartKind, PortRef } from './types';
+import type { BuildGraph, BuildNode, PartKind, PortDef, PortRef } from './types';
 import { PALETTE } from './palette';
 import { portsForKind, TOKEN_H, TOKEN_W } from './ports';
+import { SCHEMATIC_REGISTRY, schematicPortToDxDy } from './schematicBlocks';
 import { findSnapCandidate, portAbs as snapPortAbs } from './snapConnect';
 import { routePipe } from './router';
 import './builder.css';
@@ -112,11 +113,213 @@ function kindClass(kind: PartKind): string {
     kind === 'dhw_vented_cylinder'
   ) return 'token--cylinder';
   if (kind === 'radiator_loop' || kind === 'ufh_loop') return 'token--emitter';
+  if (kind === 'three_port_valve' || kind === 'zone_valve') return 'token--control';
+  if (
+    kind === 'tap_outlet' ||
+    kind === 'bath_outlet' ||
+    kind === 'shower_outlet' ||
+    kind === 'cold_tap_outlet'
+  ) return 'token--outlet';
+  if (
+    kind === 'buffer' ||
+    kind === 'low_loss_header' ||
+    kind === 'pump' ||
+    kind === 'sealed_system_kit' ||
+    kind === 'open_vent' ||
+    kind === 'feed_and_expansion' ||
+    kind === 'cws_cistern'
+  ) return 'token--support';
   return '';
 }
 
+/**
+ * Derive port definitions from the schematic registry when available,
+ * falling back to the legacy portsForKind() for components not yet in
+ * the registry (tees, manifolds, outlets).
+ */
+function getPortDefs(kind: PartKind): PortDef[] {
+  const reg = SCHEMATIC_REGISTRY[kind];
+  if (reg) {
+    return reg.ports.map(p => {
+      const { dx, dy } = schematicPortToDxDy(p, reg.width, reg.height);
+      return {
+        id: p.id,
+        dx,
+        dy,
+        role: (p.semanticRole as PortDef['role']) ?? 'unknown',
+        label: p.label,
+        direction: p.direction,
+      };
+    });
+  }
+  return portsForKind(kind);
+}
+
+// ─── Schematic face SVG components ────────────────────────────────────────────
+
+/** Renders a component-specific schematic face inside the token rectangle. */
+function SchematicFace({
+  kind,
+  label,
+  slot,
+}: {
+  kind: PartKind;
+  label: string;
+  slot?: string;
+}) {
+  const slotBadge = slot ? (
+    <text x="85" y="69" textAnchor="middle" fontSize="7" fill="#805ad5" fontWeight="700">
+      Outlet {slot}
+    </text>
+  ) : null;
+
+  // ── Combi boiler: split CH / DHW zones ──────────────────────────────────
+  if (kind === 'heat_source_combi') {
+    return (
+      <svg viewBox="0 0 170 74" width="170" height="74" aria-hidden="true" className="token-face">
+        {/* CH / DHW zone divider */}
+        <line x1="8" y1="42" x2="162" y2="42" stroke="#93c5fd" strokeWidth="1" strokeDasharray="4 3" opacity="0.65"/>
+        {/* Boiler casing outline */}
+        <rect x="10" y="5" width="150" height="64" rx="8" fill="none" stroke="#c05621" strokeWidth="1.5" opacity="0.3"/>
+        <text x="85" y="20" textAnchor="middle" fontSize="9" fontWeight="800" fill="#7b341e">CH</text>
+        <text x="85" y="36" textAnchor="middle" fontSize="15">🔥</text>
+        <text x="85" y="58" textAnchor="middle" fontSize="9" fontWeight="800" fill="#2c5282">DCW / DHW</text>
+        {slotBadge}
+      </svg>
+    );
+  }
+
+  // ── System / regular boiler: simple 2-port heat source ──────────────────
+  if (kind === 'heat_source_system_boiler' || kind === 'heat_source_regular_boiler') {
+    const shortLabel = kind === 'heat_source_system_boiler' ? 'SYSTEM' : 'REGULAR';
+    return (
+      <svg viewBox="0 0 170 74" width="170" height="74" aria-hidden="true" className="token-face">
+        <rect x="10" y="5" width="150" height="64" rx="8" fill="none" stroke="#c05621" strokeWidth="1.5" opacity="0.3"/>
+        <text x="85" y="30" textAnchor="middle" fontSize="18">🔥</text>
+        <text x="85" y="50" textAnchor="middle" fontSize="9" fontWeight="800" fill="#7b341e">{shortLabel} BOILER</text>
+        {slotBadge}
+      </svg>
+    );
+  }
+
+  // ── Heat pump: 2-port heat source with efficiency focus ──────────────────
+  if (kind === 'heat_source_heat_pump') {
+    return (
+      <svg viewBox="0 0 170 74" width="170" height="74" aria-hidden="true" className="token-face">
+        <rect x="10" y="5" width="150" height="64" rx="8" fill="none" stroke="#276749" strokeWidth="1.5" opacity="0.3"/>
+        <text x="85" y="30" textAnchor="middle" fontSize="18">♻️</text>
+        <text x="85" y="50" textAnchor="middle" fontSize="9" fontWeight="800" fill="#22543d">HEAT PUMP</text>
+        {slotBadge}
+      </svg>
+    );
+  }
+
+  // ── Cylinder: left coil, top hot, bottom cold ────────────────────────────
+  if (
+    kind === 'dhw_unvented_cylinder' ||
+    kind === 'dhw_vented_cylinder' ||
+    kind === 'dhw_mixergy'
+  ) {
+    const typeLabel =
+      kind === 'dhw_mixergy' ? 'MIXERGY' :
+      kind === 'dhw_unvented_cylinder' ? 'UNVENTED' : 'VENTED';
+    return (
+      <svg viewBox="0 0 170 74" width="170" height="74" aria-hidden="true" className="token-face">
+        {/* Cylinder body — inset left to leave room for coil path */}
+        <rect x="26" y="3" width="120" height="68" rx="20" fill="none" stroke="#2b6cb0" strokeWidth="1.5" opacity="0.55"/>
+        {/* Mixergy top-entry HX band */}
+        {kind === 'dhw_mixergy' && (
+          <rect x="26" y="3" width="120" height="16" rx="12" fill="none"
+                stroke="#c05621" strokeWidth="1" strokeDasharray="3 2" opacity="0.55"/>
+        )}
+        {/* Coil indicator on the left face: matches coil_flow (T+18) / coil_return (B-18) ports */}
+        <path d="M26,20 Q13,24 26,30 Q13,35 26,40 Q13,45 26,52"
+              fill="none" stroke="#c05621" strokeWidth="2" opacity="0.65"/>
+        {/* Type label */}
+        <text x="86" y="30" textAnchor="middle" fontSize="8" fontWeight="800" fill="#2c5282">{typeLabel}</text>
+        <text x="86" y="48" textAnchor="middle" fontSize="13">💧</text>
+        {slotBadge}
+      </svg>
+    );
+  }
+
+  // ── Three-port valve (Y-plan): visually distinct routing device ──────────
+  if (kind === 'three_port_valve') {
+    return (
+      <svg viewBox="0 0 170 74" width="170" height="74" aria-hidden="true" className="token-face">
+        {/* Valve body ellipse */}
+        <ellipse cx="82" cy="37" rx="42" ry="28" fill="none" stroke="#6b46c1" strokeWidth="1.5" opacity="0.55"/>
+        {/* Flow paths */}
+        <line x1="0"   y1="37" x2="40"  y2="37" stroke="#6b46c1" strokeWidth="1.5" opacity="0.5"/>
+        <line x1="124" y1="37" x2="170" y2="18" stroke="#6b46c1" strokeWidth="1.5" opacity="0.5"/>
+        <line x1="124" y1="37" x2="170" y2="56" stroke="#6b46c1" strokeWidth="1.5" opacity="0.5"/>
+        {/* Junction node */}
+        <circle cx="124" cy="37" r="3" fill="#6b46c1" opacity="0.5"/>
+        <text x="82" y="32" textAnchor="middle" fontSize="8"  fontWeight="800" fill="#553c9a">Y-PLAN</text>
+        <text x="82" y="43" textAnchor="middle" fontSize="7"  fill="#553c9a">3-port valve</text>
+        {slotBadge}
+      </svg>
+    );
+  }
+
+  // ── Zone valve (S-plan): simple through-flow valve with actuator ─────────
+  if (kind === 'zone_valve') {
+    return (
+      <svg viewBox="0 0 170 74" width="170" height="74" aria-hidden="true" className="token-face">
+        {/* Pipe stubs */}
+        <line x1="0"   y1="37" x2="57"  y2="37" stroke="#6b46c1" strokeWidth="1.5" opacity="0.5"/>
+        <line x1="113" y1="37" x2="170" y2="37" stroke="#6b46c1" strokeWidth="1.5" opacity="0.5"/>
+        {/* Valve disc */}
+        <circle cx="85" cy="37" r="26" fill="none" stroke="#6b46c1" strokeWidth="1.5" opacity="0.55"/>
+        {/* Actuator stem */}
+        <line x1="85" y1="11" x2="85" y2="4"  stroke="#6b46c1" strokeWidth="2"   opacity="0.5"/>
+        <rect  x="75" y="2"  width="20" height="7" rx="2" fill="none" stroke="#6b46c1" strokeWidth="1.2" opacity="0.5"/>
+        <text x="85" y="33" textAnchor="middle" fontSize="8" fontWeight="800" fill="#553c9a">ZONE</text>
+        <text x="85" y="44" textAnchor="middle" fontSize="7" fill="#553c9a">VALVE</text>
+        {slotBadge}
+      </svg>
+    );
+  }
+
+  // ── Radiator loop: fin-panel emitter ────────────────────────────────────
+  if (kind === 'radiator_loop') {
+    return (
+      <svg viewBox="0 0 170 74" width="170" height="74" aria-hidden="true" className="token-face">
+        {[0, 1, 2, 3, 4, 5, 6].map(i => (
+          <rect key={i} x={22 + i * 18} y="14" width="12" height="44" rx="3"
+                fill="none" stroke="#6b46c1" strokeWidth="1.2" opacity="0.5"/>
+        ))}
+        <text x="85" y="68" textAnchor="middle" fontSize="7" fontWeight="800" fill="#553c9a">RADIATORS</text>
+        {slotBadge}
+      </svg>
+    );
+  }
+
+  // ── UFH loop: serpentine emitter ─────────────────────────────────────────
+  if (kind === 'ufh_loop') {
+    return (
+      <svg viewBox="0 0 170 74" width="170" height="74" aria-hidden="true" className="token-face">
+        <path d="M20,20 H150 V37 H20 V54 H150"
+              fill="none" stroke="#6b46c1" strokeWidth="1.5" opacity="0.5"/>
+        <text x="85" y="70" textAnchor="middle" fontSize="7" fontWeight="800" fill="#553c9a">UNDERFLOOR HEATING</text>
+        {slotBadge}
+      </svg>
+    );
+  }
+
+  // ── Generic fallback: emoji + label in SVG ───────────────────────────────
+  const emoji = kindEmoji(kind);
+  return (
+    <svg viewBox="0 0 170 74" width="170" height="74" aria-hidden="true" className="token-face">
+      <text x="85" y="30" textAnchor="middle" fontSize="20">{emoji}</text>
+      <text x="85" y="50" textAnchor="middle" fontSize="9" fontWeight="800" fill="#2d3748">{label}</text>
+      {slotBadge}
+    </svg>
+  );
+}
+
 function portAbs(node: BuildNode, portId: string) {
-  const ports = portsForKind(node.kind);
+  const ports = getPortDefs(node.kind);
   const port = ports.find(item => item.id === portId);
   if (!port) {
     return { x: node.x, y: node.y };
@@ -359,7 +562,7 @@ export default function WorkbenchCanvas({
         </svg>
 
         {graph.nodes.map(node => {
-          const ports = portsForKind(node.kind);
+          const ports = getPortDefs(node.kind);
           const slot = (['A', 'B', 'C'] as const).find(key => outletBindings?.[key] === node.id);
 
           return (
@@ -376,9 +579,7 @@ export default function WorkbenchCanvas({
               aria-label={kindLabel(node.kind)}
               title={kindLabel(node.kind)}
             >
-              <div className="token-emoji">{kindEmoji(node.kind)}</div>
-              <div className="token-text">{kindLabel(node.kind)}</div>
-              {slot ? <div className="token-bind">Outlet {slot}</div> : null}
+              <SchematicFace kind={node.kind} label={kindLabel(node.kind)} slot={slot} />
 
               {ports.map(port => {
                 const isPending =
