@@ -390,6 +390,27 @@ export function LabCanvas(props: {
       : null
   const usableHot = storeTempC !== null ? storeTempC >= USABLE_HOT_THRESHOLD_C : null
 
+  // ── CH numerical model outputs ────────────────────────────────────────────
+  // When the simulation ran the energy-balance model, frame.chBalance carries
+  // derived flow and return temperatures.  Use these to colour the CH supply
+  // and return pipes with real physics rather than a fixed domain colour.
+  const chBalance = frame.chBalance
+  // CH supply pipe colour — driven by flow temperature when chBalance is available.
+  const chFlowColor = isChActive
+    ? (chBalance ? tempToThermalColor(chBalance.flowTempC) : '#f97316')
+    : '#f97316'
+  // CH return pipe colour — driven by return temperature when chBalance is available.
+  const chReturnColor = isChActive && chBalance
+    ? tempToThermalColor(chBalance.returnTempC)
+    : '#94a3b8'
+  // Label strings for CH supply and return temperature readouts.
+  const chFlowLabel = chBalance
+    ? `CH supply · ${Math.round(chBalance.flowTempC)} °C · ${chBalance.deliveredKw.toFixed(1)} kW`
+    : 'CH supply'
+  const chReturnLabel = chBalance
+    ? `Return · ${Math.round(chBalance.returnTempC)} °C`
+    : 'Common return'
+
   // Cylinder tank fill — prefer visuals.storageStates (authoritative simulation output)
   // and fall back to direct store calculation for backwards compatibility.
   const cylinderFillFraction = (() => {
@@ -1662,32 +1683,34 @@ export function LabCanvas(props: {
                   The valve is the routing device; CH supply originates from the valve output.
                 Combi systems: from combined boiler/HEX box bottom → same routing.
                   Origin: (cylX+20, cylY+cylH)
-                The heat source is unambiguously the boiler, not the cylinder/store. */}
+                The heat source is unambiguously the boiler, not the cylinder/store.
+                Colour driven by chBalance.flowTempC when numerical model is active. */}
             {isStoredLayout ? (
               <path
                 d={`M ${heatSrcCenterX} ${storedValveBottomY} L ${heatSrcCenterX} ${emitterCenterY} L ${emitterRightX} ${emitterCenterY}`}
-                stroke="#f97316" strokeWidth={3} fill="none" strokeLinecap="round"
+                stroke={chFlowColor} strokeWidth={3} fill="none" strokeLinecap="round"
                 opacity={0.8}
               />
             ) : (
               <path
                 d={`M ${cylX + 20} ${cylY + cylH} L ${cylX + 20} ${emitterCenterY} L ${emitterRightX} ${emitterCenterY}`}
-                stroke="#f97316" strokeWidth={3} fill="none" strokeLinecap="round"
+                stroke={chFlowColor} strokeWidth={3} fill="none" strokeLinecap="round"
                 opacity={0.8}
               />
             )}
             {/* Arrowhead pointing left into the emitter box — tip at emitterRightX */}
             <polygon
               points={`${emitterRightX + 2},${emitterCenterY - 4} ${emitterRightX + 10},${emitterCenterY} ${emitterRightX + 2},${emitterCenterY + 4}`}
-              fill="#f97316" opacity={0.8}
+              fill={chFlowColor} opacity={0.8}
             />
-            {/* CH supply label — centred on the horizontal run */}
+            {/* CH supply label — centred on the horizontal run.
+                Shows flow temperature and delivered kW when the numerical model is active. */}
             <text
               x={Math.round(((isStoredLayout ? heatSrcCenterX : cylX + 20) + emitterRightX) / 2)}
               y={emitterCenterY - 8}
               textAnchor="middle" fontSize={9} fill="#ea580c"
             >
-              CH supply
+              {chFlowLabel}
             </text>
             {/* Radiator / emitter box — the CH circuit load.
                 SchematicFaceToken renders the same fin-panel face as the builder
@@ -1725,6 +1748,7 @@ export function LabCanvas(props: {
             common return path back to the heat source.  A faint dashed line
             below the emitter box represents this shared return bus, showing
             the user that all heating returns merge before going back to source.
+            Colour driven by chBalance.returnTempC when numerical model is active.
             Keeps the return side visually simple — not pipe-for-pipe.          */}
         {isStoredLayout && showHeatingPathAndEmitters && (
           <g opacity={isChActive || coilActive ? 0.55 : 0.2}>
@@ -1736,17 +1760,17 @@ export function LabCanvas(props: {
                   <line
                     x1={emitterX} y1={retY}
                     x2={heatSrcCenterX} y2={retY}
-                    stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 3" strokeLinecap="round"
+                    stroke={chReturnColor} strokeWidth={2} strokeDasharray="5 3" strokeLinecap="round"
                   />
                   <polygon
                     points={`${heatSrcCenterX - 5},${retY - 4} ${heatSrcCenterX + 2},${retY} ${heatSrcCenterX - 5},${retY + 4}`}
-                    fill="#94a3b8"
+                    fill={chReturnColor}
                   />
                   <text
                     x={retMidX} y={retY - 2}
-                    textAnchor="middle" fontSize={7} fill="#94a3b8"
+                    textAnchor="middle" fontSize={7} fill={chReturnColor}
                   >
-                    Common return
+                    {chReturnLabel}
                   </text>
                 </>
               )
