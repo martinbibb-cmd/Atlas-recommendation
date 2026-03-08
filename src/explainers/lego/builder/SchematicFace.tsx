@@ -273,32 +273,30 @@ export function SchematicFaceContent({
     );
   }
 
-  // ── Three-port valve (Y-plan): routing device with two outputs ────────────
+  // ── Three-port valve (Y-plan, compact inline symbol) ─────────────────────
   if (kind === 'three_port_valve') {
     return (
       <>
-        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(107,70,193,0.07)" />
-        {/* Valve body */}
-        <circle cx="80" cy="37" r="24" fill="rgba(107,70,193,0.10)" stroke="#6b46c1" strokeWidth="1.5" />
-        {/* Actuator head (top) */}
-        <rect x="70" y="2" width="20" height="9" rx="2" fill="rgba(107,70,193,0.15)" stroke="#6b46c1" strokeWidth="1.2" />
-        <line x1="80" y1="11" x2="80" y2="13" stroke="#6b46c1" strokeWidth="1.5" />
-        {/* Input pipe (left centre → valve body) */}
-        <line x1="1" y1="37" x2="56" y2="37" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
+        {/* Input pipe spine (left → valve body) */}
+        <line x1="1" y1="37" x2="70" y2="37" stroke="#6b46c1" strokeWidth="2" opacity="0.45" />
         {/* Upper output pipe (valve body → right, toward y=18) */}
-        <line x1="104" y1="37" x2="138" y2="20" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
-        <line x1="138" y1="20" x2="169" y2="18" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
+        <line x1="100" y1="37" x2="169" y2="18" stroke="#6b46c1" strokeWidth="2" opacity="0.45" />
         {/* Lower output pipe (valve body → right, toward y=56) */}
-        <line x1="104" y1="37" x2="138" y2="54" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
-        <line x1="138" y1="54" x2="169" y2="56" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
+        <line x1="100" y1="37" x2="169" y2="56" stroke="#6b46c1" strokeWidth="2" opacity="0.45" />
+        {/* Valve body — compact circle */}
+        <circle cx="85" cy="37" r="18" fill="rgba(107,70,193,0.10)" stroke="#6b46c1" strokeWidth="1.5" />
+        {/* Actuator stem */}
+        <line x1="85" y1="19" x2="85" y2="12" stroke="#6b46c1" strokeWidth="1.5" opacity="0.7" />
+        {/* Actuator cap */}
+        <rect x="78" y="9" width="14" height="6" rx="1.5"
+          fill="rgba(107,70,193,0.15)" stroke="#6b46c1" strokeWidth="1" />
         {/* Junction dot */}
-        <circle cx="104" cy="37" r="3.5" fill="#6b46c1" opacity="0.7" />
-        {/* Y-PLAN label */}
-        <text x="80" y="33" textAnchor="middle" fontSize="8" fontWeight="800" fill="#553c9a">Y-PLAN</text>
-        <text x="80" y="44" textAnchor="middle" fontSize="6.5" fill="#553c9a">3-port valve</text>
+        <circle cx="100" cy="37" r="3" fill="#6b46c1" opacity="0.65" />
         {/* Route labels */}
-        <text x="158" y="17" textAnchor="end" fontSize="5.5" fill="#553c9a" opacity="0.8">HW</text>
-        <text x="158" y="54" textAnchor="end" fontSize="5.5" fill="#553c9a" opacity="0.8">CH</text>
+        <text x="161" y="16" textAnchor="end" fontSize="5.5" fill="#553c9a" opacity="0.85">HW</text>
+        <text x="161" y="54" textAnchor="end" fontSize="5.5" fill="#553c9a" opacity="0.85">CH</text>
+        {/* 3-PORT VALVE label */}
+        <text x="85" y="67" textAnchor="middle" fontSize="7" fontWeight="700" fill="#553c9a">3-PORT VALVE</text>
         {/* Port indicators */}
         <PortDot cx={0}   cy={37} fill="#b794f4" stroke="#6b46c1" />
         <PortDot cx={170} cy={18} fill="#b794f4" stroke="#6b46c1" />
@@ -308,25 +306,23 @@ export function SchematicFaceContent({
     );
   }
 
-  // ── Zone valve (S-plan): simple motorised through-valve ───────────────────
+  // ── Zone valve (S-plan, compact inline symbol) ────────────────────────────
   if (kind === 'zone_valve') {
     return (
       <>
-        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(107,70,193,0.07)" />
-        {/* Pipe stubs */}
-        <line x1="1"   y1="37" x2="59"  y2="37" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
-        <line x1="111" y1="37" x2="169" y2="37" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
-        {/* Valve disc */}
-        <circle cx="85" cy="37" r="26" fill="rgba(107,70,193,0.10)" stroke="#6b46c1" strokeWidth="1.5" />
+        {/* Pipe spine through full token width */}
+        <line x1="1" y1="37" x2="169" y2="37" stroke="#6b46c1" strokeWidth="2" opacity="0.45" />
+        {/* Valve body — compact circle */}
+        <circle cx="85" cy="37" r="18" fill="rgba(107,70,193,0.10)" stroke="#6b46c1" strokeWidth="1.5" />
         {/* Actuator stem */}
-        <line x1="85" y1="11" x2="85" y2="4" stroke="#6b46c1" strokeWidth="2" opacity="0.7" />
-        {/* Actuator head */}
-        <rect x="73" y="1" width="24" height="8" rx="2" fill="rgba(107,70,193,0.15)" stroke="#6b46c1" strokeWidth="1.2" />
-        {/* Gate indicator (diagonal slash inside disc = open state shown in builder) */}
-        <line x1="73" y1="29" x2="97" y2="45" stroke="#6b46c1" strokeWidth="1" strokeDasharray="3 2" opacity="0.5" />
-        {/* S-PLAN label */}
-        <text x="85" y="33" textAnchor="middle" fontSize="8" fontWeight="800" fill="#553c9a">S-PLAN</text>
-        <text x="85" y="44" textAnchor="middle" fontSize="6.5" fill="#553c9a">ZONE VALVE</text>
+        <line x1="85" y1="19" x2="85" y2="12" stroke="#6b46c1" strokeWidth="1.5" opacity="0.7" />
+        {/* Actuator cap */}
+        <rect x="78" y="9" width="14" height="6" rx="1.5"
+          fill="rgba(107,70,193,0.15)" stroke="#6b46c1" strokeWidth="1" />
+        {/* Gate indicator (diagonal slash inside disc = open state) */}
+        <line x1="76" y1="30" x2="94" y2="44" stroke="#6b46c1" strokeWidth="1" strokeDasharray="3 2" opacity="0.45" />
+        {/* ZONE VALVE label */}
+        <text x="85" y="67" textAnchor="middle" fontSize="7" fontWeight="700" fill="#553c9a">ZONE VALVE</text>
         {/* Port indicators */}
         <PortDot cx={0}   cy={37} fill="#b794f4" stroke="#6b46c1" />
         <PortDot cx={170} cy={37} fill="#b794f4" stroke="#6b46c1" />
@@ -392,26 +388,24 @@ export function SchematicFaceContent({
     );
   }
 
-  // ── Pump ──────────────────────────────────────────────────────────────────
+  // ── Pump (compact inline symbol) ──────────────────────────────────────────
   if (kind === 'pump') {
     return (
       <>
-        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(74,85,104,0.07)" />
-        {/* Pipe stubs */}
-        <line x1="1"   y1="37" x2="59"  y2="37" stroke="#4a5568" strokeWidth="2" opacity="0.7" />
-        <line x1="111" y1="37" x2="169" y2="37" stroke="#4a5568" strokeWidth="2" opacity="0.7" />
+        {/* Pipe spine through full token width — keeps ports connected visually */}
+        <line x1="1" y1="37" x2="169" y2="37" stroke="#4a5568" strokeWidth="2" opacity="0.35" />
         {/* Flow direction arrowhead */}
-        <polygon points="156,37 148,33 148,41" fill="#4a5568" opacity="0.55" />
-        {/* Pump body */}
-        <circle cx="85" cy="37" r="26" fill="rgba(74,85,104,0.10)" stroke="#4a5568" strokeWidth="1.5" />
+        <polygon points="152,37 144,33 144,41" fill="#4a5568" opacity="0.45" />
+        {/* Pump body — compact circle */}
+        <circle cx="85" cy="37" r="20" fill="rgba(74,85,104,0.10)" stroke="#4a5568" strokeWidth="1.5" />
         {/* Impeller blades */}
-        <path d="M79 27 Q85 31 79 47" fill="none" stroke="#4a5568" strokeWidth="1.3" opacity="0.6" />
-        <path d="M91 27 Q85 31 91 47" fill="none" stroke="#4a5568" strokeWidth="1.3" opacity="0.6" />
+        <path d="M80 29 Q85 33 80 45" fill="none" stroke="#4a5568" strokeWidth="1.2" opacity="0.55" />
+        <path d="M90 29 Q85 33 90 45" fill="none" stroke="#4a5568" strokeWidth="1.2" opacity="0.55" />
         {/* Impeller hub */}
-        <circle cx="85" cy="37" r="4" fill="#4a5568" opacity="0.4" />
+        <circle cx="85" cy="37" r="3" fill="#4a5568" opacity="0.35" />
         {/* PUMP label */}
-        <text x="85" y="67" textAnchor="middle" fontSize="8.5" fontWeight="800" fill="#2d3748">PUMP</text>
-        {/* Port indicators (both y=37) */}
+        <text x="85" y="66" textAnchor="middle" fontSize="7.5" fontWeight="700" fill="#4a5568">PUMP</text>
+        {/* Port indicators */}
         <PortDot cx={0}   cy={37} fill="#a0aec0" stroke="#4a5568" />
         <PortDot cx={170} cy={37} fill="#a0aec0" stroke="#4a5568" />
         {slotBadge}
@@ -444,25 +438,25 @@ export function SchematicFaceContent({
     );
   }
 
-  // ── Sealed system kit (expansion vessel + PRV + fill loop) ────────────────
+  // ── Sealed system kit (small support symbol) ──────────────────────────────
   if (kind === 'sealed_system_kit') {
     return (
       <>
-        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(74,85,104,0.07)" />
-        {/* Expansion vessel */}
-        <ellipse cx="60" cy="36" rx="34" ry="24" fill="rgba(74,85,104,0.10)" stroke="#4a5568" strokeWidth="1.4" />
-        <line x1="26" y1="36" x2="94" y2="36" stroke="#4a5568" strokeWidth="1" strokeDasharray="3 2" opacity="0.45" />
-        <text x="60" y="30" textAnchor="middle" fontSize="6.5" fill="#4a5568">EXP. VES.</text>
-        {/* PRV */}
-        <circle cx="130" cy="27" r="14" fill="rgba(229,62,62,0.08)" stroke="#e53e3e" strokeWidth="1.2" opacity="0.7" />
-        <path d="M130 13 V9" stroke="#e53e3e" strokeWidth="1.5" opacity="0.7" />
-        <text x="130" y="24" textAnchor="middle" fontSize="6" fontWeight="800" fill="#c53030" opacity="0.8">PRV</text>
-        <text x="130" y="34" textAnchor="middle" fontSize="5.5" fill="#c53030" opacity="0.7">3 bar</text>
+        {/* Expansion vessel (compact ellipse) */}
+        <ellipse cx="72" cy="31" rx="22" ry="16"
+          fill="rgba(74,85,104,0.10)" stroke="#4a5568" strokeWidth="1.2" />
+        <line x1="50" y1="31" x2="94" y2="31" stroke="#4a5568" strokeWidth="0.9" strokeDasharray="3 2" opacity="0.45" />
+        <text x="72" y="28" textAnchor="middle" fontSize="5.5" fill="#4a5568">EXP. VES.</text>
+        {/* PRV — small circle beside vessel */}
+        <line x1="94" y1="31" x2="108" y2="22" stroke="#e53e3e" strokeWidth="1.1" opacity="0.65" />
+        <circle cx="114" cy="19" r="8"
+          fill="rgba(229,62,62,0.08)" stroke="#e53e3e" strokeWidth="1" opacity="0.7" />
+        <text x="114" y="16" textAnchor="middle" fontSize="5" fontWeight="700" fill="#c53030">PRV</text>
         {/* Fill loop stub */}
-        <path d="M130 41 V53 H148" fill="none" stroke="#2b6cb0" strokeWidth="1.2" opacity="0.5" />
-        <text x="149" y="57" fontSize="5.5" fill="#2b6cb0" opacity="0.7">FILL</text>
+        <path d="M108 31 L122 31 L122 43" fill="none" stroke="#2b6cb0" strokeWidth="1" opacity="0.45" />
+        <text x="136" y="47" fontSize="5" fill="#2b6cb0" opacity="0.6">FILL</text>
         {/* SEALED KIT label */}
-        <text x="85" y="67" textAnchor="middle" fontSize="7.5" fontWeight="800" fill="#2d3748">SEALED KIT</text>
+        <text x="85" y="58" textAnchor="middle" fontSize="6.5" fontWeight="700" fill="#4a5568">SEALED KIT</text>
         {/* Port indicator (right, y=37) */}
         <PortDot cx={170} cy={37} fill="#a0aec0" stroke="#4a5568" />
         {slotBadge}
@@ -470,19 +464,18 @@ export function SchematicFaceContent({
     );
   }
 
-  // ── Open vent (safety pipe rising from circuit) ───────────────────────────
+  // ── Open vent (small support symbol — vent stub rising from flow spine) ───
   if (kind === 'open_vent') {
     return (
       <>
-        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(74,85,104,0.07)" />
-        {/* Horizontal pipe (at port level y=37) */}
-        <line x1="1" y1="37" x2="169" y2="37" stroke="#4a5568" strokeWidth="2" opacity="0.65" />
+        {/* Horizontal pipe spine (port level y=37) */}
+        <line x1="1" y1="37" x2="169" y2="37" stroke="#4a5568" strokeWidth="2" opacity="0.35" />
         {/* Vent pipe rising from centre */}
-        <line x1="85" y1="37" x2="85" y2="11" stroke="#4a5568" strokeWidth="2" opacity="0.65" />
+        <line x1="85" y1="37" x2="85" y2="14" stroke="#4a5568" strokeWidth="1.5" opacity="0.6" />
         {/* Open top indicator (arc) */}
-        <path d="M78 13 Q85 7 92 13" fill="none" stroke="#4a5568" strokeWidth="1.5" opacity="0.65" />
+        <path d="M80 16 Q85 10 90 16" fill="none" stroke="#4a5568" strokeWidth="1.3" opacity="0.6" />
         {/* OPEN VENT label */}
-        <text x="85" y="55" textAnchor="middle" fontSize="7.5" fontWeight="800" fill="#2d3748">OPEN VENT</text>
+        <text x="85" y="57" textAnchor="middle" fontSize="6.5" fontWeight="700" fill="#4a5568">OPEN VENT</text>
         {/* Port indicators (both y=37) */}
         <PortDot cx={0}   cy={37} fill="#a0aec0" stroke="#4a5568" />
         <PortDot cx={170} cy={37} fill="#a0aec0" stroke="#4a5568" />
@@ -491,22 +484,23 @@ export function SchematicFaceContent({
     );
   }
 
-  // ── Feed & expansion tank ─────────────────────────────────────────────────
+  // ── Feed & expansion tank (small support symbol) ──────────────────────────
   if (kind === 'feed_and_expansion') {
     return (
       <>
-        <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(74,85,104,0.07)" />
-        {/* F&E tank body */}
-        <rect x="18" y="5" width="96" height="50" rx="5" fill="rgba(74,85,104,0.10)" stroke="#4a5568" strokeWidth="1.4" />
+        {/* F&E tank body (compact) */}
+        <rect x="30" y="6" width="76" height="44" rx="4"
+          fill="rgba(74,85,104,0.10)" stroke="#4a5568" strokeWidth="1.2" />
         {/* Water level line inside tank */}
-        <line x1="18" y1="35" x2="114" y2="35" stroke="#2b6cb0" strokeWidth="1" opacity="0.4" />
+        <line x1="30" y1="32" x2="106" y2="32" stroke="#2b6cb0" strokeWidth="0.9" opacity="0.4" />
         {/* Float ball arm and ball */}
-        <line x1="104" y1="28" x2="124" y2="20" stroke="#4a5568" strokeWidth="1" opacity="0.55" />
-        <circle cx="128" cy="17" r="7" fill="rgba(74,85,104,0.18)" stroke="#4a5568" strokeWidth="1" opacity="0.6" />
+        <line x1="96" y1="26" x2="114" y2="18" stroke="#4a5568" strokeWidth="1" opacity="0.5" />
+        <circle cx="118" cy="15" r="6"
+          fill="rgba(74,85,104,0.15)" stroke="#4a5568" strokeWidth="1" opacity="0.55" />
         {/* Feed pipe (right at y=37) */}
-        <line x1="114" y1="37" x2="169" y2="37" stroke="#4a5568" strokeWidth="1.8" opacity="0.65" />
+        <line x1="106" y1="37" x2="169" y2="37" stroke="#4a5568" strokeWidth="1.5" opacity="0.55" />
         {/* FEED & EXP. label */}
-        <text x="80" y="66" textAnchor="middle" fontSize="7.5" fontWeight="800" fill="#2d3748">FEED &amp; EXP.</text>
+        <text x="68" y="62" textAnchor="middle" fontSize="6.5" fontWeight="700" fill="#4a5568">F&amp;E TANK</text>
         <PortDot cx={170} cy={37} fill="#a0aec0" stroke="#4a5568" />
         {slotBadge}
       </>
