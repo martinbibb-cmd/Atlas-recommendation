@@ -154,7 +154,7 @@ describe('inferPlateHexCondition — conditionBand', () => {
       applianceAgeYears: 15,
       hotWaterPerformanceBand: 'slightly_reduced',
     });
-    // score = 2 (slightly_reduced) + 2 (hard, no softener) + 0 (low) + 2 (15yr) = 6 → poor
+    // score = 3 (slightly_reduced) + 2 (hard, no softener) + 0 (low) + 2 (15yr) = 7 → poor
     expect(result.conditionBand).toBe('poor');
   });
 });

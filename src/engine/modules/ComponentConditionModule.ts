@@ -206,7 +206,7 @@ export function inferDhwUseBand(
  * and usage intensity amplify risk. Age is a supporting factor only.
  *
  * Fouling score (higher = worse):
- *   Performance band (primary):  good=0 / slightly_reduced=2 / fluctuating=4 / poor=6
+ *   Performance band (primary):  good=0 / slightly_reduced=3 / fluctuating=4 / poor=6
  *   Water hardness (no softener): soft=0 / moderate=1 / hard=2 / very_hard=3
  *   Water hardness (softener):    0 / 0 / 0 / very_hard=1 (residual risk)
  *   Usage intensity:              low=0 / moderate=0 / high=1 / very_high=2

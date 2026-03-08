@@ -142,6 +142,10 @@ function buildUsageInputs(input: SystemConditionInferenceInput): UsageInputs {
 
 /**
  * Maps cylinderAgeEstimate survey field to CylinderInputs ageBand.
+ * Note: '10_to_15' maps to the '10-20' model band (a conservative inclusive
+ * range) and 'over_15' maps to '20+' as the most cautious available bucket.
+ * This slight broadening of the 10-15 yr range is intentional — it avoids
+ * creating a dead zone where 15-20 year cylinders receive no age penalty.
  */
 function cylinderAgeEstimateToAgeBand(
   estimate: DhwConditionDiagnosticsV1['cylinderAgeEstimate'],
