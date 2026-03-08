@@ -65,7 +65,7 @@ export type PartKind =
 
 // ─── Re-exports from schematic block library ──────────────────────────────────
 
-export type { CylinderModel, StorageKind, SupplyKind, HeatSourceKind } from './schematicBlocks';
+export type { CylinderModel, StorageKind, SupplyKind, HeatSourceKind, StructuralZone, StructuralPlacement } from './schematicBlocks';
 
 export interface BuildNode {
   id: string;
@@ -73,6 +73,14 @@ export interface BuildNode {
   x: number;
   y: number;
   r: number;
+  /**
+   * Optional structural placement for this component instance.
+   *
+   * When set, it overrides the default zone derived by `defaultZoneForKind()`
+   * for this specific node.  When omitted, callers should fall back to
+   * `defaultZoneForKind(node.kind)` to determine where the component lives.
+   */
+  placement?: import('./schematicBlocks').StructuralPlacement;
 }
 
 export interface PortRef {

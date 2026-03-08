@@ -24,6 +24,45 @@
 
 import { TOKEN_W, TOKEN_H } from './ports'
 
+// ─── Structural placement layer ───────────────────────────────────────────────
+
+/**
+ * Physical placement zone for a schematic component.
+ *
+ * The structural layer sits above the hydraulic schematic and decorates each
+ * component with the physical context it lives in.  It does not replace the
+ * schematic truth — it adds readability and storytelling.
+ *
+ * outside        — equipment mounted outside the building (ASHP unit, GSHP manifold).
+ * plant_room     — boiler / pump / valve area inside (utility room, kitchen cupboard).
+ * airing_cupboard — hot-water cylinder location (airing cupboard, plant room).
+ * ground_floor   — ground-floor emitters or outlets (UFH slab, kitchen tap).
+ * first_floor    — first-floor emitters or outlets (upstairs radiators, shower).
+ * roof_space     — loft-mounted equipment (CWS cistern, F&E tank).
+ * ground_loop    — underground GSHP source collector loop.
+ */
+export type StructuralZone =
+  | 'outside'
+  | 'plant_room'
+  | 'airing_cupboard'
+  | 'ground_floor'
+  | 'first_floor'
+  | 'roof_space'
+  | 'ground_loop'
+
+/**
+ * Optional structural placement for a schematic component.
+ *
+ * `zone` is required — it identifies the physical context.
+ * `x` and `y` are optional coordinates within the zone, intended for future
+ * use when rendering a structural cross-section or floor-plan overlay.
+ */
+export interface StructuralPlacement {
+  zone: StructuralZone
+  x?: number
+  y?: number
+}
+
 // ─── Axis types ───────────────────────────────────────────────────────────────
 
 export type HeatSourceKind = 'regular' | 'system' | 'combi' | 'heat_pump'
@@ -465,4 +504,64 @@ export function cylinderModelFromKind(kind: string): CylinderModel | null {
 export function kindFromCylinderModel(model: CylinderModel): string {
   if (model.storageKind === 'mixergy') return 'dhw_mixergy'
   return model.supplyKind === 'vented' ? 'dhw_vented_cylinder' : 'dhw_unvented_cylinder'
+}
+
+// ─── Structural placement helpers ─────────────────────────────────────────────
+
+/**
+ * Default structural zone for each component kind.
+ *
+ * These represent the most common physical location for each component type.
+ * Individual BuildNode instances may override this via their `placement` field.
+ *
+ * Mapping rationale:
+ *  - heat_source_heat_pump → outside       ASHP sits outside; GSHP ground-source heat pumps
+ *                                          also default here — the node represents the heat-pump
+ *                                          unit itself, whose ground loop is a separate concern.
+ *                                          Override to 'plant_room' for a GSHP indoor module.
+ *  - boilers               → plant_room    typical utility-room / kitchen-cupboard install
+ *  - cylinders             → airing_cupboard  standard cylinder location
+ *  - cws_cistern           → roof_space    cold-water storage lives in the loft
+ *  - feed_and_expansion    → roof_space    F&E tank for open-vented systems also in loft
+ *  - ufh_loop              → ground_floor  screed-embedded underfloor heating
+ *  - radiator_loop         → first_floor   most radiators are upstairs (common default)
+ *  - bath_outlet           → first_floor   family bathroom typically upstairs
+ *  - shower_outlet         → first_floor   en-suite / family bathroom upstairs
+ *  - tap_outlet            → ground_floor  kitchen sink cold/mixed tap
+ *  - cold_tap_outlet       → ground_floor  kitchen drinking-water tap
+ *  - everything else       → plant_room    inline hydraulic accessories near the heat source
+ */
+export function defaultZoneForKind(kind: string): StructuralZone {
+  switch (kind) {
+    // Outside
+    case 'heat_source_heat_pump':
+      return 'outside'
+
+    // Roof space
+    case 'cws_cistern':
+    case 'feed_and_expansion':
+      return 'roof_space'
+
+    // Airing cupboard / cylinder store
+    case 'dhw_unvented_cylinder':
+    case 'dhw_vented_cylinder':
+    case 'dhw_mixergy':
+      return 'airing_cupboard'
+
+    // Ground-floor emitters / outlets
+    case 'ufh_loop':
+    case 'tap_outlet':
+    case 'cold_tap_outlet':
+      return 'ground_floor'
+
+    // First-floor emitters / outlets
+    case 'radiator_loop':
+    case 'bath_outlet':
+    case 'shower_outlet':
+      return 'first_floor'
+
+    // Everything else lives in the plant room (boilers, pump, valves, tees, etc.)
+    default:
+      return 'plant_room'
+  }
 }
