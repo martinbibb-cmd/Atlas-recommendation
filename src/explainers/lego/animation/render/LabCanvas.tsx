@@ -158,6 +158,27 @@ function controlTopologyLabel(
 
 
 /**
+ * Return a human-readable label for a cold-source kind.
+ * Used by both mixed outlet labels and cold-only outlet badges to ensure
+ * consistent terminology across both rendering paths.
+ *
+ * cws   → 'CWS (pressure-matched)' — gravity-fed CWS rail; pressure matches hot side
+ * mains → 'mains'                  — pressurised direct cold water
+ */
+function coldSourceKindLabel(kind: 'mains' | 'cws'): string {
+  return kind === 'cws' ? 'CWS (pressure-matched)' : 'mains'
+}
+
+/**
+ * Return the SVG fill colour for a cold-source kind indicator.
+ * Distinct tones for CWS (teal/cyan) vs mains (sky blue) so the two rails
+ * are visually distinguishable at a glance.
+ */
+function coldSourceKindColor(kind: 'mains' | 'cws'): string {
+  return kind === 'cws' ? '#0891b2' : '#0284c7'
+}
+
+/**
  * Format elapsed simulated seconds as a human-readable time string.
  * ≤ 60 min: "Nm NNs"   e.g. "3m 22s"
  * > 60 min: "Nh NNm"   e.g. "1h 05m"
@@ -750,7 +771,7 @@ export function LabCanvas(props: {
                 fill="#0ea5e9" opacity={0.9}
               />
               <text x={P.mainsX - 4} y={coldRailY - 6} fontSize={10} fill="#0369a1" textAnchor="start">
-                Cold rail
+                Mains cold rail
               </text>
             </>
           ) : (
@@ -782,9 +803,9 @@ export function LabCanvas(props: {
                 }
                 stroke="#8aa1b6" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
               />
-              {/* Cold rail label at the bottom horizontal segment */}
-              <text x={P.mainsX - 4} y={coldRailY - 6} fontSize={11} fill="#64748b" textAnchor="start">
-                Cold rail (mains)
+              {/* Mains cold rail label at the bottom horizontal segment */}
+              <text x={P.mainsX - 4} y={coldRailY - 6} fontSize={11} fill="#0369a1" textAnchor="start">
+                Mains cold rail
               </text>
             </>
           )
@@ -843,6 +864,10 @@ export function LabCanvas(props: {
             {/* Label below the CWS cistern — confirms tank-fed (not mains-fed) supply */}
             <text x={cwsX + cwsW / 2} y={cwsY + cwsH + 11} textAnchor="middle" fontSize={8} fill="#0369a1">
               Tank-fed cold supply
+            </text>
+            {/* CWS cold rail label — distinguishes the gravity-fed rail from the mains cold rail */}
+            <text x={cwsX + cwsW / 2} y={cwsY + cwsH + 22} textAnchor="middle" fontSize={8} fill="#0891b2" fontWeight={600}>
+              CWS cold rail
             </text>
           </g>
         )}
@@ -1575,6 +1600,19 @@ export function LabCanvas(props: {
                       {outletLabel(outlet.id)} · {OUTLET_KIND_LABELS[outlet.kind]}
                     </text>
 
+                    {/* Cold source kind indicator — shows which cold rail this mixed outlet uses.
+                        Particularly important for open-vented systems where CWS cold is used
+                        to pressure-match the gravity-fed hot side.                            */}
+                    {outlet.coldSourceKind && (
+                      <text
+                        x={ox + 6} y={oy - 22}
+                        textAnchor="start" fontSize={8}
+                        fill={coldSourceKindColor(outlet.coldSourceKind)}
+                      >
+                        cold: {coldSourceKindLabel(outlet.coldSourceKind)}
+                      </text>
+                    )}
+
                     {/* Readout badge: delivered L/min + temperature */}
                     {isEnabled && (
                       <g>
@@ -1621,10 +1659,47 @@ export function LabCanvas(props: {
               {/* Cold taps draw from cold supply only — they must NOT appear on the
                   hot branch from the splitter.  Rendered on the cold rail so the
                   viewer can immediately see they are cold-service only.
-                  No temperature readout (always at cold-inlet temp).                */}
-              {coldOnlyOuts.length > 0 && (
-                <g>
-                  {coldOnlyOuts.map((outlet, i) => {
+                  No temperature readout (always at cold-inlet temp).
+                  coldSourceKind badge distinguishes mains-fed from CWS-fed cold taps.
+                  For vented systems: if any cold tap is mains-fed, a short mains
+                  supply indicator is shown so the viewer knows mains cold enters here
+                  separately from the CWS gravity rail.                              */}
+              {coldOnlyOuts.length > 0 && (() => {
+                // For vented systems that have mains-fed cold taps, show a small
+                // "Mains supply" indicator since the generic mains cold rail is hidden.
+                const hasMainsFedColdTap = coldOnlyOuts.some(o => o.coldSourceKind === 'mains')
+                const showVentedMainsIndicator = scene.metadata.showCwsRefill && hasMainsFedColdTap
+                return (
+                  <g>
+                    {/* Mains cold supply indicator for vented systems — only when a mains-fed
+                        cold tap is present.  Shown as a short capped pipe with "Mains" label to
+                        distinguish it from the CWS gravity drop, since showGenericColdFeed is
+                        false for vented systems.                                              */}
+                    {showVentedMainsIndicator && (
+                      <g>
+                        <line
+                          x1={P.mainsX} y1={coldRailY}
+                          x2={P.mainsX + 30} y2={coldRailY}
+                          stroke={coldSupplyColor} strokeWidth={8} strokeLinecap="round"
+                          opacity={0.75}
+                        />
+                        <line
+                          x1={P.mainsX} y1={coldRailY}
+                          x2={P.mainsX + 30} y2={coldRailY}
+                          stroke="#0ea5e9" strokeWidth={2} strokeLinecap="round"
+                        />
+                        {/* Cap the stub end to indicate a separate supply entry point */}
+                        <line
+                          x1={P.mainsX} y1={coldRailY - 6}
+                          x2={P.mainsX} y2={coldRailY + 6}
+                          stroke="#0284c7" strokeWidth={3} strokeLinecap="round"
+                        />
+                        <text x={P.mainsX - 4} y={coldRailY - 8} fontSize={8} fill="#0369a1" textAnchor="start">
+                          Mains cold rail
+                        </text>
+                      </g>
+                    )}
+                    {coldOnlyOuts.map((outlet, i) => {
                     const coldBranchX = P.mainsX + 50 + i * 80   // staggered along cold rail
                     const coldBranchY = coldRailY + 30            // below the cold rail
                     const isEnabled = outlet.enabled
@@ -1678,9 +1753,23 @@ export function LabCanvas(props: {
                         >
                           Cold tap
                         </text>
-                        {isEnabled && delivered > 0 && (
+                        {/* Cold source kind badge — shows whether this tap draws from the
+                            mains cold rail or the CWS gravity rail.  Displayed on every
+                            cold-only outlet so the viewer can immediately see which
+                            cold supply rail each tap is connected to.                   */}
+                        {outlet.coldSourceKind && (
                           <text
                             x={coldBranchX} y={coldBranchY + 44}
+                            textAnchor="middle" fontSize={8}
+                            fill={coldSourceKindColor(outlet.coldSourceKind)}
+                            fontWeight={600}
+                          >
+                            {coldSourceKindLabel(outlet.coldSourceKind)}
+                          </text>
+                        )}
+                        {isEnabled && delivered > 0 && (
+                          <text
+                            x={coldBranchX} y={coldBranchY + 56}
                             textAnchor="middle" fontSize={9} fill="#0284c7"
                           >
                             {delivered.toFixed(1)} L/min
@@ -1688,7 +1777,7 @@ export function LabCanvas(props: {
                         )}
                         {!isEnabled && (
                           <text
-                            x={coldBranchX} y={coldBranchY + 44}
+                            x={coldBranchX} y={coldBranchY + 56}
                             textAnchor="middle" fontSize={9} fill="#94a3b8"
                           >off</text>
                         )}
@@ -1704,7 +1793,8 @@ export function LabCanvas(props: {
                     Cold service branch
                   </text>
                 </g>
-              )}
+              )
+            })()}
             </>
           )
         })()}
