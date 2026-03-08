@@ -8,6 +8,8 @@ import {
   cylinderTempC,
   addReheatEnergy,
   removeDrawEnergy,
+  applyStandingLoss,
+  STANDING_LOSS_KW_PER_L,
 } from './storage'
 import type { CylinderStore } from './storage'
 import { computeChHeatBalance } from './chModel'
@@ -433,6 +435,14 @@ export function stepSimulation(params: {
       const reheatKw = controls.cylinder?.reheatKw ?? 12
       store = addReheatEnergy({ store, reheatKw, dtS: dt })
     }
+
+    // ── Standing (ambient) heat loss ─────────────────────────────────────────
+    // Applied every frame regardless of mode.  The loss rate is in real physics
+    // units (kW); only the integration timestep `dt` is scaled by the caller's
+    // timeScale, so the underlying value is never falsified.
+    const standingLossKw = controls.cylinder?.standingLossKw
+      ?? (store.volumeL * STANDING_LOSS_KW_PER_L)
+    store = applyStandingLoss({ store, standingLossKw, dtS: dt })
   }
 
   // ── Heat content for cylinder-spawned tokens ──────────────────────────────
@@ -732,6 +742,16 @@ export function stepSimulation(params: {
       : [],
   }
 
+  // ── Accumulated standing loss kWh (cylinder only) ────────────────────────
+  // Track total heat lost to the room since simulation start so the UI can
+  // display "Tank loss: X kWh since start" as an honest energy audit.
+  const standingLossKwThisFrame = (store && controls.cylinder)
+    ? (controls.cylinder.standingLossKw ?? (store.volumeL * STANDING_LOSS_KW_PER_L))
+    : 0
+  const standingLossKwhTotal = store
+    ? (frame.standingLossKwhTotal ?? 0) + standingLossKwThisFrame * dt / 3600
+    : undefined
+
   return {
     nowMs: frame.nowMs + dtMs,
     particles,
@@ -743,6 +763,8 @@ export function stepSimulation(params: {
     storeNeedsReheat,
     chBalance,
     visuals,
+    simTimeSeconds: (frame.simTimeSeconds ?? 0) + dt,
+    standingLossKwhTotal,
   }
 }
 

@@ -1,7 +1,8 @@
 /**
  * Tests for the cylinder storage model (storage.ts).
  *
- * Covers: createCylinderStore, cylinderTempC, addReheatEnergy, removeDrawEnergy.
+ * Covers: createCylinderStore, cylinderTempC, addReheatEnergy, removeDrawEnergy,
+ *         applyStandingLoss, STANDING_LOSS_KW_PER_L.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -10,6 +11,8 @@ import {
   cylinderTempC,
   addReheatEnergy,
   removeDrawEnergy,
+  applyStandingLoss,
+  STANDING_LOSS_KW_PER_L,
 } from '../animation/storage';
 import type { CylinderStore } from '../animation/storage';
 
@@ -149,5 +152,60 @@ describe('cylinder reheat + drawdown cycle', () => {
 
     expect(tempAfterDraw).toBeLessThan(55)
     expect(tempAfterReheat).toBeGreaterThan(tempAfterDraw)
+  })
+})
+
+// ─── applyStandingLoss ───────────────────────────────────────────────────────
+
+describe('applyStandingLoss', () => {
+  it('decreases energyJ over time', () => {
+    const store = createCylinderStore({ volumeL: 180, coldInletC: 10, initialTempC: 55 })
+    const cooled = applyStandingLoss({ store, standingLossKw: 0.0625, dtS: 3600 })
+    expect(cooled.energyJ).toBeLessThan(store.energyJ)
+  })
+
+  it('removes exactly standingLossKw × 1000 × dtS joules', () => {
+    const store: CylinderStore = { volumeL: 180, energyJ: 500000 }
+    const cooled = applyStandingLoss({ store, standingLossKw: 0.1, dtS: 1 })
+    expect(cooled.energyJ).toBeCloseTo(500000 - 100, 0)
+  })
+
+  it('clamps energyJ to 0 — never goes negative', () => {
+    const store: CylinderStore = { volumeL: 180, energyJ: 1 }
+    const cooled = applyStandingLoss({ store, standingLossKw: 10, dtS: 3600 })
+    expect(cooled.energyJ).toBe(0)
+  })
+
+  it('does not mutate the original store', () => {
+    const store: CylinderStore = { volumeL: 180, energyJ: 500000 }
+    applyStandingLoss({ store, standingLossKw: 0.0625, dtS: 60 })
+    expect(store.energyJ).toBe(500000)
+  })
+
+  it('preserves volumeL', () => {
+    const store: CylinderStore = { volumeL: 210, energyJ: 500000 }
+    const cooled = applyStandingLoss({ store, standingLossKw: 0.0625, dtS: 60 })
+    expect(cooled.volumeL).toBe(210)
+  })
+
+  it('removes zero energy when standingLossKw is 0', () => {
+    const store: CylinderStore = { volumeL: 180, energyJ: 500000 }
+    const cooled = applyStandingLoss({ store, standingLossKw: 0, dtS: 3600 })
+    expect(cooled.energyJ).toBe(500000)
+  })
+})
+
+// ─── STANDING_LOSS_KW_PER_L constant ────────────────────────────────────────
+
+describe('STANDING_LOSS_KW_PER_L', () => {
+  it('is positive and small (< 0.001 kW/L)', () => {
+    expect(STANDING_LOSS_KW_PER_L).toBeGreaterThan(0)
+    expect(STANDING_LOSS_KW_PER_L).toBeLessThan(0.001)
+  })
+
+  it('gives ~1.5 kWh/24 h for a 180 L cylinder', () => {
+    // 180 L × STANDING_LOSS_KW_PER_L × 24 h ≈ 1.5 kWh
+    const dailyLossKwh = 180 * STANDING_LOSS_KW_PER_L * 24
+    expect(dailyLossKwh).toBeCloseTo(1.5, 2)
   })
 })

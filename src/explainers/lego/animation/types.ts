@@ -280,6 +280,14 @@ export type CylinderControls = {
   volumeL: number       // e.g. 150 / 180 / 210
   initialTempC: number  // e.g. 55
   reheatKw: number      // boiler/coil power into the store, e.g. 12
+  /**
+   * Standing heat-loss rate to the room (kW).
+   * When absent, derived from volumeL × STANDING_LOSS_KW_PER_L
+   * (~1.5 kWh/24 h for a 180 L ERP-grade cylinder).
+   * Keep this value in real physics units — acceleration is applied by
+   * multiplying the integration timestep (timeScale), not by inflating this number.
+   */
+  standingLossKw?: number
 }
 
 export type VentedControls = {
@@ -405,4 +413,40 @@ export type LabFrame = {
    * appearing to travel through the primary circuit.
    */
   visuals?: SimulationVisuals
+  /**
+   * Elapsed simulated time (seconds) since the simulation was initialised.
+   * Advances by the scaled integration timestep (`dtMs × timeScale / 1000`) each frame,
+   * so at timeScale > 1 this diverges from wall-clock time, allowing standing losses
+   * and cylinder depletion to become visible at accelerated demo speeds without
+   * falsifying the physics.
+   */
+  simTimeSeconds?: number
+  /**
+   * Cumulative standing heat loss since simulation start (kWh).
+   * Only present for cylinder system types.
+   * Useful for the "Tank loss: X kWh over last N sim-minutes" badge.
+   */
+  standingLossKwhTotal?: number
+}
+
+/**
+ * Simulation time-scale state — controls how fast simulated time advances
+ * relative to real (wall-clock) time.
+ *
+ * timeScale multiples:
+ *   1    — real time (imperceptible standing losses)
+ *   10   — 1 real second = 10 simulated seconds
+ *   60   — 1 real second = 1 simulated minute
+ *   300  — 1 real second = 5 simulated minutes
+ *   1800 — 1 real second = 30 simulated minutes
+ *
+ * Physics always remains in real units; only the integration timestep is
+ * scaled.  This makes cylinder depletion, reheat, and standing losses
+ * visible in demos without falsifying any energy values.
+ */
+export type SimTimeState = {
+  /** Simulation time scale (multiplier on real dt). */
+  timeScale: number
+  /** When true the simulation is frozen; no energy integration occurs. */
+  isPaused: boolean
 }

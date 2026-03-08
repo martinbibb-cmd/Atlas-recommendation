@@ -2633,3 +2633,82 @@ body {
   border-radius: 99px;
   padding: 0.2rem 0.65rem;
 }
+
+/* ── Simulation time-scale controls bar ────────────────────────────────── */
+
+.sim-time-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0.45rem 0.75rem;
+  background: #f0f4f9;
+  border-top: 1.5px solid #dde5ef;
+  border-radius: 0 0 8px 8px;
+  font-size: 0.78rem;
+}
+
+.sim-time-bar__label {
+  color: #718096;
+  font-weight: 500;
+  margin-right: 0.1rem;
+}
+
+.sim-time-bar__btn {
+  min-height: 26px;
+  padding: 0.15rem 0.6rem;
+  background: #fff;
+  color: #1e3a5f;
+  border: 1.5px solid #cbd5e0;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  white-space: nowrap;
+}
+
+.sim-time-bar__btn:hover {
+  background: #eaf0f7;
+  border-color: #1e3a5f;
+}
+
+.sim-time-bar__btn--active {
+  background: #1e3a5f;
+  color: #fff;
+  border-color: #1e3a5f;
+  font-weight: 700;
+}
+
+.sim-time-bar__btn--pause {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
+.sim-time-bar__divider {
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  background: #cbd5e0;
+  margin: 0 0.2rem;
+  align-self: center;
+}
+
+.sim-time-bar__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.55rem;
+  background: #e2e8f0;
+  color: #2d3748;
+  border-radius: 99px;
+  font-size: 0.73rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sim-time-bar__badge--loss {
+  background: #fef9c3;
+  color: #854d0e;
+}
