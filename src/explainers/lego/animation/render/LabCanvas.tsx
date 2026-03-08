@@ -10,6 +10,7 @@ import { ThermalLegend } from './ThermalLegend'
 import { THERMAL_BANDS, tempToThermalColor, roundTempC } from '../thermal'
 import { buildPolylines, SCHEMATIC_P, branchSvgPath, STORED_HEX_END } from './pathMap'
 import { buildPlaySceneModel } from '../../playScene/buildPlaySceneModel'
+import { SchematicFaceToken } from '../../builder/SchematicFace'
 
 /** Baseline frame time at 60 fps (ms). */
 const DEFAULT_FRAME_TIME_MS = 16
@@ -49,12 +50,10 @@ const CYLINDER_FILL_MAX_C = 80
 /** Opacity of the Mixergy top-down hot band overlay (purple tint). */
 const MIXERGY_FILL_OPACITY = 0.18
 
-/** Half-width of the Y-plan 3-port valve diamond shape (pixels). */
-const VALVE_DIAMOND_HALF_W = 16
-/** Half-height of the Y-plan 3-port valve diamond shape (pixels). */
+/** Half-height of the Y-plan 3-port valve diamond shape (pixels) — used for srcFlowLineEndY. */
 const VALVE_DIAMOND_HALF_H = 10
 
-/** Radius of each S-plan zone valve circle (pixels). */
+/** Radius of each S-plan zone valve circle (pixels) — used for srcFlowLineEndY. */
 const ZONE_VALVE_RADIUS = 8
 
 /**
@@ -103,6 +102,20 @@ function cylinderLabel(
   if (systemType === 'vented_cylinder') return 'Vented cylinder'
   if (isMixergy) return 'Mixergy cylinder'
   return 'Unvented cylinder'
+}
+
+/**
+ * Derive the PartKind for the cylinder schematic face from scene metadata.
+ * Used by both the SchematicFaceToken face and the coil/fill overlays so that
+ * both use the same builder token visual.
+ */
+function cylinderFaceKindFromMeta(
+  systemType: string,
+  isMixergy: boolean | undefined,
+): 'dhw_mixergy' | 'dhw_vented_cylinder' | 'dhw_unvented_cylinder' {
+  if (isMixergy) return 'dhw_mixergy'
+  if (systemType === 'vented_cylinder') return 'dhw_vented_cylinder'
+  return 'dhw_unvented_cylinder'
 }
 
 /**
@@ -406,6 +419,14 @@ export function LabCanvas(props: {
   const cwsY = 28
   const cwsW = 90
   const cwsH = 30
+
+  // ── Cylinder schematic face kind ──────────────────────────────────────────
+  // Derived from scene metadata + systemType so both the face visual and the
+  // coil/fill overlays use the same kind as the builder token.
+  const cylinderFaceKind = cylinderFaceKindFromMeta(
+    controls.systemType,
+    scene.metadata.isMixergy,
+  )
 
   return (
     <div style={{ position: 'relative', display: 'block', width: '100%', minWidth: 700 }}>
@@ -763,14 +784,20 @@ export function LabCanvas(props: {
           <g>
             {/*
              * Heat-transfer domain: combi plate HEX.
-             * The `heat-glow` filter activates when the burner/plate-HEX are
-             * transferring heat (DHW draw mode).  This is distinct from the
-             * capacity-limit glow (boilerGlow) which fires when the boiler is
-             * the flow-limiting component.
+             * SchematicFaceToken renders the same face as the builder combi token,
+             * showing the CH/DHW zone divider and fire indicator.
+             * Activity glow and shimmer overlays sit on top.
              */}
+            {/* Schematic face — same visual as builder combi token */}
+            <SchematicFaceToken
+              kind="heat_source_combi"
+              label="Combi"
+              x={cylX} y={cylY} width={cylW} height={cylH}
+            />
+            {/* Activity glow overlay — stroke-only so face shows through */}
             <rect
               x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
-              fill="#eef2f7"
+              fill="none"
               stroke={plateHexActive ? '#f97316' : '#c9d4e2'}
               strokeWidth={plateHexActive ? 2.5 : 1}
               filter={plateHexActive ? (isDhwFiring ? 'url(#dhw-glow)' : HEAT_GLOW) : boilerGlow}
@@ -787,12 +814,10 @@ export function LabCanvas(props: {
                 />
               </g>
             )}
-            <text x={P.boilerX + 30} y={P.boilerY - 6} textAnchor="middle" fontSize={16} fill="#334155" fontWeight={700}>
-              Combi DHW HEX
-            </text>
-            <text x={P.boilerX + 30} y={P.boilerY + 16} textAnchor="middle" fontSize={12}
+            {/* Burner status — positioned below the face to avoid overlap */}
+            <text x={P.boilerX + 30} y={cylY + cylH + 13} textAnchor="middle" fontSize={10}
               fill={burnerActive ? '#c2410c' : '#64748b'}>
-              {burnerActive ? 'burner firing · heat transfer active' : 'heat added here'}
+              {burnerActive ? 'burner firing · heat transfer active' : ''}
             </text>
             {/* Burner / compressor activity pulse — small indicator in the left region of the box.
                 Fill and animation vary by activity kind (PR 15):
@@ -827,25 +852,27 @@ export function LabCanvas(props: {
           <g>
             {/*
              * Heat pump without cylinder — on-demand hot water, no plate HEX.
-             * The heat pump acts as the sole heat source for both CH and DHW.
-             * Shows a compressor indicator (⚡) instead of a burner flame (🔥)
-             * to make the heat source visually distinct from a combi boiler.
-             * sceneLayoutKind = 'heat_pump' ensures this branch is selected
-             * even though controls.systemType may be 'combi' (no cylinder).
+             * SchematicFaceToken renders the same face as the builder heat pump token.
+             * Activity glow sits on top as an overlay.
              */}
+            {/* Schematic face — same visual as builder heat pump token */}
+            <SchematicFaceToken
+              kind="heat_source_heat_pump"
+              label="Heat Pump"
+              x={cylX} y={cylY} width={cylW} height={cylH}
+            />
+            {/* Activity glow overlay */}
             <rect
               x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
-              fill="#ecfeff"
-              stroke={burnerActive ? '#0891b2' : '#a5f3fc'}
+              fill="none"
+              stroke={burnerActive ? '#0891b2' : 'transparent'}
               strokeWidth={burnerActive ? 2.5 : 1}
               filter={burnerActive ? 'url(#primary-glow)' : boilerGlow}
             />
-            <text x={P.boilerX + 30} y={P.boilerY - 6} textAnchor="middle" fontSize={16} fill="#0e7490" fontWeight={700}>
-              Heat Pump
-            </text>
-            <text x={P.boilerX + 30} y={P.boilerY + 16} textAnchor="middle" fontSize={12}
+            {/* Compressor status */}
+            <text x={P.boilerX + 30} y={cylY + cylH + 13} textAnchor="middle" fontSize={10}
               fill={burnerActive ? '#0891b2' : '#64748b'}>
-              {burnerActive ? 'compressor running · heat transfer active' : 'on-demand hot water'}
+              {burnerActive ? 'compressor running · heat transfer active' : ''}
             </text>
             {/* Compressor activity indicator */}
             {burnerActive && (
@@ -888,16 +915,22 @@ export function LabCanvas(props: {
              */}
 
             {/* ── Heat source box (separate from cylinder — PR16) ────────────── */}
-            {/* Simplified to 2 hydraulic ports: CH flow (right) and CH return (left).
-                The primary coil connection to the cylinder is shown as a bridge pipe,
-                not as additional ports on the heat source.                          */}
+            {/* SchematicFaceToken renders the same face as the builder boiler/HP token.
+                Activity glow overlay and port/status labels sit on top.             */}
+            {/* Schematic face — same visual as builder boiler or heat pump token */}
+            <SchematicFaceToken
+              kind={isCompressor ? 'heat_source_heat_pump' : 'heat_source_system_boiler'}
+              label={isCompressor ? 'Heat Pump' : 'Boiler'}
+              x={heatSrcBoxX} y={heatSrcBoxY} width={heatSrcBoxW} height={heatSrcBoxH}
+            />
+            {/* Activity glow overlay */}
             <rect
               x={heatSrcBoxX} y={heatSrcBoxY} width={heatSrcBoxW} height={heatSrcBoxH} rx={12}
-              fill={isCompressor ? '#ecfeff' : '#fefce8'}
+              fill="none"
               stroke={
                 showHeatSourceIndicator
                   ? (isCompressor ? '#0891b2' : isDhwFiring ? '#ea580c' : '#f97316')
-                  : '#c9d4e2'
+                  : 'transparent'
               }
               strokeWidth={showHeatSourceIndicator ? 2.5 : 1.5}
               filter={
@@ -906,13 +939,6 @@ export function LabCanvas(props: {
                   : boilerGlow
               }
             />
-            {/* Heat source label */}
-            <text
-              x={heatSrcBoxX + heatSrcBoxW / 2} y={heatSrcBoxY + 16}
-              textAnchor="middle" fontSize={12} fill={isCompressor ? '#0e7490' : '#334155'} fontWeight={700}
-            >
-              {isCompressor ? 'Heat Pump' : 'Boiler'}
-            </text>
             {/* CH port indicators — simplified to 2 ports (flow out + return in) */}
             <text
               x={heatSrcBoxX + heatSrcBoxW - 6} y={heatSrcBoxY + 32}
@@ -1016,18 +1042,15 @@ export function LabCanvas(props: {
 
             {/* ── Cylinder (DHW store only) — PR16: no flame inside ───────────── */}
             {/* The cylinder is purely the thermal store.  The heat source has been
-                separated into its own box above.  The coil symbol inside the cylinder
-                still represents the immersion coil (permanently plumbed in).        */}
-            {/* Cylinder tank background — domain-aware border:
-                  primary (coil active)  → purple stroke + primary-glow
-                  heating (CH active)    → orange stroke + heat-glow
-                  idle                   → grey stroke, no filter            */}
-            <rect
-              x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
-              fill="#f1f5f9"
-              stroke={(coilActive || isHwActive) ? '#7c3aed' : '#c9d4e2'}
-              strokeWidth={(coilActive || isHwActive) ? 2.5 : 2}
-              filter={(coilActive || isHwActive) ? 'url(#primary-glow)' : undefined}
+                separated into its own box above.
+                SchematicFaceToken renders the same face as the builder cylinder token,
+                showing the cylinder body, coil indicator, and type label.
+                Thermal fill and glow overlays sit on top.                            */}
+            {/* Schematic face — same visual as builder cylinder token */}
+            <SchematicFaceToken
+              kind={cylinderFaceKind}
+              label={cylinderLabel(scene.metadata.sceneLayoutKind, controls.systemType, scene.metadata.isMixergy)}
+              x={cylX} y={cylY} width={cylW} height={cylH}
             />
             {/* Thermal fill — clips to rounded rect.
                 Standard cylinder: fills from the bottom up (conventional warm-water level).
@@ -1044,15 +1067,14 @@ export function LabCanvas(props: {
                 fill={fillColor} opacity={0.75} clipPath="url(#cyl-clip)"
               />
             )}
-            {/* Border overlay */}
+            {/* Activity glow overlay — domain-aware border and filter */}
             <rect
               x={cylX} y={cylY} width={cylW} height={cylH} rx={18}
-              fill="none" stroke="#94a3b8" strokeWidth={2}
+              fill="none"
+              stroke={(coilActive || isHwActive) ? '#7c3aed' : '#94a3b8'}
+              strokeWidth={(coilActive || isHwActive) ? 2.5 : 1.5}
+              filter={(coilActive || isHwActive) ? 'url(#primary-glow)' : undefined}
             />
-            {/* DHW store label — centred, clear of coil symbol (right side) */}
-            <text x={cylX + cylW / 2 - 15} y={cylY + 22} textAnchor="middle" fontSize={12} fill="#334155" fontWeight={700}>
-              {cylinderLabel(scene.metadata.sceneLayoutKind, controls.systemType, scene.metadata.isMixergy)}
-            </text>
             {/* Store mode / status text */}
             <text x={cylX + cylW / 2 - 15} y={cylY + 38} textAnchor="middle" fontSize={10}
               fill={(coilActive || isHwActive) ? '#c2410c' : '#64748b'}>
@@ -1076,46 +1098,11 @@ export function LabCanvas(props: {
                 </text>
               </>
             )}
-            {/* ── Primary coil symbol — PR5: always visible ─────────────────────
-                Represents the immersion coil permanently plumbed inside the cylinder.
-                Purple = primary domain. Fades when coil is not actively reheating. */}
-            {(() => {
-              const shouldHighlightCoil = coilActive || isHwActive
-              const cx0 = cylX + cylW - 35
-              const cx1 = cylX + cylW - 13
-              const cy0 = cylY + 60
-              const cyPitch = 8
-              return (
-                <g opacity={shouldHighlightCoil ? 1 : 0.25}>
-                  {([0, 1, 2] as const).map(i => (
-                    <line
-                      key={i}
-                      x1={cx0} y1={cy0 + i * cyPitch}
-                      x2={cx1} y2={cy0 + i * cyPitch}
-                      stroke="#7c3aed" strokeWidth={2} strokeLinecap="round"
-                    />
-                  ))}
-                  <path
-                    d={`M ${cx1} ${cy0} Q ${cx1 + 4} ${cy0 + cyPitch / 2} ${cx1} ${cy0 + cyPitch}`}
-                    stroke="#7c3aed" strokeWidth={2} fill="none" strokeLinecap="round"
-                  />
-                  <path
-                    d={`M ${cx0} ${cy0 + cyPitch} Q ${cx0 - 4} ${cy0 + cyPitch * 1.5} ${cx0} ${cy0 + cyPitch * 2}`}
-                    stroke="#7c3aed" strokeWidth={2} fill="none" strokeLinecap="round"
-                  />
-                  <text x={(cx0 + cx1) / 2} y={cy0 - 5} textAnchor="middle" fontSize={7} fill="#7c3aed">
-                    {shouldHighlightCoil ? 'coil ▶' : 'Primary coil'}
-                  </text>
-                </g>
-              )
-            })()}
-
             {/* ── Cylinder domestic port labels (cold in bottom, hot out top) ─────
                 Reinforces the vertical domestic path story:
                   cold enters at the bottom cold_in port
-                  stored water heats via the coil
-                  hot leaves from the top hot_out port
-                The heating coil remains on the right side (primary domain).         */}
+                  stored water heats via the coil (shown on left face by SchematicFaceToken)
+                  hot leaves from the top hot_out port                                    */}
             {!scene.metadata.isMixergy && (
               <>
                 {/* "↓ cold in" — bottom-left of cylinder */}
@@ -1126,7 +1113,7 @@ export function LabCanvas(props: {
                 >
                   ↓ cold in
                 </text>
-                {/* "↑ hot out" — top area, left of coil symbol */}
+                {/* "↑ hot out" — top area */}
                 <text
                   x={cylX + 8} y={cylY + 11}
                   textAnchor="start" fontSize={8}
@@ -1195,47 +1182,57 @@ export function LabCanvas(props: {
               )
 
               if (topologyKind === 'y_plan') {
-                const halfW = VALVE_DIAMOND_HALF_W
-                const halfH = VALVE_DIAMOND_HALF_H
                 const routingToCh = isChActive
                 const routingToHw = isHwActive && !isChActive
                 const valveActive = isChActive || isHwActive
+                // Compact token dimensions for the Y-plan 3-port valve face
+                const valveTW = 110
+                const valveTH = 46
                 return (
                   <g>
                     {srcFlowLine}
-                    <text x={cx} y={cy - halfH - 5} textAnchor="middle" fontSize={8} fill="#94a3b8">
+                    <text x={cx} y={cy - valveTH / 2 - 5} textAnchor="middle" fontSize={8} fill="#94a3b8">
                       {controlTopologyLabel(topologyKind, false)}
                     </text>
-                    <polygon
-                      points={`${cx},${cy - halfH} ${cx + halfW},${cy} ${cx},${cy + halfH} ${cx - halfW},${cy}`}
-                      fill={valveActive ? '#fef3c7' : '#f8fafc'}
-                      stroke={valveActive ? '#d97706' : '#94a3b8'}
-                      strokeWidth={valveActive ? 2 : 1.5}
+                    {/* Schematic face — same visual as builder three_port_valve token */}
+                    <SchematicFaceToken
+                      kind="three_port_valve"
+                      label="Y-plan"
+                      x={cx - valveTW / 2} y={cy - valveTH / 2}
+                      width={valveTW} height={valveTH}
                     />
-                    <text x={cx} y={cy + 4} textAnchor="middle" fontSize={8}
+                    {/* Activity state overlay border */}
+                    <rect
+                      x={cx - valveTW / 2} y={cy - valveTH / 2} width={valveTW} height={valveTH} rx={4}
+                      fill="none"
+                      stroke={valveActive ? '#d97706' : 'transparent'}
+                      strokeWidth={valveActive ? 2 : 1}
+                    />
+                    {/* State label (routing direction) */}
+                    <text x={cx} y={cy + valveTH / 2 + 10} textAnchor="middle" fontSize={8}
                       fill={valveActive ? '#92400e' : '#94a3b8'}>
-                      {isChActive ? '→CH' : isHwActive ? '→HW' : '3P'}
+                      {isChActive ? '→CH' : isHwActive ? '→HW' : ''}
                     </text>
                     {/* CH branch: valve left → heating load */}
-                    <line x1={cx - halfW} y1={cy} x2={cx - halfW - 20} y2={cy}
+                    <line x1={cx - valveTW / 2} y1={cy} x2={cx - valveTW / 2 - 20} y2={cy}
                       stroke="#f97316" strokeWidth={2.5} strokeLinecap="round" opacity={routingToCh ? 1 : 0.2} />
                     <polygon
-                      points={`${cx - halfW - 24},${cy - 4} ${cx - halfW - 16},${cy} ${cx - halfW - 24},${cy + 4}`}
+                      points={`${cx - valveTW / 2 - 24},${cy - 4} ${cx - valveTW / 2 - 16},${cy} ${cx - valveTW / 2 - 24},${cy + 4}`}
                       fill="#f97316" opacity={routingToCh ? 1 : 0.2} />
-                    <text x={cx - halfW - 28} y={cy + 4} textAnchor="end" fontSize={9}
+                    <text x={cx - valveTW / 2 - 28} y={cy + 4} textAnchor="end" fontSize={9}
                       fill={routingToCh ? '#f97316' : '#94a3b8'} fontWeight={routingToCh ? 700 : 400}>CH</text>
                     {/* HW branch: valve right → right to source edge → up to primary coil */}
                     <path
-                      d={`M ${cx + halfW} ${cy} L ${srcRightX} ${cy} L ${srcRightX} ${coilFlowY}`}
+                      d={`M ${cx + valveTW / 2} ${cy} L ${srcRightX} ${cy} L ${srcRightX} ${coilFlowY}`}
                       stroke="#7c3aed" strokeWidth={2} strokeDasharray="5 3" fill="none"
                       strokeLinecap="round" opacity={routingToHw ? 0.9 : 0.2}
                     />
-                    <line x1={cx + halfW} y1={cy} x2={cx + halfW + 20} y2={cy}
+                    <line x1={cx + valveTW / 2} y1={cy} x2={cx + valveTW / 2 + 20} y2={cy}
                       stroke="#7c3aed" strokeWidth={2.5} strokeLinecap="round" opacity={routingToHw ? 1 : 0.2} />
                     <polygon
-                      points={`${cx + halfW + 16},${cy - 4} ${cx + halfW + 24},${cy} ${cx + halfW + 16},${cy + 4}`}
+                      points={`${cx + valveTW / 2 + 16},${cy - 4} ${cx + valveTW / 2 + 24},${cy} ${cx + valveTW / 2 + 16},${cy + 4}`}
                       fill="#7c3aed" opacity={routingToHw ? 1 : 0.2} />
-                    <text x={cx + halfW + 28} y={cy + 4} textAnchor="start" fontSize={9}
+                    <text x={cx + valveTW / 2 + 28} y={cy + 4} textAnchor="start" fontSize={9}
                       fill={routingToHw ? '#7c3aed' : '#94a3b8'} fontWeight={routingToHw ? 700 : 400}>HW</text>
                   </g>
                 )
@@ -1244,33 +1241,55 @@ export function LabCanvas(props: {
               if (topologyKind === 's_plan' || topologyKind === 's_plan_multi_zone') {
                 const chX = cx - 30
                 const hwX = cx + 30
-                const r = ZONE_VALVE_RADIUS
+                // Compact token dimensions for S-plan zone valves
+                const zvW = 56
+                const zvH = 40
                 return (
                   <g>
                     {srcFlowLine}
-                    <text x={cx} y={cy - r - 14} textAnchor="middle" fontSize={8} fill="#94a3b8">
+                    <text x={cx} y={cy - zvH / 2 - 14} textAnchor="middle" fontSize={8} fill="#94a3b8">
                       {controlTopologyLabel(topologyKind, false)}
                     </text>
                     {/* Source tee: flow line arrives and branches left (CH) and right (HW) */}
                     {srcTeeLine}
-                    <circle cx={chX} cy={cy} r={r}
-                      fill={isChActive ? '#fff7ed' : '#f8fafc'}
-                      stroke={isChActive ? '#f97316' : '#94a3b8'}
-                      strokeWidth={isChActive ? 2 : 1.5} />
-                    <text x={chX} y={cy + 4} textAnchor="middle" fontSize={7}
+                    {/* CH zone valve schematic face — same visual as builder zone_valve token */}
+                    <SchematicFaceToken
+                      kind="zone_valve"
+                      label="CH"
+                      x={chX - zvW / 2} y={cy - zvH / 2}
+                      width={zvW} height={zvH}
+                    />
+                    {/* CH state overlay */}
+                    <rect
+                      x={chX - zvW / 2} y={cy - zvH / 2} width={zvW} height={zvH} rx={4}
+                      fill="none"
+                      stroke={isChActive ? '#f97316' : 'transparent'}
+                      strokeWidth={isChActive ? 2 : 1}
+                    />
+                    <text x={chX} y={cy + zvH / 2 + 10} textAnchor="middle" fontSize={7}
                       fill={isChActive ? '#f97316' : '#94a3b8'} fontWeight={isChActive ? 700 : 400}>CH</text>
-                    <text x={chX} y={cy - r - 4} textAnchor="middle" fontSize={8}
+                    <text x={chX} y={cy - zvH / 2 - 4} textAnchor="middle" fontSize={8}
                       fill={isChActive ? '#16a34a' : '#94a3b8'}>{isChActive ? '▲' : '▽'}</text>
-                    <circle cx={hwX} cy={cy} r={r}
-                      fill={isHwActive ? '#eff6ff' : '#f8fafc'}
-                      stroke={isHwActive ? '#0284c7' : '#94a3b8'}
-                      strokeWidth={isHwActive ? 2 : 1.5} />
-                    <text x={hwX} y={cy + 4} textAnchor="middle" fontSize={7}
+                    {/* HW zone valve schematic face — same visual as builder zone_valve token */}
+                    <SchematicFaceToken
+                      kind="zone_valve"
+                      label="HW"
+                      x={hwX - zvW / 2} y={cy - zvH / 2}
+                      width={zvW} height={zvH}
+                    />
+                    {/* HW state overlay */}
+                    <rect
+                      x={hwX - zvW / 2} y={cy - zvH / 2} width={zvW} height={zvH} rx={4}
+                      fill="none"
+                      stroke={isHwActive ? '#0284c7' : 'transparent'}
+                      strokeWidth={isHwActive ? 2 : 1}
+                    />
+                    <text x={hwX} y={cy + zvH / 2 + 10} textAnchor="middle" fontSize={7}
                       fill={isHwActive ? '#0284c7' : '#94a3b8'} fontWeight={isHwActive ? 700 : 400}>HW</text>
-                    <text x={hwX} y={cy - r - 4} textAnchor="middle" fontSize={8}
+                    <text x={hwX} y={cy - zvH / 2 - 4} textAnchor="middle" fontSize={8}
                       fill={isHwActive ? '#16a34a' : '#94a3b8'}>{isHwActive ? '▲' : '▽'}</text>
                     {isChActive && isHwActive && (
-                      <text x={cx} y={cy + r + 12} textAnchor="middle" fontSize={7} fill="#16a34a">
+                      <text x={cx} y={cy + zvH / 2 + 20} textAnchor="middle" fontSize={7} fill="#16a34a">
                         simultaneous ✓
                       </text>
                     )}
@@ -1281,26 +1300,46 @@ export function LabCanvas(props: {
               if (topologyKind === 'hp_diverter') {
                 const chX = cx - 30
                 const hwX = cx + 30
-                const r = ZONE_VALVE_RADIUS
+                // Compact token dimensions for HP diverter zone valves
+                const zvW = 56
+                const zvH = 40
                 return (
                   <g>
                     {srcFlowLine}
-                    <text x={cx} y={cy - r - 14} textAnchor="middle" fontSize={8} fill="#94a3b8">
+                    <text x={cx} y={cy - zvH / 2 - 14} textAnchor="middle" fontSize={8} fill="#94a3b8">
                       {controlTopologyLabel(topologyKind, false)}
                     </text>
                     {/* Source tee: flow line arrives and branches left (CH) and right (HW) */}
                     {srcTeeLine}
-                    <circle cx={chX} cy={cy} r={r}
-                      fill={isChActive ? '#ecfeff' : '#f8fafc'}
-                      stroke={isChActive ? '#0891b2' : '#94a3b8'}
-                      strokeWidth={isChActive ? 2 : 1.5} />
-                    <text x={chX} y={cy + 4} textAnchor="middle" fontSize={7}
+                    {/* CH zone valve schematic face */}
+                    <SchematicFaceToken
+                      kind="zone_valve"
+                      label="CH"
+                      x={chX - zvW / 2} y={cy - zvH / 2}
+                      width={zvW} height={zvH}
+                    />
+                    <rect
+                      x={chX - zvW / 2} y={cy - zvH / 2} width={zvW} height={zvH} rx={4}
+                      fill="none"
+                      stroke={isChActive ? '#0891b2' : 'transparent'}
+                      strokeWidth={isChActive ? 2 : 1}
+                    />
+                    <text x={chX} y={cy + zvH / 2 + 10} textAnchor="middle" fontSize={7}
                       fill={isChActive ? '#0891b2' : '#94a3b8'} fontWeight={isChActive ? 700 : 400}>CH</text>
-                    <circle cx={hwX} cy={cy} r={r}
-                      fill={isHwActive ? '#ecfeff' : '#f8fafc'}
-                      stroke={isHwActive ? '#0891b2' : '#94a3b8'}
-                      strokeWidth={isHwActive ? 2 : 1.5} />
-                    <text x={hwX} y={cy + 4} textAnchor="middle" fontSize={7}
+                    {/* HW zone valve schematic face */}
+                    <SchematicFaceToken
+                      kind="zone_valve"
+                      label="HW"
+                      x={hwX - zvW / 2} y={cy - zvH / 2}
+                      width={zvW} height={zvH}
+                    />
+                    <rect
+                      x={hwX - zvW / 2} y={cy - zvH / 2} width={zvW} height={zvH} rx={4}
+                      fill="none"
+                      stroke={isHwActive ? '#0891b2' : 'transparent'}
+                      strokeWidth={isHwActive ? 2 : 1}
+                    />
+                    <text x={hwX} y={cy + zvH / 2 + 10} textAnchor="middle" fontSize={7}
                       fill={isHwActive ? '#0891b2' : '#94a3b8'} fontWeight={isHwActive ? 700 : 400}>HW</text>
                   </g>
                 )
@@ -1614,14 +1653,23 @@ export function LabCanvas(props: {
               CH supply
             </text>
             {/* Radiator / emitter box — the CH circuit load.
-                Labelled as a distinct "CH heating circuit" to reinforce separation
-                from the DHW service branch.  Heat-wave glyphs animate when active. */}
-            <rect x={emitterX} y={emitterY} width={emitterW} height={emitterH} rx={5}
-              fill={isChActive ? '#fff7ed' : '#f8fafc'} stroke={isChActive ? '#f97316' : '#94a3b8'} strokeWidth={1.5}
+                SchematicFaceToken renders the same fin-panel face as the builder
+                radiator_loop token.  Activity glow and heat-wave overlays sit on top. */}
+            {/* Schematic face — same visual as builder radiator_loop token */}
+            <SchematicFaceToken
+              kind="radiator_loop"
+              label="Radiators"
+              x={emitterX} y={emitterY} width={emitterW} height={emitterH}
             />
-            <text x={emitterX + emitterW / 2} y={emitterY + 13} textAnchor="middle" fontSize={10} fill={isChActive ? '#9a3412' : '#64748b'} fontWeight={700}>Radiators (CH)</text>
-            <text x={emitterX + emitterW / 2} y={emitterY + 27} textAnchor="middle" fontSize={9} fill={isChActive ? '#c2410c' : '#94a3b8'}>
-              {isChActive ? 'heating active' : 'heating off'}
+            {/* Activity glow overlay */}
+            <rect x={emitterX} y={emitterY} width={emitterW} height={emitterH} rx={5}
+              fill="none"
+              stroke={isChActive ? '#f97316' : 'transparent'}
+              strokeWidth={1.5}
+            />
+            {/* Status text */}
+            <text x={emitterX + emitterW / 2} y={emitterY + emitterH + 11} textAnchor="middle" fontSize={9} fill={isChActive ? '#c2410c' : '#94a3b8'}>
+              {isChActive ? 'heating active' : ''}
             </text>
             {/* Upward heat-wave glyphs — only animate when CH is actually active. */}
             {isChActive && ([0, 1, 2, 3, 4] as const).map(i => (
