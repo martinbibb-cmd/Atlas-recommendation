@@ -1,5 +1,7 @@
 import type { BuildGraph, BuildEdge, BuildNode, PartKind } from './types'
 import { nextPosition } from './autoLayout'
+import { defaultZoneForKind } from './schematicBlocks'
+import { defaultYForZone } from './zoneBands'
 
 // ─── ID helpers ──────────────────────────────────────────────────────────────
 
@@ -139,12 +141,15 @@ export function smartAdd(
   const existingPositions = nodes.map(n => ({ x: n.x, y: n.y }))
 
   // ── Placement ──────────────────────────────────────────────────────────────
-  let hint = anchor ? { x: anchor.x + 380, y: anchor.y } : { x: 200, y: 300 }
+  // Default y to the centre of the component's structural zone band so newly
+  // added components settle into the correct physical context by default.
+  const zoneY = defaultYForZone(defaultZoneForKind(kind))
+  let hint = anchor ? { x: anchor.x + 380, y: zoneY } : { x: 200, y: zoneY }
 
   if (kind === 'open_vent' && anchor) {
-    hint = { x: anchor.x, y: Math.max(60, anchor.y - 110) }
+    hint = { x: anchor.x, y: Math.max(defaultYForZone('roof_space'), anchor.y - 110) }
   } else if (kind === 'feed_and_expansion' && anchor) {
-    hint = { x: anchor.x, y: Math.max(40, anchor.y - 200) }
+    hint = { x: anchor.x, y: Math.max(defaultYForZone('roof_space'), anchor.y - 200) }
   }
 
   const pos = nextPosition(existingPositions, hint)

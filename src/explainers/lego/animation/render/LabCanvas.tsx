@@ -679,6 +679,77 @@ export function LabCanvas(props: {
           </clipPath>
         </defs>
 
+        {/* ── Structural zone overlays — subtle labelled backgrounds ────────── */}
+        <g aria-hidden="true" style={{ pointerEvents: 'none' }}>
+          {/* Living areas zone (outlets): always visible */}
+          <rect x={640} y={44} width={356} height={188} rx={6}
+            fill="rgba(219,234,254,0.15)" stroke="rgba(96,165,250,0.2)" strokeWidth={1} />
+          <text x={648} y={56} fontSize={9} fontWeight={600}
+            fill="#60a5fa" opacity={0.75} letterSpacing="0.04em">
+            LIVING AREAS
+          </text>
+
+          {/* Emitter zone — ground / first floor */}
+          <rect x={84} y={213} width={142} height={50} rx={4}
+            fill="rgba(220,252,231,0.18)" stroke="rgba(34,197,94,0.22)" strokeWidth={1} />
+          <text x={91} y={224} fontSize={8} fontWeight={600}
+            fill="#22c55e" opacity={0.75} letterSpacing="0.04em">
+            GROUND FLOOR
+          </text>
+
+          {/* Airing cupboard zone (cylinder) — stored / HP only */}
+          {isStoredLayout && (
+            <>
+              <rect x={cylX - 4} y={cylY - 14} width={cylW + 8} height={cylH + 18} rx={6}
+                fill="rgba(186,230,253,0.14)" stroke="rgba(14,165,233,0.2)" strokeWidth={1} />
+              <text x={cylX + 2} y={cylY - 4} fontSize={9} fontWeight={600}
+                fill="#0ea5e9" opacity={0.72} letterSpacing="0.04em">
+                AIRING CUPBOARD
+              </text>
+            </>
+          )}
+
+          {/* Roof space (CWS / F&E tank) — vented systems only */}
+          {controls.systemType === 'vented_cylinder' && (
+            <>
+              <rect x={cwsX - 4} y={cwsY - 4} width={cwsW + 8} height={cwsH + 8} rx={4}
+                fill="rgba(203,213,225,0.18)" stroke="rgba(100,116,139,0.22)" strokeWidth={1} />
+              <text x={cwsX + 2} y={cwsY - 6} fontSize={8} fontWeight={600}
+                fill="#94a3b8" opacity={0.8} letterSpacing="0.04em">
+                ROOF SPACE
+              </text>
+            </>
+          )}
+
+          {/* Plant room / outside zone (heat source) */}
+          {isStoredLayout ? (
+            <>
+              <rect x={heatSrcBoxX - 4} y={heatSrcBoxY - 14} width={heatSrcBoxW + 8} height={heatSrcBoxH + 18} rx={6}
+                fill={scene.metadata.sceneLayoutKind === 'heat_pump'
+                  ? 'rgba(209,250,229,0.14)'
+                  : 'rgba(254,243,199,0.14)'}
+                stroke={scene.metadata.sceneLayoutKind === 'heat_pump'
+                  ? 'rgba(16,185,129,0.22)'
+                  : 'rgba(234,179,8,0.22)'}
+                strokeWidth={1} />
+              <text x={heatSrcBoxX + 2} y={heatSrcBoxY - 4} fontSize={9} fontWeight={600}
+                fill={scene.metadata.sceneLayoutKind === 'heat_pump' ? '#10b981' : '#d97706'}
+                opacity={0.72} letterSpacing="0.04em">
+                {scene.metadata.sceneLayoutKind === 'heat_pump' ? 'OUTSIDE' : 'PLANT ROOM'}
+              </text>
+            </>
+          ) : (
+            <>
+              <rect x={270} y={78} width={310} height={100} rx={6}
+                fill="rgba(254,243,199,0.14)" stroke="rgba(234,179,8,0.22)" strokeWidth={1} />
+              <text x={278} y={90} fontSize={9} fontWeight={600}
+                fill="#d97706" opacity={0.72} letterSpacing="0.04em">
+                PLANT ROOM
+              </text>
+            </>
+          )}
+        </g>
+
         {/* ── TMV cold supply bypass (above boiler, only when TMV active) ──── */}
         {tmvOutletAActive && (
           <g>
