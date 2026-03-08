@@ -59,6 +59,19 @@ export function findSnapCandidate(params: {
         // over pure port-role compatibility (e.g. pump only on flow, not return).
         if (!isSnapAllowed(getSnapRole(moving.kind), ma.role, ob.role)) continue;
 
+        // Graph-context constraint: controls must not bypass pump.
+        // When the graph already contains a pump, a control valve's flow port
+        // may NOT snap directly to a heat source.  This enforces the sequencing:
+        //   heat_source → pump → [control] → load
+        // If no pump is present (e.g. gravity-fed or combi-only setup) the direct
+        // heat_source → control connection is allowed.
+        if (
+          getSnapRole(moving.kind) === 'control' &&
+          ma.role === 'flow' &&
+          getSnapRole(other.kind) === 'heat_source' &&
+          graph.nodes.some(n => n.id !== movingNodeId && getSnapRole(n.kind) === 'pump')
+        ) continue;
+
         // Graph-context constraint: loads must not bypass controls.
         // When the graph already contains one or more control valves (zone_valve,
         // three_port_valve), a load's flow_in port may NOT snap directly to a

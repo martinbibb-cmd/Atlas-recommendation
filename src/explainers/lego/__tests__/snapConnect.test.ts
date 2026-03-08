@@ -85,10 +85,9 @@ describe('findSnapCandidate', () => {
   })
 
   it('finds the closest compatible port within threshold', () => {
-    // Place combi at x=0 and a radiator_loop at x=175 (just past TOKEN_W=170)
-    // combi ch_flow_out is at dx=TOKEN_W=170, dy=TOKEN_H/2=37 → abs (170, 37)
-    // radiator flow_in is at dx=0, dy=TOKEN_H/2=37 → abs (175, 37)
-    // distance ≈ 5 < 36 threshold
+    // Place combi at x=0 and a radiator_loop at x=175 (just past TOKEN_W=170).
+    // Emitter ports are single-side (both on left): flow_in at y=18, return_out at y=56.
+    // combi flow_out: abs (170, 18); rad flow_in: abs (175, 18) → distance 5 < 36 threshold.
     const graph = makeGraph([
       { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
       { id: 'rad', kind: 'radiator_loop', x: 175, y: 0, r: 0 },
@@ -131,10 +130,11 @@ describe('findSnapCandidate', () => {
   })
 
   it('returns the closest candidate when multiple are within range', () => {
-    // Two radiators near a combi; the closer one should win
-    // combi ch_flow_out: abs = (170, 37)
-    // rad1 flow_in: x=173, y=0 → abs (173, 37) → dist ≈ 3
-    // rad2 flow_in: x=182, y=0 → abs (182, 37) → dist ≈ 12
+    // Two radiators near a combi; the closer one should win.
+    // Emitter ports are single-side (left): flow_in at y=18, return_out at y=56.
+    // combi flow_out: abs = (170, 18)
+    // rad1 flow_in: x=173, y=0 → abs (173, 18) → dist = 3
+    // rad2 flow_in: x=182, y=0 → abs (182, 18) → dist = 12
     const graph = makeGraph([
       { id: 'combi', kind: 'heat_source_combi', x: 0, y: 0, r: 0 },
       { id: 'rad1', kind: 'radiator_loop', x: 173, y: 0, r: 0 },

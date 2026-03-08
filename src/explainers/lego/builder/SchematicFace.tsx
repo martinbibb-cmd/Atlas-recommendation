@@ -336,20 +336,20 @@ export function SchematicFaceContent({
     return (
       <>
         <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(85,60,154,0.06)" />
-        {/* Top header pipe */}
-        <line x1="16" y1="16" x2="154" y2="16" stroke="#6b46c1" strokeWidth="2.2" opacity="0.65" strokeLinecap="round" />
-        {/* Bottom header pipe */}
+        {/* Top header pipe — connects from left flow port (y=18) across the top */}
+        <line x1="16" y1="18" x2="154" y2="18" stroke="#6b46c1" strokeWidth="2.2" opacity="0.65" strokeLinecap="round" />
+        {/* Bottom header pipe — connects from left return port (y=56) across the bottom */}
         <line x1="16" y1="56" x2="154" y2="56" stroke="#6b46c1" strokeWidth="2.2" opacity="0.65" strokeLinecap="round" />
-        {/* Six fins */}
+        {/* Six fins spanning between headers */}
         {[0, 1, 2, 3, 4, 5].map(i => (
-          <rect key={i} x={20 + i * 22} y="16" width="14" height="40" rx="3"
+          <rect key={i} x={20 + i * 22} y="18" width="14" height="38" rx="3"
             fill="rgba(107,70,193,0.12)" stroke="#6b46c1" strokeWidth="1.2" opacity="0.7" />
         ))}
         {/* RADIATORS label */}
-        <text x="85" y="68" textAnchor="middle" fontSize="7" fontWeight="800" fill="#553c9a">RADIATORS</text>
-        {/* Port indicators (flow in left, return out right, both y=37) */}
-        <PortDot cx={0}   cy={37} fill="#b794f4" stroke="#6b46c1" />
-        <PortDot cx={170} cy={37} fill="#b794f4" stroke="#6b46c1" />
+        <text x="95" y="67" textAnchor="middle" fontSize="7" fontWeight="800" fill="#553c9a">RADIATORS</text>
+        {/* Port indicators — both on left: flow at y=18 (warm), return at y=56 (cool) */}
+        <PortDot cx={0} cy={18} fill="#f6ad55" stroke="#c05621" />
+        <PortDot cx={0} cy={56} fill="#90cdf4" stroke="#2b6cb0" />
         {slotBadge}
       </>
     );
@@ -360,29 +360,30 @@ export function SchematicFaceContent({
     return (
       <>
         <rect x="1" y="1" width="168" height="72" rx="6" fill="rgba(85,60,154,0.06)" />
-        {/* Serpentine coil — four horizontal runs with U-bends */}
+        {/* Serpentine coil — shifted right to leave room for left-side ports */}
         {/* Run 1: left → right */}
-        <line x1="16" y1="15" x2="148" y2="15" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
+        <line x1="22" y1="20" x2="148" y2="20" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
         {/* Right U-bend */}
-        <path d="M148 15 Q156 15 156 23 Q156 31 148 31"
+        <path d="M148 20 Q156 20 156 28 Q156 36 148 36"
           fill="none" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
         {/* Run 2: right → left */}
-        <line x1="148" y1="31" x2="16" y2="31" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
+        <line x1="148" y1="36" x2="22" y2="36" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
         {/* Left U-bend */}
-        <path d="M16 31 Q8 31 8 39 Q8 47 16 47"
+        <path d="M22 36 Q14 36 14 44 Q14 52 22 52"
           fill="none" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
         {/* Run 3: left → right */}
-        <line x1="16" y1="47" x2="148" y2="47" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
-        {/* Right U-bend */}
-        <path d="M148 47 Q156 47 156 55 Q156 59 148 59"
-          fill="none" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
-        {/* Run 4: right → left (tail) */}
-        <line x1="148" y1="59" x2="16" y2="59" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
+        <line x1="22" y1="52" x2="148" y2="52" stroke="#6b46c1" strokeWidth="1.6" opacity="0.65" />
+        {/* Flow port stub (y=18 → top of coil at y=20) */}
+        <line x1="0" y1="18" x2="22" y2="18" stroke="#6b46c1" strokeWidth="1.6" opacity="0.5" />
+        <line x1="22" y1="18" x2="22" y2="20" stroke="#6b46c1" strokeWidth="1.6" opacity="0.5" />
+        {/* Return port stub (bottom of coil at y=52 → return port at y=56) */}
+        <line x1="22" y1="52" x2="22" y2="56" stroke="#6b46c1" strokeWidth="1.6" opacity="0.5" />
+        <line x1="22" y1="56" x2="0" y2="56" stroke="#6b46c1" strokeWidth="1.6" opacity="0.5" />
         {/* UFH label */}
-        <text x="85" y="70" textAnchor="middle" fontSize="6.5" fontWeight="800" fill="#553c9a">UNDERFLOOR HEATING</text>
-        {/* Port indicators (flow in left, return out right, both y=37) */}
-        <PortDot cx={0}   cy={37} fill="#b794f4" stroke="#6b46c1" />
-        <PortDot cx={170} cy={37} fill="#b794f4" stroke="#6b46c1" />
+        <text x="95" y="68" textAnchor="middle" fontSize="6.5" fontWeight="800" fill="#553c9a">UNDERFLOOR HEATING</text>
+        {/* Port indicators — both on left: flow at y=18 (warm), return at y=56 (cool) */}
+        <PortDot cx={0} cy={18} fill="#f6ad55" stroke="#c05621" />
+        <PortDot cx={0} cy={56} fill="#90cdf4" stroke="#2b6cb0" />
         {slotBadge}
       </>
     );
@@ -412,6 +413,7 @@ export function SchematicFaceContent({
       </>
     );
   }
+
 
   // ── Buffer / Low-loss header ───────────────────────────────────────────────
   if (kind === 'buffer' || kind === 'low_loss_header') {
@@ -526,6 +528,72 @@ export function SchematicFaceContent({
         <text x="66" y="69" textAnchor="middle" fontSize="7" fontWeight="800" fill="#2c5282">CWS CISTERN</text>
         {/* Port indicator (right, y=37) */}
         <PortDot cx={170} cy={37} fill="#90cdf4" stroke="#2b6cb0" />
+        {slotBadge}
+      </>
+    );
+  }
+
+  // ── Tees / branch-point junctions (compact inline symbols) ──────────────
+  // These render as tiny schematic T-junction nodes — NOT big rectangles.
+  // tee_cold / tee_hot / tee_ch_flow: one inbound left, two outbound right.
+  // tee_ch_return: two inbound left, one outbound right (return spine merge).
+  if (
+    kind === 'tee_cold' ||
+    kind === 'tee_hot' ||
+    kind === 'tee_ch_flow' ||
+    kind === 'tee_ch_return'
+  ) {
+    const isReturn = kind === 'tee_ch_return';
+    const isHot    = kind === 'tee_hot';
+    const isCold   = kind === 'tee_cold';
+    const color    = isHot  ? '#c05621' :
+                     isCold ? '#2b6cb0' :
+                     isReturn ? '#2b6cb0' : '#6b46c1';
+    const fill     = isHot  ? 'rgba(237,137,54,0.12)' :
+                     isCold ? 'rgba(43,108,176,0.12)' :
+                     isReturn ? 'rgba(43,108,176,0.10)' : 'rgba(107,70,193,0.10)';
+    const dotFill  = isHot  ? '#fbd38d' :
+                     isCold || isReturn ? '#90cdf4' : '#b794f4';
+    // For return tee the inbound port is on the right, two outbound on left.
+    // For all others: inbound left, two outbound right.
+    if (isReturn) {
+      return (
+        <>
+          {/* Spine from right inbound to branch centre */}
+          <line x1="169" y1="37" x2="85" y2="37" stroke={color} strokeWidth="2" opacity="0.5" />
+          {/* Branch up-left to out1 */}
+          <line x1="85" y1="37" x2="1" y2="18" stroke={color} strokeWidth="2" opacity="0.5" />
+          {/* Branch down-left to out2 */}
+          <line x1="85" y1="37" x2="1" y2="56" stroke={color} strokeWidth="2" opacity="0.5" />
+          {/* Junction body */}
+          <circle cx="85" cy="37" r="7" fill={fill} stroke={color} strokeWidth="1.4" />
+          {/* Label */}
+          <text x="85" y="67" textAnchor="middle" fontSize="6" fontWeight="700" fill={color}>RETURN TEE</text>
+          {/* Ports: in (right), out1 (left y=18), out2 (left y=56) */}
+          <PortDot cx={170} cy={37} fill={dotFill} stroke={color} />
+          <PortDot cx={0}   cy={18} fill={dotFill} stroke={color} />
+          <PortDot cx={0}   cy={56} fill={dotFill} stroke={color} />
+          {slotBadge}
+        </>
+      );
+    }
+    const shortLabel = isHot ? 'HOT TEE' : isCold ? 'COLD TEE' : 'FLOW TEE';
+    return (
+      <>
+        {/* Spine from left inbound to branch centre */}
+        <line x1="1" y1="37" x2="85" y2="37" stroke={color} strokeWidth="2" opacity="0.5" />
+        {/* Branch up-right to out1 */}
+        <line x1="85" y1="37" x2="169" y2="18" stroke={color} strokeWidth="2" opacity="0.5" />
+        {/* Branch down-right to out2 */}
+        <line x1="85" y1="37" x2="169" y2="56" stroke={color} strokeWidth="2" opacity="0.5" />
+        {/* Junction body */}
+        <circle cx="85" cy="37" r="7" fill={fill} stroke={color} strokeWidth="1.4" />
+        {/* Label */}
+        <text x="85" y="67" textAnchor="middle" fontSize="6" fontWeight="700" fill={color}>{shortLabel}</text>
+        {/* Ports: in (left), out1 (right y=18), out2 (right y=56) */}
+        <PortDot cx={0}   cy={37} fill={dotFill} stroke={color} />
+        <PortDot cx={170} cy={18} fill={dotFill} stroke={color} />
+        <PortDot cx={170} cy={56} fill={dotFill} stroke={color} />
         {slotBadge}
       </>
     );
