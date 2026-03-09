@@ -14,6 +14,7 @@ import {
 import type { CylinderStore } from './storage'
 import { computeChHeatBalance } from './chModel'
 import type { ChHeatBalance } from './chModel'
+import { resolveServiceMode, computeServiceSwitchingActive } from './serviceArbitration'
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
@@ -384,31 +385,20 @@ export function stepSimulation(params: {
   }
 
   // ── System mode resolution ────────────────────────────────────────────────
-  // For a combi:
-  //   - DHW draw takes priority (CH is interrupted/paused during active hot-water draw)
-  //   - Heating runs only when there is no DHW demand
-  // For system/regular boiler + cylinder:
-  //   - CH and cylinder reheat can both be needed; mode priorities follow:
-  //     S-plan (two zone valves):  CH and reheat run simultaneously → 'heating_and_reheat'
-  //     Y-plan (3-port valve):     valve position dictates routing; treat as exclusive
-  //     default:                   1. heating  2. dhw_reheat  3. idle
+  // Delegated to the central service arbitration helper (serviceArbitration.ts)
+  // which is the single source of truth for active service mode.
+  // All arbitration rules — combi DHW priority, S-plan simultaneous operation,
+  // and serviceSwitchingActive — live there and are unit-tested independently.
   const controlTopology = controls.controlTopology ?? 'none'
   const isSPlan = controlTopology === 's_plan' || controlTopology === 's_plan_multi_zone'
-  let mode: SystemMode = 'idle'
-  if (isCombi) {
-    // DHW priority: on a combi, hot-water draw interrupts CH
-    if (hotDrawActive) mode = 'dhw_draw'
-    else if (heatingEnabled) mode = 'heating'
-  } else {
-    if (heatingEnabled && hasStored && storeNeedsReheat && isSPlan) {
-      // S-plan: both zone valves can open simultaneously
-      mode = 'heating_and_reheat'
-    } else if (heatingEnabled) {
-      mode = 'heating'
-    } else if (hasStored && storeNeedsReheat) {
-      mode = 'dhw_reheat'
-    }
-  }
+  const mode: SystemMode = resolveServiceMode({
+    isCombi,
+    hotDrawActive,
+    heatingEnabled,
+    hasStored,
+    storeNeedsReheat,
+    isSPlan,
+  })
 
   const kWActual = isCombi && mode === 'dhw_draw' ? Math.min(controls.combiDhwKw, kWRequired) : 0
   const qDot = kWActual * 1000
@@ -782,12 +772,9 @@ export function stepSimulation(params: {
     simTimeSeconds: (frame.simTimeSeconds ?? 0) + dt,
     standingLossKwhTotal,
     combiDrawAgeSeconds: isCombi ? combiDrawAgeSeconds : undefined,
-    // Combi service switching: true when DHW draw is interrupting a CH call.
-    // The boiler output is diverted entirely to the plate HEX; CH is suspended.
-    // heatingEnabled is checked (not just mode) so the flag is true only when
-    // the user had heating on AND a DHW draw started, making the interruption
-    // explicit to the render layer.
-    serviceSwitchingActive: isCombi && mode === 'dhw_draw' && heatingEnabled,
+    // Combi service switching: true when a DHW draw is interrupting a CH call.
+    // Delegated to the central arbitration helper — the single source of truth.
+    serviceSwitchingActive: computeServiceSwitchingActive({ isCombi, mode, heatingEnabled }),
   }
 }
 

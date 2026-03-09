@@ -13,12 +13,15 @@
  *   5. serviceSwitchingActive === false for system/regular boiler + cylinder (S-plan)
  *
  * These also serve as the contract tests for the architecture split described in PR1:
- *   - simulation.ts is the single source of truth for the flag
+ *   - serviceArbitration.ts is the central helper for mode resolution (single source of truth)
+ *   - simulation.ts calls the helpers and never re-derives arbitration inline
  *   - playScene/buildPlaySceneModel propagates it to scene.metadata
  *   - LabCanvas reads from scene.metadata only — never re-derives from systemMode
  */
 
 import { describe, it, expect } from 'vitest'
+import { resolveServiceMode, computeServiceSwitchingActive } from '../animation/serviceArbitration'
+import type { ServiceArbitrationInputs } from '../animation/serviceArbitration'
 import { stepSimulation } from '../animation/simulation'
 import type { LabControls, LabFrame } from '../animation/types'
 import { buildPlaySceneModel } from '../playScene/buildPlaySceneModel'
@@ -90,7 +93,141 @@ function runTicks(controls: LabControls, ticks: number): LabFrame {
   return frame
 }
 
-// ─── PR1 — combi service switching tests ─────────────────────────────────────
+// ─── PR1 — serviceArbitration helper: resolveServiceMode ─────────────────────
+
+describe('resolveServiceMode — service arbitration helper', () => {
+  // Combi rules
+  it('combi: dhw draw active → dhw_draw (DHW priority)', () => {
+    const inputs: ServiceArbitrationInputs = {
+      isCombi: true, hotDrawActive: true, heatingEnabled: true,
+      hasStored: false, storeNeedsReheat: false, isSPlan: false,
+    }
+    expect(resolveServiceMode(inputs)).toBe('dhw_draw')
+  })
+
+  it('combi: heating only, no draw → heating', () => {
+    const inputs: ServiceArbitrationInputs = {
+      isCombi: true, hotDrawActive: false, heatingEnabled: true,
+      hasStored: false, storeNeedsReheat: false, isSPlan: false,
+    }
+    expect(resolveServiceMode(inputs)).toBe('heating')
+  })
+
+  it('combi: dhw draw, no heating → dhw_draw (not service switching: no CH to interrupt)', () => {
+    const inputs: ServiceArbitrationInputs = {
+      isCombi: true, hotDrawActive: true, heatingEnabled: false,
+      hasStored: false, storeNeedsReheat: false, isSPlan: false,
+    }
+    expect(resolveServiceMode(inputs)).toBe('dhw_draw')
+  })
+
+  it('combi: idle (no draw, no heating) → idle', () => {
+    const inputs: ServiceArbitrationInputs = {
+      isCombi: true, hotDrawActive: false, heatingEnabled: false,
+      hasStored: false, storeNeedsReheat: false, isSPlan: false,
+    }
+    expect(resolveServiceMode(inputs)).toBe('idle')
+  })
+
+  // Stored / system boiler rules
+  it('stored S-plan: heating + reheat both needed → heating_and_reheat', () => {
+    const inputs: ServiceArbitrationInputs = {
+      isCombi: false, hotDrawActive: false, heatingEnabled: true,
+      hasStored: true, storeNeedsReheat: true, isSPlan: true,
+    }
+    expect(resolveServiceMode(inputs)).toBe('heating_and_reheat')
+  })
+
+  it('stored Y-plan: heating + reheat both needed → heating (exclusive, CH wins)', () => {
+    const inputs: ServiceArbitrationInputs = {
+      isCombi: false, hotDrawActive: false, heatingEnabled: true,
+      hasStored: true, storeNeedsReheat: true, isSPlan: false,
+    }
+    expect(resolveServiceMode(inputs)).toBe('heating')
+  })
+
+  it('stored: reheat only (heating off) → dhw_reheat', () => {
+    const inputs: ServiceArbitrationInputs = {
+      isCombi: false, hotDrawActive: false, heatingEnabled: false,
+      hasStored: true, storeNeedsReheat: true, isSPlan: false,
+    }
+    expect(resolveServiceMode(inputs)).toBe('dhw_reheat')
+  })
+
+  it('stored: heating only (no reheat) → heating', () => {
+    const inputs: ServiceArbitrationInputs = {
+      isCombi: false, hotDrawActive: false, heatingEnabled: true,
+      hasStored: true, storeNeedsReheat: false, isSPlan: true,
+    }
+    expect(resolveServiceMode(inputs)).toBe('heating')
+  })
+
+  it('stored: both off → idle', () => {
+    const inputs: ServiceArbitrationInputs = {
+      isCombi: false, hotDrawActive: false, heatingEnabled: false,
+      hasStored: true, storeNeedsReheat: false, isSPlan: false,
+    }
+    expect(resolveServiceMode(inputs)).toBe('idle')
+  })
+
+  it('stored: hotDrawActive is ignored (stored draw is independent of mode)', () => {
+    // For stored systems a DHW draw depletes the cylinder store; the mode
+    // is NOT forced to dhw_draw — it reflects CH/reheat demand only.
+    const inputs: ServiceArbitrationInputs = {
+      isCombi: false, hotDrawActive: true, heatingEnabled: true,
+      hasStored: true, storeNeedsReheat: false, isSPlan: false,
+    }
+    expect(resolveServiceMode(inputs)).toBe('heating')
+  })
+})
+
+// ─── PR1 — serviceArbitration helper: computeServiceSwitchingActive ──────────
+
+describe('computeServiceSwitchingActive — arbitration helper', () => {
+  it('true when combi + dhw_draw + heatingEnabled', () => {
+    expect(computeServiceSwitchingActive({
+      isCombi: true, mode: 'dhw_draw', heatingEnabled: true,
+    })).toBe(true)
+  })
+
+  it('false when combi + dhw_draw but heatingEnabled is false (no CH to interrupt)', () => {
+    expect(computeServiceSwitchingActive({
+      isCombi: true, mode: 'dhw_draw', heatingEnabled: false,
+    })).toBe(false)
+  })
+
+  it('false when combi + heating (no active draw)', () => {
+    expect(computeServiceSwitchingActive({
+      isCombi: true, mode: 'heating', heatingEnabled: true,
+    })).toBe(false)
+  })
+
+  it('false when combi + idle', () => {
+    expect(computeServiceSwitchingActive({
+      isCombi: true, mode: 'idle', heatingEnabled: false,
+    })).toBe(false)
+  })
+
+  it('false for stored system even in dhw_draw mode with heating (combi rule never applies)', () => {
+    expect(computeServiceSwitchingActive({
+      isCombi: false, mode: 'dhw_draw', heatingEnabled: true,
+    })).toBe(false)
+  })
+
+  it('false for stored system in dhw_reheat mode', () => {
+    expect(computeServiceSwitchingActive({
+      isCombi: false, mode: 'dhw_reheat', heatingEnabled: false,
+    })).toBe(false)
+  })
+
+  it('false for stored system in heating_and_reheat mode (simultaneous, no switching)', () => {
+    expect(computeServiceSwitchingActive({
+      isCombi: false, mode: 'heating_and_reheat', heatingEnabled: true,
+    })).toBe(false)
+  })
+})
+
+// ─── PR1 — combi service switching via full simulation ───────────────────────
 
 describe('combi service switching — serviceSwitchingActive flag', () => {
   it('is true when combi DHW draw is active and heating is enabled', () => {
@@ -169,3 +306,4 @@ describe('PlaySceneModel.metadata.serviceSwitchingActive propagation', () => {
     expect(scene.metadata.serviceSwitchingActive ?? false).toBe(false)
   })
 })
+
