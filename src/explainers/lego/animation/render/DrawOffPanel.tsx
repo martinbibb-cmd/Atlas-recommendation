@@ -20,7 +20,6 @@
 // The render layer must NOT re-derive outlet service from raw colours,
 // outlet.serviceClass, or systemMode independently.
 
-import React from 'react'
 import type { OutletDisplayState, OutletWaterService } from '../../state/outletDisplayState'
 import type { SystemMode } from '../types'
 
