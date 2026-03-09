@@ -408,6 +408,60 @@
   margin-bottom: 0.25rem;
 }
 
+/* ── Trust Strip ─────────────────────────────────────────────────────────── */
+
+.rec-trust-strip {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.625rem 1rem;
+  margin: -0.5rem 0 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.rec-trust-strip__counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.5rem;
+  font-size: 0.82rem;
+  color: #4a5568;
+}
+
+.rec-trust-strip__sep {
+  color: #a0aec0;
+}
+
+.rec-trust-strip__count strong {
+  font-weight: 700;
+}
+
+.rec-trust-strip__count--measured strong {
+  color: #276749;
+}
+
+.rec-trust-strip__count--assumed strong {
+  color: #975a16;
+}
+
+.rec-trust-strip__count--needed strong {
+  color: #9b2c2c;
+}
+
+.rec-trust-strip__action {
+  font-size: 0.82rem;
+  color: #4a5568;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.rec-trust-strip__action-items {
+  font-weight: 600;
+  color: #2b6cb0;
+}
+
 /* ── Recommendation Hub layout ──────────────────────────────────────────── */
 
 .rec-hub__section {

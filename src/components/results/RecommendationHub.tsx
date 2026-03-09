@@ -5,6 +5,7 @@
  * technical recommendation report:
  *
  *   1. Recommendation Summary  — headline decision (why this system fits)
+ *      └─ TrustStrip           — compact evidence count + action prompt (PR2)
  *   2. System Comparison       — option cards with new recommendation states
  *   3. Measurement Confidence  — what was measured vs assumed vs missing
  *   4. Evidence & Context      — supporting context bullets
@@ -22,6 +23,69 @@ import './results.css';
 
 interface Props {
   result: FullEngineResult;
+}
+
+// ─── Trust Strip ─────────────────────────────────────────────────────────────
+
+/**
+ * TrustStrip — compact evidence-count strip placed directly below the
+ * recommendation summary.
+ *
+ * Shows three counts (Measured on site / Assumed / Still needed) and,
+ * when the engine supplies confidence.unlockBy[], a single action line:
+ * "To strengthen this recommendation, measure: …"
+ *
+ * This is a presentation-only component. All data comes from
+ * EngineOutputV1.evidence and EngineOutputV1.meta.confidence.
+ */
+interface TrustStripProps {
+  result: FullEngineResult;
+}
+
+function TrustStrip({ result }: TrustStripProps) {
+  const { engineOutput } = result;
+  const evidence = engineOutput.evidence ?? [];
+  const confidence = engineOutput.meta?.confidence ?? engineOutput.verdict?.confidence;
+  const unlockBy = confidence?.unlockBy ?? [];
+
+  // Only render when we have something meaningful to show
+  if (evidence.length === 0 && unlockBy.length === 0) return null;
+
+  // Single-pass count across all three source buckets
+  let measuredCount = 0;
+  let assumedCount = 0;
+  let stillNeededCount = 0;
+  for (const e of evidence) {
+    if (e.source === 'manual') measuredCount++;
+    else if (e.source === 'assumed' || e.source === 'derived') assumedCount++;
+    else if (e.source === 'placeholder') stillNeededCount++;
+  }
+
+  return (
+    <div className="rec-trust-strip" aria-label="Evidence summary">
+      <div className="rec-trust-strip__counts">
+        <span className="rec-trust-strip__count rec-trust-strip__count--measured">
+          Measured on site: <strong>{measuredCount}</strong>
+        </span>
+        <span className="rec-trust-strip__sep" aria-hidden="true">·</span>
+        <span className="rec-trust-strip__count rec-trust-strip__count--assumed">
+          Assumed: <strong>{assumedCount}</strong>
+        </span>
+        <span className="rec-trust-strip__sep" aria-hidden="true">·</span>
+        <span className="rec-trust-strip__count rec-trust-strip__count--needed">
+          Still needed: <strong>{stillNeededCount}</strong>
+        </span>
+      </div>
+      {unlockBy.length > 0 && (
+        <p className="rec-trust-strip__action">
+          To strengthen this recommendation, measure:{' '}
+          <span className="rec-trust-strip__action-items">
+            {unlockBy.join(', ')}
+          </span>
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ─── Measurement Confidence Panel ────────────────────────────────────────────
@@ -127,6 +191,9 @@ export default function RecommendationHub({ result }: Props) {
 
       {/* 1 — Recommendation Summary */}
       <SystemRecommendationPanel engineOutput={engineOutput} />
+
+      {/* Trust strip — evidence count + action prompt */}
+      <TrustStrip result={result} />
 
       {/* 2 — System Comparison */}
       {options.length > 0 && (
