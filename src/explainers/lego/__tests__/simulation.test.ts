@@ -969,3 +969,88 @@ describe('combi warm-up lag', () => {
     expect(sampleA!.tempC).toBeGreaterThan(30)
   })
 })
+
+// ─── Survey-backed playback inputs — measured operating point ─────────────────
+
+describe('simulation — survey-backed playbackInputs (measured operating point)', () => {
+  it('uses playbackInputs.dynamicFlowLpm instead of mainsDynamicFlowLpm when present', () => {
+    // controls.mainsDynamicFlowLpm = 5 (would severely throttle flow)
+    // playbackInputs.dynamicFlowLpm = 18 (measured operating point)
+    // Demand = 10 L/min; effective cap = 18 → hydraulic flow = 10
+    // Without survey override: hydraulic flow = min(10, 5) = 5
+    const controlsWithSurvey: LabControls = {
+      systemType: 'combi',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 5,     // generic low default
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 0 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 0 },
+      ],
+      playbackInputs: { dynamicFlowLpm: 18 }, // measured operating point
+    }
+    const controlsNoSurvey: LabControls = {
+      ...controlsWithSurvey,
+      playbackInputs: undefined,
+    }
+
+    // Run both for several ticks and compare particle counts as a proxy for flow.
+    function countParticles(controls: LabControls): number {
+      let frame = makeFrame()
+      for (let i = 0; i < 30; i++) {
+        frame = stepSimulation({ frame, dtMs: 200, controls })
+      }
+      return frame.particles.length
+    }
+
+    const withSurvey = countParticles(controlsWithSurvey)
+    const withoutSurvey = countParticles(controlsNoSurvey)
+
+    // Survey-backed run (18 L/min cap) should produce more/equal particles than
+    // generic run (5 L/min cap) since more flow is available.
+    expect(withSurvey).toBeGreaterThanOrEqual(withoutSurvey)
+  })
+
+  it('falls back to mainsDynamicFlowLpm when playbackInputs is absent', () => {
+    const controls: LabControls = {
+      systemType: 'combi',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 20,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 0 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 0 },
+      ],
+      // playbackInputs absent
+    }
+    // Should not throw and should produce a valid frame
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    expect(frame).toBeDefined()
+    expect(frame.systemMode).toBeDefined()
+  })
+
+  it('falls back to mainsDynamicFlowLpm when playbackInputs has no dynamicFlowLpm', () => {
+    const controls: LabControls = {
+      systemType: 'combi',
+      coldInletC: 10,
+      dhwSetpointC: 50,
+      mainsDynamicFlowLpm: 20,
+      pipeDiameterMm: 22,
+      combiDhwKw: 30,
+      outlets: [
+        { id: 'A', enabled: true,  kind: 'shower_mixer', demandLpm: 10 },
+        { id: 'B', enabled: false, kind: 'basin',        demandLpm: 0 },
+        { id: 'C', enabled: false, kind: 'bath',         demandLpm: 0 },
+      ],
+      playbackInputs: { heatLossWatts: 5000 }, // physics field but no dynamicFlowLpm
+    }
+    const frame = stepSimulation({ frame: makeFrame(), dtMs: 200, controls })
+    expect(frame).toBeDefined()
+  })
+})

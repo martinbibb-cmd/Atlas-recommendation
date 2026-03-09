@@ -341,3 +341,95 @@ export function computeTmvMixer(params: {
   const shortfallC = saturated ? Math.max(0, T_t - T_mix) : 0
   return { F_h, F_c, T_h, T_mix, saturated, shortfallC }
 }
+
+// ── Survey-backed thermal time constant ────────────────────────────────────
+
+/**
+ * Baseline thermal time constant (hours) for each building mass class.
+ *
+ * These values are calibrated against the FabricPresets engine (FabricPresets.ts
+ * TAU_BASE), which expresses τ in hours at the mid-range insulation setting for
+ * each mass class:
+ *   light  = 24 h  (modern lightweight timber-frame / high-performance flat)
+ *   medium = 42 h  (typical UK cavity-wall semi-detached)
+ *   heavy  = 68 h  (solid-masonry Victorian terrace / pre-1930 detached)
+ *
+ * These are effective whole-building time constants — they represent how long
+ * the structure would take to cool from heated to outdoor temperature with the
+ * heating off.  They are used as baselines for survey-backed warm-up / cool-down
+ * speed in the lab simulation.
+ */
+const TAU_BASE_HOURS: Record<'light' | 'medium' | 'heavy', number> = {
+  light:  24,
+  medium: 42,
+  heavy:  68,
+}
+
+/**
+ * Reference heat-loss values (W) used to scale τ when `heatLossWatts` is
+ * provided together with `buildingMass`.
+ *
+ * These approximate the mid-range heat loss for each mass band at the
+ * standard UK CIBSE design point (ok insulation, average occupancy):
+ *   light  → ~5 000 W  (modern lightweight construction)
+ *   medium → ~8 000 W  (typical UK semi-detached)
+ *   heavy  → ~12 000 W (large solid-masonry Victorian)
+ *
+ * The scaling relation τ ∝ 1/UA ∝ 1/heatLoss holds when thermal mass (C)
+ * is treated as constant for the mass class:
+ *   τ_actual = τ_ref × (heatLoss_ref / heatLoss_actual)
+ */
+const REF_HEAT_LOSS_W: Record<'light' | 'medium' | 'heavy', number> = {
+  light:   5_000,
+  medium:  8_000,
+  heavy:  12_000,
+}
+
+/**
+ * Default thermal time constant (hours) used as a demo fallback when no
+ * survey-backed heat loss or building mass is available.
+ * Represents a mid-range UK dwelling (medium cavity-wall, mid-sized).
+ */
+export const DEFAULT_DEMO_TAU_HOURS = TAU_BASE_HOURS.medium
+
+/**
+ * Derive the thermal time constant (τ, hours) from survey-backed inputs.
+ *
+ * The time constant governs the exponential warm-up / cool-down response of
+ * the building model:
+ *   T(t) = T_outdoor + (T_initial − T_outdoor) × e^(−t/τ)
+ *
+ * Derivation priority:
+ *   1. Explicit `tauHours` — use directly (engine has already derived it).
+ *   2. `heatLossWatts` + `buildingMass` — scale τ from the mass-band reference:
+ *        τ = τ_ref[mass] × (heatLoss_ref[mass] / heatLossWatts)
+ *      This captures the physics that a leakier building (higher heatLoss → higher UA)
+ *      at the same thermal mass cools faster (lower τ).
+ *   3. `buildingMass` alone — return the mass-band reference τ directly.
+ *   4. No inputs — return the default demo fallback.
+ */
+export function computeThermalTimeConstant(params: {
+  tauHours?: number
+  heatLossWatts?: number
+  buildingMass?: 'light' | 'medium' | 'heavy'
+}): number {
+  const { tauHours, heatLossWatts, buildingMass } = params
+
+  // 1. Explicit τ supplied by engine.
+  if (tauHours != null && tauHours > 0) return tauHours
+
+  // 2. Scale τ from heat loss + mass-band reference.
+  if (heatLossWatts != null && heatLossWatts > 0 && buildingMass != null) {
+    const tau_ref = TAU_BASE_HOURS[buildingMass]
+    const loss_ref = REF_HEAT_LOSS_W[buildingMass]
+    const tau_scaled = tau_ref * (loss_ref / heatLossWatts)
+    // Clamp to a sensible practical range: 0.5 h – 200 h
+    return Math.min(200, Math.max(0.5, tau_scaled))
+  }
+
+  // 3. Mass band only.
+  if (buildingMass != null) return TAU_BASE_HOURS[buildingMass]
+
+  // 4. Demo fallback.
+  return DEFAULT_DEMO_TAU_HOURS
+}

@@ -244,12 +244,18 @@ export function stepSimulation(params: {
     ? ventedSupplyCapLpm({ headMeters: controls.vented.headMeters })
     : Infinity
 
+  // Use the survey-backed measured flow rate when present; fall back to the
+  // generic controls value.  Only confirmed measured readings are promoted by
+  // the survey adapter, so this substitution always reflects real operating point.
+  const effectiveMainsFlowLpm =
+    controls.playbackInputs?.dynamicFlowLpm ?? controls.mainsDynamicFlowLpm
+
   // "What flow can physically pass through the system?"
   // For vented systems: mains dynamic flow is excluded (tank-fed supply, not mains-pressure).
   // For all other systems: mains dynamic flow is a hard cap.
   const hydraulicFlowLpm = controls.systemType === 'vented_cylinder'
     ? Math.min(demandTotalLpm, pipeCap, ventedCap)
-    : Math.min(demandTotalLpm, controls.mainsDynamicFlowLpm, pipeCap)
+    : Math.min(demandTotalLpm, effectiveMainsFlowLpm, pipeCap)
 
   // No draw → velocity must be zero so tokens stop immediately.
   const hasDraw = hydraulicFlowLpm > 0.01
