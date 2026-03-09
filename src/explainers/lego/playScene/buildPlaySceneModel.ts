@@ -235,6 +235,9 @@ function buildSceneForKind(
     // Combi service switching — boiler output diverted to DHW, CH temporarily suspended.
     // Derived from the simulation frame so the renderer never has to re-derive it.
     serviceSwitchingActive: frame.serviceSwitchingActive ?? false,
+    // Supply origins — propagated from controls so the renderer has the authoritative
+    // source mapping without re-deriving it from systemType or scene flags.
+    supplyOrigins: controls.supplyOrigins,
   }
 
   // ── Nodes ──────────────────────────────────────────────────────────────────

@@ -2029,6 +2029,34 @@ export function LabCanvas(props: {
             </g>
           ))}
         </g>
+
+        {/* ── Source origins legend — PR3 ───────────────────────────────── */}
+        {/* Shows which named supply-origin nodes are present for this system type
+            so it is clear where cold, hot, and primary water actually come from.
+            Driven exclusively by scene.metadata.supplyOrigins — the renderer must
+            never infer origin identity from colour or visual position.            */}
+        {scene.metadata.supplyOrigins && (() => {
+          const origins = scene.metadata.supplyOrigins
+          const entries: { color: string; label: string }[] = []
+          if (origins.mainsColdIn)        entries.push({ color: '#0284c7', label: 'Mains cold' })
+          if (origins.cwsTankCold)        entries.push({ color: '#0891b2', label: 'Tank-fed cold' })
+          if (origins.onDemandHot)        entries.push({ color: '#ea580c', label: 'On-demand hot' })
+          if (origins.dhwHotStore)        entries.push({ color: '#dc2626', label: 'Stored hot' })
+          if (origins.primaryHeatingLoop) entries.push({ color: '#7c3aed', label: 'Primary loop' })
+          if (origins.outsideHeatSource)  entries.push({ color: '#0891b2', label: 'Outside (HP)' })
+          if (entries.length === 0) return null
+          return (
+            <g transform="translate(840, 215)">
+              <text x={0} y={0} fontSize={8} fill="#64748b" fontWeight={600}>Source origins</text>
+              {entries.map(({ color, label }, i) => (
+                <g key={label} transform={`translate(0, ${11 + i * 13})`}>
+                  <circle cx={9} cy={-3} r={5} fill={color} opacity={0.8} />
+                  <text x={18} y={0} fontSize={7.5} fill="#475569">{label}</text>
+                </g>
+              ))}
+            </g>
+          )
+        })()}
       </svg>
 
       {/* ── Combi service switching banner ────────────────────────────── */}

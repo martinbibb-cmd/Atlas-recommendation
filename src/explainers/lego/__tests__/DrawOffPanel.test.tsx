@@ -154,6 +154,54 @@ describe('DrawOffPanel — flow and temperature display', () => {
     expect(screen.getByText('tank-fed supply')).toBeTruthy()
     expect(screen.getByText('6.0 L/min')).toBeTruthy()
   })
+
+  it('shows on-demand hot water note for open mixed outlet with hotSource on_demand', () => {
+    render(
+      <DrawOffPanel
+        outletStates={[makeOpenMixed({ hotSource: 'on_demand' })]}
+      />,
+    )
+    expect(screen.getByText('on-demand hot water')).toBeTruthy()
+  })
+
+  it('shows stored hot water note for open mixed outlet with hotSource stored', () => {
+    render(
+      <DrawOffPanel
+        outletStates={[makeOpenMixed({ hotSource: 'stored' })]}
+      />,
+    )
+    expect(screen.getByText('stored hot water')).toBeTruthy()
+  })
+
+  it('shows stored hot water note for open hot_only outlet with hotSource stored', () => {
+    render(
+      <DrawOffPanel
+        outletStates={[makeOpenMixed({ service: 'hot_only', hotSource: 'stored' })]}
+      />,
+    )
+    expect(screen.getByText('stored hot water')).toBeTruthy()
+  })
+
+  it('does not show a hot source note when hotSource is undefined', () => {
+    render(
+      <DrawOffPanel
+        outletStates={[makeOpenMixed({ hotSource: undefined })]}
+      />,
+    )
+    expect(screen.queryByText('on-demand hot water')).toBeNull()
+    expect(screen.queryByText('stored hot water')).toBeNull()
+  })
+
+  it('does not show a hot source note for a cold-only outlet', () => {
+    // hotSource should be ignored by the renderer for cold-only outlets even
+    // if it is accidentally set on the state object.
+    render(
+      <DrawOffPanel
+        outletStates={[makeColdTap({ hotSource: 'on_demand' })]}
+      />,
+    )
+    expect(screen.queryByText('on-demand hot water')).toBeNull()
+  })
 })
 
 describe('DrawOffPanel — concurrency warnings', () => {

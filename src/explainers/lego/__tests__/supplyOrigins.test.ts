@@ -16,6 +16,11 @@ describe('supplyOriginsForSystemType — combi', () => {
     expect(origins.dhwHotStore).toBeUndefined()
   })
 
+  it('combi: onDemandHot present (no cylinder — hot water on demand from plate HEX)', () => {
+    const origins = supplyOriginsForSystemType('combi')
+    expect(origins.onDemandHot).toBe('on_demand_hot')
+  })
+
   it('combi: primaryHeatingLoop present by default', () => {
     const origins = supplyOriginsForSystemType('combi')
     expect(origins.primaryHeatingLoop).toBe('primary_heating_loop')
@@ -41,6 +46,11 @@ describe('supplyOriginsForSystemType — unvented_cylinder', () => {
   it('unvented: dhwHotStore present', () => {
     const origins = supplyOriginsForSystemType('unvented_cylinder')
     expect(origins.dhwHotStore).toBe('dhw_hot_store')
+  })
+
+  it('unvented: onDemandHot absent (stored, not combi)', () => {
+    const origins = supplyOriginsForSystemType('unvented_cylinder')
+    expect(origins.onDemandHot).toBeUndefined()
   })
 
   it('unvented: cwsTankCold absent', () => {

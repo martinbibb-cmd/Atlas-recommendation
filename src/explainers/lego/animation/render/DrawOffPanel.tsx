@@ -91,7 +91,7 @@ interface OutletRowProps {
 function OutletRow({ state }: OutletRowProps) {
   const {
     label, open, service, flowLpm, deliveredTempC,
-    isConstrained, constraintReason, coldSource,
+    isConstrained, constraintReason, coldSource, hotSource,
   } = state
 
   // Derive concurrency message for this row.
@@ -107,6 +107,15 @@ function OutletRow({ state }: OutletRowProps) {
   const coldSourceNote: string | undefined =
     open && service === 'cold_only' && coldSource
       ? (coldSource === 'cws' ? 'tank-fed supply' : 'mains-fed supply')
+      : undefined
+
+  // Hot source note for open hot/mixed outlets — driven by explicit supply origin,
+  // never inferred from system type.  Shown only when hot water is actually
+  // running (hot_only or mixed_hot_running) so the label is not misleading
+  // when only cold water is flowing through a mixed outlet.
+  const hotSourceNote: string | undefined =
+    open && (service === 'hot_only' || service === 'mixed_hot_running') && hotSource
+      ? (hotSource === 'on_demand' ? 'on-demand hot water' : 'stored hot water')
       : undefined
 
   return (
@@ -131,6 +140,9 @@ function OutletRow({ state }: OutletRowProps) {
           )}
           {coldSourceNote && (
             <span className="draw-off-row__cold-source">{coldSourceNote}</span>
+          )}
+          {hotSourceNote && (
+            <span className="draw-off-row__hot-source">{hotSourceNote}</span>
           )}
         </span>
       )}
