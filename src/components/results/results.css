@@ -667,3 +667,289 @@
   padding-top: 0.75rem;
   margin-top: 0.25rem !important;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Screen-only defaults for print-specific elements                            */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+/* Print header: hidden on screen, visible only in @media print */
+.print-header {
+  display: none;
+}
+
+/* Static section label inside collapsed body: hidden on screen */
+.opt-card__section-print-label {
+  display: none;
+}
+
+/* Collapsed section body: hidden on screen (shown when open, always in print) */
+.opt-card__section-body--collapsed {
+  display: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* @media print — recommendation pack stylesheet                               */
+/*                                                                             */
+/* Print order:                                                                */
+/*   1. Print header (title / date / system / confidence)                     */
+/*   2. Recommendation Summary + Trust Strip                                  */
+/*   3. System Condition                                                       */
+/*   4. System Comparison                                                      */
+/*   5. Measurement Confidence                                                 */
+/*   6. Evidence & Context                                                     */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+@media print {
+
+  /* ── Page setup ─────────────────────────────────────────────────────────── */
+
+  @page {
+    size: A4;
+    margin: 18mm 15mm 20mm 15mm;
+  }
+
+  body {
+    font-size: 10pt;
+    color: #000;
+    background: #fff;
+  }
+
+  /* ── Print header ────────────────────────────────────────────────────────── */
+
+  .print-header {
+    display: block;
+    border-bottom: 2pt solid #000;
+    padding-bottom: 8pt;
+    margin-bottom: 14pt;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .print-header__title {
+    font-size: 14pt;
+    font-weight: 700;
+    margin: 0 0 4pt;
+    color: #000;
+  }
+
+  .print-header__meta {
+    font-size: 9pt;
+    color: #444;
+    margin: 0;
+  }
+
+  .print-header__sep {
+    color: #888;
+  }
+
+  /* ── Hub container ───────────────────────────────────────────────────────── */
+
+  .rec-hub {
+    max-width: 100%;
+  }
+
+  /* ── Recommendation Summary ──────────────────────────────────────────────── */
+
+  .rec-summary {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 2pt solid #000;
+    border-radius: 0;
+    background: #fff;
+  }
+
+  .rec-summary__eyebrow {
+    color: #000;
+  }
+
+  .rec-summary__system {
+    color: #000;
+  }
+
+  /* Confidence badge — legible in grayscale without colour alone */
+  .rec-summary__confidence {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1.5pt solid #555;
+    border-radius: 0;
+  }
+
+  .rec-summary--withheld {
+    border-color: #555;
+  }
+
+  .rec-summary--withheld .rec-summary__eyebrow {
+    color: #333;
+  }
+
+  /* ── Trust Strip ─────────────────────────────────────────────────────────── */
+
+  .rec-trust-strip {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    background: #f0f0f0;
+    border: 1pt solid #aaa;
+    border-radius: 0;
+  }
+
+  .rec-trust-strip__count--measured strong,
+  .rec-trust-strip__count--assumed strong,
+  .rec-trust-strip__count--needed strong {
+    color: #000;
+  }
+
+  .rec-trust-strip__action-items {
+    color: #333;
+  }
+
+  /* ── Component Health Panel ──────────────────────────────────────────────── */
+
+  .comp-health {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border-radius: 0;
+  }
+
+  .comp-health__item {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Override inline-style badge colours: white bg, black text, solid border */
+  .comp-health__badge {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1.5pt solid #555 !important;
+  }
+
+  /* Override inline-style body background */
+  .comp-health__body {
+    background: #f5f5f5 !important;
+    border-left-color: #555 !important;
+  }
+
+  /* ── Section wrappers ────────────────────────────────────────────────────── */
+
+  .rec-hub__section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .rec-hub__section-title {
+    color: #333;
+  }
+
+  /* ── Comparison summary sentence ─────────────────────────────────────────── */
+
+  .rec-comparison__summary {
+    background: #f5f5f5;
+    border-left-color: #555;
+  }
+
+  /* ── System Option Cards ─────────────────────────────────────────────────── */
+
+  .opt-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border-radius: 0;
+    border-color: #aaa;
+  }
+
+  /* Suitable cards get a stronger border so they stand out in grayscale */
+  .opt-card--suitable {
+    border-color: #000;
+    border-width: 2pt;
+  }
+
+  /* Status badges: print-safe with text + border, not colour alone */
+  .opt-card__status-badge {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1.5pt solid #555 !important;
+    border-radius: 0;
+  }
+
+  /* "What to expect" */
+  .opt-card__expect {
+    background: #f5f5f5;
+    border-left-color: #555;
+  }
+
+  /* ── Collapsible sections: force open in print ───────────────────────────── */
+
+  /* Hide the interactive toggle button and chevron */
+  .opt-card__section-toggle {
+    display: none;
+  }
+
+  /* Show collapsed section body (overrides the screen-only hide) */
+  .opt-card__section-body--collapsed {
+    display: block;
+  }
+
+  /* Show the static print label that replaces the hidden toggle heading */
+  .opt-card__section-print-label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #555;
+    margin: 0 0 0.375rem;
+    padding-top: 0.5rem;
+    border-top: 1pt solid #ddd;
+  }
+
+  /* ── Measurement Confidence Panel ────────────────────────────────────────── */
+
+  .conf-panel {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border-radius: 0;
+    border-color: #aaa;
+  }
+
+  /* Confidence level badge */
+  .conf-panel__level {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1.5pt solid #555 !important;
+    border-radius: 0;
+  }
+
+  /* Chips: distinct border styles ensure readability in grayscale regardless of shade */
+  .conf-panel__chip--measured {
+    background: #e8f5e9 !important;
+    color: #000 !important;
+    border: 1.5pt solid #555 !important;
+  }
+
+  .conf-panel__chip--assumed {
+    background: #fff8e1 !important;
+    color: #000 !important;
+    border: 1.5pt dashed #555 !important;
+  }
+
+  .conf-panel__chip--missing {
+    background: #ffebee !important;
+    color: #000 !important;
+    border: 1.5pt dotted #555 !important;
+  }
+
+  .conf-panel__next-check {
+    background: #f0f0f0;
+    border-color: #aaa;
+  }
+
+  .conf-panel__unlock {
+    background: #f0f0f0;
+    border-color: #aaa;
+  }
+
+  /* ── Evidence & Context ──────────────────────────────────────────────────── */
+
+  .evctx__group-title {
+    color: #333;
+  }
+
+}
