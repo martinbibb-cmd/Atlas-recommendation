@@ -15,6 +15,8 @@
 //                      Used by open-vented cylinder systems.
 // dhwHotStore        — stored hot water leaving the cylinder hot_out port.
 //                      Present for stored-cylinder systems only.
+// onDemandHot        — hot water delivered on demand by the combi plate HEX.
+//                      Present for combi systems only; absent for stored systems.
 // primaryHeatingLoop — primary circuit loop: heat source → cylinder coil or
 //                      CH emitters → heat source.
 // outsideHeatSource  — heat pump refrigerant unit sited outside the property.
@@ -52,6 +54,13 @@ export type LabSupplyOrigins = {
    */
   dhwHotStore?: 'dhw_hot_store'
   /**
+   * On-demand hot water delivered by the combi plate heat exchanger.
+   * Present for combi systems: the boiler heats mains cold water through
+   * the plate HEX on demand — there is no stored volume to draw from.
+   * Absent for stored-cylinder systems (which use dhwHotStore instead).
+   */
+  onDemandHot?: 'on_demand_hot'
+  /**
    * Primary heating circuit loop (heat source → emitters/coil → return).
    * Present for all system types that have a heating circuit.
    * The loop is always the primary domain — never the domestic hot-water path.
@@ -70,7 +79,7 @@ export type LabSupplyOrigins = {
  * Return the supply origins for a given system type and heat source.
  *
  * Rules:
- *   combi            → mainsColdIn only (no store)
+ *   combi            → mainsColdIn + onDemandHot (no store)
  *   unvented_cylinder → mainsColdIn + dhwHotStore + primaryHeatingLoop
  *   vented_cylinder   → cwsTankCold + dhwHotStore + primaryHeatingLoop
  *   heat_pump variant → outsideHeatSource replaces / supplements primaryHeatingLoop
@@ -100,7 +109,8 @@ export function supplyOriginsForSystemType(
 
   switch (systemType) {
     case 'combi':
-      origins.mainsColdIn = 'mains_cold_in'
+      origins.mainsColdIn  = 'mains_cold_in'
+      origins.onDemandHot  = 'on_demand_hot'
       break
 
     case 'unvented_cylinder':

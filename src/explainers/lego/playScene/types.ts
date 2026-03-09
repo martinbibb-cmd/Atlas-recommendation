@@ -12,6 +12,8 @@
 //   → PlaySceneModel        ← this file
 //   → renderer (LabCanvas)
 
+import type { LabSupplyOrigins } from '../sim/supplyOrigins'
+
 // ─── Outlet service classification ────────────────────────────────────────────
 
 /**
@@ -206,5 +208,18 @@ export type PlaySceneModel = {
      * heat-pump systems where CH and DHW can run simultaneously.
      */
     serviceSwitchingActive?: boolean
+    /**
+     * Explicit supply-origin mapping for this system.
+     *
+     * Propagated from controls.supplyOrigins so the renderer has an
+     * authoritative reference to which source nodes are present without
+     * having to re-derive origin identity from systemType or scene flags.
+     *
+     * The renderer must use this mapping — not ad-hoc position or colour
+     * heuristics — to label cold/hot pipe paths and source-origin indicators.
+     *
+     * See LabSupplyOrigins for the full node vocabulary.
+     */
+    supplyOrigins?: LabSupplyOrigins
   }
 }

@@ -77,6 +77,13 @@ export type OutletDisplayState = {
    * undefined — hot-only outlet or not yet resolved.
    */
   coldSource?: 'mains' | 'cws'
+  /**
+   * Which hot water service delivers to this outlet.
+   * 'on_demand' — combi plate HEX: cold mains heated on demand, no stored volume.
+   * 'stored'    — cylinder hot-out port: hot water drawn from a thermal store.
+   * undefined   — cold-only outlet or source not yet resolved.
+   */
+  hotSource?: 'on_demand' | 'stored'
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -132,6 +139,7 @@ function resolveIsColdOnly(outlet: OutletControl, controls: LabControls): boolea
  *
  * Reads:
  *   - `controls.outlets`          — static outlet configuration (kind, service class)
+ *   - `controls.supplyOrigins`    — explicit supply-origin mapping (hot source identity)
  *   - `frame.outletSamples`       — EMA temperature samples per outlet
  *   - `frame.systemMode`          — current operating mode (for constraint detection)
  *   - `controls.coldInletC`       — cold supply temperature
@@ -144,6 +152,14 @@ export function deriveOutletDisplayStates(
   frame: LabFrame,
 ): OutletDisplayState[] {
   const coldInletC = controls.coldInletC
+
+  // Resolve hot source identity from supply origins — must not be inferred ad hoc.
+  // on_demand: combi plate HEX (mainsColdIn heated on demand, no stored volume).
+  // stored:    cylinder hot_out port (drawn from a thermal store).
+  const hotSource: OutletDisplayState['hotSource'] =
+    controls.supplyOrigins?.onDemandHot ? 'on_demand'
+    : controls.supplyOrigins?.dhwHotStore ? 'stored'
+    : undefined
 
   // Count open hot outlets to detect potential sharing constraints.
   const openHotOutlets = controls.outlets.filter(
@@ -213,6 +229,7 @@ export function deriveOutletDisplayStates(
       isConstrained,
       constraintReason,
       coldSource: outlet.coldSourceKind,
+      hotSource: isColdOnly ? undefined : hotSource,
     }
   })
 }
