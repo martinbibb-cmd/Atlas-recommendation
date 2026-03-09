@@ -1,0 +1,346 @@
+/* ─── Simulator panel card ──────────────────────────────────────────────────── */
+
+.sim-panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: box-shadow 0.18s, border-color 0.18s;
+  position: relative;
+}
+
+.sim-panel:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-color: #bee3f8;
+}
+
+.sim-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid #f0f4f8;
+  flex-shrink: 0;
+}
+
+.sim-panel__icon {
+  font-size: 1rem;
+}
+
+.sim-panel__title {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0;
+}
+
+.sim-panel__expand {
+  font-size: 0.75rem;
+  color: #a0aec0;
+  padding: 3px 7px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f7fafc;
+  font-weight: 600;
+  pointer-events: none; /* click handled by the card itself */
+}
+
+.sim-panel__body {
+  flex: 1;
+  overflow: hidden;
+  padding: 12px 14px;
+  min-height: 0;
+}
+
+/* ─── System Diagram Panel ──────────────────────────────────────────────────── */
+
+.system-diagram {
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.system-diagram__svg {
+  width: 100%;
+  max-height: 220px;
+  overflow: visible;
+}
+
+/* Component node cards */
+.sd-node {
+  rx: 10;
+  ry: 10;
+}
+
+.sd-node--boiler { fill: #fff5f5; stroke: #fc8181; stroke-width: 2; }
+.sd-node--cylinder { fill: #ebf8ff; stroke: #63b3ed; stroke-width: 2; }
+.sd-node--radiator { fill: #f0fff4; stroke: #68d391; stroke-width: 2; }
+.sd-node--pump { fill: #faf5ff; stroke: #b794f4; stroke-width: 2; }
+.sd-node--valve { fill: #fffff0; stroke: #d69e2e; stroke-width: 2; }
+.sd-node--outlet { fill: #e6fffa; stroke: #4fd1c5; stroke-width: 2; }
+.sd-node--mains { fill: #f7fafc; stroke: #a0aec0; stroke-width: 2; }
+
+.sd-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  fill: #2d3748;
+}
+
+.sd-sublabel {
+  font-size: 7.5px;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  fill: #718096;
+}
+
+/* Pipes */
+.sd-pipe {
+  fill: none;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sd-pipe--flow { stroke: #fc8181; }
+.sd-pipe--return { stroke: #63b3ed; }
+.sd-pipe--cold { stroke: #90cdf4; }
+.sd-pipe--dhw { stroke: #68d391; }
+
+/* Port dots */
+.sd-port {
+  r: 3;
+}
+
+.sd-port--hot { fill: #fc8181; }
+.sd-port--cold { fill: #63b3ed; }
+.sd-port--dhw { fill: #68d391; }
+
+/* Grid background */
+.sd-grid-line { stroke: #f0f4f8; stroke-width: 1; }
+
+/* Domain backgrounds */
+.sd-domain {
+  rx: 8;
+  ry: 8;
+  opacity: 0.06;
+}
+
+.sd-domain--heating { fill: #fc8181; }
+.sd-domain--water { fill: #63b3ed; }
+.sd-domain--dhw { fill: #68d391; }
+
+/* ─── House Status Panel ────────────────────────────────────────────────────── */
+
+.house-cutaway {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+}
+
+.house-floor {
+  border-radius: 10px;
+  padding: 8px 10px;
+  flex: 1;
+  min-height: 0;
+}
+
+.house-floor--loft {
+  background: #faf5ff;
+  border: 1px solid #d6bcfa;
+  flex: 0.6;
+}
+
+.house-floor--first {
+  background: #ebf8ff;
+  border: 1px solid #90cdf4;
+}
+
+.house-floor--ground {
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+}
+
+.house-floor--outside {
+  background: #f7fafc;
+  border: 1px dashed #a0aec0;
+  flex: 0.4;
+}
+
+.house-floor__label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #4a5568;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 5px;
+}
+
+.house-rooms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.house-room {
+  font-size: 0.7rem;
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #2d3748;
+  font-weight: 600;
+}
+
+/* ─── Draw-Off Status Panel ─────────────────────────────────────────────────── */
+
+.draw-off-status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.draw-off-outlet {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #f7fafc;
+}
+
+.draw-off-outlet__name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.draw-off-outlet__icon {
+  font-size: 0.9rem;
+}
+
+.draw-off-outlet__rows {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.draw-off-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  padding: 4px 6px;
+}
+
+.draw-off-metric__label {
+  font-size: 0.6rem;
+  color: #718096;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.draw-off-metric__value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-top: 1px;
+}
+
+.draw-off-metric__value--idle {
+  color: #a0aec0;
+}
+
+/* ─── Efficiency Panel ──────────────────────────────────────────────────────── */
+
+.efficiency-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.efficiency-metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f7fafc;
+}
+
+.efficiency-metric__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.efficiency-metric__value {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.efficiency-badge {
+  font-size: 0.72rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.efficiency-badge--condensing {
+  background: #c6f6d5;
+  color: #22543d;
+  border: 1px solid #9ae6b4;
+}
+
+.efficiency-badge--borderline {
+  background: #fefcbf;
+  color: #744210;
+  border: 1px solid #f6e05e;
+}
+
+.efficiency-badge--not-condensing {
+  background: #fed7d7;
+  color: #742a2a;
+  border: 1px solid #fc8181;
+}
+
+.efficiency-badge--idle {
+  background: #edf2f7;
+  color: #a0aec0;
+  border: 1px solid #e2e8f0;
+}
+
+.efficiency-cop-bar {
+  margin-top: 2px;
+}
+
+.efficiency-cop-bar__track {
+  height: 6px;
+  border-radius: 999px;
+  background: #edf2f7;
+  overflow: hidden;
+}
+
+.efficiency-cop-bar__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #68d391, #38a169);
+  transition: width 0.4s ease;
+}

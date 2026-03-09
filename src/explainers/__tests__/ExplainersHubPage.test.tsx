@@ -1,87 +1,88 @@
 // src/explainers/__tests__/ExplainersHubPage.test.tsx
 //
-// Tests for the ExplainersHubPage — PR5 lab navigation.
+// Tests for the ExplainersHubPage — PR1 Simulator Dashboard.
 //
 // Coverage:
-//   - House View is the default lab mode on first render
-//   - LabModeStrip renders both mode buttons
-//   - Switching to Advanced Builder shows the builder section
-//   - Switching back to House View restores the house view
-//   - Builder remains accessible from advanced mode
+//   - Simulator Dashboard renders as the default lab landing
+//   - Page title is "Simulator Dashboard"
+//   - All 4 panels are present
+//   - Panels are tappable and open an expanded modal
+//   - Back button is shown when onBack prop is provided
+//   - Back button is absent when onBack is not provided
 
 import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import ExplainersHubPage from '../ExplainersHubPage'
 
-describe('ExplainersHubPage — lab navigation (PR5)', () => {
-  // ── Default mode ────────────────────────────────────────────────────────
+describe('ExplainersHubPage — Simulator Dashboard (PR1)', () => {
+  // ── Page title ──────────────────────────────────────────────────────────
 
-  it('renders House View as the default mode', () => {
+  it('renders Simulator Dashboard as the page title', () => {
     render(<ExplainersHubPage />)
-    const houseBtn = screen.getByRole('button', { name: /house view/i })
-    expect(houseBtn.getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('heading', { name: /simulator dashboard/i })).toBeTruthy()
   })
 
-  it('renders Advanced Builder button in non-active state by default', () => {
+  it('does NOT render the old Demo Lab title', () => {
     render(<ExplainersHubPage />)
-    const builderBtn = screen.getByRole('button', { name: /advanced builder/i })
-    expect(builderBtn.getAttribute('aria-pressed')).toBe('false')
+    const demolabHeadings = screen.queryAllByRole('heading', { name: /demo lab/i })
+    expect(demolabHeadings).toHaveLength(0)
   })
 
-  // ── Mode strip presence ─────────────────────────────────────────────────
+  // ── 4 panels ────────────────────────────────────────────────────────────
 
-  it('shows both mode buttons in the strip', () => {
+  it('renders the System Diagram panel', () => {
     render(<ExplainersHubPage />)
-    expect(screen.getByRole('button', { name: /house view/i })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /advanced builder/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /expand system diagram/i })).toBeTruthy()
   })
 
-  it('mode strip has lab nav aria-label', () => {
+  it('renders the House View panel', () => {
     render(<ExplainersHubPage />)
-    expect(screen.getByRole('navigation', { name: /lab mode/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /expand house view/i })).toBeTruthy()
   })
 
-  // ── Mode switching ──────────────────────────────────────────────────────
-
-  it('switching to Advanced Builder marks that button active', () => {
+  it('renders the Draw-Off Status panel', () => {
     render(<ExplainersHubPage />)
-    const builderBtn = screen.getByRole('button', { name: /advanced builder/i })
-    fireEvent.click(builderBtn)
-    expect(builderBtn.getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: /expand draw-off status/i })).toBeTruthy()
   })
 
-  it('switching to Advanced Builder deactivates House View button', () => {
+  it('renders the Efficiency panel', () => {
     render(<ExplainersHubPage />)
-    fireEvent.click(screen.getByRole('button', { name: /advanced builder/i }))
-    const houseBtn = screen.getByRole('button', { name: /house view/i })
-    expect(houseBtn.getAttribute('aria-pressed')).toBe('false')
+    expect(screen.getByRole('button', { name: /expand efficiency/i })).toBeTruthy()
   })
 
-  it('switching back to House View re-activates that button', () => {
+  // ── Old mode strip is gone ───────────────────────────────────────────────
+
+  it('does not render the old House View mode button', () => {
     render(<ExplainersHubPage />)
-    fireEvent.click(screen.getByRole('button', { name: /advanced builder/i }))
-    fireEvent.click(screen.getByRole('button', { name: /house view/i }))
-    const houseBtn = screen.getByRole('button', { name: /house view/i })
-    expect(houseBtn.getAttribute('aria-pressed')).toBe('true')
+    // The old LabModeStrip "🏠 House View" nav button should be absent
+    const navEl = document.querySelector('.lab-mode-strip')
+    expect(navEl).toBeNull()
   })
 
-  // ── Builder accessibility ────────────────────────────────────────────────
-
-  it('builder section is reachable via Advanced Builder mode', () => {
+  it('does not render the old Advanced Builder mode button', () => {
     render(<ExplainersHubPage />)
-    fireEvent.click(screen.getByRole('button', { name: /advanced builder/i }))
-    // LegoScenarioBuilder is mounted in this mode — verify no crash and some content renders
-    // The demo-lab-section container should be present
-    const section = document.querySelector('.demo-lab-section')
-    expect(section).not.toBeNull()
+    const advancedBtns = screen.queryAllByRole('button', { name: /advanced builder/i })
+    expect(advancedBtns).toHaveLength(0)
   })
 
-  // ── Lab header ───────────────────────────────────────────────────────────
+  // ── Panel expansion ─────────────────────────────────────────────────────
 
-  it('always shows the Demo Lab title', () => {
+  it('clicking a panel opens an expanded modal', () => {
     render(<ExplainersHubPage />)
-    expect(screen.getByRole('heading', { name: /demo lab/i })).toBeTruthy()
+    const systemPanel = screen.getByRole('button', { name: /expand system diagram/i })
+    fireEvent.click(systemPanel)
+    expect(screen.getByRole('dialog', { name: /system diagram expanded view/i })).toBeTruthy()
   })
+
+  it('modal has a close button that dismisses it', () => {
+    render(<ExplainersHubPage />)
+    fireEvent.click(screen.getByRole('button', { name: /expand system diagram/i }))
+    const closeBtn = screen.getByRole('button', { name: /close expanded view/i })
+    fireEvent.click(closeBtn)
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  // ── Back button ─────────────────────────────────────────────────────────
 
   it('shows Back button when onBack prop is provided', () => {
     render(<ExplainersHubPage onBack={() => {}} />)
