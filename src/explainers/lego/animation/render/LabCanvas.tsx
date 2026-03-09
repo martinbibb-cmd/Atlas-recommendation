@@ -14,6 +14,7 @@ import { SchematicFaceToken } from '../../builder/SchematicFace'
 import { DrawOffPanel } from './DrawOffPanel'
 import { deriveOutletDisplayStates } from '../../state/outletDisplayState'
 import { derivePlaybackMode } from '../../sim/surveyAdapter'
+import { systemTypeLabel, serviceModeSummary } from './simTimeStatus'
 
 /** Baseline frame time at 60 fps (ms). */
 const DEFAULT_FRAME_TIME_MS = 16
@@ -2284,6 +2285,20 @@ export function LabCanvas(props: {
             Loss: {frame.standingLossKwhTotal.toFixed(3)} kWh
           </span>
         )}
+        {/* System-type badge — tells the user which system is loaded */}
+        <span
+          className="sim-time-bar__badge sim-time-bar__badge--system"
+          title="Current system type"
+        >
+          {systemTypeLabel(controls.systemType, controls.systemKind)}
+        </span>
+        {/* Active-service badge — shows current service mode (CH / DHW / Reheat) */}
+        <span
+          className={`sim-time-bar__badge sim-time-bar__badge--service sim-time-bar__badge--service-${systemMode}`}
+          title="Active service mode"
+        >
+          {serviceModeSummary(systemMode)}
+        </span>
         {/* Playback mode badge — tells the user whether they are seeing demo
             defaults or real survey-backed playback. Low-clutter. */}
         <span
