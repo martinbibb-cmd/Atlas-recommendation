@@ -251,6 +251,35 @@ export interface EngineInputV2_3 {
    */
   plateHexConditionBand?: 'good' | 'moderate' | 'poor' | 'severe';
 
+  // Cylinder condition (stored hot water systems only)
+  /**
+   * Inferred cylinder insulation factor (≤ 1.0) derived from survey observations.
+   * Computed by sanitiseModelForEngine from fullSurvey.dhwCondition cylinder fields:
+   *   cylinderType + cylinderAgeBand + cylinderRetentionBand + postcode hardness + usage.
+   * Applied in StoredDhwModule: standingLossKwh = nominalStandingLossKwh × (1 / insulationFactor).
+   *
+   * 1.0 = as-new insulation (no effect on standing losses).
+   * 0.65 = severely degraded insulation (floor-clamped; significant standing loss increase).
+   *
+   * Absent when no cylinder survey data is available.
+   */
+  cylinderInsulationFactor?: number;
+  /**
+   * Inferred cylinder coil transfer factor (≤ 1.0) derived from survey observations.
+   * Applied in StoredDhwModule: reheatKw = nominalReheatKw × coilTransferFactor.
+   *
+   * 1.0 = clean coil (full reheat rate).
+   * 0.7 = severely fouled coil (30% reduction in reheat rate).
+   *
+   * Absent when no cylinder survey data is available.
+   */
+  cylinderCoilTransferFactor?: number;
+  /**
+   * Inferred cylinder condition band — surfaced in results for stored hot water options.
+   * Derived alongside cylinderInsulationFactor and cylinderCoilTransferFactor in sanitiseModelForEngine.
+   */
+  cylinderConditionBand?: 'good' | 'moderate' | 'poor' | 'severe';
+
   // Mixergy legacy
   hasIotIntegration?: boolean;
   installerNetwork?: InstallerNetwork;
@@ -546,7 +575,8 @@ export interface StoredDhwFlagItem {
     | 'stored-high-demand'
     | 'stored-solves-simultaneous-demand'
     | 'stored-unvented-low-flow'
-    | 'stored-unvented-flow-unknown';
+    | 'stored-unvented-flow-unknown'
+    | 'stored-cylinder-condition';
   severity: 'info' | 'warn';
   title: string;
   detail: string;
@@ -574,6 +604,23 @@ export interface StoredDhwV1Result {
    * series even when the energy delivered to the user is identical.
    */
   dhwMixing: TapMixingResult;
+  /**
+   * Cylinder condition result — present when cylinder survey evidence was supplied.
+   * Captures the inferred degradation state and its effect on stored hot water behaviour.
+   */
+  cylinderCondition?: {
+    conditionBand: 'good' | 'moderate' | 'poor' | 'severe';
+    /** Applied insulation factor (1.0 = as-new, lower = higher standing loss). */
+    insulationFactor: number;
+    /** Applied coil transfer factor (1.0 = clean coil, lower = slower reheat). */
+    coilTransferFactor: number;
+    /**
+     * Modelled standing loss relative to a modern factory-insulated equivalent (1.0 = no increase).
+     * standingLossRelative = 1.0 / insulationFactor (rounded to 2 d.p.).
+     * Values > 1.0 indicate elevated heat loss from the cylinder.
+     */
+    standingLossRelative: number;
+  };
 }
 
 export interface MixergyResult {

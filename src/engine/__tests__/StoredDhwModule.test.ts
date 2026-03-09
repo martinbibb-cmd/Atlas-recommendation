@@ -225,3 +225,133 @@ describe('runStoredDhwModuleV1 — scenario regressions', () => {
     expect(result.verdict.storedRisk).toBe('pass');
   });
 });
+
+// ─── Cylinder condition degradation ───────────────────────────────────────────
+
+describe('runStoredDhwModuleV1 — cylinder condition', () => {
+  const baseStoredInput: EngineInputV2_3 = {
+    ...baseInput,
+    availableSpace: 'ok',
+  };
+
+  it('returns no cylinderCondition when no cylinder evidence is provided', () => {
+    const result = runStoredDhwModuleV1(baseStoredInput);
+    expect(result.cylinderCondition).toBeUndefined();
+  });
+
+  it('returns cylinderCondition when cylinderInsulationFactor is provided', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      cylinderInsulationFactor: 0.90,
+      cylinderCoilTransferFactor: 0.80,
+      cylinderConditionBand: 'poor',
+    });
+    expect(result.cylinderCondition).toBeDefined();
+    expect(result.cylinderCondition!.insulationFactor).toBe(0.90);
+    expect(result.cylinderCondition!.coilTransferFactor).toBe(0.80);
+    expect(result.cylinderCondition!.conditionBand).toBe('poor');
+  });
+
+  it('standingLossRelative is > 1.0 when insulationFactor < 1.0', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      cylinderInsulationFactor: 0.80,
+      cylinderCoilTransferFactor: 0.80,
+      cylinderConditionBand: 'poor',
+    });
+    expect(result.cylinderCondition!.standingLossRelative).toBeGreaterThan(1.0);
+  });
+
+  it('good condition band: no cylinder condition flag emitted', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      cylinderInsulationFactor: 0.97,
+      cylinderCoilTransferFactor: 1.0,
+      cylinderConditionBand: 'good',
+    });
+    expect(result.flags.some(f => f.id === 'stored-cylinder-condition')).toBe(false);
+  });
+
+  it('moderate condition band: emits info flag', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      cylinderInsulationFactor: 0.88,
+      cylinderCoilTransferFactor: 0.90,
+      cylinderConditionBand: 'moderate',
+    });
+    const flag = result.flags.find(f => f.id === 'stored-cylinder-condition');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('info');
+  });
+
+  it('poor condition band: emits warn flag', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      cylinderInsulationFactor: 0.78,
+      cylinderCoilTransferFactor: 0.80,
+      cylinderConditionBand: 'poor',
+    });
+    const flag = result.flags.find(f => f.id === 'stored-cylinder-condition');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('warn');
+    expect(result.verdict.storedRisk).toBe('warn');
+  });
+
+  it('severe condition band: emits warn flag with replacement guidance', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      cylinderInsulationFactor: 0.68,
+      cylinderCoilTransferFactor: 0.70,
+      cylinderConditionBand: 'severe',
+    });
+    const flag = result.flags.find(f => f.id === 'stored-cylinder-condition');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('warn');
+    expect(flag!.detail.toLowerCase()).toContain('replacement');
+  });
+
+  it('degraded cylinder (insulationFactor=0.75) has standingLossRelative ~1.33', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      cylinderInsulationFactor: 0.75,
+      cylinderCoilTransferFactor: 0.90,
+      cylinderConditionBand: 'poor',
+    });
+    // 1 / 0.75 = 1.3333...
+    expect(result.cylinderCondition!.standingLossRelative).toBeCloseTo(1.33, 1);
+  });
+
+  it('cylinder with only insulation degraded (coil clean): flag mentions standing losses', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      cylinderInsulationFactor: 0.80,
+      cylinderCoilTransferFactor: 1.0,
+      cylinderConditionBand: 'poor',
+    });
+    const flag = result.flags.find(f => f.id === 'stored-cylinder-condition');
+    expect(flag!.detail).toContain('standing loss');
+  });
+
+  it('cylinder with only coil degraded: flag mentions recovery time', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      cylinderInsulationFactor: 0.97,
+      cylinderCoilTransferFactor: 0.70,
+      cylinderConditionBand: 'moderate',
+    });
+    const flag = result.flags.find(f => f.id === 'stored-cylinder-condition');
+    expect(flag!.detail).toContain('recovery time');
+  });
+
+  it('cylinder condition flag includes insulation and coil factor values in detail', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      cylinderInsulationFactor: 0.82,
+      cylinderCoilTransferFactor: 0.80,
+      cylinderConditionBand: 'poor',
+    });
+    const flag = result.flags.find(f => f.id === 'stored-cylinder-condition');
+    expect(flag!.detail).toContain('0.82');
+    expect(flag!.detail).toContain('0.80');
+  });
+});
