@@ -28,6 +28,41 @@ interface Props {
 // ─── Trust Strip ─────────────────────────────────────────────────────────────
 
 /**
+ * Priority order for unlockBy items rendered in the action line.
+ *
+ * Items are matched via keyword substring (case-insensitive). Unmatched items
+ * fall to the end (priority = UNLOCK_PRIORITY.length).
+ *
+ * Order rationale (most-actionable first):
+ *   1. static pressure   — single-point gauge read; unlocks capacity questions
+ *   2. dynamic / flow    — flow-rate measurement under load
+ *   3. cylinder          — cylinder condition/sizing
+ *   4. appliance age / plate HEX — component wear / thermal degradation
+ *   5. softer contextual — everything else
+ */
+const UNLOCK_PRIORITY: ReadonlyArray<RegExp> = [
+  /static\s*pressure/i,
+  /dynamic|flow/i,
+  /cylinder/i,
+  /age|plate\s*hex|heat\s*exchanger/i,
+];
+
+/**
+ * Return a copy of `items` sorted by UNLOCK_PRIORITY keyword order.
+ * Items that match no keyword are kept at the end, preserving their
+ * original relative order (stable sort).
+ */
+export function sortUnlockBy(items: ReadonlyArray<string>): string[] {
+  const rank = (item: string): number => {
+    for (let i = 0; i < UNLOCK_PRIORITY.length; i++) {
+      if (UNLOCK_PRIORITY[i].test(item)) return i;
+    }
+    return UNLOCK_PRIORITY.length;
+  };
+  return [...items].sort((a, b) => rank(a) - rank(b));
+}
+
+/**
  * TrustStrip — compact evidence-count strip placed directly below the
  * recommendation summary.
  *
@@ -46,7 +81,7 @@ function TrustStrip({ result }: TrustStripProps) {
   const { engineOutput } = result;
   const evidence = engineOutput.evidence ?? [];
   const confidence = engineOutput.meta?.confidence ?? engineOutput.verdict?.confidence;
-  const unlockBy = confidence?.unlockBy ?? [];
+  const unlockBy = sortUnlockBy(confidence?.unlockBy ?? []);
 
   // Only render when we have something meaningful to show
   if (evidence.length === 0 && unlockBy.length === 0) return null;
