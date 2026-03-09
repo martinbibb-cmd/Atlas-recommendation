@@ -2936,3 +2936,176 @@ body {
   color: #0369a1;
   border: 1px solid #bae6fd;
 }
+
+/* ── Lab controls panels (PR6) ──────────────────────────────────────────── */
+/* Compact cards for water-supply controls and current-condition switches.
+   Sits between the draw-off panel and the sim-time-bar.                     */
+
+.lab-controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+
+.lab-controls-panel {
+  background: #f8fafc;
+  border: 1.5px solid #dde5ef;
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  flex: 1 1 220px;
+  min-width: 210px;
+}
+
+.lab-controls-panel__header {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.05rem;
+}
+
+.lab-controls-panel__reset-btn {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #0369a1;
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  border-radius: 4px;
+  padding: 0.1rem 0.45rem;
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.lab-controls-panel__reset-btn:hover {
+  background: #bae6fd;
+}
+
+.lab-controls-panel__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lab-controls-panel__label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.lab-controls-panel__override-badge {
+  font-size: 0.63rem;
+  font-weight: 700;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  border-radius: 99px;
+  padding: 0.05rem 0.4rem;
+  letter-spacing: 0.02em;
+}
+
+.lab-controls-panel__survey-badge {
+  font-size: 0.63rem;
+  font-weight: 700;
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  border-radius: 99px;
+  padding: 0.05rem 0.4rem;
+  letter-spacing: 0.02em;
+}
+
+.lab-controls-panel__slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lab-controls-panel__slider {
+  flex: 1 1 auto;
+  height: 4px;
+  accent-color: #1e3a5f;
+  cursor: pointer;
+}
+
+.lab-controls-panel__value {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #1e3a5f;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 60px;
+  text-align: right;
+}
+
+.lab-controls-panel__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.lab-controls-panel__option {
+  padding: 0.15rem 0.55rem;
+  font-size: 0.73rem;
+  font-weight: 500;
+  color: #475569;
+  background: #fff;
+  border: 1.5px solid #cbd5e0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  white-space: nowrap;
+}
+
+.lab-controls-panel__option:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.lab-controls-panel__option--active {
+  background: #1e3a5f;
+  color: #fff;
+  border-color: #1e3a5f;
+  font-weight: 700;
+}
+
+.lab-controls-panel__sub {
+  font-size: 0.68rem;
+  color: #64748b;
+  margin-top: 0.05rem;
+}
+
+.lab-controls-panel__sub--muted {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.lab-controls-panel__sub--warn {
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+}
+
+/* Manual-override badges in the sim-time-bar */
+.sim-time-bar__badge--override {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.sim-time-bar__badge--condition {
+  background: #fce7f3;
+  color: #9d174d;
+}

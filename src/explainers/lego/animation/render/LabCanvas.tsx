@@ -1,7 +1,7 @@
 // src/explainers/lego/animation/render/LabCanvas.tsx
 
 import React from 'react'
-import type { LabControls, LabFrame, OutletControl, SimTimeState } from '../types'
+import type { LabControls, LabFrame, OutletControl, SimTimeState, LabConditionState } from '../types'
 import type { CapacitySummary } from '../capacitySummary'
 import { stepSimulation } from '../simulation'
 import { createCylinderStore, cylinderTempC } from '../storage'
@@ -12,6 +12,8 @@ import { buildPolylines, SCHEMATIC_P, branchSvgPath, STORED_HEX_END } from './pa
 import { buildPlaySceneModel } from '../../playScene/buildPlaySceneModel'
 import { SchematicFaceToken } from '../../builder/SchematicFace'
 import { DrawOffPanel } from './DrawOffPanel'
+import { WaterSupplyPanel } from './WaterSupplyPanel'
+import { ConditionPanel } from './ConditionPanel'
 import { deriveOutletDisplayStates } from '../../state/outletDisplayState'
 import { derivePlaybackMode } from '../../sim/surveyAdapter'
 import { systemTypeLabel, serviceModeSummary } from './simTimeStatus'
@@ -229,8 +231,41 @@ export function LabCanvas(props: {
 }) {
   const { controls, summary, onFrame } = props
 
-  const controlsRef = React.useRef(controls)
-  React.useLayoutEffect(() => { controlsRef.current = controls })
+  // ── Water supply manual overrides (PR6) ───────────────────────────────────
+  // These are lab-side state — they do not feed back to the survey adapter or
+  // engine models.  The simulation uses the effective controls derived below.
+  const [manualFlowLpm, setManualFlowLpm] = React.useState<number | undefined>(undefined)
+  const [manualPressureBar, setManualPressureBar] = React.useState<number | undefined>(undefined)
+  const [manualColdInletC, setManualColdInletC] = React.useState<5 | 10 | 15 | undefined>(undefined)
+
+  // ── Condition state (PR6) ─────────────────────────────────────────────────
+  // Forwarded to stepSimulation() as scenario modifiers.  Clean state = no effect.
+  const [conditionState, setConditionState] = React.useState<LabConditionState>({
+    heatingCircuit: 'clean',
+    hotWaterSide: 'clean',
+  })
+
+  // ── Effective controls — merge manual water-supply overrides ──────────────
+  // Only creates a new object when an override is set.  The simulation always
+  // uses these values, so overrides are reflected immediately in playback.
+  const effectiveControls: LabControls = React.useMemo(() => {
+    if (manualFlowLpm === undefined && manualColdInletC === undefined) return controls
+    return {
+      ...controls,
+      mainsDynamicFlowLpm: manualFlowLpm ?? controls.mainsDynamicFlowLpm,
+      coldInletC: manualColdInletC ?? controls.coldInletC,
+    }
+  }, [controls, manualFlowLpm, manualColdInletC])
+
+  // Keep refs current so the animation loop always reads the latest values.
+  const effectiveControlsRef = React.useRef(effectiveControls)
+  React.useLayoutEffect(() => { effectiveControlsRef.current = effectiveControls })
+
+  const conditionStateRef = React.useRef(conditionState)
+  React.useLayoutEffect(() => { conditionStateRef.current = conditionState })
+
+  const manualPressureBarRef = React.useRef(manualPressureBar)
+  React.useLayoutEffect(() => { manualPressureBarRef.current = manualPressureBar })
 
   const onFrameRef = React.useRef(onFrame)
   React.useLayoutEffect(() => { onFrameRef.current = onFrame })
@@ -282,7 +317,13 @@ export function LabCanvas(props: {
         // Scale the integration timestep — physics stays in real units.
         const simDtMs = realDtMs * timeScale
         setFrame(prev => {
-          const next = stepSimulation({ frame: prev, dtMs: simDtMs, controls: controlsRef.current })
+          const next = stepSimulation({
+            frame: prev,
+            dtMs: simDtMs,
+            controls: effectiveControlsRef.current,
+            conditionState: conditionStateRef.current,
+            dynamicPressureBar: manualPressureBarRef.current,
+          })
           onFrameRef.current?.(next)
           return next
         })
@@ -300,7 +341,9 @@ export function LabCanvas(props: {
     setFrame(prev => stepSimulation({
       frame: prev,
       dtMs: stepSeconds * 1000,
-      controls: controlsRef.current,
+      controls: effectiveControlsRef.current,
+      conditionState: conditionStateRef.current,
+      dynamicPressureBar: manualPressureBarRef.current,
     }))
   }, [])
 
@@ -311,6 +354,17 @@ export function LabCanvas(props: {
   // Used to display the mode badge so users can distinguish demo defaults
   // from real survey-backed playback.
   const playbackMode = derivePlaybackMode(controls.playbackInputs)
+
+  // ── Override summary (PR6) ────────────────────────────────────────────────
+  // True when the user has manually overridden any water-supply value.
+  const hasWaterOverride = manualFlowLpm !== undefined || manualPressureBar !== undefined || manualColdInletC !== undefined
+  // True when condition state differs from the all-clean default.
+  const hasConditionChange = conditionState.heatingCircuit !== 'clean' || conditionState.hotWaterSide !== 'clean'
+
+  // Effective cold inlet — reflects manual override when set.
+  // Used throughout the render layer so visual pipe colours stay consistent
+  // with the physics inputs the simulation actually received.
+  const effectiveColdInletC = effectiveControls.coldInletC
 
   // ── Play Scene Model ───────────────────────────────────────────────────────
   // Build an explicit scene description from controls + frame.
@@ -369,14 +423,14 @@ export function LabCanvas(props: {
       return tempToThermalColor(summary.achievedOutTempC)
     }
     if (isCylinder && frame.cylinderStore) {
-      const storeT = cylinderTempC({ store: frame.cylinderStore, coldInletC: controls.coldInletC })
+      const storeT = cylinderTempC({ store: frame.cylinderStore, coldInletC: effectiveColdInletC })
       return tempToThermalColor(storeT)
     }
     return undefined
   })()
 
   // Cold supply bypass colour — always cold-inlet colour.
-  const coldSupplyColor = tempToThermalColor(controls.coldInletC)
+  const coldSupplyColor = tempToThermalColor(effectiveColdInletC)
 
   // Mixed-water outlet colour (outlet A → mixer → terminal) — T_mix from TMV outcome,
   // or same as hot-branch colour if no TMV.
@@ -466,7 +520,7 @@ export function LabCanvas(props: {
   // Cylinder store display values
   const storeTempC =
     isCylinder && frame.cylinderStore
-      ? cylinderTempC({ store: frame.cylinderStore, coldInletC: controls.coldInletC })
+      ? cylinderTempC({ store: frame.cylinderStore, coldInletC: effectiveColdInletC })
       : null
   const usableHot = storeTempC !== null ? storeTempC >= USABLE_HOT_THRESHOLD_C : null
 
@@ -496,7 +550,7 @@ export function LabCanvas(props: {
   const cylinderFillFraction = (() => {
     const sv = visuals?.storageStates.find(s => s.nodeId === 'cylinder')
     if (sv?.active && sv.chargePct !== undefined) return sv.chargePct
-    return storeTempC !== null ? cylinderChargePct(storeTempC, controls.coldInletC) : 0
+    return storeTempC !== null ? cylinderChargePct(storeTempC, effectiveColdInletC) : 0
   })()
 
   // Cylinder tank SVG dimensions — derived from SCHEMATIC_P so pathMap and
@@ -2005,7 +2059,7 @@ export function LabCanvas(props: {
         {/* ── Flow Particles ──────────────────────────────────────────────── */}
         <TokensLayer
           particles={frame.particles}
-          coldInletC={controls.coldInletC}
+          coldInletC={effectiveColdInletC}
           polyMain={polyMain}
           polyA={branchA}
           polyB={branchB}
@@ -2113,7 +2167,7 @@ export function LabCanvas(props: {
       {/* ── Thermal legend overlay ─────────────────────────────────────── */}
       <div style={{ position: 'absolute', top: 8, left: 8, pointerEvents: 'none' }}>
         <ThermalLegend
-          coldInletC={controls.coldInletC}
+          coldInletC={effectiveColdInletC}
           setpointC={tmvOutletAActive && outletA?.tmvTargetTempC
             ? outletA.tmvTargetTempC
             : controls.dhwSetpointC}
@@ -2142,7 +2196,7 @@ export function LabCanvas(props: {
             Thermostatic mixer valve (TMV)
           </div>
           <div style={{ color: '#78350f' }}>
-            Cold in: {controls.coldInletC} °C
+            Cold in: {effectiveColdInletC} °C
           </div>
           <div style={{ color: '#b45309' }}>
             Hot supply: {roundTempC(tmvOutcomeA.T_h)} °C
@@ -2220,6 +2274,38 @@ export function LabCanvas(props: {
         serviceSwitchingActive={serviceSwitchingActive}
         combiAtCapacity={combiIsFailing}
       />
+
+      {/* ── Lab controls bar — PR6 ────────────────────────────────────────── */}
+      {/* Water supply controls and current-condition switch.
+          Compact panels that affect playback directly.
+          Kept in a flex row so both panels sit side-by-side on wide screens
+          and wrap naturally on narrow viewports.                              */}
+      <div className="lab-controls-bar">
+        <WaterSupplyPanel
+          flowLpm={effectiveControls.mainsDynamicFlowLpm}
+          pressureBar={manualPressureBar ?? controls.playbackInputs?.dynamicMainsPressureBar}
+          coldInletC={effectiveColdInletC}
+          surveyFlowLpm={controls.playbackInputs?.dynamicFlowLpm}
+          surveyPressureBar={controls.playbackInputs?.dynamicMainsPressureBar}
+          baseFlowLpm={controls.mainsDynamicFlowLpm}
+          baseColdInletC={controls.coldInletC}
+          manualFlowLpm={manualFlowLpm}
+          manualPressureBar={manualPressureBar}
+          manualColdInletC={manualColdInletC}
+          onFlowChange={lpm => setManualFlowLpm(lpm)}
+          onPressureChange={bar => setManualPressureBar(bar)}
+          onColdInletChange={c => setManualColdInletC(c)}
+          onReset={() => {
+            setManualFlowLpm(undefined)
+            setManualPressureBar(undefined)
+            setManualColdInletC(undefined)
+          }}
+        />
+        <ConditionPanel
+          condition={conditionState}
+          onChange={setConditionState}
+        />
+      </div>
 
       {/* ── Simulation time controls ─────────────────────────────────────── */}
       {/* Speed up, pause, step, and display simulated time / standing loss.
@@ -2311,6 +2397,31 @@ export function LabCanvas(props: {
         >
           {playbackMode === 'survey_backed' ? '📋 Survey data' : '🔵 Demo defaults'}
         </span>
+        {/* Water-supply override badge — shown when any supply value is manually set */}
+        {hasWaterOverride && (
+          <span
+            className="sim-time-bar__badge sim-time-bar__badge--override"
+            title={[
+              manualFlowLpm !== undefined ? `Flow: ${manualFlowLpm} L/min` : null,
+              manualPressureBar !== undefined ? `Pressure: ${manualPressureBar} bar` : null,
+              manualColdInletC !== undefined ? `Cold inlet: ${manualColdInletC} °C` : null,
+            ].filter(Boolean).join(' · ')}
+          >
+            ✏ Supply override
+          </span>
+        )}
+        {/* Condition badge — shown when circuit condition is not clean */}
+        {hasConditionChange && (
+          <span
+            className="sim-time-bar__badge sim-time-bar__badge--condition"
+            title={[
+              conditionState.heatingCircuit !== 'clean' ? `CH: ${conditionState.heatingCircuit.replace('_', ' ')}` : null,
+              conditionState.hotWaterSide !== 'clean' ? `DHW: ${conditionState.hotWaterSide.replace('_', ' ')}` : null,
+            ].filter(Boolean).join(' · ')}
+          >
+            ⚠ Condition set
+          </span>
+        )}
       </div>
     </div>
   )

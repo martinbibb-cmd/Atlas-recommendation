@@ -1,6 +1,6 @@
 // src/explainers/lego/animation/simulation.ts
 
-import type { LabControls, LabFrame, FlowParticle, OutletControl, SystemMode, SimulationVisuals } from './types'
+import type { LabControls, LabFrame, FlowParticle, OutletControl, SystemMode, SimulationVisuals, LabConditionState } from './types'
 import { pipeDiameterCapacityLpm, computeCombiWarmUpFraction } from '../model/dhwModel'
 import { heatToTempC, tempToHeatJPerKg, computeTmvMixer, clampAnimationSetpointC } from './thermal'
 import {
@@ -224,9 +224,26 @@ export function stepSimulation(params: {
   frame: LabFrame
   dtMs: number
   controls: LabControls
+  conditionState?: LabConditionState
+  /** Manual pressure override (bar). When present, drives the token-size pressure proxy directly. */
+  dynamicPressureBar?: number
 }): LabFrame {
-  const { frame, dtMs, controls } = params
+  const { frame, dtMs, controls, conditionState, dynamicPressureBar } = params
   const dt = dtMs / 1000
+
+  // ── Condition modifiers ──────────────────────────────────────────────────
+  // Lab scenario modifiers applied as simple multipliers.  No secondary
+  // simulation engine — these represent observable physical degradation.
+  //
+  // Sludge (magnetite in heating circuit): adds flow resistance →
+  //   reduces effective heating output and CH token flow.
+  //
+  // Scale (limescale on hot water side): reduces heat transfer across
+  //   the heat exchanger → reduces effective DHW output.
+  const SLUDGE_FACTORS = { clean: 1.0, some_sludge: 0.82, heavy_sludge: 0.60 } as const
+  const SCALE_FACTORS  = { clean: 1.0, some_scale:  0.88, heavy_scale:  0.70 } as const
+  const sludgeFactor = conditionState ? SLUDGE_FACTORS[conditionState.heatingCircuit] : 1.0
+  const scaleFactor  = conditionState ? SCALE_FACTORS[conditionState.hotWaterSide]    : 1.0
 
   const isCylinder = controls.systemType === 'unvented_cylinder' || controls.systemType === 'vented_cylinder'
   const heatSourceType = controls.heatSourceType ?? (controls.systemType === 'combi' ? 'combi' : 'system_boiler')
@@ -283,7 +300,8 @@ export function stepSimulation(params: {
     : undefined
 
   // Use chBalance.deliveredKw when available; fall back to the legacy scalar.
-  const effectiveHeatingKw = chBalance?.deliveredKw ?? heatingDemandKw
+  // Sludge factor reduces effective CH output (magnetite resistance in circuit).
+  const effectiveHeatingKw = (chBalance?.deliveredKw ?? heatingDemandKw) * sludgeFactor
 
   // ── Per-outlet actual LPM ─────────────────────────────────────────────────
   // Scale each outlet's demand proportionally by the hydraulic throttle factor.
@@ -366,9 +384,15 @@ export function stepSimulation(params: {
   }
 
   // ── Pressure proxy ────────────────────────────────────────────────────────
+  // When a manual pressure bar override is provided, map it directly to the
+  // proxy scale (0.35–1.1) so token size reflects the set pressure.
+  // Otherwise derive from flow (existing behaviour).
   let p: number
   if (controls.systemType === 'vented_cylinder' && controls.vented) {
     p = ventedPressureProxy({ headMeters: controls.vented.headMeters })
+  } else if (dynamicPressureBar !== undefined && dynamicPressureBar > 0) {
+    // 0.5 bar → ~0.35 (min),  3.5 bar → ~1.1 (max)
+    p = clamp(dynamicPressureBar / 3.2, 0.35, 1.1)
   } else {
     p = pressureProxy({ mainsFlowLpm: controls.mainsDynamicFlowLpm })
   }
@@ -406,7 +430,8 @@ export function stepSimulation(params: {
     isSPlan,
   })
 
-  const kWActual = isCombi && mode === 'dhw_draw' ? Math.min(controls.combiDhwKw, kWRequired) : 0
+  // Scale factor reduces combi DHW kW output (limescale fouling on HEX surfaces).
+  const kWActual = isCombi && mode === 'dhw_draw' ? Math.min(controls.combiDhwKw * scaleFactor, kWRequired) : 0
   const qDot = kWActual * 1000
   const dhPerKgPerSecond = mDot > 0 ? qDot / mDot : 0
   const maxHSetpoint = tempToHeatJPerKg({ coldInletC: controls.coldInletC, tempC: setpointC })
@@ -444,7 +469,8 @@ export function stepSimulation(params: {
     }
 
     if (mode === 'dhw_reheat' || mode === 'heating_and_reheat') {
-      const reheatKw = controls.cylinder?.reheatKw ?? 12
+      // Scale factor reduces cylinder reheat rate (limescale fouling on coil surfaces).
+      const reheatKw = (controls.cylinder?.reheatKw ?? 12) * scaleFactor
       store = addReheatEnergy({ store, reheatKw, dtS: dt })
     }
 
@@ -674,12 +700,13 @@ export function stepSimulation(params: {
       // Active whenever space-heating is running (including S-plan simultaneous mode).
       // Flow rate: use the numerical model (chBalance.flowRateLps × 60) when available,
       // otherwise fall back to the legacy rough proxy (effectiveHeatingKw / 0.07).
+      // Sludge factor applies: magnetite resistance reduces primary circuit flow.
       {
         edgeIds: ['primary_flow', 'primary_return'],
         direction: 'forward',
         active: mode === 'heating' || mode === 'heating_and_reheat',
         flowLpm: (mode === 'heating' || mode === 'heating_and_reheat')
-          ? (chBalance ? chBalance.flowRateLps * 60 : effectiveHeatingKw / 0.07)
+          ? (chBalance ? chBalance.flowRateLps * 60 : effectiveHeatingKw / 0.07) * sludgeFactor
           : 0,
       },
       // Primary circuit through the cylinder coil — separate from DHW domestic draw.
@@ -689,7 +716,7 @@ export function stepSimulation(params: {
         edgeIds: ['cylinder_coil_primary_flow', 'cylinder_coil_primary_return'],
         direction: 'forward',
         active: mode === 'dhw_reheat' || mode === 'heating_and_reheat',
-        flowLpm: (mode === 'dhw_reheat' || mode === 'heating_and_reheat') ? (controls.cylinder?.reheatKw ?? 12) / 0.07 : 0,
+        flowLpm: (mode === 'dhw_reheat' || mode === 'heating_and_reheat') ? ((controls.cylinder?.reheatKw ?? 12) * scaleFactor) / 0.07 : 0,
       },
     ],
 
@@ -705,31 +732,34 @@ export function stepSimulation(params: {
       },
       // Plate heat exchanger — active only during combi DHW draw.
       // Not present on cylinder systems (the coil serves this role).
+      // Scale factor reduces HEX intensity (limescale fouling on plate surfaces).
       {
         nodeId: 'combi_hex',
         active: isCombi && mode === 'dhw_draw',
-        intensity: isCombi && mode === 'dhw_draw' ? 1.0 : 0,
+        intensity: isCombi && mode === 'dhw_draw' ? scaleFactor : 0,
         kind: 'plate_hex',
       },
       // Cylinder coil — active during reheat.
       // Represents heat moving from the primary circuit into the stored water.
       // This is NOT domestic water — it is the primary circuit passing through the coil.
+      // Scale factor reduces coil intensity (limescale on coil surfaces).
       {
         nodeId: 'cylinder_coil',
         active: hasStored && (mode === 'dhw_reheat' || mode === 'heating_and_reheat'),
-        intensity: hasStored && (mode === 'dhw_reheat' || mode === 'heating_and_reheat') ? 1.0 : 0,
+        intensity: hasStored && (mode === 'dhw_reheat' || mode === 'heating_and_reheat') ? scaleFactor : 0,
         kind: 'coil',
       },
       // Emitters — active during heating mode (radiators / underfloor releasing heat into the room).
       // Intensity: when chBalance is available use delivered/demand ratio for a physically
       // grounded signal; otherwise fall back to the legacy demandLevel scalar.
+      // Sludge factor reduces emitter intensity (restricted flow to radiators).
       {
         nodeId: 'emitters',
         active: mode === 'heating' || mode === 'heating_and_reheat',
         intensity: (mode === 'heating' || mode === 'heating_and_reheat')
           ? (chBalance && chBalance.totalDemandKw > 0
               ? clamp(chBalance.deliveredKw / chBalance.totalDemandKw, 0, 1)
-              : clamp((controls.heatingDemand?.demandLevel ?? 1), 0, 1))
+              : clamp((controls.heatingDemand?.demandLevel ?? 1), 0, 1)) * sludgeFactor
           : 0,
         kind: 'emitter',
       },
