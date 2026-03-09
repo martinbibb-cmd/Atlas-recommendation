@@ -221,6 +221,50 @@ export function buildComparisonSummary(options: ReadonlyArray<OptionCardV1>): st
   return `For this home, ${recommended.label} is the better fit.`;
 }
 
+// ─── Evidence summary line ────────────────────────────────────────────────────
+
+/**
+ * Returns a one-sentence partial-evidence summary for display at the top of
+ * the Measurement Confidence panel.  Returns null when the evidence mix does
+ * not need extra explanation (e.g. all measured, or no evidence at all).
+ *
+ * Cases:
+ *   - No evidence items            → null (panel will be empty anyway)
+ *   - All measured (none assumed)  → null (chips alone are sufficient)
+ *   - Survey-only (none measured)  → "Based on survey details only — no site measurements recorded."
+ *   - Mixed measured + assumed     → "This recommendation is based on N site measurement(s)
+ *                                     and M survey-derived value(s)."
+ *
+ * Exported for unit testing.
+ */
+export function buildEvidenceSummaryLine(
+  evidence: ReadonlyArray<EvidenceItemV1>,
+): string | null {
+  if (evidence.length === 0) return null;
+
+  const measuredCount = evidence.filter(e => e.source === 'manual').length;
+  const assumedCount  = evidence.filter(
+    e => e.source === 'assumed' || e.source === 'derived',
+  ).length;
+
+  if (measuredCount === 0 && assumedCount === 0) return null;
+
+  if (measuredCount === 0) {
+    return 'Based on survey details only — no site measurements recorded.';
+  }
+
+  if (assumedCount === 0) {
+    return null; // all measured — chips speak for themselves
+  }
+
+  const measuredWord = measuredCount === 1 ? 'measurement' : 'measurements';
+  const assumedWord  = assumedCount  === 1 ? 'value'       : 'values';
+  return (
+    `This recommendation is based on ${measuredCount} site ${measuredWord} ` +
+    `and ${assumedCount} survey-derived ${assumedWord}.`
+  );
+}
+
 /**
  * TrustStrip — compact evidence-count strip placed directly below the
  * recommendation summary.
@@ -255,24 +299,48 @@ function TrustStrip({ result }: TrustStripProps) {
     else if (e.source === 'placeholder') stillNeededCount++;
   }
 
+  // Build the visible count chips — suppress zero-count items to avoid
+  // "Measured on site: 0" showing on survey-only journeys.
+  const countChips: Array<{ className: string; label: string; count: number }> = [];
+  if (measuredCount > 0) {
+    countChips.push({
+      className: 'rec-trust-strip__count rec-trust-strip__count--measured',
+      label: 'Measured on site',
+      count: measuredCount,
+    });
+  }
+  if (assumedCount > 0) {
+    countChips.push({
+      className: 'rec-trust-strip__count rec-trust-strip__count--assumed',
+      label: 'Modelled from survey',
+      count: assumedCount,
+    });
+  }
+  if (stillNeededCount > 0) {
+    countChips.push({
+      className: 'rec-trust-strip__count rec-trust-strip__count--needed',
+      label: 'Still worth confirming',
+      count: stillNeededCount,
+    });
+  }
+
   return (
     <div className="rec-trust-strip" aria-label="Evidence summary">
-      <div className="rec-trust-strip__counts">
-        <span className="rec-trust-strip__count rec-trust-strip__count--measured">
-          Measured on site: <strong>{measuredCount}</strong>
-        </span>
-        <span className="rec-trust-strip__sep" aria-hidden="true">·</span>
-        <span className="rec-trust-strip__count rec-trust-strip__count--assumed">
-          Assumed: <strong>{assumedCount}</strong>
-        </span>
-        <span className="rec-trust-strip__sep" aria-hidden="true">·</span>
-        <span className="rec-trust-strip__count rec-trust-strip__count--needed">
-          Still needed: <strong>{stillNeededCount}</strong>
-        </span>
-      </div>
+      {countChips.length > 0 && (
+        <div className="rec-trust-strip__counts">
+          {countChips.map((chip, i) => (
+            <span key={chip.label}>
+              {i > 0 && <span className="rec-trust-strip__sep" aria-hidden="true">·</span>}
+              <span className={chip.className}>
+                {chip.label}: <strong>{chip.count}</strong>
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
       {unlockBy.length > 0 && (
         <p className="rec-trust-strip__action">
-          To strengthen this recommendation, measure:{' '}
+          This recommendation would be firmer with:{' '}
           <span className="rec-trust-strip__action-items">
             {unlockBy.join(', ')}
           </span>
@@ -305,9 +373,15 @@ function MeasurementConfidencePanel({ result }: ConfidencePanelProps) {
   // Also don't render an empty panel (all three groups empty)
   if (measured.length === 0 && assumed.length === 0 && missing.length === 0) return null;
 
+  const evidenceSummaryLine = buildEvidenceSummaryLine(evidence);
+
   return (
     <div className="conf-panel">
       <h4 className="conf-panel__title">Measurement Confidence</h4>
+
+      {evidenceSummaryLine && (
+        <p className="conf-panel__evidence-summary">{evidenceSummaryLine}</p>
+      )}
 
       <div className="conf-panel__groups">
         {measured.length > 0 && (
@@ -678,6 +752,12 @@ function PrintHeader({ result }: { result: FullEngineResult }) {
     year: 'numeric',
   });
 
+  // Items still needing confirmation — rendered in print only so the
+  // printed output reads as intentional even for provisional results.
+  const stillToConfirm = (engineOutput.evidence ?? [])
+    .filter(e => e.source === 'placeholder')
+    .map(e => e.label);
+
   return (
     <div className="print-header">
       <p className="print-header__title">Atlas — Heating System Recommendation</p>
@@ -688,6 +768,11 @@ function PrintHeader({ result }: { result: FullEngineResult }) {
         <span className="print-header__sep"> · </span>
         <span>{confLabel[level] ?? level}</span>
       </div>
+      {stillToConfirm.length > 0 && (
+        <p className="print-header__still-to-confirm">
+          Still to confirm: {stillToConfirm.join(', ')}
+        </p>
+      )}
     </div>
   );
 }
