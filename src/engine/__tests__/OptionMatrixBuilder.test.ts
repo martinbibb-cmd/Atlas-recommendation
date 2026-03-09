@@ -111,7 +111,7 @@ describe('buildOptionMatrixV1', () => {
     expect(unvented.status).toBe('rejected');
   });
 
-  it('system_unvented card is caution for borderline pressure (1.0–1.5 bar)', () => {
+  it('system_unvented card is caution for borderline pressure (1.0–1.5 bar) when no flow measured', () => {
     const input = { ...baseInput, dynamicMainsPressure: 1.2 };
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
@@ -124,6 +124,65 @@ describe('buildOptionMatrixV1', () => {
     const options = buildOptionMatrixV1(result, baseInput);
     const unvented = options.find(o => o.id === 'system_unvented')!;
     expect(unvented.status).toBe('viable');
+  });
+
+  it('system_unvented card is viable for strong operating point (30 L/min @ 1.0 bar) — not caution', () => {
+    // static 4.0 bar, dynamic 1.0 bar, flow 30 L/min: the full operating point meets the
+    // unvented gate and must not be downgraded to 'caution' based on pressure alone.
+    const input = {
+      ...baseInput,
+      staticMainsPressureBar: 4.0,
+      dynamicMainsPressure: 1.0,
+      mainsDynamicFlowLpm: 30,
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const unvented = options.find(o => o.id === 'system_unvented')!;
+    expect(unvented.status).toBe('viable');
+  });
+
+  it('system_unvented headline does not contain "borderline" for strong operating point (30 L/min @ 1.0 bar)', () => {
+    const input = {
+      ...baseInput,
+      staticMainsPressureBar: 4.0,
+      dynamicMainsPressure: 1.0,
+      mainsDynamicFlowLpm: 30,
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const unvented = options.find(o => o.id === 'system_unvented')!;
+    expect(unvented.headline).not.toContain('borderline');
+    expect(unvented.headline).not.toContain('Detected mains pressure');
+  });
+
+  it('stored_unvented why copy contains operating point (L/min @ bar) when flow is measured', () => {
+    const input = {
+      ...baseInput,
+      dynamicMainsPressure: 1.0,
+      mainsDynamicFlowLpm: 30,
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const stored = options.find(o => o.id === 'stored_unvented')!;
+    // Should have operating point description, not just raw pressure
+    const hasOperatingPoint = stored.why.some(w => w.includes('L/min') && w.includes('bar'));
+    expect(hasOperatingPoint).toBe(true);
+    // Should NOT say "Detected mains pressure"
+    const hasOldWording = stored.why.some(w => w.includes('Detected mains pressure'));
+    expect(hasOldWording).toBe(false);
+  });
+
+  it('stored_unvented requirements do not include boost pump for strong operating point (30 L/min @ 1.0 bar)', () => {
+    const input = {
+      ...baseInput,
+      dynamicMainsPressure: 1.0,
+      mainsDynamicFlowLpm: 30,
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const stored = options.find(o => o.id === 'stored_unvented')!;
+    const hasBoostPump = stored.requirements.some(r => r.toLowerCase().includes('boost pump'));
+    expect(hasBoostPump).toBe(false);
   });
 
   it('each card has heat, dhw, engineering planes', () => {
