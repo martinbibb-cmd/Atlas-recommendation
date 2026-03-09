@@ -232,6 +232,9 @@ function buildSceneForKind(
     outletCount: outletCount > 0 ? outletCount : undefined,
     // Cold-only outlet count — drives cold-tap rendering in Play scene.
     coldOnlyOutletCount: coldOnlyOutletCount > 0 ? coldOnlyOutletCount : undefined,
+    // Combi service switching — boiler output diverted to DHW, CH temporarily suspended.
+    // Derived from the simulation frame so the renderer never has to re-derive it.
+    serviceSwitchingActive: frame.serviceSwitchingActive ?? false,
   }
 
   // ── Nodes ──────────────────────────────────────────────────────────────────

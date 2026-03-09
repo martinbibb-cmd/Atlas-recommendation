@@ -3,6 +3,7 @@
 import type { CylinderStore } from './storage'
 import type { OutletModel, OutletServiceClass, ColdSourceKind } from '../builder/types'
 import type { ChHeatBalance, HeatingLoad } from './chModel'
+import type { LabSupplyOrigins } from '../sim/supplyOrigins'
 
 export type { HeatingLoad } from './chModel'
 export type { ChHeatBalance } from './chModel'
@@ -372,6 +373,19 @@ export type LabControls = {
    * Defaults to 'none' when absent (safe fallback: no simultaneous operation).
    */
   controlTopology?: ControlTopologyKind
+  /**
+   * Explicit supply-origin mapping for this system.
+   *
+   * Identifies the named hydraulic origin nodes for each water service so
+   * the render layer can draw cold/hot pipe paths from the correct source
+   * without inferring origins from systemType booleans.
+   *
+   * Populated by graphToLabControls from the built graph topology.
+   * Absent in legacy LabControls objects (pre-PR3).
+   *
+   * See LabSupplyOrigins for the full node vocabulary.
+   */
+  supplyOrigins?: LabSupplyOrigins
 }
 
 /** Rolling EMA temperature sample collected from tokens exiting an outlet branch. */
@@ -439,6 +453,24 @@ export type LabFrame = {
    * Only present when systemType is 'combi'.
    */
   combiDrawAgeSeconds?: number
+  /**
+   * True when a combi boiler has diverted its output to the plate HEX for
+   * a DHW draw, interrupting a concurrent space-heating call.
+   *
+   * Combi boilers give DHW absolute priority: when a tap opens while CH is
+   * active, the boiler fires exclusively into the domestic plate HEX and the
+   * CH circuit is temporarily suspended.  This flag is the single source of
+   * truth for that condition so that:
+   *   - the render layer does not have to re-derive it from systemMode
+   *   - the play scene model can propagate it to the renderer as an explicit
+   *     display flag ("CH paused for DHW")
+   *   - tests can assert the arbitration contract directly
+   *
+   * Only set for combi systems (when systemType === 'combi').
+   * Always false/absent for stored-cylinder or heat-pump systems where CH
+   * and DHW can run simultaneously (S-plan / HP-diverter).
+   */
+  serviceSwitchingActive?: boolean
 }
 
 /**
