@@ -10,6 +10,7 @@ import { defaultOutlets } from '../animation/types'
 import { deriveFacts } from './graphDerive'
 import { resolveSystemTopology } from '../sim/resolveSystemTopology'
 import { deriveSystemKindFromGraph } from './deriveSystemKind'
+import { supplyOriginsForSystemType } from '../sim/supplyOrigins'
 
 /**
  * Convert a `BuildGraph` (node-link topology) plus an optional `Partial<LabControls>`
@@ -226,5 +227,12 @@ export function graphToLabControls(
     // Control topology drives S-plan simultaneous CH + reheat behaviour.
     // Patch may not override this — it must always reflect the drawn graph.
     controlTopology: topology.controlTopology,
+    // Supply origins — authoritative mapping of which source nodes feed each
+    // water service for this system type.  Used by the render layer to draw
+    // cold and hot pipe paths from the correct origin.
+    supplyOrigins: supplyOriginsForSystemType(resolvedSystemType, {
+      isHeatPump: systemKind === 'heat_pump',
+      hasHeatingCircuit: topology.hasHeatingCircuit,
+    }),
   }
 }

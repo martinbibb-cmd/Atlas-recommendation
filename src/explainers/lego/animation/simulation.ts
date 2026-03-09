@@ -782,6 +782,12 @@ export function stepSimulation(params: {
     simTimeSeconds: (frame.simTimeSeconds ?? 0) + dt,
     standingLossKwhTotal,
     combiDrawAgeSeconds: isCombi ? combiDrawAgeSeconds : undefined,
+    // Combi service switching: true when DHW draw is interrupting a CH call.
+    // The boiler output is diverted entirely to the plate HEX; CH is suspended.
+    // heatingEnabled is checked (not just mode) so the flag is true only when
+    // the user had heating on AND a DHW draw started, making the interruption
+    // explicit to the render layer.
+    serviceSwitchingActive: isCombi && mode === 'dhw_draw' && heatingEnabled,
   }
 }
 

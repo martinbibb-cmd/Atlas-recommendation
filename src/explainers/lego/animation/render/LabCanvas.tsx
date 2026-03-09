@@ -429,6 +429,11 @@ export function LabCanvas(props: {
   const isSPlanTopology =
     controls.controlTopology === 's_plan' || controls.controlTopology === 's_plan_multi_zone'
 
+  // Combi service switching — read from scene metadata (authoritative, set by simulation).
+  // When true, the boiler output is fully diverted to the DHW plate HEX; CH is suspended.
+  // The renderer must NOT re-derive this from systemMode to keep logic centralised.
+  const serviceSwitchingActive = scene.metadata.serviceSwitchingActive ?? false
+
   // Heat-transfer glow filter references — applied to the component in the SVG.
   const HEAT_GLOW = 'url(#heat-glow)'
 
@@ -1875,13 +1880,16 @@ export function LabCanvas(props: {
         {/* Rendered whenever the graph contains a heating circuit (PR5: always
             show full topology).  Opacity drops to 0.35 when CH is inactive so the
             structure remains visible but clearly faint while DHW-only or idle.
+            When combi service switching is active (CH interrupted by a DHW draw),
+            the opacity drops further to 0.15 and a "CH paused for DHW" badge is
+            shown so the user can see WHY heating stopped.
             For stored systems (PR16): CH supply path originates from the HEAT SOURCE
             box, not from the cylinder.  This makes the CH circuit clearly separate
             from the DHW domain.
             For combi systems: supply path originates from the combined boiler/HEX box.
             scene.metadata.showHeatingPath gates this whole section.               */}
         {showHeatingPathAndEmitters && (
-          <g opacity={isChActive ? 1 : 0.35}>
+          <g opacity={serviceSwitchingActive ? 0.15 : isChActive ? 1 : 0.35}>
             {/* CH primary supply pipe.
                 Stored systems: from valve bottom → down → left to emitter.
                   Origin: (heatSrcCenterX, storedValveBottomY)
@@ -2020,6 +2028,32 @@ export function LabCanvas(props: {
           ))}
         </g>
       </svg>
+
+      {/* ── Combi service switching banner ────────────────────────────── */}
+      {/* Shown when the combi boiler has diverted its output to the DHW plate
+          HEX, temporarily suspending the space-heating call.  The emitter
+          group above already fades to near-invisible; this badge provides
+          the explicit label so the user knows why heating stopped.         */}
+      {serviceSwitchingActive && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'absolute', top: 8, right: 8,
+            background: '#fff7ed',
+            border: '1px solid #fb923c',
+            borderRadius: 8,
+            padding: '5px 10px',
+            fontSize: 12,
+            fontWeight: 700,
+            color: '#c2410c',
+            pointerEvents: 'none',
+            zIndex: 20,
+          }}
+        >
+          CH paused for DHW
+        </div>
+      )}
 
       {/* ── Usable hot water indicator (cylinder only) ─────────────────── */}
       {isCylinder && usableHot !== null && (

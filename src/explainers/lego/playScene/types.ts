@@ -190,5 +190,21 @@ export type PlaySceneModel = {
      * Undefined when graphFacts are absent (legacy controls).
      */
     coldOnlyOutletCount?: number
+    /**
+     * True when combi service switching is active: a DHW draw has diverted the
+     * boiler output to the plate HEX, temporarily suspending the CH call.
+     *
+     * The renderer must:
+     *   - suppress or dim the CH visual path
+     *   - stop or fade radiator tokens
+     *   - display "CH paused for DHW" to explain the interruption
+     *
+     * This flag is the authoritative source for that condition — the renderer
+     * must NOT re-derive it from systemMode or frame state independently.
+     *
+     * Only set for combi systems.  Always false/absent for stored-cylinder or
+     * heat-pump systems where CH and DHW can run simultaneously.
+     */
+    serviceSwitchingActive?: boolean
   }
 }
