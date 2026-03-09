@@ -47,6 +47,122 @@ const UNLOCK_PRIORITY: ReadonlyArray<RegExp> = [
   /age|plate\s*hex|heat\s*exchanger/i,
 ];
 
+// ─── Evidence sort priority ───────────────────────────────────────────────────
+
+/**
+ * Priority order for evidence items within each display bucket.
+ *
+ * Matched against `fieldPath + " " + label` (case-insensitive).
+ *
+ * Order rationale (highest decision value first):
+ *   1. mains flow / pressure — capacity gate for combi, unvented, ASHP
+ *   2. DHW demand / occupancy — demand gate for combi simultaneity
+ *   3. component condition — plate HEX, cylinder
+ *   4. appliance age / heat loss / sizing — background context
+ *   5. everything else
+ */
+const EVIDENCE_FIELD_PRIORITY: ReadonlyArray<RegExp> = [
+  /mains|pressure/i,
+  /bathroom|combi|dhw|occupan/i,
+  /cylinder|hex|plate/i,
+  /age|heat.?loss|sizing/i,
+];
+
+function evidenceRank(item: EvidenceItemV1): number {
+  const text = `${item.fieldPath} ${item.label}`;
+  for (let i = 0; i < EVIDENCE_FIELD_PRIORITY.length; i++) {
+    if (EVIDENCE_FIELD_PRIORITY[i].test(text)) return i;
+  }
+  return EVIDENCE_FIELD_PRIORITY.length;
+}
+
+/**
+ * Return a copy of `items` sorted by decision value (highest-impact first).
+ * Relative order within each priority band is preserved (stable sort).
+ * Exported for unit testing.
+ */
+export function sortEvidenceItems(items: ReadonlyArray<EvidenceItemV1>): EvidenceItemV1[] {
+  return [...items].sort((a, b) => evidenceRank(a) - evidenceRank(b));
+}
+
+// ─── Context bullet classification ────────────────────────────────────────────
+
+/**
+ * Presentation-only classification of a context summary bullet string into one
+ * of three display groups.  Does not change any engine output or contract.
+ *
+ * Groups:
+ *   'site_context'    — occupancy, property size, current system, mains readings,
+ *                       bathroom count (low demand), adequate space
+ *   'key_constraint'  — simultaneous demand, mains limitation, loft conversion,
+ *                       future bathroom, limited space
+ *   'general'         — boiler sizing, fabric model, thermal inertia
+ */
+export type BulletGroup = 'site_context' | 'key_constraint' | 'general';
+
+const KEY_CONSTRAINT_PATTERNS: ReadonlyArray<RegExp> = [
+  /simultaneous.*factor/i,
+  /loft conversion/i,
+  /additional bathroom planned/i,
+  /limited space/i,
+];
+
+const SITE_CONTEXT_PATTERNS: ReadonlyArray<RegExp> = [
+  /\d+\s+(person|people)|\bbedroom|\bbed\s+property/i,
+  /single bathroom/i,
+  /^current system:/i,
+  /adequate space/i,
+  /mains (pressure|supply|flow)|^pressure:/i,
+];
+
+/**
+ * Classify a context bullet string into a display group.
+ * Exported for unit testing.
+ */
+export function classifyContextBullet(bullet: string): BulletGroup {
+  for (const pattern of KEY_CONSTRAINT_PATTERNS) {
+    if (pattern.test(bullet)) return 'key_constraint';
+  }
+  for (const pattern of SITE_CONTEXT_PATTERNS) {
+    if (pattern.test(bullet)) return 'site_context';
+  }
+  return 'general';
+}
+
+// ─── Next check hint ──────────────────────────────────────────────────────────
+
+/** Result of buildNextCheckHint — a practical field instruction. */
+export interface NextCheckHint {
+  check: string;
+  whyItMatters: string;
+}
+
+/**
+ * Maps the top unlock item to a concise "Most useful next check" hint.
+ * Each entry is [matchPattern, whyItMatters].
+ */
+const UNLOCK_WHY_HINTS: ReadonlyArray<[RegExp, string]> = [
+  [/static\s*pressure/i,            'confirms whether mains-fed hot water options are viable under load'],
+  [/dynamic|flow/i,                 'determines whether mains supply can meet simultaneous hot-water demand'],
+  [/cylinder/i,                     'indicates whether existing storage can be retained or requires replacement'],
+  [/plate\s*hex|heat\s*exchanger/i, 'determines whether on-demand hot water performance is being limited by fouling'],
+  [/age/i,                          'helps estimate remaining component life and service requirements'],
+];
+
+/**
+ * Derive a "Most useful next check" hint from a sorted unlockBy list.
+ * Returns null when no unlock items are available.
+ * Exported for unit testing.
+ */
+export function buildNextCheckHint(unlockItems: ReadonlyArray<string>): NextCheckHint | null {
+  if (unlockItems.length === 0) return null;
+  const top = unlockItems[0];
+  for (const [pattern, why] of UNLOCK_WHY_HINTS) {
+    if (pattern.test(top)) return { check: top, whyItMatters: why };
+  }
+  return { check: top, whyItMatters: 'would improve the accuracy of this recommendation' };
+}
+
 /**
  * Return a copy of `items` sorted by UNLOCK_PRIORITY keyword order.
  * Items that match no keyword are kept at the end, preserving their
@@ -182,33 +298,23 @@ function MeasurementConfidencePanel({ result }: ConfidencePanelProps) {
   const confidence = engineOutput.meta?.confidence ?? engineOutput.verdict?.confidence;
   const evidence = engineOutput.evidence ?? [];
 
-  const measured   = evidence.filter((e: EvidenceItemV1) => e.source === 'manual');
-  const assumed    = evidence.filter((e: EvidenceItemV1) => e.source === 'assumed' || e.source === 'derived');
-  const missing    = evidence.filter((e: EvidenceItemV1) => e.source === 'placeholder');
+  // Sort evidence items by decision value before bucketing
+  const sorted = sortEvidenceItems(evidence);
+
+  const measured = sorted.filter((e: EvidenceItemV1) => e.source === 'manual');
+  const assumed  = sorted.filter((e: EvidenceItemV1) => e.source === 'assumed' || e.source === 'derived');
+  const missing  = sorted.filter((e: EvidenceItemV1) => e.source === 'placeholder');
 
   // Don't render if there's nothing to show
   if (!confidence && evidence.length === 0) return null;
 
-  const level = confidence?.level ?? 'medium';
-  const unlockBy = confidence?.unlockBy ?? [];
-
-  const LEVEL_ICON: Record<string, string> = {
-    high: '🟢', medium: '🟡', low: '🔴',
-  };
-  const LEVEL_LABEL: Record<string, string> = {
-    high: 'High confidence', medium: 'Medium confidence', low: 'Low confidence',
-  };
+  // Top unlock item → "Most useful next check" box (de-duplicates from Trust Strip)
+  const sortedUnlock = sortUnlockBy(confidence?.unlockBy ?? []);
+  const nextCheckHint = buildNextCheckHint(sortedUnlock);
 
   return (
     <div className="conf-panel">
       <h4 className="conf-panel__title">Measurement Confidence</h4>
-      <span
-        className={`conf-panel__level conf-panel__level--${level}`}
-        aria-label={`Confidence: ${LEVEL_LABEL[level] ?? level}`}
-      >
-        <span aria-hidden="true">{LEVEL_ICON[level] ?? '⚪'}</span>{' '}
-        {LEVEL_LABEL[level] ?? level}
-      </span>
 
       <div className="conf-panel__groups">
         {measured.length > 0 && (
@@ -226,7 +332,7 @@ function MeasurementConfidencePanel({ result }: ConfidencePanelProps) {
 
         {assumed.length > 0 && (
           <div>
-            <p className="conf-panel__group-label">Assumptions used</p>
+            <p className="conf-panel__group-label">Modelled from survey details</p>
             <div className="conf-panel__chips">
               {assumed.map(e => (
                 <span key={e.id} className="conf-panel__chip conf-panel__chip--assumed">
@@ -239,7 +345,7 @@ function MeasurementConfidencePanel({ result }: ConfidencePanelProps) {
 
         {missing.length > 0 && (
           <div>
-            <p className="conf-panel__group-label">Not measured</p>
+            <p className="conf-panel__group-label">Still worth confirming</p>
             <div className="conf-panel__chips">
               {missing.map(e => (
                 <span key={e.id} className="conf-panel__chip conf-panel__chip--missing">
@@ -251,12 +357,13 @@ function MeasurementConfidencePanel({ result }: ConfidencePanelProps) {
         )}
       </div>
 
-      {unlockBy.length > 0 && (
-        <div className="conf-panel__unlock">
-          <span className="conf-panel__unlock-label">
-            Measuring these values would increase accuracy:
+      {nextCheckHint && (
+        <div className="conf-panel__next-check">
+          <span className="conf-panel__next-check-label">Most useful next check:</span>{' '}
+          <span className="conf-panel__next-check-item">{nextCheckHint.check}</span>
+          <span className="conf-panel__next-check-why">
+            Why it matters: {nextCheckHint.whyItMatters}.
           </span>
-          {unlockBy.join(' · ')}
         </div>
       )}
     </div>
@@ -456,6 +563,7 @@ export default function RecommendationHub({ result }: Props) {
   const { engineOutput } = result;
   const options = sortOptionCards(engineOutput.options ?? []);
   const comparisonSummary = buildComparisonSummary(options);
+  const contextBullets = engineOutput.contextSummary?.bullets ?? [];
 
   return (
     <div className="rec-hub">
@@ -485,17 +593,47 @@ export default function RecommendationHub({ result }: Props) {
       {/* 4 — Measurement Confidence */}
       <MeasurementConfidencePanel result={result} />
 
-      {/* 5 — Evidence & Context */}
-      {engineOutput.contextSummary && engineOutput.contextSummary.bullets.length > 0 && (
-        <section className="rec-hub__section">
-          <h3 className="rec-hub__section-title">Evidence &amp; Context</h3>
-          <ul className="rec-summary__bullets">
-            {engineOutput.contextSummary.bullets.map((bullet, i) => (
-              <li key={i}>{bullet}</li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* 5 — Evidence & Context (grouped: site context / key constraints / general) */}
+      {contextBullets.length > 0 && (() => {
+        const siteCtx  = contextBullets.filter(b => classifyContextBullet(b) === 'site_context');
+        const keyConstr = contextBullets.filter(b => classifyContextBullet(b) === 'key_constraint');
+        const general  = contextBullets.filter(b => classifyContextBullet(b) === 'general');
+        const hasGroups = siteCtx.length > 0 || keyConstr.length > 0;
+        return (
+          <section className="rec-hub__section">
+            <h3 className="rec-hub__section-title">Evidence &amp; Context</h3>
+            {hasGroups ? (
+              <div className="evctx">
+                {siteCtx.length > 0 && (
+                  <div className="evctx__group">
+                    <p className="evctx__group-title">Site context</p>
+                    <ul className="evctx__bullets">
+                      {siteCtx.map((bullet, i) => <li key={i}>{bullet}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {keyConstr.length > 0 && (
+                  <div className="evctx__group">
+                    <p className="evctx__group-title">Key constraints</p>
+                    <ul className="evctx__bullets">
+                      {keyConstr.map((bullet, i) => <li key={i}>{bullet}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {general.length > 0 && (
+                  <ul className="rec-summary__bullets evctx__general">
+                    {general.map((bullet, i) => <li key={i}>{bullet}</li>)}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <ul className="rec-summary__bullets">
+                {contextBullets.map((bullet, i) => <li key={i}>{bullet}</li>)}
+              </ul>
+            )}
+          </section>
+        );
+      })()}
     </div>
   );
 }
