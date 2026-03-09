@@ -6,7 +6,7 @@
   grid-template-rows: 1fr 1fr;
   gap: 14px;
   padding: 14px;
-  height: calc(100vh - 80px);
+  height: calc(100vh - 110px);
   min-height: 520px;
   box-sizing: border-box;
 }
@@ -17,6 +17,38 @@
     grid-template-rows: repeat(4, auto);
     height: auto;
   }
+}
+
+/* ─── System-type selector ──────────────────────────────────────────────────── */
+
+.sim-system-selector {
+  display: flex;
+  gap: 6px;
+  padding: 10px 14px 0;
+  align-items: center;
+}
+
+.sim-system-selector__btn {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #f7fafc;
+  color: #4a5568;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.sim-system-selector__btn:hover {
+  background: #edf2f7;
+  border-color: #bee3f8;
+}
+
+.sim-system-selector__btn--active {
+  background: #ebf8ff;
+  border-color: #63b3ed;
+  color: #2b6cb0;
 }
 
 /* ─── Mode strip (replaces old House View / Advanced Builder strip) ────────── */
