@@ -392,6 +392,9 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
     dhwRequiredKw,
     deliveredFlowLpm,
     ...(plateHexConditionBand !== undefined && { plateHexConditionBand }),
-    ...(input.plateHexFoulingFactor !== undefined && { plateHexFoulingFactor: plateHexFoulingFactor }),
+    // Only include plateHexFoulingFactor in the result when survey evidence was explicitly provided.
+    // input.plateHexFoulingFactor is the explicit survey-derived value; the local plateHexFoulingFactor
+    // variable defaults to 1.0 for physics calculations even when no survey data is present.
+    ...(input.plateHexFoulingFactor !== undefined && { plateHexFoulingFactor: input.plateHexFoulingFactor }),
   };
 }
