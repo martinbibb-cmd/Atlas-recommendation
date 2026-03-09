@@ -1631,6 +1631,44 @@ body {
   background: #e2e8f0;
 }
 
+/* ── Lab mode strip (House View / Advanced Builder) ──────────────────────── */
+.lab-mode-strip {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.lab-mode-btn {
+  min-height: 38px;
+  padding: 0.35rem 0.9rem;
+  background: #edf2f7;
+  border: 1.5px solid #cbd5e0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #2d3748;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.lab-mode-btn:hover {
+  background: #e2e8f0;
+  border-color: #a0aec0;
+}
+
+.lab-mode-btn--active {
+  background: #1e3a5f;
+  color: #fff;
+  border-color: #1e3a5f;
+  font-weight: 700;
+}
+
+.lab-mode-btn--active:hover {
+  background: #1a3254;
+}
+
 /* ── Hub tile grid ────────────────────────────────────────────────────────── */
 .hub-tile-grid {
   display: grid;
@@ -2721,6 +2759,38 @@ body {
 .sim-time-bar__badge--mode-survey {
   background: #dcfce7;
   color: #166534;
+}
+
+/* System-type badge — subtle neutral tone */
+.sim-time-bar__badge--system {
+  background: #e0e7ef;
+  color: #1e3a5f;
+}
+
+/* Active-service badges — colour-coded per operating mode */
+.sim-time-bar__badge--service-idle {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.sim-time-bar__badge--service-heating {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.sim-time-bar__badge--service-dhw_draw {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.sim-time-bar__badge--service-dhw_reheat {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.sim-time-bar__badge--service-heating_and_reheat {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 /* ── Draw-off panel ─────────────────────────────────────────────────────── */

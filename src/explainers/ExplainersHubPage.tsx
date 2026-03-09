@@ -1,17 +1,15 @@
 /**
  * ExplainersHubPage — entry point for the Lego Blocks explainer system.
  *
- * Shows:
- *  - A list of preset scenarios (quick-load)
- *  - A "Build your own scenario" option that opens the form builder
+ * PR5: House View is the default landing experience.
+ * The Lego topology builder is available via the "Advanced Builder" mode.
  *
- * Navigation uses the same pattern as HubPage (local state, no router).
+ * Navigation uses local state (no router).
  */
 
 import { useState } from 'react';
 import { DHW_PRESETS } from './lego/presets/dhwPresets';
 import LegoScenarioBuilder from './lego/builder/LegoScenarioBuilder';
-import BuilderShell from './lego/builder/BuilderShell';
 import PropertyLayoutView from './lego/builder/PropertyLayoutView';
 import PerformanceGraphicView from './lego/views/PerformanceGraphicView';
 import type { LegoScenario } from './lego/schema/legoTypes';
@@ -62,44 +60,91 @@ function computeForPreset(scenario: LegoScenario): CapacityChainResult {
   return computeCapacityChain(components);
 }
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/** Top-level lab mode — House View is the default primary experience. */
+type LabTopMode = 'house_view' | 'advanced_builder';
+
+/** Sub-page used only within the advanced builder path. */
+type BuilderSubPage = 'builder' | 'preset';
+
+// ─── Mode strip ───────────────────────────────────────────────────────────────
+
+interface LabModeStripProps {
+  current: LabTopMode;
+  onChange: (mode: LabTopMode) => void;
+}
+
+/** Two-button strip that switches between House View and Advanced Builder. */
+function LabModeStrip({ current, onChange }: LabModeStripProps) {
+  return (
+    <nav className="lab-mode-strip" aria-label="Lab mode">
+      <button
+        className={`lab-mode-btn${current === 'house_view' ? ' lab-mode-btn--active' : ''}`}
+        onClick={() => onChange('house_view')}
+        aria-pressed={current === 'house_view'}
+      >
+        🏠 House View
+      </button>
+      <button
+        className={`lab-mode-btn${current === 'advanced_builder' ? ' lab-mode-btn--active' : ''}`}
+        onClick={() => onChange('advanced_builder')}
+        aria-pressed={current === 'advanced_builder'}
+      >
+        🔧 Advanced Builder
+      </button>
+    </nav>
+  );
+}
+
 // ─── View ─────────────────────────────────────────────────────────────────────
 
-type Page = 'hub' | 'preset' | 'builder' | 'house_view';
-
 export default function ExplainersHubPage({ onBack }: Props) {
-  const [page, setPage] = useState<Page>('hub');
+  /** House View is the primary default; Advanced Builder is secondary. */
+  const [topMode, setTopMode] = useState<LabTopMode>('house_view');
+  const [builderSubPage, setBuilderSubPage] = useState<BuilderSubPage>('builder');
   const [selectedPreset, setSelectedPreset] = useState<LegoScenario | null>(null);
 
-  if (page === 'builder') {
-    return (
-      <div className="hub-page">
-        <div className="hub-page__header">
-          <button className="hub-back-btn" onClick={() => setPage('hub')}>← Back to Demo Lab</button>
-          <h2 className="hub-page__panel-title">Build a scenario</h2>
-        </div>
-        <LegoScenarioBuilder />
-      </div>
-    );
+  // ── Mode change handler ───────────────────────────────────────────────────
+  /** Switch the top-level mode and always reset the builder sub-page to root. */
+  function handleModeChange(mode: LabTopMode) {
+    setTopMode(mode);
+    setBuilderSubPage('builder');
   }
 
-  if (page === 'house_view') {
+  // ── Shared page header ────────────────────────────────────────────────────
+  const header = (
+    <div className="hub-page__header">
+      {onBack && (
+        <button className="hub-back-btn" onClick={onBack}>← Back</button>
+      )}
+      <div>
+        <h1 className="hub-page__title">Demo Lab</h1>
+        <p className="hub-page__subtitle">Physics explainers &amp; sandbox</p>
+      </div>
+      <LabModeStrip current={topMode} onChange={handleModeChange} />
+    </div>
+  );
+
+  // ── House View (default primary path) ────────────────────────────────────
+  if (topMode === 'house_view') {
     return (
       <div className="hub-page">
-        <div className="hub-page__header">
-          <button className="hub-back-btn" onClick={() => setPage('hub')}>← Back to Demo Lab</button>
-          <h2 className="hub-page__panel-title">House View</h2>
-        </div>
+        {header}
+        {/* Property layout with plant placement is the main explainer surface */}
         <PropertyLayoutView />
       </div>
     );
   }
 
-  if (page === 'preset' && selectedPreset) {
+  // ── Advanced Builder: preset sub-page ─────────────────────────────────────
+  if (builderSubPage === 'preset' && selectedPreset) {
     const computed = computeForPreset(selectedPreset);
     return (
       <div className="hub-page">
-        <div className="hub-page__header">
-          <button className="hub-back-btn" onClick={() => setPage('hub')}>← Back to Demo Lab</button>
+        {header}
+        <div className="hub-page__header" style={{ marginBottom: 0 }}>
+          <button className="hub-back-btn" onClick={() => setBuilderSubPage('builder')}>← Back to Builder</button>
           <h2 className="hub-page__panel-title">{selectedPreset.meta.name}</h2>
         </div>
         <div className="panel-card">
@@ -109,63 +154,31 @@ export default function ExplainersHubPage({ onBack }: Props) {
     );
   }
 
+  // ── Advanced Builder (topology builder + presets) ─────────────────────────
   return (
     <div className="hub-page">
-      <div className="hub-page__header">
-        {onBack && (
-          <button className="hub-back-btn" onClick={onBack}>← Back</button>
-        )}
-        <div>
-          <h1 className="hub-page__title">Demo Lab</h1>
-          <p className="hub-page__subtitle">Physics explainers & sandbox</p>
-        </div>
-      </div>
+      {header}
 
-      {/* ── House View ───────────────────────────────────────────────────── */}
+      {/* ── Topology builder (full simulation lab) ───────────────────── */}
+      <section className="explainers-section demo-lab-section">
+        <LegoScenarioBuilder />
+      </section>
+
+      {/* ── Preset scenarios (secondary, below builder) ──────────────── */}
       <section className="explainers-section" style={{ marginTop: '2rem' }}>
-        <h2 className="explainers-section__title">House View</h2>
-        <div className="hub-tile-grid">
-          <button className="hub-tile" onClick={() => setPage('house_view')}>
-            <span className="hub-tile__icon">🏠</span>
-            <span className="hub-tile__title">Property Layout</span>
-            <span className="hub-tile__subtitle">Place your system on a preset house map — boiler, cylinder and heat pump at real anchor positions.</span>
-          </button>
-        </div>
-      </section>
-
-      {/* ── iPad-first Lab layout ────────────────────────────────────────── */}
-      <section className="explainers-section demo-lab-section" style={{ marginTop: '2rem' }}>
-        <h2 className="explainers-section__title">Lego Builder (beta)</h2>
-        <BuilderShell />
-      </section>
-
-      {/* ── Presets ─────────────────────────────────────────────────────── */}
-      <section className="explainers-section">
         <h2 className="explainers-section__title">Preset scenarios</h2>
         <div className="hub-tile-grid">
           {DHW_PRESETS.map(preset => (
             <button
               key={preset.meta.name}
               className="hub-tile"
-              onClick={() => { setSelectedPreset(preset); setPage('preset'); }}
+              onClick={() => { setSelectedPreset(preset); setBuilderSubPage('preset'); }}
             >
               <span className="hub-tile__icon">💧</span>
               <span className="hub-tile__title">{preset.meta.name}</span>
               <span className="hub-tile__subtitle">{preset.meta.description}</span>
             </button>
           ))}
-        </div>
-      </section>
-
-      {/* ── Builder ──────────────────────────────────────────────────────── */}
-      <section className="explainers-section" style={{ marginTop: '2rem' }}>
-        <h2 className="explainers-section__title">Build your own scenario</h2>
-        <div className="hub-tile-grid">
-          <button className="hub-tile" onClick={() => setPage('builder')}>
-            <span className="hub-tile__icon">🧱</span>
-            <span className="hub-tile__title">Scenario builder</span>
-            <span className="hub-tile__subtitle">Configure system template, inputs and outlets to explore performance.</span>
-          </button>
         </div>
       </section>
     </div>
