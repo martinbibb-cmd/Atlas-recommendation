@@ -143,9 +143,12 @@ export default function SystemOptionCard({ card }: Props) {
   const badge = STATUS_BADGE[card.status];
   const cardModifier = badge.modifier;
 
-  // Combine why[] from the card with plane headlines for the "Why this result" block
+  // Combine why[] from the card with plane headlines for the "Why this result" block.
+  // For rejected cards, why[0] is already shown as the "Reason" above the collapsible,
+  // so skip it here to avoid repeating the same point twice.
+  const whySource = card.status === 'rejected' ? card.why.slice(1) : card.why;
   const whyLines: string[] = [
-    ...card.why,
+    ...whySource,
     ...[card.dhw, card.heat, card.engineering]
       .filter(p => p.status !== 'ok' && p.headline)
       .map(p => p.headline),
@@ -190,7 +193,7 @@ export default function SystemOptionCard({ card }: Props) {
       )}
 
       {/* ── Not-recommended detail ───────────────────────────────────────── */}
-      {card.status === 'rejected' && (
+      {card.status === 'rejected' && (card.why.length > 0 || impacts.length > 0) && (
         <div className="opt-card__body">
           <div className="opt-card__not-rec">
             {card.why.length > 0 && (
