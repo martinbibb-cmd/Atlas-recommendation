@@ -449,3 +449,173 @@ describe('sanitiseModelForEngine — plate HEX bridge', () => {
     expect(result.combiDhwV1.plateHexConditionBand).toBeDefined();
   });
 });
+
+// ── sanitiseModelForEngine — cylinder condition bridge ────────────────────
+
+describe('sanitiseModelForEngine — cylinder condition bridge', () => {
+  const baseSurvey: FullSurveyModelV1 = {
+    postcode: 'SW1A 1AA', // hard water area — SW London
+    dynamicMainsPressure: 2.5,
+    buildingMass: 'medium' as const,
+    primaryPipeDiameter: 22,
+    heatLossWatts: 8000,
+    radiatorCount: 10,
+    hasLoftConversion: false,
+    returnWaterTemp: 45,
+    bathroomCount: 1,
+    occupancySignature: 'professional' as const,
+    highOccupancy: false,
+    preferCombi: false,
+    currentHeatSourceType: 'system', // stored hot water path
+  };
+
+  it('sets cylinderInsulationFactor and cylinderConditionBand when cylinder type evidence is present', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      fullSurvey: {
+        dhwCondition: { cylinderType: 'modern_factory' },
+      },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.cylinderInsulationFactor).toBeDefined();
+    expect(result.cylinderCoilTransferFactor).toBeDefined();
+    expect(result.cylinderConditionBand).toBeDefined();
+  });
+
+  it('modern factory cylinder in soft water produces good condition band', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      postcode: 'G1 1AA', // soft water (Scotland)
+      fullSurvey: {
+        dhwCondition: {
+          cylinderType: 'modern_factory',
+          cylinderRetentionBand: 'good',
+        },
+      },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.cylinderConditionBand).toBe('good');
+    expect(result.cylinderInsulationFactor).toBeGreaterThan(0.94);
+    expect(result.cylinderCoilTransferFactor).toBe(1.0);
+  });
+
+  it('old copper cylinder with poor retention in hard water produces worse condition than modern factory in soft water', () => {
+    const degradedModel: FullSurveyModelV1 = {
+      ...baseSurvey,
+      postcode: 'SW1A 1AA', // hard water
+      fullSurvey: {
+        dhwCondition: {
+          cylinderType: 'copper',
+          cylinderAgeEstimate: 'over_15',
+          cylinderRetentionBand: 'poor',
+        },
+      },
+    };
+    const cleanModel: FullSurveyModelV1 = {
+      ...baseSurvey,
+      postcode: 'G1 1AA', // soft water
+      fullSurvey: {
+        dhwCondition: {
+          cylinderType: 'modern_factory',
+          cylinderRetentionBand: 'good',
+        },
+      },
+    };
+    const degraded = sanitiseModelForEngine(degradedModel);
+    const clean = sanitiseModelForEngine(cleanModel);
+    expect(degraded.cylinderInsulationFactor!).toBeLessThan(clean.cylinderInsulationFactor!);
+    expect(degraded.cylinderCoilTransferFactor!).toBeLessThanOrEqual(clean.cylinderCoilTransferFactor!);
+  });
+
+  it('cylinder bridging does not run for combi heat source type', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      currentHeatSourceType: 'combi', // combi — no cylinder
+      fullSurvey: {
+        dhwCondition: {
+          cylinderType: 'copper',
+          cylinderRetentionBand: 'poor',
+        },
+      },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.cylinderInsulationFactor).toBeUndefined();
+    expect(result.cylinderCoilTransferFactor).toBeUndefined();
+    expect(result.cylinderConditionBand).toBeUndefined();
+  });
+
+  it('does not overwrite an explicitly set cylinderInsulationFactor', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      cylinderInsulationFactor: 0.75, // explicit override
+      fullSurvey: {
+        dhwCondition: {
+          cylinderType: 'modern_factory',
+          cylinderRetentionBand: 'good',
+        },
+      },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.cylinderInsulationFactor).toBe(0.75); // preserved
+  });
+
+  it('does not set cylinder fields when no cylinder evidence is present', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      fullSurvey: {
+        dhwCondition: { softenerPresent: false },
+      },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.cylinderInsulationFactor).toBeUndefined();
+    expect(result.cylinderCoilTransferFactor).toBeUndefined();
+    expect(result.cylinderConditionBand).toBeUndefined();
+  });
+
+  it('age acts as supporting input — 5-yr old copper with poor retention worse than 20-yr old modern in soft water', () => {
+    const young5yrCopperPoor: FullSurveyModelV1 = {
+      ...baseSurvey,
+      postcode: 'SW1A 1AA', // hard water
+      fullSurvey: {
+        dhwCondition: {
+          cylinderType: 'copper',
+          cylinderAgeEstimate: 'under_5',
+          cylinderRetentionBand: 'poor',
+        },
+      },
+    };
+    const old20yrModernGood: FullSurveyModelV1 = {
+      ...baseSurvey,
+      postcode: 'G1 1AA', // soft water
+      fullSurvey: {
+        dhwCondition: {
+          cylinderType: 'modern_factory',
+          cylinderAgeEstimate: 'over_15',
+          cylinderRetentionBand: 'good',
+        },
+      },
+    };
+    const young = sanitiseModelForEngine(young5yrCopperPoor);
+    const old = sanitiseModelForEngine(old20yrModernGood);
+    expect(young.cylinderInsulationFactor!).toBeLessThan(old.cylinderInsulationFactor!);
+  });
+
+  it('cylinderConditionBand flows into storedDhwV1 result when survey data provided', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      currentHeatSourceType: 'system',
+      availableSpace: 'ok',
+      fullSurvey: {
+        dhwCondition: {
+          cylinderType: 'copper',
+          cylinderAgeEstimate: 'over_15',
+          cylinderRetentionBand: 'poor',
+        },
+      },
+    };
+    const engineInput = toEngineInput(sanitiseModelForEngine(model));
+    const result = runEngine(engineInput);
+    expect(result.storedDhwV1.cylinderCondition).toBeDefined();
+    expect(result.storedDhwV1.cylinderCondition!.conditionBand).toBeDefined();
+  });
+});

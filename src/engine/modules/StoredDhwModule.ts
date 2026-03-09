@@ -7,6 +7,12 @@ import {
 /** Minimum mains dynamic flow (L/min) for an unvented cylinder to perform well. */
 const UNVENTED_MIN_ADEQUATE_LPM = 18;
 
+/** Nominal cylinder standing loss (kWh/day) for a modern factory-insulated cylinder. */
+const NOMINAL_STANDING_LOSS_KWH_DAY = 1.5;
+
+/** Nominal cylinder coil reheat rate (kW) for a clean coil. */
+const NOMINAL_REHEAT_KW = 12;
+
 /**
  * StoredDhwModuleV1
  *
@@ -146,6 +152,74 @@ export function runStoredDhwModuleV1(
     });
   }
 
+  // ── Rule 4: Cylinder condition degradation ────────────────────────────────
+  const insulationFactor    = input.cylinderInsulationFactor    ?? 1.0;
+  const coilTransferFactor  = input.cylinderCoilTransferFactor  ?? 1.0;
+  const cylConditionBand    = input.cylinderConditionBand;
+
+  const hasCylinderConditionData = input.cylinderInsulationFactor !== undefined;
+  const standingLossRelative = parseFloat((1.0 / insulationFactor).toFixed(2));
+
+  if (hasCylinderConditionData && cylConditionBand && cylConditionBand !== 'good') {
+    // Build implication text based on the worse of the two factors
+    const insulationDegraded = insulationFactor < 0.95;
+    const coilDegraded       = coilTransferFactor < 1.0;
+
+    const implicationParts: string[] = [];
+    if (insulationDegraded) {
+      const standingLossIncreasePct = Math.round((1.0 / insulationFactor - 1.0) * 100);
+      implicationParts.push(`standing losses likely elevated (~${standingLossIncreasePct}% above a modern equivalent)`);
+    }
+    if (coilDegraded) {
+      const reheatReductionPct = Math.round((1.0 - coilTransferFactor) * 100);
+      implicationParts.push(`recovery time likely longer than expected (~${reheatReductionPct}% reduction in reheat rate)`);
+    }
+
+    const implicationText = implicationParts.length > 0
+      ? implicationParts.join('; ') + '.'
+      : 'stored hot water performance may be below that of a modern cylinder.';
+
+    // Guidance by condition band
+    const guidanceParts: string[] = [];
+    if (cylConditionBand === 'moderate') {
+      guidanceParts.push(
+        'Check insulation and lagging quality. Monitor recovery time — if slower than expected, investigate the coil.',
+      );
+    } else if (cylConditionBand === 'poor') {
+      guidanceParts.push(
+        'Inspect insulation lagging and coil condition. Consider cylinder replacement or upgrade to a modern factory-insulated unit.',
+      );
+    } else if (cylConditionBand === 'severe') {
+      guidanceParts.push(
+        'Cylinder condition is severely degraded. Replacement is strongly recommended. ' +
+        'A modern factory-insulated or Mixergy cylinder would significantly reduce standing losses and improve recovery.',
+      );
+    }
+
+    const detail =
+      `Cylinder condition: ${cylConditionBand}. ` +
+      `Insulation factor ${insulationFactor.toFixed(2)}, coil transfer factor ${coilTransferFactor.toFixed(2)}. ` +
+      implicationText +
+      (guidanceParts.length > 0 ? ' ' + guidanceParts[0] : '');
+
+    flags.push({
+      id: 'stored-cylinder-condition',
+      severity: cylConditionBand === 'moderate' ? 'info' : 'warn',
+      title: `Cylinder Condition: ${cylConditionBand.charAt(0).toUpperCase() + cylConditionBand.slice(1)}`,
+      detail,
+    });
+  }
+
+  if (hasCylinderConditionData) {
+    assumptions.push(
+      `Cylinder insulation factor: ${insulationFactor.toFixed(2)} ` +
+      `(standing loss ${standingLossRelative}× nominal). ` +
+      `Coil transfer factor: ${coilTransferFactor.toFixed(2)} ` +
+      `(reheat rate ${parseFloat((coilTransferFactor * NOMINAL_REHEAT_KW).toFixed(1))} kW vs ` +
+      `${NOMINAL_REHEAT_KW} kW nominal).`,
+    );
+  }
+
   // ── Determine overall storedRisk verdict ─────────────────────────────────
   const storedRisk: StoredDhwV1Result['verdict']['storedRisk'] =
     flags.some(f => f.severity === 'warn') ? 'warn' : 'pass';
@@ -175,6 +249,14 @@ export function runStoredDhwModuleV1(
       tapTargetTempC: input.tapTargetTempC,
       coldWaterTempC: input.coldWaterTempC,
       mixedFlowLpm: input.dhwMixedFlowLpm,
+    }),
+    ...(hasCylinderConditionData && {
+      cylinderCondition: {
+        conditionBand: cylConditionBand ?? 'good',
+        insulationFactor,
+        coilTransferFactor,
+        standingLossRelative,
+      },
     }),
   };
 }

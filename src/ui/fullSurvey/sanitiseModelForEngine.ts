@@ -1,6 +1,7 @@
 import type { FullSurveyModelV1 } from './FullSurveyModelV1';
 import {
   inferPlateHexCondition,
+  inferCylinderCondition,
   inferDhwUseBand,
 } from '../../engine/modules/ComponentConditionModule';
 import { normalizeInput } from '../../engine/normalizer/Normalizer';
@@ -15,6 +16,9 @@ import { normalizeInput } from '../../engine/normalizer/Normalizer';
  *   BoilerEfficiencyModelV1 expects. Existing nested values are never overwritten.
  * - Bridges plate HEX condition from fullSurvey.dhwCondition into plateHexFoulingFactor
  *   and plateHexConditionBand for use by CombiDhwModule. Existing values are not overwritten.
+ * - Bridges cylinder condition from fullSurvey.dhwCondition into cylinderInsulationFactor,
+ *   cylinderCoilTransferFactor, and cylinderConditionBand for use by StoredDhwModule.
+ *   Only runs for stored hot water paths (non-combi). Existing values are not overwritten.
  * - Maps fullSurvey.dhwCondition.softenerPresent → hasSoftener when hasSoftener is not set.
  */
 export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyModelV1 {
@@ -106,6 +110,69 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
 
     sanitised.plateHexFoulingFactor = hexCondition.foulingFactor;
     sanitised.plateHexConditionBand = hexCondition.conditionBand;
+  }
+
+  // ── Cylinder condition bridge ─────────────────────────────────────────────
+  // Map fullSurvey.dhwCondition cylinder evidence → cylinderInsulationFactor,
+  // cylinderCoilTransferFactor, and cylinderConditionBand on the sanitised engine
+  // input. These are consumed by StoredDhwModule to model standing loss increase
+  // and reduced reheat performance when cylinder degradation is inferred.
+  //
+  // Only runs for stored hot water paths (non-combi). If the current heat source
+  // is a combi, cylinder condition is irrelevant.
+  // Existing cylinderInsulationFactor values are never overwritten (explicit wins).
+  const isStoredPath = sanitised.currentHeatSourceType !== 'combi';
+
+  if (dc !== undefined && isStoredPath && sanitised.cylinderInsulationFactor === undefined) {
+    const normalizerResult = normalizeInput(sanitised);
+    const waterCondition = {
+      hardnessBand: normalizerResult.waterHardnessCategory as 'soft' | 'moderate' | 'hard' | 'very_hard',
+      softenerPresent: dc.softenerPresent ?? sanitised.hasSoftener ?? false,
+    };
+
+    const occupancy = sanitised.occupancyCount ?? 2;
+    const bathroomCount = sanitised.bathroomCount ?? 1;
+    const peakOutlets = sanitised.peakConcurrentOutlets;
+    const usageCondition = {
+      dhwUseBand: inferDhwUseBand(occupancy, bathroomCount, peakOutlets),
+      occupancy,
+      simultaneousUseLikely: (peakOutlets ?? 0) >= 2,
+    };
+
+    // Map survey age estimate to the engine's ageBand format
+    const ageBandMap: Record<string, '<5' | '5-10' | '10-20' | '20+'> = {
+      under_5:   '<5',
+      '5_to_10': '5-10',
+      '10_to_15': '10-20',
+      over_15:   '20+',
+    };
+    const ageBand = dc.cylinderAgeEstimate && dc.cylinderAgeEstimate !== 'unknown'
+      ? ageBandMap[dc.cylinderAgeEstimate]
+      : undefined;
+
+    // Only run cylinder inference when at least one cylinder evidence field is present.
+    // Without any cylinder data (type, age, retention) the bridge would produce only defaults
+    // which adds noise without adding information.
+    const hasCylinderEvidence =
+      (dc.cylinderType !== undefined && dc.cylinderType !== 'unknown')
+      || ageBand !== undefined
+      || dc.cylinderRetentionBand !== undefined;
+
+    if (hasCylinderEvidence) {
+      const cylCondition = inferCylinderCondition(
+        waterCondition,
+        usageCondition,
+        {
+          cylinderType: dc.cylinderType ?? 'unknown',
+          ageBand,
+          retentionBand: dc.cylinderRetentionBand,
+        },
+      );
+
+      sanitised.cylinderInsulationFactor = cylCondition.insulationFactor;
+      sanitised.cylinderCoilTransferFactor = cylCondition.coilTransferFactor;
+      sanitised.cylinderConditionBand = cylCondition.conditionBand;
+    }
   }
 
   // ── softenerPresent → hasSoftener bridge ─────────────────────────────────

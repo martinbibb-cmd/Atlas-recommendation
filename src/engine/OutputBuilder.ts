@@ -202,6 +202,54 @@ function buildExplainers(result: FullEngineResultCore): ExplainerItem[] {
     });
   }
 
+  // Stored DHW: cylinder condition section — only renders when cylinder evidence was supplied.
+  const cylCondition = result.storedDhwV1.cylinderCondition;
+  if (cylCondition) {
+    const { conditionBand, insulationFactor, coilTransferFactor, standingLossRelative } = cylCondition;
+
+    const implicationLines: string[] = [];
+    if (insulationFactor < 0.95) {
+      const retentionSeverity =
+        conditionBand === 'good'     ? 'slightly' :
+        conditionBand === 'moderate' ? 'moderately' :
+        'significantly';
+      implicationLines.push(
+        `Heat retention likely ${retentionSeverity} reduced — ` +
+        `standing losses approximately ${standingLossRelative.toFixed(2)}× a modern equivalent.`,
+      );
+    }
+    if (coilTransferFactor < 1.0) {
+      const reheatReductionPct = Math.round((1.0 - coilTransferFactor) * 100);
+      implicationLines.push(`Recovery time likely longer than expected (~${reheatReductionPct}% reduction in reheat rate).`);
+    }
+
+    const guidanceLines: string[] = [];
+    if (conditionBand === 'moderate') {
+      guidanceLines.push('Check insulation and lagging quality.');
+      guidanceLines.push('Monitor recovery time — if slower than expected, investigate the coil.');
+    } else if (conditionBand === 'poor') {
+      guidanceLines.push('Inspect insulation lagging and coil condition.');
+      guidanceLines.push('Consider cylinder replacement or upgrade to a modern factory-insulated unit.');
+    } else if (conditionBand === 'severe') {
+      guidanceLines.push('Cylinder condition is severely degraded — replacement is strongly recommended.');
+      guidanceLines.push(
+        'A modern factory-insulated or Mixergy cylinder would significantly reduce standing losses and improve recovery.',
+      );
+    }
+
+    const bodyParts: string[] = [
+      `Cylinder condition: ${conditionBand.charAt(0).toUpperCase() + conditionBand.slice(1)}.`,
+      ...implicationLines,
+      ...(guidanceLines.length > 0 ? guidanceLines : []),
+    ];
+
+    items.push({
+      id: 'stored-cylinder-condition',
+      title: `Stored Hot Water — Cylinder Condition`,
+      body: bodyParts.join(' '),
+    });
+  }
+
   return items;
 }
 
