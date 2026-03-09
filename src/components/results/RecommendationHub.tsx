@@ -215,24 +215,39 @@ function MeasurementConfidencePanel({ result }: ConfidencePanelProps) {
   );
 }
 
+// ─── Component Health Panel ───────────────────────────────────────────────────
+
 /**
- * PlateHexConditionPanel — compact combi plate heat exchanger condition section.
- *
- * Surfaces when the engine has inferred a plate HEX condition from survey evidence.
- * Shows condition band, short implication, and practical maintenance guidance when degraded.
- *
- * Only rendered when plateHexConditionBand is present on combiDhwV1.
- * Does not surface for stored system paths.
+ * ComponentHealthItem — one row in the unified "System condition" panel.
+ * Exported so it can be unit-tested independently of the React component.
  */
-interface PlateHexConditionPanelProps {
-  result: FullEngineResult;
+export interface ComponentHealthItem {
+  /** Human-readable component name shown as the row heading. */
+  component: string;
+  /** Engine-inferred condition band. */
+  conditionBand: 'good' | 'moderate' | 'poor' | 'severe';
+  /** Short label describing the condition (e.g. "Moderate fouling"). */
+  conditionLabel: string;
+  /** One-line implication strings displayed beneath the badge. */
+  implications: string[];
+  /** Practical next-step bullets; empty for good or cylinder rows. */
+  guidance: string[];
 }
 
+// ── Plate HEX copy ────────────────────────────────────────────────────────────
+
+const PLATE_HEX_CONDITION_LABEL: Record<string, string> = {
+  good: 'No significant fouling detected',
+  moderate: 'Moderate fouling',
+  poor: 'Significant fouling',
+  severe: 'Severe fouling',
+};
+
 const PLATE_HEX_IMPLICATION: Record<string, string> = {
-  good:     'On-demand hot water response within design limits.',
-  moderate: 'Hot water response likely slightly reduced.',
-  poor:     'Likely temperature fluctuation under heavier demand.',
-  severe:   'Performance loss likely due to scale/fouling — on-demand hot water output reduced.',
+  good: 'On-demand hot water response within design limits.',
+  moderate: 'On-demand hot water response slightly reduced.',
+  poor: 'Likely temperature fluctuation under heavier demand.',
+  severe: 'On-demand hot water output reduced.',
 };
 
 const PLATE_HEX_GUIDANCE: Record<string, string[]> = {
@@ -253,72 +268,135 @@ const PLATE_HEX_GUIDANCE: Record<string, string[]> = {
   ],
 };
 
-const PLATE_HEX_BAND_COLOUR: Record<string, string> = {
-  good: '#276749', moderate: '#b7791f', poor: '#c05621', severe: '#c53030',
-};
-const PLATE_HEX_BAND_BG: Record<string, string> = {
-  good: '#f0fff4', moderate: '#fffff0', poor: '#fffaf0', severe: '#fff5f5',
-};
-const PLATE_HEX_BAND_BORDER: Record<string, string> = {
-  good: '#9ae6b4', moderate: '#faf089', poor: '#fbd38d', severe: '#feb2b2',
+// ── Cylinder copy ─────────────────────────────────────────────────────────────
+
+const CYL_CONDITION_LABEL: Record<string, string> = {
+  good: 'Good condition',
+  moderate: 'Moderate degradation',
+  poor: 'Poor insulation',
+  severe: 'Severe degradation',
 };
 
-function PlateHexConditionPanel({ result }: PlateHexConditionPanelProps) {
-  const { combiDhwV1 } = result;
-  const band = combiDhwV1.plateHexConditionBand;
-  const foulingFactor = combiDhwV1.plateHexFoulingFactor;
+// ── Band styling tokens ───────────────────────────────────────────────────────
 
-  // Only render when plate HEX evidence was collected
-  if (!band) return null;
+const BAND_COLOUR: Record<string, string> = {
+  good: '#276749',
+  moderate: '#b7791f',
+  poor: '#c05621',
+  severe: '#c53030',
+};
+const BAND_BG: Record<string, string> = {
+  good: '#f0fff4',
+  moderate: '#fffff0',
+  poor: '#fffaf0',
+  severe: '#fff5f5',
+};
+const BAND_BORDER: Record<string, string> = {
+  good: '#9ae6b4',
+  moderate: '#faf089',
+  poor: '#fbd38d',
+  severe: '#feb2b2',
+};
 
-  const implication = PLATE_HEX_IMPLICATION[band] ?? '';
-  const guidance = PLATE_HEX_GUIDANCE[band] ?? [];
-  const colour = PLATE_HEX_BAND_COLOUR[band] ?? '#4a5568';
-  const bg = PLATE_HEX_BAND_BG[band] ?? '#f7fafc';
-  const border = PLATE_HEX_BAND_BORDER[band] ?? '#e2e8f0';
+/**
+ * buildComponentHealthItems — pure function that derives health panel rows
+ * from a FullEngineResult.
+ *
+ * Returns an empty array when neither the combi plate HEX nor the cylinder
+ * condition was recorded by the engine, so the panel can safely be omitted.
+ *
+ * Exported for unit testing.
+ */
+export function buildComponentHealthItems(result: FullEngineResult): ComponentHealthItem[] {
+  const items: ComponentHealthItem[] = [];
+
+  // ── Plate HEX (combi path) ────────────────────────────────────────────────
+  const hexBand = result.combiDhwV1.plateHexConditionBand;
+  if (hexBand !== undefined) {
+    items.push({
+      component: 'Plate heat exchanger',
+      conditionBand: hexBand,
+      conditionLabel: PLATE_HEX_CONDITION_LABEL[hexBand] ?? hexBand,
+      implications: PLATE_HEX_IMPLICATION[hexBand] ? [PLATE_HEX_IMPLICATION[hexBand]] : [],
+      guidance: PLATE_HEX_GUIDANCE[hexBand] ?? [],
+    });
+  }
+
+  // ── Cylinder (stored path) ────────────────────────────────────────────────
+  const cyl = result.storedDhwV1.cylinderCondition;
+  if (cyl !== undefined) {
+    const implications: string[] = [];
+    if (cyl.insulationFactor < 1.0) implications.push('Standing heat loss elevated.');
+    if (cyl.coilTransferFactor < 1.0) implications.push('Recovery slower than expected.');
+    items.push({
+      component: 'Hot water cylinder',
+      conditionBand: cyl.conditionBand,
+      conditionLabel: CYL_CONDITION_LABEL[cyl.conditionBand] ?? cyl.conditionBand,
+      implications,
+      guidance: [],
+    });
+  }
+
+  return items;
+}
+
+/**
+ * ComponentHealthPanel — unified "System condition" section.
+ *
+ * Surfaces plate HEX condition (combi path) and cylinder condition (stored path)
+ * in a single at-a-glance view. Only renders when the engine has recorded at
+ * least one component condition.
+ *
+ * No new physics — reads directly from combiDhwV1 and storedDhwV1.
+ */
+function ComponentHealthPanel({ result }: { result: FullEngineResult }) {
+  const items = buildComponentHealthItems(result);
+  if (items.length === 0) return null;
 
   return (
-    <section className="rec-hub__section" aria-label="Plate heat exchanger condition">
-      <h3 className="rec-hub__section-title">Plate heat exchanger condition</h3>
-      <div style={{
-        padding: '0.875rem 1rem',
-        background: bg,
-        border: `1px solid ${border}`,
-        borderLeft: `4px solid ${colour}`,
-        borderRadius: '6px',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
-          <span style={{
-            padding: '0.2rem 0.65rem',
-            borderRadius: '4px',
-            fontSize: '0.82rem',
-            fontWeight: 700,
-            background: colour,
-            color: '#fff',
-          }}>
-            {band.charAt(0).toUpperCase() + band.slice(1)}
-          </span>
-          {foulingFactor !== undefined && foulingFactor < 1.0 && (
-            <span style={{ fontSize: '0.75rem', color: '#718096' }}>
-              {((1 - foulingFactor) * 100).toFixed(0)}% capacity reduction estimated
-            </span>
-          )}
-        </div>
-        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.88rem', color: '#2d3748' }}>
-          {implication}
-        </p>
-        {guidance.length > 0 && (
-          <div>
-            <p style={{ margin: '0.5rem 0 0.3rem 0', fontSize: '0.78rem', fontWeight: 600, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-              Practical next steps
-            </p>
-            <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.83rem', color: '#4a5568', lineHeight: 1.5 }}>
-              {guidance.map((step, i) => (
-                <li key={i}>{step}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+    <section className="rec-hub__section" aria-label="System condition">
+      <h3 className="rec-hub__section-title">System condition</h3>
+      <div className="comp-health">
+        {items.map((item, i) => {
+          const colour = BAND_COLOUR[item.conditionBand] ?? '#4a5568';
+          const bg     = BAND_BG[item.conditionBand]     ?? '#f7fafc';
+          const border = BAND_BORDER[item.conditionBand] ?? '#e2e8f0';
+          return (
+            <div
+              key={item.component}
+              className={`comp-health__item${i < items.length - 1 ? ' comp-health__item--divider' : ''}`}
+            >
+              <div className="comp-health__header">
+                <span className="comp-health__name">{item.component}</span>
+                <span
+                  className="comp-health__badge"
+                  style={{ background: colour, color: '#fff' }}
+                  aria-label={`Condition: ${item.conditionLabel}`}
+                >
+                  {item.conditionLabel}
+                </span>
+              </div>
+              <div
+                className="comp-health__body"
+                style={{ background: bg, borderLeft: `4px solid ${border}` }}
+              >
+                {item.implications.map((line, j) => (
+                  <p key={j} className="comp-health__implication">{line}</p>
+                ))}
+                {item.guidance.length > 0 && (
+                  <>
+                    <p className="comp-health__guidance-label">Practical next steps</p>
+                    <ul className="comp-health__guidance-list">
+                      {item.guidance.map((step, j) => (
+                        <li key={j}>{step}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
@@ -349,8 +427,8 @@ export default function RecommendationHub({ result }: Props) {
         </section>
       )}
 
-      {/* 3 — Plate HEX condition (combi only, when survey evidence available) */}
-      <PlateHexConditionPanel result={result} />
+      {/* 3 — Component Health (plate HEX and/or cylinder, when evidence available) */}
+      <ComponentHealthPanel result={result} />
 
       {/* 4 — Measurement Confidence */}
       <MeasurementConfidencePanel result={result} />
