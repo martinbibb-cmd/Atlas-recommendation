@@ -13,6 +13,9 @@
  *   • "Why this result" collapsible section (card.why + plane headlines)
  *   • "What would change the result" section (card.sensitivities)
  *
+ * Each card also shows a "What to expect" section with concise lived-experience
+ * copy derived from the system type.
+ *
  * Rules:
  * - Never use the words "fail", "starvation", "rejected" in user-facing copy.
  * - All data comes from OptionCardV1 — no business logic in this component.
@@ -31,6 +34,49 @@ const STATUS_BADGE: Record<OptionCardV1['status'], { label: string; modifier: st
   viable:   { label: '✅ Suitable',               modifier: 'suitable' },
   caution:  { label: '⚠ Possible with caveats',  modifier: 'caveats' },
   rejected: { label: '⛔ Not recommended',        modifier: 'not-recommended' },
+};
+
+// ─── What to expect — static lived-experience copy per system type ────────────
+
+/**
+ * Short, neutral bullets describing what a householder can expect in
+ * real-world use for each system type.
+ *
+ * Terms follow docs/atlas-terminology.md:
+ *   - "on-demand hot water" (not "instantaneous")
+ *   - "tank-fed supply" / "mains-fed supply" (not "gravity" / "high pressure")
+ */
+const WHAT_TO_EXPECT: Partial<Record<OptionCardV1['id'], string[]>> = {
+  combi: [
+    'On-demand hot water delivered across outlets.',
+    'Performance reduces when multiple outlets are used at the same time.',
+    'Best suited to homes with light, sequential hot water use.',
+  ],
+  stored_vented: [
+    'Better stability at peak demand — hot water is pre-stored.',
+    'Recovery depends on cylinder condition and heat source output.',
+    'Tank-fed supply; pressure is governed by cold water storage cistern height.',
+  ],
+  stored_unvented: [
+    'Better stability at peak demand — hot water is pre-stored.',
+    'Recovery depends on cylinder condition and heat source output.',
+    'Mains-fed supply at higher pressure than a vented cylinder.',
+  ],
+  ashp: [
+    'Runs most efficiently at lower flow temperatures.',
+    'May require radiator upgrades to deliver full heating output.',
+    'Hot water recovery is consistent but slower than a gas boiler.',
+  ],
+  regular_vented: [
+    'Well suited to existing open vented systems.',
+    'Separate cylinder and storage cistern provide a hot water buffer.',
+    'Tank-fed supply; pressure governed by cistern height.',
+  ],
+  system_unvented: [
+    'Pressurised heating circuit without open header tanks.',
+    'Mains-fed hot water supply at higher pressure.',
+    'Quieter in operation than open vented systems.',
+  ],
 };
 
 // ─── Impact bullets for non-viable systems ────────────────────────────────────
@@ -107,6 +153,9 @@ export default function SystemOptionCard({ card }: Props) {
   const sensitivities = card.sensitivities ?? [];
   const hasChanges = card.status !== 'viable' && sensitivities.some(s => s.effect === 'upgrade');
 
+  // What to expect — static lived-experience copy for this system type
+  const expectBullets = WHAT_TO_EXPECT[card.id] ?? [];
+
   return (
     <div className={`opt-card opt-card--${cardModifier}`}>
       {/* ── Header ──────────────────────────────────────────────────────── */}
@@ -122,6 +171,18 @@ export default function SystemOptionCard({ card }: Props) {
 
       {/* Headline */}
       <p className="opt-card__headline">{card.headline}</p>
+
+      {/* ── What to expect ──────────────────────────────────────────────── */}
+      {expectBullets.length > 0 && (
+        <div className="opt-card__expect">
+          <p className="opt-card__expect-label">What to expect</p>
+          <ul className="opt-card__expect-list">
+            {expectBullets.map((bullet, i) => (
+              <li key={i}>{bullet}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* ── Not-recommended detail ───────────────────────────────────────── */}
       {card.status === 'rejected' && (

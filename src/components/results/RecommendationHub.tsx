@@ -16,7 +16,7 @@
  * - No mention of "fail", "rejected", or judgement language in user-facing copy.
  */
 import type { FullEngineResult } from '../../engine/schema/EngineInputV2_3';
-import type { EvidenceItemV1 } from '../../contracts/EngineOutputV1';
+import type { EvidenceItemV1, OptionCardV1 } from '../../contracts/EngineOutputV1';
 import SystemRecommendationPanel from './SystemRecommendationPanel';
 import SystemOptionCard from './SystemOptionCard';
 import './results.css';
@@ -60,6 +60,54 @@ export function sortUnlockBy(items: ReadonlyArray<string>): string[] {
     return UNLOCK_PRIORITY.length;
   };
   return [...items].sort((a, b) => rank(a) - rank(b));
+}
+
+// ─── Option card ordering ─────────────────────────────────────────────────────
+
+const CARD_STATUS_RANK: Record<OptionCardV1['status'], number> = {
+  viable:   0,
+  caution:  1,
+  rejected: 2,
+};
+
+/**
+ * Return a copy of `options` sorted for decision-usefulness:
+ *   1. Recommended options (viable) first
+ *   2. Viable alternatives with caveats (caution) second
+ *   3. Not-recommended options (rejected) last
+ *
+ * Relative order within each group is preserved (stable sort).
+ * Exported for unit testing.
+ */
+export function sortOptionCards(options: ReadonlyArray<OptionCardV1>): OptionCardV1[] {
+  return [...options].sort((a, b) => CARD_STATUS_RANK[a.status] - CARD_STATUS_RANK[b.status]);
+}
+
+// ─── Comparison summary sentence ─────────────────────────────────────────────
+
+/**
+ * Derives a single comparison-summary sentence for display above the option
+ * cards.  Returns null when there is nothing useful to say (e.g. no viable
+ * option or only one card).
+ *
+ * The sentence explains in plain language why the recommended option is the
+ * best fit for this home, drawing on the first why[] bullet from the winning
+ * card.  Tone: professional, neutral, evidence-led.
+ *
+ * Exported for unit testing.
+ */
+export function buildComparisonSummary(options: ReadonlyArray<OptionCardV1>): string | null {
+  if (options.length < 2) return null;
+  const recommended = options.find(o => o.status === 'viable');
+  if (!recommended) return null;
+
+  const reason = recommended.why[0] ?? 'it meets the requirements for this property';
+  // Strip trailing period and lower-case first character so the phrase reads
+  // naturally after "because".
+  const trimmed = reason.replace(/\.$/, '');
+  const reasonPhrase = trimmed.charAt(0).toLowerCase() + trimmed.slice(1);
+
+  return `For this home, ${recommended.label} is the better fit — ${reasonPhrase}.`;
 }
 
 /**
@@ -406,7 +454,8 @@ function ComponentHealthPanel({ result }: { result: FullEngineResult }) {
 
 export default function RecommendationHub({ result }: Props) {
   const { engineOutput } = result;
-  const options = engineOutput.options ?? [];
+  const options = sortOptionCards(engineOutput.options ?? []);
+  const comparisonSummary = buildComparisonSummary(options);
 
   return (
     <div className="rec-hub">
@@ -417,18 +466,21 @@ export default function RecommendationHub({ result }: Props) {
       {/* Trust strip — evidence count + action prompt */}
       <TrustStrip result={result} />
 
-      {/* 2 — System Comparison */}
+      {/* 2 — System condition (plate HEX and/or cylinder, when evidence available) */}
+      <ComponentHealthPanel result={result} />
+
+      {/* 3 — System Comparison */}
       {options.length > 0 && (
         <section className="rec-hub__section">
           <h3 className="rec-hub__section-title">System Comparison</h3>
+          {comparisonSummary && (
+            <p className="rec-comparison__summary">{comparisonSummary}</p>
+          )}
           {options.map(card => (
             <SystemOptionCard key={card.id} card={card} />
           ))}
         </section>
       )}
-
-      {/* 3 — Component Health (plate HEX and/or cylinder, when evidence available) */}
-      <ComponentHealthPanel result={result} />
 
       {/* 4 — Measurement Confidence */}
       <MeasurementConfidencePanel result={result} />

@@ -298,6 +298,39 @@
   line-height: 1.5;
 }
 
+/* ── What to expect section ─────────────────────────────────────────────── */
+
+.opt-card__expect {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 1rem;
+  background: #f7fafc;
+  border-left: 3px solid #bee3f8;
+  border-radius: 0 6px 6px 0;
+}
+
+.opt-card__expect-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #2b6cb0;
+  margin: 0 0 0.4rem;
+}
+
+.opt-card__expect-list {
+  margin: 0;
+  padding-left: 1.125rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.opt-card__expect-list li {
+  font-size: 0.88rem;
+  color: #4a5568;
+  line-height: 1.5;
+}
+
 /* ── Measurement Confidence Panel ───────────────────────────────────────── */
 
 .conf-panel {
@@ -551,4 +584,17 @@
   letter-spacing: 0.06em;
   color: #a0aec0;
   margin: 0 0 0.75rem;
+}
+
+/* ── Comparison summary sentence ─────────────────────────────────────────── */
+
+.rec-comparison__summary {
+  font-size: 0.95rem;
+  color: #2d3748;
+  line-height: 1.6;
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 1rem;
+  background: #ebf8ff;
+  border-left: 4px solid #4299e1;
+  border-radius: 0 8px 8px 0;
 }
