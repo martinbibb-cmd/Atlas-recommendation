@@ -411,6 +411,45 @@ export type LabControls = {
 export type LabPlaybackMode = 'demo' | 'survey_backed'
 
 /**
+ * Sludge accumulation level in the heating circuit.
+ *
+ * Represents magnetite / sludge build-up that adds flow resistance and
+ * reduces effective heat delivery to emitters.
+ *
+ * clean      — no degradation; full heating responsiveness.
+ * some_sludge  — moderate resistance; noticeable reduction in CH output.
+ * heavy_sludge — significant restriction; heating circuit severely impaired.
+ */
+export type SludgeLevel = 'clean' | 'some_sludge' | 'heavy_sludge'
+
+/**
+ * Scale accumulation level on the hot water side.
+ *
+ * Represents limescale build-up on the heat exchanger surfaces that reduces
+ * heat transfer efficiency and DHW output stability.
+ *
+ * clean      — no degradation; full DHW output.
+ * some_scale  — moderate fouling; visible reduction in DHW response.
+ * heavy_scale — heavy fouling; significant loss of DHW throughput.
+ */
+export type ScaleLevel = 'clean' | 'some_scale' | 'heavy_scale'
+
+/**
+ * Current condition state for lab scenario modifiers.
+ *
+ * These are applied as simple multipliers at the lab level — they do not
+ * interact with the survey adapter or engine models, and no second
+ * degradation engine is built here.
+ *
+ * heatingCircuit — sludge/magnetite reduces CH flow and heat output.
+ * hotWaterSide   — limescale reduces heat exchanger transfer efficiency.
+ */
+export type LabConditionState = {
+  heatingCircuit: SludgeLevel
+  hotWaterSide: ScaleLevel
+}
+
+/**
  * Survey-backed playback inputs — the subset of survey / engine outputs that
  * materially improve lab playback truth.
  *
