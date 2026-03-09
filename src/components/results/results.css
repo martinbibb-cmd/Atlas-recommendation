@@ -601,6 +601,34 @@
   line-height: 1.5;
 }
 
+/* ── System Health Gauge ─────────────────────────────────────────────────── */
+
+.sys-health-gauge {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid;
+  margin-bottom: 1.25rem;
+}
+
+.sys-health-gauge__badge {
+  padding: 0.2rem 0.7rem;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.sys-health-gauge__message {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #2d3748;
+  line-height: 1.5;
+}
+
 .rec-hub__section {
   margin-bottom: 0.25rem;
 }
@@ -826,6 +854,22 @@
   .comp-health__body {
     background: #f5f5f5 !important;
     border-left-color: #555 !important;
+  }
+
+  /* ── System Health Gauge ─────────────────────────────────────────────────── */
+
+  .sys-health-gauge {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    background: #f0f0f0 !important;
+    border-color: #aaa !important;
+    border-radius: 0;
+  }
+
+  .sys-health-gauge__badge {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1.5pt solid #555 !important;
   }
 
   /* ── Section wrappers ────────────────────────────────────────────────────── */

@@ -540,6 +540,116 @@ function ComponentHealthPanel({ result }: { result: FullEngineResult }) {
   );
 }
 
+// ─── System Health Gauge ──────────────────────────────────────────────────────
+
+/** Overall hot-water system health level derived from component condition bands. */
+export type SystemHealthLevel = 'Good' | 'Fair' | 'Degraded' | 'Poor';
+
+/** Result returned by buildSystemHealthLevel. */
+export interface SystemHealthResult {
+  level: SystemHealthLevel;
+  message: string;
+}
+
+/** Numeric severity rank for a condition band (higher = worse). */
+const BAND_SEVERITY: Record<string, number> = {
+  good:     0,
+  moderate: 1,
+  poor:     2,
+  severe:   3,
+};
+
+const HEALTH_LEVEL_MAP: Record<string, SystemHealthLevel> = {
+  good:     'Good',
+  moderate: 'Fair',
+  poor:     'Degraded',
+  severe:   'Poor',
+};
+
+const HEALTH_MESSAGE: Record<SystemHealthLevel, string> = {
+  Good:     'Hot water components appear in good condition.',
+  Fair:     'Some performance loss is possible from component condition.',
+  Degraded: 'Condition-related hot water performance loss is likely.',
+  Poor:     'Significant condition-related performance loss is likely.',
+};
+
+/**
+ * buildSystemHealthLevel — derives an overall hot-water system health level
+ * from the worst available component condition band.
+ *
+ * Returns null when neither plate HEX nor cylinder condition is present so the
+ * gauge can be safely omitted from the UI.
+ *
+ * Rules:
+ *  - If neither component condition is present → null
+ *  - If one component is present → use that band
+ *  - If both are present → use the worst band
+ *  - Mapping: good→Good, moderate→Fair, poor→Degraded, severe→Poor
+ *
+ * Exported for unit testing. Does not mutate inputs.
+ */
+export function buildSystemHealthLevel(result: FullEngineResult): SystemHealthResult | null {
+  const hexBand = result.combiDhwV1.plateHexConditionBand;
+  const cylBand = result.storedDhwV1.cylinderCondition?.conditionBand;
+
+  if (hexBand === undefined && cylBand === undefined) return null;
+
+  // Pick the worst band (highest severity rank)
+  let worstBand = hexBand ?? cylBand!;
+  if (hexBand !== undefined && cylBand !== undefined) {
+    const hexRank = BAND_SEVERITY[hexBand] ?? 0;
+    const cylRank = BAND_SEVERITY[cylBand] ?? 0;
+    worstBand = hexRank >= cylRank ? hexBand : cylBand;
+  }
+
+  const level = HEALTH_LEVEL_MAP[worstBand] ?? 'Fair';
+  return { level, message: HEALTH_MESSAGE[level] };
+}
+
+const GAUGE_BAND_FOR_LEVEL: Record<SystemHealthLevel, string> = {
+  Good:     'good',
+  Fair:     'moderate',
+  Degraded: 'poor',
+  Poor:     'severe',
+};
+
+/**
+ * SystemHealthGauge — compact summary gauge placed above the component health
+ * panel.  Shows one overall health state (Good / Fair / Degraded / Poor) and a
+ * short explanatory sentence.
+ *
+ * Only renders when at least one component condition is available.
+ * Presentation-only: reads buildSystemHealthLevel(), no new engine logic.
+ */
+function SystemHealthGauge({ result }: { result: FullEngineResult }) {
+  const health = buildSystemHealthLevel(result);
+  if (!health) return null;
+
+  const band   = GAUGE_BAND_FOR_LEVEL[health.level];
+  const colour = BAND_COLOUR[band] ?? '#4a5568';
+  const bg     = BAND_BG[band]     ?? '#f7fafc';
+  const border = BAND_BORDER[band] ?? '#e2e8f0';
+
+  return (
+    <section className="rec-hub__section" aria-label="System health">
+      <h3 className="rec-hub__section-title">System health</h3>
+      <div
+        className="sys-health-gauge"
+        style={{ background: bg, borderColor: border }}
+      >
+        <span
+          className="sys-health-gauge__badge"
+          style={{ background: colour, color: '#fff' }}
+          aria-label={`Overall system health: ${health.level}`}
+        >
+          {health.level}
+        </span>
+        <p className="sys-health-gauge__message">{health.message}</p>
+      </div>
+    </section>
+  );
+}
+
 // ─── Print Header ─────────────────────────────────────────────────────────────
 
 /**
@@ -602,10 +712,13 @@ export default function RecommendationHub({ result }: Props) {
       {/* Trust strip — evidence count + action prompt */}
       <TrustStrip result={result} />
 
-      {/* 2 — System condition (plate HEX and/or cylinder, when evidence available) */}
+      {/* 3 — System Health Gauge (overall hot-water health summary, when evidence available) */}
+      <SystemHealthGauge result={result} />
+
+      {/* 4 — System condition (plate HEX and/or cylinder, when evidence available) */}
       <ComponentHealthPanel result={result} />
 
-      {/* 3 — System Comparison */}
+      {/* 5 — System Comparison */}
       {options.length > 0 && (
         <section className="rec-hub__section">
           <h3 className="rec-hub__section-title">System Comparison</h3>
@@ -618,10 +731,10 @@ export default function RecommendationHub({ result }: Props) {
         </section>
       )}
 
-      {/* 4 — Measurement Confidence */}
+      {/* 6 — Measurement Confidence */}
       <MeasurementConfidencePanel result={result} />
 
-      {/* 5 — Evidence & Context (grouped: site context / key constraints / general) */}
+      {/* 7 — Evidence & Context (grouped: site context / key constraints / general) */}
       {contextBullets.length > 0 && (() => {
         const siteCtx  = contextBullets.filter(b => classifyContextBullet(b) === 'site_context');
         const keyConstr = contextBullets.filter(b => classifyContextBullet(b) === 'key_constraint');
