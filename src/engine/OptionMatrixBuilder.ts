@@ -5,6 +5,44 @@ import { buildAssumptionsV1 } from './AssumptionsBuilder';
 import { PENALTY_NARRATIVES, selectTopNarrativePenalties } from './scoring/penaltyNarratives';
 import type { PenaltyId } from '../contracts/scoring.penaltyIds';
 
+/**
+ * Minimum measured flow (L/min) that represents a clearly-strong CWS operating point.
+ * Must stay in sync with the same constant in OptionScoringV1.ts.
+ */
+const STRONG_FLOW_LPM = 20;
+
+/**
+ * Returns true when the measured CWS operating point is clearly strong:
+ *   - hasMeasurements is true
+ *   - the unvented eligibility gate is met (≥ 10 L/min @ ≥ 1.0 bar)
+ *   - measured flow under load is ≥ STRONG_FLOW_LPM (2× the minimum gate threshold)
+ *
+ * This is used to suppress misleading "borderline pressure" wording when strong flow
+ * evidence offsets dynamic pressure in the 1.0–1.5 bar range.  A 30 L/min @ 1.0 bar
+ * operating point is not the same as a 10 L/min @ 1.0 bar one — the copy must reflect
+ * the full evidence, not just the pressure number in isolation.
+ */
+function strongOperatingPoint(cwsSupplyV1: FullEngineResultCore['cwsSupplyV1']): boolean {
+  return (
+    cwsSupplyV1.hasMeasurements &&
+    cwsSupplyV1.meetsUnventedRequirement &&
+    (cwsSupplyV1.dynamic?.flowLpm ?? 0) >= STRONG_FLOW_LPM
+  );
+}
+
+/**
+ * Returns a human-readable description of the measured CWS operating point.
+ * Prefers the full "X L/min @ Y bar" form when both flow and pressure are available.
+ * Falls back to pressure-only when flow is absent.
+ */
+function operatingPointBullet(cwsSupplyV1: FullEngineResultCore['cwsSupplyV1'], dynamicBar: number): string {
+  const flow = cwsSupplyV1.dynamic?.flowLpm;
+  if (flow !== undefined && flow > 0) {
+    return `Measured operating point: ${flow.toFixed(0)} L/min @ ${dynamicBar.toFixed(1)} bar (dynamic under load).`;
+  }
+  return `Dynamic mains pressure: ${dynamicBar.toFixed(1)} bar.`;
+}
+
 // ── Sensitivities builder ─────────────────────────────────────────────────────
 
 function buildSensitivities(
@@ -427,7 +465,7 @@ export function buildOptionMatrixV1(
   const storedUnventedWhy: string[] = [
     'Mains-pressure hot water throughout — no shower pump required.',
     `Sealed circuit. System boiler typical; regular possible with external pump/expansion.`,
-    `Detected mains pressure: ${mainsPressure.toFixed(1)} bar.`,
+    operatingPointBullet(cwsSupplyV1, mainsPressure),
   ];
   if (cwsSupplyV1.inconsistent) {
     storedUnventedWhy.push('Pressure readings inconsistent — recheck static and dynamic measurements.');
@@ -448,7 +486,7 @@ export function buildOptionMatrixV1(
   if (!cwsSupplyV1.hasMeasurements) {
     storedUnventedRequirements.push('Measure mains flow (L/min) and pressure (bar) before specifying cylinder.');
   }
-  if (mainsPressure < 1.5 && mainsPressure >= 1.0) {
+  if (mainsPressure < 1.5 && mainsPressure >= 1.0 && !strongOperatingPoint(cwsSupplyV1)) {
     storedUnventedRequirements.push('Pressure boost pump may be required before installation.');
   }
   if (recType === 'mixergy') {
@@ -468,7 +506,9 @@ export function buildOptionMatrixV1(
 
   const storedUnventedDhwBullets: string[] = [
     'Stored volume handles simultaneous draw from multiple outlets.',
-    `Mains-pressure DHW: ${mainsPressure.toFixed(1)} bar${mainsPressure < 1.5 ? ' (borderline — min 1.5 bar recommended)' : ' (adequate)'}.`,
+    mainsPressure < 1.5 && strongOperatingPoint(cwsSupplyV1)
+      ? `Mains-pressure DHW: ${mainsPressure.toFixed(1)} bar dynamic — strong measured flow under load; stored delivery is well supported.`
+      : `Mains-pressure DHW: ${mainsPressure.toFixed(1)} bar${mainsPressure < 1.5 ? ' (borderline — min 1.5 bar recommended)' : ' (adequate)'}.`,
     `Recommended cylinder type: ${recType === 'mixergy' ? 'Mixergy (stratified)' : 'standard indirect'}.`,
   ];
   if (cwsSupplyV1.inconsistent) {
@@ -499,12 +539,14 @@ export function buildOptionMatrixV1(
   };
 
   const storedUnventedEngineering: OptionPlane = {
-    status: mainsPressure < 1.5 ? 'caution' : 'ok',
+    status: (mainsPressure < 1.5 && !strongOperatingPoint(cwsSupplyV1)) ? 'caution' : 'ok',
     headline: 'Engineering: G3 compliance + discharge route are key constraints.',
     bullets: [
       'G3-qualified installer required — regulatory requirement for unvented cylinders.',
       'Tundish and discharge pipe to external drain required (typically 2× pipe size).',
-      mainsPressure < 1.5
+      mainsPressure < 1.5 && strongOperatingPoint(cwsSupplyV1)
+        ? `Measured flow under load is strong — mains-fed stored hot water appears supportive despite dynamic pressure below 1.5 bar.`
+        : mainsPressure < 1.5
         ? 'Pressure below 1.5 bar — pressure boost pump likely required before cylinder.'
         : 'Mains pressure adequate — no boost pump needed.',
       'Annual service required by regulation: PRV, expansion vessel, tundish check.',
@@ -520,7 +562,7 @@ export function buildOptionMatrixV1(
       ...(!cwsSupplyV1.hasMeasurements ? ['Measure mains flow (L/min) and pressure (bar) before specifying.'] : []),
     ],
     likelyUpgrades: [
-      ...(mainsPressure < 1.5 && mainsPressure >= 1.0 ? ['Pressure boost pump before cylinder inlet.'] : []),
+      ...(mainsPressure < 1.5 && mainsPressure >= 1.0 && !strongOperatingPoint(cwsSupplyV1) ? ['Pressure boost pump before cylinder inlet.'] : []),
       'Expansion vessel sized to cylinder volume.',
     ],
     niceToHave: [
@@ -777,12 +819,23 @@ export function buildOptionMatrixV1(
     sensitivities: buildSensitivities('regular_vented', core, input),
   });
 
-  // System / unvented: needs adequate mains pressure
-  const unventedStatus: OptionCardV1['status'] = pressure < 1.0 ? 'rejected' : pressure < 1.5 ? 'caution' : 'viable';
+  // System / unvented: needs adequate mains pressure.
+  // Status mirrors stored_unvented: use the full CWS operating-point gate (hasMeasurements +
+  // meetsUnventedRequirement) when measurements are available, rather than dynamic pressure alone.
+  // A 30 L/min @ 1.0 bar operating point meets the gate and should not be flagged as 'caution'.
+  const sysUnventedCws = core.cwsSupplyV1;
+  const unventedStatus: OptionCardV1['status'] =
+    pressure < 1.0 ? 'rejected'
+    : (sysUnventedCws.hasMeasurements && sysUnventedCws.meetsUnventedRequirement) ? 'viable'
+    : pressure < 1.5 ? 'caution'
+    : 'viable';
   const unventedWhy: string[] = [
     'Sealed system with unvented cylinder — mains-pressure hot water throughout.',
-    `Detected mains pressure: ${pressure.toFixed(1)} bar.`,
+    operatingPointBullet(sysUnventedCws, pressure),
   ];
+  if (sysUnventedCws.hasMeasurements && sysUnventedCws.meetsUnventedRequirement && pressure < 1.5) {
+    unventedWhy.push('Strong measured flow under load — mains-fed stored hot water is well supported.');
+  }
   if (input.futureAddBathroom) {
     unventedWhy.push('Adding a bathroom increases simultaneous demand — cylinder sizing important.');
   }
@@ -790,7 +843,7 @@ export function buildOptionMatrixV1(
     'Mains pressure ≥ 1.5 bar recommended for reliable performance.',
     'Unvented cylinder requires G3-qualified installer and annual servicing.',
   ];
-  if (pressure < 1.5) {
+  if (pressure < 1.5 && !strongOperatingPoint(sysUnventedCws)) {
     unventedRequirements.push('Pressure boost pump may be required before installation.');
   }
 
@@ -805,15 +858,20 @@ export function buildOptionMatrixV1(
     evidenceIds: [],
   };
 
+  const unventedDhwIsStrong = pressure < 1.5 && strongOperatingPoint(sysUnventedCws);
   const unventedDhw: OptionPlane = {
-    status: pressure < 1.0 ? 'caution' : pressure < 1.5 ? 'caution' : 'ok',
+    status: pressure < 1.0 ? 'caution' : (pressure < 1.5 && !unventedDhwIsStrong) ? 'caution' : 'ok',
     headline: pressure < 1.0
       ? 'DHW: mains pressure too low for unvented cylinder.'
+      : unventedDhwIsStrong
+      ? 'DHW: mains-pressure stored hot water — strong measured flow supports delivery.'
       : pressure < 1.5
       ? 'DHW: borderline mains pressure — may require boost pump.'
       : 'DHW: mains-pressure hot water — good flow at all outlets.',
     bullets: [
-      `Mains pressure: ${pressure.toFixed(1)} bar${pressure < 1.5 ? ' (borderline — min 1.5 bar recommended)' : ' (adequate)'}.`,
+      unventedDhwIsStrong
+        ? `Measured operating point: ${(sysUnventedCws.dynamic?.flowLpm ?? 0).toFixed(0)} L/min @ ${pressure.toFixed(1)} bar — strong flow under load.`
+        : `Mains pressure: ${pressure.toFixed(1)} bar${pressure < 1.5 ? ' (borderline — min 1.5 bar recommended)' : ' (adequate)'}.`,
       'Unvented cylinder: mains-pressure DHW — eliminates need for shower pump.',
       'G3 regulation: tundish and discharge pipe required by Building Regulations.',
       ...(input.futureAddBathroom ? ['Additional bathroom: confirm cylinder volume meets increased simultaneous demand.'] : []),
@@ -822,12 +880,14 @@ export function buildOptionMatrixV1(
   };
 
   const unventedEngineering: OptionPlane = {
-    status: pressure < 1.5 ? 'caution' : 'ok',
+    status: (pressure < 1.5 && !strongOperatingPoint(sysUnventedCws)) ? 'caution' : 'ok',
     headline: 'Engineering: G3 compliance + discharge route are key constraints.',
     bullets: [
       'G3-qualified installer required — regulatory requirement for unvented cylinders.',
       'Tundish and discharge pipe to external drain required (typically 2× pipe size).',
-      pressure < 1.5
+      pressure < 1.5 && strongOperatingPoint(sysUnventedCws)
+        ? `Measured flow under load is strong — mains-fed stored hot water appears supportive despite dynamic pressure below 1.5 bar.`
+        : pressure < 1.5
         ? 'Pressure below 1.5 bar — pressure boost pump likely required before cylinder.'
         : 'Mains pressure adequate — no boost pump needed.',
       'Annual service required by regulation: PRV, expansion vessel, tundish check.',
@@ -842,7 +902,7 @@ export function buildOptionMatrixV1(
       ...(pressure < 1.0 ? ['Mains pressure must be resolved — too low for unvented cylinder.'] : []),
     ],
     likelyUpgrades: [
-      ...(pressure < 1.5 ? ['Pressure boost pump before cylinder inlet.'] : []),
+      ...(pressure < 1.5 && !strongOperatingPoint(sysUnventedCws) ? ['Pressure boost pump before cylinder inlet.'] : []),
       'Expansion vessel sized to cylinder volume.',
     ],
     niceToHave: [
@@ -855,7 +915,9 @@ export function buildOptionMatrixV1(
     id: 'system_unvented',
     label: 'System Boiler + Unvented Cylinder',
     status: unventedStatus,
-    headline: unventedStatus === 'viable'
+    headline: unventedStatus === 'viable' && pressure < 1.5
+      ? 'System boiler + unvented cylinder suits your operating point — strong measured flow supports delivery.'
+      : unventedStatus === 'viable'
       ? 'System boiler + unvented cylinder suits your pressure and demand.'
       : unventedStatus === 'caution'
       ? 'System + unvented possible but mains pressure is borderline.'

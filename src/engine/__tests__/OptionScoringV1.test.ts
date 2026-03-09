@@ -406,6 +406,23 @@ describe('OptionScoringV1 — non-overlap: missing measurements skips pressure.b
     expect(pressureItem).toBeDefined();
     expect(pressureItem!.penalty).toBe(8);
   });
+
+  it('pressure.borderline_unvented penalty is NOT applied when measured flow is clearly strong (30 L/min @ 1.0 bar)', () => {
+    // 30 L/min @ 1.0 bar: the full operating point is strong — strong flow offsets lower pressure.
+    // The penalty must be suppressed to avoid over-penalising a valid operating point.
+    const input = {
+      ...baseInput,
+      staticMainsPressureBar: 4.0,
+      dynamicMainsPressure: 1.0,
+      mainsDynamicFlowLpm: 30,
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const unvented = options.find(o => o.id === 'stored_unvented')!;
+    if (unvented.status === 'rejected') return;
+    const hasPressureBorderline = unvented.score!.breakdown.some(b => b.id === PENALTY_IDS.PRESSURE_BORDERLINE_UNVENTED);
+    expect(hasPressureBorderline).toBe(false);
+  });
 });
 
 describe('OptionScoringV1 — score band classification', () => {

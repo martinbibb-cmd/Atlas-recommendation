@@ -3,6 +3,14 @@ import type { OptionCardV1, OptionScoreV1, ScoreBreakdownItem } from '../contrac
 import type { ConfidenceV1, AssumptionV1 } from '../contracts/EngineOutputV1';
 import { PENALTY_IDS } from '../contracts/scoring.penaltyIds';
 
+/**
+ * Minimum measured flow (L/min) that represents a clearly-strong CWS operating point.
+ * When measured flow under load meets or exceeds this threshold AND the unvented gate
+ * is met, the borderline-pressure penalty is suppressed — strong flow evidence offsets
+ * dynamic pressure in the 1.0–1.5 bar range.
+ */
+const STRONG_FLOW_LPM = 20;
+
 /** Option IDs that are boiler-based (cycling penalty applies). */
 const BOILER_OPTION_IDS: ReadonlySet<OptionCardV1['id']> = new Set([
   'combi', 'stored_vented', 'stored_unvented', 'regular_vented', 'system_unvented',
@@ -144,10 +152,18 @@ export function scoreOptionV1(
   }
 
   // Borderline mains pressure penalty (unvented: 1.0–1.5 bar)
-  // Guard: skip if measurements are missing — we can't confirm the boundary, and cws.measurements_missing already penalises the uncertainty.
+  // Guard 1: skip if measurements are missing — we can't confirm the boundary, and cws.measurements_missing already penalises the uncertainty.
+  // Guard 2: skip when measured flow is clearly strong (≥ STRONG_FLOW_LPM) AND the unvented gate passes —
+  //   strong measured flow under load is positive evidence that offsets lower dynamic pressure;
+  //   treating pressure alone as the whole story over-penalises a valid full operating point.
   if (UNVENTED_OPTION_IDS.has(id) && !cwsMeasurementsMissing) {
     const bar = pressureAnalysis.dynamicBar;
-    if (bar >= 1.0 && bar < 1.5) {
+    const measuredFlow = cwsSupplyV1.dynamic?.flowLpm;
+    const operatingPointIsStrong =
+      cwsSupplyV1.meetsUnventedRequirement &&
+      measuredFlow !== undefined &&
+      measuredFlow >= STRONG_FLOW_LPM;
+    if (bar >= 1.0 && bar < 1.5 && !operatingPointIsStrong) {
       breakdown.push({ id: PENALTY_IDS.PRESSURE_BORDERLINE_UNVENTED, label: `Mains pressure borderline (${bar.toFixed(1)} bar — min 1.5 bar recommended)`, penalty: 8 });
       score -= 8;
     }

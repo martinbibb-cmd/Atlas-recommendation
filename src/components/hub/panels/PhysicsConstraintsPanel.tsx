@@ -3,10 +3,12 @@
  *
  * Shows:
  *  A) Live output header: Combi + Stored verdict tiles
- *  B) Water power & concurrency card with season toggle, shower presets,
+ *  B) Measured supply operating point (flow + pressure when available)
+ *  C) Water power & concurrency card with season toggle, shower presets,
  *     and a div-based concurrency bar chart
- *  C) Customer usage model mini-cards (derived from behaviourTimeline)
- *  D) "Within capacity" callout at the bottom
+ *  D) Customer usage model mini-cards (derived from behaviourTimeline)
+ *  E) "Within capacity" callout at the bottom
+ *  F) Alternative systems — what changes with stored hot water
  *
  * Data comes entirely from FullEngineResult and EngineInputV2_3.
  * No engine changes, no scoring, no new engine fields.
@@ -51,6 +53,12 @@ interface Props {
 // headroom to show "over limit" bars without clipping at the track boundary.
 const BAR_CHART_SCALE_FACTOR = 1.5;
 
+/**
+ * Minimum measured flow (L/min) that represents a clearly-strong CWS operating point.
+ * Must stay in sync with STRONG_FLOW_LPM in OptionScoringV1.ts and OptionMatrixBuilder.ts.
+ */
+const STRONG_FLOW_LPM = 20;
+
 export default function PhysicsConstraintsPanel({ result, input }: Props) {
   const [season, setSeason] = useState<Season>('typical');
   const [selectedPreset, setSelectedPreset] = useState<string>('mixer');
@@ -72,7 +80,17 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
   const storedPillClass =
     storedRisk === 'warn' ? 'status-pill status-pill--amber' : 'status-pill status-pill--green';
 
-  // ── B: Water power & concurrency ─────────────────────────────────────────
+  // ── B: Measured supply operating point ───────────────────────────────────
+  const dynamicBar: number | undefined =
+    input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+  const staticBar: number | undefined = input.staticMainsPressureBar;
+  const measuredFlowLpm: number | undefined = input.mainsDynamicFlowLpm;
+
+  // Determine operating-point interpretation
+  const hasFullOpPoint = measuredFlowLpm !== undefined && measuredFlowLpm > 0 && dynamicBar !== undefined;
+  const isStrongFlow = hasFullOpPoint && measuredFlowLpm !== undefined && measuredFlowLpm >= STRONG_FLOW_LPM;
+
+  // ── C: Water power & concurrency ─────────────────────────────────────────
   const coldTemp = COLD_TEMP[season];
   const deltaT = DHW_SETPOINT - coldTemp;
 
@@ -83,7 +101,7 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
   const preset = SHOWER_PRESETS.find(p => p.id === selectedPreset) ?? SHOWER_PRESETS[0];
   const selectedFlow = preset.flowLpm;
 
-  // ── C: Customer usage model ───────────────────────────────────────────────
+  // ── D: Customer usage model ───────────────────────────────────────────────
   const timeline = result.engineOutput.behaviourTimeline;
 
   let peakDhwKw: number | null = null;
@@ -120,7 +138,7 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
     morningPeakDrawMin = maxRun * (timeline.resolutionMins ?? 15);
   }
 
-  // ── D: Callout ────────────────────────────────────────────────────────────
+  // ── E: Callout ────────────────────────────────────────────────────────────
   const withinCapacity = selectedFlow <= combiLimitFlow;
 
   return (
@@ -141,9 +159,61 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
         </div>
       </div>
 
-      {/* ── B: Water power & concurrency ─────────────────────────────────── */}
+      {/* ── B: Measured supply operating point ───────────────────────────── */}
+      {(dynamicBar !== undefined || measuredFlowLpm !== undefined) && (
+        <div className="panel-card panel-card--inner">
+          <h3 className="panel-card__title">Measured supply operating point</h3>
+          {hasFullOpPoint ? (
+            <>
+              <div className="metric-row">
+                <span className="metric-label">Dynamic operating point</span>
+                <span className="metric-value">
+                  {(measuredFlowLpm as number).toFixed(0)} L/min @ {(dynamicBar as number).toFixed(1)} bar
+                </span>
+              </div>
+              {staticBar !== undefined && (
+                <div className="metric-row">
+                  <span className="metric-label">Static pressure</span>
+                  <span className="metric-value">{staticBar.toFixed(1)} bar</span>
+                </div>
+              )}
+              <p className="panel-card__note" style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#555' }}>
+                {isStrongFlow
+                  ? `Strong measured flow under load — mains-fed stored hot water is well supported. The key question is installation constraints and demand profile, not raw pressure alone.`
+                  : (dynamicBar as number) < 1.5
+                  ? `Dynamic pressure is in the 1.0–1.5 bar range. Verify the full operating point before specifying a boost pump.`
+                  : `Measured supply appears adequate for mains-fed stored hot water options.`}
+              </p>
+            </>
+          ) : (
+            <>
+              {dynamicBar !== undefined && (
+                <div className="metric-row">
+                  <span className="metric-label">Dynamic pressure (no flow recorded)</span>
+                  <span className="metric-value">{dynamicBar.toFixed(1)} bar</span>
+                </div>
+              )}
+              {staticBar !== undefined && (
+                <div className="metric-row">
+                  <span className="metric-label">Static pressure</span>
+                  <span className="metric-value">{staticBar.toFixed(1)} bar</span>
+                </div>
+              )}
+              <p className="panel-card__note" style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#555' }}>
+                Add a measured flow (L/min) at pressure to confirm the full operating point.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── C: Water power & concurrency ─────────────────────────────────── */}
       <div className="panel-card panel-card--inner">
         <h3 className="panel-card__title">Water power &amp; concurrency</h3>
+        <p className="panel-card__note" style={{ fontSize: '0.8rem', color: '#555', marginBottom: '0.5rem' }}>
+          Combi on-demand hot water is limited by instantaneous boiler output and mains supply at draw.
+          Stored hot water buffers peak demand instead — a cylinder delivers to multiple outlets simultaneously.
+        </p>
 
         {/* Season toggle */}
         <div className="segment-control" role="group" aria-label="Season">
@@ -225,7 +295,7 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
         </div>
       </div>
 
-      {/* ── C: Customer usage model ───────────────────────────────────────── */}
+      {/* ── D: Customer usage model ───────────────────────────────────────── */}
       <div className="panel-card panel-card--inner">
         <h3 className="panel-card__title">Customer usage model</h3>
         <div className="mini-metrics-grid">
@@ -248,11 +318,11 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
         </div>
       </div>
 
-      {/* ── D: Callout ────────────────────────────────────────────────────── */}
+      {/* ── E: Callout ────────────────────────────────────────────────────── */}
       <div className={`capacity-callout${withinCapacity ? ' capacity-callout--ok' : ' capacity-callout--warn'}`}>
         {withinCapacity
           ? `✅ Within capacity for a single ${preset.label.toLowerCase()} shower at ${deltaT}°C rise`
-          : `⚠️ Over limit — expect temperature drop or reduced flow with a ${preset.label.toLowerCase()} shower at ${deltaT}°C rise`}
+          : `⚠️ Over combi limit — stored hot water buffers this demand; combi cannot sustain a ${preset.label.toLowerCase()} shower at ${deltaT}°C rise`}
       </div>
 
       {/* Occupancy context */}
@@ -275,6 +345,39 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
           )}
         </div>
       )}
+
+      {/* ── F: Alternative systems — what changes with stored hot water ───── */}
+      <div className="panel-card panel-card--inner">
+        <h3 className="panel-card__title">What different systems change</h3>
+        <p className="panel-card__note" style={{ fontSize: '0.8rem', color: '#555', marginBottom: '0.75rem' }}>
+          Combi concurrency limits do not apply to stored systems. Each system class handles hot-water demand differently:
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <SystemSummaryRow
+            label="On-demand (combi)"
+            note="Hot water generated instantaneously from mains supply. Output limited by boiler kW and mains operating point at draw — concurrent outlets will share or exhaust capacity."
+          />
+          <SystemSummaryRow
+            label="Stored mains-fed (unvented cylinder)"
+            note="Hot water stored and delivered at mains pressure. Refill draws on mains supply, but stored volume handles peak simultaneous demand. Mains supply affects refill behaviour, not instantaneous delivery."
+          />
+          <SystemSummaryRow
+            label="Stored tank-fed (vented cylinder)"
+            note="Hot water stored in a cylinder fed from a header tank in the loft. Delivery pressure is governed by head height — typically 1–2 bar. No direct mains pressure at outlets; high-flow showers need a dedicated pump."
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── System summary row helper ────────────────────────────────────────────────
+
+function SystemSummaryRow({ label, note }: { label: string; note: string }) {
+  return (
+    <div style={{ borderLeft: '3px solid #e0e0e0', paddingLeft: '0.75rem' }}>
+      <span style={{ fontWeight: 600, fontSize: '0.85rem', display: 'block', marginBottom: '0.2rem' }}>{label}</span>
+      <span style={{ fontSize: '0.8rem', color: '#555' }}>{note}</span>
     </div>
   );
 }

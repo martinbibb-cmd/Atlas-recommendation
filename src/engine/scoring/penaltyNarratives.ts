@@ -83,8 +83,8 @@ export const PENALTY_NARRATIVES: Partial<Record<PenaltyId, PenaltyNarrative>> = 
 
   // Mains pressure
   'pressure.borderline_unvented': {
-    why: 'Mains pressure is borderline for unvented cylinder — a boost pump may be required.',
-    requirement: 'Confirm mains pressure ≥ 1.5 bar or install a boost pump.',
+    why: 'Dynamic pressure is in the 1.0–1.5 bar borderline range — verify the full operating point (measured flow under load) before recommending a boost pump.',
+    requirement: 'Confirm measured flow ≥ 10 L/min @ ≥ 1.0 bar (unvented gate). A boost pump is worthwhile if dynamic pressure stays below 1.5 bar at peak demand.',
     group: 'water_supply',
     explainerId: 'pressure-borderline-unvented',
   },
