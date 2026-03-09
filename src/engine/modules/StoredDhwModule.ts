@@ -7,9 +7,6 @@ import {
 /** Minimum mains dynamic flow (L/min) for an unvented cylinder to perform well. */
 const UNVENTED_MIN_ADEQUATE_LPM = 18;
 
-/** Nominal cylinder standing loss (kWh/day) for a modern factory-insulated cylinder. */
-const NOMINAL_STANDING_LOSS_KWH_DAY = 1.5;
-
 /** Nominal cylinder coil reheat rate (kW) for a clean coil. */
 const NOMINAL_REHEAT_KW = 12;
 
