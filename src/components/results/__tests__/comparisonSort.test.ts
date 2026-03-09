@@ -141,7 +141,7 @@ describe('buildComparisonSummary', () => {
     expect(summary).toContain('Stored hot water — Vented cylinder');
   });
 
-  it('includes the first why[] reason in the summary', () => {
+  it('does not include the why[] reason in the summary (reason is shown in the recommendation panel)', () => {
     const cards = [
       makeCard('combi',         'rejected'),
       makeCard('stored_vented', 'viable', {
@@ -150,11 +150,14 @@ describe('buildComparisonSummary', () => {
       }),
     ];
     const summary = buildComparisonSummary(cards);
-    // Reason is lower-cased first character
-    expect(summary).toContain('adequate mains pressure for stored delivery');
+    // Reason must NOT appear in the comparison sentence — it is surfaced in the
+    // recommendation summary panel above, so repeating it here would duplicate
+    // the same point.
+    expect(summary).not.toContain('adequate mains pressure');
+    expect(summary).not.toContain('Adequate mains pressure');
   });
 
-  it('falls back to a neutral phrase when why[] is empty', () => {
+  it('produces a concise sentence even when why[] is empty', () => {
     const cards = [
       makeCard('combi',         'rejected'),
       makeCard('stored_vented', 'viable', {
@@ -164,7 +167,8 @@ describe('buildComparisonSummary', () => {
       }),
     ];
     const summary = buildComparisonSummary(cards);
-    expect(summary).toContain('it meets the requirements for this property');
+    expect(summary).toContain('Stored hot water');
+    expect(summary).toMatch(/^For this home,/);
   });
 
   it('starts with "For this home"', () => {
@@ -176,7 +180,7 @@ describe('buildComparisonSummary', () => {
     expect(summary).toMatch(/^For this home,/);
   });
 
-  it('strips a trailing period from the why reason to avoid double-period', () => {
+  it('ends with a single period and does not produce double-periods', () => {
     const cards = [
       makeCard('combi',         'rejected'),
       makeCard('stored_vented', 'viable', {
@@ -185,9 +189,9 @@ describe('buildComparisonSummary', () => {
       }),
     ];
     const summary = buildComparisonSummary(cards);
-    // Should not end with ".." 
+    // Should not end with ".."
     expect(summary).not.toMatch(/\.\./);
-    // But should end with exactly one period
+    // Should end with exactly one period
     expect(summary).toMatch(/\.$/);
   });
 

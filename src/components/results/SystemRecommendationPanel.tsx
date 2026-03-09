@@ -109,9 +109,6 @@ export default function SystemRecommendationPanel({ engineOutput }: Props) {
       >
         <span aria-hidden="true">{CONFIDENCE_ICON[level] ?? '⚪'}</span>{' '}
         {CONFIDENCE_LABEL[level] ?? level}
-        {engineOutput.meta?.confidence?.reasons?.[0]
-          ? ` — ${engineOutput.meta.confidence.reasons[0]}`
-          : ''}
       </span>
     </div>
   );

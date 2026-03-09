@@ -206,9 +206,10 @@ export function sortOptionCards(options: ReadonlyArray<OptionCardV1>): OptionCar
  * cards.  Returns null when there is nothing useful to say (e.g. no viable
  * option or only one card).
  *
- * The sentence explains in plain language why the recommended option is the
- * best fit for this home, drawing on the first why[] bullet from the winning
- * card.  Tone: professional, neutral, evidence-led.
+ * Names the recommended option as the better fit for this home.
+ * The full reasoning is shown in the recommendation summary panel above and
+ * in each option card's "Why this result" section, so no reason phrase is
+ * repeated here.
  *
  * Exported for unit testing.
  */
@@ -217,13 +218,7 @@ export function buildComparisonSummary(options: ReadonlyArray<OptionCardV1>): st
   const recommended = options.find(o => o.status === 'viable');
   if (!recommended) return null;
 
-  const reason = recommended.why[0] ?? 'it meets the requirements for this property';
-  // Strip trailing period and lower-case first character so the phrase reads
-  // naturally after "because".
-  const trimmed = reason.replace(/\.$/, '');
-  const reasonPhrase = trimmed.charAt(0).toLowerCase() + trimmed.slice(1);
-
-  return `For this home, ${recommended.label} is the better fit — ${reasonPhrase}.`;
+  return `For this home, ${recommended.label} is the better fit.`;
 }
 
 /**
@@ -307,10 +302,8 @@ function MeasurementConfidencePanel({ result }: ConfidencePanelProps) {
 
   // Don't render if there's nothing to show
   if (!confidence && evidence.length === 0) return null;
-
-  // Top unlock item → "Most useful next check" box (de-duplicates from Trust Strip)
-  const sortedUnlock = sortUnlockBy(confidence?.unlockBy ?? []);
-  const nextCheckHint = buildNextCheckHint(sortedUnlock);
+  // Also don't render an empty panel (all three groups empty)
+  if (measured.length === 0 && assumed.length === 0 && missing.length === 0) return null;
 
   return (
     <div className="conf-panel">
@@ -356,16 +349,6 @@ function MeasurementConfidencePanel({ result }: ConfidencePanelProps) {
           </div>
         )}
       </div>
-
-      {nextCheckHint && (
-        <div className="conf-panel__next-check">
-          <span className="conf-panel__next-check-label">Most useful next check:</span>{' '}
-          <span className="conf-panel__next-check-item">{nextCheckHint.check}</span>
-          <span className="conf-panel__next-check-why">
-            Why it matters: {nextCheckHint.whyItMatters}.
-          </span>
-        </div>
-      )}
     </div>
   );
 }
