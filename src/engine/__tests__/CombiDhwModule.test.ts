@@ -553,3 +553,85 @@ describe('getCombiDhwRampPhase', () => {
     expect(getCombiDhwRampPhase(60)).toBe('steady');
   });
 });
+
+// ─── Plate HEX fouling factor tests ──────────────────────────────────────────
+
+describe('runCombiDhwModuleV1 — plate HEX fouling factor', () => {
+  it('clean plate HEX (foulingFactor=1.0) leaves maxQtoDhwKwDerated unchanged from scale derate', () => {
+    const dhwDerate = 0.10;
+    const clean = runCombiDhwModuleV1({ ...baseInput, plateHexFoulingFactor: 1.0 }, dhwDerate);
+    // Expected: 30 * (1 - 0.10) * 1.0 = 27.0
+    expect(clean.maxQtoDhwKwDerated).toBeCloseTo(27.0, 1);
+  });
+
+  it('degraded plate HEX (foulingFactor=0.8) reduces maxQtoDhwKwDerated', () => {
+    const dhwDerate = 0.10;
+    const degraded = runCombiDhwModuleV1({ ...baseInput, plateHexFoulingFactor: 0.8 }, dhwDerate);
+    // Expected: 30 * (1 - 0.10) * 0.80 = 21.6
+    expect(degraded.maxQtoDhwKwDerated).toBeCloseTo(21.6, 1);
+  });
+
+  it('severely fouled plate HEX (foulingFactor=0.7) applies maximum degradation', () => {
+    const dhwDerate = 0.0;
+    const severe = runCombiDhwModuleV1({ ...baseInput, plateHexFoulingFactor: 0.7 }, dhwDerate);
+    // Expected: 30 * 1.0 * 0.70 = 21.0
+    expect(severe.maxQtoDhwKwDerated).toBeCloseTo(21.0, 1);
+  });
+
+  it('degraded plate HEX produces lower maxQtoDhwKwDerated than clean HEX', () => {
+    const derate = 0.05;
+    const clean    = runCombiDhwModuleV1({ ...baseInput, plateHexFoulingFactor: 1.0 }, derate);
+    const moderate = runCombiDhwModuleV1({ ...baseInput, plateHexFoulingFactor: 0.90 }, derate);
+    const poor     = runCombiDhwModuleV1({ ...baseInput, plateHexFoulingFactor: 0.80 }, derate);
+    const severe   = runCombiDhwModuleV1({ ...baseInput, plateHexFoulingFactor: 0.70 }, derate);
+
+    expect(moderate.maxQtoDhwKwDerated).toBeLessThan(clean.maxQtoDhwKwDerated);
+    expect(poor.maxQtoDhwKwDerated).toBeLessThan(moderate.maxQtoDhwKwDerated);
+    expect(severe.maxQtoDhwKwDerated).toBeLessThan(poor.maxQtoDhwKwDerated);
+  });
+
+  it('fouling factor is included in result when plateHexFoulingFactor is provided', () => {
+    const result = runCombiDhwModuleV1({ ...baseInput, plateHexFoulingFactor: 0.80 }, 0);
+    expect(result.plateHexFoulingFactor).toBe(0.80);
+  });
+
+  it('plateHexConditionBand is surfaced in result when provided on input', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      plateHexFoulingFactor: 0.80,
+      plateHexConditionBand: 'poor',
+    }, 0);
+    expect(result.plateHexConditionBand).toBe('poor');
+  });
+
+  it('plateHexFoulingFactor absent when not provided on input', () => {
+    const result = runCombiDhwModuleV1({ ...baseInput }, 0);
+    expect(result.plateHexFoulingFactor).toBeUndefined();
+  });
+
+  it('fouling assumption text is added when foulingFactor < 1.0', () => {
+    const result = runCombiDhwModuleV1({ ...baseInput, plateHexFoulingFactor: 0.70 }, 0);
+    const hasPlateHexAssumption = result.assumptions.some(a => a.includes('Plate HEX Fouling'));
+    expect(hasPlateHexAssumption).toBe(true);
+  });
+
+  it('no fouling assumption text when foulingFactor = 1.0', () => {
+    const result = runCombiDhwModuleV1({ ...baseInput, plateHexFoulingFactor: 1.0 }, 0);
+    const hasPlateHexAssumption = result.assumptions.some(a => a.includes('Plate HEX Fouling'));
+    expect(hasPlateHexAssumption).toBe(false);
+  });
+
+  it('combined scale derate + fouling factor: severe fouling in hard water reduces output significantly', () => {
+    // Scale derate 0.20 (hard water, typical max from SludgeVsScaleModule)
+    // Fouling factor 0.70 (severe)
+    // Expected: 30 * (1 - 0.20) * 0.70 = 16.8 kW
+    const result = runCombiDhwModuleV1({ ...baseInput, plateHexFoulingFactor: 0.70 }, 0.20);
+    expect(result.maxQtoDhwKwDerated).toBeCloseTo(16.8, 1);
+  });
+
+  it('backward-compatible: no plateHexFoulingFactor on input → derate from scale only', () => {
+    const withDerate = runCombiDhwModuleV1({ ...baseInput }, 0.10);
+    // No fouling factor — only scale derate: 30 * (1 - 0.10) = 27.0
+    expect(withDerate.maxQtoDhwKwDerated).toBeCloseTo(27.0, 1);
+  });
+});

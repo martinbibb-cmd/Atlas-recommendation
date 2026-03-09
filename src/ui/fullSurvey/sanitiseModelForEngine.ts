@@ -1,4 +1,9 @@
 import type { FullSurveyModelV1 } from './FullSurveyModelV1';
+import {
+  inferPlateHexCondition,
+  inferDhwUseBand,
+} from '../../engine/modules/ComponentConditionModule';
+import { normalizeInput } from '../../engine/normalizer/Normalizer';
 
 /**
  * Cleans and validates a FullSurveyModelV1 before passing it to the engine.
@@ -8,6 +13,9 @@ import type { FullSurveyModelV1 } from './FullSurveyModelV1';
  * - Bridges flat survey fields (currentBoilerAgeYears, currentHeatSourceType,
  *   currentBoilerOutputKw) into the nested currentSystem.boiler structure that
  *   BoilerEfficiencyModelV1 expects. Existing nested values are never overwritten.
+ * - Bridges plate HEX condition from fullSurvey.dhwCondition into plateHexFoulingFactor
+ *   and plateHexConditionBand for use by CombiDhwModule. Existing values are not overwritten.
+ * - Maps fullSurvey.dhwCondition.softenerPresent → hasSoftener when hasSoftener is not set.
  */
 export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyModelV1 {
   const sanitised: FullSurveyModelV1 = { ...model };
@@ -50,6 +58,64 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
         nominalOutputKw: existingBoiler.nominalOutputKw ?? sanitised.currentBoilerOutputKw,
       },
     };
+  }
+
+  // ── Plate HEX condition bridge ────────────────────────────────────────────
+  // Map fullSurvey.dhwCondition plate HEX evidence → plateHexFoulingFactor and
+  // plateHexConditionBand on the sanitised engine input. These are consumed by
+  // CombiDhwModule to reduce effective DHW output when degradation is inferred.
+  //
+  // Only runs when fullSurvey.dhwCondition is present and the model is a combi
+  // or the heat source type has not been specified (to avoid penalising stored systems).
+  // Existing plateHexFoulingFactor values are never overwritten (explicit wins).
+  const dc = sanitised.fullSurvey?.dhwCondition;
+  const isCombiOrUnknown = !sanitised.currentHeatSourceType
+    || sanitised.currentHeatSourceType === 'combi';
+
+  if (dc !== undefined && isCombiOrUnknown && sanitised.plateHexFoulingFactor === undefined) {
+    // Derive water condition from postcode hardness (same as Normalizer)
+    const normalizerResult = normalizeInput(sanitised);
+    const waterCondition = {
+      hardnessBand: normalizerResult.waterHardnessCategory as 'soft' | 'moderate' | 'hard' | 'very_hard',
+      softenerPresent: dc.softenerPresent ?? sanitised.hasSoftener ?? false,
+    };
+
+    // Derive usage from occupancy + bathrooms + peak outlets
+    const occupancy = sanitised.occupancyCount ?? 2;
+    const bathroomCount = sanitised.bathroomCount ?? 1;
+    const peakOutlets = sanitised.peakConcurrentOutlets;
+    const usageCondition = {
+      dhwUseBand: inferDhwUseBand(occupancy, bathroomCount, peakOutlets),
+      occupancy,
+      simultaneousUseLikely: (peakOutlets ?? 0) >= 2,
+    };
+
+    // Derive plate HEX age from available sources (boiler age is the same appliance)
+    const plateHexAgeYears = typeof dc.plateHexAgeYears === 'number'
+      ? dc.plateHexAgeYears
+      : sanitised.currentSystem?.boiler?.ageYears ?? sanitised.currentBoilerAgeYears;
+
+    const hexCondition = inferPlateHexCondition(
+      waterCondition,
+      usageCondition,
+      {
+        applianceAgeYears: plateHexAgeYears,
+        hotWaterPerformanceBand: dc.hotWaterPerformanceBand,
+      },
+    );
+
+    sanitised.plateHexFoulingFactor = hexCondition.foulingFactor;
+    sanitised.plateHexConditionBand = hexCondition.conditionBand;
+  }
+
+  // ── softenerPresent → hasSoftener bridge ─────────────────────────────────
+  // Map fullSurvey.dhwCondition.softenerPresent into the top-level hasSoftener
+  // field consumed by MetallurgyEdgeModule. Does not overwrite an existing value.
+  if (
+    sanitised.hasSoftener === undefined
+    && sanitised.fullSurvey?.dhwCondition?.softenerPresent !== undefined
+  ) {
+    sanitised.hasSoftener = sanitised.fullSurvey.dhwCondition.softenerPresent;
   }
 
   return sanitised;

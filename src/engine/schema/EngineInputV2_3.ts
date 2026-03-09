@@ -231,6 +231,26 @@ export interface EngineInputV2_3 {
   /** V3 heat exchanger material designation ('Al-Si' | 'stainless_steel'). */
   heatExchangerMaterial?: 'Al-Si' | 'stainless_steel';
 
+  // Plate heat exchanger condition (combi only)
+  /**
+   * Inferred plate HEX fouling factor (≤ 1.0) derived from survey observations.
+   * Computed by sanitiseModelForEngine from fullSurvey.dhwCondition fields:
+   *   hotWaterPerformanceBand + softenerPresent + plateHexAgeYears + postcode hardness + usage.
+   * Applied in CombiDhwModule: maxQtoDhwKwDerated *= plateHexFoulingFactor.
+   *
+   * 1.0 = clean plate HEX (no effect on DHW output).
+   * 0.7 = severely fouled plate HEX (30% reduction in effective DHW output).
+   *
+   * Absent when no plate HEX survey data is available (engine uses statistical
+   * scale derate from SludgeVsScaleModule alone).
+   */
+  plateHexFoulingFactor?: number;
+  /**
+   * Inferred plate HEX condition band — surfaced in results for combi options.
+   * Derived alongside plateHexFoulingFactor in sanitiseModelForEngine.
+   */
+  plateHexConditionBand?: 'good' | 'moderate' | 'poor' | 'severe';
+
   // Mixergy legacy
   hasIotIntegration?: boolean;
   installerNetwork?: InstallerNetwork;
@@ -483,8 +503,8 @@ export interface CombiDhwV1Result {
    */
   maxQtoDhwKw: number;
   /**
-   * Derated combi DHW max heat output (kW) after applying scale penalty.
-   * maxQtoDhwKwDerated = maxQtoDhwKw × (1 − dhwCapacityDeratePct).
+   * Derated combi DHW max heat output (kW) after applying all penalties:
+   *   scale derate (from SludgeVsScaleModule) × plate HEX fouling factor (when available).
    * Lower output reduces deliverable L/min @40°C and increases unmet demand.
    */
   maxQtoDhwKwDerated: number;
@@ -505,6 +525,17 @@ export interface CombiDhwV1Result {
    * null when no shortfall exists or no measured flow data is available.
    */
   deliveredFlowLpm: number | null;
+  /**
+   * Plate HEX condition band inferred from survey evidence.
+   * Present when plateHexFoulingFactor was applied to this result.
+   * Surfaced in results to explain DHW output degradation.
+   */
+  plateHexConditionBand?: 'good' | 'moderate' | 'poor' | 'severe';
+  /**
+   * Plate HEX fouling factor applied in this result (1.0 = clean, 0.7 = severely fouled).
+   * Present when plate HEX survey evidence was supplied.
+   */
+  plateHexFoulingFactor?: number;
 }
 
 /** Structured flag item for StoredDhwModuleV1. */
