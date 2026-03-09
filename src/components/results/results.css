@@ -462,7 +462,83 @@
   color: #2b6cb0;
 }
 
-/* ── Recommendation Hub layout ──────────────────────────────────────────── */
+/* ── Component Health Panel ──────────────────────────────────────────────── */
+
+.comp-health {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.comp-health__item {
+  padding: 0.875rem 1rem;
+  background: #fff;
+}
+
+.comp-health__item--divider {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.comp-health__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.comp-health__name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.comp-health__badge {
+  padding: 0.2rem 0.65rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.comp-health__body {
+  padding: 0.625rem 0.75rem;
+  border-radius: 4px;
+  border-left-width: 4px;
+  border-left-style: solid;
+}
+
+.comp-health__implication {
+  margin: 0 0 0.25rem;
+  font-size: 0.88rem;
+  color: #2d3748;
+  line-height: 1.5;
+}
+
+.comp-health__implication:last-child {
+  margin-bottom: 0;
+}
+
+.comp-health__guidance-label {
+  margin: 0.5rem 0 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #4a5568;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.comp-health__guidance-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.83rem;
+  color: #4a5568;
+  line-height: 1.5;
+}
 
 .rec-hub__section {
   margin-bottom: 0.25rem;
