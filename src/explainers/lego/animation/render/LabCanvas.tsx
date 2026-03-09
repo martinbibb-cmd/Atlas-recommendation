@@ -11,6 +11,8 @@ import { THERMAL_BANDS, tempToThermalColor, roundTempC } from '../thermal'
 import { buildPolylines, SCHEMATIC_P, branchSvgPath, STORED_HEX_END } from './pathMap'
 import { buildPlaySceneModel } from '../../playScene/buildPlaySceneModel'
 import { SchematicFaceToken } from '../../builder/SchematicFace'
+import { DrawOffPanel } from './DrawOffPanel'
+import { deriveOutletDisplayStates } from '../../state/outletDisplayState'
 
 /** Baseline frame time at 60 fps (ms). */
 const DEFAULT_FRAME_TIME_MS = 16
@@ -2170,6 +2172,18 @@ export function LabCanvas(props: {
           )}
         </div>
       )}
+
+      {/* ── Draw-off panel — explicit per-outlet state ──────────────────── */}
+      {/* Derived via deriveOutletDisplayStates — never inferred ad hoc.
+          Shows each outlet's open/closed state, hot/cold/mixed service,
+          current flow (L/min), delivered temperature, and concurrency notes. */}
+      <DrawOffPanel
+        outletStates={deriveOutletDisplayStates(controls, frame)}
+        systemMode={frame.systemMode}
+        isCylinder={isCylinder}
+        serviceSwitchingActive={serviceSwitchingActive}
+        combiAtCapacity={combiIsFailing}
+      />
 
       {/* ── Simulation time controls ─────────────────────────────────────── */}
       {/* Speed up, pause, step, and display simulated time / standing loss.
