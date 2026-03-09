@@ -15,7 +15,7 @@
  */
 
 import { useState } from 'react';
-import type { FullEngineResult } from '../../engine/schema/EngineInputV2_3';
+import type { FullEngineResult, CondensingZone } from '../../engine/schema/EngineInputV2_3';
 import InteractiveComfortClock from './InteractiveComfortClock';
 import FootprintXRay from './FootprintXRay';
 import EfficiencyCurve from './EfficiencyCurve';
@@ -80,6 +80,82 @@ function MetricRow({ label, value, unit, highlight }: {
   );
 }
 
+// ─── Helper: condensing state indicator (lab diagnostic) ─────────────────────
+
+const ZONE_COLOURS: Record<CondensingZone, { bg: string; border: string; text: string; dot: string }> = {
+  condensing:     { bg: '#f0fff4', border: '#9ae6b4', text: '#276749', dot: '#38a169' },
+  borderline:     { bg: '#fffbeb', border: '#fbd38d', text: '#92400e', dot: '#d97706' },
+  non_condensing: { bg: '#fff5f5', border: '#fed7d7', text: '#9b2c2c', dot: '#e53e3e' },
+};
+
+const ZONE_LABELS: Record<CondensingZone, string> = {
+  condensing:     'Condensing',
+  borderline:     'Borderline',
+  non_condensing: 'Outside condensing range',
+};
+
+function CondensingStateIndicator({ results }: { results: FullEngineResult }) {
+  const cs = results.condensingState;
+  const colours = ZONE_COLOURS[cs.zone];
+
+  return (
+    <div style={{
+      marginTop: 12,
+      padding: '10px 12px',
+      borderRadius: 8,
+      background: colours.bg,
+      border: `1px solid ${colours.border}`,
+    }}>
+      {/* Zone badge */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={{
+          display: 'inline-block',
+          width: 10, height: 10,
+          borderRadius: '50%',
+          background: colours.dot,
+          flexShrink: 0,
+        }} />
+        <span style={{ fontWeight: 700, fontSize: '0.88rem', color: colours.text }}>
+          {ZONE_LABELS[cs.zone]}
+        </span>
+        <span style={{
+          fontSize: '0.7rem',
+          background: '#ebf8ff',
+          border: '1px solid #90cdf4',
+          borderRadius: 4,
+          padding: '1px 5px',
+          color: '#2c5282',
+          marginLeft: 'auto',
+        }}>
+          lab diagnostic
+        </span>
+      </div>
+
+      {/* Key metrics */}
+      <div style={{ fontSize: '0.8rem', color: '#4a5568', lineHeight: 1.7 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>Flow temp</span>
+          <span style={{ fontWeight: 600 }}>{cs.flowTempC} °C</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>Full-load return</span>
+          <span style={{ fontWeight: 600, color: cs.fullLoadReturnC >= cs.condensingThresholdC ? colours.text : '#276749' }}>
+            {cs.fullLoadReturnC.toFixed(1)} °C
+          </span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>Condensing threshold</span>
+          <span style={{ fontWeight: 600 }}>{cs.condensingThresholdC} °C</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>Est. condensing hours</span>
+          <span style={{ fontWeight: 600 }}>{cs.estimatedCondensingFractionPct} %</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Tab 1: Raw Data ──────────────────────────────────────────────────────────
 
 function RawDataTab({ results }: { results: FullEngineResult }) {
@@ -131,6 +207,7 @@ function RawDataTab({ results }: { results: FullEngineResult }) {
           <MetricRow label="SPF Midpoint" value={results.systemOptimization.spfMidpoint.toFixed(2)} highlight={results.systemOptimization.spfMidpoint >= 3.8 ? 'ok' : 'warn'} />
           <MetricRow label="Condensing Mode Available" value={results.systemOptimization.condensingModeAvailable ? 'Yes' : 'No'} highlight={results.systemOptimization.condensingModeAvailable ? 'ok' : 'warn'} />
         </div>
+        <CondensingStateIndicator results={results} />
       </section>
     </div>
   );
@@ -149,6 +226,7 @@ function PhysicsTraceTab({ results }: { results: FullEngineResult }) {
     { title: '💧 Mixergy Legacy', notes: results.mixergyLegacy.notes },
     { title: '📉 Combi Stress', notes: results.combiStress.notes },
     { title: '👥 Lifestyle Simulation', notes: results.lifestyle.notes },
+    { title: '🔬 Condensing State (lab)', notes: results.condensingState.notes },
     { title: '🚩 Red Flags', notes: results.redFlags.reasons },
   ];
 

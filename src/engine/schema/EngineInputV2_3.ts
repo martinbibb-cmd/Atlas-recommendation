@@ -634,6 +634,66 @@ export interface SolarBoostResult {
 }
 
 
+// ─── Condensing State Module (lab diagnostic) ─────────────────────────────────
+
+/**
+ * Lab diagnostic zone indicating whether the heat source is operating in
+ * condensing range relative to the 55 °C return-temperature threshold.
+ *
+ *  condensing     — return < 55 °C at design load (always condensing)
+ *  borderline     — return 55–65 °C at design load (condensing off-peak, not at peak)
+ *  non_condensing — return > 65 °C at design load (outside condensing range by design)
+ *
+ * Guardrail: lab-only — must not appear in customer-facing recommendation copy.
+ */
+export type CondensingZone = 'condensing' | 'borderline' | 'non_condensing';
+
+/** Input contract for CondensingStateModule. */
+export interface CondensingStateInput {
+  /** Design-point flow temperature (°C). */
+  flowTempC: number;
+  /**
+   * Measured or simulated return temperature (°C).
+   * When provided (e.g. from one-pipe cascade model) this takes precedence over
+   * the `flowTempC − deltaTc` estimate.
+   */
+  returnTempC?: number;
+  /** ΔT across the emitters (°C). Defaults to 20 °C. */
+  deltaTc?: number;
+  /**
+   * Average load fraction (0–1) derived from lifestyle simulation.
+   * Represents the ratio of average demand to peak demand.
+   * Defaults to the UK typical part-load fraction (~0.44) when absent.
+   */
+  averageLoadFraction?: number;
+}
+
+/** Result returned by CondensingStateModule. */
+export interface CondensingStateResult {
+  /**
+   * Lab diagnostic zone: green (condensing), amber (borderline), red (non_condensing).
+   * Guardrail: lab-only — do not use in customer-facing recommendation copy.
+   */
+  zone: CondensingZone;
+  /** Flow temperature used for the calculation (°C). */
+  flowTempC: number;
+  /** Estimated return temperature at full (design) load (°C). */
+  fullLoadReturnC: number;
+  /** Estimated return temperature at typical UK operating conditions (°C). */
+  typicalReturnC: number;
+  /** The condensing return threshold for reference (55 °C). */
+  condensingThresholdC: number;
+  /**
+   * Estimated fraction of heating-season hours in condensing range (%).
+   * Computed under the assumption of a linear weather-compensation control curve.
+   */
+  estimatedCondensingFractionPct: number;
+  /** Key signals driving the zone classification (for lab display). */
+  drivers: string[];
+  /** Detailed diagnostic notes for the Physics Trace tab. */
+  notes: string[];
+}
+
 export interface OccupancyHour {
   hour: number;       // 0-23
   demandKw: number;   // kW demand
@@ -1002,6 +1062,15 @@ export interface FullEngineResultCore {
    * Present when solarBoost.enabled is true.
    */
   solarBoost?: SolarBoostResult;
+  /**
+   * Lab condensing-state diagnostic — classifies whether the heat source is
+   * operating in condensing range based on flow/return temperatures and UK
+   * typical load conditions.
+   *
+   * Guardrail: lab-only diagnostic signal.
+   * Must not be used in customer-facing recommendation copy.
+   */
+  condensingState: CondensingStateResult;
 }
 
 /** Full engine result including the canonical V1 output contract. */

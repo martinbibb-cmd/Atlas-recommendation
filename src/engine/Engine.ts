@@ -26,6 +26,7 @@ import { buildEngineOutputV1 } from './OutputBuilder';
 import { runFabricModelV1 } from './modules/FabricModelModule';
 import { runSmartTopUpController } from './modules/SmartTopUpController';
 import { runSolarBoostModule } from './modules/SolarBoostModule';
+import { runCondensingStateModule } from './modules/CondensingStateModule';
 
 
 function interpolateDemandKw(minuteIdx: number, hourlyDemandKw: number[]): number {
@@ -181,6 +182,24 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     ? runSolarBoostModule(input)
     : undefined;
 
+  // Condensing state — lab diagnostic.
+  // Uses the current system's supply temperature (default 70 °C) as the flow
+  // temperature, and the one-pipe average return when available.
+  // Average load fraction is derived from the lifestyle hourly demand profile.
+  let _lifestylePeak = 0;
+  let _lifestyleSum = 0;
+  for (const h of lifestyle.hourlyData) {
+    if (h.demandKw > _lifestylePeak) _lifestylePeak = h.demandKw;
+    _lifestyleSum += h.demandKw;
+  }
+  const condensingState = runCondensingStateModule({
+    flowTempC: input.supplyTempC ?? 70,
+    returnTempC: legacyInfrastructure.onePipe?.averageReturnTempC,
+    averageLoadFraction: _lifestylePeak > 0
+      ? (_lifestyleSum / lifestyle.hourlyData.length) / _lifestylePeak
+      : undefined,
+  });
+
   const core: FullEngineResultCore = {
     hydraulic,
     hydraulicV1,
@@ -208,6 +227,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     fabricModelV1,
     smartTopUp,
     solarBoost,
+    condensingState,
   };
 
   const engineOutput = buildEngineOutputV1(core, input);
