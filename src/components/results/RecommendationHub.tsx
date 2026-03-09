@@ -557,6 +557,48 @@ function ComponentHealthPanel({ result }: { result: FullEngineResult }) {
   );
 }
 
+// ─── Print Header ─────────────────────────────────────────────────────────────
+
+/**
+ * PrintHeader — compact report metadata block rendered at the very top of the
+ * printed page. Invisible on screen (display:none via CSS); visible only when
+ * the browser enters print mode (@media print).
+ *
+ * Includes: report title, date, recommended system, confidence level.
+ * No new engine dependencies — reads directly from EngineOutputV1.
+ */
+function PrintHeader({ result }: { result: FullEngineResult }) {
+  const { engineOutput } = result;
+  const primary = engineOutput.recommendation.primary;
+  const level =
+    engineOutput.meta?.confidence?.level ??
+    engineOutput.verdict?.confidence?.level ??
+    'medium';
+  const confLabel: Record<string, string> = {
+    high:   'High confidence',
+    medium: 'Medium confidence',
+    low:    'Low confidence',
+  };
+  const dateStr = new Date().toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  return (
+    <div className="print-header">
+      <p className="print-header__title">Atlas — Heating System Recommendation</p>
+      <div className="print-header__meta">
+        <span>{dateStr}</span>
+        <span className="print-header__sep"> · </span>
+        <span>{primary}</span>
+        <span className="print-header__sep"> · </span>
+        <span>{confLabel[level] ?? level}</span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main hub ─────────────────────────────────────────────────────────────────
 
 export default function RecommendationHub({ result }: Props) {
@@ -567,6 +609,9 @@ export default function RecommendationHub({ result }: Props) {
 
   return (
     <div className="rec-hub">
+
+      {/* Print header — screen hidden, print visible */}
+      <PrintHeader result={result} />
 
       {/* 1 — Recommendation Summary */}
       <SystemRecommendationPanel engineOutput={engineOutput} />

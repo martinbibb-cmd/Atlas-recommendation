@@ -127,7 +127,12 @@ function CollapsibleSection({
         {label}
         <span className="opt-card__section-toggle-chevron">▼</span>
       </button>
-      {open && <div className="opt-card__section-body">{children}</div>}
+      {/* Body is always in the DOM so @media print can force it visible */}
+      <div className={`opt-card__section-body${open ? '' : ' opt-card__section-body--collapsed'}`}>
+        {/* Print-only label replaces the hidden toggle heading */}
+        <p className="opt-card__section-print-label" aria-hidden="true">{label}</p>
+        {children}
+      </div>
     </div>
   );
 }
