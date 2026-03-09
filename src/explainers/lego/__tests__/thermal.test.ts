@@ -564,3 +564,56 @@ describe('computeTmvMixer — boiler temperature correctness', () => {
     expect(r.T_h).toBeGreaterThanOrEqual(40)
   })
 })
+
+// ─── computeThermalTimeConstant ───────────────────────────────────────────────
+
+import { computeThermalTimeConstant, DEFAULT_DEMO_TAU_HOURS } from '../animation/thermal'
+
+describe('computeThermalTimeConstant', () => {
+  it('returns the explicit tauHours when provided', () => {
+    expect(computeThermalTimeConstant({ tauHours: 8 })).toBe(8)
+  })
+
+  it('ignores heatLossWatts + buildingMass when tauHours is provided', () => {
+    expect(computeThermalTimeConstant({ tauHours: 5, heatLossWatts: 10000, buildingMass: 'light' })).toBe(5)
+  })
+
+  it('returns default tau when no inputs provided', () => {
+    expect(computeThermalTimeConstant({})).toBe(DEFAULT_DEMO_TAU_HOURS)
+  })
+
+  it('returns a mass-band lookup when only buildingMass is given', () => {
+    const lightTau  = computeThermalTimeConstant({ buildingMass: 'light' })
+    const heavyTau  = computeThermalTimeConstant({ buildingMass: 'heavy' })
+    const mediumTau = computeThermalTimeConstant({ buildingMass: 'medium' })
+    // heavier mass → longer time constant
+    expect(heavyTau).toBeGreaterThan(mediumTau)
+    expect(mediumTau).toBeGreaterThan(lightTau)
+    expect(lightTau).toBeGreaterThan(0)
+  })
+
+  it('derives a physics-based tau from heatLossWatts + buildingMass', () => {
+    const tau = computeThermalTimeConstant({ heatLossWatts: 8000, buildingMass: 'medium' })
+    // At reference heat loss for medium (8000 W), τ = τ_ref = 42 h
+    expect(tau).toBeCloseTo(42, 0)
+    expect(tau).toBeGreaterThan(0)
+  })
+
+  it('returns a larger tau for heavier building mass at same heat loss', () => {
+    const lightTau  = computeThermalTimeConstant({ heatLossWatts: 5000, buildingMass: 'light' })
+    const heavyTau  = computeThermalTimeConstant({ heatLossWatts: 5000, buildingMass: 'heavy' })
+    expect(heavyTau).toBeGreaterThan(lightTau)
+  })
+
+  it('returns a larger tau for lower heat loss at same mass', () => {
+    const lowLoss  = computeThermalTimeConstant({ heatLossWatts: 2000, buildingMass: 'medium' })
+    const highLoss = computeThermalTimeConstant({ heatLossWatts: 12000, buildingMass: 'medium' })
+    expect(lowLoss).toBeGreaterThan(highLoss)
+  })
+
+  it('enforces minimum tau of 0.5 hours', () => {
+    // Extremely leaky building with light mass → τ would be very small without clamp
+    const tau = computeThermalTimeConstant({ heatLossWatts: 50000, buildingMass: 'light' })
+    expect(tau).toBeGreaterThanOrEqual(0.5)
+  })
+})

@@ -13,6 +13,7 @@ import { buildPlaySceneModel } from '../../playScene/buildPlaySceneModel'
 import { SchematicFaceToken } from '../../builder/SchematicFace'
 import { DrawOffPanel } from './DrawOffPanel'
 import { deriveOutletDisplayStates } from '../../state/outletDisplayState'
+import { derivePlaybackMode } from '../../sim/surveyAdapter'
 
 /** Baseline frame time at 60 fps (ms). */
 const DEFAULT_FRAME_TIME_MS = 16
@@ -303,6 +304,12 @@ export function LabCanvas(props: {
   }, [])
 
   const isCylinder = controls.systemType === 'unvented_cylinder' || controls.systemType === 'vented_cylinder'
+
+  // ── Playback mode ──────────────────────────────────────────────────────────
+  // Derived from whether survey-backed physics inputs are present.
+  // Used to display the mode badge so users can distinguish demo defaults
+  // from real survey-backed playback.
+  const playbackMode = derivePlaybackMode(controls.playbackInputs)
 
   // ── Play Scene Model ───────────────────────────────────────────────────────
   // Build an explicit scene description from controls + frame.
@@ -2277,6 +2284,18 @@ export function LabCanvas(props: {
             Loss: {frame.standingLossKwhTotal.toFixed(3)} kWh
           </span>
         )}
+        {/* Playback mode badge — tells the user whether they are seeing demo
+            defaults or real survey-backed playback. Low-clutter. */}
+        <span
+          className={`sim-time-bar__badge sim-time-bar__badge--mode${playbackMode === 'survey_backed' ? ' sim-time-bar__badge--mode-survey' : ''}`}
+          title={
+            playbackMode === 'survey_backed'
+              ? `Using survey data${controls.playbackInputs?.currentHeatSourceType ? ` · current: ${controls.playbackInputs.currentHeatSourceType}` : ''}`
+              : 'Demo defaults — no survey data loaded'
+          }
+        >
+          {playbackMode === 'survey_backed' ? '📋 Survey data' : '🔵 Demo defaults'}
+        </span>
       </div>
     </div>
   )

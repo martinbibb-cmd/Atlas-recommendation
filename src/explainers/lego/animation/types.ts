@@ -386,6 +386,87 @@ export type LabControls = {
    * See LabSupplyOrigins for the full node vocabulary.
    */
   supplyOrigins?: LabSupplyOrigins
+  /**
+   * Survey-backed playback inputs.
+   *
+   * When present, the lab uses real survey or engine-derived values instead of
+   * demo defaults.  The mode badge displayed to the user is derived from whether
+   * this field is populated (survey_backed) or absent (demo).
+   *
+   * Created by the survey adapter (sim/surveyAdapter.ts) and passed through to
+   * the simulation and renderer.  The simulation must fall back cleanly to its
+   * normal defaults whenever a specific field is absent.
+   */
+  playbackInputs?: LabPlaybackInputs
+}
+
+/**
+ * Lab playback mode.
+ *
+ * demo          — lab uses generic default values; no survey data available.
+ * survey_backed — lab is driven by real survey / engine-derived values.
+ *
+ * The renderer shows a compact mode badge so users can distinguish the two.
+ */
+export type LabPlaybackMode = 'demo' | 'survey_backed'
+
+/**
+ * Survey-backed playback inputs — the subset of survey / engine outputs that
+ * materially improve lab playback truth.
+ *
+ * All fields are optional.  The simulation falls back to existing demo defaults
+ * when a field is absent; there are no broken intermediate states.
+ *
+ * Created by the survey adapter (sim/surveyAdapter.ts).
+ */
+export type LabPlaybackInputs = {
+  /**
+   * Measured peak building heat loss (W).
+   * Influences warm-up / cool-down speed via the derived thermal time constant.
+   */
+  heatLossWatts?: number
+  /**
+   * Building thermal mass classification.
+   * Used together with heatLossWatts to derive the thermal time constant (τ).
+   * 'light' → fast response; 'heavy' → slow, dampened response.
+   */
+  buildingMass?: 'light' | 'medium' | 'heavy'
+  /**
+   * Derived thermal time constant (hours).
+   * When provided directly, overrides the heatLossWatts+buildingMass derivation.
+   */
+  tauHours?: number
+  /**
+   * Measured dynamic mains pressure (bar).
+   * When present, used to annotate the draw-off panel and supply model.
+   */
+  dynamicMainsPressureBar?: number
+  /**
+   * Measured static mains pressure (bar).
+   */
+  staticMainsPressureBar?: number
+  /**
+   * Measured dynamic mains flow rate (L/min).
+   * When present, replaces the generic mainsDynamicFlowLpm default for
+   * draw-off physics.
+   */
+  dynamicFlowLpm?: number
+  /**
+   * Current heat source type from the survey.
+   * Used to select a realistic default boiler output when no explicit value
+   * is provided and to surface the existing system in the mode badge tooltip.
+   */
+  currentHeatSourceType?: 'combi' | 'system' | 'regular' | 'ashp' | 'other'
+  /**
+   * DHW tank/cylinder type from the survey.
+   * 'mixergy' enables Mixergy-specific draw-down and cycle-reduction logic.
+   */
+  dhwTankType?: 'standard' | 'mixergy'
+  /**
+   * Occupancy signature key from the survey, used for context in the mode badge.
+   * Does not gate any physics — just informs the user what data is in play.
+   */
+  occupancySignature?: string
 }
 
 /** Rolling EMA temperature sample collected from tokens exiting an outlet branch. */
