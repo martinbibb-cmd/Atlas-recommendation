@@ -17,6 +17,12 @@ import { ConditionPanel } from './ConditionPanel'
 import { deriveOutletDisplayStates } from '../../state/outletDisplayState'
 import { derivePlaybackMode } from '../../sim/surveyAdapter'
 import { systemTypeLabel, serviceModeSummary } from './simTimeStatus'
+import {
+  deriveCondensingState,
+  isBoilerHeatSource,
+  condensingStateBadgeText,
+  condensingStateDescription,
+} from '../../sim/condensingState'
 
 /** Baseline frame time at 60 fps (ms). */
 const DEFAULT_FRAME_TIME_MS = 16
@@ -360,6 +366,22 @@ export function LabCanvas(props: {
   const hasWaterOverride = manualFlowLpm !== undefined || manualPressureBar !== undefined || manualColdInletC !== undefined
   // True when condition state differs from the all-clean default.
   const hasConditionChange = conditionState.heatingCircuit !== 'clean' || conditionState.hotWaterSide !== 'clean'
+
+  // ── Condensing-state badge (PR7) ──────────────────────────────────────────
+  // Derived from the return-water temperature in the CH heat balance.
+  // Only shown for boiler-based heat sources — heat pumps use a different
+  // efficiency model and must not receive a condensing-mode badge.
+  // chBalance is only populated when emitterLoads are configured, so the badge
+  // is intentionally absent in illustrative-only configurations without a
+  // quantified heat balance — keeping the display truthful.
+  const effectiveHeatSourceType =
+    controls.heatSourceType ?? (controls.systemType === 'combi' ? 'combi' : 'system_boiler')
+  const showCondensingBadge =
+    isBoilerHeatSource(effectiveHeatSourceType) &&
+    frame.chBalance?.returnTempC !== undefined
+  const condensingState = showCondensingBadge
+    ? deriveCondensingState(frame.chBalance!.returnTempC)
+    : undefined
 
   // Effective cold inlet — reflects manual override when set.
   // Used throughout the render layer so visual pipe colours stay consistent
@@ -2420,6 +2442,22 @@ export function LabCanvas(props: {
             ].filter(Boolean).join(' · ')}
           >
             ⚠ Condition set
+          </span>
+        )}
+        {/* Condensing-state badge (PR7) — shown for boiler-based systems when
+            return-temperature data is available from the CH heat balance.
+            Green = condensing, amber = borderline, red = not condensing.
+            Only visible when emitterLoads are configured (truthful display). */}
+        {condensingState !== undefined && (
+          <span
+            className={`sim-time-bar__badge sim-time-bar__badge--condensing-${
+              condensingState === 'condensing' ? 'active'
+              : condensingState === 'borderline' ? 'borderline'
+              : 'not'
+            }`}
+            title={condensingStateDescription(condensingState)}
+          >
+            {condensingStateBadgeText(condensingState)}
           </span>
         )}
       </div>
