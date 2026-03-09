@@ -215,6 +215,115 @@ function MeasurementConfidencePanel({ result }: ConfidencePanelProps) {
   );
 }
 
+/**
+ * PlateHexConditionPanel — compact combi plate heat exchanger condition section.
+ *
+ * Surfaces when the engine has inferred a plate HEX condition from survey evidence.
+ * Shows condition band, short implication, and practical maintenance guidance when degraded.
+ *
+ * Only rendered when plateHexConditionBand is present on combiDhwV1.
+ * Does not surface for stored system paths.
+ */
+interface PlateHexConditionPanelProps {
+  result: FullEngineResult;
+}
+
+const PLATE_HEX_IMPLICATION: Record<string, string> = {
+  good:     'On-demand hot water response within design limits.',
+  moderate: 'Hot water response likely slightly reduced.',
+  poor:     'Likely temperature fluctuation under heavier demand.',
+  severe:   'Performance loss likely due to scale/fouling — on-demand hot water output reduced.',
+};
+
+const PLATE_HEX_GUIDANCE: Record<string, string[]> = {
+  good:     [],
+  moderate: [
+    'Monitor for worsening performance over time.',
+    'Consider scale protection or regular servicing if in a hard water area.',
+  ],
+  poor: [
+    'Inspect the plate heat exchanger — scale or fouling is the likely cause.',
+    'A descale or professional service is recommended.',
+    'If the property is in a hard water area, consider a water softener or scale inhibitor.',
+  ],
+  severe: [
+    'Plate heat exchanger likely significantly fouled — inspect or replace at earliest opportunity.',
+    'Descale or replacement strongly recommended before relying on on-demand hot water.',
+    'Scale protection (softener or inhibitor) should be fitted if not already present.',
+  ],
+};
+
+const PLATE_HEX_BAND_COLOUR: Record<string, string> = {
+  good: '#276749', moderate: '#b7791f', poor: '#c05621', severe: '#c53030',
+};
+const PLATE_HEX_BAND_BG: Record<string, string> = {
+  good: '#f0fff4', moderate: '#fffff0', poor: '#fffaf0', severe: '#fff5f5',
+};
+const PLATE_HEX_BAND_BORDER: Record<string, string> = {
+  good: '#9ae6b4', moderate: '#faf089', poor: '#fbd38d', severe: '#feb2b2',
+};
+
+function PlateHexConditionPanel({ result }: PlateHexConditionPanelProps) {
+  const { combiDhwV1 } = result;
+  const band = combiDhwV1.plateHexConditionBand;
+  const foulingFactor = combiDhwV1.plateHexFoulingFactor;
+
+  // Only render when plate HEX evidence was collected
+  if (!band) return null;
+
+  const implication = PLATE_HEX_IMPLICATION[band] ?? '';
+  const guidance = PLATE_HEX_GUIDANCE[band] ?? [];
+  const colour = PLATE_HEX_BAND_COLOUR[band] ?? '#4a5568';
+  const bg = PLATE_HEX_BAND_BG[band] ?? '#f7fafc';
+  const border = PLATE_HEX_BAND_BORDER[band] ?? '#e2e8f0';
+
+  return (
+    <section className="rec-hub__section" aria-label="Plate heat exchanger condition">
+      <h3 className="rec-hub__section-title">Plate heat exchanger condition</h3>
+      <div style={{
+        padding: '0.875rem 1rem',
+        background: bg,
+        border: `1px solid ${border}`,
+        borderLeft: `4px solid ${colour}`,
+        borderRadius: '6px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+          <span style={{
+            padding: '0.2rem 0.65rem',
+            borderRadius: '4px',
+            fontSize: '0.82rem',
+            fontWeight: 700,
+            background: colour,
+            color: '#fff',
+          }}>
+            {band.charAt(0).toUpperCase() + band.slice(1)}
+          </span>
+          {foulingFactor !== undefined && foulingFactor < 1.0 && (
+            <span style={{ fontSize: '0.75rem', color: '#718096' }}>
+              {((1 - foulingFactor) * 100).toFixed(0)}% capacity reduction estimated
+            </span>
+          )}
+        </div>
+        <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.88rem', color: '#2d3748' }}>
+          {implication}
+        </p>
+        {guidance.length > 0 && (
+          <div>
+            <p style={{ margin: '0.5rem 0 0.3rem 0', fontSize: '0.78rem', fontWeight: 600, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+              Practical next steps
+            </p>
+            <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.83rem', color: '#4a5568', lineHeight: 1.5 }}>
+              {guidance.map((step, i) => (
+                <li key={i}>{step}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 // ─── Main hub ─────────────────────────────────────────────────────────────────
 
 export default function RecommendationHub({ result }: Props) {
@@ -240,10 +349,13 @@ export default function RecommendationHub({ result }: Props) {
         </section>
       )}
 
-      {/* 3 — Measurement Confidence */}
+      {/* 3 — Plate HEX condition (combi only, when survey evidence available) */}
+      <PlateHexConditionPanel result={result} />
+
+      {/* 4 — Measurement Confidence */}
       <MeasurementConfidencePanel result={result} />
 
-      {/* 4 — Evidence & Context */}
+      {/* 5 — Evidence & Context */}
       {engineOutput.contextSummary && engineOutput.contextSummary.bullets.length > 0 && (
         <section className="rec-hub__section">
           <h3 className="rec-hub__section-title">Evidence &amp; Context</h3>

@@ -151,8 +151,7 @@ export function estimateMorningOverlapProbability(
  *                             SludgeVsScaleModule.  Applied as:
  *                             maxQtoDhwKwDerated = NOMINAL_COMBI_DHW_KW × (1 − derate).
  */
-export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct = 0): CombiDhwV1Result {
-  const flags: CombiDhwFlagItem[] = [];
+export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct = 0): CombiDhwV1Result {  const flags: CombiDhwFlagItem[] = [];
   const assumptions: string[] = [];
 
   // ── Rule 1: Pressure lockout ─────────────────────────────────────────────
@@ -289,8 +288,24 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
   // maximum from SludgeVsScaleModule is 0.20 (MAX_DHW_CAPACITY_DERATE).
   const clampedDhwDerate = Math.min(dhwCapacityDeratePct, 0.50); // 0.50 = safety guard (expected max: 0.20)
   const maxQtoDhwKw = NOMINAL_COMBI_DHW_KW;
+
+  // ── Plate HEX fouling factor (from survey-derived condition inference) ────
+  // When present, the fouling factor represents the OBSERVED condition of the
+  // plate heat exchanger. It is applied on top of the statistical scale derate:
+  //   effectiveKw = maxQtoDhwKw × (1 − scaleDerate) × foulingFactor
+  //
+  // Fouling factor range: 1.0 (clean) → 0.7 (severe fouling, 30% reduction).
+  // Combined with a 20% scale derate (worst statistical case), the maximum
+  // total reduction is: 0.80 × 0.70 = 0.56 (44% below nominal).
+  //
+  // This is physically justified: scale on HX fins (scale derate) and fouling
+  // of the plate HEX surface (fouling factor) are distinct phenomena that can
+  // co-exist and are measured from different signal sources.
+  const plateHexFoulingFactor = input.plateHexFoulingFactor ?? 1.0;
+  const plateHexConditionBand = input.plateHexConditionBand;
+
   const maxQtoDhwKwDerated = parseFloat(
-    (maxQtoDhwKw * (1 - clampedDhwDerate)).toFixed(1)
+    (maxQtoDhwKw * (1 - clampedDhwDerate) * plateHexFoulingFactor).toFixed(1)
   );
 
   if (clampedDhwDerate > 0) {
@@ -302,6 +317,20 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
       `DHW Capacity Derate: scale on combi HX reduces peak output from ${maxQtoDhwKw} kW to ` +
       `${maxQtoDhwKwDerated} kW (−${(clampedDhwDerate * 100).toFixed(1)}%). ` +
       `Deliverable flow @40°C: ~${deliverableLpm} L/min (nominal ~${parseFloat((maxQtoDhwKw * 60 / (4.19 * 25)).toFixed(1))} L/min).`
+    );
+  }
+
+  // Document plate HEX fouling effect in assumptions when degraded
+  if (plateHexFoulingFactor < 1.0) {
+    const foulingReductionPct = ((1.0 - plateHexFoulingFactor) * 100).toFixed(0);
+    const effectiveKw = maxQtoDhwKwDerated;
+    const effectiveLpm = parseFloat((effectiveKw * 60 / (4.19 * 25)).toFixed(1));
+    // Effective warm-up lag increases as fouling reduces heat transfer
+    const warmUpLagMultiplier = parseFloat((1.0 / plateHexFoulingFactor).toFixed(2));
+    assumptions.push(
+      `Plate HEX Fouling (${plateHexConditionBand ?? 'degraded'}): fouling factor ${plateHexFoulingFactor.toFixed(2)} ` +
+      `reduces effective combi DHW output by ${foulingReductionPct}% — effective output ${effectiveKw} kW ` +
+      `(~${effectiveLpm} L/min @40°C). Warm-up response approximately ${warmUpLagMultiplier}× baseline.`
     );
   }
 
@@ -362,5 +391,7 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
     dhwCapacityDeratePct: clampedDhwDerate,
     dhwRequiredKw,
     deliveredFlowLpm,
+    ...(plateHexConditionBand !== undefined && { plateHexConditionBand }),
+    ...(input.plateHexFoulingFactor !== undefined && { plateHexFoulingFactor: plateHexFoulingFactor }),
   };
 }

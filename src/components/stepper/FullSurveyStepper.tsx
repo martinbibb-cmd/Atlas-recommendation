@@ -2250,6 +2250,92 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
               <p style={{ fontSize: '0.82rem', color: '#4a5568', marginTop: 0, marginBottom: '0.75rem', lineHeight: 1.5 }}>
                 Record observations about the hot water cylinder or combi plate heat exchanger. These feed the scale and DHW condition diagnostics.
               </p>
+
+              {/* ── Combi plate HEX condition (primary inputs) ────────────── */}
+              <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#2d3748', margin: '0 0 0.5rem 0', letterSpacing: '0.02em', textTransform: 'uppercase' }}>
+                Combi plate heat exchanger
+              </p>
+              <div className="form-grid" style={{ marginBottom: '1rem' }}>
+                {/* Hot water performance — primary plate HEX condition signal */}
+                <div className="form-field">
+                  <label>How is the hot water performing?</label>
+                  <select
+                    value={input.fullSurvey?.dhwCondition?.hotWaterPerformanceBand ?? ''}
+                    onChange={e => setInput({
+                      ...input,
+                      fullSurvey: {
+                        ...input.fullSurvey,
+                        dhwCondition: {
+                          ...input.fullSurvey?.dhwCondition,
+                          hotWaterPerformanceBand: (e.target.value || undefined) as DhwConditionDiagnosticsV1['hotWaterPerformanceBand'],
+                        },
+                      },
+                    })}
+                  >
+                    <option value="">Not recorded</option>
+                    <option value="good">Good — normal hot water output</option>
+                    <option value="slightly_reduced">Slightly reduced — lower than expected</option>
+                    <option value="fluctuating">Fluctuating — temperature varies during draw</option>
+                    <option value="poor">Poor — noticeably weak or inconsistent</option>
+                  </select>
+                </div>
+
+                {/* Water softener — reduces scale risk */}
+                <div className="form-field" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                  <label className="checkbox-field" style={{ marginTop: 'auto' }}>
+                    <input
+                      type="checkbox"
+                      checked={input.fullSurvey?.dhwCondition?.softenerPresent ?? false}
+                      onChange={e => setInput({
+                        ...input,
+                        fullSurvey: {
+                          ...input.fullSurvey,
+                          dhwCondition: {
+                            ...input.fullSurvey?.dhwCondition,
+                            softenerPresent: e.target.checked,
+                          },
+                        },
+                      })}
+                    />
+                    <span>Water softener installed</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Live plate HEX condition badge (rich band from condition model) */}
+              {(() => {
+                const band = systemConditionFlags.plateHexDetail.conditionBand;
+                const foulingFactor = systemConditionFlags.plateHexDetail.foulingFactor;
+                const confidence = systemConditionFlags.plateHexDetail.confidence;
+                const BAND_COLOUR: Record<string, string> = {
+                  good: '#276749', moderate: '#b7791f', poor: '#c05621', severe: '#c53030',
+                };
+                const BAND_BG: Record<string, string> = {
+                  good: '#f0fff4', moderate: '#fffff0', poor: '#fffaf0', severe: '#fff5f5',
+                };
+                const BAND_BORDER: Record<string, string> = {
+                  good: '#9ae6b4', moderate: '#faf089', poor: '#fbd38d', severe: '#feb2b2',
+                };
+                const IMPLICATION: Record<string, string> = {
+                  good: 'On-demand hot water response within design limits',
+                  moderate: 'Hot water response likely slightly reduced',
+                  poor: 'Likely temperature fluctuation under heavier demand',
+                  severe: 'Performance loss likely due to scale/fouling — output reduced',
+                };
+                return (
+                  <div style={{ marginBottom: '0.75rem', padding: '0.6rem 0.875rem', background: BAND_BG[band], border: `1px solid ${BAND_BORDER[band]}`, borderLeft: `4px solid ${BAND_COLOUR[band]}`, borderRadius: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#718096' }}>Plate HEX condition:</span>
+                      <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.78rem', fontWeight: 700, background: BAND_COLOUR[band], color: '#fff' }}>
+                        {band.toUpperCase()}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: '#718096' }}>fouling factor {foulingFactor.toFixed(2)} · {confidence} confidence</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#4a5568' }}>{IMPLICATION[band]}</div>
+                  </div>
+                );
+              })()}
+
               <div className="form-grid">
                 {/* Plate HEX age (combi only) */}
                 <div className="form-field">
@@ -2386,22 +2472,6 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                       border: `1px solid ${systemConditionFlags.cylinderAgeBand === 'aged' ? '#faf089' : '#9ae6b4'}`,
                     }}>
                       {systemConditionFlags.cylinderAgeBand.toUpperCase()}
-                    </span>
-                  </>
-                )}
-                {systemConditionFlags.plateHexCondition !== 'unknown' && (
-                  <>
-                    <span style={{ fontSize: '0.78rem', color: '#718096' }}>Plate HEX:</span>
-                    <span style={{
-                      padding: '0.2rem 0.6rem',
-                      borderRadius: '4px',
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      background: systemConditionFlags.plateHexCondition === 'degraded' ? '#fffff0' : '#f0fff4',
-                      color: systemConditionFlags.plateHexCondition === 'degraded' ? '#b7791f' : '#276749',
-                      border: `1px solid ${systemConditionFlags.plateHexCondition === 'degraded' ? '#faf089' : '#9ae6b4'}`,
-                    }}>
-                      {systemConditionFlags.plateHexCondition.toUpperCase()}
                     </span>
                   </>
                 )}

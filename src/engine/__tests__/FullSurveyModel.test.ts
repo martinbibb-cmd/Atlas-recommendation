@@ -275,3 +275,177 @@ describe('sanitiseModelForEngine — boiler bridge', () => {
     expect(result.boilerEfficiencyModelV1!.age.factor).toBe(ageFactor(ageYears));
   });
 });
+
+// ── sanitiseModelForEngine — plate HEX bridge ──────────────────────────────
+
+describe('sanitiseModelForEngine — plate HEX bridge', () => {
+  const baseSurvey: FullSurveyModelV1 = {
+    postcode: 'SW1A 1AA', // hard water area — SW London
+    dynamicMainsPressure: 2.5,
+    buildingMass: 'medium' as const,
+    primaryPipeDiameter: 22,
+    heatLossWatts: 8000,
+    radiatorCount: 10,
+    hasLoftConversion: false,
+    returnWaterTemp: 45,
+    bathroomCount: 1,
+    occupancySignature: 'professional' as const,
+    highOccupancy: false,
+    preferCombi: true,
+    currentHeatSourceType: 'combi',
+  };
+
+  it('sets plateHexFoulingFactor=1.0 and band=good when performance is good in soft water', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      postcode: 'G1 1AA', // soft water (Scotland)
+      fullSurvey: {
+        dhwCondition: { hotWaterPerformanceBand: 'good' },
+      },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.plateHexFoulingFactor).toBe(1.0);
+    expect(result.plateHexConditionBand).toBe('good');
+  });
+
+  it('reduces foulingFactor when performance is poor in hard water', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      fullSurvey: {
+        dhwCondition: { hotWaterPerformanceBand: 'poor' },
+      },
+    };
+    const result = sanitiseModelForEngine(model);
+    // Poor performance in hard water area (SW London) → degraded band + fouling < 1.0
+    expect(result.plateHexFoulingFactor).toBeDefined();
+    expect(result.plateHexFoulingFactor!).toBeLessThan(1.0);
+    expect(['moderate', 'poor', 'severe']).toContain(result.plateHexConditionBand);
+  });
+
+  it('hard water + high use + poor performance grades worse than soft water + low use + good performance', () => {
+    const degradedModel: FullSurveyModelV1 = {
+      ...baseSurvey,
+      postcode: 'SW1A 1AA', // hard water
+      occupancyCount: 4,
+      bathroomCount: 1,
+      fullSurvey: {
+        dhwCondition: { hotWaterPerformanceBand: 'poor' },
+      },
+    };
+    const cleanModel: FullSurveyModelV1 = {
+      ...baseSurvey,
+      postcode: 'G1 1AA', // soft water
+      occupancyCount: 1,
+      fullSurvey: {
+        dhwCondition: { hotWaterPerformanceBand: 'good' },
+      },
+    };
+    const degraded = sanitiseModelForEngine(degradedModel);
+    const clean = sanitiseModelForEngine(cleanModel);
+    expect(degraded.plateHexFoulingFactor!).toBeLessThan(clean.plateHexFoulingFactor!);
+  });
+
+  it('age amplifies degradation but does not dominate — young combi in brutal water with poor performance still worse than old combi in soft water with good performance', () => {
+    const youngBrutal: FullSurveyModelV1 = {
+      ...baseSurvey,
+      postcode: 'HP1 1AA', // very hard water
+      currentSystem: { boiler: { type: 'combi', ageYears: 5 } },
+      fullSurvey: {
+        dhwCondition: { hotWaterPerformanceBand: 'poor' },
+      },
+    };
+    const oldSoft: FullSurveyModelV1 = {
+      ...baseSurvey,
+      postcode: 'G1 1AA', // soft water
+      currentSystem: { boiler: { type: 'combi', ageYears: 15 } },
+      fullSurvey: {
+        dhwCondition: { hotWaterPerformanceBand: 'good' },
+      },
+    };
+    const youngResult = sanitiseModelForEngine(youngBrutal);
+    const oldResult = sanitiseModelForEngine(oldSoft);
+    // Young combi with poor performance in hard water must score worse than old in soft with good performance
+    expect(youngResult.plateHexFoulingFactor!).toBeLessThan(oldResult.plateHexFoulingFactor!);
+  });
+
+  it('does not overwrite an explicitly set plateHexFoulingFactor', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      plateHexFoulingFactor: 0.85, // explicit override
+      fullSurvey: {
+        dhwCondition: { hotWaterPerformanceBand: 'poor' }, // would produce lower factor
+      },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.plateHexFoulingFactor).toBe(0.85); // preserved
+  });
+
+  it('maps softenerPresent → hasSoftener when hasSoftener is not set', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      fullSurvey: {
+        dhwCondition: { softenerPresent: true },
+      },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.hasSoftener).toBe(true);
+  });
+
+  it('does not overwrite existing hasSoftener with softenerPresent', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      hasSoftener: false, // explicit
+      fullSurvey: {
+        dhwCondition: { softenerPresent: true }, // different value — must not override
+      },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.hasSoftener).toBe(false); // preserved
+  });
+
+  it('plate HEX bridging does not run for stored system heat source types', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      currentHeatSourceType: 'system', // stored system — no plate HEX
+      fullSurvey: {
+        dhwCondition: { hotWaterPerformanceBand: 'poor' },
+      },
+    };
+    const result = sanitiseModelForEngine(model);
+    // Should not set plate HEX fields for non-combi systems
+    expect(result.plateHexFoulingFactor).toBeUndefined();
+    expect(result.plateHexConditionBand).toBeUndefined();
+  });
+
+  it('foulingFactor flows into engine and reduces combi maxQtoDhwKwDerated', () => {
+    const degradedModel: FullSurveyModelV1 = {
+      ...baseSurvey,
+      fullSurvey: { dhwCondition: { hotWaterPerformanceBand: 'poor' } },
+    };
+    const cleanModel: FullSurveyModelV1 = {
+      ...baseSurvey,
+      fullSurvey: { dhwCondition: { hotWaterPerformanceBand: 'good' } },
+    };
+
+    const degradedEngineInput = toEngineInput(sanitiseModelForEngine(degradedModel));
+    const cleanEngineInput = toEngineInput(sanitiseModelForEngine(cleanModel));
+
+    const degradedResult = runEngine(degradedEngineInput);
+    const cleanResult = runEngine(cleanEngineInput);
+
+    // Degraded plate HEX must produce lower effective DHW output
+    expect(degradedResult.combiDhwV1.maxQtoDhwKwDerated).toBeLessThan(
+      cleanResult.combiDhwV1.maxQtoDhwKwDerated
+    );
+  });
+
+  it('plateHexConditionBand is surfaced in combiDhwV1 result when survey data provided', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      fullSurvey: { dhwCondition: { hotWaterPerformanceBand: 'poor' } },
+    };
+    const engineInput = toEngineInput(sanitiseModelForEngine(model));
+    const result = runEngine(engineInput);
+    expect(result.combiDhwV1.plateHexConditionBand).toBeDefined();
+  });
+});
