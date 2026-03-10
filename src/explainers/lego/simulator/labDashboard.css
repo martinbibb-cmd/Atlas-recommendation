@@ -6,8 +6,8 @@
   grid-template-rows: 1fr 1fr;
   gap: 14px;
   padding: 14px;
-  height: calc(100vh - 110px);
-  min-height: 520px;
+  height: calc(100vh - 185px);
+  min-height: 480px;
   box-sizing: border-box;
 }
 
@@ -141,4 +141,400 @@
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+}
+
+/* ─── Sim-time / phase bar ──────────────────────────────────────────────────── */
+
+.sim-phase-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #f7fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.sim-phase-bar__label {
+  font-weight: 700;
+  color: #2d3748;
+  min-width: 80px;
+}
+
+.sim-phase-bar__divider {
+  color: #a0aec0;
+}
+
+.sim-phase-bar__reset {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #bee3f8;
+  background: #ebf8ff;
+  color: #2b6cb0;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.sim-phase-bar__reset:hover {
+  background: #bee3f8;
+}
+
+.sim-phase-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.sim-phase-badge--ch       { background: #fff5f5; color: #c53030; border: 1px solid #fc8181; }
+.sim-phase-badge--paused   { background: #fffff0; color: #744210; border: 1px solid #d69e2e; }
+.sim-phase-badge--dhw      { background: #ebf8ff; color: #2b6cb0; border: 1px solid #63b3ed; }
+.sim-phase-badge--reheat   { background: #f0fff4; color: #276749; border: 1px solid #68d391; }
+.sim-phase-badge--idle     { background: #f7fafc; color: #718096; border: 1px solid #e2e8f0; }
+.sim-phase-badge--manual   { background: #faf5ff; color: #553c9a; border: 1px solid #b794f4; }
+
+/* ─── Demand controls ───────────────────────────────────────────────────────── */
+
+.sim-demand-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px 8px;
+  flex-wrap: wrap;
+}
+
+.sim-demand-btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #f7fafc;
+  color: #4a5568;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.sim-demand-btn:hover {
+  background: #edf2f7;
+  border-color: #bee3f8;
+}
+
+.sim-demand-btn--active {
+  background: #ebf8ff;
+  border-color: #63b3ed;
+  color: #2b6cb0;
+}
+
+.sim-demand-btn--outlet.sim-demand-btn--active {
+  background: #e6fffa;
+  border-color: #4fd1c5;
+  color: #234e52;
+}
+
+.sim-demand-btn--preset {
+  font-size: 0.7rem;
+  padding: 3px 10px;
+  color: #718096;
+}
+
+.sim-demand-controls__divider {
+  color: #e2e8f0;
+  font-size: 1rem;
+  padding: 0 2px;
+}
+
+.sim-demand-warning {
+  font-size: 0.7rem;
+  color: #c05621;
+  background: #fffaf0;
+  border: 1px solid #f6ad55;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-weight: 600;
+}
+
+/* ─── Simulator Stepper ─────────────────────────────────────────────────────── */
+
+.simulator-stepper {
+  display: flex;
+  flex-direction: column;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 20px 14px 40px;
+  gap: 0;
+}
+
+.stepper-header {
+  text-align: center;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 24px;
+}
+
+.stepper-header__title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #1a202c;
+  margin: 0 0 4px;
+}
+
+.stepper-header__subtitle {
+  font-size: 0.82rem;
+  color: #718096;
+  margin: 0 0 12px;
+}
+
+/* Step progress dots */
+.stepper-bar {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  align-items: center;
+}
+
+.stepper-bar__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  border: 2px solid #e2e8f0;
+  display: inline-block;
+}
+
+.stepper-bar__dot--active {
+  background: #4299e1;
+  border-color: #4299e1;
+  transform: scale(1.25);
+}
+
+.stepper-bar__dot--done {
+  background: #68d391;
+  border-color: #68d391;
+}
+
+/* Step body */
+.stepper-body {
+  flex: 1;
+  min-height: 300px;
+}
+
+.stepper-step__heading {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 8px;
+}
+
+.stepper-step__hint {
+  font-size: 0.82rem;
+  color: #718096;
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+/* System type grid */
+.stepper-choice-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 540px) {
+  .stepper-choice-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stepper-choice-card {
+  text-align: left;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f7fafc;
+  padding: 14px 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.stepper-choice-card:hover {
+  border-color: #bee3f8;
+  background: #ebf8ff;
+}
+
+.stepper-choice-card--selected {
+  border-color: #4299e1;
+  background: #ebf8ff;
+}
+
+.stepper-choice-card__icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stepper-choice-card__label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.stepper-choice-card__desc {
+  font-size: 0.75rem;
+  color: #718096;
+  line-height: 1.4;
+}
+
+/* Pill row (fabric / condition) */
+.stepper-choice-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stepper-choice-pill {
+  flex: 1;
+  min-width: 140px;
+  text-align: left;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f7fafc;
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.stepper-choice-pill:hover {
+  border-color: #bee3f8;
+  background: #ebf8ff;
+}
+
+.stepper-choice-pill--selected {
+  border-color: #4299e1;
+  background: #ebf8ff;
+}
+
+.stepper-choice-pill__label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.stepper-choice-pill__desc {
+  font-size: 0.72rem;
+  color: #718096;
+  line-height: 1.4;
+}
+
+/* Info card (read-only display) */
+.stepper-info-card {
+  border: 1px solid #bee3f8;
+  border-radius: 10px;
+  background: #ebf8ff;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stepper-info-card__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #2b6cb0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stepper-info-card__value {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1a202c;
+}
+
+/* Field group */
+.stepper-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.stepper-field__label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.stepper-field__select {
+  font-size: 0.88rem;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #1a202c;
+  width: 100%;
+  max-width: 300px;
+}
+
+/* Warning banner */
+.stepper-warning {
+  font-size: 0.78rem;
+  color: #c05621;
+  background: #fffaf0;
+  border: 1px solid #f6ad55;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+/* Footer nav */
+.stepper-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 24px;
+}
+
+.stepper-btn {
+  font-size: 0.88rem;
+  font-weight: 700;
+  padding: 9px 20px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.stepper-btn:active {
+  transform: scale(0.97);
+}
+
+.stepper-btn--back {
+  background: #f7fafc;
+  color: #4a5568;
+  border: 1px solid #e2e8f0;
+}
+
+.stepper-btn--back:hover {
+  background: #edf2f7;
+}
+
+.stepper-btn--next {
+  background: #4299e1;
+  color: #fff;
+}
+
+.stepper-btn--next:hover {
+  background: #3182ce;
 }
