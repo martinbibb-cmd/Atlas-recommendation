@@ -5,9 +5,12 @@
  * the corresponding panel is shown in full-page view with a Back button.
  *
  * Currently implements "Physics constraints"; other tiles are placeholders.
+ * PR16: The Demo Lab tile now passes survey data to ExplainersHubPage so
+ *       the simulator opens pre-configured when launched from a full survey.
  */
 import { useState } from 'react';
-import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
+import type { FullEngineResult } from '../../engine/schema/EngineInputV2_3';
+import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import PhysicsConstraintsPanel from './panels/PhysicsConstraintsPanel';
 import ExplainersHubPage from '../../explainers/ExplainersHubPage';
 
@@ -58,7 +61,12 @@ const HUB_TILES: HubTile[] = [
 
 interface HubPageProps {
   result: FullEngineResult;
-  input: EngineInputV2_3;
+  /**
+   * Full survey input — accepts FullSurveyModelV1 so that survey-specific
+   * fields (fullSurvey, currentBoilerErpClass) are available for the
+   * simulator pre-fill when the Demo Lab tile is tapped.
+   */
+  input: FullSurveyModelV1;
   onBack?: () => void;
 }
 
@@ -82,7 +90,12 @@ export default function HubPage({ result, input, onBack }: HubPageProps) {
   }
 
   if (activePanel === 'explainers') {
-    return <ExplainersHubPage onBack={() => setActivePanel(null)} />;
+    return (
+      <ExplainersHubPage
+        onBack={() => setActivePanel(null)}
+        surveyData={input}
+      />
+    );
   }
 
   return (

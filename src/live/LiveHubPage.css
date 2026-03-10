@@ -721,3 +721,80 @@
     padding: 12px 16px;
   }
 }
+
+/* ── Launch Simulator CTA ───────────────────────────────────────────────── */
+
+.live-hub__simulator-cta {
+  padding: 16px;
+  margin-top: 8px;
+}
+
+.live-hub__simulator-cta-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #faf5ff 0%, #ebf8ff 100%);
+  border: 1.5px solid #b794f4;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(128, 90, 213, 0.10);
+}
+
+.live-hub__simulator-cta-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.live-hub__simulator-cta-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.live-hub__simulator-cta-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #553c9a;
+  margin-bottom: 2px;
+}
+
+.live-hub__simulator-cta-subtitle {
+  font-size: 0.85rem;
+  color: #805ad5;
+  line-height: 1.35;
+}
+
+.live-hub__simulator-cta-btn {
+  flex-shrink: 0;
+  padding: 12px 24px;
+  background: #805ad5;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.live-hub__simulator-cta-btn:hover {
+  background: #6b46c1;
+}
+
+.live-hub__simulator-cta-btn:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 600px) {
+  .live-hub__simulator-cta-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .live-hub__simulator-cta-btn {
+    width: 100%;
+    text-align: center;
+  }
+}

@@ -1,59 +1,110 @@
 /**
  * ExplainersHubPage — entry point for the lab simulator.
  *
- * PR6: Added SimulatorStepper setup journey before the simulator dashboard.
- * The stepper captures system type, components, water services, building
- * physics, and condition — then opens the simulator with the chosen config.
+ * PR6:  Added SimulatorStepper setup journey before the simulator dashboard.
+ * PR16: Added survey-backed entry — when surveyData is provided, the stepper
+ *       is skipped and the simulator opens pre-configured from survey inputs.
+ *       An "Edit setup" button lets users re-enter the stepper at any time.
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import SimulatorDashboard from './lego/simulator/SimulatorDashboard';
 import SimulatorStepper from './lego/simulator/SimulatorStepper';
 import type { StepperConfig } from './lego/simulator/SimulatorStepper';
+import { adaptFullSurveyToSimulatorInputs } from './lego/simulator/adaptFullSurveyToSimulatorInputs';
+import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
   onBack?: () => void;
+  /**
+   * When provided, the simulator is opened pre-configured from the full survey.
+   * The stepper is hidden by default; users can still access it via "Edit setup".
+   */
+  surveyData?: FullSurveyModelV1;
 }
 
 // ─── View ─────────────────────────────────────────────────────────────────────
 
-export default function ExplainersHubPage({ onBack }: Props) {
+export default function ExplainersHubPage({ onBack, surveyData }: Props) {
   const [config, setConfig] = useState<StepperConfig | null>(null);
+  // When launched from a survey, hide the stepper by default.
+  const [showStepper, setShowStepper] = useState<boolean>(!surveyData);
 
-  // Stepper complete → show simulator dashboard with the chosen system.
-  if (config !== null) {
+  // Adapt survey data once when present.
+  const surveyAdapted = useMemo(
+    () => (surveyData != null ? adaptFullSurveyToSimulatorInputs(surveyData) : null),
+    [surveyData],
+  );
+
+  // Show dashboard when:
+  //   (a) survey-backed entry (surveyAdapted present and stepper not explicitly requested), or
+  //   (b) stepper has completed and config is set.
+  const showDashboard = !showStepper && (surveyAdapted != null || config != null);
+
+  if (showDashboard) {
+    const isSurveyBacked = surveyAdapted != null && !config;
+    const initialSystemChoice = surveyAdapted != null && isSurveyBacked
+      ? surveyAdapted.systemChoice
+      : (config?.systemChoice ?? 'combi');
+    const initialSystemInputs = surveyAdapted != null && isSurveyBacked
+      ? surveyAdapted.systemInputs
+      : undefined;
+
     return (
       <div className="hub-page">
         <div className="hub-page__header">
           {onBack && (
             <button className="hub-back-btn" onClick={onBack}>← Back</button>
           )}
-          <button
-            className="hub-back-btn"
-            onClick={() => setConfig(null)}
-            aria-label="Home"
-          >
-            ⚙ Home
-          </button>
+          {isSurveyBacked ? (
+            <button
+              className="hub-back-btn"
+              onClick={() => setShowStepper(true)}
+              aria-label="Edit simulator setup"
+            >
+              ⚙ Edit setup
+            </button>
+          ) : (
+            <button
+              className="hub-back-btn"
+              onClick={() => { setConfig(null); setShowStepper(true); }}
+              aria-label="Home"
+            >
+              ⚙ Home
+            </button>
+          )}
           <div>
             <h1 className="hub-page__title">Simulator Dashboard</h1>
             <p className="hub-page__subtitle">Physics-first heating system simulator</p>
           </div>
         </div>
 
-        <SimulatorDashboard initialSystemChoice={config.systemChoice} />
+        <SimulatorDashboard
+          initialSystemChoice={initialSystemChoice}
+          initialSystemInputs={initialSystemInputs}
+          surveyBacked={isSurveyBacked}
+        />
       </div>
     );
   }
 
-  // Show stepper first.
+  // Show stepper (either standalone entry or "Edit setup" from survey-backed mode).
   return (
     <div className="hub-page">
       <div className="hub-page__header">
         {onBack && (
           <button className="hub-back-btn" onClick={onBack}>← Back</button>
+        )}
+        {surveyAdapted != null && (
+          <button
+            className="hub-back-btn"
+            onClick={() => setShowStepper(false)}
+            aria-label="Back to simulator"
+          >
+            ← Back to simulator
+          </button>
         )}
         <div>
           <h1 className="hub-page__title">Simulator Dashboard</h1>
@@ -61,7 +112,12 @@ export default function ExplainersHubPage({ onBack }: Props) {
         </div>
       </div>
 
-      <SimulatorStepper onComplete={(cfg) => setConfig(cfg)} />
+      <SimulatorStepper
+        onComplete={(cfg) => {
+          setConfig(cfg);
+          setShowStepper(false);
+        }}
+      />
     </div>
   );
 }
