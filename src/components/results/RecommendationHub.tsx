@@ -767,7 +767,7 @@ export function buildSystemHealthLevel(result: FullEngineResult): SystemHealthRe
 
   // Pick the worst band (highest severity rank). At least one candidate is present
   // due to the null check above, so 'good' is a safe initial accumulator.
-  const candidates = [hexBand, cylBand, boilerBand].filter((b): b is string => b !== undefined);
+  const candidates = [hexBand, cylBand, boilerBand].filter((b): b is 'good' | 'moderate' | 'poor' | 'severe' => b !== undefined);
   const worstBand = candidates.reduce((worst, band) => {
     const bandRank = BAND_SEVERITY[band] ?? 0;
     const worstRank = BAND_SEVERITY[worst] ?? 0;
