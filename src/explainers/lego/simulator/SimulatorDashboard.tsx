@@ -34,6 +34,7 @@ import { useHousePlayback } from './useHousePlayback';
 import { useDrawOffPlayback } from './useDrawOffPlayback';
 import { useEfficiencyPlayback } from './useEfficiencyPlayback';
 import { useLimiterPlayback } from './useLimiterPlayback';
+import { useEmitterPrimaryModel } from './useEmitterPrimaryModel';
 import './labDashboard.css';
 import './labPanels.css';
 
@@ -122,8 +123,14 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
   } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed);
   const houseState = useHousePlayback(diagramState);
   const drawOffState = useDrawOffPlayback(diagramState);
-  const efficiencyState = useEfficiencyPlayback(diagramState);
-  const limiterState = useLimiterPlayback(diagramState, systemInputs.combiPowerKw, systemInputs.coldInletTempC);
+  const emitterState = useEmitterPrimaryModel({
+    emitterCapacityFactor: systemInputs.emitterCapacityFactor,
+    primaryPipeSize: systemInputs.primaryPipeSize,
+    emitterType: systemInputs.emitterType,
+    weatherCompensation: systemInputs.weatherCompensation,
+  });
+  const efficiencyState = useEfficiencyPlayback(diagramState, emitterState);
+  const limiterState = useLimiterPlayback(diagramState, systemInputs.combiPowerKw, systemInputs.coldInletTempC, emitterState);
 
   // Derive highlighted schematic components from active limiters.
   // targetComponent may be a single string or an array, so flatten both forms.

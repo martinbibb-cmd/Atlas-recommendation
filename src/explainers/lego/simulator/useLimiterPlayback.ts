@@ -15,6 +15,7 @@
 
 import { isBoilerHeatSource } from '../sim/condensingState'
 import type { SystemDiagramDisplayState } from './useSystemDiagramPlayback'
+import type { EmitterPrimaryDisplayState } from './useEmitterPrimaryModel'
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -200,12 +201,80 @@ function detectCylinderDepleted(state: SystemDiagramDisplayState): Limiter | nul
   }
 }
 
+/**
+ * Emitter undersized — fires when the required flow temperature exceeds 65°C,
+ * indicating that emitters are too small to allow low-temperature operation.
+ *
+ * Trigger: requiredFlowTempC > 65.
+ *
+ * Target highlight: emitters (radiator nodes in the schematic).
+ */
+function detectEmitterUndersized(
+  emitterState: EmitterPrimaryDisplayState | undefined,
+): Limiter | null {
+  if (!emitterState) return null
+  if (emitterState.requiredFlowTempC <= 65) return null
+  return {
+    id: 'emitter_undersized',
+    severity: 'warning',
+    title: 'Emitters too small for low-temperature operation',
+    explanation: `Required flow temperature ${emitterState.requiredFlowTempC.toFixed(0)}°C — larger emitters or UFH would allow a lower flow temperature.`,
+    suggestedFix: 'Increase emitter size or switch to underfloor heating',
+    targetComponent: 'emitters',
+  }
+}
+
+/**
+ * Primary circuit limit — fires when the building's heat demand exceeds the
+ * maximum transportable heat for the selected primary pipe size.
+ *
+ * Trigger: heatDemandKw > primaryCapacityKw.
+ *
+ * Target highlight: pipe-flow (primary supply pipe in the schematic).
+ */
+function detectPrimaryCircuitLimit(
+  emitterState: EmitterPrimaryDisplayState | undefined,
+): Limiter | null {
+  if (!emitterState) return null
+  if (emitterState.primaryAdequate) return null
+  return {
+    id: 'primary_circuit_limit',
+    severity: 'warning',
+    title: 'Primary pipework restricting heat transport',
+    explanation: `${emitterState.primaryCapacityKw} kW pipe capacity — system requires ${emitterState.heatDemandKw} kW. Upgrade to larger bore pipe.`,
+    suggestedFix: 'Upsize primary pipework to 22 mm or 28 mm',
+    targetComponent: 'pipe-flow',
+  }
+}
+
+/**
+ * Low temperature capable — informational limiter that fires when the
+ * required flow temperature is below 50°C, confirming that the emitter
+ * system supports low-temperature and heat pump operation.
+ *
+ * Trigger: requiredFlowTempC < 50.
+ * Severity: info.
+ */
+function detectLowTempCapable(
+  emitterState: EmitterPrimaryDisplayState | undefined,
+): Limiter | null {
+  if (!emitterState) return null
+  if (emitterState.requiredFlowTempC >= 50) return null
+  return {
+    id: 'low_temp_capable',
+    severity: 'info',
+    title: 'Emitters support low-temperature operation',
+    explanation: `Required flow temperature ${emitterState.requiredFlowTempC.toFixed(0)}°C — compatible with heat pump or condensing boiler at maximum efficiency.`,
+    targetComponent: 'emitters',
+  }
+}
+
 // ─── Public hook ──────────────────────────────────────────────────────────────
 
 /**
  * Display adapter: maps SystemDiagramDisplayState → LimiterDisplayState.
  *
- * Detects up to 5 distinct physics constraints from the current state and
+ * Detects up to 8 distinct physics constraints from the current state and
  * surfaces at most MAX_LIMITERS, ordered critical → warning → info so the
  * most severe constraints are always visible.
  *
@@ -218,18 +287,25 @@ function detectCylinderDepleted(state: SystemDiagramDisplayState): Limiter | nul
  *   Combined with DHW_DELIVERY_TARGET_C to compute the actual temperature rise
  *   and the resulting achievable flow rate — so the limiter explanation
  *   updates interactively as the user changes the System Inputs slider.
+ * @param emitterState   Optional emitter/primary circuit model state. When
+ *   supplied, enables emitter_undersized, primary_circuit_limit, and
+ *   low_temp_capable limiters.
  */
 export function useLimiterPlayback(
   diagramState: SystemDiagramDisplayState,
   combiPowerKw: number = 30,
   coldInletTempC: number = 10,
+  emitterState?: EmitterPrimaryDisplayState,
 ): LimiterDisplayState {
   const candidates: Array<Limiter | null> = [
     detectCylinderDepleted(diagramState),
     detectCombiDhwLimit(diagramState, combiPowerKw, coldInletTempC),
     detectConcurrentDemand(diagramState),
     detectCondensingLost(diagramState),
+    detectEmitterUndersized(emitterState),
+    detectPrimaryCircuitLimit(emitterState),
     detectMainsFlowLimit(diagramState),
+    detectLowTempCapable(emitterState),
   ]
 
   const all = candidates

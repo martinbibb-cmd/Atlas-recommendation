@@ -17,9 +17,11 @@ import type { SystemMode } from '../animation/types'
 import {
   isBoilerHeatSource,
   condensingStateDescription,
+  deriveCondensingState,
 } from '../sim/condensingState'
 import type { CondensingState } from '../sim/condensingState'
 import type { SystemDiagramDisplayState } from './useSystemDiagramPlayback'
+import type { EmitterPrimaryDisplayState } from './useEmitterPrimaryModel'
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -43,6 +45,11 @@ export type EfficiencyDisplayState = {
    */
   returnTempC?: number
   /**
+   * Physics-derived required flow temperature (°C).
+   * Present when the emitter primary model is active.
+   */
+  requiredFlowTempC?: number
+  /**
    * Condensing classification for boiler systems.
    * Absent for heat pump systems — must never show a fake condensing badge
    * for heat pumps.
@@ -50,7 +57,8 @@ export type EfficiencyDisplayState = {
   condensingState?: CondensingState
   /**
    * Coefficient of Performance for heat pump systems.
-   * Not available in the current demo phase; reserved for future wiring.
+   * When the emitter primary model is available, derived from flow temperature
+   * using COP ≈ 5 − (flowTemp − 35)/15, clamped to [2.5, 4.5].
    */
   cop?: number
   /** One-line headline describing the current efficiency status. */
@@ -133,23 +141,49 @@ function derivePenalties(diagramState: SystemDiagramDisplayState): string[] {
  *
  * Called as a pure function (no React state) so it can be unit-tested directly
  * in the same way as useDrawOffPlayback and useHousePlayback.
+ *
+ * @param emitterState  Optional emitter primary model state. When supplied:
+ *   - Return temperature is derived from emitter physics rather than phase scripts.
+ *   - Heat pump COP is derived from the required flow temperature.
+ *   - Condensing state is re-derived from the physics-based return temperature.
  */
 export function useEfficiencyPlayback(
   diagramState: SystemDiagramDisplayState,
+  emitterState?: EmitterPrimaryDisplayState,
 ): EfficiencyDisplayState {
   const systemKind: SystemKind = isBoilerHeatSource(diagramState.heatSourceType)
     ? 'boiler'
     : 'heat_pump'
 
-  const { condensingState, returnTempC, systemMode } = diagramState
+  const { systemMode } = diagramState
+
+  // When emitter physics model is available, use its derived temperatures.
+  // This connects emitter adequacy to condensing/COP behaviour.
+  const returnTempC = systemKind === 'boiler'
+    ? (emitterState?.estimatedReturnTempC ?? diagramState.returnTempC)
+    : undefined
+
+  const condensingState = systemKind === 'boiler' && returnTempC !== undefined
+    ? deriveCondensingState(returnTempC)
+    : diagramState.condensingState
+
+  // Heat pump COP: use emitter-model estimate (flow-temp derived) when available,
+  // fall back to phase-scripted COP.
+  const cop = systemKind === 'heat_pump'
+    ? (emitterState?.estimatedCop ?? diagramState.cop)
+    : undefined
+
+  const requiredFlowTempC = emitterState?.requiredFlowTempC
 
   return {
     systemKind,
     returnTempC,
+    requiredFlowTempC,
     condensingState,
+    cop,
     headlineEfficiencyText: deriveHeadline(systemKind, systemMode, condensingState),
     statusDescription: deriveStatusDescription(systemKind, systemMode, condensingState),
-    penalties: derivePenalties(diagramState),
+    penalties: derivePenalties({ ...diagramState, condensingState }),
     statusTone: deriveStatusTone(systemKind, systemMode, condensingState),
   }
 }

@@ -7,6 +7,9 @@
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
+export type PrimaryPipeSize = '15mm' | '22mm' | '28mm'
+export type EmitterType = 'radiators' | 'oversized_radiators' | 'ufh'
+
 export type SystemInputs = {
   /** Mains supply pressure in bar (1.5–6.0). */
   mainsPressureBar: number
@@ -18,6 +21,20 @@ export type SystemInputs = {
   cylinderSizeLitres: number
   /** Combi boiler rated output in kW (18–42). Unused for stored/HP systems. */
   combiPowerKw: number
+  /**
+   * Emitter surface area multiplier relative to standard sizing (0.5–2.0).
+   * 1.0 = standard radiators sized for 70°C flow; >1.0 = oversized.
+   */
+  emitterCapacityFactor: number
+  /** Nominal bore of the primary circuit pipework. */
+  primaryPipeSize: PrimaryPipeSize
+  /** Type of heat emitter installed. */
+  emitterType: EmitterType
+  /**
+   * Whether weather compensation (outdoor-reset flow temperature control)
+   * is active. Reduces required flow temperature by ~5°C.
+   */
+  weatherCompensation: boolean
 }
 
 export const DEFAULT_SYSTEM_INPUTS: SystemInputs = {
@@ -26,4 +43,8 @@ export const DEFAULT_SYSTEM_INPUTS: SystemInputs = {
   coldInletTempC: 10,
   cylinderSizeLitres: 200,
   combiPowerKw: 30,
+  emitterCapacityFactor: 1.0,
+  primaryPipeSize: '22mm',
+  emitterType: 'radiators',
+  weatherCompensation: false,
 }

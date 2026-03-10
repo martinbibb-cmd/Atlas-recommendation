@@ -345,3 +345,144 @@ describe('useLimiterPlayback — combiPowerKw and coldInletTempC', () => {
     expect(limiter?.explanation).toContain('40°C rise')
   })
 })
+
+// ─── New emitter / primary circuit limiters ───────────────────────────────────
+
+import { useEmitterPrimaryModel } from '../simulator/useEmitterPrimaryModel'
+import type { EmitterPrimaryDisplayState } from '../simulator/useEmitterPrimaryModel'
+
+function emitterStateDefault(): EmitterPrimaryDisplayState {
+  // Default: radiators, 22mm pipe, 1.0× factor → flowTemp = 70°C, not adequate
+  return useEmitterPrimaryModel({
+    emitterCapacityFactor: 1.0,
+    primaryPipeSize: '22mm',
+    emitterType: 'radiators',
+    weatherCompensation: false,
+  })
+}
+
+function emitterStateOversized(): EmitterPrimaryDisplayState {
+  // Oversized radiators: flowTemp ≈ 53.8°C, adequate
+  return useEmitterPrimaryModel({
+    emitterCapacityFactor: 1.0,
+    primaryPipeSize: '22mm',
+    emitterType: 'oversized_radiators',
+    weatherCompensation: false,
+  })
+}
+
+function emitterStateUfh(): EmitterPrimaryDisplayState {
+  // UFH: flowTemp ≈ 38.9°C, low-temp capable
+  return useEmitterPrimaryModel({
+    emitterCapacityFactor: 1.0,
+    primaryPipeSize: '22mm',
+    emitterType: 'ufh',
+    weatherCompensation: false,
+  })
+}
+
+function emitterStateSmallPipe(): EmitterPrimaryDisplayState {
+  // 15mm pipe: primary capacity 12 kW < BASE_HEAT_DEMAND_KW (14 kW)
+  return useEmitterPrimaryModel({
+    emitterCapacityFactor: 1.0,
+    primaryPipeSize: '15mm',
+    emitterType: 'radiators',
+    weatherCompensation: false,
+  })
+}
+
+describe('useLimiterPlayback — emitter_undersized', () => {
+  it('fires emitter_undersized when default radiators produce 70°C flow temp', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, emitterStateDefault())
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).toContain('emitter_undersized')
+  })
+
+  it('emitter_undersized severity is warning', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, emitterStateDefault())
+    const limiter = result.activeLimiters.find(l => l.id === 'emitter_undersized')
+    expect(limiter?.severity).toBe('warning')
+  })
+
+  it('emitter_undersized targets emitters', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, emitterStateDefault())
+    const limiter = result.activeLimiters.find(l => l.id === 'emitter_undersized')
+    expect(limiter?.targetComponent).toBe('emitters')
+  })
+
+  it('does not fire emitter_undersized when oversized radiators lower flow below 65°C', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, emitterStateOversized())
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).not.toContain('emitter_undersized')
+  })
+
+  it('does not fire emitter_undersized when no emitter state is provided', () => {
+    const result = useLimiterPlayback(storedIdle())
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).not.toContain('emitter_undersized')
+  })
+})
+
+describe('useLimiterPlayback — primary_circuit_limit', () => {
+  it('fires primary_circuit_limit when 15mm pipe has insufficient capacity', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, emitterStateSmallPipe())
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).toContain('primary_circuit_limit')
+  })
+
+  it('primary_circuit_limit severity is warning', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, emitterStateSmallPipe())
+    const limiter = result.activeLimiters.find(l => l.id === 'primary_circuit_limit')
+    expect(limiter?.severity).toBe('warning')
+  })
+
+  it('primary_circuit_limit targets pipe-flow', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, emitterStateSmallPipe())
+    const limiter = result.activeLimiters.find(l => l.id === 'primary_circuit_limit')
+    expect(limiter?.targetComponent).toBe('pipe-flow')
+  })
+
+  it('does not fire primary_circuit_limit when 22mm pipe is adequate', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, emitterStateDefault())
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).not.toContain('primary_circuit_limit')
+  })
+
+  it('does not fire primary_circuit_limit when no emitter state is provided', () => {
+    const result = useLimiterPlayback(storedIdle())
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).not.toContain('primary_circuit_limit')
+  })
+})
+
+describe('useLimiterPlayback — low_temp_capable', () => {
+  it('fires low_temp_capable when UFH produces sub-50°C flow temperature', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, emitterStateUfh())
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).toContain('low_temp_capable')
+  })
+
+  it('low_temp_capable severity is info', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, emitterStateUfh())
+    const limiter = result.activeLimiters.find(l => l.id === 'low_temp_capable')
+    expect(limiter?.severity).toBe('info')
+  })
+
+  it('low_temp_capable targets emitters', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, emitterStateUfh())
+    const limiter = result.activeLimiters.find(l => l.id === 'low_temp_capable')
+    expect(limiter?.targetComponent).toBe('emitters')
+  })
+
+  it('does not fire low_temp_capable when flow temp is 65°C (above 50°C threshold)', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, emitterStateDefault())
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).not.toContain('low_temp_capable')
+  })
+
+  it('does not fire low_temp_capable when no emitter state is provided', () => {
+    const result = useLimiterPlayback(storedIdle())
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).not.toContain('low_temp_capable')
+  })
+})
