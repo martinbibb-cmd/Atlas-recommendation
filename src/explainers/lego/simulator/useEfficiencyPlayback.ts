@@ -18,8 +18,9 @@ import {
   isBoilerHeatSource,
   condensingStateDescription,
   deriveCondensingState,
+  deriveCondensingQuality,
 } from '../sim/condensingState'
-import type { CondensingState } from '../sim/condensingState'
+import type { CondensingState, CondensingQuality } from '../sim/condensingState'
 import type { SystemDiagramDisplayState } from './useSystemDiagramPlayback'
 import type { EmitterPrimaryDisplayState } from './useEmitterPrimaryModel'
 import type { SystemCondition } from './systemInputsTypes'
@@ -56,6 +57,18 @@ export type EfficiencyDisplayState = {
    * for heat pumps.
    */
   condensingState?: CondensingState
+  /**
+   * Richer condensing operating quality for boiler systems.
+   *
+   * Separates design-load behaviour from current-load behaviour so the
+   * simulator can show "standard radiators CAN condense at lower loads"
+   * rather than just a binary condensing/not-condensing flag.
+   *
+   * Present when the emitter primary model is active (i.e. both design-load
+   * and current-load return temperatures are available).
+   * Absent for heat pump systems.
+   */
+  condensingQuality?: CondensingQuality
   /**
    * Coefficient of Performance for heat pump systems.
    * When the emitter primary model is available, derived from flow temperature
@@ -192,11 +205,21 @@ export function useEfficiencyPlayback(
 
   const requiredFlowTempC = emitterState?.requiredFlowTempC
 
+  // Condensing quality: separates design-load from current-load behaviour.
+  // Only applicable to boiler systems with a live emitter model.
+  const condensingQuality = systemKind === 'boiler' && emitterState != null
+    ? deriveCondensingQuality(
+        emitterState.estimatedReturnTempC,
+        emitterState.currentLoadReturnTempC,
+      )
+    : undefined
+
   return {
     systemKind,
     returnTempC,
     requiredFlowTempC,
     condensingState,
+    condensingQuality,
     cop,
     headlineEfficiencyText: deriveHeadline(systemKind, systemMode, condensingState),
     statusDescription: deriveStatusDescription(systemKind, systemMode, condensingState),

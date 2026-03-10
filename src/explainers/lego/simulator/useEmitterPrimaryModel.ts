@@ -74,6 +74,28 @@ const DT_SYSTEM_C = 12
 /** Weather-compensation flow temperature reduction (°C). */
 const WEATHER_COMP_REDUCTION_C = 5
 
+/**
+ * Load compensation flow temperature reduction (°C).
+ *
+ * Load compensation modulates the boiler setpoint in proportion to actual
+ * heat demand.  At a typical mid-season operating point (~50% design load)
+ * the required flow temperature is materially lower than at the cold-day
+ * design peak.
+ *
+ * Physical basis: the CIBSE Guide A design condition is typically −3°C outdoor
+ * temperature at full design load.  At a mid-season outdoor temperature of
+ * about 7°C (50% design load on a UK degree-day basis) the radiator circuit
+ * needs roughly 12°C less flow temperature to deliver the same comfort, because
+ * emitter output ∝ ΔT (flow − room) and the room can be maintained with half
+ * the heat input.  12°C is therefore a representative mid-season delta; the
+ * actual value depends on emitter sizing and the outdoor reset curve used.
+ *
+ * This constant is used to derive `currentLoadFlowTempC` from the full-load
+ * `requiredFlowTempC`, making the current-load vs design-load separation
+ * visible in the efficiency panel.
+ */
+export const LOAD_COMP_REDUCTION_C = 12
+
 /** Heat pump COP floor. */
 const COP_MIN = 2.5
 
@@ -91,6 +113,16 @@ export type EmitterPrimaryInputs = {
   primaryPipeSize: PrimaryPipeSize
   emitterType: EmitterType
   weatherCompensation: boolean
+  /**
+   * Whether load compensation is active.
+   *
+   * When true, the model derives an additional `currentLoadFlowTempC` that
+   * represents the typical mid-season operating flow temperature — lower than
+   * the full cold-day design flow temperature.  This separation makes it
+   * visible when a standard-radiator system can condense at partial load
+   * even though it cannot at peak load.
+   */
+  loadCompensation: boolean
 }
 
 /**
@@ -99,10 +131,25 @@ export type EmitterPrimaryInputs = {
  * HouseStatusPanel.
  */
 export type EmitterPrimaryDisplayState = {
-  /** Required flow temperature to meet building heat demand (°C). */
+  /** Required flow temperature to meet building heat demand at full (design) load (°C). */
   requiredFlowTempC: number
-  /** Estimated return water temperature (°C) = flowTemp − ΔTsystem. */
+  /** Estimated return water temperature at design load (°C) = flowTemp − ΔTsystem. */
   estimatedReturnTempC: number
+  /**
+   * Required flow temperature at current (typical mid-season) operating load (°C).
+   *
+   * When load compensation is active this is lower than `requiredFlowTempC`,
+   * showing the improvement achievable at partial load.  Without load
+   * compensation it equals `requiredFlowTempC` (fixed setpoint assumption).
+   */
+  currentLoadFlowTempC: number
+  /**
+   * Estimated return water temperature at current operating load (°C).
+   *
+   * Used to derive condensing quality — whether the boiler can condense
+   * right now versus only at full design load.
+   */
+  currentLoadReturnTempC: number
   /** True when emitters are large enough for low-temperature operation. */
   emitterAdequate: boolean
   /** True when the primary pipe can transport the required heat load. */
@@ -158,7 +205,7 @@ function deriveCop(flowTempC: number): number {
 export function useEmitterPrimaryModel(
   inputs: EmitterPrimaryInputs,
 ): EmitterPrimaryDisplayState {
-  const { emitterCapacityFactor, primaryPipeSize, emitterType, weatherCompensation } = inputs
+  const { emitterCapacityFactor, primaryPipeSize, emitterType, weatherCompensation, loadCompensation } = inputs
 
   const typeFactor = EMITTER_TYPE_FACTOR[emitterType]
   const primaryCapacityKw = PRIMARY_CAPACITY_KW[primaryPipeSize]
@@ -177,12 +224,27 @@ export function useEmitterPrimaryModel(
     ? rawFlowTemp - WEATHER_COMP_REDUCTION_C
     : rawFlowTemp
 
+  // `requiredFlowTempC` represents the cold-day design load — the worst-case
+  // flow temperature this system needs to meet full heat demand.
   const requiredFlowTempC = clampFlowTemp(adjustedFlowTemp)
   const estimatedReturnTempC = requiredFlowTempC - DT_SYSTEM_C
+
+  // `currentLoadFlowTempC` represents the typical mid-season operating point.
+  //
+  // Load compensation modulates the boiler setpoint in proportion to actual
+  // demand.  At around 50% design load the required flow temperature is
+  // materially lower than at the design peak.  Without load compensation the
+  // boiler runs at a fixed setpoint, so current and design load are the same.
+  const currentLoadFlowTempC = loadCompensation
+    ? clampFlowTemp(requiredFlowTempC - LOAD_COMP_REDUCTION_C)
+    : requiredFlowTempC
+  const currentLoadReturnTempC = currentLoadFlowTempC - DT_SYSTEM_C
 
   return {
     requiredFlowTempC,
     estimatedReturnTempC,
+    currentLoadFlowTempC,
+    currentLoadReturnTempC,
     // emitterAdequate: emitters support operating below the
     // emitter_undersized threshold (65°C).
     emitterAdequate: requiredFlowTempC <= 65,

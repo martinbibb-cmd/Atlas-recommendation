@@ -11,6 +11,19 @@ export type PrimaryPipeSize = '15mm' | '22mm' | '28mm'
 export type EmitterType = 'radiators' | 'oversized_radiators' | 'ufh'
 
 /**
+ * Heating control strategy / system layout.
+ *
+ * Exposed explicitly so the simulator does not silently assume S-plan for
+ * all unvented cylinders or Y-plan for all open-vented cylinders.
+ *
+ * combi        — Combi boiler with plate heat exchanger. No cylinder or zone valves.
+ * s_plan       — System boiler with S-plan zone valves (independent CH and DHW zones).
+ * y_plan       — System / regular boiler with Y-plan mid-position valve.
+ * heat_pump    — Heat pump primary layout with thermal store cylinder.
+ */
+export type ControlStrategy = 'combi' | 's_plan' | 'y_plan' | 'heat_pump'
+
+/**
  * Physical condition of the heating system.
  *
  * clean   — well-maintained; no significant sludge or scale.
@@ -84,10 +97,31 @@ export type SystemInputs = {
    */
   weatherCompensation: boolean
   /**
+   * Whether load compensation is active.
+   *
+   * Load compensation modulates the boiler's target flow temperature in
+   * proportion to actual heat demand, rather than running at a fixed
+   * high setpoint.  This typically reduces the average operating flow
+   * temperature by ~10–15°C compared to a fixed setpoint, lowering the
+   * average return temperature and increasing the proportion of time the
+   * boiler spends in the condensing range.
+   *
+   * Displayed alongside `weatherCompensation` — both can be active
+   * simultaneously.
+   */
+  loadCompensation: boolean
+  /**
    * Physical condition of the heating system.
    * Affects heat transfer efficiency and surfaces as a penalty / limiter.
    */
   systemCondition: SystemCondition
+  /**
+   * Heating control strategy / system layout.
+   *
+   * Exposed explicitly so the simulator does not silently assume S-plan
+   * for all unvented cylinders or Y-plan for all open-vented cylinders.
+   */
+  controlStrategy: ControlStrategy
 }
 
 export const DEFAULT_SYSTEM_INPUTS: SystemInputs = {
@@ -101,5 +135,7 @@ export const DEFAULT_SYSTEM_INPUTS: SystemInputs = {
   primaryPipeSize: '22mm',
   emitterType: 'radiators',
   weatherCompensation: false,
+  loadCompensation: false,
   systemCondition: 'clean',
+  controlStrategy: 'combi',
 }

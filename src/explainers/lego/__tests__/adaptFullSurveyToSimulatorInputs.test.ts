@@ -487,3 +487,60 @@ describe('adaptFullSurveyToSimulatorInputs — full population', () => {
     expect(systemInputs.cylinderType).toBe('unvented')
   })
 })
+
+// ─── controlStrategy derivation ──────────────────────────────────────────────
+
+describe('adaptFullSurveyToSimulatorInputs — controlStrategy', () => {
+  it('maps combi heat source to combi control strategy', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ currentHeatSourceType: 'combi' }),
+    )
+    expect(systemInputs.controlStrategy).toBe('combi')
+  })
+
+  it('maps system heat source (unvented) to s_plan control strategy', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ currentHeatSourceType: 'system' }),
+    )
+    expect(systemInputs.controlStrategy).toBe('s_plan')
+  })
+
+  it('maps regular heat source to y_plan control strategy', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ currentHeatSourceType: 'regular' }),
+    )
+    expect(systemInputs.controlStrategy).toBe('y_plan')
+  })
+
+  it('maps system heat source with open_vented cylinder to y_plan', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({
+        currentHeatSourceType: 'system',
+        fullSurvey: { dhwCondition: { cylinderMaterial: 'copper_vented' } },
+      }),
+    )
+    expect(systemInputs.controlStrategy).toBe('y_plan')
+  })
+
+  it('maps ashp heat source to heat_pump control strategy', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ currentHeatSourceType: 'ashp' }),
+    )
+    expect(systemInputs.controlStrategy).toBe('heat_pump')
+  })
+
+  it('defaults to combi control strategy when no heat source type is provided', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(minimalSurvey())
+    expect(systemInputs.controlStrategy).toBe('combi')
+  })
+
+  it('always populates controlStrategy regardless of heat source type', () => {
+    const heatSourceTypes = ['combi', 'system', 'regular', 'ashp', 'other'] as const
+    heatSourceTypes.forEach(ht => {
+      const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+        minimalSurvey({ currentHeatSourceType: ht as any }),
+      )
+      expect(systemInputs.controlStrategy).toBeDefined()
+    })
+  })
+})

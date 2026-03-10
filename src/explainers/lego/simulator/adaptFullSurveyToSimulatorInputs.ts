@@ -18,7 +18,7 @@
 //   3. clean   — no derogatory indicators found.
 
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1'
-import type { SystemInputs, CylinderType, PrimaryPipeSize } from './systemInputsTypes'
+import type { SystemInputs, CylinderType, PrimaryPipeSize, ControlStrategy } from './systemInputsTypes'
 import type { SimulatorSystemChoice } from './useSystemDiagramPlayback'
 import { CYLINDER_SIZES_BY_TYPE } from './systemInputsTypes'
 
@@ -187,6 +187,19 @@ export function adaptFullSurveyToSimulatorInputs(
     systemChoice = 'heat_pump'
   }
   // 'other', undefined → keep 'combi' default
+
+  // ── Control strategy ────────────────────────────────────────────────────────
+  // Provide the most common default for the derived system choice.
+  // This is a pre-fill only — users can change it in the stepper or inputs panel.
+  // We do NOT silently lock it; it is exposed as an editable initial value.
+  let controlStrategy: ControlStrategy
+  switch (systemChoice) {
+    case 'combi':       controlStrategy = 'combi';      break
+    case 'unvented':    controlStrategy = 's_plan';     break
+    case 'open_vented': controlStrategy = 'y_plan';     break
+    case 'heat_pump':   controlStrategy = 'heat_pump';  break
+  }
+  systemInputs.controlStrategy = controlStrategy
 
   return { systemChoice, systemInputs }
 }

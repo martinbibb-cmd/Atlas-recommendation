@@ -18,7 +18,7 @@
  */
 
 import type { SimulatorSystemChoice } from '../useSystemDiagramPlayback'
-import type { SystemInputs, PrimaryPipeSize, EmitterType, CylinderType, SystemCondition } from '../systemInputsTypes'
+import type { SystemInputs, PrimaryPipeSize, EmitterType, CylinderType, SystemCondition, ControlStrategy } from '../systemInputsTypes'
 import { CYLINDER_SIZES_BY_TYPE } from '../systemInputsTypes'
 
 // ─── Time speed constants ─────────────────────────────────────────────────────
@@ -72,6 +72,29 @@ function cylinderTypeOptionsFor(systemChoice: SimulatorSystemChoice) {
     return CYLINDER_TYPE_OPTIONS.filter(o => o.value === 'open_vented')
   }
   return CYLINDER_TYPE_OPTIONS.filter(o => o.value !== 'open_vented')
+}
+
+// ─── Control strategy options ─────────────────────────────────────────────────
+
+const CONTROL_STRATEGY_OPTIONS: { value: ControlStrategy; label: string; description: string }[] = [
+  { value: 'combi',      label: 'Combi',     description: 'on-demand hot water via plate HEX. No zone valves.' },
+  { value: 's_plan',     label: 'S-plan',    description: 'Independent CH and DHW zones via motorised valves.' },
+  { value: 'y_plan',     label: 'Y-plan',    description: 'Mid-position valve; cannot run CH and DHW fully simultaneously.' },
+  { value: 'heat_pump',  label: 'HP layout', description: 'Heat pump primary loop with thermal store cylinder.' },
+]
+
+/**
+ * Returns the control strategy options that are valid for the given system choice.
+ *
+ * combi     → combi only
+ * heat_pump → heat_pump only
+ * unvented  → s_plan or y_plan
+ * open_vented → s_plan or y_plan
+ */
+function controlStrategyOptionsFor(systemChoice: SimulatorSystemChoice): typeof CONTROL_STRATEGY_OPTIONS {
+  if (systemChoice === 'combi') return CONTROL_STRATEGY_OPTIONS.filter(o => o.value === 'combi')
+  if (systemChoice === 'heat_pump') return CONTROL_STRATEGY_OPTIONS.filter(o => o.value === 'heat_pump')
+  return CONTROL_STRATEGY_OPTIONS.filter(o => o.value === 's_plan' || o.value === 'y_plan')
 }
 
 // ─── System condition options ─────────────────────────────────────────────────
@@ -299,6 +322,39 @@ export default function SystemInputsPanel({
         >
           {inputs.weatherCompensation ? 'On' : 'Off'}
         </button>
+      </div>
+
+      {/* ── Load compensation ─────────────────────────────────────────────── */}
+      <div className="sys-input-row">
+        <span className="sys-input-row__icon" aria-hidden="true">📉</span>
+        <span className="sys-input-row__label">Load compensation</span>
+        <button
+          className={`sys-input-row__toggle${inputs.loadCompensation ? ' sys-input-row__toggle--on' : ''}`}
+          onClick={() => onInputChange({ loadCompensation: !inputs.loadCompensation })}
+          aria-pressed={inputs.loadCompensation}
+          aria-label="Load compensation"
+        >
+          {inputs.loadCompensation ? 'On' : 'Off'}
+        </button>
+      </div>
+
+      {/* ── Control strategy / layout ─────────────────────────────────────── */}
+      <div className="sys-input-row">
+        <span className="sys-input-row__icon" aria-hidden="true">🗺</span>
+        <span className="sys-input-row__label">Control layout</span>
+        <div className="sys-input-row__segmented" role="group" aria-label="Control layout">
+          {controlStrategyOptionsFor(systemChoice).map(opt => (
+            <button
+              key={opt.value}
+              className={`sys-input-row__seg-btn${inputs.controlStrategy === opt.value ? ' sys-input-row__seg-btn--active' : ''}`}
+              onClick={() => onInputChange({ controlStrategy: opt.value })}
+              aria-pressed={inputs.controlStrategy === opt.value}
+              title={opt.description}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="sys-input-row">

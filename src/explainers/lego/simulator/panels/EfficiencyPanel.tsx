@@ -12,7 +12,7 @@
  * raw systemType booleans.  useEfficiencyPlayback is the single mapping layer.
  */
 
-import { condensingStateBadgeText } from '../../sim/condensingState'
+import { condensingStateBadgeText, condensingQualityLabel, condensingQualityDescription } from '../../sim/condensingState'
 import type { EfficiencyDisplayState } from '../useEfficiencyPlayback'
 
 interface EfficiencyPanelProps {
@@ -70,6 +70,19 @@ export default function EfficiencyPanel({ state }: EfficiencyPanelProps) {
         </div>
       )}
 
+      {/* Condensing quality — design-load vs current-load view (boiler only) */}
+      {state.systemKind === 'boiler' && state.condensingQuality != null && (
+        <div className="efficiency-metric" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+          <span className="efficiency-metric__label">Operating quality</span>
+          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: condensingQualityColor(state.condensingQuality) }}>
+            {condensingQualityLabel(state.condensingQuality)}
+          </span>
+          <span style={{ fontSize: '0.72rem', color: '#718096' }}>
+            {condensingQualityDescription(state.condensingQuality)}
+          </span>
+        </div>
+      )}
+
       {/* Headline status + explanatory description */}
       <div className="efficiency-metric" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
         <span className="efficiency-metric__label">Status</span>
@@ -106,6 +119,15 @@ function headlineColor(tone: EfficiencyDisplayState['statusTone']): string {
     case 'warning': return '#744210'
     case 'poor':    return '#742a2a'
     case 'idle':    return '#a0aec0'
+  }
+}
+
+function condensingQualityColor(quality: NonNullable<EfficiencyDisplayState['condensingQuality']>): string {
+  switch (quality) {
+    case 'condensing_reliably':      return '#276749'
+    case 'can_condense_at_low_load': return '#2b6cb0'
+    case 'high_flow_temp_required':  return '#744210'
+    case 'rarely_condensing':        return '#742a2a'
   }
 }
 

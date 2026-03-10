@@ -179,6 +179,7 @@ export default function SimulatorDashboard({
     primaryPipeSize: systemInputs.primaryPipeSize,
     emitterType: systemInputs.emitterType,
     weatherCompensation: systemInputs.weatherCompensation,
+    loadCompensation: systemInputs.loadCompensation,
   });
   const efficiencyState = useEfficiencyPlayback(diagramState, emitterState, systemInputs.systemCondition);
   const limiterState = useLimiterPlayback(diagramState, systemInputs.combiPowerKw, systemInputs.coldInletTempC, emitterState, systemInputs.cylinderType, systemInputs.systemCondition);
@@ -189,6 +190,7 @@ export default function SimulatorDashboard({
   const [improvedInputs, setImprovedInputs] = useState<SystemInputs>({
     ...DEFAULT_SYSTEM_INPUTS,
     weatherCompensation: true,
+    loadCompensation: true,
     emitterCapacityFactor: 1.3,
     primaryPipeSize: '22mm',
     systemCondition: 'clean',
@@ -211,6 +213,7 @@ export default function SimulatorDashboard({
     primaryPipeSize: improvedInputs.primaryPipeSize,
     emitterType: improvedInputs.emitterType,
     weatherCompensation: improvedInputs.weatherCompensation,
+    loadCompensation: improvedInputs.loadCompensation,
   });
   const efficiencyStateImproved = useEfficiencyPlayback(diagramStateImproved, emitterStateImproved, improvedInputs.systemCondition);
   const limiterStateImproved = useLimiterPlayback(diagramStateImproved, improvedInputs.combiPowerKw, improvedInputs.coldInletTempC, emitterStateImproved, improvedInputs.cylinderType, improvedInputs.systemCondition);
