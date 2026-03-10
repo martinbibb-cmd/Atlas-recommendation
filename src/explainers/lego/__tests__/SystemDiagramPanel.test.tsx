@@ -188,7 +188,7 @@ describe('SystemDiagramPanel — combi DHW draw (no CH call)', () => {
 describe('SystemDiagramPanel — combi labels', () => {
   it('shows "Plate HEX" label for combi system', () => {
     render(<SystemDiagramPanel state={combiIdle()} />)
-    expect(screen.getByText('💧 Plate HEX')).toBeTruthy()
+    expect(screen.getByText('⇌ Plate HEX')).toBeTruthy()
   })
 
   it('does not render the stored hot-draw pipe for combi', () => {

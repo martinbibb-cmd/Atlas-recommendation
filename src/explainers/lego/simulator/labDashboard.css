@@ -4,10 +4,10 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 14px;
-  padding: 14px;
-  height: calc(100vh - 185px);
-  min-height: 480px;
+  gap: 12px;
+  padding: 12px 14px 14px;
+  height: calc(100vh - 190px);
+  min-height: 460px;
   box-sizing: border-box;
 }
 
@@ -16,6 +16,8 @@
     grid-template-columns: 1fr;
     grid-template-rows: repeat(4, auto);
     height: auto;
+    gap: 10px;
+    padding: 10px;
   }
 }
 
@@ -26,29 +28,33 @@
   gap: 6px;
   padding: 10px 14px 0;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .sim-system-selector__btn {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
-  padding: 4px 14px;
+  padding: 5px 14px;
   border-radius: 999px;
-  border: 1px solid #e2e8f0;
+  border: 1.5px solid #e2e8f0;
   background: #f7fafc;
   color: #4a5568;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+  letter-spacing: 0.01em;
 }
 
 .sim-system-selector__btn:hover {
   background: #edf2f7;
-  border-color: #bee3f8;
+  border-color: #90cdf4;
+  color: #2d3748;
 }
 
 .sim-system-selector__btn--active {
   background: #ebf8ff;
-  border-color: #63b3ed;
-  color: #2b6cb0;
+  border-color: #3182ce;
+  color: #1a365d;
+  box-shadow: 0 1px 4px rgba(49, 130, 206, 0.2);
 }
 
 /* ─── Mode strip (replaces old House View / Advanced Builder strip) ────────── */
@@ -69,12 +75,12 @@
 }
 
 .sim-header__badge {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid #bee3f8;
+  border: 1px solid #90cdf4;
   background: #ebf8ff;
-  color: #2b6cb0;
+  color: #1a365d;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -84,20 +90,21 @@
 .sim-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(15, 23, 42, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 20px;
+  backdrop-filter: blur(2px);
 }
 
 .sim-modal {
   background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+  border-radius: 20px;
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.25);
   width: 100%;
-  max-width: 860px;
+  max-width: 880px;
   max-height: 90vh;
   overflow: hidden;
   display: flex;
@@ -111,11 +118,12 @@
   padding: 16px 20px;
   border-bottom: 1px solid #e2e8f0;
   flex-shrink: 0;
+  background: #fafcff;
 }
 
 .sim-modal__title {
   flex: 1;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   margin: 0;
   color: #1a202c;
@@ -125,16 +133,17 @@
   background: #f7fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 6px 12px;
+  padding: 6px 14px;
   cursor: pointer;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: #4a5568;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .sim-modal__close:hover {
   background: #edf2f7;
+  border-color: #90cdf4;
 }
 
 .sim-modal__body {
@@ -149,11 +158,12 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 7px 14px;
   background: #f7fafc;
-  border-bottom: 1px solid #e2e8f0;
-  font-size: 0.75rem;
+  border-bottom: 1px solid #edf2f7;
+  font-size: 0.74rem;
   flex-wrap: wrap;
+  min-height: 34px;
 }
 
 .sim-phase-bar__label {
@@ -163,18 +173,19 @@
 }
 
 .sim-phase-bar__divider {
-  color: #a0aec0;
+  color: #cbd5e0;
 }
 
 .sim-phase-bar__reset {
-  font-size: 0.7rem;
-  padding: 2px 8px;
+  font-size: 0.68rem;
+  padding: 2px 9px;
   border-radius: 999px;
-  border: 1px solid #bee3f8;
+  border: 1px solid #90cdf4;
   background: #ebf8ff;
-  color: #2b6cb0;
+  color: #1a365d;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
+  transition: background 0.15s;
 }
 
 .sim-phase-bar__reset:hover {
@@ -182,62 +193,73 @@
 }
 
 .sim-phase-badge {
-  font-size: 0.68rem;
+  font-size: 0.67rem;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
+  white-space: nowrap;
 }
 
 .sim-phase-badge--ch       { background: #fff5f5; color: #c53030; border: 1px solid #fc8181; }
 .sim-phase-badge--paused   { background: #fffff0; color: #744210; border: 1px solid #d69e2e; }
-.sim-phase-badge--dhw      { background: #ebf8ff; color: #2b6cb0; border: 1px solid #63b3ed; }
-.sim-phase-badge--reheat   { background: #f0fff4; color: #276749; border: 1px solid #68d391; }
+.sim-phase-badge--dhw      { background: #ebf8ff; color: #1a365d; border: 1px solid #63b3ed; }
+.sim-phase-badge--reheat   { background: #f0fff4; color: #22543d; border: 1px solid #68d391; }
 .sim-phase-badge--idle     { background: #f7fafc; color: #718096; border: 1px solid #e2e8f0; }
-.sim-phase-badge--manual   { background: #faf5ff; color: #553c9a; border: 1px solid #b794f4; }
+.sim-phase-badge--manual   { background: #faf5ff; color: #44337a; border: 1px solid #b794f4; }
 
 /* ─── Demand controls ───────────────────────────────────────────────────────── */
 
 .sim-demand-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   padding: 6px 14px 8px;
   flex-wrap: wrap;
 }
 
 .sim-demand-btn {
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   font-weight: 600;
-  padding: 4px 12px;
+  padding: 5px 12px;
   border-radius: 999px;
-  border: 1px solid #e2e8f0;
+  border: 1.5px solid #e2e8f0;
   background: #f7fafc;
   color: #4a5568;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+  min-height: 30px;
 }
 
 .sim-demand-btn:hover {
   background: #edf2f7;
-  border-color: #bee3f8;
+  border-color: #90cdf4;
+  color: #2d3748;
 }
 
 .sim-demand-btn--active {
   background: #ebf8ff;
-  border-color: #63b3ed;
-  color: #2b6cb0;
+  border-color: #3182ce;
+  color: #1a365d;
 }
 
 .sim-demand-btn--outlet.sim-demand-btn--active {
   background: #e6fffa;
-  border-color: #4fd1c5;
-  color: #234e52;
+  border-color: #2c7a7b;
+  color: #1d4044;
 }
 
 .sim-demand-btn--preset {
-  font-size: 0.7rem;
-  padding: 3px 10px;
+  font-size: 0.68rem;
+  padding: 4px 10px;
   color: #718096;
+  border-style: dashed;
+  min-height: 28px;
+}
+
+.sim-demand-btn--preset:hover {
+  background: #f7fafc;
+  border-style: solid;
 }
 
 .sim-demand-controls__divider {
@@ -248,12 +270,13 @@
 
 .sim-demand-warning {
   font-size: 0.7rem;
-  color: #c05621;
+  color: #9c4221;
   background: #fffaf0;
   border: 1px solid #f6ad55;
   border-radius: 6px;
-  padding: 2px 8px;
+  padding: 3px 9px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 /* ─── Simulator Stepper ─────────────────────────────────────────────────────── */
