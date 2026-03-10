@@ -177,9 +177,7 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
             deliveryMode="Instantaneous from mains"
             pressureSource="Mains supply at draw"
             concurrency="Shared — all outlets divide the boiler output"
-            note={`Combi output: ${combiKw.toFixed(1)} kW. ${representativeFlowLpm > combiLimitFlow
-              ? `Combi cannot sustain ${representativeFlowLpm} L/min for this household profile at ${deltaT}°C rise.`
-              : `Within combi capacity at ${deltaT}°C rise for this household profile.`}`}
+            note={combiRowNote(combiKw, representativeFlowLpm, combiLimitFlow, deltaT)}
             status={combiRisk === 'fail' ? 'constraint' : combiRisk === 'warn' ? 'borderline' : 'ok'}
           />
           <SystemBehaviourRow
@@ -314,7 +312,7 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
             })}
           </div>
           <p className="bar-chart__legend">
-            <span className="bar-chart__legend-line" /> = combi limit ({combiLimitFlow.toFixed(1)} L/min) — stored systems buffer beyond this
+            <span className="bar-chart__legend-line" /> = combi limit ({combiLimitFlow.toFixed(1)} L/min) — stored systems are not constrained by this limit
           </p>
         </div>
 
@@ -371,6 +369,26 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
       </div>
     </div>
   );
+}
+
+// ─── Combi row note helper ────────────────────────────────────────────────────
+
+/**
+ * Returns the context note shown for the combi row in the behaviour comparison.
+ * Extracted from the component to keep the JSX readable and to make the
+ * conditional logic easy to follow and test.
+ */
+function combiRowNote(
+  combiKw: number,
+  householdFlowLpm: number,
+  combiLimitFlow: number,
+  deltaT: number,
+): string {
+  const capacityLine =
+    householdFlowLpm > combiLimitFlow
+      ? `Combi cannot sustain ${householdFlowLpm} L/min for this household profile at ${deltaT}°C rise.`
+      : `Within combi capacity at ${deltaT}°C rise for this household profile.`;
+  return `Combi output: ${combiKw.toFixed(1)} kW. ${capacityLine}`;
 }
 
 // ─── System behaviour row helper ─────────────────────────────────────────────

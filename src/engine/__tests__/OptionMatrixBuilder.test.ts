@@ -148,10 +148,11 @@ describe('buildOptionMatrixV1', () => {
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
     const unventedCard = options.find(o => o.id === 'stored_unvented')!;
-    // Must not say "possible" as if unvented is just a last resort — it suits the demand
-    expect(unventedCard.headline.toLowerCase()).not.toMatch(/^unvented cylinder possible/);
-    // Should indicate demand fit positively
-    expect(unventedCard.headline.toLowerCase()).toMatch(/demand|profile|high/);
+    // For a large household without measurements, the headline should lead positively
+    // with demand suitability: "Unvented cylinder suits your demand profile — …"
+    expect(unventedCard.headline).toContain('suits your demand profile');
+    // And must mention confirming supply (the actual open constraint)
+    expect(unventedCard.headline.toLowerCase()).toContain('confirm');
   });
 
   it('ashp card status matches hydraulicV1 verdict', () => {
