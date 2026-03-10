@@ -488,6 +488,7 @@ const DEFAULT_DEMAND: DemandControls = {
 
 export function useSystemDiagramPlayback(
   initialSystemChoice: SimulatorSystemChoice = 'combi',
+  timeSpeedMultiplier: number = 1,
 ): UseSystemDiagramPlaybackResult {
   const [systemChoice, setSystemChoiceState] = useState<SimulatorSystemChoice>(initialSystemChoice)
   const [phase, setPhase] = useState(0)
@@ -524,6 +525,7 @@ export function useSystemDiagramPlayback(
   useEffect(() => {
     if (isManualMode) return
     const count = phaseCount(systemChoice)
+    const intervalMs = Math.max(500, Math.round(PHASE_DURATION_MS / timeSpeedMultiplier))
     const timer = setInterval(() => {
       setPhase(prev => {
         const next = (prev + 1) % count
@@ -534,9 +536,9 @@ export function useSystemDiagramPlayback(
         }
         return next
       })
-    }, PHASE_DURATION_MS)
+    }, intervalMs)
     return () => clearInterval(timer)
-  }, [systemChoice, isManualMode])
+  }, [systemChoice, isManualMode, timeSpeedMultiplier])
 
   const state: SystemDiagramDisplayState = isManualMode
     ? buildManualState(systemChoice, demandControls, cylinderFillRef)

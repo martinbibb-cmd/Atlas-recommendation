@@ -25,6 +25,9 @@ import HouseStatusPanel from './panels/HouseStatusPanel';
 import DrawOffStatusPanel from './panels/DrawOffStatusPanel';
 import EfficiencyPanel from './panels/EfficiencyPanel';
 import LimitersPanel from './panels/LimitersPanel';
+import SystemInputsPanel from './panels/SystemInputsPanel';
+import type { SystemInputs } from './systemInputsTypes';
+import { DEFAULT_SYSTEM_INPUTS } from './systemInputsTypes';
 import { useSystemDiagramPlayback } from './useSystemDiagramPlayback';
 import type { SimulatorSystemChoice } from './useSystemDiagramPlayback';
 import { useHousePlayback } from './useHousePlayback';
@@ -34,7 +37,7 @@ import { useLimiterPlayback } from './useLimiterPlayback';
 import './labDashboard.css';
 import './labPanels.css';
 
-type PanelId = 'system' | 'house' | 'drawoff' | 'efficiency' | 'limiters';
+type PanelId = 'system' | 'house' | 'drawoff' | 'efficiency' | 'limiters' | 'inputs';
 
 const PANEL_METADATA: Record<PanelId, { title: string; icon: string }> = {
   system:     { title: 'System Diagram',  icon: '⚙'  },
@@ -42,6 +45,7 @@ const PANEL_METADATA: Record<PanelId, { title: string; icon: string }> = {
   drawoff:    { title: 'Draw-Off Status', icon: '💧' },
   efficiency: { title: 'Efficiency',      icon: '📊' },
   limiters:   { title: 'System Limiters', icon: '⚠'  },
+  inputs:     { title: 'System Inputs',   icon: '🎛'  },
 };
 
 const SYSTEM_CHOICE_OPTIONS: { value: SimulatorSystemChoice; label: string; description: string }[] = [
@@ -103,6 +107,9 @@ interface Props {
 
 export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Props) {
   const [expanded, setExpanded] = useState<PanelId | null>(null);
+  const [timeSpeed, setTimeSpeed] = useState(1);
+  const [systemInputs, setSystemInputs] = useState<SystemInputs>(DEFAULT_SYSTEM_INPUTS);
+
   const {
     state: diagramState,
     systemChoice,
@@ -112,11 +119,16 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
     isManualMode,
     resetToAutoMode,
     setManualMode,
-  } = useSystemDiagramPlayback(initialSystemChoice);
+  } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed);
   const houseState = useHousePlayback(diagramState);
   const drawOffState = useDrawOffPlayback(diagramState);
   const efficiencyState = useEfficiencyPlayback(diagramState);
-  const limiterState = useLimiterPlayback(diagramState);
+  const limiterState = useLimiterPlayback(diagramState, systemInputs.combiPowerKw);
+
+  // Derive highlighted schematic components from active limiters.
+  const highlightedComponents = limiterState.activeLimiters
+    .filter(l => l.targetComponent)
+    .map(l => l.targetComponent as string);
 
   // Derive phase bar indicators from authoritative diagramState.
   const { systemMode, serviceSwitchingActive, hotDrawActive } = diagramState;
@@ -145,11 +157,20 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
   );
 
   const expandedContent: Partial<Record<PanelId, ReactElement>> = {
-    system: <SystemDiagramPanel state={diagramState} />,
+    system: <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} />,
     house:    <HouseStatusPanel state={houseState} />,
     drawoff: drawOffPanel,
     efficiency: <EfficiencyPanel state={efficiencyState} />,
     limiters: <LimitersPanel state={limiterState} />,
+    inputs: (
+      <SystemInputsPanel
+        timeSpeed={timeSpeed}
+        onTimeSpeedChange={setTimeSpeed}
+        inputs={systemInputs}
+        onInputChange={partial => setSystemInputs(prev => ({ ...prev, ...partial }))}
+        systemChoice={systemChoice}
+      />
+    ),
   };
 
   return (
@@ -188,7 +209,7 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
           icon="⚙"
           onExpand={() => setExpanded('system')}
         >
-          <SystemDiagramPanel state={diagramState} />
+          <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} />
         </SimulatorPanel>
 
         {/* House View — live playback */}
@@ -227,6 +248,23 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
           onExpand={() => setExpanded('limiters')}
         >
           <LimitersPanel state={limiterState} />
+        </SimulatorPanel>
+      </div>
+
+      {/* System Inputs — full-width row below limiters */}
+      <div className="sim-inputs-row">
+        <SimulatorPanel
+          title="System Inputs"
+          icon="🎛"
+          onExpand={() => setExpanded('inputs')}
+        >
+          <SystemInputsPanel
+            timeSpeed={timeSpeed}
+            onTimeSpeedChange={setTimeSpeed}
+            inputs={systemInputs}
+            onInputChange={partial => setSystemInputs(prev => ({ ...prev, ...partial }))}
+            systemChoice={systemChoice}
+          />
         </SimulatorPanel>
       </div>
 

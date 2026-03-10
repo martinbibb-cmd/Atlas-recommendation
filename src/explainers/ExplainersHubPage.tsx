@@ -33,9 +33,9 @@ export default function ExplainersHubPage({ onBack }: Props) {
           <button
             className="hub-back-btn"
             onClick={() => setConfig(null)}
-            aria-label="Return to setup"
+            aria-label="Return to home setup"
           >
-            ⚙ Setup
+            ⚙ Home
           </button>
           <div>
             <h1 className="hub-page__title">Simulator Dashboard</h1>

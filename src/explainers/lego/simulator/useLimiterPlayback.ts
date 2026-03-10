@@ -70,15 +70,23 @@ const SEVERITY_ORDER: Record<LimiterSeverity, number> = {
  * draw, which by definition uses the full boiler output on the plate HEX.
  *
  * Trigger: heatSourceType === 'combi' AND a hot-water draw is in progress.
+ *
+ * @param combiPowerKw  Rated combi output in kW (default 30). Used to compute
+ *   the achievable hot-water flow rate at a 40 °C temperature rise.
  */
-function detectCombiDhwLimit(state: SystemDiagramDisplayState): Limiter | null {
+function detectCombiDhwLimit(
+  state: SystemDiagramDisplayState,
+  combiPowerKw: number,
+): Limiter | null {
   if (state.heatSourceType !== 'combi') return null
   if (!state.hotDrawActive && state.systemMode !== 'dhw_draw') return null
+  // Flow rate (L/min) at ΔT = 40 °C: P_kW × 860 / (60 × 40)
+  const flowLpm = Math.round(combiPowerKw * 860 / (60 * 40))
   return {
     id: 'combi_dhw_limit',
     severity: 'warning',
     title: 'Boiler DHW output limit',
-    explanation: '30 kW combi can supply ~11 L/min hot water',
+    explanation: `${combiPowerKw} kW combi can supply ~${flowLpm} L/min at this rise.`,
     suggestedFix: 'Cylinder or lower simultaneous demand',
     targetComponent: 'boiler',
   }
@@ -89,19 +97,24 @@ function detectCombiDhwLimit(state: SystemDiagramDisplayState): Limiter | null {
  * the same time.
  *
  * Trigger: active outlet count >= 2.
+ *
+ * targetComponent is system-specific:
+ *   - Combi:  plate HEX — all on-demand flow passes through it.
+ *   - Stored: cylinder — concurrent draw depletes the reserve faster.
  */
 function detectConcurrentDemand(state: SystemDiagramDisplayState): Limiter | null {
   const outlets = state.outletDemands
   if (!outlets) return null
   const activeCount = [outlets.shower, outlets.bath, outlets.kitchen].filter(Boolean).length
   if (activeCount < 2) return null
+  const targetComponent = state.heatSourceType === 'combi' ? 'plate_hex' : 'cylinder'
   return {
     id: 'concurrent_demand',
     severity: 'warning',
     title: 'Concurrent hot water demand',
-    explanation: `${activeCount} outlets open simultaneously`,
+    explanation: `${activeCount} outlets open simultaneously — flow and temperature must be shared.`,
     suggestedFix: 'Unvented cylinder supports simultaneous draw',
-    targetComponent: 'plate_hex',
+    targetComponent,
   }
 }
 
@@ -121,7 +134,7 @@ function detectMainsFlowLimit(state: SystemDiagramDisplayState): Limiter | null 
     id: 'mains_flow_limit',
     severity: 'info',
     title: 'Cold water supply limit',
-    explanation: 'Mains supply may limit simultaneous hot water draw',
+    explanation: 'Incoming mains flow is restricting simultaneous draw.',
     suggestedFix: 'Check mains incoming flow rate',
     targetComponent: 'mains',
   }
@@ -141,7 +154,7 @@ function detectCondensingLost(state: SystemDiagramDisplayState): Limiter | null 
     id: 'condensing_lost',
     severity: 'warning',
     title: 'High return temperature',
-    explanation: `Return temp ${state.returnTempC}°C exceeds condensing threshold`,
+    explanation: `Return at ${state.returnTempC}°C — latent heat recovery unavailable.`,
     suggestedFix: 'Lower flow temperature or improve radiator sizing',
     targetComponent: 'boiler',
   }
@@ -160,7 +173,7 @@ function detectCylinderDepleted(state: SystemDiagramDisplayState): Limiter | nul
     id: 'cylinder_depleted',
     severity: 'critical',
     title: 'Cylinder stored energy depleted',
-    explanation: `Hot water reserve at ${Math.round(state.cylinderFillPct * 100)}%`,
+    explanation: `Hot water reserve at ${Math.round(state.cylinderFillPct * 100)}% — reheating before further draw.`,
     suggestedFix: 'Reheat cycle required before further draw',
     targetComponent: 'cylinder',
   }
@@ -177,11 +190,17 @@ function detectCylinderDepleted(state: SystemDiagramDisplayState): Limiter | nul
  *
  * Called as a pure function (no React state) so it can be unit-tested directly
  * in the same way as useEfficiencyPlayback.
+ *
+ * @param combiPowerKw  Rated combi output in kW (default 30). Used for the
+ *   DHW-flow calculation in the combi_dhw_limit explanation string.
  */
-export function useLimiterPlayback(diagramState: SystemDiagramDisplayState): LimiterDisplayState {
+export function useLimiterPlayback(
+  diagramState: SystemDiagramDisplayState,
+  combiPowerKw: number = 30,
+): LimiterDisplayState {
   const candidates: Array<Limiter | null> = [
     detectCylinderDepleted(diagramState),
-    detectCombiDhwLimit(diagramState),
+    detectCombiDhwLimit(diagramState, combiPowerKw),
     detectConcurrentDemand(diagramState),
     detectCondensingLost(diagramState),
     detectMainsFlowLimit(diagramState),

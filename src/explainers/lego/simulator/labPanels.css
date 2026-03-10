@@ -216,6 +216,18 @@
   pointer-events: none;
 }
 
+/* ── Component limiter highlight (glow when a limiter targets this node) ── */
+@keyframes sd-node-highlight-pulse {
+  0%,  100% { filter: none; }
+  50%        { filter: drop-shadow(0 0 6px rgba(214, 158, 46, 0.9)); }
+}
+
+.sd-node--highlighted {
+  stroke: #d69e2e;
+  stroke-width: 3;
+  animation: sd-node-highlight-pulse 1.4s ease-in-out infinite;
+}
+
 /* ─── House Status Panel ────────────────────────────────────────────────────── */
 
 .house-cutaway {
@@ -637,4 +649,92 @@
   margin: 0;
   padding-left: 20px;
   font-style: italic;
+}
+
+/* ─── System Inputs Panel ────────────────────────────────────────────────────── */
+
+.sys-inputs-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 2px 0;
+}
+
+.sys-input-row {
+  display: grid;
+  grid-template-columns: 1.4rem 1fr auto 3.2rem;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 7px;
+  transition: background 0.15s;
+}
+
+.sys-input-row:hover {
+  background: #f7fafc;
+}
+
+.sys-input-row--disabled {
+  opacity: 0.4;
+}
+
+.sys-input-row__icon {
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.sys-input-row__label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #4a5568;
+  white-space: nowrap;
+}
+
+.sys-input-row__slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  outline: none;
+  cursor: pointer;
+}
+
+.sys-input-row__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3182ce;
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.sys-input-row__slider:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.sys-input-row__value {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1a202c;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ─── System Inputs row (below limiters) ─────────────────────────────────────── */
+
+.sim-inputs-row {
+  padding: 0 14px 14px;
+}
+
+@media (max-width: 820px) {
+  .sim-inputs-row {
+    padding: 0 10px 10px;
+  }
 }
