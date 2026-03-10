@@ -26,6 +26,8 @@ import EfficiencyPanel from './panels/EfficiencyPanel';
 import LimitersPanel from './panels/LimitersPanel';
 import SystemInputsPanel from './panels/SystemInputsPanel';
 import ComparisonSummaryStrip from './panels/ComparisonSummaryStrip';
+import DayTimelinePanel from './panels/DayTimelinePanel';
+import DailyEfficiencySummaryPanel from './panels/DailyEfficiencySummaryPanel';
 import type { SystemInputs } from './systemInputsTypes';
 import { DEFAULT_SYSTEM_INPUTS } from './systemInputsTypes';
 import { useSystemDiagramPlayback } from './useSystemDiagramPlayback';
@@ -35,6 +37,8 @@ import { useDrawOffPlayback } from './useDrawOffPlayback';
 import { useEfficiencyPlayback } from './useEfficiencyPlayback';
 import { useLimiterPlayback } from './useLimiterPlayback';
 import { useEmitterPrimaryModel } from './useEmitterPrimaryModel';
+import { computeDayTimeline } from './useDayTimeline';
+import { computeDailyEfficiencySummary } from './useDailyEfficiencySummary';
 import './labDashboard.css';
 import './labPanels.css';
 
@@ -171,7 +175,8 @@ export default function SimulatorDashboard({
     isManualMode,
     resetToAutoMode,
     setManualMode,
-  } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed);
+    simHour,
+  } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed, systemInputs.occupancyProfile);
   const houseState = useHousePlayback(diagramState);
   const drawOffState = useDrawOffPlayback(diagramState, systemInputs.cylinderType, systemInputs.cylinderSizeLitres);
   const emitterState = useEmitterPrimaryModel({
@@ -183,6 +188,10 @@ export default function SimulatorDashboard({
   });
   const efficiencyState = useEfficiencyPlayback(diagramState, emitterState, systemInputs.systemCondition);
   const limiterState = useLimiterPlayback(diagramState, systemInputs.combiPowerKw, systemInputs.coldInletTempC, emitterState, systemInputs.cylinderType, systemInputs.systemCondition);
+
+  // ── Day timeline and daily summary (single mode) ────────────────────────────
+  const dayTimelineState = computeDayTimeline(simHour);
+  const dailySummaryState = computeDailyEfficiencySummary(systemInputs, systemChoice, emitterState);
 
   // ── Improved config (compare mode) ─────────────────────────────────────────
   // Hooks are always called unconditionally (React rules). Their outputs are
@@ -203,7 +212,7 @@ export default function SimulatorDashboard({
     isManualMode: isManualModeImproved,
     resetToAutoMode: resetToAutoModeImproved,
     setManualMode: setManualModeImproved,
-  } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed);
+  } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed, improvedInputs.occupancyProfile);
   // useHousePlayback and useDrawOffPlayback are called for React hook ordering.
   // Their results are not rendered in compare mode (only efficiency/limiters are shown).
   useHousePlayback(diagramStateImproved);
@@ -458,6 +467,11 @@ export default function SimulatorDashboard({
         </div>
       )}
 
+      {/* 24-hour day timeline strip — always visible */}
+      <div className="sim-day-timeline-row">
+        <DayTimelinePanel state={dayTimelineState} />
+      </div>
+
       {/* Sim-time / phase bar */}
       <PhaseBar
         phaseLabel={diagramState.phaseLabel}
@@ -519,7 +533,12 @@ export default function SimulatorDashboard({
         </SimulatorPanel>
       </div>
 
-      {/* System Inputs — full-width row below limiters */}
+      {/* Daily efficiency summary — full-width row below limiters */}
+      <div className="sim-daily-summary-row">
+        <DailyEfficiencySummaryPanel state={dailySummaryState} />
+      </div>
+
+      {/* System Inputs — full-width row below daily summary */}
       <div className="sim-inputs-row">
         <SimulatorPanel
           title="System Inputs"
