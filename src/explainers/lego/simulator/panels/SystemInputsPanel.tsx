@@ -18,7 +18,8 @@
  */
 
 import type { SimulatorSystemChoice } from '../useSystemDiagramPlayback'
-import type { SystemInputs, PrimaryPipeSize, EmitterType } from '../systemInputsTypes'
+import type { SystemInputs, PrimaryPipeSize, EmitterType, CylinderType } from '../systemInputsTypes'
+import { CYLINDER_SIZES_BY_TYPE } from '../systemInputsTypes'
 
 // ─── Time speed constants ─────────────────────────────────────────────────────
 // Min 0.5× keeps demo phases visually legible; max 8× allows rapid cycling
@@ -49,7 +50,30 @@ const EMITTER_TYPE_OPTIONS: { value: EmitterType; label: string }[] = [
   { value: 'ufh',                 label: 'Underfloor heating'  },
 ]
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Cylinder type options ────────────────────────────────────────────────────
+// open_vented is only relevant when the system choice is open_vented.
+// unvented and mixergy are relevant for unvented / heat_pump system choices.
+
+const CYLINDER_TYPE_OPTIONS: { value: CylinderType; label: string }[] = [
+  { value: 'open_vented', label: 'Open vented' },
+  { value: 'unvented',    label: 'Unvented'    },
+  { value: 'mixergy',     label: 'Mixergy'     },
+]
+
+/**
+ * Returns the cylinder type options that are valid for the given system choice.
+ *
+ * open_vented system  → only open_vented cylinder
+ * unvented / heat_pump → unvented or mixergy
+ * combi               → none (cylinder not applicable)
+ */
+function cylinderTypeOptionsFor(systemChoice: SimulatorSystemChoice) {
+  if (systemChoice === 'open_vented') {
+    return CYLINDER_TYPE_OPTIONS.filter(o => o.value === 'open_vented')
+  }
+  return CYLINDER_TYPE_OPTIONS.filter(o => o.value !== 'open_vented')
+}
+
 
 interface SystemInputsPanelProps {
   /** Demo phase cycling speed multiplier (0.5–8×). */
@@ -150,17 +174,52 @@ export default function SystemInputsPanel({
         unit="°C"
         onChange={v => onInputChange({ coldInletTempC: v })}
       />
-      <InputRow
-        label="Cylinder size"
-        icon="🛢"
-        value={inputs.cylinderSizeLitres}
-        min={100}
-        max={400}
-        step={25}
-        unit="L"
-        disabled={isCombi}
-        onChange={v => onInputChange({ cylinderSizeLitres: v })}
-      />
+
+      {/* ── Cylinder type ────────────────────────────────────────────────── */}
+      <div className={`sys-input-row${isCombi ? ' sys-input-row--disabled' : ''}`}>
+        <span className="sys-input-row__icon" aria-hidden="true">🛢</span>
+        <span className="sys-input-row__label">Cylinder type</span>
+        <div className="sys-input-row__segmented" role="group" aria-label="Cylinder type">
+          {cylinderTypeOptionsFor(systemChoice).map(opt => (
+            <button
+              key={opt.value}
+              className={`sys-input-row__seg-btn${inputs.cylinderType === opt.value ? ' sys-input-row__seg-btn--active' : ''}`}
+              onClick={() => {
+                const sizes = CYLINDER_SIZES_BY_TYPE[opt.value]
+                // Keep current size if valid for the new type, else use the first valid size.
+                const newSize = sizes.includes(inputs.cylinderSizeLitres)
+                  ? inputs.cylinderSizeLitres
+                  : sizes[0]
+                onInputChange({ cylinderType: opt.value, cylinderSizeLitres: newSize })
+              }}
+              disabled={isCombi}
+              aria-pressed={inputs.cylinderType === opt.value}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Cylinder size ─────────────────────────────────────────────────── */}
+      <div className={`sys-input-row${isCombi ? ' sys-input-row--disabled' : ''}`}>
+        <span className="sys-input-row__icon" aria-hidden="true">📏</span>
+        <span className="sys-input-row__label">Cylinder size</span>
+        {isCombi ? (
+          <span className="sys-input-row__value">—</span>
+        ) : (
+          <select
+            className="sys-input-row__select"
+            value={inputs.cylinderSizeLitres}
+            onChange={e => onInputChange({ cylinderSizeLitres: Number(e.target.value) })}
+            aria-label="Cylinder size"
+          >
+            {CYLINDER_SIZES_BY_TYPE[inputs.cylinderType].map(size => (
+              <option key={size} value={size}>{size} L</option>
+            ))}
+          </select>
+        )}
+      </div>
       <InputRow
         label="Combi power"
         icon="🔥"
