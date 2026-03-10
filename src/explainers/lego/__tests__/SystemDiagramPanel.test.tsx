@@ -279,3 +279,61 @@ describe('SystemDiagramPanel — stored labels', () => {
     expect(container.querySelector('[data-testid="pipe-stored-hot-draw"]')).not.toBeNull()
   })
 })
+
+// ─── Component highlighting ───────────────────────────────────────────────────
+
+describe('SystemDiagramPanel — component highlighting (limiter glow)', () => {
+  it('adds sd-node--highlighted to boiler node when "boiler" is highlighted', () => {
+    const { container } = render(
+      <SystemDiagramPanel state={combiIdle()} highlightedComponents={['boiler']} />
+    )
+    const boilerNode = container.querySelector('[data-testid="node-boiler"]')
+    expect(boilerNode?.getAttribute('class')).toContain('sd-node--highlighted')
+  })
+
+  it('adds sd-node--highlighted to plate-hex node when "plate_hex" is highlighted', () => {
+    const { container } = render(
+      <SystemDiagramPanel state={combiIdle()} highlightedComponents={['plate_hex']} />
+    )
+    const hexNode = container.querySelector('[data-testid="node-plate-hex"]')
+    expect(hexNode?.getAttribute('class')).toContain('sd-node--highlighted')
+  })
+
+  it('adds sd-node--highlighted to mains node when "mains" is highlighted', () => {
+    const { container } = render(
+      <SystemDiagramPanel state={combiIdle()} highlightedComponents={['mains']} />
+    )
+    const mainsNode = container.querySelector('[data-testid="node-mains"]')
+    expect(mainsNode?.getAttribute('class')).toContain('sd-node--highlighted')
+  })
+
+  it('adds sd-node--highlighted to cylinder node on stored system when "cylinder" is highlighted', () => {
+    const { container } = render(
+      <SystemDiagramPanel state={storedIdle()} highlightedComponents={['cylinder']} />
+    )
+    const cylinderNode = container.querySelector('[data-testid="node-cylinder"]')
+    expect(cylinderNode?.getAttribute('class')).toContain('sd-node--highlighted')
+  })
+
+  it('does not add sd-node--highlighted to boiler when no components highlighted', () => {
+    const { container } = render(
+      <SystemDiagramPanel state={combiIdle()} highlightedComponents={[]} />
+    )
+    const boilerNode = container.querySelector('[data-testid="node-boiler"]')
+    expect(boilerNode?.getAttribute('class')).not.toContain('sd-node--highlighted')
+  })
+
+  it('does not add sd-node--highlighted to boiler when highlightedComponents prop is absent', () => {
+    const { container } = render(<SystemDiagramPanel state={combiIdle()} />)
+    const boilerNode = container.querySelector('[data-testid="node-boiler"]')
+    expect(boilerNode?.getAttribute('class')).not.toContain('sd-node--highlighted')
+  })
+
+  it('highlights boiler in stored system schematic', () => {
+    const { container } = render(
+      <SystemDiagramPanel state={storedIdle()} highlightedComponents={['boiler']} />
+    )
+    const boilerNode = container.querySelector('[data-testid="node-boiler"]')
+    expect(boilerNode?.getAttribute('class')).toContain('sd-node--highlighted')
+  })
+})

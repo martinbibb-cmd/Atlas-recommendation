@@ -264,3 +264,59 @@ describe('useLimiterPlayback — ordering and cap', () => {
     expect(result.activeLimiters.length).toBeLessThanOrEqual(3)
   })
 })
+
+// ─── targetComponent ──────────────────────────────────────────────────────────
+
+describe('useLimiterPlayback — targetComponent', () => {
+  it('combi_dhw_limit targets boiler', () => {
+    const result = useLimiterPlayback(combiDrawing())
+    const limiter = result.activeLimiters.find(l => l.id === 'combi_dhw_limit')
+    expect(limiter?.targetComponent).toBe('boiler')
+  })
+
+  it('concurrent_demand targets plate_hex on combi system', () => {
+    const result = useLimiterPlayback(combiDrawingTwoOutlets())
+    const limiter = result.activeLimiters.find(l => l.id === 'concurrent_demand')
+    expect(limiter?.targetComponent).toBe('plate_hex')
+  })
+
+  it('concurrent_demand targets cylinder on stored system', () => {
+    const result = useLimiterPlayback(storedTwoOutlets())
+    const limiter = result.activeLimiters.find(l => l.id === 'concurrent_demand')
+    expect(limiter?.targetComponent).toBe('cylinder')
+  })
+
+  it('cylinder_depleted targets cylinder', () => {
+    const result = useLimiterPlayback(storedCylinderDepleted())
+    const limiter = result.activeLimiters.find(l => l.id === 'cylinder_depleted')
+    expect(limiter?.targetComponent).toBe('cylinder')
+  })
+
+  it('mains_flow_limit targets mains', () => {
+    const result = useLimiterPlayback(combiDrawingTwoOutlets())
+    const limiter = result.activeLimiters.find(l => l.id === 'mains_flow_limit')
+    if (limiter) {
+      expect(limiter.targetComponent).toBe('mains')
+    }
+  })
+})
+
+// ─── combiPowerKw parameter ───────────────────────────────────────────────────
+
+describe('useLimiterPlayback — combiPowerKw', () => {
+  it('combi_dhw_limit explanation uses default 30 kW when no combiPowerKw provided', () => {
+    const result = useLimiterPlayback(combiDrawing())
+    const limiter = result.activeLimiters.find(l => l.id === 'combi_dhw_limit')
+    // Flow at 30 kW, ΔT=40°C: round(30 * 860 / (60 * 40)) = round(10.75) = 11 L/min
+    expect(limiter?.explanation).toContain('30 kW')
+    expect(limiter?.explanation).toContain('11 L/min')
+  })
+
+  it('combi_dhw_limit explanation uses custom combiPowerKw', () => {
+    const result = useLimiterPlayback(combiDrawing(), 24)
+    const limiter = result.activeLimiters.find(l => l.id === 'combi_dhw_limit')
+    // Flow at 24 kW, ΔT=40°C: round(24 * 860 / (60 * 40)) = round(8.6) = 9 L/min
+    expect(limiter?.explanation).toContain('24 kW')
+    expect(limiter?.explanation).toContain('9 L/min')
+  })
+})

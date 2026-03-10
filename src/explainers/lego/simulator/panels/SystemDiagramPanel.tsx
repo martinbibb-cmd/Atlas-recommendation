@@ -17,6 +17,12 @@ import type { ReactElement } from 'react';
 interface Props {
   /** Live playback state. When absent the diagram renders in static idle mode. */
   state?: SystemDiagramDisplayState;
+  /**
+   * Component IDs that should glow with an amber highlight.
+   * Sourced from `activeLimiters[].targetComponent` in the limiters panel.
+   * Valid IDs: 'boiler' | 'plate_hex' | 'cylinder' | 'mains'
+   */
+  highlightedComponents?: string[];
 }
 
 // ─── Active-path derivation ───────────────────────────────────────────────────
@@ -160,11 +166,17 @@ interface SchematicProps {
   state?: SystemDiagramDisplayState;
   paths: ActivePaths;
   badges: BadgeSpec[];
+  highlightedComponents: string[];
+}
+
+/** Returns extra CSS class(es) when `componentId` is in the highlighted set. */
+function nodeHighlightClass(componentId: string, highlighted: string[]): string {
+  return highlighted.includes(componentId) ? ' sd-node--highlighted' : ''
 }
 
 // ─── Schematic: Combi ─────────────────────────────────────────────────────────
 
-function CombiSchematic({ state, paths, badges }: SchematicProps): ReactElement {
+function CombiSchematic({ state, paths, badges, highlightedComponents }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
   const outlets = state?.outletDemands ?? { shower: paths.comboDhw, bath: false, kitchen: false }
@@ -174,6 +186,8 @@ function CombiSchematic({ state, paths, badges }: SchematicProps): ReactElement 
     state?.condensingState === 'borderline'     ? '🟡 Borderline'     :
     state?.condensingState === 'not_condensing' ? '🔴 Not condensing' :
     null;
+
+  const hl = highlightedComponents;
 
   return (
     <svg
@@ -196,7 +210,11 @@ function CombiSchematic({ state, paths, badges }: SchematicProps): ReactElement 
       <DomainLabel x={8}   y={146} text="Draw-off (on-demand)" />
 
       {/* ── Boiler ── */}
-      <rect className="sd-node sd-node--boiler" x={10}  y={18} width={74} height={48} rx={8} ry={8} />
+      <rect
+        className={`sd-node sd-node--boiler${nodeHighlightClass('boiler', hl)}`}
+        data-testid="node-boiler"
+        x={10}  y={18} width={74} height={48} rx={8} ry={8}
+      />
       <text className="sd-label"    x={47} y={35}>🔥 Combi</text>
       <text className="sd-sublabel" x={47} y={50}>30 kW boiler</text>
       <circle className="sd-port sd-port--hot"  cx={84}  cy={28} r={3.5} />
@@ -238,7 +256,11 @@ function CombiSchematic({ state, paths, badges }: SchematicProps): ReactElement 
       <text className="sd-sublabel" x={278} y={44}>vessel</text>
 
       {/* ── Plate HEX ── */}
-      <rect className="sd-node sd-node--cylinder" x={208} y={74} width={66} height={48} rx={6} ry={6} />
+      <rect
+        className={`sd-node sd-node--cylinder${nodeHighlightClass('plate_hex', hl)}`}
+        data-testid="node-plate-hex"
+        x={208} y={74} width={66} height={48} rx={6} ry={6}
+      />
       <text className="sd-label"    x={241} y={91}>⇌ Plate HEX</text>
       <text className="sd-sublabel" x={241} y={106}>On-demand DHW</text>
       <circle className="sd-port sd-port--dhw"  cx={208} cy={86} r={3.5} />
@@ -260,7 +282,11 @@ function CombiSchematic({ state, paths, badges }: SchematicProps): ReactElement 
       <text className="sd-sublabel" x={180} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
       <circle className="sd-port sd-port--dhw"  cx={180} cy={152} r={3.5} />
 
-      <rect className="sd-node sd-node--mains" x={232} y={152} width={80} height={32} rx={6} ry={6} />
+      <rect
+        className={`sd-node sd-node--mains${nodeHighlightClass('mains', hl)}`}
+        data-testid="node-mains"
+        x={232} y={152} width={80} height={32} rx={6} ry={6}
+      />
       <text className="sd-label"    x={272} y={165}>❄ Mains cold</text>
       <text className="sd-sublabel" x={272} y={176}>supply</text>
       <circle className="sd-port sd-port--cold" cx={232} cy={162} r={3.5} />
@@ -290,7 +316,7 @@ function CombiSchematic({ state, paths, badges }: SchematicProps): ReactElement 
 
 // ─── Schematic: S-plan Unvented ───────────────────────────────────────────────
 
-function StoredSchematic({ state, paths, badges }: SchematicProps): ReactElement {
+function StoredSchematic({ state, paths, badges, highlightedComponents }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
   const outlets = state?.outletDemands ?? { shower: paths.storedHotDraw, bath: false, kitchen: false }
@@ -300,6 +326,8 @@ function StoredSchematic({ state, paths, badges }: SchematicProps): ReactElement
     state?.condensingState === 'borderline'     ? '🟡 Borderline'     :
     state?.condensingState === 'not_condensing' ? '🔴 Not condensing' :
     null;
+
+  const hl = highlightedComponents;
 
   return (
     <svg
@@ -322,7 +350,11 @@ function StoredSchematic({ state, paths, badges }: SchematicProps): ReactElement
       <DomainLabel x={8}   y={146} text="Draw-off (stored HW)" />
 
       {/* ── System boiler ── */}
-      <rect className="sd-node sd-node--boiler" x={10}  y={18} width={74} height={48} rx={8} ry={8} />
+      <rect
+        className={`sd-node sd-node--boiler${nodeHighlightClass('boiler', hl)}`}
+        data-testid="node-boiler"
+        x={10}  y={18} width={74} height={48} rx={8} ry={8}
+      />
       <text className="sd-label"    x={47} y={35}>🔥 System</text>
       <text className="sd-sublabel" x={47} y={50}>24 kW boiler</text>
       <circle className="sd-port sd-port--hot"  cx={84}  cy={26} r={3.5} />
@@ -369,7 +401,11 @@ function StoredSchematic({ state, paths, badges }: SchematicProps): ReactElement
       <text className="sd-sublabel" x={293} y={77}>vessel</text>
 
       {/* ── Unvented cylinder ── */}
-      <rect className="sd-node sd-node--cylinder" x={204} y={56} width={60} height={56} rx={8} ry={8} />
+      <rect
+        className={`sd-node sd-node--cylinder${nodeHighlightClass('cylinder', hl)}`}
+        data-testid="node-cylinder"
+        x={204} y={56} width={60} height={56} rx={8} ry={8}
+      />
       {/* Cylinder dome / top cap */}
       <ellipse cx={234} cy={56} rx={28} ry={7} fill="#bee3f8" stroke="#2b6cb0" strokeWidth={1.5} opacity={0.7} />
       <text className="sd-label"    x={234} y={77}>🛢 Cylinder</text>
@@ -405,7 +441,11 @@ function StoredSchematic({ state, paths, badges }: SchematicProps): ReactElement
       <text className="sd-sublabel" x={180} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
       <circle className="sd-port sd-port--dhw"  cx={180} cy={152} r={3.5} />
 
-      <rect className="sd-node sd-node--mains" x={226} y={152} width={86} height={32} rx={6} ry={6} />
+      <rect
+        className={`sd-node sd-node--mains${nodeHighlightClass('mains', hl)}`}
+        data-testid="node-mains"
+        x={226} y={152} width={86} height={32} rx={6} ry={6}
+      />
       <text className="sd-label"    x={269} y={165}>❄ Mains cold</text>
       <text className="sd-sublabel" x={269} y={176}>supply</text>
       <circle className="sd-port sd-port--cold" cx={226} cy={162} r={3.5} />
@@ -438,7 +478,7 @@ function StoredSchematic({ state, paths, badges }: SchematicProps): ReactElement
 
 // ─── Schematic: Y-plan Open Vented ───────────────────────────────────────────
 
-function VentedSchematic({ state, paths, badges }: SchematicProps): ReactElement {
+function VentedSchematic({ state, paths, badges, highlightedComponents }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
   const outlets = state?.outletDemands ?? { shower: paths.storedHotDraw, bath: false, kitchen: false }
@@ -448,6 +488,8 @@ function VentedSchematic({ state, paths, badges }: SchematicProps): ReactElement
     state?.condensingState === 'borderline'     ? '🟡 Borderline'     :
     state?.condensingState === 'not_condensing' ? '🔴 Not condensing' :
     null;
+
+  const hl = highlightedComponents;
 
   return (
     <svg
@@ -470,7 +512,11 @@ function VentedSchematic({ state, paths, badges }: SchematicProps): ReactElement
       <DomainLabel x={8}   y={146} text="Draw-off (stored HW)" />
 
       {/* ── Regular boiler ── */}
-      <rect className="sd-node sd-node--boiler" x={8}  y={16} width={70} height={46} rx={8} ry={8} />
+      <rect
+        className={`sd-node sd-node--boiler${nodeHighlightClass('boiler', hl)}`}
+        data-testid="node-boiler"
+        x={8}  y={16} width={70} height={46} rx={8} ry={8}
+      />
       <text className="sd-label"    x={43} y={33}>🔥 Regular</text>
       <text className="sd-sublabel" x={43} y={48}>24 kW boiler</text>
       <circle className="sd-port sd-port--hot"  cx={78}  cy={24} r={3.5} />
@@ -514,7 +560,11 @@ function VentedSchematic({ state, paths, badges }: SchematicProps): ReactElement
       <circle className="sd-port sd-port--cold" cx={275} cy={36} r={3.5} />
 
       {/* ── Open vented cylinder ── */}
-      <rect className="sd-node sd-node--cylinder" x={206} y={48} width={60} height={64} rx={8} ry={8} />
+      <rect
+        className={`sd-node sd-node--cylinder${nodeHighlightClass('cylinder', hl)}`}
+        data-testid="node-cylinder"
+        x={206} y={48} width={60} height={64} rx={8} ry={8}
+      />
       {/* Cylinder dome / top cap */}
       <ellipse cx={236} cy={48} rx={28} ry={6} fill="#bee3f8" stroke="#2b6cb0" strokeWidth={1.5} opacity={0.7} />
       {/* Vent pipe indicator at top */}
@@ -555,7 +605,11 @@ function VentedSchematic({ state, paths, badges }: SchematicProps): ReactElement
       <text className="sd-sublabel" x={180} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
       <circle className="sd-port sd-port--dhw"  cx={180} cy={152} r={3.5} />
 
-      <rect className="sd-node sd-node--mains" x={226} y={152} width={86} height={32} rx={6} ry={6} />
+      <rect
+        className={`sd-node sd-node--mains${nodeHighlightClass('mains', hl)}`}
+        data-testid="node-mains"
+        x={226} y={152} width={86} height={32} rx={6} ry={6}
+      />
       <text className="sd-label"    x={269} y={165}>🪣 Tank-fed</text>
       <text className="sd-sublabel" x={269} y={176}>cold supply</text>
       <circle className="sd-port sd-port--cold" cx={226} cy={162} r={3.5} />
@@ -592,12 +646,14 @@ function formatCop(cop: number): string {
 
 // ─── Schematic: Heat pump + cylinder ─────────────────────────────────────────
 
-function HeatPumpSchematic({ state, paths, badges }: SchematicProps): ReactElement {
+function HeatPumpSchematic({ state, paths, badges, highlightedComponents }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
   const outlets = state?.outletDemands ?? { shower: paths.storedHotDraw, bath: false, kitchen: false }
 
   const copText = state?.cop !== undefined ? formatCop(state.cop) : null
+
+  const hl = highlightedComponents;
 
   return (
     <svg
@@ -620,7 +676,11 @@ function HeatPumpSchematic({ state, paths, badges }: SchematicProps): ReactEleme
       <DomainLabel x={8}   y={146} text="Draw-off (stored HW)" />
 
       {/* ── ASHP unit (outside) ── */}
-      <rect className="sd-node sd-node--boiler" x={8}  y={16} width={74} height={54} rx={8} ry={8} />
+      <rect
+        className={`sd-node sd-node--boiler${nodeHighlightClass('boiler', hl)}`}
+        data-testid="node-boiler"
+        x={8}  y={16} width={74} height={54} rx={8} ry={8}
+      />
       {/* Fan indicator */}
       <circle cx={45} cy={32} r={8} fill="none" stroke="#90cdf4" strokeWidth={1.5} opacity={0.6} />
       <text className="sd-label"    x={45} y={30}>🌬 ASHP</text>
@@ -663,7 +723,11 @@ function HeatPumpSchematic({ state, paths, badges }: SchematicProps): ReactEleme
       <text className="sd-sublabel" x={275} y={77}>vessel</text>
 
       {/* ── Hot water cylinder ── */}
-      <rect className="sd-node sd-node--cylinder" x={204} y={54} width={60} height={58} rx={8} ry={8} />
+      <rect
+        className={`sd-node sd-node--cylinder${nodeHighlightClass('cylinder', hl)}`}
+        data-testid="node-cylinder"
+        x={204} y={54} width={60} height={58} rx={8} ry={8}
+      />
       {/* Cylinder dome */}
       <ellipse cx={234} cy={54} rx={28} ry={6} fill="#bee3f8" stroke="#2b6cb0" strokeWidth={1.5} opacity={0.7} />
       <text className="sd-label"    x={234} y={74}>🛢 Cylinder</text>
@@ -699,7 +763,11 @@ function HeatPumpSchematic({ state, paths, badges }: SchematicProps): ReactEleme
       <text className="sd-sublabel" x={180} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
       <circle className="sd-port sd-port--dhw"  cx={180} cy={152} r={3.5} />
 
-      <rect className="sd-node sd-node--mains" x={226} y={152} width={86} height={32} rx={6} ry={6} />
+      <rect
+        className={`sd-node sd-node--mains${nodeHighlightClass('mains', hl)}`}
+        data-testid="node-mains"
+        x={226} y={152} width={86} height={32} rx={6} ry={6}
+      />
       <text className="sd-label"    x={269} y={165}>❄ Mains cold</text>
       <text className="sd-sublabel" x={269} y={176}>supply</text>
       <circle className="sd-port sd-port--cold" cx={226} cy={162} r={3.5} />
@@ -731,9 +799,10 @@ function HeatPumpSchematic({ state, paths, badges }: SchematicProps): ReactEleme
 
 // ─── Dispatch: choose correct schematic family ────────────────────────────────
 
-export default function SystemDiagramPanel({ state }: Props) {
+export default function SystemDiagramPanel({ state, highlightedComponents = [] }: Props) {
   const paths: ActivePaths = state ? deriveActivePaths(state) : IDLE_PATHS;
   const badges: BadgeSpec[] = state ? deriveBadges(state, paths) : [];
+  const hl = highlightedComponents;
 
   const isHeatPump = state?.heatSourceType === 'heat_pump'
   const systemType = state?.systemType ?? 'combi'
@@ -741,7 +810,7 @@ export default function SystemDiagramPanel({ state }: Props) {
   if (!state || systemType === 'combi') {
     return (
       <div className="system-diagram" data-testid="system-diagram-panel">
-        <CombiSchematic state={state} paths={paths} badges={badges} />
+        <CombiSchematic state={state} paths={paths} badges={badges} highlightedComponents={hl} />
       </div>
     );
   }
@@ -749,7 +818,7 @@ export default function SystemDiagramPanel({ state }: Props) {
   if (isHeatPump) {
     return (
       <div className="system-diagram" data-testid="system-diagram-panel">
-        <HeatPumpSchematic state={state} paths={paths} badges={badges} />
+        <HeatPumpSchematic state={state} paths={paths} badges={badges} highlightedComponents={hl} />
       </div>
     );
   }
@@ -757,7 +826,7 @@ export default function SystemDiagramPanel({ state }: Props) {
   if (systemType === 'vented_cylinder') {
     return (
       <div className="system-diagram" data-testid="system-diagram-panel">
-        <VentedSchematic state={state} paths={paths} badges={badges} />
+        <VentedSchematic state={state} paths={paths} badges={badges} highlightedComponents={hl} />
       </div>
     );
   }
@@ -765,7 +834,7 @@ export default function SystemDiagramPanel({ state }: Props) {
   // unvented_cylinder — S-plan
   return (
     <div className="system-diagram" data-testid="system-diagram-panel">
-      <StoredSchematic state={state} paths={paths} badges={badges} />
+      <StoredSchematic state={state} paths={paths} badges={badges} highlightedComponents={hl} />
     </div>
   );
 }

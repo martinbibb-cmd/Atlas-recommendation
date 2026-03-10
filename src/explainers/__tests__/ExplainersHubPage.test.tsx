@@ -8,7 +8,7 @@
 //   - After completing the stepper, the 4 simulator panels are visible
 //   - Panel expansion (modal) works after stepper completion
 //   - Back button behaviour
-//   - Setup button navigates back to stepper
+//   - Home button navigates back to stepper
 
 import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -83,17 +83,17 @@ describe('ExplainersHubPage — stepper flow', () => {
     expect(screen.getByRole('button', { name: /expand efficiency/i })).toBeTruthy()
   })
 
-  it('shows the Setup button after completing the stepper', () => {
+  it('shows the Home button after completing the stepper', () => {
     render(<ExplainersHubPage />)
     completeStepper()
-    expect(screen.getByRole('button', { name: /return to setup/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^home$/i })).toBeTruthy()
   })
 
-  it('clicking Setup returns to the stepper', () => {
+  it('clicking Home returns to the stepper', () => {
     render(<ExplainersHubPage />)
     completeStepper()
-    const setupBtn = screen.getByRole('button', { name: /return to setup/i })
-    fireEvent.click(setupBtn)
+    const homeBtn = screen.getByRole('button', { name: /^home$/i })
+    fireEvent.click(homeBtn)
     // Back on stepper
     expect(screen.getByText(/simulator setup/i)).toBeTruthy()
     const panelButtons = screen.queryAllByRole('button', { name: /expand system diagram/i })
