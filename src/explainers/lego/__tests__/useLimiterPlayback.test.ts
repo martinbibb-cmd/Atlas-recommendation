@@ -12,6 +12,8 @@
  *   - hasCritical reflects the presence of any critical limiter
  *   - Limiters are capped at 3
  *   - Results are sorted critical → warning → info
+ *   - Mixergy usableReserveFactor=1.2 delays cylinder_depleted to lower threshold
+ *   - mixergy_stratification info limiter fires during Mixergy DHW draws
  */
 
 import { describe, it, expect } from 'vitest'
@@ -484,5 +486,91 @@ describe('useLimiterPlayback — low_temp_capable', () => {
     const result = useLimiterPlayback(storedIdle())
     const ids = result.activeLimiters.map(l => l.id)
     expect(ids).not.toContain('low_temp_capable')
+  })
+})
+
+// ─── Mixergy cylinder behaviour ───────────────────────────────────────────────
+
+describe('useLimiterPlayback — Mixergy usableReserveFactor', () => {
+  // MIXERGY_USABLE_RESERVE_FACTOR = 1.2
+  // Standard fires when fillPct <= 0.15.
+  // Mixergy fires when fillPct * 1.2 <= 0.15 → fillPct <= 0.125.
+
+  it('cylinder_depleted fires for standard cylinder at 15% fill', () => {
+    const state: SystemDiagramDisplayState = { ...storedIdle(), cylinderFillPct: 0.15 }
+    const result = useLimiterPlayback(state, 30, 10, undefined, 'unvented')
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).toContain('cylinder_depleted')
+  })
+
+  it('cylinder_depleted does NOT fire for Mixergy at 15% fill (stratification gives extra reserve)', () => {
+    // 0.15 * 1.2 = 0.18 > 0.15 threshold → no depletion
+    const state: SystemDiagramDisplayState = { ...storedIdle(), cylinderFillPct: 0.15 }
+    const result = useLimiterPlayback(state, 30, 10, undefined, 'mixergy')
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).not.toContain('cylinder_depleted')
+  })
+
+  it('cylinder_depleted fires for Mixergy at 10% fill (below effective threshold)', () => {
+    // 0.10 * 1.2 = 0.12 <= 0.15 → depleted
+    const state: SystemDiagramDisplayState = { ...storedIdle(), cylinderFillPct: 0.10 }
+    const result = useLimiterPlayback(state, 30, 10, undefined, 'mixergy')
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).toContain('cylinder_depleted')
+  })
+
+  it('cylinder_depleted does NOT fire for Mixergy at 13% fill (just above effective threshold)', () => {
+    // 0.13 * 1.2 = 0.156 > 0.15 → not depleted
+    const state: SystemDiagramDisplayState = { ...storedIdle(), cylinderFillPct: 0.13 }
+    const result = useLimiterPlayback(state, 30, 10, undefined, 'mixergy')
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).not.toContain('cylinder_depleted')
+  })
+})
+
+describe('useLimiterPlayback — mixergy_stratification limiter', () => {
+  it('fires mixergy_stratification when Mixergy cylinder has an active hot draw', () => {
+    const state: SystemDiagramDisplayState = {
+      ...storedIdle(),
+      hotDrawActive: true,
+      outletDemands: { shower: true, bath: false, kitchen: false },
+    }
+    const result = useLimiterPlayback(state, 30, 10, undefined, 'mixergy')
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).toContain('mixergy_stratification')
+  })
+
+  it('mixergy_stratification severity is info', () => {
+    const state: SystemDiagramDisplayState = { ...storedIdle(), hotDrawActive: true }
+    const result = useLimiterPlayback(state, 30, 10, undefined, 'mixergy')
+    const limiter = result.activeLimiters.find(l => l.id === 'mixergy_stratification')
+    expect(limiter?.severity).toBe('info')
+  })
+
+  it('mixergy_stratification targets cylinder', () => {
+    const state: SystemDiagramDisplayState = { ...storedIdle(), hotDrawActive: true }
+    const result = useLimiterPlayback(state, 30, 10, undefined, 'mixergy')
+    const limiter = result.activeLimiters.find(l => l.id === 'mixergy_stratification')
+    expect(limiter?.targetComponent).toBe('cylinder')
+  })
+
+  it('does NOT fire mixergy_stratification when cylinder is idle (no draw)', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, undefined, 'mixergy')
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).not.toContain('mixergy_stratification')
+  })
+
+  it('does NOT fire mixergy_stratification for standard unvented cylinder', () => {
+    const state: SystemDiagramDisplayState = { ...storedIdle(), hotDrawActive: true }
+    const result = useLimiterPlayback(state, 30, 10, undefined, 'unvented')
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).not.toContain('mixergy_stratification')
+  })
+
+  it('does NOT fire mixergy_stratification when no cylinderType provided', () => {
+    const state: SystemDiagramDisplayState = { ...storedIdle(), hotDrawActive: true }
+    const result = useLimiterPlayback(state)
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).not.toContain('mixergy_stratification')
   })
 })

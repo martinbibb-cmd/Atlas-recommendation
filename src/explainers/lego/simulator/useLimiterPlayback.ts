@@ -16,6 +16,8 @@
 import { isBoilerHeatSource } from '../sim/condensingState'
 import type { SystemDiagramDisplayState } from './useSystemDiagramPlayback'
 import type { EmitterPrimaryDisplayState } from './useEmitterPrimaryModel'
+import type { CylinderType } from './systemInputsTypes'
+import { MIXERGY_USABLE_RESERVE_FACTOR } from './systemInputsTypes'
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -186,17 +188,53 @@ function detectCondensingLost(state: SystemDiagramDisplayState): Limiter | null 
  * Cylinder depleted — fires when stored cylinder energy has fallen below the
  * depletion threshold, indicating insufficient reserve for further draws.
  *
- * Trigger: cylinderFillPct <= CYLINDER_DEPLETED_THRESHOLD.
+ * For Mixergy cylinders the effective usable fill is scaled by
+ * MIXERGY_USABLE_RESERVE_FACTOR (1.2): stratification keeps the top section
+ * at delivery temperature longer, so the limiter fires at a lower raw fill
+ * fraction — reflecting the reduced reheat cycling in real-world operation.
+ *
+ * Trigger: (cylinderFillPct × usableReserveFactor) <= CYLINDER_DEPLETED_THRESHOLD.
  */
-function detectCylinderDepleted(state: SystemDiagramDisplayState): Limiter | null {
+function detectCylinderDepleted(
+  state: SystemDiagramDisplayState,
+  cylinderType: CylinderType | undefined,
+): Limiter | null {
   if (state.cylinderFillPct === undefined) return null
-  if (state.cylinderFillPct > CYLINDER_DEPLETED_THRESHOLD) return null
+  const usableReserveFactor = cylinderType === 'mixergy' ? MIXERGY_USABLE_RESERVE_FACTOR : 1.0
+  const effectiveFill = state.cylinderFillPct * usableReserveFactor
+  if (effectiveFill > CYLINDER_DEPLETED_THRESHOLD) return null
   return {
     id: 'cylinder_depleted',
     severity: 'critical',
     title: 'Cylinder stored energy depleted',
     explanation: `Hot water reserve at ${Math.round(state.cylinderFillPct * 100)}% — reheating before further draw.`,
     suggestedFix: 'Reheat cycle required before further draw',
+    targetComponent: 'cylinder',
+  }
+}
+
+/**
+ * Mixergy stratification advantage — informational limiter that surfaces the
+ * demand-mirroring benefit of a Mixergy cylinder during an active DHW draw.
+ *
+ * Trigger: cylinderType === 'mixergy' AND a hot-water draw is in progress.
+ * Severity: info.
+ *
+ * This makes the stratification benefit visible at the moment it matters most
+ * and explains why the cylinder_depleted threshold is effectively lower for
+ * Mixergy compared with a standard cylinder of the same nominal volume.
+ */
+function detectMixergyStratification(
+  state: SystemDiagramDisplayState,
+  cylinderType: CylinderType | undefined,
+): Limiter | null {
+  if (cylinderType !== 'mixergy') return null
+  if (!state.hotDrawActive) return null
+  return {
+    id: 'mixergy_stratification',
+    severity: 'info',
+    title: 'Mixergy stratification active',
+    explanation: 'Intelligent stratification keeps the top section hot — demand is mirrored directly, reducing reheat cycling compared with a standard cylinder.',
     targetComponent: 'cylinder',
   }
 }
@@ -274,7 +312,7 @@ function detectLowTempCapable(
 /**
  * Display adapter: maps SystemDiagramDisplayState → LimiterDisplayState.
  *
- * Detects up to 8 distinct physics constraints from the current state and
+ * Detects up to 9 distinct physics constraints from the current state and
  * surfaces at most MAX_LIMITERS, ordered critical → warning → info so the
  * most severe constraints are always visible.
  *
@@ -290,15 +328,19 @@ function detectLowTempCapable(
  * @param emitterState   Optional emitter/primary circuit model state. When
  *   supplied, enables emitter_undersized, primary_circuit_limit, and
  *   low_temp_capable limiters.
+ * @param cylinderType   Optional cylinder technology type. When 'mixergy', the
+ *   cylinder_depleted threshold is scaled by MIXERGY_USABLE_RESERVE_FACTOR and
+ *   the mixergy_stratification info limiter is enabled during DHW draws.
  */
 export function useLimiterPlayback(
   diagramState: SystemDiagramDisplayState,
   combiPowerKw: number = 30,
   coldInletTempC: number = 10,
   emitterState?: EmitterPrimaryDisplayState,
+  cylinderType?: CylinderType,
 ): LimiterDisplayState {
   const candidates: Array<Limiter | null> = [
-    detectCylinderDepleted(diagramState),
+    detectCylinderDepleted(diagramState, cylinderType),
     detectCombiDhwLimit(diagramState, combiPowerKw, coldInletTempC),
     detectConcurrentDemand(diagramState),
     detectCondensingLost(diagramState),
@@ -306,6 +348,7 @@ export function useLimiterPlayback(
     detectPrimaryCircuitLimit(emitterState),
     detectMainsFlowLimit(diagramState),
     detectLowTempCapable(emitterState),
+    detectMixergyStratification(diagramState, cylinderType),
   ]
 
   const all = candidates

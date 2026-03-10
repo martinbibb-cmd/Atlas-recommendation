@@ -130,7 +130,7 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
     weatherCompensation: systemInputs.weatherCompensation,
   });
   const efficiencyState = useEfficiencyPlayback(diagramState, emitterState);
-  const limiterState = useLimiterPlayback(diagramState, systemInputs.combiPowerKw, systemInputs.coldInletTempC, emitterState);
+  const limiterState = useLimiterPlayback(diagramState, systemInputs.combiPowerKw, systemInputs.coldInletTempC, emitterState, systemInputs.cylinderType);
 
   // Derive highlighted schematic components from active limiters.
   // targetComponent may be a single string or an array, so flatten both forms.
