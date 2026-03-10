@@ -2,8 +2,9 @@
  * SystemInputsPanel — physics-relevant simulator inputs.
  *
  * Exposes controls for mains pressure, mains flow, cold inlet temperature,
- * cylinder size, combi power, and time speed. All values are controlled by
- * the parent (SimulatorDashboard) so the panel is purely presentational.
+ * cylinder size, combi power, time speed, and heating system configuration.
+ * All values are controlled by the parent (SimulatorDashboard) so the panel
+ * is purely presentational.
  *
  * Architecture:
  *   SimulatorDashboard (state) → SystemInputsPanel (props)
@@ -17,7 +18,7 @@
  */
 
 import type { SimulatorSystemChoice } from '../useSystemDiagramPlayback'
-import type { SystemInputs } from '../systemInputsTypes'
+import type { SystemInputs, PrimaryPipeSize, EmitterType } from '../systemInputsTypes'
 
 // ─── Time speed constants ─────────────────────────────────────────────────────
 // Min 0.5× keeps demo phases visually legible; max 8× allows rapid cycling
@@ -25,6 +26,28 @@ import type { SystemInputs } from '../systemInputsTypes'
 const TIME_SPEED_MIN  = 0.5
 const TIME_SPEED_MAX  = 8
 const TIME_SPEED_STEP = 0.5
+
+// ─── Emitter capacity factor constants ────────────────────────────────────────
+// 0.5× = severely undersized; 2.0× = very oversized / UFH-like
+const EMITTER_FACTOR_MIN  = 0.5
+const EMITTER_FACTOR_MAX  = 2.0
+const EMITTER_FACTOR_STEP = 0.1
+
+// ─── Pipe size options ────────────────────────────────────────────────────────
+
+const PIPE_SIZE_OPTIONS: { value: PrimaryPipeSize; label: string }[] = [
+  { value: '15mm', label: '15 mm' },
+  { value: '22mm', label: '22 mm' },
+  { value: '28mm', label: '28 mm' },
+]
+
+// ─── Emitter type options ─────────────────────────────────────────────────────
+
+const EMITTER_TYPE_OPTIONS: { value: EmitterType; label: string }[] = [
+  { value: 'radiators',           label: 'Radiators'           },
+  { value: 'oversized_radiators', label: 'Oversized radiators' },
+  { value: 'ufh',                 label: 'Underfloor heating'  },
+]
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -149,6 +172,68 @@ export default function SystemInputsPanel({
         disabled={!isCombi}
         onChange={v => onInputChange({ combiPowerKw: v })}
       />
+
+      {/* ── Heating System ────────────────────────────────────────────────── */}
+      <div className="sys-inputs-section-heading">Heating System</div>
+
+      <InputRow
+        label="Emitter size"
+        icon="🌡"
+        value={inputs.emitterCapacityFactor}
+        min={EMITTER_FACTOR_MIN}
+        max={EMITTER_FACTOR_MAX}
+        step={EMITTER_FACTOR_STEP}
+        unit=""
+        onChange={v => onInputChange({ emitterCapacityFactor: v })}
+        formatValue={v => `${v.toFixed(1)}×`}
+      />
+
+      <div className="sys-input-row">
+        <span className="sys-input-row__icon" aria-hidden="true">🔧</span>
+        <span className="sys-input-row__label">Primary pipe size</span>
+        <div className="sys-input-row__segmented" role="group" aria-label="Primary pipe size">
+          {PIPE_SIZE_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              className={`sys-input-row__seg-btn${inputs.primaryPipeSize === opt.value ? ' sys-input-row__seg-btn--active' : ''}`}
+              onClick={() => onInputChange({ primaryPipeSize: opt.value })}
+              aria-pressed={inputs.primaryPipeSize === opt.value}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="sys-input-row">
+        <span className="sys-input-row__icon" aria-hidden="true">♨</span>
+        <span className="sys-input-row__label">Emitter type</span>
+        <div className="sys-input-row__segmented" role="group" aria-label="Emitter type">
+          {EMITTER_TYPE_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              className={`sys-input-row__seg-btn${inputs.emitterType === opt.value ? ' sys-input-row__seg-btn--active' : ''}`}
+              onClick={() => onInputChange({ emitterType: opt.value })}
+              aria-pressed={inputs.emitterType === opt.value}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="sys-input-row">
+        <span className="sys-input-row__icon" aria-hidden="true">🌤</span>
+        <span className="sys-input-row__label">Weather compensation</span>
+        <button
+          className={`sys-input-row__toggle${inputs.weatherCompensation ? ' sys-input-row__toggle--on' : ''}`}
+          onClick={() => onInputChange({ weatherCompensation: !inputs.weatherCompensation })}
+          aria-pressed={inputs.weatherCompensation}
+          aria-label="Weather compensation"
+        >
+          {inputs.weatherCompensation ? 'On' : 'Off'}
+        </button>
+      </div>
     </div>
   )
 }

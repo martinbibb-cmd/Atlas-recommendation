@@ -747,3 +747,68 @@
     padding: 0 10px 10px;
   }
 }
+
+/* ─── Heating System section heading ─────────────────────────────────────────── */
+
+.sys-inputs-section-heading {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #718096;
+  padding: 10px 0 4px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 4px;
+}
+
+/* ─── Segmented button control (pipe size / emitter type) ────────────────────── */
+
+.sys-input-row__segmented {
+  display: flex;
+  gap: 4px;
+  flex: 1 1 auto;
+}
+
+.sys-input-row__seg-btn {
+  flex: 1;
+  padding: 3px 6px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  border: 1.5px solid #cbd5e0;
+  border-radius: 5px;
+  background: #fff;
+  color: #4a5568;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.sys-input-row__seg-btn:hover {
+  background: #edf2f7;
+}
+
+.sys-input-row__seg-btn--active {
+  background: #2b6cb0;
+  border-color: #2b6cb0;
+  color: #fff;
+}
+
+/* ─── Toggle button (weather compensation) ───────────────────────────────────── */
+
+.sys-input-row__toggle {
+  padding: 3px 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1.5px solid #cbd5e0;
+  border-radius: 5px;
+  background: #fff;
+  color: #4a5568;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sys-input-row__toggle--on {
+  background: #276749;
+  border-color: #276749;
+  color: #fff;
+}

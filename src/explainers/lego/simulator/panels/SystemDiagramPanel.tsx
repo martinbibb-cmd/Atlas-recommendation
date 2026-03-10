@@ -249,7 +249,7 @@ function CombiSchematic({ state, paths, badges, highlightedComponents }: Schemat
       <circle className="sd-port sd-port--hot"  cx={152} cy={78} r={3.5} />
 
       {/* ── Radiators ── */}
-      <rect className="sd-node sd-node--radiator" x={172} y={18} width={62} height={44} rx={6} ry={6} />
+      <rect className={`sd-node sd-node--radiator${nodeHighlightClass('emitters', hl)}`} x={172} y={18} width={62} height={44} rx={6} ry={6} />
       <text className="sd-label"    x={203} y={34}>▤ Radiators</text>
       <text className="sd-sublabel" x={203} y={48}>6 emitters</text>
       <circle className="sd-port sd-port--hot"  cx={172} cy={28} r={3.5} />
@@ -297,7 +297,7 @@ function CombiSchematic({ state, paths, badges, highlightedComponents }: Schemat
       <circle className="sd-port sd-port--cold" cx={232} cy={162} r={3.5} />
 
       {/* ── CH pipes ── */}
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-boiler-tee" points="84,28 94,28" />
+      <polyline className={`${pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-flow', hl)}`} data-testid="pipe-ch-flow-boiler-tee" points="84,28 94,28" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-tee-pump" points="94,28 111,28 111,32" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} points="94,28 94,78 104,78" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-pump-rads" points="145,32 145,28 172,28" />
@@ -394,7 +394,7 @@ function StoredSchematic({ state, paths, badges, highlightedComponents }: Schema
       <circle className="sd-port sd-port--hot"  cx={194} cy={26} r={3.5} />
 
       {/* ── Radiators ── */}
-      <rect className="sd-node sd-node--radiator" x={204} y={10} width={58} height={34} rx={6} ry={6} />
+      <rect className={`sd-node sd-node--radiator${nodeHighlightClass('emitters', hl)}`} x={204} y={10} width={58} height={34} rx={6} ry={6} />
       <text className="sd-label"    x={233} y={24}>▤ Radiators</text>
       <text className="sd-sublabel" x={233} y={36}>CH emitters</text>
       <circle className="sd-port sd-port--hot"  cx={204} cy={20} r={3.5} />
@@ -456,7 +456,7 @@ function StoredSchematic({ state, paths, badges, highlightedComponents }: Schema
       <circle className="sd-port sd-port--cold" cx={226} cy={162} r={3.5} />
 
       {/* ── CH pipes ── */}
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-boiler-tee" points="84,26 100,26" />
+      <polyline className={`${pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-flow', hl)}`} data-testid="pipe-ch-flow-boiler-tee" points="84,26 100,26" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-tee-pump" points="88,26 88,68 100,68" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} points="148,26 164,26" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-pump-rads" points="194,26 204,26" />
@@ -550,7 +550,7 @@ function VentedSchematic({ state, paths, badges, highlightedComponents }: Schema
       <circle className="sd-port sd-port--dhw"  cx={125} cy={93} r={3.5} />
 
       {/* ── Radiators ── */}
-      <rect className="sd-node sd-node--radiator" x={160} y={12} width={56} height={36} rx={6} ry={6} />
+      <rect className={`sd-node sd-node--radiator${nodeHighlightClass('emitters', hl)}`} x={160} y={12} width={56} height={36} rx={6} ry={6} />
       <text className="sd-label"    x={188} y={27}>▤ Radiators</text>
       <text className="sd-sublabel" x={188} y={40}>CH emitters</text>
       <circle className="sd-port sd-port--hot"  cx={160} cy={22} r={3.5} />
@@ -620,7 +620,7 @@ function VentedSchematic({ state, paths, badges, highlightedComponents }: Schema
       <circle className="sd-port sd-port--cold" cx={226} cy={162} r={3.5} />
 
       {/* ── CH pipes (orthogonal routing) ── */}
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-boiler-tee" points="78,24 100,24" />
+      <polyline className={`${pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-flow', hl)}`} data-testid="pipe-ch-flow-boiler-tee" points="78,24 100,24" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-tee-pump" points="86,24 86,66 96,66" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-pump-rads" points="132,24 148,24 148,66" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} points="154,66 160,22" />
@@ -716,7 +716,7 @@ function HeatPumpSchematic({ state, paths, badges, highlightedComponents }: Sche
       <circle className="sd-port sd-port--hot"  cx={133} cy={68} r={3.5} />
 
       {/* ── UFH / radiators ── */}
-      <rect className="sd-node sd-node--radiator" x={158} y={12} width={62} height={36} rx={6} ry={6} />
+      <rect className={`sd-node sd-node--radiator${nodeHighlightClass('emitters', hl)}`} x={158} y={12} width={62} height={36} rx={6} ry={6} />
       <text className="sd-label"    x={189} y={27}>▤ UFH/Rads</text>
       <text className="sd-sublabel" x={189} y={40}>Low-temp</text>
       <circle className="sd-port sd-port--hot"  cx={158} cy={22} r={3.5} />
@@ -778,7 +778,7 @@ function HeatPumpSchematic({ state, paths, badges, highlightedComponents }: Sche
       <circle className="sd-port sd-port--cold" cx={226} cy={162} r={3.5} />
 
       {/* ── Primary loop (HP ↔ cylinder) ── */}
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow || paths.primaryReheat)} data-testid="pipe-ch-flow-boiler-tee" points="82,24 103,24" />
+      <polyline className={`${pipeClass('sd-pipe--flow', paths.chFlow || paths.primaryReheat)}${pipeHighlightClass('pipe-flow', hl)}`} data-testid="pipe-ch-flow-boiler-tee" points="82,24 103,24" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow || paths.primaryReheat)} data-testid="pipe-ch-flow-tee-pump" points="92,24 92,68 103,68" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow)} data-testid="pipe-ch-flow-pump-rads" points="133,24 150,24 150,22 158,22" />
       <polyline className={`${pipeClass('sd-pipe--return', paths.chFlow)}${pipeHighlightClass('pipe-return', hl)}`} data-testid="pipe-ch-return" points="158,40 148,40 148,56 82,56" />

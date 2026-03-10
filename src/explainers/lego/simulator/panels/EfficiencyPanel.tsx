@@ -36,7 +36,7 @@ export default function EfficiencyPanel({ state }: EfficiencyPanelProps) {
         <div className="efficiency-metric">
           <span className="efficiency-metric__label">Return temp</span>
           <span className="efficiency-metric__value">
-            {state.returnTempC !== undefined ? `${state.returnTempC}°C` : '— °C'}
+            {state.returnTempC !== undefined ? `${Math.round(state.returnTempC)}°C` : '— °C'}
           </span>
         </div>
       ) : (
@@ -44,6 +44,16 @@ export default function EfficiencyPanel({ state }: EfficiencyPanelProps) {
           <span className="efficiency-metric__label">COP</span>
           <span className="efficiency-metric__value">
             {state.cop !== undefined ? state.cop.toFixed(1) : '—'}
+          </span>
+        </div>
+      )}
+
+      {/* Required flow temperature (when emitter model is active) */}
+      {state.requiredFlowTempC !== undefined && (
+        <div className="efficiency-metric">
+          <span className="efficiency-metric__label">Flow temp required</span>
+          <span className="efficiency-metric__value">
+            {Math.round(state.requiredFlowTempC)}°C
           </span>
         </div>
       )}
