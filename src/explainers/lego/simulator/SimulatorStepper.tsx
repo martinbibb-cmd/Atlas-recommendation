@@ -47,19 +47,19 @@ const SYSTEM_CHOICES: { value: SimulatorSystemChoice; label: string; description
   {
     value: 'combi',
     label: 'Combi boiler',
-    description: 'On-demand hot water via plate heat exchanger. No cylinder. CH pauses during any hot-water draw.',
+    description: 'on-demand hot water via plate heat exchanger. No cylinder. CH pauses during any hot-water draw.',
     icon: '🔥',
   },
   {
     value: 'unvented',
     label: 'Unvented cylinder',
-    description: 'Mains-fed pressurised cylinder with system boiler.',
+    description: 'mains-fed pressurised cylinder with system boiler.',
     icon: '🛢',
   },
   {
     value: 'open_vented',
     label: 'Open vented cylinder',
-    description: 'Tank-fed hot water from a cold-water storage cistern. Gravity cold supply.',
+    description: 'Tank-fed hot water from a cold-water storage cistern. Tank-fed cold supply.',
     icon: '🪣',
   },
   {

@@ -82,10 +82,17 @@ const WEATHER_COMP_REDUCTION_C = 5
  * the required flow temperature is materially lower than at the cold-day
  * design peak.
  *
- * This constant represents the delta between the full-load (design) flow
- * temperature and the typical operating (current-load) flow temperature
- * when load compensation is active.  It is used to derive
- * `currentLoadFlowTempC` alongside the full-load `requiredFlowTempC`.
+ * Physical basis: the CIBSE Guide A design condition is typically −3°C outdoor
+ * temperature at full design load.  At a mid-season outdoor temperature of
+ * about 7°C (50% design load on a UK degree-day basis) the radiator circuit
+ * needs roughly 12°C less flow temperature to deliver the same comfort, because
+ * emitter output ∝ ΔT (flow − room) and the room can be maintained with half
+ * the heat input.  12°C is therefore a representative mid-season delta; the
+ * actual value depends on emitter sizing and the outdoor reset curve used.
+ *
+ * This constant is used to derive `currentLoadFlowTempC` from the full-load
+ * `requiredFlowTempC`, making the current-load vs design-load separation
+ * visible in the efficiency panel.
  */
 export const LOAD_COMP_REDUCTION_C = 12
 

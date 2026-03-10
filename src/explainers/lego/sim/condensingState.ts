@@ -164,9 +164,9 @@ export function condensingQualityLabel(quality: CondensingQuality): string {
 export function condensingQualityDescription(quality: CondensingQuality): string {
   switch (quality) {
     case 'condensing_reliably':
-      return 'Return temperature stays below the condensing threshold even at full design load — latent heat recovery is reliable across normal operating conditions.'
+      return 'Return temperature stays below the condensing threshold even at full cold-day design load — latent heat recovery is reliable across normal operating conditions.'
     case 'can_condense_at_low_load':
-      return 'At typical mid-season loads the return temperature drops into the condensing range. On the coldest days, condensing may be lost — but this is normal for standard radiator systems with good controls.'
+      return 'At typical mid-season loads (~50% of design load) the return temperature drops into the condensing range. On the coldest days the return temperature rises above the threshold — but this is normal for standard radiator systems with good controls.'
     case 'high_flow_temp_required':
       return 'This setup requires a high flow temperature to meet the design load. Condensing efficiency is limited at this operating point; oversized emitters or load compensation would improve it.'
     case 'rarely_condensing':
