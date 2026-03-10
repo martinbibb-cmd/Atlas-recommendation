@@ -8,6 +8,9 @@
  *   - UFH (1.8 factor) reduces flow temperature below 50°C
  *   - emitterCapacityFactor slider scales flow temperature correctly
  *   - Weather compensation reduces flow temperature by 5°C
+ *   - Load compensation reduces currentLoadFlowTempC by LOAD_COMP_REDUCTION_C
+ *   - Without load compensation, currentLoadFlowTempC equals requiredFlowTempC
+ *   - currentLoadReturnTempC = currentLoadFlowTempC − 12°C
  *   - Flow temperature is clamped between 35°C and 80°C
  *   - Return temperature = flow temperature − 12°C
  *   - emitterAdequate is true when requiredFlowTempC ≤ 65°C
@@ -24,6 +27,7 @@ import {
   PRIMARY_CAPACITY_KW,
   EMITTER_TYPE_FACTOR,
   BASE_HEAT_DEMAND_KW,
+  LOAD_COMP_REDUCTION_C,
 } from '../simulator/useEmitterPrimaryModel'
 import type { EmitterPrimaryInputs } from '../simulator/useEmitterPrimaryModel'
 
@@ -35,6 +39,7 @@ function defaultInputs(): EmitterPrimaryInputs {
     primaryPipeSize: '22mm',
     emitterType: 'radiators',
     weatherCompensation: false,
+    loadCompensation: false,
   }
 }
 
@@ -261,5 +266,75 @@ describe('useEmitterPrimaryModel — estimatedCop', () => {
     const lowFlow = useEmitterPrimaryModel({ ...defaultInputs(), emitterType: 'ufh' })
     const highFlow = useEmitterPrimaryModel(defaultInputs())
     expect(lowFlow.estimatedCop).toBeGreaterThan(highFlow.estimatedCop)
+  })
+})
+
+// ─── Load compensation ────────────────────────────────────────────────────────
+
+describe('useEmitterPrimaryModel — load compensation', () => {
+  it('without load compensation, currentLoadFlowTempC equals requiredFlowTempC', () => {
+    const result = useEmitterPrimaryModel({ ...defaultInputs(), loadCompensation: false })
+    expect(result.currentLoadFlowTempC).toBe(result.requiredFlowTempC)
+  })
+
+  it('with load compensation, currentLoadFlowTempC is lower than requiredFlowTempC', () => {
+    const result = useEmitterPrimaryModel({ ...defaultInputs(), loadCompensation: true })
+    expect(result.currentLoadFlowTempC).toBeLessThan(result.requiredFlowTempC)
+  })
+
+  it('load compensation reduces currentLoadFlowTempC by LOAD_COMP_REDUCTION_C', () => {
+    const without = useEmitterPrimaryModel({ ...defaultInputs(), loadCompensation: false })
+    const with_ = useEmitterPrimaryModel({ ...defaultInputs(), loadCompensation: true })
+    expect(with_.currentLoadFlowTempC).toBe(without.currentLoadFlowTempC - LOAD_COMP_REDUCTION_C)
+  })
+
+  it('currentLoadReturnTempC = currentLoadFlowTempC − 12°C', () => {
+    const result = useEmitterPrimaryModel({ ...defaultInputs(), loadCompensation: true })
+    expect(result.currentLoadReturnTempC).toBe(result.currentLoadFlowTempC - 12)
+  })
+
+  it('currentLoadFlowTempC is clamped to minimum 35°C', () => {
+    // Very high emitter capacity + load comp: ensure it doesn't go below 35°C
+    const result = useEmitterPrimaryModel({
+      ...defaultInputs(),
+      emitterType: 'ufh',
+      emitterCapacityFactor: 2.0,
+      loadCompensation: true,
+    })
+    expect(result.currentLoadFlowTempC).toBeGreaterThanOrEqual(35)
+  })
+
+  it('without load compensation, currentLoadReturnTempC equals estimatedReturnTempC', () => {
+    const result = useEmitterPrimaryModel({ ...defaultInputs(), loadCompensation: false })
+    expect(result.currentLoadReturnTempC).toBe(result.estimatedReturnTempC)
+  })
+
+  it('load compensation improves condensing potential at typical operating load', () => {
+    // Standard radiators at 70°C flow: return = 58°C (above 55°C threshold)
+    // With load compensation: currentLoadFlowTempC = 70 − 12 = 58°C, return = 46°C (below 50°C threshold)
+    const result = useEmitterPrimaryModel({ ...defaultInputs(), loadCompensation: true })
+    expect(result.estimatedReturnTempC).toBeGreaterThan(55) // design load: not condensing
+    expect(result.currentLoadReturnTempC).toBeLessThan(50)  // current load: condensing
+  })
+})
+
+// ─── Design load vs current load separation ───────────────────────────────────
+
+describe('useEmitterPrimaryModel — design load vs current load', () => {
+  it('requiredFlowTempC represents design load (unchanged by load compensation)', () => {
+    const without = useEmitterPrimaryModel({ ...defaultInputs(), loadCompensation: false })
+    const with_ = useEmitterPrimaryModel({ ...defaultInputs(), loadCompensation: true })
+    expect(with_.requiredFlowTempC).toBe(without.requiredFlowTempC)
+  })
+
+  it('estimatedReturnTempC represents design load return (unchanged by load compensation)', () => {
+    const without = useEmitterPrimaryModel({ ...defaultInputs(), loadCompensation: false })
+    const with_ = useEmitterPrimaryModel({ ...defaultInputs(), loadCompensation: true })
+    expect(with_.estimatedReturnTempC).toBe(without.estimatedReturnTempC)
+  })
+
+  it('currentLoadFlowTempC is distinct from requiredFlowTempC when load compensation is active', () => {
+    const result = useEmitterPrimaryModel({ ...defaultInputs(), loadCompensation: true })
+    expect(result.currentLoadFlowTempC).not.toBe(result.requiredFlowTempC)
   })
 })

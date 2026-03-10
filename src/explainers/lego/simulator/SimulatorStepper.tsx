@@ -1,25 +1,29 @@
 /**
  * SimulatorStepper — guided setup journey before the simulator dashboard.
  *
- * Covers 5 steps:
- *   1. System type      — which heating system family
- *   2. Components       — arrangement details derived from system type
- *   3. Water services   — occupancy and bathroom count
- *   4. Building physics — fabric type (heat loss / thermal mass)
- *   5. Condition        — current system health
+ * Covers 6 steps:
+ *   1. System type          — which heating system family
+ *   2. Control strategy     — explicit layout / control scheme (no silent mapping)
+ *   3. Components           — arrangement details derived from system type
+ *   4. Water services       — occupancy and bathroom count
+ *   5. Building physics     — fabric type (heat loss / thermal mass)
+ *   6. Condition            — current system health
  *
  * On completion, calls onComplete(config) to open the simulator.
  *
- * Services, fabric, and condition are captured here and will be wired into
- * the simulator in a future PR once the dashboard accepts full StepperConfig.
- * For now only systemChoice is consumed by SimulatorDashboard.
+ * Step 2 exposes the control strategy / layout explicitly so the simulator
+ * never silently maps unvented → S-plan or open-vented → Y-plan.  Users can
+ * choose the correct scheme for their property.
  */
 
 import { useState } from 'react';
 import type { SimulatorSystemChoice } from './useSystemDiagramPlayback';
+import type { ControlStrategy } from './systemInputsTypes';
 
 export type StepperConfig = {
   systemChoice: SimulatorSystemChoice;
+  /** Explicit control strategy / layout chosen in step 2. */
+  controlStrategy: ControlStrategy;
   /** Number of occupants. Reserved for future simulator wiring. */
   occupancy: number;
   /** Number of bathrooms. Reserved for future simulator wiring. */
@@ -37,7 +41,7 @@ interface Props {
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 const SYSTEM_CHOICES: { value: SimulatorSystemChoice; label: string; description: string; icon: string }[] = [
   {
@@ -49,13 +53,13 @@ const SYSTEM_CHOICES: { value: SimulatorSystemChoice; label: string; description
   {
     value: 'unvented',
     label: 'Unvented cylinder',
-    description: 'Mains-fed pressurised cylinder with system boiler. S-plan zone valves allow simultaneous CH and reheat.',
+    description: 'Mains-fed pressurised cylinder with system boiler.',
     icon: '🛢',
   },
   {
     value: 'open_vented',
     label: 'Open vented cylinder',
-    description: 'Tank-fed hot water from a cold-water storage cistern. Y-plan mid-position valve. Gravity cold supply.',
+    description: 'Tank-fed hot water from a cold-water storage cistern. Gravity cold supply.',
     icon: '🪣',
   },
   {
@@ -65,6 +69,71 @@ const SYSTEM_CHOICES: { value: SimulatorSystemChoice; label: string; description
     icon: '🌬',
   },
 ];
+
+// ─── Control strategy choices per system type ─────────────────────────────────
+
+type ControlStrategyChoice = {
+  value: ControlStrategy;
+  label: string;
+  description: string;
+  icon: string;
+}
+
+const CONTROL_STRATEGY_CHOICES: ControlStrategyChoice[] = [
+  {
+    value: 'combi',
+    label: 'Combi',
+    description: 'Combi boiler with plate heat exchanger. No zone valves or cylinder needed.',
+    icon: '🔥',
+  },
+  {
+    value: 's_plan',
+    label: 'S-plan',
+    description: 'Independent CH and DHW zones via motorised zone valves. Simultaneous CH and reheat is possible.',
+    icon: '🔀',
+  },
+  {
+    value: 'y_plan',
+    label: 'Y-plan',
+    description: 'Mid-position valve. Cannot run CH and DHW at full output simultaneously — the valve prioritises one zone.',
+    icon: '↕',
+  },
+  {
+    value: 'heat_pump',
+    label: 'HP layout',
+    description: 'Heat pump primary loop with thermal store cylinder. Low flow temperatures throughout.',
+    icon: '🌬',
+  },
+]
+
+/**
+ * Returns the relevant control strategy options for the selected system type.
+ * Each system type has a natural default, but users can choose alternatives.
+ */
+function controlStrategyOptionsFor(systemChoice: SimulatorSystemChoice): ControlStrategyChoice[] {
+  if (systemChoice === 'combi')      return CONTROL_STRATEGY_CHOICES.filter(c => c.value === 'combi')
+  if (systemChoice === 'heat_pump')  return CONTROL_STRATEGY_CHOICES.filter(c => c.value === 'heat_pump')
+  // unvented and open_vented can use either S-plan or Y-plan
+  return CONTROL_STRATEGY_CHOICES.filter(c => c.value === 's_plan' || c.value === 'y_plan')
+}
+
+/**
+ * Returns the natural / most-common default control strategy for a given
+ * system type.  This is a pre-fill only — the user can always override it.
+ *
+ * unvented   → s_plan  (S-plan is the norm for system boilers with unvented cylinders)
+ * open_vented → y_plan (Y-plan is the norm for regular boilers with vented cylinders)
+ * combi      → combi
+ * heat_pump  → heat_pump
+ */
+function defaultControlStrategyFor(systemChoice: SimulatorSystemChoice): ControlStrategy {
+  switch (systemChoice) {
+    case 'combi':       return 'combi'
+    case 'unvented':    return 's_plan'
+    case 'open_vented': return 'y_plan'
+    case 'heat_pump':   return 'heat_pump'
+  }
+}
 
 // ─── Step-bar component ───────────────────────────────────────────────────────
 
@@ -112,25 +181,74 @@ function Step1({ systemChoice, onSelect }: {
   );
 }
 
-// ─── Step 2: Components / arrangement ────────────────────────────────────────
+// ─── Step 2: Control strategy / layout ───────────────────────────────────────
+
+function Step2({ systemChoice, controlStrategy, onSelect }: {
+  systemChoice: SimulatorSystemChoice;
+  controlStrategy: ControlStrategy;
+  onSelect: (cs: ControlStrategy) => void;
+}) {
+  const options = controlStrategyOptionsFor(systemChoice)
+  const isSingleOption = options.length === 1
+
+  return (
+    <div className="stepper-step">
+      <h2 className="stepper-step__heading">Control strategy / layout</h2>
+      <p className="stepper-step__hint">
+        Choose the zone valve arrangement and control scheme for this system.
+        {!isSingleOption && ' The most common option for your system type is pre-selected — change it if your setup differs.'}
+      </p>
+      <div className="stepper-choice-grid">
+        {options.map(c => (
+          <button
+            key={c.value}
+            className={`stepper-choice-card${controlStrategy === c.value ? ' stepper-choice-card--selected' : ''}`}
+            onClick={() => onSelect(c.value)}
+            aria-pressed={controlStrategy === c.value}
+          >
+            <span className="stepper-choice-card__icon" aria-hidden="true">{c.icon}</span>
+            <span className="stepper-choice-card__label">{c.label}</span>
+            <span className="stepper-choice-card__desc">{c.description}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 3: Components / arrangement ────────────────────────────────────────
 
 const ARRANGEMENT_LABELS: Record<SimulatorSystemChoice, string> = {
   combi:       'Combi boiler — plate HEX, expansion vessel, single zone',
-  unvented:    'System boiler — S-plan zone valves, unvented cylinder, expansion vessel',
-  open_vented: 'Regular boiler — Y-plan mid-position valve, vented cylinder, CWS cistern',
+  unvented:    'System boiler — unvented cylinder, expansion vessel',
+  open_vented: 'Regular boiler — vented cylinder, CWS cistern',
   heat_pump:   'ASHP — primary loop, unvented cylinder, UFH or low-temp radiators',
 };
 
-function Step2({ systemChoice }: { systemChoice: SimulatorSystemChoice }) {
+const STRATEGY_LABELS: Record<ControlStrategy, string> = {
+  combi:      'No zone valves (combi)',
+  s_plan:     'S-plan zone valves — independent CH and DHW circuits',
+  y_plan:     'Y-plan mid-position valve',
+  heat_pump:  'Heat pump primary layout',
+}
+
+function Step3({ systemChoice, controlStrategy }: {
+  systemChoice: SimulatorSystemChoice;
+  controlStrategy: ControlStrategy;
+}) {
   return (
     <div className="stepper-step">
       <h2 className="stepper-step__heading">System arrangement</h2>
       <p className="stepper-step__hint">
-        The component layout is determined by your system type.
+        The component layout is determined by your system type and control strategy.
       </p>
       <div className="stepper-info-card">
-        <span className="stepper-info-card__label">Selected arrangement</span>
+        <span className="stepper-info-card__label">System type</span>
         <span className="stepper-info-card__value">{ARRANGEMENT_LABELS[systemChoice]}</span>
+      </div>
+      <div className="stepper-info-card">
+        <span className="stepper-info-card__label">Control strategy</span>
+        <span className="stepper-info-card__value">{STRATEGY_LABELS[controlStrategy]}</span>
       </div>
       <p className="stepper-step__hint" style={{ marginTop: 16 }}>
         The schematic diagram will display the correct components, pipes, and zone valves
@@ -140,11 +258,11 @@ function Step2({ systemChoice }: { systemChoice: SimulatorSystemChoice }) {
   );
 }
 
-// ─── Step 3: Water services ───────────────────────────────────────────────────
+// ─── Step 4: Water services ───────────────────────────────────────────────────
 
 type WaterServices = { occupancy: number; bathrooms: number };
 
-function Step3({ services, onChange }: {
+function Step4({ services, onChange }: {
   services: WaterServices;
   onChange: (s: WaterServices) => void;
 }) {
@@ -196,7 +314,7 @@ function Step3({ services, onChange }: {
   );
 }
 
-// ─── Step 4: Building physics ─────────────────────────────────────────────────
+// ─── Step 5: Building physics ─────────────────────────────────────────────────
 
 type FabricType = 'light' | 'medium' | 'heavy';
 
@@ -206,7 +324,7 @@ const FABRIC_OPTIONS: { value: FabricType; label: string; description: string }[
   { value: 'heavy',  label: 'Heavy',  description: 'Solid stone or brick. High thermal mass, slow to warm and cool.' },
 ];
 
-function Step4({ fabric, onSelect }: {
+function Step5({ fabric, onSelect }: {
   fabric: FabricType;
   onSelect: (f: FabricType) => void;
 }) {
@@ -233,7 +351,7 @@ function Step4({ fabric, onSelect }: {
   );
 }
 
-// ─── Step 5: Condition ────────────────────────────────────────────────────────
+// ─── Step 6: Condition ────────────────────────────────────────────────────────
 
 type Condition = 'new' | 'fair' | 'poor';
 
@@ -243,7 +361,7 @@ const CONDITION_OPTIONS: { value: Condition; label: string; description: string 
   { value: 'poor', label: 'Poor',         description: 'Significant sludge or heavy scale. Noticeable efficiency penalty.' },
 ];
 
-function Step5({ condition, onSelect }: {
+function Step6({ condition, onSelect }: {
   condition: Condition;
   onSelect: (c: Condition) => void;
 }) {
@@ -273,11 +391,19 @@ function Step5({ condition, onSelect }: {
 // ─── Main stepper ─────────────────────────────────────────────────────────────
 
 export default function SimulatorStepper({ onComplete }: Props) {
-  const [step, setStep]               = useState(1);
+  const [step, setStep]                 = useState(1);
   const [systemChoice, setSystemChoice] = useState<SimulatorSystemChoice>('combi');
-  const [services, setServices]       = useState<WaterServices>({ occupancy: 2, bathrooms: 1 });
-  const [fabric, setFabric]           = useState<FabricType>('medium');
-  const [condition, setCondition]     = useState<Condition>('fair');
+  const [controlStrategy, setControlStrategy] = useState<ControlStrategy>('combi');
+  const [services, setServices]         = useState<WaterServices>({ occupancy: 2, bathrooms: 1 });
+  const [fabric, setFabric]             = useState<FabricType>('medium');
+  const [condition, setCondition]       = useState<Condition>('fair');
+
+  function handleSystemChoiceChange(choice: SimulatorSystemChoice) {
+    setSystemChoice(choice);
+    // Pre-fill the most natural control strategy for this system type.
+    // The user can change it on step 2.
+    setControlStrategy(defaultControlStrategyFor(choice));
+  }
 
   function handleNext() {
     if (step < TOTAL_STEPS) {
@@ -285,6 +411,7 @@ export default function SimulatorStepper({ onComplete }: Props) {
     } else {
       onComplete({
         systemChoice,
+        controlStrategy,
         occupancy: services.occupancy,
         bathrooms: services.bathrooms,
         fabric,
@@ -306,11 +433,12 @@ export default function SimulatorStepper({ onComplete }: Props) {
       </div>
 
       <div className="stepper-body">
-        {step === 1 && <Step1 systemChoice={systemChoice} onSelect={setSystemChoice} />}
-        {step === 2 && <Step2 systemChoice={systemChoice} />}
-        {step === 3 && <Step3 services={services} onChange={setServices} />}
-        {step === 4 && <Step4 fabric={fabric} onSelect={setFabric} />}
-        {step === 5 && <Step5 condition={condition} onSelect={setCondition} />}
+        {step === 1 && <Step1 systemChoice={systemChoice} onSelect={handleSystemChoiceChange} />}
+        {step === 2 && <Step2 systemChoice={systemChoice} controlStrategy={controlStrategy} onSelect={setControlStrategy} />}
+        {step === 3 && <Step3 systemChoice={systemChoice} controlStrategy={controlStrategy} />}
+        {step === 4 && <Step4 services={services} onChange={setServices} />}
+        {step === 5 && <Step5 fabric={fabric} onSelect={setFabric} />}
+        {step === 6 && <Step6 condition={condition} onSelect={setCondition} />}
       </div>
 
       <div className="stepper-footer">

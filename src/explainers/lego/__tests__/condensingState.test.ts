@@ -164,3 +164,100 @@ describe('condensingStateDescription — content checks', () => {
     expect(unique.size).toBe(3)
   })
 })
+
+// ─── CondensingQuality — deriveCondensingQuality ──────────────────────────────
+
+import {
+  deriveCondensingQuality,
+  condensingQualityLabel,
+  condensingQualityDescription,
+} from '../sim/condensingState'
+import type { CondensingQuality } from '../sim/condensingState'
+
+describe('deriveCondensingQuality', () => {
+  it('returns condensing_reliably when design load return temp < 50°C', () => {
+    // e.g. UFH or oversized radiators at design load
+    expect(deriveCondensingQuality(45, 45)).toBe('condensing_reliably')
+    expect(deriveCondensingQuality(49, 40)).toBe('condensing_reliably')
+  })
+
+  it('returns can_condense_at_low_load when design return ≥ 50°C but current < 50°C', () => {
+    // Standard radiators (design 58°C) with load compensation (current 46°C)
+    expect(deriveCondensingQuality(58, 46)).toBe('can_condense_at_low_load')
+    expect(deriveCondensingQuality(65, 40)).toBe('can_condense_at_low_load')
+  })
+
+  it('returns high_flow_temp_required when current return is in borderline zone (50–55°C)', () => {
+    expect(deriveCondensingQuality(60, 52)).toBe('high_flow_temp_required')
+    expect(deriveCondensingQuality(60, 55)).toBe('high_flow_temp_required')
+  })
+
+  it('returns rarely_condensing when both design and current return > 55°C', () => {
+    expect(deriveCondensingQuality(70, 58)).toBe('rarely_condensing')
+    expect(deriveCondensingQuality(65, 60)).toBe('rarely_condensing')
+  })
+
+  it('without load compensation (design == current), standard radiators are rarely_condensing', () => {
+    // Standard radiators: requiredFlowTempC = 70°C, estimatedReturnTempC = 58°C
+    expect(deriveCondensingQuality(58, 58)).toBe('rarely_condensing')
+  })
+
+  it('with load compensation, standard radiators can condense at low load', () => {
+    // Load comp: currentLoadReturnTempC = 58 − 12 = 46°C
+    expect(deriveCondensingQuality(58, 46)).toBe('can_condense_at_low_load')
+  })
+})
+
+describe('condensingQualityLabel', () => {
+  const allQualities: CondensingQuality[] = [
+    'condensing_reliably',
+    'can_condense_at_low_load',
+    'high_flow_temp_required',
+    'rarely_condensing',
+  ]
+
+  it('returns a non-empty label for every quality state', () => {
+    allQualities.forEach(q => {
+      expect(condensingQualityLabel(q).length).toBeGreaterThan(0)
+    })
+  })
+
+  it('labels are distinct for each quality state', () => {
+    const labels = allQualities.map(condensingQualityLabel)
+    const unique = new Set(labels)
+    expect(unique.size).toBe(4)
+  })
+
+  it('condensing_reliably label contains "reliably"', () => {
+    expect(condensingQualityLabel('condensing_reliably').toLowerCase()).toContain('reliably')
+  })
+
+  it('can_condense_at_low_load label mentions load', () => {
+    expect(condensingQualityLabel('can_condense_at_low_load').toLowerCase()).toContain('load')
+  })
+
+  it('rarely_condensing label mentions "rarely"', () => {
+    expect(condensingQualityLabel('rarely_condensing').toLowerCase()).toContain('rarely')
+  })
+})
+
+describe('condensingQualityDescription', () => {
+  const allQualities: CondensingQuality[] = [
+    'condensing_reliably',
+    'can_condense_at_low_load',
+    'high_flow_temp_required',
+    'rarely_condensing',
+  ]
+
+  it('returns a non-empty description for every quality state', () => {
+    allQualities.forEach(q => {
+      expect(condensingQualityDescription(q).length).toBeGreaterThan(0)
+    })
+  })
+
+  it('descriptions are distinct for each quality state', () => {
+    const descs = allQualities.map(condensingQualityDescription)
+    const unique = new Set(descs)
+    expect(unique.size).toBe(4)
+  })
+})
