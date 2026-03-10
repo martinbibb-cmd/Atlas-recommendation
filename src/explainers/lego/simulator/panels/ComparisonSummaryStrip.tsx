@@ -38,6 +38,19 @@ interface ComparisonSummaryStripProps {
 
 type Direction = 'better' | 'worse' | 'same'
 
+/**
+ * Returns a short human-readable label for the condensing state or COP of an
+ * efficiency display state. Used in the comparison summary strip.
+ */
+function getCondensingSummary(efficiency: EfficiencyDisplayState): string {
+  if (efficiency.systemKind === 'heat_pump') {
+    return `COP ${(efficiency.cop ?? 0).toFixed(1)}`
+  }
+  return efficiency.condensingState
+    ? condensingStateBadgeText(efficiency.condensingState)
+    : 'Unknown'
+}
+
 function compareNumbers(
   current: number,
   improved: number,
@@ -100,12 +113,8 @@ export default function ComparisonSummaryStrip({
   )
 
   // Condensing / COP comparison — text-based, no numeric delta
-  const currentCondensing  = current.efficiency.systemKind === 'boiler'
-    ? (current.efficiency.condensingState  ? condensingStateBadgeText(current.efficiency.condensingState)  : 'Unknown')
-    : `COP ${(current.efficiency.cop  ?? 0).toFixed(1)}`
-  const improvedCondensing = improved.efficiency.systemKind === 'boiler'
-    ? (improved.efficiency.condensingState ? condensingStateBadgeText(improved.efficiency.condensingState) : 'Unknown')
-    : `COP ${(improved.efficiency.cop ?? 0).toFixed(1)}`
+  const currentCondensing  = getCondensingSummary(current.efficiency)
+  const improvedCondensing = getCondensingSummary(improved.efficiency)
 
   const condensingDir: Direction =
     current.efficiency.condensingState === improved.efficiency.condensingState

@@ -83,6 +83,7 @@ const SYSTEM_CONDITION_OPTIONS: { value: SystemCondition; label: string }[] = [
 ]
 
 interface SystemInputsPanelProps {
+  /** Demo phase cycling speed multiplier (0.5–8×). */
   timeSpeed: number
   onTimeSpeedChange: (v: number) => void
   inputs: SystemInputs
