@@ -108,12 +108,49 @@
   stroke-width: 3.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+  /* default: idle — faintly visible so the topology is always readable */
+  opacity: 0.22;
+  transition: opacity 0.35s ease;
 }
 
 .sd-pipe--flow { stroke: #fc8181; }
 .sd-pipe--return { stroke: #63b3ed; }
 .sd-pipe--cold { stroke: #90cdf4; }
 .sd-pipe--dhw { stroke: #68d391; }
+
+/* ── Active: marching-ants animation ─────────────────────────────────────── */
+/* stroke-dashoffset drives the "marching ants" effect — larger numbers flow faster. */
+@keyframes sd-flow-march {
+  to { stroke-dashoffset: -26; }
+}
+
+.sd-pipe--active {
+  opacity: 1;
+  stroke-dasharray: 8 5;
+  animation: sd-flow-march 0.85s linear infinite;
+}
+
+/* ── Faded: CH circuit visible but dimmed during combi DHW draw ───────────── */
+.sd-pipe--faded {
+  opacity: 0.35;
+  stroke-dasharray: none;
+}
+
+/* ── Inactive: topology hint — barely visible ────────────────────────────── */
+/* .sd-pipe--inactive is the same as the default (opacity: 0.22),             */
+/* kept as an explicit class so test assertions remain stable.                 */
+.sd-pipe--inactive {
+  opacity: 0.22;
+  stroke-dasharray: none;
+  animation: none;
+}
+
+/* ── Cylinder fill indicator (stored systems) ────────────────────────────── */
+.sd-cylinder-fill {
+  fill: #bee3f8;
+  opacity: 0.55;
+  transition: height 0.8s ease, y 0.8s ease;
+}
 
 /* Port dots */
 .sd-port {
@@ -137,6 +174,28 @@
 .sd-domain--heating { fill: #fc8181; }
 .sd-domain--water { fill: #63b3ed; }
 .sd-domain--dhw { fill: #68d391; }
+
+/* ── Callout badges ──────────────────────────────────────────────────────── */
+.sd-callout {
+  rx: 4;
+  ry: 4;
+  opacity: 0.93;
+}
+
+.sd-callout--heating   { fill: #fef3c7; stroke: #d69e2e; stroke-width: 0.8; }
+.sd-callout--dhw       { fill: #c6f6d5; stroke: #38a169; stroke-width: 0.8; }
+.sd-callout--reheat    { fill: #bee3f8; stroke: #2b6cb0; stroke-width: 0.8; }
+.sd-callout--warning   { fill: #fed7d7; stroke: #c53030; stroke-width: 0.8; }
+.sd-callout--condensing { fill: #f0fff4; stroke: #68d391; stroke-width: 0.8; }
+
+.sd-callout__text {
+  font-size: 7px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  fill: #2d3748;
+  pointer-events: none;
+}
 
 /* ─── House Status Panel ────────────────────────────────────────────────────── */
 
