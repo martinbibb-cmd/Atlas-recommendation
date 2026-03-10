@@ -18,7 +18,7 @@
  */
 
 import type { SimulatorSystemChoice } from '../useSystemDiagramPlayback'
-import type { SystemInputs, PrimaryPipeSize, EmitterType, CylinderType } from '../systemInputsTypes'
+import type { SystemInputs, PrimaryPipeSize, EmitterType, CylinderType, SystemCondition } from '../systemInputsTypes'
 import { CYLINDER_SIZES_BY_TYPE } from '../systemInputsTypes'
 
 // ─── Time speed constants ─────────────────────────────────────────────────────
@@ -74,6 +74,13 @@ function cylinderTypeOptionsFor(systemChoice: SimulatorSystemChoice) {
   return CYLINDER_TYPE_OPTIONS.filter(o => o.value !== 'open_vented')
 }
 
+// ─── System condition options ─────────────────────────────────────────────────
+
+const SYSTEM_CONDITION_OPTIONS: { value: SystemCondition; label: string }[] = [
+  { value: 'clean',   label: 'Clean'   },
+  { value: 'sludged', label: 'Sludged' },
+  { value: 'scaled',  label: 'Scaled'  },
+]
 
 interface SystemInputsPanelProps {
   /** Demo phase cycling speed multiplier (0.5–8×). */
@@ -292,6 +299,23 @@ export default function SystemInputsPanel({
         >
           {inputs.weatherCompensation ? 'On' : 'Off'}
         </button>
+      </div>
+
+      <div className="sys-input-row">
+        <span className="sys-input-row__icon" aria-hidden="true">🧹</span>
+        <span className="sys-input-row__label">System condition</span>
+        <div className="sys-input-row__segmented" role="group" aria-label="System condition">
+          {SYSTEM_CONDITION_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              className={`sys-input-row__seg-btn${inputs.systemCondition === opt.value ? ' sys-input-row__seg-btn--active' : ''}`}
+              onClick={() => onInputChange({ systemCondition: opt.value })}
+              aria-pressed={inputs.systemCondition === opt.value}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

@@ -574,3 +574,63 @@ describe('useLimiterPlayback — mixergy_stratification limiter', () => {
     expect(ids).not.toContain('mixergy_stratification')
   })
 })
+
+// ─── System condition (sludge / scale) limiters ───────────────────────────────
+
+describe('useLimiterPlayback — system condition', () => {
+  it('does NOT fire a condition limiter when systemCondition is "clean"', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, undefined, undefined, 'clean')
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).not.toContain('sludge_build_up')
+    expect(ids).not.toContain('scale_build_up')
+  })
+
+  it('does NOT fire a condition limiter when systemCondition is omitted', () => {
+    const result = useLimiterPlayback(storedIdle())
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).not.toContain('sludge_build_up')
+    expect(ids).not.toContain('scale_build_up')
+  })
+
+  it('fires sludge_build_up when systemCondition is "sludged"', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, undefined, undefined, 'sludged')
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).toContain('sludge_build_up')
+  })
+
+  it('sludge_build_up severity is warning', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, undefined, undefined, 'sludged')
+    const limiter = result.activeLimiters.find(l => l.id === 'sludge_build_up')
+    expect(limiter?.severity).toBe('warning')
+  })
+
+  it('sludge_build_up targets boiler', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, undefined, undefined, 'sludged')
+    const limiter = result.activeLimiters.find(l => l.id === 'sludge_build_up')
+    expect(limiter?.targetComponent).toBe('boiler')
+  })
+
+  it('fires scale_build_up when systemCondition is "scaled"', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, undefined, undefined, 'scaled')
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).toContain('scale_build_up')
+  })
+
+  it('scale_build_up severity is warning', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, undefined, undefined, 'scaled')
+    const limiter = result.activeLimiters.find(l => l.id === 'scale_build_up')
+    expect(limiter?.severity).toBe('warning')
+  })
+
+  it('scale_build_up targets boiler', () => {
+    const result = useLimiterPlayback(storedIdle(), 30, 10, undefined, undefined, 'scaled')
+    const limiter = result.activeLimiters.find(l => l.id === 'scale_build_up')
+    expect(limiter?.targetComponent).toBe('boiler')
+  })
+
+  it('does NOT fire sludge_build_up for combi idle with clean condition', () => {
+    const result = useLimiterPlayback(combiIdle(), 30, 10, undefined, undefined, 'clean')
+    const ids = result.activeLimiters.map(l => l.id)
+    expect(ids).not.toContain('sludge_build_up')
+  })
+})

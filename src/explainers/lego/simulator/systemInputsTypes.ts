@@ -11,6 +11,15 @@ export type PrimaryPipeSize = '15mm' | '22mm' | '28mm'
 export type EmitterType = 'radiators' | 'oversized_radiators' | 'ufh'
 
 /**
+ * Physical condition of the heating system.
+ *
+ * clean   — well-maintained; no significant sludge or scale.
+ * sludged — magnetite accumulation reducing heat transfer across the system.
+ * scaled  — limescale build-up restricting heat-exchanger and boiler performance.
+ */
+export type SystemCondition = 'clean' | 'sludged' | 'scaled'
+
+/**
  * Cylinder technology type.
  *
  * open_vented — tank-fed cold supply, typically smaller sizes.
@@ -74,6 +83,11 @@ export type SystemInputs = {
    * is active. Reduces required flow temperature by ~5°C.
    */
   weatherCompensation: boolean
+  /**
+   * Physical condition of the heating system.
+   * Affects heat transfer efficiency and surfaces as a penalty / limiter.
+   */
+  systemCondition: SystemCondition
 }
 
 export const DEFAULT_SYSTEM_INPUTS: SystemInputs = {
@@ -87,4 +101,5 @@ export const DEFAULT_SYSTEM_INPUTS: SystemInputs = {
   primaryPipeSize: '22mm',
   emitterType: 'radiators',
   weatherCompensation: false,
+  systemCondition: 'clean',
 }

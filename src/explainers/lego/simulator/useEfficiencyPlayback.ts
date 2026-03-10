@@ -22,6 +22,7 @@ import {
 import type { CondensingState } from '../sim/condensingState'
 import type { SystemDiagramDisplayState } from './useSystemDiagramPlayback'
 import type { EmitterPrimaryDisplayState } from './useEmitterPrimaryModel'
+import type { SystemCondition } from './systemInputsTypes'
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -117,7 +118,10 @@ function deriveStatusDescription(
   return condensingStateDescription(condensingState)
 }
 
-function derivePenalties(diagramState: SystemDiagramDisplayState): string[] {
+function derivePenalties(
+  diagramState: SystemDiagramDisplayState,
+  systemCondition?: SystemCondition,
+): string[] {
   const penalties: string[] = []
 
   if (diagramState.serviceSwitchingActive) {
@@ -131,6 +135,12 @@ function derivePenalties(diagramState: SystemDiagramDisplayState): string[] {
     penalties.push('High return temp reducing condensing gain')
   }
 
+  if (systemCondition === 'sludged') {
+    penalties.push('Magnetite sludge reducing heat transfer')
+  } else if (systemCondition === 'scaled') {
+    penalties.push('Scale build-up restricting heat exchanger')
+  }
+
   return penalties
 }
 
@@ -142,14 +152,17 @@ function derivePenalties(diagramState: SystemDiagramDisplayState): string[] {
  * Called as a pure function (no React state) so it can be unit-tested directly
  * in the same way as useDrawOffPlayback and useHousePlayback.
  *
- * @param emitterState  Optional emitter primary model state. When supplied:
+ * @param emitterState     Optional emitter primary model state. When supplied:
  *   - Return temperature is derived from emitter physics rather than phase scripts.
  *   - Heat pump COP is derived from the required flow temperature.
  *   - Condensing state is re-derived from the physics-based return temperature.
+ * @param systemCondition  Optional system condition. When 'sludged' or 'scaled',
+ *   adds a heat-transfer penalty to the efficiency summary.
  */
 export function useEfficiencyPlayback(
   diagramState: SystemDiagramDisplayState,
   emitterState?: EmitterPrimaryDisplayState,
+  systemCondition?: SystemCondition,
 ): EfficiencyDisplayState {
   const systemKind: SystemKind = isBoilerHeatSource(diagramState.heatSourceType)
     ? 'boiler'
@@ -187,7 +200,7 @@ export function useEfficiencyPlayback(
     cop,
     headlineEfficiencyText: deriveHeadline(systemKind, systemMode, condensingState),
     statusDescription: deriveStatusDescription(systemKind, systemMode, condensingState),
-    penalties: derivePenalties({ ...diagramState, condensingState }),
+    penalties: derivePenalties({ ...diagramState, condensingState }, systemCondition),
     statusTone: deriveStatusTone(systemKind, systemMode, condensingState),
   }
 }

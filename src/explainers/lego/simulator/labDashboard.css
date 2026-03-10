@@ -33,14 +33,66 @@
   }
 }
 
+/* ─── Top toolbar (mode toggle + system selector in single mode) ────────────── */
+
+.sim-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 0;
+  flex-wrap: wrap;
+}
+
+/* ─── Mode toggle (Single / Compare) ───────────────────────────────────────── */
+
+.sim-mode-toggle {
+  display: flex;
+  gap: 0;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sim-mode-toggle__btn {
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 4px 14px;
+  border: none;
+  background: #f7fafc;
+  color: #4a5568;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.sim-mode-toggle__btn:hover {
+  background: #edf2f7;
+  color: #2d3748;
+}
+
+.sim-mode-toggle__btn--active {
+  background: #4299e1;
+  color: #fff;
+}
+
 /* ─── System-type selector ──────────────────────────────────────────────────── */
 
 .sim-system-selector {
   display: flex;
   gap: 6px;
-  padding: 10px 14px 0;
+  padding: 0;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.sim-system-selector__col-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 2px;
 }
 
 .sim-system-selector__btn {
@@ -290,6 +342,180 @@
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* ─── Compare mode layout ───────────────────────────────────────────────────── */
+
+.sim-compare-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 0 14px 14px;
+}
+
+@media (max-width: 900px) {
+  .sim-compare-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sim-compare-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
+.sim-compare-col--current {
+  border-right: 2px solid #e2e8f0;
+  padding-right: 10px;
+}
+
+.sim-compare-col--improved {
+  padding-left: 10px;
+}
+
+@media (max-width: 900px) {
+  .sim-compare-col--current {
+    border-right: none;
+    border-bottom: 2px solid #e2e8f0;
+    padding-right: 0;
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+  }
+  .sim-compare-col--improved {
+    padding-left: 0;
+  }
+}
+
+.sim-compare-col__heading {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #4a5568;
+  padding: 10px 4px 6px;
+  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 6px;
+}
+
+.sim-compare-col__heading--improved {
+  color: #276749;
+  border-bottom-color: #68d391;
+}
+
+.sim-compare-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 6px 0;
+  min-height: 220px;
+}
+
+@media (max-width: 600px) {
+  .sim-compare-panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sim-compare-limiters {
+  padding: 0 0 8px;
+}
+
+.sim-compare-inputs {
+  padding: 0 0 8px;
+}
+
+/* ─── Comparison summary strip ──────────────────────────────────────────────── */
+
+.cmp-summary-strip {
+  margin: 0 14px 10px;
+  border: 1px solid #bee3f8;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #f0fff4 0%, #ebf8ff 100%);
+  padding: 10px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.cmp-summary-strip__heading {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #2b6cb0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  padding-top: 2px;
+  min-width: 120px;
+}
+
+.cmp-summary-strip__icon {
+  font-size: 0.88rem;
+}
+
+.cmp-summary-strip__metrics {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.cmp-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 7px 10px;
+  min-width: 120px;
+}
+
+.cmp-metric__label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cmp-metric__values {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: nowrap;
+}
+
+.cmp-metric__current {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #4a5568;
+  font-variant-numeric: tabular-nums;
+}
+
+.cmp-delta {
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.cmp-delta--better { color: #276749; }
+.cmp-delta--worse  { color: #c53030; }
+.cmp-delta--same   { color: #a0aec0; }
+
+.cmp-metric__improved {
+  font-size: 0.88rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.cmp-metric__improved--better { color: #276749; }
+.cmp-metric__improved--worse  { color: #c53030; }
+.cmp-metric__improved--same   { color: #2d3748; }
 
 /* ─── Simulator Stepper ─────────────────────────────────────────────────────── */
 
