@@ -227,6 +227,8 @@ export default function SimulatorDashboard({
     emitterType: systemInputs.emitterType,
     weatherCompensation: systemInputs.weatherCompensation,
     loadCompensation: systemInputs.loadCompensation,
+    heatLossKw: systemInputs.heatLossKw,
+    boilerOutputKw: systemInputs.boilerOutputKw,
   });
   const efficiencyState = useEfficiencyPlayback(diagramState, emitterState, systemInputs.systemCondition);
   const limiterState = useLimiterPlayback(diagramState, systemInputs.combiPowerKw, systemInputs.coldInletTempC, emitterState, systemInputs.cylinderType, systemInputs.systemCondition);
@@ -269,6 +271,8 @@ export default function SimulatorDashboard({
     emitterType: improvedInputs.emitterType,
     weatherCompensation: improvedInputs.weatherCompensation,
     loadCompensation: improvedInputs.loadCompensation,
+    heatLossKw: improvedInputs.heatLossKw,
+    boilerOutputKw: improvedInputs.boilerOutputKw,
   });
   const efficiencyStateImproved = useEfficiencyPlayback(diagramStateImproved, emitterStateImproved, improvedInputs.systemCondition);
   const limiterStateImproved = useLimiterPlayback(diagramStateImproved, improvedInputs.combiPowerKw, improvedInputs.coldInletTempC, emitterStateImproved, improvedInputs.cylinderType, improvedInputs.systemCondition);

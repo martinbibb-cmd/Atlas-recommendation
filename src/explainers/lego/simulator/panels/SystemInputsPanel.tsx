@@ -34,6 +34,18 @@ const EMITTER_FACTOR_MIN  = 0.5
 const EMITTER_FACTOR_MAX  = 2.0
 const EMITTER_FACTOR_STEP = 0.1
 
+// ─── Heat loss constants ──────────────────────────────────────────────────────
+// 3 kW = very well-insulated flat; 30 kW = large Victorian / detached house
+const HEAT_LOSS_MIN  = 3
+const HEAT_LOSS_MAX  = 30
+const HEAT_LOSS_STEP = 1
+
+// ─── Boiler output constants ──────────────────────────────────────────────────
+// 9 kW = micro-output; 45 kW = large domestic / light commercial
+const BOILER_OUTPUT_MIN  = 9
+const BOILER_OUTPUT_MAX  = 45
+const BOILER_OUTPUT_STEP = 1
+
 // ─── Pipe size options ────────────────────────────────────────────────────────
 
 const PIPE_SIZE_OPTIONS: { value: PrimaryPipeSize; label: string }[] = [
@@ -273,6 +285,27 @@ export default function SystemInputsPanel({
 
       {/* ── Heating System ────────────────────────────────────────────────── */}
       <div className="sys-inputs-section-heading">Heating System</div>
+
+      <InputRow
+        label="Actual heat loss"
+        icon="🏚"
+        value={inputs.heatLossKw}
+        min={HEAT_LOSS_MIN}
+        max={HEAT_LOSS_MAX}
+        step={HEAT_LOSS_STEP}
+        unit="kW"
+        onChange={v => onInputChange({ heatLossKw: v })}
+      />
+      <InputRow
+        label="Boiler output"
+        icon="🔥"
+        value={inputs.boilerOutputKw}
+        min={BOILER_OUTPUT_MIN}
+        max={BOILER_OUTPUT_MAX}
+        step={BOILER_OUTPUT_STEP}
+        unit="kW"
+        onChange={v => onInputChange({ boilerOutputKw: v })}
+      />
 
       <InputRow
         label="Emitter size"
