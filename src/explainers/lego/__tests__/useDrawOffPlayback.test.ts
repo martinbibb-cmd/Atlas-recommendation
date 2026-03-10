@@ -254,3 +254,34 @@ describe('useDrawOffPlayback — systemMode passthrough', () => {
     expect(result.systemMode).toBe('idle')
   })
 })
+
+describe('useDrawOffPlayback — storedHotWaterState integration', () => {
+  it('storedHotWaterState is null for combi systems', () => {
+    const result = useDrawOffPlayback(combiIdle(), 'unvented', 150)
+    expect(result.storedHotWaterState).toBeNull()
+  })
+
+  it('storedHotWaterState is present for unvented cylinder', () => {
+    const result = useDrawOffPlayback(storedDraw(), 'unvented', 150)
+    expect(result.storedHotWaterState).not.toBeNull()
+  })
+
+  it('storedHotWaterState reflects cylinderSizeLitres and cylinderType', () => {
+    const result = useDrawOffPlayback(storedDraw(), 'mixergy', 210)
+    expect(result.storedHotWaterState?.cylinderSizeLitres).toBe(210)
+    expect(result.storedHotWaterState?.cylinderType).toBe('mixergy')
+  })
+
+  it('storedHotWaterState is present for vented cylinder', () => {
+    const result = useDrawOffPlayback(ventedDraw(), 'open_vented', 140)
+    expect(result.storedHotWaterState).not.toBeNull()
+  })
+
+  it('storedHotWaterState defaults are used when cylinderType/size not provided', () => {
+    const result = useDrawOffPlayback(storedDraw())
+    // Should still return state (defaults: 'unvented', 150)
+    expect(result.storedHotWaterState).not.toBeNull()
+    expect(result.storedHotWaterState?.cylinderSizeLitres).toBe(150)
+    expect(result.storedHotWaterState?.cylinderType).toBe('unvented')
+  })
+})
