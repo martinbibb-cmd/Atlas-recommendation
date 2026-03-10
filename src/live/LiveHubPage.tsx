@@ -8,6 +8,9 @@
  *  - 2-column grid in portrait
  *  - 3-column grid in landscape
  *  - Large tiles (min 160px height) with generous tap targets (≥ 56px)
+ *
+ * PR16: Added "Launch Simulator" CTA that opens the simulator pre-configured
+ *       from the completed full survey, skipping the setup stepper.
  */
 import { useState } from 'react';
 import type { FullEngineResult } from '../engine/schema/EngineInputV2_3';
@@ -15,6 +18,7 @@ import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
 import LiveSectionPage from './LiveSectionPage';
 import VerdictStrip from '../components/live/VerdictStrip';
 import HubPage from '../components/hub/HubPage';
+import ExplainersHubPage from '../explainers/ExplainersHubPage';
 import './LiveHubPage.css';
 
 export type LiveSection =
@@ -25,7 +29,8 @@ export type LiveSection =
   | 'constraints'
   | 'chemistry'
   | 'glassbox'
-  | 'hub';
+  | 'hub'
+  | 'simulator';
 
 interface Props {
   result: FullEngineResult;
@@ -74,6 +79,8 @@ function sectionStatus(
     case 'glassbox':
       return 'ok';
     case 'hub':
+      return 'ok';
+    case 'simulator':
       return 'ok';
   }
 }
@@ -177,6 +184,15 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
     );
   }
 
+  if (activeSection === 'simulator') {
+    return (
+      <ExplainersHubPage
+        surveyData={input}
+        onBack={() => setActiveSection(null)}
+      />
+    );
+  }
+
   if (activeSection) {
     return (
       <LiveSectionPage
@@ -234,6 +250,26 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
             </button>
           );
         })}
+      </div>
+
+      {/* ── Launch Simulator CTA ─────────────────────────────────────── */}
+      <div className="live-hub__simulator-cta">
+        <div className="live-hub__simulator-cta-inner">
+          <div className="live-hub__simulator-cta-icon" aria-hidden="true">🧱</div>
+          <div className="live-hub__simulator-cta-content">
+            <div className="live-hub__simulator-cta-title">Launch Simulator</div>
+            <div className="live-hub__simulator-cta-subtitle">
+              See this home's system behaviour — prefilled from your survey data
+            </div>
+          </div>
+          <button
+            className="live-hub__simulator-cta-btn"
+            onClick={() => setActiveSection('simulator')}
+            aria-label="Launch simulator prefilled from full survey data"
+          >
+            Open Simulator →
+          </button>
+        </div>
       </div>
     </div>
   );

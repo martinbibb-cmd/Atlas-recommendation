@@ -130,17 +130,37 @@ function SystemSelector({ systemChoice, onSetSystemChoice, label }: SystemSelect
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 interface Props {
-  /** Initial system choice, e.g. from the setup stepper. */
+  /** Initial system choice, e.g. from the setup stepper or survey adapter. */
   initialSystemChoice?: SimulatorSystemChoice
+  /**
+   * Optional partial SystemInputs to merge over DEFAULT_SYSTEM_INPUTS on
+   * first render.  Produced by adaptFullSurveyToSimulatorInputs() when
+   * the simulator is launched from a completed full survey.
+   * Users can still edit any value after the simulator opens.
+   */
+  initialSystemInputs?: Partial<SystemInputs>
+  /**
+   * When true, the simulator was opened from a completed full survey.
+   * Surfaces a "Using full survey data" badge so users can see the source
+   * of the initial configuration.
+   */
+  surveyBacked?: boolean
 }
 
-export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Props) {
+export default function SimulatorDashboard({
+  initialSystemChoice = 'combi',
+  initialSystemInputs,
+  surveyBacked = false,
+}: Props) {
   const [expanded, setExpanded] = useState<PanelId | null>(null);
   const [timeSpeed, setTimeSpeed] = useState(1);
   const [simulatorMode, setSimulatorMode] = useState<SimulatorMode>('single');
 
   // ── Current config ──────────────────────────────────────────────────────────
-  const [systemInputs, setSystemInputs] = useState<SystemInputs>(DEFAULT_SYSTEM_INPUTS);
+  const [systemInputs, setSystemInputs] = useState<SystemInputs>({
+    ...DEFAULT_SYSTEM_INPUTS,
+    ...initialSystemInputs,
+  });
 
   const {
     state: diagramState,
@@ -296,6 +316,15 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
           {modeToggle}
         </div>
 
+        {/* Survey-backed badge — shown when simulator was launched from a full survey */}
+        {surveyBacked && (
+          <div className="sim-survey-badge" role="status" aria-label="Simulator is using full survey data">
+            <span className="sim-survey-badge__icon" aria-hidden="true">📋</span>
+            <span className="sim-survey-badge__text">Using full survey data</span>
+            <span className="sim-survey-badge__hint">Values are prefilled from your survey — you can still edit them below.</span>
+          </div>
+        )}
+
         {/* Comparison summary strip */}
         <ComparisonSummaryStrip
           current={{ emitter: emitterState, efficiency: efficiencyState, limiters: limiterState }}
@@ -416,6 +445,15 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
         {modeToggle}
         <SystemSelector systemChoice={systemChoice} onSetSystemChoice={setSystemChoice} />
       </div>
+
+      {/* Survey-backed badge — shown when simulator was launched from a full survey */}
+      {surveyBacked && (
+        <div className="sim-survey-badge" role="status" aria-label="Simulator is using full survey data">
+          <span className="sim-survey-badge__icon" aria-hidden="true">📋</span>
+          <span className="sim-survey-badge__text">Using full survey data</span>
+          <span className="sim-survey-badge__hint">Values are prefilled from your survey — you can still edit them below.</span>
+        </div>
+      )}
 
       {/* Sim-time / phase bar */}
       <PhaseBar
