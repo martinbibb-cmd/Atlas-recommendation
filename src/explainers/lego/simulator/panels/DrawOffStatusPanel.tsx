@@ -1,46 +1,32 @@
 /**
- * DrawOffStatusPanel — static outlet monitor shell.
+ * DrawOffStatusPanel — live outlet monitor panel.
  *
- * Shows per-outlet rows with flow / temperature / status placeholders.
- * PR1: static idle state. Live draw-off animation wiring comes later.
+ * PR4: driven by SystemDiagramDisplayState via useDrawOffPlayback.
+ * Replaces the PR1 static placeholder.
+ *
+ * Architecture:
+ *   SimulatorDashboard → useDrawOffPlayback(diagramState) → DrawOffDisplayState
+ *   DrawOffStatusPanel({ state }) → DrawOffPanel (render layer)
+ *
+ * The panel is a display adapter: it never re-derives outlet truth from raw
+ * systemType booleans.  useDrawOffPlayback is the single mapping layer.
  */
 
-interface OutletRow {
-  icon: string;
-  name: string;
+import { DrawOffPanel } from '../../animation/render/DrawOffPanel'
+import type { DrawOffDisplayState } from '../useDrawOffPlayback'
+
+interface DrawOffStatusPanelProps {
+  state: DrawOffDisplayState
 }
 
-const OUTLETS: OutletRow[] = [
-  { icon: '🚿', name: 'Shower' },
-  { icon: '🛁', name: 'Bath' },
-  { icon: '🚰', name: 'Kitchen tap' },
-];
-
-export default function DrawOffStatusPanel() {
+export default function DrawOffStatusPanel({ state }: DrawOffStatusPanelProps) {
   return (
-    <div className="draw-off-status">
-      {OUTLETS.map(outlet => (
-        <div key={outlet.name} className="draw-off-outlet">
-          <div className="draw-off-outlet__name">
-            <span className="draw-off-outlet__icon">{outlet.icon}</span>
-            {outlet.name}
-          </div>
-          <div className="draw-off-outlet__rows">
-            <div className="draw-off-metric">
-              <span className="draw-off-metric__label">Flow</span>
-              <span className="draw-off-metric__value draw-off-metric__value--idle">— L/min</span>
-            </div>
-            <div className="draw-off-metric">
-              <span className="draw-off-metric__label">Temp</span>
-              <span className="draw-off-metric__value draw-off-metric__value--idle">— °C</span>
-            </div>
-            <div className="draw-off-metric">
-              <span className="draw-off-metric__label">Status</span>
-              <span className="draw-off-metric__value draw-off-metric__value--idle">Idle</span>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+    <DrawOffPanel
+      outletStates={state.outletStates}
+      systemMode={state.systemMode}
+      isCylinder={state.isCylinder}
+      serviceSwitchingActive={state.serviceSwitchingActive}
+      combiAtCapacity={state.combiAtCapacity}
+    />
+  )
 }
