@@ -8,6 +8,19 @@
 // ─── Public types ─────────────────────────────────────────────────────────────
 
 export type PrimaryPipeSize = '15mm' | '22mm' | '28mm'
+
+/**
+ * Occupancy profile — describes the household's daily routine.
+ *
+ * Drives occupancy-aware auto-demo phases in useSystemDiagramPlayback and
+ * adjusts the daily efficiency summary in useDailyEfficiencySummary.
+ *
+ * professional — works office hours (09–17); peak demand morning and evening.
+ * steady_home  — home throughout the day; moderate, spread demand.
+ * family       — school-age household; morning rush, school pick-up, evening peak.
+ * shift        — irregular hours; demand offset from typical patterns.
+ */
+export type OccupancyProfile = 'professional' | 'steady_home' | 'family' | 'shift'
 export type EmitterType = 'radiators' | 'oversized_radiators' | 'ufh'
 
 /**
@@ -70,6 +83,8 @@ export const CYLINDER_SIZES_BY_TYPE: Record<CylinderType, readonly number[]> = {
 export const MIXERGY_USABLE_RESERVE_FACTOR = 1.2
 
 export type SystemInputs = {
+  /** Household occupancy profile — drives auto-demo demand windows and daily efficiency summary. */
+  occupancyProfile: OccupancyProfile
   /** Mains supply pressure in bar (1.5–6.0). */
   mainsPressureBar: number
   /** Incoming mains flow rate in L/min (10–50). */
@@ -125,6 +140,7 @@ export type SystemInputs = {
 }
 
 export const DEFAULT_SYSTEM_INPUTS: SystemInputs = {
+  occupancyProfile: 'professional',
   mainsPressureBar: 2.5,
   mainsFlowLpm: 20,
   coldInletTempC: 10,

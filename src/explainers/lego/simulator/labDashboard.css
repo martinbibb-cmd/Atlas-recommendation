@@ -842,3 +842,187 @@
     padding-left: 0;
   }
 }
+
+/* ─── Day timeline row ──────────────────────────────────────────────────────── */
+
+.sim-day-timeline-row {
+  padding: 0 14px 0;
+}
+
+@media (max-width: 820px) {
+  .sim-day-timeline-row {
+    padding: 0 10px 0;
+  }
+}
+
+/* ─── Day timeline panel ────────────────────────────────────────────────────── */
+
+.day-timeline {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 8px 12px 10px;
+  margin: 8px 0 0;
+}
+
+.day-timeline__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.day-timeline__time {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #2d3748;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.day-timeline__markers-hint {
+  font-size: 0.68rem;
+  color: #718096;
+  white-space: nowrap;
+}
+
+@media (max-width: 500px) {
+  .day-timeline__markers-hint {
+    display: none;
+  }
+}
+
+.day-timeline__bar-wrap {
+  position: relative;
+}
+
+.day-timeline__bar {
+  position: relative;
+  height: 20px;
+  background: #1a2b4a;
+  border-radius: 999px;
+  overflow: visible;
+}
+
+/* Daytime highlight band */
+.day-timeline__dayband {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #fed7aa 0%, #fef3c7 40%, #bfdbfe 100%);
+  border-radius: 999px;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+/* Sun/moon event markers */
+.day-timeline__marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.75rem;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+}
+
+/* Current time needle */
+.day-timeline__needle {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
+  background: #f6ad55;
+  border-radius: 2px;
+  transform: translateX(-50%);
+  z-index: 3;
+  box-shadow: 0 0 6px rgba(246, 173, 85, 0.8);
+}
+
+/* Hour labels */
+.day-timeline__labels {
+  position: relative;
+  height: 16px;
+  margin-top: 3px;
+}
+
+.day-timeline__label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  color: #a0aec0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Daily summary row ─────────────────────────────────────────────────────── */
+
+.sim-daily-summary-row {
+  padding: 0 14px 8px;
+}
+
+@media (max-width: 820px) {
+  .sim-daily-summary-row {
+    padding: 0 10px 8px;
+  }
+}
+
+/* ─── Daily efficiency summary panel ────────────────────────────────────────── */
+
+.daily-summary {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 10px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #fafcff;
+}
+
+.daily-summary--good    { border-color: #68d391; background: #f0fff4; }
+.daily-summary--warning { border-color: #f6ad55; background: #fffaf0; }
+.daily-summary--poor    { border-color: #fc8181; background: #fff5f5; }
+
+.daily-summary__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.daily-summary__label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #4a5568;
+  white-space: nowrap;
+}
+
+.daily-summary__value {
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.daily-summary__value--good    { color: #276749; }
+.daily-summary__value--warning { color: #744210; }
+.daily-summary__value--poor    { color: #742a2a; }
+
+.daily-summary__explanation {
+  font-size: 0.72rem;
+  color: #718096;
+  margin: 0;
+  flex-basis: 100%;
+  padding-top: 2px;
+}
+
+@media (max-width: 500px) {
+  .daily-summary {
+    flex-direction: column;
+  }
+}

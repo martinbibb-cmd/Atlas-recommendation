@@ -18,7 +18,7 @@
  */
 
 import type { SimulatorSystemChoice } from '../useSystemDiagramPlayback'
-import type { SystemInputs, PrimaryPipeSize, EmitterType, CylinderType, SystemCondition, ControlStrategy } from '../systemInputsTypes'
+import type { SystemInputs, PrimaryPipeSize, EmitterType, CylinderType, SystemCondition, ControlStrategy, OccupancyProfile } from '../systemInputsTypes'
 import { CYLINDER_SIZES_BY_TYPE } from '../systemInputsTypes'
 
 // ─── Time speed constants ─────────────────────────────────────────────────────
@@ -103,6 +103,15 @@ const SYSTEM_CONDITION_OPTIONS: { value: SystemCondition; label: string }[] = [
   { value: 'clean',   label: 'Clean'   },
   { value: 'sludged', label: 'Sludged' },
   { value: 'scaled',  label: 'Scaled'  },
+]
+
+// ─── Occupancy profile options ────────────────────────────────────────────────
+
+const OCCUPANCY_PROFILE_OPTIONS: { value: OccupancyProfile; label: string; description: string }[] = [
+  { value: 'professional', label: 'Professional', description: 'Works office hours; peak demand morning and evening only.' },
+  { value: 'steady_home',  label: 'Steady home',  description: 'Home throughout the day; moderate, spread demand.'         },
+  { value: 'family',       label: 'Family',       description: 'School-age household; morning rush, pick-up, evening peak.' },
+  { value: 'shift',        label: 'Shift',        description: 'Irregular hours; demand offset from typical patterns.'      },
 ]
 
 interface SystemInputsPanelProps {
@@ -367,6 +376,27 @@ export default function SystemInputsPanel({
               className={`sys-input-row__seg-btn${inputs.systemCondition === opt.value ? ' sys-input-row__seg-btn--active' : ''}`}
               onClick={() => onInputChange({ systemCondition: opt.value })}
               aria-pressed={inputs.systemCondition === opt.value}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Occupancy profile ─────────────────────────────────────────────── */}
+      <div className="sys-inputs-section-heading">Occupancy</div>
+
+      <div className="sys-input-row">
+        <span className="sys-input-row__icon" aria-hidden="true">🏡</span>
+        <span className="sys-input-row__label">Household pattern</span>
+        <div className="sys-input-row__segmented" role="group" aria-label="Occupancy profile">
+          {OCCUPANCY_PROFILE_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              className={`sys-input-row__seg-btn${inputs.occupancyProfile === opt.value ? ' sys-input-row__seg-btn--active' : ''}`}
+              onClick={() => onInputChange({ occupancyProfile: opt.value })}
+              aria-pressed={inputs.occupancyProfile === opt.value}
+              title={opt.description}
             >
               {opt.label}
             </button>
