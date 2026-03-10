@@ -183,7 +183,7 @@ export default function SystemInputsPanel({
         min={EMITTER_FACTOR_MIN}
         max={EMITTER_FACTOR_MAX}
         step={EMITTER_FACTOR_STEP}
-        unit="×"
+        unit=""
         onChange={v => onInputChange({ emitterCapacityFactor: v })}
         formatValue={v => `${v.toFixed(1)}×`}
       />

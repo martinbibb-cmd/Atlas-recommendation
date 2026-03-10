@@ -127,6 +127,15 @@ function clampFlowTemp(temp: number): number {
 }
 
 function deriveCop(flowTempC: number): number {
+  // Linear approximation of heat pump COP as a function of flow temperature.
+  //
+  // Basis: Carnot / real-world ASHP data shows COP degrades roughly linearly
+  // with lift (outdoor-to-flow ΔT). At 35°C flow (minimum) COP ≈ 5.0 is
+  // achievable for a modern ASHP; every 15°C of additional flow temperature
+  // costs approximately 1 COP point. This is a simplification of the more
+  // precise Carnot expression COP = T_hot / (T_hot − T_cold).
+  //
+  // Constants: base COP = 5, pivot at 35°C, slope = 1/15 per °C.
   const raw = 5 - (flowTempC - 35) / 15
   return Math.min(COP_MAX, Math.max(COP_MIN, raw))
 }

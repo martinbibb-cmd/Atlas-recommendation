@@ -162,6 +162,10 @@ export function useEfficiencyPlayback(
   const returnTempC = systemKind === 'boiler'
     ? (emitterState?.estimatedReturnTempC ?? diagramState.returnTempC)
     : undefined
+  // Heat pump systems do not have a return-water condensing threshold —
+  // they operate below the dew-point limit by design. Exposing returnTempC
+  // for heat pumps would be misleading in the efficiency panel, so it is
+  // intentionally absent.
 
   const condensingState = systemKind === 'boiler' && returnTempC !== undefined
     ? deriveCondensingState(returnTempC)
