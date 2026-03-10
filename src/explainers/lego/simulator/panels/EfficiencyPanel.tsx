@@ -1,54 +1,101 @@
 /**
- * EfficiencyPanel — shell for return temperature, condensing state, and COP.
+ * EfficiencyPanel — live return temperature, condensing state, and penalties.
  *
- * PR1: static placeholder values. Live engine wiring comes later.
- * Establishes the visual home for condensing / efficiency / penalty data.
+ * PR5: driven by SystemDiagramDisplayState via useEfficiencyPlayback.
+ * Replaces the PR1 static placeholder.
+ *
+ * Architecture:
+ *   SimulatorDashboard → useEfficiencyPlayback(diagramState) → EfficiencyDisplayState
+ *   EfficiencyPanel({ state }) → render
+ *
+ * The panel is a display adapter: it never re-derives efficiency truth from
+ * raw systemType booleans.  useEfficiencyPlayback is the single mapping layer.
  */
 
-export default function EfficiencyPanel() {
+import { condensingStateBadgeText } from '../../sim/condensingState'
+import type { EfficiencyDisplayState } from '../useEfficiencyPlayback'
+
+interface EfficiencyPanelProps {
+  state: EfficiencyDisplayState
+}
+
+function condensingBadgeClass(state: EfficiencyDisplayState): string {
+  if (!state.condensingState) return 'idle'
+  switch (state.condensingState) {
+    case 'condensing':     return 'condensing'
+    case 'borderline':     return 'borderline'
+    case 'not_condensing': return 'not-condensing'
+  }
+}
+
+export default function EfficiencyPanel({ state }: EfficiencyPanelProps) {
   return (
     <div className="efficiency-panel">
-      {/* Return temperature */}
-      <div className="efficiency-metric">
-        <span className="efficiency-metric__label">Return temp</span>
-        <span className="efficiency-metric__value">— °C</span>
-      </div>
-
-      {/* Condensing state */}
-      <div className="efficiency-metric">
-        <span className="efficiency-metric__label">Condensing state</span>
-        <span className="efficiency-badge efficiency-badge--idle">Awaiting data</span>
-      </div>
-
-      {/* Boiler efficiency */}
-      <div className="efficiency-metric">
-        <span className="efficiency-metric__label">Boiler efficiency</span>
-        <span className="efficiency-metric__value">— %</span>
-      </div>
-
-      {/* COP / efficiency bar */}
-      <div style={{ padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius: '10px', background: '#f7fafc' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span className="efficiency-metric__label">Efficiency score</span>
-          <span className="efficiency-metric__value">—</span>
+      {/* Return temperature (boiler) or mode label (heat pump) */}
+      {state.systemKind === 'boiler' ? (
+        <div className="efficiency-metric">
+          <span className="efficiency-metric__label">Return temp</span>
+          <span className="efficiency-metric__value">
+            {state.returnTempC !== undefined ? `${state.returnTempC}°C` : '— °C'}
+          </span>
         </div>
-        <div className="efficiency-cop-bar">
-          <div className="efficiency-cop-bar__track">
-            <div className="efficiency-cop-bar__fill" style={{ width: '0%' }} />
-          </div>
+      ) : (
+        <div className="efficiency-metric">
+          <span className="efficiency-metric__label">COP</span>
+          <span className="efficiency-metric__value">
+            {state.cop !== undefined ? state.cop.toFixed(1) : '—'}
+          </span>
         </div>
+      )}
+
+      {/* Condensing state (boiler only) */}
+      {state.systemKind === 'boiler' && (
+        <div className="efficiency-metric">
+          <span className="efficiency-metric__label">Condensing state</span>
+          <span className={`efficiency-badge efficiency-badge--${condensingBadgeClass(state)}`}>
+            {state.condensingState
+              ? condensingStateBadgeText(state.condensingState)
+              : 'Awaiting data'}
+          </span>
+        </div>
+      )}
+
+      {/* Headline status + explanatory description */}
+      <div className="efficiency-metric" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+        <span className="efficiency-metric__label">Status</span>
+        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: headlineColor(state.statusTone) }}>
+          {state.headlineEfficiencyText}
+        </span>
+        {state.statusDescription && (
+          <span style={{ fontSize: '0.72rem', color: '#718096' }}>
+            {state.statusDescription}
+          </span>
+        )}
       </div>
 
       {/* Penalty summary */}
       <div className="efficiency-metric" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
         <span className="efficiency-metric__label">Penalties</span>
-        <span style={{ fontSize: '0.75rem', color: '#a0aec0' }}>
-          Condensing · sludge · scale · short-cycling
-        </span>
-        <span style={{ fontSize: '0.75rem', color: '#a0aec0', fontStyle: 'italic' }}>
-          Live data arrives with engine wiring
-        </span>
+        {state.penalties.length === 0 ? (
+          <span style={{ fontSize: '0.75rem', color: '#a0aec0' }}>None active</span>
+        ) : (
+          state.penalties.map((p, i) => (
+            <span key={i} style={{ fontSize: '0.75rem', color: '#e53e3e' }}>
+              ⚠ {p}
+            </span>
+          ))
+        )}
       </div>
     </div>
-  );
+  )
 }
+
+function headlineColor(tone: EfficiencyDisplayState['statusTone']): string {
+  switch (tone) {
+    case 'good':    return '#276749'
+    case 'warning': return '#744210'
+    case 'poor':    return '#742a2a'
+    case 'idle':    return '#a0aec0'
+  }
+}
+

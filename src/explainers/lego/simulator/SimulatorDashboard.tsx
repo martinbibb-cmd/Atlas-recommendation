@@ -24,6 +24,7 @@ import EfficiencyPanel from './panels/EfficiencyPanel';
 import { useSystemDiagramPlayback } from './useSystemDiagramPlayback';
 import { useHousePlayback } from './useHousePlayback';
 import { useDrawOffPlayback } from './useDrawOffPlayback';
+import { useEfficiencyPlayback } from './useEfficiencyPlayback';
 import type { SystemType } from '../animation/types';
 import './labDashboard.css';
 import './labPanels.css';
@@ -48,12 +49,13 @@ export default function SimulatorDashboard() {
   const { state: diagramState, systemType, setSystemType } = useSystemDiagramPlayback();
   const houseState = useHousePlayback(diagramState);
   const drawOffState = useDrawOffPlayback(diagramState);
+  const efficiencyState = useEfficiencyPlayback(diagramState);
 
   const expandedContent: Partial<Record<PanelId, React.ReactElement>> = {
     system: <SystemDiagramPanel state={diagramState} />,
     house:    <HouseStatusPanel state={houseState} />,
     drawoff:  <DrawOffStatusPanel state={drawOffState} />,
-    efficiency: <EfficiencyPanel />,
+    efficiency: <EfficiencyPanel state={efficiencyState} />,
   };
 
   return (
@@ -100,13 +102,13 @@ export default function SimulatorDashboard() {
           <DrawOffStatusPanel state={drawOffState} />
         </SimulatorPanel>
 
-        {/* Efficiency — shell */}
+        {/* Efficiency — live via useEfficiencyPlayback */}
         <SimulatorPanel
           title="Efficiency"
           icon="📊"
           onExpand={() => setExpanded('efficiency')}
         >
-          <EfficiencyPanel />
+          <EfficiencyPanel state={efficiencyState} />
         </SimulatorPanel>
       </div>
 
