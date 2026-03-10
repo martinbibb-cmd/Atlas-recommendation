@@ -160,6 +160,28 @@ function DomainLabel({ x, y, text }: { x: number; y: number; text: string }): Re
   );
 }
 
+// ─── Lane label helper ────────────────────────────────────────────────────────
+//
+// Small right-aligned uppercase labels that identify each hydraulic lane.
+// Placed at the SVG right edge (x=316) so they don't overlap components.
+
+function LaneLabel({ y, text }: { y: number; text: string }): ReactElement {
+  return (
+    <text
+      x={316} y={y}
+      fontSize={5.5}
+      fontWeight={700}
+      textAnchor="end"
+      fill="#94a3b8"
+      opacity={0.55}
+      letterSpacing="0.05em"
+      aria-hidden="true"
+    >
+      {text}
+    </text>
+  );
+}
+
 // ─── Schematic props ──────────────────────────────────────────────────────────
 
 interface SchematicProps {
@@ -180,6 +202,12 @@ function pipeHighlightClass(pipeId: string, highlighted: string[]): string {
 }
 
 // ─── Schematic: Combi ─────────────────────────────────────────────────────────
+//
+// Hydraulic lanes (y-positions):
+//   y=36  PRIMARY FLOW    — boiler → pump → CH valve → radiators
+//   y=88  PRIMARY RETURN  — radiators → boiler
+//   y=148 DHW HOT         — plate HEX DHW out → outlets
+//   y=188 COLD FEED       — mains → plate HEX cold in
 
 function CombiSchematic({ state, paths, badges, highlightedComponents }: SchematicProps): ReactElement {
   const W = 320;
@@ -205,114 +233,168 @@ function CombiSchematic({ state, paths, badges, highlightedComponents }: Schemat
       <GridLines W={W} H={H} />
 
       {/* Domain zones */}
-      <rect className="sd-domain sd-domain--heating" x={4}   y={4}   width={90}  height={124} />
-      <rect className="sd-domain sd-domain--water"   x={200} y={4}   width={116} height={124} />
-      <rect className="sd-domain sd-domain--dhw"     x={4}   y={136} width={312} height={66}  />
+      <rect className="sd-domain sd-domain--heating" x={4}   y={4}   width={88}  height={130} />
+      <rect className="sd-domain sd-domain--water"   x={196} y={4}   width={120} height={130} />
+      <rect className="sd-domain sd-domain--dhw"     x={4}   y={140} width={312} height={66}  />
 
       {/* Domain labels */}
       <DomainLabel x={8}   y={15}  text="CH circuit" />
-      <DomainLabel x={204} y={15}  text="Emitters + vessel" />
-      <DomainLabel x={8}   y={146} text="Draw-off (on-demand)" />
+      <DomainLabel x={200} y={15}  text="Emitters + vessel" />
+      <DomainLabel x={8}   y={150} text="Draw-off (on-demand)" />
 
-      {/* ── Boiler ── */}
+      {/* Lane labels — right-aligned at SVG edge */}
+      <LaneLabel y={32}  text="PRIMARY FLOW" />
+      <LaneLabel y={96}  text="PRIMARY RETURN" />
+      <LaneLabel y={144} text="DHW HOT" />
+      <LaneLabel y={184} text="COLD FEED" />
+
+      {/* ── Boiler — spans primary flow (y=36) to primary return (y=88) ── */}
       <rect
         className={`sd-node sd-node--boiler${nodeHighlightClass('boiler', hl)}`}
         data-testid="node-boiler"
-        x={10}  y={18} width={74} height={48} rx={8} ry={8}
+        x={6} y={12} width={74} height={84} rx={8} ry={8}
       />
-      <text className="sd-label"    x={47} y={35}>🔥 Combi</text>
-      <text className="sd-sublabel" x={47} y={50}>30 kW boiler</text>
-      <circle className="sd-port sd-port--hot"  cx={84}  cy={28} r={3.5} />
-      <circle className="sd-port sd-port--cold" cx={84}  cy={54} r={3.5} />
-      <circle className="sd-port sd-port--dhw"  cx={47}  cy={66} r={3.5} />
-      <circle className="sd-port sd-port--cold" cx={10}  cy={39} r={3.5} />
+      <text className="sd-label"    x={43} y={36}>🔥 Combi</text>
+      <text className="sd-sublabel" x={43} y={52}>30 kW boiler</text>
+      {/* Ports: flow right (80,36), return right (80,88), DHW bottom (43,96) */}
+      <circle className="sd-port sd-port--hot"  cx={80} cy={36} r={3.5} />
+      <circle className="sd-port sd-port--cold" cx={80} cy={88} r={3.5} />
+      <circle className="sd-port sd-port--dhw"  cx={43} cy={96} r={3.5} />
 
       {condensingBadgeText && (
-        <g transform="translate(8,70)">
+        <g transform="translate(6,100)">
           <rect className="sd-callout sd-callout--condensing" x={0} y={0} width={80} height={13} rx={4} ry={4} />
           <text className="sd-callout__text" x={40} y={9}>{condensingBadgeText}</text>
         </g>
       )}
 
-      {/* ── Pump (circle shape) ── */}
-      <circle className="sd-node sd-node--pump" cx={128} cy={32} r={17} />
-      <text className="sd-label"    x={128} y={30}>⚙</text>
-      <text className="sd-sublabel" x={128} y={41}>Pump</text>
-      <circle className="sd-port sd-port--hot"  cx={111} cy={32} r={3.5} />
-      <circle className="sd-port sd-port--hot"  cx={145} cy={32} r={3.5} />
+      {/* ── Pump — sits ON primary flow lane (y=36) ── */}
+      <circle className="sd-node sd-node--pump" cx={114} cy={36} r={15} />
+      <text className="sd-label"    x={114} y={34}>⚙</text>
+      <text className="sd-sublabel" x={114} y={44}>Pump</text>
+      <circle className="sd-port sd-port--hot" cx={99}  cy={36} r={3.5} />
+      <circle className="sd-port sd-port--hot" cx={129} cy={36} r={3.5} />
 
-      {/* ── Zone valve ── */}
-      <rect className="sd-node sd-node--valve" x={104} y={66} width={48} height={34} rx={6} ry={6} />
-      <text className="sd-label"    x={128} y={79}>⊘ Valve</text>
-      <text className="sd-sublabel" x={128} y={91}>Zone 1</text>
-      <circle className="sd-port sd-port--hot"  cx={104} cy={78} r={3.5} />
-      <circle className="sd-port sd-port--hot"  cx={152} cy={78} r={3.5} />
+      {/* ── CH Zone valve — straddles primary flow lane (y=36) ── */}
+      <rect className="sd-node sd-node--valve" x={140} y={24} width={50} height={24} rx={6} ry={6} />
+      <text className="sd-label"    x={165} y={33}>⊘ CH</text>
+      <text className="sd-sublabel" x={165} y={44}>zone valve</text>
+      <circle className="sd-port sd-port--hot" cx={140} cy={36} r={3.5} />
+      <circle className="sd-port sd-port--hot" cx={190} cy={36} r={3.5} />
 
-      {/* ── Radiators ── */}
-      <rect className={`sd-node sd-node--radiator${nodeHighlightClass('emitters', hl)}`} x={172} y={18} width={62} height={44} rx={6} ry={6} />
-      <text className="sd-label"    x={203} y={34}>▤ Radiators</text>
-      <text className="sd-sublabel" x={203} y={48}>6 emitters</text>
-      <circle className="sd-port sd-port--hot"  cx={172} cy={28} r={3.5} />
-      <circle className="sd-port sd-port--cold" cx={172} cy={48} r={3.5} />
+      {/* ── Radiators — spans primary flow (y=36) to primary return (y=88) ── */}
+      <rect className={`sd-node sd-node--radiator${nodeHighlightClass('emitters', hl)}`} x={200} y={12} width={68} height={80} rx={6} ry={6} />
+      <text className="sd-label"    x={234} y={40}>▤ Radiators</text>
+      <text className="sd-sublabel" x={234} y={54}>6 emitters</text>
+      <circle className="sd-port sd-port--hot"  cx={200} cy={36} r={3.5} />
+      <circle className="sd-port sd-port--cold" cx={200} cy={88} r={3.5} />
 
-      {/* ── Expansion vessel ── */}
-      <rect className="sd-node sd-node--mains" x={248} y={18} width={60} height={34} rx={6} ry={6} />
-      <text className="sd-label"    x={278} y={32}>⊕ Exp.</text>
-      <text className="sd-sublabel" x={278} y={44}>vessel</text>
+      {/* ── Expansion vessel — top right, hangs off primary return ── */}
+      <rect className="sd-node sd-node--mains" x={278} y={12} width={36} height={40} rx={6} ry={6} />
+      <text className="sd-label"    x={296} y={26}>⊕ Exp.</text>
+      <text className="sd-sublabel" x={296} y={38}>vessel</text>
+      <circle className="sd-port sd-port--cold" cx={296} cy={52} r={3.5} />
 
-      {/* ── Plate HEX ── */}
+      {/* ── Plate HEX — between primary return (y=88) and DHW hot (y=148) ── */}
       <rect
         className={`sd-node sd-node--cylinder${nodeHighlightClass('plate_hex', hl)}`}
         data-testid="node-plate-hex"
-        x={208} y={74} width={66} height={48} rx={6} ry={6}
+        x={140} y={102} width={68} height={46} rx={6} ry={6}
       />
-      <text className="sd-label"    x={241} y={91}>⇌ Plate HEX</text>
-      <text className="sd-sublabel" x={241} y={106}>On-demand DHW</text>
-      <circle className="sd-port sd-port--dhw"  cx={208} cy={86} r={3.5} />
-      <circle className="sd-port sd-port--cold" cx={274} cy={86} r={3.5} />
+      <text className="sd-label"    x={174} y={119}>⇌ Plate HEX</text>
+      <text className="sd-sublabel" x={174} y={133}>On-demand DHW</text>
+      {/* Ports: primary hot in left (140,125), cold in right (208,125), DHW out bottom (174,148) */}
+      <circle className="sd-port sd-port--hot"  cx={140} cy={125} r={3.5} />
+      <circle className="sd-port sd-port--cold" cx={208} cy={125} r={3.5} />
+      <circle className="sd-port sd-port--dhw"  cx={174} cy={148} r={3.5} />
 
-      {/* ── Outlets ── */}
-      <rect className="sd-node sd-node--outlet" x={10}  y={152} width={58} height={32} rx={6} ry={6} />
-      <text className="sd-label"    x={39} y={165}>🚿 Shower</text>
-      <text className="sd-sublabel" x={39} y={176}>{outlets.shower ? 'open' : 'closed'}</text>
-      <circle className="sd-port sd-port--dhw"  cx={39} cy={152} r={3.5} />
+      {/* ── Outlets — sit between DHW hot lane (y=148) and cold feed lane (y=188) ── */}
+      <rect className="sd-node sd-node--outlet" x={6}   y={154} width={58} height={28} rx={6} ry={6} />
+      <text className="sd-label"    x={35} y={165}>🚿 Shower</text>
+      <text className="sd-sublabel" x={35} y={176}>{outlets.shower ? 'open' : 'closed'}</text>
+      <circle className="sd-port sd-port--dhw" cx={35} cy={154} r={3.5} />
 
-      <rect className="sd-node sd-node--outlet" x={80}  y={152} width={54} height={32} rx={6} ry={6} />
-      <text className="sd-label"    x={107} y={165}>🛁 Bath</text>
-      <text className="sd-sublabel" x={107} y={176}>{outlets.bath ? 'open' : 'closed'}</text>
-      <circle className="sd-port sd-port--dhw"  cx={107} cy={152} r={3.5} />
+      <rect className="sd-node sd-node--outlet" x={70}  y={154} width={54} height={28} rx={6} ry={6} />
+      <text className="sd-label"    x={97} y={165}>🛁 Bath</text>
+      <text className="sd-sublabel" x={97} y={176}>{outlets.bath ? 'open' : 'closed'}</text>
+      <circle className="sd-port sd-port--dhw" cx={97} cy={154} r={3.5} />
 
-      <rect className="sd-node sd-node--outlet" x={146} y={152} width={68} height={32} rx={6} ry={6} />
-      <text className="sd-label"    x={180} y={165}>🚰 Kitchen</text>
-      <text className="sd-sublabel" x={180} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
-      <circle className="sd-port sd-port--dhw"  cx={180} cy={152} r={3.5} />
+      <rect className="sd-node sd-node--outlet" x={130} y={154} width={66} height={28} rx={6} ry={6} />
+      <text className="sd-label"    x={163} y={165}>🚰 Kitchen</text>
+      <text className="sd-sublabel" x={163} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
+      <circle className="sd-port sd-port--dhw" cx={163} cy={154} r={3.5} />
 
+      {/* ── Mains — sits ON cold feed lane (y=188) ── */}
       <rect
         className={`sd-node sd-node--mains${nodeHighlightClass('mains', hl)}`}
         data-testid="node-mains"
-        x={232} y={152} width={80} height={32} rx={6} ry={6}
+        x={212} y={176} width={86} height={24} rx={6} ry={6}
       />
-      <text className="sd-label"    x={272} y={165}>❄ Mains cold</text>
-      <text className="sd-sublabel" x={272} y={176}>supply</text>
-      <circle className="sd-port sd-port--cold" cx={232} cy={162} r={3.5} />
+      <text className="sd-label"    x={255} y={186}>❄ Mains cold</text>
+      <text className="sd-sublabel" x={255} y={197}>supply</text>
+      <circle className="sd-port sd-port--cold" cx={212} cy={188} r={3.5} />
 
-      {/* ── CH pipes ── */}
-      <polyline className={`${pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-flow', hl)}`} data-testid="pipe-ch-flow-boiler-tee" points="84,28 94,28" />
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-tee-pump" points="94,28 111,28 111,32" />
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} points="94,28 94,78 104,78" />
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-pump-rads" points="145,32 145,28 172,28" />
-      <polyline className={`${pipeClass('sd-pipe--return', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-return', hl)}`} data-testid="pipe-ch-return" points="172,48 162,48 162,60 84,60 84,54" />
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} points="152,78 168,78 168,34 172,34" />
+      {/* ── PRIMARY FLOW LANE pipes ── */}
+      {/* Boiler → pump (left port) */}
+      <polyline
+        className={`${pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-flow', hl)}`}
+        data-testid="pipe-ch-flow-boiler-tee"
+        points="80,36 99,36"
+      />
+      {/* Pump (right) → CH valve (left) */}
+      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} points="129,36 140,36" />
+      {/* CH valve (right) → radiators (left) */}
+      <polyline
+        className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)}
+        data-testid="pipe-ch-flow-pump-rads"
+        points="190,36 200,36"
+      />
 
-      {/* ── DHW pipes ── */}
-      <polyline className={pipeClass('sd-pipe--dhw', paths.comboDhw)} data-testid="pipe-primary-dhw" points="47,66 47,144 128,144 128,92 208,92" />
-      <polyline className={pipeClass('sd-pipe--dhw', outlets.shower && paths.comboDhw)} data-testid="pipe-dhw-shower" points="47,144 39,144 39,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', outlets.bath && paths.comboDhw)} points="128,144 107,144 107,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', outlets.kitchen && paths.comboDhw)} points="180,144 180,152" />
+      {/* ── PRIMARY RETURN LANE — radiators return → boiler ── */}
+      <polyline
+        className={`${pipeClass('sd-pipe--return', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-return', hl)}`}
+        data-testid="pipe-ch-return"
+        points="200,88 80,88"
+      />
+      {/* Expansion vessel vertical connection to return lane */}
+      <polyline className="sd-pipe sd-pipe--return sd-pipe--inactive" points="296,88 296,52" />
 
-      {/* ── Cold supply ── */}
-      <polyline className={pipeClass('sd-pipe--cold', paths.coldSupply)} data-testid="pipe-cold-supply" points="272,152 272,132 6,132 6,39 10,39" />
-      <polyline className={pipeClass('sd-pipe--cold', paths.coldSupply)} points="272,152 274,86" />
+      {/* ── Boiler DHW → Plate HEX primary ── */}
+      <polyline
+        className={pipeClass('sd-pipe--dhw', paths.comboDhw)}
+        data-testid="pipe-primary-dhw"
+        points="43,96 43,125 140,125"
+      />
+
+      {/* ── DHW HOT LANE — plate HEX DHW out → outlets ── */}
+      {/* Lane spine: plate HEX DHW port to left edge */}
+      <polyline
+        className={`${pipeClass('sd-pipe--dhw', paths.comboDhw)}${pipeHighlightClass('pipe-dhw-hot', hl)}`}
+        data-testid="pipe-dhw-hot"
+        points="8,148 174,148"
+      />
+      {/* Outlet drops */}
+      <polyline
+        className={pipeClass('sd-pipe--dhw', outlets.shower && paths.comboDhw)}
+        data-testid="pipe-dhw-shower"
+        points="35,148 35,154"
+      />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.bath    && paths.comboDhw)} points="97,148 97,154" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.kitchen && paths.comboDhw)} points="163,148 163,154" />
+
+      {/* ── COLD FEED LANE — mains → plate HEX cold in ── */}
+      {/* Lane spine: full-width horizontal cold feed */}
+      <polyline
+        className={`${pipeClass('sd-pipe--cold', paths.coldSupply)}${pipeHighlightClass('pipe-cold-feed', hl)}`}
+        data-testid="pipe-cold-feed"
+        points="8,188 312,188"
+      />
+      {/* Branch: cold feed lane → plate HEX cold in (vertical) */}
+      <polyline
+        className={pipeClass('sd-pipe--cold', paths.coldSupply)}
+        data-testid="pipe-cold-supply"
+        points="208,188 208,125"
+      />
 
       <BadgeGroup badges={badges} />
     </svg>
@@ -320,6 +402,13 @@ function CombiSchematic({ state, paths, badges, highlightedComponents }: Schemat
 }
 
 // ─── Schematic: S-plan Unvented ───────────────────────────────────────────────
+//
+// Hydraulic lanes (y-positions):
+//   y=36  PRIMARY FLOW    — boiler → pump → T-junction → CH valve → radiators
+//                                                       ↓ DHW valve → cylinder coil
+//   y=88  PRIMARY RETURN  — radiators + cylinder coil → boiler
+//   y=148 STORED HOT      — cylinder draw → outlets (horizontal distribution)
+//   y=188 COLD FEED       — mains → cylinder cold fill
 
 function StoredSchematic({ state, paths, badges, highlightedComponents }: SchematicProps): ReactElement {
   const W = 320;
@@ -345,136 +434,189 @@ function StoredSchematic({ state, paths, badges, highlightedComponents }: Schema
       <GridLines W={W} H={H} />
 
       {/* Domain zones */}
-      <rect className="sd-domain sd-domain--heating" x={4}   y={4}   width={90}  height={124} />
-      <rect className="sd-domain sd-domain--water"   x={200} y={4}   width={116} height={124} />
-      <rect className="sd-domain sd-domain--dhw"     x={4}   y={136} width={312} height={66}  />
+      <rect className="sd-domain sd-domain--heating" x={4}   y={4}   width={88}  height={130} />
+      <rect className="sd-domain sd-domain--water"   x={196} y={4}   width={120} height={130} />
+      <rect className="sd-domain sd-domain--dhw"     x={4}   y={140} width={312} height={66}  />
 
       {/* Domain labels */}
       <DomainLabel x={8}   y={15}  text="CH circuit (S-plan)" />
-      <DomainLabel x={204} y={15}  text="Cylinder (unvented)" />
-      <DomainLabel x={8}   y={146} text="Draw-off (stored HW)" />
+      <DomainLabel x={200} y={15}  text="Cylinder (unvented)" />
+      <DomainLabel x={8}   y={150} text="Draw-off (stored HW)" />
 
-      {/* ── System boiler ── */}
+      {/* Lane labels */}
+      <LaneLabel y={32}  text="PRIMARY FLOW" />
+      <LaneLabel y={96}  text="PRIMARY RETURN" />
+      <LaneLabel y={144} text="STORED HOT" />
+      <LaneLabel y={184} text="COLD FEED" />
+
+      {/* ── System boiler — spans primary flow (y=36) to primary return (y=88) ── */}
       <rect
         className={`sd-node sd-node--boiler${nodeHighlightClass('boiler', hl)}`}
         data-testid="node-boiler"
-        x={10}  y={18} width={74} height={48} rx={8} ry={8}
+        x={6} y={12} width={74} height={84} rx={8} ry={8}
       />
-      <text className="sd-label"    x={47} y={35}>🔥 System</text>
-      <text className="sd-sublabel" x={47} y={50}>24 kW boiler</text>
-      <circle className="sd-port sd-port--hot"  cx={84}  cy={26} r={3.5} />
-      <circle className="sd-port sd-port--cold" cx={84}  cy={54} r={3.5} />
+      <text className="sd-label"    x={43} y={36}>🔥 System</text>
+      <text className="sd-sublabel" x={43} y={52}>24 kW boiler</text>
+      <circle className="sd-port sd-port--hot"  cx={80} cy={36} r={3.5} />
+      <circle className="sd-port sd-port--cold" cx={80} cy={88} r={3.5} />
 
       {condensingBadgeText && (
-        <g transform="translate(8,70)">
+        <g transform="translate(6,100)">
           <rect className="sd-callout sd-callout--condensing" x={0} y={0} width={80} height={13} rx={4} ry={4} />
           <text className="sd-callout__text" x={40} y={9}>{condensingBadgeText}</text>
         </g>
       )}
 
-      {/* ── CH zone valve ── */}
-      <rect className="sd-node sd-node--valve" x={100} y={14} width={48} height={32} rx={5} ry={5} />
-      <text className="sd-label"    x={124} y={27}>⊘ CH</text>
-      <text className="sd-sublabel" x={124} y={39}>zone valve</text>
-      <circle className="sd-port sd-port--hot"  cx={100} cy={26} r={3.5} />
-      <circle className="sd-port sd-port--hot"  cx={148} cy={26} r={3.5} />
+      {/* ── Pump — sits ON primary flow lane (y=36) ── */}
+      <circle className="sd-node sd-node--pump" cx={114} cy={36} r={15} />
+      <text className="sd-label"    x={114} y={34}>⚙</text>
+      <text className="sd-sublabel" x={114} y={44}>Pump</text>
+      <circle className="sd-port sd-port--hot" cx={99}  cy={36} r={3.5} />
+      <circle className="sd-port sd-port--hot" cx={129} cy={36} r={3.5} />
 
-      {/* ── DHW zone valve ── */}
-      <rect className="sd-node sd-node--valve" x={100} y={58} width={48} height={32} rx={5} ry={5} />
-      <text className="sd-label"    x={124} y={70}>⊘ DHW</text>
-      <text className="sd-sublabel" x={124} y={82}>zone valve</text>
-      <circle className="sd-port sd-port--hot"  cx={100} cy={68} r={3.5} />
-      <circle className="sd-port sd-port--hot"  cx={148} cy={68} r={3.5} />
+      {/* ── CH zone valve — on primary flow lane (y=36) after T-junction ── */}
+      <rect className="sd-node sd-node--valve" x={138} y={24} width={50} height={24} rx={5} ry={5} />
+      <text className="sd-label"    x={163} y={33}>⊘ CH</text>
+      <text className="sd-sublabel" x={163} y={44}>zone valve</text>
+      <circle className="sd-port sd-port--hot" cx={138} cy={36} r={3.5} />
+      <circle className="sd-port sd-port--hot" cx={188} cy={36} r={3.5} />
 
-      {/* ── Pump (circle) ── */}
-      <circle className="sd-node sd-node--pump" cx={179} cy={26} r={15} />
-      <text className="sd-label"    x={179} y={24}>⚙</text>
-      <text className="sd-sublabel" x={179} y={34}>Pump</text>
-      <circle className="sd-port sd-port--hot"  cx={164} cy={26} r={3.5} />
-      <circle className="sd-port sd-port--hot"  cx={194} cy={26} r={3.5} />
+      {/* ── DHW zone valve — on DHW branch (y=68), drops from T-junction ── */}
+      <rect className="sd-node sd-node--valve" x={138} y={56} width={50} height={24} rx={5} ry={5} />
+      <text className="sd-label"    x={163} y={65}>⊘ DHW</text>
+      <text className="sd-sublabel" x={163} y={76}>zone valve</text>
+      <circle className="sd-port sd-port--hot" cx={138} cy={68} r={3.5} />
+      <circle className="sd-port sd-port--hot" cx={188} cy={68} r={3.5} />
 
-      {/* ── Radiators ── */}
-      <rect className={`sd-node sd-node--radiator${nodeHighlightClass('emitters', hl)}`} x={204} y={10} width={58} height={34} rx={6} ry={6} />
-      <text className="sd-label"    x={233} y={24}>▤ Radiators</text>
-      <text className="sd-sublabel" x={233} y={36}>CH emitters</text>
-      <circle className="sd-port sd-port--hot"  cx={204} cy={20} r={3.5} />
-      <circle className="sd-port sd-port--cold" cx={204} cy={38} r={3.5} />
+      {/* ── Radiators — spans primary flow (y=36) to primary return (y=88) ── */}
+      <rect className={`sd-node sd-node--radiator${nodeHighlightClass('emitters', hl)}`} x={196} y={12} width={54} height={80} rx={6} ry={6} />
+      <text className="sd-label"    x={223} y={42}>▤ Radiators</text>
+      <text className="sd-sublabel" x={223} y={56}>CH emitters</text>
+      <circle className="sd-port sd-port--hot"  cx={196} cy={36} r={3.5} />
+      <circle className="sd-port sd-port--cold" cx={196} cy={88} r={3.5} />
 
-      {/* ── Expansion vessel ── */}
-      <rect className="sd-node sd-node--mains" x={270} y={54} width={46} height={28} rx={6} ry={6} />
-      <text className="sd-label"    x={293} y={66}>⊕ Exp.</text>
-      <text className="sd-sublabel" x={293} y={77}>vessel</text>
+      {/* ── Expansion vessel — top right, connected to primary return ── */}
+      <rect className="sd-node sd-node--mains" x={258} y={12} width={42} height={36} rx={6} ry={6} />
+      <text className="sd-label"    x={279} y={25}>⊕ Exp.</text>
+      <text className="sd-sublabel" x={279} y={37}>vessel</text>
+      <circle className="sd-port sd-port--cold" cx={279} cy={48} r={3.5} />
 
-      {/* ── Unvented cylinder ── */}
+      {/* ── Unvented cylinder — right zone, coil spans DHW branch to return ── */}
       <rect
         className={`sd-node sd-node--cylinder${nodeHighlightClass('cylinder', hl)}`}
         data-testid="node-cylinder"
-        x={204} y={56} width={60} height={56} rx={8} ry={8}
+        x={254} y={56} width={60} height={66} rx={8} ry={8}
       />
       {/* Cylinder dome / top cap */}
-      <ellipse cx={234} cy={56} rx={28} ry={7} fill="#bee3f8" stroke="#2b6cb0" strokeWidth={1.5} opacity={0.7} />
-      <text className="sd-label"    x={234} y={77}>🛢 Cylinder</text>
-      <text className="sd-sublabel" x={234} y={91}>Unvented HW</text>
-      <circle className="sd-port sd-port--dhw"  cx={204} cy={70} r={3.5} />
-      <circle className="sd-port sd-port--cold" cx={264} cy={70} r={3.5} />
-      <circle className="sd-port sd-port--dhw"  cx={234} cy={112} r={3.5} />
+      <ellipse cx={284} cy={56} rx={28} ry={7} fill="#bee3f8" stroke="#2b6cb0" strokeWidth={1.5} opacity={0.7} />
+      <text className="sd-label"    x={284} y={78}>🛢 Cylinder</text>
+      <text className="sd-sublabel" x={284} y={93}>Unvented HW</text>
+      {/* Ports: primary coil in left (254,68), primary coil return left (254,88), stored hot bottom (284,122), cold fill right */}
+      <circle className="sd-port sd-port--hot"  cx={254} cy={68} r={3.5} />
+      <circle className="sd-port sd-port--cold" cx={254} cy={88} r={3.5} />
+      <circle className="sd-port sd-port--dhw"  cx={284} cy={122} r={3.5} />
 
       {state?.cylinderFillPct !== undefined && (
         <rect
           className="sd-cylinder-fill"
-          x={206}
-          y={58 + 52 * (1 - state.cylinderFillPct)}
+          x={256}
+          y={58 + 62 * (1 - state.cylinderFillPct)}
           width={56}
-          height={52 * state.cylinderFillPct}
+          height={62 * state.cylinderFillPct}
           rx={5}
         />
       )}
 
       {/* ── Outlets ── */}
-      <rect className="sd-node sd-node--outlet" x={10}  y={152} width={58} height={32} rx={6} ry={6} />
-      <text className="sd-label"    x={39} y={165}>🚿 Shower</text>
-      <text className="sd-sublabel" x={39} y={176}>{paths.storedHotDraw ? 'open' : 'closed'}</text>
-      <circle className="sd-port sd-port--dhw"  cx={39} cy={152} r={3.5} />
+      <rect className="sd-node sd-node--outlet" x={6}   y={154} width={58} height={28} rx={6} ry={6} />
+      <text className="sd-label"    x={35} y={165}>🚿 Shower</text>
+      <text className="sd-sublabel" x={35} y={176}>{paths.storedHotDraw ? 'open' : 'closed'}</text>
+      <circle className="sd-port sd-port--dhw" cx={35} cy={154} r={3.5} />
 
-      <rect className="sd-node sd-node--outlet" x={80}  y={152} width={54} height={32} rx={6} ry={6} />
-      <text className="sd-label"    x={107} y={165}>🛁 Bath</text>
-      <text className="sd-sublabel" x={107} y={176}>{outlets.bath ? 'open' : 'closed'}</text>
-      <circle className="sd-port sd-port--dhw"  cx={107} cy={152} r={3.5} />
+      <rect className="sd-node sd-node--outlet" x={70}  y={154} width={54} height={28} rx={6} ry={6} />
+      <text className="sd-label"    x={97} y={165}>🛁 Bath</text>
+      <text className="sd-sublabel" x={97} y={176}>{outlets.bath ? 'open' : 'closed'}</text>
+      <circle className="sd-port sd-port--dhw" cx={97} cy={154} r={3.5} />
 
-      <rect className="sd-node sd-node--outlet" x={146} y={152} width={68} height={32} rx={6} ry={6} />
-      <text className="sd-label"    x={180} y={165}>🚰 Kitchen</text>
-      <text className="sd-sublabel" x={180} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
-      <circle className="sd-port sd-port--dhw"  cx={180} cy={152} r={3.5} />
+      <rect className="sd-node sd-node--outlet" x={130} y={154} width={66} height={28} rx={6} ry={6} />
+      <text className="sd-label"    x={163} y={165}>🚰 Kitchen</text>
+      <text className="sd-sublabel" x={163} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
+      <circle className="sd-port sd-port--dhw" cx={163} cy={154} r={3.5} />
 
+      {/* ── Mains — sits ON cold feed lane (y=188) ── */}
       <rect
         className={`sd-node sd-node--mains${nodeHighlightClass('mains', hl)}`}
         data-testid="node-mains"
-        x={226} y={152} width={86} height={32} rx={6} ry={6}
+        x={212} y={176} width={86} height={24} rx={6} ry={6}
       />
-      <text className="sd-label"    x={269} y={165}>❄ Mains cold</text>
-      <text className="sd-sublabel" x={269} y={176}>supply</text>
-      <circle className="sd-port sd-port--cold" cx={226} cy={162} r={3.5} />
+      <text className="sd-label"    x={255} y={186}>❄ Mains cold</text>
+      <text className="sd-sublabel" x={255} y={197}>supply</text>
+      <circle className="sd-port sd-port--cold" cx={212} cy={188} r={3.5} />
 
-      {/* ── CH pipes ── */}
-      <polyline className={`${pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-flow', hl)}`} data-testid="pipe-ch-flow-boiler-tee" points="84,26 100,26" />
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-tee-pump" points="88,26 88,68 100,68" />
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} points="148,26 164,26" />
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-pump-rads" points="194,26 204,26" />
-      <polyline className={`${pipeClass('sd-pipe--return', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-return', hl)}`} data-testid="pipe-ch-return" points="204,38 196,38 196,60 84,60 84,54" />
+      {/* ── PRIMARY FLOW LANE ── */}
+      {/* Boiler → pump — active during CH or cylinder reheat (primary circuit runs in both) */}
+      <polyline
+        className={`${pipeClass('sd-pipe--flow', paths.chFlow || paths.primaryReheat, paths.chFaded)}${pipeHighlightClass('pipe-flow', hl)}`}
+        data-testid="pipe-ch-flow-boiler-tee"
+        points="80,36 99,36"
+      />
+      {/* Pump → T-junction — active during CH or cylinder reheat */}
+      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow || paths.primaryReheat, paths.chFaded)} points="129,36 138,36" />
+      {/* T-junction drop to DHW valve — only active during cylinder reheat (DHW zone valve open) */}
+      <polyline className={pipeClass('sd-pipe--flow', paths.primaryReheat, paths.chFaded)} points="136,36 136,56" />
+      {/* CH valve → radiators — only active during CH */}
+      <polyline
+        className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)}
+        data-testid="pipe-ch-flow-pump-rads"
+        points="188,36 196,36"
+      />
 
-      {/* ── Primary DHW (cylinder reheat) ── */}
-      <polyline className={pipeClass('sd-pipe--dhw', paths.primaryReheat)} data-testid="pipe-primary-dhw" points="148,68 204,70" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.primaryReheat)} points="204,82 196,82 196,62 84,62 84,56" />
+      {/* ── PRIMARY RETURN LANE — radiators + cylinder coil → boiler ── */}
+      <polyline
+        className={`${pipeClass('sd-pipe--return', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-return', hl)}`}
+        data-testid="pipe-ch-return"
+        points="254,88 196,88 80,88"
+      />
+      {/* Expansion vessel vertical connection */}
+      <polyline className="sd-pipe sd-pipe--return sd-pipe--inactive" points="279,88 279,48" />
 
-      {/* ── Stored hot draw ── */}
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} data-testid="pipe-stored-hot-draw" points="234,112 234,144" />
-      <polyline className={pipeClass('sd-pipe--dhw', outlets.shower && paths.storedHotDraw)} data-testid="pipe-dhw-shower" points="39,144 39,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', outlets.bath && paths.storedHotDraw)} points="107,144 107,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', outlets.kitchen && paths.storedHotDraw)} points="180,144 180,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} points="234,144 39,144" />
+      {/* ── Primary DHW (cylinder reheat) — DHW valve → cylinder primary coil ── */}
+      <polyline
+        className={pipeClass('sd-pipe--dhw', paths.primaryReheat)}
+        data-testid="pipe-primary-dhw"
+        points="188,68 254,68"
+      />
 
-      {/* ── Cold supply (mains to cylinder) ── */}
-      <polyline className={pipeClass('sd-pipe--cold', paths.coldSupply)} data-testid="pipe-cold-supply" points="269,152 269,130 264,130 264,70" />
+      {/* ── STORED HOT LANE ── */}
+      {/* Cylinder draw — vertical drop from cylinder bottom to stored hot lane */}
+      <polyline
+        className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)}
+        data-testid="pipe-stored-hot-draw"
+        points="284,122 284,148"
+      />
+      {/* Lane spine — horizontal distribution to outlets */}
+      <polyline
+        className={`${pipeClass('sd-pipe--dhw', paths.storedHotDraw)}${pipeHighlightClass('pipe-stored-hot', hl)}`}
+        data-testid="pipe-stored-hot"
+        points="8,148 284,148"
+      />
+      {/* Outlet drops */}
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.shower  && paths.storedHotDraw)} data-testid="pipe-dhw-shower" points="35,148 35,154" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.bath    && paths.storedHotDraw)} points="97,148 97,154" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.kitchen && paths.storedHotDraw)} points="163,148 163,154" />
+
+      {/* ── COLD FEED LANE — mains → cylinder cold fill ── */}
+      <polyline
+        className={`${pipeClass('sd-pipe--cold', paths.coldSupply)}${pipeHighlightClass('pipe-cold-feed', hl)}`}
+        data-testid="pipe-cold-feed"
+        points="8,188 312,188"
+      />
+      {/* Branch: cold feed lane → cylinder cold fill (right side, vertical) */}
+      <polyline
+        className={pipeClass('sd-pipe--cold', paths.coldSupply)}
+        data-testid="pipe-cold-supply"
+        points="312,188 312,106"
+      />
 
       <BadgeGroup badges={badges} />
     </svg>
@@ -482,6 +624,14 @@ function StoredSchematic({ state, paths, badges, highlightedComponents }: Schema
 }
 
 // ─── Schematic: Y-plan Open Vented ───────────────────────────────────────────
+//
+// Hydraulic lanes (y-positions):
+//   y=36  PRIMARY FLOW    — boiler → pump → Y-plan valve → radiators
+//   y=88  PRIMARY RETURN  — radiators + cylinder coil → boiler
+//   y=148 STORED HOT      — cylinder draw → outlets
+//   y=188 COLD FEED       — tank-fed cold → cylinder cold fill
+//
+// Additional: Feed & vent lane — CWS cistern (top right) gravity feeds cylinder.
 
 function VentedSchematic({ state, paths, badges, highlightedComponents }: SchematicProps): ReactElement {
   const W = 320;
@@ -507,137 +657,187 @@ function VentedSchematic({ state, paths, badges, highlightedComponents }: Schema
       <GridLines W={W} H={H} />
 
       {/* Domain zones */}
-      <rect className="sd-domain sd-domain--heating" x={4}   y={4}   width={90}  height={124} />
-      <rect className="sd-domain sd-domain--water"   x={198} y={4}   width={118} height={124} />
-      <rect className="sd-domain sd-domain--dhw"     x={4}   y={136} width={312} height={66}  />
+      <rect className="sd-domain sd-domain--heating" x={4}   y={4}   width={88}  height={130} />
+      <rect className="sd-domain sd-domain--water"   x={196} y={4}   width={120} height={130} />
+      <rect className="sd-domain sd-domain--dhw"     x={4}   y={140} width={312} height={66}  />
 
       {/* Domain labels */}
       <DomainLabel x={8}   y={15}  text="CH circuit (Y-plan)" />
-      <DomainLabel x={202} y={15}  text="Cylinder (open vented)" />
-      <DomainLabel x={8}   y={146} text="Draw-off (stored HW)" />
+      <DomainLabel x={200} y={15}  text="Cylinder (open vented)" />
+      <DomainLabel x={8}   y={150} text="Draw-off (stored HW)" />
 
-      {/* ── Regular boiler ── */}
+      {/* Lane labels */}
+      <LaneLabel y={32}  text="PRIMARY FLOW" />
+      <LaneLabel y={96}  text="PRIMARY RETURN" />
+      <LaneLabel y={144} text="STORED HOT" />
+      <LaneLabel y={184} text="TANK-FED COLD" />
+
+      {/* ── Regular boiler — spans primary flow (y=36) to primary return (y=88) ── */}
       <rect
         className={`sd-node sd-node--boiler${nodeHighlightClass('boiler', hl)}`}
         data-testid="node-boiler"
-        x={8}  y={16} width={70} height={46} rx={8} ry={8}
+        x={6} y={12} width={72} height={84} rx={8} ry={8}
       />
-      <text className="sd-label"    x={43} y={33}>🔥 Regular</text>
-      <text className="sd-sublabel" x={43} y={48}>24 kW boiler</text>
-      <circle className="sd-port sd-port--hot"  cx={78}  cy={24} r={3.5} />
-      <circle className="sd-port sd-port--cold" cx={78}  cy={52} r={3.5} />
+      <text className="sd-label"    x={42} y={36}>🔥 Regular</text>
+      <text className="sd-sublabel" x={42} y={52}>24 kW boiler</text>
+      <circle className="sd-port sd-port--hot"  cx={78} cy={36} r={3.5} />
+      <circle className="sd-port sd-port--cold" cx={78} cy={88} r={3.5} />
 
       {condensingBadgeText && (
-        <g transform="translate(6,66)">
+        <g transform="translate(6,100)">
           <rect className="sd-callout sd-callout--condensing" x={0} y={0} width={80} height={13} rx={4} ry={4} />
           <text className="sd-callout__text" x={40} y={9}>{condensingBadgeText}</text>
         </g>
       )}
 
-      {/* ── CH pump (circle) ── */}
-      <circle className="sd-node sd-node--pump" cx={116} cy={24} r={16} />
-      <text className="sd-label"    x={116} y={22}>⚙</text>
-      <text className="sd-sublabel" x={116} y={32}>Pump</text>
-      <circle className="sd-port sd-port--hot"  cx={100} cy={24} r={3.5} />
-      <circle className="sd-port sd-port--hot"  cx={132} cy={24} r={3.5} />
+      {/* ── CH pump — sits ON primary flow lane (y=36) ── */}
+      <circle className="sd-node sd-node--pump" cx={110} cy={36} r={15} />
+      <text className="sd-label"    x={110} y={34}>⚙</text>
+      <text className="sd-sublabel" x={110} y={44}>Pump</text>
+      <circle className="sd-port sd-port--hot" cx={95}  cy={36} r={3.5} />
+      <circle className="sd-port sd-port--hot" cx={125} cy={36} r={3.5} />
 
-      {/* ── Y-plan mid-position valve ── */}
-      <rect className="sd-node sd-node--valve" x={96} y={54} width={58} height={38} rx={6} ry={6} />
-      <text className="sd-label"    x={125} y={69}>◈ Y-plan</text>
-      <text className="sd-sublabel" x={125} y={82}>mid-pos valve</text>
-      <circle className="sd-port sd-port--hot"  cx={96}  cy={66} r={3.5} />
-      <circle className="sd-port sd-port--hot"  cx={154} cy={66} r={3.5} />
-      <circle className="sd-port sd-port--dhw"  cx={125} cy={93} r={3.5} />
+      {/* ── Y-plan mid-position valve — straddles flow lane, 3-port ── */}
+      {/* Ports: left (primary in from pump, y=36), right (CH to rads, y=36), bottom (DHW to cylinder) */}
+      <rect className="sd-node sd-node--valve" x={134} y={24} width={56} height={26} rx={6} ry={6} />
+      <text className="sd-label"    x={162} y={33}>◈ Y-plan</text>
+      <text className="sd-sublabel" x={162} y={44}>mid-pos valve</text>
+      <circle className="sd-port sd-port--hot" cx={134} cy={37} r={3.5} />
+      <circle className="sd-port sd-port--hot" cx={190} cy={37} r={3.5} />
+      <circle className="sd-port sd-port--dhw" cx={162} cy={50} r={3.5} />
 
-      {/* ── Radiators ── */}
-      <rect className={`sd-node sd-node--radiator${nodeHighlightClass('emitters', hl)}`} x={160} y={12} width={56} height={36} rx={6} ry={6} />
-      <text className="sd-label"    x={188} y={27}>▤ Radiators</text>
-      <text className="sd-sublabel" x={188} y={40}>CH emitters</text>
-      <circle className="sd-port sd-port--hot"  cx={160} cy={22} r={3.5} />
-      <circle className="sd-port sd-port--cold" cx={160} cy={40} r={3.5} />
+      {/* ── Radiators — spans primary flow (y=36) to primary return (y=88) ── */}
+      <rect className={`sd-node sd-node--radiator${nodeHighlightClass('emitters', hl)}`} x={198} y={12} width={54} height={80} rx={6} ry={6} />
+      <text className="sd-label"    x={225} y={42}>▤ Radiators</text>
+      <text className="sd-sublabel" x={225} y={56}>CH emitters</text>
+      <circle className="sd-port sd-port--hot"  cx={198} cy={36} r={3.5} />
+      <circle className="sd-port sd-port--cold" cx={198} cy={88} r={3.5} />
 
-      {/* ── CWS cistern (open vented tank) ── */}
-      <rect className="sd-node sd-node--mains" x={238} y={6} width={74} height={30} rx={6} ry={6} />
+      {/* ── CWS cistern — top right (feed & vent lane) ── */}
+      <rect className="sd-node sd-node--mains" x={258} y={8} width={56} height={28} rx={6} ry={6} />
       {/* Water level indicator */}
-      <rect x={240} y={20} width={70} height={12} rx={3} fill="#90cdf4" opacity={0.4} />
-      <text className="sd-label"    x={275} y={16}>🪣 CWS</text>
-      <text className="sd-sublabel" x={275} y={28}>cistern</text>
-      <circle className="sd-port sd-port--cold" cx={275} cy={36} r={3.5} />
+      <rect x={260} y={20} width={52} height={12} rx={3} fill="#90cdf4" opacity={0.4} />
+      <text className="sd-label"    x={286} y={16}>🪣 CWS</text>
+      <text className="sd-sublabel" x={286} y={28}>cistern</text>
+      <circle className="sd-port sd-port--cold" cx={278} cy={36} r={3.5} />
 
-      {/* ── Open vented cylinder ── */}
+      {/* ── Open vented cylinder — right zone ── */}
       <rect
         className={`sd-node sd-node--cylinder${nodeHighlightClass('cylinder', hl)}`}
         data-testid="node-cylinder"
-        x={206} y={48} width={60} height={64} rx={8} ry={8}
+        x={256} y={56} width={60} height={66} rx={8} ry={8}
       />
       {/* Cylinder dome / top cap */}
-      <ellipse cx={236} cy={48} rx={28} ry={6} fill="#bee3f8" stroke="#2b6cb0" strokeWidth={1.5} opacity={0.7} />
-      {/* Vent pipe indicator at top */}
-      <line x1={236} y1={42} x2={236} y2={36} stroke="#90cdf4" strokeWidth={2} strokeDasharray="2,2" opacity={0.6} />
-      <text className="sd-label"    x={236} y={68}>🛢 Cylinder</text>
-      <text className="sd-sublabel" x={236} y={82}>Open vented</text>
-      <circle className="sd-port sd-port--dhw"  cx={206} cy={64} r={3.5} />
-      <circle className="sd-port sd-port--cold" cx={266} cy={64} r={3.5} />
-      <circle className="sd-port sd-port--dhw"  cx={236} cy={112} r={3.5} />
+      <ellipse cx={286} cy={56} rx={28} ry={6} fill="#bee3f8" stroke="#2b6cb0" strokeWidth={1.5} opacity={0.7} />
+      {/* Vent pipe indicator — dashed, goes up to CWS */}
+      <line x1={278} y1={50} x2={278} y2={36} stroke="#90cdf4" strokeWidth={2} strokeDasharray="2,2" opacity={0.6} />
+      <text className="sd-label"    x={286} y={78}>🛢 Cylinder</text>
+      <text className="sd-sublabel" x={286} y={93}>Open vented</text>
+      {/* Ports: primary coil in left (256,68), coil return left (256,88), stored hot draw bottom (286,122), cold fill right */}
+      <circle className="sd-port sd-port--hot"  cx={256} cy={68} r={3.5} />
+      <circle className="sd-port sd-port--cold" cx={256} cy={88} r={3.5} />
+      <circle className="sd-port sd-port--dhw"  cx={286} cy={122} r={3.5} />
 
-      {/* Gravity cold feed from CWS to cylinder */}
-      <polyline className="sd-pipe sd-pipe--cold sd-pipe--inactive" points="266,48 266,36 275,36" />
+      {/* Gravity cold feed from CWS to cylinder top (feed & vent, always topology) */}
+      <polyline className="sd-pipe sd-pipe--cold sd-pipe--inactive" points="278,36 278,50" />
 
       {state?.cylinderFillPct !== undefined && (
         <rect
           className="sd-cylinder-fill"
-          x={208}
-          y={50 + 60 * (1 - state.cylinderFillPct)}
+          x={258}
+          y={58 + 62 * (1 - state.cylinderFillPct)}
           width={56}
-          height={60 * state.cylinderFillPct}
+          height={62 * state.cylinderFillPct}
           rx={5}
         />
       )}
 
       {/* ── Outlets ── */}
-      <rect className="sd-node sd-node--outlet" x={10}  y={152} width={58} height={32} rx={6} ry={6} />
-      <text className="sd-label"    x={39} y={165}>🚿 Shower</text>
-      <text className="sd-sublabel" x={39} y={176}>{paths.storedHotDraw ? 'open' : 'closed'}</text>
-      <circle className="sd-port sd-port--dhw"  cx={39} cy={152} r={3.5} />
+      <rect className="sd-node sd-node--outlet" x={6}   y={154} width={58} height={28} rx={6} ry={6} />
+      <text className="sd-label"    x={35} y={165}>🚿 Shower</text>
+      <text className="sd-sublabel" x={35} y={176}>{paths.storedHotDraw ? 'open' : 'closed'}</text>
+      <circle className="sd-port sd-port--dhw" cx={35} cy={154} r={3.5} />
 
-      <rect className="sd-node sd-node--outlet" x={80}  y={152} width={54} height={32} rx={6} ry={6} />
-      <text className="sd-label"    x={107} y={165}>🛁 Bath</text>
-      <text className="sd-sublabel" x={107} y={176}>{outlets.bath ? 'open' : 'closed'}</text>
-      <circle className="sd-port sd-port--dhw"  cx={107} cy={152} r={3.5} />
+      <rect className="sd-node sd-node--outlet" x={70}  y={154} width={54} height={28} rx={6} ry={6} />
+      <text className="sd-label"    x={97} y={165}>🛁 Bath</text>
+      <text className="sd-sublabel" x={97} y={176}>{outlets.bath ? 'open' : 'closed'}</text>
+      <circle className="sd-port sd-port--dhw" cx={97} cy={154} r={3.5} />
 
-      <rect className="sd-node sd-node--outlet" x={146} y={152} width={68} height={32} rx={6} ry={6} />
-      <text className="sd-label"    x={180} y={165}>🚰 Kitchen</text>
-      <text className="sd-sublabel" x={180} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
-      <circle className="sd-port sd-port--dhw"  cx={180} cy={152} r={3.5} />
+      <rect className="sd-node sd-node--outlet" x={130} y={154} width={66} height={28} rx={6} ry={6} />
+      <text className="sd-label"    x={163} y={165}>🚰 Kitchen</text>
+      <text className="sd-sublabel" x={163} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
+      <circle className="sd-port sd-port--dhw" cx={163} cy={154} r={3.5} />
 
+      {/* ── Tank-fed cold — sits ON cold feed lane (y=188) ── */}
       <rect
         className={`sd-node sd-node--mains${nodeHighlightClass('mains', hl)}`}
         data-testid="node-mains"
-        x={226} y={152} width={86} height={32} rx={6} ry={6}
+        x={212} y={176} width={86} height={24} rx={6} ry={6}
       />
-      <text className="sd-label"    x={269} y={165}>🪣 Tank-fed</text>
-      <text className="sd-sublabel" x={269} y={176}>cold supply</text>
-      <circle className="sd-port sd-port--cold" cx={226} cy={162} r={3.5} />
+      <text className="sd-label"    x={255} y={186}>🪣 Tank-fed</text>
+      <text className="sd-sublabel" x={255} y={197}>cold supply</text>
+      <circle className="sd-port sd-port--cold" cx={212} cy={188} r={3.5} />
 
-      {/* ── CH pipes (orthogonal routing) ── */}
-      <polyline className={`${pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-flow', hl)}`} data-testid="pipe-ch-flow-boiler-tee" points="78,24 100,24" />
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-tee-pump" points="86,24 86,66 96,66" />
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-pump-rads" points="132,24 148,24 148,66" />
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} points="154,66 160,22" />
-      <polyline className={`${pipeClass('sd-pipe--return', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-return', hl)}`} data-testid="pipe-ch-return" points="160,40 78,52" />
+      {/* ── PRIMARY FLOW LANE ── */}
+      <polyline
+        className={`${pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-flow', hl)}`}
+        data-testid="pipe-ch-flow-boiler-tee"
+        points="78,36 95,36"
+      />
+      {/* Pump → Y-plan valve (left port) */}
+      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} points="125,36 134,36" />
+      {/* Y-plan valve (right) → radiators */}
+      <polyline
+        className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)}
+        data-testid="pipe-ch-flow-pump-rads"
+        points="190,36 198,36"
+      />
 
-      {/* ── Primary DHW (Y-plan cylinder reheat) ── */}
-      <polyline className={pipeClass('sd-pipe--dhw', paths.primaryReheat)} data-testid="pipe-primary-dhw" points="125,92 125,144 206,144 206,64" />
+      {/* ── PRIMARY RETURN LANE — radiators + cylinder coil → boiler ── */}
+      <polyline
+        className={`${pipeClass('sd-pipe--return', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-return', hl)}`}
+        data-testid="pipe-ch-return"
+        points="256,88 198,88 78,88"
+      />
 
-      {/* ── Stored hot draw ── */}
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} data-testid="pipe-stored-hot-draw" points="236,112 236,144" />
-      <polyline className={pipeClass('sd-pipe--dhw', outlets.shower && paths.storedHotDraw)} data-testid="pipe-dhw-shower" points="39,144 39,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', outlets.bath && paths.storedHotDraw)} points="107,144 107,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', outlets.kitchen && paths.storedHotDraw)} points="180,144 180,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} points="236,144 39,144" />
+      {/* ── Primary DHW (Y-plan cylinder reheat) — Y-plan valve DHW port → cylinder ── */}
+      {/* Valve DHW bottom port (162,50) drops to cylinder primary coil y=68 */}
+      <polyline
+        className={pipeClass('sd-pipe--dhw', paths.primaryReheat)}
+        data-testid="pipe-primary-dhw"
+        points="162,50 162,68 256,68"
+      />
 
-      {/* ── Gravity cold supply (CWS tank-fed) ── */}
-      <polyline className={pipeClass('sd-pipe--cold', paths.coldSupply)} data-testid="pipe-cold-supply" points="269,152 269,130 266,130 266,64" />
+      {/* ── STORED HOT LANE ── */}
+      {/* Cylinder draw — vertical drop */}
+      <polyline
+        className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)}
+        data-testid="pipe-stored-hot-draw"
+        points="286,122 286,148"
+      />
+      {/* Lane spine — horizontal distribution */}
+      <polyline
+        className={`${pipeClass('sd-pipe--dhw', paths.storedHotDraw)}${pipeHighlightClass('pipe-stored-hot', hl)}`}
+        data-testid="pipe-stored-hot"
+        points="8,148 286,148"
+      />
+      {/* Outlet drops */}
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.shower  && paths.storedHotDraw)} data-testid="pipe-dhw-shower" points="35,148 35,154" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.bath    && paths.storedHotDraw)} points="97,148 97,154" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.kitchen && paths.storedHotDraw)} points="163,148 163,154" />
+
+      {/* ── COLD FEED LANE (tank-fed gravity cold) ── */}
+      <polyline
+        className={`${pipeClass('sd-pipe--cold', paths.coldSupply)}${pipeHighlightClass('pipe-cold-feed', hl)}`}
+        data-testid="pipe-cold-feed"
+        points="8,188 312,188"
+      />
+      {/* Branch: cold feed lane → cylinder cold fill (gravity cold, vertical) */}
+      <polyline
+        className={pipeClass('sd-pipe--cold', paths.coldSupply)}
+        data-testid="pipe-cold-supply"
+        points="312,188 312,106"
+      />
 
       <BadgeGroup badges={badges} />
     </svg>
@@ -650,6 +850,15 @@ function formatCop(cop: number): string {
 }
 
 // ─── Schematic: Heat pump + cylinder ─────────────────────────────────────────
+//
+// Hydraulic lanes (y-positions):
+//   y=36  PRIMARY FLOW    — ASHP → primary pump → T → CH pump → UFH/rads
+//                                                  ↓ cylinder primary coil
+//   y=88  PRIMARY RETURN  — UFH/rads + cylinder coil → ASHP
+//   y=148 STORED HOT      — cylinder draw → outlets
+//   y=188 COLD FEED       — mains → cylinder cold fill
+//
+// Additional: Outside heat-source lane (ASHP) at left.
 
 function HeatPumpSchematic({ state, paths, badges, highlightedComponents }: SchematicProps): ReactElement {
   const W = 320;
@@ -671,131 +880,187 @@ function HeatPumpSchematic({ state, paths, badges, highlightedComponents }: Sche
       <GridLines W={W} H={H} />
 
       {/* Domain zones */}
-      <rect className="sd-domain sd-domain--heating" x={4}   y={4}   width={90}  height={124} />
-      <rect className="sd-domain sd-domain--water"   x={200} y={4}   width={116} height={124} />
-      <rect className="sd-domain sd-domain--dhw"     x={4}   y={136} width={312} height={66}  />
+      <rect className="sd-domain sd-domain--heating" x={4}   y={4}   width={88}  height={130} />
+      <rect className="sd-domain sd-domain--water"   x={196} y={4}   width={120} height={130} />
+      <rect className="sd-domain sd-domain--dhw"     x={4}   y={140} width={312} height={66}  />
 
       {/* Domain labels */}
       <DomainLabel x={8}   y={15}  text="Heat pump loop" />
-      <DomainLabel x={204} y={15}  text="Cylinder (HP primary)" />
-      <DomainLabel x={8}   y={146} text="Draw-off (stored HW)" />
+      <DomainLabel x={200} y={15}  text="Cylinder (HP primary)" />
+      <DomainLabel x={8}   y={150} text="Draw-off (stored HW)" />
 
-      {/* ── ASHP unit (outside) ── */}
+      {/* Lane labels */}
+      <LaneLabel y={32}  text="PRIMARY FLOW" />
+      <LaneLabel y={96}  text="PRIMARY RETURN" />
+      <LaneLabel y={144} text="STORED HOT" />
+      <LaneLabel y={184} text="COLD FEED" />
+
+      {/* ── ASHP outside unit — spans primary flow (y=36) to primary return (y=88) ── */}
       <rect
         className={`sd-node sd-node--boiler${nodeHighlightClass('boiler', hl)}`}
         data-testid="node-boiler"
-        x={8}  y={16} width={74} height={54} rx={8} ry={8}
+        x={6} y={12} width={74} height={84} rx={8} ry={8}
       />
       {/* Fan indicator */}
-      <circle cx={45} cy={32} r={8} fill="none" stroke="#90cdf4" strokeWidth={1.5} opacity={0.6} />
-      <text className="sd-label"    x={45} y={30}>🌬 ASHP</text>
-      <text className="sd-sublabel" x={45} y={44}>Outside unit</text>
-      <text className="sd-sublabel" x={45} y={58}>Low-temp</text>
-      <circle className="sd-port sd-port--hot"  cx={82}  cy={24} r={3.5} />
-      <circle className="sd-port sd-port--cold" cx={82}  cy={56} r={3.5} />
+      <circle cx={43} cy={36} r={8} fill="none" stroke="#90cdf4" strokeWidth={1.5} opacity={0.6} />
+      <text className="sd-label"    x={43} y={34}>🌬 ASHP</text>
+      <text className="sd-sublabel" x={43} y={50}>Outside unit</text>
+      <text className="sd-sublabel" x={43} y={64}>Low-temp</text>
+      <circle className="sd-port sd-port--hot"  cx={80} cy={36} r={3.5} />
+      <circle className="sd-port sd-port--cold" cx={80} cy={88} r={3.5} />
 
       {copText && (
-        <g transform="translate(8,74)">
+        <g transform="translate(6,100)">
           <rect className="sd-callout sd-callout--condensing" x={0} y={0} width={72} height={13} rx={4} ry={4} />
           <text className="sd-callout__text" x={36} y={9}>{copText}</text>
         </g>
       )}
 
-      {/* ── Primary pump (circle) ── */}
-      <circle className="sd-node sd-node--pump" cx={118} cy={24} r={15} />
-      <text className="sd-label"    x={118} y={22}>⚙</text>
-      <text className="sd-sublabel" x={118} y={32}>Primary</text>
-      <circle className="sd-port sd-port--hot"  cx={103} cy={24} r={3.5} />
-      <circle className="sd-port sd-port--hot"  cx={133} cy={24} r={3.5} />
+      {/* ── Primary pump — on shared primary flow lane (y=36) ── */}
+      <circle className="sd-node sd-node--pump" cx={114} cy={36} r={15} />
+      <text className="sd-label"    x={114} y={34}>⚙</text>
+      <text className="sd-sublabel" x={114} y={44}>Primary</text>
+      <circle className="sd-port sd-port--hot" cx={99}  cy={36} r={3.5} />
+      <circle className="sd-port sd-port--hot" cx={129} cy={36} r={3.5} />
 
-      {/* ── CH/UFH pump (circle) ── */}
-      <circle className="sd-node sd-node--pump" cx={118} cy={68} r={15} />
-      <text className="sd-label"    x={118} y={66}>⚙</text>
-      <text className="sd-sublabel" x={118} y={76}>CH/UFH</text>
-      <circle className="sd-port sd-port--hot"  cx={103} cy={68} r={3.5} />
-      <circle className="sd-port sd-port--hot"  cx={133} cy={68} r={3.5} />
+      {/* ── CH/UFH distribution pump — on CH branch of flow lane ── */}
+      <circle className="sd-node sd-node--pump" cx={162} cy={36} r={15} />
+      <text className="sd-label"    x={162} y={34}>⚙</text>
+      <text className="sd-sublabel" x={162} y={44}>CH/UFH</text>
+      <circle className="sd-port sd-port--hot" cx={147} cy={36} r={3.5} />
+      <circle className="sd-port sd-port--hot" cx={177} cy={36} r={3.5} />
 
-      {/* ── UFH / radiators ── */}
-      <rect className={`sd-node sd-node--radiator${nodeHighlightClass('emitters', hl)}`} x={158} y={12} width={62} height={36} rx={6} ry={6} />
-      <text className="sd-label"    x={189} y={27}>▤ UFH/Rads</text>
-      <text className="sd-sublabel" x={189} y={40}>Low-temp</text>
-      <circle className="sd-port sd-port--hot"  cx={158} cy={22} r={3.5} />
-      <circle className="sd-port sd-port--cold" cx={158} cy={40} r={3.5} />
+      {/* ── UFH / radiators — spans primary flow (y=36) to primary return (y=88) ── */}
+      <rect className={`sd-node sd-node--radiator${nodeHighlightClass('emitters', hl)}`} x={186} y={12} width={60} height={80} rx={6} ry={6} />
+      <text className="sd-label"    x={216} y={40}>▤ UFH/Rads</text>
+      <text className="sd-sublabel" x={216} y={54}>Low-temp</text>
+      <circle className="sd-port sd-port--hot"  cx={186} cy={36} r={3.5} />
+      <circle className="sd-port sd-port--cold" cx={186} cy={88} r={3.5} />
 
-      {/* ── Expansion vessel ── */}
-      <rect className="sd-node sd-node--mains" x={252} y={54} width={46} height={28} rx={6} ry={6} />
-      <text className="sd-label"    x={275} y={66}>⊕ Exp.</text>
-      <text className="sd-sublabel" x={275} y={77}>vessel</text>
+      {/* ── Expansion vessel — top right ── */}
+      <rect className="sd-node sd-node--mains" x={256} y={12} width={40} height={36} rx={6} ry={6} />
+      <text className="sd-label"    x={276} y={25}>⊕ Exp.</text>
+      <text className="sd-sublabel" x={276} y={37}>vessel</text>
+      <circle className="sd-port sd-port--cold" cx={276} cy={48} r={3.5} />
 
-      {/* ── Hot water cylinder ── */}
+      {/* ── Hot water cylinder — right zone ── */}
       <rect
         className={`sd-node sd-node--cylinder${nodeHighlightClass('cylinder', hl)}`}
         data-testid="node-cylinder"
-        x={204} y={54} width={60} height={58} rx={8} ry={8}
+        x={256} y={56} width={60} height={66} rx={8} ry={8}
       />
       {/* Cylinder dome */}
-      <ellipse cx={234} cy={54} rx={28} ry={6} fill="#bee3f8" stroke="#2b6cb0" strokeWidth={1.5} opacity={0.7} />
-      <text className="sd-label"    x={234} y={74}>🛢 Cylinder</text>
-      <text className="sd-sublabel" x={234} y={88}>HP heated HW</text>
-      <circle className="sd-port sd-port--dhw"  cx={204} cy={68} r={3.5} />
-      <circle className="sd-port sd-port--cold" cx={264} cy={68} r={3.5} />
-      <circle className="sd-port sd-port--dhw"  cx={234} cy={112} r={3.5} />
+      <ellipse cx={286} cy={56} rx={28} ry={6} fill="#bee3f8" stroke="#2b6cb0" strokeWidth={1.5} opacity={0.7} />
+      <text className="sd-label"    x={286} y={78}>🛢 Cylinder</text>
+      <text className="sd-sublabel" x={286} y={93}>HP heated HW</text>
+      {/* Ports: HP primary coil in left (256,68), coil return left (256,88), stored hot draw bottom (286,122) */}
+      <circle className="sd-port sd-port--hot"  cx={256} cy={68} r={3.5} />
+      <circle className="sd-port sd-port--cold" cx={256} cy={88} r={3.5} />
+      <circle className="sd-port sd-port--dhw"  cx={286} cy={122} r={3.5} />
 
       {state?.cylinderFillPct !== undefined && (
         <rect
           className="sd-cylinder-fill"
-          x={206}
-          y={56 + 54 * (1 - state.cylinderFillPct)}
+          x={258}
+          y={58 + 62 * (1 - state.cylinderFillPct)}
           width={56}
-          height={54 * state.cylinderFillPct}
+          height={62 * state.cylinderFillPct}
           rx={5}
         />
       )}
 
       {/* ── Outlets ── */}
-      <rect className="sd-node sd-node--outlet" x={10}  y={152} width={58} height={32} rx={6} ry={6} />
-      <text className="sd-label"    x={39} y={165}>🚿 Shower</text>
-      <text className="sd-sublabel" x={39} y={176}>{paths.storedHotDraw ? 'open' : 'closed'}</text>
-      <circle className="sd-port sd-port--dhw"  cx={39} cy={152} r={3.5} />
+      <rect className="sd-node sd-node--outlet" x={6}   y={154} width={58} height={28} rx={6} ry={6} />
+      <text className="sd-label"    x={35} y={165}>🚿 Shower</text>
+      <text className="sd-sublabel" x={35} y={176}>{paths.storedHotDraw ? 'open' : 'closed'}</text>
+      <circle className="sd-port sd-port--dhw" cx={35} cy={154} r={3.5} />
 
-      <rect className="sd-node sd-node--outlet" x={80}  y={152} width={54} height={32} rx={6} ry={6} />
-      <text className="sd-label"    x={107} y={165}>🛁 Bath</text>
-      <text className="sd-sublabel" x={107} y={176}>{outlets.bath ? 'open' : 'closed'}</text>
-      <circle className="sd-port sd-port--dhw"  cx={107} cy={152} r={3.5} />
+      <rect className="sd-node sd-node--outlet" x={70}  y={154} width={54} height={28} rx={6} ry={6} />
+      <text className="sd-label"    x={97} y={165}>🛁 Bath</text>
+      <text className="sd-sublabel" x={97} y={176}>{outlets.bath ? 'open' : 'closed'}</text>
+      <circle className="sd-port sd-port--dhw" cx={97} cy={154} r={3.5} />
 
-      <rect className="sd-node sd-node--outlet" x={146} y={152} width={68} height={32} rx={6} ry={6} />
-      <text className="sd-label"    x={180} y={165}>🚰 Kitchen</text>
-      <text className="sd-sublabel" x={180} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
-      <circle className="sd-port sd-port--dhw"  cx={180} cy={152} r={3.5} />
+      <rect className="sd-node sd-node--outlet" x={130} y={154} width={66} height={28} rx={6} ry={6} />
+      <text className="sd-label"    x={163} y={165}>🚰 Kitchen</text>
+      <text className="sd-sublabel" x={163} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
+      <circle className="sd-port sd-port--dhw" cx={163} cy={154} r={3.5} />
 
+      {/* ── Mains — sits ON cold feed lane (y=188) ── */}
       <rect
         className={`sd-node sd-node--mains${nodeHighlightClass('mains', hl)}`}
         data-testid="node-mains"
-        x={226} y={152} width={86} height={32} rx={6} ry={6}
+        x={212} y={176} width={86} height={24} rx={6} ry={6}
       />
-      <text className="sd-label"    x={269} y={165}>❄ Mains cold</text>
-      <text className="sd-sublabel" x={269} y={176}>supply</text>
-      <circle className="sd-port sd-port--cold" cx={226} cy={162} r={3.5} />
+      <text className="sd-label"    x={255} y={186}>❄ Mains cold</text>
+      <text className="sd-sublabel" x={255} y={197}>supply</text>
+      <circle className="sd-port sd-port--cold" cx={212} cy={188} r={3.5} />
 
-      {/* ── Primary loop (HP ↔ cylinder) ── */}
-      <polyline className={`${pipeClass('sd-pipe--flow', paths.chFlow || paths.primaryReheat)}${pipeHighlightClass('pipe-flow', hl)}`} data-testid="pipe-ch-flow-boiler-tee" points="82,24 103,24" />
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow || paths.primaryReheat)} data-testid="pipe-ch-flow-tee-pump" points="92,24 92,68 103,68" />
-      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow)} data-testid="pipe-ch-flow-pump-rads" points="133,24 150,24 150,22 158,22" />
-      <polyline className={`${pipeClass('sd-pipe--return', paths.chFlow)}${pipeHighlightClass('pipe-return', hl)}`} data-testid="pipe-ch-return" points="158,40 148,40 148,56 82,56" />
+      {/* ── PRIMARY FLOW LANE (HP primary) ── */}
+      {/* ASHP → primary pump */}
+      <polyline
+        className={`${pipeClass('sd-pipe--flow', paths.chFlow || paths.primaryReheat)}${pipeHighlightClass('pipe-flow', hl)}`}
+        data-testid="pipe-ch-flow-boiler-tee"
+        points="80,36 99,36"
+      />
+      {/* Primary pump → T-junction (where CH and cylinder branch) */}
+      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow || paths.primaryReheat)} points="129,36 136,36" />
+      {/* T-junction drops to cylinder primary coil at y=68 */}
+      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow || paths.primaryReheat)} points="136,36 136,56" />
+      {/* T → CH/UFH pump */}
+      <polyline className={pipeClass('sd-pipe--flow', paths.chFlow)} points="136,36 147,36" />
+      {/* CH pump → UFH/rads */}
+      <polyline
+        className={pipeClass('sd-pipe--flow', paths.chFlow)}
+        data-testid="pipe-ch-flow-pump-rads"
+        points="177,36 186,36"
+      />
 
-      {/* ── HP primary to cylinder ── */}
-      <polyline className={pipeClass('sd-pipe--dhw', paths.primaryReheat)} data-testid="pipe-primary-dhw" points="133,68 204,68" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.primaryReheat)} points="204,80 192,80 192,58 82,58 82,56" />
+      {/* ── PRIMARY RETURN LANE ── */}
+      <polyline
+        className={`${pipeClass('sd-pipe--return', paths.chFlow)}${pipeHighlightClass('pipe-return', hl)}`}
+        data-testid="pipe-ch-return"
+        points="256,88 186,88 80,88"
+      />
+      {/* Expansion vessel vertical connection */}
+      <polyline className="sd-pipe sd-pipe--return sd-pipe--inactive" points="276,88 276,48" />
 
-      {/* ── Stored hot draw ── */}
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} data-testid="pipe-stored-hot-draw" points="234,112 234,144" />
-      <polyline className={pipeClass('sd-pipe--dhw', outlets.shower && paths.storedHotDraw)} data-testid="pipe-dhw-shower" points="39,144 39,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', outlets.bath && paths.storedHotDraw)} points="107,144 107,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', outlets.kitchen && paths.storedHotDraw)} points="180,144 180,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} points="234,144 39,144" />
+      {/* ── HP primary to cylinder — T-junction drop → cylinder coil ── */}
+      <polyline
+        className={pipeClass('sd-pipe--dhw', paths.primaryReheat)}
+        data-testid="pipe-primary-dhw"
+        points="136,56 136,68 256,68"
+      />
 
-      {/* ── Cold supply ── */}
-      <polyline className={pipeClass('sd-pipe--cold', paths.coldSupply)} data-testid="pipe-cold-supply" points="269,152 269,130 264,130 264,68" />
+      {/* ── STORED HOT LANE ── */}
+      {/* Cylinder draw — vertical drop */}
+      <polyline
+        className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)}
+        data-testid="pipe-stored-hot-draw"
+        points="286,122 286,148"
+      />
+      {/* Lane spine — horizontal distribution */}
+      <polyline
+        className={`${pipeClass('sd-pipe--dhw', paths.storedHotDraw)}${pipeHighlightClass('pipe-stored-hot', hl)}`}
+        data-testid="pipe-stored-hot"
+        points="8,148 286,148"
+      />
+      {/* Outlet drops */}
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.shower  && paths.storedHotDraw)} data-testid="pipe-dhw-shower" points="35,148 35,154" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.bath    && paths.storedHotDraw)} points="97,148 97,154" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.kitchen && paths.storedHotDraw)} points="163,148 163,154" />
+
+      {/* ── COLD FEED LANE ── */}
+      <polyline
+        className={`${pipeClass('sd-pipe--cold', paths.coldSupply)}${pipeHighlightClass('pipe-cold-feed', hl)}`}
+        data-testid="pipe-cold-feed"
+        points="8,188 312,188"
+      />
+      {/* Branch: cold feed lane → cylinder cold fill */}
+      <polyline
+        className={pipeClass('sd-pipe--cold', paths.coldSupply)}
+        data-testid="pipe-cold-supply"
+        points="312,188 312,106"
+      />
 
       <BadgeGroup badges={badges} />
     </svg>
