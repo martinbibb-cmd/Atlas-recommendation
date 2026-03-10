@@ -4,10 +4,11 @@
  * Unit tests for the buildSystemHealthLevel helper exported from RecommendationHub.
  *
  * Tests verify that the helper:
- *   - returns null when neither component condition is present
+ *   - returns null when no component conditions are present
  *   - uses the plate HEX band when only plate HEX is present
  *   - uses the cylinder band when only cylinder is present
- *   - uses the worst band when both components are present
+ *   - uses the boiler band when only boiler is present
+ *   - uses the worst band when multiple components are present
  *   - maps all four bands to the correct level and message
  *   - does not mutate inputs
  */
@@ -25,6 +26,7 @@ function makeResult(overrides: {
     coilTransferFactor: number;
     standingLossRelative: number;
   };
+  boilerConditionBand?: 'good' | 'moderate' | 'poor' | 'severe';
 }): FullEngineResult {
   return {
     combiDhwV1: {
@@ -38,6 +40,14 @@ function makeResult(overrides: {
       assumptions: [],
       dhwMixing: { mixingValveRecommended: false, inletTempC: 60, outletTempC: 40 },
     },
+    boilerEfficiencyModelV1: overrides.boilerConditionBand !== undefined
+      ? {
+          sedbuk: { source: 'unknown', notes: [] },
+          age: { factor: 1.0, notes: [] },
+          disclaimerNotes: [],
+          conditionBand: overrides.boilerConditionBand,
+        }
+      : undefined,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any as FullEngineResult;
 }
@@ -48,7 +58,7 @@ describe('buildSystemHealthLevel', () => {
 
   // ── No evidence ──────────────────────────────────────────────────────────
 
-  it('returns null when neither plate HEX nor cylinder condition is present', () => {
+  it('returns null when no component conditions are present', () => {
     expect(buildSystemHealthLevel(makeResult({}))).toBeNull();
   });
 
@@ -147,6 +157,48 @@ describe('buildSystemHealthLevel', () => {
     const result = buildSystemHealthLevel(makeResult({
       plateHexConditionBand: 'poor',
       cylinderCondition: { conditionBand: 'severe', insulationFactor: 0.7, coilTransferFactor: 0.75, standingLossRelative: 1.43 },
+    }));
+    expect(result!.level).toBe('Poor');
+  });
+
+  // ── Boiler only ───────────────────────────────────────────────────────────
+
+  it('returns Good for boiler good band', () => {
+    const result = buildSystemHealthLevel(makeResult({ boilerConditionBand: 'good' }));
+    expect(result).not.toBeNull();
+    expect(result!.level).toBe('Good');
+  });
+
+  it('returns Fair for boiler moderate band', () => {
+    const result = buildSystemHealthLevel(makeResult({ boilerConditionBand: 'moderate' }));
+    expect(result!.level).toBe('Fair');
+  });
+
+  it('returns Degraded for boiler poor band', () => {
+    const result = buildSystemHealthLevel(makeResult({ boilerConditionBand: 'poor' }));
+    expect(result!.level).toBe('Degraded');
+  });
+
+  it('returns Poor for boiler severe band', () => {
+    const result = buildSystemHealthLevel(makeResult({ boilerConditionBand: 'severe' }));
+    expect(result!.level).toBe('Poor');
+  });
+
+  // ── Boiler as worst component ──────────────────────────────────────────────
+
+  it('boiler severe beats plate HEX moderate and cylinder good', () => {
+    const result = buildSystemHealthLevel(makeResult({
+      plateHexConditionBand: 'moderate',
+      cylinderCondition: { conditionBand: 'good', insulationFactor: 1.0, coilTransferFactor: 1.0, standingLossRelative: 1.0 },
+      boilerConditionBand: 'severe',
+    }));
+    expect(result!.level).toBe('Poor');
+  });
+
+  it('boiler poor is beaten by plate HEX severe', () => {
+    const result = buildSystemHealthLevel(makeResult({
+      plateHexConditionBand: 'severe',
+      boilerConditionBand: 'poor',
     }));
     expect(result!.level).toBe('Poor');
   });

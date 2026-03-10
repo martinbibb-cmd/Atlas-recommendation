@@ -7,9 +7,10 @@
  *   - returns an empty array when no component conditions are present
  *   - emits a plate HEX row when combiDhwV1.plateHexConditionBand is set
  *   - emits a cylinder row when storedDhwV1.cylinderCondition is set
+ *   - emits a boiler row when boilerEfficiencyModelV1.conditionBand is set
  *   - derives cylinder implications from insulationFactor / coilTransferFactor
  *   - handles good condition bands correctly (no implications for cylinder good)
- *   - handles all four condition bands for both components
+ *   - handles all four condition bands for all three components
  */
 import { describe, it, expect } from 'vitest';
 import { buildComponentHealthItems } from '../RecommendationHub';
@@ -19,8 +20,8 @@ import type { FullEngineResult } from '../../../engine/schema/EngineInputV2_3';
 
 /**
  * Builds a minimal FullEngineResult stub sufficient for buildComponentHealthItems.
- * Only combiDhwV1.plateHexConditionBand and storedDhwV1.cylinderCondition are
- * exercised by the helper; all other fields are set to safe no-op defaults.
+ * combiDhwV1.plateHexConditionBand, storedDhwV1.cylinderCondition, and
+ * boilerEfficiencyModelV1.conditionBand are exercised by the helper.
  */
 function makeResult(overrides: {
   plateHexConditionBand?: 'good' | 'moderate' | 'poor' | 'severe';
@@ -30,6 +31,7 @@ function makeResult(overrides: {
     coilTransferFactor: number;
     standingLossRelative: number;
   };
+  boilerConditionBand?: 'good' | 'moderate' | 'poor' | 'severe';
 }): FullEngineResult {
   return {
     combiDhwV1: {
@@ -43,6 +45,14 @@ function makeResult(overrides: {
       assumptions: [],
       dhwMixing: { mixingValveRecommended: false, inletTempC: 60, outletTempC: 40 },
     },
+    boilerEfficiencyModelV1: overrides.boilerConditionBand !== undefined
+      ? {
+          sedbuk: { source: 'unknown', notes: [] },
+          age: { factor: 1.0, notes: [] },
+          disclaimerNotes: [],
+          conditionBand: overrides.boilerConditionBand,
+        }
+      : undefined,
     // Remaining FullEngineResult fields are not accessed by the helper
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any as FullEngineResult;
@@ -219,5 +229,79 @@ describe('buildComponentHealthItems', () => {
     const before = JSON.stringify(result);
     buildComponentHealthItems(result);
     expect(JSON.stringify(result)).toBe(before);
+  });
+});
+
+// ─── Boiler rows ──────────────────────────────────────────────────────────────
+
+describe('buildComponentHealthItems — boiler rows', () => {
+
+  it('emits a boiler item when boilerConditionBand is set', () => {
+    const result = makeResult({ boilerConditionBand: 'moderate' });
+    const items = buildComponentHealthItems(result);
+    expect(items).toHaveLength(1);
+    expect(items[0].component).toBe('Boiler');
+    expect(items[0].conditionBand).toBe('moderate');
+  });
+
+  it('does not emit a boiler item when boilerEfficiencyModelV1 is absent', () => {
+    const result = makeResult({});
+    expect(buildComponentHealthItems(result)).toHaveLength(0);
+  });
+
+  it('boiler good band — has one implication, no guidance', () => {
+    const result = makeResult({ boilerConditionBand: 'good' });
+    const [item] = buildComponentHealthItems(result);
+    expect(item.conditionLabel).toMatch(/operating as expected/i);
+    expect(item.implications).toHaveLength(1);
+    expect(item.guidance).toHaveLength(0);
+  });
+
+  it('boiler moderate band — has implication and guidance', () => {
+    const result = makeResult({ boilerConditionBand: 'moderate' });
+    const [item] = buildComponentHealthItems(result);
+    expect(item.conditionLabel).toMatch(/moderate degradation/i);
+    expect(item.implications.length).toBeGreaterThan(0);
+    expect(item.implications.some(s => /efficiency/i.test(s))).toBe(true);
+    expect(item.guidance.length).toBeGreaterThan(0);
+  });
+
+  it('boiler poor band — mentions condensing gain in guidance', () => {
+    const result = makeResult({ boilerConditionBand: 'poor' });
+    const [item] = buildComponentHealthItems(result);
+    expect(item.conditionLabel).toMatch(/performance degraded/i);
+    expect(item.implications.some(s => /condensing/i.test(s))).toBe(true);
+    expect(item.guidance.some(s => /service|setup|flow temperature|condensing/i.test(s))).toBe(true);
+  });
+
+  it('boiler severe band — mentions service or replacement in guidance', () => {
+    const result = makeResult({ boilerConditionBand: 'severe' });
+    const [item] = buildComponentHealthItems(result);
+    expect(item.conditionLabel).toMatch(/significant degradation/i);
+    expect(item.guidance.some(s => /service|replacement/i.test(s))).toBe(true);
+  });
+
+  it('boiler row is distinct from plate HEX and cylinder rows', () => {
+    const result = makeResult({
+      plateHexConditionBand: 'moderate',
+      cylinderCondition: { conditionBand: 'good', insulationFactor: 1.0, coilTransferFactor: 1.0, standingLossRelative: 1.0 },
+      boilerConditionBand: 'poor',
+    });
+    const items = buildComponentHealthItems(result);
+    expect(items).toHaveLength(3);
+    const components = items.map(i => i.component);
+    expect(components).toContain('Plate heat exchanger');
+    expect(components).toContain('Hot water cylinder');
+    expect(components).toContain('Boiler');
+  });
+
+  it('boiler row appears after plate HEX and cylinder rows', () => {
+    const result = makeResult({
+      plateHexConditionBand: 'moderate',
+      cylinderCondition: { conditionBand: 'good', insulationFactor: 1.0, coilTransferFactor: 1.0, standingLossRelative: 1.0 },
+      boilerConditionBand: 'poor',
+    });
+    const items = buildComponentHealthItems(result);
+    expect(items[2].component).toBe('Boiler');
   });
 });

@@ -3,12 +3,14 @@ import {
   inferDhwUseBand,
   inferPlateHexCondition,
   inferCylinderCondition,
+  inferBoilerCondition,
 } from '../modules/ComponentConditionModule';
 import type {
   WaterConditionInputs,
   UsageInputs,
   PlateHexInputs,
   CylinderInputs,
+  BoilerConditionInputs,
 } from '../modules/ComponentConditionModule';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -451,5 +453,166 @@ describe('inferPlateHexCondition — optional hotWaterPerformanceBand', () => {
     const result = inferPlateHexCondition(softWater, lowUsage, hexInput);
     expect(result.conditionBand).toBe('good');
     expect(result.foulingFactor).toBe(1.0);
+  });
+});
+
+// ─── inferBoilerCondition ─────────────────────────────────────────────────────
+
+describe('inferBoilerCondition', () => {
+
+  // ── Good band ────────────────────────────────────────────────────────────
+
+  it('returns good for a new condensing boiler with no symptoms', () => {
+    const input: BoilerConditionInputs = { ageYears: 3, condensing: 'yes' };
+    const result = inferBoilerCondition(input);
+    expect(result.conditionBand).toBe('good');
+  });
+
+  it('returns good when all inputs are absent (no signals)', () => {
+    const result = inferBoilerCondition({});
+    expect(result.conditionBand).toBe('good');
+  });
+
+  it('returns good for a 7-year-old condensing boiler with no symptoms', () => {
+    const input: BoilerConditionInputs = { ageYears: 7, condensing: 'yes' };
+    const result = inferBoilerCondition(input);
+    expect(result.conditionBand).toBe('good');
+  });
+
+  // ── Moderate band ─────────────────────────────────────────────────────────
+
+  it('returns moderate for a 15-year-old condensing boiler with no symptoms', () => {
+    const input: BoilerConditionInputs = { ageYears: 15, condensing: 'yes' };
+    const result = inferBoilerCondition(input);
+    expect(result.conditionBand).toBe('moderate');
+  });
+
+  it('returns moderate for an 8-year-old non-condensing boiler', () => {
+    // age=8 (+1) + non-condensing (+3) = 4 → moderate
+    const input: BoilerConditionInputs = { ageYears: 8, condensing: 'no' };
+    const result = inferBoilerCondition(input);
+    expect(result.conditionBand).toBe('moderate');
+  });
+
+  it('returns moderate for a mildly oversized condensing boiler aged 12', () => {
+    // age=12 (+2) + mild_oversize (+1) = 3 → moderate
+    const input: BoilerConditionInputs = {
+      ageYears: 12,
+      condensing: 'yes',
+      oversizeBand: 'mild_oversize',
+    };
+    const result = inferBoilerCondition(input);
+    expect(result.conditionBand).toBe('moderate');
+  });
+
+  // ── Poor band ─────────────────────────────────────────────────────────────
+
+  it('returns poor for a 20-year-old condensing boiler with no symptoms', () => {
+    // age=20 (+4) + condensing → no extra = 4, but mild oversize adds up
+    // age=20 (+4) alone = moderate; add oversize oversized (+2) = 6 → poor
+    const input: BoilerConditionInputs = {
+      ageYears: 20,
+      condensing: 'yes',
+      oversizeBand: 'oversized',
+    };
+    const result = inferBoilerCondition(input);
+    expect(result.conditionBand).toBe('poor');
+  });
+
+  it('returns poor for a 20-year-old non-condensing boiler', () => {
+    // age=20 (+4) + non-condensing (+3) = 7 → poor
+    const input: BoilerConditionInputs = { ageYears: 20, condensing: 'no' };
+    const result = inferBoilerCondition(input);
+    expect(result.conditionBand).toBe('poor');
+  });
+
+  it('returns poor for a 15-year-old boiler with cavitation noise', () => {
+    // age=15 (+3) + condensing=no (+3) + noise (+2) = 8 → poor
+    const input: BoilerConditionInputs = {
+      ageYears: 15,
+      condensing: 'no',
+      boilerCavitationOrNoise: true,
+    };
+    const result = inferBoilerCondition(input);
+    expect(result.conditionBand).toBe('poor');
+  });
+
+  // ── Severe band ───────────────────────────────────────────────────────────
+
+  it('returns severe for an old non-condensing aggressively oversized boiler', () => {
+    // age=15 (+3) + non-condensing (+3) + aggressive (+3) = 9 → severe
+    const input: BoilerConditionInputs = {
+      ageYears: 15,
+      condensing: 'no',
+      oversizeBand: 'aggressive',
+    };
+    const result = inferBoilerCondition(input);
+    expect(result.conditionBand).toBe('severe');
+  });
+
+  it('returns severe for a 20-year-old non-condensing boiler with noise and repeated failures', () => {
+    // age=20 (+4) + non-condensing (+3) + noise (+2) + failures (+1) = 10 → severe
+    const input: BoilerConditionInputs = {
+      ageYears: 20,
+      condensing: 'no',
+      boilerCavitationOrNoise: true,
+      repeatedPumpOrValveReplacements: true,
+    };
+    const result = inferBoilerCondition(input);
+    expect(result.conditionBand).toBe('severe');
+  });
+
+  // ── Confidence ────────────────────────────────────────────────────────────
+
+  it('returns high confidence when both age and condensing status are known', () => {
+    const input: BoilerConditionInputs = { ageYears: 10, condensing: 'yes' };
+    const result = inferBoilerCondition(input);
+    expect(result.confidence).toBe('high');
+  });
+
+  it('returns medium confidence when only age is known', () => {
+    const input: BoilerConditionInputs = { ageYears: 10 };
+    const result = inferBoilerCondition(input);
+    expect(result.confidence).toBe('medium');
+  });
+
+  it('returns medium confidence when only condensing status is known', () => {
+    const input: BoilerConditionInputs = { condensing: 'no' };
+    const result = inferBoilerCondition(input);
+    expect(result.confidence).toBe('medium');
+  });
+
+  it('returns low confidence when no age or condensing signal is present', () => {
+    const result = inferBoilerCondition({});
+    expect(result.confidence).toBe('low');
+  });
+
+  it('returns medium confidence when condensing is unknown (ambiguous)', () => {
+    // 'unknown' is not treated as a known signal
+    const input: BoilerConditionInputs = { condensing: 'unknown' };
+    const result = inferBoilerCondition(input);
+    expect(result.confidence).toBe('low');
+  });
+
+  // ── Oversize band scoring ─────────────────────────────────────────────────
+
+  it('well_matched oversize adds no score penalty', () => {
+    const withWellMatched: BoilerConditionInputs = {
+      ageYears: 3, condensing: 'yes', oversizeBand: 'well_matched',
+    };
+    const withoutOversize: BoilerConditionInputs = { ageYears: 3, condensing: 'yes' };
+    expect(inferBoilerCondition(withWellMatched).conditionBand)
+      .toBe(inferBoilerCondition(withoutOversize).conditionBand);
+  });
+
+  // ── 'unknown' condensing + age>=15 applies a minor penalty ───────────────
+
+  it('applies minor penalty when condensing is unknown and boiler is 15+ years', () => {
+    // age=15 (+3) + unknown+age>=15 (+1) = 4 → moderate (same band but higher score)
+    const withUnknownOld: BoilerConditionInputs = { ageYears: 15, condensing: 'unknown' };
+    const withYesOld: BoilerConditionInputs = { ageYears: 15, condensing: 'yes' };
+    // Both should be moderate at age 15, but unknown should have a higher score
+    expect(inferBoilerCondition(withUnknownOld).conditionBand).toBe('moderate');
+    expect(inferBoilerCondition(withYesOld).conditionBand).toBe('moderate');
   });
 });

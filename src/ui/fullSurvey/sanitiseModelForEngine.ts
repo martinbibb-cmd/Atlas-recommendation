@@ -3,6 +3,7 @@ import {
   inferPlateHexCondition,
   inferCylinderCondition,
   inferDhwUseBand,
+  inferBoilerCondition,
 } from '../../engine/modules/ComponentConditionModule';
 import { normalizeInput } from '../../engine/normalizer/Normalizer';
 
@@ -183,6 +184,34 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
     && sanitised.fullSurvey?.dhwCondition?.softenerPresent !== undefined
   ) {
     sanitised.hasSoftener = sanitised.fullSurvey.dhwCondition.softenerPresent;
+  }
+
+  // ── Boiler condition bridge ───────────────────────────────────────────────
+  // Derives boiler condition band from age, condensing status, and surveyor-
+  // observed heating circuit symptoms. Stored as boilerConditionBand for use
+  // by BoilerEfficiencyModelV1 and surfaced in the Component condition section.
+  //
+  // Boiler condition covers combustion/modulation/condensing/cycling degradation.
+  // It is distinct from plate HEX fouling (DHW side) and cylinder condition.
+  //
+  // Only runs when at least one boiler signal is present. Existing values are not
+  // overwritten (explicit wins).
+  if (sanitised.boilerConditionBand === undefined) {
+    const boilerAge = sanitised.currentSystem?.boiler?.ageYears ?? sanitised.currentBoilerAgeYears;
+    const condensing = sanitised.currentSystem?.boiler?.condensing;
+    const hc = sanitised.fullSurvey?.heatingCondition;
+
+    const hasBoilerSignal = boilerAge !== undefined || condensing !== undefined;
+
+    if (hasBoilerSignal) {
+      const boilerCondition = inferBoilerCondition({
+        ageYears: boilerAge,
+        condensing,
+        boilerCavitationOrNoise: hc?.boilerCavitationOrNoise,
+        repeatedPumpOrValveReplacements: hc?.repeatedPumpOrValveReplacements,
+      });
+      sanitised.boilerConditionBand = boilerCondition.conditionBand;
+    }
   }
 
   return sanitised;

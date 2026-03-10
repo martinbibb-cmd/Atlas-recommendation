@@ -280,6 +280,18 @@ export interface EngineInputV2_3 {
    */
   cylinderConditionBand?: 'good' | 'moderate' | 'poor' | 'severe';
 
+  /**
+   * Inferred boiler condition band — surfaced in the Component condition section.
+   * Derived in sanitiseModelForEngine from boiler age, condensing status, and
+   * surveyor-observed symptoms (heatingCondition).
+   *
+   * Covers combustion/modulation/condensing/cycling degradation only.
+   * Distinct from plate HEX fouling (DHW side) and cylinder condition (storage side).
+   *
+   * Absent when no boiler data is available.
+   */
+  boilerConditionBand?: 'good' | 'moderate' | 'poor' | 'severe';
+
   // Mixergy legacy
   hasIotIntegration?: boolean;
   installerNetwork?: InstallerNetwork;

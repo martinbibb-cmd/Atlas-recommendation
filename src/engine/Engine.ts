@@ -157,6 +157,10 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
         // ErP / surveyor-entered SEDBUK % — used as baseline when the SEDBUK
         // database lookup returns no result (no GC number match or band fallback).
         inputSedbukPct: input.currentBoilerSedbukPct,
+        // Pre-computed boiler condition band from the survey layer (sanitiseModelForEngine).
+        // When present (full-survey path), captures symptoms not visible to the engine.
+        // When absent, the band is computed from age, condensing, and oversize signals.
+        boilerConditionBand: input.boilerConditionBand,
       })
     : undefined;
 

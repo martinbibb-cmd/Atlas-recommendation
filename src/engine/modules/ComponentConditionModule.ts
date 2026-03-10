@@ -402,6 +402,134 @@ export function inferCylinderCondition(
   return { insulationFactor, coilTransferFactor, conditionBand, confidence };
 }
 
+// ─── Boiler Condition Inference ───────────────────────────────────────────────
+
+/**
+ * BoilerConditionInputs
+ *
+ * Signals used to infer boiler-side condition. These are distinct from
+ * DHW-side degradation (plate HEX fouling, cylinder insulation/coil).
+ *
+ * Age and condensing status are the primary drivers. Oversize band captures
+ * short-cycling stress. Surveyor symptom flags are supporting inputs.
+ */
+export interface BoilerConditionInputs {
+  /** Boiler age in years — primary degradation driver. */
+  ageYears?: number;
+  /** Condensing capability declared or inferred from the boiler. */
+  condensing?: 'yes' | 'no' | 'unknown';
+  /**
+   * Oversize band from BoilerSizingModule — proxy for short-cycling stress.
+   * Aggressive oversizing increases on/off frequency and reduces in-home efficiency.
+   */
+  oversizeBand?: 'well_matched' | 'mild_oversize' | 'oversized' | 'aggressive';
+  /** Surveyor-observed boiler noise or cavitation — direct sign of combustion/flow stress. */
+  boilerCavitationOrNoise?: boolean;
+  /**
+   * History of repeated pump or valve replacements — indicates system contamination
+   * that also stresses the boiler primary circuit.
+   */
+  repeatedPumpOrValveReplacements?: boolean;
+}
+
+/**
+ * BoilerCondition
+ *
+ * Inferred boiler-side condition. Distinct from plate HEX and cylinder condition.
+ *
+ * This covers combustion/modulation/condensing/cycling degradation only.
+ * It does not capture DHW-side (plate HEX fouling) or storage-side (cylinder) issues.
+ */
+export interface BoilerCondition {
+  conditionBand: 'good' | 'moderate' | 'poor' | 'severe';
+  confidence: 'low' | 'medium' | 'high';
+}
+
+// Boiler condition score thresholds
+const BOILER_MODERATE_SCORE = 3;
+const BOILER_POOR_SCORE     = 6;
+const BOILER_SEVERE_SCORE   = 9;
+
+/**
+ * inferBoilerCondition
+ *
+ * Infers boiler-side condition from age, condensing status, oversizing (cycling
+ * stress), and surveyor-observed symptoms.
+ *
+ * Boiler condition covers combustion / modulation / condensing / cycling
+ * degradation only. It is entirely separate from plate HEX fouling (DHW side)
+ * and cylinder condition (storage side).
+ *
+ * Scoring (higher = worse):
+ *   Age:                          ≥20yr=4 / ≥15yr=3 / ≥12yr=2 / ≥8yr=1 / <8yr=0
+ *   Non-condensing:               'no'=3 / 'unknown'+age≥15=1 / otherwise=0
+ *   Oversize / cycling stress:    aggressive=3 / oversized=2 / mild_oversize=1
+ *   Boiler cavitation or noise:   +2
+ *   Repeated pump/valve failures: +1
+ *
+ * Condition bands:
+ *   0-2 → good
+ *   3-5 → moderate
+ *   6-8 → poor
+ *   9+  → severe
+ */
+export function inferBoilerCondition(
+  inputs: BoilerConditionInputs,
+): BoilerCondition {
+  let score = 0;
+
+  // Age — primary degradation driver
+  const age = inputs.ageYears ?? 0;
+  if (age >= 20)      score += 4;
+  else if (age >= 15) score += 3;
+  else if (age >= 12) score += 2;
+  else if (age >= 8)  score += 1;
+
+  // Non-condensing penalty
+  if (inputs.condensing === 'no') {
+    score += 3;
+  } else if (inputs.condensing === 'unknown' && age >= 15) {
+    // Old unknown — likely non-condensing (pre-2005 era)
+    score += 1;
+  }
+
+  // Oversize / cycling stress
+  const OVERSIZE_SCORE: Partial<Record<NonNullable<BoilerConditionInputs['oversizeBand']>, number>> = {
+    aggressive:    3,
+    oversized:     2,
+    mild_oversize: 1,
+  };
+  score += OVERSIZE_SCORE[inputs.oversizeBand ?? 'well_matched'] ?? 0;
+
+  // Surveyor symptoms
+  if (inputs.boilerCavitationOrNoise)          score += 2;
+  if (inputs.repeatedPumpOrValveReplacements)  score += 1;
+
+  // Map score to condition band
+  let conditionBand: BoilerCondition['conditionBand'];
+  if (score >= BOILER_SEVERE_SCORE) {
+    conditionBand = 'severe';
+  } else if (score >= BOILER_POOR_SCORE) {
+    conditionBand = 'poor';
+  } else if (score >= BOILER_MODERATE_SCORE) {
+    conditionBand = 'moderate';
+  } else {
+    conditionBand = 'good';
+  }
+
+  // Confidence: high when age AND condensing status are known;
+  // medium when one signal is present; low when relying on defaults only.
+  const hasAgeSignal        = inputs.ageYears !== undefined;
+  const hasCondensingSignal = inputs.condensing !== undefined && inputs.condensing !== 'unknown';
+
+  const confidence: BoilerCondition['confidence'] =
+    hasAgeSignal && hasCondensingSignal ? 'high' :
+    hasAgeSignal || hasCondensingSignal ? 'medium' :
+    'low';
+
+  return { conditionBand, confidence };
+}
+
 // ─── Internal band helpers ────────────────────────────────────────────────────
 
 type ConditionBand4 = PlateHexCondition['conditionBand'];
