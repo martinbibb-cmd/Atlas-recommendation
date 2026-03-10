@@ -18,6 +18,9 @@
 import type { SystemDiagramDisplayState } from './useSystemDiagramPlayback'
 import type { OutletDisplayState } from '../state/outletDisplayState'
 import type { SystemMode } from '../animation/types'
+import type { CylinderType } from './systemInputsTypes'
+import { useStoredHotWaterPlayback } from './useStoredHotWaterPlayback'
+import type { StoredHotWaterDisplayState } from './useStoredHotWaterPlayback'
 
 // ─── Public state type ────────────────────────────────────────────────────────
 
@@ -43,6 +46,11 @@ export type DrawOffDisplayState = {
    * sustain setpoint temperature across all open outlets.
    */
   combiAtCapacity: boolean
+  /**
+   * Stored hot water reserve state — present for cylinder systems only.
+   * Null for combi (no thermal store).
+   */
+  storedHotWaterState: StoredHotWaterDisplayState | null
 }
 
 // ─── Outlet state builder ─────────────────────────────────────────────────────
@@ -149,9 +157,16 @@ function buildOutletStates(
  *
  * Mirrors useHousePlayback: consumes SystemDiagramDisplayState and produces
  * DrawOffDisplayState for the panel.  No simulation path is created here.
+ *
+ * @param diagramState         Live display state from useSystemDiagramPlayback.
+ * @param cylinderType         Cylinder technology type.  Defaults to 'unvented'.
+ *                             Used to drive Mixergy-specific behaviour in storedHotWaterState.
+ * @param cylinderSizeLitres   Nominal cylinder capacity in litres.  Defaults to 150.
  */
 export function useDrawOffPlayback(
   diagramState: SystemDiagramDisplayState,
+  cylinderType: CylinderType = 'unvented',
+  cylinderSizeLitres: number = 150,
 ): DrawOffDisplayState {
   const { systemMode, systemType, serviceSwitchingActive, outletDemands } = diagramState
 
@@ -162,11 +177,15 @@ export function useDrawOffPlayback(
   const concurrentDemandCount = outletDemands ? ((outletDemands.shower ? 1 : 0) + (outletDemands.bath ? 1 : 0) + (outletDemands.kitchen ? 1 : 0)) : (diagramState.hotDrawActive ? (serviceSwitchingActive ? 2 : 1) : 0)
   const combiAtCapacity = systemType === 'combi' && serviceSwitchingActive && concurrentDemandCount >= 2
 
+  // storedHotWaterState: present for cylinder systems, null for combi.
+  const storedHotWaterState = useStoredHotWaterPlayback(diagramState, cylinderType, cylinderSizeLitres)
+
   return {
     outletStates: buildOutletStates(diagramState),
     systemMode,
     isCylinder,
     serviceSwitchingActive,
     combiAtCapacity,
+    storedHotWaterState,
   }
 }

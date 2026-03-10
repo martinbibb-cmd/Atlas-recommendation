@@ -827,3 +827,162 @@
   border-color: #276749;
   color: #fff;
 }
+
+/* ─── Stored Hot Water Reserve Panel (PR15) ──────────────────────────────────── */
+
+.shw-reserve {
+  margin-top: 10px;
+  padding: 10px;
+  background: #ebf8ff;
+  border: 1px solid #bee3f8;
+  border-radius: 10px;
+}
+
+.shw-reserve__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 6px;
+}
+
+.shw-reserve__title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2c5282;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.shw-reserve__badge {
+  font-size: 0.64rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.shw-reserve__badge--reheat {
+  background: #fefcbf;
+  color: #744210;
+  border: 1px solid #f6e05e;
+}
+
+.shw-reserve__badge--mixergy {
+  background: #c6f6d5;
+  color: #22543d;
+  border: 1px solid #9ae6b4;
+}
+
+.shw-reserve__body {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+/* ─── Tank visual ─────────────────────────────────────────────────────────── */
+
+.shw-tank {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.shw-tank__inner {
+  width: 20px;
+  height: 70px;
+  background: #bee3f8;
+  border: 1.5px solid #63b3ed;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end; /* hot zone fills from bottom up */
+}
+
+.shw-tank__hot-zone {
+  background: linear-gradient(to top, #c05621 0%, #ed8936 60%, #4fd1c5 100%);
+  transition: height 0.5s ease;
+  width: 100%;
+}
+
+.shw-tank__temps {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.shw-tank__temp {
+  font-size: 0.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.shw-tank__temp--top {
+  color: #c05621;
+}
+
+.shw-tank__temp--bottom {
+  color: #2b6cb0;
+}
+
+/* ─── Metrics column ──────────────────────────────────────────────────────── */
+
+.shw-metrics {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shw-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.shw-metric__label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #4a5568;
+}
+
+.shw-metric__value {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #1a202c;
+  font-variant-numeric: tabular-nums;
+}
+
+.shw-metric--temp .shw-metric__value {
+  font-size: 1rem;
+}
+
+.shw-metric__sub {
+  font-size: 0.6rem;
+  color: #718096;
+}
+
+/* ─── Reserve bar ─────────────────────────────────────────────────────────── */
+
+.shw-reserve-bar {
+  height: 6px;
+  background: #bee3f8;
+  border-radius: 3px;
+  overflow: hidden;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.shw-reserve-bar__fill {
+  height: 100%;
+  background: linear-gradient(to right, #4fd1c5, #2b6cb0);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}

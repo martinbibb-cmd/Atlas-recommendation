@@ -153,7 +153,7 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
     setManualMode,
   } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed);
   const houseState = useHousePlayback(diagramState);
-  const drawOffState = useDrawOffPlayback(diagramState);
+  const drawOffState = useDrawOffPlayback(diagramState, systemInputs.cylinderType, systemInputs.cylinderSizeLitres);
   const emitterState = useEmitterPrimaryModel({
     emitterCapacityFactor: systemInputs.emitterCapacityFactor,
     primaryPipeSize: systemInputs.primaryPipeSize,
