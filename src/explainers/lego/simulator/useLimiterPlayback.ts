@@ -112,7 +112,7 @@ function detectCombiDhwLimit(
     title: 'Boiler DHW output limit',
     explanation: `${combiPowerKw} kW combi can supply ~${flowLpm} L/min at ${deltaT}°C rise.`,
     suggestedFix: 'Cylinder or lower simultaneous demand',
-    targetComponent: 'boiler',
+    targetComponent: ['boiler', 'pipe-dhw-hot'],
   }
 }
 
@@ -160,7 +160,7 @@ function detectMainsFlowLimit(state: SystemDiagramDisplayState): Limiter | null 
     title: 'Cold water supply limit',
     explanation: 'Incoming mains flow is restricting simultaneous draw.',
     suggestedFix: 'Check mains incoming flow rate',
-    targetComponent: 'mains',
+    targetComponent: ['mains', 'pipe-cold-feed'],
   }
 }
 
@@ -209,7 +209,7 @@ function detectCylinderDepleted(
     title: 'Cylinder stored energy depleted',
     explanation: `Hot water reserve at ${Math.round(state.cylinderFillPct * 100)}% — reheating before further draw.`,
     suggestedFix: 'Reheat cycle required before further draw',
-    targetComponent: 'cylinder',
+    targetComponent: ['cylinder', 'pipe-stored-hot'],
   }
 }
 

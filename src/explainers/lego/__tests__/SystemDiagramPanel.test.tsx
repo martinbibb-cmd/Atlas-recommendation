@@ -337,3 +337,85 @@ describe('SystemDiagramPanel — component highlighting (limiter glow)', () => {
     expect(boilerNode?.getAttribute('class')).toContain('sd-node--highlighted')
   })
 })
+
+// ─── Lane pipe highlighting (PR14) ───────────────────────────────────────────
+
+describe('SystemDiagramPanel — lane pipe highlighting', () => {
+  it('combi: pipe-dhw-hot lane gains sd-pipe--highlighted when "pipe-dhw-hot" is in highlightedComponents', () => {
+    const { container } = render(
+      <SystemDiagramPanel state={combiIdle()} highlightedComponents={['pipe-dhw-hot']} />
+    )
+    const lane = container.querySelector('[data-testid="pipe-dhw-hot"]')
+    expect(lane?.getAttribute('class')).toContain('sd-pipe--highlighted')
+  })
+
+  it('combi: pipe-cold-feed lane gains sd-pipe--highlighted when "pipe-cold-feed" is in highlightedComponents', () => {
+    const { container } = render(
+      <SystemDiagramPanel state={combiIdle()} highlightedComponents={['pipe-cold-feed']} />
+    )
+    const lane = container.querySelector('[data-testid="pipe-cold-feed"]')
+    expect(lane?.getAttribute('class')).toContain('sd-pipe--highlighted')
+  })
+
+  it('stored: pipe-stored-hot lane gains sd-pipe--highlighted when "pipe-stored-hot" is in highlightedComponents', () => {
+    const { container } = render(
+      <SystemDiagramPanel state={storedIdle()} highlightedComponents={['pipe-stored-hot']} />
+    )
+    const lane = container.querySelector('[data-testid="pipe-stored-hot"]')
+    expect(lane?.getAttribute('class')).toContain('sd-pipe--highlighted')
+  })
+
+  it('stored: pipe-cold-feed lane gains sd-pipe--highlighted when "pipe-cold-feed" is in highlightedComponents', () => {
+    const { container } = render(
+      <SystemDiagramPanel state={storedIdle()} highlightedComponents={['pipe-cold-feed']} />
+    )
+    const lane = container.querySelector('[data-testid="pipe-cold-feed"]')
+    expect(lane?.getAttribute('class')).toContain('sd-pipe--highlighted')
+  })
+
+  it('combi: pipe-dhw-hot lane has no highlight class when not in highlightedComponents', () => {
+    const { container } = render(
+      <SystemDiagramPanel state={combiIdle()} highlightedComponents={[]} />
+    )
+    const lane = container.querySelector('[data-testid="pipe-dhw-hot"]')
+    expect(lane?.getAttribute('class')).not.toContain('sd-pipe--highlighted')
+  })
+
+  it('combi: pipe-dhw-hot lane exists in combi schematic', () => {
+    const { container } = render(<SystemDiagramPanel state={combiIdle()} />)
+    expect(container.querySelector('[data-testid="pipe-dhw-hot"]')).not.toBeNull()
+  })
+
+  it('combi: pipe-cold-feed lane exists in combi schematic', () => {
+    const { container } = render(<SystemDiagramPanel state={combiIdle()} />)
+    expect(container.querySelector('[data-testid="pipe-cold-feed"]')).not.toBeNull()
+  })
+
+  it('stored: pipe-stored-hot lane exists in stored schematic', () => {
+    const { container } = render(<SystemDiagramPanel state={storedIdle()} />)
+    expect(container.querySelector('[data-testid="pipe-stored-hot"]')).not.toBeNull()
+  })
+
+  it('stored: pipe-cold-feed lane exists in stored schematic', () => {
+    const { container } = render(<SystemDiagramPanel state={storedIdle()} />)
+    expect(container.querySelector('[data-testid="pipe-cold-feed"]')).not.toBeNull()
+  })
+
+  it('pipe-stored-hot lane is active when stored hot draw is active', () => {
+    const { container } = render(<SystemDiagramPanel state={storedHotDraw()} />)
+    const lane = container.querySelector('[data-testid="pipe-stored-hot"]')
+    expect(lane?.getAttribute('class')).toContain('sd-pipe--active')
+  })
+
+  it('pipe-dhw-hot lane is active when combi DHW draw is active', () => {
+    const { container } = render(<SystemDiagramPanel state={combiDhwDraw()} />)
+    const lane = container.querySelector('[data-testid="pipe-dhw-hot"]')
+    expect(lane?.getAttribute('class')).toContain('sd-pipe--active')
+  })
+
+  it('pipe-cold-feed lane is active when cold supply is active (combi DHW draw)', () => {
+    const { container } = render(<SystemDiagramPanel state={combiDhwDraw()} />)
+    const lane = container.querySelector('[data-testid="pipe-cold-feed"]')
+    expect(lane?.getAttribute('class')).toContain('sd-pipe--active')
+  })
+})

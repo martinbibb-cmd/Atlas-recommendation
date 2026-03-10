@@ -270,10 +270,10 @@ describe('useLimiterPlayback — ordering and cap', () => {
 // ─── targetComponent ──────────────────────────────────────────────────────────
 
 describe('useLimiterPlayback — targetComponent', () => {
-  it('combi_dhw_limit targets boiler', () => {
+  it('combi_dhw_limit targets boiler and pipe-dhw-hot lane', () => {
     const result = useLimiterPlayback(combiDrawing())
     const limiter = result.activeLimiters.find(l => l.id === 'combi_dhw_limit')
-    expect(limiter?.targetComponent).toBe('boiler')
+    expect(limiter?.targetComponent).toEqual(['boiler', 'pipe-dhw-hot'])
   })
 
   it('concurrent_demand targets plate_hex on combi system', () => {
@@ -288,10 +288,10 @@ describe('useLimiterPlayback — targetComponent', () => {
     expect(limiter?.targetComponent).toBe('cylinder')
   })
 
-  it('cylinder_depleted targets cylinder', () => {
+  it('cylinder_depleted targets cylinder and pipe-stored-hot lane', () => {
     const result = useLimiterPlayback(storedCylinderDepleted())
     const limiter = result.activeLimiters.find(l => l.id === 'cylinder_depleted')
-    expect(limiter?.targetComponent).toBe('cylinder')
+    expect(limiter?.targetComponent).toEqual(['cylinder', 'pipe-stored-hot'])
   })
 
   it('condensing_lost targets boiler and pipe-return', () => {
@@ -300,11 +300,11 @@ describe('useLimiterPlayback — targetComponent', () => {
     expect(limiter?.targetComponent).toEqual(['boiler', 'pipe-return'])
   })
 
-  it('mains_flow_limit targets mains', () => {
+  it('mains_flow_limit targets mains and pipe-cold-feed lane', () => {
     const result = useLimiterPlayback(combiDrawingTwoOutlets())
     const limiter = result.activeLimiters.find(l => l.id === 'mains_flow_limit')
     if (limiter) {
-      expect(limiter.targetComponent).toBe('mains')
+      expect(limiter.targetComponent).toEqual(['mains', 'pipe-cold-feed'])
     }
   })
 })
