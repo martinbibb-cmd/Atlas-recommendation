@@ -174,6 +174,11 @@ function nodeHighlightClass(componentId: string, highlighted: string[]): string 
   return highlighted.includes(componentId) ? ' sd-node--highlighted' : ''
 }
 
+/** Returns extra CSS class(es) when `pipeId` is in the highlighted set. */
+function pipeHighlightClass(pipeId: string, highlighted: string[]): string {
+  return highlighted.includes(pipeId) ? ' sd-pipe--highlighted' : ''
+}
+
 // ─── Schematic: Combi ─────────────────────────────────────────────────────────
 
 function CombiSchematic({ state, paths, badges, highlightedComponents }: SchematicProps): ReactElement {
@@ -296,7 +301,7 @@ function CombiSchematic({ state, paths, badges, highlightedComponents }: Schemat
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-tee-pump" points="94,28 111,28 111,32" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} points="94,28 94,78 104,78" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-pump-rads" points="145,32 145,28 172,28" />
-      <polyline className={pipeClass('sd-pipe--return', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-return" points="172,48 162,48 162,60 84,60 84,54" />
+      <polyline className={`${pipeClass('sd-pipe--return', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-return', hl)}`} data-testid="pipe-ch-return" points="172,48 162,48 162,60 84,60 84,54" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} points="152,78 168,78 168,34 172,34" />
 
       {/* ── DHW pipes ── */}
@@ -455,7 +460,7 @@ function StoredSchematic({ state, paths, badges, highlightedComponents }: Schema
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-tee-pump" points="88,26 88,68 100,68" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} points="148,26 164,26" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-pump-rads" points="194,26 204,26" />
-      <polyline className={pipeClass('sd-pipe--return', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-return" points="204,38 196,38 196,60 84,60 84,54" />
+      <polyline className={`${pipeClass('sd-pipe--return', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-return', hl)}`} data-testid="pipe-ch-return" points="204,38 196,38 196,60 84,60 84,54" />
 
       {/* ── Primary DHW (cylinder reheat) ── */}
       <polyline className={pipeClass('sd-pipe--dhw', paths.primaryReheat)} data-testid="pipe-primary-dhw" points="148,68 204,70" />
@@ -619,7 +624,7 @@ function VentedSchematic({ state, paths, badges, highlightedComponents }: Schema
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-tee-pump" points="86,24 86,66 96,66" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-flow-pump-rads" points="132,24 148,24 148,66" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow, paths.chFaded)} points="154,66 160,22" />
-      <polyline className={pipeClass('sd-pipe--return', paths.chFlow, paths.chFaded)} data-testid="pipe-ch-return" points="160,40 78,52" />
+      <polyline className={`${pipeClass('sd-pipe--return', paths.chFlow, paths.chFaded)}${pipeHighlightClass('pipe-return', hl)}`} data-testid="pipe-ch-return" points="160,40 78,52" />
 
       {/* ── Primary DHW (Y-plan cylinder reheat) ── */}
       <polyline className={pipeClass('sd-pipe--dhw', paths.primaryReheat)} data-testid="pipe-primary-dhw" points="125,92 125,144 206,144 206,64" />
@@ -776,7 +781,7 @@ function HeatPumpSchematic({ state, paths, badges, highlightedComponents }: Sche
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow || paths.primaryReheat)} data-testid="pipe-ch-flow-boiler-tee" points="82,24 103,24" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow || paths.primaryReheat)} data-testid="pipe-ch-flow-tee-pump" points="92,24 92,68 103,68" />
       <polyline className={pipeClass('sd-pipe--flow', paths.chFlow)} data-testid="pipe-ch-flow-pump-rads" points="133,24 150,24 150,22 158,22" />
-      <polyline className={pipeClass('sd-pipe--return', paths.chFlow)} data-testid="pipe-ch-return" points="158,40 148,40 148,56 82,56" />
+      <polyline className={`${pipeClass('sd-pipe--return', paths.chFlow)}${pipeHighlightClass('pipe-return', hl)}`} data-testid="pipe-ch-return" points="158,40 148,40 148,56 82,56" />
 
       {/* ── HP primary to cylinder ── */}
       <polyline className={pipeClass('sd-pipe--dhw', paths.primaryReheat)} data-testid="pipe-primary-dhw" points="133,68 204,68" />

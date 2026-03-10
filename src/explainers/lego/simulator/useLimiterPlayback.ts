@@ -29,8 +29,12 @@ export type Limiter = {
   title: string
   explanation: string
   suggestedFix?: string
-  /** Optional schematic component to highlight when this limiter is active. */
-  targetComponent?: string
+  /**
+   * Optional schematic component(s) to highlight when this limiter is active.
+   * A string array allows highlighting both a node and a related pipe together
+   * (e.g. `['boiler', 'pipe-return']` for the condensing-lost limiter).
+   */
+  targetComponent?: string | string[]
 }
 
 /**
@@ -63,6 +67,15 @@ const SEVERITY_ORDER: Record<LimiterSeverity, number> = {
   info: 2,
 }
 
+/**
+ * DHW delivery target temperature in °C used for the combi flow-rate
+ * calculation.  Together with the cold inlet temperature this defines the
+ * temperature rise the boiler must provide:
+ *
+ *   ΔT = DHW_DELIVERY_TARGET_C − coldInletTempC
+ */
+const DHW_DELIVERY_TARGET_C = 45
+
 // ─── Internal limiter detectors ───────────────────────────────────────────────
 
 /**
@@ -71,25 +84,30 @@ const SEVERITY_ORDER: Record<LimiterSeverity, number> = {
  *
  * Trigger: heatSourceType === 'combi' AND a hot-water draw is in progress.
  *
- * @param combiPowerKw  Rated combi output in kW (default 30). Used to compute
- *   the achievable hot-water flow rate at a 40 °C temperature rise.
+ * @param combiPowerKw   Rated combi output in kW (default 30). Used to compute
+ *   the achievable hot-water flow rate.
+ * @param coldInletTempC Incoming cold water temperature in °C (default 10).
+ *   The temperature rise ΔT = DHW_DELIVERY_TARGET_C − coldInletTempC, so a
+ *   colder inlet means a larger rise and a lower achievable flow rate; a
+ *   warmer inlet (summer) produces a smaller rise and higher flow rate.
  */
 function detectCombiDhwLimit(
   state: SystemDiagramDisplayState,
   combiPowerKw: number,
+  coldInletTempC: number,
 ): Limiter | null {
   if (state.heatSourceType !== 'combi') return null
   if (!state.hotDrawActive && state.systemMode !== 'dhw_draw') return null
   // Flow rate (L/min) = P_kW × 860 / (60 × ΔT_C)
   // 860: specific heat conversion factor (kJ/kg·°C → kW·s/L × 1/1000)
   // 60:  converts seconds to minutes
-  // 40:  assumed DHW temperature rise in °C (cold inlet 10°C → delivery 50°C)
-  const flowLpm = Math.round(combiPowerKw * 860 / (60 * 40))
+  const deltaT = DHW_DELIVERY_TARGET_C - coldInletTempC
+  const flowLpm = Math.round(combiPowerKw * 860 / (60 * deltaT))
   return {
     id: 'combi_dhw_limit',
     severity: 'warning',
     title: 'Boiler DHW output limit',
-    explanation: `${combiPowerKw} kW combi can supply ~${flowLpm} L/min at 40°C rise.`,
+    explanation: `${combiPowerKw} kW combi can supply ~${flowLpm} L/min at ${deltaT}°C rise.`,
     suggestedFix: 'Cylinder or lower simultaneous demand',
     targetComponent: 'boiler',
   }
@@ -159,7 +177,7 @@ function detectCondensingLost(state: SystemDiagramDisplayState): Limiter | null 
     title: 'High return temperature',
     explanation: `Return at ${state.returnTempC}°C — latent heat recovery unavailable.`,
     suggestedFix: 'Lower flow temperature or improve radiator sizing',
-    targetComponent: 'boiler',
+    targetComponent: ['boiler', 'pipe-return'],
   }
 }
 
@@ -194,16 +212,21 @@ function detectCylinderDepleted(state: SystemDiagramDisplayState): Limiter | nul
  * Called as a pure function (no React state) so it can be unit-tested directly
  * in the same way as useEfficiencyPlayback.
  *
- * @param combiPowerKw  Rated combi output in kW (default 30). Used for the
+ * @param combiPowerKw   Rated combi output in kW (default 30). Used for the
  *   DHW-flow calculation in the combi_dhw_limit explanation string.
+ * @param coldInletTempC Incoming cold water temperature in °C (default 10).
+ *   Combined with DHW_DELIVERY_TARGET_C to compute the actual temperature rise
+ *   and the resulting achievable flow rate — so the limiter explanation
+ *   updates interactively as the user changes the System Inputs slider.
  */
 export function useLimiterPlayback(
   diagramState: SystemDiagramDisplayState,
   combiPowerKw: number = 30,
+  coldInletTempC: number = 10,
 ): LimiterDisplayState {
   const candidates: Array<Limiter | null> = [
     detectCylinderDepleted(diagramState),
-    detectCombiDhwLimit(diagramState, combiPowerKw),
+    detectCombiDhwLimit(diagramState, combiPowerKw, coldInletTempC),
     detectConcurrentDemand(diagramState),
     detectCondensingLost(diagramState),
     detectMainsFlowLimit(diagramState),
