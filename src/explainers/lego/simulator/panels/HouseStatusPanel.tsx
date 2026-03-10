@@ -9,6 +9,8 @@
  *   - emitter activity (radiator icon animates when energised)
  *   - combi CH-pause indicator
  *   - indoor temperature estimate and building status
+ *
+ * PR7: floor icons, improved domestic feel.
  */
 
 import type { HouseDisplayState, RoomHeatState } from '../useHousePlayback';
@@ -19,6 +21,17 @@ function roomStateClass(state: RoomHeatState): string {
     case 'warming':        return 'house-room--warming';
     case 'stable':         return 'house-room--stable';
     case 'cooling':        return 'house-room--cooling';
+  }
+}
+
+/** Icon for each floor type — keeps the cutaway looking like a home. */
+function floorIcon(key: string): string {
+  switch (key) {
+    case 'loft':    return '🏗️';
+    case 'first':   return '🛌';
+    case 'ground':  return '🛋️';
+    case 'outside': return '🌳';
+    default:        return '';
   }
 }
 
@@ -51,7 +64,10 @@ export default function HouseStatusPanel({ state }: Props) {
       {/* ── Floors & rooms ───────────────────────────────────── */}
       {floors.map(floor => (
         <div key={floor.key} className={`house-floor ${floor.className}`}>
-          <div className="house-floor__label">{floor.label}</div>
+          <div className="house-floor__label">
+            <span aria-hidden="true">{floorIcon(floor.key)}</span>
+            {floor.label}
+          </div>
           <div className="house-rooms">
             {floor.rooms.map(room => (
               <span
@@ -63,7 +79,7 @@ export default function HouseStatusPanel({ state }: Props) {
                     className={`house-emitter${room.emitterActive ? ' house-emitter--active' : ''}`}
                     aria-label={room.emitterActive ? 'Emitter active' : 'Emitter off'}
                   >
-                    🔥
+                    🌡
                   </span>
                 )}
                 {room.name}

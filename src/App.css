@@ -2799,19 +2799,19 @@ body {
   background: #f8fafc;
   border: 1.5px solid #dde5ef;
   border-radius: 10px;
-  padding: 0.6rem 0.9rem;
+  padding: 0.55rem 0.85rem;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.4rem;
   margin-top: 0.75rem;
   font-size: 0.82rem;
 }
 
 .draw-off-panel__header {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   color: #64748b;
   margin-bottom: 0.1rem;
 }
@@ -2823,18 +2823,19 @@ body {
 }
 
 .draw-off-banner {
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   background: #eff6ff;
-  color: #1d4ed8;
+  color: #1e40af;
   border: 1px solid #bfdbfe;
   border-radius: 6px;
-  padding: 0.25rem 0.6rem;
+  padding: 0.28rem 0.65rem;
+  font-weight: 500;
 }
 
 .draw-off-panel__rows {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.3rem;
 }
 
 /* ── Individual outlet row ──────────────────────────────────────────────── */
@@ -2843,60 +2844,84 @@ body {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  padding: 0.35rem 0.55rem;
-  border-radius: 7px;
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
   border: 1px solid #e2e8f0;
   background: #fff;
-  line-height: 1.35;
+  line-height: 1.4;
+  transition: border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Open row — subtle highlight */
+.draw-off-row--open {
+  border-color: #bfdbfe;
+  background: #fafeff;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.06);
 }
 
 .draw-off-row--closed {
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 .draw-off-row__name {
-  font-weight: 600;
+  font-weight: 700;
   color: #1e293b;
   flex: 0 0 auto;
-  min-width: 100px;
+  min-width: 96px;
+  font-size: 0.8rem;
 }
 
 .draw-off-row__metrics {
   display: flex;
-  align-items: center;
-  gap: 0.35rem;
+  align-items: baseline;
+  gap: 0.4rem;
   color: #475569;
   font-variant-numeric: tabular-nums;
+  flex-wrap: wrap;
 }
 
 .draw-off-row__flow {
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: #334155;
 }
 
+/* Temperature — enlarged for readability */
 .draw-off-row__temp {
-  font-weight: 600;
-  color: #c2410c;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #b45309;
+  letter-spacing: -0.01em;
 }
 
 .draw-off-row__cold-source {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: #0369a1;
+  background: #e0f2fe;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 600;
 }
 
 .draw-off-row__hot-source {
-  font-size: 0.72rem;
-  color: #c2410c;
+  font-size: 0.68rem;
+  color: #9a3412;
+  background: #fff7ed;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 600;
 }
 
 .draw-off-row__warning {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: #92400e;
   background: #fffbeb;
   border: 1px solid #fde68a;
-  border-radius: 4px;
-  padding: 0.1rem 0.45rem;
+  border-radius: 5px;
+  padding: 0.12rem 0.5rem;
   flex-basis: 100%;
+  font-weight: 600;
 }
 
 /* ── Service classification badges ─────────────────────────────────────── */
@@ -2904,12 +2929,13 @@ body {
 .draw-off-badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.1rem 0.5rem;
+  padding: 0.12rem 0.55rem;
   border-radius: 99px;
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 700;
   white-space: nowrap;
   flex: 0 0 auto;
+  letter-spacing: 0.01em;
 }
 
 .draw-off-badge--closed {
@@ -2920,26 +2946,26 @@ body {
 
 .draw-off-badge--cold {
   background: #e0f2fe;
-  color: #0369a1;
-  border: 1px solid #bae6fd;
+  color: #0c4a6e;
+  border: 1px solid #7dd3fc;
 }
 
 .draw-off-badge--hot {
   background: #fff1f2;
-  color: #be123c;
-  border: 1px solid #fecdd3;
+  color: #9f1239;
+  border: 1px solid #fda4af;
 }
 
 .draw-off-badge--mixed {
   background: #fff7ed;
-  color: #c2410c;
-  border: 1px solid #fed7aa;
+  color: #9a3412;
+  border: 1px solid #fdba74;
 }
 
 .draw-off-badge--mixed-cold {
   background: #f0f9ff;
-  color: #0369a1;
-  border: 1px solid #bae6fd;
+  color: #0c4a6e;
+  border: 1px solid #7dd3fc;
 }
 
 /* ── Lab controls panels (PR6) ──────────────────────────────────────────── */

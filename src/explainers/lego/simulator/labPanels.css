@@ -8,22 +8,25 @@
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  transition: box-shadow 0.18s, border-color 0.18s;
+  transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
   position: relative;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 
 .sim-panel:hover {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  border-color: #bee3f8;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.11);
+  border-color: #90cdf4;
+  transform: translateY(-1px);
 }
 
 .sim-panel__header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 14px 10px;
-  border-bottom: 1px solid #f0f4f8;
+  padding: 10px 14px 9px;
+  border-bottom: 1px solid #edf2f7;
   flex-shrink: 0;
+  background: #fafcff;
 }
 
 .sim-panel__icon {
@@ -32,27 +35,30 @@
 
 .sim-panel__title {
   flex: 1;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: #2d3748;
   margin: 0;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
 }
 
 .sim-panel__expand {
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   color: #a0aec0;
-  padding: 3px 7px;
+  padding: 2px 7px;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   background: #f7fafc;
   font-weight: 600;
   pointer-events: none; /* click handled by the card itself */
+  letter-spacing: 0.02em;
 }
 
 .sim-panel__body {
   flex: 1;
   overflow: hidden;
-  padding: 12px 14px;
+  padding: 10px 12px;
   min-height: 0;
 }
 
@@ -61,7 +67,7 @@
 .system-diagram {
   width: 100%;
   height: 100%;
-  min-height: 180px;
+  min-height: 190px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -69,131 +75,144 @@
 
 .system-diagram__svg {
   width: 100%;
-  max-height: 220px;
+  max-height: 230px;
   overflow: visible;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.04));
 }
 
-/* Component node cards */
+/* ── Component node cards ────────────────────────────────────────────────── */
 .sd-node {
-  rx: 10;
-  ry: 10;
+  rx: 8;
+  ry: 8;
 }
 
-.sd-node--boiler { fill: #fff5f5; stroke: #fc8181; stroke-width: 2; }
-.sd-node--cylinder { fill: #ebf8ff; stroke: #63b3ed; stroke-width: 2; }
-.sd-node--radiator { fill: #f0fff4; stroke: #68d391; stroke-width: 2; }
-.sd-node--pump { fill: #faf5ff; stroke: #b794f4; stroke-width: 2; }
-.sd-node--valve { fill: #fffff0; stroke: #d69e2e; stroke-width: 2; }
-.sd-node--outlet { fill: #e6fffa; stroke: #4fd1c5; stroke-width: 2; }
-.sd-node--mains { fill: #f7fafc; stroke: #a0aec0; stroke-width: 2; }
+/* Boiler — warm red tint, stronger border */
+.sd-node--boiler   { fill: #fff5f5; stroke: #e53e3e; stroke-width: 2; }
+/* Cylinder — cool blue, indicating stored water */
+.sd-node--cylinder { fill: #ebf8ff; stroke: #2b6cb0; stroke-width: 2; }
+/* Radiator — warm green, heat emitter */
+.sd-node--radiator { fill: #f0fff4; stroke: #276749; stroke-width: 1.5; }
+/* Pump — purple, mechanical */
+.sd-node--pump     { fill: #faf5ff; stroke: #6b46c1; stroke-width: 1.5; }
+/* Valve — amber, control */
+.sd-node--valve    { fill: #fffff0; stroke: #b7791f; stroke-width: 2; }
+/* Outlet — teal, draw-off point */
+.sd-node--outlet   { fill: #e6fffa; stroke: #2c7a7b; stroke-width: 1.5; }
+/* Cold-supply / expansion vessel — neutral */
+.sd-node--mains    { fill: #f7fafc; stroke: #718096; stroke-width: 1.5; }
 
+/* Node labels */
 .sd-label {
-  font-size: 9px;
+  font-size: 9.5px;
   font-weight: 700;
   text-anchor: middle;
   dominant-baseline: middle;
-  fill: #2d3748;
+  fill: #1a202c;
 }
 
 .sd-sublabel {
   font-size: 7.5px;
   text-anchor: middle;
   dominant-baseline: middle;
-  fill: #718096;
+  fill: #4a5568;
 }
 
-/* Pipes */
+/* ── Pipes ────────────────────────────────────────────────────────────────── */
 .sd-pipe {
   fill: none;
-  stroke-width: 3.5;
+  stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
-  /* default: idle — faintly visible so the topology is always readable */
-  opacity: 0.22;
-  transition: opacity 0.35s ease;
+  /* default: idle — faintly visible so topology is always readable */
+  opacity: 0.14;
+  transition: opacity 0.3s ease, stroke-width 0.2s ease;
 }
 
-.sd-pipe--flow { stroke: #fc8181; }
-.sd-pipe--return { stroke: #63b3ed; }
-.sd-pipe--cold { stroke: #90cdf4; }
-.sd-pipe--dhw { stroke: #68d391; }
+/* CH flow — hot, fire red */
+.sd-pipe--flow   { stroke: #c53030; }
+/* CH return — cooled, blue */
+.sd-pipe--return { stroke: #2b6cb0; }
+/* Cold mains / gravity — pale blue */
+.sd-pipe--cold   { stroke: #3182ce; }
+/* DHW / stored hot / primary — emerald green */
+.sd-pipe--dhw    { stroke: #276749; }
 
-/* ── Active: marching-ants animation ─────────────────────────────────────── */
-/* stroke-dashoffset drives the "marching ants" effect — larger numbers flow faster. */
+/* ── Active: marching-ants animation ───────────────────────────────────── */
 @keyframes sd-flow-march {
-  to { stroke-dashoffset: -26; }
+  to { stroke-dashoffset: -28; }
 }
 
 .sd-pipe--active {
   opacity: 1;
-  stroke-dasharray: 8 5;
-  animation: sd-flow-march 0.85s linear infinite;
+  stroke-width: 4;
+  stroke-dasharray: 9 5;
+  animation: sd-flow-march 0.75s linear infinite;
 }
 
-/* ── Faded: CH circuit visible but dimmed during combi DHW draw ───────────── */
+/* ── Faded: CH circuit dimmed during combi DHW draw ──────────────────── */
 .sd-pipe--faded {
-  opacity: 0.35;
-  stroke-dasharray: none;
-}
-
-/* ── Inactive: topology hint — barely visible ────────────────────────────── */
-/* .sd-pipe--inactive is the same as the default (opacity: 0.22),             */
-/* kept as an explicit class so test assertions remain stable.                 */
-.sd-pipe--inactive {
-  opacity: 0.22;
+  opacity: 0.3;
   stroke-dasharray: none;
   animation: none;
 }
 
-/* ── Cylinder fill indicator (stored systems) ────────────────────────────── */
-.sd-cylinder-fill {
-  fill: #bee3f8;
-  opacity: 0.55;
-  transition: height 0.8s ease, y 0.8s ease;
+/* ── Inactive: topology hint — barely visible ─────────────────────────── */
+/* Kept as an explicit class so test assertions remain stable. */
+.sd-pipe--inactive {
+  opacity: 0.14;
+  stroke-dasharray: none;
+  animation: none;
 }
 
-/* Port dots */
+/* ── Cylinder fill indicator (stored systems) ─────────────────────────── */
+.sd-cylinder-fill {
+  fill: #90cdf4;
+  opacity: 0.45;
+  transition: height 0.85s ease, y 0.85s ease;
+}
+
+/* ── Port dots ─────────────────────────────────────────────────────────── */
 .sd-port {
   r: 3;
 }
 
-.sd-port--hot { fill: #fc8181; }
-.sd-port--cold { fill: #63b3ed; }
-.sd-port--dhw { fill: #68d391; }
+.sd-port--hot  { fill: #c53030; }
+.sd-port--cold { fill: #2b6cb0; }
+.sd-port--dhw  { fill: #276749; }
 
-/* Grid background */
-.sd-grid-line { stroke: #f0f4f8; stroke-width: 1; }
+/* ── Grid background ───────────────────────────────────────────────────── */
+.sd-grid-line { stroke: #edf2f7; stroke-width: 1; }
 
-/* Domain backgrounds */
+/* ── Domain backgrounds ────────────────────────────────────────────────── */
 .sd-domain {
-  rx: 8;
-  ry: 8;
-  opacity: 0.06;
+  rx: 10;
+  ry: 10;
+  opacity: 0.05;
 }
 
-.sd-domain--heating { fill: #fc8181; }
-.sd-domain--water { fill: #63b3ed; }
-.sd-domain--dhw { fill: #68d391; }
+.sd-domain--heating { fill: #c53030; }
+.sd-domain--water   { fill: #2b6cb0; }
+.sd-domain--dhw     { fill: #276749; }
 
-/* ── Callout badges ──────────────────────────────────────────────────────── */
+/* ── Callout badges ────────────────────────────────────────────────────── */
 .sd-callout {
-  rx: 4;
-  ry: 4;
-  opacity: 0.93;
+  rx: 5;
+  ry: 5;
+  opacity: 0.96;
 }
 
-.sd-callout--heating   { fill: #fef3c7; stroke: #d69e2e; stroke-width: 0.8; }
-.sd-callout--dhw       { fill: #c6f6d5; stroke: #38a169; stroke-width: 0.8; }
-.sd-callout--reheat    { fill: #bee3f8; stroke: #2b6cb0; stroke-width: 0.8; }
-.sd-callout--warning   { fill: #fed7d7; stroke: #c53030; stroke-width: 0.8; }
-.sd-callout--condensing { fill: #f0fff4; stroke: #68d391; stroke-width: 0.8; }
+.sd-callout--heating    { fill: #fef3c7; stroke: #b7791f; stroke-width: 1; }
+.sd-callout--dhw        { fill: #c6f6d5; stroke: #276749; stroke-width: 1; }
+.sd-callout--reheat     { fill: #bee3f8; stroke: #2b6cb0; stroke-width: 1; }
+.sd-callout--warning    { fill: #fed7d7; stroke: #c53030; stroke-width: 1; }
+.sd-callout--condensing { fill: #f0fff4; stroke: #276749; stroke-width: 1; }
 
 .sd-callout__text {
-  font-size: 7px;
+  font-size: 7.5px;
   font-weight: 700;
   text-anchor: middle;
   dominant-baseline: middle;
-  fill: #2d3748;
+  fill: #1a202c;
   pointer-events: none;
 }
 
@@ -202,7 +221,7 @@
 .house-cutaway {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   height: 100%;
 }
 
@@ -220,22 +239,24 @@
   align-items: center;
   gap: 8px;
   padding: 5px 10px;
-  background: #f0fff4;
-  border: 1px solid #9ae6b4;
+  background: linear-gradient(90deg, #f0fff4 0%, #c6f6d5 100%);
+  border: 1px solid #68d391;
   border-radius: 8px;
   flex-shrink: 0;
-  transition: background 0.4s ease, border-color 0.4s ease;
+  transition: background 0.5s ease, border-color 0.5s ease;
 }
 
 .house-status-bar--paused {
-  background: #fffbeb;
-  border-color: #f6e05e;
+  background: linear-gradient(90deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: #d69e2e;
 }
 
 .house-status-bar__temp {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #276749;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #22543d;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .house-status-bar--paused .house-status-bar__temp {
@@ -244,48 +265,60 @@
 
 .house-status-bar__label {
   font-size: 0.72rem;
-  color: #4a5568;
+  color: #2d6a4f;
   font-weight: 600;
+  flex: 1;
+}
+
+.house-status-bar--paused .house-status-bar__label {
+  color: #92400e;
 }
 
 /* ── Floors ────────────────────────────────────────────────────────────────── */
 
 .house-floor {
   border-radius: 10px;
-  padding: 8px 10px;
+  padding: 7px 10px;
   flex: 1;
   min-height: 0;
 }
 
+/* Loft — cool purple, more compact */
 .house-floor--loft {
-  background: #faf5ff;
-  border: 1px solid #d6bcfa;
-  flex: 0.6;
+  background: linear-gradient(135deg, #faf5ff 0%, #e9d8fd 100%);
+  border: 1px solid #b794f4;
+  flex: 0.55;
 }
 
+/* First floor — blue */
 .house-floor--first {
-  background: #ebf8ff;
-  border: 1px solid #90cdf4;
+  background: linear-gradient(135deg, #ebf8ff 0%, #bee3f8 100%);
+  border: 1px solid #63b3ed;
 }
 
+/* Ground floor — warm green */
 .house-floor--ground {
-  background: #f0fff4;
-  border: 1px solid #9ae6b4;
+  background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+  border: 1px solid #68d391;
 }
 
+/* Outside / external — dashed, lighter */
 .house-floor--outside {
-  background: #f7fafc;
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
   border: 1px dashed #a0aec0;
   flex: 0.4;
 }
 
 .house-floor__label {
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 700;
   color: #4a5568;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .house-rooms {
@@ -300,62 +333,63 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 0.7rem;
-  padding: 3px 7px;
+  font-size: 0.67rem;
+  padding: 3px 8px;
   border-radius: 7px;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.8);
   border: 1px solid rgba(0, 0, 0, 0.08);
   color: #2d3748;
   font-weight: 600;
-  transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+  transition: background 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease;
+  white-space: nowrap;
 }
 
-/* Heating active — room emitter energised */
+/* Heating active — strong warm glow */
 .house-room--heating-active {
   background: #fff5eb;
-  border-color: #f6ad55;
+  border-color: #ed8936;
   color: #7b341e;
-  box-shadow: 0 0 6px rgba(246, 173, 85, 0.35);
+  box-shadow: 0 0 8px rgba(237, 137, 54, 0.4);
 }
 
-/* Warming — recently heated, still rising */
+/* Warming — recently heated, gently rising */
 .house-room--warming {
   background: #fffbeb;
-  border-color: #fbd38d;
+  border-color: #ecc94b;
   color: #744210;
 }
 
-/* Stable — comfortable temperature */
+/* Stable — comfortable, neutral */
 .house-room--stable {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.8);
   border-color: rgba(0, 0, 0, 0.08);
   color: #2d3748;
 }
 
-/* Cooling — temperature dropping */
+/* Cooling — temperature dropping, cool blue */
 .house-room--cooling {
   background: #ebf8ff;
-  border-color: #90cdf4;
+  border-color: #63b3ed;
   color: #2c5282;
 }
 
 /* ── Emitter indicator ─────────────────────────────────────────────────────── */
 
 .house-emitter {
-  font-size: 0.65rem;
-  opacity: 0.25;
-  transition: opacity 0.4s ease;
+  font-size: 0.62rem;
+  opacity: 0.2;
+  transition: opacity 0.45s ease;
   line-height: 1;
 }
 
 .house-emitter--active {
   opacity: 1;
-  animation: house-emitter-pulse 1.8s ease-in-out infinite;
+  animation: house-emitter-pulse 1.6s ease-in-out infinite;
 }
 
 @keyframes house-emitter-pulse {
   0%,  100% { opacity: 1;    transform: scale(1);    }
-  50%        { opacity: 0.75; transform: scale(1.15); }
+  50%        { opacity: 0.7; transform: scale(1.2); }
 }
 
 /* ─── Draw-Off Status Panel ─────────────────────────────────────────────────── */
@@ -363,7 +397,7 @@
 .draw-off-status {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .draw-off-outlet {
@@ -371,12 +405,19 @@
   border-radius: 10px;
   padding: 8px 10px;
   background: #f7fafc;
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+.draw-off-outlet--active {
+  background: #fff;
+  border-color: #4fd1c5;
+  box-shadow: 0 1px 4px rgba(79, 209, 197, 0.15);
 }
 
 .draw-off-outlet__name {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  color: #2d3748;
+  color: #1a202c;
   margin-bottom: 6px;
   display: flex;
   align-items: center;
@@ -404,22 +445,30 @@
 }
 
 .draw-off-metric__label {
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   color: #718096;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .draw-off-metric__value {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #2d3748;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #1a202c;
   margin-top: 1px;
+  font-variant-numeric: tabular-nums;
 }
 
 .draw-off-metric__value--idle {
   color: #a0aec0;
+  font-weight: 600;
+}
+
+/* Temperature metric — emphasis */
+.draw-off-metric--temp .draw-off-metric__value {
+  color: #c05621;
+  font-size: 0.9rem;
 }
 
 /* ─── Efficiency Panel ──────────────────────────────────────────────────────── */
@@ -427,7 +476,7 @@
 .efficiency-panel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .efficiency-metric {
@@ -438,38 +487,42 @@
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   background: #f7fafc;
+  gap: 8px;
 }
 
 .efficiency-metric__label {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #4a5568;
+  flex: 1;
 }
 
 .efficiency-metric__value {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #2d3748;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #1a202c;
+  font-variant-numeric: tabular-nums;
 }
 
 .efficiency-badge {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   padding: 3px 9px;
   border-radius: 999px;
   font-weight: 700;
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .efficiency-badge--condensing {
   background: #c6f6d5;
   color: #22543d;
-  border: 1px solid #9ae6b4;
+  border: 1px solid #68d391;
 }
 
 .efficiency-badge--borderline {
   background: #fefcbf;
   color: #744210;
-  border: 1px solid #f6e05e;
+  border: 1px solid #d69e2e;
 }
 
 .efficiency-badge--not-condensing {
@@ -489,7 +542,7 @@
 }
 
 .efficiency-cop-bar__track {
-  height: 6px;
+  height: 7px;
   border-radius: 999px;
   background: #edf2f7;
   overflow: hidden;
@@ -498,6 +551,6 @@
 .efficiency-cop-bar__fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #68d391, #38a169);
-  transition: width 0.4s ease;
+  background: linear-gradient(90deg, #68d391, #276749);
+  transition: width 0.5s ease;
 }
