@@ -1661,15 +1661,26 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
             </div>
             <div className="form-field">
               <label>Current Boiler Output (kW, optional)</label>
-              <input
-                type="number"
-                min={1}
-                max={60}
-                step={0.5}
+              <select
                 value={input.currentBoilerOutputKw ?? ''}
                 onChange={e => setInput({ ...input, currentBoilerOutputKw: e.target.value ? +e.target.value : undefined })}
-                placeholder="e.g. 24"
-              />
+              >
+                <option value="">Select output (optional)</option>
+                <option value="8">8 kW</option>
+                <option value="12">12 kW</option>
+                <option value="15">15 kW</option>
+                <option value="16">16 kW</option>
+                <option value="18">18 kW</option>
+                <option value="19">19 kW</option>
+                <option value="21">21 kW</option>
+                <option value="24">24 kW</option>
+                <option value="25">25 kW</option>
+                <option value="30">30 kW</option>
+                <option value="35">35 kW</option>
+                <option value="40">40 kW</option>
+                <option value="45">45 kW</option>
+                <option value="50">50 kW</option>
+              </select>
             </div>
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
               <label>Current Boiler Make / Model (optional)</label>
