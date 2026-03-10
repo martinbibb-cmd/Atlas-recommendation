@@ -523,6 +523,53 @@ const CYL_GUIDANCE: Record<string, string[]> = {
   ],
 };
 
+// ── Boiler copy ───────────────────────────────────────────────────────────────
+// Boiler condition covers combustion/modulation/condensing/cycling degradation.
+// Distinct from plate HEX fouling (DHW side) and cylinder condition (storage side).
+
+const BOILER_CONDITION_LABEL: Record<string, string> = {
+  good:     'Operating as expected',
+  moderate: 'Moderate degradation likely',
+  poor:     'Performance degraded',
+  severe:   'Significant degradation',
+};
+
+const BOILER_IMPLICATION: Record<string, string[]> = {
+  good: ['Combustion and modulation appear within normal operating range.'],
+  moderate: [
+    'Efficiency likely slightly reduced from design rating.',
+    'More sensitive to short-cycling and poor setup.',
+  ],
+  poor: [
+    'Higher operating temperatures reduce condensing gain.',
+    'Increased cycling reduces reliability and efficiency.',
+    'Running costs likely above design specification.',
+  ],
+  severe: [
+    'Likely operating well below intended efficiency.',
+    'Reliability and longevity significantly affected.',
+    'Service or replacement discussion is justified.',
+  ],
+};
+
+const BOILER_GUIDANCE: Record<string, string[]> = {
+  good: [],
+  moderate: [
+    'Ensure the annual service is up to date.',
+    'Check controls and heating schedule — unnecessarily long run times increase cycling.',
+  ],
+  poor: [
+    'Service and setup check recommended.',
+    'Review weather compensation or load compensation controls if fitted.',
+    'Improving emitter sizing or reducing required flow temperature can recover condensing behaviour.',
+  ],
+  severe: [
+    'Full service and efficiency check strongly recommended.',
+    'Review controls, flow temperature, and system setup.',
+    'Consider a replacement discussion if service cannot restore performance.',
+  ],
+};
+
 // ── Band styling tokens ───────────────────────────────────────────────────────
 
 const BAND_COLOUR: Record<string, string> = {
@@ -548,8 +595,8 @@ const BAND_BORDER: Record<string, string> = {
  * buildComponentHealthItems — pure function that derives health panel rows
  * from a FullEngineResult.
  *
- * Returns an empty array when neither the combi plate HEX nor the cylinder
- * condition was recorded by the engine, so the panel can safely be omitted.
+ * Returns an empty array when no component conditions (plate HEX, cylinder,
+ * or boiler) were recorded by the engine, so the panel can safely be omitted.
  *
  * Exported for unit testing.
  */
@@ -585,17 +632,30 @@ export function buildComponentHealthItems(result: FullEngineResult): ComponentHe
     });
   }
 
+  // ── Boiler (combustion/modulation/condensing/cycling) ─────────────────────
+  // Distinct from plate HEX fouling (DHW side) and cylinder condition (storage side).
+  const boilerBand = result.boilerEfficiencyModelV1?.conditionBand;
+  if (boilerBand !== undefined) {
+    items.push({
+      component: 'Boiler',
+      conditionBand: boilerBand,
+      conditionLabel: BOILER_CONDITION_LABEL[boilerBand] ?? boilerBand,
+      implications: BOILER_IMPLICATION[boilerBand] ?? [],
+      guidance: BOILER_GUIDANCE[boilerBand] ?? [],
+    });
+  }
+
   return items;
 }
 
 /**
  * ComponentHealthPanel — "Component condition" section.
  *
- * Surfaces plate HEX condition (combi path) and cylinder condition (stored path)
- * in a single at-a-glance view. Only renders when the engine has recorded at
- * least one component condition.
+ * Surfaces plate HEX condition (combi path), cylinder condition (stored path),
+ * and boiler condition (boiler path) in a single at-a-glance view.
+ * Only renders when the engine has recorded at least one component condition.
  *
- * No new physics — reads directly from combiDhwV1 and storedDhwV1.
+ * No new physics — reads directly from combiDhwV1, storedDhwV1, and boilerEfficiencyModelV1.
  */
 function ComponentHealthPanel({ result }: { result: FullEngineResult }) {
   const items = buildComponentHealthItems(result);
@@ -684,33 +744,35 @@ const HEALTH_MESSAGE: Record<SystemHealthLevel, string> = {
 };
 
 /**
- * buildSystemHealthLevel — derives an overall hot-water system health level
+ * buildSystemHealthLevel — derives an overall system health level
  * from the worst available component condition band.
  *
- * Returns null when neither plate HEX nor cylinder condition is present so the
- * gauge can be safely omitted from the UI.
+ * Returns null when no component conditions (plate HEX, cylinder, or boiler)
+ * are present so the gauge can be safely omitted from the UI.
  *
  * Rules:
- *  - If neither component condition is present → null
+ *  - If no component condition is present → null
  *  - If one component is present → use that band
- *  - If both are present → use the worst band
+ *  - If multiple are present → use the worst band
  *  - Mapping: good→Good, moderate→Fair, poor→Degraded, severe→Poor
  *
  * Exported for unit testing. Does not mutate inputs.
  */
 export function buildSystemHealthLevel(result: FullEngineResult): SystemHealthResult | null {
-  const hexBand = result.combiDhwV1.plateHexConditionBand;
-  const cylBand = result.storedDhwV1.cylinderCondition?.conditionBand;
+  const hexBand    = result.combiDhwV1.plateHexConditionBand;
+  const cylBand    = result.storedDhwV1.cylinderCondition?.conditionBand;
+  const boilerBand = result.boilerEfficiencyModelV1?.conditionBand;
 
-  if (hexBand === undefined && cylBand === undefined) return null;
+  if (hexBand === undefined && cylBand === undefined && boilerBand === undefined) return null;
 
-  // Pick the worst band (highest severity rank)
-  let worstBand = hexBand ?? cylBand!;
-  if (hexBand !== undefined && cylBand !== undefined) {
-    const hexRank = BAND_SEVERITY[hexBand] ?? 0;
-    const cylRank = BAND_SEVERITY[cylBand] ?? 0;
-    worstBand = hexRank >= cylRank ? hexBand : cylBand;
-  }
+  // Pick the worst band (highest severity rank). At least one candidate is present
+  // due to the null check above, so 'good' is a safe initial accumulator.
+  const candidates = [hexBand, cylBand, boilerBand].filter((b): b is string => b !== undefined);
+  const worstBand = candidates.reduce((worst, band) => {
+    const bandRank = BAND_SEVERITY[band] ?? 0;
+    const worstRank = BAND_SEVERITY[worst] ?? 0;
+    return bandRank > worstRank ? band : worst;
+  }, 'good' as string);
 
   const level = HEALTH_LEVEL_MAP[worstBand] ?? 'Fair';
   return { level, message: HEALTH_MESSAGE[level] };

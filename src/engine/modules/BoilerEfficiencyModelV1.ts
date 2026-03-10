@@ -5,6 +5,7 @@ import {
   type BoilerSizingResultV1,
 } from './BoilerSizingModule';
 import { DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../utils/efficiency';
+import { inferBoilerCondition } from './ComponentConditionModule';
 
 export type BoilerType = 'combi' | 'system' | 'regular' | 'back_boiler' | 'unknown';
 export type OversizeBand = 'well_matched' | 'mild_oversize' | 'oversized' | 'aggressive';
@@ -35,6 +36,12 @@ export interface BoilerEfficiencyModelInputV1 {
    * actually drive the engine model.
    */
   inputSedbukPct?: number;
+  /**
+   * Pre-computed boiler condition band — bridged from the survey layer via
+   * sanitiseModelForEngine. When present, used directly as the output conditionBand.
+   * When absent, the band is computed from age, condensing status, and oversize.
+   */
+  boilerConditionBand?: 'good' | 'moderate' | 'poor' | 'severe';
 }
 
 /**
@@ -67,6 +74,17 @@ export interface BoilerEfficiencyModelV1 {
    * Age decay is NOT applied when true — the value is treated as unknown.
    */
   ageIsUnrealistic?: boolean;
+  /**
+   * Inferred boiler condition band.
+   *
+   * Covers boiler-side degradation: combustion / modulation / condensing /
+   * cycling. Distinct from plate HEX fouling (DHW side) and cylinder condition
+   * (storage side).
+   *
+   * Derived from age, condensing status, oversize/cycling, and surveyor symptoms.
+   * Present when boiler data is available; absent otherwise.
+   */
+  conditionBand?: 'good' | 'moderate' | 'poor' | 'severe';
 }
 
 /** Piecewise age multiplier shared by timeline + context outputs. */
@@ -191,6 +209,19 @@ export function buildBoilerEfficiencyModelV1(
     ? shapeEtaSeries(input.demandHeatKw96, inHomeAdjustedEta, input.nominalOutputKw ?? 24)
     : undefined;
 
+  // Boiler condition band — derived from age, condensing, cycling (oversize), and symptoms.
+  // Use the pre-computed band from the survey layer if available; otherwise compute from
+  // engine signals (age, condensing, oversize). Only computed when at least one signal exists.
+  const hasBoilerSignal = effectiveAge !== undefined || input.condensing !== undefined;
+  const conditionBand = input.boilerConditionBand
+    ?? (hasBoilerSignal
+      ? inferBoilerCondition({
+          ageYears: effectiveAge,
+          condensing: input.condensing,
+          oversizeBand: oversize?.band,
+        }).conditionBand
+      : undefined);
+
   const baselineSource =
     sedbuk.source === 'gc'
       ? 'SEDBUK database (GC number match)'
@@ -209,6 +240,7 @@ export function buildBoilerEfficiencyModelV1(
     inHomeAdjustedEta,
     ...(etaSeries96 ? { etaSeries96 } : {}),
     ...(ageIsUnrealistic ? { ageIsUnrealistic: true } : {}),
+    ...(conditionBand !== undefined ? { conditionBand } : {}),
     disclaimerNotes: [
       'Modelled estimate (not measured).',
       `Baseline efficiency source: ${baselineSource}.`,
