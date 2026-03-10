@@ -2884,6 +2884,11 @@ body {
   color: #0369a1;
 }
 
+.draw-off-row__hot-source {
+  font-size: 0.72rem;
+  color: #c2410c;
+}
+
 .draw-off-row__warning {
   font-size: 0.72rem;
   color: #92400e;

@@ -23,6 +23,7 @@ import DrawOffStatusPanel from './panels/DrawOffStatusPanel';
 import EfficiencyPanel from './panels/EfficiencyPanel';
 import { useSystemDiagramPlayback } from './useSystemDiagramPlayback';
 import { useHousePlayback } from './useHousePlayback';
+import { useDrawOffPlayback } from './useDrawOffPlayback';
 import type { SystemType } from '../animation/types';
 import './labDashboard.css';
 import './labPanels.css';
@@ -46,11 +47,12 @@ export default function SimulatorDashboard() {
   const [expanded, setExpanded] = useState<PanelId | null>(null);
   const { state: diagramState, systemType, setSystemType } = useSystemDiagramPlayback();
   const houseState = useHousePlayback(diagramState);
+  const drawOffState = useDrawOffPlayback(diagramState);
 
   const expandedContent: Partial<Record<PanelId, React.ReactElement>> = {
     system: <SystemDiagramPanel state={diagramState} />,
     house:    <HouseStatusPanel state={houseState} />,
-    drawoff:  <DrawOffStatusPanel />,
+    drawoff:  <DrawOffStatusPanel state={drawOffState} />,
     efficiency: <EfficiencyPanel />,
   };
 
@@ -89,13 +91,13 @@ export default function SimulatorDashboard() {
           <HouseStatusPanel state={houseState} />
         </SimulatorPanel>
 
-        {/* Draw-Off Status — shell */}
+        {/* Draw-Off Status — live via useDrawOffPlayback */}
         <SimulatorPanel
           title="Draw-Off Status"
           icon="💧"
           onExpand={() => setExpanded('drawoff')}
         >
-          <DrawOffStatusPanel />
+          <DrawOffStatusPanel state={drawOffState} />
         </SimulatorPanel>
 
         {/* Efficiency — shell */}
