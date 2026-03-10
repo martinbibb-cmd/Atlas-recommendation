@@ -115,6 +115,12 @@ export type SystemDiagramDisplayState = {
    * Absent for boiler systems.
    */
   cop?: number
+  /** Explicit outlet draw demands for shower/bath/kitchen. */
+  outletDemands?: {
+    shower: boolean
+    bath: boolean
+    kitchen: boolean
+  }
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -225,6 +231,11 @@ function buildCombiState(phase: CombiPhase): SystemDiagramDisplayState {
     returnTempC: phase.returnTempC,
     hotDrawActive: phase.hotDrawActive,
     phaseLabel: phase.phaseLabel,
+    outletDemands: {
+      shower: phase.hotDrawActive,
+      bath: false,
+      kitchen: false,
+    },
   }
 }
 
@@ -253,6 +264,11 @@ function buildStoredState(
     hotDrawActive: phase.hotDrawActive,
     cylinderFillPct: phase.cylinderFillPct,
     phaseLabel: phase.phaseLabel,
+    outletDemands: {
+      shower: phase.hotDrawActive,
+      bath: phase.hotDrawActive,
+      kitchen: false,
+    },
   }
 }
 
@@ -279,6 +295,11 @@ function buildHeatPumpState(phase: HeatPumpPhase): SystemDiagramDisplayState {
     cylinderFillPct: phase.cylinderFillPct,
     cop: phase.copEstimate,
     phaseLabel: phase.phaseLabel,
+    outletDemands: {
+      shower: phase.hotDrawActive,
+      bath: false,
+      kitchen: false,
+    },
   }
 }
 
@@ -328,6 +349,11 @@ function buildManualState(
         returnTempC,
         hotDrawActive,
         phaseLabel,
+        outletDemands: {
+          shower: demand.shower,
+          bath: demand.bath,
+          kitchen: demand.kitchen,
+        },
       }
     }
     case 'unvented': {
@@ -347,6 +373,11 @@ function buildManualState(
         supplyOrigins: supplyOriginsForSystemType('unvented_cylinder'),
         condensingState: deriveCondensingState(returnTempC), returnTempC,
         hotDrawActive, cylinderFillPct: cylinderFillRef, phaseLabel,
+        outletDemands: {
+          shower: demand.shower,
+          bath: demand.bath,
+          kitchen: demand.kitchen,
+        },
       }
     }
     case 'open_vented': {
@@ -365,6 +396,11 @@ function buildManualState(
         supplyOrigins: supplyOriginsForSystemType('vented_cylinder'),
         condensingState: deriveCondensingState(returnTempC), returnTempC,
         hotDrawActive, cylinderFillPct: cylinderFillRef, phaseLabel,
+        outletDemands: {
+          shower: demand.shower,
+          bath: demand.bath,
+          kitchen: demand.kitchen,
+        },
       }
     }
     case 'heat_pump': {
@@ -383,6 +419,11 @@ function buildManualState(
         serviceSwitchingActive: false,
         supplyOrigins: supplyOriginsForSystemType('unvented_cylinder', { isHeatPump: true }),
         hotDrawActive, cylinderFillPct: cylinderFillRef, cop, phaseLabel,
+        outletDemands: {
+          shower: demand.shower,
+          bath: demand.bath,
+          kitchen: demand.kitchen,
+        },
       }
     }
   }
@@ -429,6 +470,8 @@ export type UseSystemDiagramPlaybackResult = {
   isManualMode: boolean
   /** Return to the automatic cycling demo. */
   resetToAutoMode: () => void
+  /** Force manual mode without changing demand values. */
+  setManualMode: () => void
   // ── Legacy fields preserved for backward compatibility ───────────────────
   /** @deprecated Use systemChoice instead. Kept for panel prop compatibility. */
   systemType: SystemType
@@ -471,6 +514,10 @@ export function useSystemDiagramPlayback(
   const resetToAutoMode = useCallback(() => {
     setIsManualMode(false)
     setPhase(0)
+  }, [])
+
+  const setManualMode = useCallback(() => {
+    setIsManualMode(true)
   }, [])
 
   // Auto-cycle when in demo mode.
@@ -517,6 +564,7 @@ export function useSystemDiagramPlayback(
     setDemandControls,
     isManualMode,
     resetToAutoMode,
+    setManualMode,
     systemType,
     setSystemType,
   }

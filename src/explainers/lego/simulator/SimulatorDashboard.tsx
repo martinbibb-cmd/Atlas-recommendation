@@ -17,6 +17,7 @@
  */
 
 import { useState } from 'react';
+import type { ReactElement } from 'react';
 import SimulatorPanel from './SimulatorPanel';
 import ExpandedPanelModal from './ExpandedPanelModal';
 import SystemDiagramPanel from './panels/SystemDiagramPanel';
@@ -57,10 +58,11 @@ interface PhaseBarProps {
   chPaused: boolean
   isManualMode: boolean
   onResetAuto: () => void
+  onSetManual: () => void
 }
 
 function PhaseBar({
-  phaseLabel, chActive, dhwActive, reheatActive, chPaused, isManualMode, onResetAuto,
+  phaseLabel, chActive, dhwActive, reheatActive, chPaused, isManualMode, onResetAuto, onSetManual,
 }: PhaseBarProps) {
   return (
     <div className="sim-phase-bar" role="status" aria-label="Simulator phase status">
@@ -81,116 +83,10 @@ function PhaseBar({
       {!chActive && !dhwActive && !reheatActive && !chPaused && (
         <span className="sim-phase-badge sim-phase-badge--idle">Idle</span>
       )}
-      {isManualMode && (
-        <>
-          <span className="sim-phase-bar__divider" aria-hidden="true">·</span>
-          <span className="sim-phase-badge sim-phase-badge--manual">Manual</span>
-          <button
-            className="sim-phase-bar__reset"
-            onClick={onResetAuto}
-            aria-label="Return to auto demo mode"
-          >
-            Auto ↺
-          </button>
-        </>
-      )}
-    </div>
-  )
-}
-
-// ─── Demand controls ──────────────────────────────────────────────────────────
-
-interface DemandControlsProps {
-  heatingEnabled: boolean
-  shower: boolean
-  bath: boolean
-  kitchen: boolean
-  onToggleHeating: () => void
-  onToggleShower: () => void
-  onToggleBath: () => void
-  onToggleKitchen: () => void
-  onPresetOne: () => void
-  onPresetTwo: () => void
-  onPresetBathFill: () => void
-  isCombi: boolean
-}
-
-function DemandControlsBar({
-  heatingEnabled, shower, bath, kitchen,
-  onToggleHeating, onToggleShower, onToggleBath, onToggleKitchen,
-  onPresetOne, onPresetTwo, onPresetBathFill,
-  isCombi,
-}: DemandControlsProps) {
-  return (
-    <div className="sim-demand-controls" aria-label="Demand controls">
-      {/* Heating toggle */}
-      <button
-        className={`sim-demand-btn${heatingEnabled ? ' sim-demand-btn--active' : ''}`}
-        onClick={onToggleHeating}
-        aria-pressed={heatingEnabled}
-        aria-label={`Heating ${heatingEnabled ? 'on' : 'off'}`}
-      >
-        🔥 Heating {heatingEnabled ? 'On' : 'Off'}
-      </button>
-
-      {/* Outlet toggles */}
-      <button
-        className={`sim-demand-btn sim-demand-btn--outlet${shower ? ' sim-demand-btn--active' : ''}`}
-        onClick={onToggleShower}
-        aria-pressed={shower}
-        aria-label={`Shower ${shower ? 'open' : 'closed'}`}
-      >
-        🚿 Shower
-      </button>
-
-      <button
-        className={`sim-demand-btn sim-demand-btn--outlet${bath ? ' sim-demand-btn--active' : ''}`}
-        onClick={onToggleBath}
-        aria-pressed={bath}
-        aria-label={`Bath ${bath ? 'open' : 'closed'}`}
-      >
-        🛁 Bath
-      </button>
-
-      <button
-        className={`sim-demand-btn sim-demand-btn--outlet${kitchen ? ' sim-demand-btn--active' : ''}`}
-        onClick={onToggleKitchen}
-        aria-pressed={kitchen}
-        aria-label={`Kitchen tap ${kitchen ? 'open' : 'closed'}`}
-      >
-        🚰 Kitchen
-      </button>
-
-      {/* Combi capacity warning */}
-      {isCombi && (shower ? 1 : 0) + (bath ? 1 : 0) + (kitchen ? 1 : 0) >= 2 && (
-        <span className="sim-demand-warning" aria-live="polite">
-          ⚠ Concurrent demand — flow and temp reduced
-        </span>
-      )}
-
-      {/* Presets */}
-      <span className="sim-demand-controls__divider" aria-hidden="true">|</span>
-      <button
-        className="sim-demand-btn sim-demand-btn--preset"
-        onClick={onPresetOne}
-        aria-label="Preset: one outlet"
-      >
-        One outlet
-      </button>
-      <button
-        className="sim-demand-btn sim-demand-btn--preset"
-        onClick={onPresetTwo}
-        aria-label="Preset: two outlets"
-      >
-        Two outlets
-      </button>
-      <button
-        className="sim-demand-btn sim-demand-btn--preset"
-        onClick={onPresetBathFill}
-        aria-label="Preset: bath fill"
-      >
-        Bath fill
-      </button>
+      <span className="sim-phase-bar__divider" aria-hidden="true">·</span>
+      <button className="sim-phase-bar__reset" onClick={onResetAuto} aria-label="Set auto demo mode">Auto demo</button>
+      <button className="sim-phase-bar__reset" onClick={onSetManual} aria-label="Set manual mode">Manual</button>
+      {isManualMode && <span className="sim-phase-badge sim-phase-badge--manual">Manual lock</span>}
     </div>
   )
 }
@@ -212,6 +108,7 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
     setDemandControls,
     isManualMode,
     resetToAutoMode,
+    setManualMode,
   } = useSystemDiagramPlayback(initialSystemChoice);
   const houseState = useHousePlayback(diagramState);
   const drawOffState = useDrawOffPlayback(diagramState);
@@ -223,12 +120,30 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
   const dhwActive = systemMode === 'dhw_draw' || hotDrawActive;
   const reheatActive = systemMode === 'dhw_reheat' || systemMode === 'heating_and_reheat';
   const chPaused = serviceSwitchingActive;
-  const isCombi = systemChoice === 'combi';
 
-  const expandedContent: Partial<Record<PanelId, React.ReactElement>> = {
+  const drawOffPanel = (
+    <DrawOffStatusPanel
+      state={drawOffState}
+      mode={isManualMode ? 'manual' : 'auto'}
+      heatingEnabled={demandControls.heatingEnabled}
+      shower={demandControls.shower}
+      bath={demandControls.bath}
+      kitchen={demandControls.kitchen}
+      onSetMode={mode => mode === 'auto' ? resetToAutoMode() : setManualMode()}
+      onToggleHeating={() => setDemandControls({ heatingEnabled: !demandControls.heatingEnabled })}
+      onToggleShower={() => setDemandControls({ shower: !demandControls.shower })}
+      onToggleBath={() => setDemandControls({ bath: !demandControls.bath })}
+      onToggleKitchen={() => setDemandControls({ kitchen: !demandControls.kitchen })}
+      onPresetOne={() => setDemandControls({ shower: true, bath: false, kitchen: false })}
+      onPresetTwo={() => setDemandControls({ shower: true, bath: true, kitchen: false })}
+      onPresetBathFill={() => setDemandControls({ shower: false, bath: true, kitchen: false, heatingEnabled: false })}
+    />
+  );
+
+  const expandedContent: Partial<Record<PanelId, ReactElement>> = {
     system: <SystemDiagramPanel state={diagramState} />,
     house:    <HouseStatusPanel state={houseState} />,
-    drawoff:  <DrawOffStatusPanel state={drawOffState} />,
+    drawoff: drawOffPanel,
     efficiency: <EfficiencyPanel state={efficiencyState} />,
   };
 
@@ -258,22 +173,7 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
         chPaused={chPaused}
         isManualMode={isManualMode}
         onResetAuto={resetToAutoMode}
-      />
-
-      {/* Demand controls */}
-      <DemandControlsBar
-        heatingEnabled={demandControls.heatingEnabled}
-        shower={demandControls.shower}
-        bath={demandControls.bath}
-        kitchen={demandControls.kitchen}
-        onToggleHeating={() => setDemandControls({ heatingEnabled: !demandControls.heatingEnabled })}
-        onToggleShower={() => setDemandControls({ shower: !demandControls.shower })}
-        onToggleBath={() => setDemandControls({ bath: !demandControls.bath })}
-        onToggleKitchen={() => setDemandControls({ kitchen: !demandControls.kitchen })}
-        onPresetOne={() => setDemandControls({ shower: true, bath: false, kitchen: false })}
-        onPresetTwo={() => setDemandControls({ shower: true, bath: true, kitchen: false })}
-        onPresetBathFill={() => setDemandControls({ shower: false, bath: true, kitchen: false, heatingEnabled: false })}
-        isCombi={isCombi}
+        onSetManual={setManualMode}
       />
 
       <div className="sim-dashboard" data-testid="simulator-dashboard">
@@ -301,7 +201,7 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
           icon="💧"
           onExpand={() => setExpanded('drawoff')}
         >
-          <DrawOffStatusPanel state={drawOffState} />
+          {drawOffPanel}
         </SimulatorPanel>
 
         {/* Efficiency — live via useEfficiencyPlayback */}

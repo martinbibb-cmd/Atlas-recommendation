@@ -17,9 +17,22 @@ import type { DrawOffDisplayState } from '../useDrawOffPlayback'
 
 interface DrawOffStatusPanelProps {
   state: DrawOffDisplayState
+  mode: 'auto' | 'manual'
+  heatingEnabled: boolean
+  shower: boolean
+  bath: boolean
+  kitchen: boolean
+  onSetMode: (mode: 'auto' | 'manual') => void
+  onToggleHeating: () => void
+  onToggleShower: () => void
+  onToggleBath: () => void
+  onToggleKitchen: () => void
+  onPresetOne: () => void
+  onPresetTwo: () => void
+  onPresetBathFill: () => void
 }
 
-export default function DrawOffStatusPanel({ state }: DrawOffStatusPanelProps) {
+export default function DrawOffStatusPanel({ state, ...controls }: DrawOffStatusPanelProps) {
   return (
     <DrawOffPanel
       outletStates={state.outletStates}
@@ -27,6 +40,19 @@ export default function DrawOffStatusPanel({ state }: DrawOffStatusPanelProps) {
       isCylinder={state.isCylinder}
       serviceSwitchingActive={state.serviceSwitchingActive}
       combiAtCapacity={state.combiAtCapacity}
+      mode={controls.mode}
+      heatingEnabled={controls.heatingEnabled}
+      showerOn={controls.shower}
+      bathOn={controls.bath}
+      kitchenOn={controls.kitchen}
+      onSetMode={controls.onSetMode}
+      onToggleHeating={controls.onToggleHeating}
+      onToggleShower={controls.onToggleShower}
+      onToggleBath={controls.onToggleBath}
+      onToggleKitchen={controls.onToggleKitchen}
+      onPresetOne={controls.onPresetOne}
+      onPresetTwo={controls.onPresetTwo}
+      onPresetBathFill={controls.onPresetBathFill}
     />
   )
 }

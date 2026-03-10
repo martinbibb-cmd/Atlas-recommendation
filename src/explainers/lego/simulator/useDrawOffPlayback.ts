@@ -50,7 +50,7 @@ export type DrawOffDisplayState = {
 function buildOutletStates(
   diagramState: SystemDiagramDisplayState,
 ): OutletDisplayState[] {
-  const { hotDrawActive, serviceSwitchingActive, supplyOrigins, systemType } = diagramState
+  const { hotDrawActive: legacyHotDrawActive, serviceSwitchingActive, supplyOrigins, systemType, outletDemands } = diagramState
 
   // Hot source from supply origins — authoritative, never inferred from systemType.
   const hotSource: OutletDisplayState['hotSource'] =
@@ -77,30 +77,43 @@ function buildOutletStates(
     open: false, service: 'off', flowLpm: 0, isConstrained: false, coldSource: 'mains',
   }
 
+  const showerOpen = outletDemands ? outletDemands.shower : legacyHotDrawActive
+  const bathOpen = outletDemands ? outletDemands.bath : (!systemType || systemType === 'combi' ? serviceSwitchingActive : legacyHotDrawActive)
+  const kitchenOpen = outletDemands ? outletDemands.kitchen : false
+  const hotDrawActive = showerOpen || bathOpen || kitchenOpen
+
   if (!hotDrawActive) {
     return [closedShower, closedBath, closedKitchen]
   }
 
   if (isCombi) {
-    // Combi: when serviceSwitchingActive a concurrent draw is in progress.
-    // Surface a second open outlet (bath) to illustrate on-demand constraint.
-    const concurrent = serviceSwitchingActive
+    const concurrent = (showerOpen ? 1 : 0) + (bathOpen ? 1 : 0) + (kitchenOpen ? 1 : 0) >= 2
     return [
-      {
+      showerOpen ? {
         outletId: 'shower', label: 'Shower', open: true,
-        service: 'mixed_hot_running', flowLpm: 9.0, deliveredTempC: 45,
-        isConstrained: false, coldSource, hotSource,
-      },
-      concurrent
+        service: 'mixed_hot_running', flowLpm: concurrent ? 7.8 : 9.0, deliveredTempC: concurrent ? 43 : 45,
+        isConstrained: concurrent,
+        constraintReason: concurrent ? 'On-demand hot water at capacity — concurrent demand' : undefined,
+        coldSource, hotSource,
+      } : closedShower,
+      bathOpen
         ? {
             outletId: 'bath', label: 'Bath', open: true,
-            service: 'mixed_hot_running', flowLpm: 7.8, deliveredTempC: 42,
-            isConstrained: true,
-            constraintReason: 'On-demand hot water at capacity — concurrent demand',
+            service: 'mixed_hot_running', flowLpm: concurrent ? 7.2 : 8.2, deliveredTempC: concurrent ? 41 : 44,
+            isConstrained: concurrent,
+            constraintReason: concurrent ? 'On-demand hot water at capacity — concurrent demand' : undefined,
             coldSource, hotSource,
           }
         : closedBath,
-      closedKitchen,
+      kitchenOpen
+        ? {
+            outletId: 'kitchen', label: 'Kitchen tap', open: true,
+            service: 'mixed_hot_running', flowLpm: concurrent ? 4.6 : 6.0, deliveredTempC: concurrent ? 40 : 44,
+            isConstrained: concurrent,
+            constraintReason: concurrent ? 'On-demand hot water at capacity — concurrent demand' : undefined,
+            coldSource: 'mains', hotSource,
+          }
+        : closedKitchen,
     ]
   }
 
@@ -108,17 +121,23 @@ function buildOutletStates(
   // thermal store buffers demand.  Two outlets open simultaneously show the
   // stored advantage over on-demand.
   return [
-    {
+    showerOpen ? {
       outletId: 'shower', label: 'Shower', open: true,
       service: 'mixed_hot_running', flowLpm: 9.5, deliveredTempC: 47,
       isConstrained: false, coldSource, hotSource,
-    },
-    {
+    } : closedShower,
+    bathOpen ? {
       outletId: 'bath', label: 'Bath', open: true,
       service: 'mixed_hot_running', flowLpm: 8.0, deliveredTempC: 45,
       isConstrained: false, coldSource, hotSource,
-    },
-    closedKitchen,
+    } : closedBath,
+    kitchenOpen
+      ? {
+          outletId: 'kitchen', label: 'Kitchen tap', open: true,
+          service: 'mixed_hot_running', flowLpm: 5.5, deliveredTempC: 46,
+          isConstrained: false, coldSource: 'mains', hotSource,
+        }
+      : closedKitchen,
   ]
 }
 
@@ -134,13 +153,14 @@ function buildOutletStates(
 export function useDrawOffPlayback(
   diagramState: SystemDiagramDisplayState,
 ): DrawOffDisplayState {
-  const { systemMode, systemType, serviceSwitchingActive } = diagramState
+  const { systemMode, systemType, serviceSwitchingActive, outletDemands } = diagramState
 
   const isCylinder = systemType !== 'combi'
 
   // combiAtCapacity: combi is serving peak concurrent DHW demand.
   // Derived from serviceSwitchingActive (CH paused for DHW) on a combi system.
-  const combiAtCapacity = systemType === 'combi' && serviceSwitchingActive
+  const concurrentDemandCount = outletDemands ? ((outletDemands.shower ? 1 : 0) + (outletDemands.bath ? 1 : 0) + (outletDemands.kitchen ? 1 : 0)) : (diagramState.hotDrawActive ? (serviceSwitchingActive ? 2 : 1) : 0)
+  const combiAtCapacity = systemType === 'combi' && serviceSwitchingActive && concurrentDemandCount >= 2
 
   return {
     outletStates: buildOutletStates(diagramState),
