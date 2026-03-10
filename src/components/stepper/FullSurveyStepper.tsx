@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
+import OperatingPointChart, { OPERATING_POINT_NOTE } from '../visualizers/OperatingPointChart';
 import type { EngineInputV2_3, FullEngineResult, BuildingFabricType } from '../../engine/schema/EngineInputV2_3';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1, HeatingConditionDiagnosticsV1, DhwConditionDiagnosticsV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
@@ -1033,9 +1034,9 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
         <div className="step-card">
           <h2>💧 Step 2: Mains Supply &amp; Flow</h2>
           <p className="description">
-            A dynamic operating point (L/min @ bar) is needed to characterise supply quality — pressure
-            alone is not enough. The static-to-dynamic drop reveals pipe restriction and shared-mains
-            weakness. Enter all readings you have; partial data is better than none.
+            Supply quality is assessed from the operating point under load: dynamic pressure and flow
+            together. Pressure falls when water flows — this is normal. Enter all readings you have;
+            the measured operating point tells a more complete story than any single figure alone.
           </p>
 
           {/* ─── Physics levers + live panel ─────────────────────────────── */}
@@ -1136,8 +1137,8 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                   fontSize: '0.8rem',
                   color: '#744210',
                 }}>
-                  ℹ️ Supply quality needs a dynamic operating point: L/min @ bar. Enter flow above to characterise supply.
-                  {input.staticMainsPressureBar == null && <> Drop classification also unavailable without static pressure.</>}
+                  ℹ️ Enter flow (L/min) above to plot the operating point under load — this is the key supply signal.
+                  {input.staticMainsPressureBar == null && <> Static pressure is also useful context but is not required for the operating-point assessment.</>}
                 </div>
               )}
             </div>
@@ -1187,7 +1188,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                     fontSize: '0.85rem',
                   }}>
                     <span style={{ color: '#718096' }}>
-                      Drop: <strong>{pressureAnalysis.dropBar.toFixed(1)} bar</strong>
+                      Drop: <strong>{pressureAnalysis.dropBar.toFixed(1)} bar</strong> — expected under flow
                     </span>
                     <span style={{
                       padding: '0.2rem 0.55rem',
@@ -1197,7 +1198,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                       fontWeight: 700,
                       fontSize: '0.78rem',
                     }}>
-                      Diagnostic indicator
+                      Normal
                     </span>
                   </div>
                 )}
@@ -1223,7 +1224,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
               {pressureAnalysis.dropBar != null && !pressureAnalysis.inconsistentReading && (
                 <div style={{ padding: '0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
                   <div style={{ fontSize: '0.75rem', color: '#718096', marginBottom: '0.4rem' }}>
-                    Pressure drop — diagnostic indicator (restriction / shared main)
+                    Pressure under load vs. static — drop under flow is expected
                   </div>
                   {/* Bar track: 0 to 2 bar */}
                   <div style={{ position: 'relative', background: '#e2e8f0', borderRadius: '4px', height: '12px' }}>
@@ -1291,21 +1292,34 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                 const hasFlow = flowLpm !== undefined && flowLpm > 0;
                 const flow = hasFlow ? (flowLpm as number) : 0;
                 return (
-                  <div style={{
-                    padding: '0.75rem',
-                    background: hasFlow ? '#f0fff4' : '#fffff0',
-                    border: `1px solid ${hasFlow ? '#9ae6b4' : '#faf089'}`,
-                    borderRadius: '6px',
-                    fontSize: '0.82rem',
-                  }}>
-                    <div style={{ fontWeight: 700, color: '#2d3748', marginBottom: '0.25rem' }}>Dynamic operating point</div>
-                    {hasFlow && pressureBar !== undefined
-                      ? <div style={{ color: '#276749' }}>✓ {flow.toFixed(1)} L/min @ {pressureBar.toFixed(1)} bar</div>
-                      : hasFlow
-                      ? <div style={{ color: '#276749' }}>✓ {flow.toFixed(1)} L/min (pressure not recorded)</div>
-                      : <div style={{ color: '#744210' }}>Flow not entered — need L/min to characterise supply.</div>
-                    }
-                  </div>
+                  <>
+                    {/* Operating-point visual — shown when both flow and pressure are available */}
+                    {hasFlow && pressureBar !== undefined && (
+                      <div style={{ padding: '0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                        <OperatingPointChart flowLpm={flow} pressureBar={pressureBar} />
+                      </div>
+                    )}
+
+                    {/* Text summary when chart cannot be shown */}
+                    {(!hasFlow || pressureBar === undefined) && (
+                      <div style={{
+                        padding: '0.75rem',
+                        background: hasFlow ? '#f0fff4' : '#fffff0',
+                        border: `1px solid ${hasFlow ? '#9ae6b4' : '#faf089'}`,
+                        borderRadius: '6px',
+                        fontSize: '0.82rem',
+                      }}>
+                        <div style={{ fontWeight: 700, color: '#2d3748', marginBottom: '0.25rem' }}>Operating supply under load</div>
+                        {hasFlow
+                          ? <div style={{ color: '#276749' }}>✓ {flow.toFixed(1)} L/min (pressure not recorded — enter pressure to plot operating point)</div>
+                          : <div style={{ color: '#744210' }}>Flow not entered — supply-quality assessment needs L/min @ bar.</div>
+                        }
+                        <div style={{ fontSize: '0.72rem', color: '#718096', marginTop: '0.3rem' }}>
+                          {OPERATING_POINT_NOTE}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 );
               })()}
             </div>
@@ -1411,8 +1425,8 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                   ))}
                 </div>
                 {systemPlanType === 'y_plan' && (
-                  <p style={{ fontSize: '0.75rem', color: '#744210', marginTop: '0.3rem', background: '#fffaf0', padding: '0.3rem 0.5rem', borderRadius: '4px' }}>
-                    Y-Plan: check mid-position valve travel — poor calibration can cause simultaneous CH+DHW demand contention.
+                  <p style={{ fontSize: '0.75rem', color: '#276749', marginTop: '0.3rem', background: '#f0fff4', padding: '0.3rem 0.5rem', borderRadius: '4px' }}>
+                    Y-Plan is suitable at modest heat loads — simpler combined control architecture. S-plan offers greater separation and flexibility, but Y-plan remains a workable architecture for lower-demand cases.
                   </p>
                 )}
               </div>
@@ -2020,9 +2034,10 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
         <div className="step-card">
           <h2>🚿 Step 5: Hot Water Demand</h2>
           <p className="description">
-            A combi boiler delivers one outlet at a time. Two simultaneous draws, two bathrooms,
-            or continuous-occupancy patterns all break that constraint. Adjust the controls —
-            the panel shows exactly where your household sits on that physics boundary.
+            Two or more simultaneous outlets, multiple bathrooms, or continuous-occupancy patterns
+            are better served by stored hot water than by on-demand supply. Stored volume handles
+            simultaneous demand with no throughput constraint. Adjust the controls to see where
+            your household sits — and whether stored hot water is the right path.
           </p>
 
           {/* ─── Physics levers + live panel ─────────────────────────────── */}
@@ -2140,7 +2155,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                 </div>
                 {!input.highOccupancy && input.occupancyCount === 3 && (
                   <p style={{ fontSize: '0.75rem', color: '#975a16', marginTop: '0.3rem', lineHeight: 1.4 }}>
-                    ⚠️ 3 people is a borderline case — a combi boiler may struggle during simultaneous draws. Consider a stored system.
+                    ⚠️ 3 people is a borderline case for on-demand hot water. Stored hot water is strongly favoured — it handles simultaneous demand without throughput constraints.
                   </p>
                 )}
               </div>
@@ -2210,14 +2225,36 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                 </div>
               )}
 
-              {/* Outlet demand vs combi capacity bars */}
+              {/* Stored hot water strongly favoured — shown when simultaneous demand or multi-bathroom */}
+              {(input.bathroomCount >= 2 || (input.peakConcurrentOutlets ?? 1) >= 2) && (
+                <div style={{
+                  padding: '0.6rem 0.875rem',
+                  background: '#ebf8ff',
+                  border: '1px solid #90cdf4',
+                  borderLeft: '4px solid #3182ce',
+                  borderRadius: '6px',
+                  fontSize: '0.82rem',
+                }}>
+                  <div style={{ fontWeight: 700, color: '#2b6cb0', marginBottom: '0.2rem' }}>
+                    Stored hot water strongly favoured
+                  </div>
+                  <div style={{ color: '#4a5568', lineHeight: 1.4 }}>
+                    {(input.peakConcurrentOutlets ?? 1) >= 2
+                      ? 'Two or more simultaneous outlets are better served by stored volume than by on-demand hot water.'
+                      : 'Multiple bathrooms increase the likelihood of simultaneous demand — stored hot water handles this without throughput constraints.'
+                    }
+                  </div>
+                </div>
+              )}
+
+              {/* Outlet demand vs stored capacity context */}
               <div style={{ padding: '0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
                 <div style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.5rem' }}>
-                  Outlets in use vs. combi on-demand capacity
+                  Simultaneous outlets: on-demand vs. stored
                 </div>
-                {/* Combi limit bar (always 1) */}
+                {/* On-demand limit bar (always 1) */}
                 <div style={{ marginBottom: '0.5rem' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#718096', marginBottom: '0.2rem' }}>Combi limit — 1 outlet</div>
+                  <div style={{ fontSize: '0.72rem', color: '#718096', marginBottom: '0.2rem' }}>On-demand limit — 1 outlet at a time</div>
                   <div style={{ background: '#e2e8f0', borderRadius: '4px', height: '10px' }}>
                     <div style={{ width: '33%', background: '#38a169', height: '100%', borderRadius: '4px' }} />
                   </div>
