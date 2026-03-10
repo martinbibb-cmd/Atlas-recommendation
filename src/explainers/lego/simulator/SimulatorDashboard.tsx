@@ -24,21 +24,24 @@ import SystemDiagramPanel from './panels/SystemDiagramPanel';
 import HouseStatusPanel from './panels/HouseStatusPanel';
 import DrawOffStatusPanel from './panels/DrawOffStatusPanel';
 import EfficiencyPanel from './panels/EfficiencyPanel';
+import LimitersPanel from './panels/LimitersPanel';
 import { useSystemDiagramPlayback } from './useSystemDiagramPlayback';
 import type { SimulatorSystemChoice } from './useSystemDiagramPlayback';
 import { useHousePlayback } from './useHousePlayback';
 import { useDrawOffPlayback } from './useDrawOffPlayback';
 import { useEfficiencyPlayback } from './useEfficiencyPlayback';
+import { useLimiterPlayback } from './useLimiterPlayback';
 import './labDashboard.css';
 import './labPanels.css';
 
-type PanelId = 'system' | 'house' | 'drawoff' | 'efficiency';
+type PanelId = 'system' | 'house' | 'drawoff' | 'efficiency' | 'limiters';
 
 const PANEL_METADATA: Record<PanelId, { title: string; icon: string }> = {
   system:     { title: 'System Diagram',  icon: '⚙'  },
   house:      { title: 'House View',      icon: '🏠' },
   drawoff:    { title: 'Draw-Off Status', icon: '💧' },
   efficiency: { title: 'Efficiency',      icon: '📊' },
+  limiters:   { title: 'System Limiters', icon: '⚠'  },
 };
 
 const SYSTEM_CHOICE_OPTIONS: { value: SimulatorSystemChoice; label: string; description: string }[] = [
@@ -113,6 +116,7 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
   const houseState = useHousePlayback(diagramState);
   const drawOffState = useDrawOffPlayback(diagramState);
   const efficiencyState = useEfficiencyPlayback(diagramState);
+  const limiterState = useLimiterPlayback(diagramState);
 
   // Derive phase bar indicators from authoritative diagramState.
   const { systemMode, serviceSwitchingActive, hotDrawActive } = diagramState;
@@ -145,6 +149,7 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
     house:    <HouseStatusPanel state={houseState} />,
     drawoff: drawOffPanel,
     efficiency: <EfficiencyPanel state={efficiencyState} />,
+    limiters: <LimitersPanel state={limiterState} />,
   };
 
   return (
@@ -211,6 +216,17 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
           onExpand={() => setExpanded('efficiency')}
         >
           <EfficiencyPanel state={efficiencyState} />
+        </SimulatorPanel>
+      </div>
+
+      {/* System Limiters — full-width row below the 2×2 grid */}
+      <div className="sim-limiters-row">
+        <SimulatorPanel
+          title="System Limiters"
+          icon="⚠"
+          onExpand={() => setExpanded('limiters')}
+        >
+          <LimitersPanel state={limiterState} />
         </SimulatorPanel>
       </div>
 

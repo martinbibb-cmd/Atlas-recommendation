@@ -554,3 +554,87 @@
   background: linear-gradient(90deg, #68d391, #276749);
   transition: width 0.5s ease;
 }
+
+/* ─── Limiters Panel ─────────────────────────────────────────────────────────── */
+
+.limiters-panel {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-content: flex-start;
+  height: 100%;
+}
+
+.limiters-panel--clear {
+  align-items: center;
+  justify-content: center;
+  flex-direction: row;
+  flex-wrap: nowrap;
+}
+
+.limiters-panel__clear-icon {
+  font-size: 1.1rem;
+  color: #48bb78;
+}
+
+.limiters-panel__clear-text {
+  font-size: 0.8rem;
+  color: #718096;
+  font-weight: 600;
+}
+
+.limiter-card {
+  flex: 1 1 180px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border-left: 3px solid #e2e8f0;
+  background: #f7fafc;
+}
+
+.limiter-card--info {
+  background: #ebf8ff;
+  border-left-color: #3182ce;
+}
+
+.limiter-card--warning {
+  background: #fffbeb;
+  border-left-color: #d69e2e;
+}
+
+.limiter-card--critical {
+  background: #fff5f5;
+  border-left-color: #e53e3e;
+}
+
+.limiter-card__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.limiter-card__icon {
+  font-size: 0.85rem;
+}
+
+.limiter-card__title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.limiter-card__explanation {
+  font-size: 0.72rem;
+  color: #4a5568;
+  margin: 0 0 2px;
+  padding-left: 20px;
+}
+
+.limiter-card__fix {
+  font-size: 0.68rem;
+  color: #718096;
+  margin: 0;
+  padding-left: 20px;
+  font-style: italic;
+}
