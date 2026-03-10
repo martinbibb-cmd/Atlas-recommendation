@@ -206,6 +206,50 @@
   height: 100%;
 }
 
+.house-cutaway--loading {
+  align-items: center;
+  justify-content: center;
+  color: #a0aec0;
+  font-size: 0.8rem;
+}
+
+/* ── Status bar ────────────────────────────────────────────────────────────── */
+
+.house-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: background 0.4s ease, border-color 0.4s ease;
+}
+
+.house-status-bar--paused {
+  background: #fffbeb;
+  border-color: #f6e05e;
+}
+
+.house-status-bar__temp {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #276749;
+}
+
+.house-status-bar--paused .house-status-bar__temp {
+  color: #744210;
+}
+
+.house-status-bar__label {
+  font-size: 0.72rem;
+  color: #4a5568;
+  font-weight: 600;
+}
+
+/* ── Floors ────────────────────────────────────────────────────────────────── */
+
 .house-floor {
   border-radius: 10px;
   padding: 8px 10px;
@@ -250,7 +294,12 @@
   gap: 4px;
 }
 
+/* ── Room chips ────────────────────────────────────────────────────────────── */
+
 .house-room {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 0.7rem;
   padding: 3px 7px;
   border-radius: 7px;
@@ -258,6 +307,55 @@
   border: 1px solid rgba(0, 0, 0, 0.08);
   color: #2d3748;
   font-weight: 600;
+  transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+/* Heating active — room emitter energised */
+.house-room--heating-active {
+  background: #fff5eb;
+  border-color: #f6ad55;
+  color: #7b341e;
+  box-shadow: 0 0 6px rgba(246, 173, 85, 0.35);
+}
+
+/* Warming — recently heated, still rising */
+.house-room--warming {
+  background: #fffbeb;
+  border-color: #fbd38d;
+  color: #744210;
+}
+
+/* Stable — comfortable temperature */
+.house-room--stable {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #2d3748;
+}
+
+/* Cooling — temperature dropping */
+.house-room--cooling {
+  background: #ebf8ff;
+  border-color: #90cdf4;
+  color: #2c5282;
+}
+
+/* ── Emitter indicator ─────────────────────────────────────────────────────── */
+
+.house-emitter {
+  font-size: 0.65rem;
+  opacity: 0.25;
+  transition: opacity 0.4s ease;
+  line-height: 1;
+}
+
+.house-emitter--active {
+  opacity: 1;
+  animation: house-emitter-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes house-emitter-pulse {
+  0%,  100% { opacity: 1;    transform: scale(1);    }
+  50%        { opacity: 0.75; transform: scale(1.15); }
 }
 
 /* ─── Draw-Off Status Panel ─────────────────────────────────────────────────── */
