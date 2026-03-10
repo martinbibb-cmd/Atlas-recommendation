@@ -39,6 +39,8 @@ import { useLimiterPlayback } from './useLimiterPlayback';
 import { useEmitterPrimaryModel } from './useEmitterPrimaryModel';
 import { computeDayTimeline } from './useDayTimeline';
 import { computeDailyEfficiencySummary } from './useDailyEfficiencySummary';
+import type { ScenarioKey } from './scenarioTypes';
+import { SCENARIO_PRESETS, SCENARIO_PRESET_LIST, DEFAULT_SCENARIO_KEY } from './scenarioTypes';
 import './labDashboard.css';
 import './labPanels.css';
 
@@ -131,6 +133,32 @@ function SystemSelector({ systemChoice, onSetSystemChoice, label }: SystemSelect
   )
 }
 
+// ─── Scenario selector ────────────────────────────────────────────────────────
+
+interface ScenarioSelectorProps {
+  scenarioKey: ScenarioKey
+  onSetScenario: (key: ScenarioKey) => void
+}
+
+function ScenarioSelector({ scenarioKey, onSetScenario }: ScenarioSelectorProps) {
+  return (
+    <div className="sim-scenario-selector" role="group" aria-label="Day scenario selector">
+      <span className="sim-scenario-selector__label" aria-hidden="true">Scenario</span>
+      {SCENARIO_PRESET_LIST.map(preset => (
+        <button
+          key={preset.key}
+          className={`sim-scenario-selector__btn${scenarioKey === preset.key ? ' sim-scenario-selector__btn--active' : ''}`}
+          onClick={() => onSetScenario(preset.key)}
+          aria-pressed={scenarioKey === preset.key}
+          title={preset.description}
+        >
+          {preset.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -159,6 +187,20 @@ export default function SimulatorDashboard({
   const [expanded, setExpanded] = useState<PanelId | null>(null);
   const [timeSpeed, setTimeSpeed] = useState(1);
   const [simulatorMode, setSimulatorMode] = useState<SimulatorMode>('single');
+  const [scenarioKey, setScenarioKey] = useState<ScenarioKey>(DEFAULT_SCENARIO_KEY);
+
+  // ── Scenario preset handler ─────────────────────────────────────────────────
+  // Applying a preset overwrites the cold inlet temp and occupancy profile.
+  // All other inputs remain at their current user-edited values.
+  function handleScenarioChange(key: ScenarioKey) {
+    setScenarioKey(key);
+    const preset = SCENARIO_PRESETS[key];
+    setSystemInputs(prev => ({
+      ...prev,
+      coldInletTempC: preset.coldInletTempC,
+      occupancyProfile: preset.occupancyProfile,
+    }));
+  }
 
   // ── Current config ──────────────────────────────────────────────────────────
   const [systemInputs, setSystemInputs] = useState<SystemInputs>({
@@ -190,8 +232,12 @@ export default function SimulatorDashboard({
   const limiterState = useLimiterPlayback(diagramState, systemInputs.combiPowerKw, systemInputs.coldInletTempC, emitterState, systemInputs.cylinderType, systemInputs.systemCondition);
 
   // ── Day timeline and daily summary (single mode) ────────────────────────────
-  const dayTimelineState = computeDayTimeline(simHour);
-  const dailySummaryState = computeDailyEfficiencySummary(systemInputs, systemChoice, emitterState);
+  const activePreset = SCENARIO_PRESETS[scenarioKey];
+  const dayTimelineState = computeDayTimeline(simHour, {
+    sunriseHour: activePreset.sunriseHour,
+    sunsetHour: activePreset.sunsetHour,
+  });
+  const dailySummaryState = computeDailyEfficiencySummary(systemInputs, systemChoice, emitterState, activePreset.seasonContext);
 
   // ── Improved config (compare mode) ─────────────────────────────────────────
   // Hooks are always called unconditionally (React rules). Their outputs are
@@ -456,6 +502,11 @@ export default function SimulatorDashboard({
       <div className="sim-toolbar">
         {modeToggle}
         <SystemSelector systemChoice={systemChoice} onSetSystemChoice={setSystemChoice} />
+      </div>
+
+      {/* Scenario selector — full-width row below toolbar */}
+      <div className="sim-scenario-row">
+        <ScenarioSelector scenarioKey={scenarioKey} onSetScenario={handleScenarioChange} />
       </div>
 
       {/* Survey-backed badge — shown when simulator was launched from a full survey */}

@@ -52,6 +52,11 @@ export default function DailyEfficiencySummaryPanel({
         <span className={`daily-summary__value daily-summary__value--${toneClass}`}>
           {state.summaryValue}
         </span>
+        {state.seasonContext && (
+          <span className="daily-summary__season-badge" aria-label={`Scenario: ${state.seasonContext}`}>
+            {state.seasonContext}
+          </span>
+        )}
       </div>
       <p className="daily-summary__explanation">{state.explanationLine}</p>
     </div>
