@@ -167,6 +167,7 @@ interface SchematicProps {
 function CombiSchematic({ state, paths, badges }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
+  const outlets = state?.outletDemands ?? { shower: paths.comboDhw, bath: false, kitchen: false }
 
   const condensingBadgeText: string | null =
     state?.condensingState === 'condensing'     ? '🟢 Condensing'     :
@@ -246,17 +247,17 @@ function CombiSchematic({ state, paths, badges }: SchematicProps): ReactElement 
       {/* ── Outlets ── */}
       <rect className="sd-node sd-node--outlet" x={10}  y={152} width={58} height={32} rx={6} ry={6} />
       <text className="sd-label"    x={39} y={165}>🚿 Shower</text>
-      <text className="sd-sublabel" x={39} y={176}>{paths.comboDhw ? 'open' : 'closed'}</text>
+      <text className="sd-sublabel" x={39} y={176}>{outlets.shower ? 'open' : 'closed'}</text>
       <circle className="sd-port sd-port--dhw"  cx={39} cy={152} r={3.5} />
 
       <rect className="sd-node sd-node--outlet" x={80}  y={152} width={54} height={32} rx={6} ry={6} />
       <text className="sd-label"    x={107} y={165}>🛁 Bath</text>
-      <text className="sd-sublabel" x={107} y={176}>closed</text>
+      <text className="sd-sublabel" x={107} y={176}>{outlets.bath ? 'open' : 'closed'}</text>
       <circle className="sd-port sd-port--dhw"  cx={107} cy={152} r={3.5} />
 
       <rect className="sd-node sd-node--outlet" x={146} y={152} width={68} height={32} rx={6} ry={6} />
       <text className="sd-label"    x={180} y={165}>🚰 Kitchen</text>
-      <text className="sd-sublabel" x={180} y={176}>closed</text>
+      <text className="sd-sublabel" x={180} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
       <circle className="sd-port sd-port--dhw"  cx={180} cy={152} r={3.5} />
 
       <rect className="sd-node sd-node--mains" x={232} y={152} width={80} height={32} rx={6} ry={6} />
@@ -274,9 +275,9 @@ function CombiSchematic({ state, paths, badges }: SchematicProps): ReactElement 
 
       {/* ── DHW pipes ── */}
       <polyline className={pipeClass('sd-pipe--dhw', paths.comboDhw)} data-testid="pipe-primary-dhw" points="47,66 47,144 128,144 128,92 208,92" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.comboDhw)} data-testid="pipe-dhw-shower" points="47,144 39,144 39,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.comboDhw)} points="128,144 107,144 107,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.comboDhw)} points="180,144 180,152" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.shower && paths.comboDhw)} data-testid="pipe-dhw-shower" points="47,144 39,144 39,152" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.bath && paths.comboDhw)} points="128,144 107,144 107,152" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.kitchen && paths.comboDhw)} points="180,144 180,152" />
 
       {/* ── Cold supply ── */}
       <polyline className={pipeClass('sd-pipe--cold', paths.coldSupply)} data-testid="pipe-cold-supply" points="272,152 272,132 6,132 6,39 10,39" />
@@ -292,6 +293,7 @@ function CombiSchematic({ state, paths, badges }: SchematicProps): ReactElement 
 function StoredSchematic({ state, paths, badges }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
+  const outlets = state?.outletDemands ?? { shower: paths.storedHotDraw, bath: false, kitchen: false }
 
   const condensingBadgeText: string | null =
     state?.condensingState === 'condensing'     ? '🟢 Condensing'     :
@@ -395,12 +397,12 @@ function StoredSchematic({ state, paths, badges }: SchematicProps): ReactElement
 
       <rect className="sd-node sd-node--outlet" x={80}  y={152} width={54} height={32} rx={6} ry={6} />
       <text className="sd-label"    x={107} y={165}>🛁 Bath</text>
-      <text className="sd-sublabel" x={107} y={176}>closed</text>
+      <text className="sd-sublabel" x={107} y={176}>{outlets.bath ? 'open' : 'closed'}</text>
       <circle className="sd-port sd-port--dhw"  cx={107} cy={152} r={3.5} />
 
       <rect className="sd-node sd-node--outlet" x={146} y={152} width={68} height={32} rx={6} ry={6} />
       <text className="sd-label"    x={180} y={165}>🚰 Kitchen</text>
-      <text className="sd-sublabel" x={180} y={176}>closed</text>
+      <text className="sd-sublabel" x={180} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
       <circle className="sd-port sd-port--dhw"  cx={180} cy={152} r={3.5} />
 
       <rect className="sd-node sd-node--mains" x={226} y={152} width={86} height={32} rx={6} ry={6} />
@@ -421,9 +423,9 @@ function StoredSchematic({ state, paths, badges }: SchematicProps): ReactElement
 
       {/* ── Stored hot draw ── */}
       <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} data-testid="pipe-stored-hot-draw" points="234,112 234,144" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} data-testid="pipe-dhw-shower" points="39,144 39,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} points="107,144 107,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} points="180,144 180,152" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.shower && paths.storedHotDraw)} data-testid="pipe-dhw-shower" points="39,144 39,152" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.bath && paths.storedHotDraw)} points="107,144 107,152" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.kitchen && paths.storedHotDraw)} points="180,144 180,152" />
       <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} points="234,144 39,144" />
 
       {/* ── Cold supply (mains to cylinder) ── */}
@@ -439,6 +441,7 @@ function StoredSchematic({ state, paths, badges }: SchematicProps): ReactElement
 function VentedSchematic({ state, paths, badges }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
+  const outlets = state?.outletDemands ?? { shower: paths.storedHotDraw, bath: false, kitchen: false }
 
   const condensingBadgeText: string | null =
     state?.condensingState === 'condensing'     ? '🟢 Condensing'     :
@@ -544,12 +547,12 @@ function VentedSchematic({ state, paths, badges }: SchematicProps): ReactElement
 
       <rect className="sd-node sd-node--outlet" x={80}  y={152} width={54} height={32} rx={6} ry={6} />
       <text className="sd-label"    x={107} y={165}>🛁 Bath</text>
-      <text className="sd-sublabel" x={107} y={176}>closed</text>
+      <text className="sd-sublabel" x={107} y={176}>{outlets.bath ? 'open' : 'closed'}</text>
       <circle className="sd-port sd-port--dhw"  cx={107} cy={152} r={3.5} />
 
       <rect className="sd-node sd-node--outlet" x={146} y={152} width={68} height={32} rx={6} ry={6} />
       <text className="sd-label"    x={180} y={165}>🚰 Kitchen</text>
-      <text className="sd-sublabel" x={180} y={176}>closed</text>
+      <text className="sd-sublabel" x={180} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
       <circle className="sd-port sd-port--dhw"  cx={180} cy={152} r={3.5} />
 
       <rect className="sd-node sd-node--mains" x={226} y={152} width={86} height={32} rx={6} ry={6} />
@@ -569,9 +572,9 @@ function VentedSchematic({ state, paths, badges }: SchematicProps): ReactElement
 
       {/* ── Stored hot draw ── */}
       <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} data-testid="pipe-stored-hot-draw" points="236,112 236,144" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} data-testid="pipe-dhw-shower" points="39,144 39,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} points="107,144 107,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} points="180,144 180,152" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.shower && paths.storedHotDraw)} data-testid="pipe-dhw-shower" points="39,144 39,152" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.bath && paths.storedHotDraw)} points="107,144 107,152" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.kitchen && paths.storedHotDraw)} points="180,144 180,152" />
       <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} points="236,144 39,144" />
 
       {/* ── Gravity cold supply (CWS tank-fed) ── */}
@@ -592,6 +595,7 @@ function formatCop(cop: number): string {
 function HeatPumpSchematic({ state, paths, badges }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
+  const outlets = state?.outletDemands ?? { shower: paths.storedHotDraw, bath: false, kitchen: false }
 
   const copText = state?.cop !== undefined ? formatCop(state.cop) : null
 
@@ -687,12 +691,12 @@ function HeatPumpSchematic({ state, paths, badges }: SchematicProps): ReactEleme
 
       <rect className="sd-node sd-node--outlet" x={80}  y={152} width={54} height={32} rx={6} ry={6} />
       <text className="sd-label"    x={107} y={165}>🛁 Bath</text>
-      <text className="sd-sublabel" x={107} y={176}>closed</text>
+      <text className="sd-sublabel" x={107} y={176}>{outlets.bath ? 'open' : 'closed'}</text>
       <circle className="sd-port sd-port--dhw"  cx={107} cy={152} r={3.5} />
 
       <rect className="sd-node sd-node--outlet" x={146} y={152} width={68} height={32} rx={6} ry={6} />
       <text className="sd-label"    x={180} y={165}>🚰 Kitchen</text>
-      <text className="sd-sublabel" x={180} y={176}>closed</text>
+      <text className="sd-sublabel" x={180} y={176}>{outlets.kitchen ? 'open' : 'closed'}</text>
       <circle className="sd-port sd-port--dhw"  cx={180} cy={152} r={3.5} />
 
       <rect className="sd-node sd-node--mains" x={226} y={152} width={86} height={32} rx={6} ry={6} />
@@ -712,9 +716,9 @@ function HeatPumpSchematic({ state, paths, badges }: SchematicProps): ReactEleme
 
       {/* ── Stored hot draw ── */}
       <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} data-testid="pipe-stored-hot-draw" points="234,112 234,144" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} data-testid="pipe-dhw-shower" points="39,144 39,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} points="107,144 107,152" />
-      <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} points="180,144 180,152" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.shower && paths.storedHotDraw)} data-testid="pipe-dhw-shower" points="39,144 39,152" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.bath && paths.storedHotDraw)} points="107,144 107,152" />
+      <polyline className={pipeClass('sd-pipe--dhw', outlets.kitchen && paths.storedHotDraw)} points="180,144 180,152" />
       <polyline className={pipeClass('sd-pipe--dhw', paths.storedHotDraw)} points="234,144 39,144" />
 
       {/* ── Cold supply ── */}
