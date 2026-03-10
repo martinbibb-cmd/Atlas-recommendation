@@ -23,6 +23,10 @@ import {
   ReferenceLine,
 } from 'recharts';
 
+/** Shared educational note used in the chart and its text-only fallback. */
+export const OPERATING_POINT_NOTE =
+  'Pressure falls when water flows — this is normal. Suitability is based on the operating point under load.';
+
 interface Props {
   /** Dynamic flow rate measured under partial load (L/min) */
   flowLpm: number;
@@ -91,7 +95,7 @@ function OperatingPointDot({ cx = 0, cy = 0, payload }: DotProps) {
   return (
     <g>
       {/* Outer ring */}
-      <circle cx={cx} cy={cy} r={10} fill="none" stroke="#2b6cb0" strokeWidth={2} opacity={0.5} />
+      <circle cx={cx} cy={cy} r={10} fill="none" stroke="#2b6cb0" strokeWidth={2} opacity={0.8} />
       {/* Inner filled dot */}
       <circle cx={cx} cy={cy} r={5} fill="#2b6cb0" stroke="#fff" strokeWidth={1.5} />
     </g>
@@ -188,7 +192,7 @@ export default function OperatingPointChart({ flowLpm, pressureBar }: Props) {
       </ResponsiveContainer>
 
       {/* Zone label row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#718096', marginTop: '-18px', paddingLeft: '2px', paddingRight: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#718096', marginTop: '-18px', paddingLeft: '2px', paddingRight: '16px' }}>
         <span style={{ background: '#fed7d7', padding: '1px 4px', borderRadius: '3px' }}>Weak</span>
         <span style={{ background: '#fefcbf', padding: '1px 4px', borderRadius: '3px' }}>Usable</span>
         <span style={{ background: '#c6f6d5', padding: '1px 4px', borderRadius: '3px' }}>Strong</span>
@@ -209,8 +213,8 @@ export default function OperatingPointChart({ flowLpm, pressureBar }: Props) {
       </div>
 
       {/* Educational note */}
-      <div style={{ marginTop: '0.4rem', fontSize: '0.72rem', color: '#718096', lineHeight: 1.5 }}>
-        Pressure falls when water flows — this is normal. Suitability is based on the operating point under load.
+      <div style={{ marginTop: '0.4rem', fontSize: '0.75rem', color: '#718096', lineHeight: 1.5 }}>
+        {OPERATING_POINT_NOTE}
       </div>
     </div>
   );

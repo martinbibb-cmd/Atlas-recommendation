@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-import OperatingPointChart from '../visualizers/OperatingPointChart';
+import OperatingPointChart, { OPERATING_POINT_NOTE } from '../visualizers/OperatingPointChart';
 import type { EngineInputV2_3, FullEngineResult, BuildingFabricType } from '../../engine/schema/EngineInputV2_3';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1, HeatingConditionDiagnosticsV1, DhwConditionDiagnosticsV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
@@ -1315,7 +1315,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                           : <div style={{ color: '#744210' }}>Flow not entered — supply-quality assessment needs L/min @ bar.</div>
                         }
                         <div style={{ fontSize: '0.72rem', color: '#718096', marginTop: '0.3rem' }}>
-                          Pressure falls when water flows — this is normal. Suitability is based on the operating point under load.
+                          {OPERATING_POINT_NOTE}
                         </div>
                       </div>
                     )}
