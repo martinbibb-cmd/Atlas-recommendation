@@ -292,6 +292,12 @@ describe('useLimiterPlayback — targetComponent', () => {
     expect(limiter?.targetComponent).toBe('cylinder')
   })
 
+  it('condensing_lost targets boiler and pipe-return', () => {
+    const result = useLimiterPlayback(storedHighReturnTemp())
+    const limiter = result.activeLimiters.find(l => l.id === 'condensing_lost')
+    expect(limiter?.targetComponent).toEqual(['boiler', 'pipe-return'])
+  })
+
   it('mains_flow_limit targets mains', () => {
     const result = useLimiterPlayback(combiDrawingTwoOutlets())
     const limiter = result.activeLimiters.find(l => l.id === 'mains_flow_limit')
@@ -301,22 +307,41 @@ describe('useLimiterPlayback — targetComponent', () => {
   })
 })
 
-// ─── combiPowerKw parameter ───────────────────────────────────────────────────
+// ─── combiPowerKw and coldInletTempC parameters ───────────────────────────────
 
-describe('useLimiterPlayback — combiPowerKw', () => {
+describe('useLimiterPlayback — combiPowerKw and coldInletTempC', () => {
   it('combi_dhw_limit explanation uses default 30 kW when no combiPowerKw provided', () => {
     const result = useLimiterPlayback(combiDrawing())
     const limiter = result.activeLimiters.find(l => l.id === 'combi_dhw_limit')
-    // Flow at 30 kW, ΔT=40°C: round(30 * 860 / (60 * 40)) = round(10.75) = 11 L/min
+    // Flow at 30 kW, default coldInletTempC=10, ΔT=45-10=35°C:
+    // round(30 * 860 / (60 * 35)) = round(12.29) = 12 L/min
     expect(limiter?.explanation).toContain('30 kW')
-    expect(limiter?.explanation).toContain('11 L/min')
+    expect(limiter?.explanation).toContain('12 L/min')
+    expect(limiter?.explanation).toContain('35°C rise')
   })
 
   it('combi_dhw_limit explanation uses custom combiPowerKw', () => {
     const result = useLimiterPlayback(combiDrawing(), 24)
     const limiter = result.activeLimiters.find(l => l.id === 'combi_dhw_limit')
-    // Flow at 24 kW, ΔT=40°C: round(24 * 860 / (60 * 40)) = round(8.6) = 9 L/min
+    // Flow at 24 kW, default coldInletTempC=10, ΔT=35°C:
+    // round(24 * 860 / (60 * 35)) = round(9.83) = 10 L/min
     expect(limiter?.explanation).toContain('24 kW')
-    expect(limiter?.explanation).toContain('9 L/min')
+    expect(limiter?.explanation).toContain('10 L/min')
+  })
+
+  it('combi_dhw_limit flow rate increases when cold inlet temp is higher (smaller ΔT)', () => {
+    // Cold inlet 15°C → ΔT = 45-15 = 30°C → flow = round(30*860/(60*30)) = round(14.33) = 14 L/min
+    const result = useLimiterPlayback(combiDrawing(), 30, 15)
+    const limiter = result.activeLimiters.find(l => l.id === 'combi_dhw_limit')
+    expect(limiter?.explanation).toContain('14 L/min')
+    expect(limiter?.explanation).toContain('30°C rise')
+  })
+
+  it('combi_dhw_limit flow rate decreases when cold inlet temp is lower (larger ΔT)', () => {
+    // Cold inlet 5°C → ΔT = 45-5 = 40°C → flow = round(30*860/(60*40)) = round(10.75) = 11 L/min
+    const result = useLimiterPlayback(combiDrawing(), 30, 5)
+    const limiter = result.activeLimiters.find(l => l.id === 'combi_dhw_limit')
+    expect(limiter?.explanation).toContain('11 L/min')
+    expect(limiter?.explanation).toContain('40°C rise')
   })
 })

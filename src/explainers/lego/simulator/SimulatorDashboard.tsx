@@ -123,12 +123,15 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
   const houseState = useHousePlayback(diagramState);
   const drawOffState = useDrawOffPlayback(diagramState);
   const efficiencyState = useEfficiencyPlayback(diagramState);
-  const limiterState = useLimiterPlayback(diagramState, systemInputs.combiPowerKw);
+  const limiterState = useLimiterPlayback(diagramState, systemInputs.combiPowerKw, systemInputs.coldInletTempC);
 
   // Derive highlighted schematic components from active limiters.
+  // targetComponent may be a single string or an array, so flatten both forms.
   const highlightedComponents = limiterState.activeLimiters
-    .filter(l => l.targetComponent)
-    .map(l => l.targetComponent as string);
+    .flatMap(l => {
+      if (!l.targetComponent) return []
+      return Array.isArray(l.targetComponent) ? l.targetComponent : [l.targetComponent]
+    });
 
   // Derive phase bar indicators from authoritative diagramState.
   const { systemMode, serviceSwitchingActive, hotDrawActive } = diagramState;
