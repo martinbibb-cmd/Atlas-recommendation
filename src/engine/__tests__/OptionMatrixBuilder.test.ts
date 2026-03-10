@@ -78,6 +78,83 @@ describe('buildOptionMatrixV1', () => {
     expect(stored.status).toBe('caution');
   });
 
+  it('stored_vented card is viable even when unvented mains-flow is not confirmed (large household)', () => {
+    // 4 occupants, 1 bath, unvented cold-water source, no mains flow measured.
+    // StoredDhwModule emits stored-unvented-flow-unknown (warn) which should NOT
+    // cascade into a caution status for the vented cylinder card — a vented cylinder
+    // does not depend on the mains operating point at all.
+    const input = {
+      ...baseInput,
+      coldWaterSource: 'mains_true' as const,
+      occupancyCount: 4,
+      bathroomCount: 1,
+      availableSpace: 'ok' as const,
+      // Deliberately omit mainsDynamicFlowLpm and mainsDynamicFlowLpmKnown
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const ventedCard = options.find(o => o.id === 'stored_vented')!;
+    expect(ventedCard.status).toBe('viable');
+  });
+
+  it('stored_vented card why bullets do not include unvented-specific mains-flow copy', () => {
+    // Unvented mains-flow warnings are irrelevant to the vented card and should be filtered.
+    const input = {
+      ...baseInput,
+      coldWaterSource: 'mains_true' as const,
+      occupancyCount: 4,
+      bathroomCount: 1,
+      availableSpace: 'ok' as const,
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const ventedCard = options.find(o => o.id === 'stored_vented')!;
+    const whyText = ventedCard.why.join(' ');
+    expect(whyText).not.toContain('unvented cylinder');
+    expect(whyText).not.toContain('Mains flow');
+    expect(whyText).not.toContain('stored-unvented');
+  });
+
+  it('stored_unvented why bullets do not duplicate the CWS mains-flow message', () => {
+    // stored-unvented-flow-unknown and stored-unvented-low-flow are already surfaced
+    // by the CWS supply check; they must not appear a second time in the why list.
+    const input = {
+      ...baseInput,
+      coldWaterSource: 'mains_true' as const,
+      occupancyCount: 4,
+      bathroomCount: 1,
+      availableSpace: 'ok' as const,
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const unventedCard = options.find(o => o.id === 'stored_unvented')!;
+    // Count occurrences of the mains-flow confirmation message
+    const mainsFlowMentions = unventedCard.why.filter(w =>
+      w.includes('Mains flow not confirmed') || w.includes('stored-unvented-flow-unknown'),
+    );
+    expect(mainsFlowMentions.length).toBeLessThanOrEqual(1);
+  });
+
+  it('stored_unvented headline leads with demand fit for large household with no measurements', () => {
+    // 4+ occupants = high demand; headline should acknowledge demand suitability
+    // even when mains supply hasn't been confirmed yet.
+    const input = {
+      ...baseInput,
+      coldWaterSource: 'mains_true' as const,
+      occupancyCount: 4,
+      bathroomCount: 1,
+      availableSpace: 'ok' as const,
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const unventedCard = options.find(o => o.id === 'stored_unvented')!;
+    // For a large household without measurements, the headline should lead positively
+    // with demand suitability: "Unvented cylinder suits your demand profile — …"
+    expect(unventedCard.headline).toContain('suits your demand profile');
+    // And must mention confirming supply (the actual open constraint)
+    expect(unventedCard.headline.toLowerCase()).toContain('confirm');
+  });
+
   it('ashp card status matches hydraulicV1 verdict', () => {
     // 22mm + 14kW → ashp rejected
     const input = { ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 14000 };

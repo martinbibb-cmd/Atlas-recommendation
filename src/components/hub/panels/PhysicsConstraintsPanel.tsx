@@ -2,13 +2,13 @@
  * PhysicsConstraintsPanel — iPad-first "Water power & concurrency" panel.
  *
  * Shows:
- *  A) Live output header: Combi + Stored verdict tiles
- *  B) Measured supply operating point (flow + pressure when available)
- *  C) Water power & concurrency card with season toggle, shower presets,
- *     and a div-based concurrency bar chart
+ *  A) Hot water behaviour comparison — how each system type handles concurrent demand
+ *     (combi / unvented / open-vented), with household-driven concurrency analysis.
+ *     Demand is driven by household size and bathroom count heuristics — no manual
+ *     shower-type selector.
+ *  B) Measured supply operating point (flow + pressure when available) — supply constraints
+ *  C) Concurrency analysis — household-driven flow estimate, concurrency bar chart
  *  D) Customer usage model mini-cards (derived from behaviourTimeline)
- *  E) "Within capacity" callout at the bottom
- *  F) Alternative systems — what changes with stored hot water
  *
  * Data comes entirely from FullEngineResult and EngineInputV2_3.
  * No engine changes, no scoring, no new engine fields.
@@ -16,23 +16,11 @@
 import { useState } from 'react';
 import type { FullEngineResult } from '../../../engine/schema/EngineInputV2_3';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
-import { kwForFlow, flowForKw } from '../utils/dhwMath';
+import { flowForKw } from '../utils/dhwMath';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Season = 'typical' | 'winter';
-
-interface ShowerPreset {
-  id: string;
-  label: string;
-  flowLpm: number;
-}
-
-const SHOWER_PRESETS: ShowerPreset[] = [
-  { id: 'mixer', label: 'Mixer', flowLpm: 10 },
-  { id: 'mixer_high', label: 'Mixer high', flowLpm: 12 },
-  { id: 'rainfall', label: 'Rainfall', flowLpm: 16 },
-];
 
 const COLD_TEMP: Record<Season, number> = {
   typical: 10,
@@ -40,6 +28,27 @@ const COLD_TEMP: Record<Season, number> = {
 };
 
 const DHW_SETPOINT = 50; // °C — fixed
+
+// ─── Household representative flow heuristic ──────────────────────────────────
+
+/**
+ * Derives a representative shower flow (L/min) from the household profile.
+ *
+ * Uses bathroom count and occupancy heuristics in place of a manual shower-type
+ * selector, per the physics-driven convention: demand is driven by household size
+ * and bathroom count, not by arbitrary user-selected presets.
+ *
+ *   1 bath / ≤2 people → 10 L/min  (typical mixer shower)
+ *   1 bath / 3–4 people → 12 L/min  (higher-use mixer or mixer-high)
+ *   2+ baths or 5+ people → 16 L/min  (rainfall / power shower profile)
+ */
+function householdRepresentativeFlowLpm(input: EngineInputV2_3): number {
+  const bathrooms = input.bathroomCount ?? 1;
+  const occupancy = input.occupancyCount ?? 2;
+  if (bathrooms >= 2 || occupancy >= 5) return 16;
+  if (occupancy >= 3) return 12;
+  return 10;
+}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -61,7 +70,6 @@ const STRONG_FLOW_LPM = 20;
 
 export default function PhysicsConstraintsPanel({ result, input }: Props) {
   const [season, setSeason] = useState<Season>('typical');
-  const [selectedPreset, setSelectedPreset] = useState<string>('mixer');
 
   // ── A: Verdict derivation ────────────────────────────────────────────────
   const combiRisk = result.combiDhwV1.verdict.combiRisk;
@@ -90,7 +98,7 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
   const hasFullOpPoint = measuredFlowLpm !== undefined && measuredFlowLpm > 0 && dynamicBar !== undefined;
   const isStrongFlow = hasFullOpPoint && measuredFlowLpm !== undefined && measuredFlowLpm >= STRONG_FLOW_LPM;
 
-  // ── C: Water power & concurrency ─────────────────────────────────────────
+  // ── C: Concurrency analysis ───────────────────────────────────────────────
   const coldTemp = COLD_TEMP[season];
   const deltaT = DHW_SETPOINT - coldTemp;
 
@@ -98,8 +106,8 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
   const combiKw = result.combiDhwV1.maxQtoDhwKwDerated;
   const combiLimitFlow = flowForKw(combiKw, deltaT);
 
-  const preset = SHOWER_PRESETS.find(p => p.id === selectedPreset) ?? SHOWER_PRESETS[0];
-  const selectedFlow = preset.flowLpm;
+  // Household-driven representative flow — no manual preset selector
+  const representativeFlowLpm = householdRepresentativeFlowLpm(input);
 
   // ── D: Customer usage model ───────────────────────────────────────────────
   const timeline = result.engineOutput.behaviourTimeline;
@@ -138,9 +146,6 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
     morningPeakDrawMin = maxRun * (timeline.resolutionMins ?? 15);
   }
 
-  // ── E: Callout ────────────────────────────────────────────────────────────
-  const withinCapacity = selectedFlow <= combiLimitFlow;
-
   return (
     <div className="panel-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
@@ -149,17 +154,52 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
         <p className="panel-card__eyebrow">Live output</p>
         <div className="live-output-grid">
           <div className="status-tile">
-            <span className="status-tile__name">Combi</span>
+            <span className="status-tile__name">On-demand (combi)</span>
             <span className={combiPillClass}>{combiStatusLabel}</span>
           </div>
           <div className="status-tile">
-            <span className="status-tile__name">Stored (Unvented)</span>
+            <span className="status-tile__name">Stored hot water</span>
             <span className={storedPillClass}>{storedStatusLabel}</span>
           </div>
         </div>
       </div>
 
-      {/* ── B: Measured supply operating point ───────────────────────────── */}
+      {/* ── A2: Hot water behaviour by system type ────────────────────────── */}
+      <div className="panel-card panel-card--inner">
+        <h3 className="panel-card__title">Hot water behaviour by system type</h3>
+        <p className="panel-card__note" style={{ fontSize: '0.8rem', color: '#555', marginBottom: '0.75rem' }}>
+          Each system class handles hot-water demand differently. Stored systems buffer peak demand
+          — combi delivers it instantaneously from the mains supply at draw.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <SystemBehaviourRow
+            label="On-demand hot water (combi)"
+            deliveryMode="Instantaneous from mains"
+            pressureSource="Mains supply at draw"
+            concurrency="Shared — all outlets divide the boiler output"
+            note={combiRowNote(combiKw, representativeFlowLpm, combiLimitFlow, deltaT)}
+            status={combiRisk === 'fail' ? 'constraint' : combiRisk === 'warn' ? 'borderline' : 'ok'}
+          />
+          <SystemBehaviourRow
+            label="Mains-fed stored hot water (unvented cylinder)"
+            deliveryMode="Pre-stored, delivered at mains pressure"
+            pressureSource="Mains supply — refill depends on operating point"
+            concurrency="Independent — stored volume serves multiple outlets simultaneously"
+            note="High-pressure delivery at all outlets. Refill rate depends on mains operating point, not instantaneous draw."
+            status="ok"
+          />
+          <SystemBehaviourRow
+            label="Tank-fed stored hot water (open-vented cylinder)"
+            deliveryMode="Pre-stored, delivered at header-tank pressure"
+            pressureSource="Cold water cistern in loft — gravity head"
+            concurrency="Independent — stored volume serves multiple outlets simultaneously"
+            note="Delivery pressure governed by loft cistern height (typically 1–2 bar head). High-flow showers need a dedicated pump. No mains pressure dependency at the cylinder."
+            status="ok"
+          />
+        </div>
+      </div>
+
+      {/* ── B: Supply constraints ─────────────────────────────────────────── */}
       {(dynamicBar !== undefined || measuredFlowLpm !== undefined) && (
         <div className="panel-card panel-card--inner">
           <h3 className="panel-card__title">Measured supply operating point</h3>
@@ -207,12 +247,16 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
         </div>
       )}
 
-      {/* ── C: Water power & concurrency ─────────────────────────────────── */}
+      {/* ── C: Concurrency analysis ───────────────────────────────────────── */}
       <div className="panel-card panel-card--inner">
-        <h3 className="panel-card__title">Water power &amp; concurrency</h3>
+        <h3 className="panel-card__title">Concurrency analysis</h3>
         <p className="panel-card__note" style={{ fontSize: '0.8rem', color: '#555', marginBottom: '0.5rem' }}>
-          Combi on-demand hot water is limited by instantaneous boiler output and mains supply at draw.
-          Stored hot water buffers peak demand instead — a cylinder delivers to multiple outlets simultaneously.
+          Representative flow for this household: <strong>{representativeFlowLpm} L/min per outlet</strong>
+          {input.occupancyCount !== undefined || input.bathroomCount !== undefined
+            ? ` (derived from ${input.occupancyCount ?? '?'} occupant(s), ${input.bathroomCount ?? '?'} bathroom(s))`
+            : ''}.
+          The combi limit line shows how many outlets exceed instantaneous boiler capacity —
+          stored systems are unaffected by this threshold.
         </p>
 
         {/* Season toggle */}
@@ -228,9 +272,9 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
           ))}
         </div>
 
-        {/* Combi sustain flow */}
+        {/* Combi DHW reference */}
         <div className="metric-row" style={{ marginTop: '0.75rem' }}>
-          <span className="metric-label">Combi DHW output</span>
+          <span className="metric-label">Combi DHW output (reference)</span>
           <span className="metric-value">{combiKw.toFixed(1)} kW</span>
         </div>
         <div className="metric-row">
@@ -238,34 +282,12 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
           <span className="metric-value">~{combiLimitFlow.toFixed(1)} L/min</span>
         </div>
 
-        {/* Shower preset tiles */}
-        <div className="preset-grid" style={{ marginTop: '1rem' }}>
-          {SHOWER_PRESETS.map(p => {
-            const requiredKw = kwForFlow(p.flowLpm, deltaT);
-            const overLimit = requiredKw > combiKw;
-            const isSelected = selectedPreset === p.id;
-            return (
-              <button
-                key={p.id}
-                className={`preset-tile${isSelected ? ' preset-tile--selected' : ''}${overLimit ? ' preset-tile--overlimit' : ''}`}
-                onClick={() => setSelectedPreset(p.id)}
-                aria-pressed={isSelected}
-              >
-                <span className="preset-tile__label">{p.label}</span>
-                <span className="preset-tile__flow">{p.flowLpm} L/min</span>
-                <span className="preset-tile__kw">{requiredKw.toFixed(1)} kW</span>
-                {overLimit && <span className="preset-tile__badge">Over limit</span>}
-              </button>
-            );
-          })}
-        </div>
-
         {/* Concurrency bar chart (div-based, no chart lib) */}
         <div style={{ marginTop: '1.25rem' }}>
-          <p className="panel-card__subtitle">Concurrency — {preset.label} shower(s)</p>
+          <p className="panel-card__subtitle">Concurrent outlets — {representativeFlowLpm} L/min each</p>
           <div className="bar-chart" role="img" aria-label="Concurrency bar chart">
             {[1, 2, 3].map(outlets => {
-              const totalFlow = selectedFlow * outlets;
+              const totalFlow = representativeFlowLpm * outlets;
               const pct = Math.min(100, (totalFlow / (combiLimitFlow * BAR_CHART_SCALE_FACTOR)) * 100);
               const overBar = totalFlow > combiLimitFlow;
               const limitPct = Math.min(100, (combiLimitFlow / (combiLimitFlow * BAR_CHART_SCALE_FACTOR)) * 100);
@@ -290,8 +312,18 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
             })}
           </div>
           <p className="bar-chart__legend">
-            <span className="bar-chart__legend-line" /> = combi limit ({combiLimitFlow.toFixed(1)} L/min)
+            <span className="bar-chart__legend-line" /> = combi limit ({combiLimitFlow.toFixed(1)} L/min) — stored systems are not constrained by this limit
           </p>
+        </div>
+
+        {/* Summary callout */}
+        <div
+          className={`capacity-callout${representativeFlowLpm <= combiLimitFlow ? ' capacity-callout--ok' : ' capacity-callout--warn'}`}
+          style={{ marginTop: '1rem' }}
+        >
+          {representativeFlowLpm <= combiLimitFlow
+            ? `✅ Single-outlet draw (${representativeFlowLpm} L/min) is within combi capacity at ${deltaT}°C rise`
+            : `ℹ️ ${representativeFlowLpm} L/min exceeds combi instantaneous limit — stored hot water buffers this demand without constraint`}
         </div>
       </div>
 
@@ -316,68 +348,74 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
             value={peakHeatKw !== null ? `${peakHeatKw.toFixed(1)} kW` : '—'}
           />
         </div>
-      </div>
-
-      {/* ── E: Callout ────────────────────────────────────────────────────── */}
-      <div className={`capacity-callout${withinCapacity ? ' capacity-callout--ok' : ' capacity-callout--warn'}`}>
-        {withinCapacity
-          ? `✅ Within capacity for a single ${preset.label.toLowerCase()} shower at ${deltaT}°C rise`
-          : `⚠️ Over combi limit — stored hot water buffers this demand; combi cannot sustain a ${preset.label.toLowerCase()} shower at ${deltaT}°C rise`}
-      </div>
-
-      {/* Occupancy context */}
-      {(input.occupancyCount !== undefined || input.bathroomCount !== undefined) && (
-        <div className="panel-card panel-card--inner">
-          <h3 className="panel-card__title">Occupancy context</h3>
-          <div className="metric-row">
-            <span className="metric-label">Occupants</span>
-            <span className="metric-value">{input.occupancyCount ?? '—'}</span>
-          </div>
-          <div className="metric-row">
-            <span className="metric-label">Bathrooms</span>
-            <span className="metric-value">{input.bathroomCount ?? '—'}</span>
-          </div>
-          {input.peakConcurrentOutlets !== undefined && (
+        {(input.occupancyCount !== undefined || input.bathroomCount !== undefined) && (
+          <div style={{ marginTop: '0.75rem' }}>
             <div className="metric-row">
-              <span className="metric-label">Peak concurrent outlets</span>
-              <span className="metric-value">{input.peakConcurrentOutlets}</span>
+              <span className="metric-label">Occupants</span>
+              <span className="metric-value">{input.occupancyCount ?? '—'}</span>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* ── F: Alternative systems — what changes with stored hot water ───── */}
-      <div className="panel-card panel-card--inner">
-        <h3 className="panel-card__title">What different systems change</h3>
-        <p className="panel-card__note" style={{ fontSize: '0.8rem', color: '#555', marginBottom: '0.75rem' }}>
-          Combi concurrency limits do not apply to stored systems. Each system class handles hot-water demand differently:
-        </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <SystemSummaryRow
-            label="On-demand (combi)"
-            note="Hot water generated instantaneously from mains supply. Output limited by boiler kW and mains operating point at draw — concurrent outlets will share or exhaust capacity."
-          />
-          <SystemSummaryRow
-            label="Stored mains-fed (unvented cylinder)"
-            note="Hot water stored and delivered at mains pressure. Refill draws on mains supply, but stored volume handles peak simultaneous demand. Mains supply affects refill behaviour, not instantaneous delivery."
-          />
-          <SystemSummaryRow
-            label="Stored tank-fed (vented cylinder)"
-            note="Hot water stored in a cylinder fed from a header tank in the loft. Delivery pressure is governed by head height — typically 1–2 bar. No direct mains pressure at outlets; high-flow showers need a dedicated pump."
-          />
-        </div>
+            <div className="metric-row">
+              <span className="metric-label">Bathrooms</span>
+              <span className="metric-value">{input.bathroomCount ?? '—'}</span>
+            </div>
+            {input.peakConcurrentOutlets !== undefined && (
+              <div className="metric-row">
+                <span className="metric-label">Peak concurrent outlets</span>
+                <span className="metric-value">{input.peakConcurrentOutlets}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ─── System summary row helper ────────────────────────────────────────────────
+// ─── Combi row note helper ────────────────────────────────────────────────────
 
-function SystemSummaryRow({ label, note }: { label: string; note: string }) {
+/**
+ * Returns the context note shown for the combi row in the behaviour comparison.
+ * Extracted from the component to keep the JSX readable and to make the
+ * conditional logic easy to follow and test.
+ */
+function combiRowNote(
+  combiKw: number,
+  householdFlowLpm: number,
+  combiLimitFlow: number,
+  deltaT: number,
+): string {
+  const capacityLine =
+    householdFlowLpm > combiLimitFlow
+      ? `Combi cannot sustain ${householdFlowLpm} L/min for this household profile at ${deltaT}°C rise.`
+      : `Within combi capacity at ${deltaT}°C rise for this household profile.`;
+  return `Combi output: ${combiKw.toFixed(1)} kW. ${capacityLine}`;
+}
+
+// ─── System behaviour row helper ─────────────────────────────────────────────
+
+interface SystemBehaviourRowProps {
+  label: string;
+  deliveryMode: string;
+  pressureSource: string;
+  concurrency: string;
+  note: string;
+  status: 'ok' | 'borderline' | 'constraint';
+}
+
+function SystemBehaviourRow({ label, deliveryMode, pressureSource, concurrency, note, status }: SystemBehaviourRowProps) {
+  const borderColor =
+    status === 'constraint' ? '#e53e3e'
+    : status === 'borderline' ? '#d69e2e'
+    : '#38a169';
   return (
-    <div style={{ borderLeft: '3px solid #e0e0e0', paddingLeft: '0.75rem' }}>
-      <span style={{ fontWeight: 600, fontSize: '0.85rem', display: 'block', marginBottom: '0.2rem' }}>{label}</span>
-      <span style={{ fontSize: '0.8rem', color: '#555' }}>{note}</span>
+    <div style={{ borderLeft: `3px solid ${borderColor}`, paddingLeft: '0.75rem' }}>
+      <span style={{ fontWeight: 600, fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>{label}</span>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.2rem 1rem', fontSize: '0.78rem', color: '#444', marginBottom: '0.3rem' }}>
+        <span><em>Delivery:</em> {deliveryMode}</span>
+        <span><em>Pressure:</em> {pressureSource}</span>
+        <span style={{ gridColumn: '1 / -1' }}><em>Concurrent demand:</em> {concurrency}</span>
+      </div>
+      <span style={{ fontSize: '0.78rem', color: '#555', fontStyle: 'italic' }}>{note}</span>
     </div>
   );
 }
