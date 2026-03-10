@@ -21,6 +21,18 @@
   }
 }
 
+/* ─── Limiters row (full-width below the 2×2 grid) ─────────────────────────── */
+
+.sim-limiters-row {
+  padding: 0 14px 14px;
+}
+
+@media (max-width: 820px) {
+  .sim-limiters-row {
+    padding: 0 10px 10px;
+  }
+}
+
 /* ─── System-type selector ──────────────────────────────────────────────────── */
 
 .sim-system-selector {
