@@ -56,6 +56,12 @@ export type DailyEfficiencySummaryState = {
   summaryValue: string
   /** One short explanation line describing what influenced the result. */
   explanationLine: string
+  /**
+   * Optional season-context label from the active scenario preset,
+   * e.g. "Winter day" or "Summer day".  Shown as a small badge in the panel.
+   * Absent when no scenario preset is active.
+   */
+  seasonContext?: string
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -292,14 +298,19 @@ function buildHeatPumpExplanation(
  * @param systemInputs   Full system configuration including occupancy profile.
  * @param systemChoice   Current simulator system choice (combi / unvented / etc.).
  * @param emitterState   Emitter primary model output (flow/return temps, COP).
+ * @param seasonContext  Optional season-context label from the active scenario
+ *                       preset, e.g. "Winter day". Passed through to the state
+ *                       for display in the panel.
  */
 export function computeDailyEfficiencySummary(
   systemInputs: SystemInputs,
   systemChoice: SimulatorSystemChoice,
   emitterState: EmitterPrimaryDisplayState,
+  seasonContext?: string,
 ): DailyEfficiencySummaryState {
   const isHeatPump = systemChoice === 'heat_pump'
-  return isHeatPump
+  const base = isHeatPump
     ? computeHeatPumpSummary(systemInputs, emitterState)
     : computeBoilerSummary(systemInputs, systemChoice, emitterState)
+  return seasonContext ? { ...base, seasonContext } : base
 }

@@ -32,6 +32,23 @@ export const MOONRISE_HOUR = 22
  */
 export const MOONSET_HOUR = 10
 
+// ─── Astronomy overrides type ──────────────────────────────────────────────────
+
+/**
+ * Optional overrides for the fixed UK winter astronomy constants.
+ *
+ * Passed by SimulatorDashboard when a seasonal scenario preset is active so
+ * the timeline strip reflects the chosen day-context (e.g. longer daylight in
+ * summer, shorter in winter).  Any field not provided falls back to the UK
+ * winter reference constant above.
+ */
+export type AstroOverrides = {
+  sunriseHour?: number
+  sunsetHour?: number
+  moonriseHour?: number
+  moonsetHour?: number
+}
+
 // ─── Public types ─────────────────────────────────────────────────────────────
 
 /**
@@ -65,17 +82,24 @@ export type DayTimelineState = {
  *
  * Called as a pure function (no React state) so it can be unit-tested directly.
  *
- * @param simHour Integer 0–23 representing the simulated hour of day.
+ * @param simHour        Integer 0–23 representing the simulated hour of day.
+ * @param astroOverrides Optional overrides for sunrise/sunset/moonrise/moonset.
+ *                       Use to reflect seasonal scenario presets. Falls back to
+ *                       UK winter reference constants when not provided.
  */
-export function computeDayTimeline(simHour: number): DayTimelineState {
+export function computeDayTimeline(simHour: number, astroOverrides?: AstroOverrides): DayTimelineState {
   const hour = Math.max(0, Math.min(23, Math.round(simHour)))
+  const sunriseHour  = astroOverrides?.sunriseHour  ?? SUNRISE_HOUR
+  const sunsetHour   = astroOverrides?.sunsetHour   ?? SUNSET_HOUR
+  const moonriseHour = astroOverrides?.moonriseHour ?? MOONRISE_HOUR
+  const moonsetHour  = astroOverrides?.moonsetHour  ?? MOONSET_HOUR
   return {
     simHour: hour,
     simTimeLabel: `${String(hour).padStart(2, '0')}:00`,
-    isDaytime: hour >= SUNRISE_HOUR && hour < SUNSET_HOUR,
-    sunriseHour: SUNRISE_HOUR,
-    sunsetHour: SUNSET_HOUR,
-    moonriseHour: MOONRISE_HOUR,
-    moonsetHour: MOONSET_HOUR,
+    isDaytime: hour >= sunriseHour && hour < sunsetHour,
+    sunriseHour,
+    sunsetHour,
+    moonriseHour,
+    moonsetHour,
   }
 }
