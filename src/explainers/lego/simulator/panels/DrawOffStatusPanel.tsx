@@ -57,7 +57,7 @@ export default function DrawOffStatusPanel({ state, ...controls }: DrawOffStatus
         onPresetTwo={controls.onPresetTwo}
         onPresetBathFill={controls.onPresetBathFill}
       />
-      {state.storedHotWaterState !== null && state.storedHotWaterState !== undefined && (
+      {state.storedHotWaterState !== null && (
         <StoredHotWaterReservePanel state={state.storedHotWaterState} />
       )}
     </>
