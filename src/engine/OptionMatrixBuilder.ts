@@ -31,6 +31,16 @@ function strongOperatingPoint(cwsSupplyV1: FullEngineResultCore['cwsSupplyV1']):
 }
 
 /**
+ * Flag IDs that are specific to unvented (mains-pressure) cylinder viability.
+ * These flags must not influence the status or copy of the stored_vented card:
+ * a vented cylinder's viability is independent of mains operating-point data.
+ */
+const UNVENTED_SPECIFIC_FLAG_IDS: ReadonlySet<string> = new Set([
+  'stored-unvented-low-flow',
+  'stored-unvented-flow-unknown',
+]);
+
+/**
  * Returns a human-readable description of the measured CWS operating point.
  * Prefers the full "X L/min @ Y bar" form when both flow and pressure are available.
  * Falls back to pressure-only when flow is absent.
@@ -332,12 +342,17 @@ export function buildOptionMatrixV1(
   });
 
   // ── Stored hot water — Vented cylinder card ─────────────────────────────
-  const storedRisk = core.storedDhwV1.verdict.storedRisk;
+  // ventedRelevantRisk excludes unvented-specific flags so that a missing
+  // mains-flow measurement (which is only relevant for mains-pressure / unvented
+  // cylinders) does not cascade into a caution state for the vented card.
+  const ventedRelevantRisk: 'warn' | 'pass' = core.storedDhwV1.flags.some(
+    f => f.severity === 'warn' && !UNVENTED_SPECIFIC_FLAG_IDS.has(f.id),
+  ) ? 'warn' : 'pass';
 
   let storedVentedStatus: OptionCardV1['status'];
   if (hasFutureLoftConversion) {
     storedVentedStatus = 'caution';
-  } else if (storedRisk === 'warn' || input.availableSpace === 'tight') {
+  } else if (ventedRelevantRisk === 'warn' || input.availableSpace === 'tight') {
     storedVentedStatus = 'caution';
   } else {
     storedVentedStatus = 'viable';
@@ -347,7 +362,9 @@ export function buildOptionMatrixV1(
     'Solves simultaneity — hot water ready for multiple outlets at once.',
     'Tank-fed / gravity or pumped capable — does not rely on mains pressure.',
   ];
-  for (const f of core.storedDhwV1.flags) {
+  // Only include flags that are relevant to vented cylinders — unvented-specific
+  // mains-supply flags are not applicable to a tank-fed (loft-tank) supply.
+  for (const f of core.storedDhwV1.flags.filter(f => !UNVENTED_SPECIFIC_FLAG_IDS.has(f.id))) {
     storedVentedWhy.push(`${f.title}: ${f.detail}`);
   }
   if (hasFutureLoftConversion) {
@@ -385,13 +402,14 @@ export function buildOptionMatrixV1(
     'Gravity-fed pressure — no mains pressure required at cylinder.',
     `Recommended cylinder type: ${recType === 'mixergy' ? 'Mixergy (stratified)' : 'standard indirect'}.`,
   ];
-  for (const f of core.storedDhwV1.flags) {
+  // Filter unvented-specific flags — they are not applicable to tank-fed supply.
+  for (const f of core.storedDhwV1.flags.filter(f => !UNVENTED_SPECIFIC_FLAG_IDS.has(f.id))) {
     storedVentedDhwBullets.push(`${f.title}: ${f.detail}`);
   }
   const storedVentedDhw: OptionPlane = {
-    status: storedRisk === 'warn' ? 'caution' : 'ok',
-    headline: storedRisk === 'warn'
-      ? 'DHW: caution — space or demand flags require attention.'
+    status: ventedRelevantRisk === 'warn' ? 'caution' : 'ok',
+    headline: ventedRelevantRisk === 'warn'
+      ? 'DHW: caution — space or cylinder condition flags require attention.'
       : 'DHW: stored volume suits your demand profile.',
     bullets: storedVentedDhwBullets,
     evidenceIds: storedEvidenceIds,
@@ -474,7 +492,12 @@ export function buildOptionMatrixV1(
   } else if (!cwsSupplyV1.meetsUnventedRequirement) {
     storedUnventedWhy.push('Mains supply does not meet unvented requirement (10 L/min @ 1 bar, or 12 L/min flow-only with pressure not recorded).');
   }
-  for (const f of core.storedDhwV1.flags) {
+  // Include non-unvented-specific flags (e.g. stored-high-demand, stored-space-tight,
+  // stored-cylinder-condition) to give relevant demand and space context.
+  // Unvented-specific mains-flow flags are excluded here because they are already
+  // surfaced by the CWS supply check above — duplicating them would repeat the same
+  // constraint in consecutive bullets and confuse the installer.
+  for (const f of core.storedDhwV1.flags.filter(f => !UNVENTED_SPECIFIC_FLAG_IDS.has(f.id))) {
     storedUnventedWhy.push(`${f.title}: ${f.detail}`);
   }
 
@@ -518,7 +541,9 @@ export function buildOptionMatrixV1(
   } else if (!cwsSupplyV1.meetsUnventedRequirement) {
     storedUnventedDhwBullets.push('Supply does not meet unvented requirement — consider pressure boost or alternative.');
   }
-  for (const f of core.storedDhwV1.flags) {
+  // Only include non-unvented-specific flags — unvented mains-flow flags are already
+  // captured by the CWS supply bullets above and must not be repeated.
+  for (const f of core.storedDhwV1.flags.filter(f => !UNVENTED_SPECIFIC_FLAG_IDS.has(f.id))) {
     storedUnventedDhwBullets.push(`${f.title}: ${f.detail}`);
   }
   const cwsIssue = cwsSupplyV1.inconsistent || !cwsSupplyV1.hasMeasurements || !cwsSupplyV1.meetsUnventedRequirement;
@@ -571,14 +596,26 @@ export function buildOptionMatrixV1(
     ],
   };
 
+  // Determine whether demand profile is high (large household / multiple bathrooms).
+  // This is used to make the headline positive about demand fit even when a mains
+  // measurement is still needed — demand suitability and installation constraints
+  // are separate concerns.
+  const isHighDemandHousehold = core.storedDhwV1.flags.some(f => f.id === 'stored-high-demand');
+
   cards.push({
     id: 'stored_unvented',
     label: 'Stored hot water — Unvented cylinder',
     status: storedUnventedStatus,
     headline: storedUnventedStatus === 'viable'
-      ? 'Unvented cylinder suits your mains pressure and demand.'
+      ? isHighDemandHousehold
+        ? 'Unvented cylinder is a strong fit — mains-fed stored hot water suits high household demand.'
+        : 'Unvented cylinder suits your mains pressure and demand.'
+      : storedUnventedStatus === 'caution' && cwsSupplyV1.hasMeasurements && !cwsSupplyV1.meetsUnventedRequirement
+      ? 'Unvented cylinder possible — mains supply may need boosting to meet the installation gate.'
       : storedUnventedStatus === 'caution'
-      ? 'Unvented cylinder possible — confirm mains supply measurements.'
+      ? isHighDemandHousehold
+        ? 'Unvented cylinder suits your demand profile — confirm mains supply before proceeding.'
+        : 'Unvented cylinder possible — confirm mains supply measurements.'
       : 'Unvented cylinder not suitable — mains pressure too low.',
     why: storedUnventedWhy,
     requirements: storedUnventedRequirements,
