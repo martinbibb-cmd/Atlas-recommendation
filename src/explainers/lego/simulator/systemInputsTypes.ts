@@ -98,6 +98,31 @@ export type SystemInputs = {
   /** Combi boiler rated output in kW (18–42). Unused for stored/HP systems. */
   combiPowerKw: number
   /**
+   * Actual building heat loss at design conditions (kW).
+   *
+   * Represents the thermal demand the heating system must meet on the coldest
+   * design day.  Used instead of the hardcoded BASE_HEAT_DEMAND_KW in the
+   * emitter model so the simulator reflects the real property.
+   *
+   * Range: 3–30 kW (typical UK dwellings span ~4 kW for a well-insulated flat
+   * to ~25 kW for a larger Victorian semi).
+   */
+  heatLossKw: number
+  /**
+   * Selected boiler heating output rating (kW).
+   *
+   * Controls two downstream physics effects in the emitter model:
+   *   1. System ΔT — a boiler oversized relative to the heat loss pumps more
+   *      water per unit time, reducing the flow→return temperature drop and
+   *      raising return temperature (worse condensing).
+   *   2. Pipe sizing — the primary pipework must transport the boiler's maximum
+   *      firing rate; values exceeding the pipe capacity trigger the
+   *      primary_circuit_limit warning and highlight the primary supply pipe.
+   *
+   * Range: 9–45 kW (covers micro-CHP-class to large commercial-domestic).
+   */
+  boilerOutputKw: number
+  /**
    * Emitter surface area multiplier relative to standard sizing (0.5–2.0).
    * 1.0 = standard radiators sized for 70°C flow; >1.0 = oversized.
    */
@@ -147,6 +172,8 @@ export const DEFAULT_SYSTEM_INPUTS: SystemInputs = {
   cylinderType: 'unvented',
   cylinderSizeLitres: 150,
   combiPowerKw: 30,
+  heatLossKw: 14,
+  boilerOutputKw: 24,
   emitterCapacityFactor: 1.0,
   primaryPipeSize: '22mm',
   emitterType: 'radiators',

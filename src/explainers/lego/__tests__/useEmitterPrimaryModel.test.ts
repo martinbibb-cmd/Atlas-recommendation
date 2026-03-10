@@ -12,13 +12,16 @@
  *   - Without load compensation, currentLoadFlowTempC equals requiredFlowTempC
  *   - currentLoadReturnTempC = currentLoadFlowTempC − 12°C
  *   - Flow temperature is clamped between 35°C and 80°C
- *   - Return temperature = flow temperature − 12°C
+ *   - Return temperature = flow temperature − 12°C (when no boilerOutputKw)
  *   - emitterAdequate is true when requiredFlowTempC ≤ 65°C
  *   - emitterAdequate is false when requiredFlowTempC > 65°C
  *   - primaryAdequate reflects pipe capacity vs BASE_HEAT_DEMAND_KW
  *   - estimatedCop is in [2.5, 4.5] range
  *   - estimatedCop is higher at lower flow temperatures
  *   - Acceptance criteria scenarios produce expected approximate values
+ *   - boilerOutputKw raises return temperature when boiler is oversized
+ *   - boilerOutputKw marks primary circuit inadequate when output > pipe capacity
+ *   - heatLossKw changes the effective pipe-check demand
  */
 
 import { describe, it, expect } from 'vitest'
@@ -336,5 +339,152 @@ describe('useEmitterPrimaryModel — design load vs current load', () => {
   it('currentLoadFlowTempC is distinct from requiredFlowTempC when load compensation is active', () => {
     const result = useEmitterPrimaryModel({ ...defaultInputs(), loadCompensation: true })
     expect(result.currentLoadFlowTempC).not.toBe(result.requiredFlowTempC)
+  })
+})
+
+// ─── boilerOutputKw — return temperature effect ───────────────────────────────
+
+describe('useEmitterPrimaryModel — boilerOutputKw scales return temperature', () => {
+  it('omitting boilerOutputKw preserves the default 12°C ΔT', () => {
+    const result = useEmitterPrimaryModel(defaultInputs())
+    // Default: flowTemp = 70°C, return = 70 − 12 = 58°C
+    expect(result.estimatedReturnTempC).toBe(result.requiredFlowTempC - 12)
+  })
+
+  it('boilerOutputKw matching heatLossKw produces the design 12°C ΔT', () => {
+    // heat loss = boiler output → oversizing factor = 1.0 → ΔT = 12°C
+    const result = useEmitterPrimaryModel({
+      ...defaultInputs(),
+      heatLossKw: 14,
+      boilerOutputKw: 14,
+    })
+    expect(result.estimatedReturnTempC).toBeCloseTo(result.requiredFlowTempC - 12, 1)
+  })
+
+  it('oversized boiler (output > heat loss) produces a higher return temperature', () => {
+    // heatLoss = 14 kW, boilerOutput = 28 kW → ratio = 0.5 → ΔT ≈ 6°C → higher return
+    const matched = useEmitterPrimaryModel({
+      ...defaultInputs(),
+      heatLossKw: 14,
+      boilerOutputKw: 14,
+    })
+    const oversized = useEmitterPrimaryModel({
+      ...defaultInputs(),
+      heatLossKw: 14,
+      boilerOutputKw: 28,
+    })
+    expect(oversized.estimatedReturnTempC).toBeGreaterThan(matched.estimatedReturnTempC)
+  })
+
+  it('return temperature increases as boilerOutputKw increases beyond heat loss', () => {
+    // Monotonic: 18 kW < 24 kW < 36 kW boiler all with 14 kW heat loss
+    const r18 = useEmitterPrimaryModel({ ...defaultInputs(), heatLossKw: 14, boilerOutputKw: 18 })
+    const r24 = useEmitterPrimaryModel({ ...defaultInputs(), heatLossKw: 14, boilerOutputKw: 24 })
+    const r36 = useEmitterPrimaryModel({ ...defaultInputs(), heatLossKw: 14, boilerOutputKw: 36 })
+    expect(r24.estimatedReturnTempC).toBeGreaterThan(r18.estimatedReturnTempC)
+    expect(r36.estimatedReturnTempC).toBeGreaterThan(r24.estimatedReturnTempC)
+  })
+
+  it('return temperature never exceeds the flow temperature (ΔT is always positive)', () => {
+    // Very large boiler: ΔT clamped to DT_SYSTEM_MIN_C (3°C)
+    const result = useEmitterPrimaryModel({
+      ...defaultInputs(),
+      heatLossKw: 5,
+      boilerOutputKw: 45,
+    })
+    expect(result.estimatedReturnTempC).toBeLessThan(result.requiredFlowTempC)
+  })
+
+  it('currentLoadReturnTempC also reflects the boiler-output-scaled ΔT', () => {
+    const result = useEmitterPrimaryModel({
+      ...defaultInputs(),
+      heatLossKw: 14,
+      boilerOutputKw: 28,
+      loadCompensation: false,
+    })
+    // Without load compensation, current return = design return
+    expect(result.currentLoadReturnTempC).toBe(result.estimatedReturnTempC)
+  })
+})
+
+// ─── boilerOutputKw — pipe sizing highlight ───────────────────────────────────
+
+describe('useEmitterPrimaryModel — boilerOutputKw triggers primary circuit limit', () => {
+  it('22mm pipe is inadequate when boilerOutputKw exceeds its 25 kW capacity', () => {
+    // 22mm capacity = 25 kW; 30 kW boiler output exceeds it
+    const result = useEmitterPrimaryModel({
+      ...defaultInputs(),
+      primaryPipeSize: '22mm',
+      heatLossKw: 14,
+      boilerOutputKw: 30,
+    })
+    expect(result.primaryAdequate).toBe(false)
+    expect(result.heatDemandKw).toBe(30)      // pipe-check demand = max(14, 30)
+    expect(result.primaryCapacityKw).toBe(25)
+  })
+
+  it('22mm pipe is adequate when boilerOutputKw does not exceed its 25 kW capacity', () => {
+    const result = useEmitterPrimaryModel({
+      ...defaultInputs(),
+      primaryPipeSize: '22mm',
+      heatLossKw: 14,
+      boilerOutputKw: 24,
+    })
+    expect(result.primaryAdequate).toBe(true)
+  })
+
+  it('28mm pipe remains adequate even with 35 kW boiler (45 kW capacity)', () => {
+    const result = useEmitterPrimaryModel({
+      ...defaultInputs(),
+      primaryPipeSize: '28mm',
+      heatLossKw: 14,
+      boilerOutputKw: 35,
+    })
+    expect(result.primaryAdequate).toBe(true)
+    expect(result.heatDemandKw).toBe(35)
+  })
+
+  it('15mm pipe is inadequate when heatLossKw exceeds its 12 kW capacity', () => {
+    const result = useEmitterPrimaryModel({
+      ...defaultInputs(),
+      primaryPipeSize: '15mm',
+      heatLossKw: 18,
+      boilerOutputKw: 18,
+    })
+    expect(result.primaryAdequate).toBe(false)
+    expect(result.heatDemandKw).toBe(18)
+  })
+
+  it('pipe-check demand is the larger of heatLossKw and boilerOutputKw', () => {
+    // heatLoss = 20 kW, boilerOutput = 15 kW → pipe-check = 20
+    const result = useEmitterPrimaryModel({
+      ...defaultInputs(),
+      primaryPipeSize: '22mm',
+      heatLossKw: 20,
+      boilerOutputKw: 15,
+    })
+    expect(result.heatDemandKw).toBe(20)
+  })
+})
+
+// ─── heatLossKw — backward compatibility ─────────────────────────────────────
+
+describe('useEmitterPrimaryModel — heatLossKw backward compatibility', () => {
+  it('omitting heatLossKw falls back to BASE_HEAT_DEMAND_KW for pipe check', () => {
+    const result = useEmitterPrimaryModel({ ...defaultInputs(), primaryPipeSize: '15mm' })
+    // BASE_HEAT_DEMAND_KW = 14 > 12 kW (15mm capacity) → inadequate
+    expect(result.primaryAdequate).toBe(false)
+    expect(result.heatDemandKw).toBe(BASE_HEAT_DEMAND_KW)
+  })
+
+  it('heatLossKw below pipe capacity marks primaryAdequate true when boilerOutputKw also within capacity', () => {
+    const result = useEmitterPrimaryModel({
+      ...defaultInputs(),
+      primaryPipeSize: '15mm',
+      heatLossKw: 10,    // 10 < 12 kW (15mm capacity)
+      boilerOutputKw: 10,
+    })
+    expect(result.primaryAdequate).toBe(true)
+    expect(result.heatDemandKw).toBe(10)
   })
 })

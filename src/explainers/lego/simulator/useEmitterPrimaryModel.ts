@@ -71,6 +71,26 @@ const FLOW_TEMP_MAX_C = 80
 /** System ΔT between flow and return (°C). Typical domestic value. */
 const DT_SYSTEM_C = 12
 
+/**
+ * Minimum system ΔT permitted when a large boiler output oversizes the primary
+ * circuit relative to the building heat loss (°C).
+ *
+ * In practice the pump and pipe resistances prevent the ΔT from collapsing to
+ * zero even when a heavily oversized boiler modulates hard.  3°C is a
+ * conservative lower bound that keeps the model physically plausible.
+ */
+const DT_SYSTEM_MIN_C = 3
+
+/**
+ * Maximum system ΔT (°C).
+ *
+ * Caps the effective ΔT for a very small boilerOutputKw so that near-zero
+ * boiler values do not produce a physically nonsensical (e.g. thousand-degree)
+ * temperature drop.  Three times the design ΔT (36°C) covers even a severely
+ * undersized boiler without overstating heat loss.
+ */
+const DT_SYSTEM_MAX_C = DT_SYSTEM_C * 3
+
 /** Weather-compensation flow temperature reduction (°C). */
 const WEATHER_COMP_REDUCTION_C = 5
 
@@ -123,6 +143,30 @@ export type EmitterPrimaryInputs = {
    * even though it cannot at peak load.
    */
   loadCompensation: boolean
+  /**
+   * Actual building heat loss at design conditions (kW).
+   *
+   * When supplied, replaces BASE_HEAT_DEMAND_KW for:
+   *   - the primary-circuit capacity check, and
+   *   - the system ΔT calculation (in conjunction with boilerOutputKw).
+   *
+   * Omit to use BASE_HEAT_DEMAND_KW (14 kW) as the default.
+   */
+  heatLossKw?: number
+  /**
+   * Selected boiler heating output rating (kW).
+   *
+   * When supplied, scales the system ΔT so that an oversized boiler produces
+   * a smaller ΔT (higher return temperature, less condensing) and an
+   * appropriately-sized boiler produces the design ΔT of 12°C.
+   *
+   * Also used for the primary-circuit capacity check: the pipe must transport
+   * the boiler's full firing rate, so `max(heatLossKw, boilerOutputKw)` is
+   * used as the effective demand.
+   *
+   * Omit to use the design ΔT (DT_SYSTEM_C = 12°C) unchanged.
+   */
+  boilerOutputKw?: number
 }
 
 /**
@@ -227,7 +271,31 @@ export function useEmitterPrimaryModel(
   // `requiredFlowTempC` represents the cold-day design load — the worst-case
   // flow temperature this system needs to meet full heat demand.
   const requiredFlowTempC = clampFlowTemp(adjustedFlowTemp)
-  const estimatedReturnTempC = requiredFlowTempC - DT_SYSTEM_C
+
+  // System ΔT — how much the water cools between flow and return.
+  //
+  // When a boilerOutputKw is provided the circuit flow rate is assumed to be
+  // sized for that output at the design ΔT.  An oversized boiler pushes more
+  // water per unit time than the heat loss demands, so the actual temperature
+  // drop across the emitters is smaller (higher return temperature).
+  //
+  //   ΔT_actual = DT_SYSTEM_C × (heatLossKw / boilerOutputKw)
+  //
+  // This captures the key real-world effect: oversized boilers → high-flow /
+  // low-ΔT operation → elevated return temperatures → reduced condensing time.
+  // The result is clamped to DT_SYSTEM_MIN_C to stay physically plausible.
+  //
+  // When boilerOutputKw is omitted the design ΔT (12°C) is used unchanged,
+  // preserving backward compatibility.
+  const heatLossKw = inputs.heatLossKw ?? BASE_HEAT_DEMAND_KW
+  const effectiveDT = inputs.boilerOutputKw !== undefined && inputs.boilerOutputKw > 0
+    ? Math.min(
+        Math.max(DT_SYSTEM_C * (heatLossKw / inputs.boilerOutputKw), DT_SYSTEM_MIN_C),
+        DT_SYSTEM_MAX_C,
+      )
+    : DT_SYSTEM_C
+
+  const estimatedReturnTempC = requiredFlowTempC - effectiveDT
 
   // `currentLoadFlowTempC` represents the typical mid-season operating point.
   //
@@ -238,7 +306,19 @@ export function useEmitterPrimaryModel(
   const currentLoadFlowTempC = loadCompensation
     ? clampFlowTemp(requiredFlowTempC - LOAD_COMP_REDUCTION_C)
     : requiredFlowTempC
-  const currentLoadReturnTempC = currentLoadFlowTempC - DT_SYSTEM_C
+  const currentLoadReturnTempC = currentLoadFlowTempC - effectiveDT
+
+  // Primary-circuit capacity check.
+  //
+  // The pipe must transport the greater of:
+  //   - the building heat loss (steady-state thermal demand), and
+  //   - the boiler's maximum firing rate (transient cold-start demand).
+  //
+  // When no boilerOutputKw is supplied the check reverts to heatLossKw only,
+  // keeping the original BASE_HEAT_DEMAND_KW behaviour for existing consumers.
+  const pipeCheckKw = inputs.boilerOutputKw !== undefined
+    ? Math.max(heatLossKw, inputs.boilerOutputKw)
+    : heatLossKw
 
   return {
     requiredFlowTempC,
@@ -248,9 +328,9 @@ export function useEmitterPrimaryModel(
     // emitterAdequate: emitters support operating below the
     // emitter_undersized threshold (65°C).
     emitterAdequate: requiredFlowTempC <= 65,
-    // primaryAdequate: the pipe can transport the full heat demand.
-    primaryAdequate: BASE_HEAT_DEMAND_KW <= primaryCapacityKw,
-    heatDemandKw: BASE_HEAT_DEMAND_KW,
+    // primaryAdequate: the pipe can transport the full pipe-check demand.
+    primaryAdequate: pipeCheckKw <= primaryCapacityKw,
+    heatDemandKw: pipeCheckKw,
     primaryCapacityKw,
     estimatedCop: deriveCop(requiredFlowTempC),
   }
