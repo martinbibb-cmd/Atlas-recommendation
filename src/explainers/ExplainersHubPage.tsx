@@ -33,7 +33,7 @@ export default function ExplainersHubPage({ onBack }: Props) {
           <button
             className="hub-back-btn"
             onClick={() => setConfig(null)}
-            aria-label="Return to home setup"
+            aria-label="Home"
           >
             ⚙ Home
           </button>

@@ -19,6 +19,13 @@
 import type { SimulatorSystemChoice } from '../useSystemDiagramPlayback'
 import type { SystemInputs } from '../systemInputsTypes'
 
+// ─── Time speed constants ─────────────────────────────────────────────────────
+// Min 0.5× keeps demo phases visually legible; max 8× allows rapid cycling
+// for quick inspection without the 500 ms hard floor in useSystemDiagramPlayback.
+const TIME_SPEED_MIN  = 0.5
+const TIME_SPEED_MAX  = 8
+const TIME_SPEED_STEP = 0.5
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface SystemInputsPanelProps {
@@ -83,9 +90,9 @@ export default function SystemInputsPanel({
         label="Time speed"
         icon="⏱"
         value={timeSpeed}
-        min={0.5}
-        max={8}
-        step={0.5}
+        min={TIME_SPEED_MIN}
+        max={TIME_SPEED_MAX}
+        step={TIME_SPEED_STEP}
         unit="×"
         onChange={onTimeSpeedChange}
         formatValue={v => `${v}×`}

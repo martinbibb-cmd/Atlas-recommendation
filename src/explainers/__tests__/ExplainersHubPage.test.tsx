@@ -86,13 +86,13 @@ describe('ExplainersHubPage — stepper flow', () => {
   it('shows the Home button after completing the stepper', () => {
     render(<ExplainersHubPage />)
     completeStepper()
-    expect(screen.getByRole('button', { name: /return to home/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^home$/i })).toBeTruthy()
   })
 
   it('clicking Home returns to the stepper', () => {
     render(<ExplainersHubPage />)
     completeStepper()
-    const homeBtn = screen.getByRole('button', { name: /return to home/i })
+    const homeBtn = screen.getByRole('button', { name: /^home$/i })
     fireEvent.click(homeBtn)
     // Back on stepper
     expect(screen.getByText(/simulator setup/i)).toBeTruthy()

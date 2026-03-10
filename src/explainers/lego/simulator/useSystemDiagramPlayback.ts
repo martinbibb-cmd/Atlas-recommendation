@@ -525,7 +525,7 @@ export function useSystemDiagramPlayback(
   useEffect(() => {
     if (isManualMode) return
     const count = phaseCount(systemChoice)
-    const intervalMs = Math.max(500, Math.round(PHASE_DURATION_MS / timeSpeedMultiplier))
+    const intervalMs = Math.max(500, Math.round(PHASE_DURATION_MS / Math.max(0.1, timeSpeedMultiplier)))
     const timer = setInterval(() => {
       setPhase(prev => {
         const next = (prev + 1) % count

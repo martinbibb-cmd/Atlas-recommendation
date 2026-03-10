@@ -80,13 +80,16 @@ function detectCombiDhwLimit(
 ): Limiter | null {
   if (state.heatSourceType !== 'combi') return null
   if (!state.hotDrawActive && state.systemMode !== 'dhw_draw') return null
-  // Flow rate (L/min) at ΔT = 40 °C: P_kW × 860 / (60 × 40)
+  // Flow rate (L/min) = P_kW × 860 / (60 × ΔT_C)
+  // 860: specific heat conversion factor (kJ/kg·°C → kW·s/L × 1/1000)
+  // 60:  converts seconds to minutes
+  // 40:  assumed DHW temperature rise in °C (cold inlet 10°C → delivery 50°C)
   const flowLpm = Math.round(combiPowerKw * 860 / (60 * 40))
   return {
     id: 'combi_dhw_limit',
     severity: 'warning',
     title: 'Boiler DHW output limit',
-    explanation: `${combiPowerKw} kW combi can supply ~${flowLpm} L/min at this rise.`,
+    explanation: `${combiPowerKw} kW combi can supply ~${flowLpm} L/min at 40°C rise.`,
     suggestedFix: 'Cylinder or lower simultaneous demand',
     targetComponent: 'boiler',
   }
