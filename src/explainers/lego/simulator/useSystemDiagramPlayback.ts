@@ -55,6 +55,12 @@ export type SystemDiagramDisplayState = {
    */
   condensingState?: CondensingState
   /**
+   * Measured or modelled return-water temperature (°C).
+   * Used by the Efficiency panel to show numeric context alongside the
+   * condensing-state classification.  Absent for heat pump systems.
+   */
+  returnTempC?: number
+  /**
    * True when the user is actively drawing hot water from a stored cylinder.
    * Distinct from systemMode === 'dhw_draw' which is combi-only.
    *
@@ -136,6 +142,7 @@ function buildCombiState(phase: CombiPhase): SystemDiagramDisplayState {
     serviceSwitchingActive,
     supplyOrigins: supplyOriginsForSystemType(systemType),
     condensingState: deriveCondensingState(phase.returnTempC),
+    returnTempC: phase.returnTempC,
     hotDrawActive: phase.hotDrawActive,
   }
 }
@@ -158,6 +165,7 @@ function buildStoredState(phase: StoredPhase): SystemDiagramDisplayState {
     serviceSwitchingActive: false, // always false for stored
     supplyOrigins: supplyOriginsForSystemType(systemType),
     condensingState: deriveCondensingState(phase.returnTempC),
+    returnTempC: phase.returnTempC,
     hotDrawActive: phase.hotDrawActive,
     cylinderFillPct: phase.cylinderFillPct,
   }
