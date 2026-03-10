@@ -455,11 +455,18 @@ const PLATE_HEX_CONDITION_LABEL: Record<string, string> = {
   severe: 'Severe fouling',
 };
 
-const PLATE_HEX_IMPLICATION: Record<string, string> = {
-  good: 'On-demand hot water response within design limits.',
-  moderate: 'On-demand hot water response slightly reduced.',
-  poor: 'Likely temperature fluctuation under heavier demand.',
-  severe: 'On-demand hot water output reduced.',
+const PLATE_HEX_IMPLICATION: Record<string, string[]> = {
+  good: ['On-demand hot water response within design limits.'],
+  moderate: ['On-demand hot water response slightly reduced.'],
+  poor: [
+    'Temperature fluctuation under demand is likely.',
+    'More sensitive to short draws and concurrent demand.',
+  ],
+  severe: [
+    'On-demand hot water output significantly reduced.',
+    'Temperature fluctuation under demand is likely.',
+    'More sensitive to short draws and concurrent demand.',
+  ],
 };
 
 const PLATE_HEX_GUIDANCE: Record<string, string[]> = {
@@ -487,6 +494,33 @@ const CYL_CONDITION_LABEL: Record<string, string> = {
   moderate: 'Moderate degradation',
   poor: 'Poor insulation',
   severe: 'Severe degradation',
+};
+
+/**
+ * Band-based performance consequence lines added for non-good cylinder states.
+ * These complement the factor-based standing-loss / recovery lines derived
+ * from insulationFactor and coilTransferFactor.
+ */
+const CYL_EXTRA_IMPLICATION: Record<string, string> = {
+  moderate: 'User experience is buffered compared to on-demand hot water, but efficiency and recovery are slightly degraded.',
+  poor:     'User experience is buffered compared to on-demand hot water, but efficiency and recovery are degraded.',
+  severe:   'User experience is buffered compared to on-demand hot water, but efficiency and recovery are significantly degraded.',
+};
+
+const CYL_GUIDANCE: Record<string, string[]> = {
+  good:     [],
+  moderate: [
+    'Check cylinder insulation — add lagging if thin or absent.',
+  ],
+  poor: [
+    'Check cylinder insulation and add lagging if absent.',
+    'Inspect coil condition — scale build-up is likely in hard water areas.',
+  ],
+  severe: [
+    'Check cylinder insulation and add lagging if absent.',
+    'Inspect coil condition — descaling or coil replacement may be needed.',
+    'Consider cylinder upgrade if condition cannot be restored.',
+  ],
 };
 
 // ── Band styling tokens ───────────────────────────────────────────────────────
@@ -529,7 +563,7 @@ export function buildComponentHealthItems(result: FullEngineResult): ComponentHe
       component: 'Plate heat exchanger',
       conditionBand: hexBand,
       conditionLabel: PLATE_HEX_CONDITION_LABEL[hexBand] ?? hexBand,
-      implications: PLATE_HEX_IMPLICATION[hexBand] ? [PLATE_HEX_IMPLICATION[hexBand]] : [],
+      implications: PLATE_HEX_IMPLICATION[hexBand] ?? [],
       guidance: PLATE_HEX_GUIDANCE[hexBand] ?? [],
     });
   }
@@ -540,12 +574,14 @@ export function buildComponentHealthItems(result: FullEngineResult): ComponentHe
     const implications: string[] = [];
     if (cyl.insulationFactor < 1.0) implications.push('Standing heat loss elevated.');
     if (cyl.coilTransferFactor < 1.0) implications.push('Recovery slower than expected.');
+    const extraLine = CYL_EXTRA_IMPLICATION[cyl.conditionBand];
+    if (extraLine) implications.push(extraLine);
     items.push({
       component: 'Hot water cylinder',
       conditionBand: cyl.conditionBand,
       conditionLabel: CYL_CONDITION_LABEL[cyl.conditionBand] ?? cyl.conditionBand,
       implications,
-      guidance: [],
+      guidance: CYL_GUIDANCE[cyl.conditionBand] ?? [],
     });
   }
 
@@ -553,7 +589,7 @@ export function buildComponentHealthItems(result: FullEngineResult): ComponentHe
 }
 
 /**
- * ComponentHealthPanel — unified "System condition" section.
+ * ComponentHealthPanel — "Component condition" section.
  *
  * Surfaces plate HEX condition (combi path) and cylinder condition (stored path)
  * in a single at-a-glance view. Only renders when the engine has recorded at
@@ -566,8 +602,8 @@ function ComponentHealthPanel({ result }: { result: FullEngineResult }) {
   if (items.length === 0) return null;
 
   return (
-    <section className="rec-hub__section" aria-label="System condition">
-      <h3 className="rec-hub__section-title">System condition</h3>
+    <section className="rec-hub__section" aria-label="Component condition">
+      <h3 className="rec-hub__section-title">Component condition</h3>
       <div className="comp-health">
         {items.map((item, i) => {
           const colour = BAND_COLOUR[item.conditionBand] ?? '#4a5568';
@@ -800,7 +836,7 @@ export default function RecommendationHub({ result }: Props) {
       {/* 3 — System Health Gauge (overall hot-water health summary, when evidence available) */}
       <SystemHealthGauge result={result} />
 
-      {/* 4 — System condition (plate HEX and/or cylinder, when evidence available) */}
+      {/* 4 — Component condition (plate HEX and/or cylinder, when evidence available) */}
       <ComponentHealthPanel result={result} />
 
       {/* 5 — System Comparison */}

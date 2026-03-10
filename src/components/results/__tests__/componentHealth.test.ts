@@ -85,19 +85,23 @@ describe('buildComponentHealthItems', () => {
     expect(item.guidance.length).toBeGreaterThan(0);
   });
 
-  it('gives plate HEX poor band an implication and guidance', () => {
+  it('gives plate HEX poor band multiple implications and guidance', () => {
     const result = makeResult({ plateHexConditionBand: 'poor' });
     const [item] = buildComponentHealthItems(result);
     expect(item.conditionLabel).toMatch(/significant fouling/i);
-    expect(item.implications).toHaveLength(1);
+    expect(item.implications.length).toBeGreaterThanOrEqual(2);
+    expect(item.implications.some(s => /temperature fluctuation/i.test(s))).toBe(true);
+    expect(item.implications.some(s => /short draws|concurrent demand/i.test(s))).toBe(true);
     expect(item.guidance.length).toBeGreaterThan(0);
   });
 
-  it('gives plate HEX severe band an implication and guidance', () => {
+  it('gives plate HEX severe band multiple implications and guidance', () => {
     const result = makeResult({ plateHexConditionBand: 'severe' });
     const [item] = buildComponentHealthItems(result);
     expect(item.conditionLabel).toMatch(/severe fouling/i);
-    expect(item.implications).toHaveLength(1);
+    expect(item.implications.length).toBeGreaterThanOrEqual(2);
+    expect(item.implications.some(s => /temperature fluctuation/i.test(s))).toBe(true);
+    expect(item.implications.some(s => /short draws|concurrent demand/i.test(s))).toBe(true);
     expect(item.guidance.length).toBeGreaterThan(0);
   });
 
@@ -149,12 +153,52 @@ describe('buildComponentHealthItems', () => {
     expect(item.implications).toHaveLength(0);
   });
 
-  it('cylinder row always has empty guidance array', () => {
+  it('cylinder poor band includes maintenance guidance', () => {
+    const result = makeResult({
+      cylinderCondition: { conditionBand: 'poor', insulationFactor: 0.8, coilTransferFactor: 0.85, standingLossRelative: 1.25 },
+    });
+    const [item] = buildComponentHealthItems(result);
+    expect(item.guidance.length).toBeGreaterThan(0);
+    expect(item.guidance.some(s => /insulation|lagging/i.test(s))).toBe(true);
+    expect(item.guidance.some(s => /coil/i.test(s))).toBe(true);
+  });
+
+  it('cylinder severe band includes upgrade guidance', () => {
     const result = makeResult({
       cylinderCondition: { conditionBand: 'severe', insulationFactor: 0.7, coilTransferFactor: 0.75, standingLossRelative: 1.43 },
     });
     const [item] = buildComponentHealthItems(result);
+    expect(item.guidance.some(s => /upgrade/i.test(s))).toBe(true);
+  });
+
+  it('cylinder moderate band includes basic insulation guidance', () => {
+    const result = makeResult({
+      cylinderCondition: { conditionBand: 'moderate', insulationFactor: 0.9, coilTransferFactor: 1.0, standingLossRelative: 1.1 },
+    });
+    const [item] = buildComponentHealthItems(result);
+    expect(item.guidance.length).toBeGreaterThan(0);
+    expect(item.guidance.some(s => /insulation|lagging/i.test(s))).toBe(true);
+  });
+
+  it('cylinder good band has empty guidance', () => {
+    const result = makeResult({
+      cylinderCondition: { conditionBand: 'good', insulationFactor: 1.0, coilTransferFactor: 1.0, standingLossRelative: 1.0 },
+    });
+    const [item] = buildComponentHealthItems(result);
     expect(item.guidance).toEqual([]);
+  });
+
+  it('cylinder degraded bands include buffered-experience implication', () => {
+    for (const band of ['moderate', 'poor', 'severe'] as const) {
+      const result = makeResult({
+        cylinderCondition: { conditionBand: band, insulationFactor: 0.85, coilTransferFactor: 0.85, standingLossRelative: 1.18 },
+      });
+      const [item] = buildComponentHealthItems(result);
+      expect(item.implications.some(s => /buffered/i.test(s))).toBe(
+        true,
+        `Expected buffered-experience implication for conditionBand=${band}`,
+      );
+    }
   });
 
   // ── Combined rows ─────────────────────────────────────────────────────────
