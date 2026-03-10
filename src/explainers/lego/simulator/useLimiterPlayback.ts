@@ -16,7 +16,7 @@
 import { isBoilerHeatSource } from '../sim/condensingState'
 import type { SystemDiagramDisplayState } from './useSystemDiagramPlayback'
 import type { EmitterPrimaryDisplayState } from './useEmitterPrimaryModel'
-import type { CylinderType } from './systemInputsTypes'
+import type { CylinderType, SystemCondition } from './systemInputsTypes'
 import { MIXERGY_USABLE_RESERVE_FACTOR } from './systemInputsTypes'
 
 // ─── Public types ─────────────────────────────────────────────────────────────
@@ -307,6 +307,40 @@ function detectLowTempCapable(
   }
 }
 
+/**
+ * System condition — fires when the system is sludged or scaled, indicating
+ * that heat transfer is being restricted by contamination.
+ *
+ * Sludge (magnetite) coats radiator surfaces and restricts flow.
+ * Scale coats the heat exchanger and reduces thermal conductivity.
+ *
+ * Trigger: systemCondition !== 'clean'.
+ * Severity: warning.
+ */
+function detectSystemCondition(
+  systemCondition: SystemCondition | undefined,
+): Limiter | null {
+  if (!systemCondition || systemCondition === 'clean') return null
+  if (systemCondition === 'sludged') {
+    return {
+      id: 'sludge_build_up',
+      severity: 'warning',
+      title: 'Magnetite sludge accumulation',
+      explanation: 'Sludge coating radiator surfaces is reducing heat transfer and restricting circulation.',
+      suggestedFix: 'Power flush and fit magnetic filter',
+      targetComponent: 'boiler',
+    }
+  }
+  return {
+    id: 'scale_build_up',
+    severity: 'warning',
+    title: 'Scale restricting heat exchanger',
+    explanation: 'Limescale build-up is reducing heat exchanger efficiency and increasing return temperatures.',
+    suggestedFix: 'Descale heat exchanger — consider water softener or inhibitor dosing',
+    targetComponent: 'boiler',
+  }
+}
+
 // ─── Public hook ──────────────────────────────────────────────────────────────
 
 /**
@@ -331,6 +365,9 @@ function detectLowTempCapable(
  * @param cylinderType   Optional cylinder technology type. When 'mixergy', the
  *   cylinder_depleted threshold is scaled by MIXERGY_USABLE_RESERVE_FACTOR and
  *   the mixergy_stratification info limiter is enabled during DHW draws.
+ * @param systemCondition  Optional physical condition of the heating system.
+ *   When 'sludged' or 'scaled', fires a warning limiter describing the impact
+ *   on heat transfer.
  */
 export function useLimiterPlayback(
   diagramState: SystemDiagramDisplayState,
@@ -338,6 +375,7 @@ export function useLimiterPlayback(
   coldInletTempC: number = 10,
   emitterState?: EmitterPrimaryDisplayState,
   cylinderType?: CylinderType,
+  systemCondition?: SystemCondition,
 ): LimiterDisplayState {
   const candidates: Array<Limiter | null> = [
     detectCylinderDepleted(diagramState, cylinderType),
@@ -347,6 +385,7 @@ export function useLimiterPlayback(
     detectEmitterUndersized(emitterState),
     detectPrimaryCircuitLimit(emitterState),
     detectMainsFlowLimit(diagramState),
+    detectSystemCondition(systemCondition),
     detectLowTempCapable(emitterState),
     detectMixergyStratification(diagramState, cylinderType),
   ]

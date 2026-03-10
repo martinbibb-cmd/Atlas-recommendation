@@ -1,19 +1,18 @@
 /**
- * SimulatorDashboard — 4-panel simulator layout.
+ * SimulatorDashboard — 4-panel simulator layout with optional compare mode.
  *
- * Panels (2×2 grid):
- *  - top-left:     System Diagram (live animated schematic)
- *  - top-right:    House View
- *  - bottom-left:  Draw-Off Status
- *  - bottom-right: Efficiency
+ * Single mode (default):
+ *  - 2×2 panel grid: System Diagram, House View, Draw-Off Status, Efficiency
+ *  - Limiters row below the grid
+ *  - System Inputs row below limiters
  *
- * The System Diagram panel is driven by useSystemDiagramPlayback, which uses
- * service-arbitration truth (resolveServiceMode / computeServiceSwitchingActive)
- * as the authoritative source for animation state.
+ * Compare mode:
+ *  - ComparisonSummaryStrip at top showing key before/after physics
+ *  - Two columns side by side: Current System | Improved System
+ *  - Each column runs independent hooks via the same simulator architecture
  *
- * Tapping any panel opens an ExpandedPanelModal with the same content enlarged.
- *
- * PR6: Added sim-time/phase bar, demand controls, and correct system-type options.
+ * PR6:  Added sim-time/phase bar, demand controls, and correct system-type options.
+ * PR13: Added compare mode toggle, parallel improved config, ComparisonSummaryStrip.
  */
 
 import { useState } from 'react';
@@ -26,6 +25,7 @@ import DrawOffStatusPanel from './panels/DrawOffStatusPanel';
 import EfficiencyPanel from './panels/EfficiencyPanel';
 import LimitersPanel from './panels/LimitersPanel';
 import SystemInputsPanel from './panels/SystemInputsPanel';
+import ComparisonSummaryStrip from './panels/ComparisonSummaryStrip';
 import type { SystemInputs } from './systemInputsTypes';
 import { DEFAULT_SYSTEM_INPUTS } from './systemInputsTypes';
 import { useSystemDiagramPlayback } from './useSystemDiagramPlayback';
@@ -39,6 +39,7 @@ import './labDashboard.css';
 import './labPanels.css';
 
 type PanelId = 'system' | 'house' | 'drawoff' | 'efficiency' | 'limiters' | 'inputs';
+type SimulatorMode = 'single' | 'compare';
 
 const PANEL_METADATA: Record<PanelId, { title: string; icon: string }> = {
   system:     { title: 'System Diagram',  icon: '⚙'  },
@@ -99,6 +100,33 @@ function PhaseBar({
   )
 }
 
+// ─── System type selector ─────────────────────────────────────────────────────
+
+interface SystemSelectorProps {
+  systemChoice: SimulatorSystemChoice
+  onSetSystemChoice: (c: SimulatorSystemChoice) => void
+  label?: string
+}
+
+function SystemSelector({ systemChoice, onSetSystemChoice, label }: SystemSelectorProps) {
+  return (
+    <div className="sim-system-selector" aria-label={label ?? 'System type selector'}>
+      {label && <span className="sim-system-selector__col-label">{label}</span>}
+      {SYSTEM_CHOICE_OPTIONS.map(opt => (
+        <button
+          key={opt.value}
+          className={`sim-system-selector__btn${systemChoice === opt.value ? ' sim-system-selector__btn--active' : ''}`}
+          onClick={() => onSetSystemChoice(opt.value)}
+          aria-pressed={systemChoice === opt.value}
+          title={opt.description}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -109,6 +137,9 @@ interface Props {
 export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Props) {
   const [expanded, setExpanded] = useState<PanelId | null>(null);
   const [timeSpeed, setTimeSpeed] = useState(1);
+  const [simulatorMode, setSimulatorMode] = useState<SimulatorMode>('single');
+
+  // ── Current config ──────────────────────────────────────────────────────────
   const [systemInputs, setSystemInputs] = useState<SystemInputs>(DEFAULT_SYSTEM_INPUTS);
 
   const {
@@ -129,23 +160,72 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
     emitterType: systemInputs.emitterType,
     weatherCompensation: systemInputs.weatherCompensation,
   });
-  const efficiencyState = useEfficiencyPlayback(diagramState, emitterState);
-  const limiterState = useLimiterPlayback(diagramState, systemInputs.combiPowerKw, systemInputs.coldInletTempC, emitterState, systemInputs.cylinderType);
+  const efficiencyState = useEfficiencyPlayback(diagramState, emitterState, systemInputs.systemCondition);
+  const limiterState = useLimiterPlayback(diagramState, systemInputs.combiPowerKw, systemInputs.coldInletTempC, emitterState, systemInputs.cylinderType, systemInputs.systemCondition);
 
-  // Derive highlighted schematic components from active limiters.
-  // targetComponent may be a single string or an array, so flatten both forms.
+  // ── Improved config (compare mode) ─────────────────────────────────────────
+  // Hooks are always called unconditionally (React rules). Their outputs are
+  // only rendered when simulatorMode === 'compare'.
+  const [improvedInputs, setImprovedInputs] = useState<SystemInputs>({
+    ...DEFAULT_SYSTEM_INPUTS,
+    weatherCompensation: true,
+    emitterCapacityFactor: 1.3,
+    primaryPipeSize: '22mm',
+    systemCondition: 'clean',
+  });
+
+  const {
+    state: diagramStateImproved,
+    systemChoice: systemChoiceImproved,
+    setSystemChoice: setSystemChoiceImproved,
+    isManualMode: isManualModeImproved,
+    resetToAutoMode: resetToAutoModeImproved,
+    setManualMode: setManualModeImproved,
+  } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed);
+  // useHousePlayback and useDrawOffPlayback are called for React hook ordering.
+  // Their results are not rendered in compare mode (only efficiency/limiters are shown).
+  useHousePlayback(diagramStateImproved);
+  useDrawOffPlayback(diagramStateImproved);
+  const emitterStateImproved = useEmitterPrimaryModel({
+    emitterCapacityFactor: improvedInputs.emitterCapacityFactor,
+    primaryPipeSize: improvedInputs.primaryPipeSize,
+    emitterType: improvedInputs.emitterType,
+    weatherCompensation: improvedInputs.weatherCompensation,
+  });
+  const efficiencyStateImproved = useEfficiencyPlayback(diagramStateImproved, emitterStateImproved, improvedInputs.systemCondition);
+  const limiterStateImproved = useLimiterPlayback(diagramStateImproved, improvedInputs.combiPowerKw, improvedInputs.coldInletTempC, emitterStateImproved, improvedInputs.cylinderType, improvedInputs.systemCondition);
+
+  // ── Derived display values (current) ───────────────────────────────────────
+
   const highlightedComponents = limiterState.activeLimiters
     .flatMap(l => {
       if (!l.targetComponent) return []
       return Array.isArray(l.targetComponent) ? l.targetComponent : [l.targetComponent]
     });
 
-  // Derive phase bar indicators from authoritative diagramState.
+  const highlightedComponentsImproved = limiterStateImproved.activeLimiters
+    .flatMap(l => {
+      if (!l.targetComponent) return []
+      return Array.isArray(l.targetComponent) ? l.targetComponent : [l.targetComponent]
+    });
+
   const { systemMode, serviceSwitchingActive, hotDrawActive } = diagramState;
-  const chActive = (systemMode === 'heating' || systemMode === 'heating_and_reheat') && !serviceSwitchingActive;
-  const dhwActive = systemMode === 'dhw_draw' || hotDrawActive;
+  const chActive     = (systemMode === 'heating' || systemMode === 'heating_and_reheat') && !serviceSwitchingActive;
+  const dhwActive    = systemMode === 'dhw_draw' || hotDrawActive;
   const reheatActive = systemMode === 'dhw_reheat' || systemMode === 'heating_and_reheat';
-  const chPaused = serviceSwitchingActive;
+  const chPaused     = serviceSwitchingActive;
+
+  const {
+    systemMode: systemModeImp,
+    serviceSwitchingActive: serviceSwitchingActiveImp,
+    hotDrawActive: hotDrawActiveImp,
+  } = diagramStateImproved;
+  const chActiveImp     = (systemModeImp === 'heating' || systemModeImp === 'heating_and_reheat') && !serviceSwitchingActiveImp;
+  const dhwActiveImp    = systemModeImp === 'dhw_draw' || hotDrawActiveImp;
+  const reheatActiveImp = systemModeImp === 'dhw_reheat' || systemModeImp === 'heating_and_reheat';
+  const chPausedImp     = serviceSwitchingActiveImp;
+
+  // ── Draw-off panels ─────────────────────────────────────────────────────────
 
   const drawOffPanel = (
     <DrawOffStatusPanel
@@ -166,6 +246,8 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
     />
   );
 
+  // ── Expanded panel content (single mode only) ───────────────────────────────
+
   const expandedContent: Partial<Record<PanelId, ReactElement>> = {
     system: <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} />,
     house:    <HouseStatusPanel state={houseState} />,
@@ -183,21 +265,156 @@ export default function SimulatorDashboard({ initialSystemChoice = 'combi' }: Pr
     ),
   };
 
+  // ── Mode toggle ─────────────────────────────────────────────────────────────
+
+  const modeToggle = (
+    <div className="sim-mode-toggle" role="group" aria-label="Simulator mode">
+      <button
+        className={`sim-mode-toggle__btn${simulatorMode === 'single' ? ' sim-mode-toggle__btn--active' : ''}`}
+        onClick={() => setSimulatorMode('single')}
+        aria-pressed={simulatorMode === 'single'}
+      >
+        Single
+      </button>
+      <button
+        className={`sim-mode-toggle__btn${simulatorMode === 'compare' ? ' sim-mode-toggle__btn--active' : ''}`}
+        onClick={() => setSimulatorMode('compare')}
+        aria-pressed={simulatorMode === 'compare'}
+      >
+        Compare
+      </button>
+    </div>
+  );
+
+  // ── Compare mode render ─────────────────────────────────────────────────────
+
+  if (simulatorMode === 'compare') {
+    return (
+      <>
+        {/* Top toolbar: mode toggle */}
+        <div className="sim-toolbar">
+          {modeToggle}
+        </div>
+
+        {/* Comparison summary strip */}
+        <ComparisonSummaryStrip
+          current={{ emitter: emitterState, efficiency: efficiencyState, limiters: limiterState }}
+          improved={{ emitter: emitterStateImproved, efficiency: efficiencyStateImproved, limiters: limiterStateImproved }}
+        />
+
+        {/* Two-column compare layout */}
+        <div className="sim-compare-layout" data-testid="compare-layout">
+
+          {/* ── Current System column ── */}
+          <div className="sim-compare-col sim-compare-col--current">
+            <div className="sim-compare-col__heading">Current System</div>
+
+            <SystemSelector
+              systemChoice={systemChoice}
+              onSetSystemChoice={setSystemChoice}
+              label="System"
+            />
+
+            <PhaseBar
+              phaseLabel={diagramState.phaseLabel}
+              chActive={chActive}
+              dhwActive={dhwActive}
+              reheatActive={reheatActive}
+              chPaused={chPaused}
+              isManualMode={isManualMode}
+              onResetAuto={resetToAutoMode}
+              onSetManual={setManualMode}
+            />
+
+            <div className="sim-compare-panels">
+              <SimulatorPanel title="System Diagram" icon="⚙" onExpand={() => {}}>
+                <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} />
+              </SimulatorPanel>
+              <SimulatorPanel title="Efficiency" icon="📊" onExpand={() => {}}>
+                <EfficiencyPanel state={efficiencyState} />
+              </SimulatorPanel>
+            </div>
+
+            <div className="sim-compare-limiters">
+              <SimulatorPanel title="System Limiters" icon="⚠" onExpand={() => {}}>
+                <LimitersPanel state={limiterState} />
+              </SimulatorPanel>
+            </div>
+
+            <div className="sim-compare-inputs">
+              <SimulatorPanel title="System Inputs" icon="🎛" onExpand={() => {}}>
+                <SystemInputsPanel
+                  timeSpeed={timeSpeed}
+                  onTimeSpeedChange={setTimeSpeed}
+                  inputs={systemInputs}
+                  onInputChange={partial => setSystemInputs(prev => ({ ...prev, ...partial }))}
+                  systemChoice={systemChoice}
+                />
+              </SimulatorPanel>
+            </div>
+          </div>
+
+          {/* ── Improved System column ── */}
+          <div className="sim-compare-col sim-compare-col--improved">
+            <div className="sim-compare-col__heading sim-compare-col__heading--improved">Improved System</div>
+
+            <SystemSelector
+              systemChoice={systemChoiceImproved}
+              onSetSystemChoice={setSystemChoiceImproved}
+              label="System"
+            />
+
+            <PhaseBar
+              phaseLabel={diagramStateImproved.phaseLabel}
+              chActive={chActiveImp}
+              dhwActive={dhwActiveImp}
+              reheatActive={reheatActiveImp}
+              chPaused={chPausedImp}
+              isManualMode={isManualModeImproved}
+              onResetAuto={resetToAutoModeImproved}
+              onSetManual={setManualModeImproved}
+            />
+
+            <div className="sim-compare-panels">
+              <SimulatorPanel title="System Diagram" icon="⚙" onExpand={() => {}}>
+                <SystemDiagramPanel state={diagramStateImproved} highlightedComponents={highlightedComponentsImproved} />
+              </SimulatorPanel>
+              <SimulatorPanel title="Efficiency" icon="📊" onExpand={() => {}}>
+                <EfficiencyPanel state={efficiencyStateImproved} />
+              </SimulatorPanel>
+            </div>
+
+            <div className="sim-compare-limiters">
+              <SimulatorPanel title="System Limiters" icon="⚠" onExpand={() => {}}>
+                <LimitersPanel state={limiterStateImproved} />
+              </SimulatorPanel>
+            </div>
+
+            <div className="sim-compare-inputs">
+              <SimulatorPanel title="Improved Inputs" icon="🎛" onExpand={() => {}}>
+                <SystemInputsPanel
+                  timeSpeed={timeSpeed}
+                  onTimeSpeedChange={setTimeSpeed}
+                  inputs={improvedInputs}
+                  onInputChange={partial => setImprovedInputs(prev => ({ ...prev, ...partial }))}
+                  systemChoice={systemChoiceImproved}
+                />
+              </SimulatorPanel>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ── Single mode render ──────────────────────────────────────────────────────
+
   return (
     <>
-      {/* System-type selector */}
-      <div className="sim-system-selector" aria-label="System type selector">
-        {SYSTEM_CHOICE_OPTIONS.map(opt => (
-          <button
-            key={opt.value}
-            className={`sim-system-selector__btn${systemChoice === opt.value ? ' sim-system-selector__btn--active' : ''}`}
-            onClick={() => setSystemChoice(opt.value)}
-            aria-pressed={systemChoice === opt.value}
-            title={opt.description}
-          >
-            {opt.label}
-          </button>
-        ))}
+      {/* Top toolbar: mode toggle + system-type selector */}
+      <div className="sim-toolbar">
+        {modeToggle}
+        <SystemSelector systemChoice={systemChoice} onSetSystemChoice={setSystemChoice} />
       </div>
 
       {/* Sim-time / phase bar */}

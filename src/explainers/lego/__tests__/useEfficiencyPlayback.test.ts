@@ -354,3 +354,37 @@ describe('useEfficiencyPlayback — statusDescription', () => {
     expect(result.statusDescription).toBe('')
   })
 })
+
+// ─── Tests: systemCondition penalties ────────────────────────────────────────
+
+describe('useEfficiencyPlayback — systemCondition penalties', () => {
+  it('no condition penalty when systemCondition is omitted', () => {
+    const result = useEfficiencyPlayback(combiHeatingCondensing())
+    expect(result.penalties).not.toContain('Magnetite sludge reducing heat transfer')
+    expect(result.penalties).not.toContain('Scale build-up restricting heat exchanger')
+  })
+
+  it('no condition penalty when systemCondition is "clean"', () => {
+    const result = useEfficiencyPlayback(combiHeatingCondensing(), undefined, 'clean')
+    expect(result.penalties).not.toContain('Magnetite sludge reducing heat transfer')
+    expect(result.penalties).not.toContain('Scale build-up restricting heat exchanger')
+  })
+
+  it('adds sludge penalty when systemCondition is "sludged"', () => {
+    const result = useEfficiencyPlayback(combiHeatingCondensing(), undefined, 'sludged')
+    expect(result.penalties).toContain('Magnetite sludge reducing heat transfer')
+  })
+
+  it('adds scale penalty when systemCondition is "scaled"', () => {
+    const result = useEfficiencyPlayback(combiHeatingCondensing(), undefined, 'scaled')
+    expect(result.penalties).toContain('Scale build-up restricting heat exchanger')
+  })
+
+  it('does not add both sludge and scale penalties simultaneously', () => {
+    const sludged = useEfficiencyPlayback(combiHeatingCondensing(), undefined, 'sludged')
+    expect(sludged.penalties).not.toContain('Scale build-up restricting heat exchanger')
+
+    const scaled = useEfficiencyPlayback(combiHeatingCondensing(), undefined, 'scaled')
+    expect(scaled.penalties).not.toContain('Magnetite sludge reducing heat transfer')
+  })
+})
