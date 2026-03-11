@@ -91,10 +91,10 @@ const MIXERGY_CYLINDER: CylinderStatusViewModel = {
   nominalVolumeL: 150,
   usableVolumeFactor: 0.88,
   recoverySource: 'Boiler (Mixergy)',
-  recoveryPowerTendency: 'High — demand mirroring reduces reheat cycling',
+  recoveryPowerTendency: 'Demand-mirrored heating — hot layer maintained; reduced reheat cycling',
   state: 'recovering',
   recoveryNote: 'Boiler firing via Mixergy controller.',
-  storeNote: 'Mixergy maintains a defined heated layer. Once that layer is exhausted, hot delivery drops more abruptly than in a conventional cylinder.',
+  storeNote: 'Hot water delivered from a defined heated layer. 128 L (85%) heated at 60°C. Once the thermocline reaches the outlet level, hot delivery falls rapidly rather than cooling gradually.',
 }
 
 // ─── DrawOffWorkbench ────────────────────────────────────────────────────────
@@ -419,6 +419,30 @@ describe('CylinderStatusCard — Mixergy cylinder', () => {
   it('renders store note describing defined heated layer behaviour', () => {
     render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
     expect(screen.getByText(/defined heated layer/)).toBeTruthy();
+  });
+
+  it('renders the thermocline depletion note with rapid-drop wording', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.getByText(/hot delivery falls rapidly/)).toBeTruthy();
+  });
+
+  it('Mixergy cylinder graphic hot zone height is set to heatedFractionPct', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    // The hot zone div should have its height inline-style set to 85%
+    const hotZone = document.querySelector('.cylinder-graphic__zone--hot') as HTMLElement | null;
+    expect(hotZone).not.toBeNull();
+    expect(hotZone!.style.height).toBe('85%');
+  });
+
+  it('Mixergy cylinder graphic aria-label includes heated fraction percentage', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    const graphic = screen.getByRole('img', { name: /Cylinder schematic/ });
+    expect(graphic.getAttribute('aria-label')).toContain('85%');
+  });
+
+  it('renders recovery tendency with demand-mirroring wording', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.getByText(/Demand-mirrored heating/)).toBeTruthy();
   });
 });
 

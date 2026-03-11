@@ -44,15 +44,20 @@ interface CylinderGraphicProps {
   topTempC: number
   bulkTempC?: number
   isMixergy?: boolean
+  /** Mixergy only: fraction of nominal volume currently heated (0–100). */
+  heatedFractionPct?: number
 }
 
-function CylinderGraphic({ usableVolumeFactor, topTempC, bulkTempC, isMixergy }: CylinderGraphicProps) {
-  // hot zone height as a % of the graphic (at least 15%, at most 50%)
-  const hotPct  = Math.min(50, Math.max(15, Math.round(usableVolumeFactor * 60)))
+function CylinderGraphic({ usableVolumeFactor, topTempC, bulkTempC, isMixergy, heatedFractionPct }: CylinderGraphicProps) {
+  // For Mixergy: hot zone fills to the actual heated fraction (5%–95% of graphic).
+  // For standard cylinders: hot zone height proportional to usable volume (15%–50%).
+  const hotPct  = isMixergy && heatedFractionPct !== undefined
+    ? Math.min(95, Math.max(5, heatedFractionPct))
+    : Math.min(50, Math.max(15, Math.round(usableVolumeFactor * 60)))
   const coldPct = 100 - hotPct
 
   const ariaLabel = isMixergy
-    ? `Cylinder schematic: heated layer ${topTempC}°C, cool reserve below`
+    ? `Cylinder schematic: heated layer ${topTempC}°C, ${heatedFractionPct ?? Math.round(usableVolumeFactor * 100)}% heated, cool reserve below`
     : `Cylinder schematic: top ${topTempC}°C, bulk ${bulkTempC}°C`
 
   return (
@@ -154,6 +159,7 @@ export default function CylinderStatusCard({ data }: Props) {
           topTempC={topTempC}
           bulkTempC={isMixergy ? undefined : bulkTempC}
           isMixergy={isMixergy}
+          heatedFractionPct={isMixergy ? heatedFractionPct : undefined}
         />
       )}
 
