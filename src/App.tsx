@@ -85,53 +85,34 @@ export default function App() {
   return (
     <div className="landing">
       <div className="hero">
-        <h1>🏠 Atlas Heating Recommendation Engine</h1>
-        <p className="subtitle">V2.3 — Pure Physics Core</p>
+        <h1>
+          <span className="hero-brand">Atlas</span>
+          System Lab
+        </h1>
         <p className="tagline">
-          A decision tool with proof — not a chart dashboard. Atlas shows you
-          why one heating system suits and another struggles, using real
-          thermodynamic, hydraulic, and geochemical simulation.
+          Compare heating systems and see why one fits better.
         </p>
       </div>
       <div className="journey-cards">
         <div className="journey-card fast" onClick={() => setJourney('fast')}>
           <div className="card-icon">⚡</div>
           <h2>Fast Choice</h2>
-          <p className="card-time">~1 minute</p>
-          <p>First-pass recommendation. Enter a handful of inputs and get a physics-driven result in under a minute.</p>
-          <ul>
-            <li>Combi vs stored — quick verdict</li>
-            <li>Old boiler reality check</li>
-            <li>Open result in System Lab or Full Survey</li>
-          </ul>
+          <p>Quick first-pass recommendation. Ideal for early conversations or demonstrations. You can open the result in System Lab later to explore the physics and comparisons.</p>
           <button className="cta-btn">Start Fast Choice →</button>
         </div>
         <div
-          className="journey-card full"
+          className="journey-card journey-card--featured"
           onClick={() => setJourney('lab')}
-          style={{ borderColor: '#805ad5' }}
         >
           <div className="card-icon">🔭</div>
           <h2>System Lab</h2>
-          <p className="card-time">Compare &amp; prove why</p>
-          <p>Side-by-side comparison engine. See why one system wins and another struggles — with physics to back every claim.</p>
-          <ul>
-            <li>Current vs candidate system comparison</li>
-            <li>Limiters, thresholds, and operating points</li>
-            <li>Day painter and comfort behaviour visuals</li>
-          </ul>
-          <button className="cta-btn" style={{ background: '#805ad5' }}>Open System Lab →</button>
+          <p>Compare heating systems side-by-side and see why one fits better. Atlas shows the physical constraints, behaviour and trade-offs so the recommendation is transparent.</p>
+          <button className="cta-btn">Open System Lab →</button>
         </div>
         <div className="journey-card full" onClick={() => setJourney('full')}>
           <div className="card-icon">🔬</div>
           <h2>Full Survey</h2>
-          <p className="card-time">~5 minutes</p>
-          <p>Complete technical specification with system transition analysis and 10-year performance projections.</p>
-          <ul>
-            <li>Building mass &amp; thermal inertia</li>
-            <li>Geochemical scale analysis</li>
-            <li>24-hour comfort simulation</li>
-          </ul>
+          <p>Capture the full technical picture. Enter detailed property, system and usage information to increase confidence in the recommendation.</p>
           <button className="cta-btn">Start Full Survey →</button>
         </div>
       </div>

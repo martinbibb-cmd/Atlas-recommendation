@@ -23,10 +23,21 @@ body {
 }
 
 .hero h1 {
-  font-size: 2.2rem;
+  font-size: 2.5rem;
   font-weight: 700;
   color: #2d3748;
   margin-bottom: 0.5rem;
+  line-height: 1.2;
+}
+
+.hero-brand {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #718096;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 0.25rem;
 }
 
 .subtitle {
@@ -76,6 +87,21 @@ body {
 .journey-card.fast { border-color: #ed8936; }
 .journey-card.full { border-color: #3182ce; }
 .journey-card--hub { border-color: #2b6cb0; }
+
+.journey-card--featured {
+  border: 2px solid #6366f1;
+  background: #fafbff;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.18);
+}
+
+.journey-card--featured .cta-btn {
+  background: #6366f1;
+  color: white;
+}
+
+.journey-card--featured .cta-btn:hover {
+  background: #4f46e5;
+}
 
 .card-icon {
   font-size: 2.5rem;
