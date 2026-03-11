@@ -307,14 +307,15 @@ function getCylinderData(regime: Regime): CylinderStatusViewModel {
   return {
     storageRegime: 'mixergy_cylinder',
     topTempC: 60,
-    bulkTempC: 50,
+    heatedVolumeL: 128,
+    heatedFractionPct: 85,
     nominalVolumeL: 150,
     usableVolumeFactor: 0.88,
     recoverySource: 'Boiler (Mixergy)',
     recoveryPowerTendency: 'High — demand mirroring reduces reheat cycling versus standard cylinder',
     state: 'recovering',
-    recoveryNote: 'Boiler firing via Mixergy controller. Top-down stratification keeps hot layer intact during partial draws.',
-    storeNote: 'Stratification active — usable hot layer maintained above thermocline. Reduced depletion rate versus standard cylinder.',
+    recoveryNote: 'Boiler firing via Mixergy controller. Top-down stratification actively grows the heated layer.',
+    storeNote: 'Mixergy maintains a defined heated layer. Once that layer is exhausted, hot delivery drops more abruptly than in a conventional cylinder.',
   }
 }
 

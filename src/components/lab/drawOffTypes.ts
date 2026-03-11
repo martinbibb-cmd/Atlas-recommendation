@@ -94,6 +94,16 @@ export interface CylinderStatusViewModel {
    */
   usableVolumeFactor?: number
   /**
+   * Volume of the actively heated layer in litres.  Specific to
+   * mixergy_cylinder; undefined for all other regimes.
+   */
+  heatedVolumeL?: number
+  /**
+   * Fraction of the nominal volume currently heated (0–100).  Specific to
+   * mixergy_cylinder; undefined for all other regimes.
+   */
+  heatedFractionPct?: number
+  /**
    * Recovery source label shown under "Recovery source".
    * e.g. "Boiler", "Heat pump", "None (on-demand)"
    */

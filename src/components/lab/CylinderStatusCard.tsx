@@ -42,18 +42,23 @@ function isCylinderRegime(regime: StorageRegime): boolean {
 interface CylinderGraphicProps {
   usableVolumeFactor: number   // 0–1
   topTempC: number
-  bulkTempC: number
+  bulkTempC?: number
+  isMixergy?: boolean
 }
 
-function CylinderGraphic({ usableVolumeFactor, topTempC, bulkTempC }: CylinderGraphicProps) {
+function CylinderGraphic({ usableVolumeFactor, topTempC, bulkTempC, isMixergy }: CylinderGraphicProps) {
   // hot zone height as a % of the graphic (at least 15%, at most 50%)
   const hotPct  = Math.min(50, Math.max(15, Math.round(usableVolumeFactor * 60)))
   const coldPct = 100 - hotPct
 
+  const ariaLabel = isMixergy
+    ? `Cylinder schematic: heated layer ${topTempC}°C, cool reserve below`
+    : `Cylinder schematic: top ${topTempC}°C, bulk ${bulkTempC}°C`
+
   return (
     <div
       className="cylinder-graphic"
-      aria-label={`Cylinder schematic: top ${topTempC}°C, bulk ${bulkTempC}°C`}
+      aria-label={ariaLabel}
       role="img"
     >
       {/* cap */}
@@ -68,14 +73,16 @@ function CylinderGraphic({ usableVolumeFactor, topTempC, bulkTempC }: CylinderGr
         >
           <span className="cylinder-graphic__zone-label">{topTempC}°C</span>
         </div>
-        {/* thermocline marker */}
-        <div className="cylinder-graphic__thermocline" />
+        {/* thermocline marker — sharper for Mixergy to reflect defined depletion point */}
+        <div className={`cylinder-graphic__thermocline${isMixergy ? ' cylinder-graphic__thermocline--sharp' : ''}`} />
         {/* lower / cooler zone */}
         <div
           className="cylinder-graphic__zone cylinder-graphic__zone--cold"
           style={{ height: `${coldPct - 2}%` }}
         >
-          <span className="cylinder-graphic__zone-label">{bulkTempC}°C</span>
+          <span className="cylinder-graphic__zone-label">
+            {isMixergy ? 'cool reserve' : `${bulkTempC}°C`}
+          </span>
         </div>
         {/* draw-off arrow */}
         <div className="cylinder-graphic__draw-arrow" aria-hidden="true">
@@ -83,9 +90,11 @@ function CylinderGraphic({ usableVolumeFactor, topTempC, bulkTempC }: CylinderGr
         </div>
       </div>
 
-      {/* coil / source indicator */}
+      {/* source indicator */}
       <div className="cylinder-graphic__coil-indicator" aria-hidden="true">
-        <span className="cylinder-graphic__coil-label">~ coil</span>
+        <span className="cylinder-graphic__coil-label">
+          {isMixergy ? '↑ top-down' : '~ coil'}
+        </span>
       </div>
 
       {/* cap */}
@@ -107,6 +116,8 @@ export default function CylinderStatusCard({ data }: Props) {
     bulkTempC,
     nominalVolumeL,
     usableVolumeFactor,
+    heatedVolumeL,
+    heatedFractionPct,
     recoverySource,
     recoveryPowerTendency,
     state,
@@ -115,6 +126,7 @@ export default function CylinderStatusCard({ data }: Props) {
   } = data
 
   const isCylinder = isCylinderRegime(storageRegime)
+  const isMixergy  = storageRegime === 'mixergy_cylinder'
 
   const panelTitle = isCylinder ? 'Cylinder status' : 'Hot water source status'
 
@@ -136,11 +148,12 @@ export default function CylinderStatusCard({ data }: Props) {
       </div>
 
       {/* ── Cylinder graphic (cylinder systems only) ───────────────────────── */}
-      {isCylinder && topTempC !== undefined && bulkTempC !== undefined && (
+      {isCylinder && topTempC !== undefined && (isMixergy || bulkTempC !== undefined) && (
         <CylinderGraphic
           usableVolumeFactor={usableVolumeFactor ?? 0.5}
           topTempC={topTempC}
-          bulkTempC={bulkTempC}
+          bulkTempC={isMixergy ? undefined : bulkTempC}
+          isMixergy={isMixergy}
         />
       )}
 
@@ -158,10 +171,19 @@ export default function CylinderStatusCard({ data }: Props) {
           </div>
         )}
 
-        {isCylinder && bulkTempC !== undefined && (
+        {/* Bulk temp — standard cylinders only; Mixergy uses heated-volume model */}
+        {isCylinder && !isMixergy && bulkTempC !== undefined && (
           <div className="cylinder-status-card__row">
             <dt className="cylinder-status-card__dt">Bulk temp</dt>
             <dd className="cylinder-status-card__dd">{bulkTempC}°C</dd>
+          </div>
+        )}
+
+        {/* Heated volume — Mixergy only */}
+        {isMixergy && heatedVolumeL !== undefined && (
+          <div className="cylinder-status-card__row">
+            <dt className="cylinder-status-card__dt">Heated volume</dt>
+            <dd className="cylinder-status-card__dd">{heatedVolumeL} L</dd>
           </div>
         )}
 
@@ -172,7 +194,16 @@ export default function CylinderStatusCard({ data }: Props) {
           </div>
         )}
 
-        {isCylinder && usableVolumeFactor !== undefined && (
+        {/* Heated fraction — Mixergy only; replaces usable volume % */}
+        {isMixergy && heatedFractionPct !== undefined && (
+          <div className="cylinder-status-card__row">
+            <dt className="cylinder-status-card__dt">Heated fraction</dt>
+            <dd className="cylinder-status-card__dd">{heatedFractionPct}%</dd>
+          </div>
+        )}
+
+        {/* Usable volume — standard cylinders only */}
+        {isCylinder && !isMixergy && usableVolumeFactor !== undefined && (
           <div className="cylinder-status-card__row">
             <dt className="cylinder-status-card__dt">Usable volume</dt>
             <dd className="cylinder-status-card__dd">{Math.round(usableVolumeFactor * 100)}%</dd>
