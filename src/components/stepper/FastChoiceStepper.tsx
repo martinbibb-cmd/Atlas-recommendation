@@ -12,8 +12,10 @@ import CustomerSummaryPanel from '../visualizers/CustomerSummaryPanel';
 
 interface Props {
   onBack: () => void;
-  /** Called when Story Mode escalates to Full Survey. */
+  /** Called when Fast Choice escalates to Full Survey. */
   onEscalate?: (prefill: Partial<EngineInputV2_3>) => void;
+  /** Called when the user wants to open the current scenario in System Lab. */
+  onOpenLab?: () => void;
 }
 
 type ViewMode = 'input' | 'results';
@@ -47,13 +49,14 @@ const STATUS_LABEL: Record<'pass' | 'warn' | 'fail', string> = {
   fail: 'Fail',
 };
 
-export default function FastChoiceStepper({ onBack, onEscalate }: Props) {
-  // Route to Story Mode when the feature flag is enabled.
+export default function FastChoiceStepper({ onBack, onEscalate, onOpenLab }: Props) {
+  // Route to Fast Choice (scenario mode) when the feature flag is enabled.
   if (ENABLE_STORY_MODE) {
     return (
       <StoryModeContainer
         onBack={onBack}
         onEscalate={onEscalate ?? (() => { /* no-op when caller does not handle */ })}
+        onOpenLab={onOpenLab}
       />
     );
   }
