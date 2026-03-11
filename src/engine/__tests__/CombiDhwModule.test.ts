@@ -76,7 +76,7 @@ describe('runCombiDhwModuleV1', () => {
     const flag = result.flags.find(f => f.id === 'combi-simultaneous-demand');
     expect(flag).toBeDefined();
     expect(flag!.severity).toBe('fail');
-    expect(flag!.title).toBe('Hot water starvation likely');
+    expect(flag!.title).toBe('On-demand combi cannot sustain simultaneous demand');
   });
 
   it('returns fail when peakConcurrentOutlets >= 2 (even with 1 bathroom)', () => {

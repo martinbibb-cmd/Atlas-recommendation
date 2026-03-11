@@ -78,13 +78,13 @@ export function buildLimitersV1(
     const severity: LimiterSeverity = simultaneousFlag.severity === 'fail' ? 'fail' : 'warn';
     limiters.push({
       id: 'combi-concurrency-constraint',
-      title: 'Combi concurrency constraint',
+      title: 'DHW throughput limit: simultaneous outlet demand',
       severity,
       observed: { label: 'Peak concurrent outlets', value: peakOutlets, unit: 'L/min' },
       limit:    { label: 'Max concurrent outlets', value: 1, unit: 'L/min' },
       impact: {
-        summary: `${peakOutlets} simultaneous hot-water draws exceed a combi boiler's DHW capacity.`,
-        detail: 'A combi can only serve one DHW outlet at full flow. Additional simultaneous draws cause temperature collapse.',
+        summary: `${peakOutlets} simultaneous hot-water draws exceed a combi boiler's throughput capacity.`,
+        detail: 'A combi is throughput-limited — it can serve one DHW outlet at full flow. Concurrent draws cause temperature drop or flow reduction at one or more outlets.',
       },
       confidence: input.bathroomCount != null ? 'high' : 'medium',
       sources: [

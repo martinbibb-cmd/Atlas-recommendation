@@ -126,11 +126,12 @@ export function runStoredDhwModuleV1(
     flags.push({
       id: 'stored-high-demand',
       severity: 'info',
-      title: 'High demand: stored solution recommended',
+      title: 'Multi-outlet demand profile: stored hot water handles concurrency well',
       detail:
-        `${bathrooms} bathroom(s) and ${occupancy} occupant(s) suggest high simultaneous ` +
-        `DHW demand. A stored cylinder eliminates the flow-rate and simultaneous-draw ` +
-        `limitations of an on-demand (combi) system.`,
+        `${bathrooms} bathroom(s) and ${occupancy} occupant(s) indicate a multi-outlet ` +
+        `demand profile. Stored hot water decouples delivery from instantaneous heat ` +
+        `transfer capacity — simultaneous draws are served from the stored volume ` +
+        `without the throughput constraints of an on-demand combi system.`,
     });
   } else {
     assumptions.push(

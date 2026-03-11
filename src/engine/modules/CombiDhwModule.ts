@@ -179,11 +179,12 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
     flags.push({
       id: 'combi-simultaneous-demand',
       severity: 'fail',
-      title: 'Hot water starvation likely',
+      title: 'On-demand combi cannot sustain simultaneous demand',
       detail:
-        `${demandSource} detected. A combi boiler cannot sustain adequate flow to ` +
-        `two or more simultaneous DHW points – expect cold-water interruptions and ` +
-        `temperature oscillation between users.`,
+        `${demandSource} detected. A combi boiler is throughput-limited — it can serve ` +
+        `only one DHW outlet at full flow. Concurrent draws will cause temperature drop ` +
+        `or flow reduction at one or more outlets. Stored hot water handles simultaneous ` +
+        `demand without this throughput constraint.`,
     });
   } else if (outlets === null) {
     assumptions.push(
@@ -215,11 +216,13 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
     flags.push({
       id: 'combi-three-person-caution',
       severity: 'warn',
-      title: '3-person household: borderline combi demand',
+      title: '3-person household: concurrent draw may approach combi throughput limit',
       detail:
-        'Three occupants create borderline simultaneous DHW demand. A combi may cope on 1 bathroom ' +
-        'but expect reduced comfort margins during back-to-back morning showers. ' +
-        'A stored system removes this risk entirely.',
+        'Three occupants increase the likelihood of back-to-back morning draws. ' +
+        'A combi with a single bathroom may manage, but expect reduced comfort margins ' +
+        'when two people draw hot water in quick succession. ' +
+        'Stored hot water removes this risk — it handles simultaneous demand well and ' +
+        'decouples delivery from instantaneous heat transfer capacity.',
     });
   }
 
