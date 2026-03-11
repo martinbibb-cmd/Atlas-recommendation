@@ -2,7 +2,7 @@
  * SimulatorDashboard — 4-panel simulator layout with optional compare mode.
  *
  * Single mode (default):
- *  - 2×2 panel grid: System Diagram, House View, Draw-Off Status, Efficiency
+ *  - 2×2 panel grid: System Diagram, House View, Draw-Off Behaviour, Efficiency
  *  - Limiters row below the grid
  *  - System Inputs row below limiters
  *
@@ -61,6 +61,7 @@ const SYSTEM_CHOICE_OPTIONS: { value: SimulatorSystemChoice; label: string; desc
   { value: 'unvented',    label: 'Unvented',    description: 'Mains-fed cylinder, S-plan zone valves. CH and reheat independent.' },
   { value: 'open_vented', label: 'Open vented', description: 'Tank-fed cylinder, Y-plan mid-position valve. Gravity cold supply.' },
   { value: 'heat_pump',   label: 'Heat pump',   description: 'ASHP primary loop with cylinder. Low flow temps, no condensing.' },
+  { value: 'mixergy',     label: 'Mixergy',     description: 'Stratified mains-fed cylinder. Top-down heat; demand mirroring; reduced cycling.' },
 ];
 
 // ─── Phase bar ────────────────────────────────────────────────────────────────
@@ -211,7 +212,7 @@ export default function SimulatorDashboard({
   const {
     state: diagramState,
     systemChoice,
-    setSystemChoice,
+    setSystemChoice: setSystemChoiceRaw,
     demandControls,
     setDemandControls,
     isManualMode,
@@ -219,6 +220,20 @@ export default function SimulatorDashboard({
     setManualMode,
     simHour,
   } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed, systemInputs.occupancyProfile);
+
+  // When switching to Mixergy, auto-set cylinderType so downstream physics
+  // (useLimiterPlayback, useStoredHotWaterPlayback) use Mixergy behaviour.
+  // When switching away, restore 'unvented' as the default cylinder type.
+  const setSystemChoice = (c: SimulatorSystemChoice) => {
+    setSystemChoiceRaw(c)
+    if (c === 'mixergy') {
+      setSystemInputs(prev => ({ ...prev, cylinderType: 'mixergy' }))
+    } else if (c !== 'mixergy') {
+      setSystemInputs(prev =>
+        prev.cylinderType === 'mixergy' ? { ...prev, cylinderType: 'unvented' } : prev
+      )
+    }
+  }
   const houseState = useHousePlayback(diagramState);
   const drawOffState = useDrawOffPlayback(diagramState, systemInputs.cylinderType, systemInputs.cylinderSizeLitres);
   const emitterState = useEmitterPrimaryModel({

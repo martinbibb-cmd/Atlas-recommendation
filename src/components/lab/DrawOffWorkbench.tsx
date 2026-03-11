@@ -19,12 +19,13 @@ import type { DrawOffViewModel, CylinderStatusViewModel } from './drawOffTypes'
 
 // ─── Regime selector ──────────────────────────────────────────────────────────
 
-type Regime = 'combi' | 'boiler_cylinder' | 'heat_pump_cylinder'
+type Regime = 'combi' | 'boiler_cylinder' | 'heat_pump_cylinder' | 'mixergy_cylinder'
 
 const REGIME_LABELS: Record<Regime, string> = {
   combi:              'Combi',
   boiler_cylinder:    'Boiler cylinder',
   heat_pump_cylinder: 'Heat pump cylinder',
+  mixergy_cylinder:   'Mixergy cylinder',
 }
 
 // ─── Regime-aware data ────────────────────────────────────────────────────────
@@ -145,6 +146,64 @@ function getDrawOffData(regime: Regime): DrawOffViewModel[] {
   }
 
   // heat_pump_cylinder
+  if (regime === 'heat_pump_cylinder') {
+    return [
+      {
+        id: 'kitchen',
+        label: 'Kitchen sink',
+        icon: '🚰',
+        status: 'stable',
+        coldSupplyTempC: 10,
+        coldSupplyFlowLpm: 15,
+        hotSupplyTempC: 52,
+        hotSupplyAvailableFlowLpm: 14,
+        deliveredTempC: 42,
+        deliveredFlowLpm: 9,
+        note: 'Stored supply from heat pump cylinder. Higher hot fraction needed due to lower storage temperature.',
+      },
+      {
+        id: 'basin',
+        label: 'Bathroom basin',
+        icon: '🪥',
+        status: 'stable',
+        coldSupplyTempC: 10,
+        coldSupplyFlowLpm: 15,
+        hotSupplyTempC: 51,
+        hotSupplyAvailableFlowLpm: 13,
+        deliveredTempC: 40,
+        deliveredFlowLpm: 7,
+        note: 'Stored supply stable at moderate draw. Usable volume depleting more quickly than a boiler cylinder.',
+      },
+      {
+        id: 'shower',
+        label: 'Shower',
+        icon: '🚿',
+        status: 'temp_limited',
+        coldSupplyTempC: 10,
+        coldSupplyFlowLpm: 15,
+        hotSupplyTempC: 48,
+        hotSupplyAvailableFlowLpm: 11,
+        deliveredTempC: 37,
+        deliveredFlowLpm: 10,
+        note: 'Store temperature lower than optimal. Delivered temperature held by increased hot fraction, reducing available flow.',
+      },
+      {
+        id: 'bath',
+        label: 'Bath fill',
+        icon: '🛁',
+        status: 'starved',
+        coldSupplyTempC: 10,
+        coldSupplyFlowLpm: 15,
+        hotSupplyTempC: 42,
+        hotSupplyAvailableFlowLpm: 7,
+        deliveredTempC: 34,
+        deliveredFlowLpm: 9,
+        note: 'Usable volume depleted. Recovery lagging — heat pump cannot match boiler reheat rate under simultaneous demand.',
+      },
+    ]
+  }
+
+  // mixergy_cylinder — top-down stratification keeps hot layer intact
   return [
     {
       id: 'kitchen',
@@ -153,11 +212,11 @@ function getDrawOffData(regime: Regime): DrawOffViewModel[] {
       status: 'stable',
       coldSupplyTempC: 10,
       coldSupplyFlowLpm: 15,
-      hotSupplyTempC: 52,
-      hotSupplyAvailableFlowLpm: 14,
+      hotSupplyTempC: 60,
+      hotSupplyAvailableFlowLpm: 15,
       deliveredTempC: 42,
       deliveredFlowLpm: 9,
-      note: 'Stored supply from heat pump cylinder. Higher hot fraction needed due to lower storage temperature.',
+      note: 'Mains-pressure supply from Mixergy cylinder. Stratification maintains hot layer; minimal draw on lower zone.',
     },
     {
       id: 'basin',
@@ -166,37 +225,37 @@ function getDrawOffData(regime: Regime): DrawOffViewModel[] {
       status: 'stable',
       coldSupplyTempC: 10,
       coldSupplyFlowLpm: 15,
-      hotSupplyTempC: 51,
-      hotSupplyAvailableFlowLpm: 13,
+      hotSupplyTempC: 60,
+      hotSupplyAvailableFlowLpm: 15,
       deliveredTempC: 40,
       deliveredFlowLpm: 7,
-      note: 'Stored supply stable at moderate draw. Usable volume depleting more quickly than a boiler cylinder.',
+      note: 'Stored supply stable. Top-down heating keeps upper zone at set point even at partial fill.',
     },
     {
       id: 'shower',
       label: 'Shower',
       icon: '🚿',
-      status: 'temp_limited',
+      status: 'stable',
       coldSupplyTempC: 10,
       coldSupplyFlowLpm: 15,
-      hotSupplyTempC: 48,
-      hotSupplyAvailableFlowLpm: 11,
-      deliveredTempC: 37,
-      deliveredFlowLpm: 10,
-      note: 'Store temperature lower than optimal. Delivered temperature held by increased hot fraction, reducing available flow.',
+      hotSupplyTempC: 59,
+      hotSupplyAvailableFlowLpm: 14,
+      deliveredTempC: 38,
+      deliveredFlowLpm: 11,
+      note: 'High-temperature stratified store; small hot fraction sufficient. Demand mirroring reduces reheat cycling.',
     },
     {
       id: 'bath',
       label: 'Bath fill',
       icon: '🛁',
-      status: 'starved',
+      status: 'stable',
       coldSupplyTempC: 10,
       coldSupplyFlowLpm: 15,
-      hotSupplyTempC: 42,
-      hotSupplyAvailableFlowLpm: 7,
-      deliveredTempC: 34,
-      deliveredFlowLpm: 9,
-      note: 'Usable volume depleted. Recovery lagging — heat pump cannot match boiler reheat rate under simultaneous demand.',
+      hotSupplyTempC: 57,
+      hotSupplyAvailableFlowLpm: 13,
+      deliveredTempC: 41,
+      deliveredFlowLpm: 13,
+      note: 'Sustained draw drawing from stratified upper zone. Thermocline lower than standard cylinder under same load — Mixergy advantage visible.',
     },
   ]
 }
@@ -229,17 +288,33 @@ function getCylinderData(regime: Regime): CylinderStatusViewModel {
   }
 
   // heat_pump_cylinder
+  if (regime === 'heat_pump_cylinder') {
+    return {
+      storageRegime: 'heat_pump_cylinder',
+      topTempC: 52,
+      bulkTempC: 46,
+      nominalVolumeL: 200,
+      usableVolumeFactor: 0.45,
+      recoverySource: 'Heat pump',
+      recoveryPowerTendency: 'Moderate — slower reheat than boiler under peak demand',
+      state: 'recovering',
+      recoveryNote: 'Heat pump operating at rated COP to recover cylinder. Reheat rate lower than peak simultaneous demand.',
+      storeNote: 'Usable volume depleting faster than recovery rate. Thermocline falling — draw-off impact visible on bulk temperature.',
+    }
+  }
+
+  // mixergy_cylinder
   return {
-    storageRegime: 'heat_pump_cylinder',
-    topTempC: 52,
-    bulkTempC: 46,
-    nominalVolumeL: 200,
-    usableVolumeFactor: 0.45,
-    recoverySource: 'Heat pump',
-    recoveryPowerTendency: 'Moderate — slower reheat than boiler under peak demand',
+    storageRegime: 'mixergy_cylinder',
+    topTempC: 60,
+    bulkTempC: 50,
+    nominalVolumeL: 150,
+    usableVolumeFactor: 0.88,
+    recoverySource: 'Boiler (Mixergy)',
+    recoveryPowerTendency: 'High — demand mirroring reduces reheat cycling versus standard cylinder',
     state: 'recovering',
-    recoveryNote: 'Heat pump operating at rated COP to recover cylinder. Reheat rate lower than peak simultaneous demand.',
-    storeNote: 'Usable volume depleting faster than recovery rate. Thermocline falling — draw-off impact visible on bulk temperature.',
+    recoveryNote: 'Boiler firing via Mixergy controller. Top-down stratification keeps hot layer intact during partial draws.',
+    storeNote: 'Stratification active — usable hot layer maintained above thermocline. Reduced depletion rate versus standard cylinder.',
   }
 }
 

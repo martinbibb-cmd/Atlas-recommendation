@@ -32,8 +32,9 @@ import type { OccupancyProfile } from './systemInputsTypes'
  *   unvented    → systemType='unvented_cylinder',  heatSourceType='system_boiler'  (S-plan)
  *   open_vented → systemType='vented_cylinder',    heatSourceType='system_boiler'  (Y-plan)
  *   heat_pump   → systemType='unvented_cylinder',  heatSourceType='heat_pump'
+ *   mixergy     → systemType='unvented_cylinder',  heatSourceType='system_boiler'  (Mixergy stratified)
  */
-export type SimulatorSystemChoice = 'combi' | 'unvented' | 'open_vented' | 'heat_pump'
+export type SimulatorSystemChoice = 'combi' | 'unvented' | 'open_vented' | 'heat_pump' | 'mixergy'
 
 // ─── User demand controls ─────────────────────────────────────────────────────
 
@@ -431,6 +432,14 @@ function buildOccupancyAutoState(
         outletDemands: { shower: hotDrawActive, bath: false, kitchen: false },
       }
     }
+    case 'mixergy': {
+      const storeNeedsReheat = cylinderFill < 0.5
+      const returnTempC = heatingEnabled ? 44 : 46
+      return buildStoredState(
+        { heatingEnabled, storeNeedsReheat, hotDrawActive, returnTempC, cylinderFillPct: cylinderFill, phaseLabel },
+        'unvented_cylinder',
+      )
+    }
   }
 }
 
@@ -657,6 +666,30 @@ function buildManualState(
         },
       }
     }
+    case 'mixergy': {
+      const storeNeedsReheat = cylinderFillRef < 0.5
+      const mode = resolveServiceMode({
+        isCombi: false, hotDrawActive, heatingEnabled: demand.heatingEnabled,
+        hasStored: true, storeNeedsReheat, isSPlan: true,
+      })
+      const returnTempC = demand.heatingEnabled ? 44 : 46
+      const phaseLabel = mode === 'heating_and_reheat' ? 'CH + reheat'
+        : mode === 'dhw_reheat' ? 'Reheat only'
+        : mode === 'heating' ? 'Heating'
+        : hotDrawActive ? 'Stored DHW draw' : 'Standby'
+      return {
+        systemMode: mode, systemType: 'unvented_cylinder', heatSourceType: 'system_boiler',
+        serviceSwitchingActive: false,
+        supplyOrigins: supplyOriginsForSystemType('unvented_cylinder'),
+        condensingState: deriveCondensingState(returnTempC), returnTempC,
+        hotDrawActive, cylinderFillPct: cylinderFillRef, phaseLabel,
+        outletDemands: {
+          shower: demand.shower,
+          bath: demand.bath,
+          kitchen: demand.kitchen,
+        },
+      }
+    }
   }
 }
 
@@ -668,6 +701,7 @@ function phaseCount(choice: SimulatorSystemChoice): number {
     case 'unvented':    return STORED_PHASES.length
     case 'open_vented': return VENTED_PHASES.length
     case 'heat_pump':   return HEAT_PUMP_PHASES.length
+    case 'mixergy':     return STORED_PHASES.length
   }
 }
 
@@ -684,6 +718,8 @@ function buildAutoState(
       return buildStoredState(VENTED_PHASES[phase] ?? VENTED_PHASES[0], 'vented_cylinder')
     case 'heat_pump':
       return buildHeatPumpState(HEAT_PUMP_PHASES[phase] ?? HEAT_PUMP_PHASES[0])
+    case 'mixergy':
+      return buildStoredState(STORED_PHASES[phase] ?? STORED_PHASES[0], 'unvented_cylinder')
   }
 }
 

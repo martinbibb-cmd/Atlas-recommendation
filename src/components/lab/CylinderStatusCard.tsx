@@ -15,7 +15,8 @@ import type { CylinderStatusViewModel, StorageRegime, CylinderState } from './dr
 const REGIME_LABEL: Record<StorageRegime, string> = {
   boiler_cylinder:    'Boiler cylinder',
   heat_pump_cylinder: 'Heat pump cylinder',
-  on_demand_combi: 'On-demand (combi)',
+  mixergy_cylinder:   'Mixergy cylinder',
+  on_demand_combi:    'On-demand (combi)',
 }
 
 const STATE_LABELS: Record<CylinderState, string> = {
@@ -33,7 +34,7 @@ const STATE_MOD: Record<CylinderState, string> = {
 }
 
 function isCylinderRegime(regime: StorageRegime): boolean {
-  return regime === 'boiler_cylinder' || regime === 'heat_pump_cylinder'
+  return regime === 'boiler_cylinder' || regime === 'heat_pump_cylinder' || regime === 'mixergy_cylinder'
 }
 
 // ─── Simple cylinder schematic ────────────────────────────────────────────────
