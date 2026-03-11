@@ -45,6 +45,12 @@ export const PLACEHOLDER_VERDICT = {
   note:   'Meets heat and hot water demand with lowest operating cost. Requires emitter check before installation.',
 };
 
+/**
+ * ID of the candidate system that the headline verdict points to.
+ * Replaced by engine output in a later PR.
+ */
+export const PLACEHOLDER_RECOMMENDED_SYSTEM_ID = 'ashp';
+
 // ─── Normalized comparison headings ──────────────────────────────────────────
 
 export const COMPARISON_HEADINGS = [

@@ -3,6 +3,7 @@ import {
   PLACEHOLDER_CONFIDENCE_STRIP,
   PLACEHOLDER_CURRENT_SYSTEM,
   PLACEHOLDER_VERDICT,
+  PLACEHOLDER_RECOMMENDED_SYSTEM_ID,
   CANDIDATE_SYSTEMS,
 } from './labSharedData';
 import './lab-print.css';
@@ -25,7 +26,9 @@ interface Props {
  */
 export default function LabPrintCustomer({ onBack }: Props) {
   // Use the recommended system's explanation copy.
-  const recommended = CANDIDATE_SYSTEMS.find(s => s.id === 'ashp') ?? CANDIDATE_SYSTEMS[0];
+  const recommended =
+    CANDIDATE_SYSTEMS.find(s => s.id === PLACEHOLDER_RECOMMENDED_SYSTEM_ID) ??
+    CANDIDATE_SYSTEMS[0];
 
   function handleBack() {
     if (onBack) {

@@ -96,12 +96,10 @@ export default function LabPrintComparison({ onBack }: Props) {
         <h2 className="lp-section__title" id="lp-comparison-tradeoff">
           Trade-off summary
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem' }}>
+        <div className="lp-tradeoff-grid">
           {CANDIDATE_SYSTEMS.map(system => (
             <div key={system.id}>
-              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1a202c', marginBottom: '0.4rem' }}>
-                {system.label}
-              </div>
+              <div className="lp-candidate-heading">{system.label}</div>
               <div className="lp-explanation-block lp-explanation-block--suits">
                 <span className="lp-explanation-label">Strongest fit</span>
                 <p className="lp-explanation-text">{system.explanation.suits}</p>

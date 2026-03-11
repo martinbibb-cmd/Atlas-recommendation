@@ -78,10 +78,8 @@ export default function LabPrintTechnical({ onBack }: Props) {
       <section className="lp-section" aria-labelledby="lp-tech-candidates">
         <h2 className="lp-section__title" id="lp-tech-candidates">Candidate systems</h2>
         {CANDIDATE_SYSTEMS.map(system => (
-          <div key={system.id} style={{ marginBottom: '1.25rem' }}>
-            <h3 style={{ fontSize: '0.88rem', fontWeight: 700, margin: '0 0 0.5rem', color: '#1a202c' }}>
-              {system.label}
-            </h3>
+          <div key={system.id} className="lp-candidate-block">
+            <h3 className="lp-candidate-heading">{system.label}</h3>
             <dl className="lp-dl">
               {COMPARISON_HEADINGS.map(h => (
                 <div key={h.key} className="lp-dl-row">
@@ -101,10 +99,8 @@ export default function LabPrintTechnical({ onBack }: Props) {
         <span className="lp-confidence-badge">Overall: {PLACEHOLDER_CONFIDENCE}</span>
 
         {PLACEHOLDER_CONFIDENCE_STRIP.measured.length > 0 && (
-          <div style={{ marginBottom: '0.75rem' }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#22543d', marginBottom: '0.3rem' }}>
-              Measured
-            </div>
+          <div className="lp-group">
+            <div className="lp-group-label lp-group-label--measured">Measured</div>
             <ul className="lp-list" aria-label="Measured inputs">
               {PLACEHOLDER_CONFIDENCE_STRIP.measured.map(item => (
                 <li key={item}>{item}</li>
@@ -114,10 +110,8 @@ export default function LabPrintTechnical({ onBack }: Props) {
         )}
 
         {PLACEHOLDER_CONFIDENCE_STRIP.inferred.length > 0 && (
-          <div style={{ marginBottom: '0.75rem' }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7b341e', marginBottom: '0.3rem' }}>
-              Inferred / assumed
-            </div>
+          <div className="lp-group">
+            <div className="lp-group-label lp-group-label--inferred">Inferred / assumed</div>
             <ul className="lp-list" aria-label="Inferred inputs">
               {PLACEHOLDER_CONFIDENCE_STRIP.inferred.map(item => (
                 <li key={item}>{item}</li>
@@ -131,10 +125,8 @@ export default function LabPrintTechnical({ onBack }: Props) {
       <section className="lp-section" aria-labelledby="lp-tech-constraints">
         <h2 className="lp-section__title" id="lp-tech-constraints">Technical constraints and required changes</h2>
         {CANDIDATE_SYSTEMS.map(system => (
-          <div key={system.id} style={{ marginBottom: '0.75rem' }}>
-            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#2d3748', marginBottom: '0.25rem' }}>
-              {system.label}
-            </div>
+          <div key={system.id} className="lp-candidate-block">
+            <div className="lp-candidate-block__name">{system.label}</div>
             <div className="lp-explanation-block lp-explanation-block--changes">
               <span className="lp-explanation-label">What would need to change</span>
               <p className="lp-explanation-text">{system.explanation.changes}</p>
@@ -163,9 +155,7 @@ export default function LabPrintTechnical({ onBack }: Props) {
             ))}
           </ul>
           {PLACEHOLDER_CONFIDENCE_STRIP.nextStep && (
-            <p style={{ marginTop: '0.75rem', fontSize: '0.84rem', fontStyle: 'italic', color: '#4a5568' }}>
-              {PLACEHOLDER_CONFIDENCE_STRIP.nextStep}
-            </p>
+            <p className="lp-next-step-note">{PLACEHOLDER_CONFIDENCE_STRIP.nextStep}</p>
           )}
         </section>
       )}
