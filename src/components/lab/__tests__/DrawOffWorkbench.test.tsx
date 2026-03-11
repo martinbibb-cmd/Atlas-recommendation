@@ -86,14 +86,15 @@ const HP_CYLINDER: CylinderStatusViewModel = {
 const MIXERGY_CYLINDER: CylinderStatusViewModel = {
   storageRegime: 'mixergy_cylinder',
   topTempC: 60,
-  bulkTempC: 50,
+  heatedVolumeL: 128,
+  heatedFractionPct: 85,
   nominalVolumeL: 150,
   usableVolumeFactor: 0.88,
   recoverySource: 'Boiler (Mixergy)',
   recoveryPowerTendency: 'High — demand mirroring reduces reheat cycling',
   state: 'recovering',
   recoveryNote: 'Boiler firing via Mixergy controller.',
-  storeNote: 'Stratification active — usable hot layer maintained above thermocline.',
+  storeNote: 'Mixergy maintains a defined heated layer. Once that layer is exhausted, hot delivery drops more abruptly than in a conventional cylinder.',
 }
 
 // ─── DrawOffWorkbench ────────────────────────────────────────────────────────
@@ -170,10 +171,11 @@ describe('DrawOffWorkbench — regime switching', () => {
     expect(screen.getAllByText('Mixergy cylinder').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('Mixergy regime shows cylinder graphic', () => {
+  it('Mixergy regime shows cylinder graphic with cool-reserve schematic', () => {
     render(<DrawOffWorkbench />);
     fireEvent.click(screen.getByRole('button', { name: 'Mixergy cylinder' }));
     expect(screen.getByRole('img', { name: /Cylinder schematic/ })).toBeTruthy();
+    expect(screen.getByRole('img', { name: /cool reserve/ })).toBeTruthy();
   });
 });
 
@@ -362,18 +364,77 @@ describe('CylinderStatusCard — Mixergy cylinder', () => {
     expect(screen.getByText('Mixergy cylinder')).toBeTruthy();
   });
 
-  it('renders usable volume as 88%', () => {
+  it('renders heated volume in litres', () => {
     render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
-    expect(screen.getByText('88%')).toBeTruthy();
+    expect(screen.getByText('128 L')).toBeTruthy();
   });
 
-  it('renders the cylinder graphic', () => {
+  it('renders heated fraction as a percentage', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.getByText('85%')).toBeTruthy();
+  });
+
+  it('does NOT render a "Bulk temp" row for Mixergy', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.queryByText('Bulk temp')).toBeNull();
+  });
+
+  it('does NOT render a "Usable volume" row for Mixergy', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.queryByText('Usable volume')).toBeNull();
+  });
+
+  it('renders "Heated volume" label for Mixergy', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.getByText('Heated volume')).toBeTruthy();
+  });
+
+  it('renders "Heated fraction" label for Mixergy', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.getByText('Heated fraction')).toBeTruthy();
+  });
+
+  it('renders nominal volume', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.getByText('150 L')).toBeTruthy();
+  });
+
+  it('renders the cylinder graphic with Mixergy aria-label', () => {
     render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
     expect(screen.getByRole('img', { name: /Cylinder schematic/ })).toBeTruthy();
+    expect(screen.getByRole('img', { name: /cool reserve/ })).toBeTruthy();
+  });
+
+  it('cylinder graphic does NOT mention bulk temperature', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    const graphic = screen.getByRole('img', { name: /Cylinder schematic/ });
+    expect(graphic.getAttribute('aria-label')).not.toContain('bulk');
   });
 
   it('renders recovery note for Mixergy', () => {
     render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
     expect(screen.getByText('Boiler firing via Mixergy controller.')).toBeTruthy();
+  });
+
+  it('renders store note describing defined heated layer behaviour', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.getByText(/defined heated layer/)).toBeTruthy();
+  });
+});
+
+describe('CylinderStatusCard — boiler cylinder retains bulk-temp model', () => {
+  it('renders "Bulk temp" row for a standard boiler cylinder', () => {
+    render(<CylinderStatusCard data={BOILER_CYLINDER} />);
+    expect(screen.getByText('Bulk temp')).toBeTruthy();
+  });
+
+  it('renders "Usable volume" row for a standard boiler cylinder', () => {
+    render(<CylinderStatusCard data={BOILER_CYLINDER} />);
+    expect(screen.getByText('Usable volume')).toBeTruthy();
+  });
+
+  it('does NOT render "Heated volume" row for a boiler cylinder', () => {
+    render(<CylinderStatusCard data={BOILER_CYLINDER} />);
+    expect(screen.queryByText('Heated volume')).toBeNull();
   });
 });

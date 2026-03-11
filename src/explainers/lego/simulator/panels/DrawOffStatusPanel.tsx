@@ -140,11 +140,19 @@ function buildCylinderViewModel(
 
   const sourceLabel    = isMixergy ? 'Boiler (Mixergy)' : isHeatPump ? 'Heat pump' : 'Boiler'
   const thermocline    = cylinderState === 'recovering' || cylinderState === 'depleted' ? 'dropping' : 'stable'
+  const heatedVolumeL  = Math.round(stored.usableReserveFraction * stored.cylinderSizeLitres)
 
   return {
     storageRegime,
     topTempC:              Math.round(stored.topTempC),
-    bulkTempC:             Math.round(stored.deliveryTempC),
+    ...(isMixergy
+      ? {
+          heatedVolumeL,
+          heatedFractionPct:  Math.round(stored.usableReserveFraction * 100),
+        }
+      : {
+          bulkTempC: Math.round(stored.deliveryTempC),
+        }),
     nominalVolumeL:        stored.cylinderSizeLitres,
     usableVolumeFactor:    Math.round(stored.usableReserveFraction * 100) / 100,
     recoverySource:        sourceLabel,
@@ -158,7 +166,7 @@ function buildCylinderViewModel(
       ? `${sourceLabel} firing — cylinder recovering. Store temperature stabilising.`
       : 'System monitoring cylinder temperature. No active reheat required.',
     storeNote:             isMixergy
-      ? `${Math.round(stored.availableHotWaterL)} L available at ${Math.round(stored.deliveryTempC)}°C. Stratification holding hot layer. Thermocline ${thermocline}.`
+      ? `Mixergy maintains a defined heated layer. ${heatedVolumeL} L heated at ${Math.round(stored.topTempC)}°C. Once that layer is exhausted, hot delivery drops more abruptly than in a conventional cylinder.`
       : `${Math.round(stored.availableHotWaterL)} L available at ${Math.round(stored.deliveryTempC)}°C. Thermocline ${thermocline}.`,
   }
 }
