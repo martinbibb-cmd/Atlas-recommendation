@@ -2,6 +2,7 @@ import { useState } from 'react';
 import ExplainersHubPage from '../../explainers/ExplainersHubPage';
 import LabHomeLink from './LabHomeLink';
 import LabConfidenceStrip from './LabConfidenceStrip';
+import DrawOffWorkbench from './DrawOffWorkbench';
 import {
   PLACEHOLDER_CURRENT_SYSTEM,
   PLACEHOLDER_CONFIDENCE,
@@ -70,16 +71,7 @@ function SummaryTab() {
 // ─── Visual tab ───────────────────────────────────────────────────────────────
 
 function VisualTab() {
-  return (
-    <div className="lab-visual-stub">
-      <div className="lab-visual-stub__icon" aria-hidden="true">📈</div>
-      <p className="lab-visual-stub__title">Visual view coming in a future update.</p>
-      <p className="lab-visual-stub__body">
-        This tab will show the day painter, DHW behaviour visuals, comfort graphs, and simple
-        comparison charts that prove a specific physics point.
-      </p>
-    </div>
-  );
+  return <DrawOffWorkbench />;
 }
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
