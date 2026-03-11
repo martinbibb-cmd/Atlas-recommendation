@@ -22,6 +22,24 @@ const PLACEHOLDER_CURRENT_SYSTEM = 'Gas Combi';
 /** Confidence level label shown in the context row badge. Replaced by engine output. */
 const PLACEHOLDER_CONFIDENCE = 'Medium';
 
+// ─── Confidence strip data ────────────────────────────────────────────────────
+// Static stand-ins reusing the same uncertainty themes surfaced by explanation
+// hints. A future PR will derive these from engine evidence buckets.
+
+interface ConfidenceStripData {
+  measured: string[];
+  inferred: string[];
+  missing:  string[];
+  nextStep: string;
+}
+
+const PLACEHOLDER_CONFIDENCE_STRIP: ConfidenceStripData = {
+  measured: ['Boiler type', 'Occupancy count'],
+  inferred: ['DHW demand (from occupancy count)', 'Cylinder siting (assumed adequate space)', 'Flow temperatures (estimated from system type)'],
+  missing:  ['Emitter output verification', 'Dynamic flow temperature reading'],
+  nextStep: 'Complete a Full Survey to confirm emitter adequacy and cylinder siting.',
+};
+
 /**
  * Headline verdict shown in the verdict strip.
  * Replaced by the engine's top recommendation string in a later PR.
@@ -111,6 +129,68 @@ const CANDIDATE_SYSTEMS: CandidateSystem[] = [
     },
   },
 ];
+
+// ─── Confidence + assumptions strip ──────────────────────────────────────────
+
+function ConfidenceStrip({ data }: { data: ConfidenceStripData }) {
+  return (
+    <div className="lab-confidence-strip" aria-label="Confidence drivers">
+      <h2 className="lab-confidence-strip__title">Confidence drivers</h2>
+      <div className="lab-confidence-strip__groups">
+        {data.measured.length > 0 && (
+          <div className="lab-confidence-strip__group">
+            <span className="lab-confidence-strip__group-label lab-confidence-strip__group-label--measured">
+              Measured
+            </span>
+            <ul className="lab-confidence-strip__list">
+              {data.measured.map(item => (
+                <li key={item} className="lab-confidence-strip__item lab-confidence-strip__item--measured">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {data.inferred.length > 0 && (
+          <div className="lab-confidence-strip__group">
+            <span className="lab-confidence-strip__group-label lab-confidence-strip__group-label--inferred">
+              Inferred
+            </span>
+            <ul className="lab-confidence-strip__list">
+              {data.inferred.map(item => (
+                <li key={item} className="lab-confidence-strip__item lab-confidence-strip__item--inferred">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {data.missing.length > 0 && (
+          <div className="lab-confidence-strip__group">
+            <span className="lab-confidence-strip__group-label lab-confidence-strip__group-label--missing">
+              Missing
+            </span>
+            <ul className="lab-confidence-strip__list">
+              {data.missing.map(item => (
+                <li key={item} className="lab-confidence-strip__item lab-confidence-strip__item--missing">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {data.nextStep && (
+          <div className="lab-confidence-strip__group lab-confidence-strip__group--next-step">
+            <span className="lab-confidence-strip__group-label lab-confidence-strip__group-label--next-step">
+              Next best step
+            </span>
+            <p className="lab-confidence-strip__next-step-text">{data.nextStep}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─── Summary tab ──────────────────────────────────────────────────────────────
 
@@ -217,6 +297,9 @@ export default function LabShell({ onHome }: Props) {
           {PLACEHOLDER_VERDICT.note}
         </span>
       </div>
+
+      {/* ── Confidence + assumptions strip ─────────────────────────────────── */}
+      <ConfidenceStrip data={PLACEHOLDER_CONFIDENCE_STRIP} />
 
       {/* ── Top-level tabs ─────────────────────────────────────────────────── */}
       <div className="lab-tabs" role="tablist" aria-label="Lab views">
