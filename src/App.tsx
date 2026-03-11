@@ -74,7 +74,7 @@ export default function App() {
     return <ExplainersHubPage onBack={() => { window.location.href = window.location.pathname; }} />;
   }
 
-  if (journey === 'fast') return <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} />;
+  if (journey === 'fast') return <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} onOpenLab={() => setJourney('lab')} />;
   if (journey === 'full') return <FullSurveyStepper onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }} prefill={fullSurveyPrefill} />;
   if (journey === 'scope') return <ScopePage onBack={() => setJourney('landing')} />;
   if (journey === 'methodology') return <MethodologyPage onBack={() => setJourney('landing')} />;

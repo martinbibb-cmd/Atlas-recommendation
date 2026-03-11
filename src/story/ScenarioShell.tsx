@@ -62,7 +62,6 @@ import {
   computeCurrentEfficiencyPct,
   resolveNominalEfficiencyPct,
 } from '../engine/utils/efficiency';
-import StoryEscalation from './StoryEscalation';
 import { shouldShowPanel } from './rendering/shouldShowPanel';
 import type { OutputPanel } from './scenarioRegistry';
 
@@ -253,7 +252,52 @@ interface Props {
   onBack: () => void;
   onSwitch: (id: string) => void;
   onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
+  /** Called when the user wants to open the current scenario in System Lab. */
+  onOpenLab?: () => void;
   onSharedBasicsChange: (update: Partial<StorySharedBasics>) => void;
+}
+
+// ── Onward actions (Open in System Lab / Open Full Survey) ────────────────────
+
+/**
+ * OnwardActions
+ *
+ * Shown at the bottom of every scenario result to route the user to the next
+ * appropriate tool: System Lab for comparison and physics, or Full Survey for
+ * higher-certainty capture.
+ */
+function OnwardActions({
+  onOpenLab,
+  onEscalate,
+  prefill,
+}: {
+  onOpenLab?: () => void;
+  onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
+  prefill: Partial<EngineInputV2_3>;
+}) {
+  return (
+    <div className="fc-onward-actions">
+      <div className="fc-onward-actions__buttons">
+        <button
+          className="cta-btn fc-onward-actions__lab-btn"
+          onClick={onOpenLab}
+          disabled={!onOpenLab}
+        >
+          Open in System Lab →
+        </button>
+        <button
+          className="cta-btn fc-onward-actions__full-btn"
+          onClick={() => onEscalate(prefill)}
+        >
+          Open Full Survey →
+        </button>
+      </div>
+      <p className="fc-onward-actions__hint">
+        System Lab shows side-by-side comparison and physical trade-offs.
+        Full Survey captures more detail to increase certainty.
+      </p>
+    </div>
+  );
 }
 
 // ── Shared header with "← Scenarios" and scenario switcher ───────────────────
@@ -293,12 +337,14 @@ function CombiSwitchShell({
   onBack,
   onSwitch,
   onEscalate,
+  onOpenLab,
   sharedBasics,
   onSharedBasicsChange,
 }: {
   onBack: () => void;
   onSwitch: (id: string) => void;
   onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
+  onOpenLab?: () => void;
   sharedBasics: StorySharedBasics;
   onSharedBasicsChange: (update: Partial<StorySharedBasics>) => void;
 }) {
@@ -574,9 +620,7 @@ function CombiSwitchShell({
             </div>
           )}
 
-          {combiSwitchScenario.escalationAllowed && (
-            <StoryEscalation onEscalate={onEscalate} prefill={engineInput} />
-          )}
+          <OnwardActions onOpenLab={onOpenLab} onEscalate={onEscalate} prefill={engineInput} />
         </div>
       </div>
     </div>
@@ -589,10 +633,12 @@ function OldBoilerRealityShell({
   onBack,
   onSwitch,
   onEscalate,
+  onOpenLab,
 }: {
   onBack: () => void;
   onSwitch: (id: string) => void;
   onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
+  onOpenLab?: () => void;
 }) {
   const [inputs, setInputs] = useState<OldBoilerRealityInputs>(oldBoilerRealityScenario.defaults);
   const [hoveredMarker, setHoveredMarker] = useState<string | null>(null);
@@ -684,9 +730,7 @@ function OldBoilerRealityShell({
             </>
           )}
 
-          {oldBoilerRealityScenario.escalationAllowed && (
-            <StoryEscalation onEscalate={onEscalate} prefill={engineInput} />
-          )}
+          <OnwardActions onOpenLab={onOpenLab} onEscalate={onEscalate} prefill={engineInput} />
         </div>
       </div>
     </div>
@@ -775,11 +819,15 @@ function HeatPumpAssumptionsPanel({ inputs }: { inputs: HeatPumpViabilityInputs 
 function HeatPumpViabilityShell({
   onBack,
   onSwitch,
+  onEscalate,
+  onOpenLab,
   sharedBasics,
   onSharedBasicsChange,
 }: {
   onBack: () => void;
   onSwitch: (id: string) => void;
+  onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
+  onOpenLab?: () => void;
   sharedBasics: StorySharedBasics;
   onSharedBasicsChange: (update: Partial<StorySharedBasics>) => void;
 }) {
@@ -956,13 +1004,12 @@ function HeatPumpViabilityShell({
               )}
             </div>
           )}
+          <OnwardActions onOpenLab={onOpenLab} onEscalate={onEscalate} prefill={engineInput} />
         </div>
       </div>
     </div>
   );
 }
-
-// ── SystemTile helper ─────────────────────────────────────────────────────────
 
 function SystemTile({
   title,
@@ -1025,13 +1072,14 @@ function InputsSummary({ engineInput }: { engineInput: Partial<EngineInputV2_3> 
 
 // ── Main dispatcher ───────────────────────────────────────────────────────────
 
-export default function ScenarioShell({ scenarioId, sharedBasics, onBack, onSwitch, onEscalate, onSharedBasicsChange }: Props) {
+export default function ScenarioShell({ scenarioId, sharedBasics, onBack, onSwitch, onEscalate, onOpenLab, onSharedBasicsChange }: Props) {
   if (scenarioId === 'combi_switch') {
     return (
       <CombiSwitchShell
         onBack={onBack}
         onSwitch={onSwitch}
         onEscalate={onEscalate}
+        onOpenLab={onOpenLab}
         sharedBasics={sharedBasics}
         onSharedBasicsChange={onSharedBasicsChange}
       />
@@ -1043,6 +1091,7 @@ export default function ScenarioShell({ scenarioId, sharedBasics, onBack, onSwit
         onBack={onBack}
         onSwitch={onSwitch}
         onEscalate={onEscalate}
+        onOpenLab={onOpenLab}
       />
     );
   }
@@ -1051,6 +1100,8 @@ export default function ScenarioShell({ scenarioId, sharedBasics, onBack, onSwit
       <HeatPumpViabilityShell
         onBack={onBack}
         onSwitch={onSwitch}
+        onEscalate={onEscalate}
+        onOpenLab={onOpenLab}
         sharedBasics={sharedBasics}
         onSharedBasicsChange={onSharedBasicsChange}
       />

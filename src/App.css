@@ -3240,3 +3240,77 @@ body {
   background: #fee2e2;
   color: #991b1b;
 }
+
+/* ── Fast Choice info banner ─────────────────────────────────────────────────── */
+
+.fc-info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  background: #ebf8ff;
+  border: 1px solid #bee3f8;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.85rem;
+  color: #2c5282;
+  line-height: 1.5;
+}
+
+.fc-info-banner__icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+.fc-info-banner__text p {
+  margin: 0;
+}
+
+.fc-info-banner__text p + p {
+  margin-top: 0.25rem;
+}
+
+/* ── Fast Choice onward actions ─────────────────────────────────────────────── */
+
+.fc-onward-actions {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: #f7fafc;
+  border: 1px dashed #cbd5e0;
+  border-radius: 8px;
+}
+
+.fc-onward-actions__buttons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.fc-onward-actions__lab-btn {
+  background: #2b6cb0;
+  color: #fff;
+  flex: 1;
+  min-width: 160px;
+  font-size: 0.875rem;
+}
+
+.fc-onward-actions__lab-btn:hover { background: #2c5282; }
+
+.fc-onward-actions__full-btn {
+  background: #276749;
+  color: #fff;
+  flex: 1;
+  min-width: 160px;
+  font-size: 0.875rem;
+}
+
+.fc-onward-actions__full-btn:hover { background: #22543d; }
+
+.fc-onward-actions__hint {
+  font-size: 0.8rem;
+  color: #718096;
+  margin: 0;
+  line-height: 1.5;
+}

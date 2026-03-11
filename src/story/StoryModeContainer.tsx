@@ -35,13 +35,15 @@ interface Props {
    * and passing the prefill state.
    */
   onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
+  /** Called when the advisor wants to open the current scenario in System Lab. */
+  onOpenLab?: () => void;
 }
 
 // ── Container ─────────────────────────────────────────────────────────────────
 
 type StoryStep = 'select' | 'scenario';
 
-export default function StoryModeContainer({ onBack, onEscalate }: Props) {
+export default function StoryModeContainer({ onBack, onEscalate, onOpenLab }: Props) {
   const [step, setStep]               = useState<StoryStep>('select');
   const [selectedId, setSelectedId]   = useState<string | null>(null);
   const [sharedBasics, setSharedBasics] = useState<StorySharedBasics>({});
@@ -74,6 +76,7 @@ export default function StoryModeContainer({ onBack, onEscalate }: Props) {
         onBack={handleBackToSelector}
         onSwitch={handleSwitchScenario}
         onEscalate={onEscalate}
+        onOpenLab={onOpenLab}
         onSharedBasicsChange={handleSharedBasicsChange}
       />
     );
@@ -84,6 +87,13 @@ export default function StoryModeContainer({ onBack, onEscalate }: Props) {
       <div className="stepper-header">
         <button className="back-btn" onClick={onBack}>← Back</button>
         <span className="step-label">Fast Choice</span>
+      </div>
+      <div className="fc-info-banner">
+        <span className="fc-info-banner__icon">ℹ️</span>
+        <div className="fc-info-banner__text">
+          <p>Fast Choice is a quick first-pass recommendation.</p>
+          <p>Use System Lab to compare options and see the physical reasons behind the result.</p>
+        </div>
       </div>
       <ScenarioSelector onSelect={handleSelectScenario} />
     </div>
