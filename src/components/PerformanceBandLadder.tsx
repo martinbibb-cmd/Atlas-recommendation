@@ -36,7 +36,7 @@ const BANDS: Band[] = [
   {
     label: 'A', minPct: 90, maxPct: Infinity,
     color: '#276749',
-    description: 'Efficient condensing — low bills, comfortable heat output year-round.',
+    description: 'Efficient condensing — lower running cost tendency, comfortable heat output year-round.',
     
   },
   {
@@ -60,7 +60,7 @@ const BANDS: Band[] = [
   {
     label: 'E', minPct: 74, maxPct: 77,
     color: '#f6ad55',
-    description: 'Marginal condensing — annual spend is materially higher than A/B.',
+    description: 'Marginal condensing — higher running cost tendency vs A/B.',
     
   },
   {
