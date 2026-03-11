@@ -68,6 +68,12 @@ const SYSTEM_CHOICES: { value: SimulatorSystemChoice; label: string; description
     description: 'Air-source heat pump with thermal store cylinder. Low flow temps, high COP, no condensing classification.',
     icon: '🌬',
   },
+  {
+    value: 'mixergy',
+    label: 'Mixergy cylinder',
+    description: 'Stratified mains-fed cylinder with top-down heating and demand mirroring controls.',
+    icon: '🧠',
+  },
 ];
 
 // ─── Control strategy choices per system type ─────────────────────────────────
@@ -113,7 +119,7 @@ const CONTROL_STRATEGY_CHOICES: ControlStrategyChoice[] = [
 function controlStrategyOptionsFor(systemChoice: SimulatorSystemChoice): ControlStrategyChoice[] {
   if (systemChoice === 'combi')      return CONTROL_STRATEGY_CHOICES.filter(c => c.value === 'combi')
   if (systemChoice === 'heat_pump')  return CONTROL_STRATEGY_CHOICES.filter(c => c.value === 'heat_pump')
-  // unvented and open_vented can use either S-plan or Y-plan
+  // unvented, open_vented, and mixergy can use either S-plan or Y-plan
   return CONTROL_STRATEGY_CHOICES.filter(c => c.value === 's_plan' || c.value === 'y_plan')
 }
 
@@ -125,6 +131,7 @@ function controlStrategyOptionsFor(systemChoice: SimulatorSystemChoice): Control
  * open_vented → y_plan (Y-plan is the norm for regular boilers with vented cylinders)
  * combi      → combi
  * heat_pump  → heat_pump
+ * mixergy   → s_plan
  */
 function defaultControlStrategyFor(systemChoice: SimulatorSystemChoice): ControlStrategy {
   switch (systemChoice) {
@@ -132,6 +139,7 @@ function defaultControlStrategyFor(systemChoice: SimulatorSystemChoice): Control
     case 'unvented':    return 's_plan'
     case 'open_vented': return 'y_plan'
     case 'heat_pump':   return 'heat_pump'
+    case 'mixergy':     return 's_plan'
   }
 }
 
@@ -223,6 +231,7 @@ const ARRANGEMENT_LABELS: Record<SimulatorSystemChoice, string> = {
   unvented:    'System boiler — unvented cylinder, expansion vessel',
   open_vented: 'Regular boiler — vented cylinder, CWS cistern',
   heat_pump:   'ASHP — primary loop, unvented cylinder, UFH or low-temp radiators',
+  mixergy:     'System boiler — Mixergy stratified cylinder with top-down heating control',
 };
 
 const STRATEGY_LABELS: Record<ControlStrategy, string> = {
