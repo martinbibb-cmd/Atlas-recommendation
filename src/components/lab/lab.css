@@ -132,6 +132,118 @@
   font-size: 0.82rem;
 }
 
+/* ── Confidence + assumptions strip ──────────────────────────────────────── */
+
+.lab-confidence-strip {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.lab-confidence-strip__title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #4a5568;
+  margin: 0 0 0.55rem;
+}
+
+.lab-confidence-strip__groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.25rem;
+  align-items: flex-start;
+}
+
+.lab-confidence-strip__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 150px;
+}
+
+.lab-confidence-strip__group--next-step {
+  flex: 1 1 220px;
+}
+
+.lab-confidence-strip__group-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  display: inline-block;
+  align-self: flex-start;
+}
+
+.lab-confidence-strip__group-label--measured {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.lab-confidence-strip__group-label--inferred {
+  background: #feebc8;
+  color: #7b341e;
+}
+
+.lab-confidence-strip__group-label--missing {
+  background: #fed7d7;
+  color: #742a2a;
+}
+
+.lab-confidence-strip__group-label--next-step {
+  background: #bee3f8;
+  color: #2a4365;
+}
+
+.lab-confidence-strip__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.lab-confidence-strip__item {
+  font-size: 0.78rem;
+  color: #4a5568;
+  line-height: 1.4;
+  padding-left: 0.75rem;
+  position: relative;
+}
+
+.lab-confidence-strip__item::before {
+  content: '·';
+  position: absolute;
+  left: 0.2rem;
+  color: #a0aec0;
+}
+
+.lab-confidence-strip__item--measured {
+  color: #276749;
+}
+
+.lab-confidence-strip__item--inferred {
+  color: #7b341e;
+}
+
+.lab-confidence-strip__item--missing {
+  color: #742a2a;
+}
+
+.lab-confidence-strip__next-step-text {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #2a4365;
+  line-height: 1.45;
+  font-style: italic;
+}
+
 /* ── Tab nav ──────────────────────────────────────────────────────────────── */
 
 .lab-tabs {
