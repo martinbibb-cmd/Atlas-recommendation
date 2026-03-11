@@ -50,6 +50,12 @@ interface CandidateExplanation {
   suits: string;
   struggles: string;
   changes: string;
+  /** Optional context-aware hint surfacing missing or estimated inputs. Shown below the main suits text. */
+  suitsHint?: string;
+  /** Optional context-aware hint surfacing missing or estimated inputs. Shown below the main struggles text. */
+  strugglesHint?: string;
+  /** Optional context-aware hint surfacing missing or estimated inputs. Shown below the main changes text. */
+  changesHint?: string;
 }
 
 interface CandidateSystem {
@@ -76,9 +82,11 @@ const CANDIDATE_SYSTEMS: CandidateSystem[] = [
       future:      'Gas grid uncertainty post-2035. Hydrogen-ready boilers emerging.',
     },
     explanation: {
-      suits:    'Strong on-demand hot water resilience, familiar controls, and proven compatibility with existing radiator systems at standard flow temperatures.',
-      struggles: 'Higher carbon pathway as gas prices and grid carbon intensity work against it long-term. Requires cylinder space and dedicated pipework changes.',
-      changes:  'Confirm cylinder siting, primary routing, and zoning/control layout before proceeding.',
+      suits:       'Strong on-demand hot water resilience, familiar controls, and proven compatibility with existing radiator systems at standard flow temperatures.',
+      suitsHint:   'Hot water demand estimated from occupancy count. Cylinder sizing not yet confirmed.',
+      struggles:   'Higher carbon pathway as gas prices and grid carbon intensity work against it long-term. Requires cylinder space and dedicated pipework changes.',
+      changes:     'Confirm cylinder siting, primary routing, and zoning/control layout before proceeding.',
+      changesHint: 'Cylinder siting and primary routing are currently assumed. A full survey is required to confirm.',
     },
   },
   {
@@ -95,9 +103,11 @@ const CANDIDATE_SYSTEMS: CandidateSystem[] = [
       future:      'Eligible for BUS grant. Aligned with Future Homes Standard trajectory.',
     },
     explanation: {
-      suits:    'Meets heat demand efficiently at low flow temperature with strong seasonal efficiency. Carbon intensity drops further as the grid decarbonises, improving long-term operating cost.',
-      struggles: 'Performance depends on emitter adequacy — undersized radiators force higher flow temperatures and reduce COP. DHW temperature lifts also reduce seasonal efficiency.',
-      changes:  'Confirm emitter output, flow temperatures, and cylinder strategy before installation. Emitter upgrade may be required.',
+      suits:          'Meets heat demand efficiently at low flow temperature with strong seasonal efficiency. Carbon intensity drops further as the grid decarbonises, improving long-term operating cost.',
+      struggles:      'Performance depends on emitter adequacy — undersized radiators force higher flow temperatures and reduce COP. DHW temperature lifts also reduce seasonal efficiency.',
+      strugglesHint:  'Emitter adequacy has not been verified in this survey. Performance estimate assumes adequate radiator output.',
+      changes:        'Confirm emitter output, flow temperatures, and cylinder strategy before installation. Emitter upgrade may be required.',
+      changesHint:    'Emitter output and flow temperature data are currently estimated. A full survey is required to confirm compatibility.',
     },
   },
 ];
@@ -123,14 +133,23 @@ function SummaryTab() {
               <div className="lab-summary__explanation-block lab-summary__explanation-block--suits">
                 <span className="lab-summary__explanation-label">Why it suits</span>
                 <p className="lab-summary__explanation-text">{system.explanation.suits}</p>
+                {system.explanation.suitsHint && (
+                  <p className="lab-summary__explanation-hint">{system.explanation.suitsHint}</p>
+                )}
               </div>
               <div className="lab-summary__explanation-block lab-summary__explanation-block--struggles">
                 <span className="lab-summary__explanation-label">Why it struggles</span>
                 <p className="lab-summary__explanation-text">{system.explanation.struggles}</p>
+                {system.explanation.strugglesHint && (
+                  <p className="lab-summary__explanation-hint">{system.explanation.strugglesHint}</p>
+                )}
               </div>
               <div className="lab-summary__explanation-block lab-summary__explanation-block--changes">
                 <span className="lab-summary__explanation-label">What would need to change</span>
                 <p className="lab-summary__explanation-text">{system.explanation.changes}</p>
+                {system.explanation.changesHint && (
+                  <p className="lab-summary__explanation-hint">{system.explanation.changesHint}</p>
+                )}
               </div>
             </div>
           </div>

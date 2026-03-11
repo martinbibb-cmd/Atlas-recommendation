@@ -291,6 +291,14 @@
   line-height: 1.5;
 }
 
+.lab-summary__explanation-hint {
+  margin: 4px 0 0;
+  font-size: 0.76rem;
+  color: #718096;
+  line-height: 1.4;
+  font-style: italic;
+}
+
 /* ── Visual stub ──────────────────────────────────────────────────────────── */
 
 .lab-visual-stub {
