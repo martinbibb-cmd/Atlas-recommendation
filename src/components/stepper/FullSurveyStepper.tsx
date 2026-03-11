@@ -2541,7 +2541,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
             Choose your installation strategy. A full system upgrade uses low flow temperatures
             (35–40°C) suitable for heat pumps or high-efficiency boilers, delivering SPF 3.8–4.4.
             A high temp retrofit retains existing radiators at 50–55°C (SPF 2.9–3.1 for heat pumps).
-            Adding a Mixergy Hot Water Battery delivers a 21% gas saving via active stratification.
+            Adding a Mixergy Hot Water Battery uses active stratification to improve DHW efficiency tendency.
           </p>
           <div className="form-grid">
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
@@ -2620,7 +2620,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                 >
                   <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>⚡ Mixergy Hot Water Battery</div>
                   <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
-                    +21% gas saving · Active stratification · Top-down heating
+                    Active stratification · Efficiency improvement tendency · Top-down heating
                   </div>
                 </button>
               </div>

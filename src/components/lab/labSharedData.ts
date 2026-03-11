@@ -42,7 +42,7 @@ export const PLACEHOLDER_CONFIDENCE_STRIP: ConfidenceStripData = {
 
 export const PLACEHOLDER_VERDICT = {
   system: 'ASHP with unvented cylinder',
-  note:   'Meets heat and hot water demand with lowest operating cost. Requires emitter check before installation.',
+  note:   'Meets heat and hot water demand with efficient operating cost tendency. Requires emitter check before installation.',
 };
 
 /**
@@ -125,7 +125,7 @@ export const CANDIDATE_SYSTEMS: CandidateSystem[] = [
       future:      'Eligible for BUS grant. Aligned with Future Homes Standard trajectory.',
     },
     explanation: {
-      suits:          'Meets heat demand efficiently at low flow temperature with strong seasonal efficiency. Carbon intensity drops further as the grid decarbonises, improving long-term operating cost.',
+      suits:          'Meets heat demand efficiently at low flow temperature with strong seasonal efficiency. Carbon intensity drops further as the grid decarbonises, supporting a lower running cost tendency.',
       struggles:      'Performance depends on emitter adequacy — undersized radiators force higher flow temperatures and reduce COP. DHW temperature lifts also reduce seasonal efficiency.',
       strugglesHint:  'Emitter adequacy has not been verified in this survey. Performance estimate assumes adequate radiator output.',
       changes:        'Confirm emitter output, flow temperatures, and cylinder strategy before installation. Emitter upgrade may be required.',

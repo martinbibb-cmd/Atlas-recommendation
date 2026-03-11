@@ -6,7 +6,7 @@
  *
  * Dragging the slider simulates the effect of a power-flush / filter service:
  * it "resets" the magnetite and scale accumulation and shows the user the
- * £/year benefit of carrying out the maintenance.
+ * efficiency improvement tendency from carrying out the maintenance.
  *
  * The efficiency recovery calculation follows the same scale/magnetite model
  * used by PredictiveMaintenanceModule.
@@ -18,7 +18,7 @@ interface Props {
   currentEfficiencyPct: number;
   /** Nominal (as-installed) boiler efficiency percentage — required; caller supplies ?? 92 fallback */
   nominalEfficiencyPct: number;
-  /** Annual gas spend in GBP (used to compute £ saving) */
+  /** Annual gas spend in GBP — retained for internal calculations but not displayed directly */
   annualGasSpendGbp?: number;
   /** Called whenever the slider moves so a parent can propagate the value into the engine. */
   onChange?: (serviceLevelPct: number) => void;
@@ -27,7 +27,6 @@ interface Props {
 export default function SystemFlushSlider({
   currentEfficiencyPct,
   nominalEfficiencyPct,
-  annualGasSpendGbp = 1200,
   onChange,
 }: Props) {
   // 0 = no service, 100 = full power-flush + inhibitor dose + filter clean
@@ -37,9 +36,8 @@ export default function SystemFlushSlider({
   const restoredEfficiency =
     currentEfficiencyPct + (maintenanceLevel / 100) * (nominalEfficiencyPct - currentEfficiencyPct);
 
-  // Financial benefit: efficiency gain × annual gas spend
+  // Efficiency gain: how much efficiency is recovered relative to current level
   const efficiencyGain = restoredEfficiency - currentEfficiencyPct;
-  const annualSaving = (efficiencyGain / 100) * annualGasSpendGbp;
 
   const barColor =
     maintenanceLevel < 33 ? '#fc8181' : maintenanceLevel < 66 ? '#f6ad55' : '#68d391';
@@ -100,9 +98,9 @@ export default function SystemFlushSlider({
           background: '#ebf8ff', border: '1.5px solid #90cdf4',
           borderRadius: 8, padding: '8px 12px',
         }}>
-          <div style={{ fontSize: '0.72rem', color: '#2c5282' }}>Annual saving</div>
+          <div style={{ fontSize: '0.72rem', color: '#2c5282' }}>Efficiency gain</div>
           <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#2c5282' }}>
-            £{annualSaving.toFixed(0)}/yr
+            +{efficiencyGain.toFixed(1)}%
           </div>
         </div>
       </div>
@@ -113,8 +111,8 @@ export default function SystemFlushSlider({
           background: '#f0fff4', borderRadius: 6,
           fontSize: '0.78rem', color: '#276749',
         }}>
-          ✅ Full power-flush restores efficiency to {nominalEfficiencyPct}% and saves
-          approximately £{annualSaving.toFixed(0)} per year on gas bills.
+          ✅ Full power-flush restores efficiency to {nominalEfficiencyPct}% — an efficiency improvement tendency
+          of +{efficiencyGain.toFixed(1)}% vs current operating level.
         </p>
       )}
     </div>
