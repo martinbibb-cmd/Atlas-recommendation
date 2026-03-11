@@ -444,6 +444,11 @@ describe('CylinderStatusCard — Mixergy cylinder', () => {
     render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
     expect(screen.getByText(/Demand-mirrored heating/)).toBeTruthy();
   });
+
+  it('renders "Heated layer" annotation near the cylinder graphic', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.getByText('Heated layer')).toBeTruthy();
+  });
 });
 
 describe('CylinderStatusCard — boiler cylinder retains bulk-temp model', () => {
@@ -460,5 +465,10 @@ describe('CylinderStatusCard — boiler cylinder retains bulk-temp model', () =>
   it('does NOT render "Heated volume" row for a boiler cylinder', () => {
     render(<CylinderStatusCard data={BOILER_CYLINDER} />);
     expect(screen.queryByText('Heated volume')).toBeNull();
+  });
+
+  it('does NOT render "Heated layer" annotation for a boiler cylinder', () => {
+    render(<CylinderStatusCard data={BOILER_CYLINDER} />);
+    expect(screen.queryByText('Heated layer')).toBeNull();
   });
 });

@@ -312,10 +312,10 @@ function getCylinderData(regime: Regime): CylinderStatusViewModel {
     nominalVolumeL: 150,
     usableVolumeFactor: 0.88,
     recoverySource: 'Boiler (Mixergy)',
-    recoveryPowerTendency: 'High — demand mirroring reduces reheat cycling versus standard cylinder',
+    recoveryPowerTendency: 'Demand-mirrored heating — hot layer maintained; reduced reheat cycling',
     state: 'recovering',
     recoveryNote: 'Boiler firing via Mixergy controller. Top-down stratification actively grows the heated layer.',
-    storeNote: 'Mixergy maintains a defined heated layer. Once that layer is exhausted, hot delivery drops more abruptly than in a conventional cylinder.',
+    storeNote: 'Hot water delivered from a defined heated layer. 128 L (85%) heated at 60°C. Once the thermocline reaches the outlet level, hot delivery falls rapidly rather than cooling gradually.',
   }
 }
 
