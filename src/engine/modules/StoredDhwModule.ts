@@ -1,7 +1,10 @@
 import type { EngineInputV2_3, StoredDhwV1Result, StoredDhwFlagItem } from '../schema/EngineInputV2_3';
 import {
   computeTapMixing,
+  computeUsableVolumeFactor,
+  defaultStoreTempForRegime,
   DEFAULT_STORED_BOILER_STORE_TEMP_C,
+  type DhwStorageRegime,
 } from '../utils/dhwMixing';
 
 /** Minimum mains dynamic flow (L/min) for an unvented cylinder to perform well. */
@@ -217,6 +220,51 @@ export function runStoredDhwModuleV1(
     );
   }
 
+  // ── Rule 5: Storage temperature regime ───────────────────────────────────
+  // Resolve the effective storage regime and derive a store temperature for mixing.
+  // Priority: explicit storeTempC > regime-derived temp > legacy default.
+  const resolvedRegime: DhwStorageRegime = input.dhwStorageRegime ?? 'boiler_cylinder';
+
+  let effectiveStoreTempC: number;
+  if (input.storeTempC !== undefined) {
+    // Explicit override always wins
+    effectiveStoreTempC = input.storeTempC;
+  } else {
+    effectiveStoreTempC =
+      defaultStoreTempForRegime(resolvedRegime) ?? DEFAULT_STORED_BOILER_STORE_TEMP_C;
+  }
+
+  // Emit an info flag when the regime is 'heat_pump_cylinder' so the UI can
+  // surface the lower-temperature storage explanation.
+  if (resolvedRegime === 'heat_pump_cylinder') {
+    flags.push({
+      id: 'stored-heat-pump-recovery',
+      severity: 'info',
+      title: 'Stored hot water (heat pump cylinder)',
+      detail:
+        `Heat pump cylinders are typically stored at a lower temperature (≈${effectiveStoreTempC} °C) ` +
+        `than boiler cylinders (≈60–65 °C). This means a higher proportion of stored water ` +
+        `is drawn at each outlet — so the effective usable volume is more sensitive to ` +
+        `simultaneous demand and recovery speed than an identically-sized boiler cylinder.`,
+    });
+    assumptions.push(
+      `Storage regime: heat pump cylinder (${effectiveStoreTempC} °C store). ` +
+      `Usable volume reduced relative to a boiler cylinder at the same nominal size.`,
+    );
+  } else {
+    assumptions.push(
+      `Storage regime: boiler cylinder (${effectiveStoreTempC} °C store). ` +
+      `Higher store temperature gives more cold dilution at outlets — good concurrency resilience.`,
+    );
+  }
+
+  // Compute usable volume factor relative to a reference 60 °C boiler cylinder
+  const resolvedUsableVolumeFactor = computeUsableVolumeFactor({
+    storeTempC: effectiveStoreTempC,
+    tapTargetTempC: input.tapTargetTempC,
+    coldWaterTempC: input.coldWaterTempC,
+  });
+
   // ── Determine overall storedRisk verdict ─────────────────────────────────
   const storedRisk: StoredDhwV1Result['verdict']['storedRisk'] =
     flags.some(f => f.severity === 'warn') ? 'warn' : 'pass';
@@ -241,8 +289,10 @@ export function runStoredDhwModuleV1(
     recommended: { type: recommendedType, volumeBand },
     flags,
     assumptions,
+    storageRegime: resolvedRegime,
+    usableVolumeFactor: resolvedUsableVolumeFactor,
     dhwMixing: computeTapMixing({
-      storeTempC: input.storeTempC ?? DEFAULT_STORED_BOILER_STORE_TEMP_C,
+      storeTempC: effectiveStoreTempC,
       tapTargetTempC: input.tapTargetTempC,
       coldWaterTempC: input.coldWaterTempC,
       mixedFlowLpm: input.dhwMixedFlowLpm,

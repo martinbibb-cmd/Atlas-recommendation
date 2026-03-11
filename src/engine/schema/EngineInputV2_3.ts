@@ -2,8 +2,8 @@ import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 export type { EngineOutputV1 };
 import type { DayProfileV1, HeatingBandV1, DhwHeatBandV1, DhwEventV1 } from '../../contracts/EngineInputV2_3';
 export type { DayProfileV1, HeatingBandV1, DhwHeatBandV1, DhwEventV1 };
-import type { TapMixingResult } from '../utils/dhwMixing';
-export type { TapMixingResult };
+import type { TapMixingResult, DhwStorageRegime } from '../utils/dhwMixing';
+export type { TapMixingResult, DhwStorageRegime };
 import type { PressureAnalysis } from '../modules/PressureModule';
 export type { PressureAnalysis };
 import type { CwsSupplyV1Result } from '../modules/CwsSupplyModule';
@@ -116,8 +116,23 @@ export interface EngineInputV2_3 {
    * Defaults: stored boiler 55 °C; ASHP store 50 °C.
    * A lower store temperature requires a higher hot fraction to reach tap temperature,
    * increasing cylinder depletion rate even though energy to the user is the same.
+   * When dhwStorageRegime is set, the module derives a default storeTempC automatically.
    */
   storeTempC?: number;
+  /**
+   * DHW storage temperature regime — the third DHW dimension beyond demand and concurrency.
+   *
+   * Determines how much of a cylinder's nominal volume is usable at the tap:
+   *   'boiler_cylinder'    — stored at higher temperature (≈60–65 °C); more cold
+   *                          dilution → higher usable mixed volume; concurrency resilient.
+   *   'heat_pump_cylinder' — stored at lower temperature (≈48–52 °C); less cold
+   *                          dilution → cylinder depletes faster per draw; recovery sensitive.
+   *   'instantaneous_combi'— no stored volume; throughput limited by boiler output.
+   *
+   * When provided, the StoredDhwModule uses this to derive a default storeTempC and
+   * emits a usableVolumeFactor in the result.
+   */
+  dhwStorageRegime?: DhwStorageRegime;
   /**
    * Total mixed flow at the tap outlet (L/min) for DHW mixing calculations.
    * Default: 10 L/min (representative shower/bath draw).
@@ -588,7 +603,8 @@ export interface StoredDhwFlagItem {
     | 'stored-solves-simultaneous-demand'
     | 'stored-unvented-low-flow'
     | 'stored-unvented-flow-unknown'
-    | 'stored-cylinder-condition';
+    | 'stored-cylinder-condition'
+    | 'stored-heat-pump-recovery';
   severity: 'info' | 'warn';
   title: string;
   detail: string;
@@ -616,6 +632,28 @@ export interface StoredDhwV1Result {
    * series even when the energy delivered to the user is identical.
    */
   dhwMixing: TapMixingResult;
+  /**
+   * The resolved DHW storage regime for this run.
+   * Derived from dhwStorageRegime input (if provided) or defaulted to 'boiler_cylinder'
+   * for stored systems.  Always 'boiler_cylinder' or 'heat_pump_cylinder' in stored
+   * system results (combi is handled by CombiDhwModule, not StoredDhwModule).
+   */
+  storageRegime: DhwStorageRegime;
+  /**
+   * Usable mixed-volume factor relative to a reference boiler cylinder at 60 °C.
+   *
+   * Computed from mixing physics:
+   *   factor = (T_store − T_cold) / (T_tap − T_cold)  ÷  (T_ref − T_cold) / (T_tap − T_cold)
+   *
+   * Interpretation:
+   *   1.0 — boiler cylinder at 60 °C (reference)
+   *   < 1.0 — heat pump cylinder (lower store temp → faster depletion per draw)
+   *   > 1.0 — hotter-than-reference store
+   *
+   * Use this to explain why identically-sized cylinders behave differently for
+   * boiler vs heat pump installations.
+   */
+  usableVolumeFactor: number;
   /**
    * Cylinder condition result — present when cylinder survey evidence was supplied.
    * Captures the inferred degradation state and its effect on stored hot water behaviour.
