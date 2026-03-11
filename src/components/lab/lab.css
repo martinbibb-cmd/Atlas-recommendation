@@ -504,3 +504,423 @@
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* Draw-Off Workbench                                                         */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Regime selector bar ──────────────────────────────────────────────────── */
+
+.draw-off-workbench__regime-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+  padding: 0.5rem 0.25rem 0.75rem;
+}
+
+.draw-off-workbench__regime-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #718096;
+  white-space: nowrap;
+}
+
+.draw-off-workbench__regime-btn {
+  padding: 0.3rem 0.85rem;
+  border: 1.5px solid #cbd5e0;
+  border-radius: 20px;
+  background: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #4a5568;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.draw-off-workbench__regime-btn:hover {
+  background: #ebf8ff;
+  border-color: #90cdf4;
+  color: #2b6cb0;
+}
+
+.draw-off-workbench__regime-btn--active {
+  background: #ebf8ff;
+  border-color: #3182ce;
+  color: #2b6cb0;
+}
+
+/* ── Main panel layout (desktop: outlet grid left + cylinder right) ────────── */
+
+.draw-off-workbench__panel {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.draw-off-workbench__outlets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.draw-off-workbench__source {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Draw-Off Card
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.draw-off-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.draw-off-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 10px 12px 8px;
+  background: #f7fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.draw-off-card__icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.draw-off-card__label {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.draw-off-card__chip {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 12px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.draw-off-card__chip--stable {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.draw-off-card__chip--flow-limited {
+  background: #feebc8;
+  color: #7b341e;
+}
+
+.draw-off-card__chip--temp-limited {
+  background: #bee3f8;
+  color: #2a4365;
+}
+
+.draw-off-card__chip--starved {
+  background: #fed7d7;
+  color: #742a2a;
+}
+
+/* ── Supply rows ─────────────────────────────────────────────────────────── */
+
+.draw-off-card__rows {
+  margin: 0;
+  padding: 6px 0 4px;
+}
+
+.draw-off-card__row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 5px 12px;
+  border-bottom: 1px solid #f7fafc;
+}
+
+.draw-off-card__row:last-child {
+  border-bottom: none;
+}
+
+.draw-off-card__row-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  min-width: 4.5rem;
+  white-space: nowrap;
+}
+
+.draw-off-card__row--cold .draw-off-card__row-label  { color: #2b6cb0; }
+.draw-off-card__row--hot  .draw-off-card__row-label  { color: #c53030; }
+.draw-off-card__row--delivered .draw-off-card__row-label { color: #276749; }
+
+.draw-off-card__row-value {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.draw-off-card__row-flow {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: #718096;
+  margin-left: 2px;
+}
+
+/* ── Behavioural note ────────────────────────────────────────────────────── */
+
+.draw-off-card__note {
+  margin: 0;
+  padding: 7px 12px 10px;
+  font-size: 0.75rem;
+  color: #4a5568;
+  line-height: 1.45;
+  border-top: 1px solid #f0f4f8;
+  background: #fafbfc;
+  flex: 1;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Cylinder Status Card
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.cylinder-status-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.cylinder-status-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 10px 14px 8px;
+  background: #f7fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.cylinder-status-card__title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.cylinder-status-card__state-chip {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 12px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.cylinder-status-card__state-chip--idle       { background: #e2e8f0; color: #4a5568; }
+.cylinder-status-card__state-chip--charging   { background: #feebc8; color: #7b341e; }
+.cylinder-status-card__state-chip--recovering { background: #bee3f8; color: #2a4365; }
+.cylinder-status-card__state-chip--depleted   { background: #fed7d7; color: #742a2a; }
+
+/* ── Cylinder graphic ────────────────────────────────────────────────────── */
+
+.cylinder-graphic {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 14px 6px;
+  gap: 0;
+  position: relative;
+}
+
+.cylinder-graphic__cap {
+  width: 64px;
+  height: 10px;
+  background: #a0aec0;
+  border-radius: 50%;
+}
+
+.cylinder-graphic__cap--top    { margin-bottom: -2px; }
+.cylinder-graphic__cap--bottom { margin-top: -2px; }
+
+.cylinder-graphic__body {
+  width: 64px;
+  height: 160px;
+  border: 2px solid #a0aec0;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.cylinder-graphic__zone {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: height 0.4s ease;
+}
+
+.cylinder-graphic__zone--hot {
+  background: linear-gradient(180deg, #fc8181 0%, #f6ad55 100%);
+}
+
+.cylinder-graphic__zone--cold {
+  background: linear-gradient(180deg, #bee3f8 0%, #90cdf4 100%);
+  flex: 1;
+}
+
+.cylinder-graphic__zone-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.cylinder-graphic__thermocline {
+  width: 100%;
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    #4a5568 0px,
+    #4a5568 4px,
+    transparent 4px,
+    transparent 8px
+  );
+  flex-shrink: 0;
+}
+
+.cylinder-graphic__draw-arrow {
+  position: absolute;
+  right: -2px;
+  top: 10px;
+  font-size: 0.6rem;
+  color: #c53030;
+  font-weight: 700;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  line-height: 1;
+}
+
+.cylinder-graphic__coil-indicator {
+  margin-top: 4px;
+}
+
+.cylinder-graphic__coil-label {
+  font-size: 0.68rem;
+  color: #718096;
+  font-style: italic;
+}
+
+/* ── Data rows ───────────────────────────────────────────────────────────── */
+
+.cylinder-status-card__rows {
+  margin: 0;
+  padding: 6px 0 4px;
+}
+
+.cylinder-status-card__row {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 0.4rem;
+  padding: 5px 14px;
+  border-bottom: 1px solid #f7fafc;
+}
+
+.cylinder-status-card__row:last-child {
+  border-bottom: none;
+}
+
+.cylinder-status-card__dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #718096;
+  padding-top: 1px;
+}
+
+.cylinder-status-card__dd {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #2d3748;
+  line-height: 1.4;
+}
+
+/* ── Behavioural notes ───────────────────────────────────────────────────── */
+
+.cylinder-status-card__notes {
+  border-top: 1px solid #e2e8f0;
+  padding: 8px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #fafbfc;
+  flex: 1;
+}
+
+.cylinder-status-card__note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #4a5568;
+  line-height: 1.45;
+  padding-left: 0.75rem;
+  position: relative;
+}
+
+.cylinder-status-card__note::before {
+  content: '·';
+  position: absolute;
+  left: 0.2rem;
+  color: #a0aec0;
+}
+
+.cylinder-status-card__note--recovery { color: #2b6cb0; }
+.cylinder-status-card__note--store    { color: #276749; }
+
+/* ── Responsive: mobile stacked layout ──────────────────────────────────── */
+
+@media (max-width: 860px) {
+  .draw-off-workbench__panel {
+    grid-template-columns: 1fr;
+  }
+
+  .draw-off-workbench__source {
+    order: -1;
+  }
+
+  .cylinder-status-card {
+    height: auto;
+  }
+}
+
+@media (max-width: 540px) {
+  .draw-off-workbench__outlets {
+    grid-template-columns: 1fr;
+  }
+}
+
