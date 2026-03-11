@@ -230,6 +230,67 @@
   line-height: 1.45;
 }
 
+/* ── Explanation blocks ───────────────────────────────────────────────────── */
+
+.lab-summary__explanation {
+  border-top: 1px solid #e2e8f0;
+  padding: 10px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lab-summary__explanation-block {
+  border-left: 3px solid #cbd5e0;
+  padding: 6px 10px;
+  border-radius: 0 6px 6px 0;
+  background: #f7fafc;
+}
+
+.lab-summary__explanation-block--suits {
+  border-left-color: #48bb78;
+  background: #f0fff4;
+}
+
+.lab-summary__explanation-block--struggles {
+  border-left-color: #ed8936;
+  background: #fffaf0;
+}
+
+.lab-summary__explanation-block--changes {
+  border-left-color: #4299e1;
+  background: #ebf8ff;
+}
+
+.lab-summary__explanation-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #718096;
+  margin-bottom: 3px;
+}
+
+.lab-summary__explanation-block--suits .lab-summary__explanation-label {
+  color: #276749;
+}
+
+.lab-summary__explanation-block--struggles .lab-summary__explanation-label {
+  color: #7b341e;
+}
+
+.lab-summary__explanation-block--changes .lab-summary__explanation-label {
+  color: #2b6cb0;
+}
+
+.lab-summary__explanation-text {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #2d3748;
+  line-height: 1.5;
+}
+
 /* ── Visual stub ──────────────────────────────────────────────────────────── */
 
 .lab-visual-stub {

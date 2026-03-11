@@ -46,10 +46,17 @@ const COMPARISON_HEADINGS = [
 
 type HeadingKey = typeof COMPARISON_HEADINGS[number]['key'];
 
+interface CandidateExplanation {
+  suits: string;
+  struggles: string;
+  changes: string;
+}
+
 interface CandidateSystem {
   id: string;
   label: string;
   rows: Record<HeadingKey, string>;
+  explanation: CandidateExplanation;
 }
 
 // Fallback candidate data — replaced by engine-computed recommendations in a
@@ -68,6 +75,11 @@ const CANDIDATE_SYSTEMS: CandidateSystem[] = [
       eco:         'Efficiency peaks when condensing; reduced cycling with stored supply.',
       future:      'Gas grid uncertainty post-2035. Hydrogen-ready boilers emerging.',
     },
+    explanation: {
+      suits:    'Strong on-demand hot water resilience, familiar controls, and proven compatibility with existing radiator systems at standard flow temperatures.',
+      struggles: 'Higher carbon pathway as gas prices and grid carbon intensity work against it long-term. Requires cylinder space and dedicated pipework changes.',
+      changes:  'Confirm cylinder siting, primary routing, and zoning/control layout before proceeding.',
+    },
   },
   {
     id: 'ashp',
@@ -81,6 +93,11 @@ const CANDIDATE_SYSTEMS: CandidateSystem[] = [
       control:     'Weather compensation standard. Smart integration widely supported.',
       eco:         'Lowest carbon per kWh at current grid mix. COP 2.5–4.5 typical.',
       future:      'Eligible for BUS grant. Aligned with Future Homes Standard trajectory.',
+    },
+    explanation: {
+      suits:    'Meets heat demand efficiently at low flow temperature with strong seasonal efficiency. Carbon intensity drops further as the grid decarbonises, improving long-term operating cost.',
+      struggles: 'Performance depends on emitter adequacy — undersized radiators force higher flow temperatures and reduce COP. DHW temperature lifts also reduce seasonal efficiency.',
+      changes:  'Confirm emitter output, flow temperatures, and cylinder strategy before installation. Emitter upgrade may be required.',
     },
   },
 ];
@@ -102,6 +119,20 @@ function SummaryTab() {
                 </div>
               ))}
             </dl>
+            <div className="lab-summary__explanation">
+              <div className="lab-summary__explanation-block lab-summary__explanation-block--suits">
+                <span className="lab-summary__explanation-label">Why it suits</span>
+                <p className="lab-summary__explanation-text">{system.explanation.suits}</p>
+              </div>
+              <div className="lab-summary__explanation-block lab-summary__explanation-block--struggles">
+                <span className="lab-summary__explanation-label">Why it struggles</span>
+                <p className="lab-summary__explanation-text">{system.explanation.struggles}</p>
+              </div>
+              <div className="lab-summary__explanation-block lab-summary__explanation-block--changes">
+                <span className="lab-summary__explanation-label">What would need to change</span>
+                <p className="lab-summary__explanation-text">{system.explanation.changes}</p>
+              </div>
+            </div>
           </div>
         ))}
       </div>
