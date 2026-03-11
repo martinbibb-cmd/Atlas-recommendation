@@ -50,7 +50,7 @@ type SimulatorMode = 'single' | 'compare';
 const PANEL_METADATA: Record<PanelId, { title: string; icon: string }> = {
   system:     { title: 'System Diagram',  icon: '⚙'  },
   house:      { title: 'House View',      icon: '🏠' },
-  drawoff:    { title: 'Draw-Off Status', icon: '💧' },
+  drawoff:    { title: 'Draw-Off Behaviour', icon: '💧' },
   efficiency: { title: 'Efficiency',      icon: '📊' },
   limiters:   { title: 'System Limiters', icon: '⚠'  },
   inputs:     { title: 'System Inputs',   icon: '🎛'  },
@@ -312,6 +312,7 @@ export default function SimulatorDashboard({
   const drawOffPanel = (
     <DrawOffStatusPanel
       state={drawOffState}
+      systemChoice={systemChoice}
       mode={isManualMode ? 'manual' : 'auto'}
       heatingEnabled={demandControls.heatingEnabled}
       shower={demandControls.shower}
@@ -558,9 +559,9 @@ export default function SimulatorDashboard({
           <HouseStatusPanel state={houseState} />
         </SimulatorPanel>
 
-        {/* Draw-Off Status — live via useDrawOffPlayback */}
+        {/* Draw-Off Behaviour — live via useDrawOffPlayback */}
         <SimulatorPanel
-          title="Draw-Off Status"
+          title="Draw-Off Behaviour"
           icon="💧"
           onExpand={() => setExpanded('drawoff')}
         >

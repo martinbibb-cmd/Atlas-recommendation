@@ -79,7 +79,7 @@ describe('ExplainersHubPage — stepper flow', () => {
     completeStepper()
     expect(screen.getByRole('button', { name: /expand system diagram/i })).toBeTruthy()
     expect(screen.getByRole('button', { name: /expand house view/i })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /expand draw-off status/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /expand draw-off behaviour/i })).toBeTruthy()
     expect(screen.getByRole('button', { name: /expand efficiency/i })).toBeTruthy()
   })
 
@@ -116,10 +116,10 @@ describe('ExplainersHubPage — simulator panels', () => {
     expect(screen.getByRole('button', { name: /expand house view/i })).toBeTruthy()
   })
 
-  it('renders the Draw-Off Status panel after stepper', () => {
+  it('renders the Draw-Off Behaviour panel after stepper', () => {
     render(<ExplainersHubPage />)
     completeStepper()
-    expect(screen.getByRole('button', { name: /expand draw-off status/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /expand draw-off behaviour/i })).toBeTruthy()
   })
 
   it('renders the Efficiency panel after stepper', () => {
