@@ -159,14 +159,14 @@ function buildCylinderViewModel(
     recoveryPowerTendency: isHeatPump
       ? 'Moderate — slower reheat than boiler under peak demand'
       : isMixergy
-        ? 'High — demand mirroring reduces reheat cycling versus standard cylinder'
+        ? 'Demand-mirrored heating — hot layer maintained; reduced reheat cycling'
         : 'High — rapid recovery via dedicated DHW zone',
     state:                 cylinderState,
     recoveryNote:          stored.isReheatActive
       ? `${sourceLabel} firing — cylinder recovering. Store temperature stabilising.`
       : 'System monitoring cylinder temperature. No active reheat required.',
     storeNote:             isMixergy
-      ? `Mixergy maintains a defined heated layer. ${heatedVolumeL} L heated at ${Math.round(stored.topTempC)}°C. Once that layer is exhausted, hot delivery drops more abruptly than in a conventional cylinder.`
+      ? `Hot water delivered from a defined heated layer. ${heatedVolumeL} L (${Math.round(stored.usableReserveFraction * 100)}%) heated at ${Math.round(stored.topTempC)}°C. Once the thermocline reaches the outlet level, hot delivery falls rapidly rather than cooling gradually.`
       : `${Math.round(stored.availableHotWaterL)} L available at ${Math.round(stored.deliveryTempC)}°C. Thermocline ${thermocline}.`,
   }
 }
