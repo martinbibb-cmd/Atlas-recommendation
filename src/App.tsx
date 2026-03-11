@@ -88,22 +88,39 @@ export default function App() {
         <h1>🏠 Atlas Heating Recommendation Engine</h1>
         <p className="subtitle">V2.3 — Pure Physics Core</p>
         <p className="tagline">
-          Evidence-based heating recommendations powered by real thermodynamic,
-          hydraulic, and geochemical simulation.
+          A decision tool with proof — not a chart dashboard. Atlas shows you
+          why one heating system suits and another struggles, using real
+          thermodynamic, hydraulic, and geochemical simulation.
         </p>
       </div>
       <div className="journey-cards">
         <div className="journey-card fast" onClick={() => setJourney('fast')}>
-          <div className="card-icon">📖</div>
-          <h2>Story Toolbox</h2>
+          <div className="card-icon">⚡</div>
+          <h2>Fast Choice</h2>
           <p className="card-time">~1 minute</p>
-          <p>Advisor-led scenario mode. Select a situation, enter a handful of inputs, and see live physics-driven output.</p>
+          <p>First-pass recommendation. Enter a handful of inputs and get a physics-driven result in under a minute.</p>
           <ul>
-            <li>Combi vs Stored comparison</li>
+            <li>Combi vs stored — quick verdict</li>
             <li>Old boiler reality check</li>
-            <li>Escalate to Full Survey with prefilled values</li>
+            <li>Open result in System Lab or Full Survey</li>
           </ul>
-          <button className="cta-btn">Start Story →</button>
+          <button className="cta-btn">Start Fast Choice →</button>
+        </div>
+        <div
+          className="journey-card full"
+          onClick={() => setJourney('lab')}
+          style={{ borderColor: '#805ad5' }}
+        >
+          <div className="card-icon">🔭</div>
+          <h2>System Lab</h2>
+          <p className="card-time">Compare &amp; prove why</p>
+          <p>Side-by-side comparison engine. See why one system wins and another struggles — with physics to back every claim.</p>
+          <ul>
+            <li>Current vs candidate system comparison</li>
+            <li>Limiters, thresholds, and operating points</li>
+            <li>Day painter and comfort behaviour visuals</li>
+          </ul>
+          <button className="cta-btn" style={{ background: '#805ad5' }}>Open System Lab →</button>
         </div>
         <div className="journey-card full" onClick={() => setJourney('full')}>
           <div className="card-icon">🔬</div>
@@ -116,34 +133,6 @@ export default function App() {
             <li>24-hour comfort simulation</li>
           </ul>
           <button className="cta-btn">Start Full Survey →</button>
-        </div>
-        <div className="journey-card full" onClick={() => { window.location.search = '?console=1'; }} style={{ borderColor: '#38a169' }}>
-          <div className="card-icon">📊</div>
-          <h2>Behaviour Console</h2>
-          <p className="card-time">New · Demo</p>
-          <p>Timeline-first presentation with a single dominant Behaviour Console view.</p>
-          <ul>
-            <li>24-hour system behaviour timeline</li>
-            <li>Active limiters &amp; constraints</li>
-            <li>Domain influence breakdown</li>
-          </ul>
-          <button className="cta-btn" style={{ background: '#38a169' }}>Open Console →</button>
-        </div>
-        <div
-          className="journey-card full"
-          onClick={() => { window.location.search = '?lab=1'; }}
-          style={{ borderColor: '#805ad5' }}
-        >
-          <div className="card-icon">🧱</div>
-          <h2>System Lab</h2>
-          <p className="card-time">Demo · Builder</p>
-          <p>Flow + thermal lab with Lego-style system building and presets.</p>
-          <ul>
-            <li>Preset scenarios + quick load</li>
-            <li>Live instruments (flow/pressure/heat)</li>
-            <li>Build-your-own system (next)</li>
-          </ul>
-          <button className="cta-btn" style={{ background: '#805ad5' }}>Open Lab →</button>
         </div>
       </div>
       <Footer onNavigate={setJourney} />

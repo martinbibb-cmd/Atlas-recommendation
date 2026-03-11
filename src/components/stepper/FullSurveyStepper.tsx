@@ -610,7 +610,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
     <div className="stepper-container">
       {showPrefillBanner && prefillActive && (
         <div className="prefill-banner" role="status">
-          <span>Prefilled from Story Mode.</span>
+          <span>Prefilled from Fast Choice.</span>
           <button
             type="button"
             className="prefill-banner__reset"
