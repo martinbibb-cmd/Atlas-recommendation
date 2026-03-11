@@ -83,7 +83,7 @@ export default function StoryModeContainer({ onBack, onEscalate }: Props) {
     <div className="cockpit-page">
       <div className="stepper-header">
         <button className="back-btn" onClick={onBack}>← Back</button>
-        <span className="step-label">Story Toolbox</span>
+        <span className="step-label">Fast Choice</span>
       </div>
       <ScenarioSelector onSelect={handleSelectScenario} />
     </div>
