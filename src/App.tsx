@@ -9,6 +9,9 @@ import PrivacyPage from './components/governance/PrivacyPage';
 import BehaviourConsolePage from './components/behaviour/BehaviourConsolePage';
 import ExplainersHubPage from './explainers/ExplainersHubPage';
 import LabShell from './components/lab/LabShell';
+import LabPrintCustomer from './components/lab/LabPrintCustomer';
+import LabPrintTechnical from './components/lab/LabPrintTechnical';
+import LabPrintComparison from './components/lab/LabPrintComparison';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
 import './App.css';
@@ -22,6 +25,15 @@ const CONSOLE_MODE_ENABLED =
 const LAB_MODE_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('lab') === '1';
+
+/**
+ * Detect ?print=<view> — renders a dedicated print layout directly.
+ * Supported values: 'customer' | 'technical' | 'comparison'
+ */
+const PRINT_VIEW =
+  typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('print')
+    : null;
 
 /**
  * Demo engine input used when the ?console=1 flag is set.
@@ -73,6 +85,11 @@ export default function App() {
   if (LAB_MODE_ENABLED) {
     return <ExplainersHubPage onBack={() => { window.location.href = window.location.pathname; }} />;
   }
+
+  // ?print=<view> — render dedicated print layout.
+  if (PRINT_VIEW === 'customer')   return <LabPrintCustomer />;
+  if (PRINT_VIEW === 'technical')  return <LabPrintTechnical />;
+  if (PRINT_VIEW === 'comparison') return <LabPrintComparison />;
 
   if (journey === 'fast') return <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} onOpenLab={() => setJourney('lab')} />;
   if (journey === 'full') return <FullSurveyStepper onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }} prefill={fullSurveyPrefill} />;

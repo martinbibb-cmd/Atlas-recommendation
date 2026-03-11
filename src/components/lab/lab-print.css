@@ -1,0 +1,433 @@
+/* ── Print layout wrapper ─────────────────────────────────────────────────── */
+
+.lp-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem 2rem;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #1a202c;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* ── Screen-only toolbar (hidden when printing) ──────────────────────────── */
+
+.lp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.lp-toolbar__back {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #4a5568;
+}
+
+.lp-toolbar__back:hover {
+  background: #f7fafc;
+}
+
+.lp-toolbar__print {
+  background: #3182ce;
+  border: none;
+  border-radius: 8px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  margin-left: auto;
+}
+
+.lp-toolbar__print:hover {
+  background: #2b6cb0;
+}
+
+.lp-toolbar__label {
+  font-size: 0.78rem;
+  color: #718096;
+}
+
+/* ── Document header ─────────────────────────────────────────────────────── */
+
+.lp-doc-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #1a202c;
+  margin-bottom: 1.25rem;
+}
+
+.lp-doc-header__brand {
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3182ce;
+  margin-bottom: 2px;
+}
+
+.lp-doc-header__title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #1a202c;
+  margin: 0 0 2px;
+  line-height: 1.2;
+}
+
+.lp-doc-header__sub {
+  font-size: 0.78rem;
+  color: #718096;
+  margin: 0;
+}
+
+.lp-doc-header__meta {
+  text-align: right;
+  font-size: 0.75rem;
+  color: #718096;
+  line-height: 1.6;
+}
+
+/* ── Section ─────────────────────────────────────────────────────────────── */
+
+.lp-section {
+  margin-bottom: 1.5rem;
+}
+
+.lp-section__title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #4a5568;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.25rem;
+  margin: 0 0 0.75rem;
+}
+
+/* ── Verdict block ───────────────────────────────────────────────────────── */
+
+.lp-verdict {
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.lp-verdict__label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #276749;
+  margin-bottom: 3px;
+}
+
+.lp-verdict__value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #22543d;
+  margin: 0 0 4px;
+}
+
+.lp-verdict__note {
+  font-size: 0.84rem;
+  color: #2f855a;
+  margin: 0;
+}
+
+/* ── Confidence badge ────────────────────────────────────────────────────── */
+
+.lp-confidence-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  background: #fefcbf;
+  color: #744210;
+  border: 1px solid #f6e05e;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+/* ── Bullet lists ────────────────────────────────────────────────────────── */
+
+.lp-list {
+  margin: 0;
+  padding: 0 0 0 1.1rem;
+  font-size: 0.84rem;
+  color: #2d3748;
+  line-height: 1.55;
+}
+
+.lp-list li {
+  margin-bottom: 0.2rem;
+}
+
+/* ── Explanation blocks ──────────────────────────────────────────────────── */
+
+.lp-explanation-block {
+  border-left: 3px solid #cbd5e0;
+  padding: 6px 10px;
+  border-radius: 0 6px 6px 0;
+  background: #f7fafc;
+  margin-bottom: 0.5rem;
+}
+
+.lp-explanation-block--suits {
+  border-left-color: #48bb78;
+  background: #f0fff4;
+}
+
+.lp-explanation-block--struggles {
+  border-left-color: #ed8936;
+  background: #fffaf0;
+}
+
+.lp-explanation-block--changes {
+  border-left-color: #4299e1;
+  background: #ebf8ff;
+}
+
+.lp-explanation-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #718096;
+  margin-bottom: 3px;
+}
+
+.lp-explanation-block--suits .lp-explanation-label     { color: #276749; }
+.lp-explanation-block--struggles .lp-explanation-label { color: #7b341e; }
+.lp-explanation-block--changes .lp-explanation-label   { color: #2b6cb0; }
+
+.lp-explanation-text {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #2d3748;
+  line-height: 1.5;
+}
+
+/* ── Definition list (dt/dd rows) ────────────────────────────────────────── */
+
+.lp-dl {
+  margin: 0;
+  padding: 0;
+}
+
+.lp-dl-row {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: 0.4rem;
+  padding: 5px 0;
+  border-bottom: 1px solid #f0f4f8;
+  font-size: 0.84rem;
+}
+
+.lp-dl-row:last-child {
+  border-bottom: none;
+}
+
+.lp-dt {
+  font-weight: 700;
+  color: #4a5568;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lp-dd {
+  margin: 0;
+  color: #2d3748;
+  line-height: 1.45;
+}
+
+/* ── Comparison table ────────────────────────────────────────────────────── */
+
+.lp-comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.lp-comparison-table th,
+.lp-comparison-table td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+  line-height: 1.4;
+}
+
+.lp-comparison-table thead th {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #4a5568;
+  background: #f7fafc;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.lp-comparison-table thead th:first-child {
+  width: 9rem;
+}
+
+.lp-comparison-table .lp-row-header {
+  font-weight: 700;
+  color: #4a5568;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  background: #fafafa;
+}
+
+.lp-comparison-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── "Not yet confirmed" tag (customer-facing replacement for "Missing") ─── */
+
+.lp-unconfirmed-tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.12rem 0.45rem;
+  border-radius: 4px;
+  background: #fed7d7;
+  color: #742a2a;
+  margin-bottom: 0.35rem;
+}
+
+/* ── Page break hint ─────────────────────────────────────────────────────── */
+
+.lp-page-break-before {
+  break-before: page;
+}
+
+/* ── Candidate heading (shared across Technical and Comparison) ──────────── */
+
+.lp-candidate-heading {
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: #1a202c;
+}
+
+/* ── Candidate block (wrapper used in Technical constraints list) ────────── */
+
+.lp-candidate-block {
+  margin-bottom: 0.75rem;
+}
+
+.lp-candidate-block__name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 0.25rem;
+}
+
+/* ── Group label (Measured / Inferred in Technical confidence drivers) ───── */
+
+.lp-group-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.3rem;
+}
+
+.lp-group-label--measured {
+  color: #22543d;
+}
+
+.lp-group-label--inferred {
+  color: #7b341e;
+}
+
+/* ── Group wrapper (Measured / Inferred in Technical confidence drivers) ─── */
+
+.lp-group {
+  margin-bottom: 0.75rem;
+}
+
+/* ── Next step note (italic footnote beneath confirmation list) ───────────── */
+
+.lp-next-step-note {
+  margin-top: 0.75rem;
+  font-size: 0.84rem;
+  font-style: italic;
+  color: #4a5568;
+}
+
+/* ── Trade-off grid (Comparison trade-off summary) ───────────────────────── */
+
+.lp-tradeoff-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.75rem;
+}
+
+/* ── @media print: hide toolbar, set A4 page, preserve semantic colours ─── */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 18mm 20mm;
+  }
+
+  .lp-toolbar {
+    display: none !important;
+  }
+
+  .lp-wrap {
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .lp-verdict,
+  .lp-explanation-block,
+  .lp-comparison-table thead th,
+  .lp-comparison-table .lp-row-header {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 700px) {
+  .lp-doc-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .lp-doc-header__meta {
+    text-align: left;
+  }
+
+  .lp-comparison-table {
+    font-size: 0.75rem;
+  }
+
+  .lp-dl-row {
+    grid-template-columns: 1fr;
+    gap: 1px;
+  }
+}
