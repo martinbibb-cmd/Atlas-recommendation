@@ -163,8 +163,8 @@ function SupplyPanel({ engineOutput }: { engineOutput: EngineOutputV1 }) {
       )}
       {combiConcurrency && (
         <MetricRow
-          label="Concurrency"
-          value={combiConcurrency.severity === 'fail' ? '❌ Simultaneous demand' : '✅ OK'}
+          label="Simultaneous outlet demand"
+          value={combiConcurrency.severity === 'fail' ? '❌ Exceeds throughput' : '✅ OK'}
           accent={combiConcurrency.severity === 'fail' ? '#e53e3e' : '#276749'}
         />
       )}

@@ -14,7 +14,7 @@ export function runRedFlagModule(input: EngineInputV2_3): RedFlagResult {
     rejectCombi = true;
     reasons.push(
       `🚫 Combi Rejected: ${input.bathroomCount} bathrooms + high occupancy creates simultaneous ` +
-      `draw scenarios that exceed combi on-demand flow capacity. Hot water starvation likely.`
+      `draw scenarios that exceed combi on-demand flow capacity. Temperature drop or flow reduction likely under concurrent draw.`
     );
   }
 

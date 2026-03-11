@@ -2166,7 +2166,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                 </div>
                 {!input.highOccupancy && input.occupancyCount === 3 && (
                   <p style={{ fontSize: '0.75rem', color: '#975a16', marginTop: '0.3rem', lineHeight: 1.4 }}>
-                    ⚠️ 3 people is a borderline case for on-demand hot water. Stored hot water is strongly favoured — it handles simultaneous demand without throughput constraints.
+                    ⚠️ 3 people puts on-demand hot water at its throughput limit. Stored hot water handles back-to-back morning draws without flow or temperature degradation.
                   </p>
                 )}
               </div>
@@ -2190,7 +2190,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                   {dhwBand.label}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#718096' }}>
-                  {input.bathroomCount} bathroom{input.bathroomCount !== 1 ? 's' : ''} · {input.peakConcurrentOutlets ?? 1} peak outlet{(input.peakConcurrentOutlets ?? 1) !== 1 ? 's' : ''} · {input.highOccupancy ? '4+ people' : input.occupancyCount === 3 ? '3 people (borderline)' : '1–2 people'}
+                  {input.bathroomCount} bathroom{input.bathroomCount !== 1 ? 's' : ''} · {input.peakConcurrentOutlets ?? 1} peak outlet{(input.peakConcurrentOutlets ?? 1) !== 1 ? 's' : ''} · {input.highOccupancy ? '4+ people' : input.occupancyCount === 3 ? '3 people' : '1–2 people'}
                 </div>
               </div>
 
