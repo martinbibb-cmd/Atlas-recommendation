@@ -102,6 +102,13 @@ function CylinderGraphic({ usableVolumeFactor, topTempC, bulkTempC, isMixergy, h
         </span>
       </div>
 
+      {/* heated-layer annotation for Mixergy */}
+      {isMixergy && (
+        <div className="cylinder-graphic__heated-label" aria-hidden="true">
+          Heated layer
+        </div>
+      )}
+
       {/* cap */}
       <div className="cylinder-graphic__cap cylinder-graphic__cap--bottom" aria-hidden="true" />
     </div>

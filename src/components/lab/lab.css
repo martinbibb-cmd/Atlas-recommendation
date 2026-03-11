@@ -813,9 +813,10 @@
   flex-shrink: 0;
 }
 
-/* Sharper thermocline for Mixergy — solid line reflects defined depletion point */
+/* Sharper thermocline for Mixergy — thicker solid line reflects the defined depletion point */
 .cylinder-graphic__thermocline--sharp {
-  background: #2d3748;
+  height: 5px;
+  background: #1a202c;
 }
 
 .cylinder-graphic__draw-arrow {
@@ -839,6 +840,14 @@
   font-size: 0.68rem;
   color: #718096;
   font-style: italic;
+}
+
+.cylinder-graphic__heated-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #c05621;
+  letter-spacing: 0.02em;
+  margin-top: 2px;
 }
 
 /* ── Data rows ───────────────────────────────────────────────────────────── */
