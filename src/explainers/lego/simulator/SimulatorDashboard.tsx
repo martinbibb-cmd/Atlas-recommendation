@@ -228,7 +228,7 @@ export default function SimulatorDashboard({
     setSystemChoiceRaw(c)
     if (c === 'mixergy') {
       setSystemInputs(prev => ({ ...prev, cylinderType: 'mixergy' }))
-    } else if (c !== 'mixergy') {
+    } else {
       setSystemInputs(prev =>
         prev.cylinderType === 'mixergy' ? { ...prev, cylinderType: 'unvented' } : prev
       )
