@@ -126,7 +126,10 @@ function buildCylinderViewModel(
 
   const stored: StoredHotWaterDisplayState = state.storedHotWaterState
   const isHeatPump    = systemChoice === 'heat_pump'
-  const storageRegime: StorageRegime = isHeatPump ? 'heat_pump_cylinder' : 'boiler_cylinder'
+  const isMixergy     = systemChoice === 'mixergy'
+  const storageRegime: StorageRegime = isMixergy
+    ? 'mixergy_cylinder'
+    : isHeatPump ? 'heat_pump_cylinder' : 'boiler_cylinder'
 
   let cylinderState: CylinderState = 'idle'
   if (stored.isReheatActive) {
@@ -135,7 +138,7 @@ function buildCylinderViewModel(
     cylinderState = 'depleted'
   }
 
-  const sourceLabel    = isHeatPump ? 'Heat pump' : 'Boiler'
+  const sourceLabel    = isMixergy ? 'Boiler (Mixergy)' : isHeatPump ? 'Heat pump' : 'Boiler'
   const thermocline    = cylinderState === 'recovering' || cylinderState === 'depleted' ? 'dropping' : 'stable'
 
   return {
@@ -147,12 +150,16 @@ function buildCylinderViewModel(
     recoverySource:        sourceLabel,
     recoveryPowerTendency: isHeatPump
       ? 'Moderate — slower reheat than boiler under peak demand'
-      : 'High — rapid recovery via dedicated DHW zone',
+      : isMixergy
+        ? 'High — demand mirroring reduces reheat cycling versus standard cylinder'
+        : 'High — rapid recovery via dedicated DHW zone',
     state:                 cylinderState,
     recoveryNote:          stored.isReheatActive
       ? `${sourceLabel} firing — cylinder recovering. Store temperature stabilising.`
       : 'System monitoring cylinder temperature. No active reheat required.',
-    storeNote:             `${Math.round(stored.availableHotWaterL)} L available at ${Math.round(stored.deliveryTempC)}°C. Thermocline ${thermocline}.`,
+    storeNote:             isMixergy
+      ? `${Math.round(stored.availableHotWaterL)} L available at ${Math.round(stored.deliveryTempC)}°C. Stratification holding hot layer. Thermocline ${thermocline}.`
+      : `${Math.round(stored.availableHotWaterL)} L available at ${Math.round(stored.deliveryTempC)}°C. Thermocline ${thermocline}.`,
   }
 }
 

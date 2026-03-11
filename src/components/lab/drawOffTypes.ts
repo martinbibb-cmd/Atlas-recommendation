@@ -51,13 +51,16 @@ export interface DrawOffViewModel {
  * Hot-water storage regime — determines which source-state fields are
  * meaningful and how the right-hand panel is labelled.
  *
- * boiler_cylinder   — stored hot water from boiler-heated cylinder.
+ * boiler_cylinder    — stored hot water from boiler-heated cylinder.
  * heat_pump_cylinder — stored hot water from heat-pump-heated cylinder.
- * on_demand_combi — on-demand hot water; no cylinder storage.
+ * mixergy_cylinder   — stratified mains-fed cylinder (Mixergy); usable reserve
+ *                      modelled with demand mirroring and reduced cycling.
+ * on_demand_combi    — on-demand hot water; no cylinder storage.
  */
 export type StorageRegime =
   | 'boiler_cylinder'
   | 'heat_pump_cylinder'
+  | 'mixergy_cylinder'
   | 'on_demand_combi'
 
 /**

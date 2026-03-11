@@ -83,6 +83,19 @@ const HP_CYLINDER: CylinderStatusViewModel = {
   storeNote: 'Thermocline falling.',
 }
 
+const MIXERGY_CYLINDER: CylinderStatusViewModel = {
+  storageRegime: 'mixergy_cylinder',
+  topTempC: 60,
+  bulkTempC: 50,
+  nominalVolumeL: 150,
+  usableVolumeFactor: 0.88,
+  recoverySource: 'Boiler (Mixergy)',
+  recoveryPowerTendency: 'High — demand mirroring reduces reheat cycling',
+  state: 'recovering',
+  recoveryNote: 'Boiler firing via Mixergy controller.',
+  storeNote: 'Stratification active — usable hot layer maintained above thermocline.',
+}
+
 // ─── DrawOffWorkbench ────────────────────────────────────────────────────────
 
 describe('DrawOffWorkbench — structure', () => {
@@ -96,11 +109,12 @@ describe('DrawOffWorkbench — structure', () => {
     expect(screen.getByRole('group', { name: 'System regime' })).toBeTruthy();
   });
 
-  it('renders all three regime buttons', () => {
+  it('renders all four regime buttons', () => {
     render(<DrawOffWorkbench />);
     expect(screen.getByRole('button', { name: 'Combi' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Boiler cylinder' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Heat pump cylinder' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Mixergy cylinder' })).toBeTruthy();
   });
 
   it('renders four outlet cards on initial load', () => {
@@ -141,6 +155,25 @@ describe('DrawOffWorkbench — regime switching', () => {
     render(<DrawOffWorkbench />);
     fireEvent.click(screen.getByRole('button', { name: 'Combi' }));
     expect(screen.getByRole('button', { name: 'Combi' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('switches to Mixergy cylinder data when "Mixergy cylinder" is clicked', () => {
+    render(<DrawOffWorkbench />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mixergy cylinder' }));
+    expect(screen.getByRole('button', { name: 'Mixergy cylinder' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('Mixergy regime shows "Mixergy cylinder" storage regime label', () => {
+    render(<DrawOffWorkbench />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mixergy cylinder' }));
+    // "Mixergy cylinder" appears in both the button and the regime label row — check at least 2 occurrences
+    expect(screen.getAllByText('Mixergy cylinder').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('Mixergy regime shows cylinder graphic', () => {
+    render(<DrawOffWorkbench />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mixergy cylinder' }));
+    expect(screen.getByRole('img', { name: /Cylinder schematic/ })).toBeTruthy();
   });
 });
 
@@ -313,5 +346,34 @@ describe('CylinderStatusCard — heat pump cylinder', () => {
   it('renders recovery note for heat pump', () => {
     render(<CylinderStatusCard data={HP_CYLINDER} />);
     expect(screen.getByText('Heat pump recovering cylinder.')).toBeTruthy();
+  });
+});
+
+// ─── CylinderStatusCard — Mixergy ────────────────────────────────────────────
+
+describe('CylinderStatusCard — Mixergy cylinder', () => {
+  it('renders "Cylinder status" as panel title', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.getByText('Cylinder status')).toBeTruthy();
+  });
+
+  it('renders "Mixergy cylinder" regime label', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.getByText('Mixergy cylinder')).toBeTruthy();
+  });
+
+  it('renders usable volume as 88%', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.getByText('88%')).toBeTruthy();
+  });
+
+  it('renders the cylinder graphic', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.getByRole('img', { name: /Cylinder schematic/ })).toBeTruthy();
+  });
+
+  it('renders recovery note for Mixergy', () => {
+    render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
+    expect(screen.getByText('Boiler firing via Mixergy controller.')).toBeTruthy();
   });
 });
