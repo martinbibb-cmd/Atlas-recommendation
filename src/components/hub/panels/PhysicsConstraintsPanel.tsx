@@ -197,8 +197,8 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
                 ? `Stored hot water (heat pump cylinder) — ≈${storeTempC} °C store`
                 : `Stored hot water (boiler) — ≈${storeTempC} °C store`
             }
-            deliveryMode="Pre-stored, delivered at mains or tank pressure"
-            pressureSource="Mains (unvented) or loft cistern (open-vented)"
+            deliveryMode="Pre-stored, mains-fed (unvented) or tank-fed (open-vented)"
+            pressureSource="Mains supply (unvented) or loft cistern — tank-fed supply"
             concurrency="Independent — stored volume serves multiple outlets simultaneously"
             note={storedVolumeNote(storageRegime, storeTempC, usableVolumeFactor)}
             status="ok"
@@ -206,10 +206,10 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
           {storageRegime !== 'heat_pump_cylinder' && (
             <SystemBehaviourRow
               label="Tank-fed stored hot water (open-vented cylinder)"
-              deliveryMode="Pre-stored, delivered at header-tank pressure"
-              pressureSource="Cold water cistern in loft — gravity head"
+              deliveryMode="Pre-stored, delivered via tank-fed supply"
+              pressureSource="Cold water cistern in loft — tank-fed supply (gravity head)"
               concurrency="Independent — stored volume serves multiple outlets simultaneously"
-              note="Delivery pressure governed by loft cistern height (typically 1–2 bar head). High-flow showers need a dedicated pump. No mains pressure dependency at the cylinder."
+              note="Flow rate governed by loft cistern height (typically 1–2 bar head). High-flow showers need a dedicated pump. No mains supply dependency at the cylinder."
               status="ok"
             />
           )}
