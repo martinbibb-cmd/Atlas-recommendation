@@ -355,3 +355,94 @@ describe('runStoredDhwModuleV1 — cylinder condition', () => {
     expect(flag!.detail).toContain('0.80');
   });
 });
+
+// ─── Storage regime ────────────────────────────────────────────────────────────
+
+describe('runStoredDhwModuleV1 — storage regime', () => {
+  const baseStoredInput = {
+    postcode: 'SW1A 1AA',
+    dynamicMainsPressure: 2.5,
+    buildingMass: 'medium' as const,
+    primaryPipeDiameter: 22,
+    heatLossWatts: 8000,
+    radiatorCount: 10,
+    hasLoftConversion: false,
+    returnWaterTemp: 45,
+    bathroomCount: 1,
+    occupancySignature: 'professional' as const,
+    highOccupancy: false,
+    preferCombi: false,
+    availableSpace: 'ok' as const,
+  };
+
+  it('defaults to boiler_cylinder regime when no dhwStorageRegime is provided', () => {
+    const result = runStoredDhwModuleV1(baseStoredInput);
+    expect(result.storageRegime).toBe('boiler_cylinder');
+  });
+
+  it('emits storageRegime = boiler_cylinder when explicitly set', () => {
+    const result = runStoredDhwModuleV1({ ...baseStoredInput, dhwStorageRegime: 'boiler_cylinder' });
+    expect(result.storageRegime).toBe('boiler_cylinder');
+  });
+
+  it('emits storageRegime = heat_pump_cylinder when explicitly set', () => {
+    const result = runStoredDhwModuleV1({ ...baseStoredInput, dhwStorageRegime: 'heat_pump_cylinder' });
+    expect(result.storageRegime).toBe('heat_pump_cylinder');
+  });
+
+  it('emits usableVolumeFactor for boiler_cylinder close to 1.0', () => {
+    const result = runStoredDhwModuleV1({ ...baseStoredInput, dhwStorageRegime: 'boiler_cylinder' });
+    expect(result.usableVolumeFactor).toBeCloseTo(1.0, 2);
+  });
+
+  it('emits usableVolumeFactor for heat_pump_cylinder less than 1.0', () => {
+    const result = runStoredDhwModuleV1({ ...baseStoredInput, dhwStorageRegime: 'heat_pump_cylinder' });
+    expect(result.usableVolumeFactor).toBeLessThan(1.0);
+    expect(result.usableVolumeFactor).toBeGreaterThan(0);
+  });
+
+  it('heat_pump_cylinder usableVolumeFactor is less than boiler_cylinder factor', () => {
+    const boiler = runStoredDhwModuleV1({ ...baseStoredInput, dhwStorageRegime: 'boiler_cylinder' });
+    const hp = runStoredDhwModuleV1({ ...baseStoredInput, dhwStorageRegime: 'heat_pump_cylinder' });
+    expect(hp.usableVolumeFactor).toBeLessThan(boiler.usableVolumeFactor);
+  });
+
+  it('emits stored-heat-pump-recovery info flag for heat_pump_cylinder', () => {
+    const result = runStoredDhwModuleV1({ ...baseStoredInput, dhwStorageRegime: 'heat_pump_cylinder' });
+    const flag = result.flags.find(f => f.id === 'stored-heat-pump-recovery');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('info');
+    expect(flag!.detail).toContain('lower temperature');
+  });
+
+  it('does NOT emit stored-heat-pump-recovery flag for boiler_cylinder', () => {
+    const result = runStoredDhwModuleV1({ ...baseStoredInput, dhwStorageRegime: 'boiler_cylinder' });
+    const flag = result.flags.find(f => f.id === 'stored-heat-pump-recovery');
+    expect(flag).toBeUndefined();
+  });
+
+  it('explicit storeTempC overrides regime-derived temperature', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      dhwStorageRegime: 'heat_pump_cylinder',
+      storeTempC: 65,
+    });
+    expect(result.dhwMixing.storeTempC).toBe(65);
+  });
+
+  it('heat_pump_cylinder uses 50°C store by default in dhwMixing', () => {
+    const result = runStoredDhwModuleV1({ ...baseStoredInput, dhwStorageRegime: 'heat_pump_cylinder' });
+    expect(result.dhwMixing.storeTempC).toBe(50);
+  });
+
+  it('boiler_cylinder uses 60°C store by default in dhwMixing', () => {
+    const result = runStoredDhwModuleV1({ ...baseStoredInput, dhwStorageRegime: 'boiler_cylinder' });
+    expect(result.dhwMixing.storeTempC).toBe(60);
+  });
+
+  it('heat_pump_cylinder has higher hotFraction than boiler_cylinder at same tap target', () => {
+    const boiler = runStoredDhwModuleV1({ ...baseStoredInput, dhwStorageRegime: 'boiler_cylinder' });
+    const hp = runStoredDhwModuleV1({ ...baseStoredInput, dhwStorageRegime: 'heat_pump_cylinder' });
+    expect(hp.dhwMixing.hotFraction).toBeGreaterThan(boiler.dhwMixing.hotFraction);
+  });
+});

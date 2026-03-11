@@ -6,12 +6,13 @@
  *     (combi / unvented / open-vented), with household-driven concurrency analysis.
  *     Demand is driven by household size and bathroom count heuristics — no manual
  *     shower-type selector.
+ *     Storage rows distinguish boiler cylinder vs heat pump cylinder storage regime,
+ *     reflecting real differences in usable volume and recovery sensitivity.
  *  B) Measured supply operating point (flow + pressure when available) — supply constraints
  *  C) Concurrency analysis — household-driven flow estimate, concurrency bar chart
  *  D) Customer usage model mini-cards (derived from behaviourTimeline)
  *
  * Data comes entirely from FullEngineResult and EngineInputV2_3.
- * No engine changes, no scoring, no new engine fields.
  */
 import { useState } from 'react';
 import type { FullEngineResult } from '../../../engine/schema/EngineInputV2_3';
@@ -74,6 +75,11 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
   // ── A: Verdict derivation ────────────────────────────────────────────────
   const combiRisk = result.combiDhwV1.verdict.combiRisk;
   const storedRisk = result.storedDhwV1.verdict.storedRisk;
+
+  // Storage regime from engine result — drives the UI copy for stored rows
+  const storageRegime = result.storedDhwV1.storageRegime ?? 'boiler_cylinder';
+  const usableVolumeFactor = result.storedDhwV1.usableVolumeFactor ?? 1.0;
+  const storeTempC = result.storedDhwV1.dhwMixing.storeTempC;
 
   const combiStatusLabel =
     combiRisk === 'fail' ? 'Not suitable'
@@ -158,7 +164,11 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
             <span className={combiPillClass}>{combiStatusLabel}</span>
           </div>
           <div className="status-tile">
-            <span className="status-tile__name">Stored hot water</span>
+            <span className="status-tile__name">
+              {storageRegime === 'heat_pump_cylinder'
+                ? 'Stored hot water (heat pump)'
+                : 'Stored hot water (boiler)'}
+            </span>
             <span className={storedPillClass}>{storedStatusLabel}</span>
           </div>
         </div>
@@ -169,33 +179,40 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
         <h3 className="panel-card__title">Hot water behaviour by system type</h3>
         <p className="panel-card__note" style={{ fontSize: '0.8rem', color: '#555', marginBottom: '0.75rem' }}>
           Each system class handles hot-water demand differently. Stored systems buffer peak demand
-          — combi delivers it instantaneously from the mains supply at draw.
+          — combi delivers it on-demand from the mains supply at draw.
+          Storage temperature affects how much of a cylinder's volume is usable at the tap.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <SystemBehaviourRow
             label="On-demand hot water (combi)"
-            deliveryMode="Instantaneous from mains"
+            deliveryMode="On-demand from mains"
             pressureSource="Mains supply at draw"
             concurrency="Shared — all outlets divide the boiler output"
             note={combiRowNote(combiKw, representativeFlowLpm, combiLimitFlow, deltaT)}
             status={combiRisk === 'fail' ? 'constraint' : combiRisk === 'warn' ? 'borderline' : 'ok'}
           />
           <SystemBehaviourRow
-            label="Mains-fed stored hot water (unvented cylinder)"
-            deliveryMode="Pre-stored, delivered at mains pressure"
-            pressureSource="Mains supply — refill depends on operating point"
+            label={
+              storageRegime === 'heat_pump_cylinder'
+                ? `Stored hot water (heat pump cylinder) — ≈${storeTempC} °C store`
+                : `Stored hot water (boiler) — ≈${storeTempC} °C store`
+            }
+            deliveryMode="Pre-stored, delivered at mains or tank pressure"
+            pressureSource="Mains (unvented) or loft cistern (open-vented)"
             concurrency="Independent — stored volume serves multiple outlets simultaneously"
-            note="High-pressure delivery at all outlets. Refill rate depends on mains operating point, not instantaneous draw."
+            note={storedVolumeNote(storageRegime, storeTempC, usableVolumeFactor)}
             status="ok"
           />
-          <SystemBehaviourRow
-            label="Tank-fed stored hot water (open-vented cylinder)"
-            deliveryMode="Pre-stored, delivered at header-tank pressure"
-            pressureSource="Cold water cistern in loft — gravity head"
-            concurrency="Independent — stored volume serves multiple outlets simultaneously"
-            note="Delivery pressure governed by loft cistern height (typically 1–2 bar head). High-flow showers need a dedicated pump. No mains pressure dependency at the cylinder."
-            status="ok"
-          />
+          {storageRegime !== 'heat_pump_cylinder' && (
+            <SystemBehaviourRow
+              label="Tank-fed stored hot water (open-vented cylinder)"
+              deliveryMode="Pre-stored, delivered at header-tank pressure"
+              pressureSource="Cold water cistern in loft — gravity head"
+              concurrency="Independent — stored volume serves multiple outlets simultaneously"
+              note="Delivery pressure governed by loft cistern height (typically 1–2 bar head). High-flow showers need a dedicated pump. No mains pressure dependency at the cylinder."
+              status="ok"
+            />
+          )}
         </div>
       </div>
 
@@ -389,6 +406,36 @@ function combiRowNote(
       ? `Combi cannot sustain ${householdFlowLpm} L/min for this household profile at ${deltaT}°C rise.`
       : `Within combi capacity at ${deltaT}°C rise for this household profile.`;
   return `Combi output: ${combiKw.toFixed(1)} kW. ${capacityLine}`;
+}
+
+// ─── Stored volume note helper ────────────────────────────────────────────────
+
+/**
+ * Returns the context note for the stored-cylinder row in the behaviour comparison.
+ * Distinguishes boiler cylinder (higher store temp, more usable volume) from heat pump
+ * cylinder (lower store temp, faster depletion per draw).
+ *
+ * Extracted for testability and to keep JSX readable.
+ */
+export function storedVolumeNote(
+  regime: 'boiler_cylinder' | 'heat_pump_cylinder' | 'instantaneous_combi',
+  storeTempC: number,
+  usableVolumeFactor: number,
+): string {
+  if (regime === 'heat_pump_cylinder') {
+    return (
+      `Stored at lower temperature (≈${storeTempC} °C). A higher proportion of stored water ` +
+      `is drawn at each outlet — usable volume is approximately ${Math.round(usableVolumeFactor * 100)}% ` +
+      `of a boiler cylinder at the same nominal size. Recovery speed and simultaneous demand ` +
+      `resilience are more critical for heat pump installations.`
+    );
+  }
+  // boiler_cylinder (default)
+  return (
+    `Stored at higher temperature (≈${storeTempC} °C), allowing more cold dilution at outlets. ` +
+    `Usable mixed volume is higher than a heat pump cylinder of the same nominal size. ` +
+    `Simultaneous demand resilience is good — stored volume serves all outlets independently.`
+  );
 }
 
 // ─── System behaviour row helper ─────────────────────────────────────────────
