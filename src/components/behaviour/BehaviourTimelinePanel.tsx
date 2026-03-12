@@ -297,44 +297,34 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
   const heatAnnotation = annotations.find(a => a.row === 'heat');
 
   return (
-    <div
-      className="behaviour-timeline-panel"
-      style={{
-        background: '#fff',
-        borderRadius: 12,
-        border: '1px solid #e2e8f0',
-        padding: '16px 8px',
-        marginBottom: 20,
-      }}
-    >
-      {/* Header */}
-      <div style={{ padding: '0 8px 12px', borderBottom: '1px solid #e2e8f0', marginBottom: 12 }}>
-        <h3 style={{ margin: 0, fontSize: 16, color: '#2d3748' }}>
-          Behaviour Timeline — {timeline.labels.applianceName}
-        </h3>
-        <p style={{ margin: '4px 0 0', fontSize: 12, color: '#718096' }}>
-          24-hour system behaviour at design conditions · 15-min resolution
-        </p>
+    <div className="behaviour-timeline-panel" style={{ padding: '0 8px' }}>
+      {/* Header — compact single row: title + legend + status */}
+      <div className="btp-header">
+        <span className="btp-header__title">
+          Thermodynamic Timeline · {timeline.labels.applianceName}
+        </span>
+        <div className="btp-header__legend">
+          <span className="btp-legend-dot btp-legend-dot--heat" />
+          <span className="btp-legend-label">Heat</span>
+          <span className="btp-legend-dot btp-legend-dot--dhw" />
+          <span className="btp-legend-label">DHW</span>
+          <span className="btp-legend-dot btp-legend-dot--output" />
+          <span className="btp-legend-label">Output</span>
+          <span className="btp-legend-dot btp-legend-dot--eff" />
+          <span className="btp-legend-label">{timeline.labels.efficiencyLabel}</span>
+        </div>
       </div>
 
-      {/* Assumption badges */}
+      {/* Assumption badges — compact chip row */}
       {timeline.assumptionsUsed.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '0 8px 12px' }}>
+        <div className="btp-assumptions">
           {timeline.assumptionsUsed.map(a => (
             <span
               key={a.id}
               title={a.details}
-              style={{
-                background: a.severity === 'warn' ? '#fef3c7' : '#ebf8ff',
-                border: `1px solid ${a.severity === 'warn' ? '#f59e0b' : '#90cdf4'}`,
-                borderRadius: 4,
-                padding: '2px 8px',
-                fontSize: 11,
-                color: a.severity === 'warn' ? '#92400e' : '#2b6cb0',
-                cursor: a.details ? 'help' : 'default',
-              }}
+              className={`atlas-chip atlas-chip--${a.severity === 'warn' ? 'warn' : 'info'}`}
             >
-              {a.severity === 'warn' ? '⚠ ' : 'ℹ '}{a.label}
+              {a.label}
             </span>
           ))}
         </div>
