@@ -1,0 +1,166 @@
+/**
+ * cylinderGraphic.css
+ *
+ * Styles for CylinderBehaviourGraphic — a physics-style schematic
+ * that distinguishes standard stored hot-water from Mixergy-style
+ * stratified storage.
+ *
+ * Standard:  full continuous thermal gradient, no hard zone boundary.
+ * Mixergy:   defined hot upper layer, narrow thermocline band, cool bulk.
+ *
+ * Class prefix: cbg (cylinder behaviour graphic)
+ */
+
+/* ─── Outer wrapper ──────────────────────────────────────────── */
+
+.cbg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  font-family: var(--font-sans, sans-serif);
+}
+
+/* ─── Graphical vessel (role=img wrapper) ────────────────────── */
+
+.cbg__graphic {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+/* ─── Fittings (elliptical top / bottom caps) ────────────────── */
+
+.cbg__fitting {
+  width: 60px;
+  height: 9px;
+  background: #94a3b8;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cbg__fitting--top    { margin-bottom: -3px; z-index: 1; position: relative; }
+.cbg__fitting--bottom { margin-top: -3px;    z-index: 1; position: relative; }
+
+.cbg--compact .cbg__fitting { width: 50px; }
+
+/* ─── Vessel shell ───────────────────────────────────────────── */
+
+.cbg__vessel {
+  width: 60px;
+  height: 164px;
+  border: 2px solid #94a3b8;
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #3d7087; /* fallback / bottom colour */
+}
+
+.cbg--compact .cbg__vessel {
+  width: 50px;
+  height: 120px;
+}
+
+/* ─── Standard cylinder: continuous thermal gradient ─────────── */
+/*                                                                 */
+/* The entire vessel body is one linear gradient — no horizontal  */
+/* layer break.  Hot red-orange at top transitions through amber   */
+/* to muted blue-teal at bottom.  This communicates progressive   */
+/* blending, not discrete stratification.                          */
+
+.cbg__liquid--standard {
+  flex: 1;
+  background: linear-gradient(
+    to bottom,
+    #c94f2a  0%,   /* hot top    */
+    #d4792a 22%,   /* amber      */
+    #c9a040 45%,   /* warm mid   */
+    #6ba5b0 70%,   /* transition */
+    #3d7087 100%   /* cool base  */
+  );
+}
+
+/* ─── Mixergy: defined hot zone + narrow thermocline + cool bulk ─ */
+/*                                                                   */
+/* Hot zone:   mostly solid warm fill — the maintained heated layer. */
+/* Thermocline: narrow gradient band — narrower than the standard    */
+/*              gradient blend, communicating a more abrupt boundary.*/
+/* Cool bulk:  cooler blue-teal — the unheated reserve below.        */
+
+.cbg__hot-zone {
+  background: linear-gradient(to bottom, #bf4020 0%, #c9572a 100%);
+  flex-shrink: 0;
+  transition: height 0.3s ease;
+  width: 100%;
+}
+
+.cbg__thermocline--mixergy {
+  height: 10px;
+  flex-shrink: 0;
+  width: 100%;
+  background: linear-gradient(to bottom, #c9572a 0%, #4a9ab0 100%);
+}
+
+.cbg__cool-zone {
+  flex: 1;
+  background: #3d7087;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 5px;
+  width: 100%;
+}
+
+.cbg__zone-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.02em;
+}
+
+/* ─── Behaviour label row ────────────────────────────────────── */
+
+.cbg__label-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 6px;
+}
+
+.cbg__behaviour-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-secondary, #718096);
+  letter-spacing: 0.02em;
+}
+
+/* "Heated layer" annotation — Mixergy only */
+.cbg__heated-tag {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #c05621;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ─── Metric row (optional) ──────────────────────────────────── */
+
+.cbg__metric {
+  font-size: 0.68rem;
+  color: var(--text-secondary, #718096);
+  margin-top: 4px;
+  text-align: center;
+}
+
+.cbg__note {
+  font-size: 0.65rem;
+  color: var(--text-muted, #a0aec0);
+  text-align: center;
+  max-width: 140px;
+  line-height: 1.4;
+  margin-top: 2px;
+}

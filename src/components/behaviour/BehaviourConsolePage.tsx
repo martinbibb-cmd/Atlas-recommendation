@@ -18,6 +18,7 @@ import { AtlasPanel } from '../ui/AtlasPanel';
 import BehaviourTimelinePanel from './BehaviourTimelinePanel';
 import BehaviourSummaryStrip from './BehaviourSummaryStrip';
 import EngineerDetails from './EngineerDetails';
+import CylinderStatusCard from './CylinderStatusCard';
 
 interface Props {
   output: EngineOutputV1;
@@ -107,28 +108,7 @@ export default function BehaviourConsolePage({ output, onBack }: Props) {
 
         {/* Cylinder / supply slot */}
         <AtlasPanel className="behaviour-console__kpi">
-          <div className="panel-title">
-            {isCombi ? 'Supply / draw-off behaviour' : 'Cylinder behaviour'}
-          </div>
-          {behaviourTimeline ? (
-            <>
-              <div className="atlas-mono">
-                {isCombi ? 'No storage — combi' : 'Stored supply'}
-              </div>
-              {peakDhwKw > 0 && (
-                <div className="atlas-mono">
-                  Peak {peakDhwKw.toFixed(1)} kW DHW
-                </div>
-              )}
-              <div className="behaviour-console__subtle">
-                {isCombi
-                  ? 'On-demand hot water · no cylinder'
-                  : 'Stored hot water with tank recovery'}
-              </div>
-            </>
-          ) : (
-            <div className="behaviour-console__subtle">No timeline data</div>
-          )}
+          <CylinderStatusCard isCombi={isCombi} />
         </AtlasPanel>
 
         {/* DHW / events slot */}
