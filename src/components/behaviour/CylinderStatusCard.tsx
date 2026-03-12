@@ -12,6 +12,7 @@
 
 import CylinderBehaviourGraphic from './CylinderBehaviourGraphic'
 import type { CylinderGraphicType } from './cylinderGraphic.model'
+import { DEFAULT_HEATED_FRACTION } from './cylinderGraphic.model'
 
 interface Props {
   /**
@@ -30,7 +31,7 @@ interface Props {
   heatedFraction?: number
 }
 
-export default function CylinderStatusCard({ isCombi, isMixergy = false, heatedFraction = 0.7 }: Props) {
+export default function CylinderStatusCard({ isCombi, isMixergy = false, heatedFraction = DEFAULT_HEATED_FRACTION }: Props) {
   const title = isCombi ? 'Supply / draw-off behaviour' : 'Cylinder behaviour'
   const type: CylinderGraphicType = isMixergy ? 'mixergy' : 'standard'
 

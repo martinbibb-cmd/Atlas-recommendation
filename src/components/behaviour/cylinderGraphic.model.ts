@@ -38,6 +38,12 @@ export interface CylinderVisualState {
   behaviourNote: string
 }
 
+/** Representative Mixergy heated fraction for a static explainer (70% heated). */
+export const DEFAULT_HEATED_FRACTION = 0.7
+
+/** Representative standard-cylinder hot fraction for a static explainer (mid-range usable volume). */
+export const DEFAULT_HOT_FRACTION = 0.5
+
 function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v))
 }
@@ -49,7 +55,7 @@ export function buildCylinderVisualState(
   const topLabel = topTempC != null ? `${topTempC}°C` : '—'
 
   if (type === 'mixergy') {
-    const fraction    = heatedLayerFraction ?? hotFraction ?? 0.7
+    const fraction    = heatedLayerFraction ?? hotFraction ?? DEFAULT_HEATED_FRACTION
     const hotZonePct  = clamp(Math.round(fraction * 100), 5, 95)
     const heatedPct   = Math.round(fraction * 100)
 
@@ -66,7 +72,7 @@ export function buildCylinderVisualState(
 
   // Standard — hotZonePct scales with usable volume, capped to avoid
   // the misleading "almost all hot" appearance at high fill factors.
-  const fraction    = hotFraction ?? 0.5
+  const fraction    = hotFraction ?? DEFAULT_HOT_FRACTION
   const hotZonePct  = clamp(Math.round(fraction * 60), 15, 50)
   const bottomLabel = bottomTempC != null ? `${bottomTempC}°C` : '—'
 
