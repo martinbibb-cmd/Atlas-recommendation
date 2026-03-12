@@ -9,6 +9,7 @@ import PerformanceEnablersPanel from '../performance/PerformanceEnablersPanel';
 import FloorPlanBuilder from '../floorplan/FloorPlanBuilder';
 import AtlasTour from '../tour/AtlasTour';
 import { resetAtlasTourSeen } from '../../lib/tourStorage';
+import { useUiMode, type UiMode } from '../../context/UiModeContext';
 import {
   PLACEHOLDER_CURRENT_SYSTEM,
   PLACEHOLDER_CONFIDENCE_STRIP,
@@ -21,9 +22,6 @@ import './lab.css';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type LabTab = 'summary' | 'whatif' | 'visual' | 'floorplan';
-
-/** PR 2 — Engineer / Customer mode. */
-type UiMode = 'engineer' | 'customer';
 
 interface Props {
   onHome: () => void;
@@ -140,8 +138,8 @@ function VisualTab() {
 
 export default function LabShell({ onHome }: Props) {
   const [activeTab, setActiveTab] = useState<LabTab>('summary');
-  /** PR 2 — Engineer/Customer mode toggle. */
-  const [uiMode, setUiMode] = useState<UiMode>('engineer');
+  /** PR 2 — Engineer/Customer mode toggle (from global context). */
+  const { uiMode, setUiMode } = useUiMode();
   /** PR 1 — Replay tour state. */
   const [replayTour, setReplayTour] = useState(false);
 

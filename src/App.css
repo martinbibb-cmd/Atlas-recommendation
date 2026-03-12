@@ -56,6 +56,55 @@ body {
   line-height: 1.6;
 }
 
+/* PR 2 — Hero actions row (tour replay + mode toggle) */
+.hero-actions {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             1rem;
+  margin-top:      1.25rem;
+  flex-wrap:       wrap;
+}
+
+/* PR 2 — Mode toggle (landing page + stepper headers) */
+.mode-toggle {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+}
+
+.mode-toggle__label {
+  font-size:      0.72rem;
+  font-weight:    700;
+  color:          var(--text-muted, #718096);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.mode-toggle__btn {
+  padding:       5px 12px;
+  border:        1px solid var(--border-default, #e2e8f0);
+  border-radius: var(--radius-pill, 999px);
+  background:    var(--surface-subtle, #f7fafc);
+  color:         var(--text-secondary, #4a5568);
+  font-size:     0.78rem;
+  font-weight:   600;
+  cursor:        pointer;
+  transition:    background 0.12s, border-color 0.12s;
+}
+
+.mode-toggle__btn--active {
+  background:   var(--color-indigo-500, #6366f1);
+  border-color: var(--color-indigo-500, #6366f1);
+  color:        #fff;
+}
+
+/* In a stepper / lab header, push the toggle to the far right */
+.stepper-header .mode-toggle {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .journey-cards {
   display: grid;
   grid-template-columns: 1fr 1fr;
