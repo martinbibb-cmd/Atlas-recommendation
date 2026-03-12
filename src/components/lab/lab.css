@@ -1393,3 +1393,90 @@
   color: #2f855a;
   line-height: 1.5;
 }
+
+/* ── PR 2 — Engineer/Customer mode toggle ────────────────────────────────── */
+
+.lab-mode-toggle {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.lab-mode-toggle__label {
+  font-size:   0.72rem;
+  font-weight: 700;
+  color:       var(--text-muted, #718096);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lab-mode-toggle__btn {
+  padding:       5px 12px;
+  border:        1px solid var(--border-default, #e2e8f0);
+  border-radius: var(--radius-pill, 999px);
+  background:    var(--surface-subtle, #f7fafc);
+  color:         var(--text-secondary, #4a5568);
+  font-size:     0.78rem;
+  font-weight:   600;
+  cursor:        pointer;
+  transition:    background 0.12s, border-color 0.12s;
+}
+
+.lab-mode-toggle__btn--active {
+  background:   var(--color-indigo-500, #6366f1);
+  border-color: var(--color-indigo-500, #6366f1);
+  color:        #fff;
+}
+
+/* ── PR 4 — Performance Enablers below summary grid ─────────────────────── */
+
+.lab-summary__enablers {
+  margin-top: var(--space-6, 24px);
+}
+
+/* ── PR 6 — Visual tab auto-demo intro banner ────────────────────────────── */
+
+.lab-visual-tab {
+  position: relative;
+}
+
+.lab-visual-tab__intro {
+  display:       flex;
+  align-items:   center;
+  gap:           var(--space-3, 12px);
+  padding:       var(--space-3, 12px) var(--space-4, 16px);
+  background:    var(--color-indigo-500, #6366f1);
+  color:         #fff;
+  border-radius: var(--radius-lg, 10px);
+  margin-bottom: var(--space-3, 12px);
+  font-size:     var(--text-sm, 12px);
+  line-height:   var(--leading-normal, 1.5);
+  animation:     lab-intro-fade-in 0.4s ease;
+}
+
+@keyframes lab-intro-fade-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.lab-visual-tab__intro-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.lab-visual-tab__intro-dismiss {
+  margin-left: auto;
+  background:  transparent;
+  border:      none;
+  color:       rgba(255, 255, 255, 0.8);
+  font-size:   1.2rem;
+  cursor:      pointer;
+  padding:     0 4px;
+  line-height: 1;
+}
+
+.lab-visual-tab__intro-dismiss:hover {
+  color: #fff;
+}

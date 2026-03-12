@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import WhatIfLab from '../explainers/WhatIfLab';
 import LabHomeLink from './LabHomeLink';
 import LabConfidenceStrip from './LabConfidenceStrip';
 import DrawOffWorkbench from './DrawOffWorkbench';
+import CondensingIndicator from './CondensingIndicator';
+import ConfidenceScoreBar from './ConfidenceScoreBar';
+import PerformanceEnablersPanel from '../performance/PerformanceEnablersPanel';
+import FloorPlanBuilder from '../floorplan/FloorPlanBuilder';
+import AtlasTour from '../tour/AtlasTour';
 import {
   PLACEHOLDER_CURRENT_SYSTEM,
-  PLACEHOLDER_CONFIDENCE,
   PLACEHOLDER_CONFIDENCE_STRIP,
   PLACEHOLDER_VERDICT,
   COMPARISON_HEADINGS,
@@ -15,7 +19,10 @@ import './lab.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type LabTab = 'summary' | 'whatif' | 'visual';
+type LabTab = 'summary' | 'whatif' | 'visual' | 'floorplan';
+
+/** PR 2 — Engineer / Customer mode. */
+type UiMode = 'engineer' | 'customer';
 
 interface Props {
   onHome: () => void;
@@ -23,7 +30,7 @@ interface Props {
 
 // ─── Summary tab ──────────────────────────────────────────────────────────────
 
-function SummaryTab() {
+function SummaryTab({ uiMode }: { uiMode: UiMode }) {
   return (
     <div className="lab-summary">
       <div className="lab-summary__grid">
@@ -38,31 +45,39 @@ function SummaryTab() {
                 </div>
               ))}
             </dl>
-            <div className="lab-summary__explanation">
-              <div className="lab-summary__explanation-block lab-summary__explanation-block--suits">
-                <span className="lab-summary__explanation-label">Why it suits</span>
-                <p className="lab-summary__explanation-text">{system.explanation.suits}</p>
-                {system.explanation.suitsHint && (
-                  <p className="lab-summary__explanation-hint">{system.explanation.suitsHint}</p>
-                )}
+            {/* PR 2 — Customer mode shows explanatory blocks; engineer mode hides them. */}
+            {uiMode === 'customer' && (
+              <div className="lab-summary__explanation">
+                <div className="lab-summary__explanation-block lab-summary__explanation-block--suits">
+                  <span className="lab-summary__explanation-label">Why it suits</span>
+                  <p className="lab-summary__explanation-text">{system.explanation.suits}</p>
+                  {system.explanation.suitsHint && (
+                    <p className="lab-summary__explanation-hint">{system.explanation.suitsHint}</p>
+                  )}
+                </div>
+                <div className="lab-summary__explanation-block lab-summary__explanation-block--struggles">
+                  <span className="lab-summary__explanation-label">Why it struggles</span>
+                  <p className="lab-summary__explanation-text">{system.explanation.struggles}</p>
+                  {system.explanation.strugglesHint && (
+                    <p className="lab-summary__explanation-hint">{system.explanation.strugglesHint}</p>
+                  )}
+                </div>
+                <div className="lab-summary__explanation-block lab-summary__explanation-block--changes">
+                  <span className="lab-summary__explanation-label">What would need to change</span>
+                  <p className="lab-summary__explanation-text">{system.explanation.changes}</p>
+                  {system.explanation.changesHint && (
+                    <p className="lab-summary__explanation-hint">{system.explanation.changesHint}</p>
+                  )}
+                </div>
               </div>
-              <div className="lab-summary__explanation-block lab-summary__explanation-block--struggles">
-                <span className="lab-summary__explanation-label">Why it struggles</span>
-                <p className="lab-summary__explanation-text">{system.explanation.struggles}</p>
-                {system.explanation.strugglesHint && (
-                  <p className="lab-summary__explanation-hint">{system.explanation.strugglesHint}</p>
-                )}
-              </div>
-              <div className="lab-summary__explanation-block lab-summary__explanation-block--changes">
-                <span className="lab-summary__explanation-label">What would need to change</span>
-                <p className="lab-summary__explanation-text">{system.explanation.changes}</p>
-                {system.explanation.changesHint && (
-                  <p className="lab-summary__explanation-hint">{system.explanation.changesHint}</p>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         ))}
+      </div>
+
+      {/* PR 4 — Performance Enablers Panel */}
+      <div className="lab-summary__enablers">
+        <PerformanceEnablersPanel />
       </div>
     </div>
   );
@@ -70,23 +85,83 @@ function SummaryTab() {
 
 // ─── Visual tab ───────────────────────────────────────────────────────────────
 
+/** PR 6 — Auto Demo Run storage key. */
+const VISUAL_DEMO_KEY = 'atlasVisualDemoSeen';
+
+/**
+ * VisualTab
+ *
+ * Wraps DrawOffWorkbench.  On first open (PR 6 — Auto Demo Run) shows a brief
+ * intro banner that auto-dismisses after 3 s, giving users an instant
+ * understanding of the simulation before they interact.
+ */
 function VisualTab() {
-  return <DrawOffWorkbench />;
+  const [showIntro, setShowIntro] = useState(
+    () => localStorage.getItem(VISUAL_DEMO_KEY) !== 'true',
+  );
+
+  useEffect(() => {
+    if (!showIntro) return;
+    const timer = setTimeout(() => {
+      localStorage.setItem(VISUAL_DEMO_KEY, 'true');
+      setShowIntro(false);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [showIntro]);
+
+  return (
+    <div className="lab-visual-tab">
+      {showIntro && (
+        <div className="lab-visual-tab__intro" role="status" aria-live="polite">
+          <span className="lab-visual-tab__intro-icon" aria-hidden="true">▶</span>
+          <span>
+            <strong>Auto Demo</strong> — tap a regime to watch heat and water behaviour.
+            Cylinder cools → boiler fires → hot water ready.
+          </span>
+          <button
+            className="lab-visual-tab__intro-dismiss"
+            onClick={() => {
+              localStorage.setItem(VISUAL_DEMO_KEY, 'true');
+              setShowIntro(false);
+            }}
+            aria-label="Dismiss auto demo intro"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      <DrawOffWorkbench />
+    </div>
+  );
 }
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
 export default function LabShell({ onHome }: Props) {
   const [activeTab, setActiveTab] = useState<LabTab>('summary');
+  /** PR 2 — Engineer/Customer mode toggle. */
+  const [uiMode, setUiMode] = useState<UiMode>('engineer');
 
   const TAB_LABELS: Record<LabTab, string> = {
-    summary: 'Summary',
-    whatif:  'What if…?',
-    visual:  'Visual',
+    summary:   'Summary',
+    whatif:    'What if…?',
+    visual:    'Visual',
+    floorplan: 'Floor Plan',
+  };
+
+  /** PR 2 — Tab IDs mapped from tab key to DOM id required by the tour. */
+  const TAB_IDS: Record<LabTab, string | undefined> = {
+    summary:   'system-lab-tab',
+    whatif:    'what-if-tab',
+    visual:    'visual-tab',
+    floorplan: undefined,
   };
 
   return (
     <div className="lab-wrap">
+
+      {/* PR 1 — First-run tour: lab phase (steps 3–6) */}
+      <AtlasTour context="lab" />
 
       {/* ── Branded header ─────────────────────────────────────────────────── */}
       <header className="lab-header">
@@ -96,6 +171,28 @@ export default function LabShell({ onHome }: Props) {
           <h1 className="lab-h1">System Lab</h1>
           <p className="lab-subtitle">Compare heating systems using real operating constraints.</p>
         </div>
+
+        {/* PR 2 — Engineer / Customer mode toggle */}
+        <div className="lab-mode-toggle" role="group" aria-label="UI mode">
+          <span className="lab-mode-toggle__label">Mode</span>
+          <button
+            className={`lab-mode-toggle__btn${uiMode === 'engineer' ? ' lab-mode-toggle__btn--active' : ''}`}
+            onClick={() => setUiMode('engineer')}
+            aria-pressed={uiMode === 'engineer'}
+          >
+            Engineer
+          </button>
+          <button
+            className={`lab-mode-toggle__btn${uiMode === 'customer' ? ' lab-mode-toggle__btn--active' : ''}`}
+            onClick={() => setUiMode('customer')}
+            aria-pressed={uiMode === 'customer'}
+          >
+            Customer
+          </button>
+        </div>
+
+        {/* PR 5 — Condensing efficiency indicator */}
+        <CondensingIndicator returnTempC={45} />
       </header>
 
       {/* ── Context row ────────────────────────────────────────────────────── */}
@@ -106,7 +203,8 @@ export default function LabShell({ onHome }: Props) {
         {CANDIDATE_SYSTEMS.map(s => (
           <span key={s.id} className="lab-context-chip">{s.label}</span>
         ))}
-        <span className="lab-confidence-badge">Confidence: {PLACEHOLDER_CONFIDENCE}</span>
+        {/* PR 8 — Replace plain confidence badge with visual score bar */}
+        <ConfidenceScoreBar data={PLACEHOLDER_CONFIDENCE_STRIP} />
       </div>
 
       {/* ── Headline verdict strip ─────────────────────────────────────────── */}
@@ -121,8 +219,9 @@ export default function LabShell({ onHome }: Props) {
       {/* ── Confidence + assumptions strip ─────────────────────────────────── */}
       <LabConfidenceStrip data={PLACEHOLDER_CONFIDENCE_STRIP} />
 
+      {/* PR 1 — Export buttons (tour target #export-buttons) */}
       {/* ── Print views ────────────────────────────────────────────────────── */}
-      <div className="lab-print-nav" aria-label="Print views">
+      <div id="export-buttons" className="lab-print-nav" aria-label="Print views">
         <span className="lab-print-nav__label">Print / export:</span>
         <a
           className="lab-print-nav__link"
@@ -158,6 +257,7 @@ export default function LabShell({ onHome }: Props) {
         {(Object.keys(TAB_LABELS) as LabTab[]).map(tab => (
           <button
             key={tab}
+            id={TAB_IDS[tab]}
             role="tab"
             aria-selected={activeTab === tab}
             className={`lab-tab${activeTab === tab ? ' lab-tab--active' : ''}`}
@@ -170,9 +270,10 @@ export default function LabShell({ onHome }: Props) {
 
       {/* ── Tab content ────────────────────────────────────────────────────── */}
       <div className="lab-tab-content" role="tabpanel">
-        {activeTab === 'summary' && <SummaryTab />}
-        {activeTab === 'whatif'  && <WhatIfLab />}
-        {activeTab === 'visual'  && <VisualTab />}
+        {activeTab === 'summary'   && <SummaryTab uiMode={uiMode} />}
+        {activeTab === 'whatif'    && <WhatIfLab />}
+        {activeTab === 'visual'    && <VisualTab />}
+        {activeTab === 'floorplan' && <FloorPlanBuilder />}
       </div>
 
     </div>

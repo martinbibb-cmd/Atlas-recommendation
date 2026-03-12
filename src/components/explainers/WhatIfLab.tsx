@@ -12,8 +12,12 @@
  */
 
 import { useState } from 'react';
+import type { ComponentType } from 'react';
 import { WHAT_IF_SCENARIOS } from './whatIfScenarios';
 import type { WhatIfScenario } from './whatIfScenarios';
+import BoilerCyclingAnimation from '../whatif/BoilerCyclingAnimation';
+import FlowRestrictionAnimation from '../whatif/FlowRestrictionAnimation';
+import RadiatorUpgradeAnimation from '../whatif/RadiatorUpgradeAnimation';
 import './WhatIfLab.css';
 
 // ─── Re-export for consumers that reference SCENARIOS from this module ────────
@@ -22,62 +26,8 @@ import './WhatIfLab.css';
 export const SCENARIOS = WHAT_IF_SCENARIOS;
 
 // ─── Diagram components ───────────────────────────────────────────────────────
-
-function CyclingDiagram() {
-  const pattern = [1, 0, 1, 0, 1, 0, 1, 0] as const;
-  return (
-    <div className="wil-diagram wil-diagram--cycling" aria-label="Oversized boiler cycling pattern">
-      <div className="wil-diagram__label">Oversized boiler</div>
-      <div className="wil-diagram__bars">
-        {pattern.map((on, i) => (
-          <div
-            key={i}
-            className={`wil-diagram__bar wil-diagram__bar--${on ? 'on' : 'off'}`}
-            title={on ? 'Firing' : 'Off'}
-          />
-        ))}
-      </div>
-      <div className="wil-diagram__legend">
-        <span className="wil-diagram__legend-on">Firing</span>
-        <span className="wil-diagram__legend-off">Off</span>
-      </div>
-    </div>
-  );
-}
-
-function PressureDiagram() {
-  return (
-    <div className="wil-diagram wil-diagram--pressure" aria-label="Low pressure demand vs supply">
-      <div className="wil-diagram__row">
-        <span className="wil-diagram__row-label">Demand</span>
-        <span className="wil-diagram__icons">🚿 🚿</span>
-      </div>
-      <div className="wil-diagram__row">
-        <span className="wil-diagram__row-label">Supply</span>
-        <span className="wil-diagram__icons">🚿</span>
-      </div>
-      <div className="wil-diagram__row wil-diagram__row--result">
-        <span className="wil-diagram__row-label">Result</span>
-        <span className="wil-diagram__icons">Temperature drop ↓</span>
-      </div>
-    </div>
-  );
-}
-
-function EmittersDiagram() {
-  return (
-    <div className="wil-diagram wil-diagram--emitters" aria-label="Emitter size vs flow temperature">
-      <div className="wil-diagram__row">
-        <span className="wil-diagram__row-label">Small rads</span>
-        <span className="wil-diagram__badge wil-diagram__badge--high">High flow temp</span>
-      </div>
-      <div className="wil-diagram__row">
-        <span className="wil-diagram__row-label">Large rads</span>
-        <span className="wil-diagram__badge wil-diagram__badge--low">Lower flow temp ✓</span>
-      </div>
-    </div>
-  );
-}
+// NOTE: 'cycling', 'pressure', 'emitters' use the animated versions from
+//       src/components/whatif/. The remaining three static diagrams stay here.
 
 function ControlsDiagram() {
   const cyclingPattern = [1, 1, 0, 0, 1, 1, 0, 0] as const;
@@ -130,10 +80,10 @@ function StorageDiagram() {
   );
 }
 
-const DIAGRAM_MAP: Record<WhatIfScenario['visualType'], React.ComponentType> = {
-  cycling:   CyclingDiagram,
-  pressure:  PressureDiagram,
-  emitters:  EmittersDiagram,
+const DIAGRAM_MAP: Record<WhatIfScenario['visualType'], ComponentType> = {
+  cycling:   BoilerCyclingAnimation,
+  pressure:  FlowRestrictionAnimation,
+  emitters:  RadiatorUpgradeAnimation,
   controls:  ControlsDiagram,
   primaries: PrimariesDiagram,
   storage:   StorageDiagram,

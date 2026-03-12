@@ -1,0 +1,276 @@
+/**
+ * whatif-animations.css
+ *
+ * Styles for the three animated What-If Lab diagrams:
+ *  - BoilerCyclingAnimation   (.wia-cycling)
+ *  - FlowRestrictionAnimation (.wia-flow)
+ *  - RadiatorUpgradeAnimation (.wia-rads)
+ *
+ * Animations use pure CSS keyframes — no JS animation library required.
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Shared base
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.wia-cycling,
+.wia-flow,
+.wia-rads {
+  background:    var(--surface-subtle);
+  border:        1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding:       var(--space-4) var(--space-5);
+  margin:        var(--space-3) 0;
+  font-family:   var(--font-sans);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Boiler cycling animation
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.wia-cycling__label {
+  font-size:   var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color:       var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.wia-cycling__track {
+  display:   flex;
+  gap:       4px;
+  height:    32px;
+  position:  relative;
+  margin-bottom: var(--space-2);
+}
+
+.wia-cycling__bar {
+  flex:          1;
+  border-radius: var(--radius-sm);
+  transition:    opacity var(--transition-normal);
+}
+
+.wia-cycling__bar--on {
+  background: var(--color-red-400);
+  animation:  wia-cycle-pulse 1.6s ease-in-out infinite alternate;
+}
+
+.wia-cycling__bar--off {
+  background: var(--color-neutral-200);
+}
+
+/* Stagger the on-bars so they pulse in sequence */
+.wia-cycling__bar:nth-child(1) { animation-delay: 0.0s; }
+.wia-cycling__bar:nth-child(3) { animation-delay: 0.2s; }
+.wia-cycling__bar:nth-child(5) { animation-delay: 0.4s; }
+.wia-cycling__bar:nth-child(7) { animation-delay: 0.6s; }
+
+@keyframes wia-cycle-pulse {
+  from { opacity: 1.0; }
+  to   { opacity: 0.4; }
+}
+
+.wia-cycling__cursor {
+  display: none; /* reserved for future JS-driven playhead */
+}
+
+.wia-cycling__legend {
+  display:  flex;
+  gap:      var(--space-4);
+  font-size: var(--text-xs);
+  margin-bottom: var(--space-2);
+}
+
+.wia-cycling__legend-item::before {
+  content:       '';
+  display:       inline-block;
+  width:         10px;
+  height:        10px;
+  border-radius: var(--radius-sm);
+  margin-right:  4px;
+  vertical-align: middle;
+}
+
+.wia-cycling__legend-item--on::before  { background: var(--color-red-400); }
+.wia-cycling__legend-item--off::before { background: var(--color-neutral-200); }
+
+.wia-cycling__caption {
+  font-size:   var(--text-sm);
+  color:       var(--text-secondary);
+  margin:      var(--space-2) 0 0;
+  line-height: var(--leading-relaxed);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Flow restriction animation
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.wia-flow__title {
+  font-size:   var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color:       var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.wia-flow__row {
+  display:       flex;
+  align-items:   center;
+  gap:           var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.wia-flow__label {
+  font-size:    var(--text-sm);
+  color:        var(--text-secondary);
+  width:        56px;
+  flex-shrink:  0;
+}
+
+.wia-flow__track {
+  flex:          1;
+  height:        20px;
+  background:    var(--color-neutral-200);
+  border-radius: var(--radius-pill);
+  overflow:      hidden;
+}
+
+.wia-flow__fill {
+  height:        100%;
+  border-radius: var(--radius-pill);
+  transition:    width var(--transition-slow);
+}
+
+.wia-flow__fill--demand {
+  background:   var(--color-blue-500);
+  animation:    wia-flow-demand 2s ease-in-out infinite alternate;
+}
+
+.wia-flow__fill--supply {
+  background:   var(--color-amber-500);
+  animation:    wia-flow-supply 2s ease-in-out infinite alternate;
+}
+
+@keyframes wia-flow-demand {
+  from { width: 80%; }
+  to   { width: 90%; }
+}
+
+@keyframes wia-flow-supply {
+  from { width: 40%; }
+  to   { width: 50%; }
+}
+
+.wia-flow__pct {
+  font-size:   var(--text-sm);
+  font-family: var(--font-mono);
+  color:       var(--text-muted);
+  width:       32px;
+  text-align:  right;
+}
+
+.wia-flow__gap-indicator {
+  font-size:   var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color:       var(--color-amber-700);
+  padding:     var(--space-2) var(--space-3);
+  background:  var(--color-amber-100);
+  border:      1px solid var(--color-amber-400);
+  border-radius: var(--radius-md);
+  margin:      var(--space-2) 0;
+}
+
+.wia-flow__caption {
+  font-size:   var(--text-sm);
+  color:       var(--text-secondary);
+  margin:      var(--space-2) 0 0;
+  line-height: var(--leading-relaxed);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Radiator upgrade animation
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.wia-rads__title {
+  font-size:   var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color:       var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.wia-rads__row {
+  display:       flex;
+  align-items:   center;
+  gap:           var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.wia-rads__label {
+  font-size:   var(--text-sm);
+  color:       var(--text-secondary);
+  width:       130px;
+  flex-shrink: 0;
+}
+
+.wia-rads__track {
+  flex:          1;
+  height:        20px;
+  background:    var(--color-neutral-200);
+  border-radius: var(--radius-pill);
+  overflow:      hidden;
+}
+
+.wia-rads__fill {
+  height:        100%;
+  border-radius: var(--radius-pill);
+}
+
+.wia-rads__fill--high {
+  background: var(--color-red-400);
+  animation:  wia-rads-high 3s ease-in-out infinite alternate;
+}
+
+.wia-rads__fill--low {
+  background:  var(--color-green-500);
+  animation:   wia-rads-low 3s ease-in-out infinite alternate;
+}
+
+@keyframes wia-rads-high {
+  from { width: 90%; }
+  to   { width: 95%; }
+}
+
+@keyframes wia-rads-low {
+  from { width: 60%; }
+  to   { width: 65%; }
+}
+
+.wia-rads__temp {
+  font-size:   var(--text-sm);
+  font-family: var(--font-mono);
+  color:       var(--text-muted);
+  width:       44px;
+  text-align:  right;
+}
+
+.wia-rads__condensing-badge {
+  font-size:   var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color:       var(--color-green-700);
+  padding:     var(--space-2) var(--space-3);
+  background:  var(--color-green-100);
+  border:      1px solid var(--color-green-300);
+  border-radius: var(--radius-md);
+  margin:      var(--space-2) 0;
+  animation:   wia-rads-badge-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes wia-rads-badge-glow {
+  from { border-color: var(--color-green-300); }
+  to   { border-color: var(--color-green-500); }
+}
+
+.wia-rads__caption {
+  font-size:   var(--text-sm);
+  color:       var(--text-secondary);
+  margin:      var(--space-2) 0 0;
+  line-height: var(--leading-relaxed);
+}

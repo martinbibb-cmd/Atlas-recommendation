@@ -1,0 +1,38 @@
+/**
+ * tour.css
+ *
+ * Custom overrides for the react-joyride tooltip to match the Atlas design
+ * language.  react-joyride renders into a portal so these rules use the
+ * published class names documented in the library.
+ */
+
+/* ── Tooltip wrapper ─────────────────────────────────────────────────────── */
+
+.__floater__body {
+  font-family: var(--font-sans);
+  font-size:   var(--text-md);
+  line-height: var(--leading-normal);
+}
+
+/* ── Tooltip title ───────────────────────────────────────────────────────── */
+
+.react-joyride__tooltip h4 {
+  font-size:   var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color:       var(--text-primary);
+  margin:      0 0 var(--space-2) 0;
+}
+
+/* ── Tooltip body text ───────────────────────────────────────────────────── */
+
+.react-joyride__tooltip p {
+  color:  var(--text-body);
+  margin: 0;
+}
+
+/* ── Progress text ───────────────────────────────────────────────────────── */
+
+.react-joyride__tooltip [data-test-id="tooltip-progress"] {
+  font-size: var(--text-sm);
+  color:     var(--text-muted);
+}

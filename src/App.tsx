@@ -12,6 +12,7 @@ import LabShell from './components/lab/LabShell';
 import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
+import AtlasTour from './components/tour/AtlasTour';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
 import './App.css';
@@ -103,6 +104,9 @@ export default function App() {
 
   return (
     <div className="landing">
+      {/* PR 1 — First-run tour: landing phase (steps 1–2) */}
+      <AtlasTour context="landing" />
+
       <div className="hero">
         <h1>
           <span className="hero-brand">Atlas</span>
@@ -113,7 +117,7 @@ export default function App() {
         </p>
       </div>
       <div className="journey-cards">
-        <div className="journey-card fast" onClick={() => setJourney('fast')}>
+        <div id="fast-choice-card" className="journey-card fast" onClick={() => setJourney('fast')}>
           <div className="card-icon">⚡</div>
           <h2>Fast Choice</h2>
           <p>Quick first-pass recommendation. Ideal for early conversations or demonstrations. You can open the result in System Lab later to explore the physics and comparisons.</p>
@@ -128,7 +132,7 @@ export default function App() {
           <p>Compare heating systems side-by-side and see why one fits better. Atlas shows the physical constraints, behaviour and trade-offs so the recommendation is transparent.</p>
           <button className="cta-btn">Open System Lab →</button>
         </div>
-        <div className="journey-card full" onClick={() => setJourney('full')}>
+        <div id="survey-panel" className="journey-card full" onClick={() => setJourney('full')}>
           <div className="card-icon">🔬</div>
           <h2>Full Survey</h2>
           <p>Capture the full technical picture. Enter detailed property, system and usage information to increase confidence in the recommendation.</p>
