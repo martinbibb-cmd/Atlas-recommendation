@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import ExplainersHubPage from '../../explainers/ExplainersHubPage';
+import WhatIfLab from '../explainers/WhatIfLab';
 import LabHomeLink from './LabHomeLink';
 import LabConfidenceStrip from './LabConfidenceStrip';
 import DrawOffWorkbench from './DrawOffWorkbench';
@@ -15,7 +15,7 @@ import './lab.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type LabTab = 'summary' | 'physics' | 'visual';
+type LabTab = 'summary' | 'whatif' | 'visual';
 
 interface Props {
   onHome: () => void;
@@ -79,11 +79,9 @@ function VisualTab() {
 export default function LabShell({ onHome }: Props) {
   const [activeTab, setActiveTab] = useState<LabTab>('summary');
 
-  // TODO: Behaviour Console removed. Rebuild only from scratch with one clear question per visual.
-
   const TAB_LABELS: Record<LabTab, string> = {
     summary: 'Summary',
-    physics: 'Physics',
+    whatif:  'What if…?',
     visual:  'Visual',
   };
 
@@ -173,7 +171,7 @@ export default function LabShell({ onHome }: Props) {
       {/* ── Tab content ────────────────────────────────────────────────────── */}
       <div className="lab-tab-content" role="tabpanel">
         {activeTab === 'summary' && <SummaryTab />}
-        {activeTab === 'physics' && <ExplainersHubPage />}
+        {activeTab === 'whatif'  && <WhatIfLab />}
         {activeTab === 'visual'  && <VisualTab />}
       </div>
 
