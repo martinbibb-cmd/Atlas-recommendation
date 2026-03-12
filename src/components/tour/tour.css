@@ -36,3 +36,25 @@
   font-size: var(--text-sm);
   color:     var(--text-muted);
 }
+
+/* ── Replay tour link — shared across landing and lab header ─────────────── */
+
+.tour-replay-link {
+  background: none;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: #718096;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.tour-replay-link:hover,
+.tour-replay-link:focus-visible {
+  color: #4a5568;
+  background: rgba(0, 0, 0, 0.05);
+  outline: none;
+}
