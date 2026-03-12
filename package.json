@@ -12,9 +12,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "konva": "^10.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-is": "^19.2.4",
+    "react-joyride": "^3.0.0-7",
+    "react-konva": "^19.2.3",
     "recharts": "^3.7.0"
   },
   "devDependencies": {
