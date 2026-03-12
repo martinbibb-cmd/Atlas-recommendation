@@ -19,25 +19,25 @@ const BLOCK_CONFIG = [
     key: 'heat' as const,
     icon: '🔥',
     label: 'Heat',
-    color: '#e53e3e',
-    bg: '#fff5f5',
-    border: '#fc8181',
+    colorVar: 'var(--color-red-500)',
+    bgVar: 'var(--surface-danger)',
+    borderVar: 'var(--border-danger)',
   },
   {
     key: 'dhw' as const,
     icon: '🚿',
     label: 'DHW',
-    color: '#3182ce',
-    bg: '#ebf8ff',
-    border: '#90cdf4',
+    colorVar: 'var(--color-blue-500)',
+    bgVar: 'var(--surface-info)',
+    borderVar: 'var(--border-info)',
   },
   {
     key: 'hydraulics' as const,
     icon: '🔧',
     label: 'Hydraulics',
-    color: '#38a169',
-    bg: '#f0fff4',
-    border: '#9ae6b4',
+    colorVar: 'var(--color-green-500)',
+    bgVar: 'var(--surface-success)',
+    borderVar: 'var(--border-success)',
   },
 ] as const;
 
@@ -45,84 +45,54 @@ function InfluenceBlock({
   block,
   label,
   icon,
-  color,
-  bg,
-  border,
+  colorVar,
+  bgVar,
+  borderVar,
 }: {
   block: InfluenceBlockV1;
   label: string;
   icon: string;
-  color: string;
-  bg: string;
-  border: string;
+  colorVar: string;
+  bgVar: string;
+  borderVar: string;
 }) {
   return (
     <div
+      className="ib-block"
       style={{
-        background: bg,
-        border: `1px solid ${border}`,
-        borderRadius: 10,
-        padding: '14px 16px',
+        background: bgVar,
+        border: `1px solid ${borderVar}`,
+        color: colorVar,
         flex: '1 1 160px',
         minWidth: 140,
       }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{ fontSize: 18 }}>{icon}</span>
-        <span style={{ fontWeight: 700, fontSize: 14, color }}>{label}</span>
+      <div className="ib-block__icon-row">
+        <span>{icon}</span>
+        <span>{label}</span>
       </div>
 
       {/* Influence % bar */}
-      <div style={{ marginBottom: 10 }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 11,
-            color: '#718096',
-            marginBottom: 4,
-          }}
-        >
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 4 }}>
           <span>Influence</span>
-          <span style={{ fontWeight: 700, color }}>{block.influencePct}%</span>
+          <span className="ib-block__pct">{block.influencePct}%</span>
         </div>
-        <div
-          style={{
-            height: 6,
-            background: '#e2e8f0',
-            borderRadius: 3,
-            overflow: 'hidden',
-          }}
-        >
+        <div className="ib-block__bar-track">
           <div
-            style={{
-              height: '100%',
-              width: `${block.influencePct}%`,
-              background: color,
-              borderRadius: 3,
-              transition: 'width 0.4s ease',
-            }}
+            className="ib-block__bar-fill"
+            style={{ width: `${block.influencePct}%` }}
           />
         </div>
       </div>
 
       {/* Top drivers */}
       {block.topDrivers.length > 0 && (
-        <div style={{ marginBottom: 8 }}>
+        <div className="ib-block__drivers">
           {block.topDrivers.slice(0, 2).map((driver, i) => (
-            <div
-              key={i}
-              style={{
-                fontSize: 12,
-                color: '#4a5568',
-                padding: '2px 0',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <span style={{ color, fontSize: 10 }}>▸</span>
+            <div key={i} style={{ padding: '2px 0', display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: 'var(--text-xs)' }}>▸</span>
               {driver}
             </div>
           ))}
@@ -132,12 +102,8 @@ function InfluenceBlock({
       {/* Assumptions count */}
       {block.assumptionsCount > 0 && (
         <div
-          style={{
-            fontSize: 11,
-            color: '#718096',
-            borderTop: `1px solid ${border}`,
-            paddingTop: 6,
-          }}
+          className="ib-block__assumptions"
+          style={{ borderTop: `1px solid ${borderVar}`, paddingTop: 6, color: 'var(--text-muted)' }}
         >
           {block.assumptionsCount} assumption{block.assumptionsCount !== 1 ? 's' : ''}
         </div>
@@ -161,34 +127,36 @@ export default function InfluenceBlocks({ summary }: Props) {
   const whatThisMeans = WHAT_THIS_MEANS[dominantKey];
 
   return (
-    <div className="influence-blocks" style={{ marginBottom: 20 }}>
+    <div className="influence-blocks" style={{ marginBottom: 'var(--space-5)' }}>
       <h3
         style={{
-          margin: '0 0 12px',
-          fontSize: 16,
-          color: '#2d3748',
-          borderBottom: '1px solid #e2e8f0',
-          paddingBottom: 8,
+          margin: '0 0 var(--space-3)',
+          fontSize: 'var(--text-lg)',
+          fontWeight: 'var(--weight-bold)',
+          color: 'var(--text-body)',
+          borderBottom: '1px solid var(--border-default)',
+          paddingBottom: 'var(--space-2)',
         }}
       >
         Domain Influence
       </h3>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
         {BLOCK_CONFIG.map(cfg => (
           <InfluenceBlock
             key={cfg.key}
             block={summary[cfg.key]}
             label={cfg.label}
             icon={cfg.icon}
-            color={cfg.color}
-            bg={cfg.bg}
-            border={cfg.border}
+            colorVar={cfg.colorVar}
+            bgVar={cfg.bgVar}
+            borderVar={cfg.borderVar}
           />
         ))}
       </div>
-      <p style={{ margin: '10px 0 0', fontSize: 12, color: '#718096', fontStyle: 'italic' }}>
+      <p style={{ margin: 'var(--space-3) 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-muted)', fontStyle: 'italic' }}>
         {whatThisMeans}
       </p>
     </div>
   );
 }
+

@@ -1,0 +1,388 @@
+/**
+ * behaviour.css
+ *
+ * Layout and typography classes for the Behaviour Console page and its
+ * sub-components (PrimaryVerdictPanel, LimitersPanel, InfluenceBlocks).
+ *
+ * These classes deliberately contain NO physics logic — they are pure
+ * presentation helpers that replace the worst inline-style clusters.
+ */
+
+/* ─── Page shell ─────────────────────────────────────────────────── */
+
+.bcp-page {
+  max-width: var(--max-width-console);
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4) var(--space-10);
+  font-family: var(--font-sans);
+  color: var(--text-body);
+}
+
+/* ─── Header bar ─────────────────────────────────────────────────── */
+
+.bcp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.bcp-header__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.bcp-header__title {
+  margin: 0;
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  color: var(--text-body);
+}
+
+/* Back button */
+.bcp-back-btn {
+  background: none;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 6px var(--space-3);
+  cursor: pointer;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  transition: background var(--transition-normal);
+}
+
+.bcp-back-btn:hover {
+  background: var(--surface-subtle);
+}
+
+/* Mode toggle (Customer / Engineer) */
+.bcp-mode-toggle {
+  display: flex;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.bcp-mode-toggle__btn {
+  background: var(--surface-default);
+  color: var(--text-secondary);
+  border: none;
+  padding: 6px var(--space-4);
+  cursor: pointer;
+  font-size: var(--text-base);
+  font-family: var(--font-sans);
+  font-weight: var(--weight-normal);
+  transition: background var(--transition-normal);
+}
+
+.bcp-mode-toggle__btn--active {
+  background: var(--chip-neutral);
+  color: var(--text-inverse);
+  font-weight: var(--weight-bold);
+}
+
+/* ─── Section placeholders ───────────────────────────────────────── */
+
+/* Used when a section's data is absent */
+.bcp-placeholder {
+  background: var(--surface-subtle);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--text-muted);
+  margin-bottom: var(--space-5);
+  font-size: var(--text-md);
+}
+
+/* Inline recommendation callout when full verdict is absent */
+.bcp-rec-callout {
+  background: var(--surface-info);
+  border: 1px solid var(--border-info);
+  border-radius: var(--radius-lg);
+  padding: 14px var(--space-5);
+  margin-bottom: var(--space-5);
+  font-size: var(--text-md);
+  color: var(--text-info);
+}
+
+/* ─── Verdict panel ──────────────────────────────────────────────── */
+
+.bvp-panel {
+  border-radius: var(--radius-xl);
+  padding: var(--space-5) var(--space-6);
+  margin-bottom: var(--space-5);
+}
+
+.bvp-panel--good {
+  background: var(--surface-success);
+  border: 2px solid var(--chip-success);
+  color: var(--text-success);
+}
+
+.bvp-panel--caution {
+  background: var(--surface-warning);
+  border: 2px solid var(--chip-warning);
+  color: var(--text-warning);
+}
+
+.bvp-panel--fail {
+  background: var(--surface-danger);
+  border: 2px solid var(--chip-danger);
+  color: var(--text-danger);
+}
+
+/* Status badge + title row */
+.bvp-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.bvp-title {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+}
+
+/* Comparison context line */
+.bvp-context {
+  font-size: var(--text-base);
+  margin-bottom: var(--space-3);
+  padding-left: 2px;
+  opacity: 0.85;
+}
+
+/* Reasons list */
+.bvp-reasons {
+  margin: 0 0 14px;
+  padding-left: var(--space-5);
+}
+
+.bvp-reasons li {
+  margin-bottom: var(--space-1);
+  font-size: var(--text-md);
+}
+
+/* Confidence + assumptions footer */
+.bvp-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  border-top: 1px solid rgba(0, 0, 0, 0.15);
+  padding-top: var(--space-3);
+  align-items: flex-start;
+}
+
+.bvp-confidence {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.bvp-confidence-detail {
+  font-size: var(--text-sm);
+  margin-left: var(--space-2);
+  opacity: 0.8;
+}
+
+/* Assumption chip group */
+.bvp-assumption-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.bvp-assumption-flat {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.bvp-group-toggle {
+  background: none;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  font-size: var(--text-xs);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.bvp-group-chips {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-1);
+  padding-left: var(--space-2);
+}
+
+/* ─── Limiters panel ─────────────────────────────────────────────── */
+
+.lp-panel {
+  margin-bottom: var(--space-5);
+}
+
+.lp-panel__heading {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--text-body);
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: var(--space-2);
+}
+
+/* Limiter card */
+.lp-card {
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-3);
+}
+
+.lp-card--fail {
+  background: var(--surface-danger);
+  border: 1px solid var(--border-danger);
+}
+
+.lp-card--warn {
+  background: var(--surface-warning);
+  border: 1px solid var(--border-warning);
+}
+
+.lp-card--info {
+  background: var(--surface-info);
+  border: 1px solid var(--border-info);
+}
+
+/* Limiter card title row */
+.lp-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.lp-card__title {
+  font-weight: var(--weight-bold);
+  font-size: var(--text-lg);
+}
+
+.lp-card--fail  .lp-card__title { color: var(--text-danger);  }
+.lp-card--warn  .lp-card__title { color: var(--text-warning); }
+.lp-card--info  .lp-card__title { color: var(--text-info);    }
+
+/* Observed / limit boxes — use atlas-measure-row + atlas-measure-box from panels.css */
+
+.lp-card--fail  .atlas-measure-box__value { color: var(--text-danger);  }
+.lp-card--warn  .atlas-measure-box__value { color: var(--text-warning); }
+.lp-card--info  .atlas-measure-box__value { color: var(--text-info);    }
+
+/* Impact text */
+.lp-card__impact {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+}
+
+.lp-card--fail  .lp-card__impact { color: var(--text-danger);  }
+.lp-card--warn  .lp-card__impact { color: var(--text-warning); }
+.lp-card--info  .lp-card__impact { color: var(--text-info);    }
+
+.lp-card__impact-detail {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+}
+
+/* Suggested fixes (stub buttons) */
+.lp-card__fixes {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.lp-fix-btn {
+  background: var(--surface-default);
+  border: 1px solid;
+  border-radius: var(--radius-md);
+  padding: 5px var(--space-3);
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.lp-card--fail .lp-fix-btn { border-color: var(--border-danger);  color: var(--text-danger);  }
+.lp-card--warn .lp-fix-btn { border-color: var(--border-warning); color: var(--text-warning); }
+.lp-card--info .lp-fix-btn { border-color: var(--border-info);    color: var(--text-info);    }
+
+/* ─── Influence blocks ───────────────────────────────────────────── */
+
+.ib-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+@media (max-width: 640px) {
+  .ib-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ib-block {
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ib-block__icon-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+}
+
+.ib-block__pct {
+  font-family: var(--font-numeric);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.ib-block__bar-track {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.ib-block__bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  transition: width var(--transition-slow);
+}
+
+.ib-block__drivers {
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.ib-block__assumptions {
+  font-size: var(--text-xs);
+  opacity: 0.7;
+}

@@ -1,3 +1,10 @@
+/* Design tokens — must be first so all subsequent rules can reference them */
+@import './styles/tokens.css';
+/* Shared panel/badge/numeric primitives */
+@import './styles/panels.css';
+/* Behaviour Console page layout */
+@import './styles/behaviour.css';
+
 *, *::before, *::after {
   box-sizing: border-box;
 }

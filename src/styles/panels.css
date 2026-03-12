@@ -1,0 +1,284 @@
+/**
+ * panels.css
+ *
+ * Shared surface (panel) variants for the Atlas UI.
+ *
+ * Usage:
+ *   <div className="atlas-panel atlas-panel--success"> … </div>
+ *   <div className="atlas-panel atlas-panel--warning"> … </div>
+ *   <div className="atlas-panel atlas-panel--danger"> … </div>
+ *   <div className="atlas-panel atlas-panel--info"> … </div>
+ *   <div className="atlas-panel atlas-panel--focus"> … </div>
+ *   <div className="atlas-panel atlas-panel--muted"> … </div>
+ *
+ * Severity badges:
+ *   <span className="atlas-badge atlas-badge--success">Pass</span>
+ *   <span className="atlas-badge atlas-badge--warning">Warn</span>
+ *   <span className="atlas-badge atlas-badge--danger">Fail</span>
+ *   <span className="atlas-badge atlas-badge--info">Info</span>
+ *
+ * Numeric readout:
+ *   <span className="atlas-num">42.7</span>
+ *   <span className="atlas-num atlas-num--lg">92 %</span>
+ */
+
+/* ─── Base panel ─────────────────────────────────────────────────── */
+
+.atlas-panel {
+  background: var(--surface-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+/* ─── Panel variants ─────────────────────────────────────────────── */
+
+.atlas-panel--success {
+  background: var(--surface-success);
+  border-color: var(--border-success);
+  color: var(--text-success);
+}
+
+.atlas-panel--warning {
+  background: var(--surface-warning);
+  border-color: var(--border-warning);
+  color: var(--text-warning);
+}
+
+.atlas-panel--danger {
+  background: var(--surface-danger);
+  border-color: var(--border-danger);
+  color: var(--text-danger);
+}
+
+.atlas-panel--info {
+  background: var(--surface-info);
+  border-color: var(--border-info);
+  color: var(--text-info);
+}
+
+/* Focus panel — used for the primary result block */
+.atlas-panel--focus {
+  background: var(--surface-focus);
+  border: 2px solid var(--border-focus);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary);
+}
+
+/* Muted / placeholder panel */
+.atlas-panel--muted {
+  background: var(--surface-subtle);
+  border: 1px dashed var(--border-subtle);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ─── Verdict panel (status-keyed, uses inline CSS vars set by JS) ── */
+
+.atlas-verdict-panel {
+  border-radius: var(--radius-xl);
+  padding: var(--space-5) var(--space-6);
+  margin-bottom: var(--space-5);
+  background: var(--verdict-bg, var(--surface-default));
+  border: 2px solid var(--verdict-text, var(--border-default));
+  color: var(--verdict-text, var(--text-body));
+}
+
+.atlas-verdict-panel--good {
+  background: var(--surface-success);
+  border-color: var(--chip-success);
+  color: var(--text-success);
+}
+
+.atlas-verdict-panel--caution {
+  background: var(--surface-warning);
+  border-color: var(--chip-warning);
+  color: var(--text-warning);
+}
+
+.atlas-verdict-panel--fail {
+  background: var(--surface-danger);
+  border-color: var(--chip-danger);
+  color: var(--text-danger);
+}
+
+/* ─── Section headers inside panels ─────────────────────────────── */
+
+.atlas-panel__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.atlas-panel__title {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+}
+
+.atlas-panel__subtitle {
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+  opacity: 0.85;
+}
+
+.atlas-panel__divider {
+  border: none;
+  border-top: 1px solid currentColor;
+  opacity: 0.25;
+  margin: var(--space-3) 0;
+}
+
+/* ─── Severity badges ────────────────────────────────────────────── */
+
+.atlas-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-md);
+  padding: 2px var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-inverse);
+  white-space: nowrap;
+}
+
+.atlas-badge--success {
+  background: var(--chip-success);
+}
+
+.atlas-badge--warning {
+  background: var(--chip-warning);
+}
+
+.atlas-badge--danger {
+  background: var(--chip-danger);
+}
+
+.atlas-badge--info {
+  background: var(--chip-info);
+}
+
+.atlas-badge--neutral {
+  background: var(--chip-neutral);
+}
+
+/* ─── Assumption chips ───────────────────────────────────────────── */
+
+.atlas-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  padding: 2px 7px;
+  font-size: var(--text-xs);
+  border: 1px solid;
+  cursor: default;
+}
+
+.atlas-chip--warn {
+  background: var(--surface-warning);
+  border-color: var(--color-amber-600);
+  color: var(--text-warning);
+}
+
+.atlas-chip--info {
+  background: var(--surface-info);
+  border-color: var(--border-info);
+  color: var(--text-info);
+}
+
+.atlas-chip[title] {
+  cursor: help;
+}
+
+/* ─── Numeric readout ────────────────────────────────────────────── */
+
+/**
+ * Use .atlas-num for any instrument-grade value (kW, L/min, bar, °C).
+ * Monospace ensures values never cause layout jitter.
+ */
+.atlas-num {
+  font-family: var(--font-numeric);
+  font-size: var(--text-numeric-base);
+  font-weight: var(--weight-numeric);
+  color: var(--color-numeric-default);
+  font-variant-numeric: tabular-nums;
+}
+
+.atlas-num--sm {
+  font-size: var(--text-numeric-sm);
+}
+
+.atlas-num--lg {
+  font-size: var(--text-numeric-lg);
+}
+
+.atlas-num--success { color: var(--text-success); }
+.atlas-num--warning { color: var(--text-warning); }
+.atlas-num--danger  { color: var(--text-danger);  }
+.atlas-num--muted   { color: var(--text-muted);   }
+
+/* ─── Metadata row (confidence, sources, labels) ─────────────────── */
+
+.atlas-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* ─── Observed / Limit measurement boxes ────────────────────────── */
+
+.atlas-measure-row {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.atlas-measure-box {
+  background: var(--surface-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  min-width: 100px;
+}
+
+.atlas-measure-box--observed {
+  border-color: var(--border-danger);
+}
+
+.atlas-measure-box__label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.atlas-measure-box__value {
+  font-family: var(--font-numeric);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.atlas-measure-box__sublabel {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.atlas-measure-arrow {
+  font-size: var(--text-xl);
+  color: var(--border-subtle);
+  align-self: center;
+}
