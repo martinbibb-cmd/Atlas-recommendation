@@ -8,6 +8,35 @@
 
 import type { ConfidenceStripData } from './LabConfidenceStrip';
 
+// ─── Live print data type ─────────────────────────────────────────────────────
+
+/**
+ * All configurable data consumed by the three print-layout components.
+ *
+ * When provided as a prop the print components use this data instead of the
+ * PLACEHOLDER_* constants, allowing the Full Survey results flow to render
+ * real engine output in the same print surfaces.
+ */
+export interface LabPrintData {
+  /** Confidence level label, e.g. "High", "Medium", "Low". */
+  confidence: string;
+  /** Human-readable current system label, e.g. "Gas Combi". */
+  currentSystem: string;
+  /** Headline verdict for the print document. */
+  verdict: { system: string; note: string };
+  /** ID of the recommended system within `candidates`. */
+  recommendedSystemId: string;
+  /** Confidence strip data (measured / inferred / missing / nextStep). */
+  confidenceStrip: ConfidenceStripData;
+  /** Candidate systems to compare (up to 2). */
+  candidates: CandidateSystem[];
+  /**
+   * Current system represented as a CandidateSystem for the comparison sheet.
+   * Includes the same row structure as candidates for table alignment.
+   */
+  currentSystemForComparison: CandidateSystem;
+}
+
 // ─── Placeholder context ──────────────────────────────────────────────────────
 
 /** Fallback current system label — replaced by engine/stepper context in a later PR. */

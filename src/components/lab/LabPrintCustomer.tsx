@@ -6,6 +6,7 @@ import {
   PLACEHOLDER_RECOMMENDED_SYSTEM_ID,
   CANDIDATE_SYSTEMS,
 } from './labSharedData';
+import type { LabPrintData } from './labSharedData';
 import './lab-print.css';
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -13,6 +14,11 @@ import './lab-print.css';
 interface Props {
   /** Called when the user clicks the back button on screen. Defaults to window.close(). */
   onBack?: () => void;
+  /**
+   * Live data from the Full Survey engine result.  When provided, replaces the
+   * placeholder constants so the print surface reflects the real survey output.
+   */
+  data?: LabPrintData;
 }
 
 /**
@@ -24,11 +30,18 @@ interface Props {
  * Interactive chrome is hidden via @media print.  "Missing" inputs are relabelled
  * "Not yet confirmed" per customer-facing copy conventions.
  */
-export default function LabPrintCustomer({ onBack }: Props) {
+export default function LabPrintCustomer({ onBack, data }: Props) {
+  const confidence    = data?.confidence          ?? PLACEHOLDER_CONFIDENCE;
+  const currentSystem = data?.currentSystem       ?? PLACEHOLDER_CURRENT_SYSTEM;
+  const verdict       = data?.verdict             ?? PLACEHOLDER_VERDICT;
+  const strip         = data?.confidenceStrip     ?? PLACEHOLDER_CONFIDENCE_STRIP;
+  const candidates    = data?.candidates          ?? CANDIDATE_SYSTEMS;
+  const recId         = data?.recommendedSystemId ?? PLACEHOLDER_RECOMMENDED_SYSTEM_ID;
+
   // Use the recommended system's explanation copy.
   const recommended =
-    CANDIDATE_SYSTEMS.find(s => s.id === PLACEHOLDER_RECOMMENDED_SYSTEM_ID) ??
-    CANDIDATE_SYSTEMS[0];
+    candidates.find(s => s.id === recId) ??
+    candidates[0];
 
   function handleBack() {
     if (onBack) {
@@ -58,8 +71,8 @@ export default function LabPrintCustomer({ onBack }: Props) {
           <p className="lp-doc-header__sub">System Lab — heating recommendation overview</p>
         </div>
         <div className="lp-doc-header__meta">
-          <div>Confidence: {PLACEHOLDER_CONFIDENCE}</div>
-          <div>Current system: {PLACEHOLDER_CURRENT_SYSTEM}</div>
+          <div>Confidence: {confidence}</div>
+          <div>Current system: {currentSystem}</div>
         </div>
       </header>
 
@@ -68,8 +81,8 @@ export default function LabPrintCustomer({ onBack }: Props) {
         <h2 className="lp-section__title" id="lp-customer-rec">Recommendation</h2>
         <div className="lp-verdict" role="status" aria-label="Headline recommendation">
           <div className="lp-verdict__label">Best overall fit</div>
-          <p className="lp-verdict__value">{PLACEHOLDER_VERDICT.system}</p>
-          <p className="lp-verdict__note">{PLACEHOLDER_VERDICT.note}</p>
+          <p className="lp-verdict__value">{verdict.system}</p>
+          <p className="lp-verdict__note">{verdict.note}</p>
         </div>
       </section>
 
@@ -98,15 +111,15 @@ export default function LabPrintCustomer({ onBack }: Props) {
       {/* ── Confidence ─────────────────────────────────────────────────────── */}
       <section className="lp-section" aria-labelledby="lp-customer-confidence">
         <h2 className="lp-section__title" id="lp-customer-confidence">Confidence</h2>
-        <span className="lp-confidence-badge">Confidence: {PLACEHOLDER_CONFIDENCE}</span>
+        <span className="lp-confidence-badge">Confidence: {confidence}</span>
 
-        {PLACEHOLDER_CONFIDENCE_STRIP.missing.length > 0 && (
+        {strip.missing.length > 0 && (
           <div>
             <div className="lp-unconfirmed-tag" aria-label="Not yet confirmed inputs">
               Not yet confirmed
             </div>
             <ul className="lp-list" aria-label="Items not yet confirmed">
-              {PLACEHOLDER_CONFIDENCE_STRIP.missing.map(item => (
+              {strip.missing.map(item => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
@@ -115,10 +128,10 @@ export default function LabPrintCustomer({ onBack }: Props) {
       </section>
 
       {/* ── Next step ──────────────────────────────────────────────────────── */}
-      {PLACEHOLDER_CONFIDENCE_STRIP.nextStep && (
+      {strip.nextStep && (
         <section className="lp-section" aria-labelledby="lp-customer-next">
           <h2 className="lp-section__title" id="lp-customer-next">Next step</h2>
-          <p>{PLACEHOLDER_CONFIDENCE_STRIP.nextStep}</p>
+          <p>{strip.nextStep}</p>
         </section>
       )}
 
