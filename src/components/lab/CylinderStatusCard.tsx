@@ -65,6 +65,11 @@ export default function CylinderStatusCard({ data }: Props) {
 
   const panelTitle = isCylinder ? 'Cylinder status' : 'Hot water source status'
 
+  // Derive animation signals from the cylinder state.
+  // recoveryActive is clear from state; there is no explicit "draw in progress"
+  // signal in CylinderStatusViewModel, so drawActive is not asserted here.
+  const recoveryActive = state === 'charging' || state === 'recovering'
+
   return (
     <div
       className="cylinder-status-card"
@@ -94,6 +99,9 @@ export default function CylinderStatusCard({ data }: Props) {
           }
           topTempC={topTempC}
           bottomTempC={isMixergy ? undefined : bulkTempC}
+          drawActive={false}
+          recoveryActive={recoveryActive}
+          animate={true}
         />
       )}
 

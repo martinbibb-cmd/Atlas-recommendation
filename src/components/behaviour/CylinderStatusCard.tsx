@@ -60,6 +60,7 @@ export default function CylinderStatusCard({ isCombi, isMixergy = false, heatedF
           type={type}
           hotFraction={isMixergy ? undefined : heatedFraction}
           heatedLayerFraction={isMixergy ? heatedFraction : undefined}
+          animate={true}
           compact
         />
       </div>
