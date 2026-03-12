@@ -13,6 +13,7 @@ import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
 import AtlasTour from './components/tour/AtlasTour';
+import { resetAtlasTourSeen } from './lib/tourStorage';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
 import './App.css';
@@ -65,6 +66,8 @@ type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrali
 export default function App() {
   const [journey, setJourney] = useState<Journey>('landing');
   const [fullSurveyPrefill, setFullSurveyPrefill] = useState<Partial<EngineInputV2_3> | undefined>();
+  /** Controls replay of the landing tour without a full page reload. */
+  const [replayLandingTour, setReplayLandingTour] = useState(false);
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
@@ -105,7 +108,11 @@ export default function App() {
   return (
     <div className="landing">
       {/* PR 1 — First-run tour: landing phase (steps 1–2) */}
-      <AtlasTour context="landing" />
+      <AtlasTour
+        context="landing"
+        run={replayLandingTour ? true : undefined}
+        onClose={() => setReplayLandingTour(false)}
+      />
 
       <div className="hero">
         <h1>
@@ -115,9 +122,24 @@ export default function App() {
         <p className="tagline">
           Compare heating systems and see why one fits better.
         </p>
+        <button
+          className="tour-replay-link"
+          onClick={() => {
+            resetAtlasTourSeen();
+            setReplayLandingTour(true);
+          }}
+          aria-label="Replay the Atlas tour"
+        >
+          ? Take a tour
+        </button>
       </div>
       <div className="journey-cards">
-        <div id="fast-choice-card" className="journey-card fast" onClick={() => setJourney('fast')}>
+        <div
+          id="fast-choice-card"
+          data-tour="mode-choice"
+          className="journey-card fast"
+          onClick={() => setJourney('fast')}
+        >
           <div className="card-icon">⚡</div>
           <h2>Fast Choice</h2>
           <p>Quick first-pass recommendation. Ideal for early conversations or demonstrations. You can open the result in System Lab later to explore the physics and comparisons.</p>
@@ -132,7 +154,12 @@ export default function App() {
           <p>Compare heating systems side-by-side and see why one fits better. Atlas shows the physical constraints, behaviour and trade-offs so the recommendation is transparent.</p>
           <button className="cta-btn">Open System Lab →</button>
         </div>
-        <div id="survey-panel" className="journey-card full" onClick={() => setJourney('full')}>
+        <div
+          id="survey-panel"
+          data-tour="survey-panel"
+          className="journey-card full"
+          onClick={() => setJourney('full')}
+        >
           <div className="card-icon">🔬</div>
           <h2>Full Survey</h2>
           <p>Capture the full technical picture. Enter detailed property, system and usage information to increase confidence in the recommendation.</p>

@@ -8,6 +8,7 @@ import ConfidenceScoreBar from './ConfidenceScoreBar';
 import PerformanceEnablersPanel from '../performance/PerformanceEnablersPanel';
 import FloorPlanBuilder from '../floorplan/FloorPlanBuilder';
 import AtlasTour from '../tour/AtlasTour';
+import { resetAtlasTourSeen } from '../../lib/tourStorage';
 import {
   PLACEHOLDER_CURRENT_SYSTEM,
   PLACEHOLDER_CONFIDENCE_STRIP,
@@ -141,6 +142,8 @@ export default function LabShell({ onHome }: Props) {
   const [activeTab, setActiveTab] = useState<LabTab>('summary');
   /** PR 2 — Engineer/Customer mode toggle. */
   const [uiMode, setUiMode] = useState<UiMode>('engineer');
+  /** PR 1 — Replay tour state. */
+  const [replayTour, setReplayTour] = useState(false);
 
   const TAB_LABELS: Record<LabTab, string> = {
     summary:   'Summary',
@@ -157,11 +160,23 @@ export default function LabShell({ onHome }: Props) {
     floorplan: undefined,
   };
 
+  /** PR 1 — Maps tab key to its data-tour attribute value (tour targets). */
+  const TAB_TOUR_ATTRS: Record<LabTab, string | undefined> = {
+    summary:   undefined,
+    whatif:    'what-if-tab',
+    visual:    'visual-tab',
+    floorplan: undefined,
+  };
+
   return (
     <div className="lab-wrap">
 
       {/* PR 1 — First-run tour: lab phase (steps 3–6) */}
-      <AtlasTour context="lab" />
+      <AtlasTour
+        context="lab"
+        run={replayTour ? true : undefined}
+        onClose={() => setReplayTour(false)}
+      />
 
       {/* ── Branded header ─────────────────────────────────────────────────── */}
       <header className="lab-header">
@@ -193,6 +208,18 @@ export default function LabShell({ onHome }: Props) {
 
         {/* PR 5 — Condensing efficiency indicator */}
         <CondensingIndicator returnTempC={45} />
+
+        {/* PR 1 — Replay tour action */}
+        <button
+          className="tour-replay-link"
+          onClick={() => {
+            resetAtlasTourSeen();
+            setReplayTour(true);
+          }}
+          aria-label="Replay the Atlas tour"
+        >
+          ? Tour
+        </button>
       </header>
 
       {/* ── Context row ────────────────────────────────────────────────────── */}
@@ -219,9 +246,9 @@ export default function LabShell({ onHome }: Props) {
       {/* ── Confidence + assumptions strip ─────────────────────────────────── */}
       <LabConfidenceStrip data={PLACEHOLDER_CONFIDENCE_STRIP} />
 
-      {/* PR 1 — Export buttons (tour target #export-buttons) */}
+      {/* PR 1 — Export buttons (tour target) */}
       {/* ── Print views ────────────────────────────────────────────────────── */}
-      <div id="export-buttons" className="lab-print-nav" aria-label="Print views">
+      <div id="export-buttons" data-tour="export-actions" className="lab-print-nav" aria-label="Print views">
         <span className="lab-print-nav__label">Print / export:</span>
         <a
           className="lab-print-nav__link"
@@ -253,11 +280,12 @@ export default function LabShell({ onHome }: Props) {
       </div>
 
       {/* ── Top-level tabs ─────────────────────────────────────────────────── */}
-      <div className="lab-tabs" role="tablist" aria-label="Lab views">
+      <div className="lab-tabs" role="tablist" aria-label="Lab views" data-tour="system-lab-tabs">
         {(Object.keys(TAB_LABELS) as LabTab[]).map(tab => (
           <button
             key={tab}
             id={TAB_IDS[tab]}
+            data-tour={TAB_TOUR_ATTRS[tab]}
             role="tab"
             aria-selected={activeTab === tab}
             className={`lab-tab${activeTab === tab ? ' lab-tab--active' : ''}`}

@@ -7,68 +7,23 @@
  * surfaces: Fast Choice, Survey inputs, System Lab, What-If, Visual,
  * and the export/print actions.
  *
- * The tour is shown when localStorage.getItem("atlasTourComplete") !== "true".
- * On finish or skip it writes localStorage.setItem("atlasTourComplete", "true")
- * so it never shows again for that user/device.
+ * The tour auto-runs on first visit and never re-shows once dismissed or
+ * completed.  It can be replayed manually by passing `run={true}` from a
+ * parent (e.g. a "Replay tour" button in the header).
  *
  * Two contexts are supported:
- *  "landing" — targets the landing-page journey cards (steps 1–2),
- *              tracked by localStorage key "atlasTourLandingComplete".
- *  "lab"     — targets the System Lab tabs and export row (steps 3–6),
- *              tracked by localStorage key "atlasTourComplete".
+ *  "landing" — targets the landing-page journey cards (steps 1–2).
+ *  "lab"     — targets the System Lab tabs and export row (steps 3–6).
  *
- * Each context tracks its own completion flag so the lab portion only shows
- * after the user has already seen the landing portion.
+ * Both contexts share the single `atlas.tour.seen.v1` key from tourStorage so
+ * that skipping/completing either phase marks the whole tour as seen.
  */
 
 import { useState } from 'react';
-import Joyride, { type CallBackProps, STATUS, type Step } from 'react-joyride';
+import Joyride, { type CallBackProps, STATUS } from 'react-joyride';
+import { hasSeenAtlasTour, markAtlasTourSeen } from '../../lib/tourStorage';
+import { LANDING_TOUR_STEPS, LAB_TOUR_STEPS } from '../../config/atlasTourSteps';
 import './tour.css';
-
-// ─── Storage keys ─────────────────────────────────────────────────────────────
-
-const LANDING_KEY = 'atlasTourLandingComplete';
-const LAB_KEY     = 'atlasTourComplete';
-
-// ─── Step definitions ─────────────────────────────────────────────────────────
-
-const LANDING_STEPS: Step[] = [
-  {
-    target:  '#fast-choice-card',
-    content: 'Quick recommendation for early conversations — ideal before a full site survey.',
-    title:   '⚡ Fast Choice',
-    disableBeacon: true,
-  },
-  {
-    target:  '#survey-panel',
-    content: 'Capture detailed property and system information to raise confidence in the recommendation.',
-    title:   '🔬 Full Survey',
-  },
-];
-
-const LAB_STEPS: Step[] = [
-  {
-    target:  '#system-lab-tab',
-    content: 'Compare heating systems side-by-side using real operating constraints.',
-    title:   '🔭 System Lab',
-    disableBeacon: true,
-  },
-  {
-    target:  '#what-if-tab',
-    content: 'Explore upgrade scenarios and see the cause-and-effect on performance.',
-    title:   '🔀 What-If Lab',
-  },
-  {
-    target:  '#visual-tab',
-    content: 'Watch how heat and water actually behave under this system.',
-    title:   '🎨 Visual',
-  },
-  {
-    target:  '#export-buttons',
-    content: 'Generate customer summaries, technical specs, and comparison sheets.',
-    title:   '🖨 Export',
-  },
-];
 
 // ─── Shared Joyride styles ────────────────────────────────────────────────────
 
@@ -90,6 +45,13 @@ type TourContext = 'landing' | 'lab';
 interface AtlasTourProps {
   /** Which surface the tour is mounted on. */
   context: TourContext;
+  /**
+   * Optional controlled run state.  When provided, the component uses this
+   * value instead of the localStorage flag (useful for replay).
+   */
+  run?: boolean;
+  /** Called when the tour is closed (finished or skipped). */
+  onClose?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -97,26 +59,33 @@ interface AtlasTourProps {
 /**
  * AtlasTour
  *
- * Mount this component once per surface.  It self-manages its run/stop state
- * via localStorage and never re-shows once dismissed or completed.
+ * Mount this component once per surface.  When `run` is not provided it
+ * self-manages its run/stop state via localStorage and never re-shows once
+ * dismissed or completed.  Pass `run={true}` with `onClose` to drive it from
+ * a parent (e.g. a "Replay tour" button).
+ *
+ * If a tour target element is missing from the DOM, react-joyride skips that
+ * step automatically so the page remains fully usable.
  */
-export default function AtlasTour({ context }: AtlasTourProps) {
-  const storageKey = context === 'landing' ? LANDING_KEY : LAB_KEY;
-  const steps      = context === 'landing' ? LANDING_STEPS : LAB_STEPS;
+export default function AtlasTour({ context, run: runProp, onClose }: AtlasTourProps) {
+  const steps = context === 'landing' ? LANDING_TOUR_STEPS : LAB_TOUR_STEPS;
 
-  // The lab tour only starts once the user has completed the landing tour.
-  const landingDone = localStorage.getItem(LANDING_KEY) === 'true';
-  const thisDone    = localStorage.getItem(storageKey)   === 'true';
+  // Uncontrolled mode: auto-run once on first visit.
+  const [autoRun, setAutoRun] = useState(() => !hasSeenAtlasTour());
 
-  const shouldRun = !thisDone && (context === 'landing' || landingDone);
-
-  const [run, setRun] = useState(shouldRun);
+  // If parent supplies `run`, use that; otherwise use internal auto-run state.
+  const isControlled = runProp !== undefined;
+  const run = isControlled ? runProp : autoRun;
 
   function handleCallback(data: CallBackProps) {
     const { status } = data;
     if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
-      localStorage.setItem(storageKey, 'true');
-      setRun(false);
+      markAtlasTourSeen();
+      if (isControlled) {
+        onClose?.();
+      } else {
+        setAutoRun(false);
+      }
     }
   }
 
