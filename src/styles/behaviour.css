@@ -142,8 +142,14 @@
 
 .verdict-card__note {
   font-size: var(--text-sm);
-  color: var(--text-secondary);
+  color: var(--text-body);
   line-height: var(--leading-normal);
+}
+
+/* Confidence footnote — intentionally less prominent than the reason */
+.verdict-card__confidence {
+  font-size: 11px;
+  color: var(--text-secondary);
 }
 
 /* ─── Domain influence compact row ──────────────────────────────── */
