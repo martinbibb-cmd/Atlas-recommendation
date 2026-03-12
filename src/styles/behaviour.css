@@ -239,6 +239,19 @@
   padding-bottom: var(--space-2);
 }
 
+/* Metadata row inside limiter cards */
+.lp-card__meta {
+  margin-bottom: var(--space-3);
+}
+
+.lp-card__confidence {
+  text-transform: capitalize;
+}
+
+.lp-card__note-icon {
+  cursor: help;
+}
+
 /* Limiter card */
 .lp-card {
   border-radius: var(--radius-lg);

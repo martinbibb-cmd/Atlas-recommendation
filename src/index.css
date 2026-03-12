@@ -4,6 +4,8 @@
 @import './styles/panels.css';
 /* Behaviour Console page layout */
 @import './styles/behaviour.css';
+/* Atlas typography utility classes */
+@import './styles/atlasTypography.css';
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -12,4 +14,12 @@
 body {
   margin: 0;
   min-height: 100vh;
+  background: var(--surface-page, #F6F8FB);
+  color: var(--text-primary, #1C2430);
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+}
+
+.panel-title {
+  font-weight: var(--weight-semibold, 600);
+  margin-bottom: 12px;
 }

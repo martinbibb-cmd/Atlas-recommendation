@@ -87,7 +87,7 @@ export default function BehaviourConsolePage({ output, onBack }: Props) {
       {limiters ? (
         <ConstraintsGrid limiters={limiters} />
       ) : (
-        <div className="bcp-placeholder" style={{ textAlign: 'left' }}>
+        <div className="bcp-placeholder">
           No limiter data available.
         </div>
       )}

@@ -1,0 +1,41 @@
+/**
+ * atlasTypography.css
+ *
+ * Utility typography classes for Atlas UI.
+ *
+ * .atlas-heading  — section / panel headings
+ * .atlas-body     — standard body copy
+ * .atlas-mono     — monospace readouts: kW, L/min, bar, °C
+ *
+ * Import order: must come after tokens.css so that the custom-property
+ * references resolve correctly.
+ */
+
+.atlas-heading {
+  font-weight: var(--weight-semibold, 600);
+  letter-spacing: 0.02em;
+  color: var(--text-primary, #1c2430);
+}
+
+.atlas-body {
+  font-size: var(--text-md, 14px);
+  line-height: var(--leading-normal, 1.5);
+  color: var(--text-body, #2d3748);
+}
+
+/**
+ * Use .atlas-mono for any engineering-grade numeric readout:
+ *   kW, L/min, bar, °C
+ *
+ * Monospace ensures columns of values never cause layout jitter.
+ * Also aliased as .atlas-num in panels.css for backward compatibility.
+ *
+ * Note: JetBrains Mono may be loaded by the host application; if it is not
+ * present the browser falls back to --font-mono which is a curated system
+ * monospace stack (SFMono, Cascadia Mono, Fira Code, Consolas, etc.).
+ */
+.atlas-mono {
+  font-family: "JetBrains Mono", var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: inherit;
+}

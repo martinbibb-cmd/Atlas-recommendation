@@ -75,9 +75,9 @@ function LimiterCard({ limiter }: { limiter: LimiterV1 }) {
       )}
 
       {/* Confidence + sources */}
-      <div className="atlas-meta" style={{ marginBottom: 12 }}>
+      <div className="atlas-meta lp-card__meta">
         <span>{CONFIDENCE_ICONS[limiter.confidence] ?? '⚪'}</span>
-        <span style={{ textTransform: 'capitalize' }}>{limiter.confidence} confidence</span>
+        <span className="lp-card__confidence">{limiter.confidence} confidence</span>
         {limiter.sources.length > 0 && (
           <>
             <span>·</span>
@@ -87,7 +87,7 @@ function LimiterCard({ limiter }: { limiter: LimiterV1 }) {
               ).join(', ')}
             </span>
             {limiter.sources[0]?.note && (
-              <span title={limiter.sources[0].note} style={{ cursor: 'help' }}>ℹ</span>
+              <span title={limiter.sources[0].note} className="lp-card__note-icon">ℹ</span>
             )}
           </>
         )}
