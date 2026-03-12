@@ -6,8 +6,18 @@
  *             a one-line behavioural note.
  * Right side: one tall cylinder / hot-water source status card.
  *
- * All values are regime-aware placeholders that illustrate the physics
- * differences between combi, boiler cylinder, and heat pump cylinder systems.
+ * Controls:
+ *   - Regime selector buttons (Combi / Boiler cylinder / Heat pump cylinder /
+ *     Mixergy cylinder) — changes the entire draw-off and cylinder dataset.
+ *   - Appliance output slider (combi only) — directly changes the available
+ *     hot supply flow, making the outlet cards and water performance gauges
+ *     update immediately as the slider moves.
+ *
+ * Bottom section: WaterPerformanceGauge — instrument-style flow and dynamic
+ * pressure readings derived from the current regime and output settings.
+ *
+ * All regime data values illustrate physics differences between system types.
+ * No engine model is re-derived here — values are scaled display models only.
  *
  * Placement: System Lab → Visual tab.
  */
@@ -15,6 +25,13 @@
 import { useState } from 'react'
 import DrawOffCard from './DrawOffCard'
 import CylinderStatusCard from './CylinderStatusCard'
+import WaterPerformanceGauge from '../behaviour/WaterPerformanceGauge'
+import {
+  FLOW_MARKERS,
+  PRESSURE_MARKERS,
+  flowTone,
+  pressureTone,
+} from '../behaviour/waterPerformance.model'
 import type { DrawOffViewModel, CylinderStatusViewModel } from './drawOffTypes'
 
 // ─── Regime selector ──────────────────────────────────────────────────────────
@@ -28,10 +45,29 @@ const REGIME_LABELS: Record<Regime, string> = {
   mixergy_cylinder:   'Mixergy cylinder',
 }
 
+// ─── Appliance output defaults / bounds ───────────────────────────────────────
+
+/** Default combi boiler output in kW — the nominal 24 kW standard output. */
+const DEFAULT_BOILER_OUTPUT_KW = 24
+const MIN_BOILER_OUTPUT_KW     = 18
+const MAX_BOILER_OUTPUT_KW     = 42
+
+/**
+ * Scale combi hot-supply flow proportionally to the current appliance output
+ * relative to the 24 kW baseline.  Caps at the mains flow rate.
+ */
+function scaleCombiFlow(baseFlowLpm: number, outputKw: number): number {
+  const scale = outputKw / DEFAULT_BOILER_OUTPUT_KW
+  return Math.round(Math.min(baseFlowLpm * scale, 12) * 10) / 10
+}
+
 // ─── Regime-aware data ────────────────────────────────────────────────────────
 
-function getDrawOffData(regime: Regime): DrawOffViewModel[] {
+function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
   if (regime === 'combi') {
+    const hotFlow = scaleCombiFlow(10, outputKw)
+    const concurrentHotFlow = scaleCombiFlow(4, outputKw)
+    const hotTemp = 45 + Math.round((outputKw - DEFAULT_BOILER_OUTPUT_KW) * 0.15)
     return [
       {
         id: 'kitchen',
@@ -40,10 +76,10 @@ function getDrawOffData(regime: Regime): DrawOffViewModel[] {
         status: 'stable',
         coldSupplyTempC: 10,
         coldSupplyFlowLpm: 12,
-        hotSupplyTempC: 48,
-        hotSupplyAvailableFlowLpm: 10,
+        hotSupplyTempC: hotTemp + 3,
+        hotSupplyAvailableFlowLpm: hotFlow,
         deliveredTempC: 42,
-        deliveredFlowLpm: 8,
+        deliveredFlowLpm: Math.min(8, hotFlow * 0.8),
         note: 'On-demand supply stable at low draw rate. Temperature delivered within seconds.',
       },
       {
@@ -53,24 +89,26 @@ function getDrawOffData(regime: Regime): DrawOffViewModel[] {
         status: 'stable',
         coldSupplyTempC: 10,
         coldSupplyFlowLpm: 12,
-        hotSupplyTempC: 47,
-        hotSupplyAvailableFlowLpm: 10,
+        hotSupplyTempC: hotTemp + 2,
+        hotSupplyAvailableFlowLpm: hotFlow,
         deliveredTempC: 40,
-        deliveredFlowLpm: 6,
+        deliveredFlowLpm: Math.min(6, hotFlow * 0.6),
         note: 'Low-flow draw; appliance not yet approaching throughput limit.',
       },
       {
         id: 'shower',
         label: 'Shower',
         icon: '🚿',
-        status: 'flow_limited',
+        status: hotFlow >= 10 ? 'stable' : 'flow_limited',
         coldSupplyTempC: 10,
         coldSupplyFlowLpm: 12,
-        hotSupplyTempC: 45,
-        hotSupplyAvailableFlowLpm: 10,
+        hotSupplyTempC: hotTemp,
+        hotSupplyAvailableFlowLpm: hotFlow,
         deliveredTempC: 38,
-        deliveredFlowLpm: 10,
-        note: 'Flow capped at appliance throughput limit. Temperature held by adjusting blend ratio.',
+        deliveredFlowLpm: Math.min(10, hotFlow),
+        note: hotFlow >= 10
+          ? 'Flow within appliance throughput. Temperature held by adjusting blend ratio.'
+          : 'Flow capped at appliance throughput limit. Temperature held by adjusting blend ratio.',
       },
       {
         id: 'bath',
@@ -79,10 +117,10 @@ function getDrawOffData(regime: Regime): DrawOffViewModel[] {
         status: 'starved',
         coldSupplyTempC: 10,
         coldSupplyFlowLpm: 12,
-        hotSupplyTempC: 38,
-        hotSupplyAvailableFlowLpm: 4,
+        hotSupplyTempC: hotTemp - 7,
+        hotSupplyAvailableFlowLpm: concurrentHotFlow,
         deliveredTempC: 32,
-        deliveredFlowLpm: 6,
+        deliveredFlowLpm: Math.min(6, concurrentHotFlow + 2),
         note: 'Concurrent demand has exhausted appliance capacity. Delivered temperature and flow both degraded.',
       },
     ]
@@ -319,13 +357,47 @@ function getCylinderData(regime: Regime): CylinderStatusViewModel {
   }
 }
 
+// ─── Water performance derivation ─────────────────────────────────────────────
+
+interface WaterPerformance {
+  peakFlowLpm: number
+  dynamicPressureBar: number
+}
+
+/**
+ * Derives water performance values (peak flow + dynamic pressure) from the
+ * current regime and outlets.  Combi flow scales directly with appliance
+ * output; stored systems use mains-pressure values.
+ */
+function getWaterPerformance(
+  regime: Regime,
+  outlets: DrawOffViewModel[],
+): WaterPerformance {
+  // Peak delivered flow across all active outlets
+  const peakFlowLpm = outlets.reduce((max, o) => Math.max(max, o.deliveredFlowLpm), 0)
+
+  if (regime === 'combi') {
+    // Dynamic pressure for combi: mains-fed with modest friction loss
+    return { peakFlowLpm, dynamicPressureBar: 1.1 }
+  }
+  if (regime === 'heat_pump_cylinder') {
+    // HP cylinder: mains-fed but larger volume demand
+    return { peakFlowLpm, dynamicPressureBar: 2.3 }
+  }
+  // boiler_cylinder and mixergy_cylinder: high-pressure mains-fed store
+  return { peakFlowLpm, dynamicPressureBar: 2.5 }
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function DrawOffWorkbench() {
   const [regime, setRegime] = useState<Regime>('boiler_cylinder')
+  const [boilerOutputKw, setBoilerOutputKw] = useState<number>(DEFAULT_BOILER_OUTPUT_KW)
 
-  const outlets   = getDrawOffData(regime)
-  const cylinder  = getCylinderData(regime)
+  const isCombi  = regime === 'combi'
+  const outlets  = getDrawOffData(regime, boilerOutputKw)
+  const cylinder = getCylinderData(regime)
+  const water    = getWaterPerformance(regime, outlets)
 
   return (
     <div className="draw-off-workbench" data-testid="draw-off-workbench">
@@ -345,6 +417,27 @@ export default function DrawOffWorkbench() {
         ))}
       </div>
 
+      {/* ── Appliance output slider (combi only) ────────────────────────────── */}
+      {isCombi && (
+        <div className="workbench-output-row" aria-label="Appliance output controls">
+          <span className="workbench-output-row__label">Appliance output</span>
+          <input
+            type="range"
+            className="workbench-output-row__slider"
+            min={MIN_BOILER_OUTPUT_KW}
+            max={MAX_BOILER_OUTPUT_KW}
+            step={1}
+            value={boilerOutputKw}
+            onChange={e => setBoilerOutputKw(Number(e.target.value))}
+            aria-label="Appliance output (kW)"
+            aria-valuenow={boilerOutputKw}
+            aria-valuemin={MIN_BOILER_OUTPUT_KW}
+            aria-valuemax={MAX_BOILER_OUTPUT_KW}
+          />
+          <span className="workbench-output-row__value">{boilerOutputKw} kW</span>
+        </div>
+      )}
+
       {/* ── Main panel: outlets + cylinder ─────────────────────────────────── */}
       <div className="draw-off-workbench__panel">
 
@@ -361,6 +454,32 @@ export default function DrawOffWorkbench() {
         </div>
 
       </div>
+
+      {/* ── Water performance ───────────────────────────────────────────────── */}
+      <div className="water-performance-card" aria-label="Water performance">
+        <div className="panel-title">Water performance</div>
+        <div className="water-performance-card__grid">
+          <WaterPerformanceGauge
+            label="Flow"
+            value={water.peakFlowLpm}
+            min={0}
+            max={25}
+            unit="L/min"
+            markers={FLOW_MARKERS}
+            tone={flowTone(water.peakFlowLpm)}
+          />
+          <WaterPerformanceGauge
+            label="Dynamic pressure"
+            value={water.dynamicPressureBar}
+            min={0}
+            max={3}
+            unit="bar"
+            markers={PRESSURE_MARKERS}
+            tone={pressureTone(water.dynamicPressureBar)}
+          />
+        </div>
+      </div>
+
     </div>
   )
 }
