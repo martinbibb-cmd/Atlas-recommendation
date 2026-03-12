@@ -1,10 +1,41 @@
 import ScenarioChip from './ScenarioChip';
 import type { ScenarioState } from '../../scenario/scenarioEngineAdapter';
+import { DEFAULT_SCENARIO_STATE } from '../../scenario/scenarioEngineAdapter';
 import './scenarioControls.css';
 
 interface Props {
   scenario: ScenarioState;
   onChange: (next: ScenarioState) => void;
+}
+
+/** Build a human-readable "Scenario basis" line from the active scenario state. */
+function buildScenarioBasis(scenario: ScenarioState): string {
+  const parts: string[] = [];
+
+  const drawOffCount =
+    scenario.extraShowers +
+    (scenario.bathRunning ? 1 : 0) +
+    (scenario.kitchenTap ? 1 : 0) +
+    (scenario.utilityTap ? 1 : 0);
+
+  if (drawOffCount > 0) {
+    parts.push(
+      drawOffCount === 1
+        ? '1 added draw-off event'
+        : `${drawOffCount} added draw-off events`,
+    );
+  }
+
+  if (scenario.heatingDemand) {
+    parts.push('heating demand');
+  }
+
+  if (typeof scenario.boilerOutputOverrideKw === 'number') {
+    parts.push(`reduced boiler output (${scenario.boilerOutputOverrideKw} kW)`);
+  }
+
+  if (parts.length === 0) return 'Base survey';
+  return `Base survey + ${parts.join(' + ')}`;
 }
 
 export default function ScenarioControls({ scenario, onChange }: Props) {
@@ -111,9 +142,21 @@ export default function ScenarioControls({ scenario, onChange }: Props) {
                 onRemove={chip.onRemove}
               />
             ))}
+            <button
+              type="button"
+              className="scenario-controls__clear-all"
+              onClick={() => onChange(DEFAULT_SCENARIO_STATE)}
+              aria-label="Clear all scenarios"
+            >
+              Clear all
+            </button>
           </div>
         </div>
       )}
+
+      <div className="scenario-controls__basis">
+        {buildScenarioBasis(scenario)}
+      </div>
     </div>
   );
 }

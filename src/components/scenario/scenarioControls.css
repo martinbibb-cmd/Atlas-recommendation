@@ -70,3 +70,25 @@
   font-size: 0.9rem;
   line-height: 1;
 }
+
+.scenario-controls__clear-all {
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.scenario-controls__clear-all:hover {
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.scenario-controls__basis {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #64748b);
+  font-style: italic;
+}

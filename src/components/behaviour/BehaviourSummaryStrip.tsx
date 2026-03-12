@@ -16,14 +16,16 @@ import VerdictCard from './VerdictCard';
 interface Props {
   limiters?: LimitersV1;
   verdict?: VerdictV1;
+  /** Verdict from the unmodified base survey — used to render delta text. */
+  baseVerdict?: VerdictV1;
 }
 
-export default function BehaviourSummaryStrip({ limiters, verdict }: Props) {
+export default function BehaviourSummaryStrip({ limiters, verdict, baseVerdict }: Props) {
   return (
     <div className="behaviour-console__summary-strip">
       <OperatingPointCard limiters={limiters} />
       <ActiveLimitersCard limiters={limiters} />
-      <VerdictCard verdict={verdict} />
+      <VerdictCard verdict={verdict} baseVerdict={baseVerdict} />
     </div>
   );
 }

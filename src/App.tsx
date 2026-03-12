@@ -78,6 +78,7 @@ export default function App() {
 
   const consoleInput = useMemo(() => applyScenarioToEngineInput(CONSOLE_DEMO_INPUT, scenario), [scenario]);
   const consoleEngineOutput = useMemo(() => runEngine(consoleInput).engineOutput, [consoleInput]);
+  const baseEngineOutput = useMemo(() => runEngine(CONSOLE_DEMO_INPUT).engineOutput, []);
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
@@ -89,6 +90,7 @@ export default function App() {
     return (
       <BehaviourConsolePage
         output={consoleEngineOutput}
+        baseOutput={baseEngineOutput}
         scenario={scenario}
         onScenarioChange={setScenario}
         onBack={() => {
