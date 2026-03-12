@@ -208,7 +208,7 @@ function buildBehaviourSummarySection(output: EngineOutputV1): BehaviourSummaryS
     applianceName: output.behaviourTimeline.labels.applianceName,
     totalPoints: pts.length,
     peakDhwKw: peakDhwKw > 0 ? peakDhwKw : null,
-    assumptionsUsed: output.behaviourTimeline.assumptionsUsed,
+    assumptionsUsed: output.behaviourTimeline.assumptionsUsed.map(a => a.label),
   };
 }
 
@@ -220,11 +220,11 @@ function buildKeyLimitersSection(output: EngineOutputV1): KeyLimitersSection | n
     limiters: output.limiters.limiters.map(l => ({
       id: l.id,
       title: l.title,
-      detail: l.detail,
+      detail: l.impact.summary,
       severity: l.severity,
-      observed: l.observed,
-      limit: l.limit,
-      suggestedFix: l.suggestedFix,
+      observed: `${l.observed.value} ${l.observed.unit}`,
+      limit: `${l.limit.value} ${l.limit.unit}`,
+      suggestedFix: l.suggestedFixes.length > 0 ? l.suggestedFixes[0].label : undefined,
     })),
   };
 }
