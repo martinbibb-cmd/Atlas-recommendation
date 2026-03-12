@@ -58,7 +58,7 @@ interface TooltipPayloadProps {
   hoverIndex: number | null;
 }
 
-function SharedTooltip({ active, isAshp, allData, hoverIndex }: TooltipPayloadProps) {
+function SharedTooltip({ active, allData, hoverIndex }: TooltipPayloadProps) {
   if (!active || hoverIndex === null) return null;
   const pt = allData[hoverIndex];
   if (!pt) return null;
