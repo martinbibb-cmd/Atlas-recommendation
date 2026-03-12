@@ -149,7 +149,7 @@ export default function BehaviourConsolePage({ output, onBack }: Props) {
               </div>
               <div className="water-performance-card__grid">
                 <WaterPerformanceGauge
-                  label="Flow"
+                  label="Estimated flow"
                   value={dhwPeakFlowLpm}
                   min={0}
                   max={25}
@@ -158,7 +158,7 @@ export default function BehaviourConsolePage({ output, onBack }: Props) {
                   tone={flowTone(dhwPeakFlowLpm)}
                 />
                 <WaterPerformanceGauge
-                  label="Dynamic pressure"
+                  label="Assumed pressure"
                   value={dhwPressureBar}
                   min={0}
                   max={3}

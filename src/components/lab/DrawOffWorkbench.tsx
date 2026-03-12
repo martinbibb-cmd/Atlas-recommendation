@@ -460,7 +460,7 @@ export default function DrawOffWorkbench() {
         <div className="panel-title">Water performance</div>
         <div className="water-performance-card__grid">
           <WaterPerformanceGauge
-            label="Flow"
+            label="Estimated flow"
             value={water.peakFlowLpm}
             min={0}
             max={25}
@@ -469,7 +469,7 @@ export default function DrawOffWorkbench() {
             tone={flowTone(water.peakFlowLpm)}
           />
           <WaterPerformanceGauge
-            label="Dynamic pressure"
+            label="Assumed pressure"
             value={water.dynamicPressureBar}
             min={0}
             max={3}
