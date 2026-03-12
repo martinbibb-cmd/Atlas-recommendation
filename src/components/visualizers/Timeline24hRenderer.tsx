@@ -7,7 +7,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
@@ -370,8 +369,8 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
         </div>
       )}
 
-      {/* Row 1: Space Heat Demand (+ optional indoor temp) */}
-      <div style={subLabel}>Space Heat Demand (kW){heatDemandClipped && <span style={clippedLabelStyle} title={CLIPPED_TOOLTIP}>⚠︎ Clipped (max {Math.round(maxDemandHeatKw)} kW)</span>}</div>
+      {/* Row 1: Heat demand (+ optional indoor temp) */}
+      <div style={subLabel}>Heat (kW){heatDemandClipped && <span style={clippedLabelStyle} title={CLIPPED_TOOLTIP}>⚠︎ Clipped (max {Math.round(maxDemandHeatKw)} kW)</span>}</div>
       <ResponsiveContainer width="100%" height={160}>
         <ComposedChart key={`${chartKey}_demand`} data={data} margin={chartMargin} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -392,7 +391,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
             stroke={DEMAND_COLOUR}
             strokeWidth={1.5}
             dot={false}
-            name="Space heat demand"
+            name="Heat demand"
           />
           {/* Target temperature step line — derived from heating schedule bands.
               Proof-of-wiring: if this line doesn't change when bands are edited,
@@ -457,8 +456,8 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* Row 2: DHW Events — hot-water draw bar track */}
-      <div style={subLabel}>DHW Events — Hot-water Draw (kW)</div>
+      {/* Row 2: DHW events — hot-water draw bar track */}
+      <div style={subLabel}>DHW (kW)</div>
       <ResponsiveContainer width="100%" height={110}>
         <ComposedChart key={`${chartKey}_dhwbar`} data={data} margin={chartMargin} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -491,12 +490,11 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
               isAnimationActive={false}
             />
           )}
-          <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* Row 3: Heat Source Output */}
-      <div style={subLabel}>Heat Source Output (kW){heatOutputClipped && <span style={clippedLabelStyle} title={CLIPPED_TOOLTIP}>⚠︎ Clipped (max {Math.round(maxOutputKw)} kW)</span>}</div>
+      {/* Row 3: Output */}
+      <div style={subLabel}>Output (kW){heatOutputClipped && <span style={clippedLabelStyle} title={CLIPPED_TOOLTIP}>⚠︎ Clipped (max {Math.round(maxOutputKw)} kW)</span>}</div>
       <ResponsiveContainer width="100%" height={160}>
         <ComposedChart key={`${chartKey}_output`} data={data} margin={chartMargin} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -506,14 +504,6 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
             contentStyle={{ fontSize: '0.78rem', borderRadius: '6px' }}
             formatter={(v: number | undefined) => [v !== undefined ? `${v.toFixed(2)} kW` : ''] as [string]}
           />
-          <Legend
-            wrapperStyle={{ fontSize: '0.78rem' }}
-            formatter={(value: string) => {
-              if (seriesA && value === `${seriesA.id}_heatKw`) return `A: ${seriesA.label}`;
-              if (seriesB && value === `${seriesB.id}_heatKw`) return `B: ${seriesB.label}`;
-              return value;
-            }}
-          />
           {bandShading}
           {seriesA && (
             <Line
@@ -522,6 +512,7 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
               stroke={colourA}
               strokeWidth={2.5}
               dot={false}
+              name={`A: ${seriesA.label}`}
             />
           )}
           {seriesB && (
@@ -531,13 +522,14 @@ export default function Timeline24hRenderer({ payload, compareAId, compareBId, o
               stroke={colourB}
               strokeWidth={2.5}
               dot={false}
+              name={`B: ${seriesB.label}`}
             />
           )}
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* Row 4: Performance (η / COP) */}
-      <div style={subLabel}>Performance ({perfLabel})</div>
+      {/* Row 4: Efficiency / COP */}
+      <div style={subLabel}>{perfLabel}</div>
       <ResponsiveContainer width="100%" height={130}>
         <ComposedChart
           key={`${chartKey}_perf`}
