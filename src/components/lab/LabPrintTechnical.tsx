@@ -6,6 +6,7 @@ import {
   COMPARISON_HEADINGS,
   CANDIDATE_SYSTEMS,
 } from './labSharedData';
+import type { LabPrintData } from './labSharedData';
 import './lab-print.css';
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -13,6 +14,11 @@ import './lab-print.css';
 interface Props {
   /** Called when the user clicks the back button on screen. Defaults to window.close(). */
   onBack?: () => void;
+  /**
+   * Live data from the Full Survey engine result.  When provided, replaces the
+   * placeholder constants so the print surface reflects the real survey output.
+   */
+  data?: LabPrintData;
 }
 
 /**
@@ -25,7 +31,13 @@ interface Props {
  *
  * Interactive chrome is hidden via @media print.
  */
-export default function LabPrintTechnical({ onBack }: Props) {
+export default function LabPrintTechnical({ onBack, data }: Props) {
+  const confidence    = data?.confidence      ?? PLACEHOLDER_CONFIDENCE;
+  const currentSystem = data?.currentSystem   ?? PLACEHOLDER_CURRENT_SYSTEM;
+  const verdict       = data?.verdict         ?? PLACEHOLDER_VERDICT;
+  const strip         = data?.confidenceStrip ?? PLACEHOLDER_CONFIDENCE_STRIP;
+  const candidates    = data?.candidates      ?? CANDIDATE_SYSTEMS;
+
   function handleBack() {
     if (onBack) {
       onBack();
@@ -54,8 +66,8 @@ export default function LabPrintTechnical({ onBack }: Props) {
           <p className="lp-doc-header__sub">System Lab — engineer / internal reference</p>
         </div>
         <div className="lp-doc-header__meta">
-          <div>Confidence: {PLACEHOLDER_CONFIDENCE}</div>
-          <div>Current system: {PLACEHOLDER_CURRENT_SYSTEM}</div>
+          <div>Confidence: {confidence}</div>
+          <div>Current system: {currentSystem}</div>
         </div>
       </header>
 
@@ -65,7 +77,7 @@ export default function LabPrintTechnical({ onBack }: Props) {
         <dl className="lp-dl">
           <div className="lp-dl-row">
             <dt className="lp-dt">System type</dt>
-            <dd className="lp-dd">{PLACEHOLDER_CURRENT_SYSTEM}</dd>
+            <dd className="lp-dd">{currentSystem}</dd>
           </div>
           <div className="lp-dl-row">
             <dt className="lp-dt">Status</dt>
@@ -77,7 +89,7 @@ export default function LabPrintTechnical({ onBack }: Props) {
       {/* ── Candidate systems ──────────────────────────────────────────────── */}
       <section className="lp-section" aria-labelledby="lp-tech-candidates">
         <h2 className="lp-section__title" id="lp-tech-candidates">Candidate systems</h2>
-        {CANDIDATE_SYSTEMS.map(system => (
+        {candidates.map(system => (
           <div key={system.id} className="lp-candidate-block">
             <h3 className="lp-candidate-heading">{system.label}</h3>
             <dl className="lp-dl">
@@ -96,24 +108,24 @@ export default function LabPrintTechnical({ onBack }: Props) {
       <section className="lp-section lp-page-break-before" aria-labelledby="lp-tech-confidence">
         <h2 className="lp-section__title" id="lp-tech-confidence">Confidence drivers</h2>
 
-        <span className="lp-confidence-badge">Overall: {PLACEHOLDER_CONFIDENCE}</span>
+        <span className="lp-confidence-badge">Overall: {confidence}</span>
 
-        {PLACEHOLDER_CONFIDENCE_STRIP.measured.length > 0 && (
+        {strip.measured.length > 0 && (
           <div className="lp-group">
             <div className="lp-group-label lp-group-label--measured">Measured</div>
             <ul className="lp-list" aria-label="Measured inputs">
-              {PLACEHOLDER_CONFIDENCE_STRIP.measured.map(item => (
+              {strip.measured.map(item => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
           </div>
         )}
 
-        {PLACEHOLDER_CONFIDENCE_STRIP.inferred.length > 0 && (
+        {strip.inferred.length > 0 && (
           <div className="lp-group">
             <div className="lp-group-label lp-group-label--inferred">Inferred / assumed</div>
             <ul className="lp-list" aria-label="Inferred inputs">
-              {PLACEHOLDER_CONFIDENCE_STRIP.inferred.map(item => (
+              {strip.inferred.map(item => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
@@ -124,7 +136,7 @@ export default function LabPrintTechnical({ onBack }: Props) {
       {/* ── Technical constraints ──────────────────────────────────────────── */}
       <section className="lp-section" aria-labelledby="lp-tech-constraints">
         <h2 className="lp-section__title" id="lp-tech-constraints">Technical constraints and required changes</h2>
-        {CANDIDATE_SYSTEMS.map(system => (
+        {candidates.map(system => (
           <div key={system.id} className="lp-candidate-block">
             <div className="lp-candidate-block__name">{system.label}</div>
             <div className="lp-explanation-block lp-explanation-block--changes">
@@ -140,22 +152,22 @@ export default function LabPrintTechnical({ onBack }: Props) {
         <h2 className="lp-section__title" id="lp-tech-verdict">Recommendation</h2>
         <div className="lp-verdict" role="status" aria-label="Headline recommendation">
           <div className="lp-verdict__label">Best overall fit</div>
-          <p className="lp-verdict__value">{PLACEHOLDER_VERDICT.system}</p>
-          <p className="lp-verdict__note">{PLACEHOLDER_VERDICT.note}</p>
+          <p className="lp-verdict__value">{verdict.system}</p>
+          <p className="lp-verdict__note">{verdict.note}</p>
         </div>
       </section>
 
       {/* ── Items requiring confirmation ───────────────────────────────────── */}
-      {PLACEHOLDER_CONFIDENCE_STRIP.missing.length > 0 && (
+      {strip.missing.length > 0 && (
         <section className="lp-section" aria-labelledby="lp-tech-missing">
           <h2 className="lp-section__title" id="lp-tech-missing">Items requiring confirmation</h2>
           <ul className="lp-list" aria-label="Missing inputs">
-            {PLACEHOLDER_CONFIDENCE_STRIP.missing.map(item => (
+            {strip.missing.map(item => (
               <li key={item}>{item}</li>
             ))}
           </ul>
-          {PLACEHOLDER_CONFIDENCE_STRIP.nextStep && (
-            <p className="lp-next-step-note">{PLACEHOLDER_CONFIDENCE_STRIP.nextStep}</p>
+          {strip.nextStep && (
+            <p className="lp-next-step-note">{strip.nextStep}</p>
           )}
         </section>
       )}

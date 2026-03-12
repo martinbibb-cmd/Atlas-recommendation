@@ -798,3 +798,56 @@
     text-align: center;
   }
 }
+
+/* ── Print actions ───────────────────────────────────────────────────────── */
+
+.live-hub__print-actions {
+  padding: 8px 16px 24px;
+}
+
+.live-hub__print-actions-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.live-hub__print-actions-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.live-hub__print-btn {
+  padding: 8px 16px;
+  background: #fff;
+  color: #2d3748;
+  border: 1.5px solid #cbd5e0;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.live-hub__print-btn:hover {
+  background: #edf2f7;
+  border-color: #a0aec0;
+}
+
+.live-hub__print-btn:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 600px) {
+  .live-hub__print-actions-buttons {
+    flex-direction: column;
+  }
+
+  .live-hub__print-btn {
+    width: 100%;
+    text-align: center;
+  }
+}

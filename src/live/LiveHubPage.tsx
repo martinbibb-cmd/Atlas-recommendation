@@ -11,6 +11,8 @@
  *
  * PR16: Added "Launch Simulator" CTA that opens the simulator pre-configured
  *       from the completed full survey, skipping the setup stepper.
+ * PR17: Added print actions (Customer, Technical, Comparison) that reuse the
+ *       existing lab print surfaces, fed from the current survey result.
  */
 import { useState } from 'react';
 import type { FullEngineResult } from '../engine/schema/EngineInputV2_3';
@@ -19,6 +21,10 @@ import LiveSectionPage from './LiveSectionPage';
 import VerdictStrip from '../components/live/VerdictStrip';
 import HubPage from '../components/hub/HubPage';
 import ExplainersHubPage from '../explainers/ExplainersHubPage';
+import LabPrintCustomer from '../components/lab/LabPrintCustomer';
+import LabPrintTechnical from '../components/lab/LabPrintTechnical';
+import LabPrintComparison from '../components/lab/LabPrintComparison';
+import { buildPrintData } from './buildPrintData';
 import './LiveHubPage.css';
 
 export type LiveSection =
@@ -31,6 +37,8 @@ export type LiveSection =
   | 'glassbox'
   | 'hub'
   | 'simulator';
+
+type PrintView = 'customer' | 'technical' | 'comparison';
 
 interface Props {
   result: FullEngineResult;
@@ -171,8 +179,30 @@ function RecommendationChip({ primary }: { primary: string }) {
 
 export default function LiveHubPage({ result, input, onBack }: Props) {
   const [activeSection, setActiveSection] = useState<LiveSection | null>(null);
+  const [printView, setPrintView] = useState<PrintView | null>(null);
 
   const { engineOutput } = result;
+
+  // ── Print overlay ─────────────────────────────────────────────────────────
+  // When a print view is active render the corresponding lab print surface
+  // full-screen.  The print component's onBack callback dismisses the overlay.
+  if (printView !== null) {
+    const printData = buildPrintData(result, input);
+    const closePrint = () => setPrintView(null);
+    if (printView === 'customer') {
+      return <LabPrintCustomer data={printData} onBack={closePrint} />;
+    }
+    if (printView === 'technical') {
+      return <LabPrintTechnical data={printData} onBack={closePrint} />;
+    }
+    if (printView === 'comparison') {
+      return <LabPrintComparison data={printData} onBack={closePrint} />;
+    }
+  }
+
+  // Comparison print is only offered when the engine returned ≥ 2 options so
+  // the table always has meaningful content.
+  const hasComparisonData = (engineOutput.options?.length ?? 0) >= 2;
 
   if (activeSection === 'hub') {
     return (
@@ -269,6 +299,36 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
           >
             Open Simulator →
           </button>
+        </div>
+      </div>
+
+      {/* ── Print actions ─────────────────────────────────────────────── */}
+      <div className="live-hub__print-actions">
+        <div className="live-hub__print-actions-label">🖨 Print report</div>
+        <div className="live-hub__print-actions-buttons">
+          <button
+            className="live-hub__print-btn"
+            onClick={() => setPrintView('customer')}
+            aria-label="Print customer summary"
+          >
+            Customer Summary
+          </button>
+          <button
+            className="live-hub__print-btn"
+            onClick={() => setPrintView('technical')}
+            aria-label="Print technical specification"
+          >
+            Technical Spec
+          </button>
+          {hasComparisonData && (
+            <button
+              className="live-hub__print-btn"
+              onClick={() => setPrintView('comparison')}
+              aria-label="Print comparison sheet"
+            >
+              Comparison Sheet
+            </button>
+          )}
         </div>
       </div>
     </div>

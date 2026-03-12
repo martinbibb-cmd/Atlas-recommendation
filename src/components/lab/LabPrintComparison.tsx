@@ -5,6 +5,7 @@ import {
   CANDIDATE_SYSTEMS,
   CURRENT_SYSTEM,
 } from './labSharedData';
+import type { LabPrintData } from './labSharedData';
 import './lab-print.css';
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -12,6 +13,11 @@ import './lab-print.css';
 interface Props {
   /** Called when the user clicks the back button on screen. Defaults to window.close(). */
   onBack?: () => void;
+  /**
+   * Live data from the Full Survey engine result.  When provided, replaces the
+   * placeholder constants so the print surface reflects the real survey output.
+   */
+  data?: LabPrintData;
 }
 
 /**
@@ -24,9 +30,14 @@ interface Props {
  *
  * Interactive chrome is hidden via @media print.
  */
-export default function LabPrintComparison({ onBack }: Props) {
-  // All columns: current system + both candidates
-  const columns = [CURRENT_SYSTEM, ...CANDIDATE_SYSTEMS];
+export default function LabPrintComparison({ onBack, data }: Props) {
+  const confidence    = data?.confidence              ?? PLACEHOLDER_CONFIDENCE;
+  const currentSystem = data?.currentSystem           ?? PLACEHOLDER_CURRENT_SYSTEM;
+  const currentCol    = data?.currentSystemForComparison ?? CURRENT_SYSTEM;
+  const candidates    = data?.candidates              ?? CANDIDATE_SYSTEMS;
+
+  // All columns: current system + candidates
+  const columns = [currentCol, ...candidates];
 
   function handleBack() {
     if (onBack) {
@@ -56,8 +67,8 @@ export default function LabPrintComparison({ onBack }: Props) {
           <p className="lp-doc-header__sub">System Lab — side-by-side system comparison</p>
         </div>
         <div className="lp-doc-header__meta">
-          <div>Confidence: {PLACEHOLDER_CONFIDENCE}</div>
-          <div>Current system: {PLACEHOLDER_CURRENT_SYSTEM}</div>
+          <div>Confidence: {confidence}</div>
+          <div>Current system: {currentSystem}</div>
         </div>
       </header>
 
@@ -97,7 +108,7 @@ export default function LabPrintComparison({ onBack }: Props) {
           Trade-off summary
         </h2>
         <div className="lp-tradeoff-grid">
-          {CANDIDATE_SYSTEMS.map(system => (
+          {candidates.map(system => (
             <div key={system.id}>
               <div className="lp-candidate-heading">{system.label}</div>
               <div className="lp-explanation-block lp-explanation-block--suits">
