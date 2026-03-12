@@ -197,15 +197,25 @@
 
 .rv-verdict__confidence {
   display: inline-block;
-  font-size: 0.68rem;
+  font-size: 0.84rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 0.12rem 0.45rem;
-  border-radius: 4px;
-  background: #edf2f7;
-  color: #4a5568;
+  color: #2d3748;
+}
+
+.rv-verdict__confidence-block {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
   margin-bottom: 0.4rem;
+}
+
+.rv-verdict__confidence-key {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4a5568;
+  white-space: nowrap;
 }
 
 .rv-verdict__reasons {

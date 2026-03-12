@@ -39,9 +39,24 @@ import './reportPrint.css';
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
-  output: EngineOutputV1;
+  /** Engine output to render. Pass null to show a graceful "no data" state. */
+  output: EngineOutputV1 | null;
   /** Called when the user clicks the back button on screen. Defaults to window.history.back(). */
   onBack?: () => void;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function capitalise(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function formatCurrentDate(): string {
+  return new Date().toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 }
 
 // ─── Section renderers ────────────────────────────────────────────────────────
@@ -202,7 +217,10 @@ function VerdictSection({ section }: { section: VerdictSection }) {
               : 'Does not meet criteria'}
         </div>
         <p className="rv-verdict__title">{section.title}</p>
-        <span className="rv-verdict__confidence">Confidence: {section.confidenceLevel}</span>
+        <div className="rv-verdict__confidence-block">
+          <span className="rv-verdict__confidence-key">Confidence</span>
+          <span className="rv-verdict__confidence">{capitalise(section.confidenceLevel)}</span>
+        </div>
         {section.reasons.length > 0 && (
           <ul className="rv-verdict__reasons" aria-label="Verdict reasons">
             {section.reasons.map((r, i) => <li key={i}>{r}</li>)}
@@ -272,8 +290,6 @@ function RenderSection({ section }: { section: ReportSection }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ReportView({ output, onBack }: Props) {
-  const completeness = checkCompleteness(output);
-
   function handleBack() {
     if (onBack) {
       onBack();
@@ -281,6 +297,36 @@ export default function ReportView({ output, onBack }: Props) {
       window.history.back();
     }
   }
+
+  // Guard: no engine output available (e.g. ?report=1 loaded without demo data).
+  if (output === null) {
+    return (
+      <div className="rv-wrap">
+        <div className="rv-toolbar" aria-hidden="false">
+          <button className="rv-toolbar__back" onClick={handleBack}>← Back</button>
+          <span className="rv-toolbar__label">System Report</span>
+        </div>
+        <div
+          role="alert"
+          style={{
+            padding: '1.25rem',
+            background: '#fff5f5',
+            border: '1px solid #fed7d7',
+            borderRadius: '8px',
+            fontSize: '0.84rem',
+            color: '#742a2a',
+          }}
+        >
+          <strong>No data available</strong>
+          <p style={{ margin: '0.4rem 0 0' }}>
+            No engine output is available. Complete an assessment first to generate a report.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const completeness = checkCompleteness(output);
 
   // If essential data is missing, render a blocked state rather than a broken report.
   if (!completeness.isReportable) {
@@ -319,6 +365,7 @@ export default function ReportView({ output, onBack }: Props) {
   const sections = buildReportSections(output);
   const verdictSection = sections.find(s => s.id === 'verdict') as VerdictSection | undefined;
   const confidenceLevel = verdictSection?.confidenceLevel ?? '—';
+  const generatedDate = formatCurrentDate();
 
   return (
     <div className="rv-wrap">
@@ -336,12 +383,13 @@ export default function ReportView({ output, onBack }: Props) {
       <header className="rv-doc-header">
         <div>
           <div className="rv-doc-header__brand" aria-label="Atlas">ATLAS</div>
-          <h1 className="rv-doc-header__title">System Report</h1>
-          <p className="rv-doc-header__sub">Heating system assessment — technical report</p>
+          <h1 className="rv-doc-header__title">Atlas Heating System Assessment</h1>
+          <p className="rv-doc-header__sub">Generated from system model</p>
         </div>
         <div className="rv-doc-header__meta">
+          <div>Generated: {generatedDate}</div>
+          <div>Model version: EngineOutputV1</div>
           <div>Confidence: {confidenceLevel}</div>
-          <div>Recommendation: {output.recommendation.primary}</div>
         </div>
       </header>
 

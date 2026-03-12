@@ -147,6 +147,9 @@ const KW_PER_LPM_AT_35C_RISE = 2.4;
 /** Conservative fallback dynamic pressure (bar) when the timeline does not provide one. */
 const DEFAULT_DYNAMIC_PRESSURE_BAR = 1.1;
 
+/** Maximum number of limiters shown in the report to prevent cluttered output. */
+const MAX_REPORT_LIMITERS = 8;
+
 // ─── Section builders ─────────────────────────────────────────────────────────
 
 function buildSystemSummarySection(output: EngineOutputV1): SystemSummarySection {
@@ -217,7 +220,7 @@ function buildKeyLimitersSection(output: EngineOutputV1): KeyLimitersSection | n
 
   return {
     id: 'key_limiters',
-    limiters: output.limiters.limiters.map(l => ({
+    limiters: output.limiters.limiters.slice(0, MAX_REPORT_LIMITERS).map(l => ({
       id: l.id,
       title: l.title,
       detail: l.impact.summary,
