@@ -441,7 +441,7 @@ type FocusTarget =
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function DrawOffWorkbench() {
+export default function DrawOffWorkbench({ onOpenReport }: { onOpenReport?: () => void }) {
   const [regime, setRegime] = useState<Regime>('boiler_cylinder')
   const [boilerOutputKw, setBoilerOutputKw] = useState<number>(DEFAULT_BOILER_OUTPUT_KW)
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null)
@@ -481,6 +481,15 @@ export default function DrawOffWorkbench() {
             {REGIME_LABELS[r]}
           </button>
         ))}
+        {onOpenReport && (
+          <button
+            className="draw-off-workbench__report-btn"
+            onClick={onOpenReport}
+            aria-label="View report"
+          >
+            View report
+          </button>
+        )}
       </div>
 
       {/* ── Appliance output slider (combi only) ────────────────────────────── */}

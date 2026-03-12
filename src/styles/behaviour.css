@@ -349,6 +349,13 @@
   gap: var(--space-3);
 }
 
+.bcp-header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
 .bcp-header__title {
   margin: 0;
   font-size: var(--text-3xl);
@@ -397,6 +404,39 @@
   background: var(--chip-neutral);
   color: var(--text-inverse);
   font-weight: var(--weight-bold);
+}
+
+/* Report action buttons */
+.bcp-report-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.bcp-report-btn {
+  background: var(--surface-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 6px var(--space-3);
+  cursor: pointer;
+  font-size: var(--text-base);
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+  transition: background var(--transition-normal);
+}
+
+.bcp-report-btn:hover {
+  background: var(--surface-subtle);
+}
+
+.bcp-report-btn--print {
+  background: #3182ce;
+  border-color: #3182ce;
+  color: #fff;
+}
+
+.bcp-report-btn--print:hover {
+  background: #2b6cb0;
+  border-color: #2b6cb0;
 }
 
 /* ─── Section placeholders ───────────────────────────────────────── */
