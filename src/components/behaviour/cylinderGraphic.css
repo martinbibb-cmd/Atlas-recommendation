@@ -164,3 +164,66 @@
   line-height: 1.4;
   margin-top: 2px;
 }
+
+/* ─── Animation mode ─────────────────────────────────────────────── */
+/*                                                                     */
+/* .cbg--animated is added when animate={true}.  Phase classes        */
+/* (e.g. .cbg--phase-standard-full) set CSS custom properties that    */
+/* drive the depletion overlay on standard cylinders and the          */
+/* thermocline height on Mixergy cylinders.                            */
+
+/* Mixergy: smooth hot-zone height and thermocline transitions */
+.cbg--animated .cbg__hot-zone {
+  transition: height 300ms ease-in-out;
+}
+
+.cbg--animated .cbg__thermocline--mixergy {
+  height: var(--cbg-thermocline-height, 10px);
+  transition: height 300ms ease-in-out;
+}
+
+/* Standard: depletion overlay fades in from the bottom */
+.cbg--animated .cbg__liquid--standard {
+  position: relative;
+  overflow: hidden;
+}
+
+.cbg--animated .cbg__liquid--standard::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  /* height fraction is unitless; multiply by 100% via calc */
+  height: calc(100% * var(--cbg-depletion-height, 0));
+  background: linear-gradient(to top, #3d7087 0%, transparent 100%);
+  opacity: var(--cbg-depletion-opacity, 0);
+  transition: height 300ms ease-in-out, opacity 300ms ease-in-out;
+  pointer-events: none;
+}
+
+/* ─── Phase class modifiers (set via inline CSS vars) ────────────── */
+/*                                                                     */
+/* All six standard phases work through the CSS custom properties     */
+/* (--cbg-depletion-height, --cbg-depletion-opacity) that             */
+/* buildCssVarsForPhase emits and CylinderBehaviourGraphic injects     */
+/* as inline style.  No individual phase class rules are needed here  */
+/* because the ::after overlay reads those vars directly.              */
+/*                                                                     */
+/* The only rule required is the fallback for non-animated renders:   */
+/* without the cbg--animated class the ::after pseudo-element does    */
+/* not exist, so static renders are unaffected.                        */
+
+/* ─── Reduced motion ─────────────────────────────────────────────── */
+/*                                                                     */
+/* When the user has requested reduced motion all CSS transitions are  */
+/* disabled.  Phase classes still apply the correct static visual      */
+/* state via the CSS custom properties set as inline style.            */
+
+@media (prefers-reduced-motion: reduce) {
+  .cbg--animated .cbg__hot-zone,
+  .cbg--animated .cbg__thermocline--mixergy,
+  .cbg--animated .cbg__liquid--standard::after {
+    transition: none;
+  }
+}

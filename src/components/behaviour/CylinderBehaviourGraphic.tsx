@@ -22,13 +22,51 @@
 import './cylinderGraphic.css'
 import { buildCylinderVisualState } from './cylinderGraphic.model'
 import type { CylinderBehaviourGraphicProps } from './cylinderGraphic.model'
+import { useCylinderAnimationPhase } from './useCylinderAnimationPhase'
 
-export default function CylinderBehaviourGraphic(props: CylinderBehaviourGraphicProps) {
+export interface AnimatedCylinderProps extends CylinderBehaviourGraphicProps {
+  /**
+   * When true, the graphic applies animation phase classes and CSS custom
+   * properties so CSS transitions make the visual feel alive.
+   * Defaults to false (static rendering).
+   */
+  animate?: boolean
+  /**
+   * 'auto'   — animated where motion is appropriate (default).
+   * 'static' — always render without transitions regardless of animate flag.
+   */
+  animationMode?: 'auto' | 'static'
+}
+
+export default function CylinderBehaviourGraphic(props: AnimatedCylinderProps) {
+  const { animate = false, animationMode = 'auto' } = props
   const vs = buildCylinderVisualState(props)
   const compact = props.compact ?? false
 
+  const { phaseClass, cssVars } = useCylinderAnimationPhase({
+    type: props.type,
+    drawActive: props.drawActive,
+    recoveryActive: props.recoveryActive,
+    hotFraction: props.hotFraction,
+    heatedLayerFraction: props.heatedLayerFraction,
+  })
+
+  const shouldAnimate = animate && animationMode !== 'static'
+
+  const wrapperClass = [
+    'cbg',
+    compact ? 'cbg--compact' : '',
+    shouldAnimate ? 'cbg--animated' : '',
+    shouldAnimate ? phaseClass : '',
+  ].filter(Boolean).join(' ')
+
+  // Apply CSS variables whenever animation is requested so the correct visual
+  // phase renders even in reduced-motion mode (where transitions are disabled
+  // by the @media rule but the phase state should still be reflected).
+  const wrapperStyle = shouldAnimate ? cssVars : {}
+
   return (
-    <div className={`cbg${compact ? ' cbg--compact' : ''}`}>
+    <div className={wrapperClass} style={wrapperStyle}>
 
       {/* ── Visual vessel (role=img, purely graphical) ──────────────── */}
       <div
