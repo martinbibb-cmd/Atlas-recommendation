@@ -938,3 +938,407 @@
   }
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Focus mode — overlay, backdrop, panel
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Dim/blur background tiles when Focus is active */
+.draw-off-workbench__panel--dimmed,
+.water-performance-card--dimmed {
+  opacity: 0.35;
+  filter: blur(1.5px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+/* Full-viewport overlay */
+.draw-off-focus-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.draw-off-focus-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  cursor: pointer;
+}
+
+.draw-off-focus-overlay__panel {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  width: min(640px, 95vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 0 0 24px;
+}
+
+.draw-off-focus-overlay__close {
+  position: sticky;
+  top: 0;
+  float: right;
+  margin: 12px 14px 0 0;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: #4a5568;
+  z-index: 2;
+}
+
+.draw-off-focus-overlay__close:hover {
+  background: #edf2f7;
+  color: #1a202c;
+}
+
+/* Focus button on each tile */
+.draw-off-card__focus-btn {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 5px 0;
+  background: none;
+  border: 1px solid #bee3f8;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #2b6cb0;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.draw-off-card__focus-btn:hover {
+  background: #ebf8ff;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DrawOffFocusPanel — draw-off instrument view
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.draw-off-focus {
+  padding: 20px 24px 0;
+}
+
+.draw-off-focus__title-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 4px;
+}
+
+.draw-off-focus__icon {
+  font-size: 1.5rem;
+}
+
+.draw-off-focus__title {
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #1a202c;
+  flex: 1;
+}
+
+/* Metric rows */
+.draw-off-focus__rows {
+  margin: 0;
+  padding: 6px 0 0;
+}
+
+.draw-off-focus__row {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  gap: 0.4rem;
+  padding: 7px 0;
+  border-bottom: 1px solid #f0f4f8;
+}
+
+.draw-off-focus__row:last-child {
+  border-bottom: none;
+}
+
+.draw-off-focus__row-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #718096;
+  padding-top: 2px;
+}
+
+.draw-off-focus__row--cold .draw-off-focus__row-label  { color: #2b6cb0; }
+.draw-off-focus__row--hot  .draw-off-focus__row-label  { color: #c53030; }
+.draw-off-focus__row--delivered .draw-off-focus__row-label { color: #276749; }
+
+.draw-off-focus__row-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.draw-off-focus__temp {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1a202c;
+}
+
+.draw-off-focus__temp--large {
+  font-size: 1.4rem;
+}
+
+.draw-off-focus__flow {
+  font-size: 0.82rem;
+  color: #718096;
+}
+
+.draw-off-focus__flow--large {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* Limiting factor */
+.draw-off-focus__limiting {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 0 8px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 8px;
+}
+
+.draw-off-focus__limiting-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #718096;
+}
+
+.draw-off-focus__limiting-value {
+  font-size: 0.82rem;
+  color: #2d3748;
+  line-height: 1.4;
+}
+
+/* Boiler state */
+.draw-off-focus__boiler-state {
+  margin-top: 8px;
+}
+
+.focus-boiler-state {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #f7fafc;
+}
+
+.focus-boiler-state__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.focus-boiler-state__label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4a5568;
+  flex: 1;
+}
+
+.focus-boiler-state__chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.focus-boiler-state__chip--firing {
+  background: #c6f6d5;
+  color: #22543d;
+  border: 1px solid #9ae6b4;
+}
+
+.focus-boiler-state__chip--marginal {
+  background: #feebc8;
+  color: #7b341e;
+  border: 1px solid #fbd38d;
+}
+
+.focus-boiler-state__chip--fails {
+  background: #fed7d7;
+  color: #742a2a;
+  border: 1px solid #fc8181;
+}
+
+.focus-boiler-state__reason {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #4a5568;
+  line-height: 1.45;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CylinderFocusPanel — cylinder instrument view
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cylinder-focus {
+  padding: 20px 24px 0;
+}
+
+.cylinder-focus__title-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 4px;
+}
+
+.cylinder-focus__title {
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #1a202c;
+  flex: 1;
+}
+
+.cylinder-focus__graphic {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0 8px;
+  transform: scale(1.15);
+  transform-origin: top center;
+}
+
+.cylinder-focus__rows {
+  margin: 0;
+  padding: 6px 0 0;
+}
+
+.cylinder-focus__row {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: 0.4rem;
+  padding: 7px 0;
+  border-bottom: 1px solid #f0f4f8;
+}
+
+.cylinder-focus__row:last-child {
+  border-bottom: none;
+}
+
+.cylinder-focus__dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #718096;
+  padding-top: 2px;
+}
+
+.cylinder-focus__dd {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #2d3748;
+  line-height: 1.4;
+}
+
+.cylinder-focus__dd--large {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #1a202c;
+}
+
+.cylinder-focus__sub {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #718096;
+}
+
+.cylinder-focus__depletion-alert {
+  margin: 10px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fed7d7;
+  color: #742a2a;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid #fc8181;
+}
+
+.cylinder-focus__notes {
+  border-top: 1px solid #e2e8f0;
+  padding: 10px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.cylinder-focus__note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #4a5568;
+  line-height: 1.45;
+  padding-left: 0.75rem;
+  position: relative;
+}
+
+.cylinder-focus__note::before {
+  content: '·';
+  position: absolute;
+  left: 0.2rem;
+  color: #a0aec0;
+}
+
+.cylinder-focus__note--recovery { color: #2b6cb0; }
+.cylinder-focus__note--store    { color: #276749; }
+
+.cylinder-focus__behaviour-note {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-radius: 10px;
+}
+
+.cylinder-focus__behaviour-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #276749;
+  margin-bottom: 5px;
+}
+
+.cylinder-focus__behaviour-text {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #2f855a;
+  line-height: 1.5;
+}

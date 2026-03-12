@@ -3,6 +3,9 @@
  *
  * Shows cold supply, hot supply, and delivered temperature/flow for one
  * outlet archetype, plus a status chip and a one-line behavioural note.
+ *
+ * An optional `onFocus` callback renders a Focus button that opens the
+ * full inspection view for this outlet.
  */
 
 import type { DrawOffViewModel, DrawOffStatus } from './drawOffTypes'
@@ -27,9 +30,10 @@ const STATUS_MOD: Record<DrawOffStatus, string> = {
 
 interface Props {
   data: DrawOffViewModel
+  onFocus?: () => void
 }
 
-export default function DrawOffCard({ data }: Props) {
+export default function DrawOffCard({ data, onFocus }: Props) {
   const {
     label,
     icon,
@@ -88,6 +92,17 @@ export default function DrawOffCard({ data }: Props) {
 
       {/* ── Behavioural note ───────────────────────────────────────────────── */}
       <p className="draw-off-card__note">{note}</p>
+
+      {/* ── Focus action ───────────────────────────────────────────────────── */}
+      {onFocus && (
+        <button
+          className="draw-off-card__focus-btn"
+          onClick={onFocus}
+          aria-label={`Focus: ${label}`}
+        >
+          Focus
+        </button>
+      )}
     </div>
   )
 }
