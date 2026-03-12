@@ -322,6 +322,16 @@ export default function SimulatorDashboard({
   const reheatActiveImp = systemModeImp === 'dhw_reheat' || systemModeImp === 'heating_and_reheat';
   const chPausedImp     = serviceSwitchingActiveImp;
 
+  // ── Live boiler output for the system diagram labels ────────────────────────
+  // Combi/Mixergy systems show combiPowerKw (DHW heating rate).
+  // System-boiler stored/vented systems show boilerOutputKw (CH + reheat rate).
+  const boilerOutputKwForDiagram = diagramState.heatSourceType === 'combi'
+    ? systemInputs.combiPowerKw
+    : systemInputs.boilerOutputKw;
+  const boilerOutputKwForDiagramImproved = diagramStateImproved.heatSourceType === 'combi'
+    ? improvedInputs.combiPowerKw
+    : improvedInputs.boilerOutputKw;
+
   // ── Draw-off panels ─────────────────────────────────────────────────────────
 
   const drawOffPanel = (
@@ -347,7 +357,7 @@ export default function SimulatorDashboard({
   // ── Expanded panel content (single mode only) ───────────────────────────────
 
   const expandedContent: Partial<Record<PanelId, ReactElement>> = {
-    system: <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} />,
+    system: <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} boilerOutputKw={boilerOutputKwForDiagram} />,
     house:    <HouseStatusPanel state={houseState} />,
     drawoff: drawOffPanel,
     efficiency: <EfficiencyPanel state={efficiencyState} />,
@@ -435,7 +445,7 @@ export default function SimulatorDashboard({
 
             <div className="sim-compare-panels">
               <SimulatorPanel title="System Diagram" icon="⚙" onExpand={() => {}}>
-                <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} />
+                <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} boilerOutputKw={boilerOutputKwForDiagram} />
               </SimulatorPanel>
               <SimulatorPanel title="Efficiency" icon="📊" onExpand={() => {}}>
                 <EfficiencyPanel state={efficiencyState} />
@@ -484,7 +494,7 @@ export default function SimulatorDashboard({
 
             <div className="sim-compare-panels">
               <SimulatorPanel title="System Diagram" icon="⚙" onExpand={() => {}}>
-                <SystemDiagramPanel state={diagramStateImproved} highlightedComponents={highlightedComponentsImproved} />
+                <SystemDiagramPanel state={diagramStateImproved} highlightedComponents={highlightedComponentsImproved} boilerOutputKw={boilerOutputKwForDiagramImproved} />
               </SimulatorPanel>
               <SimulatorPanel title="Efficiency" icon="📊" onExpand={() => {}}>
                 <EfficiencyPanel state={efficiencyStateImproved} />
@@ -562,7 +572,7 @@ export default function SimulatorDashboard({
           icon="⚙"
           onExpand={() => setExpanded('system')}
         >
-          <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} />
+          <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} boilerOutputKw={boilerOutputKwForDiagram} />
         </SimulatorPanel>
 
         {/* House View — live playback */}
