@@ -274,3 +274,112 @@
   margin:      var(--space-2) 0 0;
   line-height: var(--leading-relaxed);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Controls animation  (.wia-controls)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.wia-controls {
+  background:    var(--surface-subtle);
+  border:        1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding:       var(--space-4) var(--space-5);
+  margin:        var(--space-3) 0;
+  font-family:   var(--font-sans);
+}
+
+.wia-controls__section {
+  margin-bottom: var(--space-3);
+}
+
+.wia-controls__section-label {
+  font-size:     var(--text-sm);
+  font-weight:   var(--weight-semibold);
+  margin-bottom: var(--space-2);
+}
+
+.wia-controls__section-label--before {
+  color: var(--color-amber-700);
+}
+
+.wia-controls__section-label--after {
+  color: var(--color-green-700);
+}
+
+.wia-controls__track {
+  display: flex;
+  gap:     4px;
+  height:  28px;
+}
+
+.wia-controls__bar {
+  flex:          1;
+  border-radius: var(--radius-sm);
+}
+
+.wia-controls__bar--on {
+  background: var(--color-amber-400);
+  animation:  wia-controls-on-pulse 1.8s ease-in-out infinite alternate;
+}
+
+.wia-controls__bar--off {
+  background: var(--color-neutral-200);
+}
+
+.wia-controls__bar--steady {
+  background: var(--color-green-400);
+  animation:  wia-controls-steady-glow 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes wia-controls-on-pulse {
+  from { opacity: 1.0; }
+  to   { opacity: 0.35; }
+}
+
+@keyframes wia-controls-steady-glow {
+  from { opacity: 0.75; }
+  to   { opacity: 1.0; }
+}
+
+.wia-controls__arrow {
+  font-size:     var(--text-sm);
+  font-weight:   var(--weight-semibold);
+  color:         var(--text-muted);
+  text-align:    center;
+  margin:        var(--space-2) 0;
+}
+
+.wia-controls__badge {
+  font-size:     var(--text-sm);
+  font-weight:   var(--weight-semibold);
+  color:         var(--color-green-700);
+  padding:       var(--space-2) var(--space-3);
+  background:    var(--color-green-100);
+  border:        1px solid var(--color-green-300);
+  border-radius: var(--radius-md);
+  margin:        var(--space-2) 0;
+}
+
+.wia-controls__caption {
+  font-size:   var(--text-sm);
+  color:       var(--text-secondary);
+  margin:      var(--space-2) 0 0;
+  line-height: var(--leading-relaxed);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Reduced-motion: pause all What-If keyframe animations
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .wia-cycling__bar--on,
+  .wia-flow__fill--demand,
+  .wia-flow__fill--supply,
+  .wia-rads__fill--high,
+  .wia-rads__fill--low,
+  .wia-rads__condensing-badge,
+  .wia-controls__bar--on,
+  .wia-controls__bar--steady {
+    animation: none;
+  }
+}
