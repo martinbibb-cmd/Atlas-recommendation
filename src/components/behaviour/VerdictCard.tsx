@@ -11,6 +11,9 @@ import { AtlasPanel } from '../ui/AtlasPanel';
 
 interface Props {
   verdict?: VerdictV1;
+  /** Verdict from the unmodified base survey. When provided and the status
+   *  differs, a "Compared with base" delta line is shown. */
+  baseVerdict?: VerdictV1;
 }
 
 const STATUS_BADGE: Record<VerdictV1['status'], string> = {
@@ -25,7 +28,7 @@ const STATUS_LABELS: Record<VerdictV1['status'], string> = {
   fail:    'Not suitable',
 };
 
-export default function VerdictCard({ verdict }: Props) {
+export default function VerdictCard({ verdict, baseVerdict }: Props) {
   if (!verdict) {
     return (
       <AtlasPanel className="behaviour-console__kpi">
@@ -38,6 +41,8 @@ export default function VerdictCard({ verdict }: Props) {
   const firstReason = verdict.reasons[0];
   const confidenceLabel =
     verdict.confidence.level.charAt(0).toUpperCase() + verdict.confidence.level.slice(1);
+
+  const statusChanged = baseVerdict && baseVerdict.status !== verdict.status;
 
   return (
     <AtlasPanel className="behaviour-console__kpi">
@@ -52,6 +57,11 @@ export default function VerdictCard({ verdict }: Props) {
         <div className="verdict-card__note">{firstReason}</div>
       )}
       <div className="verdict-card__confidence">{confidenceLabel} confidence</div>
+      {statusChanged && (
+        <div className="verdict-card__delta">
+          Compared with base: {STATUS_LABELS[baseVerdict!.status]} → {STATUS_LABELS[verdict.status]}
+        </div>
+      )}
     </AtlasPanel>
   );
 }

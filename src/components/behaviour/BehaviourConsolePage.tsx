@@ -35,6 +35,8 @@ interface Props {
   onBack?: () => void;
   scenario?: ScenarioState;
   onScenarioChange?: (next: ScenarioState) => void;
+  /** Engine output for the unmodified base survey — used for delta comparisons. */
+  baseOutput?: EngineOutputV1;
 }
 
 type Mode = 'customer' | 'engineer';
@@ -45,7 +47,7 @@ type Mode = 'customer' | 'engineer';
  */
 const REPORT_RENDER_DELAY_MS = 150;
 
-export default function BehaviourConsolePage({ output, onBack, scenario, onScenarioChange }: Props) {
+export default function BehaviourConsolePage({ output, onBack, scenario, onScenarioChange, baseOutput }: Props) {
   const [mode, setMode] = useState<Mode>('customer');
   const [reportOpen, setReportOpen] = useState(false);
 
@@ -170,7 +172,7 @@ export default function BehaviourConsolePage({ output, onBack, scenario, onScena
       </AtlasPanel>
 
       {/* ── 3. Summary strip — 3 compact cards ──────────────────────── */}
-      <BehaviourSummaryStrip verdict={verdict} limiters={limiters} />
+      <BehaviourSummaryStrip verdict={verdict} limiters={limiters} baseVerdict={baseOutput?.verdict} />
 
       {/* ── 4. Secondary insight row ─────────────────────────────────── */}
       <div className="behaviour-console__secondary-grid">

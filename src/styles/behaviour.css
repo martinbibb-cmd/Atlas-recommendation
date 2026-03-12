@@ -152,6 +152,16 @@
   color: var(--text-secondary);
 }
 
+/* "Compared with base" delta line — shown when scenario changes verdict status */
+.verdict-card__delta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-subtle);
+}
+
 /* ─── Domain influence compact row ──────────────────────────────── */
 
 .influence-compact-row {
