@@ -2,8 +2,9 @@
  * ReportView.test.tsx
  *
  * Validates that ReportView:
- *   - Renders the ATLAS brand and "System Report" heading
+ *   - Renders the ATLAS brand and "Atlas Heating System Assessment" heading
  *   - Shows the recommendation text from engine output
+ *   - Shows a "No data available" blocked state when output is null
  *   - Shows a "Report not available" blocked state when essential data is missing
  *   - Shows the completeness banner for partial output
  *   - Does NOT show the banner when output is complete
@@ -86,9 +87,9 @@ const BROKEN_OUTPUT: EngineOutputV1 = {
 // ─── Document structure ───────────────────────────────────────────────────────
 
 describe('ReportView — document structure', () => {
-  it('renders "System Report" h1', () => {
+  it('renders "Atlas Heating System Assessment" h1', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.getByRole('heading', { level: 1, name: 'System Report' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Atlas Heating System Assessment' })).toBeTruthy();
   });
 
   it('renders the ATLAS brand', () => {
@@ -98,7 +99,17 @@ describe('ReportView — document structure', () => {
 
   it('renders the subtitle', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.getByText(/Heating system assessment/)).toBeTruthy();
+    expect(screen.getByText('Generated from system model')).toBeTruthy();
+  });
+
+  it('renders a generated date in the meta', () => {
+    render(<ReportView output={MINIMAL_OUTPUT} />);
+    expect(screen.getByText(/Generated:/)).toBeTruthy();
+  });
+
+  it('renders the model version in the meta', () => {
+    render(<ReportView output={MINIMAL_OUTPUT} />);
+    expect(screen.getByText('Model version: EngineOutputV1')).toBeTruthy();
   });
 });
 
@@ -120,6 +131,25 @@ describe('ReportView — toolbar', () => {
     render(<ReportView output={MINIMAL_OUTPUT} onBack={onBack} />);
     fireEvent.click(screen.getByText('← Back'));
     expect(onBack).toHaveBeenCalledOnce();
+  });
+});
+
+// ─── Null output guard ────────────────────────────────────────────────────────
+
+describe('ReportView — null output guard', () => {
+  it('renders "No data available" when output is null', () => {
+    render(<ReportView output={null} />);
+    expect(screen.getByText('No data available')).toBeTruthy();
+  });
+
+  it('does not render the print button when output is null', () => {
+    render(<ReportView output={null} />);
+    expect(screen.queryByText(/Print \/ Save PDF/)).toBeNull();
+  });
+
+  it('renders the back button even when output is null', () => {
+    render(<ReportView output={null} />);
+    expect(screen.getByText('← Back')).toBeTruthy();
   });
 });
 
@@ -186,8 +216,14 @@ describe('ReportView — verdict section', () => {
 
   it('renders the confidence badge', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
-    // Confidence level appears in doc header meta and verdict badge
-    expect(screen.getAllByText(/Confidence: high/).length).toBeGreaterThan(0);
+    // Confidence level appears in doc header meta
+    expect(screen.getByText(/Confidence: high/)).toBeTruthy();
+  });
+
+  it('renders "Confidence" label and capitalised level in the verdict block', () => {
+    render(<ReportView output={MINIMAL_OUTPUT} />);
+    expect(screen.getByText('Confidence')).toBeTruthy();
+    expect(screen.getByText('High')).toBeTruthy();
   });
 
   it('renders verdict reasons', () => {

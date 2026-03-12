@@ -212,6 +212,34 @@ describe('buildReportSections — full output', () => {
     }
   });
 
+  it('key_limiters section caps output at 8 items when more are present', () => {
+    // Build an output with 10 limiters
+    const makeLimiter = (n: number) => ({
+      id: `limiter_${n}`,
+      title: `Limiter ${n}`,
+      severity: 'info' as const,
+      observed: { label: 'Value', value: n, unit: 'bar' as const },
+      limit: { label: 'Max', value: 10, unit: 'bar' as const },
+      impact: { summary: `Impact of limiter ${n}.` },
+      confidence: 'medium' as const,
+      sources: [] as never[],
+      suggestedFixes: [] as never[],
+    });
+    const outputWithManyLimiters: EngineOutputV1 = {
+      ...FULL_OUTPUT,
+      limiters: {
+        limiters: Array.from({ length: 10 }, (_, i) => makeLimiter(i + 1)),
+      },
+    };
+    const sections = buildReportSections(outputWithManyLimiters);
+    const s = sections.find(sec => sec.id === 'key_limiters');
+    if (s?.id === 'key_limiters') {
+      expect(s.limiters).toHaveLength(8);
+      expect(s.limiters[0].id).toBe('limiter_1');
+      expect(s.limiters[7].id).toBe('limiter_8');
+    }
+  });
+
   it('verdict section carries status and reasons', () => {
     const sections = buildReportSections(FULL_OUTPUT);
     const s = sections.find(sec => sec.id === 'verdict');
