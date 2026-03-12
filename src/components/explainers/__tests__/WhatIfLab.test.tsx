@@ -11,7 +11,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import WhatIfLab, { SCENARIOS } from '../WhatIfLab';
+import WhatIfLab from '../WhatIfLab';
+import { WHAT_IF_SCENARIOS } from '../whatIfScenarios';
 
 describe('WhatIfLab — heading and subtitle', () => {
   it('renders the "What if…?" heading', () => {
@@ -28,20 +29,20 @@ describe('WhatIfLab — heading and subtitle', () => {
 describe('WhatIfLab — scenario buttons', () => {
   it('renders all six scenario buttons', () => {
     render(<WhatIfLab />);
-    SCENARIOS.forEach(scenario => {
+    WHAT_IF_SCENARIOS.forEach(scenario => {
       expect(screen.getByRole('button', { name: scenario.title })).toBeTruthy();
     });
   });
 
   it('marks the first scenario button as pressed by default', () => {
     render(<WhatIfLab />);
-    const firstBtn = screen.getByRole('button', { name: SCENARIOS[0].title });
+    const firstBtn = screen.getByRole('button', { name: WHAT_IF_SCENARIOS[0].title });
     expect(firstBtn.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('marks other scenario buttons as not pressed by default', () => {
     render(<WhatIfLab />);
-    SCENARIOS.slice(1).forEach(scenario => {
+    WHAT_IF_SCENARIOS.slice(1).forEach(scenario => {
       const btn = screen.getByRole('button', { name: scenario.title });
       expect(btn.getAttribute('aria-pressed')).toBe('false');
     });
@@ -49,23 +50,21 @@ describe('WhatIfLab — scenario buttons', () => {
 });
 
 describe('WhatIfLab — scenario selection updates explanation panel', () => {
-  it('shows the first scenario explanation by default', () => {
+  it('shows the first scenario whyItMatters by default', () => {
     render(<WhatIfLab />);
-    // First scenario bullet should be visible
-    expect(screen.getByText(SCENARIOS[0].bullets[0])).toBeTruthy();
+    expect(screen.getByText(WHAT_IF_SCENARIOS[0].whyItMatters[0])).toBeTruthy();
   });
 
   it('updates the panel when a different scenario is selected', () => {
     render(<WhatIfLab />);
-    const secondScenario = SCENARIOS[1];
+    const secondScenario = WHAT_IF_SCENARIOS[1];
     fireEvent.click(screen.getByRole('button', { name: secondScenario.title }));
-    // The second scenario's bullet should now be visible
-    expect(screen.getByText(secondScenario.bullets[0])).toBeTruthy();
+    expect(screen.getByText(secondScenario.whyItMatters[0])).toBeTruthy();
   });
 
   it('sets aria-pressed on the newly selected button', () => {
     render(<WhatIfLab />);
-    const secondScenario = SCENARIOS[1];
+    const secondScenario = WHAT_IF_SCENARIOS[1];
     const btn = screen.getByRole('button', { name: secondScenario.title });
     fireEvent.click(btn);
     expect(btn.getAttribute('aria-pressed')).toBe('true');
@@ -73,17 +72,25 @@ describe('WhatIfLab — scenario selection updates explanation panel', () => {
 
   it('clears aria-pressed from the previously selected button', () => {
     render(<WhatIfLab />);
-    const firstBtn  = screen.getByRole('button', { name: SCENARIOS[0].title });
-    const secondBtn = screen.getByRole('button', { name: SCENARIOS[1].title });
+    const firstBtn  = screen.getByRole('button', { name: WHAT_IF_SCENARIOS[0].title });
+    const secondBtn = screen.getByRole('button', { name: WHAT_IF_SCENARIOS[1].title });
     fireEvent.click(secondBtn);
     expect(firstBtn.getAttribute('aria-pressed')).toBe('false');
   });
 
   it('cycles through all scenarios without error', () => {
     render(<WhatIfLab />);
-    SCENARIOS.forEach(scenario => {
+    WHAT_IF_SCENARIOS.forEach(scenario => {
       fireEvent.click(screen.getByRole('button', { name: scenario.title }));
-      expect(screen.getByText(scenario.bullets[0])).toBeTruthy();
+      expect(screen.getByText(scenario.whyItMatters[0])).toBeTruthy();
+    });
+  });
+
+  it('shows the shortVerdict for each selected scenario', () => {
+    render(<WhatIfLab />);
+    WHAT_IF_SCENARIOS.forEach(scenario => {
+      fireEvent.click(screen.getByRole('button', { name: scenario.title }));
+      expect(screen.getByText(scenario.shortVerdict)).toBeTruthy();
     });
   });
 });
@@ -92,5 +99,39 @@ describe('WhatIfLab — no Behaviour Console', () => {
   it('does not render a Behaviour Console heading', () => {
     render(<WhatIfLab />);
     expect(screen.queryByText(/behaviour console/i)).toBeNull();
+  });
+});
+
+describe('WhatIfLab — scenario data shape', () => {
+  it('all scenarios have exactly the required fields', () => {
+    WHAT_IF_SCENARIOS.forEach(scenario => {
+      expect(typeof scenario.id).toBe('string');
+      expect(typeof scenario.title).toBe('string');
+      expect(typeof scenario.shortVerdict).toBe('string');
+      expect(Array.isArray(scenario.whyItMatters)).toBe(true);
+      expect(scenario.whyItMatters.length).toBeGreaterThan(0);
+      expect(typeof scenario.visualType).toBe('string');
+    });
+  });
+
+  it('has exactly six scenarios', () => {
+    expect(WHAT_IF_SCENARIOS).toHaveLength(6);
+  });
+
+  it('scenario IDs match the expected set', () => {
+    const ids = WHAT_IF_SCENARIOS.map(s => s.id);
+    expect(ids).toContain('boiler_too_big');
+    expect(ids).toContain('water_pressure_too_low');
+    expect(ids).toContain('upgrade_radiators');
+    expect(ids).toContain('add_better_controls');
+    expect(ids).toContain('upgrade_primaries');
+    expect(ids).toContain('add_stored_hot_water');
+  });
+
+  it('visualType values are valid', () => {
+    const valid = new Set(['cycling', 'pressure', 'emitters', 'controls', 'primaries', 'storage']);
+    WHAT_IF_SCENARIOS.forEach(scenario => {
+      expect(valid.has(scenario.visualType)).toBe(true);
+    });
   });
 });

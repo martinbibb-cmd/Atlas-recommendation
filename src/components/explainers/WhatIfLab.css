@@ -83,11 +83,12 @@
   margin: 0 0 var(--space-3);
 }
 
-.wil-panel__explanation {
+.wil-panel__verdict {
   font-size: 0.9375rem;
   line-height: 1.6;
   color: var(--text-body);
   margin: 0 0 var(--space-4);
+  font-weight: 500;
 }
 
 .wil-panel__bullets {
