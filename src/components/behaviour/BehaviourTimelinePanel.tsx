@@ -1,27 +1,22 @@
 /**
  * BehaviourTimelinePanel.tsx
  *
- * Renders a BehaviourTimelineV1 as four stacked, time-synchronized rows:
- *   1. Heat demand (kW) — area line
- *   2. DHW demand (kW)  — bars
- *   3. Appliance output (kW) + capacity line
- *   4. Efficiency or COP
+ * Single instrument-stage timeline for BehaviourTimelineV1.
  *
- * All rows share a single hoverIndex (crosshair) driven by mouse/touch events.
- * No legends — each row has a direct label on the left.
- * Y-axis domains are locked (no auto-scaling):
- *   - Heat/output: 0 → max(peak * 1.1, 5)
- *   - Efficiency: 0.5 → 1.0 (boiler) / COP: 1 → 5 (ASHP)
+ * Layout:
+ *   ┌─ Header: title · TimelineLegend · assumption chips ──────────┐
+ *   ├─ Main chart: Heat demand (area) + DHW demand (area) +         │
+ *   │              Appliance output (dominant line)                 │
+ *   ├─ TimelineEfficiencyStrip: η or COP (thin, subordinate)        │
+ *   └─ TimelineEventRail: mode-derived event markers (lightest)     ┘
  *
- * Timeline rendering is purely presentational — no physics in this component.
+ * All layers share the same 24-hour X-axis so they feel like one panel.
+ * No engine logic — purely presentational.
  */
 import { useState, useCallback } from 'react';
 import {
-  AreaChart,
+  ComposedChart,
   Area,
-  BarChart,
-  Bar,
-  LineChart,
   Line,
   ReferenceArea,
   ReferenceLine,
@@ -32,14 +27,23 @@ import {
   Tooltip,
 } from 'recharts';
 import type { BehaviourTimelineV1, TimelineSeriesPoint } from '../../contracts/EngineOutputV1';
+import TimelineLegend from './TimelineLegend';
+import TimelineEfficiencyStrip from './TimelineEfficiencyStrip';
+import TimelineEventRail from './TimelineEventRail';
 
 interface Props {
   timeline: BehaviourTimelineV1;
 }
 
+// ── Colour constants ──────────────────────────────────────────────────────────
+
+const HEAT_COLOR   = '#e53e3e';
+const DHW_COLOR    = '#3182ce';
+const OUTPUT_COLOR = '#38a169';
+
 // ── Shared axis formatting ────────────────────────────────────────────────────
 
-/** Show only every 4th label (every hour at 15-min resolution). */
+/** Show only major hour ticks (every 6 h at 15-min resolution). */
 function xTickFormatter(value: number): string {
   if (value % 6 !== 0 && value !== 24) return '';
   return `${Math.round(value)}`;
@@ -47,14 +51,14 @@ function xTickFormatter(value: number): string {
 
 // ── Tooltip ───────────────────────────────────────────────────────────────────
 
-interface TooltipProps {
+interface TooltipPayloadProps {
   active?: boolean;
   isAshp: boolean;
   allData: TimelineSeriesPoint[];
   hoverIndex: number | null;
 }
 
-function SharedTooltip({ active, isAshp, allData, hoverIndex }: TooltipProps) {
+function SharedTooltip({ active, isAshp, allData, hoverIndex }: TooltipPayloadProps) {
   if (!active || hoverIndex === null) return null;
   const pt = allData[hoverIndex];
   if (!pt) return null;
@@ -65,55 +69,26 @@ function SharedTooltip({ active, isAshp, allData, hoverIndex }: TooltipProps) {
         background: '#fff',
         border: '1px solid #e2e8f0',
         borderRadius: 8,
-        padding: '10px 14px',
+        padding: '8px 12px',
         fontSize: 12,
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
         pointerEvents: 'none',
       }}
     >
-      <div style={{ fontWeight: 700, marginBottom: 6, color: '#2d3748' }}>🕐 {pt.t}</div>
-      <div style={{ color: '#e53e3e' }}>Heat demand: <b>{pt.heatDemandKw.toFixed(2)} kW</b></div>
-      <div style={{ color: '#3182ce' }}>DHW draw demand: <b>{(pt.dhwDrawDemandKw ?? pt.dhwDemandKw).toFixed(2)} kW</b></div>
-      <div style={{ color: '#38a169' }}>
-        Appliance output: <b>{pt.applianceOutKw.toFixed(2)} kW</b>
+      <div style={{ fontWeight: 700, marginBottom: 5, color: '#2d3748' }}>🕐 {pt.t}</div>
+      <div style={{ color: HEAT_COLOR }}>Heat: <b>{pt.heatDemandKw.toFixed(2)} kW</b></div>
+      <div style={{ color: DHW_COLOR }}>
+        DHW: <b>{(pt.dhwDrawDemandKw ?? pt.dhwDemandKw).toFixed(2)} kW</b>
+      </div>
+      <div style={{ color: OUTPUT_COLOR }}>
+        Output: <b>{pt.applianceOutKw.toFixed(2)} kW</b>
         {pt.applianceCapKw != null && (
           <span style={{ color: '#718096' }}> / cap {pt.applianceCapKw} kW</span>
         )}
       </div>
-      <div style={{ color: '#2f855a' }}>Space heat output: <b>{(pt.spaceHeatOutKw ?? pt.applianceOutKw).toFixed(2)} kW</b></div>
-      <div style={{ color: '#2b6cb0' }}>DHW appliance output: <b>{(pt.dhwApplianceOutKw ?? 0).toFixed(2)} kW</b></div>
-      <div style={{ color: '#805ad5' }}>
-        {isAshp ? 'COP' : 'Efficiency'}:{' '}
-        <b>
-          {isAshp
-            ? (pt.cop ?? '—')
-            : pt.efficiency != null
-            ? `${(pt.efficiency * 100).toFixed(1)}%`
-            : '—'}
-        </b>
-      </div>
       {pt.mode && (
-        <div style={{ color: '#718096', marginTop: 4 }}>Mode: {pt.mode}</div>
+        <div style={{ color: '#718096', marginTop: 3, fontSize: 11 }}>Mode: {pt.mode}</div>
       )}
-    </div>
-  );
-}
-
-// ── Row label ─────────────────────────────────────────────────────────────────
-
-function RowLabel({ label, callout }: { label: string; callout: string }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'baseline',
-        marginBottom: 4,
-        padding: '0 8px',
-      }}
-    >
-      <span style={{ fontWeight: 700, fontSize: 13, color: '#2d3748' }}>{label}</span>
-      <span style={{ fontSize: 11, color: '#718096', fontStyle: 'italic' }}>{callout}</span>
     </div>
   );
 }
@@ -147,84 +122,37 @@ function AnnotationCallout({ text }: { text: string }) {
   );
 }
 
-// ── "Insufficient data" overlay ───────────────────────────────────────────────
-
-function InsufficientDataOverlay({ height }: { height: number }) {
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        height,
-        background: 'rgba(255,255,255,0.85)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: 8,
-        border: '1px dashed #cbd5e0',
-        fontSize: 13,
-        color: '#718096',
-      }}
-    >
-      ⚠ Insufficient data for this row
-    </div>
-  );
-}
-
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
-const ROW_HEIGHT = 110;
+const MAIN_HEIGHT = 200;
 const COMMON_MARGIN = { top: 4, right: 16, left: 0, bottom: 0 };
 
-/**
- * Fixed maximum kW for the DHW Y-axis.
- * UK combi peak DHW output ≈ 30 kW; 35 kW gives headroom for unvented/ASHP DHW.
- * Hard-locked so axis scale is consistent across all system comparisons.
- */
-const DHW_AXIS_MAX_KW = 35;
-
-/** Background fill colour for the combi DHW-priority lockout band (blue = "losing comfort"). */
-const LOCKOUT_BAND_COLOR = '#3182ce';
-/** Opacity of the lockout band overlay — subtle enough not to obscure the area curve. */
+/** Background fill colour for the combi DHW-priority lockout band. */
+const LOCKOUT_BAND_COLOR = DHW_COLOR;
 const LOCKOUT_BAND_OPACITY = 0.08;
 
 export default function BehaviourTimelinePanel({ timeline }: Props) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  const isAshp = timeline.labels.efficiencyLabel === 'COP';
+  const isAshp  = timeline.labels.efficiencyLabel === 'COP';
   const isCombi = timeline.labels.isCombi ?? false;
-  const pts = timeline.points;
+  const pts     = timeline.points;
 
-  // Derived callout values
-  const peakHeatKw = Math.max(...pts.map(p => p.heatDemandKw));
-  const peakDhwKw  = Math.max(...pts.map(p => p.dhwApplianceOutKw ?? p.dhwDemandKw));
-  const peakDhwIdx = pts.findIndex(p => (p.dhwApplianceOutKw ?? p.dhwDemandKw) === peakDhwKw);
-  const peakDhwTime = pts[peakDhwIdx]?.t ?? '';
+  // ── Derived callout values ────────────────────────────────────────
+  const peakHeatKw   = Math.max(...pts.map(p => p.heatDemandKw));
+  const peakDhwKw    = Math.max(...pts.map(p => p.dhwApplianceOutKw ?? p.dhwDemandKw));
+  const peakOutputKw = Math.max(...pts.map(p => p.applianceOutKw));
 
-  // Saturation: how many 15-min steps is appliance at cap?
   const saturationSteps = pts.filter(
     p => p.applianceCapKw != null && p.applianceOutKw >= p.applianceCapKw * 0.98,
   ).length;
   const saturationMins = saturationSteps * timeline.resolutionMins;
 
-  // Efficiency callout
-  const minEfficiency = pts
-    .filter(p => p.efficiency != null)
-    .reduce((min, p) => (p.efficiency! < min ? p.efficiency! : min), 1);
-  const minCop = pts
-    .filter(p => p.cop != null)
-    .reduce((min, p) => (p.cop! < min ? p.cop! : min), 5);
+  // ── Unified Y-axis for main chart ─────────────────────────────────
+  const yMax = Math.max(peakHeatKw, peakDhwKw, peakOutputKw) * 1.1;
+  const mainYMax = Math.max(yMax, 5);
 
-  // Y-axis domains
-  const demandYMax = Math.max(peakHeatKw * 1.1, 5);
-  const appYMax = Math.max(
-    Math.max(...pts.map(p => p.applianceOutKw)) * 1.1,
-    pts[0]?.applianceCapKw ?? 0,
-    5,
-  );
-
-  // Combi lockout bands: contiguous DHW-priority windows (mode 'dhw' or 'mixed').
-  // Rendered as background fills on the heat demand row to show when CH is cut off.
+  // ── Combi lockout bands ───────────────────────────────────────────
   const lockoutBands: Array<{ x1: number; x2: number }> = [];
   if (isCombi) {
     let bandStart: number | null = null;
@@ -243,7 +171,7 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
     }
   }
 
-  // Shared chart event handlers using the Recharts parameter shape
+  // ── Shared chart event handlers ───────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleMouseMove = useCallback((e: any) => {
     const idx = e?.activeTooltipIndex;
@@ -264,16 +192,6 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
     }
   }, [hoverIndex]);
 
-  const tooltipProps = {
-    content: (
-      <SharedTooltip
-        isAshp={isAshp}
-        allData={pts}
-        hoverIndex={hoverIndex}
-      />
-    ),
-  };
-
   const xAxisProps = {
     type: 'number' as const,
     dataKey: 'tHour',
@@ -285,39 +203,36 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
     height: 20,
   };
 
-  const hasHeatData = pts.some(p => p.heatDemandKw > 0);
-  const hasDhwData  = pts.some(p => (p.dhwApplianceOutKw ?? p.dhwDemandKw) > 0);
-  const hasEffData  = pts.some(p => (p.efficiency ?? p.cop) != null);
+  const hasEffData = pts.some(p => (p.efficiency ?? p.cop) != null);
 
-  // Annotations by row
-  const annotations = timeline.annotations ?? [];
+  // Annotations
+  const annotations   = timeline.annotations ?? [];
   const outAnnotation = annotations.find(a => a.row === 'out');
-  const effAnnotation = annotations.find(a => a.row === 'eff');
-  const dhwAnnotation = annotations.find(a => a.row === 'dhw');
-  const heatAnnotation = annotations.find(a => a.row === 'heat');
+
+  // Saturation callout for tooltip
+  const outputCallout = saturationMins > 0
+    ? `Saturated ${saturationMins}m`
+    : `Peak ${peakOutputKw.toFixed(1)} kW`;
 
   return (
-    <div className="behaviour-timeline-panel" style={{ padding: '0 8px' }}>
-      {/* Header — compact single row: title + legend + status */}
+    <div className="btp-shell">
+      {/* ── Header ──────────────────────────────────────────────── */}
       <div className="btp-header">
-        <span className="btp-header__title">
-          Thermodynamic Timeline · {timeline.labels.applianceName}
-        </span>
-        <div className="btp-header__legend">
-          <span className="btp-legend-dot btp-legend-dot--heat" />
-          <span className="btp-legend-label">Heat</span>
-          <span className="btp-legend-dot btp-legend-dot--dhw" />
-          <span className="btp-legend-label">DHW</span>
-          <span className="btp-legend-dot btp-legend-dot--output" />
-          <span className="btp-legend-label">Output</span>
-          <span className="btp-legend-dot btp-legend-dot--eff" />
-          <span className="btp-legend-label">{timeline.labels.efficiencyLabel}</span>
+        <div className="btp-title-group">
+          <span className="btp-header__title">
+            Thermodynamic Timeline · {timeline.labels.applianceName}
+          </span>
+          <span className="btp-header__callout">{outputCallout}</span>
         </div>
+        <TimelineLegend
+          efficiencyLabel={timeline.labels.efficiencyLabel}
+          showEfficiency={hasEffData}
+        />
       </div>
 
-      {/* Assumption badges — compact chip row */}
+      {/* ── Assumption chips ─────────────────────────────────────── */}
       {timeline.assumptionsUsed.length > 0 && (
-        <div className="btp-assumptions">
+        <div className="btp-chip-row">
           {timeline.assumptionsUsed.map(a => (
             <span
               key={a.id}
@@ -330,16 +245,11 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
         </div>
       )}
 
-      {/* Row 1: Heat demand */}
-      <div style={{ position: 'relative', marginBottom: 8 }}>
-        <RowLabel
-          label="Heat demand"
-          callout={`Peak ${peakHeatKw.toFixed(1)} kW`}
-        />
-        {!hasHeatData && <InsufficientDataOverlay height={ROW_HEIGHT} />}
-        {heatAnnotation && <AnnotationCallout text={heatAnnotation.text} />}
-        <ResponsiveContainer width="100%" height={ROW_HEIGHT}>
-          <AreaChart
+      {/* ── Main chart ───────────────────────────────────────────── */}
+      <div className="btp-main" style={{ position: 'relative' }}>
+        {outAnnotation && <AnnotationCallout text={outAnnotation.text} />}
+        <ResponsiveContainer width="100%" height={MAIN_HEIGHT}>
+          <ComposedChart
             data={pts}
             margin={COMMON_MARGIN}
             onMouseMove={handleMouseMove}
@@ -347,14 +257,24 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
             onClick={handleClick}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            {/* X axis hidden — shared tick labels shown on efficiency strip below */}
             <XAxis {...xAxisProps} hide />
             <YAxis
-              domain={[0, demandYMax]}
+              domain={[0, mainYMax]}
               tick={{ fontSize: 10, fill: '#718096' }}
               width={32}
               tickFormatter={v => v.toFixed(0)}
+              unit=" kW"
             />
-            <Tooltip {...tooltipProps} />
+            <Tooltip
+              content={
+                <SharedTooltip
+                  isAshp={isAshp}
+                  allData={pts}
+                  hoverIndex={hoverIndex}
+                />
+              }
+            />
             {hoverIndex != null && (
               <ReferenceLine
                 x={pts[hoverIndex]?.tHour}
@@ -362,7 +282,8 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
                 strokeDasharray="3 3"
               />
             )}
-            {/* Lockout band shading: CH is cut during DHW priority ticks */}
+
+            {/* Combi lockout band shading */}
             {lockoutBands.map((band, i) => (
               <ReferenceArea
                 key={i}
@@ -373,189 +294,90 @@ export default function BehaviourTimelinePanel({ timeline }: Props) {
                 strokeOpacity={0}
               />
             ))}
+
+            {/* Heat demand — secondary area (red, translucent) */}
             <Area
               type="monotone"
               dataKey="heatDemandKw"
-              stroke="#e53e3e"
+              stroke={HEAT_COLOR}
               fill="#fed7d7"
-              strokeWidth={2}
+              fillOpacity={0.5}
+              strokeWidth={1.5}
               dot={false}
               isAnimationActive={false}
+              name="Heat"
             />
-            {/* Delivered heat overlay: shows actual CH delivery vs demand.
-                For combi boilers in DHW priority mode, deliveredHeatKw drops to 0
-                revealing the unmet demand gap. */}
+
+            {/* DHW demand — secondary area (blue, translucent) */}
+            <Area
+              type="monotone"
+              dataKey="dhwApplianceOutKw"
+              stroke={DHW_COLOR}
+              fill="#bee3f8"
+              fillOpacity={0.5}
+              strokeWidth={1.5}
+              dot={false}
+              isAnimationActive={false}
+              name="DHW"
+            />
+
+            {/* Combi delivered-heat overlay — reveals lockout gap */}
             {isCombi && (
               <Area
                 type="monotone"
                 dataKey="deliveredHeatKw"
-                stroke="#38a169"
+                stroke={OUTPUT_COLOR}
                 fill="#c6f6d5"
-                fillOpacity={0.5}
-                strokeWidth={2}
+                fillOpacity={0.3}
+                strokeWidth={1}
                 dot={false}
                 isAnimationActive={false}
+                name="Delivered"
               />
             )}
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
 
-      {/* Row 2: DHW demand (bars) */}
-      <div style={{ position: 'relative', marginBottom: 8 }}>
-        <RowLabel
-          label="Hot water"
-          callout={peakDhwKw > 0 ? `Peak ${peakDhwKw.toFixed(1)} kW @ ${peakDhwTime}` : 'No DHW demand'}
-        />
-        {!hasDhwData && <InsufficientDataOverlay height={ROW_HEIGHT} />}
-        {dhwAnnotation && <AnnotationCallout text={dhwAnnotation.text} />}
-        <ResponsiveContainer width="100%" height={ROW_HEIGHT}>
-          <BarChart
-            data={pts}
-            margin={COMMON_MARGIN}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            onClick={handleClick}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis {...xAxisProps} hide />
-            <YAxis
-              domain={[0, DHW_AXIS_MAX_KW]}
-              tick={{ fontSize: 10, fill: '#718096' }}
-              width={32}
-              tickFormatter={v => v.toFixed(0)}
-            />
-            <Tooltip {...tooltipProps} />
-            {hoverIndex != null && (
-              <ReferenceLine
-                x={pts[hoverIndex]?.tHour}
-                stroke="#718096"
-                strokeDasharray="3 3"
-              />
-            )}
-            <Bar
-              dataKey="dhwApplianceOutKw"
-              fill="#3182ce"
-              opacity={0.75}
-              isAnimationActive={false}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Row 3: Appliance output + capacity line */}
-      <div style={{ position: 'relative', marginBottom: 8 }}>
-        <RowLabel
-          label="Appliance output"
-          callout={
-            saturationMins > 0
-              ? `Saturated ${saturationMins}m`
-              : `Peak ${Math.max(...pts.map(p => p.applianceOutKw)).toFixed(1)} kW`
-          }
-        />
-        {outAnnotation && <AnnotationCallout text={outAnnotation.text} />}
-        <ResponsiveContainer width="100%" height={ROW_HEIGHT}>
-          <AreaChart
-            data={pts}
-            margin={COMMON_MARGIN}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            onClick={handleClick}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis {...xAxisProps} hide />
-            <YAxis
-              domain={[0, appYMax]}
-              tick={{ fontSize: 10, fill: '#718096' }}
-              width={32}
-              tickFormatter={v => v.toFixed(0)}
-            />
-            <Tooltip {...tooltipProps} />
-            {hoverIndex != null && (
-              <ReferenceLine
-                x={pts[hoverIndex]?.tHour}
-                stroke="#718096"
-                strokeDasharray="3 3"
-              />
-            )}
-            <Area
+            {/* Appliance output — dominant line (green, thick) */}
+            <Line
               type="monotone"
               dataKey="applianceOutKw"
-              stroke="#38a169"
-              fill="#c6f6d5"
-              strokeWidth={2}
+              stroke={OUTPUT_COLOR}
+              strokeWidth={3}
               dot={false}
               isAnimationActive={false}
+              name="Output"
             />
-            {/* Capacity line */}
+
+            {/* Capacity ceiling line */}
             {pts[0]?.applianceCapKw != null && (
               <ReferenceLine
                 y={pts[0].applianceCapKw}
-                stroke="#38a169"
+                stroke={OUTPUT_COLOR}
                 strokeDasharray="5 3"
-                strokeOpacity={0.6}
+                strokeOpacity={0.5}
                 label={{
                   value: `Cap ${pts[0].applianceCapKw} kW`,
                   position: 'insideTopRight',
-                  fontSize: 10,
-                  fill: '#38a169',
+                  fontSize: 9,
+                  fill: OUTPUT_COLOR,
                 }}
               />
             )}
-          </AreaChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Row 4: Efficiency / COP. Callout shows "Min X%" — temporal context (when the dip
-          occurs) is provided by effAnnotation rendered below the label. */}
-      <div style={{ position: 'relative' }}>
-        <RowLabel
-          label={timeline.labels.efficiencyLabel}
-          callout={
-            isAshp
-              ? `Min COP ${minCop.toFixed(1)}`
-              : hasEffData
-              ? `Min ${(minEfficiency * 100).toFixed(0)}%`
-              : 'No data'
-          }
-        />
-        {effAnnotation && <AnnotationCallout text={effAnnotation.text} />}
-        {!hasEffData && <InsufficientDataOverlay height={ROW_HEIGHT} />}
-        <ResponsiveContainer width="100%" height={ROW_HEIGHT}>
-          <LineChart
-            data={pts}
-            margin={COMMON_MARGIN}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            onClick={handleClick}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis {...xAxisProps} />
-            <YAxis
-              domain={isAshp ? [1, 5] : [0.5, 1.0]}
-              tick={{ fontSize: 10, fill: '#718096' }}
-              width={32}
-              tickFormatter={v => isAshp ? v.toFixed(1) : `${(v * 100).toFixed(0)}%`}
-            />
-            <Tooltip {...tooltipProps} />
-            {hoverIndex != null && (
-              <ReferenceLine
-                x={pts[hoverIndex]?.tHour}
-                stroke="#718096"
-                strokeDasharray="3 3"
-              />
-            )}
-            <Line
-              type="monotone"
-              dataKey={isAshp ? 'cop' : 'efficiency'}
-              stroke="#805ad5"
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      {/* ── Efficiency strip ─────────────────────────────────────── */}
+      <TimelineEfficiencyStrip
+        points={pts}
+        isAshp={isAshp}
+        hoverIndex={hoverIndex}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
+      />
+
+      {/* ── Event rail ───────────────────────────────────────────── */}
+      <TimelineEventRail points={pts} />
     </div>
   );
 }

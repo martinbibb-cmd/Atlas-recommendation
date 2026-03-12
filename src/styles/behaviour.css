@@ -168,15 +168,29 @@
 
 /* ─── Timeline panel header ──────────────────────────────────────── */
 
+.btp-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 8px;
+}
+
 .btp-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 0 8px 10px;
+  padding: 0 0 10px;
   border-bottom: 1px solid var(--border-subtle);
   margin-bottom: 10px;
+}
+
+.btp-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .btp-header__title {
@@ -185,11 +199,28 @@
   color: var(--text-body);
 }
 
-.btp-header__legend {
+.btp-header__callout {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.btp-legend {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.btp-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btp-legend-item__label {
+  font-size: 11px;
+  color: var(--text-secondary);
 }
 
 .btp-legend-dot {
@@ -204,18 +235,101 @@
 .btp-legend-dot--output { background: #38a169; }
 .btp-legend-dot--eff    { background: #805ad5; }
 
+/* Legacy alias — kept for any template still referencing it */
 .btp-legend-label {
   font-size: 11px;
   color: var(--text-secondary);
   margin-right: 4px;
 }
 
-/* Compact assumption chip row */
+/* Chip row for assumptions */
+.btp-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 0 10px;
+}
+
+/* Legacy alias */
 .btp-assumptions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   padding: 0 8px 10px;
+}
+
+/* ─── Main chart area ────────────────────────────────────────────── */
+
+.btp-main {
+  flex: 1 0 auto;
+  margin-bottom: 0;
+}
+
+/* ─── Efficiency strip ───────────────────────────────────────────── */
+
+.btp-efficiency-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 4px;
+  margin-top: 2px;
+}
+
+/* ─── Event rail ─────────────────────────────────────────────────── */
+
+.btp-event-rail {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 6px;
+  margin-top: 2px;
+}
+
+.btp-event-rail__track {
+  position: relative;
+  height: 18px;
+  box-sizing: border-box;
+}
+
+.btp-event-pill {
+  position: absolute;
+  top: 2px;
+  height: 14px;
+  border-radius: 3px;
+  cursor: default;
+  min-width: 4px;
+}
+
+.btp-event-rail__legend {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.btp-event-rail__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btp-event-rail__legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ─── Shared strip label ─────────────────────────────────────────── */
+
+.btp-strip-label {
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 0 2px 32px; /* align with Y-axis gutter */
 }
 
 /* ─── Header bar ─────────────────────────────────────────────────── */
