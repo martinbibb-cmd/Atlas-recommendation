@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import FastChoiceStepper from './components/stepper/FastChoiceStepper';
 import FullSurveyStepper from './components/stepper/FullSurveyStepper';
 import Footer from './components/Footer';
@@ -6,7 +6,6 @@ import ScopePage from './components/governance/ScopePage';
 import MethodologyPage from './components/governance/MethodologyPage';
 import NeutralityPage from './components/governance/NeutralityPage';
 import PrivacyPage from './components/governance/PrivacyPage';
-import BehaviourConsolePage from './components/behaviour/BehaviourConsolePage';
 import ReportView from './components/report/ReportView';
 import ExplainersHubPage from './explainers/ExplainersHubPage';
 import LabShell from './components/lab/LabShell';
@@ -15,16 +14,7 @@ import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
-import {
-  applyScenarioToEngineInput,
-  DEFAULT_SCENARIO_STATE,
-} from './scenario/scenarioEngineAdapter';
 import './App.css';
-
-/** Detect ?console=1 feature flag in the URL once at app startup. */
-const CONSOLE_MODE_ENABLED =
-  typeof window !== 'undefined' &&
-  new URLSearchParams(window.location.search).get('console') === '1';
 
 /** Detect ?lab=1 feature flag — renders Demo Lab directly for previewing. */
 const LAB_MODE_ENABLED =
@@ -49,7 +39,7 @@ const REPORT_MODE_ENABLED =
   new URLSearchParams(window.location.search).get('report') === '1';
 
 /**
- * Demo engine input used when the ?console=1 flag is set.
+ * Demo engine input used by the report mode (?report=1).
  * Produces a realistic UK combi-vs-stored scenario for demonstration.
  */
 const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
@@ -74,31 +64,10 @@ type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrali
 export default function App() {
   const [journey, setJourney] = useState<Journey>('landing');
   const [fullSurveyPrefill, setFullSurveyPrefill] = useState<Partial<EngineInputV2_3> | undefined>();
-  const [scenario, setScenario] = useState(DEFAULT_SCENARIO_STATE);
-
-  const consoleInput = useMemo(() => applyScenarioToEngineInput(CONSOLE_DEMO_INPUT, scenario), [scenario]);
-  const consoleEngineOutput = useMemo(() => runEngine(consoleInput).engineOutput, [consoleInput]);
-  const baseEngineOutput = useMemo(() => runEngine(CONSOLE_DEMO_INPUT).engineOutput, []);
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
     setJourney('full');
-  }
-
-  // ?console=1 feature flag — render Behaviour Console with demo engine output.
-  if (CONSOLE_MODE_ENABLED) {
-    return (
-      <BehaviourConsolePage
-        output={consoleEngineOutput}
-        baseOutput={baseEngineOutput}
-        scenario={scenario}
-        onScenarioChange={setScenario}
-        onBack={() => {
-          // Remove ?console=1 and reload to return to the landing page.
-          window.location.href = window.location.pathname;
-        }}
-      />
-    );
   }
 
   // ?report=1 feature flag — render the unified ReportView with demo engine output.
