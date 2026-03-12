@@ -459,6 +459,12 @@ export default function DrawOffWorkbench() {
 
   const closeFocus = () => setFocusTarget(null)
 
+  const focusTitle = focusedOutlet
+    ? `${focusedOutlet.label} — Focus`
+    : focusCylinder
+      ? 'Cylinder — Focus'
+      : ''
+
   return (
     <div className="draw-off-workbench" data-testid="draw-off-workbench">
 
@@ -561,13 +567,18 @@ export default function DrawOffWorkbench() {
         >
           <div className="draw-off-focus-overlay__backdrop" onClick={closeFocus} aria-hidden="true" />
           <div className="draw-off-focus-overlay__panel">
-            <button
-              className="draw-off-focus-overlay__close"
-              onClick={closeFocus}
-              aria-label="Close Focus view"
-            >
-              ✕
-            </button>
+            <div className="draw-off-focus-overlay__header">
+              <span className="draw-off-focus-overlay__title" data-testid="focus-overlay-title">
+                {focusTitle}
+              </span>
+              <button
+                className="draw-off-focus-overlay__close"
+                onClick={closeFocus}
+                aria-label="Close Focus view"
+              >
+                ✕
+              </button>
+            </div>
             {focusedOutlet && (
               <DrawOffFocusPanel data={focusedOutlet} />
             )}
