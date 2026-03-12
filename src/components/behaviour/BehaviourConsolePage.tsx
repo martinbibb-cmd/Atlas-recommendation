@@ -19,6 +19,13 @@ import BehaviourTimelinePanel from './BehaviourTimelinePanel';
 import BehaviourSummaryStrip from './BehaviourSummaryStrip';
 import EngineerDetails from './EngineerDetails';
 import CylinderStatusCard from './CylinderStatusCard';
+import WaterPerformanceGauge from './WaterPerformanceGauge';
+import {
+  FLOW_MARKERS,
+  PRESSURE_MARKERS,
+  flowTone,
+  pressureTone,
+} from './waterPerformance.model';
 
 interface Props {
   output: EngineOutputV1;
@@ -48,6 +55,19 @@ export default function BehaviourConsolePage({ output, onBack }: Props) {
 
   const applianceName = behaviourTimeline?.labels.applianceName ?? '';
   const isCombi = behaviourTimeline?.labels.isCombi ?? false;
+
+  // Water performance values — derived from DHW timeline when available.
+  // peakFlowLpm is estimated from peak kW appliance output using the
+  // standard domestic flow relationship; pressureBar is provided by the
+  // timeline labels when present, or uses a conservative default.
+  const dhwPeakFlowLpm: number | null = behaviourTimeline
+    ? peakDhwKw > 0
+      ? Math.round((peakDhwKw / 2.4) * 10) / 10   // ~2.4 kW per L/min at 35°C rise
+      : null
+    : null;
+  const dhwPressureBar: number | null =
+    (behaviourTimeline as { labels: { dynamicPressureBar?: number } } | null)
+      ?.labels?.dynamicPressureBar ?? (behaviourTimeline ? 1.1 : null);
 
   return (
     <div className="behaviour-console bcp-page">
@@ -111,9 +131,9 @@ export default function BehaviourConsolePage({ output, onBack }: Props) {
           <CylinderStatusCard isCombi={isCombi} />
         </AtlasPanel>
 
-        {/* DHW / events slot */}
+        {/* DHW / events slot — now includes instrument-style water performance gauges */}
         <AtlasPanel className="behaviour-console__kpi">
-          <div className="panel-title">DHW / events</div>
+          <div className="panel-title">DHW / water performance</div>
           {behaviourTimeline ? (
             <>
               <div className="atlas-mono">
@@ -126,6 +146,26 @@ export default function BehaviourConsolePage({ output, onBack }: Props) {
                 {behaviourTimeline.assumptionsUsed.length > 0
                   ? `${behaviourTimeline.assumptionsUsed.length} assumption${behaviourTimeline.assumptionsUsed.length !== 1 ? 's' : ''} applied`
                   : 'No assumptions'}
+              </div>
+              <div className="water-performance-card__grid">
+                <WaterPerformanceGauge
+                  label="Flow"
+                  value={dhwPeakFlowLpm}
+                  min={0}
+                  max={25}
+                  unit="L/min"
+                  markers={FLOW_MARKERS}
+                  tone={flowTone(dhwPeakFlowLpm)}
+                />
+                <WaterPerformanceGauge
+                  label="Dynamic pressure"
+                  value={dhwPressureBar}
+                  min={0}
+                  max={3}
+                  unit="bar"
+                  markers={PRESSURE_MARKERS}
+                  tone={pressureTone(dhwPressureBar)}
+                />
               </div>
             </>
           ) : (

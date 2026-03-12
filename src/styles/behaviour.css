@@ -750,3 +750,153 @@
   font-size: var(--text-xs, 11px);
   color: var(--text-muted, #a0aec0);
 }
+
+/* ─── Water performance gauge ───────────────────────────────────────── */
+
+.water-gauge {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.water-gauge__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.water-gauge__label {
+  font-size: var(--text-xs, 11px);
+  font-weight: var(--weight-semibold, 600);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.water-gauge__value {
+  font-family: var(--font-numeric, monospace);
+  font-size: var(--text-base, 14px);
+  font-weight: var(--weight-bold, 700);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-body);
+  letter-spacing: -0.02em;
+}
+
+.water-gauge__unit {
+  font-size: var(--text-xs, 11px);
+  font-weight: var(--weight-normal, 400);
+  color: var(--text-secondary);
+  letter-spacing: 0;
+}
+
+/* Track — the horizontal rail */
+.water-gauge__track {
+  position: relative;
+  height: 6px;
+  background: var(--surface-subtle, #f0f4f8);
+  border-radius: var(--radius-pill, 9999px);
+  overflow: visible;
+}
+
+/* Fill bar — clips to track height */
+.water-gauge__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  background: var(--chip-neutral, #4a5568);
+  border-radius: var(--radius-pill, 9999px);
+  transition: width 300ms ease;
+}
+
+.water-gauge__fill--success { background: var(--chip-success, #38a169); }
+.water-gauge__fill--warning { background: var(--chip-warning, #d69e2e); }
+.water-gauge__fill--danger  { background: var(--chip-danger,  #e53e3e); }
+
+/* Threshold marker tick — a thin vertical line on the track */
+.water-gauge__marker {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--text-muted, #a0aec0);
+  border-radius: 1px;
+  transform: translateX(-50%);
+  cursor: default;
+}
+
+.water-gauge__marker--success { background: var(--chip-success, #38a169); }
+.water-gauge__marker--warning { background: var(--chip-warning, #d69e2e); }
+.water-gauge__marker--danger  { background: var(--chip-danger,  #e53e3e); }
+
+/* Tick label row — sits below the track */
+.water-gauge__ticks {
+  position: relative;
+  height: 14px;
+  margin-top: 2px;
+}
+
+.water-gauge__tick-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: var(--text-muted, #a0aec0);
+  white-space: nowrap;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* ─── Water performance card (layout for two gauges) ─────────────────── */
+
+.water-performance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 0 4px;
+}
+
+.water-performance-card__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ─── Workbench appliance-output row ─────────────────────────────────── */
+
+.workbench-output-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 4px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.workbench-output-row__label {
+  font-size: var(--text-xs, 11px);
+  font-weight: var(--weight-semibold, 600);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.workbench-output-row__slider {
+  flex: 1 1 0;
+  min-width: 0;
+  accent-color: var(--chip-neutral, #4a5568);
+  height: 4px;
+}
+
+.workbench-output-row__value {
+  font-family: var(--font-numeric, monospace);
+  font-size: var(--text-sm, 12px);
+  font-weight: var(--weight-bold, 700);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-body);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 4.5ch;
+  text-align: right;
+}
