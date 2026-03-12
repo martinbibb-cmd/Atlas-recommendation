@@ -20,6 +20,20 @@
  */
 export type DrawOffStatus = 'stable' | 'flow_limited' | 'temp_limited' | 'starved'
 
+/**
+ * Combi boiler firing state derived from flow/pressure thresholds.
+ *
+ * firing          — flow sustained above ignition threshold; burner stable.
+ * marginal        — flow near minimum sustained operation threshold; burner
+ *                   operation may be intermittent or unstable.
+ * fails_to_fire   — flow below minimum ignition threshold; burner cannot
+ *                   ignite or maintain operation.
+ *
+ * Only applicable when the system regime is 'combi'.  Undefined for stored
+ * hot-water systems.
+ */
+export type BoilerState = 'firing' | 'marginal' | 'fails_to_fire'
+
 export interface DrawOffViewModel {
   /** Unique identifier for this outlet. */
   id: string
@@ -43,6 +57,18 @@ export interface DrawOffViewModel {
   deliveredFlowLpm: number
   /** One-line behavioural note explaining why this result is happening. */
   note: string
+  /**
+   * Short description of the primary constraint limiting this outlet's
+   * performance.  Shown in the Focus inspection view.  Optional — not all
+   * contexts that build a DrawOffViewModel need to compute a limiting factor.
+   */
+  limitingFactor?: string
+  /**
+   * Combi boiler firing state for this draw-off point.  Derived from
+   * hot-supply available flow relative to known ignition thresholds.
+   * Only set for combi regimes; undefined for stored hot-water systems.
+   */
+  boilerState?: BoilerState
 }
 
 // ─── Cylinder / hot-water source ─────────────────────────────────────────────

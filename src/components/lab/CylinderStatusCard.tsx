@@ -42,9 +42,10 @@ function isCylinderRegime(regime: StorageRegime): boolean {
 
 interface Props {
   data: CylinderStatusViewModel
+  onFocus?: () => void
 }
 
-export default function CylinderStatusCard({ data }: Props) {
+export default function CylinderStatusCard({ data, onFocus }: Props) {
   const {
     storageRegime,
     topTempC,
@@ -178,6 +179,17 @@ export default function CylinderStatusCard({ data }: Props) {
           {storeNote}
         </p>
       </div>
+
+      {/* ── Focus action ───────────────────────────────────────────────────── */}
+      {onFocus && (
+        <button
+          className="draw-off-card__focus-btn"
+          onClick={onFocus}
+          aria-label="Focus: Cylinder status"
+        >
+          Focus
+        </button>
+      )}
     </div>
   )
 }

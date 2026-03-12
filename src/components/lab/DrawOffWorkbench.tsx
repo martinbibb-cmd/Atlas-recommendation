@@ -16,6 +16,9 @@
  * Bottom section: WaterPerformanceGauge — instrument-style flow and dynamic
  * pressure readings derived from the current regime and output settings.
  *
+ * Focus mode: tapping any tile opens a focused inspection overlay.  Background
+ * tiles dim softly.  Close returns directly to the overview map.
+ *
  * All regime data values illustrate physics differences between system types.
  * No engine model is re-derived here — values are scaled display models only.
  *
@@ -25,6 +28,8 @@
 import { useState } from 'react'
 import DrawOffCard from './DrawOffCard'
 import CylinderStatusCard from './CylinderStatusCard'
+import DrawOffFocusPanel from './DrawOffFocusPanel'
+import CylinderFocusPanel from './CylinderFocusPanel'
 import WaterPerformanceGauge from '../behaviour/WaterPerformanceGauge'
 import {
   FLOW_MARKERS,
@@ -32,7 +37,7 @@ import {
   flowTone,
   pressureTone,
 } from '../behaviour/waterPerformance.model'
-import type { DrawOffViewModel, CylinderStatusViewModel } from './drawOffTypes'
+import type { DrawOffViewModel, CylinderStatusViewModel, BoilerState } from './drawOffTypes'
 
 // ─── Regime selector ──────────────────────────────────────────────────────────
 
@@ -51,6 +56,26 @@ const REGIME_LABELS: Record<Regime, string> = {
 const DEFAULT_BOILER_OUTPUT_KW = 24
 const MIN_BOILER_OUTPUT_KW     = 18
 const MAX_BOILER_OUTPUT_KW     = 42
+
+/**
+ * Minimum hot-supply flow (L/min) thresholds for combi boiler firing.
+ *
+ * These are presentation-layer thresholds used to derive BoilerState.
+ * Below IGNITION_FLOW_LPM the burner cannot ignite.
+ * Below SUSTAINED_FLOW_LPM operation is marginal / intermittent.
+ */
+const COMBI_IGNITION_FLOW_LPM  = 2.5
+const COMBI_SUSTAINED_FLOW_LPM = 7.0
+
+/**
+ * Derive BoilerState from available hot-supply flow for a combi outlet.
+ * Thresholds based on typical minimum ignition and sustained operation limits.
+ */
+function deriveBoilerState(hotSupplyAvailableFlowLpm: number): BoilerState {
+  if (hotSupplyAvailableFlowLpm < COMBI_IGNITION_FLOW_LPM)  return 'fails_to_fire'
+  if (hotSupplyAvailableFlowLpm < COMBI_SUSTAINED_FLOW_LPM) return 'marginal'
+  return 'firing'
+}
 
 /**
  * Scale combi hot-supply flow proportionally to the current appliance output
@@ -81,6 +106,8 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
         deliveredTempC: 42,
         deliveredFlowLpm: Math.min(8, hotFlow * 0.8),
         note: 'On-demand supply stable at low draw rate. Temperature delivered within seconds.',
+        limitingFactor: 'None — demand within appliance capacity',
+        boilerState: deriveBoilerState(hotFlow),
       },
       {
         id: 'basin',
@@ -94,6 +121,8 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
         deliveredTempC: 40,
         deliveredFlowLpm: Math.min(6, hotFlow * 0.6),
         note: 'Low-flow draw; appliance not yet approaching throughput limit.',
+        limitingFactor: 'None — low-flow draw well within capacity',
+        boilerState: deriveBoilerState(hotFlow),
       },
       {
         id: 'shower',
@@ -109,6 +138,8 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
         note: hotFlow >= 10
           ? 'Flow within appliance throughput. Temperature held by adjusting blend ratio.'
           : 'Flow capped at appliance throughput limit. Temperature held by adjusting blend ratio.',
+        limitingFactor: hotFlow >= 10 ? 'None' : 'Hot-side output constrained — appliance throughput limit reached',
+        boilerState: deriveBoilerState(hotFlow),
       },
       {
         id: 'bath',
@@ -122,6 +153,8 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
         deliveredTempC: 32,
         deliveredFlowLpm: Math.min(6, concurrentHotFlow + 2),
         note: 'Concurrent demand has exhausted appliance capacity. Delivered temperature and flow both degraded.',
+        limitingFactor: 'Concurrent demand exceeds appliance capacity — insufficient DHW flow to sustain burner',
+        boilerState: deriveBoilerState(concurrentHotFlow),
       },
     ]
   }
@@ -140,6 +173,7 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
         deliveredTempC: 42,
         deliveredFlowLpm: 9,
         note: 'Mains-pressure supply from stored cylinder. Ample hot fraction available.',
+        limitingFactor: 'None — stored supply ample',
       },
       {
         id: 'basin',
@@ -153,6 +187,7 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
         deliveredTempC: 40,
         deliveredFlowLpm: 7,
         note: 'Stored supply stable. Cylinder temperature holding at set point.',
+        limitingFactor: 'None — stored supply ample',
       },
       {
         id: 'shower',
@@ -166,6 +201,7 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
         deliveredTempC: 38,
         deliveredFlowLpm: 11,
         note: 'High-temperature store allows small hot fraction. Concurrent draw well within cylinder capacity.',
+        limitingFactor: 'None — concurrent draw within cylinder capacity',
       },
       {
         id: 'bath',
@@ -179,6 +215,7 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
         deliveredTempC: 40,
         deliveredFlowLpm: 14,
         note: 'Store temperature dropping under sustained large-volume draw. Recovery active; thermocline falling.',
+        limitingFactor: 'Store temperature declining — thermocline falling under large-volume draw',
       },
     ]
   }
@@ -198,6 +235,7 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
         deliveredTempC: 42,
         deliveredFlowLpm: 9,
         note: 'Stored supply from heat pump cylinder. Higher hot fraction needed due to lower storage temperature.',
+        limitingFactor: 'Lower store temperature — higher hot fraction required',
       },
       {
         id: 'basin',
@@ -211,6 +249,7 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
         deliveredTempC: 40,
         deliveredFlowLpm: 7,
         note: 'Stored supply stable at moderate draw. Usable volume depleting more quickly than a boiler cylinder.',
+        limitingFactor: 'Usable volume depleting faster than recovery rate',
       },
       {
         id: 'shower',
@@ -224,6 +263,7 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
         deliveredTempC: 37,
         deliveredFlowLpm: 10,
         note: 'Store temperature lower than optimal. Delivered temperature held by increased hot fraction, reducing available flow.',
+        limitingFactor: 'Store temperature below target — increased hot fraction reduces available flow',
       },
       {
         id: 'bath',
@@ -237,6 +277,7 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
         deliveredTempC: 34,
         deliveredFlowLpm: 9,
         note: 'Usable volume depleted. Recovery lagging — heat pump cannot match boiler reheat rate under simultaneous demand.',
+        limitingFactor: 'Usable volume depleted — recovery rate insufficient for simultaneous demand',
       },
     ]
   }
@@ -255,6 +296,7 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
       deliveredTempC: 42,
       deliveredFlowLpm: 9,
       note: 'Mains-pressure supply from Mixergy cylinder. Stratification maintains hot layer; minimal draw on lower zone.',
+      limitingFactor: 'None — stratified store maintaining hot layer',
     },
     {
       id: 'basin',
@@ -268,6 +310,7 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
       deliveredTempC: 40,
       deliveredFlowLpm: 7,
       note: 'Stored supply stable. Top-down heating keeps upper zone at set point even at partial fill.',
+      limitingFactor: 'None — top-down stratification holding set point',
     },
     {
       id: 'shower',
@@ -281,6 +324,7 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
       deliveredTempC: 38,
       deliveredFlowLpm: 11,
       note: 'High-temperature stratified store; small hot fraction sufficient. Demand mirroring reduces reheat cycling.',
+      limitingFactor: 'None — stratified store and demand mirroring active',
     },
     {
       id: 'bath',
@@ -294,6 +338,7 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
       deliveredTempC: 41,
       deliveredFlowLpm: 13,
       note: 'Sustained draw drawing from stratified upper zone. Thermocline lower than standard cylinder under same load — Mixergy advantage visible.',
+      limitingFactor: 'None — Mixergy stratification preserving upper zone under concurrent load',
     },
   ]
 }
@@ -388,16 +433,31 @@ function getWaterPerformance(
   return { peakFlowLpm, dynamicPressureBar: 2.5 }
 }
 
+// ─── Focus state types ────────────────────────────────────────────────────────
+
+type FocusTarget =
+  | { kind: 'outlet'; outletId: string }
+  | { kind: 'cylinder' }
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function DrawOffWorkbench() {
   const [regime, setRegime] = useState<Regime>('boiler_cylinder')
   const [boilerOutputKw, setBoilerOutputKw] = useState<number>(DEFAULT_BOILER_OUTPUT_KW)
+  const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null)
 
   const isCombi  = regime === 'combi'
   const outlets  = getDrawOffData(regime, boilerOutputKw)
   const cylinder = getCylinderData(regime)
   const water    = getWaterPerformance(regime, outlets)
+
+  const focusedOutlet =
+    focusTarget?.kind === 'outlet'
+      ? outlets.find(o => o.id === focusTarget.outletId) ?? null
+      : null
+  const focusCylinder = focusTarget?.kind === 'cylinder'
+
+  const closeFocus = () => setFocusTarget(null)
 
   return (
     <div className="draw-off-workbench" data-testid="draw-off-workbench">
@@ -439,24 +499,34 @@ export default function DrawOffWorkbench() {
       )}
 
       {/* ── Main panel: outlets + cylinder ─────────────────────────────────── */}
-      <div className="draw-off-workbench__panel">
+      <div className={`draw-off-workbench__panel${focusTarget ? ' draw-off-workbench__panel--dimmed' : ''}`}>
 
         {/* Left: 2×2 outlet grid */}
         <div className="draw-off-workbench__outlets" aria-label="Draw-off outlets">
           {outlets.map(outlet => (
-            <DrawOffCard key={outlet.id} data={outlet} />
+            <DrawOffCard
+              key={outlet.id}
+              data={outlet}
+              onFocus={() => setFocusTarget({ kind: 'outlet', outletId: outlet.id })}
+            />
           ))}
         </div>
 
         {/* Right: cylinder / source status */}
         <div className="draw-off-workbench__source">
-          <CylinderStatusCard data={cylinder} />
+          <CylinderStatusCard
+            data={cylinder}
+            onFocus={() => setFocusTarget({ kind: 'cylinder' })}
+          />
         </div>
 
       </div>
 
       {/* ── Water performance ───────────────────────────────────────────────── */}
-      <div className="water-performance-card" aria-label="Water performance">
+      <div
+        className={`water-performance-card${focusTarget ? ' water-performance-card--dimmed' : ''}`}
+        aria-label="Water performance"
+      >
         <div className="panel-title">Water performance</div>
         <div className="water-performance-card__grid">
           <WaterPerformanceGauge
@@ -479,6 +549,34 @@ export default function DrawOffWorkbench() {
           />
         </div>
       </div>
+
+      {/* ── Focus overlay ───────────────────────────────────────────────────── */}
+      {focusTarget && (
+        <div
+          className="draw-off-focus-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Focus view"
+          data-testid="focus-overlay"
+        >
+          <div className="draw-off-focus-overlay__backdrop" onClick={closeFocus} aria-hidden="true" />
+          <div className="draw-off-focus-overlay__panel">
+            <button
+              className="draw-off-focus-overlay__close"
+              onClick={closeFocus}
+              aria-label="Close Focus view"
+            >
+              ✕
+            </button>
+            {focusedOutlet && (
+              <DrawOffFocusPanel data={focusedOutlet} />
+            )}
+            {focusCylinder && (
+              <CylinderFocusPanel data={cylinder} />
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   )
