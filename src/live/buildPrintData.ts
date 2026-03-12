@@ -50,8 +50,13 @@ function confidenceLabel(level?: string): string {
  * Map an OptionCardV1 to the CandidateSystem shape used by the print layouts.
  *
  * For rows that cannot be directly derived from the engine output the adapter
- * falls back to the matching entry in CANDIDATE_SYSTEMS (keyed by a rough
- * ID equivalence) or to a generic placeholder string.
+ * falls back to the matching entry in CANDIDATE_SYSTEMS (keyed by ID).
+ * Engine option IDs ('combi', 'ashp', 'stored_unvented', etc.) align with
+ * the labSharedData IDs for 'ashp'.  Other IDs (e.g. 'combi',
+ * 'stored_unvented') have no exact match in the two-entry CANDIDATE_SYSTEMS
+ * placeholder, so editorial rows (longevity, control, eco, future) will
+ * fall back to the generic note.  This is intentional — those rows require
+ * manual copy that the engine does not produce.
  */
 function optionToCandidate(opt: OptionCardV1): CandidateSystem {
   // Best-effort match to the lab placeholder data for editorial rows we
@@ -69,22 +74,29 @@ function optionToCandidate(opt: OptionCardV1): CandidateSystem {
     future:      placeholder?.rows.future      ?? 'Refer to technical specification.',
   };
 
-  // Build explanation from engine-provided bullets where available.
-  const struggleBullets = [
+  // Build the struggles explanation from the first few engine heat / DHW
+  // caution bullets where available; fall back to placeholder editorial copy.
+  const strugglesExplanation = [
     ...opt.heat.bullets.slice(0, 2),
     ...opt.dhw.bullets.slice(0, 1),
   ].join(' ');
+
+  // `typedRequirements.mustHave` is the canonical requirements list (PR that
+  // introduced it deprecated the flat `requirements[]`); we still check the
+  // flat array as a fallback for engine versions that haven't migrated yet.
+  const changesExplanation =
+    opt.typedRequirements.mustHave.join('. ') ||
+    opt.requirements.join('. ')               ||
+    placeholder?.explanation.changes          || '—';
 
   return {
     id: opt.id,
     label: opt.label,
     rows,
     explanation: {
-      suits:     opt.why.join(' ') || placeholder?.explanation.suits     || '—',
-      struggles: struggleBullets   || placeholder?.explanation.struggles || '—',
-      changes:   opt.typedRequirements.mustHave.join('. ') ||
-                 opt.requirements.join('. ')               ||
-                 placeholder?.explanation.changes          || '—',
+      suits:     opt.why.join(' ')       || placeholder?.explanation.suits     || '—',
+      struggles: strugglesExplanation    || placeholder?.explanation.struggles || '—',
+      changes:   changesExplanation,
     },
   };
 }
