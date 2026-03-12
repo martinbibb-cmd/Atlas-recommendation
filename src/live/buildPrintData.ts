@@ -23,7 +23,6 @@ import {
   PLACEHOLDER_CURRENT_SYSTEM,
   PLACEHOLDER_CONFIDENCE_STRIP,
   PLACEHOLDER_RECOMMENDED_SYSTEM_ID,
-  PLACEHOLDER_VERDICT,
 } from '../components/lab/labSharedData';
 import type { ConfidenceStripData } from '../components/lab/LabConfidenceStrip';
 
