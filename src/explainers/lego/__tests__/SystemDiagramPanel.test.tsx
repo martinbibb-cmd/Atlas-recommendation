@@ -12,6 +12,7 @@
  *   - Shows "CH paused" callout badge when serviceSwitchingActive
  *   - Shows "Cylinder reheat" callout badge when primaryReheat active
  *   - Combi label says "Plate HEX" and stored label says "Cylinder"
+ *   - Boiler sublabel reflects live boilerOutputKw prop (not hardcoded)
  *
  * These tests use data-testid attributes on critical pipe polylines so the
  * assertions are stable regardless of CSS class naming changes.
@@ -417,5 +418,54 @@ describe('SystemDiagramPanel — lane pipe highlighting', () => {
     const { container } = render(<SystemDiagramPanel state={combiDhwDraw()} />)
     const lane = container.querySelector('[data-testid="pipe-cold-feed"]')
     expect(lane?.getAttribute('class')).toContain('sd-pipe--active')
+  })
+})
+
+// ─── Boiler label (live boilerOutputKw prop) ──────────────────────────────────
+
+describe('SystemDiagramPanel — live boiler label', () => {
+  it('combi: shows default "30 kW boiler" when boilerOutputKw prop is absent', () => {
+    render(<SystemDiagramPanel state={combiIdle()} />)
+    expect(screen.getByText('30 kW boiler')).toBeTruthy()
+  })
+
+  it('combi: shows live kW value when boilerOutputKw prop is provided', () => {
+    render(<SystemDiagramPanel state={combiIdle()} boilerOutputKw={20} />)
+    expect(screen.getByText('20 kW boiler')).toBeTruthy()
+    expect(screen.queryByText('30 kW boiler')).toBeNull()
+  })
+
+  it('stored (S-plan): shows default "24 kW boiler" when boilerOutputKw prop is absent', () => {
+    render(<SystemDiagramPanel state={storedIdle()} />)
+    expect(screen.getByText('24 kW boiler')).toBeTruthy()
+  })
+
+  it('stored (S-plan): shows live kW value when boilerOutputKw prop is provided', () => {
+    render(<SystemDiagramPanel state={storedIdle()} boilerOutputKw={18} />)
+    expect(screen.getByText('18 kW boiler')).toBeTruthy()
+    expect(screen.queryByText('24 kW boiler')).toBeNull()
+  })
+
+  it('open-vented (Y-plan): shows live kW value when boilerOutputKw prop is provided', () => {
+    const ventedState: SystemDiagramDisplayState = {
+      systemMode: 'idle',
+      systemType: 'vented_cylinder',
+      heatSourceType: 'system_boiler',
+      serviceSwitchingActive: false,
+      supplyOrigins: supplyOriginsForSystemType('vented_cylinder'),
+      hotDrawActive: false,
+    }
+    render(<SystemDiagramPanel state={ventedState} boilerOutputKw={15} />)
+    expect(screen.getByText('15 kW boiler')).toBeTruthy()
+    expect(screen.queryByText('24 kW boiler')).toBeNull()
+  })
+
+  it('combi: label updates when boilerOutputKw changes to a different value', () => {
+    const { rerender } = render(<SystemDiagramPanel state={combiIdle()} boilerOutputKw={30} />)
+    expect(screen.getByText('30 kW boiler')).toBeTruthy()
+
+    rerender(<SystemDiagramPanel state={combiIdle()} boilerOutputKw={14} />)
+    expect(screen.getByText('14 kW boiler')).toBeTruthy()
+    expect(screen.queryByText('30 kW boiler')).toBeNull()
   })
 })

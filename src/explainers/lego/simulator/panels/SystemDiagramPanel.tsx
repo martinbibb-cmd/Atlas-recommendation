@@ -23,6 +23,15 @@ interface Props {
    * Valid IDs: 'boiler' | 'plate_hex' | 'cylinder' | 'mains'
    */
   highlightedComponents?: string[];
+  /**
+   * Live boiler output rating (kW) from the current SystemInputs.
+   * When provided, overrides the schematic's default placeholder label so the
+   * diagram always reflects the value shown by the controls.
+   * Combi systems should pass `combiPowerKw`; stored/vented systems should
+   * pass `boilerOutputKw`.  Heat-pump systems have no boiler label so this
+   * value is ignored for that system type.
+   */
+  boilerOutputKw?: number;
 }
 
 // ─── Active-path derivation ───────────────────────────────────────────────────
@@ -189,6 +198,8 @@ interface SchematicProps {
   paths: ActivePaths;
   badges: BadgeSpec[];
   highlightedComponents: string[];
+  /** Live boiler output kW — replaces the hardcoded placeholder in the SVG label. */
+  boilerOutputKw?: number;
 }
 
 /** Returns extra CSS class(es) when `componentId` is in the highlighted set. */
@@ -209,10 +220,11 @@ function pipeHighlightClass(pipeId: string, highlighted: string[]): string {
 //   y=148 DHW HOT         — plate HEX DHW out → outlets
 //   y=188 COLD FEED       — mains → plate HEX cold in
 
-function CombiSchematic({ state, paths, badges, highlightedComponents }: SchematicProps): ReactElement {
+function CombiSchematic({ state, paths, badges, highlightedComponents, boilerOutputKw }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
   const outlets = state?.outletDemands ?? { shower: paths.comboDhw, bath: false, kitchen: false }
+  const displayKw = boilerOutputKw ?? 30;
 
   const condensingBadgeText: string | null =
     state?.condensingState === 'condensing'     ? '🟢 Condensing'     :
@@ -255,7 +267,7 @@ function CombiSchematic({ state, paths, badges, highlightedComponents }: Schemat
         x={6} y={12} width={74} height={84} rx={8} ry={8}
       />
       <text className="sd-label"    x={43} y={36}>🔥 Combi</text>
-      <text className="sd-sublabel" x={43} y={52}>30 kW boiler</text>
+      <text className="sd-sublabel" x={43} y={52}>{displayKw} kW boiler</text>
       {/* Ports: flow right (80,36), return right (80,88), DHW bottom (43,96) */}
       <circle className="sd-port sd-port--hot"  cx={80} cy={36} r={3.5} />
       <circle className="sd-port sd-port--cold" cx={80} cy={88} r={3.5} />
@@ -410,10 +422,11 @@ function CombiSchematic({ state, paths, badges, highlightedComponents }: Schemat
 //   y=148 STORED HOT      — cylinder draw → outlets (horizontal distribution)
 //   y=188 COLD FEED       — mains → cylinder cold fill
 
-function StoredSchematic({ state, paths, badges, highlightedComponents }: SchematicProps): ReactElement {
+function StoredSchematic({ state, paths, badges, highlightedComponents, boilerOutputKw }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
   const outlets = state?.outletDemands ?? { shower: paths.storedHotDraw, bath: false, kitchen: false }
+  const displayKw = boilerOutputKw ?? 24;
 
   const condensingBadgeText: string | null =
     state?.condensingState === 'condensing'     ? '🟢 Condensing'     :
@@ -456,7 +469,7 @@ function StoredSchematic({ state, paths, badges, highlightedComponents }: Schema
         x={6} y={12} width={74} height={84} rx={8} ry={8}
       />
       <text className="sd-label"    x={43} y={36}>🔥 System</text>
-      <text className="sd-sublabel" x={43} y={52}>24 kW boiler</text>
+      <text className="sd-sublabel" x={43} y={52}>{displayKw} kW boiler</text>
       <circle className="sd-port sd-port--hot"  cx={80} cy={36} r={3.5} />
       <circle className="sd-port sd-port--cold" cx={80} cy={88} r={3.5} />
 
@@ -633,10 +646,11 @@ function StoredSchematic({ state, paths, badges, highlightedComponents }: Schema
 //
 // Additional: Feed & vent lane — CWS cistern (top right) gravity feeds cylinder.
 
-function VentedSchematic({ state, paths, badges, highlightedComponents }: SchematicProps): ReactElement {
+function VentedSchematic({ state, paths, badges, highlightedComponents, boilerOutputKw }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
   const outlets = state?.outletDemands ?? { shower: paths.storedHotDraw, bath: false, kitchen: false }
+  const displayKw = boilerOutputKw ?? 24;
 
   const condensingBadgeText: string | null =
     state?.condensingState === 'condensing'     ? '🟢 Condensing'     :
@@ -679,7 +693,7 @@ function VentedSchematic({ state, paths, badges, highlightedComponents }: Schema
         x={6} y={12} width={72} height={84} rx={8} ry={8}
       />
       <text className="sd-label"    x={42} y={36}>🔥 Regular</text>
-      <text className="sd-sublabel" x={42} y={52}>24 kW boiler</text>
+      <text className="sd-sublabel" x={42} y={52}>{displayKw} kW boiler</text>
       <circle className="sd-port sd-port--hot"  cx={78} cy={36} r={3.5} />
       <circle className="sd-port sd-port--cold" cx={78} cy={88} r={3.5} />
 
@@ -1069,7 +1083,7 @@ function HeatPumpSchematic({ state, paths, badges, highlightedComponents }: Sche
 
 // ─── Dispatch: choose correct schematic family ────────────────────────────────
 
-export default function SystemDiagramPanel({ state, highlightedComponents = [] }: Props) {
+export default function SystemDiagramPanel({ state, highlightedComponents = [], boilerOutputKw }: Props) {
   const paths: ActivePaths = state ? deriveActivePaths(state) : IDLE_PATHS;
   const badges: BadgeSpec[] = state ? deriveBadges(state, paths) : [];
   const hl = highlightedComponents;
@@ -1080,7 +1094,7 @@ export default function SystemDiagramPanel({ state, highlightedComponents = [] }
   if (!state || systemType === 'combi') {
     return (
       <div className="system-diagram" data-testid="system-diagram-panel">
-        <CombiSchematic state={state} paths={paths} badges={badges} highlightedComponents={hl} />
+        <CombiSchematic state={state} paths={paths} badges={badges} highlightedComponents={hl} boilerOutputKw={boilerOutputKw} />
       </div>
     );
   }
@@ -1088,7 +1102,7 @@ export default function SystemDiagramPanel({ state, highlightedComponents = [] }
   if (isHeatPump) {
     return (
       <div className="system-diagram" data-testid="system-diagram-panel">
-        <HeatPumpSchematic state={state} paths={paths} badges={badges} highlightedComponents={hl} />
+        <HeatPumpSchematic state={state} paths={paths} badges={badges} highlightedComponents={hl} boilerOutputKw={boilerOutputKw} />
       </div>
     );
   }
@@ -1096,7 +1110,7 @@ export default function SystemDiagramPanel({ state, highlightedComponents = [] }
   if (systemType === 'vented_cylinder') {
     return (
       <div className="system-diagram" data-testid="system-diagram-panel">
-        <VentedSchematic state={state} paths={paths} badges={badges} highlightedComponents={hl} />
+        <VentedSchematic state={state} paths={paths} badges={badges} highlightedComponents={hl} boilerOutputKw={boilerOutputKw} />
       </div>
     );
   }
@@ -1104,7 +1118,7 @@ export default function SystemDiagramPanel({ state, highlightedComponents = [] }
   // unvented_cylinder — S-plan
   return (
     <div className="system-diagram" data-testid="system-diagram-panel">
-      <StoredSchematic state={state} paths={paths} badges={badges} highlightedComponents={hl} />
+      <StoredSchematic state={state} paths={paths} badges={badges} highlightedComponents={hl} boilerOutputKw={boilerOutputKw} />
     </div>
   );
 }

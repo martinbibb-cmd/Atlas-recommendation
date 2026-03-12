@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import ExplainersHubPage from '../../explainers/ExplainersHubPage';
+import BehaviourConsolePage from '../behaviour/BehaviourConsolePage';
 import LabHomeLink from './LabHomeLink';
 import LabConfidenceStrip from './LabConfidenceStrip';
 import DrawOffWorkbench from './DrawOffWorkbench';
@@ -11,15 +12,43 @@ import {
   COMPARISON_HEADINGS,
   CANDIDATE_SYSTEMS,
 } from './labSharedData';
+import { runEngine } from '../../engine/Engine';
+import {
+  applyScenarioToEngineInput,
+  DEFAULT_SCENARIO_STATE,
+} from '../../scenario/scenarioEngineAdapter';
+import type { ScenarioState } from '../../scenario/scenarioEngineAdapter';
+import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import './lab.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type LabTab = 'summary' | 'physics' | 'visual';
+type LabTab = 'summary' | 'physics' | 'visual' | 'console';
 
 interface Props {
   onHome: () => void;
 }
+
+/**
+ * Demo engine input used by the Behaviour Console tab.
+ * Produces a realistic UK combi-vs-stored scenario for demonstration.
+ */
+const LAB_DEMO_INPUT: EngineInputV2_3 = {
+  postcode: 'SW1A 1AA',
+  dynamicMainsPressure: 1.8,
+  mainsDynamicFlowLpm: 14,
+  primaryPipeDiameter: 22,
+  heatLossWatts: 8000,
+  radiatorCount: 10,
+  bathroomCount: 1,
+  occupancyCount: 3,
+  hasLoftConversion: false,
+  returnWaterTemp: 45,
+  occupancySignature: 'professional',
+  buildingMass: 'medium',
+  highOccupancy: false,
+  preferCombi: true,
+};
 
 // ─── Summary tab ──────────────────────────────────────────────────────────────
 
@@ -78,11 +107,25 @@ function VisualTab() {
 
 export default function LabShell({ onHome }: Props) {
   const [activeTab, setActiveTab] = useState<LabTab>('summary');
+  const [scenario, setScenario] = useState<ScenarioState>(DEFAULT_SCENARIO_STATE);
+
+  const consoleInput = useMemo(
+    () => applyScenarioToEngineInput(LAB_DEMO_INPUT, scenario),
+    [scenario],
+  );
+  const consoleOutput = useMemo(
+    () => runEngine(consoleInput).engineOutput,
+    [consoleInput],
+  );
+  // Empty dep array is intentional: LAB_DEMO_INPUT is a module-level constant
+  // that never changes, so the base run only needs to happen once.
+  const baseOutput = useMemo(() => runEngine(LAB_DEMO_INPUT).engineOutput, []);
 
   const TAB_LABELS: Record<LabTab, string> = {
     summary: 'Summary',
     physics: 'Physics',
     visual:  'Visual',
+    console: 'Behaviour Console',
   };
 
   return (
@@ -173,6 +216,14 @@ export default function LabShell({ onHome }: Props) {
         {activeTab === 'summary' && <SummaryTab />}
         {activeTab === 'physics' && <ExplainersHubPage />}
         {activeTab === 'visual'  && <VisualTab />}
+        {activeTab === 'console' && (
+          <BehaviourConsolePage
+            output={consoleOutput}
+            baseOutput={baseOutput}
+            scenario={scenario}
+            onScenarioChange={setScenario}
+          />
+        )}
       </div>
 
     </div>
