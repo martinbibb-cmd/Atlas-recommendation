@@ -13,6 +13,8 @@
  * All panels reference engine-output objects directly — no re-derivation.
  */
 import { useState } from 'react';
+import ScenarioControls from '../scenario/ScenarioControls';
+import type { ScenarioState } from '../../scenario/scenarioEngineAdapter';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import { AtlasPanel } from '../ui/AtlasPanel';
 import ReportView from '../report/ReportView';
@@ -31,6 +33,8 @@ import {
 interface Props {
   output: EngineOutputV1;
   onBack?: () => void;
+  scenario?: ScenarioState;
+  onScenarioChange?: (next: ScenarioState) => void;
 }
 
 type Mode = 'customer' | 'engineer';
@@ -41,7 +45,7 @@ type Mode = 'customer' | 'engineer';
  */
 const REPORT_RENDER_DELAY_MS = 150;
 
-export default function BehaviourConsolePage({ output, onBack }: Props) {
+export default function BehaviourConsolePage({ output, onBack, scenario, onScenarioChange }: Props) {
   const [mode, setMode] = useState<Mode>('customer');
   const [reportOpen, setReportOpen] = useState(false);
 
@@ -145,6 +149,13 @@ export default function BehaviourConsolePage({ output, onBack }: Props) {
           </div>
         </div>
       </div>
+
+      {scenario && onScenarioChange && (
+        <ScenarioControls
+          scenario={scenario}
+          onChange={onScenarioChange}
+        />
+      )}
 
       {/* ── 2. Primary focus panel — Thermodynamic Timeline ─────────── */}
       <AtlasPanel variant="focus" className="behaviour-console__focus-panel">

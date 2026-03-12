@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import FastChoiceStepper from './components/stepper/FastChoiceStepper';
 import FullSurveyStepper from './components/stepper/FullSurveyStepper';
 import Footer from './components/Footer';
@@ -15,6 +15,10 @@ import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
+import {
+  applyScenarioToEngineInput,
+  DEFAULT_SCENARIO_STATE,
+} from './scenario/scenarioEngineAdapter';
 import './App.css';
 
 /** Detect ?console=1 feature flag in the URL once at app startup. */
@@ -70,6 +74,10 @@ type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrali
 export default function App() {
   const [journey, setJourney] = useState<Journey>('landing');
   const [fullSurveyPrefill, setFullSurveyPrefill] = useState<Partial<EngineInputV2_3> | undefined>();
+  const [scenario, setScenario] = useState(DEFAULT_SCENARIO_STATE);
+
+  const consoleInput = useMemo(() => applyScenarioToEngineInput(CONSOLE_DEMO_INPUT, scenario), [scenario]);
+  const consoleEngineOutput = useMemo(() => runEngine(consoleInput).engineOutput, [consoleInput]);
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
@@ -78,10 +86,11 @@ export default function App() {
 
   // ?console=1 feature flag — render Behaviour Console with demo engine output.
   if (CONSOLE_MODE_ENABLED) {
-    const { engineOutput } = runEngine(CONSOLE_DEMO_INPUT);
     return (
       <BehaviourConsolePage
-        output={engineOutput}
+        output={consoleEngineOutput}
+        scenario={scenario}
+        onScenarioChange={setScenario}
         onBack={() => {
           // Remove ?console=1 and reload to return to the landing page.
           window.location.href = window.location.pathname;
