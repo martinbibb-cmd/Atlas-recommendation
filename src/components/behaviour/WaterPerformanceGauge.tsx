@@ -1,10 +1,12 @@
 /**
  * WaterPerformanceGauge
  *
- * Compact horizontal linear gauge for a measured flow rate or dynamic pressure
- * value.  Renders as a test-instrument reading:
+ * Compact horizontal linear gauge for a flow rate or dynamic pressure value.
+ * The value may be a measured site reading or a regime-derived estimate —
+ * callers should reflect this distinction in the `label` prop
+ * (e.g. "Estimated flow" vs. "Flow", "Assumed pressure" vs. "Dynamic pressure").
  *
- *   Flow
+ *   Estimated flow
  *   [███████████──────] 12.4 L/min
  *            ↑ threshold ticks below
  *
@@ -21,7 +23,7 @@ import type { WaterMarker, WaterTone } from './waterPerformance.model'
 export type WaterPerformanceGaugeProps = {
   /** Gauge title (e.g. "Flow", "Dynamic pressure"). */
   label: string
-  /** Measured value.  null = no reading available. */
+  /** Gauge value (measured or derived).  null = no reading available. */
   value: number | null
   /** Gauge scale minimum. */
   min: number
