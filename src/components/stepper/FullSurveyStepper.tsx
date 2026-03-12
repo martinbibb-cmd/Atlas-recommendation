@@ -40,6 +40,7 @@ import {
 import LiveHubPage from '../../live/LiveHubPage';
 import LivePhysicsOverlay, { type OverlayStepKey } from '../../ui/overlay/LivePhysicsOverlay';
 import DeltaStrip from '../../ui/panels/DeltaStrip';
+import { useUiMode } from '../../context/UiModeContext';
 // BOM utilities retained for internal/engineer mode — not rendered in customer cockpit
 // import { exportBomToCsv, calculateBomTotal } from '../../engine/modules/WholesalerPricingAdapter';
 
@@ -393,6 +394,7 @@ const defaultInput: FullSurveyModelV1 = {
 };
 
 export default function FullSurveyStepper({ onBack, prefill }: Props) {
+  const { uiMode, setUiMode } = useUiMode();
   const [currentStep, setCurrentStep] = useState<Step>('location');
   const [input, setInput] = useState<FullSurveyModelV1>(() =>
     prefill ? { ...defaultInput, ...prefill } : defaultInput
@@ -633,6 +635,24 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
           <div className="progress-fill" style={{ width: `${progress}%` }} />
         </div>
         <span className="step-label">Step {stepIndex + 1} of {STEPS.length}</span>
+        {/* PR 2 — Engineer / Customer mode toggle */}
+        <div className="mode-toggle" role="group" aria-label="UI mode">
+          <span className="mode-toggle__label">Mode</span>
+          <button
+            className={`mode-toggle__btn${uiMode === 'engineer' ? ' mode-toggle__btn--active' : ''}`}
+            onClick={() => setUiMode('engineer')}
+            aria-pressed={uiMode === 'engineer'}
+          >
+            Engineer
+          </button>
+          <button
+            className={`mode-toggle__btn${uiMode === 'customer' ? ' mode-toggle__btn--active' : ''}`}
+            onClick={() => setUiMode('customer')}
+            aria-pressed={uiMode === 'customer'}
+          >
+            Customer
+          </button>
+        </div>
       </div>
 
       {/* Live physics overlay — shown on steps that have a step key mapping */}
@@ -649,12 +669,14 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
       {currentStep === 'location' && (
         <div className="step-card">
           <h2>📍 Step 1: Geochemical &amp; Fabric Baseline</h2>
+          {uiMode === 'customer' && (
           <p className="description">
             Your postcode outward code anchors the simulation to local water chemistry (e.g. SW1A,
             BH, DT). The fabric controls below drive two independent physics estimates:
             <strong>how much heat leaks</strong> (fabric heat-loss band) and <strong>how spiky demand feels</strong>
             (thermal inertia / τ).
           </p>
+          )}
 
           <div className="form-grid">
             <div className="form-field">
@@ -1033,11 +1055,13 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
       {currentStep === 'pressure' && (
         <div className="step-card">
           <h2>💧 Step 2: Mains Supply &amp; Flow</h2>
+          {uiMode === 'customer' && (
           <p className="description">
             Supply quality is assessed from the operating point under load: dynamic pressure and flow
             together. Pressure falls when water flows — this is normal. Enter all readings you have;
             the measured operating point tells a more complete story than any single figure alone.
           </p>
+          )}
 
           {/* ─── Physics levers + live panel ─────────────────────────────── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start' }}>
@@ -1341,11 +1365,13 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
       {currentStep === 'hydraulic' && (
         <div className="step-card">
           <h2>🔧 Step 3: Hydraulic Integrity</h2>
+          {uiMode === 'customer' && (
           <p className="description">
             Pipe size sets the flow rate ceiling. An ASHP operates at ΔT 5°C — four times
             the flow of a boiler at ΔT 20°C. Adjust the controls to see where your circuit
             sits on that curve and whether the primary pipework can sustain both technologies.
           </p>
+          )}
 
           {/* ─── Physics levers + live panel ─────────────────────────────── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start', marginBottom: '1.5rem' }}>
@@ -2044,12 +2070,14 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
       {currentStep === 'hot_water' && (
         <div className="step-card">
           <h2>🚿 Step 5: Hot Water Demand</h2>
+          {uiMode === 'customer' && (
           <p className="description">
             Two or more simultaneous outlets, multiple bathrooms, or continuous-occupancy patterns
             are better served by stored hot water than by on-demand supply. Stored volume handles
             simultaneous demand with no throughput constraint. Adjust the controls to see where
             your household sits — and whether stored hot water is the right path.
           </p>
+          )}
 
           {/* ─── Physics levers + live panel ─────────────────────────────── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start' }}>
@@ -2537,12 +2565,14 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
       {currentStep === 'commercial' && (
         <div className="step-card">
           <h2>💼 Step 6: Commercial Strategy Selection</h2>
+          {uiMode === 'customer' && (
           <p className="description">
             Choose your installation strategy. A full system upgrade uses low flow temperatures
             (35–40°C) suitable for heat pumps or high-efficiency boilers, delivering SPF 3.8–4.4.
             A high temp retrofit retains existing radiators at 50–55°C (SPF 2.9–3.1 for heat pumps).
             Adding a Mixergy Hot Water Battery uses active stratification to improve DHW efficiency tendency.
           </p>
+          )}
           <div className="form-grid">
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
               <label>🏗️ Installation Policy</label>
@@ -2792,11 +2822,13 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
         return (
           <div className="step-card">
             <h2>🔬 Step 7: System Overlay</h2>
+            {uiMode === 'customer' && (
             <p className="description">
               Each cell shows how your building's physics gates each system option.
               Click any cell to jump back to the step that controls it.
               Green across a column = viable candidate for full analysis.
             </p>
+            )}
 
             {/* Grid table */}
             <div style={{ overflowX: 'auto', marginTop: '0.5rem' }}>
@@ -2911,6 +2943,7 @@ interface LifestyleStepProps {
 }
 
 function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, onNext, onPrev }: LifestyleStepProps) {
+  const { uiMode } = useUiMode();
   const thermalResult = useMemo(() => runThermalInertiaModule({
     fabricType,
     occupancyProfile: input.occupancySignature === 'steady_home' ? 'home_all_day' : 'professional',
@@ -2923,11 +2956,13 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
   return (
     <div className="step-card">
       <h2>🏠 Step 4: Lifestyle &amp; Thermal Comfort</h2>
+      {uiMode === 'customer' && (
       <p className="description">
         Your occupancy pattern determines which heating technology wins.
         The exponential decay formula shows the predicted room temperature drop during
         your absence. A drop of more than 4°C in 8 hours triggers fabric improvement recommendations.
       </p>
+      )}
 
       <div className="form-grid">
         <div className="form-field">
