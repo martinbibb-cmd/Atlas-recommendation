@@ -108,7 +108,7 @@ export default function BehaviourConsolePage({ output, onBack }: Props) {
         {/* Cylinder / supply slot */}
         <AtlasPanel className="behaviour-console__kpi">
           <div className="panel-title">
-            {isCombi ? 'On-demand hot water' : 'Cylinder behaviour'}
+            {isCombi ? 'Supply / draw-off behaviour' : 'Cylinder behaviour'}
           </div>
           {behaviourTimeline ? (
             <>

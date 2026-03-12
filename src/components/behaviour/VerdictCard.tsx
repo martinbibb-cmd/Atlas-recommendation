@@ -51,7 +51,7 @@ export default function VerdictCard({ verdict }: Props) {
       {firstReason && (
         <div className="verdict-card__note">{firstReason}</div>
       )}
-      <div className="behaviour-console__subtle">{confidenceLabel} confidence</div>
+      <div className="verdict-card__confidence">{confidenceLabel} confidence</div>
     </AtlasPanel>
   );
 }
