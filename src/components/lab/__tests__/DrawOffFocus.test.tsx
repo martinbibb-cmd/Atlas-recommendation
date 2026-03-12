@@ -215,6 +215,24 @@ describe('DrawOffWorkbench — Focus mode shell', () => {
     expect(screen.getByTestId('cylinder-focus-panel')).toBeTruthy()
   })
 
+  it('outlet focus overlay title shows outlet name followed by "— Focus"', () => {
+    render(<DrawOffWorkbench />)
+    fireEvent.click(screen.getByRole('button', { name: 'Focus: Kitchen sink' }))
+    expect(screen.getByTestId('focus-overlay-title').textContent).toBe('Kitchen sink — Focus')
+  })
+
+  it('outlet focus overlay title updates for different outlets', () => {
+    render(<DrawOffWorkbench />)
+    fireEvent.click(screen.getByRole('button', { name: 'Focus: Shower' }))
+    expect(screen.getByTestId('focus-overlay-title').textContent).toBe('Shower — Focus')
+  })
+
+  it('cylinder focus overlay title shows "Cylinder — Focus"', () => {
+    render(<DrawOffWorkbench />)
+    fireEvent.click(screen.getByRole('button', { name: 'Focus: Cylinder status' }))
+    expect(screen.getByTestId('focus-overlay-title').textContent).toBe('Cylinder — Focus')
+  })
+
   it('Focus shows combi boiler state when combi regime is active', () => {
     render(<DrawOffWorkbench />)
     fireEvent.click(screen.getByRole('button', { name: 'Combi' }))
@@ -326,9 +344,29 @@ describe('DrawOffFocusPanel — boiler state', () => {
     expect(screen.queryByTestId('focus-boiler-state')).toBeNull()
   })
 
-  it('boiler state chip test-id is present', () => {
+  it('renders boiler state chip test-id is present', () => {
     render(<DrawOffFocusPanel data={FIRING_OUTLET} />)
     expect(screen.getByTestId('boiler-state-chip')).toBeTruthy()
+  })
+
+  it('renders "Reason" label separately from boiler state chip', () => {
+    render(<DrawOffFocusPanel data={FIRING_OUTLET} />)
+    expect(screen.getByText('Reason')).toBeTruthy()
+  })
+
+  it('renders "Reason" label for fails_to_fire state', () => {
+    render(<DrawOffFocusPanel data={FAILS_OUTLET} />)
+    expect(screen.getByText('Reason')).toBeTruthy()
+  })
+
+  it('"Boiler state" label and chip are visually distinct from "Reason" label and text', () => {
+    render(<DrawOffFocusPanel data={FAILS_OUTLET} />)
+    // Both labels present
+    expect(screen.getByText('Boiler state')).toBeTruthy()
+    expect(screen.getByText('Reason')).toBeTruthy()
+    // Chip and reason text both present
+    expect(screen.getByLabelText('Boiler state: Fails to fire')).toBeTruthy()
+    expect(screen.getByText(/Flow below minimum ignition threshold/)).toBeTruthy()
   })
 })
 

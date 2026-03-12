@@ -135,7 +135,10 @@ export default function DrawOffFocusPanel({ data }: Props) {
               {BOILER_STATE_LABELS[boilerState]}
             </span>
           </div>
-          <p className="focus-boiler-state__reason">{BOILER_STATE_REASON[boilerState]}</p>
+          <div className="focus-boiler-state__reason-block">
+            <span className="focus-boiler-state__reason-label">Reason</span>
+            <p className="focus-boiler-state__reason">{BOILER_STATE_REASON[boilerState]}</p>
+          </div>
         </div>
       )}
     </div>

@@ -981,11 +981,29 @@
   padding: 0 0 24px;
 }
 
-.draw-off-focus-overlay__close {
+.draw-off-focus-overlay__header {
   position: sticky;
   top: 0;
-  float: right;
-  margin: 12px 14px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px 14px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 16px 16px 0 0;
+  z-index: 2;
+}
+
+.draw-off-focus-overlay__title {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #1a202c;
+}
+
+.draw-off-focus-overlay__close {
+  flex-shrink: 0;
   background: #f7fafc;
   border: 1px solid #e2e8f0;
   border-radius: 50%;
@@ -997,7 +1015,6 @@
   font-size: 0.85rem;
   cursor: pointer;
   color: #4a5568;
-  z-index: 2;
 }
 
 .draw-off-focus-overlay__close:hover {
@@ -1191,6 +1208,22 @@
   background: #fed7d7;
   color: #742a2a;
   border: 1px solid #fc8181;
+}
+
+.focus-boiler-state__reason-block {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.focus-boiler-state__reason-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4a5568;
+  margin-bottom: 4px;
 }
 
 .focus-boiler-state__reason {
