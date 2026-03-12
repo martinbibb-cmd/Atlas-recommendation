@@ -18,6 +18,200 @@
   color: var(--text-body);
 }
 
+/* ─── Behaviour Console layout ───────────────────────────────────── */
+
+.behaviour-console {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.behaviour-console__header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.behaviour-console__subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Focus panel removes its own bottom margin — gap handles spacing */
+.behaviour-console__focus-panel {
+  padding: 12px 8px;
+}
+
+/* 3-column summary strip — collapses to 1 column at tablet width */
+.behaviour-console__summary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* 3-column secondary insight grid — collapses to 1 column at tablet width */
+.behaviour-console__secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* Vertical KPI stack inside summary/secondary cards */
+.behaviour-console__kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 0;
+}
+
+/* Muted helper text — secondary to the metric */
+.behaviour-console__subtle {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+@media (max-width: 768px) {
+  .behaviour-console__summary-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .behaviour-console__secondary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Panel title (shared across summary + secondary cards) ──────── */
+
+.panel-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+/* ─── Operating Point card ───────────────────────────────────────── */
+
+.op-card__subtle {
+  margin-top: 2px;
+}
+
+/* ─── Active Limiters card ───────────────────────────────────────── */
+
+.limiter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  flex-wrap: wrap;
+}
+
+.limiter-row__title {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.limiter-row__metric {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+/* ─── Verdict card ───────────────────────────────────────────────── */
+
+.verdict-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.verdict-card__title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-body);
+  line-height: var(--leading-tight);
+}
+
+.verdict-card__note {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+}
+
+/* ─── Domain influence compact row ──────────────────────────────── */
+
+.influence-compact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.influence-compact-row:last-child {
+  border-bottom: none;
+}
+
+/* ─── Timeline panel header ──────────────────────────────────────── */
+
+.btp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 8px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 10px;
+}
+
+.btp-header__title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-body);
+}
+
+.btp-header__legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btp-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.btp-legend-dot--heat   { background: #e53e3e; }
+.btp-legend-dot--dhw    { background: #3182ce; }
+.btp-legend-dot--output { background: #38a169; }
+.btp-legend-dot--eff    { background: #805ad5; }
+
+.btp-legend-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+/* Compact assumption chip row */
+.btp-assumptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 8px 10px;
+}
+
 /* ─── Header bar ─────────────────────────────────────────────────── */
 
 .bcp-header {
