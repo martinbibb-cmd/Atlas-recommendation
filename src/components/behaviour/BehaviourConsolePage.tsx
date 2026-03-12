@@ -35,6 +35,12 @@ interface Props {
 
 type Mode = 'customer' | 'engineer';
 
+/**
+ * Delay (ms) between opening the report view and calling window.print().
+ * Allows React to complete its render cycle before the browser capture starts.
+ */
+const REPORT_RENDER_DELAY_MS = 150;
+
 export default function BehaviourConsolePage({ output, onBack }: Props) {
   const [mode, setMode] = useState<Mode>('customer');
   const [reportOpen, setReportOpen] = useState(false);
@@ -117,7 +123,7 @@ export default function BehaviourConsolePage({ output, onBack }: Props) {
               onClick={() => {
                 setReportOpen(true);
                 // Allow the report to render before printing
-                setTimeout(() => window.print(), 150);
+                setTimeout(() => window.print(), REPORT_RENDER_DELAY_MS);
               }}
             >
               🖨 Print report

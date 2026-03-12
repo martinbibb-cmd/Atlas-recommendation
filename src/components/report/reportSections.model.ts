@@ -141,6 +141,12 @@ export function checkCompleteness(output: EngineOutputV1): ReportCompletenessSta
   };
 }
 
+/** kW output per L/min flow at a 35°C temperature rise (standard domestic DHW). */
+const KW_PER_LPM_AT_35C_RISE = 2.4;
+
+/** Conservative fallback dynamic pressure (bar) when the timeline does not provide one. */
+const DEFAULT_DYNAMIC_PRESSURE_BAR = 1.1;
+
 // ─── Section builders ─────────────────────────────────────────────────────────
 
 function buildSystemSummarySection(output: EngineOutputV1): SystemSummarySection {
@@ -169,12 +175,12 @@ function buildOperatingPointSection(output: EngineOutputV1): OperatingPointSecti
 
   const estimatedFlowLpm =
     peakDhwKw > 0
-      ? Math.round((peakDhwKw / 2.4) * 10) / 10
+      ? Math.round((peakDhwKw / KW_PER_LPM_AT_35C_RISE) * 10) / 10
       : null;
 
   const pressureBar =
     (output.behaviourTimeline as { labels: { dynamicPressureBar?: number } })
-      .labels?.dynamicPressureBar ?? 1.1;
+      .labels?.dynamicPressureBar ?? DEFAULT_DYNAMIC_PRESSURE_BAR;
 
   return {
     id: 'operating_point',
