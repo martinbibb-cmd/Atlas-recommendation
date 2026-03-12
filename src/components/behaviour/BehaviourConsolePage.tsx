@@ -15,6 +15,7 @@
 import { useState } from 'react';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import { AtlasPanel } from '../ui/AtlasPanel';
+import ReportView from '../report/ReportView';
 import BehaviourTimelinePanel from './BehaviourTimelinePanel';
 import BehaviourSummaryStrip from './BehaviourSummaryStrip';
 import EngineerDetails from './EngineerDetails';
@@ -36,6 +37,7 @@ type Mode = 'customer' | 'engineer';
 
 export default function BehaviourConsolePage({ output, onBack }: Props) {
   const [mode, setMode] = useState<Mode>('customer');
+  const [reportOpen, setReportOpen] = useState(false);
 
   const { verdict, behaviourTimeline, limiters, influenceSummary } = output;
 
@@ -72,6 +74,14 @@ export default function BehaviourConsolePage({ output, onBack }: Props) {
   return (
     <div className="behaviour-console bcp-page">
 
+      {/* ── Report view (full-screen overlay when open) ───────────────────── */}
+      {reportOpen && (
+        <ReportView output={output} onBack={() => setReportOpen(false)} />
+      )}
+
+      {!reportOpen && (
+        <>
+
       {/* ── 1. Header ────────────────────────────────────────────────── */}
       <div className="behaviour-console__header bcp-header">
         <div className="bcp-header__left">
@@ -93,18 +103,40 @@ export default function BehaviourConsolePage({ output, onBack }: Props) {
           </div>
         </div>
 
-        {/* Customer / Engineer mode toggle */}
-        <div className="bcp-mode-toggle">
-          {(['customer', 'engineer'] as const).map(m => (
+        <div className="bcp-header__right">
+          {/* Report actions */}
+          <div className="bcp-report-actions">
             <button
-              key={m}
-              className={`bcp-mode-toggle__btn${mode === m ? ' bcp-mode-toggle__btn--active' : ''}`}
-              onClick={() => setMode(m)}
-              aria-pressed={mode === m}
+              className="bcp-report-btn"
+              onClick={() => setReportOpen(true)}
             >
-              {m.charAt(0).toUpperCase() + m.slice(1)}
+              View report
             </button>
-          ))}
+            <button
+              className="bcp-report-btn bcp-report-btn--print"
+              onClick={() => {
+                setReportOpen(true);
+                // Allow the report to render before printing
+                setTimeout(() => window.print(), 150);
+              }}
+            >
+              🖨 Print report
+            </button>
+          </div>
+
+          {/* Customer / Engineer mode toggle */}
+          <div className="bcp-mode-toggle">
+            {(['customer', 'engineer'] as const).map(m => (
+              <button
+                key={m}
+                className={`bcp-mode-toggle__btn${mode === m ? ' bcp-mode-toggle__btn--active' : ''}`}
+                onClick={() => setMode(m)}
+                aria-pressed={mode === m}
+              >
+                {m.charAt(0).toUpperCase() + m.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -201,6 +233,9 @@ export default function BehaviourConsolePage({ output, onBack }: Props) {
 
       {/* ── 5. Engineer details (engineer mode only) ─────────────────── */}
       {mode === 'engineer' && <EngineerDetails output={output} />}
+
+        </>
+      )}
     </div>
   );
 }

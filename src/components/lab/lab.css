@@ -551,6 +551,24 @@
   color: #2b6cb0;
 }
 
+.draw-off-workbench__report-btn {
+  margin-left: auto;
+  background: #3182ce;
+  border: 1px solid #3182ce;
+  border-radius: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #fff;
+  transition: background 0.15s;
+}
+
+.draw-off-workbench__report-btn:hover {
+  background: #2b6cb0;
+  border-color: #2b6cb0;
+}
+
 /* ── Main panel layout (desktop: outlet grid left + cylinder right) ────────── */
 
 .draw-off-workbench__panel {

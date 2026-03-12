@@ -7,6 +7,7 @@ import MethodologyPage from './components/governance/MethodologyPage';
 import NeutralityPage from './components/governance/NeutralityPage';
 import PrivacyPage from './components/governance/PrivacyPage';
 import BehaviourConsolePage from './components/behaviour/BehaviourConsolePage';
+import ReportView from './components/report/ReportView';
 import ExplainersHubPage from './explainers/ExplainersHubPage';
 import LabShell from './components/lab/LabShell';
 import LabPrintCustomer from './components/lab/LabPrintCustomer';
@@ -34,6 +35,14 @@ const PRINT_VIEW =
   typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('print')
     : null;
+
+/**
+ * Detect ?report=1 — renders the unified ReportView with demo engine output.
+ * This is the single entry point for the print pipeline.
+ */
+const REPORT_MODE_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('report') === '1';
 
 /**
  * Demo engine input used when the ?console=1 flag is set.
@@ -75,6 +84,19 @@ export default function App() {
         output={engineOutput}
         onBack={() => {
           // Remove ?console=1 and reload to return to the landing page.
+          window.location.href = window.location.pathname;
+        }}
+      />
+    );
+  }
+
+  // ?report=1 feature flag — render the unified ReportView with demo engine output.
+  if (REPORT_MODE_ENABLED) {
+    const { engineOutput } = runEngine(CONSOLE_DEMO_INPUT);
+    return (
+      <ReportView
+        output={engineOutput}
+        onBack={() => {
           window.location.href = window.location.pathname;
         }}
       />

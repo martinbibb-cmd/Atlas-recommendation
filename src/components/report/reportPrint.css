@@ -1,0 +1,437 @@
+/* ── Report print stylesheet ─────────────────────────────────────────────── */
+/* Loaded by ReportView.tsx — governs both screen preview and @media print.   */
+
+/* ── Wrapper ──────────────────────────────────────────────────────────────── */
+
+.rv-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem 2.5rem;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #1a202c;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* ── Screen toolbar (hidden when printing) ───────────────────────────────── */
+
+.rv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.rv-toolbar__back {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #4a5568;
+}
+
+.rv-toolbar__back:hover {
+  background: #f7fafc;
+}
+
+.rv-toolbar__print {
+  background: #3182ce;
+  border: none;
+  border-radius: 8px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  margin-left: auto;
+}
+
+.rv-toolbar__print:hover {
+  background: #2b6cb0;
+}
+
+.rv-toolbar__label {
+  font-size: 0.78rem;
+  color: #718096;
+}
+
+/* ── Document header ─────────────────────────────────────────────────────── */
+
+.rv-doc-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #1a202c;
+  margin-bottom: 1.25rem;
+}
+
+.rv-doc-header__brand {
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3182ce;
+  margin-bottom: 2px;
+}
+
+.rv-doc-header__title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #1a202c;
+  margin: 0 0 2px;
+  line-height: 1.2;
+}
+
+.rv-doc-header__sub {
+  font-size: 0.78rem;
+  color: #718096;
+  margin: 0;
+}
+
+.rv-doc-header__meta {
+  text-align: right;
+  font-size: 0.75rem;
+  color: #718096;
+  line-height: 1.6;
+}
+
+/* ── Completeness banner ─────────────────────────────────────────────────── */
+
+.rcb-banner {
+  background: #fffbeb;
+  border: 1px solid #f6e05e;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.84rem;
+}
+
+.rcb-banner__header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.3rem;
+}
+
+.rcb-banner__icon {
+  font-size: 0.9rem;
+  color: #d69e2e;
+}
+
+.rcb-banner__title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #744210;
+}
+
+.rcb-banner__body {
+  margin: 0 0 0.4rem;
+  color: #744210;
+}
+
+.rcb-banner__list {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #744210;
+  font-size: 0.8rem;
+}
+
+/* ── Sections ────────────────────────────────────────────────────────────── */
+
+.rv-section {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.rv-section:last-child {
+  border-bottom: none;
+}
+
+.rv-section__title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #718096;
+  margin: 0 0 0.6rem;
+}
+
+/* ── Verdict block ───────────────────────────────────────────────────────── */
+
+.rv-verdict {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 0.75rem;
+}
+
+.rv-verdict--good   { background: #f0fff4; border-color: #9ae6b4; }
+.rv-verdict--caution { background: #fffbeb; border-color: #f6e05e; }
+.rv-verdict--fail   { background: #fff5f5; border-color: #fed7d7; }
+
+.rv-verdict__label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.2rem;
+}
+
+.rv-verdict--good   .rv-verdict__label  { color: #22543d; }
+.rv-verdict--caution .rv-verdict__label { color: #744210; }
+.rv-verdict--fail   .rv-verdict__label  { color: #742a2a; }
+
+.rv-verdict__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.35rem;
+}
+
+.rv-verdict__confidence {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.12rem 0.45rem;
+  border-radius: 4px;
+  background: #edf2f7;
+  color: #4a5568;
+  margin-bottom: 0.4rem;
+}
+
+.rv-verdict__reasons {
+  margin: 0.35rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.84rem;
+  color: #2d3748;
+}
+
+.rv-verdict__primary-reason {
+  font-size: 0.84rem;
+  color: #4a5568;
+  font-style: italic;
+  margin: 0.4rem 0 0;
+}
+
+/* ── Data list (dl) ──────────────────────────────────────────────────────── */
+
+.rv-dl {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.rv-dl-row {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  gap: 0.4rem;
+  padding: 5px 0;
+  border-bottom: 1px solid #f0f4f8;
+  font-size: 0.84rem;
+}
+
+.rv-dl-row:last-child {
+  border-bottom: none;
+}
+
+.rv-dt {
+  font-weight: 700;
+  color: #4a5568;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.rv-dd {
+  margin: 0;
+  color: #2d3748;
+  line-height: 1.45;
+}
+
+/* ── Limiter rows ────────────────────────────────────────────────────────── */
+
+.rv-limiter {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 0.75rem;
+  align-items: start;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0f4f8;
+  font-size: 0.84rem;
+}
+
+.rv-limiter:last-child {
+  border-bottom: none;
+}
+
+.rv-limiter__badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.12rem 0.45rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.rv-limiter__badge--info   { background: #ebf8ff; color: #2b6cb0; }
+.rv-limiter__badge--warn   { background: #fffbeb; color: #744210; }
+.rv-limiter__badge--fail   { background: #fff5f5; color: #742a2a; }
+
+.rv-limiter__title {
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.2rem;
+}
+
+.rv-limiter__detail {
+  color: #4a5568;
+  margin: 0 0 0.2rem;
+  font-size: 0.82rem;
+}
+
+.rv-limiter__fix {
+  color: #2d6a4f;
+  font-size: 0.8rem;
+  font-style: italic;
+  margin: 0;
+}
+
+/* ── Assumption rows ─────────────────────────────────────────────────────── */
+
+.rv-assumption {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #f0f4f8;
+  font-size: 0.82rem;
+}
+
+.rv-assumption:last-child {
+  border-bottom: none;
+}
+
+.rv-assumption__title {
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0 0 0.15rem;
+}
+
+.rv-assumption__detail {
+  color: #4a5568;
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+/* ── Red flags ───────────────────────────────────────────────────────────── */
+
+.rv-redflag {
+  padding: 0.35rem 0.6rem;
+  border-radius: 4px;
+  margin-bottom: 0.4rem;
+  font-size: 0.82rem;
+  background: #fff5f5;
+  border-left: 3px solid #e53e3e;
+}
+
+.rv-redflag--warn {
+  background: #fffbeb;
+  border-left-color: #d69e2e;
+}
+
+.rv-redflag--info {
+  background: #ebf8ff;
+  border-left-color: #3182ce;
+}
+
+.rv-redflag__title {
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.15rem;
+}
+
+.rv-redflag__detail {
+  color: #4a5568;
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+/* ── System summary ──────────────────────────────────────────────────────── */
+
+.rv-recommendation {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.35rem;
+}
+
+.rv-recommendation--secondary {
+  font-size: 0.84rem;
+  font-weight: 400;
+  color: #4a5568;
+  margin: 0;
+}
+
+/* ── Page break hint ─────────────────────────────────────────────────────── */
+
+.rv-page-break-before {
+  break-before: page;
+}
+
+/* ── @media print: hide chrome, set A4, preserve colours ────────────────── */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 18mm 20mm;
+  }
+
+  .rv-toolbar {
+    display: none !important;
+  }
+
+  .rv-wrap {
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .rv-verdict,
+  .rv-limiter__badge,
+  .rv-redflag {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Avoid awkward page breaks inside key blocks */
+  .rv-section,
+  .rv-limiter,
+  .rv-verdict {
+    break-inside: avoid;
+  }
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 700px) {
+  .rv-doc-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .rv-doc-header__meta {
+    text-align: left;
+  }
+
+  .rv-dl-row {
+    grid-template-columns: 1fr;
+    gap: 1px;
+  }
+}
