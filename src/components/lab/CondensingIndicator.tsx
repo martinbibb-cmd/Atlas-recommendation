@@ -24,6 +24,17 @@
 
 import './condensing.css';
 
+// ─── Physics thresholds ───────────────────────────────────────────────────────
+
+/** Return temp (°C) at which condensing is fully optimal — 100 % estimate. */
+const CONDENSING_LOWER_BOUND_C = 35;
+
+/**
+ * Temperature range (°C) over which condensing fraction transitions from
+ * ~100 % (at CONDENSING_LOWER_BOUND_C) to 0 % (at 65 °C = non-condensing).
+ */
+const CONDENSING_TEMP_RANGE_C = 30; // 65 °C − 35 °C
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function clamp(value: number, min: number, max: number): number {
@@ -36,7 +47,11 @@ function clamp(value: number, min: number, max: number): number {
  * return-temperature bounds.
  */
 export function computeCondensingPct(returnTempC: number): number {
-  return clamp(Math.round(100 * (1 - (returnTempC - 35) / 30)), 0, 100);
+  return clamp(
+    Math.round(100 * (1 - (returnTempC - CONDENSING_LOWER_BOUND_C) / CONDENSING_TEMP_RANGE_C)),
+    0,
+    100,
+  );
 }
 
 /** Colour band derived from condensing percentage. */

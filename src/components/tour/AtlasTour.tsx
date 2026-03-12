@@ -12,8 +12,10 @@
  * so it never shows again for that user/device.
  *
  * Two contexts are supported:
- *  "landing" — targets the landing-page journey cards (steps 1–2)
- *  "lab"     — targets the System Lab tabs and export row (steps 3–6)
+ *  "landing" — targets the landing-page journey cards (steps 1–2),
+ *              tracked by localStorage key "atlasTourLandingComplete".
+ *  "lab"     — targets the System Lab tabs and export row (steps 3–6),
+ *              tracked by localStorage key "atlasTourComplete".
  *
  * Each context tracks its own completion flag so the lab portion only shows
  * after the user has already seen the landing portion.

@@ -22,9 +22,12 @@ import './confidence-score.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Weight applied to inferred items when computing the confidence score. */
+const INFERRED_WEIGHT = 0.5;
+
 /**
  * Compute a 0–100 confidence score from the strip data.
- * Measured = 1 pt, Inferred = 0.5 pt, Missing = 0 pt.
+ * Measured = 1 pt, Inferred = INFERRED_WEIGHT pt, Missing = 0 pt.
  */
 export function computeConfidenceScore(data: ConfidenceStripData): number {
   const measured = data.measured.length;
@@ -32,7 +35,7 @@ export function computeConfidenceScore(data: ConfidenceStripData): number {
   const missing  = data.missing.length;
   const total    = measured + inferred + missing;
   if (total === 0) return 0;
-  const score = (measured + inferred * 0.5) / total;
+  const score = (measured + inferred * INFERRED_WEIGHT) / total;
   return Math.round(score * 100);
 }
 

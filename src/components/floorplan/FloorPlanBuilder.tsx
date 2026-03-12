@@ -124,25 +124,26 @@ const ROOM_STROKE = '#cbd5e0';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-let nextId = 1;
-
 export default function FloorPlanBuilder() {
   const [template, setTemplate] = useState<TemplateId>('terrace');
   const [placed,   setPlaced]   = useState<PlacedComponent[]>([]);
-  const stageRef = useRef<Konva.Stage>(null);
+  const stageRef  = useRef<Konva.Stage>(null);
+  /** Monotonically increasing ID counter — useRef ensures stability across renders. */
+  const nextIdRef = useRef(0);
 
   const { rooms } = TEMPLATES[template];
 
   /** Drop a new component onto the canvas at a default position. */
   function handlePaletteClick(kind: string, icon: string) {
+    const id = `c-${nextIdRef.current++}`;
     setPlaced(prev => [
       ...prev,
       {
-        id:   `c-${nextId++}`,
+        id,
         kind,
         icon,
-        x:    30 + (prev.length % 5) * 40,
-        y:    30 + Math.floor(prev.length / 5) * 40,
+        x: 30 + (prev.length % 5) * 40,
+        y: 30 + Math.floor(prev.length / 5) * 40,
       },
     ]);
   }
