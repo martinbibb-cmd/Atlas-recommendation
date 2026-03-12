@@ -83,14 +83,14 @@ function ControlsDiagram() {
   const cyclingPattern = [1, 1, 0, 0, 1, 1, 0, 0] as const;
   const steadyPattern  = [1, 1, 1, 1, 1, 1, 1, 1] as const;
   return (
-    <div className="wil-diagram wil-diagram--controls" aria-label="With and without weather compensation">
-      <div className="wil-diagram__label">Without controls</div>
+    <div className="wil-diagram wil-diagram--controls" aria-label="Fixed higher flow vs lower steadier running">
+      <div className="wil-diagram__label">Fixed higher flow</div>
       <div className="wil-diagram__bars">
         {cyclingPattern.map((on, i) => (
           <div key={i} className={`wil-diagram__bar wil-diagram__bar--${on ? 'on' : 'off'}`} />
         ))}
       </div>
-      <div className="wil-diagram__label wil-diagram__label--secondary">With better controls</div>
+      <div className="wil-diagram__label wil-diagram__label--secondary">Lower, steadier flow</div>
       <div className="wil-diagram__bars">
         {steadyPattern.map((_, i) => (
           <div key={i} className="wil-diagram__bar wil-diagram__bar--steady" />
@@ -104,12 +104,12 @@ function PrimariesDiagram() {
   return (
     <div className="wil-diagram wil-diagram--primaries" aria-label="Primary pipework size comparison">
       <div className="wil-diagram__row">
-        <span className="wil-diagram__row-label">15 mm</span>
-        <span className="wil-diagram__pipe wil-diagram__pipe--narrow">→ bottleneck</span>
+        <span className="wil-diagram__row-label">22 mm</span>
+        <span className="wil-diagram__pipe wil-diagram__pipe--narrow">→ standard domestic</span>
       </div>
       <div className="wil-diagram__row">
-        <span className="wil-diagram__row-label">22 mm</span>
-        <span className="wil-diagram__pipe wil-diagram__pipe--wide">→ free flow ✓</span>
+        <span className="wil-diagram__row-label">28 mm</span>
+        <span className="wil-diagram__pipe wil-diagram__pipe--wide">→ reduced restriction ✓</span>
       </div>
     </div>
   );

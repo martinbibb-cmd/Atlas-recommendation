@@ -134,4 +134,39 @@ describe('WhatIfLab — scenario data shape', () => {
       expect(valid.has(scenario.visualType)).toBe(true);
     });
   });
+
+  it('controls scenario title is "Improve boiler control"', () => {
+    const controls = WHAT_IF_SCENARIOS.find(s => s.id === 'add_better_controls');
+    expect(controls?.title).toBe('Improve boiler control');
+  });
+
+  it('controls scenario copy references lower flow / steadier running / reduced cycling', () => {
+    const controls = WHAT_IF_SCENARIOS.find(s => s.id === 'add_better_controls');
+    const allText = [controls?.shortVerdict, ...(controls?.whyItMatters ?? [])].join(' ').toLowerCase();
+    expect(allText).toMatch(/lower/);
+    expect(allText).toMatch(/steady|steadier/);
+    expect(allText).toMatch(/cycling/);
+  });
+
+  it('controls scenario copy does not reference weather compensation as the main benefit', () => {
+    const controls = WHAT_IF_SCENARIOS.find(s => s.id === 'add_better_controls');
+    expect(controls?.shortVerdict.toLowerCase()).not.toMatch(/weather comp/);
+    expect(controls?.whyItMatters[0].toLowerCase()).not.toMatch(/weather comp/);
+  });
+
+  it('primaries scenario beforeLabel uses 22 mm', () => {
+    const primaries = WHAT_IF_SCENARIOS.find(s => s.id === 'upgrade_primaries');
+    expect(primaries?.beforeLabel).toMatch(/22\s*mm/);
+  });
+
+  it('primaries scenario afterLabel uses 28 mm', () => {
+    const primaries = WHAT_IF_SCENARIOS.find(s => s.id === 'upgrade_primaries');
+    expect(primaries?.afterLabel).toMatch(/28\s*mm/);
+  });
+
+  it('primaries scenario copy does not reference 15 mm', () => {
+    const primaries = WHAT_IF_SCENARIOS.find(s => s.id === 'upgrade_primaries');
+    const allText = [primaries?.shortVerdict, ...(primaries?.whyItMatters ?? [])].join(' ');
+    expect(allText).not.toMatch(/15\s*mm/);
+  });
 });
