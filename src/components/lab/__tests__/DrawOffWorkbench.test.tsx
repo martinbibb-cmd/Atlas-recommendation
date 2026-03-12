@@ -429,7 +429,7 @@ describe('CylinderStatusCard — Mixergy cylinder', () => {
   it('Mixergy cylinder graphic hot zone height is set to heatedFractionPct', () => {
     render(<CylinderStatusCard data={MIXERGY_CYLINDER} />);
     // The hot zone div should have its height inline-style set to 85%
-    const hotZone = document.querySelector('.cylinder-graphic__zone--hot') as HTMLElement | null;
+    const hotZone = document.querySelector('.cbg__hot-zone') as HTMLElement | null;
     expect(hotZone).not.toBeNull();
     expect(hotZone!.style.height).toBe('85%');
   });

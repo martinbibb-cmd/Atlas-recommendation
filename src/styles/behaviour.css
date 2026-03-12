@@ -713,3 +713,40 @@
   font-size: var(--text-xs);
   opacity: 0.7;
 }
+
+/* ─── Cylinder card helpers (behaviour console secondary grid) ── */
+
+.cylinder-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Centred graphic area — graphic is the primary asset */
+.cylinder-card__graphic-area {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+
+/* Compact metric row beneath the graphic */
+.cylinder-card__metrics {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  font-size: var(--text-xs, 11px);
+  color: var(--text-secondary);
+}
+
+/* One-sentence behaviour note — max one line preferred */
+.cylinder-card__note {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal, 1.5);
+  margin: 0;
+}
+
+.cylinder-card__note--subtle {
+  font-size: var(--text-xs, 11px);
+  color: var(--text-muted, #a0aec0);
+}
