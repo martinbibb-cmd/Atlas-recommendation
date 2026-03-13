@@ -209,6 +209,14 @@ const OVERLAY_ROWS: Array<{ id: string; label: string; step: Step }> = [
 
 type RiskLevel = 'pass' | 'warn' | 'fail';
 
+interface OverlayExplanation {
+  ruleName: string;
+  observedValue: string;
+  threshold: string;
+  whyItMatters: string;
+  whatWouldChange: string;
+}
+
 function deriveOverlayCell(
   system: string,
   row: string,
@@ -265,6 +273,82 @@ function deriveOverlayCell(
 const CELL_ICON: Record<RiskLevel, string> = { pass: '✅', warn: '⚠️', fail: '❌' };
 const CELL_BG:   Record<RiskLevel, string> = { pass: '#f0fff4', warn: '#fffff0', fail: '#fff5f5' };
 const CELL_BORDER: Record<RiskLevel, string> = { pass: '#9ae6b4', warn: '#faf089', fail: '#feb2b2' };
+
+function overlayExplanation(
+  system: string,
+  row: string,
+  risk: RiskLevel,
+  input: FullSurveyModelV1,
+  dhwBandLabel: string,
+  cwsMeetsUnvented: boolean,
+  cwsHasMeasurements: boolean,
+  cwsInconsistent: boolean,
+): OverlayExplanation {
+  if (row === 'hot_water' && system === 'combi') {
+    return {
+      ruleName: 'Combi simultaneous draw limit',
+      observedValue: `${input.peakConcurrentOutlets ?? 1} peak outlet(s), ${input.bathroomCount} bathroom(s)`,
+      threshold: 'Combi on-demand performs best with one outlet at a time.',
+      whyItMatters: 'Simultaneous or back-to-back draws can reduce outlet temperature and flow stability.',
+      whatWouldChange: 'Selecting stored hot water removes this throughput constraint for multi-outlet use.',
+    };
+  }
+
+  if (row === 'hot_water') {
+    return {
+      ruleName: 'Stored hot-water demand fit',
+      observedValue: `Demand band: ${dhwBandLabel}`,
+      threshold: 'Stored hot water supports low to very high demand; only very high demand triggers a review.',
+      whyItMatters: 'Stored volume is designed for simultaneous outlets and morning demand clustering.',
+      whatWouldChange: 'No architecture change is needed unless demand materially increases beyond the selected cylinder strategy.',
+    };
+  }
+
+  if (row === 'water_supply') {
+    const observed = cwsHasMeasurements
+      ? `${input.mainsDynamicFlowLpm ?? 'N/A'} L/min @ ${input.dynamicMainsPressureBar ?? input.dynamicMainsPressure ?? 'N/A'} bar`
+      : 'No dynamic flow measurement recorded';
+    return {
+      ruleName: 'Mains flow and pressure check',
+      observedValue: observed,
+      threshold: 'Typical unvented/combi gate: ≥10 L/min at ~1.0 bar dynamic (or stronger equivalent).',
+      whyItMatters: cwsInconsistent
+        ? 'Inconsistent pressure readings make capacity assessments unreliable.'
+        : 'Insufficient mains performance can limit simultaneous outlet comfort.',
+      whatWouldChange: cwsMeetsUnvented
+        ? 'No immediate action — evidence supports mains-fed operation.'
+        : 'Take an on-load flow/pressure measurement, then review supply upgrade options if needed.',
+    };
+  }
+
+  if (row === 'space') {
+    return {
+      ruleName: 'Cylinder space suitability',
+      observedValue: `Surveyed space: ${input.availableSpace ?? 'unknown'}`,
+      threshold: 'Stored systems require suitable cylinder footprint and service clearances.',
+      whyItMatters: 'Insufficient space can constrain cylinder choice, serviceability, and installation route.',
+      whatWouldChange: 'Confirm cupboard dimensions or use compact/stratified storage where space is tight.',
+    };
+  }
+
+  if (row === 'future_works') {
+    return {
+      ruleName: 'Future expansion resilience',
+      observedValue: `Loft conversion: ${input.futureLoftConversion ? 'planned' : 'not planned'}, additional bathroom: ${input.futureAddBathroom ? 'planned' : 'not planned'}`,
+      threshold: 'Future demand growth should be accommodated without major rework.',
+      whyItMatters: 'Planned expansion can turn a currently adequate architecture into a future bottleneck.',
+      whatWouldChange: 'Choose a system/cylinder strategy that supports added outlets and future peak draw.',
+    };
+  }
+
+  return {
+    ruleName: 'Heat delivery compatibility',
+    observedValue: `Status: ${risk.toUpperCase()}`,
+    threshold: 'Emitter capacity and design flow temperatures should match the selected heat source.',
+    whyItMatters: 'Temperature mismatch impacts comfort and seasonal efficiency.',
+    whatWouldChange: 'Emitter and control upgrades can improve compatibility for low-temperature operation.',
+  };
+}
 
 function overallRisk(cells: RiskLevel[]): RiskLevel {
   if (cells.includes('fail')) return 'fail';
@@ -327,9 +411,9 @@ function normaliseNumericString(raw: string): string {
 function dhwDemandBand(bathrooms: number, outlets: number, highOcc: boolean): { label: string; colour: string } {
   const score = outlets + (bathrooms > 1 ? bathrooms - 1 : 0) + (highOcc ? 1 : 0);
   if (score <= 1) return { label: 'Low',      colour: '#38a169' };
-  if (score === 2) return { label: 'Moderate', colour: '#d69e2e' };
-  if (score === 3) return { label: 'High',     colour: '#dd6b20' };
-  return              { label: 'Very High', colour: '#c53030' };
+  if (score === 2) return { label: 'Moderate', colour: '#3182ce' };
+  if (score === 3) return { label: 'High',     colour: '#d69e2e' };
+  return              { label: 'Very High', colour: '#b7791f' };
 }
 
 // ─── Hydraulic Behaviour Helpers ─────────────────────────────────────────────
@@ -405,6 +489,7 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
   const [prefillActive] = useState<boolean>(!!prefill);
   const [showPrefillBanner, setShowPrefillBanner] = useState<boolean>(!!prefill);
   const [compareMixergy, setCompareMixergy] = useState(false);
+  const [overlayDetail, setOverlayDetail] = useState<{ systemLabel: string; rowLabel: string; step: Step; risk: RiskLevel; explanation: OverlayExplanation } | null>(null);
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
 
@@ -2157,7 +2242,7 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
             {/* Right: live response panel */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
 
-              {/* DHW demand level badge */}
+              {/* DHW demand summary */}
               <div style={{
                 padding: '0.875rem 1rem',
                 background: '#f7fafc',
@@ -2166,7 +2251,7 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                 display: 'flex', flexDirection: 'column', gap: '0.3rem',
               }}>
                 <div style={{ fontSize: '0.75rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  DHW demand level
+                  DHW demand summary
                 </div>
                 <div style={{ fontSize: '1.8rem', fontWeight: 800, color: dhwBand.colour, lineHeight: 1 }}>
                   {dhwBand.label}
@@ -2176,49 +2261,7 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                 </div>
               </div>
 
-              {/* Combi overall verdict */}
-              <div style={{
-                padding: '0.6rem 0.875rem',
-                background: RISK_BG[combiDhwLive.verdict.combiRisk],
-                border: `2px solid ${RISK_COLOUR[combiDhwLive.verdict.combiRisk]}`,
-                borderRadius: '6px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <span style={{ fontSize: '0.88rem', color: '#4a5568' }}>Combi on-demand verdict</span>
-                <span style={{
-                  padding: '0.25rem 0.65rem',
-                  background: RISK_COLOUR[combiDhwLive.verdict.combiRisk],
-                  color: '#fff', borderRadius: '4px', fontWeight: 700, fontSize: '0.82rem',
-                }}>
-                  {RISK_LABEL[combiDhwLive.verdict.combiRisk]}
-                </span>
-              </div>
-
-              {/* Reason chips */}
-              {combiDhwLive.flags.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  {combiDhwLive.flags.map(flag => (
-                    <div
-                      key={flag.id}
-                      style={{
-                        padding: '0.5rem 0.75rem',
-                        background: flag.severity === 'fail' ? '#fff5f5' : '#fffff0',
-                        border: `1px solid ${flag.severity === 'fail' ? '#feb2b2' : '#faf089'}`,
-                        borderLeft: `4px solid ${flag.severity === 'fail' ? '#c53030' : '#d69e2e'}`,
-                        borderRadius: '4px',
-                        fontSize: '0.82rem',
-                      }}
-                    >
-                      <div style={{ fontWeight: 700, color: flag.severity === 'fail' ? '#c53030' : '#b7791f', marginBottom: '0.2rem' }}>
-                        {flag.title}
-                      </div>
-                      <div style={{ color: '#4a5568', lineHeight: 1.4 }}>{flag.detail}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Stored hot water strongly favoured — shown when simultaneous demand or multi-bathroom */}
+              {/* Stored-hot-water fit shown early as primary recommendation */}
               {(input.bathroomCount >= 2 || (input.peakConcurrentOutlets ?? 1) >= 2) && (
                 <div style={{
                   padding: '0.6rem 0.875rem',
@@ -2237,6 +2280,57 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                       : 'Multiple bathrooms increase the likelihood of simultaneous demand — stored hot water handles this without throughput constraints.'
                     }
                   </div>
+                </div>
+              )}
+
+              {/* Unvented positive explainer */}
+              <div style={{
+                padding: '0.6rem 0.875rem',
+                background: '#f0fff4',
+                border: '1px solid #9ae6b4',
+                borderLeft: '4px solid #38a169',
+                borderRadius: '6px',
+                fontSize: '0.82rem',
+              }}>
+                <div style={{ fontWeight: 700, color: '#276749', marginBottom: '0.2rem' }}>
+                  Unvented full mains flow
+                </div>
+                <div style={{ color: '#4a5568', lineHeight: 1.4 }}>
+                  Stored hot water at mains pressure supports stronger simultaneous outlet performance than vented storage.
+                </div>
+              </div>
+
+              {/* Combi limitation verdict — keep failure emphasis here only */}
+              <div style={{
+                padding: '0.6rem 0.875rem',
+                background: RISK_BG[combiDhwLive.verdict.combiRisk],
+                border: `2px solid ${RISK_COLOUR[combiDhwLive.verdict.combiRisk]}`,
+                borderRadius: '6px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <span style={{ fontSize: '0.88rem', color: '#4a5568' }}>Combi on-demand verdict</span>
+                <span style={{
+                  padding: '0.25rem 0.65rem',
+                  background: RISK_COLOUR[combiDhwLive.verdict.combiRisk],
+                  color: '#fff', borderRadius: '4px', fontWeight: 700, fontSize: '0.82rem',
+                }}>
+                  {RISK_LABEL[combiDhwLive.verdict.combiRisk]}
+                </span>
+              </div>
+
+              {combiDhwLive.flags[0] && (
+                <div style={{
+                  padding: '0.5rem 0.75rem',
+                  background: '#f7fafc',
+                  border: '1px solid #e2e8f0',
+                  borderLeft: '4px solid #718096',
+                  borderRadius: '4px',
+                  fontSize: '0.82rem',
+                }}>
+                  <div style={{ fontWeight: 700, color: '#4a5568', marginBottom: '0.2rem' }}>
+                    {combiDhwLive.flags[0].title}
+                  </div>
+                  <div style={{ color: '#4a5568', lineHeight: 1.4 }}>{combiDhwLive.flags[0].detail}</div>
                 </div>
               )}
 
@@ -2518,10 +2612,10 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
 
       {currentStep === 'commercial' && (
         <div className="step-card">
-          <h2>💼 Step 6: Commercial Strategy Selection</h2>
+          <h2>💼 Step 6: Installation approach</h2>
           <div className="form-grid">
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
-              <label>🏗️ Installation Policy</label>
+              <label>🏗️ Upgrade strategy</label>
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                 <button
                   onClick={() => setInput({ ...input, installationPolicy: 'full_job' })}
@@ -2537,7 +2631,7 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                 >
                   <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>✅ Full upgrade (low-temp design)</div>
                   <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
-                    Assumes radiators/controls can be upgraded so the system runs 35–45°C most of the time.
+                    We can improve radiators and controls so the system runs more efficiently at lower temperatures.
                   </div>
                 </button>
                 <button
@@ -2554,12 +2648,12 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                 >
                   <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>⚡ Like-for-like retrofit (higher temp)</div>
                   <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
-                    Assumes existing emitters stay; needs higher flow temps to hit comfort on cold days.
+                    Keep most existing emitters and fit around the current setup, typically at higher flow temperatures.
                   </div>
                 </button>
               </div>
               <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '0.5rem' }}>
-                Low-temp is usually more efficient but may require emitter upgrades; like-for-like prioritises minimal changes.
+                These choices influence performance assumptions and which systems are shown as best-fit. Low-temp upgrades usually improve efficiency; like-for-like minimises disruption.
               </p>
             </div>
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
@@ -2579,7 +2673,7 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                 >
                   <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>🫙 Standard Cylinder</div>
                   <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
-                    Conventional stored hot water system
+                    Conventional stored hot water for whole-home demand.
                   </div>
                 </button>
                 <button
@@ -2596,7 +2690,7 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                 >
                   <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>⚡ Mixergy Hot Water Battery</div>
                   <div style={{ fontSize: '0.82rem', color: '#4a5568' }}>
-                    Active stratification · Efficiency improvement tendency · Top-down heating
+                    Smart stratified cylinder; useful where space, PV use, or top-down heating behaviour matter.
                   </div>
                 </button>
               </div>
@@ -2613,6 +2707,14 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                   </div>
                 </div>
               )}
+              <details style={{ marginTop: '0.5rem' }}>
+                <summary style={{ cursor: 'pointer', fontSize: '0.78rem', color: '#4a5568' }}>What changes with this choice?</summary>
+                <p style={{ marginTop: '0.4rem', fontSize: '0.78rem', color: '#718096', lineHeight: 1.45 }}>
+                  Upgrade strategy affects expected flow-temperature operation and emitter assumptions.
+                  Hot-water storage selection describes the cylinder type and feature comparison; it does not
+                  override the core suitability verdict by itself.
+                </p>
+              </details>
               <label className="checkbox-field" style={{ marginTop: '0.75rem' }}>
                 <input
                   type="checkbox"
@@ -2798,8 +2900,23 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                         return (
                           <td key={sys.id} style={{ padding: '0.35rem 0.5rem', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
                             <button
-                              onClick={() => setCurrentStep(row.step)}
-                              title={`Jump to ${row.step.replace(/_/g, ' ')} step`}
+                              onClick={() => setOverlayDetail({
+                                systemLabel: sys.label,
+                                rowLabel: row.label,
+                                step: row.step,
+                                risk,
+                                explanation: overlayExplanation(
+                                  sys.id,
+                                  row.id,
+                                  risk,
+                                  input,
+                                  dhwBand.label,
+                                  overlayMeetsUnvented,
+                                  overlayHasFlow,
+                                  overlayInconsistent,
+                                ),
+                              })}
+                              title={`Open ${row.label} explanation for ${sys.label}`}
                               style={{
                                 width: '100%',
                                 padding: '0.35rem 0.25rem',
@@ -2829,17 +2946,33 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                       const overall = overallRisk(cells);
                       return (
                         <td key={sys.id} style={{ padding: '0.5rem 0.5rem', textAlign: 'center' }}>
-                          <span style={{
-                            display: 'inline-block',
-                            padding: '0.2rem 0.5rem',
-                            background: CELL_BG[overall],
-                            border: `1px solid ${CELL_BORDER[overall]}`,
-                            borderRadius: '4px',
-                            fontSize: '0.9rem',
-                            fontWeight: 700,
-                          }}>
+                          <button
+                            onClick={() => setOverlayDetail({
+                              systemLabel: sys.label,
+                              rowLabel: 'Overall',
+                              step: OVERLAY_ROWS.find(r => cellMap[sys.id][r.id] !== 'pass')?.step ?? 'overlay',
+                              risk: overall,
+                              explanation: {
+                                ruleName: 'Overall system readiness',
+                                observedValue: `Overall status: ${overall.toUpperCase()}`,
+                                threshold: 'Overall rolls up all physics-domain checks for this architecture.',
+                                whyItMatters: 'This provides a quick view of whether follow-up actions are required before selection.',
+                                whatWouldChange: 'Open the specific caution/fail domains to see the controlling rule and required action.',
+                              },
+                            })}
+                            style={{
+                              display: 'inline-block',
+                              padding: '0.2rem 0.5rem',
+                              background: CELL_BG[overall],
+                              border: `1px solid ${CELL_BORDER[overall]}`,
+                              borderRadius: '4px',
+                              fontSize: '0.9rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
                             {CELL_ICON[overall]}
-                          </span>
+                          </button>
                         </td>
                       );
                     })}
@@ -2857,6 +2990,62 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                 Click any cell to jump to the controlling step
               </span>
             </div>
+
+            {overlayDetail && (
+              <div style={{
+                marginTop: '0.9rem',
+                padding: '0.85rem 1rem',
+                background: CELL_BG[overlayDetail.risk],
+                border: `1px solid ${CELL_BORDER[overlayDetail.risk]}`,
+                borderRadius: '8px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center' }}>
+                  <div style={{ fontWeight: 700, color: '#2d3748' }}>
+                    {overlayDetail.systemLabel} · {overlayDetail.rowLabel} · {overlayDetail.risk.toUpperCase()}
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {overlayDetail.step !== 'overlay' && (
+                      <button
+                        onClick={() => {
+                          setCurrentStep(overlayDetail.step);
+                          setOverlayDetail(null);
+                        }}
+                        style={{
+                          padding: '0.3rem 0.6rem',
+                          border: '1px solid #cbd5e0',
+                          borderRadius: '4px',
+                          background: '#fff',
+                          cursor: 'pointer',
+                          fontSize: '0.78rem',
+                        }}
+                      >
+                        Jump to {overlayDetail.step.replace(/_/g, ' ')}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setOverlayDetail(null)}
+                      style={{
+                        padding: '0.3rem 0.6rem',
+                        border: '1px solid #cbd5e0',
+                        borderRadius: '4px',
+                        background: '#fff',
+                        cursor: 'pointer',
+                        fontSize: '0.78rem',
+                      }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+                <div style={{ marginTop: '0.6rem', fontSize: '0.8rem', color: '#4a5568', lineHeight: 1.5 }}>
+                  <div><strong>Rule:</strong> {overlayDetail.explanation.ruleName}</div>
+                  <div><strong>Observed:</strong> {overlayDetail.explanation.observedValue}</div>
+                  <div><strong>Threshold:</strong> {overlayDetail.explanation.threshold}</div>
+                  <div><strong>Why it matters:</strong> {overlayDetail.explanation.whyItMatters}</div>
+                  <div><strong>What would change it:</strong> {overlayDetail.explanation.whatWouldChange}</div>
+                </div>
+              </div>
+            )}
 
             {/* Plan-type fallback capture — shown when systemPlanType was never set */}
             {input.systemPlanType === undefined && (

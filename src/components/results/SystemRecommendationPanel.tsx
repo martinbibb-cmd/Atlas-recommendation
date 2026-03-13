@@ -147,12 +147,21 @@ function withheldDisplayText(primary: string): string {
   return primary;
 }
 
+
+function topReasonByStatus(engineOutput: EngineOutputV1, status: 'caution' | 'rejected'): string | null {
+  const item = engineOutput.eligibility.find(e => e.status === status && e.reason);
+  return item?.reason ?? null;
+}
+
 export default function SystemRecommendationPanel({ engineOutput }: Props) {
+
   const primary = engineOutput.recommendation.primary;
   const withheld = isWithheld(primary);
   const bullets = whyBullets(engineOutput);
   const level = confidenceLevel(engineOutput);
   const provisionalNote = buildProvisionalNote(engineOutput);
+  const needsChecking = topReasonByStatus(engineOutput, 'caution');
+  const combiRejectedReason = engineOutput.eligibility.find(e => e.id === 'on_demand' && e.status === 'rejected')?.reason ?? null;
 
   return (
     <div className={`rec-summary${withheld ? ' rec-summary--withheld' : ''}`}>
@@ -180,6 +189,14 @@ export default function SystemRecommendationPanel({ engineOutput }: Props) {
           </ul>
         </>
       )}
+
+      <hr className="rec-summary__divider" />
+      <p className="rec-summary__why-label">Top decision summary</p>
+      <ul className="rec-summary__bullets">
+        <li><strong>Why this fits:</strong> {bullets[0] ?? 'Recommendation based on current measured and survey evidence.'}</li>
+        <li><strong>What needs checking:</strong> {needsChecking ?? 'No active caution checks at this stage.'}</li>
+        <li><strong>Why combi was ruled out:</strong> {combiRejectedReason ?? 'Combi remains within the viable set for this survey input.'}</li>
+      </ul>
 
       <span
         className={`rec-summary__confidence rec-summary__confidence--${level}`}
