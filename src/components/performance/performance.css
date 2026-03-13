@@ -80,13 +80,27 @@
 .perf-enablers__icon--warning { color: var(--text-warning); }
 .perf-enablers__icon--missing { color: var(--text-danger); }
 
-/* ── Label ──────────────────────────────────────────────────────────────── */
+/* ── Label group (label + detail stacked) ────────────────────────────── */
+
+.perf-enablers__label-group {
+  flex:           1;
+  display:        flex;
+  flex-direction: column;
+  gap:            2px;
+  min-width:      0;
+}
 
 .perf-enablers__label {
-  flex:        1;
   font-size:   var(--text-sm);
+  font-weight: var(--weight-medium);
   color:       var(--text-body);
   line-height: var(--leading-tight);
+}
+
+.perf-enablers__detail {
+  font-size:   var(--text-xs);
+  color:       var(--text-muted);
+  line-height: var(--leading-normal);
 }
 
 /* ── Status chip ────────────────────────────────────────────────────────── */
