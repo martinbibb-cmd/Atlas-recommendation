@@ -67,8 +67,11 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
 
 type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'floor-plan';
 
+const FLOOR_PLAN_TOOL_MODE =
+  typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
+
 export default function App() {
-  const [journey, setJourney] = useState<Journey>('landing');
+  const [journey, setJourney] = useState<Journey>(FLOOR_PLAN_TOOL_MODE ? 'floor-plan' : 'landing');
   const [fullSurveyPrefill, setFullSurveyPrefill] = useState<Partial<EngineInputV2_3> | undefined>();
   /** Controls replay of the landing tour without a full page reload. */
   const [replayLandingTour, setReplayLandingTour] = useState(false);
@@ -80,6 +83,7 @@ export default function App() {
   const [labPartialInput, setLabPartialInput] = useState<Partial<EngineInputV2_3>>({});
   /** Completed engine input passed to LabShell when the lab is fully open. */
   const [labEngineInput, setLabEngineInput] = useState<EngineInputV2_3 | undefined>();
+  const [floorPlanSystemType, setFloorPlanSystemType] = useState<'combi' | 'system' | 'regular' | 'heat_pump' | undefined>();
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
@@ -130,7 +134,17 @@ export default function App() {
   return (
     <>
       {journey === 'fast' && <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} onOpenLab={handleOpenLab} />}
-      {journey === 'full' && <FullSurveyStepper onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }} prefill={fullSurveyPrefill} />}
+      {journey === 'full' && (
+        <FullSurveyStepper
+          onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }}
+          prefill={fullSurveyPrefill}
+          onOpenFloorPlan={(surveyResults) => {
+            const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
+            setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
+            setJourney('floor-plan');
+          }}
+        />
+      )}
       {journey === 'scope' && <ScopePage onBack={() => setJourney('landing')} />}
       {journey === 'methodology' && <MethodologyPage onBack={() => setJourney('landing')} />}
       {journey === 'neutrality' && <NeutralityPage onBack={() => setJourney('landing')} />}
@@ -158,7 +172,11 @@ export default function App() {
               ← Back
             </button>
           </div>
-          <FloorPlanBuilder />
+          <FloorPlanBuilder
+            surveyResults={{
+              systemType: floorPlanSystemType,
+            }}
+          />
         </div>
       )}
       {journey === 'landing' && (

@@ -45,6 +45,7 @@ interface Props {
   onBack: () => void;
   /** Optional prefill state from Story Mode escalation. */
   prefill?: Partial<FullSurveyModelV1>;
+  onOpenFloorPlan?: (surveyResults: Partial<FullSurveyModelV1>) => void;
 }
 
 type Step = 'location' | 'pressure' | 'hydraulic' | 'lifestyle' | 'hot_water' | 'commercial' | 'overlay';
@@ -396,7 +397,7 @@ const defaultInput: FullSurveyModelV1 = {
   },
 };
 
-export default function FullSurveyStepper({ onBack, prefill }: Props) {
+export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('location');
   const [input, setInput] = useState<FullSurveyModelV1>(() =>
     prefill ? { ...defaultInput, ...prefill } : defaultInput
@@ -2900,6 +2901,7 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
 
             <div className="step-actions">
               <button className="prev-btn" onClick={prev}>← Back</button>
+              <button className="prev-btn" onClick={() => onOpenFloorPlan?.(input)}>Open Floor Plan →</button>
               <button className="next-btn" onClick={next}>Run Full Analysis →</button>
             </div>
           </div>
@@ -3102,4 +3104,3 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
     </div>
   );
 }
-
