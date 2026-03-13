@@ -100,19 +100,6 @@ function buildGraphFromNodes(
   return { nodes: buildNodes, edges };
 }
 
-// ─── Snap-validation: which room types a PartKind prefers ────────────────────
-
-const PREFERRED_ROOM_TYPES: Partial<Record<PartKind, RoomType[]>> = {
-  heat_source_combi:          ['kitchen', 'utility', 'garage', 'cupboard', 'plant_room'],
-  heat_source_system_boiler:  ['kitchen', 'utility', 'garage', 'cupboard', 'plant_room'],
-  heat_source_regular_boiler: ['kitchen', 'utility', 'garage', 'cupboard', 'plant_room'],
-  heat_source_heat_pump:      ['outside'],
-  dhw_unvented_cylinder:      ['cupboard', 'plant_room', 'utility', 'garage'],
-  dhw_mixergy:                ['cupboard', 'plant_room', 'utility', 'garage'],
-  dhw_vented_cylinder:        ['cupboard', 'plant_room', 'utility', 'loft'],
-  cws_cistern:                ['loft', 'cupboard'],
-};
-
 // ─── Initial state ────────────────────────────────────────────────────────────
 
 function makeInitialPlan(metadata: PropertyMetadata = {}): PropertyPlan {
