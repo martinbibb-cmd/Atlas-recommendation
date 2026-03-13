@@ -1480,3 +1480,36 @@
 .lab-visual-tab__intro-dismiss:hover {
   color: #fff;
 }
+
+/* ── Simulator tab — section hierarchy ───────────────────────────────────── */
+
+.lab-simulator-section {
+  margin-bottom: 2rem;
+}
+
+.lab-simulator-section--primary {
+  /* Behaviour dashboard is the dominant visual anchor */
+  background:    #f7fafc;
+  border:        1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding:       1rem 1rem 1.25rem;
+}
+
+.lab-simulator-section__heading {
+  margin:         0 0 0.75rem 0;
+  font-size:      0.8rem;
+  font-weight:    800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color:          #4a5568;
+}
+
+.lab-simulator-section--primary .lab-simulator-section__heading {
+  color: #2b6cb0;
+}
+
+@media (max-width: 640px) {
+  .lab-simulator-section--primary {
+    padding: 0.75rem 0.5rem 1rem;
+  }
+}

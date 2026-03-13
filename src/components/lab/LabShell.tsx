@@ -9,6 +9,7 @@ import PerformanceEnablersPanel from '../performance/PerformanceEnablersPanel';
 import CondensingRuntimePanel from '../summary/CondensingRuntimePanel';
 import AtlasTour from '../tour/AtlasTour';
 import { resetAtlasTourSeen } from '../../lib/tourStorage';
+import LifestyleInteractive from '../visualizers/LifestyleInteractive';
 import {
   PLACEHOLDER_CURRENT_SYSTEM,
   PLACEHOLDER_CONFIDENCE_STRIP,
@@ -92,8 +93,7 @@ function VisualTab() {
         <div className="lab-visual-tab__intro" role="status" aria-live="polite">
           <span className="lab-visual-tab__intro-icon" aria-hidden="true">▶</span>
           <span>
-            <strong>Auto Demo</strong> — tap a regime to watch heat and water behaviour.
-            Cylinder cools → boiler fires → hot water ready.
+            <strong>Auto Demo</strong> — paint your day to watch heat and water behaviour respond in real time.
           </span>
           <button
             className="lab-visual-tab__intro-dismiss"
@@ -107,7 +107,18 @@ function VisualTab() {
           </button>
         </div>
       )}
-      <DrawOffWorkbench />
+
+      {/* ── Block 1: Behaviour dashboard (primary simulator surface) ─────────── */}
+      <section className="lab-simulator-section lab-simulator-section--primary" aria-label="Behaviour dashboard">
+        <h2 className="lab-simulator-section__heading">Behaviour dashboard</h2>
+        <LifestyleInteractive />
+      </section>
+
+      {/* ── Block 2: System state (draw-off workbench + water performance) ───── */}
+      <section className="lab-simulator-section" aria-label="System state">
+        <h2 className="lab-simulator-section__heading">System state</h2>
+        <DrawOffWorkbench />
+      </section>
     </div>
   );
 }
