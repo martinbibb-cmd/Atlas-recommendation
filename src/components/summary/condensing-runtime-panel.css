@@ -1,0 +1,227 @@
+/**
+ * condensing-runtime-panel.css
+ *
+ * Styles for CondensingRuntimePanel — the lab summary tile that exposes the
+ * CondensingRuntimeModule result: estimated runtime percentage, band label,
+ * current condensing state, driver list, and proxy caveat.
+ */
+
+/* ── Container ──────────────────────────────────────────────────────────── */
+
+.crt-panel {
+  background:    var(--surface-default);
+  border:        1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow:    var(--shadow-sm);
+  padding:       var(--space-5) var(--space-6);
+  display:       flex;
+  flex-direction: column;
+  gap:           var(--space-4);
+}
+
+/* ── Not-available state ────────────────────────────────────────────────── */
+
+.crt-panel--unavailable {
+  opacity: 0.65;
+}
+
+.crt-panel__na {
+  font-size:   var(--text-sm);
+  color:       var(--text-muted);
+  font-style:  italic;
+}
+
+/* ── Title ──────────────────────────────────────────────────────────────── */
+
+.crt-panel__title {
+  margin:      0;
+  font-size:   var(--text-base);
+  font-weight: var(--weight-semibold);
+  color:       var(--text-primary);
+  line-height: var(--leading-tight);
+}
+
+.crt-panel__subtitle {
+  margin:     0;
+  font-size:  var(--text-sm);
+  color:      var(--text-muted);
+  line-height: var(--leading-normal);
+}
+
+/* ── Runtime hero row ───────────────────────────────────────────────────── */
+
+.crt-panel__hero {
+  display:     flex;
+  align-items: baseline;
+  gap:         var(--space-3);
+  flex-wrap:   wrap;
+}
+
+.crt-panel__pct {
+  font-family: var(--font-numeric, var(--font-mono));
+  font-size:   var(--text-3xl);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+}
+
+.crt-panel__pct--green { color: var(--color-green-700); }
+.crt-panel__pct--amber { color: var(--color-amber-700); }
+.crt-panel__pct--red   { color: var(--color-red-700);   }
+
+.crt-panel__band {
+  font-size:     var(--text-sm);
+  font-weight:   var(--weight-semibold);
+  padding:       var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+}
+
+.crt-panel__band--green {
+  background: var(--surface-success);
+  color:      var(--color-green-700);
+  border:     1px solid var(--border-success);
+}
+
+.crt-panel__band--amber {
+  background: var(--surface-warning);
+  color:      var(--color-amber-700);
+  border:     1px solid var(--border-warning);
+}
+
+.crt-panel__band--red {
+  background: var(--surface-danger);
+  color:      var(--color-red-700);
+  border:     1px solid var(--border-danger);
+}
+
+/* ── Progress bar ───────────────────────────────────────────────────────── */
+
+.crt-panel__bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.crt-panel__track {
+  height:        8px;
+  background:    var(--color-neutral-200);
+  border-radius: var(--radius-pill);
+  overflow:      hidden;
+}
+
+.crt-panel__fill {
+  height:        100%;
+  border-radius: var(--radius-pill);
+  transition:    width var(--transition-slow);
+}
+
+.crt-panel__fill--green { background: var(--color-green-500); }
+.crt-panel__fill--amber { background: var(--color-amber-500); }
+.crt-panel__fill--red   { background: var(--color-red-500);   }
+
+/* ── Section heading ────────────────────────────────────────────────────── */
+
+.crt-panel__section-heading {
+  font-size:      var(--text-xs);
+  font-weight:    var(--weight-semibold);
+  color:          var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin:         0 0 var(--space-2);
+}
+
+/* ── Current state row ──────────────────────────────────────────────────── */
+
+.crt-panel__state {
+  display:     flex;
+  align-items: center;
+  gap:         var(--space-2);
+}
+
+.crt-panel__state-badge {
+  font-size:     var(--text-sm);
+  font-weight:   var(--weight-medium);
+  padding:       var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+}
+
+.crt-panel__state-badge--condensing {
+  background: var(--surface-success);
+  color:      var(--color-green-700);
+  border:     1px solid var(--border-success);
+}
+
+.crt-panel__state-badge--borderline {
+  background: var(--surface-warning);
+  color:      var(--color-amber-700);
+  border:     1px solid var(--border-warning);
+}
+
+.crt-panel__state-badge--non-condensing {
+  background: var(--surface-danger);
+  color:      var(--color-red-700);
+  border:     1px solid var(--border-danger);
+}
+
+.crt-panel__state-badge--unavailable {
+  background: var(--surface-subtle);
+  color:      var(--text-muted);
+  border:     1px solid var(--border-default);
+  font-style: italic;
+}
+
+/* ── Driver list ────────────────────────────────────────────────────────── */
+
+.crt-panel__drivers {
+  list-style: none;
+  margin:     0;
+  padding:    0;
+  display:    flex;
+  flex-direction: column;
+  gap:        var(--space-2);
+}
+
+.crt-panel__driver {
+  display:     flex;
+  align-items: flex-start;
+  gap:         var(--space-2);
+  font-size:   var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.crt-panel__driver-icon {
+  flex-shrink: 0;
+  font-size:   var(--text-xs);
+  font-weight: var(--weight-bold);
+  width:       1.25em;
+  text-align:  center;
+  margin-top:  0.1em;
+}
+
+.crt-panel__driver--positive .crt-panel__driver-icon { color: var(--color-green-600); }
+.crt-panel__driver--negative .crt-panel__driver-icon { color: var(--color-red-600);   }
+
+.crt-panel__driver-text {
+  color: var(--text-body);
+}
+
+.crt-panel__driver--positive .crt-panel__driver-text { color: var(--color-green-700); }
+.crt-panel__driver--negative .crt-panel__driver-text { color: var(--color-red-700);   }
+
+/* ── Caveat / proxy note ────────────────────────────────────────────────── */
+
+.crt-panel__caveat {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           var(--space-2);
+  padding:       var(--space-2) var(--space-3);
+  background:    var(--surface-subtle);
+  border:        1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size:     var(--text-xs);
+  color:         var(--text-muted);
+  line-height:   var(--leading-normal);
+}
+
+.crt-panel__caveat-icon {
+  flex-shrink: 0;
+}
