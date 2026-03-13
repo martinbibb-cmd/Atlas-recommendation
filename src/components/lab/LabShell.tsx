@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import WhatIfLab from '../explainers/WhatIfLab';
 import LabHomeLink from './LabHomeLink';
 import LabConfidenceStrip from './LabConfidenceStrip';
@@ -18,9 +18,12 @@ import {
 } from './labSharedData';
 import './lab.css';
 
+// BuilderShell is loaded lazily to keep the initial bundle lean.
+const BuilderShell = lazy(() => import('../../explainers/lego/builder/BuilderShell'));
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type LabTab = 'visual' | 'summary' | 'whatif';
+type LabTab = 'visual' | 'summary' | 'whatif' | 'builder';
 
 interface Props {
   onHome: () => void;
@@ -123,6 +126,7 @@ export default function LabShell({ onHome }: Props) {
     visual:  'Simulator',
     summary: 'Summary',
     whatif:  'What if…?',
+    builder: 'Builder',
   };
 
   /** PR 2 — Tab IDs mapped from tab key to DOM id required by the tour. */
@@ -130,6 +134,7 @@ export default function LabShell({ onHome }: Props) {
     visual:  'visual-tab',
     summary: 'system-lab-tab',
     whatif:  'what-if-tab',
+    builder: 'builder-tab',
   };
 
   /** PR 1 — Maps tab key to its data-tour attribute value (tour targets). */
@@ -137,6 +142,7 @@ export default function LabShell({ onHome }: Props) {
     visual:  'visual-tab',
     summary: undefined,
     whatif:  'what-if-tab',
+    builder: undefined,
   };
 
   return (
@@ -253,6 +259,11 @@ export default function LabShell({ onHome }: Props) {
         {activeTab === 'visual'  && <VisualTab />}
         {activeTab === 'summary' && <SummaryTab />}
         {activeTab === 'whatif'  && <WhatIfLab />}
+        {activeTab === 'builder' && (
+          <Suspense fallback={<div className="lab-builder-loading">Loading builder…</div>}>
+            <BuilderShell />
+          </Suspense>
+        )}
       </div>
 
     </div>

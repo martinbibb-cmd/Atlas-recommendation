@@ -7,7 +7,7 @@ import { getPortDefs } from './portDefs';
 import { SchematicFace } from './SchematicFace';
 import { findSnapCandidate, portAbs as snapPortAbs } from './snapConnect';
 import { routePipe } from './router';
-import { allZoneBands, ZONE_BAND_WIDTH, ZONE_BAND_X } from './zoneBands';
+import { PLAN_ROOMS } from './planRooms';
 import './builder.css';
 
 const MIN_ZOOM = 0.5;
@@ -332,23 +332,27 @@ export default function WorkbenchCanvas({
           transformOrigin: '0 0',
         }}
       >
-        {/* ── Structural zone bands — rendered behind all schematic content ── */}
-        <svg className="zone-bands" aria-hidden="true">
-          {allZoneBands().map(band => (
-            <g key={band.zone}>
+        {/* ── Top-view house plan scaffold — rendered behind all schematic content ── */}
+        <svg className="plan-scaffold" aria-hidden="true">
+          {PLAN_ROOMS.map(room => (
+            <g key={room.id}>
               <rect
-                x={ZONE_BAND_X}
-                y={band.y}
-                width={ZONE_BAND_WIDTH}
-                height={band.height}
-                fill={band.fill}
+                x={room.x}
+                y={room.y}
+                width={room.w}
+                height={room.h}
+                fill={room.fill}
+                stroke={room.stroke}
+                strokeWidth={1.5}
+                rx={6}
+                ry={6}
               />
               <text
-                x={ZONE_BAND_X + 20}
-                y={band.y + 22}
-                className="zone-band-label"
+                x={room.x + 8}
+                y={room.y + 18}
+                className="plan-room-label"
               >
-                {band.label}
+                {room.label}
               </text>
             </g>
           ))}

@@ -284,10 +284,10 @@
   pointer-events: none;
 }
 
-/* ── Structural zone bands ────────────────────────────────────────────────── */
+/* ── Top-view house plan scaffold ────────────────────────────────────────── */
 
-/* Zone band SVG layer — sits behind pipes and tokens. */
-.zone-bands {
+/* Plan scaffold SVG layer — sits behind pipes and tokens. */
+.plan-scaffold {
   position: absolute;
   left: 0;
   top: 0;
@@ -298,15 +298,15 @@
   pointer-events: none;
 }
 
-/* Zone label text rendered inside each band. */
-.zone-band-label {
+/* Room label text rendered inside each plan room. */
+.plan-room-label {
   font-family: system-ui, -apple-system, sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   fill: #64748b;
-  opacity: 0.7;
+  opacity: 0.75;
   user-select: none;
 }
 

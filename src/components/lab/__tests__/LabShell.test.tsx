@@ -2,7 +2,7 @@
  * LabShell.test.tsx
  *
  * Validates that LabShell:
- *   - Renders the Simulator, Summary, and What if…? tabs
+ *   - Renders the Simulator, Summary, What if…?, and Builder tabs
  *   - Does not render a Floor Plan tab
  *   - Does not render an Engineer/Customer mode toggle
  *   - Does not render a Behaviour Console tab
@@ -20,6 +20,11 @@ describe('LabShell — tabs', () => {
     expect(screen.getByRole('tab', { name: 'Simulator' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Summary' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'What if…?' })).toBeTruthy();
+  });
+
+  it('renders a Builder tab button', () => {
+    render(<LabShell onHome={() => {}} />);
+    expect(screen.getByRole('tab', { name: 'Builder' })).toBeTruthy();
   });
 
   it('does not render a Floor Plan tab', () => {
@@ -41,6 +46,12 @@ describe('LabShell — tabs', () => {
     render(<LabShell onHome={() => {}} />);
     const tab = screen.getByRole('tab', { name: 'Simulator' });
     expect(tab.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('marks Builder tab as not selected on initial render', () => {
+    render(<LabShell onHome={() => {}} />);
+    const tab = screen.getByRole('tab', { name: 'Builder' });
+    expect(tab.getAttribute('aria-selected')).toBe('false');
   });
 });
 
