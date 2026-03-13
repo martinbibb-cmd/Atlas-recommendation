@@ -8,46 +8,46 @@ import type { FullEngineResult } from '../../engine/schema/EngineInputV2_3';
 
 interface Props {
   result: FullEngineResult | null;
+  onOpenCombi?: () => void;
+  onOpenStored?: () => void;
+  onOpenConstraints?: () => void;
 }
 
-export default function VerdictStrip({ result }: Props) {
+export default function VerdictStrip({ result, onOpenCombi, onOpenStored, onOpenConstraints }: Props) {
   if (!result) return null;
 
   const combiRisk = result.combiDhwV1.verdict.combiRisk;
   const storedRisk = result.storedDhwV1.verdict.storedRisk;
   const limiters = result.engineOutput.limiters;
-  const failCount = limiters
-    ? limiters.limiters.filter(l => l.severity === 'fail').length
-    : 0;
-  const constraintSummary =
-    failCount > 0
-      ? `${failCount} constraint${failCount === 1 ? '' : 's'} failing`
-      : 'No constraint violations';
+  const topConstraint = limiters?.limiters.find(l => l.severity === 'fail' || l.severity === 'warn');
+  const constraintSummary = topConstraint
+    ? `${topConstraint.severity === 'fail' ? 'Constraint failing' : 'Constraint to review'} — ${topConstraint.title}`
+    : 'No constraint violations';
 
   return (
     <div className="verdict-strip">
-      <div className={`verdict-tile verdict-tile--${combiRisk}`}>
+      <button className={`verdict-tile verdict-tile--${combiRisk}`} onClick={onOpenCombi}>
         <h3 className="verdict-tile__label">Combi</h3>
         <span className={`verdict-tile__pill verdict-tile__pill--${combiRisk}`}>
           {combiRisk === 'fail' ? '❌ Not suitable'
             : combiRisk === 'warn' ? '⚠️ Caution'
             : '✅ Viable'}
         </span>
-      </div>
+      </button>
 
-      <div className={`verdict-tile verdict-tile--${storedRisk ?? 'pass'}`}>
+      <button className={`verdict-tile verdict-tile--${storedRisk ?? 'pass'}`} onClick={onOpenStored}>
         <h3 className="verdict-tile__label">Stored (Unvented)</h3>
         <span className={`verdict-tile__pill verdict-tile__pill--${storedRisk ?? 'pass'}`}>
           {storedRisk === 'warn' ? '⚠️ Caution' : '✅ Viable'}
         </span>
-      </div>
+      </button>
 
-      <div className="verdict-tile verdict-tile--info">
+      <button className="verdict-tile verdict-tile--info" onClick={onOpenConstraints}>
         <h3 className="verdict-tile__label">Constraints</h3>
         <span className="verdict-tile__pill verdict-tile__pill--info">
           {constraintSummary}
         </span>
-      </div>
+      </button>
     </div>
   );
 }

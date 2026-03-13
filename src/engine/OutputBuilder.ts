@@ -462,10 +462,18 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     primaryRecommendation = 'Recommendation withheld — not enough measured data';
   } else {
     const viableItems = eligibilityItems.filter(e => e.status === 'viable');
+    const viableStoredItems = viableItems.filter(e => e.id.includes('stored'));
+    const combiRejected = eligibilityItems.some(e => e.id === 'on_demand' && e.status === 'rejected');
     if (viableItems.length === 1) {
       primaryRecommendation = viableItems[0].label;
     } else if (viableItems.length > 1) {
-      primaryRecommendation = 'Multiple suitable options';
+      if (combiRejected && viableStoredItems.length >= 1) {
+        primaryRecommendation = viableStoredItems.length > 1
+          ? 'Multiple stored-water options suitable'
+          : 'Stored hot water recommended';
+      } else {
+        primaryRecommendation = 'Multiple suitable options';
+      }
     } else {
       const cautionItems = eligibilityItems.filter(e => e.status === 'caution');
       if (cautionItems.length === 1) {
