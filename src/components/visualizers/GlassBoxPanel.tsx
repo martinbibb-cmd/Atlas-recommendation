@@ -151,6 +151,10 @@ function CondensingStateIndicator({ results }: { results: FullEngineResult }) {
           <span>Est. condensing hours</span>
           <span style={{ fontWeight: 600 }}>{cs.estimatedCondensingFractionPct} %</span>
         </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>Return temp source</span>
+          <span style={{ fontWeight: 600, fontStyle: 'italic' }}>{cs.returnTempSource}</span>
+        </div>
       </div>
     </div>
   );

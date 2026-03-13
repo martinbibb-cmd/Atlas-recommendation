@@ -796,6 +796,19 @@ export interface CondensingStateInput {
   averageLoadFraction?: number;
 }
 
+/**
+ * Documents the provenance of the return temperature used by CondensingStateModule.
+ *
+ * Source hierarchy (most-to-least accurate):
+ *   onePipeCascade — measured average return from a one-pipe cascade model
+ *   derived        — estimated as flowTempC − ΔT (design assumption)
+ *   unavailable    — no temperature data was present; result is unreliable
+ */
+export type CondensingReturnTempSource =
+  | 'onePipeCascade'
+  | 'derived'
+  | 'unavailable';
+
 /** Result returned by CondensingStateModule. */
 export interface CondensingStateResult {
   /**
@@ -805,7 +818,7 @@ export interface CondensingStateResult {
   zone: CondensingZone;
   /** Flow temperature used for the calculation (°C). */
   flowTempC: number;
-  /** Estimated return temperature at full (design) load (°C). */
+  /** Return temperature at full (design) load (°C). */
   fullLoadReturnC: number;
   /** Estimated return temperature at typical UK operating conditions (°C). */
   typicalReturnC: number;
@@ -816,6 +829,11 @@ export interface CondensingStateResult {
    * Computed under the assumption of a linear weather-compensation control curve.
    */
   estimatedCondensingFractionPct: number;
+  /**
+   * Documents which source provided the return temperature.
+   * Used in the expert debug readout to answer "where did this value come from?"
+   */
+  returnTempSource: CondensingReturnTempSource;
   /** Key signals driving the zone classification (for lab display). */
   drivers: string[];
   /** Detailed diagnostic notes for the Physics Trace tab. */

@@ -177,3 +177,84 @@ describe('CondensingStateModule — notes content', () => {
     expect(result.drivers.some(d => d.includes('Flow temperature'))).toBe(true);
   });
 });
+
+// ─── PR 5: returnTempSource audit tests ───────────────────────────────────────
+
+describe('CondensingStateModule — returnTempSource field', () => {
+  it('returnTempSource is "onePipeCascade" when returnTempC is provided', () => {
+    const result = runCondensingStateModule(input({ flowTempC: 90, returnTempC: 45 }));
+    expect(result.returnTempSource).toBe('onePipeCascade');
+  });
+
+  it('returnTempSource is "derived" when returnTempC is not provided', () => {
+    const result = runCondensingStateModule(input({ flowTempC: 70 }));
+    expect(result.returnTempSource).toBe('derived');
+  });
+
+  it('driver contains "onePipeCascade" source label for measured return', () => {
+    const result = runCondensingStateModule(input({ flowTempC: 90, returnTempC: 45 }));
+    expect(result.drivers.some(d => d.includes('Return temp source: onePipeCascade'))).toBe(true);
+  });
+
+  it('driver contains "derived" source label for estimated return', () => {
+    const result = runCondensingStateModule(input({ flowTempC: 70 }));
+    expect(result.drivers.some(d => d.includes('Return temp source: derived'))).toBe(true);
+  });
+
+  // Signal source correctness — the driver label should match the field.
+  it('returnTempSource is consistent with drivers content for onePipeCascade', () => {
+    const result = runCondensingStateModule(input({ flowTempC: 80, returnTempC: 52 }));
+    expect(result.returnTempSource).toBe('onePipeCascade');
+    expect(result.drivers.some(d => d.includes('measured/simulated'))).toBe(true);
+  });
+
+  it('returnTempSource is consistent with drivers content for derived', () => {
+    const result = runCondensingStateModule(input({ flowTempC: 80 }));
+    expect(result.returnTempSource).toBe('derived');
+    expect(result.drivers.some(d => d.includes('estimated'))).toBe(true);
+  });
+});
+
+describe('CondensingStateModule — condensing threshold scenarios', () => {
+  // Scenario: oversized / high-temp boiler (common case, previously read "too high")
+  it('high-temp boiler at 90 °C flow → non_condensing, derived source', () => {
+    const result = runCondensingStateModule(input({ flowTempC: 90 }));
+    expect(result.zone).toBe('non_condensing');
+    expect(result.fullLoadReturnC).toBe(70); // 90 − 20
+    expect(result.returnTempSource).toBe('derived');
+  });
+
+  // Scenario: decent radiators, lower-temp boiler at 70 °C flow
+  it('lower-temp boiler at 70 °C flow → condensing zone, derived source', () => {
+    const result = runCondensingStateModule(input({ flowTempC: 70 }));
+    expect(result.zone).toBe('condensing');
+    expect(result.fullLoadReturnC).toBe(50); // 70 − 20
+    expect(result.returnTempSource).toBe('derived');
+  });
+
+  // Scenario: one-pipe cascade provides a measured lower return despite high flow
+  it('measured return (one-pipe cascade) overrides flow-derived estimate', () => {
+    const result = runCondensingStateModule(input({ flowTempC: 90, returnTempC: 48 }));
+    expect(result.zone).toBe('condensing'); // 48 < 55
+    expect(result.fullLoadReturnC).toBe(48);
+    expect(result.returnTempSource).toBe('onePipeCascade');
+  });
+
+  // Scenario: borderline zone — return exactly at threshold
+  it('return exactly at condensing threshold (55 °C) → borderline', () => {
+    const result = runCondensingStateModule(input({ flowTempC: 75 })); // 75 − 20 = 55
+    expect(result.zone).toBe('borderline');
+    expect(result.fullLoadReturnC).toBe(55);
+  });
+
+  // Mutation safety: result object must not share references with input
+  it('result is a plain value object — changes to input do not affect result', () => {
+    const opts = input({ flowTempC: 70 });
+    const result = runCondensingStateModule(opts);
+    // Mutate the original input after the call.
+    opts.flowTempC = 90;
+    // Result must still reflect the original 70 °C flow.
+    expect(result.flowTempC).toBe(70);
+    expect(result.fullLoadReturnC).toBe(50);
+  });
+});
