@@ -16,7 +16,6 @@ import AtlasTour from './components/tour/AtlasTour';
 import { resetAtlasTourSeen } from './lib/tourStorage';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
-import { UiModeContext, type UiMode } from './context/UiModeContext';
 import './App.css';
 
 /** Detect ?lab=1 feature flag — renders Demo Lab directly for previewing. */
@@ -69,8 +68,6 @@ export default function App() {
   const [fullSurveyPrefill, setFullSurveyPrefill] = useState<Partial<EngineInputV2_3> | undefined>();
   /** Controls replay of the landing tour without a full page reload. */
   const [replayLandingTour, setReplayLandingTour] = useState(false);
-  /** PR 2 — Global presentation mode: engineer (default) or customer. */
-  const [uiMode, setUiMode] = useState<UiMode>('engineer');
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
@@ -101,7 +98,7 @@ export default function App() {
   if (PRINT_VIEW === 'comparison') return <LabPrintComparison />;
 
   return (
-    <UiModeContext.Provider value={{ uiMode, setUiMode }}>
+    <>
       {journey === 'fast' && <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} onOpenLab={() => setJourney('lab')} />}
       {journey === 'full' && <FullSurveyStepper onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }} prefill={fullSurveyPrefill} />}
       {journey === 'scope' && <ScopePage onBack={() => setJourney('landing')} />}
@@ -137,24 +134,6 @@ export default function App() {
               >
                 ? Take a tour
               </button>
-              {/* PR 2 — Engineer / Customer mode toggle */}
-              <div className="mode-toggle" role="group" aria-label="UI mode">
-                <span className="mode-toggle__label">Mode</span>
-                <button
-                  className={`mode-toggle__btn${uiMode === 'engineer' ? ' mode-toggle__btn--active' : ''}`}
-                  onClick={() => setUiMode('engineer')}
-                  aria-pressed={uiMode === 'engineer'}
-                >
-                  Engineer
-                </button>
-                <button
-                  className={`mode-toggle__btn${uiMode === 'customer' ? ' mode-toggle__btn--active' : ''}`}
-                  onClick={() => setUiMode('customer')}
-                  aria-pressed={uiMode === 'customer'}
-                >
-                  Customer
-                </button>
-              </div>
             </div>
           </div>
           <div className="journey-cards">
@@ -166,11 +145,7 @@ export default function App() {
             >
               <div className="card-icon">⚡</div>
               <h2>Fast Choice</h2>
-              {uiMode === 'engineer' ? (
-                <p>Quick recommendation from key inputs.</p>
-              ) : (
-                <p>Quick first-pass recommendation. Ideal for early conversations or demonstrations. You can open the result in System Lab later to explore the physics and comparisons.</p>
-              )}
+              <p>Quick recommendation from key inputs.</p>
               <button className="cta-btn">Start Fast Choice →</button>
             </div>
             <div
@@ -179,11 +154,7 @@ export default function App() {
             >
               <div className="card-icon">🔭</div>
               <h2>System Lab</h2>
-              {uiMode === 'engineer' ? (
-                <p>Side-by-side system comparison with physical constraints and trade-offs.</p>
-              ) : (
-                <p>Compare heating systems side-by-side and see why one fits better. Atlas shows the physical constraints, behaviour and trade-offs so the recommendation is transparent.</p>
-              )}
+              <p>Side-by-side system comparison with physical constraints and trade-offs.</p>
               <button className="cta-btn">Open System Lab →</button>
             </div>
             <div
@@ -194,18 +165,14 @@ export default function App() {
             >
               <div className="card-icon">🔬</div>
               <h2>Full Survey</h2>
-              {uiMode === 'engineer' ? (
-                <p>Full technical survey. Detailed inputs for higher confidence.</p>
-              ) : (
-                <p>Capture the full technical picture. Enter detailed property, system and usage information to increase confidence in the recommendation.</p>
-              )}
+              <p>Full technical survey. Detailed inputs for higher confidence.</p>
               <button className="cta-btn">Start Full Survey →</button>
             </div>
           </div>
           <Footer onNavigate={setJourney} />
         </div>
       )}
-    </UiModeContext.Provider>
+    </>
   );
 }
 

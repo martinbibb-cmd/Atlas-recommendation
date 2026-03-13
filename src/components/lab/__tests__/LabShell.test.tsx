@@ -2,37 +2,29 @@
  * LabShell.test.tsx
  *
  * Validates that LabShell:
- *   - Renders the three tabs: Summary, What if…?, Visual
+ *   - Renders the Simulator, Summary, and What if…? tabs
+ *   - Does not render a Floor Plan tab
+ *   - Does not render an Engineer/Customer mode toggle
  *   - Does not render a Behaviour Console tab
  *   - Does not render a Physics tab
- *   - Other tabs still function normally
- *   - PR 2: Renders the Engineer/Customer mode toggle
- *   - PR 2: Engineer mode is default; Customer mode toggle updates state
+ *   - Simulator tab is selected by default (simulation-first)
  */
 
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { UiModeContext } from '../../../context/UiModeContext';
-import { useState } from 'react';
-import type { UiMode } from '../../../context/UiModeContext';
+import { render, screen } from '@testing-library/react';
 import LabShell from '../LabShell';
 
-/** Wraps LabShell in a real UiModeContext provider so toggle state is reactive. */
-function LabShellWithProvider() {
-  const [uiMode, setUiMode] = useState<UiMode>('engineer');
-  return (
-    <UiModeContext.Provider value={{ uiMode, setUiMode }}>
-      <LabShell onHome={() => {}} />
-    </UiModeContext.Provider>
-  );
-}
-
 describe('LabShell — tabs', () => {
-  it('renders all three tab buttons', () => {
+  it('renders Simulator, Summary and What if…? tab buttons', () => {
     render(<LabShell onHome={() => {}} />);
+    expect(screen.getByRole('tab', { name: 'Simulator' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Summary' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'What if…?' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Visual' })).toBeTruthy();
+  });
+
+  it('does not render a Floor Plan tab', () => {
+    render(<LabShell onHome={() => {}} />);
+    expect(screen.queryByRole('tab', { name: 'Floor Plan' })).toBeNull();
   });
 
   it('does not render a Behaviour Console tab', () => {
@@ -45,33 +37,22 @@ describe('LabShell — tabs', () => {
     expect(screen.queryByRole('tab', { name: 'Physics' })).toBeNull();
   });
 
-  it('marks Summary tab as selected on initial render', () => {
+  it('marks Simulator tab as selected on initial render (simulation-first)', () => {
     render(<LabShell onHome={() => {}} />);
-    const tab = screen.getByRole('tab', { name: 'Summary' });
+    const tab = screen.getByRole('tab', { name: 'Simulator' });
     expect(tab.getAttribute('aria-selected')).toBe('true');
   });
 });
 
-describe('LabShell — PR 2 mode toggle', () => {
-  it('renders Engineer and Customer mode buttons', () => {
-    render(<LabShellWithProvider />);
-    expect(screen.getByRole('button', { name: 'Engineer' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Customer' })).toBeTruthy();
+describe('LabShell — no mode toggle', () => {
+  it('does not render an Engineer mode button', () => {
+    render(<LabShell onHome={() => {}} />);
+    expect(screen.queryByRole('button', { name: 'Engineer' })).toBeNull();
   });
 
-  it('has Engineer mode active (aria-pressed) by default', () => {
-    render(<LabShellWithProvider />);
-    const engineerBtn = screen.getByRole('button', { name: 'Engineer' });
-    const customerBtn = screen.getByRole('button', { name: 'Customer' });
-    expect(engineerBtn.getAttribute('aria-pressed')).toBe('true');
-    expect(customerBtn.getAttribute('aria-pressed')).toBe('false');
-  });
-
-  it('switches to Customer mode when Customer button is clicked', () => {
-    render(<LabShellWithProvider />);
-    fireEvent.click(screen.getByRole('button', { name: 'Customer' }));
-    expect(screen.getByRole('button', { name: 'Customer' }).getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByRole('button', { name: 'Engineer' }).getAttribute('aria-pressed')).toBe('false');
+  it('does not render a Customer mode button', () => {
+    render(<LabShell onHome={() => {}} />);
+    expect(screen.queryByRole('button', { name: 'Customer' })).toBeNull();
   });
 });
 

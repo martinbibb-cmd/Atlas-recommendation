@@ -7,10 +7,8 @@ import CondensingIndicator from './CondensingIndicator';
 import ConfidenceScoreBar from './ConfidenceScoreBar';
 import PerformanceEnablersPanel from '../performance/PerformanceEnablersPanel';
 import CondensingRuntimePanel from '../summary/CondensingRuntimePanel';
-import FloorPlanBuilder from '../floorplan/FloorPlanBuilder';
 import AtlasTour from '../tour/AtlasTour';
 import { resetAtlasTourSeen } from '../../lib/tourStorage';
-import { useUiMode, type UiMode } from '../../context/UiModeContext';
 import {
   PLACEHOLDER_CURRENT_SYSTEM,
   PLACEHOLDER_CONFIDENCE_STRIP,
@@ -22,7 +20,7 @@ import './lab.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type LabTab = 'summary' | 'whatif' | 'visual' | 'floorplan';
+type LabTab = 'visual' | 'summary' | 'whatif';
 
 interface Props {
   onHome: () => void;
@@ -30,7 +28,7 @@ interface Props {
 
 // ─── Summary tab ──────────────────────────────────────────────────────────────
 
-function SummaryTab({ uiMode }: { uiMode: UiMode }) {
+function SummaryTab() {
   return (
     <div className="lab-summary">
       <div className="lab-summary__grid">
@@ -45,32 +43,6 @@ function SummaryTab({ uiMode }: { uiMode: UiMode }) {
                 </div>
               ))}
             </dl>
-            {/* PR 2 — Customer mode shows explanatory blocks; engineer mode hides them. */}
-            {uiMode === 'customer' && (
-              <div className="lab-summary__explanation">
-                <div className="lab-summary__explanation-block lab-summary__explanation-block--suits">
-                  <span className="lab-summary__explanation-label">Why it suits</span>
-                  <p className="lab-summary__explanation-text">{system.explanation.suits}</p>
-                  {system.explanation.suitsHint && (
-                    <p className="lab-summary__explanation-hint">{system.explanation.suitsHint}</p>
-                  )}
-                </div>
-                <div className="lab-summary__explanation-block lab-summary__explanation-block--struggles">
-                  <span className="lab-summary__explanation-label">Why it struggles</span>
-                  <p className="lab-summary__explanation-text">{system.explanation.struggles}</p>
-                  {system.explanation.strugglesHint && (
-                    <p className="lab-summary__explanation-hint">{system.explanation.strugglesHint}</p>
-                  )}
-                </div>
-                <div className="lab-summary__explanation-block lab-summary__explanation-block--changes">
-                  <span className="lab-summary__explanation-label">What would need to change</span>
-                  <p className="lab-summary__explanation-text">{system.explanation.changes}</p>
-                  {system.explanation.changesHint && (
-                    <p className="lab-summary__explanation-hint">{system.explanation.changesHint}</p>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         ))}
       </div>
@@ -143,33 +115,28 @@ function VisualTab() {
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
 export default function LabShell({ onHome }: Props) {
-  const [activeTab, setActiveTab] = useState<LabTab>('summary');
-  /** PR 2 — Engineer/Customer mode toggle (from global context). */
-  const { uiMode, setUiMode } = useUiMode();
+  const [activeTab, setActiveTab] = useState<LabTab>('visual');
   /** PR 1 — Replay tour state. */
   const [replayTour, setReplayTour] = useState(false);
 
   const TAB_LABELS: Record<LabTab, string> = {
-    summary:   'Summary',
-    whatif:    'What if…?',
-    visual:    'Visual',
-    floorplan: 'Floor Plan',
+    visual:  'Simulator',
+    summary: 'Summary',
+    whatif:  'What if…?',
   };
 
   /** PR 2 — Tab IDs mapped from tab key to DOM id required by the tour. */
   const TAB_IDS: Record<LabTab, string | undefined> = {
-    summary:   'system-lab-tab',
-    whatif:    'what-if-tab',
-    visual:    'visual-tab',
-    floorplan: undefined,
+    visual:  'visual-tab',
+    summary: 'system-lab-tab',
+    whatif:  'what-if-tab',
   };
 
   /** PR 1 — Maps tab key to its data-tour attribute value (tour targets). */
   const TAB_TOUR_ATTRS: Record<LabTab, string | undefined> = {
-    summary:   undefined,
-    whatif:    'what-if-tab',
-    visual:    'visual-tab',
-    floorplan: undefined,
+    visual:  'visual-tab',
+    summary: undefined,
+    whatif:  'what-if-tab',
   };
 
   return (
@@ -189,25 +156,6 @@ export default function LabShell({ onHome }: Props) {
           <div className="lab-brand" aria-label="Atlas">ATLAS</div>
           <h1 className="lab-h1">System Lab</h1>
           <p className="lab-subtitle">Compare heating systems using real operating constraints.</p>
-        </div>
-
-        {/* PR 2 — Engineer / Customer mode toggle */}
-        <div className="lab-mode-toggle" role="group" aria-label="UI mode">
-          <span className="lab-mode-toggle__label">Mode</span>
-          <button
-            className={`lab-mode-toggle__btn${uiMode === 'engineer' ? ' lab-mode-toggle__btn--active' : ''}`}
-            onClick={() => setUiMode('engineer')}
-            aria-pressed={uiMode === 'engineer'}
-          >
-            Engineer
-          </button>
-          <button
-            className={`lab-mode-toggle__btn${uiMode === 'customer' ? ' lab-mode-toggle__btn--active' : ''}`}
-            onClick={() => setUiMode('customer')}
-            aria-pressed={uiMode === 'customer'}
-          >
-            Customer
-          </button>
         </div>
 
         {/* PR 5 — Condensing efficiency indicator (null = no engine result in standalone lab) */}
@@ -302,10 +250,9 @@ export default function LabShell({ onHome }: Props) {
 
       {/* ── Tab content ────────────────────────────────────────────────────── */}
       <div className="lab-tab-content" role="tabpanel">
-        {activeTab === 'summary'   && <SummaryTab uiMode={uiMode} />}
-        {activeTab === 'whatif'    && <WhatIfLab />}
-        {activeTab === 'visual'    && <VisualTab />}
-        {activeTab === 'floorplan' && <FloorPlanBuilder />}
+        {activeTab === 'visual'  && <VisualTab />}
+        {activeTab === 'summary' && <SummaryTab />}
+        {activeTab === 'whatif'  && <WhatIfLab />}
       </div>
 
     </div>
