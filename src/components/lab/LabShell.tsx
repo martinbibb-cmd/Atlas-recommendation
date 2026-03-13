@@ -3,6 +3,7 @@ import WhatIfLab from '../explainers/WhatIfLab';
 import LabHomeLink from './LabHomeLink';
 import LabConfidenceStrip from './LabConfidenceStrip';
 import DrawOffWorkbench from './DrawOffWorkbench';
+import LifestyleInteractive from '../visualizers/LifestyleInteractive';
 import CondensingIndicator from './CondensingIndicator';
 import ConfidenceScoreBar from './ConfidenceScoreBar';
 import PerformanceEnablersPanel from '../performance/PerformanceEnablersPanel';
@@ -92,8 +93,8 @@ function VisualTab() {
         <div className="lab-visual-tab__intro" role="status" aria-live="polite">
           <span className="lab-visual-tab__intro-icon" aria-hidden="true">▶</span>
           <span>
-            <strong>Auto Demo</strong> — tap a regime to watch heat and water behaviour.
-            Cylinder cools → boiler fires → hot water ready.
+            <strong>Auto Demo</strong> — paint your day to watch heat and water behaviour in real time.
+            Switch systems to compare responses.
           </span>
           <button
             className="lab-visual-tab__intro-dismiss"
@@ -107,7 +108,28 @@ function VisualTab() {
           </button>
         </div>
       )}
-      <DrawOffWorkbench />
+
+      {/* ── Block 1: Behaviour dashboard (primary surface) ──────────────────── */}
+      <section className="lab-simulator-primary" aria-label="Behaviour dashboard">
+        <div className="lab-simulator-section-header">
+          <span className="lab-simulator-section-title">Behaviour Dashboard</span>
+          <span className="lab-simulator-section-desc">
+            Paint your day · compare system responses · live demand &amp; recovery
+          </span>
+        </div>
+        <LifestyleInteractive />
+      </section>
+
+      {/* ── Block 2: System state support panels ────────────────────────────── */}
+      <section className="lab-simulator-secondary" aria-label="System state panels">
+        <div className="lab-simulator-section-header lab-simulator-section-header--secondary">
+          <span className="lab-simulator-section-title">System State</span>
+          <span className="lab-simulator-section-desc">
+            Cylinder status · outlet response · flow &amp; pressure
+          </span>
+        </div>
+        <DrawOffWorkbench />
+      </section>
     </div>
   );
 }

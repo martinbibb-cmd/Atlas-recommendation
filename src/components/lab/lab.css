@@ -1480,3 +1480,39 @@
 .lab-visual-tab__intro-dismiss:hover {
   color: #fff;
 }
+
+/* ── Simulator tab: primary dashboard / secondary support sections ─────── */
+
+.lab-simulator-primary {
+  margin-bottom: 2rem;
+}
+
+.lab-simulator-secondary {
+  border-top: 2px solid #e2e8f0;
+  padding-top: 1.5rem;
+}
+
+.lab-simulator-section-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.lab-simulator-section-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #2d3748;
+}
+
+.lab-simulator-section-header--secondary .lab-simulator-section-title {
+  color: #718096;
+}
+
+.lab-simulator-section-desc {
+  font-size: 0.75rem;
+  color: #a0aec0;
+}
