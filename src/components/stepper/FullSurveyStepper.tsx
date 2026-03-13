@@ -404,7 +404,6 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
   const [compareMixergy, setCompareMixergy] = useState(false);
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
-  const [systemPlanType, setSystemPlanType] = useState<'y_plan' | 's_plan'>('y_plan');
 
   // Live physics overlay: runs a lightweight engine pass on every step for real-time feedback.
   // Debounced so it doesn't block every keystroke.
@@ -1433,24 +1432,24 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                   ]).map(opt => (
                     <button
                       key={opt.value}
-                      onClick={() => setSystemPlanType(opt.value)}
+                      onClick={() => setInput(prev => ({ ...prev, systemPlanType: opt.value }))}
                       style={{
                         flex: 1,
                         padding: '0.5rem 0.75rem',
-                        border: `2px solid ${systemPlanType === opt.value ? '#3182ce' : '#e2e8f0'}`,
+                        border: `2px solid ${(input.systemPlanType ?? 'y_plan') === opt.value ? '#3182ce' : '#e2e8f0'}`,
                         borderRadius: '6px',
-                        background: systemPlanType === opt.value ? '#ebf8ff' : '#fff',
+                        background: (input.systemPlanType ?? 'y_plan') === opt.value ? '#ebf8ff' : '#fff',
                         cursor: 'pointer',
                         textAlign: 'left',
                         transition: 'all 0.12s',
                       }}
                     >
-                      <div style={{ fontWeight: systemPlanType === opt.value ? 700 : 500, fontSize: '0.88rem' }}>{opt.label}</div>
+                      <div style={{ fontWeight: (input.systemPlanType ?? 'y_plan') === opt.value ? 700 : 500, fontSize: '0.88rem' }}>{opt.label}</div>
                       <div style={{ fontSize: '0.72rem', color: '#718096' }}>{opt.sub}</div>
                     </button>
                   ))}
                 </div>
-                {systemPlanType === 'y_plan' && (
+                {(input.systemPlanType ?? 'y_plan') === 'y_plan' && (
                   <p style={{ fontSize: '0.75rem', color: '#276749', marginTop: '0.3rem', background: '#f0fff4', padding: '0.3rem 0.5rem', borderRadius: '4px' }}>
                     Y-Plan is suitable at modest heat loads — simpler combined control architecture. S-plan offers greater separation and flexibility, but Y-plan remains a workable architecture for lower-demand cases.
                   </p>

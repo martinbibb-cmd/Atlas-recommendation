@@ -181,6 +181,14 @@ export interface EngineInputV2_3 {
   pipingTopology?: PipingTopology;
   microboreInternalDiameterMm?: 8 | 10; // set only when pipingTopology is 'microbore'; ignored otherwise
   supplyTempC?: number; // °C flow temperature (default 70°C)
+  /**
+   * System zone-control arrangement.
+   * 'y_plan': 3-port mid-position valve — heating and hot water share a single motorised valve.
+   * 's_plan': twin 2-port zone valves — independent heating and hot water circuits.
+   * Defaults to 'y_plan' when absent (the more common arrangement in UK existing stock).
+   * Used by CondensingRuntimeModule as the system_separation_arrangement driver.
+   */
+  systemPlanType?: 'y_plan' | 's_plan';
 
   // Occupancy
   bathroomCount: number;
@@ -840,6 +848,83 @@ export interface CondensingStateResult {
   notes: string[];
 }
 
+// ─── Condensing Runtime Module ─────────────────────────────────────────────────
+
+/**
+ * Machine-readable identifier for each driver in the Estimated Condensing
+ * Runtime model (v1 driver set).
+ *
+ * Drivers must NOT be merged:
+ *   system_separation_arrangement — S-plan vs Y-plan control/separation effect
+ *   primary_suitability_proxy     — primary pipe capacity proxy (separate lever)
+ */
+export type CondensingRuntimeDriverId =
+  | 'current_condensing_state'
+  | 'design_flow_temperature'
+  | 'emitter_suitability'
+  | 'control_type'
+  | 'system_separation_arrangement'
+  | 'dhw_demand_stability'
+  | 'primary_suitability_proxy';
+
+/** Direction of influence a driver has on estimated condensing runtime. */
+export type CondensingRuntimeDriverInfluence = 'positive' | 'neutral' | 'negative';
+
+/** Assessment of a single driver in the condensing runtime model. */
+export interface CondensingRuntimeDriver {
+  /** Machine-readable driver identifier. */
+  id: CondensingRuntimeDriverId;
+  /** Short human-readable label. */
+  label: string;
+  /** Whether this driver improves, has no effect on, or reduces estimated runtime. */
+  influence: CondensingRuntimeDriverInfluence;
+  /**
+   * Signed percentage-point contribution to estimatedCondensingRuntimePct.
+   * Positive = increases runtime estimate; negative = reduces it.
+   */
+  scoreContribution: number;
+  /** One-line explanation of the driver assessment. */
+  detail: string;
+}
+
+/** Input contract for CondensingRuntimeModule. */
+export interface CondensingRuntimeInput {
+  /** Driver 1 — current condensing state (from CondensingStateModule). */
+  condensingState: CondensingStateResult;
+  /** Driver 2 — design flow temperature (°C). */
+  flowTempC: number;
+  /** Driver 3 — true when emitters support condensing operation at design flow temp. */
+  condensingModeAvailable: boolean;
+  /** Driver 4 — installation policy (proxy for control quality / weather compensation). */
+  installationPolicy: InstallationPolicy;
+  /** Driver 5 — system separation arrangement: S-plan vs Y-plan. */
+  systemPlanType?: 'y_plan' | 's_plan';
+  /** Driver 6 — DHW tank type: Mixergy improves demand stability. */
+  dhwTankType?: DhwTankType;
+  /** Driver 7 — primary pipe diameter (mm), used as primary-suitability proxy. */
+  primaryPipeDiameter: number;
+  /** Driver 7 — building heat loss (W), used with pipe diameter to assess primary load. */
+  heatLossWatts: number;
+}
+
+/** Result returned by CondensingRuntimeModule. */
+export interface CondensingRuntimeResult {
+  /**
+   * Estimated fraction of heating-season hours the boiler is likely to spend
+   * in condensing range, accounting for all seven v1 drivers (%).
+   * Clamped to 0–100.
+   */
+  estimatedCondensingRuntimePct: number;
+  /** Assessment of each of the seven v1 drivers. */
+  drivers: CondensingRuntimeDriver[];
+  /** Positive-influence wording strings for UI display (non-empty when any positive driver applies). */
+  positiveWording: string[];
+  /** Negative-influence wording strings for UI display (non-empty when any negative driver applies). */
+  negativeWording: string[];
+  /** Diagnostic notes for the Physics Trace tab. */
+  notes: string[];
+}
+
 export interface OccupancyHour {
   hour: number;       // 0-23
   demandKw: number;   // kW demand
@@ -1217,6 +1302,19 @@ export interface FullEngineResultCore {
    * Must not be used in customer-facing recommendation copy.
    */
   condensingState: CondensingStateResult;
+  /**
+   * Estimated condensing runtime model (v1) — extends the condensing-state
+   * diagnostic with seven separate driver assessments including system
+   * separation arrangement (S-plan/Y-plan) and primary suitability proxy.
+   *
+   * These two drivers are intentionally separate and must not be merged:
+   *   system_separation_arrangement — control/separation effect
+   *   primary_suitability_proxy     — hydraulic capacity proxy
+   *
+   * Guardrail: lab-only model output.
+   * Must not be used in customer-facing recommendation copy.
+   */
+  condensingRuntime: CondensingRuntimeResult;
 }
 
 /** Full engine result including the canonical V1 output contract. */

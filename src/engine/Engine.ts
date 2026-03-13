@@ -27,6 +27,7 @@ import { runFabricModelV1 } from './modules/FabricModelModule';
 import { runSmartTopUpController } from './modules/SmartTopUpController';
 import { runSolarBoostModule } from './modules/SolarBoostModule';
 import { runCondensingStateModule } from './modules/CondensingStateModule';
+import { runCondensingRuntimeModule } from './modules/CondensingRuntimeModule';
 
 
 function interpolateDemandKw(minuteIdx: number, hourlyDemandKw: number[]): number {
@@ -204,6 +205,17 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
       : undefined,
   });
 
+  const condensingRuntime = runCondensingRuntimeModule({
+    condensingState,
+    flowTempC: input.supplyTempC ?? 70,
+    condensingModeAvailable: systemOptimization.condensingModeAvailable,
+    installationPolicy: systemOptimization.installationPolicy,
+    systemPlanType: input.systemPlanType,
+    dhwTankType: input.dhwTankType,
+    primaryPipeDiameter: input.primaryPipeDiameter,
+    heatLossWatts: input.heatLossWatts,
+  });
+
   const core: FullEngineResultCore = {
     hydraulic,
     hydraulicV1,
@@ -232,6 +244,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     smartTopUp,
     solarBoost,
     condensingState,
+    condensingRuntime,
   };
 
   const engineOutput = buildEngineOutputV1(core, input);
