@@ -95,6 +95,30 @@ describe('CondensingRuntimeModule — driver 5: system_separation_arrangement', 
     expect(d5.scoreContribution).toBe(0);
   });
 
+  it('reports "not confirmed" detail (not a silent Y-plan assumption) when systemPlanType is absent', () => {
+    const input = makeInput();
+    delete (input as Partial<CondensingRuntimeInput>).systemPlanType;
+    const result = runCondensingRuntimeModule(input);
+    const d5 = result.drivers.find(d => d.id === 'system_separation_arrangement')!;
+    expect(d5.detail).toContain('not confirmed');
+    expect(d5.detail).not.toContain('assuming');
+  });
+
+  it('adds a diagnostic note about unconfirmed plan type when systemPlanType is absent', () => {
+    const input = makeInput();
+    delete (input as Partial<CondensingRuntimeInput>).systemPlanType;
+    const result = runCondensingRuntimeModule(input);
+    expect(result.notes.some(n => n.includes('not confirmed'))).toBe(true);
+    expect(result.notes.some(n => n.includes('no S-plan benefit'))).toBe(true);
+  });
+
+  it('does NOT add a "not confirmed" note when systemPlanType is explicitly set', () => {
+    const sPlan = runCondensingRuntimeModule(makeInput({ systemPlanType: 's_plan' }));
+    const yPlan = runCondensingRuntimeModule(makeInput({ systemPlanType: 'y_plan' }));
+    expect(sPlan.notes.some(n => n.includes('not confirmed'))).toBe(false);
+    expect(yPlan.notes.some(n => n.includes('not confirmed'))).toBe(false);
+  });
+
   it('s_plan scores higher runtime than y_plan (same penalised scenario)', () => {
     // Use high-temp retrofit + high-load scenario to stay below 100 % ceiling.
     const base = {
@@ -300,3 +324,50 @@ describe('CondensingRuntimeModule — diagnostic notes', () => {
   });
 });
 
+
+describe('CondensingRuntimeModule — regression: skipped survey step', () => {
+  /**
+   * Regression test: when the Full Survey hydraulic step is skipped (or the
+   * user never explicitly selects Y-plan / S-plan), systemPlanType arrives as
+   * undefined at the engine.  The engine must handle this honestly rather than
+   * silently assuming a Y-plan baseline.
+   */
+  it('skipped-step path: absent systemPlanType produces neutral driver with honest caveat', () => {
+    const input = makeInput();
+    delete (input as Partial<CondensingRuntimeInput>).systemPlanType;
+
+    const result = runCondensingRuntimeModule(input);
+    const d5 = result.drivers.find(d => d.id === 'system_separation_arrangement')!;
+
+    // Engine must NOT silently claim Y-plan.
+    expect(d5.detail).not.toContain('assuming');
+    // Must report the field as unconfirmed.
+    expect(d5.detail).toContain('not confirmed');
+    // Score must stay neutral — no unearned penalty, no unearned benefit.
+    expect(d5.influence).toBe('neutral');
+    expect(d5.scoreContribution).toBe(0);
+    // Diagnostic notes must flag the missing field.
+    expect(result.notes.some(n => n.includes('not confirmed'))).toBe(true);
+  });
+
+  it('skipped-step path: absent systemPlanType does not score higher than explicit s_plan', () => {
+    const inputMissing = makeInput();
+    delete (inputMissing as Partial<CondensingRuntimeInput>).systemPlanType;
+    const missing = runCondensingRuntimeModule(inputMissing);
+    const sPlan = runCondensingRuntimeModule(makeInput({ systemPlanType: 's_plan' }));
+
+    expect(sPlan.estimatedCondensingRuntimePct).toBeGreaterThan(
+      missing.estimatedCondensingRuntimePct,
+    );
+  });
+
+  it('skipped-step path: absent systemPlanType scores the same as explicit y_plan (same neutral baseline)', () => {
+    const inputMissing = makeInput();
+    delete (inputMissing as Partial<CondensingRuntimeInput>).systemPlanType;
+    const missing = runCondensingRuntimeModule(inputMissing);
+    const yPlan = runCondensingRuntimeModule(makeInput({ systemPlanType: 'y_plan' }));
+
+    // Score must be equal — both are neutral baselines.
+    expect(missing.estimatedCondensingRuntimePct).toBe(yPlan.estimatedCondensingRuntimePct);
+  });
+});
