@@ -9,7 +9,6 @@ import { runStoredDhwModuleV1 } from '../../engine/modules/StoredDhwModule';
 import StoryModeContainer, { ENABLE_STORY_MODE } from '../../story/StoryModeContainer';
 import ExpertPanel from '../visualizers/ExpertPanel';
 import CustomerSummaryPanel from '../visualizers/CustomerSummaryPanel';
-import { useUiMode } from '../../context/UiModeContext';
 
 interface Props {
   onBack: () => void;
@@ -67,7 +66,6 @@ export default function FastChoiceStepper({ onBack, onEscalate, onOpenLab }: Pro
 
 /** Legacy Input Cockpit — rendered only when ENABLE_STORY_MODE is false. */
 function LegacyInputCockpit({ onBack }: { onBack: () => void }) {
-  const { uiMode, setUiMode } = useUiMode();
   const [view, setView] = useState<ViewMode>('input');
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [selectedOptionId, setSelectedOptionId] = useState<string>('combi');
@@ -169,32 +167,11 @@ function LegacyInputCockpit({ onBack }: { onBack: () => void }) {
       <div className="stepper-header">
         <button className="back-btn" onClick={onBack}>← Back</button>
         <span className="step-label">Input Cockpit</span>
-        {/* PR 2 — Engineer / Customer mode toggle */}
-        <div className="mode-toggle" role="group" aria-label="UI mode">
-          <span className="mode-toggle__label">Mode</span>
-          <button
-            className={`mode-toggle__btn${uiMode === 'engineer' ? ' mode-toggle__btn--active' : ''}`}
-            onClick={() => setUiMode('engineer')}
-            aria-pressed={uiMode === 'engineer'}
-          >
-            Engineer
-          </button>
-          <button
-            className={`mode-toggle__btn${uiMode === 'customer' ? ' mode-toggle__btn--active' : ''}`}
-            onClick={() => setUiMode('customer')}
-            aria-pressed={uiMode === 'customer'}
-          >
-            Customer
-          </button>
-        </div>
       </div>
 
       <div className="input-cockpit-layout">
         <div className="step-card">
           <h2>🎛️ Input Cockpit</h2>
-          {uiMode === 'customer' && (
-            <p className="description">Set the core physical constraints. Instrument lights update instantly.</p>
-          )}
 
           <CockpitGroup title="Household">
             <div className="form-grid">
