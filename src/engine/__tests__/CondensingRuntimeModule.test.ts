@@ -8,13 +8,18 @@ import type { CondensingRuntimeInput } from '../schema/EngineInputV2_3';
 /**
  * Produce a minimal CondensingRuntimeInput with sensible defaults.
  * Uses 85 °C flow by default so adjustments remain visible before the 100 % ceiling.
- * Overrides are applied on top.
+ *
+ * `condensingState` is always derived from the resolved `flowTempC` (either the
+ * override value or the default 85 °C), unless an explicit `condensingState` is
+ * included in `overrides`.
  */
 function makeInput(
   overrides: Partial<CondensingRuntimeInput> = {},
 ): CondensingRuntimeInput {
   const flowTempC = overrides.flowTempC ?? 85;
-  const condensingState = runCondensingStateModule({ flowTempC, deltaTc: 20 });
+  const condensingState =
+    overrides.condensingState ??
+    runCondensingStateModule({ flowTempC, deltaTc: 20 });
   return {
     condensingState,
     flowTempC,
@@ -25,10 +30,8 @@ function makeInput(
     primaryPipeDiameter: 22,
     heatLossWatts: 8000,
     ...overrides,
-    // Re-derive condensingState if flowTempC changed via overrides but condensingState wasn't also overridden.
-    ...(overrides.flowTempC != null && overrides.condensingState == null
-      ? { condensingState: runCondensingStateModule({ flowTempC: overrides.flowTempC, deltaTc: 20 }) }
-      : {}),
+    // Always use the correctly-derived condensingState (not whatever spread overrides may contain).
+    condensingState,
   };
 }
 
