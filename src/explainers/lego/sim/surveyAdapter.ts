@@ -163,7 +163,64 @@ export function adaptSurveyInputs(survey: SurveyAdapterInput): SurveyAdapterResu
   return { inputs, mode }
 }
 
-// ─── Mode derivation helper ───────────────────────────────────────────────────
+// ─── Floor-plan palette prefill adapter ──────────────────────────────────────
+
+/**
+ * Pre-populated palette state for FloorPlanBuilder derived from an engine
+ * input / survey result.
+ *
+ * Used by the "Edit Layout" flow: when the user opens the Floor Plan Builder
+ * from the results screen, this object tells the builder which components to
+ * pre-populate so the engineer doesn't have to rediscover the system type.
+ */
+export type FloorPlanPalettePrefill = {
+  /** Primary heat source component to pre-place (matches palette kind). */
+  heatSourceKind?: 'boiler' | 'heat_pump';
+  /** When true, a cylinder should be pre-placed in the airing cupboard zone. */
+  hasCylinder?: boolean;
+  /** Property layout hint (e.g. '3bed_semi') for template selection. */
+  propertyLayoutHint?: string;
+}
+
+/**
+ * Derive FloorPlanBuilder palette pre-population data from a partial engine
+ * input (e.g. from Fast Choice or a completed Full Survey).
+ *
+ * Rules:
+ *  - currentHeatSourceType 'ashp' or 'heat_pump' → heatSourceKind 'heat_pump';
+ *    all others (combi, system, regular, other) → heatSourceKind 'boiler'.
+ *  - dhwTankType present → hasCylinder true; combi (no tank) → false.
+ *  - Never throws; returns an empty object when no relevant fields are present.
+ *
+ * @param engineInput - Partial engine input from any survey path.
+ * @returns Palette prefill hints for FloorPlanBuilder.
+ */
+export function adaptFullSurveyToSimulatorInputs(
+  engineInput: Partial<{
+    currentHeatSourceType?: string;
+    dhwTankType?: string;
+    preferCombi?: boolean;
+    postcode?: string;
+  }>,
+): FloorPlanPalettePrefill {
+  const prefill: FloorPlanPalettePrefill = {};
+
+  const hst = engineInput.currentHeatSourceType;
+  if (hst != null) {
+    prefill.heatSourceKind =
+      hst === 'ashp' || hst === 'heat_pump' ? 'heat_pump' : 'boiler';
+  }
+
+  const dhw = engineInput.dhwTankType;
+  if (dhw != null) {
+    prefill.hasCylinder = true;
+  } else if (engineInput.preferCombi === true) {
+    // Explicit combi preference → no separate cylinder.
+    prefill.hasCylinder = false;
+  }
+
+  return prefill;
+}
 
 /**
  * Derive the playback mode from a `LabPlaybackInputs` object that has already

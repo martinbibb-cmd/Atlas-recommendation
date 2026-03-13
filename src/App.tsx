@@ -14,6 +14,7 @@ import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
 import AtlasTour from './components/tour/AtlasTour';
+import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
 import { resetAtlasTourSeen } from './lib/tourStorage';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
@@ -64,7 +65,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   preferCombi: true,
 };
 
-type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs';
+type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'floor-plan';
 
 export default function App() {
   const [journey, setJourney] = useState<Journey>('landing');
@@ -146,6 +147,20 @@ export default function App() {
         />
       )}
       {journey === 'lab' && <LabShell onHome={() => setJourney('landing')} engineInput={labEngineInput} />}
+      {journey === 'floor-plan' && (
+        <div className="floor-plan-page">
+          <div className="floor-plan-page__header">
+            <button
+              className="floor-plan-page__back"
+              onClick={() => setJourney('landing')}
+              aria-label="Back to home"
+            >
+              ← Back
+            </button>
+          </div>
+          <FloorPlanBuilder />
+        </div>
+      )}
       {journey === 'landing' && (
         <div className="landing">
           {/* PR 1 — First-run tour: landing phase (steps 1–2) */}
@@ -207,6 +222,15 @@ export default function App() {
               <h2>Full Survey</h2>
               <p>Full technical survey. Detailed inputs for higher confidence.</p>
               <button className="cta-btn">Start Full Survey →</button>
+            </div>
+            <div
+              className="journey-card"
+              onClick={() => setJourney('floor-plan')}
+            >
+              <div className="card-icon">🗺️</div>
+              <h2>Floor Plan Builder</h2>
+              <p>Map heating components to your property layout across floors.</p>
+              <button className="cta-btn">Open Floor Plan →</button>
             </div>
           </div>
           <Footer onNavigate={setJourney} />
