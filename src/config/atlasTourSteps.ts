@@ -34,7 +34,7 @@ export const LAB_TOUR_STEPS: Step[] = [
   {
     target: '[data-tour="system-lab-tabs"]',
     title: 'Explore the result',
-    content: 'Switch between summary, what-if scenarios, and the visual view.',
+    content: 'Switch between summary, what-if scenarios, the visual simulator, and the system builder.',
     disableBeacon: true,
   },
   {
@@ -46,6 +46,11 @@ export const LAB_TOUR_STEPS: Step[] = [
     target: '[data-tour="visual-tab"]',
     title: 'See behaviour',
     content: 'Visual mode helps explain how heat, flow, and on-demand hot water behave.',
+  },
+  {
+    target: '[data-tour="builder-tab"]',
+    title: 'Build the system layout',
+    content: 'Place system components on a simple house layout. Pipework auto-routes along building lines.',
   },
   {
     target: '[data-tour="export-actions"]',

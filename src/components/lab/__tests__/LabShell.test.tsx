@@ -2,7 +2,7 @@
  * LabShell.test.tsx
  *
  * Validates that LabShell:
- *   - Renders the Simulator, Summary, and What if…? tabs
+ *   - Renders the Simulator, Summary, What if…? and Builder tabs
  *   - Does not render a Floor Plan tab
  *   - Does not render an Engineer/Customer mode toggle
  *   - Does not render a Behaviour Console tab
@@ -11,15 +11,16 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import LabShell from '../LabShell';
 
 describe('LabShell — tabs', () => {
-  it('renders Simulator, Summary and What if…? tab buttons', () => {
+  it('renders Simulator, Summary, What if…? and Builder tab buttons', () => {
     render(<LabShell onHome={() => {}} />);
     expect(screen.getByRole('tab', { name: 'Simulator' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Summary' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'What if…?' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Builder' })).toBeTruthy();
   });
 
   it('does not render a Floor Plan tab', () => {
@@ -41,6 +42,12 @@ describe('LabShell — tabs', () => {
     render(<LabShell onHome={() => {}} />);
     const tab = screen.getByRole('tab', { name: 'Simulator' });
     expect(tab.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('clicking Builder tab shows the System Builder heading', () => {
+    render(<LabShell onHome={() => {}} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Builder' }));
+    expect(screen.getByText('System Builder')).toBeTruthy();
   });
 });
 

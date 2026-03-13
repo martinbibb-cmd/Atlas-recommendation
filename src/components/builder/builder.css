@@ -1,0 +1,261 @@
+/**
+ * builder.css
+ *
+ * Styles for the System Builder component.
+ *
+ * The builder renders a stacked house layout (SVG) alongside a component
+ * palette sidebar.  Both panels are kept visually lean so the system layout
+ * remains the focal point.
+ */
+
+/* ── Outer wrapper ──────────────────────────────────────────────────────────── */
+
+.sb-wrap {
+  padding: 1.25rem 1rem;
+  max-width: 1000px;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+
+.sb-header {
+  margin-bottom: 1rem;
+}
+
+.sb-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.25rem 0;
+}
+
+.sb-subtitle {
+  font-size: 0.82rem;
+  color: #718096;
+  margin: 0;
+}
+
+/* ── System type selector ───────────────────────────────────────────────────── */
+
+.sb-system-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.sb-system-btn {
+  padding: 0.3rem 0.9rem;
+  border: 1.5px solid #cbd5e0;
+  border-radius: 20px;
+  background: #fff;
+  color: #4a5568;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.sb-system-btn:hover {
+  border-color: #6366f1;
+  color: #6366f1;
+}
+
+.sb-system-btn--active {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ── Workspace layout ───────────────────────────────────────────────────────── */
+
+.sb-workspace {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────────────────── */
+
+.sb-sidebar {
+  width: 130px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sb-preset-btn {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1.5px solid #6366f1;
+  border-radius: 6px;
+  background: #ede9fe;
+  color: #4338ca;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.12s;
+}
+
+.sb-preset-btn:hover {
+  background: #c7d2fe;
+}
+
+.sb-palette-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #a0aec0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 0.25rem;
+}
+
+.sb-palette-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.78rem;
+  color: #4a5568;
+  text-align: left;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.sb-palette-item:hover {
+  background: #f0f4ff;
+  border-color: #6366f1;
+}
+
+.sb-palette-item--active {
+  background: #e0e7ff;
+  border-color: #6366f1;
+  color: #3730a3;
+  font-weight: 600;
+}
+
+.sb-palette-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.sb-palette-label {
+  font-size: 0.72rem;
+  color: #4a5568;
+}
+
+.sb-place-hint {
+  font-size: 0.72rem;
+  color: #4338ca;
+  background: #ede9fe;
+  border-radius: 4px;
+  padding: 0.3rem 0.4rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.sb-clear-btn {
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  color: #718096;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.sb-clear-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sb-clear-btn:not(:disabled):hover {
+  background: #fff5f5;
+  color: #c53030;
+  border-color: #fc8181;
+}
+
+/* ── Legend ─────────────────────────────────────────────────────────────────── */
+
+.sb-legend {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sb-legend-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #a0aec0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sb-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  color: #718096;
+}
+
+/* ── Canvas ─────────────────────────────────────────────────────────────────── */
+
+.sb-canvas-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.sb-svg {
+  width: 100%;
+  height: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  display: block;
+}
+
+/* Room hit-targets */
+.sb-room {
+  cursor: default;
+}
+
+.sb-room--clickable {
+  cursor: crosshair;
+}
+
+.sb-room--clickable rect {
+  transition: fill 0.1s;
+}
+
+.sb-room--clickable:hover rect {
+  fill: #ebf4ff;
+}
+
+/* Component circles */
+.sb-comp {
+  cursor: pointer;
+}
+
+.sb-comp:hover circle {
+  opacity: 1;
+  filter: brightness(1.15);
+}
+
+/* Empty state hint */
+.sb-empty-hint {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  color: #718096;
+  text-align: center;
+}

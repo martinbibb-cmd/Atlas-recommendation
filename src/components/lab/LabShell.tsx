@@ -9,6 +9,7 @@ import PerformanceEnablersPanel from '../performance/PerformanceEnablersPanel';
 import CondensingRuntimePanel from '../summary/CondensingRuntimePanel';
 import AtlasTour from '../tour/AtlasTour';
 import { resetAtlasTourSeen } from '../../lib/tourStorage';
+import SystemBuilder from '../builder/SystemBuilder';
 import {
   PLACEHOLDER_CURRENT_SYSTEM,
   PLACEHOLDER_CONFIDENCE_STRIP,
@@ -20,7 +21,7 @@ import './lab.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type LabTab = 'visual' | 'summary' | 'whatif';
+type LabTab = 'visual' | 'summary' | 'whatif' | 'builder';
 
 interface Props {
   onHome: () => void;
@@ -120,23 +121,26 @@ export default function LabShell({ onHome }: Props) {
   const [replayTour, setReplayTour] = useState(false);
 
   const TAB_LABELS: Record<LabTab, string> = {
-    visual:  'Simulator',
-    summary: 'Summary',
-    whatif:  'What if…?',
+    visual:   'Simulator',
+    summary:  'Summary',
+    whatif:   'What if…?',
+    builder:  'Builder',
   };
 
   /** PR 2 — Tab IDs mapped from tab key to DOM id required by the tour. */
   const TAB_IDS: Record<LabTab, string | undefined> = {
-    visual:  'visual-tab',
-    summary: 'system-lab-tab',
-    whatif:  'what-if-tab',
+    visual:   'visual-tab',
+    summary:  'system-lab-tab',
+    whatif:   'what-if-tab',
+    builder:  'builder-tab',
   };
 
   /** PR 1 — Maps tab key to its data-tour attribute value (tour targets). */
   const TAB_TOUR_ATTRS: Record<LabTab, string | undefined> = {
-    visual:  'visual-tab',
-    summary: undefined,
-    whatif:  'what-if-tab',
+    visual:   'visual-tab',
+    summary:  undefined,
+    whatif:   'what-if-tab',
+    builder:  'builder-tab',
   };
 
   return (
@@ -250,9 +254,10 @@ export default function LabShell({ onHome }: Props) {
 
       {/* ── Tab content ────────────────────────────────────────────────────── */}
       <div className="lab-tab-content" role="tabpanel">
-        {activeTab === 'visual'  && <VisualTab />}
-        {activeTab === 'summary' && <SummaryTab />}
-        {activeTab === 'whatif'  && <WhatIfLab />}
+        {activeTab === 'visual'   && <VisualTab />}
+        {activeTab === 'summary'  && <SummaryTab />}
+        {activeTab === 'whatif'   && <WhatIfLab />}
+        {activeTab === 'builder'  && <SystemBuilder />}
       </div>
 
     </div>
