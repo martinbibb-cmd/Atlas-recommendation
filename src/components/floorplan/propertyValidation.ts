@@ -10,13 +10,11 @@ import type {
   PropertyPlan,
   Room,
   Wall,
-  PlacementNode,
   ValidationIssue,
 } from './propertyPlan.types';
 import {
   BOILER_VALID_ROOM_TYPES,
   CYLINDER_VALID_ROOM_TYPES,
-  HEAT_PUMP_VALID_ROOM_TYPES,
 } from './propertyPlan.types';
 
 let _issueSeq = 0;

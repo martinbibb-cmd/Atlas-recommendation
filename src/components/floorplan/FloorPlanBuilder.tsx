@@ -17,11 +17,8 @@ import { portAbs } from '../../explainers/lego/builder/snapConnect';
 import { isTopologyAllowed } from '../../explainers/lego/builder/snapConnect';
 import type { BuildEdge, BuildGraph, BuildNode, PartKind, PortRef } from '../../explainers/lego/builder/types';
 import type {
-  ConnectionPath,
-  ConnectionType,
   EditorTool,
   FloorPlan,
-  Opening,
   PlacementNode,
   PropertyMetadata,
   PropertyPlan,
@@ -58,10 +55,6 @@ function snapToGrid(v: number) {
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
-}
-
-function toMeters(px: number) {
-  return (px / GRID).toFixed(1);
 }
 
 /** Snap a room so it aligns to adjacent room edges (edge-snapping). */
@@ -119,12 +112,6 @@ const PREFERRED_ROOM_TYPES: Partial<Record<PartKind, RoomType[]>> = {
   dhw_vented_cylinder:        ['cupboard', 'plant_room', 'utility', 'loft'],
   cws_cistern:                ['loft', 'cupboard'],
 };
-
-function isValidPlacementRoom(kind: PartKind, room: Room): boolean {
-  const preferred = PREFERRED_ROOM_TYPES[kind];
-  if (!preferred) return true; // radiators, outlets etc. go anywhere
-  return preferred.includes(room.roomType);
-}
 
 // ─── Initial state ────────────────────────────────────────────────────────────
 
@@ -407,27 +394,6 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       [activeFloorId]: [...(prev[activeFloorId] ?? []), edge],
     }));
     setPendingPort(null);
-  }
-
-  // ── High-level connection (PropertyPlan connections layer) ───────────────
-
-  function addConnection(fromNodeId: string, toNodeId: string, type: ConnectionType) {
-    const from = plan.placementNodes.find((n) => n.id === fromNodeId);
-    const to = plan.placementNodes.find((n) => n.id === toNodeId);
-    if (!from || !to) return;
-
-    const conn: ConnectionPath = {
-      id: uid('conn'),
-      type,
-      fromNodeId,
-      toNodeId,
-      route: [
-        { x: from.anchor.x, y: from.anchor.y },
-        { x: to.anchor.x, y: to.anchor.y },
-      ],
-      routeMode: 'auto',
-    };
-    updatePlan((p) => ({ ...p, connections: [...p.connections, conn] }));
   }
 
   // ── Pointer helpers ──────────────────────────────────────────────────────
