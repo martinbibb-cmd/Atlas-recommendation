@@ -6,6 +6,7 @@ import DrawOffWorkbench from './DrawOffWorkbench';
 import CondensingIndicator from './CondensingIndicator';
 import ConfidenceScoreBar from './ConfidenceScoreBar';
 import PerformanceEnablersPanel from '../performance/PerformanceEnablersPanel';
+import CondensingRuntimePanel from '../summary/CondensingRuntimePanel';
 import FloorPlanBuilder from '../floorplan/FloorPlanBuilder';
 import AtlasTour from '../tour/AtlasTour';
 import { resetAtlasTourSeen } from '../../lib/tourStorage';
@@ -77,6 +78,11 @@ function SummaryTab({ uiMode }: { uiMode: UiMode }) {
       {/* PR 4 — Performance Enablers Panel */}
       <div className="lab-summary__enablers">
         <PerformanceEnablersPanel />
+      </div>
+
+      {/* PR 7 — Condensing Runtime Panel (null = no engine result in standalone lab) */}
+      <div className="lab-summary__enablers">
+        <CondensingRuntimePanel condensingRuntime={null} condensingState={null} />
       </div>
     </div>
   );
