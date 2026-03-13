@@ -204,8 +204,8 @@ export default function LabShell({ onHome }: Props) {
           </button>
         </div>
 
-        {/* PR 5 — Condensing efficiency indicator */}
-        <CondensingIndicator returnTempC={45} />
+        {/* PR 5 — Condensing efficiency indicator (null = no engine result in standalone lab) */}
+        <CondensingIndicator condensingState={null} />
 
         {/* PR 1 — Replay tour action */}
         <button

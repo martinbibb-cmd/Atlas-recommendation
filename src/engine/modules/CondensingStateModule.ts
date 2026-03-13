@@ -1,6 +1,7 @@
 import type {
   CondensingStateInput,
   CondensingStateResult,
+  CondensingReturnTempSource,
   CondensingZone,
 } from '../schema/EngineInputV2_3';
 
@@ -70,10 +71,11 @@ export function runCondensingStateModule(
   // ── Full-load return temperature ──────────────────────────────────────────
   // Use the measured/simulated value when provided (e.g. one-pipe cascade model),
   // otherwise derive from design flow temperature minus the system ΔT.
+  let returnTempSource: CondensingReturnTempSource;
   const fullLoadReturnC =
     input.returnTempC != null
-      ? input.returnTempC
-      : flowTempC - deltaT;
+      ? (returnTempSource = 'onePipeCascade', input.returnTempC)
+      : (returnTempSource = 'derived', flowTempC - deltaT);
 
   // ── Typical UK part-load return estimate ──────────────────────────────────
   // Under a weather-compensation curve the boiler modulates toward 20 °C as
@@ -117,12 +119,14 @@ export function runCondensingStateModule(
   }
 
   // ── Driver signals ────────────────────────────────────────────────────────
-  const returnSource = input.returnTempC != null ? 'measured/simulated' : 'estimated';
+  const returnSourceLabel =
+    returnTempSource === 'onePipeCascade' ? 'measured/simulated (one-pipe cascade)' : 'estimated (flowTempC − ΔT)';
   const drivers: string[] = [
     `Flow temperature: ${flowTempC} °C`,
-    `Full-load return: ${fullLoadReturnC.toFixed(1)} °C (${returnSource})`,
+    `Full-load return: ${fullLoadReturnC.toFixed(1)} °C (${returnSourceLabel})`,
     `Typical operating return: ${typicalReturnC.toFixed(1)} °C (UK avg load ${Math.round(loadFraction * 100)} %)`,
     `Condensing threshold: ${CONDENSING_RETURN_THRESHOLD_C} °C`,
+    `Return temp source: ${returnTempSource}`,
   ];
 
   // ── Diagnostic notes ──────────────────────────────────────────────────────
@@ -178,6 +182,7 @@ export function runCondensingStateModule(
     typicalReturnC: parseFloat(typicalReturnC.toFixed(1)),
     condensingThresholdC: CONDENSING_RETURN_THRESHOLD_C,
     estimatedCondensingFractionPct,
+    returnTempSource,
     drivers,
     notes,
   };
