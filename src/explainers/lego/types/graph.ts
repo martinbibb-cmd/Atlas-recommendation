@@ -312,6 +312,63 @@ export interface GraphValidationResult {
   issues: GraphValidationIssue[]
 }
 
+// ─── Multi-floor riser connectivity ──────────────────────────────────────────
+
+/**
+ * A paired riser record linking a ground-floor riser node to its first-floor
+ * twin.  Created by FloorPlanBuilder when the user places a 'riser' component.
+ *
+ * **Uniqueness assumption**: each `groundNodeId` must appear at most once in the
+ * links array passed to `applyRiserLinks`.  If duplicate `groundNodeId` values
+ * are present, only the last one is used (Map last-write-wins semantics).
+ *
+ * When `applyRiserLinks` processes a LabGraph, every edge whose `toNodeId`
+ * matches `groundNodeId` is extended: the toNode is replaced with `firstNodeId`
+ * and the original pair of nodes is kept intact so the graph remains valid.
+ *
+ * This models a vertical pipe riser as a single continuous `CircuitDomain`
+ * segment — no hydraulic domain change occurs at the floor boundary.
+ */
+export interface RiserLink {
+  /** ID of the riser node placed on the ground floor. */
+  groundNodeId: string;
+  /** ID of the paired riser node on the first floor. */
+  firstNodeId: string;
+}
+
+/**
+ * Apply riser links to a LabGraph, producing a new graph where every edge
+ * that ends at a ground-floor riser is re-targeted to the corresponding
+ * first-floor riser twin.
+ *
+ * The circuit domain of the traversing edge is preserved unchanged — a riser
+ * is transparent to the hydraulic domain (primary, heating, dhw, cold).
+ *
+ * The original riser nodes are retained so downstream consumers (e.g. the
+ * schematic renderer) can still draw the vertical connection symbol.
+ *
+ * @param graph - The LabGraph to process.
+ * @param links - Array of ground→first riser pairs.
+ * @returns A new LabGraph with riser edges re-targeted.
+ */
+export function applyRiserLinks(graph: LabGraph, links: RiserLink[]): LabGraph {
+  if (links.length === 0) return graph;
+
+  const groundToFirst = new Map<string, string>(
+    links.map(l => [l.groundNodeId, l.firstNodeId]),
+  );
+
+  const edges: LabEdge[] = graph.edges.map(edge => {
+    const firstNodeId = groundToFirst.get(edge.toNodeId);
+    if (firstNodeId == null) return edge;
+    // Re-target the edge to the first-floor riser twin, preserving all other
+    // fields (domain, fromNodeId, port roles).
+    return { ...edge, toNodeId: firstNodeId };
+  });
+
+  return { nodes: graph.nodes, edges };
+}
+
 // ─── Parity helper ────────────────────────────────────────────────────────────
 
 /**
