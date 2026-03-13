@@ -1,86 +1,56 @@
 import { useMemo, useRef, useState } from 'react';
-import { Group, Layer, Line, Rect, Stage, Text } from 'react-konva';
-import type Konva from 'konva';
-import { routePipeAligned } from '../../explainers/lego/builder/router';
-import type { StructuralZone } from '../../explainers/lego/builder/schematicBlocks';
+import { ALL_PALETTE_ITEMS } from '../../explainers/lego/builder/palette';
+import { getPortDefs } from '../../explainers/lego/builder/portDefs';
+import { smartAdd } from '../../explainers/lego/builder/smartAttach';
+import { isTopologyAllowed, portAbs } from '../../explainers/lego/builder/snapConnect';
+import type { BuildEdge, BuildGraph, BuildNode, PartKind, PortRef } from '../../explainers/lego/builder/types';
 import type { SystemConceptModel } from '../../explainers/lego/model/types';
 import './floorplan.css';
 
-type TemplateId = 'terrace' | 'semi';
-type FloorId = 0 | 1;
+type StageMode = 'plan' | 'system';
+
+type Floor = {
+  id: string;
+  name: string;
+};
 
 type Room = {
   id: string;
-  label: string;
-  floorId: FloorId;
+  floorId: string;
+  name: string;
   x: number;
   y: number;
   width: number;
   height: number;
-  zone?: StructuralZone;
 };
 
-type PlacedComponent = {
+type Wall = {
   id: string;
-  kind: string;
-  icon: string;
-  label: string;
-  floorId: FloorId;
-  x: number;
-  y: number;
-  riserId?: string;
+  floorId: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
 };
 
-type Pipe = {
-  id: string;
-  floorId: FloorId;
-  fromId: string;
-  toId: string;
-};
+type SystemNode = BuildNode & { floorId: string };
 
-type PaletteItem = {
-  kind: string;
-  icon: string;
-  label: string;
-  requiredZone?: StructuralZone;
-};
+type DragState =
+  | { mode: 'room-move'; id: string; dx: number; dy: number }
+  | { mode: 'room-resize'; id: string; startX: number; startY: number; baseW: number; baseH: number }
+  | { mode: 'node-move'; id: string; dx: number; dy: number };
 
-const PALETTE_ITEMS: PaletteItem[] = [
-  { kind: 'boiler', icon: '🔥', label: 'Boiler', requiredZone: 'plant_room' },
-  { kind: 'cylinder', icon: '🛢️', label: 'Cylinder', requiredZone: 'airing_cupboard' },
-  { kind: 'radiator', icon: '♨️', label: 'Radiator' },
-  { kind: 'pump', icon: '⚙️', label: 'Pump' },
-  { kind: 'riser', icon: '↕️', label: 'Riser' },
-];
-
-const TEMPLATES: Record<TemplateId, { label: string; rooms: Room[] }> = {
-  terrace: {
-    label: 'Terrace',
-    rooms: [
-      { id: 'g-kitchen', label: 'Kitchen', floorId: 0, x: 20, y: 220, width: 140, height: 110, zone: 'plant_room' },
-      { id: 'g-lounge', label: 'Lounge', floorId: 0, x: 170, y: 220, width: 150, height: 110 },
-      { id: 'f-bed', label: 'Bedroom', floorId: 1, x: 20, y: 30, width: 140, height: 120 },
-      { id: 'f-bath', label: 'Bathroom', floorId: 1, x: 170, y: 30, width: 150, height: 120, zone: 'airing_cupboard' },
-    ],
-  },
-  semi: {
-    label: 'Semi',
-    rooms: [
-      { id: 'g-kitchen', label: 'Kitchen', floorId: 0, x: 20, y: 220, width: 140, height: 110, zone: 'plant_room' },
-      { id: 'g-hall', label: 'Hall', floorId: 0, x: 170, y: 220, width: 150, height: 110 },
-      { id: 'f-bed', label: 'Bedroom', floorId: 1, x: 20, y: 30, width: 140, height: 120 },
-      { id: 'f-airing', label: 'Airing', floorId: 1, x: 170, y: 30, width: 150, height: 120, zone: 'airing_cupboard' },
-    ],
-  },
-};
-
-type DrawState = { x: number; y: number; floorId: FloorId };
+const GRID = 24;
+const CANVAS_W = 980;
+const CANVAS_H = 560;
+const SNAP = 12;
 
 export interface FloorPlanOutput {
-  template: TemplateId;
+  floors: Floor[];
   rooms: Room[];
-  components: PlacedComponent[];
-  pipes: Pipe[];
+  walls: Wall[];
+  nodes: SystemNode[];
+  edges: BuildEdge[];
   systemConcept: SystemConceptModel;
 }
 
@@ -89,225 +59,379 @@ interface Props {
   onChange?: (output: FloorPlanOutput) => void;
 }
 
-function toConceptModel(components: PlacedComponent[]): SystemConceptModel {
-  const hasBoiler = components.some((c) => c.kind === 'boiler');
-  const hasCylinder = components.some((c) => c.kind === 'cylinder');
-  const hasRad = components.some((c) => c.kind === 'radiator');
+const ROOM_TOOLS = [
+  { id: 'add-room', label: 'Add room', icon: '⬛' },
+  { id: 'draw-wall', label: 'Draw wall', icon: '📏' },
+  { id: 'clone-floor', label: 'Clone perimeter', icon: '🧱' },
+  { id: 'add-floor', label: 'Add floor', icon: '🏢' },
+] as const;
+
+function uid(prefix: string) {
+  return `${prefix}_${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function snapRoom(candidate: Room, siblings: Room[]) {
+  let next = { ...candidate };
+  siblings.forEach((other) => {
+    const yOverlap = next.y < other.y + other.height && next.y + next.height > other.y;
+    const xOverlap = next.x < other.x + other.width && next.x + next.width > other.x;
+    const rightToLeft = Math.abs(next.x + next.width - other.x);
+    const leftToRight = Math.abs(next.x - (other.x + other.width));
+    const bottomToTop = Math.abs(next.y + next.height - other.y);
+    const topToBottom = Math.abs(next.y - (other.y + other.height));
+
+    if (yOverlap && rightToLeft <= SNAP) next.x = other.x - next.width;
+    if (yOverlap && leftToRight <= SNAP) next.x = other.x + other.width;
+    if (xOverlap && bottomToTop <= SNAP) next.y = other.y - next.height;
+    if (xOverlap && topToBottom <= SNAP) next.y = other.y + other.height;
+  });
+  return next;
+}
+
+function toMeters(px: number) {
+  return (px / GRID).toFixed(1);
+}
+
+function toConceptModel(nodes: SystemNode[], surveySystemType?: 'combi' | 'system' | 'regular' | 'heat_pump'): SystemConceptModel {
+  const hasCombi = surveySystemType === 'combi' || nodes.some((n) => n.kind === 'heat_source_combi');
+  const hasCylinder = nodes.some((n) => n.kind.includes('cylinder') || n.kind === 'dhw_mixergy');
+  const hasRads = nodes.some((n) => n.kind === 'radiator_loop');
   return {
-    heatSource: hasBoiler ? 'system_boiler' : 'heat_pump',
+    heatSource: hasCombi ? 'system_boiler' : surveySystemType === 'heat_pump' ? 'heat_pump' : surveySystemType === 'regular' ? 'regular_boiler' : 'system_boiler',
     hotWaterService: hasCylinder ? 'unvented_cylinder' : 'combi_plate_hex',
-    controls: hasCylinder ? 's_plan' : 'none',
-    emitters: hasRad ? ['radiators'] : ['ufh'],
+    controls: nodes.some((n) => n.kind === 'zone_valve') ? 's_plan' : 'none',
+    emitters: hasRads ? ['radiators'] : ['ufh'],
   };
 }
 
-function inferDomain(fromKind: string, toKind: string): 'primary' | 'heating' {
-  if (fromKind === 'boiler' && toKind === 'radiator') return 'primary';
-  return 'heating';
-}
-
 export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}) {
-  const [template, setTemplate] = useState<TemplateId>('terrace');
-  const [floorId, setFloorId] = useState<FloorId>(0);
-  const [rooms, setRooms] = useState<Room[]>(TEMPLATES.terrace.rooms);
-  const [components, setComponents] = useState<PlacedComponent[]>([]);
-  const [pipes, setPipes] = useState<Pipe[]>([]);
-  const [drawMode, setDrawMode] = useState(false);
-  const [drawState, setDrawState] = useState<DrawState | null>(null);
-  const [pendingPipeFrom, setPendingPipeFrom] = useState<string | null>(null);
-  const stageRef = useRef<Konva.Stage>(null);
-  const idRef = useRef(0);
+  const [mode, setMode] = useState<StageMode>('plan');
+  const [floors, setFloors] = useState<Floor[]>([{ id: 'floor_0', name: 'Ground' }]);
+  const [activeFloorId, setActiveFloorId] = useState('floor_0');
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [walls, setWalls] = useState<Wall[]>([]);
+  const [nodes, setNodes] = useState<SystemNode[]>([]);
+  const [edges, setEdges] = useState<BuildEdge[]>([]);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [wallStart, setWallStart] = useState<{ x: number; y: number } | null>(null);
+  const [isWallMode, setIsWallMode] = useState(false);
+  const [pendingPort, setPendingPort] = useState<PortRef | null>(null);
+  const dragRef = useRef<DragState | null>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
 
-  const visibleRooms = useMemo(() => rooms.filter((r) => r.floorId === floorId), [rooms, floorId]);
-  const visibleComponents = useMemo(() => components.filter((c) => c.floorId === floorId), [components, floorId]);
+  const visibleRooms = useMemo(() => rooms.filter((r) => r.floorId === activeFloorId), [rooms, activeFloorId]);
+  const visibleWalls = useMemo(() => walls.filter((w) => w.floorId === activeFloorId), [walls, activeFloorId]);
+  const visibleNodes = useMemo(() => nodes.filter((n) => n.floorId === activeFloorId), [nodes, activeFloorId]);
 
-  function emit(nextComponents = components, nextRooms = rooms, nextPipes = pipes) {
-    onChange?.({
-      template,
-      rooms: nextRooms,
-      components: nextComponents,
-      pipes: nextPipes,
-      systemConcept: toConceptModel(nextComponents),
-    });
+  function emit(next = { floors, rooms, walls, nodes, edges }) {
+    onChange?.({ ...next, systemConcept: toConceptModel(next.nodes, surveyResults?.systemType) });
   }
 
-  function setTemplateAndReset(next: TemplateId) {
-    setTemplate(next);
-    setRooms(TEMPLATES[next].rooms);
-    setComponents([]);
-    setPipes([]);
-    setFloorId(0);
+  function floorGraph(floorId: string): BuildGraph {
+    return {
+      nodes: nodes.filter((n) => n.floorId === floorId),
+      edges: edges.filter((e) => {
+        const from = nodes.find((n) => n.id === e.from.nodeId);
+        const to = nodes.find((n) => n.id === e.to.nodeId);
+        return from?.floorId === floorId && to?.floorId === floorId;
+      }),
+    };
   }
 
-  function addComponent(item: PaletteItem) {
-    const allowedBySurvey = surveyResults?.systemType !== 'system' || item.kind !== 'heat_pump';
-    if (!allowedBySurvey) return;
-
-    const roomForZone = item.requiredZone
-      ? rooms.find((r) => r.floorId === floorId && r.zone === item.requiredZone)
-      : undefined;
-
-    const x = roomForZone ? roomForZone.x + roomForZone.width / 2 : 80 + (visibleComponents.length % 4) * 60;
-    const y = roomForZone ? roomForZone.y + roomForZone.height / 2 : 80;
-    const id = `cmp-${idRef.current++}`;
-
-    if (item.kind === 'riser') {
-      const riserId = `riser-${id}`;
-      const twinFloor: FloorId = floorId === 0 ? 1 : 0;
-      const next: PlacedComponent[] = [
-        ...components,
-        { id, kind: item.kind, icon: item.icon, label: item.label, floorId, x, y, riserId },
-        { id: `cmp-${idRef.current++}`, kind: item.kind, icon: item.icon, label: item.label, floorId: twinFloor, x, y, riserId },
-      ];
-      setComponents(next);
-      emit(next);
-      return;
-    }
-
-    const next = [...components, { id, kind: item.kind, icon: item.icon, label: item.label, floorId, x, y }];
-    setComponents(next);
-    emit(next);
-  }
-
-  function onStageMouseDown() {
-    if (!drawMode) return;
-    const pos = stageRef.current?.getPointerPosition();
-    if (!pos) return;
-    setDrawState({ x: pos.x, y: pos.y, floorId });
-  }
-
-  function onStageMouseUp() {
-    if (!drawState) return;
-    const pos = stageRef.current?.getPointerPosition();
-    if (!pos || drawState.floorId !== floorId) {
-      setDrawState(null);
-      return;
-    }
-    const width = Math.abs(pos.x - drawState.x);
-    const height = Math.abs(pos.y - drawState.y);
-    if (width < 20 || height < 20) {
-      setDrawState(null);
-      return;
-    }
+  function addRoom() {
     const room: Room = {
-      id: `room-${idRef.current++}`,
-      label: `Room ${rooms.length + 1}`,
-      floorId,
-      x: Math.min(pos.x, drawState.x),
-      y: Math.min(pos.y, drawState.y),
-      width,
-      height,
+      id: uid('room'),
+      floorId: activeFloorId,
+      name: `Room ${visibleRooms.length + 1}`,
+      x: 80 + visibleRooms.length * 20,
+      y: 80 + visibleRooms.length * 16,
+      width: 180,
+      height: 120,
     };
     const next = [...rooms, room];
     setRooms(next);
-    setDrawState(null);
-    emit(components, next, pipes);
+    setSelectedRoomId(room.id);
+    emit({ floors, rooms: next, walls, nodes, edges });
   }
 
-  function connectPipe(targetId: string) {
-    if (!pendingPipeFrom || pendingPipeFrom === targetId) {
-      setPendingPipeFrom(targetId);
-      return;
-    }
-    const from = components.find((c) => c.id === pendingPipeFrom);
-    const to = components.find((c) => c.id === targetId);
-    if (!from || !to || from.floorId !== to.floorId) {
-      setPendingPipeFrom(null);
-      return;
+  function addFloor(clonePerimeter: boolean) {
+    const id = uid('floor');
+    const nextFloors = [...floors, { id, name: `Floor ${floors.length}` }];
+    let nextRooms = rooms;
+    let nextWalls = walls;
+
+    if (clonePerimeter) {
+      const floorRooms = rooms.filter((r) => r.floorId === activeFloorId);
+      const floorWalls = walls.filter((w) => w.floorId === activeFloorId);
+      nextRooms = [
+        ...rooms,
+        ...floorRooms.map((r) => ({ ...r, id: uid('room'), floorId: id })),
+      ];
+      nextWalls = [
+        ...walls,
+        ...floorWalls.map((w) => ({ ...w, id: uid('wall'), floorId: id })),
+      ];
+      setRooms(nextRooms);
+      setWalls(nextWalls);
     }
 
-    const nextPipe: Pipe = { id: `pipe-${idRef.current++}`, floorId: from.floorId, fromId: from.id, toId: to.id };
-    const next = [...pipes, nextPipe];
+    setFloors(nextFloors);
+    setActiveFloorId(id);
+    emit({ floors: nextFloors, rooms: nextRooms, walls: nextWalls, nodes, edges });
+  }
 
-    if (from.kind === 'riser' || to.kind === 'riser') {
-      const riser = from.kind === 'riser' ? from : to;
-      const twin = components.find((c) => c.riserId && c.riserId === riser.riserId && c.id !== riser.id);
-      const other = from.kind === 'riser' ? to : from;
-      if (twin) {
-        next.push({
-          id: `pipe-${idRef.current++}`,
-          floorId: twin.floorId,
-          fromId: twin.id,
-          toId: other.id,
+  function addSystemNode(kind: PartKind) {
+    const local = floorGraph(activeFloorId);
+    const { nextGraph, placedNodeId } = smartAdd(local, kind);
+    const mergedNodes = [
+      ...nodes.filter((n) => n.floorId !== activeFloorId),
+      ...nextGraph.nodes.map((n) => ({ ...n, floorId: activeFloorId })),
+    ];
+    const otherEdges = edges.filter((e) => {
+      const from = nodes.find((n) => n.id === e.from.nodeId);
+      const to = nodes.find((n) => n.id === e.to.nodeId);
+      return !(from?.floorId === activeFloorId && to?.floorId === activeFloorId);
+    });
+    const nextEdges = [...otherEdges, ...nextGraph.edges];
+    setNodes(mergedNodes);
+    setEdges(nextEdges);
+    setSelectedNodeId(placedNodeId);
+    emit({ floors, rooms, walls, nodes: mergedNodes, edges: nextEdges });
+  }
+
+  function pointerPos(e: React.PointerEvent<HTMLDivElement>) {
+    const rect = boardRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return {
+      x: Math.max(0, Math.min(CANVAS_W, e.clientX - rect.left)),
+      y: Math.max(0, Math.min(CANVAS_H, e.clientY - rect.top)),
+    };
+  }
+
+  function handleBoardPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragRef.current) return;
+    const pos = pointerPos(e);
+    const state = dragRef.current;
+
+    if (state.mode === 'room-move') {
+      setRooms((current) => {
+        const draft = current.map((room) => {
+          if (room.id !== state.id) return room;
+          return { ...room, x: pos.x - state.dx, y: pos.y - state.dy };
         });
-      }
+        const moving = draft.find((r) => r.id === state.id);
+        if (!moving) return current;
+        const snapped = snapRoom(moving, draft.filter((r) => r.floorId === activeFloorId && r.id !== state.id));
+        return draft.map((r) => (r.id === state.id ? snapped : r));
+      });
     }
 
-    setPipes(next);
-    setPendingPipeFrom(null);
-    emit(components, rooms, next);
+    if (state.mode === 'room-resize') {
+      setRooms((current) =>
+        current.map((room) => {
+          if (room.id !== state.id) return room;
+          return {
+            ...room,
+            width: Math.max(80, state.baseW + (pos.x - state.startX)),
+            height: Math.max(60, state.baseH + (pos.y - state.startY)),
+          };
+        }),
+      );
+    }
+
+    if (state.mode === 'node-move') {
+      setNodes((current) =>
+        current.map((node) => (node.id === state.id ? { ...node, x: pos.x - state.dx, y: pos.y - state.dy } : node)),
+      );
+    }
+  }
+
+  function handleBoardPointerUp() {
+    dragRef.current = null;
+    emit();
+  }
+
+  function startWallOrClear(e: React.PointerEvent<HTMLDivElement>) {
+    if (!isWallMode || mode !== 'plan') return;
+    const pos = pointerPos(e);
+    if (!wallStart) {
+      setWallStart(pos);
+      return;
+    }
+    const next = [...walls, { id: uid('wall'), floorId: activeFloorId, x1: wallStart.x, y1: wallStart.y, x2: pos.x, y2: pos.y }];
+    setWalls(next);
+    setWallStart(null);
+    emit({ floors, rooms, walls: next, nodes, edges });
+  }
+
+  function connectPorts(target: PortRef) {
+    if (!pendingPort) {
+      setPendingPort(target);
+      return;
+    }
+    if (pendingPort.nodeId === target.nodeId && pendingPort.portId === target.portId) {
+      setPendingPort(null);
+      return;
+    }
+    const graph = floorGraph(activeFloorId);
+    if (!isTopologyAllowed(graph, pendingPort, target)) {
+      setPendingPort(null);
+      return;
+    }
+    const edge: BuildEdge = { id: uid('edge'), from: pendingPort, to: target };
+    const next = [...edges, edge];
+    setEdges(next);
+    setPendingPort(null);
+    emit({ floors, rooms, walls, nodes, edges: next });
   }
 
   return (
-    <div className="floor-plan">
-      <h2 className="floor-plan__title">Floor Plan Builder</h2>
-      <div className="floor-plan__templates">
-        {(Object.keys(TEMPLATES) as TemplateId[]).map((id) => (
-          <button key={id} className="floor-plan__template-btn" onClick={() => setTemplateAndReset(id)}>{TEMPLATES[id].label}</button>
-        ))}
-        <button className="floor-plan__template-btn" onClick={() => setDrawMode((v) => !v)}>{drawMode ? 'Stop Draw Room' : 'Draw Room'}</button>
-      </div>
+    <div className="floor-builder">
+      <header className="floor-builder__header">
+        <h2>Property Builder</h2>
+        <p>Stage 1: draw rooms and walls. Stage 2: place full Lego system nodes and connect ports.</p>
+      </header>
 
-      <div className="floor-plan__floor-switcher">
-        <button className="floor-plan__floor-btn" onClick={() => setFloorId(0)}>Ground</button>
-        <button className="floor-plan__floor-btn" onClick={() => setFloorId(1)}>First</button>
-      </div>
-
-      <div className="floor-plan__body">
-        <div className="floor-plan__palette">
-          {PALETTE_ITEMS.filter((item) => (surveyResults?.systemType === 'combi' ? item.kind !== 'cylinder' : true)).map((item) => (
-            <button key={item.kind} className="floor-plan__palette-item" onClick={() => addComponent(item)}>
-              <span>{item.icon}</span> {item.label}
+      <div className="floor-builder__controls">
+        <div className="floor-builder__mode">
+          <button className={mode === 'plan' ? 'active' : ''} onClick={() => setMode('plan')}>Floor plan</button>
+          <button className={mode === 'system' ? 'active' : ''} onClick={() => setMode('system')}>System builder</button>
+        </div>
+        <div className="floor-builder__floors">
+          {floors.map((floor) => (
+            <button key={floor.id} className={activeFloorId === floor.id ? 'active' : ''} onClick={() => setActiveFloorId(floor.id)}>
+              {floor.name}
             </button>
           ))}
         </div>
+      </div>
 
-        <Stage ref={stageRef} width={340} height={360} onMouseDown={onStageMouseDown} onMouseUp={onStageMouseUp} style={{ border: '1px solid #cbd5e0', borderRadius: 8 }}>
-          <Layer>
-            {visibleRooms.map((room) => (
-              <Group key={room.id}>
-                <Rect x={room.x} y={room.y} width={room.width} height={room.height} stroke="#4a5568" strokeWidth={2} fillEnabled={false} />
-                <Text x={room.x + 5} y={room.y + 5} text={room.label} fontSize={11} />
-              </Group>
+      <div className="floor-builder__layout">
+        <aside className="floor-builder__tray" aria-label="Builder tray">
+          <h3>Tray</h3>
+          {ROOM_TOOLS.map((tool) => (
+            <button
+              key={tool.id}
+              onClick={() => {
+                if (tool.id === 'add-room') addRoom();
+                if (tool.id === 'draw-wall') setIsWallMode((v) => !v);
+                if (tool.id === 'clone-floor') addFloor(true);
+                if (tool.id === 'add-floor') addFloor(false);
+              }}
+              className={tool.id === 'draw-wall' && isWallMode ? 'active' : ''}
+            >
+              <span>{tool.icon}</span>
+              {tool.label}
+            </button>
+          ))}
+
+          <h4>System nodes</h4>
+          <div className="floor-builder__node-list">
+            {ALL_PALETTE_ITEMS.map((item) => (
+              <button key={item.kind} onClick={() => addSystemNode(item.kind)}>
+                <span>{item.emoji}</span>
+                {item.label}
+              </button>
             ))}
+          </div>
+        </aside>
 
-            {pipes.filter((p) => p.floorId === floorId).map((pipe) => {
-              const from = components.find((c) => c.id === pipe.fromId);
-              const to = components.find((c) => c.id === pipe.toId);
-              if (!from || !to) return null;
-              const roomScope = rooms.filter((r) => r.floorId === floorId).map((r) => ({
-                x: r.x,
-                y: r.y,
-                w: r.width,
-                h: r.height,
-                label: r.label,
-              }));
-              const points = routePipeAligned({ x: from.x, y: from.y }, { x: to.x, y: to.y }, roomScope)
-                .split(' ')
-                .flatMap((pair) => pair.split(',').map(Number));
-              const domain = inferDomain(from.kind, to.kind);
-              return <Line key={pipe.id} points={points} stroke={domain === 'primary' ? '#2563eb' : '#16a34a'} strokeWidth={3} />;
+        <div
+          className="floor-builder__board"
+          ref={boardRef}
+          onPointerMove={handleBoardPointerMove}
+          onPointerUp={handleBoardPointerUp}
+          onPointerCancel={handleBoardPointerUp}
+          onPointerDown={startWallOrClear}
+        >
+          <svg viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}>
+            <defs>
+              <pattern id="grid" width={GRID} height={GRID} patternUnits="userSpaceOnUse">
+                <path d={`M ${GRID} 0 L 0 0 0 ${GRID}`} fill="none" stroke="#e2e8f0" strokeWidth="1" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+
+            {visibleWalls.map((w) => (
+              <line key={w.id} x1={w.x1} y1={w.y1} x2={w.x2} y2={w.y2} stroke="#0f172a" strokeWidth={4} />
+            ))}
+            {edges.map((edge) => {
+              const fromNode = nodes.find((n) => n.id === edge.from.nodeId && n.floorId === activeFloorId);
+              const toNode = nodes.find((n) => n.id === edge.to.nodeId && n.floorId === activeFloorId);
+              if (!fromNode || !toNode) return null;
+              const from = portAbs(fromNode, edge.from.portId);
+              const to = portAbs(toNode, edge.to.portId);
+              return <polyline key={edge.id} points={`${from.x},${from.y} ${(from.x + to.x) / 2},${from.y} ${(from.x + to.x) / 2},${to.y} ${to.x},${to.y}`} fill="none" stroke="#64748b" strokeWidth={4} />;
             })}
+          </svg>
 
-            {visibleComponents.map((comp) => (
-              <Group
-                key={comp.id}
-                x={comp.x - 14}
-                y={comp.y - 12}
-                draggable
-                onClick={() => connectPipe(comp.id)}
-                onDragEnd={(e) => {
-                  const next = components.map((c) => (c.id === comp.id ? { ...c, x: e.target.x() + 14, y: e.target.y() + 12 } : c));
-                  setComponents(next);
-                  emit(next);
+          {visibleRooms.map((room) => (
+            <div
+              key={room.id}
+              className={`floor-builder__room ${selectedRoomId === room.id ? 'selected' : ''}`}
+              style={{ left: room.x, top: room.y, width: room.width, height: room.height }}
+              onPointerDown={(e) => {
+                if (mode !== 'plan') return;
+                e.stopPropagation();
+                setSelectedRoomId(room.id);
+                const pos = pointerPos(e);
+                dragRef.current = { mode: 'room-move', id: room.id, dx: pos.x - room.x, dy: pos.y - room.y };
+              }}
+            >
+              <div className="label">{room.name}</div>
+              <div className="measure">{toMeters(room.width)}m × {toMeters(room.height)}m</div>
+              <div
+                className="resize"
+                onPointerDown={(e) => {
+                  if (mode !== 'plan') return;
+                  e.stopPropagation();
+                  const pos = pointerPos(e as unknown as React.PointerEvent<HTMLDivElement>);
+                  dragRef.current = {
+                    mode: 'room-resize',
+                    id: room.id,
+                    startX: pos.x,
+                    startY: pos.y,
+                    baseW: room.width,
+                    baseH: room.height,
+                  };
+                }}
+              />
+            </div>
+          ))}
+
+          {visibleNodes.map((node) => {
+            const selected = selectedNodeId === node.id;
+            return (
+              <div
+                key={node.id}
+                className={`floor-builder__node ${selected ? 'selected' : ''}`}
+                style={{ left: node.x - 68, top: node.y - 30 }}
+                onPointerDown={(e) => {
+                  if (mode !== 'system') return;
+                  e.stopPropagation();
+                  const pos = pointerPos(e);
+                  dragRef.current = { mode: 'node-move', id: node.id, dx: pos.x - node.x, dy: pos.y - node.y };
+                  setSelectedNodeId(node.id);
                 }}
               >
-                <Rect width={28} height={24} fill={pendingPipeFrom === comp.id ? '#c7d2fe' : '#e2e8f0'} stroke="#334155" cornerRadius={4} />
-                <Text text={comp.icon} x={6} y={4} fontSize={14} />
-              </Group>
-            ))}
-          </Layer>
-        </Stage>
+                <div>{node.kind.replaceAll('_', ' ')}</div>
+                {getPortDefs(node.kind).map((port) => (
+                  <button
+                    key={port.id}
+                    className={`port ${pendingPort?.nodeId === node.id && pendingPort.portId === port.id ? 'pending' : ''}`}
+                    style={{ left: port.dx + 68 - 5, top: port.dy + 30 - 5 }}
+                    onClick={(e) => {
+                      if (mode !== 'system') return;
+                      e.stopPropagation();
+                      connectPorts({ nodeId: node.id, portId: port.id });
+                    }}
+                  />
+                ))}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
