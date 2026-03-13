@@ -42,7 +42,7 @@ export default function LiveSectionPage({ section, result, input, onBack }: Prop
       onBack={onBack}
       result={result}
     >
-      {section === 'current' && <CurrentSituationSection result={result} />}
+      {section === 'current' && <CurrentSituationSection result={result} input={input} />}
       {section === 'water' && <PhysicsConstraintsPanel result={result} input={input} />}
       {section === 'usage' && <LiveUsageSection result={result} input={input} />}
       {section === 'evidence' && <EvidenceConfidenceSection result={result} />}

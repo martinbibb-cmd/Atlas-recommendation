@@ -16,13 +16,17 @@
  * - No mention of "fail", "rejected", or judgement language in user-facing copy.
  */
 import type { FullEngineResult } from '../../engine/schema/EngineInputV2_3';
+import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { EvidenceItemV1, OptionCardV1 } from '../../contracts/EngineOutputV1';
 import SystemRecommendationPanel from './SystemRecommendationPanel';
 import SystemOptionCard from './SystemOptionCard';
+import PerformanceEnablersPanel from '../performance/PerformanceEnablersPanel';
 import './results.css';
 
 interface Props {
   result: FullEngineResult;
+  /** Optional survey input — passed to PerformanceEnablersPanel for richer derivation. */
+  input?: EngineInputV2_3;
 }
 
 // ─── Trust Strip ─────────────────────────────────────────────────────────────
@@ -877,7 +881,7 @@ function PrintHeader({ result }: { result: FullEngineResult }) {
 
 // ─── Main hub ─────────────────────────────────────────────────────────────────
 
-export default function RecommendationHub({ result }: Props) {
+export default function RecommendationHub({ result, input }: Props) {
   const { engineOutput } = result;
   const options = sortOptionCards(engineOutput.options ?? []);
   const comparisonSummary = buildComparisonSummary(options);
@@ -894,6 +898,11 @@ export default function RecommendationHub({ result }: Props) {
 
       {/* Trust strip — evidence count + action prompt */}
       <TrustStrip result={result} />
+
+      {/* 2 — Performance Enablers — install-readiness conditions near the verdict */}
+      <section className="rec-hub__section">
+        <PerformanceEnablersPanel result={result} input={input} />
+      </section>
 
       {/* 3 — System Health Gauge (overall hot-water health summary, when evidence available) */}
       <SystemHealthGauge result={result} />
