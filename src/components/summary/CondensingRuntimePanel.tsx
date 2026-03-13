@@ -63,8 +63,8 @@ function zoneLabel(zone: CondensingStateResult['zone']): string {
  *   - installationPolicy used as a control-quality proxy (driver 4)
  *   - primary pipe capacity inferred without measured lengths (driver 7)
  *
- * Additionally, if systemPlanType was not recorded, driver 5 defaults to a
- * neutral Y-plan baseline ("not recorded" in its detail string).
+ * Additionally, if systemPlanType was not recorded, driver 5 carries the
+ * "not confirmed" detail string.
  */
 function hasProxyInputs(result: CondensingRuntimeResult): boolean {
   return result.drivers.some(
@@ -72,7 +72,19 @@ function hasProxyInputs(result: CondensingRuntimeResult): boolean {
       d.id === 'primary_suitability_proxy' ||
       d.id === 'control_type' ||
       (d.id === 'system_separation_arrangement' &&
-        d.detail.includes('not recorded')),
+        d.detail.includes('not confirmed')),
+  );
+}
+
+/**
+ * Returns true when systemPlanType was not confirmed — driver 5 carries the
+ * "not confirmed" detail string in that case.
+ */
+function hasPlanTypeUnconfirmed(result: CondensingRuntimeResult): boolean {
+  return result.drivers.some(
+    d =>
+      d.id === 'system_separation_arrangement' &&
+      d.detail.includes('not confirmed'),
   );
 }
 
@@ -211,6 +223,14 @@ export default function CondensingRuntimePanel({
             survey responses rather than directly measured. This is a proxy
             estimate — use it as a directional guide, not a precise figure.
           </span>
+        </div>
+      )}
+
+      {/* Plan-type unconfirmed caveat */}
+      {hasPlanTypeUnconfirmed(condensingRuntime) && (
+        <div className="crt-panel__caveat" role="note">
+          <span className="crt-panel__caveat-icon" aria-hidden="true">ⓘ</span>
+          <span>Heating/hot-water separation type not confirmed.</span>
         </div>
       )}
     </div>

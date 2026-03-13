@@ -352,6 +352,12 @@ const RISK_LABEL: Record<'pass' | 'warn' | 'fail', string> = {
   fail: '❌ Fail',
 };
 
+/** Options for the Y-plan / S-plan fallback capture chip in the overlay step. */
+const PLAN_TYPE_OPTIONS: Array<{ value: 'y_plan' | 's_plan'; label: string; sub: string }> = [
+  { value: 'y_plan', label: 'Y-plan', sub: 'Single mid-position valve' },
+  { value: 's_plan', label: 'S-plan', sub: 'Twin 2-port zone valves' },
+];
+
 function uiClassifyRisk(kw: number, warnKw: number, failKw: number): 'pass' | 'warn' | 'fail' {
   if (kw >= failKw) return 'fail';
   if (kw >= warnKw) return 'warn';
@@ -2917,6 +2923,47 @@ export default function FullSurveyStepper({ onBack, prefill }: Props) {
                 Click any cell to jump to the controlling step
               </span>
             </div>
+
+            {/* Plan-type fallback capture — shown when systemPlanType was never set */}
+            {input.systemPlanType === undefined && (
+              <div style={{
+                marginTop: '1rem',
+                padding: '0.75rem 1rem',
+                background: '#fffbeb',
+                border: '1px solid #f6e05e',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+              }}>
+                <strong>⚠️ Heating / hot water layout — not confirmed</strong>
+                <p style={{ margin: '0.375rem 0 0.625rem', color: '#744210' }}>
+                  Select the zone control arrangement to ensure accurate condensing runtime
+                  analysis. If unsure, you can proceed — the result will note this as unconfirmed.
+                </p>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {PLAN_TYPE_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      aria-pressed={input.systemPlanType === opt.value}
+                      onClick={() => setInput(prev => ({ ...prev, systemPlanType: opt.value }))}
+                      style={{
+                        padding: '0.4rem 0.875rem',
+                        border: '2px solid #e2e8f0',
+                        borderRadius: '6px',
+                        background: '#fff',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        lineHeight: 1.3,
+                        textAlign: 'left',
+                      }}
+                    >
+                      <div>{opt.label}</div>
+                      <div style={{ fontWeight: 400, fontSize: '0.75rem', color: '#718096' }}>{opt.sub}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="step-actions">
               <button className="prev-btn" onClick={prev}>← Back</button>

@@ -273,14 +273,15 @@ describe('CondensingRuntimePanel — proxy caveat', () => {
     expect(screen.getByRole('note')).toBeTruthy();
   });
 
-  it('shows caveat when system_separation_arrangement detail mentions "not recorded"', () => {
+  it('shows caveat when system_separation_arrangement detail mentions "not confirmed"', () => {
     const runtime = makeCondensingRuntime({
       drivers: [
-        makeDriver('system_separation_arrangement', 'neutral', 'System zone arrangement not recorded — assuming Y-plan baseline.'),
+        makeDriver('system_separation_arrangement', 'neutral', 'Heating/hot-water separation type not confirmed.'),
       ],
     });
     render(<CondensingRuntimePanel condensingRuntime={runtime} />);
-    expect(screen.getByRole('note')).toBeTruthy();
+    expect(screen.getAllByRole('note').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Heating/hot-water separation type not confirmed.')).toBeTruthy();
   });
 
   it('does not show caveat when none of the proxy driver IDs are present', () => {

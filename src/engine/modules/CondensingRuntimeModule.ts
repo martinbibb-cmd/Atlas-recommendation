@@ -199,13 +199,13 @@ function assessSystemSeparationArrangement(
       'Y-plan: combined mid-position valve — workable at modest loads; less separation than S-plan.',
     );
   }
-  // Unknown / not provided
+  // Unknown / not provided — do not assume Y-plan; report honestly
   return makeDriver(
     'system_separation_arrangement',
     'System separation arrangement',
     'neutral',
     0,
-    'System zone arrangement not recorded — assuming Y-plan baseline.',
+    'Heating/hot-water separation type not confirmed.',
   );
 }
 
@@ -402,6 +402,12 @@ export function runCondensingRuntimeModule(
     `Driver 5 (system_separation_arrangement) and driver 7 (primary_suitability_proxy) are independent ` +
       `levers — S-plan conversion and primary upgrades have different costs and physics effects.`,
   ];
+
+  if (input.systemPlanType === undefined) {
+    notes.push(
+      'Heating/hot-water separation type not confirmed — no S-plan benefit applied.',
+    );
+  }
 
   return {
     estimatedCondensingRuntimePct,
