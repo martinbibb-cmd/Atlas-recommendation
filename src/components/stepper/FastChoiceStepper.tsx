@@ -14,8 +14,12 @@ interface Props {
   onBack: () => void;
   /** Called when Fast Choice escalates to Full Survey. */
   onEscalate?: (prefill: Partial<EngineInputV2_3>) => void;
-  /** Called when the user wants to open the current scenario in System Lab. */
-  onOpenLab?: () => void;
+  /**
+   * Called when the user wants to open the current scenario in System Lab.
+   * Receives the partial engine input accumulated so far so that the Lab
+   * Quick Inputs gate can skip fields already known.
+   */
+  onOpenLab?: (partialInput?: Partial<EngineInputV2_3>) => void;
 }
 
 type ViewMode = 'input' | 'results';

@@ -9,6 +9,7 @@ import PrivacyPage from './components/governance/PrivacyPage';
 import ReportView from './components/report/ReportView';
 import ExplainersHubPage from './explainers/ExplainersHubPage';
 import LabShell from './components/lab/LabShell';
+import LabQuickInputsPanel from './components/lab/LabQuickInputsPanel';
 import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
@@ -16,6 +17,8 @@ import AtlasTour from './components/tour/AtlasTour';
 import { resetAtlasTourSeen } from './lib/tourStorage';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
+import { getMissingLabFields } from './lib/lab/getMissingLabFields';
+import { mergeLabQuickInputs } from './lib/lab/mergeLabQuickInputs';
 import './App.css';
 
 /** Detect ?lab=1 feature flag — renders Demo Lab directly for previewing. */
@@ -61,17 +64,43 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   preferCombi: true,
 };
 
-type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab';
+type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs';
 
 export default function App() {
   const [journey, setJourney] = useState<Journey>('landing');
   const [fullSurveyPrefill, setFullSurveyPrefill] = useState<Partial<EngineInputV2_3> | undefined>();
   /** Controls replay of the landing tour without a full page reload. */
   const [replayLandingTour, setReplayLandingTour] = useState(false);
+  /**
+   * Partial engine input accumulated before opening Lab.
+   * Populated by Fast Choice / home entry; merged with quick-input values
+   * before the full lab opens.
+   */
+  const [labPartialInput, setLabPartialInput] = useState<Partial<EngineInputV2_3>>({});
+  /** Completed engine input passed to LabShell when the lab is fully open. */
+  const [labEngineInput, setLabEngineInput] = useState<EngineInputV2_3 | undefined>();
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
     setJourney('full');
+  }
+
+  /**
+   * Open the System Lab, optionally with a partial engine input already known
+   * from Fast Choice.  If simulation-critical fields are missing, route through
+   * the quick-input gate first; otherwise open the lab directly.
+   */
+  function handleOpenLab(partial: Partial<EngineInputV2_3> = {}) {
+    setLabPartialInput(partial);
+    const missing = getMissingLabFields(partial);
+    if (missing.length > 0) {
+      setJourney('lab-quick-inputs');
+    } else {
+      // All quick-form fields are present.  Merge with safe defaults to fill
+      // any remaining required EngineInputV2_3 fields before opening the lab.
+      setLabEngineInput(mergeLabQuickInputs(partial, {}));
+      setJourney('lab');
+    }
   }
 
   // ?report=1 feature flag — render the unified ReportView with demo engine output.
@@ -99,13 +128,24 @@ export default function App() {
 
   return (
     <>
-      {journey === 'fast' && <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} onOpenLab={() => setJourney('lab')} />}
+      {journey === 'fast' && <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} onOpenLab={handleOpenLab} />}
       {journey === 'full' && <FullSurveyStepper onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }} prefill={fullSurveyPrefill} />}
       {journey === 'scope' && <ScopePage onBack={() => setJourney('landing')} />}
       {journey === 'methodology' && <MethodologyPage onBack={() => setJourney('landing')} />}
       {journey === 'neutrality' && <NeutralityPage onBack={() => setJourney('landing')} />}
       {journey === 'privacy' && <PrivacyPage onBack={() => setJourney('landing')} />}
-      {journey === 'lab' && <LabShell onHome={() => setJourney('landing')} />}
+      {journey === 'lab-quick-inputs' && (
+        <LabQuickInputsPanel
+          initialInput={labPartialInput}
+          missingFields={getMissingLabFields(labPartialInput)}
+          onComplete={(completed) => {
+            setLabEngineInput(completed);
+            setJourney('lab');
+          }}
+          onCancel={() => setJourney('landing')}
+        />
+      )}
+      {journey === 'lab' && <LabShell onHome={() => setJourney('landing')} engineInput={labEngineInput} />}
       {journey === 'landing' && (
         <div className="landing">
           {/* PR 1 — First-run tour: landing phase (steps 1–2) */}
@@ -150,7 +190,7 @@ export default function App() {
             </div>
             <div
               className="journey-card journey-card--featured"
-              onClick={() => setJourney('lab')}
+              onClick={() => handleOpenLab({})}
             >
               <div className="card-icon">🔭</div>
               <h2>System Lab</h2>

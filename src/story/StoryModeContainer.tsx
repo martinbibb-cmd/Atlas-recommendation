@@ -35,8 +35,12 @@ interface Props {
    * and passing the prefill state.
    */
   onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
-  /** Called when the advisor wants to open the current scenario in System Lab. */
-  onOpenLab?: () => void;
+  /**
+   * Called when the advisor wants to open the current scenario in System Lab.
+   * Receives the partial engine input accumulated so far so that the Lab
+   * Quick Inputs gate can skip fields already known.
+   */
+  onOpenLab?: (partialInput?: Partial<EngineInputV2_3>) => void;
 }
 
 // ── Container ─────────────────────────────────────────────────────────────────

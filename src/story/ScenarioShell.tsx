@@ -252,8 +252,12 @@ interface Props {
   onBack: () => void;
   onSwitch: (id: string) => void;
   onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
-  /** Called when the user wants to open the current scenario in System Lab. */
-  onOpenLab?: () => void;
+  /**
+   * Called when the user wants to open the current scenario in System Lab.
+   * Receives the partial engine input accumulated so far so that the Lab
+   * Quick Inputs gate can skip fields already known.
+   */
+  onOpenLab?: (partialInput?: Partial<EngineInputV2_3>) => void;
   onSharedBasicsChange: (update: Partial<StorySharedBasics>) => void;
 }
 
@@ -271,7 +275,7 @@ function OnwardActions({
   onEscalate,
   prefill,
 }: {
-  onOpenLab?: () => void;
+  onOpenLab?: (partialInput?: Partial<EngineInputV2_3>) => void;
   onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
   prefill: Partial<EngineInputV2_3>;
 }) {
@@ -280,7 +284,7 @@ function OnwardActions({
       <div className="fc-onward-actions__buttons">
         <button
           className="cta-btn fc-onward-actions__lab-btn"
-          onClick={onOpenLab}
+          onClick={() => onOpenLab?.(prefill)}
           disabled={!onOpenLab}
         >
           Open in System Lab →
@@ -344,7 +348,7 @@ function CombiSwitchShell({
   onBack: () => void;
   onSwitch: (id: string) => void;
   onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
-  onOpenLab?: () => void;
+  onOpenLab?: (partialInput?: Partial<EngineInputV2_3>) => void;
   sharedBasics: StorySharedBasics;
   onSharedBasicsChange: (update: Partial<StorySharedBasics>) => void;
 }) {
@@ -638,7 +642,7 @@ function OldBoilerRealityShell({
   onBack: () => void;
   onSwitch: (id: string) => void;
   onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
-  onOpenLab?: () => void;
+  onOpenLab?: (partialInput?: Partial<EngineInputV2_3>) => void;
 }) {
   const [inputs, setInputs] = useState<OldBoilerRealityInputs>(oldBoilerRealityScenario.defaults);
   const [hoveredMarker, setHoveredMarker] = useState<string | null>(null);
@@ -827,7 +831,7 @@ function HeatPumpViabilityShell({
   onBack: () => void;
   onSwitch: (id: string) => void;
   onEscalate: (prefill: Partial<EngineInputV2_3>) => void;
-  onOpenLab?: () => void;
+  onOpenLab?: (partialInput?: Partial<EngineInputV2_3>) => void;
   sharedBasics: StorySharedBasics;
   onSharedBasicsChange: (update: Partial<StorySharedBasics>) => void;
 }) {

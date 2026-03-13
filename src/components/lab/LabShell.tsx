@@ -24,7 +24,24 @@ type LabTab = 'visual' | 'summary' | 'whatif';
 
 interface Props {
   onHome: () => void;
+  /**
+   * Optional engine input collected by the Lab Quick Inputs gate (or from a
+   * completed Fast Choice / Full Survey).  When present, the lab displays
+   * real user-provided context rather than placeholder values.
+   * A future PR will wire this into the tab components for live simulation.
+   */
+  engineInput?: import('../../engine/schema/EngineInputV2_3').EngineInputV2_3;
 }
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const SYSTEM_TYPE_LABELS: Record<string, string> = {
+  combi:   'Gas Combi',
+  system:  'Gas System + Cylinder',
+  regular: 'Regular Boiler',
+  ashp:    'Heat Pump',
+  other:   'Other system',
+};
 
 // ─── Summary tab ──────────────────────────────────────────────────────────────
 
@@ -114,7 +131,7 @@ function VisualTab() {
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
-export default function LabShell({ onHome }: Props) {
+export default function LabShell({ onHome, engineInput }: Props) {
   const [activeTab, setActiveTab] = useState<LabTab>('visual');
   /** PR 1 — Replay tour state. */
   const [replayTour, setReplayTour] = useState(false);
@@ -177,7 +194,11 @@ export default function LabShell({ onHome }: Props) {
       {/* ── Context row ────────────────────────────────────────────────────── */}
       <div className="lab-context-row" aria-label="Comparison context">
         <span className="lab-context-label">Current:</span>
-        <span className="lab-context-chip lab-context-chip--current">{PLACEHOLDER_CURRENT_SYSTEM}</span>
+        <span className="lab-context-chip lab-context-chip--current">
+          {engineInput?.currentHeatSourceType
+            ? SYSTEM_TYPE_LABELS[engineInput.currentHeatSourceType] ?? PLACEHOLDER_CURRENT_SYSTEM
+            : PLACEHOLDER_CURRENT_SYSTEM}
+        </span>
         <span className="lab-context-label">Comparing:</span>
         {CANDIDATE_SYSTEMS.map(s => (
           <span key={s.id} className="lab-context-chip">{s.label}</span>
