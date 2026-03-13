@@ -247,7 +247,12 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
             ← Back
           </button>
           <div className="live-hub__verdict-chips">
-            <VerdictStrip result={result} />
+            <VerdictStrip
+              result={result}
+              onOpenCombi={() => setActiveSection('water')}
+              onOpenStored={() => setActiveSection('usage')}
+              onOpenConstraints={() => setActiveSection('constraints')}
+            />
             <RecommendationChip primary={engineOutput.recommendation.primary} />
           </div>
         </div>
