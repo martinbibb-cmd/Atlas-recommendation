@@ -1,18 +1,23 @@
 /**
  * LiveHubPage — iPad-first live output control room.
  *
- * Replaces Step 8 as the primary results surface. Displays a sticky verdict
- * strip at the top and a tile grid that routes to individual section pages.
+ * Decision-first layout based on the Atlas Output System Overhaul.
  *
  * Layout:
- *  - 2-column grid in portrait
- *  - 3-column grid in landscape
- *  - Large tiles (min 160px height) with generous tap targets (≥ 56px)
+ *  1. Recommendation Card — large decision-first hero
+ *  2. Trust Builders — House Heat Map, Hot Water Demand, Water Supply Gauge
+ *  3. System Architecture — connection diagram
+ *  4. Suitability Summary — system comparison table
+ *  5. Future Upgrade Path — staged retrofit roadmap
+ *  6. Detail Tiles — drill-down to physics detail sections
+ *  7. Launch Simulator CTA
+ *  8. Print actions
  *
  * PR16: Added "Launch Simulator" CTA that opens the simulator pre-configured
  *       from the completed full survey, skipping the setup stepper.
  * PR17: Added print actions (Customer, Technical, Comparison) that reuse the
  *       existing lab print surfaces, fed from the current survey result.
+ * PR-Overhaul: Restructured to decision-first dashboard with visual trust builders.
  */
 import { useState } from 'react';
 import type { FullEngineResult } from '../engine/schema/EngineInputV2_3';
@@ -27,6 +32,12 @@ import LabPrintComparison from '../components/lab/LabPrintComparison';
 import LabPrintFull from '../components/lab/LabPrintFull';
 import { buildPrintData } from './buildPrintData';
 import { buildOutputHubSections, filterSections } from './printSections.model';
+import RecommendationCard from '../components/live/RecommendationCard';
+import HouseHeatMapPanel from '../components/live/HouseHeatMapPanel';
+import HotWaterDemandPanel from '../components/live/HotWaterDemandPanel';
+import SystemArchitecturePanel from '../components/live/SystemArchitecturePanel';
+import SuitabilitySummaryPanel from '../components/live/SuitabilitySummaryPanel';
+import UpgradePathwayPanel from '../components/live/UpgradePathwayPanel';
 import './LiveHubPage.css';
 
 export type LiveSection =
@@ -241,6 +252,16 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
     );
   }
 
+  // Build all sections once — used for both visual panels and print
+  const allSections = buildOutputHubSections(result, input);
+
+  // Locate individual sections for the visual panel
+  const heatMapSection       = allSections.find(s => s.id === 'heatMap')!;
+  const hotWaterSection      = allSections.find(s => s.id === 'hotWaterDemand')!;
+  const archSection          = allSections.find(s => s.id === 'systemArchitecture')!;
+  const suitabilitySection   = allSections.find(s => s.id === 'suitabilitySummary')!;
+  const upgradeSection       = allSections.find(s => s.id === 'upgradePathway')!;
+
   return (
     <div className="live-hub">
       {/* ── Sticky verdict strip ─────────────────────────────────────── */}
@@ -267,31 +288,99 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
 
       {/* ── Hub title ────────────────────────────────────────────────── */}
       <div className="live-hub__header">
-        <h1 className="live-hub__title">📡 Live Output Hub</h1>
+        <h1 className="live-hub__title">📡 Atlas Live Output Hub</h1>
         <p className="live-hub__subtitle">
-          Physics-driven results for this home. Tap a panel to inspect the detail.
+          Physics-driven analysis. Every result answers: what system, why, what changes, what's next.
         </p>
       </div>
 
-      {/* ── Tile grid ────────────────────────────────────────────────── */}
-      <div className="live-hub__grid">
-        {TILE_CONFIG.map(tile => {
-          const status = sectionStatus(tile.id, result, input);
-          return (
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* SECTION 1 — Recommendation Card (decision-first hero)         */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <div className="live-hub__section live-hub__section--recommendation">
+        <RecommendationCard engineOutput={engineOutput} />
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* SECTION 2 — Three Trust Builders (visual evidence)            */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <div className="live-hub__section">
+        <h2 className="live-hub__section-title">Visual Evidence</h2>
+        <p className="live-hub__section-intro">
+          Physics shown visually — not described in paragraphs.
+        </p>
+        <div className="live-hub__graphics-panel">
+          <HouseHeatMapPanel section={heatMapSection} />
+          <HotWaterDemandPanel section={hotWaterSection} />
+          {/* Graphic 3 — Water Supply Gauge is shown via the Water Power tile below */}
+          <div className="hub-graphic hub-graphic--water-cta">
+            <h3 className="hub-graphic__title">💧 Water Supply</h3>
+            <p className="hub-graphic__intro">
+              Measured supply performance determines system eligibility.
+            </p>
             <button
-              key={tile.id}
-              className={`live-hub__tile live-hub__tile--${status}`}
-              onClick={() => setActiveSection(tile.id)}
+              className="live-hub__tile-link-btn"
+              onClick={() => setActiveSection('water')}
+              aria-label="Open water power detail"
             >
-              <div className="live-hub__tile-icon">{tile.icon}</div>
-              <div className="live-hub__tile-title">{tile.title}</div>
-              <div className="live-hub__tile-subtitle">{tile.subtitle}</div>
-              <div className={`live-hub__tile-chip live-hub__tile-chip--${status}`}>
-                {STATUS_LABEL[status]}
-              </div>
+              View supply gauge & analysis →
             </button>
-          );
-        })}
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* SECTION 3 — System Architecture                               */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <div className="live-hub__section live-hub__section--arch">
+        <SystemArchitecturePanel section={archSection} />
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* SECTION 4 — Suitability Summary                               */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {suitabilitySection.visible && (
+        <div className="live-hub__section">
+          <SuitabilitySummaryPanel section={suitabilitySection} />
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* SECTION 5 — Future Upgrade Path                               */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {upgradeSection.visible && (
+        <div className="live-hub__section">
+          <UpgradePathwayPanel section={upgradeSection} />
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* SECTION 6 — Detail Tiles (drill-down to physics detail)       */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <div className="live-hub__section">
+        <h2 className="live-hub__section-title">Engineering Detail</h2>
+        <p className="live-hub__section-intro">
+          Tap any panel to inspect the full physics trace and calculation detail.
+        </p>
+        <div className="live-hub__grid">
+          {TILE_CONFIG.map(tile => {
+            const status = sectionStatus(tile.id, result, input);
+            return (
+              <button
+                key={tile.id}
+                className={`live-hub__tile live-hub__tile--${status}`}
+                onClick={() => setActiveSection(tile.id)}
+              >
+                <div className="live-hub__tile-icon">{tile.icon}</div>
+                <div className="live-hub__tile-title">{tile.title}</div>
+                <div className="live-hub__tile-subtitle">{tile.subtitle}</div>
+                <div className={`live-hub__tile-chip live-hub__tile-chip--${status}`}>
+                  {STATUS_LABEL[status]}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Launch Simulator CTA ─────────────────────────────────────── */}
@@ -350,7 +439,7 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
           </button>
         </div>
         <div className="live-hub__print-actions-hint">
-          Includes all visible result panels
+          Customer report: 3 pages — Recommendation, Visual Evidence, System Design
         </div>
       </div>
     </div>
