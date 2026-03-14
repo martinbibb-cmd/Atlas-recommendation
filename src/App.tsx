@@ -139,6 +139,13 @@ export default function App() {
         <FullSurveyStepper
           onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }}
           prefill={fullSurveyPrefill}
+          onComplete={(engineInput) => {
+            // Route directly to the simulator after first-pass survey completion,
+            // bypassing the text-heavy LiveHubPage intermediate screen.
+            setFullSurveyPrefill(undefined);
+            setLabEngineInput(engineInput);
+            setJourney('lab');
+          }}
           onOpenFloorPlan={(surveyResults) => {
             const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
             setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
