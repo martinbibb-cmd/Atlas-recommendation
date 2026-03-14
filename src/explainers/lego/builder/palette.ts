@@ -32,6 +32,11 @@ export const PALETTE: PaletteItem[] = [
   { kind: 'bath_outlet',               label: 'Bath',                emoji: '🛁', category: 'outlets'          },
   { kind: 'shower_outlet',             label: 'Shower',              emoji: '🚿', category: 'outlets'          },
   { kind: 'cold_tap_outlet',           label: 'Cold tap',            emoji: '🧊', category: 'outlets'          },
+  // System kits (surveyor-friendly shortcut bundles)
+  { kind: 'kit_combi_sealed',           label: 'Gas Combi Kit',                         emoji: '🔥', category: 'system_kits' },
+  { kind: 'kit_system_boiler_unvented', label: 'System Boiler + Unvented Cylinder Kit', emoji: '♨️', category: 'system_kits' },
+  { kind: 'kit_ashp_hot_water',         label: 'Heat Pump + Hot Water Kit',             emoji: '🌿', category: 'system_kits' },
+  { kind: 'kit_regular_vented',         label: 'Regular Boiler + Vented Cylinder Kit',  emoji: '🏠', category: 'system_kits' },
 ];
 
 /** Tee nodes are auto-inserted by drag-connect; they can also be placed manually. */
@@ -47,32 +52,8 @@ export const PALETTE_ADVANCED: PaletteItem[] = [
 // builder engine can expand into its constituent components when placed on a
 // Plant Anchor.
 
-export const SYSTEM_KITS: PaletteItem[] = [
-  {
-    kind:     'kit_combi_sealed',
-    label:    'Gas Combi Kit',
-    emoji:    '🔥',
-    category: 'system_kits',
-  },
-  {
-    kind:     'kit_system_boiler_unvented',
-    label:    'System Boiler + Unvented Cylinder Kit',
-    emoji:    '♨️',
-    category: 'system_kits',
-  },
-  {
-    kind:     'kit_ashp_hot_water',
-    label:    'Heat Pump + Hot Water Kit',
-    emoji:    '🌿',
-    category: 'system_kits',
-  },
-  {
-    kind:     'kit_regular_vented',
-    label:    'Regular Boiler + Vented Cylinder Kit',
-    emoji:    '🏠',
-    category: 'system_kits',
-  },
-];
+/** Convenience subset: all system-kit entries from PALETTE. */
+export const SYSTEM_KITS: PaletteItem[] = PALETTE.filter(p => p.category === 'system_kits');
 
 // ─── Palette sections (ordered) ───────────────────────────────────────────────
 
@@ -111,7 +92,7 @@ export const PALETTE_SECTIONS: PaletteSection[] = [
   {
     category: 'system_kits',
     label: 'System Kits',
-    items: SYSTEM_KITS,
+    items: PALETTE.filter(p => p.category === 'system_kits'),
   },
 ];
 

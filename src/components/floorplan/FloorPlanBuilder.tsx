@@ -18,6 +18,7 @@ import { isTopologyAllowed } from '../../explainers/lego/builder/snapConnect';
 import type { BuildEdge, BuildGraph, BuildNode, PartKind, PortRef } from '../../explainers/lego/builder/types';
 import {
   PROPERTY_LAYOUTS,
+  type FloorLevel,
   type PropertyLayoutId,
 } from '../../explainers/lego/builder/propertyLayouts';
 import type {
@@ -169,7 +170,7 @@ function planFromLayout(
     zones: [],
   }));
 
-  const floorByLevel = new Map(floorLevels.map((level, idx) => [level, floors[idx]]));
+  const floorByLevel = new Map<FloorLevel, FloorPlan>(floorLevels.map((level, idx) => [level, floors[idx]]));
 
   // Build room id → floorId map
   const roomFloorMap = new Map<string, string>();
