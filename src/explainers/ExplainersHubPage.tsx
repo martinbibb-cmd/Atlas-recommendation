@@ -13,28 +13,40 @@ import SimulatorStepper from './lego/simulator/SimulatorStepper';
 import type { StepperConfig } from './lego/simulator/SimulatorStepper';
 import { adaptFullSurveyToSimulatorInputs } from './lego/simulator/adaptFullSurveyToSimulatorInputs';
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
+import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
   onBack?: () => void;
   /**
-   * When provided, the simulator is opened pre-configured from the full survey.
-   * The stepper is hidden by default; users can still access it via "Edit setup".
+   * Engine input used to pre-configure the simulator.  Accepts either a
+   * completed EngineInputV2_3 (e.g. from the Full Survey or Fast Choice) or
+   * a full FullSurveyModelV1 that includes extended survey diagnostics.
+   * When provided, the stepper is hidden by default; users can still access
+   * it via "Edit setup".
    */
-  surveyData?: FullSurveyModelV1;
+  surveyData?: EngineInputV2_3 | FullSurveyModelV1;
+  /**
+   * When provided, a secondary "System Lab" action is shown in the dashboard
+   * header so users can navigate to the compare/sandbox area.
+   */
+  onOpenSystemLab?: () => void;
 }
 
 // ─── View ─────────────────────────────────────────────────────────────────────
 
-export default function ExplainersHubPage({ onBack, surveyData }: Props) {
+export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab }: Props) {
   const [config, setConfig] = useState<StepperConfig | null>(null);
   // When launched from a survey, hide the stepper by default.
   const [showStepper, setShowStepper] = useState<boolean>(!surveyData);
 
   // Adapt survey data once when present.
+  // The adapter accepts FullSurveyModelV1; EngineInputV2_3 satisfies it because
+  // FullSurveyModelV1 = EngineInputV2_3 & { optionalExtras? } — missing extras
+  // are handled gracefully by the adapter's optional-chaining guards.
   const surveyAdapted = useMemo(
-    () => (surveyData != null ? adaptFullSurveyToSimulatorInputs(surveyData) : null),
+    () => (surveyData != null ? adaptFullSurveyToSimulatorInputs(surveyData as FullSurveyModelV1) : null),
     [surveyData],
   );
 
@@ -73,6 +85,15 @@ export default function ExplainersHubPage({ onBack, surveyData }: Props) {
               aria-label="Home"
             >
               ⚙ Home
+            </button>
+          )}
+          {onOpenSystemLab && (
+            <button
+              className="hub-back-btn"
+              onClick={onOpenSystemLab}
+              aria-label="Open System Lab"
+            >
+              🔭 System Lab
             </button>
           )}
           <div>

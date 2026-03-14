@@ -66,7 +66,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   preferCombi: true,
 };
 
-type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'floor-plan' | 'explorer';
+type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'explorer';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -77,12 +77,12 @@ export default function App() {
   /** Controls replay of the landing tour without a full page reload. */
   const [replayLandingTour, setReplayLandingTour] = useState(false);
   /**
-   * Partial engine input accumulated before opening Lab.
+   * Partial engine input accumulated before opening the Simulator.
    * Populated by Fast Choice / home entry; merged with quick-input values
-   * before the full lab opens.
+   * before the simulator opens.
    */
   const [labPartialInput, setLabPartialInput] = useState<Partial<EngineInputV2_3>>({});
-  /** Completed engine input passed to LabShell when the lab is fully open. */
+  /** Completed engine input passed to the Simulator Dashboard and LabShell. */
   const [labEngineInput, setLabEngineInput] = useState<EngineInputV2_3 | undefined>();
   const [floorPlanSystemType, setFloorPlanSystemType] = useState<'combi' | 'system' | 'regular' | 'heat_pump' | undefined>();
 
@@ -92,9 +92,9 @@ export default function App() {
   }
 
   /**
-   * Open the System Lab, optionally with a partial engine input already known
-   * from Fast Choice.  If simulation-critical fields are missing, route through
-   * the quick-input gate first; otherwise open the lab directly.
+   * Open the Simulator Dashboard, optionally with a partial engine input already
+   * known from Fast Choice.  If simulation-critical fields are missing, route
+   * through the quick-input gate first; otherwise open the simulator directly.
    */
   function handleOpenLab(partial: Partial<EngineInputV2_3> = {}) {
     setLabPartialInput(partial);
@@ -103,9 +103,9 @@ export default function App() {
       setJourney('lab-quick-inputs');
     } else {
       // All quick-form fields are present.  Merge with safe defaults to fill
-      // any remaining required EngineInputV2_3 fields before opening the lab.
+      // any remaining required EngineInputV2_3 fields before opening the simulator.
       setLabEngineInput(mergeLabQuickInputs(partial, {}));
-      setJourney('lab');
+      setJourney('simulator');
     }
   }
 
@@ -140,11 +140,11 @@ export default function App() {
           onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }}
           prefill={fullSurveyPrefill}
           onComplete={(engineInput) => {
-            // Route directly to the simulator after first-pass survey completion,
-            // bypassing the text-heavy LiveHubPage intermediate screen.
+            // Route directly to the Simulator Dashboard after survey completion —
+            // the primary result experience.
             setFullSurveyPrefill(undefined);
             setLabEngineInput(engineInput);
-            setJourney('lab');
+            setJourney('simulator');
           }}
           onOpenFloorPlan={(surveyResults) => {
             const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
@@ -163,9 +163,16 @@ export default function App() {
           missingFields={getMissingLabFields(labPartialInput)}
           onComplete={(completed) => {
             setLabEngineInput(completed);
-            setJourney('lab');
+            setJourney('simulator');
           }}
           onCancel={() => setJourney('landing')}
+        />
+      )}
+      {journey === 'simulator' && (
+        <ExplainersHubPage
+          onBack={() => setJourney('landing')}
+          onOpenSystemLab={() => setJourney('lab')}
+          surveyData={labEngineInput}
         />
       )}
       {journey === 'lab' && <LabShell onHome={() => setJourney('landing')} engineInput={labEngineInput} />}
@@ -231,24 +238,24 @@ export default function App() {
               <button className="cta-btn">Start Fast Choice →</button>
             </div>
             <div
-              className="journey-card journey-card--featured"
-              onClick={() => handleOpenLab({})}
+              id="survey-panel"
+              data-tour="survey-panel"
+              className="journey-card journey-card--featured full"
+              onClick={() => setJourney('full')}
+            >
+              <div className="card-icon">🔬</div>
+              <h2>Full Survey</h2>
+              <p>Full technical survey with Simulator Dashboard result.</p>
+              <button className="cta-btn">Start Full Survey →</button>
+            </div>
+            <div
+              className="journey-card"
+              onClick={() => { setLabEngineInput(undefined); setJourney('lab'); }}
             >
               <div className="card-icon">🔭</div>
               <h2>System Lab</h2>
               <p>Side-by-side system comparison with physical constraints and trade-offs.</p>
               <button className="cta-btn">Open System Lab →</button>
-            </div>
-            <div
-              id="survey-panel"
-              data-tour="survey-panel"
-              className="journey-card full"
-              onClick={() => setJourney('full')}
-            >
-              <div className="card-icon">🔬</div>
-              <h2>Full Survey</h2>
-              <p>Full technical survey. Detailed inputs for higher confidence.</p>
-              <button className="cta-btn">Start Full Survey →</button>
             </div>
             <div
               className="journey-card"
