@@ -272,7 +272,7 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
           {input.occupancyCount !== undefined || input.bathroomCount !== undefined
             ? ` (derived from ${input.occupancyCount ?? '?'} occupant(s), ${input.bathroomCount ?? '?'} bathroom(s))`
             : ''}.
-          The combi limit line shows how many outlets exceed instantaneous boiler capacity —
+          The combi limit line shows how many outlets exceed the combi's on-demand heating capacity —
           stored systems are unaffected by this threshold.
         </p>
 
@@ -340,7 +340,7 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
         >
           {representativeFlowLpm <= combiLimitFlow
             ? `✅ Single-outlet draw (${representativeFlowLpm} L/min) is within combi capacity at ${deltaT}°C rise`
-            : `ℹ️ ${representativeFlowLpm} L/min exceeds combi instantaneous limit — stored hot water buffers this demand without constraint`}
+            : `ℹ️ ${representativeFlowLpm} L/min exceeds combi on-demand capacity — stored hot water buffers this demand without constraint`}
         </div>
       </div>
 

@@ -151,13 +151,13 @@ const EVENTS_ASHP: BehaviourEvent[] = [
 const EVENTS_REGULAR_VENTED: BehaviourEvent[] = [
   { id: 'ev1', timeLabel: '06:00', hourDecimal: 6.0,  type: 'cylinderReheat', label: 'Cylinder reheat (timer)',           boilerLoadFraction: 0.70 },
   { id: 'ev2', timeLabel: '06:30', hourDecimal: 6.5,  type: 'heatingOn',      label: 'Morning warm-up',                  boilerLoadFraction: 0.75 },
-  { id: 'ev3', timeLabel: '07:00', hourDecimal: 7.0,  type: 'shower',         label: 'Shower — gravity pressure (low)',   boilerLoadFraction: 0.25 },
+  { id: 'ev3', timeLabel: '07:00', hourDecimal: 7.0,  type: 'shower',         label: 'Shower — tank-fed supply (low head)', boilerLoadFraction: 0.25 },
   { id: 'ev4', timeLabel: '07:30', hourDecimal: 7.5,  type: 'heatingRamp',    label: 'Heating steady state',             boilerLoadFraction: 0.50 },
   { id: 'ev5', timeLabel: '09:00', hourDecimal: 9.0,  type: 'heatingOff',     label: 'House empty — off',                boilerLoadFraction: 0.0  },
   { id: 'ev6', timeLabel: '17:00', hourDecimal: 17.0, type: 'cylinderReheat', label: 'Evening cylinder pre-heat',        boilerLoadFraction: 0.65 },
   { id: 'ev7', timeLabel: '17:30', hourDecimal: 17.5, type: 'heatingOn',      label: 'Evening warm-up',                  boilerLoadFraction: 0.80 },
   { id: 'ev8', timeLabel: '18:00', hourDecimal: 18.0, type: 'heatingRamp',    label: 'Evening steady',                   boilerLoadFraction: 0.55 },
-  { id: 'ev9', timeLabel: '19:30', hourDecimal: 19.5, type: 'bath',           label: 'Bath — gravity-fed (low pressure)', boilerLoadFraction: 0.20 },
+  { id: 'ev9', timeLabel: '19:30', hourDecimal: 19.5, type: 'bath',           label: 'Bath — tank-fed supply',            boilerLoadFraction: 0.20 },
   { id: 'ev10', timeLabel: '22:30', hourDecimal: 22.5, type: 'heatingOff',    label: 'Night setback',                    boilerLoadFraction: 0.0  },
 ];
 

@@ -63,7 +63,8 @@ const WHAT_TO_EXPECT: Partial<Record<OptionCardV1['id'], string[]>> = {
     'Mains-fed supply at higher pressure than a vented cylinder.',
   ],
   ashp: [
-    'Runs most efficiently at lower flow temperatures.',
+    'Runs most efficiently at lower flow temperatures — low-temp space heating protects COP.',
+    'Cylinder heating at typical DHW temperatures (55–60°C) pushes COP down sharply.',
     'May require radiator upgrades to deliver full heating output.',
     'Hot water recovery is consistent but slower than a gas boiler.',
   ],

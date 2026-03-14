@@ -244,7 +244,7 @@ function assessDhwDemandStability(
     'DHW demand stability',
     'neutral',
     -2,
-    'On-demand DHW: instantaneous draws may briefly interrupt steady heating operation.',
+    'On-demand DHW: each draw may briefly interrupt steady heating operation.',
   );
 }
 
