@@ -1,14 +1,14 @@
 /**
  * WhatIfLab.tsx
  *
- * Interactive "What if…?" explainer lab.
+ * Myth-busting "What if…?" edge-case physics lab.
  *
- * Replaces the Behaviour Console with a cause-and-effect learning tool.
- * Each scenario is rendered as an animated WhatIfScenarioCard — showing
- * what changed, what the system does before/after, and why it matters.
+ * Each scenario exposes a common assumption about heating systems,
+ * shows what actually happens physically, and states what Atlas recommends.
+ * Scenarios are compact — each explainable in under a minute.
  *
- * Scenarios are defined in whatIfScenarios.ts so additional explainers
- * can be added later without touching component logic.
+ * Scenarios are defined in whatIfScenarios.ts so additional myths can be
+ * added without touching component logic.
  *
  * Animation approach: pure CSS keyframes in whatif-animations.css.
  * Reduced-motion support is provided by WhatIfVisualFrame.
@@ -17,7 +17,7 @@
 import { useState } from 'react';
 import type { ComponentType } from 'react';
 import { WHAT_IF_SCENARIOS } from './whatIfScenarios';
-import type { WhatIfScenario } from './whatIfScenarios';
+import type { VisualType } from './whatIfScenarios';
 import BoilerCyclingAnimation from '../whatif/BoilerCyclingAnimation';
 import FlowRestrictionAnimation from '../whatif/FlowRestrictionAnimation';
 import RadiatorUpgradeAnimation from '../whatif/RadiatorUpgradeAnimation';
@@ -37,11 +37,11 @@ function PrimariesDiagram() {
     <div className="wil-diagram wil-diagram--primaries" aria-label="Primary pipework size comparison">
       <div className="wil-diagram__row">
         <span className="wil-diagram__row-label">22 mm</span>
-        <span className="wil-diagram__pipe wil-diagram__pipe--narrow">→ standard domestic</span>
+        <span className="wil-diagram__pipe wil-diagram__pipe--narrow">→ restricted above ~12 kW</span>
       </div>
       <div className="wil-diagram__row">
         <span className="wil-diagram__row-label">28 mm</span>
-        <span className="wil-diagram__pipe wil-diagram__pipe--wide">→ reduced restriction ✓</span>
+        <span className="wil-diagram__pipe wil-diagram__pipe--wide">→ adequate flow ✓</span>
       </div>
     </div>
   );
@@ -49,14 +49,59 @@ function PrimariesDiagram() {
 
 function StorageDiagram() {
   return (
-    <div className="wil-diagram wil-diagram--storage" aria-label="Stored hot water system">
-      <div className="wil-diagram__row">
-        <span className="wil-diagram__row-label">Draw</span>
-        <span className="wil-diagram__icons">→ cylinder</span>
+    <div className="wil-diagram wil-diagram--storage" aria-label="Stored hot water standing losses">
+      <div className="wil-diagram__row wil-diagram__row--result">
+        <span className="wil-diagram__row-label">Low draw</span>
+        <span className="wil-diagram__icons">→ standing loss exceeds savings</span>
       </div>
       <div className="wil-diagram__row">
-        <span className="wil-diagram__row-label">Later</span>
-        <span className="wil-diagram__icons">→ reheat</span>
+        <span className="wil-diagram__row-label">High draw</span>
+        <span className="wil-diagram__icons">→ stored hot water wins ✓</span>
+      </div>
+    </div>
+  );
+}
+
+function HpCylinderDiagram() {
+  return (
+    <div className="wil-diagram wil-diagram--hp-cylinder" aria-label="Heat-pump cylinder temperature and Legionella risk">
+      <div className="wil-diagram__row wil-diagram__row--result">
+        <span className="wil-diagram__row-label">55 °C</span>
+        <span className="wil-diagram__icons">→ Legionella risk ⚠</span>
+      </div>
+      <div className="wil-diagram__row">
+        <span className="wil-diagram__row-label">60 °C</span>
+        <span className="wil-diagram__icons">→ weekly kill cycle ✓</span>
+      </div>
+    </div>
+  );
+}
+
+function OversizingDiagram() {
+  return (
+    <div className="wil-diagram wil-diagram--oversizing" aria-label="Cylinder volume and standing losses">
+      <div className="wil-diagram__row wil-diagram__row--result">
+        <span className="wil-diagram__row-label">300 L</span>
+        <span className="wil-diagram__pipe wil-diagram__pipe--narrow">→ high losses · slow recovery</span>
+      </div>
+      <div className="wil-diagram__row">
+        <span className="wil-diagram__row-label">170 L</span>
+        <span className="wil-diagram__pipe wil-diagram__pipe--wide">→ right-sized · faster recovery ✓</span>
+      </div>
+    </div>
+  );
+}
+
+function VelocityDiagram() {
+  return (
+    <div className="wil-diagram wil-diagram--velocity" aria-label="Primary pipe bore and flow velocity">
+      <div className="wil-diagram__row wil-diagram__row--result">
+        <span className="wil-diagram__row-label">35 mm</span>
+        <span className="wil-diagram__pipe wil-diagram__pipe--narrow">→ low velocity · sludge risk</span>
+      </div>
+      <div className="wil-diagram__row">
+        <span className="wil-diagram__row-label">28 mm</span>
+        <span className="wil-diagram__pipe wil-diagram__pipe--wide">→ optimal velocity ✓</span>
       </div>
     </div>
   );
@@ -64,13 +109,16 @@ function StorageDiagram() {
 
 // ─── Visual type → component mapping ─────────────────────────────────────────
 
-const VISUAL_MAP: Record<WhatIfScenario['visualType'], ComponentType> = {
-  cycling:   BoilerCyclingAnimation,
-  pressure:  FlowRestrictionAnimation,
-  emitters:  RadiatorUpgradeAnimation,
-  controls:  ControlsVisual,
-  primaries: PrimariesDiagram,
-  storage:   StorageDiagram,
+const VISUAL_MAP: Record<VisualType, ComponentType> = {
+  cycling:    BoilerCyclingAnimation,
+  pressure:   FlowRestrictionAnimation,
+  emitters:   RadiatorUpgradeAnimation,
+  controls:   ControlsVisual,
+  primaries:  PrimariesDiagram,
+  storage:    StorageDiagram,
+  hp_cylinder: HpCylinderDiagram,
+  oversizing: OversizingDiagram,
+  velocity:   VelocityDiagram,
 };
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -87,7 +135,9 @@ export default function WhatIfLab() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="wil-header">
         <h2 className="wil-title">What if…?</h2>
-        <p className="wil-subtitle">See how system behaviour changes when conditions change.</p>
+        <p className="wil-subtitle">
+          Each scenario busts a common assumption — and explains the physics behind what really happens.
+        </p>
       </div>
 
       {/* ── Scenario selector ──────────────────────────────────────────────── */}
@@ -104,7 +154,7 @@ export default function WhatIfLab() {
         ))}
       </div>
 
-      {/* ── Animated scenario card ─────────────────────────────────────────── */}
+      {/* ── Myth-busting scenario card ─────────────────────────────────────── */}
       <div aria-live="polite">
         <WhatIfScenarioCard
           key={active.id}

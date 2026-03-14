@@ -36,10 +36,6 @@
 /* ─── Header ──────────────────────────────────────────────────────────────── */
 
 .wisc__header {
-  display:        flex;
-  flex-wrap:      wrap;
-  align-items:    flex-start;
-  gap:            var(--space-3);
   margin-bottom:  var(--space-4);
 }
 
@@ -64,18 +60,72 @@
   color:         var(--chip-info-text, var(--color-blue-700));
   border:        1px solid var(--chip-info-border, var(--color-blue-200));
   max-width:     100%;
+  margin-bottom: var(--space-4);
 }
 
-/* ─── Bullets ─────────────────────────────────────────────────────────────── */
+/* ─── Section blocks (myth / physics / recommendation) ───────────────────── */
 
-.wisc__bullets {
-  margin:      var(--space-4) 0 0;
-  padding-left: var(--space-5);
+.wisc__section-block {
+  margin-bottom: var(--space-4);
 }
 
-.wisc__bullet {
-  font-size:     0.9375rem;
-  line-height:   1.7;
-  color:         var(--text-body, var(--color-neutral-700));
-  margin-bottom: var(--space-1);
+.wisc__section-block--rec {
+  background:    var(--color-green-50, #f0fff4);
+  border:        1px solid var(--color-green-200, #9ae6b4);
+  border-radius: var(--radius-md);
+  padding:       var(--space-3) var(--space-4);
+  margin-top:    var(--space-4);
+}
+
+/* Section label pill */
+
+.wisc__section-label {
+  display:        inline-block;
+  font-size:      0.6875rem;
+  font-weight:    700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding:        1px var(--space-2);
+  border-radius:  var(--radius-sm);
+  margin-bottom:  var(--space-1);
+}
+
+.wisc__section-label--myth {
+  background: var(--color-amber-100, #fef3c7);
+  color:      var(--color-amber-700, #92400e);
+}
+
+.wisc__section-label--physics {
+  background: var(--color-blue-100, #ebf8ff);
+  color:      var(--color-blue-700, #2b6cb0);
+}
+
+.wisc__section-label--rec {
+  background: var(--color-green-100, #f0fff4);
+  color:      var(--color-green-700, #276749);
+}
+
+/* Section body text */
+
+.wisc__myth-text {
+  font-size:   0.9375rem;
+  font-style:  italic;
+  color:       var(--text-body, var(--color-neutral-700));
+  margin:      0;
+  line-height: 1.6;
+}
+
+.wisc__physics-text {
+  font-size:   0.9375rem;
+  color:       var(--text-body, var(--color-neutral-700));
+  margin:      0;
+  line-height: 1.65;
+}
+
+.wisc__rec-text {
+  font-size:   0.9375rem;
+  font-weight: 500;
+  color:       var(--color-green-800, #276749);
+  margin:      0;
+  line-height: 1.6;
 }

@@ -1,17 +1,16 @@
 /**
  * WhatIfScenarioCard.tsx
  *
- * Reusable animated scenario card for the What-If Lab.
+ * Myth-busting scenario card for the What-If Lab.
  *
- * Renders a structured card with:
- *  - Header: scenario title + short-verdict badge
- *  - Main visual: animated before/after explainer via WhatIfVisualFrame
- *  - Why it matters: concise bullet list
- *  - Optional footer: applicability note
+ * Renders a four-part structured card:
+ *  1. Myth      — the common assumption being busted
+ *  2. Verdict   — what actually happens (punchy one-liner badge)
+ *  3. Visual    — before/after or wrong/right animated diagram
+ *  4. Physics   — why it happens physically (one concise sentence)
+ *  5. Recommends — what Atlas would do instead
  *
- * The card is deliberately visual-first.  Text confirms what the diagram
- * already showed — it does not replace it.
- *
+ * Each scenario is deliberately compact — explainable in under a minute.
  * No engine logic — display only.
  */
 
@@ -30,7 +29,7 @@ export default function WhatIfScenarioCard({
   scenario,
   VisualComponent,
 }: WhatIfScenarioCardProps) {
-  const { title, shortVerdict, whyItMatters, beforeLabel, afterLabel } = scenario;
+  const { title, myth, shortVerdict, physicsReason, recommendation, beforeLabel, afterLabel } = scenario;
 
   return (
     <div className="wisc" aria-label={`Scenario: ${title}`}>
@@ -38,24 +37,35 @@ export default function WhatIfScenarioCard({
       {/* ── Card header ──────────────────────────────────────────────────── */}
       <div className="wisc__header">
         <h3 className="wisc__title">{title}</h3>
-        <span className="wisc__verdict-badge" role="status">
-          {shortVerdict}
-        </span>
       </div>
+
+      {/* ── Myth ─────────────────────────────────────────────────────────── */}
+      <div className="wisc__section-block">
+        <span className="wisc__section-label wisc__section-label--myth">Myth</span>
+        <p className="wisc__myth-text">{myth}</p>
+      </div>
+
+      {/* ── Verdict badge ────────────────────────────────────────────────── */}
+      <span className="wisc__verdict-badge" role="status">
+        {shortVerdict}
+      </span>
 
       {/* ── Animated visual ──────────────────────────────────────────────── */}
       <WhatIfVisualFrame beforeLabel={beforeLabel} afterLabel={afterLabel}>
         <VisualComponent />
       </WhatIfVisualFrame>
 
-      {/* ── Why it matters ───────────────────────────────────────────────── */}
-      <ul className="wisc__bullets" aria-label="Why this matters">
-        {whyItMatters.map((point, i) => (
-          <li key={i} className="wisc__bullet">
-            {point}
-          </li>
-        ))}
-      </ul>
+      {/* ── Physics reason ───────────────────────────────────────────────── */}
+      <div className="wisc__section-block">
+        <span className="wisc__section-label wisc__section-label--physics">Why this happens</span>
+        <p className="wisc__physics-text">{physicsReason}</p>
+      </div>
+
+      {/* ── Recommendation ───────────────────────────────────────────────── */}
+      <div className="wisc__section-block wisc__section-block--rec">
+        <span className="wisc__section-label wisc__section-label--rec">Atlas recommends</span>
+        <p className="wisc__rec-text">{recommendation}</p>
+      </div>
 
     </div>
   );
