@@ -8,6 +8,7 @@
  */
 
 import type { SystemConfig } from './explorerTypes';
+import { DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
 
 interface Props {
   systemConfig: SystemConfig;
@@ -83,7 +84,7 @@ function BoilerPanel({ systemConfig, onClose }: Props) {
   const condensing   = heatSource.condensing   ?? false;
 
   const loadPct  = Math.round((currentLoadKw / outputKw) * 100);
-  const effTone  = efficiencyPct >= 92 ? 'success' : efficiencyPct >= 85 ? 'warning' : 'danger';
+  const effTone  = efficiencyPct >= DEFAULT_NOMINAL_EFFICIENCY_PCT ? 'success' : efficiencyPct >= 85 ? 'warning' : 'danger';
   const retTone  = returnTempC < 55 ? 'success' : 'warning';
   const conTone  = condensing ? 'success' : 'warning';
 
@@ -121,12 +122,12 @@ function BoilerPanel({ systemConfig, onClose }: Props) {
 
       <CylinderSection systemConfig={systemConfig} />
 
-      <div className="hs-panel__section">
-        <h3 className="hs-panel__section-title">Raw engine output</h3>
+      <details className="hs-panel__raw-details">
+        <summary className="hs-panel__raw-summary">Raw engine output</summary>
         <pre className="hs-panel__raw">{JSON.stringify({
           outputKw, currentLoadKw, returnTempC, condensing, efficiencyPct,
         }, null, 2)}</pre>
-      </div>
+      </details>
     </div>
   );
 }
@@ -202,8 +203,8 @@ function HeatPumpPanel({ systemConfig, onClose }: Props) {
 
       <CylinderSection systemConfig={systemConfig} />
 
-      <div className="hs-panel__section">
-        <h3 className="hs-panel__section-title">COP model (raw)</h3>
+      <details className="hs-panel__raw-details">
+        <summary className="hs-panel__raw-summary">COP model (raw)</summary>
         <pre className="hs-panel__raw">{JSON.stringify({
           ratedOutputKw: ratedKw,
           currentLoadKw: loadKw,
@@ -212,7 +213,7 @@ function HeatPumpPanel({ systemConfig, onClose }: Props) {
           outdoorTempC: outdoorT,
           regime,
         }, null, 2)}</pre>
-      </div>
+      </details>
     </div>
   );
 }

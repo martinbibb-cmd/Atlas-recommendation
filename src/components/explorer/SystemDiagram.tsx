@@ -41,7 +41,7 @@ const SRC_Y  = 96;
 const SRC_W  = 52;
 const SRC_H  = 52;
 
-const CYL_X  = 92;   // cylinder — only for stored systems
+const CYL_X  = SRC_X + SRC_W + 22;  // cylinder — only for stored systems
 const CYL_Y  = 86;
 const CYL_W  = 36;
 const CYL_H  = 72;
@@ -241,8 +241,8 @@ export default function SystemDiagram({
         </text>
 
         {/* ── Animated dots ─────────────────────────────────────────── */}
-        <FlowDots fromX={manStartX} toX={manEndX} y={FLOW_Y}   color={flowColor}   animating={animating && anyHL} />
-        <FlowDots fromX={manEndX}   toX={manStartX} y={RETURN_Y} color={returnColor} animating={animating && anyHL} />
+        <FlowDots fromX={manStartX} toX={manEndX} y={FLOW_Y}   color={flowColor}   animating={animating} />
+        <FlowDots fromX={manEndX}   toX={manStartX} y={RETURN_Y} color={returnColor} animating={animating} />
 
         {/* ── Radiators ─────────────────────────────────────────────── */}
         {rooms.map((room, i) => {

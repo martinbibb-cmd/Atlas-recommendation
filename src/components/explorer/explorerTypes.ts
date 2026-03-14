@@ -15,6 +15,20 @@ export type ExplorerLayer =
   | 'heatSource'
   | 'physics';
 
+/**
+ * Discriminated union for explorer selection state.
+ * Each layer variant carries exactly the IDs it needs — no optional fields floating around.
+ * Room selection is the primary navigation entry point; emitter and hydraulic are derived from it.
+ */
+export type ExplorerSelection =
+  | { layer: 'house' }
+  | { layer: 'room'; roomId: string }
+  | { layer: 'emitter'; roomId: string; emitterId: string }
+  | { layer: 'hydraulic'; roomId: string; emitterId: string; pipeIds: string[] }
+  | { layer: 'heatSource'; boilerId: string }
+  | { layer: 'physics'; roomId?: string };
+
+/** @deprecated Use ExplorerSelection instead */
 export interface ExplorerState {
   layer: ExplorerLayer;
   selectedRoom?: string;
