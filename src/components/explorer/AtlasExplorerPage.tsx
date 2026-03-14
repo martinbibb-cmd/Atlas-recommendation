@@ -6,6 +6,9 @@
  * System selector at the top switches between all 6 system types.
  * Everything below responds: house diagram, hydraulic schematic,
  * heat source panel, timeline, physics console, footer strip.
+ *
+ * All assumptions that drive the displayed data are shown explicitly
+ * in the AssumptionsBanner and are editable by the user.
  */
 
 import { useState, useCallback } from 'react';
@@ -18,16 +21,145 @@ import PhysicsConsole from './PhysicsConsole';
 import SystemTypeSelector from './SystemTypeSelector';
 import { DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
 
-import type { ExplorerSelection, ExplorerLayer, SystemTypeId } from './explorerTypes';
+import type { ExplorerSelection, ExplorerLayer, SystemTypeId, ExplorerAssumptions, ConstraintLabel } from './explorerTypes';
+import { CONSTRAINT_LABEL_DISPLAY } from './explorerTypes';
 import {
   DEMO_ROOMS,
   getSystemConfig,
   getRoomById,
   getEmitterById,
   getPhysicsForRoom,
+  deriveAssumptions,
+  deriveConstraintLabels,
 } from './systemConfigs';
 
 import './explorer.css';
+
+// ── Assumptions banner ────────────────────────────────────────────────────────
+
+const EMITTER_STATE_LABELS: Record<ExplorerAssumptions['emitterState'], string> = {
+  existing:  'Existing',
+  oversized: 'Oversized',
+  upgraded:  'Upgraded',
+};
+
+const HP_FLOW_TEMPS = [35, 45, 55] as const;
+
+/**
+ * Displays all assumptions that drive the currently shown data.
+ * Every field is visible; heat-pump assumptions are also editable.
+ * Gas boiler assumptions are shown as read-only informational chips.
+ */
+function AssumptionsBanner({
+  systemId,
+  assumptions,
+  constraintLabels,
+  onAssumptionsChange,
+}: {
+  systemId: SystemTypeId;
+  assumptions: ExplorerAssumptions;
+  constraintLabels: ConstraintLabel[];
+  onAssumptionsChange: (next: ExplorerAssumptions) => void;
+}) {
+  const cfg   = getSystemConfig(systemId);
+  const isHP  = cfg.heatSource.isHeatPump;
+
+  const CONSTRAINT_DISPLAY = CONSTRAINT_LABEL_DISPLAY;
+
+  return (
+    <div className="explorer-assumptions" aria-label="System assumptions">
+      <span className="explorer-assumptions__label">Assumptions</span>
+
+      {/* Flow temperature */}
+      <div className="explorer-assumptions__group">
+        <span className="explorer-assumptions__group-label">Flow temp</span>
+        {isHP ? (
+          <div className="explorer-assumptions__toggle" role="group" aria-label="Assumed flow temperature">
+            {HP_FLOW_TEMPS.map(t => (
+              <button
+                key={t}
+                className={`explorer-assumptions__toggle-btn ${assumptions.assumedFlowTempC === t ? 'explorer-assumptions__toggle-btn--active' : ''}`}
+                onClick={() => {
+                  const emitterState: ExplorerAssumptions['emitterState'] =
+                    t <= 35 ? 'upgraded' : t <= 45 ? 'oversized' : 'existing';
+                  onAssumptionsChange({ ...assumptions, assumedFlowTempC: t, emitterState });
+                }}
+                aria-pressed={assumptions.assumedFlowTempC === t}
+              >
+                {t}°C
+              </button>
+            ))}
+          </div>
+        ) : (
+          <span className="explorer-assumptions__value" data-testid="assumed-flow-temp">
+            {assumptions.assumedFlowTempC}°C
+          </span>
+        )}
+      </div>
+
+      {/* Emitter state */}
+      <div className="explorer-assumptions__group">
+        <span className="explorer-assumptions__group-label">Emitters</span>
+        {isHP ? (
+          <div className="explorer-assumptions__toggle" role="group" aria-label="Emitter upgrade state">
+            {(['existing', 'oversized', 'upgraded'] as const).map(state => (
+              <button
+                key={state}
+                className={`explorer-assumptions__toggle-btn ${assumptions.emitterState === state ? 'explorer-assumptions__toggle-btn--active' : ''}`}
+                onClick={() => onAssumptionsChange({ ...assumptions, emitterState: state })}
+                aria-pressed={assumptions.emitterState === state}
+              >
+                {EMITTER_STATE_LABELS[state]}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <span className="explorer-assumptions__value">
+            {EMITTER_STATE_LABELS[assumptions.emitterState]}
+          </span>
+        )}
+      </div>
+
+      {/* Primary pipe */}
+      <div className="explorer-assumptions__group">
+        <span className="explorer-assumptions__group-label">Primary pipe</span>
+        <span className="explorer-assumptions__value" data-testid="assumed-primary-pipe">
+          {assumptions.primaryPipeMm}mm
+        </span>
+      </div>
+
+      {/* Compensation — editable for HP */}
+      {isHP && (
+        <div className="explorer-assumptions__group">
+          <span className="explorer-assumptions__group-label">Compensation</span>
+          <div className="explorer-assumptions__toggle" role="group" aria-label="Compensation state">
+            {([false, true] as const).map(on => (
+              <button
+                key={String(on)}
+                className={`explorer-assumptions__toggle-btn ${assumptions.compensationEnabled === on ? 'explorer-assumptions__toggle-btn--active' : ''}`}
+                onClick={() => onAssumptionsChange({ ...assumptions, compensationEnabled: on })}
+                aria-pressed={assumptions.compensationEnabled === on}
+              >
+                {on ? 'On' : 'Off'}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Active constraint labels */}
+      {constraintLabels.length > 0 && (
+        <div className="explorer-assumptions__constraints" aria-label="Active constraints">
+          {constraintLabels.map(label => (
+            <span key={label} className="explorer-assumptions__constraint-tag">
+              {CONSTRAINT_DISPLAY[label]}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Layer breadcrumb ──────────────────────────────────────────────────────────
 
@@ -185,13 +317,20 @@ export default function AtlasExplorerPage({ onBack }: Props) {
 
   const cfg = getSystemConfig(selectedSystemId);
 
-  // ── System switch — reset explorer state ────────────────────────────────────
+  // ── Assumptions state — derived from system config, then user-editable ──────
+  const [assumptions, setAssumptions] = useState<ExplorerAssumptions>(
+    () => deriveAssumptions(cfg),
+  );
+  const constraintLabels = deriveConstraintLabels(cfg, assumptions);
+
+  // ── System switch — reset explorer state and re-derive assumptions ──────────
 
   function handleSystemChange(id: SystemTypeId) {
     setSelectedSystemId(id);
     setExplorerState({ layer: 'house' });
     setTimelinePlaying(false);
     setLiveLoad(0.58);
+    setAssumptions(deriveAssumptions(getSystemConfig(id)));
   }
 
   // ── Layer navigation ────────────────────────────────────────────────────────
@@ -289,6 +428,14 @@ export default function AtlasExplorerPage({ onBack }: Props) {
       {/* System type selector */}
       <SystemTypeSelector selectedId={selectedSystemId} onChange={handleSystemChange} />
 
+      {/* Assumptions banner — all assumptions visible, HP assumptions editable */}
+      <AssumptionsBanner
+        systemId={selectedSystemId}
+        assumptions={assumptions}
+        constraintLabels={constraintLabels}
+        onAssumptionsChange={setAssumptions}
+      />
+
       {/* Status bar */}
       <StatusHeader state={explorerState} systemId={selectedSystemId} liveLoad={liveLoad} />
 
@@ -326,6 +473,8 @@ export default function AtlasExplorerPage({ onBack }: Props) {
           {showSourcePanel && (
             <HeatSourcePanel
               systemConfig={cfg}
+              assumptions={assumptions}
+              constraintLabels={constraintLabels}
               onClose={() => setLayer('house')}
             />
           )}

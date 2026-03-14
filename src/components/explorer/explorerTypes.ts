@@ -182,6 +182,54 @@ export interface PhysicsRoomData {
   returnTempC: number;
 }
 
+// ── Explicit assumptions (visible + editable) ─────────────────────────────────
+
+/**
+ * All assumptions that drive system performance calculations.
+ * Every field must be shown in the UI — nothing is hidden.
+ */
+export interface ExplorerAssumptions {
+  /** Flow temperature used for heat-loss and COP/efficiency calculations */
+  assumedFlowTempC: number;
+  /**
+   * Current state of the emitter circuit:
+   *   existing  — original radiators, sized for 70–75°C
+   *   oversized — radiators already exchanged/upsized for 45°C operation
+   *   upgraded  — full emitter upgrade to 35°C (UFH / large-panel rads)
+   */
+  emitterState: 'existing' | 'oversized' | 'upgraded';
+  /** Primary circuit pipe diameter in mm */
+  primaryPipeMm: number;
+  /** Weather (outdoor reset) or load compensation enabled */
+  compensationEnabled: boolean;
+  /** current = as-built; improved = user-selected what-if scenario */
+  operatingMode: 'current' | 'improved';
+}
+
+// ── Constraint labels ─────────────────────────────────────────────────────────
+
+/**
+ * Short, honest diagnostic labels surfaced in the UI.
+ * Only labels that are actually active for the current assumptions are shown.
+ */
+export type ConstraintLabel =
+  | 'flow-temperature-limited'
+  | 'emitter-limited'
+  | 'primary-flow-limited'
+  | 'cycling-risk'
+  | 'reduced-efficiency-hot-water-mode'
+  | 'no-compensation';
+
+/** Human-readable display text for each constraint label (used in UI and panels). */
+export const CONSTRAINT_LABEL_DISPLAY: Record<ConstraintLabel, string> = {
+  'flow-temperature-limited':          'flow-temperature-limited',
+  'emitter-limited':                   'emitter-limited',
+  'primary-flow-limited':              'primary-flow-limited',
+  'cycling-risk':                      'cycling risk',
+  'reduced-efficiency-hot-water-mode': 'reduced-efficiency hot water',
+  'no-compensation':                   'no compensation',
+};
+
 // ── Legacy alias (kept for compatibility) ─────────────────────────────────────
 
 /** @deprecated Use HeatSourceData instead */

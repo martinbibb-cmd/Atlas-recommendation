@@ -24,6 +24,8 @@ import type {
   PhysicsRoomData,
   BehaviourEvent,
   Room,
+  ExplorerAssumptions,
+  ConstraintLabel,
 } from './explorerTypes';
 
 // ── Shared rooms (property doesn't change between systems) ────────────────────
@@ -427,4 +429,69 @@ export function getEmitterById(systemId: string, emitterId: string) {
 export function getPhysicsForRoom(systemId: string, roomId: string) {
   const cfg = getSystemConfig(systemId);
   return cfg.physics.find(p => p.roomId === roomId);
+}
+
+// ── Assumption derivation ─────────────────────────────────────────────────────
+
+/**
+ * Derive explicit assumptions from a system config.
+ * Nothing is silently assumed — all values come from the system data.
+ * Gas boilers use their design flow temp; heat pumps use flowTempC from heatSource.
+ */
+export function deriveAssumptions(config: SystemConfig): ExplorerAssumptions {
+  const isHP = config.heatSource.isHeatPump;
+  const assumedFlowTempC = isHP
+    ? (config.heatSource.flowTempC ?? config.designFlowTempC)
+    : config.designFlowTempC;
+
+  let emitterState: ExplorerAssumptions['emitterState'];
+  if (isHP) {
+    if (assumedFlowTempC <= 35) emitterState = 'upgraded';
+    else if (assumedFlowTempC <= 45) emitterState = 'oversized';
+    else emitterState = 'existing';
+  } else {
+    emitterState = 'existing';
+  }
+
+  return {
+    assumedFlowTempC,
+    emitterState,
+    primaryPipeMm: config.primaryDiameterMm,
+    // Heat pumps always use weather/load compensation; boilers typically do not
+    compensationEnabled: isHP,
+    operatingMode: 'current',
+  };
+}
+
+/**
+ * Derive active constraint labels from a system config and its current assumptions.
+ * Only labels that are factually justified by the data are returned.
+ * No punitive defaults — a label only appears when the condition is met.
+ */
+export function deriveConstraintLabels(
+  config: SystemConfig,
+  assumptions: ExplorerAssumptions,
+): ConstraintLabel[] {
+  const labels: ConstraintLabel[] = [];
+  const isHP = config.heatSource.isHeatPump;
+
+  if (isHP) {
+    if (assumptions.assumedFlowTempC > 35) labels.push('flow-temperature-limited');
+    if (assumptions.emitterState === 'existing') labels.push('emitter-limited');
+    if (assumptions.primaryPipeMm < 28) labels.push('primary-flow-limited');
+    if (!assumptions.compensationEnabled) labels.push('no-compensation');
+    if (assumptions.assumedFlowTempC >= 55) labels.push('reduced-efficiency-hot-water-mode');
+  } else {
+    // Gas boiler — flag non-condensing return temperature
+    const returnTempC = config.heatSource.returnTempC ?? 0;
+    if (returnTempC >= 55) labels.push('flow-temperature-limited');
+    // Flag cycling risk when boiler is heavily oversized at current load
+    const outputKw = config.heatSource.outputKw ?? 0;
+    const currentLoadKw = config.heatSource.currentLoadKw ?? 0;
+    if (outputKw > 0 && currentLoadKw > 0 && currentLoadKw / outputKw < 0.3) {
+      labels.push('cycling-risk');
+    }
+  }
+
+  return labels;
 }
