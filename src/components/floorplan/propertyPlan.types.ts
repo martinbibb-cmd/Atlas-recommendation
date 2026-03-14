@@ -181,6 +181,8 @@ export interface PropertyMetadata {
   postcode?: string;
   systemType?: 'combi' | 'system' | 'regular' | 'heat_pump';
   notes?: string;
+  /** Starter template that was used to seed this plan (if any). */
+  templateId?: string;
 }
 
 // ─── Top-level document model ─────────────────────────────────────────────────

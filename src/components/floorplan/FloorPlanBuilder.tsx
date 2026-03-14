@@ -16,6 +16,10 @@ import { getPortDefs } from '../../explainers/lego/builder/portDefs';
 import { portAbs } from '../../explainers/lego/builder/snapConnect';
 import { isTopologyAllowed } from '../../explainers/lego/builder/snapConnect';
 import type { BuildEdge, BuildGraph, BuildNode, PartKind, PortRef } from '../../explainers/lego/builder/types';
+import {
+  PROPERTY_LAYOUTS,
+  type PropertyLayoutId,
+} from '../../explainers/lego/builder/propertyLayouts';
 import type {
   EditorTool,
   FloorPlan,
@@ -100,6 +104,155 @@ function buildGraphFromNodes(
   return { nodes: buildNodes, edges };
 }
 
+// ─── Template loading ─────────────────────────────────────────────────────────
+
+/** Derive a RoomType from the room label string. */
+function roomTypeFromLabel(label: string): RoomType {
+  const l = label.toLowerCase();
+  if (/bedroom|bed\s*\d/.test(l))   return 'bedroom';
+  if (/bathroom|en.?suite/.test(l)) return 'bathroom';
+  if (/kitchen/.test(l))            return 'kitchen';
+  if (/living|lounge/.test(l))      return 'living';
+  if (/dining/.test(l))             return 'dining';
+  if (/landing/.test(l))            return 'landing';
+  if (/hall/.test(l))               return 'hallway';
+  if (/study|office/.test(l))       return 'study';
+  if (/garage/.test(l))             return 'garage';
+  if (/utility/.test(l))            return 'utility';
+  if (/cupboard|airing/.test(l))    return 'cupboard';
+  if (/conserv/.test(l))            return 'conservatory';
+  if (/outside|garden|balcony/.test(l)) return 'outside';
+  return 'other';
+}
+
+/** Derive a PartKind for a PlantAnchor based on its kind. */
+function partKindForAnchor(kind: import('../../explainers/lego/builder/propertyLayouts').PlantAnchorKind): PartKind {
+  switch (kind) {
+    case 'boiler_option_1':
+    case 'boiler_option_2':   return 'heat_source_combi';
+    case 'cylinder_option_1':
+    case 'cylinder_option_2': return 'dhw_unvented_cylinder';
+    case 'heat_pump_outside': return 'heat_source_heat_pump';
+    case 'airing_cupboard':   return 'dhw_unvented_cylinder';
+    default:                  return 'heat_source_combi';
+  }
+}
+
+/**
+ * Build a PropertyPlan from a PROPERTY_LAYOUTS entry.
+ * Converts the 800×560 SVG viewport coordinates into the canvas coordinate
+ * system used by FloorPlanBuilder (which also uses an ~1080×620 canvas).
+ */
+function planFromLayout(
+  layout: import('../../explainers/lego/builder/propertyLayouts').PropertyLayout,
+  metadata: PropertyMetadata = {},
+): PropertyPlan {
+  // Scale from the 800×560 layout viewport to the 1080×620 builder canvas
+  const scaleX = CANVAS_W / 800;
+  const scaleY = CANVAS_H / 560;
+
+  // Collect unique floor levels and create FloorPlan objects
+  const floorLevels = [...new Set(layout.rooms.map(r => r.floor))]
+    .filter(f => f !== 'outside' && f !== 'roof')
+    .sort((a, b) => {
+      const order = { single: 0, ground: 0, first: 1 };
+      return (order[a as keyof typeof order] ?? 0) - (order[b as keyof typeof order] ?? 0);
+    });
+
+  const floors: FloorPlan[] = floorLevels.map((level, idx) => ({
+    id: uid('floor'),
+    name: level === 'single' ? 'Ground' : level === 'ground' ? 'Ground' : 'First',
+    levelIndex: idx,
+    rooms: [],
+    walls: [],
+    openings: [],
+    zones: [],
+  }));
+
+  const floorByLevel = new Map(floorLevels.map((level, idx) => [level, floors[idx]]));
+
+  // Build room id → floorId map
+  const roomFloorMap = new Map<string, string>();
+
+  // Assign rooms to floors
+  const roomsByFloor = new Map<string, Room[]>();
+  floors.forEach(f => roomsByFloor.set(f.id, []));
+
+  for (const rd of layout.rooms) {
+    const floor = floorByLevel.get(rd.floor) ?? floors[0];
+    const room: Room = {
+      id: rd.id,
+      name: rd.label,
+      roomType: roomTypeFromLabel(rd.label),
+      floorId: floor.id,
+      x: Math.round(rd.x * scaleX),
+      y: Math.round(rd.y * scaleY),
+      width: Math.round(rd.w * scaleX),
+      height: Math.round(rd.h * scaleY),
+      areaM2: Math.round((rd.w * rd.h) / 10000 * scaleX * scaleY * 100) / 100,
+    };
+    roomsByFloor.get(floor.id)?.push(room);
+    roomFloorMap.set(rd.id, floor.id);
+  }
+
+  // Apply rooms to their floors
+  const floorsWithRooms: FloorPlan[] = floors.map(f => ({
+    ...f,
+    rooms: roomsByFloor.get(f.id) ?? [],
+  }));
+
+  // Create placement nodes for radiator anchors
+  const radiatorNodes: PlacementNode[] = layout.radiatorAnchors.map(ra => ({
+    id: ra.id,
+    type: 'radiator_loop' as PartKind,
+    floorId: roomFloorMap.get(ra.roomId) ?? floorsWithRooms[0]?.id ?? '',
+    roomId: ra.roomId,
+    anchor: {
+      x: Math.round(ra.x * scaleX),
+      y: Math.round(ra.y * scaleY),
+    },
+    orientationDeg: 0,
+    metadata: {},
+  }));
+
+  // Create placement nodes for plant anchors (heat source, cylinder, heat pump)
+  const plantNodes: PlacementNode[] = layout.plantAnchors.map(pa => {
+    const floorId = pa.roomId
+      ? (roomFloorMap.get(pa.roomId) ?? floorsWithRooms[0]?.id ?? '')
+      : floorsWithRooms[0]?.id ?? '';
+    return {
+      id: pa.id,
+      type: partKindForAnchor(pa.kind),
+      floorId,
+      roomId: pa.roomId ?? undefined,
+      anchor: {
+        x: Math.round(pa.x * scaleX),
+        y: Math.round(pa.y * scaleY),
+      },
+      orientationDeg: 0,
+      metadata: { anchorKind: pa.kind, anchorLabel: pa.label },
+    };
+  });
+
+  return {
+    version: '1.0',
+    propertyId: uid('prop'),
+    floors: floorsWithRooms,
+    placementNodes: [...radiatorNodes, ...plantNodes],
+    connections: [],
+    metadata: { ...metadata, templateId: layout.id },
+  };
+}
+
+// ─── Starter template definitions ─────────────────────────────────────────────
+
+const STARTER_TEMPLATES: Array<{ id: PropertyLayoutId; emoji: string; hint: string }> = [
+  { id: '2bed_house',  emoji: '🏠', hint: '2-bed house — 2 floors, radiators pre-placed' },
+  { id: '3bed_semi',   emoji: '🏡', hint: '3-bed semi — 2 floors, radiators pre-placed' },
+  { id: 'bungalow',    emoji: '🏘', hint: 'Bungalow — single floor, airing cupboard' },
+  { id: 'flat',        emoji: '🏢', hint: 'Flat — single floor with balcony ASHP space' },
+];
+
 // ─── Initial state ────────────────────────────────────────────────────────────
 
 function makeInitialPlan(metadata: PropertyMetadata = {}): PropertyPlan {
@@ -161,6 +314,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   const [buildEdgesByFloor, setBuildEdgesByFloor] = useState<Record<string, BuildEdge[]>>({});
   /** Show the simulation shell */
   const [showSimulation, setShowSimulation] = useState(false);
+  /** Whether the user has applied a starter template (suppresses template bar) */
+  const [templateApplied, setTemplateApplied] = useState(false);
 
   const boardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<
@@ -169,6 +324,22 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     | { mode: 'node-move'; id: string; dx: number; dy: number }
     | null
   >(null);
+
+  // ── Starter template loading ──────────────────────────────────────────────
+
+  function loadTemplate(id: PropertyLayoutId) {
+    const layout = PROPERTY_LAYOUTS.find(l => l.id === id);
+    if (!layout) return;
+    const newPlan = planFromLayout(layout, { systemType: surveyResults?.systemType });
+    setPlan(newPlan);
+    setActiveFloorId(newPlan.floors[0]?.id ?? '');
+    setBuildEdgesByFloor({});
+    setSelection(null);
+    setPendingKind(null);
+    setPendingPort(null);
+    setPendingWallStart(null);
+    setTemplateApplied(true);
+  }
 
   // ── Derived ──────────────────────────────────────────────────────────────
 
@@ -594,6 +765,34 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
           </label>
         </div>
       </header>
+
+      {/* ── Starter template bar — shown until a template is applied ── */}
+      {!templateApplied && (
+        <div className="fpb__template-bar" role="region" aria-label="Starter templates">
+          <span className="fpb__template-label">Start from template:</span>
+          {STARTER_TEMPLATES.map(tmpl => {
+            const layout = PROPERTY_LAYOUTS.find(l => l.id === tmpl.id);
+            return (
+              <button
+                key={tmpl.id}
+                className="fpb__template-btn"
+                title={tmpl.hint}
+                onClick={() => loadTemplate(tmpl.id)}
+              >
+                <span aria-hidden="true">{tmpl.emoji}</span>
+                {layout?.label ?? tmpl.id}
+              </button>
+            );
+          })}
+          <button
+            className="fpb__template-btn fpb__template-btn--blank"
+            title="Start with a blank canvas"
+            onClick={() => setTemplateApplied(true)}
+          >
+            Blank canvas
+          </button>
+        </div>
+      )}
 
       {/* ── Floor tabs ── */}
       <div className="fpb__floors">

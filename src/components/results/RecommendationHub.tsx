@@ -15,13 +15,18 @@
  * - All data sourced from EngineOutputV1 / FullEngineResult.
  * - No mention of "fail", "rejected", or judgement language in user-facing copy.
  */
+import { useState } from 'react';
 import type { FullEngineResult } from '../../engine/schema/EngineInputV2_3';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { EvidenceItemV1, OptionCardV1 } from '../../contracts/EngineOutputV1';
-import SystemRecommendationPanel from './SystemRecommendationPanel';
+import RecommendationCard from '../live/RecommendationCard';
 import SystemOptionCard from './SystemOptionCard';
 import PerformanceEnablersPanel from '../performance/PerformanceEnablersPanel';
+import OperatingPointChart from '../visualizers/OperatingPointChart';
+import HouseHeatMapPanel from '../live/HouseHeatMapPanel';
+import HotWaterDemandPanel from '../live/HotWaterDemandPanel';
 import './results.css';
+import '../../live/LiveHubPage.css';
 
 interface Props {
   result: FullEngineResult;
@@ -879,6 +884,113 @@ function PrintHeader({ result }: { result: FullEngineResult }) {
   );
 }
 
+// ─── Standard UK room design temperatures (BS EN 12831) ──────────────────────
+// Fixed reference values that demonstrate sizing is standards-based.
+
+const ROOM_DESIGN_TEMPS: Array<{ room: string; tempC: number }> = [
+  { room: 'Lounge',   tempC: 21 },
+  { room: 'Kitchen',  tempC: 20 },
+  { room: 'Bedroom',  tempC: 18 },
+  { room: 'Bathroom', tempC: 22 },
+  { room: 'Hall',     tempC: 18 },
+];
+
+/** Build a heatMap OutputHubSection from the engine result. */
+function buildHeatMapSection(result: FullEngineResult) {
+  const fabric = result.fabricModelV1;
+  return {
+    id: 'heatMap' as const,
+    title: 'House Heating Map',
+    status: 'ok' as const,
+    visible: true,
+    customerSafe: true,
+    content: {
+      roomDesignTemps: ROOM_DESIGN_TEMPS,
+      heatLossBand:    fabric?.heatLossBand    ?? 'unknown',
+      thermalMassBand: fabric?.thermalMassBand ?? 'unknown',
+      driftTauHours:   fabric?.driftTauHours   ?? null,
+      notes:           fabric?.notes           ?? [],
+    },
+  };
+}
+
+/** Build a hotWaterDemand OutputHubSection from the engine result and survey input. */
+function buildHotWaterDemandSection(result: FullEngineResult, input: EngineInputV2_3) {
+  const combi  = result.combiDhwV1;
+  const stored = result.storedDhwV1;
+  const bathrooms = input.bathroomCount ?? null;
+  const occupancy = input.occupancyCount ?? null;
+  const peakOutlets = (input as { peakConcurrentOutlets?: number }).peakConcurrentOutlets
+    ?? (bathrooms != null ? Math.min(bathrooms, 2) : null);
+  const peakDemandLpm = peakOutlets != null ? peakOutlets * 8 : null;
+  const combiMaxKw = (combi as { maxQtoDhwKwDerated?: number }).maxQtoDhwKwDerated;
+  const combiDeliveryLpm = combiMaxKw != null
+    ? parseFloat((combiMaxKw / (4.2 * 40 / 60)).toFixed(1))
+    : null;
+  return {
+    id: 'hotWaterDemand' as const,
+    title: 'Hot Water Demand',
+    status: combi.verdict.combiRisk === 'fail' ? 'watch' as const : 'ok' as const,
+    visible: true,
+    customerSafe: true,
+    content: {
+      occupancyCount:   occupancy,
+      bathroomCount:    bathrooms,
+      peakOutlets:      peakOutlets,
+      peakDemandLpm,
+      combiDeliveryLpm,
+      combiRisk:        combi.verdict.combiRisk,
+      storedVolumeBand: (stored as { recommended?: { volumeBand?: string } }).recommended?.volumeBand ?? 'medium',
+      storedType:       (stored as { recommended?: { type?: string } }).recommended?.type ?? 'standard',
+    },
+  };
+}
+
+// ─── Depot Notes Builder ──────────────────────────────────────────────────────
+
+/** Build plain-text depot notes from the full engine result for clipboard copy. */
+function buildDepotNotes(result: FullEngineResult): string {
+  const { engineOutput } = result;
+  const primary = engineOutput.recommendation.primary;
+  const secondary = engineOutput.recommendation.secondary;
+  const confidence = engineOutput.meta?.confidence ?? engineOutput.verdict?.confidence;
+  const options = engineOutput.options ?? [];
+  const viableOption = options.find(o => o.status === 'viable');
+  const mustHave = viableOption?.typedRequirements?.mustHave ?? viableOption?.requirements ?? [];
+  const unlockBy = confidence?.unlockBy ?? [];
+
+  const dateStr = new Date().toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
+
+  const lines: string[] = [];
+  lines.push(`ATLAS RECOMMENDATION — ${dateStr}`);
+  lines.push('');
+  lines.push(`SYSTEM: ${primary}`);
+  if (secondary) lines.push(`NOTE: ${secondary}`);
+  lines.push(`CONFIDENCE: ${confidence?.level?.toUpperCase() ?? 'MEDIUM'}`);
+
+  if (viableOption?.why?.length) {
+    lines.push('');
+    lines.push('WHY IT SUITS:');
+    viableOption.why.forEach(r => lines.push(`• ${r}`));
+  }
+
+  if (mustHave.length > 0) {
+    lines.push('');
+    lines.push('MUST-HAVES BEFORE INSTALL:');
+    mustHave.forEach(u => lines.push(`• ${u}`));
+  }
+
+  if (unlockBy.length > 0) {
+    lines.push('');
+    lines.push('STILL TO CONFIRM:');
+    unlockBy.forEach(u => lines.push(`• ${u}`));
+  }
+
+  return lines.join('\n');
+}
+
 // ─── Main hub ─────────────────────────────────────────────────────────────────
 
 export default function RecommendationHub({ result, input }: Props) {
@@ -887,30 +999,94 @@ export default function RecommendationHub({ result, input }: Props) {
   const comparisonSummary = buildComparisonSummary(options);
   const contextBullets = engineOutput.contextSummary?.bullets ?? [];
 
+  // Depot notes clipboard state
+  const [depotCopied, setDepotCopied] = useState(false);
+  const handleDepotCopy = () => {
+    const text = buildDepotNotes(result);
+    navigator.clipboard.writeText(text).then(() => {
+      setDepotCopied(true);
+      setTimeout(() => setDepotCopied(false), 2500);
+    });
+  };
+
+  // Mains operating point data (for OperatingPointChart)
+  const flowLpm     = input?.mainsDynamicFlowLpm ?? null;
+  const pressureBar = input?.dynamicMainsPressureBar ?? input?.dynamicMainsPressure ?? null;
+  const hasMainsData = flowLpm != null && pressureBar != null;
+
+  // Graphical panel sections
+  const heatMapSection      = buildHeatMapSection(result);
+  const hotWaterSection     = input ? buildHotWaterDemandSection(result, input) : null;
+
   return (
     <div className="rec-hub">
 
       {/* Print header — screen hidden, print visible */}
       <PrintHeader result={result} />
 
-      {/* 1 — Recommendation Summary */}
-      <SystemRecommendationPanel engineOutput={engineOutput} />
+      {/* 1 — Decision-first hero card */}
+      <div className="rec-hub__hero">
+        <RecommendationCard engineOutput={engineOutput} />
+        <div className="rec-hub__depot-copy">
+          <button
+            className={`rec-hub__depot-btn${depotCopied ? ' rec-hub__depot-btn--copied' : ''}`}
+            onClick={handleDepotCopy}
+            aria-label="Copy summary for depot notes"
+          >
+            {depotCopied ? '✓ Copied to clipboard' : 'Copy for depot notes'}
+          </button>
+        </div>
+      </div>
 
-      {/* Trust strip — evidence count + action prompt */}
-      <TrustStrip result={result} />
+      {/* Trust strip — sticky evidence count + next step */}
+      <div className="rec-hub__sticky-strip">
+        <TrustStrip result={result} />
+      </div>
 
       {/* 2 — Performance Enablers — install-readiness conditions near the verdict */}
       <section className="rec-hub__section">
         <PerformanceEnablersPanel result={result} input={input} />
       </section>
 
-      {/* 3 — System Health Gauge (overall hot-water health summary, when evidence available) */}
+      {/* 3 — Graphical Performance Evidence panels */}
+      {(hasMainsData || hotWaterSection) && (
+        <section className="rec-hub__section" aria-label="Performance evidence">
+          <h3 className="rec-hub__section-title">Performance Evidence</h3>
+          <div className="rec-hub__perf-panels">
+
+            {/* House Heat-Map — room temperatures and fabric heat-loss */}
+            <div className="rec-hub__perf-panel">
+              <HouseHeatMapPanel section={heatMapSection} />
+            </div>
+
+            {/* Hot Water Demand — combi vs cylinder capacity bars */}
+            {hotWaterSection && (
+              <div className="rec-hub__perf-panel">
+                <HotWaterDemandPanel section={hotWaterSection} />
+              </div>
+            )}
+
+            {/* Mains Operating Point — flow vs pressure scatter chart */}
+            {hasMainsData && (
+              <div className="rec-hub__perf-panel rec-hub__perf-panel--chart">
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#4a5568', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Mains Supply — Operating Point
+                </div>
+                <OperatingPointChart flowLpm={flowLpm!} pressureBar={pressureBar!} />
+              </div>
+            )}
+
+          </div>
+        </section>
+      )}
+
+      {/* 4 — System Health Gauge (overall hot-water health summary, when evidence available) */}
       <SystemHealthGauge result={result} />
 
-      {/* 4 — Component condition (plate HEX and/or cylinder, when evidence available) */}
+      {/* 5 — Component condition (plate HEX and/or cylinder, when evidence available) */}
       <ComponentHealthPanel result={result} />
 
-      {/* 5 — System Comparison */}
+      {/* 6 — System Comparison */}
       {options.length > 0 && (
         <section className="rec-hub__section">
           <h3 className="rec-hub__section-title">System Comparison</h3>
@@ -923,10 +1099,10 @@ export default function RecommendationHub({ result, input }: Props) {
         </section>
       )}
 
-      {/* 6 — Measurement Confidence */}
+      {/* 7 — Measurement Confidence */}
       <MeasurementConfidencePanel result={result} />
 
-      {/* 7 — Evidence & Context (grouped: site context / key constraints / general) */}
+      {/* 8 — Evidence & Context (grouped: site context / key constraints / general) */}
       {contextBullets.length > 0 && (() => {
         const siteCtx  = contextBullets.filter(b => classifyContextBullet(b) === 'site_context');
         const keyConstr = contextBullets.filter(b => classifyContextBullet(b) === 'key_constraint');
