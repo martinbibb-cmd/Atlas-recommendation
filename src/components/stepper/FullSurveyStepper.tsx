@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, type CSSProperties } from 'react';
 import { deriveRawPressureStr, deriveRawFlowStr } from './pressureFlowHelpers';
 import {
   LineChart,
@@ -561,6 +561,12 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
   const [showHydraulicDetail, setShowHydraulicDetail] = useState(false);
   /** Hot-water step — outlet-vs-demand analysis hidden by default. */
   const [showHotWaterAnalysis, setShowHotWaterAnalysis] = useState(false);
+
+  /** Shared button style for inline detail-expand toggles. */
+  const detailToggleStyle: CSSProperties = {
+    border: 'none', background: 'transparent', color: '#3182ce',
+    cursor: 'pointer', fontSize: '0.8rem', textAlign: 'left', padding: '0.25rem 0',
+  };
 
   useEffect(() => {
     const preset = getFabricPreset(dwellingForm, ageBand, sizeProxy, insulationToggle);
@@ -1613,13 +1619,15 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
               {/* Flow vs heat loss chart — hidden by default, revealed via detail toggle */}
               <button
                 onClick={() => setShowHydraulicDetail(v => !v)}
-                style={{ border: 'none', background: 'transparent', color: '#3182ce', cursor: 'pointer', fontSize: '0.8rem', textAlign: 'left', padding: '0.25rem 0' }}
+                style={detailToggleStyle}
                 data-testid="survey-hydraulic-detail-toggle"
+                aria-expanded={showHydraulicDetail}
+                aria-controls="survey-hydraulic-detail"
               >
                 {showHydraulicDetail ? '▲ Hide flow demand curve' : '▼ Show flow demand curve'}
               </button>
               {showHydraulicDetail && (
-              <div data-testid="survey-hydraulic-detail">
+              <div id="survey-hydraulic-detail" data-testid="survey-hydraulic-detail">
                 <div style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.3rem' }}>
                   Flow demand curve — {input.primaryPipeDiameter}mm pipe (0–20 kW)
                 </div>
@@ -2362,13 +2370,15 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
               {/* Outlet demand analysis — hidden by default, revealed via detail toggle */}
               <button
                 onClick={() => setShowHotWaterAnalysis(v => !v)}
-                style={{ border: 'none', background: 'transparent', color: '#3182ce', cursor: 'pointer', fontSize: '0.8rem', textAlign: 'left', padding: '0.25rem 0' }}
+                style={detailToggleStyle}
                 data-testid="survey-hotwater-analysis-toggle"
+                aria-expanded={showHotWaterAnalysis}
+                aria-controls="survey-hotwater-analysis"
               >
                 {showHotWaterAnalysis ? '▲ Hide outlet analysis' : '▼ Show outlet analysis'}
               </button>
               {showHotWaterAnalysis && (
-              <div style={{ padding: '0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }} data-testid="survey-hotwater-analysis">
+              <div id="survey-hotwater-analysis" style={{ padding: '0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }} data-testid="survey-hotwater-analysis">
                 <div style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.5rem' }}>
                   Simultaneous outlets: on-demand vs. stored
                 </div>

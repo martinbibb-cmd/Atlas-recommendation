@@ -26,6 +26,8 @@ import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
  */
 const SURVEY_DEFAULT_INPUT: FullSurveyModelV1 = {
   postcode: '',
+  // dynamicMainsPressure is the legacy required field; dynamicMainsPressureBar is
+  // an optional alias (engine reads dynamicMainsPressureBar ?? dynamicMainsPressure).
   dynamicMainsPressure: 1.0,
   buildingMass: 'heavy',
   primaryPipeDiameter: 22,

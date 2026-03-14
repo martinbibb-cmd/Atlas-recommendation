@@ -108,11 +108,11 @@ describe('FullSurveyStepper — deep explanatory content hidden by default', () 
 async function completeFullSurvey(user: ReturnType<typeof userEvent.setup>) {
   // Steps 1–6: click "Next →"
   for (let i = 0; i < 6; i++) {
-    const nextBtn = screen.getByRole('button', { name: /^Next →/i });
+    const nextBtn = screen.getByRole('button', { name: /Next →/ });
     await user.click(nextBtn);
   }
   // Step 7 (overlay): click "Run Full Analysis →"
-  const finalBtn = screen.getByRole('button', { name: /Run Full Analysis/i });
+  const finalBtn = screen.getByRole('button', { name: /Run Full Analysis/ });
   await user.click(finalBtn);
 }
 
