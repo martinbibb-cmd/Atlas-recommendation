@@ -446,3 +446,400 @@ describe('runStoredDhwModuleV1 — storage regime', () => {
     expect(hp.dhwMixing.hotFraction).toBeGreaterThan(boiler.dhwMixing.hotFraction);
   });
 });
+
+// ─── Vented head evaluation ────────────────────────────────────────────────────
+
+describe('runStoredDhwModuleV1 — vented head evaluation', () => {
+  const baseVentedInput: EngineInputV2_3 = {
+    ...baseInput,
+    coldWaterSource: 'loft_tank',
+    availableSpace: 'ok',
+    bathroomCount: 1,
+  };
+
+  it('no cwsHeadMetres provided: no head flag, assumption note added', () => {
+    const result = runStoredDhwModuleV1(baseVentedInput);
+    expect(result.flags.some(f => f.id === 'stored-vented-low-head')).toBe(false);
+    expect(result.assumptions.some(a => a.includes('loft-tank supply'))).toBe(true);
+  });
+
+  it('cwsHeadMetres >= 0.5 m: adequate head, no flag', () => {
+    const result = runStoredDhwModuleV1({ ...baseVentedInput, cwsHeadMetres: 0.7 });
+    expect(result.flags.some(f => f.id === 'stored-vented-low-head')).toBe(false);
+    expect(result.assumptions.some(a => a.includes('tank-fed head adequate'))).toBe(true);
+  });
+
+  it('cwsHeadMetres 0.3–0.5 m: emits low head warn flag', () => {
+    const result = runStoredDhwModuleV1({ ...baseVentedInput, cwsHeadMetres: 0.4 });
+    const flag = result.flags.find(f => f.id === 'stored-vented-low-head');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('warn');
+    expect(flag!.detail).toContain('marginal');
+    expect(result.verdict.storedRisk).toBe('warn');
+  });
+
+  it('cwsHeadMetres < 0.3 m: emits very-low head warn flag', () => {
+    const result = runStoredDhwModuleV1({ ...baseVentedInput, cwsHeadMetres: 0.15 });
+    const flag = result.flags.find(f => f.id === 'stored-vented-low-head');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('warn');
+    expect(flag!.detail).toContain('very weak');
+    expect(result.verdict.storedRisk).toBe('warn');
+  });
+
+  it('very low head: constraintKind is head-limited', () => {
+    const result = runStoredDhwModuleV1({ ...baseVentedInput, cwsHeadMetres: 0.2 });
+    expect(result.constraintKind).toBe('head-limited');
+  });
+
+  it('adequate head: no constraintKind (pass case)', () => {
+    const result = runStoredDhwModuleV1({ ...baseVentedInput, cwsHeadMetres: 1.0 });
+    expect(result.constraintKind).toBeUndefined();
+    expect(result.verdict.storedRisk).toBe('pass');
+  });
+
+  it('low head: title mentions head-limited', () => {
+    const result = runStoredDhwModuleV1({ ...baseVentedInput, cwsHeadMetres: 0.25 });
+    const flag = result.flags.find(f => f.id === 'stored-vented-low-head');
+    expect(flag!.title.toLowerCase()).toContain('head-limited');
+  });
+});
+
+// ─── Unvented mains pressure evaluation ──────────────────────────────────────
+
+describe('runStoredDhwModuleV1 — unvented mains pressure evaluation', () => {
+  const baseUnventedInput: EngineInputV2_3 = {
+    ...baseInput,
+    coldWaterSource: 'mains_true',
+    availableSpace: 'ok',
+    bathroomCount: 1,
+    mainsDynamicFlowLpm: 25,
+    mainsDynamicFlowLpmKnown: true,
+  };
+
+  it('adequate pressure (>= 1.5 bar): no mains-limited flag', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseUnventedInput,
+      dynamicMainsPressure: 2.5,
+    });
+    expect(result.flags.some(f => f.id === 'stored-mains-limited')).toBe(false);
+    expect(result.verdict.storedRisk).toBe('pass');
+  });
+
+  it('low pressure (< 1.5 bar): emits stored-mains-limited warn flag', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseUnventedInput,
+      dynamicMainsPressure: 1.2,
+    });
+    const flag = result.flags.find(f => f.id === 'stored-mains-limited');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('warn');
+    expect(result.verdict.storedRisk).toBe('warn');
+  });
+
+  it('low pressure: constraintKind is mains-limited', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseUnventedInput,
+      dynamicMainsPressure: 1.0,
+    });
+    expect(result.constraintKind).toBe('mains-limited');
+  });
+
+  it('dynamicMainsPressureBar alias takes precedence over legacy dynamicMainsPressure', () => {
+    // Legacy field says 0.8 bar but preferred alias says 2.0 bar → alias wins
+    const result = runStoredDhwModuleV1({
+      ...baseUnventedInput,
+      dynamicMainsPressure: 0.8,
+      dynamicMainsPressureBar: 2.0,
+    });
+    expect(result.flags.some(f => f.id === 'stored-mains-limited')).toBe(false);
+  });
+
+  it('low pressure flag detail mentions mains-limited', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseUnventedInput,
+      dynamicMainsPressure: 1.3,
+    });
+    const flag = result.flags.find(f => f.id === 'stored-mains-limited');
+    expect(flag!.detail.toLowerCase()).toContain('mains-limited');
+  });
+
+  it('low pressure alongside adequate flow: both constraint and flow adequacy respected', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseUnventedInput,
+      dynamicMainsPressure: 1.1,
+      mainsDynamicFlowLpm: 25,
+      mainsDynamicFlowLpmKnown: true,
+    });
+    // mains-limited should be present (pressure gate)
+    expect(result.flags.some(f => f.id === 'stored-mains-limited')).toBe(true);
+    // low-flow flag should NOT be present (flow is adequate)
+    expect(result.flags.some(f => f.id === 'stored-unvented-low-flow')).toBe(false);
+  });
+});
+
+// ─── Thermal capacity evaluation ──────────────────────────────────────────────
+
+describe('runStoredDhwModuleV1 — thermal capacity evaluation', () => {
+  const baseThermalInput: EngineInputV2_3 = {
+    ...baseInput,
+    availableSpace: 'ok',
+    bathroomCount: 1,
+    occupancyCount: 2,
+  };
+
+  it('no cylinderVolumeLitres: no thermal-capacity flag', () => {
+    const result = runStoredDhwModuleV1(baseThermalInput);
+    expect(result.flags.some(f => f.id === 'stored-thermal-capacity-limited')).toBe(false);
+  });
+
+  it('adequate volume for 1 bath / 2 occupants: no thermal-capacity flag', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseThermalInput,
+      cylinderVolumeLitres: 120,
+    });
+    expect(result.flags.some(f => f.id === 'stored-thermal-capacity-limited')).toBe(false);
+    expect(result.verdict.storedRisk).toBe('pass');
+  });
+
+  it('undersized cylinder for 1 bath / 2 occupants: emits thermal-capacity-limited warn', () => {
+    // 1 bath: min = 1 × 80 = 80L, with floor 100L
+    const result = runStoredDhwModuleV1({
+      ...baseThermalInput,
+      cylinderVolumeLitres: 60,
+    });
+    const flag = result.flags.find(f => f.id === 'stored-thermal-capacity-limited');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('warn');
+    expect(result.verdict.storedRisk).toBe('warn');
+  });
+
+  it('undersized for 2 baths / 3 occupants: constraintKind is thermal-capacity-limited', () => {
+    // 2 baths: min = 2 × 80 + 1 × 25 = 185L
+    const result = runStoredDhwModuleV1({
+      ...baseThermalInput,
+      bathroomCount: 2,
+      occupancyCount: 3,
+      cylinderVolumeLitres: 120,
+    });
+    expect(result.constraintKind).toBe('thermal-capacity-limited');
+    expect(result.flags.some(f => f.id === 'stored-thermal-capacity-limited')).toBe(true);
+  });
+
+  it('adequate volume for 2 baths / 3 occupants: no thermal flag', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseThermalInput,
+      bathroomCount: 2,
+      occupancyCount: 3,
+      cylinderVolumeLitres: 210,
+    });
+    expect(result.flags.some(f => f.id === 'stored-thermal-capacity-limited')).toBe(false);
+  });
+
+  it('high simultaneousDrawSeverity increases minimum volume threshold', () => {
+    // 1 bath: base min = 100L; with high severity × 1.2 = 120L
+    const resultLow = runStoredDhwModuleV1({
+      ...baseThermalInput,
+      cylinderVolumeLitres: 110,
+      simultaneousDrawSeverity: 'low',
+    });
+    const resultHigh = runStoredDhwModuleV1({
+      ...baseThermalInput,
+      cylinderVolumeLitres: 110,
+      simultaneousDrawSeverity: 'high',
+    });
+    // 110L passes for low severity but fails for high
+    expect(resultLow.flags.some(f => f.id === 'stored-thermal-capacity-limited')).toBe(false);
+    expect(resultHigh.flags.some(f => f.id === 'stored-thermal-capacity-limited')).toBe(true);
+  });
+
+  it('thermal-capacity-limited detail mentions cylinder volume and minimum', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseThermalInput,
+      cylinderVolumeLitres: 70,
+    });
+    const flag = result.flags.find(f => f.id === 'stored-thermal-capacity-limited');
+    expect(flag!.detail).toContain('70 L');
+    expect(flag!.detail.toLowerCase()).toContain('thermal-capacity-limited');
+  });
+});
+
+// ─── Heat pump cylinder efficiency penalty ────────────────────────────────────
+
+describe('runStoredDhwModuleV1 — heat pump cylinder efficiency penalty', () => {
+  const baseHpInput: EngineInputV2_3 = {
+    ...baseInput,
+    availableSpace: 'ok',
+    bathroomCount: 1,
+    dhwStorageRegime: 'heat_pump_cylinder',
+  };
+
+  it('heat_pump_cylinder: emits stored-heat-pump-efficiency-penalty warn flag', () => {
+    const result = runStoredDhwModuleV1(baseHpInput);
+    const flag = result.flags.find(f => f.id === 'stored-heat-pump-efficiency-penalty');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('warn');
+  });
+
+  it('heat_pump_cylinder: efficiency penalty flag detail mentions COP', () => {
+    const result = runStoredDhwModuleV1(baseHpInput);
+    const flag = result.flags.find(f => f.id === 'stored-heat-pump-efficiency-penalty');
+    expect(flag!.detail.toLowerCase()).toContain('cop');
+  });
+
+  it('heat_pump_cylinder: efficiency penalty flag detail mentions reduced-efficiency', () => {
+    const result = runStoredDhwModuleV1(baseHpInput);
+    const flag = result.flags.find(f => f.id === 'stored-heat-pump-efficiency-penalty');
+    expect(flag!.detail.toLowerCase()).toContain('reduced-efficiency');
+  });
+
+  it('heat_pump_cylinder: storedRisk is warn (efficiency penalty is a warn flag)', () => {
+    const result = runStoredDhwModuleV1(baseHpInput);
+    expect(result.verdict.storedRisk).toBe('warn');
+  });
+
+  it('heat_pump_cylinder: constraintKind is reduced-efficiency-hot-water', () => {
+    const result = runStoredDhwModuleV1(baseHpInput);
+    expect(result.constraintKind).toBe('reduced-efficiency-hot-water');
+  });
+
+  it('boiler_cylinder: no efficiency-penalty flag', () => {
+    const result = runStoredDhwModuleV1({ ...baseHpInput, dhwStorageRegime: 'boiler_cylinder' });
+    expect(result.flags.some(f => f.id === 'stored-heat-pump-efficiency-penalty')).toBe(false);
+  });
+
+  it('heat_pump_cylinder: both stored-heat-pump-recovery (info) and efficiency-penalty (warn) are present', () => {
+    const result = runStoredDhwModuleV1(baseHpInput);
+    const recoveryFlag = result.flags.find(f => f.id === 'stored-heat-pump-recovery');
+    const penaltyFlag = result.flags.find(f => f.id === 'stored-heat-pump-efficiency-penalty');
+    expect(recoveryFlag).toBeDefined();
+    expect(penaltyFlag).toBeDefined();
+    expect(recoveryFlag!.severity).toBe('info');
+    expect(penaltyFlag!.severity).toBe('warn');
+  });
+
+  it('head-limited takes priority over reduced-efficiency constraintKind', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseHpInput,
+      coldWaterSource: 'loft_tank',
+      dhwStorageRegime: 'heat_pump_cylinder',
+      cwsHeadMetres: 0.2,
+    });
+    // Head-limited should take precedence over the HP efficiency penalty
+    expect(result.constraintKind).toBe('head-limited');
+  });
+});
+
+// ─── Mixergy path remains distinct ───────────────────────────────────────────
+
+describe('runStoredDhwModuleV1 — Mixergy path', () => {
+  const baseMixergyInput: EngineInputV2_3 = {
+    ...baseInput,
+    availableSpace: 'tight',
+    bathroomCount: 2,
+    occupancyCount: 4,
+    dhwTankType: 'mixergy',
+  };
+
+  it('tight space + high demand: recommends mixergy', () => {
+    const result = runStoredDhwModuleV1(baseMixergyInput);
+    expect(result.recommended.type).toBe('mixergy');
+  });
+
+  it('tight space: emits stored-space-tight warn flag', () => {
+    const result = runStoredDhwModuleV1(baseMixergyInput);
+    expect(result.flags.some(f => f.id === 'stored-space-tight')).toBe(true);
+  });
+
+  it('high demand: emits stored-high-demand info flag', () => {
+    const result = runStoredDhwModuleV1(baseMixergyInput);
+    expect(result.flags.some(f => f.id === 'stored-high-demand')).toBe(true);
+  });
+
+  it('Mixergy with ok space and low demand: recommends mixergy only when dhwTankType=mixergy', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseInput,
+      availableSpace: 'ok',
+      bathroomCount: 1,
+      dhwTankType: 'mixergy',
+    });
+    // Low demand + ok space → standard cylinder recommended by default (Mixergy is dhwTankType input, not output override)
+    expect(result.recommended.type).toBe('standard');
+  });
+
+  it('Mixergy path: no heat-pump efficiency-penalty flag (boiler regime)', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseMixergyInput,
+      dhwStorageRegime: 'boiler_cylinder',
+    });
+    expect(result.flags.some(f => f.id === 'stored-heat-pump-efficiency-penalty')).toBe(false);
+  });
+
+  it('Mixergy with unvented and adequate mains: no mains-limited flag', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseMixergyInput,
+      coldWaterSource: 'mains_true',
+      mainsDynamicFlowLpm: 25,
+      mainsDynamicFlowLpmKnown: true,
+      dynamicMainsPressure: 2.5,
+    });
+    expect(result.flags.some(f => f.id === 'stored-mains-limited')).toBe(false);
+  });
+});
+
+// ─── constraintKind priority ordering ────────────────────────────────────────
+
+describe('runStoredDhwModuleV1 — constraintKind priority ordering', () => {
+  const baseOrderInput: EngineInputV2_3 = {
+    ...baseInput,
+    availableSpace: 'ok',
+    bathroomCount: 1,
+    occupancyCount: 2,
+  };
+
+  it('no constraints: constraintKind is undefined', () => {
+    const result = runStoredDhwModuleV1({ ...baseOrderInput, dynamicMainsPressure: 2.5 });
+    expect(result.constraintKind).toBeUndefined();
+  });
+
+  it('mains-limited alone: constraintKind is mains-limited', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseOrderInput,
+      coldWaterSource: 'mains_true',
+      dynamicMainsPressure: 1.0,
+      mainsDynamicFlowLpm: 25,
+      mainsDynamicFlowLpmKnown: true,
+    });
+    expect(result.constraintKind).toBe('mains-limited');
+  });
+
+  it('thermal-capacity-limited alone: constraintKind is thermal-capacity-limited', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseOrderInput,
+      cylinderVolumeLitres: 60,
+    });
+    expect(result.constraintKind).toBe('thermal-capacity-limited');
+  });
+
+  it('recovery-limited via severely fouled coil: constraintKind is recovery-limited', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseOrderInput,
+      cylinderInsulationFactor: 0.97,
+      cylinderCoilTransferFactor: 0.75,
+      cylinderConditionBand: 'poor',
+    });
+    expect(result.constraintKind).toBe('recovery-limited');
+  });
+
+  it('thermal-capacity-limited takes priority over recovery-limited', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseOrderInput,
+      cylinderVolumeLitres: 60,
+      cylinderInsulationFactor: 0.97,
+      cylinderCoilTransferFactor: 0.75,
+      cylinderConditionBand: 'poor',
+    });
+    // thermal-capacity-limited is higher priority than recovery-limited
+    expect(result.constraintKind).toBe('thermal-capacity-limited');
+  });
+});

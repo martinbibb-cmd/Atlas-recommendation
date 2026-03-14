@@ -146,6 +146,54 @@ export interface EngineInputV2_3 {
    * Default: 50 °C (typical UK domestic combi DHW outlet).
    */
   combiHotOutTempC?: number;
+  /**
+   * Explicit DHW storage type — normalised installation-type input for StoredDhwModule.
+   *
+   * Complements dhwStorageRegime (which describes the thermal regime) with the
+   * physical installation type:
+   *   'none'               — no DHW storage; combi/instantaneous only
+   *   'vented'             — open-vented cylinder fed from a cold water storage tank (tank-fed supply)
+   *   'unvented'           — sealed unvented (mains-pressure) cylinder (mains-fed supply)
+   *   'mixergy'            — Mixergy cylinder with active top-down stratification
+   *   'heat_pump_cylinder' — cylinder heated by heat pump (typically at 48–55 °C)
+   *
+   * When provided, StoredDhwModule uses this to apply the correct failure-mode
+   * evaluation (head-limited for vented; mains-limited for unvented; etc.).
+   */
+  dhwStorageType?: 'none' | 'vented' | 'unvented' | 'mixergy' | 'heat_pump_cylinder';
+  /**
+   * Actual cylinder nominal volume (litres).
+   * Used by StoredDhwModule to evaluate thermal capacity adequacy against the
+   * demand profile.  When the volume is insufficient for the occupancy/bathroom
+   * count, a 'thermal-capacity-limited' flag is raised.
+   */
+  cylinderVolumeLitres?: number;
+  /**
+   * Cold water service (CWS) head above the cylinder draw-off point (metres).
+   * Relevant for open-vented (gravity-fed) systems where the loft tank height
+   * above the cylinder determines the available pressure.
+   *
+   * Thresholds:
+   *   < 0.3 m  — very low head; gravity-only shower experience will be very weak
+   *   0.3–0.5 m — low head; marginal for domestic showers
+   *   ≥ 0.5 m  — minimum adequate head for a gravity hot-water system
+   *
+   * When present, StoredDhwModule emits 'stored-vented-low-head' for values
+   * below 0.5 m with severity proportional to the deficit.
+   */
+  cwsHeadMetres?: number;
+  /**
+   * Expected simultaneous DHW draw severity — indicates the worst-case peak
+   * overlap expected in this household.
+   *
+   *   'low'    — rarely more than one outlet at a time
+   *   'medium' — occasional two-outlet overlap (e.g. shower + basin)
+   *   'high'   — frequent multi-outlet overlap (e.g. two showers, busy family morning)
+   *
+   * Used by StoredDhwModule to weight the thermal-capacity adequacy check:
+   * a 'high' severity requires more reserve volume for the same occupancy count.
+   */
+  simultaneousDrawSeverity?: 'low' | 'medium' | 'high';
 
   // Building
   buildingMass: BuildingMass;
@@ -625,11 +673,38 @@ export interface StoredDhwFlagItem {
     | 'stored-unvented-low-flow'
     | 'stored-unvented-flow-unknown'
     | 'stored-cylinder-condition'
-    | 'stored-heat-pump-recovery';
+    | 'stored-heat-pump-recovery'
+    /** Vented (gravity) system: available CWS head is below the delivery margin threshold. */
+    | 'stored-vented-low-head'
+    /** Unvented system: mains dynamic pressure is too low for reliable operation. */
+    | 'stored-mains-limited'
+    /** Cylinder volume is insufficient for the occupancy/bathroom demand profile. */
+    | 'stored-thermal-capacity-limited'
+    /** Recovery time is extended — coil degradation or heat pump store temperature limits reheat rate. */
+    | 'stored-recovery-limited'
+    /** Heat pump DHW: COP collapse at cylinder heating temperatures; reduced-efficiency hot water mode. */
+    | 'stored-heat-pump-efficiency-penalty';
   severity: 'info' | 'warn';
   title: string;
   detail: string;
 }
+
+/**
+ * Primary governing constraint identified by StoredDhwModuleV1.
+ * Describes why the stored system is limited or what the dominant risk is.
+ *
+ *   'head-limited'                 — vented system; gravity head insufficient for pressure/flow
+ *   'mains-limited'                — unvented system; mains dynamic pressure too low
+ *   'thermal-capacity-limited'     — cylinder too small for demand profile
+ *   'recovery-limited'             — reheat rate limited (coil fouling, HP store temp, or undersized coil)
+ *   'reduced-efficiency-hot-water' — heat pump cylinder; COP collapses at DHW temperatures
+ */
+export type StoredDhwConstraintKind =
+  | 'head-limited'
+  | 'mains-limited'
+  | 'thermal-capacity-limited'
+  | 'recovery-limited'
+  | 'reduced-efficiency-hot-water';
 
 /** Result returned by StoredDhwModuleV1. */
 export interface StoredDhwV1Result {
@@ -643,6 +718,11 @@ export interface StoredDhwV1Result {
   };
   flags: StoredDhwFlagItem[];
   assumptions: string[];
+  /**
+   * Primary governing constraint, when one can be identified.
+   * Absent when no dominant constraint applies (pass case).
+   */
+  constraintKind?: StoredDhwConstraintKind;
   /**
    * Tap mixing physics for this stored system.
    *
