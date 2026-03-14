@@ -381,7 +381,7 @@ function getCylinderData(regime: Regime): CylinderStatusViewModel {
       recoverySource: 'Heat pump',
       recoveryPowerTendency: 'Moderate — slower reheat than boiler under peak demand',
       state: 'recovering',
-      recoveryNote: 'Heat pump operating at rated COP to recover cylinder. Reheat rate lower than peak simultaneous demand.',
+      recoveryNote: 'Heat pump recovering cylinder. Recharge at 55–60°C pushes COP down sharply — reheat rate lower than peak simultaneous demand.',
       storeNote: 'Usable volume depleting faster than recovery rate. Thermocline falling — draw-off impact visible on bulk temperature.',
     }
   }

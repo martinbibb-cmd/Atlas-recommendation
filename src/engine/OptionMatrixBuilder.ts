@@ -777,7 +777,7 @@ export function buildOptionMatrixV1(
   if (hasFutureLoftConversion) {
     regularWhy.push('Loft conversion eliminates space for header tank — not feasible.');
   } else {
-    regularWhy.push('Low mains pressure environment — gravity-fed system can still work.');
+    regularWhy.push('Low mains pressure environment — tank-fed supply can still work.');
   }
   const regularRequirements: string[] = [
     'Loft must remain accessible and frost-free for header tank.',
@@ -800,7 +800,7 @@ export function buildOptionMatrixV1(
 
   const regularDhw: OptionPlane = {
     status: 'ok',
-    headline: 'DHW: indirect stored cylinder via primary coil — gravity-fed pressure.',
+    headline: 'DHW: indirect stored cylinder via primary coil — tank-fed supply.',
     bullets: [
       'Hot water pressure limited by header tank head height (typically 1–2 bar).',
       'No mains pressure at taps — high-flow showers require a dedicated pump.',

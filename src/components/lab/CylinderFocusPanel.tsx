@@ -41,7 +41,7 @@ function behaviourNote(regime: StorageRegime): string {
     case 'mixergy_cylinder':
       return 'Stored hot water with top-down heating and active stratification. Heating cycles are demand-mirrored, keeping the hot layer at temperature and reducing reheat cycling compared to a standard cylinder.'
     case 'heat_pump_cylinder':
-      return 'Stored hot water from a heat pump. Lower storage temperature means a higher hot fraction is required at each outlet, reducing available usable volume relative to a boiler cylinder.'
+      return 'Stored hot water from a heat pump. Cylinder recharge at 55–60°C pushes COP down sharply — low-temperature space heating is where efficiency is protected. Lower storage temperature also means a higher hot fraction is required at each outlet, reducing usable volume.'
     case 'boiler_cylinder':
       return 'Stored hot water from a boiler-heated cylinder. High-temperature store allows a small hot fraction at most outlets. Thermocline falls under sustained simultaneous draw.'
     case 'on_demand_combi':
