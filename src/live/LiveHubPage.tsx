@@ -24,7 +24,9 @@ import ExplainersHubPage from '../explainers/ExplainersHubPage';
 import LabPrintCustomer from '../components/lab/LabPrintCustomer';
 import LabPrintTechnical from '../components/lab/LabPrintTechnical';
 import LabPrintComparison from '../components/lab/LabPrintComparison';
+import LabPrintFull from '../components/lab/LabPrintFull';
 import { buildPrintData } from './buildPrintData';
+import { buildOutputHubSections, filterSections } from './printSections.model';
 import './LiveHubPage.css';
 
 export type LiveSection =
@@ -38,7 +40,7 @@ export type LiveSection =
   | 'hub'
   | 'simulator';
 
-type PrintView = 'customer' | 'technical' | 'comparison';
+type PrintView = 'customer' | 'technical' | 'comparison' | 'full';
 
 interface Props {
   result: FullEngineResult;
@@ -198,6 +200,11 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
     if (printView === 'comparison') {
       return <LabPrintComparison data={printData} onBack={closePrint} />;
     }
+    if (printView === 'full') {
+      const allSections = buildOutputHubSections(result, input);
+      const fullSections = filterSections(allSections, 'full');
+      return <LabPrintFull sections={fullSections} onBack={closePrint} />;
+    }
   }
 
   // Comparison print is only offered when the engine returned ≥ 2 options so
@@ -334,6 +341,16 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
               Comparison Sheet
             </button>
           )}
+          <button
+            className="live-hub__print-btn live-hub__print-btn--full"
+            onClick={() => setPrintView('full')}
+            aria-label="Print full output report"
+          >
+            Full Output Report
+          </button>
+        </div>
+        <div className="live-hub__print-actions-hint">
+          Includes all visible result panels
         </div>
       </div>
     </div>

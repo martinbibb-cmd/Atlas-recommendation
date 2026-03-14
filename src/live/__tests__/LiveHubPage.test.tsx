@@ -103,6 +103,20 @@ describe('LiveHubPage — print action buttons', () => {
     );
     expect(screen.getByRole('button', { name: /print comparison sheet/i })).toBeTruthy();
   });
+
+  it('renders the "Full Output Report" print button', () => {
+    render(
+      <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
+    );
+    expect(screen.getByRole('button', { name: /print full output report/i })).toBeTruthy();
+  });
+
+  it('renders the "Includes all visible result panels" hint text', () => {
+    render(
+      <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
+    );
+    expect(screen.getByText('Includes all visible result panels')).toBeTruthy();
+  });
 });
 
 describe('LiveHubPage — print overlay navigation', () => {
@@ -180,5 +194,36 @@ describe('LiveHubPage — print surfaces use existing lab components', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /print customer summary/i }));
     expect(screen.getByText(/Print \/ Save PDF/)).toBeTruthy();
+  });
+
+  it('clicking "Full Output Report" renders the LabPrintFull overlay', () => {
+    render(
+      <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /print full output report/i }));
+    // LabPrintFull renders an h1 "Full Output Report"
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Full Output Report' }),
+    ).toBeTruthy();
+  });
+
+  it('Full Output Report print surface shows ATLAS brand (uses LabPrintFull)', () => {
+    render(
+      <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /print full output report/i }));
+    expect(screen.getByText('ATLAS')).toBeTruthy();
+  });
+
+  it('"← Back to Lab" in the Full Output Report overlay returns to the hub', () => {
+    render(
+      <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /print full output report/i }));
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Full Output Report' }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByText('← Back to Lab'));
+    expect(screen.getByText('📡 Live Output Hub')).toBeTruthy();
   });
 });
