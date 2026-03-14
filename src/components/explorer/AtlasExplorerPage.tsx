@@ -16,8 +16,9 @@ import HeatSourcePanel from './HeatSourcePanel';
 import BehaviourTimeline from './BehaviourTimeline';
 import PhysicsConsole from './PhysicsConsole';
 import SystemTypeSelector from './SystemTypeSelector';
+import { DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
 
-import type { ExplorerState, ExplorerLayer, SystemTypeId } from './explorerTypes';
+import type { ExplorerSelection, ExplorerLayer, SystemTypeId } from './explorerTypes';
 import {
   DEMO_ROOMS,
   getSystemConfig,
@@ -40,7 +41,7 @@ const LAYER_LABELS: Record<ExplorerLayer, string> = {
 };
 
 function LayerBreadcrumb({ state, onNavigate }: {
-  state: ExplorerState;
+  state: ExplorerSelection;
   onNavigate: (layer: ExplorerLayer) => void;
 }) {
   const layers: ExplorerLayer[] = ['house', 'room', 'emitter', 'hydraulic', 'heatSource', 'physics'];
@@ -72,11 +73,13 @@ function LayerBreadcrumb({ state, onNavigate }: {
 // ── Status bar ────────────────────────────────────────────────────────────────
 
 function StatusHeader({ state, systemId, liveLoad }: {
-  state: ExplorerState; systemId: SystemTypeId; liveLoad: number;
+  state: ExplorerSelection; systemId: SystemTypeId; liveLoad: number;
 }) {
   const cfg    = getSystemConfig(systemId);
-  const room   = state.selectedRoom   ? getRoomById(state.selectedRoom) : null;
-  const emitter = state.selectedEmitter ? getEmitterById(systemId, state.selectedEmitter) : null;
+  const roomId = 'roomId' in state ? state.roomId : undefined;
+  const emitterId = 'emitterId' in state ? state.emitterId : undefined;
+  const room   = roomId ? getRoomById(roomId) : null;
+  const emitter = emitterId ? getEmitterById(systemId, emitterId) : null;
   const loadLabel = cfg.heatSource.isHeatPump ? 'HP output' : 'Boiler load';
 
   return (
@@ -123,7 +126,7 @@ function FooterStrip({ systemId }: { systemId: SystemTypeId }) {
         <span className="explorer-strip-label">{isHP ? 'SPF' : 'Boiler efficiency'}</span>
         <span className={`explorer-strip-value ${isHP
           ? ((hs.spf ?? 0) >= 3 ? 'explorer-strip-value--success' : 'explorer-strip-value--warning')
-          : ((hs.efficiencyPct ?? 0) >= 92 ? 'explorer-strip-value--success' : 'explorer-strip-value--warning')
+          : ((hs.efficiencyPct ?? 0) >= DEFAULT_NOMINAL_EFFICIENCY_PCT ? 'explorer-strip-value--success' : 'explorer-strip-value--warning')
         }`}>
           {isHP ? `SPF ${hs.spf ?? '?'}` : `${hs.efficiencyPct ?? '?'}%`}
         </span>
@@ -176,7 +179,7 @@ interface Props {
 
 export default function AtlasExplorerPage({ onBack }: Props) {
   const [selectedSystemId, setSelectedSystemId] = useState<SystemTypeId>('combi');
-  const [explorerState, setExplorerState] = useState<ExplorerState>({ layer: 'house' });
+  const [explorerState, setExplorerState] = useState<ExplorerSelection>({ layer: 'house' });
   const [timelinePlaying, setTimelinePlaying] = useState(false);
   const [liveLoad, setLiveLoad] = useState(0.58);
 
@@ -196,38 +199,63 @@ export default function AtlasExplorerPage({ onBack }: Props) {
   const setLayer = useCallback((layer: ExplorerLayer, id?: string) => {
     setExplorerState(prev => {
       if (layer === 'house') return { layer: 'house' };
-      if (layer === 'room' && id) return { layer, selectedRoom: id };
-      if (layer === 'emitter' && id) return { ...prev, layer, selectedEmitter: id };
-      return { ...prev, layer };
+
+      const prevRoomId = 'roomId' in prev ? prev.roomId : undefined;
+      const prevEmitterId = 'emitterId' in prev ? prev.emitterId : undefined;
+
+      if (layer === 'room' && id) return { layer: 'room', roomId: id };
+      if (layer === 'emitter') {
+        const emitterId = id ?? prevEmitterId;
+        const roomId = prevRoomId;
+        if (emitterId && roomId) return { layer: 'emitter', roomId, emitterId };
+      }
+      if (layer === 'hydraulic') {
+        const emitterId = id ?? prevEmitterId;
+        const roomId = prevRoomId;
+        if (emitterId && roomId) {
+          const emitter = cfg.emitters.find(e => e.id === emitterId);
+          return { layer: 'hydraulic', roomId, emitterId, pipeIds: emitter?.pipeIds ?? [] };
+        }
+      }
+      if (layer === 'heatSource') return { layer: 'heatSource', boilerId: 'primary' };
+      if (layer === 'physics') return { layer: 'physics', roomId: prevRoomId };
+      return prev;
     });
-  }, []);
+  }, [cfg.emitters]);
 
   function handleRoomClick(roomId: string) {
-    setLayer('room', roomId);
+    setExplorerState({ layer: 'room', roomId });
   }
 
   function handleEmitterClick(emitterId: string) {
     const room = cfg.emitters.find(e => e.id === emitterId)
       ? DEMO_ROOMS.find(r => r.emitterId === emitterId)
       : null;
-    setExplorerState(prev => ({
-      ...prev,
-      layer: 'emitter',
-      selectedEmitter: emitterId,
-      selectedRoom: room?.id ?? prev.selectedRoom,
-    }));
+    setExplorerState(prev => {
+      const prevRoomId = 'roomId' in prev ? prev.roomId : undefined;
+      const roomId = room?.id ?? prevRoomId ?? '';
+      return { layer: 'emitter', roomId, emitterId };
+    });
   }
 
   function handleBreadcrumbNavigate(layer: ExplorerLayer) {
-    if (layer === 'house') setExplorerState({ layer: 'house' });
-    else setExplorerState(prev => ({ ...prev, layer }));
+    if (layer === 'house') {
+      setExplorerState({ layer: 'house' });
+    } else {
+      setLayer(layer);
+    }
   }
 
   // ── Derived state ───────────────────────────────────────────────────────────
 
-  const selectedRoom    = explorerState.selectedRoom ? getRoomById(explorerState.selectedRoom) : null;
-  const selectedEmitter = explorerState.selectedEmitter
-    ? getEmitterById(selectedSystemId, explorerState.selectedEmitter)
+  const selectedRoomId =
+    'roomId' in explorerState ? explorerState.roomId : undefined;
+  const selectedEmitterId =
+    'emitterId' in explorerState ? explorerState.emitterId : undefined;
+
+  const selectedRoom    = selectedRoomId ? getRoomById(selectedRoomId) : null;
+  const selectedEmitter = selectedEmitterId
+    ? getEmitterById(selectedSystemId, selectedEmitterId)
     : selectedRoom
     ? getEmitterById(selectedSystemId, selectedRoom.emitterId)
     : null;
@@ -237,8 +265,8 @@ export default function AtlasExplorerPage({ onBack }: Props) {
   const showSourcePanel = explorerState.layer === 'heatSource';
 
   const diagramHighlight = {
-    roomId:    explorerState.selectedRoom,
-    emitterId: explorerState.selectedEmitter,
+    roomId:    selectedRoomId,
+    emitterId: selectedEmitterId,
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
