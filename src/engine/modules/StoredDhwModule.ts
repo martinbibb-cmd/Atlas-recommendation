@@ -1,4 +1,4 @@
-import type { EngineInputV2_3, StoredDhwV1Result, StoredDhwFlagItem } from '../schema/EngineInputV2_3';
+import type { EngineInputV2_3, StoredDhwV1Result, StoredDhwFlagItem, StoredDhwConstraintKind } from '../schema/EngineInputV2_3';
 import {
   computeTapMixing,
   computeUsableVolumeFactor,
@@ -10,19 +10,56 @@ import {
 /** Minimum mains dynamic flow (L/min) for an unvented cylinder to perform well. */
 const UNVENTED_MIN_ADEQUATE_LPM = 18;
 
+/** Minimum mains dynamic pressure (bar) for reliable unvented cylinder operation. */
+const UNVENTED_MIN_ADEQUATE_PRESSURE_BAR = 1.5;
+
 /** Nominal cylinder coil reheat rate (kW) for a clean coil. */
 const NOMINAL_REHEAT_KW = 12;
+
+/** Minimum gravity head (m) above the draw-off point for a vented (open-vented) system. */
+const VENTED_MIN_ADEQUATE_HEAD_M = 0.5;
+
+/** Very low head threshold (m) for vented systems — below this, shower experience is poor. */
+const VENTED_VERY_LOW_HEAD_M = 0.3;
+
+/**
+ * Minimum cylinder volume (litres) per bathroom for the thermal-capacity adequacy check.
+ * Each bathroom represents a full hot-water draw point.
+ */
+const MIN_LITRES_PER_BATHROOM = 80;
+
+/**
+ * Additional minimum cylinder volume (litres) per occupant beyond the first two.
+ * Two occupants share capacity; each additional person adds incremental draw demand.
+ */
+const MIN_LITRES_PER_EXTRA_OCCUPANT = 25;
+
+/** Absolute floor for minimum cylinder volume (litres). */
+const MIN_CYLINDER_VOLUME_LITRES = 100;
+
+/**
+ * Typical heat pump COP range for space heating (low-temperature circuit).
+ * Used in the efficiency-penalty flag to contextualise DHW COP degradation.
+ */
+const HP_SPACE_HEATING_COP_RANGE = '2.5–3.5';
+
+/**
+ * Typical heat pump COP range when heating a cylinder to 50–55 °C.
+ * Substantially lower than space-heating COP due to higher lift temperature.
+ */
+const HP_DHW_COP_RANGE = '1.5–2.0';
 
 /**
  * StoredDhwModuleV1
  *
  * Deterministic stored-cylinder (DHW) eligibility and sizing-proxy module based
- * on four physics / practical rules:
- *   1. Space gate      – available cylinder space is tight or unknown → warn (suppressed
- *                        for unvented when mains flow is confirmed adequate)
- *   2. Vented/unvented – for unvented (mains_true), gates on mains flow adequacy
- *   3. Demand gate     – high occupancy or many bathrooms → recommend larger volume / Mixergy
- *   4. Combi fallback  – if combi simultaneous-demand fails, flag that Stored solves it
+ * on physics / practical rules covering the correct governing constraints:
+ *
+ *   Vented systems:     head-limited   — gravity head determines pressure/flow delivery
+ *   Unvented systems:   mains-limited  — dynamic pressure and flow adequacy govern operation
+ *   All stored systems: thermal-capacity-limited — cylinder volume vs simultaneous demand
+ *   Heat pump cylinder: reduced-efficiency — COP collapses at DHW storage temperatures
+ *   All stored systems: recovery-limited — reheat rate bounded by coil condition / heat source
  */
 export function runStoredDhwModuleV1(
   input: EngineInputV2_3,
@@ -38,17 +75,89 @@ export function runStoredDhwModuleV1(
 
   const isHighDemand = bathrooms >= 2 || occupancy >= 4;
 
-  // ── Rule 2 (new): Unvented mains-flow gate ────────────────────────────────
-  // For unvented (mains-pressure) cylinders the principal viability check is
-  // whether the mains supply can sustain the demand.  For vented (loft-tank)
-  // systems this is not a gate because gravity-fed supply is normally adequate
-  // for domestic cylinders.
+  // ── Rule A: Vented head evaluation ────────────────────────────────────────
+  // For open-vented (gravity-fed) systems the governing constraint is the
+  // available cold-water service head above the draw-off point.  Poor head
+  // directly limits delivery pressure and shower experience.
+  const isVented = coldWaterSource === 'loft_tank';
+  if (isVented) {
+    if (input.cwsHeadMetres !== undefined) {
+      const head = input.cwsHeadMetres;
+      if (head < VENTED_VERY_LOW_HEAD_M) {
+        flags.push({
+          id: 'stored-vented-low-head',
+          severity: 'warn',
+          title: 'Very low tank-fed head — head-limited system',
+          detail:
+            `Measured CWS head of ${head.toFixed(1)} m is very low (below ${VENTED_VERY_LOW_HEAD_M} m). ` +
+            `At this head, tank-fed hot water delivery pressure will be very weak — shower experience is likely ` +
+            `to be poor and a shower pump or pressurisation unit should be specified. ` +
+            `This is a head-limited system: the governing constraint is the height difference ` +
+            `between the cold-water storage tank and the draw-off points.`,
+        });
+      } else if (head < VENTED_MIN_ADEQUATE_HEAD_M) {
+        flags.push({
+          id: 'stored-vented-low-head',
+          severity: 'warn',
+          title: 'Low tank-fed head — marginal delivery margin',
+          detail:
+            `Measured CWS head of ${head.toFixed(1)} m is below the ${VENTED_MIN_ADEQUATE_HEAD_M} m ` +
+            `minimum recommended for an open-vented tank-fed system. Shower flow rate will be marginal ` +
+            `and simultaneous draws may cause noticeable pressure drop. ` +
+            `Consider a shower pump to boost delivery pressure.`,
+        });
+      } else {
+        assumptions.push(
+          `Vented (tank-fed) cylinder: CWS head ${head.toFixed(1)} m ≥ ` +
+          `${VENTED_MIN_ADEQUATE_HEAD_M} m — tank-fed head adequate.`,
+        );
+      }
+    } else {
+      assumptions.push(
+        'Vented (tank-fed) cylinder: loft-tank supply — CWS head not provided; ' +
+        'mains flow gate not applicable.',
+      );
+    }
+  }
+
+  // ── Rule B: Unvented mains-flow and pressure gate ─────────────────────────
+  // For unvented (mains-pressure) cylinders the principal viability checks are:
+  //   1. Mains dynamic pressure — drives fill rate and simultaneous-outlet delivery
+  //   2. Mains dynamic flow    — determines whether peak demand can be sustained
+  // Vented (loft-tank) systems bypass both checks.
   const isUnvented = coldWaterSource === 'mains_true' || coldWaterSource === 'mains_shared';
   const mainsFlowKnown = input.mainsDynamicFlowLpmKnown === true && input.mainsDynamicFlowLpm != null;
   const mainsFlowAdequate =
     mainsFlowKnown && input.mainsDynamicFlowLpm! >= UNVENTED_MIN_ADEQUATE_LPM;
 
+  // Resolve dynamic pressure from preferred alias or legacy field
+  const dynamicPressureBar =
+    input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+  const mainsPressureAdequate =
+    dynamicPressureBar !== undefined && dynamicPressureBar >= UNVENTED_MIN_ADEQUATE_PRESSURE_BAR;
+
   if (isUnvented) {
+    // ── B1: Mains dynamic pressure ──────────────────────────────────────────
+    if (dynamicPressureBar !== undefined && !mainsPressureAdequate) {
+      flags.push({
+        id: 'stored-mains-limited',
+        severity: 'warn',
+        title: 'Low mains dynamic pressure — mains-limited system',
+        detail:
+          `Dynamic mains pressure of ${dynamicPressureBar.toFixed(2)} bar is below the ` +
+          `${UNVENTED_MIN_ADEQUATE_PRESSURE_BAR} bar recommended minimum for an unvented cylinder. ` +
+          `Low mains pressure limits simultaneous-outlet delivery and may cause pressure fluctuations ` +
+          `during back-to-back draws. This is a mains-limited system: the governing constraint is ` +
+          `the incoming mains supply, not the cylinder itself.`,
+      });
+    } else if (mainsPressureAdequate) {
+      assumptions.push(
+        `Unvented (mains-pressure) cylinder: dynamic pressure ` +
+        `${dynamicPressureBar!.toFixed(2)} bar ≥ ${UNVENTED_MIN_ADEQUATE_PRESSURE_BAR} bar — adequate.`,
+      );
+    }
+
+    // ── B2: Mains dynamic flow ──────────────────────────────────────────────
     if (mainsFlowKnown && !mainsFlowAdequate) {
       flags.push({
         id: 'stored-unvented-low-flow',
@@ -75,8 +184,6 @@ export function runStoredDhwModuleV1(
         `${input.mainsDynamicFlowLpm} L/min ≥ ${UNVENTED_MIN_ADEQUATE_LPM} L/min — mains supply adequate.`,
       );
     }
-  } else if (coldWaterSource === 'loft_tank') {
-    assumptions.push('Vented (gravity-fed) cylinder: loft-tank supply — mains flow gate not applicable.');
   }
 
   // ── Rule 1: Space gate ────────────────────────────────────────────────────
@@ -153,6 +260,48 @@ export function runStoredDhwModuleV1(
     });
   }
 
+  // ── Rule C: Thermal capacity check ───────────────────────────────────────
+  // Evaluate whether the cylinder volume is adequate for the occupancy/bathroom
+  // demand profile.  When cylinderVolumeLitres is provided, compare against the
+  // minimum adequate volume derived from bathrooms and occupancy.
+  //
+  // Minimum adequate volume:
+  //   base = bathroomCount × MIN_LITRES_PER_BATHROOM
+  //   extra = max(0, occupancyCount − 2) × MIN_LITRES_PER_EXTRA_OCCUPANT
+  //   min_litres = max(MIN_CYLINDER_VOLUME_LITRES, base + extra)
+  //
+  // For 'high' simultaneousDrawSeverity, apply a 20% additional reserve.
+  if (input.cylinderVolumeLitres !== undefined) {
+    const drawSeverity = input.simultaneousDrawSeverity ?? 'low';
+    const severityMultiplier = drawSeverity === 'high' ? 1.2 : drawSeverity === 'medium' ? 1.1 : 1.0;
+    const baseMin = bathrooms * MIN_LITRES_PER_BATHROOM;
+    const extraMin = Math.max(0, occupancy - 2) * MIN_LITRES_PER_EXTRA_OCCUPANT;
+    const minAdequate = Math.round(
+      Math.max(MIN_CYLINDER_VOLUME_LITRES, baseMin + extraMin) * severityMultiplier,
+    );
+
+    if (input.cylinderVolumeLitres < minAdequate) {
+      flags.push({
+        id: 'stored-thermal-capacity-limited',
+        severity: 'warn',
+        title: 'Cylinder undersized — thermal-capacity-limited',
+        detail:
+          `Cylinder volume ${input.cylinderVolumeLitres} L is below the estimated minimum ` +
+          `${minAdequate} L for ${bathrooms} bathroom(s) and ${occupancy} occupant(s)` +
+          (drawSeverity !== 'low' ? ` with ${drawSeverity} simultaneous draw severity` : '') +
+          `. The cylinder will run out of hot water during peak back-to-back draws. ` +
+          `This is a thermal-capacity-limited system: the constraint is stored energy, ` +
+          `not delivery pressure. Upgrade to a larger cylinder or add a Mixergy unit ` +
+          `to maximise usable capacity from the available volume.`,
+      });
+    } else {
+      assumptions.push(
+        `Cylinder volume ${input.cylinderVolumeLitres} L ≥ ` +
+        `estimated minimum ${minAdequate} L — thermal capacity adequate.`,
+      );
+    }
+  }
+
   // ── Rule 4: Cylinder condition degradation ────────────────────────────────
   const insulationFactor    = input.cylinderInsulationFactor    ?? 1.0;
   const coilTransferFactor  = input.cylinderCoilTransferFactor  ?? 1.0;
@@ -209,6 +358,22 @@ export function runStoredDhwModuleV1(
       title: `Cylinder Condition: ${cylConditionBand.charAt(0).toUpperCase() + cylConditionBand.slice(1)}`,
       detail,
     });
+
+    // Recovery-limited flag: emit separately when coil is significantly degraded
+    // so the constraintKind logic can surface this as the primary constraint.
+    if (coilTransferFactor < 0.85) {
+      const effectiveReheatKw = parseFloat((coilTransferFactor * NOMINAL_REHEAT_KW).toFixed(1));
+      flags.push({
+        id: 'stored-recovery-limited',
+        severity: 'warn',
+        title: 'Slow recovery — recovery-limited system',
+        detail:
+          `Coil transfer factor ${coilTransferFactor.toFixed(2)} reduces effective reheat rate to ` +
+          `~${effectiveReheatKw} kW (nominal ${NOMINAL_REHEAT_KW} kW). ` +
+          `Recovery time after a large draw will be extended — the system is recovery-limited. ` +
+          `Descale or replace the coil to restore reheat capacity.`,
+      });
+    }
   }
 
   if (hasCylinderConditionData) {
@@ -248,6 +413,23 @@ export function runStoredDhwModuleV1(
         `is drawn at each outlet — so the effective usable volume is more sensitive to ` +
         `simultaneous demand and recovery speed than an identically-sized boiler cylinder.`,
     });
+
+    // Separate efficiency-penalty warn flag: heat pump DHW involves a COP collapse
+    // at cylinder heating temperatures that must not be presented as neutral.
+    flags.push({
+      id: 'stored-heat-pump-efficiency-penalty',
+      severity: 'warn',
+      title: 'Reduced-efficiency hot water mode — heat pump COP penalty',
+      detail:
+        `Heating a cylinder to ${effectiveStoreTempC} °C requires the heat pump to operate at a ` +
+        `high lift temperature, causing a significant COP collapse. ` +
+        `Typical heat pump COP for space heating (low-temperature circuit): ${HP_SPACE_HEATING_COP_RANGE}. ` +
+        `Typical COP when heating a cylinder to 50–55 °C: ${HP_DHW_COP_RANGE}. ` +
+        `This is reduced-efficiency hot water mode — heat pump DHW generation is not thermally neutral. ` +
+        `Specify a Mixergy cylinder or large-volume buffer to minimise the frequency of ` +
+        `cylinder reheat cycles and reduce time in this penalised operating mode.`,
+    });
+
     assumptions.push(
       `Storage regime: heat pump cylinder (${effectiveStoreTempC} °C store). ` +
       `Usable volume reduced relative to a boiler cylinder at the same nominal size.`,
@@ -265,6 +447,22 @@ export function runStoredDhwModuleV1(
     tapTargetTempC: input.tapTargetTempC,
     coldWaterTempC: input.coldWaterTempC,
   });
+
+  // ── Determine primary constraint kind ────────────────────────────────────
+  // Order of precedence: head-limited > mains-limited > thermal-capacity-limited
+  //                      > recovery-limited > reduced-efficiency-hot-water
+  let constraintKind: StoredDhwConstraintKind | undefined;
+  if (flags.some(f => f.id === 'stored-vented-low-head')) {
+    constraintKind = 'head-limited';
+  } else if (flags.some(f => f.id === 'stored-mains-limited')) {
+    constraintKind = 'mains-limited';
+  } else if (flags.some(f => f.id === 'stored-thermal-capacity-limited')) {
+    constraintKind = 'thermal-capacity-limited';
+  } else if (flags.some(f => f.id === 'stored-recovery-limited')) {
+    constraintKind = 'recovery-limited';
+  } else if (flags.some(f => f.id === 'stored-heat-pump-efficiency-penalty')) {
+    constraintKind = 'reduced-efficiency-hot-water';
+  }
 
   // ── Determine overall storedRisk verdict ─────────────────────────────────
   const storedRisk: StoredDhwV1Result['verdict']['storedRisk'] =
@@ -290,6 +488,7 @@ export function runStoredDhwModuleV1(
     recommended: { type: recommendedType, volumeBand },
     flags,
     assumptions,
+    ...(constraintKind !== undefined && { constraintKind }),
     storageRegime: resolvedRegime,
     usableVolumeFactor: resolvedUsableVolumeFactor,
     dhwMixing: computeTapMixing({
