@@ -137,6 +137,20 @@ body {
 .journey-card.full { border-color: #3182ce; }
 .journey-card--hub { border-color: #2b6cb0; }
 
+.journey-card--explorer {
+  border-color: #b58a3a;
+  background: #fffcf5;
+}
+
+.journey-card--explorer .cta-btn {
+  background: #b58a3a;
+  color: white;
+}
+
+.journey-card--explorer .cta-btn:hover {
+  background: #9a7330;
+}
+
 .journey-card--featured {
   border: 2px solid #6366f1;
   background: #fafbff;
