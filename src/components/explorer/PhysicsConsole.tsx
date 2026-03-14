@@ -41,7 +41,7 @@ function RoomRow({ room, data, highlighted }: {
 }
 
 export default function PhysicsConsole({ rooms, systemConfig, selectedRoomId }: Props) {
-  const { physics, heatSource, cylinder, designFlowTempC, category, id } = systemConfig;
+  const { physics, heatSource, cylinder, designFlowTempC, id } = systemConfig;
   const isHP = heatSource.isHeatPump;
 
   const totalLoss   = physics.reduce((s, p) => s + p.heatLossKw, 0);
@@ -196,7 +196,7 @@ export default function PhysicsConsole({ rooms, systemConfig, selectedRoomId }: 
           systemType: id,
           rooms: physics,
           heatSource: {
-            isHeatPump,
+            isHeatPump: isHP,
             outputKw: isHP ? heatSource.ratedOutputKw : heatSource.outputKw,
             ...(isHP ? { cop: heatSource.cop, spf: heatSource.spf, flowTempC: designFlowTempC }
                       : { returnTempC: heatSource.returnTempC, condensing: heatSource.condensing }),

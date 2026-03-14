@@ -20,12 +20,14 @@ interface Props {
 // ── Event icons ───────────────────────────────────────────────────────────────
 
 const EVENT_META: Record<BehaviourEventType, { icon: string; color: string; label: string }> = {
-  heatingOn:   { icon: '♨',  color: '#ff7a00', label: 'Heating on'   },
-  heatingOff:  { icon: '❄',  color: '#3fa7ff', label: 'Heating off'  },
-  heatingRamp: { icon: '↗',  color: '#f39c12', label: 'Heating ramp' },
-  shower:      { icon: '🚿', color: '#3fa7ff', label: 'Shower'       },
-  bath:        { icon: '🛁', color: '#3fa7ff', label: 'Bath'         },
-  tap:         { icon: '💧', color: '#3fa7ff', label: 'Tap'          },
+  heatingOn:      { icon: '♨',  color: '#ff7a00', label: 'Heating on'      },
+  heatingOff:     { icon: '❄',  color: '#3fa7ff', label: 'Heating off'     },
+  heatingRamp:    { icon: '↗',  color: '#f39c12', label: 'Heating ramp'    },
+  shower:         { icon: '🚿', color: '#3fa7ff', label: 'Shower'          },
+  bath:           { icon: '🛁', color: '#3fa7ff', label: 'Bath'            },
+  tap:            { icon: '💧', color: '#3fa7ff', label: 'Tap'             },
+  cylinderReheat: { icon: '🔥', color: '#f39c12', label: 'Cylinder reheat' },
+  defrost:        { icon: '❄️', color: '#a0c4ff', label: 'Defrost cycle'   },
 };
 
 // ── Boiler load bar ───────────────────────────────────────────────────────────

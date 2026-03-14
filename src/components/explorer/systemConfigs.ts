@@ -21,7 +21,6 @@
 import type {
   SystemConfig,
   Emitter,
-  Pipe,
   PhysicsRoomData,
   BehaviourEvent,
   Room,
@@ -72,30 +71,6 @@ const RADIATORS_45C: Emitter[] = [
   { id: 'rad-bath',    label: 'Towel Rail + Double Panel (new)',   type: 'radiator', outputKw: 1.00, pipeIds: ['pipe-bath-flow',     'pipe-bath-return']     },
   { id: 'rad-bed2',    label: 'Triple Panel Radiator (oversized)', type: 'radiator', outputKw: 1.10, pipeIds: ['pipe-bed2-flow',     'pipe-bed2-return']     },
 ];
-
-// ── Pipe sets ─────────────────────────────────────────────────────────────────
-// 22mm primary for boiler systems, 28mm for ASHP (high flow rate)
-
-function makePipes(diameterMm: 15 | 22 | 28, flowMultiplier = 1): Pipe[] {
-  const f = flowMultiplier;
-  return [
-    { id: 'pipe-living-flow',    label: 'Living flow',    from: 'source',       to: 'rad-living',  diameterMm,     flowLpm: 4.2 * f },
-    { id: 'pipe-living-return',  label: 'Living return',  from: 'rad-living',   to: 'source',      diameterMm,     flowLpm: 4.2 * f },
-    { id: 'pipe-kitchen-flow',   label: 'Kitchen flow',   from: 'source',       to: 'rad-kitchen', diameterMm: Math.min(diameterMm, 22) as 15 | 22, flowLpm: 2.8 * f },
-    { id: 'pipe-kitchen-return', label: 'Kitchen return', from: 'rad-kitchen',  to: 'source',      diameterMm: Math.min(diameterMm, 22) as 15 | 22, flowLpm: 2.8 * f },
-    { id: 'pipe-hallway-flow',   label: 'Hallway flow',   from: 'source',       to: 'rad-hallway', diameterMm: 15, flowLpm: 1.8 * f },
-    { id: 'pipe-hallway-return', label: 'Hallway return', from: 'rad-hallway',  to: 'source',      diameterMm: 15, flowLpm: 1.8 * f },
-    { id: 'pipe-bed1-flow',      label: 'Bed 1 flow',     from: 'source',       to: 'rad-bed1',    diameterMm: 15, flowLpm: 3.1 * f },
-    { id: 'pipe-bed1-return',    label: 'Bed 1 return',   from: 'rad-bed1',     to: 'source',      diameterMm: 15, flowLpm: 3.1 * f },
-    { id: 'pipe-bath-flow',      label: 'Bath flow',      from: 'source',       to: 'rad-bath',    diameterMm: 15, flowLpm: 2.6 * f },
-    { id: 'pipe-bath-return',    label: 'Bath return',    from: 'rad-bath',     to: 'source',      diameterMm: 15, flowLpm: 2.6 * f },
-    { id: 'pipe-bed2-flow',      label: 'Bed 2 flow',     from: 'source',       to: 'rad-bed2',    diameterMm: 15, flowLpm: 2.9 * f },
-    { id: 'pipe-bed2-return',    label: 'Bed 2 return',   from: 'rad-bed2',     to: 'source',      diameterMm: 15, flowLpm: 2.9 * f },
-  ];
-}
-
-const PIPES_22MM = makePipes(22, 1);
-const PIPES_28MM = makePipes(28, 4); // ASHP needs ~4× boiler flow rate (ΔT 5°C vs 20°C)
 
 // ── Physics data sets ─────────────────────────────────────────────────────────
 

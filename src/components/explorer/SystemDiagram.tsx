@@ -190,7 +190,7 @@ export default function SystemDiagram({
   onEmitterClick,
   animating = false,
 }: Props) {
-  const { hasCylinder, cylinder, heatSource, designFlowTempC, designReturnTempC, accentColor, category } = systemConfig;
+  const { hasCylinder, cylinder, heatSource, designFlowTempC, designReturnTempC, accentColor } = systemConfig;
 
   const isHP = heatSource.isHeatPump;
   const manStartX = hasCylinder ? MAN_START_X_STORED : MAN_START_X_DIRECT;
