@@ -74,6 +74,12 @@ const ROLE_MAP: Record<PartKind, SnapRole> = {
   bath_outlet:                'outlet',
   shower_outlet:              'outlet',
   cold_tap_outlet:            'outlet',
+
+  // System kits (pre-packaged configurations — no individual snap constraint)
+  kit_combi_sealed:           'support',
+  kit_system_boiler_unvented: 'support',
+  kit_ashp_hot_water:         'support',
+  kit_regular_vented:         'support',
 }
 
 /** Returns the snap role for a given component kind. */
