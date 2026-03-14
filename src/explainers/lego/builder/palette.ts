@@ -42,6 +42,38 @@ export const PALETTE_ADVANCED: PaletteItem[] = [
   { kind: 'tee_ch_return', label: 'CH Return Tee',  emoji: '↙️', category: 'system_support' },
 ];
 
+// ─── System Kit items ─────────────────────────────────────────────────────────
+// Surveyor-friendly shortcut bundles.  Each kit maps to a PartKind that the
+// builder engine can expand into its constituent components when placed on a
+// Plant Anchor.
+
+export const SYSTEM_KITS: PaletteItem[] = [
+  {
+    kind:     'kit_combi_sealed',
+    label:    'Gas Combi Kit',
+    emoji:    '🔥',
+    category: 'system_kits',
+  },
+  {
+    kind:     'kit_system_boiler_unvented',
+    label:    'System Boiler + Unvented Cylinder Kit',
+    emoji:    '♨️',
+    category: 'system_kits',
+  },
+  {
+    kind:     'kit_ashp_hot_water',
+    label:    'Heat Pump + Hot Water Kit',
+    emoji:    '🌿',
+    category: 'system_kits',
+  },
+  {
+    kind:     'kit_regular_vented',
+    label:    'Regular Boiler + Vented Cylinder Kit',
+    emoji:    '🏠',
+    category: 'system_kits',
+  },
+];
+
 // ─── Palette sections (ordered) ───────────────────────────────────────────────
 
 /** The ordered list of palette sections shown in the component palette. */
@@ -76,6 +108,11 @@ export const PALETTE_SECTIONS: PaletteSection[] = [
     label: 'Outlets',
     items: PALETTE.filter(p => p.category === 'outlets'),
   },
+  {
+    category: 'system_kits',
+    label: 'System Kits',
+    items: SYSTEM_KITS,
+  },
 ];
 
 /** Convenience: all palette items (PALETTE + PALETTE_ADVANCED) in one flat list. */
@@ -90,4 +127,5 @@ export const PALETTE_CATEGORY_LABELS: Record<PaletteCategory, string> = {
   emitters:       'Emitters',
   system_support: 'System Support',
   outlets:        'Outlets',
+  system_kits:    'System Kits',
 };

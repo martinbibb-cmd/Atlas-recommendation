@@ -66,6 +66,60 @@
 
 .fpb__action-btn:hover { background: #f1f5f9; }
 
+/* ── Starter template bar ─────────────────────────────────────────────── */
+
+.fpb__template-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #eff6ff;
+  border-bottom: 1px solid #bfdbfe;
+}
+
+.fpb__template-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e40af;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.fpb__template-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e3a8a;
+  background: #fff;
+  border: 1.5px solid #93c5fd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+
+.fpb__template-btn:hover {
+  background: #dbeafe;
+  border-color: #3b82f6;
+}
+
+.fpb__template-btn--blank {
+  color: #4a5568;
+  border-style: dashed;
+  border-color: #cbd5e0;
+}
+
+.fpb__template-btn--blank:hover {
+  background: #f7fafc;
+  border-color: #a0aec0;
+}
+
 /* ── Floor tabs ────────────────────────────────────────────────────────── */
 
 .fpb__floors {

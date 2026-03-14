@@ -5,6 +5,73 @@
  * `opt-card-` prefix for system option cards.
  */
 
+/* ── Decision-first hero section ─────────────────────────────────────────── */
+
+.rec-hub__hero {
+  margin-bottom: 0.75rem;
+}
+
+/* Depot copy button — floating below the hero card */
+.rec-hub__depot-copy {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.rec-hub__depot-btn {
+  padding: 0.35rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid #90cdf4;
+  border-radius: 6px;
+  background: #ebf8ff;
+  color: #2b6cb0;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.rec-hub__depot-btn:hover {
+  background: #bee3f8;
+}
+
+.rec-hub__depot-btn--copied {
+  background: #f0fff4;
+  color: #276749;
+  border-color: #9ae6b4;
+}
+
+/* Sticky trust strip — stays visible during scroll */
+.rec-hub__sticky-strip {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f7fafc;
+  padding-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+/* ── Performance Evidence panels grid ────────────────────────────────────── */
+
+.rec-hub__perf-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.rec-hub__perf-panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+  overflow: hidden;
+}
+
+.rec-hub__perf-panel--chart {
+  min-height: 280px;
+}
+
 /* ── Recommendation Summary Card ─────────────────────────────────────────── */
 
 .rec-summary {

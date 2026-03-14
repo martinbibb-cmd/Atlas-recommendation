@@ -61,7 +61,14 @@ export type PartKind =
   | 'tee_ch_flow'
   | 'tee_ch_return'
   | 'manifold_hot'
-  | 'manifold_cold';
+  | 'manifold_cold'
+  // ── System Kits — surveyor drag-and-drop shortcuts ─────────────────────
+  // Each kit represents a pre-wired bundle of components.  When placed on a
+  // Plant Anchor the builder auto-connects the primary components of the kit.
+  | 'kit_combi_sealed'           // Gas combi + sealed system kit (expansion, filling loop)
+  | 'kit_system_boiler_unvented' // Gas system boiler + unvented cylinder + sealed system kit
+  | 'kit_ashp_hot_water'         // ASHP + buffer + hot water cylinder (heat pump ready)
+  | 'kit_regular_vented';        // Regular boiler + CWS cistern + vented cylinder
 
 // ─── Re-exports from schematic block library ──────────────────────────────────
 
@@ -158,7 +165,8 @@ export type PaletteCategory =
   | 'controls'
   | 'emitters'
   | 'system_support'
-  | 'outlets';
+  | 'outlets'
+  | 'system_kits';
 
 /**
  * One collapsible section in the component palette.

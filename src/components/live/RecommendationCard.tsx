@@ -1,13 +1,14 @@
 /**
  * RecommendationCard
  *
- * Decision-first hero card for the Live Output Hub.
+ * Decision-first hero card for the Live Output Hub and the RecommendationHub.
  *
- * Shows the four key answers customers need:
+ * Shows the five key answers customers need:
  *   1. What system is recommended
  *   2. Why it suits this home
- *   3. What needs changing
- *   4. Confidence level
+ *   3. What needs changing (must-haves)
+ *   4. The main trade-off (transparency builder)
+ *   5. Confidence level
  *
  * Replaces the previous small chip in the verdict strip with a large,
  * visually prominent card that is the centrepiece of the hub page.
@@ -37,6 +38,16 @@ export default function RecommendationCard({ engineOutput }: Props) {
   const confidenceLevel = verdict?.confidence?.level ?? null;
   const reasons         = verdict?.reasons           ?? primaryOption?.why ?? [];
   const mustHave        = primaryOption?.typedRequirements?.mustHave ?? primaryOption?.requirements ?? [];
+
+  // Main trade-off: first downgrade sensitivity, then caution plane headlines
+  const tradeOff: string | null = (() => {
+    const downgrade = primaryOption?.sensitivities?.find(s => s.effect === 'downgrade');
+    if (downgrade) return downgrade.note;
+    if (primaryOption?.engineering?.status === 'caution') return primaryOption.engineering.headline;
+    if (primaryOption?.dhw?.status === 'caution') return primaryOption.dhw.headline;
+    if (primaryOption?.heat?.status === 'caution') return primaryOption.heat.headline;
+    return null;
+  })();
 
   const isWithheld = primary.startsWith('Recommendation withheld');
 
@@ -83,12 +94,20 @@ export default function RecommendationCard({ engineOutput }: Props) {
       {/* Key upgrades */}
       {mustHave.length > 0 && (
         <div className="rec-card__section">
-          <div className="rec-card__section-title">Key upgrades</div>
+          <div className="rec-card__section-title">Must-haves before install</div>
           <ul className="rec-card__bullets rec-card__bullets--upgrades" aria-label="Key installation upgrades">
             {mustHave.slice(0, 4).map((u, i) => (
               <li key={i} className="rec-card__bullet">{u}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Main trade-off — transparency builder */}
+      {tradeOff && !isWithheld && (
+        <div className="rec-card__section rec-card__section--tradeoff" aria-label="Main trade-off">
+          <div className="rec-card__section-title">Main trade-off</div>
+          <p className="rec-card__tradeoff-note">{tradeOff}</p>
         </div>
       )}
 
