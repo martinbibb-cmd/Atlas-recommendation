@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, type CSSProperties } from 'react';
 import { deriveRawPressureStr, deriveRawFlowStr } from './pressureFlowHelpers';
 import {
   LineChart,
@@ -46,6 +46,12 @@ interface Props {
   /** Optional prefill state from Story Mode escalation. */
   prefill?: Partial<FullSurveyModelV1>;
   onOpenFloorPlan?: (surveyResults: Partial<FullSurveyModelV1>) => void;
+  /**
+   * Called when the first-pass survey completes.  Receives the cleaned
+   * EngineInputV2_3 ready for the simulator.  When provided, the stepper
+   * routes directly to the simulator instead of opening LiveHubPage.
+   */
+  onComplete?: (engineInput: EngineInputV2_3) => void;
 }
 
 type Step = 'location' | 'pressure' | 'hydraulic' | 'lifestyle' | 'hot_water' | 'commercial' | 'overlay';
@@ -481,7 +487,7 @@ const defaultInput: FullSurveyModelV1 = {
   },
 };
 
-export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: Props) {
+export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, onComplete }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('location');
   const [input, setInput] = useState<FullSurveyModelV1>(() =>
     prefill ? { ...defaultInput, ...prefill } : defaultInput
@@ -551,6 +557,16 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
   const [insulationToggle, setInsulationToggle] = useState<InsulationToggle>('ok');
   const [presetMode, setPresetMode] = useState<'preset' | 'custom'>('preset');
   const [showAdvancedFabric, setShowAdvancedFabric] = useState(false);
+  /** Hydraulic step — flow-demand chart hidden by default to keep the step fast. */
+  const [showHydraulicDetail, setShowHydraulicDetail] = useState(false);
+  /** Hot-water step — outlet-vs-demand analysis hidden by default. */
+  const [showHotWaterAnalysis, setShowHotWaterAnalysis] = useState(false);
+
+  /** Shared button style for inline detail-expand toggles. */
+  const detailToggleStyle: CSSProperties = {
+    border: 'none', background: 'transparent', color: '#3182ce',
+    cursor: 'pointer', fontSize: '0.8rem', textAlign: 'left', padding: '0.25rem 0',
+  };
 
   useEffect(() => {
     const preset = getFabricPreset(dwellingForm, ageBand, sizeProxy, insulationToggle);
@@ -666,7 +682,13 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
   const next = () => {
     if (currentStep === 'overlay') {
       // Strip fullSurvey extras — pass only the EngineInputV2_3 subset to the engine.
-      const engineResult = runEngine(toEngineInput(sanitiseModelForEngine(input)));
+      const engineInput = toEngineInput(sanitiseModelForEngine(input));
+      if (onComplete) {
+        // Route directly to the simulator dashboard without stopping at LiveHubPage.
+        onComplete(engineInput);
+        return;
+      }
+      const engineResult = runEngine(engineInput);
       setResults(engineResult);
       setMode('hub');
       return;
@@ -1594,8 +1616,18 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                 </div>
               </div>
 
-              {/* Flow vs heat loss chart */}
-              <div>
+              {/* Flow vs heat loss chart — hidden by default, revealed via detail toggle */}
+              <button
+                onClick={() => setShowHydraulicDetail(v => !v)}
+                style={detailToggleStyle}
+                data-testid="survey-hydraulic-detail-toggle"
+                aria-expanded={showHydraulicDetail}
+                aria-controls="survey-hydraulic-detail"
+              >
+                {showHydraulicDetail ? '▲ Hide flow demand curve' : '▼ Show flow demand curve'}
+              </button>
+              {showHydraulicDetail && (
+              <div id="survey-hydraulic-detail" data-testid="survey-hydraulic-detail">
                 <div style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.3rem' }}>
                   Flow demand curve — {input.primaryPipeDiameter}mm pipe (0–20 kW)
                 </div>
@@ -1641,6 +1673,7 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                   </ResponsiveContainer>
                 </div>
               </div>
+              )}
             </div>
           </div>
 
@@ -2334,8 +2367,18 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                 </div>
               )}
 
-              {/* Outlet demand vs stored capacity context */}
-              <div style={{ padding: '0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+              {/* Outlet demand analysis — hidden by default, revealed via detail toggle */}
+              <button
+                onClick={() => setShowHotWaterAnalysis(v => !v)}
+                style={detailToggleStyle}
+                data-testid="survey-hotwater-analysis-toggle"
+                aria-expanded={showHotWaterAnalysis}
+                aria-controls="survey-hotwater-analysis"
+              >
+                {showHotWaterAnalysis ? '▲ Hide outlet analysis' : '▼ Show outlet analysis'}
+              </button>
+              {showHotWaterAnalysis && (
+              <div id="survey-hotwater-analysis" style={{ padding: '0.75rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }} data-testid="survey-hotwater-analysis">
                 <div style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.5rem' }}>
                   Simultaneous outlets: on-demand vs. stored
                 </div>
@@ -2362,6 +2405,7 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan }: 
                   </div>
                 </div>
               </div>
+              )}
             </div>
           </div>
 
