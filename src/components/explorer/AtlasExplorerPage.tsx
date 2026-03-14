@@ -301,7 +301,7 @@ export default function AtlasExplorerPage({ onBack }: Props) {
           <HouseExplorer
             rooms={DEMO_ROOMS}
             systemConfig={cfg}
-            selectedRoomId={explorerState.selectedRoom}
+            selectedRoomId={selectedRoomId}
             onRoomClick={handleRoomClick}
           />
         </div>
@@ -364,7 +364,7 @@ export default function AtlasExplorerPage({ onBack }: Props) {
         <PhysicsConsole
           rooms={DEMO_ROOMS}
           systemConfig={cfg}
-          selectedRoomId={explorerState.selectedRoom}
+          selectedRoomId={selectedRoomId}
         />
       </div>
 
