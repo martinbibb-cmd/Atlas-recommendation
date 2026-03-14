@@ -1,14 +1,18 @@
 /**
  * SystemDiagram.tsx
  *
- * Schematic showing the hydraulic path: Boiler → pipes → radiators.
- * Highlighted path pulses when a room / emitter is selected.
- * Uses CSS keyframe animations for flowing dots and radiator glow.
+ * Hydraulic schematic — system-topology-aware.
  *
- * Layout (SVG 560 × 240):
- *   Boiler (left) ─── flow pipe ──→ Radiators (row) ─── return pipe ──→ Boiler
+ * Topologies rendered:
+ *   combi          → Source ──→ manifold ──→ radiators
+ *   stored_vented  → Source → Cylinder → manifold → radiators
+ *   stored_unvented→ Source → Cylinder → manifold → radiators
+ *   system_unvented→ Source → Cylinder → manifold → radiators
+ *   ashp           → ASHP → manifold → oversized rads  + Cylinder (DHW branch)
+ *   regular_vented → Source → Cylinder → manifold → radiators (70°C labels)
  */
 
+import type { SystemConfig } from './explorerTypes';
 import type { Room, Emitter, Pipe } from './explorerTypes';
 
 interface HighlightSpec {
@@ -20,129 +24,155 @@ interface Props {
   rooms: Room[];
   emitters: Emitter[];
   pipes: Pipe[];
+  systemConfig: SystemConfig;
   highlight: HighlightSpec;
-  onBoilerClick: () => void;
+  onSourceClick: () => void;
   onEmitterClick: (emitterId: string) => void;
   animating?: boolean;
 }
 
-// ── Layout constants ──────────────────────────────────────────────────────────
+// ── Layout ────────────────────────────────────────────────────────────────────
 
-const W = 560;
-const H = 240;
-const BOILER_X = 44;
-const BOILER_Y = 95;
-const BOILER_W = 52;
-const BOILER_H = 52;
-const FLOW_Y  = 68;   // y of the flow manifold pipe
-const RETURN_Y = 168; // y of the return manifold pipe
-const RAD_START_X = 130;
-const RAD_GAP     = 74;
-const RAD_W       = 40;
-const RAD_H       = 52;
-const LABEL_Y     = 230;
+const W = 580;
+const H = 250;
 
-const FLOW_COLOR   = '#ff7a00';
-const RETURN_COLOR = '#3fa7ff';
-const PIPE_DIM     = '#cbd5e0';
-const GLOW_COLOR   = 'rgba(255,120,0,0.35)';
+const SRC_X  = 18;   // heat source (boiler / heat pump) left edge
+const SRC_Y  = 96;
+const SRC_W  = 52;
+const SRC_H  = 52;
+
+const CYL_X  = 92;   // cylinder — only for stored systems
+const CYL_Y  = 86;
+const CYL_W  = 36;
+const CYL_H  = 72;
+
+const MAN_START_X_DIRECT  = SRC_X + SRC_W + 18;  // no cylinder
+const MAN_START_X_STORED  = CYL_X + CYL_W + 14;  // after cylinder
+
+const FLOW_Y   = 62;
+const RETURN_Y = 168;
+
+const RAD_Y    = FLOW_Y + 14;
+const RAD_W    = 40;
+const RAD_H    = 52;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function isHighlighted(emitterId: string, highlight: HighlightSpec, rooms: Room[]) {
+  if (highlight.emitterId === emitterId) return true;
+  if (highlight.roomId) {
+    return rooms.find(r => r.id === highlight.roomId)?.emitterId === emitterId;
+  }
+  return false;
+}
 
 // ── Radiator glyph ────────────────────────────────────────────────────────────
 
-function RadiatorGlyph({ x, y, highlighted, animating, label, onClick }: {
-  x: number; y: number;
+function RadiatorGlyph({ x, highlighted, accentColor, label, type, onClick }: {
+  x: number;
   highlighted: boolean;
-  animating: boolean;
+  accentColor: string;
   label: string;
+  type: 'radiator' | 'underfloor';
   onClick: () => void;
 }) {
-  const sections = 4;
-  const sW = RAD_W / sections;
+  const panels = type === 'underfloor' ? 1 : 4;
+  const sW = RAD_W / panels;
 
   return (
-    <g
-      onClick={onClick}
-      style={{ cursor: 'pointer' }}
-      aria-label={`Radiator: ${label}`}
-    >
-      {/* Glow halo when highlighted */}
+    <g onClick={onClick} style={{ cursor: 'pointer' }} aria-label={label}>
       {highlighted && (
-        <rect
-          x={x - 5} y={y - 5} width={RAD_W + 10} height={RAD_H + 10}
-          rx={6}
-          fill={GLOW_COLOR}
-          className={animating ? 'sys-diagram__rad-glow--pulse' : ''}
-        />
+        <rect x={x - 5} y={RAD_Y - 5} width={RAD_W + 10} height={RAD_H + 10}
+          rx={6} fill={`${accentColor}40`} className="sys-diagram__rad-glow--pulse" />
       )}
 
-      {/* Radiator body panels */}
-      {Array.from({ length: sections }, (_, i) => (
-        <rect
-          key={i}
-          x={x + i * sW + 1} y={y}
-          width={sW - 2} height={RAD_H}
-          rx={2}
-          fill={highlighted ? '#fff3e0' : '#f7f8fa'}
-          stroke={highlighted ? FLOW_COLOR : '#bdc3c7'}
-          strokeWidth={highlighted ? 1.5 : 1}
-        />
-      ))}
+      {type === 'underfloor' ? (
+        // UFH glyph (wavy lines in a panel)
+        <g>
+          <rect x={x} y={RAD_Y} width={RAD_W} height={RAD_H} rx={3}
+            fill={highlighted ? '#e8f8f5' : '#f7f8fa'}
+            stroke={highlighted ? accentColor : '#bdc3c7'}
+            strokeWidth={highlighted ? 1.5 : 1} />
+          {[8, 20, 32, 44].map(yOff => (
+            <path key={yOff}
+              d={`M${x+4},${RAD_Y+yOff} Q${x+12},${RAD_Y+yOff-5} ${x+20},${RAD_Y+yOff} Q${x+28},${RAD_Y+yOff+5} ${x+36},${RAD_Y+yOff}`}
+              fill="none" stroke={highlighted ? accentColor : '#bdc3c7'} strokeWidth={1.2} />
+          ))}
+          <text x={x+20} y={RAD_Y+RAD_H+14} textAnchor="middle" fontSize={5.5}
+            fill="#667085" fontFamily="system-ui, sans-serif">UFH</text>
+        </g>
+      ) : (
+        Array.from({ length: panels }, (_, i) => (
+          <rect key={i} x={x + i * sW + 1} y={RAD_Y} width={sW - 2} height={RAD_H} rx={2}
+            fill={highlighted ? '#fff3e0' : '#f7f8fa'}
+            stroke={highlighted ? accentColor : '#bdc3c7'}
+            strokeWidth={highlighted ? 1.5 : 1} />
+        ))
+      )}
 
-      {/* Connector nipples */}
-      <rect x={x + 2}  y={y + RAD_H} width={8} height={6} rx={2}
-        fill={highlighted ? FLOW_COLOR : PIPE_DIM} />
-      <rect x={x + RAD_W - 10} y={y + RAD_H} width={8} height={6} rx={2}
-        fill={highlighted ? RETURN_COLOR : PIPE_DIM} />
+      {/* Connectors */}
+      <rect x={x + 2}          y={RAD_Y + RAD_H} width={8} height={6} rx={2}
+        fill={highlighted ? accentColor : '#bdc3c7'} />
+      <rect x={x + RAD_W - 10} y={RAD_Y + RAD_H} width={8} height={6} rx={2}
+        fill={highlighted ? '#3fa7ff' : '#bdc3c7'} />
 
-      {/* Room label below */}
-      <text x={x + RAD_W / 2} y={LABEL_Y - 10}
-        textAnchor="middle" fontSize={7.5} fontWeight={600}
-        fill={highlighted ? FLOW_COLOR : '#667085'}
+      {/* Room label */}
+      <text x={x + RAD_W / 2} y={RAD_Y + RAD_H + (type === 'underfloor' ? 22 : 16)}
+        textAnchor="middle" fontSize={7} fontWeight={highlighted ? 700 : 500}
+        fill={highlighted ? accentColor : '#667085'}
         fontFamily="system-ui, sans-serif">
-        {label.toUpperCase()}
+        {label.split(' ')[0].toUpperCase()}
       </text>
     </g>
   );
 }
 
-// ── Flow dot ──────────────────────────────────────────────────────────────────
-// Animated dots travel along flow pipe when `animating` is true.
+// ── Cylinder glyph ────────────────────────────────────────────────────────────
 
-function FlowDots({ y, highlighted, animating }: {
-  y: number; highlighted: boolean; animating: boolean;
+function CylinderNode({ g3Required, volumeLitres }: { g3Required: boolean; volumeLitres: number }) {
+  const x = CYL_X;
+  const y = CYL_Y;
+  const fill = g3Required ? '#d4e8f8' : '#dce8f0';
+  const stroke = '#7fb3cc';
+
+  return (
+    <g>
+      {/* Body */}
+      <ellipse cx={x + CYL_W / 2} cy={y + 6}         rx={CYL_W / 2} ry={7}  fill={fill} stroke={stroke} strokeWidth={1.2} />
+      <rect    x={x} y={y + 6}      width={CYL_W} height={CYL_H - 12} fill={fill} stroke={stroke} strokeWidth={1.2} />
+      <ellipse cx={x + CYL_W / 2} cy={y + CYL_H - 6} rx={CYL_W / 2} ry={7}  fill={`${fill}`} stroke={stroke} strokeWidth={1.2} />
+
+      {/* Label */}
+      <text x={x + CYL_W / 2} y={y + CYL_H / 2 - 4} textAnchor="middle" fontSize={6.5}
+        fontWeight={700} fill="#3a6e8a" fontFamily="system-ui, sans-serif">CYL</text>
+      <text x={x + CYL_W / 2} y={y + CYL_H / 2 + 6} textAnchor="middle" fontSize={6}
+        fill="#3a6e8a" fontFamily="system-ui, sans-serif">{volumeLitres}L</text>
+      {g3Required && (
+        <text x={x + CYL_W / 2} y={y + CYL_H / 2 + 16} textAnchor="middle" fontSize={5.5}
+          fill="#ea5455" fontFamily="system-ui, sans-serif" fontWeight={600}>G3</text>
+      )}
+
+      {/* Pipe connections: top = flow in from boiler, bottom = return, right = DHW */}
+      <line x1={x + CYL_W / 2 - 6} y1={y}       x2={x + CYL_W / 2 - 6} y2={y - 12}  stroke="#ff7a00" strokeWidth={2} />
+      <line x1={x + CYL_W / 2 + 6} y1={y + CYL_H} x2={x + CYL_W / 2 + 6} y2={y + CYL_H + 12} stroke="#3fa7ff" strokeWidth={2} />
+    </g>
+  );
+}
+
+// ── Animated flow dots ─────────────────────────────────────────────────────────
+
+function FlowDots({ fromX, toX, y, color, animating }: {
+  fromX: number; toX: number; y: number; color: string; animating: boolean;
 }) {
   if (!animating) return null;
-  const color = y === FLOW_Y ? FLOW_COLOR : RETURN_COLOR;
-  const direction = y === FLOW_Y ? 1 : -1;
   return (
     <>
       {[0, 1, 2, 3].map(i => (
-        <circle
-          key={i}
-          r={3}
-          fill={color}
-          opacity={highlighted ? 0.9 : 0.3}
+        <circle key={i} r={3} fill={color} opacity={0.85}
           className="sys-diagram__dot"
-          style={{
-            animationDelay: `${i * 0.6}s`,
-            animationDirection: direction === 1 ? 'normal' : 'reverse',
-          }}
-        >
-          {/* Animate along the x-axis of the manifold */}
-          <animate
-            attributeName="cx"
-            from={direction === 1 ? BOILER_X + BOILER_W : W - 20}
-            to={direction === 1 ? W - 20 : BOILER_X + BOILER_W}
-            dur="3s"
-            begin={`${i * 0.75}s`}
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="cy"
-            values={`${y}`}
-            dur="3s"
-            repeatCount="indefinite"
-          />
+          style={{ animationDelay: `${i * 0.6}s` }}>
+          <animate attributeName="cx" from={fromX} to={toX} dur="3s" begin={`${i * 0.75}s`} repeatCount="indefinite" />
+          <animate attributeName="cy" values={`${y}`} dur="3s" repeatCount="indefinite" />
         </circle>
       ))}
     </>
@@ -154,150 +184,229 @@ function FlowDots({ y, highlighted, animating }: {
 export default function SystemDiagram({
   rooms,
   emitters,
+  systemConfig,
   highlight,
-  onBoilerClick,
+  onSourceClick,
   onEmitterClick,
   animating = false,
 }: Props) {
-  // Build display order: match rooms to their emitters
-  const displayItems = rooms.map((room, i) => {
-    const emitter = emitters.find(e => e.id === room.emitterId);
-    const radX = RAD_START_X + i * RAD_GAP;
-    return { room, emitter, radX };
-  });
+  const { hasCylinder, cylinder, heatSource, designFlowTempC, designReturnTempC, accentColor, category } = systemConfig;
 
-  const isHighlighted = (emitterId: string) =>
-    highlight.emitterId === emitterId || highlight.roomId
-      ? rooms.find(r => r.id === highlight.roomId)?.emitterId === emitterId
-      : false;
+  const isHP = heatSource.isHeatPump;
+  const manStartX = hasCylinder ? MAN_START_X_STORED : MAN_START_X_DIRECT;
+  const manEndX   = W - 16;
+  const anyHL     = !!(highlight.emitterId || highlight.roomId);
 
-  const anyHighlight = !!(highlight.emitterId || highlight.roomId);
+  // Distribute radiators evenly between manStartX and manEndX
+  const numRads = rooms.length;
+  const radSpacing = (manEndX - manStartX) / numRads;
+
+  const flowColor   = accentColor;
+  const returnColor = '#3fa7ff';
+
+  // Source icon
+  const srcFill   = isHP ? '#eafaf1' : '#f39c12';
+  const srcStroke = isHP ? accentColor : '#d68910';
+  const srcLabel  = isHP ? 'HEAT PUMP' : 'BOILER';
+  const srcKw     = isHP
+    ? `${heatSource.ratedOutputKw ?? 7} kW`
+    : `${heatSource.outputKw ?? 24} kW`;
+  const srcSub    = isHP
+    ? `COP ${heatSource.cop ?? 2.8}`
+    : `η ${heatSource.efficiencyPct ?? 89}%`;
 
   return (
     <div className="sys-diagram">
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="sys-diagram__svg"
-        aria-label="Heating system schematic"
-      >
-        {/* ── Background ────────────────────────────────────────────────── */}
-        <rect x={0} y={0} width={W} height={H} fill="transparent" />
+      <svg viewBox={`0 0 ${W} ${H}`} className="sys-diagram__svg"
+        aria-label={`${systemConfig.label} heating schematic`}>
 
-        {/* ── Flow manifold pipe ─────────────────────────────────────────── */}
-        <line
-          x1={BOILER_X + BOILER_W} y1={FLOW_Y}
-          x2={W - 20} y2={FLOW_Y}
-          stroke={anyHighlight ? FLOW_COLOR : PIPE_DIM}
-          strokeWidth={anyHighlight ? 4 : 3}
-          strokeLinecap="round"
-          opacity={anyHighlight ? 1 : 0.6}
-        />
-        {/* Flow label */}
-        <text x={BOILER_X + BOILER_W + 6} y={FLOW_Y - 6}
-          fontSize={7} fill={FLOW_COLOR} fontFamily="system-ui, sans-serif" fontWeight={600}>
-          FLOW {anyHighlight ? '75°C' : ''}
+        {/* ── Flow manifold ─────────────────────────────────────────── */}
+        <line x1={SRC_X + SRC_W + 6} y1={FLOW_Y} x2={manEndX} y2={FLOW_Y}
+          stroke={anyHL ? flowColor : '#cbd5e0'}
+          strokeWidth={anyHL ? 4 : 3} strokeLinecap="round"
+          opacity={anyHL ? 1 : 0.6} />
+        <text x={manStartX + 4} y={FLOW_Y - 6} fontSize={7} fill={flowColor}
+          fontFamily="system-ui, sans-serif" fontWeight={600}>
+          FLOW {designFlowTempC}°C
         </text>
 
-        {/* ── Return manifold pipe ──────────────────────────────────────── */}
-        <line
-          x1={BOILER_X + BOILER_W} y1={RETURN_Y}
-          x2={W - 20} y2={RETURN_Y}
-          stroke={anyHighlight ? RETURN_COLOR : PIPE_DIM}
-          strokeWidth={anyHighlight ? 4 : 3}
-          strokeLinecap="round"
-          opacity={anyHighlight ? 1 : 0.6}
-        />
-        <text x={BOILER_X + BOILER_W + 6} y={RETURN_Y + 14}
-          fontSize={7} fill={RETURN_COLOR} fontFamily="system-ui, sans-serif" fontWeight={600}>
-          RETURN {anyHighlight ? '65°C' : ''}
+        {/* ── Return manifold ───────────────────────────────────────── */}
+        <line x1={SRC_X + SRC_W + 6} y1={RETURN_Y} x2={manEndX} y2={RETURN_Y}
+          stroke={anyHL ? returnColor : '#cbd5e0'}
+          strokeWidth={anyHL ? 4 : 3} strokeLinecap="round"
+          opacity={anyHL ? 1 : 0.6} />
+        <text x={manStartX + 4} y={RETURN_Y + 14} fontSize={7} fill={returnColor}
+          fontFamily="system-ui, sans-serif" fontWeight={600}>
+          RETURN {designReturnTempC}°C
         </text>
 
-        {/* ── Animated flow dots ────────────────────────────────────────── */}
-        <FlowDots y={FLOW_Y}   highlighted={anyHighlight} animating={animating} />
-        <FlowDots y={RETURN_Y} highlighted={anyHighlight} animating={animating} />
+        {/* ── Animated dots ─────────────────────────────────────────── */}
+        <FlowDots fromX={manStartX} toX={manEndX} y={FLOW_Y}   color={flowColor}   animating={animating && anyHL} />
+        <FlowDots fromX={manEndX}   toX={manStartX} y={RETURN_Y} color={returnColor} animating={animating && anyHL} />
 
-        {/* ── Radiators with drop pipes ─────────────────────────────────── */}
-        {displayItems.map(({ room, emitter, radX }) => {
+        {/* ── Radiators ─────────────────────────────────────────────── */}
+        {rooms.map((room, i) => {
+          const emitter = emitters.find(e => e.id === room.emitterId);
           if (!emitter) return null;
-          const hl = isHighlighted(emitter.id);
-          const RAD_Y = FLOW_Y + 14;
+          const hl  = isHighlighted(emitter.id, highlight, rooms);
+          const rx  = manStartX + i * radSpacing + 6;
 
           return (
             <g key={room.id}>
-              {/* Drop pipe: flow manifold → radiator top */}
-              <line
-                x1={radX + RAD_W / 2 - 8} y1={FLOW_Y}
-                x2={radX + RAD_W / 2 - 8} y2={RAD_Y}
-                stroke={hl ? FLOW_COLOR : PIPE_DIM}
-                strokeWidth={hl ? 2.5 : 1.5}
-              />
-              {/* Rise pipe: radiator bottom → return manifold */}
-              <line
-                x1={radX + RAD_W / 2 + 8} y1={RAD_Y + RAD_H}
-                x2={radX + RAD_W / 2 + 8} y2={RETURN_Y}
-                stroke={hl ? RETURN_COLOR : PIPE_DIM}
-                strokeWidth={hl ? 2.5 : 1.5}
-              />
-
+              <line x1={rx + RAD_W / 2 - 8} y1={FLOW_Y}     x2={rx + RAD_W / 2 - 8} y2={RAD_Y}
+                stroke={hl ? flowColor : '#cbd5e0'} strokeWidth={hl ? 2.5 : 1.5} />
+              <line x1={rx + RAD_W / 2 + 8} y1={RAD_Y + RAD_H} x2={rx + RAD_W / 2 + 8} y2={RETURN_Y}
+                stroke={hl ? returnColor : '#cbd5e0'} strokeWidth={hl ? 2.5 : 1.5} />
               <RadiatorGlyph
-                x={radX} y={RAD_Y}
-                highlighted={hl}
-                animating={animating && hl}
-                label={room.label}
-                onClick={() => onEmitterClick(emitter.id)}
-              />
+                x={rx} highlighted={hl} accentColor={accentColor}
+                label={room.label} type={emitter.type}
+                onClick={() => onEmitterClick(emitter.id)} />
             </g>
           );
         })}
 
-        {/* ── Boiler ────────────────────────────────────────────────────── */}
-        <g
-          onClick={onBoilerClick}
-          style={{ cursor: 'pointer' }}
-          aria-label="Boiler — click to view details"
-        >
-          <rect
-            x={BOILER_X} y={BOILER_Y}
-            width={BOILER_W} height={BOILER_H}
-            rx={6}
-            fill="#f39c12"
-            stroke="#d68910"
-            strokeWidth={2}
-            className={animating ? 'sys-diagram__boiler--active' : ''}
-          />
-          {/* Boiler pipe connections */}
-          <line x1={BOILER_X + BOILER_W} y1={BOILER_Y + 12}
-            x2={BOILER_X + BOILER_W + 8} y2={BOILER_Y + 12}
-            stroke={FLOW_COLOR} strokeWidth={3} />
-          <line x1={BOILER_X + BOILER_W} y1={BOILER_Y + BOILER_H - 12}
-            x2={BOILER_X + BOILER_W + 8} y2={BOILER_Y + BOILER_H - 12}
-            stroke={RETURN_COLOR} strokeWidth={3} />
-          {/* Connect boiler ports to manifolds */}
-          <line x1={BOILER_X + BOILER_W + 8} y1={BOILER_Y + 12}
-            x2={BOILER_X + BOILER_W + 8} y2={FLOW_Y}
-            stroke={FLOW_COLOR} strokeWidth={3} />
-          <line x1={BOILER_X + BOILER_W + 8} y1={BOILER_Y + BOILER_H - 12}
-            x2={BOILER_X + BOILER_W + 8} y2={RETURN_Y}
-            stroke={RETURN_COLOR} strokeWidth={3} />
-          {/* Label */}
-          <text x={BOILER_X + BOILER_W / 2} y={BOILER_Y + 22}
-            textAnchor="middle" fontSize={7} fontWeight={700} fill="#fff"
-            fontFamily="system-ui, sans-serif">BOILER</text>
-          <text x={BOILER_X + BOILER_W / 2} y={BOILER_Y + 34}
-            textAnchor="middle" fontSize={9} fontWeight={700} fill="#fff"
-            fontFamily="system-ui, sans-serif">24 kW</text>
-          <text x={BOILER_X + BOILER_W / 2} y={BOILER_Y + 46}
-            textAnchor="middle" fontSize={6.5} fill="rgba(255,255,255,0.8)"
-            fontFamily="system-ui, sans-serif">tap to view</text>
+        {/* ── Cylinder (stored systems only) ────────────────────────── */}
+        {hasCylinder && cylinder && (
+          <g>
+            {/* Flow pipe: source → cylinder */}
+            <line x1={SRC_X + SRC_W} y1={SRC_Y + 14}
+              x2={CYL_X} y2={CYL_Y + 14}
+              stroke={flowColor} strokeWidth={3} />
+            {/* Return pipe: cylinder → source */}
+            <line x1={SRC_X + SRC_W} y1={SRC_Y + SRC_H - 14}
+              x2={CYL_X} y2={CYL_Y + CYL_H - 14}
+              stroke={returnColor} strokeWidth={3} />
+            {/* Cylinder → manifold flow */}
+            <line x1={CYL_X + CYL_W} y1={FLOW_Y} x2={manStartX} y2={FLOW_Y}
+              stroke={flowColor} strokeWidth={3} />
+            <line x1={CYL_X + CYL_W} y1={RETURN_Y} x2={manStartX} y2={RETURN_Y}
+              stroke={returnColor} strokeWidth={3} />
+            {/* Vertical connections from cylinder to manifolds */}
+            <line x1={CYL_X + CYL_W / 2 - 6} y1={CYL_Y} x2={CYL_X + CYL_W / 2 - 6} y2={FLOW_Y}
+              stroke={flowColor} strokeWidth={2} />
+            <line x1={CYL_X + CYL_W / 2 + 6} y1={CYL_Y + CYL_H} x2={CYL_X + CYL_W / 2 + 6} y2={RETURN_Y}
+              stroke={returnColor} strokeWidth={2} />
+
+            <CylinderNode g3Required={cylinder.g3Required} volumeLitres={cylinder.volumeLitres} />
+
+            {/* DHW label */}
+            <text x={CYL_X + CYL_W / 2} y={H - 8} textAnchor="middle" fontSize={6.5}
+              fill="#3a6e8a" fontFamily="system-ui, sans-serif">
+              {cylinder.g3Required ? 'Unvented DHW' : 'Vented DHW'}
+            </text>
+          </g>
+        )}
+
+        {/* ── ASHP: DHW cylinder shown separately to the right ──────── */}
+        {isHP && cylinder && (
+          <g>
+            <rect x={W - 54} y={FLOW_Y - 2} width={42} height={RETURN_Y - FLOW_Y + 4}
+              rx={4} fill="#eafaf1" stroke={accentColor} strokeWidth={1} />
+            <text x={W - 33} y={FLOW_Y + 22} textAnchor="middle" fontSize={6.5}
+              fontWeight={700} fill={accentColor} fontFamily="system-ui, sans-serif">DHW</text>
+            <text x={W - 33} y={FLOW_Y + 33} textAnchor="middle" fontSize={6}
+              fill={accentColor} fontFamily="system-ui, sans-serif">{cylinder.volumeLitres}L</text>
+            <text x={W - 33} y={FLOW_Y + 44} textAnchor="middle" fontSize={5.5}
+              fill="#667085" fontFamily="system-ui, sans-serif">Immersion</text>
+            {/* Connection line from manifold area */}
+            <line x1={manEndX - 2} y1={RETURN_Y - 20} x2={W - 54} y2={RETURN_Y - 20}
+              stroke={accentColor} strokeWidth={1.5} strokeDasharray="4 3" />
+            {/* Source to manifold main pipes */}
+            <line x1={SRC_X + SRC_W} y1={SRC_Y + 10} x2={manStartX} y2={FLOW_Y}
+              stroke={flowColor} strokeWidth={3} />
+            <line x1={SRC_X + SRC_W} y1={SRC_Y + SRC_H - 10} x2={manStartX} y2={RETURN_Y}
+              stroke={returnColor} strokeWidth={3} />
+          </g>
+        )}
+
+        {/* Direct source → manifold pipes (no cylinder) */}
+        {!hasCylinder && !isHP && (
+          <>
+            <line x1={SRC_X + SRC_W} y1={SRC_Y + 10}
+              x2={SRC_X + SRC_W + 6} y2={FLOW_Y}
+              stroke={flowColor} strokeWidth={3} />
+            <line x1={SRC_X + SRC_W} y1={SRC_Y + SRC_H - 10}
+              x2={SRC_X + SRC_W + 6} y2={RETURN_Y}
+              stroke={returnColor} strokeWidth={3} />
+          </>
+        )}
+
+        {/* ── Heat source (boiler / heat pump) ──────────────────────── */}
+        <g onClick={onSourceClick} style={{ cursor: 'pointer' }}
+          aria-label={`${srcLabel} — click to view details`}>
+          <rect x={SRC_X} y={SRC_Y} width={SRC_W} height={SRC_H} rx={6}
+            fill={srcFill} stroke={srcStroke} strokeWidth={2}
+            className={animating ? 'sys-diagram__boiler--active' : ''} />
+
+          {isHP ? (
+            <>
+              {/* Heat pump icon */}
+              <circle cx={SRC_X + SRC_W / 2} cy={SRC_Y + 18} r={10}
+                fill="none" stroke={accentColor} strokeWidth={1.5} />
+              <text x={SRC_X + SRC_W / 2} y={SRC_Y + 22} textAnchor="middle"
+                fontSize={8} fill={accentColor} fontFamily="system-ui, sans-serif">HP</text>
+              <text x={SRC_X + SRC_W / 2} y={SRC_Y + 35} textAnchor="middle"
+                fontSize={6.5} fontWeight={700} fill={accentColor} fontFamily="system-ui, sans-serif">
+                {srcKw}
+              </text>
+              <text x={SRC_X + SRC_W / 2} y={SRC_Y + 45} textAnchor="middle"
+                fontSize={6} fill={accentColor} fontFamily="system-ui, sans-serif">
+                {srcSub}
+              </text>
+            </>
+          ) : (
+            <>
+              <text x={SRC_X + SRC_W / 2} y={SRC_Y + 18} textAnchor="middle"
+                fontSize={7} fontWeight={700} fill="#fff" fontFamily="system-ui, sans-serif">
+                BOILER
+              </text>
+              <text x={SRC_X + SRC_W / 2} y={SRC_Y + 30} textAnchor="middle"
+                fontSize={9} fontWeight={700} fill="#fff" fontFamily="system-ui, sans-serif">
+                {srcKw}
+              </text>
+              <text x={SRC_X + SRC_W / 2} y={SRC_Y + 42} textAnchor="middle"
+                fontSize={6.5} fill="rgba(255,255,255,0.85)" fontFamily="system-ui, sans-serif">
+                {srcSub}
+              </text>
+            </>
+          )}
+          <text x={SRC_X + SRC_W / 2} y={SRC_Y + SRC_H + 12} textAnchor="middle"
+            fontSize={6.5} fill="#667085" fontFamily="system-ui, sans-serif">tap to view</text>
         </g>
 
-        {/* ── Condensing status indicator ────────────────────────────────── */}
-        <rect x={8} y={BOILER_Y + BOILER_H + 8} width={82} height={14} rx={7}
-          fill="rgba(234,84,85,0.12)" stroke="rgba(234,84,85,0.3)" strokeWidth={1} />
-        <text x={49} y={BOILER_Y + BOILER_H + 19}
-          textAnchor="middle" fontSize={7} fill="#ea5455"
-          fontFamily="system-ui, sans-serif" fontWeight={600}>
-          NOT CONDENSING
+        {/* ── Condensing / status badge ──────────────────────────────── */}
+        {!isHP && heatSource.condensing !== undefined && (
+          <rect x={SRC_X - 2} y={SRC_Y + SRC_H + 18} width={56} height={14} rx={7}
+            fill={heatSource.condensing ? 'rgba(40,199,111,0.12)' : 'rgba(234,84,85,0.12)'}
+            stroke={heatSource.condensing ? 'rgba(40,199,111,0.3)' : 'rgba(234,84,85,0.3)'}
+            strokeWidth={1} />
+        )}
+        {!isHP && heatSource.condensing !== undefined && (
+          <text x={SRC_X + 26} y={SRC_Y + SRC_H + 29} textAnchor="middle" fontSize={7}
+            fill={heatSource.condensing ? '#28c76f' : '#ea5455'}
+            fontFamily="system-ui, sans-serif" fontWeight={600}>
+            {heatSource.condensing ? 'CONDENSING' : 'NOT CONDENSING'}
+          </text>
+        )}
+
+        {/* ASHP: pipe size warning */}
+        {isHP && (
+          <rect x={SRC_X - 2} y={SRC_Y + SRC_H + 18} width={56} height={14} rx={7}
+            fill="rgba(255,176,32,0.12)" stroke="rgba(255,176,32,0.3)" strokeWidth={1} />
+        )}
+        {isHP && (
+          <text x={SRC_X + 26} y={SRC_Y + SRC_H + 29} textAnchor="middle" fontSize={7}
+            fill="#ffb020" fontFamily="system-ui, sans-serif" fontWeight={600}>
+            28mm PRIMARY
+          </text>
+        )}
+
+        {/* ── Category badge ─────────────────────────────────────────── */}
+        <rect x={W / 2 - 60} y={H - 18} width={120} height={14} rx={7}
+          fill={`${accentColor}12`} stroke={`${accentColor}30`} strokeWidth={1} />
+        <text x={W / 2} y={H - 7} textAnchor="middle" fontSize={7}
+          fill={accentColor} fontFamily="system-ui, sans-serif" fontWeight={600}>
+          {systemConfig.label}
         </text>
       </svg>
     </div>

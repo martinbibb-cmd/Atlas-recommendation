@@ -22,6 +22,16 @@ export interface ExplorerState {
   selectedPipe?: string;
 }
 
+// ── System type IDs ───────────────────────────────────────────────────────────
+
+export type SystemTypeId =
+  | 'combi'
+  | 'stored_vented'
+  | 'stored_unvented'
+  | 'ashp'
+  | 'regular_vented'
+  | 'system_unvented';
+
 // ── Domain types ──────────────────────────────────────────────────────────────
 
 export interface Room {
@@ -54,9 +64,9 @@ export interface Emitter {
 export interface Pipe {
   id: string;
   label: string;
-  /** Origin node (emitter id or 'boiler') */
+  /** Origin node (emitter id or 'boiler' or 'heatpump') */
   from: string;
-  /** Destination node (emitter id or 'boiler') */
+  /** Destination node (emitter id or 'boiler' or 'heatpump') */
   to: string;
   diameterMm: number;
   flowLpm: number;
@@ -64,14 +74,64 @@ export interface Pipe {
   svgPath?: string;
 }
 
-export interface BoilerData {
-  outputKw: number;
-  currentLoadKw: number;
-  returnTempC: number;
-  condensing: boolean;
-  efficiencyPct: number;
+// ── Heat source (covers both boilers and heat pumps) ─────────────────────────
+
+export interface HeatSourceData {
   brand: string;
   model: string;
+  isHeatPump: boolean;
+
+  // Boiler fields
+  outputKw?: number;
+  currentLoadKw?: number;
+  returnTempC?: number;
+  condensing?: boolean;
+  efficiencyPct?: number;
+
+  // Heat pump fields
+  ratedOutputKw?: number;
+  cop?: number;          // point COP at design conditions (outdoor 7°C, design flow temp)
+  spf?: number;          // seasonal performance factor
+  outdoorTempC?: number; // outdoor temp used for COP calc
+  flowTempC?: number;    // design flow temperature
+  flowTempRegime?: '35C' | '45C' | '50C';
+  primaryDiameterMm?: number;
+}
+
+// ── Cylinder (for stored DHW systems) ─────────────────────────────────────────
+
+export interface CylinderData {
+  volumeLitres: number;
+  type: 'indirect_vented' | 'indirect_unvented' | 'mixergy';
+  recoveryTimeMinutes: number;
+  standingLossKwhPerDay: number;
+  hasImmersionBackup: boolean;
+  maxFlowLpm: number;
+  g3Required: boolean;
+}
+
+// ── Complete system configuration ─────────────────────────────────────────────
+
+export interface SystemConfig {
+  id: SystemTypeId;
+  label: string;
+  shortLabel: string;
+  description: string;
+  category: 'gas_boiler' | 'heat_pump';
+  dhwMethod: 'instantaneous' | 'cylinder_gravity' | 'cylinder_mains';
+  hasCylinder: boolean;
+  hasLoftTank: boolean;      // open-vented systems (stored_vented, regular_vented)
+  hasOutdoorUnit: boolean;   // ASHP
+  hasBufferVessel: boolean;  // ASHP with small system water volume
+  primaryDiameterMm: number;
+  designFlowTempC: number;
+  designReturnTempC: number;
+  accentColor: string;       // tab / highlight colour
+  heatSource: HeatSourceData;
+  cylinder?: CylinderData;
+  emitters: Emitter[];
+  physics: PhysicsRoomData[];
+  behaviourEvents: BehaviourEvent[];
 }
 
 // ── Behaviour timeline ────────────────────────────────────────────────────────
@@ -82,17 +142,17 @@ export type BehaviourEventType =
   | 'heatingRamp'
   | 'shower'
   | 'bath'
-  | 'tap';
+  | 'tap'
+  | 'cylinderReheat'
+  | 'defrost';
 
 export interface BehaviourEvent {
   id: string;
-  /** Display label e.g. "06:30" */
   timeLabel: string;
-  /** Decimal hour (6.5 = 06:30) */
   hourDecimal: number;
   type: BehaviourEventType;
   label: string;
-  /** Boiler load fraction 0–1 during/after this event */
+  /** Heat source load fraction 0–1 */
   boilerLoadFraction: number;
 }
 
@@ -107,3 +167,8 @@ export interface PhysicsRoomData {
   flowTempC: number;
   returnTempC: number;
 }
+
+// ── Legacy alias (kept for compatibility) ─────────────────────────────────────
+
+/** @deprecated Use HeatSourceData instead */
+export type BoilerData = HeatSourceData;
