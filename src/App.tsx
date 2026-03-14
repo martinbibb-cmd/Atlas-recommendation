@@ -15,6 +15,7 @@ import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
 import AtlasTour from './components/tour/AtlasTour';
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
+import AtlasExplorerPage from './components/explorer/AtlasExplorerPage';
 import { resetAtlasTourSeen } from './lib/tourStorage';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
@@ -65,7 +66,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   preferCombi: true,
 };
 
-type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'floor-plan';
+type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'floor-plan' | 'explorer';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -161,6 +162,7 @@ export default function App() {
         />
       )}
       {journey === 'lab' && <LabShell onHome={() => setJourney('landing')} engineInput={labEngineInput} />}
+      {journey === 'explorer' && <AtlasExplorerPage onBack={() => setJourney('landing')} />}
       {journey === 'floor-plan' && (
         <div className="floor-plan-page">
           <div className="floor-plan-page__header">
@@ -249,6 +251,15 @@ export default function App() {
               <h2>Floor Plan Builder</h2>
               <p>Map heating components to your property layout across floors.</p>
               <button className="cta-btn">Open Floor Plan →</button>
+            </div>
+            <div
+              className="journey-card journey-card--explorer"
+              onClick={() => setJourney('explorer')}
+            >
+              <div className="card-icon">🏠</div>
+              <h2>System Explorer</h2>
+              <p>Tap through a house to see how each room, radiator, pipe, and boiler connects.</p>
+              <button className="cta-btn">Explore System →</button>
             </div>
           </div>
           <Footer onNavigate={setJourney} />
