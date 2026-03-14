@@ -1,4 +1,12 @@
 import { useState, useMemo, useEffect, type CSSProperties } from 'react';
+import {
+  DEMAND_PRESETS,
+  presetToEngineSignature,
+  resolveTimingOverrides,
+  getDemandStyleLabel,
+  type DemandPresetId,
+  type DemandTimingOverrides,
+} from '../../engine/schema/OccupancyPreset';
 import { deriveRawPressureStr, deriveRawFlowStr } from './pressureFlowHelpers';
 import {
   LineChart,
@@ -3166,23 +3174,179 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
 
   const dropWarning = thermalResult.totalDropC > 4;
 
+  // ── Derive the active preset id — fall back to a sensible default ───────────
+  const activePresetId: DemandPresetId = (input.demandPreset as DemandPresetId | undefined)
+    ?? 'single_working_adult';
+
+  // ── Apply preset selection ────────────────────────────────────────────────
+  function handlePresetSelect(id: DemandPresetId) {
+    const sig = presetToEngineSignature(id);
+    setInput(prev => ({
+      ...prev,
+      demandPreset: id,
+      occupancySignature: sig,
+      demandTimingOverrides: undefined,   // clear any stale overrides from old preset
+    }));
+  }
+
+  // ── Apply a single timing-override field ──────────────────────────────────
+  function handleTimingChange(patch: Partial<DemandTimingOverrides>) {
+    setInput(prev => ({
+      ...prev,
+      demandTimingOverrides: { ...prev.demandTimingOverrides, ...patch },
+    }));
+  }
+
+  // Resolved timing (preset defaults merged with any overrides)
+  const timing = resolveTimingOverrides(activePresetId, input.demandTimingOverrides as DemandTimingOverrides | undefined);
+
   return (
     <div className="step-card">
       <h2>🏠 Step 4: Lifestyle &amp; Thermal Comfort</h2>
 
-      <div className="form-grid">
-        <div className="form-field">
-          <label>Occupancy Signature</label>
-          <select
-            value={input.occupancySignature}
-            onChange={e => setInput({ ...input, occupancySignature: e.target.value as EngineInputV2_3['occupancySignature'] })}
-          >
-            <option value="professional">Professional (away 08:00–17:00)</option>
-            <option value="steady_home">Steady Home (retired / family, continuous)</option>
-            <option value="shift_worker">Shift Worker (irregular, offset peaks)</option>
-          </select>
+      {/* ── Preset selector ─────────────────────────────────────────────── */}
+      <div style={{ marginBottom: '1.25rem' }}>
+        <p style={{ fontSize: '0.85rem', color: '#4a5568', marginBottom: '0.75rem' }}>
+          Choose the household type that best describes day-to-day hot-water usage.
+        </p>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+          gap: '0.5rem',
+        }}>
+          {DEMAND_PRESETS.map(preset => {
+            const isActive = preset.id === activePresetId;
+            return (
+              <button
+                key={preset.id}
+                onClick={() => handlePresetSelect(preset.id)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  padding: '0.625rem 0.75rem',
+                  borderRadius: '8px',
+                  border: isActive ? '2px solid #3182ce' : '1px solid #e2e8f0',
+                  background: isActive ? '#ebf8ff' : '#fff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'border-color 0.15s, background 0.15s',
+                }}
+              >
+                <span style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>{preset.emoji}</span>
+                <span style={{ fontWeight: 600, fontSize: '0.82rem', color: '#2d3748', lineHeight: 1.3 }}>
+                  {preset.label}
+                </span>
+                <span style={{ fontSize: '0.73rem', color: '#718096', marginTop: '0.2rem', lineHeight: 1.3 }}>
+                  {preset.description}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
+
+      {/* ── Demand style summary ─────────────────────────────────────────── */}
+      <div style={{
+        padding: '0.625rem 0.875rem',
+        background: '#ebf8ff',
+        border: '1px solid #bee3f8',
+        borderRadius: '6px',
+        fontSize: '0.82rem',
+        color: '#2b6cb0',
+        marginBottom: '1.25rem',
+      }}>
+        <strong>Selected demand style: </strong>{getDemandStyleLabel(activePresetId)}
+      </div>
+
+      {/* ── Quick timing controls ────────────────────────────────────────── */}
+      <details style={{ marginBottom: '1.25rem' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#4a5568', fontSize: '0.9rem' }}>
+          ⚡ Quick demand shaping (optional)
+        </summary>
+        <p style={{ fontSize: '0.78rem', color: '#718096', margin: '0.5rem 0 0.75rem' }}>
+          These are pre-filled from your chosen preset. Tap to adjust — all are optional.
+        </p>
+        <div className="form-grid" style={{ gap: '0.75rem' }}>
+
+          <div className="form-field">
+            <label style={{ fontSize: '0.82rem' }}>First shower time</label>
+            <select
+              value={timing.firstShowerHour}
+              onChange={e => handleTimingChange({ firstShowerHour: Number(e.target.value) })}
+            >
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-field">
+            <label style={{ fontSize: '0.82rem' }}>Evening hot-water peak</label>
+            <select
+              value={timing.eveningPeakHour}
+              onChange={e => handleTimingChange({ eveningPeakHour: Number(e.target.value) })}
+            >
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-field">
+            <label style={{ fontSize: '0.82rem' }}>Bath frequency</label>
+            <select
+              value={timing.bathFrequencyPerWeek}
+              onChange={e => handleTimingChange({ bathFrequencyPerWeek: Number(e.target.value) })}
+            >
+              <option value={0}>Never</option>
+              <option value={1}>Once a week</option>
+              <option value={2}>Twice a week</option>
+              <option value={3}>3× a week</option>
+              <option value={5}>5× a week</option>
+              <option value={7}>Daily</option>
+              <option value={14}>Twice daily</option>
+            </select>
+          </div>
+
+          <div className="form-field">
+            <label style={{ fontSize: '0.82rem' }}>Kitchen hot water</label>
+            <select
+              value={timing.kitchenHotWaterFrequency}
+              onChange={e => handleTimingChange({ kitchenHotWaterFrequency: e.target.value as DemandTimingOverrides['kitchenHotWaterFrequency'] })}
+            >
+              <option value="low">Low — occasional</option>
+              <option value="medium">Medium — most days</option>
+              <option value="high">High — throughout the day</option>
+            </select>
+          </div>
+
+          <div className="form-field">
+            <label style={{ fontSize: '0.82rem' }}>Daytime occupancy</label>
+            <select
+              value={timing.daytimeOccupancy}
+              onChange={e => handleTimingChange({ daytimeOccupancy: e.target.value as DemandTimingOverrides['daytimeOccupancy'] })}
+            >
+              <option value="absent">Absent (out all day)</option>
+              <option value="partial">Partial (some home working / part-time)</option>
+              <option value="full">Full (home all day)</option>
+            </select>
+          </div>
+
+          <div className="form-field">
+            <label style={{ fontSize: '0.82rem' }}>Simultaneous hot water</label>
+            <select
+              value={timing.simultaneousUseSeverity}
+              onChange={e => handleTimingChange({ simultaneousUseSeverity: e.target.value as DemandTimingOverrides['simultaneousUseSeverity'] })}
+            >
+              <option value="low">Low — single outlet at a time</option>
+              <option value="medium">Medium — two outlets occasionally</option>
+              <option value="high">High — two or more outlets regularly</option>
+            </select>
+          </div>
+
+        </div>
+      </details>
 
       {/* Thermal Comfort Physics */}
       <div style={{ marginTop: '1.25rem' }}>
