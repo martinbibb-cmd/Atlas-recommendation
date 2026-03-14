@@ -1056,3 +1056,95 @@
 .explorer-strip-value--warning { color: #f39c12; }
 .explorer-strip-value--danger  { color: #ea5455; }
 .explorer-strip-value--success { color: #28c76f; }
+
+/* =============================================================================
+   System Type Selector
+   ============================================================================= */
+
+.sys-selector {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background: #fff;
+  border-bottom: 1px solid var(--border-subtle, #e3e7ee);
+  flex-wrap: wrap;
+}
+
+.sys-selector__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #667085;
+  padding-top: 0.5rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.sys-selector__tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sys-selector__tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.4rem 0.8rem;
+  border: 1.5px solid #e3e7ee;
+  border-radius: 10px;
+  background: #fafbfc;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  min-width: 90px;
+}
+
+.sys-selector__tab:hover {
+  background: #f5f6f7;
+  transform: translateY(-1px);
+}
+
+.sys-selector__tab--active {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.sys-selector__tab-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1c1c1e;
+}
+
+.sys-selector__tab-trait {
+  font-size: 0.62rem;
+  color: #667085;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* =============================================================================
+   Cylinder section in HeatSourcePanel
+   ============================================================================= */
+
+.hs-panel__section--cylinder {
+  border-top: 1px solid #f0f0f0;
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.hs-panel__tip--danger {
+  background: rgba(234,84,85,0.08);
+  border-color: rgba(234,84,85,0.25);
+  color: #7a1c1c;
+}
+
+/* =============================================================================
+   Behaviour event types — extended icons and colours
+   ============================================================================= */
+
+/* defrost and cylinderReheat handled inline in BehaviourTimeline */
+
