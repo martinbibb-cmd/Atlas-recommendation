@@ -15,6 +15,9 @@ import EvidenceConfidenceSection from '../components/live/sections/EvidenceConfi
 import PhysicsConstraintsSection from '../components/live/sections/PhysicsConstraintsSection';
 import GeochemistrySection from '../components/live/sections/GeochemistrySection';
 import GlassBoxSection from '../components/live/sections/GlassBoxSection';
+import {
+  getDemandStyleLabel,
+} from '../engine/schema/OccupancyPreset';
 
 interface Props {
   section: LiveSection;
@@ -150,7 +153,9 @@ function LiveUsageSection({
         <div className="metric-row">
           <span className="metric-label">Occupancy signature</span>
           <span className="metric-value">
-            {input.occupancySignature === 'professional' ? 'Professional (away 08:00–17:00)'
+            {input.demandPreset
+              ? getDemandStyleLabel(input.demandPreset)
+              : input.occupancySignature === 'professional' ? 'Professional (away 08:00–17:00)'
               : input.occupancySignature === 'steady_home' ? 'Steady Home (retired / family)'
               : input.occupancySignature === 'shift_worker' ? 'Shift Worker (irregular)'
               : input.occupancySignature ?? '—'}

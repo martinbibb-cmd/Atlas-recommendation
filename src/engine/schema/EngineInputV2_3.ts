@@ -1,5 +1,7 @@
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 export type { EngineOutputV1 };
+import type { DemandPresetId, DemandTimingOverrides } from './OccupancyPreset';
+export type { DemandPresetId, DemandTimingOverrides };
 import type { DayProfileV1, HeatingBandV1, DhwHeatBandV1, DhwEventV1 } from '../../contracts/EngineInputV2_3';
 export type { DayProfileV1, HeatingBandV1, DhwHeatBandV1, DhwEventV1 };
 import type { TapMixingResult, DhwStorageRegime } from '../utils/dhwMixing';
@@ -202,6 +204,17 @@ export interface EngineInputV2_3 {
   peakConcurrentOutlets?: number;
   /** Cylinder / airing-cupboard space availability. */
   availableSpace?: 'tight' | 'ok' | 'unknown';
+  /**
+   * User-facing demand preset selected in the survey lifestyle step.
+   * When present, the survey UI uses this to drive the occupancySignature
+   * and default timing values rather than the legacy 3-option dropdown.
+   */
+  demandPreset?: DemandPresetId;
+  /**
+   * Optional quick timing overrides applied on top of the preset defaults.
+   * All fields are optional — absent values fall through to preset defaults.
+   */
+  demandTimingOverrides?: DemandTimingOverrides;
 
   // Future works (for context summary and feasibility notes)
   /** Whether a loft conversion is planned or completed. */
