@@ -584,16 +584,317 @@ function TechnicalAppendixSection({ section }: { section: OutputHubSection }) {
   );
 }
 
+// ─── New section renderers (Output Overhaul) ──────────────────────────────────
+
+const HEAT_LOSS_LABEL: Record<string, string> = {
+  very_high: 'Very High', high: 'High', moderate: 'Moderate',
+  low: 'Low', very_low: 'Very Low', unknown: 'Not assessed',
+};
+
+const THERMAL_MASS_LABEL: Record<string, string> = {
+  light: 'Light — fast response', medium: 'Medium — balanced',
+  heavy: 'Heavy — slow response', unknown: 'Not assessed',
+};
+
+function HeatMapSection({ section }: { section: OutputHubSection }) {
+  const c = section.content as {
+    roomDesignTemps: Array<{ room: string; tempC: number }>;
+    heatLossBand:    string;
+    thermalMassBand: string;
+    driftTauHours:   number | null;
+    notes:           string[];
+  };
+  return (
+    <section className="lp-section" aria-labelledby="lpf-heatmap">
+      <h2 className="lp-section__title" id="lpf-heatmap">
+        House Heating Map
+        <StatusBadge status={section.status} />
+      </h2>
+      <p style={{ fontSize: '0.82rem', color: '#718096', margin: '0 0 0.75rem' }}>
+        Room design temperatures (BS EN 12831) used for heat-loss calculation.
+        Sizing is based on these comfort targets — not a rough guess.
+      </p>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem', marginBottom: '0.75rem' }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign: 'left', padding: '0.3rem 0.5rem', borderBottom: '1px solid #e2e8f0', color: '#718096', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase' }}>Room</th>
+            <th style={{ textAlign: 'right', padding: '0.3rem 0.5rem', borderBottom: '1px solid #e2e8f0', color: '#718096', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase' }}>Design temperature</th>
+          </tr>
+        </thead>
+        <tbody>
+          {c.roomDesignTemps.map(rt => (
+            <tr key={rt.room} style={{ borderBottom: '1px solid #f7fafc' }}>
+              <td style={{ padding: '0.35rem 0.5rem', fontWeight: 500, color: '#2d3748' }}>{rt.room}</td>
+              <td style={{ padding: '0.35rem 0.5rem', textAlign: 'right', fontWeight: 700 }}>{rt.tempC}°C</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <dl className="lp-dl">
+        <div className="lp-dl-row">
+          <dt className="lp-dt">Heat loss band</dt>
+          <dd className="lp-dd">{HEAT_LOSS_LABEL[c.heatLossBand] ?? c.heatLossBand}</dd>
+        </div>
+        <div className="lp-dl-row">
+          <dt className="lp-dt">Thermal mass</dt>
+          <dd className="lp-dd">{THERMAL_MASS_LABEL[c.thermalMassBand] ?? c.thermalMassBand}</dd>
+        </div>
+        {c.driftTauHours != null && (
+          <div className="lp-dl-row">
+            <dt className="lp-dt">Drift constant</dt>
+            <dd className="lp-dd">{c.driftTauHours.toFixed(1)} h</dd>
+          </div>
+        )}
+      </dl>
+      {c.notes.length > 0 && (
+        <ul className="lp-list" aria-label="Heat map notes" style={{ marginTop: '0.5rem' }}>
+          {c.notes.map((n, i) => <li key={i}>{n}</li>)}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+const COMBI_RISK_LABEL: Record<string, string> = {
+  fail: 'Combi cannot meet simultaneous demand',
+  warn: 'Combi may struggle at peak demand',
+  pass: 'Combi demand manageable',
+};
+
+const VOLUME_BAND_LABEL: Record<string, string> = {
+  small: 'Small (≤150 L)', medium: 'Medium (180–210 L)', large: 'Large (≥250 L)',
+};
+
+const STORED_TYPE_LABEL: Record<string, string> = {
+  standard: 'Standard cylinder',
+  mixergy:  'Stored hot water with top-down heating and active stratification.',
+  unknown:  'Cylinder type to be confirmed',
+};
+
+function HotWaterDemandSection({ section }: { section: OutputHubSection }) {
+  const c = section.content as {
+    occupancyCount:   number | null;
+    bathroomCount:    number | null;
+    peakOutlets:      number | null;
+    peakDemandLpm:    number | null;
+    combiDeliveryLpm: number | null;
+    combiRisk:        string;
+    storedVolumeBand: string;
+    storedType:       string;
+  };
+  return (
+    <section className="lp-section" aria-labelledby="lpf-dhw">
+      <h2 className="lp-section__title" id="lpf-dhw">
+        Hot Water Demand
+        <StatusBadge status={section.status} />
+      </h2>
+      <dl className="lp-dl" style={{ marginBottom: '0.5rem' }}>
+        {c.occupancyCount != null && (
+          <div className="lp-dl-row">
+            <dt className="lp-dt">Occupants</dt>
+            <dd className="lp-dd">{c.occupancyCount}</dd>
+          </div>
+        )}
+        {c.bathroomCount != null && (
+          <div className="lp-dl-row">
+            <dt className="lp-dt">Bathrooms</dt>
+            <dd className="lp-dd">{c.bathroomCount}</dd>
+          </div>
+        )}
+        {c.peakOutlets != null && (
+          <div className="lp-dl-row">
+            <dt className="lp-dt">Peak simultaneous outlets</dt>
+            <dd className="lp-dd">{c.peakOutlets}</dd>
+          </div>
+        )}
+        {c.peakDemandLpm != null && (
+          <div className="lp-dl-row">
+            <dt className="lp-dt">Peak demand</dt>
+            <dd className="lp-dd">{c.peakDemandLpm} L/min</dd>
+          </div>
+        )}
+        <div className="lp-dl-row">
+          <dt className="lp-dt">Combi capacity (derated)</dt>
+          <dd className="lp-dd">{c.combiDeliveryLpm != null ? `${c.combiDeliveryLpm} L/min` : 'Not available'}</dd>
+        </div>
+        <div className="lp-dl-row">
+          <dt className="lp-dt">Combi verdict</dt>
+          <dd className="lp-dd">{COMBI_RISK_LABEL[c.combiRisk] ?? c.combiRisk}</dd>
+        </div>
+      </dl>
+      <div className="lp-group-label">Cylinder alternative</div>
+      <dl className="lp-dl">
+        <div className="lp-dl-row">
+          <dt className="lp-dt">Type</dt>
+          <dd className="lp-dd">{STORED_TYPE_LABEL[c.storedType] ?? c.storedType}</dd>
+        </div>
+        <div className="lp-dl-row">
+          <dt className="lp-dt">Size band</dt>
+          <dd className="lp-dd">{VOLUME_BAND_LABEL[c.storedVolumeBand] ?? c.storedVolumeBand}</dd>
+        </div>
+        <div className="lp-dl-row">
+          <dt className="lp-dt">Result</dt>
+          <dd className="lp-dd" style={{ color: '#276749', fontWeight: 600 }}>
+            Stored hot water — simultaneous outlets supported
+          </dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+function SystemArchitectureSection({ section }: { section: OutputHubSection }) {
+  const c = section.content as {
+    optionId:        string;
+    optionLabel:     string;
+    connectionChain: string[];
+    mustHave:        string[];
+  };
+  return (
+    <section className="lp-section" aria-labelledby="lpf-architecture">
+      <h2 className="lp-section__title" id="lpf-architecture">
+        System Architecture
+        <StatusBadge status={section.status} />
+      </h2>
+      <div style={{ marginBottom: '0.75rem' }}>
+        <span style={{ display: 'inline-block', padding: '0.25rem 0.65rem', background: '#ebf8ff', color: '#2b6cb0', borderRadius: '6px', fontSize: '0.84rem', fontWeight: 700, border: '1px solid #bee3f8' }}>
+          {c.optionLabel}
+        </span>
+      </div>
+      <div role="list" aria-label="System connection diagram" style={{ marginBottom: '0.75rem' }}>
+        {c.connectionChain.map((node, i) => (
+          <div key={i} role="listitem" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <div style={{ padding: '0.4rem 0.9rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '0.84rem', fontWeight: 600, color: '#2d3748', minWidth: 180 }}>{node}</div>
+            {i < c.connectionChain.length - 1 && (
+              <div aria-hidden="true" style={{ fontSize: '1rem', color: '#4299e1', padding: '0 1.2rem', lineHeight: 1.4 }}>↓</div>
+            )}
+          </div>
+        ))}
+      </div>
+      {c.mustHave.length > 0 && (
+        <div>
+          <div className="lp-group-label">Installation requirements</div>
+          <ul className="lp-list" aria-label="Installation requirements">
+            {c.mustHave.map((req, i) => <li key={i}>{req}</li>)}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SuitabilitySummarySection({ section }: { section: OutputHubSection }) {
+  const c = section.content as {
+    rows: Array<{ id: string; label: string; status: string; why: string[] }>;
+  };
+  const STATUS_LABEL_MAP: Record<string, string> = {
+    viable: 'Best fit', caution: 'Possible with upgrades', rejected: 'Not suitable',
+  };
+  return (
+    <section className="lp-section" aria-labelledby="lpf-suitability">
+      <h2 className="lp-section__title" id="lpf-suitability">
+        Suitability Summary
+        <StatusBadge status={section.status} />
+      </h2>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign: 'left', padding: '0.3rem 0.5rem', borderBottom: '2px solid #e2e8f0', color: '#718096', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase' }}>System</th>
+            <th style={{ textAlign: 'left', padding: '0.3rem 0.5rem', borderBottom: '2px solid #e2e8f0', color: '#718096', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase' }}>Suitability</th>
+            <th style={{ textAlign: 'left', padding: '0.3rem 0.5rem', borderBottom: '2px solid #e2e8f0', color: '#718096', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase' }}>Why</th>
+          </tr>
+        </thead>
+        <tbody>
+          {c.rows.map(row => (
+            <tr key={row.id} style={{ borderBottom: '1px solid #edf2f7' }}>
+              <td style={{ padding: '0.45rem 0.5rem', fontWeight: 600, color: '#2d3748' }}>{row.label}</td>
+              <td style={{ padding: '0.45rem 0.5rem' }}>
+                <span style={{
+                  display: 'inline-block',
+                  padding: '0.15rem 0.5rem',
+                  borderRadius: '10px',
+                  fontSize: '0.76rem',
+                  fontWeight: 600,
+                  background: row.status === 'viable' ? '#f0fff4' : row.status === 'caution' ? '#fffaf0' : '#fff5f5',
+                  color:      row.status === 'viable' ? '#276749' : row.status === 'caution' ? '#7b341e' : '#742a2a',
+                }}>
+                  {STATUS_LABEL_MAP[row.status] ?? row.status}
+                </span>
+              </td>
+              <td style={{ padding: '0.45rem 0.5rem', fontSize: '0.8rem', color: '#4a5568' }}>
+                {row.why.length > 0 ? row.why.join('. ') : '—'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function UpgradePathwaySection({ section }: { section: OutputHubSection }) {
+  const c = section.content as {
+    source:              string;
+    stages:              Array<{ stage: number; label: string; detail: string }>;
+    outcomeToday:        string | null;
+    outcomeAfterTrigger: string | null;
+    rationale:           string | null;
+  };
+  return (
+    <section className="lp-section" aria-labelledby="lpf-upgrade">
+      <h2 className="lp-section__title" id="lpf-upgrade">
+        Future Upgrade Path
+        <StatusBadge status={section.status} />
+      </h2>
+      {c.rationale && (
+        <p style={{ fontSize: '0.84rem', color: '#4a5568', margin: '0 0 0.75rem' }}>{c.rationale}</p>
+      )}
+      {c.stages.map(stage => (
+        <div key={stage.stage} style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.65rem', alignItems: 'flex-start' }}>
+          <span style={{ flexShrink: 0, background: '#3182ce', color: '#fff', fontSize: '0.68rem', fontWeight: 800, padding: '0.2rem 0.55rem', borderRadius: '10px', marginTop: '0.1rem' }}>
+            Stage {stage.stage}
+          </span>
+          <div>
+            <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#1a202c', marginBottom: '0.15rem' }}>{stage.label}</div>
+            {stage.detail && <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: 0 }}>{stage.detail}</p>}
+          </div>
+        </div>
+      ))}
+      {(c.outcomeToday || c.outcomeAfterTrigger) && (
+        <dl className="lp-dl" style={{ marginTop: '0.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem' }}>
+          {c.outcomeToday && (
+            <div className="lp-dl-row">
+              <dt className="lp-dt">Today</dt>
+              <dd className="lp-dd">{c.outcomeToday}</dd>
+            </div>
+          )}
+          {c.outcomeAfterTrigger && (
+            <div className="lp-dl-row">
+              <dt className="lp-dt">Next step</dt>
+              <dd className="lp-dd">{c.outcomeAfterTrigger}</dd>
+            </div>
+          )}
+        </dl>
+      )}
+    </section>
+  );
+}
+
 // ─── Section dispatcher ───────────────────────────────────────────────────────
 
 function RenderSection({ section }: { section: OutputHubSection }) {
   switch (section.id) {
     case 'recommendation':    return <RecommendationSection section={section} />;
     case 'currentSystem':     return <CurrentSystemSection section={section} />;
+    case 'heatMap':           return <HeatMapSection section={section} />;
+    case 'hotWaterDemand':    return <HotWaterDemandSection section={section} />;
     case 'waterPower':        return <WaterPowerSection section={section} />;
     case 'usageModel':        return <UsageModelSection section={section} />;
-    case 'evidence':          return <EvidenceSection section={section} />;
+    case 'systemArchitecture': return <SystemArchitectureSection section={section} />;
+    case 'suitabilitySummary': return <SuitabilitySummarySection section={section} />;
     case 'constraints':       return <ConstraintsSection section={section} />;
+    case 'upgradePathway':    return <UpgradePathwaySection section={section} />;
+    case 'evidence':          return <EvidenceSection section={section} />;
     case 'chemistry':         return <ChemistrySection section={section} />;
     case 'glassBox':          return <GlassBoxSection section={section} />;
     case 'controlRoom':       return <ControlRoomSection section={section} />;

@@ -30,7 +30,12 @@ export type PrintSectionId =
   | 'controlRoom'
   | 'simulatorSummary'
   | 'comparison'
-  | 'technicalAppendix';
+  | 'technicalAppendix'
+  | 'heatMap'
+  | 'hotWaterDemand'
+  | 'systemArchitecture'
+  | 'suitabilitySummary'
+  | 'upgradePathway';
 
 // ─── Section contract ─────────────────────────────────────────────────────────
 
@@ -62,29 +67,49 @@ export interface OutputHubSection {
  * Each preset is an ordered list of section ids.
  * filterSections() applies the preset against the full section array.
  *
+ * The 3-page print structure from the output overhaul:
+ *   Page 1 — Recommendation Summary (decision-first)
+ *   Page 2 — Visual Evidence (3 trust-builder graphics)
+ *   Page 3 — System Design (architecture, suitability, upgrade path)
+ *   Page 4 — Engineering Appendix (optional, technical only)
+ *
  * Ordering within each preset is intentional:
- *   customer    — customer-safe, non-technical
- *   technical   — full technical picture
- *   comparison  — comparison-focused
+ *   customer    — 3-page customer report (pages 1–3)
+ *   technical   — 4-page engineer report (pages 1–4)
+ *   comparison  — comparison-focused sheet
  *   full        — every visible section
  */
 export const PRINT_PRESETS = {
   customer: [
+    // Page 1 — Recommendation Summary
     'recommendation',
     'currentSystem',
+    // Page 2 — Visual Evidence
+    'heatMap',
+    'hotWaterDemand',
     'waterPower',
-    'usageModel',
+    // Page 3 — System Design
+    'systemArchitecture',
+    'suitabilitySummary',
     'constraints',
-    'chemistry',
-    'simulatorSummary',
+    'upgradePathway',
   ],
   technical: [
+    // Page 1 — Recommendation Summary
     'recommendation',
     'currentSystem',
+    // Page 2 — Visual Evidence
+    'heatMap',
+    'hotWaterDemand',
     'waterPower',
+    // Page 3 — System Design
+    'systemArchitecture',
+    'suitabilitySummary',
+    'constraints',
+    'upgradePathway',
+    // Page 4 — Engineering Appendix
     'usageModel',
     'evidence',
-    'constraints',
     'chemistry',
     'glassBox',
     'technicalAppendix',
@@ -92,6 +117,7 @@ export const PRINT_PRESETS = {
   comparison: [
     'recommendation',
     'comparison',
+    'suitabilitySummary',
     'constraints',
     'waterPower',
     'usageModel',
@@ -99,10 +125,15 @@ export const PRINT_PRESETS = {
   full: [
     'recommendation',
     'currentSystem',
+    'heatMap',
+    'hotWaterDemand',
     'waterPower',
     'usageModel',
-    'evidence',
+    'systemArchitecture',
+    'suitabilitySummary',
     'constraints',
+    'upgradePathway',
+    'evidence',
     'chemistry',
     'glassBox',
     'controlRoom',
@@ -399,6 +430,189 @@ function buildTechnicalAppendixSection(result: FullEngineResult): OutputHubSecti
   };
 }
 
+// ─── Standard UK room design temperatures ────────────────────────────────────
+// These are fixed BS EN 12831 reference values used for heat-loss calculation,
+// not derived per-room from the survey.  They demonstrate that sizing is
+// intentional and standards-based.
+
+const ROOM_DESIGN_TEMPS: Array<{ room: string; tempC: number }> = [
+  { room: 'Lounge',    tempC: 21 },
+  { room: 'Kitchen',   tempC: 20 },
+  { room: 'Bedroom',   tempC: 18 },
+  { room: 'Bathroom',  tempC: 22 },
+  { room: 'Hall',      tempC: 18 },
+];
+
+function buildHeatMapSection(result: FullEngineResult): OutputHubSection {
+  const fabric = result.fabricModelV1;
+  return {
+    id: 'heatMap',
+    title: 'House Heating Map',
+    status: 'ok',
+    visible: true,
+    customerSafe: true,
+    content: {
+      roomDesignTemps: ROOM_DESIGN_TEMPS,
+      heatLossBand:    fabric?.heatLossBand    ?? 'unknown',
+      thermalMassBand: fabric?.thermalMassBand ?? 'unknown',
+      driftTauHours:   fabric?.driftTauHours   ?? null,
+      notes:           fabric?.notes           ?? [],
+    },
+  };
+}
+
+function buildHotWaterDemandSection(
+  result: FullEngineResult,
+  input: FullSurveyModelV1,
+): OutputHubSection {
+  const combi  = result.combiDhwV1;
+  const stored = result.storedDhwV1;
+  const occupancy  = input.occupancyCount  ?? null;
+  const bathrooms  = input.bathroomCount   ?? null;
+  // Rough simultaneous demand: 8 L/min per active outlet
+  const peakOutlets = input.peakConcurrentOutlets ?? (bathrooms != null ? Math.min(bathrooms, 2) : null);
+  const peakDemandLpm = peakOutlets != null ? peakOutlets * 8 : null;
+  // Combi delivery: kW → L/min at 40°C rise (4.2 kJ/kg·K × 1 kg/L → kW/kW = L/s × 60)
+  const combiDeliveryLpm = combi.maxQtoDhwKwDerated != null
+    ? parseFloat(((combi.maxQtoDhwKwDerated / (4.2 * 40 / 60)) ).toFixed(1))
+    : null;
+  return {
+    id: 'hotWaterDemand',
+    title: 'Hot Water Demand',
+    status: combi.verdict.combiRisk === 'fail' ? 'watch' : 'ok',
+    visible: true,
+    customerSafe: true,
+    content: {
+      occupancyCount:       occupancy,
+      bathroomCount:        bathrooms,
+      peakOutlets:          peakOutlets,
+      peakDemandLpm,
+      combiDeliveryLpm,
+      combiRisk:            combi.verdict.combiRisk,
+      storedVolumeBand:     stored.recommended?.volumeBand ?? 'medium',
+      storedType:           stored.recommended?.type       ?? 'standard',
+    },
+  };
+}
+
+/** Derive a simple ordered connection diagram from the primary engine option. */
+function buildSystemArchitectureSection(result: FullEngineResult): OutputHubSection {
+  const options = result.engineOutput.options ?? [];
+  const primary = options.find(o => o.status === 'viable') ?? options[0];
+  const id      = primary?.id ?? 'unknown';
+
+  // Each node in the connection chain
+  const chain: string[] = (() => {
+    switch (id) {
+      case 'combi':
+        return ['Gas combi boiler', 'Radiators'];
+      case 'stored_unvented':
+      case 'system_unvented':
+        return ['Gas system boiler', 'Unvented hot water cylinder', 'Radiators'];
+      case 'stored_vented':
+      case 'regular_vented':
+        return ['Gas regular boiler', 'Cold water storage tank', 'Vented hot water cylinder', 'Radiators'];
+      case 'ashp':
+        return ['Air source heat pump', 'Buffer vessel', 'Hot water cylinder', 'Low-temperature radiators / underfloor heating'];
+      default:
+        return primary ? [primary.label] : ['System type to be confirmed'];
+    }
+  })();
+
+  const mustHave = primary?.typedRequirements?.mustHave ?? primary?.requirements ?? [];
+  return {
+    id: 'systemArchitecture',
+    title: 'System Architecture',
+    status: 'ok',
+    visible: true,
+    customerSafe: true,
+    content: {
+      optionId:        id,
+      optionLabel:     primary?.label ?? '—',
+      connectionChain: chain,
+      mustHave,
+    },
+  };
+}
+
+function buildSuitabilitySummarySection(result: FullEngineResult): OutputHubSection {
+  const options = result.engineOutput.options ?? [];
+  return {
+    id: 'suitabilitySummary',
+    title: 'Suitability Summary',
+    status: 'ok',
+    visible: options.length > 0,
+    customerSafe: true,
+    content: {
+      rows: options.map(o => ({
+        id:     o.id,
+        label:  o.label,
+        status: o.status,
+        why:    o.why.slice(0, 2),
+      })),
+    },
+  };
+}
+
+function buildUpgradePathwaySection(result: FullEngineResult): OutputHubSection {
+  const plans = result.engineOutput.plans;
+  // Use engine pathway data when available; otherwise build a simple staged
+  // upgrade from the primary option's requirements.
+  const options = result.engineOutput.options ?? [];
+  const primary = options.find(o => o.status === 'viable') ?? options[0];
+
+  if (plans && plans.pathways.length > 0) {
+    const pathway = [...plans.pathways].sort((a, b) => a.rank - b.rank)[0];
+    return {
+      id: 'upgradePathway',
+      title: 'Future Upgrade Path',
+      status: 'ok',
+      visible: true,
+      customerSafe: true,
+      content: {
+        source: 'engine',
+        stages: pathway.prerequisites.map((p, i) => ({
+          stage:  i + 1,
+          label:  p.title,
+          detail: p.detail,
+        })),
+        outcomeToday:        pathway.outcomeToday,
+        outcomeAfterTrigger: pathway.outcomeAfterTrigger ?? null,
+        rationale:           pathway.rationale,
+      },
+    };
+  }
+
+  // Fallback: derive stages from option requirements
+  const mustHave     = primary?.typedRequirements?.mustHave       ?? [];
+  const likelyUpgrades = primary?.typedRequirements?.likelyUpgrades ?? [];
+  const niceToHave   = primary?.typedRequirements?.niceToHave     ?? [];
+  const stages: Array<{ stage: number; label: string; detail: string }> = [];
+  if (mustHave.length > 0) {
+    stages.push({ stage: 1, label: 'Immediate installation requirements', detail: mustHave.join('. ') });
+  }
+  if (likelyUpgrades.length > 0) {
+    stages.push({ stage: 2, label: 'Likely upgrades', detail: likelyUpgrades.join('. ') });
+  }
+  if (niceToHave.length > 0) {
+    stages.push({ stage: 3, label: 'Future improvements', detail: niceToHave.join('. ') });
+  }
+  return {
+    id: 'upgradePathway',
+    title: 'Future Upgrade Path',
+    status: 'ok',
+    visible: stages.length > 0,
+    customerSafe: true,
+    content: {
+      source:              'derived',
+      stages,
+      outcomeToday:        primary?.heat.headline ?? null,
+      outcomeAfterTrigger: null,
+      rationale:           null,
+    },
+  };
+}
+
 // ─── Main builder ─────────────────────────────────────────────────────────────
 
 /**
@@ -415,10 +629,15 @@ export function buildOutputHubSections(
   return [
     buildRecommendationSection(result),
     buildCurrentSystemSection(result, input),
+    buildHeatMapSection(result),
+    buildHotWaterDemandSection(result, input),
     buildWaterPowerSection(result),
     buildUsageModelSection(result, input),
-    buildEvidenceSection(result),
+    buildSystemArchitectureSection(result),
+    buildSuitabilitySummarySection(result),
     buildConstraintsSection(result),
+    buildUpgradePathwaySection(result),
+    buildEvidenceSection(result),
     buildChemistrySection(result),
     buildGlassBoxSection(result),
     buildControlRoomSection(),

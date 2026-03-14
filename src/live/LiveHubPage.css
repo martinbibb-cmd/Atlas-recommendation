@@ -875,3 +875,639 @@
     text-align: center;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   OUTPUT HUB OVERHAUL — Decision-first sections & trust-builder graphics
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Hub sections ─────────────────────────────────────────────────────────── */
+
+.live-hub__section {
+  max-width: 1200px;
+  margin: 0 auto 2rem;
+  padding: 0 1.5rem;
+}
+
+.live-hub__section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.01em;
+}
+
+.live-hub__section-intro {
+  font-size: 0.84rem;
+  color: #718096;
+  margin: 0 0 1rem;
+}
+
+.live-hub__section--recommendation {
+  padding-top: 0.75rem;
+}
+
+/* ── Recommendation Card ──────────────────────────────────────────────────── */
+
+.rec-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border-left: 5px solid #3182ce;
+}
+
+.rec-card--withheld {
+  border-left-color: #e53e3e;
+  background: #fff5f5;
+}
+
+.rec-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.rec-card__brand {
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #3182ce;
+  background: #ebf8ff;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.rec-card__eyebrow {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #718096;
+}
+
+.rec-card__system {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: #1a202c;
+  line-height: 1.2;
+  margin: 0.25rem 0 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.rec-card__note {
+  font-size: 0.88rem;
+  color: #4a5568;
+  margin: 0 0 0.75rem;
+}
+
+.rec-card__confidence {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  margin-bottom: 1rem;
+  background: #f7fafc;
+  border: 1px solid currentColor;
+}
+
+.rec-card__confidence--high   { color: #38a169; }
+.rec-card__confidence--medium { color: #d69e2e; }
+.rec-card__confidence--low    { color: #e53e3e; }
+
+.rec-card__section {
+  margin-top: 1rem;
+}
+
+.rec-card__section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #718096;
+  margin-bottom: 0.4rem;
+}
+
+.rec-card__bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.rec-card__bullet {
+  font-size: 0.88rem;
+  color: #2d3748;
+  padding-left: 1rem;
+  position: relative;
+}
+
+.rec-card__bullet::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: #3182ce;
+}
+
+.rec-card__bullets--upgrades .rec-card__bullet::before {
+  content: '→';
+  color: #dd6b20;
+}
+
+.rec-card__withheld-reason {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  color: #742a2a;
+}
+
+/* ── Graphics panel (3 trust-builder cards in a row) ─────────────────────── */
+
+.live-hub__graphics-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 900px) {
+  .live-hub__graphics-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Shared graphic card base ─────────────────────────────────────────────── */
+
+.hub-graphic {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.25rem 1.25rem 1rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  border: 1px solid #e2e8f0;
+}
+
+.hub-graphic__title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.5rem;
+}
+
+.hub-graphic__intro {
+  font-size: 0.78rem;
+  color: #718096;
+  margin: 0 0 0.75rem;
+  line-height: 1.4;
+}
+
+.hub-graphic__notes {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: #718096;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.hub-graphic__notes li::before {
+  content: '• ';
+}
+
+/* ── House Heat Map ───────────────────────────────────────────────────────── */
+
+.hub-heatmap__room-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.hub-heatmap__room-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hub-heatmap__room-name {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #4a5568;
+  width: 72px;
+  flex-shrink: 0;
+}
+
+.hub-heatmap__room-bar-wrap {
+  flex: 1;
+  background: #edf2f7;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.hub-heatmap__room-bar {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #bee3f8, #3182ce);
+  border-radius: 5px;
+  transition: width 0.4s ease;
+}
+
+.hub-heatmap__room-temp {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #2d3748;
+  width: 38px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.hub-heatmap__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.hub-heatmap__badge {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid currentColor;
+  font-size: 0.72rem;
+}
+
+.hub-heatmap__badge--neutral {
+  color: #718096;
+  border-color: #e2e8f0;
+}
+
+.hub-heatmap__badge-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.64rem;
+}
+
+.hub-heatmap__badge-value {
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+/* ── Hot Water Demand panel ───────────────────────────────────────────────── */
+
+.hub-dhw__context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.hub-dhw__pill {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #2d3748;
+  background: #edf2f7;
+  padding: 0.2rem 0.55rem;
+  border-radius: 12px;
+}
+
+.hub-dhw__chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
+}
+
+.hub-dhw__bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hub-dhw__bar-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #718096;
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.hub-dhw__bar-wrap {
+  flex: 1;
+  background: #edf2f7;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.hub-dhw__bar {
+  display: block;
+  height: 100%;
+  border-radius: 7px;
+  transition: width 0.4s ease;
+  min-width: 4px;
+}
+
+.hub-dhw__bar--demand           { background: #4299e1; }
+.hub-dhw__bar--combi-pass       { background: #48bb78; }
+.hub-dhw__bar--combi-warn       { background: #ed8936; }
+.hub-dhw__bar--combi-fail       { background: #e53e3e; }
+
+.hub-dhw__bar-value {
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #2d3748;
+  width: 52px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.hub-dhw__verdict {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.45rem 0.75rem;
+  border-left: 3px solid currentColor;
+  background: rgba(0,0,0,0.025);
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 0.75rem;
+}
+
+.hub-dhw__cylinder-alt {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.65rem;
+}
+
+.hub-dhw__cylinder-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.hub-dhw__cylinder-icon { font-size: 1rem; }
+
+.hub-dhw__cylinder-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.hub-dhw__cylinder-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.hub-dhw__cylinder-row {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.hub-dhw__cylinder-key {
+  color: #718096;
+  font-weight: 600;
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.hub-dhw__cylinder-val         { color: #2d3748; }
+.hub-dhw__cylinder-val--ok     { color: #38a169; font-weight: 600; }
+
+/* ── Water supply CTA graphic ─────────────────────────────────────────────── */
+
+.hub-graphic--water-cta {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.live-hub__tile-link-btn {
+  display: inline-block;
+  margin-top: auto;
+  padding: 0.5rem 0.9rem;
+  background: #ebf8ff;
+  color: #2b6cb0;
+  border: 1px solid #bee3f8;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.live-hub__tile-link-btn:hover {
+  background: #bee3f8;
+}
+
+/* ── System Architecture panel ────────────────────────────────────────────── */
+
+.hub-arch__option-label {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #3182ce;
+  margin-bottom: 1rem;
+  padding: 0.35rem 0.75rem;
+  background: #ebf8ff;
+  border-radius: 6px;
+  border: 1px solid #bee3f8;
+  display: inline-block;
+}
+
+.hub-arch__chain {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  margin-bottom: 1rem;
+}
+
+.hub-arch__chain-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.hub-arch__node {
+  padding: 0.5rem 1rem;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #2d3748;
+  min-width: 180px;
+}
+
+.hub-arch__connector {
+  font-size: 1.2rem;
+  color: #4299e1;
+  padding: 0 1.25rem;
+  line-height: 1.4;
+}
+
+.hub-arch__req-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #718096;
+  margin-bottom: 0.35rem;
+}
+
+.hub-arch__requirements {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.75rem;
+}
+
+/* ── Suitability Summary table ────────────────────────────────────────────── */
+
+.hub-suitability__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.hub-suitability__th {
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #718096;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.hub-suitability__th--why {
+  width: 45%;
+}
+
+.hub-suitability__row:not(:last-child) td {
+  border-bottom: 1px solid #edf2f7;
+}
+
+.hub-suitability__td {
+  padding: 0.6rem 0.75rem;
+  vertical-align: top;
+}
+
+.hub-suitability__td--label {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.hub-suitability__td--why {
+  font-size: 0.8rem;
+  color: #4a5568;
+  line-height: 1.4;
+}
+
+.hub-suitability__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.hub-suitability__status--viable   { background: #f0fff4; color: #276749; }
+.hub-suitability__status--caution  { background: #fffaf0; color: #7b341e; }
+.hub-suitability__status--rejected { background: #fff5f5; color: #742a2a; }
+
+/* ── Upgrade Pathway panel ────────────────────────────────────────────────── */
+
+.hub-upgrade__stages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.hub-upgrade__stage {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.hub-upgrade__stage-badge {
+  flex-shrink: 0;
+  background: #3182ce;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 0.25rem 0.6rem;
+  border-radius: 12px;
+  margin-top: 0.1rem;
+}
+
+.hub-upgrade__stage-body {
+  flex: 1;
+}
+
+.hub-upgrade__stage-label {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin-bottom: 0.15rem;
+}
+
+.hub-upgrade__stage-detail {
+  font-size: 0.78rem;
+  color: #4a5568;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.hub-upgrade__outcomes {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.hub-upgrade__outcome {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  align-items: flex-start;
+}
+
+.hub-upgrade__outcome-label {
+  font-weight: 700;
+  color: #718096;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  width: 56px;
+  flex-shrink: 0;
+  padding-top: 0.1rem;
+}
+
+.hub-upgrade__outcome-text {
+  color: #2d3748;
+  line-height: 1.4;
+}
+
+/* ── Detail tab section header ────────────────────────────────────────────── */
+
+.live-hub__section--arch {
+  /* Full-width single column for architecture diagram */
+}

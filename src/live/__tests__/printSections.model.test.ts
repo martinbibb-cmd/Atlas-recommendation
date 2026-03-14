@@ -109,9 +109,9 @@ function makeInput(overrides?: Partial<{
 // ─── buildOutputHubSections ───────────────────────────────────────────────────
 
 describe('buildOutputHubSections — section coverage', () => {
-  it('returns 12 sections (one per hub tile + derived)', () => {
+  it('returns 17 sections (one per hub tile + derived)', () => {
     const sections = buildOutputHubSections(makeResult(), makeInput());
-    expect(sections.length).toBe(12);
+    expect(sections.length).toBe(17);
   });
 
   it('returns a section for every expected id', () => {
@@ -121,6 +121,7 @@ describe('buildOutputHubSections — section coverage', () => {
       'recommendation', 'currentSystem', 'waterPower', 'usageModel',
       'evidence', 'constraints', 'chemistry', 'glassBox',
       'controlRoom', 'simulatorSummary', 'comparison', 'technicalAppendix',
+      'heatMap', 'hotWaterDemand', 'systemArchitecture', 'suitabilitySummary', 'upgradePathway',
     ];
     for (const id of expected) {
       expect(ids).toContain(id);
@@ -349,8 +350,8 @@ describe('PRINT_PRESETS — structure', () => {
     expect(PRINT_PRESETS.full).toBeTruthy();
   });
 
-  it('full preset includes all 12 section ids', () => {
-    expect(PRINT_PRESETS.full.length).toBe(12);
+  it('full preset includes all 17 section ids', () => {
+    expect(PRINT_PRESETS.full.length).toBe(17);
   });
 
   it('customer preset does not include glassBox or evidence', () => {
@@ -358,8 +359,10 @@ describe('PRINT_PRESETS — structure', () => {
     expect(PRINT_PRESETS.customer).not.toContain('evidence');
   });
 
-  it('customer preset includes simulatorSummary', () => {
-    expect(PRINT_PRESETS.customer).toContain('simulatorSummary');
+  it('customer preset includes the 3 visual trust-builder sections', () => {
+    expect(PRINT_PRESETS.customer).toContain('heatMap');
+    expect(PRINT_PRESETS.customer).toContain('hotWaterDemand');
+    expect(PRINT_PRESETS.customer).toContain('waterPower');
   });
 
   it('comparison preset includes comparison section', () => {

@@ -111,11 +111,11 @@ describe('LiveHubPage — print action buttons', () => {
     expect(screen.getByRole('button', { name: /print full output report/i })).toBeTruthy();
   });
 
-  it('renders the "Includes all visible result panels" hint text', () => {
+  it('renders the print actions hint text', () => {
     render(
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
-    expect(screen.getByText('Includes all visible result panels')).toBeTruthy();
+    expect(screen.getByText(/Customer report: 3 pages/)).toBeTruthy();
   });
 });
 
@@ -167,7 +167,7 @@ describe('LiveHubPage — print overlay navigation', () => {
     fireEvent.click(screen.getByText('← Back to Lab'));
 
     // Hub should be shown again (Live Output Hub heading is present)
-    expect(screen.getByText('📡 Live Output Hub')).toBeTruthy();
+    expect(screen.getByText('📡 Atlas Live Output Hub')).toBeTruthy();
   });
 });
 
@@ -224,6 +224,6 @@ describe('LiveHubPage — print surfaces use existing lab components', () => {
       screen.getByRole('heading', { level: 1, name: 'Full Output Report' }),
     ).toBeTruthy();
     fireEvent.click(screen.getByText('← Back to Lab'));
-    expect(screen.getByText('📡 Live Output Hub')).toBeTruthy();
+    expect(screen.getByText('📡 Atlas Live Output Hub')).toBeTruthy();
   });
 });
