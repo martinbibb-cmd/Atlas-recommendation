@@ -3,11 +3,13 @@
  *
  * Tests verify:
  *   - Renders the scenario title
+ *   - Renders the myth block
  *   - Renders the shortVerdict badge
- *   - Renders all whyItMatters bullets
+ *   - Renders the physicsReason
+ *   - Renders the recommendation
  *   - Renders the VisualComponent
  *   - Renders before/after labels when provided
- *   - Renders without labels when not provided
+ *   - Does not render label bar when no labels are provided
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -28,26 +30,27 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 const CYCLING_SCENARIO: WhatIfScenario = {
-  id: 'boiler_too_big',
-  title: 'Boiler too big',
-  shortVerdict: 'Too much output for the heating load causes cycling.',
-  whyItMatters: [
-    'The boiler reaches temperature too quickly.',
-    'It switches off and restarts more often.',
-  ],
+  id: 'bigger_boiler',
+  title: 'Bigger boiler = better heating',
+  myth: 'A larger output means better heating, quicker warm-up, and more reliability.',
+  shortVerdict: 'Oversized boilers short-cycle, waste fuel, and reduce comfort.',
+  physicsReason:
+    'When rated output far exceeds the true heat loss, the boiler reaches set-point almost instantly and short-cycles.',
+  recommendation:
+    'Atlas calculates actual heat loss to select output that matches load — not room count.',
   visualType: 'cycling',
 };
 
 const CONTROLS_SCENARIO: WhatIfScenario = {
-  id: 'add_better_controls',
-  title: 'Improve boiler control',
-  shortVerdict: 'Better boiler control helps the heat source run lower and steadier.',
-  whyItMatters: [
-    'Lower flow temperatures improve condensing potential.',
-    'Better control reduces stop-start cycling.',
-  ],
-  beforeLabel: 'Fixed higher flow',
-  afterLabel: 'Lower, steadier flow',
+  id: 'high_flow_temp',
+  title: 'Raise the flow temperature',
+  myth: 'Simply raising the boiler flow temperature will fix cold rooms.',
+  shortVerdict: 'High flow temperatures lock out condensing mode and raise fuel costs.',
+  physicsReason:
+    'Gas boilers recover ~10 % efficiency when return water falls below ~55 °C. High flow temperatures prevent this.',
+  recommendation: 'Fix emitter sizing or hydraulic balance — not the thermostat dial.',
+  beforeLabel: '80 °C flow (non-condensing)',
+  afterLabel: '55 °C flow (condensing ✓)',
   visualType: 'controls',
 };
 
@@ -58,7 +61,7 @@ function StubVisual() {
 describe('WhatIfScenarioCard — title and verdict', () => {
   it('renders the scenario title', () => {
     render(<WhatIfScenarioCard scenario={CYCLING_SCENARIO} VisualComponent={StubVisual} />);
-    expect(screen.getByText('Boiler too big')).toBeTruthy();
+    expect(screen.getByText('Bigger boiler = better heating')).toBeTruthy();
   });
 
   it('renders the shortVerdict', () => {
@@ -67,12 +70,39 @@ describe('WhatIfScenarioCard — title and verdict', () => {
   });
 });
 
-describe('WhatIfScenarioCard — bullets', () => {
-  it('renders all whyItMatters bullets', () => {
+describe('WhatIfScenarioCard — myth block', () => {
+  it('renders the myth text', () => {
     render(<WhatIfScenarioCard scenario={CYCLING_SCENARIO} VisualComponent={StubVisual} />);
-    CYCLING_SCENARIO.whyItMatters.forEach(point => {
-      expect(screen.getByText(point)).toBeTruthy();
-    });
+    expect(screen.getByText(CYCLING_SCENARIO.myth)).toBeTruthy();
+  });
+
+  it('renders the "Myth" section label', () => {
+    render(<WhatIfScenarioCard scenario={CYCLING_SCENARIO} VisualComponent={StubVisual} />);
+    expect(screen.getByText('Myth')).toBeTruthy();
+  });
+});
+
+describe('WhatIfScenarioCard — physics reason', () => {
+  it('renders the physicsReason', () => {
+    render(<WhatIfScenarioCard scenario={CYCLING_SCENARIO} VisualComponent={StubVisual} />);
+    expect(screen.getByText(CYCLING_SCENARIO.physicsReason)).toBeTruthy();
+  });
+
+  it('renders the "Why this happens" section label', () => {
+    render(<WhatIfScenarioCard scenario={CYCLING_SCENARIO} VisualComponent={StubVisual} />);
+    expect(screen.getByText('Why this happens')).toBeTruthy();
+  });
+});
+
+describe('WhatIfScenarioCard — recommendation', () => {
+  it('renders the recommendation', () => {
+    render(<WhatIfScenarioCard scenario={CYCLING_SCENARIO} VisualComponent={StubVisual} />);
+    expect(screen.getByText(CYCLING_SCENARIO.recommendation)).toBeTruthy();
+  });
+
+  it('renders the "Atlas recommends" section label', () => {
+    render(<WhatIfScenarioCard scenario={CYCLING_SCENARIO} VisualComponent={StubVisual} />);
+    expect(screen.getByText('Atlas recommends')).toBeTruthy();
   });
 });
 
@@ -86,8 +116,8 @@ describe('WhatIfScenarioCard — visual component', () => {
 describe('WhatIfScenarioCard — before/after labels', () => {
   it('renders beforeLabel and afterLabel when provided', () => {
     render(<WhatIfScenarioCard scenario={CONTROLS_SCENARIO} VisualComponent={StubVisual} />);
-    expect(screen.getByText(/Fixed higher flow/)).toBeTruthy();
-    expect(screen.getByText(/Lower, steadier flow/)).toBeTruthy();
+    expect(screen.getByText(/80 °C flow/)).toBeTruthy();
+    expect(screen.getByText(/55 °C flow/)).toBeTruthy();
   });
 
   it('does not render label bar when no labels are provided', () => {
