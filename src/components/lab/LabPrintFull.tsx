@@ -735,7 +735,7 @@ function HotWaterDemandSection({ section }: { section: OutputHubSection }) {
         <div className="lp-dl-row">
           <dt className="lp-dt">Result</dt>
           <dd className="lp-dd" style={{ color: '#276749', fontWeight: 600 }}>
-            Stored supply — simultaneous outlets supported
+            Stored hot water — simultaneous outlets supported
           </dd>
         </div>
       </dl>

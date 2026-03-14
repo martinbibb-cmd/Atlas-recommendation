@@ -129,7 +129,7 @@ export default function HotWaterDemandPanel({ section }: Props) {
           <div className="hub-dhw__cylinder-row">
             <span className="hub-dhw__cylinder-key">Result</span>
             <span className="hub-dhw__cylinder-val hub-dhw__cylinder-val--ok">
-              Stored supply — simultaneous outlets supported
+              Stored hot water — simultaneous outlets supported
             </span>
           </div>
         </div>
