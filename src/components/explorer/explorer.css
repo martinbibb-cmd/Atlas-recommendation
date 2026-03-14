@@ -1170,6 +1170,125 @@ details[open] > .hs-panel__raw-summary::before { content: '▼ '; }
   color: #7a1c1c;
 }
 
+
+/* =============================================================================
+   Assumptions banner
+   ============================================================================= */
+
+.explorer-assumptions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 1.5rem;
+  background: #fafbfc;
+  border-bottom: 1px solid var(--border-subtle, #e3e7ee);
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+}
+
+.explorer-assumptions__label {
+  font-weight: 600;
+  color: var(--text-secondary, #667085);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.explorer-assumptions__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.explorer-assumptions__group-label {
+  color: var(--text-secondary, #667085);
+  font-size: 0.75rem;
+}
+
+.explorer-assumptions__value {
+  font-weight: 600;
+  color: var(--text-primary, #1c1c1e);
+  background: #fff;
+  border: 1px solid #e3e7ee;
+  border-radius: 5px;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.75rem;
+}
+
+.explorer-assumptions__toggle {
+  display: inline-flex;
+  border: 1px solid #d1d9e4;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.explorer-assumptions__toggle-btn {
+  background: #fff;
+  border: none;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.73rem;
+  cursor: pointer;
+  color: var(--text-secondary, #667085);
+  transition: background 0.12s, color 0.12s;
+}
+.explorer-assumptions__toggle-btn + .explorer-assumptions__toggle-btn {
+  border-left: 1px solid #d1d9e4;
+}
+.explorer-assumptions__toggle-btn:hover {
+  background: #f0f4ff;
+  color: #1c1c1e;
+}
+.explorer-assumptions__toggle-btn--active {
+  background: #1c1c1e;
+  color: #fff;
+  font-weight: 600;
+}
+
+.explorer-assumptions__constraints {
+  display: inline-flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.explorer-assumptions__constraint-tag {
+  background: rgba(234, 84, 85, 0.1);
+  color: #7a1c1c;
+  border: 1px solid rgba(234, 84, 85, 0.25);
+  border-radius: 4px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+/* =============================================================================
+   Heat source panel — constraint tags
+   ============================================================================= */
+
+.hs-panel__constraint-tags {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0 0.25rem;
+}
+
+.hs-panel__constraint-tag {
+  background: rgba(234, 84, 85, 0.1);
+  color: #7a1c1c;
+  border: 1px solid rgba(234, 84, 85, 0.25);
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.hs-panel__tip--info {
+  background: rgba(59, 130, 246, 0.07);
+  border-color: rgba(59, 130, 246, 0.2);
+  color: #1e3a5f;
+}
+
 /* =============================================================================
    Behaviour event types — extended icons and colours
    ============================================================================= */
