@@ -573,8 +573,8 @@ function buildUpgradePathwaySection(result: FullEngineResult): OutputHubSection 
         source: 'engine',
         stages: pathway.prerequisites.map((p, i) => ({
           stage:  i + 1,
-          label:  p.title,
-          detail: p.detail,
+          label:  p.description,
+          detail: p.triggerEvent ?? '',
         })),
         outcomeToday:        pathway.outcomeToday,
         outcomeAfterTrigger: pathway.outcomeAfterTrigger ?? null,
