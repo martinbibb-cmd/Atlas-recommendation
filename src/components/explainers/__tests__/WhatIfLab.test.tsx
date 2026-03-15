@@ -143,7 +143,7 @@ describe('WhatIfLab — scenario data shape', () => {
     expect(ids).toContain('bigger_primaries');
     expect(ids).toContain('high_flow_temp');
     expect(ids).toContain('22mm_bottleneck');
-    expect(ids).toContain('stored_always_efficient');
+    expect(ids).toContain('combi_always_efficient');
     expect(ids).toContain('hp_cylinder_55c');
     expect(ids).toContain('oversizing_cylinder');
   });
@@ -211,16 +211,16 @@ describe('WhatIfLab — myth-busting content contracts', () => {
     expect(allText).toMatch(/standing loss|recovery/);
   });
 
-  it('bigger_primaries references velocity or sludge', () => {
+  it('bigger_primaries references threshold or flow demand', () => {
     const s = WHAT_IF_SCENARIOS.find(s => s.id === 'bigger_primaries')!;
     const allText = [s.shortVerdict, s.physicsReason].join(' ').toLowerCase();
-    expect(allText).toMatch(/velocity|sludge/);
+    expect(allText).toMatch(/threshold|flow demand/);
   });
 
-  it('stored_always_efficient references standing loss', () => {
-    const s = WHAT_IF_SCENARIOS.find(s => s.id === 'stored_always_efficient')!;
+  it('combi_always_efficient references short draws or cold-start', () => {
+    const s = WHAT_IF_SCENARIOS.find(s => s.id === 'combi_always_efficient')!;
     const allText = [s.shortVerdict, s.physicsReason].join(' ').toLowerCase();
-    expect(allText).toMatch(/standing loss/);
+    expect(allText).toMatch(/short.*draw|cold.start/);
   });
 
   it('no scenario uses prohibited term "instantaneous"', () => {

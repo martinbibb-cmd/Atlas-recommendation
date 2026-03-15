@@ -1,11 +1,13 @@
 /**
  * whatIfScenarios.ts
  *
- * Myth-busting scenario data for the "What if…?" explainer lab.
+ * Trade-assumption scenario data for the "What if…?" explainer lab.
  *
- * Each scenario exposes a common assumption, explains what actually happens
- * physically, and states what Atlas recommends instead.  Scenarios are kept
- * compact — explainable in under a minute.
+ * Each scenario exposes a common rule-of-thumb assumption used by
+ * customers, installers, or salespeople — explains the narrow case
+ * where it holds, the edge case where it fails on physics, and what
+ * Atlas recommends instead.  Scenarios are kept compact — explainable
+ * in under a minute.
  *
  * visualType values map to the inline diagram components in WhatIfLab.tsx.
  */
@@ -63,15 +65,16 @@ export const WHAT_IF_SCENARIOS: WhatIfScenario[] = [
     id: 'bigger_primaries',
     title: 'Bigger primaries are always better',
     myth: 'Fitting the largest available primary pipework always improves system performance.',
-    shortVerdict: 'Over-piped systems lose flow velocity, causing sludge accumulation and poor circulation.',
+    shortVerdict: 'Larger primaries only help when flow demand actually crosses the useful threshold.',
     physicsReason:
-      'Flow velocity must stay above ~0.3 m/s to keep magnetite particles in suspension; ' +
-      'below this threshold particles settle out and accumulate as sludge. ' +
-      'Oversized pipes at typical domestic outputs drop velocity well below this threshold.',
+      'Below the required flow threshold, oversized pipe adds water volume that slows warm-up response ' +
+      'and can reduce boiler efficiency through longer heat-exchanger fill times. ' +
+      'For boilers the threshold is higher; for heat pumps it is lower because flow demand is much greater. ' +
+      'Only when the system genuinely needs the extra flow does 28 mm outperform 22 mm.',
     recommendation:
-      'Atlas selects primary bore to balance flow restriction against the minimum velocity needed to keep the circuit clean.',
-    beforeLabel: '35 mm (slow, sludge risk)',
-    afterLabel: '28 mm (optimal velocity)',
+      'Atlas matches primary bore to the calculated flow requirement — upgrading only when demand justifies the extra volume.',
+    beforeLabel: '28 mm below threshold (extra volume, slow response)',
+    afterLabel: '28 mm above threshold (adequate flow ✓)',
     visualType: 'velocity',
     appliesTo: ['all'],
   },
@@ -106,15 +109,16 @@ export const WHAT_IF_SCENARIOS: WhatIfScenario[] = [
     appliesTo: ['all'],
   },
   {
-    id: 'stored_always_efficient',
-    title: 'Stored hot water is always more efficient',
-    myth: 'A cylinder system always beats a combi for efficiency and running cost.',
-    shortVerdict: 'Standing losses from a poorly matched cylinder can exceed the savings over on-demand hot water.',
+    id: 'combi_always_efficient',
+    title: 'Combi is always more efficient',
+    myth: 'No cylinder means no standing losses — so a combi is always the most efficient option.',
+    shortVerdict: 'Frequent short DHW draws destroy real combi efficiency — even for 1–2 occupants.',
     physicsReason:
-      'A cylinder loses ~1.5–3 kWh per day to standing heat loss regardless of demand. ' +
-      'For a 1–2 person household with low daily draw, this erases any generation-efficiency advantage.',
+      'Every combi draw fires a cold heat exchanger, wastes fuel on warm-up, and dumps residual heat once the tap closes. ' +
+      'Repeated handwashing, rinsing, and stop-start kitchen use can produce dozens of short draws per day. ' +
+      'Each cold-start cycle carries a fixed energy penalty that a stored system avoids because the water is already hot.',
     recommendation:
-      'Atlas matches system type to actual occupancy and daily hot-water draw — not property size.',
+      'Atlas evaluates actual draw patterns — not just occupancy count — to determine whether on-demand or stored hot water is more efficient.',
     visualType: 'storage',
     appliesTo: ['all'],
   },
@@ -137,13 +141,13 @@ export const WHAT_IF_SCENARIOS: WhatIfScenario[] = [
     id: 'oversizing_cylinder',
     title: 'Bigger cylinder = more hot water',
     myth: 'A larger cylinder volume always means more available hot water and faster recovery.',
-    shortVerdict: 'Oversized cylinders have higher standing losses and take longer to reheat to a usable temperature.',
+    shortVerdict: 'More stored volume is not the same as more usable performance.',
     physicsReason:
-      'More water volume means more energy lost per hour to standing heat loss. ' +
-      'It also means longer reheat time before the full store reaches usable temperature. ' +
-      'A right-sized cylinder recovers faster and wastes less energy.',
+      'A larger cylinder increases standing heat loss and extends reheat time. ' +
+      'Usable hot-water performance depends on recovery rate, storage temperature, insulation losses, and the household draw pattern — ' +
+      'not just litres of water. A right-sized cylinder matched to actual demand recovers faster and wastes less energy.',
     recommendation:
-      'Atlas sizes cylinder volume to actual daily draw — not floor area or bedroom count.',
+      'Atlas sizes cylinder volume to actual daily draw, recovery capability, and draw pattern — not floor area or bedroom count.',
     beforeLabel: '300 L (high losses, slow recovery)',
     afterLabel: '170 L (right-sized)',
     visualType: 'oversizing',
