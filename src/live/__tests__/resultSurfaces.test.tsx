@@ -18,7 +18,7 @@
  *   2. LiveHubPage primary export is "Print Recommendation"
  *   3. LiveHubPage does NOT render legacy "Customer Summary" or "Full Output Report" buttons
  *   4. LiveHubPage secondary exports are labelled "Engineering Detail" / "Technical Comparison"
- *   5. LabShell (demo/sandbox) export section is labelled "Demo export:" to distinguish from
+ *   5. LabShell (demo/sandbox) export section is labelled "Demo exports:" to distinguish from
  *      survey-backed canonical outputs
  *   6. DecisionSynthesisPage (Advice) print button is labelled "Print Recommendation"
  */
@@ -172,9 +172,9 @@ describe('resultSurfaces — LiveHubPage secondary exports', () => {
 // ─── 5. LabShell — demo/sandbox labels ───────────────────────────────────────
 
 describe('resultSurfaces — LabShell demo/sandbox labels', () => {
-  it('labels the export section as "Demo export:" not "Print / export:"', () => {
+  it('labels the export section as "Demo exports:" not "Print / export:"', () => {
     render(<LabShell onHome={() => {}} />);
-    expect(screen.getByText(/demo export:/i)).toBeTruthy();
+    expect(screen.getByText(/demo exports:/i)).toBeTruthy();
     expect(screen.queryByText(/print \/ export:/i)).toBeNull();
   });
 

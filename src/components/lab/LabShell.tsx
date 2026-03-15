@@ -225,7 +225,7 @@ export default function LabShell({ onHome, engineInput }: Props) {
 
       {/* ── Print views (demo data) ────────────────────────────────────────── */}
       <div id="export-buttons" data-tour="export-actions" className="lab-print-nav" aria-label="Demo print views">
-        <span className="lab-print-nav__label">Demo export:</span>
+        <span className="lab-print-nav__label">Demo exports:</span>
         <a
           className="lab-print-nav__link"
           href="?print=technical"
