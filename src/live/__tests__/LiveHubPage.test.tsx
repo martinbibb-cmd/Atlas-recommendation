@@ -2,14 +2,15 @@
  * LiveHubPage.test.tsx
  *
  * Validates that LiveHubPage:
- *   - Renders the print action buttons (Customer Summary, Technical Spec)
- *   - Renders the Comparison Sheet button only when ≥ 2 options exist
- *   - Hides the Comparison Sheet button when fewer than 2 options are present
- *   - Clicking "Customer Summary" opens the LabPrintCustomer overlay
- *   - Clicking "Technical Spec" opens the LabPrintTechnical overlay
- *   - Clicking "Comparison Sheet" opens the LabPrintComparison overlay
- *   - The print overlay's "← Back to Lab" button returns to the hub
- *   - No duplicate print logic is introduced (print surfaces are the existing Lab ones)
+ *   - Renders the primary "Print Recommendation" button
+ *   - Renders "Engineering Detail" as a secondary technical export
+ *   - Renders "Technical Comparison" only when ≥ 2 options exist
+ *   - Hides "Technical Comparison" when fewer than 2 options are present
+ *   - "Customer Summary" and "Full Output Report" legacy buttons are removed
+ *   - Clicking "Print Recommendation" opens PrintableRecommendationPage overlay
+ *   - Clicking "Engineering Detail" opens the LabPrintTechnical overlay
+ *   - Clicking "Technical Comparison" opens the LabPrintComparison overlay
+ *   - The print overlay's "← Back" button returns to the hub
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -75,155 +76,134 @@ beforeEach(() => {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('LiveHubPage — print action buttons', () => {
-  it('renders the "Customer Summary" print button', () => {
+describe('LiveHubPage — primary export button', () => {
+  it('renders the "Print Recommendation" primary button', () => {
     render(
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
-    expect(screen.getByRole('button', { name: /print customer summary/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /print atlas recommendation/i })).toBeTruthy();
   });
 
-  it('renders the "Technical Spec" print button', () => {
+  it('does NOT render legacy "Customer Summary" button', () => {
     render(
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
-    expect(screen.getByRole('button', { name: /print technical specification/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /customer summary/i })).toBeNull();
   });
 
-  it('does NOT render "Comparison Sheet" button when fewer than 2 options are returned', () => {
-    render(
-      <LiveHubPage result={makeResult({ optionCount: 0 })} input={makeInput()} onBack={() => {}} />,
-    );
-    expect(screen.queryByRole('button', { name: /print comparison sheet/i })).toBeNull();
-  });
-
-  it('renders the "Comparison Sheet" button when 2 or more options exist', () => {
-    render(
-      <LiveHubPage result={makeResult({ optionCount: 2 })} input={makeInput()} onBack={() => {}} />,
-    );
-    expect(screen.getByRole('button', { name: /print comparison sheet/i })).toBeTruthy();
-  });
-
-  it('renders the "Full Output Report" print button', () => {
+  it('does NOT render legacy "Full Output Report" button', () => {
     render(
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
-    expect(screen.getByRole('button', { name: /print full output report/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /full output report/i })).toBeNull();
   });
 
-  it('renders the print actions hint text', () => {
+  it('clicking "Print Recommendation" opens the PrintableRecommendationPage overlay', () => {
     render(
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
-    expect(screen.getByText(/Customer report: 3 pages/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /print atlas recommendation/i }));
+    // PrintableRecommendationPage renders an aria-label "Printable Atlas recommendation"
+    expect(screen.getByLabelText(/printable atlas recommendation/i)).toBeTruthy();
+  });
+
+  it('"← Back" in the Print Recommendation overlay returns to the hub', () => {
+    render(
+      <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /print atlas recommendation/i }));
+    expect(screen.getByLabelText(/printable atlas recommendation/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /back to advice page/i }));
+    expect(screen.getByText('📡 Atlas Live Output Hub')).toBeTruthy();
   });
 });
 
-describe('LiveHubPage — print overlay navigation', () => {
-  it('clicking "Customer Summary" renders the LabPrintCustomer overlay', () => {
+describe('LiveHubPage — secondary technical export buttons', () => {
+  it('renders "Engineering Detail" as a secondary technical export', () => {
     render(
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /print customer summary/i }));
-    // LabPrintCustomer renders an h1 "Customer Summary"
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Customer Summary' }),
-    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: /print engineering detail/i })).toBeTruthy();
   });
 
-  it('clicking "Technical Spec" renders the LabPrintTechnical overlay', () => {
+  it('does NOT render legacy "Technical Spec" button label', () => {
     render(
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /print technical specification/i }));
+    expect(screen.queryByRole('button', { name: /^print technical spec/i })).toBeNull();
+  });
+
+  it('does NOT render "Technical Comparison" button when fewer than 2 options are returned', () => {
+    render(
+      <LiveHubPage result={makeResult({ optionCount: 0 })} input={makeInput()} onBack={() => {}} />,
+    );
+    expect(screen.queryByRole('button', { name: /print technical comparison/i })).toBeNull();
+  });
+
+  it('renders "Technical Comparison" button when 2 or more options exist', () => {
+    render(
+      <LiveHubPage result={makeResult({ optionCount: 2 })} input={makeInput()} onBack={() => {}} />,
+    );
+    expect(screen.getByRole('button', { name: /print technical comparison/i })).toBeTruthy();
+  });
+
+  it('does NOT render legacy "Comparison Sheet" button label', () => {
+    render(
+      <LiveHubPage result={makeResult({ optionCount: 2 })} input={makeInput()} onBack={() => {}} />,
+    );
+    expect(screen.queryByRole('button', { name: /comparison sheet/i })).toBeNull();
+  });
+});
+
+describe('LiveHubPage — secondary export overlay navigation', () => {
+  it('clicking "Engineering Detail" renders the LabPrintTechnical overlay', () => {
+    render(
+      <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /print engineering detail/i }));
     // LabPrintTechnical renders an h1 "Technical Specification"
     expect(
       screen.getByRole('heading', { level: 1, name: 'Technical Specification' }),
     ).toBeTruthy();
   });
 
-  it('clicking "Comparison Sheet" renders the LabPrintComparison overlay', () => {
+  it('clicking "Technical Comparison" renders the LabPrintComparison overlay', () => {
     render(
       <LiveHubPage result={makeResult({ optionCount: 2 })} input={makeInput()} onBack={() => {}} />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /print comparison sheet/i }));
+    fireEvent.click(screen.getByRole('button', { name: /print technical comparison/i }));
     // LabPrintComparison renders an h1 "Comparison Sheet"
     expect(
       screen.getByRole('heading', { level: 1, name: 'Comparison Sheet' }),
     ).toBeTruthy();
   });
 
-  it('"← Back to Lab" in the print overlay returns to the hub', () => {
+  it('"← Back to Lab" in the Engineering Detail overlay returns to the hub', () => {
     render(
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
-    // Open the customer print overlay
-    fireEvent.click(screen.getByRole('button', { name: /print customer summary/i }));
+    fireEvent.click(screen.getByRole('button', { name: /print engineering detail/i }));
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Customer Summary' }),
+      screen.getByRole('heading', { level: 1, name: 'Technical Specification' }),
     ).toBeTruthy();
-
-    // Click "← Back to Lab" to dismiss the overlay
     fireEvent.click(screen.getByText('← Back to Lab'));
-
-    // Hub should be shown again (Live Output Hub heading is present)
     expect(screen.getByText('📡 Atlas Live Output Hub')).toBeTruthy();
   });
 });
 
-describe('LiveHubPage — print surfaces use existing lab components', () => {
-  it('Customer Summary print surface shows ATLAS brand (reuses LabPrintCustomer)', () => {
+describe('LiveHubPage — export section labels', () => {
+  it('renders a "Technical exports" secondary label', () => {
     render(
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /print customer summary/i }));
-    expect(screen.getByText('ATLAS')).toBeTruthy();
+    expect(screen.getByText(/technical exports/i)).toBeTruthy();
   });
 
-  it('Technical Spec print surface shows ATLAS brand (reuses LabPrintTechnical)', () => {
+  it('does NOT render legacy hint text about "Customer report: 3 pages"', () => {
     render(
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /print technical specification/i }));
-    expect(screen.getByText('ATLAS')).toBeTruthy();
-  });
-
-  it('print surfaces include a "Print / Save PDF" button', () => {
-    render(
-      <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: /print customer summary/i }));
-    expect(screen.getByText(/Print \/ Save PDF/)).toBeTruthy();
-  });
-
-  it('clicking "Full Output Report" renders the LabPrintFull overlay', () => {
-    render(
-      <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: /print full output report/i }));
-    // LabPrintFull renders an h1 "Full Output Report"
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Full Output Report' }),
-    ).toBeTruthy();
-  });
-
-  it('Full Output Report print surface shows ATLAS brand (uses LabPrintFull)', () => {
-    render(
-      <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: /print full output report/i }));
-    expect(screen.getByText('ATLAS')).toBeTruthy();
-  });
-
-  it('"← Back to Lab" in the Full Output Report overlay returns to the hub', () => {
-    render(
-      <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: /print full output report/i }));
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Full Output Report' }),
-    ).toBeTruthy();
-    fireEvent.click(screen.getByText('← Back to Lab'));
-    expect(screen.getByText('📡 Atlas Live Output Hub')).toBeTruthy();
+    expect(screen.queryByText(/Customer report: 3 pages/)).toBeNull();
   });
 });

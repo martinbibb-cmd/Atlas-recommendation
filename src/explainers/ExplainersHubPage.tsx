@@ -138,13 +138,13 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
             <button
               className="hub-back-btn"
               onClick={() => setShowAdvice(true)}
-              aria-label="View decision advice"
+              aria-label="View advice page"
             >
-              🎯 Decision Advice
+              🎯 Advice
             </button>
           )}
           <div>
-            <h1 className="hub-page__title">Simulator Dashboard</h1>
+            <h1 className="hub-page__title">Simulator</h1>
             <p className="hub-page__subtitle">Physics-first heating system simulator</p>
           </div>
         </div>
@@ -206,7 +206,7 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
           </button>
         )}
         <div>
-          <h1 className="hub-page__title">Simulator Dashboard</h1>
+          <h1 className="hub-page__title">Simulator</h1>
           <p className="hub-page__subtitle">Physics-first heating system simulator</p>
         </div>
       </div>

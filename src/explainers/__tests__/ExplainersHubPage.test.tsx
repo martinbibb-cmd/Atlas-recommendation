@@ -35,9 +35,9 @@ function completeStepper() {
 // ─── Page title ───────────────────────────────────────────────────────────────
 
 describe('ExplainersHubPage — page title', () => {
-  it('renders Simulator Dashboard as the page title', () => {
+  it('renders Simulator as the page title', () => {
     render(<ExplainersHubPage />)
-    expect(screen.getByRole('heading', { name: /simulator dashboard/i })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /^simulator$/i })).toBeTruthy()
   })
 
   it('does NOT render the old Demo Lab title', () => {
