@@ -627,3 +627,140 @@ describe('buildHeatingOperatingState — defaults and sparse input', () => {
     expect(withDefault.circulationConstraint).toBe(explicit22.circulationConstraint);
   });
 });
+
+// ─── Floor-plan emitter adequacy wiring ──────────────────────────────────────
+
+describe('buildHeatingOperatingState — floorplanEmitterAdequacy wiring', () => {
+  it('uses impliedOversizingFactor when no explicit emitterOversizingFactor is given', () => {
+    // Oversized emitters → impliedOversizingFactor = 1.9 → should lower required flow temp
+    // Do NOT pass emitterOversizingFactor so floor-plan factor is used as fallback.
+    const withFloorplan = buildHeatingOperatingState({
+      flowTempC: 80,
+      floorplanEmitterAdequacy: {
+        coverageClassification: 'all_oversized',
+        impliedOversizingFactor: 1.9,
+        undersizedRooms: [],
+        oversizedRooms: ['Lounge', 'Kitchen'],
+        hasActualData: true,
+      },
+    });
+    // Standard — no floor plan, no explicit factor.
+    const standard = buildHeatingOperatingState({ flowTempC: 80 });
+    // Oversized factor should reduce required flow temp.
+    expect(withFloorplan.requiredFlowTempC!).toBeLessThan(standard.requiredFlowTempC!);
+  });
+
+  it('explicit emitterOversizingFactor overrides floor-plan implied factor', () => {
+    // explicit says standard (1.0), floor plan says oversized (1.9) — explicit wins
+    const result = buildHeatingOperatingState(makeInput({
+      emitterOversizingFactor: 1.0,
+      floorplanEmitterAdequacy: {
+        coverageClassification: 'all_oversized',
+        impliedOversizingFactor: 1.9,
+        undersizedRooms: [],
+        oversizedRooms: ['Lounge'],
+        hasActualData: true,
+      },
+    }));
+    const standard = buildHeatingOperatingState(makeInput({ emitterOversizingFactor: 1.0 }));
+    // Despite floor plan saying oversized, explicit 1.0 factor wins → same flow temp.
+    expect(result.requiredFlowTempC).toBe(standard.requiredFlowTempC);
+  });
+
+  it('does not use floor-plan factor when hasActualData is false', () => {
+    const withInsufficientData = buildHeatingOperatingState(makeInput({
+      floorplanEmitterAdequacy: {
+        coverageClassification: 'insufficient_data',
+        impliedOversizingFactor: null,
+        undersizedRooms: [],
+        oversizedRooms: [],
+        hasActualData: false,
+      },
+    }));
+    const standard = buildHeatingOperatingState(makeInput());
+    // No data → falls back to standard (no factor change).
+    expect(withInsufficientData.requiredFlowTempC).toBe(standard.requiredFlowTempC);
+  });
+
+  it('passes through floorplanEmitterAdequacy in the output for consumers', () => {
+    const fp = {
+      coverageClassification: 'all_adequate' as const,
+      impliedOversizingFactor: 1.2,
+      undersizedRooms: [],
+      oversizedRooms: [],
+      hasActualData: true,
+    };
+    const result = buildHeatingOperatingState(makeInput({ floorplanEmitterAdequacy: fp }));
+    expect(result.floorplanEmitterAdequacy).toBe(fp);
+  });
+
+  it('floorplanEmitterAdequacy is undefined in output when not provided', () => {
+    const result = buildHeatingOperatingState(makeInput());
+    expect(result.floorplanEmitterAdequacy).toBeUndefined();
+  });
+});
+
+// ─── Floor-plan explanation tags ──────────────────────────────────────────────
+
+describe('buildHeatingOperatingState — floor-plan explanation tags', () => {
+  it('adds "oversized emitters improving margin" tag when all rooms are oversized', () => {
+    const result = buildHeatingOperatingState(makeInput({
+      floorplanEmitterAdequacy: {
+        coverageClassification: 'all_oversized',
+        impliedOversizingFactor: 1.9,
+        undersizedRooms: [],
+        oversizedRooms: ['Lounge', 'Hall'],
+        hasActualData: true,
+      },
+    }));
+    expect(result.explanationTags).toContain('oversized emitters improving margin');
+  });
+
+  it('adds "undersized rooms driving higher operating temperature" when majority are undersized', () => {
+    const result = buildHeatingOperatingState(makeInput({
+      floorplanEmitterAdequacy: {
+        coverageClassification: 'majority_undersized',
+        impliedOversizingFactor: 0.7,
+        undersizedRooms: ['Lounge', 'Kitchen'],
+        oversizedRooms: [],
+        hasActualData: true,
+      },
+    }));
+    expect(result.explanationTags).toContain('undersized rooms driving higher operating temperature');
+  });
+
+  it('adds "emitter-limited" tag for mixed classification when not already present', () => {
+    // Use standard emitters (no compensation) so emitterConstraint = strong → emitter-limited already set.
+    // Use mixed floor plan — emitter-limited should appear exactly once.
+    const result = buildHeatingOperatingState(makeInput({
+      hasWeatherCompensation: false,
+      hasLoadCompensation: false,
+      emitterOversizingFactor: 1.0,
+      floorplanEmitterAdequacy: {
+        coverageClassification: 'mixed',
+        impliedOversizingFactor: 0.9,
+        undersizedRooms: ['Lounge'],
+        oversizedRooms: [],
+        hasActualData: true,
+      },
+    }));
+    expect(result.explanationTags).toContain('emitter-limited');
+    // Should not appear twice
+    const count = result.explanationTags.filter((t) => t === 'emitter-limited').length;
+    expect(count).toBe(1);
+  });
+
+  it('does not add floor-plan tags when hasActualData is false', () => {
+    const result = buildHeatingOperatingState(makeInput({
+      floorplanEmitterAdequacy: {
+        coverageClassification: 'insufficient_data',
+        impliedOversizingFactor: null,
+        undersizedRooms: [],
+        oversizedRooms: [],
+        hasActualData: false,
+      },
+    }));
+    expect(result.explanationTags).not.toContain('oversized emitters improving margin');
+    expect(result.explanationTags).not.toContain('undersized rooms driving higher operating temperature');
+  });
+});
