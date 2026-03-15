@@ -10,12 +10,25 @@
  * ──────────
  *  Report header
  *  Completeness banner (if partial)
- *  System summary
- *  Operating point / water performance
- *  Behaviour timeline summary
- *  Key limiters / constraints
- *  Verdict / recommendation
- *  Assumptions / red flags
+ *
+ *  Customer summary (decision-first):
+ *    System summary       – best-fit system + why it suits
+ *    Key trade-off        – likely upgrades and engineering concerns
+ *    Operating point      – peak DHW conditions
+ *    Behaviour summary    – 24-hour timeline summary
+ *    Key limiters         – hard/soft physical constraints
+ *    Future path          – next step + upgrade sensitivities
+ *    Verdict              – full verdict with confidence
+ *
+ *  Technical summary (engineer-facing):
+ *    System architecture  – installation topology and requirements
+ *    Stored hot water     – DHW logic for stored systems
+ *    Risks and enablers   – cross-option sensitivity map
+ *    Assumptions          – modelling assumptions and red flags
+ *
+ *  Appendix (optional deep detail):
+ *    Physics trace        – trimmed 24-hour active-step trace
+ *    Engineering notes    – must-have and nice-to-have installation items
  *
  * Printed output is print-first, not a screenshot of the interactive console.
  * Interactive chrome is hidden via @media print (see reportPrint.css).
@@ -26,11 +39,18 @@ import {
   checkCompleteness,
   buildReportSections,
   type SystemSummarySection,
+  type KeyTradeOffSection,
   type OperatingPointSection,
   type BehaviourSummarySection,
   type KeyLimitersSection,
+  type FuturePathSection,
   type VerdictSection,
+  type SystemArchitectureSection,
+  type StoredHotWaterSection,
+  type RisksEnablersSection,
   type AssumptionsSection,
+  type PhysicsTraceSection,
+  type EngineeringNotesSection,
   type ReportSection,
 } from './reportSections.model';
 import ReportCompletenessBanner from './ReportCompletenessBanner';
@@ -268,22 +288,262 @@ function AssumptionsSection({ section }: { section: AssumptionsSection }) {
   );
 }
 
+// ── New section renderers ─────────────────────────────────────────────────────
+
+function KeyTradeOffSection({ section }: { section: KeyTradeOffSection }) {
+  return (
+    <section className="rv-section" aria-labelledby="rv-key-trade-off">
+      <h2 className="rv-section__title" id="rv-key-trade-off">Key trade-off</h2>
+      <p className="rv-section__subtitle">{section.systemLabel}</p>
+      {section.likelyUpgrades.length > 0 && (
+        <div>
+          <p className="rv-label">Likely upgrades required</p>
+          <ul className="rv-bullet-list">
+            {section.likelyUpgrades.map((u, i) => <li key={i}>{u}</li>)}
+          </ul>
+        </div>
+      )}
+      {section.engineeringBullets.length > 0 && (
+        <div style={{ marginTop: '0.5rem' }}>
+          <p className="rv-label">Engineering considerations</p>
+          <ul className="rv-bullet-list">
+            {section.engineeringBullets.map((b, i) => <li key={i}>{b}</li>)}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FuturePathSection({ section }: { section: FuturePathSection }) {
+  return (
+    <section className="rv-section" aria-labelledby="rv-future-path">
+      <h2 className="rv-section__title" id="rv-future-path">Next step / future path</h2>
+      {section.enablers.length > 0 && (
+        <div>
+          <p className="rv-label rv-label--enabler">What would improve the outcome</p>
+          <ul className="rv-bullet-list" aria-label="Enablers">
+            {section.enablers.map((e, i) => (
+              <li key={i}><strong>{e.lever}</strong> — {e.note}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {section.risks.length > 0 && (
+        <div style={{ marginTop: '0.5rem' }}>
+          <p className="rv-label rv-label--risk">What would reduce the outcome</p>
+          <ul className="rv-bullet-list" aria-label="Risks">
+            {section.risks.map((r, i) => (
+              <li key={i}><strong>{r.lever}</strong> — {r.note}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {section.pathways.length > 0 && (
+        <div style={{ marginTop: '0.5rem' }}>
+          <p className="rv-label">Pathway options</p>
+          {section.pathways.map((p, i) => (
+            <div key={i} className="rv-pathway-item">
+              <p className="rv-pathway-item__title">{p.title}</p>
+              <p className="rv-pathway-item__rationale">{p.rationale}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SystemArchitectureSection({ section }: { section: SystemArchitectureSection }) {
+  return (
+    <section className="rv-section" aria-labelledby="rv-system-architecture">
+      <h2 className="rv-section__title" id="rv-system-architecture">System architecture</h2>
+      <p className="rv-section__subtitle">{section.systemLabel}</p>
+      {section.headline && (
+        <p className="rv-architecture-headline">{section.headline}</p>
+      )}
+      {section.bullets.length > 0 && (
+        <div>
+          <p className="rv-label">Installation requirements</p>
+          <ul className="rv-bullet-list">
+            {section.bullets.map((b, i) => <li key={i}>{b}</li>)}
+          </ul>
+        </div>
+      )}
+      {section.mustHave.length > 0 && (
+        <div style={{ marginTop: '0.5rem' }}>
+          <p className="rv-label">Must-have conditions</p>
+          <ul className="rv-bullet-list">
+            {section.mustHave.map((m, i) => <li key={i}>{m}</li>)}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StoredHotWaterSection({ section }: { section: StoredHotWaterSection }) {
+  return (
+    <section className="rv-section" aria-labelledby="rv-stored-hot-water">
+      <h2 className="rv-section__title" id="rv-stored-hot-water">Stored hot water</h2>
+      <p className="rv-section__subtitle">{section.systemLabel}</p>
+      {section.headline && (
+        <p className="rv-stored-headline">{section.headline}</p>
+      )}
+      {section.bullets.length > 0 && (
+        <ul className="rv-bullet-list">
+          {section.bullets.map((b, i) => <li key={i}>{b}</li>)}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function RisksEnablersSection({ section }: { section: RisksEnablersSection }) {
+  return (
+    <section className="rv-section" aria-labelledby="rv-risks-enablers">
+      <h2 className="rv-section__title" id="rv-risks-enablers">Risks and enablers</h2>
+      {section.risks.length > 0 && (
+        <div>
+          <p className="rv-label rv-label--risk">Risks — inputs that could reduce suitability</p>
+          <ul className="rv-bullet-list" aria-label="Risks">
+            {section.risks.map((r, i) => (
+              <li key={i}><strong>{r.lever}</strong> — {r.note}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {section.enablers.length > 0 && (
+        <div style={{ marginTop: '0.5rem' }}>
+          <p className="rv-label rv-label--enabler">Enablers — inputs that could improve suitability</p>
+          <ul className="rv-bullet-list" aria-label="Enablers">
+            {section.enablers.map((e, i) => (
+              <li key={i}><strong>{e.lever}</strong> — {e.note}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PhysicsTraceSection({ section }: { section: PhysicsTraceSection }) {
+  return (
+    <section className="rv-section rv-page-break-before" aria-labelledby="rv-physics-trace">
+      <h2 className="rv-section__title" id="rv-physics-trace">Physics trace (appendix)</h2>
+      <p className="rv-section__subtitle">
+        {section.applianceName} · {section.resolutionMins}-min steps ·{' '}
+        {section.totalActiveSteps} active step{section.totalActiveSteps !== 1 ? 's' : ''}
+      </p>
+      {section.activePoints.length > 0 ? (
+        <table className="rv-trace-table" aria-label="Physics trace">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Heat (kW)</th>
+              <th>DHW (kW)</th>
+              <th>Output (kW)</th>
+              <th>Perf.</th>
+              <th>Mode</th>
+            </tr>
+          </thead>
+          <tbody>
+            {section.activePoints.map((p, i) => (
+              <tr key={i}>
+                <td>{p.t}</td>
+                <td>{p.heatDemandKw.toFixed(1)}</td>
+                <td>{p.dhwDemandKw.toFixed(1)}</td>
+                <td>{p.applianceOutKw.toFixed(1)}</td>
+                <td>
+                  {p.performance !== null
+                    ? p.performanceKind === 'eta'
+                      ? `${(p.performance * 100).toFixed(0)}%`
+                      : `COP ${p.performance.toFixed(2)}`
+                    : '—'}
+                </td>
+                <td>{p.mode ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="rv-trace-empty">No active appliance steps in trace.</p>
+      )}
+    </section>
+  );
+}
+
+function EngineeringNotesSection({ section }: { section: EngineeringNotesSection }) {
+  return (
+    <section className="rv-section" aria-labelledby="rv-engineering-notes">
+      <h2 className="rv-section__title" id="rv-engineering-notes">Engineering notes (appendix)</h2>
+      <p className="rv-section__subtitle">{section.systemLabel}</p>
+      {section.mustHave.length > 0 && (
+        <div>
+          <p className="rv-label">Must-have installation requirements</p>
+          <ul className="rv-bullet-list" aria-label="Must-have requirements">
+            {section.mustHave.map((m, i) => <li key={i}>{m}</li>)}
+          </ul>
+        </div>
+      )}
+      {section.niceToHave.length > 0 && (
+        <div style={{ marginTop: '0.5rem' }}>
+          <p className="rv-label">Nice-to-have improvements</p>
+          <ul className="rv-bullet-list" aria-label="Nice-to-have items">
+            {section.niceToHave.map((n, i) => <li key={i}>{n}</li>)}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── Section group headers ────────────────────────────────────────────────────
+
+/** Section IDs that belong to the technical summary group. */
+const TECHNICAL_SECTION_IDS = new Set([
+  'system_architecture',
+  'stored_hot_water',
+  'risks_enablers',
+  'assumptions',
+]);
+
+/** Section IDs that belong to the appendix group. */
+const APPENDIX_SECTION_IDS = new Set([
+  'physics_trace',
+  'engineering_notes',
+]);
+
 // ─── Section dispatcher ───────────────────────────────────────────────────────
 
 function RenderSection({ section }: { section: ReportSection }) {
   switch (section.id) {
     case 'system_summary':
       return <SystemSummarySection section={section} />;
+    case 'key_trade_off':
+      return <KeyTradeOffSection section={section} />;
     case 'operating_point':
       return <OperatingPointSection section={section} />;
     case 'behaviour_summary':
       return <BehaviourSummarySection section={section} />;
     case 'key_limiters':
       return <KeyLimitersSection section={section} />;
+    case 'future_path':
+      return <FuturePathSection section={section} />;
     case 'verdict':
       return <VerdictSection section={section} />;
+    case 'system_architecture':
+      return <SystemArchitectureSection section={section} />;
+    case 'stored_hot_water':
+      return <StoredHotWaterSection section={section} />;
+    case 'risks_enablers':
+      return <RisksEnablersSection section={section} />;
     case 'assumptions':
       return <AssumptionsSection section={section} />;
+    case 'physics_trace':
+      return <PhysicsTraceSection section={section} />;
+    case 'engineering_notes':
+      return <EngineeringNotesSection section={section} />;
   }
 }
 
@@ -398,10 +658,32 @@ export default function ReportView({ output, onBack }: Props) {
         <ReportCompletenessBanner missingOptional={completeness.missingOptional} />
       )}
 
-      {/* ── Report sections ───────────────────────────────────────────────── */}
-      {sections.map(section => (
-        <RenderSection key={section.id} section={section} />
-      ))}
+      {/* ── Report sections (with group dividers) ─────────────────────────── */}
+      {sections.map((section, idx) => {
+        const prevSection = idx > 0 ? sections[idx - 1] : null;
+        const isTechnicalStart =
+          TECHNICAL_SECTION_IDS.has(section.id) &&
+          (prevSection === null || !TECHNICAL_SECTION_IDS.has(prevSection.id));
+        const isAppendixStart =
+          APPENDIX_SECTION_IDS.has(section.id) &&
+          (prevSection === null || !APPENDIX_SECTION_IDS.has(prevSection.id));
+
+        return (
+          <div key={section.id}>
+            {isTechnicalStart && (
+              <div className="rv-group-header" role="separator">
+                Technical summary
+              </div>
+            )}
+            {isAppendixStart && (
+              <div className="rv-group-header rv-group-header--appendix" role="separator">
+                Appendix
+              </div>
+            )}
+            <RenderSection section={section} />
+          </div>
+        );
+      })}
 
     </div>
   );
