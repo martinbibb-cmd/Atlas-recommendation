@@ -35,6 +35,7 @@ import {
   buildAdviceFromCompare,
   type AdviceCard,
   type AdviceFromCompareResult,
+  type UnifiedConfidence,
 } from '../../lib/advice/buildAdviceFromCompare';
 import PrintableRecommendationPage from './PrintableRecommendationPage';
 import './DecisionSynthesisPage.css';
@@ -175,7 +176,118 @@ function PhasedStepUI({ step }: { step: PhasedStep }) {
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+/**
+ * Renders the unified confidence breakdown panel.
+ *
+ * Shows overall score, three contributor bars (data / physics / decision),
+ * measured / inferred / missing field lists, and the top "next best checks".
+ */
+function UnifiedConfidencePanel({ unified }: { unified: UnifiedConfidence }) {
+  return (
+    <div
+      className={`advice-confidence advice-confidence--${unified.level}`}
+      aria-label="Recommendation confidence"
+    >
+      <div className="advice-confidence__header">
+        <span className="advice-confidence__headline">
+          Recommendation confidence
+        </span>
+        <span
+          className={`advice-confidence__badge advice-confidence__badge--${unified.level}`}
+          aria-label={`Overall confidence: ${unified.overallPct}%`}
+        >
+          {unified.overallPct}% — {CONFIDENCE_LABEL[unified.level]}
+        </span>
+      </div>
+
+      <div className="advice-confidence__contributors" aria-label="Confidence contributors">
+        <div className="advice-confidence__contributor">
+          <span className="advice-confidence__contrib-label">Data</span>
+          <div className="advice-confidence__bar-track" role="presentation">
+            <div
+              className="advice-confidence__bar-fill"
+              style={{ width: `${unified.dataPct}%` }}
+              aria-label={`Data confidence: ${unified.dataPct}%`}
+            />
+          </div>
+          <span className="advice-confidence__contrib-pct">{unified.dataPct}%</span>
+        </div>
+
+        <div className="advice-confidence__contributor">
+          <span className="advice-confidence__contrib-label">Physics</span>
+          <div className="advice-confidence__bar-track" role="presentation">
+            <div
+              className="advice-confidence__bar-fill"
+              style={{ width: `${unified.physicsPct}%` }}
+              aria-label={`Physics confidence: ${unified.physicsPct}%`}
+            />
+          </div>
+          <span className="advice-confidence__contrib-pct">{unified.physicsPct}%</span>
+        </div>
+
+        <div className="advice-confidence__contributor">
+          <span className="advice-confidence__contrib-label">Decision</span>
+          <div className="advice-confidence__bar-track" role="presentation">
+            <div
+              className="advice-confidence__bar-fill"
+              style={{ width: `${unified.decisionPct}%` }}
+              aria-label={`Decision confidence: ${unified.decisionPct}%`}
+            />
+          </div>
+          <span className="advice-confidence__contrib-pct">{unified.decisionPct}%</span>
+        </div>
+      </div>
+
+      <div className="advice-confidence__lists">
+        {unified.measured.length > 0 && (
+          <div className="advice-confidence__list-group">
+            <span className="advice-confidence__list-label advice-confidence__list-label--measured">
+              Measured
+            </span>
+            <span className="advice-confidence__list-items">
+              {unified.measured.join(' · ')}
+            </span>
+          </div>
+        )}
+
+        {unified.inferred.length > 0 && (
+          <div className="advice-confidence__list-group">
+            <span className="advice-confidence__list-label advice-confidence__list-label--inferred">
+              Inferred
+            </span>
+            <span className="advice-confidence__list-items">
+              {unified.inferred.join(' · ')}
+            </span>
+          </div>
+        )}
+
+        {unified.missing.length > 0 && (
+          <div className="advice-confidence__list-group">
+            <span className="advice-confidence__list-label advice-confidence__list-label--missing">
+              Not yet confirmed
+            </span>
+            <span className="advice-confidence__list-items">
+              {unified.missing.join(' · ')}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {unified.nextBestChecks.length > 0 && (
+        <div className="advice-confidence__next-checks">
+          <span className="advice-confidence__next-checks-label">
+            To raise confidence further:
+          </span>
+          <ul className="advice-confidence__next-checks-list" aria-label="Next best checks">
+            {unified.nextBestChecks.map((check, i) => (
+              <li key={i} className="advice-confidence__next-check">{check}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DecisionSynthesisPage({
   engineOutput,
@@ -361,6 +473,16 @@ export default function DecisionSynthesisPage({
           ) : null}
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 1b — Unified confidence breakdown (compare mode only)     */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {compareAdvice?.confidenceSummary.unified != null && (
+        <div className="advice-page__section" aria-label="Confidence breakdown">
+          <h2 className="advice-page__section-title">Recommendation confidence</h2>
+          <UnifiedConfidencePanel unified={compareAdvice.confidenceSummary.unified} />
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* SECTION 2 — Best by objective (6 cards)                           */}

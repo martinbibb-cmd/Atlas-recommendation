@@ -160,6 +160,109 @@
   border-color: #90cdf4;
 }
 
+/* ── Unified confidence breakdown (print) ─────────────────────────────────── */
+
+.prp__confidence {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.prp__confidence-headline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.prp__confidence-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #4a5568;
+}
+
+.prp__confidence-contributors {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.prp__confidence-row {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.prp__confidence-contrib-label {
+  color: #718096;
+  width: 4.5rem;
+  flex-shrink: 0;
+}
+
+.prp__confidence-contrib-pct {
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.prp__confidence-group {
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.prp__confidence-group-label {
+  font-weight: 700;
+  margin-right: 0.3rem;
+}
+.prp__confidence-group-label--measured { color: #276749; }
+.prp__confidence-group-label--inferred { color: #7b341e; }
+.prp__confidence-group-label--missing  { color: #742a2a; }
+
+.prp__confidence-group-items {
+  color: #4a5568;
+}
+
+.prp__confidence-next-checks {
+  border-top: 1px solid #edf2f7;
+  padding-top: 0.5rem;
+}
+
+.prp__confidence-next-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #4a5568;
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.prp__confidence-next-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.prp__confidence-next-item {
+  font-size: 0.78rem;
+  color: #4a5568;
+  padding-left: 0.85rem;
+  position: relative;
+  line-height: 1.5;
+}
+
+.prp__confidence-next-item::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: #4299e1;
+}
+
 /* ── Hero / best-overall card ─────────────────────────────────────────────── */
 
 .prp__hero {

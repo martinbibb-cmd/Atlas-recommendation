@@ -284,7 +284,7 @@ describe('buildAdviceFromCompare — objectives can produce different paths', ()
 // ─── Confidence and efficiency score ─────────────────────────────────────────
 
 describe('buildAdviceFromCompare — confidencePct and efficiencyScore', () => {
-  it('maps "high" confidence to 85%', () => {
+  it('confidencePct is always a number derived from the unified model', () => {
     const output = makeEngineOutput([], {
       recommendation: { primary: 'Combi boiler' },
       verdict: {
@@ -296,11 +296,13 @@ describe('buildAdviceFromCompare — confidencePct and efficiencyScore', () => {
       },
     });
     const result = buildAdviceFromCompare(makeInput({ engineOutput: output }));
-    expect(result.bestOverall.confidencePct).toBe(85);
-    expect(result.confidenceSummary.pct).toBe(85);
+    expect(typeof result.bestOverall.confidencePct).toBe('number');
+    expect(result.bestOverall.confidencePct).toBeGreaterThanOrEqual(0);
+    expect(result.bestOverall.confidencePct).toBeLessThanOrEqual(100);
+    expect(result.confidenceSummary.pct).toBe(result.bestOverall.confidencePct);
   });
 
-  it('maps "medium" confidence to 65%', () => {
+  it('confidenceSummary.unified is present with all required fields', () => {
     const output = makeEngineOutput([], {
       recommendation: { primary: 'Combi boiler' },
       verdict: {
@@ -312,10 +314,20 @@ describe('buildAdviceFromCompare — confidencePct and efficiencyScore', () => {
       },
     });
     const result = buildAdviceFromCompare(makeInput({ engineOutput: output }));
-    expect(result.bestOverall.confidencePct).toBe(65);
+    const u = result.confidenceSummary.unified;
+    expect(u).not.toBeNull();
+    expect(typeof u!.overallPct).toBe('number');
+    expect(typeof u!.dataPct).toBe('number');
+    expect(typeof u!.physicsPct).toBe('number');
+    expect(typeof u!.decisionPct).toBe('number');
+    expect(['high', 'medium', 'low']).toContain(u!.level);
+    expect(Array.isArray(u!.measured)).toBe(true);
+    expect(Array.isArray(u!.inferred)).toBe(true);
+    expect(Array.isArray(u!.missing)).toBe(true);
+    expect(Array.isArray(u!.nextBestChecks)).toBe(true);
   });
 
-  it('maps "low" confidence to 40%', () => {
+  it('unified level is lower when engine confidence is low and data is sparse', () => {
     const output = makeEngineOutput([], {
       recommendation: { primary: 'Combi boiler' },
       verdict: {
@@ -327,13 +339,16 @@ describe('buildAdviceFromCompare — confidencePct and efficiencyScore', () => {
       },
     });
     const result = buildAdviceFromCompare(makeInput({ engineOutput: output }));
-    expect(result.bestOverall.confidencePct).toBe(40);
+    const u = result.confidenceSummary.unified;
+    // With sparse data and low engine confidence, overall should not be high
+    expect(u!.level).not.toBe('high');
   });
 
-  it('returns null confidencePct when no verdict is present', () => {
+  it('confidencePct is a number even when no verdict is present', () => {
     const output = makeEngineOutput();
     const result = buildAdviceFromCompare(makeInput({ engineOutput: output }));
-    expect(result.bestOverall.confidencePct).toBeNull();
+    expect(typeof result.bestOverall.confidencePct).toBe('number');
+    expect(result.confidenceSummary.unified).not.toBeNull();
   });
 
   it('returns a numeric efficiencyScore on the bestOverall card', () => {

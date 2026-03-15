@@ -19,11 +19,19 @@
 import type { EngineOutputV1, OptionCardV1 } from '../../contracts/EngineOutputV1';
 import type { CompareSeed } from '../simulator/buildCompareSeedFromSurvey';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { SimulatorSystemChoice } from '../../explainers/lego/simulator/useSystemDiagramPlayback';
 import {
   computeCurrentEfficiencyPct,
   DEFAULT_NOMINAL_EFFICIENCY_PCT,
 } from '../../engine/utils/efficiency';
+import {
+  buildUnifiedConfidence,
+  type UnifiedConfidence,
+} from '../confidence/buildUnifiedConfidence';
+
+// Re-export for consumers that want the unified type without an extra import.
+export type { UnifiedConfidence };
 
 // ─── SimulatorSystemState ──────────────────────────────────────────────────────
 
@@ -127,6 +135,8 @@ export interface ConfidenceSummary {
   level: 'high' | 'medium' | 'low' | null;
   pct: number | null;
   reasons: string[];
+  /** Full unified confidence breakdown — dataPct, physicsPct, decisionPct, and lists. */
+  unified: UnifiedConfidence | null;
 }
 
 // ─── AdviceFromCompareResult ──────────────────────────────────────────────────
@@ -184,13 +194,6 @@ const SYSTEM_CHOICE_LABEL: Record<string, string> = {
   unvented:    'Unvented cylinder system',
   open_vented: 'Open-vented cylinder system',
   heat_pump:   'Air source heat pump',
-};
-
-/** Maps engine confidence level to a display percentage. */
-const CONFIDENCE_PCT: Record<string, number> = {
-  high:   85,
-  medium: 65,
-  low:    40,
 };
 
 /**
@@ -716,16 +719,22 @@ function buildPhasedPlan(
 
 // ─── Confidence summary ───────────────────────────────────────────────────────
 
-function buildConfidenceSummary(output: EngineOutputV1): ConfidenceSummary {
-  const level =
-    output.verdict?.confidence?.level ??
-    output.meta?.confidence?.level ??
-    null;
+function buildConfidenceSummary(
+  output: EngineOutputV1,
+  surveyData?: FullSurveyModelV1,
+): ConfidenceSummary {
+  // Build the canonical unified confidence using measured/physics/decision model.
+  const engineInput = surveyData ? toEngineInput(surveyData) : undefined;
+  const unified = buildUnifiedConfidence(output, engineInput);
+
+  // Surface the legacy reasons list from the verdict for backward compatibility.
+  const reasons = output.verdict?.confidence?.reasons ?? [];
 
   return {
-    level,
-    pct: level != null ? (CONFIDENCE_PCT[level] ?? null) : null,
-    reasons: output.verdict?.confidence?.reasons ?? [],
+    level:   unified.level,
+    pct:     unified.overallPct,
+    reasons,
+    unified,
   };
 }
 
@@ -744,7 +753,7 @@ function buildConfidenceSummary(output: EngineOutputV1): ConfidenceSummary {
 export function buildAdviceFromCompare(
   input: AdviceFromCompareInput,
 ): AdviceFromCompareResult {
-  const { engineOutput, compareSeed } = input;
+  const { engineOutput, compareSeed, surveyData } = input;
   const options = engineOutput.options ?? [];
 
   // Derive system states from compare seed when not explicitly provided.
@@ -756,8 +765,8 @@ export function buildAdviceFromCompare(
   // Primary recommendation option.
   const primaryOption = options.find(o => o.status === 'viable') ?? options[0] ?? null;
 
-  // Confidence.
-  const confidenceSummary = buildConfidenceSummary(engineOutput);
+  // Confidence — use unified model driven by measured data, physics, and decision separation.
+  const confidenceSummary = buildConfidenceSummary(engineOutput, surveyData);
   const confidencePct = confidenceSummary.pct;
 
   // Compare wins for the best-overall card.
