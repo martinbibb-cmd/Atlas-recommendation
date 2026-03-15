@@ -22,7 +22,7 @@
  *   - Printing triggered by window.print() from the on-screen toolbar.
  */
 
-import type { AdviceCard, AdviceFromCompareResult } from '../../lib/advice/buildAdviceFromCompare';
+import type { AdviceCard, AdviceFromCompareResult, UnifiedConfidence } from '../../lib/advice/buildAdviceFromCompare';
 import type { CompareSeed } from '../../lib/simulator/buildCompareSeedFromSurvey';
 import './advice-print.css';
 
@@ -76,6 +76,85 @@ function resolveSystemLabel(choice: string): string {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+/** Print-optimised unified confidence breakdown. */
+function UnifiedConfidencePrint({ unified }: { unified: UnifiedConfidence }) {
+  return (
+    <div
+      className="prp__confidence"
+      aria-label="Recommendation confidence"
+    >
+      <div className="prp__confidence-headline">
+        <span className="prp__confidence-title">Recommendation confidence</span>
+        <span
+          className={`prp__badge prp__badge--confidence-${unified.level}`}
+          aria-label={`Overall: ${unified.overallPct}%`}
+        >
+          {unified.overallPct}% — {CONFIDENCE_LABEL[unified.level]}
+        </span>
+      </div>
+
+      <div className="prp__confidence-contributors" aria-label="Confidence contributors">
+        <div className="prp__confidence-row">
+          <span className="prp__confidence-contrib-label">Data</span>
+          <span className="prp__confidence-contrib-pct">{unified.dataPct}%</span>
+        </div>
+        <div className="prp__confidence-row">
+          <span className="prp__confidence-contrib-label">Physics</span>
+          <span className="prp__confidence-contrib-pct">{unified.physicsPct}%</span>
+        </div>
+        <div className="prp__confidence-row">
+          <span className="prp__confidence-contrib-label">Decision</span>
+          <span className="prp__confidence-contrib-pct">{unified.decisionPct}%</span>
+        </div>
+      </div>
+
+      {unified.measured.length > 0 && (
+        <div className="prp__confidence-group">
+          <span className="prp__confidence-group-label prp__confidence-group-label--measured">
+            Measured:
+          </span>
+          <span className="prp__confidence-group-items">
+            {unified.measured.join(' · ')}
+          </span>
+        </div>
+      )}
+
+      {unified.inferred.length > 0 && (
+        <div className="prp__confidence-group">
+          <span className="prp__confidence-group-label prp__confidence-group-label--inferred">
+            Inferred:
+          </span>
+          <span className="prp__confidence-group-items">
+            {unified.inferred.join(' · ')}
+          </span>
+        </div>
+      )}
+
+      {unified.missing.length > 0 && (
+        <div className="prp__confidence-group">
+          <span className="prp__confidence-group-label prp__confidence-group-label--missing">
+            Not yet confirmed:
+          </span>
+          <span className="prp__confidence-group-items">
+            {unified.missing.join(' · ')}
+          </span>
+        </div>
+      )}
+
+      {unified.nextBestChecks.length > 0 && (
+        <div className="prp__confidence-next-checks">
+          <span className="prp__confidence-next-label">To raise confidence further:</span>
+          <ul className="prp__confidence-next-list" aria-label="Next best checks">
+            {unified.nextBestChecks.map((check, i) => (
+              <li key={i} className="prp__confidence-next-item">{check}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ObjectiveCardPrint({ card }: { card: AdviceCard }) {
   return (
@@ -290,6 +369,13 @@ export default function PrintableRecommendationPage({
               </div>
             )}
           </div>
+        </section>
+      )}
+
+      {/* ── Unified confidence breakdown ───────────────────────────────── */}
+      {advice?.confidenceSummary.unified != null && (
+        <section className="prp__section" aria-label="Confidence breakdown">
+          <UnifiedConfidencePrint unified={advice.confidenceSummary.unified} />
         </section>
       )}
 
