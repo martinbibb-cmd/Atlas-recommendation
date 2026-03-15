@@ -29,8 +29,8 @@ const GAS_FINISH_PROGRESS = 1.0;
 
 /**
  * Heat pump finishes later than gas lanes — represents slower DHW recovery /
- * comfort recovery from setback.  Values > 1.0 means the token overruns the
- * visual finish line at the time gas lanes arrive.
+ * comfort recovery from setback.  Values < 1.0 mean the heat pump token
+ * has not yet reached the finish line at the moment gas lanes arrive.
  */
 const HP_FINISH_PROGRESS = 0.88;
 

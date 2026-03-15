@@ -153,8 +153,9 @@ export default function DrivingStylePhysicsExplainer({
     [peakConcurrentOutlets, occupancySignature, controlsQuality, hasMixergy],
   );
 
-  // In compact / reduced-motion mode always show the final state.
-  const phase = compact ? 'finish' : 'finish';
+  // Compact mode always renders the final state; animation phases are driven
+  // externally in a future interactive iteration.
+  const phase = 'finish' as const;
 
   const lanes = useMemo(
     () => buildDrivingStyleLaneStates(input, phase),
