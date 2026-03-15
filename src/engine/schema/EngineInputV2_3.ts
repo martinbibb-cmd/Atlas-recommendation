@@ -162,6 +162,12 @@ export interface EngineInputV2_3 {
    */
   dhwStorageType?: 'none' | 'vented' | 'unvented' | 'mixergy' | 'heat_pump_cylinder';
   /**
+   * Whether a hot water cylinder is currently installed in the property.
+   * When false, StoredDhwModule treats missing cylinder data as "no cylinder"
+   * rather than "cylinder unknown", avoiding spurious missing-data flags.
+   */
+  currentCylinderPresent?: boolean;
+  /**
    * Actual cylinder nominal volume (litres).
    * Used by StoredDhwModule to evaluate thermal capacity adequacy against the
    * demand profile.  When the volume is insufficient for the occupancy/bathroom

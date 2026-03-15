@@ -4,13 +4,13 @@
  * Unit tests for the derivePerformanceEnablers helper.
  *
  * Tests verify that:
- *   - all six enablers are always returned
+ *   - all five enablers are always returned (gas_supply removed)
  *   - mains_water_suitability derives correctly from cwsSupplyV1
- *   - gas_supply returns 'ok' for heat-pump recommendations and 'missing' otherwise
  *   - emitter_suitability uses systemOptimization.condensingModeAvailable and flowTemp
  *   - controls_quality maps installationPolicy correctly
  *   - system_protection uses hasMagneticFilter from input and sludge proxy from result
  *   - hot_water_fit uses combi/stored DHW verdicts and occupancy data
+ *   - gas_supply is NOT present in the returned enablers
  */
 import { describe, it, expect } from 'vitest';
 import { derivePerformanceEnablers } from '../derivePerformanceEnablers';
@@ -124,10 +124,10 @@ function makeInput(overrides: Partial<EngineInputV2_3> = {}): EngineInputV2_3 {
 
 describe('derivePerformanceEnablers', () => {
 
-  it('always returns exactly 6 enablers', () => {
+  it('always returns exactly 5 enablers', () => {
     const result = makeResult();
     const enablers = derivePerformanceEnablers(result);
-    expect(enablers).toHaveLength(6);
+    expect(enablers).toHaveLength(5);
   });
 
   it('returns enablers with the expected IDs in order', () => {
@@ -135,12 +135,17 @@ describe('derivePerformanceEnablers', () => {
     const ids = derivePerformanceEnablers(result).map(e => e.id);
     expect(ids).toEqual([
       'mains_water_suitability',
-      'gas_supply',
       'emitter_suitability',
       'controls_quality',
       'system_protection',
       'hot_water_fit',
     ]);
+  });
+
+  it('gas_supply is not returned as an enabler', () => {
+    const result = makeResult();
+    const ids = derivePerformanceEnablers(result).map(e => e.id);
+    expect(ids).not.toContain('gas_supply');
   });
 
   it('all enablers have non-empty label, detail, and a valid status', () => {
@@ -214,35 +219,6 @@ describe('derivePerformanceEnablers', () => {
       });
       const e = derivePerformanceEnablers(result).find(x => x.id === 'mains_water_suitability')!;
       expect(e.status).toBe('warning');
-    });
-  });
-
-  // ── gas_supply ───────────────────────────────────────────────────────────
-
-  describe('gas_supply', () => {
-
-    it('missing for a gas boiler recommendation', () => {
-      const result = makeResult({
-        engineOutput: { recommendation: { primary: 'Combi boiler' } } as FullEngineResult['engineOutput'],
-      });
-      const e = derivePerformanceEnablers(result).find(x => x.id === 'gas_supply')!;
-      expect(e.status).toBe('missing');
-    });
-
-    it('ok for a heat pump recommendation', () => {
-      const result = makeResult({
-        engineOutput: { recommendation: { primary: 'Air source heat pump (ASHP)' } } as FullEngineResult['engineOutput'],
-      });
-      const e = derivePerformanceEnablers(result).find(x => x.id === 'gas_supply')!;
-      expect(e.status).toBe('ok');
-    });
-
-    it('ok for GSHP recommendation', () => {
-      const result = makeResult({
-        engineOutput: { recommendation: { primary: 'Ground source heat pump (GSHP)' } } as FullEngineResult['engineOutput'],
-      });
-      const e = derivePerformanceEnablers(result).find(x => x.id === 'gas_supply')!;
-      expect(e.status).toBe('ok');
     });
   });
 

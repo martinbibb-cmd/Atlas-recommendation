@@ -238,4 +238,17 @@ describe('buildAssumptionsV1', () => {
       expect(new Set(ids).size).toBe(ids.length);
     });
   });
+
+  describe('known mains flow eliminates MAINS_FLOW_MISSING assumption', () => {
+    it('MAINS_FLOW_MISSING is absent when mainsDynamicFlowLpm is provided', () => {
+      const { assumptions } = buildAssumptionsV1(coreStub, fullySpecifiedInput);
+      expect(assumptions.some(a => a.id === ASSUMPTION_IDS.MAINS_FLOW_MISSING)).toBe(false);
+    });
+
+    it('MAINS_FLOW_MISSING is present when mainsDynamicFlowLpm is absent', () => {
+      const input: EngineInputV2_3 = { ...fullySpecifiedInput, mainsDynamicFlowLpm: undefined };
+      const { assumptions } = buildAssumptionsV1(coreStub, input);
+      expect(assumptions.some(a => a.id === ASSUMPTION_IDS.MAINS_FLOW_MISSING)).toBe(true);
+    });
+  });
 });

@@ -71,6 +71,23 @@ export interface DhwConditionDiagnosticsV1 {
   immersionFailureHistory?: boolean;
   /** Kettling or scale-related noise on the combi heat exchanger or cylinder coil. */
   kettlingOrScaleSymptoms?: boolean;
+
+  // ── Current cylinder (pre-existing installation) ─────────────────────────
+  /** Whether a hot water cylinder is currently installed. */
+  currentCylinderPresent?: boolean;
+  /** Type of the current cylinder. */
+  currentCylinderType?: 'vented' | 'unvented' | 'mixergy' | 'unknown';
+  /** Nominal volume of the current cylinder in litres, or 'unknown'. */
+  currentCylinderVolumeLitres?: number | 'unknown';
+  /** Approximate age band of the current cylinder. */
+  currentCylinderAgeBand?: 'under_5' | '5_to_10' | '10_to_15' | 'over_15' | 'unknown';
+  /** Observed condition of the current cylinder. */
+  currentCylinderCondition?: 'good' | 'average' | 'poor' | 'unknown';
+  /**
+   * Available gravity head above the draw-off point (metres) — vented systems only.
+   * Determines flow pressure for open-vented installations.
+   */
+  currentCwsHeadMetres?: number | 'unknown';
 }
 
 /**
