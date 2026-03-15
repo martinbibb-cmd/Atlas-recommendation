@@ -15,6 +15,8 @@ import { adaptFullSurveyToSimulatorInputs } from './lego/simulator/adaptFullSurv
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import ExplainerPanel from './educational/ExplainerPanel';
+import { runEngine } from '../engine/Engine';
+import DecisionSynthesisPage from '../components/advice/DecisionSynthesisPage';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +43,8 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
   const [config, setConfig] = useState<StepperConfig | null>(null);
   // When launched from a survey, hide the stepper by default.
   const [showStepper, setShowStepper] = useState<boolean>(!surveyData);
+  // Advice page — only available when survey-backed (engine output derivable).
+  const [showAdvice, setShowAdvice] = useState<boolean>(false);
 
   // Adapt survey data once when present.
   // The adapter accepts FullSurveyModelV1; EngineInputV2_3 satisfies it because
@@ -48,6 +52,13 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
   // are handled gracefully by the adapter's optional-chaining guards.
   const surveyAdapted = useMemo(
     () => (surveyData != null ? adaptFullSurveyToSimulatorInputs(surveyData as FullSurveyModelV1) : null),
+    [surveyData],
+  );
+
+  // Run the engine once from survey data to power the advice page.
+  // Only computed when surveyData is present; the advice CTA is hidden otherwise.
+  const engineOutput = useMemo(
+    () => (surveyData != null ? runEngine(surveyData as EngineInputV2_3).engineOutput : null),
     [surveyData],
   );
 
@@ -64,6 +75,16 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
     const initialSystemInputs = surveyAdapted != null && isSurveyBacked
       ? surveyAdapted.systemInputs
       : undefined;
+
+    // Advice page — shown when user taps "View Decision Advice"
+    if (showAdvice && engineOutput) {
+      return (
+        <DecisionSynthesisPage
+          engineOutput={engineOutput}
+          onBack={() => setShowAdvice(false)}
+        />
+      );
+    }
 
     return (
       <div className="hub-page">
@@ -97,6 +118,15 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
               🔭 System Lab
             </button>
           )}
+          {engineOutput && (
+            <button
+              className="hub-back-btn"
+              onClick={() => setShowAdvice(true)}
+              aria-label="View decision advice"
+            >
+              🎯 Decision Advice
+            </button>
+          )}
           <div>
             <h1 className="hub-page__title">Simulator Dashboard</h1>
             <p className="hub-page__subtitle">Physics-first heating system simulator</p>
@@ -108,6 +138,28 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
           initialSystemInputs={initialSystemInputs}
           surveyBacked={isSurveyBacked}
         />
+
+        {/* Decision Advice CTA — only available when survey-backed */}
+        {engineOutput && (
+          <div className="hub-advice-cta">
+            <div className="hub-advice-cta__inner">
+              <div className="hub-advice-cta__icon" aria-hidden="true">🎯</div>
+              <div className="hub-advice-cta__content">
+                <div className="hub-advice-cta__title">Decision Advice</div>
+                <div className="hub-advice-cta__subtitle">
+                  Atlas advises — not just simulates. See the recommended path by objective.
+                </div>
+              </div>
+              <button
+                className="hub-advice-cta__btn"
+                onClick={() => setShowAdvice(true)}
+                aria-label="View decision advice page"
+              >
+                View Advice →
+              </button>
+            </div>
+          </div>
+        )}
 
         <ExplainerPanel />
       </div>

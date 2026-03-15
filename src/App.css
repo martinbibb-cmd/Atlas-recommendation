@@ -1720,6 +1720,82 @@ body {
   background: #e2e8f0;
 }
 
+/* ── Decision Advice CTA ──────────────────────────────────────────────────── */
+.hub-advice-cta {
+  padding: 16px;
+  margin-top: 8px;
+}
+
+.hub-advice-cta__inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #f0fff4 0%, #ebf8ff 100%);
+  border: 1.5px solid #68d391;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(72, 187, 120, 0.12);
+}
+
+.hub-advice-cta__icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.hub-advice-cta__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.hub-advice-cta__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #22543d;
+  margin-bottom: 2px;
+}
+
+.hub-advice-cta__subtitle {
+  font-size: 0.85rem;
+  color: #276749;
+  line-height: 1.35;
+}
+
+.hub-advice-cta__btn {
+  flex-shrink: 0;
+  padding: 12px 24px;
+  background: #38a169;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.hub-advice-cta__btn:hover {
+  background: #2f855a;
+}
+
+.hub-advice-cta__btn:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 600px) {
+  .hub-advice-cta__inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .hub-advice-cta__btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
 /* ── Lab mode strip (House View / Advanced Builder) ──────────────────────── */
 .lab-mode-strip {
   display: flex;
