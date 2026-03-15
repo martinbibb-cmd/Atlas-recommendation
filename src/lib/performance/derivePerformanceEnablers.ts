@@ -157,7 +157,7 @@ function deriveEmitterSuitability(result: FullEngineResult): PerformanceEnabler 
       id: 'emitter_suitability',
       label: 'Emitter suitability',
       status: 'warning',
-      detail: `Design flow temperature is ${designFlowTempC} °C — radiators may need upgrading for efficient condensing operation.`,
+      detail: `Design flow temperature is ${designFlowTempC} °C — lower operating temperatures would improve condensing efficiency. Achievable with emitter upgrades or weather-compensating controls.`,
       category: 'emitters',
     };
   }
@@ -167,7 +167,7 @@ function deriveEmitterSuitability(result: FullEngineResult): PerformanceEnabler 
       id: 'emitter_suitability',
       label: 'Emitter suitability',
       status: 'ok',
-      detail: 'Emitters support condensing operation at the target flow temperature.',
+      detail: 'Emitters support condensing operation — condensing likely across most of the heating season.',
       category: 'emitters',
     };
   }
@@ -176,7 +176,7 @@ function deriveEmitterSuitability(result: FullEngineResult): PerformanceEnabler 
     id: 'emitter_suitability',
     label: 'Emitter suitability',
     status: 'warning',
-    detail: 'Condensing mode may not be achievable — check radiator sizing and flow temperature.',
+    detail: 'Condensing mode limited at design load — lower flow temperature achievable at typical operating conditions with suitable controls or emitter improvements.',
     category: 'emitters',
   };
 }

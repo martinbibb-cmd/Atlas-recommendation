@@ -986,6 +986,44 @@ export interface CondensingRuntimeDriver {
   detail: string;
 }
 
+/**
+ * Human-readable condensing status label produced by CondensingRuntimeModule.
+ *
+ * Represents the overall condensing quality assessment as a spectrum rather
+ * than a binary on/off state.
+ *
+ *  condensing_likely                — design-load return < 55 °C, good conditions
+ *  condensing_possible              — condensing occurs at typical UK operating loads
+ *  condensing_limited_high_return   — full-load return temperature is the primary barrier
+ *  cycling_limited                  — short cycling at low load limits effective condensing time
+ *  modulation_limited               — compensation is active but modulation range limits fraction
+ *  controls_improvement_possible    — lower flow temperature achievable with better controls
+ */
+export type CondensingStatusLabel =
+  | 'condensing_likely'
+  | 'condensing_possible'
+  | 'condensing_limited_high_return'
+  | 'cycling_limited'
+  | 'modulation_limited'
+  | 'controls_improvement_possible';
+
+/**
+ * Visible flow and return temperature assumptions produced by CondensingRuntimeModule.
+ *
+ * Making these assumptions explicit satisfies requirement 4 (visible assumptions)
+ * and allows UI or user to review and edit them where appropriate.
+ */
+export interface CondensingAssumptions {
+  /** Assumed design flow temperature used in the condensing assessment (°C). */
+  assumedFlowTempC: number;
+  /** Assumed full-load return temperature used in the condensing assessment (°C). */
+  assumedReturnTempC: number;
+  /** How the flow temperature was determined. */
+  flowTempSource: 'user_input' | 'derived' | 'default';
+  /** How the return temperature was determined. */
+  returnTempSource: 'user_input' | 'derived' | 'default';
+}
+
 /** Input contract for CondensingRuntimeModule. */
 export interface CondensingRuntimeInput {
   /** Driver 1 — current condensing state (from CondensingStateModule). */
@@ -994,6 +1032,47 @@ export interface CondensingRuntimeInput {
   flowTempC: number;
   /** Driver 3 — true when emitters support condensing operation at design flow temp. */
   condensingModeAvailable: boolean;
+  /**
+   * Driver 3 (extended) — emitter oversizing factor relative to standard radiators sized at 70 °C.
+   *
+   * 1.0  = standard radiators (no oversizing)
+   * 1.1–1.29 = moderate oversizing — reduces required flow temperature somewhat
+   * 1.3–1.49 = well oversized — typical of a "full-job" installation
+   * ≥ 1.5   = highly oversized — underfloor heating / very large panels
+   *
+   * When provided, this factor drives a spectrum emitter assessment rather than
+   * the binary condensingModeAvailable gate.  When absent, the module infers
+   * 1.3 if condensingModeAvailable is true, or 1.0 if false.
+   */
+  emitterOversizingFactor?: number;
+  /**
+   * Driver 3 (extended) — boiler minimum modulation level as a percentage of rated output.
+   *
+   * Lower values indicate a wider modulation range (e.g. 10 = fires at 10 % of rated output).
+   * A wide modulation range allows the boiler to match smaller heat demands at very low firing
+   * rates, which reduces return temperature and enables condensing even with standard emitters
+   * on mild days.
+   *
+   * Defaults to 30 % when not provided (conservative assumption for older boilers).
+   */
+  boilerMinModulationPct?: number;
+  /**
+   * Driver 3 (extended) — whether weather compensation is active on this system.
+   *
+   * When true, the boiler setpoint follows outdoor temperature (lower in mild weather),
+   * which materially reduces the required flow temperature on typical-load days and
+   * increases the fraction of heating-season hours spent in condensing range.
+   */
+  hasWeatherCompensation?: boolean;
+  /**
+   * Driver 3 (extended) — whether load compensation is active on this system.
+   *
+   * When true, the boiler setpoint is modulated in proportion to actual heat demand.
+   * At a typical mid-season partial load (~50 % design) the required flow temperature
+   * is approximately 12 °C lower than the design-day peak, significantly extending
+   * the condensing fraction even with standard-sized emitters.
+   */
+  hasLoadCompensation?: boolean;
   /** Driver 4 — installation policy (proxy for control quality / weather compensation). */
   installationPolicy: InstallationPolicy;
   /** Driver 5 — system separation arrangement: S-plan vs Y-plan. */
@@ -1014,6 +1093,21 @@ export interface CondensingRuntimeResult {
    * Clamped to 0–100.
    */
   estimatedCondensingRuntimePct: number;
+  /**
+   * Human-readable condensing status label for UI / simulator display.
+   *
+   * Reflects the overall condensing quality as a spectrum — from
+   * 'condensing_likely' through to 'controls_improvement_possible'.
+   * This replaces any binary oversized/not-oversized framing.
+   */
+  condensingStatusLabel: CondensingStatusLabel;
+  /**
+   * Explicit flow and return temperature assumptions used in this assessment.
+   *
+   * Made visible so that UI, simulator, and user can review and, where
+   * appropriate, override them (requirement 4 — visible assumptions).
+   */
+  condensingAssumptions: CondensingAssumptions;
   /** Assessment of each of the seven v1 drivers. */
   drivers: CondensingRuntimeDriver[];
   /** Positive-influence wording strings for UI display (non-empty when any positive driver applies). */

@@ -288,6 +288,49 @@ describe('derivePerformanceEnablers', () => {
       const e = derivePerformanceEnablers(result).find(x => x.id === 'emitter_suitability')!;
       expect(e.status).toBe('warning');
     });
+
+    it('boiler emitter detail for high flow temp mentions improved controls as an alternative', () => {
+      const result = makeResult({
+        systemOptimization: {
+          condensingModeAvailable: false, designFlowTempC: 70,
+          installationPolicy: 'high_temp_retrofit', spfRange: [2.5, 3.0],
+          spfMidpoint: 2.75, radiatorType: 'standard', notes: [],
+        },
+      });
+      const e = derivePerformanceEnablers(result).find(x => x.id === 'emitter_suitability')!;
+      // Detail should mention controls as an alternative to emitter upgrades (spectrum framing)
+      expect(e.detail.toLowerCase()).toMatch(/controls/);
+      // Should not say "radiators must" or use "only" as a word (implying binary gate)
+      expect(e.detail.toLowerCase()).not.toMatch(/radiators? must|\bonly\b/);
+    });
+
+    it('boiler emitter detail for ok status references seasonal heating performance', () => {
+      const result = makeResult({
+        systemOptimization: {
+          condensingModeAvailable: true, designFlowTempC: 55,
+          installationPolicy: 'full_job', spfRange: [2.8, 3.4],
+          spfMidpoint: 3.1, radiatorType: 'standard', notes: [],
+        },
+      });
+      const e = derivePerformanceEnablers(result).find(x => x.id === 'emitter_suitability')!;
+      expect(e.status).toBe('ok');
+      // Detail should convey spectrum (not just "at the target flow temperature")
+      expect(e.detail.toLowerCase()).toMatch(/condensing/);
+    });
+
+    it('boiler emitter detail for limited condensing mentions achievable improvement', () => {
+      const result = makeResult({
+        systemOptimization: {
+          condensingModeAvailable: false, designFlowTempC: 60,
+          installationPolicy: 'high_temp_retrofit', spfRange: [2.5, 3.0],
+          spfMidpoint: 2.75, radiatorType: 'standard', notes: [],
+        },
+      });
+      const e = derivePerformanceEnablers(result).find(x => x.id === 'emitter_suitability')!;
+      expect(e.status).toBe('warning');
+      // Should describe achievable improvement, not just a binary failure state
+      expect(e.detail.toLowerCase()).toMatch(/achievable|improve/);
+    });
   });
 
   // ── controls_quality ─────────────────────────────────────────────────────
