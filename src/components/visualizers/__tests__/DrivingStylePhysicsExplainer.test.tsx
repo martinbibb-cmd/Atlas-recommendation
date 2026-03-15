@@ -5,15 +5,15 @@
  *
  * Tests verify:
  *   - Renders heading and subtitle
- *   - Renders all four lane labels
- *   - Renders energy gauges for each lane
- *   - Renders lane captions
- *   - Combi shows concurrent-demand warning when peakConcurrentOutlets >= 2
- *   - Combi does NOT show warning when peakConcurrentOutlets is 1
+ *   - Renders all four row labels
+ *   - Renders row captions
+ *   - Combi shows warningChip when peakConcurrentOutlets >= 2
+ *   - Combi does NOT show warningChip when peakConcurrentOutlets is 1
  *   - Support text lines are rendered
- *   - systemFocus dims non-focused lanes (aria/role checks)
+ *   - systemFocus dims non-focused rows
  *   - Compact mode renders without error
- *   - Snapshot: compact mode
+ *   - No animation classes are present in rendered output
+ *   - No role="progressbar" is present in rendered output
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -46,35 +46,35 @@ describe('DrivingStylePhysicsExplainer — heading and subtitle', () => {
   });
 });
 
-// ─── Lane labels ──────────────────────────────────────────────────────────────
+// ─── Row labels ───────────────────────────────────────────────────────────────
 
-describe('DrivingStylePhysicsExplainer — lane labels', () => {
-  it('renders the combi lane label', () => {
+describe('DrivingStylePhysicsExplainer — row labels', () => {
+  it('renders the combi row label', () => {
     render(<DrivingStylePhysicsExplainer />);
     expect(screen.getByText(/boy racer/i)).toBeTruthy();
   });
 
-  it('renders the system lane label', () => {
+  it('renders the system row label', () => {
     render(<DrivingStylePhysicsExplainer />);
     expect(screen.getByText(/mondeo/i)).toBeTruthy();
   });
 
-  it('renders the Mixergy lane label', () => {
+  it('renders the Mixergy row label', () => {
     render(<DrivingStylePhysicsExplainer />);
     // "Hyper-miler" is distinct from "Electric Hyper-miler" — use exact text
     const labels = screen.getAllByText(/hyper-miler/i);
     expect(labels.some(el => el.textContent === 'Hyper-miler')).toBe(true);
   });
 
-  it('renders the heat pump lane label', () => {
+  it('renders the heat pump row label', () => {
     render(<DrivingStylePhysicsExplainer />);
     expect(screen.getByText('Electric Hyper-miler')).toBeTruthy();
   });
 });
 
-// ─── Lane captions ────────────────────────────────────────────────────────────
+// ─── Row captions ─────────────────────────────────────────────────────────────
 
-describe('DrivingStylePhysicsExplainer — lane captions', () => {
+describe('DrivingStylePhysicsExplainer — row captions', () => {
   it('renders combi caption', () => {
     render(<DrivingStylePhysicsExplainer />);
     expect(screen.getByText(/fast launch, lots of stop-start/i)).toBeTruthy();
@@ -115,32 +115,37 @@ describe('DrivingStylePhysicsExplainer — support text', () => {
   });
 });
 
-// ─── Concurrent demand warning ────────────────────────────────────────────────
+// ─── Warning chip — concurrent demand ────────────────────────────────────────
 
-describe('DrivingStylePhysicsExplainer — concurrent demand warning', () => {
-  it('shows warning badge when peakConcurrentOutlets >= 2', () => {
+describe('DrivingStylePhysicsExplainer — concurrent demand warning chip', () => {
+  it('shows warning chip when peakConcurrentOutlets >= 2', () => {
     render(<DrivingStylePhysicsExplainer peakConcurrentOutlets={2} />);
-    expect(screen.getByText(/on-demand hot water divides available output/i)).toBeTruthy();
+    expect(screen.getByText(/second tap warning/i)).toBeTruthy();
   });
 
-  it('does not show warning badge when peakConcurrentOutlets is 1', () => {
+  it('does not show warning chip when peakConcurrentOutlets is 1', () => {
     render(<DrivingStylePhysicsExplainer peakConcurrentOutlets={1} />);
-    expect(screen.queryByText(/on-demand hot water divides available output/i)).toBeNull();
+    expect(screen.queryByText(/second tap warning/i)).toBeNull();
   });
 
-  it('does not show warning badge with default props', () => {
+  it('does not show warning chip with default props', () => {
     render(<DrivingStylePhysicsExplainer />);
-    expect(screen.queryByText(/on-demand hot water divides available output/i)).toBeNull();
+    expect(screen.queryByText(/second tap warning/i)).toBeNull();
   });
 });
 
-// ─── Energy gauges ────────────────────────────────────────────────────────────
+// ─── No animation classes ─────────────────────────────────────────────────────
 
-describe('DrivingStylePhysicsExplainer — energy gauges', () => {
-  it('renders 4 progressbar elements (one per lane)', () => {
+describe('DrivingStylePhysicsExplainer — no animation classes', () => {
+  it('renders no elements with animation motion-state classes', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const animationClassPattern = /dspe__(token|progress-fill|gauge-fill)--(reversing|warning|cruising|launching)/;
+    expect(container.innerHTML).not.toMatch(animationClassPattern);
+  });
+
+  it('renders no role="progressbar" elements', () => {
     render(<DrivingStylePhysicsExplainer />);
-    const bars = screen.getAllByRole('progressbar');
-    expect(bars).toHaveLength(4);
+    expect(screen.queryAllByRole('progressbar')).toHaveLength(0);
   });
 });
 
@@ -156,7 +161,7 @@ describe('DrivingStylePhysicsExplainer — compact mode', () => {
     expect(screen.getByRole('heading', { name: /why these systems behave differently/i })).toBeTruthy();
   });
 
-  it('still renders all four lane labels in compact mode', () => {
+  it('still renders all four row labels in compact mode', () => {
     render(<DrivingStylePhysicsExplainer compact />);
     expect(screen.getByText(/boy racer/i)).toBeTruthy();
     expect(screen.getByText(/mondeo/i)).toBeTruthy();
@@ -164,6 +169,12 @@ describe('DrivingStylePhysicsExplainer — compact mode', () => {
     const labels = screen.getAllByText(/hyper-miler/i);
     expect(labels.some(el => el.textContent === 'Hyper-miler')).toBe(true);
     expect(screen.getByText('Electric Hyper-miler')).toBeTruthy();
+  });
+
+  it('compact mode also has no animation classes', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer compact />);
+    const animationClassPattern = /dspe__(token|progress-fill|gauge-fill)--(reversing|warning|cruising|launching)/;
+    expect(container.innerHTML).not.toMatch(animationClassPattern);
   });
 });
 
@@ -182,8 +193,14 @@ describe('DrivingStylePhysicsExplainer — systemFocus', () => {
     expect(() => render(<DrivingStylePhysicsExplainer systemFocus="all" />)).not.toThrow();
   });
 
-  it('renders the focused lane label when systemFocus is "system"', () => {
+  it('renders the focused row label when systemFocus is "system"', () => {
     render(<DrivingStylePhysicsExplainer systemFocus="system" />);
     expect(screen.getByText(/mondeo/i)).toBeTruthy();
+  });
+
+  it('applies dimmed class to non-focused rows when systemFocus is set', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer systemFocus="combi" />);
+    const dimmedRows = container.querySelectorAll('.dspe__row--dimmed');
+    expect(dimmedRows.length).toBe(3);
   });
 });
