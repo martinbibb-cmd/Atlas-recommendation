@@ -615,8 +615,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     const rect = boardRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
     return {
-      x: clamp((e.clientX - rect.left) / zoom - panOffset.x, 0, CANVAS_W),
-      y: clamp((e.clientY - rect.top) / zoom - panOffset.y, 0, CANVAS_H),
+      x: clamp((e.clientX - rect.left - panOffset.x) / zoom, 0, CANVAS_W),
+      y: clamp((e.clientY - rect.top - panOffset.y) / zoom, 0, CANVAS_H),
     };
   }
 
@@ -847,6 +847,13 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
 
   function rotateNode(node: PlacementNode) {
     updateNode(node.id, { orientationDeg: ((node.orientationDeg ?? 0) + 90) % 360 });
+  }
+
+  function openDimensionEditor(type: 'room-width' | 'room-height' | 'wall-length', currentValue: number, id: string) {
+    return (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setEditingDimension({ type, currentValue, id });
+    };
   }
 
   // ─── Render helpers ───────────────────────────────────────────────────────
@@ -1092,7 +1099,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             <div
               className="fpb__canvas-transform"
               style={{
-                transform: `scale(${zoom}) translate(${panOffset.x}px, ${panOffset.y}px)`,
+                transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
                 transformOrigin: '0 0',
               }}
             >
@@ -1242,25 +1249,25 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       {/* Edge measurement labels */}
                       <div
                         className="fpb__edge-label fpb__edge-label--top"
-                        onClick={(e) => { e.stopPropagation(); setEditingDimension({ type: 'room-width', currentValue: Number(toMeters(room.width)), id: room.id }); }}
+                        onClick={openDimensionEditor('room-width', Number(toMeters(room.width)), room.id)}
                       >
                         {toMeters(room.width)}m
                       </div>
                       <div
                         className="fpb__edge-label fpb__edge-label--bottom"
-                        onClick={(e) => { e.stopPropagation(); setEditingDimension({ type: 'room-width', currentValue: Number(toMeters(room.width)), id: room.id }); }}
+                        onClick={openDimensionEditor('room-width', Number(toMeters(room.width)), room.id)}
                       >
                         {toMeters(room.width)}m
                       </div>
                       <div
                         className="fpb__edge-label fpb__edge-label--left"
-                        onClick={(e) => { e.stopPropagation(); setEditingDimension({ type: 'room-height', currentValue: Number(toMeters(room.height)), id: room.id }); }}
+                        onClick={openDimensionEditor('room-height', Number(toMeters(room.height)), room.id)}
                       >
                         {toMeters(room.height)}m
                       </div>
                       <div
                         className="fpb__edge-label fpb__edge-label--right"
-                        onClick={(e) => { e.stopPropagation(); setEditingDimension({ type: 'room-height', currentValue: Number(toMeters(room.height)), id: room.id }); }}
+                        onClick={openDimensionEditor('room-height', Number(toMeters(room.height)), room.id)}
                       >
                         {toMeters(room.height)}m
                       </div>
@@ -1372,8 +1379,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       <button className="fpb__sheet-option" onClick={() => { setTool('drawWall'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
                         <span>✂️</span> Split room
                       </button>
-                      <button className="fpb__sheet-option" onClick={() => { setTool('addRoom'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
-                        <span>🔲</span> Fill gap
+                      <button className="fpb__sheet-option" onClick={() => { setTool('select'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
+                        <span>🔲</span> Fill gap (select + resize)
                       </button>
                     </div>
                   ) : (
