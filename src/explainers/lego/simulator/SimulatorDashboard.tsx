@@ -41,6 +41,8 @@ import { computeDayTimeline } from './useDayTimeline';
 import { computeDailyEfficiencySummary } from './useDailyEfficiencySummary';
 import type { ScenarioKey } from './scenarioTypes';
 import { SCENARIO_PRESETS, SCENARIO_PRESET_LIST, DEFAULT_SCENARIO_KEY } from './scenarioTypes';
+import { buildOccupancyBehaviourFromSurvey, buildOccupancyDisplayTags } from '../../../lib/occupancy/buildOccupancyBehaviourFromSurvey';
+import type { DemandPresetId } from './systemInputsTypes';
 import './labDashboard.css';
 import './labPanels.css';
 
@@ -160,6 +162,34 @@ function ScenarioSelector({ scenarioKey, onSetScenario }: ScenarioSelectorProps)
   )
 }
 
+// ─── Lifestyle demand badge ───────────────────────────────────────────────────
+
+/**
+ * Shows concise demand-style tags derived from the selected demand preset.
+ * Gives users clear visual confirmation that the simulator is using their
+ * Full Survey lifestyle selection.
+ */
+function LifestyleDemandBadge({ demandPreset }: { demandPreset: DemandPresetId }) {
+  const behaviour = buildOccupancyBehaviourFromSurvey(demandPreset);
+  const tags = buildOccupancyDisplayTags(behaviour);
+  return (
+    <div
+      className="sim-lifestyle-badge"
+      role="status"
+      aria-label={`Simulator lifestyle: ${tags.join(', ')}`}
+    >
+      <span className="sim-lifestyle-badge__icon" aria-hidden="true">🏠</span>
+      <span className="sim-lifestyle-badge__tags">
+        {tags.map((tag, i) => (
+          <span key={i} className={`sim-lifestyle-badge__tag${i === 0 ? ' sim-lifestyle-badge__tag--primary' : ''}`}>
+            {tag}
+          </span>
+        ))}
+      </span>
+    </div>
+  );
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -219,7 +249,7 @@ export default function SimulatorDashboard({
     resetToAutoMode,
     setManualMode,
     simHour,
-  } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed, systemInputs.occupancyProfile);
+  } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed, systemInputs.occupancyProfile, systemInputs.demandPreset);
 
   // When switching to Mixergy, auto-set cylinderType so downstream physics
   // (useLimiterPlayback, useStoredHotWaterPlayback) use Mixergy behaviour.
@@ -275,7 +305,7 @@ export default function SimulatorDashboard({
     isManualMode: isManualModeImproved,
     resetToAutoMode: resetToAutoModeImproved,
     setManualMode: setManualModeImproved,
-  } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed, improvedInputs.occupancyProfile);
+  } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed, improvedInputs.occupancyProfile, improvedInputs.demandPreset);
   // useHousePlayback and useDrawOffPlayback are called for React hook ordering.
   // Their results are not rendered in compare mode (only efficiency/limiters are shown).
   useHousePlayback(diagramStateImproved);
@@ -546,6 +576,11 @@ export default function SimulatorDashboard({
           <span className="sim-survey-badge__text">Using full survey data</span>
           <span className="sim-survey-badge__hint">Values are prefilled from your survey — you can still edit them below.</span>
         </div>
+      )}
+
+      {/* Lifestyle demand badge — shown when a specific demand preset is active */}
+      {systemInputs.demandPreset != null && (
+        <LifestyleDemandBadge demandPreset={systemInputs.demandPreset} />
       )}
 
       {/* 24-hour day timeline strip — always visible */}

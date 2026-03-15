@@ -15,7 +15,7 @@
 //   - Uses computeCurrentEfficiencyPct to clamp the result to [50, 99]
 //   - No tariff, cost, carbon, or export logic
 
-import type { SystemInputs, OccupancyProfile } from './systemInputsTypes'
+import type { SystemInputs, OccupancyProfile, DemandPresetId } from './systemInputsTypes'
 import type { SimulatorSystemChoice } from './useSystemDiagramPlayback'
 import type { EmitterPrimaryDisplayState } from './useEmitterPrimaryModel'
 import {
@@ -88,10 +88,26 @@ function peakLoadFraction(profile: OccupancyProfile): number {
  * More frequent short demand events (many start/stop cycles) reduce seasonal
  * efficiency through increased on/off losses.
  */
-function cyclingPenaltyPct(profile: OccupancyProfile, systemChoice: SimulatorSystemChoice): number {
+function cyclingPenaltyPct(profile: OccupancyProfile, systemChoice: SimulatorSystemChoice, demandPreset?: DemandPresetId): number {
   // Combi boilers suffer extra cycling losses on each DHW draw.
   const combiMultiplier = systemChoice === 'combi' ? 1.5 : 1.0
   const base = (() => {
+    // Use demandPreset for finer granularity when available
+    if (demandPreset != null) {
+      switch (demandPreset) {
+        case 'multigenerational':     return 4  // very many short events
+        case 'family_teenagers':      return 4  // evening shower cluster
+        case 'bath_heavy':            return 2  // fewer but larger draws
+        case 'shower_heavy':          return 3  // clustered morning draws
+        case 'family_young_children': return 3  // many short events
+        case 'home_worker':           return 3  // kitchen draws throughout day
+        case 'retired_couple':        return 2  // spread demand, fewer starts
+        case 'single_working_adult':  return 1  // fewer starts
+        case 'working_couple':        return 2  // double morning/evening
+        case 'shift_worker':          return 2  // irregular
+        case 'weekend_heavy':         return 1  // light weekday demand
+      }
+    }
     switch (profile) {
       case 'professional': return 1  // fewer starts
       case 'steady_home':  return 2
@@ -161,7 +177,7 @@ function computeBoilerSummary(
   const avgReturn = dailyAvgReturnTempC(emitterState, systemInputs.occupancyProfile, systemInputs.loadCompensation)
   const gain = condensingGainPct(avgReturn)
   const conditionPenalty = conditionPenaltyPct(systemInputs.systemCondition)
-  const cyclingPenalty = cyclingPenaltyPct(systemInputs.occupancyProfile, systemChoice)
+  const cyclingPenalty = cyclingPenaltyPct(systemInputs.occupancyProfile, systemChoice, systemInputs.demandPreset)
 
   const dailyEfficiencyPct = computeCurrentEfficiencyPct(
     DEFAULT_NOMINAL_EFFICIENCY_PCT + gain - conditionPenalty - cyclingPenalty,
@@ -190,6 +206,7 @@ function buildBoilerExplanation(
   condensingGain: number,
   avgReturnTempC: number,
 ): string {
+  const preset = systemInputs.demandPreset
   // Priority-ordered: highest-impact factor first.
   if (systemInputs.systemCondition === 'sludged') {
     return 'Magnetite sludge reducing heat transfer across the system.'
@@ -197,11 +214,23 @@ function buildBoilerExplanation(
   if (systemInputs.systemCondition === 'scaled') {
     return 'Scale build-up restricting heat exchanger performance.'
   }
-  if (
-    systemInputs.occupancyProfile === 'family' &&
-    systemChoice === 'combi'
-  ) {
-    return 'Frequent concurrent demand increased hot-water cycling losses.'
+  // Use richer demandPreset descriptions when available, otherwise fall back to occupancyProfile.
+  if (systemChoice === 'combi') {
+    if (preset === 'multigenerational') {
+      return 'Very frequent concurrent demand increases service-switching losses in a combi.'
+    }
+    if (preset === 'family_teenagers') {
+      return 'Overlapping teen showers create high concurrent demand — combi service switching increases cycling losses.'
+    }
+    if (preset === 'shower_heavy') {
+      return 'Clustered morning showers stress combi throughput — consider stored hot water.'
+    }
+    if (preset === 'bath_heavy') {
+      return 'Large evening bath draw exceeds combi plate HEX capacity — extended service switching.'
+    }
+    if (systemInputs.occupancyProfile === 'family' || preset === 'family_young_children') {
+      return 'Frequent concurrent demand increased hot-water cycling losses.'
+    }
   }
   if (systemInputs.loadCompensation && condensingGain > 3) {
     return 'Lower return temperatures and steadier operation improved performance.'
@@ -215,8 +244,14 @@ function buildBoilerExplanation(
   if (avgReturnTempC >= CONDENSING_THRESHOLD_C) {
     return 'High return temperatures preventing condensing operation.'
   }
-  if (systemInputs.occupancyProfile === 'professional') {
+  if (preset === 'retired_couple' || preset === 'home_worker') {
+    return 'Continuous home occupancy spreads demand evenly — lower cycling losses than intermittent profiles.'
+  }
+  if (systemInputs.occupancyProfile === 'professional' || preset === 'single_working_adult' || preset === 'working_couple') {
     return 'Absent during the day reduces standing and cycling losses.'
+  }
+  if (preset === 'weekend_heavy') {
+    return 'Light weekday demand means low daily cycling — weekend usage drives the weekly average.'
   }
   return 'Operating within expected parameters.'
 }
@@ -229,8 +264,22 @@ function computeHeatPumpSummary(
 ): DailyEfficiencySummaryState {
   let dailyCop = emitterState.estimatedCop
 
-  // Occupancy modifier.
+  // Occupancy modifier — uses demandPreset when available for finer granularity.
   const occupancyMultiplier = (() => {
+    const preset = systemInputs.demandPreset
+    // High-demand presets: frequent DHW draws hurt HP COP
+    if (preset === 'multigenerational') return 0.91
+    if (preset === 'family_teenagers') return 0.93
+    if (preset === 'bath_heavy') return 0.93
+    if (preset === 'shower_heavy') return 0.92
+    if (preset === 'family_young_children') return 0.94
+    // Low-demand / steady presets: fewer short cycles, better COP
+    if (preset === 'retired_couple') return 1.02
+    if (preset === 'home_worker') return 1.01
+    if (preset === 'weekend_heavy') return 1.04
+    if (preset === 'single_working_adult') return 1.03
+    if (preset === 'working_couple') return 1.02
+    // Fallback to generic occupancyProfile when no preset
     switch (systemInputs.occupancyProfile) {
       case 'family':       return 0.94  // more frequent DHW draws
       case 'professional': return 1.03  // steadier, fewer short cycles
@@ -266,6 +315,7 @@ function buildHeatPumpExplanation(
   systemInputs: SystemInputs,
   emitterState: EmitterPrimaryDisplayState,
 ): string {
+  const preset = systemInputs.demandPreset
   if (systemInputs.systemCondition === 'sludged') {
     return 'Magnetite sludge reducing heat transfer efficiency.'
   }
@@ -278,10 +328,16 @@ function buildHeatPumpExplanation(
   if (!emitterState.emitterAdequate) {
     return 'Undersized emitters requiring higher flow temperatures, reducing COP.'
   }
-  if (systemInputs.occupancyProfile === 'family') {
+  if (preset === 'multigenerational' || preset === 'family_teenagers') {
+    return 'Very frequent concurrent DHW demand reduces average heat pump efficiency.'
+  }
+  if (systemInputs.occupancyProfile === 'family' || preset === 'family_young_children') {
     return 'Frequent concurrent demand reduced average hot-water efficiency.'
   }
-  if (systemInputs.occupancyProfile === 'professional') {
+  if (preset === 'retired_couple' || preset === 'home_worker') {
+    return 'Continuous home presence means steady low-level demand — well-suited to heat pump operation.'
+  }
+  if (systemInputs.occupancyProfile === 'professional' || preset === 'single_working_adult' || preset === 'working_couple') {
     return 'Fewer short cycling events during the day improved daily COP.'
   }
   return 'Operating within expected parameters.'

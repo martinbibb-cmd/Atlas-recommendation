@@ -20,7 +20,7 @@ import { supplyOriginsForSystemType } from '../sim/supplyOrigins'
 import { resolveServiceMode, computeServiceSwitchingActive } from '../animation/serviceArbitration'
 import { deriveCondensingState } from '../sim/condensingState'
 import type { CondensingState } from '../sim/condensingState'
-import type { OccupancyProfile } from './systemInputsTypes'
+import type { OccupancyProfile, DemandPresetId } from './systemInputsTypes'
 
 // ─── Simulator system choice (UI-level) ──────────────────────────────────────
 
@@ -331,6 +331,253 @@ const OCCUPANCY_SHIFT: OccupancyTable = [
   /* 23 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Preparing for shift' },
 ]
 
+// ─── Per-preset occupancy tables ──────────────────────────────────────────────
+//
+// These tables give each DemandPresetId a distinct hour-by-hour demand pattern
+// that directly reflects the differences described in OccupancyPreset.ts.
+//
+// Profiles that already exist in the generic tables (professional, steady_home,
+// family, shift) are re-used via the fallback mapping in getOccupancyTableForPreset.
+
+const OCCUPANCY_WORKING_COUPLE: OccupancyTable = [
+  /* 00 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'             },
+  /* 01 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'             },
+  /* 02 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'             },
+  /* 03 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'             },
+  /* 04 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'             },
+  /* 05 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'             },
+  /* 06 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'First person up'       },
+  /* 07 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Morning rush — both'   },
+  /* 08 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Finishing up'          },
+  /* 09 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'               },
+  /* 10 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'               },
+  /* 11 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'               },
+  /* 12 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'               },
+  /* 13 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'               },
+  /* 14 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'               },
+  /* 15 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'               },
+  /* 16 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'               },
+  /* 17 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Arriving home'         },
+  /* 18 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Evening — first person'},
+  /* 19 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Evening — second person'},
+  /* 20 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'       },
+  /* 21 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'       },
+  /* 22 */ { heatingEnabled: false, hotDrawActive: false, label: 'Winding down'          },
+  /* 23 */ { heatingEnabled: false, hotDrawActive: false, label: 'Winding down'          },
+]
+
+const OCCUPANCY_FAMILY_TEENAGERS: OccupancyTable = [
+  /* 00 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 01 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 02 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 03 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 04 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 05 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 06 */ { heatingEnabled: true,  hotDrawActive: false, label: 'School wake-up'         },
+  /* 07 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Morning rush'           },
+  /* 08 */ { heatingEnabled: true,  hotDrawActive: false, label: 'School drop-off'        },
+  /* 09 */ { heatingEnabled: true,  hotDrawActive: false, label: 'School hours'           },
+  /* 10 */ { heatingEnabled: true,  hotDrawActive: false, label: 'School hours'           },
+  /* 11 */ { heatingEnabled: true,  hotDrawActive: false, label: 'School hours'           },
+  /* 12 */ { heatingEnabled: true,  hotDrawActive: false, label: 'School hours'           },
+  /* 13 */ { heatingEnabled: true,  hotDrawActive: false, label: 'School hours'           },
+  /* 14 */ { heatingEnabled: true,  hotDrawActive: false, label: 'School hours'           },
+  /* 15 */ { heatingEnabled: true,  hotDrawActive: false, label: 'School pick-up'         },
+  /* 16 */ { heatingEnabled: true,  hotDrawActive: false, label: 'After school'           },
+  /* 17 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Family evening'         },
+  /* 18 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Teen shower peak'       },
+  /* 19 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Teen shower peak'       },
+  /* 20 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Late teen shower'       },
+  /* 21 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'        },
+  /* 22 */ { heatingEnabled: false, hotDrawActive: false, label: 'Winding down'           },
+  /* 23 */ { heatingEnabled: false, hotDrawActive: false, label: 'Winding down'           },
+]
+
+const OCCUPANCY_RETIRED_COUPLE: OccupancyTable = [
+  /* 00 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 01 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 02 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 03 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 04 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 05 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 06 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 07 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Morning rise'           },
+  /* 08 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Morning wash'           },
+  /* 09 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home – morning'         },
+  /* 10 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home – morning'         },
+  /* 11 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home – morning'         },
+  /* 12 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Lunchtime'              },
+  /* 13 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home – afternoon'       },
+  /* 14 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home – afternoon'       },
+  /* 15 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home – afternoon'       },
+  /* 16 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home – afternoon'       },
+  /* 17 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Afternoon wash / tea'   },
+  /* 18 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'        },
+  /* 19 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'        },
+  /* 20 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'        },
+  /* 21 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'        },
+  /* 22 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Winding down'           },
+  /* 23 */ { heatingEnabled: false, hotDrawActive: false, label: 'Winding down'           },
+]
+
+const OCCUPANCY_HOME_WORKER: OccupancyTable = [
+  /* 00 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 01 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 02 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 03 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 04 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 05 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 06 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 07 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Morning rise'           },
+  /* 08 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Morning shower'         },
+  /* 09 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Working from home'      },
+  /* 10 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Kitchen — mid-morning'  },
+  /* 11 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Working from home'      },
+  /* 12 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Lunch — kitchen use'    },
+  /* 13 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Working from home'      },
+  /* 14 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Working from home'      },
+  /* 15 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Afternoon kitchen'      },
+  /* 16 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Working from home'      },
+  /* 17 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Finish work'            },
+  /* 18 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Evening routine'        },
+  /* 19 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'        },
+  /* 20 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'        },
+  /* 21 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'        },
+  /* 22 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Winding down'           },
+  /* 23 */ { heatingEnabled: false, hotDrawActive: false, label: 'Winding down'           },
+]
+
+const OCCUPANCY_MULTIGENERATIONAL: OccupancyTable = [
+  /* 00 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 01 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 02 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 03 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 04 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 05 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 06 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Early riser'            },
+  /* 07 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Morning rush'           },
+  /* 08 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Morning overlap'        },
+  /* 09 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Home – older gen'       },
+  /* 10 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home – morning'         },
+  /* 11 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home – morning'         },
+  /* 12 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Lunchtime'              },
+  /* 13 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home – afternoon'       },
+  /* 14 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home – afternoon'       },
+  /* 15 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Afternoon kitchen'      },
+  /* 16 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home – afternoon'       },
+  /* 17 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Family arriving home'   },
+  /* 18 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Family evening'         },
+  /* 19 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'High demand evening'    },
+  /* 20 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Family evening'         },
+  /* 21 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'        },
+  /* 22 */ { heatingEnabled: false, hotDrawActive: false, label: 'Winding down'           },
+  /* 23 */ { heatingEnabled: false, hotDrawActive: false, label: 'Winding down'           },
+]
+
+const OCCUPANCY_BATH_HEAVY: OccupancyTable = [
+  /* 00 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 01 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 02 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 03 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 04 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 05 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 06 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 07 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Morning wash (quick)'   },
+  /* 08 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Preparing to leave'     },
+  /* 09 */ { heatingEnabled: false, hotDrawActive: false, label: 'Out — daytime'          },
+  /* 10 */ { heatingEnabled: false, hotDrawActive: false, label: 'Out — daytime'          },
+  /* 11 */ { heatingEnabled: false, hotDrawActive: false, label: 'Out — daytime'          },
+  /* 12 */ { heatingEnabled: false, hotDrawActive: false, label: 'Out — daytime'          },
+  /* 13 */ { heatingEnabled: false, hotDrawActive: false, label: 'Out — daytime'          },
+  /* 14 */ { heatingEnabled: false, hotDrawActive: false, label: 'Out — daytime'          },
+  /* 15 */ { heatingEnabled: false, hotDrawActive: false, label: 'Out — daytime'          },
+  /* 16 */ { heatingEnabled: false, hotDrawActive: false, label: 'Heading home'           },
+  /* 17 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home — heating on'      },
+  /* 18 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Preparing bath'         },
+  /* 19 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Bath draw — heavy load' },
+  /* 20 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Bath fill continues'    },
+  /* 21 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Post-bath — relaxing'   },
+  /* 22 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Winding down'           },
+  /* 23 */ { heatingEnabled: false, hotDrawActive: false, label: 'Winding down'           },
+]
+
+const OCCUPANCY_SHOWER_HEAVY: OccupancyTable = [
+  /* 00 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 01 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 02 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 03 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 04 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 05 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 06 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'First shower'           },
+  /* 07 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Second shower'          },
+  /* 08 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Third shower — peak'    },
+  /* 09 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 10 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 11 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 12 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 13 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 14 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 15 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 16 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 17 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home from work'         },
+  /* 18 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Post-work shower'       },
+  /* 19 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'        },
+  /* 20 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'        },
+  /* 21 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'        },
+  /* 22 */ { heatingEnabled: false, hotDrawActive: false, label: 'Winding down'           },
+  /* 23 */ { heatingEnabled: false, hotDrawActive: false, label: 'Winding down'           },
+]
+
+const OCCUPANCY_WEEKEND_HEAVY: OccupancyTable = [
+  /* 00 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 01 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 02 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 03 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 04 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 05 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 06 */ { heatingEnabled: false, hotDrawActive: false, label: 'Overnight'              },
+  /* 07 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Weekday morning'        },
+  /* 08 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Quick morning routine'  },
+  /* 09 */ { heatingEnabled: false, hotDrawActive: false, label: 'Commuting'              },
+  /* 10 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 11 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 12 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 13 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 14 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 15 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 16 */ { heatingEnabled: false, hotDrawActive: false, label: 'At work'                },
+  /* 17 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Home from work'         },
+  /* 18 */ { heatingEnabled: true,  hotDrawActive: true,  label: 'Evening routine'        },
+  /* 19 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'        },
+  /* 20 */ { heatingEnabled: true,  hotDrawActive: false, label: 'Evening at home'        },
+  /* 21 */ { heatingEnabled: false, hotDrawActive: false, label: 'Winding down'           },
+  /* 22 */ { heatingEnabled: false, hotDrawActive: false, label: 'Winding down'           },
+  /* 23 */ { heatingEnabled: false, hotDrawActive: false, label: 'Winding down'           },
+]
+
+/**
+ * Select the occupancy table for a specific DemandPresetId.
+ *
+ * Each preset gets its own distinct 24-hour table. When a preset is not listed
+ * here the fallback generic profile table is returned by `getOccupancyTable`.
+ */
+function getOccupancyTableForPreset(presetId: DemandPresetId): OccupancyTable | undefined {
+  switch (presetId) {
+    case 'single_working_adult':  return OCCUPANCY_PROFESSIONAL
+    case 'working_couple':        return OCCUPANCY_WORKING_COUPLE
+    case 'family_young_children': return OCCUPANCY_FAMILY
+    case 'family_teenagers':      return OCCUPANCY_FAMILY_TEENAGERS
+    case 'retired_couple':        return OCCUPANCY_RETIRED_COUPLE
+    case 'home_worker':           return OCCUPANCY_HOME_WORKER
+    case 'shift_worker':          return OCCUPANCY_SHIFT
+    case 'multigenerational':     return OCCUPANCY_MULTIGENERATIONAL
+    case 'bath_heavy':            return OCCUPANCY_BATH_HEAVY
+    case 'shower_heavy':          return OCCUPANCY_SHOWER_HEAVY
+    case 'weekend_heavy':         return OCCUPANCY_WEEKEND_HEAVY
+    default:                      return undefined
+  }
+}
+
 function getOccupancyTable(profile: OccupancyProfile): OccupancyTable {
   switch (profile) {
     case 'professional': return OCCUPANCY_PROFESSIONAL
@@ -341,11 +588,26 @@ function getOccupancyTable(profile: OccupancyProfile): OccupancyTable {
 }
 
 /**
+ * Resolve the best occupancy table, preferring a per-preset table when
+ * `demandPreset` is available, falling back to the generic 4-profile table.
+ */
+function resolveOccupancyTable(
+  profile: OccupancyProfile,
+  demandPreset?: DemandPresetId,
+): OccupancyTable {
+  if (demandPreset != null) {
+    const presetTable = getOccupancyTableForPreset(demandPreset)
+    if (presetTable != null) return presetTable
+  }
+  return getOccupancyTable(profile)
+}
+
+/**
  * Return the demand state for the given hour and occupancy profile.
  * @param hour  Integer 0–23.
  */
-function getOccupancyDemand(hour: number, profile: OccupancyProfile): OccupancyHour {
-  const table = getOccupancyTable(profile)
+function getOccupancyDemand(hour: number, profile: OccupancyProfile, demandPreset?: DemandPresetId): OccupancyHour {
+  const table = resolveOccupancyTable(profile, demandPreset)
   return table[Math.max(0, Math.min(23, hour))] ?? table[0]
 }
 
@@ -366,8 +628,8 @@ function occupancyPhaseLabel(hour: number, label: string): string {
  * No React state is required — the fill level is a pure function of the hour
  * and profile, avoiding the need to call setState synchronously in an effect.
  */
-function computeOccupancyCylinderFill(hour: number, profile: OccupancyProfile): number {
-  const table = getOccupancyTable(profile)
+function computeOccupancyCylinderFill(hour: number, profile: OccupancyProfile, demandPreset?: DemandPresetId): number {
+  const table = resolveOccupancyTable(profile, demandPreset)
   let fill = 0.85
   for (let h = 0; h <= Math.min(hour, 23); h++) {
     const demand = table[h] ?? table[0]
@@ -388,11 +650,12 @@ function buildOccupancyAutoState(
   choice: SimulatorSystemChoice,
   hour: number,
   profile: OccupancyProfile,
+  demandPreset?: DemandPresetId,
 ): SystemDiagramDisplayState {
-  const demand = getOccupancyDemand(hour, profile)
+  const demand = getOccupancyDemand(hour, profile, demandPreset)
   const { heatingEnabled, hotDrawActive, label } = demand
   const phaseLabel = occupancyPhaseLabel(hour, label)
-  const cylinderFill = computeOccupancyCylinderFill(hour, profile)
+  const cylinderFill = computeOccupancyCylinderFill(hour, profile, demandPreset)
 
   switch (choice) {
     case 'combi': {
@@ -776,6 +1039,7 @@ export function useSystemDiagramPlayback(
   initialSystemChoice: SimulatorSystemChoice = 'combi',
   timeSpeedMultiplier: number = 1,
   occupancyProfile?: OccupancyProfile,
+  demandPreset?: DemandPresetId,
 ): UseSystemDiagramPlaybackResult {
   const [systemChoice, setSystemChoiceState] = useState<SimulatorSystemChoice>(initialSystemChoice)
   const [phase, setPhase] = useState(0)
@@ -845,7 +1109,7 @@ export function useSystemDiagramPlayback(
   const state: SystemDiagramDisplayState = isManualMode
     ? buildManualState(systemChoice, demandControls, cylinderFillRef)
     : occupancyProfile !== undefined
-    ? buildOccupancyAutoState(systemChoice, simHour, occupancyProfile)
+    ? buildOccupancyAutoState(systemChoice, simHour, occupancyProfile, demandPreset)
     : buildAutoState(systemChoice, phase)
 
   // ── Legacy compatibility shim ────────────────────────────────────────────
