@@ -177,11 +177,30 @@ function computeDataConfidence(
     inferred,
     missing,
     // Surface missing fields first (highest leverage), then inferred; max 3 checks.
-    nextBestChecks: nextBestChecks.slice(0, 3),
+    nextBestChecks: nextBestChecks.slice(0, MAX_NEXT_BEST_CHECKS),
   };
 }
 
-// ─── Physics confidence ───────────────────────────────────────────────────────
+// ─── Scoring constants ────────────────────────────────────────────────────────
+
+/**
+ * Maximum number of actionable "next best check" items to surface per result.
+ * Keeping this small (3) ensures the output remains scannable.
+ */
+const MAX_NEXT_BEST_CHECKS = 3;
+
+/**
+ * Physics confidence scoring adjustments.
+ *
+ * Positive values raise confidence (hard constraint confirmed by measurement).
+ * Negative values lower confidence (assumption-driven or soft constraint).
+ */
+const PHYSICS_BONUS_HARD_MEASURED = 6;   // Hard constraint confirmed by a measured source
+const PHYSICS_PENALTY_HARD_ASSUMED = -5; // Hard constraint but based on assumptions
+const PHYSICS_PENALTY_SOFT_ASSUMED = -3; // Soft constraint based on assumptions
+const PHYSICS_PENALTY_WARN_ASSUMPTION = -8;  // Significant assumption (severity: warn)
+const PHYSICS_PENALTY_INFO_ASSUMPTION = -3;  // Minor assumption (severity: info)
+const PHYSICS_PENALTY_UNMEASURED_KEY_FIELD = -10; // Physics-critical field not measured
 
 /**
  * Limiter IDs that represent hard physical constraints rather than soft preferences.
@@ -212,20 +231,20 @@ function computePhysicsConfidence(output: EngineOutputV1): number {
     const highSeverity = limiter.severity === 'fail' || limiter.severity === 'warn';
 
     if (isHardConstraint && measuredSource && highSeverity) {
-      score += 6; // Physics says no — and we measured the evidence
+      score += PHYSICS_BONUS_HARD_MEASURED;
     } else if (isHardConstraint && !measuredSource) {
-      score -= 5; // Hard constraint but based on assumptions — less certain
+      score += PHYSICS_PENALTY_HARD_ASSUMED;
     } else if (!isHardConstraint && !measuredSource) {
-      score -= 3; // Soft preference also assumption-driven
+      score += PHYSICS_PENALTY_SOFT_ASSUMED;
     }
   }
 
   // Penalty for significant assumptions
   for (const assumption of assumptions) {
     if (assumption.severity === 'warn') {
-      score -= 8; // Assumption that meaningfully affects the result
+      score += PHYSICS_PENALTY_WARN_ASSUMPTION;
     } else if (assumption.severity === 'info') {
-      score -= 3;
+      score += PHYSICS_PENALTY_INFO_ASSUMPTION;
     }
   }
 
@@ -235,7 +254,7 @@ function computePhysicsConfidence(output: EngineOutputV1): number {
       (item.id === 'ev-heat-loss' || item.id === 'ev-mains-pressure-dynamic') &&
       (item.source === 'assumed' || item.source === 'placeholder')
     ) {
-      score -= 10; // Key physics driver not measured
+      score += PHYSICS_PENALTY_UNMEASURED_KEY_FIELD;
     }
   }
 

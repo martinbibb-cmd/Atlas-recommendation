@@ -135,7 +135,12 @@ export interface ConfidenceSummary {
   level: 'high' | 'medium' | 'low' | null;
   pct: number | null;
   reasons: string[];
-  /** Full unified confidence breakdown — dataPct, physicsPct, decisionPct, and lists. */
+  /**
+   * Full unified confidence breakdown — dataPct, physicsPct, decisionPct, and lists.
+   * Always set when produced by buildAdviceFromCompare (buildUnifiedConfidence always
+   * returns a value).  Typed as nullable for backward compatibility with any external
+   * consumers that may construct a ConfidenceSummary manually.
+   */
   unified: UnifiedConfidence | null;
 }
 
