@@ -3,15 +3,19 @@
  *
  * Customer-facing 4-row driving-style physics explainer.
  *
- * Renders a fully static comparison infographic explaining heating-system
+ * Renders a static comparison infographic explaining heating-system
  * behaviour through a driving analogy:
  *   Row 1 — Boy Racer / Hot Hatch  (combi boiler)
  *   Row 2 — Mondeo                 (system / regular boiler with stored hot water)
  *   Row 3 — Hyper-miler            (gas + strong controls + Mixergy)
  *   Row 4 — Electric Hyper-miler   (heat pump)
  *
- * This component is a static infographic — no animations, no CSS keyframes,
- * no JS timing, and no progressbar semantics.  It is safe for print/PDF use.
+ * An optional CSS animation layer (animate prop, default true) adds subtle
+ * vehicle-token motion on mount.  The animation settles after ~4 seconds,
+ * leaving the component in a state identical to animate=false.
+ *
+ * Set animate=false for print/PDF use — the static diagram is identical.
+ * Animation NEVER modifies the data model or path tracks.
  *
  * Props are documented in src/types/explainers.ts.
  *
@@ -42,6 +46,26 @@ const VEHICLE_ICON: Record<DrivetrainId, string> = {
   system:   '🚗',
   mixergy:  '🚙',
   heatpump: '⚡',
+};
+
+// ─── Fixed semantic energy bar widths ────────────────────────────────────────
+
+/**
+ * Fixed semantic energy bar widths per drivetrain.
+ * Values chosen for visual clarity — the difference should be immediately
+ * obvious so users grasp the relative running costs at a glance.
+ *
+ * combi 85 % → large intentionally; combi wastes the most energy through
+ *              purge loss, stop-start cycling and always-on burner runs.
+ * system 60 % → 25-point drop from combi reflects decoupled generation gain.
+ * mixergy 45 % → smart stratification squeezes out another 15 points.
+ * heatpump 25 % → low-grade continuous heat; smallest bar, most efficient.
+ */
+const ENERGY_BAR_PCT: Record<DrivetrainId, number> = {
+  combi:    85,
+  system:   60,
+  mixergy:  45,
+  heatpump: 25,
 };
 
 // ─── Static SVG path definitions ─────────────────────────────────────────────
@@ -79,12 +103,19 @@ const TOKEN_POSITION_FRAC: Record<PathVariant, number> = {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 interface PathTrackProps {
-  id:      DrivetrainId;
-  variant: PathVariant;
+  id:         DrivetrainId;
+  variant:    PathVariant;
+  hasWarning: boolean;
 }
 
-function PathTrack({ id, variant }: PathTrackProps) {
+function PathTrack({ id, variant, hasWarning }: PathTrackProps) {
   const tokenPct = TOKEN_POSITION_FRAC[variant] * 100;
+
+  const tokenClass = [
+    'dspe__vehicle-token',
+    `dspe__vehicle-token--${id}`,
+    hasWarning ? 'dspe__vehicle-token--has-warning' : '',
+  ].filter(Boolean).join(' ');
 
   return (
     <div className="dspe__path-wrapper" aria-hidden="true">
@@ -103,7 +134,7 @@ function PathTrack({ id, variant }: PathTrackProps) {
         />
       </svg>
       <span
-        className="dspe__vehicle-token"
+        className={tokenClass}
         style={{ left: `calc(${tokenPct}% - 1.1rem)` }}
       >
         {VEHICLE_ICON[id]}
@@ -119,8 +150,7 @@ interface RowProps {
 }
 
 function Row({ row, dimmed, compact }: RowProps) {
-  // Energy bar width: rank 4 → 85 %, rank 3 → 65 %, rank 2 → 45 %, rank 1 → 25 %
-  const energyBarPct = row.energyRank * 20 + 5;
+  const energyBarPct = ENERGY_BAR_PCT[row.id];
 
   return (
     <div
@@ -148,7 +178,13 @@ function Row({ row, dimmed, compact }: RowProps) {
       </div>
 
       {/* Static path track — hidden in compact mode */}
-      {!compact && <PathTrack id={row.id} variant={row.pathVariant} />}
+      {!compact && (
+        <PathTrack
+          id={row.id}
+          variant={row.pathVariant}
+          hasWarning={!!row.warningChip}
+        />
+      )}
 
       {/* Static energy bar */}
       <div className="dspe__energy-bar">
@@ -174,11 +210,15 @@ function Row({ row, dimmed, compact }: RowProps) {
 /**
  * DrivingStylePhysicsExplainer
  *
- * Fully static 4-row infographic explaining combi, system, Mixergy, and
- * heat pump behaviour through a driving analogy.
+ * Static 4-row infographic explaining combi, system, Mixergy, and heat pump
+ * behaviour through a driving analogy.
  *
- * No CSS keyframes.  No animation or transition.  No progressbar semantics.
- * Safe for print and PDF output.
+ * An optional CSS animation layer (animate prop, default true) adds subtle
+ * vehicle-token motion on mount only — path tracks are never animated.
+ * When animate=false (or in print/reduced-motion contexts) the component
+ * renders as a fully static diagram safe for PDF output.
+ *
+ * No progressbar semantics are used at any time.
  *
  * @see src/types/explainers.ts for full prop documentation.
  */
@@ -189,6 +229,7 @@ export default function DrivingStylePhysicsExplainer({
   controlsQuality,
   hasMixergy,
   compact = false,
+  animate = true,
 }: DrivingStylePhysicsExplainerProps) {
   const input = useMemo(
     () =>
@@ -205,7 +246,11 @@ export default function DrivingStylePhysicsExplainer({
 
   return (
     <section
-      className={`dspe${compact ? ' dspe--compact' : ''}`}
+      className={[
+        'dspe',
+        compact  ? 'dspe--compact'   : '',
+        animate  ? 'dspe--animated'  : '',
+      ].filter(Boolean).join(' ')}
       aria-labelledby="dspe-title"
     >
       {/* Header */}

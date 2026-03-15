@@ -12,8 +12,10 @@
  *   - Support text lines are rendered
  *   - systemFocus dims non-focused rows
  *   - Compact mode renders without error
- *   - No animation classes are present in rendered output
+ *   - No deprecated motion-state animation classes are present
  *   - No role="progressbar" is present in rendered output
+ *   - animate prop controls presence of dspe--animated class
+ *   - Fixed semantic energy bar widths (combi 85%, system 60%, mixergy 45%, heatpump 25%)
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -134,10 +136,10 @@ describe('DrivingStylePhysicsExplainer — concurrent demand warning chip', () =
   });
 });
 
-// ─── No animation classes ─────────────────────────────────────────────────────
+// ─── No deprecated animation classes ─────────────────────────────────────────
 
-describe('DrivingStylePhysicsExplainer — no animation classes', () => {
-  it('renders no elements with animation motion-state classes', () => {
+describe('DrivingStylePhysicsExplainer — no deprecated animation classes', () => {
+  it('renders no elements with legacy motion-state classes', () => {
     const { container } = render(<DrivingStylePhysicsExplainer />);
     const animationClassPattern = /dspe__(token|progress-fill|gauge-fill)--(reversing|warning|cruising|launching)/;
     expect(container.innerHTML).not.toMatch(animationClassPattern);
@@ -202,5 +204,85 @@ describe('DrivingStylePhysicsExplainer — systemFocus', () => {
     const { container } = render(<DrivingStylePhysicsExplainer systemFocus="combi" />);
     const dimmedRows = container.querySelectorAll('.dspe__row--dimmed');
     expect(dimmedRows.length).toBe(3);
+  });
+});
+
+// ─── animate prop ─────────────────────────────────────────────────────────────
+
+describe('DrivingStylePhysicsExplainer — animate prop', () => {
+  it('adds dspe--animated class by default (animate=true)', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    expect(container.querySelector('.dspe--animated')).toBeTruthy();
+  });
+
+  it('adds dspe--animated class when animate={true} is explicit', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer animate={true} />);
+    expect(container.querySelector('.dspe--animated')).toBeTruthy();
+  });
+
+  it('omits dspe--animated class when animate={false}', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer animate={false} />);
+    expect(container.querySelector('.dspe--animated')).toBeNull();
+  });
+
+  it('renders all four row labels when animate={false}', () => {
+    render(<DrivingStylePhysicsExplainer animate={false} />);
+    expect(screen.getByText(/boy racer/i)).toBeTruthy();
+    expect(screen.getByText(/mondeo/i)).toBeTruthy();
+    const labels = screen.getAllByText(/hyper-miler/i);
+    expect(labels.some(el => el.textContent === 'Hyper-miler')).toBe(true);
+    expect(screen.getByText('Electric Hyper-miler')).toBeTruthy();
+  });
+
+  it('renders vehicle tokens with drivetrain-specific classes', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    expect(container.querySelector('.dspe__vehicle-token--combi')).toBeTruthy();
+    expect(container.querySelector('.dspe__vehicle-token--system')).toBeTruthy();
+    expect(container.querySelector('.dspe__vehicle-token--mixergy')).toBeTruthy();
+    expect(container.querySelector('.dspe__vehicle-token--heatpump')).toBeTruthy();
+  });
+
+  it('adds dspe__vehicle-token--has-warning to combi token when warningChip present', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer peakConcurrentOutlets={2} />);
+    const combiToken = container.querySelector('.dspe__vehicle-token--combi');
+    expect(combiToken?.classList.contains('dspe__vehicle-token--has-warning')).toBe(true);
+  });
+
+  it('does not add dspe__vehicle-token--has-warning to combi token without warningChip', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer peakConcurrentOutlets={1} />);
+    const combiToken = container.querySelector('.dspe__vehicle-token--combi');
+    expect(combiToken?.classList.contains('dspe__vehicle-token--has-warning')).toBe(false);
+  });
+
+  it('compact mode still renders without error when animate=true', () => {
+    expect(() => render(<DrivingStylePhysicsExplainer compact animate={true} />)).not.toThrow();
+  });
+});
+
+// ─── Fixed semantic energy bar widths ─────────────────────────────────────────
+
+describe('DrivingStylePhysicsExplainer — energy bar widths', () => {
+  it('combi energy bar is 85%', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const fill = container.querySelector('[data-system="combi"] .dspe__energy-fill');
+    expect(fill?.getAttribute('style')).toContain('width: 85%');
+  });
+
+  it('system energy bar is 60%', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const fill = container.querySelector('[data-system="system"] .dspe__energy-fill');
+    expect(fill?.getAttribute('style')).toContain('width: 60%');
+  });
+
+  it('mixergy energy bar is 45%', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const fill = container.querySelector('[data-system="mixergy"] .dspe__energy-fill');
+    expect(fill?.getAttribute('style')).toContain('width: 45%');
+  });
+
+  it('heatpump energy bar is 25%', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const fill = container.querySelector('[data-system="heatpump"] .dspe__energy-fill');
+    expect(fill?.getAttribute('style')).toContain('width: 25%');
   });
 });
