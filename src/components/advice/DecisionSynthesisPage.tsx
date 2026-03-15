@@ -296,11 +296,11 @@ export default function DecisionSynthesisPage({
             onClick={() => setShowPrint(true)}
             aria-label="Print Atlas recommendation"
           >
-            🖨 Print recommendation
+            🖨 Print Recommendation
           </button>
         )}
         <div className="advice-page__title-block">
-          <h1 className="advice-page__title">🎯 Decision Advice</h1>
+          <h1 className="advice-page__title">🎯 Advice</h1>
           <p className="advice-page__subtitle">
             Given what matters most to you, this is the route.
           </p>

@@ -73,7 +73,7 @@ describe('DecisionSynthesisPage — rendering', () => {
 
   it('renders the page heading', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(screen.getByRole('heading', { name: /decision advice/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /advice/i })).toBeTruthy();
   });
 
   it('renders the Atlas recommends section with the primary recommendation', () => {

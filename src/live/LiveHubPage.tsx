@@ -11,27 +11,29 @@
  *  5. Future Upgrade Path — staged retrofit roadmap
  *  6. Detail Tiles — drill-down to physics detail sections
  *  7. Launch Simulator CTA
- *  8. Print actions
+ *  8. Export actions (primary: Print Recommendation; secondary: Technical Comparison, Engineering Detail)
  *
  * PR16: Added "Launch Simulator" CTA that opens the simulator pre-configured
  *       from the completed full survey, skipping the setup stepper.
- * PR17: Added print actions (Customer, Technical, Comparison) that reuse the
- *       existing lab print surfaces, fed from the current survey result.
- * PR-Overhaul: Restructured to decision-first dashboard with visual trust builders.
+ * PR17: Added print actions that reuse the existing lab print surfaces, fed from the current survey result.
+ * PR8:  Rationalised export actions — Print Recommendation is the primary customer-facing output.
+ *       Technical Comparison and Engineering Detail are secondary technical exports.
+ *       Legacy "Customer Summary" and "Full Output Report" buttons removed.
  */
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { FullEngineResult } from '../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
 import LiveSectionPage from './LiveSectionPage';
 import VerdictStrip from '../components/live/VerdictStrip';
 import HubPage from '../components/hub/HubPage';
 import ExplainersHubPage from '../explainers/ExplainersHubPage';
-import LabPrintCustomer from '../components/lab/LabPrintCustomer';
 import LabPrintTechnical from '../components/lab/LabPrintTechnical';
 import LabPrintComparison from '../components/lab/LabPrintComparison';
-import LabPrintFull from '../components/lab/LabPrintFull';
+import PrintableRecommendationPage from '../components/advice/PrintableRecommendationPage';
 import { buildPrintData } from './buildPrintData';
-import { buildOutputHubSections, filterSections } from './printSections.model';
+import { buildOutputHubSections } from './printSections.model';
+import { buildCompareSeedFromSurvey } from '../lib/simulator/buildCompareSeedFromSurvey';
+import { buildAdviceFromCompare } from '../lib/advice/buildAdviceFromCompare';
 import RecommendationCard from '../components/live/RecommendationCard';
 import HouseHeatMapPanel from '../components/live/HouseHeatMapPanel';
 import HotWaterDemandPanel from '../components/live/HotWaterDemandPanel';
@@ -51,7 +53,7 @@ export type LiveSection =
   | 'hub'
   | 'simulator';
 
-type PrintView = 'customer' | 'technical' | 'comparison' | 'full';
+type PrintView = 'technical' | 'comparison' | 'recommendation';
 
 interface Props {
   result: FullEngineResult;
@@ -196,25 +198,42 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
 
   const { engineOutput } = result;
 
+  // ── Compare seed + advice — used to power the canonical Print Recommendation output ─
+  const compareSeed = useMemo(
+    () => buildCompareSeedFromSurvey(input, engineOutput),
+    [input, engineOutput],
+  );
+
+  const compareAdvice = useMemo(
+    () =>
+      buildAdviceFromCompare({
+        engineOutput,
+        compareSeed,
+        surveyData: input,
+      }),
+    [engineOutput, compareSeed, input],
+  );
+
   // ── Print overlay ─────────────────────────────────────────────────────────
-  // When a print view is active render the corresponding lab print surface
+  // When a print view is active render the corresponding print surface
   // full-screen.  The print component's onBack callback dismisses the overlay.
   if (printView !== null) {
     const printData = buildPrintData(result, input);
     const closePrint = () => setPrintView(null);
-    if (printView === 'customer') {
-      return <LabPrintCustomer data={printData} onBack={closePrint} />;
+    if (printView === 'recommendation') {
+      return (
+        <PrintableRecommendationPage
+          advice={compareAdvice}
+          compareSeed={compareSeed}
+          onBack={closePrint}
+        />
+      );
     }
     if (printView === 'technical') {
       return <LabPrintTechnical data={printData} onBack={closePrint} />;
     }
     if (printView === 'comparison') {
       return <LabPrintComparison data={printData} onBack={closePrint} />;
-    }
-    if (printView === 'full') {
-      const allSections = buildOutputHubSections(result, input);
-      const fullSections = filterSections(allSections, 'full');
-      return <LabPrintFull sections={fullSections} onBack={closePrint} />;
     }
   }
 
@@ -403,43 +422,39 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
         </div>
       </div>
 
-      {/* ── Print actions ─────────────────────────────────────────────── */}
+      {/* ── Export actions ────────────────────────────────────────────── */}
+      {/* Primary: Print Recommendation — the canonical customer-facing output.  */}
+      {/* Secondary: Technical Comparison and Engineering Detail.               */}
       <div className="live-hub__print-actions">
-        <div className="live-hub__print-actions-label">🖨 Print report</div>
+        <div className="live-hub__print-actions-label">🖨 Print &amp; Export</div>
+        <div className="live-hub__print-actions-buttons">
+          {/* Primary export — canonical recommendation print */}
+          <button
+            className="live-hub__print-btn live-hub__print-btn--primary"
+            onClick={() => setPrintView('recommendation')}
+            aria-label="Print Atlas recommendation"
+          >
+            🎯 Print Recommendation
+          </button>
+        </div>
+        <div className="live-hub__print-actions-secondary-label">Technical exports</div>
         <div className="live-hub__print-actions-buttons">
           <button
-            className="live-hub__print-btn"
-            onClick={() => setPrintView('customer')}
-            aria-label="Print customer summary"
-          >
-            Customer Summary
-          </button>
-          <button
-            className="live-hub__print-btn"
+            className="live-hub__print-btn live-hub__print-btn--secondary"
             onClick={() => setPrintView('technical')}
-            aria-label="Print technical specification"
+            aria-label="Print engineering detail"
           >
-            Technical Spec
+            Engineering Detail
           </button>
           {hasComparisonData && (
             <button
-              className="live-hub__print-btn"
+              className="live-hub__print-btn live-hub__print-btn--secondary"
               onClick={() => setPrintView('comparison')}
-              aria-label="Print comparison sheet"
+              aria-label="Print technical comparison"
             >
-              Comparison Sheet
+              Technical Comparison
             </button>
           )}
-          <button
-            className="live-hub__print-btn live-hub__print-btn--full"
-            onClick={() => setPrintView('full')}
-            aria-label="Print full output report"
-          >
-            Full Output Report
-          </button>
-        </div>
-        <div className="live-hub__print-actions-hint">
-          Customer report: 3 pages — Recommendation, Visual Evidence, System Design
         </div>
       </div>
     </div>

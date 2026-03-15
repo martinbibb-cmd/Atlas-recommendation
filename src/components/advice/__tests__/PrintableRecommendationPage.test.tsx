@@ -479,7 +479,7 @@ describe('DecisionSynthesisPage — print entry point', () => {
     // Click back
     fireEvent.click(screen.getByRole('button', { name: /back to advice page/i }));
     // Should be back on advice page
-    expect(screen.getByRole('heading', { name: /decision advice/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /advice/i })).toBeTruthy();
   });
 });
 

@@ -223,36 +223,26 @@ export default function LabShell({ onHome, engineInput }: Props) {
       {/* ── Confidence + assumptions strip ─────────────────────────────────── */}
       <LabConfidenceStrip data={PLACEHOLDER_CONFIDENCE_STRIP} />
 
-      {/* PR 1 — Export buttons (tour target) */}
-      {/* ── Print views ────────────────────────────────────────────────────── */}
-      <div id="export-buttons" data-tour="export-actions" className="lab-print-nav" aria-label="Print views">
-        <span className="lab-print-nav__label">Print / export:</span>
-        <a
-          className="lab-print-nav__link"
-          href="?print=customer"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Open customer summary print view"
-        >
-          Customer Summary
-        </a>
+      {/* ── Print views (demo data) ────────────────────────────────────────── */}
+      <div id="export-buttons" data-tour="export-actions" className="lab-print-nav" aria-label="Demo print views">
+        <span className="lab-print-nav__label">Demo export:</span>
         <a
           className="lab-print-nav__link"
           href="?print=technical"
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="Open technical specification print view"
+          aria-label="Open engineering detail demo print view"
         >
-          Tech Spec
+          Engineering Detail
         </a>
         <a
           className="lab-print-nav__link"
           href="?print=comparison"
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="Open comparison sheet print view"
+          aria-label="Open technical comparison demo print view"
         >
-          Comparison
+          Technical Comparison
         </a>
       </div>
 
