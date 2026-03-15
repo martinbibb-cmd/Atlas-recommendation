@@ -284,6 +284,23 @@ describe('buildReportSections — full output', () => {
 
 // ─── New section builders (options-dependent) ─────────────────────────────────
 
+/**
+ * Minimal "combi" option used in tests that need an option without trade-off
+ * data (no likelyUpgrades, no sensitivities, not a stored system type).
+ */
+const MINIMAL_COMBI_OPTION = {
+  id: 'combi' as const,
+  label: 'Gas combi',
+  status: 'viable' as const,
+  headline: 'Combi boiler',
+  why: ['Low occupancy'],
+  requirements: [] as string[],
+  heat: { status: 'ok' as const, headline: 'Good', bullets: [] as string[] },
+  dhw: { status: 'ok' as const, headline: 'Adequate', bullets: [] as string[] },
+  engineering: { status: 'ok' as const, headline: 'Minimal works', bullets: [] as string[] },
+  typedRequirements: { mustHave: [] as string[], likelyUpgrades: [] as string[], niceToHave: [] as string[] },
+};
+
 /** Output with full option card data, sensitivities, and plans. */
 const OUTPUT_WITH_OPTIONS: EngineOutputV1 = {
   ...FULL_OUTPUT,
@@ -418,21 +435,7 @@ describe('buildReportSections — future_path section', () => {
   it('omits future_path when options has no sensitivities and plans is absent', () => {
     const output: EngineOutputV1 = {
       ...FULL_OUTPUT,
-      options: [
-        {
-          id: 'combi',
-          label: 'Gas combi',
-          status: 'viable',
-          headline: 'Combi boiler',
-          why: ['Low occupancy'],
-          requirements: [],
-          heat: { status: 'ok', headline: 'Good', bullets: [] },
-          dhw: { status: 'ok', headline: 'Adequate', bullets: [] },
-          engineering: { status: 'ok', headline: 'Minimal works', bullets: [] },
-          typedRequirements: { mustHave: [], likelyUpgrades: [], niceToHave: [] },
-          // no sensitivities
-        },
-      ],
+      options: [MINIMAL_COMBI_OPTION],
       // no plans
     };
     const sections = buildReportSections(output);
@@ -487,20 +490,7 @@ describe('buildReportSections — stored_hot_water section', () => {
   it('omits stored_hot_water when recommended option is a combi (on-demand)', () => {
     const output: EngineOutputV1 = {
       ...FULL_OUTPUT,
-      options: [
-        {
-          id: 'combi',
-          label: 'Gas combi',
-          status: 'viable',
-          headline: 'On-demand DHW',
-          why: ['Compact'],
-          requirements: [],
-          heat: { status: 'ok', headline: 'Good', bullets: [] },
-          dhw: { status: 'ok', headline: 'On-demand hot water', bullets: ['Requires 0.4 bar min'] },
-          engineering: { status: 'ok', headline: 'Minor', bullets: [] },
-          typedRequirements: { mustHave: [], likelyUpgrades: [], niceToHave: [] },
-        },
-      ],
+      options: [{ ...MINIMAL_COMBI_OPTION, dhw: { status: 'ok', headline: 'On-demand hot water', bullets: ['Requires 0.4 bar min'] } }],
     };
     const sections = buildReportSections(output);
     expect(sections.some(s => s.id === 'stored_hot_water')).toBe(false);
@@ -554,20 +544,7 @@ describe('buildReportSections — engineering_notes section', () => {
   it('omits engineering_notes when recommended option has no mustHave or niceToHave', () => {
     const output: EngineOutputV1 = {
       ...FULL_OUTPUT,
-      options: [
-        {
-          id: 'combi',
-          label: 'Gas combi',
-          status: 'viable',
-          headline: 'Combi boiler',
-          why: ['Low occupancy'],
-          requirements: [],
-          heat: { status: 'ok', headline: 'Good', bullets: [] },
-          dhw: { status: 'ok', headline: 'Adequate', bullets: [] },
-          engineering: { status: 'ok', headline: 'Minimal works', bullets: [] },
-          typedRequirements: { mustHave: [], likelyUpgrades: [], niceToHave: [] },
-        },
-      ],
+      options: [MINIMAL_COMBI_OPTION],
     };
     const sections = buildReportSections(output);
     expect(sections.some(s => s.id === 'engineering_notes')).toBe(false);

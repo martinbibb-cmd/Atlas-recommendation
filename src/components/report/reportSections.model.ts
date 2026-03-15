@@ -520,6 +520,19 @@ function buildRisksEnablersSection(output: EngineOutputV1): RisksEnablersSection
 /** Maximum active trace points to include in the appendix. */
 const MAX_TRACE_POINTS = 48;
 
+/**
+ * Determine the performance kind for a timeline point.
+ * Returns 'eta' when boiler efficiency is recorded, 'cop' for heat pumps, or
+ * null when neither is present.
+ */
+function resolvePerformanceKind(
+  p: { efficiency?: number; cop?: number },
+): 'eta' | 'cop' | null {
+  if (p.efficiency != null) return 'eta';
+  if (p.cop != null) return 'cop';
+  return null;
+}
+
 function buildPhysicsTraceSection(output: EngineOutputV1): PhysicsTraceSection | null {
   if (!output.behaviourTimeline) return null;
 
@@ -533,11 +546,7 @@ function buildPhysicsTraceSection(output: EngineOutputV1): PhysicsTraceSection |
       dhwDemandKw: p.dhwDemandKw ?? 0,
       applianceOutKw: p.applianceOutKw ?? 0,
       performance: p.efficiency ?? p.cop ?? null,
-      performanceKind: p.efficiency != null
-        ? ('eta' as const)
-        : p.cop != null
-          ? ('cop' as const)
-          : null,
+      performanceKind: resolvePerformanceKind(p),
       mode: p.mode ?? null,
     }));
 
