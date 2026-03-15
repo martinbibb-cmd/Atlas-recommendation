@@ -96,6 +96,8 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
         <DecisionSynthesisPage
           engineOutput={engineOutput}
           onBack={() => setShowAdvice(false)}
+          compareSeed={compareSeed ?? undefined}
+          surveyData={isSurveyBacked ? (surveyData as FullSurveyModelV1) : undefined}
         />
       );
     }
