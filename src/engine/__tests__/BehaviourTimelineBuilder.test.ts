@@ -346,4 +346,62 @@ describe('buildBehaviourTimelineV1 — combi priority lockout', () => {
     }
   });
 
+  // ── PR4: demandTimingOverrides drive DHW peak hours ──────────────────────────
+
+  it('uses hardcoded 07:00 and 19:00 DHW peaks when no demandPreset is set', () => {
+    const input = { ...BASE_INPUT, occupancyCount: 2 };
+    const result = runEngine(input);
+    const timeline = buildBehaviourTimelineV1(result, input);
+    // Morning peak: hours 07 and 08 (indices 28–35)
+    const morningPeakPoints = timeline.points.filter(p => {
+      const h = Math.floor(p.tHour);
+      return h === 7 || h === 8;
+    });
+    expect(morningPeakPoints.some(p => p.dhwDemandKw > 0)).toBe(true);
+    // Confirm no DHW outside expected windows (rough check: after 22:00 to before 06:00)
+    const offPeakPoints = timeline.points.filter(p => {
+      const h = Math.floor(p.tHour);
+      return h >= 22 || h <= 5;
+    });
+    expect(offPeakPoints.every(p => p.dhwDemandKw === 0)).toBe(true);
+  });
+
+  it('shifts DHW morning peak when firstShowerHour is overridden via demandPreset', () => {
+    // shift_worker preset: firstShowerHour = 10, eveningPeakHour = 22
+    const input = {
+      ...BASE_INPUT,
+      occupancyCount: 2,
+      occupancySignature: 'shift_worker' as const,
+      demandPreset: 'shift_worker' as const,
+    };
+    const result = runEngine(input);
+    const timeline = buildBehaviourTimelineV1(result, input);
+    // DHW should appear around 10:00 (not 07:00)
+    const hour10Points = timeline.points.filter(p => Math.floor(p.tHour) === 10);
+    expect(hour10Points.some(p => p.dhwDemandKw > 0)).toBe(true);
+    // And NOT at 07:00 (hardcoded default)
+    const hour7Points = timeline.points.filter(p => Math.floor(p.tHour) === 7);
+    expect(hour7Points.every(p => p.dhwDemandKw === 0)).toBe(true);
+  });
+
+  it('shifts DHW evening peak when eveningPeakHour is overridden via demandTimingOverrides', () => {
+    // shower_heavy preset (professional signature) with override to eveningPeakHour 21
+    // Uses professional signature → boiler/combi path, so DHW draw peaks are visible.
+    const input = {
+      ...BASE_INPUT,
+      occupancyCount: 3,
+      occupancySignature: 'professional' as const,
+      demandPreset: 'shower_heavy' as const,    // defaults: firstShowerHour=6, eveningPeakHour=18
+      demandTimingOverrides: { eveningPeakHour: 21 },
+    };
+    const result = runEngine(input);
+    const timeline = buildBehaviourTimelineV1(result, input);
+    // Evening peak should be at 21:00 (and 22:00 second hour)
+    const hour21Points = timeline.points.filter(p => Math.floor(p.tHour) === 21);
+    expect(hour21Points.some(p => p.dhwDemandKw > 0)).toBe(true);
+    // And NOT at 18:00 (preset default for shower_heavy)
+    const hour18Points = timeline.points.filter(p => Math.floor(p.tHour) === 18);
+    expect(hour18Points.every(p => p.dhwDemandKw === 0)).toBe(true);
+  });
+
 });

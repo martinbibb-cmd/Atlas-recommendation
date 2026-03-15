@@ -18,7 +18,7 @@
 //   3. clean   — no derogatory indicators found.
 
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1'
-import type { SystemInputs, CylinderType, PrimaryPipeSize, ControlStrategy } from './systemInputsTypes'
+import type { SystemInputs, CylinderType, PrimaryPipeSize, ControlStrategy, OccupancyProfile } from './systemInputsTypes'
 import type { SimulatorSystemChoice } from './useSystemDiagramPlayback'
 import { CYLINDER_SIZES_BY_TYPE } from './systemInputsTypes'
 
@@ -60,6 +60,47 @@ function nearestCylinderSize(litres: number, type: CylinderType): number {
     Math.abs(s - litres) < Math.abs(best - litres) ? s : best,
     sizes[0],
   )
+}
+
+/**
+ * Demand presets that map to the 'family' occupancy profile in the simulator.
+ * These are household archetypes with multiple occupants, school-age children,
+ * or complex simultaneous-demand patterns that differ from the generic
+ * 'steady_home' (retired couple, home worker) archetype.
+ *
+ * Stored as a Set<string> so that the `.has()` check works without a type cast
+ * even when the caller passes an unvalidated string.
+ */
+const FAMILY_DEMAND_PRESETS = new Set<string>([
+  'family_young_children',
+  'family_teenagers',
+  'multigenerational',
+  'bath_heavy',
+])
+
+/**
+ * Derive the simulator OccupancyProfile from survey occupancy fields.
+ *
+ * Resolution order:
+ *   1. If demandPreset maps to a family archetype → 'family'
+ *   2. If occupancySignature is 'shift_worker' → 'shift'
+ *   3. If occupancySignature is 'professional' → 'professional'
+ *   4. Default → 'steady_home'
+ *
+ * Returns undefined when neither field is set so that DEFAULT_SYSTEM_INPUTS
+ * preserves its own default.
+ */
+function deriveOccupancyProfile(
+  occupancySignature: string | undefined,
+  demandPreset: string | undefined,
+): OccupancyProfile | undefined {
+  if (demandPreset != null && FAMILY_DEMAND_PRESETS.has(demandPreset)) {
+    return 'family'
+  }
+  if (occupancySignature === 'shift_worker') return 'shift'
+  if (occupancySignature === 'professional') return 'professional'
+  if (occupancySignature === 'steady_home') return 'steady_home'
+  return undefined
 }
 
 // ─── Adapter ─────────────────────────────────────────────────────────────────
@@ -200,6 +241,18 @@ export function adaptFullSurveyToSimulatorInputs(
     case 'heat_pump':   controlStrategy = 'heat_pump';  break
   }
   systemInputs.controlStrategy = controlStrategy
+
+  // ── Occupancy profile ────────────────────────────────────────────────────────
+  // Map the survey's occupancySignature / demandPreset to the simulator's
+  // OccupancyProfile so that the auto-demo and daily efficiency summary reflect
+  // the household archetype selected during the survey.
+  const occupancyProfile = deriveOccupancyProfile(
+    survey.occupancySignature,
+    survey.demandPreset,
+  )
+  if (occupancyProfile != null) {
+    systemInputs.occupancyProfile = occupancyProfile
+  }
 
   return { systemChoice, systemInputs }
 }
