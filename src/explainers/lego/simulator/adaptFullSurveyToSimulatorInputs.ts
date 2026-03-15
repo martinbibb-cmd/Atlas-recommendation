@@ -18,7 +18,7 @@
 //   3. clean   — no derogatory indicators found.
 
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1'
-import type { SystemInputs, CylinderType, PrimaryPipeSize, ControlStrategy, OccupancyProfile } from './systemInputsTypes'
+import type { SystemInputs, CylinderType, PrimaryPipeSize, ControlStrategy, OccupancyProfile, DemandPresetId } from './systemInputsTypes'
 import type { SimulatorSystemChoice } from './useSystemDiagramPlayback'
 import { CYLINDER_SIZES_BY_TYPE } from './systemInputsTypes'
 
@@ -274,6 +274,14 @@ export function adaptFullSurveyToSimulatorInputs(
   )
   if (occupancyProfile != null) {
     systemInputs.occupancyProfile = occupancyProfile
+  }
+
+  // ── Demand preset passthrough ─────────────────────────────────────────────
+  // Pass the richer demand preset directly to the simulator so that
+  // useSystemDiagramPlayback can select the per-preset occupancy table instead
+  // of collapsing 11 survey profiles down to 4 generic archetypes.
+  if (survey.demandPreset != null) {
+    systemInputs.demandPreset = survey.demandPreset as DemandPresetId
   }
 
   return { systemChoice, systemInputs }

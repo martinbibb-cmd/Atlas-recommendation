@@ -5,6 +5,8 @@
  * react-refresh rule (only export components from .tsx files).
  */
 
+import type { DemandPresetId } from '../../../engine/schema/OccupancyPreset'
+
 // ─── Public types ─────────────────────────────────────────────────────────────
 
 export type PrimaryPipeSize = '15mm' | '22mm' | '28mm'
@@ -82,7 +84,22 @@ export const CYLINDER_SIZES_BY_TYPE: Record<CylinderType, readonly number[]> = {
  */
 export const MIXERGY_USABLE_RESERVE_FACTOR = 1.2
 
+// Re-export for convenience — consumers can import DemandPresetId from here
+// without needing to import directly from the engine schema.
+export type { DemandPresetId }
+
 export type SystemInputs = {
+  /**
+   * Richer lifestyle preset from the Full Survey.
+   *
+   * When set, this drives the per-preset occupancy table in
+   * useSystemDiagramPlayback and provides a specific demand-style label in the
+   * simulator UI — replacing the blunt 4-profile OccupancyProfile mapping.
+   *
+   * Falls back to `occupancyProfile` when absent (e.g. in the Quick-choice
+   * path or when no survey has been completed).
+   */
+  demandPreset?: DemandPresetId
   /** Household occupancy profile — drives auto-demo demand windows and daily efficiency summary. */
   occupancyProfile: OccupancyProfile
   /** Mains supply pressure in bar (1.5–6.0). */
