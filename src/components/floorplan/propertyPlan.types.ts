@@ -151,6 +151,8 @@ export interface PlacementNode {
   roomId?: string;
   anchor: NodeAnchor;
   orientationDeg?: number;
+  /** Rated heat output of this emitter at design conditions (kW). Only applicable to radiator_loop / ufh_loop nodes. */
+  emitterOutputKw?: number;
   metadata: Record<string, unknown>;
 }
 

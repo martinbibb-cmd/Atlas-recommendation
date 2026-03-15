@@ -28,11 +28,25 @@ export interface EmitterAdequacyHint {
   /** Suggested minimum emitter output to meet room fabric heat loss (kW). */
   suggestedRadiatorKw: number;
   /**
-   * Adequacy assessment based on room heat demand alone.
-   * 'review_recommended' when the suggested output is high enough to warrant
-   * checking against installed emitter capacity.
+   * Actual installed emitter output for the room (kW), summed from placed
+   * emitter nodes that carry an emitterOutputKw value.
+   * Undefined when no such nodes are present.
    */
-  status: 'adequate' | 'review_recommended';
+  roomEmitterOutputKw?: number;
+  /**
+   * Adequacy assessment for this room.
+   *
+   * When installed emitter output data is available (roomEmitterOutputKw is set):
+   *   'undersized' — coverage ratio < 1 (emitters cannot meet room heat demand).
+   *   'oversized'  — coverage ratio > 1.8 (emitters far exceed room heat demand).
+   *   'adequate'   — coverage ratio 1–1.8.
+   *
+   * When no installed output data is available, falls back to the suggested
+   * output heuristic:
+   *   'review_recommended' — suggestedRadiatorKw ≥ 2.5 kW.
+   *   'adequate'           — suggestedRadiatorKw < 2.5 kW.
+   */
+  status: 'adequate' | 'review_recommended' | 'undersized' | 'oversized';
 }
 
 /** Aggregated siting constraint summary for one object type. */
@@ -76,13 +90,25 @@ export interface AtlasFloorplanInputs {
   isReliable: boolean;
 }
 
-// ─── Internal threshold ───────────────────────────────────────────────────────
+// ─── Internal thresholds ──────────────────────────────────────────────────────
 
 /**
  * Suggested radiator output (kW) above which a room is flagged for review.
  * Rooms below this threshold are considered "adequate" for planning purposes.
  */
 const EMITTER_REVIEW_THRESHOLD_KW = 2.5;
+
+/**
+ * Coverage ratio below which the installed emitter output is considered
+ * undersized relative to the room heat demand.
+ */
+const COVERAGE_UNDERSIZED_THRESHOLD = 1.0;
+
+/**
+ * Coverage ratio above which the installed emitter output is considered
+ * oversized relative to the room heat demand.
+ */
+const COVERAGE_OVERSIZED_THRESHOLD = 1.8;
 
 // ─── Object types to check ────────────────────────────────────────────────────
 
@@ -116,15 +142,41 @@ export function adaptFloorplanToAtlasInputs(
 
   // ── Emitter adequacy hints ───────────────────────────────────────────────
   const emitterAdequacyHints: EmitterAdequacyHint[] = derived.emitterSizing.map(
-    (item) => ({
-      roomId: item.roomId,
-      roomName: item.roomName,
-      suggestedRadiatorKw: item.suggestedRadiatorKw,
-      status:
-        item.suggestedRadiatorKw >= EMITTER_REVIEW_THRESHOLD_KW
-          ? 'review_recommended'
-          : 'adequate',
-    }),
+    (item) => {
+      const heatLossKw =
+        derived.roomHeatLossKw.find((r) => r.roomId === item.roomId)?.heatLossKw ?? 0;
+
+      // When installed emitter output is known, use the coverage ratio.
+      if (item.roomEmitterOutputKw !== null && heatLossKw > 0) {
+        const coverageRatio = item.roomEmitterOutputKw / heatLossKw;
+        let status: EmitterAdequacyHint['status'];
+        if (coverageRatio < COVERAGE_UNDERSIZED_THRESHOLD) {
+          status = 'undersized';
+        } else if (coverageRatio > COVERAGE_OVERSIZED_THRESHOLD) {
+          status = 'oversized';
+        } else {
+          status = 'adequate';
+        }
+        return {
+          roomId: item.roomId,
+          roomName: item.roomName,
+          suggestedRadiatorKw: item.suggestedRadiatorKw,
+          roomEmitterOutputKw: item.roomEmitterOutputKw,
+          status,
+        };
+      }
+
+      // Fallback: no installed output data — use suggestedRadiatorKw heuristic.
+      return {
+        roomId: item.roomId,
+        roomName: item.roomName,
+        suggestedRadiatorKw: item.suggestedRadiatorKw,
+        status:
+          item.suggestedRadiatorKw >= EMITTER_REVIEW_THRESHOLD_KW
+            ? 'review_recommended'
+            : 'adequate',
+      };
+    },
   );
 
   // ── Siting constraint hints ──────────────────────────────────────────────

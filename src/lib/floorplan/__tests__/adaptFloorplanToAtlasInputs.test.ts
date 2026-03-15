@@ -66,8 +66,8 @@ describe('adaptFloorplanToAtlasInputs — emitter adequacy hints', () => {
   it('marks rooms with suggestedRadiatorKw >= 2.5 as review_recommended', () => {
     const derived = makeDerived({
       emitterSizing: [
-        { roomId: 'r1', roomName: 'Lounge', suggestedRadiatorKw: 3.0 },
-        { roomId: 'r2', roomName: 'Hallway', suggestedRadiatorKw: 1.2 },
+        { roomId: 'r1', roomName: 'Lounge', suggestedRadiatorKw: 3.0, roomEmitterOutputKw: null },
+        { roomId: 'r2', roomName: 'Hallway', suggestedRadiatorKw: 1.2, roomEmitterOutputKw: null },
       ],
     });
     const result = adaptFloorplanToAtlasInputs(derived);
@@ -79,7 +79,7 @@ describe('adaptFloorplanToAtlasInputs — emitter adequacy hints', () => {
 
   it('marks room at exactly 2.5 kW as review_recommended (boundary)', () => {
     const derived = makeDerived({
-      emitterSizing: [{ roomId: 'r1', roomName: 'Dining', suggestedRadiatorKw: 2.5 }],
+      emitterSizing: [{ roomId: 'r1', roomName: 'Dining', suggestedRadiatorKw: 2.5, roomEmitterOutputKw: null }],
     });
     const result = adaptFloorplanToAtlasInputs(derived);
     expect(result.emitterAdequacyHints[0].status).toBe('review_recommended');
@@ -88,6 +88,87 @@ describe('adaptFloorplanToAtlasInputs — emitter adequacy hints', () => {
   it('returns empty emitterAdequacyHints when no emitter sizing data', () => {
     const result = adaptFloorplanToAtlasInputs(makeDerived());
     expect(result.emitterAdequacyHints).toHaveLength(0);
+  });
+
+  // ── Coverage-ratio tests ─────────────────────────────────────────────────
+
+  it('marks room as undersized when coverage ratio < 1', () => {
+    const derived = makeDerived({
+      roomHeatLossKw: [{ roomId: 'r1', roomName: 'Lounge', heatLossKw: 2.0 }],
+      emitterSizing: [
+        // roomEmitterOutputKw = 1.8, heatLoss = 2.0 → ratio = 0.9 < 1
+        { roomId: 'r1', roomName: 'Lounge', suggestedRadiatorKw: 2.3, roomEmitterOutputKw: 1.8 },
+      ],
+    });
+    const result = adaptFloorplanToAtlasInputs(derived);
+    const lounge = result.emitterAdequacyHints.find((h) => h.roomId === 'r1');
+    expect(lounge?.status).toBe('undersized');
+    expect(lounge?.roomEmitterOutputKw).toBe(1.8);
+  });
+
+  it('marks room as oversized when coverage ratio > 1.8', () => {
+    const derived = makeDerived({
+      roomHeatLossKw: [{ roomId: 'r1', roomName: 'Lounge', heatLossKw: 2.0 }],
+      emitterSizing: [
+        // roomEmitterOutputKw = 4.0, heatLoss = 2.0 → ratio = 2.0 > 1.8
+        { roomId: 'r1', roomName: 'Lounge', suggestedRadiatorKw: 2.3, roomEmitterOutputKw: 4.0 },
+      ],
+    });
+    const result = adaptFloorplanToAtlasInputs(derived);
+    const lounge = result.emitterAdequacyHints.find((h) => h.roomId === 'r1');
+    expect(lounge?.status).toBe('oversized');
+    expect(lounge?.roomEmitterOutputKw).toBe(4.0);
+  });
+
+  it('marks room as adequate when coverage ratio is between 1 and 1.8', () => {
+    const derived = makeDerived({
+      roomHeatLossKw: [{ roomId: 'r1', roomName: 'Lounge', heatLossKw: 2.0 }],
+      emitterSizing: [
+        // roomEmitterOutputKw = 3.0, heatLoss = 2.0 → ratio = 1.5 (within 1–1.8)
+        { roomId: 'r1', roomName: 'Lounge', suggestedRadiatorKw: 2.3, roomEmitterOutputKw: 3.0 },
+      ],
+    });
+    const result = adaptFloorplanToAtlasInputs(derived);
+    const lounge = result.emitterAdequacyHints.find((h) => h.roomId === 'r1');
+    expect(lounge?.status).toBe('adequate');
+    expect(lounge?.roomEmitterOutputKw).toBe(3.0);
+  });
+
+  it('marks room as undersized at exactly coverage ratio = 1 boundary (not undersized)', () => {
+    const derived = makeDerived({
+      roomHeatLossKw: [{ roomId: 'r1', roomName: 'Lounge', heatLossKw: 2.0 }],
+      emitterSizing: [
+        // ratio exactly 1.0 → adequate (not strictly < 1)
+        { roomId: 'r1', roomName: 'Lounge', suggestedRadiatorKw: 2.3, roomEmitterOutputKw: 2.0 },
+      ],
+    });
+    const result = adaptFloorplanToAtlasInputs(derived);
+    expect(result.emitterAdequacyHints[0].status).toBe('adequate');
+  });
+
+  it('marks room as oversized at exactly coverage ratio = 1.8 boundary (not oversized)', () => {
+    const derived = makeDerived({
+      roomHeatLossKw: [{ roomId: 'r1', roomName: 'Lounge', heatLossKw: 2.0 }],
+      emitterSizing: [
+        // ratio exactly 1.8 → adequate (not strictly > 1.8)
+        { roomId: 'r1', roomName: 'Lounge', suggestedRadiatorKw: 2.3, roomEmitterOutputKw: 3.6 },
+      ],
+    });
+    const result = adaptFloorplanToAtlasInputs(derived);
+    expect(result.emitterAdequacyHints[0].status).toBe('adequate');
+  });
+
+  it('falls back to review_recommended logic when roomEmitterOutputKw is null', () => {
+    const derived = makeDerived({
+      roomHeatLossKw: [{ roomId: 'r1', roomName: 'Lounge', heatLossKw: 3.0 }],
+      emitterSizing: [
+        // No installed data — suggestedRadiatorKw = 3.45 (> 2.5) → review_recommended
+        { roomId: 'r1', roomName: 'Lounge', suggestedRadiatorKw: 3.45, roomEmitterOutputKw: null },
+      ],
+    });
+    const result = adaptFloorplanToAtlasInputs(derived);
+    expect(result.emitterAdequacyHints[0].status).toBe('review_recommended');
+    expect(result.emitterAdequacyHints[0].roomEmitterOutputKw).toBeUndefined();
   });
 });
 
