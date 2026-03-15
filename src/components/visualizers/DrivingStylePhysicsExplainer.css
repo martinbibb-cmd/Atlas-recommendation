@@ -5,8 +5,23 @@
  *
  * BEM prefix: .dspe__ (Driving Style Physics Explainer)
  *
- * This component is fully static — no CSS keyframes, no animation,
- * no transition used to imply movement.  Safe for print and PDF output.
+ * Animation layer
+ * ───────────────
+ * When the root element carries .dspe--animated, each vehicle token plays a
+ * short CSS keyframe animation on mount (3–4 seconds) then settles into the
+ * static diagram.  Path tracks are NEVER animated.
+ *
+ * Animation is suppressed automatically:
+ *   - in print / PDF contexts        (@media print)
+ *   - when reduced-motion is set     (@media prefers-reduced-motion: reduce)
+ *   - when animate=false is passed   (class not added by component)
+ *
+ * Vehicle token classes used for animation targeting:
+ *   .dspe__vehicle-token--combi
+ *   .dspe__vehicle-token--system
+ *   .dspe__vehicle-token--mixergy
+ *   .dspe__vehicle-token--heatpump
+ *   .dspe__vehicle-token--has-warning   (combi only, when warning chip present)
  */
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -263,4 +278,86 @@
 
 .dspe__support-text:last-child {
   margin-bottom: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Vehicle token animation layer
+   ─────────────────────────────────────────────────────────────────────────
+   Only active under .dspe--animated (animate prop = true).
+   Path tracks (.dspe__path-line, .dspe__path-svg) are never animated.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Animation timing tokens — adjust here to tune the whole sequence */
+.dspe--animated {
+  --dspe-anim-combi:    3s;
+  --dspe-anim-system:   3.5s;
+  --dspe-anim-mixergy:  2.8s;
+  --dspe-anim-heatpump: 4s;
+}
+
+/* Smooth glide from a fixed offset into final position.
+   Used by system, mixergy, and heat pump tokens. */
+@keyframes dspe-launch-glide {
+  from { transform: translateY(-50%) translateX(-80px); }
+  to   { transform: translateY(-50%) translateX(0); }
+}
+
+/* Combi: drives forward, briefly reverses (purge), then settles.
+   The reverse represents the cold-water purge at startup. */
+@keyframes dspe-launch-combi {
+  0%   { transform: translateY(-50%) translateX(-80px); }
+  72%  { transform: translateY(-50%) translateX(0); }
+  82%  { transform: translateY(-50%) translateX(-4px); }
+  100% { transform: translateY(-50%) translateX(0); }
+}
+
+/* Combi with warning chip: same purge, then a small jitter representing
+   the power limit reached when two taps open simultaneously. */
+@keyframes dspe-launch-combi-warn {
+  0%   { transform: translateY(-50%) translateX(-80px); }
+  65%  { transform: translateY(-50%) translateX(0); }
+  72%  { transform: translateY(-50%) translateX(-4px) rotate(-2deg); }
+  79%  { transform: translateY(-50%) translateX(3px)  rotate(1deg); }
+  86%  { transform: translateY(-50%) translateX(-2px); }
+  93%  { transform: translateY(-50%) translateX(1px); }
+  100% { transform: translateY(-50%) translateX(0); }
+}
+
+/* Combi: backward-then-forward purge motion, fastest gas system */
+.dspe--animated .dspe__vehicle-token--combi {
+  animation: dspe-launch-combi var(--dspe-anim-combi) ease-out forwards;
+}
+
+/* Combi with two-tap warning: purge + jitter */
+.dspe--animated .dspe__vehicle-token--combi.dspe__vehicle-token--has-warning {
+  animation: dspe-launch-combi-warn var(--dspe-anim-combi) ease-out forwards;
+}
+
+/* System boiler: smooth steady glide */
+.dspe--animated .dspe__vehicle-token--system {
+  animation: dspe-launch-glide var(--dspe-anim-system) ease-out forwards;
+}
+
+/* Mixergy: smooth glide, arrives slightly before system boiler */
+.dspe--animated .dspe__vehicle-token--mixergy {
+  animation: dspe-launch-glide var(--dspe-anim-mixergy) ease-out forwards;
+}
+
+/* Heat pump: slower glide — communicates lower power and slower recovery */
+.dspe--animated .dspe__vehicle-token--heatpump {
+  animation: dspe-launch-glide var(--dspe-anim-heatpump) ease-out forwards;
+}
+
+/* ─── Suppress animation in print and reduced-motion contexts ─────────────── */
+
+@media print {
+  .dspe--animated .dspe__vehicle-token {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dspe--animated .dspe__vehicle-token {
+    animation: none;
+  }
 }

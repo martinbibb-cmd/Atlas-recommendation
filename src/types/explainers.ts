@@ -106,6 +106,19 @@ export interface DrivingStylePhysicsExplainerProps {
    * energy bar + short caption.  Suitable for PDF/report contexts.
    */
   compact?: boolean;
+  /**
+   * Enable the optional CSS animation layer on vehicle tokens.
+   *
+   * Defaults to `true` — tokens animate on mount, then settle into the
+   * static diagram after ~4 seconds.
+   *
+   * Set to `false` for print/PDF contexts where animation is unwanted.
+   * When `false` the component renders exactly as its static version.
+   *
+   * Animation only affects vehicle token position (CSS transform).
+   * It never modifies the static data model or path tracks.
+   */
+  animate?: boolean;
 }
 
 // ─── Builder inputs ───────────────────────────────────────────────────────────
