@@ -9,6 +9,8 @@
 //   - mainsPressureBar mapping (bar alias + legacy field)
 //   - mainsFlowLpm — confirmed readings only
 //   - primaryPipeSize mapping from primaryPipeDiameter
+//   - heatLossKw mapping from heatLossWatts (W → kW, clamped 3–30)
+//   - boilerOutputKw: max(existingBoilerOutput, heatLoss × 1.2), clamped 9–45
 //   - combiPowerKw mapping and clamp
 //   - systemCondition derivation from heatingCondition / dhwCondition
 //   - cylinderType derivation from dhwCondition fields
@@ -254,6 +256,103 @@ describe('adaptFullSurveyToSimulatorInputs — combiPowerKw', () => {
       minimalSurvey({ currentBoilerOutputKw: 0 }),
     )
     expect(systemInputs.combiPowerKw).toBeUndefined()
+  })
+})
+
+// ─── heatLossKw ───────────────────────────────────────────────────────────────
+
+describe('adaptFullSurveyToSimulatorInputs — heatLossKw', () => {
+  it('converts heatLossWatts to kW', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ heatLossWatts: 8000 }),
+    )
+    expect(systemInputs.heatLossKw).toBe(8)
+  })
+
+  it('clamps to minimum 3 kW', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ heatLossWatts: 1000 }),
+    )
+    expect(systemInputs.heatLossKw).toBe(3)
+  })
+
+  it('clamps to maximum 30 kW', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ heatLossWatts: 40000 }),
+    )
+    expect(systemInputs.heatLossKw).toBe(30)
+  })
+
+  it('does not populate heatLossKw when heatLossWatts is zero', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ heatLossWatts: 0 }),
+    )
+    expect(systemInputs.heatLossKw).toBeUndefined()
+  })
+
+  it('does not populate heatLossKw when heatLossWatts is absent', () => {
+    const survey = minimalSurvey()
+    // Remove the heatLossWatts field that minimalSurvey adds by default
+    const { heatLossWatts: _, ...surveyWithout } = survey
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(surveyWithout as any)
+    expect(systemInputs.heatLossKw).toBeUndefined()
+  })
+})
+
+// ─── boilerOutputKw ───────────────────────────────────────────────────────────
+
+describe('adaptFullSurveyToSimulatorInputs — boilerOutputKw', () => {
+  it('uses existingBoilerOutput when it exceeds heatLoss × 1.2', () => {
+    // heatLoss = 14 kW → minimum = 14 × 1.2 = 16.8 kW; existing = 24 kW → use 24
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ heatLossWatts: 14000, currentBoilerOutputKw: 24 }),
+    )
+    expect(systemInputs.boilerOutputKw).toBe(24)
+  })
+
+  it('uses heatLoss × 1.2 when existing boiler is smaller', () => {
+    // heatLoss = 14 kW → minimum = 16.8 kW; existing = 12 kW → use 16.8
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ heatLossWatts: 14000, currentBoilerOutputKw: 12 }),
+    )
+    expect(systemInputs.boilerOutputKw).toBeCloseTo(16.8, 5)
+  })
+
+  it('derives boilerOutputKw from heatLossWatts alone when no existing boiler', () => {
+    // heatLoss = 10 kW → boilerOutputKw = 10 × 1.2 = 12
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ heatLossWatts: 10000 }),
+    )
+    expect(systemInputs.boilerOutputKw).toBeCloseTo(12, 5)
+  })
+
+  it('uses existingBoilerOutput alone when heatLossWatts is absent', () => {
+    const survey = minimalSurvey({ currentBoilerOutputKw: 28 })
+    const { heatLossWatts: _, ...surveyWithout } = survey
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(surveyWithout as any)
+    expect(systemInputs.boilerOutputKw).toBe(28)
+  })
+
+  it('clamps boilerOutputKw to minimum 9 kW', () => {
+    // heatLoss = 3 kW → minimum = 3.6 kW; clamp to 9
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ heatLossWatts: 3000 }),
+    )
+    expect(systemInputs.boilerOutputKw).toBe(9)
+  })
+
+  it('clamps boilerOutputKw to maximum 45 kW', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ heatLossWatts: 40000, currentBoilerOutputKw: 50 }),
+    )
+    expect(systemInputs.boilerOutputKw).toBe(45)
+  })
+
+  it('does not populate boilerOutputKw when both heatLossWatts and currentBoilerOutputKw are absent', () => {
+    const survey = minimalSurvey()
+    const { heatLossWatts: _h, ...surveyWithout } = survey
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(surveyWithout as any)
+    expect(systemInputs.boilerOutputKw).toBeUndefined()
   })
 })
 

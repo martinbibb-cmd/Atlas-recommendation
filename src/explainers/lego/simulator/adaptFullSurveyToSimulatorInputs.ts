@@ -145,9 +145,31 @@ export function adaptFullSurveyToSimulatorInputs(
     }
   }
 
+  // ── Heat loss ───────────────────────────────────────────────────────────────
+  // Convert from engine field (Watts) to simulator field (kW).
+  let derivedHeatLossKw: number | undefined
+  if (survey.heatLossWatts != null && survey.heatLossWatts > 0) {
+    derivedHeatLossKw = clamp(survey.heatLossWatts / 1000, 3, 30)
+    systemInputs.heatLossKw = derivedHeatLossKw
+  }
+
+  // ── Boiler output ───────────────────────────────────────────────────────────
+  // Policy: boiler output = max(existingBoilerOutput, heatLoss × 1.2)
+  // This ensures the simulator never shows a boiler smaller than the minimum
+  // needed to meet the design heat loss, while respecting the surveyed boiler
+  // size when it is larger (e.g. the homeowner has already oversized).
+  const existingKw = survey.currentBoilerOutputKw != null && survey.currentBoilerOutputKw > 0
+    ? survey.currentBoilerOutputKw
+    : undefined
+  const minimumKwFromHeatLoss = derivedHeatLossKw != null ? derivedHeatLossKw * 1.2 : undefined
+  if (existingKw != null || minimumKwFromHeatLoss != null) {
+    const rawBoilerKw = Math.max(existingKw ?? 0, minimumKwFromHeatLoss ?? 0)
+    systemInputs.boilerOutputKw = clamp(rawBoilerKw, 9, 45)
+  }
+
   // ── Combi boiler rated output ────────────────────────────────────────────────
-  if (survey.currentBoilerOutputKw != null && survey.currentBoilerOutputKw > 0) {
-    systemInputs.combiPowerKw = clamp(survey.currentBoilerOutputKw, 18, 42)
+  if (existingKw != null) {
+    systemInputs.combiPowerKw = clamp(existingKw, 18, 42)
   }
 
   // ── System condition ────────────────────────────────────────────────────────
