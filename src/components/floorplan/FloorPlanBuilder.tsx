@@ -35,6 +35,7 @@ import type {
 } from './propertyPlan.types';
 import { ROOM_TYPE_LABELS } from './propertyPlan.types';
 import { canPlaceInProfessionalPlan, createManualRoom, deriveFloorplanOutputs } from './floorplanDerivations';
+import type { DerivedFloorplanOutput } from './floorplanDerivations';
 import { badgeForObject, validatePropertyPlan } from './propertyValidation';
 import type { ValidationResult } from './propertyValidation';
 import './floorplan.css';
@@ -274,6 +275,8 @@ export interface FloorPlanOutput {
   plan: PropertyPlan;
   /** Build graph of the currently active floor for simulation. */
   activeFloorGraph: BuildGraph;
+  /** Derived room metrics and heating-planning outputs from the canvas geometry. */
+  derivedOutputs: DerivedFloorplanOutput;
 }
 
 interface Props {
@@ -423,9 +426,10 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
           nextPlan.placementNodes.filter((n) => n.floorId === activeFloorId),
           buildEdgesByFloor[activeFloorId] ?? [],
         ),
+        derivedOutputs: deriveFloorplanOutputs(nextPlan, defaultRoomHeightM),
       });
     },
-    [onChange, activeFloorId, buildEdgesByFloor],
+    [onChange, activeFloorId, buildEdgesByFloor, defaultRoomHeightM],
   );
 
   // ── Floor mutations ──────────────────────────────────────────────────────
@@ -1503,19 +1507,41 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       <section className="fpb__simulation">
         <div className="fpb__simulation-header">
           <h3>Professional outputs</h3>
-          <p>Fast estimates from current room/component layout for heat loss, emitter sizing, routing, and feasibility.</p>
+          <p>Fabric heat-loss estimates, emitter sizing, route lengths, and siting checks derived from the current room layout.</p>
         </div>
         <div className="fpb__issue-list">
-          <div className="fpb__issue fpb__issue--info">Total estimated pipe quantity: {derivedOutputs.totalPipeLengthM.toFixed(1)} m</div>
-          <div className="fpb__issue fpb__issue--info">Feasibility — heat source: {derivedOutputs.feasibilityChecks.hasHeatSource ? 'yes' : 'no'}, emitters: {derivedOutputs.feasibilityChecks.hasEmitters ? 'yes' : 'no'}, outdoor heat pump: {derivedOutputs.feasibilityChecks.hasOutdoorHeatPump ? 'yes' : 'n/a or missing'}</div>
-          {derivedOutputs.roomHeatLossKw.slice(0, 4).map((room) => {
-            const emitter = derivedOutputs.emitterSizing.find((e) => e.roomId === room.roomId);
+          {/* ── Room metrics ── */}
+          {derivedOutputs.roomMetrics.map((m) => {
+            const loss   = derivedOutputs.roomHeatLossKw.find((r) => r.roomId === m.roomId);
+            const emitter = derivedOutputs.emitterSizing.find((e) => e.roomId === m.roomId);
             return (
-              <div key={room.roomId} className="fpb__issue fpb__issue--info">
-                {room.roomName}: heat loss {room.heatLossKw.toFixed(2)} kW · emitter target {emitter?.suggestedRadiatorKw.toFixed(2)} kW
+              <div key={m.roomId} className="fpb__issue fpb__issue--info">
+                <strong>{m.roomName}</strong>{' '}
+                {m.widthM} m × {m.lengthM} m · {m.areaM2} m² · exposed perimeter {m.exposedPerimeterM} m
+                {loss && <> · heat loss <strong>{loss.heatLossKw.toFixed(2)} kW</strong></>}
+                {emitter && <> · emitter target {emitter.suggestedRadiatorKw.toFixed(2)} kW</>}
               </div>
             );
           })}
+          {/* ── Pipe routing ── */}
+          {derivedOutputs.totalPipeLengthM > 0 && (
+            <div className="fpb__issue fpb__issue--info">
+              Total estimated pipe quantity: {derivedOutputs.totalPipeLengthM.toFixed(1)} m
+            </div>
+          )}
+          {/* ── Feasibility ── */}
+          <div className="fpb__issue fpb__issue--info">
+            Feasibility — heat source: {derivedOutputs.feasibilityChecks.hasHeatSource ? 'yes' : 'no'}, emitters: {derivedOutputs.feasibilityChecks.hasEmitters ? 'yes' : 'no'}, outdoor heat pump: {derivedOutputs.feasibilityChecks.hasOutdoorHeatPump ? 'yes' : 'n/a or missing'}
+          </div>
+          {/* ── Siting flags ── */}
+          {derivedOutputs.sitingFlags.map((flag) => (
+            <div
+              key={flag.nodeId}
+              className={`fpb__issue ${flag.status === 'ok' ? 'fpb__issue--info' : 'fpb__issue--warning'}`}
+            >
+              {flag.status === 'ok' ? '✓' : '⚠'} {flag.message}
+            </div>
+          ))}
         </div>
       </section>
 
