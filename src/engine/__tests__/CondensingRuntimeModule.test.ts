@@ -41,6 +41,8 @@ describe('CondensingRuntimeModule — result shape', () => {
   it('returns all required fields', () => {
     const result = runCondensingRuntimeModule(makeInput());
     expect(result).toHaveProperty('estimatedCondensingRuntimePct');
+    expect(result).toHaveProperty('condensingStatusLabel');
+    expect(result).toHaveProperty('condensingAssumptions');
     expect(result).toHaveProperty('drivers');
     expect(result).toHaveProperty('positiveWording');
     expect(result).toHaveProperty('negativeWording');
@@ -369,5 +371,339 @@ describe('CondensingRuntimeModule — regression: skipped survey step', () => {
 
     // Score must be equal — both are neutral baselines.
     expect(missing.estimatedCondensingRuntimePct).toBe(yPlan.estimatedCondensingRuntimePct);
+  });
+});
+
+
+// ─── PR: multi-factor emitter suitability — spectrum tests ───────────────────
+
+describe('CondensingRuntimeModule — driver 3: multi-factor emitter spectrum', () => {
+  it('condensing possible on standard radiator system with weather comp and good modulation', () => {
+    // Standard emitters (condensingModeAvailable=false) BUT weather compensation and
+    // wide modulation range mean the boiler can fire at low rates on mild days.
+    // → emitter_suitability should be neutral (0), not negative.
+    const result = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      emitterOversizingFactor: 1.0,
+      hasWeatherCompensation: true,
+      boilerMinModulationPct: 15,
+    }));
+    const d3 = result.drivers.find(d => d.id === 'emitter_suitability')!;
+    expect(d3.influence).toBe('neutral');
+    expect(d3.scoreContribution).toBe(0);
+    expect(d3.detail.toLowerCase()).toContain('condensing possible');
+  });
+
+  it('condensing possible on standard radiator system with load comp and good modulation', () => {
+    const result = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      hasLoadCompensation: true,
+      boilerMinModulationPct: 20,
+    }));
+    const d3 = result.drivers.find(d => d.id === 'emitter_suitability')!;
+    expect(d3.influence).toBe('neutral');
+    expect(d3.scoreContribution).toBe(0);
+  });
+
+  it('condensing possible on standard radiators with both weather and load comp', () => {
+    const result = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      hasWeatherCompensation: true,
+      hasLoadCompensation: true,
+      boilerMinModulationPct: 18,
+    }));
+    const d3 = result.drivers.find(d => d.id === 'emitter_suitability')!;
+    expect(d3.influence).toBe('neutral');
+    expect(d3.scoreContribution).toBe(0);
+    // Detail should mention both compensation types
+    expect(d3.detail.toLowerCase()).toMatch(/weather and load/);
+  });
+
+  it('standard emitters with compensation but limited modulation give neutral negative contribution', () => {
+    const result = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      hasWeatherCompensation: true,
+      boilerMinModulationPct: 35, // limited modulation
+    }));
+    const d3 = result.drivers.find(d => d.id === 'emitter_suitability')!;
+    expect(d3.influence).toBe('neutral');
+    expect(d3.scoreContribution).toBeLessThan(0);
+    expect(d3.scoreContribution).toBeGreaterThan(-10); // less harsh than old binary gate
+    expect(d3.detail.toLowerCase()).toContain('modulation');
+  });
+
+  it('standard emitters with no compensation give a moderate negative contribution', () => {
+    const result = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      hasWeatherCompensation: false,
+      hasLoadCompensation: false,
+    }));
+    const d3 = result.drivers.find(d => d.id === 'emitter_suitability')!;
+    expect(d3.influence).toBe('negative');
+    // Penalty is less than the old -10 binary gate (-7 under new logic)
+    expect(d3.scoreContribution).toBeGreaterThan(-10);
+    expect(d3.scoreContribution).toBeLessThan(0);
+  });
+
+  it('oversized emitters (≥ 1.3×) give a strong positive contribution', () => {
+    const result = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false, // not set, but oversizing factor overrides
+      emitterOversizingFactor: 1.3,
+    }));
+    const d3 = result.drivers.find(d => d.id === 'emitter_suitability')!;
+    expect(d3.influence).toBe('positive');
+    expect(d3.scoreContribution).toBe(5);
+    expect(d3.detail.toLowerCase()).toContain('oversized');
+  });
+
+  it('moderately oversized emitters (1.1×–1.29×) give a smaller positive contribution', () => {
+    const result = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      emitterOversizingFactor: 1.15,
+    }));
+    const d3 = result.drivers.find(d => d.id === 'emitter_suitability')!;
+    expect(d3.influence).toBe('positive');
+    expect(d3.scoreContribution).toBe(3);
+    expect(d3.scoreContribution).toBeLessThan(5); // less than fully oversized
+  });
+
+  it('highly oversized emitters (≥ 1.5×) give descriptive detail about UFH-level performance', () => {
+    const result = runCondensingRuntimeModule(makeInput({
+      emitterOversizingFactor: 1.8, // UFH level
+    }));
+    const d3 = result.drivers.find(d => d.id === 'emitter_suitability')!;
+    expect(d3.influence).toBe('positive');
+    expect(d3.scoreContribution).toBe(5);
+    expect(d3.detail.toLowerCase()).toMatch(/underfloor|highly oversized/);
+  });
+
+  it('oversized emitters improve condensing but standard emitters with good controls are also viable', () => {
+    // Standard emitters + good controls can also achieve meaningful condensing.
+    // Oversized emitters give higher score, but standard + controls is not negative.
+    const withOversized = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: true,
+      emitterOversizingFactor: 1.3,
+      hasWeatherCompensation: false,
+    }));
+    const standardWithControls = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      emitterOversizingFactor: 1.0,
+      hasWeatherCompensation: true,
+      hasLoadCompensation: true,
+      boilerMinModulationPct: 15,
+    }));
+
+    // Oversized emitters give higher runtime estimate overall.
+    expect(withOversized.estimatedCondensingRuntimePct).toBeGreaterThan(
+      standardWithControls.estimatedCondensingRuntimePct,
+    );
+
+    // But standard emitters + good controls are NOT negative — condensing is achievable.
+    const d3Standard = standardWithControls.drivers.find(d => d.id === 'emitter_suitability')!;
+    expect(d3Standard.influence).not.toBe('negative');
+
+    // And the status label confirms condensing is possible (not blocked).
+    expect(standardWithControls.condensingStatusLabel).not.toBe('condensing_limited_high_return');
+  });
+
+  it('standard emitters with good controls produce a higher runtime than standard emitters with no controls', () => {
+    const withControls = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      hasWeatherCompensation: true,
+      hasLoadCompensation: true,
+      boilerMinModulationPct: 15,
+    }));
+    const withoutControls = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      hasWeatherCompensation: false,
+      hasLoadCompensation: false,
+    }));
+    expect(withControls.estimatedCondensingRuntimePct).toBeGreaterThan(
+      withoutControls.estimatedCondensingRuntimePct,
+    );
+  });
+
+  it('neutral emitter driver (standard + controls) appears in positiveWording', () => {
+    const result = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      hasWeatherCompensation: true,
+      boilerMinModulationPct: 15,
+    }));
+    expect(
+      result.positiveWording.some(w => w.toLowerCase().includes('standard emitters')),
+    ).toBe(true);
+  });
+});
+
+// ─── PR: condensingStatusLabel ───────────────────────────────────────────────
+
+describe('CondensingRuntimeModule — condensingStatusLabel', () => {
+  it('condensing_likely when zone is condensing and runtime is high', () => {
+    // flowTempC=70 → return=50 < 55 → zone='condensing'; good conditions → high runtime
+    const result = runCondensingRuntimeModule(makeInput({
+      flowTempC: 70,
+      condensingModeAvailable: true,
+    }));
+    expect(result.condensingStatusLabel).toBe('condensing_likely');
+  });
+
+  it('condensing_limited_high_return when full-load return is above 65 °C', () => {
+    // flowTempC=90 → fullLoadReturnC=70 > 65 → high-return barrier
+    const result = runCondensingRuntimeModule(makeInput({
+      flowTempC: 90,
+      condensingModeAvailable: false,
+      hasWeatherCompensation: false,
+    }));
+    expect(result.condensingStatusLabel).toBe('condensing_limited_high_return');
+  });
+
+  it('controls_improvement_possible when standard emitters and no compensation', () => {
+    // flowTempC=85 → fullLoadReturnC=65 (borderline but not > 65)
+    // Standard emitters, no compensation → controls upgrade would help
+    const result = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      emitterOversizingFactor: 1.0,
+      hasWeatherCompensation: false,
+      hasLoadCompensation: false,
+    }));
+    expect(result.condensingStatusLabel).toBe('controls_improvement_possible');
+  });
+
+  it('modulation_limited when standard emitters + compensation but limited modulation', () => {
+    // flowTempC=85 → fullLoadReturnC=65 (not > 65)
+    // Standard emitters + weather comp but modulation > 20%
+    const result = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      emitterOversizingFactor: 1.0,
+      hasWeatherCompensation: true,
+      boilerMinModulationPct: 35, // limited modulation
+    }));
+    expect(result.condensingStatusLabel).toBe('modulation_limited');
+  });
+
+  it('condensing_possible when standard emitters with weather comp and good modulation', () => {
+    // flowTempC=85 → fullLoadReturnC=65 (not > 65)
+    // Standard emitters + good controls + good modulation
+    const result = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      emitterOversizingFactor: 1.0,
+      hasWeatherCompensation: true,
+      boilerMinModulationPct: 15,
+    }));
+    expect(result.condensingStatusLabel).toBe('condensing_possible');
+  });
+
+  it('condensingStatusLabel is included in diagnostic notes', () => {
+    const result = runCondensingRuntimeModule(makeInput());
+    expect(result.notes.some(n => n.includes('Condensing status:'))).toBe(true);
+  });
+});
+
+// ─── PR: condensingAssumptions — visible flow/return temps ───────────────────
+
+describe('CondensingRuntimeModule — condensingAssumptions', () => {
+  it('assumedFlowTempC matches the input flowTempC', () => {
+    const result = runCondensingRuntimeModule(makeInput({ flowTempC: 75 }));
+    expect(result.condensingAssumptions.assumedFlowTempC).toBe(75);
+  });
+
+  it('assumedReturnTempC matches the CondensingStateModule full-load return', () => {
+    // flowTempC=75, deltaTc=20 → fullLoadReturnC=55
+    const result = runCondensingRuntimeModule(makeInput({ flowTempC: 75 }));
+    expect(result.condensingAssumptions.assumedReturnTempC).toBe(55);
+  });
+
+  it('flowTempSource is "derived" (temperature derived from system design)', () => {
+    const result = runCondensingRuntimeModule(makeInput({ flowTempC: 80 }));
+    expect(result.condensingAssumptions.flowTempSource).toBe('derived');
+  });
+
+  it('returnTempSource is "derived" when not measured', () => {
+    const result = runCondensingRuntimeModule(makeInput({ flowTempC: 80 }));
+    expect(result.condensingAssumptions.returnTempSource).toBe('derived');
+  });
+
+  it('returnTempSource is "user_input" when one-pipe cascade provides a measured return', () => {
+    // Provide a measured return temperature via CondensingStateModule
+    const condensingState = runCondensingStateModule({ flowTempC: 90, returnTempC: 48 });
+    const result = runCondensingRuntimeModule(makeInput({ flowTempC: 90, condensingState }));
+    expect(result.condensingAssumptions.returnTempSource).toBe('user_input');
+    expect(result.condensingAssumptions.assumedReturnTempC).toBe(48);
+  });
+
+  it('condensingAssumptions are included in diagnostic notes', () => {
+    const result = runCondensingRuntimeModule(makeInput({ flowTempC: 75 }));
+    expect(result.notes.some(n => n.includes('Assumed flow temperature: 75 °C'))).toBe(true);
+    expect(result.notes.some(n => n.includes('Assumed return temperature: 55 °C'))).toBe(true);
+  });
+
+  it('condensingAssumptions are visible for all flow temperature scenarios', () => {
+    [37, 50, 70, 75, 80, 85, 90].forEach(flowTempC => {
+      const result = runCondensingRuntimeModule(makeInput({ flowTempC }));
+      expect(result.condensingAssumptions.assumedFlowTempC).toBe(flowTempC);
+      expect(result.condensingAssumptions.assumedReturnTempC).toBeGreaterThan(0);
+      expect(result.condensingAssumptions.flowTempSource).toBeDefined();
+      expect(result.condensingAssumptions.returnTempSource).toBeDefined();
+    });
+  });
+});
+
+// ─── PR: improved controls lower required operating temperature ───────────────
+
+describe('CondensingRuntimeModule — improved controls lower required temperature', () => {
+  it('adding load compensation improves condensing runtime over no compensation', () => {
+    const withLoadComp = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      hasLoadCompensation: true,
+      boilerMinModulationPct: 25,
+    }));
+    const noComp = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      hasLoadCompensation: false,
+      hasWeatherCompensation: false,
+    }));
+    expect(withLoadComp.estimatedCondensingRuntimePct).toBeGreaterThan(
+      noComp.estimatedCondensingRuntimePct,
+    );
+  });
+
+  it('adding weather compensation improves condensing runtime over no compensation', () => {
+    const withWeatherComp = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      hasWeatherCompensation: true,
+      boilerMinModulationPct: 25,
+    }));
+    const noComp = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      hasWeatherCompensation: false,
+      hasLoadCompensation: false,
+    }));
+    expect(withWeatherComp.estimatedCondensingRuntimePct).toBeGreaterThan(
+      noComp.estimatedCondensingRuntimePct,
+    );
+  });
+
+  it('improved modulation range (15 %) gives higher runtime than poor modulation (35 %)', () => {
+    const goodMod = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      hasWeatherCompensation: true,
+      boilerMinModulationPct: 15,
+    }));
+    const poorMod = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      hasWeatherCompensation: true,
+      boilerMinModulationPct: 35,
+    }));
+    expect(goodMod.estimatedCondensingRuntimePct).toBeGreaterThan(
+      poorMod.estimatedCondensingRuntimePct,
+    );
+  });
+
+  it('condensingStatusLabel is not controls_improvement_possible when compensation is active', () => {
+    const result = runCondensingRuntimeModule(makeInput({
+      condensingModeAvailable: false,
+      hasWeatherCompensation: true,
+    }));
+    expect(result.condensingStatusLabel).not.toBe('controls_improvement_possible');
   });
 });

@@ -4,6 +4,8 @@ import type {
   CondensingRuntimeDriver,
   CondensingRuntimeDriverId,
   CondensingRuntimeDriverInfluence,
+  CondensingStatusLabel,
+  CondensingAssumptions,
 } from '../schema/EngineInputV2_3';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -113,27 +115,117 @@ function assessDesignFlowTemperature(
 /**
  * Driver 3 — emitter_suitability
  *
- * When condensing mode is not achievable (emitters need too high a flow temp),
- * apply a moderate penalty.
+ * Multi-factor spectrum assessment replacing the former binary gate.
+ *
+ * Tier 1 (positive, +5): emitters support condensing at design flow temp
+ *   — either condensingModeAvailable is true, OR emitterOversizingFactor ≥ 1.3.
+ *   Return temperature is below the 55 °C condensing threshold at design load.
+ *
+ * Tier 2 (positive, +3): moderate oversizing (1.1–1.29×) — lower flow temperature
+ *   achievable, condensing likely for a useful fraction of the season.
+ *
+ * Tier 3 (neutral, 0): standard emitters + active compensation (weather/load) +
+ *   wide modulation range (min ≤ 20 %) — the boiler can fire at low rates on mild
+ *   days, reducing return temp below the condensing threshold even without oversized
+ *   radiators.  "Condensing possible at typical UK loads."
+ *
+ * Tier 4 (neutral, −3): standard emitters + some compensation but limited modulation
+ *   — lower flow temperature is achievable at part load; the condensing fraction is
+ *   modulation-limited.
+ *
+ * Tier 5 (negative, −7): standard emitters, no compensation — condensing limited to
+ *   the lowest-demand periods only.  (Penalty reduced from −10 to −7 because the
+ *   control_type driver already captures the fixed high-temperature retrofit penalty.)
+ *
+ * Key physical rationale
+ * ─────────────────────
+ * Oversized emitters are ONE route to condensing, not the ONLY route.  Standard
+ * radiators on a well-controlled, good-modulation boiler can still achieve meaningful
+ * condensing periods at typical UK mid-season operating conditions (~50 % design load,
+ * ~7 °C outdoor temperature).
  */
 function assessEmitterSuitability(
   input: CondensingRuntimeInput,
 ): CondensingRuntimeDriver {
-  if (input.condensingModeAvailable) {
+  const {
+    condensingModeAvailable,
+    emitterOversizingFactor,
+    boilerMinModulationPct,
+    hasWeatherCompensation,
+    hasLoadCompensation,
+  } = input;
+
+  // Infer oversizing factor when not explicitly provided.
+  // condensingModeAvailable = true implies emitters already support low-temp operation
+  // (return < 55 °C at design), equivalent to at least 1.3× oversizing.
+  const oversizingFactor = emitterOversizingFactor ?? (condensingModeAvailable ? 1.3 : 1.0);
+
+  // Tier 1: design-load return below condensing threshold.
+  if (condensingModeAvailable || oversizingFactor >= 1.3) {
+    let detail: string;
+    if (oversizingFactor >= 1.5) {
+      detail = 'Highly oversized emitters (e.g. underfloor heating) — very low flow temperature and condensing throughout the heating season.';
+    } else if (oversizingFactor >= 1.3) {
+      detail = 'Oversized emitters support lower flow temperature — condensing likely across most of the heating season.';
+    } else {
+      detail = 'Emitters support condensing operation at the target flow temperature.';
+    }
+    return makeDriver('emitter_suitability', 'Emitter suitability', 'positive', 5, detail);
+  }
+
+  // Tier 2: moderate oversizing — lower flow temperature achievable.
+  if (oversizingFactor >= 1.1) {
     return makeDriver(
       'emitter_suitability',
       'Emitter suitability',
       'positive',
-      5,
-      'Emitters support condensing operation at the target flow temperature.',
+      3,
+      'Moderate emitter oversizing reduces required flow temperature — condensing possible for a useful fraction of the heating season.',
     );
   }
+
+  // Standard emitters (oversizingFactor < 1.1).
+  // Whether condensing occurs depends on compensation strategy and modulation range.
+  const hasCompensation = (hasWeatherCompensation ?? false) || (hasLoadCompensation ?? false);
+  const minModPct = boilerMinModulationPct ?? 30;
+  const goodModulation = minModPct <= 20;
+
+  const compType = hasLoadCompensation && hasWeatherCompensation
+    ? 'weather and load compensation'
+    : hasLoadCompensation
+      ? 'load compensation'
+      : 'weather compensation';
+
+  // Tier 3: standard emitters + active compensation + wide modulation range.
+  // The boiler can fire at low rates on mild days, reducing return temp enough to condense.
+  if (hasCompensation && goodModulation) {
+    return makeDriver(
+      'emitter_suitability',
+      'Emitter suitability',
+      'neutral',
+      0,
+      `Standard emitters with active ${compType} and wide modulation range (min ${minModPct} %) — condensing possible at typical UK operating loads.`,
+    );
+  }
+
+  // Tier 4: standard emitters + some compensation, but limited modulation range.
+  if (hasCompensation) {
+    return makeDriver(
+      'emitter_suitability',
+      'Emitter suitability',
+      'neutral',
+      -3,
+      `Standard emitters with ${compType} — lower flow temperature achievable at part load; modulation range (min ${minModPct} %) limits condensing fraction.`,
+    );
+  }
+
+  // Tier 5: standard emitters, no compensation.
   return makeDriver(
     'emitter_suitability',
     'Emitter suitability',
     'negative',
-    -10,
-    'Emitters require a higher flow temperature — condensing mode is limited.',
+    -7,
+    'Standard emitters without weather or load compensation — condensing limited to low-load periods; consider lower flow temperature setpoint or controls upgrade.',
   );
 }
 
@@ -311,6 +403,99 @@ function assessPrimarySuitabilityProxy(
   );
 }
 
+// ─── Status label and assumptions helpers ─────────────────────────────────────
+
+/**
+ * Derive the human-readable condensing status label from the assessed inputs
+ * and the estimated condensing runtime percentage.
+ *
+ * The label is a spectrum — it is NOT a binary "condensing / not condensing"
+ * flag.  Standard radiator systems with good controls and wide modulation can
+ * achieve meaningful condensing periods even without oversized emitters.
+ */
+function deriveCondensingStatusLabel(
+  input: CondensingRuntimeInput,
+  estimatedRuntimePct: number,
+): CondensingStatusLabel {
+  const {
+    condensingState,
+    condensingModeAvailable,
+    emitterOversizingFactor,
+    hasWeatherCompensation,
+    hasLoadCompensation,
+    boilerMinModulationPct,
+  } = input;
+  const { zone, fullLoadReturnC } = condensingState;
+
+  const hasCompensation = (hasWeatherCompensation ?? false) || (hasLoadCompensation ?? false);
+  const goodModulation = (boilerMinModulationPct ?? 30) <= 20;
+  const oversizingFactor = emitterOversizingFactor ?? (condensingModeAvailable ? 1.3 : 1.0);
+
+  // Return temperature at design load is the primary barrier.
+  // A full-load return above 65 °C means condensing is structurally limited
+  // regardless of controls — the emitters simply cannot lower return temp enough.
+  if (fullLoadReturnC > 65) {
+    return 'condensing_limited_high_return';
+  }
+
+  // Very low estimated runtime → short cycling at low load is the limiter.
+  if (estimatedRuntimePct < 30) {
+    return 'cycling_limited';
+  }
+
+  // Condensing at design load AND good estimated runtime → condensing is likely.
+  if (zone === 'condensing' && estimatedRuntimePct >= 70) {
+    return 'condensing_likely';
+  }
+
+  // Standard emitters with compensation but limited modulation range.
+  // Compensation lowers the setpoint at part load, but the boiler cannot fire
+  // at a low enough rate to fully exploit the lower flow temperature.
+  if (!condensingModeAvailable && oversizingFactor < 1.3 && hasCompensation && !goodModulation) {
+    return 'modulation_limited';
+  }
+
+  // Standard emitters, active compensation present — condensing is possible
+  // at typical operating conditions even without oversized radiators.
+  if (!condensingModeAvailable && oversizingFactor < 1.3 && hasCompensation) {
+    return 'condensing_possible';
+  }
+
+  // Standard emitters, no compensation — controls upgrade would help.
+  if (!condensingModeAvailable && oversizingFactor < 1.3 && !hasCompensation) {
+    return 'controls_improvement_possible';
+  }
+
+  // Default: borderline zone or well-setup systems where condensing occurs at
+  // typical (not design-day) operating conditions.
+  return 'condensing_possible';
+}
+
+/**
+ * Package the flow and return temperature assumptions used in the assessment
+ * as an explicit, visible object.
+ *
+ * Making these visible satisfies requirement 4 (visible assumptions) and
+ * allows UI, simulator, and user to review and override them where appropriate.
+ */
+function deriveCondensingAssumptions(
+  input: CondensingRuntimeInput,
+): CondensingAssumptions {
+  const { flowTempC, condensingState } = input;
+  const { fullLoadReturnC, returnTempSource: stateReturnSource } = condensingState;
+
+  return {
+    assumedFlowTempC: flowTempC,
+    assumedReturnTempC: fullLoadReturnC,
+    // Flow temperature is always derived from the system design / survey data.
+    flowTempSource: 'derived',
+    // Return temperature source mirrors what CondensingStateModule recorded:
+    // 'onePipeCascade' means a real measurement was provided (user_input),
+    // 'derived' means we estimated it from flow − ΔT.
+    returnTempSource: stateReturnSource === 'onePipeCascade' ? 'user_input' : 'derived',
+  };
+}
+
 // ─── Main Module ──────────────────────────────────────────────────────────────
 
 /**
@@ -376,13 +561,18 @@ export function runCondensingRuntimeModule(
     negativeWording.push('Primary performance may limit lower-temperature operation at higher loads.');
   }
   if (d3.influence === 'negative') {
-    negativeWording.push('Emitter suitability limits achievable condensing operation.');
+    negativeWording.push('Emitter suitability limits achievable condensing operation — consider lower flow temperature setpoint or controls upgrade.');
+  }
+  if (d3.influence === 'neutral') {
+    // Neutral emitter driver means condensing is possible without oversized radiators.
+    // Surface this as a positive finding to counter the over-pessimistic binary framing.
+    positiveWording.push('Standard emitters can achieve meaningful condensing periods with active controls or wide modulation range.');
   }
   if (d4.influence === 'negative') {
     negativeWording.push('Fixed high flow temperature (no weather compensation) reduces condensing hours.');
   }
   if (d3.influence === 'positive') {
-    positiveWording.push('Emitters support condensing operation at the target flow temperature.');
+    positiveWording.push('Emitters support condensing operation — condensing likely across most of the heating season.');
   }
   if (d4.influence === 'positive') {
     positiveWording.push('Weather-compensating or smart controls support lower operating temperatures.');
@@ -394,11 +584,18 @@ export function runCondensingRuntimeModule(
     positiveWording.push('28 mm primary provides headroom for lower-temperature operation.');
   }
 
+  // ── Status label and visible assumptions ─────────────────────────────────
+  const condensingStatusLabel = deriveCondensingStatusLabel(input, estimatedCondensingRuntimePct);
+  const condensingAssumptions = deriveCondensingAssumptions(input);
+
   // ── Diagnostic notes ──────────────────────────────────────────────────────
   const notes: string[] = [
     `Physics base (CondensingStateModule): ${basePct} % estimated condensing fraction.`,
     `Driver adjustments (emitter, control, separation, DHW, primary): ${totalAdjustment >= 0 ? '+' : ''}${totalAdjustment} pp.`,
     `Estimated condensing runtime: ${estimatedCondensingRuntimePct} %.`,
+    `Condensing status: ${condensingStatusLabel}.`,
+    `Assumed flow temperature: ${condensingAssumptions.assumedFlowTempC} °C (${condensingAssumptions.flowTempSource}).`,
+    `Assumed return temperature: ${condensingAssumptions.assumedReturnTempC} °C (${condensingAssumptions.returnTempSource}).`,
     `Driver 5 (system_separation_arrangement) and driver 7 (primary_suitability_proxy) are independent ` +
       `levers — S-plan conversion and primary upgrades have different costs and physics effects.`,
   ];
@@ -411,6 +608,8 @@ export function runCondensingRuntimeModule(
 
   return {
     estimatedCondensingRuntimePct,
+    condensingStatusLabel,
+    condensingAssumptions,
     drivers,
     positiveWording,
     negativeWording,
