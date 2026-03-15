@@ -1,0 +1,45 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   ExplainerPanel
+   Wrapper and responsive grid for all educational explainer cards.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* ── Panel wrapper ─────────────────────────────────────────────────────────── */
+
+.ep-panel {
+  padding: var(--space-6, 1.5rem) 0;
+  border-top: 1px solid var(--color-neutral-200, #e5e7eb);
+}
+
+/* ── Header ────────────────────────────────────────────────────────────────── */
+
+.ep-panel__header {
+  margin-bottom: var(--space-5, 1.25rem);
+}
+
+.ep-panel__title {
+  margin: 0 0 var(--space-2, 0.5rem);
+  font-size: var(--text-lg, 1.125rem);
+  font-weight: 700;
+  color: var(--color-neutral-900, #111827);
+}
+
+.ep-panel__subtitle {
+  margin: 0;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-neutral-500, #6b7280);
+  line-height: 1.5;
+}
+
+/* ── Responsive grid ───────────────────────────────────────────────────────── */
+
+.ep-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-4, 1rem);
+}
+
+@media (max-width: 480px) {
+  .ep-panel__grid {
+    grid-template-columns: 1fr;
+  }
+}
