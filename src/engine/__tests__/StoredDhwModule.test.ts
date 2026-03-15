@@ -843,3 +843,109 @@ describe('runStoredDhwModuleV1 — constraintKind priority ordering', () => {
     expect(result.constraintKind).toBe('thermal-capacity-limited');
   });
 });
+
+// ─── currentCylinderPresent: present vs absent ────────────────────────────────
+
+describe('runStoredDhwModuleV1 — currentCylinderPresent', () => {
+  const baseStoredInput: EngineInputV2_3 = {
+    ...baseInput,
+    availableSpace: 'ok',
+    bathroomCount: 1,
+    occupancyCount: 2,
+  };
+
+  it('currentCylinderPresent=false with no volume: skips thermal-capacity check (no flag)', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      currentCylinderPresent: false,
+    });
+    expect(result.flags.some(f => f.id === 'stored-thermal-capacity-limited')).toBe(false);
+  });
+
+  it('currentCylinderPresent=false: records "no cylinder installed" assumption', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      currentCylinderPresent: false,
+    });
+    expect(result.assumptions.some(a => a.includes('No cylinder currently installed'))).toBe(true);
+  });
+
+  it('currentCylinderPresent=false with volume still runs thermal-capacity check', () => {
+    // explicit cylinderVolumeLitres always triggers the check regardless of currentCylinderPresent
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      currentCylinderPresent: false,
+      cylinderVolumeLitres: 50,
+      bathroomCount: 2,
+    });
+    expect(result.flags.some(f => f.id === 'stored-thermal-capacity-limited')).toBe(true);
+  });
+
+  it('currentCylinderPresent=true with no volume: behaves the same as undefined (no skipping assumption)', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseStoredInput,
+      currentCylinderPresent: true,
+    });
+    expect(result.assumptions.some(a => a.includes('No cylinder currently installed'))).toBe(false);
+  });
+
+  it('currentCylinderPresent=undefined with no volume: behaves normally (no spurious flag)', () => {
+    const result = runStoredDhwModuleV1({ ...baseStoredInput });
+    expect(result.flags.some(f => f.id === 'stored-thermal-capacity-limited')).toBe(false);
+    expect(result.assumptions.some(a => a.includes('No cylinder currently installed'))).toBe(false);
+  });
+});
+
+// ─── vented low-head constraintKind (explicit acceptance criteria case) ───────
+
+describe('runStoredDhwModuleV1 — vented low-head constraintKind', () => {
+  const baseVentedStoredInput: EngineInputV2_3 = {
+    ...baseInput,
+    availableSpace: 'ok',
+    bathroomCount: 1,
+    occupancyCount: 2,
+    coldWaterSource: 'loft_tank',
+  };
+
+  it('cwsHeadMetres: 0.2 → constraintKind is head-limited', () => {
+    const result = runStoredDhwModuleV1({ ...baseVentedStoredInput, cwsHeadMetres: 0.2 });
+    expect(result.constraintKind).toBe('head-limited');
+  });
+});
+
+// ─── unvented poor mains constraintKind (explicit acceptance criteria case) ───
+
+describe('runStoredDhwModuleV1 — unvented poor mains constraintKind', () => {
+  const baseUnventedStoredInput: EngineInputV2_3 = {
+    ...baseInput,
+    availableSpace: 'ok',
+    bathroomCount: 1,
+    occupancyCount: 2,
+    coldWaterSource: 'mains_true',
+  };
+
+  it('mainsDynamicFlowLpm: 8, dynamicMainsPressureBar: 0.8 → constraintKind is mains-limited', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseUnventedStoredInput,
+      mainsDynamicFlowLpm: 8,
+      mainsDynamicFlowLpmKnown: true,
+      dynamicMainsPressureBar: 0.8,
+    });
+    expect(result.constraintKind).toBe('mains-limited');
+  });
+});
+
+// ─── undersized cylinder constraintKind (explicit acceptance criteria case) ───
+
+describe('runStoredDhwModuleV1 — undersized cylinder constraintKind', () => {
+  it('cylinderVolumeLitres: 80, bathroomCount: 2 → constraintKind is thermal-capacity-limited', () => {
+    const result = runStoredDhwModuleV1({
+      ...baseInput,
+      availableSpace: 'ok',
+      bathroomCount: 2,
+      occupancyCount: 3,
+      cylinderVolumeLitres: 80,
+    });
+    expect(result.constraintKind).toBe('thermal-capacity-limited');
+  });
+});

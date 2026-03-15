@@ -5,13 +5,15 @@
  * records.  This is a pure derivation layer — it does NOT change engine
  * calculations, recommendation outputs, or scoring.
  *
- * Six enablers are supported:
+ * Five enablers are supported:
  *   1. mains_water_suitability  — hydraulic
- *   2. gas_supply               — combustion
- *   3. emitter_suitability      — emitters
- *   4. controls_quality         — controls
- *   5. system_protection        — system_health
- *   6. hot_water_fit            — dhw
+ *   2. emitter_suitability      — emitters
+ *   3. controls_quality         — controls
+ *   4. system_protection        — system_health
+ *   5. hot_water_fit            — dhw
+ *
+ * gas_supply has been removed from this list — gas-pipe validation belongs in
+ * a dedicated gas-supply workflow, not the main Atlas DHW suitability output.
  *
  * All derivation rules use only data that is already present in
  * FullEngineResult or EngineInputV2_3.  No new engine calls are made.
@@ -407,7 +409,6 @@ export function derivePerformanceEnablers(
 ): PerformanceEnabler[] {
   return [
     deriveMainsWaterSuitability(result),
-    deriveGasSupply(result),
     deriveEmitterSuitability(result),
     deriveControlsQuality(result),
     deriveSystemProtection(result, input),

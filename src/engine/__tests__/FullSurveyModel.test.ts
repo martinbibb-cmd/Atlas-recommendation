@@ -619,3 +619,101 @@ describe('sanitiseModelForEngine — cylinder condition bridge', () => {
     expect(result.storedDhwV1.cylinderCondition!.conditionBand).toBeDefined();
   });
 });
+
+// ── sanitiseModelForEngine — current cylinder bridge ──────────────────────
+
+describe('sanitiseModelForEngine — current cylinder bridge', () => {
+  const baseSurvey: FullSurveyModelV1 = {
+    postcode: 'SW1A 1AA',
+    dynamicMainsPressure: 2.5,
+    buildingMass: 'medium' as const,
+    primaryPipeDiameter: 22,
+    heatLossWatts: 8000,
+    radiatorCount: 10,
+    hasLoftConversion: false,
+    returnWaterTemp: 45,
+    bathroomCount: 1,
+    occupancySignature: 'professional' as const,
+    highOccupancy: false,
+    preferCombi: false,
+    currentHeatSourceType: 'system',
+  };
+
+  it('propagates currentCylinderPresent=true from dhwCondition to engine input', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      fullSurvey: { dhwCondition: { currentCylinderPresent: true } },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.currentCylinderPresent).toBe(true);
+  });
+
+  it('propagates currentCylinderPresent=false from dhwCondition to engine input', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      fullSurvey: { dhwCondition: { currentCylinderPresent: false } },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.currentCylinderPresent).toBe(false);
+  });
+
+  it('does not overwrite an explicit currentCylinderPresent on the model', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      currentCylinderPresent: true,
+      fullSurvey: { dhwCondition: { currentCylinderPresent: false } },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.currentCylinderPresent).toBe(true);
+  });
+
+  it('propagates numeric currentCylinderVolumeLitres to cylinderVolumeLitres', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      fullSurvey: { dhwCondition: { currentCylinderPresent: true, currentCylinderVolumeLitres: 150 } },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.cylinderVolumeLitres).toBe(150);
+  });
+
+  it('does not propagate "unknown" currentCylinderVolumeLitres to cylinderVolumeLitres', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      fullSurvey: { dhwCondition: { currentCylinderPresent: true, currentCylinderVolumeLitres: 'unknown' } },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.cylinderVolumeLitres).toBeUndefined();
+  });
+
+  it('does not overwrite an explicit cylinderVolumeLitres on the model', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      cylinderVolumeLitres: 200,
+      fullSurvey: { dhwCondition: { currentCylinderPresent: true, currentCylinderVolumeLitres: 100 } },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.cylinderVolumeLitres).toBe(200);
+  });
+
+  it('propagates numeric currentCwsHeadMetres to cwsHeadMetres', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      fullSurvey: {
+        dhwCondition: { currentCylinderPresent: true, currentCylinderType: 'vented', currentCwsHeadMetres: 1.5 },
+      },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.cwsHeadMetres).toBe(1.5);
+  });
+
+  it('does not propagate "unknown" currentCwsHeadMetres to cwsHeadMetres', () => {
+    const model: FullSurveyModelV1 = {
+      ...baseSurvey,
+      fullSurvey: {
+        dhwCondition: { currentCylinderPresent: true, currentCylinderType: 'vented', currentCwsHeadMetres: 'unknown' },
+      },
+    };
+    const result = sanitiseModelForEngine(model);
+    expect(result.cwsHeadMetres).toBeUndefined();
+  });
+});

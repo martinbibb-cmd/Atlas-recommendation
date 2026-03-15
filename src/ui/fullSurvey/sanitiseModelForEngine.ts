@@ -186,6 +186,33 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
     sanitised.hasSoftener = sanitised.fullSurvey.dhwCondition.softenerPresent;
   }
 
+  // ── Current cylinder bridge ───────────────────────────────────────────────
+  // Propagate survey-layer current cylinder fields into engine-input fields that
+  // StoredDhwModule consumes.  Existing explicit values are never overwritten.
+  const dcc = sanitised.fullSurvey?.dhwCondition;
+  if (dcc !== undefined) {
+    // currentCylinderPresent → engine field of the same name
+    if (sanitised.currentCylinderPresent === undefined && dcc.currentCylinderPresent !== undefined) {
+      sanitised.currentCylinderPresent = dcc.currentCylinderPresent;
+    }
+
+    // currentCylinderVolumeLitres (number only) → cylinderVolumeLitres
+    if (
+      sanitised.cylinderVolumeLitres === undefined
+      && typeof dcc.currentCylinderVolumeLitres === 'number'
+    ) {
+      sanitised.cylinderVolumeLitres = dcc.currentCylinderVolumeLitres;
+    }
+
+    // currentCwsHeadMetres (number only) → cwsHeadMetres
+    if (
+      sanitised.cwsHeadMetres === undefined
+      && typeof dcc.currentCwsHeadMetres === 'number'
+    ) {
+      sanitised.cwsHeadMetres = dcc.currentCwsHeadMetres;
+    }
+  }
+
   // ── Boiler condition bridge ───────────────────────────────────────────────
   // Derives boiler condition band from age, condensing status, and surveyor-
   // observed heating circuit symptoms. Stored as boilerConditionBand for use

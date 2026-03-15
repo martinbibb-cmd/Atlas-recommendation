@@ -2709,6 +2709,193 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
               </p>
             </div>
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+              <label>🛁 Current Hot Water Cylinder</label>
+              <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '0.25rem', marginBottom: '0.5rem' }}>
+                Capture the existing cylinder so Atlas can evaluate the current stored hot water honestly.
+              </p>
+              {/* Is there a cylinder currently installed? */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                {(['yes', 'no', 'unknown'] as const).map(opt => {
+                  const current = input.fullSurvey?.dhwCondition?.currentCylinderPresent;
+                  const isSelected =
+                    opt === 'yes' ? current === true :
+                    opt === 'no'  ? current === false :
+                    current === undefined;
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => setInput({
+                        ...input,
+                        currentCylinderPresent: opt === 'yes' ? true : opt === 'no' ? false : undefined,
+                        fullSurvey: {
+                          ...input.fullSurvey,
+                          dhwCondition: {
+                            ...input.fullSurvey?.dhwCondition,
+                            currentCylinderPresent: opt === 'yes' ? true : opt === 'no' ? false : undefined,
+                          },
+                        },
+                      })}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        borderRadius: '6px',
+                        border: `2px solid ${isSelected ? '#3182ce' : '#e2e8f0'}`,
+                        background: isSelected ? '#ebf8ff' : '#fff',
+                        cursor: 'pointer',
+                        fontWeight: isSelected ? 700 : 400,
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      {opt === 'yes' ? 'Yes' : opt === 'no' ? 'No' : 'Unknown'}
+                    </button>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.35rem', marginBottom: 0 }}>
+                Is there a hot water cylinder currently installed?
+              </p>
+
+              {/* Show cylinder detail fields only when cylinder is confirmed present */}
+              {input.fullSurvey?.dhwCondition?.currentCylinderPresent === true && (
+                <div style={{ marginTop: '1rem', padding: '0.875rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                  <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#2d3748', margin: '0 0 0.75rem 0', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                    Current cylinder details
+                  </p>
+                  <div className="form-grid">
+                    {/* Cylinder type */}
+                    <div className="form-field">
+                      <label>Cylinder type</label>
+                      <select
+                        value={input.fullSurvey?.dhwCondition?.currentCylinderType ?? ''}
+                        onChange={e => setInput({
+                          ...input,
+                          fullSurvey: {
+                            ...input.fullSurvey,
+                            dhwCondition: {
+                              ...input.fullSurvey?.dhwCondition,
+                              currentCylinderType: (e.target.value || undefined) as DhwConditionDiagnosticsV1['currentCylinderType'],
+                            },
+                          },
+                        })}
+                      >
+                        <option value="">Not recorded</option>
+                        <option value="vented">Vented — tank-fed hot water (open-vented)</option>
+                        <option value="unvented">Unvented — mains-fed supply (sealed)</option>
+                        <option value="mixergy">Mixergy — stored hot water with active stratification</option>
+                        <option value="unknown">Unknown</option>
+                      </select>
+                    </div>
+
+                    {/* Approximate volume */}
+                    <div className="form-field">
+                      <label>Approximate volume (litres)</label>
+                      <input
+                        type="number"
+                        min={30}
+                        max={600}
+                        step={5}
+                        value={typeof input.fullSurvey?.dhwCondition?.currentCylinderVolumeLitres === 'number'
+                          ? input.fullSurvey.dhwCondition.currentCylinderVolumeLitres
+                          : ''}
+                        onChange={e => setInput({
+                          ...input,
+                          cylinderVolumeLitres: e.target.value ? Number(e.target.value) : undefined,
+                          fullSurvey: {
+                            ...input.fullSurvey,
+                            dhwCondition: {
+                              ...input.fullSurvey?.dhwCondition,
+                              currentCylinderVolumeLitres: e.target.value ? Number(e.target.value) : 'unknown',
+                            },
+                          },
+                        })}
+                        placeholder="e.g. 150 (leave blank if unknown)"
+                      />
+                    </div>
+
+                    {/* Age band */}
+                    <div className="form-field">
+                      <label>Approximate age</label>
+                      <select
+                        value={input.fullSurvey?.dhwCondition?.currentCylinderAgeBand ?? ''}
+                        onChange={e => setInput({
+                          ...input,
+                          fullSurvey: {
+                            ...input.fullSurvey,
+                            dhwCondition: {
+                              ...input.fullSurvey?.dhwCondition,
+                              currentCylinderAgeBand: (e.target.value || undefined) as DhwConditionDiagnosticsV1['currentCylinderAgeBand'],
+                            },
+                          },
+                        })}
+                      >
+                        <option value="">Not recorded</option>
+                        <option value="under_5">Under 5 years</option>
+                        <option value="5_to_10">5–10 years</option>
+                        <option value="10_to_15">10–15 years</option>
+                        <option value="over_15">Over 15 years</option>
+                        <option value="unknown">Unknown</option>
+                      </select>
+                    </div>
+
+                    {/* Condition */}
+                    <div className="form-field">
+                      <label>Condition</label>
+                      <select
+                        value={input.fullSurvey?.dhwCondition?.currentCylinderCondition ?? ''}
+                        onChange={e => setInput({
+                          ...input,
+                          fullSurvey: {
+                            ...input.fullSurvey,
+                            dhwCondition: {
+                              ...input.fullSurvey?.dhwCondition,
+                              currentCylinderCondition: (e.target.value || undefined) as DhwConditionDiagnosticsV1['currentCylinderCondition'],
+                            },
+                          },
+                        })}
+                      >
+                        <option value="">Not recorded</option>
+                        <option value="good">Good</option>
+                        <option value="average">Average</option>
+                        <option value="poor">Poor</option>
+                        <option value="unknown">Unknown</option>
+                      </select>
+                    </div>
+
+                    {/* Vented head — only relevant for vented cylinders */}
+                    {input.fullSurvey?.dhwCondition?.currentCylinderType === 'vented' && (
+                      <div className="form-field">
+                        <label>Approximate head above draw-off (m)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={20}
+                          step={0.1}
+                          value={typeof input.fullSurvey?.dhwCondition?.currentCwsHeadMetres === 'number'
+                            ? input.fullSurvey.dhwCondition.currentCwsHeadMetres
+                            : ''}
+                          onChange={e => setInput({
+                            ...input,
+                            cwsHeadMetres: e.target.value ? Number(e.target.value) : undefined,
+                            fullSurvey: {
+                              ...input.fullSurvey,
+                              dhwCondition: {
+                                ...input.fullSurvey?.dhwCondition,
+                                currentCwsHeadMetres: e.target.value ? Number(e.target.value) : 'unknown',
+                              },
+                            },
+                          })}
+                          placeholder="e.g. 1.5 (leave blank if unknown)"
+                        />
+                        <p style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.25rem' }}>
+                          Height from loft tank to the highest draw-off point (metres). Determines available delivery pressure for tank-fed hot water.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
               <label>💧 Hot Water Storage</label>
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                 <button

@@ -35,13 +35,6 @@ export const PLACEHOLDER_ENABLERS: PerformanceEnabler[] = [
     category: 'hydraulic',
   },
   {
-    id: 'gas_supply',
-    label: 'Gas supply',
-    status: 'missing',
-    detail: 'Gas pressure has not been confirmed. Verify gas pressure and rate on site.',
-    category: 'combustion',
-  },
-  {
     id: 'emitter_suitability',
     label: 'Emitter suitability',
     status: 'warning',

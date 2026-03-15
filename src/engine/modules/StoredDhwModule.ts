@@ -271,7 +271,13 @@ export function runStoredDhwModuleV1(
   //   min_litres = max(MIN_CYLINDER_VOLUME_LITRES, base + extra)
   //
   // For 'high' simultaneousDrawSeverity, apply a 20% additional reserve.
-  if (input.cylinderVolumeLitres !== undefined) {
+  //
+  // When currentCylinderPresent === false, record "no cylinder installed" as an
+  // assumption rather than raising a thermal-capacity warning — the constraint
+  // is the absence of storage, not an undersized one.
+  if (input.currentCylinderPresent === false && input.cylinderVolumeLitres === undefined) {
+    assumptions.push('No cylinder currently installed — thermal capacity check skipped.');
+  } else if (input.cylinderVolumeLitres !== undefined) {
     const drawSeverity = input.simultaneousDrawSeverity ?? 'low';
     const severityMultiplier = drawSeverity === 'high' ? 1.2 : drawSeverity === 'medium' ? 1.1 : 1.0;
     const baseMin = bathrooms * MIN_LITRES_PER_BATHROOM;
