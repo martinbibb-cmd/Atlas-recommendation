@@ -324,6 +324,20 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   const [manualRoomLengthM, setManualRoomLengthM] = useState(3.6);
   const [manualRoomFloorId, setManualRoomFloorId] = useState<string>(() => plan.floors[0]?.id ?? '');
 
+  // ── Zoom & pan state ────────────────────────────────────────────────────
+  const [zoom, setZoom] = useState(1);
+  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // ── Bottom sheet & editor state ─────────────────────────────────────────
+  const [showAddRoomSheet, setShowAddRoomSheet] = useState(false);
+  const [addRoomSheetMode, setAddRoomSheetMode] = useState<'menu' | 'form'>('menu');
+  const [showObjectBrowser, setShowObjectBrowser] = useState(false);
+  const [editingDimension, setEditingDimension] = useState<{
+    type: 'room-width' | 'room-height' | 'wall-length';
+    currentValue: number;
+    id: string;
+  } | null>(null);
+
   const boardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<
     | { mode: 'room-move'; id: string; dx: number; dy: number }
@@ -601,8 +615,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     const rect = boardRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
     return {
-      x: clamp(e.clientX - rect.left, 0, CANVAS_W),
-      y: clamp(e.clientY - rect.top, 0, CANVAS_H),
+      x: clamp((e.clientX - rect.left) / zoom - panOffset.x, 0, CANVAS_W),
+      y: clamp((e.clientY - rect.top) / zoom - panOffset.y, 0, CANVAS_H),
     };
   }
 
@@ -762,6 +776,79 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     reader.readAsText(file);
   }
 
+  // ── Zoom & pan handlers ──────────────────────────────────────────────────
+
+  function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setZoom((prev) => clamp(prev + delta, 0.25, 3));
+  }
+
+  function handleZoomIn() {
+    setZoom((prev) => clamp(prev + 0.25, 0.25, 3));
+  }
+
+  function handleZoomOut() {
+    setZoom((prev) => clamp(prev - 0.25, 0.25, 3));
+  }
+
+  function handleFitFloor() {
+    setZoom(1);
+    setPanOffset({ x: 0, y: 0 });
+  }
+
+  // ── Dimension editor ──────────────────────────────────────────────────────
+
+  function handleDimensionApply() {
+    if (!editingDimension) return;
+    const { type, currentValue, id } = editingDimension;
+    const canvasUnits = Math.max(GRID * 3, snapToGrid(currentValue * GRID));
+    if (type === 'room-width') {
+      updateRoom(id, { width: canvasUnits });
+    } else if (type === 'room-height') {
+      updateRoom(id, { height: canvasUnits });
+    } else if (type === 'wall-length') {
+      const wall = activeFloor?.walls.find((w) => w.id === id);
+      if (wall) {
+        const oldLen = Math.sqrt((wall.x2 - wall.x1) ** 2 + (wall.y2 - wall.y1) ** 2);
+        if (oldLen > 0) {
+          const scale = (currentValue * GRID) / oldLen;
+          const dx = (wall.x2 - wall.x1) * scale;
+          const dy = (wall.y2 - wall.y1) * scale;
+          updateWall(id, { x2: snapToGrid(wall.x1 + dx), y2: snapToGrid(wall.y1 + dy) });
+        }
+      }
+    }
+    setEditingDimension(null);
+  }
+
+  // ── Bottom action bar helpers ─────────────────────────────────────────────
+
+  function duplicateRoom(room: Room) {
+    const newRoom: Room = {
+      ...room,
+      id: uid('room'),
+      name: `${room.name} (copy)`,
+      x: room.x + GRID * 2,
+      y: room.y + GRID * 2,
+    };
+    updateActiveFloor((f) => ({ ...f, rooms: [...f.rooms, newRoom] }));
+    setSelection({ kind: 'room', id: newRoom.id });
+  }
+
+  function duplicateNode(node: PlacementNode) {
+    const newNode: PlacementNode = {
+      ...node,
+      id: uid('node'),
+      anchor: { x: node.anchor.x + GRID * 2, y: node.anchor.y + GRID * 2 },
+    };
+    updatePlan((p) => ({ ...p, placementNodes: [...p.placementNodes, newNode] }));
+    setSelection({ kind: 'node', id: newNode.id });
+  }
+
+  function rotateNode(node: PlacementNode) {
+    updateNode(node.id, { orientationDeg: ((node.orientationDeg ?? 0) + 90) % 360 });
+  }
+
   // ─── Render helpers ───────────────────────────────────────────────────────
 
   function validationBadge(objectId: string) {
@@ -866,6 +953,13 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
         ))}
         <button className="fpb__floor-add" onClick={() => addFloor(false)} title="Add blank floor">+</button>
         <button className="fpb__floor-add" onClick={() => addFloor(true)} title="Clone perimeter from current floor">⧉</button>
+        <button
+          className="fpb__floor-add fpb__floor-add--room"
+          onClick={() => { setShowAddRoomSheet(true); setAddRoomSheetMode('menu'); }}
+          title="Add room to current floor"
+        >
+          + Room
+        </button>
       </div>
 
       {/* ── Workspace ── */}
@@ -975,6 +1069,13 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             {pendingKind && ` — selected: ${pendingKind.replace(/_/g, ' ')}`}
             {pendingWallStart && ' — click endpoint to complete wall'}
             {pendingPort && ' — click target port to connect'}
+            <button
+              className="fpb__action-btn"
+              style={{ marginLeft: 'auto', fontSize: 11, padding: '3px 10px' }}
+              onClick={() => setShowObjectBrowser(true)}
+            >
+              Insert…
+            </button>
           </div>
 
           <div
@@ -986,7 +1087,15 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             onPointerCancel={handleBoardPointerUp}
             onDragOver={(e) => e.preventDefault()}
             onDrop={handleBoardDrop}
+            onWheel={handleWheel}
           >
+            <div
+              className="fpb__canvas-transform"
+              style={{
+                transform: `scale(${zoom}) translate(${panOffset.x}px, ${panOffset.y}px)`,
+                transformOrigin: '0 0',
+              }}
+            >
             {/* ── SVG: grid + walls + edges + overlays ── */}
             <svg
               className="fpb__svg"
@@ -1109,21 +1218,52 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   </div>
                   {badge !== 'ok' && validationBadge(room.id)}
                   {isSelected && (
-                    <div
-                      className="fpb__room-resize"
-                      onPointerDown={(e) => {
-                        e.stopPropagation();
-                        const pos = boardPos(e as unknown as React.PointerEvent<HTMLDivElement>);
-                        dragRef.current = {
-                          mode: 'room-resize',
-                          id: room.id,
-                          startX: pos.x,
-                          startY: pos.y,
-                          baseW: room.width,
-                          baseH: room.height,
-                        };
-                      }}
-                    />
+                    <>
+                      <div
+                        className="fpb__room-resize"
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          const pos = boardPos(e as unknown as React.PointerEvent<HTMLDivElement>);
+                          dragRef.current = {
+                            mode: 'room-resize',
+                            id: room.id,
+                            startX: pos.x,
+                            startY: pos.y,
+                            baseW: room.width,
+                            baseH: room.height,
+                          };
+                        }}
+                      />
+                      {/* Corner handles */}
+                      <div className="fpb__corner-handle" style={{ left: -5, top: -5 }} />
+                      <div className="fpb__corner-handle" style={{ right: -5, top: -5 }} />
+                      <div className="fpb__corner-handle" style={{ left: -5, bottom: -5 }} />
+                      {/* Edge measurement labels */}
+                      <div
+                        className="fpb__edge-label fpb__edge-label--top"
+                        onClick={(e) => { e.stopPropagation(); setEditingDimension({ type: 'room-width', currentValue: Number(toMeters(room.width)), id: room.id }); }}
+                      >
+                        {toMeters(room.width)}m
+                      </div>
+                      <div
+                        className="fpb__edge-label fpb__edge-label--bottom"
+                        onClick={(e) => { e.stopPropagation(); setEditingDimension({ type: 'room-width', currentValue: Number(toMeters(room.width)), id: room.id }); }}
+                      >
+                        {toMeters(room.width)}m
+                      </div>
+                      <div
+                        className="fpb__edge-label fpb__edge-label--left"
+                        onClick={(e) => { e.stopPropagation(); setEditingDimension({ type: 'room-height', currentValue: Number(toMeters(room.height)), id: room.id }); }}
+                      >
+                        {toMeters(room.height)}m
+                      </div>
+                      <div
+                        className="fpb__edge-label fpb__edge-label--right"
+                        onClick={(e) => { e.stopPropagation(); setEditingDimension({ type: 'room-height', currentValue: Number(toMeters(room.height)), id: room.id }); }}
+                      >
+                        {toMeters(room.height)}m
+                      </div>
+                    </>
                   )}
                 </div>
               );
@@ -1175,8 +1315,152 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 </div>
               );
             })}
-          </div>
-        </div>
+            </div>{/* end fpb__canvas-transform */}
+
+            {/* ── Zoom controls ── */}
+            <div className="fpb__zoom-controls">
+              <button className="fpb__zoom-btn" onClick={handleZoomOut} title="Zoom out">−</button>
+              <span className="fpb__zoom-level">{Math.round(zoom * 100)}%</span>
+              <button className="fpb__zoom-btn" onClick={handleZoomIn} title="Zoom in">+</button>
+              <button className="fpb__zoom-btn" onClick={handleFitFloor} title="Fit floor (reset zoom)">⌂</button>
+            </div>
+
+            {/* ── Bottom action bar for selected items ── */}
+            {selectedRoom && (
+              <div className="fpb__bottom-actions">
+                <button className="fpb__action-pill" onClick={() => duplicateRoom(selectedRoom)}>Duplicate</button>
+                <button className="fpb__action-pill" onClick={() => setEditingDimension({ type: 'room-width', currentValue: Number(toMeters(selectedRoom.width)), id: selectedRoom.id })}>Edit Dimensions</button>
+                <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteRoom(selectedRoom.id)}>Delete</button>
+              </div>
+            )}
+            {selectedWall && (
+              <div className="fpb__bottom-actions">
+                <button className="fpb__action-pill" onClick={() => {
+                  const wallLen = Math.sqrt((selectedWall.x2 - selectedWall.x1) ** 2 + (selectedWall.y2 - selectedWall.y1) ** 2);
+                  setEditingDimension({ type: 'wall-length', currentValue: Number(toMeters(wallLen)), id: selectedWall.id });
+                }}>Edit Length</button>
+                <button className="fpb__action-pill" onClick={() => updateWall(selectedWall.id, { kind: selectedWall.kind === 'external' ? 'internal' : 'external' })}>Change Type</button>
+                <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteWall(selectedWall.id)}>Delete</button>
+              </div>
+            )}
+            {selectedNode && (
+              <div className="fpb__bottom-actions">
+                <button className="fpb__action-pill" onClick={() => duplicateNode(selectedNode)}>Duplicate</button>
+                <button className="fpb__action-pill" onClick={() => rotateNode(selectedNode)}>Rotate</button>
+                <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteNode(selectedNode.id)}>Delete</button>
+              </div>
+            )}
+
+            {/* ── Add Room bottom sheet ── */}
+            {showAddRoomSheet && (
+              <>
+                <div className="fpb__bottom-sheet-backdrop" onClick={() => { setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }} />
+                <div className="fpb__bottom-sheet">
+                  <div className="fpb__bottom-sheet-header">
+                    <span>Add Room</span>
+                    <button className="fpb__delete-btn" onClick={() => { setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>✕</button>
+                  </div>
+                  {addRoomSheetMode === 'menu' ? (
+                    <div className="fpb__sheet-options">
+                      <button className="fpb__sheet-option" onClick={() => setAddRoomSheetMode('form')}>
+                        <span>⬛</span> Add rectangular room
+                      </button>
+                      <button className="fpb__sheet-option" onClick={() => { setTool('addRoom'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
+                        <span>✏️</span> Draw room
+                      </button>
+                      <button className="fpb__sheet-option" onClick={() => { setTool('drawWall'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
+                        <span>✂️</span> Split room
+                      </button>
+                      <button className="fpb__sheet-option" onClick={() => { setTool('addRoom'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
+                        <span>🔲</span> Fill gap
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="fpb__sheet-form">
+                      <label className="fpb__field">
+                        <span>Room name</span>
+                        <input type="text" value={manualRoomName} onChange={(e) => setManualRoomName(e.target.value)} />
+                      </label>
+                      <label className="fpb__field">
+                        <span>Width (m)</span>
+                        <input type="number" min={1.5} step={0.1} value={manualRoomWidthM} onChange={(e) => setManualRoomWidthM(Number(e.target.value))} />
+                      </label>
+                      <label className="fpb__field">
+                        <span>Length (m)</span>
+                        <input type="number" min={1.5} step={0.1} value={manualRoomLengthM} onChange={(e) => setManualRoomLengthM(Number(e.target.value))} />
+                      </label>
+                      <label className="fpb__field">
+                        <span>Level</span>
+                        <select value={manualRoomFloorId || activeFloorId} onChange={(e) => setManualRoomFloorId(e.target.value)}>
+                          {plan.floors.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                        </select>
+                      </label>
+                      <button className="fpb__tool-btn" onClick={() => { createRoomFromManualForm(); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>Add room</button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* ── Object browser bottom sheet ── */}
+            {showObjectBrowser && (
+              <>
+                <div className="fpb__bottom-sheet-backdrop" onClick={() => setShowObjectBrowser(false)} />
+                <div className="fpb__bottom-sheet">
+                  <div className="fpb__bottom-sheet-header">
+                    <span>Insert Component</span>
+                    <button className="fpb__delete-btn" onClick={() => setShowObjectBrowser(false)}>✕</button>
+                  </div>
+                  <div className="fpb__sheet-options">
+                    {PALETTE_SECTIONS.map((section) => (
+                      <div key={section.category} className="fpb__sheet-category">
+                        <div className="fpb__palette-heading">{section.label}</div>
+                        {section.items.filter((item) => canPlaceInProfessionalPlan(item.kind)).map((item) => (
+                          <button
+                            key={item.kind}
+                            className="fpb__sheet-option"
+                            onClick={() => {
+                              setTool('placeNode');
+                              setPendingKind(item.kind);
+                              setShowObjectBrowser(false);
+                            }}
+                          >
+                            <span>{item.emoji}</span> {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ── Numeric dimension editor modal ── */}
+            {editingDimension && (
+              <>
+                <div className="fpb__bottom-sheet-backdrop" onClick={() => setEditingDimension(null)} />
+                <div className="fpb__dimension-editor">
+                  <div className="fpb__dimension-editor-title">
+                    {editingDimension.type === 'room-width' ? 'Width (m)' : editingDimension.type === 'room-height' ? 'Height (m)' : 'Length (m)'}
+                  </div>
+                  <input
+                    type="number"
+                    className="fpb__dimension-editor-input"
+                    min={0.5}
+                    step={0.1}
+                    value={editingDimension.currentValue}
+                    onChange={(e) => setEditingDimension({ ...editingDimension, currentValue: Number(e.target.value) })}
+                    autoFocus
+                  />
+                  <div className="fpb__dimension-editor-actions">
+                    <button className="fpb__action-btn" onClick={() => setEditingDimension(null)}>Cancel</button>
+                    <button className="fpb__zoom-btn" onClick={handleDimensionApply}>Apply</button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>{/* end fpb__board */}
+        </div>{/* end fpb__canvas-wrap */}
 
         {/* ── Right inspector panel ── */}
         {selection && (

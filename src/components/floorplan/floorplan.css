@@ -328,6 +328,8 @@
   font-size: 12px;
   color: #475569;
   min-height: 30px;
+  display: flex;
+  align-items: center;
 }
 
 .fpb__board {
@@ -689,6 +691,315 @@
   .fpb__board {
     height: 420px;
   }
+}
+
+/* ── Zoom controls ──────────────────────────────────────────────────────── */
+
+.fpb__canvas-transform {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.fpb__zoom-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 4px 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 60;
+}
+
+.fpb__zoom-btn {
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #fff;
+  padding: 5px 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s;
+  line-height: 1;
+  color: #334155;
+}
+
+.fpb__zoom-btn:hover {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.fpb__zoom-level {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  min-width: 36px;
+  text-align: center;
+  user-select: none;
+}
+
+/* ── Bottom action bar ─────────────────────────────────────────────────── */
+
+.fpb__bottom-actions {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #cbd5e1;
+  border-radius: 24px;
+  padding: 6px 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  z-index: 60;
+}
+
+.fpb__action-pill {
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  background: #f8fafc;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  white-space: nowrap;
+  color: #334155;
+}
+
+.fpb__action-pill:hover {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.fpb__action-pill--danger {
+  color: #dc2626;
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.fpb__action-pill--danger:hover {
+  background: #fee2e2;
+  border-color: #dc2626;
+}
+
+/* ── Bottom sheet (add room & object browser) ──────────────────────────── */
+
+.fpb__bottom-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 70;
+}
+
+.fpb__bottom-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 70%;
+  background: #fff;
+  border-top: 1px solid #cbd5e1;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+  z-index: 80;
+  overflow-y: auto;
+  animation: fpb-sheet-up 0.2s ease-out;
+}
+
+@keyframes fpb-sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.fpb__bottom-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 10px;
+  font-size: 15px;
+  font-weight: 700;
+  border-bottom: 1px solid #f1f5f9;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  border-radius: 16px 16px 0 0;
+}
+
+.fpb__sheet-options {
+  padding: 8px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fpb__sheet-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 12px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.fpb__sheet-option:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.fpb__sheet-category {
+  margin-bottom: 6px;
+}
+
+.fpb__sheet-form {
+  padding: 10px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Numeric dimension editor ──────────────────────────────────────────── */
+
+.fpb__dimension-editor {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 18px 22px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
+  z-index: 80;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fpb__dimension-editor-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fpb__dimension-editor-input {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 16px;
+  font-weight: 600;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.fpb__dimension-editor-input:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.fpb__dimension-editor-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ── Corner handles on selected rooms ──────────────────────────────────── */
+
+.fpb__corner-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #2563eb;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  z-index: 5;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.3);
+}
+
+/* ── Edge measurement labels on selected rooms ─────────────────────────── */
+
+.fpb__room.selected {
+  overflow: visible;
+}
+
+.fpb__edge-label {
+  position: absolute;
+  font-size: 10px;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: rgba(239, 246, 255, 0.92);
+  border: 1px solid #93c5fd;
+  border-radius: 4px;
+  padding: 1px 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  z-index: 6;
+  user-select: none;
+  transition: background 0.12s;
+}
+
+.fpb__edge-label:hover {
+  background: #dbeafe;
+  border-color: #2563eb;
+}
+
+.fpb__edge-label--top {
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.fpb__edge-label--bottom {
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.fpb__edge-label--left {
+  left: -8px;
+  top: 50%;
+  transform: translateX(-100%) translateY(-50%);
+}
+
+.fpb__edge-label--right {
+  right: -8px;
+  top: 50%;
+  transform: translateX(100%) translateY(-50%);
+}
+
+/* ── Floor tab room add button ─────────────────────────────────────────── */
+
+.fpb__floor-add--room {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.fpb__floor-add--room:hover {
+  background: #dbeafe;
+  border-color: #2563eb;
 }
 
 /* ── Legacy compatibility (old floor-builder styles, for fallback) ──────── */
