@@ -49,14 +49,14 @@ function PrimariesDiagram() {
 
 function StorageDiagram() {
   return (
-    <div className="wil-diagram wil-diagram--storage" aria-label="Stored hot water standing losses">
+    <div className="wil-diagram wil-diagram--storage" aria-label="Combi efficiency with frequent short DHW draws">
       <div className="wil-diagram__row wil-diagram__row--result">
-        <span className="wil-diagram__row-label">Low draw</span>
-        <span className="wil-diagram__icons">→ standing loss exceeds savings</span>
+        <span className="wil-diagram__row-label">Many short draws</span>
+        <span className="wil-diagram__icons">→ cold-start losses erode combi efficiency</span>
       </div>
       <div className="wil-diagram__row">
-        <span className="wil-diagram__row-label">High draw</span>
-        <span className="wil-diagram__icons">→ stored hot water wins ✓</span>
+        <span className="wil-diagram__row-label">Stored hot water</span>
+        <span className="wil-diagram__icons">→ already hot · no cold-start penalty ✓</span>
       </div>
     </div>
   );
@@ -94,14 +94,14 @@ function OversizingDiagram() {
 
 function VelocityDiagram() {
   return (
-    <div className="wil-diagram wil-diagram--velocity" aria-label="Primary pipe bore and flow velocity">
+    <div className="wil-diagram wil-diagram--velocity" aria-label="Primary pipe bore and flow threshold">
       <div className="wil-diagram__row wil-diagram__row--result">
-        <span className="wil-diagram__row-label">35 mm</span>
-        <span className="wil-diagram__pipe wil-diagram__pipe--narrow">→ low velocity · sludge risk</span>
+        <span className="wil-diagram__row-label">Below threshold</span>
+        <span className="wil-diagram__pipe wil-diagram__pipe--narrow">→ extra volume · slow response</span>
       </div>
       <div className="wil-diagram__row">
-        <span className="wil-diagram__row-label">28 mm</span>
-        <span className="wil-diagram__pipe wil-diagram__pipe--wide">→ optimal velocity ✓</span>
+        <span className="wil-diagram__row-label">Above threshold</span>
+        <span className="wil-diagram__pipe wil-diagram__pipe--wide">→ adequate flow ✓</span>
       </div>
     </div>
   );
