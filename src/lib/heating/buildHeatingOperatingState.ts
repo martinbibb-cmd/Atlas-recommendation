@@ -16,7 +16,14 @@
  *  - Emitters are ONE contributor, not the only gateway.
  *  - Modulation floor and cycling risk must affect efficiency interpretation.
  *  - Controls and compensation influence achievable operating temperature.
+ *
+ * Floor-plan integration:
+ *  - When floorplanEmitterAdequacy is provided, its impliedOversizingFactor is
+ *    used to refine the emitter oversizing assumption when no explicit value is given.
+ *  - Floor-plan-sourced explanation tags name the room-level physics constraints.
  */
+
+import type { WholeSystemEmitterAdequacy } from '../floorplan/adaptFloorplanToAtlasInputs';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -219,6 +226,19 @@ export interface HeatingOperatingStateInput {
    * 'future'   — exploratory override; may include speculative assumptions.
    */
   scenarioMode?: HeatingScenarioMode;
+
+  /**
+   * Whole-system emitter adequacy derived from the floor plan.
+   *
+   * When provided and emitterOversizingFactor is absent, the impliedOversizingFactor
+   * from this signal is used to refine the emitter oversizing assumption.
+   * This lets room-level installed-emitter data feed directly into required flow
+   * temperature and condensing likelihood without requiring a manual override.
+   *
+   * When both emitterOversizingFactor and floorplanEmitterAdequacy are given,
+   * the explicit emitterOversizingFactor always takes precedence.
+   */
+  floorplanEmitterAdequacy?: WholeSystemEmitterAdequacy;
 }
 
 /**
@@ -296,8 +316,18 @@ export interface HeatingOperatingState {
    *   'circulation-limited'
    *   'good low-load match'
    *   'lower flow temperature achievable, but modulation-limited'
+   *   'oversized emitters improving margin'
+   *   'undersized rooms driving higher operating temperature'
    */
   explanationTags: string[];
+
+  /**
+   * Floor-plan emitter adequacy signal that was used to inform this state.
+   * Passed through for provenance: consumers can inspect which rooms are
+   * undersized or oversized without re-running the aggregation.
+   * undefined when no floor plan data was provided.
+   */
+  floorplanEmitterAdequacy?: WholeSystemEmitterAdequacy;
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -608,8 +638,17 @@ export function buildHeatingOperatingState(
   input: HeatingOperatingStateInput,
 ): HeatingOperatingState {
   const deltaT = input.deltaTc ?? DEFAULT_DELTA_T_C;
-  const oversizingFactor = input.emitterOversizingFactor
+
+  // ── Emitter oversizing factor ─────────────────────────────────────────────
+  // Priority: explicit override > floor-plan implied > condensingModeAvailable default > standard.
+  const fp = input.floorplanEmitterAdequacy;
+  // impliedOversizingFactor is guaranteed non-null when hasActualData is true (interface contract).
+  const fpImpliedFactor = fp?.hasActualData ? fp.impliedOversizingFactor : null;
+  const oversizingFactor =
+    input.emitterOversizingFactor
+    ?? fpImpliedFactor
     ?? (input.condensingModeAvailable ? 1.3 : 1.0);
+
   const boilerMinModulationPct = input.boilerMinModulationPct ?? 30;
   const hasWeatherCompensation = input.hasWeatherCompensation ?? false;
   const hasLoadCompensation = input.hasLoadCompensation ?? false;
@@ -687,6 +726,25 @@ export function buildHeatingOperatingState(
     input.flowTempC,
   );
 
+  // ── Floor-plan emitter tags ───────────────────────────────────────────────
+  // Augment explanation tags with floor-plan-sourced room-level context when
+  // actual installed emitter data is available.
+  if (fp?.hasActualData) {
+    const { coverageClassification, undersizedRooms } = fp;
+    if (coverageClassification === 'all_oversized') {
+      // All rooms have emitters well above heat demand — lower flow temp headroom.
+      explanationTags.push('oversized emitters improving margin');
+    } else if (coverageClassification === 'majority_undersized') {
+      // Most rooms cannot meet demand at reduced flow temperatures.
+      explanationTags.push('undersized rooms driving higher operating temperature');
+    } else if (coverageClassification === 'mixed' && undersizedRooms.length > 0) {
+      // Some rooms are undersized; ensure the emitter-limited tag is present.
+      if (!explanationTags.includes('emitter-limited')) {
+        explanationTags.push('emitter-limited');
+      }
+    }
+  }
+
   return {
     requiredFlowTempC,
     estimatedReturnTempC: parseFloat(fullLoadReturnC.toFixed(1)),
@@ -697,5 +755,6 @@ export function buildHeatingOperatingState(
     controlConstraint,
     circulationConstraint,
     explanationTags,
+    floorplanEmitterAdequacy: fp,
   };
 }

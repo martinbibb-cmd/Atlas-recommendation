@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   adaptFloorplanToAtlasInputs,
+  aggregateEmitterCoverage,
   type AtlasFloorplanInputs,
+  type EmitterAdequacyHint,
 } from '../adaptFloorplanToAtlasInputs';
 import type { DerivedFloorplanOutput } from '../../../components/floorplan/floorplanDerivations';
 
@@ -258,5 +260,146 @@ describe('adaptFloorplanToAtlasInputs — graceful fallback', () => {
     expect(result.sitingConstraintHints).toHaveLength(0);
     expect(result.pipeLengthEstimateHints.totalEstimateM).toBe(0);
     expect(result.isReliable).toBe(false);
+  });
+});
+
+// ─── aggregateEmitterCoverage ─────────────────────────────────────────────────
+
+function makeHint(
+  overrides: Partial<EmitterAdequacyHint> & Pick<EmitterAdequacyHint, 'roomId' | 'roomName' | 'status'>,
+): EmitterAdequacyHint {
+  return {
+    suggestedRadiatorKw: 2.0,
+    ...overrides,
+  };
+}
+
+describe('aggregateEmitterCoverage — insufficient data', () => {
+  it('returns insufficient_data when hints list is empty', () => {
+    const result = aggregateEmitterCoverage([]);
+    expect(result.coverageClassification).toBe('insufficient_data');
+    expect(result.impliedOversizingFactor).toBeNull();
+    expect(result.hasActualData).toBe(false);
+  });
+
+  it('returns insufficient_data when all hints lack installed output data', () => {
+    const hints = [
+      makeHint({ roomId: 'r1', roomName: 'Lounge', status: 'review_recommended' }),
+      makeHint({ roomId: 'r2', roomName: 'Kitchen', status: 'adequate' }),
+    ];
+    const result = aggregateEmitterCoverage(hints);
+    expect(result.coverageClassification).toBe('insufficient_data');
+    expect(result.impliedOversizingFactor).toBeNull();
+    expect(result.hasActualData).toBe(false);
+    expect(result.undersizedRooms).toHaveLength(0);
+    expect(result.oversizedRooms).toHaveLength(0);
+  });
+});
+
+describe('aggregateEmitterCoverage — classification', () => {
+  it('classifies all_adequate when all data rooms are adequate', () => {
+    const hints = [
+      makeHint({ roomId: 'r1', roomName: 'Lounge', status: 'adequate', roomEmitterOutputKw: 2.0, suggestedRadiatorKw: 1.5 }),
+      makeHint({ roomId: 'r2', roomName: 'Kitchen', status: 'adequate', roomEmitterOutputKw: 1.5, suggestedRadiatorKw: 1.2 }),
+    ];
+    const result = aggregateEmitterCoverage(hints);
+    expect(result.coverageClassification).toBe('all_adequate');
+    expect(result.hasActualData).toBe(true);
+    expect(result.undersizedRooms).toHaveLength(0);
+    expect(result.oversizedRooms).toHaveLength(0);
+  });
+
+  it('classifies all_oversized when all data rooms are oversized', () => {
+    const hints = [
+      makeHint({ roomId: 'r1', roomName: 'Lounge', status: 'oversized', roomEmitterOutputKw: 4.5, suggestedRadiatorKw: 2.0 }),
+      makeHint({ roomId: 'r2', roomName: 'Hall', status: 'oversized', roomEmitterOutputKw: 3.0, suggestedRadiatorKw: 1.0 }),
+    ];
+    const result = aggregateEmitterCoverage(hints);
+    expect(result.coverageClassification).toBe('all_oversized');
+    expect(result.oversizedRooms).toEqual(['Lounge', 'Hall']);
+  });
+
+  it('classifies majority_undersized when more than 50% of rooms are undersized', () => {
+    const hints = [
+      makeHint({ roomId: 'r1', roomName: 'Lounge', status: 'undersized', roomEmitterOutputKw: 1.0, suggestedRadiatorKw: 2.0 }),
+      makeHint({ roomId: 'r2', roomName: 'Kitchen', status: 'undersized', roomEmitterOutputKw: 0.8, suggestedRadiatorKw: 1.5 }),
+      makeHint({ roomId: 'r3', roomName: 'Bedroom', status: 'adequate', roomEmitterOutputKw: 2.5, suggestedRadiatorKw: 2.0 }),
+    ];
+    const result = aggregateEmitterCoverage(hints);
+    expect(result.coverageClassification).toBe('majority_undersized');
+    expect(result.undersizedRooms).toEqual(['Lounge', 'Kitchen']);
+  });
+
+  it('classifies mixed when some undersized and some adequate', () => {
+    const hints = [
+      makeHint({ roomId: 'r1', roomName: 'Lounge', status: 'undersized', roomEmitterOutputKw: 0.8, suggestedRadiatorKw: 2.0 }),
+      makeHint({ roomId: 'r2', roomName: 'Kitchen', status: 'adequate', roomEmitterOutputKw: 2.5, suggestedRadiatorKw: 2.0 }),
+      makeHint({ roomId: 'r3', roomName: 'Bedroom', status: 'adequate', roomEmitterOutputKw: 2.0, suggestedRadiatorKw: 1.5 }),
+    ];
+    const result = aggregateEmitterCoverage(hints);
+    expect(result.coverageClassification).toBe('mixed');
+    expect(result.undersizedRooms).toEqual(['Lounge']);
+  });
+});
+
+describe('aggregateEmitterCoverage — impliedOversizingFactor', () => {
+  it('returns a factor close to 1.0 when emitters match demand', () => {
+    const hints = [
+      makeHint({ roomId: 'r1', roomName: 'Lounge', status: 'adequate', roomEmitterOutputKw: 2.0, suggestedRadiatorKw: 2.0 }),
+    ];
+    const result = aggregateEmitterCoverage(hints);
+    expect(result.impliedOversizingFactor).toBeCloseTo(1.0);
+  });
+
+  it('returns a factor > 1 when emitters exceed demand', () => {
+    const hints = [
+      makeHint({ roomId: 'r1', roomName: 'Lounge', status: 'oversized', roomEmitterOutputKw: 3.6, suggestedRadiatorKw: 2.0 }),
+    ];
+    const result = aggregateEmitterCoverage(hints);
+    expect(result.impliedOversizingFactor).toBeGreaterThan(1.0);
+  });
+
+  it('returns a factor < 1 when emitters are undersized', () => {
+    const hints = [
+      makeHint({ roomId: 'r1', roomName: 'Lounge', status: 'undersized', roomEmitterOutputKw: 1.0, suggestedRadiatorKw: 2.0 }),
+    ];
+    const result = aggregateEmitterCoverage(hints);
+    expect(result.impliedOversizingFactor).toBeLessThan(1.0);
+    expect(result.impliedOversizingFactor).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it('weights larger rooms more heavily in the average', () => {
+    // r1: big room, adequate at 1.0x coverage
+    // r2: small room, oversized at 2.0x coverage
+    // Weighted average should be closer to 1.0 due to r1's larger weight.
+    const hints = [
+      makeHint({ roomId: 'r1', roomName: 'Lounge', status: 'adequate', roomEmitterOutputKw: 3.0, suggestedRadiatorKw: 3.0 }),
+      makeHint({ roomId: 'r2', roomName: 'WC', status: 'oversized', roomEmitterOutputKw: 1.0, suggestedRadiatorKw: 0.5 }),
+    ];
+    // r1 coverage = 1.0, weight = 3.0
+    // r2 coverage = 2.0, weight = 0.5
+    // weighted avg = (1.0*3.0 + 2.0*0.5) / (3.0 + 0.5) = 4/3.5 ≈ 1.14
+    const result = aggregateEmitterCoverage(hints);
+    expect(result.impliedOversizingFactor).toBeCloseTo(4 / 3.5, 2);
+  });
+});
+
+describe('adaptFloorplanToAtlasInputs — wholeSystemEmitterAdequacy', () => {
+  it('includes wholeSystemEmitterAdequacy in the output', () => {
+    const derived = makeDerived({
+      roomHeatLossKw: [{ roomId: 'r1', roomName: 'Lounge', heatLossKw: 2.0 }],
+      emitterSizing: [
+        { roomId: 'r1', roomName: 'Lounge', suggestedRadiatorKw: 2.0, roomEmitterOutputKw: 3.0 },
+      ],
+    });
+    const result = adaptFloorplanToAtlasInputs(derived);
+    expect(result.wholeSystemEmitterAdequacy).toBeDefined();
+    expect(result.wholeSystemEmitterAdequacy.hasActualData).toBe(true);
+  });
+
+  it('returns insufficient_data adequacy for empty floor plan', () => {
+    const result = adaptFloorplanToAtlasInputs(makeDerived());
+    expect(result.wholeSystemEmitterAdequacy.coverageClassification).toBe('insufficient_data');
+    expect(result.wholeSystemEmitterAdequacy.hasActualData).toBe(false);
   });
 });
