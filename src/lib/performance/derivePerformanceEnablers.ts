@@ -114,31 +114,6 @@ function deriveMainsWaterSuitability(result: FullEngineResult): PerformanceEnabl
   };
 }
 
-function deriveGasSupply(result: FullEngineResult): PerformanceEnabler {
-  const primary = result.engineOutput.recommendation.primary;
-
-  // Heat-pump recommendation: gas supply is not a factor.
-  if (isHeatPumpRecommendation(primary)) {
-    return {
-      id: 'gas_supply',
-      label: 'Gas supply',
-      status: 'ok',
-      detail: 'Heat pump system — gas supply not required.',
-      category: 'combustion',
-    };
-  }
-
-  // No gas pressure or gas-rate measurement exists in the current input schema.
-  // Flag as "not confirmed" so the installer knows to verify on site.
-  return {
-    id: 'gas_supply',
-    label: 'Gas supply',
-    status: 'missing',
-    detail: 'Gas pressure has not been confirmed. Verify gas pressure and rate on site.',
-    category: 'combustion',
-  };
-}
-
 function deriveEmitterSuitability(result: FullEngineResult): PerformanceEnabler {
   const { systemOptimization, heatPumpRegime } = result;
   const primary = result.engineOutput.recommendation.primary;
