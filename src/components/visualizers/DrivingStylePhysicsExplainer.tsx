@@ -1,33 +1,38 @@
 /**
  * DrivingStylePhysicsExplainer.tsx
  *
- * Customer-facing 4-lane driving-style physics explainer.
+ * Customer-facing 4-row driving-style physics explainer.
  *
- * Translates heating-system behaviour into a driving / race analogy so that
- * users can instantly distinguish:
- *   Lane 1 — Boy Racer / Hot Hatch  (combi boiler)
- *   Lane 2 — Mondeo                 (system / regular boiler with stored hot water)
- *   Lane 3 — Hyper-miler            (gas + strong controls + Mixergy)
- *   Lane 4 — Electric Hyper-miler   (heat pump)
+ * Renders a fully static comparison infographic explaining heating-system
+ * behaviour through a driving analogy:
+ *   Row 1 — Boy Racer / Hot Hatch  (combi boiler)
+ *   Row 2 — Mondeo                 (system / regular boiler with stored hot water)
+ *   Row 3 — Hyper-miler            (gas + strong controls + Mixergy)
+ *   Row 4 — Electric Hyper-miler   (heat pump)
+ *
+ * This component is a static infographic — no animations, no CSS keyframes,
+ * no JS timing, and no progressbar semantics.  It is safe for print/PDF use.
  *
  * Props are documented in src/types/explainers.ts.
- *
- * Animation is pure CSS — no external animation library.
- * Compact mode renders the final static state for PDF/report contexts and
- * automatically applies when the user prefers reduced motion.
  *
  * Placement suggestions:
  *   - comparison page (combi vs stored choice)
  *   - recommendation rationale
  *   - objection-handling area
+ *   - printed reports
  */
 
 import { useMemo } from 'react';
 import {
-  buildDrivingStyleLaneStates,
+  buildDrivingStyleRows,
   resolveExplainerInput,
 } from '../../lib/explainers/drivingStyleExplainer';
-import type { DrivingStylePhysicsExplainerProps, DrivetrainId, LaneState } from '../../types/explainers';
+import type {
+  DrivingStylePhysicsExplainerProps,
+  DrivingStyleRow,
+  DrivetrainId,
+  PathVariant,
+} from '../../types/explainers';
 import './DrivingStylePhysicsExplainer.css';
 
 // ─── Vehicle icons ────────────────────────────────────────────────────────────
@@ -39,87 +44,127 @@ const VEHICLE_ICON: Record<DrivetrainId, string> = {
   heatpump: '⚡',
 };
 
-/** Icon used for the energy gauge — gas-pump for gas systems, battery for HP. */
-const GAUGE_ICON: Record<DrivetrainId, string> = {
-  combi:    '⛽',
-  system:   '⛽',
-  mixergy:  '⛽',
-  heatpump: '🔋',
+// ─── Static SVG path definitions ─────────────────────────────────────────────
+
+/**
+ * SVG polyline/path data for each path variant.
+ * ViewBox: "0 0 200 28" (width 200, height 28).
+ */
+const PATH_DATA: Record<PathVariant, string> = {
+  // Jagged line with a small backward notch near the start (combi stop-start behaviour)
+  'jagged-reverse':
+    'M 0,14 L 4,18 L 2,21 L 10,10 L 20,20 L 32,8 L 44,19 L 56,9 L 70,19 L 84,12 L 102,15 L 124,12 L 148,14 L 172,12 L 190,13 L 200,13',
+  // Mostly straight with mild undulation (steady system boiler)
+  'steady':
+    'M 0,16 L 55,14 L 110,15 L 165,13 L 200,14',
+  // Smooth curve (Mixergy smart storage)
+  'smooth':
+    'M 0,20 C 60,20 140,9 200,11',
+  // Smooth curve ending slightly earlier — heat pump hasn't fully arrived
+  'slow-smooth':
+    'M 0,20 C 50,20 120,9 176,11',
+};
+
+/**
+ * Normalised X position (0–1) at which the vehicle token sits for each variant.
+ * The heat pump ends at ~88 % to show it hasn't quite reached the finish line.
+ */
+const TOKEN_POSITION_FRAC: Record<PathVariant, number> = {
+  'jagged-reverse': 1.0,
+  'steady':         1.0,
+  'smooth':         1.0,
+  'slow-smooth':    0.88,
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-interface LaneProps {
-  lane:     LaneState;
-  dimmed:   boolean;
-  compact:  boolean;
+interface PathTrackProps {
+  id:      DrivetrainId;
+  variant: PathVariant;
 }
 
-function Lane({ lane, dimmed, compact }: LaneProps) {
-  const tokenLeft = `calc(${Math.min(lane.progress, 1) * 100}% - 1.4rem)`;
-  const energyPct = Math.round(lane.energyLevel * 100);
+function PathTrack({ id, variant }: PathTrackProps) {
+  const tokenPct = TOKEN_POSITION_FRAC[variant] * 100;
 
-  // CSS motion-state class applied to the token
-  const tokenMotionClass =
-    !compact && lane.motionState !== 'finished' && lane.motionState !== 'idle'
-      ? `dspe__token--${lane.motionState}`
-      : '';
+  return (
+    <div className="dspe__path-wrapper" aria-hidden="true">
+      <svg
+        viewBox="0 0 200 28"
+        className="dspe__path-svg"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path
+          d={PATH_DATA[variant]}
+          className={`dspe__path-line dspe__path-line--${id}`}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <span
+        className="dspe__vehicle-token"
+        style={{ left: `calc(${tokenPct}% - 1.1rem)` }}
+      >
+        {VEHICLE_ICON[id]}
+      </span>
+    </div>
+  );
+}
+
+interface RowProps {
+  row:     DrivingStyleRow;
+  dimmed:  boolean;
+  compact: boolean;
+}
+
+function Row({ row, dimmed, compact }: RowProps) {
+  // Energy bar width: rank 4 → 85 %, rank 3 → 65 %, rank 2 → 45 %, rank 1 → 25 %
+  const energyBarPct = row.energyRank * 20 + 5;
 
   return (
     <div
-      className={`dspe__lane${dimmed ? ' dspe__lane--dimmed' : ''}`}
-      data-lane={lane.id}
+      className={`dspe__row${dimmed ? ' dspe__row--dimmed' : ''}`}
+      role="listitem"
+      data-system={row.id}
     >
-      {/* Lane header: label + warning badge */}
-      <div className="dspe__lane-header">
-        <span className="dspe__lane-label">{lane.label}</span>
-        {lane.showConcurrentWarning && (
-          <span className="dspe__warning-badge" role="status">
-            On-demand hot water divides available output
-          </span>
-        )}
+      {/* Row header: title, system label, chips */}
+      <div className="dspe__row-header">
+        <div className="dspe__row-labels">
+          <span className="dspe__row-title">{row.title}</span>
+          <span className="dspe__row-system">{row.systemLabel}</span>
+        </div>
+        <div className="dspe__row-chips">
+          <span className="dspe__chip dspe__chip--power">{row.powerBadge}</span>
+          {row.eventChip && (
+            <span className="dspe__chip dspe__chip--event">{row.eventChip}</span>
+          )}
+          {row.warningChip && (
+            <span className="dspe__chip dspe__chip--warning" role="status">
+              {row.warningChip}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Progress track */}
-      <div
-        className="dspe__progress-track"
-        role="progressbar"
-        aria-valuenow={Math.round(lane.progress * 100)}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`${lane.label} progress`}
-      >
+      {/* Static path track — hidden in compact mode */}
+      {!compact && <PathTrack id={row.id} variant={row.pathVariant} />}
+
+      {/* Static energy bar */}
+      <div className="dspe__energy-bar">
         <div
-          className={`dspe__progress-fill dspe__progress-fill--${lane.id}`}
-          style={{ width: `${Math.min(lane.progress, 1) * 100}%` }}
-        />
-        <span
-          className={`dspe__token${tokenMotionClass ? ` ${tokenMotionClass}` : ''}`}
-          style={{ left: tokenLeft }}
-          aria-hidden="true"
+          className="dspe__energy-track"
+          aria-label={`Energy use: ${row.powerBadge}`}
         >
-          {VEHICLE_ICON[lane.id]}
-        </span>
-      </div>
-
-      {/* Energy gauge */}
-      <div className="dspe__gauge">
-        <span className="dspe__gauge-icon" aria-hidden="true">
-          {GAUGE_ICON[lane.id]}
-        </span>
-        <div className="dspe__gauge-track">
           <div
-            className={`dspe__gauge-fill dspe__gauge-fill--${lane.id}`}
-            style={{ width: `${energyPct}%` }}
+            className={`dspe__energy-fill dspe__energy-fill--${row.id}`}
+            style={{ width: `${energyBarPct}%` }}
           />
         </div>
-        <span className="dspe__gauge-label" aria-label={`${energyPct}% energy remaining`}>
-          {energyPct}%
-        </span>
       </div>
 
       {/* Caption */}
-      <p className="dspe__lane-caption">{lane.caption}</p>
+      <p className="dspe__row-caption">{row.caption}</p>
     </div>
   );
 }
@@ -129,8 +174,11 @@ function Lane({ lane, dimmed, compact }: LaneProps) {
 /**
  * DrivingStylePhysicsExplainer
  *
- * 4-lane race analogy explaining combi, system, Mixergy, and heat pump
- * behaviour.  Rendered as a collapsible-friendly self-contained card.
+ * Fully static 4-row infographic explaining combi, system, Mixergy, and
+ * heat pump behaviour through a driving analogy.
+ *
+ * No CSS keyframes.  No animation or transition.  No progressbar semantics.
+ * Safe for print and PDF output.
  *
  * @see src/types/explainers.ts for full prop documentation.
  */
@@ -153,14 +201,7 @@ export default function DrivingStylePhysicsExplainer({
     [peakConcurrentOutlets, occupancySignature, controlsQuality, hasMixergy],
   );
 
-  // Compact mode always renders the final state; animation phases are driven
-  // externally in a future interactive iteration.
-  const phase = 'finish' as const;
-
-  const lanes = useMemo(
-    () => buildDrivingStyleLaneStates(input, phase),
-    [input, phase],
-  );
+  const rows = useMemo(() => buildDrivingStyleRows(input), [input]);
 
   return (
     <section
@@ -177,17 +218,17 @@ export default function DrivingStylePhysicsExplainer({
         </p>
       </div>
 
-      {/* 4-lane track */}
-      <div className="dspe__track" role="list" aria-label="Heating system comparison lanes">
-        {lanes.map((lane) => (
-          <Lane
-            key={lane.id}
-            lane={lane}
-            dimmed={systemFocus !== 'all' && lane.id !== systemFocus}
+      {/* 4-row comparison */}
+      <div className="dspe__track" role="list" aria-label="Heating system comparison">
+        {rows.map((row) => (
+          <Row
+            key={row.id}
+            row={row}
+            dimmed={systemFocus !== 'all' && row.id !== systemFocus}
             compact={compact}
           />
         ))}
-        {/* Finish-line rule */}
+        {/* Finish-line rule — visual marker at right edge */}
         <div className="dspe__finish-rule" aria-hidden="true" />
       </div>
 
