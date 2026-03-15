@@ -29,7 +29,8 @@ import {
   buildUnifiedConfidence,
   type UnifiedConfidence,
 } from '../confidence/buildUnifiedConfidence';
-import type { AtlasFloorplanInputs } from '../floorplan/adaptFloorplanToAtlasInputs';
+import type { AtlasFloorplanInputs, EmitterCoverageClassification } from '../floorplan/adaptFloorplanToAtlasInputs';
+import { buildHeatingOperatingState, FLOOR_PLAN_EMITTER_EXPLANATION_TAGS } from '../heating/buildHeatingOperatingState';
 
 // Re-export for consumers that want the unified type without an extra import.
 export type { UnifiedConfidence };
@@ -162,6 +163,28 @@ export interface FloorplanInsights {
   pipeLengthEstimateM: number;
   /** Whether this floor plan was used to refine heat-loss estimates. */
   heatLossRefined: boolean;
+  /**
+   * Whole-system emitter coverage classification derived from room-level
+   * installed emitter output data.
+   * null when no rooms carry actual emitter output data.
+   */
+  coverageClassification: EmitterCoverageClassification | null;
+  /** Rooms where installed emitter output is insufficient to meet room heat demand. */
+  undersizedRooms: string[];
+  /** Rooms where installed emitter output far exceeds room heat demand (ratio > 1.8). */
+  oversizedRooms: string[];
+  /**
+   * True when the floor-plan emitter coverage data meaningfully changed the
+   * operating temperature assumption (i.e. actual installed emitter data was
+   * available and the implied oversizing factor differs from the default 1.0).
+   */
+  operatingTempInfluenced: boolean;
+  /**
+   * Explanation tags from buildHeatingOperatingState when it was informed by
+   * the floor-plan emitter adequacy signal.  Surfaces the physics story
+   * (e.g. 'oversized emitters improving margin', 'emitter-limited').
+   */
+  emitterExplanationTags: string[];
 }
 
 // ─── AdviceFromCompareResult ──────────────────────────────────────────────────
@@ -812,6 +835,21 @@ export function buildAdviceFromCompare(
   // When a reliable floor plan is present, derive insights and boost confidence.
   const fp = floorplanInputs?.isReliable === true ? floorplanInputs : null;
 
+  // When floor-plan emitter adequacy is available, run the heating operating
+  // state model to capture the floor-plan-sourced explanation tags.
+  const fpAdequacy = fp?.wholeSystemEmitterAdequacy;
+  const fpOperatingState = fpAdequacy?.hasActualData
+    ? buildHeatingOperatingState({
+        flowTempC: 70,
+        floorplanEmitterAdequacy: fpAdequacy,
+        heatLossWatts: surveyData.heatLossWatts,
+      })
+    : null;
+
+  // Explanation tags that were added specifically because of floor-plan data.
+  const emitterExplanationTags =
+    fpOperatingState?.explanationTags.filter((t) => FLOOR_PLAN_EMITTER_EXPLANATION_TAGS.has(t)) ?? [];
+
   const floorplanInsights: FloorplanInsights | null = fp
     ? {
         refinedHeatLossKw: fp.refinedHeatLossKw,
@@ -821,6 +859,16 @@ export function buildAdviceFromCompare(
         sitingWarnings: fp.sitingConstraintHints.flatMap((h) => h.warningMessages),
         pipeLengthEstimateM: fp.pipeLengthEstimateHints.totalEstimateM,
         heatLossRefined: fp.refinedHeatLossKw > 0,
+        coverageClassification: fpAdequacy?.hasActualData
+          ? fpAdequacy.coverageClassification
+          : null,
+        undersizedRooms: fpAdequacy?.undersizedRooms ?? [],
+        oversizedRooms: fpAdequacy?.oversizedRooms ?? [],
+        operatingTempInfluenced:
+          fpAdequacy?.hasActualData === true &&
+          fpAdequacy.impliedOversizingFactor !== null &&
+          fpAdequacy.impliedOversizingFactor !== 1.0,
+        emitterExplanationTags,
       }
     : null;
 

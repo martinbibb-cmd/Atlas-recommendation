@@ -87,6 +87,21 @@ const PRIMARY_MEDIUM_LOAD_W = 10_000;
 /** Primary heat-loss threshold for high-load concern (W). */
 const PRIMARY_HIGH_LOAD_W = 14_000;
 
+/**
+ * Set of explanation tags that originate exclusively from floor-plan-derived
+ * emitter adequacy data (i.e. pushed by the floor-plan emitter tag block in
+ * buildHeatingOperatingState).
+ *
+ * Exported so that consumers (buildAdviceFromCompare, ExplainersHubPage, etc.)
+ * can filter for floor-plan-sourced physics context without duplicating the
+ * string literals.
+ */
+export const FLOOR_PLAN_EMITTER_EXPLANATION_TAGS: ReadonlySet<string> = new Set([
+  'oversized emitters improving margin',
+  'undersized rooms driving higher operating temperature',
+  'emitter-limited',
+]);
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /**

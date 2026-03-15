@@ -704,3 +704,105 @@ describe('buildAdviceFromCompare — floorplanInputs', () => {
     expect(JSON.stringify(r1)).toBe(JSON.stringify(r2));
   });
 });
+
+// ─── FloorplanInsights — extended emitter adequacy fields ────────────────────
+
+describe('buildAdviceFromCompare — floorplanInsights extended fields', () => {
+  function makeFloorplanWithAdequacy(
+    coverageClassification: import('../../../lib/floorplan/adaptFloorplanToAtlasInputs').EmitterCoverageClassification,
+    undersizedRooms: string[],
+    oversizedRooms: string[],
+    impliedOversizingFactor: number | null,
+  ) {
+    return {
+      refinedHeatLossKw: 5.4,
+      emitterAdequacyHints: [] as import('../../../lib/floorplan/adaptFloorplanToAtlasInputs').EmitterAdequacyHint[],
+      roomHeatLossBreakdown: [],
+      sitingConstraintHints: [],
+      pipeLengthEstimateHints: { totalEstimateM: 0, label: '' },
+      wholeSystemEmitterAdequacy: {
+        coverageClassification,
+        impliedOversizingFactor,
+        undersizedRooms,
+        oversizedRooms,
+        hasActualData: true,
+      },
+      isReliable: true,
+    };
+  }
+
+  it('populates coverageClassification from wholeSystemEmitterAdequacy', () => {
+    const fp = makeFloorplanWithAdequacy('all_oversized', [], ['Lounge', 'Bedroom'], 1.5);
+    const result = buildAdviceFromCompare(makeInput({ floorplanInputs: fp }));
+    expect(result.floorplanInsights?.coverageClassification).toBe('all_oversized');
+  });
+
+  it('populates undersizedRooms from wholeSystemEmitterAdequacy', () => {
+    const fp = makeFloorplanWithAdequacy('majority_undersized', ['Kitchen', 'Bathroom'], [], 0.8);
+    const result = buildAdviceFromCompare(makeInput({ floorplanInputs: fp }));
+    expect(result.floorplanInsights?.undersizedRooms).toEqual(['Kitchen', 'Bathroom']);
+  });
+
+  it('populates oversizedRooms from wholeSystemEmitterAdequacy', () => {
+    const fp = makeFloorplanWithAdequacy('all_oversized', [], ['Lounge'], 1.5);
+    const result = buildAdviceFromCompare(makeInput({ floorplanInputs: fp }));
+    expect(result.floorplanInsights?.oversizedRooms).toEqual(['Lounge']);
+  });
+
+  it('sets operatingTempInfluenced=true when factor differs from 1.0', () => {
+    const fp = makeFloorplanWithAdequacy('all_oversized', [], ['Lounge'], 1.5);
+    const result = buildAdviceFromCompare(makeInput({ floorplanInputs: fp }));
+    expect(result.floorplanInsights?.operatingTempInfluenced).toBe(true);
+  });
+
+  it('sets operatingTempInfluenced=false when factor is 1.0', () => {
+    const fp = makeFloorplanWithAdequacy('all_adequate', [], [], 1.0);
+    const result = buildAdviceFromCompare(makeInput({ floorplanInputs: fp }));
+    expect(result.floorplanInsights?.operatingTempInfluenced).toBe(false);
+  });
+
+  it('surfaces "oversized emitters improving margin" tag for all_oversized coverage', () => {
+    const fp = makeFloorplanWithAdequacy('all_oversized', [], ['Lounge', 'Bedroom'], 1.5);
+    const result = buildAdviceFromCompare(makeInput({ floorplanInputs: fp }));
+    expect(result.floorplanInsights?.emitterExplanationTags).toContain(
+      'oversized emitters improving margin',
+    );
+  });
+
+  it('surfaces "undersized rooms driving higher operating temperature" for majority_undersized', () => {
+    const fp = makeFloorplanWithAdequacy('majority_undersized', ['Kitchen', 'Bathroom'], [], 0.8);
+    const result = buildAdviceFromCompare(makeInput({ floorplanInputs: fp }));
+    expect(result.floorplanInsights?.emitterExplanationTags).toContain(
+      'undersized rooms driving higher operating temperature',
+    );
+  });
+
+  it('sets coverageClassification=null when no reliable floor plan provided', () => {
+    const result = buildAdviceFromCompare(makeInput());
+    expect(result.floorplanInsights).toBeNull();
+  });
+
+  it('sets undersizedRooms=[] and oversizedRooms=[] when hasActualData is false', () => {
+    const fp = {
+      refinedHeatLossKw: 5.4,
+      emitterAdequacyHints: [] as import('../../../lib/floorplan/adaptFloorplanToAtlasInputs').EmitterAdequacyHint[],
+      roomHeatLossBreakdown: [],
+      sitingConstraintHints: [],
+      pipeLengthEstimateHints: { totalEstimateM: 0, label: '' },
+      wholeSystemEmitterAdequacy: {
+        coverageClassification: 'insufficient_data' as const,
+        impliedOversizingFactor: null,
+        undersizedRooms: [],
+        oversizedRooms: [],
+        hasActualData: false,
+      },
+      isReliable: true,
+    };
+    const result = buildAdviceFromCompare(makeInput({ floorplanInputs: fp }));
+    expect(result.floorplanInsights?.coverageClassification).toBeNull();
+    expect(result.floorplanInsights?.undersizedRooms).toEqual([]);
+    expect(result.floorplanInsights?.oversizedRooms).toEqual([]);
+    expect(result.floorplanInsights?.operatingTempInfluenced).toBe(false);
+    expect(result.floorplanInsights?.emitterExplanationTags).toEqual([]);
+  });
+});

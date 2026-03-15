@@ -843,6 +843,71 @@
   }
 }
 
+/* ─── Floor-plan operating assumptions badge ────────────────────────────────── */
+
+.sim-floorplan-badge {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  background: #f0fff4;
+  border: 1px solid #c6f6d5;
+  border-left: 4px solid #48bb78;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  margin: 0 14px 0.5rem;
+  font-size: 0.8rem;
+  color: #22543d;
+}
+
+.sim-floorplan-badge__icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.sim-floorplan-badge__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.sim-floorplan-badge__title {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #276749;
+}
+
+.sim-floorplan-badge__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+}
+
+.sim-floorplan-badge__item {
+  font-size: 0.75rem;
+  color: #276749;
+}
+
+.sim-floorplan-badge__item--oversized {
+  color: #276749;
+}
+
+.sim-floorplan-badge__item--undersized {
+  color: #742a2a;
+}
+
+.sim-floorplan-badge__item--op-temp {
+  color: #744210;
+  font-style: italic;
+}
+
+@media (max-width: 600px) {
+  .sim-floorplan-badge {
+    margin: 0 8px 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
 /* ─── Day timeline row ──────────────────────────────────────────────────────── */
 
 .sim-day-timeline-row {
