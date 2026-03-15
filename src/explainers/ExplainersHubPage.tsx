@@ -5,6 +5,9 @@
  * PR16: Added survey-backed entry — when surveyData is provided, the stepper
  *       is skipped and the simulator opens pre-configured from survey inputs.
  *       An "Edit setup" button lets users re-enter the stepper at any time.
+ * PR5:  Survey-backed entry now defaults to compare mode (current vs proposed)
+ *       via buildCompareSeedFromSurvey, making comparison the primary Atlas
+ *       demonstration rather than a hidden secondary feature.
  */
 
 import { useState, useMemo } from 'react';
@@ -12,6 +15,7 @@ import SimulatorDashboard from './lego/simulator/SimulatorDashboard';
 import SimulatorStepper from './lego/simulator/SimulatorStepper';
 import type { StepperConfig } from './lego/simulator/SimulatorStepper';
 import { adaptFullSurveyToSimulatorInputs } from './lego/simulator/adaptFullSurveyToSimulatorInputs';
+import { buildCompareSeedFromSurvey } from '../lib/simulator/buildCompareSeedFromSurvey';
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import ExplainerPanel from './educational/ExplainerPanel';
@@ -55,11 +59,21 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
     [surveyData],
   );
 
-  // Run the engine once from survey data to power the advice page.
+  // Run the engine once from survey data to power the advice page and compare seed.
   // Only computed when surveyData is present; the advice CTA is hidden otherwise.
   const engineOutput = useMemo(
     () => (surveyData != null ? runEngine(surveyData as EngineInputV2_3).engineOutput : null),
     [surveyData],
+  );
+
+  // Build the compare seed when both survey and engine output are available.
+  // This seeds the proposed (right) column from the engine's first viable recommendation.
+  const compareSeed = useMemo(
+    () =>
+      surveyData != null && engineOutput != null
+        ? buildCompareSeedFromSurvey(surveyData as FullSurveyModelV1, engineOutput)
+        : null,
+    [surveyData, engineOutput],
   );
 
   // Show dashboard when:
@@ -137,6 +151,13 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
           initialSystemChoice={initialSystemChoice}
           initialSystemInputs={initialSystemInputs}
           surveyBacked={isSurveyBacked}
+          defaultMode={isSurveyBacked ? 'compare' : 'single'}
+          initialProposedSystemChoice={compareSeed?.right.systemChoice}
+          initialProposedSystemInputs={compareSeed?.right.systemInputs}
+          compareLabels={isSurveyBacked
+            ? { current: 'Current system', proposed: 'Proposed system' }
+            : undefined
+          }
         />
 
         {/* Decision Advice CTA — only available when survey-backed */}

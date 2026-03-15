@@ -6,13 +6,17 @@
  *  - Limiters row below the grid
  *  - System Inputs row below limiters
  *
- * Compare mode:
+ * Compare mode (default when survey-backed):
  *  - ComparisonSummaryStrip at top showing key before/after physics
- *  - Two columns side by side: Current System | Improved System
+ *  - Two columns side by side: Current System | Proposed System
  *  - Each column runs independent hooks via the same simulator architecture
+ *  - Left column seeded from the surveyed current system
+ *  - Right column seeded from the engine's recommended proposed system
  *
  * PR6:  Added sim-time/phase bar, demand controls, and correct system-type options.
  * PR13: Added compare mode toggle, parallel improved config, ComparisonSummaryStrip.
+ * PR5:  Compare mode is now the default for survey-backed entry. Proposed-system
+ *       column seeded from buildCompareSeedFromSurvey, with canonical labels.
  */
 
 import { useState } from 'react';
@@ -208,16 +212,45 @@ interface Props {
    * of the initial configuration.
    */
   surveyBacked?: boolean
+  /**
+   * Initial mode for the simulator.
+   * Defaults to 'compare' when survey-backed (from Full Survey) so that the
+   * strongest product demonstration — current vs proposed — is shown first.
+   * Defaults to 'single' when opened without survey data (stepper path).
+   */
+  defaultMode?: SimulatorMode
+  /**
+   * Initial system choice for the proposed (right) column in compare mode.
+   * Produced by buildCompareSeedFromSurvey() when launched from a full survey.
+   * Falls back to initialSystemChoice when not provided.
+   */
+  initialProposedSystemChoice?: SimulatorSystemChoice
+  /**
+   * Initial partial SystemInputs for the proposed (right) column in compare mode.
+   * Produced by buildCompareSeedFromSurvey() when launched from a full survey.
+   * Falls back to improved defaults when not provided.
+   */
+  initialProposedSystemInputs?: Partial<SystemInputs>
+  /**
+   * Column heading labels for compare mode.
+   * Defaults to { current: 'Current system', proposed: 'Proposed system' }.
+   * Override to 'Improved system' etc. for non-survey-backed compare flows.
+   */
+  compareLabels?: { current: string; proposed: string }
 }
 
 export default function SimulatorDashboard({
   initialSystemChoice = 'combi',
   initialSystemInputs,
   surveyBacked = false,
+  defaultMode,
+  initialProposedSystemChoice,
+  initialProposedSystemInputs,
+  compareLabels = { current: 'Current system', proposed: 'Proposed system' },
 }: Props) {
   const [expanded, setExpanded] = useState<PanelId | null>(null);
   const [timeSpeed, setTimeSpeed] = useState(1);
-  const [simulatorMode, setSimulatorMode] = useState<SimulatorMode>('single');
+  const [simulatorMode, setSimulatorMode] = useState<SimulatorMode>(defaultMode ?? 'single');
   const [scenarioKey, setScenarioKey] = useState<ScenarioKey>(DEFAULT_SCENARIO_KEY);
 
   // ── Scenario preset handler ─────────────────────────────────────────────────
@@ -289,14 +322,26 @@ export default function SimulatorDashboard({
   // ── Improved config (compare mode) ─────────────────────────────────────────
   // Hooks are always called unconditionally (React rules). Their outputs are
   // only rendered when simulatorMode === 'compare'.
-  const [improvedInputs, setImprovedInputs] = useState<SystemInputs>({
-    ...DEFAULT_SYSTEM_INPUTS,
-    weatherCompensation: true,
-    loadCompensation: true,
-    emitterCapacityFactor: 1.3,
-    primaryPipeSize: '22mm',
-    systemCondition: 'clean',
-  });
+  //
+  // When initialProposedSystemInputs is provided (survey-backed entry), it
+  // seeds the proposed column from buildCompareSeedFromSurvey output so the
+  // right column represents the engine's actual recommendation.
+  //
+  // When not provided, fall back to the generic "improved defaults" (emitter
+  // factor 1.3 — a more aggressive improvement appropriate for the non-survey
+  // generic compare path where no real property physics are available to target).
+  const [improvedInputs, setImprovedInputs] = useState<SystemInputs>(
+    initialProposedSystemInputs != null
+      ? { ...DEFAULT_SYSTEM_INPUTS, ...initialProposedSystemInputs }
+      : {
+          ...DEFAULT_SYSTEM_INPUTS,
+          weatherCompensation: true,
+          loadCompensation: true,
+          emitterCapacityFactor: 1.3,
+          primaryPipeSize: '22mm',
+          systemCondition: 'clean',
+        },
+  );
 
   const {
     state: diagramStateImproved,
@@ -305,7 +350,7 @@ export default function SimulatorDashboard({
     isManualMode: isManualModeImproved,
     resetToAutoMode: resetToAutoModeImproved,
     setManualMode: setManualModeImproved,
-  } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed, improvedInputs.occupancyProfile, improvedInputs.demandPreset);
+  } = useSystemDiagramPlayback(initialProposedSystemChoice ?? initialSystemChoice, timeSpeed, improvedInputs.occupancyProfile, improvedInputs.demandPreset);
   // useHousePlayback and useDrawOffPlayback are called for React hook ordering.
   // Their results are not rendered in compare mode (only efficiency/limiters are shown).
   useHousePlayback(diagramStateImproved);
@@ -454,7 +499,7 @@ export default function SimulatorDashboard({
 
           {/* ── Current System column ── */}
           <div className="sim-compare-col sim-compare-col--current">
-            <div className="sim-compare-col__heading">Current System</div>
+            <div className="sim-compare-col__heading">{compareLabels.current}</div>
 
             <SystemSelector
               systemChoice={systemChoice}
@@ -501,9 +546,9 @@ export default function SimulatorDashboard({
             </div>
           </div>
 
-          {/* ── Improved System column ── */}
+          {/* ── Proposed System column ── */}
           <div className="sim-compare-col sim-compare-col--improved">
-            <div className="sim-compare-col__heading sim-compare-col__heading--improved">Improved System</div>
+            <div className="sim-compare-col__heading sim-compare-col__heading--improved">{compareLabels.proposed}</div>
 
             <SystemSelector
               systemChoice={systemChoiceImproved}
@@ -538,7 +583,7 @@ export default function SimulatorDashboard({
             </div>
 
             <div className="sim-compare-inputs">
-              <SimulatorPanel title="Improved Inputs" icon="🎛" onExpand={() => {}}>
+              <SimulatorPanel title={`${compareLabels.proposed} Inputs`} icon="🎛" onExpand={() => {}}>
                 <SystemInputsPanel
                   timeSpeed={timeSpeed}
                   onTimeSpeedChange={setTimeSpeed}
