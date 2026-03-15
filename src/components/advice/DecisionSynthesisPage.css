@@ -43,6 +43,26 @@
   border-color: #718096;
 }
 
+/* ── Print action button ──────────────────────────────────────────────────── */
+
+.advice-page__print-btn {
+  background: transparent;
+  color: #a0aec0;
+  border: 1px solid #4a5568;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  min-height: 44px;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.advice-page__print-btn:hover {
+  color: #fff;
+  border-color: #718096;
+}
+
 .advice-page__title-block {
   flex: 1;
 }

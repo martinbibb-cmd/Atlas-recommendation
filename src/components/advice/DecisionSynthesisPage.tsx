@@ -25,6 +25,7 @@
  *  - Never Math.random() — all outputs are deterministic.
  */
 
+import { useState } from 'react';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { CompareSeed } from '../../lib/simulator/buildCompareSeedFromSurvey';
@@ -35,6 +36,7 @@ import {
   type AdviceCard,
   type AdviceFromCompareResult,
 } from '../../lib/advice/buildAdviceFromCompare';
+import PrintableRecommendationPage from './PrintableRecommendationPage';
 import './DecisionSynthesisPage.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -181,6 +183,8 @@ export default function DecisionSynthesisPage({
   compareSeed,
   surveyData,
 }: Props) {
+  const [showPrint, setShowPrint] = useState(false);
+
   // When a compareSeed is provided (survey-backed compare flow), use the richer
   // compare-truth builder.  Otherwise fall back to the EngineOutputV1-only builder.
   const compareAdvice: AdviceFromCompareResult | null =
@@ -260,6 +264,17 @@ export default function DecisionSynthesisPage({
   // Trade-off warnings (legacy only — compare mode uses compareWins instead).
   const tradeOffWarnings = legacyAdvice?.tradeOffWarnings ?? [];
 
+  // Print view — render the dedicated print component.
+  if (showPrint) {
+    return (
+      <PrintableRecommendationPage
+        advice={compareAdvice}
+        compareSeed={compareSeed}
+        onBack={() => setShowPrint(false)}
+      />
+    );
+  }
+
   return (
     <div className="advice-page" aria-label="Decision synthesis">
 
@@ -272,6 +287,16 @@ export default function DecisionSynthesisPage({
             aria-label="Back to simulator"
           >
             ← Back to Simulator
+          </button>
+        )}
+        {/* Print button — only shown when advice truth is available */}
+        {compareAdvice != null && (
+          <button
+            className="advice-page__print-btn"
+            onClick={() => setShowPrint(true)}
+            aria-label="Print Atlas recommendation"
+          >
+            🖨 Print recommendation
           </button>
         )}
         <div className="advice-page__title-block">

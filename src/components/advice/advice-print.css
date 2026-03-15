@@ -1,0 +1,616 @@
+/*
+ * advice-print.css
+ *
+ * PR7 — Print stylesheet for Atlas recommendation output.
+ *
+ * Purpose:
+ *   - Defines the A4 page layout for PrintableRecommendationPage.
+ *   - Hides all interactive chrome and nav in @media print.
+ *   - Ensures cards do not split across page boundaries.
+ *   - High-contrast text, white background, no overflow clipping.
+ *
+ * Used by:
+ *   - PrintableRecommendationPage.tsx (imported directly)
+ *   - @media print rules also suppress the interactive advice page chrome
+ *     when window.print() is triggered from DecisionSynthesisPage.
+ */
+
+/* ── Page container ───────────────────────────────────────────────────────── */
+
+.prp {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.95rem;
+  color: #1a202c;
+  background: #fff;
+  padding: 1.5rem;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* ── Toolbar (print button, back button) — screen only ───────────────────── */
+
+.prp__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+}
+
+.prp__toolbar-btn {
+  background: #2b6cb0;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  min-height: 44px;
+  transition: background 0.15s;
+}
+
+.prp__toolbar-btn:hover {
+  background: #2c5282;
+}
+
+.prp__toolbar-btn--secondary {
+  background: transparent;
+  color: #4a5568;
+  border: 1px solid #cbd5e0;
+}
+
+.prp__toolbar-btn--secondary:hover {
+  background: #f7fafc;
+  color: #1a202c;
+}
+
+/* ── Page header ──────────────────────────────────────────────────────────── */
+
+.prp__header {
+  margin-bottom: 1.5rem;
+}
+
+.prp__header-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #4299e1;
+  margin: 0 0 0.25rem;
+}
+
+.prp__header-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #1a202c;
+  margin: 0 0 0.2rem;
+}
+
+.prp__header-date {
+  font-size: 0.8rem;
+  color: #718096;
+  margin: 0;
+}
+
+/* ── Section wrapper ──────────────────────────────────────────────────────── */
+
+.prp__section {
+  margin-bottom: 1.75rem;
+}
+
+.prp__section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+/* ── Page-break hints ─────────────────────────────────────────────────────── */
+
+.prp__page-break-before {
+  break-before: page;
+  page-break-before: always;
+}
+
+/* ── Badges row ───────────────────────────────────────────────────────────── */
+
+.prp__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.prp__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.3rem 0.7rem;
+  border-radius: 20px;
+  border: 1px solid transparent;
+}
+
+.prp__badge--confidence-high {
+  background: #c6f6d5;
+  color: #22543d;
+  border-color: #68d391;
+}
+
+.prp__badge--confidence-medium {
+  background: #fefcbf;
+  color: #744210;
+  border-color: #f6e05e;
+}
+
+.prp__badge--confidence-low {
+  background: #fed7d7;
+  color: #742a2a;
+  border-color: #fc8181;
+}
+
+.prp__badge--efficiency {
+  background: #ebf8ff;
+  color: #2b6cb0;
+  border-color: #90cdf4;
+}
+
+/* ── Hero / best-overall card ─────────────────────────────────────────────── */
+
+.prp__hero {
+  background: #fff;
+  border: 2px solid #4299e1;
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.prp__hero-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4299e1;
+  margin: 0 0 0.3rem;
+}
+
+.prp__hero-system {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.4rem;
+}
+
+.prp__hero-why {
+  font-size: 0.9rem;
+  color: #4a5568;
+  margin: 0 0 0.5rem;
+}
+
+.prp__hero-tradeoff {
+  font-size: 0.82rem;
+  color: #744210;
+  background: #fffaf0;
+  border-left: 3px solid #f6ad55;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0 4px 4px 0;
+  margin-top: 0.5rem;
+}
+
+.prp__hero-tradeoff-label {
+  font-weight: 700;
+}
+
+/* ── Compare wins chips ───────────────────────────────────────────────────── */
+
+.prp__wins {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.prp__win {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #22543d;
+  background: #c6f6d5;
+  padding: 0.2rem 0.55rem;
+  border-radius: 20px;
+}
+
+/* ── Current-vs-proposed compare summary block ───────────────────────────── */
+
+.prp__compare-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.prp__compare-col {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.prp__compare-col--proposed {
+  background: #ebf8ff;
+  border-color: #90cdf4;
+}
+
+.prp__compare-col-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #718096;
+  margin: 0 0 0.25rem;
+}
+
+.prp__compare-col--proposed .prp__compare-col-label {
+  color: #2b6cb0;
+}
+
+.prp__compare-col-system {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+}
+
+.prp__compare-changes {
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  color: #2d3748;
+}
+
+.prp__compare-changes-title {
+  font-weight: 700;
+  margin: 0 0 0.3rem;
+}
+
+.prp__compare-changes-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.prp__compare-changes-item {
+  padding-left: 1rem;
+  position: relative;
+}
+
+.prp__compare-changes-item::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: #4299e1;
+  font-weight: 700;
+}
+
+/* ── Objective cards grid ─────────────────────────────────────────────────── */
+
+.prp__obj-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.prp__obj-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.prp__obj-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.prp__obj-card__icon {
+  font-size: 1rem;
+}
+
+.prp__obj-card__title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0;
+}
+
+.prp__obj-card__system {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1a202c;
+  margin: 0.2rem 0;
+}
+
+.prp__obj-card__why {
+  font-size: 0.8rem;
+  color: #4a5568;
+  margin: 0.15rem 0 0;
+}
+
+.prp__obj-card__wins {
+  list-style: none;
+  padding: 0;
+  margin: 0.3rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.prp__obj-card__win {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #22543d;
+  background: #f0fff4;
+  border-left: 2px solid #68d391;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0 3px 3px 0;
+}
+
+.prp__obj-card__tradeoff {
+  font-size: 0.76rem;
+  color: #744210;
+  margin-top: 0.25rem;
+}
+
+.prp__obj-card__tradeoff-label {
+  font-weight: 700;
+}
+
+/* ── Installation recipe ──────────────────────────────────────────────────── */
+
+.prp__recipe {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.prp__recipe-row {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0f4f8;
+  font-size: 0.88rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.prp__recipe-row:last-child {
+  border-bottom: none;
+}
+
+.prp__recipe-label {
+  flex: 0 0 160px;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.prp__recipe-value {
+  flex: 1;
+  color: #1a202c;
+}
+
+.prp__recipe-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.prp__recipe-item::before {
+  content: '• ';
+  color: #4299e1;
+  font-weight: 700;
+}
+
+/* ── Phased plan ──────────────────────────────────────────────────────────── */
+
+.prp__phases {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.prp__phase {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.prp__phase--now {
+  border-color: #48bb78;
+  background: #f0fff4;
+}
+
+.prp__phase--next {
+  border-color: #4299e1;
+  background: #ebf8ff;
+}
+
+.prp__phase--later {
+  border-color: #9f7aea;
+  background: #faf5ff;
+}
+
+.prp__phase__badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 0.35rem;
+}
+
+.prp__phase--now .prp__phase__badge {
+  color: #276749;
+}
+
+.prp__phase--next .prp__phase__badge {
+  color: #2b6cb0;
+}
+
+.prp__phase--later .prp__phase__badge {
+  color: #553c9a;
+}
+
+.prp__phase__actions {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.prp__phase__action {
+  font-size: 0.82rem;
+  color: #2d3748;
+  padding-left: 0.9rem;
+  position: relative;
+}
+
+.prp__phase__action::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  font-size: 0.72rem;
+  color: #68d391;
+}
+
+/* ── Fallback notice ──────────────────────────────────────────────────────── */
+
+.prp__fallback-notice {
+  background: #fffaf0;
+  border: 1px solid #f6ad55;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  color: #744210;
+  margin-bottom: 1rem;
+}
+
+/* ── Phased plan — key cautions sub-section ──────────────────────────────── */
+
+.prp__section--nested {
+  margin-top: 1rem;
+  margin-bottom: 0;
+}
+
+.prp__section-title--small {
+  font-size: 0.95rem;
+}
+
+/* ── @media print ─────────────────────────────────────────────────────────── */
+
+@media print {
+  /* Page setup */
+  @page {
+    size: A4 portrait;
+    margin: 18mm 15mm;
+  }
+
+  /* Hide interactive chrome everywhere */
+  .advice-page__header,
+  .advice-page__back-btn,
+  .prp__toolbar,
+  nav,
+  header,
+  footer,
+  [role="navigation"],
+  .hub-page__header,
+  .hub-back-btn,
+  .hub-advice-cta,
+  .simulator-dashboard,
+  .sim-toolbar,
+  .explainer-panel,
+  .hub-page__title,
+  .hub-page__subtitle {
+    display: none !important;
+  }
+
+  /* Reset body for clean print */
+  body {
+    background: #fff !important;
+    color: #1a202c !important;
+    font-size: 10pt;
+  }
+
+  /* Container */
+  .prp {
+    padding: 0;
+    max-width: 100%;
+    margin: 0;
+  }
+
+  /* Ensure backgrounds are preserved for badges and phase colours */
+  .prp__badge,
+  .prp__win,
+  .prp__obj-card__win,
+  .prp__phase--now,
+  .prp__phase--next,
+  .prp__phase--later,
+  .prp__hero,
+  .prp__compare-col--proposed {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Cards must not split across pages */
+  .prp__hero,
+  .prp__obj-card,
+  .prp__phase,
+  .prp__recipe-row,
+  .prp__compare-col,
+  .prp__section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Section titles at top of page should not orphan */
+  .prp__section-title {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* No fixed/sticky layout behaviour, no overflow clipping, no box-shadows */
+  * {
+    position: static !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+
+  /* No viewport-height traps */
+  .prp {
+    min-height: unset !important;
+    max-height: unset !important;
+    height: auto !important;
+  }
+}
