@@ -30,6 +30,12 @@
   line-height: 1.5;
 }
 
+/* ── Driving-style visual explainer ───────────────────────────────────────── */
+
+.ep-panel__visual-explainer {
+  margin-bottom: var(--space-5, 1.25rem);
+}
+
 /* ── Responsive grid ───────────────────────────────────────────────────────── */
 
 .ep-panel__grid {

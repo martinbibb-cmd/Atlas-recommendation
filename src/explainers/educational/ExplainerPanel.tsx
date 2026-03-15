@@ -8,6 +8,7 @@
 
 import { EDUCATIONAL_EXPLAINERS } from './content';
 import ExplainerCard from './ExplainerCard';
+import DrivingStylePhysicsExplainer from '../../components/visualizers/DrivingStylePhysicsExplainer';
 import './ExplainerPanel.css';
 
 export default function ExplainerPanel() {
@@ -23,6 +24,11 @@ export default function ExplainerPanel() {
           Short, clear explanations of the key concepts behind heating system
           recommendations — each readable in about one minute.
         </p>
+      </div>
+
+      {/* ── Driving-style system comparison explainer ──────────────────────── */}
+      <div className="ep-panel__visual-explainer">
+        <DrivingStylePhysicsExplainer />
       </div>
 
       {/* ── Cards grid ─────────────────────────────────────────────────────── */}
