@@ -86,6 +86,8 @@ export interface Room {
   width: number;
   height: number;
   areaM2?: number;
+  volumeM3?: number;
+  heightM?: number;
   notes?: string;
 }
 
@@ -183,6 +185,7 @@ export interface PropertyMetadata {
   notes?: string;
   /** Starter template that was used to seed this plan (if any). */
   templateId?: string;
+  defaultRoomHeightM?: number;
 }
 
 // ─── Top-level document model ─────────────────────────────────────────────────
