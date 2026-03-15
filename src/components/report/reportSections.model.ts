@@ -10,19 +10,53 @@
  *
  * This module must NOT re-derive engine physics.
  * All values come from EngineOutputV1 or normalized survey state already in use.
+ *
+ * Report structure
+ * ──────────────────────────────────────────────────────────────────────────────
+ *  Customer summary (decision-first, concise):
+ *    system_summary   – best-fit system + why it suits
+ *    key_trade_off    – key trade-off for the recommended system
+ *    key_limiters     – hard/soft physical constraints
+ *    future_path      – next step and upgrade sensitivities
+ *
+ *  Technical summary (engineer-facing):
+ *    verdict          – full verdict with confidence level
+ *    operating_point  – peak DHW operating conditions
+ *    behaviour_summary – 24-hour timeline summary
+ *    system_architecture – installation topology and requirements
+ *    stored_hot_water – stored DHW logic (when applicable)
+ *    risks_enablers   – risks (downgrade sensitivities) + enablers (upgrade)
+ *    assumptions      – modelling assumptions and red flags
+ *
+ *  Appendix (optional deep detail):
+ *    physics_trace    – full 24-hour physics trace
+ *    engineering_notes – must-have installation requirements
  */
 
-import type { EngineOutputV1, LimiterV1, VerdictV1 } from '../../contracts/EngineOutputV1';
+import type {
+  EngineOutputV1,
+  LimiterV1,
+  VerdictV1,
+  OptionCardV1,
+  SensitivityItem,
+} from '../../contracts/EngineOutputV1';
 
 // ─── Section types ────────────────────────────────────────────────────────────
 
 export type ReportSectionId =
   | 'system_summary'
+  | 'key_trade_off'
   | 'operating_point'
   | 'behaviour_summary'
   | 'key_limiters'
+  | 'future_path'
   | 'verdict'
-  | 'assumptions';
+  | 'system_architecture'
+  | 'stored_hot_water'
+  | 'risks_enablers'
+  | 'assumptions'
+  | 'physics_trace'
+  | 'engineering_notes';
 
 export interface SystemSummarySection {
   id: 'system_summary';
@@ -80,13 +114,103 @@ export interface AssumptionsSection {
   redFlags: Array<{ id: string; title: string; detail: string; severity: string }>;
 }
 
+// ── New sections ──────────────────────────────────────────────────────────────
+
+/** Customer summary — key trade-off for the recommended system. */
+export interface KeyTradeOffSection {
+  id: 'key_trade_off';
+  /** System being described (label from OptionCardV1). */
+  systemLabel: string;
+  /** Likely upgrades the installation would require. */
+  likelyUpgrades: string[];
+  /** Engineering concerns from the option's engineering plane. */
+  engineeringBullets: string[];
+}
+
+/** Customer summary — next step and upgrade sensitivity path. */
+export interface FuturePathSection {
+  id: 'future_path';
+  /** Sensitivities where upgrading inputs would improve the outcome. */
+  enablers: Array<{ lever: string; note: string }>;
+  /** Sensitivities where worsening inputs would reduce the outcome. */
+  risks: Array<{ lever: string; note: string }>;
+  /** Pathway titles if plan data is available. */
+  pathways: Array<{ title: string; rationale: string }>;
+}
+
+/** Technical summary — installation architecture for the recommended system. */
+export interface SystemArchitectureSection {
+  id: 'system_architecture';
+  systemLabel: string;
+  /** Engineering headline (e.g. "Minor works required"). */
+  headline: string;
+  /** Installation requirement bullets. */
+  bullets: string[];
+  /** Must-have installation items. */
+  mustHave: string[];
+}
+
+/** Technical summary — stored DHW logic (only when a stored option is recommended). */
+export interface StoredHotWaterSection {
+  id: 'stored_hot_water';
+  systemLabel: string;
+  /** DHW plane headline (e.g. "Adequate stored volume"). */
+  headline: string;
+  /** DHW-specific bullets from the option. */
+  bullets: string[];
+}
+
+/** Technical summary — risks and enablers from option sensitivities. */
+export interface RisksEnablersSection {
+  id: 'risks_enablers';
+  /** Downgrade sensitivities — things that could reduce suitability. */
+  risks: Array<SensitivityItem>;
+  /** Upgrade sensitivities — things that could improve suitability. */
+  enablers: Array<SensitivityItem>;
+}
+
+/** Appendix — full 24-hour physics trace (concise tabular summary). */
+export interface PhysicsTraceSection {
+  id: 'physics_trace';
+  resolutionMins: number;
+  applianceName: string;
+  /** Trimmed trace: only timesteps where the appliance is active (out > 0). */
+  activePoints: Array<{
+    t: string;
+    heatDemandKw: number;
+    dhwDemandKw: number;
+    applianceOutKw: number;
+    /** Efficiency fraction (0–1) or COP; null if not provided. */
+    performance: number | null;
+    performanceKind: 'eta' | 'cop' | null;
+    mode: string | null;
+  }>;
+  /** Total active timesteps (across full day, not just trimmed). */
+  totalActiveSteps: number;
+}
+
+/** Appendix — must-have and nice-to-have installation requirements. */
+export interface EngineeringNotesSection {
+  id: 'engineering_notes';
+  systemLabel: string;
+  mustHave: string[];
+  niceToHave: string[];
+}
+
 export type ReportSection =
   | SystemSummarySection
+  | KeyTradeOffSection
   | OperatingPointSection
   | BehaviourSummarySection
   | KeyLimitersSection
+  | FuturePathSection
   | VerdictSection
-  | AssumptionsSection;
+  | SystemArchitectureSection
+  | StoredHotWaterSection
+  | RisksEnablersSection
+  | AssumptionsSection
+  | PhysicsTraceSection
+  | EngineeringNotesSection;
 
 // ─── Completeness ─────────────────────────────────────────────────────────────
 
@@ -276,6 +400,176 @@ function buildAssumptionsSection(output: EngineOutputV1): AssumptionsSection | n
   };
 }
 
+// ─── New section builders ─────────────────────────────────────────────────────
+
+/**
+ * Returns the primary recommended option (first viable, else first caution, else first).
+ * Mirrors the selection logic used in LiveHubPage / RecommendationCard.
+ */
+function pickRecommendedOption(options: OptionCardV1[]): OptionCardV1 | null {
+  if (options.length === 0) return null;
+  return (
+    options.find(o => o.status === 'viable') ??
+    options.find(o => o.status === 'caution') ??
+    options[0]
+  );
+}
+
+function buildKeyTradeOffSection(output: EngineOutputV1): KeyTradeOffSection | null {
+  const options = output.options ?? [];
+  const rec = pickRecommendedOption(options);
+  if (!rec) return null;
+
+  const likelyUpgrades = rec.typedRequirements?.likelyUpgrades ?? [];
+  const engineeringBullets = rec.engineering?.bullets ?? [];
+
+  if (likelyUpgrades.length === 0 && engineeringBullets.length === 0) return null;
+
+  return {
+    id: 'key_trade_off',
+    systemLabel: rec.label,
+    likelyUpgrades,
+    engineeringBullets,
+  };
+}
+
+function buildFuturePathSection(output: EngineOutputV1): FuturePathSection | null {
+  const options = output.options ?? [];
+  const rec = pickRecommendedOption(options);
+  const sensitivities: SensitivityItem[] = rec?.sensitivities ?? [];
+
+  const enablers = sensitivities
+    .filter(s => s.effect === 'upgrade')
+    .map(s => ({ lever: s.lever, note: s.note }));
+  const risks = sensitivities
+    .filter(s => s.effect === 'downgrade')
+    .map(s => ({ lever: s.lever, note: s.note }));
+
+  const pathways = (output.plans?.pathways ?? []).map(p => ({
+    title: p.title,
+    rationale: p.rationale,
+  }));
+
+  if (enablers.length === 0 && risks.length === 0 && pathways.length === 0) return null;
+
+  return { id: 'future_path', enablers, risks, pathways };
+}
+
+function buildSystemArchitectureSection(
+  output: EngineOutputV1,
+): SystemArchitectureSection | null {
+  const options = output.options ?? [];
+  const rec = pickRecommendedOption(options);
+  if (!rec) return null;
+
+  const bullets = rec.engineering?.bullets ?? [];
+  const mustHave = rec.typedRequirements?.mustHave ?? [];
+  const headline = rec.engineering?.headline ?? '';
+
+  if (bullets.length === 0 && mustHave.length === 0 && !headline) return null;
+
+  return {
+    id: 'system_architecture',
+    systemLabel: rec.label,
+    headline,
+    bullets,
+    mustHave,
+  };
+}
+
+/** IDs considered "stored" systems — these have meaningful DHW plane info. */
+const STORED_OPTION_IDS = new Set([
+  'stored_vented',
+  'stored_unvented',
+  'ashp',
+  'system_unvented',
+  'regular_vented',
+]);
+
+function buildStoredHotWaterSection(output: EngineOutputV1): StoredHotWaterSection | null {
+  const options = output.options ?? [];
+  const rec = pickRecommendedOption(options);
+  if (!rec || !STORED_OPTION_IDS.has(rec.id)) return null;
+
+  const bullets = rec.dhw?.bullets ?? [];
+  const headline = rec.dhw?.headline ?? '';
+
+  if (!headline && bullets.length === 0) return null;
+
+  return {
+    id: 'stored_hot_water',
+    systemLabel: rec.label,
+    headline,
+    bullets,
+  };
+}
+
+function buildRisksEnablersSection(output: EngineOutputV1): RisksEnablersSection | null {
+  const options = output.options ?? [];
+  // Collect sensitivities from all options, not just the recommended one.
+  const allSensitivities: SensitivityItem[] = options.flatMap(o => o.sensitivities ?? []);
+
+  const risks    = allSensitivities.filter(s => s.effect === 'downgrade');
+  const enablers = allSensitivities.filter(s => s.effect === 'upgrade');
+
+  if (risks.length === 0 && enablers.length === 0) return null;
+
+  return { id: 'risks_enablers', risks, enablers };
+}
+
+/** Maximum active trace points to include in the appendix. */
+const MAX_TRACE_POINTS = 48;
+
+function buildPhysicsTraceSection(output: EngineOutputV1): PhysicsTraceSection | null {
+  if (!output.behaviourTimeline) return null;
+
+  const { points, resolutionMins, labels } = output.behaviourTimeline;
+  const activePoints = points
+    .filter(p => (p.applianceOutKw ?? 0) > 0)
+    .slice(0, MAX_TRACE_POINTS)
+    .map(p => ({
+      t: p.t,
+      heatDemandKw: p.heatDemandKw ?? 0,
+      dhwDemandKw: p.dhwDemandKw ?? 0,
+      applianceOutKw: p.applianceOutKw ?? 0,
+      performance: p.efficiency ?? p.cop ?? null,
+      performanceKind: p.efficiency != null
+        ? ('eta' as const)
+        : p.cop != null
+          ? ('cop' as const)
+          : null,
+      mode: p.mode ?? null,
+    }));
+
+  const totalActiveSteps = points.filter(p => (p.applianceOutKw ?? 0) > 0).length;
+
+  return {
+    id: 'physics_trace',
+    resolutionMins,
+    applianceName: labels.applianceName,
+    activePoints,
+    totalActiveSteps,
+  };
+}
+
+function buildEngineeringNotesSection(output: EngineOutputV1): EngineeringNotesSection | null {
+  const options = output.options ?? [];
+  const rec = pickRecommendedOption(options);
+  if (!rec) return null;
+
+  const mustHave   = rec.typedRequirements?.mustHave ?? [];
+  const niceToHave = rec.typedRequirements?.niceToHave ?? [];
+
+  if (mustHave.length === 0 && niceToHave.length === 0) return null;
+
+  return {
+    id: 'engineering_notes',
+    systemLabel: rec.label,
+    mustHave,
+    niceToHave,
+  };
+}
+
 // ─── Main builder ─────────────────────────────────────────────────────────────
 
 /**
@@ -283,13 +577,25 @@ function buildAssumptionsSection(output: EngineOutputV1): AssumptionsSection | n
  *
  * Sections are included conditionally based on available data.
  * Section ordering follows the canonical report structure:
- *   system summary → operating point → behaviour summary →
- *   key limiters → verdict → assumptions
+ *
+ *   Customer summary (decision-first):
+ *     system_summary → key_trade_off → operating_point → behaviour_summary →
+ *     key_limiters → future_path → verdict
+ *
+ *   Technical summary (engineer-facing):
+ *     system_architecture → stored_hot_water → risks_enablers → assumptions
+ *
+ *   Appendix (optional deep detail):
+ *     physics_trace → engineering_notes
  */
 export function buildReportSections(output: EngineOutputV1): ReportSection[] {
   const sections: ReportSection[] = [];
 
+  // ── Customer summary ───────────────────────────────────────────────────────
   sections.push(buildSystemSummarySection(output));
+
+  const tradeOffSection = buildKeyTradeOffSection(output);
+  if (tradeOffSection) sections.push(tradeOffSection);
 
   const opSection = buildOperatingPointSection(output);
   if (opSection) sections.push(opSection);
@@ -300,11 +606,31 @@ export function buildReportSections(output: EngineOutputV1): ReportSection[] {
   const limitersSection = buildKeyLimitersSection(output);
   if (limitersSection) sections.push(limitersSection);
 
+  const futurePathSection = buildFuturePathSection(output);
+  if (futurePathSection) sections.push(futurePathSection);
+
   const verdictSection = buildVerdictSection(output);
   if (verdictSection) sections.push(verdictSection);
 
+  // ── Technical summary ─────────────────────────────────────────────────────
+  const archSection = buildSystemArchitectureSection(output);
+  if (archSection) sections.push(archSection);
+
+  const storedHwSection = buildStoredHotWaterSection(output);
+  if (storedHwSection) sections.push(storedHwSection);
+
+  const risksSection = buildRisksEnablersSection(output);
+  if (risksSection) sections.push(risksSection);
+
   const assumptionsSection = buildAssumptionsSection(output);
   if (assumptionsSection) sections.push(assumptionsSection);
+
+  // ── Appendix ──────────────────────────────────────────────────────────────
+  const traceSection = buildPhysicsTraceSection(output);
+  if (traceSection) sections.push(traceSection);
+
+  const engNotesSection = buildEngineeringNotesSection(output);
+  if (engNotesSection) sections.push(engNotesSection);
 
   return sections;
 }
