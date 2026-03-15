@@ -405,6 +405,83 @@
   color: #a0aec0;
 }
 
+/* ── Compare-enriched hero additions ────────────────────────────────────────── */
+
+.advice-hero__wins {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.advice-hero__win {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #22543d;
+  background: #c6f6d5;
+  padding: 0.2rem 0.55rem;
+  border-radius: 20px;
+}
+
+.advice-hero__efficiency {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15rem;
+  font-size: 0.82rem;
+  color: #2b6cb0;
+  margin-top: 0.4rem;
+}
+
+.advice-hero__efficiency strong {
+  font-size: 1rem;
+}
+
+.advice-hero__efficiency-max {
+  font-size: 0.75rem;
+  color: #718096;
+}
+
+/* ── Compare-enriched objective card additions ───────────────────────────────── */
+
+.advice-obj-card__wins {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.advice-obj-card__win {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #22543d;
+  background: #f0fff4;
+  border-left: 2px solid #68d391;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.advice-obj-card__efficiency {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+  color: #2b6cb0;
+  margin-top: 0.1rem;
+}
+
+.advice-obj-card__efficiency strong {
+  font-size: 0.9rem;
+}
+
+.advice-obj-card__efficiency-max {
+  font-size: 0.72rem;
+  color: #718096;
+}
+
 /* ── Responsive ───────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .advice-page__section {

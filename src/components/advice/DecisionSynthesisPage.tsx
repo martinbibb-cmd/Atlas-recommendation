@@ -2,6 +2,9 @@
  * DecisionSynthesisPage
  *
  * PR11 — Advice page / decision synthesis.
+ * PR6  — Extended to consume compare/simulator truth when a CompareSeed is
+ *         provided. When available, cards are enriched with compareWins,
+ *         efficiencyScore, and confidencePct derived from the compare session.
  *
  * Turns simulator output into a clear, objective-ranked advice sheet.
  * Sits after the Simulator Dashboard and answers the actual customer questions.
@@ -10,20 +13,28 @@
  *  1. Best all-round fit (hero card)
  *  2. Best by objective (6 short cards)
  *  3. Installation recipe
- *  4. Trade-off strip
+ *  4. Trade-off strip (legacy mode) / compare wins (compare mode)
  *  5. Phased plan (Now / Next / Later)
  *
  * Rules:
  *  - No long report paragraphs.
  *  - No repeated comparison prose.
- *  - Source of truth: EngineOutputV1 only — never Math.random() or hardcoded paths.
+ *  - Source of truth: EngineOutputV1 (+ CompareSeed when available).
  *  - Carbon wording: "at point of use" — never implies full lifecycle or grid-mix
  *    unless that data has been explicitly added.
+ *  - Never Math.random() — all outputs are deterministic.
  */
 
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
+import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import type { CompareSeed } from '../../lib/simulator/buildCompareSeedFromSurvey';
 import { buildAdviceCards } from './buildAdviceCards';
 import type { ObjectiveCard, PhasedStep } from './buildAdviceCards';
+import {
+  buildAdviceFromCompare,
+  type AdviceCard,
+  type AdviceFromCompareResult,
+} from '../../lib/advice/buildAdviceFromCompare';
 import './DecisionSynthesisPage.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -31,6 +42,14 @@ import './DecisionSynthesisPage.css';
 interface Props {
   engineOutput: EngineOutputV1;
   onBack?: () => void;
+  /**
+   * When provided, the page uses buildAdviceFromCompare to enrich cards with
+   * compareWins, efficiencyScore, and confidencePct derived from compare truth.
+   * When absent, the page falls back to buildAdviceCards (EngineOutputV1 only).
+   */
+  compareSeed?: CompareSeed;
+  /** Required alongside compareSeed — passed through to buildAdviceFromCompare. */
+  surveyData?: FullSurveyModelV1;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -53,6 +72,55 @@ const PHASE_CLASS: Record<PhasedStep['phase'], string> = {
   later: 'advice-phase--later',
 };
 
+/** Renders a compare-enriched objective card (from buildAdviceFromCompare). */
+function EnrichedObjectiveCardUI({ card }: { card: AdviceCard }) {
+  return (
+    <div className="advice-obj-card" role="region" aria-label={card.title}>
+      <div className="advice-obj-card__header">
+        <span className="advice-obj-card__icon" aria-hidden="true">{card.icon}</span>
+        <h3 className="advice-obj-card__title">{card.title}</h3>
+      </div>
+
+      <div className="advice-obj-card__system" aria-label="Recommended system for this objective">
+        {card.recommendedPathLabel}
+      </div>
+
+      {card.why.map((line, i) => (
+        <p key={i} className="advice-obj-card__why">{line}</p>
+      ))}
+
+      {card.compareWins.length > 0 && (
+        <ul
+          className="advice-obj-card__wins"
+          aria-label="Compare wins"
+        >
+          {card.compareWins.map((win, i) => (
+            <li key={i} className="advice-obj-card__win">✓ {win}</li>
+          ))}
+        </ul>
+      )}
+
+      {card.efficiencyScore != null && (
+        <div
+          className="advice-obj-card__efficiency"
+          aria-label={`Efficiency score: ${card.efficiencyScore}`}
+        >
+          Efficiency score: <strong>{card.efficiencyScore}</strong>
+          <span className="advice-obj-card__efficiency-max">/99</span>
+        </div>
+      )}
+
+      {card.keyTradeOff && (
+        <div className="advice-obj-card__tradeoff" aria-label="Trade-off">
+          <span className="advice-obj-card__tradeoff-label">Trade-off: </span>
+          {card.keyTradeOff}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Renders a legacy objective card (from buildAdviceCards). */
 function ObjectiveCardUI({ card }: { card: ObjectiveCard }) {
   return (
     <div className="advice-obj-card" role="region" aria-label={card.title}>
@@ -107,9 +175,90 @@ function PhasedStepUI({ step }: { step: PhasedStep }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function DecisionSynthesisPage({ engineOutput, onBack }: Props) {
-  const advice = buildAdviceCards(engineOutput);
-  const { bestAllRound, objectiveCards, installationRecipe, phasedPlan, tradeOffWarnings } = advice;
+export default function DecisionSynthesisPage({
+  engineOutput,
+  onBack,
+  compareSeed,
+  surveyData,
+}: Props) {
+  // When a compareSeed is provided (survey-backed compare flow), use the richer
+  // compare-truth builder.  Otherwise fall back to the EngineOutputV1-only builder.
+  const compareAdvice: AdviceFromCompareResult | null =
+    compareSeed != null && surveyData != null
+      ? buildAdviceFromCompare({
+          surveyData,
+          engineOutput,
+          compareSeed,
+        })
+      : null;
+
+  const legacyAdvice = compareAdvice == null ? buildAdviceCards(engineOutput) : null;
+
+  // Resolve display values from whichever advice mode is active.
+  const heroSystemPath = compareAdvice
+    ? compareAdvice.bestOverall.recommendedPathLabel
+    : legacyAdvice!.bestAllRound.systemPath;
+
+  const heroWhy = compareAdvice
+    ? compareAdvice.bestOverall.why[0] ?? ''
+    : legacyAdvice!.bestAllRound.why;
+
+  const heroConfidenceLevel = compareAdvice
+    ? compareAdvice.confidenceSummary.level
+    : legacyAdvice!.bestAllRound.confidence;
+
+  const heroEfficiencyScore = compareAdvice?.bestOverall.efficiencyScore ?? null;
+  const heroConfidencePct = compareAdvice?.bestOverall.confidencePct ?? null;
+  const heroCompareWins = compareAdvice?.bestOverall.compareWins ?? [];
+
+  // Objective cards — either enriched (compare mode) or legacy.
+  const enrichedObjectiveCards = compareAdvice
+    ? [
+        compareAdvice.byObjective.lowestRunningCost,
+        compareAdvice.byObjective.lowestInstallationCost,
+        compareAdvice.byObjective.greatestLongevity,
+        compareAdvice.byObjective.lowestCarbonPointOfUse,
+        compareAdvice.byObjective.greatestComfortAndDelivery,
+        compareAdvice.byObjective.measuredForwardThinkingPlan,
+      ]
+    : null;
+  const legacyObjectiveCards = legacyAdvice?.objectiveCards ?? null;
+
+  // Installation recipe.
+  const recipe = compareAdvice
+    ? {
+        heatSource: compareAdvice.installationRecipe.heatSource,
+        dhwArrangement: compareAdvice.installationRecipe.hotWaterArrangement,
+        controls: compareAdvice.installationRecipe.controls,
+        emitterAction: compareAdvice.installationRecipe.emitters,
+        primaryAction: compareAdvice.installationRecipe.primaryPipework[0] ?? null,
+        protection: compareAdvice.installationRecipe.protectionAndAncillaries,
+      }
+    : legacyAdvice!.installationRecipe;
+
+  // Phased plan.
+  const phasedPlan: PhasedStep[] = compareAdvice
+    ? [
+        {
+          phase: 'now' as const,
+          label: 'Immediate installation',
+          actions: compareAdvice.phasedPlan.now,
+        },
+        {
+          phase: 'next' as const,
+          label: 'First improvement round',
+          actions: compareAdvice.phasedPlan.next,
+        },
+        {
+          phase: 'later' as const,
+          label: 'Future upgrade path',
+          actions: compareAdvice.phasedPlan.later,
+        },
+      ]
+    : legacyAdvice!.phasedPlan;
+
+  // Trade-off warnings (legacy only — compare mode uses compareWins instead).
+  const tradeOffWarnings = legacyAdvice?.tradeOffWarnings ?? [];
 
   return (
     <div className="advice-page" aria-label="Decision synthesis">
@@ -142,17 +291,49 @@ export default function DecisionSynthesisPage({ engineOutput, onBack }: Props) {
         <div className="advice-hero" role="region" aria-label="Primary recommendation">
           <div className="advice-hero__eyebrow">ATLAS RECOMMENDS</div>
           <div className="advice-hero__system" aria-label="Recommended system">
-            {bestAllRound.systemPath}
+            {heroSystemPath}
           </div>
-          <p className="advice-hero__why">{bestAllRound.why}</p>
-          {bestAllRound.confidence && (
-            <div
-              className={`advice-hero__confidence advice-hero__confidence--${bestAllRound.confidence}`}
-              aria-label={`Confidence: ${bestAllRound.confidence}`}
+          <p className="advice-hero__why">{heroWhy}</p>
+
+          {/* Compare wins on the hero card (compare mode only) */}
+          {heroCompareWins.length > 0 && (
+            <ul
+              className="advice-hero__wins"
+              aria-label="Compare wins for recommended system"
             >
-              {CONFIDENCE_LABEL[bestAllRound.confidence]}
+              {heroCompareWins.map((win, i) => (
+                <li key={i} className="advice-hero__win">✓ {win}</li>
+              ))}
+            </ul>
+          )}
+
+          {/* Efficiency score (compare mode only) */}
+          {heroEfficiencyScore != null && (
+            <div
+              className="advice-hero__efficiency"
+              aria-label={`Efficiency score: ${heroEfficiencyScore}`}
+            >
+              Efficiency score: <strong>{heroEfficiencyScore}</strong>
+              <span className="advice-hero__efficiency-max">/99</span>
             </div>
           )}
+
+          {/* Confidence — show pct in compare mode, label in legacy mode */}
+          {heroConfidencePct != null ? (
+            <div
+              className={`advice-hero__confidence advice-hero__confidence--${heroConfidenceLevel ?? 'medium'}`}
+              aria-label={`Confidence: ${heroConfidencePct}%`}
+            >
+              {CONFIDENCE_LABEL[heroConfidenceLevel ?? 'medium']} — {heroConfidencePct}%
+            </div>
+          ) : heroConfidenceLevel != null ? (
+            <div
+              className={`advice-hero__confidence advice-hero__confidence--${heroConfidenceLevel}`}
+              aria-label={`Confidence: ${heroConfidenceLevel}`}
+            >
+              {CONFIDENCE_LABEL[heroConfidenceLevel]}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -169,11 +350,18 @@ export default function DecisionSynthesisPage({ engineOutput, onBack }: Props) {
           role="list"
           aria-label="Objective cards"
         >
-          {objectiveCards.map(card => (
-            <div key={card.id} role="listitem">
-              <ObjectiveCardUI card={card} />
-            </div>
-          ))}
+          {enrichedObjectiveCards != null
+            ? enrichedObjectiveCards.map(card => (
+                <div key={card.id} role="listitem">
+                  <EnrichedObjectiveCardUI card={card} />
+                </div>
+              ))
+            : (legacyObjectiveCards ?? []).map(card => (
+                <div key={card.id} role="listitem">
+                  <ObjectiveCardUI card={card} />
+                </div>
+              ))
+          }
         </div>
       </div>
 
@@ -187,48 +375,48 @@ export default function DecisionSynthesisPage({ engineOutput, onBack }: Props) {
 
           <div className="advice-recipe__row" role="listitem">
             <div className="advice-recipe__label">Heat source</div>
-            <div className="advice-recipe__value">{installationRecipe.heatSource}</div>
+            <div className="advice-recipe__value">{recipe.heatSource}</div>
           </div>
 
           <div className="advice-recipe__row" role="listitem">
             <div className="advice-recipe__label">Hot water arrangement</div>
-            <div className="advice-recipe__value">{installationRecipe.dhwArrangement}</div>
+            <div className="advice-recipe__value">{recipe.dhwArrangement}</div>
           </div>
 
-          {installationRecipe.controls.length > 0 && (
+          {recipe.controls.length > 0 && (
             <div className="advice-recipe__row" role="listitem">
               <div className="advice-recipe__label">Controls</div>
               <ul className="advice-recipe__list" aria-label="Controls">
-                {installationRecipe.controls.map((c, i) => (
+                {recipe.controls.map((c, i) => (
                   <li key={i} className="advice-recipe__item">{c}</li>
                 ))}
               </ul>
             </div>
           )}
 
-          {installationRecipe.emitterAction.length > 0 && (
+          {recipe.emitterAction.length > 0 && (
             <div className="advice-recipe__row" role="listitem">
               <div className="advice-recipe__label">Emitter action</div>
               <ul className="advice-recipe__list" aria-label="Emitter actions">
-                {installationRecipe.emitterAction.map((e, i) => (
+                {recipe.emitterAction.map((e, i) => (
                   <li key={i} className="advice-recipe__item">{e}</li>
                 ))}
               </ul>
             </div>
           )}
 
-          {installationRecipe.primaryAction && (
+          {recipe.primaryAction && (
             <div className="advice-recipe__row" role="listitem">
               <div className="advice-recipe__label">Primary pipework</div>
-              <div className="advice-recipe__value">{installationRecipe.primaryAction}</div>
+              <div className="advice-recipe__value">{recipe.primaryAction}</div>
             </div>
           )}
 
-          {installationRecipe.protection.length > 0 && (
+          {recipe.protection.length > 0 && (
             <div className="advice-recipe__row" role="listitem">
               <div className="advice-recipe__label">Protection & treatment</div>
               <ul className="advice-recipe__list" aria-label="Protection items">
-                {installationRecipe.protection.map((p, i) => (
+                {recipe.protection.map((p, i) => (
                   <li key={i} className="advice-recipe__item">{p}</li>
                 ))}
               </ul>
@@ -239,7 +427,7 @@ export default function DecisionSynthesisPage({ engineOutput, onBack }: Props) {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 4 — Trade-off strip                                       */}
+      {/* SECTION 4 — Trade-off strip (legacy) or compare context note      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       {tradeOffWarnings.length > 0 && (
         <div className="advice-page__section" aria-label="Trade-off warnings">
