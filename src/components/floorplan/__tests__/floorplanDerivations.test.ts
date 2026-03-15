@@ -112,6 +112,60 @@ describe('floorplan derived outputs', () => {
     expect(loungeMetrics?.exposedPerimeterM).toBe(16);
   });
 
+  it('roomEmitterOutputKw is null when radiator_loop node has no emitterOutputKw', () => {
+    const plan = makePlan();
+    plan.floors[0].rooms.push(
+      { id: 'lounge', floorId: 'f1', name: 'Lounge', roomType: 'living', x: 0, y: 0, width: 96, height: 96 },
+    );
+    plan.placementNodes.push(
+      { id: 'n1', type: 'radiator_loop', floorId: 'f1', roomId: 'lounge', anchor: { x: 48, y: 48 }, metadata: {} },
+    );
+    const output = deriveFloorplanOutputs(plan, 2.4);
+    expect(output.emitterSizing.find((r) => r.roomId === 'lounge')?.roomEmitterOutputKw).toBeNull();
+  });
+
+  it('roomEmitterOutputKw sums emitterOutputKw for nodes placed in the same room', () => {
+    const plan = makePlan();
+    plan.floors[0].rooms.push(
+      { id: 'lounge', floorId: 'f1', name: 'Lounge', roomType: 'living', x: 0, y: 0, width: 96, height: 96 },
+    );
+    plan.placementNodes.push(
+      { id: 'n1', type: 'radiator_loop', floorId: 'f1', roomId: 'lounge', anchor: { x: 24, y: 24 }, emitterOutputKw: 1.2, metadata: {} },
+      { id: 'n2', type: 'ufh_loop',      floorId: 'f1', roomId: 'lounge', anchor: { x: 48, y: 48 }, emitterOutputKw: 0.8, metadata: {} },
+    );
+    const output = deriveFloorplanOutputs(plan, 2.4);
+    expect(output.emitterSizing.find((r) => r.roomId === 'lounge')?.roomEmitterOutputKw).toBe(2.0);
+  });
+
+  it('roomEmitterOutputKw rounds to 2 decimal places (floating-point precision)', () => {
+    const plan = makePlan();
+    plan.floors[0].rooms.push(
+      { id: 'lounge', floorId: 'f1', name: 'Lounge', roomType: 'living', x: 0, y: 0, width: 96, height: 96 },
+    );
+    // 0.7 + 0.7 = 1.3999999… in IEEE 754 — must be rounded to 1.4
+    plan.placementNodes.push(
+      { id: 'n1', type: 'radiator_loop', floorId: 'f1', roomId: 'lounge', anchor: { x: 24, y: 24 }, emitterOutputKw: 0.7, metadata: {} },
+      { id: 'n2', type: 'radiator_loop', floorId: 'f1', roomId: 'lounge', anchor: { x: 48, y: 48 }, emitterOutputKw: 0.7, metadata: {} },
+    );
+    const output = deriveFloorplanOutputs(plan, 2.4);
+    expect(output.emitterSizing.find((r) => r.roomId === 'lounge')?.roomEmitterOutputKw).toBe(1.4);
+  });
+
+  it('roomEmitterOutputKw is not affected by emitter nodes in other rooms', () => {
+    const plan = makePlan();
+    plan.floors[0].rooms.push(
+      { id: 'lounge', floorId: 'f1', name: 'Lounge', roomType: 'living', x: 0, y: 0, width: 96, height: 96 },
+      { id: 'kitchen', floorId: 'f1', name: 'Kitchen', roomType: 'kitchen', x: 96, y: 0, width: 48, height: 48 },
+    );
+    plan.placementNodes.push(
+      { id: 'n1', type: 'radiator_loop', floorId: 'f1', roomId: 'lounge',   anchor: { x: 48, y: 48 }, emitterOutputKw: 1.5, metadata: {} },
+      { id: 'n2', type: 'radiator_loop', floorId: 'f1', roomId: 'kitchen',  anchor: { x: 110, y: 10 }, emitterOutputKw: 0.9, metadata: {} },
+    );
+    const output = deriveFloorplanOutputs(plan, 2.4);
+    expect(output.emitterSizing.find((r) => r.roomId === 'lounge')?.roomEmitterOutputKw).toBe(1.5);
+    expect(output.emitterSizing.find((r) => r.roomId === 'kitchen')?.roomEmitterOutputKw).toBe(0.9);
+  });
+
   it('adds siting flags for misplaced components', () => {
     const plan = makePlan();
     plan.floors[0].rooms.push(

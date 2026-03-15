@@ -816,7 +816,7 @@ export function buildAdviceFromCompare(
     ? {
         refinedHeatLossKw: fp.refinedHeatLossKw,
         emitterReviewRooms: fp.emitterAdequacyHints
-          .filter((h) => h.status === 'review_recommended')
+          .filter((h) => h.status === 'review_recommended' || h.status === 'undersized' || h.status === 'oversized')
           .map((h) => h.roomName),
         sitingWarnings: fp.sitingConstraintHints.flatMap((h) => h.warningMessages),
         pipeLengthEstimateM: fp.pipeLengthEstimateHints.totalEstimateM,
@@ -829,7 +829,7 @@ export function buildAdviceFromCompare(
   if (fp && fp.sitingConstraintHints.some((h) => h.hasWarning)) {
     overallWins.push('siting constraints detected from floor plan — see placement notes');
   }
-  if (fp && fp.emitterAdequacyHints.some((h) => h.status === 'review_recommended')) {
+  if (fp && fp.emitterAdequacyHints.some((h) => h.status === 'review_recommended' || h.status === 'undersized' || h.status === 'oversized')) {
     overallWins.push('emitter adequacy informed by room layout — see installation notes');
   }
 
@@ -895,9 +895,25 @@ function applyFloorplanToRecipe(
   fp: AtlasFloorplanInputs,
 ): InstallationRecipe {
   const emitters = [...base.emitters];
+  const undersizedRooms = fp.emitterAdequacyHints
+    .filter((h) => h.status === 'undersized')
+    .map((h) => h.roomName);
+  const oversizedRooms = fp.emitterAdequacyHints
+    .filter((h) => h.status === 'oversized')
+    .map((h) => h.roomName);
   const reviewRooms = fp.emitterAdequacyHints
     .filter((h) => h.status === 'review_recommended')
     .map((h) => h.roomName);
+  if (undersizedRooms.length > 0) {
+    emitters.push(
+      `Undersized emitters in: ${undersizedRooms.slice(0, MAX_ROOMS_IN_MESSAGE).join(', ')} — upgrade required (floor plan derived)`,
+    );
+  }
+  if (oversizedRooms.length > 0) {
+    emitters.push(
+      `Oversized emitters in: ${oversizedRooms.slice(0, MAX_ROOMS_IN_MESSAGE).join(', ')} — review for efficiency (floor plan derived)`,
+    );
+  }
   if (reviewRooms.length > 0) {
     emitters.push(
       `Review emitter sizing in: ${reviewRooms.slice(0, MAX_ROOMS_IN_MESSAGE).join(', ')} (floor plan derived)`,
@@ -946,12 +962,30 @@ function applyFloorplanToPhasedPlan(
     now.push(`Resolve siting issue: ${msg}`);
   });
 
+  const undersizedRooms = fp.emitterAdequacyHints
+    .filter((h) => h.status === 'undersized')
+    .map((h) => h.roomName);
+  if (undersizedRooms.length > 0) {
+    now.push(
+      `Upgrade undersized emitters in: ${undersizedRooms.slice(0, MAX_ROOMS_IN_MESSAGE).join(', ')}`,
+    );
+  }
+
   const reviewRooms = fp.emitterAdequacyHints
     .filter((h) => h.status === 'review_recommended')
     .map((h) => h.roomName);
   if (reviewRooms.length > 0) {
     next.push(
       `Confirm emitter capacity in: ${reviewRooms.slice(0, MAX_ROOMS_IN_MESSAGE).join(', ')}`,
+    );
+  }
+
+  const oversizedRooms = fp.emitterAdequacyHints
+    .filter((h) => h.status === 'oversized')
+    .map((h) => h.roomName);
+  if (oversizedRooms.length > 0) {
+    next.push(
+      `Review oversized emitters in: ${oversizedRooms.slice(0, MAX_ROOMS_IN_MESSAGE).join(', ')}`,
     );
   }
 

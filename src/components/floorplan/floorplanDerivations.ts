@@ -166,7 +166,16 @@ export interface DerivedFloorplanOutput {
   /** Geometry metrics for every heated room on all floors. */
   roomMetrics: RoomMetrics[];
   roomHeatLossKw: Array<{ roomId: string; roomName: string; heatLossKw: number }>;
-  emitterSizing: Array<{ roomId: string; roomName: string; suggestedRadiatorKw: number }>;
+  emitterSizing: Array<{
+    roomId: string;
+    roomName: string;
+    suggestedRadiatorKw: number;
+    /**
+     * Sum of emitterOutputKw for all emitter nodes placed in this room.
+     * null when no emitter nodes with a rated output are present in the room.
+     */
+    roomEmitterOutputKw: number | null;
+  }>;
   routeLengthsM: Array<{ connectionId: string; lengthM: number }>;
   totalPipeLengthM: number;
   feasibilityChecks: { hasOutdoorHeatPump: boolean; hasHeatSource: boolean; hasEmitters: boolean };
@@ -204,11 +213,28 @@ export function deriveFloorplanOutputs(plan: PropertyPlan, defaultRoomHeightM: n
     return { roomId: room.id, roomName: room.name, heatLossKw: Number((heatLossW / 1000).toFixed(2)) };
   });
 
-  const emitterSizing = roomHeatLossKw.map((item) => ({
-    roomId: item.roomId,
-    roomName: item.roomName,
-    suggestedRadiatorKw: Number((item.heatLossKw * 1.15).toFixed(2)),
-  }));
+  const emitterSizing = roomHeatLossKw.map((item) => {
+    const emitterNodes = plan.placementNodes.filter(
+      (n) =>
+        n.roomId === item.roomId &&
+        (n.type === 'radiator_loop' || n.type === 'ufh_loop') &&
+        typeof n.emitterOutputKw === 'number',
+    );
+    const roomEmitterOutputKw =
+      emitterNodes.length > 0
+        ? Number(
+            emitterNodes
+              .reduce((sum, n) => sum + (n.emitterOutputKw as number), 0)
+              .toFixed(2),
+          )
+        : null;
+    return {
+      roomId: item.roomId,
+      roomName: item.roomName,
+      suggestedRadiatorKw: Number((item.heatLossKw * 1.15).toFixed(2)),
+      roomEmitterOutputKw,
+    };
+  });
 
   // ── Route lengths ────────────────────────────────────────────────────────
   const routeLengthsM = plan.connections.map((conn) => ({
