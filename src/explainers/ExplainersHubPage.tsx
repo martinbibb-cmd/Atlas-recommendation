@@ -14,6 +14,7 @@ import type { StepperConfig } from './lego/simulator/SimulatorStepper';
 import { adaptFullSurveyToSimulatorInputs } from './lego/simulator/adaptFullSurveyToSimulatorInputs';
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
+import ExplainerPanel from './educational/ExplainerPanel';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -107,6 +108,8 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
           initialSystemInputs={initialSystemInputs}
           surveyBacked={isSurveyBacked}
         />
+
+        <ExplainerPanel />
       </div>
     );
   }
