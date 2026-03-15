@@ -21,6 +21,7 @@ import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1
 import type { SystemInputs, CylinderType, PrimaryPipeSize, ControlStrategy, OccupancyProfile, DemandPresetId } from './systemInputsTypes'
 import type { SimulatorSystemChoice } from './useSystemDiagramPlayback'
 import { CYLINDER_SIZES_BY_TYPE } from './systemInputsTypes'
+import { buildStoredHotWaterContextFromSurvey } from '../../../lib/dhw/buildStoredHotWaterContextFromSurvey'
 
 // ─── Result type ──────────────────────────────────────────────────────────────
 
@@ -223,13 +224,13 @@ export function adaptFullSurveyToSimulatorInputs(
 
   if (derivedCylinderType != null) {
     systemInputs.cylinderType = derivedCylinderType
-    // Snap cylinder size to the nearest valid size for this type.
-    // We don't have a survey size field, so use the list default.
+    // Use the current cylinder volume from the survey via the DHW truth context when
+    // available; otherwise snap to the type's default opening size.
+    const dhwCtx = buildStoredHotWaterContextFromSurvey(survey)
+    const surveyVolume = dhwCtx.cylinderVolumeLitres
     const defaultSize = CYLINDER_SIZES_BY_TYPE[derivedCylinderType][0]
     systemInputs.cylinderSizeLitres = nearestCylinderSize(
-      // If there's a future cylinderVolumeLitres field we'd use it here;
-      // for now snap to the type's default opening size.
-      defaultSize,
+      surveyVolume != null ? surveyVolume : defaultSize,
       derivedCylinderType,
     )
   }
