@@ -12,6 +12,7 @@ import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInput
 import type { BehaviourTimelineV1, TimelineSeriesPoint } from '../contracts/EngineOutputV1';
 import { computeCurrentEfficiencyPct } from './utils/efficiency';
 import { DEFAULT_NOMINAL_EFFICIENCY_PCT } from './utils/efficiency';
+import { resolveTimingOverrides } from './schema/OccupancyPreset';
 
 /** 15-minute resolution: 96 points per day. */
 const RESOLUTION_MINS = 15 as const;
@@ -71,15 +72,30 @@ export function buildBehaviourTimelineV1(
   const hourlyDemandKw = lifestyle.hourlyData.map(h => h.demandKw);
 
   // ── DHW demand — derive from combiDhwV1 / lifestyle ──────────────────────
-  // Use a simplified daily DHW profile: peaks at 07:00 and 19:00.
+  // Use a simplified daily DHW profile. Peak hours come from the resolved
+  // demand timing (preset defaults merged with any user overrides) so that
+  // profiles like shift_worker (first shower at 10:00, evening at 22:00) and
+  // family_teenagers (evening at 20:00) produce the correct DHW windows.
   // The full DHW timeline with event-level resolution lives in Timeline24hV1;
   // BehaviourTimelineV1 carries the coarser hourly aggregate for the console view.
   const occupancy = input.occupancyCount ?? 2;
-  // Typical UK DHW draw: ~3 kW per person during peak windows, 0 otherwise.
+  // Typical UK DHW draw: ~2.5 kW per person during peak windows, 0 otherwise.
   const DHW_KW_PER_PERSON = 2.5;
+
+  // Resolve peak hours from preset + any user timing overrides.
+  // Falls back to 07:00 / 19:00 when no preset is set (legacy/default behaviour).
+  // Peak hours are clamped to [0, 23] to guard against out-of-range overrides.
+  const timing = input.demandPreset != null
+    ? resolveTimingOverrides(input.demandPreset, input.demandTimingOverrides)
+    : { firstShowerHour: 7, eveningPeakHour: 19 };
+  const morningPeakH = Math.max(0, Math.min(23, timing.firstShowerHour));
+  const eveningPeakH = Math.max(0, Math.min(23, timing.eveningPeakHour));
+
   const hourlyDhwKw = Array.from({ length: 24 }, (_, h) => {
-    if (h === 7 || h === 8) return occupancy * DHW_KW_PER_PERSON;
-    if (h === 19 || h === 20) return occupancy * DHW_KW_PER_PERSON * 0.7;
+    // Morning peak: first shower hour + the following hour (two-hour window).
+    if (h === morningPeakH || h === (morningPeakH + 1) % 24) return occupancy * DHW_KW_PER_PERSON;
+    // Evening peak: evening hour + following hour at 70 % load.
+    if (h === eveningPeakH || h === (eveningPeakH + 1) % 24) return occupancy * DHW_KW_PER_PERSON * 0.7;
     return 0;
   });
 

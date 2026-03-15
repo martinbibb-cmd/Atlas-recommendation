@@ -544,3 +544,88 @@ describe('adaptFullSurveyToSimulatorInputs — controlStrategy', () => {
     })
   })
 })
+
+// ─── occupancyProfile derivation ─────────────────────────────────────────────
+
+describe('adaptFullSurveyToSimulatorInputs — occupancyProfile', () => {
+  it('maps professional occupancySignature to professional occupancy profile', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ occupancySignature: 'professional' }),
+    )
+    expect(systemInputs.occupancyProfile).toBe('professional')
+  })
+
+  it('maps steady_home occupancySignature to steady_home occupancy profile', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ occupancySignature: 'steady_home' }),
+    )
+    expect(systemInputs.occupancyProfile).toBe('steady_home')
+  })
+
+  it('maps shift_worker occupancySignature to shift occupancy profile', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ occupancySignature: 'shift_worker' }),
+    )
+    expect(systemInputs.occupancyProfile).toBe('shift')
+  })
+
+  it('maps family_young_children demandPreset to family occupancy profile', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({
+        occupancySignature: 'steady_home',
+        demandPreset: 'family_young_children',
+      }),
+    )
+    expect(systemInputs.occupancyProfile).toBe('family')
+  })
+
+  it('maps family_teenagers demandPreset to family occupancy profile', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({
+        occupancySignature: 'steady_home',
+        demandPreset: 'family_teenagers',
+      }),
+    )
+    expect(systemInputs.occupancyProfile).toBe('family')
+  })
+
+  it('maps multigenerational demandPreset to family occupancy profile', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({
+        occupancySignature: 'steady_home',
+        demandPreset: 'multigenerational',
+      }),
+    )
+    expect(systemInputs.occupancyProfile).toBe('family')
+  })
+
+  it('maps bath_heavy demandPreset to family occupancy profile', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({
+        occupancySignature: 'steady_home',
+        demandPreset: 'bath_heavy',
+      }),
+    )
+    expect(systemInputs.occupancyProfile).toBe('family')
+  })
+
+  it('maps retired_couple demandPreset (steady_home signature) to steady_home profile', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({
+        occupancySignature: 'steady_home',
+        demandPreset: 'retired_couple',
+      }),
+    )
+    expect(systemInputs.occupancyProfile).toBe('steady_home')
+  })
+
+  it('maps shift_worker demandPreset to shift profile regardless of signature', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({
+        occupancySignature: 'shift_worker',
+        demandPreset: 'shift_worker',
+      }),
+    )
+    expect(systemInputs.occupancyProfile).toBe('shift')
+  })
+})
