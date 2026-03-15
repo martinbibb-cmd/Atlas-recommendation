@@ -34,8 +34,8 @@ import type {
   WallKind,
 } from './propertyPlan.types';
 import { ROOM_TYPE_LABELS } from './propertyPlan.types';
-import { canPlaceInProfessionalPlan, createManualRoom, deriveFloorplanOutputs } from './floorplanDerivations';
-import type { DerivedFloorplanOutput } from './floorplanDerivations';
+import { autoRouteHeatingPipes, canPlaceInProfessionalPlan, createManualRoom, deriveFloorplanOutputs } from './floorplanDerivations';
+import type { AutoRoute, DerivedFloorplanOutput } from './floorplanDerivations';
 import { badgeForObject, validatePropertyPlan } from './propertyValidation';
 import type { ValidationResult } from './propertyValidation';
 import './floorplan.css';
@@ -396,6 +396,12 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     () => deriveFloorplanOutputs(plan, defaultRoomHeightM),
     [plan, defaultRoomHeightM],
   );
+
+  /** Auto-routed heating pipes for the active floor. Recomputed on node/room changes. */
+  const autoRoutes = useMemo<AutoRoute[]>(() => {
+    if (!activeFloor) return [];
+    return autoRouteHeatingPipes(visibleNodes, activeFloor.rooms);
+  }, [visibleNodes, activeFloor]);
 
   useEffect(() => {
     if (!manualRoomFloorId && plan.floors[0]?.id) setManualRoomFloorId(plan.floors[0].id);
@@ -1080,13 +1086,20 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             {pendingKind && ` — selected: ${pendingKind.replace(/_/g, ' ')}`}
             {pendingWallStart && ' — click endpoint to complete wall'}
             {pendingPort && ' — click target port to connect'}
-            <button
-              className="fpb__action-btn"
-              style={{ marginLeft: 'auto', fontSize: 11, padding: '3px 10px' }}
-              onClick={() => setShowObjectBrowser(true)}
-            >
-              Insert…
-            </button>
+            <div className="fpb__hint-actions">
+              {autoRoutes.length > 0 && (
+                <span className="fpb__pipe-legend">
+                  <span className="fpb__pipe-legend-flow">━</span> Flow
+                  <span className="fpb__pipe-legend-return">━</span> Return
+                </span>
+              )}
+              <button
+                className="fpb__action-btn fpb__insert-btn"
+                onClick={() => setShowObjectBrowser(true)}
+              >
+                + Insert…
+              </button>
+            </div>
           </div>
 
           <div
@@ -1153,7 +1166,17 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 </g>
               ))}
 
-              {/* ── Layer 3: Lego edges (connection routes) ── */}
+              {/* ── Layer 3a: Auto-routed heating pipes ── */}
+              {autoRoutes.map((route) => (
+                <polyline
+                  key={route.id}
+                  className={`fpb__pipe fpb__pipe--${route.type}`}
+                  points={route.route.map((p) => `${p.x},${p.y}`).join(' ')}
+                  fill="none"
+                />
+              ))}
+
+              {/* ── Layer 3b: Lego edges (manual connection routes) ── */}
               {activeEdges.map((edge) => {
                 const fromNode = visibleNodes.find((n) => n.id === edge.from.nodeId);
                 const toNode = visibleNodes.find((n) => n.id === edge.to.nodeId);
@@ -1169,7 +1192,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                     points={`${from.x},${from.y} ${mx},${from.y} ${mx},${to.y} ${to.x},${to.y}`}
                     fill="none"
                     stroke="#64748b"
-                    strokeWidth={3}
+                    strokeWidth={2}
                     strokeDasharray="6 3"
                   />
                 );
@@ -1414,34 +1437,60 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               </>
             )}
 
-            {/* ── Object browser bottom sheet ── */}
+            {/* ── Object browser bottom sheet (magicplan-style) ── */}
             {showObjectBrowser && (
               <>
                 <div className="fpb__bottom-sheet-backdrop" onClick={() => setShowObjectBrowser(false)} />
-                <div className="fpb__bottom-sheet">
+                <div className="fpb__bottom-sheet fpb__bottom-sheet--browser">
                   <div className="fpb__bottom-sheet-header">
-                    <span>Insert Component</span>
+                    <span className="fpb__browser-title">All Objects</span>
                     <button className="fpb__delete-btn" onClick={() => setShowObjectBrowser(false)}>✕</button>
                   </div>
-                  <div className="fpb__sheet-options">
-                    {PALETTE_SECTIONS.map((section) => (
-                      <div key={section.category} className="fpb__sheet-category">
-                        <div className="fpb__palette-heading">{section.label}</div>
-                        {section.items.filter((item) => canPlaceInProfessionalPlan(item.kind)).map((item) => (
+                  <div className="fpb__browser-categories">
+                    {PALETTE_SECTIONS.map((section) => {
+                      const placeable = section.items.filter((item) => canPlaceInProfessionalPlan(item.kind));
+                      if (placeable.length === 0) return null;
+                      const categoryIcons: Record<string, string> = {
+                        heat_sources: '🔥',
+                        cylinders: '💧',
+                        controls: '🔀',
+                        emitters: '🌡️',
+                        system_support: '🔧',
+                        outlets: '🚰',
+                        system_kits: '📦',
+                      };
+                      return (
+                        <div key={section.category} className="fpb__browser-category">
                           <button
-                            key={item.kind}
-                            className="fpb__sheet-option"
+                            className="fpb__browser-category-row"
                             onClick={() => {
-                              setTool('placeNode');
-                              setPendingKind(item.kind);
-                              setShowObjectBrowser(false);
+                              // Toggle expand — for now just show items inline
                             }}
                           >
-                            <span>{item.emoji}</span> {item.label}
+                            <span className="fpb__browser-cat-icon">{categoryIcons[section.category] ?? '🔧'}</span>
+                            <span className="fpb__browser-cat-label">{section.label}</span>
+                            <span className="fpb__browser-cat-count">{placeable.length}</span>
+                            <span className="fpb__browser-cat-chevron">›</span>
                           </button>
-                        ))}
-                      </div>
-                    ))}
+                          <div className="fpb__browser-items">
+                            {placeable.map((item) => (
+                              <button
+                                key={item.kind}
+                                className="fpb__browser-item"
+                                onClick={() => {
+                                  setTool('placeNode');
+                                  setPendingKind(item.kind);
+                                  setShowObjectBrowser(false);
+                                }}
+                              >
+                                <span className="fpb__browser-item-icon">{item.emoji}</span>
+                                <span className="fpb__browser-item-label">{item.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </>
@@ -1524,7 +1573,14 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             );
           })}
           {/* ── Pipe routing ── */}
-          {derivedOutputs.totalPipeLengthM > 0 && (
+          {autoRoutes.length > 0 && (
+            <div className="fpb__issue fpb__issue--info">
+              Auto-routed: {autoRoutes.filter(r => r.type === 'flow').length} flow circuits,{' '}
+              {autoRoutes.filter(r => r.type === 'return').length} return circuits
+              {derivedOutputs.totalPipeLengthM > 0 && <> — est. {derivedOutputs.totalPipeLengthM.toFixed(1)} m</>}
+            </div>
+          )}
+          {autoRoutes.length === 0 && derivedOutputs.totalPipeLengthM > 0 && (
             <div className="fpb__issue fpb__issue--info">
               Total estimated pipe quantity: {derivedOutputs.totalPipeLengthM.toFixed(1)} m
             </div>

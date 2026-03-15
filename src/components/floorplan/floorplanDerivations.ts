@@ -1,6 +1,7 @@
 import type { PartKind } from '../../explainers/lego/builder/types';
-import type { ConnectionPath, PlacementNode, PropertyPlan, Room } from './propertyPlan.types';
+import type { ConnectionPath, PlacementNode, Point, PropertyPlan, Room } from './propertyPlan.types';
 import { BOILER_VALID_ROOM_TYPES, CYLINDER_VALID_ROOM_TYPES } from './propertyPlan.types';
+import { routePipeAligned } from '../../explainers/lego/builder/router';
 
 const GRID = 24;
 
@@ -55,6 +56,87 @@ const PRIMARY_COMPONENTS: PartKind[] = [
 
 export function canPlaceInProfessionalPlan(kind: PartKind): boolean {
   return PRIMARY_COMPONENTS.includes(kind);
+}
+
+// ─── Heating pipe auto-routing ────────────────────────────────────────────────
+
+const HEAT_SOURCE_KINDS: PartKind[] = [
+  'heat_source_combi',
+  'heat_source_system_boiler',
+  'heat_source_regular_boiler',
+  'heat_source_heat_pump',
+];
+
+const EMITTER_KINDS: PartKind[] = ['radiator_loop', 'ufh_loop'];
+
+/** A single auto-routed pipe segment between two placement nodes. */
+export interface AutoRoute {
+  id: string;
+  type: 'flow' | 'return';
+  fromNodeId: string;
+  toNodeId: string;
+  /** Ordered canvas-coordinate waypoints. */
+  route: Point[];
+}
+
+/** Parse the "x1,y1 x2,y2 …" string from routePipeAligned into Point[]. */
+function parseRoutePoints(pointsStr: string): Point[] {
+  return pointsStr.trim().split(/\s+/).map((pt) => {
+    const [x, y] = pt.split(',').map(Number);
+    return { x, y };
+  });
+}
+
+/**
+ * Auto-route flow and return heating pipes between the heat source and every
+ * emitter on the same floor.  Returns an AutoRoute[] ready to render.
+ *
+ * Flow pipes run from heat source → emitter (offset +4 px right).
+ * Return pipes run from emitter → heat source (offset -4 px left).
+ * Both are snapped to room-wall edges via routePipeAligned().
+ */
+export function autoRouteHeatingPipes(
+  nodes: PlacementNode[],
+  rooms: Room[],
+): AutoRoute[] {
+  const heatSource = nodes.find((n) => HEAT_SOURCE_KINDS.includes(n.type));
+  if (!heatSource) return [];
+
+  const emitters = nodes.filter((n) => EMITTER_KINDS.includes(n.type));
+  if (emitters.length === 0) return [];
+
+  const routerRooms = rooms.map((r) => ({
+    x: r.x, y: r.y, w: r.width, h: r.height, label: r.name,
+  }));
+
+  const PIPE_OFFSET = 4; // px — separates flow/return visually
+  const routes: AutoRoute[] = [];
+
+  for (const emitter of emitters) {
+    // Flow: heat source → emitter
+    const flowFrom = { x: heatSource.anchor.x + PIPE_OFFSET, y: heatSource.anchor.y };
+    const flowTo   = { x: emitter.anchor.x + PIPE_OFFSET,    y: emitter.anchor.y };
+    routes.push({
+      id: `auto_flow_${heatSource.id}_${emitter.id}`,
+      type: 'flow',
+      fromNodeId: heatSource.id,
+      toNodeId: emitter.id,
+      route: parseRoutePoints(routePipeAligned(flowFrom, flowTo, routerRooms)),
+    });
+
+    // Return: emitter → heat source
+    const retFrom = { x: emitter.anchor.x - PIPE_OFFSET,    y: emitter.anchor.y };
+    const retTo   = { x: heatSource.anchor.x - PIPE_OFFSET, y: heatSource.anchor.y };
+    routes.push({
+      id: `auto_return_${emitter.id}_${heatSource.id}`,
+      type: 'return',
+      fromNodeId: emitter.id,
+      toNodeId: heatSource.id,
+      route: parseRoutePoints(routePipeAligned(retFrom, retTo, routerRooms)),
+    });
+  }
+
+  return routes;
 }
 
 function routeLengthM(route: ConnectionPath['route']) {
