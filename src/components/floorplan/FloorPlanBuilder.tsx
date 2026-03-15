@@ -9,7 +9,7 @@
  * full lego BuilderShell when there are enough nodes to model.
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BuilderShell from '../../explainers/lego/builder/BuilderShell';
 import { PALETTE_SECTIONS } from '../../explainers/lego/builder/palette';
 import { getPortDefs } from '../../explainers/lego/builder/portDefs';
@@ -34,6 +34,7 @@ import type {
   WallKind,
 } from './propertyPlan.types';
 import { ROOM_TYPE_LABELS } from './propertyPlan.types';
+import { canPlaceInProfessionalPlan, createManualRoom, deriveFloorplanOutputs } from './floorplanDerivations';
 import { badgeForObject, validatePropertyPlan } from './propertyValidation';
 import type { ValidationResult } from './propertyValidation';
 import './floorplan.css';
@@ -316,7 +317,12 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   /** Show the simulation shell */
   const [showSimulation, setShowSimulation] = useState(false);
   /** Whether the user has applied a starter template (suppresses template bar) */
-  const [templateApplied, setTemplateApplied] = useState(false);
+  const [templateApplied, setTemplateApplied] = useState(true);
+  const [defaultRoomHeightM, setDefaultRoomHeightM] = useState(2.4);
+  const [manualRoomName, setManualRoomName] = useState('New room');
+  const [manualRoomWidthM, setManualRoomWidthM] = useState(3.6);
+  const [manualRoomLengthM, setManualRoomLengthM] = useState(3.6);
+  const [manualRoomFloorId, setManualRoomFloorId] = useState<string>(() => plan.floors[0]?.id ?? '');
 
   const boardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<
@@ -368,6 +374,15 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     () => validatePropertyPlan(plan),
     [plan],
   );
+
+  const derivedOutputs = useMemo(
+    () => deriveFloorplanOutputs(plan, defaultRoomHeightM),
+    [plan, defaultRoomHeightM],
+  );
+
+  useEffect(() => {
+    if (!manualRoomFloorId && plan.floors[0]?.id) setManualRoomFloorId(plan.floors[0].id);
+  }, [manualRoomFloorId, plan.floors]);
 
   const selectedRoom = useMemo(() => {
     if (selection?.kind !== 'room') return null;
@@ -441,6 +456,28 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
 
   // ── Room mutations ───────────────────────────────────────────────────────
 
+  function createRoomFromManualForm() {
+    const targetFloorId = manualRoomFloorId || activeFloorId;
+    const room = createManualRoom({
+      name: manualRoomName,
+      widthM: manualRoomWidthM,
+      lengthM: manualRoomLengthM,
+      floorId: targetFloorId,
+      defaultHeightM: defaultRoomHeightM,
+      roomType: 'other',
+      x: GRID,
+      y: GRID,
+    }, uid('room'));
+
+    updatePlan((p) => ({
+      ...p,
+      metadata: { ...p.metadata, defaultRoomHeightM },
+      floors: p.floors.map((f) => (f.id === targetFloorId ? { ...f, rooms: [...f.rooms, room] } : f)),
+    }));
+    setSelection({ kind: 'room', id: room.id });
+    setActiveFloorId(targetFloorId);
+  }
+
   function commitRoom(x: number, y: number, w: number, h: number) {
     const room: Room = {
       id: uid('room'),
@@ -451,6 +488,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       y: snapToGrid(y),
       width: Math.max(GRID * 3, snapToGrid(w)),
       height: Math.max(GRID * 3, snapToGrid(h)),
+      heightM: defaultRoomHeightM,
+      areaM2: Number((((Math.max(GRID * 3, snapToGrid(w)) / GRID) * (Math.max(GRID * 3, snapToGrid(h)) / GRID))).toFixed(2)),
     };
     updateActiveFloor((f) => ({ ...f, rooms: [...f.rooms, room] }));
     setSelection({ kind: 'room', id: room.id });
@@ -499,6 +538,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   // ── Placement node mutations ─────────────────────────────────────────────
 
   function placeNode(kind: PartKind, x: number, y: number) {
+    if (!canPlaceInProfessionalPlan(kind)) return;
     const roomId = activeFloor?.rooms.find(
       (r) => x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height,
     )?.id;
@@ -567,6 +607,18 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   }
 
   // ── Canvas pointer handlers ──────────────────────────────────────────────
+
+  function handleBoardDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const raw = e.dataTransfer.getData('application/x-floorplan-kind');
+    if (!raw) return;
+    const kind = raw as PartKind;
+    if (!canPlaceInProfessionalPlan(kind)) return;
+    const pos = boardPos(e as unknown as React.PointerEvent<HTMLDivElement>);
+    placeNode(kind, pos.x, pos.y);
+    setPendingKind(null);
+    setGhostPos(null);
+  }
 
   function handleBoardPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     const pos = boardPos(e);
@@ -820,6 +872,32 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       <div className="fpb__workspace">
         {/* ── Left sidebar ── */}
         <aside className="fpb__sidebar">
+          <section className="fpb__section">
+            <h3 className="fpb__section-title">Manual room layout</h3>
+            <label className="fpb__field">
+              <span>Default room height (m)</span>
+              <input type="number" min={2} max={4} step={0.1} value={defaultRoomHeightM} onChange={(e) => setDefaultRoomHeightM(Number(e.target.value))} />
+            </label>
+            <label className="fpb__field">
+              <span>Room name</span>
+              <input type="text" value={manualRoomName} onChange={(e) => setManualRoomName(e.target.value)} />
+            </label>
+            <label className="fpb__field">
+              <span>Width (m)</span>
+              <input type="number" min={1.5} step={0.1} value={manualRoomWidthM} onChange={(e) => setManualRoomWidthM(Number(e.target.value))} />
+            </label>
+            <label className="fpb__field">
+              <span>Length (m)</span>
+              <input type="number" min={1.5} step={0.1} value={manualRoomLengthM} onChange={(e) => setManualRoomLengthM(Number(e.target.value))} />
+            </label>
+            <label className="fpb__field">
+              <span>Level</span>
+              <select value={manualRoomFloorId || activeFloorId} onChange={(e) => setManualRoomFloorId(e.target.value)}>
+                {plan.floors.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            </label>
+            <button className="fpb__tool-btn" onClick={createRoomFromManualForm}>Add room</button>
+          </section>
           {/* Tools */}
           <section className="fpb__section">
             <h3 className="fpb__section-title">Tools</h3>
@@ -848,7 +926,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               {PALETTE_SECTIONS.map((section) => (
                 <div key={section.category} className="fpb__palette-section">
                   <div className="fpb__palette-heading">{section.label}</div>
-                  {section.items.map((item) => (
+                  {section.items.filter((item) => canPlaceInProfessionalPlan(item.kind)).map((item) => (
                     <button
                       key={item.kind}
                       className={`fpb__component-btn ${pendingKind === item.kind ? 'active' : ''}`}
@@ -857,6 +935,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                         setPendingKind(item.kind);
                       }}
                       title={`Place ${item.label} — click canvas to position`}
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData('application/x-floorplan-kind', item.kind)}
                     >
                       <span>{item.emoji}</span>
                       {item.label}
@@ -904,6 +984,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             onPointerMove={handleBoardPointerMove}
             onPointerUp={handleBoardPointerUp}
             onPointerCancel={handleBoardPointerUp}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={handleBoardDrop}
           >
             {/* ── SVG: grid + walls + edges + overlays ── */}
             <svg
@@ -1125,6 +1207,25 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
           </aside>
         )}
       </div>
+
+      <section className="fpb__simulation">
+        <div className="fpb__simulation-header">
+          <h3>Professional outputs</h3>
+          <p>Fast estimates from current room/component layout for heat loss, emitter sizing, routing, and feasibility.</p>
+        </div>
+        <div className="fpb__issue-list">
+          <div className="fpb__issue fpb__issue--info">Total estimated pipe quantity: {derivedOutputs.totalPipeLengthM.toFixed(1)} m</div>
+          <div className="fpb__issue fpb__issue--info">Feasibility — heat source: {derivedOutputs.feasibilityChecks.hasHeatSource ? 'yes' : 'no'}, emitters: {derivedOutputs.feasibilityChecks.hasEmitters ? 'yes' : 'no'}, outdoor heat pump: {derivedOutputs.feasibilityChecks.hasOutdoorHeatPump ? 'yes' : 'n/a or missing'}</div>
+          {derivedOutputs.roomHeatLossKw.slice(0, 4).map((room) => {
+            const emitter = derivedOutputs.emitterSizing.find((e) => e.roomId === room.roomId);
+            return (
+              <div key={room.roomId} className="fpb__issue fpb__issue--info">
+                {room.roomName}: heat loss {room.heatLossKw.toFixed(2)} kW · emitter target {emitter?.suggestedRadiatorKw.toFixed(2)} kW
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       {/* ── Simulation panel ── */}
       {visibleNodes.length > 0 && (
