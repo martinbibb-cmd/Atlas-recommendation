@@ -551,3 +551,156 @@ describe('buildAdviceFromCompare — edge cases', () => {
     expect(JSON.stringify(r1)).toBe(JSON.stringify(r2));
   });
 });
+
+// ─── Floor-plan inputs ────────────────────────────────────────────────────────
+
+describe('buildAdviceFromCompare — floorplanInputs', () => {
+  function makeFloorplanInputs(overrides: Partial<import('../buildAdviceFromCompare').AdviceFromCompareInput['floorplanInputs'] & {}> = {}) {
+    return {
+      refinedHeatLossKw: 5.4,
+      emitterAdequacyHints: [
+        { roomId: 'r1', roomName: 'Lounge', suggestedRadiatorKw: 3.2, status: 'review_recommended' as const },
+        { roomId: 'r2', roomName: 'Hallway', suggestedRadiatorKw: 1.1, status: 'adequate' as const },
+      ],
+      roomHeatLossBreakdown: [
+        { roomId: 'r1', roomName: 'Lounge', heatLossKw: 2.8 },
+        { roomId: 'r2', roomName: 'Hallway', heatLossKw: 0.96 },
+      ],
+      sitingConstraintHints: [
+        {
+          objectType: 'boiler' as const,
+          hasWarning: true,
+          warningMessages: ['Boiler in "Lounge" — preferred rooms: kitchen, utility'],
+        },
+      ],
+      pipeLengthEstimateHints: {
+        totalEstimateM: 18.5,
+        label: 'Estimated pipe run: ~18.5 m (planning estimate only)',
+      },
+      isReliable: true,
+      ...overrides,
+    };
+  }
+
+  it('populates floorplanInsights when reliable floor plan is provided', () => {
+    const result = buildAdviceFromCompare(
+      makeInput({ floorplanInputs: makeFloorplanInputs() }),
+    );
+    expect(result.floorplanInsights).not.toBeNull();
+    expect(result.floorplanInsights?.refinedHeatLossKw).toBe(5.4);
+    expect(result.floorplanInsights?.heatLossRefined).toBe(true);
+  });
+
+  it('returns floorplanInsights=null when no floorplanInputs provided', () => {
+    const result = buildAdviceFromCompare(makeInput());
+    expect(result.floorplanInsights).toBeNull();
+  });
+
+  it('returns floorplanInsights=null when isReliable=false', () => {
+    const result = buildAdviceFromCompare(
+      makeInput({ floorplanInputs: makeFloorplanInputs({ isReliable: false }) }),
+    );
+    expect(result.floorplanInsights).toBeNull();
+  });
+
+  it('lists emitter review rooms in floorplanInsights', () => {
+    const result = buildAdviceFromCompare(
+      makeInput({ floorplanInputs: makeFloorplanInputs() }),
+    );
+    expect(result.floorplanInsights?.emitterReviewRooms).toContain('Lounge');
+    expect(result.floorplanInsights?.emitterReviewRooms).not.toContain('Hallway');
+  });
+
+  it('collects siting warnings into floorplanInsights', () => {
+    const result = buildAdviceFromCompare(
+      makeInput({ floorplanInputs: makeFloorplanInputs() }),
+    );
+    expect(result.floorplanInsights?.sitingWarnings.length).toBeGreaterThan(0);
+    expect(result.floorplanInsights?.sitingWarnings[0]).toContain('Lounge');
+  });
+
+  it('exposes pipe length estimate in floorplanInsights', () => {
+    const result = buildAdviceFromCompare(
+      makeInput({ floorplanInputs: makeFloorplanInputs() }),
+    );
+    expect(result.floorplanInsights?.pipeLengthEstimateM).toBe(18.5);
+  });
+
+  it('adds siting warning to compareWins when floor plan has siting issues', () => {
+    const result = buildAdviceFromCompare(
+      makeInput({ floorplanInputs: makeFloorplanInputs() }),
+    );
+    const hasSitingWin = result.bestOverall.compareWins.some((w) =>
+      /siting/i.test(w),
+    );
+    expect(hasSitingWin).toBe(true);
+  });
+
+  it('adds emitter adequacy signal to compareWins when rooms need review', () => {
+    const result = buildAdviceFromCompare(
+      makeInput({ floorplanInputs: makeFloorplanInputs() }),
+    );
+    const hasEmitterWin = result.bestOverall.compareWins.some((w) =>
+      /emitter/i.test(w),
+    );
+    expect(hasEmitterWin).toBe(true);
+  });
+
+  it('appends emitter review note to installation recipe when rooms need review', () => {
+    const result = buildAdviceFromCompare(
+      makeInput({ floorplanInputs: makeFloorplanInputs() }),
+    );
+    const hasEmitterNote = result.installationRecipe.emitters.some((e) =>
+      /floor plan derived/i.test(e),
+    );
+    expect(hasEmitterNote).toBe(true);
+  });
+
+  it('appends pipe length hint to installation recipe primaryPipework', () => {
+    const result = buildAdviceFromCompare(
+      makeInput({ floorplanInputs: makeFloorplanInputs() }),
+    );
+    const hasPipeNote = result.installationRecipe.primaryPipework.some((p) =>
+      /18\.5/.test(p),
+    );
+    expect(hasPipeNote).toBe(true);
+  });
+
+  it('adds siting issue to phasedPlan.now when warnings present', () => {
+    const result = buildAdviceFromCompare(
+      makeInput({ floorplanInputs: makeFloorplanInputs() }),
+    );
+    const hasSitingNow = result.phasedPlan.now.some((a) => /siting/i.test(a));
+    expect(hasSitingNow).toBe(true);
+  });
+
+  it('adds emitter confirmation to phasedPlan.next when rooms need review', () => {
+    const result = buildAdviceFromCompare(
+      makeInput({ floorplanInputs: makeFloorplanInputs() }),
+    );
+    const hasEmitterNext = result.phasedPlan.next.some((a) => /emitter/i.test(a));
+    expect(hasEmitterNext).toBe(true);
+  });
+
+  it('does not alter recipe or plan when no floor plan warnings exist', () => {
+    const cleanInputs = makeFloorplanInputs({
+      emitterAdequacyHints: [
+        { roomId: 'r1', roomName: 'Hallway', suggestedRadiatorKw: 0.8, status: 'adequate' as const },
+      ],
+      sitingConstraintHints: [
+        { objectType: 'boiler' as const, hasWarning: false, warningMessages: [] },
+      ],
+    });
+    const result = buildAdviceFromCompare(makeInput({ floorplanInputs: cleanInputs }));
+    // Siting note should NOT appear in now (no warnings)
+    const hasSitingNow = result.phasedPlan.now.some((a) => /siting/i.test(a));
+    expect(hasSitingNow).toBe(false);
+  });
+
+  it('is deterministic with floor plan inputs across multiple calls', () => {
+    const fp = makeFloorplanInputs();
+    const r1 = buildAdviceFromCompare(makeInput({ floorplanInputs: fp }));
+    const r2 = buildAdviceFromCompare(makeInput({ floorplanInputs: fp }));
+    expect(JSON.stringify(r1)).toBe(JSON.stringify(r2));
+  });
+});

@@ -29,6 +29,7 @@ import {
   buildUnifiedConfidence,
   type UnifiedConfidence,
 } from '../confidence/buildUnifiedConfidence';
+import type { AtlasFloorplanInputs } from '../floorplan/adaptFloorplanToAtlasInputs';
 
 // Re-export for consumers that want the unified type without an extra import.
 export type { UnifiedConfidence };
@@ -144,6 +145,25 @@ export interface ConfidenceSummary {
   unified: UnifiedConfidence | null;
 }
 
+// ─── FloorplanInsights ────────────────────────────────────────────────────────
+
+/**
+ * Surface-level summary of floor-plan derived information that has influenced
+ * this advice result.  Present only when a reliable floor plan was provided.
+ */
+export interface FloorplanInsights {
+  /** Aggregated whole-home heat loss (kW) derived from floor-plan room geometry. */
+  refinedHeatLossKw: number;
+  /** Rooms where emitter sizing may need review (suggested output ≥ threshold). */
+  emitterReviewRooms: string[];
+  /** Siting warning messages for poorly-placed heat sources or cylinders. */
+  sitingWarnings: string[];
+  /** Pipe length planning estimate (m). */
+  pipeLengthEstimateM: number;
+  /** Whether this floor plan was used to refine heat-loss estimates. */
+  heatLossRefined: boolean;
+}
+
 // ─── AdviceFromCompareResult ──────────────────────────────────────────────────
 
 export interface AdviceFromCompareResult {
@@ -164,6 +184,12 @@ export interface AdviceFromCompareResult {
   phasedPlan: PhasedPlan;
   /** Confidence summary for the overall recommendation. */
   confidenceSummary: ConfidenceSummary;
+  /**
+   * Floor-plan derived insights that influenced this advice result.
+   * Present only when a reliable DerivedFloorplanOutput was supplied via
+   * AdviceFromCompareInput.floorplanInputs.
+   */
+  floorplanInsights: FloorplanInsights | null;
 }
 
 // ─── Input type ───────────────────────────────────────────────────────────────
@@ -176,6 +202,13 @@ export interface AdviceFromCompareInput {
   currentSystemState?: SimulatorSystemState;
   /** Optional — derived from compareSeed when not provided. */
   proposedSystemState?: SimulatorSystemState;
+  /**
+   * Optional floor-plan derived inputs from adaptFloorplanToAtlasInputs().
+   * When present and isReliable, the floor plan refines heat-loss estimates,
+   * emitter adequacy hints, siting constraint warnings, and confidence.
+   * When absent, all estimates fall back to survey-only presets.
+   */
+  floorplanInputs?: AtlasFloorplanInputs;
 }
 
 // ─── Internal constants ───────────────────────────────────────────────────────
@@ -753,12 +786,13 @@ function buildConfidenceSummary(
  *
  * @param input - Survey data, engine output, compare seed, and optional system states.
  * @returns Full advice result including bestOverall, byObjective, installationRecipe,
- *          phasedPlan, and confidenceSummary.
+ *          phasedPlan, confidenceSummary, and floorplanInsights when a reliable
+ *          floor plan was supplied.
  */
 export function buildAdviceFromCompare(
   input: AdviceFromCompareInput,
 ): AdviceFromCompareResult {
-  const { engineOutput, compareSeed, surveyData } = input;
+  const { engineOutput, compareSeed, surveyData, floorplanInputs } = input;
   const options = engineOutput.options ?? [];
 
   // Derive system states from compare seed when not explicitly provided.
@@ -774,8 +808,30 @@ export function buildAdviceFromCompare(
   const confidenceSummary = buildConfidenceSummary(engineOutput, surveyData);
   const confidencePct = confidenceSummary.pct;
 
-  // Compare wins for the best-overall card.
+  // ── Floor-plan insights ──────────────────────────────────────────────────
+  // When a reliable floor plan is present, derive insights and boost confidence.
+  const fp = floorplanInputs?.isReliable === true ? floorplanInputs : null;
+
+  const floorplanInsights: FloorplanInsights | null = fp
+    ? {
+        refinedHeatLossKw: fp.refinedHeatLossKw,
+        emitterReviewRooms: fp.emitterAdequacyHints
+          .filter((h) => h.status === 'review_recommended')
+          .map((h) => h.roomName),
+        sitingWarnings: fp.sitingConstraintHints.flatMap((h) => h.warningMessages),
+        pipeLengthEstimateM: fp.pipeLengthEstimateHints.totalEstimateM,
+        heatLossRefined: fp.refinedHeatLossKw > 0,
+      }
+    : null;
+
+  // ── Compare wins (add floor-plan signals when available) ─────────────────
   const overallWins = deriveCompareWins(current, proposed, primaryOption);
+  if (fp && fp.sitingConstraintHints.some((h) => h.hasWarning)) {
+    overallWins.push('siting constraints detected from floor plan — see placement notes');
+  }
+  if (fp && fp.emitterAdequacyHints.some((h) => h.status === 'review_recommended')) {
+    overallWins.push('emitter adequacy informed by room layout — see installation notes');
+  }
 
   const bestOverall: AdviceCard = {
     id: 'best_overall',
@@ -794,6 +850,18 @@ export function buildAdviceFromCompare(
     compareWins: overallWins,
   };
 
+  // ── Installation recipe — append siting/emitter notes from floor plan ────
+  const baseRecipe = buildInstallationRecipe(primaryOption, proposed);
+  const recipe: InstallationRecipe = fp
+    ? applyFloorplanToRecipe(baseRecipe, fp)
+    : baseRecipe;
+
+  // ── Phased plan — add siting/emitter actions when floor plan reveals issues ─
+  const basePlan = buildPhasedPlan(primaryOption, proposed, current, engineOutput.plans);
+  const phasedPlan: PhasedPlan = fp
+    ? applyFloorplanToPhasedPlan(basePlan, fp)
+    : basePlan;
+
   return {
     bestOverall,
     byObjective: {
@@ -806,8 +874,90 @@ export function buildAdviceFromCompare(
         options, proposed, current, confidencePct, engineOutput.plans,
       ),
     },
-    installationRecipe: buildInstallationRecipe(primaryOption, proposed),
-    phasedPlan: buildPhasedPlan(primaryOption, proposed, current, engineOutput.plans),
+    installationRecipe: recipe,
+    phasedPlan,
     confidenceSummary,
+    floorplanInsights,
+  };
+}
+
+// ─── Floor-plan recipe / plan helpers ────────────────────────────────────────
+
+/** Maximum number of room names to include in a single floor-plan message. */
+const MAX_ROOMS_IN_MESSAGE = 3;
+
+/**
+ * Merge floor-plan emitter and siting notes into the installation recipe.
+ * Only adds notes that aren't already present; caps list length to avoid bloat.
+ */
+function applyFloorplanToRecipe(
+  base: InstallationRecipe,
+  fp: AtlasFloorplanInputs,
+): InstallationRecipe {
+  const emitters = [...base.emitters];
+  const reviewRooms = fp.emitterAdequacyHints
+    .filter((h) => h.status === 'review_recommended')
+    .map((h) => h.roomName);
+  if (reviewRooms.length > 0) {
+    emitters.push(
+      `Review emitter sizing in: ${reviewRooms.slice(0, MAX_ROOMS_IN_MESSAGE).join(', ')} (floor plan derived)`,
+    );
+  }
+
+  const primaryPipework = [...base.primaryPipework];
+  if (fp.pipeLengthEstimateHints.totalEstimateM > 0) {
+    primaryPipework.push(fp.pipeLengthEstimateHints.label);
+  }
+
+  const protectionAndAncillaries = [...base.protectionAndAncillaries];
+  const sitingWarnings = fp.sitingConstraintHints.flatMap((h) => h.warningMessages);
+  if (sitingWarnings.length > 0) {
+    // Surface at most 2 siting notes in the recipe.
+    sitingWarnings.slice(0, 2).forEach((msg) => {
+      protectionAndAncillaries.push(`Siting: ${msg}`);
+    });
+  }
+
+  return {
+    ...base,
+    emitters: emitters.slice(0, 5),
+    primaryPipework: primaryPipework.slice(0, 5),
+    protectionAndAncillaries: protectionAndAncillaries.slice(0, 5),
+  };
+}
+
+/**
+ * Add floor-plan derived siting and emitter actions into the phased plan.
+ * Siting issues go into "now" (must resolve before installation);
+ * emitter review notes go into "next" (first improvement round).
+ */
+function applyFloorplanToPhasedPlan(
+  base: PhasedPlan,
+  fp: AtlasFloorplanInputs,
+): PhasedPlan {
+  const now = [...base.now];
+  const next = [...base.next];
+
+  const sitingWarnings = fp.sitingConstraintHints
+    .filter((h) => h.hasWarning)
+    .flatMap((h) => h.warningMessages);
+
+  sitingWarnings.slice(0, 2).forEach((msg) => {
+    now.push(`Resolve siting issue: ${msg}`);
+  });
+
+  const reviewRooms = fp.emitterAdequacyHints
+    .filter((h) => h.status === 'review_recommended')
+    .map((h) => h.roomName);
+  if (reviewRooms.length > 0) {
+    next.push(
+      `Confirm emitter capacity in: ${reviewRooms.slice(0, MAX_ROOMS_IN_MESSAGE).join(', ')}`,
+    );
+  }
+
+  return {
+    now: now.slice(0, 5),
+    next: next.slice(0, 5),
+    later: base.later,
   };
 }

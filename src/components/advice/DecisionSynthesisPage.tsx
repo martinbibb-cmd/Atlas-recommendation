@@ -35,8 +35,11 @@ import {
   buildAdviceFromCompare,
   type AdviceCard,
   type AdviceFromCompareResult,
+  type FloorplanInsights,
   type UnifiedConfidence,
 } from '../../lib/advice/buildAdviceFromCompare';
+import { adaptFloorplanToAtlasInputs } from '../../lib/floorplan/adaptFloorplanToAtlasInputs';
+import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import PrintableRecommendationPage from './PrintableRecommendationPage';
 import './DecisionSynthesisPage.css';
 
@@ -53,6 +56,13 @@ interface Props {
   compareSeed?: CompareSeed;
   /** Required alongside compareSeed — passed through to buildAdviceFromCompare. */
   surveyData?: FullSurveyModelV1;
+  /**
+   * Optional floor-plan derived outputs from the FloorPlanBuilder.
+   * When provided, the adapter feeds geometry-based heat-loss, emitter adequacy,
+   * and siting constraint data into the advice builder, and provenance banners
+   * are shown to indicate which estimates were refined by the floor plan.
+   */
+  floorplanOutput?: DerivedFloorplanOutput;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -74,6 +84,34 @@ const PHASE_CLASS: Record<PhasedStep['phase'], string> = {
   next:  'advice-phase--next',
   later: 'advice-phase--later',
 };
+
+/** Renders floor-plan provenance banners when the floor plan has refined advice inputs. */
+function FloorplanProvenanceBanner({ insights }: { insights: FloorplanInsights }) {
+  return (
+    <div className="advice-floorplan-provenance" aria-label="Floor plan inputs active">
+      {insights.heatLossRefined && (
+        <div className="advice-floorplan-provenance__item advice-floorplan-provenance__item--refined">
+          📐 Floor plan refined heat-loss estimate in use ({insights.refinedHeatLossKw} kW total)
+        </div>
+      )}
+      {insights.emitterReviewRooms.length > 0 && (
+        <div className="advice-floorplan-provenance__item advice-floorplan-provenance__item--emitter">
+          🔥 Emitter adequacy informed by room layout — review: {insights.emitterReviewRooms.join(', ')}
+        </div>
+      )}
+      {insights.sitingWarnings.length > 0 && (
+        <div className="advice-floorplan-provenance__item advice-floorplan-provenance__item--siting">
+          ⚠️ Siting constraints detected from floor plan — see installation notes
+        </div>
+      )}
+      {insights.pipeLengthEstimateM > 0 && (
+        <div className="advice-floorplan-provenance__item advice-floorplan-provenance__item--pipe">
+          🔧 Pipe run estimate: ~{insights.pipeLengthEstimateM} m (planning estimate only)
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Renders a compare-enriched objective card (from buildAdviceFromCompare). */
 function EnrichedObjectiveCardUI({ card }: { card: AdviceCard }) {
@@ -294,8 +332,14 @@ export default function DecisionSynthesisPage({
   onBack,
   compareSeed,
   surveyData,
+  floorplanOutput,
 }: Props) {
   const [showPrint, setShowPrint] = useState(false);
+
+  // Adapt floor-plan outputs into Atlas inputs when provided.
+  const floorplanInputs = floorplanOutput != null
+    ? adaptFloorplanToAtlasInputs(floorplanOutput)
+    : undefined;
 
   // When a compareSeed is provided (survey-backed compare flow), use the richer
   // compare-truth builder.  Otherwise fall back to the EngineOutputV1-only builder.
@@ -305,6 +349,7 @@ export default function DecisionSynthesisPage({
           surveyData,
           engineOutput,
           compareSeed,
+          floorplanInputs,
         })
       : null;
 
@@ -418,6 +463,11 @@ export default function DecisionSynthesisPage({
           </p>
         </div>
       </div>
+
+      {/* ── Floor-plan provenance banners ───────────────────────────────────── */}
+      {compareAdvice?.floorplanInsights != null && (
+        <FloorplanProvenanceBanner insights={compareAdvice.floorplanInsights} />
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* SECTION 1 — Best all-round fit                                    */}
