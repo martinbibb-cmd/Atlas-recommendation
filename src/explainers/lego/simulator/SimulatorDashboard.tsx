@@ -47,11 +47,41 @@ import type { ScenarioKey } from './scenarioTypes';
 import { SCENARIO_PRESETS, SCENARIO_PRESET_LIST, DEFAULT_SCENARIO_KEY } from './scenarioTypes';
 import { buildOccupancyBehaviourFromSurvey, buildOccupancyDisplayTags } from '../../../lib/occupancy/buildOccupancyBehaviourFromSurvey';
 import type { DemandPresetId } from './systemInputsTypes';
+import type { EmitterCoverageClassification } from '../../../lib/floorplan/adaptFloorplanToAtlasInputs';
 import './labDashboard.css';
 import './labPanels.css';
 
 type PanelId = 'system' | 'house' | 'drawoff' | 'efficiency' | 'limiters' | 'inputs';
 type SimulatorMode = 'single' | 'compare';
+
+// ─── FloorplanOperatingAssumptions ───────────────────────────────────────────
+
+/**
+ * Summary of floor-plan-driven operating assumptions shown as a badge in the
+ * simulator.  Built from FloorplanInsights (advice page) or directly from
+ * AtlasFloorplanInputs + buildHeatingOperatingState when the simulator has
+ * floor-plan data available.
+ */
+export interface FloorplanOperatingAssumptions {
+  /** Aggregated whole-home heat loss (kW) derived from room geometry. */
+  refinedHeatLossKw: number | null;
+  /** Whole-system emitter coverage classification. null = no installed data. */
+  coverageClassification: EmitterCoverageClassification | null;
+  /** Rooms where installed emitter output is insufficient to meet demand. */
+  undersizedRooms: string[];
+  /** Rooms where installed emitter output far exceeds demand. */
+  oversizedRooms: string[];
+  /**
+   * True when floor-plan emitter data meaningfully changed the operating
+   * temperature assumption from the standard 1.0× default.
+   */
+  operatingTempInfluenced: boolean;
+  /**
+   * Physics story tags derived by buildHeatingOperatingState when the floor
+   * plan emitter adequacy signal was active.
+   */
+  emitterExplanationTags: string[];
+}
 
 const PANEL_METADATA: Record<PanelId, { title: string; icon: string }> = {
   system:     { title: 'System Diagram',  icon: '⚙'  },
@@ -194,6 +224,73 @@ function LifestyleDemandBadge({ demandPreset }: { demandPreset: DemandPresetId }
   );
 }
 
+// ─── Floorplan operating badge ────────────────────────────────────────────────
+
+/** Human-readable labels for each emitter coverage classification. */
+const COVERAGE_LABEL: Record<EmitterCoverageClassification, string> = {
+  all_adequate:        'All rooms adequate',
+  all_oversized:       'All rooms oversized — lower flow temp achievable',
+  majority_undersized: 'Majority undersized — higher flow temp needed',
+  mixed:               'Mixed coverage',
+  insufficient_data:   'Insufficient data',
+};
+
+/**
+ * Compact banner surfacing floor-plan-driven operating assumptions.
+ * Shown in the simulator when the caller has floor-plan emitter data.
+ */
+function FloorplanOperatingBadge({ assumptions }: { assumptions: FloorplanOperatingAssumptions }) {
+  const { refinedHeatLossKw, coverageClassification, undersizedRooms, oversizedRooms, operatingTempInfluenced, emitterExplanationTags } = assumptions;
+
+  const hasAnyData =
+    refinedHeatLossKw != null ||
+    coverageClassification != null ||
+    undersizedRooms.length > 0 ||
+    oversizedRooms.length > 0;
+
+  if (!hasAnyData) return null;
+
+  return (
+    <div
+      className="sim-floorplan-badge"
+      role="status"
+      aria-label="Floor plan operating assumptions active"
+    >
+      <span className="sim-floorplan-badge__icon" aria-hidden="true">📐</span>
+      <div className="sim-floorplan-badge__body">
+        <span className="sim-floorplan-badge__title">Floor plan data active</span>
+        <div className="sim-floorplan-badge__items">
+          {refinedHeatLossKw != null && (
+            <span className="sim-floorplan-badge__item">
+              Heat loss: <strong>{refinedHeatLossKw} kW</strong>
+            </span>
+          )}
+          {coverageClassification != null && coverageClassification !== 'insufficient_data' && (
+            <span className="sim-floorplan-badge__item">
+              Emitters: <strong>{COVERAGE_LABEL[coverageClassification]}</strong>
+            </span>
+          )}
+          {oversizedRooms.length > 0 && (
+            <span className="sim-floorplan-badge__item sim-floorplan-badge__item--oversized">
+              Oversized: {oversizedRooms.join(', ')}
+            </span>
+          )}
+          {undersizedRooms.length > 0 && (
+            <span className="sim-floorplan-badge__item sim-floorplan-badge__item--undersized">
+              Undersized: {undersizedRooms.join(', ')}
+            </span>
+          )}
+          {operatingTempInfluenced && emitterExplanationTags.length > 0 && (
+            <span className="sim-floorplan-badge__item sim-floorplan-badge__item--op-temp">
+              Operating assumption: {emitterExplanationTags.join(' · ')}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -237,6 +334,13 @@ interface Props {
    * Override to 'Improved system' etc. for non-survey-backed compare flows.
    */
   compareLabels?: { current: string; proposed: string }
+  /**
+   * Optional floor-plan-driven operating assumptions.
+   * When present, a compact "Floor plan data active" badge is shown above the
+   * simulator panels so users can see which physics constraints are informed
+   * by the floor plan (refined heat loss, emitter coverage, operating temperature).
+   */
+  floorplanOperatingAssumptions?: FloorplanOperatingAssumptions
 }
 
 export default function SimulatorDashboard({
@@ -247,6 +351,7 @@ export default function SimulatorDashboard({
   initialProposedSystemChoice,
   initialProposedSystemInputs,
   compareLabels = { current: 'Current system', proposed: 'Proposed system' },
+  floorplanOperatingAssumptions,
 }: Props) {
   const [expanded, setExpanded] = useState<PanelId | null>(null);
   const [timeSpeed, setTimeSpeed] = useState(1);
@@ -488,6 +593,11 @@ export default function SimulatorDashboard({
           </div>
         )}
 
+        {/* Floor-plan operating assumptions badge */}
+        {floorplanOperatingAssumptions != null && (
+          <FloorplanOperatingBadge assumptions={floorplanOperatingAssumptions} />
+        )}
+
         {/* Comparison summary strip */}
         <ComparisonSummaryStrip
           current={{ emitter: emitterState, efficiency: efficiencyState, limiters: limiterState }}
@@ -621,6 +731,11 @@ export default function SimulatorDashboard({
           <span className="sim-survey-badge__text">Using full survey data</span>
           <span className="sim-survey-badge__hint">Values are prefilled from your survey — you can still edit them below.</span>
         </div>
+      )}
+
+      {/* Floor-plan operating assumptions badge */}
+      {floorplanOperatingAssumptions != null && (
+        <FloorplanOperatingBadge assumptions={floorplanOperatingAssumptions} />
       )}
 
       {/* Lifestyle demand badge — shown when a specific demand preset is active */}

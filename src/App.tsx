@@ -21,6 +21,7 @@ import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
 import { getMissingLabFields } from './lib/lab/getMissingLabFields';
 import { mergeLabQuickInputs } from './lib/lab/mergeLabQuickInputs';
+import type { DerivedFloorplanOutput } from './components/floorplan/floorplanDerivations';
 import './App.css';
 
 /** Detect ?lab=1 feature flag — renders Demo Lab directly for previewing. */
@@ -90,6 +91,12 @@ export default function App() {
   /** Completed engine input passed to the Simulator Dashboard and LabShell. */
   const [labEngineInput, setLabEngineInput] = useState<EngineInputV2_3 | undefined>();
   const [floorPlanSystemType, setFloorPlanSystemType] = useState<'combi' | 'system' | 'regular' | 'heat_pump' | undefined>();
+  /**
+   * Latest floor-plan derived output captured from FloorPlanBuilder.
+   * Passed to ExplainersHubPage so the simulator and advice surfaces can show
+   * which physics assumptions are informed by the floor plan.
+   */
+  const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
@@ -178,6 +185,7 @@ export default function App() {
           onBack={() => setJourney('landing')}
           onOpenSystemLab={() => setJourney('lab')}
           surveyData={labEngineInput}
+          floorplanOutput={floorplanOutput}
         />
       )}
       {journey === 'lab' && <LabShell onHome={() => setJourney('landing')} engineInput={labEngineInput} />}
@@ -197,6 +205,7 @@ export default function App() {
             surveyResults={{
               systemType: floorPlanSystemType,
             }}
+            onChange={(output) => setFloorplanOutput(output.derivedOutputs)}
           />
         </div>
       )}

@@ -12,6 +12,7 @@
 
 import { useState, useMemo } from 'react';
 import SimulatorDashboard from './lego/simulator/SimulatorDashboard';
+import type { FloorplanOperatingAssumptions } from './lego/simulator/SimulatorDashboard';
 import SimulatorStepper from './lego/simulator/SimulatorStepper';
 import type { StepperConfig } from './lego/simulator/SimulatorStepper';
 import { adaptFullSurveyToSimulatorInputs } from './lego/simulator/adaptFullSurveyToSimulatorInputs';
@@ -21,6 +22,9 @@ import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import ExplainerPanel from './educational/ExplainerPanel';
 import { runEngine } from '../engine/Engine';
 import DecisionSynthesisPage from '../components/advice/DecisionSynthesisPage';
+import { adaptFloorplanToAtlasInputs } from '../lib/floorplan/adaptFloorplanToAtlasInputs';
+import { buildHeatingOperatingState, FLOOR_PLAN_EMITTER_EXPLANATION_TAGS } from '../lib/heating/buildHeatingOperatingState';
+import type { DerivedFloorplanOutput } from '../components/floorplan/floorplanDerivations';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -39,11 +43,56 @@ interface Props {
    * header so users can navigate to the compare/sandbox area.
    */
   onOpenSystemLab?: () => void;
+  /**
+   * Optional floor-plan derived outputs from the FloorPlanBuilder.
+   * When provided, the simulator and advice page surface which physics
+   * assumptions are informed by the floor plan (heat loss, emitter coverage,
+   * operating temperature).
+   */
+  floorplanOutput?: DerivedFloorplanOutput;
+}
+
+// ─── Internal helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Build a FloorplanOperatingAssumptions summary from AtlasFloorplanInputs.
+ * Returns null when the floor plan is not reliable or has no actionable data.
+ */
+function buildFloorplanOperatingAssumptions(
+  floorplanOutput: DerivedFloorplanOutput,
+  heatLossWatts?: number,
+): FloorplanOperatingAssumptions | null {
+  const fp = adaptFloorplanToAtlasInputs(floorplanOutput);
+  if (!fp.isReliable) return null;
+
+  const adequacy = fp.wholeSystemEmitterAdequacy;
+  const fpOperatingState = adequacy.hasActualData
+    ? buildHeatingOperatingState({
+        flowTempC: 70,
+        floorplanEmitterAdequacy: adequacy,
+        heatLossWatts,
+      })
+    : null;
+
+  const emitterExplanationTags =
+    fpOperatingState?.explanationTags.filter((t) => FLOOR_PLAN_EMITTER_EXPLANATION_TAGS.has(t)) ?? [];
+
+  return {
+    refinedHeatLossKw: fp.refinedHeatLossKw > 0 ? fp.refinedHeatLossKw : null,
+    coverageClassification: adequacy.hasActualData ? adequacy.coverageClassification : null,
+    undersizedRooms: adequacy.undersizedRooms,
+    oversizedRooms: adequacy.oversizedRooms,
+    operatingTempInfluenced:
+      adequacy.hasActualData &&
+      adequacy.impliedOversizingFactor !== null &&
+      adequacy.impliedOversizingFactor !== 1.0,
+    emitterExplanationTags,
+  };
 }
 
 // ─── View ─────────────────────────────────────────────────────────────────────
 
-export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab }: Props) {
+export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab, floorplanOutput }: Props) {
   const [config, setConfig] = useState<StepperConfig | null>(null);
   // When launched from a survey, hide the stepper by default.
   const [showStepper, setShowStepper] = useState<boolean>(!surveyData);
@@ -76,6 +125,20 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
     [surveyData, engineOutput],
   );
 
+  // Build floor-plan operating assumptions from the floor-plan output (once).
+  // These are passed to the simulator and advice page to surface which physics
+  // constraints are informed by the floor plan.
+  const floorplanOperatingAssumptions = useMemo(
+    () =>
+      floorplanOutput != null
+        ? buildFloorplanOperatingAssumptions(
+            floorplanOutput,
+            (surveyData as FullSurveyModelV1 | undefined)?.heatLossWatts,
+          )
+        : null,
+    [floorplanOutput, surveyData],
+  );
+
   // Show dashboard when:
   //   (a) survey-backed entry (surveyAdapted present and stepper not explicitly requested), or
   //   (b) stepper has completed and config is set.
@@ -98,6 +161,7 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
           onBack={() => setShowAdvice(false)}
           compareSeed={compareSeed ?? undefined}
           surveyData={isSurveyBacked ? (surveyData as FullSurveyModelV1) : undefined}
+          floorplanOutput={floorplanOutput}
         />
       );
     }
@@ -160,6 +224,7 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
             ? { current: 'Current system', proposed: 'Proposed system' }
             : undefined
           }
+          floorplanOperatingAssumptions={floorplanOperatingAssumptions ?? undefined}
         />
 
         {/* Decision Advice CTA — only available when survey-backed */}

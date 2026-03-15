@@ -85,6 +85,26 @@ const PHASE_CLASS: Record<PhasedStep['phase'], string> = {
   later: 'advice-phase--later',
 };
 
+import type { EmitterCoverageClassification } from '../../lib/floorplan/adaptFloorplanToAtlasInputs';
+
+/** Human-readable label for each whole-system emitter coverage classification. */
+const COVERAGE_CLASSIFICATION_LABEL: Record<EmitterCoverageClassification, string> = {
+  all_adequate:          'All emitters adequate for room heat demand',
+  all_oversized:         'All emitters oversized — lower flow temperature achievable',
+  majority_undersized:   'Majority of emitters undersized — higher operating temperature needed',
+  mixed:                 'Mixed emitter coverage — some rooms need review',
+  insufficient_data:     'Emitter coverage: insufficient data',
+};
+
+/** CSS modifier for each coverage classification badge. */
+const COVERAGE_CLASS_MOD: Record<EmitterCoverageClassification, string> = {
+  all_adequate:          'adequate',
+  all_oversized:         'oversized',
+  majority_undersized:   'undersized',
+  mixed:                 'mixed',
+  insufficient_data:     'no-data',
+};
+
 /** Renders floor-plan provenance banners when the floor plan has refined advice inputs. */
 function FloorplanProvenanceBanner({ insights }: { insights: FloorplanInsights }) {
   return (
@@ -94,6 +114,38 @@ function FloorplanProvenanceBanner({ insights }: { insights: FloorplanInsights }
           📐 Floor plan refined heat-loss estimate in use ({insights.refinedHeatLossKw} kW total)
         </div>
       )}
+
+      {/* Whole-system emitter classification */}
+      {insights.coverageClassification != null &&
+        insights.coverageClassification !== 'insufficient_data' && (
+          <div
+            className={`advice-floorplan-provenance__item advice-floorplan-provenance__item--classification advice-floorplan-provenance__item--classification-${COVERAGE_CLASS_MOD[insights.coverageClassification]}`}
+          >
+            🏠 Whole-system emitter coverage: {COVERAGE_CLASSIFICATION_LABEL[insights.coverageClassification]}
+          </div>
+        )}
+
+      {/* Oversized rooms */}
+      {insights.oversizedRooms.length > 0 && (
+        <div className="advice-floorplan-provenance__item advice-floorplan-provenance__item--oversized">
+          ✅ Oversized emitters in: {insights.oversizedRooms.join(', ')} — lower flow temperature achievable
+        </div>
+      )}
+
+      {/* Undersized rooms */}
+      {insights.undersizedRooms.length > 0 && (
+        <div className="advice-floorplan-provenance__item advice-floorplan-provenance__item--undersized">
+          ⚠️ Undersized emitters in: {insights.undersizedRooms.join(', ')} — higher operating temperature needed
+        </div>
+      )}
+
+      {/* Operating temperature influence */}
+      {insights.operatingTempInfluenced && insights.emitterExplanationTags.length > 0 && (
+        <div className="advice-floorplan-provenance__item advice-floorplan-provenance__item--op-temp">
+          🌡 Floor plan emitter data influencing operating temperature: {insights.emitterExplanationTags.join(' · ')}
+        </div>
+      )}
+
       {insights.emitterReviewRooms.length > 0 && (
         <div className="advice-floorplan-provenance__item advice-floorplan-provenance__item--emitter">
           🔥 Emitter adequacy informed by room layout — review: {insights.emitterReviewRooms.join(', ')}

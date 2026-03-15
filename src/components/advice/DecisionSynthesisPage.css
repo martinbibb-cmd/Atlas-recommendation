@@ -714,3 +714,61 @@
   background: #ebf8ff;
   color: #2b6cb0;
 }
+
+/* Whole-system emitter classification */
+.advice-floorplan-provenance__item--classification {
+  border-color: #805ad5;
+  background: #faf5ff;
+  color: #44337a;
+}
+
+.advice-floorplan-provenance__item--classification-oversized {
+  border-color: #48bb78;
+  background: #f0fff4;
+  color: #22543d;
+}
+
+.advice-floorplan-provenance__item--classification-undersized {
+  border-color: #fc8181;
+  background: #fff5f5;
+  color: #742a2a;
+}
+
+.advice-floorplan-provenance__item--classification-adequate {
+  border-color: #48bb78;
+  background: #f0fff4;
+  color: #22543d;
+}
+
+.advice-floorplan-provenance__item--classification-mixed {
+  border-color: #ed8936;
+  background: #fffaf0;
+  color: #744210;
+}
+
+.advice-floorplan-provenance__item--classification-no-data {
+  border-color: #a0aec0;
+  background: #f7fafc;
+  color: #4a5568;
+}
+
+/* Oversized rooms */
+.advice-floorplan-provenance__item--oversized {
+  border-color: #48bb78;
+  background: #f0fff4;
+  color: #22543d;
+}
+
+/* Undersized rooms */
+.advice-floorplan-provenance__item--undersized {
+  border-color: #e53e3e;
+  background: #fff5f5;
+  color: #742a2a;
+}
+
+/* Operating temperature influence */
+.advice-floorplan-provenance__item--op-temp {
+  border-color: #d69e2e;
+  background: #fffff0;
+  color: #744210;
+}
