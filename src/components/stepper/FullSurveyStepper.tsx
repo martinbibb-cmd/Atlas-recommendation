@@ -2791,7 +2791,7 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
                       <input
                         type="number"
                         min={30}
-                        max={500}
+                        max={600}
                         step={5}
                         value={typeof input.fullSurvey?.dhwCondition?.currentCylinderVolumeLitres === 'number'
                           ? input.fullSurvey.dhwCondition.currentCylinderVolumeLitres
@@ -2867,7 +2867,7 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
                         <input
                           type="number"
                           min={0}
-                          max={10}
+                          max={20}
                           step={0.1}
                           value={typeof input.fullSurvey?.dhwCondition?.currentCwsHeadMetres === 'number'
                             ? input.fullSurvey.dhwCondition.currentCwsHeadMetres
