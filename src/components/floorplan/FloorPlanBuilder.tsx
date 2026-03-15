@@ -1238,6 +1238,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       <div className="fpb__corner-handle" style={{ left: -5, top: -5 }} />
                       <div className="fpb__corner-handle" style={{ right: -5, top: -5 }} />
                       <div className="fpb__corner-handle" style={{ left: -5, bottom: -5 }} />
+                      <div className="fpb__corner-handle" style={{ right: -5, bottom: -5 }} />
                       {/* Edge measurement labels */}
                       <div
                         className="fpb__edge-label fpb__edge-label--top"

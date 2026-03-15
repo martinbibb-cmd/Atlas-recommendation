@@ -71,6 +71,11 @@ type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrali
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
 
+/** Detect ?explorer=1 — allows access to the System Explorer via hidden route. */
+const EXPLORER_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('explorer') === '1';
+
 export default function App() {
   const [journey, setJourney] = useState<Journey>(FLOOR_PLAN_TOOL_MODE ? 'floor-plan' : 'landing');
   const [fullSurveyPrefill, setFullSurveyPrefill] = useState<Partial<EngineInputV2_3> | undefined>();
@@ -176,7 +181,7 @@ export default function App() {
         />
       )}
       {journey === 'lab' && <LabShell onHome={() => setJourney('landing')} engineInput={labEngineInput} />}
-      {journey === 'explorer' && <AtlasExplorerPage onBack={() => setJourney('landing')} />}
+      {journey === 'explorer' && EXPLORER_ENABLED && <AtlasExplorerPage onBack={() => setJourney('landing')} />}
       {journey === 'floor-plan' && (
         <div className="floor-plan-page">
           <div className="floor-plan-page__header">
@@ -266,15 +271,7 @@ export default function App() {
               <p>Map heating components to your property layout across floors.</p>
               <button className="cta-btn">Open Floor Plan →</button>
             </div>
-            <div
-              className="journey-card journey-card--explorer"
-              onClick={() => setJourney('explorer')}
-            >
-              <div className="card-icon">🏠</div>
-              <h2>System Explorer</h2>
-              <p>Tap through a house to see how each room, radiator, pipe, and boiler connects.</p>
-              <button className="cta-btn">Explore System →</button>
-            </div>
+            {/* System Explorer hidden from primary UX — access via ?explorer=1 */}
           </div>
           <Footer onNavigate={setJourney} />
         </div>
