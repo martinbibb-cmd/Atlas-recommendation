@@ -107,18 +107,38 @@ export interface DrivingStylePhysicsExplainerProps {
    */
   compact?: boolean;
   /**
-   * Enable the optional CSS animation layer on vehicle tokens.
+   * Master switch for the animation layer.
    *
-   * Defaults to `true` — tokens animate on mount, then settle into the
-   * static diagram after ~4 seconds.
+   * Defaults to `true` — animation is capable.  Actual playback is controlled
+   * by the Play/Replay button (see `showPlayButton` and `autoPlay`).
    *
-   * Set to `false` for print/PDF contexts where animation is unwanted.
-   * When `false` the component renders exactly as its static version.
+   * Set to `false` for print/PDF contexts where animation is entirely unwanted.
+   * When `false` the component renders as a fully static diagram and the
+   * play button is hidden.
    *
    * Animation only affects vehicle token position (CSS transform).
    * It never modifies the static data model or path tracks.
    */
   animate?: boolean;
+  /**
+   * Show the Play/Replay button in the explainer header.
+   *
+   * Defaults to `true`.  Set to `false` in print/PDF contexts where the
+   * button is unnecessary.
+   *
+   * Has no effect when `animate={false}` (button is always hidden then).
+   */
+  showPlayButton?: boolean;
+  /**
+   * Automatically play the token animation on mount.
+   *
+   * Defaults to `false` — initial render is static and the user must press
+   * the Play button to trigger motion.
+   *
+   * Set to `true` only in contexts where you are confident the component is
+   * immediately visible to the user (e.g. a focused single-explainer page).
+   */
+  autoPlay?: boolean;
 }
 
 // ─── Builder inputs ───────────────────────────────────────────────────────────

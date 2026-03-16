@@ -48,6 +48,19 @@
   margin-bottom: var(--space-4);
 }
 
+/* Inner flex row: title+subtitle on the left, play button on the right */
+.dspe__header-row {
+  display:         flex;
+  align-items:     flex-start;
+  justify-content: space-between;
+  gap:             var(--space-3);
+}
+
+.dspe__header-text {
+  flex:      1;
+  min-width: 0;
+}
+
 .dspe__title {
   font-size:     var(--text-lg);
   font-weight:   var(--weight-bold);
@@ -60,6 +73,42 @@
   color:       var(--text-secondary);
   margin:      0;
   line-height: var(--leading-relaxed);
+}
+
+/* ─── Play / Replay button ────────────────────────────────────────────────── */
+
+.dspe__play-btn {
+  flex-shrink:   0;
+  display:       inline-flex;
+  align-items:   center;
+  padding:       var(--space-1) var(--space-3);
+  font-size:     var(--text-sm);
+  font-weight:   var(--weight-medium);
+  font-family:   var(--font-sans);
+  color:         var(--text-primary);
+  background:    var(--surface-default);
+  border:        1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  cursor:        pointer;
+  white-space:   nowrap;
+  transition:    background 0.15s ease, border-color 0.15s ease;
+}
+
+.dspe__play-btn:hover {
+  background:   var(--surface-subtle);
+  border-color: var(--color-neutral-400);
+}
+
+.dspe__play-btn:focus-visible {
+  outline:        2px solid var(--color-blue-500);
+  outline-offset: 2px;
+}
+
+/* Hide in print contexts */
+@media print {
+  .dspe__play-btn {
+    display: none;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -360,4 +409,15 @@
   .dspe--animated .dspe__vehicle-token {
     animation: none;
   }
+  /* Brief row highlight instead of token motion — communicates "something changed"
+     without using movement.  Uses both background and border-color for visibility. */
+  .dspe--animated .dspe__row {
+    animation: dspe-row-emphasise 0.6s ease forwards;
+  }
+}
+
+@keyframes dspe-row-emphasise {
+  0%   { background: transparent;             border-color: transparent; }
+  35%  { background: var(--color-blue-50);    border-color: var(--color-blue-200); }
+  100% { background: transparent;             border-color: transparent; }
 }

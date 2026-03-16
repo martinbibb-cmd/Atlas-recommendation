@@ -10,11 +10,11 @@
  *   Row 3 — Hyper-miler            (gas + strong controls + Mixergy)
  *   Row 4 — Electric Hyper-miler   (heat pump)
  *
- * An optional CSS animation layer (animate prop, default true) adds subtle
- * vehicle-token motion on mount.  The animation settles after ~4 seconds,
- * leaving the component in a state identical to animate=false.
+ * Default render is static.  A Play/Replay button in the header lets users
+ * trigger the vehicle-token animation on demand.  The animation settles after
+ * ~4 seconds, leaving the component in a state identical to the static diagram.
  *
- * Set animate=false for print/PDF use — the static diagram is identical.
+ * Set animate=false and showPlayButton=false for print/PDF use.
  * Animation NEVER modifies the data model or path tracks.
  *
  * Props are documented in src/types/explainers.ts.
@@ -26,7 +26,7 @@
  *   - printed reports
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import {
   buildDrivingStyleRows,
   resolveExplainerInput,
@@ -213,8 +213,10 @@ function Row({ row, dimmed, compact }: RowProps) {
  * Static 4-row infographic explaining combi, system, Mixergy, and heat pump
  * behaviour through a driving analogy.
  *
- * An optional CSS animation layer (animate prop, default true) adds subtle
- * vehicle-token motion on mount only — path tracks are never animated.
+ * Default render is static.  A Play/Replay button lets users trigger the
+ * vehicle-token animation on demand.  Animation is never applied on mount
+ * unless `autoPlay={true}` is passed.
+ *
  * When animate=false (or in print/reduced-motion contexts) the component
  * renders as a fully static diagram safe for PDF output.
  *
@@ -230,7 +232,44 @@ export default function DrivingStylePhysicsExplainer({
   hasMixergy,
   compact = false,
   animate = true,
+  showPlayButton = true,
+  autoPlay = false,
 }: DrivingStylePhysicsExplainerProps) {
+  // ─── Local playback state ───────────────────────────────────────────────────
+
+  // Initialise from autoPlay so mount-triggered animation works without an
+  // extra effect + render cycle.
+  const [isPlaying, setIsPlaying] = useState(
+    () => !!(autoPlay && animate !== false),
+  );
+  const [hasPlayed, setHasPlayed] = useState(
+    () => !!(autoPlay && animate !== false),
+  );
+  // Incrementing playKey forces React to remount the track, restarting CSS
+  // animations cleanly from their initial positions.
+  const [playKey, setPlayKey] = useState(0);
+
+  // Clear isPlaying after the longest animation completes (~4 s).
+  // playKey is intentionally included so that a Replay click (which does not
+  // change isPlaying from true) still resets the 4-second countdown.
+  useEffect(() => {
+    if (!isPlaying) return undefined;
+    const ANIMATION_DURATION_MS = 4000;
+    const timer = window.setTimeout(() => setIsPlaying(false), ANIMATION_DURATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [isPlaying, playKey]);
+
+  const handlePlay = useCallback(() => {
+    setPlayKey((k) => k + 1);
+    setIsPlaying(true);
+    setHasPlayed(true);
+  }, []);
+
+  // ─── Derived flags ──────────────────────────────────────────────────────────
+
+  // Show the button only when animation is capable and not in compact/PDF mode.
+  const showButton = animate !== false && showPlayButton !== false && !compact;
+  const animated   = isPlaying && animate !== false;
   const input = useMemo(
     () =>
       resolveExplainerInput({
@@ -249,22 +288,40 @@ export default function DrivingStylePhysicsExplainer({
       className={[
         'dspe',
         compact  ? 'dspe--compact'   : '',
-        animate  ? 'dspe--animated'  : '',
+        animated ? 'dspe--animated'  : '',
       ].filter(Boolean).join(' ')}
       aria-labelledby="dspe-title"
     >
       {/* Header */}
       <div className="dspe__header">
-        <h3 id="dspe-title" className="dspe__title">
-          Why these systems behave differently
-        </h3>
-        <p className="dspe__subtitle">
-          Same destination. Different route, power and waste.
-        </p>
+        <div className="dspe__header-row">
+          <div className="dspe__header-text">
+            <h3 id="dspe-title" className="dspe__title">
+              Why these systems behave differently
+            </h3>
+            <p className="dspe__subtitle">
+              Same destination. Different route, power and waste.
+            </p>
+          </div>
+          {showButton && (
+            <button
+              type="button"
+              className="dspe__play-btn"
+              onClick={handlePlay}
+              aria-label={
+                hasPlayed
+                  ? 'Replay heating system explainer'
+                  : 'Play heating system explainer'
+              }
+            >
+              {hasPlayed ? '↻\u00a0Replay' : '▶\u00a0Play explainer'}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* 4-row comparison */}
-      <div className="dspe__track" role="list" aria-label="Heating system comparison">
+      {/* 4-row comparison — keyed by playKey so CSS animations restart cleanly */}
+      <div key={playKey} className="dspe__track" role="list" aria-label="Heating system comparison">
         {rows.map((row) => (
           <Row
             key={row.id}
