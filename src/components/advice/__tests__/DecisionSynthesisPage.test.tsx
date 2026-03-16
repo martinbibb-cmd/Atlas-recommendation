@@ -399,3 +399,158 @@ describe('DecisionSynthesisPage — DHW educational explainers', () => {
     expect(screen.getByText(/hot water context/i)).toBeTruthy();
   });
 });
+
+// ─── Primary circuit / heat pump explainers ───────────────────────────────────
+
+describe('DecisionSynthesisPage — primary circuit explainers', () => {
+  const withExplainers = (...ids: string[]): EngineOutputV1 => ({
+    ...DEMO_OUTPUT,
+    explainers: ids.map(id => ({ id, title: `${id} title`, body: `${id} body` })),
+  });
+
+  it('does not show primary circuit section when hydraulic-ashp-flow is absent', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(document.querySelector('[data-testid="ashp-explainers-section"]')).toBeNull();
+  });
+
+  it('shows primary circuit section when hydraulic-ashp-flow is present', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('hydraulic-ashp-flow')} />);
+    expect(document.querySelector('[data-testid="ashp-explainers-section"]')).not.toBeNull();
+  });
+
+  it('shows pipe_capacity explainer when primary circuit section is visible', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('hydraulic-ashp-flow')} />);
+    expect(document.querySelector('[data-testid="advice-explainer-pipe-capacity"]')).not.toBeNull();
+  });
+
+  it('shows heat_pump_flow_temp explainer when primary circuit section is visible', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('hydraulic-ashp-flow')} />);
+    expect(document.querySelector('[data-testid="advice-explainer-heat-pump-flow-temp"]')).not.toBeNull();
+  });
+
+  it('renders "Primary circuit context" heading when section is visible', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('hydraulic-ashp-flow')} />);
+    expect(screen.getByText(/primary circuit context/i)).toBeTruthy();
+  });
+});
+
+// ─── Condensing efficiency explainers ─────────────────────────────────────────
+
+describe('DecisionSynthesisPage — condensing efficiency explainers', () => {
+  const withExplainers = (...ids: string[]): EngineOutputV1 => ({
+    ...DEMO_OUTPUT,
+    explainers: ids.map(id => ({ id, title: `${id} title`, body: `${id} body` })),
+  });
+
+  it('does not show condensing section when condensing-compromised is absent', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(document.querySelector('[data-testid="condensing-explainers-section"]')).toBeNull();
+  });
+
+  it('shows condensing section when condensing-compromised is present', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('condensing-compromised')} />);
+    expect(document.querySelector('[data-testid="condensing-explainers-section"]')).not.toBeNull();
+  });
+
+  it('shows condensing_return_temp explainer when condensing section is visible', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('condensing-compromised')} />);
+    expect(document.querySelector('[data-testid="advice-explainer-condensing-return-temp"]')).not.toBeNull();
+  });
+
+  it('shows cycling_efficiency explainer when condensing section is visible', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('condensing-compromised')} />);
+    expect(document.querySelector('[data-testid="advice-explainer-cycling-efficiency"]')).not.toBeNull();
+  });
+
+  it('renders "Condensing efficiency context" heading when section is visible', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('condensing-compromised')} />);
+    expect(screen.getByText(/condensing efficiency context/i)).toBeTruthy();
+  });
+});
+
+// ─── Water quality explainers ─────────────────────────────────────────────────
+
+describe('DecisionSynthesisPage — water quality explainers', () => {
+  const withExplainers = (...ids: string[]): EngineOutputV1 => ({
+    ...DEMO_OUTPUT,
+    explainers: ids.map(id => ({ id, title: `${id} title`, body: `${id} body` })),
+  });
+
+  it('does not show water quality section when water-hardness is absent', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(document.querySelector('[data-testid="water-quality-explainers-section"]')).toBeNull();
+  });
+
+  it('shows water quality section when water-hardness is present', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('water-hardness')} />);
+    expect(document.querySelector('[data-testid="water-quality-explainers-section"]')).not.toBeNull();
+  });
+
+  it('shows water_quality_scale explainer when water quality section is visible', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('water-hardness')} />);
+    expect(document.querySelector('[data-testid="advice-explainer-water-quality-scale"]')).not.toBeNull();
+  });
+
+  it('renders "Water quality context" heading when section is visible', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('water-hardness')} />);
+    expect(screen.getByText(/water quality context/i)).toBeTruthy();
+  });
+});
+
+// ─── Thermal mass explainers ──────────────────────────────────────────────────
+
+describe('DecisionSynthesisPage — thermal mass explainers', () => {
+  const withExplainers = (...ids: string[]): EngineOutputV1 => ({
+    ...DEMO_OUTPUT,
+    explainers: ids.map(id => ({ id, title: `${id} title`, body: `${id} body` })),
+  });
+
+  it('does not show thermal mass section when thermal-mass-heavy is absent', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(document.querySelector('[data-testid="thermal-mass-explainers-section"]')).toBeNull();
+  });
+
+  it('shows thermal mass section when thermal-mass-heavy is present', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('thermal-mass-heavy')} />);
+    expect(document.querySelector('[data-testid="thermal-mass-explainers-section"]')).not.toBeNull();
+  });
+
+  it('shows thermal_mass_inertia explainer when thermal mass section is visible', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('thermal-mass-heavy')} />);
+    expect(document.querySelector('[data-testid="advice-explainer-thermal-mass-inertia"]')).not.toBeNull();
+  });
+
+  it('renders "Thermal mass context" heading when section is visible', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('thermal-mass-heavy')} />);
+    expect(screen.getByText(/thermal mass context/i)).toBeTruthy();
+  });
+});
+
+// ─── Heating controls explainers ──────────────────────────────────────────────
+
+describe('DecisionSynthesisPage — heating controls explainers', () => {
+  const withExplainers = (...ids: string[]): EngineOutputV1 => ({
+    ...DEMO_OUTPUT,
+    explainers: ids.map(id => ({ id, title: `${id} title`, body: `${id} body` })),
+  });
+
+  it('does not show controls section when splan-confirmed is absent', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(document.querySelector('[data-testid="controls-explainers-section"]')).toBeNull();
+  });
+
+  it('shows controls section when splan-confirmed is present', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('splan-confirmed')} />);
+    expect(document.querySelector('[data-testid="controls-explainers-section"]')).not.toBeNull();
+  });
+
+  it('shows splan_vs_yplan explainer when controls section is visible', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('splan-confirmed')} />);
+    expect(document.querySelector('[data-testid="advice-explainer-splan-vs-yplan"]')).not.toBeNull();
+  });
+
+  it('renders "Heating controls context" heading when section is visible', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('splan-confirmed')} />);
+    expect(screen.getByText(/heating controls context/i)).toBeTruthy();
+  });
+});

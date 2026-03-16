@@ -1,7 +1,7 @@
 /**
  * Educational explainer content.
  *
- * Six short, terminology-compliant topics that give users the physics
+ * Twelve short, terminology-compliant topics that give users the physics
  * background needed to understand Atlas recommendations.
  *
  * Language rules (docs/atlas-terminology.md §8):
@@ -141,5 +141,69 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
     ],
     simulatorPanelId: 'draw_off',
     simulatorLabel: 'Draw-Off panel',
+  },
+
+  {
+    id: 'pipe_capacity',
+    title: 'Why primary pipe size limits heat pump output',
+    point:
+      'A heat pump moves the same heating energy as a boiler using significantly lower temperature water, which means it needs to circulate a significantly higher flow rate through the primary circuit.',
+    bullets: [
+      'A boiler operates at a flow-to-return temperature difference (ΔT) of around 20 °C; a heat pump typically works at ΔT 5 °C — requiring roughly 4× the flow rate for the same heat output.',
+      'A 22 mm primary pipe can typically carry around 14–18 L/min; a heat pump may require 20–30 L/min at design load for the same property.',
+      'Exceeding the pipe capacity raises water velocity, increasing erosion noise, pressure drop, and flow restriction.',
+      'Upsizing to 28 mm primary pipework is the standard prerequisite for most heat pump installations in existing UK housing stock.',
+      'Pipe capacity is a physical gate — it cannot be compensated by a more powerful heat pump or better controls.',
+    ],
+    simulatorPanelId: 'efficiency',
+    simulatorLabel: 'Efficiency panel',
+  },
+
+  {
+    id: 'water_quality_scale',
+    title: 'How water hardness affects heating system life',
+    point:
+      'Hard water deposits calcium and magnesium scale inside heat exchangers and pipework, gradually reducing heat transfer efficiency and shortening appliance life.',
+    bullets: [
+      'Scale builds up on boiler heat exchanger surfaces, pipe walls, and DHW cylinder coils wherever water is heated above 55–65 °C.',
+      'A 1 mm scale deposit can reduce heat exchanger efficiency by roughly 7–8 %, forcing the boiler to fire longer to achieve the same output.',
+      'Combi boiler plate heat exchangers are particularly susceptible — scale restricts both flow rate and thermal transfer.',
+      'A scale inhibitor dosing unit or whole-house water softener are the standard long-term protections in hard-water areas.',
+      'System inhibitor in the sealed heating circuit addresses corrosion and sludge, but does not protect against scale from domestic cold water.',
+    ],
+    simulatorPanelId: 'efficiency',
+    simulatorLabel: 'Efficiency panel',
+  },
+
+  {
+    id: 'thermal_mass_inertia',
+    title: 'How building mass shapes your heating strategy',
+    point:
+      'Heavy-mass buildings absorb and release heat slowly — this thermal inertia affects how quickly a room responds to heating and how long warmth is retained after the boiler switches off.',
+    bullets: [
+      'Solid stone, brick, or concrete walls store large amounts of heat energy; lightweight timber-frame or cavity-wall construction stores far less.',
+      'A heavy-mass building responds slowly to heating — it takes longer to warm up, but also holds warmth for extended periods after the heat source stops.',
+      'Continuous or long-pre-heat schedules suit heavy-mass buildings better than short on/off cycles, which barely penetrate the thermal store.',
+      'Short cycling in a heavy-mass home wastes energy on repeated warm-up of the heat exchanger without delivering useful heat to the space.',
+      'Thermal mass is independent of insulation — a well-insulated solid-wall building still has high inertia; a poorly insulated timber-frame building has low inertia.',
+    ],
+    simulatorPanelId: 'efficiency',
+    simulatorLabel: 'Efficiency panel',
+  },
+
+  {
+    id: 'splan_vs_yplan',
+    title: 'S-plan vs Y-plan zone control',
+    point:
+      'S-plan and Y-plan describe how a system boiler controls the flow of hot water between the heating circuit and the domestic hot water cylinder.',
+    bullets: [
+      'Y-plan uses a single mid-position valve that can supply heating only, hot water only, or both simultaneously — a common and cost-effective arrangement.',
+      'S-plan uses two separate 2-port zone valves, one for heating and one for hot water — giving fully independent control of each circuit.',
+      "S-plan's independent control allows the boiler to serve heating and hot water at different times and temperatures, which reduces unnecessary cycling.",
+      'With Y-plan, a simultaneous call for both heat and hot water can force the boiler to compromise between the two demands.',
+      'S-plan is generally preferred for larger properties or higher-efficiency systems where independent circuit control has a measurable impact on running costs.',
+    ],
+    simulatorPanelId: 'efficiency',
+    simulatorLabel: 'Efficiency panel',
   },
 ] as const;
