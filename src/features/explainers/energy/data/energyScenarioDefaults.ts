@@ -6,6 +6,7 @@
  */
 
 import type { EnergyScenarioSliders } from '../types/energyTypes';
+import { DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../../../engine/utils/efficiency';
 
 /**
  * Approximate UK 2023 grid generation mix percentages.
@@ -31,7 +32,7 @@ export const SCENARIO_BASELINE = {
   gasToElectricEfficiencyPct: 47,
 
   /** Nominal boiler efficiency for break-even COP calculation. */
-  boilerEfficiencyPct: 92,
+  boilerEfficiencyPct: DEFAULT_NOMINAL_EFFICIENCY_PCT,
 
   /** Approximate UK 2024 electricity retail price (p/kWh, inc. standing charge). */
   typicalElectricityPricePencePerKwh: 28,

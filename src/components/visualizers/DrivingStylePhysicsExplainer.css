@@ -21,7 +21,8 @@
  *   .dspe__vehicle-token--system
  *   .dspe__vehicle-token--mixergy
  *   .dspe__vehicle-token--heatpump
- *   .dspe__vehicle-token--has-warning   (combi only, when warning chip present)
+ *   .dspe__vehicle-token--stop-start   (combi only — marks stop/start motion character)
+ *   .dspe__vehicle-token--has-warning  (combi only, when warning chip present)
  */
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -377,24 +378,35 @@
   to   { transform: translateY(-50%) translateX(0); }
 }
 
-/* Combi: drives forward, briefly reverses (purge), then settles.
-   The reverse represents the cold-water purge at startup. */
+/* Combi: stop/start behaviour — purge notch, first burst, hesitation, second burst, settle.
+   Linear timing is intentional: speed changes at each keyframe boundary make the
+   stop/start character visible.  Sequence:
+     0%  → pre-start (off-screen left)
+    12%  → brief reverse purge notch (cold-water purge loss)
+    38%  → first surge (initial burst)
+    52%  → slight hesitation / check-pause (stop/start cycling)
+    82%  → second surge to finish (aggressive catch-up)
+   100%  → settle */
 @keyframes dspe-launch-combi {
   0%   { transform: translateY(-50%) translateX(-350px); }
-  72%  { transform: translateY(-50%) translateX(0); }
-  82%  { transform: translateY(-50%) translateX(-10px); }
+  12%  { transform: translateY(-50%) translateX(-370px); }
+  38%  { transform: translateY(-50%) translateX(-80px); }
+  52%  { transform: translateY(-50%) translateX(-95px); }
+  82%  { transform: translateY(-50%) translateX(0); }
   100% { transform: translateY(-50%) translateX(0); }
 }
 
-/* Combi with warning chip: same purge, then a small jitter representing
+/* Combi with warning chip: same stop/start sequence, then a small jitter representing
    the power limit reached when two taps open simultaneously. */
 @keyframes dspe-launch-combi-warn {
   0%   { transform: translateY(-50%) translateX(-350px); }
-  65%  { transform: translateY(-50%) translateX(0); }
-  72%  { transform: translateY(-50%) translateX(-10px) rotate(-2deg); }
-  79%  { transform: translateY(-50%) translateX(6px)  rotate(1deg); }
-  86%  { transform: translateY(-50%) translateX(-4px); }
-  93%  { transform: translateY(-50%) translateX(2px); }
+  12%  { transform: translateY(-50%) translateX(-370px); }
+  38%  { transform: translateY(-50%) translateX(-80px); }
+  52%  { transform: translateY(-50%) translateX(-95px); }
+  72%  { transform: translateY(-50%) translateX(0); }
+  79%  { transform: translateY(-50%) translateX(-10px) rotate(-2deg); }
+  86%  { transform: translateY(-50%) translateX(6px)  rotate(1deg); }
+  93%  { transform: translateY(-50%) translateX(-4px); }
   100% { transform: translateY(-50%) translateX(0); }
 }
 
@@ -413,14 +425,15 @@
   animation: dspe-launch-glide 3.2s ease-out 0.8s both;
 }
 
-/* Combi: departs last (1 s delay), aggressive catch-up with purge notch — arrives at 4 s */
+/* Combi: departs last (1 s delay), stop/start purge + surge sequence — arrives at 4 s.
+   Uses linear timing so each keyframe boundary is distinct and the hesitation reads as bursty. */
 .dspe--animated .dspe__vehicle-token--combi {
-  animation: dspe-launch-combi 3s ease-out 1s both;
+  animation: dspe-launch-combi 3s linear 1s both;
 }
 
-/* Combi with two-tap warning: same late departure, purge + jitter — arrives at 4 s */
+/* Combi with two-tap warning: same late departure, stop/start + jitter — arrives at 4 s */
 .dspe--animated .dspe__vehicle-token--combi.dspe__vehicle-token--has-warning {
-  animation: dspe-launch-combi-warn 3s ease-out 1s both;
+  animation: dspe-launch-combi-warn 3s linear 1s both;
 }
 
 /* ─── Suppress animation in print and reduced-motion contexts ─────────────── */

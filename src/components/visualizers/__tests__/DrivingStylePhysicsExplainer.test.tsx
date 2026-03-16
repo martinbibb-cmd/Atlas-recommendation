@@ -443,3 +443,42 @@ describe('DrivingStylePhysicsExplainer — heat pump cost caveat', () => {
     expect(screen.getByText(/energy used is not the same as running cost/i)).toBeTruthy();
   });
 });
+
+// ─── Combi stop/start animation class ────────────────────────────────────────
+
+describe('DrivingStylePhysicsExplainer — combi stop/start animation class', () => {
+  it('combi token has dspe__vehicle-token--stop-start class', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const combiToken = container.querySelector('.dspe__vehicle-token--combi');
+    expect(combiToken?.classList.contains('dspe__vehicle-token--stop-start')).toBe(true);
+  });
+
+  it('non-combi tokens do not have dspe__vehicle-token--stop-start class', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const otherIds = ['system', 'mixergy', 'heatpump'] as const;
+    otherIds.forEach(id => {
+      const token = container.querySelector(`.dspe__vehicle-token--${id}`);
+      expect(token?.classList.contains('dspe__vehicle-token--stop-start')).toBe(false);
+    });
+  });
+
+  it('combi stop-start class is present in compact mode', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer compact />);
+    // Compact mode hides the path track, so vehicle tokens are not rendered
+    // (PathTrack is hidden via `!compact` guard); confirm no false positives.
+    expect(container.querySelector('.dspe__vehicle-token--stop-start')).toBeNull();
+  });
+
+  it('combi stop-start class is present when animate={false}', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer animate={false} />);
+    const combiToken = container.querySelector('.dspe__vehicle-token--combi');
+    expect(combiToken?.classList.contains('dspe__vehicle-token--stop-start')).toBe(true);
+  });
+
+  it('combi stop-start class is present with warning chip', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer peakConcurrentOutlets={2} />);
+    const combiToken = container.querySelector('.dspe__vehicle-token--combi');
+    expect(combiToken?.classList.contains('dspe__vehicle-token--stop-start')).toBe(true);
+    expect(combiToken?.classList.contains('dspe__vehicle-token--has-warning')).toBe(true);
+  });
+});
