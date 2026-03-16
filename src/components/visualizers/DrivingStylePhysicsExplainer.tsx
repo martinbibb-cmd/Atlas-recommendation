@@ -120,6 +120,7 @@ function PathTrack({ id, variant, hasWarning }: PathTrackProps) {
   const tokenClass = [
     'dspe__vehicle-token',
     `dspe__vehicle-token--${id}`,
+    id === 'combi' ? 'dspe__vehicle-token--stop-start' : '',
     hasWarning ? 'dspe__vehicle-token--has-warning' : '',
   ].filter(Boolean).join(' ');
 
