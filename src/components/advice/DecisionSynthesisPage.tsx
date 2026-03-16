@@ -516,6 +516,15 @@ export default function DecisionSynthesisPage({
   // Show on-demand vs stored when either stored-specific explainer is present.
   const showOnDemandVsStored = showMixergySuggested || showCylinderCondition;
 
+  // ── Physics explainer visibility — other topics ──────────────────────────
+  // Each section is shown only when the engine has emitted the corresponding
+  // explainer id, following the same pattern as the DHW section above.
+  const showAshpPipeSection   = explainerIds.has('hydraulic-ashp-flow');
+  const showCondensingSection = explainerIds.has('condensing-compromised');
+  const showWaterQualitySection = explainerIds.has('water-hardness');
+  const showThermalMassSection  = explainerIds.has('thermal-mass-heavy');
+  const showControlsSection     = explainerIds.has('splan-confirmed');
+
   // Print view — render the dedicated print component.
   if (showPrint) {
     return (
@@ -790,6 +799,129 @@ export default function DecisionSynthesisPage({
                 testId="advice-explainer-cylinder-age-condition"
               />
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 3c — Primary circuit / heat pump explainers               */}
+      {/* Shown when the ASHP flow requirement explainer is in engine output */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {showAshpPipeSection && (
+        <div
+          className="advice-page__section"
+          aria-label="Primary circuit context"
+          data-testid="ashp-explainers-section"
+        >
+          <h2 className="advice-page__section-title">Primary circuit context</h2>
+          <p className="advice-page__section-intro">
+            The primary pipe size and heat pump flow requirements drove parts of this recommendation. Here is the physics behind them.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <InlineExplainerLink
+              explainerId="pipe_capacity"
+              testId="advice-explainer-pipe-capacity"
+            />
+            <InlineExplainerLink
+              explainerId="heat_pump_flow_temp"
+              testId="advice-explainer-heat-pump-flow-temp"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 3d — Condensing efficiency explainers                     */}
+      {/* Shown when condensing mode compromise is flagged by the engine     */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {showCondensingSection && (
+        <div
+          className="advice-page__section"
+          aria-label="Condensing efficiency context"
+          data-testid="condensing-explainers-section"
+        >
+          <h2 className="advice-page__section-title">Condensing efficiency context</h2>
+          <p className="advice-page__section-intro">
+            The condensing mode assessment influenced this recommendation. Here is the physics behind it.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <InlineExplainerLink
+              explainerId="condensing_return_temp"
+              testId="advice-explainer-condensing-return-temp"
+            />
+            <InlineExplainerLink
+              explainerId="cycling_efficiency"
+              testId="advice-explainer-cycling-efficiency"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 3e — Water quality explainers                             */}
+      {/* Shown when hard water area is flagged by the engine               */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {showWaterQualitySection && (
+        <div
+          className="advice-page__section"
+          aria-label="Water quality context"
+          data-testid="water-quality-explainers-section"
+        >
+          <h2 className="advice-page__section-title">Water quality context</h2>
+          <p className="advice-page__section-intro">
+            The water hardness in your area affects long-term system performance and was part of the recommendation reasoning.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <InlineExplainerLink
+              explainerId="water_quality_scale"
+              testId="advice-explainer-water-quality-scale"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 3f — Thermal mass explainers                              */}
+      {/* Shown when heavy thermal mass is detected by the fabric model     */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {showThermalMassSection && (
+        <div
+          className="advice-page__section"
+          aria-label="Thermal mass context"
+          data-testid="thermal-mass-explainers-section"
+        >
+          <h2 className="advice-page__section-title">Thermal mass context</h2>
+          <p className="advice-page__section-intro">
+            Your building&apos;s thermal mass influenced the heating schedule recommendation. Here is the physics behind it.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <InlineExplainerLink
+              explainerId="thermal_mass_inertia"
+              testId="advice-explainer-thermal-mass-inertia"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 3g — Heating controls explainers                          */}
+      {/* Shown when S-plan or Y-plan was confirmed in the survey           */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {showControlsSection && (
+        <div
+          className="advice-page__section"
+          aria-label="Heating controls context"
+          data-testid="controls-explainers-section"
+        >
+          <h2 className="advice-page__section-title">Heating controls context</h2>
+          <p className="advice-page__section-intro">
+            The type of zone control you described affects how efficiently the heating system operates.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <InlineExplainerLink
+              explainerId="splan_vs_yplan"
+              testId="advice-explainer-splan-vs-yplan"
+            />
           </div>
         </div>
       )}

@@ -35,6 +35,10 @@ const REQUIRED_IDS: ReadonlyArray<string> = [
   'heat_pump_flow_temp',
   'standard_vs_mixergy',
   'cylinder_age_condition',
+  'pipe_capacity',
+  'water_quality_scale',
+  'thermal_mass_inertia',
+  'splan_vs_yplan',
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -51,8 +55,8 @@ describe('EDUCATIONAL_EXPLAINERS', () => {
     expect(EDUCATIONAL_EXPLAINERS.length).toBeGreaterThan(0);
   });
 
-  it('contains exactly 8 explainers', () => {
-    expect(EDUCATIONAL_EXPLAINERS).toHaveLength(8);
+  it('contains exactly 12 explainers', () => {
+    expect(EDUCATIONAL_EXPLAINERS).toHaveLength(12);
   });
 
   it('includes all required topic ids', () => {
@@ -215,6 +219,40 @@ describe('EDUCATIONAL_EXPLAINERS', () => {
       expect(text).toMatch(/age/);
       expect(text).toMatch(/condition/);
       expect(text).toContain('standing');
+    });
+
+    it('covers primary pipe capacity for heat pumps', () => {
+      const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'pipe_capacity');
+      expect(e).toBeDefined();
+      const text = allText(e!).toLowerCase();
+      expect(text).toContain('pipe');
+      expect(text).toMatch(/flow rate|capacity/);
+      expect(text).toContain('heat pump');
+    });
+
+    it('covers water quality and scale risk', () => {
+      const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'water_quality_scale');
+      expect(e).toBeDefined();
+      const text = allText(e!).toLowerCase();
+      expect(text).toMatch(/scale|hardness/);
+      expect(text).toMatch(/efficien/);
+    });
+
+    it('covers building thermal mass and heating strategy', () => {
+      const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'thermal_mass_inertia');
+      expect(e).toBeDefined();
+      const text = allText(e!).toLowerCase();
+      expect(text).toMatch(/thermal mass|thermal inertia/);
+      expect(text).toMatch(/heat/);
+    });
+
+    it('covers S-plan vs Y-plan zone control', () => {
+      const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'splan_vs_yplan');
+      expect(e).toBeDefined();
+      const text = allText(e!).toLowerCase();
+      expect(text).toContain('s-plan');
+      expect(text).toContain('y-plan');
+      expect(text).toMatch(/zone|valve|circuit/);
     });
   });
 });

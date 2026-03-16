@@ -132,7 +132,7 @@ function buildRedFlags(reasons: string[]): RedFlagItem[] {
   });
 }
 
-function buildExplainers(result: FullEngineResultCore): ExplainerItem[] {
+function buildExplainers(result: FullEngineResultCore, input?: EngineInputV2_3): ExplainerItem[] {
   const items: ExplainerItem[] = [];
 
   if (result.hydraulic.isBottleneck) {
@@ -247,6 +247,37 @@ function buildExplainers(result: FullEngineResultCore): ExplainerItem[] {
       id: 'stored-cylinder-condition',
       title: `Stored Hot Water — Cylinder Condition`,
       body: bodyParts.join(' '),
+    });
+  }
+
+  // Thermal mass — emit when fabric model reports heavy thermal mass, as this
+  // influences the heating schedule recommendation (continuous vs intermittent).
+  const fm = result.fabricModelV1;
+  if (fm?.thermalMassBand === 'heavy') {
+    items.push({
+      id: 'thermal-mass-heavy',
+      title: 'Heavy Thermal Mass Detected',
+      body:
+        `This building has heavy thermal mass — it absorbs and releases heat slowly. ` +
+        `Continuous or long-preheat heating schedules are more effective than short ` +
+        `on/off cycles, which deliver little benefit to a high-inertia structure.`,
+    });
+  }
+
+  // S-plan / Y-plan — emit when the system plan type was explicitly provided,
+  // since it affects the condensing runtime score and the heating control strategy.
+  const planType = input?.systemPlanType;
+  if (planType === 's_plan' || planType === 'y_plan') {
+    const planLabel = planType === 's_plan' ? 'S-plan' : 'Y-plan';
+    items.push({
+      id: 'splan-confirmed',
+      title: `Zone Control Type: ${planLabel}`,
+      body:
+        planType === 's_plan'
+          ? `S-plan zone valves give independent control of heating and hot water circuits, ` +
+            `reducing unnecessary cycling and allowing each circuit to operate at its optimum temperature.`
+          : `Y-plan mid-position valve combines heating and hot water control in a single valve. ` +
+            `It is workable at modest loads but provides less circuit separation than S-plan.`,
     });
   }
 
@@ -699,7 +730,7 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
   // confidence and assumptions computed at the top of this function for the hierarchy.
 
   const options = input ? buildOptionMatrixV1(result, input) : undefined;
-  const explainers = buildExplainers(result);
+  const explainers = buildExplainers(result, input);
 
   // Ensure explainers list includes a stub for every explainerId referenced by
   // a selected penalty narrative.  This prevents dangling "Learn more" links.
