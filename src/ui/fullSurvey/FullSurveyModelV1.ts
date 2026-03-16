@@ -88,6 +88,13 @@ export interface DhwConditionDiagnosticsV1 {
    * Determines flow pressure for open-vented installations.
    */
   currentCwsHeadMetres?: number | 'unknown';
+  /**
+   * Surveyor's intent for the hot water system.
+   * - 'keep'    — keep the existing system as-is
+   * - 'replace' — intend to replace (new system to be selected)
+   * - 'unsure'  — not yet decided
+   */
+  dhwUpgradeIntent?: 'keep' | 'replace' | 'unsure';
 }
 
 /**
