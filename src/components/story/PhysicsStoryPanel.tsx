@@ -18,7 +18,7 @@
  */
 
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
-import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
+import type { PhysicsStoryEngineInput } from '../../lib/story/buildPhysicsStory';
 import { buildPhysicsStory } from '../../lib/story/buildPhysicsStory';
 import PhysicsStoryCard from './PhysicsStoryCard';
 import './PhysicsStory.css';
@@ -29,7 +29,7 @@ interface Props {
    * Engine input — used to detect demand/fabric signals.
    * Optional; signals that rely on input data will not fire when absent.
    */
-  input?: Partial<EngineInputV2_3>;
+  input?: PhysicsStoryEngineInput;
   /** Called when the advisor closes the panel. */
   onClose: () => void;
   /**

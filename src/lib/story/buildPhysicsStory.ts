@@ -15,12 +15,22 @@
  */
 
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
-import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
+import type { EngineInputV2_3, NormalizerOutput } from '../../engine/schema/EngineInputV2_3';
 import {
   STORY_SIGNAL_REGISTRY,
   type StorySignalId,
   type StorySignalDefinition,
 } from '../../data/story/storySignalRegistry';
+
+/**
+ * Extended input type for buildPhysicsStory.
+ * Adds the optional normalizer-derived `waterHardnessCategory` field that is
+ * not a raw input on EngineInputV2_3 (it is computed from the postcode by the
+ * Normalizer) but is useful for story signal detection and evidence lines.
+ */
+export type PhysicsStoryEngineInput = Partial<EngineInputV2_3> & {
+  waterHardnessCategory?: NormalizerOutput['waterHardnessCategory'];
+};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -63,7 +73,7 @@ const MAX_STORY_CARDS = 5;
  */
 function detectTriggeredSignals(
   engineOutput: EngineOutputV1,
-  input: Partial<EngineInputV2_3> | undefined,
+  input: PhysicsStoryEngineInput | undefined,
 ): Set<StorySignalId> {
   const triggered = new Set<StorySignalId>();
   const limiters  = engineOutput.limiters?.limiters ?? [];
@@ -204,7 +214,7 @@ function detectTriggeredSignals(
 function buildEvidenceLine(
   signal: StorySignalDefinition,
   engineOutput: EngineOutputV1,
-  input: Partial<EngineInputV2_3> | undefined,
+  input: PhysicsStoryEngineInput | undefined,
 ): string | null {
   switch (signal.id) {
     case 'combi_peak_demand_penalty': {
@@ -283,7 +293,7 @@ function buildEvidenceLine(
  */
 export function buildPhysicsStory(
   engineOutput: EngineOutputV1,
-  input?: Partial<EngineInputV2_3>,
+  input?: PhysicsStoryEngineInput,
 ): PhysicsStoryCard[] {
   const triggered = detectTriggeredSignals(engineOutput, input);
 
