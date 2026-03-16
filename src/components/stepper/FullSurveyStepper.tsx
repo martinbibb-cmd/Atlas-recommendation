@@ -496,6 +496,29 @@ const defaultInput: FullSurveyModelV1 = {
   },
 };
 
+/** Inline expandable explainer link — renders a <details> element tied to an educational explainer. */
+function InlineExplainerLink({ explainerId, testId, style }: {
+  explainerId: string;
+  testId: string;
+  style?: React.CSSProperties;
+}) {
+  const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === explainerId);
+  if (!e) return null;
+  return (
+    <details data-testid={testId} style={{ fontSize: '0.75rem', color: '#3182ce', cursor: 'pointer', ...style }}>
+      <summary style={{ listStyle: 'none', display: 'inline', cursor: 'pointer' }}>
+        📖 Learn more: {e.title}
+      </summary>
+      <div style={{ marginTop: '0.5rem', padding: '0.625rem', background: '#ebf8ff', border: '1px solid #bee3f8', borderRadius: '6px', color: '#2c5282', lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 0.4rem 0', fontWeight: 600 }}>{e.point}</p>
+        <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
+          {e.bullets.map((b, i) => <li key={i} style={{ marginBottom: '0.25rem' }}>{b}</li>)}
+        </ul>
+      </div>
+    </details>
+  );
+}
+
 export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, onComplete }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('location');
   const [input, setInput] = useState<FullSurveyModelV1>(() =>
@@ -2166,22 +2189,11 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
               Current hot water setup
             </p>
             {/* Explainer link: on-demand vs stored */}
-            {(() => {
-              const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'on_demand_vs_stored');
-              return e ? (
-                <details data-testid="explainer-link-on-demand-vs-stored" style={{ fontSize: '0.75rem', color: '#3182ce', marginBottom: '0.75rem', cursor: 'pointer' }}>
-                  <summary style={{ listStyle: 'none', display: 'inline', cursor: 'pointer' }}>
-                    📖 Learn more: {e.title}
-                  </summary>
-                  <div style={{ marginTop: '0.5rem', padding: '0.625rem', background: '#ebf8ff', border: '1px solid #bee3f8', borderRadius: '6px', color: '#2c5282', lineHeight: 1.5 }}>
-                    <p style={{ margin: '0 0 0.4rem 0', fontWeight: 600 }}>{e.point}</p>
-                    <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
-                      {e.bullets.map((b, i) => <li key={i} style={{ marginBottom: '0.25rem' }}>{b}</li>)}
-                    </ul>
-                  </div>
-                </details>
-              ) : null;
-            })()}
+            <InlineExplainerLink
+              explainerId="on_demand_vs_stored"
+              testId="explainer-link-on-demand-vs-stored"
+              style={{ marginBottom: '0.75rem' }}
+            />
 
             {/* Is there a cylinder currently installed? */}
             <div style={{ marginBottom: '0.875rem' }}>
@@ -2368,22 +2380,11 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
                   Age and condition affect standing heat loss and coil transfer efficiency — both feed directly into the recommendation rationale and the stored hot water comparison.
                 </p>
                 {/* Explainer link: cylinder age and condition */}
-                {(() => {
-                  const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'cylinder_age_condition');
-                  return e ? (
-                    <details data-testid="explainer-link-cylinder-age-condition" style={{ fontSize: '0.75rem', color: '#3182ce', marginTop: '0.4rem', cursor: 'pointer' }}>
-                      <summary style={{ listStyle: 'none', display: 'inline', cursor: 'pointer' }}>
-                        📖 Learn more: {e.title}
-                      </summary>
-                      <div style={{ marginTop: '0.5rem', padding: '0.625rem', background: '#ebf8ff', border: '1px solid #bee3f8', borderRadius: '6px', color: '#2c5282', lineHeight: 1.5 }}>
-                        <p style={{ margin: '0 0 0.4rem 0', fontWeight: 600 }}>{e.point}</p>
-                        <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
-                          {e.bullets.map((b, i) => <li key={i} style={{ marginBottom: '0.25rem' }}>{b}</li>)}
-                        </ul>
-                      </div>
-                    </details>
-                  ) : null;
-                })()}
+                <InlineExplainerLink
+                  explainerId="cylinder_age_condition"
+                  testId="explainer-link-cylinder-age-condition"
+                  style={{ marginTop: '0.4rem' }}
+                />
               </div>
             )}
 
@@ -2490,22 +2491,11 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
                   Mixergy uses top-down heating and active stratification to reduce cycling penalties and deliver usable hot water sooner — particularly beneficial alongside a heat pump or time-of-use tariffs.
                 </p>
                 {/* Explainer link: standard vs Mixergy */}
-                {(() => {
-                  const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'standard_vs_mixergy');
-                  return e ? (
-                    <details data-testid="explainer-link-standard-vs-mixergy" style={{ fontSize: '0.75rem', color: '#3182ce', marginTop: '0.4rem', cursor: 'pointer' }}>
-                      <summary style={{ listStyle: 'none', display: 'inline', cursor: 'pointer' }}>
-                        📖 Learn more: {e.title}
-                      </summary>
-                      <div style={{ marginTop: '0.5rem', padding: '0.625rem', background: '#ebf8ff', border: '1px solid #bee3f8', borderRadius: '6px', color: '#2c5282', lineHeight: 1.5 }}>
-                        <p style={{ margin: '0 0 0.4rem 0', fontWeight: 600 }}>{e.point}</p>
-                        <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
-                          {e.bullets.map((b, i) => <li key={i} style={{ marginBottom: '0.25rem' }}>{b}</li>)}
-                        </ul>
-                      </div>
-                    </details>
-                  ) : null;
-                })()}
+                <InlineExplainerLink
+                  explainerId="standard_vs_mixergy"
+                  testId="explainer-link-standard-vs-mixergy"
+                  style={{ marginTop: '0.4rem' }}
+                />
                 {input.dhwTankType === 'mixergy' && (
                   <div style={{ marginTop: '0.75rem' }}>
                     <div className="form-field">
