@@ -1,0 +1,167 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   SpongeHeatPumpExplainer
+   Outside air → sponge → compressor → emitters stage diagram.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.sphe__subtitle {
+  margin: 0;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-secondary, #4a5568);
+  line-height: 1.6;
+  font-style: italic;
+}
+
+/* ── Stage diagram ─────────────────────────────────────────────────────────── */
+
+.sphe__stages {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.sphe__stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1, 0.25rem);
+  padding: var(--space-3, 0.75rem);
+  border-radius: var(--radius-md, 0.5rem);
+  border: 2px solid var(--border-default, #e2e8f0);
+  background: var(--surface-subtle, #f7fafc);
+  min-width: 80px;
+  text-align: center;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.sphe__stage--air {
+  border-color: var(--color-blue-300, #90cdf4);
+  background: var(--surface-info, #ebf8ff);
+}
+
+.sphe__stage--pump {
+  border-color: var(--color-green-300, #9ae6b4);
+  background: var(--surface-success, #f0fff4);
+}
+
+.sphe__stage--pump.sphe__stage--hard {
+  border-color: var(--color-amber-400, #f6e05e);
+  background: var(--surface-warning, #fffff0);
+}
+
+.sphe__stage--compressor {
+  border-color: var(--border-subtle, #cbd5e0);
+}
+
+.sphe__stage--emitters {
+  border-color: var(--color-red-400, #fc8181);
+  background: var(--surface-danger, #fff5f5);
+}
+
+.sphe__stage-icon {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.sphe__stage-label {
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 600;
+  color: var(--text-body, #2d3748);
+  line-height: 1.3;
+}
+
+.sphe__arrow {
+  font-size: 1.25rem;
+  color: var(--text-muted, #718096);
+  flex-shrink: 0;
+}
+
+/* ── Toggle row ────────────────────────────────────────────────────────────── */
+
+.sphe__toggle-row {
+  display: flex;
+  gap: var(--space-2, 0.5rem);
+  justify-content: center;
+}
+
+.sphe__toggle-btn {
+  padding: 6px 16px;
+  border: 2px solid var(--border-default, #e2e8f0);
+  border-radius: 9999px;
+  background: var(--surface-subtle, #f7fafc);
+  color: var(--text-body, #2d3748);
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sphe__toggle-btn--active {
+  border-color: var(--color-green-500, #38a169);
+  background: var(--surface-success, #f0fff4);
+  color: var(--color-green-700, #276749);
+}
+
+.sphe__toggle-btn--hard.sphe__toggle-btn--active {
+  border-color: var(--color-amber-500, #d69e2e);
+  background: var(--surface-warning, #fffff0);
+  color: var(--color-amber-700, #92400e);
+}
+
+/* ── COP display ───────────────────────────────────────────────────────────── */
+
+.sphe__cop-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 0.75rem);
+  justify-content: center;
+  padding: var(--space-3, 0.75rem);
+  background: var(--surface-success, #f0fff4);
+  border: 1px solid var(--color-green-300, #9ae6b4);
+  border-radius: var(--radius-md, 0.5rem);
+  transition: all 0.2s ease;
+}
+
+.sphe__cop-row--hard {
+  background: var(--surface-warning, #fffff0);
+  border-color: var(--color-amber-400, #f6e05e);
+}
+
+.sphe__cop-value {
+  font-size: var(--text-xl, 1.25rem);
+  font-weight: 800;
+  color: var(--color-green-700, #276749);
+}
+
+.sphe__cop-row--hard .sphe__cop-value {
+  color: var(--color-amber-700, #92400e);
+}
+
+.sphe__cop-label {
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-secondary, #4a5568);
+}
+
+/* ── Note ──────────────────────────────────────────────────────────────────── */
+
+.sphe__note {
+  margin: 0;
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted, #718096);
+  line-height: 1.5;
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  background: var(--surface-info, #ebf8ff);
+  border-left: 3px solid var(--border-info, #90cdf4);
+  border-radius: 0 var(--radius-md, 0.5rem) var(--radius-md, 0.5rem) 0;
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .sphe__stage,
+  .sphe__toggle-btn,
+  .sphe__cop-row {
+    transition: none;
+  }
+}

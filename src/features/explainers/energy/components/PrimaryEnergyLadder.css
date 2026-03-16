@@ -1,0 +1,134 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   PrimaryEnergyLadder
+   Three-lane visual: gas boiler vs electric resistance vs heat pump.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.pel__subtitle {
+  margin: 0;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-secondary, #4a5568);
+  line-height: 1.6;
+  font-style: italic;
+}
+
+/* ── Lanes container ───────────────────────────────────────────────────────── */
+
+.pel__lanes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4, 1rem);
+}
+
+@media (max-width: 640px) {
+  .pel__lanes {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Individual lane ───────────────────────────────────────────────────────── */
+
+.pel__lane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 0.5rem);
+  padding: var(--space-3, 0.75rem);
+  border-radius: var(--radius-md, 0.5rem);
+  border: 2px solid var(--border-default, #e2e8f0);
+  position: relative;
+  background: var(--surface-subtle, #f7fafc);
+}
+
+.pel__lane--winner {
+  border-color: var(--color-green-300, #9ae6b4);
+  background: var(--surface-success, #f0fff4);
+}
+
+.pel__lane-label {
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 700;
+  color: var(--text-primary, #1a202c);
+}
+
+/* ── Steps ─────────────────────────────────────────────────────────────────── */
+
+.pel__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 0.25rem);
+  flex: 1;
+}
+
+.pel__step {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pel__step-bar {
+  height: 10px;
+  background: var(--lane-accent, #3182ce);
+  border-radius: 3px;
+  min-width: 4px;
+  transition: width 0.3s ease;
+}
+
+.pel__step-label {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-secondary, #4a5568);
+}
+
+/* ── Useful heat ───────────────────────────────────────────────────────────── */
+
+.pel__useful-heat {
+  display: flex;
+  flex-direction: column;
+  margin-top: auto;
+  padding-top: var(--space-2, 0.5rem);
+  border-top: 1px solid var(--border-default, #e2e8f0);
+}
+
+.pel__useful-heat-value {
+  font-size: var(--text-xl, 1.25rem);
+  font-weight: 800;
+  color: var(--lane-accent, #3182ce);
+}
+
+.pel__useful-heat-label {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted, #718096);
+}
+
+/* ── Winner badge ──────────────────────────────────────────────────────────── */
+
+.pel__winner-badge {
+  position: absolute;
+  top: -10px;
+  right: var(--space-3, 0.75rem);
+  background: var(--color-green-500, #38a169);
+  color: white;
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+/* ── Footer note ───────────────────────────────────────────────────────────── */
+
+.pel__note {
+  margin: 0;
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted, #718096);
+  line-height: 1.5;
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  background: var(--surface-info, #ebf8ff);
+  border-left: 3px solid var(--border-info, #90cdf4);
+  border-radius: 0 var(--radius-md, 0.5rem) var(--radius-md, 0.5rem) 0;
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .pel__step-bar {
+    transition: none;
+  }
+}

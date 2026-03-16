@@ -1,0 +1,164 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   CopBreakEvenChart
+   Pure CSS/SVG chart — no external charting dependency.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.cop-chart__subtitle {
+  margin: 0;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-secondary, #4a5568);
+  line-height: 1.6;
+  font-style: italic;
+}
+
+/* ── Chart wrapper ─────────────────────────────────────────────────────────── */
+
+.cop-chart__wrap {
+  display: flex;
+  gap: var(--space-2, 0.5rem);
+}
+
+.cop-chart__yaxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-bottom: 20px;
+  width: 24px;
+}
+
+.cop-chart__ylabel {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted, #718096);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Plot area ─────────────────────────────────────────────────────────────── */
+
+.cop-chart__plot {
+  flex: 1;
+  position: relative;
+  height: 200px;
+  background: var(--surface-subtle, #f7fafc);
+  border: 1px solid var(--border-default, #e2e8f0);
+  border-radius: var(--radius-md, 0.5rem);
+  overflow: hidden;
+}
+
+/* ── Comfort zone band ─────────────────────────────────────────────────────── */
+
+.cop-chart__comfort-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: rgba(56, 161, 105, 0.12);
+  border-top: 2px dashed rgba(56, 161, 105, 0.6);
+  border-bottom: 2px dashed rgba(56, 161, 105, 0.6);
+}
+
+.cop-chart__comfort-label {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 10px;
+  color: var(--color-green-700, #276749);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 8px);
+}
+
+/* ── Current grid marker ───────────────────────────────────────────────────── */
+
+.cop-chart__current-line {
+  position: absolute;
+  top: 0;
+  bottom: 20px;
+  width: 2px;
+  background: var(--color-blue-500, #3182ce);
+  opacity: 0.7;
+}
+
+.cop-chart__current-label {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-size: 10px;
+  color: var(--color-blue-700, #2b6cb0);
+  white-space: nowrap;
+}
+
+/* ── SVG curve ─────────────────────────────────────────────────────────────── */
+
+.cop-chart__svg {
+  position: absolute;
+  inset: 0 0 20px 0;
+  width: 100%;
+  height: calc(100% - 20px);
+}
+
+.cop-chart__curve {
+  fill: none;
+  stroke: var(--color-red-500, #e53e3e);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ── X-axis labels ─────────────────────────────────────────────────────────── */
+
+.cop-chart__xaxis {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  border-top: 1px solid var(--border-default, #e2e8f0);
+}
+
+.cop-chart__xlabel {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: var(--text-muted, #718096);
+  font-variant-numeric: tabular-nums;
+  bottom: 2px;
+}
+
+/* ── Axis label text ───────────────────────────────────────────────────────── */
+
+.cop-chart__axis-labels {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-1, 0.25rem);
+}
+
+.cop-chart__axis-label {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted, #718096);
+}
+
+.cop-chart__axis-label--x {
+  flex: 1;
+  text-align: center;
+}
+
+.cop-chart__axis-label--y {
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+  height: 1px; /* collapse height — rotated writing mode sets visual height */
+}
+
+/* ── Note ──────────────────────────────────────────────────────────────────── */
+
+.cop-chart__note {
+  margin: 0;
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted, #718096);
+  line-height: 1.5;
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  background: var(--surface-info, #ebf8ff);
+  border-left: 3px solid var(--border-info, #90cdf4);
+  border-radius: 0 var(--radius-md, 0.5rem) var(--radius-md, 0.5rem) 0;
+}

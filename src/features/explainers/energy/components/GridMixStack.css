@@ -1,0 +1,80 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   GridMixStack
+   Stacked bar + legend for grid generation mix.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.gms__subtitle {
+  margin: 0;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-secondary, #4a5568);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* ── Stacked bar ───────────────────────────────────────────────────────────── */
+
+.gms__bar {
+  display: flex;
+  height: 32px;
+  border-radius: var(--radius-md, 0.5rem);
+  overflow: hidden;
+  border: 1px solid var(--border-default, #e2e8f0);
+}
+
+.gms__segment {
+  flex-shrink: 0;
+  transition: opacity 0.15s ease;
+}
+
+.gms__segment:hover {
+  opacity: 0.85;
+}
+
+/* ── Legend ────────────────────────────────────────────────────────────────── */
+
+.gms__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 0.5rem) var(--space-4, 1rem);
+}
+
+.gms__legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1, 0.25rem);
+}
+
+.gms__legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.gms__legend-label {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-body, #2d3748);
+}
+
+.gms__legend-pct {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted, #718096);
+  font-weight: 600;
+}
+
+/* ── Note ──────────────────────────────────────────────────────────────────── */
+
+.gms__note {
+  margin: 0;
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted, #718096);
+  line-height: 1.5;
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .gms__segment {
+    transition: none;
+  }
+}
