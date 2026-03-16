@@ -302,3 +302,40 @@ describe('DecisionSynthesisPage — terminology constraints', () => {
     expect(pageText).not.toMatch(/lifetime carbon|whole-life carbon/i);
   });
 });
+
+// ─── Physics Story Mode — "Show me why" button ───────────────────────────────
+
+describe('DecisionSynthesisPage — Physics Story Mode button', () => {
+  it('renders the "Show me why" button', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(screen.getByRole('button', { name: /show me why/i })).toBeTruthy();
+  });
+
+  it('"Show me why" button has aria-expanded false initially', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    const btn = screen.getByRole('button', { name: /show me why/i });
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('clicking "Show me why" opens the PhysicsStoryPanel', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    fireEvent.click(screen.getByRole('button', { name: /show me why/i }));
+    expect(screen.getByRole('region', { name: /physics story mode/i })).toBeTruthy();
+  });
+
+  it('clicking "Show me why" again closes the PhysicsStoryPanel', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    const storyBtn = screen.getByRole('button', { name: /show me why/i });
+    fireEvent.click(storyBtn);
+    fireEvent.click(storyBtn);
+    expect(screen.queryByRole('region', { name: /physics story mode/i })).toBeNull();
+  });
+
+  it('clicking the close button inside the panel closes it', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    fireEvent.click(screen.getByRole('button', { name: /show me why/i }));
+    const closeBtn = screen.getByRole('button', { name: /close physics story mode/i });
+    fireEvent.click(closeBtn);
+    expect(screen.queryByRole('region', { name: /physics story mode/i })).toBeNull();
+  });
+});

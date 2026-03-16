@@ -28,6 +28,7 @@
 import { useState } from 'react';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { CompareSeed } from '../../lib/simulator/buildCompareSeedFromSurvey';
 import { buildAdviceCards } from './buildAdviceCards';
 import type { ObjectiveCard, PhasedStep } from './buildAdviceCards';
@@ -41,6 +42,8 @@ import {
 import { adaptFloorplanToAtlasInputs } from '../../lib/floorplan/adaptFloorplanToAtlasInputs';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import PrintableRecommendationPage from './PrintableRecommendationPage';
+import PhysicsStoryPanel from '../story/PhysicsStoryPanel';
+import { buildPhysicsStory } from '../../lib/story/buildPhysicsStory';
 import './DecisionSynthesisPage.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -387,6 +390,7 @@ export default function DecisionSynthesisPage({
   floorplanOutput,
 }: Props) {
   const [showPrint, setShowPrint] = useState(false);
+  const [showStory, setShowStory] = useState(false);
 
   // Adapt floor-plan outputs into Atlas inputs when provided.
   const floorplanInputs = floorplanOutput != null
@@ -404,6 +408,11 @@ export default function DecisionSynthesisPage({
           floorplanInputs,
         })
       : null;
+
+  // Derive engine input for Physics Story Mode signal detection.
+  const storyEngineInput = surveyData != null ? toEngineInput(surveyData) : undefined;
+  // Build story cards (used for inline preview + full panel).
+  const storyCards = buildPhysicsStory(engineOutput, storyEngineInput);
 
   const legacyAdvice = compareAdvice == null ? buildAdviceCards(engineOutput) : null;
 
@@ -508,6 +517,15 @@ export default function DecisionSynthesisPage({
             🖨 Print Recommendation
           </button>
         )}
+        {/* Show me why — Physics Story Mode */}
+        <button
+          className="advice-page__story-btn"
+          onClick={() => setShowStory(prev => !prev)}
+          aria-label="Show me why — Physics Story Mode"
+          aria-expanded={showStory}
+        >
+          ⚡ Show me why
+        </button>
         <div className="advice-page__title-block">
           <h1 className="advice-page__title">🎯 Advice</h1>
           <p className="advice-page__subtitle">
@@ -519,6 +537,37 @@ export default function DecisionSynthesisPage({
       {/* ── Floor-plan provenance banners ───────────────────────────────────── */}
       {compareAdvice?.floorplanInsights != null && (
         <FloorplanProvenanceBanner insights={compareAdvice.floorplanInsights} />
+      )}
+
+      {/* ── Physics Story Mode — full panel (shown when expanded) ────────── */}
+      {showStory && (
+        <PhysicsStoryPanel
+          engineOutput={engineOutput}
+          input={storyEngineInput}
+          onClose={() => setShowStory(false)}
+        />
+      )}
+
+      {/* ── Physics Story Mode — inline preview (top 1–2 headlines) ─────── */}
+      {!showStory && storyCards.length > 0 && (
+        <div className="advice-page__section" aria-label="Physics story preview">
+          <div className="psp-preview">
+            <div className="psp-preview__headlines">
+              {storyCards.slice(0, 2).map(card => (
+                <div key={card.id} className="psp-preview__headline">
+                  {card.title}
+                </div>
+              ))}
+            </div>
+            <button
+              className="psp-preview__btn"
+              onClick={() => setShowStory(true)}
+              aria-label="Show me why — open Physics Story Mode"
+            >
+              ⚡ Show me why
+            </button>
+          </div>
+        </div>
       )}
 
       {/* ══════════════════════════════════════════════════════════════════ */}

@@ -63,6 +63,31 @@
   border-color: #718096;
 }
 
+/* ── Physics Story Mode button ────────────────────────────────────────────── */
+
+.advice-page__story-btn {
+  background: #3182ce;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  min-height: 44px;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.advice-page__story-btn:hover {
+  background: #2c5282;
+}
+
+.advice-page__story-btn[aria-expanded='true'] {
+  background: #2c5282;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
 .advice-page__title-block {
   flex: 1;
 }
