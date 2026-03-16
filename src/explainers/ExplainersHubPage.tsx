@@ -20,6 +20,7 @@ import { buildCompareSeedFromSurvey } from '../lib/simulator/buildCompareSeedFro
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import ExplainerPanel from './educational/ExplainerPanel';
+import { EnergyLiteracyPanel } from '../features/explainers/energy';
 import { runEngine } from '../engine/Engine';
 import DecisionSynthesisPage from '../components/advice/DecisionSynthesisPage';
 import { adaptFloorplanToAtlasInputs } from '../lib/floorplan/adaptFloorplanToAtlasInputs';
@@ -250,6 +251,8 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
         )}
 
         <ExplainerPanel />
+
+        <EnergyLiteracyPanel />
       </div>
     );
   }

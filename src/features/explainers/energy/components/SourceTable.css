@@ -1,0 +1,122 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   SourceTable (shared)
+   Shared table styles used by SourceSafetyTable, SourceEmissionsTable,
+   and SourceCostTable.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.src-table__subtitle {
+  margin: 0;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-secondary, #4a5568);
+  line-height: 1.6;
+  font-style: italic;
+}
+
+/* ── Scroll container (mobile) ─────────────────────────────────────────────── */
+
+.src-table__scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-md, 0.5rem);
+  border: 1px solid var(--border-default, #e2e8f0);
+}
+
+/* ── Table ─────────────────────────────────────────────────────────────────── */
+
+.src-table__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm, 0.875rem);
+}
+
+.src-table__th {
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 700;
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-secondary, #4a5568);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--surface-subtle, #f7fafc);
+  border-bottom: 2px solid var(--border-default, #e2e8f0);
+  white-space: nowrap;
+}
+
+.src-table__th--number {
+  text-align: right;
+}
+
+.src-table__tr:nth-child(even) {
+  background: var(--surface-subtle, #f7fafc);
+}
+
+.src-table__tr:hover {
+  background: var(--surface-info, #ebf8ff);
+}
+
+.src-table__td {
+  padding: 8px 12px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border-default, #e2e8f0);
+  color: var(--text-body, #2d3748);
+}
+
+.src-table__td--source {
+  font-weight: 600;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+}
+
+.src-table__td--number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.src-table__td--note {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted, #718096);
+  line-height: 1.4;
+}
+
+/* ── Category colour dots ──────────────────────────────────────────────────── */
+
+.src-table__category-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.src-table__category-dot[data-category='combustion'] {
+  background: var(--color-red-500, #e53e3e);
+}
+
+.src-table__category-dot[data-category='constant'] {
+  background: var(--color-blue-500, #3182ce);
+}
+
+.src-table__category-dot[data-category='weather'] {
+  background: var(--color-green-500, #38a169);
+}
+
+.src-table__category-dot[data-category='predictable'] {
+  background: var(--color-indigo-500, #6366f1);
+}
+
+.src-table__category-dot[data-category='storage'] {
+  background: var(--color-amber-500, #d69e2e);
+}
+
+/* ── Disclaimer ────────────────────────────────────────────────────────────── */
+
+.src-table__disclaimer {
+  margin: 0;
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted, #718096);
+  line-height: 1.5;
+}

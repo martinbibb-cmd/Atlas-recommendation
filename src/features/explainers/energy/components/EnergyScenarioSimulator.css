@@ -1,0 +1,155 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   EnergyScenarioSimulator
+   Educational grid scenario simulator with sliders and output metrics.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.ess__subtitle {
+  margin: 0;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-secondary, #4a5568);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* ── Disclaimer ────────────────────────────────────────────────────────────── */
+
+.ess__disclaimer {
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  background: var(--surface-warning, #fffff0);
+  border: 1px solid var(--color-amber-400, #f6e05e);
+  border-radius: var(--radius-md, 0.5rem);
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--color-amber-700, #92400e);
+  font-weight: 500;
+}
+
+/* ── Layout ────────────────────────────────────────────────────────────────── */
+
+.ess__layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5, 1.25rem);
+}
+
+@media (max-width: 640px) {
+  .ess__layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Sliders panel ─────────────────────────────────────────────────────────── */
+
+.ess__sliders-heading,
+.ess__outputs-heading {
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 700;
+  color: var(--text-primary, #1a202c);
+  margin-bottom: var(--space-2, 0.5rem);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--text-xs, 0.75rem);
+}
+
+.ess__sliders {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 0.75rem);
+}
+
+.ess__slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ess__slider-label-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.ess__slider-label {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-body, #2d3748);
+  font-weight: 600;
+}
+
+.ess__slider-value {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted, #718096);
+  font-variant-numeric: tabular-nums;
+}
+
+.ess__slider {
+  width: 100%;
+  accent-color: var(--slider-accent, var(--color-blue-500, #3182ce));
+  cursor: pointer;
+}
+
+/* ── Outputs panel ─────────────────────────────────────────────────────────── */
+
+.ess__outputs {
+  display: flex;
+  flex-direction: column;
+}
+
+.ess__metrics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 0.5rem);
+}
+
+/* ── Metric ────────────────────────────────────────────────────────────────── */
+
+.ess__metric {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  border-radius: var(--radius-md, 0.5rem);
+  border: 1px solid var(--border-default, #e2e8f0);
+  background: var(--surface-subtle, #f7fafc);
+}
+
+.ess__metric--good {
+  border-color: var(--color-green-300, #9ae6b4);
+  background: var(--surface-success, #f0fff4);
+}
+
+.ess__metric--bad {
+  border-color: var(--color-red-400, #fc8181);
+  background: var(--surface-danger, #fff5f5);
+}
+
+.ess__metric-value {
+  font-size: var(--text-base, 1rem);
+  font-weight: 800;
+  color: var(--text-primary, #1a202c);
+  min-width: 70px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ess__metric--good .ess__metric-value {
+  color: var(--color-green-700, #276749);
+}
+
+.ess__metric--bad .ess__metric-value {
+  color: var(--color-red-700, #9b2c2c);
+}
+
+.ess__metric-label {
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 700;
+  color: var(--text-body, #2d3748);
+  flex: 1;
+}
+
+.ess__metric-desc {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted, #718096);
+}
+
+@media (max-width: 480px) {
+  .ess__metric-desc {
+    display: none;
+  }
+}
