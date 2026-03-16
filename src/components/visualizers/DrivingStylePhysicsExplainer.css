@@ -268,6 +268,14 @@
   line-height: 1;
 }
 
+/* Inner glyph wrapper — applies scaleX(-1) so left-facing emoji face right.
+   This transform is on a separate element so it never conflicts with the
+   position/translation keyframes applied to the outer .dspe__vehicle-token. */
+.dspe__vehicle-glyph {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Static energy bar
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -276,6 +284,15 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* Visible fuel/energy label to the left of the bar */
+.dspe__energy-label {
+  font-size:   var(--text-xs);
+  color:       var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width:   5rem;
 }
 
 .dspe__energy-track {
@@ -329,6 +346,14 @@
   margin-bottom: 0;
 }
 
+/* Secondary cost caveat note — visually distinct but not the main story */
+.dspe__support-text--note {
+  font-style:   italic;
+  border-top:   1px dashed var(--border-default);
+  padding-top:  var(--space-2);
+  margin-top:   var(--space-1);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Vehicle token animation layer
    ─────────────────────────────────────────────────────────────────────────
@@ -345,30 +370,31 @@
 }
 
 /* Smooth glide from a fixed offset into final position.
-   Used by system, mixergy, and heat pump tokens. */
+   Used by system, mixergy, and heat pump tokens.
+   Start is far enough left that the full travel arc is visible to the user. */
 @keyframes dspe-launch-glide {
-  from { transform: translateY(-50%) translateX(-80px); }
+  from { transform: translateY(-50%) translateX(-350px); }
   to   { transform: translateY(-50%) translateX(0); }
 }
 
 /* Combi: drives forward, briefly reverses (purge), then settles.
    The reverse represents the cold-water purge at startup. */
 @keyframes dspe-launch-combi {
-  0%   { transform: translateY(-50%) translateX(-80px); }
+  0%   { transform: translateY(-50%) translateX(-350px); }
   72%  { transform: translateY(-50%) translateX(0); }
-  82%  { transform: translateY(-50%) translateX(-4px); }
+  82%  { transform: translateY(-50%) translateX(-10px); }
   100% { transform: translateY(-50%) translateX(0); }
 }
 
 /* Combi with warning chip: same purge, then a small jitter representing
    the power limit reached when two taps open simultaneously. */
 @keyframes dspe-launch-combi-warn {
-  0%   { transform: translateY(-50%) translateX(-80px); }
+  0%   { transform: translateY(-50%) translateX(-350px); }
   65%  { transform: translateY(-50%) translateX(0); }
-  72%  { transform: translateY(-50%) translateX(-4px) rotate(-2deg); }
-  79%  { transform: translateY(-50%) translateX(3px)  rotate(1deg); }
-  86%  { transform: translateY(-50%) translateX(-2px); }
-  93%  { transform: translateY(-50%) translateX(1px); }
+  72%  { transform: translateY(-50%) translateX(-10px) rotate(-2deg); }
+  79%  { transform: translateY(-50%) translateX(6px)  rotate(1deg); }
+  86%  { transform: translateY(-50%) translateX(-4px); }
+  93%  { transform: translateY(-50%) translateX(2px); }
   100% { transform: translateY(-50%) translateX(0); }
 }
 

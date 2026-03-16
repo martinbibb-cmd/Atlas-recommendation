@@ -372,3 +372,74 @@ describe('DrivingStylePhysicsExplainer — energy bar widths', () => {
     expect(fill?.getAttribute('style')).toContain('width: 25%');
   });
 });
+
+// ─── Fuel labels ──────────────────────────────────────────────────────────────
+
+describe('DrivingStylePhysicsExplainer — fuel labels', () => {
+  it('shows "Gas used" label on combi row', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const label = container.querySelector('[data-system="combi"] .dspe__energy-label');
+    expect(label?.textContent).toBe('Gas used');
+  });
+
+  it('shows "Gas used" label on system row', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const label = container.querySelector('[data-system="system"] .dspe__energy-label');
+    expect(label?.textContent).toBe('Gas used');
+  });
+
+  it('shows "Gas used" label on mixergy row', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const label = container.querySelector('[data-system="mixergy"] .dspe__energy-label');
+    expect(label?.textContent).toBe('Gas used');
+  });
+
+  it('shows "Electric used" label on heatpump row', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const label = container.querySelector('[data-system="heatpump"] .dspe__energy-label');
+    expect(label?.textContent).toBe('Electric used');
+  });
+
+  it('every row has an energy label element', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const labels = container.querySelectorAll('.dspe__energy-label');
+    expect(labels).toHaveLength(4);
+  });
+});
+
+// ─── Vehicle orientation ──────────────────────────────────────────────────────
+
+describe('DrivingStylePhysicsExplainer — vehicle orientation', () => {
+  it('all vehicle tokens contain a .dspe__vehicle-glyph inner wrapper', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const glyphs = container.querySelectorAll('.dspe__vehicle-glyph');
+    expect(glyphs).toHaveLength(4);
+  });
+
+  it('each .dspe__vehicle-token contains exactly one .dspe__vehicle-glyph', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const tokens = container.querySelectorAll('.dspe__vehicle-token');
+    tokens.forEach(token => {
+      expect(token.querySelectorAll('.dspe__vehicle-glyph')).toHaveLength(1);
+    });
+  });
+});
+
+// ─── Heat pump cost caveat ────────────────────────────────────────────────────
+
+describe('DrivingStylePhysicsExplainer — heat pump cost caveat', () => {
+  it('renders the energy-vs-running-cost note', () => {
+    render(<DrivingStylePhysicsExplainer />);
+    expect(screen.getByText(/energy used is not the same as running cost/i)).toBeTruthy();
+  });
+
+  it('cost note mentions electricity costs more per kWh', () => {
+    render(<DrivingStylePhysicsExplainer />);
+    expect(screen.getByText(/electricity usually costs more per kwh than gas/i)).toBeTruthy();
+  });
+
+  it('cost note is present when animate={false}', () => {
+    render(<DrivingStylePhysicsExplainer animate={false} />);
+    expect(screen.getByText(/energy used is not the same as running cost/i)).toBeTruthy();
+  });
+});

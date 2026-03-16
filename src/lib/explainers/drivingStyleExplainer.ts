@@ -99,6 +99,14 @@ const CAPTIONS: Record<DrivetrainId, string> = {
   heatpump: 'Lowest-energy route, but slower to accelerate.',
 };
 
+/** Visible fuel/energy label shown alongside the energy bar. */
+const FUEL_LABELS: Record<DrivetrainId, string> = {
+  combi:    'Gas used',
+  system:   'Gas used',
+  mixergy:  'Gas used',
+  heatpump: 'Electric used',
+};
+
 // ─── Main builder ─────────────────────────────────────────────────────────────
 
 /**
@@ -133,6 +141,7 @@ export function buildDrivingStyleRows(
       eventChip:   EVENT_CHIP[id],
       warningChip,
       caption:     CAPTIONS[id],
+      fuelLabel:   FUEL_LABELS[id],
     };
   });
 }

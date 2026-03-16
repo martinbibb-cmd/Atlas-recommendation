@@ -58,6 +58,7 @@ describe('buildDrivingStyleRows — row shape', () => {
       expect(typeof row.pathVariant).toBe('string');
       expect(typeof row.powerBadge).toBe('string');
       expect(typeof row.caption).toBe('string');
+      expect(typeof row.fuelLabel).toBe('string');
       expect(typeof row.energyRank).toBe('number');
     });
   });
@@ -223,5 +224,36 @@ describe('resolveExplainerInput — defaults', () => {
   it('preserves provided controlsQuality', () => {
     const result = resolveExplainerInput({ controlsQuality: 'excellent' });
     expect(result.controlsQuality).toBe('excellent');
+  });
+});
+
+// ─── Fuel labels ──────────────────────────────────────────────────────────────
+
+describe('buildDrivingStyleRows — fuelLabel', () => {
+  it('combi row has fuelLabel "Gas used"', () => {
+    const rows = buildDrivingStyleRows(BASE_INPUT);
+    expect(rows.find(r => r.id === 'combi')!.fuelLabel).toBe('Gas used');
+  });
+
+  it('system row has fuelLabel "Gas used"', () => {
+    const rows = buildDrivingStyleRows(BASE_INPUT);
+    expect(rows.find(r => r.id === 'system')!.fuelLabel).toBe('Gas used');
+  });
+
+  it('mixergy row has fuelLabel "Gas used"', () => {
+    const rows = buildDrivingStyleRows(BASE_INPUT);
+    expect(rows.find(r => r.id === 'mixergy')!.fuelLabel).toBe('Gas used');
+  });
+
+  it('heatpump row has fuelLabel "Electric used"', () => {
+    const rows = buildDrivingStyleRows(BASE_INPUT);
+    expect(rows.find(r => r.id === 'heatpump')!.fuelLabel).toBe('Electric used');
+  });
+
+  it('all fuelLabels are non-empty', () => {
+    const rows = buildDrivingStyleRows(BASE_INPUT);
+    rows.forEach(row => {
+      expect(row.fuelLabel.length).toBeGreaterThan(0);
+    });
   });
 });
