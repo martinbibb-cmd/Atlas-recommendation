@@ -2160,7 +2160,7 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
           <h2>🚿 Step 5: Hot Water Demand</h2>
 
           {/* ─── Canonical DHW setup path ─────────────────────────────────── */}
-          <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+          <div data-testid="survey-dhw-setup" style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
             <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#2d3748', margin: '0 0 0.75rem 0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Current hot water setup
             </p>
@@ -2345,6 +2345,10 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
                     </div>
                   )}
                 </div>
+                {/* Explainer: why cylinder age and condition matter */}
+                <p style={{ fontSize: '0.75rem', color: '#718096', margin: '0.5rem 0 0 0', lineHeight: 1.5 }}>
+                  Age and condition affect standing heat loss and coil transfer efficiency — both feed directly into the recommendation rationale and the stored hot water comparison.
+                </p>
               </div>
             )}
 
@@ -2392,13 +2396,22 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
             </div>
 
             {/* Proposed hot water storage — only when stored hot water is relevant.
-                Hidden when no cylinder is present AND the user intends to keep existing setup. */}
+                Visible when: a cylinder is already present, the user intends to replace,
+                or the user is unsure. Hidden only when no cylinder exists AND intent is 'keep'
+                (i.e., keeping an on-demand combi setup with no storage being considered). */}
             {(input.fullSurvey?.dhwCondition?.currentCylinderPresent === true ||
               input.fullSurvey?.dhwCondition?.dhwUpgradeIntent === 'replace' ||
               input.fullSurvey?.dhwCondition?.dhwUpgradeIntent === 'unsure') && (
-              <div style={{ marginTop: '0.25rem' }}>
+              <div data-testid="survey-dhw-tank-type-picker" style={{ marginTop: '0.875rem', padding: '0.875rem', background: '#fff', border: '1px solid #bee3f8', borderLeft: '4px solid #3182ce', borderRadius: '6px' }}>
+                {/* Explainer: why stored hot water is being considered */}
+                <p style={{ fontSize: '0.78rem', color: '#2c5282', margin: '0 0 0.75rem 0', lineHeight: 1.5 }}>
+                  💧 <strong>Stored hot water is being considered</strong> for this property.
+                  {input.fullSurvey?.dhwCondition?.currentCylinderPresent === true && input.fullSurvey?.dhwCondition?.dhwUpgradeIntent === 'keep'
+                    ? ' The existing cylinder is being retained — select its type below to include it in the comparison.'
+                    : ' Select the proposed storage type to include in the recommendation.'}
+                </p>
                 <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
-                  💧 Hot water storage type
+                  Proposed hot water storage type
                 </label>
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
                   <button
@@ -2436,6 +2449,11 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
                     </div>
                   </button>
                 </div>
+                {/* Explainer: standard vs Mixergy */}
+                <p style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.5rem', marginBottom: 0, lineHeight: 1.5 }}>
+                  A standard cylinder stores hot water heated by the boiler or heat pump.
+                  Mixergy uses top-down heating and active stratification to reduce cycling penalties and deliver usable hot water sooner — particularly beneficial alongside a heat pump or time-of-use tariffs.
+                </p>
                 {input.dhwTankType === 'mixergy' && (
                   <div style={{ marginTop: '0.75rem' }}>
                     <div className="form-field">
