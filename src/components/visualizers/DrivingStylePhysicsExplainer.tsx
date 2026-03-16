@@ -90,20 +90,20 @@ const PATH_DATA: Record<PathVariant, string> = {
   // Smooth curve (Mixergy smart storage)
   'smooth':
     'M 0,20 C 60,20 140,9 200,11',
-  // Smooth curve ending slightly earlier — heat pump hasn't fully arrived
+  // Smooth long curve — heat pump departs first, same finish point as all others
   'slow-smooth':
-    'M 0,20 C 50,20 120,9 176,11',
+    'M 0,20 C 50,20 120,9 200,11',
 };
 
 /**
  * Normalised X position (0–1) at which the vehicle token sits for each variant.
- * The heat pump ends at ~88 % to show it hasn't quite reached the finish line.
+ * All tokens end at 1.0 — all systems complete the same job.
  */
 const TOKEN_POSITION_FRAC: Record<PathVariant, number> = {
   'jagged-reverse': 1.0,
   'steady':         1.0,
   'smooth':         1.0,
-  'slow-smooth':    0.88,
+  'slow-smooth':    1.0,
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -305,10 +305,10 @@ export default function DrivingStylePhysicsExplainer({
         <div className="dspe__header-row">
           <div className="dspe__header-text">
             <h3 id="dspe-title" className="dspe__title">
-              Why these systems behave differently
+              Same job. Different strategy.
             </h3>
             <p className="dspe__subtitle">
-              Same destination. Different route, power and waste.
+              All systems complete the same job — they just use different power, timing and fuel.
             </p>
           </div>
           {showButton && (
@@ -351,7 +351,7 @@ export default function DrivingStylePhysicsExplainer({
           Stored hot water lets the heat source run more steadily.
         </p>
         <p className="dspe__support-text">
-          Heat pumps use less energy overall, but recover more slowly.
+          Heat pumps start earliest and run most efficiently — same destination, different journey.
         </p>
         <p className="dspe__support-text dspe__support-text--note">
           Energy used is not the same as running cost. Electricity usually costs more per kWh than gas.

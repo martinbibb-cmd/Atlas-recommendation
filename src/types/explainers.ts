@@ -38,7 +38,7 @@ export type ExplainerControlsQuality = 'basic' | 'good' | 'excellent';
  *   jagged-reverse — combi: backward notch near start, then spiky forward
  *   steady         — system: mostly straight with mild undulation
  *   smooth         — mixergy: clean smooth curve
- *   slow-smooth    — heat pump: smooth curve, finish marker shifted left
+ *   slow-smooth    — heat pump: long smooth curve, same finish point — earliest departure
  */
 export type PathVariant = 'jagged-reverse' | 'steady' | 'smooth' | 'slow-smooth';
 

@@ -41,12 +41,12 @@ Object.defineProperty(window, 'matchMedia', {
 describe('DrivingStylePhysicsExplainer — heading and subtitle', () => {
   it('renders the title', () => {
     render(<DrivingStylePhysicsExplainer />);
-    expect(screen.getByRole('heading', { name: /why these systems behave differently/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /same job\. different strategy\./i })).toBeTruthy();
   });
 
   it('renders the subtitle', () => {
     render(<DrivingStylePhysicsExplainer />);
-    expect(screen.getByText(/same destination/i)).toBeTruthy();
+    expect(screen.getByText(/all systems complete the same job/i)).toBeTruthy();
   });
 });
 
@@ -96,7 +96,7 @@ describe('DrivingStylePhysicsExplainer — row captions', () => {
 
   it('renders heat pump caption', () => {
     render(<DrivingStylePhysicsExplainer />);
-    expect(screen.getByText(/lowest-energy route/i)).toBeTruthy();
+    expect(screen.getByText(/sets off first, runs smoothest/i)).toBeTruthy();
   });
 });
 
@@ -113,9 +113,9 @@ describe('DrivingStylePhysicsExplainer — support text', () => {
     expect(screen.getByText(/stored hot water lets the heat source run more steadily/i)).toBeTruthy();
   });
 
-  it('renders heat pump slower recovery support text', () => {
+  it('renders heat pump earliest departure support text', () => {
     render(<DrivingStylePhysicsExplainer />);
-    expect(screen.getByText(/heat pumps use less energy overall/i)).toBeTruthy();
+    expect(screen.getByText(/heat pumps start earliest/i)).toBeTruthy();
   });
 });
 
@@ -162,7 +162,7 @@ describe('DrivingStylePhysicsExplainer — compact mode', () => {
 
   it('still renders the title in compact mode', () => {
     render(<DrivingStylePhysicsExplainer compact />);
-    expect(screen.getByRole('heading', { name: /why these systems behave differently/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /same job\. different strategy\./i })).toBeTruthy();
   });
 
   it('still renders all four row labels in compact mode', () => {

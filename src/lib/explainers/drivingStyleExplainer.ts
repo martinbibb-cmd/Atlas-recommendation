@@ -12,7 +12,7 @@
  *   combi     — purge / startup loss, stop/start cycling, one-tap-at-a-time limit
  *   system    — decoupled generation, longer steady burner runs
  *   mixergy   — stratified storage, smart control smoothing, lowest gas use
- *   heatpump  — low-power continuous, high efficiency, slower recovery
+ *   heatpump  — low-power continuous, high efficiency, earliest departure, same finish
  */
 
 import type {
@@ -96,7 +96,7 @@ const CAPTIONS: Record<DrivetrainId, string> = {
   combi:    'Fast launch, lots of stop-start. Needs high power for on-demand hot water.',
   system:   'Steadier output with stored hot water. Better for larger or more simultaneous demand.',
   mixergy:  'Smarter stored hot water, less wasted effort.',
-  heatpump: 'Lowest-energy route, but slower to accelerate.',
+  heatpump: 'Sets off first, runs smoothest. Same destination — lowest energy used.',
 };
 
 /** Visible fuel/energy label shown alongside the energy bar. */
