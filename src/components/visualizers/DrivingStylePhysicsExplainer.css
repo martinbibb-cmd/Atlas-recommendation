@@ -361,12 +361,12 @@
    Path tracks (.dspe__path-line, .dspe__path-svg) are never animated.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Animation timing tokens — adjust here to tune the whole sequence */
+/* Animation timing — staggered departures, all tokens arrive at the same 4 s mark.
+   Heat pump departs first (no delay); combi departs last (1 s delay).
+   animation-fill-mode: both ensures each token sits at its start position
+   during its delay period and stays at finish after completion. */
 .dspe--animated {
-  --dspe-anim-combi:    3s;
-  --dspe-anim-system:   3.5s;
-  --dspe-anim-mixergy:  2.8s;
-  --dspe-anim-heatpump: 4s;
+  --dspe-anim-total: 4s;
 }
 
 /* Smooth glide from a fixed offset into final position.
@@ -398,29 +398,29 @@
   100% { transform: translateY(-50%) translateX(0); }
 }
 
-/* Combi: backward-then-forward purge motion, fastest gas system */
-.dspe--animated .dspe__vehicle-token--combi {
-  animation: dspe-launch-combi var(--dspe-anim-combi) ease-out forwards;
-}
-
-/* Combi with two-tap warning: purge + jitter */
-.dspe--animated .dspe__vehicle-token--combi.dspe__vehicle-token--has-warning {
-  animation: dspe-launch-combi-warn var(--dspe-anim-combi) ease-out forwards;
-}
-
-/* System boiler: smooth steady glide */
-.dspe--animated .dspe__vehicle-token--system {
-  animation: dspe-launch-glide var(--dspe-anim-system) ease-out forwards;
-}
-
-/* Mixergy: smooth glide, arrives slightly before system boiler */
-.dspe--animated .dspe__vehicle-token--mixergy {
-  animation: dspe-launch-glide var(--dspe-anim-mixergy) ease-out forwards;
-}
-
-/* Heat pump: slower glide — communicates lower power and slower recovery */
+/* Heat pump: departs first (no delay), longest smooth run — lowest energy, same finish time */
 .dspe--animated .dspe__vehicle-token--heatpump {
-  animation: dspe-launch-glide var(--dspe-anim-heatpump) ease-out forwards;
+  animation: dspe-launch-glide 4s ease-out 0s both;
+}
+
+/* Mixergy: departs second (0.4 s delay), smooth planned run — arrives at 4 s */
+.dspe--animated .dspe__vehicle-token--mixergy {
+  animation: dspe-launch-glide 3.6s ease-out 0.4s both;
+}
+
+/* System boiler: departs third (0.8 s delay), steady cruise — arrives at 4 s */
+.dspe--animated .dspe__vehicle-token--system {
+  animation: dspe-launch-glide 3.2s ease-out 0.8s both;
+}
+
+/* Combi: departs last (1 s delay), aggressive catch-up with purge notch — arrives at 4 s */
+.dspe--animated .dspe__vehicle-token--combi {
+  animation: dspe-launch-combi 3s ease-out 1s both;
+}
+
+/* Combi with two-tap warning: same late departure, purge + jitter — arrives at 4 s */
+.dspe--animated .dspe__vehicle-token--combi.dspe__vehicle-token--has-warning {
+  animation: dspe-launch-combi-warn 3s ease-out 1s both;
 }
 
 /* ─── Suppress animation in print and reduced-motion contexts ─────────────── */
