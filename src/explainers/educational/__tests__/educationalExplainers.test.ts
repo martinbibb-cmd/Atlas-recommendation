@@ -33,6 +33,8 @@ const REQUIRED_IDS: ReadonlyArray<string> = [
   'cycling_efficiency',
   'condensing_return_temp',
   'heat_pump_flow_temp',
+  'standard_vs_mixergy',
+  'cylinder_age_condition',
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -49,8 +51,8 @@ describe('EDUCATIONAL_EXPLAINERS', () => {
     expect(EDUCATIONAL_EXPLAINERS.length).toBeGreaterThan(0);
   });
 
-  it('contains exactly 6 explainers', () => {
-    expect(EDUCATIONAL_EXPLAINERS).toHaveLength(6);
+  it('contains exactly 8 explainers', () => {
+    expect(EDUCATIONAL_EXPLAINERS).toHaveLength(8);
   });
 
   it('includes all required topic ids', () => {
@@ -195,6 +197,24 @@ describe('EDUCATIONAL_EXPLAINERS', () => {
       const text = allText(e!).toLowerCase();
       expect(text).toContain('heat pump');
       expect(text).toMatch(/flow temp/);
+    });
+
+    it('covers standard cylinder vs Mixergy comparison', () => {
+      const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'standard_vs_mixergy');
+      expect(e).toBeDefined();
+      const text = allText(e!).toLowerCase();
+      expect(text).toContain('standard');
+      expect(text).toContain('mixergy');
+      expect(text).toContain('stratification');
+    });
+
+    it('covers cylinder age and condition effects', () => {
+      const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'cylinder_age_condition');
+      expect(e).toBeDefined();
+      const text = allText(e!).toLowerCase();
+      expect(text).toMatch(/age/);
+      expect(text).toMatch(/condition/);
+      expect(text).toContain('standing');
     });
   });
 });

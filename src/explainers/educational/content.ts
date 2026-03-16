@@ -110,4 +110,36 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
     simulatorPanelId: 'efficiency',
     simulatorLabel: 'Efficiency panel',
   },
+
+  {
+    id: 'standard_vs_mixergy',
+    title: 'Standard cylinder vs Mixergy',
+    point:
+      'A standard cylinder heats the entire volume uniformly; a Mixergy cylinder heats from the top down, delivering usable stored hot water sooner and reducing cycling.',
+    bullets: [
+      'Standard cylinders heat the full volume before any draw-off is at the target temperature — this delays availability after a reheat cycle.',
+      'Mixergy uses active stratification to keep the hottest water at the top, so usable hot water is available even when the cylinder is partially charged.',
+      'Reduced cycling means fewer boiler or heat-pump start-stop events, improving seasonal efficiency and component longevity.',
+      'Top-down heating is especially beneficial with heat pumps, where each reheat cycle carries a higher COP penalty due to the required temperature lift.',
+      'For time-of-use tariffs, partial charging during off-peak periods is more practical with stratified storage than with a uniformly heated cylinder.',
+    ],
+    simulatorPanelId: 'draw_off',
+    simulatorLabel: 'Draw-Off panel',
+  },
+
+  {
+    id: 'cylinder_age_condition',
+    title: 'Why cylinder age and condition matter',
+    point:
+      'An older or poorly maintained cylinder loses more heat while idle and transfers heat less effectively through its coil — both reduce overall system efficiency.',
+    bullets: [
+      'Standing heat loss increases as factory-applied insulation degrades over time; a cylinder over 15 years old can lose 50 % more heat per day than a modern equivalent.',
+      'Limescale build-up on the internal coil surface reduces heat transfer, forcing longer reheat times and higher return temperatures.',
+      'Poor coil transfer performance can suppress condensing operation in a boiler by raising the return temperature above the 55 °C threshold.',
+      'Cylinder condition directly affects the recommendation rationale: a cylinder in poor condition may justify replacement even if the heating system is unchanged.',
+      'Recording age and condition enables Atlas to quantify standing-loss and coil-transfer effects rather than relying on generic assumptions.',
+    ],
+    simulatorPanelId: 'draw_off',
+    simulatorLabel: 'Draw-Off panel',
+  },
 ] as const;

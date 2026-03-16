@@ -160,3 +160,51 @@ describe('FullSurveyStepper — Step 5 stored hot water explainer', () => {
     ).toBeInTheDocument();
   });
 });
+
+// ─── Explainer links ─────────────────────────────────────────────────────────
+
+describe('FullSurveyStepper — Step 5 explainer links', () => {
+  it('shows the on-demand vs stored explainer link on the DHW setup card', async () => {
+    await renderAtHotWaterStep({
+      currentCylinderPresent: false,
+      dhwUpgradeIntent: 'keep',
+    });
+
+    expect(document.querySelector('[data-testid="explainer-link-on-demand-vs-stored"]')).not.toBeNull();
+  });
+
+  it('shows the cylinder age/condition explainer link when a cylinder is present', async () => {
+    await renderAtHotWaterStep({
+      currentCylinderPresent: true,
+    });
+
+    expect(document.querySelector('[data-testid="explainer-link-cylinder-age-condition"]')).not.toBeNull();
+  });
+
+  it('does not show the cylinder age/condition explainer link when no cylinder is present', async () => {
+    await renderAtHotWaterStep({
+      currentCylinderPresent: false,
+      dhwUpgradeIntent: 'keep',
+    });
+
+    expect(document.querySelector('[data-testid="explainer-link-cylinder-age-condition"]')).toBeNull();
+  });
+
+  it('shows the standard vs Mixergy explainer link when the picker is visible', async () => {
+    await renderAtHotWaterStep({
+      currentCylinderPresent: false,
+      dhwUpgradeIntent: 'replace',
+    });
+
+    expect(document.querySelector('[data-testid="explainer-link-standard-vs-mixergy"]')).not.toBeNull();
+  });
+
+  it('does not show the standard vs Mixergy explainer link when the picker is hidden', async () => {
+    await renderAtHotWaterStep({
+      currentCylinderPresent: false,
+      dhwUpgradeIntent: 'keep',
+    });
+
+    expect(document.querySelector('[data-testid="explainer-link-standard-vs-mixergy"]')).toBeNull();
+  });
+});
