@@ -150,7 +150,7 @@ function detectTriggeredSignals(
       l => l.id === 'cycling-loss-penalty' || l.id === 'flow-temp-too-high-for-ashp' ||
            l.id === 'radiator-output-insufficient',
     );
-    const hasOverszePenalty = options.some(o =>
+    const hasOversizePenalty = options.some(o =>
       o.score?.breakdown.some(b =>
         b.id === 'boiler.oversize_moderate' ||
         b.id === 'boiler.oversize_aggressive' ||
@@ -158,7 +158,7 @@ function detectTriggeredSignals(
       ),
     );
 
-    if (hasCyclingLimiter || hasOverszePenalty) {
+    if (hasCyclingLimiter || hasOversizePenalty) {
       triggered.add('high_return_temp_condensing_penalty');
     }
   }
@@ -211,11 +211,12 @@ function buildEvidenceLine(
       const parts: string[] = [];
       if (input?.bathroomCount != null)  parts.push(`${input.bathroomCount} bathroom${input.bathroomCount > 1 ? 's' : ''}`);
       if (input?.occupancyCount != null) parts.push(`${input.occupancyCount} occupant${input.occupancyCount > 1 ? 's' : ''}`);
-      const flow = input?.mainsDynamicFlowLpm ?? input?.dynamicMainsPressure;
       if (input?.mainsDynamicFlowLpm != null)
         parts.push(`${input.mainsDynamicFlowLpm} L/min mains flow`);
-      else if (flow != null && typeof flow === 'number' && flow < 10)
-        parts.push(`${flow} bar mains pressure`);
+      else if (input?.dynamicMainsPressureBar != null)
+        parts.push(`${input.dynamicMainsPressureBar} bar mains pressure`);
+      else if (input?.dynamicMainsPressure != null)
+        parts.push(`${input.dynamicMainsPressure} bar mains pressure`);
       return parts.length > 0 ? parts.join(' · ') : null;
     }
 
