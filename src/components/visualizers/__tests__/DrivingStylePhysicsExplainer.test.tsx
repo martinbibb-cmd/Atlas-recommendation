@@ -16,10 +16,12 @@
  *   - No role="progressbar" is present in rendered output
  *   - animate prop controls presence of dspe--animated class
  *   - Fixed semantic energy bar widths (combi 85%, system 60%, mixergy 45%, heatpump 25%)
+ *   - Play/Replay button appears, is keyboard accessible, and triggers animation
+ *   - showPlayButton and autoPlay props
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import DrivingStylePhysicsExplainer from '../DrivingStylePhysicsExplainer';
 
 // Mock matchMedia (not available in jsdom)
@@ -210,14 +212,14 @@ describe('DrivingStylePhysicsExplainer — systemFocus', () => {
 // ─── animate prop ─────────────────────────────────────────────────────────────
 
 describe('DrivingStylePhysicsExplainer — animate prop', () => {
-  it('adds dspe--animated class by default (animate=true)', () => {
+  it('does NOT add dspe--animated class by default (static initial render)', () => {
     const { container } = render(<DrivingStylePhysicsExplainer />);
-    expect(container.querySelector('.dspe--animated')).toBeTruthy();
+    expect(container.querySelector('.dspe--animated')).toBeNull();
   });
 
-  it('adds dspe--animated class when animate={true} is explicit', () => {
+  it('does NOT add dspe--animated class when animate={true} on initial render (no autoPlay)', () => {
     const { container } = render(<DrivingStylePhysicsExplainer animate={true} />);
-    expect(container.querySelector('.dspe--animated')).toBeTruthy();
+    expect(container.querySelector('.dspe--animated')).toBeNull();
   });
 
   it('omits dspe--animated class when animate={false}', () => {
@@ -256,6 +258,90 @@ describe('DrivingStylePhysicsExplainer — animate prop', () => {
 
   it('compact mode still renders without error when animate=true', () => {
     expect(() => render(<DrivingStylePhysicsExplainer compact animate={true} />)).not.toThrow();
+  });
+});
+
+// ─── Play / Replay button ─────────────────────────────────────────────────────
+
+describe('DrivingStylePhysicsExplainer — play/replay button', () => {
+  it('renders a play button by default', () => {
+    render(<DrivingStylePhysicsExplainer />);
+    expect(screen.getByRole('button', { name: /play heating system explainer/i })).toBeTruthy();
+  });
+
+  it('play button label is "▶\u00a0Play explainer" before first play', () => {
+    render(<DrivingStylePhysicsExplainer />);
+    const btn = screen.getByRole('button', { name: /play heating system explainer/i });
+    expect(btn.textContent).toContain('Play explainer');
+  });
+
+  it('adds dspe--animated class after clicking Play', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer />);
+    const btn = screen.getByRole('button', { name: /play heating system explainer/i });
+    act(() => { fireEvent.click(btn); });
+    expect(container.querySelector('.dspe--animated')).toBeTruthy();
+  });
+
+  it('button label changes to "↻\u00a0Replay" after first click', () => {
+    render(<DrivingStylePhysicsExplainer />);
+    const btn = screen.getByRole('button', { name: /play heating system explainer/i });
+    act(() => { fireEvent.click(btn); });
+    const replayBtn = screen.getByRole('button', { name: /replay heating system explainer/i });
+    expect(replayBtn.textContent).toContain('Replay');
+  });
+
+  it('does not render play button when showPlayButton={false}', () => {
+    render(<DrivingStylePhysicsExplainer showPlayButton={false} />);
+    expect(screen.queryByRole('button', { name: /play heating system explainer/i })).toBeNull();
+  });
+
+  it('does not render play button when animate={false}', () => {
+    render(<DrivingStylePhysicsExplainer animate={false} />);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('does not render play button in compact mode', () => {
+    render(<DrivingStylePhysicsExplainer compact />);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('play button has correct aria-label before first play', () => {
+    render(<DrivingStylePhysicsExplainer />);
+    const btn = screen.getByRole('button');
+    expect(btn.getAttribute('aria-label')).toBe('Play heating system explainer');
+  });
+
+  it('play button aria-label changes to Replay after first play', () => {
+    render(<DrivingStylePhysicsExplainer />);
+    const btn = screen.getByRole('button');
+    act(() => { fireEvent.click(btn); });
+    const replayBtn = screen.getByRole('button');
+    expect(replayBtn.getAttribute('aria-label')).toBe('Replay heating system explainer');
+  });
+});
+
+// ─── autoPlay prop ────────────────────────────────────────────────────────────
+
+describe('DrivingStylePhysicsExplainer — autoPlay prop', () => {
+  it('adds dspe--animated class on mount when autoPlay={true}', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer autoPlay={true} />);
+    expect(container.querySelector('.dspe--animated')).toBeTruthy();
+  });
+
+  it('button label is "↻\u00a0Replay" on mount when autoPlay={true} (already played)', () => {
+    render(<DrivingStylePhysicsExplainer autoPlay={true} />);
+    const btn = screen.getByRole('button', { name: /replay heating system explainer/i });
+    expect(btn.textContent).toContain('Replay');
+  });
+
+  it('does not add dspe--animated class on mount when autoPlay={false} (default)', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer autoPlay={false} />);
+    expect(container.querySelector('.dspe--animated')).toBeNull();
+  });
+
+  it('autoPlay has no effect when animate={false}', () => {
+    const { container } = render(<DrivingStylePhysicsExplainer autoPlay={true} animate={false} />);
+    expect(container.querySelector('.dspe--animated')).toBeNull();
   });
 });
 
