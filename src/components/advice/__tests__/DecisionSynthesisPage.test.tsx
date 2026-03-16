@@ -339,3 +339,63 @@ describe('DecisionSynthesisPage — Physics Story Mode button', () => {
     expect(screen.queryByRole('region', { name: /physics story mode/i })).toBeNull();
   });
 });
+
+// ─── DHW educational explainers ───────────────────────────────────────────────
+
+describe('DecisionSynthesisPage — DHW educational explainers', () => {
+  const withExplainers = (...ids: string[]): EngineOutputV1 => ({
+    ...DEMO_OUTPUT,
+    explainers: ids.map(id => ({ id, title: `${id} title`, body: `${id} body` })),
+  });
+
+  it('does not show DHW explainers section when no stored-DHW explainers are present', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(document.querySelector('[data-testid="dhw-explainers-section"]')).toBeNull();
+  });
+
+  it('shows the DHW explainers section when stored-mixergy-suggested is present', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-mixergy-suggested')} />);
+    expect(document.querySelector('[data-testid="dhw-explainers-section"]')).not.toBeNull();
+  });
+
+  it('shows the DHW explainers section when stored-cylinder-condition is present', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-cylinder-condition')} />);
+    expect(document.querySelector('[data-testid="dhw-explainers-section"]')).not.toBeNull();
+  });
+
+  it('always shows on-demand vs stored explainer when the DHW section is visible', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-mixergy-suggested')} />);
+    expect(document.querySelector('[data-testid="advice-explainer-on-demand-vs-stored"]')).not.toBeNull();
+  });
+
+  it('shows standard vs Mixergy explainer when stored-mixergy-suggested is present', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-mixergy-suggested')} />);
+    expect(document.querySelector('[data-testid="advice-explainer-standard-vs-mixergy"]')).not.toBeNull();
+  });
+
+  it('does not show standard vs Mixergy explainer when only cylinder-condition is present', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-cylinder-condition')} />);
+    expect(document.querySelector('[data-testid="advice-explainer-standard-vs-mixergy"]')).toBeNull();
+  });
+
+  it('shows cylinder age/condition explainer when stored-cylinder-condition is present', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-cylinder-condition')} />);
+    expect(document.querySelector('[data-testid="advice-explainer-cylinder-age-condition"]')).not.toBeNull();
+  });
+
+  it('does not show cylinder age/condition explainer when only mixergy-suggested is present', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-mixergy-suggested')} />);
+    expect(document.querySelector('[data-testid="advice-explainer-cylinder-age-condition"]')).toBeNull();
+  });
+
+  it('shows both stored-DHW-specific explainers when both engine explainers are present', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-mixergy-suggested', 'stored-cylinder-condition')} />);
+    expect(document.querySelector('[data-testid="advice-explainer-standard-vs-mixergy"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="advice-explainer-cylinder-age-condition"]')).not.toBeNull();
+  });
+
+  it('renders "Hot water context" heading when section is visible', () => {
+    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-mixergy-suggested')} />);
+    expect(screen.getByText(/hot water context/i)).toBeTruthy();
+  });
+});
