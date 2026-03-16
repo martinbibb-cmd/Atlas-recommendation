@@ -41,11 +41,17 @@ import './DrivingStylePhysicsExplainer.css';
 
 // ─── Vehicle icons ────────────────────────────────────────────────────────────
 
+/**
+ * Vehicle glyphs used in path-track tokens.
+ * All are car-type emoji that face LEFT in standard renderers.
+ * A CSS inner wrapper (.dspe__vehicle-glyph) applies scaleX(-1) so every
+ * token visually faces RIGHT — the direction of travel.
+ */
 const VEHICLE_ICON: Record<DrivetrainId, string> = {
   combi:    '🏎️',
   system:   '🚗',
   mixergy:  '🚙',
-  heatpump: '⚡',
+  heatpump: '🚗',
 };
 
 // ─── Fixed semantic energy bar widths ────────────────────────────────────────
@@ -137,7 +143,8 @@ function PathTrack({ id, variant, hasWarning }: PathTrackProps) {
         className={tokenClass}
         style={{ left: `calc(${tokenPct}% - 1.1rem)` }}
       >
-        {VEHICLE_ICON[id]}
+        {/* Inner wrapper applies scaleX(-1) so left-facing emoji face right */}
+        <span className="dspe__vehicle-glyph">{VEHICLE_ICON[id]}</span>
       </span>
     </div>
   );
@@ -188,9 +195,10 @@ function Row({ row, dimmed, compact }: RowProps) {
 
       {/* Static energy bar */}
       <div className="dspe__energy-bar">
+        <span className="dspe__energy-label">{row.fuelLabel}</span>
         <div
           className="dspe__energy-track"
-          aria-label={`Energy use: ${row.powerBadge}`}
+          aria-label={`${row.fuelLabel}: ${energyBarPct}%`}
         >
           <div
             className={`dspe__energy-fill dspe__energy-fill--${row.id}`}
@@ -344,6 +352,9 @@ export default function DrivingStylePhysicsExplainer({
         </p>
         <p className="dspe__support-text">
           Heat pumps use less energy overall, but recover more slowly.
+        </p>
+        <p className="dspe__support-text dspe__support-text--note">
+          Energy used is not the same as running cost. Electricity usually costs more per kWh than gas.
         </p>
       </div>
     </section>

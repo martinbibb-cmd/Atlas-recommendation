@@ -79,6 +79,8 @@ export interface DrivingStyleRow {
   warningChip?: string;
   /** One-line caption explaining this system's behaviour. */
   caption: string;
+  /** Visible fuel/energy label shown alongside the energy bar (e.g. "Gas used", "Electric used"). */
+  fuelLabel: string;
 }
 
 // ─── Explainer props ──────────────────────────────────────────────────────────
