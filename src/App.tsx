@@ -17,6 +17,8 @@ import AtlasTour from './components/tour/AtlasTour';
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
 import AtlasExplorerPage from './components/explorer/AtlasExplorerPage';
 import VisitPage from './components/visit/VisitPage';
+import RecentVisitsList from './components/visit/RecentVisitsList';
+import ReportPage from './components/reportpage/ReportPage';
 import { resetAtlasTourSeen } from './lib/tourStorage';
 import { createVisit } from './lib/visits/visitApi';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
@@ -69,10 +71,17 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   preferCombi: true,
 };
 
-type Journey = 'landing' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'explorer';
+type Journey = 'landing' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'explorer' | 'report';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
+
+/** Detect /report/:id path — renders a saved report by ID. */
+const REPORT_PATH_MATCH =
+  typeof window !== 'undefined'
+    ? window.location.pathname.match(/^\/report\/([^/]+)$/)
+    : null;
+const INITIAL_REPORT_ID = REPORT_PATH_MATCH ? REPORT_PATH_MATCH[1] : null;
 
 /** Detect ?explorer=1 — allows access to the System Explorer via hidden route. */
 const EXPLORER_ENABLED =
@@ -80,7 +89,13 @@ const EXPLORER_ENABLED =
   new URLSearchParams(window.location.search).get('explorer') === '1';
 
 export default function App() {
-  const [journey, setJourney] = useState<Journey>(FLOOR_PLAN_TOOL_MODE ? 'floor-plan' : 'landing');
+  const [journey, setJourney] = useState<Journey>(
+    FLOOR_PLAN_TOOL_MODE ? 'floor-plan'
+    : INITIAL_REPORT_ID != null ? 'report'
+    : 'landing'
+  );
+  /** Active report ID for the /report/:id route. */
+  const [activeReportId, setActiveReportId] = useState<string | null>(INITIAL_REPORT_ID);
   const [fullSurveyPrefill, setFullSurveyPrefill] = useState<Partial<EngineInputV2_3> | undefined>();
   /** Controls replay of the landing tour without a full page reload. */
   const [replayLandingTour, setReplayLandingTour] = useState(false);
@@ -129,6 +144,12 @@ export default function App() {
     setJourney('visit');
   }
 
+  /** Open an existing visit by ID — routes to the visit survey shell. */
+  function handleOpenVisit(visitId: string) {
+    setActiveVisitId(visitId);
+    setJourney('visit');
+  }
+
   /**
    * Open the Simulator Dashboard, optionally with a partial engine input already
    * known from Fast Choice.  If simulation-critical fields are missing, route
@@ -172,6 +193,16 @@ export default function App() {
 
   return (
     <>
+      {/* /report/:id — render a saved report by ID */}
+      {journey === 'report' && activeReportId != null && (
+        <ReportPage
+          reportId={activeReportId}
+          onBack={() => {
+            setActiveReportId(null);
+            setJourney('landing');
+          }}
+        />
+      )}
       {journey === 'fast' && <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} onOpenLab={handleOpenLab} />}
       {journey === 'visit' && activeVisitId != null && (
         <VisitPage
@@ -293,6 +324,9 @@ export default function App() {
               {startingVisit ? 'Creating visit…' : '＋ Start new visit'}
             </button>
           </div>
+
+          {/* Recent visits — open an existing visit */}
+          <RecentVisitsList onOpenVisit={handleOpenVisit} />
 
           <div className="journey-cards">
             <div

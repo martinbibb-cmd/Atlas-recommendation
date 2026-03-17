@@ -1,0 +1,76 @@
+/*
+ * ReportPage — styles for the shared report view.
+ */
+
+/* ── Loading / error states ──────────────────────────────────────────────── */
+
+.report-page__loading,
+.report-page__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 60vh;
+  font-size: 1rem;
+  color: #4a5568;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* ── Report wrapper ──────────────────────────────────────────────────────── */
+
+.report-page {
+  min-height: 100vh;
+  background: #f7fafc;
+}
+
+/* ── Banner ──────────────────────────────────────────────────────────────── */
+
+.report-page__banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 1.25rem;
+  background: #2c5282;
+  color: #fff;
+  font-size: 0.82rem;
+  min-height: 44px;
+}
+
+.report-page__banner-label {
+  font-weight: 700;
+  margin-right: 0.25rem;
+}
+
+.report-page__banner-postcode {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 0.1rem 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.report-page__banner-date {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.report-page__home-btn {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 36px;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.report-page__home-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}

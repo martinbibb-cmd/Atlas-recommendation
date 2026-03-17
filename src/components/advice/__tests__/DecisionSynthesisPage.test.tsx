@@ -554,3 +554,19 @@ describe('DecisionSynthesisPage — heating controls explainers', () => {
     expect(screen.getByText(/heating controls context/i)).toBeTruthy();
   });
 });
+
+// ─── Save report + share panel ────────────────────────────────────────────────
+
+describe('DecisionSynthesisPage — save button', () => {
+  // The Save Report button is only shown in compare mode (when compareAdvice is available).
+  // In legacy mode (no compareSeed), only the "Show me why" button is shown.
+  it('does not render the Save Report button in legacy mode (no compareSeed)', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(screen.queryByRole('button', { name: /save atlas report/i })).toBeNull();
+  });
+
+  it('does not show the share panel before saving', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(document.querySelector('[data-testid="share-panel"]')).toBeNull();
+  });
+});

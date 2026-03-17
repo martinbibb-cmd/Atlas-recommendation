@@ -1,0 +1,78 @@
+/**
+ * reportApi.ts
+ *
+ * Thin API client for Atlas report endpoints.
+ * All functions return the parsed JSON response or throw on network errors.
+ */
+
+import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
+import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
+
+export interface ReportMeta {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  status: string;
+  title: string | null;
+  customer_name: string | null;
+  postcode: string | null;
+}
+
+/** The canonical payload shape stored in a report row. */
+export interface ReportPayload {
+  surveyData: FullSurveyModelV1;
+  engineInput: EngineInputV2_3;
+  engineOutput: EngineOutputV1;
+  decisionSynthesis: unknown;
+}
+
+export interface ReportDetail extends ReportMeta {
+  payload: ReportPayload;
+}
+
+/**
+ * Extracts a user-friendly error message from a failed API response.
+ */
+async function extractApiError(res: Response, fallback: string): Promise<string> {
+  const body = await res.json().catch(() => null) as { error?: string } | null;
+  return body?.error ?? fallback;
+}
+
+/**
+ * GET /api/reports/:id
+ *
+ * Fetches a single persisted report including its payload.
+ */
+export async function getReport(id: string): Promise<ReportDetail> {
+  const res = await fetch(`/api/reports/${encodeURIComponent(id)}`);
+  if (res.status === 404) {
+    throw new Error('Report not found');
+  }
+  if (!res.ok) {
+    throw new Error(await extractApiError(res, 'Failed to load report'));
+  }
+  const data = await res.json() as { ok: true; report: ReportDetail };
+  return data.report;
+}
+
+/**
+ * POST /api/reports
+ *
+ * Persists a new report snapshot and returns its ID.
+ */
+export async function saveReport(opts: {
+  postcode?: string | null;
+  visit_id?: string | null;
+  payload: ReportPayload;
+}): Promise<{ ok: true; id: string }> {
+  const res = await fetch('/api/reports', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(opts),
+  });
+  if (!res.ok) {
+    throw new Error(await extractApiError(res, 'Failed to save report'));
+  }
+  return res.json() as Promise<{ ok: true; id: string }>;
+}

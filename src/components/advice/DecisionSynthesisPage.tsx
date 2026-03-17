@@ -25,7 +25,8 @@
  *  - Never Math.random() — all outputs are deterministic.
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import QRCode from 'qrcode';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
@@ -419,6 +420,18 @@ export default function DecisionSynthesisPage({
   const [showStory, setShowStory] = useState(false);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [copyConfirm, setCopyConfirm] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Generate QR code data URL whenever a report ID is saved.
+  useEffect(() => {
+    if (savedReportId == null) return;
+    const reportUrl = `${window.location.origin}/report/${savedReportId}`;
+    QRCode.toDataURL(reportUrl, { width: 160, margin: 2 })
+      .then(setQrDataUrl)
+      .catch(() => { /* QR generation is optional — silently ignore */ });
+  }, [savedReportId]);
 
   // Adapt floor-plan outputs into Atlas inputs when provided.
   const floorplanInputs = floorplanOutput != null
@@ -599,16 +612,15 @@ export default function DecisionSynthesisPage({
             🖨 Print Recommendation
           </button>
         )}
-        {/* Save Report — temporary scaffolding button; removable once full save UX is built */}
-        {compareAdvice != null && (
+        {/* Save Report */}
+        {compareAdvice != null && saveState !== 'saved' && (
           <button
             className="advice-page__save-btn"
             onClick={handleSaveReport}
             aria-label="Save Atlas report"
-            disabled={saveState === 'saving' || saveState === 'saved'}
+            disabled={saveState === 'saving'}
           >
             {saveState === 'saving' && '⏳ Saving…'}
-            {saveState === 'saved' && `✅ Saved — ID: ${savedReportId}`}
             {saveState === 'error' && '❌ Save failed — retry?'}
             {saveState === 'idle' && '💾 Save Report'}
           </button>
@@ -629,6 +641,62 @@ export default function DecisionSynthesisPage({
           </p>
         </div>
       </div>
+
+      {/* ── Share panel — shown after successful report save ──────────────── */}
+      {saveState === 'saved' && savedReportId != null && (
+        <div
+          className="advice-share-panel"
+          role="region"
+          aria-label="Share this report"
+          data-testid="share-panel"
+        >
+          <div className="advice-share-panel__inner">
+            <div className="advice-share-panel__left">
+              <span className="advice-share-panel__label">✅ Report saved</span>
+              <span className="advice-share-panel__id" aria-label="Report ID">
+                ID: {savedReportId}
+              </span>
+              <div className="advice-share-panel__actions">
+                <button
+                  className="advice-share-panel__copy-btn"
+                  onClick={() => {
+                    const url = `${window.location.origin}/report/${savedReportId}`;
+                    navigator.clipboard.writeText(url).then(() => {
+                      setCopyConfirm(true);
+                      if (copyTimer.current !== null) clearTimeout(copyTimer.current);
+                      copyTimer.current = setTimeout(() => setCopyConfirm(false), 2500);
+                    }).catch(() => { /* clipboard unavailable */ });
+                  }}
+                  aria-label="Copy share link"
+                >
+                  {copyConfirm ? '✓ Copied!' : '🔗 Copy link'}
+                </button>
+                <a
+                  className="advice-share-panel__open-btn"
+                  href={`/report/${savedReportId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open saved report in new tab"
+                >
+                  Open report ↗
+                </a>
+              </div>
+            </div>
+            {qrDataUrl != null && (
+              <div className="advice-share-panel__qr">
+                <img
+                  src={qrDataUrl}
+                  alt={`QR code for report ${savedReportId}`}
+                  className="advice-share-panel__qr-img"
+                  width={120}
+                  height={120}
+                />
+                <span className="advice-share-panel__qr-caption">Scan to open</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Floor-plan provenance banners ───────────────────────────────────── */}
       {compareAdvice?.floorplanInsights != null && (
