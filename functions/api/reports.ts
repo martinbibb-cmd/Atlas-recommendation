@@ -1,3 +1,5 @@
+import { isMissingTableError, SCHEMA_DRIFT_RESPONSE } from "./_utils/errors.js";
+
 /**
  * POST /api/reports
  *
@@ -22,7 +24,7 @@
  *
  * The ATLAS_REPORTS_D1 binding is wired in wrangler.jsonc and must be configured
  * in the Cloudflare Pages dashboard before deploying to production.
- * Apply the schema with: wrangler d1 migrations apply atlas-db
+ * Apply the schema with: npm run db:migrate:remote
  */
 
 interface ReportRow {
@@ -86,6 +88,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     return Response.json({ ok: true, id }, { status: 201 });
   } catch (err) {
+    if (isMissingTableError(err)) {
+      return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
+    }
     return Response.json(
       { ok: false, error: String(err) },
       { status: 500 }

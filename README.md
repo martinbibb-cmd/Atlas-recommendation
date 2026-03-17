@@ -79,10 +79,12 @@ This project is deployed to **Cloudflare Pages** (not GitHub Pages).
 After the project is deployed, apply the database schema:
 
 ```bash
-npx wrangler d1 migrations apply atlasreportsd1 --remote
+npm run db:migrate:remote
+# or directly:
+npx wrangler d1 migrations apply ATLAS_REPORTS_D1 --remote
 ```
 
-#### 6. Verify bindings
+#### 6. Verify bindings and schema
 
 Once deployed, hit these endpoints to confirm everything is wired up:
 
@@ -91,21 +93,68 @@ Once deployed, hit these endpoints to confirm everything is wired up:
 | `/api/bindings-check` | Both bindings present + a lightweight ping of each |
 | `/api/d1-smoke` | D1: `SELECT 1` query |
 | `/api/kv-smoke` | KV: write + read-back a test key |
+| `/api/health/runtime` | Whether D1 and KV bindings are present |
+| `/api/health/schema` | Whether all required tables exist in D1 |
 
-All three should return `{ "ok": true, ... }` (or `{ "status": "ok", ... }`) after a successful deploy with bindings configured.
+All three smoke endpoints should return `{ "ok": true, ... }` (or `{ "status": "ok", ... }`) after a successful deploy with bindings configured.
 
-**Example successful response from `/api/bindings-check`:**
+**`/api/health/schema` expected response when migrations are applied:**
 ```json
 {
   "ok": true,
-  "bindings": {
-    "ATLAS_REPORTS_D1": { "present": true, "ping": "ok" },
-    "ATLAS_CACHE_KV":   { "present": true, "ping": "ok" }
-  }
+  "requiredTables": ["reports", "visits"],
+  "missingTables": []
+}
+```
+
+**`/api/health/schema` response when migrations are _not_ applied:**
+```json
+{
+  "ok": false,
+  "requiredTables": ["reports", "visits"],
+  "missingTables": ["visits"]
 }
 ```
 
 **If a binding shows `"present": false`**, follow steps 2–4 above again and ensure you redeployed.
+
+---
+
+## Deploying schema changes
+
+Follow this checklist whenever a new migration file is added to `migrations/`:
+
+1. Merge (or push) the code change.
+2. Run remote D1 migrations:
+   ```bash
+   npm run db:migrate:remote
+   ```
+3. Check `/api/health/schema` — confirm `"ok": true` and `"missingTables": []`.
+4. Only then test the new feature end-to-end.
+
+**Migration scripts (from `package.json`):**
+
+| Script | What it does |
+|---|---|
+| `npm run db:migrate:local` | Apply pending migrations to the local D1 SQLite file |
+| `npm run db:migrate:remote` | Apply pending migrations to the remote Cloudflare D1 database |
+| `npm run db:list` | List all migrations and their applied status |
+
+> **Rule:** migrations under `migrations/` are the single source of truth for the schema.
+> Never make ad-hoc schema changes in application code or directly in the Cloudflare dashboard.
+
+---
+
+### Data model
+
+| Concept | Table | Notes |
+|---|---|---|
+| Visit / case record | `visits` | Top-level record created when a survey starts |
+| Report | `reports` | Child output generated from a completed visit |
+
+A _visit_ is the case record; a _report_ is a generated child output of that visit.
+
+---
 
 ---
 

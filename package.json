@@ -10,7 +10,10 @@
     "preview": "wrangler pages dev dist",
     "test": "vitest run",
     "test:watch": "vitest",
-    "deploy": "npm run build && wrangler pages deploy dist"
+    "deploy": "npm run build && wrangler pages deploy dist",
+    "db:migrate:local": "wrangler d1 migrations apply ATLAS_REPORTS_D1 --local",
+    "db:migrate:remote": "wrangler d1 migrations apply ATLAS_REPORTS_D1 --remote",
+    "db:list": "wrangler d1 migrations list ATLAS_REPORTS_D1"
   },
   "dependencies": {
     "konva": "^10.2.0",

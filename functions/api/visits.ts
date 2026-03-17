@@ -1,3 +1,5 @@
+import { isMissingTableError, SCHEMA_DRIFT_RESPONSE } from "./_utils/errors.js";
+
 /**
  * POST /api/visits
  *
@@ -96,6 +98,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     return Response.json({ ok: true, id }, { status: 201 });
   } catch (err) {
+    if (isMissingTableError(err)) {
+      return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
+    }
     return Response.json(
       { ok: false, error: String(err) },
       { status: 500 }
@@ -116,6 +121,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     return Response.json({ ok: true, visits: result.results ?? [] });
   } catch (err) {
+    if (isMissingTableError(err)) {
+      return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
+    }
     return Response.json(
       { ok: false, error: String(err) },
       { status: 500 }

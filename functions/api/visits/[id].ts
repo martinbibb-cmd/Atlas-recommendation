@@ -1,3 +1,5 @@
+import { isMissingTableError, SCHEMA_DRIFT_RESPONSE } from "../_utils/errors.js";
+
 /**
  * GET /api/visits/:id
  *
@@ -85,6 +87,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       visit: { ...meta, working_payload },
     });
   } catch (err) {
+    if (isMissingTableError(err)) {
+      return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
+    }
     return Response.json(
       { ok: false, error: String(err) },
       { status: 500 }
@@ -97,11 +102,22 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
   const id = params["id"] as string;
 
   // Verify the visit exists before updating
-  const existing = await env.ATLAS_REPORTS_D1.prepare(
-    "SELECT id FROM visits WHERE id = ?"
-  )
-    .bind(id)
-    .first<{ id: string }>();
+  let existing: { id: string } | null;
+  try {
+    existing = await env.ATLAS_REPORTS_D1.prepare(
+      "SELECT id FROM visits WHERE id = ?"
+    )
+      .bind(id)
+      .first<{ id: string }>();
+  } catch (err) {
+    if (isMissingTableError(err)) {
+      return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
+    }
+    return Response.json(
+      { ok: false, error: String(err) },
+      { status: 500 }
+    );
+  }
 
   if (existing == null) {
     return Response.json(
@@ -167,6 +183,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
     return Response.json({ ok: true, id });
   } catch (err) {
+    if (isMissingTableError(err)) {
+      return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
+    }
     return Response.json(
       { ok: false, error: String(err) },
       { status: 500 }
