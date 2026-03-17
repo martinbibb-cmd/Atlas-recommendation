@@ -201,6 +201,9 @@ export default function App() {
             setActiveReportId(null);
             setJourney('landing');
           }}
+          onDuplicated={(newId) => {
+            setActiveReportId(newId);
+          }}
         />
       )}
       {journey === 'fast' && <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} onOpenLab={handleOpenLab} />}

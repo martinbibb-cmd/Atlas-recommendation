@@ -1,7 +1,7 @@
 /*
  * VisitPage — visit shell styles.
  *
- * Provides the save-state indicator chip shown in the visit header.
+ * Provides the save-state indicator chip and visit case summary header.
  */
 
 /* ── Visit shell wrapper ─────────────────────────────────────────────────── */
@@ -18,19 +18,98 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 1.25rem;
+  padding: 0.5rem 1rem;
   background: #1a202c;
   color: #fff;
-  min-height: 44px;
+  min-height: 48px;
   flex-shrink: 0;
 }
 
-.visit-page__id {
+/* ── Back button ─────────────────────────────────────────────────────────── */
+
+.visit-page__back-btn {
+  background: transparent;
+  border: 1px solid #4a5568;
+  color: #a0aec0;
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  min-height: 30px;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.visit-page__back-btn:hover {
+  background: #2d3748;
+  color: #e2e8f0;
+}
+
+/* ── Case summary strip ──────────────────────────────────────────────────── */
+
+.visit-case-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.visit-case-summary__id {
   font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  color: #a0aec0;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.visit-case-summary__customer {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.visit-case-summary__date {
+  font-size: 0.75rem;
   color: #718096;
+  white-space: nowrap;
+}
+
+/* Status badge */
+.visit-case-summary__status {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.visit-case-summary__status--draft {
+  background: #2d3748;
+  color: #a0aec0;
+  border: 1px solid #4a5568;
+}
+
+.visit-case-summary__status--complete {
+  background: #276749;
+  color: #c6f6d5;
+  border: 1px solid #2f855a;
+}
+
+.visit-case-summary__status--archived {
+  background: #744210;
+  color: #feebc8;
+  border: 1px solid #975a16;
 }
 
 /* ── Save-state chip ─────────────────────────────────────────────────────── */
@@ -42,6 +121,7 @@
   border-radius: 999px;
   white-space: nowrap;
   transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
 }
 
 .visit-save-indicator--saving {
@@ -60,4 +140,14 @@
   background: #742a2a;
   color: #fed7d7;
   border: 1px solid #9b2c2c;
+}
+
+/* ── Deprecated: .visit-page__id no longer used ──────────────────────────── */
+
+.visit-page__id {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #718096;
 }

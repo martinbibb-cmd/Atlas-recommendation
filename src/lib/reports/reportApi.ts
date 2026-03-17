@@ -94,3 +94,42 @@ export async function listReportsForVisit(visitId: string): Promise<ReportMeta[]
   const data = await res.json() as { ok: true; reports: ReportMeta[] };
   return data.reports;
 }
+
+/**
+ * PATCH /api/reports/:id
+ *
+ * Updates mutable fields on an existing report.
+ * Currently supports: status, title.
+ */
+export async function updateReport(
+  id: string,
+  patch: { status?: string; title?: string },
+): Promise<{ ok: true; id: string }> {
+  const res = await fetch(`/api/reports/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  if (res.status === 404) {
+    throw new Error('Report not found');
+  }
+  if (!res.ok) {
+    throw new Error(await extractApiError(res, 'Failed to update report'));
+  }
+  return res.json() as Promise<{ ok: true; id: string }>;
+}
+
+/**
+ * POST /api/reports  (duplicate)
+ *
+ * Creates a copy of an existing report with a fresh ID and "draft" status.
+ * Fetches the source report then saves a new row.
+ */
+export async function duplicateReport(id: string): Promise<{ ok: true; id: string }> {
+  const source = await getReport(id);
+  return saveReport({
+    postcode: source.postcode,
+    visit_id: source.visit_id,
+    payload: source.payload,
+  });
+}

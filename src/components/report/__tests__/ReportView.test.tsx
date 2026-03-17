@@ -228,8 +228,9 @@ describe('ReportView — verdict section', () => {
 
   it('renders verdict reasons', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.getByText('Adequate storage capacity')).toBeTruthy();
-    expect(screen.getByText('Low simultaneous demand risk')).toBeTruthy();
+    // Reasons appear in both the decision rationale and verdict sections.
+    expect(screen.getAllByText('Adequate storage capacity').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Low simultaneous demand risk').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the verdict section heading', () => {
@@ -253,7 +254,8 @@ describe('ReportView — key limiters section', () => {
 
   it('renders limiter detail', () => {
     render(<ReportView output={FULL_OUTPUT} />);
-    expect(screen.getByText(/Dynamic pressure is below optimal/)).toBeTruthy();
+    // Limiter impact summary appears in both decision rationale constraints and key limiters section.
+    expect(screen.getAllByText(/Dynamic pressure is below optimal/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders suggested fix', () => {

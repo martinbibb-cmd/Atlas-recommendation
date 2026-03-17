@@ -45,6 +45,7 @@ import type {
 
 export type ReportSectionId =
   | 'system_summary'
+  | 'decision_rationale'
   | 'key_trade_off'
   | 'operating_point'
   | 'behaviour_summary'
@@ -64,6 +65,34 @@ export interface SystemSummarySection {
   secondary?: string;
   verdictTitle?: string;
   verdictStatus?: VerdictV1['status'];
+}
+
+/**
+ * Decision rationale — the "engineer trust" block.
+ *
+ * Answers: why this system, for this house, now?
+ *
+ * Structured as four named sub-sections derived from engine output:
+ *   - whyThisWins              — reasons the primary system is recommended
+ *   - alternativeLabel         — label for the nearest alternative (if any)
+ *   - whatLimitsAlternative    — reasons the alternative falls short
+ *   - keyPhysicalConstraints   — hard constraints from limiters / red flags
+ *   - recommendedNextAction    — most important first step from plans
+ */
+export interface DecisionRationaleSection {
+  id: 'decision_rationale';
+  /** Primary system being justified. */
+  primaryLabel: string;
+  /** One or more reasons this system wins for this property. */
+  whyThisWins: string[];
+  /** Label of the nearest alternative, if any. */
+  alternativeLabel: string | undefined;
+  /** Reasons the nearest alternative is not the top recommendation. */
+  whatLimitsAlternative: string[];
+  /** Hard physical constraints that shape or block the choice. */
+  keyPhysicalConstraints: string[];
+  /** Single highest-priority recommended next action. */
+  recommendedNextAction: string | undefined;
 }
 
 export interface OperatingPointSection {
@@ -199,6 +228,7 @@ export interface EngineeringNotesSection {
 
 export type ReportSection =
   | SystemSummarySection
+  | DecisionRationaleSection
   | KeyTradeOffSection
   | OperatingPointSection
   | BehaviourSummarySection
@@ -415,6 +445,133 @@ function pickRecommendedOption(options: OptionCardV1[]): OptionCardV1 | null {
   );
 }
 
+/**
+ * Returns the secondary option — the nearest alternative to the primary recommendation.
+ * Skips the primary option and returns the first viable/caution/any other.
+ */
+function pickSecondaryOption(
+  options: OptionCardV1[],
+  primary: OptionCardV1,
+): OptionCardV1 | null {
+  const rest = options.filter(o => o.id !== primary.id);
+  return (
+    rest.find(o => o.status === 'viable') ??
+    rest.find(o => o.status === 'caution') ??
+    rest[0] ??
+    null
+  );
+}
+
+/**
+ * Build the decision rationale section — the "engineer trust" block.
+ *
+ * Sources:
+ *   whyThisWins            → verdict.primaryReason + verdict.reasons (top 3)
+ *   whatLimitsAlternative  → secondary option's requirements / why + option score context
+ *   keyPhysicalConstraints → hard limiters (severity='error'/'fail') + high-severity red flags
+ *   recommendedNextAction  → first pathway title from plans, or first future-path enabler
+ */
+function buildDecisionRationaleSection(
+  output: EngineOutputV1,
+): DecisionRationaleSection | null {
+  const primaryLabel = output.recommendation?.primary;
+  if (!primaryLabel) return null;
+
+  // ── Why this wins ────────────────────────────────────────────────────────
+  const whyThisWins: string[] = [];
+  if (output.verdict?.primaryReason) {
+    whyThisWins.push(output.verdict.primaryReason);
+  }
+  // Add up to 3 additional verdict reasons (skip duplicates)
+  for (const r of output.verdict?.reasons ?? []) {
+    if (!whyThisWins.includes(r) && whyThisWins.length < 4) {
+      whyThisWins.push(r);
+    }
+  }
+  // Supplement from primary option's "why" text if still sparse
+  const options = output.options ?? [];
+  const primaryOption = pickRecommendedOption(options);
+  if (primaryOption?.why && whyThisWins.length === 0) {
+    whyThisWins.push(primaryOption.why);
+  }
+
+  // ── What limits the alternative ─────────────────────────────────────────
+  const alternativeLabel: string | undefined = output.recommendation?.secondary;
+  const whatLimitsAlternative: string[] = [];
+
+  const secondaryOption = primaryOption
+    ? pickSecondaryOption(options, primaryOption)
+    : null;
+
+  if (secondaryOption) {
+    // Requirements that block or limit the secondary option
+    const reqs = secondaryOption.typedRequirements?.mustHave ?? [];
+    for (const r of reqs.slice(0, 3)) {
+      whatLimitsAlternative.push(r);
+    }
+    // Option-level "why" text can state why it's not primary
+    if (secondaryOption.why && whatLimitsAlternative.length === 0) {
+      whatLimitsAlternative.push(secondaryOption.why);
+    }
+    // Score gap context
+    const altScore = secondaryOption.score?.total;
+    const primScore = primaryOption?.score?.total;
+    if (altScore != null && primScore != null && primScore > altScore) {
+      whatLimitsAlternative.push(
+        `Score gap: ${primaryLabel} scores ${primScore} vs ${secondaryOption.label} at ${altScore}.`,
+      );
+    }
+  }
+
+  // ── Key physical constraints ─────────────────────────────────────────────
+  const keyPhysicalConstraints: string[] = [];
+
+  // Hard limiters first
+  for (const l of output.limiters?.limiters ?? []) {
+    if (l.severity === 'error' || l.severity === 'fail') {
+      keyPhysicalConstraints.push(l.title + (l.impact?.summary ? ` — ${l.impact.summary}` : ''));
+    }
+  }
+  // High-severity red flags
+  for (const f of output.redFlags ?? []) {
+    if ((f.severity === 'critical' || f.severity === 'high') && keyPhysicalConstraints.length < 5) {
+      keyPhysicalConstraints.push(f.title);
+    }
+  }
+  // Warn-level limiters if nothing harder found
+  if (keyPhysicalConstraints.length === 0) {
+    for (const l of (output.limiters?.limiters ?? []).slice(0, 3)) {
+      keyPhysicalConstraints.push(l.title + (l.impact?.summary ? ` — ${l.impact.summary}` : ''));
+    }
+  }
+
+  // ── Recommended next action ──────────────────────────────────────────────
+  const firstPathway = output.plans?.pathways?.[0];
+  const recommendedNextAction: string | undefined = firstPathway
+    ? firstPathway.title + (firstPathway.rationale ? `: ${firstPathway.rationale}` : '')
+    : (primaryOption?.sensitivities?.find(s => s.effect === 'upgrade')?.note ?? undefined);
+
+  // Only include the section if there is at least some rationale content.
+  if (
+    whyThisWins.length === 0 &&
+    whatLimitsAlternative.length === 0 &&
+    keyPhysicalConstraints.length === 0 &&
+    !recommendedNextAction
+  ) {
+    return null;
+  }
+
+  return {
+    id: 'decision_rationale',
+    primaryLabel,
+    whyThisWins,
+    alternativeLabel,
+    whatLimitsAlternative,
+    keyPhysicalConstraints,
+    recommendedNextAction,
+  };
+}
+
 function buildKeyTradeOffSection(output: EngineOutputV1): KeyTradeOffSection | null {
   const options = output.options ?? [];
   const rec = pickRecommendedOption(options);
@@ -588,8 +745,8 @@ function buildEngineeringNotesSection(output: EngineOutputV1): EngineeringNotesS
  * Section ordering follows the canonical report structure:
  *
  *   Customer summary (decision-first):
- *     system_summary → key_trade_off → operating_point → behaviour_summary →
- *     key_limiters → future_path → verdict
+ *     system_summary → decision_rationale → key_trade_off → operating_point →
+ *     behaviour_summary → key_limiters → future_path → verdict
  *
  *   Technical summary (engineer-facing):
  *     system_architecture → stored_hot_water → risks_enablers → assumptions
@@ -602,6 +759,9 @@ export function buildReportSections(output: EngineOutputV1): ReportSection[] {
 
   // ── Customer summary ───────────────────────────────────────────────────────
   sections.push(buildSystemSummarySection(output));
+
+  const decisionRationaleSection = buildDecisionRationaleSection(output);
+  if (decisionRationaleSection) sections.push(decisionRationaleSection);
 
   const tradeOffSection = buildKeyTradeOffSection(output);
   if (tradeOffSection) sections.push(tradeOffSection);

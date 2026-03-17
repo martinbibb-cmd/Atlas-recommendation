@@ -390,6 +390,135 @@
   margin: 0;
 }
 
+/* ── Bullet lists and labels (shared across sections) ───────────────────── */
+
+.rv-bullet-list {
+  margin: 0.2rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.84rem;
+  color: #2d3748;
+  line-height: 1.5;
+}
+
+.rv-bullet-list--constraints li {
+  color: #742a2a;
+}
+
+.rv-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #4a5568;
+  margin: 0.7rem 0 0.2rem;
+}
+
+.rv-label--enabler { color: #276749; }
+.rv-label--risk    { color: #742a2a; }
+
+/* ── Decision rationale section ─────────────────────────────────────────── */
+
+.rv-section--rationale {
+  background: #f7f9fc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.rv-rationale-block {
+  margin-bottom: 0.75rem;
+}
+
+.rv-rationale-block:last-child {
+  margin-bottom: 0;
+}
+
+.rv-rationale-block__heading {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #2c5282;
+  margin: 0 0 0.3rem;
+}
+
+.rv-rationale-block--action {
+  background: #ebf8ff;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid #3182ce;
+}
+
+.rv-rationale-block--action .rv-rationale-block__heading {
+  color: #1a365d;
+}
+
+.rv-rationale-block__action {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1a365d;
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* ── Pathway items ───────────────────────────────────────────────────────── */
+
+.rv-pathway-item {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #f0f4f8;
+  font-size: 0.84rem;
+}
+
+.rv-pathway-item:last-child {
+  border-bottom: none;
+}
+
+.rv-pathway-item__title {
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.15rem;
+}
+
+.rv-pathway-item__rationale {
+  color: #4a5568;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+/* ── Physics trace table ─────────────────────────────────────────────────── */
+
+.rv-trace-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  color: #2d3748;
+}
+
+.rv-trace-table th,
+.rv-trace-table td {
+  border: 1px solid #e2e8f0;
+  padding: 0.25rem 0.4rem;
+  text-align: right;
+}
+
+.rv-trace-table th {
+  background: #f7fafc;
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #4a5568;
+  text-align: center;
+}
+
+.rv-trace-empty {
+  font-size: 0.82rem;
+  color: #718096;
+  font-style: italic;
+  margin: 0.4rem 0 0;
+}
+
 /* ── Page break hint ─────────────────────────────────────────────────────── */
 
 .rv-page-break-before {
@@ -415,7 +544,9 @@
 
   .rv-verdict,
   .rv-limiter__badge,
-  .rv-redflag {
+  .rv-redflag,
+  .rv-section--rationale,
+  .rv-rationale-block--action {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -423,7 +554,8 @@
   /* Avoid awkward page breaks inside key blocks */
   .rv-section,
   .rv-limiter,
-  .rv-verdict {
+  .rv-verdict,
+  .rv-rationale-block {
     break-inside: avoid;
   }
 }

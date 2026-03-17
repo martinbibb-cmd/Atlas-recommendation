@@ -9,10 +9,27 @@
 }
 
 .visit-reports__heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 1rem;
   font-weight: 700;
   color: #2d3748;
   margin-bottom: 0.75rem;
+}
+
+.visit-reports__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: #e2e8f0;
+  color: #4a5568;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 
 /* ── List ────────────────────────────────────────────────────────────────── */
@@ -34,6 +51,11 @@
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 0.75rem 1rem;
+}
+
+.visit-reports__row--latest {
+  border-color: #bee3f8;
+  background: #f0f8ff;
 }
 
 /* ── Info block ──────────────────────────────────────────────────────────── */
@@ -58,6 +80,32 @@
 .visit-reports__meta {
   font-size: 0.75rem;
   color: #718096;
+}
+
+/* ── Badges row ──────────────────────────────────────────────────────────── */
+
+.visit-reports__badges {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+/* "Latest" badge */
+.visit-reports__badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.visit-reports__badge--latest {
+  background: #ebf8ff;
+  color: #2b6cb0;
+  border: 1px solid #bee3f8;
 }
 
 /* ── Status badge ────────────────────────────────────────────────────────── */
@@ -101,6 +149,7 @@
   min-height: 36px;
   white-space: nowrap;
   transition: background 0.15s;
+  flex-shrink: 0;
 }
 
 .visit-reports__open-btn:hover {
