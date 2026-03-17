@@ -1,0 +1,7 @@
+# Copy this file to .dev.vars for local development.
+# Values here are only used by `wrangler pages dev` and are never committed.
+# D1 and KV bindings (DB, KV) are wired automatically via wrangler.jsonc —
+# no entries are needed here for those bindings.
+#
+# Add any secret environment variables below:
+# MY_SECRET=replace_me
