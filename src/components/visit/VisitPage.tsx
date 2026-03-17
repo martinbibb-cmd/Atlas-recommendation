@@ -9,6 +9,7 @@
  * - Initialise FullSurveyStepper with any previously saved working payload
  * - Autosave the working payload back to the visit whenever the survey step changes
  * - Route to the Simulator / ExplainersHub on survey completion
+ * - Show a compact save-state indicator in the visit header
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -17,6 +18,10 @@ import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import { getVisit, saveVisit } from '../../lib/visits/visitApi';
+import './VisitPage.css';
+
+/** Save state for the autosave indicator. */
+export type SaveState = 'idle' | 'saving' | 'saved' | 'failed';
 
 interface Props {
   visitId: string;
@@ -29,6 +34,29 @@ interface Props {
 /** Debounce delay for autosave (ms). */
 const AUTOSAVE_DELAY_MS = 1500;
 
+/** How long to keep the "Saved just now" status visible (ms). */
+const SAVED_RESET_DELAY_MS = 4000;
+
+// ─── Save-state indicator ────────────────────────────────────────────────────
+
+function SaveStateIndicator({ state }: { state: SaveState }) {
+  if (state === 'idle') return null;
+  const label =
+    state === 'saving' ? '⏳ Saving…'
+    : state === 'saved'  ? '✓ Saved just now'
+    : '⚠ Save failed';
+  return (
+    <div
+      className={`visit-save-indicator visit-save-indicator--${state}`}
+      role="status"
+      aria-live="polite"
+      aria-label={label}
+    >
+      {label}
+    </div>
+  );
+}
+
 export default function VisitPage({
   visitId,
   onBack,
@@ -38,7 +66,9 @@ export default function VisitPage({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [prefill, setPrefill] = useState<Partial<FullSurveyModelV1> | undefined>();
   const [ready, setReady] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>('idle');
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load existing working payload from the visit record on mount.
   useEffect(() => {
@@ -63,21 +93,29 @@ export default function VisitPage({
   }, [visitId]);
 
   /**
-   * Debounced autosave — called whenever the survey progresses.
-   * We pass this down as the onComplete callback to capture the final
-   * engine input snapshot, but we also want to capture intermediate state.
-   * For now we autosave the final engine input when the survey is completed.
+   * Debounced autosave — called when the survey completes.
+   * Shows save-state feedback to the user.
    */
   const handleComplete = useCallback(
     (engineInput: EngineInputV2_3) => {
       if (saveTimer.current !== null) clearTimeout(saveTimer.current);
+      if (savedResetTimer.current !== null) clearTimeout(savedResetTimer.current);
+
+      setSaveState('saving');
       saveTimer.current = setTimeout(() => {
         saveVisit(visitId, {
           working_payload: engineInput as unknown as Record<string, unknown>,
           current_step: 'complete',
-        }).catch(() => {
-          // Autosave failures are silent — the user can still proceed.
-        });
+        })
+          .then(() => {
+            setSaveState('saved');
+            savedResetTimer.current = setTimeout(() => {
+              setSaveState('idle');
+            }, SAVED_RESET_DELAY_MS);
+          })
+          .catch(() => {
+            setSaveState('failed');
+          });
       }, AUTOSAVE_DELAY_MS);
       onComplete(engineInput);
     },
@@ -104,11 +142,19 @@ export default function VisitPage({
   }
 
   return (
-    <FullSurveyStepper
-      onBack={onBack}
-      prefill={prefill}
-      onComplete={handleComplete}
-      onOpenFloorPlan={onOpenFloorPlan}
-    />
+    <div className="visit-page">
+      <div className="visit-page__header">
+        <span className="visit-page__id" aria-label={`Visit ${visitId}`}>
+          Visit
+        </span>
+        <SaveStateIndicator state={saveState} />
+      </div>
+      <FullSurveyStepper
+        onBack={onBack}
+        prefill={prefill}
+        onComplete={handleComplete}
+        onOpenFloorPlan={onOpenFloorPlan}
+      />
+    </div>
   );
 }

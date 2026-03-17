@@ -1,0 +1,63 @@
+/*
+ * VisitPage — visit shell styles.
+ *
+ * Provides the save-state indicator chip shown in the visit header.
+ */
+
+/* ── Visit shell wrapper ─────────────────────────────────────────────────── */
+
+.visit-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ── Visit header bar ────────────────────────────────────────────────────── */
+
+.visit-page__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  background: #1a202c;
+  color: #fff;
+  min-height: 44px;
+  flex-shrink: 0;
+}
+
+.visit-page__id {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #718096;
+}
+
+/* ── Save-state chip ─────────────────────────────────────────────────────── */
+
+.visit-save-indicator {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+}
+
+.visit-save-indicator--saving {
+  background: #2d3748;
+  color: #a0aec0;
+  border: 1px solid #4a5568;
+}
+
+.visit-save-indicator--saved {
+  background: #276749;
+  color: #c6f6d5;
+  border: 1px solid #2f855a;
+}
+
+.visit-save-indicator--failed {
+  background: #742a2a;
+  color: #fed7d7;
+  border: 1px solid #9b2c2c;
+}
