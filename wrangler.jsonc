@@ -17,21 +17,12 @@
   //   Variable name : ATLAS_REPORTS_D1
   //   Database      : atlasreportsd1
   //
-  // IMPORTANT: replace `database_id` below with the full UUID shown in:
-  //   Cloudflare dashboard → D1 → atlasreportsd1 → Settings
-  // or run: wrangler d1 list
-  //
-  // Known prefix: 235a3541-73d4-4090-b3…  (retrieve the full ID from the dashboard)
   // After updating the ID, redeploy the Pages project for the binding to take effect.
   "d1_databases": [
     {
       "binding": "ATLAS_REPORTS_D1",
       "database_name": "atlasreportsd1",
-      // ⚠️  DEPLOYMENT BLOCKER — replace this placeholder with the full D1 UUID.
-      // Retrieve it from: Cloudflare dashboard → D1 → atlasreportsd1 → Settings
-      // or run:  wrangler d1 list
-      // Known prefix: 235a3541-73d4-4090-b3…  (the full UUID is required)
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "235a3541-73d4-4090-b36a-17cb3949aa1d",
       "migrations_dir": "migrations"
     }
   ],
