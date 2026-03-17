@@ -1,32 +1,52 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // Project name must match the Cloudflare Pages project name exactly.
   "name": "atlas",
   "compatibility_date": "2025-09-27",
-  // Output directory produced by `vite build` — used by `wrangler versions upload`
-  "assets": {
-    "directory": "./dist"
-  },
   "compatibility_flags": [
     "nodejs_compat"
   ],
-  // D1 database binding — replace `database_id` with the real UUID from:
-  //   wrangler d1 create atlas-db
-  // For local dev with `wrangler pages dev`: a local SQLite file is used automatically.
-  // Apply migrations with: wrangler d1 migrations apply atlas-db
+  // Output directory produced by `vite build`.
+  // This tells Cloudflare Pages where to serve static assets from.
+  // Must match the `build.outDir` in vite.config.ts (default: "dist").
+  "pages_build_output_dir": "./dist",
+
+  // ─── D1 database binding ────────────────────────────────────────────────────
+  // Binding name used in Functions: context.env.ATLAS_REPORTS_D1
+  // Dashboard: Workers & Pages → your project → Settings → Bindings → D1
+  //   Variable name : ATLAS_REPORTS_D1
+  //   Database      : atlasreportsd1
+  //
+  // IMPORTANT: replace `database_id` below with the full UUID shown in:
+  //   Cloudflare dashboard → D1 → atlasreportsd1 → Settings
+  // or run: wrangler d1 list
+  //
+  // Known prefix: 235a3541-73d4-4090-b3…  (retrieve the full ID from the dashboard)
+  // After updating the ID, redeploy the Pages project for the binding to take effect.
   "d1_databases": [
     {
       "binding": "ATLAS_REPORTS_D1",
-      "database_name": "atlas-db",
+      "database_name": "atlasreportsd1",
+      // ⚠️  DEPLOYMENT BLOCKER — replace this placeholder with the full D1 UUID.
+      // Retrieve it from: Cloudflare dashboard → D1 → atlasreportsd1 → Settings
+      // or run:  wrangler d1 list
+      // Known prefix: 235a3541-73d4-4090-b3…  (the full UUID is required)
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
     }
   ],
-  // KV namespace binding — replace `id` with the real ID from:
-  //   wrangler kv:namespace create ATLAS_CACHE_KV
+
+  // ─── KV namespace binding ────────────────────────────────────────────────────
+  // Binding name used in Functions: context.env.ATLAS_CACHE_KV
+  // Dashboard: Workers & Pages → your project → Settings → Bindings → KV Namespace
+  //   Variable name : ATLAS_CACHE_KV
+  //   Namespace     : Atlas-kv
+  //
+  // After adding the binding in the dashboard, redeploy for it to take effect.
   "kv_namespaces": [
     {
       "binding": "ATLAS_CACHE_KV",
-      "id": "00000000000000000000000000000000"
+      "id": "84aa1f5c442c4286b1589595c5635d8d"
     }
   ]
 }
