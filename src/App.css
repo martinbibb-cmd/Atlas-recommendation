@@ -239,6 +239,42 @@ body {
 
 .cta-btn--hub:hover { background: #2c5282; }
 
+/* Visit primary CTA row */
+.visit-cta-row {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0 0;
+}
+
+.cta-btn--visit {
+  width: auto;
+  min-width: 240px;
+  padding: 0.9rem 2.5rem;
+  font-size: 1.15rem;
+  background: #2f855a;
+  color: white;
+  border-radius: 10px;
+}
+
+.cta-btn--visit:hover:not(:disabled) { background: #276749; }
+
+.cta-btn--visit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Visit page loading / error states */
+.visit-page__loading,
+.visit-page__error {
+  max-width: 600px;
+  margin: 4rem auto;
+  padding: 2rem;
+  text-align: center;
+  color: #4a5568;
+}
+
+.visit-page__error p { margin-bottom: 1.5rem; }
+
 /* Stepper shared styles */
 .stepper-container {
   max-width: 800px;
