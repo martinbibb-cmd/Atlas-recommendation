@@ -217,6 +217,10 @@ export default function App() {
             setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
             setJourney('floor-plan');
           }}
+          onOpenReport={(reportId) => {
+            setActiveReportId(reportId);
+            setJourney('report');
+          }}
           floorplanOutput={floorplanOutput}
         />
       )}

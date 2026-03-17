@@ -17,6 +17,7 @@ export interface ReportMeta {
   title: string | null;
   customer_name: string | null;
   postcode: string | null;
+  visit_id: string | null;
 }
 
 /** The canonical payload shape stored in a report row. */
@@ -75,4 +76,21 @@ export async function saveReport(opts: {
     throw new Error(await extractApiError(res, 'Failed to save report'));
   }
   return res.json() as Promise<{ ok: true; id: string }>;
+}
+
+/**
+ * GET /api/visits/:visitId/reports
+ *
+ * Lists all reports linked to a visit, most-recent first.
+ */
+export async function listReportsForVisit(visitId: string): Promise<ReportMeta[]> {
+  const res = await fetch(`/api/visits/${encodeURIComponent(visitId)}/reports`);
+  if (res.status === 404) {
+    throw new Error('Visit not found');
+  }
+  if (!res.ok) {
+    throw new Error(await extractApiError(res, 'Failed to list reports'));
+  }
+  const data = await res.json() as { ok: true; reports: ReportMeta[] };
+  return data.reports;
 }

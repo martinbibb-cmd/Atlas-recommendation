@@ -1,0 +1,108 @@
+/*
+ * VisitReportsList — styles for the reports section within a visit.
+ */
+
+/* ── Section container ───────────────────────────────────────────────────── */
+
+.visit-reports {
+  margin-top: 2rem;
+}
+
+.visit-reports__heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 0.75rem;
+}
+
+/* ── List ────────────────────────────────────────────────────────────────── */
+
+.visit-reports__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.visit-reports__row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+}
+
+/* ── Info block ──────────────────────────────────────────────────────────── */
+
+.visit-reports__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.visit-reports__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2d3748;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.visit-reports__meta {
+  font-size: 0.75rem;
+  color: #718096;
+}
+
+/* ── Status badge ────────────────────────────────────────────────────────── */
+
+.visit-reports__status {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.visit-reports__status--draft {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.visit-reports__status--complete,
+.visit-reports__status--final {
+  background: #c6f6d5;
+  color: #276749;
+}
+
+.visit-reports__status--archived {
+  background: #feebc8;
+  color: #7b341e;
+}
+
+/* ── Open button ─────────────────────────────────────────────────────────── */
+
+.visit-reports__open-btn {
+  background: #2b6cb0;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 36px;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.visit-reports__open-btn:hover {
+  background: #2c5282;
+}

@@ -18,6 +18,7 @@ import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import { getVisit, saveVisit } from '../../lib/visits/visitApi';
+import VisitReportsList from './VisitReportsList';
 import './VisitPage.css';
 
 /** Save state for the autosave indicator. */
@@ -28,6 +29,7 @@ interface Props {
   onBack: () => void;
   onComplete: (engineInput: EngineInputV2_3) => void;
   onOpenFloorPlan: (surveyResults: Partial<FullSurveyModelV1>) => void;
+  onOpenReport: (reportId: string) => void;
   floorplanOutput?: DerivedFloorplanOutput;
 }
 
@@ -62,6 +64,7 @@ export default function VisitPage({
   onBack,
   onComplete,
   onOpenFloorPlan,
+  onOpenReport,
 }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [prefill, setPrefill] = useState<Partial<FullSurveyModelV1> | undefined>();
@@ -155,6 +158,7 @@ export default function VisitPage({
         onComplete={handleComplete}
         onOpenFloorPlan={onOpenFloorPlan}
       />
+      <VisitReportsList visitId={visitId} onOpenReport={onOpenReport} />
     </div>
   );
 }

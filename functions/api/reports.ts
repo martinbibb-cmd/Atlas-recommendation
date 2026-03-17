@@ -35,6 +35,7 @@ interface ReportRow {
   title: string | null;
   customer_name: string | null;
   postcode: string | null;
+  visit_id: string | null;
   payload_json: string;
 }
 
@@ -74,16 +75,20 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     typeof body.customer_name === "string" ? body.customer_name : null;
   const postcode =
     typeof body.postcode === "string" ? body.postcode : null;
+  const visitId =
+    typeof body.visit_id === "string" && body.visit_id.length > 0
+      ? body.visit_id
+      : null;
 
   const payloadJson = JSON.stringify(body.payload);
 
   try {
     await env.ATLAS_REPORTS_D1.prepare(
       `INSERT INTO reports
-         (id, created_at, updated_at, status, title, customer_name, postcode, payload_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+         (id, created_at, updated_at, status, title, customer_name, postcode, visit_id, payload_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-      .bind(id, now, now, status, title, customerName, postcode, payloadJson)
+      .bind(id, now, now, status, title, customerName, postcode, visitId, payloadJson)
       .run();
 
     return Response.json({ ok: true, id }, { status: 201 });
