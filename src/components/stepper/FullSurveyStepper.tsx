@@ -3699,11 +3699,12 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
         </div>
       </details>
 
-      {/* Thermal Comfort Physics */}
-      <div style={{ marginTop: '1.25rem' }}>
-        <h4 style={{ marginBottom: '0.5rem', fontSize: '0.95rem', color: '#4a5568' }}>
-          🌡️ Comfort Physics – Predicted Temperature Decay
-        </h4>
+      {/* Thermal Comfort Physics — collapsed by default to reduce page noise */}
+      <details style={{ marginTop: '1.25rem' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#4a5568', fontSize: '0.9rem' }}>
+          🌡️ Comfort Physics – Predicted Temperature Decay (optional)
+        </summary>
+        <div style={{ marginTop: '0.75rem' }}>
         <p style={{ fontSize: '0.82rem', color: '#718096', marginBottom: '0.75rem' }}>
           T(t) = T<sub>outdoor</sub> + (T<sub>initial</sub> − T<sub>outdoor</sub>) × e<sup>−t/τ</sup>
           &nbsp;— Building: <strong>{selectedArchetype.label}</strong> (τ = {selectedArchetype.tauHours}h)
@@ -3811,7 +3812,8 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
             {thermalResult.notes.map((n, i) => <li key={i}>{n}</li>)}
           </ul>
         )}
-      </div>
+        </div>
+      </details>
 
       {/* ─── Thermal Telemetry ───────────────────────────────────────────── */}
       <details style={{ marginTop: '1.25rem' }}>

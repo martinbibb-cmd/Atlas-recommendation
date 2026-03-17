@@ -156,7 +156,10 @@ export function buildBehaviourTimelineV1(
     const heatDemandKw = parseFloat(interpolateHourly(idx, hourlyDemandKw).toFixed(3));
     const rawDhwDrawDemandKw = parseFloat(interpolateHourly(idx, hourlyDhwKw).toFixed(3));
     const dhwDrawDemandKw = isCombi ? rawDhwDrawDemandKw : 0;
-    const storedDhwCallKw = !isAshp && !isCombi && storedReheatStepSet.has(idx)
+    // ASHPs serve DHW via a hot-water cylinder, just like system boilers.
+    // Both non-combi types (ASHP and system boiler) recharge the cylinder in
+    // scheduled windows — the occupant draws from the cylinder independently.
+    const storedDhwCallKw = !isCombi && storedReheatStepSet.has(idx)
       ? parseFloat(storedReheatKw.toFixed(3))
       : 0;
     const dhwDemandKw = parseFloat((isCombi ? dhwDrawDemandKw : storedDhwCallKw).toFixed(3));
