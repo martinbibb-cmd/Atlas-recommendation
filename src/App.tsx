@@ -16,7 +16,9 @@ import LabPrintComparison from './components/lab/LabPrintComparison';
 import AtlasTour from './components/tour/AtlasTour';
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
 import AtlasExplorerPage from './components/explorer/AtlasExplorerPage';
+import VisitPage from './components/visit/VisitPage';
 import { resetAtlasTourSeen } from './lib/tourStorage';
+import { createVisit } from './lib/visits/visitApi';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
 import { getMissingLabFields } from './lib/lab/getMissingLabFields';
@@ -67,7 +69,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   preferCombi: true,
 };
 
-type Journey = 'landing' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'explorer';
+type Journey = 'landing' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'explorer';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -97,10 +99,34 @@ export default function App() {
    * which physics assumptions are informed by the floor plan.
    */
   const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
+  /** Active visit ID — set when the user starts or opens a visit. */
+  const [activeVisitId, setActiveVisitId] = useState<string | undefined>();
+  /** Tracks whether "Start new visit" is in flight. */
+  const [startingVisit, setStartingVisit] = useState(false);
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
     setJourney('full');
+  }
+
+  /**
+   * Start a new visit — creates a visit record in D1, then routes to the
+   * visit survey shell.  Falls back gracefully to a local-only visit if the
+   * API is unreachable (e.g., local dev without Cloudflare bindings).
+   */
+  async function handleStartNewVisit() {
+    if (startingVisit) return;
+    setStartingVisit(true);
+    try {
+      const { id } = await createVisit();
+      setActiveVisitId(id);
+    } catch {
+      // API unavailable — use a local-only UUID so the UX still progresses.
+      setActiveVisitId(crypto.randomUUID());
+    } finally {
+      setStartingVisit(false);
+    }
+    setJourney('visit');
   }
 
   /**
@@ -147,6 +173,22 @@ export default function App() {
   return (
     <>
       {journey === 'fast' && <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} onOpenLab={handleOpenLab} />}
+      {journey === 'visit' && activeVisitId != null && (
+        <VisitPage
+          visitId={activeVisitId}
+          onBack={() => setJourney('landing')}
+          onComplete={(engineInput) => {
+            setLabEngineInput(engineInput);
+            setJourney('simulator');
+          }}
+          onOpenFloorPlan={(surveyResults) => {
+            const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
+            setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
+            setJourney('floor-plan');
+          }}
+          floorplanOutput={floorplanOutput}
+        />
+      )}
       {journey === 'full' && (
         <FullSurveyStepper
           onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }}
@@ -239,6 +281,19 @@ export default function App() {
               </button>
             </div>
           </div>
+
+          {/* Primary CTA — Start new visit */}
+          <div className="visit-cta-row">
+            <button
+              className="cta-btn cta-btn--visit"
+              onClick={() => { void handleStartNewVisit(); }}
+              disabled={startingVisit}
+              aria-busy={startingVisit}
+            >
+              {startingVisit ? 'Creating visit…' : '＋ Start new visit'}
+            </button>
+          </div>
+
           <div className="journey-cards">
             <div
               id="fast-choice-card"
