@@ -417,6 +417,8 @@ export default function DecisionSynthesisPage({
 }: Props) {
   const [showPrint, setShowPrint] = useState(false);
   const [showStory, setShowStory] = useState(false);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [savedReportId, setSavedReportId] = useState<string | null>(null);
 
   // Adapt floor-plan outputs into Atlas inputs when provided.
   const floorplanInputs = floorplanOutput != null
@@ -441,6 +443,43 @@ export default function DecisionSynthesisPage({
   const storyCards = buildPhysicsStory(engineOutput, storyEngineInput);
 
   const legacyAdvice = compareAdvice == null ? buildAdviceCards(engineOutput) : null;
+
+  // ── Save report ─────────────────────────────────────────────────────────────
+  // Temporary scaffolding: posts the current synthesis snapshot to POST /api/reports.
+  // This is removable once a proper save flow (with confirmation UX) is built.
+  async function handleSaveReport() {
+    if (compareAdvice == null || surveyData == null) return;
+    setSaveState('saving');
+    try {
+      const engineInput = toEngineInput(surveyData);
+      const res = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postcode: surveyData.postcode ?? null,
+          payload: {
+            surveyData,
+            engineInput,
+            engineOutput,
+            decisionSynthesis: compareAdvice,
+          },
+        }),
+      });
+      if (!res.ok) {
+        setSaveState('error');
+        return;
+      }
+      const json = await res.json() as { ok: boolean; id?: string };
+      if (json.ok && json.id) {
+        setSavedReportId(json.id);
+        setSaveState('saved');
+      } else {
+        setSaveState('error');
+      }
+    } catch {
+      setSaveState('error');
+    }
+  }
 
   // Resolve display values from whichever advice mode is active.
   const heroSystemPath = compareAdvice
@@ -558,6 +597,20 @@ export default function DecisionSynthesisPage({
             aria-label="Print Atlas recommendation"
           >
             🖨 Print Recommendation
+          </button>
+        )}
+        {/* Save Report — temporary scaffolding button; removable once full save UX is built */}
+        {compareAdvice != null && (
+          <button
+            className="advice-page__save-btn"
+            onClick={handleSaveReport}
+            aria-label="Save Atlas report"
+            disabled={saveState === 'saving' || saveState === 'saved'}
+          >
+            {saveState === 'saving' && '⏳ Saving…'}
+            {saveState === 'saved' && `✅ Saved — ID: ${savedReportId}`}
+            {saveState === 'error' && '❌ Save failed — retry?'}
+            {saveState === 'idle' && '💾 Save Report'}
           </button>
         )}
         {/* Show me why — Physics Story Mode */}
