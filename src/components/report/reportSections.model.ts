@@ -513,14 +513,6 @@ function buildDecisionRationaleSection(
     if (secondaryOption.why && whatLimitsAlternative.length === 0) {
       whatLimitsAlternative.push(secondaryOption.why);
     }
-    // Score gap context
-    const altScore = secondaryOption.score?.total;
-    const primScore = primaryOption?.score?.total;
-    if (altScore != null && primScore != null && primScore > altScore) {
-      whatLimitsAlternative.push(
-        `Score gap: ${primaryLabel} scores ${primScore} vs ${secondaryOption.label} at ${altScore}.`,
-      );
-    }
   }
 
   // ── Key physical constraints ─────────────────────────────────────────────

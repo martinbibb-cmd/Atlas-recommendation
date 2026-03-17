@@ -63,7 +63,7 @@ export default function VisitReportsList({ visitId, onOpenReport }: Props) {
     <section className="visit-reports" aria-labelledby={headingId}>
       <h2 className="visit-reports__heading" id={headingId}>
         Reports
-        <span className="visit-reports__count" aria-label={`${reports.length} report${reports.length !== 1 ? 's' : ''}`}>
+        <span className="visit-reports__count">
           {reports.length}
         </span>
       </h2>

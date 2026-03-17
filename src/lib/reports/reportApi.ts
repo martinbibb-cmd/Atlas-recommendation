@@ -65,6 +65,7 @@ export async function getReport(id: string): Promise<ReportDetail> {
 export async function saveReport(opts: {
   postcode?: string | null;
   visit_id?: string | null;
+  status?: string;
   payload: ReportPayload;
 }): Promise<{ ok: true; id: string }> {
   const res = await fetch('/api/reports', {
@@ -130,6 +131,7 @@ export async function duplicateReport(id: string): Promise<{ ok: true; id: strin
   return saveReport({
     postcode: source.postcode,
     visit_id: source.visit_id,
+    status: 'draft',
     payload: source.payload,
   });
 }

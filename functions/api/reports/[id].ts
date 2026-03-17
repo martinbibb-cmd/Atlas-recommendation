@@ -153,7 +153,13 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
   const setClauses: string[] = [];
   const bindings: unknown[] = [];
 
-  if (typeof body.status === "string" && body.status.length > 0) {
+  if (typeof body.status === "string") {
+    if (body.status.length === 0) {
+      return Response.json(
+        { ok: false, error: "status must not be an empty string" },
+        { status: 400 }
+      );
+    }
     if (!VALID_STATUSES.has(body.status)) {
       return Response.json(
         {

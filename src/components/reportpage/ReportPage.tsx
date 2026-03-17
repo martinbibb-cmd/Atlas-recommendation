@@ -138,7 +138,7 @@ export default function ReportPage({ reportId, onBack, onDuplicated }: Props) {
         // Guard: engineOutput must be present for the report to be renderable.
         if (!payload?.engineOutput) {
           throw new Error(
-            'This report snapshot is incomplete — the engine output is missing. ' +
+            'This report snapshot is incomplete: the engine output is missing. ' +
             'The report may have been saved from an older version of Atlas.',
           );
         }
