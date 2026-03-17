@@ -3449,15 +3449,20 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
   // ── DHW sanity summary — physics-derived indicator ───────────────────────
   // Shows estimated daily litres and peak concurrent outlets so users can spot
   // a zero-demand scenario immediately (red flag: 0 L or 0 outlets).
+  /** Typical UK shower volume per person per event (litres). */
+  const LITRES_PER_SHOWER = 50;
+  /** Standard UK bath draw volume (litres). */
+  const LITRES_PER_BATH   = 120;
+  /** Kitchen hot-water daily litres by frequency band. */
+  const KITCHEN_LITRES_BY_FREQUENCY: Record<Required<DemandTimingOverrides>['kitchenHotWaterFrequency'], number> = {
+    low: 5, medium: 15, high: 30,
+  };
   const occupancyForDhw = Math.max(1, input.occupancyCount ?? 2);
   const bathsPerDay = timing.bathFrequencyPerWeek / 7;
-  const LITRES_PER_SHOWER = 50;
-  const LITRES_PER_BATH   = 120;
-  const kitchenLitres: Record<string, number> = { low: 5, medium: 15, high: 30 };
   const estimatedDailyLitres = Math.round(
     occupancyForDhw * LITRES_PER_SHOWER
     + bathsPerDay * LITRES_PER_BATH
-    + (kitchenLitres[timing.kitchenHotWaterFrequency] ?? 15),
+    + (KITCHEN_LITRES_BY_FREQUENCY[timing.kitchenHotWaterFrequency] ?? 15),
   );
   // Peak outlets: explicit survey value wins; otherwise derive from preset simultaneous severity.
   const estimatedPeakOutlets =
