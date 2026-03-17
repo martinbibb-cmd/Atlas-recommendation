@@ -10,18 +10,20 @@
   // D1 database binding — replace `database_id` with the real UUID from:
   //   wrangler d1 create atlas-db
   // For local dev with `wrangler pages dev`: a local SQLite file is used automatically.
+  // Apply migrations with: wrangler d1 migrations apply atlas-db
   "d1_databases": [
     {
-      "binding": "DB",
+      "binding": "ATLAS_REPORTS_D1",
       "database_name": "atlas-db",
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
     }
   ],
   // KV namespace binding — replace `id` with the real ID from:
-  //   wrangler kv:namespace create KV
+  //   wrangler kv:namespace create ATLAS_CACHE_KV
   "kv_namespaces": [
     {
-      "binding": "KV",
+      "binding": "ATLAS_CACHE_KV",
       "id": "00000000000000000000000000000000"
     }
   ]

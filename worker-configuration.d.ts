@@ -3,8 +3,8 @@
 // Runtime types generated with workerd@1.20260312.1 2025-09-27 nodejs_compat
 declare namespace Cloudflare {
 	interface Env {
-		KV: KVNamespace;
-		DB: D1Database;
+		ATLAS_CACHE_KV: KVNamespace;
+		ATLAS_REPORTS_D1: D1Database;
 	}
 }
 interface Env extends Cloudflare.Env {}
