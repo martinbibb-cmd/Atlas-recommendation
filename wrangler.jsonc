@@ -2,13 +2,27 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "atlas",
   "compatibility_date": "2025-09-27",
-  "observability": {
-    "enabled": true
-  },
-  "assets": {
-    "not_found_handling": "single-page-application"
-  },
+  // Output directory produced by `vite build` — used by `wrangler pages deploy`
+  "pages_build_output_dir": "dist",
   "compatibility_flags": [
     "nodejs_compat"
+  ],
+  // D1 database binding — replace `database_id` with the real UUID from:
+  //   wrangler d1 create atlas-db
+  // For local dev with `wrangler pages dev`: a local SQLite file is used automatically.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "atlas-db",
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  // KV namespace binding — replace `id` with the real ID from:
+  //   wrangler kv:namespace create KV
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "00000000000000000000000000000000"
+    }
   ]
 }
