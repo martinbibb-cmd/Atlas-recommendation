@@ -649,12 +649,6 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
     }));
   }, [wallType, insulationLevel, airTightness, glazing, roofInsulation, thermalMass]);
 
-  // Keep houseFrontFacing in engine input in sync with the orientation control
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setInput(prev => ({ ...prev, houseFrontFacing }));
-  }, [houseFrontFacing]);
-
   // ── Hydraulic derived values — update when pipe size or heat loss changes ──
   const hydraulicLive = useMemo(() => {
     const kw = input.heatLossWatts / 1000;
@@ -913,7 +907,11 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
                 ] as Array<{ value: 'north' | 'east' | 'south' | 'west'; label: string }>).map(opt => (
                   <button
                     key={opt.value}
-                    onClick={() => setHouseFrontFacing(prev => prev === opt.value ? undefined : opt.value)}
+                    onClick={() => {
+                      const next = houseFrontFacing === opt.value ? undefined : opt.value;
+                      setHouseFrontFacing(next);
+                      setInput(prev => ({ ...prev, houseFrontFacing: next }));
+                    }}
                     style={{
                       padding: '0.5rem 0.4rem',
                       border: `2px solid ${houseFrontFacing === opt.value ? '#d69e2e' : '#e2e8f0'}`,
@@ -930,7 +928,7 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
                   </button>
                 ))}
               </div>
-              {houseFrontFacing != null && (
+              {houseFrontFacing !== undefined && (
                 <div style={{
                   marginTop: '0.5rem',
                   padding: '0.4rem 0.65rem',

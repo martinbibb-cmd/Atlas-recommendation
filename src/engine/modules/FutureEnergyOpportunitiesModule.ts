@@ -170,16 +170,18 @@ function roofExpansionCheckText(signal: RoofOrientationSignal): string {
 }
 
 /**
- * Appends a non-null orientation reason to a reasons array, capping at 3 items.
- * If the array already has 3 items the orientation reason replaces the last one
- * when the signal is known (either south_likely or less_optimal).
+ * Appends a non-null orientation reason to a reasons array, capping at
+ * MAX_REASON_COUNT items. If the array is already at capacity the orientation
+ * reason replaces the last entry to surface the orientation signal.
  */
+const MAX_REASON_COUNT = 3;
+
 function withOrientationReason(reasons: string[], signal: RoofOrientationSignal): string[] {
   const note = roofOrientationReason(signal);
   if (!note) return reasons;
-  if (reasons.length < 3) return [...reasons, note];
+  if (reasons.length < MAX_REASON_COUNT) return [...reasons, note];
   // Replace last reason to surface orientation signal
-  return [...reasons.slice(0, 2), note];
+  return [...reasons.slice(0, MAX_REASON_COUNT - 1), note];
 }
 
 // ─── Solar PV opportunity ─────────────────────────────────────────────────────
