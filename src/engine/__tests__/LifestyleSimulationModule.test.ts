@@ -205,3 +205,77 @@ describe('buildDynamicRoomTrace – thermal coupling invariants', () => {
     expect(traceWarm[23]).toBeGreaterThan(traceDefault[23]);
   });
 });
+
+// ─── DHW demand (dhwKw) ───────────────────────────────────────────────────────
+
+describe('LifestyleSimulationModule – dhwKw field', () => {
+  it('each hourlyData entry includes a numeric dhwKw field', () => {
+    const result = runLifestyleSimulationModule(baseInput);
+    result.hourlyData.forEach(h => {
+      expect(typeof h.dhwKw).toBe('number');
+      expect(h.dhwKw).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  it('professional profile has dhwKw > 0 at morning and evening peaks (07:00 and 18:00)', () => {
+    const result = runLifestyleSimulationModule({ ...baseInput, occupancySignature: 'professional', occupancyCount: 2 });
+    // Default timing: firstShowerHour=7, eveningPeakHour=18
+    expect(result.hourlyData[7].dhwKw).toBeGreaterThan(0);   // morning peak
+    expect(result.hourlyData[8].dhwKw).toBeGreaterThan(0);   // morning +1 window
+    expect(result.hourlyData[18].dhwKw).toBeGreaterThan(0);  // evening peak
+    expect(result.hourlyData[19].dhwKw).toBeGreaterThan(0);  // evening +1 window
+  });
+
+  it('dhwKw is zero during away/overnight hours for professional profile', () => {
+    const result = runLifestyleSimulationModule({ ...baseInput, occupancySignature: 'professional', occupancyCount: 2 });
+    // Away hours (no peaks): 09-16
+    for (let h = 9; h <= 16; h++) {
+      expect(result.hourlyData[h].dhwKw).toBe(0);
+    }
+  });
+
+  it('dhwKw scales with occupancyCount: 4-person household has double the demand of 2-person', () => {
+    const two  = runLifestyleSimulationModule({ ...baseInput, occupancyCount: 2 });
+    const four = runLifestyleSimulationModule({ ...baseInput, occupancyCount: 4 });
+    expect(four.hourlyData[7].dhwKw).toBeCloseTo(two.hourlyData[7].dhwKw * 2, 1);
+  });
+
+  it('evening dhwKw is 70% of morning dhwKw (as per spec)', () => {
+    const result = runLifestyleSimulationModule({ ...baseInput, occupancyCount: 2 });
+    // Default: morningPeakH=7, eveningPeakH=18
+    expect(result.hourlyData[18].dhwKw).toBeCloseTo(result.hourlyData[7].dhwKw * 0.7, 1);
+  });
+
+  it('daily total dhwKw is non-zero for all three occupancy signatures', () => {
+    const signatures = ['professional', 'steady_home', 'shift_worker'] as const;
+    for (const sig of signatures) {
+      const result = runLifestyleSimulationModule({ ...baseInput, occupancySignature: sig, occupancyCount: 2 });
+      const totalDhwKw = result.hourlyData.reduce((s, h) => s + h.dhwKw, 0);
+      expect(totalDhwKw).toBeGreaterThan(0);
+    }
+  });
+
+  it('shift_worker profile has dhwKw peaks offset to 10:00 and 22:00 (not 07:00/18:00)', () => {
+    const result = runLifestyleSimulationModule({ ...baseInput, occupancySignature: 'shift_worker', occupancyCount: 2 });
+    // Offset peaks: firstShowerHour=10, eveningPeakHour=22
+    expect(result.hourlyData[10].dhwKw).toBeGreaterThan(0);
+    expect(result.hourlyData[22].dhwKw).toBeGreaterThan(0);
+    // Standard morning peak (07:00) should be zero for shift_worker
+    expect(result.hourlyData[7].dhwKw).toBe(0);
+  });
+
+  it('demandPreset firstShowerHour overrides default morning peak hour', () => {
+    const result = runLifestyleSimulationModule({
+      ...baseInput,
+      occupancySignature: 'professional',
+      occupancyCount: 2,
+      demandPreset: 'single_working_adult',
+      demandTimingOverrides: { firstShowerHour: 6 },
+    });
+    // Override to 06:00 — peaks should be at 06 and 07
+    expect(result.hourlyData[6].dhwKw).toBeGreaterThan(0);
+    expect(result.hourlyData[7].dhwKw).toBeGreaterThan(0);
+    // 08:00 should be zero (outside the 2-hour window)
+    expect(result.hourlyData[8].dhwKw).toBe(0);
+  });
+});

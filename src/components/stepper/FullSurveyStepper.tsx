@@ -3446,6 +3446,25 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
   // Resolved timing (preset defaults merged with any overrides)
   const timing = resolveTimingOverrides(activePresetId, input.demandTimingOverrides as DemandTimingOverrides | undefined);
 
+  // ── DHW sanity summary — physics-derived indicator ───────────────────────
+  // Shows estimated daily litres and peak concurrent outlets so users can spot
+  // a zero-demand scenario immediately (red flag: 0 L or 0 outlets).
+  const occupancyForDhw = Math.max(1, input.occupancyCount ?? 2);
+  const bathsPerDay = timing.bathFrequencyPerWeek / 7;
+  const LITRES_PER_SHOWER = 50;
+  const LITRES_PER_BATH   = 120;
+  const kitchenLitres: Record<string, number> = { low: 5, medium: 15, high: 30 };
+  const estimatedDailyLitres = Math.round(
+    occupancyForDhw * LITRES_PER_SHOWER
+    + bathsPerDay * LITRES_PER_BATH
+    + (kitchenLitres[timing.kitchenHotWaterFrequency] ?? 15),
+  );
+  // Peak outlets: explicit survey value wins; otherwise derive from preset simultaneous severity.
+  const estimatedPeakOutlets =
+    input.peakConcurrentOutlets ??
+    (timing.simultaneousUseSeverity === 'high' || timing.simultaneousUseSeverity === 'medium' ? 2 : 1);
+  const dhwSummaryOk = estimatedDailyLitres > 0 && estimatedPeakOutlets > 0;
+
   return (
     <div className="step-card">
       <h2>🏠 Step 4: Lifestyle &amp; Thermal Comfort</h2>
@@ -3500,9 +3519,30 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
         borderRadius: '6px',
         fontSize: '0.82rem',
         color: '#2b6cb0',
-        marginBottom: '1.25rem',
+        marginBottom: '0.75rem',
       }}>
         <strong>Selected demand style: </strong>{getDemandStyleLabel(activePresetId)}
+      </div>
+
+      {/* ── DHW demand sanity indicator ──────────────────────────────────── */}
+      <div
+        data-testid="dhw-demand-summary"
+        style={{
+          padding: '0.5rem 0.875rem',
+          background: dhwSummaryOk ? '#f0fff4' : '#fff5f5',
+          border: `1px solid ${dhwSummaryOk ? '#9ae6b4' : '#feb2b2'}`,
+          borderRadius: '6px',
+          fontSize: '0.8rem',
+          color: dhwSummaryOk ? '#276749' : '#c53030',
+          marginBottom: '1.25rem',
+          display: 'flex',
+          gap: '1rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        <span>💧 Daily hot water: <strong>~{estimatedDailyLitres}L</strong></span>
+        <span>🚿 Peak demand: <strong>{estimatedPeakOutlets} outlet{estimatedPeakOutlets !== 1 ? 's' : ''}</strong></span>
+        {!dhwSummaryOk && <span style={{ fontWeight: 700 }}>⚠️ Zero demand — check occupancy</span>}
       </div>
 
       {/* ── Quick timing controls ────────────────────────────────────────── */}
