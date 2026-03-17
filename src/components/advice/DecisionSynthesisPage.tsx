@@ -421,7 +421,7 @@ export default function DecisionSynthesisPage({
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const [copyConfirm, setCopyConfirm] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Generate QR code data URL whenever a report ID is saved.
@@ -661,15 +661,23 @@ export default function DecisionSynthesisPage({
                   className="advice-share-panel__copy-btn"
                   onClick={() => {
                     const url = `${window.location.origin}/report/${savedReportId}`;
-                    navigator.clipboard.writeText(url).then(() => {
-                      setCopyConfirm(true);
-                      if (copyTimer.current !== null) clearTimeout(copyTimer.current);
-                      copyTimer.current = setTimeout(() => setCopyConfirm(false), 2500);
-                    }).catch(() => { /* clipboard unavailable */ });
+                    navigator.clipboard.writeText(url)
+                      .then(() => {
+                        setCopyState('copied');
+                        if (copyTimer.current !== null) clearTimeout(copyTimer.current);
+                        copyTimer.current = setTimeout(() => setCopyState('idle'), 2500);
+                      })
+                      .catch(() => {
+                        setCopyState('failed');
+                        if (copyTimer.current !== null) clearTimeout(copyTimer.current);
+                        copyTimer.current = setTimeout(() => setCopyState('idle'), 2500);
+                      });
                   }}
                   aria-label="Copy share link"
                 >
-                  {copyConfirm ? '✓ Copied!' : '🔗 Copy link'}
+                  {copyState === 'copied' && '✓ Copied!'}
+                  {copyState === 'failed' && '⚠ Copy failed'}
+                  {copyState === 'idle' && '🔗 Copy link'}
                 </button>
                 <a
                   className="advice-share-panel__open-btn"
