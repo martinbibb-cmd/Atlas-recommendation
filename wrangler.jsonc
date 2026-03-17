@@ -11,12 +11,6 @@
   // Must match the `build.outDir` in vite.config.ts (default: "dist").
   "pages_build_output_dir": "./dist",
 
-  // ─── Static assets (Workers deploy) ─────────────────────────────────────────
-  // Required by `wrangler versions upload` so it knows which directory to serve.
-  "assets": {
-    "directory": "./dist"
-  },
-
   // ─── D1 database binding ────────────────────────────────────────────────────
   // Binding name used in Functions: context.env.ATLAS_REPORTS_D1
   // Dashboard: Workers & Pages → your project → Settings → Bindings → D1

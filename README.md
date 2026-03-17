@@ -3,6 +3,22 @@ V2 system recommendation engine
 
 ---
 
+## Deployment
+
+This repository is connected to **Cloudflare Pages** via the native GitHub integration.
+
+| Setting | Value |
+|---|---|
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+
+Cloudflare Pages builds and deploys `dist` automatically on every push to the connected branch.
+**Do not run `wrangler pages deploy` inside the build pipeline** — Cloudflare Pages handles the deploy step itself.
+
+The `npm run deploy` script in `package.json` is kept for ad-hoc manual CLI deploys only and must not be used as the Cloudflare Pages build command.
+
+---
+
 ## Cloudflare Pages deployment
 
 This project is deployed to **Cloudflare Pages** (not GitHub Pages).  
