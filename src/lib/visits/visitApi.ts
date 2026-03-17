@@ -21,6 +21,20 @@ export interface VisitDetail extends VisitMeta {
 }
 
 /**
+ * Extracts a user-friendly error message from a failed API response.
+ * 503 responses with schema-drift messaging are surfaced as a clear
+ * maintenance notice rather than raw SQLite internals.
+ */
+async function extractApiError(res: Response, fallback: string): Promise<string> {
+  const body = await res.json().catch(() => null) as { error?: string } | null;
+  const message = body?.error ?? fallback;
+  if (res.status === 503 && message.includes("schema is out of date")) {
+    return "Atlas database needs an update before this visit can load. Please run remote D1 migrations.";
+  }
+  return message;
+}
+
+/**
  * POST /api/visits
  *
  * Creates a new visit record and returns its ID.
@@ -36,8 +50,7 @@ export async function createVisit(opts: {
     body: JSON.stringify(opts),
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((body as { error?: string }).error ?? "Failed to create visit");
+    throw new Error(await extractApiError(res, "Failed to create visit"));
   }
   return res.json() as Promise<{ ok: true; id: string }>;
 }
@@ -50,8 +63,7 @@ export async function createVisit(opts: {
 export async function listVisits(): Promise<VisitMeta[]> {
   const res = await fetch("/api/visits");
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((body as { error?: string }).error ?? "Failed to list visits");
+    throw new Error(await extractApiError(res, "Failed to list visits"));
   }
   const data = await res.json() as { ok: true; visits: VisitMeta[] };
   return data.visits;
@@ -68,8 +80,7 @@ export async function getVisit(id: string): Promise<VisitDetail> {
     throw new Error("Visit not found");
   }
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((body as { error?: string }).error ?? "Failed to load visit");
+    throw new Error(await extractApiError(res, "Failed to load visit"));
   }
   const data = await res.json() as { ok: true; visit: VisitDetail };
   return data.visit;
@@ -97,7 +108,6 @@ export async function saveVisit(
     body: JSON.stringify(patch),
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((body as { error?: string }).error ?? "Failed to save visit");
+    throw new Error(await extractApiError(res, "Failed to save visit"));
   }
 }
