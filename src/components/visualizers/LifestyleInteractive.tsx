@@ -196,9 +196,17 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
 
   const lifestyle = useMemo(
     () => runLifestyleSimulationModule(engineInput, sludge.cyclingLossPct),
-    // occupancySignature, heatLossWatts and cyclingLossPct drive this module
+    // demandPreset, occupancyCount, and timingOverrides drive DHW peak timing and kW per person;
+    // occupancySignature and heatLossWatts drive the heating demand profile.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [engineInput.occupancySignature, engineInput.heatLossWatts, sludge.cyclingLossPct],
+    [
+      engineInput.occupancySignature,
+      engineInput.heatLossWatts,
+      engineInput.demandPreset,
+      engineInput.occupancyCount,
+      engineInput.demandTimingOverrides,
+      sludge.cyclingLossPct,
+    ],
   );
 
   // ── Derived curve data ──────────────────────────────────────────────────────

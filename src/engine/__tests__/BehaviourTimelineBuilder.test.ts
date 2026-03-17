@@ -196,6 +196,30 @@ describe('buildBehaviourTimelineV1', () => {
     // ASHP does not emit boiler-specific annotations
     expect(timeline.annotations === undefined || timeline.annotations.length === 0).toBe(true);
   });
+
+  it('ASHP scenario produces non-zero peak DHW demand (cylinder recharge)', () => {
+    // family_teenagers maps to steady_home → ASHP recommended.
+    // The fix ensures ASHP cylinders get a scheduled reheat signal,
+    // so peak DHW is never 0.0 kW @ 00:00.
+    const ashpInput = {
+      ...BASE_INPUT,
+      occupancySignature: 'steady_home' as const,
+      primaryPipeDiameter: 28,
+      occupancyCount: 2,
+      demandPreset: 'family_teenagers' as const,
+    };
+    const result = runEngine(ashpInput);
+    const timeline = buildBehaviourTimelineV1(result, ashpInput);
+    const peakDhwKw = Math.max(...timeline.points.map(p => p.dhwDemandKw));
+    // Reheat windows exist and carry a meaningful kW value — never zero.
+    expect(peakDhwKw).toBeGreaterThan(0);
+    // Reheat ticks must fall within the scheduled reheat hours (5, 6, 17, 18, 19).
+    const reheatTicks = timeline.points.filter(p => p.dhwDemandKw > 0.1);
+    expect(reheatTicks.length).toBeGreaterThan(0);
+    for (const pt of reheatTicks) {
+      expect([5, 6, 17, 18, 19]).toContain(Math.floor(pt.tHour));
+    }
+  });
 });
 
 // ─── Combi DHW priority lockout ───────────────────────────────────────────────
