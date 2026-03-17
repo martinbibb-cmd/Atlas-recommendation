@@ -114,3 +114,61 @@ describe('FullSurveyFirstPass — simulator routing contract', () => {
     expect(engineOutput.recommendation.primary.length).toBeGreaterThan(0);
   });
 });
+
+// ─── peakConcurrentOutlets auto-derivation ────────────────────────────────────
+
+describe('FullSurveyFirstPass — peakConcurrentOutlets auto-derivation', () => {
+  it('auto-derives peakConcurrentOutlets=2 from a high-simultaneous-use preset when not explicitly set', () => {
+    // family_teenagers has simultaneousUseSeverity='high' → should produce 2
+    const withPreset: FullSurveyModelV1 = {
+      ...SURVEY_DEFAULT_INPUT,
+      demandPreset: 'family_teenagers',
+      peakConcurrentOutlets: undefined,
+    };
+    const cleaned = sanitiseModelForEngine(withPreset);
+    expect(cleaned.peakConcurrentOutlets).toBe(2);
+  });
+
+  it('auto-derives peakConcurrentOutlets=2 from a medium-simultaneous-use preset when not explicitly set', () => {
+    // family_young_children has simultaneousUseSeverity='medium' → should produce 2
+    const withPreset: FullSurveyModelV1 = {
+      ...SURVEY_DEFAULT_INPUT,
+      demandPreset: 'family_young_children',
+      peakConcurrentOutlets: undefined,
+    };
+    const cleaned = sanitiseModelForEngine(withPreset);
+    expect(cleaned.peakConcurrentOutlets).toBe(2);
+  });
+
+  it('auto-derives peakConcurrentOutlets=1 from a low-simultaneous-use preset when not explicitly set', () => {
+    // single_working_adult has simultaneousUseSeverity='low' → should produce 1
+    const withPreset: FullSurveyModelV1 = {
+      ...SURVEY_DEFAULT_INPUT,
+      demandPreset: 'single_working_adult',
+      peakConcurrentOutlets: undefined,
+    };
+    const cleaned = sanitiseModelForEngine(withPreset);
+    expect(cleaned.peakConcurrentOutlets).toBe(1);
+  });
+
+  it('does NOT override peakConcurrentOutlets when the user has explicitly set it', () => {
+    // Explicit user value must win over auto-derived value
+    const withExplicit: FullSurveyModelV1 = {
+      ...SURVEY_DEFAULT_INPUT,
+      demandPreset: 'family_teenagers',
+      peakConcurrentOutlets: 1,
+    };
+    const cleaned = sanitiseModelForEngine(withExplicit);
+    expect(cleaned.peakConcurrentOutlets).toBe(1);
+  });
+
+  it('leaves peakConcurrentOutlets undefined when no demandPreset is set', () => {
+    const withoutPreset: FullSurveyModelV1 = {
+      ...SURVEY_DEFAULT_INPUT,
+      demandPreset: undefined,
+      peakConcurrentOutlets: undefined,
+    };
+    const cleaned = sanitiseModelForEngine(withoutPreset);
+    expect(cleaned.peakConcurrentOutlets).toBeUndefined();
+  });
+});

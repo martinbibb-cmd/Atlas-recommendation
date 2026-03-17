@@ -1121,6 +1121,14 @@ export interface CondensingRuntimeResult {
 export interface OccupancyHour {
   hour: number;       // 0-23
   demandKw: number;   // kW demand
+  /**
+   * DHW (hot-water) demand (kW) for this hour.
+   * Derived from the occupancy profile, peak shower/bath timing and occupancyCount.
+   * Non-zero only during morning and evening peak windows; zero during away / overnight.
+   * Used by the Day Painter visualiser (Graph 1) as the physics-driven DHW baseline
+   * so that demand is always visible even when the user has not manually painted water slots.
+   */
+  dhwKw: number;
   boilerTempC: number;
   heatPumpTempC: number;
   storedWaterTempC: number;

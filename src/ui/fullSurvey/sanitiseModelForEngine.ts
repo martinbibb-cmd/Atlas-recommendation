@@ -6,6 +6,8 @@ import {
   inferBoilerCondition,
 } from '../../engine/modules/ComponentConditionModule';
 import { normalizeInput } from '../../engine/normalizer/Normalizer';
+import { resolveTimingOverrides } from '../../engine/schema/OccupancyPreset';
+import type { DemandPresetId } from '../../engine/schema/OccupancyPreset';
 
 /**
  * Cleans and validates a FullSurveyModelV1 before passing it to the engine.
@@ -238,6 +240,23 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
         repeatedPumpOrValveReplacements: hc?.repeatedPumpOrValveReplacements,
       });
       sanitised.boilerConditionBand = boilerCondition.conditionBand;
+    }
+  }
+
+  // ── Auto-derive peakConcurrentOutlets from demand preset when not set ────
+  // If the user has selected a demand preset in Step 4 (Lifestyle) but has not
+  // explicitly set peakConcurrentOutlets in Step 5 (Hot Water), infer a value
+  // from the preset's simultaneousUseSeverity so the engine can correctly
+  // assess combi simultaneous-demand stress.
+  //   high   → 2 (two or more simultaneous outlets likely — hard fail gate)
+  //   medium → 2 (borderline; engine flags but doesn't hard-fail on outlets alone)
+  //   low    → 1 (single outlet; no simultaneous risk from this dimension)
+  if (sanitised.peakConcurrentOutlets == null && sanitised.demandPreset != null) {
+    const timing = resolveTimingOverrides(sanitised.demandPreset as DemandPresetId);
+    if (timing.simultaneousUseSeverity === 'high' || timing.simultaneousUseSeverity === 'medium') {
+      sanitised.peakConcurrentOutlets = 2;
+    } else {
+      sanitised.peakConcurrentOutlets = 1;
     }
   }
 

@@ -264,8 +264,10 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const demandChartData = lifestyle.hourlyData.map((row, h) => ({
     hour: `${String(h).padStart(2, '0')}:00`,
     'Heat (kW)':  parseFloat(row.demandKw.toFixed(2)),
-    // DHW series: Water Painter slots when painted; 0 otherwise (no phantom events).
-    'DHW (kW)':   anyWaterPainted ? waterDhwByHour[h] : 0,
+    // DHW series: Water Painter slots when painted; occupancy-derived profile otherwise.
+    // This ensures DHW demand is always visible — zero only when the module itself
+    // computes zero (overnight / away periods), never as an artefact of unpainted slots.
+    'DHW (kW)':   anyWaterPainted ? waterDhwByHour[h] : parseFloat((row.dhwKw ?? 0).toFixed(2)),
   }));
 
   // ── Graph C: Comfort Stability ─────────────────────────────────────────────

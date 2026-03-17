@@ -5,6 +5,7 @@ import type {
   OccupancySignature,
   BuildingMass,
 } from '../schema/EngineInputV2_3';
+import { resolveTimingOverrides } from '../schema/OccupancyPreset';
 
 type HourlyProfile = { demand: number; label: string }[];
 
@@ -15,6 +16,15 @@ const PROFESSIONAL_PEAK_DEMAND = 0.95;
 const PROFESSIONAL_MORNING_SHOULDER_DEMAND = 0.75;
 /** Demand fraction for the evening shoulder (17:00–22:00, excluding 18:00). */
 const PROFESSIONAL_EVENING_SHOULDER_DEMAND = 0.70;
+
+// ── DHW demand constants ──────────────────────────────────────────────────────
+
+/**
+ * Typical instantaneous DHW draw per person during peak windows (kW).
+ * Based on a standard UK shower: 8 L/min at 40 °C ΔT ≈ 2.5 kW per person.
+ * Consistent with BehaviourTimelineBuilder DHW profile.
+ */
+export const DHW_KW_PER_PERSON = 2.5;
 
 // ── Dynamic thermal model constants ──────────────────────────────────────────
 
@@ -220,6 +230,25 @@ export function runLifestyleSimulationModule(input: EngineInputV2_3, cyclingLoss
   const heatLossKw = input.heatLossWatts / 1000;
   const cBuilding = C_BUILDING_KJ_PER_K[input.buildingMass];
 
+  // ── DHW peak timing ──────────────────────────────────────────────────────
+  // Resolve peak shower hours from the demand preset (if set) or fall back
+  // to the signature defaults: professional=07:00/18:00, steady=07:00/17:00,
+  // shift_worker=10:00/22:00.  Clamped to [0, 23].
+  const timing = input.demandPreset != null
+    ? resolveTimingOverrides(input.demandPreset, input.demandTimingOverrides)
+    : (() => {
+        switch (input.occupancySignature) {
+          case 'steady_home':
+          case 'steady':       return { firstShowerHour: 7,  eveningPeakHour: 17 };
+          case 'shift_worker':
+          case 'shift':        return { firstShowerHour: 10, eveningPeakHour: 22 };
+          default:             return { firstShowerHour: 7,  eveningPeakHour: 18 };
+        }
+      })();
+  const morningPeakH = Math.max(0, Math.min(23, timing.firstShowerHour));
+  const eveningPeakH = Math.max(0, Math.min(23, timing.eveningPeakHour));
+  const occupancy    = Math.max(1, input.occupancyCount ?? 2);
+
   // ── Dynamic room traces ──────────────────────────────────────────────────
   // Boiler: steps at BOILER_SPRINT_KW when demand ≥ threshold, else off.
   const boilerRoomTrace = buildDynamicRoomTrace(
@@ -243,6 +272,18 @@ export function runLifestyleSimulationModule(input: EngineInputV2_3, cyclingLoss
   const hourlyData: OccupancyHour[] = profile.map((hour, h) => {
     const demandKw = hour.demand * heatLossKw;
 
+    // ── DHW demand: derived from occupancy timing (consistent with BehaviourTimelineBuilder) ──
+    // Morning peak window: firstShowerHour and the following hour.
+    // Evening peak window: eveningPeakHour and the following hour at 70% load.
+    // Zero outside peak windows — no phantom background DHW.
+    const isMorningPeak = h === morningPeakH || h === (morningPeakH + 1) % 24;
+    const isEveningPeak = h === eveningPeakH || h === (eveningPeakH + 1) % 24;
+    const dhwKw = parseFloat((
+      isMorningPeak ? occupancy * DHW_KW_PER_PERSON :
+      isEveningPeak ? occupancy * DHW_KW_PER_PERSON * 0.7 :
+      0
+    ).toFixed(3));
+
     // Legacy proxy fields retained for backward compatibility with existing UI renderers.
     // Boiler: rapid response but sharp temperature swings (affine proxy)
     const boilerTempC = 18 + hour.demand * 4;
@@ -264,6 +305,7 @@ export function runLifestyleSimulationModule(input: EngineInputV2_3, cyclingLoss
     return {
       hour: h,
       demandKw,
+      dhwKw,
       boilerTempC,
       heatPumpTempC,
       storedWaterTempC,
