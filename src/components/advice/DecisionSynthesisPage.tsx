@@ -28,6 +28,7 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import type { EngineOutputV1, OpportunityAssessment } from '../../contracts/EngineOutputV1';
+import { OPPORTUNITY_STATUS_LABELS } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { CompareSeed } from '../../lib/simulator/buildCompareSeedFromSurvey';
@@ -411,11 +412,7 @@ function UnifiedConfidencePanel({ unified }: { unified: UnifiedConfidence }) {
 
 // ── OpportunityCardUI ─────────────────────────────────────────────────────────
 
-const OPPORTUNITY_STATUS_LABEL: Record<OpportunityAssessment['status'], string> = {
-  suitable_now: 'Likely suitable',
-  check_required: 'Checks required',
-  not_currently_favoured: 'Not currently favoured',
-};
+const OPPORTUNITY_STATUS_LABEL = OPPORTUNITY_STATUS_LABELS;
 
 function OpportunityCardUI({
   title,

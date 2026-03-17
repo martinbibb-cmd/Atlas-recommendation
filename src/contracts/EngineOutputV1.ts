@@ -586,6 +586,16 @@ export type OpportunityStatus =
   | 'not_currently_favoured';
 
 /**
+ * Human-readable labels for each OpportunityStatus value.
+ * Use these in all UI copy to avoid duplicating the mapping across components.
+ */
+export const OPPORTUNITY_STATUS_LABELS: Record<OpportunityStatus, string> = {
+  suitable_now: 'Likely suitable',
+  check_required: 'Checks required',
+  not_currently_favoured: 'Not currently favoured',
+};
+
+/**
  * A single technology opportunity assessment.
  * Intentionally lightweight — this is guidance, not a design specification.
  */

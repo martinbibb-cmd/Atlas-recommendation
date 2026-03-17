@@ -35,6 +35,7 @@
  */
 
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
+import { OPPORTUNITY_STATUS_LABELS } from '../../contracts/EngineOutputV1';
 import {
   checkCompleteness,
   buildReportSections,
@@ -556,11 +557,7 @@ function EngineeringNotesSection({ section }: { section: EngineeringNotesSection
 
 // ─── Status label helpers ─────────────────────────────────────────────────────
 
-const OPPORTUNITY_STATUS_LABEL: Record<FutureEnergyOpportunitiesSection['solarPv']['status'], string> = {
-  suitable_now: 'Likely suitable',
-  check_required: 'Checks required',
-  not_currently_favoured: 'Not currently favoured',
-};
+const OPPORTUNITY_STATUS_LABEL = OPPORTUNITY_STATUS_LABELS;
 
 function OpportunityCard({
   title,

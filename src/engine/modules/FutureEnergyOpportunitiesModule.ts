@@ -95,10 +95,12 @@ function isFutureReady(input: EngineInputV2_3): boolean {
 
 /**
  * Returns true when the primary recommended system is an air source heat pump.
- * Signalled by the presence of the primaryRecommendation string.
+ * Uses conservative substring matching against known ASHP recommendation labels.
  */
 function isHeatPumpRecommended(primaryRecommendation?: string): boolean {
-  return primaryRecommendation?.toLowerCase().includes('heat pump') ?? false;
+  if (!primaryRecommendation) return false;
+  const lc = primaryRecommendation.toLowerCase();
+  return lc.includes('air source heat pump') || lc.startsWith('ashp');
 }
 
 // ─── Solar PV opportunity ─────────────────────────────────────────────────────
