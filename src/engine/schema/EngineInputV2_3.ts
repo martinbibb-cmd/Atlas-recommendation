@@ -210,6 +210,19 @@ export interface EngineInputV2_3 {
   returnWaterTemp: number; // °C
 
   /**
+   * Direction the front of the house faces (as observed from the street).
+   * Used to infer roof pitch orientation for solar PV suitability assessment.
+   *
+   * Derived logic:
+   *   'north' → rear faces south → likely south-facing pitch available
+   *   'south' → front faces south → likely south-facing pitch available
+   *   'east' | 'west' → side-aspect pitches → less optimal for PV
+   *
+   * When absent, roof orientation is treated as unknown and a full survey is required.
+   */
+  houseFrontFacing?: 'north' | 'east' | 'south' | 'west';
+
+  /**
    * Structured building fabric inputs — used by FabricModelV1 to independently
    * derive heat-loss band and thermal inertia (τ).
    * All sub-fields are optional; unknown/missing values fall back to mid-range defaults.
