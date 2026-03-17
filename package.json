@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "npm run build && wrangler pages dev dist",
+    "preview": "wrangler pages dev dist",
     "test": "vitest run",
     "test:watch": "vitest",
     "deploy": "npm run build && wrangler pages deploy dist"
