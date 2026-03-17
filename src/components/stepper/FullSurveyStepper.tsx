@@ -589,6 +589,8 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
   const [insulationToggle, setInsulationToggle] = useState<InsulationToggle>('ok');
   const [presetMode, setPresetMode] = useState<'preset' | 'custom'>('preset');
   const [showAdvancedFabric, setShowAdvancedFabric] = useState(false);
+  /** House front-facing direction — used to infer roof orientation for PV suitability. */
+  const [houseFrontFacing, setHouseFrontFacing] = useState<'north' | 'east' | 'south' | 'west' | undefined>(undefined);
   /** Hydraulic step — flow-demand chart hidden by default to keep the step fast. */
   const [showHydraulicDetail, setShowHydraulicDetail] = useState(false);
   /** Hot-water step — outlet-vs-demand analysis hidden by default. */
@@ -646,6 +648,12 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
       },
     }));
   }, [wallType, insulationLevel, airTightness, glazing, roofInsulation, thermalMass]);
+
+  // Keep houseFrontFacing in engine input in sync with the orientation control
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setInput(prev => ({ ...prev, houseFrontFacing }));
+  }, [houseFrontFacing]);
 
   // ── Hydraulic derived values — update when pipe size or heat loss changes ──
   const hydraulicLive = useMemo(() => {
@@ -886,6 +894,60 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
                   {showAdvancedFabric ? 'Hide advanced controls' : 'Show advanced controls'}
                 </button>
               </div>
+            </div>
+
+            {/* ── House orientation (PV suitability) ─────────────────────── */}
+            <div style={{ marginTop: '1rem' }}>
+              <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.3rem', color: '#4a5568' }}>
+                🧭 Which way does the front of the house face?
+              </label>
+              <div style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.5rem' }}>
+                Used to infer roof orientation for solar PV suitability — leave blank if unknown.
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
+                {([
+                  { value: 'north', label: '↑ N' },
+                  { value: 'east',  label: '→ E' },
+                  { value: 'south', label: '↓ S' },
+                  { value: 'west',  label: '← W' },
+                ] as Array<{ value: 'north' | 'east' | 'south' | 'west'; label: string }>).map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setHouseFrontFacing(prev => prev === opt.value ? undefined : opt.value)}
+                    style={{
+                      padding: '0.5rem 0.4rem',
+                      border: `2px solid ${houseFrontFacing === opt.value ? '#d69e2e' : '#e2e8f0'}`,
+                      borderRadius: '6px',
+                      background: houseFrontFacing === opt.value ? '#fffff0' : '#fff',
+                      cursor: 'pointer',
+                      fontWeight: houseFrontFacing === opt.value ? 700 : 400,
+                      fontSize: '0.88rem',
+                      textAlign: 'center',
+                      transition: 'all 0.12s',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {houseFrontFacing != null && (
+                <div style={{
+                  marginTop: '0.5rem',
+                  padding: '0.4rem 0.65rem',
+                  borderRadius: '6px',
+                  fontSize: '0.78rem',
+                  fontWeight: 500,
+                  ...(houseFrontFacing === 'north' || houseFrontFacing === 'south'
+                    ? { background: '#f0fff4', color: '#276749', border: '1px solid #9ae6b4' }
+                    : { background: '#fffaf0', color: '#7b341e', border: '1px solid #fbd38d' }
+                  ),
+                }}>
+                  {houseFrontFacing === 'north' || houseFrontFacing === 'south'
+                    ? '✅ Likely south-facing roof available — needs survey to confirm'
+                    : '⚠️ Roof orientation less optimal for PV — east/west-facing pitches generate less'
+                  }
+                </div>
+              )}
             </div>
 
             {showAdvancedFabric && (
