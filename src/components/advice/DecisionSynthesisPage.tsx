@@ -47,6 +47,8 @@ import PrintableRecommendationPage from './PrintableRecommendationPage';
 import PhysicsStoryPanel from '../story/PhysicsStoryPanel';
 import { buildPhysicsStory } from '../../lib/story/buildPhysicsStory';
 import { EDUCATIONAL_EXPLAINERS } from '../../explainers/educational/content';
+import HomeEnergyCompass from '../compass/HomeEnergyCompass';
+import { buildCompassState } from '../../lib/compass/buildCompassState';
 import './DecisionSynthesisPage.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -509,6 +511,12 @@ export default function DecisionSynthesisPage({
 
   const legacyAdvice = compareAdvice == null ? buildAdviceCards(engineOutput) : null;
 
+  // ── Home Energy Compass ──────────────────────────────────────────────────────
+  const compassState = buildCompassState(
+    engineOutput,
+    surveyData?.currentHeatSourceType ?? undefined,
+  );
+
   // ── Save report ─────────────────────────────────────────────────────────────
   // Temporary scaffolding: posts the current synthesis snapshot to POST /api/reports.
   // This is removable once a proper save flow (with confirmation UX) is built.
@@ -847,6 +855,24 @@ export default function DecisionSynthesisPage({
             </div>
           ) : null}
         </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 1a — Home Energy Compass                                  */}
+      {/* Placed immediately after the recommendation headline so users     */}
+      {/* get directional context before the detailed breakdown.            */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      <div
+        className="advice-page__section advice-page__section--compass"
+        aria-label="Home Energy Compass"
+        data-testid="home-energy-compass-section"
+      >
+        <h2 className="advice-page__section-title">🧭 Home Energy Compass</h2>
+        <p className="advice-page__section-intro">
+          Where this home sits today — and where the recommended system moves it.
+          North is Efficiency, East is Electrification, South is Low Capital, West is Energy Independence.
+        </p>
+        <HomeEnergyCompass compassState={compassState} />
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════ */}
