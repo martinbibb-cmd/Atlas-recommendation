@@ -492,7 +492,7 @@ function buildDecisionRationaleSection(
   const options = output.options ?? [];
   const primaryOption = pickRecommendedOption(options);
   if (primaryOption?.why && whyThisWins.length === 0) {
-    whyThisWins.push(primaryOption.why);
+    whyThisWins.push(...primaryOption.why);
   }
 
   // ── What limits the alternative ─────────────────────────────────────────
@@ -511,7 +511,7 @@ function buildDecisionRationaleSection(
     }
     // Option-level "why" text can state why it's not primary
     if (secondaryOption.why && whatLimitsAlternative.length === 0) {
-      whatLimitsAlternative.push(secondaryOption.why);
+      whatLimitsAlternative.push(...secondaryOption.why);
     }
   }
 
@@ -520,13 +520,13 @@ function buildDecisionRationaleSection(
 
   // Hard limiters first
   for (const l of output.limiters?.limiters ?? []) {
-    if (l.severity === 'error' || l.severity === 'fail') {
+    if (l.severity === 'fail') {
       keyPhysicalConstraints.push(l.title + (l.impact?.summary ? ` — ${l.impact.summary}` : ''));
     }
   }
   // High-severity red flags
   for (const f of output.redFlags ?? []) {
-    if ((f.severity === 'critical' || f.severity === 'high') && keyPhysicalConstraints.length < 5) {
+    if (f.severity === 'fail' && keyPhysicalConstraints.length < 5) {
       keyPhysicalConstraints.push(f.title);
     }
   }
