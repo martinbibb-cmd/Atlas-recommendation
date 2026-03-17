@@ -612,3 +612,75 @@ describe('buildReportSections — section structure sanity', () => {
     expect(sections.some(s => s.id === 'physics_trace')).toBe(false);
   });
 });
+
+// ─── FutureEnergyOpportunitiesSection ────────────────────────────────────────
+
+/** Engine output with futureEnergyOpportunities populated. */
+const OUTPUT_WITH_OPPORTUNITIES: EngineOutputV1 = {
+  ...FULL_OUTPUT,
+  futureEnergyOpportunities: {
+    solarPv: {
+      status: 'suitable_now',
+      summary: 'Solar PV looks promising for this home.',
+      reasons: ['Stored hot water enables solar self-consumption.', 'Daytime occupancy supports direct solar use.'],
+      checksRequired: ['Roof orientation and obstruction survey required.'],
+    },
+    evCharging: {
+      status: 'check_required',
+      summary: 'EV charging could be a good fit — commuter profile suggests vehicle use.',
+      reasons: ['Commuter household pattern indicates likely vehicle ownership.'],
+      checksRequired: ['Off-street parking arrangement and supply route to be confirmed on site.'],
+    },
+  },
+};
+
+describe('buildReportSections — future_energy_opportunities section', () => {
+  it('includes future_energy_opportunities when futureEnergyOpportunities is present', () => {
+    const sections = buildReportSections(OUTPUT_WITH_OPPORTUNITIES);
+    expect(sections.some(s => s.id === 'future_energy_opportunities')).toBe(true);
+  });
+
+  it('omits future_energy_opportunities when futureEnergyOpportunities is absent', () => {
+    const sections = buildReportSections(FULL_OUTPUT);
+    expect(sections.some(s => s.id === 'future_energy_opportunities')).toBe(false);
+  });
+
+  it('future_energy_opportunities carries solar PV and EV assessments', () => {
+    const sections = buildReportSections(OUTPUT_WITH_OPPORTUNITIES);
+    const s = sections.find(sec => sec.id === 'future_energy_opportunities');
+    if (s?.id === 'future_energy_opportunities') {
+      expect(s.solarPv.status).toBe('suitable_now');
+      expect(s.evCharging.status).toBe('check_required');
+    }
+  });
+
+  it('future_energy_opportunities carries the correct summary text', () => {
+    const sections = buildReportSections(OUTPUT_WITH_OPPORTUNITIES);
+    const s = sections.find(sec => sec.id === 'future_energy_opportunities');
+    if (s?.id === 'future_energy_opportunities') {
+      expect(s.solarPv.summary).toBe('Solar PV looks promising for this home.');
+      expect(s.evCharging.checksRequired).toContain('Off-street parking arrangement and supply route to be confirmed on site.');
+    }
+  });
+
+  it('future_energy_opportunities appears after verdict in canonical order', () => {
+    const sections = buildReportSections(OUTPUT_WITH_OPPORTUNITIES);
+    const verdictIdx = sections.findIndex(s => s.id === 'verdict');
+    const oppIdx = sections.findIndex(s => s.id === 'future_energy_opportunities');
+    expect(verdictIdx).toBeGreaterThanOrEqual(0);
+    expect(oppIdx).toBeGreaterThan(verdictIdx);
+  });
+
+  it('future_energy_opportunities appears before technical summary sections', () => {
+    const sections = buildReportSections({
+      ...OUTPUT_WITH_OPPORTUNITIES,
+      ...OUTPUT_WITH_OPTIONS,
+      futureEnergyOpportunities: OUTPUT_WITH_OPPORTUNITIES.futureEnergyOpportunities,
+    });
+    const oppIdx = sections.findIndex(s => s.id === 'future_energy_opportunities');
+    const archIdx = sections.findIndex(s => s.id === 'system_architecture');
+    if (archIdx >= 0) {
+      expect(oppIdx).toBeLessThan(archIdx);
+    }
+  });
+});

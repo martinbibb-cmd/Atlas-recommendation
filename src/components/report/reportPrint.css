@@ -519,6 +519,108 @@
   margin: 0.4rem 0 0;
 }
 
+/* ── Future energy opportunities ─────────────────────────────────────────── */
+
+.rv-section__intro {
+  font-size: 0.84rem;
+  color: #4a5568;
+  margin: 0 0 1rem;
+}
+
+.rv-opportunity-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 600px) {
+  .rv-opportunity-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rv-opportunity-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+  background: #f7fafc;
+}
+
+.rv-opportunity-card--suitable_now {
+  border-color: #9ae6b4;
+  background: #f0fff4;
+}
+
+.rv-opportunity-card--check_required {
+  border-color: #fbd38d;
+  background: #fffbeb;
+}
+
+.rv-opportunity-card--not_currently_favoured {
+  border-color: #e2e8f0;
+  background: #f7fafc;
+  opacity: 0.8;
+}
+
+.rv-opportunity-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  gap: 0.5rem;
+}
+
+.rv-opportunity-card__title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #1a202c;
+}
+
+.rv-opportunity-card__badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.rv-opportunity-card__badge--suitable_now {
+  background: #9ae6b4;
+  color: #276749;
+}
+
+.rv-opportunity-card__badge--check_required {
+  background: #fbd38d;
+  color: #744210;
+}
+
+.rv-opportunity-card__badge--not_currently_favoured {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.rv-opportunity-card__summary {
+  font-size: 0.83rem;
+  color: #2d3748;
+  margin: 0 0 0.6rem;
+  line-height: 1.45;
+}
+
+.rv-opportunity-card__block {
+  margin-top: 0.5rem;
+}
+
+.rv-label--check {
+  color: #744210;
+}
+
+.rv-bullet-list--checks li::marker {
+  content: '→  ';
+  color: #4a5568;
+}
+
 /* ── Page break hint ─────────────────────────────────────────────────────── */
 
 .rv-page-break-before {

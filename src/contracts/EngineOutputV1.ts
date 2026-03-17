@@ -571,6 +571,50 @@ export interface PlanV1 {
   sharedConstraints: string[];
 }
 
+// ─── Future Energy Opportunities (V1) ────────────────────────────────────────
+
+/**
+ * Opportunity assessment status — three-level signal for suitability.
+ *
+ * suitable_now          — signals are positive enough to recommend proactive assessment
+ * check_required        — promising but unknown inputs need site confirmation
+ * not_currently_favoured — limited near-term value based on current constraints
+ */
+export type OpportunityStatus =
+  | 'suitable_now'
+  | 'check_required'
+  | 'not_currently_favoured';
+
+/**
+ * A single technology opportunity assessment.
+ * Intentionally lightweight — this is guidance, not a design specification.
+ */
+export interface OpportunityAssessment {
+  /** Traffic-light status for this opportunity. */
+  status: OpportunityStatus;
+  /** One-line summary suitable for a card headline. */
+  summary: string;
+  /** Up to 3 reasons explaining the status. */
+  reasons: string[];
+  /** Specific checks needed before this opportunity can be confirmed. */
+  checksRequired: string[];
+}
+
+/**
+ * Future energy opportunity layer — augments the heating recommendation with
+ * structured suitability assessments for adjacent whole-home technologies.
+ *
+ * These are opportunity assessments, not installation approvals or full designs.
+ * Unknown critical inputs (roof, parking, supply capacity) always trigger
+ * check_required rather than false certainty.
+ */
+export interface FutureEnergyOpportunities {
+  /** Solar PV suitability assessment. */
+  solarPv: OpportunityAssessment;
+  /** EV charging suitability assessment. */
+  evCharging: OpportunityAssessment;
+}
+
 export interface EngineOutputV1 {
   eligibility: EligibilityItem[];
   redFlags: RedFlagItem[];
@@ -597,4 +641,10 @@ export interface EngineOutputV1 {
   influenceSummary?: InfluenceSummaryV1;
   /** 2–3 pathway options for expert selection — engine provides physics truth; expert selects the plan. */
   plans?: PlanV1;
+  /**
+   * Future energy opportunity assessments — solar PV and EV charging suitability.
+   * Present when survey data is sufficient to evaluate whole-home pathway opportunities.
+   * These are opportunity assessments, not full designs or installation approvals.
+   */
+  futureEnergyOpportunities?: FutureEnergyOpportunities;
 }
