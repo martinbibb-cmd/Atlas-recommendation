@@ -74,3 +74,131 @@
 .report-page__home-btn:hover {
   background: rgba(255, 255, 255, 0.22);
 }
+
+/* ── Metadata strip ──────────────────────────────────────────────────────── */
+
+.report-page__meta-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 0;
+  padding: 0.6rem 1.25rem;
+  background: #ebf4ff;
+  border-bottom: 1px solid #bee3f8;
+  font-size: 0.78rem;
+  color: #2d3748;
+}
+
+.report-page__meta-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0.15rem 1rem 0.15rem 0;
+  border-right: 1px solid #bee3f8;
+  margin-right: 1rem;
+}
+
+.report-page__meta-item:last-child {
+  border-right: none;
+  margin-right: 0;
+}
+
+.report-page__meta-strip dt {
+  font-weight: 600;
+  color: #4a5568;
+  white-space: nowrap;
+}
+
+.report-page__meta-strip dd {
+  margin: 0;
+  color: #2d3748;
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+/* ID fields truncate gracefully on narrow screens */
+.report-page__meta-id {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Status badge ────────────────────────────────────────────────────────── */
+
+.report-page__status-badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+}
+
+.report-page__status-badge--draft {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.report-page__status-badge--complete,
+.report-page__status-badge--final {
+  background: #c6f6d5;
+  color: #276749;
+}
+
+.report-page__status-badge--archived {
+  background: #feebc8;
+  color: #7b341e;
+}
+
+/* ── Print / PDF layout ──────────────────────────────────────────────────── */
+
+@media print {
+  /* Hide interactive chrome */
+  .report-page__home-btn,
+  .report-page__banner {
+    display: none !important;
+  }
+
+  /* Meta strip prints at the very top */
+  .report-page__meta-strip {
+    background: transparent;
+    border-bottom: 1px solid #000;
+    padding: 0.4rem 0;
+    color: #000;
+  }
+
+  .report-page__meta-strip dt,
+  .report-page__meta-strip dd {
+    color: #000;
+  }
+
+  .report-page {
+    background: #fff;
+    min-height: unset;
+  }
+
+  /* Avoid splitting sections across pages */
+  section,
+  .synthesis-section,
+  .report-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Hide interactive controls that don't belong in a printed report */
+  .share-panel,
+  .tab-bar,
+  .nav-bar,
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  /* Good margins for A4 */
+  @page {
+    margin: 15mm 12mm;
+  }
+}

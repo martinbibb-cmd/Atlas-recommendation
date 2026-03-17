@@ -28,6 +28,7 @@ interface ReportRow {
   title: string | null;
   customer_name: string | null;
   postcode: string | null;
+  visit_id: string | null;
   payload_json: string;
 }
 
@@ -37,7 +38,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   try {
     const row = await env.ATLAS_REPORTS_D1.prepare(
-      "SELECT id, created_at, updated_at, status, title, customer_name, postcode, payload_json FROM reports WHERE id = ?"
+      "SELECT id, created_at, updated_at, status, title, customer_name, postcode, visit_id, payload_json FROM reports WHERE id = ?"
     )
       .bind(id)
       .first<ReportRow>();

@@ -108,6 +108,44 @@ export default function ReportPage({ reportId, onBack }: Props) {
         )}
       </div>
 
+      {/* Report metadata strip */}
+      {meta && (
+        <dl className="report-page__meta-strip" aria-label="Report details">
+          <div className="report-page__meta-item">
+            <dt>Report ID</dt>
+            <dd className="report-page__meta-id">{meta.id}</dd>
+          </div>
+          <div className="report-page__meta-item">
+            <dt>Created</dt>
+            <dd>
+              {new Date(meta.created_at).toLocaleString('en-GB', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </dd>
+          </div>
+          {meta.visit_id && (
+            <div className="report-page__meta-item">
+              <dt>Visit ID</dt>
+              <dd className="report-page__meta-id">{meta.visit_id}</dd>
+            </div>
+          )}
+          <div className="report-page__meta-item">
+            <dt>Status</dt>
+            <dd>
+              <span
+                className={`report-page__status-badge report-page__status-badge--${meta.status}`}
+              >
+                {meta.status}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      )}
+
       <DecisionSynthesisPage
         engineOutput={engineOutput}
         surveyData={surveyData ?? undefined}
