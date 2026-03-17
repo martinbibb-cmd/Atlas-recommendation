@@ -2,6 +2,8 @@
  * VisitReportsList
  *
  * Renders a compact list of reports linked to a given visit.
+ * Reports are shown newest first (API ordering).
+ * The most recent report is badged "Latest"; older reports are shown as history.
  * Silently hides itself when the API is unavailable or the visit has no reports.
  */
 
@@ -55,31 +57,52 @@ export default function VisitReportsList({ visitId, onOpenReport }: Props) {
 
   if (loading || reports.length === 0) return null;
 
+  const headingId = `visit-reports-heading-${visitId.slice(-8)}`;
+
   return (
-    <section className="visit-reports" aria-label="Reports for this visit">
-      <h2 className="visit-reports__heading">Reports</h2>
+    <section className="visit-reports" aria-labelledby={headingId}>
+      <h2 className="visit-reports__heading" id={headingId}>
+        Reports
+        <span className="visit-reports__count">
+          {reports.length}
+        </span>
+      </h2>
       <ul className="visit-reports__list" role="list">
-        {reports.map((r) => (
-          <li key={r.id} className="visit-reports__row" role="listitem">
-            <div className="visit-reports__info">
-              <span className="visit-reports__title">{reportLabel(r)}</span>
-              <span className="visit-reports__meta">{formatDate(r.created_at)}</span>
-            </div>
-            <span
-              className={`visit-reports__status visit-reports__status--${r.status}`}
-              aria-label={`Status: ${r.status}`}
+        {reports.map((r, idx) => {
+          const isLatest = idx === 0;
+          return (
+            <li
+              key={r.id}
+              className={`visit-reports__row${isLatest ? ' visit-reports__row--latest' : ''}`}
+              role="listitem"
             >
-              {r.status}
-            </span>
-            <button
-              className="visit-reports__open-btn"
-              onClick={() => onOpenReport(r.id)}
-              aria-label={`Open report: ${reportLabel(r)}`}
-            >
-              Open →
-            </button>
-          </li>
-        ))}
+              <div className="visit-reports__info">
+                <span className="visit-reports__title">{reportLabel(r)}</span>
+                <span className="visit-reports__meta">{formatDate(r.created_at)}</span>
+              </div>
+              <div className="visit-reports__badges">
+                {isLatest && (
+                  <span className="visit-reports__badge visit-reports__badge--latest" aria-label="Latest report">
+                    Latest
+                  </span>
+                )}
+                <span
+                  className={`visit-reports__status visit-reports__status--${r.status}`}
+                  aria-label={`Status: ${r.status}`}
+                >
+                  {r.status}
+                </span>
+              </div>
+              <button
+                className="visit-reports__open-btn"
+                onClick={() => onOpenReport(r.id)}
+                aria-label={`Open report: ${reportLabel(r)}`}
+              >
+                Open →
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

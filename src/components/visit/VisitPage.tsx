@@ -10,6 +10,7 @@
  * - Autosave the working payload back to the visit whenever the survey step changes
  * - Route to the Simulator / ExplainersHub on survey completion
  * - Show a compact save-state indicator in the visit header
+ * - Render a case summary header (visit ID, status, customer, postcode, report count)
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -17,7 +18,7 @@ import FullSurveyStepper from '../stepper/FullSurveyStepper';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
-import { getVisit, saveVisit } from '../../lib/visits/visitApi';
+import { getVisit, saveVisit, type VisitMeta } from '../../lib/visits/visitApi';
 import VisitReportsList from './VisitReportsList';
 import './VisitPage.css';
 
@@ -59,6 +60,73 @@ function SaveStateIndicator({ state }: { state: SaveState }) {
   );
 }
 
+// ─── Visit case summary header ────────────────────────────────────────────────
+
+interface CaseSummaryProps {
+  visitId: string;
+  meta: VisitMeta | null;
+  saveState: SaveState;
+  onBack: () => void;
+}
+
+function formatShortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+/** Renders the compact case-shell header shown at the top of every visit. */
+function VisitCaseSummary({ visitId, meta, saveState, onBack }: CaseSummaryProps) {
+  const shortId = visitId.slice(-8).toUpperCase();
+
+  return (
+    <div className="visit-page__header" aria-label="Visit case summary">
+      <button
+        className="visit-page__back-btn"
+        onClick={onBack}
+        aria-label="Back to dashboard"
+      >
+        ←
+      </button>
+
+      <div className="visit-case-summary">
+        <span
+          className="visit-case-summary__id"
+          title={`Visit ID: ${visitId}`}
+          aria-label={`Visit ID ending ${shortId}`}
+        >
+          Visit ···{shortId}
+        </span>
+
+        {meta && (
+          <>
+            {(meta.customer_name || meta.postcode) && (
+              <span className="visit-case-summary__customer">
+                {[meta.customer_name, meta.postcode].filter(Boolean).join(' · ')}
+              </span>
+            )}
+
+            <span
+              className={`visit-case-summary__status visit-case-summary__status--${meta.status}`}
+              aria-label={`Status: ${meta.status}`}
+            >
+              {meta.status}
+            </span>
+
+            <span className="visit-case-summary__date" title="Created">
+              {formatShortDate(meta.created_at)}
+            </span>
+          </>
+        )}
+      </div>
+
+      <SaveStateIndicator state={saveState} />
+    </div>
+  );
+}
+
 export default function VisitPage({
   visitId,
   onBack,
@@ -68,20 +136,24 @@ export default function VisitPage({
 }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [prefill, setPrefill] = useState<Partial<FullSurveyModelV1> | undefined>();
+  const [visitMeta, setVisitMeta] = useState<VisitMeta | null>(null);
   const [ready, setReady] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load existing working payload from the visit record on mount.
+  // Load existing working payload and visit metadata from the API on mount.
   useEffect(() => {
     let cancelled = false;
     getVisit(visitId)
       .then((visit) => {
         if (cancelled) return;
-        const payload = visit.working_payload;
-        if (payload && Object.keys(payload).length > 0) {
-          setPrefill(payload as Partial<FullSurveyModelV1>);
+        // Save metadata for the case summary header.
+        const { working_payload, ...meta } = visit;
+        setVisitMeta(meta);
+        // Restore survey state from persisted working payload.
+        if (working_payload && Object.keys(working_payload).length > 0) {
+          setPrefill(working_payload as Partial<FullSurveyModelV1>);
         }
         setReady(true);
       })
@@ -112,6 +184,9 @@ export default function VisitPage({
         })
           .then(() => {
             setSaveState('saved');
+            setVisitMeta(prev =>
+              prev ? { ...prev, status: 'complete', current_step: 'complete' } : prev
+            );
             savedResetTimer.current = setTimeout(() => {
               setSaveState('idle');
             }, SAVED_RESET_DELAY_MS);
@@ -146,12 +221,12 @@ export default function VisitPage({
 
   return (
     <div className="visit-page">
-      <div className="visit-page__header">
-        <span className="visit-page__id" aria-label={`Visit ${visitId}`}>
-          Visit
-        </span>
-        <SaveStateIndicator state={saveState} />
-      </div>
+      <VisitCaseSummary
+        visitId={visitId}
+        meta={visitMeta}
+        saveState={saveState}
+        onBack={onBack}
+      />
       <FullSurveyStepper
         onBack={onBack}
         prefill={prefill}

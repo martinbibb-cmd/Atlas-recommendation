@@ -39,6 +39,7 @@ import {
   checkCompleteness,
   buildReportSections,
   type SystemSummarySection,
+  type DecisionRationaleSection,
   type KeyTradeOffSection,
   type OperatingPointSection,
   type BehaviourSummarySection,
@@ -111,6 +112,60 @@ function SystemSummarySection({ section }: { section: SystemSummarySection }) {
             </div>
           )}
         </dl>
+      )}
+    </section>
+  );
+}
+
+function DecisionRationaleRenderer({ section }: { section: DecisionRationaleSection }) {
+  return (
+    <section className="rv-section rv-section--rationale" aria-labelledby="rv-decision-rationale">
+      <h2 className="rv-section__title" id="rv-decision-rationale">
+        Why {section.primaryLabel}?
+      </h2>
+
+      {/* Why this wins */}
+      {section.whyThisWins.length > 0 && (
+        <div className="rv-rationale-block">
+          <p className="rv-rationale-block__heading">Why this wins</p>
+          <ul className="rv-bullet-list" aria-label="Reasons this system is recommended">
+            {section.whyThisWins.map((r, i) => <li key={i}>{r}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* What limits the alternative */}
+      {section.alternativeLabel && (
+        <div className="rv-rationale-block">
+          <p className="rv-rationale-block__heading">
+            What limits {section.alternativeLabel}
+          </p>
+          {section.whatLimitsAlternative.length > 0 ? (
+            <ul className="rv-bullet-list" aria-label="Limitations of the alternative">
+              {section.whatLimitsAlternative.map((r, i) => <li key={i}>{r}</li>)}
+            </ul>
+          ) : (
+            <p className="rv-label">No specific blockers identified; suitability depends on site conditions.</p>
+          )}
+        </div>
+      )}
+
+      {/* Key physical constraints */}
+      {section.keyPhysicalConstraints.length > 0 && (
+        <div className="rv-rationale-block">
+          <p className="rv-rationale-block__heading">Key physical constraints</p>
+          <ul className="rv-bullet-list rv-bullet-list--constraints" aria-label="Key physical constraints">
+            {section.keyPhysicalConstraints.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* Recommended next action */}
+      {section.recommendedNextAction && (
+        <div className="rv-rationale-block rv-rationale-block--action">
+          <p className="rv-rationale-block__heading">Recommended next action</p>
+          <p className="rv-rationale-block__action">{section.recommendedNextAction}</p>
+        </div>
       )}
     </section>
   );
@@ -520,6 +575,8 @@ function RenderSection({ section }: { section: ReportSection }) {
   switch (section.id) {
     case 'system_summary':
       return <SystemSummarySection section={section} />;
+    case 'decision_rationale':
+      return <DecisionRationaleRenderer section={section} />;
     case 'key_trade_off':
       return <KeyTradeOffSection section={section} />;
     case 'operating_point':

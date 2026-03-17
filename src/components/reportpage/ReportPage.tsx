@@ -7,12 +7,22 @@
  *
  * This is the target of share links and QR codes (e.g. /report/:id).
  * It renders the recommendation from the persisted snapshot, not live state.
+ *
+ * Lifecycle actions available:
+ *   - Mark complete — advances status from draft → complete
+ *   - Archive       — moves status to archived
+ *   - Duplicate     — creates a new draft copy of this report
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
-import { getReport, type ReportMeta } from '../../lib/reports/reportApi';
+import {
+  getReport,
+  updateReport,
+  duplicateReport,
+  type ReportMeta,
+} from '../../lib/reports/reportApi';
 import DecisionSynthesisPage from '../advice/DecisionSynthesisPage';
 import { buildCompareSeedFromSurvey } from '../../lib/simulator/buildCompareSeedFromSurvey';
 import './ReportPage.css';
@@ -20,9 +30,98 @@ import './ReportPage.css';
 interface Props {
   reportId: string;
   onBack?: () => void;
+  /** Called with the new report ID after a successful duplicate. */
+  onDuplicated?: (newReportId: string) => void;
 }
 
-export default function ReportPage({ reportId, onBack }: Props) {
+// ─── Lifecycle actions panel ──────────────────────────────────────────────────
+
+interface LifecyclePanelProps {
+  meta: ReportMeta;
+  onStatusChange: (newStatus: string) => void;
+  onDuplicate: () => void;
+}
+
+function ReportLifecyclePanel({ meta, onStatusChange, onDuplicate }: LifecyclePanelProps) {
+  const [actionState, setActionState] = useState<'idle' | 'working' | 'error'>('idle');
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function handleStatusChange(newStatus: string) {
+    setActionState('working');
+    setActionError(null);
+    try {
+      await updateReport(meta.id, { status: newStatus });
+      onStatusChange(newStatus);
+      setActionState('idle');
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+      setActionState('error');
+    }
+  }
+
+  async function handleDuplicate() {
+    setActionState('working');
+    setActionError(null);
+    try {
+      await onDuplicate();
+      setActionState('idle');
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+      setActionState('error');
+    }
+  }
+
+  const isBusy = actionState === 'working';
+
+  return (
+    <div className="report-lifecycle-panel" aria-label="Report lifecycle actions">
+      <div className="report-lifecycle-panel__actions">
+        {meta.status === 'draft' && (
+          <button
+            className="report-lifecycle-panel__btn report-lifecycle-panel__btn--complete"
+            onClick={() => handleStatusChange('complete')}
+            disabled={isBusy}
+            aria-label="Mark report as complete"
+          >
+            ✓ Mark complete
+          </button>
+        )}
+        {meta.status === 'complete' && (
+          <button
+            className="report-lifecycle-panel__btn report-lifecycle-panel__btn--archive"
+            onClick={() => handleStatusChange('archived')}
+            disabled={isBusy}
+            aria-label="Archive this report"
+          >
+            Archive
+          </button>
+        )}
+        <button
+          className="report-lifecycle-panel__btn report-lifecycle-panel__btn--duplicate"
+          onClick={handleDuplicate}
+          disabled={isBusy}
+          aria-label="Duplicate this report as a new draft"
+        >
+          Duplicate
+        </button>
+      </div>
+      {isBusy && (
+        <span className="report-lifecycle-panel__status" role="status" aria-live="polite">
+          Working…
+        </span>
+      )}
+      {actionState === 'error' && actionError && (
+        <span className="report-lifecycle-panel__error" role="alert">
+          {actionError}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export default function ReportPage({ reportId, onBack, onDuplicated }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<ReportMeta | null>(null);
@@ -35,6 +134,15 @@ export default function ReportPage({ reportId, onBack }: Props) {
       .then((report) => {
         if (cancelled) return;
         const { payload, ...reportMeta } = report;
+
+        // Guard: engineOutput must be present for the report to be renderable.
+        if (!payload?.engineOutput) {
+          throw new Error(
+            'This report snapshot is incomplete: the engine output is missing. ' +
+            'The report may have been saved from an older version of Atlas.',
+          );
+        }
+
         setMeta(reportMeta);
         setEngineOutput(payload.engineOutput);
         setSurveyData(payload.surveyData ?? null);
@@ -51,6 +159,13 @@ export default function ReportPage({ reportId, onBack }: Props) {
     };
   }, [reportId]);
 
+  const handleDuplicate = useCallback(async () => {
+    const result = await duplicateReport(reportId);
+    if (onDuplicated) {
+      onDuplicated(result.id);
+    }
+  }, [reportId, onDuplicated]);
+
   if (loading) {
     return (
       <div className="report-page__loading" role="status" aria-live="polite">
@@ -60,9 +175,20 @@ export default function ReportPage({ reportId, onBack }: Props) {
   }
 
   if (error || engineOutput == null) {
+    const isNotFound = error?.toLowerCase().includes('not found');
     return (
       <div className="report-page__error" role="alert">
-        <p>{error ?? 'Report could not be loaded.'}</p>
+        <p className="report-page__error-headline">
+          {isNotFound ? 'Report not found' : 'Report could not be loaded'}
+        </p>
+        <p className="report-page__error-detail">
+          {error ?? 'The report payload is missing or incomplete.'}
+        </p>
+        {isNotFound && (
+          <p className="report-page__error-hint">
+            This may happen if the report ID is incorrect or if the report has been deleted.
+          </p>
+        )}
         {onBack && (
           <button className="cta-btn" onClick={onBack}>
             ← Back to home
@@ -81,9 +207,9 @@ export default function ReportPage({ reportId, onBack }: Props) {
   return (
     <div className="report-page">
       {/* Shared report banner */}
-      <div className="report-page__banner" aria-label="Shared report">
+      <div className="report-page__banner" aria-label="Shared report" data-print-hide>
         <span className="report-page__banner-label">
-          📋 Shared Atlas report
+          📋 Atlas Engineering Report
         </span>
         {meta?.postcode && (
           <span className="report-page__banner-postcode">{meta.postcode}</span>
@@ -116,7 +242,7 @@ export default function ReportPage({ reportId, onBack }: Props) {
             <dd className="report-page__meta-id">{meta.id}</dd>
           </div>
           <div className="report-page__meta-item">
-            <dt>Created</dt>
+            <dt>Generated</dt>
             <dd>
               {new Date(meta.created_at).toLocaleString('en-GB', {
                 day: 'numeric',
@@ -129,7 +255,7 @@ export default function ReportPage({ reportId, onBack }: Props) {
           </div>
           {meta.visit_id && (
             <div className="report-page__meta-item">
-              <dt>Visit ID</dt>
+              <dt>Visit</dt>
               <dd className="report-page__meta-id">{meta.visit_id}</dd>
             </div>
           )}
@@ -144,6 +270,19 @@ export default function ReportPage({ reportId, onBack }: Props) {
             </dd>
           </div>
         </dl>
+      )}
+
+      {/* Lifecycle actions (hidden on print) */}
+      {meta && (
+        <div data-print-hide>
+          <ReportLifecyclePanel
+            meta={meta}
+            onStatusChange={(newStatus) =>
+              setMeta((prev) => (prev ? { ...prev, status: newStatus } : prev))
+            }
+            onDuplicate={handleDuplicate}
+          />
+        </div>
       )}
 
       <DecisionSynthesisPage
