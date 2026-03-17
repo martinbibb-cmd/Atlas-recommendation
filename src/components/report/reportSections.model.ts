@@ -39,6 +39,7 @@ import type {
   VerdictV1,
   OptionCardV1,
   SensitivityItem,
+  OpportunityStatus,
 } from '../../contracts/EngineOutputV1';
 
 // ─── Section types ────────────────────────────────────────────────────────────
@@ -57,7 +58,8 @@ export type ReportSectionId =
   | 'risks_enablers'
   | 'assumptions'
   | 'physics_trace'
-  | 'engineering_notes';
+  | 'engineering_notes'
+  | 'future_energy_opportunities';
 
 export interface SystemSummarySection {
   id: 'system_summary';
@@ -226,6 +228,28 @@ export interface EngineeringNotesSection {
   niceToHave: string[];
 }
 
+/**
+ * Future energy opportunities — solar PV and EV charging suitability assessments.
+ *
+ * Surfaces whole-home pathway opportunities alongside the heating recommendation.
+ * These are opportunity assessments, not installation approvals or full designs.
+ */
+export interface FutureEnergyOpportunitiesSection {
+  id: 'future_energy_opportunities';
+  solarPv: {
+    status: OpportunityStatus;
+    summary: string;
+    reasons: string[];
+    checksRequired: string[];
+  };
+  evCharging: {
+    status: OpportunityStatus;
+    summary: string;
+    reasons: string[];
+    checksRequired: string[];
+  };
+}
+
 export type ReportSection =
   | SystemSummarySection
   | DecisionRationaleSection
@@ -240,7 +264,8 @@ export type ReportSection =
   | RisksEnablersSection
   | AssumptionsSection
   | PhysicsTraceSection
-  | EngineeringNotesSection;
+  | EngineeringNotesSection
+  | FutureEnergyOpportunitiesSection;
 
 // ─── Completeness ─────────────────────────────────────────────────────────────
 
@@ -728,6 +753,29 @@ function buildEngineeringNotesSection(output: EngineOutputV1): EngineeringNotesS
   };
 }
 
+function buildFutureEnergyOpportunitiesSection(
+  output: EngineOutputV1,
+): FutureEnergyOpportunitiesSection | null {
+  const opp = output.futureEnergyOpportunities;
+  if (!opp) return null;
+
+  return {
+    id: 'future_energy_opportunities',
+    solarPv: {
+      status: opp.solarPv.status,
+      summary: opp.solarPv.summary,
+      reasons: opp.solarPv.reasons,
+      checksRequired: opp.solarPv.checksRequired,
+    },
+    evCharging: {
+      status: opp.evCharging.status,
+      summary: opp.evCharging.summary,
+      reasons: opp.evCharging.reasons,
+      checksRequired: opp.evCharging.checksRequired,
+    },
+  };
+}
+
 // ─── Main builder ─────────────────────────────────────────────────────────────
 
 /**
@@ -738,7 +786,8 @@ function buildEngineeringNotesSection(output: EngineOutputV1): EngineeringNotesS
  *
  *   Customer summary (decision-first):
  *     system_summary → decision_rationale → key_trade_off → operating_point →
- *     behaviour_summary → key_limiters → future_path → verdict
+ *     behaviour_summary → key_limiters → future_path → verdict →
+ *     future_energy_opportunities
  *
  *   Technical summary (engineer-facing):
  *     system_architecture → stored_hot_water → risks_enablers → assumptions
@@ -772,6 +821,9 @@ export function buildReportSections(output: EngineOutputV1): ReportSection[] {
 
   const verdictSection = buildVerdictSection(output);
   if (verdictSection) sections.push(verdictSection);
+
+  const futureOpportunitiesSection = buildFutureEnergyOpportunitiesSection(output);
+  if (futureOpportunitiesSection) sections.push(futureOpportunitiesSection);
 
   // ── Technical summary ─────────────────────────────────────────────────────
   const archSection = buildSystemArchitectureSection(output);

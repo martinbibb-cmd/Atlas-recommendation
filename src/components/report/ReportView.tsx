@@ -35,6 +35,7 @@
  */
 
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
+import { OPPORTUNITY_STATUS_LABELS } from '../../contracts/EngineOutputV1';
 import {
   checkCompleteness,
   buildReportSections,
@@ -52,6 +53,7 @@ import {
   type AssumptionsSection,
   type PhysicsTraceSection,
   type EngineeringNotesSection,
+  type FutureEnergyOpportunitiesSection,
   type ReportSection,
 } from './reportSections.model';
 import ReportCompletenessBanner from './ReportCompletenessBanner';
@@ -553,6 +555,76 @@ function EngineeringNotesSection({ section }: { section: EngineeringNotesSection
   );
 }
 
+// ─── Status label helpers ─────────────────────────────────────────────────────
+
+const OPPORTUNITY_STATUS_LABEL = OPPORTUNITY_STATUS_LABELS;
+
+function OpportunityCard({
+  title,
+  card,
+}: {
+  title: string;
+  card: FutureEnergyOpportunitiesSection['solarPv'];
+}) {
+  return (
+    <div
+      className={`rv-opportunity-card rv-opportunity-card--${card.status}`}
+      aria-label={`${title} opportunity`}
+    >
+      <div className="rv-opportunity-card__header">
+        <span className="rv-opportunity-card__title">{title}</span>
+        <span className={`rv-opportunity-card__badge rv-opportunity-card__badge--${card.status}`}>
+          {OPPORTUNITY_STATUS_LABEL[card.status]}
+        </span>
+      </div>
+      <p className="rv-opportunity-card__summary">{card.summary}</p>
+      {card.reasons.length > 0 && (
+        <div className="rv-opportunity-card__block">
+          <p className="rv-label">Why it matters</p>
+          <ul className="rv-bullet-list" aria-label={`${title} reasons`}>
+            {card.reasons.map((r, i) => <li key={i}>{r}</li>)}
+          </ul>
+        </div>
+      )}
+      {card.checksRequired.length > 0 && (
+        <div className="rv-opportunity-card__block" style={{ marginTop: '0.5rem' }}>
+          <p className="rv-label rv-label--check">What needs confirming</p>
+          <ul className="rv-bullet-list rv-bullet-list--checks" aria-label={`${title} checks required`}>
+            {card.checksRequired.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FutureEnergyOpportunitiesRenderer({
+  section,
+}: {
+  section: FutureEnergyOpportunitiesSection;
+}) {
+  return (
+    <section className="rv-section" aria-labelledby="rv-future-energy-opportunities">
+      <h2 className="rv-section__title" id="rv-future-energy-opportunities">
+        Future energy opportunities
+      </h2>
+      <p className="rv-section__intro">
+        Based on the information gathered, these whole-home energy opportunities are worth
+        considering alongside the heating recommendation. These are opportunity assessments —
+        not installation approvals or full designs.
+      </p>
+      <div className="rv-opportunity-grid" role="list" aria-label="Future energy opportunities">
+        <div role="listitem">
+          <OpportunityCard title="Solar PV" card={section.solarPv} />
+        </div>
+        <div role="listitem">
+          <OpportunityCard title="EV charging" card={section.evCharging} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Section group headers ────────────────────────────────────────────────────
 
 /** Section IDs that belong to the technical summary group. */
@@ -589,6 +661,8 @@ function RenderSection({ section }: { section: ReportSection }) {
       return <FuturePathSection section={section} />;
     case 'verdict':
       return <VerdictSection section={section} />;
+    case 'future_energy_opportunities':
+      return <FutureEnergyOpportunitiesRenderer section={section} />;
     case 'system_architecture':
       return <SystemArchitectureSection section={section} />;
     case 'stored_hot_water':

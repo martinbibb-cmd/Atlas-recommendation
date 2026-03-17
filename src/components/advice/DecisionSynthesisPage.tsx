@@ -27,7 +27,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
+import type { EngineOutputV1, OpportunityAssessment } from '../../contracts/EngineOutputV1';
+import { OPPORTUNITY_STATUS_LABELS } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { CompareSeed } from '../../lib/simulator/buildCompareSeedFromSurvey';
@@ -402,6 +403,57 @@ function UnifiedConfidencePanel({ unified }: { unified: UnifiedConfidence }) {
             {unified.nextBestChecks.map((check, i) => (
               <li key={i} className="advice-confidence__next-check">{check}</li>
             ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── OpportunityCardUI ─────────────────────────────────────────────────────────
+
+const OPPORTUNITY_STATUS_LABEL = OPPORTUNITY_STATUS_LABELS;
+
+function OpportunityCardUI({
+  title,
+  card,
+}: {
+  title: string;
+  card: OpportunityAssessment;
+}) {
+  return (
+    <div
+      className={`advice-opportunity advice-opportunity--${card.status}`}
+      aria-label={`${title} opportunity`}
+    >
+      <div className="advice-opportunity__header">
+        <span className="advice-opportunity__title">{title}</span>
+        <span
+          className={`advice-opportunity__badge advice-opportunity__badge--${card.status}`}
+          aria-label={`Status: ${OPPORTUNITY_STATUS_LABEL[card.status]}`}
+        >
+          {OPPORTUNITY_STATUS_LABEL[card.status]}
+        </span>
+      </div>
+      <p className="advice-opportunity__summary">{card.summary}</p>
+      {card.reasons.length > 0 && (
+        <div className="advice-opportunity__block">
+          <div className="advice-opportunity__block-label">Why it matters</div>
+          <ul className="advice-opportunity__list" aria-label={`${title} reasons`}>
+            {card.reasons.map((r, i) => <li key={i}>{r}</li>)}
+          </ul>
+        </div>
+      )}
+      {card.checksRequired.length > 0 && (
+        <div className="advice-opportunity__block">
+          <div className="advice-opportunity__block-label advice-opportunity__block-label--checks">
+            What needs confirming
+          </div>
+          <ul
+            className="advice-opportunity__list advice-opportunity__list--checks"
+            aria-label={`${title} checks required`}
+          >
+            {card.checksRequired.map((c, i) => <li key={i}>{c}</li>)}
           </ul>
         </div>
       )}
@@ -1094,6 +1146,44 @@ export default function DecisionSynthesisPage({
           ))}
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 6 — Future energy opportunities                           */}
+      {/* Solar PV and EV charging suitability assessments.                 */}
+      {/* Shown when the engine has evaluated whole-home pathway signals.   */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {engineOutput.futureEnergyOpportunities != null && (
+        <div
+          className="advice-page__section"
+          aria-label="Future energy opportunities"
+          data-testid="future-energy-opportunities-section"
+        >
+          <h2 className="advice-page__section-title">Future energy opportunities</h2>
+          <p className="advice-page__section-intro">
+            Based on this home&apos;s profile, these whole-home energy opportunities are worth considering
+            alongside the heating recommendation. These are opportunity assessments — not installation
+            approvals or full designs.
+          </p>
+          <div
+            className="advice-opportunities"
+            role="list"
+            aria-label="Future energy opportunity cards"
+          >
+            <div role="listitem">
+              <OpportunityCardUI
+                title="Solar PV"
+                card={engineOutput.futureEnergyOpportunities.solarPv}
+              />
+            </div>
+            <div role="listitem">
+              <OpportunityCardUI
+                title="EV charging"
+                card={engineOutput.futureEnergyOpportunities.evCharging}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
