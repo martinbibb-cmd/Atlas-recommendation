@@ -240,7 +240,8 @@ describe('PrintableRecommendationPage — badges', () => {
 
   it('renders the performance efficiency band', () => {
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
-    expect(screen.getByText(/Average/)).toBeTruthy();
+    // efficiencyBand 'average' → new label "Works well"
+    expect(screen.getByText(/Works well/)).toBeTruthy();
   });
 });
 

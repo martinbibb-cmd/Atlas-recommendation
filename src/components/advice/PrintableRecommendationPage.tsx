@@ -26,46 +26,102 @@ import type { AdviceCard, AdviceFromCompareResult, PerformanceSummary, UnifiedCo
 import type { CompareSeed } from '../../lib/simulator/buildCompareSeedFromSurvey';
 import './advice-print.css';
 
-// ─── Performance panel (print) ────────────────────────────────────────────────
+// ─── Performance visual dashboard (print) ─────────────────────────────────────
 
-const EFFICIENCY_BAND_LABEL: Record<PerformanceSummary['efficiencyBand'], string> = {
-  optimal: 'Optimal',
-  average: 'Average',
-  poor:    'Poor',
-};
+import {
+  PERF_CHIP_LABEL as PERF_CHIP_LABEL_PRINT,
+  COST_LEVEL_LABEL as PRINT_COST_LABEL,
+  CARBON_LEVEL_LABEL as PRINT_CARBON_LABEL,
+  GEN_BAR_LEVEL as PRINT_GEN_LEVEL,
+  GEN_LEVEL_LABEL as PRINT_GEN_LABEL,
+  costBarLevel as printCostBarLevel,
+  carbonBarLevel as printCarbonBarLevel,
+  fuelLabelFromCop,
+  outputBlockCount,
+} from './performanceDashboardHelpers';
 
-const LOCAL_GEN_LABEL: Record<PerformanceSummary['localGenerationImpact'], string> = {
-  high:     'Strong benefit',
-  moderate: 'Moderate benefit',
-  limited:  'Limited benefit',
-};
+function PrintComparatorRow({ icon, filledCount, label, exact }: {
+  icon: string;
+  filledCount: 1 | 2 | 3;
+  label: string;
+  exact?: string;
+}) {
+  return (
+    <div className="prp__perf-comparator">
+      <span className="prp__perf-comparator__icon" aria-hidden="true">{icon}</span>
+      <div className="prp__perf-comparator__bars" aria-hidden="true">
+        {([1, 2, 3] as const).map(i => (
+          <div
+            key={i}
+            className={`prp__perf-comparator__bar${i <= filledCount ? ' prp__perf-comparator__bar--filled' : ''}`}
+          />
+        ))}
+      </div>
+      <span className="prp__perf-comparator__label">{label}</span>
+      {exact && <span className="prp__perf-comparator__exact">{exact}</span>}
+    </div>
+  );
+}
 
 function PerformancePanelPrint({ summary }: { summary: PerformanceSummary }) {
+  const { inputKwh, outputKwh } = summary.energyConversion;
+  const fuelLabel  = fuelLabelFromCop(outputKwh);
+  const numBlocks  = outputBlockCount(outputKwh);
+
+  const costLevel   = printCostBarLevel(summary.costPerKwhHeat);
+  const carbonLevel = printCarbonBarLevel(summary.carbonPerKwhHeat);
+  const genLevel    = PRINT_GEN_LEVEL[summary.localGenerationImpact];
+
   return (
     <div className="prp__perf-panel" aria-label="Performance summary">
-      <div className="prp__perf-panel__title">Performance</div>
-      <dl className="prp__perf-panel__rows">
-        <div className="prp__perf-panel__row">
-          <dt className="prp__perf-panel__label">Efficiency</dt>
-          <dd className="prp__perf-panel__value">{EFFICIENCY_BAND_LABEL[summary.efficiencyBand]}</dd>
+
+      {/* 1 — performance chip */}
+      <div className={`prp__perf-chip prp__perf-chip--${summary.efficiencyBand}`}>
+        {PERF_CHIP_LABEL_PRINT[summary.efficiencyBand]}
+      </div>
+
+      {/* 2 — energy conversion visual */}
+      <div className="prp__perf-conversion" aria-label="Energy conversion">
+        <div className="prp__perf-conversion__row">
+          <div className="prp__perf-conversion__side">
+            <div className="prp__perf-conversion__blocks">
+              <div className="prp__perf-conversion__block prp__perf-conversion__block--in" />
+            </div>
+            <span className="prp__perf-conversion__sublabel">{inputKwh} kWh {fuelLabel}</span>
+          </div>
+          <span className="prp__perf-conversion__arrow" aria-hidden="true">→</span>
+          <div className="prp__perf-conversion__side">
+            <div className="prp__perf-conversion__blocks">
+              {Array.from({ length: numBlocks }, (_, i) => (
+                <div key={i} className="prp__perf-conversion__block prp__perf-conversion__block--out" />
+              ))}
+            </div>
+            <span className="prp__perf-conversion__sublabel">{outputKwh} kWh heat</span>
+          </div>
         </div>
-        <div className="prp__perf-panel__row">
-          <dt className="prp__perf-panel__label">Energy conversion</dt>
-          <dd className="prp__perf-panel__value">{summary.energyConversion.label}</dd>
-        </div>
-        <div className="prp__perf-panel__row">
-          <dt className="prp__perf-panel__label">Heat cost</dt>
-          <dd className="prp__perf-panel__value">~{summary.costPerKwhHeat}p per kWh</dd>
-        </div>
-        <div className="prp__perf-panel__row">
-          <dt className="prp__perf-panel__label">Carbon</dt>
-          <dd className="prp__perf-panel__value">{summary.carbonPerKwhHeat} kgCO₂/kWh heat</dd>
-        </div>
-        <div className="prp__perf-panel__row">
-          <dt className="prp__perf-panel__label">Local generation</dt>
-          <dd className="prp__perf-panel__value">{LOCAL_GEN_LABEL[summary.localGenerationImpact]}</dd>
-        </div>
-      </dl>
+      </div>
+
+      {/* 3 — comparator bars */}
+      <div className="prp__perf-comparators">
+        <PrintComparatorRow
+          icon="£"
+          filledCount={costLevel}
+          label={PRINT_COST_LABEL[costLevel - 1]}
+          exact={`~${summary.costPerKwhHeat}p/kWh`}
+        />
+        <PrintComparatorRow
+          icon="🌿"
+          filledCount={carbonLevel}
+          label={PRINT_CARBON_LABEL[carbonLevel - 1]}
+          exact={`${summary.carbonPerKwhHeat} kgCO₂/kWh`}
+        />
+        <PrintComparatorRow
+          icon="☀️"
+          filledCount={genLevel}
+          label={PRINT_GEN_LABEL[summary.localGenerationImpact]}
+        />
+      </div>
+
     </div>
   );
 }
