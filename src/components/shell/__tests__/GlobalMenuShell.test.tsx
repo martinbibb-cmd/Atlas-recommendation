@@ -77,7 +77,7 @@ describe('GlobalMenuShell — trigger presence', () => {
         <div>Page content</div>
       </GlobalMenuShell>,
     );
-    expect(screen.getByRole('button', { name: /open explainers/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /open explainers/i })).toBeInTheDocument();
   });
 
   it('renders the global-menu-trigger container with correct test ID', () => {
@@ -109,7 +109,7 @@ describe('GlobalMenuShell — survey route', () => {
         <div data-testid="survey-page">Survey stepper</div>
       </GlobalMenuShell>,
     );
-    expect(screen.getByRole('button', { name: /open explainers/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /open explainers/i })).toBeInTheDocument();
     expect(document.querySelector('[data-testid="survey-page"]')).not.toBeNull();
   });
 });
@@ -123,7 +123,7 @@ describe('GlobalMenuShell — simulator route', () => {
         <div data-testid="simulator-page">Simulator dashboard</div>
       </GlobalMenuShell>,
     );
-    expect(screen.getByRole('button', { name: /open explainers/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /open explainers/i })).toBeInTheDocument();
     expect(document.querySelector('[data-testid="simulator-page"]')).not.toBeNull();
   });
 });
@@ -137,7 +137,7 @@ describe('GlobalMenuShell — advice/presentation route', () => {
         <DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />
       </GlobalMenuShell>,
     );
-    expect(screen.getByRole('button', { name: /open explainers/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /open explainers/i })).toBeInTheDocument();
   });
 
   it('renders only one launcher button on the advice page (no per-page duplicate)', () => {
@@ -261,7 +261,7 @@ describe('GlobalMenuShell — children rendering', () => {
       </GlobalMenuShell>,
     );
     expect(document.querySelector('[data-testid="child-content"]')).not.toBeNull();
-    expect(screen.getByRole('button', { name: /open explainers/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /open explainers/i })).toBeInTheDocument();
   });
 });
 

@@ -767,14 +767,19 @@ export default function DecisionSynthesisPage({
 
   // Engine explainer IDs emitted for this recommendation.
   const explainerIds = new Set(engineOutput.explainers.map(e => e.id));
-  const showMixergySuggested = explainerIds.has('stored-mixergy-suggested');
-  const showCylinderCondition = explainerIds.has('stored-cylinder-condition');
+  const showMixergySuggested     = explainerIds.has('stored-mixergy-suggested');
+  const showCylinderCondition    = explainerIds.has('stored-cylinder-condition');
+  const showHydraulicAshpFlow    = explainerIds.has('hydraulic-ashp-flow');
+  const showCondensingCompromised = explainerIds.has('condensing-compromised');
+  const showWaterHardness        = explainerIds.has('water-hardness');
+  const showThermalMassHeavy     = explainerIds.has('thermal-mass-heavy');
+  const showSplanConfirmed       = explainerIds.has('splan-confirmed');
 
   // ── Context-relevant explainer IDs for the overlay ──────────────────────
   // Map each engine explainer signal to one or more educational explainer IDs.
   // These are shown first under "For this recommendation" in the overlay menu.
-  // Memoised so the array reference is stable across renders — used as an
-  // effect dependency to register IDs with the global menu shell.
+  // All deps are stable primitive booleans derived from the engine output, so
+  // the memo only recomputes when the actual signals change.
   const contextExplainerIds = useMemo<string[]>(() => {
     const ids: string[] = [];
     if (showMixergySuggested || showCylinderCondition) {
@@ -786,24 +791,31 @@ export default function DecisionSynthesisPage({
     if (showCylinderCondition) {
       ids.push('cylinder_age_condition');
     }
-    if (explainerIds.has('hydraulic-ashp-flow')) {
+    if (showHydraulicAshpFlow) {
       ids.push('pipe_capacity', 'heat_pump_flow_temp');
     }
-    if (explainerIds.has('condensing-compromised')) {
+    if (showCondensingCompromised) {
       ids.push('condensing_return_temp', 'cycling_efficiency');
     }
-    if (explainerIds.has('water-hardness')) {
+    if (showWaterHardness) {
       ids.push('water_quality_scale');
     }
-    if (explainerIds.has('thermal-mass-heavy')) {
+    if (showThermalMassHeavy) {
       ids.push('thermal_mass_inertia');
     }
-    if (explainerIds.has('splan-confirmed')) {
+    if (showSplanConfirmed) {
       ids.push('splan_vs_yplan');
     }
     return ids;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showMixergySuggested, showCylinderCondition, engineOutput.explainers]);
+  }, [
+    showMixergySuggested,
+    showCylinderCondition,
+    showHydraulicAshpFlow,
+    showCondensingCompromised,
+    showWaterHardness,
+    showThermalMassHeavy,
+    showSplanConfirmed,
+  ]);
 
   // Push context explainer IDs into the global menu shell whenever they change.
   // Clears them when the advice page unmounts.
