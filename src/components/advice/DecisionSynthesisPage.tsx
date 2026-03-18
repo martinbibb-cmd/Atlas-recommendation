@@ -25,7 +25,7 @@
  *  - Never Math.random() — all outputs are deterministic.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import type { EngineOutputV1, OpportunityAssessment } from '../../contracts/EngineOutputV1';
 import { OPPORTUNITY_STATUS_LABELS } from '../../contracts/EngineOutputV1';
@@ -47,7 +47,7 @@ import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import PrintableRecommendationPage from './PrintableRecommendationPage';
 import PhysicsStoryPanel from '../story/PhysicsStoryPanel';
 import { buildPhysicsStory } from '../../lib/story/buildPhysicsStory';
-import ExplainersOverlay from '../../explainers/ExplainersOverlay';
+import { useGlobalMenu } from '../shell/GlobalMenuContext';
 import HomeEnergyCompass from '../compass/HomeEnergyCompass';
 import { buildCompassState } from '../../lib/compass/buildCompassState';
 import './DecisionSynthesisPage.css';
@@ -586,6 +586,9 @@ export default function DecisionSynthesisPage({
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Register context-specific explainer IDs with the global menu shell.
+  const { setContextExplainerIds } = useGlobalMenu();
+
   // Generate QR code data URL whenever a report ID is saved.
   useEffect(() => {
     if (savedReportId == null) return;
@@ -764,37 +767,62 @@ export default function DecisionSynthesisPage({
 
   // Engine explainer IDs emitted for this recommendation.
   const explainerIds = new Set(engineOutput.explainers.map(e => e.id));
-  const showMixergySuggested = explainerIds.has('stored-mixergy-suggested');
-  const showCylinderCondition = explainerIds.has('stored-cylinder-condition');
+  const showMixergySuggested     = explainerIds.has('stored-mixergy-suggested');
+  const showCylinderCondition    = explainerIds.has('stored-cylinder-condition');
+  const showHydraulicAshpFlow    = explainerIds.has('hydraulic-ashp-flow');
+  const showCondensingCompromised = explainerIds.has('condensing-compromised');
+  const showWaterHardness        = explainerIds.has('water-hardness');
+  const showThermalMassHeavy     = explainerIds.has('thermal-mass-heavy');
+  const showSplanConfirmed       = explainerIds.has('splan-confirmed');
 
   // ── Context-relevant explainer IDs for the overlay ──────────────────────
   // Map each engine explainer signal to one or more educational explainer IDs.
   // These are shown first under "For this recommendation" in the overlay menu.
-  const contextExplainerIds: string[] = [];
-  if (showMixergySuggested || showCylinderCondition) {
-    contextExplainerIds.push('on_demand_vs_stored');
-  }
-  if (showMixergySuggested) {
-    contextExplainerIds.push('standard_vs_mixergy');
-  }
-  if (showCylinderCondition) {
-    contextExplainerIds.push('cylinder_age_condition');
-  }
-  if (explainerIds.has('hydraulic-ashp-flow')) {
-    contextExplainerIds.push('pipe_capacity', 'heat_pump_flow_temp');
-  }
-  if (explainerIds.has('condensing-compromised')) {
-    contextExplainerIds.push('condensing_return_temp', 'cycling_efficiency');
-  }
-  if (explainerIds.has('water-hardness')) {
-    contextExplainerIds.push('water_quality_scale');
-  }
-  if (explainerIds.has('thermal-mass-heavy')) {
-    contextExplainerIds.push('thermal_mass_inertia');
-  }
-  if (explainerIds.has('splan-confirmed')) {
-    contextExplainerIds.push('splan_vs_yplan');
-  }
+  // All deps are stable primitive booleans derived from the engine output, so
+  // the memo only recomputes when the actual signals change.
+  const contextExplainerIds = useMemo<string[]>(() => {
+    const ids: string[] = [];
+    if (showMixergySuggested || showCylinderCondition) {
+      ids.push('on_demand_vs_stored');
+    }
+    if (showMixergySuggested) {
+      ids.push('standard_vs_mixergy');
+    }
+    if (showCylinderCondition) {
+      ids.push('cylinder_age_condition');
+    }
+    if (showHydraulicAshpFlow) {
+      ids.push('pipe_capacity', 'heat_pump_flow_temp');
+    }
+    if (showCondensingCompromised) {
+      ids.push('condensing_return_temp', 'cycling_efficiency');
+    }
+    if (showWaterHardness) {
+      ids.push('water_quality_scale');
+    }
+    if (showThermalMassHeavy) {
+      ids.push('thermal_mass_inertia');
+    }
+    if (showSplanConfirmed) {
+      ids.push('splan_vs_yplan');
+    }
+    return ids;
+  }, [
+    showMixergySuggested,
+    showCylinderCondition,
+    showHydraulicAshpFlow,
+    showCondensingCompromised,
+    showWaterHardness,
+    showThermalMassHeavy,
+    showSplanConfirmed,
+  ]);
+
+  // Push context explainer IDs into the global menu shell whenever they change.
+  // Clears them when the advice page unmounts.
+  useEffect(() => {
+    setContextExplainerIds(contextExplainerIds);
+    return () => setContextExplainerIds([]);
+  }, [contextExplainerIds, setContextExplainerIds]);
 
   // Print view — render the dedicated print component.
   if (showPrint) {
@@ -854,8 +882,6 @@ export default function DecisionSynthesisPage({
         >
           ⚡ Show me why
         </button>
-        {/* Explainers overlay launcher */}
-        <ExplainersOverlay contextExplainerIds={contextExplainerIds} />
         <div className="advice-page__title-block">
           <h1 className="advice-page__title">🎯 Advice</h1>
           <p className="advice-page__subtitle">

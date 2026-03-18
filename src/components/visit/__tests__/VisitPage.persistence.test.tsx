@@ -21,6 +21,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FullSurveyStepper from '../../stepper/FullSurveyStepper';
+import GlobalMenuShell from '../../shell/GlobalMenuShell';
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
 import type { SaveState } from '../VisitPage';
 
@@ -155,13 +156,13 @@ describe('FullSurveyStepper — Step 5 compareMixergy hydration from prefill', (
 
 describe('FullSurveyStepper — global ExplainersOverlay (hamburger) availability', () => {
   it('renders the Explainers launcher button on step 1', () => {
-    render(<FullSurveyStepper onBack={() => {}} />);
+    render(<GlobalMenuShell><FullSurveyStepper onBack={() => {}} /></GlobalMenuShell>);
     expect(screen.getByRole('button', { name: /explainers/i })).toBeInTheDocument();
   });
 
   it('Explainers button is still present after navigating to step 2', async () => {
     const user = userEvent.setup();
-    render(<FullSurveyStepper onBack={() => {}} />);
+    render(<GlobalMenuShell><FullSurveyStepper onBack={() => {}} /></GlobalMenuShell>);
 
     await user.click(screen.getByRole('button', { name: /next/i }));
 
@@ -170,7 +171,7 @@ describe('FullSurveyStepper — global ExplainersOverlay (hamburger) availabilit
 
   it('Explainers button is still present on step 3', async () => {
     const user = userEvent.setup();
-    render(<FullSurveyStepper onBack={() => {}} />);
+    render(<GlobalMenuShell><FullSurveyStepper onBack={() => {}} /></GlobalMenuShell>);
 
     await advanceToStep(user, 2);
 
