@@ -17,6 +17,8 @@ import type { DrawOffViewModel, DrawOffStatus, BoilerState } from './drawOffType
 // ─── Status chip helpers ──────────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<DrawOffStatus, string> = {
+  inactive:     'Inactive',
+  cold:         'Cold / inactive',
   stable:       'Stable',
   flow_limited: 'Flow-limited',
   temp_limited: 'Temp-limited',
@@ -24,6 +26,8 @@ const STATUS_LABELS: Record<DrawOffStatus, string> = {
 }
 
 const STATUS_MOD: Record<DrawOffStatus, string> = {
+  inactive:     'draw-off-card__chip--inactive',
+  cold:         'draw-off-card__chip--cold',
   stable:       'draw-off-card__chip--stable',
   flow_limited: 'draw-off-card__chip--flow-limited',
   temp_limited: 'draw-off-card__chip--temp-limited',
