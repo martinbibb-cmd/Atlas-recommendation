@@ -102,9 +102,9 @@ export type SystemInputs = {
   demandPreset?: DemandPresetId
   /** Household occupancy profile — drives auto-demo demand windows and daily efficiency summary. */
   occupancyProfile: OccupancyProfile
-  /** Mains supply pressure in bar (1.5–6.0). */
+  /** Mains supply pressure in bar (0.5–6.0). */
   mainsPressureBar: number
-  /** Incoming mains flow rate in L/min (10–50). */
+  /** Incoming mains flow rate in L/min (3–50). */
   mainsFlowLpm: number
   /** Cold water inlet temperature in °C (5–20). */
   coldInletTempC: number

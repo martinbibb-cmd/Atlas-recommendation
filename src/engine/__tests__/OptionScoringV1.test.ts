@@ -477,3 +477,97 @@ describe('OptionScoringV1 — score band classification', () => {
     }
   });
 });
+
+describe('OptionScoringV1 — space saving priority', () => {
+  it('high space priority applies -12 to stored_vented', () => {
+    const input = {
+      ...baseInput,
+      expertAssumptions: { spaceSavingPriority: 'high' as const },
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const vented = options.find(o => o.id === 'stored_vented')!;
+    const spaceItem = vented.score!.breakdown.find(b => b.id === PENALTY_IDS.SPACE_PRIORITY_HIGH_STORED);
+    expect(spaceItem).toBeDefined();
+    expect(spaceItem!.penalty).toBe(12);
+  });
+
+  it('high space priority applies -12 to stored_unvented', () => {
+    const input = {
+      ...baseInput,
+      expertAssumptions: { spaceSavingPriority: 'high' as const },
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const unvented = options.find(o => o.id === 'stored_unvented')!;
+    const spaceItem = unvented.score!.breakdown.find(b => b.id === PENALTY_IDS.SPACE_PRIORITY_HIGH_STORED);
+    expect(spaceItem).toBeDefined();
+    expect(spaceItem!.penalty).toBe(12);
+  });
+
+  it('medium space priority applies -6 to stored_vented', () => {
+    const input = {
+      ...baseInput,
+      expertAssumptions: { spaceSavingPriority: 'medium' as const },
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const vented = options.find(o => o.id === 'stored_vented')!;
+    const spaceItem = vented.score!.breakdown.find(b => b.id === PENALTY_IDS.SPACE_PRIORITY_MED_STORED);
+    expect(spaceItem).toBeDefined();
+    expect(spaceItem!.penalty).toBe(6);
+  });
+
+  it('high space priority does NOT penalise combi', () => {
+    const input = {
+      ...baseInput,
+      expertAssumptions: { spaceSavingPriority: 'high' as const },
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const combi = options.find(o => o.id === 'combi')!;
+    if (combi.status !== 'rejected') {
+      const spaceHighItem = combi.score!.breakdown.find(
+        b => b.id === PENALTY_IDS.SPACE_PRIORITY_HIGH_STORED,
+      );
+      const spaceMedItem = combi.score!.breakdown.find(
+        b => b.id === PENALTY_IDS.SPACE_PRIORITY_MED_STORED,
+      );
+      expect(spaceHighItem).toBeUndefined();
+      expect(spaceMedItem).toBeUndefined();
+    }
+  });
+
+  it('low space priority (default) does NOT apply space priority penalties', () => {
+    const input = {
+      ...baseInput,
+      expertAssumptions: { spaceSavingPriority: 'low' as const },
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const vented = options.find(o => o.id === 'stored_vented')!;
+    expect(vented.score!.breakdown.find(b => b.id === PENALTY_IDS.SPACE_PRIORITY_HIGH_STORED)).toBeUndefined();
+    expect(vented.score!.breakdown.find(b => b.id === PENALTY_IDS.SPACE_PRIORITY_MED_STORED)).toBeUndefined();
+  });
+
+  it('high space priority: combi scores higher than stored_vented relative to base case', () => {
+    const baseResult = runEngine(baseInput);
+    const baseOptions = buildOptionMatrixV1(baseResult, baseInput);
+    const baseCombiScore = baseOptions.find(o => o.id === 'combi')?.score?.total ?? 0;
+    const baseVentedScore = baseOptions.find(o => o.id === 'stored_vented')?.score?.total ?? 0;
+    const baseDiff = baseCombiScore - baseVentedScore;
+
+    const highSpaceInput = {
+      ...baseInput,
+      expertAssumptions: { spaceSavingPriority: 'high' as const },
+    };
+    const highResult = runEngine(highSpaceInput);
+    const highOptions = buildOptionMatrixV1(highResult, highSpaceInput);
+    const highCombiScore = highOptions.find(o => o.id === 'combi')?.score?.total ?? 0;
+    const highVentedScore = highOptions.find(o => o.id === 'stored_vented')?.score?.total ?? 0;
+    const highDiff = highCombiScore - highVentedScore;
+
+    // With high space priority, combi should have a larger advantage over stored_vented
+    expect(highDiff).toBeGreaterThan(baseDiff);
+  });
+});

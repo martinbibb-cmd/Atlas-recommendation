@@ -71,6 +71,16 @@ export interface ExpertAssumptionsV1 {
   futureReadinessPriority?: 'high' | 'normal';
   /** Comfort vs running cost trade-off. Default: 'balanced'. */
   comfortVsRunningCost?: 'comfort' | 'balanced' | 'cost';
+  /**
+   * How important it is to save space / avoid a hot-water cylinder.
+   *
+   * 'high'   — must avoid cylinders / maximise space: combi boosted in scoring
+   *             and eligible even in borderline demand cases.
+   * 'medium' — prefer compact systems if practical: slight combi bias.
+   * 'low'    — space is not an issue: physics/performance dominate.
+   * Default: 'low' (null treated identically).
+   */
+  spaceSavingPriority?: 'low' | 'medium' | 'high' | null;
 }
 
 export interface EngineInputV2_3 {

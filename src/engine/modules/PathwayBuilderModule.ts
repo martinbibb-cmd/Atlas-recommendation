@@ -230,11 +230,15 @@ export function buildPathwaysV1(
   const disruptionTolerance = ea.disruptionTolerance ?? 'low';
   const futureReadiness = ea.futureReadinessPriority ?? 'normal';
   const screedRisk = ea.screedLeakRiskTolerance ?? 'cautious';
+  const spacePriority = ea.spaceSavingPriority ?? 'low';
 
   const hasScreedRisk = detectScreedRisk(input) && screedRisk === 'cautious';
   const hasHydraulicConstraint = result.hydraulicV1.verdict.ashpRisk !== 'pass';
   const ashpViable = !result.redFlags.rejectAshp && result.hydraulicV1.verdict.ashpRisk !== 'fail';
-  const combiViable = result.combiDhwV1.verdict.combiRisk !== 'fail' && !result.redFlags.rejectCombi;
+  // When space-saving priority is high, treat borderline (warn) combi as viable for pathway building.
+  const combiPhysicsViable = result.combiDhwV1.verdict.combiRisk !== 'fail' && !result.redFlags.rejectCombi;
+  const combiViable = combiPhysicsViable &&
+    (result.combiDhwV1.verdict.combiRisk !== 'warn' || spacePriority === 'high' || spacePriority === 'medium');
   const lowMainsFlow = detectLowMainsFlow(result, input);
   const mainsUnknown = detectMainsFlowUnknown(result, input);
   const mainsFlowLpm = input.mainsDynamicFlowLpm ?? result.cwsSupplyV1.dynamic?.flowLpm;
@@ -269,7 +273,10 @@ export function buildPathwaysV1(
   }
 
   // Scenario 1: ASHP is viable directly (no blocking constraints)
-  if (ashpViable && !hasScreedRisk && !hasHydraulicConstraint) {
+  // Suppress ASHP from pathways when space-saving priority is high and combi is viable —
+  // the customer has expressed a clear preference for compact systems.
+  const suppressAshpForSpace = spacePriority === 'high' && combiPhysicsViable;
+  if (ashpViable && !hasScreedRisk && !hasHydraulicConstraint && !suppressAshpForSpace) {
     const directAshpRank = futureReadiness === 'high' ? 1 : disruptionTolerance === 'low' ? 2 : 1;
     pathways.push(buildDirectAshpPathway(directAshpRank));
   }
@@ -277,10 +284,10 @@ export function buildPathwaysV1(
   // Scenario 2: ASHP is the best end-state but an enablement path is needed.
   // This applies whether ASHP is currently viable (but constrained) or blocked —
   // the expert may still want to preserve the heat-pump pathway.
-  if (hasScreedRisk || hasHydraulicConstraint) {
+  if (!suppressAshpForSpace && (hasScreedRisk || hasHydraulicConstraint)) {
     const enablementRank = futureReadiness === 'high' ? 1 : 2;
     pathways.push(buildBoilerMixergyEnablementPathway(enablementRank, hasScreedRisk, hasHydraulicConstraint));
-  } else if (!ashpViable && futureReadiness === 'high') {
+  } else if (!suppressAshpForSpace && !ashpViable && futureReadiness === 'high') {
     // ASHP not viable for other reasons but expert wants future readiness — show blocked enablement path
     pathways.push(buildBoilerMixergyEnablementPathway(2, false, true));
   }
@@ -291,12 +298,14 @@ export function buildPathwaysV1(
     pathways.push(buildConvertLaterUnventedPathway(convertRank, mainsFlowLpm));
   }
 
-  // Scenario 4: Combi (low disruption) — always offered when viable
-  if (combiViable && disruptionTolerance === 'low') {
+  // Scenario 4: Combi (low disruption or high space priority) — always offered when viable
+  // High space priority overrides the disruption-tolerance gate so combi always surfaces.
+  const offerCombi = combiViable && (disruptionTolerance === 'low' || spacePriority === 'high' || spacePriority === 'medium');
+  if (offerCombi) {
     // Only add combi if no pathway already covers the low-disruption case
     const alreadyHasLowDisruption = pathways.some(p => p.id === 'combi_single_tech');
     if (!alreadyHasLowDisruption) {
-      const combiRank = disruptionTolerance === 'low' && futureReadiness !== 'high' ? 1 : pathways.length + 1;
+      const combiRank = (disruptionTolerance === 'low' || spacePriority !== 'low') && futureReadiness !== 'high' ? 1 : pathways.length + 1;
       pathways.push(buildCombiPathway(combiRank));
     }
   }

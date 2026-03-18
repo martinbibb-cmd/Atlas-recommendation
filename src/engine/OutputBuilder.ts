@@ -14,6 +14,7 @@ import { assessFutureEnergyOpportunities } from './modules/FutureEnergyOpportuni
 function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3): EligibilityItem[] {
   const { redFlags, hydraulicV1, combiDhwV1, storedDhwV1 } = result;
   const items: EligibilityItem[] = [];
+  const spacePriority = input?.expertAssumptions?.spaceSavingPriority;
 
   // On-demand eligibility is driven first by topology (redFlags.rejectCombi),
   // then by CombiDhwModuleV1 physics verdict.
@@ -28,9 +29,16 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
     const failFlag = combiDhwV1.flags.find(f => f.severity === 'fail');
     onDemandReason = failFlag ? `${failFlag.title}: ${failFlag.detail}` : undefined;
   } else if (combiDhwV1.verdict.combiRisk === 'warn') {
-    onDemandStatus = 'caution';
-    const warnFlag = combiDhwV1.flags.find(f => f.severity === 'warn');
-    onDemandReason = warnFlag ? `${warnFlag.title}: ${warnFlag.detail}` : undefined;
+    // When space-saving priority is high, a borderline (warn) combi verdict is
+    // upgraded to viable — the customer has explicitly accepted the trade-off.
+    if (spacePriority === 'high') {
+      onDemandStatus = 'viable';
+      onDemandReason = undefined;
+    } else {
+      onDemandStatus = 'caution';
+      const warnFlag = combiDhwV1.flags.find(f => f.severity === 'warn');
+      onDemandReason = warnFlag ? `${warnFlag.title}: ${warnFlag.detail}` : undefined;
+    }
   } else {
     onDemandStatus = 'viable';
   }

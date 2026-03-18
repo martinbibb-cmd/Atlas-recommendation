@@ -13,6 +13,13 @@ export interface ExpertAssumptionsV1 {
   futureReadinessPriority?: 'high' | 'normal';
   /** Comfort vs running cost trade-off. Default: 'balanced'. */
   comfortVsRunningCost?: 'comfort' | 'balanced' | 'cost';
+  /**
+   * How important it is to save space / avoid a hot-water cylinder.
+   * 'high' — boosts combi in scoring and allows it to surface in borderline cases.
+   * 'medium' — slight bias toward compact systems.
+   * 'low' (default) — no bias; physics/performance dominate.
+   */
+  spaceSavingPriority?: 'low' | 'medium' | 'high' | null;
 }
 
 /** Normalized input contract accepted by the engine (V2.3). */

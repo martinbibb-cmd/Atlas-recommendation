@@ -199,7 +199,7 @@ export default function SystemInputsPanel({
         label="Mains pressure"
         icon="💧"
         value={inputs.mainsPressureBar}
-        min={1.5}
+        min={0.5}
         max={6}
         step={0.5}
         unit="bar"
@@ -209,7 +209,7 @@ export default function SystemInputsPanel({
         label="Mains flow"
         icon="🚿"
         value={inputs.mainsFlowLpm}
-        min={10}
+        min={3}
         max={50}
         step={1}
         unit="L/min"

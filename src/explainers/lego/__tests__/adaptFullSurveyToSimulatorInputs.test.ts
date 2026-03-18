@@ -129,11 +129,20 @@ describe('adaptFullSurveyToSimulatorInputs — mainsPressureBar', () => {
     expect(systemInputs.mainsPressureBar).toBe(6.0)
   })
 
-  it('clamps low pressure to 1.5 bar', () => {
+  it('preserves low pressure down to the 0.5 bar minimum (low-pressure scenarios)', () => {
     const { systemInputs } = adaptFullSurveyToSimulatorInputs(
       minimalSurvey({ dynamicMainsPressureBar: 0.5 }),
     )
-    expect(systemInputs.mainsPressureBar).toBe(1.5)
+    // Low-pressure scenarios must not be silently rounded up.
+    // The minimum is 0.5 bar — lower values are clamped to this floor.
+    expect(systemInputs.mainsPressureBar).toBe(0.5)
+  })
+
+  it('clamps very low pressure (below 0.5 bar) to the 0.5 bar floor', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ dynamicMainsPressureBar: 0.2 }),
+    )
+    expect(systemInputs.mainsPressureBar).toBe(0.5)
   })
 })
 
@@ -173,6 +182,20 @@ describe('adaptFullSurveyToSimulatorInputs — mainsFlowLpm', () => {
       minimalSurvey({ mainsDynamicFlowLpm: 60, mainsDynamicFlowLpmKnown: true }),
     )
     expect(systemInputs.mainsFlowLpm).toBe(50)
+  })
+
+  it('preserves low flow down to 3 L/min (low-flow scenarios)', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ mainsDynamicFlowLpm: 5, mainsDynamicFlowLpmKnown: true }),
+    )
+    expect(systemInputs.mainsFlowLpm).toBe(5)
+  })
+
+  it('clamps very low flow (below 3 L/min) to the 3 L/min floor', () => {
+    const { systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({ mainsDynamicFlowLpm: 1, mainsDynamicFlowLpmKnown: true }),
+    )
+    expect(systemInputs.mainsFlowLpm).toBe(3)
   })
 })
 

@@ -62,6 +62,12 @@ const COMFORT_OPTIONS: { value: NonNullable<ExpertAssumptionsV1['comfortVsRunnin
   { value: 'cost',     label: 'Cost — minimise running costs' },
 ];
 
+const SPACE_OPTIONS: { value: NonNullable<ExpertAssumptionsV1['spaceSavingPriority']>; label: string }[] = [
+  { value: 'low',    label: 'Low — space is not an issue' },
+  { value: 'medium', label: 'Medium — prefer compact if practical' },
+  { value: 'high',   label: 'High — must avoid cylinders / maximise space' },
+];
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function ExpertPanel({
@@ -119,6 +125,12 @@ export default function ExpertPanel({
             value={ea.comfortVsRunningCost ?? 'balanced'}
             options={COMFORT_OPTIONS}
             onChange={v => update('comfortVsRunningCost', v)}
+          />
+          <AssumptionSelect
+            label="Space saving priority"
+            value={ea.spaceSavingPriority ?? 'low'}
+            options={SPACE_OPTIONS}
+            onChange={v => update('spaceSavingPriority', v)}
           />
         </div>
       </div>
