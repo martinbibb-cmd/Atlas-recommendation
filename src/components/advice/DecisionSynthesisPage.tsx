@@ -25,7 +25,7 @@
  *  - Never Math.random() — all outputs are deterministic.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import type { EngineOutputV1, OpportunityAssessment } from '../../contracts/EngineOutputV1';
 import { OPPORTUNITY_STATUS_LABELS } from '../../contracts/EngineOutputV1';
@@ -51,6 +51,17 @@ import ExplainersOverlay from '../../explainers/ExplainersOverlay';
 import HomeEnergyCompass from '../compass/HomeEnergyCompass';
 import { buildCompassState } from '../../lib/compass/buildCompassState';
 import './DecisionSynthesisPage.css';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/**
+ * Save state for the report save indicator.
+ *
+ * State machine:
+ *   idle → saving → saved
+ *                 → failed → retrying → saved / failed
+ */
+export type ReportSaveState = 'idle' | 'saving' | 'saved' | 'failed' | 'retrying';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -569,7 +580,7 @@ export default function DecisionSynthesisPage({
 }: Props) {
   const [showPrint, setShowPrint] = useState(false);
   const [showStory, setShowStory] = useState(false);
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveState, setSaveState] = useState<ReportSaveState>('idle');
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
@@ -615,28 +626,64 @@ export default function DecisionSynthesisPage({
   );
 
   // ── Save report ─────────────────────────────────────────────────────────────
-  // Temporary scaffolding: posts the current synthesis snapshot to POST /api/reports.
-  // This is removable once a proper save flow (with confirmation UX) is built.
-  async function handleSaveReport() {
-    if (compareAdvice == null || surveyData == null) return;
-    setSaveState('saving');
+  // Posts the current synthesis snapshot to POST /api/reports.
+  //
+  // Save state machine:
+  //   idle → saving → saved
+  //                 → failed → retrying → saved / failed
+  //
+  // Refs are used to:
+  //  - read latest canonical state at call time (avoids stale closures)
+  //  - prevent duplicate concurrent save calls (busy guard)
+
+  /** Always reflects the current saveState so the busy-guard reads fresh state. */
+  const saveStateRef = useRef<ReportSaveState>('idle');
+  useEffect(() => {
+    saveStateRef.current = saveState;
+  }, [saveState]);
+
+  /**
+   * Ref-stable copies of the canonical data used to build the payload.
+   * Updated on every render so that a retry click always rebuilds from the
+   * latest props/derived values rather than a captured closure.
+   */
+  const compareAdviceRef = useRef(compareAdvice);
+  compareAdviceRef.current = compareAdvice;
+  const surveyDataRef = useRef(surveyData);
+  surveyDataRef.current = surveyData;
+  const engineOutputRef = useRef(engineOutput);
+  engineOutputRef.current = engineOutput;
+
+  /**
+   * Shared persist function — always reads from refs so retries use the
+   * latest canonical state.  Called for both initial save and retry.
+   */
+  const persistReport = useCallback(async () => {
+    const latestCompareAdvice = compareAdviceRef.current;
+    const latestSurveyData = surveyDataRef.current;
+    const latestEngineOutput = engineOutputRef.current;
+
+    if (latestCompareAdvice == null || latestSurveyData == null) {
+      setSaveState('failed');
+      return;
+    }
     try {
-      const engineInput = toEngineInput(surveyData);
+      const engineInput = toEngineInput(latestSurveyData);
       const res = await fetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          postcode: surveyData.postcode ?? null,
+          postcode: latestSurveyData.postcode ?? null,
           payload: {
-            surveyData,
+            surveyData: latestSurveyData,
             engineInput,
-            engineOutput,
-            decisionSynthesis: compareAdvice,
+            engineOutput: latestEngineOutput,
+            decisionSynthesis: latestCompareAdvice,
           },
         }),
       });
       if (!res.ok) {
-        setSaveState('error');
+        setSaveState('failed');
         return;
       }
       const json = await res.json() as { ok: boolean; id?: string };
@@ -644,12 +691,26 @@ export default function DecisionSynthesisPage({
         setSavedReportId(json.id);
         setSaveState('saved');
       } else {
-        setSaveState('error');
+        setSaveState('failed');
       }
     } catch {
-      setSaveState('error');
+      setSaveState('failed');
     }
-  }
+  }, []);
+
+  /** Initial save handler. */
+  const handleSaveReport = useCallback(() => {
+    if (saveStateRef.current === 'saving' || saveStateRef.current === 'retrying') return;
+    setSaveState('saving');
+    persistReport();
+  }, [persistReport]);
+
+  /** Retry handler — re-reads latest canonical state and performs a real second save. */
+  const handleRetrySave = useCallback(() => {
+    if (saveStateRef.current === 'saving' || saveStateRef.current === 'retrying') return;
+    setSaveState('retrying');
+    persistReport();
+  }, [persistReport]);
 
   // Resolve display values from whichever advice mode is active.
   const heroSystemPath = compareAdvice
@@ -774,13 +835,14 @@ export default function DecisionSynthesisPage({
         {compareAdvice != null && saveState !== 'saved' && (
           <button
             className="advice-page__save-btn"
-            onClick={handleSaveReport}
+            onClick={saveState === 'failed' ? handleRetrySave : handleSaveReport}
             aria-label="Save Atlas report"
-            disabled={saveState === 'saving'}
+            disabled={saveState === 'saving' || saveState === 'retrying'}
           >
-            {saveState === 'saving' && '⏳ Saving…'}
-            {saveState === 'error' && '❌ Save failed — retry?'}
-            {saveState === 'idle' && '💾 Save Report'}
+            {saveState === 'saving'   && '⏳ Saving…'}
+            {saveState === 'retrying' && '⏳ Retrying…'}
+            {saveState === 'failed'   && '❌ Save failed — retry?'}
+            {saveState === 'idle'     && '💾 Save Report'}
           </button>
         )}
         {/* Show me why — Physics Story Mode */}
