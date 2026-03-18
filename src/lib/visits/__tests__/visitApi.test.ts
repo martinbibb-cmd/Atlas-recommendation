@@ -172,8 +172,8 @@ describe('visitApi', () => {
     }
 
     it('returns visit_reference when present (highest priority)', () => {
-      const v = makeVisitMeta({ visit_reference: 'Leaf 12345', address_line_1: '10 Downing St', customer_name: 'A User' });
-      expect(visitDisplayLabel(v)).toBe('Leaf 12345');
+      const v = makeVisitMeta({ visit_reference: 'Lead 12345', address_line_1: '10 Downing St', customer_name: 'A User' });
+      expect(visitDisplayLabel(v)).toBe('Lead 12345');
     });
 
     it('returns address_line_1 when no visit_reference', () => {

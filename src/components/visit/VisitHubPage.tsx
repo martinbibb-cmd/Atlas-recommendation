@@ -75,19 +75,27 @@ function HubHeader({ meta, onBack, onReferenceChange }: { meta: VisitMeta; onBac
       <div className="visit-hub__header-body">
         {editing ? (
           <div className="visit-hub__ref-edit">
+            <label className="visit-hub__ref-label" htmlFor="visit-hub-ref-input">
+              Lead reference
+            </label>
             <input
+              id="visit-hub-ref-input"
               className="visit-hub__ref-input"
               type="text"
               value={draftRef}
               onChange={(e) => setDraftRef(e.target.value)}
-              placeholder="e.g. 12345"
-              aria-label="Visit reference"
+              placeholder="e.g. Lead 12345, Job 678"
+              aria-label="Lead reference"
+              aria-describedby="visit-hub-ref-hint"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleSave();
                 else if (e.key === 'Escape') setEditing(false);
               }}
             />
+            <span id="visit-hub-ref-hint" className="visit-hub__ref-hint">
+              Add your own lead, job, or customer reference
+            </span>
             <button className="visit-hub__ref-save-btn" onClick={handleSave}>Save</button>
             <button className="visit-hub__ref-cancel-btn" onClick={() => setEditing(false)}>Cancel</button>
           </div>
@@ -97,10 +105,10 @@ function HubHeader({ meta, onBack, onReferenceChange }: { meta: VisitMeta; onBac
             <button
               className="visit-hub__ref-edit-btn"
               onClick={() => { setDraftRef(meta.visit_reference ?? ''); setEditing(true); }}
-              aria-label={meta.visit_reference ? 'Edit visit reference' : 'Add visit reference'}
-              title={meta.visit_reference ? 'Edit visit reference' : 'Add visit reference'}
+              aria-label={meta.visit_reference ? 'Edit lead reference' : 'Add lead reference'}
+              title={meta.visit_reference ? 'Edit lead reference' : 'Add lead reference'}
             >
-              {meta.visit_reference ? ' ✏' : ' + Ref'}
+              {meta.visit_reference ? ' ✏ Edit ref' : ' + Add ref'}
             </button>
           </h1>
         )}

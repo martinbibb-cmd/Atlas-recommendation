@@ -178,6 +178,23 @@
   flex-wrap: wrap;
 }
 
+.visit-hub__ref-label {
+  width: 100%;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #a0aec0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.visit-hub__ref-hint {
+  width: 100%;
+  font-size: 0.75rem;
+  color: #718096;
+  font-style: italic;
+  margin-top: -0.2rem;
+}
+
 .visit-hub__ref-input {
   background: #2d3748;
   border: 1px solid #4a5568;
