@@ -5,7 +5,16 @@
  * fetch is mocked so no real network calls are made.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createVisit, listVisits, getVisit, saveVisit } from '../visitApi';
+import {
+  createVisit,
+  listVisits,
+  getVisit,
+  saveVisit,
+  visitStatusLabel,
+  matchesFilter,
+  isSurveyComplete,
+  type VisitMeta,
+} from '../visitApi';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -119,6 +128,99 @@ describe('visitApi', () => {
     it('throws when the server returns an error', async () => {
       global.fetch = mockFetch({ error: 'Visit not found' }, 404);
       await expect(saveVisit('missing', {})).rejects.toThrow('Visit not found');
+    });
+  });
+
+  // ── visitStatusLabel ─────────────────────────────────────────────────────────
+
+  describe('visitStatusLabel', () => {
+    it('maps canonical status keys to human-readable labels', () => {
+      expect(visitStatusLabel('new')).toBe('New');
+      expect(visitStatusLabel('survey_started')).toBe('Survey started');
+      expect(visitStatusLabel('recommendation_ready')).toBe('Recommendation ready');
+      expect(visitStatusLabel('quoted')).toBe('Quoted');
+      expect(visitStatusLabel('installed')).toBe('Installed');
+    });
+
+    it('maps legacy status values to their canonical equivalents', () => {
+      expect(visitStatusLabel('draft')).toBe('New');
+      expect(visitStatusLabel('complete')).toBe('Recommendation ready');
+    });
+
+    it('returns the raw value for unknown status strings', () => {
+      expect(visitStatusLabel('unknown_state')).toBe('unknown_state');
+    });
+  });
+
+  // ── matchesFilter ────────────────────────────────────────────────────────────
+
+  describe('matchesFilter', () => {
+    it('"all" filter always returns true', () => {
+      expect(matchesFilter('new', 'all')).toBe(true);
+      expect(matchesFilter('installed', 'all')).toBe(true);
+    });
+
+    it('"active" matches new, draft and survey_started', () => {
+      expect(matchesFilter('new', 'active')).toBe(true);
+      expect(matchesFilter('draft', 'active')).toBe(true);
+      expect(matchesFilter('survey_started', 'active')).toBe(true);
+      expect(matchesFilter('recommendation_ready', 'active')).toBe(false);
+    });
+
+    it('"completed" matches recommendation_ready, complete, quoted and installed', () => {
+      expect(matchesFilter('recommendation_ready', 'completed')).toBe(true);
+      expect(matchesFilter('complete', 'completed')).toBe(true);
+      expect(matchesFilter('quoted', 'completed')).toBe(true);
+      expect(matchesFilter('installed', 'completed')).toBe(true);
+      expect(matchesFilter('new', 'completed')).toBe(false);
+    });
+
+    it('"needs_followup" matches recommendation_ready and complete only', () => {
+      expect(matchesFilter('recommendation_ready', 'needs_followup')).toBe(true);
+      expect(matchesFilter('complete', 'needs_followup')).toBe(true);
+      expect(matchesFilter('quoted', 'needs_followup')).toBe(false);
+      expect(matchesFilter('installed', 'needs_followup')).toBe(false);
+      expect(matchesFilter('new', 'needs_followup')).toBe(false);
+    });
+  });
+
+  // ── isSurveyComplete ─────────────────────────────────────────────────────────
+
+  describe('isSurveyComplete', () => {
+    function makeVisit(status: string, current_step: string | null = null): VisitMeta {
+      return {
+        id: 'test-id',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        status,
+        customer_name: null,
+        address_line_1: null,
+        postcode: null,
+        current_step,
+      };
+    }
+
+    it('returns true for recommendation_ready status', () => {
+      expect(isSurveyComplete(makeVisit('recommendation_ready'))).toBe(true);
+    });
+
+    it('returns true for legacy "complete" status', () => {
+      expect(isSurveyComplete(makeVisit('complete'))).toBe(true);
+    });
+
+    it('returns true for quoted and installed', () => {
+      expect(isSurveyComplete(makeVisit('quoted'))).toBe(true);
+      expect(isSurveyComplete(makeVisit('installed'))).toBe(true);
+    });
+
+    it('returns true when current_step is "complete" regardless of status', () => {
+      expect(isSurveyComplete(makeVisit('new', 'complete'))).toBe(true);
+    });
+
+    it('returns false for new / draft / survey_started without a complete step', () => {
+      expect(isSurveyComplete(makeVisit('new'))).toBe(false);
+      expect(isSurveyComplete(makeVisit('draft'))).toBe(false);
+      expect(isSurveyComplete(makeVisit('survey_started'))).toBe(false);
     });
   });
 });

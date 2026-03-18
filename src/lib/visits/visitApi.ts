@@ -16,6 +16,70 @@ export interface VisitMeta {
   current_step: string | null;
 }
 
+/**
+ * Canonical visit status progression.
+ *
+ * new → survey_started → recommendation_ready → quoted → installed
+ *
+ * Legacy values ('draft', 'complete') are mapped to their nearest canonical
+ * equivalents for display purposes.
+ */
+export type VisitStatusKey =
+  | 'new'
+  | 'survey_started'
+  | 'recommendation_ready'
+  | 'quoted'
+  | 'installed';
+
+/** Human-readable label for each visit status. */
+export const VISIT_STATUS_LABELS: Record<string, string> = {
+  'new':                  'New',
+  'draft':                'New',
+  'survey_started':       'Survey started',
+  'recommendation_ready': 'Recommendation ready',
+  'complete':             'Recommendation ready',
+  'quoted':               'Quoted',
+  'installed':            'Installed',
+};
+
+/** Returns the display label for a visit status value. */
+export function visitStatusLabel(status: string): string {
+  return VISIT_STATUS_LABELS[status] ?? status;
+}
+
+/**
+ * Filter category for the Visit List.
+ * - active:          new or survey_started
+ * - completed:       recommendation_ready, quoted, or installed
+ * - needs_followup:  recommendation_ready but not yet quoted
+ */
+export type VisitFilterCategory = 'all' | 'active' | 'completed' | 'needs_followup';
+
+/** Returns true when the visit status falls into the given filter category. */
+export function matchesFilter(status: string, filter: VisitFilterCategory): boolean {
+  if (filter === 'all') return true;
+  const s = status.toLowerCase();
+  if (filter === 'active')
+    return s === 'new' || s === 'draft' || s === 'survey_started';
+  if (filter === 'completed')
+    return s === 'recommendation_ready' || s === 'complete' || s === 'quoted' || s === 'installed';
+  if (filter === 'needs_followup')
+    return s === 'recommendation_ready' || s === 'complete';
+  return true;
+}
+
+/** Returns true when the survey step is considered complete (recommendation is available). */
+export function isSurveyComplete(v: VisitMeta): boolean {
+  const s = v.status.toLowerCase();
+  return (
+    s === 'complete' ||
+    s === 'recommendation_ready' ||
+    s === 'quoted' ||
+    s === 'installed' ||
+    v.current_step === 'complete'
+  );
+}
+
 export interface VisitDetail extends VisitMeta {
   working_payload: Record<string, unknown>;
 }

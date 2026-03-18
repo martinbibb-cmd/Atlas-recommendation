@@ -18,7 +18,7 @@ import FullSurveyStepper from '../stepper/FullSurveyStepper';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
-import { getVisit, saveVisit, type VisitMeta } from '../../lib/visits/visitApi';
+import { getVisit, saveVisit, visitStatusLabel, type VisitMeta } from '../../lib/visits/visitApi';
 import VisitReportsList from './VisitReportsList';
 import './VisitPage.css';
 
@@ -110,9 +110,9 @@ function VisitCaseSummary({ visitId, meta, saveState, onBack }: CaseSummaryProps
 
             <span
               className={`visit-case-summary__status visit-case-summary__status--${meta.status}`}
-              aria-label={`Status: ${meta.status}`}
+              aria-label={`Status: ${visitStatusLabel(meta.status)}`}
             >
-              {meta.status}
+              {visitStatusLabel(meta.status)}
             </span>
 
             <span className="visit-case-summary__date" title="Created">
@@ -156,6 +156,12 @@ export default function VisitPage({
           setPrefill(working_payload as Partial<FullSurveyModelV1>);
         }
         setReady(true);
+        // Mark survey as started (unless it is already complete / further progressed).
+        const s = meta.status.toLowerCase();
+        if (s === 'new' || s === 'draft') {
+          saveVisit(visitId, { status: 'survey_started' }).catch(() => {/* best effort */});
+          setVisitMeta(prev => prev ? { ...prev, status: 'survey_started' } : prev);
+        }
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -181,11 +187,12 @@ export default function VisitPage({
         saveVisit(visitId, {
           working_payload: engineInput as unknown as Record<string, unknown>,
           current_step: 'complete',
+          status: 'recommendation_ready',
         })
           .then(() => {
             setSaveState('saved');
             setVisitMeta(prev =>
-              prev ? { ...prev, status: 'complete', current_step: 'complete' } : prev
+              prev ? { ...prev, status: 'recommendation_ready', current_step: 'complete' } : prev
             );
             savedResetTimer.current = setTimeout(() => {
               setSaveState('idle');

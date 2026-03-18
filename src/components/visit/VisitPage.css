@@ -94,16 +94,36 @@
   flex-shrink: 0;
 }
 
-.visit-case-summary__status--draft {
+.visit-case-summary__status--draft,
+.visit-case-summary__status--new {
   background: #2d3748;
   color: #a0aec0;
   border: 1px solid #4a5568;
 }
 
-.visit-case-summary__status--complete {
+.visit-case-summary__status--survey_started {
+  background: #2c5282;
+  color: #bee3f8;
+  border: 1px solid #2b6cb0;
+}
+
+.visit-case-summary__status--complete,
+.visit-case-summary__status--recommendation_ready {
   background: #276749;
   color: #c6f6d5;
   border: 1px solid #2f855a;
+}
+
+.visit-case-summary__status--quoted {
+  background: #744210;
+  color: #feebc8;
+  border: 1px solid #975a16;
+}
+
+.visit-case-summary__status--installed {
+  background: #1a365d;
+  color: #bee3f8;
+  border: 1px solid #2a4a7f;
 }
 
 .visit-case-summary__status--archived {

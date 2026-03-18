@@ -17,6 +17,7 @@ import AtlasTour from './components/tour/AtlasTour';
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
 import AtlasExplorerPage from './components/explorer/AtlasExplorerPage';
 import VisitPage from './components/visit/VisitPage';
+import VisitHubPage from './components/visit/VisitHubPage';
 import RecentVisitsList from './components/visit/RecentVisitsList';
 import ReportPage from './components/reportpage/ReportPage';
 import { resetAtlasTourSeen } from './lib/tourStorage';
@@ -71,7 +72,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   preferCombi: true,
 };
 
-type Journey = 'landing' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'explorer' | 'report';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'explorer' | 'report';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -144,10 +145,10 @@ export default function App() {
     setJourney('visit');
   }
 
-  /** Open an existing visit by ID — routes to the visit survey shell. */
+  /** Open an existing visit by ID — routes to the Visit Hub page. */
   function handleOpenVisit(visitId: string) {
     setActiveVisitId(visitId);
-    setJourney('visit');
+    setJourney('visit-hub');
   }
 
   /**
@@ -207,6 +208,19 @@ export default function App() {
         />
       )}
       {journey === 'fast' && <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} onOpenLab={handleOpenLab} />}
+      {/* Visit Hub — shown when opening an existing visit */}
+      {journey === 'visit-hub' && activeVisitId != null && (
+        <VisitHubPage
+          visitId={activeVisitId}
+          onBack={() => setJourney('landing')}
+          onResumeSurvey={() => setJourney('visit')}
+          onViewRecommendation={() => setJourney('simulator')}
+          onOpenReport={(reportId) => {
+            setActiveReportId(reportId);
+            setJourney('report');
+          }}
+        />
+      )}
       {journey === 'visit' && activeVisitId != null && (
         <VisitPage
           visitId={activeVisitId}

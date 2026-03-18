@@ -1,0 +1,197 @@
+/*
+ * VisitHubPage — styles for the Visit Hub (single visit overview).
+ */
+
+/* ── Outer wrapper ───────────────────────────────────────────────────────── */
+
+.visit-hub {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #f0f4f8;
+}
+
+/* ── Loading / error states ──────────────────────────────────────────────── */
+
+.visit-hub__loading,
+.visit-hub__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem 1rem;
+  font-size: 0.95rem;
+  color: #4a5568;
+  min-height: 200px;
+}
+
+/* ── Header bar ──────────────────────────────────────────────────────────── */
+
+.visit-hub__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #1a202c;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.visit-hub__back-btn {
+  background: transparent;
+  border: 1px solid #4a5568;
+  color: #a0aec0;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  min-height: 32px;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  transition: background 0.15s, color 0.15s;
+}
+
+.visit-hub__back-btn:hover {
+  background: #2d3748;
+  color: #e2e8f0;
+}
+
+.visit-hub__header-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.visit-hub__address {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #f7fafc;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.visit-hub__customer {
+  font-size: 0.9rem;
+  color: #a0aec0;
+}
+
+.visit-hub__meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+/* ── Status badge ────────────────────────────────────────────────────────── */
+
+.visit-hub__status-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  /* default */
+  background: #2d3748;
+  color: #a0aec0;
+  border: 1px solid #4a5568;
+}
+
+.visit-hub__status-badge--new,
+.visit-hub__status-badge--draft {
+  background: #2d3748;
+  color: #a0aec0;
+  border-color: #4a5568;
+}
+
+.visit-hub__status-badge--survey_started {
+  background: #2c5282;
+  color: #bee3f8;
+  border-color: #2b6cb0;
+}
+
+.visit-hub__status-badge--recommendation_ready,
+.visit-hub__status-badge--complete {
+  background: #276749;
+  color: #c6f6d5;
+  border-color: #2f855a;
+}
+
+.visit-hub__status-badge--quoted {
+  background: #744210;
+  color: #feebc8;
+  border-color: #975a16;
+}
+
+.visit-hub__status-badge--installed {
+  background: #1a365d;
+  color: #bee3f8;
+  border-color: #2a4a7f;
+}
+
+.visit-hub__updated {
+  font-size: 0.78rem;
+  color: #718096;
+}
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+
+.visit-hub__body {
+  flex: 1;
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* ── Action buttons ──────────────────────────────────────────────────────── */
+
+.visit-hub__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.visit-hub__action-btn {
+  width: 100%;
+  padding: 0.9rem 1.25rem;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  text-align: left;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.visit-hub__action-btn--primary {
+  background: #2b6cb0;
+  color: #fff;
+}
+
+.visit-hub__action-btn--primary:hover {
+  background: #2c5282;
+}
+
+.visit-hub__action-btn--secondary {
+  background: #edf2f7;
+  color: #2d3748;
+  border: 1px solid #e2e8f0;
+}
+
+.visit-hub__action-btn--secondary:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.visit-hub__action-btn--secondary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
