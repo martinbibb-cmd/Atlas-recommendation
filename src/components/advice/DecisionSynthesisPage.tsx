@@ -187,47 +187,102 @@ function FloorplanProvenanceBanner({ insights }: { insights: FloorplanInsights }
   );
 }
 
-const EFFICIENCY_BAND_LABEL: Record<PerformanceSummary['efficiencyBand'], string> = {
-  optimal: 'Optimal',
-  average: 'Average',
-  poor:    'Poor',
-};
+import {
+  PERF_CHIP_LABEL,
+  COST_LEVEL_LABEL,
+  CARBON_LEVEL_LABEL,
+  GEN_BAR_LEVEL,
+  GEN_LEVEL_LABEL,
+  costBarLevel,
+  carbonBarLevel,
+  fuelLabelFromCop,
+  outputBlockCount,
+} from './performanceDashboardHelpers';
 
-const LOCAL_GEN_LABEL: Record<PerformanceSummary['localGenerationImpact'], string> = {
-  high:     'Strong benefit',
-  moderate: 'Moderate benefit',
-  limited:  'Limited benefit',
-};
+/** Three-segment filled bar used for cost, carbon and local-generation comparators. */
+function ComparatorRow({ icon, filledCount, label, exact }: {
+  icon: string;
+  filledCount: 1 | 2 | 3;
+  label: string;
+  exact?: string;
+}) {
+  return (
+    <div className="advice-perf-comparator">
+      <span className="advice-perf-comparator__icon" aria-hidden="true">{icon}</span>
+      <div className="advice-perf-comparator__bars" aria-hidden="true">
+        {([1, 2, 3] as const).map(i => (
+          <div
+            key={i}
+            className={`advice-perf-comparator__bar${i <= filledCount ? ' advice-perf-comparator__bar--filled' : ''}`}
+          />
+        ))}
+      </div>
+      <span className="advice-perf-comparator__label">{label}</span>
+      {exact && <span className="advice-perf-comparator__exact">{exact}</span>}
+    </div>
+  );
+}
 
-/** Physics-grounded performance panel — replaces the old "efficiency score". */
+/** Visual performance dashboard — replaces the old text-heavy 5-row panel. */
 function PerformancePanelUI({ summary }: { summary: PerformanceSummary }) {
+  const { inputKwh, outputKwh } = summary.energyConversion;
+  const fuelLabel   = fuelLabelFromCop(outputKwh);
+  const numBlocks   = outputBlockCount(outputKwh);
+
+  const costLevel   = costBarLevel(summary.costPerKwhHeat);
+  const carbonLevel = carbonBarLevel(summary.carbonPerKwhHeat);
+  const genLevel    = GEN_BAR_LEVEL[summary.localGenerationImpact];
+
   return (
     <div className="advice-perf-panel" aria-label="Performance summary">
-      <div className="advice-perf-panel__title">Performance</div>
-      <dl className="advice-perf-panel__rows">
-        <div className="advice-perf-panel__row">
-          <dt className="advice-perf-panel__label">Efficiency</dt>
-          <dd className={`advice-perf-panel__value advice-perf-panel__value--band-${summary.efficiencyBand}`}>
-            {EFFICIENCY_BAND_LABEL[summary.efficiencyBand]}
-          </dd>
+
+      {/* 1 — performance chip */}
+      <div className={`advice-perf-chip advice-perf-chip--${summary.efficiencyBand}`}>
+        {PERF_CHIP_LABEL[summary.efficiencyBand]}
+      </div>
+
+      {/* 2 — energy conversion visual (hero) */}
+      <div className="advice-perf-conversion" aria-label="Energy conversion">
+        <div className="advice-perf-conversion__row">
+          <div className="advice-perf-conversion__side">
+            <div className="advice-perf-conversion__blocks">
+              <div className="advice-perf-conversion__block advice-perf-conversion__block--in" />
+            </div>
+            <span className="advice-perf-conversion__sublabel">{inputKwh} kWh {fuelLabel}</span>
+          </div>
+          <span className="advice-perf-conversion__arrow" aria-hidden="true">→</span>
+          <div className="advice-perf-conversion__side">
+            <div className="advice-perf-conversion__blocks">
+              {Array.from({ length: numBlocks }, (_, i) => (
+                <div key={i} className="advice-perf-conversion__block advice-perf-conversion__block--out" />
+              ))}
+            </div>
+            <span className="advice-perf-conversion__sublabel">{outputKwh} kWh heat</span>
+          </div>
         </div>
-        <div className="advice-perf-panel__row">
-          <dt className="advice-perf-panel__label">Energy conversion</dt>
-          <dd className="advice-perf-panel__value">{summary.energyConversion.label}</dd>
-        </div>
-        <div className="advice-perf-panel__row">
-          <dt className="advice-perf-panel__label">Heat cost</dt>
-          <dd className="advice-perf-panel__value">~{summary.costPerKwhHeat}p per kWh</dd>
-        </div>
-        <div className="advice-perf-panel__row">
-          <dt className="advice-perf-panel__label">Carbon</dt>
-          <dd className="advice-perf-panel__value">{summary.carbonPerKwhHeat} kgCO₂/kWh heat</dd>
-        </div>
-        <div className="advice-perf-panel__row">
-          <dt className="advice-perf-panel__label">Local generation</dt>
-          <dd className="advice-perf-panel__value">{LOCAL_GEN_LABEL[summary.localGenerationImpact]}</dd>
-        </div>
-      </dl>
+      </div>
+
+      {/* 3 — three compact comparator bars */}
+      <div className="advice-perf-comparators">
+        <ComparatorRow
+          icon="£"
+          filledCount={costLevel}
+          label={COST_LEVEL_LABEL[costLevel - 1]}
+          exact={`~${summary.costPerKwhHeat}p/kWh`}
+        />
+        <ComparatorRow
+          icon="🌿"
+          filledCount={carbonLevel}
+          label={CARBON_LEVEL_LABEL[carbonLevel - 1]}
+          exact={`${summary.carbonPerKwhHeat} kgCO₂/kWh`}
+        />
+        <ComparatorRow
+          icon="☀️"
+          filledCount={genLevel}
+          label={GEN_LEVEL_LABEL[summary.localGenerationImpact]}
+        />
+      </div>
+
     </div>
   );
 }

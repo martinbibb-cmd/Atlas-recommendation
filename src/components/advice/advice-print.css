@@ -154,49 +154,125 @@
   border-color: #fc8181;
 }
 
-/* ── Performance panel (print) ────────────────────────────────────────────── */
+/* ── Performance visual dashboard (print) ─────────────────────────────────── */
 
 .prp__perf-panel {
   margin-top: 0.75rem;
   border: 1px solid #bee3f8;
   border-radius: 8px;
   background: #ebf8ff;
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1rem;
   break-inside: avoid;
   page-break-inside: avoid;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
 }
 
-.prp__perf-panel__title {
-  font-size: 0.72rem;
+/* Performance chip (print) */
+.prp__perf-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #2b6cb0;
-  margin-bottom: 0.5rem;
+  align-self: flex-start;
 }
 
-.prp__perf-panel__rows {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0.2rem 0.75rem;
-  margin: 0;
+.prp__perf-chip--optimal { background: #c6f6d5; color: #22543d; }
+.prp__perf-chip--average { background: #fefcbf; color: #744210; }
+.prp__perf-chip--poor    { background: #fed7d7; color: #822727; }
+
+/* Energy conversion (print) */
+.prp__perf-conversion__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-.prp__perf-panel__row {
-  display: contents;
+.prp__perf-conversion__side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
 }
 
-.prp__perf-panel__label {
-  font-size: 0.78rem;
+.prp__perf-conversion__blocks {
+  display: flex;
+  gap: 3px;
+}
+
+.prp__perf-conversion__block {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+}
+
+.prp__perf-conversion__block--in  { background: #4299e1; }
+.prp__perf-conversion__block--out { background: #48bb78; }
+
+.prp__perf-conversion__arrow {
+  font-size: 1rem;
+  color: #718096;
+  font-weight: 600;
+}
+
+.prp__perf-conversion__sublabel {
+  font-size: 0.65rem;
   color: #4a5568;
   font-weight: 500;
+  text-align: center;
   white-space: nowrap;
 }
 
-.prp__perf-panel__value {
-  font-size: 0.78rem;
+/* Comparator bars (print) */
+.prp__perf-comparators {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.prp__perf-comparator {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+}
+
+.prp__perf-comparator__icon {
+  width: 1.3em;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.prp__perf-comparator__bars {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.prp__perf-comparator__bar {
+  width: 12px;
+  height: 9px;
+  border-radius: 2px;
+  background: #c3dafe;
+}
+
+.prp__perf-comparator__bar--filled {
+  background: #4299e1;
+}
+
+.prp__perf-comparator__label {
   color: #1a202c;
   font-weight: 600;
+  min-width: 4em;
+}
+
+.prp__perf-comparator__exact {
+  color: #718096;
+  font-size: 0.68rem;
 }
 
 /* ── Unified confidence breakdown (print) ─────────────────────────────────── */

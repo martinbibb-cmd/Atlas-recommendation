@@ -464,53 +464,127 @@
   border-radius: 20px;
 }
 
-/* ── Performance panel ───────────────────────────────────────────────────── */
+/* ── Performance visual dashboard ────────────────────────────────────────── */
 
 .advice-perf-panel {
   margin-top: 0.75rem;
   border: 1px solid #bee3f8;
   border-radius: 8px;
   background: #ebf8ff;
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1rem;
   max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
 }
 
-.advice-perf-panel__title {
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #2b6cb0;
-  margin-bottom: 0.5rem;
-}
-
-.advice-perf-panel__rows {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0.25rem 0.75rem;
-  margin: 0;
-}
-
-.advice-perf-panel__row {
-  display: contents;
-}
-
-.advice-perf-panel__label {
+/* Performance chip */
+.advice-perf-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.7rem;
+  border-radius: 9999px;
   font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  align-self: flex-start;
+}
+
+.advice-perf-chip--optimal { background: #c6f6d5; color: #22543d; }
+.advice-perf-chip--average { background: #fefcbf; color: #744210; }
+.advice-perf-chip--poor    { background: #fed7d7; color: #822727; }
+
+/* Energy conversion visual */
+.advice-perf-conversion__row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.advice-perf-conversion__side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.advice-perf-conversion__blocks {
+  display: flex;
+  gap: 3px;
+}
+
+.advice-perf-conversion__block {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+}
+
+.advice-perf-conversion__block--in  { background: #4299e1; }
+.advice-perf-conversion__block--out { background: #48bb78; }
+
+.advice-perf-conversion__arrow {
+  font-size: 1.1rem;
+  color: #718096;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.advice-perf-conversion__sublabel {
+  font-size: 0.68rem;
   color: #4a5568;
   font-weight: 500;
+  text-align: center;
   white-space: nowrap;
 }
 
-.advice-perf-panel__value {
-  font-size: 0.78rem;
-  color: #1a202c;
-  font-weight: 600;
+/* Comparator bars */
+.advice-perf-comparators {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
 }
 
-.advice-perf-panel__value--band-optimal { color: #276749; }
-.advice-perf-panel__value--band-average { color: #744210; }
-.advice-perf-panel__value--band-poor    { color: #c53030; }
+.advice-perf-comparator {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+}
+
+.advice-perf-comparator__icon {
+  width: 1.4em;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.advice-perf-comparator__bars {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.advice-perf-comparator__bar {
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+  background: #c3dafe;
+}
+
+.advice-perf-comparator__bar--filled {
+  background: #4299e1;
+}
+
+.advice-perf-comparator__label {
+  color: #1a202c;
+  font-weight: 600;
+  min-width: 4.5em;
+}
+
+.advice-perf-comparator__exact {
+  color: #718096;
+  font-size: 0.7rem;
+}
 
 /* ── Compare-enriched objective card additions ───────────────────────────────── */
 
