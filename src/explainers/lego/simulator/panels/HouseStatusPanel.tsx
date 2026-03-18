@@ -66,7 +66,7 @@ export default function HouseStatusPanel({ state }: Props) {
       </div>
 
       {/* ── House schematic: roof peak + inside floors ─────── */}
-      <div className="house-schematic" role="img" aria-label="House section view">
+      <div className="house-schematic" aria-label="House section view">
         {/* Roof peak — visual affordance above the loft */}
         <div className="house-schematic__roof" aria-hidden="true">
           <div className="house-schematic__roof-peak" />

@@ -227,7 +227,12 @@ export default function VisitPage({
   const persist = useCallback(
     (isComplete: boolean) => {
       const draft = lastDraftRef.current;
-      if (!draft) return;
+      if (!draft) {
+        // No draft available — bail and surface a failure so the indicator
+        // doesn't get stuck in 'saving' or 'retrying'.
+        setSaveState('failed');
+        return;
+      }
       // Save raw FullSurveyModelV1 (including fullSurvey.dhwCondition) so that
       // all Step 5 fields survive reload.
       saveVisit(visitId, {
@@ -256,13 +261,19 @@ export default function VisitPage({
 
   /**
    * Retry handler — re-submits the latest canonical draft with real API call.
-   * Disabled while a save/retry is already in-flight.
+   * Uses a ref for the busy-guard so the guard reads fresh state even when the
+   * callback reference hasn't changed.
    */
+  const saveStateRef = useRef<SaveState>('idle');
+  useEffect(() => {
+    saveStateRef.current = saveState;
+  }, [saveState]);
+
   const handleRetrySave = useCallback(() => {
-    if (saveState === 'saving' || saveState === 'retrying') return;
+    if (saveStateRef.current === 'saving' || saveStateRef.current === 'retrying') return;
     setSaveState('retrying');
     persist(isCompleteRef.current);
-  }, [saveState, persist]);
+  }, [persist]);
 
   /**
    * onDraft — called by FullSurveyStepper on every step transition.

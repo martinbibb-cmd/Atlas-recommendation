@@ -93,7 +93,7 @@ export default function DrawOffCard({ data, onFocus }: Props) {
           <dt className="draw-off-card__row-label">Delivered</dt>
           <dd className="draw-off-card__row-value">
             {isInactive
-              ? <span className="draw-off-card__row-na">{status === 'cold' ? 'Cold / inactive' : 'Inactive'}</span>
+              ? <span className="draw-off-card__row-na">{STATUS_LABELS[status]}</span>
               : `${deliveredTempC}°C`}
             {!isInactive && (
               <span className="draw-off-card__row-flow">· {deliveredFlowLpm} L/min</span>
