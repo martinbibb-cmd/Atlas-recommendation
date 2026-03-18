@@ -45,6 +45,22 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
     sanitised.dynamicMainsPressure = sanitised.staticMainsPressureBar;
   }
 
+  // Propagate mains nested object into flat fields when the flat fields are absent.
+  // This ensures that data arriving via the mapper (mapSurveyToEngineInput) is also
+  // visible to modules that read the legacy flat fields.
+  if (sanitised.mains) {
+    if (sanitised.mains.staticPressureBar !== undefined && sanitised.staticMainsPressureBar === undefined) {
+      sanitised.staticMainsPressureBar = sanitised.mains.staticPressureBar;
+    }
+    if (sanitised.mains.dynamicPressureBar !== undefined && sanitised.dynamicMainsPressureBar === undefined) {
+      sanitised.dynamicMainsPressureBar = sanitised.mains.dynamicPressureBar;
+    }
+    if (sanitised.mains.flowRateLpm !== undefined && sanitised.mainsDynamicFlowLpm === undefined) {
+      sanitised.mainsDynamicFlowLpm = sanitised.mains.flowRateLpm;
+      sanitised.mainsDynamicFlowLpmKnown = true;
+    }
+  }
+
   // Bridge flat survey fields into currentSystem.boiler so the engine's
   // BoilerEfficiencyModelV1 can apply age-decay and oversize calculations.
   // currentHeatSourceType only covers boiler-based systems (combi/system/regular).

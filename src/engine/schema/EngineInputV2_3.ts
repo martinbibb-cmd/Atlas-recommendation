@@ -83,6 +83,23 @@ export interface ExpertAssumptionsV1 {
   spaceSavingPriority?: 'low' | 'medium' | 'high' | null;
 }
 
+/**
+ * User-expressed preferences from the survey.
+ * Distinct from ExpertAssumptionsV1 — these come from the homeowner,
+ * not from the surveyor's professional judgement.
+ */
+export interface UserPreferencesV1 {
+  /**
+   * How important it is to save space / avoid a hot-water cylinder.
+   *
+   * 'high'   — must avoid cylinders; combi boosted in recommendation scoring.
+   * 'medium' — prefer compact systems if practical; slight combi bias.
+   * 'low'    — space is not an issue; physics/performance dominate.
+   * Default: 'low' when absent.
+   */
+  spacePriority?: 'low' | 'medium' | 'high';
+}
+
 export interface EngineInputV2_3 {
   // Location & Water
   postcode: string;
@@ -93,6 +110,24 @@ export interface EngineInputV2_3 {
   dynamicMainsPressureBar?: number;
   /** Dynamic flow rate at pressure (L/min) — required for a meaningful dynamic point. */
   mainsDynamicFlowLpm?: number;
+  /**
+   * Nested mains supply object — preferred for new integrations.
+   * When present, these values take precedence over the flat top-level fields
+   * (staticMainsPressureBar, dynamicMainsPressureBar, mainsDynamicFlowLpm).
+   */
+  mains?: {
+    /** Static mains pressure (bar) — measured with no flow. */
+    staticPressureBar?: number;
+    /** Dynamic mains pressure (bar) — measured under flow. */
+    dynamicPressureBar?: number;
+    /** Flow rate at dynamic pressure (L/min). */
+    flowRateLpm?: number;
+  };
+  /**
+   * User-expressed preferences from the survey.
+   * Distinct from expertAssumptions — these come from the homeowner.
+   */
+  preferences?: UserPreferencesV1;
   /**
    * Set to `true` when mainsDynamicFlowLpm is a real measured reading (flow cup / bucket
    * test or flow meter).  When `false` or absent, the value is a conservative estimate
@@ -690,6 +725,21 @@ export interface CombiDhwV1Result {
    * Present when plate HEX survey evidence was supplied.
    */
   plateHexFoulingFactor?: number;
+  /**
+   * Per-outlet available flow (L/min) derived by dividing total mains flow by the
+   * number of active outlets.  Present only when mains flow data is available.
+   */
+  perOutletFlowLpm?: number;
+  /**
+   * Combi ignition state based on per-outlet flow vs. ignition threshold.
+   *
+   * 'firing'                    — per-outlet flow meets ignition threshold (≥ 2.5 L/min).
+   * 'below_ignition_threshold'  — flow is too low to trigger the gas valve.
+   * 'pressure_limited'          — mains dynamic pressure is below the lockout threshold.
+   *
+   * Present only when mains flow data is available.
+   */
+  ignitionState?: 'firing' | 'below_ignition_threshold' | 'pressure_limited';
 }
 
 /** Structured flag item for StoredDhwModuleV1. */

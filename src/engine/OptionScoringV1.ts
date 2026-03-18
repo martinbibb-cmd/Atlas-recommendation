@@ -2,6 +2,7 @@ import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInput
 import type { OptionCardV1, OptionScoreV1, ScoreBreakdownItem } from '../contracts/EngineOutputV1';
 import type { ConfidenceV1, AssumptionV1 } from '../contracts/EngineOutputV1';
 import { PENALTY_IDS } from '../contracts/scoring.penaltyIds';
+import { computeSpaceRankingAdjustments } from './buildRecommendationRanking';
 
 /**
  * Minimum measured flow (L/min) that represents a clearly-strong CWS operating point.
@@ -123,6 +124,23 @@ export function scoreOptionV1(
     } else if (spacePriority === 'medium') {
       breakdown.push({ id: PENALTY_IDS.SPACE_PRIORITY_MED_STORED, label: 'Space-saving priority medium — compact system preferred', penalty: 6 });
       score -= 6;
+    }
+  }
+
+  // User preferences.spacePriority — adjustments from the survey's space preference question.
+  // Applied on top of expertAssumptions.spaceSavingPriority (independent axes).
+  // Uses computeSpaceRankingAdjustments which also enforces physics guardrails.
+  if (input.preferences?.spacePriority) {
+    const prefAdjustments = computeSpaceRankingAdjustments(id, input);
+    for (const adj of prefAdjustments) {
+      if (adj.delta < 0) {
+        breakdown.push({ id: adj.id, label: adj.label, penalty: -adj.delta });
+        score += adj.delta;
+      } else if (adj.delta > 0) {
+        // Positive deltas are boosts — store as negative penalty to surface in breakdown.
+        breakdown.push({ id: adj.id, label: adj.label, penalty: -adj.delta });
+        score += adj.delta;
+      }
     }
   }
 
