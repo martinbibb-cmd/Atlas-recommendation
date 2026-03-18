@@ -11,11 +11,14 @@
 //   - Back button calls onBack
 //   - Trade-off warnings render when present
 //   - Wording stays concise — no repeated "comparison table" prose
+//   - Performance visual dashboard renders in compare mode (chip, conversion, comparators)
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import DecisionSynthesisPage from '../DecisionSynthesisPage';
 import type { EngineOutputV1, OptionCardV1 } from '../../../contracts/EngineOutputV1';
+import type { CompareSeed } from '../../../lib/simulator/buildCompareSeedFromSurvey';
+import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -563,5 +566,117 @@ describe('DecisionSynthesisPage — save button', () => {
   it('does not show the share panel before saving', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
     expect(document.querySelector('[data-testid="share-panel"]')).toBeNull();
+  });
+});
+
+// ─── Performance visual dashboard — compare mode ──────────────────────────────
+
+// Minimal compare seed and survey data needed to trigger compare mode so that
+// buildAdviceFromCompare runs and heroPerformanceSummary is non-null.
+const DEMO_COMPARE_SEED: CompareSeed = {
+  left:  { systemChoice: 'combi',    systemInputs: { weatherCompensation: false, emitterCapacityFactor: 1.0, systemCondition: 'scaling' } },
+  right: { systemChoice: 'unvented', systemInputs: { weatherCompensation: true,  emitterCapacityFactor: 1.2, systemCondition: 'clean'   } },
+  compareMode: 'current_vs_proposed',
+  comparisonLabel: 'Current system vs Proposed system',
+} as unknown as CompareSeed;
+
+const DEMO_SURVEY: FullSurveyModelV1 = {
+  occupancySignature: 'home_all_day',
+  propertyType: 'semi_detached',
+  propertyAge: 'post_2000',
+  bedrooms: 3,
+  bathrooms: 1,
+  currentSystem: 'combi',
+  fuelType: 'gas',
+  mainsWaterPressure: 'adequate',
+} as unknown as FullSurveyModelV1;
+
+describe('DecisionSynthesisPage — performance visual dashboard (compare mode)', () => {
+  it('renders the performance summary panel when compare seed and survey data are provided', () => {
+    render(
+      <DecisionSynthesisPage
+        engineOutput={DEMO_OUTPUT}
+        compareSeed={DEMO_COMPARE_SEED}
+        surveyData={DEMO_SURVEY}
+      />,
+    );
+    // Multiple panels render (hero + objective cards) — confirm at least one is present
+    const panels = screen.getAllByLabelText(/performance summary/i);
+    expect(panels.length).toBeGreaterThan(0);
+  });
+
+  it('does not render the performance panel in legacy mode (no compareSeed)', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(screen.queryByLabelText(/performance summary/i)).toBeNull();
+  });
+
+  it('renders the energy conversion visual in compare mode', () => {
+    render(
+      <DecisionSynthesisPage
+        engineOutput={DEMO_OUTPUT}
+        compareSeed={DEMO_COMPARE_SEED}
+        surveyData={DEMO_SURVEY}
+      />,
+    );
+    expect(screen.getAllByLabelText(/energy conversion/i).length).toBeGreaterThan(0);
+  });
+
+  it('renders a performance chip with one of the approved plain-English labels', () => {
+    render(
+      <DecisionSynthesisPage
+        engineOutput={DEMO_OUTPUT}
+        compareSeed={DEMO_COMPARE_SEED}
+        surveyData={DEMO_SURVEY}
+      />,
+    );
+    const pageText = document.body.textContent ?? '';
+    const hasChipLabel =
+      /works best/i.test(pageText) ||
+      /works well/i.test(pageText) ||
+      /needs the right setup/i.test(pageText);
+    expect(hasChipLabel).toBe(true);
+  });
+
+  it('does not use the forbidden label "Optimal" in the performance chip', () => {
+    render(
+      <DecisionSynthesisPage
+        engineOutput={DEMO_OUTPUT}
+        compareSeed={DEMO_COMPARE_SEED}
+        surveyData={DEMO_SURVEY}
+      />,
+    );
+    // "Optimal" was the old overconfident label — must not appear in the chip
+    expect(document.body.textContent).not.toMatch(/\bOptimal\b/);
+  });
+
+  it('renders comparator rows (£, 🌿, ☀️) in the performance panel', () => {
+    render(
+      <DecisionSynthesisPage
+        engineOutput={DEMO_OUTPUT}
+        compareSeed={DEMO_COMPARE_SEED}
+        surveyData={DEMO_SURVEY}
+      />,
+    );
+    // All three comparator icons must appear somewhere on the page
+    const pageText = document.body.textContent ?? '';
+    expect(pageText).toContain('£');
+    expect(pageText).toContain('🌿');
+    expect(pageText).toContain('☀️');
+  });
+
+  it('renders a qualitative cost label (Lower, Medium or Higher) in the panel', () => {
+    render(
+      <DecisionSynthesisPage
+        engineOutput={DEMO_OUTPUT}
+        compareSeed={DEMO_COMPARE_SEED}
+        surveyData={DEMO_SURVEY}
+      />,
+    );
+    const pageText = document.body.textContent ?? '';
+    const hasCostLabel =
+      /\bLower\b/.test(pageText) ||
+      /\bMedium\b/.test(pageText) ||
+      /\bHigher\b/.test(pageText);
+    expect(hasCostLabel).toBe(true);
   });
 });
