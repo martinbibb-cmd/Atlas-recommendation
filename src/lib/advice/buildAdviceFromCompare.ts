@@ -765,21 +765,21 @@ function buildRecommendationScope(
 
     const essentialItems: ScopeItem[] = p0
       ? [
-          { label: p0.rationale, type: 'required' },
+          { label: p0.rationale, type: 'required' as const },
           ...p0.prerequisites.map((pr): ScopeItem => ({ label: pr.description, type: 'required' })),
         ].filter(i => i.label).slice(0, 5)
       : [{ label: `Install ${systemLabel}`, type: 'required' }];
 
     const bestAdviceItems: ScopeItem[] = p1
       ? [
-          { label: p1.rationale, type: 'upgrade', selectable: true },
+          { label: p1.rationale, type: 'upgrade' as const, selectable: true },
           ...p1.prerequisites.map((pr): ScopeItem => ({ label: pr.description, type: 'upgrade', selectable: true })),
         ].filter(i => i.label).slice(0, 5)
       : [];
 
     const futurePotentialItems: ScopeItem[] = p2
       ? [
-          { label: p2.rationale, type: 'future' },
+          { label: p2.rationale, type: 'future' as const },
           ...p2.prerequisites.map((pr): ScopeItem => ({ label: pr.description, type: 'future' })),
         ].filter(i => i.label).slice(0, 5)
       : [];
@@ -793,7 +793,7 @@ function buildRecommendationScope(
 
   // Essential — mandatory works for the recommended system.
   const essentialItems: ScopeItem[] = [
-    { label: `Install ${systemLabel}`, type: 'required' },
+    { label: `Install ${systemLabel}`, type: 'required' as const },
     ...mustHave.slice(0, 4).map((m): ScopeItem => ({ label: m, type: 'required' })),
   ].slice(0, 5);
 
