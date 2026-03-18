@@ -14,6 +14,7 @@ export interface VisitMeta {
   address_line_1: string | null;
   postcode: string | null;
   current_step: string | null;
+  visit_reference: string | null;
 }
 
 /**
@@ -45,6 +46,22 @@ export const VISIT_STATUS_LABELS: Record<string, string> = {
 /** Returns the display label for a visit status value. */
 export function visitStatusLabel(status: string): string {
   return VISIT_STATUS_LABELS[status] ?? status;
+}
+
+/**
+ * Returns the primary display label for a visit, using this priority order:
+ *   1. visit_reference (user-defined leaf / job number)
+ *   2. address_line_1
+ *   3. postcode
+ *   4. customer_name
+ *   5. truncated visit id (fallback)
+ */
+export function visitDisplayLabel(v: Pick<VisitMeta, 'id' | 'visit_reference' | 'address_line_1' | 'postcode' | 'customer_name'>): string {
+  if (v.visit_reference) return v.visit_reference;
+  if (v.address_line_1) return v.address_line_1;
+  if (v.postcode) return v.postcode;
+  if (v.customer_name) return v.customer_name;
+  return `Visit ${v.id.slice(-8).toUpperCase()}`;
 }
 
 /**
@@ -107,6 +124,7 @@ export async function createVisit(opts: {
   customer_name?: string;
   address_line_1?: string;
   postcode?: string;
+  visit_reference?: string;
 } = {}): Promise<{ ok: true; id: string }> {
   const res = await fetch("/api/visits", {
     method: "POST",
@@ -163,6 +181,7 @@ export async function saveVisit(
     postcode?: string;
     current_step?: string;
     status?: string;
+    visit_reference?: string;
     working_payload?: Record<string, unknown>;
   }
 ): Promise<void> {

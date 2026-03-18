@@ -14,6 +14,7 @@ import { isMissingTableError, SCHEMA_DRIFT_RESPONSE } from "./_utils/errors.js";
  *     address_line_1?:    string
  *     postcode?:          string
  *     current_step?:      string
+ *     visit_reference?:   string
  *     working_payload?:   object   — defaults to {} if absent
  *   }
  *
@@ -46,6 +47,7 @@ interface VisitRow {
   address_line_1: string | null;
   postcode: string | null;
   current_step: string | null;
+  visit_reference: string | null;
   working_payload_json: string;
 }
 
@@ -79,6 +81,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     typeof body.postcode === "string" ? body.postcode : null;
   const currentStep =
     typeof body.current_step === "string" ? body.current_step : null;
+  const visitReference =
+    typeof body.visit_reference === "string" && body.visit_reference.trim().length > 0
+      ? body.visit_reference.trim()
+      : null;
   const workingPayload =
     body.working_payload != null &&
     typeof body.working_payload === "object" &&
@@ -90,10 +96,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     await env.ATLAS_REPORTS_D1.prepare(
       `INSERT INTO visits
-         (id, created_at, updated_at, status, customer_name, address_line_1, postcode, current_step, working_payload_json)
-       VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?)`
+         (id, created_at, updated_at, status, customer_name, address_line_1, postcode, current_step, visit_reference, working_payload_json)
+       VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?)`
     )
-      .bind(id, now, now, customerName, addressLine1, postcode, currentStep, workingPayloadJson)
+      .bind(id, now, now, customerName, addressLine1, postcode, currentStep, visitReference, workingPayloadJson)
       .run();
 
     return Response.json({ ok: true, id }, { status: 201 });
@@ -113,7 +119,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   try {
     const result = await env.ATLAS_REPORTS_D1.prepare(
-      `SELECT id, created_at, updated_at, status, customer_name, address_line_1, postcode, current_step
+      `SELECT id, created_at, updated_at, status, customer_name, address_line_1, postcode, current_step, visit_reference
        FROM visits
        ORDER BY updated_at DESC
        LIMIT 50`

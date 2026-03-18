@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { getVisit, visitStatusLabel, isSurveyComplete, type VisitMeta } from '../../lib/visits/visitApi';
+import { getVisit, saveVisit, visitStatusLabel, visitDisplayLabel, isSurveyComplete, type VisitMeta } from '../../lib/visits/visitApi';
 import VisitReportsList from './VisitReportsList';
 import './VisitHubPage.css';
 
@@ -48,19 +48,22 @@ function formatRelativeDate(iso: string): string {
 }
 
 function addressDisplay(meta: VisitMeta): string {
-  const parts = [meta.address_line_1, meta.postcode].filter(Boolean);
-  if (parts.length > 0) return parts.join(', ');
-  if (meta.customer_name) return meta.customer_name;
-  return `Visit ${meta.id.slice(-8).toUpperCase()}`;
+  return visitDisplayLabel(meta);
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function HubHeader({ meta, onBack }: { meta: VisitMeta; onBack: () => void }) {
+function HubHeader({ meta, onBack, onReferenceChange }: { meta: VisitMeta; onBack: () => void; onReferenceChange: (ref: string) => void }) {
   const label = visitStatusLabel(meta.status);
   const statusKey = meta.status.toLowerCase().replace(/[^a-z_]/g, '_');
+  const [editing, setEditing] = useState(false);
+  const [draftRef, setDraftRef] = useState(meta.visit_reference ?? '');
+  const shortId = meta.id.slice(-8).toUpperCase();
 
-  return (
+  function handleSave() {
+    setEditing(false);
+    onReferenceChange(draftRef.trim());
+  }  return (
     <div className="visit-hub__header">
       <button
         className="visit-hub__back-btn"
@@ -70,7 +73,42 @@ function HubHeader({ meta, onBack }: { meta: VisitMeta; onBack: () => void }) {
         ←
       </button>
       <div className="visit-hub__header-body">
-        <h1 className="visit-hub__address">{addressDisplay(meta)}</h1>
+        {editing ? (
+          <div className="visit-hub__ref-edit">
+            <input
+              className="visit-hub__ref-input"
+              type="text"
+              value={draftRef}
+              onChange={(e) => setDraftRef(e.target.value)}
+              placeholder="e.g. 12345"
+              aria-label="Visit reference"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSave();
+                else if (e.key === 'Escape') setEditing(false);
+              }}
+            />
+            <button className="visit-hub__ref-save-btn" onClick={handleSave}>Save</button>
+            <button className="visit-hub__ref-cancel-btn" onClick={() => setEditing(false)}>Cancel</button>
+          </div>
+        ) : (
+          <h1 className="visit-hub__address">
+            {addressDisplay(meta)}
+            <button
+              className="visit-hub__ref-edit-btn"
+              onClick={() => { setDraftRef(meta.visit_reference ?? ''); setEditing(true); }}
+              aria-label={meta.visit_reference ? 'Edit visit reference' : 'Add visit reference'}
+              title={meta.visit_reference ? 'Edit visit reference' : 'Add visit reference'}
+            >
+              {meta.visit_reference ? ' ✏' : ' + Ref'}
+            </button>
+          </h1>
+        )}
+        {meta.visit_reference && (
+          <p className="visit-hub__visit-id" aria-label={`Internal visit ID: ${shortId}`}>
+            Visit ···{shortId}
+          </p>
+        )}
         {meta.customer_name && meta.address_line_1 && (
           <p className="visit-hub__customer">{meta.customer_name}</p>
         )}
@@ -168,6 +206,13 @@ export default function VisitHubPage({
     };
   }, [visitId]);
 
+  function handleReferenceChange(newRef: string) {
+    if (!meta) return;
+    const trimmed = newRef.trim() || null;
+    setMeta({ ...meta, visit_reference: trimmed });
+    saveVisit(visitId, { visit_reference: trimmed ?? '' }).catch(() => {/* best effort */});
+  }
+
   if (loading) {
     return (
       <div className="visit-hub__loading" role="status" aria-live="polite">
@@ -189,7 +234,7 @@ export default function VisitHubPage({
 
   return (
     <div className="visit-hub">
-      <HubHeader meta={meta} onBack={onBack} />
+      <HubHeader meta={meta} onBack={onBack} onReferenceChange={handleReferenceChange} />
 
       <div className="visit-hub__body">
         <HubActions

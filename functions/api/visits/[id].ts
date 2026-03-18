@@ -48,6 +48,7 @@ interface VisitRow {
   address_line_1: string | null;
   postcode: string | null;
   current_step: string | null;
+  visit_reference: string | null;
   working_payload_json: string;
 }
 
@@ -58,7 +59,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     const row = await env.ATLAS_REPORTS_D1.prepare(
       `SELECT id, created_at, updated_at, status,
-              customer_name, address_line_1, postcode, current_step, working_payload_json
+              customer_name, address_line_1, postcode, current_step, visit_reference, working_payload_json
        FROM visits WHERE id = ?`
     )
       .bind(id)
@@ -162,6 +163,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
   if (typeof body.current_step === "string") {
     setClauses.push("current_step = ?");
     bindings.push(body.current_step);
+  }
+  if (typeof body.visit_reference === "string") {
+    setClauses.push("visit_reference = ?");
+    bindings.push(body.visit_reference.trim() || null);
   }
   if (
     body.working_payload != null &&

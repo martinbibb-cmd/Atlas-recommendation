@@ -66,6 +66,15 @@
   flex-shrink: 0;
 }
 
+.visit-case-summary__visit-ref {
+  font-size: 0.68rem;
+  color: #718096;
+  font-family: monospace;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .visit-case-summary__customer {
   font-size: 0.82rem;
   font-weight: 600;

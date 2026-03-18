@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   listVisits,
   visitStatusLabel,
+  visitDisplayLabel,
   matchesFilter,
   type VisitMeta,
   type VisitFilterCategory,
@@ -55,16 +56,15 @@ function formatRelativeDate(iso: string): string {
 
 /** Prominent address line for the card. */
 function cardAddress(v: VisitMeta): string {
-  if (v.address_line_1) return v.address_line_1;
-  if (v.postcode) return v.postcode;
-  return `Visit ${v.id.slice(-8).toUpperCase()}`;
+  return visitDisplayLabel(v);
 }
 
-/** Returns true when the query matches address or customer name (case-insensitive). */
+/** Returns true when the query matches visit_reference, address, postcode, or customer name (case-insensitive). */
 function matchesSearch(v: VisitMeta, query: string): boolean {
   if (!query) return true;
   const q = query.toLowerCase();
   return (
+    (v.visit_reference?.toLowerCase().includes(q) ?? false) ||
     (v.address_line_1?.toLowerCase().includes(q) ?? false) ||
     (v.postcode?.toLowerCase().includes(q) ?? false) ||
     (v.customer_name?.toLowerCase().includes(q) ?? false)
@@ -94,10 +94,13 @@ function VisitCard({ v, onOpen }: { v: VisitMeta; onOpen: () => void }) {
       <button className="rv-card__body" onClick={onOpen} aria-label={`Open visit: ${address}`}>
         <div className="rv-card__main">
           <span className="rv-card__address">{address}</span>
-          {v.customer_name && (
+          {v.visit_reference && v.address_line_1 && (
+            <span className="rv-card__customer">{v.address_line_1}{v.postcode ? `, ${v.postcode}` : ''}</span>
+          )}
+          {!v.visit_reference && v.customer_name && (
             <span className="rv-card__customer">{v.customer_name}</span>
           )}
-          {!v.customer_name && v.postcode && v.address_line_1 && (
+          {!v.visit_reference && !v.customer_name && v.postcode && v.address_line_1 && (
             <span className="rv-card__customer">{v.postcode}</span>
           )}
           <span className="rv-card__updated">Updated {formatRelativeDate(v.updated_at)}</span>
@@ -173,7 +176,7 @@ export default function RecentVisitsList({ onOpenVisit }: Props) {
         <input
           className="rv-search"
           type="search"
-          placeholder="Search by address or customer…"
+          placeholder="Search by visit reference, address or customer…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Search visits"
