@@ -22,6 +22,7 @@ import RecentVisitsList from './components/visit/RecentVisitsList';
 import ReportPage from './components/reportpage/ReportPage';
 import { resetAtlasTourSeen } from './lib/tourStorage';
 import { createVisit } from './lib/visits/visitApi';
+import { listReportsForVisit } from './lib/reports/reportApi';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
 import { getMissingLabFields } from './lib/lab/getMissingLabFields';
@@ -152,6 +153,31 @@ export default function App() {
   }
 
   /**
+   * View recommendation for a completed visit.
+   *
+   * Resolves the latest saved report linked to the visit.  If one exists,
+   * opens it directly on the report page.  Falls back to the survey if no
+   * saved report is found (e.g. legacy visit completed before report-saving
+   * was introduced).
+   */
+  async function handleViewRecommendation(visitId: string) {
+    try {
+      const reports = await listReportsForVisit(visitId);
+      if (Array.isArray(reports) && reports.length > 0) {
+        setActiveReportId(reports[0].id);
+        setJourney('report');
+        return;
+      }
+    } catch (err) {
+      // Log the failure so it is visible in dev tools, then fall back to survey.
+      console.error('[Atlas] Could not load reports for visit', visitId, err);
+    }
+    // Fallback: no saved report — send back to survey so the user can
+    // complete and save it.
+    setJourney('visit');
+  }
+
+  /**
    * Open the Simulator Dashboard, optionally with a partial engine input already
    * known from Fast Choice.  If simulation-critical fields are missing, route
    * through the quick-input gate first; otherwise open the simulator directly.
@@ -214,7 +240,7 @@ export default function App() {
           visitId={activeVisitId}
           onBack={() => setJourney('landing')}
           onResumeSurvey={() => setJourney('visit')}
-          onViewRecommendation={() => setJourney('simulator')}
+          onViewRecommendation={() => { void handleViewRecommendation(activeVisitId); }}
           onOpenReport={(reportId) => {
             setActiveReportId(reportId);
             setJourney('report');

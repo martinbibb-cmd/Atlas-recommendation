@@ -9,9 +9,9 @@
  *   3. Secondary actions — Edit survey, View recommendation (conditional)
  *   4. Reports list    — reports linked to this visit, newest first
  *
- * The Resume button routes to:
+ * The primary action button routes to:
  *   • the survey stepper when the survey is not yet complete
- *   • the recommendation/simulator when the survey is complete
+ *   • the saved report/recommendation when the survey is complete
  */
 
 import { useEffect, useState } from 'react';
@@ -24,7 +24,7 @@ interface Props {
   onBack: () => void;
   /** Route to the full survey stepper (resume / edit). */
   onResumeSurvey: () => void;
-  /** Open the simulator/recommendation for this visit. */
+  /** Open the saved report/recommendation for this visit. */
   onViewRecommendation: () => void;
   /** Open a specific report by ID. */
   onOpenReport: (reportId: string) => void;
