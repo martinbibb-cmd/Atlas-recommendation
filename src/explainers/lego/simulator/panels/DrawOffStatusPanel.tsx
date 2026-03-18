@@ -251,12 +251,12 @@ export default function DrawOffStatusPanel({ state, systemChoice, mainsPressureB
   const concurrent   = openCount >= 2
   const isCombi      = systemChoice === 'combi'
   // Resolve the effective mains flow — use the real survey/input value when available.
-  const effectiveMailsFlowLpm = mainsFlowLpm ?? DEFAULT_MAINS_FLOW_RATE_LPM
+  const effectiveMainsFlowLpm = mainsFlowLpm ?? DEFAULT_MAINS_FLOW_RATE_LPM
   const hotSupplyTempC = state.storedHotWaterState
     ? Math.round(state.storedHotWaterState.topTempC)
     : HOT_SUPPLY_COMBI_TEMP_C
 
-  const outletCards   = state.outletStates.map(o => outletToViewModel(o, hotSupplyTempC, concurrent, effectiveMailsFlowLpm, isCombi))
+  const outletCards   = state.outletStates.map(o => outletToViewModel(o, hotSupplyTempC, concurrent, effectiveMainsFlowLpm, isCombi))
   const cylinderData  = buildCylinderViewModel(state, systemChoice)
 
   return (
