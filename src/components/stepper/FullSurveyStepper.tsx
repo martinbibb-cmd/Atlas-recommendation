@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, type CSSProperties } from 'react';
+import { useState, useMemo, useEffect, useRef, type CSSProperties } from 'react';
 import {
   DEMAND_PRESETS,
   presetToEngineSignature,
@@ -592,20 +592,71 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
   // ── Fabric simulation controls ─────────────────────────────────────────────
   // Section A (heat loss): wall, insulation, glazing, roof, airtightness
   // Section B (inertia): thermalMass (independent from wall type)
-  const [wallType, setWallType] = useState<WallType>('solid_masonry');
-  const [insulationLevel, setInsulationLevel] = useState<InsulationLevel>('moderate');
-  const [airTightness, setAirTightness] = useState<AirTightness>('average');
-  const [glazing, setGlazing] = useState<Glazing>('single');
-  const [roofInsulation, setRoofInsulation] = useState<RoofInsulation>('poor');
-  const [thermalMass, setThermalMass] = useState<ThermalMass>('heavy');
+  //
+  // When a prefill is present with building.fabric / building.thermalMass values,
+  // the individual controls are initialised directly from those saved values so
+  // that a reload/navigate-away-back round-trip restores the exact fabric state
+  // the surveyor had selected.  The back-mapping from engine types to UI types:
+  //   'cavity_filled'   → 'cavity_insulated'
+  //   'cavity_unfilled' → 'cavity_uninsulated'
+  //   'timber_frame'    → 'timber_lightweight'
+  //   'solid_masonry'   → 'solid_masonry'
+  //   'passive'         → 'passive_level'   (airTightness only)
+  const prefillFabric = prefill?.building?.fabric;
+  const prefillThermalMass = prefill?.building?.thermalMass;
+  const hasPrefillFabric = !!(prefillFabric || prefillThermalMass);
+
+  const [wallType, setWallType] = useState<WallType>(() => {
+    const fw = prefillFabric?.wallType;
+    if (fw === 'cavity_filled')   return 'cavity_insulated';
+    if (fw === 'cavity_unfilled') return 'cavity_uninsulated';
+    if (fw === 'timber_frame')    return 'timber_lightweight';
+    if (fw === 'solid_masonry')   return 'solid_masonry';
+    return 'solid_masonry';
+  });
+  const [insulationLevel, setInsulationLevel] = useState<InsulationLevel>(() => {
+    const fi = prefillFabric?.insulationLevel;
+    if (fi === 'poor' || fi === 'moderate' || fi === 'good' || fi === 'exceptional') return fi;
+    return 'moderate';
+  });
+  const [airTightness, setAirTightness] = useState<AirTightness>(() => {
+    const fa = prefillFabric?.airTightness;
+    if (fa === 'passive') return 'passive_level';
+    if (fa === 'leaky' || fa === 'average' || fa === 'tight') return fa;
+    return 'average';
+  });
+  const [glazing, setGlazing] = useState<Glazing>(() => {
+    const fg = prefillFabric?.glazing;
+    if (fg === 'single' || fg === 'double' || fg === 'triple') return fg;
+    return 'single';
+  });
+  const [roofInsulation, setRoofInsulation] = useState<RoofInsulation>(() => {
+    const fr = prefillFabric?.roofInsulation;
+    if (fr === 'poor' || fr === 'moderate' || fr === 'good') return fr;
+    return 'poor';
+  });
+  const [thermalMass, setThermalMass] = useState<ThermalMass>(() => {
+    const tm = prefillThermalMass;
+    if (tm === 'light' || tm === 'medium' || tm === 'heavy') return tm;
+    return 'heavy';
+  });
   const [dwellingForm, setDwellingForm] = useState<DwellingForm>('semi');
   const [ageBand, setAgeBand] = useState<AgeBand>('1970_90');
   const [sizeProxy, setSizeProxy] = useState<SizeProxy>('medium');
   const [insulationToggle, setInsulationToggle] = useState<InsulationToggle>('ok');
-  const [presetMode, setPresetMode] = useState<'preset' | 'custom'>('preset');
+  // When fabric data is hydrated from prefill, start in 'custom' mode so the UI
+  // correctly labels the state as "Custom override" rather than "Preset-derived".
+  const [presetMode, setPresetMode] = useState<'preset' | 'custom'>(hasPrefillFabric ? 'custom' : 'preset');
   const [showAdvancedFabric, setShowAdvancedFabric] = useState(false);
+  // Ref guard: skip the fabric-preset effect on first mount when controls have
+  // been hydrated from a prefill — prevents the default preset from overwriting
+  // the restored values.  Cleared after the first skipped run so that subsequent
+  // changes to dwellingForm/ageBand/sizeProxy/insulationToggle still apply.
+  const skipPresetOnMountRef = useRef(hasPrefillFabric);
   /** House front-facing direction — used to infer roof orientation for PV suitability. */
-  const [houseFrontFacing, setHouseFrontFacing] = useState<'north' | 'east' | 'south' | 'west' | undefined>(undefined);
+  const [houseFrontFacing, setHouseFrontFacing] = useState<'north' | 'east' | 'south' | 'west' | undefined>(
+    () => prefill?.houseFrontFacing ?? undefined,
+  );
   /** Hydraulic step — flow-demand chart hidden by default to keep the step fast. */
   const [showHydraulicDetail, setShowHydraulicDetail] = useState(false);
   /** Hot-water step — outlet-vs-demand analysis hidden by default. */
@@ -618,6 +669,14 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
   };
 
   useEffect(() => {
+    // Skip the first run when fabric controls were hydrated from a saved prefill.
+    // This prevents the default preset values from overwriting the restored state.
+    // After the first skip the ref is cleared so subsequent user changes to the
+    // dwelling-form / age-band selectors still apply the preset as expected.
+    if (skipPresetOnMountRef.current) {
+      skipPresetOnMountRef.current = false;
+      return;
+    }
     const preset = getFabricPreset(dwellingForm, ageBand, sizeProxy, insulationToggle);
     setWallType(preset.wall);
     setInsulationLevel(preset.insulation);
