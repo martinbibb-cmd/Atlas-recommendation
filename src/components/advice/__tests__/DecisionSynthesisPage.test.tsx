@@ -13,9 +13,10 @@
 //   - Wording stays concise — no repeated "comparison table" prose
 //   - Performance visual dashboard renders in compare mode (chip, conversion, comparators)
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import DecisionSynthesisPage from '../DecisionSynthesisPage';
+import type { ReportSaveState } from '../DecisionSynthesisPage';
 import type { EngineOutputV1, OptionCardV1 } from '../../../contracts/EngineOutputV1';
 import type { CompareSeed } from '../../../lib/simulator/buildCompareSeedFromSurvey';
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
@@ -623,6 +624,205 @@ describe('DecisionSynthesisPage — save button', () => {
   it('does not show the share panel before saving', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
     expect(document.querySelector('[data-testid="share-panel"]')).toBeNull();
+  });
+});
+
+// ─── Save/retry state machine ─────────────────────────────────────────────────
+
+// Fixtures for compare-mode rendering (required for save button to appear).
+const SAVE_COMPARE_SEED: CompareSeed = {
+  left:  { systemChoice: 'combi',    systemInputs: { weatherCompensation: false, emitterCapacityFactor: 1.0, systemCondition: 'scaling' } },
+  right: { systemChoice: 'unvented', systemInputs: { weatherCompensation: true,  emitterCapacityFactor: 1.2, systemCondition: 'clean'   } },
+  compareMode: 'current_vs_proposed',
+  comparisonLabel: 'Current system vs Proposed system',
+} as unknown as CompareSeed;
+
+const SAVE_SURVEY: FullSurveyModelV1 = {
+  occupancySignature: 'home_all_day',
+  propertyType: 'semi_detached',
+  propertyAge: 'post_2000',
+  bedrooms: 3,
+  bathrooms: 1,
+  currentSystem: 'combi',
+  fuelType: 'gas',
+  mainsWaterPressure: 'adequate',
+} as unknown as FullSurveyModelV1;
+
+function renderInCompareMode() {
+  return render(
+    <DecisionSynthesisPage
+      engineOutput={DEMO_OUTPUT}
+      compareSeed={SAVE_COMPARE_SEED}
+      surveyData={SAVE_SURVEY}
+    />,
+  );
+}
+
+describe('DecisionSynthesisPage — save/retry state machine', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('ReportSaveState type supports all five expected states', () => {
+    const states: ReportSaveState[] = ['idle', 'saving', 'saved', 'failed', 'retrying'];
+    expect(states).toContain('retrying');
+    expect(states).toContain('failed');
+    expect(states).toHaveLength(5);
+  });
+
+  it('shows Save Report button in compare mode', () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ok: true, id: 'rpt-1' }),
+    });
+    renderInCompareMode();
+    expect(screen.getByRole('button', { name: /save atlas report/i })).toBeTruthy();
+  });
+
+  it('shows saving state then saved after successful save', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ok: true, id: 'rpt-success' }),
+    });
+    renderInCompareMode();
+
+    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+
+    // Saving… label should appear immediately.
+    expect(screen.getByRole('button', { name: /save atlas report/i }).textContent).toMatch(/saving/i);
+
+    // After resolution, share panel should appear.
+    await waitFor(() =>
+      expect(document.querySelector('[data-testid="share-panel"]')).not.toBeNull(),
+    );
+  });
+
+  it('shows failed state and retry button after a network error', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Network error'));
+    renderInCompareMode();
+
+    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /save atlas report/i }).textContent).toMatch(/save failed/i),
+    );
+  });
+
+  it('shows failed state when API returns ok:false', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ok: false }),
+    });
+    renderInCompareMode();
+
+    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /save atlas report/i }).textContent).toMatch(/save failed/i),
+    );
+  });
+
+  it('retry performs a real second fetch call', async () => {
+    const mockFetch = vi.fn()
+      .mockRejectedValueOnce(new Error('first failure'))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ok: true, id: 'rpt-retry' }),
+      });
+    vi.stubGlobal('fetch', mockFetch);
+
+    renderInCompareMode();
+
+    // First save — fails.
+    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /save atlas report/i }).textContent).toMatch(/save failed/i),
+    );
+
+    // Retry — succeeds.
+    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    await waitFor(() =>
+      expect(document.querySelector('[data-testid="share-panel"]')).not.toBeNull(),
+    );
+
+    // fetch must have been called twice — once for the initial save and once for the retry.
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('second failure leaves save-failed state visible', async () => {
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockRejectedValueOnce(new Error('first failure'))
+      .mockRejectedValueOnce(new Error('second failure'));
+
+    renderInCompareMode();
+
+    // First save — fails.
+    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /save atlas report/i }).textContent).toMatch(/save failed/i),
+    );
+
+    // Retry — also fails.
+    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /save atlas report/i }).textContent).toMatch(/save failed/i),
+    );
+
+    // Share panel must NOT appear.
+    expect(document.querySelector('[data-testid="share-panel"]')).toBeNull();
+  });
+
+  it('button is disabled during saving to prevent duplicate calls', async () => {
+    let resolve: (v: unknown) => void;
+    const pending = new Promise(r => { resolve = r; });
+    (fetch as ReturnType<typeof vi.fn>).mockReturnValueOnce(pending);
+
+    renderInCompareMode();
+    const btn = screen.getByRole('button', { name: /save atlas report/i });
+
+    fireEvent.click(btn);
+
+    // While saving, the button should be disabled.
+    expect(btn).toBeDisabled();
+
+    // Let the promise resolve cleanly to avoid act() warnings.
+    resolve!({ ok: true, json: async () => ({ ok: true, id: 'x' }) });
+    await waitFor(() =>
+      expect(document.querySelector('[data-testid="share-panel"]')).not.toBeNull(),
+    );
+  });
+
+  it('button is disabled during retrying to prevent duplicate retry calls', async () => {
+    let retryResolve: (v: unknown) => void;
+    const retryPending = new Promise(r => { retryResolve = r; });
+
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockRejectedValueOnce(new Error('first failure'))
+      .mockReturnValueOnce(retryPending);
+
+    renderInCompareMode();
+
+    // First save fails.
+    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /save atlas report/i }).textContent).toMatch(/save failed/i),
+    );
+
+    // Retry — in progress.
+    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /save atlas report/i })).toBeDisabled(),
+    );
+
+    // Resolve the retry to avoid act() warnings.
+    retryResolve!({ ok: true, json: async () => ({ ok: true, id: 'y' }) });
+    await waitFor(() =>
+      expect(document.querySelector('[data-testid="share-panel"]')).not.toBeNull(),
+    );
   });
 });
 
