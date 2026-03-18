@@ -163,8 +163,17 @@ export default function App() {
   async function handleViewRecommendation(visitId: string) {
     try {
       const reports = await listReportsForVisit(visitId);
-      if (Array.isArray(reports) && reports.length > 0) {
-        setActiveReportId(reports[0].id);
+      // Sort defensively newest-first in case the API order ever changes.
+      const latest = Array.isArray(reports)
+        ? [...reports].sort((a, b) => {
+            const aTime = new Date(a.created_at).getTime();
+            const bTime = new Date(b.created_at).getTime();
+            return bTime - aTime;
+          })[0]
+        : null;
+      if (latest?.id) {
+        setActiveVisitId(visitId);
+        setActiveReportId(latest.id);
         setJourney('report');
         return;
       }
@@ -226,7 +235,13 @@ export default function App() {
           reportId={activeReportId}
           onBack={() => {
             setActiveReportId(null);
-            setJourney('landing');
+            // Return to the Visit Hub if the report was opened from one; otherwise
+            // return to the landing page.
+            if (activeVisitId != null) {
+              setJourney('visit-hub');
+            } else {
+              setJourney('landing');
+            }
           }}
           onDuplicated={(newId) => {
             setActiveReportId(newId);
