@@ -10,7 +10,7 @@
  * Design rules:
  *  - Advice derives from compare truth, not a parallel recommendation engine.
  *  - compareWins are derived by comparing current vs proposed system states.
- *  - efficiencyScore uses computeCurrentEfficiencyPct — never a literal 92.
+ *  - performanceSummary replaces efficiencyScore — uses PerformanceSummary shape.
  *  - confidencePct maps engine confidence level to a percentage.
  *  - No Math.random() — all outputs are deterministic from the same input.
  *  - Carbon wording is always "at point of use" — never implies full lifecycle.
@@ -42,7 +42,7 @@ export type { UnifiedConfidence };
  *
  * Derived from CompareSeed left/right entries and applied to both current
  * and proposed system states.  Carries the physics parameters needed to
- * compute compareWins, efficiencyScore, and cycling/condensing assessments.
+ * compute compareWins, performanceSummary, and cycling/condensing assessments.
  */
 export interface SimulatorSystemState {
   /** System family (combi, unvented, open_vented, heat_pump). */
@@ -62,6 +62,46 @@ export interface SimulatorSystemState {
   boilerOutputKw?: number;
   /** Building heat loss (kW), if known. */
   heatLossKw?: number;
+}
+
+// ─── PerformanceSummary ───────────────────────────────────────────────────────
+
+/**
+ * Physics-grounded performance breakdown that replaces the old "efficiency score".
+ *
+ * Each field is independently explainable and directly traceable to the
+ * underlying physics — no single composite number is exposed to the UI.
+ */
+export interface PerformanceSummary {
+  /**
+   * How close the system operates to its optimal physics.
+   * Derived from system condition, emitter sizing, and control quality.
+   *   optimal — low cycling, condensing margin maintained, controls active
+   *   average — some degradation or sub-optimal controls
+   *   poor    — heavy scale/sludge, no condensing margin, or poor controls
+   */
+  efficiencyBand: 'optimal' | 'average' | 'poor';
+  /**
+   * Energy conversion ratio: how many kWh of usable heat per 1 kWh input.
+   * Boiler: ~0.85–0.94; Heat pump: 2.5–4 (COP).
+   */
+  energyConversion: {
+    inputKwh: number;
+    outputKwh: number;
+    /** Human-readable ratio string, e.g. "1 kWh → 0.90 kWh heat". */
+    label: string;
+  };
+  /** Cost per usable kWh of delivered heat (pence), e.g. 7.8p for gas @ 90% eff. */
+  costPerKwhHeat: number;
+  /** CO₂ per usable kWh of delivered heat (kgCO₂/kWh), at point of use. */
+  carbonPerKwhHeat: number;
+  /**
+   * Benefit from local generation (solar PV / battery / smart immersion).
+   *   high     — heat pump: solar PV and battery strongly reduce electric cost
+   *   moderate — stored cylinder: smart immersion / solar thermal viable
+   *   limited  — gas combi: solar does not directly offset gas consumption
+   */
+  localGenerationImpact: 'high' | 'moderate' | 'limited';
 }
 
 // ─── AdviceCard ───────────────────────────────────────────────────────────────
@@ -95,12 +135,11 @@ export interface AdviceCard {
    */
   confidencePct: number | null;
   /**
-   * Normalised efficiency score (0–100) for the recommended path.
-   * For boiler systems: derived via computeCurrentEfficiencyPct.
-   * For heat pumps: derived from a typical-conditions COP × scaling.
+   * Physics-grounded performance breakdown for the recommended path.
+   * Replaces the old "efficiency score" — see PerformanceSummary for shape.
    * null when insufficient data is available.
    */
-  efficiencyScore: number | null;
+  performanceSummary: PerformanceSummary | null;
   /**
    * Short labels that tie this card back to compare truth.
    *
@@ -284,7 +323,7 @@ const SYSTEM_CHOICE_LABEL: Record<string, string> = {
 
 /**
  * Efficiency decay (percentage points) per system condition.
- * Used with computeCurrentEfficiencyPct to produce efficiencyScore.
+ * Used with computeCurrentEfficiencyPct to produce the performanceSummary efficiencyBand.
  */
 const CONDITION_DECAY_PCT: Record<string, number> = {
   clean:       0,
@@ -311,26 +350,44 @@ function stateFromCompareSeed(
   };
 }
 
-// ─── Efficiency score ─────────────────────────────────────────────────────────
+// ─── Performance summary ──────────────────────────────────────────────────────
+
+/** UK-assumed tariff and emissions constants used for cost/carbon calculations. */
+const PERF_GAS_PENCE_PER_KWH   = 7;    // p/kWh input
+const PERF_ELEC_PENCE_PER_KWH  = 28;   // p/kWh input
+const PERF_GAS_KG_CO2_PER_KWH  = 0.21; // kgCO₂/kWh gas at point of use
+const PERF_GRID_KG_CO2_PER_KWH = 0.233; // UK grid intensity (kgCO₂/kWh electricity, BEIS 2025 estimate)
+const PERF_TYPICAL_HP_COP      = 3.0;  // typical UK ASHP SCOP
 
 /**
- * Derive a normalised efficiency score for a given system state.
+ * Derive a physics-grounded PerformanceSummary for a given system state.
  *
- * For boilers: uses computeCurrentEfficiencyPct with decay from system condition.
- * For heat pumps: derives from a typical-UK-conditions COP (3.0) scaled to [50, 99].
+ * For heat pumps: uses typical UK SCOP (3.0) and electricity tariff.
+ * For boilers: uses engine SEDBUK data or DEFAULT_NOMINAL_EFFICIENCY_PCT,
+ *   adjusted for condition decay and controls uplift.
  */
-function deriveEfficiencyScore(
+function derivePerformanceSummary(
   state: SimulatorSystemState,
   primaryOption: OptionCardV1 | null,
-): number | null {
+): PerformanceSummary | null {
   if (state.systemChoice === 'heat_pump') {
-    // Typical UK ASHP COP 3.0 → normalise to 0–100 range as COP × 25, clamped.
-    const typicalCop = 3.0;
-    const score = Math.round(typicalCop * 25);
-    return Math.min(99, Math.max(50, score));
+    const cop = PERF_TYPICAL_HP_COP;
+    const costPerKwhHeat    = parseFloat((PERF_ELEC_PENCE_PER_KWH / cop).toFixed(1));
+    const carbonPerKwhHeat  = parseFloat((PERF_GRID_KG_CO2_PER_KWH / cop).toFixed(3));
+    return {
+      efficiencyBand: 'optimal',
+      energyConversion: {
+        inputKwh: 1,
+        outputKwh: cop,
+        label: `1 kWh → ${cop} kWh heat`,
+      },
+      costPerKwhHeat,
+      carbonPerKwhHeat,
+      localGenerationImpact: 'high',
+    };
   }
 
-  // Boiler-based: use engine's own SEDBUK data when available, otherwise nominal.
+  // Boiler-based: resolve SEDBUK nominal from engine bullets when available.
   const sedbukMatch = primaryOption?.engineering?.bullets
     ?.reduce<RegExpMatchArray | null>(
       (found, b) => found ?? b.match(/(\d{2,3})%/),
@@ -342,11 +399,43 @@ function deriveEfficiencyScore(
     : DEFAULT_NOMINAL_EFFICIENCY_PCT;
 
   const decayPct = CONDITION_DECAY_PCT[state.systemCondition] ?? 0;
-
-  // Uplift for controls — weather/load compensation improves practical efficiency.
   const controlsUplift = (state.weatherCompensation ? 3 : 0) + (state.loadCompensation ? 2 : 0);
+  const effectivePct = computeCurrentEfficiencyPct(nominalPct + controlsUplift, decayPct);
+  const efficiency = effectivePct / 100;
 
-  return computeCurrentEfficiencyPct(nominalPct + controlsUplift, decayPct);
+  // Efficiency band: derive from condition + controls + emitter factor.
+  const poorConditions: string[] = ['heavy_scale', 'sludge', 'poor'];
+  let efficiencyBand: PerformanceSummary['efficiencyBand'];
+  if (poorConditions.includes(state.systemCondition)) {
+    efficiencyBand = 'poor';
+  } else if (
+    state.systemCondition === 'clean' &&
+    (state.weatherCompensation || state.loadCompensation) &&
+    state.emitterCapacityFactor >= 1.0
+  ) {
+    efficiencyBand = 'optimal';
+  } else {
+    efficiencyBand = 'average';
+  }
+
+  // Stored cylinders (unvented / open-vented) can benefit from solar immersion.
+  const hasStoredCylinder =
+    state.systemChoice === 'unvented' || state.systemChoice === 'open_vented';
+
+  const costPerKwhHeat   = parseFloat((PERF_GAS_PENCE_PER_KWH / efficiency).toFixed(1));
+  const carbonPerKwhHeat = parseFloat((PERF_GAS_KG_CO2_PER_KWH / efficiency).toFixed(3));
+
+  return {
+    efficiencyBand,
+    energyConversion: {
+      inputKwh: 1,
+      outputKwh: Math.round(efficiency * 100) / 100,
+      label: `1 kWh → ${efficiency.toFixed(2)} kWh heat`,
+    },
+    costPerKwhHeat,
+    carbonPerKwhHeat,
+    localGenerationImpact: hasStoredCylinder ? 'moderate' : 'limited',
+  };
 }
 
 // ─── compareWins derivation ───────────────────────────────────────────────────
@@ -507,7 +596,7 @@ function buildRunningCostCard(
       ? 'Higher installation cost; requires lower flow temperatures and sufficient emitter area.'
       : tradeOffNote(opt),
     confidencePct,
-    efficiencyScore: deriveEfficiencyScore(proposed, opt),
+    performanceSummary: derivePerformanceSummary(proposed, opt),
     compareWins: wins.length > 0 ? wins : ['lower likely running cost'],
   };
 }
@@ -534,7 +623,7 @@ function buildInstallCostCard(
       ? 'Limited simultaneous hot-water flow; CH lockout during large draw-offs.'
       : tradeOffNote(opt),
     confidencePct,
-    efficiencyScore: deriveEfficiencyScore(proposed, opt),
+    performanceSummary: derivePerformanceSummary(proposed, opt),
     compareWins: isCombi ? [] : deriveCompareWins(current, proposed, opt).slice(0, 2),
   };
 }
@@ -567,7 +656,7 @@ function buildLongevityCard(
     keyTradeOff: tradeOffNote(opt) ??
       'Higher upfront cost for cylinder and zone-valve controls.',
     confidencePct,
-    efficiencyScore: deriveEfficiencyScore(proposed, opt),
+    performanceSummary: derivePerformanceSummary(proposed, opt),
     compareWins: wins.length > 0 ? wins : ['lower cycling risk'],
   };
 }
@@ -594,7 +683,7 @@ function buildCarbonCard(
       ? 'Carbon benefit depends on grid mix at point of use — not included in this calculation.'
       : 'Gas combustion still produces CO₂ at point of use; carbon benefit is efficiency-only.',
     confidencePct,
-    efficiencyScore: deriveEfficiencyScore(proposed, opt),
+    performanceSummary: derivePerformanceSummary(proposed, opt),
     compareWins: isAshp
       ? ['zero on-site combustion at point of use']
       : deriveCompareWins(current, proposed, opt).filter(w => /condensing|efficiency/i.test(w)),
@@ -628,7 +717,7 @@ function buildComfortCard(
       ? 'Requires adequate mains pressure and a visible discharge pipe (G3 safety requirement).'
       : tradeOffNote(opt),
     confidencePct,
-    efficiencyScore: deriveEfficiencyScore(proposed, opt),
+    performanceSummary: derivePerformanceSummary(proposed, opt),
     compareWins: wins.length > 0 ? wins : ['better simultaneous hot-water delivery'],
   };
 }
@@ -662,7 +751,7 @@ function buildFutureReadyCard(
          'Size the cylinder space now; upgrade controls and emitters in stages.'],
     keyTradeOff: 'May not be the lowest upfront cost — it prioritises flexibility over short-term saving.',
     confidencePct,
-    efficiencyScore: deriveEfficiencyScore(proposed, opt),
+    performanceSummary: derivePerformanceSummary(proposed, opt),
     compareWins: wins.length > 0 ? wins : ['keeps future heat-pump path open'],
   };
 }
@@ -978,7 +1067,7 @@ export function buildAdviceFromCompare(
     ],
     keyTradeOff: tradeOffNote(primaryOption),
     confidencePct,
-    efficiencyScore: deriveEfficiencyScore(proposed, primaryOption),
+    performanceSummary: derivePerformanceSummary(proposed, primaryOption),
     compareWins: overallWins,
   };
 

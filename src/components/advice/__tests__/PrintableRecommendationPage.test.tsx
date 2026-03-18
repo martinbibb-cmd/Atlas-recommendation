@@ -9,7 +9,7 @@
 //   - recommendation scope renders (Essential / Best Advice / Future Potential)
 //   - compare summary renders when compareSeed is provided
 //   - confidence badge renders
-//   - efficiency score badge renders
+//   - performance summary panel renders
 //   - print entry point (button) appears on DecisionSynthesisPage with compare-backed advice
 //   - fallback path works when compare-backed advice is unavailable (advice=null)
 //   - print structure stays stable and bounded (no interactive-only labels)
@@ -35,7 +35,13 @@ function makeAdviceCard(id: string, overrides: Partial<AdviceFromCompareResult['
     why: [`Why ${id} is best`],
     keyTradeOff: 'Higher upfront cost',
     confidencePct: 75,
-    efficiencyScore: 82,
+    performanceSummary: {
+      efficiencyBand: 'average' as const,
+      energyConversion: { inputKwh: 1, outputKwh: 0.90, label: '1 kWh → 0.90 kWh heat' },
+      costPerKwhHeat: 7.8,
+      carbonPerKwhHeat: 0.233,
+      localGenerationImpact: 'moderate' as const,
+    },
     compareWins: ['lower cycling risk', 'better simultaneous hot-water delivery'],
     ...overrides,
   };
@@ -227,14 +233,14 @@ describe('PrintableRecommendationPage — badges', () => {
     expect(screen.getByText(/75%/)).toBeTruthy();
   });
 
-  it('renders the efficiency score badge', () => {
+  it('renders the performance summary panel', () => {
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
-    expect(screen.getByLabelText(/efficiency score/i)).toBeTruthy();
+    expect(screen.getByLabelText(/performance summary/i)).toBeTruthy();
   });
 
-  it('renders the efficiency score value', () => {
+  it('renders the performance efficiency band', () => {
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
-    expect(screen.getByText(/82\/99/)).toBeTruthy();
+    expect(screen.getByText(/Average/)).toBeTruthy();
   });
 });
 

@@ -22,9 +22,55 @@
  *   - Printing triggered by window.print() from the on-screen toolbar.
  */
 
-import type { AdviceCard, AdviceFromCompareResult, UnifiedConfidence, RecommendationScope } from '../../lib/advice/buildAdviceFromCompare';
+import type { AdviceCard, AdviceFromCompareResult, PerformanceSummary, UnifiedConfidence, RecommendationScope } from '../../lib/advice/buildAdviceFromCompare';
 import type { CompareSeed } from '../../lib/simulator/buildCompareSeedFromSurvey';
 import './advice-print.css';
+
+// ─── Performance panel (print) ────────────────────────────────────────────────
+
+const EFFICIENCY_BAND_LABEL: Record<PerformanceSummary['efficiencyBand'], string> = {
+  optimal: 'Optimal',
+  average: 'Average',
+  poor:    'Poor',
+};
+
+const LOCAL_GEN_LABEL: Record<PerformanceSummary['localGenerationImpact'], string> = {
+  high:     'Strong benefit',
+  moderate: 'Moderate benefit',
+  limited:  'Limited benefit',
+};
+
+function PerformancePanelPrint({ summary }: { summary: PerformanceSummary }) {
+  return (
+    <div className="prp__perf-panel" aria-label="Performance summary">
+      <div className="prp__perf-panel__title">Performance</div>
+      <dl className="prp__perf-panel__rows">
+        <div className="prp__perf-panel__row">
+          <dt className="prp__perf-panel__label">Efficiency</dt>
+          <dd className="prp__perf-panel__value">{EFFICIENCY_BAND_LABEL[summary.efficiencyBand]}</dd>
+        </div>
+        <div className="prp__perf-panel__row">
+          <dt className="prp__perf-panel__label">Energy conversion</dt>
+          <dd className="prp__perf-panel__value">{summary.energyConversion.label}</dd>
+        </div>
+        <div className="prp__perf-panel__row">
+          <dt className="prp__perf-panel__label">Heat cost</dt>
+          <dd className="prp__perf-panel__value">~{summary.costPerKwhHeat}p per kWh</dd>
+        </div>
+        <div className="prp__perf-panel__row">
+          <dt className="prp__perf-panel__label">Carbon</dt>
+          <dd className="prp__perf-panel__value">{summary.carbonPerKwhHeat} kgCO₂/kWh heat</dd>
+        </div>
+        <div className="prp__perf-panel__row">
+          <dt className="prp__perf-panel__label">Local generation</dt>
+          <dd className="prp__perf-panel__value">{LOCAL_GEN_LABEL[summary.localGenerationImpact]}</dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -257,8 +303,8 @@ export default function PrintableRecommendationPage({
     ? `${CONFIDENCE_LABEL[confidenceLevel]}${confidencePct != null ? ` — ${confidencePct}%` : ''}`
     : null;
 
-  // Efficiency score from the primary recommendation card.
-  const efficiencyScore = advice?.bestOverall.efficiencyScore ?? null;
+  // Performance summary from the primary recommendation card.
+  const performanceSummary = advice?.bestOverall.performanceSummary ?? null;
 
   // Objective cards in fixed order.
   const objectiveCards: AdviceCard[] = advice
@@ -359,7 +405,7 @@ export default function PrintableRecommendationPage({
         <section className="prp__section" aria-label="Best all-round recommendation">
           <h2 className="prp__section-title">Best all-round fit</h2>
 
-          {/* Confidence + efficiency badges */}
+          {/* Confidence badge */}
           <div className="prp__badges" aria-label="Recommendation badges">
             {confidenceText && (
               <span
@@ -367,14 +413,6 @@ export default function PrintableRecommendationPage({
                 aria-label={`Confidence: ${confidenceText}`}
               >
                 ✓ {confidenceText}
-              </span>
-            )}
-            {efficiencyScore != null && (
-              <span
-                className="prp__badge prp__badge--efficiency"
-                aria-label={`Efficiency score: ${efficiencyScore}`}
-              >
-                Efficiency score: {efficiencyScore}/99
               </span>
             )}
           </div>
@@ -395,6 +433,10 @@ export default function PrintableRecommendationPage({
                   <li key={i} className="prp__win">✓ {win}</li>
                 ))}
               </ul>
+            )}
+
+            {performanceSummary != null && (
+              <PerformancePanelPrint summary={performanceSummary} />
             )}
 
             {keyTradeOff && (

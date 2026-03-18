@@ -39,6 +39,7 @@ import {
   type AdviceCard,
   type AdviceFromCompareResult,
   type FloorplanInsights,
+  type PerformanceSummary,
   type UnifiedConfidence,
 } from '../../lib/advice/buildAdviceFromCompare';
 import { adaptFloorplanToAtlasInputs } from '../../lib/floorplan/adaptFloorplanToAtlasInputs';
@@ -58,7 +59,7 @@ interface Props {
   onBack?: () => void;
   /**
    * When provided, the page uses buildAdviceFromCompare to enrich cards with
-   * compareWins, efficiencyScore, and confidencePct derived from compare truth.
+   * compareWins, performanceSummary, and confidencePct derived from compare truth.
    * When absent, the page falls back to buildAdviceCards (EngineOutputV1 only).
    */
   compareSeed?: CompareSeed;
@@ -186,7 +187,52 @@ function FloorplanProvenanceBanner({ insights }: { insights: FloorplanInsights }
   );
 }
 
-/** Renders a compare-enriched objective card (from buildAdviceFromCompare). */
+const EFFICIENCY_BAND_LABEL: Record<PerformanceSummary['efficiencyBand'], string> = {
+  optimal: 'Optimal',
+  average: 'Average',
+  poor:    'Poor',
+};
+
+const LOCAL_GEN_LABEL: Record<PerformanceSummary['localGenerationImpact'], string> = {
+  high:     'Strong benefit',
+  moderate: 'Moderate benefit',
+  limited:  'Limited benefit',
+};
+
+/** Physics-grounded performance panel — replaces the old "efficiency score". */
+function PerformancePanelUI({ summary }: { summary: PerformanceSummary }) {
+  return (
+    <div className="advice-perf-panel" aria-label="Performance summary">
+      <div className="advice-perf-panel__title">Performance</div>
+      <dl className="advice-perf-panel__rows">
+        <div className="advice-perf-panel__row">
+          <dt className="advice-perf-panel__label">Efficiency</dt>
+          <dd className={`advice-perf-panel__value advice-perf-panel__value--band-${summary.efficiencyBand}`}>
+            {EFFICIENCY_BAND_LABEL[summary.efficiencyBand]}
+          </dd>
+        </div>
+        <div className="advice-perf-panel__row">
+          <dt className="advice-perf-panel__label">Energy conversion</dt>
+          <dd className="advice-perf-panel__value">{summary.energyConversion.label}</dd>
+        </div>
+        <div className="advice-perf-panel__row">
+          <dt className="advice-perf-panel__label">Heat cost</dt>
+          <dd className="advice-perf-panel__value">~{summary.costPerKwhHeat}p per kWh</dd>
+        </div>
+        <div className="advice-perf-panel__row">
+          <dt className="advice-perf-panel__label">Carbon</dt>
+          <dd className="advice-perf-panel__value">{summary.carbonPerKwhHeat} kgCO₂/kWh heat</dd>
+        </div>
+        <div className="advice-perf-panel__row">
+          <dt className="advice-perf-panel__label">Local generation</dt>
+          <dd className="advice-perf-panel__value">{LOCAL_GEN_LABEL[summary.localGenerationImpact]}</dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+
 function EnrichedObjectiveCardUI({ card }: { card: AdviceCard }) {
   return (
     <div className="advice-obj-card" role="region" aria-label={card.title}>
@@ -214,14 +260,8 @@ function EnrichedObjectiveCardUI({ card }: { card: AdviceCard }) {
         </ul>
       )}
 
-      {card.efficiencyScore != null && (
-        <div
-          className="advice-obj-card__efficiency"
-          aria-label={`Efficiency score: ${card.efficiencyScore}`}
-        >
-          Efficiency score: <strong>{card.efficiencyScore}</strong>
-          <span className="advice-obj-card__efficiency-max">/99</span>
-        </div>
+      {card.performanceSummary != null && (
+        <PerformancePanelUI summary={card.performanceSummary} />
       )}
 
       {card.keyTradeOff && (
@@ -586,7 +626,7 @@ export default function DecisionSynthesisPage({
     ? compareAdvice.confidenceSummary.level
     : legacyAdvice!.bestAllRound.confidence;
 
-  const heroEfficiencyScore = compareAdvice?.bestOverall.efficiencyScore ?? null;
+  const heroPerformanceSummary = compareAdvice?.bestOverall.performanceSummary ?? null;
   const heroConfidencePct = compareAdvice?.bestOverall.confidencePct ?? null;
   const heroCompareWins = compareAdvice?.bestOverall.compareWins ?? [];
 
@@ -830,15 +870,9 @@ export default function DecisionSynthesisPage({
             </ul>
           )}
 
-          {/* Efficiency score (compare mode only) */}
-          {heroEfficiencyScore != null && (
-            <div
-              className="advice-hero__efficiency"
-              aria-label={`Efficiency score: ${heroEfficiencyScore}`}
-            >
-              Efficiency score: <strong>{heroEfficiencyScore}</strong>
-              <span className="advice-hero__efficiency-max">/99</span>
-            </div>
+          {/* Performance panel (compare mode only) */}
+          {heroPerformanceSummary != null && (
+            <PerformancePanelUI summary={heroPerformanceSummary} />
           )}
 
           {/* Confidence — show pct in compare mode, label in legacy mode */}

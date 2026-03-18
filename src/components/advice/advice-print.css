@@ -154,10 +154,49 @@
   border-color: #fc8181;
 }
 
-.prp__badge--efficiency {
+/* ── Performance panel (print) ────────────────────────────────────────────── */
+
+.prp__perf-panel {
+  margin-top: 0.75rem;
+  border: 1px solid #bee3f8;
+  border-radius: 8px;
   background: #ebf8ff;
+  padding: 0.75rem 1rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.prp__perf-panel__title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: #2b6cb0;
-  border-color: #90cdf4;
+  margin-bottom: 0.5rem;
+}
+
+.prp__perf-panel__rows {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2rem 0.75rem;
+  margin: 0;
+}
+
+.prp__perf-panel__row {
+  display: contents;
+}
+
+.prp__perf-panel__label {
+  font-size: 0.78rem;
+  color: #4a5568;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.prp__perf-panel__value {
+  font-size: 0.78rem;
+  color: #1a202c;
+  font-weight: 600;
 }
 
 /* ── Unified confidence breakdown (print) ─────────────────────────────────── */
