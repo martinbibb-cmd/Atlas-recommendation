@@ -50,7 +50,7 @@ export function visitStatusLabel(status: string): string {
 
 /**
  * Returns the primary display label for a visit, using this priority order:
- *   1. visit_reference (user-defined leaf / job number)
+ *   1. visit_reference (user-defined lead / job number)
  *   2. address_line_1
  *   3. postcode
  *   4. customer_name
