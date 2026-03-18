@@ -5,7 +5,7 @@
  * fetch is mocked so no real network calls are made.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getReport, saveReport } from '../reportApi';
+import { getReport, saveReport, listReportsForVisit } from '../reportApi';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -91,6 +91,47 @@ describe('reportApi', () => {
     it('throws when the server returns an error', async () => {
       global.fetch = mockFetch({ error: 'DB error' }, 500);
       await expect(saveReport({ payload: samplePayload })).rejects.toThrow('DB error');
+    });
+  });
+
+  // ── listReportsForVisit ──────────────────────────────────────────────────────
+
+  describe('listReportsForVisit', () => {
+    const sampleReports = [
+      { id: 'r2', created_at: '2024-03-01T12:00:00Z', updated_at: '2024-03-01T12:00:00Z',
+        status: 'final', title: 'Latest', customer_name: null, postcode: 'SW1A 1AA', visit_id: 'v1' },
+      { id: 'r1', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z',
+        status: 'draft', title: 'Older', customer_name: null, postcode: 'SW1A 1AA', visit_id: 'v1' },
+    ];
+
+    it('GETs /api/visits/:id/reports and returns the reports array', async () => {
+      global.fetch = mockFetch({ ok: true, reports: sampleReports });
+      const result = await listReportsForVisit('v1');
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe('r2');
+    });
+
+    it('uses the encoded visitId in the URL', async () => {
+      global.fetch = mockFetch({ ok: true, reports: [] });
+      await listReportsForVisit('v1');
+      const url = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+      expect(url).toBe('/api/visits/v1/reports');
+    });
+
+    it('returns an empty array when the visit has no reports', async () => {
+      global.fetch = mockFetch({ ok: true, reports: [] });
+      const result = await listReportsForVisit('v1');
+      expect(result).toHaveLength(0);
+    });
+
+    it('throws "Visit not found" on 404', async () => {
+      global.fetch = mockFetch({ ok: false, error: 'Visit not found' }, 404);
+      await expect(listReportsForVisit('missing')).rejects.toThrow('Visit not found');
+    });
+
+    it('throws on other error status codes', async () => {
+      global.fetch = mockFetch({ error: 'Internal error' }, 500);
+      await expect(listReportsForVisit('v1')).rejects.toThrow('Internal error');
     });
   });
 });
