@@ -123,12 +123,37 @@ export interface InstallationRecipe {
   protectionAndAncillaries: string[];
 }
 
-// ─── PhasedPlan ───────────────────────────────────────────────────────────────
+// ─── RecommendationScope ──────────────────────────────────────────────────────
 
-export interface PhasedPlan {
-  now: string[];
-  next: string[];
-  later: string[];
+export interface ScopeItem {
+  label: string;
+  description?: string;
+  type: 'required' | 'upgrade' | 'optional' | 'future';
+  /** When true the item renders as a selectable checkbox in Best Advice. */
+  selectable?: boolean;
+}
+
+export interface ScopeCard {
+  title: 'Essential' | 'Best Advice' | 'Enhanced' | 'Future Potential';
+  items: ScopeItem[];
+}
+
+/**
+ * Scope-based recommendation model.
+ *
+ * Replaces the Now / Next / Later phased plan with four clear decision scopes:
+ *  - essential:      Mandatory works for the recommended system.
+ *  - bestAdvice:     High-impact upgrades to do at the same time (checkbox UI).
+ *  - enhanced:       Optional lifestyle / value upgrades.
+ *  - futurePotential: Conditional future pathway (ASHP only when not recommended now).
+ *
+ * Cards are only present when they have items.  Essential is always present.
+ */
+export interface RecommendationScope {
+  essential: ScopeCard;
+  bestAdvice?: ScopeCard;
+  enhanced?: ScopeCard;
+  futurePotential?: ScopeCard;
 }
 
 // ─── ConfidenceSummary ────────────────────────────────────────────────────────
@@ -203,8 +228,8 @@ export interface AdviceFromCompareResult {
   };
   /** Concise installation requirements for the recommended path. */
   installationRecipe: InstallationRecipe;
-  /** Now / Next / Later phased action plan. */
-  phasedPlan: PhasedPlan;
+  /** Scope-based recommendation model (Essential / Best Advice / Enhanced / Future Potential). */
+  recommendationScope: RecommendationScope;
   /** Confidence summary for the overall recommendation. */
   confidenceSummary: ConfidenceSummary;
   /**
@@ -708,33 +733,17 @@ function buildInstallationRecipe(
   };
 }
 
-// ─── Phased plan ──────────────────────────────────────────────────────────────
+// ─── Recommendation scope ─────────────────────────────────────────────────────
 
-function buildPhasedPlan(
+/** Pattern matching items that belong in Enhanced (solar, battery, EV) not Best Advice. */
+const ENHANCED_UPGRADE_PATTERN = /solar|battery|EV\b|ev\s+charg|divert|smart\s+immer|photovoltaic/i;
+
+function buildRecommendationScope(
   primaryOption: OptionCardV1 | null,
   proposed: SimulatorSystemState,
   current: SimulatorSystemState,
   plans: EngineOutputV1['plans'],
-): PhasedPlan {
-  // If the engine provided pathway plans, map them to now/next/later.
-  if (plans?.pathways && plans.pathways.length > 0) {
-    const sorted = [...plans.pathways].sort((a, b) => a.rank - b.rank);
-    const now: string[] = [];
-    const next: string[] = [];
-    const later: string[] = [];
-
-    const [p0, p1, p2] = sorted;
-    if (p0) now.push(p0.rationale, ...p0.prerequisites.map(pr => pr.description));
-    if (p1) next.push(p1.rationale, ...p1.prerequisites.map(pr => pr.description));
-    if (p2) later.push(p2.rationale, ...p2.prerequisites.map(pr => pr.description));
-
-    return {
-      now:   now.filter(Boolean).slice(0, 4),
-      next:  next.filter(Boolean).slice(0, 4),
-      later: later.filter(Boolean).slice(0, 4),
-    };
-  }
-
+): RecommendationScope {
   const mustHave = primaryOption?.typedRequirements?.mustHave ?? primaryOption?.requirements ?? [];
   const likelyUpgrades = primaryOption?.typedRequirements?.likelyUpgrades ?? [];
   const niceToHave = primaryOption?.typedRequirements?.niceToHave ?? [];
@@ -743,38 +752,113 @@ function buildPhasedPlan(
     ? OPTION_LABEL[primaryOption.id] ?? primaryOption.label
     : SYSTEM_CHOICE_LABEL[proposed.systemChoice] ?? 'recommended system';
 
-  const now: string[] = [
-    `Install ${systemLabel}`,
-    ...mustHave.slice(0, 3),
-  ].filter(Boolean).slice(0, 4);
-
-  const next: string[] = [
-    ...likelyUpgrades.slice(0, 3),
-    'Verify system performance after first heating season',
-  ].filter(Boolean).slice(0, 4);
-
-  // Forward-thinking path: allow Boiler + Mixergy now → ASHP later.
-  const proposedHasCylinder =
+  const isAshpRecommended =
+    primaryOption?.id === 'ashp' || proposed.systemChoice === 'heat_pump';
+  const hasStoredCylinder =
     proposed.systemChoice === 'unvented' || proposed.systemChoice === 'open_vented';
-  const currentIsBoiler =
-    current.systemChoice !== 'heat_pump';
 
-  const later: string[] = [
-    ...niceToHave.slice(0, 2),
-  ];
+  // If the engine provided pathway plans, use the first pathway to seed Essential,
+  // second for Best Advice, and third for Future Potential.
+  if (plans?.pathways && plans.pathways.length > 0) {
+    const sorted = [...plans.pathways].sort((a, b) => a.rank - b.rank);
+    const [p0, p1, p2] = sorted;
 
-  if (proposedHasCylinder && currentIsBoiler) {
-    later.push('Assess heat pump viability once emitter and primary upgrades are confirmed');
-    later.push('Consider smart tariff compatibility for staged electrification');
-  } else {
-    later.push('Assess heat pump viability once emitter and primary upgrades are confirmed');
-    later.push('Consider smart tariff compatibility for future electrification');
+    const essentialItems: ScopeItem[] = p0
+      ? [
+          { label: p0.rationale, type: 'required' },
+          ...p0.prerequisites.map((pr): ScopeItem => ({ label: pr.description, type: 'required' })),
+        ].filter(i => i.label).slice(0, 5)
+      : [{ label: `Install ${systemLabel}`, type: 'required' }];
+
+    const bestAdviceItems: ScopeItem[] = p1
+      ? [
+          { label: p1.rationale, type: 'upgrade', selectable: true },
+          ...p1.prerequisites.map((pr): ScopeItem => ({ label: pr.description, type: 'upgrade', selectable: true })),
+        ].filter(i => i.label).slice(0, 5)
+      : [];
+
+    const futurePotentialItems: ScopeItem[] = p2
+      ? [
+          { label: p2.rationale, type: 'future' },
+          ...p2.prerequisites.map((pr): ScopeItem => ({ label: pr.description, type: 'future' })),
+        ].filter(i => i.label).slice(0, 5)
+      : [];
+
+    return {
+      essential: { title: 'Essential', items: essentialItems },
+      bestAdvice: bestAdviceItems.length > 0 ? { title: 'Best Advice', items: bestAdviceItems } : undefined,
+      futurePotential: futurePotentialItems.length > 0 ? { title: 'Future Potential', items: futurePotentialItems } : undefined,
+    };
+  }
+
+  // Essential — mandatory works for the recommended system.
+  const essentialItems: ScopeItem[] = [
+    { label: `Install ${systemLabel}`, type: 'required' },
+    ...mustHave.slice(0, 4).map((m): ScopeItem => ({ label: m, type: 'required' })),
+  ].slice(0, 5);
+
+  // Best Advice — high-impact upgrades to do during install.
+  const bestAdviceItems: ScopeItem[] = likelyUpgrades
+    .filter(u => !ENHANCED_UPGRADE_PATTERN.test(u))
+    .slice(0, 3)
+    .map((u): ScopeItem => ({ label: u, type: 'upgrade', selectable: true }));
+
+  // Ensure smart controls are surfaced if not already present.
+  if (!bestAdviceItems.some(i => /control|thermostat|weather|compensat/i.test(i.label))) {
+    bestAdviceItems.push({ label: 'Smart controls and weather compensation', type: 'upgrade', selectable: true });
+  }
+
+  // Suggest Mixergy for stored-cylinder systems (boiler + cylinder upgrade path).
+  if (hasStoredCylinder && !isAshpRecommended) {
+    if (!bestAdviceItems.some(i => /mixergy/i.test(i.label))) {
+      bestAdviceItems.push({
+        label: 'Mixergy cylinder — stored hot water with top-down heating and active stratification',
+        type: 'upgrade',
+        selectable: true,
+      });
+    }
+  }
+
+  // Enhanced — optional lifestyle / investment upgrades.
+  const enhancedFromNiceToHave: ScopeItem[] = niceToHave
+    .filter(n => ENHANCED_UPGRADE_PATTERN.test(n))
+    .slice(0, 2)
+    .map((n): ScopeItem => ({ label: n, type: 'optional' }));
+
+  const enhancedItems: ScopeItem[] = [...enhancedFromNiceToHave];
+  if (!enhancedItems.some(i => /solar\s+pv|photovoltaic/i.test(i.label))) {
+    enhancedItems.push({ label: 'Solar PV system', type: 'optional' });
+  }
+  if (!enhancedItems.some(i => /battery/i.test(i.label))) {
+    enhancedItems.push({ label: 'Battery storage', type: 'optional' });
+  }
+  if (!enhancedItems.some(i => /divert|smart\s+immer/i.test(i.label))) {
+    enhancedItems.push({ label: 'Solar diverter / smart immersion', type: 'optional' });
+  }
+
+  // Future Potential — ASHP pathway only when not currently recommended.
+  const futurePotentialItems: ScopeItem[] = [];
+
+  if (!isAshpRecommended) {
+    futurePotentialItems.push(
+      { label: 'A heat pump system could be installed in future, but would require:', type: 'future' },
+      { label: 'Upgraded primary pipework (28 mm minimum)', type: 'future' },
+      { label: 'Emitter review for low-temperature operation', type: 'future' },
+      { label: 'Flow temperature reduction to 55 °C or below', type: 'future' },
+    );
+
+    // Note the staged approach when proposing boiler + cylinder before ASHP.
+    const currentIsBoiler = current.systemChoice !== 'heat_pump';
+    if (hasStoredCylinder && currentIsBoiler) {
+      futurePotentialItems.push({ label: 'Smart tariff compatibility for staged electrification', type: 'future' });
+    }
   }
 
   return {
-    now:   now.slice(0, 4),
-    next:  next.slice(0, 4),
-    later: later.filter(Boolean).slice(0, 4),
+    essential: { title: 'Essential', items: essentialItems },
+    bestAdvice: bestAdviceItems.length > 0 ? { title: 'Best Advice', items: bestAdviceItems.slice(0, 5) } : undefined,
+    enhanced: enhancedItems.length > 0 ? { title: 'Enhanced', items: enhancedItems.slice(0, 5) } : undefined,
+    futurePotential: futurePotentialItems.length > 0 ? { title: 'Future Potential', items: futurePotentialItems.slice(0, 5) } : undefined,
   };
 }
 
@@ -809,7 +893,7 @@ function buildConfidenceSummary(
  *
  * @param input - Survey data, engine output, compare seed, and optional system states.
  * @returns Full advice result including bestOverall, byObjective, installationRecipe,
- *          phasedPlan, confidenceSummary, and floorplanInsights when a reliable
+ *          recommendationScope, confidenceSummary, and floorplanInsights when a reliable
  *          floor plan was supplied.
  */
 export function buildAdviceFromCompare(
@@ -904,11 +988,11 @@ export function buildAdviceFromCompare(
     ? applyFloorplanToRecipe(baseRecipe, fp)
     : baseRecipe;
 
-  // ── Phased plan — add siting/emitter actions when floor plan reveals issues ─
-  const basePlan = buildPhasedPlan(primaryOption, proposed, current, engineOutput.plans);
-  const phasedPlan: PhasedPlan = fp
-    ? applyFloorplanToPhasedPlan(basePlan, fp)
-    : basePlan;
+  // ── Recommendation scope — add siting/emitter actions when floor plan reveals issues ─
+  const baseScope = buildRecommendationScope(primaryOption, proposed, current, engineOutput.plans);
+  const recommendationScope: RecommendationScope = fp
+    ? applyFloorplanToRecommendationScope(baseScope, fp)
+    : baseScope;
 
   return {
     bestOverall,
@@ -923,7 +1007,7 @@ export function buildAdviceFromCompare(
       ),
     },
     installationRecipe: recipe,
-    phasedPlan,
+    recommendationScope,
     confidenceSummary,
     floorplanInsights,
   };
@@ -991,55 +1075,63 @@ function applyFloorplanToRecipe(
 }
 
 /**
- * Add floor-plan derived siting and emitter actions into the phased plan.
- * Siting issues go into "now" (must resolve before installation);
- * emitter review notes go into "next" (first improvement round).
+ * Add floor-plan derived siting and emitter actions into the recommendation scope.
+ * Siting issues go into Essential (must resolve before installation);
+ * emitter review notes go into Best Advice (do during install round).
  */
-function applyFloorplanToPhasedPlan(
-  base: PhasedPlan,
+function applyFloorplanToRecommendationScope(
+  base: RecommendationScope,
   fp: AtlasFloorplanInputs,
-): PhasedPlan {
-  const now = [...base.now];
-  const next = [...base.next];
+): RecommendationScope {
+  const essentialItems = [...base.essential.items];
+  const bestAdviceItems = [...(base.bestAdvice?.items ?? [])];
 
   const sitingWarnings = fp.sitingConstraintHints
     .filter((h) => h.hasWarning)
     .flatMap((h) => h.warningMessages);
 
   sitingWarnings.slice(0, 2).forEach((msg) => {
-    now.push(`Resolve siting issue: ${msg}`);
+    essentialItems.push({ label: `Resolve siting issue: ${msg}`, type: 'required' });
   });
 
   const undersizedRooms = fp.emitterAdequacyHints
     .filter((h) => h.status === 'undersized')
     .map((h) => h.roomName);
   if (undersizedRooms.length > 0) {
-    now.push(
-      `Upgrade undersized emitters in: ${undersizedRooms.slice(0, MAX_ROOMS_IN_MESSAGE).join(', ')}`,
-    );
+    essentialItems.push({
+      label: `Upgrade undersized emitters in: ${undersizedRooms.slice(0, MAX_ROOMS_IN_MESSAGE).join(', ')}`,
+      type: 'required',
+    });
   }
 
   const reviewRooms = fp.emitterAdequacyHints
     .filter((h) => h.status === 'review_recommended')
     .map((h) => h.roomName);
   if (reviewRooms.length > 0) {
-    next.push(
-      `Confirm emitter capacity in: ${reviewRooms.slice(0, MAX_ROOMS_IN_MESSAGE).join(', ')}`,
-    );
+    bestAdviceItems.push({
+      label: `Confirm emitter capacity in: ${reviewRooms.slice(0, MAX_ROOMS_IN_MESSAGE).join(', ')}`,
+      type: 'upgrade',
+    });
   }
 
   const oversizedRooms = fp.emitterAdequacyHints
     .filter((h) => h.status === 'oversized')
     .map((h) => h.roomName);
   if (oversizedRooms.length > 0) {
-    next.push(
-      `Review oversized emitters in: ${oversizedRooms.slice(0, MAX_ROOMS_IN_MESSAGE).join(', ')}`,
-    );
+    bestAdviceItems.push({
+      label: `Review oversized emitters in: ${oversizedRooms.slice(0, MAX_ROOMS_IN_MESSAGE).join(', ')}`,
+      type: 'upgrade',
+    });
   }
 
   return {
-    now: now.slice(0, 5),
-    next: next.slice(0, 5),
-    later: base.later,
+    ...base,
+    essential: {
+      ...base.essential,
+      items: essentialItems.slice(0, 7),
+    },
+    bestAdvice: bestAdviceItems.length > 0
+      ? { title: 'Best Advice', items: bestAdviceItems.slice(0, 7) }
+      : base.bestAdvice,
   };
 }

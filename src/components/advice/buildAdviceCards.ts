@@ -15,6 +15,10 @@ import type {
   EngineOutputV1,
   OptionCardV1,
 } from '../../contracts/EngineOutputV1';
+import type { RecommendationScope, ScopeItem, ScopeCard } from '../../lib/advice/buildAdviceFromCompare';
+
+// Re-export scope types for consumers that import from this module.
+export type { RecommendationScope, ScopeItem, ScopeCard };
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -44,12 +48,6 @@ export interface InstallationRecipe {
   protection: string[];
 }
 
-export interface PhasedStep {
-  phase: 'now' | 'next' | 'later';
-  label: string;
-  actions: string[];
-}
-
 export interface TradeOffWarning {
   id: string;
   text: string;
@@ -66,8 +64,8 @@ export interface AdviceResult {
   objectiveCards: ObjectiveCard[];
   /** Installation requirements for the recommended path. */
   installationRecipe: InstallationRecipe;
-  /** Now / Next / Later phased actions. */
-  phasedPlan: PhasedStep[];
+  /** Scope-based recommendation model (Essential / Best Advice / Enhanced / Future Potential). */
+  recommendationScope: RecommendationScope;
   /** Plain-English trade-off warnings. */
   tradeOffWarnings: TradeOffWarning[];
 }
@@ -322,52 +320,118 @@ function buildInstallationRecipe(
   };
 }
 
-// ─── Phased plan ──────────────────────────────────────────────────────────────
+// ─── Recommendation scope ─────────────────────────────────────────────────────
 
-function buildPhasedPlan(
+/** Pattern matching items that belong in Enhanced (solar, battery, EV) not Best Advice. */
+const ENHANCED_UPGRADE_PATTERN = /solar|battery|EV\b|ev\s+charg|divert|smart\s+immer|photovoltaic/i;
+
+function buildRecommendationScope(
   primary: OptionCardV1 | null,
   plans: EngineOutputV1['plans'],
-): PhasedStep[] {
-  // If the engine provided pathway plans, map them to now/next/later phases.
-  if (plans?.pathways && plans.pathways.length > 0) {
-    const sorted = [...plans.pathways].sort((a, b) => a.rank - b.rank);
-    const phases: Array<'now' | 'next' | 'later'> = ['now', 'next', 'later'];
-    return sorted.slice(0, 3).map((p, i) => ({
-      phase: phases[i],
-      label: p.title,
-      actions: [
-        p.rationale,
-        ...(p.prerequisites.map(pr => pr.description)),
-      ].filter(Boolean).slice(0, 4),
-    }));
-  }
-
-  // Derive from options when no engine pathways are available.
+): RecommendationScope {
   const mustHave = primary?.typedRequirements?.mustHave ?? primary?.requirements ?? [];
   const likelyUpgrades = primary?.typedRequirements?.likelyUpgrades ?? [];
   const niceToHave = primary?.typedRequirements?.niceToHave ?? [];
 
-  const nowActions = [
-    primary ? `Install ${OPTION_LABEL[primary.id] ?? primary.label}` : 'Install recommended heat source',
-    ...mustHave.slice(0, 3),
-  ].filter(Boolean).slice(0, 4);
+  const systemLabel = primary ? OPTION_LABEL[primary.id] ?? primary.label : 'recommended system';
+  const isAshpRecommended = primary?.id === 'ashp';
+  const hasStoredCylinder = primary && [
+    'stored_unvented', 'stored_vented', 'system_unvented', 'regular_vented',
+  ].includes(primary.id);
 
-  const nextActions = [
-    ...likelyUpgrades.slice(0, 3),
-    'Verify system performance after first heating season',
-  ].filter(Boolean).slice(0, 4);
+  // If the engine provided pathway plans, map them to scope cards.
+  if (plans?.pathways && plans.pathways.length > 0) {
+    const sorted = [...plans.pathways].sort((a, b) => a.rank - b.rank);
+    const [p0, p1, p2] = sorted;
 
-  const laterActions = [
-    ...niceToHave.slice(0, 2),
-    'Assess heat pump viability once emitter and primary upgrades are confirmed',
-    'Consider smart tariff compatibility for future electrification',
-  ].filter(Boolean).slice(0, 4);
+    const essentialItems: ScopeItem[] = p0
+      ? [
+          { label: p0.rationale, type: 'required' },
+          ...p0.prerequisites.map((pr): ScopeItem => ({ label: pr.description, type: 'required' })),
+        ].filter(i => i.label).slice(0, 5)
+      : [{ label: `Install ${systemLabel}`, type: 'required' }];
 
-  return [
-    { phase: 'now',   label: 'Immediate installation',    actions: nowActions },
-    { phase: 'next',  label: 'First improvement round',   actions: nextActions },
-    { phase: 'later', label: 'Future upgrade path',       actions: laterActions },
-  ];
+    const bestAdviceItems: ScopeItem[] = p1
+      ? [
+          { label: p1.rationale, type: 'upgrade', selectable: true },
+          ...p1.prerequisites.map((pr): ScopeItem => ({ label: pr.description, type: 'upgrade', selectable: true })),
+        ].filter(i => i.label).slice(0, 5)
+      : [];
+
+    const futurePotentialItems: ScopeItem[] = p2
+      ? [
+          { label: p2.rationale, type: 'future' },
+          ...p2.prerequisites.map((pr): ScopeItem => ({ label: pr.description, type: 'future' })),
+        ].filter(i => i.label).slice(0, 5)
+      : [];
+
+    return {
+      essential: { title: 'Essential', items: essentialItems },
+      bestAdvice: bestAdviceItems.length > 0 ? { title: 'Best Advice', items: bestAdviceItems } : undefined,
+      futurePotential: futurePotentialItems.length > 0 ? { title: 'Future Potential', items: futurePotentialItems } : undefined,
+    };
+  }
+
+  // Essential — mandatory works for the recommended system.
+  const essentialItems: ScopeItem[] = [
+    { label: `Install ${systemLabel}`, type: 'required' },
+    ...mustHave.slice(0, 4).map((m): ScopeItem => ({ label: m, type: 'required' })),
+  ].slice(0, 5);
+
+  // Best Advice — high-impact upgrades to do during install.
+  const bestAdviceItems: ScopeItem[] = likelyUpgrades
+    .filter(u => !ENHANCED_UPGRADE_PATTERN.test(u))
+    .slice(0, 3)
+    .map((u): ScopeItem => ({ label: u, type: 'upgrade', selectable: true }));
+
+  if (!bestAdviceItems.some(i => /control|thermostat|weather|compensat/i.test(i.label))) {
+    bestAdviceItems.push({ label: 'Smart controls and weather compensation', type: 'upgrade', selectable: true });
+  }
+
+  if (hasStoredCylinder && !isAshpRecommended) {
+    if (!bestAdviceItems.some(i => /mixergy/i.test(i.label))) {
+      bestAdviceItems.push({
+        label: 'Mixergy cylinder — stored hot water with top-down heating and active stratification',
+        type: 'upgrade',
+        selectable: true,
+      });
+    }
+  }
+
+  // Enhanced — optional lifestyle / investment upgrades.
+  const enhancedFromNiceToHave: ScopeItem[] = niceToHave
+    .filter(n => ENHANCED_UPGRADE_PATTERN.test(n))
+    .slice(0, 2)
+    .map((n): ScopeItem => ({ label: n, type: 'optional' }));
+
+  const enhancedItems: ScopeItem[] = [...enhancedFromNiceToHave];
+  if (!enhancedItems.some(i => /solar\s+pv|photovoltaic/i.test(i.label))) {
+    enhancedItems.push({ label: 'Solar PV system', type: 'optional' });
+  }
+  if (!enhancedItems.some(i => /battery/i.test(i.label))) {
+    enhancedItems.push({ label: 'Battery storage', type: 'optional' });
+  }
+  if (!enhancedItems.some(i => /divert|smart\s+immer/i.test(i.label))) {
+    enhancedItems.push({ label: 'Solar diverter / smart immersion', type: 'optional' });
+  }
+
+  // Future Potential — ASHP pathway only when not currently recommended.
+  const futurePotentialItems: ScopeItem[] = [];
+  if (!isAshpRecommended) {
+    futurePotentialItems.push(
+      { label: 'A heat pump system could be installed in future, but would require:', type: 'future' },
+      { label: 'Upgraded primary pipework (28 mm minimum)', type: 'future' },
+      { label: 'Emitter review for low-temperature operation', type: 'future' },
+      { label: 'Flow temperature reduction to 55 °C or below', type: 'future' },
+    );
+  }
+
+  return {
+    essential: { title: 'Essential', items: essentialItems },
+    bestAdvice: bestAdviceItems.length > 0 ? { title: 'Best Advice', items: bestAdviceItems.slice(0, 5) } : undefined,
+    enhanced: enhancedItems.length > 0 ? { title: 'Enhanced', items: enhancedItems.slice(0, 5) } : undefined,
+    futurePotential: futurePotentialItems.length > 0 ? { title: 'Future Potential', items: futurePotentialItems.slice(0, 5) } : undefined,
+  };
 }
 
 // ─── Trade-off warnings ───────────────────────────────────────────────────────
@@ -455,14 +519,14 @@ export function buildAdviceCards(output: EngineOutputV1): AdviceResult {
   ];
 
   const installationRecipe = buildInstallationRecipe(primaryOption);
-  const phasedPlan = buildPhasedPlan(primaryOption, output.plans);
+  const recommendationScope = buildRecommendationScope(primaryOption, output.plans);
   const tradeOffWarnings = buildTradeOffWarnings(options, primaryOption);
 
   return {
     bestAllRound,
     objectiveCards,
     installationRecipe,
-    phasedPlan,
+    recommendationScope,
     tradeOffWarnings,
   };
 }

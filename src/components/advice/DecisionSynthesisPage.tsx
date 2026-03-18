@@ -14,7 +14,7 @@
  *  2. Best by objective (6 short cards)
  *  3. Installation recipe
  *  4. Trade-off strip (legacy mode) / compare wins (compare mode)
- *  5. Phased plan (Now / Next / Later)
+ *  5. Recommendation scope (Essential / Best Advice / Enhanced / Future Potential)
  *
  * Rules:
  *  - No long report paragraphs.
@@ -33,7 +33,7 @@ import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { CompareSeed } from '../../lib/simulator/buildCompareSeedFromSurvey';
 import { buildAdviceCards } from './buildAdviceCards';
-import type { ObjectiveCard, PhasedStep } from './buildAdviceCards';
+import type { ObjectiveCard, RecommendationScope } from './buildAdviceCards';
 import {
   buildAdviceFromCompare,
   type AdviceCard,
@@ -79,18 +79,6 @@ const CONFIDENCE_LABEL: Record<string, string> = {
   high:   'High confidence',
   medium: 'Medium confidence',
   low:    'Low confidence',
-};
-
-const PHASE_LABEL: Record<PhasedStep['phase'], string> = {
-  now:   'Now',
-  next:  'Next',
-  later: 'Later',
-};
-
-const PHASE_CLASS: Record<PhasedStep['phase'], string> = {
-  now:   'advice-phase--now',
-  next:  'advice-phase--next',
-  later: 'advice-phase--later',
 };
 
 import type { EmitterCoverageClassification } from '../../lib/floorplan/adaptFloorplanToAtlasInputs';
@@ -279,22 +267,53 @@ function ObjectiveCardUI({ card }: { card: ObjectiveCard }) {
   );
 }
 
-function PhasedStepUI({ step }: { step: PhasedStep }) {
+/** Renders the scope-based recommendation model (Essential / Best Advice / Enhanced / Future Potential). */
+function RecommendationScopeUI({ scope }: { scope: RecommendationScope }) {
+  const cards = [
+    scope.essential,
+    scope.bestAdvice,
+    scope.enhanced,
+    scope.futurePotential,
+  ].filter(Boolean) as NonNullable<typeof scope.essential>[];
+
   return (
-    <div className={`advice-phase ${PHASE_CLASS[step.phase]}`} role="listitem">
-      <div className="advice-phase__badge" aria-label={`Phase: ${PHASE_LABEL[step.phase]}`}>
-        {PHASE_LABEL[step.phase]}
-      </div>
-      <div className="advice-phase__body">
-        <div className="advice-phase__label">{step.label}</div>
-        {step.actions.length > 0 && (
-          <ul className="advice-phase__actions" aria-label={`Actions for ${PHASE_LABEL[step.phase]}`}>
-            {step.actions.map((action, i) => (
-              <li key={i} className="advice-phase__action">{action}</li>
+    <div
+      className="advice-scope"
+      role="list"
+      aria-label="Recommendation scope"
+    >
+      {cards.map(card => (
+        <div
+          key={card.title}
+          className={`advice-scope__card advice-scope__card--${card.title.toLowerCase().replace(/\s+/g, '-')}`}
+          role="listitem"
+          aria-label={card.title}
+        >
+          <div className="advice-scope__card-title">{card.title}</div>
+          <ul className="advice-scope__items" aria-label={`${card.title} items`}>
+            {card.items.map((item, i) => (
+              <li
+                key={i}
+                className={`advice-scope__item advice-scope__item--${item.type}${item.selectable ? ' advice-scope__item--selectable' : ''}`}
+              >
+                {item.selectable ? (
+                  <label className="advice-scope__item-label">
+                    <input
+                      type="checkbox"
+                      defaultChecked
+                      className="advice-scope__item-checkbox"
+                      aria-label={item.label}
+                    />
+                    {item.label}
+                  </label>
+                ) : (
+                  <span className="advice-scope__item-label">{item.label}</span>
+                )}
+              </li>
             ))}
           </ul>
-        )}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -596,26 +615,10 @@ export default function DecisionSynthesisPage({
       }
     : legacyAdvice!.installationRecipe;
 
-  // Phased plan.
-  const phasedPlan: PhasedStep[] = compareAdvice
-    ? [
-        {
-          phase: 'now' as const,
-          label: 'Immediate installation',
-          actions: compareAdvice.phasedPlan.now,
-        },
-        {
-          phase: 'next' as const,
-          label: 'First improvement round',
-          actions: compareAdvice.phasedPlan.next,
-        },
-        {
-          phase: 'later' as const,
-          label: 'Future upgrade path',
-          actions: compareAdvice.phasedPlan.later,
-        },
-      ]
-    : legacyAdvice!.phasedPlan;
+  // Recommendation scope — use compare-backed scope when available, fall back to legacy.
+  const recommendationScope: RecommendationScope = compareAdvice
+    ? compareAdvice.recommendationScope
+    : legacyAdvice!.recommendationScope;
 
   // Trade-off warnings (legacy only — compare mode uses compareWins instead).
   const tradeOffWarnings = legacyAdvice?.tradeOffWarnings ?? [];
@@ -1155,22 +1158,14 @@ export default function DecisionSynthesisPage({
       )}
 
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 5 — Phased plan (Now / Next / Later)                      */}
+      {/* SECTION 5 — Recommendation scope (Essential / Best Advice / Enhanced / Future Potential) */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      <div className="advice-page__section" aria-label="Phased plan">
-        <h2 className="advice-page__section-title">Phased plan</h2>
+      <div className="advice-page__section" aria-label="Recommendation scope">
+        <h2 className="advice-page__section-title">What this means for you</h2>
         <p className="advice-page__section-intro">
-          Low-hanging fruit first. Future upgrades preserved.
+          Clear scope — what must be done, what should be done, what is optional, and what is possible later.
         </p>
-        <div
-          className="advice-phases"
-          role="list"
-          aria-label="Phased plan steps"
-        >
-          {phasedPlan.map(step => (
-            <PhasedStepUI key={step.phase} step={step} />
-          ))}
-        </div>
+        <RecommendationScopeUI scope={recommendationScope} />
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════ */}
