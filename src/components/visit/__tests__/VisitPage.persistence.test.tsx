@@ -306,3 +306,82 @@ describe('FullSurveyStepper — heatingCondition fields persist in draft', () =>
     expect(draft.fullSurvey?.dhwCondition?.dhwUpgradeIntent).toBe('replace');
   }, 10000);
 });
+
+// ── Fabric controls hydration from prefill (PR 1) ────────────────────────────
+
+describe('FullSurveyStepper — fabric controls hydrate from prefill and are not overwritten', () => {
+  it('draft preserves building.fabric fields hydrated from prefill on first step transition', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      building: {
+        fabric: {
+          wallType: 'cavity_filled',
+          insulationLevel: 'good',
+          glazing: 'double',
+          roofInsulation: 'moderate',
+          airTightness: 'tight',
+        },
+        thermalMass: 'light',
+      },
+      heatLossWatts: 6000,
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.building?.fabric?.wallType).toBe('cavity_filled');
+    expect(draft.building?.fabric?.insulationLevel).toBe('good');
+    expect(draft.building?.fabric?.glazing).toBe('double');
+    expect(draft.building?.fabric?.roofInsulation).toBe('moderate');
+    expect(draft.building?.fabric?.airTightness).toBe('tight');
+    expect(draft.building?.thermalMass).toBe('light');
+  }, 10000);
+
+  it('mount-time preset effect does not overwrite hydrated building.fabric values', async () => {
+    // The preset driven by the default dwelling-form/age-band selectors would
+    // normally apply solid_masonry/moderate/single/poor/average/heavy.
+    // With a prefill that has different values they must survive mount.
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      building: {
+        fabric: {
+          wallType: 'timber_frame',
+          insulationLevel: 'exceptional',
+          glazing: 'triple',
+          roofInsulation: 'good',
+          airTightness: 'passive',
+        },
+        thermalMass: 'medium',
+      },
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    // Transition immediately — no interaction with fabric controls.
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.building?.fabric?.wallType).toBe('timber_frame');
+    expect(draft.building?.fabric?.insulationLevel).toBe('exceptional');
+    expect(draft.building?.fabric?.glazing).toBe('triple');
+    expect(draft.building?.fabric?.roofInsulation).toBe('good');
+    expect(draft.building?.fabric?.airTightness).toBe('passive');
+    expect(draft.building?.thermalMass).toBe('medium');
+  }, 10000);
+
+  it('houseFrontFacing is hydrated from prefill and not reset to undefined', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      houseFrontFacing: 'south',
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.houseFrontFacing).toBe('south');
+  }, 10000);
+});
