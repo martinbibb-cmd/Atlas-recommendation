@@ -20,6 +20,7 @@ import VisitPage from './components/visit/VisitPage';
 import VisitHubPage from './components/visit/VisitHubPage';
 import RecentVisitsList from './components/visit/RecentVisitsList';
 import ReportPage from './components/reportpage/ReportPage';
+import GlobalMenuShell from './components/shell/GlobalMenuShell';
 import { resetAtlasTourSeen } from './lib/tourStorage';
 import { createVisit } from './lib/visits/visitApi';
 import { listReportsForVisit } from './lib/reports/reportApi';
@@ -263,42 +264,46 @@ export default function App() {
         />
       )}
       {journey === 'visit' && activeVisitId != null && (
-        <VisitPage
-          visitId={activeVisitId}
-          onBack={() => setJourney('landing')}
-          onComplete={(engineInput) => {
-            setLabEngineInput(engineInput);
-            setJourney('simulator');
-          }}
-          onOpenFloorPlan={(surveyResults) => {
-            const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
-            setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
-            setJourney('floor-plan');
-          }}
-          onOpenReport={(reportId) => {
-            setActiveReportId(reportId);
-            setJourney('report');
-          }}
-          floorplanOutput={floorplanOutput}
-        />
+        <GlobalMenuShell>
+          <VisitPage
+            visitId={activeVisitId}
+            onBack={() => setJourney('landing')}
+            onComplete={(engineInput) => {
+              setLabEngineInput(engineInput);
+              setJourney('simulator');
+            }}
+            onOpenFloorPlan={(surveyResults) => {
+              const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
+              setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
+              setJourney('floor-plan');
+            }}
+            onOpenReport={(reportId) => {
+              setActiveReportId(reportId);
+              setJourney('report');
+            }}
+            floorplanOutput={floorplanOutput}
+          />
+        </GlobalMenuShell>
       )}
       {journey === 'full' && (
-        <FullSurveyStepper
-          onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }}
-          prefill={fullSurveyPrefill}
-          onComplete={(engineInput) => {
-            // Route directly to the Simulator Dashboard after survey completion —
-            // the primary result experience.
-            setFullSurveyPrefill(undefined);
-            setLabEngineInput(engineInput);
-            setJourney('simulator');
-          }}
-          onOpenFloorPlan={(surveyResults) => {
-            const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
-            setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
-            setJourney('floor-plan');
-          }}
-        />
+        <GlobalMenuShell>
+          <FullSurveyStepper
+            onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }}
+            prefill={fullSurveyPrefill}
+            onComplete={(engineInput) => {
+              // Route directly to the Simulator Dashboard after survey completion —
+              // the primary result experience.
+              setFullSurveyPrefill(undefined);
+              setLabEngineInput(engineInput);
+              setJourney('simulator');
+            }}
+            onOpenFloorPlan={(surveyResults) => {
+              const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
+              setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
+              setJourney('floor-plan');
+            }}
+          />
+        </GlobalMenuShell>
       )}
       {journey === 'scope' && <ScopePage onBack={() => setJourney('landing')} />}
       {journey === 'methodology' && <MethodologyPage onBack={() => setJourney('landing')} />}
@@ -316,12 +321,14 @@ export default function App() {
         />
       )}
       {journey === 'simulator' && (
-        <ExplainersHubPage
-          onBack={() => setJourney('landing')}
-          onOpenSystemLab={() => setJourney('lab')}
-          surveyData={labEngineInput}
-          floorplanOutput={floorplanOutput}
-        />
+        <GlobalMenuShell>
+          <ExplainersHubPage
+            onBack={() => setJourney('landing')}
+            onOpenSystemLab={() => setJourney('lab')}
+            surveyData={labEngineInput}
+            floorplanOutput={floorplanOutput}
+          />
+        </GlobalMenuShell>
       )}
       {journey === 'lab' && <LabShell onHome={() => setJourney('landing')} engineInput={labEngineInput} />}
       {journey === 'explorer' && EXPLORER_ENABLED && <AtlasExplorerPage onBack={() => setJourney('landing')} />}

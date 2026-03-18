@@ -1,0 +1,21 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   GlobalMenuShell
+   Fixed-position global menu trigger that appears consistently across the
+   survey, simulator, and advice/presentation routes.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* ── Trigger container ───────────────────────────────────────────────────── */
+
+.global-menu-shell__trigger {
+  position: fixed;
+  top: 0.75rem;
+  right: 1rem;
+  z-index: 300;
+}
+
+@media (max-width: 480px) {
+  .global-menu-shell__trigger {
+    top: 0.5rem;
+    right: 0.75rem;
+  }
+}

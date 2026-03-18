@@ -20,6 +20,7 @@ import type { ReportSaveState } from '../DecisionSynthesisPage';
 import type { EngineOutputV1, OptionCardV1 } from '../../../contracts/EngineOutputV1';
 import type { CompareSeed } from '../../../lib/simulator/buildCompareSeedFromSurvey';
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
+import GlobalMenuShell from '../../shell/GlobalMenuShell';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -343,24 +344,24 @@ describe('DecisionSynthesisPage — Physics Story Mode button', () => {
 
 describe('DecisionSynthesisPage — Explainers launcher', () => {
   it('renders the Explainers launcher button', () => {
-    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
     expect(screen.getByRole('button', { name: /open explainers/i })).toBeTruthy();
   });
 
   it('launcher button has aria-expanded="false" by default', () => {
-    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
     const btn = screen.getByRole('button', { name: /open explainers/i });
     expect(btn.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('clicking the launcher opens the explainers overlay', () => {
-    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     expect(document.querySelector('[data-testid="explainers-overlay"]')).not.toBeNull();
   });
 
   it('overlay has role="dialog" and aria-modal="true"', () => {
-    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     const dialog = document.querySelector('[data-testid="explainers-overlay"]');
     expect(dialog?.getAttribute('role')).toBe('dialog');
@@ -368,19 +369,19 @@ describe('DecisionSynthesisPage — Explainers launcher', () => {
   });
 
   it('overlay is not in the DOM before the launcher is clicked', () => {
-    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
     expect(document.querySelector('[data-testid="explainers-overlay"]')).toBeNull();
   });
 
   it('clicking the close button dismisses the overlay', () => {
-    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     fireEvent.click(screen.getByRole('button', { name: /close explainers/i }));
     expect(document.querySelector('[data-testid="explainers-overlay"]')).toBeNull();
   });
 
   it('the full explainer library is accessible from "More explainers" section', () => {
-    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     expect(document.querySelector('[data-testid="explainers-library-section"]')).not.toBeNull();
   });
@@ -395,12 +396,12 @@ describe('DecisionSynthesisPage — DHW educational explainers', () => {
   });
 
   function openOverlay(output: EngineOutputV1) {
-    render(<DecisionSynthesisPage engineOutput={output} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={output} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
   }
 
   it('does not show "For this recommendation" section when no stored-DHW explainers are present', () => {
-    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     expect(document.querySelector('[data-testid="explainers-context-section"]')).toBeNull();
   });
@@ -473,12 +474,12 @@ describe('DecisionSynthesisPage — primary circuit explainers', () => {
   });
 
   function openOverlay(output: EngineOutputV1) {
-    render(<DecisionSynthesisPage engineOutput={output} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={output} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
   }
 
   it('does not show pipe_capacity in context section when hydraulic-ashp-flow is absent', () => {
-    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     const ctx = document.querySelector('[data-testid="explainers-context-section"]');
     expect(ctx?.querySelector('[data-testid="explainers-menu-item-pipe_capacity"]') ?? null).toBeNull();
@@ -506,12 +507,12 @@ describe('DecisionSynthesisPage — condensing efficiency explainers', () => {
   });
 
   function openOverlay(output: EngineOutputV1) {
-    render(<DecisionSynthesisPage engineOutput={output} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={output} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
   }
 
   it('does not show condensing items in context section when condensing-compromised is absent', () => {
-    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     const ctx = document.querySelector('[data-testid="explainers-context-section"]');
     expect(ctx?.querySelector('[data-testid="explainers-menu-item-condensing_return_temp"]') ?? null).toBeNull();
@@ -539,12 +540,12 @@ describe('DecisionSynthesisPage — water quality explainers', () => {
   });
 
   function openOverlay(output: EngineOutputV1) {
-    render(<DecisionSynthesisPage engineOutput={output} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={output} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
   }
 
   it('does not show water_quality_scale in context section when water-hardness is absent', () => {
-    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     const ctx = document.querySelector('[data-testid="explainers-context-section"]');
     expect(ctx?.querySelector('[data-testid="explainers-menu-item-water_quality_scale"]') ?? null).toBeNull();
@@ -566,12 +567,12 @@ describe('DecisionSynthesisPage — thermal mass explainers', () => {
   });
 
   function openOverlay(output: EngineOutputV1) {
-    render(<DecisionSynthesisPage engineOutput={output} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={output} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
   }
 
   it('does not show thermal_mass_inertia in context section when thermal-mass-heavy is absent', () => {
-    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     const ctx = document.querySelector('[data-testid="explainers-context-section"]');
     expect(ctx?.querySelector('[data-testid="explainers-menu-item-thermal_mass_inertia"]') ?? null).toBeNull();
@@ -593,12 +594,12 @@ describe('DecisionSynthesisPage — heating controls explainers', () => {
   });
 
   function openOverlay(output: EngineOutputV1) {
-    render(<DecisionSynthesisPage engineOutput={output} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={output} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
   }
 
   it('does not show splan_vs_yplan in context section when splan-confirmed is absent', () => {
-    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     const ctx = document.querySelector('[data-testid="explainers-context-section"]');
     expect(ctx?.querySelector('[data-testid="explainers-menu-item-splan_vs_yplan"]') ?? null).toBeNull();

@@ -48,7 +48,6 @@ import { SCENARIO_PRESETS, SCENARIO_PRESET_LIST, DEFAULT_SCENARIO_KEY } from './
 import { buildOccupancyBehaviourFromSurvey, buildOccupancyDisplayTags } from '../../../lib/occupancy/buildOccupancyBehaviourFromSurvey';
 import type { DemandPresetId } from './systemInputsTypes';
 import type { EmitterCoverageClassification } from '../../../lib/floorplan/adaptFloorplanToAtlasInputs';
-import ExplainersOverlay from '../../ExplainersOverlay';
 import './labDashboard.css';
 import './labPanels.css';
 
@@ -585,7 +584,6 @@ export default function SimulatorDashboard({
         {/* Top toolbar: mode toggle */}
         <div className="sim-toolbar">
           {modeToggle}
-          <ExplainersOverlay contextExplainerIds={[]} />
         </div>
 
         {/* Survey-backed badge — shown when simulator was launched from a full survey */}
@@ -721,7 +719,6 @@ export default function SimulatorDashboard({
       <div className="sim-toolbar">
         {modeToggle}
         <SystemSelector systemChoice={systemChoice} onSetSystemChoice={setSystemChoice} />
-        <ExplainersOverlay contextExplainerIds={[]} />
       </div>
 
       {/* Scenario selector — full-width row below toolbar */}

@@ -49,7 +49,6 @@ import LiveHubPage from '../../live/LiveHubPage';
 import LivePhysicsOverlay, { type OverlayStepKey } from '../../ui/overlay/LivePhysicsOverlay';
 import DeltaStrip from '../../ui/panels/DeltaStrip';
 import { EDUCATIONAL_EXPLAINERS } from '../../explainers/educational/content';
-import ExplainersOverlay from '../../explainers/ExplainersOverlay';
 
 interface Props {
   onBack: () => void;
@@ -866,7 +865,6 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
           <div className="progress-fill" style={{ width: `${progress}%` }} />
         </div>
         <span className="step-label">Step {stepIndex + 1} of {STEPS.length}</span>
-        <ExplainersOverlay contextExplainerIds={[]} />
       </div>
 
       {/* Live physics overlay — shown on steps that have a step key mapping */}
