@@ -11,6 +11,11 @@
  *   - compareMixergy is hydrated from prefill.fullSurvey.compareMixergy
  *   - ExplainersOverlay launcher button is present in FullSurveyStepper header
  *   - SaveState type includes 'retrying'
+ *   - Step 4 does NOT render the top live-physics strip (PR 3 duplicate removal)
+ *   - Step 4 bottom dhw-demand-summary block remains present (PR 3 keep working summary)
+ *   - Heating circuit condition fields (pumpingOverObserved, systemCircuitType,
+ *     bleedWaterColour, checkbox observations) are preserved in the draft (PR 1)
+ *   - Hydrated heatingCondition values are not overwritten by defaults on mount (PR 1)
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -181,4 +186,123 @@ describe('VisitPage — SaveState includes retrying variant', () => {
     expect(states).toContain('retrying');
     expect(states).toHaveLength(5);
   });
+});
+
+// ── Step 4 duplicate strip removal (PR 3) ────────────────────────────────────
+
+describe('FullSurveyStepper — Step 4 duplicate live-physics strip removed', () => {
+  it('does not render the live-physics overlay panel on Step 4 (lifestyle)', async () => {
+    const user = userEvent.setup();
+    render(<FullSurveyStepper onBack={() => {}} />);
+
+    await advanceToStep(user, 3); // Step 4 is index 3
+
+    // The LivePhysicsOverlay has className 'live-physics-overlay' — must be absent on Step 4.
+    expect(document.querySelector('.live-physics-overlay')).toBeNull();
+  }, 15000);
+
+  it('still renders the dhw-demand-summary block on Step 4 (working bottom summary)', async () => {
+    const user = userEvent.setup();
+    render(<FullSurveyStepper onBack={() => {}} />);
+
+    await advanceToStep(user, 3); // Step 4 is index 3
+
+    expect(document.querySelector('[data-testid="dhw-demand-summary"]')).not.toBeNull();
+  }, 15000);
+
+  it('does not render the live-physics overlay on Step 4 regardless of engine output', async () => {
+    // The overlayStepKey is null for 'lifestyle' so the overlay must not be
+    // rendered even if the engine has produced output from a previous step.
+    const user = userEvent.setup();
+    render(<FullSurveyStepper onBack={() => {}} />);
+
+    await advanceToStep(user, 3); // Step 4 is index 3
+
+    // Allow any debounced engine tick to settle.
+    await new Promise(r => setTimeout(r, 500));
+
+    expect(document.querySelector('.live-physics-overlay')).toBeNull();
+  }, 15000);
+});
+
+// ── Heating circuit condition persistence (PR 1) ─────────────────────────────
+
+describe('FullSurveyStepper — heatingCondition fields persist in draft', () => {
+  it('draft preserves fullSurvey.heatingCondition.pumpingOverObserved', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      fullSurvey: {
+        heatingCondition: {
+          pumpingOverObserved: true,
+          systemCircuitType: 'open_vented',
+          bleedWaterColour: 'brown',
+          radiatorsColdAtBottom: true,
+          radiatorsHeatingUnevenly: false,
+        },
+      },
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.fullSurvey?.heatingCondition?.pumpingOverObserved).toBe(true);
+    expect(draft.fullSurvey?.heatingCondition?.systemCircuitType).toBe('open_vented');
+    expect(draft.fullSurvey?.heatingCondition?.bleedWaterColour).toBe('brown');
+    expect(draft.fullSurvey?.heatingCondition?.radiatorsColdAtBottom).toBe(true);
+    expect(draft.fullSurvey?.heatingCondition?.radiatorsHeatingUnevenly).toBe(false);
+  }, 10000);
+
+  it('hydrated heatingCondition values are not overwritten by defaults on mount', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      fullSurvey: {
+        heatingCondition: {
+          pumpingOverObserved: false,
+          bleedWaterColour: 'black',
+          magneticDebrisEvidence: true,
+        },
+      },
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    // Transition step immediately — no user interaction with heating fields.
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    // Values must match the prefill, not be reset to undefined by defaultInput.
+    expect(draft.fullSurvey?.heatingCondition?.pumpingOverObserved).toBe(false);
+    expect(draft.fullSurvey?.heatingCondition?.bleedWaterColour).toBe('black');
+    expect(draft.fullSurvey?.heatingCondition?.magneticDebrisEvidence).toBe(true);
+  }, 10000);
+
+  it('draft preserves fullSurvey.dhwCondition alongside heatingCondition', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      fullSurvey: {
+        heatingCondition: {
+          pumpingOverObserved: true,
+          systemCircuitType: 'sealed',
+        },
+        dhwCondition: {
+          currentCylinderPresent: true,
+          currentCylinderType: 'unvented',
+          dhwUpgradeIntent: 'replace',
+        },
+      },
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.fullSurvey?.heatingCondition?.pumpingOverObserved).toBe(true);
+    expect(draft.fullSurvey?.heatingCondition?.systemCircuitType).toBe('sealed');
+    expect(draft.fullSurvey?.dhwCondition?.currentCylinderPresent).toBe(true);
+    expect(draft.fullSurvey?.dhwCondition?.currentCylinderType).toBe('unvented');
+    expect(draft.fullSurvey?.dhwCondition?.dhwUpgradeIntent).toBe('replace');
+  }, 10000);
 });
