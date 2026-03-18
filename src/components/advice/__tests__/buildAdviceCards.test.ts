@@ -7,7 +7,7 @@
 //   - bestAllRound uses the engine recommendation
 //   - All 6 objective cards are present with required fields
 //   - Installation recipe has all required sections
-//   - Phased plan has now/next/later phases
+//   - Recommendation scope (Essential / Best Advice / Enhanced / Future Potential)
 //   - Trade-off warnings are generated for relevant combinations
 //   - Engine plans (pathways) are used when present
 //   - Handles empty options array gracefully
@@ -64,7 +64,7 @@ describe('buildAdviceCards — structure', () => {
     expect(result.bestAllRound).toBeDefined();
     expect(result.objectiveCards).toBeDefined();
     expect(result.installationRecipe).toBeDefined();
-    expect(result.phasedPlan).toBeDefined();
+    expect(result.recommendationScope).toBeDefined();
     expect(result.tradeOffWarnings).toBeDefined();
   });
 
@@ -285,26 +285,27 @@ describe('buildAdviceCards — installation recipe', () => {
   });
 });
 
-// ─── Phased plan ─────────────────────────────────────────────────────────────
+// ─── Recommendation scope ─────────────────────────────────────────────────────
 
-describe('buildAdviceCards — phased plan', () => {
-  it('returns exactly 3 phases: now, next, later', () => {
+describe('buildAdviceCards — recommendation scope', () => {
+  it('returns a RecommendationScope with an essential card', () => {
     const result = buildAdviceCards(makeMinimalOutput());
-    const phases = result.phasedPlan.map(s => s.phase);
-    expect(phases).toEqual(['now', 'next', 'later']);
+    expect(result.recommendationScope.essential).toBeDefined();
+    expect(result.recommendationScope.essential.title).toBe('Essential');
+    expect(Array.isArray(result.recommendationScope.essential.items)).toBe(true);
   });
 
-  it('each phase has a non-empty label', () => {
+  it('essential card has at least one item', () => {
     const result = buildAdviceCards(makeMinimalOutput());
-    for (const step of result.phasedPlan) {
-      expect(step.label).toBeTruthy();
-    }
+    expect(result.recommendationScope.essential.items.length).toBeGreaterThan(0);
   });
 
-  it('each phase has at least one action', () => {
+  it('bestAdvice items are all selectable', () => {
     const result = buildAdviceCards(makeMinimalOutput());
-    for (const step of result.phasedPlan) {
-      expect(step.actions.length).toBeGreaterThan(0);
+    if (result.recommendationScope.bestAdvice) {
+      for (const item of result.recommendationScope.bestAdvice.items) {
+        expect(item.selectable).toBe(true);
+      }
     }
   });
 
@@ -344,17 +345,17 @@ describe('buildAdviceCards — phased plan', () => {
       },
     });
     const result = buildAdviceCards(output);
-    expect(result.phasedPlan[0].label).toBe('Combi now, ASHP later');
-    expect(result.phasedPlan[0].actions[0]).toBe('Lowest disruption path');
+    expect(result.recommendationScope.essential.items[0].label).toBe('Lowest disruption path');
+    expect(result.recommendationScope.bestAdvice?.items[0].label).toBe('Improve heat distribution');
   });
 
-  it('now phase action mentions the recommended system', () => {
+  it('essential item mentions the recommended system', () => {
     const output = makeMinimalOutput({
       options: [makeOption('combi', 'viable')],
     });
     const result = buildAdviceCards(output);
-    const nowActions = result.phasedPlan[0].actions.join(' ');
-    expect(nowActions).toMatch(/combi/i);
+    const essentialText = result.recommendationScope.essential.items.map(i => i.label).join(' ');
+    expect(essentialText).toMatch(/combi/i);
   });
 });
 

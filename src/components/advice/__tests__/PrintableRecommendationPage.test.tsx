@@ -6,7 +6,7 @@
 //   - print component renders bestOverall when compare-backed advice present
 //   - all 6 objective cards are present
 //   - installation recipe sections render
-//   - phased plan renders (Now / Next / Later)
+//   - recommendation scope renders (Essential / Best Advice / Future Potential)
 //   - compare summary renders when compareSeed is provided
 //   - confidence badge renders
 //   - efficiency score badge renders
@@ -62,10 +62,26 @@ const DEMO_ADVICE: AdviceFromCompareResult = {
     primaryPipework: ['22 mm primary flow and return'],
     protectionAndAncillaries: ['Magnetic filter on primary return', 'Inhibitor dose'],
   },
-  phasedPlan: {
-    now:  ['Install unvented cylinder', 'Fit new boiler'],
-    next: ['Add weather compensation'],
-    later: ['Consider heat pump when tariffs improve'],
+  recommendationScope: {
+    essential: {
+      title: 'Essential' as const,
+      items: [
+        { label: 'Install unvented cylinder', type: 'required' as const },
+        { label: 'Fit new boiler', type: 'required' as const },
+      ],
+    },
+    bestAdvice: {
+      title: 'Best Advice' as const,
+      items: [
+        { label: 'Add weather compensation', type: 'upgrade' as const, selectable: true },
+      ],
+    },
+    futurePotential: {
+      title: 'Future Potential' as const,
+      items: [
+        { label: 'Consider heat pump when tariffs improve', type: 'future' as const },
+      ],
+    },
   },
   confidenceSummary: {
     level: 'high',
@@ -342,40 +358,40 @@ describe('PrintableRecommendationPage — installation recipe', () => {
   });
 });
 
-// ─── Phased plan ──────────────────────────────────────────────────────────────
+// ─── Recommendation scope ─────────────────────────────────────────────────────
 
-describe('PrintableRecommendationPage — phased plan', () => {
-  it('renders the "Phased plan" section', () => {
+describe('PrintableRecommendationPage — recommendation scope', () => {
+  it('renders the "Recommendation scope" section', () => {
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
-    expect(screen.getByText(/phased plan/i)).toBeTruthy();
+    expect(screen.getByText(/what this means for you/i)).toBeTruthy();
   });
 
-  it('renders the Now phase badge', () => {
+  it('renders the Essential card title', () => {
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
-    expect(screen.getByText('Now')).toBeTruthy();
+    expect(screen.getByText('Essential')).toBeTruthy();
   });
 
-  it('renders the Next phase badge', () => {
+  it('renders the Best Advice card title', () => {
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
-    expect(screen.getByText('Next')).toBeTruthy();
+    expect(screen.getByText('Best Advice')).toBeTruthy();
   });
 
-  it('renders the Later phase badge', () => {
+  it('renders the Future Potential card title', () => {
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
-    expect(screen.getByText('Later')).toBeTruthy();
+    expect(screen.getByText('Future Potential')).toBeTruthy();
   });
 
-  it('renders Now phase actions', () => {
+  it('renders Essential items', () => {
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
     expect(screen.getByText('Install unvented cylinder')).toBeTruthy();
   });
 
-  it('renders Next phase actions', () => {
+  it('renders Best Advice items', () => {
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
     expect(screen.getByText('Add weather compensation')).toBeTruthy();
   });
 
-  it('renders Later phase actions', () => {
+  it('renders Future Potential items', () => {
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
     expect(screen.getByText('Consider heat pump when tariffs improve')).toBeTruthy();
   });
@@ -399,9 +415,9 @@ describe('PrintableRecommendationPage — fallback path', () => {
     expect(screen.queryByText('Installation recipe')).toBeNull();
   });
 
-  it('does not render phased plan when advice is null', () => {
+  it('does not render recommendation scope when advice is null', () => {
     render(<PrintableRecommendationPage advice={null} />);
-    expect(screen.queryByText('Now')).toBeNull();
+    expect(screen.queryByText('Essential')).toBeNull();
   });
 });
 

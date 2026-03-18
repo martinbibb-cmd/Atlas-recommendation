@@ -12,7 +12,7 @@
  *   Page 1 — Recommendation summary (hero + compare summary + badges)
  *   Page 2 — Best by objective (6 cards)
  *   Page 3 — Installation recipe
- *   Page 4 — Phased plan
+ *   Page 4 — Recommendation scope (Essential / Best Advice / Enhanced / Future Potential)
  *
  * Rules:
  *   - Reuses AdviceFromCompareResult directly.  No separate advice engine.
@@ -22,7 +22,7 @@
  *   - Printing triggered by window.print() from the on-screen toolbar.
  */
 
-import type { AdviceCard, AdviceFromCompareResult, UnifiedConfidence } from '../../lib/advice/buildAdviceFromCompare';
+import type { AdviceCard, AdviceFromCompareResult, UnifiedConfidence, RecommendationScope } from '../../lib/advice/buildAdviceFromCompare';
 import type { CompareSeed } from '../../lib/simulator/buildCompareSeedFromSurvey';
 import './advice-print.css';
 
@@ -156,6 +156,41 @@ function UnifiedConfidencePrint({ unified }: { unified: UnifiedConfidence }) {
   );
 }
 
+function RecommendationScopePrint({ scope }: { scope: RecommendationScope }) {
+  const cards = [
+    scope.essential,
+    scope.bestAdvice,
+    scope.enhanced,
+    scope.futurePotential,
+  ].filter(Boolean) as NonNullable<typeof scope.essential>[];
+
+  return (
+    <div
+      className="prp__scope"
+      role="list"
+      aria-label="Recommendation scope"
+    >
+      {cards.map(card => (
+        <div
+          key={card.title}
+          className={`prp__scope-card prp__scope-card--${card.title.toLowerCase().replace(/\s+/g, '-')}`}
+          role="listitem"
+          aria-label={card.title}
+        >
+          <div className="prp__scope-card-title">{card.title}</div>
+          <ul className="prp__scope-items" aria-label={`${card.title} items`}>
+            {card.items.map((item, i) => (
+              <li key={i} className={`prp__scope-item prp__scope-item--${item.type}`}>
+                {item.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ObjectiveCardPrint({ card }: { card: AdviceCard }) {
   return (
     <div className="prp__obj-card" role="region" aria-label={card.title}>
@@ -240,8 +275,8 @@ export default function PrintableRecommendationPage({
   // Installation recipe.
   const recipe = advice?.installationRecipe ?? null;
 
-  // Phased plan.
-  const phasedPlan = advice?.phasedPlan ?? null;
+  // Recommendation scope.
+  const recommendationScope = advice?.recommendationScope ?? null;
 
   // Top compare wins from the primary card.
   const heroCompareWins = advice?.bestOverall.compareWins ?? [];
@@ -472,46 +507,15 @@ export default function PrintableRecommendationPage({
       )}
 
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* PAGE 4 — Phased plan                                               */}
+      {/* PAGE 4 — Recommendation scope                                      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {phasedPlan && (
+      {recommendationScope && (
         <section
           className="prp__section prp__page-break-before"
-          aria-label="Phased plan"
+          aria-label="Recommendation scope"
         >
-          <h2 className="prp__section-title">Phased plan and key trade-offs</h2>
-          <div
-            className="prp__phases"
-            role="list"
-            aria-label="Phased plan steps"
-          >
-            <div className="prp__phase prp__phase--now" role="listitem">
-              <div className="prp__phase__badge">Now</div>
-              <ul className="prp__phase__actions" aria-label="Now phase actions">
-                {phasedPlan.now.map((action, i) => (
-                  <li key={i} className="prp__phase__action">{action}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="prp__phase prp__phase--next" role="listitem">
-              <div className="prp__phase__badge">Next</div>
-              <ul className="prp__phase__actions" aria-label="Next phase actions">
-                {phasedPlan.next.map((action, i) => (
-                  <li key={i} className="prp__phase__action">{action}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="prp__phase prp__phase--later" role="listitem">
-              <div className="prp__phase__badge">Later</div>
-              <ul className="prp__phase__actions" aria-label="Later phase actions">
-                {phasedPlan.later.map((action, i) => (
-                  <li key={i} className="prp__phase__action">{action}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          <h2 className="prp__section-title">What this means for you</h2>
+          <RecommendationScopePrint scope={recommendationScope} />
 
           {/* Key trade-offs from confidence summary */}
           {advice && advice.confidenceSummary.reasons.length > 0 && (

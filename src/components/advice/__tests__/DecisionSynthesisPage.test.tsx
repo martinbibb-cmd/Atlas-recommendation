@@ -7,7 +7,7 @@
 //   - Advice page renders correct section headings
 //   - Each objective card appears on the page
 //   - Installation recipe section appears
-//   - Phased plan (Now / Next / Later) appears
+//   - Recommendation scope (Essential / Best Advice / Enhanced / Future Potential) appears
 //   - Back button calls onBack
 //   - Trade-off warnings render when present
 //   - Wording stays concise — no repeated "comparison table" prose
@@ -103,9 +103,9 @@ describe('DecisionSynthesisPage — section headings', () => {
     expect(screen.getByText(/your installation should include/i)).toBeTruthy();
   });
 
-  it('renders "Phased plan" section', () => {
+  it('renders "What this means for you" scope section', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(screen.getByText(/phased plan/i)).toBeTruthy();
+    expect(screen.getByText(/what this means for you/i)).toBeTruthy();
   });
 });
 
@@ -179,28 +179,23 @@ describe('DecisionSynthesisPage — installation recipe', () => {
   });
 });
 
-// ─── Phased plan ─────────────────────────────────────────────────────────────
+// ─── Recommendation scope ─────────────────────────────────────────────────────
 
-describe('DecisionSynthesisPage — phased plan', () => {
-  it('renders the Now phase badge', () => {
+describe('DecisionSynthesisPage — recommendation scope', () => {
+  it('renders the Essential scope card title', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(screen.getByText('Now')).toBeTruthy();
+    expect(screen.getByText('Essential')).toBeTruthy();
   });
 
-  it('renders the Next phase badge', () => {
+  it('renders the Best Advice scope card title', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(screen.getByText('Next')).toBeTruthy();
+    expect(screen.getByText('Best Advice')).toBeTruthy();
   });
 
-  it('renders the Later phase badge', () => {
+  it('renders scope items as a list', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(screen.getByText('Later')).toBeTruthy();
-  });
-
-  it('renders phase actions as a list', () => {
-    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    const phaseLists = screen.getAllByRole('list', { name: /actions for/i });
-    expect(phaseLists.length).toBeGreaterThan(0);
+    const scopeList = screen.getByRole('list', { name: /recommendation scope/i });
+    expect(scopeList).toBeTruthy();
   });
 });
 

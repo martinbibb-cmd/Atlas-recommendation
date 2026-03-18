@@ -9,7 +9,7 @@
 //   - confidencePct appears on cards when engine confidence is available
 //   - efficiencyScore appears on cards and respects system condition decay
 //   - Installation recipe is present with required sections
-//   - Phased plan has now/next/later steps
+//   - Recommendation scope (Essential / Best Advice / Enhanced / Future Potential)
 //   - Forward-thinking plan preserves Mixergy/cylinder path where supported
 //   - Advice derives from compare truth deterministically
 //   - Handles empty options and missing plans gracefully
@@ -158,11 +158,12 @@ describe('buildAdviceFromCompare — structure', () => {
     expect(Array.isArray(result.installationRecipe.protectionAndAncillaries)).toBe(true);
   });
 
-  it('returns phasedPlan with now, next, later', () => {
+  it('returns recommendationScope with essential, optional bestAdvice and futurePotential', () => {
     const result = buildAdviceFromCompare(makeInput());
-    expect(Array.isArray(result.phasedPlan.now)).toBe(true);
-    expect(Array.isArray(result.phasedPlan.next)).toBe(true);
-    expect(Array.isArray(result.phasedPlan.later)).toBe(true);
+    expect(result.recommendationScope).toBeDefined();
+    expect(result.recommendationScope.essential).toBeDefined();
+    expect(Array.isArray(result.recommendationScope.essential.items)).toBe(true);
+    expect(result.recommendationScope.essential.items.length).toBeGreaterThan(0);
   });
 
   it('returns confidenceSummary', () => {
@@ -426,23 +427,23 @@ describe('buildAdviceFromCompare — installation recipe', () => {
   });
 });
 
-// ─── Phased plan ──────────────────────────────────────────────────────────────
+// ─── Recommendation scope ─────────────────────────────────────────────────────
 
-describe('buildAdviceFromCompare — phased plan', () => {
-  it('now phase includes the system installation step', () => {
+describe('buildAdviceFromCompare — recommendation scope', () => {
+  it('essential includes the system installation step', () => {
     const output = makeEngineOutput([makeOption('combi', 'viable')]);
     const result = buildAdviceFromCompare(makeInput({ engineOutput: output }));
-    const nowText = result.phasedPlan.now.join(' ');
-    expect(nowText).toMatch(/combi/i);
+    const essentialText = result.recommendationScope.essential.items.map(i => i.label).join(' ');
+    expect(essentialText).toMatch(/combi/i);
   });
 
-  it('later phase includes heat pump viability assessment when proposed has cylinder', () => {
+  it('futurePotential includes heat pump viability pathway when proposed has cylinder', () => {
     const seed = makeCompareSeed({
       right: { systemChoice: 'unvented', systemInputs: { systemCondition: 'clean' } },
     });
     const result = buildAdviceFromCompare(makeInput({ compareSeed: seed }));
-    const laterText = result.phasedPlan.later.join(' ');
-    expect(laterText).toMatch(/heat pump/i);
+    const futureText = result.recommendationScope.futurePotential?.items.map(i => i.label).join(' ') ?? '';
+    expect(futureText).toMatch(/heat pump/i);
   });
 
   it('uses engine plans.pathways when provided', () => {
@@ -481,9 +482,12 @@ describe('buildAdviceFromCompare — phased plan', () => {
       },
     });
     const result = buildAdviceFromCompare(makeInput({ engineOutput: output }));
-    expect(result.phasedPlan.now.join(' ')).toMatch(/disruption|Mixergy|HP/i);
-    expect(result.phasedPlan.next.join(' ')).toMatch(/emitter|distribution/i);
-    expect(result.phasedPlan.later.join(' ')).toMatch(/ASHP|electrification/i);
+    const essentialText = result.recommendationScope.essential.items.map(i => i.label).join(' ');
+    const bestAdviceText = result.recommendationScope.bestAdvice?.items.map(i => i.label).join(' ') ?? '';
+    const futureText = result.recommendationScope.futurePotential?.items.map(i => i.label).join(' ') ?? '';
+    expect(essentialText).toMatch(/disruption|Mixergy|HP/i);
+    expect(bestAdviceText).toMatch(/emitter|distribution/i);
+    expect(futureText).toMatch(/ASHP|electrification/i);
   });
 
   it('forward-thinking plan preserves Mixergy/cylinder path where supported', () => {
@@ -666,23 +670,23 @@ describe('buildAdviceFromCompare — floorplanInputs', () => {
     expect(hasPipeNote).toBe(true);
   });
 
-  it('adds siting issue to phasedPlan.now when warnings present', () => {
+  it('adds siting issue to essential scope when warnings present', () => {
     const result = buildAdviceFromCompare(
       makeInput({ floorplanInputs: makeFloorplanInputs() }),
     );
-    const hasSitingNow = result.phasedPlan.now.some((a) => /siting/i.test(a));
-    expect(hasSitingNow).toBe(true);
+    const hasSitingEssential = result.recommendationScope.essential.items.some((a) => /siting/i.test(a.label));
+    expect(hasSitingEssential).toBe(true);
   });
 
-  it('adds emitter confirmation to phasedPlan.next when rooms need review', () => {
+  it('adds emitter confirmation to bestAdvice scope when rooms need review', () => {
     const result = buildAdviceFromCompare(
       makeInput({ floorplanInputs: makeFloorplanInputs() }),
     );
-    const hasEmitterNext = result.phasedPlan.next.some((a) => /emitter/i.test(a));
-    expect(hasEmitterNext).toBe(true);
+    const hasEmitterBestAdvice = result.recommendationScope.bestAdvice?.items.some((a) => /emitter/i.test(a.label));
+    expect(hasEmitterBestAdvice).toBe(true);
   });
 
-  it('does not alter recipe or plan when no floor plan warnings exist', () => {
+  it('does not alter scope when no floor plan warnings exist', () => {
     const cleanInputs = makeFloorplanInputs({
       emitterAdequacyHints: [
         { roomId: 'r1', roomName: 'Hallway', suggestedRadiatorKw: 0.8, status: 'adequate' as const },
@@ -692,9 +696,9 @@ describe('buildAdviceFromCompare — floorplanInputs', () => {
       ],
     });
     const result = buildAdviceFromCompare(makeInput({ floorplanInputs: cleanInputs }));
-    // Siting note should NOT appear in now (no warnings)
-    const hasSitingNow = result.phasedPlan.now.some((a) => /siting/i.test(a));
-    expect(hasSitingNow).toBe(false);
+    // Siting note should NOT appear in essential (no warnings)
+    const hasSitingEssential = result.recommendationScope.essential.items.some((a) => /siting/i.test(a.label));
+    expect(hasSitingEssential).toBe(false);
   });
 
   it('is deterministic with floor plan inputs across multiple calls', () => {
