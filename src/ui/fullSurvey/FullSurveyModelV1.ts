@@ -122,6 +122,12 @@ export type FullSurveyModelV1 = EngineInputV2_3 & {
     heatingCondition?: HeatingConditionDiagnosticsV1;
     /** DHW/secondary circuit condition diagnostics — site observations from surveyor. */
     dhwCondition?: DhwConditionDiagnosticsV1;
+    /**
+     * UI-only flag: show Mixergy comparison in results even when standard
+     * cylinder is the selected proposed type.  Persisted in working_payload
+     * so the choice survives step navigation and save/reload.
+     */
+    compareMixergy?: boolean;
   };
 };
 

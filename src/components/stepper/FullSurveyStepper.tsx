@@ -49,6 +49,7 @@ import LiveHubPage from '../../live/LiveHubPage';
 import LivePhysicsOverlay, { type OverlayStepKey } from '../../ui/overlay/LivePhysicsOverlay';
 import DeltaStrip from '../../ui/panels/DeltaStrip';
 import { EDUCATIONAL_EXPLAINERS } from '../../explainers/educational/content';
+import ExplainersOverlay from '../../explainers/ExplainersOverlay';
 
 interface Props {
   onBack: () => void;
@@ -61,6 +62,13 @@ interface Props {
    * routes directly to the simulator instead of opening LiveHubPage.
    */
   onComplete?: (engineInput: EngineInputV2_3) => void;
+  /**
+   * Called on every step transition (and at completion) with the current raw
+   * FullSurveyModelV1 — including fullSurvey extras.  Used by VisitPage to
+   * autosave mid-survey state so that navigation-away-and-back, refresh, and
+   * save/reload all preserve the full survey including Step 5 hot-water data.
+   */
+  onDraft?: (draft: FullSurveyModelV1) => void;
 }
 
 type Step = 'location' | 'pressure' | 'hydraulic' | 'lifestyle' | 'hot_water' | 'commercial' | 'overlay';
@@ -519,14 +527,14 @@ function InlineExplainerLink({ explainerId, testId, style }: {
   );
 }
 
-export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, onComplete }: Props) {
+export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, onComplete, onDraft }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('location');
   const [input, setInput] = useState<FullSurveyModelV1>(() =>
     prefill ? { ...defaultInput, ...prefill } : defaultInput
   );
   const [prefillActive] = useState<boolean>(!!prefill);
   const [showPrefillBanner, setShowPrefillBanner] = useState<boolean>(!!prefill);
-  const [compareMixergy, setCompareMixergy] = useState(false);
+  const [compareMixergy, setCompareMixergy] = useState(() => prefill?.fullSurvey?.compareMixergy ?? false);
   const [overlayDetail, setOverlayDetail] = useState<{ systemLabel: string; rowLabel: string; step: Step; risk: RiskLevel; explanation: OverlayExplanation } | null>(null);
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
@@ -713,10 +721,21 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
     window.scrollTo(0, 0);
   }, [currentStep]);
 
+  /** Build a draft that embeds compareMixergy into fullSurvey for persistence. */
+  const buildDraft = (): FullSurveyModelV1 => ({
+    ...input,
+    fullSurvey: {
+      ...input.fullSurvey,
+      compareMixergy,
+    },
+  });
+
   const next = () => {
     if (currentStep === 'overlay') {
       // Strip fullSurvey extras — pass only the EngineInputV2_3 subset to the engine.
-      const engineInput = toEngineInput(sanitiseModelForEngine(input));
+      const draft = buildDraft();
+      const engineInput = toEngineInput(sanitiseModelForEngine(draft));
+      if (onDraft) onDraft(draft);
       if (onComplete) {
         // Route directly to the simulator dashboard without stopping at LiveHubPage.
         onComplete(engineInput);
@@ -727,6 +746,9 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
       setMode('hub');
       return;
     }
+    // Autosave draft on every step transition so partial survey state survives
+    // page refresh / navigate-away / save-reload.
+    if (onDraft) onDraft(buildDraft());
     setCurrentStep(STEPS[stepIndex + 1]);
   };
 
@@ -778,6 +800,7 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
           <div className="progress-fill" style={{ width: `${progress}%` }} />
         </div>
         <span className="step-label">Step {stepIndex + 1} of {STEPS.length}</span>
+        <ExplainersOverlay contextExplainerIds={[]} />
       </div>
 
       {/* Live physics overlay — shown on steps that have a step key mapping */}

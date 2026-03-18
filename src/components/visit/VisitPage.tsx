@@ -22,8 +22,14 @@ import { getVisit, saveVisit, visitStatusLabel, visitDisplayLabel, type VisitMet
 import VisitReportsList from './VisitReportsList';
 import './VisitPage.css';
 
-/** Save state for the autosave indicator. */
-export type SaveState = 'idle' | 'saving' | 'saved' | 'failed';
+/**
+ * Save state for the autosave indicator.
+ *
+ * State machine:
+ *   idle → saving → saved (auto-resets to idle)
+ *                 → failed → retrying → saved / failed
+ */
+export type SaveState = 'idle' | 'saving' | 'saved' | 'failed' | 'retrying';
 
 interface Props {
   visitId: string;
@@ -42,20 +48,38 @@ const SAVED_RESET_DELAY_MS = 4000;
 
 // ─── Save-state indicator ────────────────────────────────────────────────────
 
-function SaveStateIndicator({ state }: { state: SaveState }) {
+interface SaveStateIndicatorProps {
+  state: SaveState;
+  onRetry: () => void;
+}
+
+function SaveStateIndicator({ state, onRetry }: SaveStateIndicatorProps) {
   if (state === 'idle') return null;
+
+  const isBusy = state === 'saving' || state === 'retrying';
   const label =
-    state === 'saving' ? '⏳ Saving…'
-    : state === 'saved'  ? '✓ Saved just now'
+    state === 'saving'   ? '⏳ Saving…'
+    : state === 'retrying' ? '⏳ Retrying…'
+    : state === 'saved'    ? '✓ Saved just now'
     : '⚠ Save failed';
+
   return (
     <div
       className={`visit-save-indicator visit-save-indicator--${state}`}
       role="status"
       aria-live="polite"
-      aria-label={label}
     >
-      {label}
+      <span aria-label={label}>{label}</span>
+      {state === 'failed' && (
+        <button
+          className="visit-save-indicator__retry-btn"
+          onClick={onRetry}
+          disabled={isBusy}
+          aria-label="Retry save"
+        >
+          Retry
+        </button>
+      )}
     </div>
   );
 }
@@ -67,6 +91,7 @@ interface CaseSummaryProps {
   meta: VisitMeta | null;
   saveState: SaveState;
   onBack: () => void;
+  onRetrySave: () => void;
 }
 
 function formatShortDate(iso: string): string {
@@ -78,7 +103,7 @@ function formatShortDate(iso: string): string {
 }
 
 /** Renders the compact case-shell header shown at the top of every visit. */
-function VisitCaseSummary({ visitId, meta, saveState, onBack }: CaseSummaryProps) {
+function VisitCaseSummary({ visitId, meta, saveState, onBack, onRetrySave }: CaseSummaryProps) {
   const shortId = visitId.slice(-8).toUpperCase();
   const displayLabel = meta ? visitDisplayLabel(meta) : `Visit ···${shortId}`;
   const showIdBelow = meta?.visit_reference != null;
@@ -134,7 +159,7 @@ function VisitCaseSummary({ visitId, meta, saveState, onBack }: CaseSummaryProps
         )}
       </div>
 
-      <SaveStateIndicator state={saveState} />
+      <SaveStateIndicator state={saveState} onRetry={onRetrySave} />
     </div>
   );
 }
@@ -153,6 +178,17 @@ export default function VisitPage({
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * Canonical payload ref — always holds the most recent raw FullSurveyModelV1
+   * draft so that retry can re-submit the latest in-memory state even if a
+   * closure captured an earlier value.
+   */
+  const lastDraftRef = useRef<FullSurveyModelV1 | null>(null);
+  /**
+   * Whether we are saving at survey completion (marks status as
+   * recommendation_ready) vs a mid-survey draft save.
+   */
+  const isCompleteRef = useRef(false);
 
   // Load existing working payload and visit metadata from the API on mount.
   useEffect(() => {
@@ -164,6 +200,8 @@ export default function VisitPage({
         const { working_payload, ...meta } = visit;
         setVisitMeta(meta);
         // Restore survey state from persisted working payload.
+        // working_payload is stored as FullSurveyModelV1 (including fullSurvey)
+        // so all Step 5 dhwCondition fields are preserved.
         if (working_payload && Object.keys(working_payload).length > 0) {
           setPrefill(working_payload as Partial<FullSurveyModelV1>);
         }
@@ -185,38 +223,96 @@ export default function VisitPage({
     };
   }, [visitId]);
 
+  /** Shared persist function — always reads from lastDraftRef so retries use the latest value. */
+  const persist = useCallback(
+    (isComplete: boolean) => {
+      const draft = lastDraftRef.current;
+      if (!draft) {
+        // No draft available — bail and surface a failure so the indicator
+        // doesn't get stuck in 'saving' or 'retrying'.
+        setSaveState('failed');
+        return;
+      }
+      // Save raw FullSurveyModelV1 (including fullSurvey.dhwCondition) so that
+      // all Step 5 fields survive reload.
+      saveVisit(visitId, {
+        working_payload: draft as unknown as Record<string, unknown>,
+        ...(isComplete
+          ? { current_step: 'complete', status: 'recommendation_ready' }
+          : {}),
+      })
+        .then(() => {
+          setSaveState('saved');
+          if (isComplete) {
+            setVisitMeta(prev =>
+              prev ? { ...prev, status: 'recommendation_ready', current_step: 'complete' } : prev
+            );
+          }
+          savedResetTimer.current = setTimeout(() => {
+            setSaveState('idle');
+          }, SAVED_RESET_DELAY_MS);
+        })
+        .catch(() => {
+          setSaveState('failed');
+        });
+    },
+    [visitId]
+  );
+
   /**
-   * Debounced autosave — called when the survey completes.
-   * Shows save-state feedback to the user.
+   * Retry handler — re-submits the latest canonical draft with real API call.
+   * Uses a ref for the busy-guard so the guard reads fresh state even when the
+   * callback reference hasn't changed.
    */
-  const handleComplete = useCallback(
-    (engineInput: EngineInputV2_3) => {
+  const saveStateRef = useRef<SaveState>('idle');
+  useEffect(() => {
+    saveStateRef.current = saveState;
+  }, [saveState]);
+
+  const handleRetrySave = useCallback(() => {
+    if (saveStateRef.current === 'saving' || saveStateRef.current === 'retrying') return;
+    setSaveState('retrying');
+    persist(isCompleteRef.current);
+  }, [persist]);
+
+  /**
+   * onDraft — called by FullSurveyStepper on every step transition.
+   * Debounce-saves the raw FullSurveyModelV1 including fullSurvey extras.
+   */
+  const handleDraft = useCallback(
+    (draft: FullSurveyModelV1) => {
+      lastDraftRef.current = draft;
+      isCompleteRef.current = false;
       if (saveTimer.current !== null) clearTimeout(saveTimer.current);
       if (savedResetTimer.current !== null) clearTimeout(savedResetTimer.current);
 
       setSaveState('saving');
       saveTimer.current = setTimeout(() => {
-        saveVisit(visitId, {
-          working_payload: engineInput as unknown as Record<string, unknown>,
-          current_step: 'complete',
-          status: 'recommendation_ready',
-        })
-          .then(() => {
-            setSaveState('saved');
-            setVisitMeta(prev =>
-              prev ? { ...prev, status: 'recommendation_ready', current_step: 'complete' } : prev
-            );
-            savedResetTimer.current = setTimeout(() => {
-              setSaveState('idle');
-            }, SAVED_RESET_DELAY_MS);
-          })
-          .catch(() => {
-            setSaveState('failed');
-          });
+        persist(false);
+      }, AUTOSAVE_DELAY_MS);
+    },
+    [persist]
+  );
+
+  /**
+   * onComplete — called by FullSurveyStepper when the survey finishes.
+   * Saves the raw model (for future reload) and passes the engine input
+   * to the parent for routing to the simulator.
+   */
+  const handleComplete = useCallback(
+    (engineInput: EngineInputV2_3) => {
+      // lastDraftRef.current was set by handleDraft in the same next() call.
+      isCompleteRef.current = true;
+      if (saveTimer.current !== null) clearTimeout(saveTimer.current);
+      if (savedResetTimer.current !== null) clearTimeout(savedResetTimer.current);
+
+      setSaveState('saving');
+      saveTimer.current = setTimeout(() => {
+        persist(true);
       }, AUTOSAVE_DELAY_MS);
       onComplete(engineInput);
     },
-    [visitId, onComplete]
+    [persist, onComplete]
   );
 
   if (!ready) {
@@ -245,11 +341,13 @@ export default function VisitPage({
         meta={visitMeta}
         saveState={saveState}
         onBack={onBack}
+        onRetrySave={handleRetrySave}
       />
       <FullSurveyStepper
         onBack={onBack}
         prefill={prefill}
         onComplete={handleComplete}
+        onDraft={handleDraft}
         onOpenFloorPlan={onOpenFloorPlan}
       />
       <VisitReportsList visitId={visitId} onOpenReport={onOpenReport} />

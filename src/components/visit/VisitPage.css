@@ -144,6 +144,9 @@
 /* ── Save-state chip ─────────────────────────────────────────────────────── */
 
 .visit-save-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   font-size: 0.78rem;
   font-weight: 600;
   padding: 0.2rem 0.65rem;
@@ -153,7 +156,8 @@
   flex-shrink: 0;
 }
 
-.visit-save-indicator--saving {
+.visit-save-indicator--saving,
+.visit-save-indicator--retrying {
   background: #2d3748;
   color: #a0aec0;
   border: 1px solid #4a5568;
@@ -169,6 +173,27 @@
   background: #742a2a;
   color: #fed7d7;
   border: 1px solid #9b2c2c;
+}
+
+.visit-save-indicator__retry-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  transition: background 0.15s;
+}
+
+.visit-save-indicator__retry-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.visit-save-indicator__retry-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ── Deprecated: .visit-page__id no longer used ──────────────────────────── */

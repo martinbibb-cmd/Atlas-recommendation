@@ -58,7 +58,7 @@
 .sim-panel__body {
   flex: 1;
   overflow: hidden;
-  padding: 10px 12px;
+  padding: 12px 14px;
   min-height: 0;
 }
 
@@ -297,37 +297,83 @@
 
 /* ── Floors ────────────────────────────────────────────────────────────────── */
 
-.house-floor {
-  border-radius: 10px;
-  padding: 7px 10px;
+/* House schematic wrapper — gives floors a house-section visual context */
+.house-schematic {
+  display: flex;
+  flex-direction: column;
+  border-radius: 0 0 10px 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1.5px solid #cbd5e0;
   flex: 1;
   min-height: 0;
 }
 
-/* Loft — cool purple, more compact */
+/* Roof peak — simple triangular peak above loft */
+.house-schematic__roof {
+  background: #4a5568;
+  padding: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+  height: 14px;
+  position: relative;
+}
+
+.house-schematic__roof-peak {
+  width: 0;
+  height: 0;
+  border-left: 50px solid transparent;
+  border-right: 50px solid transparent;
+  border-bottom: 14px solid #4a5568;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 0;
+}
+
+/* House body — contains all inside floors */
+.house-schematic__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: #f7fafc;
+}
+
+.house-floor {
+  padding: 7px 10px;
+  flex: 1;
+  min-height: 40px;
+}
+
+/* Divider between floors */
+.house-floor--has-divider {
+  border-bottom: 2px solid rgba(0, 0, 0, 0.07);
+}
+
+/* Loft — cool purple, more compact; border removed (now inside house-schematic) */
 .house-floor--loft {
   background: linear-gradient(135deg, #faf5ff 0%, #e9d8fd 100%);
-  border: 1px solid #b794f4;
   flex: 0.55;
 }
 
 /* First floor — blue */
 .house-floor--first {
   background: linear-gradient(135deg, #ebf8ff 0%, #bee3f8 100%);
-  border: 1px solid #63b3ed;
 }
 
 /* Ground floor — warm green */
 .house-floor--ground {
   background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
-  border: 1px solid #68d391;
 }
 
-/* Outside / external — dashed, lighter */
+/* Outside / external — dashed, lighter; sits outside house-schematic */
 .house-floor--outside {
   background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
   border: 1px dashed #a0aec0;
+  border-radius: 8px;
   flex: 0.4;
+  margin-top: 4px;
 }
 
 .house-floor__label {

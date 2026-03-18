@@ -608,6 +608,12 @@
   flex-direction: column;
 }
 
+/* Inactive / cold state — dims the whole card */
+.draw-off-card--inactive {
+  opacity: 0.6;
+  background: #f7fafc;
+}
+
 /* ── Header ──────────────────────────────────────────────────────────────── */
 
 .draw-off-card__header {
@@ -640,6 +646,16 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
+}
+
+.draw-off-card__chip--inactive {
+  background: #edf2f7;
+  color: #718096;
+}
+
+.draw-off-card__chip--cold {
+  background: #ebf8ff;
+  color: #2c5282;
 }
 
 .draw-off-card__chip--stable {
@@ -706,6 +722,13 @@
   font-weight: 400;
   color: #718096;
   margin-left: 2px;
+}
+
+.draw-off-card__row-na {
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: #a0aec0;
+  font-style: italic;
 }
 
 /* ── Behavioural note ────────────────────────────────────────────────────── */
