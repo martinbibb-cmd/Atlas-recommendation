@@ -65,14 +65,6 @@
   gap: 0.3rem;
 }
 
-.visit-hub__address {
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: #f7fafc;
-  line-height: 1.2;
-  word-break: break-word;
-}
-
 .visit-hub__customer {
   font-size: 0.9rem;
   color: #a0aec0;
@@ -137,6 +129,101 @@
 .visit-hub__updated {
   font-size: 0.78rem;
   color: #718096;
+}
+
+/* ── Visit reference inline edit ────────────────────────────────────────── */
+
+.visit-hub__visit-id {
+  font-size: 0.78rem;
+  color: #718096;
+  font-family: monospace;
+  letter-spacing: 0.04em;
+}
+
+.visit-hub__address {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #f7fafc;
+  line-height: 1.2;
+  word-break: break-word;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.visit-hub__ref-edit-btn {
+  background: transparent;
+  border: 1px solid #4a5568;
+  color: #718096;
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.visit-hub__ref-edit-btn:hover {
+  background: #2d3748;
+  color: #e2e8f0;
+}
+
+.visit-hub__ref-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.visit-hub__ref-input {
+  background: #2d3748;
+  border: 1px solid #4a5568;
+  color: #f7fafc;
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  font-size: 1rem;
+  font-weight: 600;
+  min-width: 160px;
+  outline: none;
+}
+
+.visit-hub__ref-input:focus {
+  border-color: #63b3ed;
+}
+
+.visit-hub__ref-input::placeholder {
+  color: #718096;
+  font-weight: 400;
+}
+
+.visit-hub__ref-save-btn,
+.visit-hub__ref-cancel-btn {
+  background: transparent;
+  border: 1px solid #4a5568;
+  color: #a0aec0;
+  border-radius: 6px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.visit-hub__ref-save-btn {
+  border-color: #2b6cb0;
+  color: #bee3f8;
+}
+
+.visit-hub__ref-save-btn:hover {
+  background: #2b6cb0;
+  color: #fff;
+}
+
+.visit-hub__ref-cancel-btn:hover {
+  background: #2d3748;
+  color: #e2e8f0;
 }
 
 /* ── Body ────────────────────────────────────────────────────────────────── */

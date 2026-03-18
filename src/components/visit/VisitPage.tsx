@@ -18,7 +18,7 @@ import FullSurveyStepper from '../stepper/FullSurveyStepper';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
-import { getVisit, saveVisit, visitStatusLabel, type VisitMeta } from '../../lib/visits/visitApi';
+import { getVisit, saveVisit, visitStatusLabel, visitDisplayLabel, type VisitMeta } from '../../lib/visits/visitApi';
 import VisitReportsList from './VisitReportsList';
 import './VisitPage.css';
 
@@ -80,6 +80,8 @@ function formatShortDate(iso: string): string {
 /** Renders the compact case-shell header shown at the top of every visit. */
 function VisitCaseSummary({ visitId, meta, saveState, onBack }: CaseSummaryProps) {
   const shortId = visitId.slice(-8).toUpperCase();
+  const displayLabel = meta ? visitDisplayLabel(meta) : `Visit ···${shortId}`;
+  const showIdBelow = meta?.visit_reference != null;
 
   return (
     <div className="visit-page__header" aria-label="Visit case summary">
@@ -95,10 +97,20 @@ function VisitCaseSummary({ visitId, meta, saveState, onBack }: CaseSummaryProps
         <span
           className="visit-case-summary__id"
           title={`Visit ID: ${visitId}`}
-          aria-label={`Visit ID ending ${shortId}`}
+          aria-label={showIdBelow ? displayLabel : `Visit ID ending ${shortId}`}
         >
-          Visit ···{shortId}
+          {displayLabel}
         </span>
+
+        {showIdBelow && (
+          <span
+            className="visit-case-summary__visit-ref"
+            title={`Visit ID: ${visitId}`}
+            aria-label={`Visit ID ending ${shortId}`}
+          >
+            Visit ···{shortId}
+          </span>
+        )}
 
         {meta && (
           <>

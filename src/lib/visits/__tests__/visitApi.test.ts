@@ -11,6 +11,7 @@ import {
   getVisit,
   saveVisit,
   visitStatusLabel,
+  visitDisplayLabel,
   matchesFilter,
   isSurveyComplete,
   type VisitMeta,
@@ -152,6 +153,50 @@ describe('visitApi', () => {
     });
   });
 
+  // ── visitDisplayLabel ────────────────────────────────────────────────────────
+
+  describe('visitDisplayLabel', () => {
+    function makeVisitMeta(overrides: Partial<VisitMeta> = {}): VisitMeta {
+      return {
+        id: 'abcdef12-3456-7890-abcd-ef1234567890',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        status: 'new',
+        customer_name: null,
+        address_line_1: null,
+        postcode: null,
+        current_step: null,
+        visit_reference: null,
+        ...overrides,
+      };
+    }
+
+    it('returns visit_reference when present (highest priority)', () => {
+      const v = makeVisitMeta({ visit_reference: 'Leaf 12345', address_line_1: '10 Downing St', customer_name: 'A User' });
+      expect(visitDisplayLabel(v)).toBe('Leaf 12345');
+    });
+
+    it('returns address_line_1 when no visit_reference', () => {
+      const v = makeVisitMeta({ address_line_1: '10 Downing St', postcode: 'SW1A 2AA', customer_name: 'A User' });
+      expect(visitDisplayLabel(v)).toBe('10 Downing St');
+    });
+
+    it('returns postcode when no visit_reference or address_line_1', () => {
+      const v = makeVisitMeta({ postcode: 'SW1A 2AA', customer_name: 'A User' });
+      expect(visitDisplayLabel(v)).toBe('SW1A 2AA');
+    });
+
+    it('returns customer_name when only name is available', () => {
+      const v = makeVisitMeta({ customer_name: 'Jane Smith' });
+      expect(visitDisplayLabel(v)).toBe('Jane Smith');
+    });
+
+    it('falls back to truncated visit id when no identifying data', () => {
+      const v = makeVisitMeta();
+      expect(visitDisplayLabel(v)).toBe('Visit 34567890');
+    });
+  });
+
   // ── matchesFilter ────────────────────────────────────────────────────────────
 
   describe('matchesFilter', () => {
@@ -197,6 +242,7 @@ describe('visitApi', () => {
         address_line_1: null,
         postcode: null,
         current_step,
+        visit_reference: null,
       };
     }
 
