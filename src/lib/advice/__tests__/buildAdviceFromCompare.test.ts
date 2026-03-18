@@ -410,7 +410,9 @@ describe('buildAdviceFromCompare — confidencePct and efficiencyScore', () => {
     const seed = makeCompareSeed({
       right: { systemChoice: 'combi', systemInputs: {} },
     });
-    const result = buildAdviceFromCompare(makeInput({ compareSeed: seed }));
+    // Primary option is combi — opt-derived system choice must drive the summary.
+    const output = makeEngineOutput([makeOption('combi', 'viable')]);
+    const result = buildAdviceFromCompare(makeInput({ compareSeed: seed, engineOutput: output }));
     expect(result.bestOverall.performanceSummary!.optimisationPotential).toBe('limited');
   });
 
@@ -418,7 +420,9 @@ describe('buildAdviceFromCompare — confidencePct and efficiencyScore', () => {
     const seed = makeCompareSeed({
       right: { systemChoice: 'unvented', systemInputs: {} },
     });
-    const result = buildAdviceFromCompare(makeInput({ compareSeed: seed }));
+    // Primary option is stored_unvented — must show stored-cylinder characteristics.
+    const output = makeEngineOutput([makeOption('stored_unvented', 'viable')]);
+    const result = buildAdviceFromCompare(makeInput({ compareSeed: seed, engineOutput: output }));
     expect(result.bestOverall.performanceSummary!.optimisationPotential).toBe('moderate');
   });
 
@@ -426,12 +430,104 @@ describe('buildAdviceFromCompare — confidencePct and efficiencyScore', () => {
     const seed = makeCompareSeed({
       right: { systemChoice: 'open_vented', systemInputs: {} },
     });
-    const result = buildAdviceFromCompare(makeInput({ compareSeed: seed }));
+    // Primary option is stored_vented — must show stored-cylinder characteristics.
+    const output = makeEngineOutput([makeOption('stored_vented', 'viable')]);
+    const result = buildAdviceFromCompare(makeInput({ compareSeed: seed, engineOutput: output }));
     expect(result.bestOverall.performanceSummary!.optimisationPotential).toBe('moderate');
   });
 });
 
-// ─── Installation recipe ──────────────────────────────────────────────────────
+// ─── System-specific performance physics in byObjective cards ─────────────────
+
+describe('buildAdviceFromCompare — byObjective system-specific physics', () => {
+  it('lowestRunningCost card uses electric/COP physics when ashp option is available', () => {
+    const options = [
+      makeOption('ashp', 'viable'),
+      makeOption('combi', 'viable'),
+      makeOption('stored_unvented', 'viable'),
+    ];
+    const output = makeEngineOutput(options);
+    const result = buildAdviceFromCompare(makeInput({ engineOutput: output }));
+    const ps = result.byObjective.lowestRunningCost.performanceSummary!;
+    // ASHP: COP > 1, so output > input (electric)
+    expect(ps.energyConversion.outputKwh).toBeGreaterThan(1);
+    // Carbon should be lower than a gas boiler (grid mix / COP)
+    expect(ps.carbonPerKwhHeat).toBeLessThan(0.21);
+  });
+
+  it('lowestInstallationCost card uses gas physics when combi option is preferred', () => {
+    const options = [
+      makeOption('ashp', 'viable'),
+      makeOption('combi', 'viable'),
+      makeOption('stored_unvented', 'viable'),
+    ];
+    const output = makeEngineOutput(options);
+    const result = buildAdviceFromCompare(makeInput({ engineOutput: output }));
+    const ps = result.byObjective.lowestInstallationCost.performanceSummary!;
+    // Combi: gas, efficiency < 1
+    expect(ps.energyConversion.outputKwh).toBeLessThan(1.5);
+    // Combi optimisationPotential is always 'limited'
+    expect(ps.optimisationPotential).toBe('limited');
+  });
+
+  it('lowestCarbonPointOfUse card uses electric/COP physics when ashp is the carbon option', () => {
+    const options = [
+      makeOption('ashp', 'viable'),
+      makeOption('combi', 'viable'),
+    ];
+    const output = makeEngineOutput(options);
+    const result = buildAdviceFromCompare(makeInput({ engineOutput: output }));
+    const ps = result.byObjective.lowestCarbonPointOfUse.performanceSummary!;
+    expect(ps.energyConversion.outputKwh).toBeGreaterThan(1);
+    expect(ps.localGenerationImpact).toBe('high');
+  });
+
+  it('byObjective cards never show efficiencyBand "optimal" — only bestOverall may', () => {
+    const options = [
+      makeOption('ashp', 'viable'),
+      makeOption('combi', 'viable'),
+      makeOption('stored_unvented', 'viable'),
+    ];
+    const output = makeEngineOutput(options);
+    const seed = makeCompareSeed({
+      right: { systemChoice: 'unvented', systemInputs: { weatherCompensation: true, systemCondition: 'clean', emitterCapacityFactor: 1.2 } },
+    });
+    const result = buildAdviceFromCompare(makeInput({ compareSeed: seed, engineOutput: output }));
+    // No byObjective card may have 'optimal' — that label is reserved for bestOverall.
+    for (const card of Object.values(result.byObjective)) {
+      const band = card.performanceSummary?.efficiencyBand;
+      if (band !== undefined) {
+        expect(band).not.toBe('optimal');
+      }
+    }
+  });
+
+  it('combi byObjective card never shows efficiencyBand "optimal"', () => {
+    const options = [makeOption('combi', 'viable')];
+    const output = makeEngineOutput(options);
+    const seed = makeCompareSeed({
+      right: { systemChoice: 'combi', systemInputs: { weatherCompensation: true, loadCompensation: true, systemCondition: 'clean', emitterCapacityFactor: 1.5 } },
+    });
+    const result = buildAdviceFromCompare(makeInput({ compareSeed: seed, engineOutput: output }));
+    // Even with optimal conditions on proposed, combi is capped at 'average'.
+    expect(result.bestOverall.performanceSummary!.efficiencyBand).not.toBe('optimal');
+  });
+
+  it('heat pump card shows "electric" fuel via fuelLabelFromCop logic (COP > 1.5)', () => {
+    const options = [makeOption('ashp', 'viable')];
+    const output = makeEngineOutput(options);
+    const result = buildAdviceFromCompare(makeInput({ engineOutput: output }));
+    const ps = result.byObjective.lowestRunningCost.performanceSummary!;
+    // COP of 3.0 >> MIN_HEAT_PUMP_COP (1.5), so the UI's fuelLabelFromCop() will
+    // resolve to 'electric' — verify the outputKwh drives that classification.
+    expect(ps.energyConversion.outputKwh).toBeGreaterThan(1.5);
+    // The conversion label should reference electricity, not gas.
+    expect(ps.energyConversion.label).not.toContain('gas');
+    expect(ps.energyConversion.label.toLowerCase()).toMatch(/kwh\s*→/);
+  });
+});
+
+
 
 describe('buildAdviceFromCompare — installation recipe', () => {
   it('heatSource reflects the primary option', () => {
