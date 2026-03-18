@@ -338,7 +338,54 @@ describe('DecisionSynthesisPage — Physics Story Mode button', () => {
   });
 });
 
-// ─── DHW educational explainers ───────────────────────────────────────────────
+// ─── Explainers overlay ───────────────────────────────────────────────────────
+
+describe('DecisionSynthesisPage — Explainers launcher', () => {
+  it('renders the Explainers launcher button', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(screen.getByRole('button', { name: /open explainers/i })).toBeTruthy();
+  });
+
+  it('launcher button has aria-expanded="false" by default', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    const btn = screen.getByRole('button', { name: /open explainers/i });
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('clicking the launcher opens the explainers overlay', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+    expect(document.querySelector('[data-testid="explainers-overlay"]')).not.toBeNull();
+  });
+
+  it('overlay has role="dialog" and aria-modal="true"', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+    const dialog = document.querySelector('[data-testid="explainers-overlay"]');
+    expect(dialog?.getAttribute('role')).toBe('dialog');
+    expect(dialog?.getAttribute('aria-modal')).toBe('true');
+  });
+
+  it('overlay is not in the DOM before the launcher is clicked', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(document.querySelector('[data-testid="explainers-overlay"]')).toBeNull();
+  });
+
+  it('clicking the close button dismisses the overlay', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+    fireEvent.click(screen.getByRole('button', { name: /close explainers/i }));
+    expect(document.querySelector('[data-testid="explainers-overlay"]')).toBeNull();
+  });
+
+  it('the full explainer library is accessible from "More explainers" section', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+    expect(document.querySelector('[data-testid="explainers-library-section"]')).not.toBeNull();
+  });
+});
+
+// ─── DHW educational explainers (via overlay) ─────────────────────────────────
 
 describe('DecisionSynthesisPage — DHW educational explainers', () => {
   const withExplainers = (...ids: string[]): EngineOutputV1 => ({
@@ -346,59 +393,77 @@ describe('DecisionSynthesisPage — DHW educational explainers', () => {
     explainers: ids.map(id => ({ id, title: `${id} title`, body: `${id} body` })),
   });
 
-  it('does not show DHW explainers section when no stored-DHW explainers are present', () => {
+  function openOverlay(output: EngineOutputV1) {
+    render(<DecisionSynthesisPage engineOutput={output} />);
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+  }
+
+  it('does not show "For this recommendation" section when no stored-DHW explainers are present', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(document.querySelector('[data-testid="dhw-explainers-section"]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+    expect(document.querySelector('[data-testid="explainers-context-section"]')).toBeNull();
   });
 
-  it('shows the DHW explainers section when stored-mixergy-suggested is present', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-mixergy-suggested')} />);
-    expect(document.querySelector('[data-testid="dhw-explainers-section"]')).not.toBeNull();
+  it('shows "For this recommendation" section when stored-mixergy-suggested is present', () => {
+    openOverlay(withExplainers('stored-mixergy-suggested'));
+    expect(document.querySelector('[data-testid="explainers-context-section"]')).not.toBeNull();
   });
 
-  it('shows the DHW explainers section when stored-cylinder-condition is present', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-cylinder-condition')} />);
-    expect(document.querySelector('[data-testid="dhw-explainers-section"]')).not.toBeNull();
+  it('shows "For this recommendation" section when stored-cylinder-condition is present', () => {
+    openOverlay(withExplainers('stored-cylinder-condition'));
+    expect(document.querySelector('[data-testid="explainers-context-section"]')).not.toBeNull();
   });
 
-  it('always shows on-demand vs stored explainer when the DHW section is visible', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-mixergy-suggested')} />);
-    expect(document.querySelector('[data-testid="advice-explainer-on-demand-vs-stored"]')).not.toBeNull();
+  it('shows on_demand_vs_stored menu item when stored-mixergy-suggested is present', () => {
+    openOverlay(withExplainers('stored-mixergy-suggested'));
+    expect(document.querySelector('[data-testid="explainers-menu-item-on_demand_vs_stored"]')).not.toBeNull();
   });
 
-  it('shows standard vs Mixergy explainer when stored-mixergy-suggested is present', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-mixergy-suggested')} />);
-    expect(document.querySelector('[data-testid="advice-explainer-standard-vs-mixergy"]')).not.toBeNull();
+  it('shows standard_vs_mixergy menu item when stored-mixergy-suggested is present', () => {
+    openOverlay(withExplainers('stored-mixergy-suggested'));
+    expect(document.querySelector('[data-testid="explainers-menu-item-standard_vs_mixergy"]')).not.toBeNull();
   });
 
-  it('does not show standard vs Mixergy explainer when only cylinder-condition is present', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-cylinder-condition')} />);
-    expect(document.querySelector('[data-testid="advice-explainer-standard-vs-mixergy"]')).toBeNull();
+  it('does not show standard_vs_mixergy in context section when only cylinder-condition is present', () => {
+    openOverlay(withExplainers('stored-cylinder-condition'));
+    const contextSection = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(contextSection?.querySelector('[data-testid="explainers-menu-item-standard_vs_mixergy"]')).toBeNull();
   });
 
-  it('shows cylinder age/condition explainer when stored-cylinder-condition is present', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-cylinder-condition')} />);
-    expect(document.querySelector('[data-testid="advice-explainer-cylinder-age-condition"]')).not.toBeNull();
+  it('shows cylinder_age_condition menu item when stored-cylinder-condition is present', () => {
+    openOverlay(withExplainers('stored-cylinder-condition'));
+    expect(document.querySelector('[data-testid="explainers-menu-item-cylinder_age_condition"]')).not.toBeNull();
   });
 
-  it('does not show cylinder age/condition explainer when only mixergy-suggested is present', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-mixergy-suggested')} />);
-    expect(document.querySelector('[data-testid="advice-explainer-cylinder-age-condition"]')).toBeNull();
+  it('does not show cylinder_age_condition in context section when only mixergy-suggested is present', () => {
+    openOverlay(withExplainers('stored-mixergy-suggested'));
+    const contextSection = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(contextSection?.querySelector('[data-testid="explainers-menu-item-cylinder_age_condition"]')).toBeNull();
   });
 
-  it('shows both stored-DHW-specific explainers when both engine explainers are present', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-mixergy-suggested', 'stored-cylinder-condition')} />);
-    expect(document.querySelector('[data-testid="advice-explainer-standard-vs-mixergy"]')).not.toBeNull();
-    expect(document.querySelector('[data-testid="advice-explainer-cylinder-age-condition"]')).not.toBeNull();
+  it('shows both stored-DHW-specific items in context section when both engine explainers are present', () => {
+    openOverlay(withExplainers('stored-mixergy-suggested', 'stored-cylinder-condition'));
+    const contextSection = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(contextSection?.querySelector('[data-testid="explainers-menu-item-standard_vs_mixergy"]')).not.toBeNull();
+    expect(contextSection?.querySelector('[data-testid="explainers-menu-item-cylinder_age_condition"]')).not.toBeNull();
   });
 
-  it('renders "Hot water context" heading when section is visible', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('stored-mixergy-suggested')} />);
-    expect(screen.getByText(/hot water context/i)).toBeTruthy();
+  it('clicking a menu item opens the explainer viewer modal', () => {
+    openOverlay(withExplainers('stored-mixergy-suggested'));
+    fireEvent.click(document.querySelector('[data-testid="explainers-menu-item-on_demand_vs_stored"]')!);
+    expect(document.querySelector('[data-testid="explainers-modal"]')).not.toBeNull();
+  });
+
+  it('back button in viewer returns to the menu', () => {
+    openOverlay(withExplainers('stored-mixergy-suggested'));
+    fireEvent.click(document.querySelector('[data-testid="explainers-menu-item-on_demand_vs_stored"]')!);
+    fireEvent.click(screen.getByRole('button', { name: /back to explainer list/i }));
+    expect(document.querySelector('[data-testid="explainers-menu"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="explainers-modal"]')).toBeNull();
   });
 });
 
-// ─── Primary circuit / heat pump explainers ───────────────────────────────────
+// ─── Primary circuit / heat pump explainers (via overlay) ─────────────────────
 
 describe('DecisionSynthesisPage — primary circuit explainers', () => {
   const withExplainers = (...ids: string[]): EngineOutputV1 => ({
@@ -406,33 +471,32 @@ describe('DecisionSynthesisPage — primary circuit explainers', () => {
     explainers: ids.map(id => ({ id, title: `${id} title`, body: `${id} body` })),
   });
 
-  it('does not show primary circuit section when hydraulic-ashp-flow is absent', () => {
+  function openOverlay(output: EngineOutputV1) {
+    render(<DecisionSynthesisPage engineOutput={output} />);
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+  }
+
+  it('does not show pipe_capacity in context section when hydraulic-ashp-flow is absent', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(document.querySelector('[data-testid="ashp-explainers-section"]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+    const ctx = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-pipe_capacity"]') ?? null).toBeNull();
   });
 
-  it('shows primary circuit section when hydraulic-ashp-flow is present', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('hydraulic-ashp-flow')} />);
-    expect(document.querySelector('[data-testid="ashp-explainers-section"]')).not.toBeNull();
+  it('shows pipe_capacity in context section when hydraulic-ashp-flow is present', () => {
+    openOverlay(withExplainers('hydraulic-ashp-flow'));
+    const ctx = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-pipe_capacity"]')).not.toBeNull();
   });
 
-  it('shows pipe_capacity explainer when primary circuit section is visible', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('hydraulic-ashp-flow')} />);
-    expect(document.querySelector('[data-testid="advice-explainer-pipe-capacity"]')).not.toBeNull();
-  });
-
-  it('shows heat_pump_flow_temp explainer when primary circuit section is visible', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('hydraulic-ashp-flow')} />);
-    expect(document.querySelector('[data-testid="advice-explainer-heat-pump-flow-temp"]')).not.toBeNull();
-  });
-
-  it('renders "Primary circuit context" heading when section is visible', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('hydraulic-ashp-flow')} />);
-    expect(screen.getByText(/primary circuit context/i)).toBeTruthy();
+  it('shows heat_pump_flow_temp in context section when hydraulic-ashp-flow is present', () => {
+    openOverlay(withExplainers('hydraulic-ashp-flow'));
+    const ctx = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-heat_pump_flow_temp"]')).not.toBeNull();
   });
 });
 
-// ─── Condensing efficiency explainers ─────────────────────────────────────────
+// ─── Condensing efficiency explainers (via overlay) ───────────────────────────
 
 describe('DecisionSynthesisPage — condensing efficiency explainers', () => {
   const withExplainers = (...ids: string[]): EngineOutputV1 => ({
@@ -440,33 +504,32 @@ describe('DecisionSynthesisPage — condensing efficiency explainers', () => {
     explainers: ids.map(id => ({ id, title: `${id} title`, body: `${id} body` })),
   });
 
-  it('does not show condensing section when condensing-compromised is absent', () => {
+  function openOverlay(output: EngineOutputV1) {
+    render(<DecisionSynthesisPage engineOutput={output} />);
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+  }
+
+  it('does not show condensing items in context section when condensing-compromised is absent', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(document.querySelector('[data-testid="condensing-explainers-section"]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+    const ctx = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-condensing_return_temp"]') ?? null).toBeNull();
   });
 
-  it('shows condensing section when condensing-compromised is present', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('condensing-compromised')} />);
-    expect(document.querySelector('[data-testid="condensing-explainers-section"]')).not.toBeNull();
+  it('shows condensing_return_temp in context section when condensing-compromised is present', () => {
+    openOverlay(withExplainers('condensing-compromised'));
+    const ctx = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-condensing_return_temp"]')).not.toBeNull();
   });
 
-  it('shows condensing_return_temp explainer when condensing section is visible', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('condensing-compromised')} />);
-    expect(document.querySelector('[data-testid="advice-explainer-condensing-return-temp"]')).not.toBeNull();
-  });
-
-  it('shows cycling_efficiency explainer when condensing section is visible', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('condensing-compromised')} />);
-    expect(document.querySelector('[data-testid="advice-explainer-cycling-efficiency"]')).not.toBeNull();
-  });
-
-  it('renders "Condensing efficiency context" heading when section is visible', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('condensing-compromised')} />);
-    expect(screen.getByText(/condensing efficiency context/i)).toBeTruthy();
+  it('shows cycling_efficiency in context section when condensing-compromised is present', () => {
+    openOverlay(withExplainers('condensing-compromised'));
+    const ctx = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-cycling_efficiency"]')).not.toBeNull();
   });
 });
 
-// ─── Water quality explainers ─────────────────────────────────────────────────
+// ─── Water quality explainers (via overlay) ───────────────────────────────────
 
 describe('DecisionSynthesisPage — water quality explainers', () => {
   const withExplainers = (...ids: string[]): EngineOutputV1 => ({
@@ -474,28 +537,26 @@ describe('DecisionSynthesisPage — water quality explainers', () => {
     explainers: ids.map(id => ({ id, title: `${id} title`, body: `${id} body` })),
   });
 
-  it('does not show water quality section when water-hardness is absent', () => {
+  function openOverlay(output: EngineOutputV1) {
+    render(<DecisionSynthesisPage engineOutput={output} />);
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+  }
+
+  it('does not show water_quality_scale in context section when water-hardness is absent', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(document.querySelector('[data-testid="water-quality-explainers-section"]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+    const ctx = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-water_quality_scale"]') ?? null).toBeNull();
   });
 
-  it('shows water quality section when water-hardness is present', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('water-hardness')} />);
-    expect(document.querySelector('[data-testid="water-quality-explainers-section"]')).not.toBeNull();
-  });
-
-  it('shows water_quality_scale explainer when water quality section is visible', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('water-hardness')} />);
-    expect(document.querySelector('[data-testid="advice-explainer-water-quality-scale"]')).not.toBeNull();
-  });
-
-  it('renders "Water quality context" heading when section is visible', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('water-hardness')} />);
-    expect(screen.getByText(/water quality context/i)).toBeTruthy();
+  it('shows water_quality_scale in context section when water-hardness is present', () => {
+    openOverlay(withExplainers('water-hardness'));
+    const ctx = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-water_quality_scale"]')).not.toBeNull();
   });
 });
 
-// ─── Thermal mass explainers ──────────────────────────────────────────────────
+// ─── Thermal mass explainers (via overlay) ────────────────────────────────────
 
 describe('DecisionSynthesisPage — thermal mass explainers', () => {
   const withExplainers = (...ids: string[]): EngineOutputV1 => ({
@@ -503,28 +564,26 @@ describe('DecisionSynthesisPage — thermal mass explainers', () => {
     explainers: ids.map(id => ({ id, title: `${id} title`, body: `${id} body` })),
   });
 
-  it('does not show thermal mass section when thermal-mass-heavy is absent', () => {
+  function openOverlay(output: EngineOutputV1) {
+    render(<DecisionSynthesisPage engineOutput={output} />);
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+  }
+
+  it('does not show thermal_mass_inertia in context section when thermal-mass-heavy is absent', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(document.querySelector('[data-testid="thermal-mass-explainers-section"]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+    const ctx = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-thermal_mass_inertia"]') ?? null).toBeNull();
   });
 
-  it('shows thermal mass section when thermal-mass-heavy is present', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('thermal-mass-heavy')} />);
-    expect(document.querySelector('[data-testid="thermal-mass-explainers-section"]')).not.toBeNull();
-  });
-
-  it('shows thermal_mass_inertia explainer when thermal mass section is visible', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('thermal-mass-heavy')} />);
-    expect(document.querySelector('[data-testid="advice-explainer-thermal-mass-inertia"]')).not.toBeNull();
-  });
-
-  it('renders "Thermal mass context" heading when section is visible', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('thermal-mass-heavy')} />);
-    expect(screen.getByText(/thermal mass context/i)).toBeTruthy();
+  it('shows thermal_mass_inertia in context section when thermal-mass-heavy is present', () => {
+    openOverlay(withExplainers('thermal-mass-heavy'));
+    const ctx = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-thermal_mass_inertia"]')).not.toBeNull();
   });
 });
 
-// ─── Heating controls explainers ──────────────────────────────────────────────
+// ─── Heating controls explainers (via overlay) ────────────────────────────────
 
 describe('DecisionSynthesisPage — heating controls explainers', () => {
   const withExplainers = (...ids: string[]): EngineOutputV1 => ({
@@ -532,24 +591,22 @@ describe('DecisionSynthesisPage — heating controls explainers', () => {
     explainers: ids.map(id => ({ id, title: `${id} title`, body: `${id} body` })),
   });
 
-  it('does not show controls section when splan-confirmed is absent', () => {
+  function openOverlay(output: EngineOutputV1) {
+    render(<DecisionSynthesisPage engineOutput={output} />);
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+  }
+
+  it('does not show splan_vs_yplan in context section when splan-confirmed is absent', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(document.querySelector('[data-testid="controls-explainers-section"]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+    const ctx = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-splan_vs_yplan"]') ?? null).toBeNull();
   });
 
-  it('shows controls section when splan-confirmed is present', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('splan-confirmed')} />);
-    expect(document.querySelector('[data-testid="controls-explainers-section"]')).not.toBeNull();
-  });
-
-  it('shows splan_vs_yplan explainer when controls section is visible', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('splan-confirmed')} />);
-    expect(document.querySelector('[data-testid="advice-explainer-splan-vs-yplan"]')).not.toBeNull();
-  });
-
-  it('renders "Heating controls context" heading when section is visible', () => {
-    render(<DecisionSynthesisPage engineOutput={withExplainers('splan-confirmed')} />);
-    expect(screen.getByText(/heating controls context/i)).toBeTruthy();
+  it('shows splan_vs_yplan in context section when splan-confirmed is present', () => {
+    openOverlay(withExplainers('splan-confirmed'));
+    const ctx = document.querySelector('[data-testid="explainers-context-section"]');
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-splan_vs_yplan"]')).not.toBeNull();
   });
 });
 
