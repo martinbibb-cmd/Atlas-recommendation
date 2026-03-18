@@ -57,6 +57,26 @@ export const GEN_LEVEL_LABEL: Record<PerformanceSummary['localGenerationImpact']
   limited:  'Limited',
 };
 
+export const OPT_BAR_LEVEL: Record<PerformanceSummary['optimisationPotential'], 1 | 2 | 3> = {
+  high: 3, moderate: 2, limited: 1,
+};
+
+export const OPT_LEVEL_LABEL: Record<PerformanceSummary['optimisationPotential'], string> = {
+  high:     'High',
+  moderate: 'Moderate',
+  limited:  'Limited',
+};
+
+/**
+ * Short descriptor explaining the timing/storage strategy available for the system.
+ * Phrased as capability, not guaranteed outcome.
+ */
+export const OPT_STRATEGY_LABEL: Record<PerformanceSummary['optimisationPotential'], string> = {
+  high:     'Can run when energy is cheapest',
+  moderate: 'Can shift some usage',
+  limited:  'Runs on demand only',
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Returns a 1–3 bar fill level for running cost (1 = Lower, 3 = Higher). */

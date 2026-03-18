@@ -193,6 +193,8 @@ import {
   CARBON_LEVEL_LABEL,
   GEN_BAR_LEVEL,
   GEN_LEVEL_LABEL,
+  OPT_BAR_LEVEL,
+  OPT_STRATEGY_LABEL,
   costBarLevel,
   carbonBarLevel,
   fuelLabelFromCop,
@@ -232,6 +234,7 @@ function PerformancePanelUI({ summary }: { summary: PerformanceSummary }) {
   const costLevel   = costBarLevel(summary.costPerKwhHeat);
   const carbonLevel = carbonBarLevel(summary.carbonPerKwhHeat);
   const genLevel    = GEN_BAR_LEVEL[summary.localGenerationImpact];
+  const optLevel    = OPT_BAR_LEVEL[summary.optimisationPotential];
 
   return (
     <div className="advice-perf-panel" aria-label="Performance summary">
@@ -280,6 +283,11 @@ function PerformancePanelUI({ summary }: { summary: PerformanceSummary }) {
           icon="☀️"
           filledCount={genLevel}
           label={GEN_LEVEL_LABEL[summary.localGenerationImpact]}
+        />
+        <ComparatorRow
+          icon="🔄"
+          filledCount={optLevel}
+          label={OPT_STRATEGY_LABEL[summary.optimisationPotential]}
         />
       </div>
 

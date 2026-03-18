@@ -102,6 +102,15 @@ export interface PerformanceSummary {
    *   limited  — gas combi: solar does not directly offset gas consumption
    */
   localGenerationImpact: 'high' | 'moderate' | 'limited';
+  /**
+   * Potential to shift energy usage in time or store energy to reduce running cost.
+   * This captures whether the system can take advantage of time-of-use tariffs,
+   * off-peak electricity, or thermal/electrical storage.
+   *   high     — heat pump: can shift runtime, pre-heat structure or cylinder on off-peak tariff
+   *   moderate — stored cylinder (gas): smart immersion / solar thermal timing viable
+   *   limited  — combi boiler: runs on demand only, gas price cannot be shifted in time
+   */
+  optimisationPotential: 'high' | 'moderate' | 'limited';
 }
 
 // ─── AdviceCard ───────────────────────────────────────────────────────────────
@@ -384,6 +393,7 @@ function derivePerformanceSummary(
       costPerKwhHeat,
       carbonPerKwhHeat,
       localGenerationImpact: 'high',
+      optimisationPotential: 'high',
     };
   }
 
@@ -435,6 +445,7 @@ function derivePerformanceSummary(
     costPerKwhHeat,
     carbonPerKwhHeat,
     localGenerationImpact: hasStoredCylinder ? 'moderate' : 'limited',
+    optimisationPotential: hasStoredCylinder ? 'moderate' : 'limited',
   };
 }
 

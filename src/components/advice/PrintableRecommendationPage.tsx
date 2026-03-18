@@ -34,6 +34,8 @@ import {
   CARBON_LEVEL_LABEL as PRINT_CARBON_LABEL,
   GEN_BAR_LEVEL as PRINT_GEN_LEVEL,
   GEN_LEVEL_LABEL as PRINT_GEN_LABEL,
+  OPT_BAR_LEVEL as PRINT_OPT_LEVEL,
+  OPT_STRATEGY_LABEL as PRINT_OPT_STRATEGY_LABEL,
   costBarLevel as printCostBarLevel,
   carbonBarLevel as printCarbonBarLevel,
   fuelLabelFromCop,
@@ -71,6 +73,7 @@ function PerformancePanelPrint({ summary }: { summary: PerformanceSummary }) {
   const costLevel   = printCostBarLevel(summary.costPerKwhHeat);
   const carbonLevel = printCarbonBarLevel(summary.carbonPerKwhHeat);
   const genLevel    = PRINT_GEN_LEVEL[summary.localGenerationImpact];
+  const optLevel    = PRINT_OPT_LEVEL[summary.optimisationPotential];
 
   return (
     <div className="prp__perf-panel" aria-label="Performance summary">
@@ -119,6 +122,11 @@ function PerformancePanelPrint({ summary }: { summary: PerformanceSummary }) {
           icon="☀️"
           filledCount={genLevel}
           label={PRINT_GEN_LABEL[summary.localGenerationImpact]}
+        />
+        <PrintComparatorRow
+          icon="🔄"
+          filledCount={optLevel}
+          label={PRINT_OPT_STRATEGY_LABEL[summary.optimisationPotential]}
         />
       </div>
 
