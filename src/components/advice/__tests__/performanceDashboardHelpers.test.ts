@@ -25,6 +25,9 @@ import {
   CARBON_LEVEL_LABEL,
   GEN_BAR_LEVEL,
   GEN_LEVEL_LABEL,
+  OPT_BAR_LEVEL,
+  OPT_LEVEL_LABEL,
+  OPT_STRATEGY_LABEL,
   costBarLevel,
   carbonBarLevel,
   fuelLabelFromCop,
@@ -209,6 +212,39 @@ describe('performanceDashboardHelpers — GEN_BAR_LEVEL and GEN_LEVEL_LABEL', ()
   it('GEN_LEVEL_LABEL values are non-empty strings', () => {
     for (const label of Object.values(GEN_LEVEL_LABEL)) {
       expect(label.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('performanceDashboardHelpers — OPT_BAR_LEVEL, OPT_LEVEL_LABEL, OPT_STRATEGY_LABEL', () => {
+  it('OPT_BAR_LEVEL maps all three optimisationPotential values to a bar level', () => {
+    expect(OPT_BAR_LEVEL['high']).toBe(3);
+    expect(OPT_BAR_LEVEL['moderate']).toBe(2);
+    expect(OPT_BAR_LEVEL['limited']).toBe(1);
+  });
+
+  it('OPT_LEVEL_LABEL maps all three optimisationPotential values to a non-empty string', () => {
+    expect(typeof OPT_LEVEL_LABEL['high']).toBe('string');
+    expect(typeof OPT_LEVEL_LABEL['moderate']).toBe('string');
+    expect(typeof OPT_LEVEL_LABEL['limited']).toBe('string');
+    for (const label of Object.values(OPT_LEVEL_LABEL)) {
+      expect(label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('OPT_STRATEGY_LABEL maps all three optimisationPotential values to a non-empty string', () => {
+    expect(typeof OPT_STRATEGY_LABEL['high']).toBe('string');
+    expect(typeof OPT_STRATEGY_LABEL['moderate']).toBe('string');
+    expect(typeof OPT_STRATEGY_LABEL['limited']).toBe('string');
+    for (const label of Object.values(OPT_STRATEGY_LABEL)) {
+      expect(label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('OPT_STRATEGY_LABEL does not imply guaranteed savings (no "will" / "cheaper")', () => {
+    for (const label of Object.values(OPT_STRATEGY_LABEL)) {
+      expect(label.toLowerCase()).not.toContain(' will ');
+      expect(label.toLowerCase()).not.toContain('cheaper');
     }
   });
 });

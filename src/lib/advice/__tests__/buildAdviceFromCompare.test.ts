@@ -373,6 +373,7 @@ describe('buildAdviceFromCompare — confidencePct and efficiencyScore', () => {
     expect(ps!.costPerKwhHeat).toBeGreaterThan(0);
     expect(ps!.carbonPerKwhHeat).toBeGreaterThan(0);
     expect(['high', 'moderate', 'limited']).toContain(ps!.localGenerationImpact);
+    expect(['high', 'moderate', 'limited']).toContain(ps!.optimisationPotential);
   });
 
   it('performanceSummary efficiencyBand is poor for "heavy_scale" condition', () => {
@@ -394,6 +395,39 @@ describe('buildAdviceFromCompare — confidencePct and efficiencyScore', () => {
     expect(ps!.localGenerationImpact).toBe('high');
     expect(ps!.energyConversion.outputKwh).toBeGreaterThan(1); // COP > 1
     expect(ps!.efficiencyBand).toBe('optimal');
+  });
+
+  it('heat_pump performanceSummary has optimisationPotential high', () => {
+    const seed = makeCompareSeed({
+      right: { systemChoice: 'heat_pump', systemInputs: {} },
+    });
+    const output = makeEngineOutput([makeOption('ashp', 'viable')]);
+    const result = buildAdviceFromCompare(makeInput({ compareSeed: seed, engineOutput: output }));
+    expect(result.bestOverall.performanceSummary!.optimisationPotential).toBe('high');
+  });
+
+  it('combi boiler performanceSummary has optimisationPotential limited', () => {
+    const seed = makeCompareSeed({
+      right: { systemChoice: 'combi', systemInputs: {} },
+    });
+    const result = buildAdviceFromCompare(makeInput({ compareSeed: seed }));
+    expect(result.bestOverall.performanceSummary!.optimisationPotential).toBe('limited');
+  });
+
+  it('unvented cylinder (gas) performanceSummary has optimisationPotential moderate', () => {
+    const seed = makeCompareSeed({
+      right: { systemChoice: 'unvented', systemInputs: {} },
+    });
+    const result = buildAdviceFromCompare(makeInput({ compareSeed: seed }));
+    expect(result.bestOverall.performanceSummary!.optimisationPotential).toBe('moderate');
+  });
+
+  it('open_vented cylinder (gas) performanceSummary has optimisationPotential moderate', () => {
+    const seed = makeCompareSeed({
+      right: { systemChoice: 'open_vented', systemInputs: {} },
+    });
+    const result = buildAdviceFromCompare(makeInput({ compareSeed: seed }));
+    expect(result.bestOverall.performanceSummary!.optimisationPotential).toBe('moderate');
   });
 });
 
