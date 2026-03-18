@@ -17,6 +17,7 @@
 
 import type { EngineInputV2_3 } from './schema/EngineInputV2_3';
 import type { OptionCardV1 } from '../contracts/EngineOutputV1';
+import type { PenaltyId } from '../contracts/scoring.penaltyIds';
 
 /** Option IDs that require a stored hot-water cylinder. */
 const REQUIRES_CYLINDER_IDS: ReadonlySet<OptionCardV1['id']> = new Set([
@@ -62,7 +63,7 @@ export interface SpaceRankingAdjustment {
   /** Human-readable label for score breakdown. */
   label: string;
   /** Penalty/boost ID for the score breakdown. */
-  id: string;
+  id: PenaltyId;
 }
 
 /**
