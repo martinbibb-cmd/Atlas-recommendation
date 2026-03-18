@@ -68,7 +68,10 @@ function outletToViewModel(
 
   let status: DrawOffStatus
   if (!outlet.open) {
-    status = 'stable'
+    // Inactive outlets must not masquerade as stable.  Use 'cold' if a pressure
+    // collapse or combi ignition failure means the outlet would deliver cold water
+    // even if opened; otherwise 'inactive' (simply not in use).
+    status = 'inactive'
   } else if (outlet.isConstrained) {
     status = (outlet.deliveredTempC ?? COLD_INLET_TEMP_C) < MIN_USABLE_HOT_TEMP_C ? 'temp_limited' : 'flow_limited'
   } else if (outlet.service === 'mixed_cold_running') {

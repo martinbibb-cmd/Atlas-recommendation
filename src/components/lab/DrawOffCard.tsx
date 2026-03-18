@@ -13,6 +13,8 @@ import type { DrawOffViewModel, DrawOffStatus } from './drawOffTypes'
 // ─── Status chip ──────────────────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<DrawOffStatus, string> = {
+  inactive:     'Inactive',
+  cold:         'Cold / inactive',
   stable:       'Stable',
   flow_limited: 'Flow-limited',
   temp_limited: 'Temp-limited',
@@ -20,6 +22,8 @@ const STATUS_LABELS: Record<DrawOffStatus, string> = {
 }
 
 const STATUS_MOD: Record<DrawOffStatus, string> = {
+  inactive:     'draw-off-card__chip--inactive',
+  cold:         'draw-off-card__chip--cold',
   stable:       'draw-off-card__chip--stable',
   flow_limited: 'draw-off-card__chip--flow-limited',
   temp_limited: 'draw-off-card__chip--temp-limited',
@@ -47,9 +51,11 @@ export default function DrawOffCard({ data, onFocus }: Props) {
     note,
   } = data
 
+  const isInactive = status === 'inactive' || status === 'cold'
+
   return (
     <div
-      className="draw-off-card"
+      className={`draw-off-card${isInactive ? ' draw-off-card--inactive' : ''}`}
       data-testid={`draw-off-card-${data.id}`}
       aria-label={`${label} draw-off card`}
     >
@@ -77,15 +83,21 @@ export default function DrawOffCard({ data, onFocus }: Props) {
         <div className="draw-off-card__row draw-off-card__row--hot">
           <dt className="draw-off-card__row-label">Hot in</dt>
           <dd className="draw-off-card__row-value">
-            {hotSupplyTempC}°C
-            <span className="draw-off-card__row-flow">· {hotSupplyAvailableFlowLpm} L/min avail.</span>
+            {isInactive ? <span className="draw-off-card__row-na">No draw</span> : `${hotSupplyTempC}°C`}
+            {!isInactive && (
+              <span className="draw-off-card__row-flow">· {hotSupplyAvailableFlowLpm} L/min avail.</span>
+            )}
           </dd>
         </div>
         <div className="draw-off-card__row draw-off-card__row--delivered">
           <dt className="draw-off-card__row-label">Delivered</dt>
           <dd className="draw-off-card__row-value">
-            {deliveredTempC}°C
-            <span className="draw-off-card__row-flow">· {deliveredFlowLpm} L/min</span>
+            {isInactive
+              ? <span className="draw-off-card__row-na">{status === 'cold' ? 'Cold / inactive' : 'Inactive'}</span>
+              : `${deliveredTempC}°C`}
+            {!isInactive && (
+              <span className="draw-off-card__row-flow">· {deliveredFlowLpm} L/min</span>
+            )}
           </dd>
         </div>
       </dl>

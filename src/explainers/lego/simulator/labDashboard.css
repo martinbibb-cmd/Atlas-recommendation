@@ -4,10 +4,10 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 12px;
-  padding: 12px 14px 14px;
+  gap: 14px;
+  padding: 12px 16px 16px;
   height: calc(100vh - 190px);
-  min-height: 460px;
+  min-height: 480px;
   box-sizing: border-box;
 }
 
