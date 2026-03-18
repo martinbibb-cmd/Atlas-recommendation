@@ -530,15 +530,15 @@
   font-weight: 700;
 }
 
-/* ── Phased plan ──────────────────────────────────────────────────────────── */
+/* ── Recommendation scope ─────────────────────────────────────────────────── */
 
-.prp__phases {
+.prp__scope {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 0.75rem;
 }
 
-.prp__phase {
+.prp__scope-card {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 0.75rem 0.9rem;
@@ -546,22 +546,27 @@
   page-break-inside: avoid;
 }
 
-.prp__phase--now {
-  border-color: #48bb78;
-  background: #f0fff4;
+.prp__scope-card--essential {
+  border-top: 3px solid #e53e3e;
+  background: #fff5f5;
 }
 
-.prp__phase--next {
-  border-color: #4299e1;
+.prp__scope-card--best-advice {
+  border-top: 3px solid #3182ce;
   background: #ebf8ff;
 }
 
-.prp__phase--later {
-  border-color: #9f7aea;
+.prp__scope-card--enhanced {
+  border-top: 3px solid #805ad5;
   background: #faf5ff;
 }
 
-.prp__phase__badge {
+.prp__scope-card--future-potential {
+  border-top: 3px solid #718096;
+  background: #f7fafc;
+}
+
+.prp__scope-card-title {
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -569,17 +574,33 @@
   margin: 0 0 0.35rem;
 }
 
-.prp__phase--now .prp__phase__badge {
-  color: #276749;
+.prp__scope-card--essential      .prp__scope-card-title { color: #c53030; }
+.prp__scope-card--best-advice    .prp__scope-card-title { color: #2b6cb0; }
+.prp__scope-card--enhanced       .prp__scope-card-title { color: #553c9a; }
+.prp__scope-card--future-potential .prp__scope-card-title { color: #4a5568; }
+
+.prp__scope-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
-.prp__phase--next .prp__phase__badge {
-  color: #2b6cb0;
+.prp__scope-item {
+  font-size: 0.82rem;
+  color: #2d3748;
+  padding-left: 0.9rem;
+  position: relative;
 }
 
-.prp__phase--later .prp__phase__badge {
-  color: #553c9a;
-}
+.prp__scope-item--required::before  { content: '✓'; position: absolute; left: 0; font-size: 0.72rem; color: #e53e3e; }
+.prp__scope-item--upgrade::before   { content: '✓'; position: absolute; left: 0; font-size: 0.72rem; color: #3182ce; }
+.prp__scope-item--optional::before  { content: '·'; position: absolute; left: 0.15rem; color: #805ad5; }
+.prp__scope-item--future::before    { content: '→'; position: absolute; left: 0; font-size: 0.7rem; color: #718096; }
+
+/* ── Key cautions list (reused bullet style) ─────────────────────────────── */
 
 .prp__phase__actions {
   list-style: none;
@@ -598,11 +619,12 @@
 }
 
 .prp__phase__action::before {
-  content: '✓';
+  content: '!';
   position: absolute;
   left: 0;
   font-size: 0.72rem;
-  color: #68d391;
+  color: #e53e3e;
+  font-weight: 700;
 }
 
 /* ── Fallback notice ──────────────────────────────────────────────────────── */
@@ -670,13 +692,14 @@
     margin: 0;
   }
 
-  /* Ensure backgrounds are preserved for badges and phase colours */
+  /* Ensure backgrounds are preserved for badges and scope card colours */
   .prp__badge,
   .prp__win,
   .prp__obj-card__win,
-  .prp__phase--now,
-  .prp__phase--next,
-  .prp__phase--later,
+  .prp__scope-card--essential,
+  .prp__scope-card--best-advice,
+  .prp__scope-card--enhanced,
+  .prp__scope-card--future-potential,
   .prp__hero,
   .prp__compare-col--proposed {
     -webkit-print-color-adjust: exact;
@@ -686,7 +709,7 @@
   /* Cards must not split across pages */
   .prp__hero,
   .prp__obj-card,
-  .prp__phase,
+  .prp__scope-card,
   .prp__recipe-row,
   .prp__compare-col,
   .prp__section {
