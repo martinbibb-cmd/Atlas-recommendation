@@ -1,4 +1,4 @@
-import { isMissingTableError, SCHEMA_DRIFT_RESPONSE } from "../_utils/errors.js";
+import { isMissingTableError, isMissingColumnError, SCHEMA_DRIFT_RESPONSE } from "../_utils/errors.js";
 
 /**
  * GET /api/visits/:id
@@ -56,6 +56,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env, params } = context;
   const id = params["id"] as string;
 
+  // Helper: parse a raw VisitRow into the response shape.
+  function buildVisitResponse(row: VisitRow) {
+    const { working_payload_json, ...meta } = row;
+    let working_payload: unknown;
+    try {
+      working_payload = JSON.parse(working_payload_json);
+    } catch {
+      return Response.json(
+        { ok: false, error: "Corrupted visit data: working_payload_json is not valid JSON" },
+        { status: 500 }
+      );
+    }
+    return Response.json({
+      ok: true,
+      visit: { ...meta, working_payload },
+    });
+  }
+
   try {
     const row = await env.ATLAS_REPORTS_D1.prepare(
       `SELECT id, created_at, updated_at, status,
@@ -72,22 +90,39 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
     }
 
-    const { working_payload_json, ...meta } = row;
-    let working_payload: unknown;
-    try {
-      working_payload = JSON.parse(working_payload_json);
-    } catch {
-      return Response.json(
-        { ok: false, error: "Corrupted visit data: working_payload_json is not valid JSON" },
-        { status: 500 }
-      );
-    }
-
-    return Response.json({
-      ok: true,
-      visit: { ...meta, working_payload },
-    });
+    return buildVisitResponse(row);
   } catch (err) {
+    if (isMissingColumnError(err)) {
+      // Migration 0004 has not been applied yet — fall back to the legacy
+      // column set and populate visit_reference as null so the app keeps
+      // working until the migration is deployed.
+      try {
+        const row = await env.ATLAS_REPORTS_D1.prepare(
+          `SELECT id, created_at, updated_at, status,
+                  customer_name, address_line_1, postcode, current_step, working_payload_json
+           FROM visits WHERE id = ?`
+        )
+          .bind(id)
+          .first<Omit<VisitRow, "visit_reference">>();
+
+        if (row == null) {
+          return Response.json(
+            { ok: false, error: "Visit not found" },
+            { status: 404 }
+          );
+        }
+
+        return buildVisitResponse({ ...row, visit_reference: null });
+      } catch (fallbackErr) {
+        if (isMissingTableError(fallbackErr)) {
+          return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
+        }
+        return Response.json(
+          { ok: false, error: String(fallbackErr) },
+          { status: 500 }
+        );
+      }
+    }
     if (isMissingTableError(err)) {
       return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
     }

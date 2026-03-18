@@ -1,4 +1,4 @@
-import { isMissingTableError, SCHEMA_DRIFT_RESPONSE } from "./_utils/errors.js";
+import { isMissingTableError, isMissingColumnError, SCHEMA_DRIFT_RESPONSE } from "./_utils/errors.js";
 
 /**
  * POST /api/visits
@@ -127,6 +127,33 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     return Response.json({ ok: true, visits: result.results ?? [] });
   } catch (err) {
+    if (isMissingColumnError(err)) {
+      // Migration 0004 has not been applied yet — fall back to the legacy
+      // column set and return visit_reference as null for all rows so the
+      // rest of the app keeps working until the migration is deployed.
+      try {
+        const legacy = await env.ATLAS_REPORTS_D1.prepare(
+          `SELECT id, created_at, updated_at, status, customer_name, address_line_1, postcode, current_step
+           FROM visits
+           ORDER BY updated_at DESC
+           LIMIT 50`
+        ).all<Omit<VisitRow, "working_payload_json" | "visit_reference">>();
+
+        const visits = (legacy.results ?? []).map((r) => ({
+          ...r,
+          visit_reference: null as string | null,
+        }));
+        return Response.json({ ok: true, visits });
+      } catch (fallbackErr) {
+        if (isMissingTableError(fallbackErr)) {
+          return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
+        }
+        return Response.json(
+          { ok: false, error: String(fallbackErr) },
+          { status: 500 }
+        );
+      }
+    }
     if (isMissingTableError(err)) {
       return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
     }
