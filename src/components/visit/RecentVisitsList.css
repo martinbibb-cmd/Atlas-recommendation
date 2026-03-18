@@ -1,5 +1,5 @@
 /*
- * RecentVisitsList — styles for the recent visits section on the landing page.
+ * RecentVisitsList — enhanced visit cards with search and filter.
  */
 
 /* ── Section container ───────────────────────────────────────────────────── */
@@ -21,7 +21,69 @@
   margin-top: 1.5rem;
 }
 
-/* ── Rows ────────────────────────────────────────────────────────────────── */
+/* ── Search bar ──────────────────────────────────────────────────────────── */
+
+.rv-search-row {
+  margin-bottom: 0.6rem;
+}
+
+.rv-search {
+  width: 100%;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #2d3748;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.rv-search:focus {
+  border-color: #2b6cb0;
+  box-shadow: 0 0 0 2px rgba(43, 108, 176, 0.15);
+}
+
+/* ── Filter pills ────────────────────────────────────────────────────────── */
+
+.rv-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.rv-filter-pill {
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #4a5568;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.rv-filter-pill:hover {
+  background: #edf2f7;
+}
+
+.rv-filter-pill--active {
+  background: #2b6cb0;
+  color: #fff;
+  border-color: #2b6cb0;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+
+.rv-empty {
+  font-size: 0.875rem;
+  color: #718096;
+  padding: 0.5rem 0;
+}
+
+/* ── Visit card list ─────────────────────────────────────────────────────── */
 
 .recent-visits__list {
   list-style: none;
@@ -32,19 +94,35 @@
   gap: 0.5rem;
 }
 
-.recent-visits__row {
+/* ── Visit card ──────────────────────────────────────────────────────────── */
+
+.rv-card {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.rv-card__body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  width: 100%;
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
 }
 
-/* ── Info block ──────────────────────────────────────────────────────────── */
+.rv-card__body:hover {
+  background: #f7fafc;
+  border-color: #bee3f8;
+}
 
-.recent-visits__info {
+/* ── Card main block ─────────────────────────────────────────────────────── */
+
+.rv-card__main {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -52,67 +130,90 @@
   gap: 0.15rem;
 }
 
-.recent-visits__title {
-  font-size: 0.9rem;
-  font-weight: 600;
+.rv-card__address {
+  font-size: 1rem;
+  font-weight: 700;
   color: #2d3748;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.recent-visits__meta {
+.rv-card__customer {
+  font-size: 0.82rem;
+  color: #4a5568;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rv-card__updated {
   font-size: 0.75rem;
   color: #718096;
+  margin-top: 0.1rem;
 }
 
-.recent-visits__step {
+/* ── Card side (status + arrow) ──────────────────────────────────────────── */
+
+.rv-card__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.rv-card__arrow {
+  font-size: 1.1rem;
   color: #a0aec0;
+  line-height: 1;
 }
 
-/* ── Status badge ────────────────────────────────────────────────────────── */
+/* ── Status badge on card ────────────────────────────────────────────────── */
 
-.recent-visits__status {
-  font-size: 0.7rem;
-  font-weight: 700;
+.rv-card__status {
+  font-size: 0.68rem;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 0.2rem 0.55rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 999px;
   white-space: nowrap;
+  /* default */
   background: #edf2f7;
   color: #4a5568;
   border: 1px solid #e2e8f0;
 }
 
-.recent-visits__status--complete {
-  background: #c6f6d5;
-  color: #276749;
-  border-color: #9ae6b4;
+.rv-card__status--new,
+.rv-card__status--draft {
+  background: #edf2f7;
+  color: #4a5568;
+  border-color: #e2e8f0;
 }
 
-.recent-visits__status--draft {
+.rv-card__status--survey_started {
   background: #ebf8ff;
   color: #2b6cb0;
   border-color: #bee3f8;
 }
 
-/* ── Open button ─────────────────────────────────────────────────────────── */
-
-.recent-visits__open-btn {
-  background: #2b6cb0;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 0.45rem 0.9rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  min-height: 36px;
-  white-space: nowrap;
-  transition: background 0.15s;
+.rv-card__status--recommendation_ready,
+.rv-card__status--complete {
+  background: #c6f6d5;
+  color: #276749;
+  border-color: #9ae6b4;
 }
 
-.recent-visits__open-btn:hover {
-  background: #2c5282;
+.rv-card__status--quoted {
+  background: #feebc8;
+  color: #7b341e;
+  border-color: #fbd38d;
 }
+
+.rv-card__status--installed {
+  background: #bee3f8;
+  color: #2a4365;
+  border-color: #90cdf4;
+}
+
