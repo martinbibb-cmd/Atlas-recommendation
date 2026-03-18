@@ -7,7 +7,7 @@
 //   - compareWins are derived from compare truth, not hardcoded
 //   - Different objectives can yield different recommended paths
 //   - confidencePct appears on cards when engine confidence is available
-//   - efficiencyScore appears on cards and respects system condition decay
+//   - performanceSummary appears on cards with physics-grounded fields
 //   - Installation recipe is present with required sections
 //   - Recommendation scope (Essential / Best Advice / Enhanced / Future Potential)
 //   - Forward-thinking plan preserves Mixergy/cylinder path where supported
@@ -352,7 +352,7 @@ describe('buildAdviceFromCompare — confidencePct and efficiencyScore', () => {
     expect(result.confidenceSummary.unified).not.toBeNull();
   });
 
-  it('returns a numeric efficiencyScore on the bestOverall card', () => {
+  it('returns a performanceSummary on the bestOverall card', () => {
     const seed = makeCompareSeed({
       right: {
         systemChoice: 'unvented',
@@ -365,31 +365,35 @@ describe('buildAdviceFromCompare — confidencePct and efficiencyScore', () => {
       },
     });
     const result = buildAdviceFromCompare(makeInput({ compareSeed: seed }));
-    expect(typeof result.bestOverall.efficiencyScore).toBe('number');
-    expect(result.bestOverall.efficiencyScore).toBeGreaterThanOrEqual(50);
-    expect(result.bestOverall.efficiencyScore).toBeLessThanOrEqual(99);
+    const ps = result.bestOverall.performanceSummary;
+    expect(ps).not.toBeNull();
+    expect(['optimal', 'average', 'poor']).toContain(ps!.efficiencyBand);
+    expect(ps!.energyConversion.inputKwh).toBe(1);
+    expect(ps!.energyConversion.outputKwh).toBeGreaterThan(0);
+    expect(ps!.costPerKwhHeat).toBeGreaterThan(0);
+    expect(ps!.carbonPerKwhHeat).toBeGreaterThan(0);
+    expect(['high', 'moderate', 'limited']).toContain(ps!.localGenerationImpact);
   });
 
-  it('efficiencyScore is lower for "scaling" condition than "clean"', () => {
-    const cleanSeed = makeCompareSeed({
-      right: { systemChoice: 'unvented', systemInputs: { systemCondition: 'clean' } },
+  it('performanceSummary efficiencyBand is poor for "heavy_scale" condition', () => {
+    const heavyScaleSeed = makeCompareSeed({
+      right: { systemChoice: 'unvented', systemInputs: { systemCondition: 'heavy_scale' } },
     });
-    const scalingSeed = makeCompareSeed({
-      right: { systemChoice: 'unvented', systemInputs: { systemCondition: 'scaling' } },
-    });
-    const cleanResult = buildAdviceFromCompare(makeInput({ compareSeed: cleanSeed }));
-    const scalingResult = buildAdviceFromCompare(makeInput({ compareSeed: scalingSeed }));
-    expect(cleanResult.bestOverall.efficiencyScore!).toBeGreaterThan(scalingResult.bestOverall.efficiencyScore!);
+    const result = buildAdviceFromCompare(makeInput({ compareSeed: heavyScaleSeed }));
+    expect(result.bestOverall.performanceSummary!.efficiencyBand).toBe('poor');
   });
 
-  it('heat_pump efficiencyScore is in the valid range', () => {
+  it('heat_pump performanceSummary has localGenerationImpact high and COP-based energyConversion', () => {
     const seed = makeCompareSeed({
       right: { systemChoice: 'heat_pump', systemInputs: {} },
     });
     const output = makeEngineOutput([makeOption('ashp', 'viable')]);
     const result = buildAdviceFromCompare(makeInput({ compareSeed: seed, engineOutput: output }));
-    expect(result.bestOverall.efficiencyScore).toBeGreaterThanOrEqual(50);
-    expect(result.bestOverall.efficiencyScore).toBeLessThanOrEqual(99);
+    const ps = result.bestOverall.performanceSummary;
+    expect(ps).not.toBeNull();
+    expect(ps!.localGenerationImpact).toBe('high');
+    expect(ps!.energyConversion.outputKwh).toBeGreaterThan(1); // COP > 1
+    expect(ps!.efficiencyBand).toBe('optimal');
   });
 });
 
