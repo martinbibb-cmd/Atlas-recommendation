@@ -327,6 +327,17 @@ export function ExpertPanel({
           assumptions={assumptions}
           onChange={updateDial}
         />
+        <DialRow
+          label="Space saving priority"
+          field="spaceSavingPriority"
+          options={[
+            { value: 'low',    label: 'Low — space is not an issue' },
+            { value: 'medium', label: 'Medium — prefer compact if practical' },
+            { value: 'high',   label: 'High — must avoid cylinders / maximise space' },
+          ]}
+          assumptions={assumptions}
+          onChange={updateDial}
+        />
       </div>
 
       {/* ── Shared constraints ───────────────────────────────────────────── */}

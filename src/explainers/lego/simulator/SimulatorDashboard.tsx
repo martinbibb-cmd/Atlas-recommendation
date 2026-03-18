@@ -519,6 +519,8 @@ export default function SimulatorDashboard({
     <DrawOffStatusPanel
       state={drawOffState}
       systemChoice={systemChoice}
+      mainsPressureBar={systemInputs.mainsPressureBar}
+      mainsFlowLpm={systemInputs.mainsFlowLpm}
       mode={isManualMode ? 'manual' : 'auto'}
       heatingEnabled={demandControls.heatingEnabled}
       shower={demandControls.shower}

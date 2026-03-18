@@ -122,20 +122,23 @@ export function adaptFullSurveyToSimulatorInputs(
 
   // ── Mains pressure ─────────────────────────────────────────────────────────
   // Prefer the explicit bar alias; fall back to the legacy field.
+  // Allow values down to 0.5 bar so low-pressure / pressure-collapse scenarios
+  // are faithfully represented in the simulator rather than silently clamped up.
   const dynBar = survey.dynamicMainsPressureBar ?? survey.dynamicMainsPressure
   if (dynBar != null && dynBar > 0) {
-    systemInputs.mainsPressureBar = clamp(dynBar, 1.5, 6.0)
+    systemInputs.mainsPressureBar = clamp(dynBar, 0.5, 6.0)
   }
 
   // ── Mains flow — confirmed measurements only ────────────────────────────────
   // Unconfirmed estimates are discarded to avoid presenting a heuristic as
   // a measured value (mirrors the rule in sim/surveyAdapter.ts).
+  // Allow values down to 3 L/min so low-flow scenarios can be simulated.
   if (
     survey.mainsDynamicFlowLpm != null &&
     survey.mainsDynamicFlowLpm > 0 &&
     survey.mainsDynamicFlowLpmKnown === true
   ) {
-    systemInputs.mainsFlowLpm = clamp(survey.mainsDynamicFlowLpm, 10, 50)
+    systemInputs.mainsFlowLpm = clamp(survey.mainsDynamicFlowLpm, 3, 50)
   }
 
   // ── Primary pipe size ───────────────────────────────────────────────────────

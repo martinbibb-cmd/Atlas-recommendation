@@ -32,11 +32,16 @@ import '../../../../components/lab/lab.css'
 // ─── Physics defaults ─────────────────────────────────────────────────────────
 
 const COLD_INLET_TEMP_C              = 10  // Standard cold mains inlet temperature (°C)
-const MAINS_FLOW_RATE_LPM            = 12  // Standard pressurised mains cold flow (L/min)
+const DEFAULT_MAINS_FLOW_RATE_LPM    = 12  // Standard pressurised mains cold flow (L/min)
 const CWS_FLOW_RATE_LPM              = 8   // Open-vented CWS gravity feed flow (L/min)
 const HOT_SUPPLY_COMBI_TEMP_C        = 48  // Typical combi plate-HEX outlet temperature (°C)
-const HOT_FLOW_SOLO_LPM              = 10  // Available hot flow with a single outlet open (L/min)
-const HOT_FLOW_CONCURRENT_LPM        = 6   // Available hot flow under concurrent demand (L/min)
+/** Maximum hot-supply flow from a typical combi plate HEX (L/min). */
+const COMBI_MAX_HOT_FLOW_LPM         = 10
+/**
+ * Minimum mains flow (L/min) below which a combi boiler cannot sustain
+ * ignition.  Mirrors the ignition threshold in DrawOffWorkbench.tsx.
+ */
+const COMBI_IGNITION_THRESHOLD_LPM   = 2.5
 
 /** Minimum delivered temperature (°C) considered useful hot water at the outlet. */
 const MIN_USABLE_HOT_TEMP_C          = 38
@@ -55,16 +60,38 @@ const OUTLET_ICONS: Record<string, string> = {
   kitchen: '🚰',
 }
 
+// ─── Derived flow physics ─────────────────────────────────────────────────────
+
+/**
+ * Derive outlet hot-supply flow (L/min) for a combi system from actual mains
+ * flow.  The combi plate HEX caps the delivered hot flow at COMBI_MAX_HOT_FLOW_LPM
+ * regardless of mains pressure.  Under concurrent demand, two outlets share the
+ * boiler output, each receiving roughly 60% of the solo rate.
+ *
+ * Returns 0 when mains flow is below the combi ignition threshold.
+ */
+function deriveCombiHotFlow(mainsFlowLpm: number, concurrent: boolean): number {
+  if (mainsFlowLpm < COMBI_IGNITION_THRESHOLD_LPM) return 0
+  const solo = Math.min(mainsFlowLpm, COMBI_MAX_HOT_FLOW_LPM)
+  return concurrent ? Math.round(solo * 0.6 * 10) / 10 : solo
+}
+
 // ─── Outlet adapter ───────────────────────────────────────────────────────────
 
 function outletToViewModel(
   outlet: OutletDisplayState,
   hotSupplyTempC: number,
   concurrent: boolean,
+  mainsFlowLpm: number,
+  isCombi: boolean,
 ): DrawOffViewModel {
-  const icon            = OUTLET_ICONS[outlet.outletId] ?? '🚰'
-  const coldSupplyFlow  = outlet.coldSource === 'cws' ? CWS_FLOW_RATE_LPM : MAINS_FLOW_RATE_LPM
-  const hotAvailFlow    = outlet.open ? (concurrent ? HOT_FLOW_CONCURRENT_LPM : HOT_FLOW_SOLO_LPM) : 0
+  const icon           = OUTLET_ICONS[outlet.outletId] ?? '🚰'
+  const coldSupplyFlow = outlet.coldSource === 'cws' ? CWS_FLOW_RATE_LPM : mainsFlowLpm
+  const hotAvailFlow   = outlet.open
+    ? (isCombi
+        ? deriveCombiHotFlow(mainsFlowLpm, concurrent)
+        : (concurrent ? Math.round(mainsFlowLpm * 0.6 * 10) / 10 : mainsFlowLpm))
+    : 0
 
   let status: DrawOffStatus
   if (!outlet.open) {
@@ -198,6 +225,10 @@ function SystemBanners({ state }: { state: DrawOffDisplayState }) {
 interface DrawOffStatusPanelProps {
   state: DrawOffDisplayState
   systemChoice: SimulatorSystemChoice
+  /** Mains dynamic pressure (bar) from system inputs — drives outlet flow physics. */
+  mainsPressureBar?: number
+  /** Mains dynamic flow rate (L/min) from system inputs — drives outlet delivery rate. */
+  mainsFlowLpm?: number
   mode: 'auto' | 'manual'
   heatingEnabled: boolean
   shower: boolean
@@ -215,14 +246,17 @@ interface DrawOffStatusPanelProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function DrawOffStatusPanel({ state, systemChoice, ...controls }: DrawOffStatusPanelProps) {
+export default function DrawOffStatusPanel({ state, systemChoice, mainsPressureBar: _mainsPressureBar, mainsFlowLpm, ...controls }: DrawOffStatusPanelProps) {
   const openCount    = state.outletStates.filter(o => o.open).length
   const concurrent   = openCount >= 2
+  const isCombi      = systemChoice === 'combi'
+  // Resolve the effective mains flow — use the real survey/input value when available.
+  const effectiveMailsFlowLpm = mainsFlowLpm ?? DEFAULT_MAINS_FLOW_RATE_LPM
   const hotSupplyTempC = state.storedHotWaterState
     ? Math.round(state.storedHotWaterState.topTempC)
     : HOT_SUPPLY_COMBI_TEMP_C
 
-  const outletCards   = state.outletStates.map(o => outletToViewModel(o, hotSupplyTempC, concurrent))
+  const outletCards   = state.outletStates.map(o => outletToViewModel(o, hotSupplyTempC, concurrent, effectiveMailsFlowLpm, isCombi))
   const cylinderData  = buildCylinderViewModel(state, systemChoice)
 
   return (

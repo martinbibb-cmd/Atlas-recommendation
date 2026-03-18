@@ -112,6 +112,20 @@ export function scoreOptionV1(
     }
   }
 
+  // Space-saving priority penalty — penalises stored/ASHP options when the
+  // customer has expressed a preference to avoid a hot-water cylinder.
+  // combi (id === 'combi') is deliberately exempt so it gains relative advantage.
+  const spacePriority = input.expertAssumptions?.spaceSavingPriority;
+  if (STORED_OPTION_IDS.has(id)) {
+    if (spacePriority === 'high') {
+      breakdown.push({ id: PENALTY_IDS.SPACE_PRIORITY_HIGH_STORED, label: 'Space-saving priority high — cylinder install disadvantaged', penalty: 12 });
+      score -= 12;
+    } else if (spacePriority === 'medium') {
+      breakdown.push({ id: PENALTY_IDS.SPACE_PRIORITY_MED_STORED, label: 'Space-saving priority medium — compact system preferred', penalty: 6 });
+      score -= 6;
+    }
+  }
+
   // Loft conversion risk (vented options)
   if (VENTED_OPTION_IDS.has(id) && hasFutureLoftConversion) {
     breakdown.push({ id: PENALTY_IDS.FUTURE_LOFT_CONFLICT, label: 'Future loft conversion risks header tank space', penalty: 12 });

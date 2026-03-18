@@ -20,6 +20,10 @@ export const PENALTY_IDS = {
 
   // Space
   SPACE_TIGHT: 'space.tight',
+  /** Stored/ASHP option penalised because space-saving priority is set to high. */
+  SPACE_PRIORITY_HIGH_STORED: 'space.priority_high_stored',
+  /** Stored/ASHP option penalised because space-saving priority is set to medium. */
+  SPACE_PRIORITY_MED_STORED: 'space.priority_med_stored',
 
   // Future works
   FUTURE_LOFT_CONFLICT: 'future.loft_conflict',

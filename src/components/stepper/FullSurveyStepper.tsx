@@ -1338,7 +1338,13 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
                     setRawFlowStr(raw);
                     const parsed = parseOptionalNumber(raw);
                     const flow = parsed !== undefined && parsed > 0 ? parsed : undefined;
-                    setInput(prev => ({ ...prev, mainsDynamicFlowLpm: flow }));
+                    // Mark as a confirmed measured reading whenever the surveyor
+                    // enters a value — anything typed here is a real site measurement.
+                    setInput(prev => ({
+                      ...prev,
+                      mainsDynamicFlowLpm: flow,
+                      mainsDynamicFlowLpmKnown: flow !== undefined ? true : undefined,
+                    }));
                   }}
                   onBlur={() => setRawFlowStr(r => normaliseNumericString(r))}
                   style={{ marginTop: '0.4rem' }}
