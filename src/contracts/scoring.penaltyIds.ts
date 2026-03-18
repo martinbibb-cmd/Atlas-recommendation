@@ -24,6 +24,16 @@ export const PENALTY_IDS = {
   SPACE_PRIORITY_HIGH_STORED: 'space.priority_high_stored',
   /** Stored/ASHP option penalised because space-saving priority is set to medium. */
   SPACE_PRIORITY_MED_STORED: 'space.priority_med_stored',
+  /** Stored/ASHP option penalised because user preferences.spacePriority is high. */
+  SPACE_PREF_HIGH_STORED: 'space_pref.high_stored',
+  /** Stored/ASHP option penalised because user preferences.spacePriority is medium. */
+  SPACE_PREF_MED_STORED: 'space_pref.medium_stored',
+  /** Combi boosted because user preferences.spacePriority is high or medium. */
+  SPACE_PREF_COMBI_BOOST: 'space_pref.combi_boost',
+  /** Combi penalised despite space preference because DHW demand is high. */
+  SPACE_PREF_HIGH_DEMAND_OVERRIDE: 'space_pref.high_demand_override',
+  /** Combi penalised despite space preference because mains flow is too low. */
+  SPACE_PREF_LOW_FLOW_OVERRIDE: 'space_pref.low_flow_override',
 
   // Future works
   FUTURE_LOFT_CONFLICT: 'future.loft_conflict',

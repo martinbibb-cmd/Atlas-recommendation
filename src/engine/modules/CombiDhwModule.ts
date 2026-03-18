@@ -42,6 +42,13 @@ const PRESSURE_LOCKOUT_BAR = 1.0;
 /** Minimum L/min per hot-water outlet for a combi to deliver acceptable flow. */
 const REQUIRED_LPM_PER_OUTLET = 9;
 
+/**
+ * Minimum flow rate (L/min) required to trigger combi ignition.
+ * Below this threshold the gas valve will not open — the burner cannot fire.
+ * Typical UK combi minimum ignition flow: 2.5 L/min (per manufacturer data).
+ */
+const MIN_COMBI_FLOW = 2.5;
+
 /** Occupancy threshold above which combi should be rejected in favour of stored DHW. */
 const LARGE_HOUSEHOLD_FAIL_THRESHOLD = 4;
 
@@ -154,8 +161,13 @@ export function estimateMorningOverlapProbability(
 export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct = 0): CombiDhwV1Result {  const flags: CombiDhwFlagItem[] = [];
   const assumptions: string[] = [];
 
+  // ── Resolve mains supply values ──────────────────────────────────────────
+  // The nested `mains` object takes precedence over the legacy flat fields.
+  const resolvedDynamicBar = input.mains?.dynamicPressureBar ?? input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+  const resolvedFlowLpm = input.mains?.flowRateLpm ?? input.mainsDynamicFlowLpm;
+
   // ── Rule 1: Pressure lockout ─────────────────────────────────────────────
-  const dynamicBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+  const dynamicBar = resolvedDynamicBar;
   if (dynamicBar != null && dynamicBar < PRESSURE_LOCKOUT_BAR) {
     flags.push({
       id: 'combi-pressure-lockout',
@@ -243,23 +255,61 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
     });
   }
 
-  // ── Rule 6: Mains flow adequacy ─────────────────────────────────────────
-  if (input.mainsDynamicFlowLpmKnown && input.mainsDynamicFlowLpm != null) {
+  // ── Rule 6 & ignition state: Mains flow adequacy and per-outlet sharing ─────
+  // Both flow adequacy (≥ 9 L/min per outlet for delivery) and ignition threshold
+  // (≥ 2.5 L/min per outlet for burner ignition) are computed together to avoid
+  // duplicate flags and share the per-outlet flow derivation.
+  const flowLpm = resolvedFlowLpm;
+  const flowIsKnown = input.mainsDynamicFlowLpmKnown || (input.mains?.flowRateLpm != null);
+  let perOutletFlowLpm: number | undefined;
+  let ignitionState: CombiDhwV1Result['ignitionState'];
+
+  if (flowIsKnown && flowLpm != null) {
     const peakOutlets = Math.max(1, outlets ?? 1);
-    const requiredLpm = REQUIRED_LPM_PER_OUTLET * peakOutlets;
-    if (input.mainsDynamicFlowLpm < requiredLpm && !simultaneousFail) {
-      const sev: CombiDhwFlagItem['severity'] = peakOutlets >= 2 ? 'fail' : 'warn';
-      flags.push({
-        id: 'combi-flow-inadequate',
-        severity: sev,
-        title: 'Mains flow may be insufficient for combi delivery',
-        detail:
-          `Measured mains flow ${input.mainsDynamicFlowLpm} L/min is below the ` +
-          `~${requiredLpm} L/min needed for ${peakOutlets} outlet(s) at ΔT 25°C. ` +
-          `Expect reduced shower temperature or pressure, especially during peak demand.`,
-      });
+    perOutletFlowLpm = parseFloat((flowLpm / peakOutlets).toFixed(1));
+
+    // Ignition state: classified before delivery check so the correct flag message is used.
+    if (dynamicBar != null && dynamicBar < PRESSURE_LOCKOUT_BAR) {
+      ignitionState = 'pressure_limited';
+      // No additional flag here — combi-pressure-lockout was already added in Rule 1.
+    } else if (perOutletFlowLpm < MIN_COMBI_FLOW) {
+      // Flow is below ignition threshold — combi cannot fire at all.
+      ignitionState = 'below_ignition_threshold';
+      if (!simultaneousFail) {
+        flags.push({
+          id: 'combi-flow-inadequate',
+          severity: 'fail',
+          title: 'Flow too low for combi ignition',
+          detail:
+            `Per-outlet flow ${perOutletFlowLpm} L/min (${flowLpm} L/min ÷ ${peakOutlets} outlet(s)) ` +
+            `is below the ${MIN_COMBI_FLOW} L/min minimum required to open the gas valve. ` +
+            `The combi will not fire — no hot water will be delivered.`,
+        });
+      }
+    } else {
+      // Flow meets ignition threshold — check delivery adequacy.
+      ignitionState = 'firing';
+      const requiredLpm = REQUIRED_LPM_PER_OUTLET * peakOutlets;
+      if (flowLpm < requiredLpm && !simultaneousFail) {
+        const sev: CombiDhwFlagItem['severity'] = peakOutlets >= 2 ? 'fail' : 'warn';
+        flags.push({
+          id: 'combi-flow-inadequate',
+          severity: sev,
+          title: 'Mains flow may be insufficient for combi delivery',
+          detail:
+            `Measured mains flow ${flowLpm} L/min is below the ` +
+            `~${requiredLpm} L/min needed for ${peakOutlets} outlet(s) at ΔT 25°C. ` +
+            `Expect reduced shower temperature or pressure, especially during peak demand.`,
+        });
+      } else {
+        assumptions.push(
+          `Combi ignition check: per-outlet flow ${perOutletFlowLpm} L/min ` +
+          `(${flowLpm} L/min ÷ ${peakOutlets} outlet(s)) meets the ` +
+          `${MIN_COMBI_FLOW} L/min ignition threshold — burner will fire.`,
+        );
+      }
     }
-  } else if (input.mainsDynamicFlowLpm == null) {
+  } else if (flowLpm == null) {
     assumptions.push(
       'Mains dynamic flow not provided – flow adequacy check skipped. ' +
       'Record a measured L/min reading to enable this gate.',
@@ -348,8 +398,8 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
   let dhwRequiredKw: number | null = null;
   let deliveredFlowLpm: number | null = null;
 
-  if (input.mainsDynamicFlowLpmKnown && input.mainsDynamicFlowLpm != null && deltaTC > 0) {
-    dhwRequiredKw = parseFloat(dhwKwFromFlow(input.mainsDynamicFlowLpm, deltaTC).toFixed(2));
+  if (flowIsKnown && flowLpm != null && deltaTC > 0) {
+    dhwRequiredKw = parseFloat(dhwKwFromFlow(flowLpm, deltaTC).toFixed(2));
 
     if (dhwRequiredKw > maxQtoDhwKwDerated) {
       deliveredFlowLpm = parseFloat(
@@ -360,15 +410,15 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
         severity: 'fail',
         title: 'Combi DHW shortfall: demand exceeds capacity',
         detail:
-          `Mains flow ${input.mainsDynamicFlowLpm} L/min at ΔT ${deltaTC}°C requires ` +
+          `Mains flow ${flowLpm} L/min at ΔT ${deltaTC}°C requires ` +
           `${dhwRequiredKw.toFixed(1)} kW, which exceeds the derated combi output of ` +
           `${maxQtoDhwKwDerated} kW. Only ~${deliveredFlowLpm} L/min can be sustained at ` +
           `${combiHotOutTempC}°C — expect reduced shower temperature or pressure.`,
       });
     } else {
-      deliveredFlowLpm = input.mainsDynamicFlowLpm;
+      deliveredFlowLpm = flowLpm;
       assumptions.push(
-        `DHW flow physics: ${input.mainsDynamicFlowLpm} L/min at ΔT ${deltaTC}°C requires ` +
+        `DHW flow physics: ${flowLpm} L/min at ΔT ${deltaTC}°C requires ` +
         `${dhwRequiredKw.toFixed(1)} kW — within derated combi output of ${maxQtoDhwKwDerated} kW.`
       );
     }
@@ -399,5 +449,7 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
     // input.plateHexFoulingFactor is the explicit survey-derived value; the local plateHexFoulingFactor
     // variable defaults to 1.0 for physics calculations even when no survey data is present.
     ...(input.plateHexFoulingFactor !== undefined && { plateHexFoulingFactor: input.plateHexFoulingFactor }),
+    ...(perOutletFlowLpm !== undefined && { perOutletFlowLpm }),
+    ...(ignitionState !== undefined && { ignitionState }),
   };
 }

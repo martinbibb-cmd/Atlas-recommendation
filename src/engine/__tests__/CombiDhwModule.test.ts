@@ -635,3 +635,111 @@ describe('runCombiDhwModuleV1 — plate HEX fouling factor', () => {
     expect(withDerate.maxQtoDhwKwDerated).toBeCloseTo(27.0, 1);
   });
 });
+
+// ─── PR11: mains object, per-outlet flow sharing, ignition states ─────────────
+
+describe('runCombiDhwModuleV1 — mains nested object', () => {
+  it('mains.dynamicPressureBar takes precedence over flat dynamicMainsPressureBar for lockout', () => {
+    // flat field is fine (2.5 bar), nested object is low (0.8 bar) → should trigger lockout
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      dynamicMainsPressure: 2.5,
+      dynamicMainsPressureBar: 2.5,
+      mains: { dynamicPressureBar: 0.8 },
+      peakConcurrentOutlets: 1,
+    });
+    expect(result.flags.some(f => f.id === 'combi-pressure-lockout')).toBe(true);
+  });
+
+  it('mains.flowRateLpm is used for flow adequacy when flat field is absent', () => {
+    // 5 L/min via mains object, below REQUIRED_LPM_PER_OUTLET (9) → flow-inadequate warn
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      mains: { flowRateLpm: 5 },
+      peakConcurrentOutlets: 1,
+    });
+    expect(result.flags.some(f => f.id === 'combi-flow-inadequate')).toBe(true);
+  });
+
+  it('mains.flowRateLpm passes when flow is adequate', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      mains: { flowRateLpm: 15 },
+      peakConcurrentOutlets: 1,
+    });
+    expect(result.flags.some(f => f.id === 'combi-flow-inadequate')).toBe(false);
+  });
+
+  it('mains flat flowRateLpm is used when mains object has no flowRateLpm', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      mainsDynamicFlowLpm: 5,
+      mainsDynamicFlowLpmKnown: true,
+      mains: { dynamicPressureBar: 2.5 }, // no flowRateLpm here
+      peakConcurrentOutlets: 1,
+    });
+    expect(result.flags.some(f => f.id === 'combi-flow-inadequate')).toBe(true);
+  });
+});
+
+describe('runCombiDhwModuleV1 — per-outlet flow and ignition state', () => {
+  it('ignitionState is firing when per-outlet flow >= 2.5 L/min', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      mains: { flowRateLpm: 15 },
+      peakConcurrentOutlets: 1,
+    });
+    expect(result.ignitionState).toBe('firing');
+    expect(result.perOutletFlowLpm).toBe(15);
+  });
+
+  it('ignitionState is below_ignition_threshold when per-outlet flow < 2.5 L/min', () => {
+    // 4 L/min / 2 outlets = 2.0 L/min < 2.5 threshold
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      mains: { flowRateLpm: 4 },
+      peakConcurrentOutlets: 2,
+      bathroomCount: 1, // avoid simultaneous-demand fail
+    });
+    expect(result.ignitionState).toBe('below_ignition_threshold');
+    expect(result.perOutletFlowLpm).toBe(2.0);
+  });
+
+  it('ignitionState is pressure_limited when dynamic pressure < 1.0 bar', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      dynamicMainsPressure: 0.8,
+      mains: { flowRateLpm: 15 },
+      peakConcurrentOutlets: 1,
+    });
+    expect(result.ignitionState).toBe('pressure_limited');
+  });
+
+  it('per-outlet flow is flow/outlets (2 outlets)', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      mains: { flowRateLpm: 20 },
+      peakConcurrentOutlets: 2,
+      bathroomCount: 1,
+    });
+    expect(result.perOutletFlowLpm).toBe(10);
+  });
+
+  it('ignitionState and perOutletFlowLpm are absent when no flow data provided', () => {
+    const result = runCombiDhwModuleV1({ ...baseInput });
+    expect(result.ignitionState).toBeUndefined();
+    expect(result.perOutletFlowLpm).toBeUndefined();
+  });
+
+  it('low mains flow reduces per-outlet share to below ignition threshold with 3 outlets', () => {
+    // 6 L/min / 3 outlets = 2.0 L/min < 2.5 → below_ignition_threshold
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      mains: { flowRateLpm: 6 },
+      peakConcurrentOutlets: 3,
+      bathroomCount: 1,
+    });
+    expect(result.ignitionState).toBe('below_ignition_threshold');
+    expect(result.perOutletFlowLpm).toBeCloseTo(2.0, 1);
+  });
+});
