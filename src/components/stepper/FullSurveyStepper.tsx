@@ -557,11 +557,18 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input]);
 
-  /** Maps survey step names to LivePhysicsOverlay step keys. */
+  /**
+   * Maps survey step names to LivePhysicsOverlay step keys.
+   *
+   * The 'lifestyle' step (Step 4) is intentionally excluded: the LifePanel
+   * content (Peak DHW demand / CH lockout) duplicates the dhw-demand-summary
+   * block that lives inside the step card itself. Removing the 'life' mapping
+   * keeps the working in-card summary as the single source of truth and avoids
+   * the faulty highlighted strip at the top of Step 4.
+   */
   const overlayStepKey: OverlayStepKey | null = useMemo(() => {
     if (currentStep === 'location')   return 'shell';
     if (currentStep === 'pressure')   return 'supply';
-    if (currentStep === 'lifestyle')  return 'life';
     if (currentStep === 'hot_water')  return 'storage';
     return null;
   }, [currentStep]);
