@@ -480,7 +480,7 @@ describe('DecisionSynthesisPage — primary circuit explainers', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     const ctx = document.querySelector('[data-testid="explainers-context-section"]');
-    expect(ctx?.querySelector('[data-testid="explainers-menu-item-pipe_capacity"]')).toBeFalsy();
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-pipe_capacity"]') ?? null).toBeNull();
   });
 
   it('shows pipe_capacity in context section when hydraulic-ashp-flow is present', () => {
@@ -513,7 +513,7 @@ describe('DecisionSynthesisPage — condensing efficiency explainers', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     const ctx = document.querySelector('[data-testid="explainers-context-section"]');
-    expect(ctx?.querySelector('[data-testid="explainers-menu-item-condensing_return_temp"]')).toBeFalsy();
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-condensing_return_temp"]') ?? null).toBeNull();
   });
 
   it('shows condensing_return_temp in context section when condensing-compromised is present', () => {
@@ -546,7 +546,7 @@ describe('DecisionSynthesisPage — water quality explainers', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     const ctx = document.querySelector('[data-testid="explainers-context-section"]');
-    expect(ctx?.querySelector('[data-testid="explainers-menu-item-water_quality_scale"]')).toBeFalsy();
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-water_quality_scale"]') ?? null).toBeNull();
   });
 
   it('shows water_quality_scale in context section when water-hardness is present', () => {
@@ -573,7 +573,7 @@ describe('DecisionSynthesisPage — thermal mass explainers', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     const ctx = document.querySelector('[data-testid="explainers-context-section"]');
-    expect(ctx?.querySelector('[data-testid="explainers-menu-item-thermal_mass_inertia"]')).toBeFalsy();
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-thermal_mass_inertia"]') ?? null).toBeNull();
   });
 
   it('shows thermal_mass_inertia in context section when thermal-mass-heavy is present', () => {
@@ -600,7 +600,7 @@ describe('DecisionSynthesisPage — heating controls explainers', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
     const ctx = document.querySelector('[data-testid="explainers-context-section"]');
-    expect(ctx?.querySelector('[data-testid="explainers-menu-item-splan_vs_yplan"]')).toBeFalsy();
+    expect(ctx?.querySelector('[data-testid="explainers-menu-item-splan_vs_yplan"]') ?? null).toBeNull();
   });
 
   it('shows splan_vs_yplan in context section when splan-confirmed is present', () => {

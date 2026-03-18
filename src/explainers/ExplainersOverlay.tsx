@@ -192,6 +192,12 @@ function ExplainerMenu({ contextExplainers, libraryExplainers, onSelect, onClose
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+// ── Focusable selector constants ──────────────────────────────────────────────
+const FIRST_FOCUSABLE_SELECTOR =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+const TRAP_FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
 export default function ExplainersOverlay({ contextExplainerIds }: Props) {
   const [menuOpen, setMenuOpen]                       = useState(false);
   const [activeExplainerId, setActiveExplainerId]     = useState<string | null>(null);
@@ -248,7 +254,7 @@ export default function ExplainersOverlay({ contextExplainerIds }: Props) {
   useEffect(() => {
     if (menuOpen && overlayRef.current) {
       const firstFocusable = overlayRef.current.querySelector<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        FIRST_FOCUSABLE_SELECTOR,
       );
       firstFocusable?.focus();
     }
@@ -263,9 +269,7 @@ export default function ExplainersOverlay({ contextExplainerIds }: Props) {
     function handleTab(e: KeyboardEvent) {
       if (e.key !== 'Tab') return;
       const focusable = Array.from(
-        el.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        ),
+        el.querySelectorAll<HTMLElement>(TRAP_FOCUSABLE_SELECTOR),
       );
       if (focusable.length === 0) return;
       const first = focusable[0];
