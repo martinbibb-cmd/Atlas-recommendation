@@ -369,17 +369,47 @@ const PERF_GRID_KG_CO2_PER_KWH = 0.233; // UK grid intensity (kgCO₂/kWh electr
 const PERF_TYPICAL_HP_COP      = 3.0;  // typical UK ASHP SCOP
 
 /**
+ * Maps OptionCardV1.id to the SimulatorSystemChoice used for physics calculations.
+ *
+ * Each byObjective card picks a different recommended option (e.g. 'ashp' for
+ * running cost, 'combi' for install cost).  Using this map ensures each card's
+ * PerformanceSummary reflects the correct fuel type and conversion physics,
+ * regardless of what the shared `proposed` state holds.
+ */
+const OPT_ID_TO_SYSTEM_CHOICE: Partial<Record<string, SimulatorSystemChoice>> = {
+  ashp:            'heat_pump',
+  combi:           'combi',
+  // stored_unvented: mains-pressure DHW cylinder (G3 unvented).
+  // system_unvented: same cylinder class but part of a full system package
+  //   (e.g. includes primary pipework / buffer vessel) — physics are identical.
+  stored_unvented: 'unvented',
+  system_unvented: 'unvented',
+  // stored_vented / regular_vented: gravity-fed open-vented cylinder systems.
+  stored_vented:   'open_vented',
+  regular_vented:  'open_vented',
+};
+
+/**
  * Derive a physics-grounded PerformanceSummary for a given system state.
  *
  * For heat pumps: uses typical UK SCOP (3.0) and electricity tariff.
  * For boilers: uses engine SEDBUK data or DEFAULT_NOMINAL_EFFICIENCY_PCT,
  *   adjusted for condition decay and controls uplift.
+ *
+ * The effective system choice is resolved from `primaryOption.id` first so that
+ * each objective card (which may recommend a different system than `proposed`)
+ * shows the correct fuel type and conversion ratio.
  */
 function derivePerformanceSummary(
   state: SimulatorSystemState,
   primaryOption: OptionCardV1 | null,
 ): PerformanceSummary | null {
-  if (state.systemChoice === 'heat_pump') {
+  // Resolve effective system choice: prefer the option's system type so that
+  // each card shows the physics of the system it actually recommends.
+  const optSystemChoice = primaryOption ? OPT_ID_TO_SYSTEM_CHOICE[primaryOption.id] : undefined;
+  const effectiveSystemChoice: SimulatorSystemChoice = optSystemChoice ?? state.systemChoice;
+
+  if (effectiveSystemChoice === 'heat_pump') {
     const cop = PERF_TYPICAL_HP_COP;
     const costPerKwhHeat    = parseFloat((PERF_ELEC_PENCE_PER_KWH / cop).toFixed(1));
     const carbonPerKwhHeat  = parseFloat((PERF_GRID_KG_CO2_PER_KWH / cop).toFixed(3));
@@ -428,9 +458,18 @@ function derivePerformanceSummary(
     efficiencyBand = 'average';
   }
 
-  // Stored cylinders (unvented / open-vented) can benefit from solar immersion.
+  // Combi: simultaneous-use limitations and no stored heat mean the system
+  // can never be classed as 'optimal' from a performance standpoint.
+  if (effectiveSystemChoice === 'combi' && efficiencyBand === 'optimal') {
+    efficiencyBand = 'average';
+  }
+
+  // Stored cylinders (unvented / open-vented / mixergy) benefit from solar
+  // immersion and can shift usage to cheaper off-peak tariffs.
   const hasStoredCylinder =
-    state.systemChoice === 'unvented' || state.systemChoice === 'open_vented';
+    effectiveSystemChoice === 'unvented' ||
+    effectiveSystemChoice === 'open_vented' ||
+    effectiveSystemChoice === 'mixergy';
 
   const costPerKwhHeat   = parseFloat((PERF_GAS_PENCE_PER_KWH / efficiency).toFixed(1));
   const carbonPerKwhHeat = parseFloat((PERF_GAS_KG_CO2_PER_KWH / efficiency).toFixed(3));
@@ -986,6 +1025,20 @@ function buildConfidenceSummary(
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 /**
+ * Downgrades an AdviceCard's performanceSummary efficiencyBand from 'optimal' to
+ * 'average' if set.  Applied to byObjective cards so that only the bestOverall card
+ * can carry the "Works best" label — preventing every card from looking identical.
+ */
+function capCardEfficiencyBand(card: AdviceCard): AdviceCard {
+  const ps = card.performanceSummary;
+  if (!ps || ps.efficiencyBand !== 'optimal') return card;
+  return {
+    ...card,
+    performanceSummary: { ...ps, efficiencyBand: 'average' },
+  };
+}
+
+/**
  * Build the full AdviceFromCompareResult from compare/simulator truth.
  *
  * All outputs are deterministic — same input always produces same output.
@@ -1094,18 +1147,23 @@ export function buildAdviceFromCompare(
     ? applyFloorplanToRecommendationScope(baseScope, fp)
     : baseScope;
 
+  // ── Objective cards — each uses its own preferred option for physics ─────
+  // byObjective cards are capped at 'average' efficiencyBand so that
+  // "Works best" appears at most once in the comparison set (bestOverall only).
+  const byObjective = {
+    lowestRunningCost:          capCardEfficiencyBand(buildRunningCostCard(options, proposed, current, confidencePct)),
+    lowestInstallationCost:     capCardEfficiencyBand(buildInstallCostCard(options, proposed, current, confidencePct)),
+    greatestLongevity:          capCardEfficiencyBand(buildLongevityCard(options, proposed, current, confidencePct)),
+    lowestCarbonPointOfUse:     capCardEfficiencyBand(buildCarbonCard(options, proposed, current, confidencePct)),
+    greatestComfortAndDelivery: capCardEfficiencyBand(buildComfortCard(options, proposed, current, confidencePct)),
+    measuredForwardThinkingPlan: capCardEfficiencyBand(buildFutureReadyCard(
+      options, proposed, current, confidencePct, engineOutput.plans,
+    )),
+  };
+
   return {
     bestOverall,
-    byObjective: {
-      lowestRunningCost: buildRunningCostCard(options, proposed, current, confidencePct),
-      lowestInstallationCost: buildInstallCostCard(options, proposed, current, confidencePct),
-      greatestLongevity: buildLongevityCard(options, proposed, current, confidencePct),
-      lowestCarbonPointOfUse: buildCarbonCard(options, proposed, current, confidencePct),
-      greatestComfortAndDelivery: buildComfortCard(options, proposed, current, confidencePct),
-      measuredForwardThinkingPlan: buildFutureReadyCard(
-        options, proposed, current, confidencePct, engineOutput.plans,
-      ),
-    },
+    byObjective,
     installationRecipe: recipe,
     recommendationScope,
     confidenceSummary,
