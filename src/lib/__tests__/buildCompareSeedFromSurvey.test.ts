@@ -247,6 +247,41 @@ describe('buildCompareSeedFromSurvey — right (proposed) side', () => {
     expect(seed.right.systemInputs.mainsPressureBar).toBe(4.0)
   })
 
+  it('inherits measured mains flow from survey in right side', () => {
+    const seed = buildCompareSeedFromSurvey(
+      minimalSurvey({ mainsDynamicFlowLpm: 7, mainsDynamicFlowLpmKnown: true }),
+      minimalEngineOutput([makeOptionCard('stored_unvented', 'viable')]),
+    )
+    expect(seed.right.systemInputs.mainsFlowLpm).toBe(7)
+  })
+
+  it('inherits estimated mains flow (mainsDynamicFlowLpmKnown absent) in right side', () => {
+    // Even when the Known flag is not set, the flow should still be used for
+    // the proposed side — it is tagged 'estimated' but should not fall back
+    // to the 20 L/min default.
+    const seed = buildCompareSeedFromSurvey(
+      minimalSurvey({ mainsDynamicFlowLpm: 7 }),
+      minimalEngineOutput([makeOptionCard('stored_unvented', 'viable')]),
+    )
+    expect(seed.right.systemInputs.mainsFlowLpm).toBe(7)
+  })
+
+  it('proposed side matches current side for measured mains supply', () => {
+    const seed = buildCompareSeedFromSurvey(
+      minimalSurvey({
+        dynamicMainsPressure: 1.0,
+        mainsDynamicFlowLpm: 7,
+        mainsDynamicFlowLpmKnown: true,
+      }),
+      minimalEngineOutput([makeOptionCard('stored_unvented', 'viable')]),
+    )
+    // Both sides should show the same house supply facts
+    expect(seed.right.systemInputs.mainsPressureBar).toBe(
+      seed.left.systemInputs.mainsPressureBar,
+    )
+    expect(seed.right.systemInputs.mainsFlowLpm).toBe(7)
+  })
+
   it('inherits heat loss from survey in right side', () => {
     const seed = buildCompareSeedFromSurvey(
       minimalSurvey({ heatLossWatts: 12000 }),
@@ -267,6 +302,42 @@ describe('buildCompareSeedFromSurvey — right (proposed) side', () => {
     )
     expect(seed.left.systemInputs.systemCondition).toBe('sludged')
     expect(seed.right.systemInputs.systemCondition).toBe('clean')
+  })
+})
+
+// ─── measuredMainsSupply in CompareSeed ──────────────────────────────────────
+
+describe('buildCompareSeedFromSurvey — measuredMainsSupply', () => {
+  it('includes measuredMainsSupply tagged measured when flow is confirmed', () => {
+    const seed = buildCompareSeedFromSurvey(
+      minimalSurvey({
+        dynamicMainsPressure: 1.0,
+        mainsDynamicFlowLpm: 7,
+        mainsDynamicFlowLpmKnown: true,
+      }),
+      minimalEngineOutput([makeOptionCard('combi')]),
+    )
+    expect(seed.measuredMainsSupply).toBeDefined()
+    expect(seed.measuredMainsSupply?.source).toBe('measured')
+    expect(seed.measuredMainsSupply?.dynamicFlowLpm).toBe(7)
+    expect(seed.measuredMainsSupply?.dynamicPressureBar).toBe(1.0)
+  })
+
+  it('includes measuredMainsSupply tagged estimated when flow is unconfirmed', () => {
+    const seed = buildCompareSeedFromSurvey(
+      minimalSurvey({ dynamicMainsPressure: 1.0, mainsDynamicFlowLpm: 7 }),
+      minimalEngineOutput([makeOptionCard('combi')]),
+    )
+    expect(seed.measuredMainsSupply?.source).toBe('estimated')
+    expect(seed.measuredMainsSupply?.dynamicFlowLpm).toBe(7)
+  })
+
+  it('includes proposedSupplyAdjustment type none by default', () => {
+    const seed = buildCompareSeedFromSurvey(
+      minimalSurvey(),
+      minimalEngineOutput([makeOptionCard('combi')]),
+    )
+    expect(seed.proposedSupplyAdjustment?.type).toBe('none')
   })
 })
 
