@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { buildPortalUrl } from '../../lib/portal/portalUrl';
 import { generatePortalToken } from '../../lib/portal/portalToken';
+import './ReportQrFooter.css';
 
 interface Props {
   /** Report reference (ID) used to build the signed portal URL. */
@@ -27,25 +28,30 @@ interface Props {
 
 export default function ReportQrFooter({ reportReference }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [portalUrl, setPortalUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     generatePortalToken(reportReference)
-      .then((token) => buildPortalUrl(reportReference, window.location.origin, token))
-      .then((portalUrl) =>
-        QRCode.toDataURL(portalUrl, {
+      .then((token) => {
+        const url = buildPortalUrl(reportReference, window.location.origin, token);
+        if (!cancelled) setPortalUrl(url);
+        return url;
+      })
+      .then((url) =>
+        QRCode.toDataURL(url, {
           width: 120,
           margin: 1,
           color: { dark: '#1a202c', light: '#ffffff' },
           errorCorrectionLevel: 'M',
         }),
       )
-      .then((url) => {
-        if (!cancelled) setQrDataUrl(url);
+      .then((dataUrl) => {
+        if (!cancelled) setQrDataUrl(dataUrl);
       })
       .catch(() => {
-        // QR generation failure is non-critical — silently omit.
+        // QR generation failure is non-critical — fallback URL is shown instead.
       });
 
     return () => {
@@ -53,7 +59,8 @@ export default function ReportQrFooter({ reportReference }: Props) {
     };
   }, [reportReference]);
 
-  if (!qrDataUrl) return null;
+  // Render nothing until at least the portal URL is resolved.
+  if (!portalUrl) return null;
 
   return (
     <div
@@ -62,19 +69,24 @@ export default function ReportQrFooter({ reportReference }: Props) {
       aria-label="QR code — open your interactive home heating plan"
     >
       <div className="rv-qr-footer__content">
-        <img
-          className="rv-qr-footer__img"
-          src={qrDataUrl}
-          alt="QR code linking to your interactive recommendation portal"
-          width={120}
-          height={120}
-        />
+        {qrDataUrl && (
+          <img
+            className="rv-qr-footer__img"
+            src={qrDataUrl}
+            alt="QR code linking to your interactive recommendation portal"
+            width={120}
+            height={120}
+          />
+        )}
         <div className="rv-qr-footer__text">
           <p className="rv-qr-footer__caption">
             Scan to open your interactive home heating plan
           </p>
           <p className="rv-qr-footer__sub">
             Explore your options and see why this system was recommended
+          </p>
+          <p className="rv-qr-footer__fallback">
+            {reportReference}
           </p>
         </div>
       </div>

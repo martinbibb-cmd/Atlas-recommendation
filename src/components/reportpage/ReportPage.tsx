@@ -289,6 +289,7 @@ export default function ReportPage({ reportId, onBack, onDuplicated }: Props) {
         engineOutput={engineOutput}
         surveyData={surveyData ?? undefined}
         compareSeed={compareSeed}
+        reportReference={reportId}
       />
     </div>
   );
