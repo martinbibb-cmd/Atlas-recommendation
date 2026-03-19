@@ -32,7 +32,7 @@ export default function ReportQrFooter({ reportReference }: Props) {
     let cancelled = false;
 
     generatePortalToken(reportReference)
-      .then((token) => buildPortalUrl(reportReference, undefined, token))
+      .then((token) => buildPortalUrl(reportReference, window.location.origin, token))
       .then((portalUrl) =>
         QRCode.toDataURL(portalUrl, {
           width: 120,

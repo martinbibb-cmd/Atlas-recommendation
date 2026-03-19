@@ -20,8 +20,16 @@
 export const PORTAL_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
- * Application-level HMAC key material.
- * Provides obfuscation against reference enumeration; not a production secret.
+ * Application-level HMAC key material (compile-time constant).
+ *
+ * Security note: this value is bundled with the client-side JavaScript and
+ * is therefore not a secret in the cryptographic sense. Its purpose is to
+ * prevent casual reference enumeration by making portal URLs unguessable
+ * without access to both the reference and a valid token.
+ *
+ * In a server-rendered or Cloudflare Workers deployment, replace this with
+ * an environment variable (e.g. `PORTAL_TOKEN_SECRET`) to achieve true
+ * server-side signing where the key material is never exposed to the client.
  */
 const KEY_MATERIAL = 'atlas-portal-token-v1';
 
@@ -51,10 +59,7 @@ async function importHmacKey(): Promise<CryptoKey> {
 }
 
 function base64urlEncode(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
+  const binary = Array.from(bytes, (b) => String.fromCharCode(b)).join('');
   return btoa(binary)
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
