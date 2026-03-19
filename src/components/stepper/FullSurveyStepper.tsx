@@ -3713,7 +3713,6 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
 
             <div className="step-actions">
               <button className="prev-btn" onClick={prev}>← Back</button>
-              <button className="prev-btn" onClick={() => onOpenFloorPlan?.(input)}>Open Floor Plan →</button>
               <button className="next-btn" onClick={next}>Run Full Analysis →</button>
             </div>
           </div>

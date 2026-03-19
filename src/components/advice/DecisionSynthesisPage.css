@@ -1098,3 +1098,31 @@
   content: '→  ';
   color: #744210;
 }
+
+/* ── Portal QR & link panel ──────────────────────────────────────────────── */
+
+.advice-portal-qr {
+  background: #f0fff4;
+  border-top: 1px solid #9ae6b4;
+  border-bottom: 1px solid #9ae6b4;
+  padding: 1rem 1.5rem;
+}
+
+/* ── Print QR & link page ─────────────────────────────────────────────────── */
+
+.advice-print-qr-page {
+  min-height: 100vh;
+  background: #fff;
+  padding: 2rem;
+}
+
+.advice-print-qr-page__content {
+  max-width: 480px;
+  margin: 2rem auto;
+}
+
+@media print {
+  .advice-print-qr-page .advice-print-qr-page__toolbar {
+    display: none !important;
+  }
+}

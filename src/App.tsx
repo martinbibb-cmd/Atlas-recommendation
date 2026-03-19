@@ -23,9 +23,11 @@ import ReportPage from './components/reportpage/ReportPage';
 import CustomerPortalPage from './components/portal/CustomerPortalPage';
 import GlobalMenuShell from './components/shell/GlobalMenuShell';
 import { resetAtlasTourSeen } from './lib/tourStorage';
-import { createVisit } from './lib/visits/visitApi';
-import { listReportsForVisit } from './lib/reports/reportApi';
+import { createVisit, getVisit } from './lib/visits/visitApi';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
+import type { FullSurveyModelV1 } from './ui/fullSurvey/FullSurveyModelV1';
+import { toEngineInput } from './ui/fullSurvey/FullSurveyModelV1';
+import { sanitiseModelForEngine } from './ui/fullSurvey/sanitiseModelForEngine';
 import { runEngine } from './engine/Engine';
 import { getMissingLabFields } from './lib/lab/getMissingLabFields';
 import { mergeLabQuickInputs } from './lib/lab/mergeLabQuickInputs';
@@ -170,33 +172,27 @@ export default function App() {
   /**
    * View recommendation for a completed visit.
    *
-   * Resolves the latest saved report linked to the visit.  If one exists,
-   * opens it directly on the report page.  Falls back to the survey if no
-   * saved report is found (e.g. legacy visit completed before report-saving
-   * was introduced).
+   * Loads the visit's working payload, converts it to engine input, and routes
+   * directly to the Simulator Dashboard.  Falls back to the survey if the
+   * working payload is missing or cannot be converted.
    */
   async function handleViewRecommendation(visitId: string) {
     try {
-      const reports = await listReportsForVisit(visitId);
-      // Sort defensively newest-first in case the API order ever changes.
-      const latest = Array.isArray(reports)
-        ? [...reports].sort((a, b) => {
-            const aTime = new Date(a.created_at).getTime();
-            const bTime = new Date(b.created_at).getTime();
-            return bTime - aTime;
-          })[0]
-        : null;
-      if (latest?.id) {
+      const visitDetail = await getVisit(visitId);
+      const workingPayload = visitDetail.working_payload;
+      if (workingPayload && Object.keys(workingPayload).length > 0) {
+        const survey = workingPayload as unknown as FullSurveyModelV1;
+        const engineInput = toEngineInput(sanitiseModelForEngine(survey));
         setActiveVisitId(visitId);
-        setActiveReportId(latest.id);
-        setJourney('report');
+        setLabEngineInput(engineInput);
+        setJourney('simulator');
         return;
       }
     } catch (err) {
       // Log the failure so it is visible in dev tools, then fall back to survey.
-      console.error('[Atlas] Could not load reports for visit', visitId, err);
+      console.error('[Atlas] Could not load visit for recommendation', visitId, err);
     }
-    // Fallback: no saved report — send back to survey so the user can
+    // Fallback: no working payload — send back to survey so the user can
     // complete and save it.
     setJourney('visit');
   }
