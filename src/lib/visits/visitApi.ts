@@ -52,15 +52,11 @@ export function visitStatusLabel(status: string): string {
  * Returns the primary display label for a visit, using this priority order:
  *   1. visit_reference (user-defined lead / job number)
  *   2. address_line_1
- *   3. postcode
- *   4. customer_name
- *   5. truncated visit id (fallback)
+ *   3. truncated visit id (fallback)
  */
-export function visitDisplayLabel(v: Pick<VisitMeta, 'id' | 'visit_reference' | 'address_line_1' | 'postcode' | 'customer_name'>): string {
+export function visitDisplayLabel(v: Pick<VisitMeta, 'id' | 'visit_reference' | 'address_line_1'>): string {
   if (v.visit_reference) return v.visit_reference;
   if (v.address_line_1) return v.address_line_1;
-  if (v.postcode) return v.postcode;
-  if (v.customer_name) return v.customer_name;
   return `Visit ${v.id.slice(-8).toUpperCase()}`;
 }
 

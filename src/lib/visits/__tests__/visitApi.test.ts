@@ -181,16 +181,6 @@ describe('visitApi', () => {
       expect(visitDisplayLabel(v)).toBe('10 Downing St');
     });
 
-    it('returns postcode when no visit_reference or address_line_1', () => {
-      const v = makeVisitMeta({ postcode: 'SW1A 2AA', customer_name: 'A User' });
-      expect(visitDisplayLabel(v)).toBe('SW1A 2AA');
-    });
-
-    it('returns customer_name when only name is available', () => {
-      const v = makeVisitMeta({ customer_name: 'Jane Smith' });
-      expect(visitDisplayLabel(v)).toBe('Jane Smith');
-    });
-
     it('falls back to truncated visit id when no identifying data', () => {
       const v = makeVisitMeta();
       expect(visitDisplayLabel(v)).toBe('Visit 34567890');
@@ -327,14 +317,14 @@ describe('RecentVisitsList helpers', () => {
       expect(matchesSearch(v, 'downing')).toBe(true);
     });
 
-    it('matches by postcode', () => {
+    it('does not match by postcode (not a supported search field)', () => {
       const v = makeVisitMeta({ postcode: 'SW1A 2AA' });
-      expect(matchesSearch(v, 'sw1a')).toBe(true);
+      expect(matchesSearch(v, 'sw1a')).toBe(false);
     });
 
-    it('matches by customer_name', () => {
+    it('does not match by customer_name (not a supported search field)', () => {
       const v = makeVisitMeta({ customer_name: 'Jane Smith' });
-      expect(matchesSearch(v, 'jane')).toBe(true);
+      expect(matchesSearch(v, 'jane')).toBe(false);
     });
 
     it('returns false when query does not match any field', () => {
@@ -451,33 +441,23 @@ describe('RecentVisitsList helpers', () => {
   // ── card subline logic (row display-label regression) ─────────────────────
 
   describe('card subline — display-label regression', () => {
-    it('when headline is visit_reference, subline shows address + postcode', () => {
-      const v = makeVisitMeta({ visit_reference: 'REF-1', address_line_1: '10 Main St', postcode: 'SW1A 1AA' });
-      expect(cardSubline(v)).toBe('10 Main St, SW1A 1AA');
+    it('when headline is visit_reference, subline shows address_line_1', () => {
+      const v = makeVisitMeta({ visit_reference: 'REF-1', address_line_1: '10 Main St' });
+      expect(cardSubline(v)).toBe('10 Main St');
     });
 
-    it('when headline is visit_reference and only address (no postcode), subline shows address only', () => {
-      const v = makeVisitMeta({ visit_reference: 'REF-2', address_line_1: '5 Oak Ave', postcode: null });
-      expect(cardSubline(v)).toBe('5 Oak Ave');
+    it('when headline is visit_reference and no address, subline is empty', () => {
+      const v = makeVisitMeta({ visit_reference: 'REF-2', address_line_1: null });
+      expect(cardSubline(v)).toBe('');
     });
 
-    it('when headline is address, subline shows postcode', () => {
-      const v = makeVisitMeta({ visit_reference: null, address_line_1: '10 Main St', postcode: 'SW1A 1AA' });
-      expect(cardSubline(v)).toBe('SW1A 1AA');
+    it('when headline is address (no visit_reference), subline is empty', () => {
+      const v = makeVisitMeta({ visit_reference: null, address_line_1: '10 Main St' });
+      expect(cardSubline(v)).toBe('');
     });
 
-    it('when headline is address and no postcode, subline falls back to customer_name', () => {
-      const v = makeVisitMeta({ visit_reference: null, address_line_1: '10 Main St', postcode: null, customer_name: 'Alice' });
-      expect(cardSubline(v)).toBe('Alice');
-    });
-
-    it('when headline is postcode, subline shows customer_name', () => {
-      const v = makeVisitMeta({ visit_reference: null, address_line_1: null, postcode: 'SW1A 1AA', customer_name: 'Bob' });
-      expect(cardSubline(v)).toBe('Bob');
-    });
-
-    it('when only id fallback (no ref/address/postcode/customer), subline is empty', () => {
-      const v = makeVisitMeta({ visit_reference: null, address_line_1: null, postcode: null, customer_name: null });
+    it('when only id fallback (no ref/address), subline is empty', () => {
+      const v = makeVisitMeta({ visit_reference: null, address_line_1: null });
       expect(cardSubline(v)).toBe('');
     });
   });
