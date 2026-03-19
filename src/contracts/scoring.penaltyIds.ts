@@ -35,6 +35,12 @@ export const PENALTY_IDS = {
   /** Combi penalised despite space preference because mains flow is too low. */
   SPACE_PREF_LOW_FLOW_OVERRIDE: 'space_pref.low_flow_override',
 
+  // Disruption tolerance (user preferences.disruptionTolerance)
+  /** Upgrade-heavy option penalised because disruption tolerance is low. */
+  DISRUPTION_LOW_UPGRADE_PENALTY: 'disruption_pref.low_upgrade',
+  /** Upgrade-heavy option receives a boost because disruption tolerance is high. */
+  DISRUPTION_HIGH_UPGRADE_BOOST: 'disruption_pref.high_upgrade',
+
   // Future works
   FUTURE_LOFT_CONFLICT: 'future.loft_conflict',
 

@@ -31,7 +31,7 @@ import {
 } from '../confidence/buildUnifiedConfidence';
 import type { AtlasFloorplanInputs, EmitterCoverageClassification } from '../floorplan/adaptFloorplanToAtlasInputs';
 import { buildHeatingOperatingState, FLOOR_PLAN_EMITTER_EXPLANATION_TAGS } from '../heating/buildHeatingOperatingState';
-import { deriveSpaceTradeOffTag } from '../../engine/buildRecommendationRanking';
+import { deriveSpaceTradeOffTag, deriveDisruptionTradeOffTag } from '../../engine/buildRecommendationRanking';
 
 // Re-export for consumers that want the unified type without an extra import.
 export type { UnifiedConfidence };
@@ -1130,6 +1130,7 @@ export function buildAdviceFromCompare(
         ? 'heat_pump'
         : 'stored';
   const spaceTradeOffTag = deriveSpaceTradeOffTag(primarySystemType, engineInput);
+  const disruptionTradeOffTag = deriveDisruptionTradeOffTag(primarySystemType, engineInput);
 
   const bestOverall: AdviceCard = {
     id: 'best_overall',
@@ -1142,7 +1143,7 @@ export function buildAdviceFromCompare(
         primaryOption?.why[0] ??
         'Best match for this home\'s constraints and demand profile.',
     ],
-    keyTradeOff: spaceTradeOffTag ?? tradeOffNote(primaryOption),
+    keyTradeOff: spaceTradeOffTag ?? disruptionTradeOffTag ?? tradeOffNote(primaryOption),
     confidencePct,
     performanceSummary: derivePerformanceSummary(proposed, primaryOption),
     compareWins: overallWins,

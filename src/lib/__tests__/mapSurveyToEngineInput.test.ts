@@ -50,6 +50,29 @@ describe('mapSurveyToEngineInput', () => {
     expect(result.preferences).toBeUndefined();
   });
 
+  it('maps disruption_tolerance to preferences.disruptionTolerance', () => {
+    const result = mapSurveyToEngineInput({
+      ...baseSurvey,
+      disruption_tolerance: 'low',
+    });
+    expect(result.preferences?.disruptionTolerance).toBe('low');
+  });
+
+  it('maps both space_priority and disruption_tolerance into preferences', () => {
+    const result = mapSurveyToEngineInput({
+      ...baseSurvey,
+      space_priority: 'high',
+      disruption_tolerance: 'medium',
+    });
+    expect(result.preferences?.spacePriority).toBe('high');
+    expect(result.preferences?.disruptionTolerance).toBe('medium');
+  });
+
+  it('omits preferences when neither space_priority nor disruption_tolerance is present', () => {
+    const result = mapSurveyToEngineInput(baseSurvey);
+    expect(result.preferences).toBeUndefined();
+  });
+
   it('sets mainsDynamicFlowLpmKnown=true when mains_flow_known=true', () => {
     const result = mapSurveyToEngineInput({
       ...baseSurvey,

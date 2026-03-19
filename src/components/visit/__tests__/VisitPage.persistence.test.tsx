@@ -386,3 +386,50 @@ describe('FullSurveyStepper — fabric controls hydrate from prefill and are not
     expect(draft.houseFrontFacing).toBe('south');
   }, 10000);
 });
+
+// ── disruptionTolerance persistence (PR 7) ──────────────────────────────────
+
+describe('FullSurveyStepper — disruptionTolerance preference persistence', () => {
+  it('hydrates preferences.disruptionTolerance from prefill and preserves it in draft', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      preferences: { disruptionTolerance: 'high' },
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.preferences?.disruptionTolerance).toBe('high');
+  }, 10000);
+
+  it('draft preserves disruptionTolerance=low when hydrated from prefill', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      preferences: { disruptionTolerance: 'low' },
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.preferences?.disruptionTolerance).toBe('low');
+  }, 10000);
+
+  it('preserves spacePriority alongside disruptionTolerance in draft', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      preferences: { spacePriority: 'medium', disruptionTolerance: 'high' },
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.preferences?.spacePriority).toBe('medium');
+    expect(draft.preferences?.disruptionTolerance).toBe('high');
+  }, 10000);
+});

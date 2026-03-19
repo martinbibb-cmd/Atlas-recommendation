@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { computeSpaceRankingAdjustments, deriveSpaceTradeOffTag } from '../buildRecommendationRanking';
+import {
+  computeSpaceRankingAdjustments,
+  deriveSpaceTradeOffTag,
+  computeDisruptionRankingAdjustments,
+  deriveDisruptionTradeOffTag,
+} from '../buildRecommendationRanking';
 import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
 
 const baseInput: EngineInputV2_3 = {
@@ -134,5 +139,112 @@ describe('deriveSpaceTradeOffTag', () => {
       preferences: { spacePriority: 'medium' },
     });
     expect(tag).toBe('Space constrained — combi preferred');
+  });
+});
+
+describe('computeDisruptionRankingAdjustments', () => {
+  it('returns empty array when disruptionTolerance is medium (default)', () => {
+    const result = computeDisruptionRankingAdjustments('ashp', {
+      ...baseInput,
+      preferences: { disruptionTolerance: 'medium' },
+    });
+    expect(result).toHaveLength(0);
+  });
+
+  it('returns empty array when preferences is absent', () => {
+    const result = computeDisruptionRankingAdjustments('ashp', baseInput);
+    expect(result).toHaveLength(0);
+  });
+
+  it('penalises ashp when disruptionTolerance is low', () => {
+    const result = computeDisruptionRankingAdjustments('ashp', {
+      ...baseInput,
+      preferences: { disruptionTolerance: 'low' },
+    });
+    const penalty = result.find(a => a.id === 'disruption_pref.low_upgrade');
+    expect(penalty).toBeDefined();
+    expect(penalty!.delta).toBe(-12);
+  });
+
+  it('penalises system_unvented when disruptionTolerance is low', () => {
+    const result = computeDisruptionRankingAdjustments('system_unvented', {
+      ...baseInput,
+      preferences: { disruptionTolerance: 'low' },
+    });
+    const penalty = result.find(a => a.id === 'disruption_pref.low_upgrade');
+    expect(penalty).toBeDefined();
+    expect(penalty!.delta).toBe(-12);
+  });
+
+  it('boosts ashp when disruptionTolerance is high', () => {
+    const result = computeDisruptionRankingAdjustments('ashp', {
+      ...baseInput,
+      preferences: { disruptionTolerance: 'high' },
+    });
+    const boost = result.find(a => a.id === 'disruption_pref.high_upgrade');
+    expect(boost).toBeDefined();
+    expect(boost!.delta).toBe(8);
+  });
+
+  it('does not affect combi', () => {
+    const result = computeDisruptionRankingAdjustments('combi', {
+      ...baseInput,
+      preferences: { disruptionTolerance: 'low' },
+    });
+    expect(result).toHaveLength(0);
+  });
+
+  it('does not affect stored_vented', () => {
+    const result = computeDisruptionRankingAdjustments('stored_vented', {
+      ...baseInput,
+      preferences: { disruptionTolerance: 'low' },
+    });
+    expect(result).toHaveLength(0);
+  });
+});
+
+describe('deriveDisruptionTradeOffTag', () => {
+  it('returns null when disruptionTolerance is medium', () => {
+    const tag = deriveDisruptionTradeOffTag('heat_pump', {
+      ...baseInput,
+      preferences: { disruptionTolerance: 'medium' },
+    });
+    expect(tag).toBeNull();
+  });
+
+  it('returns null when preferences absent', () => {
+    expect(deriveDisruptionTradeOffTag('heat_pump', baseInput)).toBeNull();
+  });
+
+  it('returns low disruption tag for combi with low tolerance', () => {
+    const tag = deriveDisruptionTradeOffTag('combi', {
+      ...baseInput,
+      preferences: { disruptionTolerance: 'low' },
+    });
+    expect(tag).toBe('Lower-disruption path preferred due to household installation tolerance');
+  });
+
+  it('returns low disruption tag for stored with low tolerance', () => {
+    const tag = deriveDisruptionTradeOffTag('stored', {
+      ...baseInput,
+      preferences: { disruptionTolerance: 'low' },
+    });
+    expect(tag).toBe('Lower-disruption path preferred due to household installation tolerance');
+  });
+
+  it('returns high disruption tag for heat_pump with high tolerance', () => {
+    const tag = deriveDisruptionTradeOffTag('heat_pump', {
+      ...baseInput,
+      preferences: { disruptionTolerance: 'high' },
+    });
+    expect(tag).toBe('Heat pump remains a strong option because major upgrade works are acceptable');
+  });
+
+  it('returns null for heat_pump with low disruption tolerance', () => {
+    const tag = deriveDisruptionTradeOffTag('heat_pump', {
+      ...baseInput,
+      preferences: { disruptionTolerance: 'low' },
+    });
+    expect(tag).toBeNull();
   });
 });

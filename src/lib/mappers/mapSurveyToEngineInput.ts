@@ -40,6 +40,7 @@ export interface SurveyFormData {
 
   // User preferences
   space_priority?: UserPreferencesV1['spacePriority'];
+  disruption_tolerance?: UserPreferencesV1['disruptionTolerance'];
 }
 
 /**
@@ -75,9 +76,13 @@ export function mapSurveyToEngineInput(
     mains.dynamicPressureBar !== undefined ||
     mains.flowRateLpm !== undefined;
 
-  const preferences: UserPreferencesV1 | undefined = survey.space_priority
-    ? { spacePriority: survey.space_priority }
-    : undefined;
+  const preferences: UserPreferencesV1 | undefined =
+    survey.space_priority || survey.disruption_tolerance
+      ? {
+          ...(survey.space_priority && { spacePriority: survey.space_priority }),
+          ...(survey.disruption_tolerance && { disruptionTolerance: survey.disruption_tolerance }),
+        }
+      : undefined;
 
   return {
     postcode:                survey.postcode,

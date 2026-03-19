@@ -2,7 +2,7 @@ import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInput
 import type { OptionCardV1, OptionScoreV1, ScoreBreakdownItem } from '../contracts/EngineOutputV1';
 import type { ConfidenceV1, AssumptionV1 } from '../contracts/EngineOutputV1';
 import { PENALTY_IDS } from '../contracts/scoring.penaltyIds';
-import { computeSpaceRankingAdjustments } from './buildRecommendationRanking';
+import { computeSpaceRankingAdjustments, computeDisruptionRankingAdjustments } from './buildRecommendationRanking';
 
 /**
  * Minimum measured flow (L/min) that represents a clearly-strong CWS operating point.
@@ -138,6 +138,18 @@ export function scoreOptionV1(
         score += adj.delta;
       } else if (adj.delta > 0) {
         // Positive deltas are boosts — store as negative penalty to surface in breakdown.
+        breakdown.push({ id: adj.id, label: adj.label, penalty: -adj.delta });
+        score += adj.delta;
+      }
+    }
+  }
+
+  // User preferences.disruptionTolerance — adjustments from the disruption tolerance question.
+  // Independent of space preference; weights upgrade-heavy pathways up or down.
+  if (input.preferences?.disruptionTolerance) {
+    const disruptionAdjustments = computeDisruptionRankingAdjustments(id, input);
+    for (const adj of disruptionAdjustments) {
+      if (adj.delta !== 0) {
         breakdown.push({ id: adj.id, label: adj.label, penalty: -adj.delta });
         score += adj.delta;
       }
