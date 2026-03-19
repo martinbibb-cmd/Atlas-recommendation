@@ -11,7 +11,7 @@
  *   useEffect(() => {
  *     setContextExplainerIds(['on_demand_vs_stored', 'standard_vs_mixergy']);
  *     setContextMenuSections([
- *       { id: 'home-energy-compass', label: 'Home Energy Compass', content: <HomeEnergyCompass /> },
+ *       { id: 'some-section', label: 'Some section', content: <SomeContent /> },
  *     ]);
  *     return () => {
  *       setContextExplainerIds([]);

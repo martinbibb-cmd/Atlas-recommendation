@@ -938,3 +938,76 @@ describe('DecisionSynthesisPage — performance visual dashboard (compare mode)'
     expect(hasCostLabel).toBe(true);
   });
 });
+
+// ─── Home Energy Compass — regression (must not appear) ──────────────────────
+
+describe('DecisionSynthesisPage — compass absence regression', () => {
+  it('does not render a Home Energy Compass element', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(document.querySelector('.home-energy-compass')).toBeNull();
+  });
+
+  it('does not render the compass SVG', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(screen.queryByRole('img', { name: /home energy compass/i })).toBeNull();
+  });
+
+  it('does not render cardinal direction axis labels (N/S/E/W)', () => {
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
+    // Open the global menu to ensure compass is not registered as a section
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+    const pageText = document.body.textContent ?? '';
+    expect(pageText).not.toMatch(/\bLow capital\b/);
+    expect(pageText).not.toMatch(/\bElectrification\b.*\bIndependence\b/);
+  });
+
+  it('does not show "Home Energy Compass" as a global menu section', () => {
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+    const pageText = document.body.textContent ?? '';
+    expect(pageText).not.toMatch(/Home Energy Compass/);
+  });
+});
+
+// ─── Recommendation trade-off summary ────────────────────────────────────────
+
+describe('DecisionSynthesisPage — trade-off summary', () => {
+  it('renders the trade-off summary section when there is a viable option', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(document.querySelector('[data-testid="trade-off-summary"]')).not.toBeNull();
+  });
+
+  it('renders the "Current vs recommended" heading', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(screen.getByText(/current vs recommended/i)).toBeTruthy();
+  });
+
+  it('renders the Efficiency trade-off dimension', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(screen.getByText('Efficiency')).toBeTruthy();
+  });
+
+  it('renders the Upfront cost trade-off dimension', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(screen.getByText('Upfront cost')).toBeTruthy();
+  });
+
+  it('renders the Disruption trade-off dimension', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(screen.getByText('Disruption')).toBeTruthy();
+  });
+
+  it('renders the Space impact trade-off dimension', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(screen.getByText('Space impact')).toBeTruthy();
+  });
+
+  it('does not render trade-off summary when there are no viable options', () => {
+    const noViableOutput: EngineOutputV1 = {
+      ...DEMO_OUTPUT,
+      options: [],
+    };
+    render(<DecisionSynthesisPage engineOutput={noViableOutput} />);
+    expect(document.querySelector('[data-testid="trade-off-summary"]')).toBeNull();
+  });
+});

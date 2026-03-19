@@ -12,7 +12,7 @@
 //   - No duplicate trigger logic: only one launcher button is present per shell
 //   - Context menu sections registered by pages appear in the "Explore further" section
 //   - Section panel content is rendered when a section item is selected
-//   - Home Energy Compass section is registered by DecisionSynthesisPage (not inline)
+//   - Home Energy Compass is NOT registered (removed in PR10 — replaced by TradeOffSummary)
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -391,9 +391,9 @@ describe('GlobalMenuShell — context menu sections', () => {
   });
 });
 
-// ─── DecisionSynthesisPage — compass in menu, not inline ─────────────────────
+// ─── DecisionSynthesisPage — trade-off summary, no compass ───────────────────
 
-describe('GlobalMenuShell — DecisionSynthesisPage compass section', () => {
+describe('GlobalMenuShell — DecisionSynthesisPage trade-off summary (compass removed)', () => {
   it('does not render the compass inline in the advice page', () => {
     render(
       <GlobalMenuShell>
@@ -405,7 +405,7 @@ describe('GlobalMenuShell — DecisionSynthesisPage compass section', () => {
     expect(document.querySelector('[data-testid="home-energy-compass-section"]')).toBeNull();
   });
 
-  it('registers a Home Energy Compass section visible in the global menu', () => {
+  it('does not register a Home Energy Compass section in the global menu', () => {
     render(
       <GlobalMenuShell>
         <DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />
@@ -414,8 +414,18 @@ describe('GlobalMenuShell — DecisionSynthesisPage compass section', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
 
-    // "Explore further" section should appear with compass item.
-    expect(document.querySelector('[data-testid="explainers-sections-section"]')).not.toBeNull();
-    expect(document.querySelector('[data-testid="explainers-section-item-home-energy-compass"]')).not.toBeNull();
+    // No compass item should be registered.
+    expect(document.querySelector('[data-testid="explainers-section-item-home-energy-compass"]')).toBeNull();
+  });
+
+  it('renders the trade-off summary on the advice page', () => {
+    render(
+      <GlobalMenuShell>
+        <DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />
+      </GlobalMenuShell>,
+    );
+
+    // Trade-off summary should be inline on the page.
+    expect(document.querySelector('[data-testid="trade-off-summary"]')).not.toBeNull();
   });
 });
