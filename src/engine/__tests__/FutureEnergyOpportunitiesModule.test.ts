@@ -275,75 +275,198 @@ describe('assessFutureEnergyOpportunities — output completeness', () => {
 
 // ─── Roof orientation signal ──────────────────────────────────────────────────
 
-describe('assessFutureEnergyOpportunities — roof orientation signal', () => {
-  it('north-facing front adds south_likely reason to solar PV', () => {
-    const result = assess({ ...BASE_STEADY_STORED, houseFrontFacing: 'north' });
+describe('assessFutureEnergyOpportunities — roof orientation signal (new roofOrientation field)', () => {
+  it('south-facing roof adds favourable reason to solar PV', () => {
+    const result = assess({ ...BASE_STEADY_STORED, roofOrientation: 'south' });
     const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
-    expect(reasonsText).toContain('south-facing');
+    expect(reasonsText).toContain('favourable');
   });
 
-  it('south-facing front adds south_likely reason to solar PV', () => {
-    const result = assess({ ...BASE_STEADY_STORED, houseFrontFacing: 'south' });
+  it('south_east-facing roof adds favourable reason', () => {
+    const result = assess({ ...BASE_STEADY_STORED, roofOrientation: 'south_east' });
     const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
-    expect(reasonsText).toContain('south-facing');
+    expect(reasonsText).toContain('favourable');
   });
 
-  it('east-facing front adds less_optimal reason to solar PV', () => {
-    const result = assess({ ...BASE_STEADY_STORED, houseFrontFacing: 'east' });
+  it('south_west-facing roof adds favourable reason', () => {
+    const result = assess({ ...BASE_STEADY_STORED, roofOrientation: 'south_west' });
+    const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
+    expect(reasonsText).toContain('favourable');
+  });
+
+  it('mixed orientation adds favourable reason (blended yield)', () => {
+    const result = assess({ ...BASE_STEADY_STORED, roofOrientation: 'mixed' });
+    const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
+    expect(reasonsText).toContain('favourable');
+  });
+
+  it('east-facing roof adds less_optimal reason', () => {
+    const result = assess({ ...BASE_STEADY_STORED, roofOrientation: 'east' });
     const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
     expect(reasonsText).toContain('less optimal');
   });
 
-  it('west-facing front adds less_optimal reason to solar PV', () => {
-    const result = assess({ ...BASE_STEADY_STORED, houseFrontFacing: 'west' });
+  it('west-facing roof adds less_optimal reason', () => {
+    const result = assess({ ...BASE_STEADY_STORED, roofOrientation: 'west' });
     const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
     expect(reasonsText).toContain('less optimal');
   });
 
-  it('no orientation set keeps generic roof survey check', () => {
+  it('north-facing roof adds poor candidate reason', () => {
+    const result = assess({ ...BASE_STEADY_STORED, roofOrientation: 'north' });
+    const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
+    expect(reasonsText).toContain('north-facing');
+  });
+
+  it('roofOrientation unknown keeps generic roof survey check', () => {
+    const result = assess({ ...BASE_STEADY_STORED, roofOrientation: 'unknown' });
+    const checksText = result.solarPv.checksRequired.join(' ').toLowerCase();
+    expect(checksText).toContain('roof orientation');
+  });
+
+  it('no roofOrientation set keeps generic roof survey check', () => {
     const result = assess({ ...BASE_STEADY_STORED });
     const checksText = result.solarPv.checksRequired.join(' ').toLowerCase();
     expect(checksText).toContain('roof orientation');
-    expect(checksText).not.toContain('south-facing');
+    expect(checksText).not.toContain('favourable');
   });
 
   it('south_likely replaces generic check with specific confirmation note', () => {
-    const result = assess({ ...BASE_STEADY_STORED, houseFrontFacing: 'north' });
+    const result = assess({ ...BASE_STEADY_STORED, roofOrientation: 'south' });
     const checksText = result.solarPv.checksRequired.join(' ').toLowerCase();
-    expect(checksText).toContain('south-facing pitch');
+    expect(checksText).toContain('favourable');
     expect(checksText).not.toContain('orientation and obstruction survey required before');
   });
 
   it('less_optimal surfaces in checksRequired', () => {
-    const result = assess({ ...BASE_STEADY_STORED, houseFrontFacing: 'east' });
+    const result = assess({ ...BASE_STEADY_STORED, roofOrientation: 'east' });
     const checksText = result.solarPv.checksRequired.join(' ').toLowerCase();
     expect(checksText).toContain('less optimal');
   });
 
   it('orientation signal does not change solar PV status', () => {
-    const withNorth = assess({ ...BASE_STEADY_STORED, houseFrontFacing: 'north' });
-    const withEast  = assess({ ...BASE_STEADY_STORED, houseFrontFacing: 'east'  });
+    const withSouth = assess({ ...BASE_STEADY_STORED, roofOrientation: 'south' });
+    const withEast  = assess({ ...BASE_STEADY_STORED, roofOrientation: 'east'  });
     const noOrient  = assess({ ...BASE_STEADY_STORED });
-    expect(withNorth.solarPv.status).toBe('suitable_now');
+    expect(withSouth.solarPv.status).toBe('suitable_now');
     expect(withEast.solarPv.status).toBe('suitable_now');
     expect(noOrient.solarPv.status).toBe('suitable_now');
   });
 
   it('orientation signal does not affect EV charging assessment', () => {
-    const withNorth = assess({ ...BASE_PROFESSIONAL_FUTURE_READY, houseFrontFacing: 'north' });
-    const withEast  = assess({ ...BASE_PROFESSIONAL_FUTURE_READY, houseFrontFacing: 'east'  });
-    expect(withNorth.evCharging.status).toBe(withEast.evCharging.status);
+    const withSouth = assess({ ...BASE_PROFESSIONAL_FUTURE_READY, roofOrientation: 'south' });
+    const withEast  = assess({ ...BASE_PROFESSIONAL_FUTURE_READY, roofOrientation: 'east'  });
+    expect(withSouth.evCharging.status).toBe(withEast.evCharging.status);
   });
 
-  it('not_currently_favoured path with south_likely still has empty checksRequired', () => {
-    const result = assess({ ...BASE_PROFESSIONAL_COMBI, houseFrontFacing: 'north' });
+  it('not_currently_favoured path with south orientation still has empty checksRequired', () => {
+    const result = assess({ ...BASE_PROFESSIONAL_COMBI, roofOrientation: 'south' });
     expect(result.solarPv.status).toBe('not_currently_favoured');
     expect(result.solarPv.checksRequired).toHaveLength(0);
   });
 
-  it('south_likely reason is appended for mixergy path', () => {
-    const result = assess({ ...BASE_MIXERGY_PROFESSIONAL, houseFrontFacing: 'south' });
+  it('south orientation reason is appended for mixergy path', () => {
+    const result = assess({ ...BASE_MIXERGY_PROFESSIONAL, roofOrientation: 'south' });
     const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
-    expect(reasonsText).toContain('south-facing');
+    expect(reasonsText).toContain('favourable');
+  });
+});
+
+// ─── Solar shading signal ─────────────────────────────────────────────────────
+
+describe('assessFutureEnergyOpportunities — solar shading signal', () => {
+  it('medium shading appends shading reason', () => {
+    const result = assess({ ...BASE_STEADY_STORED, solarShading: 'medium' });
+    const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
+    expect(reasonsText).toContain('shading');
+  });
+
+  it('high shading appends heavy shading reason', () => {
+    const result = assess({ ...BASE_STEADY_STORED, solarShading: 'high' });
+    const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
+    expect(reasonsText).toContain('heavy shading');
+  });
+
+  it('low shading does not append a shading reason', () => {
+    const result = assess({ ...BASE_STEADY_STORED, solarShading: 'low' });
+    const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
+    expect(reasonsText).not.toContain('heavy shading');
+  });
+
+  it('shading unknown does not append a shading reason', () => {
+    const result = assess({ ...BASE_STEADY_STORED, solarShading: 'unknown' });
+    const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
+    expect(reasonsText).not.toContain('heavy shading');
+  });
+
+  it('shading signal does not change solar PV status', () => {
+    const withHigh   = assess({ ...BASE_STEADY_STORED, solarShading: 'high' });
+    const withLow    = assess({ ...BASE_STEADY_STORED, solarShading: 'low' });
+    const noShading  = assess({ ...BASE_STEADY_STORED });
+    expect(withHigh.solarPv.status).toBe('suitable_now');
+    expect(withLow.solarPv.status).toBe('suitable_now');
+    expect(noShading.solarPv.status).toBe('suitable_now');
+  });
+
+  it('shading signal does not affect EV charging assessment', () => {
+    const withShading    = assess({ ...BASE_PROFESSIONAL_FUTURE_READY, solarShading: 'high' });
+    const withoutShading = assess({ ...BASE_PROFESSIONAL_FUTURE_READY });
+    expect(withShading.evCharging.status).toBe(withoutShading.evCharging.status);
+  });
+});
+
+// ─── Legacy backward compatibility (houseFrontFacing) ─────────────────────────
+
+describe('assessFutureEnergyOpportunities — legacy houseFrontFacing field', () => {
+  it('north-facing front adds south_likely reason to solar PV (legacy)', () => {
+    const result = assess({ ...BASE_STEADY_STORED, houseFrontFacing: 'north' });
+    const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
+    expect(reasonsText).toContain('favourable');
+  });
+
+  it('south-facing front adds south_likely reason to solar PV (legacy)', () => {
+    const result = assess({ ...BASE_STEADY_STORED, houseFrontFacing: 'south' });
+    const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
+    expect(reasonsText).toContain('favourable');
+  });
+
+  it('east-facing front adds less_optimal reason to solar PV (legacy)', () => {
+    const result = assess({ ...BASE_STEADY_STORED, houseFrontFacing: 'east' });
+    const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
+    expect(reasonsText).toContain('less optimal');
+  });
+
+  it('west-facing front adds less_optimal reason to solar PV (legacy)', () => {
+    const result = assess({ ...BASE_STEADY_STORED, houseFrontFacing: 'west' });
+    const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
+    expect(reasonsText).toContain('less optimal');
+  });
+
+  it('roofOrientation takes precedence over houseFrontFacing when both present', () => {
+    // roofOrientation=east should win over houseFrontFacing=north
+    const result = assess({
+      ...BASE_STEADY_STORED,
+      roofOrientation: 'east',
+      houseFrontFacing: 'north',
+    });
+    const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
+    expect(reasonsText).toContain('less optimal');
+    expect(reasonsText).not.toContain('favourable');
+  });
+
+  it('falls back to houseFrontFacing when roofOrientation is absent', () => {
+    const result = assess({ ...BASE_STEADY_STORED, houseFrontFacing: 'north' });
+    const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
+    expect(reasonsText).toContain('favourable');
+  });
+
+  it('falls back to houseFrontFacing when roofOrientation is unknown', () => {
+    const result = assess({
+      ...BASE_STEADY_STORED,
+      roofOrientation: 'unknown',
+      houseFrontFacing: 'north',
+    });
+    const reasonsText = result.solarPv.reasons.join(' ').toLowerCase();
+    expect(reasonsText).toContain('favourable');
   });
 });
