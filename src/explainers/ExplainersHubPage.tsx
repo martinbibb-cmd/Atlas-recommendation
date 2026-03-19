@@ -8,9 +8,11 @@
  * PR5:  Survey-backed entry now defaults to compare mode (current vs proposed)
  *       via buildCompareSeedFromSurvey, making comparison the primary Atlas
  *       demonstration rather than a hidden secondary feature.
+ * PR5b: Physics Explainers and Energy Literacy panels moved into GlobalMenuShell
+ *       via context registration — no longer rendered inline in the dashboard.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import SimulatorDashboard from './lego/simulator/SimulatorDashboard';
 import type { FloorplanOperatingAssumptions } from './lego/simulator/SimulatorDashboard';
 import SimulatorStepper from './lego/simulator/SimulatorStepper';
@@ -26,6 +28,8 @@ import DecisionSynthesisPage from '../components/advice/DecisionSynthesisPage';
 import { adaptFloorplanToAtlasInputs } from '../lib/floorplan/adaptFloorplanToAtlasInputs';
 import { buildHeatingOperatingState, FLOOR_PLAN_EMITTER_EXPLANATION_TAGS } from '../lib/heating/buildHeatingOperatingState';
 import type { DerivedFloorplanOutput } from '../components/floorplan/floorplanDerivations';
+import { useGlobalMenu } from '../components/shell/GlobalMenuContext';
+import type { GlobalMenuSection } from '../components/shell/GlobalMenuContext';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -145,6 +149,28 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
   //   (b) stepper has completed and config is set.
   const showDashboard = !showStepper && (surveyAdapted != null || config != null);
 
+  // ── Global menu sections (Physics Explainers + Energy Literacy) ─────────────
+  // Registered when the dashboard is shown so they appear in the global menu
+  // instead of inline below the simulator panels.
+  const { setContextMenuSections } = useGlobalMenu();
+
+  const dashboardMenuSections = useMemo<GlobalMenuSection[]>(
+    () => [
+      { id: 'physics-explainers', label: 'Physics Explainers', content: <ExplainerPanel /> },
+      { id: 'energy-literacy',    label: 'Energy Literacy',    content: <EnergyLiteracyPanel /> },
+    ],
+    [],
+  );
+
+  useEffect(() => {
+    if (!showDashboard) {
+      setContextMenuSections([]);
+      return;
+    }
+    setContextMenuSections(dashboardMenuSections);
+    return () => setContextMenuSections([]);
+  }, [showDashboard, dashboardMenuSections, setContextMenuSections]);
+
   if (showDashboard) {
     const isSurveyBacked = surveyAdapted != null && !config;
     const initialSystemChoice = surveyAdapted != null && isSurveyBacked
@@ -250,9 +276,6 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
           </div>
         )}
 
-        <ExplainerPanel />
-
-        <EnergyLiteracyPanel />
       </div>
     );
   }

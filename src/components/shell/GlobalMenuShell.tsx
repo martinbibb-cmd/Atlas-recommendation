@@ -25,10 +25,13 @@ import './GlobalMenuShell.css';
 // ─── Inner trigger (reads from context) ──────────────────────────────────────
 
 function GlobalMenuTrigger() {
-  const { contextExplainerIds } = useGlobalMenu();
+  const { contextExplainerIds, contextMenuSections } = useGlobalMenu();
   return (
     <div className="global-menu-shell__trigger" data-testid="global-menu-trigger">
-      <ExplainersOverlay contextExplainerIds={contextExplainerIds} />
+      <ExplainersOverlay
+        contextExplainerIds={contextExplainerIds}
+        contextMenuSections={contextMenuSections}
+      />
     </div>
   );
 }

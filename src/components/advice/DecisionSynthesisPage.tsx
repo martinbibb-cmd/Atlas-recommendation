@@ -48,6 +48,7 @@ import PrintableRecommendationPage from './PrintableRecommendationPage';
 import PhysicsStoryPanel from '../story/PhysicsStoryPanel';
 import { buildPhysicsStory } from '../../lib/story/buildPhysicsStory';
 import { useGlobalMenu } from '../shell/GlobalMenuContext';
+import type { GlobalMenuSection } from '../shell/GlobalMenuContext';
 import HomeEnergyCompass from '../compass/HomeEnergyCompass';
 import { buildCompassState } from '../../lib/compass/buildCompassState';
 import './DecisionSynthesisPage.css';
@@ -587,7 +588,7 @@ export default function DecisionSynthesisPage({
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Register context-specific explainer IDs with the global menu shell.
-  const { setContextExplainerIds } = useGlobalMenu();
+  const { setContextExplainerIds, setContextMenuSections } = useGlobalMenu();
 
   // Generate QR code data URL whenever a report ID is saved.
   useEffect(() => {
@@ -824,6 +825,22 @@ export default function DecisionSynthesisPage({
     return () => setContextExplainerIds([]);
   }, [contextExplainerIds, setContextExplainerIds]);
 
+  // Register the Home Energy Compass as a global menu section.
+  // Clears when the advice page unmounts.
+  const compassMenuSection = useMemo<GlobalMenuSection>(
+    () => ({
+      id:      'home-energy-compass',
+      label:   'Home Energy Compass',
+      content: <HomeEnergyCompass compassState={compassState} />,
+    }),
+    [compassState],
+  );
+
+  useEffect(() => {
+    setContextMenuSections([compassMenuSection]);
+    return () => setContextMenuSections([]);
+  }, [compassMenuSection, setContextMenuSections]);
+
   // Print view — render the dedicated print component.
   if (showPrint) {
     return (
@@ -1037,24 +1054,6 @@ export default function DecisionSynthesisPage({
             </div>
           ) : null}
         </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 1a — Home Energy Compass                                  */}
-      {/* Placed immediately after the recommendation headline so users     */}
-      {/* get directional context before the detailed breakdown.            */}
-      {/* ══════════════════════════════════════════════════════════════════ */}
-      <div
-        className="advice-page__section advice-page__section--compass"
-        aria-label="Home Energy Compass"
-        data-testid="home-energy-compass-section"
-      >
-        <h2 className="advice-page__section-title">🧭 Home Energy Compass</h2>
-        <p className="advice-page__section-intro">
-          Where this home sits today — and where the recommended system moves it.
-          North is Efficiency, East is Electrification, South is Low Capital, West is Energy Independence.
-        </p>
-        <HomeEnergyCompass compassState={compassState} />
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════ */}
