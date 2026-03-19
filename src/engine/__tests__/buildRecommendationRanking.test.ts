@@ -248,3 +248,90 @@ describe('deriveDisruptionTradeOffTag', () => {
     expect(tag).toBeNull();
   });
 });
+
+// ─── computeMainsFlowRankingAdjustments ──────────────────────────────────────
+
+import { computeMainsFlowRankingAdjustments } from '../buildRecommendationRanking';
+
+describe('computeMainsFlowRankingAdjustments', () => {
+  it('returns empty array for non-combi options regardless of flow', () => {
+    const result = computeMainsFlowRankingAdjustments('stored_unvented', {
+      ...baseInput,
+      mains: { flowRateLpm: 1.0 },
+      mainsDynamicFlowLpmKnown: true,
+    });
+    expect(result).toHaveLength(0);
+  });
+
+  it('returns empty array when no flow reading is present', () => {
+    const result = computeMainsFlowRankingAdjustments('combi', baseInput);
+    expect(result).toHaveLength(0);
+  });
+
+  it('returns empty array when flow is above the ignition threshold (≥ 2.5 L/min)', () => {
+    const result = computeMainsFlowRankingAdjustments('combi', {
+      ...baseInput,
+      mains: { flowRateLpm: 15 },
+      mainsDynamicFlowLpmKnown: true,
+    });
+    expect(result).toHaveLength(0);
+  });
+
+  it('returns empty array when flow is exactly at the threshold (2.5 L/min)', () => {
+    const result = computeMainsFlowRankingAdjustments('combi', {
+      ...baseInput,
+      mainsDynamicFlowLpm: 2.5,
+      mainsDynamicFlowLpmKnown: true,
+    });
+    expect(result).toHaveLength(0);
+  });
+
+  it('applies -25 penalty to combi when mains.flowRateLpm is below threshold', () => {
+    const result = computeMainsFlowRankingAdjustments('combi', {
+      ...baseInput,
+      mains: { flowRateLpm: 2.0 },
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('mains_flow.low_combi');
+    expect(result[0].delta).toBe(-25);
+  });
+
+  it('applies -25 penalty to combi when flat mainsDynamicFlowLpm is below threshold and known', () => {
+    const result = computeMainsFlowRankingAdjustments('combi', {
+      ...baseInput,
+      mainsDynamicFlowLpm: 1.5,
+      mainsDynamicFlowLpmKnown: true,
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].delta).toBe(-25);
+  });
+
+  it('does not apply penalty when flow is low but reading is unconfirmed (flat field, not known)', () => {
+    const result = computeMainsFlowRankingAdjustments('combi', {
+      ...baseInput,
+      mainsDynamicFlowLpm: 1.5,
+      mainsDynamicFlowLpmKnown: false,
+    });
+    expect(result).toHaveLength(0);
+  });
+
+  it('returns penalty label referencing ignition threshold', () => {
+    const result = computeMainsFlowRankingAdjustments('combi', {
+      ...baseInput,
+      mains: { flowRateLpm: 1.0 },
+    });
+    expect(result[0].label).toContain('ignition threshold');
+  });
+
+  it('fires independently of space priority — no space priority needed', () => {
+    // No preferences set at all — penalty should still fire for low confirmed flow
+    const noPrefs = { ...baseInput };
+    delete (noPrefs as Partial<typeof noPrefs>).preferences;
+    const result = computeMainsFlowRankingAdjustments('combi', {
+      ...noPrefs,
+      mains: { flowRateLpm: 2.0 },
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].delta).toBe(-25);
+  });
+});

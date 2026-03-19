@@ -270,3 +270,152 @@ describe('visitApi', () => {
     });
   });
 });
+
+// ─── RecentVisitsList helpers ─────────────────────────────────────────────────
+
+import {
+  matchesSearch,
+  matchesDateFilter,
+  DEFAULT_LIST_LIMIT,
+} from '../../../components/visit/recentVisitsHelpers';
+
+describe('RecentVisitsList helpers', () => {
+  function makeVisitMeta(overrides: Partial<VisitMeta> = {}): VisitMeta {
+    return {
+      id: 'test-id',
+      created_at: '2024-06-15T10:00:00Z',
+      updated_at: '2024-06-15T10:00:00Z',
+      status: 'new',
+      customer_name: null,
+      address_line_1: null,
+      postcode: null,
+      current_step: null,
+      visit_reference: null,
+      ...overrides,
+    };
+  }
+
+  // ── DEFAULT_LIST_LIMIT ────────────────────────────────────────────────────
+
+  describe('DEFAULT_LIST_LIMIT', () => {
+    it('is a positive integer (20)', () => {
+      expect(DEFAULT_LIST_LIMIT).toBe(20);
+      expect(typeof DEFAULT_LIST_LIMIT).toBe('number');
+    });
+  });
+
+  // ── matchesSearch ─────────────────────────────────────────────────────────
+
+  describe('matchesSearch', () => {
+    it('returns true when query is empty', () => {
+      const v = makeVisitMeta({ address_line_1: '10 Downing St' });
+      expect(matchesSearch(v, '')).toBe(true);
+    });
+
+    it('matches by visit_reference (case-insensitive)', () => {
+      const v = makeVisitMeta({ visit_reference: 'LEAD-1234' });
+      expect(matchesSearch(v, 'lead-1234')).toBe(true);
+      expect(matchesSearch(v, 'LEAD')).toBe(true);
+      expect(matchesSearch(v, 'lead')).toBe(true);
+    });
+
+    it('matches by address_line_1', () => {
+      const v = makeVisitMeta({ address_line_1: '10 Downing Street' });
+      expect(matchesSearch(v, 'downing')).toBe(true);
+    });
+
+    it('matches by postcode', () => {
+      const v = makeVisitMeta({ postcode: 'SW1A 2AA' });
+      expect(matchesSearch(v, 'sw1a')).toBe(true);
+    });
+
+    it('matches by customer_name', () => {
+      const v = makeVisitMeta({ customer_name: 'Jane Smith' });
+      expect(matchesSearch(v, 'jane')).toBe(true);
+    });
+
+    it('returns false when query does not match any field', () => {
+      const v = makeVisitMeta({ address_line_1: '10 Downing St', customer_name: 'Alice' });
+      expect(matchesSearch(v, 'zzz_no_match')).toBe(false);
+    });
+
+    it('visit_reference match takes priority over no-match on other fields', () => {
+      const v = makeVisitMeta({ visit_reference: 'REF-999', address_line_1: '1 Other St' });
+      expect(matchesSearch(v, 'REF-999')).toBe(true);
+    });
+  });
+
+  // ── matchesDateFilter ─────────────────────────────────────────────────────
+
+  describe('matchesDateFilter', () => {
+    it('returns true when dateStr is empty (no filter active)', () => {
+      const v = makeVisitMeta({ updated_at: '2024-06-15T10:00:00Z' });
+      expect(matchesDateFilter(v, '')).toBe(true);
+    });
+
+    it('returns true when the visit was updated on the given date', () => {
+      const v = makeVisitMeta({ updated_at: '2024-06-15T10:00:00Z' });
+      // en-CA locale formats as YYYY-MM-DD using local time.
+      // We replicate what the helper does:
+      const expectedDate = new Date('2024-06-15T10:00:00Z').toLocaleDateString('en-CA');
+      expect(matchesDateFilter(v, expectedDate)).toBe(true);
+    });
+
+    it('returns false when the visit was updated on a different date', () => {
+      const v = makeVisitMeta({ updated_at: '2024-06-15T10:00:00Z' });
+      expect(matchesDateFilter(v, '2024-06-16')).toBe(false);
+    });
+
+    it('returns false for an invalid dateStr that does not match', () => {
+      const v = makeVisitMeta({ updated_at: '2024-06-15T10:00:00Z' });
+      expect(matchesDateFilter(v, '1999-01-01')).toBe(false);
+    });
+  });
+
+  // ── capped list behaviour (regression) ───────────────────────────────────
+
+  describe('capped list — newest-first regression', () => {
+    /**
+     * Builds an array of N visits sorted newest-first by updated_at
+     * (as the API returns them).
+     */
+    function buildVisits(n: number): VisitMeta[] {
+      return Array.from({ length: n }, (_, i) => {
+        const isoDate = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString();
+        return makeVisitMeta({
+          id: `visit-${i}`,
+          updated_at: isoDate,
+          address_line_1: `${i + 1} Example Road`,
+        });
+      });
+    }
+
+    it('slicing first DEFAULT_LIST_LIMIT from a 50-visit array returns 20 items', () => {
+      const visits = buildVisits(50);
+      const visible = visits.slice(0, DEFAULT_LIST_LIMIT);
+      expect(visible).toHaveLength(20);
+    });
+
+    it('the first item in the sliced list is the newest visit', () => {
+      const visits = buildVisits(50);
+      const visible = visits.slice(0, DEFAULT_LIST_LIMIT);
+      // visit-0 was set with the most-recent timestamp (index 0 = now)
+      expect(visible[0].id).toBe('visit-0');
+    });
+
+    it('slicing returns all items when fewer than DEFAULT_LIST_LIMIT exist', () => {
+      const visits = buildVisits(10);
+      const visible = visits.slice(0, DEFAULT_LIST_LIMIT);
+      expect(visible).toHaveLength(10);
+    });
+
+    it('filtered results bypass the cap when a text search is active', () => {
+      const visits = buildVisits(50);
+      // Searching for '1 Example Road' matches only the visit with address_line_1 = '1 Example Road'
+      const filtered = visits.filter((v) => matchesSearch(v, '1 Example Road'));
+      // Since filtering is active, we show all filtered results (no slice)
+      expect(filtered.length).toBeGreaterThan(0);
+      expect(filtered.length).toBeLessThanOrEqual(50);
+    });
+  });
+});

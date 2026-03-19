@@ -308,3 +308,70 @@ export function deriveDisruptionTradeOffTag(
 
   return null;
 }
+
+// ─── Mains Flow (physics guardrail) ─────────────────────────────────────────
+
+/**
+ * Adjustment produced by the standalone mains-flow physics guardrail.
+ * Independent of user space-priority preference.
+ */
+export interface MainsFlowRankingAdjustment {
+  /** Score delta (always negative for combi when flow is low). */
+  delta: number;
+  /** Human-readable explanation. */
+  label: string;
+  /** Stable identifier for downstream narrative mapping. */
+  id: 'mains_flow.low_combi';
+}
+
+/**
+ * Compute mains-flow ranking adjustments for a given option.
+ *
+ * This is a physics guardrail that applies independently of user preferences
+ * (space priority, disruption tolerance).  When the surveyor has recorded a
+ * confirmed mains flow reading that is below the ignition threshold, combi
+ * is always penalised — regardless of other preference settings.
+ *
+ * Only fires when:
+ *  - The option is 'combi'
+ *  - A flow value is present in `input.mains.flowRateLpm` OR `input.mainsDynamicFlowLpm`
+ *  - The resolved flow is below LOW_FLOW_THRESHOLD_LPM (2.5 L/min)
+ *  - The flow is a measured/known reading (mainsDynamicFlowLpmKnown === true OR
+ *    it arrived via the canonical mains nested object, which sanitiseModelForEngine
+ *    marks as known)
+ *
+ * @param optionId  Option being scored.
+ * @param input     Resolved engine input.
+ * @returns         Array of adjustments (empty when the guardrail does not fire).
+ */
+export function computeMainsFlowRankingAdjustments(
+  optionId: OptionCardV1['id'],
+  input: EngineInputV2_3,
+): MainsFlowRankingAdjustment[] {
+  if (optionId !== 'combi') return [];
+
+  // Resolve flow: nested canonical object takes priority over flat field.
+  const flowLpm = input.mains?.flowRateLpm ?? input.mainsDynamicFlowLpm;
+  if (flowLpm == null) return [];
+
+  // Only fire when the reading is confirmed (known measurement, not an estimate).
+  // sanitiseModelForEngine sets mainsDynamicFlowLpmKnown=true when promoting from mains.flowRateLpm.
+  // When the caller provides mains.flowRateLpm directly (e.g. mapSurveyToEngineInput), treat
+  // that as a confirmed reading because the mapper only populates flowRateLpm when
+  // mains_flow_known is true.
+  const isKnown =
+    input.mainsDynamicFlowLpmKnown === true ||
+    input.mains?.flowRateLpm != null;
+
+  if (!isKnown) return [];
+
+  if (flowLpm >= LOW_FLOW_THRESHOLD_LPM) return [];
+
+  return [
+    {
+      delta: -LOW_FLOW_COMBI_PENALTY,
+      label: 'Measured mains flow below ignition threshold — on-demand hot water delivery unreliable',
+      id: 'mains_flow.low_combi',
+    },
+  ];
+}

@@ -67,7 +67,10 @@ export function mapSurveyToEngineInput(
   const mains: EngineInputV2_3['mains'] = {
     staticPressureBar:  survey.mains_static_bar,
     dynamicPressureBar: survey.mains_dynamic_bar,
-    flowRateLpm:        survey.mains_flow_lpm,
+    // Only promote to the canonical nested flowRateLpm when the reading is confirmed
+    // (mains_flow_known=true).  Unconfirmed estimates stay in the flat mainsDynamicFlowLpm
+    // field so downstream consumers know not to treat them as hard measurements.
+    flowRateLpm: survey.mains_flow_known === true ? survey.mains_flow_lpm : undefined,
   };
 
   // Omit the mains object entirely when no fields were provided.

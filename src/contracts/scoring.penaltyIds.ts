@@ -49,6 +49,10 @@ export const PENALTY_IDS = {
   BOILER_OVERSIZE_MODERATE: 'boiler.oversize_moderate',
   BOILER_OVERSIZE_AGGRESSIVE: 'boiler.oversize_aggressive',
 
+  // Mains flow (physics guardrail — independent of space preference)
+  /** Combi penalised because measured mains flow is below ignition threshold. */
+  MAINS_FLOW_LOW_COMBI: 'mains_flow.low_combi',
+
   // Mains pressure
   PRESSURE_BORDERLINE_UNVENTED: 'pressure.borderline_unvented',
 

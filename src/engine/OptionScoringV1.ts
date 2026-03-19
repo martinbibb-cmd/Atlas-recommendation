@@ -2,7 +2,7 @@ import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInput
 import type { OptionCardV1, OptionScoreV1, ScoreBreakdownItem } from '../contracts/EngineOutputV1';
 import type { ConfidenceV1, AssumptionV1 } from '../contracts/EngineOutputV1';
 import { PENALTY_IDS } from '../contracts/scoring.penaltyIds';
-import { computeSpaceRankingAdjustments, computeDisruptionRankingAdjustments } from './buildRecommendationRanking';
+import { computeSpaceRankingAdjustments, computeDisruptionRankingAdjustments, computeMainsFlowRankingAdjustments } from './buildRecommendationRanking';
 
 /**
  * Minimum measured flow (L/min) that represents a clearly-strong CWS operating point.
@@ -153,6 +153,17 @@ export function scoreOptionV1(
         breakdown.push({ id: adj.id, label: adj.label, penalty: -adj.delta });
         score += adj.delta;
       }
+    }
+  }
+
+  // Mains flow physics guardrail — always applied when a measured flow reading is present.
+  // Independent of space priority or disruption tolerance preferences.
+  // Penalises combi when confirmed mains flow is below the ignition threshold.
+  {
+    const flowAdjustments = computeMainsFlowRankingAdjustments(id, input);
+    for (const adj of flowAdjustments) {
+      breakdown.push({ id: adj.id, label: adj.label, penalty: -adj.delta });
+      score += adj.delta;
     }
   }
 

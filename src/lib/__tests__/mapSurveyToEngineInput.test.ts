@@ -19,17 +19,34 @@ describe('mapSurveyToEngineInput', () => {
     expect(result.dynamicMainsPressure).toBe(2.5);
   });
 
-  it('maps mains nested object when mains fields are provided', () => {
+  it('maps mains nested object when mains fields are provided (confirmed flow)', () => {
     const result = mapSurveyToEngineInput({
       ...baseSurvey,
       mains_static_bar: 3.0,
       mains_dynamic_bar: 2.5,
       mains_flow_lpm: 15,
+      mains_flow_known: true,
     });
     expect(result.mains).toBeDefined();
     expect(result.mains!.staticPressureBar).toBe(3.0);
     expect(result.mains!.dynamicPressureBar).toBe(2.5);
     expect(result.mains!.flowRateLpm).toBe(15);
+  });
+
+  it('omits mains.flowRateLpm when mains_flow_known is false (unconfirmed estimate)', () => {
+    const result = mapSurveyToEngineInput({
+      ...baseSurvey,
+      mains_static_bar: 3.0,
+      mains_dynamic_bar: 2.5,
+      mains_flow_lpm: 15,
+      mains_flow_known: false,
+    });
+    expect(result.mains).toBeDefined();
+    expect(result.mains!.staticPressureBar).toBe(3.0);
+    expect(result.mains!.dynamicPressureBar).toBe(2.5);
+    // Unconfirmed flow stays in flat field only — not promoted to canonical nested object
+    expect(result.mains!.flowRateLpm).toBeUndefined();
+    expect(result.mainsDynamicFlowLpm).toBe(15);
   });
 
   it('omits mains object when no mains fields provided', () => {
