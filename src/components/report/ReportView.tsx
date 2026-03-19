@@ -34,8 +34,11 @@
  * Interactive chrome is hidden via @media print (see reportPrint.css).
  */
 
+import { useState, useEffect } from 'react';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import { OPPORTUNITY_STATUS_LABELS } from '../../contracts/EngineOutputV1';
+import { buildPortalUrl } from '../../lib/portal/portalUrl';
+import { generatePortalToken } from '../../lib/portal/portalToken';
 import {
   checkCompleteness,
   buildReportSections,
@@ -684,6 +687,18 @@ function RenderSection({ section }: { section: ReportSection }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ReportView({ output, onBack, reportReference }: Props) {
+  const [portalUrl, setPortalUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!reportReference) return;
+    let cancelled = false;
+    generatePortalToken(reportReference)
+      .then((token) => buildPortalUrl(reportReference, window.location.origin, token))
+      .then((url) => { if (!cancelled) setPortalUrl(url); })
+      .catch(() => { /* Portal URL generation failure is non-critical — silently omit the link. */ });
+    return () => { cancelled = true; };
+  }, [reportReference]);
+
   function handleBack() {
     if (onBack) {
       onBack();
@@ -768,6 +783,18 @@ export default function ReportView({ output, onBack, reportReference }: Props) {
       <div className="rv-toolbar" aria-hidden="false">
         <button className="rv-toolbar__back" onClick={handleBack}>← Back</button>
         <span className="rv-toolbar__label">System Report</span>
+        {portalUrl && (
+          <a
+            className="rv-toolbar__portal-link"
+            href={portalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Open interactive home heating plan"
+            data-testid="portal-link"
+          >
+            🏠 Open interactive home heating plan
+          </a>
+        )}
         <button className="rv-toolbar__print" onClick={() => window.print()}>
           🖨 Print / Save PDF
         </button>
