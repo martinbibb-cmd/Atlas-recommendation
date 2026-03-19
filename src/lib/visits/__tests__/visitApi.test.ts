@@ -277,6 +277,9 @@ import {
   matchesSearch,
   matchesDateFilter,
   DEFAULT_LIST_LIMIT,
+  isAnyFilterActive,
+  cardSubline,
+  buildListSummary,
 } from '../../../components/visit/recentVisitsHelpers';
 
 describe('RecentVisitsList helpers', () => {
@@ -416,6 +419,91 @@ describe('RecentVisitsList helpers', () => {
       // Since filtering is active, we show all filtered results (no slice)
       expect(filtered.length).toBeGreaterThan(0);
       expect(filtered.length).toBeLessThanOrEqual(50);
+    });
+  });
+
+  // ── list summary text logic (regression) ─────────────────────────────────
+
+  describe('list summary text — regression', () => {
+    it('shows "Showing latest 20 visits" when unfiltered and capped', () => {
+      expect(buildListSummary({ isFiltering: false, showAll: false, visibleCount: 20, totalFilteredCount: 50 }))
+        .toBe('Showing latest 20 visits');
+    });
+
+    it('shows "Showing all N visits" when showAll is true and not filtering', () => {
+      expect(buildListSummary({ isFiltering: false, showAll: true, visibleCount: 50, totalFilteredCount: 50 }))
+        .toBe('Showing all 50 visits');
+    });
+
+    it('shows "Showing N filtered visits" when filters are active', () => {
+      expect(buildListSummary({ isFiltering: true, showAll: false, visibleCount: 7, totalFilteredCount: 7 }))
+        .toBe('Showing 7 filtered visits');
+    });
+
+    it('uses singular "visit" when exactly 1 result', () => {
+      expect(buildListSummary({ isFiltering: true, showAll: false, visibleCount: 1, totalFilteredCount: 1 }))
+        .toBe('Showing 1 filtered visit');
+      expect(buildListSummary({ isFiltering: false, showAll: false, visibleCount: 1, totalFilteredCount: 5 }))
+        .toBe('Showing latest 1 visit');
+    });
+  });
+
+  // ── card subline logic (row display-label regression) ─────────────────────
+
+  describe('card subline — display-label regression', () => {
+    it('when headline is visit_reference, subline shows address + postcode', () => {
+      const v = makeVisitMeta({ visit_reference: 'REF-1', address_line_1: '10 Main St', postcode: 'SW1A 1AA' });
+      expect(cardSubline(v)).toBe('10 Main St, SW1A 1AA');
+    });
+
+    it('when headline is visit_reference and only address (no postcode), subline shows address only', () => {
+      const v = makeVisitMeta({ visit_reference: 'REF-2', address_line_1: '5 Oak Ave', postcode: null });
+      expect(cardSubline(v)).toBe('5 Oak Ave');
+    });
+
+    it('when headline is address, subline shows postcode', () => {
+      const v = makeVisitMeta({ visit_reference: null, address_line_1: '10 Main St', postcode: 'SW1A 1AA' });
+      expect(cardSubline(v)).toBe('SW1A 1AA');
+    });
+
+    it('when headline is address and no postcode, subline falls back to customer_name', () => {
+      const v = makeVisitMeta({ visit_reference: null, address_line_1: '10 Main St', postcode: null, customer_name: 'Alice' });
+      expect(cardSubline(v)).toBe('Alice');
+    });
+
+    it('when headline is postcode, subline shows customer_name', () => {
+      const v = makeVisitMeta({ visit_reference: null, address_line_1: null, postcode: 'SW1A 1AA', customer_name: 'Bob' });
+      expect(cardSubline(v)).toBe('Bob');
+    });
+
+    it('when only id fallback (no ref/address/postcode/customer), subline is empty', () => {
+      const v = makeVisitMeta({ visit_reference: null, address_line_1: null, postcode: null, customer_name: null });
+      expect(cardSubline(v)).toBe('');
+    });
+  });
+
+  // ── isFiltering logic (clear-filters regression) ──────────────────────────
+
+  describe('isFiltering — clear-filters regression', () => {
+    it('is false when all filters are at defaults', () => {
+      expect(isAnyFilterActive('', '', 'all')).toBe(false);
+    });
+
+    it('is true when search text is non-empty', () => {
+      expect(isAnyFilterActive('REF-1', '', 'all')).toBe(true);
+    });
+
+    it('is true when a date is selected', () => {
+      expect(isAnyFilterActive('', '2024-06-15', 'all')).toBe(true);
+    });
+
+    it('is true when a status filter is active', () => {
+      expect(isAnyFilterActive('', '', 'active')).toBe(true);
+    });
+
+    it('returns to false after clearing all filters', () => {
+      // Simulate clearing: all fields reset to defaults
+      expect(isAnyFilterActive('', '', 'all')).toBe(false);
     });
   });
 });
