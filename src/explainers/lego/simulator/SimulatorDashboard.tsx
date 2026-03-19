@@ -540,7 +540,7 @@ export default function SimulatorDashboard({
 
   const expandedContent: Partial<Record<PanelId, ReactElement>> = {
     system: <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} boilerOutputKw={boilerOutputKwForDiagram} />,
-    house:    <HouseStatusPanel state={houseState} />,
+    house:    <HouseStatusPanel state={houseState} isExpanded />,
     drawoff: drawOffPanel,
     efficiency: <EfficiencyPanel state={efficiencyState} />,
     limiters: <LimitersPanel state={limiterState} />,

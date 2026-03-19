@@ -11,6 +11,8 @@
  *   - indoor temperature estimate and building status
  *
  * PR7: floor icons, improved domestic feel.
+ * PR8: schematic house silhouette — SVG roof, visible walls, slab-style floor
+ *      dividers and a clear indoor/outdoor boundary.
  */
 
 import type { HouseDisplayState, RoomHeatState } from '../useHousePlayback';
@@ -37,9 +39,12 @@ function floorIcon(key: string): string {
 
 type Props = {
   state?: HouseDisplayState;
+  /** When true the panel renders in expanded/modal context — same visual
+   *  language, but with a slightly roomier layout. */
+  isExpanded?: boolean;
 };
 
-export default function HouseStatusPanel({ state }: Props) {
+export default function HouseStatusPanel({ state, isExpanded = false }: Props) {
   if (!state) {
     // Graceful fallback while state initialises (should be instant).
     return (
@@ -56,7 +61,7 @@ export default function HouseStatusPanel({ state }: Props) {
   const outsideFloor = floors.find(f => f.key === 'outside');
 
   return (
-    <div className="house-cutaway">
+    <div className={`house-cutaway${isExpanded ? ' house-cutaway--expanded' : ''}`}>
       {/* ── Status bar ───────────────────────────────────────── */}
       <div className={`house-status-bar${chPaused ? ' house-status-bar--paused' : ''}`}>
         <span className="house-status-bar__temp">
@@ -65,14 +70,28 @@ export default function HouseStatusPanel({ state }: Props) {
         <span className="house-status-bar__label">{statusLabel}</span>
       </div>
 
-      {/* ── House schematic: roof peak + inside floors ─────── */}
+      {/* ── House schematic: SVG roof + walled body ──────────── */}
       <div className="house-schematic" aria-label="House section view">
-        {/* Roof peak — visual affordance above the loft */}
+
+        {/* Roof — inline SVG triangle with chimney for a clear house silhouette */}
         <div className="house-schematic__roof" aria-hidden="true">
-          <div className="house-schematic__roof-peak" />
+          <svg
+            className="house-schematic__roof-svg"
+            viewBox="0 0 200 32"
+            preserveAspectRatio="none"
+            focusable="false"
+            aria-hidden="true"
+          >
+            {/* Roof triangle */}
+            <polygon points="100,2 2,32 198,32" fill="#4a5568" />
+            {/* Chimney stack */}
+            <rect x="136" y="10" width="14" height="22" fill="#4a5568" />
+            {/* Chimney cap */}
+            <rect x="133" y="7" width="20" height="5" fill="#718096" rx="1" ry="1" />
+          </svg>
         </div>
 
-        {/* Inside floors stacked within the house body */}
+        {/* Inside floors stacked within the house walls */}
         <div className="house-schematic__body">
           {insideFloors.map((floor, idx) => (
             <div
@@ -104,6 +123,9 @@ export default function HouseStatusPanel({ state }: Props) {
             </div>
           ))}
         </div>
+
+        {/* Foundation / ground slab — visual base of the building */}
+        <div className="house-schematic__foundation" aria-hidden="true" />
       </div>
 
       {/* ── Outside / external band below the house ──────────── */}
