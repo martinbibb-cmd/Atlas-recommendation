@@ -571,3 +571,65 @@ describe('OptionScoringV1 — space saving priority', () => {
     expect(highDiff).toBeGreaterThan(baseDiff);
   });
 });
+
+describe('OptionScoringV1 — disruption tolerance', () => {
+  it('low disruption tolerance applies penalty to ashp', () => {
+    const input = {
+      ...baseInput,
+      primaryPipeDiameter: 28,
+      preferences: { disruptionTolerance: 'low' as const },
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const ashp = options.find(o => o.id === 'ashp')!;
+    const penaltyItem = ashp.score!.breakdown.find(b => b.id === PENALTY_IDS.DISRUPTION_LOW_UPGRADE_PENALTY);
+    expect(penaltyItem).toBeDefined();
+    expect(penaltyItem!.penalty).toBe(12);
+  });
+
+  it('high disruption tolerance boosts ashp', () => {
+    const input = {
+      ...baseInput,
+      primaryPipeDiameter: 28,
+      preferences: { disruptionTolerance: 'high' as const },
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const ashp = options.find(o => o.id === 'ashp')!;
+    const boostItem = ashp.score!.breakdown.find(b => b.id === PENALTY_IDS.DISRUPTION_HIGH_UPGRADE_BOOST);
+    expect(boostItem).toBeDefined();
+    expect(boostItem!.penalty).toBe(-8); // boost stored as negative penalty
+  });
+
+  it('low disruption tolerance does not affect combi', () => {
+    const input = {
+      ...baseInput,
+      preferences: { disruptionTolerance: 'low' as const },
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+    const combi = options.find(o => o.id === 'combi')!;
+    const disruptionItem = combi.score!.breakdown.find(
+      b => b.id === PENALTY_IDS.DISRUPTION_LOW_UPGRADE_PENALTY || b.id === PENALTY_IDS.DISRUPTION_HIGH_UPGRADE_BOOST
+    );
+    expect(disruptionItem).toBeUndefined();
+  });
+
+  it('low disruption gives ashp a lower score than high disruption', () => {
+    const lowInput = {
+      ...baseInput,
+      primaryPipeDiameter: 28,
+      preferences: { disruptionTolerance: 'low' as const },
+    };
+    const highInput = {
+      ...baseInput,
+      primaryPipeDiameter: 28,
+      preferences: { disruptionTolerance: 'high' as const },
+    };
+    const lowResult = runEngine(lowInput);
+    const highResult = runEngine(highInput);
+    const ashpLow = buildOptionMatrixV1(lowResult, lowInput).find(o => o.id === 'ashp')!;
+    const ashpHigh = buildOptionMatrixV1(highResult, highInput).find(o => o.id === 'ashp')!;
+    expect(ashpHigh.score!.total).toBeGreaterThan(ashpLow.score!.total);
+  });
+});

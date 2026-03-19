@@ -98,6 +98,15 @@ export interface UserPreferencesV1 {
    * Default: 'low' when absent.
    */
   spacePriority?: 'low' | 'medium' | 'high';
+  /**
+   * How much installation disruption the household is willing to accept.
+   *
+   * 'low'    — keep disruption minimal; demote pathways requiring major enabling works.
+   * 'medium' — some improvement work is acceptable; balanced weighting.
+   * 'high'   — open to major future-proofing works; upgrade-heavy pathways boosted.
+   * Default: 'medium' when absent.
+   */
+  disruptionTolerance?: 'low' | 'medium' | 'high';
 }
 
 export interface EngineInputV2_3 {

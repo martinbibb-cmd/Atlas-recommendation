@@ -3219,6 +3219,39 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
                 This influences which systems are recommended. Compact systems (like a combi boiler) free up airing-cupboard space but have throughput limits.
               </p>
             </div>
+            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+              <label>🔧 How much installation disruption is acceptable?</label>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                {(
+                  [
+                    { value: 'low',    label: '🟢 Low',    sub: 'Keep disruption minimal' },
+                    { value: 'medium', label: '🟡 Medium', sub: 'Some improvement work is acceptable' },
+                    { value: 'high',   label: '🔴 High',   sub: 'Open to major future-proofing works' },
+                  ] as const
+                ).map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setInput({ ...input, preferences: { ...input.preferences, disruptionTolerance: opt.value } })}
+                    style={{
+                      flex: 1,
+                      minWidth: '10rem',
+                      padding: '0.75rem',
+                      border: `2px solid ${(input.preferences?.disruptionTolerance ?? 'medium') === opt.value ? '#3182ce' : '#e2e8f0'}`,
+                      borderRadius: '8px',
+                      background: (input.preferences?.disruptionTolerance ?? 'medium') === opt.value ? '#ebf8ff' : '#fff',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, marginBottom: '0.2rem', fontSize: '0.85rem' }}>{opt.label}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#4a5568' }}>{opt.sub}</div>
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '0.5rem' }}>
+                This influences ranking of upgrade-heavy pathways. Low disruption tolerance deprioritises options requiring major enabling works such as emitter replacements or electrical upgrades.
+              </p>
+            </div>
             <div className="form-field">
               <label>Bedrooms</label>
               <select

@@ -1,7 +1,8 @@
 /**
  * buildRecommendationRanking
  *
- * Derives space-priority score adjustments for recommendation ranking.
+ * Derives space-priority and disruption-tolerance score adjustments for
+ * recommendation ranking.
  *
  * This module implements the "preferences axis" — a user-expressed preference
  * dimension that sits alongside the physics-based eligibility gates.
@@ -12,6 +13,8 @@
  *  - combi (on-demand DHW) gains a positive boost when spacePriority is high/medium.
  *  - Stored-cylinder options (stored_vented, stored_unvented, system_unvented, ashp)
  *    receive a penalty proportional to spacePriority.
+ *  - Upgrade-heavy options (ashp, system_unvented) receive a penalty when
+ *    disruptionTolerance is low, and a boost when it is high.
  *  - All adjustments are additive on top of the base option score.
  */
 
@@ -175,6 +178,131 @@ export function deriveSpaceTradeOffTag(
     }
     if (spacePriority === 'high') {
       return TAG_SPACE_CONSTRAINED;
+    }
+  }
+
+  return null;
+}
+
+// ─── Disruption Tolerance ────────────────────────────────────────────────────
+
+/**
+ * Option IDs that involve significant enabling works (emitter upgrades, cylinder
+ * addition, pipe changes, electrical upgrades).  These are demoted at low
+ * disruptionTolerance and boosted at high disruptionTolerance.
+ */
+const HIGH_DISRUPTION_OPTION_IDS: ReadonlySet<OptionCardV1['id']> = new Set([
+  'ashp', 'system_unvented',
+]);
+
+/** Maximum score penalty applied to high-disruption options at disruptionTolerance='low'. */
+const MAX_DISRUPTION_PENALTY = 12;
+
+/** Maximum score boost applied to high-disruption options at disruptionTolerance='high'. */
+const MAX_DISRUPTION_BOOST = 8;
+
+/**
+ * Resolved disruption weight for the three tolerance levels.
+ * Negative = penalty direction; positive = boost direction.
+ */
+const DISRUPTION_WEIGHT: Record<NonNullable<NonNullable<EngineInputV2_3['preferences']>['disruptionTolerance']>, number> = {
+  low:    -1,
+  medium:  0,
+  high:    1,
+};
+
+/** Reasoning tag: low disruption tolerance drives lower-upheaval path. */
+const TAG_LOW_DISRUPTION = 'Lower-disruption path preferred due to household installation tolerance';
+/** Reasoning tag: high disruption tolerance allows upgrade-heavy pathway. */
+const TAG_HIGH_DISRUPTION = 'Heat pump remains a strong option because major upgrade works are acceptable';
+
+export interface DisruptionRankingAdjustment {
+  /** Additive score delta (positive = boost, negative = penalty). */
+  delta: number;
+  /** Human-readable label for score breakdown. */
+  label: string;
+  /** Penalty/boost ID for the score breakdown. */
+  id: PenaltyId;
+}
+
+/**
+ * Compute the disruption-tolerance score adjustment for a single option.
+ *
+ * Low disruption tolerance demotes options that typically require significant
+ * enabling works (ASHP with emitter upgrades, system boiler + cylinder
+ * addition).  High disruption tolerance boosts those same options.
+ *
+ * Important: this weights recommendations — it does not hard-ban options.
+ * Technical suitability and physics guardrails continue to take precedence.
+ *
+ * @param optionId  The option card ID (e.g. 'ashp', 'combi').
+ * @param input     The engine input containing preferences.
+ * @returns         Array of adjustments to apply to the option score.
+ */
+export function computeDisruptionRankingAdjustments(
+  optionId: OptionCardV1['id'],
+  input: EngineInputV2_3,
+): DisruptionRankingAdjustment[] {
+  const adjustments: DisruptionRankingAdjustment[] = [];
+
+  const tolerance = input.preferences?.disruptionTolerance ?? 'medium';
+  const weight = DISRUPTION_WEIGHT[tolerance] ?? 0;
+
+  // Only high-disruption options are affected by this preference axis.
+  if (!HIGH_DISRUPTION_OPTION_IDS.has(optionId) || weight === 0) {
+    return adjustments;
+  }
+
+  if (weight < 0) {
+    // Low tolerance — penalise high-disruption options
+    const penalty = Math.round(MAX_DISRUPTION_PENALTY * Math.abs(weight));
+    adjustments.push({
+      delta: -penalty,
+      label: 'Low disruption tolerance — upgrade-heavy pathway deprioritised',
+      id: 'disruption_pref.low_upgrade',
+    });
+  } else {
+    // High tolerance — boost high-disruption options
+    const boost = Math.round(MAX_DISRUPTION_BOOST * weight);
+    adjustments.push({
+      delta: boost,
+      label: 'High disruption tolerance — upgrade-heavy pathway advantaged',
+      id: 'disruption_pref.high_upgrade',
+    });
+  }
+
+  return adjustments;
+}
+
+/**
+ * Derive a human-readable disruption trade-off tag for advice output.
+ *
+ * Used by buildAdviceFromCompare to surface a concise explanation of
+ * why a particular system was recommended given the user's disruption tolerance.
+ *
+ * @param systemType      The recommended system type ('combi' | 'stored' | 'heat_pump').
+ * @param input           Engine input containing preferences.
+ * @returns               Explanation tag string, or null when no disruption trade-off applies.
+ */
+export function deriveDisruptionTradeOffTag(
+  systemType: 'combi' | 'stored' | 'heat_pump',
+  input: EngineInputV2_3,
+): string | null {
+  const tolerance = input.preferences?.disruptionTolerance ?? 'medium';
+
+  if (tolerance === 'medium') return null;
+
+  if (tolerance === 'low') {
+    // Combi or basic stored — lower-disruption path preferred
+    if (systemType === 'combi' || systemType === 'stored') {
+      return TAG_LOW_DISRUPTION;
+    }
+  }
+
+  if (tolerance === 'high') {
+    // Heat pump path — major enabling works acceptable
+    if (systemType === 'heat_pump') {
+      return TAG_HIGH_DISRUPTION;
     }
   }
 
