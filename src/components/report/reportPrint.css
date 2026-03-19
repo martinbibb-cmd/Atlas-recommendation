@@ -55,6 +55,24 @@
   background: #2b6cb0;
 }
 
+.rv-toolbar__portal-link {
+  background: #f0fff4;
+  border: 1px solid #68d391;
+  border-radius: 8px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #276749;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.rv-toolbar__portal-link:hover {
+  background: #c6f6d5;
+  border-color: #48bb78;
+}
+
 .rv-toolbar__label {
   font-size: 0.78rem;
   color: #718096;

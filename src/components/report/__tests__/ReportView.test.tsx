@@ -14,10 +14,20 @@
  *   - Calls onBack when the back button is clicked
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ReportView from '../ReportView';
 import type { EngineOutputV1 } from '../../../contracts/EngineOutputV1';
+
+// ─── Mocks ────────────────────────────────────────────────────────────────────
+
+vi.mock('../../../lib/portal/portalToken', () => ({
+  generatePortalToken: vi.fn().mockResolvedValue('mock-token'),
+}));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 // ─── Stubs ────────────────────────────────────────────────────────────────────
 
@@ -502,5 +512,45 @@ describe('ReportView — print support', () => {
   it('does not render the print button when output is null', () => {
     render(<ReportView output={null} />);
     expect(screen.queryByText(/Print \/ Save PDF/)).toBeNull();
+  });
+});
+
+// ─── Portal link ──────────────────────────────────────────────────────────────
+
+describe('ReportView — portal link', () => {
+  it('renders the portal link when reportReference is provided', async () => {
+    render(<ReportView output={MINIMAL_OUTPUT} reportReference="ref-abc-123" />);
+    await waitFor(() => {
+      expect(screen.getByTestId('portal-link')).toBeTruthy();
+    });
+  });
+
+  it('portal link has correct text', async () => {
+    render(<ReportView output={MINIMAL_OUTPUT} reportReference="ref-abc-123" />);
+    await waitFor(() => {
+      expect(screen.getByText(/Open interactive home heating plan/)).toBeTruthy();
+    });
+  });
+
+  it('portal link points to the portal URL', async () => {
+    render(<ReportView output={MINIMAL_OUTPUT} reportReference="ref-abc-123" />);
+    await waitFor(() => {
+      const link = screen.getByTestId('portal-link') as HTMLAnchorElement;
+      expect(link.href).toContain('/portal/ref-abc-123');
+    });
+  });
+
+  it('portal link opens in a new tab', async () => {
+    render(<ReportView output={MINIMAL_OUTPUT} reportReference="ref-abc-123" />);
+    await waitFor(() => {
+      const link = screen.getByTestId('portal-link') as HTMLAnchorElement;
+      expect(link.target).toBe('_blank');
+      expect(link.rel).toContain('noopener');
+    });
+  });
+
+  it('does not render the portal link without reportReference', () => {
+    render(<ReportView output={MINIMAL_OUTPUT} />);
+    expect(screen.queryByTestId('portal-link')).toBeNull();
   });
 });
