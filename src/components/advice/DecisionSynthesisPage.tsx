@@ -48,9 +48,8 @@ import PrintableRecommendationPage from './PrintableRecommendationPage';
 import PhysicsStoryPanel from '../story/PhysicsStoryPanel';
 import { buildPhysicsStory } from '../../lib/story/buildPhysicsStory';
 import { useGlobalMenu } from '../shell/GlobalMenuContext';
-import type { GlobalMenuSection } from '../shell/GlobalMenuContext';
-import HomeEnergyCompass from '../compass/HomeEnergyCompass';
-import { buildCompassState } from '../../lib/compass/buildCompassState';
+import TradeOffSummary from './TradeOffSummary';
+import { buildTradeOffSummary } from '../../lib/advice/buildTradeOffSummary';
 import './DecisionSynthesisPage.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -623,8 +622,8 @@ export default function DecisionSynthesisPage({
 
   const legacyAdvice = compareAdvice == null ? buildAdviceCards(engineOutput) : null;
 
-  // ── Home Energy Compass ──────────────────────────────────────────────────────
-  const compassState = buildCompassState(
+  // ── Recommendation trade-off summary ────────────────────────────────────────
+  const tradeOffSummary = buildTradeOffSummary(
     engineOutput,
     surveyData?.currentHeatSourceType ?? undefined,
   );
@@ -825,21 +824,12 @@ export default function DecisionSynthesisPage({
     return () => setContextExplainerIds([]);
   }, [contextExplainerIds, setContextExplainerIds]);
 
-  // Register the Home Energy Compass as a global menu section.
+  // Register an empty context menu sections list so the overlay stays clean.
   // Clears when the advice page unmounts.
-  const compassMenuSection = useMemo<GlobalMenuSection>(
-    () => ({
-      id:      'home-energy-compass',
-      label:   'Home Energy Compass',
-      content: <HomeEnergyCompass compassState={compassState} />,
-    }),
-    [compassState],
-  );
-
   useEffect(() => {
-    setContextMenuSections([compassMenuSection]);
+    setContextMenuSections([]);
     return () => setContextMenuSections([]);
-  }, [compassMenuSection, setContextMenuSections]);
+  }, [setContextMenuSections]);
 
   // Print view — render the dedicated print component.
   if (showPrint) {
@@ -1063,6 +1053,19 @@ export default function DecisionSynthesisPage({
         <div className="advice-page__section" aria-label="Confidence breakdown">
           <h2 className="advice-page__section-title">Recommendation confidence</h2>
           <UnifiedConfidencePanel unified={compareAdvice.confidenceSummary.unified} />
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 1c — Recommendation trade-off summary                      */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {tradeOffSummary != null && (
+        <div className="advice-page__section" aria-label="Recommendation trade-off summary">
+          <h2 className="advice-page__section-title">Current vs recommended — at a glance</h2>
+          <p className="advice-page__section-intro">
+            How the recommended system compares to your current setup on the dimensions that matter.
+          </p>
+          <TradeOffSummary summary={tradeOffSummary} />
         </div>
       )}
 

@@ -1,0 +1,140 @@
+/*
+ * TradeOffSummary — styles
+ *
+ * Side-by-side comparative rows showing current vs recommended system
+ * across plain-English trade-off dimensions.
+ *
+ * Design goals:
+ *   - Readable in ~2 seconds
+ *   - No interpretation overhead
+ *   - Consistent with the wider Atlas advice-page palette
+ */
+
+/* ── Container ───────────────────────────────────────────────────────────── */
+
+.trade-off-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ── Header row ──────────────────────────────────────────────────────────── */
+
+.trade-off-summary__header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  background: #1a202c;
+  color: #fff;
+  padding: 0.75rem 1rem;
+  gap: 0.5rem;
+}
+
+.trade-off-summary__header-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #a0aec0;
+}
+
+.trade-off-summary__header-label:first-child {
+  /* dimension label column — left-aligned */
+  color: #718096;
+}
+
+.trade-off-summary__header-label:not(:first-child) {
+  text-align: center;
+}
+
+/* ── Dimension rows ──────────────────────────────────────────────────────── */
+
+.trade-off-summary__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  gap: 0.5rem;
+  border-bottom: 1px solid #f0f4f8;
+}
+
+.trade-off-summary__row:last-child {
+  border-bottom: none;
+}
+
+.trade-off-summary__row:nth-child(even) {
+  background: #f7fafc;
+}
+
+/* ── Dimension label ─────────────────────────────────────────────────────── */
+
+.trade-off-summary__dimension {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #2d3748;
+}
+
+/* ── Band chip ───────────────────────────────────────────────────────────── */
+
+.trade-off-summary__band {
+  display: flex;
+  justify-content: center;
+}
+
+.trade-off-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* Low — muted/amber: indicates a weaker attribute */
+.trade-off-chip--low {
+  background: #fff3cd;
+  color: #856404;
+}
+
+/* Medium — neutral blue */
+.trade-off-chip--medium {
+  background: #e9f0fb;
+  color: #2b5cb5;
+}
+
+/* High — green: positive attribute */
+.trade-off-chip--high {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* ── Improvement indicator ───────────────────────────────────────────────── */
+
+.trade-off-chip__arrow {
+  font-style: normal;
+  font-size: 0.75rem;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .trade-off-summary__header,
+  .trade-off-summary__row {
+    grid-template-columns: 1.2fr 1fr 1fr;
+  }
+
+  .trade-off-chip {
+    font-size: 0.72rem;
+    padding: 0.2rem 0.45rem;
+  }
+
+  .trade-off-summary__dimension {
+    font-size: 0.8rem;
+  }
+}
