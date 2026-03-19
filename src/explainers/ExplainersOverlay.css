@@ -295,3 +295,39 @@
     transition: none;
   }
 }
+
+/* ── Wide panel (used when a section panel is active) ────────────────────── */
+
+.eo-panel--wide {
+  width: min(760px, 100vw);
+}
+
+@media (max-width: 760px) {
+  .eo-panel--wide {
+    width: 100vw;
+  }
+}
+
+/* ── Section panel ───────────────────────────────────────────────────────── */
+
+.eo-section-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.eo-section-panel__content {
+  padding: 0 1.25rem 2rem;
+  overflow-y: auto;
+}
+
+/* ── Section menu item ───────────────────────────────────────────────────── */
+
+.eo-menu__item--section {
+  align-items: center;
+}
+
+.eo-menu__item--section .eo-menu__item-title {
+  font-weight: 600;
+}

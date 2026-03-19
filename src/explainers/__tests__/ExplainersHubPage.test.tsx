@@ -180,3 +180,24 @@ describe('ExplainersHubPage — back button', () => {
     expect(backBtns).toHaveLength(0)
   })
 })
+
+// ─── Secondary content moved to global menu ───────────────────────────────────
+
+describe('ExplainersHubPage — secondary content moved to global menu', () => {
+  it('does not render Physics Explainers section inline after completing the stepper', () => {
+    render(<ExplainersHubPage />)
+    completeStepper()
+    // The "Physics Explainers" heading should not appear inline in the page body.
+    // It is only accessible via the global menu.
+    const explainerHeadings = screen.queryAllByRole('heading', { name: /^physics explainers$/i })
+    expect(explainerHeadings).toHaveLength(0)
+  })
+
+  it('does not render Energy Literacy section inline after completing the stepper', () => {
+    render(<ExplainersHubPage />)
+    completeStepper()
+    // The Energy Literacy panel heading should not appear inline.
+    const energyHeadings = screen.queryAllByRole('heading', { name: /energy literacy/i })
+    expect(energyHeadings).toHaveLength(0)
+  })
+})

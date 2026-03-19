@@ -23,6 +23,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EDUCATIONAL_EXPLAINERS } from './educational/content';
 import type { EducationalExplainer } from './educational/types';
+import type { GlobalMenuSection } from '../components/shell/GlobalMenuContext';
 import './ExplainersOverlay.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -34,6 +35,12 @@ interface Props {
    * All other explainers appear under "More explainers".
    */
   contextExplainerIds: ReadonlyArray<string>;
+  /**
+   * Secondary panel sections registered by the active page.
+   * Shown under "Explore further" in the menu. Clicking a section renders
+   * its content inside the overlay panel.
+   */
+  contextMenuSections?: ReadonlyArray<GlobalMenuSection>;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -43,6 +50,50 @@ function pickExplainers(ids: ReadonlyArray<string>): EducationalExplainer[] {
   return ids
     .map(id => EDUCATIONAL_EXPLAINERS.find(e => e.id === id))
     .filter((e): e is EducationalExplainer => e != null);
+}
+
+// ─── Sub-component: SectionPanel ─────────────────────────────────────────────
+
+interface SectionPanelProps {
+  section: GlobalMenuSection;
+  onBack: () => void;
+  onClose: () => void;
+}
+
+function SectionPanel({ section, onBack, onClose }: SectionPanelProps) {
+  return (
+    <div
+      className="eo-section-panel"
+      role="document"
+      aria-label={section.label}
+      data-testid={`explainers-section-panel-${section.id}`}
+    >
+      {/* ── Toolbar ─────────────────────────────────────────────────────── */}
+      <div className="eo-viewer__toolbar">
+        <button
+          className="eo-viewer__back-btn"
+          onClick={onBack}
+          aria-label="Back to explainer list"
+          data-testid="explainers-section-back"
+        >
+          ← Back
+        </button>
+        <button
+          className="eo-viewer__close-btn"
+          onClick={onClose}
+          aria-label="Close explainers"
+          data-testid="explainers-section-close"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* ── Content ──────────────────────────────────────────────────────── */}
+      <div className="eo-section-panel__content">
+        {section.content}
+      </div>
+    </div>
+  );
 }
 
 // ─── Sub-component: ExplainerViewer ──────────────────────────────────────────
@@ -110,11 +161,13 @@ function ExplainerViewer({ explainer, onBack, onClose }: ViewerProps) {
 interface MenuProps {
   contextExplainers: EducationalExplainer[];
   libraryExplainers: EducationalExplainer[];
+  contextMenuSections: ReadonlyArray<GlobalMenuSection>;
   onSelect: (id: string) => void;
+  onSelectSection: (id: string) => void;
   onClose: () => void;
 }
 
-function ExplainerMenu({ contextExplainers, libraryExplainers, onSelect, onClose }: MenuProps) {
+function ExplainerMenu({ contextExplainers, libraryExplainers, contextMenuSections, onSelect, onSelectSection, onClose }: MenuProps) {
   return (
     <div
       className="eo-menu"
@@ -134,6 +187,31 @@ function ExplainerMenu({ contextExplainers, libraryExplainers, onSelect, onClose
           ✕
         </button>
       </div>
+
+      {/* ── Explore further (registered panel sections) ──────────────────── */}
+      {contextMenuSections.length > 0 && (
+        <section
+          className="eo-menu__section"
+          aria-label="Explore further"
+          data-testid="explainers-sections-section"
+        >
+          <h3 className="eo-menu__section-heading">Explore further</h3>
+          <ul className="eo-menu__list" role="list">
+            {contextMenuSections.map(s => (
+              <li key={s.id} role="listitem">
+                <button
+                  className="eo-menu__item eo-menu__item--section"
+                  onClick={() => onSelectSection(s.id)}
+                  aria-label={`Open ${s.label}`}
+                  data-testid={`explainers-section-item-${s.id}`}
+                >
+                  <span className="eo-menu__item-title">{s.label}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* ── For this recommendation ──────────────────────────────────────── */}
       {contextExplainers.length > 0 && (
@@ -198,9 +276,10 @@ const FIRST_FOCUSABLE_SELECTOR =
 const TRAP_FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-export default function ExplainersOverlay({ contextExplainerIds }: Props) {
+export default function ExplainersOverlay({ contextExplainerIds, contextMenuSections = [] }: Props) {
   const [menuOpen, setMenuOpen]                       = useState(false);
   const [activeExplainerId, setActiveExplainerId]     = useState<string | null>(null);
+  const [activeSectionId, setActiveSectionId]         = useState<string | null>(null);
 
   const launcherRef = useRef<HTMLButtonElement>(null);
   const overlayRef  = useRef<HTMLDivElement>(null);
@@ -214,25 +293,38 @@ export default function ExplainersOverlay({ contextExplainerIds }: Props) {
     ? EDUCATIONAL_EXPLAINERS.find(e => e.id === activeExplainerId) ?? null
     : null;
 
+  const activeSection = activeSectionId != null
+    ? contextMenuSections.find(s => s.id === activeSectionId) ?? null
+    : null;
+
   // ── Open / close ────────────────────────────────────────────────────────────
   const openMenu = useCallback(() => {
     setMenuOpen(true);
     setActiveExplainerId(null);
+    setActiveSectionId(null);
   }, []);
 
   const closeOverlay = useCallback(() => {
     setMenuOpen(false);
     setActiveExplainerId(null);
+    setActiveSectionId(null);
     // Restore focus to launcher when overlay is dismissed.
     requestAnimationFrame(() => launcherRef.current?.focus());
   }, []);
 
   const selectExplainer = useCallback((id: string) => {
     setActiveExplainerId(id);
+    setActiveSectionId(null);
+  }, []);
+
+  const selectSection = useCallback((id: string) => {
+    setActiveSectionId(id);
+    setActiveExplainerId(null);
   }, []);
 
   const backToMenu = useCallback(() => {
     setActiveExplainerId(null);
+    setActiveSectionId(null);
   }, []);
 
   // ── Keyboard handling ────────────────────────────────────────────────────────
@@ -258,7 +350,7 @@ export default function ExplainersOverlay({ contextExplainerIds }: Props) {
       );
       firstFocusable?.focus();
     }
-  }, [menuOpen, activeExplainerId]);
+  }, [menuOpen, activeExplainerId, activeSectionId]);
 
   // ── Focus trap ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -289,7 +381,7 @@ export default function ExplainersOverlay({ contextExplainerIds }: Props) {
 
     el.addEventListener('keydown', handleTab);
     return () => el.removeEventListener('keydown', handleTab);
-  }, [menuOpen, activeExplainerId]);
+  }, [menuOpen, activeExplainerId, activeSectionId]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -321,10 +413,16 @@ export default function ExplainersOverlay({ contextExplainerIds }: Props) {
           {/* Panel */}
           <div
             ref={overlayRef}
-            className="eo-panel"
+            className={`eo-panel${activeSection != null ? ' eo-panel--wide' : ''}`}
             role="dialog"
             aria-modal="true"
-            aria-label={activeExplainer != null ? activeExplainer.title : 'Explainers'}
+            aria-label={
+              activeExplainer != null
+                ? activeExplainer.title
+                : activeSection != null
+                  ? activeSection.label
+                  : 'Explainers'
+            }
             data-testid="explainers-overlay"
           >
             {activeExplainer != null
@@ -335,14 +433,24 @@ export default function ExplainersOverlay({ contextExplainerIds }: Props) {
                   onClose={closeOverlay}
                 />
               )
-              : (
-                <ExplainerMenu
-                  contextExplainers={contextExplainers}
-                  libraryExplainers={libraryExplainers}
-                  onSelect={selectExplainer}
-                  onClose={closeOverlay}
-                />
-              )
+              : activeSection != null
+                ? (
+                  <SectionPanel
+                    section={activeSection}
+                    onBack={backToMenu}
+                    onClose={closeOverlay}
+                  />
+                )
+                : (
+                  <ExplainerMenu
+                    contextExplainers={contextExplainers}
+                    libraryExplainers={libraryExplainers}
+                    contextMenuSections={contextMenuSections}
+                    onSelect={selectExplainer}
+                    onSelectSection={selectSection}
+                    onClose={closeOverlay}
+                  />
+                )
             }
           </div>
         </>

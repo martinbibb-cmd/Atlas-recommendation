@@ -10,9 +10,13 @@
 //   - Menu opens and closes consistently when rendered in the shell
 //   - Context-specific explainer IDs registered by DecisionSynthesisPage flow to the trigger
 //   - No duplicate trigger logic: only one launcher button is present per shell
+//   - Context menu sections registered by pages appear in the "Explore further" section
+//   - Section panel content is rendered when a section item is selected
+//   - Home Energy Compass section is registered by DecisionSynthesisPage (not inline)
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { useEffect } from 'react';
 import GlobalMenuShell from '../GlobalMenuShell';
 import { useGlobalMenu } from '../GlobalMenuContext';
 import type { EngineOutputV1, OptionCardV1 } from '../../../contracts/EngineOutputV1';
@@ -280,5 +284,138 @@ describe('useGlobalMenu — outside provider', () => {
 
     expect(() => render(<TestComponent />)).not.toThrow();
     expect(document.querySelector('[data-testid="no-op-test"]')).not.toBeNull();
+  });
+
+  it('returns a no-op setContextMenuSections when called outside GlobalMenuShell', () => {
+    function TestComponent() {
+      const { setContextMenuSections } = useGlobalMenu();
+      // Calling the setter should not throw.
+      setContextMenuSections([{ id: 'test', label: 'Test', content: <div>content</div> }]);
+      return <div data-testid="no-op-sections-test">ok</div>;
+    }
+
+    expect(() => render(<TestComponent />)).not.toThrow();
+    expect(document.querySelector('[data-testid="no-op-sections-test"]')).not.toBeNull();
+  });
+});
+
+// ─── Context menu sections ────────────────────────────────────────────────────
+
+describe('GlobalMenuShell — context menu sections', () => {
+  it('shows "Explore further" section when a page registers menu sections', () => {
+    function PageWithSection() {
+      const { setContextMenuSections } = useGlobalMenu();
+      useEffect(() => {
+        setContextMenuSections([{ id: 'my-tool', label: 'My Tool', content: <div>tool content</div> }]);
+        return () => setContextMenuSections([]);
+      }, [setContextMenuSections]);
+      return <div>page</div>;
+    }
+
+    render(
+      <GlobalMenuShell>
+        <PageWithSection />
+      </GlobalMenuShell>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+
+    expect(document.querySelector('[data-testid="explainers-sections-section"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="explainers-section-item-my-tool"]')).not.toBeNull();
+  });
+
+  it('does not show "Explore further" section when no sections are registered', () => {
+    render(
+      <GlobalMenuShell>
+        <div>plain page</div>
+      </GlobalMenuShell>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+
+    expect(document.querySelector('[data-testid="explainers-sections-section"]')).toBeNull();
+  });
+
+  it('renders section panel content when a section item is clicked', () => {
+    function PageWithSection() {
+      const { setContextMenuSections } = useGlobalMenu();
+      useEffect(() => {
+        setContextMenuSections([{
+          id: 'my-tool',
+          label: 'My Tool',
+          content: <div data-testid="my-tool-content">tool content here</div>,
+        }]);
+        return () => setContextMenuSections([]);
+      }, [setContextMenuSections]);
+      return <div>page</div>;
+    }
+
+    render(
+      <GlobalMenuShell>
+        <PageWithSection />
+      </GlobalMenuShell>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+    fireEvent.click(document.querySelector('[data-testid="explainers-section-item-my-tool"]')!);
+
+    expect(document.querySelector('[data-testid="explainers-section-panel-my-tool"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="my-tool-content"]')).not.toBeNull();
+  });
+
+  it('back button from section panel returns to the menu', () => {
+    function PageWithSection() {
+      const { setContextMenuSections } = useGlobalMenu();
+      useEffect(() => {
+        setContextMenuSections([{ id: 'my-tool', label: 'My Tool', content: <div>content</div> }]);
+        return () => setContextMenuSections([]);
+      }, [setContextMenuSections]);
+      return <div>page</div>;
+    }
+
+    render(
+      <GlobalMenuShell>
+        <PageWithSection />
+      </GlobalMenuShell>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+    fireEvent.click(document.querySelector('[data-testid="explainers-section-item-my-tool"]')!);
+
+    // Now we're in the section panel — go back.
+    fireEvent.click(document.querySelector('[data-testid="explainers-section-back"]')!);
+
+    // Should be back at the menu list.
+    expect(document.querySelector('[data-testid="explainers-sections-section"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="explainers-section-panel-my-tool"]')).toBeNull();
+  });
+});
+
+// ─── DecisionSynthesisPage — compass in menu, not inline ─────────────────────
+
+describe('GlobalMenuShell — DecisionSynthesisPage compass section', () => {
+  it('does not render the compass inline in the advice page', () => {
+    render(
+      <GlobalMenuShell>
+        <DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />
+      </GlobalMenuShell>,
+    );
+
+    // Compass section should NOT be inline on the page.
+    expect(document.querySelector('[data-testid="home-energy-compass-section"]')).toBeNull();
+  });
+
+  it('registers a Home Energy Compass section visible in the global menu', () => {
+    render(
+      <GlobalMenuShell>
+        <DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />
+      </GlobalMenuShell>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+
+    // "Explore further" section should appear with compass item.
+    expect(document.querySelector('[data-testid="explainers-sections-section"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="explainers-section-item-home-energy-compass"]')).not.toBeNull();
   });
 });
