@@ -217,9 +217,9 @@ export default function CustomerPortalPage({ reference }: Props) {
           <div className="portal-hero__confidence">
             Confidence: <strong>{confidenceLabel}</strong>
           </div>
-          {engineOutput.verdict?.comparisonExplanation && (
+          {engineOutput.verdict?.primaryReason && (
             <p className="portal-hero__explanation">
-              {engineOutput.verdict.comparisonExplanation}
+              {engineOutput.verdict.primaryReason}
             </p>
           )}
         </section>
