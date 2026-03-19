@@ -242,8 +242,23 @@
 .house-cutaway {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   height: 100%;
+}
+
+/* Expanded / modal variant — slightly roomier spacing */
+.house-cutaway--expanded .house-floor {
+  padding: 10px 14px;
+}
+
+.house-cutaway--expanded .house-room {
+  font-size: 0.74rem;
+  padding: 4px 10px;
+}
+
+.house-cutaway--expanded .house-floor__label {
+  font-size: 0.7rem;
+  margin-bottom: 7px;
 }
 
 .house-cutaway--loading {
@@ -295,40 +310,43 @@
   color: #92400e;
 }
 
-/* ── Floors ────────────────────────────────────────────────────────────────── */
+/* ── House schematic ───────────────────────────────────────────────────────── */
 
-/* House schematic wrapper — gives floors a house-section visual context */
+/*
+ * The schematic is structured as a building cross-section:
+ *   - SVG roof sits above the house body (handles the top edge)
+ *   - Visible side walls (left/right borders) frame the floors
+ *   - A foundation slab closes the bottom
+ *   - Inside floors are stacked within the walled body
+ */
 .house-schematic {
   display: flex;
   flex-direction: column;
-  border-radius: 0 0 10px 10px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1.5px solid #cbd5e0;
+  /* Visible side walls */
+  border-left: 3px solid #4a5568;
+  border-right: 3px solid #4a5568;
+  border-top: none; /* roof handles the top */
+  border-bottom: none; /* foundation element handles the base */
+  border-radius: 0;
+  overflow: visible;
   flex: 1;
   min-height: 0;
 }
 
-/* Roof peak — simple triangular peak above loft */
+/* Roof — sized to match the SVG viewBox aspect ratio */
 .house-schematic__roof {
-  background: #4a5568;
-  padding: 0;
-  overflow: hidden;
   flex-shrink: 0;
-  height: 14px;
+  height: 32px;
+  /* Extend 3 px beyond the walls so the roof visually overhangs the wall lines */
+  margin-left: -3px;
+  margin-right: -3px;
   position: relative;
 }
 
-.house-schematic__roof-peak {
-  width: 0;
-  height: 0;
-  border-left: 50px solid transparent;
-  border-right: 50px solid transparent;
-  border-bottom: 14px solid #4a5568;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  top: 0;
+.house-schematic__roof-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 /* House body — contains all inside floors */
@@ -340,18 +358,29 @@
   background: #f7fafc;
 }
 
+/* Foundation slab — closes the base of the building */
+.house-schematic__foundation {
+  flex-shrink: 0;
+  height: 6px;
+  background: #2d3748;
+  /* Extend to cover wall borders */
+  margin-left: -3px;
+  margin-right: -3px;
+  border-radius: 0 0 3px 3px;
+}
+
 .house-floor {
   padding: 7px 10px;
   flex: 1;
   min-height: 40px;
 }
 
-/* Divider between floors */
+/* Slab-style divider between floors — looks like a concrete floor plate */
 .house-floor--has-divider {
-  border-bottom: 2px solid rgba(0, 0, 0, 0.07);
+  border-bottom: 3px solid #4a5568;
 }
 
-/* Loft — cool purple, more compact; border removed (now inside house-schematic) */
+/* Loft — cool purple, more compact */
 .house-floor--loft {
   background: linear-gradient(135deg, #faf5ff 0%, #e9d8fd 100%);
   flex: 0.55;
@@ -367,13 +396,13 @@
   background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
 }
 
-/* Outside / external — dashed, lighter; sits outside house-schematic */
+/* Outside / external — earthy, clearly separated from the building */
 .house-floor--outside {
-  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-  border: 1px dashed #a0aec0;
-  border-radius: 8px;
+  background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 60%, #bbf7d0 100%);
+  border: 2px solid #86efac;
+  border-radius: 6px;
   flex: 0.4;
-  margin-top: 4px;
+  margin-top: 5px;
 }
 
 .house-floor__label {
