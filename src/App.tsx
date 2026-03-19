@@ -15,6 +15,7 @@ import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
 import AtlasTour from './components/tour/AtlasTour';
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
+import HeatLossCalculator from './components/heatloss/HeatLossCalculator';
 import AtlasExplorerPage from './components/explorer/AtlasExplorerPage';
 import VisitPage from './components/visit/VisitPage';
 import VisitHubPage from './components/visit/VisitHubPage';
@@ -78,7 +79,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   preferCombi: true,
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'explorer' | 'report';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -368,6 +369,9 @@ export default function App() {
           />
         </div>
       )}
+      {journey === 'heat-loss' && (
+        <HeatLossCalculator onBack={() => setJourney('landing')} />
+      )}
       {journey === 'landing' && (
         <div className="landing">
           {/* PR 1 — First-run tour: landing phase (steps 1–2) */}
@@ -454,6 +458,15 @@ export default function App() {
               <h2>Floor Plan Builder</h2>
               <p>Map heating components to your property layout across floors.</p>
               <button className="cta-btn">Open Floor Plan →</button>
+            </div>
+            <div
+              className="journey-card"
+              onClick={() => setJourney('heat-loss')}
+            >
+              <div className="card-icon">🔥</div>
+              <h2>Heat Loss Calculator</h2>
+              <p>Sketch the property perimeter and get a fast whole-house heat loss estimate.</p>
+              <button className="cta-btn">Open Heat Loss →</button>
             </div>
             {/* System Explorer hidden from primary UX — access via ?explorer=1 */}
           </div>

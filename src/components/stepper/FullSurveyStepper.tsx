@@ -526,7 +526,7 @@ function InlineExplainerLink({ explainerId, testId, style }: {
   );
 }
 
-export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, onComplete, onDraft }: Props) {
+export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('location');
   const [input, setInput] = useState<FullSurveyModelV1>(() =>
     prefill ? { ...defaultInput, ...prefill } : defaultInput
