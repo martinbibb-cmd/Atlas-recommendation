@@ -84,14 +84,14 @@ function applyOverrides(
   // Hot water usage → occupancy count mapping
   switch (hotWaterUsage) {
     case 'low':
-      overridden.occupancyCount = Math.max(base.occupancyCount ?? 2, 1);
+      overridden.occupancyCount = Math.min(base.occupancyCount ?? 2, 2);
       overridden.highOccupancy = false;
       break;
     case 'typical':
       // Keep base occupancy
       break;
     case 'high':
-      overridden.occupancyCount = Math.max(base.occupancyCount ?? 3, 4);
+      overridden.occupancyCount = Math.max(base.occupancyCount ?? 2, 4);
       overridden.highOccupancy = true;
       break;
   }

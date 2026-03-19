@@ -181,7 +181,9 @@ export default function CustomerPortalPage({ reference }: Props) {
     engineOutput.verdict?.title ?? engineOutput.recommendation.primary;
   const verdictStatus = engineOutput.verdict?.status ?? 'good';
   const confidenceLabel =
-    engineOutput.meta?.confidence?.level ?? '—';
+    engineOutput.verdict?.confidence?.level
+    ?? engineOutput.meta?.confidence?.level
+    ?? '—';
 
   return (
     <GlobalMenuShell>
