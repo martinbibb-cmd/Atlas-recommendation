@@ -261,11 +261,6 @@ function withRoofReasons(
   return result;
 }
 
-/** Backward-compatible wrapper used by internal call sites. */
-function withOrientationReason(reasons: string[], signal: RoofOrientationSignal): string[] {
-  return withRoofReasons(reasons, signal, 'unknown');
-}
-
 // ─── Solar PV opportunity ─────────────────────────────────────────────────────
 
 function assessSolarPv(
