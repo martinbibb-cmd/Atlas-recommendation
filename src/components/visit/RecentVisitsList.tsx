@@ -5,15 +5,20 @@
  * fetched from GET /api/visits.
  *
  * Each visit card shows:
- *   • Address (prominent)
- *   • Customer name
+ *   • Visit reference or address (prominent headline)
+ *   • Address / postcode / customer name (subline)
  *   • Last updated (relative)
  *   • Status badge
  *   • Open button (routes to Visit Hub)
  *
  * Controls:
- *   • Search by address or customer name
+ *   • Text search: visit reference, address, postcode or customer name
+ *   • Date filter: narrows to visits updated on a specific date
  *   • Filter pills: All | Active | Completed | Needs follow-up
+ *   • Default cap of 20 rows; "Show all" reveals the full result set
+ *
+ * Default behaviour: newest first (ordered by the API), capped at 20.
+ * Any active search or date filter bypasses the cap so no matches are hidden.
  *
  * If the API is unavailable (local dev without bindings, network error) the
  * list renders a graceful empty state rather than crashing.
@@ -28,6 +33,11 @@ import {
   type VisitMeta,
   type VisitFilterCategory,
 } from '../../lib/visits/visitApi';
+import {
+  DEFAULT_LIST_LIMIT,
+  matchesSearch,
+  matchesDateFilter,
+} from './recentVisitsHelpers';
 import './RecentVisitsList.css';
 
 interface Props {
@@ -57,18 +67,6 @@ function formatRelativeDate(iso: string): string {
 /** Prominent address line for the card. */
 function cardAddress(v: VisitMeta): string {
   return visitDisplayLabel(v);
-}
-
-/** Returns true when the query matches visit_reference, address, postcode, or customer name (case-insensitive). */
-function matchesSearch(v: VisitMeta, query: string): boolean {
-  if (!query) return true;
-  const q = query.toLowerCase();
-  return (
-    (v.visit_reference?.toLowerCase().includes(q) ?? false) ||
-    (v.address_line_1?.toLowerCase().includes(q) ?? false) ||
-    (v.postcode?.toLowerCase().includes(q) ?? false) ||
-    (v.customer_name?.toLowerCase().includes(q) ?? false)
-  );
 }
 
 // ─── Filter pill labels ───────────────────────────────────────────────────────
@@ -126,7 +124,9 @@ export default function RecentVisitsList({ onOpenVisit }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
   const [filter, setFilter] = useState<VisitFilterCategory>('all');
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -150,10 +150,19 @@ export default function RecentVisitsList({ onOpenVisit }: Props) {
   const filtered = useMemo(
     () =>
       visits.filter(
-        (v) => matchesSearch(v, search) && matchesFilter(v.status, filter)
+        (v) =>
+          matchesSearch(v, search) &&
+          matchesDateFilter(v, dateFilter) &&
+          matchesFilter(v.status, filter),
       ),
-    [visits, search, filter]
+    [visits, search, dateFilter, filter],
   );
+
+  // When any active filter narrows the list, always show all matching results.
+  // The cap only applies to the default "show recent" state.
+  const isFiltering = search.trim() !== '' || dateFilter !== '' || filter !== 'all';
+  const visibleItems = showAll || isFiltering ? filtered : filtered.slice(0, DEFAULT_LIST_LIMIT);
+  const hasMore = !isFiltering && !showAll && filtered.length > DEFAULT_LIST_LIMIT;
 
   if (loading) {
     return (
@@ -171,7 +180,7 @@ export default function RecentVisitsList({ onOpenVisit }: Props) {
     <section className="recent-visits" aria-label="Recent visits">
       <h2 className="recent-visits__heading">Recent visits</h2>
 
-      {/* Search */}
+      {/* Search + date filter row */}
       <div className="rv-search-row">
         <input
           className="rv-search"
@@ -181,6 +190,24 @@ export default function RecentVisitsList({ onOpenVisit }: Props) {
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Search visits"
         />
+        <input
+          className="rv-date-filter"
+          type="date"
+          value={dateFilter}
+          onChange={(e) => setDateFilter(e.target.value)}
+          aria-label="Filter by date updated"
+          title="Filter by date updated"
+        />
+        {dateFilter && (
+          <button
+            className="rv-date-clear"
+            type="button"
+            onClick={() => setDateFilter('')}
+            aria-label="Clear date filter"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* Filter pills */}
@@ -197,14 +224,28 @@ export default function RecentVisitsList({ onOpenVisit }: Props) {
         ))}
       </div>
 
-      {filtered.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <p className="rv-empty">No visits match your search.</p>
       ) : (
-        <ul className="recent-visits__list" role="list">
-          {filtered.map((v) => (
-            <VisitCard key={v.id} v={v} onOpen={() => onOpenVisit(v.id)} />
-          ))}
-        </ul>
+        <>
+          <ul className="recent-visits__list" role="list">
+            {visibleItems.map((v) => (
+              <VisitCard key={v.id} v={v} onOpen={() => onOpenVisit(v.id)} />
+            ))}
+          </ul>
+
+          {hasMore && (
+            <div className="rv-show-more">
+              <button
+                className="rv-show-more__btn"
+                type="button"
+                onClick={() => setShowAll(true)}
+              >
+                Show all {filtered.length} visits
+              </button>
+            </div>
+          )}
+        </>
       )}
     </section>
   );
