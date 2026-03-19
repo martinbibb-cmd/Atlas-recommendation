@@ -115,7 +115,7 @@ function outletToViewModel(
   if (!outlet.open) {
     note = 'Outlet closed — no flow demand.'
   } else if (status === 'below_ignition_threshold') {
-    note = 'Flow too low to fire combi — only cold water delivered. Reduce simultaneous demand or check mains supply.'
+    note = 'Flow too low to fire combi — simultaneous demand has dropped per-outlet flow below ignition threshold. Only cold water delivered.'
   } else if (outlet.isConstrained && outlet.constraintReason) {
     note = outlet.constraintReason
   } else if (outlet.isConstrained) {

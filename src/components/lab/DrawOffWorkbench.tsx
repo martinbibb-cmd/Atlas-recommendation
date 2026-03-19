@@ -92,8 +92,9 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
   if (regime === 'combi') {
     const hotFlow = scaleCombiFlow(10, outputKw)
     // Concurrent demand (two outlets sharing the boiler) scales at a lower base
-    // flow (3 L/min).  At minimum boiler output this drops below the ignition
-    // threshold, demonstrating the combi non-fire scenario.
+    // flow (3 L/min).  At minimum boiler output (18 kW) this evaluates to
+    // 3 × (18/24) = 2.25 L/min — below the 2.5 L/min ignition threshold —
+    // demonstrating the combi non-fire scenario in the UI.
     const concurrentHotFlow = scaleCombiFlow(3, outputKw)
     const hotTemp = 45 + Math.round((outputKw - DEFAULT_BOILER_OUTPUT_KW) * 0.15)
     const bathBoilerState = deriveBoilerState(concurrentHotFlow)
