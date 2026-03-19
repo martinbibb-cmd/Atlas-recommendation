@@ -47,6 +47,19 @@ export type TokenValidationResult = 'valid' | 'invalid' | 'expired';
 
 // ─── Crypto helpers ───────────────────────────────────────────────────────────
 
+/**
+ * Normalise a Uint8Array to a plain ArrayBuffer backed by ArrayBuffer (not
+ * SharedArrayBuffer). Required because TextEncoder.encode() yields a
+ * Uint8Array<ArrayBufferLike> which TypeScript's Web Crypto typings reject as
+ * a BufferSource argument to crypto.subtle.sign/verify.
+ */
+function toPlainArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer;
+}
+
 async function importHmacKey(): Promise<CryptoKey> {
   const keyData = new TextEncoder().encode(KEY_MATERIAL);
   return crypto.subtle.importKey(
@@ -103,7 +116,7 @@ export async function generatePortalToken(
   const signatureBuffer = await crypto.subtle.sign(
     'HMAC',
     key,
-    encoder.encode(payloadPart),
+    toPlainArrayBuffer(encoder.encode(payloadPart)),
   );
   const signaturePart = base64urlEncode(new Uint8Array(signatureBuffer));
 
@@ -146,8 +159,8 @@ export async function validatePortalToken(
     isValid = await crypto.subtle.verify(
       'HMAC',
       key,
-      signatureBytes,
-      new TextEncoder().encode(payloadPart),
+      toPlainArrayBuffer(signatureBytes),
+      toPlainArrayBuffer(new TextEncoder().encode(payloadPart)),
     );
   } catch {
     return 'invalid';
