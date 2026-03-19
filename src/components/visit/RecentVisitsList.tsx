@@ -193,7 +193,7 @@ export default function RecentVisitsList({ onOpenVisit }: Props) {
         <input
           className="rv-search"
           type="search"
-          placeholder="Search by ref, address, postcode, or customer"
+          placeholder="Search by ref or address"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Search visits"

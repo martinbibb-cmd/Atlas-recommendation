@@ -14,17 +14,15 @@ import type { VisitMeta, VisitFilterCategory } from '../../lib/visits/visitApi';
 export const DEFAULT_LIST_LIMIT = 20;
 
 /**
- * Returns true when the query matches visit_reference, address, postcode, or
- * customer name (case-insensitive).
+ * Returns true when the query matches visit_reference or address_line_1
+ * (case-insensitive).
  */
 export function matchesSearch(v: VisitMeta, query: string): boolean {
   if (!query) return true;
   const q = query.toLowerCase();
   return (
     (v.visit_reference?.toLowerCase().includes(q) ?? false) ||
-    (v.address_line_1?.toLowerCase().includes(q) ?? false) ||
-    (v.postcode?.toLowerCase().includes(q) ?? false) ||
-    (v.customer_name?.toLowerCase().includes(q) ?? false)
+    (v.address_line_1?.toLowerCase().includes(q) ?? false)
   );
 }
 
@@ -61,23 +59,15 @@ export function isAnyFilterActive(
  * repeat the same information.
  *
  * Priority order mirrors visitDisplayLabel:
- *   - headline = visit_reference → subline shows address + postcode
- *   - headline = address_line_1  → subline shows postcode or customer_name
- *   - headline = postcode        → subline shows customer_name
+ *   - headline = visit_reference → subline shows address_line_1
+ *   - headline = address_line_1  → subline is empty (no reliable secondary field)
  *   - otherwise                  → empty string
  */
 export function cardSubline(
-  v: Pick<VisitMeta, 'visit_reference' | 'address_line_1' | 'postcode' | 'customer_name'>,
+  v: Pick<VisitMeta, 'visit_reference' | 'address_line_1'>,
 ): string {
   if (v.visit_reference) {
-    const parts = [v.address_line_1, v.postcode].filter(Boolean);
-    return parts.join(', ');
-  }
-  if (v.address_line_1) {
-    return v.postcode ?? v.customer_name ?? '';
-  }
-  if (v.postcode) {
-    return v.customer_name ?? '';
+    return v.address_line_1 ?? '';
   }
   return '';
 }
