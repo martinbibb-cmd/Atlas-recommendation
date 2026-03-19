@@ -91,8 +91,13 @@ function scaleCombiFlow(baseFlowLpm: number, outputKw: number): number {
 function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
   if (regime === 'combi') {
     const hotFlow = scaleCombiFlow(10, outputKw)
-    const concurrentHotFlow = scaleCombiFlow(4, outputKw)
+    // Concurrent demand (two outlets sharing the boiler) scales at a lower base
+    // flow (3 L/min).  At minimum boiler output (18 kW) this evaluates to
+    // 3 × (18/24) = 2.25 L/min — below the 2.5 L/min ignition threshold —
+    // demonstrating the combi non-fire scenario in the UI.
+    const concurrentHotFlow = scaleCombiFlow(3, outputKw)
     const hotTemp = 45 + Math.round((outputKw - DEFAULT_BOILER_OUTPUT_KW) * 0.15)
+    const bathBoilerState = deriveBoilerState(concurrentHotFlow)
     return [
       {
         id: 'kitchen',
@@ -136,7 +141,7 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
         deliveredTempC: 38,
         deliveredFlowLpm: Math.min(10, hotFlow),
         note: hotFlow >= 10
-          ? 'Flow within appliance throughput. Temperature held by adjusting blend ratio.'
+          ? 'Stable draw. Temperature held by adjusting blend ratio.'
           : 'Flow capped at appliance throughput limit. Temperature held by adjusting blend ratio.',
         limitingFactor: hotFlow >= 10 ? 'None' : 'Hot-side output constrained — appliance throughput limit reached',
         boilerState: deriveBoilerState(hotFlow),
@@ -145,16 +150,20 @@ function getDrawOffData(regime: Regime, outputKw: number): DrawOffViewModel[] {
         id: 'bath',
         label: 'Bath fill',
         icon: '🛁',
-        status: 'starved',
+        status: bathBoilerState === 'fails_to_fire' ? 'below_ignition_threshold' : 'starved',
         coldSupplyTempC: 10,
         coldSupplyFlowLpm: 12,
         hotSupplyTempC: hotTemp - 7,
         hotSupplyAvailableFlowLpm: concurrentHotFlow,
         deliveredTempC: 32,
         deliveredFlowLpm: Math.min(6, concurrentHotFlow + 2),
-        note: 'Concurrent demand has exhausted appliance capacity. Delivered temperature and flow both degraded.',
-        limitingFactor: 'Concurrent demand exceeds appliance capacity — insufficient DHW flow to sustain burner',
-        boilerState: deriveBoilerState(concurrentHotFlow),
+        note: bathBoilerState === 'fails_to_fire'
+          ? 'Flow too low to fire combi — simultaneous demand has dropped per-outlet flow below ignition threshold. Only cold water delivered.'
+          : 'Concurrent demand has exhausted appliance capacity. Delivered temperature and flow both degraded.',
+        limitingFactor: bathBoilerState === 'fails_to_fire'
+          ? 'Below combi ignition threshold — burner cannot fire under simultaneous demand'
+          : 'Concurrent demand exceeds appliance capacity — insufficient DHW flow to sustain burner',
+        boilerState: bathBoilerState,
       },
     ]
   }

@@ -99,6 +99,10 @@ function outletToViewModel(
     // collapse or combi ignition failure means the outlet would deliver cold water
     // even if opened; otherwise 'inactive' (simply not in use).
     status = 'inactive'
+  } else if (isCombi && mainsFlowLpm < COMBI_IGNITION_THRESHOLD_LPM) {
+    // Combi-specific: mains flow below ignition threshold — burner cannot fire.
+    // Outlet is open but will only deliver cold water.
+    status = 'below_ignition_threshold'
   } else if (outlet.isConstrained) {
     status = (outlet.deliveredTempC ?? COLD_INLET_TEMP_C) < MIN_USABLE_HOT_TEMP_C ? 'temp_limited' : 'flow_limited'
   } else if (outlet.service === 'mixed_cold_running') {
@@ -110,6 +114,8 @@ function outletToViewModel(
   let note: string
   if (!outlet.open) {
     note = 'Outlet closed — no flow demand.'
+  } else if (status === 'below_ignition_threshold') {
+    note = 'Flow too low to fire combi — simultaneous demand has dropped per-outlet flow below ignition threshold. Only cold water delivered.'
   } else if (outlet.isConstrained && outlet.constraintReason) {
     note = outlet.constraintReason
   } else if (outlet.isConstrained) {
