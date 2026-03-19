@@ -181,6 +181,8 @@ export default function App() {
       const visitDetail = await getVisit(visitId);
       const workingPayload = visitDetail.working_payload;
       if (workingPayload && Object.keys(workingPayload).length > 0) {
+        // Basic structural check — working_payload must look like a survey model.
+        // If conversion fails, the surrounding try/catch falls through to the survey.
         const survey = workingPayload as unknown as FullSurveyModelV1;
         const engineInput = toEngineInput(sanitiseModelForEngine(survey));
         setActiveVisitId(visitId);
