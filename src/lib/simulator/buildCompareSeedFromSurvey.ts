@@ -22,6 +22,8 @@ import type { SystemInputs, ControlStrategy, CylinderType } from '../../explaine
 import { DEFAULT_SYSTEM_INPUTS, CYLINDER_SIZES_BY_TYPE } from '../../explainers/lego/simulator/systemInputsTypes'
 import type { SimulatorSystemChoice } from '../../explainers/lego/simulator/useSystemDiagramPlayback'
 import { adaptFullSurveyToSimulatorInputs } from '../../explainers/lego/simulator/adaptFullSurveyToSimulatorInputs'
+import type { MainsSupply, ProposedSupplyAdjustment } from './mainsSupply'
+import { extractMainsSupplyFromSurvey, getEffectiveProposedMainsSupply } from './mainsSupply'
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -30,6 +32,10 @@ export type CompareSeedSide = {
   systemChoice: SimulatorSystemChoice
   systemInputs: Partial<SystemInputs>
 }
+
+// Re-export supply types so consumers can import from one place.
+export type { MainsSupply, ProposedSupplyAdjustment } from './mainsSupply'
+export { extractMainsSupplyFromSurvey, getEffectiveProposedMainsSupply } from './mainsSupply'
 
 /**
  * Compare mode — describes the relationship between the two sides.
@@ -53,6 +59,23 @@ export type CompareSeed = {
   compareMode: CompareMode
   /** Human-readable comparison label, e.g. "Current system vs Proposed system". */
   comparisonLabel: string
+  /**
+   * Canonical measured mains supply extracted from the survey.
+   *
+   * Both simulator cards are seeded from this value — house mains are a
+   * property fact and do not change based on which system is chosen.
+   * Only present when survey data was available (not populated for the
+   * generic default compare seed).
+   */
+  measuredMainsSupply?: MainsSupply
+  /**
+   * Any supply-side infrastructure upgrade that is part of the recommendation.
+   *
+   * When absent or type === 'none', both cards show the same measured supply.
+   * When a booster/accumulator/break-tank is proposed, the proposed card
+   * shows adjusted values via getEffectiveProposedMainsSupply().
+   */
+  proposedSupplyAdjustment?: ProposedSupplyAdjustment
 }
 
 // ─── Option ID → SimulatorSystemChoice mapping ───────────────────────────────
@@ -109,6 +132,19 @@ function cylinderTypeForChoice(choice: SimulatorSystemChoice): CylinderType | un
  */
 const PROPOSED_SYSTEM_EMITTER_CAPACITY_FACTOR = 1.2
 
+// ─── Simulator-accepted ranges for mains supply inputs ───────────────────────
+// These mirror the constraints in adaptFullSurveyToSimulatorInputs and the
+// SystemInputsPanel slider bounds.  Centralised here so both places agree.
+
+/** Minimum mains pressure the simulator accepts (bar). Below this is out of domestic range. */
+const MIN_SIMULATOR_PRESSURE_BAR = 0.5
+/** Maximum mains pressure the simulator accepts (bar). Domestic supply rarely exceeds 6 bar. */
+const MAX_SIMULATOR_PRESSURE_BAR = 6.0
+/** Minimum mains flow rate the simulator accepts (L/min). Allows very low-flow scenarios. */
+const MIN_SIMULATOR_FLOW_LPM = 3
+/** Maximum mains flow rate the simulator accepts (L/min). Covers high-flow boosted supplies. */
+const MAX_SIMULATOR_FLOW_LPM = 50
+
 /**
  * Build a compare seed from a completed full survey and its engine output.
  *
@@ -127,6 +163,24 @@ export function buildCompareSeedFromSurvey(
   // ── Left (current) side ────────────────────────────────────────────────────
   const left = adaptFullSurveyToSimulatorInputs(survey)
 
+  // ── Canonical measured supply — property fact, not system fact ─────────────
+  // Extract from the survey directly so that both sides are seeded from the
+  // same house data regardless of the mainsDynamicFlowLpmKnown guard applied
+  // by adaptFullSurveyToSimulatorInputs (which is intentionally strict for the
+  // simulation engine but too restrictive for supply provenance tracking).
+  const measuredMainsSupply = extractMainsSupplyFromSurvey(survey)
+
+  // No supply-side upgrade is encoded in the recommendation at this stage.
+  // This field is reserved for future use when a booster/accumulator/break-tank
+  // is explicitly included in the recommendation output.
+  const proposedSupplyAdjustment: ProposedSupplyAdjustment = { type: 'none' }
+
+  // Effective supply for the proposed system (same as measured when no upgrade).
+  const effectiveProposedSupply = getEffectiveProposedMainsSupply(
+    measuredMainsSupply,
+    proposedSupplyAdjustment,
+  )
+
   // ── Right (proposed) side ──────────────────────────────────────────────────
   // Pick the first viable option; fall back to first caution; then first of any.
   const options = engineOutput.options ?? []
@@ -143,14 +197,44 @@ export function buildCompareSeedFromSurvey(
 
   // Inherit survey mains and occupancy truth (these are property facts, not
   // system facts — both current and proposed system operate in the same house).
+  // Mains supply is now sourced from the canonical effectiveProposedSupply so
+  // that estimated values (mainsDynamicFlowLpmKnown not set) are still carried
+  // through instead of silently falling back to DEFAULT_SYSTEM_INPUTS values.
   const proposedSystemInputs: Partial<SystemInputs> = {}
 
-  if (left.systemInputs.mainsPressureBar != null) {
+  // ── Mains supply from canonical supply object ───────────────────────────────
+  // Populate pressure and flow from the effective proposed supply, which is
+  // the same as the measured supply unless a booster/accumulator is proposed.
+  // This supersedes the previous approach of copying from left.systemInputs
+  // which dropped estimated values when mainsDynamicFlowLpmKnown was not set.
+  if (
+    effectiveProposedSupply.dynamicPressureBar != null &&
+    effectiveProposedSupply.dynamicPressureBar > 0
+  ) {
+    // Clamp to the simulator's accepted range.
+    proposedSystemInputs.mainsPressureBar = Math.max(
+      MIN_SIMULATOR_PRESSURE_BAR,
+      Math.min(MAX_SIMULATOR_PRESSURE_BAR, effectiveProposedSupply.dynamicPressureBar),
+    )
+  } else if (left.systemInputs.mainsPressureBar != null) {
+    // Fall back to the left-side value (from adaptFullSurveyToSimulatorInputs)
+    // for backward compatibility when no pressure is in the supply object.
     proposedSystemInputs.mainsPressureBar = left.systemInputs.mainsPressureBar
   }
-  if (left.systemInputs.mainsFlowLpm != null) {
+
+  if (
+    effectiveProposedSupply.dynamicFlowLpm != null &&
+    effectiveProposedSupply.dynamicFlowLpm > 0
+  ) {
+    // Clamp to the simulator's accepted range.
+    proposedSystemInputs.mainsFlowLpm = Math.max(
+      MIN_SIMULATOR_FLOW_LPM,
+      Math.min(MAX_SIMULATOR_FLOW_LPM, effectiveProposedSupply.dynamicFlowLpm),
+    )
+  } else if (left.systemInputs.mainsFlowLpm != null) {
     proposedSystemInputs.mainsFlowLpm = left.systemInputs.mainsFlowLpm
   }
+
   if (left.systemInputs.heatLossKw != null) {
     proposedSystemInputs.heatLossKw = left.systemInputs.heatLossKw
   }
@@ -207,6 +291,8 @@ export function buildCompareSeedFromSurvey(
     },
     compareMode: 'current_vs_proposed',
     comparisonLabel: 'Current system vs Proposed system',
+    measuredMainsSupply,
+    proposedSupplyAdjustment,
   }
 }
 
