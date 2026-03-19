@@ -6,8 +6,8 @@
  * Placement: bottom of the final summary page in ReportView.
  * Copy: "Scan to open your interactive home heating plan"
  *
- * The QR encodes the portal URL: /portal/:reference
- * Phase 1 uses the raw report reference; Phase 3 will swap to signed tokens.
+ * The QR encodes a signed portal URL: /portal/:reference?token=...
+ * The token is HMAC-signed, scoped to the report reference, with a 30-day expiry.
  *
  * Rules:
  *   - Visually quiet but obvious.
@@ -18,26 +18,29 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { buildPortalUrl } from '../../lib/portal/portalUrl';
+import { generatePortalToken } from '../../lib/portal/portalToken';
 
 interface Props {
-  /** Report reference (ID) used to build the portal URL. */
+  /** Report reference (ID) used to build the signed portal URL. */
   reportReference: string;
 }
 
 export default function ReportQrFooter({ reportReference }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
-  const portalUrl = buildPortalUrl(reportReference);
-
   useEffect(() => {
     let cancelled = false;
 
-    QRCode.toDataURL(portalUrl, {
-      width: 120,
-      margin: 1,
-      color: { dark: '#1a202c', light: '#ffffff' },
-      errorCorrectionLevel: 'M',
-    })
+    generatePortalToken(reportReference)
+      .then((token) => buildPortalUrl(reportReference, undefined, token))
+      .then((portalUrl) =>
+        QRCode.toDataURL(portalUrl, {
+          width: 120,
+          margin: 1,
+          color: { dark: '#1a202c', light: '#ffffff' },
+          errorCorrectionLevel: 'M',
+        }),
+      )
       .then((url) => {
         if (!cancelled) setQrDataUrl(url);
       })
@@ -48,7 +51,7 @@ export default function ReportQrFooter({ reportReference }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [portalUrl]);
+  }, [reportReference]);
 
   if (!qrDataUrl) return null;
 

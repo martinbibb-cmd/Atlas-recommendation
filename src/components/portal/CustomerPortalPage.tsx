@@ -11,9 +11,9 @@
  *   5. Explore your options — constrained exploration panel
  *   6. Global menu — via GlobalMenuShell wrapper
  *
- * Route: /portal/:reference
- * Phase 1 uses raw report reference gating.
- * Structured so signed-token access can replace this later.
+ * Route: /portal/:reference?token=...
+ * Access requires a signed portal token.
+ * Missing or invalid tokens are rejected with a customer-safe error state.
  *
  * Rules:
  *   - No expert-only controls are exposed.
@@ -27,6 +27,7 @@ import type { EngineOutputV1, OptionCardV1 } from '../../contracts/EngineOutputV
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import { getReport } from '../../lib/reports/reportApi';
+import { validatePortalToken } from '../../lib/portal/portalToken';
 import TradeOffSummary from '../advice/TradeOffSummary';
 import { buildTradeOffSummary } from '../../lib/advice/buildTradeOffSummary';
 import ExploreOptionsPanel from './ExploreOptionsPanel';
@@ -38,6 +39,11 @@ import './CustomerPortalPage.css';
 interface Props {
   /** Report reference (ID) to load. */
   reference: string;
+  /**
+   * Signed portal token from the URL query string (?token=...).
+   * Missing or invalid tokens are rejected before loading any report data.
+   */
+  token?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -102,20 +108,40 @@ function buildRequiredChanges(option?: OptionCardV1): string[] {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function CustomerPortalPage({ reference }: Props) {
+export default function CustomerPortalPage({ reference, token }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tokenDenied, setTokenDenied] = useState<'missing' | 'invalid' | 'expired' | null>(null);
   const [engineOutput, setEngineOutput] = useState<EngineOutputV1 | null>(null);
   const [engineInput, setEngineInput] = useState<EngineInputV2_3 | null>(null);
   const [surveyData, setSurveyData] = useState<FullSurveyModelV1 | null>(null);
   const [postcode, setPostcode] = useState<string | null>(null);
 
-  // Load report data
+  // Validate token, then load report data
   useEffect(() => {
     let cancelled = false;
 
-    getReport(reference)
-      .then((report) => {
+    async function loadPortal() {
+      // Token gate — reject before any report data is fetched
+      if (!token) {
+        if (!cancelled) {
+          setTokenDenied('missing');
+          setLoading(false);
+        }
+        return;
+      }
+
+      const tokenResult = await validatePortalToken(reference, token);
+      if (tokenResult !== 'valid') {
+        if (!cancelled) {
+          setTokenDenied(tokenResult);
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const report = await getReport(reference);
         if (cancelled) return;
         if (!report.payload?.engineOutput) {
           throw new Error('This report does not contain recommendation data.');
@@ -124,25 +150,44 @@ export default function CustomerPortalPage({ reference }: Props) {
         setEngineInput(report.payload.engineInput ?? null);
         setSurveyData(report.payload.surveyData ?? null);
         setPostcode(report.postcode ?? null);
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : String(err));
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    }
+
+    void loadPortal();
 
     return () => {
       cancelled = true;
     };
-  }, [reference]);
+  }, [reference, token]);
 
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="portal-page__loading" role="status" aria-live="polite">
         Loading your recommendation…
+      </div>
+    );
+  }
+
+  // ── Token denied ─────────────────────────────────────────────────────────────
+  if (tokenDenied) {
+    const headline =
+      tokenDenied === 'expired'
+        ? 'This link has expired'
+        : 'This link is not valid';
+    const detail =
+      tokenDenied === 'expired'
+        ? 'Your portal link has expired. Please ask the engineer who carried out your survey to send you a new link.'
+        : 'The link you followed is not valid or has been revoked. Please check the link you were given and try again.';
+    return (
+      <div className="portal-page__error" role="alert" data-testid="portal-token-error">
+        <p className="portal-page__error-headline">{headline}</p>
+        <p className="portal-page__error-detail">{detail}</p>
       </div>
     );
   }

@@ -94,6 +94,12 @@ const PORTAL_REFERENCE =
     ? parsePortalPath(window.location.pathname)
     : null;
 
+/** Extract the signed portal token from ?token=... when on a portal path. */
+const PORTAL_TOKEN =
+  typeof window !== 'undefined' && PORTAL_REFERENCE != null
+    ? new URLSearchParams(window.location.search).get('token') ?? undefined
+    : undefined;
+
 /** Detect ?explorer=1 — allows access to the System Explorer via hidden route. */
 const EXPLORER_ENABLED =
   typeof window !== 'undefined' &&
@@ -215,7 +221,7 @@ export default function App() {
 
   // /portal/:reference — render the customer-facing recommendation portal.
   if (PORTAL_REFERENCE != null) {
-    return <CustomerPortalPage reference={PORTAL_REFERENCE} />;
+    return <CustomerPortalPage reference={PORTAL_REFERENCE} token={PORTAL_TOKEN} />;
   }
 
   // ?report=1 feature flag — render the unified ReportView with demo engine output.

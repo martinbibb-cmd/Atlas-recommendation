@@ -4,9 +4,9 @@
  * Utility for generating customer portal URLs from report references.
  *
  * Phase 1 uses a simple `/portal/:reference` route.
- * The code is structured so signed-token access can replace this later
- * (e.g. `/portal/:reference?token=...` or `/p/:signedToken`) without
- * redesigning calling code.
+ * Phase 2 (this file) adds signed-token support: `/portal/:reference?token=...`
+ * The structure is preserved so a fully tokenised route (`/p/:signedToken`)
+ * can replace this later without redesigning calling code.
  */
 
 /**
@@ -14,13 +14,16 @@
  *
  * @param reference - Report or visit reference ID.
  * @param origin    - URL origin; defaults to the current window origin.
+ * @param token     - Optional signed portal token to append as `?token=...`.
  * @returns Fully qualified portal URL.
  */
 export function buildPortalUrl(
   reference: string,
   origin: string = typeof window !== 'undefined' ? window.location.origin : '',
+  token?: string,
 ): string {
-  return `${origin}/portal/${encodeURIComponent(reference)}`;
+  const base = `${origin}/portal/${encodeURIComponent(reference)}`;
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
 }
 
 /**

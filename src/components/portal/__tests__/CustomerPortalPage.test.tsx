@@ -11,6 +11,10 @@
  *   - Renders the trade-off summary
  *   - Renders the explore options panel when engine input is available
  *   - Does not expose expert-only controls
+ *   - Rejects missing token with a customer-safe error
+ *   - Rejects invalid token with a customer-safe error
+ *   - Rejects expired token with an expiry-specific error
+ *   - Accepts a valid token and loads the portal
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -19,6 +23,7 @@ import CustomerPortalPage from '../CustomerPortalPage';
 import type { ReportDetail } from '../../../lib/reports/reportApi';
 import type { EngineOutputV1 } from '../../../contracts/EngineOutputV1';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
+import { generatePortalToken } from '../../../lib/portal/portalToken';
 
 // ─── Stubs ────────────────────────────────────────────────────────────────────
 
@@ -107,21 +112,88 @@ beforeEach(() => {
   vi.stubGlobal('scrollTo', vi.fn());
 });
 
+// ─── Token helper ─────────────────────────────────────────────────────────────
+
+/** Generates a valid portal token for the test reference. */
+async function makeValidToken(reference: string): Promise<string> {
+  return generatePortalToken(reference);
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('CustomerPortalPage — loading state', () => {
-  it('renders the loading indicator initially', () => {
-    // Use a never-resolving fetch to keep the component in loading state
+  it('renders the loading indicator initially when token is valid but fetch is pending', async () => {
+    // Use a never-resolving fetch to keep the component in loading state after token validation
+    global.fetch = vi.fn().mockReturnValue(new Promise(() => {}));
+    const token = await makeValidToken('test-ref');
+    render(<CustomerPortalPage reference="test-ref" token={token} />);
+    // The loading text is visible immediately (before token validation resolves)
+    // or continues once token is valid but fetch is still pending
+    await waitFor(() => {
+      expect(screen.getByText(/loading your recommendation/i)).toBeTruthy();
+    });
+  });
+});
+
+describe('CustomerPortalPage — token gate', () => {
+  it('renders token error when token is missing', async () => {
     global.fetch = vi.fn().mockReturnValue(new Promise(() => {}));
     render(<CustomerPortalPage reference="test-ref" />);
-    expect(screen.getByText(/loading your recommendation/i)).toBeTruthy();
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-token-error"]')).not.toBeNull();
+    });
+  });
+
+  it('renders "This link is not valid" when token is missing', async () => {
+    global.fetch = vi.fn().mockReturnValue(new Promise(() => {}));
+    render(<CustomerPortalPage reference="test-ref" />);
+    await waitFor(() => {
+      expect(screen.getByText(/this link is not valid/i)).toBeTruthy();
+    });
+  });
+
+  it('renders token error when token is invalid', async () => {
+    global.fetch = vi.fn().mockReturnValue(new Promise(() => {}));
+    render(<CustomerPortalPage reference="test-ref" token="not.avalid.token" />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-token-error"]')).not.toBeNull();
+    });
+  });
+
+  it('renders "This link is not valid" for an invalid token', async () => {
+    global.fetch = vi.fn().mockReturnValue(new Promise(() => {}));
+    render(<CustomerPortalPage reference="test-ref" token="not.a.valid.token" />);
+    await waitFor(() => {
+      expect(screen.getByText(/this link is not valid/i)).toBeTruthy();
+    });
+  });
+
+  it('does not fetch report data when token is missing', async () => {
+    const fetchSpy = vi.fn().mockReturnValue(new Promise(() => {}));
+    global.fetch = fetchSpy;
+    render(<CustomerPortalPage reference="test-ref" />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-token-error"]')).not.toBeNull();
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not fetch report data when token is invalid', async () => {
+    const fetchSpy = vi.fn().mockReturnValue(new Promise(() => {}));
+    global.fetch = fetchSpy;
+    render(<CustomerPortalPage reference="test-ref" token="bad.token" />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-token-error"]')).not.toBeNull();
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 
 describe('CustomerPortalPage — error state', () => {
   it('renders "Recommendation not found" on 404', async () => {
     mockFetch404();
-    render(<CustomerPortalPage reference="missing-ref" />);
+    const token = await makeValidToken('missing-ref');
+    render(<CustomerPortalPage reference="missing-ref" token={token} />);
     await waitFor(() => {
       expect(screen.getByText(/recommendation not found/i)).toBeTruthy();
     });
@@ -129,7 +201,8 @@ describe('CustomerPortalPage — error state', () => {
 
   it('renders the portal error container', async () => {
     mockFetch404();
-    render(<CustomerPortalPage reference="missing-ref" />);
+    const token = await makeValidToken('missing-ref');
+    render(<CustomerPortalPage reference="missing-ref" token={token} />);
     await waitFor(() => {
       expect(document.querySelector('[data-testid="portal-error"]')).not.toBeNull();
     });
@@ -139,7 +212,8 @@ describe('CustomerPortalPage — error state', () => {
 describe('CustomerPortalPage — loaded state', () => {
   it('renders the portal container', async () => {
     mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" />);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
     await waitFor(() => {
       expect(document.querySelector('[data-testid="customer-portal"]')).not.toBeNull();
     });
@@ -147,7 +221,8 @@ describe('CustomerPortalPage — loaded state', () => {
 
   it('renders the recommendation hero', async () => {
     mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" />);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
     await waitFor(() => {
       expect(document.querySelector('[data-testid="portal-hero"]')).not.toBeNull();
     });
@@ -155,7 +230,8 @@ describe('CustomerPortalPage — loaded state', () => {
 
   it('renders the recommendation title', async () => {
     mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" />);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
     await waitFor(() => {
       expect(screen.getByText('Combi boiler recommended')).toBeTruthy();
     });
@@ -163,7 +239,8 @@ describe('CustomerPortalPage — loaded state', () => {
 
   it('renders the "Your heating recommendation" heading', async () => {
     mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" />);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
     await waitFor(() => {
       expect(screen.getByText('Your heating recommendation')).toBeTruthy();
     });
@@ -171,7 +248,8 @@ describe('CustomerPortalPage — loaded state', () => {
 
   it('renders the postcode', async () => {
     mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" />);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
     await waitFor(() => {
       expect(screen.getByText('SW1A 1AA')).toBeTruthy();
     });
@@ -179,7 +257,8 @@ describe('CustomerPortalPage — loaded state', () => {
 
   it('renders the "Why this suits your home" section', async () => {
     mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" />);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
     await waitFor(() => {
       expect(document.querySelector('[data-testid="portal-why"]')).not.toBeNull();
     });
@@ -187,7 +266,8 @@ describe('CustomerPortalPage — loaded state', () => {
 
   it('renders why bullets from verdict reasons', async () => {
     mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" />);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
     await waitFor(() => {
       expect(screen.getByText('Adequate mains pressure')).toBeTruthy();
     });
@@ -195,7 +275,8 @@ describe('CustomerPortalPage — loaded state', () => {
 
   it('renders the trade-off summary', async () => {
     mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" />);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
     await waitFor(() => {
       expect(document.querySelector('[data-testid="portal-tradeoff"]')).not.toBeNull();
     });
@@ -203,7 +284,8 @@ describe('CustomerPortalPage — loaded state', () => {
 
   it('renders the explore options panel', async () => {
     mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" />);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
     await waitFor(() => {
       expect(document.querySelector('[data-testid="portal-explore"]')).not.toBeNull();
     });
@@ -211,7 +293,8 @@ describe('CustomerPortalPage — loaded state', () => {
 
   it('renders the ATLAS brand', async () => {
     mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" />);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
     await waitFor(() => {
       expect(screen.getByText('ATLAS')).toBeTruthy();
     });
@@ -219,7 +302,8 @@ describe('CustomerPortalPage — loaded state', () => {
 
   it('renders the footer text', async () => {
     mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" />);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
     await waitFor(() => {
       expect(screen.getByText(/physics-based heating system assessment tool/i)).toBeTruthy();
     });

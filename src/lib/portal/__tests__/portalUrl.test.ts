@@ -24,6 +24,23 @@ describe('buildPortalUrl', () => {
     const url = buildPortalUrl('ref-1', '');
     expect(url).toBe('/portal/ref-1');
   });
+
+  it('appends token as ?token= query param when provided', () => {
+    const url = buildPortalUrl('abc-123', 'https://example.com', 'tok.sig');
+    expect(url).toBe('https://example.com/portal/abc-123?token=tok.sig');
+  });
+
+  it('encodes special characters in the token', () => {
+    const url = buildPortalUrl('abc-123', 'https://example.com', 'a+b/c=');
+    expect(url).toContain('?token=');
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get('token')).toBe('a+b/c=');
+  });
+
+  it('produces URL without token query param when token is omitted', () => {
+    const url = buildPortalUrl('abc-123', 'https://example.com');
+    expect(url).not.toContain('?token');
+  });
 });
 
 // ─── parsePortalPath ──────────────────────────────────────────────────────────
