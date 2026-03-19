@@ -45,6 +45,7 @@ import {
 import { adaptFloorplanToAtlasInputs } from '../../lib/floorplan/adaptFloorplanToAtlasInputs';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import PrintableRecommendationPage from './PrintableRecommendationPage';
+import ReportQrFooter from '../report/ReportQrFooter';
 import PhysicsStoryPanel from '../story/PhysicsStoryPanel';
 import { buildPhysicsStory } from '../../lib/story/buildPhysicsStory';
 import { useGlobalMenu } from '../shell/GlobalMenuContext';
@@ -586,6 +587,7 @@ export default function DecisionSynthesisPage({
   reportReference,
 }: Props) {
   const [showPrint, setShowPrint] = useState(false);
+  const [showPrintQr, setShowPrintQr] = useState(false);
   const [showStory, setShowStory] = useState(false);
   const [saveState, setSaveState] = useState<ReportSaveState>('idle');
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
@@ -852,6 +854,33 @@ export default function DecisionSynthesisPage({
     );
   }
 
+  // Print QR & link view — renders only the portal QR code and link.
+  if (showPrintQr && printableReportReference) {
+    return (
+      <div className="advice-print-qr-page" aria-label="QR code and portal link">
+        <div className="advice-print-qr-page__toolbar prp__toolbar">
+          <button
+            className="prp__back-btn"
+            onClick={() => setShowPrintQr(false)}
+            aria-label="Back to advice page"
+          >
+            ← Back to advice page
+          </button>
+          <button
+            className="prp__print-btn"
+            onClick={() => window.print()}
+            aria-label="Print QR code and link"
+          >
+            🖨 Print
+          </button>
+        </div>
+        <div className="advice-print-qr-page__content">
+          <ReportQrFooter reportReference={printableReportReference} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="advice-page" aria-label="Decision synthesis">
 
@@ -874,6 +903,16 @@ export default function DecisionSynthesisPage({
             aria-label="Print Atlas recommendation"
           >
             🖨 Print Recommendation
+          </button>
+        )}
+        {/* Print QR & Link — only shown when a report reference is available */}
+        {printableReportReference != null && (
+          <button
+            className="advice-page__print-btn"
+            onClick={() => setShowPrintQr(true)}
+            aria-label="Print QR code and link"
+          >
+            🔗 Print QR &amp; Link
           </button>
         )}
         {/* Save Report */}
@@ -968,6 +1007,18 @@ export default function DecisionSynthesisPage({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Portal QR & link — shown when a reportReference is available ──── */}
+      {printableReportReference != null && (
+        <div
+          className="advice-portal-qr"
+          role="region"
+          aria-label="Customer portal link and QR code"
+          data-testid="portal-qr-section"
+        >
+          <ReportQrFooter reportReference={printableReportReference} />
         </div>
       )}
 
