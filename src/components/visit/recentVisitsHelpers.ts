@@ -8,7 +8,7 @@
  * component (keeping react-refresh/only-export-components satisfied).
  */
 
-import type { VisitMeta } from '../../lib/visits/visitApi';
+import type { VisitMeta, VisitFilterCategory } from '../../lib/visits/visitApi';
 
 /** Default maximum rows shown before the "Show all" button appears. */
 export const DEFAULT_LIST_LIMIT = 20;
@@ -41,4 +41,68 @@ export function matchesDateFilter(v: VisitMeta, dateStr: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Returns true when any search text, date filter, or status filter is active.
+ * When true the visit cap is bypassed so no matches are hidden.
+ */
+export function isAnyFilterActive(
+  search: string,
+  dateFilter: string,
+  filter: VisitFilterCategory,
+): boolean {
+  return search.trim() !== '' || dateFilter !== '' || filter !== 'all';
+}
+
+/**
+ * Returns the secondary identifier to pair with the headline in a visit card's
+ * meta subline. Complements visitDisplayLabel so headline and subline never
+ * repeat the same information.
+ *
+ * Priority order mirrors visitDisplayLabel:
+ *   - headline = visit_reference → subline shows address + postcode
+ *   - headline = address_line_1  → subline shows postcode or customer_name
+ *   - headline = postcode        → subline shows customer_name
+ *   - otherwise                  → empty string
+ */
+export function cardSubline(
+  v: Pick<VisitMeta, 'visit_reference' | 'address_line_1' | 'postcode' | 'customer_name'>,
+): string {
+  if (v.visit_reference) {
+    const parts = [v.address_line_1, v.postcode].filter(Boolean);
+    return parts.join(', ');
+  }
+  if (v.address_line_1) {
+    return v.postcode ?? v.customer_name ?? '';
+  }
+  if (v.postcode) {
+    return v.customer_name ?? '';
+  }
+  return '';
+}
+
+/**
+ * Derives the human-readable list state summary shown above the visit list.
+ *
+ * Examples:
+ *   "Showing latest 20 visits"   — unfiltered, capped
+ *   "Showing all 83 visits"      — unfiltered, show-all mode
+ *   "Showing 7 filtered visits"  — any filter active
+ */
+export function buildListSummary(opts: {
+  isFiltering: boolean;
+  showAll: boolean;
+  visibleCount: number;
+  totalFilteredCount: number;
+}): string {
+  const { isFiltering, showAll, visibleCount, totalFilteredCount } = opts;
+  const plural = (n: number) => (n !== 1 ? 's' : '');
+  if (isFiltering) {
+    return `Showing ${visibleCount} filtered visit${plural(visibleCount)}`;
+  }
+  if (showAll) {
+    return `Showing all ${totalFilteredCount} visit${plural(totalFilteredCount)}`;
+  }
+  return `Showing latest ${visibleCount} visit${plural(visibleCount)}`;
 }
