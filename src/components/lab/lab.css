@@ -579,15 +579,15 @@
 
 .draw-off-workbench__panel {
   display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 14px;
+  grid-template-columns: 1fr 300px;
+  gap: 16px;
   align-items: stretch;
 }
 
 .draw-off-workbench__outlets {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 
 .draw-off-workbench__source {
@@ -676,6 +676,11 @@
 .draw-off-card__chip--starved {
   background: #fed7d7;
   color: #742a2a;
+}
+
+.draw-off-card__chip--below-ignition {
+  background: #fefcbf;
+  color: #744210;
 }
 
 /* ── Supply rows ─────────────────────────────────────────────────────────── */
@@ -962,6 +967,19 @@
 
 .cylinder-status-card__note--recovery { color: #2b6cb0; }
 .cylinder-status-card__note--store    { color: #276749; }
+
+/* ── Responsive: tablet landscape — slightly narrower cylinder column ──────── */
+
+@media (min-width: 861px) and (max-width: 1100px) {
+  .draw-off-workbench__panel {
+    grid-template-columns: 1fr 240px;
+    gap: 12px;
+  }
+
+  .draw-off-workbench__outlets {
+    gap: 10px;
+  }
+}
 
 /* ── Responsive: mobile stacked layout ──────────────────────────────────── */
 

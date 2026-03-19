@@ -11,17 +11,29 @@
 /**
  * Describes the current service state of one outlet.
  *
- * inactive     — outlet is closed / not in use.  No flow demand.
- * cold         — outlet is closed but mains pressure has collapsed or combi
- *                would not fire; shown as cold/inactive rather than stable.
- * stable       — temperature and flow both within expected range.
- * flow_limited — delivered flow is capped (combi throughput or pipe limit).
- * temp_limited — delivered temperature is below target (low store or high
- *                blending ratio).
- * starved      — hot supply has fallen to a level where useful service is
- *                impossible (store depleted or combi overloaded).
+ * inactive                — outlet is closed / not in use.  No flow demand.
+ * cold                    — outlet is closed but mains pressure has collapsed or
+ *                           combi would not fire; shown as cold/inactive rather
+ *                           than stable.
+ * stable                  — temperature and flow both within expected range.
+ *                           Only used when draw-off is actually active.
+ * flow_limited            — delivered flow is capped (combi throughput or pipe limit).
+ * temp_limited            — delivered temperature is below target (low store or high
+ *                           blending ratio).
+ * starved                 — hot supply has fallen to a level where useful service is
+ *                           impossible (store depleted or combi overloaded).
+ * below_ignition_threshold — combi-specific: mains flow is below the minimum needed
+ *                            to ignite the burner.  Outlet delivers cold water only
+ *                            even when open.
  */
-export type DrawOffStatus = 'inactive' | 'cold' | 'stable' | 'flow_limited' | 'temp_limited' | 'starved'
+export type DrawOffStatus =
+  | 'inactive'
+  | 'cold'
+  | 'stable'
+  | 'flow_limited'
+  | 'temp_limited'
+  | 'starved'
+  | 'below_ignition_threshold'
 
 /**
  * Combi boiler firing state derived from flow/pressure thresholds.

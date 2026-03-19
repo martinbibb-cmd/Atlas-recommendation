@@ -30,7 +30,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import DrawOffWorkbench from '../DrawOffWorkbench';
 import DrawOffCard from '../DrawOffCard';
 import CylinderStatusCard from '../CylinderStatusCard';
-import type { DrawOffViewModel, CylinderStatusViewModel } from '../drawOffTypes';
+import type { DrawOffViewModel, CylinderStatusViewModel, DrawOffStatus } from '../drawOffTypes';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -179,6 +179,38 @@ describe('DrawOffWorkbench — regime switching', () => {
   });
 });
 
+// ─── DrawOffWorkbench — combi ignition state ──────────────────────────────────
+
+describe('DrawOffWorkbench — combi ignition-aware states', () => {
+  it('combi bath outlet shows "Flow too low to fire" chip at minimum boiler output', () => {
+    render(<DrawOffWorkbench />);
+    fireEvent.click(screen.getByRole('button', { name: 'Combi' }));
+    const slider = screen.getByRole('slider', { name: 'Appliance output (kW)' });
+    // Slide to minimum output so concurrent bath flow drops below ignition threshold
+    fireEvent.change(slider, { target: { value: '18' } });
+    const bathCard = screen.getByTestId('draw-off-card-bath');
+    expect(bathCard.textContent).toContain('Flow too low to fire');
+  });
+
+  it('combi bath outlet shows below_ignition_threshold chip at minimum output via accessible label', () => {
+    render(<DrawOffWorkbench />);
+    fireEvent.click(screen.getByRole('button', { name: 'Combi' }));
+    const slider = screen.getByRole('slider', { name: 'Appliance output (kW)' });
+    fireEvent.change(slider, { target: { value: '18' } });
+    expect(screen.getByLabelText('Status: Flow too low to fire')).toBeTruthy();
+  });
+
+  it('combi kitchen outlet remains stable at minimum output (only concurrent bath is affected)', () => {
+    render(<DrawOffWorkbench />);
+    fireEvent.click(screen.getByRole('button', { name: 'Combi' }));
+    const slider = screen.getByRole('slider', { name: 'Appliance output (kW)' });
+    fireEvent.change(slider, { target: { value: '18' } });
+    // Kitchen has solo hot flow — still above ignition threshold
+    const kitchenCard = screen.getByTestId('draw-off-card-kitchen');
+    expect(kitchenCard.textContent).toContain('Stable draw');
+  });
+});
+
 // ─── DrawOffCard ─────────────────────────────────────────────────────────────
 
 describe('DrawOffCard — structure', () => {
@@ -194,12 +226,12 @@ describe('DrawOffCard — structure', () => {
 
   it('renders the status chip with correct text', () => {
     render(<DrawOffCard data={STABLE_OUTLET} />);
-    expect(screen.getByText('Stable')).toBeTruthy();
+    expect(screen.getByText('Stable draw')).toBeTruthy();
   });
 
   it('status chip has accessible aria-label', () => {
     render(<DrawOffCard data={STABLE_OUTLET} />);
-    expect(screen.getByLabelText('Status: Stable')).toBeTruthy();
+    expect(screen.getByLabelText('Status: Stable draw')).toBeTruthy();
   });
 
   it('renders all three supply row labels', () => {
@@ -244,6 +276,33 @@ describe('DrawOffCard — status chip variants', () => {
   it('renders "Starved" chip correctly', () => {
     render(<DrawOffCard data={{ ...STABLE_OUTLET, status: 'starved' }} />);
     expect(screen.getByText('Starved')).toBeTruthy();
+  });
+
+  it('renders "Flow too low to fire" chip for below_ignition_threshold', () => {
+    render(<DrawOffCard data={{ ...STABLE_OUTLET, status: 'below_ignition_threshold' }} />);
+    expect(screen.getByLabelText('Status: Flow too low to fire')).toBeTruthy();
+  });
+
+  it('below_ignition_threshold chip has accessible aria-label', () => {
+    render(<DrawOffCard data={{ ...STABLE_OUTLET, status: 'below_ignition_threshold' }} />);
+    expect(screen.getByLabelText('Status: Flow too low to fire')).toBeTruthy();
+  });
+
+  it('inactive outlet does NOT show "Stable draw" chip', () => {
+    render(<DrawOffCard data={{ ...STABLE_OUTLET, status: 'inactive' }} />);
+    expect(screen.queryByText('Stable draw')).toBeNull();
+    expect(screen.getByLabelText('Status: Inactive')).toBeTruthy();
+  });
+
+  it('"cold" inactive outlet shows "Cold / inactive" not "Stable draw"', () => {
+    render(<DrawOffCard data={{ ...STABLE_OUTLET, status: 'cold' }} />);
+    expect(screen.queryByText('Stable draw')).toBeNull();
+    expect(screen.getByLabelText('Status: Cold / inactive')).toBeTruthy();
+  });
+
+  it('below_ignition_threshold outlet shows "No draw" in the hot-in row', () => {
+    render(<DrawOffCard data={{ ...STABLE_OUTLET, status: 'below_ignition_threshold' }} />);
+    expect(screen.getByText('No draw')).toBeTruthy();
   });
 });
 

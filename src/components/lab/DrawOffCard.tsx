@@ -13,21 +13,23 @@ import type { DrawOffViewModel, DrawOffStatus } from './drawOffTypes'
 // ─── Status chip ──────────────────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<DrawOffStatus, string> = {
-  inactive:     'Inactive',
-  cold:         'Cold / inactive',
-  stable:       'Stable',
-  flow_limited: 'Flow-limited',
-  temp_limited: 'Temp-limited',
-  starved:      'Starved',
+  inactive:                  'Inactive',
+  cold:                      'Cold / inactive',
+  stable:                    'Stable draw',
+  flow_limited:              'Flow-limited',
+  temp_limited:              'Temp-limited',
+  starved:                   'Starved',
+  below_ignition_threshold:  'Flow too low to fire',
 }
 
 const STATUS_MOD: Record<DrawOffStatus, string> = {
-  inactive:     'draw-off-card__chip--inactive',
-  cold:         'draw-off-card__chip--cold',
-  stable:       'draw-off-card__chip--stable',
-  flow_limited: 'draw-off-card__chip--flow-limited',
-  temp_limited: 'draw-off-card__chip--temp-limited',
-  starved:      'draw-off-card__chip--starved',
+  inactive:                  'draw-off-card__chip--inactive',
+  cold:                      'draw-off-card__chip--cold',
+  stable:                    'draw-off-card__chip--stable',
+  flow_limited:              'draw-off-card__chip--flow-limited',
+  temp_limited:              'draw-off-card__chip--temp-limited',
+  starved:                   'draw-off-card__chip--starved',
+  below_ignition_threshold:  'draw-off-card__chip--below-ignition',
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -51,7 +53,7 @@ export default function DrawOffCard({ data, onFocus }: Props) {
     note,
   } = data
 
-  const isInactive = status === 'inactive' || status === 'cold'
+  const isInactive = status === 'inactive' || status === 'cold' || status === 'below_ignition_threshold'
 
   return (
     <div

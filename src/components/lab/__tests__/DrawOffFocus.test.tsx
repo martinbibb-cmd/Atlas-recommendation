@@ -263,7 +263,7 @@ describe('DrawOffFocusPanel — metric rows', () => {
 
   it('renders status chip', () => {
     render(<DrawOffFocusPanel data={FIRING_OUTLET} />)
-    expect(screen.getByLabelText('Status: Stable')).toBeTruthy()
+    expect(screen.getByLabelText('Status: Stable draw')).toBeTruthy()
   })
 
   it('renders cold supply row', () => {
