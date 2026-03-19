@@ -57,6 +57,7 @@ import {
   type ReportSection,
 } from './reportSections.model';
 import ReportCompletenessBanner from './ReportCompletenessBanner';
+import ReportQrFooter from './ReportQrFooter';
 import './reportPrint.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -66,6 +67,8 @@ interface Props {
   output: EngineOutputV1 | null;
   /** Called when the user clicks the back button on screen. Defaults to window.history.back(). */
   onBack?: () => void;
+  /** Optional report reference used to generate the customer portal QR code. */
+  reportReference?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -680,7 +683,7 @@ function RenderSection({ section }: { section: ReportSection }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ReportView({ output, onBack }: Props) {
+export default function ReportView({ output, onBack, reportReference }: Props) {
   function handleBack() {
     if (onBack) {
       onBack();
@@ -815,6 +818,11 @@ export default function ReportView({ output, onBack }: Props) {
           </div>
         );
       })}
+
+      {/* ── QR code footer — portal link ──────────────────────────────────── */}
+      {reportReference && (
+        <ReportQrFooter reportReference={reportReference} />
+      )}
 
     </div>
   );

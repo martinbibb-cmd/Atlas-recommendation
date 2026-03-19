@@ -1,0 +1,140 @@
+/*
+ * ExploreOptionsPanel — styles for the constrained exploration panel.
+ *
+ * Customer-facing — clean, approachable, no expert jargon.
+ */
+
+/* ── Container ───────────────────────────────────────────────────────────── */
+
+.explore-options {
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.explore-options__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.explore-options__intro {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: #4a5568;
+  line-height: 1.45;
+}
+
+/* ── Controls ────────────────────────────────────────────────────────────── */
+
+.explore-options__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.explore-options__field {
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  flex: 1 1 200px;
+}
+
+.explore-options__legend {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 0.4rem;
+  display: block;
+}
+
+.explore-options__choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.explore-options__choice {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.84rem;
+  color: #2d3748;
+  cursor: pointer;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+
+.explore-options__choice:hover {
+  background: #edf2f7;
+}
+
+.explore-options__choice input[type="radio"] {
+  accent-color: #2b6cb0;
+  margin: 0;
+}
+
+/* ── Warning ─────────────────────────────────────────────────────────────── */
+
+.explore-options__warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  background: #fffbeb;
+  border: 1px solid #f6e05e;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.82rem;
+  color: #744210;
+  line-height: 1.45;
+}
+
+.explore-options__warning-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+/* ── Result ──────────────────────────────────────────────────────────────── */
+
+.explore-options__result {
+  margin-bottom: 1rem;
+}
+
+.explore-options__result-heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+/* ── Locked inputs notice ────────────────────────────────────────────────── */
+
+.explore-options__locked {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.55rem 0.75rem;
+  background: #ebf4ff;
+  border: 1px solid #bee3f8;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: #2c5282;
+  line-height: 1.4;
+}
+
+.explore-options__locked-icon {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+
+.explore-options__locked-text {
+  flex: 1;
+}
