@@ -838,6 +838,8 @@ export default function DecisionSynthesisPage({
     return () => setContextMenuSections([]);
   }, [setContextMenuSections]);
 
+  const printableReportReference = reportReference ?? savedReportId ?? undefined;
+
   // Print view — render the dedicated print component.
   if (showPrint) {
     return (
@@ -845,7 +847,7 @@ export default function DecisionSynthesisPage({
         advice={compareAdvice}
         compareSeed={compareSeed}
         onBack={() => setShowPrint(false)}
-        reportReference={reportReference ?? savedReportId}
+        reportReference={printableReportReference}
       />
     );
   }
