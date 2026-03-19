@@ -1,0 +1,232 @@
+/*
+ * CustomerPortalPage — styles for the customer-facing recommendation portal.
+ *
+ * Design intent:
+ *   - Clean, approachable, confidence-inspiring
+ *   - No expert jargon in visual treatment
+ *   - Readable on mobile and tablet screens
+ *   - Print-safe (hides interactive chrome)
+ */
+
+/* ── Loading / error states ──────────────────────────────────────────────── */
+
+.portal-page__loading,
+.portal-page__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 60vh;
+  font-size: 1rem;
+  color: #4a5568;
+  padding: 2rem;
+  text-align: center;
+}
+
+.portal-page__error-headline {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+}
+
+.portal-page__error-detail {
+  font-size: 0.9rem;
+  color: #4a5568;
+  max-width: 480px;
+  margin: 0;
+}
+
+.portal-page__error-hint {
+  font-size: 0.82rem;
+  color: #718096;
+  font-style: italic;
+  max-width: 420px;
+  margin: 0;
+}
+
+/* ── Page wrapper ────────────────────────────────────────────────────────── */
+
+.portal-page {
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 0 1.25rem 3rem;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #1a202c;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  min-height: 100vh;
+  background: #fff;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.portal-page__header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1.25rem 0 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+}
+
+.portal-page__brand {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #2b6cb0;
+  background: #ebf4ff;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.portal-page__heading {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.portal-page__postcode {
+  font-size: 0.78rem;
+  color: #718096;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* ── Section ─────────────────────────────────────────────────────────────── */
+
+.portal-section {
+  margin-bottom: 2rem;
+}
+
+.portal-section__title {
+  margin: 0 0 0.65rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────────────── */
+
+.portal-section--hero {
+  background: #f0fff4;
+  border: 1px solid #c6f6d5;
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.portal-hero__status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.portal-hero__status--good {
+  background: #c6f6d5;
+  color: #276749;
+}
+
+.portal-hero__status--caution {
+  background: #fefcbf;
+  color: #744210;
+}
+
+.portal-hero__status--fail {
+  background: #fed7d7;
+  color: #9b2c2c;
+}
+
+.portal-hero__title {
+  margin: 0 0 0.25rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.portal-hero__secondary {
+  margin: 0 0 0.5rem;
+  font-size: 0.88rem;
+  color: #4a5568;
+}
+
+.portal-hero__confidence {
+  font-size: 0.82rem;
+  color: #718096;
+}
+
+.portal-hero__explanation {
+  margin: 0.65rem 0 0;
+  font-size: 0.84rem;
+  color: #2d3748;
+  font-style: italic;
+}
+
+/* ── Why list ────────────────────────────────────────────────────────────── */
+
+.portal-why__list {
+  margin: 0;
+  padding: 0 0 0 1.2rem;
+  list-style: disc;
+}
+
+.portal-why__item {
+  margin-bottom: 0.35rem;
+  font-size: 0.88rem;
+  color: #2d3748;
+  line-height: 1.45;
+}
+
+/* ── Required changes ────────────────────────────────────────────────────── */
+
+.portal-changes__list {
+  margin: 0;
+  padding: 0 0 0 1.2rem;
+  list-style: disc;
+}
+
+.portal-changes__item {
+  margin-bottom: 0.35rem;
+  font-size: 0.88rem;
+  color: #2d3748;
+  line-height: 1.45;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+
+.portal-page__footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.portal-page__footer-text {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #a0aec0;
+  line-height: 1.45;
+  text-align: center;
+}
+
+/* ── Print ────────────────────────────────────────────────────────────────── */
+
+@media print {
+  .portal-page {
+    padding: 0;
+    max-width: none;
+    min-height: unset;
+  }
+
+  .portal-page__header {
+    border-bottom: 1px solid #000;
+  }
+}

@@ -20,6 +20,7 @@ import VisitPage from './components/visit/VisitPage';
 import VisitHubPage from './components/visit/VisitHubPage';
 import RecentVisitsList from './components/visit/RecentVisitsList';
 import ReportPage from './components/reportpage/ReportPage';
+import CustomerPortalPage from './components/portal/CustomerPortalPage';
 import GlobalMenuShell from './components/shell/GlobalMenuShell';
 import { resetAtlasTourSeen } from './lib/tourStorage';
 import { createVisit } from './lib/visits/visitApi';
@@ -28,6 +29,7 @@ import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import { runEngine } from './engine/Engine';
 import { getMissingLabFields } from './lib/lab/getMissingLabFields';
 import { mergeLabQuickInputs } from './lib/lab/mergeLabQuickInputs';
+import { parsePortalPath } from './lib/portal/portalUrl';
 import type { DerivedFloorplanOutput } from './components/floorplan/floorplanDerivations';
 import './App.css';
 
@@ -85,6 +87,12 @@ const REPORT_PATH_MATCH =
     ? window.location.pathname.match(/^\/report\/([^/]+)$/)
     : null;
 const INITIAL_REPORT_ID = REPORT_PATH_MATCH ? REPORT_PATH_MATCH[1] : null;
+
+/** Detect /portal/:reference path — renders the customer portal. */
+const PORTAL_REFERENCE =
+  typeof window !== 'undefined'
+    ? parsePortalPath(window.location.pathname)
+    : null;
 
 /** Detect ?explorer=1 — allows access to the System Explorer via hidden route. */
 const EXPLORER_ENABLED =
@@ -203,6 +211,11 @@ export default function App() {
       setLabEngineInput(mergeLabQuickInputs(partial, {}));
       setJourney('simulator');
     }
+  }
+
+  // /portal/:reference — render the customer-facing recommendation portal.
+  if (PORTAL_REFERENCE != null) {
+    return <CustomerPortalPage reference={PORTAL_REFERENCE} />;
   }
 
   // ?report=1 feature flag — render the unified ReportView with demo engine output.
