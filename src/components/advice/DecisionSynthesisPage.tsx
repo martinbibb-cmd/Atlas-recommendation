@@ -83,6 +83,12 @@ interface Props {
    * are shown to indicate which estimates were refined by the floor plan.
    */
   floorplanOutput?: DerivedFloorplanOutput;
+  /**
+   * Pre-existing report reference (e.g. from ReportPage).
+   * When provided, this is used as the QR target in the print view even before
+   * the user saves the current session report.
+   */
+  reportReference?: string;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -577,6 +583,7 @@ export default function DecisionSynthesisPage({
   compareSeed,
   surveyData,
   floorplanOutput,
+  reportReference,
 }: Props) {
   const [showPrint, setShowPrint] = useState(false);
   const [showStory, setShowStory] = useState(false);
@@ -838,6 +845,7 @@ export default function DecisionSynthesisPage({
         advice={compareAdvice}
         compareSeed={compareSeed}
         onBack={() => setShowPrint(false)}
+        reportReference={reportReference ?? savedReportId}
       />
     );
   }

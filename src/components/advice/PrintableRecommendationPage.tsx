@@ -24,6 +24,7 @@
 
 import type { AdviceCard, AdviceFromCompareResult, PerformanceSummary, UnifiedConfidence, RecommendationScope } from '../../lib/advice/buildAdviceFromCompare';
 import type { CompareSeed } from '../../lib/simulator/buildCompareSeedFromSurvey';
+import ReportQrFooter from '../report/ReportQrFooter';
 import './advice-print.css';
 
 // ─── Performance visual dashboard (print) ─────────────────────────────────────
@@ -154,6 +155,11 @@ interface Props {
    * Not rendered in print output.
    */
   onBack?: () => void;
+  /**
+   * Report reference (ID) used to generate the portal QR code in the footer.
+   * When provided, a QR code block is appended to the final printed page.
+   */
+  reportReference?: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -341,6 +347,7 @@ export default function PrintableRecommendationPage({
   advice,
   compareSeed,
   onBack,
+  reportReference,
 }: Props) {
   // Detect whether this is a genuine survey-backed print or fallback.
   const isSurveyBacked = advice != null;
@@ -637,6 +644,11 @@ export default function PrintableRecommendationPage({
             </div>
           )}
         </section>
+      )}
+
+      {/* ── QR code footer — portal link ──────────────────────────────────── */}
+      {reportReference && (
+        <ReportQrFooter reportReference={reportReference} />
       )}
 
     </div>

@@ -8,7 +8,8 @@
  *   - Renders the caption text
  *   - Renders the sub-caption text
  *   - Has the correct data-testid
- *   - Renders nothing before QR is generated (async)
+ *   - Shows fallback reference text when QR generation fails
+ *   - Renders nothing until portal URL is resolved
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -74,17 +75,30 @@ describe('ReportQrFooter — rendering', () => {
       ).toBeTruthy();
     });
   });
+
+  it('renders the fallback reference ID text', async () => {
+    render(<ReportQrFooter reportReference="test-ref-123" />);
+    await waitFor(() => {
+      expect(screen.getByText('test-ref-123')).toBeTruthy();
+    });
+  });
 });
 
 describe('ReportQrFooter — QR generation failure', () => {
-  it('renders nothing when QR generation fails', async () => {
+  it('still renders footer with fallback reference when QR generation fails', async () => {
     const qrcode = await import('qrcode');
     vi.mocked(qrcode.default.toDataURL).mockRejectedValueOnce(
       new Error('QR generation failed'),
     );
-    const { container } = render(<ReportQrFooter reportReference="fail-ref" />);
-    // Wait a tick for the effect to settle
-    await new Promise((r) => setTimeout(r, 50));
-    expect(container.querySelector('[data-testid="report-qr-footer"]')).toBeNull();
+    render(<ReportQrFooter reportReference="fail-ref" />);
+    // Footer should appear with the fallback reference text even without a QR image.
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="report-qr-footer"]')).not.toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('fail-ref')).toBeTruthy();
+    });
+    // No QR image should be present.
+    expect(document.querySelector('.rv-qr-footer__img')).toBeNull();
   });
 });
