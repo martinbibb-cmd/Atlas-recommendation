@@ -106,24 +106,66 @@ function isHeatPumpRecommended(primaryRecommendation?: string): boolean {
 // ─── Roof orientation helpers ─────────────────────────────────────────────────
 
 /**
- * Roof orientation signal derived from the direction the front of the house faces.
+ * Roof orientation signal — derived from the new `roofOrientation` field when
+ * present, falling back to the legacy `houseFrontFacing` field for older records.
  *
- *   'south_likely'  — front or rear pitch is likely south-facing (good PV candidate)
- *   'less_optimal'  — east/west-facing side pitches (lower annual yield)
+ *   'south_likely'  — south / south_east / south_west / mixed pitch available
+ *   'less_optimal'  — east / west facing (lower annual yield)
+ *   'north_facing'  — north-facing roof (poor PV candidate)
  *   'unknown'       — no orientation data provided; survey required
  */
-type RoofOrientationSignal = 'south_likely' | 'less_optimal' | 'unknown';
+type RoofOrientationSignal = 'south_likely' | 'less_optimal' | 'north_facing' | 'unknown';
+
+/**
+ * Solar shading signal — derived from the `solarShading` field.
+ *
+ *   'none_or_low' — little or no shading; minimal yield impact
+ *   'medium'      — some shading; moderate yield reduction
+ *   'high'        — heavy shading; significant yield reduction
+ *   'unknown'     — not assessed; treat as requiring a check
+ */
+type SolarShadingSignal = 'none_or_low' | 'medium' | 'high' | 'unknown';
 
 /**
  * Derives the roof orientation signal from survey input.
- * A north-facing front → south-facing rear; a south-facing front → south-facing front.
- * Both cases indicate a likely south-facing pitch suitable for PV.
+ *
+ * Preference order:
+ *   1. `roofOrientation` (new field, direct roof measurement)
+ *   2. `houseFrontFacing` (legacy field — inferred from house front direction)
+ *      north-facing front → south-facing rear → south_likely
+ *      south-facing front → south-facing front → south_likely
+ *      east/west front    → side pitches → less_optimal
  */
 function deriveRoofOrientationSignal(input: EngineInputV2_3): RoofOrientationSignal {
-  const facing = input.houseFrontFacing;
-  if (!facing) return 'unknown';
-  if (facing === 'north' || facing === 'south') return 'south_likely';
-  return 'less_optimal';
+  // Prefer the direct roof orientation field when present
+  if (input.roofOrientation && input.roofOrientation !== 'unknown') {
+    const o = input.roofOrientation;
+    if (o === 'south' || o === 'south_east' || o === 'south_west' || o === 'mixed') {
+      return 'south_likely';
+    }
+    if (o === 'north') return 'north_facing';
+    // east or west
+    return 'less_optimal';
+  }
+
+  // Fall back to legacy houseFrontFacing for older records
+  if (input.houseFrontFacing) {
+    const facing = input.houseFrontFacing;
+    if (facing === 'north' || facing === 'south') return 'south_likely';
+    return 'less_optimal';
+  }
+
+  return 'unknown';
+}
+
+/**
+ * Derives the solar shading signal from the `solarShading` field.
+ */
+function deriveShadingSignal(input: EngineInputV2_3): SolarShadingSignal {
+  if (!input.solarShading || input.solarShading === 'unknown') return 'unknown';
+  if (input.solarShading === 'low') return 'none_or_low';
+  if (input.solarShading === 'medium') return 'medium';
+  return 'high';
 }
 
 /**
@@ -132,10 +174,27 @@ function deriveRoofOrientationSignal(input: EngineInputV2_3): RoofOrientationSig
  */
 function roofOrientationReason(signal: RoofOrientationSignal): string | null {
   if (signal === 'south_likely') {
-    return 'Likely south-facing roof available — a south-facing pitch supports good annual PV yield.';
+    return 'Roof orientation is favourable for solar PV — a south-facing pitch supports good annual yield.';
   }
   if (signal === 'less_optimal') {
-    return 'Roof orientation less optimal for PV — east/west-facing pitches generate less than a south-facing equivalent.';
+    return 'Roof orientation is less optimal for solar PV — east/west-facing pitches generate less than a south-facing equivalent.';
+  }
+  if (signal === 'north_facing') {
+    return 'North-facing roof is a poor candidate for solar PV — yield would be significantly reduced.';
+  }
+  return null;
+}
+
+/**
+ * Returns a reason string for shading impact.
+ * Returns null when shading is unknown or low (nothing to flag).
+ */
+function shadingReason(signal: SolarShadingSignal): string | null {
+  if (signal === 'medium') {
+    return 'Solar suitability is reduced by shading — a shading analysis should be included in any roof survey.';
+  }
+  if (signal === 'high') {
+    return 'Heavy shading significantly reduces solar PV viability — a detailed shading analysis is recommended before proceeding.';
   }
   return null;
 }
@@ -147,10 +206,13 @@ function roofOrientationReason(signal: RoofOrientationSignal): string | null {
  */
 function roofOrientationCheckText(signal: RoofOrientationSignal): string {
   if (signal === 'south_likely') {
-    return 'Likely south-facing pitch available — needs roof survey to confirm obstruction and shading.';
+    return 'Roof orientation is favourable — a roof survey should confirm shading and available area.';
   }
   if (signal === 'less_optimal') {
-    return 'Roof orientation less optimal for PV — east/west-facing pitch survey recommended.';
+    return 'Roof orientation is less optimal for PV — east/west-facing pitch survey recommended.';
+  }
+  if (signal === 'north_facing') {
+    return 'North-facing roof limits PV viability — alternative roof sections or ground-mount options should be assessed.';
   }
   return 'Roof orientation and obstruction survey required before specifying a system.';
 }
@@ -161,27 +223,47 @@ function roofOrientationCheckText(signal: RoofOrientationSignal): string {
  */
 function roofExpansionCheckText(signal: RoofOrientationSignal): string {
   if (signal === 'south_likely') {
-    return 'Likely south-facing pitch available — shading and headroom survey recommended for expansion.';
+    return 'Roof orientation is favourable — shading and headroom survey recommended for expansion.';
   }
   if (signal === 'less_optimal') {
     return 'East/west-facing pitch confirmed — expansion headroom and shading analysis recommended.';
+  }
+  if (signal === 'north_facing') {
+    return 'North-facing roof limits expansion potential — alternative roof sections recommended.';
   }
   return 'Roof orientation and shading survey to confirm expansion headroom.';
 }
 
 /**
- * Appends a non-null orientation reason to a reasons array, capping at
- * MAX_REASON_COUNT items. If the array is already at capacity the orientation
- * reason replaces the last entry to surface the orientation signal.
+ * Appends non-null orientation and shading reasons to a reasons array, capping
+ * at MAX_REASON_COUNT items. If the array is at capacity the orientation
+ * reason replaces the last entry to surface the most important signal.
  */
 const MAX_REASON_COUNT = 3;
 
-function withOrientationReason(reasons: string[], signal: RoofOrientationSignal): string[] {
-  const note = roofOrientationReason(signal);
-  if (!note) return reasons;
+/** Appends a note to the reasons array, replacing the last entry when at capacity. */
+function appendNote(reasons: string[], note: string): string[] {
   if (reasons.length < MAX_REASON_COUNT) return [...reasons, note];
-  // Replace last reason to surface orientation signal
   return [...reasons.slice(0, MAX_REASON_COUNT - 1), note];
+}
+
+function withRoofReasons(
+  reasons: string[],
+  orientation: RoofOrientationSignal,
+  shading: SolarShadingSignal,
+): string[] {
+  const orientationNote = roofOrientationReason(orientation);
+  const shadingNote = shadingReason(shading);
+
+  let result = [...reasons];
+  if (orientationNote) result = appendNote(result, orientationNote);
+  if (shadingNote) result = appendNote(result, shadingNote);
+  return result;
+}
+
+/** Backward-compatible wrapper used by internal call sites. */
+function withOrientationReason(reasons: string[], signal: RoofOrientationSignal): string[] {
+  return withRoofReasons(reasons, signal, 'unknown');
 }
 
 // ─── Solar PV opportunity ─────────────────────────────────────────────────────
@@ -198,19 +280,20 @@ function assessSolarPv(
   const alreadySolar = input.solarBoost?.enabled === true;
   const heatPump = isHeatPumpRecommended(primaryRecommendation);
   const orientation = deriveRoofOrientationSignal(input);
+  const shading = deriveShadingSignal(input);
 
   // Already has a solar diverter/thermal path — suitable now with existing setup
   if (alreadySolar) {
     return {
       status: 'suitable_now',
       summary: 'Solar energy pathway already active — scope to optimise.',
-      reasons: withOrientationReason([
+      reasons: withRoofReasons([
         'Solar input is already configured for this home.',
         'Expanding PV capacity or adding a battery could improve self-consumption further.',
         stored
           ? 'Stored hot water continues to absorb surplus solar energy effectively.'
           : 'Adding stored hot water would significantly improve solar self-consumption.',
-      ], orientation),
+      ], orientation, shading),
       checksRequired: [roofExpansionCheckText(orientation)],
     };
   }
@@ -220,13 +303,13 @@ function assessSolarPv(
     return {
       status: 'suitable_now',
       summary: 'Solar PV looks promising — stored hot water with smart stratification provides strong self-consumption potential.',
-      reasons: withOrientationReason([
+      reasons: withRoofReasons([
         'Stored hot water with top-down heating and active stratification is well-suited to absorbing surplus PV energy.',
         'Smart charging logic can prioritise solar heat input, reducing boiler demand during sunny periods.',
         heatPump
           ? 'Heat pump + PV is a proven whole-home electrification combination.'
           : 'Reduced boiler firing translates directly to lower gas consumption and running costs.',
-      ], orientation),
+      ], orientation, shading),
       checksRequired: [
         roofOrientationCheckText(orientation),
       ],
@@ -238,13 +321,13 @@ function assessSolarPv(
     return {
       status: 'suitable_now',
       summary: 'Solar PV looks promising — stored hot water and daytime occupancy support good self-consumption.',
-      reasons: withOrientationReason([
+      reasons: withRoofReasons([
         'Stored hot water enables surplus solar energy to be used as free cylinder top-up.',
         'Daytime household presence increases direct solar consumption.',
         futureReady
           ? 'Future-ready objective aligns well with a solar pathway.'
           : 'Running costs could be meaningfully reduced with a well-sized PV system.',
-      ], orientation),
+      ], orientation, shading),
       checksRequired: [
         roofOrientationCheckText(orientation),
         'Consider smart immersion or PV diverter to maximise cylinder charging from solar.',
@@ -257,11 +340,11 @@ function assessSolarPv(
     return {
       status: 'check_required',
       summary: 'Solar PV could work — stored hot water helps, but daytime absence reduces self-consumption.',
-      reasons: withOrientationReason([
+      reasons: withRoofReasons([
         'Stored hot water still allows surplus solar energy to charge the cylinder during the day.',
         'Professional household pattern means less direct consumption during peak solar hours.',
         'A battery or smart diverter would improve the economics for this occupancy profile.',
-      ], orientation),
+      ], orientation, shading),
       checksRequired: [
         roofOrientationCheckText(orientation),
         'Battery storage assessment recommended to compensate for low daytime use.',
@@ -274,13 +357,13 @@ function assessSolarPv(
     return {
       status: 'check_required',
       summary: 'Solar PV aligns with your future-ready objective — stored hot water would unlock the full benefit.',
-      reasons: withOrientationReason([
+      reasons: withRoofReasons([
         'Future-ready objective signals intent to move toward electrified, renewable-integrated systems.',
         'Without stored hot water, surplus solar energy cannot be captured as cheaply.',
         heatPump
           ? 'Heat pump installation is a good moment to add PV — shared electrical infrastructure.'
           : 'Adding a cylinder alongside PV would significantly improve the business case.',
-      ], orientation),
+      ], orientation, shading),
       checksRequired: [
         roofOrientationCheckText(orientation),
         'Hot water storage upgrade would improve solar self-consumption potential.',
@@ -293,11 +376,11 @@ function assessSolarPv(
     return {
       status: 'check_required',
       summary: 'Solar PV is worth assessing — heat pump and PV share electrical infrastructure effectively.',
-      reasons: withOrientationReason([
+      reasons: withRoofReasons([
         'Heat pump + PV is a widely adopted whole-home electrification combination.',
         'PV output during the day can directly offset heat pump electricity consumption.',
         'Self-consumption will improve further with battery storage later.',
-      ], orientation),
+      ], orientation, shading),
       checksRequired: [
         roofOrientationCheckText(orientation),
         'Electrical capacity review for combined heat pump + PV load recommended.',
@@ -310,11 +393,11 @@ function assessSolarPv(
     return {
       status: 'not_currently_favoured',
       summary: 'Solar PV has limited near-term value based on current constraints.',
-      reasons: withOrientationReason([
+      reasons: withRoofReasons([
         'On-demand hot water system limits the ability to absorb surplus solar energy.',
         'Professional household pattern means low daytime electricity load during peak solar hours.',
         'Without battery storage, much of the PV output would be exported at low rates.',
-      ], orientation),
+      ], orientation, shading),
       checksRequired: [],
     };
   }
@@ -323,12 +406,12 @@ function assessSolarPv(
   return {
     status: 'check_required',
     summary: 'Solar PV could be a useful addition — roof suitability and self-consumption potential still need confirming.',
-    reasons: withOrientationReason([
+    reasons: withRoofReasons([
       'Solar PV can reduce energy costs and carbon footprint for most homes.',
       futureReady
         ? 'Future-ready objective supports a solar pathway assessment.'
         : 'A self-consumption assessment would confirm whether the economics stack up.',
-    ], orientation),
+    ], orientation, shading),
     checksRequired: [
       roofOrientationCheckText(orientation),
     ],

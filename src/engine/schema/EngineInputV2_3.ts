@@ -264,17 +264,41 @@ export interface EngineInputV2_3 {
   returnWaterTemp: number; // °C
 
   /**
+   * @deprecated Use `roofOrientation` instead.
    * Direction the front of the house faces (as observed from the street).
-   * Used to infer roof pitch orientation for solar PV suitability assessment.
-   *
-   * Derived logic:
-   *   'north' → rear faces south → likely south-facing pitch available
-   *   'south' → front faces south → likely south-facing pitch available
-   *   'east' | 'west' → side-aspect pitches → less optimal for PV
-   *
-   * When absent, roof orientation is treated as unknown and a full survey is required.
+   * Retained for backward compatibility with older visit records.
+   * When `roofOrientation` is present it takes precedence over this field.
    */
   houseFrontFacing?: 'north' | 'east' | 'south' | 'west';
+
+  /**
+   * Type of roof most usable for solar panels.
+   * 'pitched'  — standard sloped roof (best for fixed-mount PV)
+   * 'flat'     — flat or near-flat roof (can use tilted ballast mounts)
+   * 'mixed'    — property has both pitched and flat sections
+   * 'unknown'  — not yet assessed; PV suitability is provisional
+   */
+  roofType?: 'pitched' | 'flat' | 'mixed' | 'unknown';
+
+  /**
+   * Direction the main usable roof area faces.
+   * Determines annual PV yield potential.
+   * 'south' / 'south_east' / 'south_west' — favourable orientations
+   * 'east' / 'west'                        — less optimal but usable
+   * 'north'                                — poor PV yield (avoid for primary array)
+   * 'mixed'                                — multiple usable faces (blended yield)
+   * 'unknown'                              — not yet assessed; survey required
+   */
+  roofOrientation?: 'north' | 'east' | 'south' | 'west' | 'south_east' | 'south_west' | 'mixed' | 'unknown';
+
+  /**
+   * Shading level affecting the usable roof area.
+   * 'low'     — little or no shading; minimal yield impact
+   * 'medium'  — some shading (trees, adjacent buildings); moderate yield reduction
+   * 'high'    — heavy shading; significant yield reduction; may not be viable
+   * 'unknown' — not yet assessed; assume shading check required
+   */
+  solarShading?: 'low' | 'medium' | 'high' | 'unknown';
 
   /**
    * Structured building fabric inputs — used by FabricModelV1 to independently

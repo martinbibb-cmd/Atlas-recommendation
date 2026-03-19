@@ -387,6 +387,64 @@ describe('FullSurveyStepper — fabric controls hydrate from prefill and are not
   }, 10000);
 });
 
+// ── Solar roof fields persistence (PR 6) ────────────────────────────────────
+
+describe('FullSurveyStepper — solar roof fields hydrate from prefill and persist in draft', () => {
+  it('roofType is hydrated from prefill and preserved in draft', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = { roofType: 'pitched' };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.roofType).toBe('pitched');
+  }, 10000);
+
+  it('roofOrientation is hydrated from prefill and preserved in draft', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = { roofOrientation: 'south_west' };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.roofOrientation).toBe('south_west');
+  }, 10000);
+
+  it('solarShading is hydrated from prefill and preserved in draft', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = { solarShading: 'medium' };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.solarShading).toBe('medium');
+  }, 10000);
+
+  it('all three roof fields persist together in a single draft', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      roofType: 'flat',
+      roofOrientation: 'south',
+      solarShading: 'low',
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.roofType).toBe('flat');
+    expect(draft.roofOrientation).toBe('south');
+    expect(draft.solarShading).toBe('low');
+  }, 10000);
+});
+
 // ── disruptionTolerance persistence (PR 7) ──────────────────────────────────
 
 describe('FullSurveyStepper — disruptionTolerance preference persistence', () => {

@@ -652,9 +652,19 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
   // the restored values.  Cleared after the first skipped run so that subsequent
   // changes to dwellingForm/ageBand/sizeProxy/insulationToggle still apply.
   const skipPresetOnMountRef = useRef(hasPrefillFabric);
-  /** House front-facing direction — used to infer roof orientation for PV suitability. */
-  const [houseFrontFacing, setHouseFrontFacing] = useState<'north' | 'east' | 'south' | 'west' | undefined>(
-    () => prefill?.houseFrontFacing ?? undefined,
+  /** Roof type — used for solar PV suitability assessment. */
+  const [roofType, setRoofType] = useState<'pitched' | 'flat' | 'mixed' | 'unknown' | undefined>(
+    () => prefill?.roofType ?? undefined,
+  );
+  /** Usable roof orientation — used for solar PV suitability assessment. */
+  const [roofOrientation, setRoofOrientation] = useState<
+    'north' | 'east' | 'south' | 'west' | 'south_east' | 'south_west' | 'mixed' | 'unknown' | undefined
+  >(
+    () => prefill?.roofOrientation ?? undefined,
+  );
+  /** Solar shading level — used for solar PV suitability assessment. */
+  const [solarShading, setSolarShading] = useState<'low' | 'medium' | 'high' | 'unknown' | undefined>(
+    () => prefill?.solarShading ?? undefined,
   );
   /** Hydraulic step — flow-demand chart hidden by default to keep the step fast. */
   const [showHydraulicDetail, setShowHydraulicDetail] = useState(false);
@@ -977,62 +987,158 @@ export default function FullSurveyStepper({ onBack, prefill, onOpenFloorPlan, on
               </div>
             </div>
 
-            {/* ── House orientation (PV suitability) ─────────────────────── */}
-            <div style={{ marginTop: '1rem' }}>
-              <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.3rem', color: '#4a5568' }}>
-                🧭 Which way does the front of the house face?
-              </label>
-              <div style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.5rem' }}>
-                Used to infer roof orientation for solar PV suitability — leave blank if unknown.
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
-                {([
-                  { value: 'north', label: '↑ N' },
-                  { value: 'east',  label: '→ E' },
-                  { value: 'south', label: '↓ S' },
-                  { value: 'west',  label: '← W' },
-                ] as Array<{ value: 'north' | 'east' | 'south' | 'west'; label: string }>).map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => {
-                      const next = houseFrontFacing === opt.value ? undefined : opt.value;
-                      setHouseFrontFacing(next);
-                      setInput(prev => ({ ...prev, houseFrontFacing: next }));
-                    }}
-                    style={{
-                      padding: '0.5rem 0.4rem',
-                      border: `2px solid ${houseFrontFacing === opt.value ? '#d69e2e' : '#e2e8f0'}`,
-                      borderRadius: '6px',
-                      background: houseFrontFacing === opt.value ? '#fffff0' : '#fff',
-                      cursor: 'pointer',
-                      fontWeight: houseFrontFacing === opt.value ? 700 : 400,
-                      fontSize: '0.88rem',
-                      textAlign: 'center',
-                      transition: 'all 0.12s',
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              {houseFrontFacing !== undefined && (
-                <div style={{
-                  marginTop: '0.5rem',
-                  padding: '0.4rem 0.65rem',
-                  borderRadius: '6px',
-                  fontSize: '0.78rem',
-                  fontWeight: 500,
-                  ...(houseFrontFacing === 'north' || houseFrontFacing === 'south'
-                    ? { background: '#f0fff4', color: '#276749', border: '1px solid #9ae6b4' }
-                    : { background: '#fffaf0', color: '#7b341e', border: '1px solid #fbd38d' }
-                  ),
-                }}>
-                  {houseFrontFacing === 'north' || houseFrontFacing === 'south'
-                    ? '✅ Likely south-facing roof available — needs survey to confirm'
-                    : '⚠️ Roof orientation less optimal for PV — east/west-facing pitches generate less'
-                  }
+            {/* ── Solar PV — roof type, orientation, shading ──────────────── */}
+            <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+              {/* Roof type */}
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.3rem', color: '#4a5568' }}>
+                  🏠 What type of roof is most usable for solar panels?
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
+                  {([
+                    { value: 'pitched', label: 'Pitched' },
+                    { value: 'flat',    label: 'Flat' },
+                    { value: 'mixed',   label: 'Mixed' },
+                    { value: 'unknown', label: 'Not sure' },
+                  ] as Array<{ value: 'pitched' | 'flat' | 'mixed' | 'unknown'; label: string }>).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        const next = roofType === opt.value ? undefined : opt.value;
+                        setRoofType(next);
+                        setInput(prev => ({ ...prev, roofType: next }));
+                      }}
+                      style={{
+                        padding: '0.5rem 0.4rem',
+                        border: `2px solid ${roofType === opt.value ? '#d69e2e' : '#e2e8f0'}`,
+                        borderRadius: '6px',
+                        background: roofType === opt.value ? '#fffff0' : '#fff',
+                        cursor: 'pointer',
+                        fontWeight: roofType === opt.value ? 700 : 400,
+                        fontSize: '0.82rem',
+                        textAlign: 'center',
+                        transition: 'all 0.12s',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
+
+              {/* Roof orientation */}
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.3rem', color: '#4a5568' }}>
+                  🧭 What direction does the main usable roof face?
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
+                  {([
+                    { value: 'north',      label: '↑ N' },
+                    { value: 'east',       label: '→ E' },
+                    { value: 'south',      label: '↓ S' },
+                    { value: 'west',       label: '← W' },
+                    { value: 'south_east', label: '↘ SE' },
+                    { value: 'south_west', label: '↙ SW' },
+                    { value: 'mixed',      label: 'Mixed' },
+                    { value: 'unknown',    label: 'Not sure' },
+                  ] as Array<{
+                    value: 'north' | 'east' | 'south' | 'west' | 'south_east' | 'south_west' | 'mixed' | 'unknown';
+                    label: string;
+                  }>).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        const next = roofOrientation === opt.value ? undefined : opt.value;
+                        setRoofOrientation(next);
+                        setInput(prev => ({ ...prev, roofOrientation: next }));
+                      }}
+                      style={{
+                        padding: '0.5rem 0.4rem',
+                        border: `2px solid ${roofOrientation === opt.value ? '#d69e2e' : '#e2e8f0'}`,
+                        borderRadius: '6px',
+                        background: roofOrientation === opt.value ? '#fffff0' : '#fff',
+                        cursor: 'pointer',
+                        fontWeight: roofOrientation === opt.value ? 700 : 400,
+                        fontSize: '0.82rem',
+                        textAlign: 'center',
+                        transition: 'all 0.12s',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {roofOrientation !== undefined && roofOrientation !== 'unknown' && (() => {
+                  const isFavourable = roofOrientation === 'south' || roofOrientation === 'south_east' || roofOrientation === 'south_west' || roofOrientation === 'mixed';
+                  const isNorth = roofOrientation === 'north';
+                  const style: CSSProperties = isFavourable
+                    ? { background: '#f0fff4', color: '#276749', border: '1px solid #9ae6b4' }
+                    : isNorth
+                      ? { background: '#fff5f5', color: '#9b2c2c', border: '1px solid #feb2b2' }
+                      : { background: '#fffaf0', color: '#7b341e', border: '1px solid #fbd38d' };
+                  const message = isFavourable
+                    ? '✅ Favourable orientation for solar PV — needs roof survey to confirm'
+                    : isNorth
+                      ? '❌ North-facing roof — poor PV candidate; alternative sections should be assessed'
+                      : '⚠️ Roof orientation less optimal for PV — east/west-facing pitches generate less';
+                  return (
+                    <div style={{ marginTop: '0.5rem', padding: '0.4rem 0.65rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 500, ...style }}>
+                      {message}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Shading */}
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.3rem', color: '#4a5568' }}>
+                  🌳 How shaded is the usable roof?
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
+                  {([
+                    { value: 'low',     label: 'Little or none' },
+                    { value: 'medium',  label: 'Some shading' },
+                    { value: 'high',    label: 'Heavy shading' },
+                    { value: 'unknown', label: 'Not sure' },
+                  ] as Array<{ value: 'low' | 'medium' | 'high' | 'unknown'; label: string }>).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        const next = solarShading === opt.value ? undefined : opt.value;
+                        setSolarShading(next);
+                        setInput(prev => ({ ...prev, solarShading: next }));
+                      }}
+                      style={{
+                        padding: '0.5rem 0.4rem',
+                        border: `2px solid ${solarShading === opt.value ? '#d69e2e' : '#e2e8f0'}`,
+                        borderRadius: '6px',
+                        background: solarShading === opt.value ? '#fffff0' : '#fff',
+                        cursor: 'pointer',
+                        fontWeight: solarShading === opt.value ? 700 : 400,
+                        fontSize: '0.82rem',
+                        textAlign: 'center',
+                        transition: 'all 0.12s',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {solarShading === 'high' && (
+                  <div style={{
+                    marginTop: '0.5rem',
+                    padding: '0.4rem 0.65rem',
+                    borderRadius: '6px',
+                    fontSize: '0.78rem',
+                    fontWeight: 500,
+                    background: '#fff5f5', color: '#9b2c2c', border: '1px solid #feb2b2',
+                  }}>
+                    ⚠️ Heavy shading significantly reduces solar PV viability — a detailed shading analysis is recommended
+                  </div>
+                )}
+              </div>
+
             </div>
 
             {showAdvancedFabric && (
