@@ -103,16 +103,28 @@ All three smoke endpoints should return `{ "ok": true, ... }` (or `{ "status": "
 {
   "ok": true,
   "requiredTables": ["reports", "visits"],
-  "missingTables": []
+  "missingTables": [],
+  "missingColumns": []
 }
 ```
 
-**`/api/health/schema` response when migrations are _not_ applied:**
+**`/api/health/schema` response when migration 0004 has not been applied (column missing):**
 ```json
 {
   "ok": false,
   "requiredTables": ["reports", "visits"],
-  "missingTables": ["visits"]
+  "missingTables": [],
+  "missingColumns": ["visits.visit_reference"]
+}
+```
+
+**`/api/health/schema` response when migrations are _not_ applied (table missing):**
+```json
+{
+  "ok": false,
+  "requiredTables": ["reports", "visits"],
+  "missingTables": ["visits"],
+  "missingColumns": []
 }
 ```
 
@@ -122,14 +134,21 @@ All three smoke endpoints should return `{ "ok": true, ... }` (or `{ "status": "
 
 ## Deploying schema changes
 
+**Automated guard:** The `.github/workflows/migrate-on-deploy.yml` workflow runs automatically on
+every push to `main`. It applies pending D1 migrations and verifies the schema after each deploy,
+so the column is never missing from the live database when new code ships.
+
+> **First-time setup:** Add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub Actions
+> secrets (Settings → Secrets → Actions) so the workflow can authenticate with Cloudflare.
+
 Follow this checklist whenever a new migration file is added to `migrations/`:
 
 1. Merge (or push) the code change.
-2. Run remote D1 migrations:
+2. The GitHub Actions workflow applies migrations automatically. To apply manually:
    ```bash
    npm run db:migrate:remote
    ```
-3. Check `/api/health/schema` — confirm `"ok": true` and `"missingTables": []`.
+3. Check `/api/health/schema` — confirm `"ok": true`, `"missingTables": []`, and `"missingColumns": []`.
 4. Only then test the new feature end-to-end.
 
 **Migration scripts (from `package.json`):**
