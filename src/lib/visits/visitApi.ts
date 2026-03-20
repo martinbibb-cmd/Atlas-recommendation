@@ -115,6 +115,8 @@ async function extractApiError(res: Response, fallback: string): Promise<string>
  * POST /api/visits
  *
  * Creates a new visit record and returns its ID.
+ * Throws if the server returns a non-2xx status or if the response body
+ * does not contain a valid non-empty string `id`.
  */
 export async function createVisit(opts: {
   customer_name?: string;
@@ -130,7 +132,11 @@ export async function createVisit(opts: {
   if (!res.ok) {
     throw new Error(await extractApiError(res, "Failed to create visit"));
   }
-  return res.json() as Promise<{ ok: true; id: string }>;
+  const data = await res.json() as { ok?: boolean; id?: string };
+  if (typeof data.id !== 'string' || data.id.trim().length === 0) {
+    throw new Error('Visit creation returned an unexpected response: id missing or empty');
+  }
+  return { ok: true, id: data.id };
 }
 
 /**

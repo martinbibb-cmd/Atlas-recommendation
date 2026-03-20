@@ -138,6 +138,8 @@ export default function App() {
   const [activeVisitId, setActiveVisitId] = useState<string | undefined>();
   /** Tracks whether "Start new visit" is in flight. */
   const [startingVisit, setStartingVisit] = useState(false);
+  /** Inline error shown when visit creation fails. Cleared on retry. */
+  const [visitCreateError, setVisitCreateError] = useState<string | null>(null);
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
@@ -146,26 +148,28 @@ export default function App() {
 
   /**
    * Start a new visit — creates a visit record in D1, then routes to the
-   * visit survey shell.  Falls back gracefully to a local-only visit if the
-   * API is unreachable (e.g., local dev without Cloudflare bindings).
+   * visit survey shell.
+   *
+   * Navigation only happens after the POST succeeds and returns a valid visit
+   * id.  If creation fails the user stays on the current page and an inline
+   * error is displayed so they can retry.
    */
   async function handleStartNewVisit() {
     if (startingVisit) return;
     setStartingVisit(true);
+    setVisitCreateError(null);
     try {
       const { id } = await createVisit();
       console.info('[Atlas] Visit created:', id);
       setActiveVisitId(id);
+      setJourney('visit');
     } catch (err) {
-      // API unavailable — use a local-only UUID so the UX still progresses.
-      // VisitPage handles "Visit not found" gracefully for local UUIDs.
-      const localId = crypto.randomUUID();
-      console.warn('[Atlas] Visit creation failed — using local-only UUID:', localId, err);
-      setActiveVisitId(localId);
+      const message = err instanceof Error ? err.message : 'Failed to create visit';
+      console.error('[Atlas] Visit creation failed:', err);
+      setVisitCreateError(message);
     } finally {
       setStartingVisit(false);
     }
-    setJourney('visit');
   }
 
   /** Open an existing visit by ID — routes to the Visit Hub page. */
@@ -417,6 +421,11 @@ export default function App() {
             >
               {startingVisit ? 'Creating visit…' : '＋ Start new visit'}
             </button>
+            {visitCreateError && (
+              <p className="visit-cta-error" role="alert">
+                ⚠ {visitCreateError}
+              </p>
+            )}
           </div>
 
           {/* Recent visits — open an existing visit */}

@@ -171,10 +171,16 @@ export default function VisitPage({
   onOpenFloorPlan,
   onOpenReport,
 }: Props) {
-  const [loadError, setLoadError] = useState<string | null>(null);
+  // Derive initial error/ready state from visitId at mount — avoids calling
+  // setState synchronously inside an effect (which triggers the
+  // react-hooks/set-state-in-effect lint rule).
+  const hasInvalidId = !visitId || visitId.trim().length === 0;
+  const [loadError, setLoadError] = useState<string | null>(
+    hasInvalidId ? 'No visit ID was provided. Please go back and try again.' : null
+  );
   const [prefill, setPrefill] = useState<Partial<FullSurveyModelV1> | undefined>();
   const [visitMeta, setVisitMeta] = useState<VisitMeta | null>(null);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(hasInvalidId);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -192,6 +198,10 @@ export default function VisitPage({
 
   // Load existing working payload and visit metadata from the API on mount.
   useEffect(() => {
+    // Skip API call when visitId is absent or empty — initial state already
+    // reflects this case via the lazy useState initialisers above.
+    if (!visitId || visitId.trim().length === 0) return;
+
     let cancelled = false;
     getVisit(visitId)
       .then((visit) => {
@@ -217,14 +227,6 @@ export default function VisitPage({
       .catch((err: unknown) => {
         if (cancelled) return;
         const message = err instanceof Error ? err.message : String(err);
-        // 404 → treat as a fresh visit (local-only UUID or newly created visit
-        // not yet visible in the DB).  Start a clean survey rather than
-        // blocking the user with an error screen.
-        if (message === 'Visit not found') {
-          console.info(`[Atlas] Visit not found (${visitId}) — starting fresh survey`);
-          setReady(true);
-          return;
-        }
         console.error('[Atlas] Could not load visit:', { visitId, message });
         setLoadError(message);
         setReady(true);
@@ -335,9 +337,14 @@ export default function VisitPage({
   }
 
   if (loadError) {
+    const isNotFound = loadError === 'Visit not found' || loadError.startsWith('No visit ID');
     return (
       <div className="visit-page__error" role="alert">
-        <p>Could not load visit: {loadError}</p>
+        <p>
+          {isNotFound
+            ? 'No visit record was found. The visit may not have been saved correctly.'
+            : `Could not load visit: ${loadError}`}
+        </p>
         <button className="cta-btn" onClick={onBack}>
           ← Back to dashboard
         </button>

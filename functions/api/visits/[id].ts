@@ -84,18 +84,21 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       .first<VisitRow>();
 
     if (row == null) {
+      console.warn(`[Atlas] Visit not found: id=${id}`);
       return Response.json(
         { ok: false, error: "Visit not found" },
         { status: 404 }
       );
     }
 
+    console.log(`[Atlas] Visit loaded: id=${id}`);
     return buildVisitResponse(row);
   } catch (err) {
     if (isMissingColumnError(err)) {
       // Migration 0004 has not been applied yet — fall back to the legacy
       // column set and populate visit_reference as null so the app keeps
       // working until the migration is deployed.
+      console.warn(`[Atlas] visit_reference column missing — using legacy schema fallback: id=${id}`);
       try {
         const row = await env.ATLAS_REPORTS_D1.prepare(
           `SELECT id, created_at, updated_at, status,
@@ -106,6 +109,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           .first<Omit<VisitRow, "visit_reference">>();
 
         if (row == null) {
+          console.warn(`[Atlas] Visit not found (legacy schema): id=${id}`);
           return Response.json(
             { ok: false, error: "Visit not found" },
             { status: 404 }
@@ -114,6 +118,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         return buildVisitResponse({ ...row, visit_reference: null });
       } catch (fallbackErr) {
+        console.error(`[Atlas] Visit legacy-schema load failed: id=${id}`, String(fallbackErr));
         if (isMissingTableError(fallbackErr)) {
           return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
         }
@@ -123,6 +128,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         );
       }
     }
+    console.error(`[Atlas] Visit load failed: id=${id}`, String(err));
     if (isMissingTableError(err)) {
       return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
     }
