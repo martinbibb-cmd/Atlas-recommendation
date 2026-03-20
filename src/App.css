@@ -242,8 +242,15 @@ body {
 /* Visit primary CTA row */
 .visit-cta-row {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   margin: 1.5rem 0 0;
+}
+
+.visit-cta-error {
+  margin: 0.6rem 0 0;
+  font-size: 0.88rem;
+  color: #c53030;
 }
 
 .cta-btn--visit {

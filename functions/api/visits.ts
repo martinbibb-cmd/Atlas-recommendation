@@ -102,8 +102,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .bind(id, now, now, customerName, addressLine1, postcode, currentStep, visitReference, workingPayloadJson)
       .run();
 
+    console.log(`[Atlas] Visit created: id=${id}`);
     return Response.json({ ok: true, id }, { status: 201 });
   } catch (err) {
+    console.error(`[Atlas] Visit insert failed: id=${id}`, String(err));
     if (isMissingTableError(err)) {
       return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
     }

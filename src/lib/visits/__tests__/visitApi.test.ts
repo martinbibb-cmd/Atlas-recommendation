@@ -56,6 +56,21 @@ describe('visitApi', () => {
       global.fetch = mockFetch({ error: 'DB error' }, 500);
       await expect(createVisit()).rejects.toThrow('DB error');
     });
+
+    it('throws when the response body is missing the id field', async () => {
+      global.fetch = mockFetch({ ok: true }, 201);
+      await expect(createVisit()).rejects.toThrow('unexpected response');
+    });
+
+    it('throws when the response id is an empty string', async () => {
+      global.fetch = mockFetch({ ok: true, id: '' }, 201);
+      await expect(createVisit()).rejects.toThrow('unexpected response');
+    });
+
+    it('throws when the response id is not a string', async () => {
+      global.fetch = mockFetch({ ok: true, id: null }, 201);
+      await expect(createVisit()).rejects.toThrow('unexpected response');
+    });
   });
 
   // ── listVisits ───────────────────────────────────────────────────────────────
