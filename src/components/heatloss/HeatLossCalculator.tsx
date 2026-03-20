@@ -71,7 +71,9 @@ const FLOOR_ORDINALS = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth'];
 
 let _layerCounter = 0;
 function generateLayerId(): string {
-  return 'layer-' + (++_layerCounter).toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+  // Counter-only ID — deterministic and unique within the page lifetime.
+  // No Math.random() per project "No Theatre" rule.
+  return 'layer-' + (++_layerCounter).toString(36);
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -191,15 +193,18 @@ function calculateHeatLoss(layer: Layer, settings: Settings): HeatLossResult | n
   });
 
   const grossWallArea = exposedPerimeter * totalHeight;
-  const glazingFrac   = GLAZING_FRACTION[settings.glazingAmount] ?? 0.18;
+  // Settings are constrained to known valid keys by the UI dropdowns, so ?? fallbacks
+  // use the mid-range defaults (cavity uninsulated wall, 270 mm loft, A-rated glazing,
+  // suspended uninsulated floor) that represent a typical 1980s UK semi-detached.
+  const glazingFrac   = GLAZING_FRACTION[settings.glazingAmount] ?? GLAZING_FRACTION.medium;
   const glazingArea   = grossWallArea * glazingFrac;
   const netWallArea   = grossWallArea - glazingArea;
   const roofArea      = floorArea;
 
-  const uWall    = U_WALL[settings.wallType]    ?? 2.1;
-  const uLoft    = U_LOFT[settings.loftInsulation] ?? 0.13;
-  const uGlazing = U_GLAZING[settings.glazingType] ?? 1.4;
-  const uFloor   = U_FLOOR[settings.floorType]  ?? 0.8;
+  const uWall    = U_WALL[settings.wallType]       ?? U_WALL.cavityUninsulated;
+  const uLoft    = U_LOFT[settings.loftInsulation] ?? U_LOFT.mm270plus;
+  const uGlazing = U_GLAZING[settings.glazingType] ?? U_GLAZING.doubleArated;
+  const uFloor   = U_FLOOR[settings.floorType]     ?? U_FLOOR.suspendedUninsulated;
 
   const partyWallArea = partyPerimeter * totalHeight;
   const wallHL    = (netWallArea * uWall + partyWallArea * uWall * PARTY_WALL_FACTOR) * DELTA_T;
@@ -265,6 +270,9 @@ function renderCanvas(
   layers: Layer[],
   activeLayerId: string,
 ): void {
+  // ctxOrNull/ctx split: TypeScript's control-flow narrowing does not
+  // propagate into the nested drawLayerPolygon closure, so we need an
+  // explicit non-nullable typed binding that the closure can capture.
   const ctxOrNull  = canvas.getContext('2d');
   if (!ctxOrNull) return;
   const ctx: CanvasRenderingContext2D = ctxOrNull;
@@ -1010,6 +1018,9 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  // Compute once per render so IIFE and conditional expressions reuse the result.
+  const activeLayerObj = layers.find(l => l.id === activeLayerId) ?? null;
+
   return (
     <div className="hlc">
       {/* Header */}
@@ -1174,22 +1185,18 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
             </div>
 
             {/* Rename active layer */}
-            {(() => {
-              const activeLayer = layers.find(l => l.id === activeLayerId);
-              if (!activeLayer) return null;
-              return (
-                <div className="hlc__layer-rename">
-                  <input
-                    className="hlc__layer-rename-input"
-                    type="text"
-                    value={activeLayer.name}
-                    onChange={e => renameLayer(activeLayerId, e.target.value)}
-                    placeholder="Layer name"
-                    aria-label="Active layer name"
-                  />
-                </div>
-              );
-            })()}
+            {activeLayerObj && (
+              <div className="hlc__layer-rename">
+                <input
+                  className="hlc__layer-rename-input"
+                  type="text"
+                  value={activeLayerObj.name}
+                  onChange={e => renameLayer(activeLayerId, e.target.value)}
+                  placeholder="Layer name"
+                  aria-label="Active layer name"
+                />
+              </div>
+            )}
           </div>
 
           {/* Building settings */}
@@ -1306,7 +1313,7 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
 
             {result == null ? (
               <p className="hlc__result-placeholder">
-                {layers.find(l => l.id === activeLayerId)?.kind === 'reference'
+                {activeLayerObj?.kind === 'reference'
                   ? 'Reference layers are not included in the heat loss calculation.'
                   : 'Sketch the ground-floor perimeter and close the shape to see the heat loss estimate.'}
               </p>

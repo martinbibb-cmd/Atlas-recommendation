@@ -788,9 +788,13 @@ export default function DecisionSynthesisPage({
     engineOutput.options != null &&
     engineOutput.options.length > 1;
   // All viable options, or caution options when no viable ones exist.
+  // Cache the viable filter result to avoid iterating the array twice.
+  const viableOptions = showMultipleOptions && engineOutput.options
+    ? engineOutput.options.filter(o => o.status === 'viable')
+    : [];
   const multipleOptions = showMultipleOptions && engineOutput.options
-    ? (engineOutput.options.filter(o => o.status === 'viable').length > 1
-        ? engineOutput.options.filter(o => o.status === 'viable')
+    ? (viableOptions.length > 1
+        ? viableOptions
         : engineOutput.options.filter(o => o.status === 'caution'))
     : [];
 
