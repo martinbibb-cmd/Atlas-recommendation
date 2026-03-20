@@ -13,6 +13,7 @@ import type { FullEngineResult } from '../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import PhysicsConstraintsPanel from './panels/PhysicsConstraintsPanel';
 import ExplainersHubPage from '../../explainers/ExplainersHubPage';
+import { useTenantConfig } from '../TenantConfigProvider';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,12 +69,15 @@ interface HubPageProps {
    */
   input: FullSurveyModelV1;
   onBack?: () => void;
+  /** When provided, a "Go to Customer Portal" button is shown. */
+  onGoToPortal?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function HubPage({ result, input, onBack }: HubPageProps) {
+export default function HubPage({ result, input, onBack, onGoToPortal }: HubPageProps) {
   const [activePanel, setActivePanel] = useState<PanelId | null>(null);
+  const { accentColor } = useTenantConfig();
 
   if (activePanel === 'physics_constraints') {
     return (
@@ -128,6 +132,29 @@ export default function HubPage({ result, input, onBack }: HubPageProps) {
           </button>
         ))}
       </div>
+
+      {onGoToPortal && (
+        <div style={{ marginTop: '1.5rem' }}>
+          <button
+            className="hub-tile"
+            onClick={onGoToPortal}
+            style={{
+              width: '100%',
+              background: accentColor,
+              borderColor: accentColor,
+              color: '#fff',
+              fontWeight: 700,
+            }}
+            data-testid="hub-portal-btn"
+          >
+            <span className="hub-tile__icon">🔗</span>
+            <span className="hub-tile__title">Go to Customer Portal</span>
+            <span className="hub-tile__subtitle" style={{ color: 'rgba(255,255,255,0.8)' }}>
+              Share interactive recommendation with the customer
+            </span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -247,6 +247,7 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
         result={result}
         input={input}
         onBack={() => setActiveSection(null)}
+        onGoToPortal={() => { window.location.href = '/portal'; }}
       />
     );
   }

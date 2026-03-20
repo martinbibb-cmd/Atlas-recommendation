@@ -49,6 +49,7 @@ import LiveHubPage from '../../live/LiveHubPage';
 import LivePhysicsOverlay, { type OverlayStepKey } from '../../ui/overlay/LivePhysicsOverlay';
 import DeltaStrip from '../../ui/panels/DeltaStrip';
 import { EDUCATIONAL_EXPLAINERS } from '../../explainers/educational/content';
+import HeatLossCalculator from '../heatloss/HeatLossCalculator';
 
 interface Props {
   onBack: () => void;
@@ -503,6 +504,9 @@ const defaultInput: FullSurveyModelV1 = {
   },
 };
 
+/** Z-index for full-screen overlays rendered above the stepper. */
+const OVERLAY_Z_INDEX = 1000;
+
 /** Inline expandable explainer link — renders a <details> element tied to an educational explainer. */
 function InlineExplainerLink({ explainerId, testId, style }: {
   explainerId: string;
@@ -537,6 +541,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   const [overlayDetail, setOverlayDetail] = useState<{ systemLabel: string; rowLabel: string; step: Step; risk: RiskLevel; explanation: OverlayExplanation } | null>(null);
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
+  const [showHeatLossCalc, setShowHeatLossCalc] = useState(false);
 
   // Live physics overlay: runs a lightweight engine pass on every step for real-time feedback.
   // Debounced so it doesn't block every keystroke.
@@ -845,6 +850,21 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
         input={input}
         onBack={() => setMode('stepper')}
       />
+    );
+  }
+
+  // Heat loss calculator overlay — shown above the stepper when triggered.
+  if (showHeatLossCalc) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, zIndex: OVERLAY_Z_INDEX, overflowY: 'auto', background: '#f8fafc' }}>
+        <HeatLossCalculator
+          onBack={() => setShowHeatLossCalc(false)}
+          onComplete={(totalHL) => {
+            setInput(prev => ({ ...prev, heatLossWatts: Math.round(totalHL * 1000) }));
+            setShowHeatLossCalc(false);
+          }}
+        />
+      </div>
     );
   }
 
@@ -1822,15 +1842,36 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                 <label style={{ fontWeight: 600, fontSize: '0.88rem', color: '#4a5568' }}>
                   Design Heat Loss (kW)
                 </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={40}
-                  step={0.5}
-                  value={input.heatLossWatts / 1000}
-                  onChange={e => setInput({ ...input, heatLossWatts: +e.target.value * 1000 })}
-                  style={{ marginTop: '0.4rem' }}
-                />
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.4rem' }}>
+                  <input
+                    type="number"
+                    min={1}
+                    max={40}
+                    step={0.5}
+                    value={input.heatLossWatts / 1000}
+                    onChange={e => setInput({ ...input, heatLossWatts: +e.target.value * 1000 })}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowHeatLossCalc(true)}
+                    style={{
+                      padding: '0.45rem 0.75rem',
+                      border: '1.5px solid #805ad5',
+                      borderRadius: '6px',
+                      background: '#faf5ff',
+                      color: '#553c9a',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'background 0.12s',
+                    }}
+                    title="Open the heat loss calculator to estimate design heat loss from your floor plan"
+                  >
+                    🔥 Calculate
+                  </button>
+                </div>
               </div>
 
               {/* ΔT reference (engine authority — locked display) */}

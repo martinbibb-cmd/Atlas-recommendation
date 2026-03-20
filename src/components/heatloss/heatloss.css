@@ -285,3 +285,24 @@
     min-height: 260px;
   }
 }
+
+/* ── Use-value button (shown in overlay/stepper context) ─────────────────── */
+
+.hlc__use-value-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.hlc__use-value-btn:hover {
+  background: #1e429f;
+}
