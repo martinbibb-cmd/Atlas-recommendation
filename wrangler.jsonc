@@ -2,9 +2,6 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   // Project name must match the Cloudflare Pages project name exactly.
   "name": "atlas",
-  // Cloudflare account ID — used by wrangler for remote D1 operations.
-  // This is not a secret; it is visible in the Cloudflare dashboard URL.
-  "account_id": "c1ee2d9215a422101579b239f9d114ca",
   "compatibility_date": "2025-09-27",
   "compatibility_flags": [
     "nodejs_compat"
