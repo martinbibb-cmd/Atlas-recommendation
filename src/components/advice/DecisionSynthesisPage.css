@@ -161,6 +161,42 @@
   line-height: 1.5;
 }
 
+/* Structured decision breakdown: Heat source / Hot water / Why not / Future path */
+.advice-hero__breakdown {
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #f7fafc;
+  border-left: 3px solid #4299e1;
+  border-radius: 0 6px 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.advice-hero__breakdown-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.advice-hero__breakdown-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #718096;
+  min-width: 10rem;
+  flex-shrink: 0;
+}
+
+.advice-hero__breakdown-value {
+  font-size: 0.875rem;
+  color: #1a202c;
+  line-height: 1.4;
+  margin: 0;
+}
+
 .advice-hero__confidence {
   display: inline-block;
   font-size: 0.8rem;
