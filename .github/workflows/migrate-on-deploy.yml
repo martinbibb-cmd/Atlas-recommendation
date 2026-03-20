@@ -13,6 +13,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:  # Allow manual re-trigger once secrets are configured
 
 jobs:
   migrate:
@@ -32,6 +33,26 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Validate Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=()
+          [ -z "$CLOUDFLARE_API_TOKEN"  ] && missing+=("CLOUDFLARE_API_TOKEN")
+          [ -z "$CLOUDFLARE_ACCOUNT_ID" ] && missing+=("CLOUDFLARE_ACCOUNT_ID")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "❌ Missing required secrets: ${missing[*]}"
+            echo ""
+            echo "Add them in GitHub Settings → Secrets and variables → Actions:"
+            echo "  • CLOUDFLARE_API_TOKEN  — API token with Account / D1 / Edit permission"
+            echo "  • CLOUDFLARE_ACCOUNT_ID — your Cloudflare account ID"
+            echo ""
+            echo "Then re-run this workflow manually (Actions → Apply D1 migrations → Run workflow)."
+            exit 1
+          fi
+          echo "✅ Cloudflare credentials present."
 
       - name: Apply D1 migrations (remote)
         env:
