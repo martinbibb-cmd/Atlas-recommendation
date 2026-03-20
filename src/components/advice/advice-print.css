@@ -70,6 +70,19 @@
 
 .prp__header {
   margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.prp__header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.prp__header-text {
+  flex: 1;
 }
 
 .prp__header-eyebrow {
@@ -92,6 +105,26 @@
   font-size: 0.8rem;
   color: #718096;
   margin: 0;
+}
+
+/* QR code block embedded in the report header */
+.prp__header-qr {
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.prp__header-qr-hint {
+  font-size: 0.72rem;
+  color: #718096;
+  margin: 0 0 0.25rem;
+  text-align: center;
+}
+
+/* Override QR footer chrome when used inside the header */
+.prp__header-qr .rv-qr-footer {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 /* ── Section wrapper ──────────────────────────────────────────────────────── */
@@ -816,9 +849,17 @@
   .prp__scope-card--enhanced,
   .prp__scope-card--future-potential,
   .prp__hero,
-  .prp__compare-col--proposed {
+  .prp__compare-col--proposed,
+  .prp__header-qr .rv-qr-footer {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  /* Header QR must not be clipped or hidden during print */
+  .prp__header-qr {
+    display: block !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   /* Cards must not split across pages */
