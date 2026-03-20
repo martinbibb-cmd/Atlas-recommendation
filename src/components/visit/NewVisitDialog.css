@@ -1,0 +1,188 @@
+/*
+ * NewVisitDialog — modal overlay for the "Start new visit" flow.
+ */
+
+/* ── Backdrop ────────────────────────────────────────────────────────────── */
+
+.nvd-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+/* ── Dialog card ─────────────────────────────────────────────────────────── */
+
+.nvd {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.nvd__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.nvd__title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+}
+
+.nvd__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #718096;
+  font-size: 1rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.nvd__close:hover {
+  color: #1a202c;
+  background: #f7fafc;
+}
+
+.nvd__close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+
+.nvd__body {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nvd__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.nvd__label-hint {
+  font-weight: 400;
+  color: #718096;
+}
+
+.nvd__hint {
+  font-size: 0.8rem;
+  color: #718096;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.nvd__input {
+  border: 1.5px solid #cbd5e0;
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.95rem;
+  color: #1a202c;
+  background: #f7fafc;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+
+.nvd__input:focus {
+  border-color: #3182ce;
+  background: #fff;
+}
+
+.nvd__input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.nvd__error {
+  font-size: 0.85rem;
+  color: #c53030;
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.nvd__hidden-hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+
+.nvd__footer {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem 1.25rem;
+  justify-content: flex-end;
+  border-top: 1px solid #e2e8f0;
+}
+
+.nvd__cancel-btn {
+  background: #f7fafc;
+  border: 1.5px solid #e2e8f0;
+  color: #4a5568;
+  border-radius: 8px;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.nvd__cancel-btn:hover {
+  background: #edf2f7;
+}
+
+.nvd__cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.nvd__confirm-btn {
+  background: #3182ce;
+  border: none;
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.55rem 1.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.nvd__confirm-btn:hover {
+  background: #2b6cb0;
+}
+
+.nvd__confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

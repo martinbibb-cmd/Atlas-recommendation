@@ -20,6 +20,7 @@ import AtlasExplorerPage from './components/explorer/AtlasExplorerPage';
 import VisitPage from './components/visit/VisitPage';
 import VisitHubPage from './components/visit/VisitHubPage';
 import RecentVisitsList from './components/visit/RecentVisitsList';
+import NewVisitDialog from './components/visit/NewVisitDialog';
 import ReportPage from './components/reportpage/ReportPage';
 import CustomerPortalPage from './components/portal/CustomerPortalPage';
 import GlobalMenuShell from './components/shell/GlobalMenuShell';
@@ -136,6 +137,8 @@ export default function App() {
   const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
   /** Active visit ID — set when the user starts or opens a visit. */
   const [activeVisitId, setActiveVisitId] = useState<string | undefined>();
+  /** Controls whether the new-visit dialog is open. */
+  const [showNewVisitDialog, setShowNewVisitDialog] = useState(false);
   /** Tracks whether "Start new visit" is in flight. */
   const [startingVisit, setStartingVisit] = useState(false);
   /** Inline error shown when visit creation fails. Cleared on retry. */
@@ -147,21 +150,32 @@ export default function App() {
   }
 
   /**
-   * Start a new visit — creates a visit record in D1, then routes to the
+   * Start a new visit — opens the new-visit dialog to collect an optional
+   * reference number, then creates a visit record in D1 and routes to the
    * visit survey shell.
+   */
+  function handleStartNewVisit() {
+    setVisitCreateError(null);
+    setShowNewVisitDialog(true);
+  }
+
+  /**
+   * Confirmed from the new-visit dialog — creates the visit with the supplied
+   * reference (may be empty string) and navigates to the visit page.
    *
    * Navigation only happens after the POST succeeds and returns a valid visit
-   * id.  If creation fails the user stays on the current page and an inline
-   * error is displayed so they can retry.
+   * id. If creation fails the dialog stays open and shows an inline error.
    */
-  async function handleStartNewVisit() {
+  async function handleConfirmNewVisit(reference: string) {
     if (startingVisit) return;
     setStartingVisit(true);
     setVisitCreateError(null);
     try {
-      const { id } = await createVisit();
+      const opts = reference.length > 0 ? { visit_reference: reference } : {};
+      const { id } = await createVisit(opts);
       console.info('[Atlas] Visit created:', id);
       setActiveVisitId(id);
+      setShowNewVisitDialog(false);
       setJourney('visit');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create visit';
@@ -415,17 +429,11 @@ export default function App() {
           <div className="visit-cta-row">
             <button
               className="cta-btn cta-btn--visit"
-              onClick={() => { void handleStartNewVisit(); }}
-              disabled={startingVisit}
-              aria-busy={startingVisit}
+              onClick={handleStartNewVisit}
+              aria-haspopup="dialog"
             >
-              {startingVisit ? 'Creating visit…' : '＋ Start new visit'}
+              ＋ Start new visit
             </button>
-            {visitCreateError && (
-              <p className="visit-cta-error" role="alert">
-                ⚠ {visitCreateError}
-              </p>
-            )}
           </div>
 
           {/* Recent visits — open an existing visit */}
@@ -486,6 +494,18 @@ export default function App() {
           <Footer onNavigate={setJourney} />
         </div>
       )}
+
+      {/* New-visit dialog — shown when the user clicks "Start new visit" */}
+      <NewVisitDialog
+        open={showNewVisitDialog}
+        creating={startingVisit}
+        error={visitCreateError}
+        onConfirm={(ref) => { void handleConfirmNewVisit(ref); }}
+        onCancel={() => {
+          setShowNewVisitDialog(false);
+          setVisitCreateError(null);
+        }}
+      />
     </>
   );
 }

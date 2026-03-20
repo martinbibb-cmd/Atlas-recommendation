@@ -774,6 +774,26 @@ export default function DecisionSynthesisPage({
   // Trade-off warnings (legacy only — compare mode uses compareWins instead).
   const tradeOffWarnings = legacyAdvice?.tradeOffWarnings ?? [];
 
+  // ── Multiple suitable options — shown when the engine signals ambiguity ──────
+  // When multiple options are viable (or all are caution), surface all of them
+  // so the adviser can present a complete picture rather than picking one.
+  const MULTIPLE_OPTIONS_SIGNALS = new Set([
+    'Multiple suitable options',
+    'Multiple stored-water options suitable',
+    'Multiple options need review',
+  ]);
+  const primaryRecommendation = engineOutput.recommendation?.primary ?? '';
+  const showMultipleOptions =
+    MULTIPLE_OPTIONS_SIGNALS.has(primaryRecommendation) &&
+    engineOutput.options != null &&
+    engineOutput.options.length > 1;
+  // All viable options, or caution options when no viable ones exist.
+  const multipleOptions = showMultipleOptions && engineOutput.options
+    ? (engineOutput.options.filter(o => o.status === 'viable').length > 1
+        ? engineOutput.options.filter(o => o.status === 'viable')
+        : engineOutput.options.filter(o => o.status === 'caution'))
+    : [];
+
   // Engine explainer IDs emitted for this recommendation.
   const explainerIds = new Set(engineOutput.explainers.map(e => e.id));
   const showMixergySuggested     = explainerIds.has('stored-mixergy-suggested');
@@ -946,6 +966,18 @@ export default function DecisionSynthesisPage({
         </div>
       </div>
 
+      {/* ── Portal QR & link — shown at top when a reportReference is available ── */}
+      {printableReportReference != null && (
+        <div
+          className="advice-portal-qr"
+          role="region"
+          aria-label="Customer portal link and QR code"
+          data-testid="portal-qr-section"
+        >
+          <ReportQrFooter reportReference={printableReportReference} />
+        </div>
+      )}
+
       {/* ── Share panel — shown after successful report save ──────────────── */}
       {saveState === 'saved' && savedReportId != null && (
         <div
@@ -1007,18 +1039,6 @@ export default function DecisionSynthesisPage({
               </div>
             )}
           </div>
-        </div>
-      )}
-
-      {/* ── Portal QR & link — shown when a reportReference is available ──── */}
-      {printableReportReference != null && (
-        <div
-          className="advice-portal-qr"
-          role="region"
-          aria-label="Customer portal link and QR code"
-          data-testid="portal-qr-section"
-        >
-          <ReportQrFooter reportReference={printableReportReference} />
         </div>
       )}
 
@@ -1160,6 +1180,67 @@ export default function DecisionSynthesisPage({
             How the recommended system compares to your current setup on the dimensions that matter.
           </p>
           <TradeOffSummary summary={tradeOffSummary} />
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 1d — Multiple suitable options                              */}
+      {/* Shown when the engine signals ambiguity or multiple viable paths.   */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {showMultipleOptions && multipleOptions.length > 1 && (
+        <div
+          className="advice-page__section"
+          aria-label="Multiple suitable options"
+          data-testid="multiple-options-section"
+        >
+          <h2 className="advice-page__section-title">
+            {primaryRecommendation === 'Multiple options need review'
+              ? 'All options for review'
+              : 'All suitable options'}
+          </h2>
+          <p className="advice-page__section-intro">
+            {primaryRecommendation === 'Multiple options need review'
+              ? 'More than one system needs investigation before a single recommendation can be confirmed. Review all options below.'
+              : 'More than one system fits this property\'s profile. Each is shown below so you can discuss the best choice with the customer.'}
+          </p>
+          <div
+            className="advice-multi-options"
+            role="list"
+            aria-label="All suitable options"
+          >
+            {multipleOptions.map(option => (
+              <div
+                key={option.id}
+                className={`advice-multi-option advice-multi-option--${option.status}`}
+                role="listitem"
+              >
+                <div className="advice-multi-option__header">
+                  <div className="advice-multi-option__label">{option.label}</div>
+                  <span className={`advice-multi-option__badge advice-multi-option__badge--${option.status}`}>
+                    {option.status === 'viable' ? '✓ Viable' : '⚠ Review needed'}
+                  </span>
+                </div>
+                <p className="advice-multi-option__headline">{option.headline}</p>
+                {option.why.length > 0 && (
+                  <ul className="advice-multi-option__why" aria-label={`${option.label} reasons`}>
+                    {option.why.map((w, i) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                )}
+                {option.typedRequirements.mustHave.length > 0 && (
+                  <div className="advice-multi-option__reqs">
+                    <span className="advice-multi-option__reqs-label">Must have:</span>
+                    <ul aria-label={`${option.label} requirements`}>
+                      {option.typedRequirements.mustHave.map((r, i) => (
+                        <li key={i}>{r}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

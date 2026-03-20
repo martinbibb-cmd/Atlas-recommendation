@@ -306,3 +306,162 @@
 .hlc__use-value-btn:hover {
   background: #1e429f;
 }
+
+/* ── Layer management panel ──────────────────────────────────────────────── */
+
+.hlc__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.hlc__section-header h3 {
+  margin: 0;
+}
+
+.hlc__layer-add-btns {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.hlc__layer-add-btn {
+  background: #f0f4f8;
+  border: 1px solid #cbd5e0;
+  color: #2d3748;
+  border-radius: 5px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.hlc__layer-add-btn:hover {
+  background: #e2e8f0;
+}
+
+.hlc__layer-add-btn--ref {
+  color: #718096;
+}
+
+.hlc__layer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.hlc__layer-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color 0.12s;
+  min-height: 36px;
+}
+
+.hlc__layer-item:hover {
+  border-color: #cbd5e0;
+  background: #f7fafc;
+}
+
+.hlc__layer-item--active {
+  border-color: #3182ce;
+  background: #ebf8ff;
+}
+
+.hlc__layer-vis-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #718096;
+  font-size: 1rem;
+  padding: 0 0.1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.hlc__layer-vis-btn:hover {
+  color: #1a202c;
+}
+
+.hlc__layer-colour-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hlc__layer-name {
+  flex: 1;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #1a202c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hlc__layer-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 0.1rem 0.45rem;
+  flex-shrink: 0;
+  text-transform: capitalize;
+}
+
+.hlc__layer-badge--original    { background: #dbeafe; color: #1e40af; }
+.hlc__layer-badge--extension   { background: #d1fae5; color: #065f46; }
+.hlc__layer-badge--upper_floor { background: #ede9fe; color: #4c1d95; }
+.hlc__layer-badge--reference   { background: #f3f4f6; color: #6b7280; }
+
+.hlc__layer-del-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #a0aec0;
+  font-size: 0.75rem;
+  padding: 0 0.1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s;
+}
+
+.hlc__layer-item:hover .hlc__layer-del-btn,
+.hlc__layer-item--active .hlc__layer-del-btn {
+  opacity: 1;
+}
+
+.hlc__layer-del-btn:hover {
+  color: #e53e3e;
+}
+
+.hlc__layer-rename {
+  margin-top: 0.25rem;
+}
+
+.hlc__layer-rename-input {
+  width: 100%;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.82rem;
+  color: #1a202c;
+  background: #fff;
+  outline: none;
+}
+
+.hlc__layer-rename-input:focus {
+  border-color: #3182ce;
+}
