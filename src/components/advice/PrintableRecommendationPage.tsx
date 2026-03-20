@@ -426,9 +426,19 @@ export default function PrintableRecommendationPage({
 
       {/* ── Page header ────────────────────────────────────────────────── */}
       <header className="prp__header" aria-label="Atlas recommendation header">
-        <div className="prp__header-eyebrow">Atlas Recommendation</div>
-        <h1 className="prp__header-title">Heating System Recommendation</h1>
-        <p className="prp__header-date">Prepared {today}</p>
+        <div className="prp__header-inner">
+          <div className="prp__header-text">
+            <div className="prp__header-eyebrow">Atlas Recommendation</div>
+            <h1 className="prp__header-title">Heating System Recommendation</h1>
+            <p className="prp__header-date">Prepared {today}</p>
+          </div>
+          {reportReference && (
+            <div className="prp__header-qr" aria-label="QR code — scan to view your interactive portal">
+              <p className="prp__header-qr-hint">Scan to view your interactive portal</p>
+              <ReportQrFooter reportReference={reportReference} />
+            </div>
+          )}
+        </div>
       </header>
 
       {/* ── Fallback notice — only when not survey-backed ──────────────── */}
