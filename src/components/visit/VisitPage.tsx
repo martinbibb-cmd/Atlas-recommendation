@@ -196,6 +196,7 @@ export default function VisitPage({
     getVisit(visitId)
       .then((visit) => {
         if (cancelled) return;
+        console.info('[Atlas] Visit loaded:', visitId);
         // Save metadata for the case summary header.
         const { working_payload, ...meta } = visit;
         setVisitMeta(meta);
@@ -215,7 +216,17 @@ export default function VisitPage({
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setLoadError(err instanceof Error ? err.message : String(err));
+        const message = err instanceof Error ? err.message : String(err);
+        // 404 → treat as a fresh visit (local-only UUID or newly created visit
+        // not yet visible in the DB).  Start a clean survey rather than
+        // blocking the user with an error screen.
+        if (message === 'Visit not found') {
+          console.info(`[Atlas] Visit not found (${visitId}) — starting fresh survey`);
+          setReady(true);
+          return;
+        }
+        console.error('[Atlas] Could not load visit:', { visitId, message });
+        setLoadError(message);
         setReady(true);
       });
     return () => {

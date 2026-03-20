@@ -264,7 +264,7 @@ function PerformancePanelUI({ summary }: { summary: PerformanceSummary }) {
           icon="£"
           filledCount={costLevel}
           label={COST_LEVEL_LABEL[costLevel - 1]}
-          exact={`~${summary.costPerKwhHeat}p/kWh`}
+          exact={`~${summary.costPerKwhHeat}p/kWh heat`}
         />
         <ComparatorRow
           icon="🌿"
@@ -1070,6 +1070,39 @@ export default function DecisionSynthesisPage({
             {heroSystemPath}
           </div>
           <p className="advice-hero__why">{heroWhy}</p>
+
+          {/* Structured decision breakdown (compare mode only) */}
+          {compareAdvice != null && (
+            <dl className="advice-hero__breakdown" aria-label="Recommendation breakdown">
+              <div className="advice-hero__breakdown-row">
+                <dt className="advice-hero__breakdown-label">Heat source</dt>
+                <dd className="advice-hero__breakdown-value">{recipe.heatSource}</dd>
+              </div>
+              <div className="advice-hero__breakdown-row">
+                <dt className="advice-hero__breakdown-label">Hot water</dt>
+                <dd className="advice-hero__breakdown-value">{recipe.dhwArrangement}</dd>
+              </div>
+              {(compareAdvice.bestOverall.keyTradeOff ?? engineOutput.verdict?.primaryReason) && (
+                <div className="advice-hero__breakdown-row">
+                  <dt className="advice-hero__breakdown-label">Why not top alternative</dt>
+                  <dd className="advice-hero__breakdown-value">
+                    {compareAdvice.bestOverall.keyTradeOff ?? engineOutput.verdict?.primaryReason}
+                  </dd>
+                </div>
+              )}
+              {(() => {
+                const futurePotential = recommendationScope.futurePotential;
+                return futurePotential != null && futurePotential.items.length > 0 ? (
+                  <div className="advice-hero__breakdown-row">
+                    <dt className="advice-hero__breakdown-label">Future path</dt>
+                    <dd className="advice-hero__breakdown-value">
+                      {futurePotential.items[0].label}
+                    </dd>
+                  </div>
+                ) : null;
+              })()}
+            </dl>
+          )}
 
           {/* Compare wins on the hero card (compare mode only) */}
           {heroCompareWins.length > 0 && (

@@ -154,10 +154,14 @@ export default function App() {
     setStartingVisit(true);
     try {
       const { id } = await createVisit();
+      console.info('[Atlas] Visit created:', id);
       setActiveVisitId(id);
-    } catch {
+    } catch (err) {
       // API unavailable — use a local-only UUID so the UX still progresses.
-      setActiveVisitId(crypto.randomUUID());
+      // VisitPage handles "Visit not found" gracefully for local UUIDs.
+      const localId = crypto.randomUUID();
+      console.warn('[Atlas] Visit creation failed — using local-only UUID:', localId, err);
+      setActiveVisitId(localId);
     } finally {
       setStartingVisit(false);
     }

@@ -22,6 +22,7 @@
  *   - Printing triggered by window.print() from the on-screen toolbar.
  */
 
+import { useState } from 'react';
 import type { AdviceCard, AdviceFromCompareResult, PerformanceSummary, UnifiedConfidence, RecommendationScope } from '../../lib/advice/buildAdviceFromCompare';
 import type { CompareSeed } from '../../lib/simulator/buildCompareSeedFromSurvey';
 import ReportQrFooter from '../report/ReportQrFooter';
@@ -111,7 +112,7 @@ function PerformancePanelPrint({ summary }: { summary: PerformanceSummary }) {
           icon="£"
           filledCount={costLevel}
           label={PRINT_COST_LABEL[costLevel - 1]}
-          exact={`~${summary.costPerKwhHeat}p/kWh`}
+          exact={`~${summary.costPerKwhHeat}p/kWh heat`}
         />
         <PrintComparatorRow
           icon="🌿"
@@ -352,6 +353,12 @@ export default function PrintableRecommendationPage({
   // Detect whether this is a genuine survey-backed print or fallback.
   const isSurveyBacked = advice != null;
 
+  // ── Print section visibility toggles (screen only — not rendered in print) ──
+  // Default: all sections included. User can deselect before printing.
+  const [showObjectiveCards, setShowObjectiveCards] = useState(true);
+  const [showInstallRecipe, setShowInstallRecipe] = useState(true);
+  const [showScope, setShowScope] = useState(true);
+
   // Today's date for the print header.
   const today = new Date().toLocaleDateString('en-GB', {
     day: 'numeric',
@@ -422,6 +429,40 @@ export default function PrintableRecommendationPage({
         >
           🖨 Print recommendation
         </button>
+
+        {/* Section toggles — only shown when compare-backed advice is available */}
+        {isSurveyBacked && (
+          <div className="prp__section-toggles" role="group" aria-label="Print section controls">
+            <span className="prp__section-toggles-label">Include sections:</span>
+            <label className="prp__section-toggle">
+              <input
+                type="checkbox"
+                checked={showObjectiveCards}
+                onChange={e => setShowObjectiveCards(e.target.checked)}
+                aria-label="Include objective cards"
+              />
+              By objective
+            </label>
+            <label className="prp__section-toggle">
+              <input
+                type="checkbox"
+                checked={showInstallRecipe}
+                onChange={e => setShowInstallRecipe(e.target.checked)}
+                aria-label="Include installation recipe"
+              />
+              Recipe
+            </label>
+            <label className="prp__section-toggle">
+              <input
+                type="checkbox"
+                checked={showScope}
+                onChange={e => setShowScope(e.target.checked)}
+                aria-label="Include recommendation scope"
+              />
+              Scope
+            </label>
+          </div>
+        )}
       </div>
 
       {/* ── Page header ────────────────────────────────────────────────── */}
@@ -540,7 +581,7 @@ export default function PrintableRecommendationPage({
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* PAGE 2 — Best by objective                                         */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {objectiveCards.length > 0 && (
+      {objectiveCards.length > 0 && showObjectiveCards && (
         <section
           className="prp__section prp__page-break-before"
           aria-label="Best by objective"
@@ -563,7 +604,7 @@ export default function PrintableRecommendationPage({
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* PAGE 3 — Installation recipe                                       */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {recipe && (
+      {recipe && showInstallRecipe && (
         <section
           className="prp__section prp__page-break-before"
           aria-label="Installation recipe"
@@ -632,7 +673,7 @@ export default function PrintableRecommendationPage({
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* PAGE 4 — Recommendation scope                                      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {recommendationScope && (
+      {recommendationScope && showScope && (
         <section
           className="prp__section prp__page-break-before"
           aria-label="Recommendation scope"
