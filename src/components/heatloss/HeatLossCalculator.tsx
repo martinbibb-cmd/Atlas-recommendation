@@ -8,6 +8,11 @@
  *   Ventilation loss  = volume × ACH × 0.33 × ΔT
  *   Design ΔT = 20 °C (indoor 21 °C / outdoor 1 °C)
  *   ACH = 0.75 (typical UK existing dwelling)
+ *
+ * Layers:
+ *   Drawings are organised into named layers — each with its own polygon,
+ *   colour, kind (original / extension / upper_floor / reference), and
+ *   visibility flag.  The heat-loss calculation runs on the active layer.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -51,10 +56,40 @@ const ACH = 0.75;
 const SNAP = 0.5;
 const CLOSE_PX = 14;
 
+// ── Layer constants ───────────────────────────────────────────────────────────
+
+type LayerKind = 'original' | 'extension' | 'upper_floor' | 'reference';
+
+const LAYER_COLOURS: Record<LayerKind, string> = {
+  original:    '#1a56db',
+  extension:   '#059669',
+  upper_floor: '#7c3aed',
+  reference:   '#9ca3af',
+};
+
+const FLOOR_ORDINALS = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth'];
+
+let _layerCounter = 0;
+function generateLayerId(): string {
+  // Counter-only ID — deterministic and unique within the page lifetime.
+  // No Math.random() per project "No Theatre" rule.
+  return 'layer-' + (++_layerCounter).toString(36);
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Point { x: number; y: number; }
 interface Edge  { isPartyWall: boolean; }
+
+interface Layer {
+  id:      string;
+  name:    string;
+  kind:    LayerKind;
+  visible: boolean;
+  points:  Point[];
+  closed:  boolean;
+  edges:   Edge[];
+}
 
 interface HeatLossResult {
   floorArea:   number;
@@ -71,17 +106,15 @@ interface HeatLossResult {
   totalHL:     number;
 }
 
-interface DrawState {
-  points:    Point[];
-  closed:    boolean;
-  hoverPt:   Point | null;
-  scale:     number;
-  panX:      number;
-  panY:      number;
-  edges:     Edge[];
-  isPanning: boolean;
-  lastPointer: Point | null;
-  dragIndex:   number;
+/** View/interaction state — pan, zoom, hover, drag. No polygon data. */
+interface ViewState {
+  scale:         number;
+  panX:          number;
+  panY:          number;
+  hoverPt:       Point | null;
+  isPanning:     boolean;
+  lastPointer:   Point | null;
+  dragIndex:     number;
   lastPinchDist:   number | null;
   lastPinchCenter: Point | null;
 }
@@ -139,10 +172,11 @@ function pointToSegmentDist(
 
 // ── Heat loss calculation ─────────────────────────────────────────────────────
 
-function calculateHeatLoss(ds: DrawState, settings: Settings): HeatLossResult | null {
-  if (!ds.closed || ds.points.length < 3) return null;
+function calculateHeatLoss(layer: Layer, settings: Settings): HeatLossResult | null {
+  // Reference layers are for visual context only — not included in calculation.
+  if (!layer.closed || layer.points.length < 3 || layer.kind === 'reference') return null;
 
-  const pts           = ds.points;
+  const pts           = layer.points;
   const floorArea     = polygonArea(pts);
   const perimeter     = polygonPerimeter(pts);
   const totalHeight   = settings.storeys * settings.ceilingHeight;
@@ -150,7 +184,7 @@ function calculateHeatLoss(ds: DrawState, settings: Settings): HeatLossResult | 
 
   let exposedPerimeter = 0;
   let partyPerimeter   = 0;
-  ds.edges.forEach((edge, i) => {
+  layer.edges.forEach((edge, i) => {
     const a = pts[i];
     const b = pts[(i + 1) % pts.length];
     const len = Math.hypot(b.x - a.x, b.y - a.y);
@@ -159,15 +193,18 @@ function calculateHeatLoss(ds: DrawState, settings: Settings): HeatLossResult | 
   });
 
   const grossWallArea = exposedPerimeter * totalHeight;
-  const glazingFrac   = GLAZING_FRACTION[settings.glazingAmount] ?? 0.18;
+  // Settings are constrained to known valid keys by the UI dropdowns, so ?? fallbacks
+  // use the mid-range defaults (cavity uninsulated wall, 270 mm loft, A-rated glazing,
+  // suspended uninsulated floor) that represent a typical 1980s UK semi-detached.
+  const glazingFrac   = GLAZING_FRACTION[settings.glazingAmount] ?? GLAZING_FRACTION.medium;
   const glazingArea   = grossWallArea * glazingFrac;
   const netWallArea   = grossWallArea - glazingArea;
   const roofArea      = floorArea;
 
-  const uWall    = U_WALL[settings.wallType]    ?? 1.5;
-  const uLoft    = U_LOFT[settings.loftInsulation] ?? 0.18;
-  const uGlazing = U_GLAZING[settings.glazingType] ?? 1.4;
-  const uFloor   = U_FLOOR[settings.floorType]  ?? 0.70;
+  const uWall    = U_WALL[settings.wallType]       ?? U_WALL.cavityUninsulated;
+  const uLoft    = U_LOFT[settings.loftInsulation] ?? U_LOFT.mm270plus;
+  const uGlazing = U_GLAZING[settings.glazingType] ?? U_GLAZING.doubleArated;
+  const uFloor   = U_FLOOR[settings.floorType]     ?? U_FLOOR.suspendedUninsulated;
 
   const partyWallArea = partyPerimeter * totalHeight;
   const wallHL    = (netWallArea * uWall + partyWallArea * uWall * PARTY_WALL_FACTOR) * DELTA_T;
@@ -220,12 +257,25 @@ function w2c(mx: number, my: number, scale: number, panX: number, panY: number) 
   return { x: (mx - panX) * scale, y: (my - panY) * scale };
 }
 
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function renderCanvas(
   canvas: HTMLCanvasElement,
-  ds: DrawState,
+  vs: ViewState,
+  layers: Layer[],
+  activeLayerId: string,
 ): void {
-  const ctx  = canvas.getContext('2d');
-  if (!ctx) return;
+  // ctxOrNull/ctx split: TypeScript's control-flow narrowing does not
+  // propagate into the nested drawLayerPolygon closure, so we need an
+  // explicit non-nullable typed binding that the closure can capture.
+  const ctxOrNull  = canvas.getContext('2d');
+  if (!ctxOrNull) return;
+  const ctx: CanvasRenderingContext2D = ctxOrNull;
   const dpr  = window.devicePixelRatio || 1;
   const cssW = canvas.offsetWidth;
   const cssH = canvas.offsetHeight;
@@ -236,7 +286,7 @@ function renderCanvas(
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  const { scale, panX, panY, points: pts, closed, hoverPt, edges } = ds;
+  const { scale, panX, panY, hoverPt } = vs;
   ctx.clearRect(0, 0, cssW, cssH);
 
   // Background
@@ -291,9 +341,20 @@ function renderCanvas(
     if (py > 14 && py < cssH - 10) ctx.fillText(y + ' m', 28, py);
   }
 
-  // ── Polygon ───────────────────────────────────────────────────────────────
-  if (pts.length >= 2) {
-    if (closed) {
+  // ── Draw all layers ───────────────────────────────────────────────────────
+  // Render inactive visible layers behind active layer, then active on top.
+  const activeLayer = layers.find(l => l.id === activeLayerId) ?? null;
+
+  function drawLayerPolygon(layer: Layer, isActive: boolean) {
+    const pts = layer.points;
+    if (pts.length < 2) return;
+
+    const colour      = LAYER_COLOURS[layer.kind] ?? '#1a56db';
+    const isRef       = layer.kind === 'reference';
+    const strokeAlpha = isActive ? 1 : 0.3;
+    const fillAlpha   = isActive ? (isRef ? 0.04 : 0.10) : 0.04;
+
+    if (layer.closed) {
       // Fill
       ctx.beginPath();
       const s = w2c(pts[0].x, pts[0].y, scale, panX, panY);
@@ -303,24 +364,61 @@ function renderCanvas(
         ctx.lineTo(p.x, p.y);
       }
       ctx.closePath();
-      ctx.fillStyle = 'rgba(26, 86, 219, 0.10)';
+      ctx.fillStyle = hexToRgba(colour, fillAlpha);
       ctx.fill();
 
       // Edges
       for (let i = 0; i < pts.length; i++) {
         const a = w2c(pts[i].x, pts[i].y, scale, panX, panY);
         const b = w2c(pts[(i + 1) % pts.length].x, pts[(i + 1) % pts.length].y, scale, panX, panY);
-        const isParty = edges[i]?.isPartyWall ?? false;
+        const isParty = layer.edges[i]?.isPartyWall ?? false;
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
-        ctx.strokeStyle = isParty ? '#888888' : '#1a56db';
-        ctx.setLineDash(isParty ? [6, 4] : []);
-        ctx.lineWidth = 2.5;
+        if (isRef) {
+          ctx.strokeStyle = hexToRgba(colour, strokeAlpha * 0.7);
+          ctx.setLineDash([8, 5]);
+        } else if (isParty) {
+          ctx.strokeStyle = `rgba(136,136,136,${strokeAlpha})`;
+          ctx.setLineDash([6, 4]);
+        } else {
+          ctx.strokeStyle = hexToRgba(colour, strokeAlpha);
+          ctx.setLineDash([]);
+        }
+        ctx.lineWidth = isActive ? 2.5 : 1.5;
         ctx.stroke();
       }
       ctx.setLineDash([]);
-    } else {
+
+      // Edge length labels on active closed layer
+      if (isActive) {
+        ctx.font        = '11px system-ui, sans-serif';
+        ctx.textBaseline = 'alphabetic';
+        for (let i = 0; i < pts.length; i++) {
+          const a = pts[i];
+          const b = pts[(i + 1) % pts.length];
+          const len = Math.hypot(b.x - a.x, b.y - a.y);
+          if (len < 0.4) continue;
+          const ca = w2c(a.x, a.y, scale, panX, panY);
+          const cb = w2c(b.x, b.y, scale, panX, panY);
+          const mx = (ca.x + cb.x) / 2, my = (ca.y + cb.y) / 2;
+          let angle = Math.atan2(cb.y - ca.y, cb.x - ca.x);
+          if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
+          ctx.save();
+          ctx.translate(mx, my);
+          ctx.rotate(angle);
+          const text = len.toFixed(1) + ' m';
+          const tw   = ctx.measureText(text).width;
+          ctx.fillStyle = 'rgba(255,255,255,0.82)';
+          ctx.fillRect(-tw / 2 - 3, -14, tw + 6, 14);
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#475569';
+          ctx.fillText(text, 0, -2);
+          ctx.restore();
+        }
+      }
+    } else if (isActive) {
+      // Open polygon preview
       ctx.beginPath();
       const s0 = w2c(pts[0].x, pts[0].y, scale, panX, panY);
       ctx.moveTo(s0.x, s0.y);
@@ -332,28 +430,40 @@ function renderCanvas(
         const hp = w2c(hoverPt.x, hoverPt.y, scale, panX, panY);
         ctx.lineTo(hp.x, hp.y);
       }
-      ctx.strokeStyle = '#1a56db';
+      ctx.strokeStyle = colour;
       ctx.lineWidth   = 2;
       ctx.setLineDash([7, 5]);
       ctx.stroke();
       ctx.setLineDash([]);
     }
+
+    // Vertices (only for active layer)
+    if (isActive) {
+      pts.forEach((pt, i) => {
+        const cp = w2c(pt.x, pt.y, scale, panX, panY);
+        ctx.beginPath();
+        ctx.arc(cp.x, cp.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle   = i === 0 && !layer.closed ? '#10b981' : colour;
+        ctx.strokeStyle = '#ffffff';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      });
+    }
   }
 
-  // ── Vertices ──────────────────────────────────────────────────────────────
-  pts.forEach((pt, i) => {
-    const cp = w2c(pt.x, pt.y, scale, panX, panY);
-    ctx.beginPath();
-    ctx.arc(cp.x, cp.y, 6, 0, Math.PI * 2);
-    ctx.fillStyle   = i === 0 && !closed ? '#10b981' : '#1a56db';
-    ctx.strokeStyle = '#ffffff';
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.stroke();
+  // Inactive layers first
+  layers.forEach(layer => {
+    if (!layer.visible || layer.id === activeLayerId) return;
+    drawLayerPolygon(layer, false);
   });
+  // Active layer on top
+  if (activeLayer?.visible) {
+    drawLayerPolygon(activeLayer, true);
+  }
 
   // ── Cursor snap dot ───────────────────────────────────────────────────────
-  if (!closed && hoverPt) {
+  if (activeLayer && !activeLayer.closed && hoverPt) {
     const cp = w2c(hoverPt.x, hoverPt.y, scale, panX, panY);
     ctx.beginPath();
     ctx.arc(cp.x, cp.y, 4, 0, Math.PI * 2);
@@ -372,34 +482,6 @@ function renderCanvas(
     ctx.fillRect(lx - 2, ly - 11, tw + 4, 14);
     ctx.fillStyle = '#1e293b';
     ctx.fillText(label, lx, ly);
-  }
-
-  // ── Edge length labels ────────────────────────────────────────────────────
-  if (closed && pts.length >= 2) {
-    ctx.font        = '11px system-ui, sans-serif';
-    ctx.textBaseline = 'alphabetic';
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i];
-      const b = pts[(i + 1) % pts.length];
-      const len = Math.hypot(b.x - a.x, b.y - a.y);
-      if (len < 0.4) continue;
-      const ca = w2c(a.x, a.y, scale, panX, panY);
-      const cb = w2c(b.x, b.y, scale, panX, panY);
-      const mx = (ca.x + cb.x) / 2, my = (ca.y + cb.y) / 2;
-      let angle = Math.atan2(cb.y - ca.y, cb.x - ca.x);
-      if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
-      ctx.save();
-      ctx.translate(mx, my);
-      ctx.rotate(angle);
-      const text = len.toFixed(1) + ' m';
-      const tw   = ctx.measureText(text).width;
-      ctx.fillStyle = 'rgba(255,255,255,0.82)';
-      ctx.fillRect(-tw / 2 - 3, -14, tw + 6, 14);
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#475569';
-      ctx.fillText(text, 0, -2);
-      ctx.restore();
-    }
   }
 
   // ── Scale bar ─────────────────────────────────────────────────────────────
@@ -432,24 +514,39 @@ interface Props {
   onComplete?: (totalHL: number) => void;
 }
 
+function makeLayer(name: string, kind: LayerKind): Layer {
+  return { id: generateLayerId(), name, kind, visible: true, points: [], closed: false, edges: [] };
+}
+
 export default function HeatLossCalculator({ onBack, onComplete }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Drawing state kept in a ref so event handlers always see latest values
-  const dsRef = useRef<DrawState>({
-    points:          [],
-    closed:          false,
-    hoverPt:         null,
+  // View/interaction state (pan, zoom, hover, drag) — no polygon data.
+  const vsRef = useRef<ViewState>({
     scale:           40,
     panX:            -2,
     panY:            -2,
-    edges:           [],
+    hoverPt:         null,
     isPanning:       false,
     lastPointer:     null,
     dragIndex:       -1,
     lastPinchDist:   null,
     lastPinchCenter: null,
   });
+
+  // Compute initial layer data once — lazy useState ensures the layer
+  // (and its id) are created only on mount, and re-used by both the
+  // mutable ref and the rendered state without accessing .current during render.
+  const [initialLayerData] = useState<{ layers: Layer[]; activeId: string }>(() => {
+    const layer = makeLayer('Original footprint', 'original');
+    return { layers: [layer], activeId: layer.id };
+  });
+
+  // Mutable ref for all layers — used by canvas event handlers without
+  // triggering re-renders.  Initialised from `initialLayerData.layers`.
+  const layersRef = useRef<Layer[]>(initialLayerData.layers);
+  // Mutable ref for the active layer ID.
+  const activeLayerIdRef = useRef<string>(initialLayerData.activeId);
 
   const [settings, setSettings] = useState<Settings>({
     storeys:        2,
@@ -462,6 +559,10 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
     floorType:      'suspendedUninsulated',
   });
 
+  // Layer panel UI state (mirrors layersRef for rendering).
+  const [layers, setLayers] = useState<Layer[]>(initialLayerData.layers);
+  const [activeLayerId, setActiveLayerId] = useState<string>(initialLayerData.activeId);
+
   // Reactive hint + result derived from drawing state
   const [hint, setHint]     = useState<string>('Click to place first corner point');
   const [result, setResult] = useState<HeatLossResult | null>(null);
@@ -471,30 +572,47 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
   const settingsRef = useRef(settings);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
 
+  /** Returns the currently active layer. */
+  const getActiveLayer = useCallback((): Layer | null => {
+    return layersRef.current.find(l => l.id === activeLayerIdRef.current) ?? null;
+  }, []);
+
+  /** Sync layer array to React state so the layer panel re-renders. */
+  const syncLayers = useCallback(() => {
+    setLayers([...layersRef.current]);
+  }, []);
+
   // ── Render helpers ─────────────────────────────────────────────────────────
 
   const repaint = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    renderCanvas(canvas, dsRef.current);
+    renderCanvas(canvas, vsRef.current, layersRef.current, activeLayerIdRef.current);
   }, []);
 
   const refreshResults = useCallback(() => {
-    const res = calculateHeatLoss(dsRef.current, settingsRef.current);
+    const layer = getActiveLayer();
+    const res = layer ? calculateHeatLoss(layer, settingsRef.current) : null;
     setResult(res);
-    setClosed(dsRef.current.closed);
-    setPointCount(dsRef.current.points.length);
-    const ds = dsRef.current;
-    if (ds.closed) {
+
+    const active = layer;
+    const closed_ = active?.closed ?? false;
+    const pts     = active?.points ?? [];
+    setClosed(closed_);
+    setPointCount(pts.length);
+
+    if (!active) {
+      setHint('Select or create a layer to start drawing');
+    } else if (closed_) {
       setHint('Click or tap walls to mark as party walls · Drag corners to adjust');
-    } else if (ds.points.length === 0) {
+    } else if (pts.length === 0) {
       setHint('Click to place first corner point');
-    } else if (ds.points.length < 3) {
-      setHint(`${ds.points.length} point${ds.points.length > 1 ? 's' : ''} — keep clicking to add corners`);
+    } else if (pts.length < 3) {
+      setHint(`${pts.length} point${pts.length > 1 ? 's' : ''} — keep clicking to add corners`);
     } else {
       setHint('Click the green point to close, or press Close Shape');
     }
-  }, []);
+  }, [getActiveLayer]);
 
   // Recompute results whenever settings change
   useEffect(() => {
@@ -518,7 +636,7 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
   const client2world = useCallback((clientX: number, clientY: number): Point => {
     const canvas = canvasRef.current!;
     const rect   = canvas.getBoundingClientRect();
-    const { scale, panX, panY } = dsRef.current;
+    const { scale, panX, panY } = vsRef.current;
     return {
       x: (clientX - rect.left)  / scale + panX,
       y: (clientY - rect.top)   / scale + panY,
@@ -531,23 +649,26 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
   });
 
   const pixelDistToPoint = useCallback((clientX: number, clientY: number, idx: number): number => {
+    const layer = getActiveLayer();
+    if (!layer) return Infinity;
     const canvas = canvasRef.current!;
     const rect   = canvas.getBoundingClientRect();
-    const { scale, panX, panY, points } = dsRef.current;
+    const { scale, panX, panY } = vsRef.current;
     const cp = {
-      x: (points[idx].x - panX) * scale,
-      y: (points[idx].y - panY) * scale,
+      x: (layer.points[idx].x - panX) * scale,
+      y: (layer.points[idx].y - panY) * scale,
     };
     return Math.hypot(clientX - rect.left - cp.x, clientY - rect.top - cp.y);
-  }, []);
+  }, [getActiveLayer]);
 
   const getEdgeAtClient = useCallback((clientX: number, clientY: number): number => {
-    const ds = dsRef.current;
-    if (!ds.closed) return -1;
+    const layer = getActiveLayer();
+    if (!layer?.closed) return -1;
     const canvas = canvasRef.current!;
     const rect   = canvas.getBoundingClientRect();
     const cx = clientX - rect.left, cy = clientY - rect.top;
-    const { scale, panX, panY, points: pts } = ds;
+    const { scale, panX, panY } = vsRef.current;
+    const pts = layer.points;
     let best = -1, bestDist = 12;
     for (let i = 0; i < pts.length; i++) {
       const a = { x: (pts[i].x - panX) * scale, y: (pts[i].y - panY) * scale };
@@ -556,63 +677,128 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
       if (d < bestDist) { bestDist = d; best = i; }
     }
     return best;
-  }, []);
+  }, [getActiveLayer]);
 
   // ── Polygon operations ─────────────────────────────────────────────────────
 
   const closePolygon = useCallback(() => {
-    const ds = dsRef.current;
-    if (ds.points.length < 3) return;
-    ds.edges  = ds.points.map(() => ({ isPartyWall: false }));
-    applyDefaultExposure(ds.points, ds.edges, settingsRef.current.dwellingType);
-    ds.closed  = true;
-    ds.hoverPt = null;
+    const layer = getActiveLayer();
+    if (!layer || layer.points.length < 3) return;
+    layer.edges  = layer.points.map(() => ({ isPartyWall: false }));
+    applyDefaultExposure(layer.points, layer.edges, settingsRef.current.dwellingType);
+    layer.closed  = true;
+    vsRef.current.hoverPt = null;
     refreshResults();
+    syncLayers();
     repaint();
-  }, [refreshResults, repaint]);
+  }, [getActiveLayer, refreshResults, syncLayers, repaint]);
 
   const undoLastPoint = useCallback(() => {
-    const ds = dsRef.current;
-    if (ds.closed) {
-      ds.closed = false;
-      ds.edges  = [];
+    const layer = getActiveLayer();
+    if (!layer) return;
+    if (layer.closed) {
+      layer.closed = false;
+      layer.edges  = [];
       refreshResults();
-    } else if (ds.points.length > 0) {
-      ds.points.pop();
+    } else if (layer.points.length > 0) {
+      layer.points.pop();
     }
     refreshResults();
+    syncLayers();
     repaint();
-  }, [refreshResults, repaint]);
+  }, [getActiveLayer, refreshResults, syncLayers, repaint]);
 
   const clearAll = useCallback(() => {
-    const ds = dsRef.current;
-    ds.points    = [];
-    ds.closed    = false;
-    ds.hoverPt   = null;
-    ds.dragIndex = -1;
-    ds.edges     = [];
+    const layer = getActiveLayer();
+    if (layer) {
+      layer.points    = [];
+      layer.closed    = false;
+      layer.edges     = [];
+    }
+    vsRef.current.hoverPt   = null;
+    vsRef.current.dragIndex = -1;
     refreshResults();
+    syncLayers();
     repaint();
-  }, [refreshResults, repaint]);
+  }, [getActiveLayer, refreshResults, syncLayers, repaint]);
 
   const fitToView = useCallback(() => {
-    const ds     = dsRef.current;
+    const vs     = vsRef.current;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const cssW = canvas.offsetWidth;
     const cssH = canvas.offsetHeight;
-    if (ds.points.length === 0) {
-      ds.scale = 40; ds.panX = -2; ds.panY = -2;
+    const allPts = layersRef.current
+      .filter(l => l.visible)
+      .flatMap(l => l.points);
+    if (allPts.length === 0) {
+      vs.scale = 40; vs.panX = -2; vs.panY = -2;
       repaint(); return;
     }
-    const xs = ds.points.map(p => p.x), ys = ds.points.map(p => p.y);
+    const xs = allPts.map(p => p.x), ys = allPts.map(p => p.y);
     const minX = Math.min(...xs) - 2, maxX = Math.max(...xs) + 2;
     const minY = Math.min(...ys) - 2, maxY = Math.max(...ys) + 2;
     const scX  = cssW / (maxX - minX), scY = cssH / (maxY - minY);
-    ds.scale   = Math.min(scX, scY, 100);
-    ds.panX    = minX; ds.panY = minY;
+    vs.scale   = Math.min(scX, scY, 100);
+    vs.panX    = minX; vs.panY = minY;
     repaint();
   }, [repaint]);
+
+  // ── Layer management ───────────────────────────────────────────────────────
+
+  const selectLayer = useCallback((id: string) => {
+    activeLayerIdRef.current = id;
+    vsRef.current.hoverPt   = null;
+    vsRef.current.dragIndex = -1;
+    setActiveLayerId(id);
+    refreshResults();
+    repaint();
+  }, [refreshResults, repaint]);
+
+  const addLayer = useCallback((kind: LayerKind = 'extension') => {
+    const existingOfKind = layersRef.current.filter(l => l.kind === kind).length;
+    let name: string;
+    if (kind === 'extension') {
+      name = `Extension ${existingOfKind + 1}`;
+    } else if (kind === 'upper_floor') {
+      const ordinal = FLOOR_ORDINALS[existingOfKind] ?? `Floor ${existingOfKind + 1}`;
+      name = `${ordinal} floor`;
+    } else if (kind === 'reference') {
+      name = existingOfKind === 0 ? 'Reference outline' : `Reference ${existingOfKind + 1}`;
+    } else {
+      name = 'Original footprint';
+    }
+    const newLayer = makeLayer(name, kind);
+    layersRef.current = [...layersRef.current, newLayer];
+    selectLayer(newLayer.id);
+  }, [selectLayer]);
+
+  const removeLayer = useCallback((id: string) => {
+    if (layersRef.current.length <= 1) return;
+    const idx = layersRef.current.findIndex(l => l.id === id);
+    if (idx < 0) return;
+    layersRef.current = layersRef.current.filter(l => l.id !== id);
+    if (activeLayerIdRef.current === id) {
+      selectLayer(layersRef.current[Math.max(0, idx - 1)].id);
+    } else {
+      syncLayers();
+      refreshResults();
+      repaint();
+    }
+  }, [selectLayer, syncLayers, refreshResults, repaint]);
+
+  const toggleLayerVisibility = useCallback((id: string) => {
+    const layer = layersRef.current.find(l => l.id === id);
+    if (layer) layer.visible = !layer.visible;
+    syncLayers();
+    repaint();
+  }, [syncLayers, repaint]);
+
+  const renameLayer = useCallback((id: string, name: string) => {
+    const layer = layersRef.current.find(l => l.id === id);
+    if (layer) layer.name = name.trim() || layer.name;
+    syncLayers();
+  }, [syncLayers]);
 
   // ── Pointer events ─────────────────────────────────────────────────────────
 
@@ -620,12 +806,12 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
     const canvas = canvasRef.current!;
     const rect   = canvas.getBoundingClientRect();
     const cx     = clientX - rect.left, cy = clientY - rect.top;
-    const ds     = dsRef.current;
-    const wx     = cx / ds.scale + ds.panX;
-    const wy     = cy / ds.scale + ds.panY;
-    ds.scale     = Math.min(200, Math.max(6, ds.scale * factor));
-    ds.panX      = wx - cx / ds.scale;
-    ds.panY      = wy - cy / ds.scale;
+    const vs     = vsRef.current;
+    const wx     = cx / vs.scale + vs.panX;
+    const wy     = cy / vs.scale + vs.panY;
+    vs.scale     = Math.min(200, Math.max(6, vs.scale * factor));
+    vs.panX      = wx - cx / vs.scale;
+    vs.panY      = wy - cy / vs.scale;
     repaint();
   }, [repaint]);
 
@@ -635,29 +821,32 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
       : { x: e.clientX, y: e.clientY };
 
   const onPointerDown = useCallback((e: MouseEvent | TouchEvent) => {
-    const pos = clientPos(e);
-    const ds  = dsRef.current;
+    const pos   = clientPos(e);
+    const vs    = vsRef.current;
+    const layer = getActiveLayer();
 
     // Pan: middle-mouse or Alt+drag
     if ('button' in e && (e.button === 1 || (e.button === 0 && e.altKey))) {
-      ds.isPanning   = true;
-      ds.lastPointer = pos;
+      vs.isPanning   = true;
+      vs.lastPointer = pos;
       e.preventDefault();
       return;
     }
 
-    if (ds.closed) {
+    if (!layer) return;
+
+    if (layer.closed) {
       // Drag existing vertex?
-      for (let i = 0; i < ds.points.length; i++) {
+      for (let i = 0; i < layer.points.length; i++) {
         if (pixelDistToPoint(pos.x, pos.y, i) < 14) {
-          ds.dragIndex = i;
+          vs.dragIndex = i;
           return;
         }
       }
       // Toggle party wall
       const edgeIdx = getEdgeAtClient(pos.x, pos.y);
       if (edgeIdx >= 0) {
-        ds.edges[edgeIdx].isPartyWall = !ds.edges[edgeIdx].isPartyWall;
+        layer.edges[edgeIdx].isPartyWall = !layer.edges[edgeIdx].isPartyWall;
         refreshResults();
         repaint();
       }
@@ -668,49 +857,50 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
     const snapped = snapPt(wp.x, wp.y);
 
     // Auto-close
-    if (ds.points.length >= 3 && pixelDistToPoint(pos.x, pos.y, 0) < CLOSE_PX) {
+    if (layer.points.length >= 3 && pixelDistToPoint(pos.x, pos.y, 0) < CLOSE_PX) {
       closePolygon();
       return;
     }
 
-    ds.points.push(snapped);
+    layer.points.push(snapped);
     refreshResults();
     repaint();
-  }, [client2world, pixelDistToPoint, getEdgeAtClient, closePolygon, refreshResults, repaint]);
+  }, [getActiveLayer, client2world, pixelDistToPoint, getEdgeAtClient, closePolygon, refreshResults, repaint]);
 
   const onPointerMove = useCallback((e: MouseEvent | TouchEvent) => {
-    const pos = clientPos(e);
-    const ds  = dsRef.current;
+    const pos   = clientPos(e);
+    const vs    = vsRef.current;
+    const layer = getActiveLayer();
 
-    if (ds.isPanning && ds.lastPointer) {
-      const dx = (pos.x - ds.lastPointer.x) / ds.scale;
-      const dy = (pos.y - ds.lastPointer.y) / ds.scale;
-      ds.panX -= dx; ds.panY -= dy;
-      ds.lastPointer = pos;
+    if (vs.isPanning && vs.lastPointer) {
+      const dx = (pos.x - vs.lastPointer.x) / vs.scale;
+      const dy = (pos.y - vs.lastPointer.y) / vs.scale;
+      vs.panX -= dx; vs.panY -= dy;
+      vs.lastPointer = pos;
       repaint();
       return;
     }
 
-    if (ds.dragIndex >= 0) {
+    if (vs.dragIndex >= 0 && layer) {
       const wp = client2world(pos.x, pos.y);
-      ds.points[ds.dragIndex] = snapPt(wp.x, wp.y);
+      layer.points[vs.dragIndex] = snapPt(wp.x, wp.y);
       refreshResults();
       repaint();
       return;
     }
 
-    if (!ds.closed) {
+    if (layer && !layer.closed) {
       const wp = client2world(pos.x, pos.y);
-      ds.hoverPt = snapPt(wp.x, wp.y);
+      vs.hoverPt = snapPt(wp.x, wp.y);
       repaint();
     }
-  }, [client2world, refreshResults, repaint]);
+  }, [getActiveLayer, client2world, refreshResults, repaint]);
 
   const onPointerUp = useCallback(() => {
-    const ds = dsRef.current;
-    ds.isPanning = false;
-    if (ds.dragIndex >= 0) {
-      ds.dragIndex = -1;
+    const vs = vsRef.current;
+    vs.isPanning = false;
+    if (vs.dragIndex >= 0) {
+      vs.dragIndex = -1;
       refreshResults();
       repaint();
     }
@@ -726,8 +916,9 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
     const handleMouseMove  = (e: MouseEvent) => onPointerMove(e);
     const handleMouseUp    = () => onPointerUp();
     const handleMouseLeave = () => {
-      dsRef.current.hoverPt = null;
-      if (!dsRef.current.closed) repaint();
+      vsRef.current.hoverPt = null;
+      const layer = layersRef.current.find(l => l.id === activeLayerIdRef.current);
+      if (!layer?.closed) repaint();
     };
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -741,15 +932,15 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
     // Touch
     const handleTouchStart = (e: TouchEvent) => {
       e.preventDefault();
-      const ds = dsRef.current;
+      const vs = vsRef.current;
       if (e.touches.length === 1) {
         onPointerDown(e);
       } else if (e.touches.length === 2) {
-        ds.isPanning      = false;
+        vs.isPanning      = false;
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
-        ds.lastPinchDist   = Math.hypot(dx, dy);
-        ds.lastPinchCenter = {
+        vs.lastPinchDist   = Math.hypot(dx, dy);
+        vs.lastPinchCenter = {
           x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
           y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
         };
@@ -757,7 +948,7 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
     };
     const handleTouchMove = (e: TouchEvent) => {
       e.preventDefault();
-      const ds = dsRef.current;
+      const vs = vsRef.current;
       if (e.touches.length === 2) {
         const dx   = e.touches[0].clientX - e.touches[1].clientX;
         const dy   = e.touches[0].clientY - e.touches[1].clientY;
@@ -766,18 +957,18 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
           x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
           y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
         };
-        if (ds.lastPinchDist && ds.lastPinchCenter) {
+        if (vs.lastPinchDist && vs.lastPinchCenter) {
           const canvas2 = canvasRef.current!;
           const rect    = canvas2.getBoundingClientRect();
-          const lc      = ds.lastPinchCenter;
-          const wx      = (lc.x - rect.left) / ds.scale + ds.panX;
-          const wy      = (lc.y - rect.top)  / ds.scale + ds.panY;
-          ds.scale = Math.min(200, Math.max(6, ds.scale * (dist / ds.lastPinchDist)));
-          ds.panX  = wx - (center.x - rect.left) / ds.scale;
-          ds.panY  = wy - (center.y - rect.top)  / ds.scale;
+          const lc      = vs.lastPinchCenter;
+          const wx      = (lc.x - rect.left) / vs.scale + vs.panX;
+          const wy      = (lc.y - rect.top)  / vs.scale + vs.panY;
+          vs.scale = Math.min(200, Math.max(6, vs.scale * (dist / vs.lastPinchDist)));
+          vs.panX  = wx - (center.x - rect.left) / vs.scale;
+          vs.panY  = wy - (center.y - rect.top)  / vs.scale;
         }
-        ds.lastPinchDist   = dist;
-        ds.lastPinchCenter = center;
+        vs.lastPinchDist   = dist;
+        vs.lastPinchCenter = center;
         repaint();
         return;
       }
@@ -785,10 +976,10 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
     };
     const handleTouchEnd = (e: TouchEvent) => {
       e.preventDefault();
-      const ds = dsRef.current;
+      const vs = vsRef.current;
       onPointerUp();
-      ds.lastPinchDist   = null;
-      ds.lastPinchCenter = null;
+      vs.lastPinchDist   = null;
+      vs.lastPinchCenter = null;
     };
 
     canvas.addEventListener('mousedown',    handleMouseDown);
@@ -817,15 +1008,18 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
   // ── Sync dwellingType change to existing party walls ───────────────────────
 
   useEffect(() => {
-    const ds = dsRef.current;
-    if (ds.closed && ds.edges.length > 0) {
-      applyDefaultExposure(ds.points, ds.edges, settings.dwellingType);
+    const layer = getActiveLayer();
+    if (layer?.closed && layer.edges.length > 0) {
+      applyDefaultExposure(layer.points, layer.edges, settings.dwellingType);
       refreshResults();
       repaint();
     }
-  }, [settings.dwellingType, refreshResults, repaint]);
+  }, [settings.dwellingType, getActiveLayer, refreshResults, repaint]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
+
+  // Compute once per render so IIFE and conditional expressions reuse the result.
+  const activeLayerObj = layers.find(l => l.id === activeLayerId) ?? null;
 
   return (
     <div className="hlc">
@@ -861,7 +1055,7 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
             <button
               className="hlc__tool-btn"
               onClick={clearAll}
-              title="Clear canvas"
+              title="Clear active layer"
             >
               🗑 Clear
             </button>
@@ -912,6 +1106,99 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
 
         {/* Settings + results panel */}
         <div className="hlc__side-panel">
+          {/* Layer management */}
+          <div className="hlc__section">
+            <div className="hlc__section-header">
+              <h3>Layers</h3>
+              <div className="hlc__layer-add-btns">
+                <button
+                  className="hlc__layer-add-btn"
+                  onClick={() => addLayer('extension')}
+                  title="Add extension layer"
+                >
+                  + Extension
+                </button>
+                <button
+                  className="hlc__layer-add-btn"
+                  onClick={() => addLayer('upper_floor')}
+                  title="Add upper floor layer"
+                >
+                  + Upper floor
+                </button>
+                <button
+                  className="hlc__layer-add-btn hlc__layer-add-btn--ref"
+                  onClick={() => addLayer('reference')}
+                  title="Add reference outline (not included in calculation)"
+                >
+                  + Reference
+                </button>
+              </div>
+            </div>
+
+            <div className="hlc__layer-list" role="list" aria-label="Drawing layers">
+              {layers.map(layer => {
+                const isActive = layer.id === activeLayerId;
+                const colour   = LAYER_COLOURS[layer.kind] ?? '#1a56db';
+                return (
+                  <div
+                    key={layer.id}
+                    className={`hlc__layer-item${isActive ? ' hlc__layer-item--active' : ''}`}
+                    role="listitem"
+                    onClick={() => selectLayer(layer.id)}
+                    aria-current={isActive ? 'true' : undefined}
+                  >
+                    <button
+                      className="hlc__layer-vis-btn"
+                      title={layer.visible ? 'Hide layer' : 'Show layer'}
+                      aria-label={layer.visible ? 'Hide layer' : 'Show layer'}
+                      onClick={e => { e.stopPropagation(); toggleLayerVisibility(layer.id); }}
+                    >
+                      {layer.visible ? '●' : '○'}
+                    </button>
+                    <span
+                      className="hlc__layer-colour-dot"
+                      style={{ background: colour }}
+                      aria-hidden="true"
+                    />
+                    <span
+                      className="hlc__layer-name"
+                      title={layer.name}
+                    >
+                      {layer.name}
+                    </span>
+                    <span className={`hlc__layer-badge hlc__layer-badge--${layer.kind}`}>
+                      {layer.kind.replace('_', ' ')}
+                    </span>
+                    {layers.length > 1 && (
+                      <button
+                        className="hlc__layer-del-btn"
+                        title="Remove layer"
+                        aria-label={`Remove layer ${layer.name}`}
+                        onClick={e => { e.stopPropagation(); removeLayer(layer.id); }}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Rename active layer */}
+            {activeLayerObj && (
+              <div className="hlc__layer-rename">
+                <input
+                  className="hlc__layer-rename-input"
+                  type="text"
+                  value={activeLayerObj.name}
+                  onChange={e => renameLayer(activeLayerId, e.target.value)}
+                  placeholder="Layer name"
+                  aria-label="Active layer name"
+                />
+              </div>
+            )}
+          </div>
+
           {/* Building settings */}
           <div className="hlc__section">
             <h3>Building</h3>
@@ -1001,14 +1288,14 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
                 value={settings.glazingAmount}
                 onChange={e => setSettings(s => ({ ...s, glazingAmount: e.target.value }))}
               >
-                <option value="low">Low (~12 % of wall area)</option>
-                <option value="medium">Medium (~18 %)</option>
-                <option value="high">High (~25 %)</option>
+                <option value="low">Low (12 % of wall)</option>
+                <option value="medium">Medium (18 %)</option>
+                <option value="high">High (25 %)</option>
               </select>
             </div>
 
             <div className="hlc__field">
-              <label>Ground floor type</label>
+              <label>Floor type</label>
               <select
                 value={settings.floorType}
                 onChange={e => setSettings(s => ({ ...s, floorType: e.target.value }))}
@@ -1026,7 +1313,9 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
 
             {result == null ? (
               <p className="hlc__result-placeholder">
-                Sketch the ground-floor perimeter and close the shape to see the heat loss estimate.
+                {activeLayerObj?.kind === 'reference'
+                  ? 'Reference layers are not included in the heat loss calculation.'
+                  : 'Sketch the ground-floor perimeter and close the shape to see the heat loss estimate.'}
               </p>
             ) : (
               <>
@@ -1062,34 +1351,35 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
                   </div>
                 </div>
 
-                <table className="hlc__breakdown-table">
-                  <thead>
-                    <tr>
-                      <th>Element</th>
-                      <th>kW</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr><td>Walls</td><td>{result.wallHL}</td></tr>
-                    <tr><td>Glazing</td><td>{result.glazingHL}</td></tr>
-                    <tr><td>Roof / loft</td><td>{result.roofHL}</td></tr>
-                    <tr><td>Floor</td><td>{result.floorHL}</td></tr>
-                    <tr><td>Ventilation</td><td>{result.ventHL}</td></tr>
-                    <tr><td>Total</td><td>{result.totalHL}</td></tr>
-                  </tbody>
-                </table>
-
-                <p className="hlc__accuracy-note">
-                  ±25–40 % first-pass estimate using ΔT&nbsp;=&nbsp;20&nbsp;°C, ACH&nbsp;=&nbsp;0.75.
-                  Not for formal MCS calculations.
-                </p>
+                <div className="hlc__breakdown">
+                  <div className="hlc__breakdown-row">
+                    <span>Walls</span>
+                    <span>{result.wallHL} kW</span>
+                  </div>
+                  <div className="hlc__breakdown-row">
+                    <span>Glazing</span>
+                    <span>{result.glazingHL} kW</span>
+                  </div>
+                  <div className="hlc__breakdown-row">
+                    <span>Roof</span>
+                    <span>{result.roofHL} kW</span>
+                  </div>
+                  <div className="hlc__breakdown-row">
+                    <span>Floor</span>
+                    <span>{result.floorHL} kW</span>
+                  </div>
+                  <div className="hlc__breakdown-row">
+                    <span>Ventilation</span>
+                    <span>{result.ventHL} kW</span>
+                  </div>
+                </div>
 
                 {onComplete && (
                   <button
-                    className="hlc__use-value-btn"
+                    className="hlc__use-btn"
                     onClick={() => onComplete(result.totalHL)}
                   >
-                    Use {result.totalHL} kW →
+                    ✓ Use {result.totalHL} kW
                   </button>
                 )}
               </>
@@ -1100,3 +1390,4 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
     </div>
   );
 }
+
