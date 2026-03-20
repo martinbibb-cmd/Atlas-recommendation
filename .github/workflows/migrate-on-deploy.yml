@@ -1,0 +1,70 @@
+name: Apply D1 migrations after deploy
+
+# Runs after every push to main (the branch connected to Cloudflare Pages).
+# Cloudflare Pages builds and deploys the app automatically; this workflow
+# then applies any pending D1 migrations so the schema is never behind the
+# app code.
+#
+# Prerequisites — add these secrets in GitHub Settings → Secrets:
+#   CLOUDFLARE_API_TOKEN  — API token with D1 write permission
+#   CLOUDFLARE_ACCOUNT_ID — Cloudflare account ID
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  migrate:
+    name: Apply D1 migrations (remote)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply D1 migrations (remote)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler d1 migrations apply ATLAS_REPORTS_D1 --remote
+
+      - name: Verify schema health
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        # Poll /api/health/schema until the deploy propagates (up to ~60 s).
+        # Exit non-zero if the schema is still missing columns after retries.
+        run: |
+          for i in $(seq 1 6); do
+            echo "Schema check attempt $i/6…"
+            RESULT=$(npx wrangler d1 execute ATLAS_REPORTS_D1 --remote \
+              --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('reports','visits');" \
+              --json 2>/dev/null || echo '{"results":[]}')
+            echo "$RESULT"
+
+            VISIT_REF=$(npx wrangler d1 execute ATLAS_REPORTS_D1 --remote \
+              --command "PRAGMA table_info(visits);" \
+              --json 2>/dev/null | grep -c '"visit_reference"' || true)
+
+            if [ "$VISIT_REF" -gt "0" ]; then
+              echo "✅  visits.visit_reference column is present."
+              exit 0
+            fi
+
+            echo "Column not yet visible; waiting 10 s…"
+            sleep 10
+          done
+
+          echo "❌  visits.visit_reference column was NOT found after migration. Check D1 logs."
+          exit 1

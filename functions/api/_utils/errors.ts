@@ -12,13 +12,20 @@ export function isMissingTableError(err: unknown): boolean {
 }
 
 /**
- * Returns true when the error is a D1/SQLite "no such column" schema-drift
+ * Returns true when the error is a D1/SQLite "missing column" schema-drift
  * error. This indicates that a column added by a migration has not yet been
  * applied to the remote database, but the application code is already
- * querying it (e.g. visits.visit_reference added in migration 0004).
+ * querying or inserting it (e.g. visits.visit_reference added in migration 0004).
+ *
+ * SQLite surfaces two distinct messages depending on the statement type:
+ *   - SELECT / UPDATE: "no such column: visit_reference"
+ *   - INSERT:          "table visits has no column named visit_reference"
+ * Both patterns are matched so that all DML paths are covered.
  */
 export function isMissingColumnError(err: unknown): boolean {
-  return typeof err === "object" && err !== null && /no such column/i.test(String(err));
+  if (typeof err !== "object" || err === null) return false;
+  const msg = String(err);
+  return /no such column/i.test(msg) || /has no column named/i.test(msg);
 }
 
 /**

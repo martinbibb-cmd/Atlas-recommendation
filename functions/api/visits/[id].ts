@@ -205,9 +205,15 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     setClauses.push("current_step = ?");
     bindings.push(body.current_step);
   }
-  if (typeof body.visit_reference === "string") {
+  const visitReferenceValue = typeof body.visit_reference === "string" ? body.visit_reference : null;
+  const visitReferenceIncluded = visitReferenceValue !== null;
+  // Record the binding array index at which visit_reference will be inserted so
+  // the fallback path can remove it precisely without relying on positional
+  // coincidence between the two arrays.
+  const visitReferenceBindingIdx = visitReferenceIncluded ? bindings.length : -1;
+  if (visitReferenceIncluded) {
     setClauses.push("visit_reference = ?");
-    bindings.push(body.visit_reference.trim() || null);
+    bindings.push(visitReferenceValue.trim() || null);
   }
   if (
     body.working_payload != null &&
@@ -231,6 +237,34 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
   } catch (err) {
     if (isMissingTableError(err)) {
       return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
+    }
+    if (isMissingColumnError(err) && visitReferenceIncluded) {
+      // Migration 0004 has not been applied yet — retry the UPDATE without the
+      // visit_reference column so other fields are still persisted.
+      console.warn(`[Atlas] visit_reference column missing — using legacy schema fallback for update: id=${id}`);
+      const legacyClauses = setClauses.filter((c) => c !== "visit_reference = ?");
+      const legacyBindings = bindings.filter((_, i) => i !== visitReferenceBindingIdx);
+      if (legacyClauses.length === 0) {
+        // Only visit_reference was being updated; nothing else to persist now.
+        return Response.json({ ok: true, id });
+      }
+      try {
+        await env.ATLAS_REPORTS_D1.prepare(
+          `UPDATE visits SET ${legacyClauses.join(", ")} WHERE id = ?`
+        )
+          .bind(...legacyBindings)
+          .run();
+        return Response.json({ ok: true, id });
+      } catch (fallbackErr) {
+        console.error(`[Atlas] Visit legacy-schema update failed: id=${id}`, String(fallbackErr));
+        if (isMissingTableError(fallbackErr)) {
+          return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
+        }
+        return Response.json(
+          { ok: false, error: String(fallbackErr) },
+          { status: 500 }
+        );
+      }
     }
     return Response.json(
       { ok: false, error: String(err) },
