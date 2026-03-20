@@ -427,9 +427,12 @@ function renderCanvas(
 
 interface Props {
   onBack: () => void;
+  /** When provided, a "Use this value" button appears in the results panel.
+   *  Receives the calculated totalHL in kW. */
+  onComplete?: (totalHL: number) => void;
 }
 
-export default function HeatLossCalculator({ onBack }: Props) {
+export default function HeatLossCalculator({ onBack, onComplete }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Drawing state kept in a ref so event handlers always see latest values
@@ -1080,6 +1083,15 @@ export default function HeatLossCalculator({ onBack }: Props) {
                   ±25–40 % first-pass estimate using ΔT&nbsp;=&nbsp;20&nbsp;°C, ACH&nbsp;=&nbsp;0.75.
                   Not for formal MCS calculations.
                 </p>
+
+                {onComplete && (
+                  <button
+                    className="hlc__use-value-btn"
+                    onClick={() => onComplete(result.totalHL)}
+                  >
+                    Use {result.totalHL} kW →
+                  </button>
+                )}
               </>
             )}
           </div>
