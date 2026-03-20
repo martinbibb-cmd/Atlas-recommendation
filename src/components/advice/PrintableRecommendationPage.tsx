@@ -655,12 +655,6 @@ export default function PrintableRecommendationPage({
           )}
         </section>
       )}
-
-      {/* ── QR code footer — portal link ──────────────────────────────────── */}
-      {reportReference && (
-        <ReportQrFooter reportReference={reportReference} />
-      )}
-
     </div>
   );
 }

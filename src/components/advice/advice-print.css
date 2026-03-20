@@ -812,7 +812,6 @@
   .advice-page__back-btn,
   .prp__toolbar,
   nav,
-  header,
   footer,
   [role="navigation"],
   .hub-page__header,
@@ -860,6 +859,11 @@
     display: block !important;
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  .prp__header,
+  .prp__header-inner {
+    display: block !important;
   }
 
   /* Cards must not split across pages */
