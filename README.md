@@ -138,8 +138,10 @@ All three smoke endpoints should return `{ "ok": true, ... }` (or `{ "status": "
 every push to `main`. It applies pending D1 migrations and verifies the schema after each deploy,
 so the column is never missing from the live database when new code ships.
 
-> **First-time setup:** Add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub Actions
-> secrets (Settings → Secrets → Actions) so the workflow can authenticate with Cloudflare.
+> **First-time setup:** Add `CLOUDFLARE_API_TOKEN` as a GitHub Actions secret
+> (Settings → Secrets and variables → Actions → New repository secret) so the workflow can
+> authenticate with Cloudflare. The token must have **Account / D1 / Edit** permission.
+> The Cloudflare account ID is already stored in `wrangler.jsonc` and does not need a separate secret.
 
 Follow this checklist whenever a new migration file is added to `migrations/`:
 
