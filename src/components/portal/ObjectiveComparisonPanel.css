@@ -1,0 +1,163 @@
+/*
+ * ObjectiveComparisonPanel.css
+ *
+ * PR8 — Styles for the priority selector + comparison panel.
+ *
+ * Design intent:
+ *   - Calm chip-based interaction, no heavy dashboards
+ *   - Readable on mobile and tablet
+ *   - Matches the visual language of the rest of the portal
+ */
+
+/* ── Panel wrapper ───────────────────────────────────────────────────────── */
+
+.objective-comparison {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem 1.25rem;
+}
+
+.objective-comparison__heading {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.objective-comparison__intro {
+  margin: 0 0 0.9rem;
+  font-size: 0.84rem;
+  color: #718096;
+  line-height: 1.45;
+}
+
+/* ── Priority chip row ───────────────────────────────────────────────────── */
+
+.objective-comparison__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 1.1rem;
+}
+
+.objective-comparison__chip {
+  padding: 0.3rem 0.75rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #4a5568;
+  cursor: pointer;
+  line-height: 1.4;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.objective-comparison__chip:hover {
+  background: #ebf4ff;
+  border-color: #90cdf4;
+  color: #2b6cb0;
+}
+
+.objective-comparison__chip--active {
+  background: #2b6cb0;
+  border-color: #2b6cb0;
+  color: #fff;
+}
+
+.objective-comparison__chip--active:hover {
+  background: #2c5282;
+  border-color: #2c5282;
+  color: #fff;
+}
+
+/* ── Comparison panel ────────────────────────────────────────────────────── */
+
+.objective-comparison__panel {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.9rem;
+}
+
+.objective-comparison__priority-intro {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2d3748;
+  font-style: italic;
+}
+
+/* ── Best option callout ─────────────────────────────────────────────────── */
+
+.objective-comparison__best {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #f0fff4;
+  border: 1px solid #c6f6d5;
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.84rem;
+}
+
+.objective-comparison__best-label {
+  color: #276749;
+  font-weight: 500;
+}
+
+.objective-comparison__best-option {
+  color: #1a202c;
+  font-weight: 700;
+}
+
+/* ── Good fit / less strong ──────────────────────────────────────────────── */
+
+.objective-comparison__good-fit {
+  margin: 0 0 0.35rem;
+  font-size: 0.84rem;
+  color: #2d3748;
+  line-height: 1.45;
+}
+
+.objective-comparison__less-strong {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+  color: #718096;
+  line-height: 1.45;
+  font-style: italic;
+}
+
+/* ── Option notes ────────────────────────────────────────────────────────── */
+
+.objective-comparison__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.objective-comparison__note {
+  font-size: 0.84rem;
+  color: #2d3748;
+  line-height: 1.45;
+  padding: 0.4rem 0.7rem;
+  border-radius: 6px;
+}
+
+.objective-comparison__note--recommended {
+  background: #f0fff4;
+  border-left: 3px solid #68d391;
+}
+
+.objective-comparison__note--chosen {
+  background: #f0f9ff;
+  border-left: 3px solid #90cdf4;
+}
+
+.objective-comparison__note-label {
+  font-weight: 600;
+  color: #4a5568;
+}

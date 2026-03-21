@@ -1483,6 +1483,33 @@
   font-weight: 600;
 }
 
+/* ── PR8 — Expandable behaviour cards ───────────────────────────────────── */
+
+.behaviour-card--expandable .behaviour-card__header--interactive {
+  cursor: pointer;
+  user-select: none;
+}
+
+.behaviour-card--expandable .behaviour-card__header--interactive:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.behaviour-card__expand-icon {
+  font-size: 1.1rem;
+  color: #a0aec0;
+  margin-left: auto;
+  transition: transform 0.18s;
+  display: inline-block;
+}
+
+.behaviour-card__expand-icon--open {
+  transform: rotate(90deg);
+}
+
+.behaviour-card__body {
+  padding-top: 0.4rem;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════ */
 /* PR6 — New elements                                                        */
 /* ══════════════════════════════════════════════════════════════════════════ */

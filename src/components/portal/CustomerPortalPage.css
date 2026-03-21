@@ -348,3 +348,42 @@
   color: #2b6cb0;
   margin: 0 0 0.6rem;
 }
+
+/* ── PR8 — Emphasis switch (recommended / chosen) ───────────────────────── */
+
+.portal-chosen-hero__emphasis-switch {
+  display: flex;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.portal-emphasis-chip {
+  padding: 0.28rem 0.75rem;
+  border: 1px solid #bee3f8;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #4a5568;
+  cursor: pointer;
+  line-height: 1.4;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.portal-emphasis-chip:hover {
+  background: #ebf4ff;
+  border-color: #90cdf4;
+  color: #2b6cb0;
+}
+
+.portal-emphasis-chip--active {
+  background: #2b6cb0;
+  border-color: #2b6cb0;
+  color: #fff;
+}
+
+.portal-emphasis-chip--active:hover {
+  background: #2c5282;
+  border-color: #2c5282;
+}
+
