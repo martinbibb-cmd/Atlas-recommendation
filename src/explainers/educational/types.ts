@@ -9,6 +9,22 @@
  * Terminology must comply with docs/atlas-terminology.md.
  */
 
+/**
+ * Topic category for hamburger grouping and relevance filtering.
+ *
+ *   physics         — building heat-loss and thermal behaviour
+ *   energy          — efficiency, running style, and energy consumption
+ *   water           — hot water generation, storage, and delivery
+ *   space           — installation requirements and spatial constraints
+ *   system_behaviour — heating controls, zoning, and system scheduling
+ */
+export type ExplainerCategory =
+  | 'physics'
+  | 'energy'
+  | 'water'
+  | 'space'
+  | 'system_behaviour';
+
 export interface EducationalExplainer {
   /** Unique stable identifier (snake_case). */
   id: string;
@@ -27,6 +43,12 @@ export interface EducationalExplainer {
    * Each bullet should be a standalone statement — no sub-lists.
    */
   bullets: readonly string[];
+
+  /**
+   * Topic category — used to group explainers in the hamburger menu.
+   * All explainers must declare a category.
+   */
+  category: ExplainerCategory;
 
   /**
    * Optional identifier of a simulator panel this topic relates to.

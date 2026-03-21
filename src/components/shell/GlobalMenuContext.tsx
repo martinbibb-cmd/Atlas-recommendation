@@ -46,6 +46,19 @@ export interface GlobalMenuContextValue {
   contextMenuSections: GlobalMenuSection[];
   /** Called by the active page to register secondary panel sections. */
   setContextMenuSections: (sections: GlobalMenuSection[]) => void;
+  /**
+   * Programmatically open the explainers overlay at the specified explainer.
+   * Used by inline "Learn why" links to open the overlay from any page context.
+   * The overlay clears this once it has acted on the request.
+   */
+  openExplainerById: (id: string) => void;
+  /**
+   * The explainer ID requested via openExplainerById, or null when no
+   * request is pending.  Read by ExplainersOverlay to action the open request.
+   */
+  pendingExplainerId: string | null;
+  /** Called by ExplainersOverlay once it has opened the requested explainer. */
+  clearPendingExplainerId: () => void;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -55,6 +68,9 @@ const GlobalMenuContext = createContext<GlobalMenuContextValue>({
   setContextExplainerIds: () => {},
   contextMenuSections: [],
   setContextMenuSections: () => {},
+  openExplainerById: () => {},
+  pendingExplainerId: null,
+  clearPendingExplainerId: () => {},
 });
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -62,6 +78,7 @@ const GlobalMenuContext = createContext<GlobalMenuContextValue>({
 export function GlobalMenuProvider({ children }: { children: ReactNode }) {
   const [contextExplainerIds, setContextExplainerIdsState] = useState<string[]>([]);
   const [contextMenuSections, setContextMenuSectionsState] = useState<GlobalMenuSection[]>([]);
+  const [pendingExplainerId, setPendingExplainerIdState] = useState<string | null>(null);
 
   const setContextExplainerIds = useCallback((ids: string[]) => {
     setContextExplainerIdsState(ids);
@@ -71,12 +88,23 @@ export function GlobalMenuProvider({ children }: { children: ReactNode }) {
     setContextMenuSectionsState(sections);
   }, []);
 
+  const openExplainerById = useCallback((id: string) => {
+    setPendingExplainerIdState(id);
+  }, []);
+
+  const clearPendingExplainerId = useCallback(() => {
+    setPendingExplainerIdState(null);
+  }, []);
+
   return (
     <GlobalMenuContext.Provider value={{
       contextExplainerIds,
       setContextExplainerIds,
       contextMenuSections,
       setContextMenuSections,
+      openExplainerById,
+      pendingExplainerId,
+      clearPendingExplainerId,
     }}>
       {children}
     </GlobalMenuContext.Provider>

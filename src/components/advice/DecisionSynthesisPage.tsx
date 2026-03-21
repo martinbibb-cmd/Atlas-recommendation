@@ -612,7 +612,7 @@ export default function DecisionSynthesisPage({
   const [chosenOptionId, setChosenOptionId] = useState<string | null>(null);
 
   // Register context-specific explainer IDs with the global menu shell.
-  const { setContextExplainerIds, setContextMenuSections } = useGlobalMenu();
+  const { setContextExplainerIds, setContextMenuSections, openExplainerById } = useGlobalMenu();
 
   // Generate QR code data URL whenever a report ID is saved.
   useEffect(() => {
@@ -1495,6 +1495,7 @@ export default function DecisionSynthesisPage({
             isDivergent={showChosenOptionBanner}
             recommendedOptionLabel={recommendedOptionCard?.label ?? 'Recommended option'}
             chosenOptionLabel={chosenOptionCard?.label ?? 'Your chosen option'}
+            onOpenExplainer={openExplainerById}
           />
         </div>
       )}

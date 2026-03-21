@@ -6,11 +6,12 @@
  *   - Terminology compliance (no prohibited Atlas terms)
  *   - Coverage (all required topics are present)
  *   - Uniqueness (no duplicate ids)
+ *   - Category assignment (all explainers declare a valid category)
  */
 
 import { describe, it, expect } from 'vitest';
 import { EDUCATIONAL_EXPLAINERS } from '../content';
-import type { EducationalExplainer } from '../types';
+import type { EducationalExplainer, ExplainerCategory } from '../types';
 
 // ─── Terminology: prohibited terms from docs/atlas-terminology.md §8 ─────────
 
@@ -24,15 +25,27 @@ const PROHIBITED_TERMS: ReadonlyArray<{ term: string; replacement: string }> = [
   { term: 'high performance',        replacement: 'thermal capacity / recovery time' },
 ];
 
+// ─── Valid categories ─────────────────────────────────────────────────────────
+
+const VALID_CATEGORIES: ReadonlyArray<ExplainerCategory> = [
+  'physics',
+  'energy',
+  'water',
+  'space',
+  'system_behaviour',
+];
+
 // ─── Required explainer ids ───────────────────────────────────────────────────
 
 const REQUIRED_IDS: ReadonlyArray<string> = [
   'on_demand_vs_stored',
+  'shared_mains_flow',
   'pressure_vs_flow',
   'multiple_taps',
   'cycling_efficiency',
   'condensing_return_temp',
   'heat_pump_flow_temp',
+  'low_and_slow',
   'standard_vs_mixergy',
   'cylinder_age_condition',
   'pipe_capacity',
@@ -55,8 +68,8 @@ describe('EDUCATIONAL_EXPLAINERS', () => {
     expect(EDUCATIONAL_EXPLAINERS.length).toBeGreaterThan(0);
   });
 
-  it('contains exactly 12 explainers', () => {
-    expect(EDUCATIONAL_EXPLAINERS).toHaveLength(12);
+  it('contains exactly 14 explainers', () => {
+    expect(EDUCATIONAL_EXPLAINERS).toHaveLength(14);
   });
 
   it('includes all required topic ids', () => {
@@ -70,6 +83,30 @@ describe('EDUCATIONAL_EXPLAINERS', () => {
     const ids = EDUCATIONAL_EXPLAINERS.map(e => e.id);
     const unique = new Set(ids);
     expect(unique.size).toBe(ids.length);
+  });
+
+  it('every explainer declares a valid category', () => {
+    for (const e of EDUCATIONAL_EXPLAINERS) {
+      expect(
+        VALID_CATEGORIES,
+        `Explainer "${e.id}" has unknown category "${e.category}"`,
+      ).toContain(e.category);
+    }
+  });
+
+  it('includes at least one physics explainer', () => {
+    const physicsIds = EDUCATIONAL_EXPLAINERS.filter(e => e.category === 'physics').map(e => e.id);
+    expect(physicsIds.length).toBeGreaterThan(0);
+  });
+
+  it('includes at least one energy explainer', () => {
+    const energyIds = EDUCATIONAL_EXPLAINERS.filter(e => e.category === 'energy').map(e => e.id);
+    expect(energyIds.length).toBeGreaterThan(0);
+  });
+
+  it('includes at least one water explainer', () => {
+    const waterIds = EDUCATIONAL_EXPLAINERS.filter(e => e.category === 'water').map(e => e.id);
+    expect(waterIds.length).toBeGreaterThan(0);
   });
 
   // ── Per-explainer structure checks ─────────────────────────────────────────
@@ -105,6 +142,10 @@ describe('EDUCATIONAL_EXPLAINERS', () => {
       it('has no duplicate bullets', () => {
         const unique = new Set(explainer.bullets);
         expect(unique.size).toBe(explainer.bullets.length);
+      });
+
+      it('has a valid category', () => {
+        expect(VALID_CATEGORIES).toContain(explainer.category);
       });
 
       it('does not use any prohibited Atlas terminology', () => {
@@ -164,6 +205,14 @@ describe('EDUCATIONAL_EXPLAINERS', () => {
       expect(text).toContain('stored');
     });
 
+    it('covers flow sharing across the home', () => {
+      const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'shared_mains_flow');
+      expect(e).toBeDefined();
+      const text = allText(e!).toLowerCase();
+      expect(text).toMatch(/flow|mains/);
+      expect(text).toMatch(/shared|split|compet/);
+    });
+
     it('covers pressure and flow', () => {
       const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'pressure_vs_flow');
       expect(e).toBeDefined();
@@ -201,6 +250,14 @@ describe('EDUCATIONAL_EXPLAINERS', () => {
       const text = allText(e!).toLowerCase();
       expect(text).toContain('heat pump');
       expect(text).toMatch(/flow temp/);
+    });
+
+    it('covers low-and-slow system running', () => {
+      const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'low_and_slow');
+      expect(e).toBeDefined();
+      const text = allText(e!).toLowerCase();
+      expect(text).toMatch(/low.*slow|continuous|gentle/);
+      expect(text).toMatch(/efficien/);
     });
 
     it('covers standard cylinder vs Mixergy comparison', () => {

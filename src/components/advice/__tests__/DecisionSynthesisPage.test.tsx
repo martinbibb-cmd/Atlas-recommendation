@@ -1296,3 +1296,100 @@ describe('DecisionSynthesisPage — PR4 behaviour cards with customer divergence
     expect(combiMatches.length).toBeGreaterThan(0);
   });
 });
+
+// ─── PR5: Hamburger category groups ──────────────────────────────────────────
+
+describe('DecisionSynthesisPage — PR5 hamburger category groups', () => {
+  function openLibrary() {
+    render(<GlobalMenuShell><DecisionSynthesisPage engineOutput={DEMO_OUTPUT} /></GlobalMenuShell>);
+    fireEvent.click(screen.getByRole('button', { name: /open explainers/i }));
+  }
+
+  it('hamburger shows the energy explainer group in the library section', () => {
+    openLibrary();
+    expect(document.querySelector('[data-testid="explainers-category-section-energy"]')).not.toBeNull();
+  });
+
+  it('hamburger shows the physics/heating explainer group in the library section', () => {
+    openLibrary();
+    // physics and system_behaviour are merged under the "heating" group key
+    expect(document.querySelector('[data-testid="explainers-category-section-heating"]')).not.toBeNull();
+  });
+
+  it('hamburger shows the water explainer group in the library section', () => {
+    openLibrary();
+    expect(document.querySelector('[data-testid="explainers-category-section-water"]')).not.toBeNull();
+  });
+
+  it('hamburger shows the space explainer group in the library section', () => {
+    openLibrary();
+    expect(document.querySelector('[data-testid="explainers-category-section-space"]')).not.toBeNull();
+  });
+
+  it('shared_mains_flow appears in the library when no engine signals are present', () => {
+    openLibrary();
+    expect(document.querySelector('[data-testid="explainers-menu-item-shared_mains_flow"]')).not.toBeNull();
+  });
+
+  it('low_and_slow appears in the library when no engine signals are present', () => {
+    openLibrary();
+    expect(document.querySelector('[data-testid="explainers-menu-item-low_and_slow"]')).not.toBeNull();
+  });
+});
+
+// ─── PR5: Inline "Learn why" links on behaviour cards ────────────────────────
+
+describe('DecisionSynthesisPage — PR5 inline Learn why links', () => {
+  const OUTPUT_WITH_MAINS_CARD: EngineOutputV1 = {
+    ...DEMO_OUTPUT,
+    realWorldBehaviours: [
+      makeBehaviourCard({
+        scenario_id: 'mains_limited',
+        title: 'Whole-home flow sharing',
+        limiting_factor: 'mains',
+        recommended_option_outcome: 'limited',
+      }),
+    ],
+  };
+
+  const OUTPUT_WITHOUT_LIMITING_FACTOR: EngineOutputV1 = {
+    ...DEMO_OUTPUT,
+    realWorldBehaviours: [
+      makeBehaviourCard({
+        scenario_id: 'clean_result',
+        title: 'Morning shower',
+        recommended_option_outcome: 'strong',
+      }),
+    ],
+  };
+
+  it('shows a "Learn why" link on a card with a mains limiting factor', () => {
+    render(
+      <GlobalMenuShell>
+        <DecisionSynthesisPage engineOutput={OUTPUT_WITH_MAINS_CARD} />
+      </GlobalMenuShell>,
+    );
+    expect(screen.getByTestId('behaviour-card-learn-why-mains_limited')).toBeTruthy();
+  });
+
+  it('does not show a "Learn why" link on a card with no limiting factor', () => {
+    render(
+      <GlobalMenuShell>
+        <DecisionSynthesisPage engineOutput={OUTPUT_WITHOUT_LIMITING_FACTOR} />
+      </GlobalMenuShell>,
+    );
+    expect(screen.queryByTestId('behaviour-card-learn-why-clean_result')).toBeNull();
+  });
+
+  it('clicking a "Learn why" link opens the overlay at the relevant explainer', () => {
+    render(
+      <GlobalMenuShell>
+        <DecisionSynthesisPage engineOutput={OUTPUT_WITH_MAINS_CARD} />
+      </GlobalMenuShell>,
+    );
+    fireEvent.click(screen.getByTestId('behaviour-card-learn-why-mains_limited'));
+    // Overlay should be open and showing the shared_mains_flow explainer
+    expect(document.querySelector('[data-testid="explainers-overlay"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="explainers-modal"]')).not.toBeNull();
+  });
+});
