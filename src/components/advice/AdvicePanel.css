@@ -1,0 +1,2 @@
+.advice-panel{display:grid;gap:1rem;padding:1rem;border-radius:20px;background:linear-gradient(180deg,#10243d 0%,#0b1728 100%);color:#e8f0fb;border:1px solid rgba(143,190,255,.2)}
+.advice-panel__intro h2,.advice-panel__section h3{margin:0 0 .4rem}.advice-panel__intro p{margin:0;color:#b9cbe4}.advice-panel__section ul{margin:0;padding-left:1.2rem;color:#d9e6f7}.advice-panel__section li+li{margin-top:.35rem}
