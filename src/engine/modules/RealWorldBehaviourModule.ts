@@ -66,7 +66,7 @@ function classifyRecommendedSystem(
   // Vented: gravity-fed (loft tank source).
   if (
     input.coldWaterSource === 'loft_tank' ||
-    input.gravityHeadM !== undefined
+    input.cwsHeadMetres !== undefined
   ) {
     return 'stored_vented';
   }
@@ -215,7 +215,7 @@ function buildShowerAndTapScenario(
         return 'limited';
       }
       case 'stored_vented': {
-        const headM = input.gravityHeadM;
+        const headM = input.cwsHeadMetres;
         if (headM == null) return 'acceptable'; // unknown, assume ok
         if (headM >= 0.5) return 'acceptable';
         return 'limited';
@@ -350,7 +350,7 @@ function buildBathFillingScenario(
       case 'stored_vented': {
         const base = storedSustainedOutcome(result, input);
         // Gravity head limits fill rate for vented systems — typically slower than unvented.
-        const headM = input.gravityHeadM;
+        const headM = input.cwsHeadMetres;
         if (headM != null && headM < 0.5 && base !== 'poor') return 'limited';
         return base;
       }
@@ -442,7 +442,7 @@ function buildPeakHouseholdScenario(
 }
 
 function buildColdMainsPressureScenario(
-  primary: SystemClass,
+  _primary: SystemClass,
   alternative: SystemClass | null,
   result: FullEngineResultCore,
   _input: EngineInputV2_3,
