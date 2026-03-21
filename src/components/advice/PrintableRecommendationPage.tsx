@@ -10,6 +10,9 @@
  *
  * Logical print page structure (may compress into fewer physical pages):
  *   Page 1 — Recommendation summary (hero + compare summary + badges)
+ *   Page 1a — Why Atlas suggested this (PR7)
+ *   Page 1b — Your chosen option (PR7 — when divergent)
+ *   Page 1c — Everyday behaviour cards (PR7 — top 3–5)
  *   Page 2 — Best by objective (6 cards)
  *   Page 3 — Installation recipe
  *   Page 4 — Recommendation scope (Essential / Best Advice / Enhanced / Future Potential)
@@ -25,6 +28,18 @@
 import { useState } from 'react';
 import type { AdviceCard, AdviceFromCompareResult, PerformanceSummary, UnifiedConfidence, RecommendationScope } from '../../lib/advice/buildAdviceFromCompare';
 import type { CompareSeed } from '../../lib/simulator/buildCompareSeedFromSurvey';
+import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
+import type { RecommendationPresentationState } from '../../lib/selection/optionSelection';
+import { hasCustomerDivergence } from '../../lib/selection/optionSelection';
+import { buildRealWorldBehaviourCards } from '../../lib/behaviour/buildRealWorldBehaviourCards';
+import { buildRecommendationReasonSummary } from '../../lib/advice/buildRecommendationReasonSummary';
+import {
+  WHY_ATLAS_HEADING,
+  CHOSEN_SECTION_HEADING,
+  COMPARISON_SECTION_HEADING,
+  CHOSEN_OPTION_FRAMING,
+  BEHAVIOUR_OUTCOME_LABEL,
+} from '../../lib/copy/customerCopy';
 import ReportQrFooter from '../report/ReportQrFooter';
 import './advice-print.css';
 
@@ -161,6 +176,17 @@ interface Props {
    * When provided, a QR code block is appended to the final printed page.
    */
   reportReference?: string;
+  /**
+   * PR7 — Full engine output.
+   * When provided together with presentationState, enables the "Why Atlas
+   * suggested this" section and behaviour cards in the printed report.
+   */
+  engineOutput?: EngineOutputV1;
+  /**
+   * PR7 — Presentation state (recommended + chosen option).
+   * Required to determine divergence and render chosen-option section.
+   */
+  presentationState?: RecommendationPresentationState;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -349,6 +375,8 @@ export default function PrintableRecommendationPage({
   compareSeed,
   onBack,
   reportReference,
+  engineOutput,
+  presentationState,
 }: Props) {
   // Detect whether this is a genuine survey-backed print or fallback.
   const isSurveyBacked = advice != null;
@@ -407,6 +435,46 @@ export default function PrintableRecommendationPage({
 
   // Key trade-off from the primary card.
   const keyTradeOff = advice?.bestOverall.keyTradeOff ?? null;
+
+  // PR7 — Reason summary + behaviour cards from engine output.
+  // Only computed when both engineOutput and presentationState are provided.
+  const resolvedPresentationState: RecommendationPresentationState | undefined =
+    engineOutput != null && presentationState != null
+      ? presentationState
+      : engineOutput != null
+        ? {
+            recommendedOptionId: engineOutput.recommendation.primary ?? '',
+            chosenOptionId: engineOutput.recommendation.primary ?? '',
+            chosenByCustomer: false,
+          }
+        : undefined;
+
+  const printBehaviourCards =
+    engineOutput != null && resolvedPresentationState != null
+      ? buildRealWorldBehaviourCards(engineOutput, resolvedPresentationState).slice(0, 5)
+      : [];
+
+  const printRecommendedOptionId = resolvedPresentationState?.recommendedOptionId ?? '';
+  const printReasonSummary =
+    engineOutput != null
+      ? buildRecommendationReasonSummary(engineOutput, printRecommendedOptionId)
+      : null;
+  const showPrintWhyAtlas =
+    printReasonSummary != null &&
+    printReasonSummary.reasons.length > 0 &&
+    (engineOutput?.verdict?.primaryReason != null ||
+      (engineOutput?.verdict?.reasons?.length ?? 0) > 0);
+
+  const showPrintChosenOption =
+    presentationState != null &&
+    hasCustomerDivergence(presentationState) &&
+    engineOutput?.options != null;
+  const printChosenOptionCard =
+    showPrintChosenOption && presentationState?.chosenOptionId
+      ? engineOutput!.options!.find(o => o.id === presentationState!.chosenOptionId) ?? null
+      : null;
+  const printRecommendedOptionCard =
+    engineOutput?.options?.find(o => o.id === printRecommendedOptionId) ?? null;
 
   return (
     <div className="prp" aria-label="Printable Atlas recommendation">
@@ -575,6 +643,82 @@ export default function PrintableRecommendationPage({
       {advice?.confidenceSummary.unified != null && (
         <section className="prp__section" aria-label="Confidence breakdown">
           <UnifiedConfidencePrint unified={advice.confidenceSummary.unified} />
+        </section>
+      )}
+
+      {/* ── PR7 — Why Atlas suggested this ────────────────────────────── */}
+      {showPrintWhyAtlas && printReasonSummary != null && (
+        <section
+          className="prp__section prp__section--why-atlas"
+          aria-label="Why Atlas suggested this"
+          data-testid="prp-why-atlas"
+        >
+          <h2 className="prp__section-title prp__section-title--small">{WHY_ATLAS_HEADING}</h2>
+          <ul className="prp__why-atlas-list" aria-label="Reasons for this recommendation">
+            {printReasonSummary.reasons.map((reason) => (
+              <li key={reason} className="prp__why-atlas-item">{reason}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* ── PR7 — Your chosen option (when divergent) ─────────────────── */}
+      {showPrintChosenOption && printChosenOptionCard != null && (
+        <section
+          className="prp__section prp__section--chosen-option"
+          aria-label={CHOSEN_SECTION_HEADING}
+          data-testid="prp-chosen-option"
+        >
+          <h2 className="prp__section-title prp__section-title--small">
+            {CHOSEN_SECTION_HEADING}: {printChosenOptionCard.label}
+          </h2>
+          <p className="prp__chosen-option__affirm">{CHOSEN_OPTION_FRAMING.affirm}</p>
+          {printChosenOptionCard.why.length > 0 && (
+            <p className="prp__chosen-option__align">
+              {CHOSEN_OPTION_FRAMING.align} {printChosenOptionCard.why[0]}
+            </p>
+          )}
+          <p className="prp__chosen-option__guide">{CHOSEN_OPTION_FRAMING.guide}</p>
+        </section>
+      )}
+
+      {/* ── PR7 — Everyday behaviour cards (top 3–5) ──────────────────── */}
+      {printBehaviourCards.length > 0 && (
+        <section
+          className="prp__section"
+          aria-label={showPrintChosenOption ? COMPARISON_SECTION_HEADING : 'In daily use'}
+          data-testid="prp-behaviour-cards"
+        >
+          <h2 className="prp__section-title prp__section-title--small">
+            {showPrintChosenOption ? COMPARISON_SECTION_HEADING : 'In daily use'}
+          </h2>
+          <ul className="prp__behaviour-cards" aria-label="Everyday behaviour scenarios">
+            {printBehaviourCards.map(card => (
+              <li
+                key={card.id}
+                className={`prp__behaviour-card prp__behaviour-card--${card.outcome}`}
+                aria-label={card.title}
+              >
+                <span className="prp__behaviour-card__outcome">
+                  {BEHAVIOUR_OUTCOME_LABEL[card.outcome]}
+                </span>
+                <span className="prp__behaviour-card__title">{card.title}</span>
+                <span className="prp__behaviour-card__summary">{card.summary}</span>
+                {showPrintChosenOption && card.recommendedOptionNote != null && (
+                  <span className="prp__behaviour-card__rec-note">
+                    <em>{printRecommendedOptionCard?.label ?? 'Recommended'}:</em>{' '}
+                    {card.recommendedOptionNote}
+                  </span>
+                )}
+                {showPrintChosenOption && card.chosenOptionNote != null && (
+                  <span className="prp__behaviour-card__chosen-note">
+                    <em>{printChosenOptionCard?.label ?? 'Your choice'}:</em>{' '}
+                    {card.chosenOptionNote}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

@@ -561,3 +561,189 @@ describe('PrintableRecommendationPage — structure stability', () => {
     expect(document.querySelector('.prp')).toBeTruthy();
   });
 });
+
+// ─── PR7 — Why Atlas suggested this in print ──────────────────────────────────
+
+describe('PrintableRecommendationPage — PR7 why atlas section', () => {
+  it('renders "Why Atlas suggested this" when engineOutput has verdict reasons', () => {
+    render(
+      <PrintableRecommendationPage
+        advice={DEMO_ADVICE}
+        engineOutput={DEMO_ENGINE_OUTPUT}
+      />,
+    );
+    expect(document.querySelector('[data-testid="prp-why-atlas"]')).not.toBeNull();
+  });
+
+  it('"Why Atlas suggested this" contains the primaryReason', () => {
+    render(
+      <PrintableRecommendationPage
+        advice={DEMO_ADVICE}
+        engineOutput={DEMO_ENGINE_OUTPUT}
+      />,
+    );
+    const whyAtlas = document.querySelector('[data-testid="prp-why-atlas"]')!;
+    expect(whyAtlas.textContent).toMatch(/strong match for occupancy/i);
+  });
+
+  it('does not render "Why Atlas suggested this" when engineOutput is absent', () => {
+    render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
+    expect(document.querySelector('[data-testid="prp-why-atlas"]')).toBeNull();
+  });
+
+  it('does not render "Why Atlas suggested this" when verdict has no reasons', () => {
+    const outputNoReasons: EngineOutputV1 = {
+      ...DEMO_ENGINE_OUTPUT,
+      verdict: {
+        title: 'Good match',
+        status: 'good',
+        reasons: [],
+        confidence: { level: 'high', reasons: [] },
+        assumptionsUsed: [],
+      },
+    };
+    render(
+      <PrintableRecommendationPage
+        advice={DEMO_ADVICE}
+        engineOutput={outputNoReasons}
+      />,
+    );
+    expect(document.querySelector('[data-testid="prp-why-atlas"]')).toBeNull();
+  });
+});
+
+// ─── PR7 — Behaviour cards in print ──────────────────────────────────────────
+
+describe('PrintableRecommendationPage — PR7 behaviour cards', () => {
+  const OUTPUT_WITH_BEHAVIOURS: EngineOutputV1 = {
+    ...DEMO_ENGINE_OUTPUT,
+    realWorldBehaviours: [
+      {
+        scenario_id: 'morning_shower',
+        title: 'Morning shower',
+        summary: 'Hot water on demand.',
+        recommended_option_outcome: 'strong',
+        limiting_factor: undefined,
+      },
+      {
+        scenario_id: 'simultaneous_use',
+        title: 'Two outlets at once',
+        summary: 'Performance may vary.',
+        recommended_option_outcome: 'acceptable',
+        limiting_factor: 'mains',
+      },
+    ],
+  };
+
+  const PRESENTATION_STATE_NO_DIVERGENCE = {
+    recommendedOptionId: 'stored_unvented',
+    chosenOptionId: 'stored_unvented',
+    chosenByCustomer: false,
+  };
+
+  it('renders behaviour cards section when realWorldBehaviours present', () => {
+    render(
+      <PrintableRecommendationPage
+        advice={DEMO_ADVICE}
+        engineOutput={OUTPUT_WITH_BEHAVIOURS}
+        presentationState={PRESENTATION_STATE_NO_DIVERGENCE}
+      />,
+    );
+    expect(document.querySelector('[data-testid="prp-behaviour-cards"]')).not.toBeNull();
+  });
+
+  it('renders the correct number of behaviour cards (up to 5)', () => {
+    render(
+      <PrintableRecommendationPage
+        advice={DEMO_ADVICE}
+        engineOutput={OUTPUT_WITH_BEHAVIOURS}
+        presentationState={PRESENTATION_STATE_NO_DIVERGENCE}
+      />,
+    );
+    const cardList = document.querySelector('[data-testid="prp-behaviour-cards"] ul')!;
+    const cards = cardList.querySelectorAll('li');
+    expect(cards.length).toBe(2);
+  });
+
+  it('behaviour cards show scenario titles', () => {
+    render(
+      <PrintableRecommendationPage
+        advice={DEMO_ADVICE}
+        engineOutput={OUTPUT_WITH_BEHAVIOURS}
+        presentationState={PRESENTATION_STATE_NO_DIVERGENCE}
+      />,
+    );
+    expect(screen.getByText('Morning shower')).toBeTruthy();
+    expect(screen.getByText('Two outlets at once')).toBeTruthy();
+  });
+
+  it('does not render behaviour cards when engineOutput is absent', () => {
+    render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
+    expect(document.querySelector('[data-testid="prp-behaviour-cards"]')).toBeNull();
+  });
+});
+
+// ─── PR7 — Chosen option in print ────────────────────────────────────────────
+
+describe('PrintableRecommendationPage — PR7 chosen option section', () => {
+  const OUTPUT_WITH_OPTIONS: EngineOutputV1 = {
+    ...DEMO_ENGINE_OUTPUT,
+    options: [
+      makeOption('stored_unvented', 'viable'),
+      makeOption('combi', 'caution'),
+    ],
+  };
+
+  it('renders chosen option section when customer has diverged', () => {
+    render(
+      <PrintableRecommendationPage
+        advice={DEMO_ADVICE}
+        engineOutput={OUTPUT_WITH_OPTIONS}
+        presentationState={{
+          recommendedOptionId: 'stored_unvented',
+          chosenOptionId: 'combi',
+          chosenByCustomer: true,
+        }}
+      />,
+    );
+    expect(document.querySelector('[data-testid="prp-chosen-option"]')).not.toBeNull();
+  });
+
+  it('chosen option section uses affirm-first language', () => {
+    render(
+      <PrintableRecommendationPage
+        advice={DEMO_ADVICE}
+        engineOutput={OUTPUT_WITH_OPTIONS}
+        presentationState={{
+          recommendedOptionId: 'stored_unvented',
+          chosenOptionId: 'combi',
+          chosenByCustomer: true,
+        }}
+      />,
+    );
+    const section = document.querySelector('[data-testid="prp-chosen-option"]')!;
+    expect(section.textContent).toMatch(/I can see why this option appeals/i);
+    expect(section.textContent).not.toMatch(/override/i);
+    expect(section.textContent).not.toMatch(/you chose against advice/i);
+  });
+
+  it('does not render chosen option section when there is no divergence', () => {
+    render(
+      <PrintableRecommendationPage
+        advice={DEMO_ADVICE}
+        engineOutput={OUTPUT_WITH_OPTIONS}
+        presentationState={{
+          recommendedOptionId: 'stored_unvented',
+          chosenOptionId: 'stored_unvented',
+          chosenByCustomer: false,
+        }}
+      />,
+    );
+    expect(document.querySelector('[data-testid="prp-chosen-option"]')).toBeNull();
+  });
+
+  it('does not render chosen option section when engineOutput is absent', () => {
+    render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
+    expect(document.querySelector('[data-testid="prp-chosen-option"]')).toBeNull();
+  });
+});

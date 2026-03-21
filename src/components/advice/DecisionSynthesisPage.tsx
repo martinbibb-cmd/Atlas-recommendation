@@ -971,6 +971,8 @@ export default function DecisionSynthesisPage({
         compareSeed={compareSeed}
         onBack={() => setShowPrint(false)}
         reportReference={printableReportReference}
+        engineOutput={engineOutput}
+        presentationState={presentationState}
       />
     );
   }
@@ -1041,7 +1043,7 @@ export default function DecisionSynthesisPage({
           <>
             {saveState === 'idle' && (
               <p className="advice-page__save-hint" data-testid="save-report-hint">
-                Save this report to generate a shareable link and QR code.
+                Save to generate a portal link and QR code you can share with the customer.
               </p>
             )}
             <button
@@ -1096,7 +1098,7 @@ export default function DecisionSynthesisPage({
         >
           <div className="advice-share-panel__inner">
             <div className="advice-share-panel__left">
-              <span className="advice-share-panel__label">✅ Report saved</span>
+              <span className="advice-share-panel__label">✅ Report saved — share the link or QR code below</span>
               <span className="advice-share-panel__id" aria-label="Report ID">
                 ID: {savedReportId}
               </span>
@@ -1130,7 +1132,7 @@ export default function DecisionSynthesisPage({
                   rel="noopener noreferrer"
                   aria-label="Open saved report in new tab"
                 >
-                  Open report ↗
+                  Open saved report ↗
                 </a>
               </div>
             </div>

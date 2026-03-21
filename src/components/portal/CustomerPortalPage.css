@@ -276,3 +276,75 @@
   margin: 0;
   font-style: italic;
 }
+
+/* ── PR6/PR7 — Chosen option hero (upgraded from banner) ────────────────── */
+
+.portal-chosen-hero {
+  background: #f0f9ff;
+  border: 1px solid #bee3f8;
+  border-radius: 8px;
+  padding: 1.1rem 1.3rem;
+}
+
+.portal-chosen-hero__heading {
+  color: #2b6cb0;
+}
+
+.portal-chosen-hero__affirm {
+  font-size: 0.95rem;
+  color: #2d3748;
+  margin: 0 0 0.5rem;
+  font-style: italic;
+}
+
+.portal-chosen-hero__align {
+  font-size: 0.9rem;
+  color: #4a5568;
+  margin: 0 0 0.5rem;
+}
+
+.portal-chosen-hero__headline {
+  font-size: 0.9rem;
+  color: #2d3748;
+  margin: 0 0 0.5rem;
+  font-weight: 500;
+}
+
+.portal-chosen-hero__guide {
+  font-size: 0.9rem;
+  color: #744210;
+  margin: 0;
+}
+
+/* ── PR6/PR7 — Why Atlas suggested this ─────────────────────────────────── */
+
+.portal-why-atlas {
+  background: #f7fafc;
+  border-left: 3px solid #4299e1;
+  padding: 0.85rem 1.1rem;
+  border-radius: 0 6px 6px 0;
+}
+
+.portal-why-atlas__list {
+  margin: 0;
+  padding: 0 0 0 1.2rem;
+  list-style: disc;
+}
+
+.portal-why-atlas__item {
+  margin-bottom: 0.35rem;
+  font-size: 0.88rem;
+  color: #2d3748;
+  line-height: 1.45;
+}
+
+/* ── PR7 — Recommendation hero heading ──────────────────────────────────── */
+
+.portal-hero__heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #2b6cb0;
+  margin: 0 0 0.6rem;
+}
