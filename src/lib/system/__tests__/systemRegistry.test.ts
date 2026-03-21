@@ -146,7 +146,7 @@ describe('systemRegistry — mains-fed cylinder systems', () => {
     expect(MAINS_FED_CYLINDER_SYSTEM_IDS).toContain('system_unvented');
   });
 
-  it('MAINS_FED_CYLINDER_SYSTEM_IDS does not include stored_vented (gravity cylinder)', () => {
+  it('MAINS_FED_CYLINDER_SYSTEM_IDS does not include stored_vented (tank-fed cylinder)', () => {
     expect(MAINS_FED_CYLINDER_SYSTEM_IDS).not.toContain('stored_vented');
   });
 });

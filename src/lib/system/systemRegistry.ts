@@ -53,7 +53,7 @@ export type DhwArchitecture = 'on_demand' | 'stored_dhw';
 export type StorageCategory =
   | 'no_storage'
   | 'mains_fed_cylinder'
-  | 'gravity_cylinder'
+  | 'tank_fed_cylinder'
   | 'heat_pump_store'
   | 'modifier';
 
@@ -112,7 +112,7 @@ const REGISTRY_ENTRIES: SystemRecord[] = [
     id: 'stored_vented',
     label: 'Stored vented (tank-fed hot water)',
     dhwArchitecture: 'stored_dhw',
-    storageCategory: 'gravity_cylinder',
+    storageCategory: 'tank_fed_cylinder',
     isModifier: false,
     baseSystemIds: [],
     engineOptionId: 'stored_vented',
@@ -134,7 +134,7 @@ const REGISTRY_ENTRIES: SystemRecord[] = [
     id: 'regular_vented',
     label: 'Regular boiler with tank-fed hot water',
     dhwArchitecture: 'stored_dhw',
-    storageCategory: 'gravity_cylinder',
+    storageCategory: 'tank_fed_cylinder',
     isModifier: false,
     baseSystemIds: [],
     engineOptionId: 'regular_vented',
