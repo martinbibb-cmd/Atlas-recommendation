@@ -10,6 +10,7 @@ import { buildPathwaysV1 } from './modules/PathwayBuilderModule';
 import { PENALTY_NARRATIVES, selectTopNarrativePenalties } from './scoring/penaltyNarratives';
 import type { PenaltyId } from '../contracts/scoring.penaltyIds';
 import { assessFutureEnergyOpportunities } from './modules/FutureEnergyOpportunitiesModule';
+import { buildRealWorldBehavioursV1 } from './modules/RealWorldBehaviourModule';
 
 function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3): EligibilityItem[] {
   const { redFlags, hydraulicV1, combiDhwV1, storedDhwV1 } = result;
@@ -838,6 +839,9 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     ? assessFutureEnergyOpportunities(input, primaryRecommendation)
     : undefined;
 
+  // Modelled real-world behaviour scenarios
+  const realWorldBehaviours = input ? buildRealWorldBehavioursV1(result, input) : undefined;
+
   return {
     eligibility: eligibilityItems,
     redFlags: [...buildRedFlags(allReasons), ...combiFlags, ...storedFlags],
@@ -859,5 +863,6 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
     influenceSummary,
     plans,
     futureEnergyOpportunities,
+    realWorldBehaviours,
   };
 }

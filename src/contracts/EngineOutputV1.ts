@@ -625,6 +625,69 @@ export interface FutureEnergyOpportunities {
   evCharging: OpportunityAssessment;
 }
 
+// ─── Real-World Behaviour Scenarios (V1) ─────────────────────────────────────
+
+/**
+ * Outcome rating for a single scenario under a given system option.
+ *
+ *   strong     — performs well; no meaningful limitation
+ *   acceptable — performs adequately; slight reduction but not noticeable in normal use
+ *   limited    — noticeable reduction; customer should be aware of the constraint
+ *   poor       — significant shortfall; system or property cannot meet this demand
+ */
+export type BehaviourOutcome = 'strong' | 'acceptable' | 'limited' | 'poor';
+
+/**
+ * The primary factor constraining performance in a scenario.
+ *
+ *   mains               — incoming cold-water main (flow rate or pressure)
+ *   hot_water_generation — heat source output capacity (combi kW, coil reheat rate)
+ *   stored_volume        — cylinder capacity relative to demand
+ *   distribution         — gravity head or pipework restriction
+ *   unknown              — cannot be determined from available inputs
+ */
+export type BehaviourLimitingFactor =
+  | 'mains'
+  | 'hot_water_generation'
+  | 'stored_volume'
+  | 'distribution'
+  | 'unknown';
+
+/**
+ * A single modelled real-world behaviour card.
+ *
+ * Translates physics model outputs into a scenario-based customer statement.
+ * Shows how the recommended (and optionally alternative) option is expected
+ * to behave in a specific daily-use situation.
+ *
+ * Presentation rules:
+ *   - Lead with lived-experience statements, not raw engineering values
+ *   - Keep scenario labels simple and recognisable
+ *   - Explicitly distinguish system limitations from property/mains limitations
+ *   - Where confidence is lower, use softer wording
+ */
+export interface RealWorldBehaviourCard {
+  /** Stable scenario identifier (e.g. 'shower_and_tap', 'two_showers'). */
+  scenario_id: string;
+  /** Short customer-facing scenario title (e.g. "Morning shower + kitchen tap"). */
+  title: string;
+  /** One-line customer-facing summary of expected behaviour on the recommended option. */
+  summary: string;
+  /** Outcome rating for the recommended option. */
+  recommended_option_outcome: BehaviourOutcome;
+  /** Outcome rating for the best alternative option, when available for comparison. */
+  alternative_option_outcome?: BehaviourOutcome;
+  /** The primary factor constraining performance in this scenario. */
+  limiting_factor?: BehaviourLimitingFactor;
+  /**
+   * Short explanation of the physics driving the outcome.
+   * Kept brief; detailed engineering information is in the option cards / limiters.
+   */
+  explanation?: string;
+  /** Confidence in this scenario assessment based on available input data. */
+  confidence?: 'high' | 'medium' | 'low';
+}
+
 export interface EngineOutputV1 {
   eligibility: EligibilityItem[];
   redFlags: RedFlagItem[];
@@ -657,4 +720,11 @@ export interface EngineOutputV1 {
    * These are opportunity assessments, not full designs or installation approvals.
    */
   futureEnergyOpportunities?: FutureEnergyOpportunities;
+  /**
+   * Modelled real-world behaviour scenarios.
+   * Translates physics outputs into scenario-based customer language showing how
+   * each option is expected to behave in daily use situations.
+   * Present when survey data is sufficient to evaluate at least some scenarios.
+   */
+  realWorldBehaviours?: RealWorldBehaviourCard[];
 }
