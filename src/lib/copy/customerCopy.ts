@@ -194,6 +194,60 @@ export const CHOSEN_OPTION_BEHAVIOUR_NOTES: Record<string, string> = {
     'This option reduces boiler cycling, which helps efficiency over time.',
 };
 
+// ─── PR4 — Real-world behaviour card copy ────────────────────────────────────
+
+/**
+ * Customer-facing label for each behaviour outcome tier.
+ *
+ * Outcome tiers are derived from engine BehaviourOutcome values:
+ *   strong / acceptable → works_well
+ *   limited             → works_with_limits
+ *   poor                → best_for_lighter_use
+ */
+export const BEHAVIOUR_OUTCOME_LABEL: Record<'works_well' | 'works_with_limits' | 'best_for_lighter_use', string> = {
+  works_well:           'Works well',
+  works_with_limits:    'Works with some limits',
+  best_for_lighter_use: 'Better for lighter use',
+};
+
+/**
+ * Customer-facing note for the recommended option in the divergence comparison.
+ * Describes what the recommended option delivers in a given scenario.
+ *
+ * Keyed by BehaviourOutcome (engine-internal value) for precision.
+ */
+export const BEHAVIOUR_OUTCOME_RECOMMENDED_NOTE: Record<string, string> = {
+  strong:     'Gives you more headroom for this kind of use.',
+  acceptable: 'Should handle this comfortably for most households.',
+  limited:    'Handles this within typical use, though busy periods may feel tighter.',
+  poor:       'Better suited to lighter-use homes on this front.',
+};
+
+/**
+ * Customer-facing note for the chosen (alternative) option in the divergence comparison.
+ * Describes the practical consequence of choosing a different option for a given scenario.
+ *
+ * Keyed by BehaviourOutcome (engine-internal value) for precision.
+ */
+export const BEHAVIOUR_OUTCOME_CHOSEN_NOTE: Record<string, string> = {
+  strong:     'Your chosen option handles this equally well.',
+  acceptable: 'Should still work well for most everyday scenarios.',
+  limited:    'Keeps things compact, but performance may feel more limited at busier times.',
+  poor:       'May feel more limited here — worth discussing with your engineer.',
+};
+
+/**
+ * Customer-facing label for the primary limiting factor in a behaviour scenario.
+ * Translates engine-internal constraint identifiers into plain-English explanations.
+ */
+export const BEHAVIOUR_LIMITING_FACTOR_LABEL: Record<string, string> = {
+  mains:               'The incoming mains supply is the main thing shaping this result.',
+  storage:             'Stored hot water volume is the key factor here.',
+  instantaneous_output: 'The heat source output capacity shapes this result.',
+  recovery:            'How quickly the system can reheat is the key factor here.',
+  distribution:        'Pipework distribution pressure shapes this result.',
+};
+
 // ─── Banned phrasing guard (development aid) ─────────────────────────────────
 
 /**
