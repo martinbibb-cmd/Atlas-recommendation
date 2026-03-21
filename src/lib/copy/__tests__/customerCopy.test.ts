@@ -344,3 +344,87 @@ describe('PR4 — BEHAVIOUR_LIMITING_FACTOR_LABEL', () => {
     }
   });
 });
+
+// ─── PR6 — Decision flow copy ─────────────────────────────────────────────────
+
+import {
+  RECOMMENDATION_HERO_HEADING,
+  CHOSEN_SECTION_HEADING,
+  COMPARISON_SECTION_HEADING,
+  WHY_ATLAS_HEADING,
+  COMPARISON_SUMMARY_INTRO,
+  OBJECTIVE_PRIORITY_FRAMING,
+} from '../customerCopy';
+
+describe('PR6 — RECOMMENDATION_HERO_HEADING', () => {
+  it('is defined and non-empty', () => {
+    expect(RECOMMENDATION_HERO_HEADING).toBeTruthy();
+  });
+
+  it('does not contain banned phrases', () => {
+    for (const phrase of BANNED_CUSTOMER_PHRASES) {
+      expect(RECOMMENDATION_HERO_HEADING.toLowerCase()).not.toContain(phrase.toLowerCase());
+    }
+  });
+});
+
+describe('PR6 — CHOSEN_SECTION_HEADING', () => {
+  it('is defined and non-empty', () => {
+    expect(CHOSEN_SECTION_HEADING).toBeTruthy();
+  });
+
+  it('does not contain banned phrases', () => {
+    for (const phrase of BANNED_CUSTOMER_PHRASES) {
+      expect(CHOSEN_SECTION_HEADING.toLowerCase()).not.toContain(phrase.toLowerCase());
+    }
+  });
+});
+
+describe('PR6 — COMPARISON_SECTION_HEADING', () => {
+  it('is defined and non-empty', () => {
+    expect(COMPARISON_SECTION_HEADING).toBeTruthy();
+  });
+});
+
+describe('PR6 — WHY_ATLAS_HEADING', () => {
+  it('is defined and non-empty', () => {
+    expect(WHY_ATLAS_HEADING).toBeTruthy();
+  });
+});
+
+describe('PR6 — COMPARISON_SUMMARY_INTRO', () => {
+  it('is defined and non-empty', () => {
+    expect(COMPARISON_SUMMARY_INTRO).toBeTruthy();
+  });
+
+  it('does not use banned phrases', () => {
+    for (const phrase of BANNED_CUSTOMER_PHRASES) {
+      expect(COMPARISON_SUMMARY_INTRO.toLowerCase()).not.toContain(phrase.toLowerCase());
+    }
+  });
+});
+
+describe('PR6 — OBJECTIVE_PRIORITY_FRAMING', () => {
+  it('has entries for all 6 known objective card IDs', () => {
+    expect(OBJECTIVE_PRIORITY_FRAMING.running_cost).toBeTruthy();
+    expect(OBJECTIVE_PRIORITY_FRAMING.install_cost).toBeTruthy();
+    expect(OBJECTIVE_PRIORITY_FRAMING.longevity).toBeTruthy();
+    expect(OBJECTIVE_PRIORITY_FRAMING.carbon).toBeTruthy();
+    expect(OBJECTIVE_PRIORITY_FRAMING.performance).toBeTruthy();
+    expect(OBJECTIVE_PRIORITY_FRAMING.future_readiness).toBeTruthy();
+  });
+
+  it('all framing lines include "If your priority is"', () => {
+    for (const framing of Object.values(OBJECTIVE_PRIORITY_FRAMING)) {
+      expect(framing.toLowerCase()).toContain('if your priority is');
+    }
+  });
+
+  it('no framing line uses banned phrases', () => {
+    for (const framing of Object.values(OBJECTIVE_PRIORITY_FRAMING)) {
+      for (const phrase of BANNED_CUSTOMER_PHRASES) {
+        expect(framing.toLowerCase()).not.toContain(phrase.toLowerCase());
+      }
+    }
+  });
+});

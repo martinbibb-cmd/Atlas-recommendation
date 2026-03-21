@@ -1482,3 +1482,126 @@
 .behaviour-card__comparison-label {
   font-weight: 600;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* PR6 — New elements                                                        */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Sub-section wrapper (used for comparison summary inside SECTION 1) ── */
+.advice-page__subsection {
+  margin-top: 1.25rem;
+}
+
+.advice-page__subsection-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c2c3e;
+  margin: 0 0 0.6rem;
+}
+
+/* ── "Why Atlas suggested this" panel ──────────────────────────────────── */
+.advice-why-atlas {
+  margin-top: 1.25rem;
+  padding: 0.875rem 1rem;
+  background: #f8f9fe;
+  border-left: 3px solid #4a6cf7;
+  border-radius: 0 6px 6px 0;
+}
+
+.advice-why-atlas__heading {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2c2c3e;
+  margin: 0 0 0.5rem;
+}
+
+.advice-why-atlas__list {
+  margin: 0;
+  padding-left: 1.2rem;
+  list-style: disc;
+}
+
+.advice-why-atlas__item {
+  font-size: 0.875rem;
+  color: #444;
+  line-height: 1.5;
+  margin-bottom: 0.25rem;
+}
+
+.advice-why-atlas__item:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Primary inline explainer slot ────────────────────────────────────── */
+.advice-inline-explainer {
+  margin-top: 1rem;
+}
+
+.advice-inline-explainer__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  background: #eef3ff;
+  border: 1px solid #c7d7ff;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #2d4ea2;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.advice-inline-explainer__btn:hover {
+  background: #dde8ff;
+}
+
+/* ── Elevated chosen option hero block ─────────────────────────────────── */
+.advice-chosen-hero {
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  background: #f5f8ff;
+  border: 1px solid #d0d9f5;
+  border-radius: 8px;
+}
+
+.advice-chosen-hero__heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a3e;
+  margin: 0 0 0.5rem;
+}
+
+.advice-chosen-hero__affirm {
+  font-size: 0.9rem;
+  color: #3a3a5c;
+  margin: 0 0 0.4rem;
+  font-style: italic;
+}
+
+.advice-chosen-hero__align {
+  font-size: 0.875rem;
+  color: #4a4a6a;
+  margin: 0 0 0.4rem;
+}
+
+.advice-chosen-hero__headline {
+  font-size: 0.875rem;
+  color: #333;
+  margin: 0 0 0.4rem;
+}
+
+.advice-chosen-hero__guide {
+  font-size: 0.875rem;
+  color: #555;
+  margin: 0;
+  font-style: italic;
+}
+
+/* ── Objective card priority framing ───────────────────────────────────── */
+.advice-obj-card__priority-framing {
+  font-size: 0.8rem;
+  color: #5c6080;
+  margin: 0 0 0.3rem;
+  font-style: italic;
+}

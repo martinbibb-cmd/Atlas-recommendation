@@ -59,9 +59,18 @@ import {
   CHOOSE_OPTION_LABEL,
   CHOSEN_OPTION_CONFIRMED_LABEL,
   CHOSEN_OPTION_FRAMING,
+  RECOMMENDATION_HERO_HEADING,
+  CHOSEN_SECTION_HEADING,
+  COMPARISON_SECTION_HEADING,
+  WHY_ATLAS_HEADING,
+  OBJECTIVE_PRIORITY_FRAMING,
 } from '../../lib/copy/customerCopy';
 import { buildRealWorldBehaviourCards } from '../../lib/behaviour/buildRealWorldBehaviourCards';
+import { buildRecommendationReasonSummary } from '../../lib/advice/buildRecommendationReasonSummary';
+import { getExplainerIdForLimitingFactor } from '../../lib/explainers/getRelevantExplainers';
+import { getRegistryEntry } from '../../lib/explainers/explainerRegistry';
 import RealWorldBehaviourCards from './RealWorldBehaviourCards';
+import ChosenOptionComparisonSummary from './ChosenOptionComparisonSummary';
 import './DecisionSynthesisPage.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -868,6 +877,24 @@ export default function DecisionSynthesisPage({
   // Derived each render so they always reflect the latest chosenOptionId.
   const behaviourCards = buildRealWorldBehaviourCards(engineOutput, presentationState);
 
+  // PR6 — "Why Atlas suggested this" summary from existing engine signals.
+  const reasonSummary = buildRecommendationReasonSummary(engineOutput, recommendedOptionId);
+
+  // PR6 — Primary inline explainer slot: highest-value limiting factor from behaviour cards.
+  // Only one explainer is shown in the hero/comparison zone to keep the page focused.
+  const primaryInlineExplainerId = useMemo<string | null>(() => {
+    // Prefer the first behaviour card with a limiting factor that maps to an explainer
+    for (const card of behaviourCards) {
+      const id = getExplainerIdForLimitingFactor(card.limitingFactor);
+      if (id != null) return id;
+    }
+    return null;
+  }, [behaviourCards]);
+
+  const primaryInlineExplainer = primaryInlineExplainerId != null
+    ? getRegistryEntry(primaryInlineExplainerId)
+    : null;
+
   // Engine explainer IDs emitted for this recommendation.
   const explainerIds = new Set(engineOutput.explainers.map(e => e.id));
   const showMixergySuggested     = explainerIds.has('stored-mixergy-suggested');
@@ -1160,10 +1187,12 @@ export default function DecisionSynthesisPage({
       )}
 
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 1 — Best all-round fit                                    */}
+      {/* SECTION 1 — Recommended for your home                             */}
+      {/* PR6 — Hero heading updated from "Best all-round fit" to reflect    */}
+      {/*        the customer-first framing.                                 */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      <div className="advice-page__section" aria-label="Best all-round fit">
-        <h2 className="advice-page__section-title">Best all-round fit</h2>
+      <div className="advice-page__section" aria-label="Recommended for your home">
+        <h2 className="advice-page__section-title">{RECOMMENDATION_HERO_HEADING}</h2>
 
         <div className="advice-hero" role="region" aria-label="Primary recommendation">
           <div className="advice-hero__eyebrow">ATLAS RECOMMENDS</div>
@@ -1239,6 +1268,101 @@ export default function DecisionSynthesisPage({
             </div>
           ) : null}
         </div>
+
+        {/* ──────────────────────────────────────────────────────────────── */}
+        {/* PR6 — "Why Atlas suggested this" mini-summary                    */}
+        {/* Shown inside the hero section when verdict signals are available. */}
+        {/* Only uses verdict.primaryReason / verdict.reasons — not option   */}
+        {/* why[] — to keep copy consequence-led rather than generic.         */}
+        {/* ──────────────────────────────────────────────────────────────── */}
+        {(engineOutput.verdict?.primaryReason != null ||
+          (engineOutput.verdict?.reasons?.length ?? 0) > 0) &&
+          reasonSummary.reasons.length > 0 && (
+          <div
+            className="advice-why-atlas"
+            aria-label="Why Atlas suggested this"
+            data-testid="why-atlas-section"
+          >
+            <h3 className="advice-why-atlas__heading">{WHY_ATLAS_HEADING}</h3>
+            <ul className="advice-why-atlas__list" aria-label="Reasons for this recommendation">
+              {reasonSummary.reasons.map((reason, i) => (
+                <li key={i} className="advice-why-atlas__item">{reason}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* ──────────────────────────────────────────────────────────────── */}
+        {/* PR6 — Primary inline explainer slot                              */}
+        {/* One explainer only, driven by the highest-priority limiting      */}
+        {/* factor from the behaviour cards, to keep the page focused.       */}
+        {/* ──────────────────────────────────────────────────────────────── */}
+        {primaryInlineExplainer != null && (
+          <div
+            className="advice-inline-explainer"
+            data-testid="primary-inline-explainer"
+            aria-label={`Explainer: ${primaryInlineExplainer.title}`}
+          >
+            <button
+              className="advice-inline-explainer__btn"
+              onClick={() => openExplainerById(primaryInlineExplainer.id)}
+              aria-label={`Learn more: ${primaryInlineExplainer.title}`}
+            >
+              💡 {primaryInlineExplainer.title}
+            </button>
+          </div>
+        )}
+
+        {/* ──────────────────────────────────────────────────────────────── */}
+        {/* PR6 — Your chosen option block                                   */}
+        {/* Elevated to sit adjacent to the hero when the customer has       */}
+        {/* chosen a different option. Framing: Affirm → Align → Guide.      */}
+        {/* ──────────────────────────────────────────────────────────────── */}
+        {showChosenOptionBanner && chosenOptionCard != null && (
+          <div
+            className="advice-chosen-hero"
+            aria-label={CHOSEN_SECTION_HEADING}
+            data-testid="chosen-option-hero"
+            role="region"
+          >
+            <h3 className="advice-chosen-hero__heading">
+              {CHOSEN_SECTION_HEADING}: {chosenOptionCard.label}
+            </h3>
+            <p className="advice-chosen-hero__affirm">
+              {CHOSEN_OPTION_FRAMING.affirm}
+            </p>
+            {chosenOptionCard.why.length > 0 && (
+              <p className="advice-chosen-hero__align">
+                {CHOSEN_OPTION_FRAMING.align} {chosenOptionCard.why[0]}
+              </p>
+            )}
+            <p className="advice-chosen-hero__headline">
+              {chosenOptionCard.headline}
+            </p>
+            <p className="advice-chosen-hero__guide">
+              {CHOSEN_OPTION_FRAMING.guide}
+            </p>
+          </div>
+        )}
+
+        {/* ──────────────────────────────────────────────────────────────── */}
+        {/* PR6 — Compact comparison summary                                  */}
+        {/* Shown when customer has diverged; shows scenario-level contrasts  */}
+        {/* between recommended and chosen options side by side.              */}
+        {/* ──────────────────────────────────────────────────────────────── */}
+        {showChosenOptionBanner && behaviourCards.length > 0 && (
+          <div
+            className="advice-page__subsection"
+            aria-label="How they compare"
+            data-testid="comparison-summary-wrapper"
+          >
+            <ChosenOptionComparisonSummary
+              behaviourCards={behaviourCards}
+              recommendedOptionLabel={recommendedOptionCard?.label ?? 'Recommended option'}
+              chosenOptionLabel={chosenOptionCard?.label ?? 'Your chosen option'}
+            />
+          </div>
+        )}
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════ */}
@@ -1439,43 +1563,16 @@ export default function DecisionSynthesisPage({
       )}
 
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 1f — Customer-chosen option framing banner                  */}
-      {/* PR3 — Shown when customer has chosen a different option.            */}
-      {/* Structure: Affirm → Align → Explain behaviour → Guide               */}
+      {/* SECTION 1f — (PR6: elevated into hero section above)              */}
+      {/* The chosen-option framing and comparison summary are now shown     */}
+      {/* inside SECTION 1 (the hero area), adjacent to the recommendation. */}
+      {/* This section comment is preserved for reference only.              */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {showChosenOptionBanner && chosenOptionCard != null && (
-        <div
-          className="advice-page__section advice-chosen-banner"
-          aria-label="Your chosen option"
-          data-testid="chosen-option-banner"
-          role="region"
-        >
-          <h2 className="advice-chosen-banner__heading">
-            {CHOSEN_OPTION_FRAMING.heading}: {chosenOptionCard.label}
-          </h2>
-          <p className="advice-chosen-banner__affirm">
-            {CHOSEN_OPTION_FRAMING.affirm}
-          </p>
-          {chosenOptionCard.why.length > 0 && (
-            <p className="advice-chosen-banner__align">
-              {CHOSEN_OPTION_FRAMING.align} {chosenOptionCard.why[0]}
-            </p>
-          )}
-          <p className="advice-chosen-banner__headline">
-            {chosenOptionCard.headline}
-          </p>
-          <p className="advice-chosen-banner__guide">
-            {CHOSEN_OPTION_FRAMING.guide}
-          </p>
-          <p className="advice-chosen-banner__recommendation-note">
-            {CHOSEN_OPTION_FRAMING.recommendedStillAvailable}
-          </p>
-        </div>
-      )}
 
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* SECTION 1g — Real-world behaviour cards                            */}
       {/* PR4 — Shown below recommendation summary and chosen-option framing */}
+      {/* PR6 — Section heading changes to "How they compare" when divergent */}
       {/* Translates engine outputs into daily-use scenarios so the customer */}
       {/* understands practical consequences of the recommended option and,  */}
       {/* when divergent, their chosen option too.                           */}
@@ -1483,12 +1580,16 @@ export default function DecisionSynthesisPage({
       {behaviourCards.length > 0 && (
         <div
           className="advice-page__section"
-          aria-label="In daily use"
+          aria-label={showChosenOptionBanner ? 'How they compare in daily use' : 'In daily use'}
           data-testid="behaviour-cards-section"
         >
-          <h2 className="advice-page__section-title">In daily use</h2>
+          <h2 className="advice-page__section-title">
+            {showChosenOptionBanner ? COMPARISON_SECTION_HEADING : 'In daily use'}
+          </h2>
           <p className="advice-page__section-intro">
-            How this would feel day-to-day, based on the survey data.
+            {showChosenOptionBanner
+              ? 'How each option would feel day-to-day, based on your survey.'
+              : 'How this would feel day-to-day, based on the survey data.'}
           </p>
           <RealWorldBehaviourCards
             cards={behaviourCards}
@@ -1502,11 +1603,13 @@ export default function DecisionSynthesisPage({
 
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* SECTION 2 — Best by objective (6 cards)                           */}
+      {/* PR6 — Each card now includes customer-facing priority framing so   */}
+      {/*        the section reads as decision support, not a separate report.*/}
       {/* ══════════════════════════════════════════════════════════════════ */}
       <div className="advice-page__section" aria-label="Best by objective">
         <h2 className="advice-page__section-title">Best by objective</h2>
         <p className="advice-page__section-intro">
-          Different objectives lead to different answers. Here is each one clearly.
+          Different priorities lead to different answers. Here is each one clearly.
         </p>
         <div
           className="advice-obj-grid"
@@ -1516,11 +1619,27 @@ export default function DecisionSynthesisPage({
           {enrichedObjectiveCards != null
             ? enrichedObjectiveCards.map(card => (
                 <div key={card.id} role="listitem">
+                  {OBJECTIVE_PRIORITY_FRAMING[card.id] != null && (
+                    <p
+                      className="advice-obj-card__priority-framing"
+                      data-testid={`objective-framing-${card.id}`}
+                    >
+                      {OBJECTIVE_PRIORITY_FRAMING[card.id]}
+                    </p>
+                  )}
                   <EnrichedObjectiveCardUI card={card} />
                 </div>
               ))
             : (legacyObjectiveCards ?? []).map(card => (
                 <div key={card.id} role="listitem">
+                  {OBJECTIVE_PRIORITY_FRAMING[card.id] != null && (
+                    <p
+                      className="advice-obj-card__priority-framing"
+                      data-testid={`objective-framing-${card.id}`}
+                    >
+                      {OBJECTIVE_PRIORITY_FRAMING[card.id]}
+                    </p>
+                  )}
                   <ObjectiveCardUI card={card} />
                 </div>
               ))

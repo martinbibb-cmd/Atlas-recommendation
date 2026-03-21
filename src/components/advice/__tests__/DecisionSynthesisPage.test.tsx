@@ -93,9 +93,9 @@ describe('DecisionSynthesisPage — rendering', () => {
 // ─── Section headings ─────────────────────────────────────────────────────────
 
 describe('DecisionSynthesisPage — section headings', () => {
-  it('renders "Best all-round fit" section', () => {
+  it('renders "Recommended for your home" section (PR6)', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(screen.getByText(/best all-round fit/i)).toBeTruthy();
+    expect(screen.getByText(/recommended for your home/i)).toBeTruthy();
   });
 
   it('renders "Best by objective" section', () => {
@@ -1113,20 +1113,20 @@ describe('DecisionSynthesisPage — PR3 customer-chosen option', () => {
     render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT} />);
 
     // Banner is not shown before choice.
-    expect(screen.queryByTestId('chosen-option-banner')).toBeNull();
+    expect(screen.queryByTestId('chosen-option-hero')).toBeNull();
 
     // Customer picks an alternative.
     fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
 
     // Banner should now be visible.
-    expect(screen.getByTestId('chosen-option-banner')).toBeTruthy();
+    expect(screen.getByTestId('chosen-option-hero')).toBeTruthy();
   });
 
   it('framing banner uses affirm-first language — no confrontational wording', () => {
     render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT} />);
     fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
 
-    const banner = screen.getByTestId('chosen-option-banner');
+    const banner = screen.getByTestId('chosen-option-hero');
     // Should include the affirm phrase.
     expect(banner.textContent).toMatch(/I can see why this option appeals/i);
     // Must not include banned confrontational phrases.
@@ -1150,23 +1150,23 @@ describe('DecisionSynthesisPage — PR3 customer-chosen option', () => {
 
     // Choose an option.
     fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
-    expect(screen.getByTestId('chosen-option-banner')).toBeTruthy();
+    expect(screen.getByTestId('chosen-option-hero')).toBeTruthy();
 
     // Clear the choice.
     fireEvent.click(screen.getByTestId('clear-choice-btn-stored_unvented'));
-    expect(screen.queryByTestId('chosen-option-banner')).toBeNull();
+    expect(screen.queryByTestId('chosen-option-hero')).toBeNull();
   });
 
   it('framing banner does not appear when customer has not made a choice', () => {
     render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT} />);
-    expect(screen.queryByTestId('chosen-option-banner')).toBeNull();
+    expect(screen.queryByTestId('chosen-option-hero')).toBeNull();
   });
 
   it('framing banner does not appear when customer chooses the recommended option', () => {
     // The recommended option card (combi) does not have a choose button.
     // Verify the banner stays absent.
     render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT} />);
-    expect(screen.queryByTestId('chosen-option-banner')).toBeNull();
+    expect(screen.queryByTestId('chosen-option-hero')).toBeNull();
     // Also verify no choose button exists for combi.
     expect(screen.queryByTestId('choose-btn-combi')).toBeNull();
   });
@@ -1391,5 +1391,198 @@ describe('DecisionSynthesisPage — PR5 inline Learn why links', () => {
     // Overlay should be open and showing the shared_mains_flow explainer
     expect(document.querySelector('[data-testid="explainers-overlay"]')).not.toBeNull();
     expect(document.querySelector('[data-testid="explainers-modal"]')).not.toBeNull();
+  });
+});
+
+// ─── PR6: Decision flow upgrade ───────────────────────────────────────────────
+
+// Fixtures for PR6 tests
+const MULTI_OPTION_OUTPUT_WITH_BEHAVIOURS: EngineOutputV1 = {
+  ...DEMO_OUTPUT,
+  options: [
+    makeOption('combi', 'viable'),
+    makeOption('stored_unvented', 'caution'),
+  ],
+  realWorldBehaviours: [
+    {
+      scenario_id: 'morning_rush',
+      title: 'Morning rush',
+      summary: 'Two outlets at once',
+      recommended_option_outcome: 'strong',
+      alternative_option_outcome: 'limited',
+      limiting_factor: 'mains',
+      explanation: 'Mains flow shapes result',
+      confidence: 'high',
+    } as any,
+  ],
+};
+
+describe('DecisionSynthesisPage — PR6 hero heading', () => {
+  it('renders "Recommended for your home" section heading', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(screen.getByText(/recommended for your home/i)).toBeTruthy();
+  });
+
+  it('renders ATLAS RECOMMENDS eyebrow label', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(screen.getByText(/ATLAS RECOMMENDS/i)).toBeTruthy();
+  });
+});
+
+describe('DecisionSynthesisPage — PR6 "Why Atlas suggested this"', () => {
+  it('renders "Why Atlas suggested this" when verdict primaryReason is present', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(screen.getByTestId('why-atlas-section')).toBeTruthy();
+    expect(screen.getByText(/why atlas suggested this/i)).toBeTruthy();
+  });
+
+  it('shows the verdict primaryReason in the "Why Atlas" list', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    const whySection = screen.getByTestId('why-atlas-section');
+    expect(whySection.textContent).toMatch(/single bathroom.*favour.*on-demand hot water/i);
+  });
+
+  it('does not render "Why Atlas" section when output has no verdict reasons', () => {
+    const output: EngineOutputV1 = {
+      ...DEMO_OUTPUT,
+      verdict: {
+        ...DEMO_OUTPUT.verdict!,
+        primaryReason: undefined,
+        reasons: [],
+      },
+      options: [makeOption('combi', 'viable')],
+    };
+    render(<DecisionSynthesisPage engineOutput={output} />);
+    expect(document.querySelector('[data-testid="why-atlas-section"]')).toBeNull();
+  });
+});
+
+describe('DecisionSynthesisPage — PR6 chosen option elevated into hero', () => {
+  it('does not show chosen-option-hero when no option is chosen', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT_WITH_BEHAVIOURS} />);
+    expect(document.querySelector('[data-testid="chosen-option-hero"]')).toBeNull();
+  });
+
+  it('shows chosen-option-hero when customer picks a non-recommended option', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT_WITH_BEHAVIOURS} />);
+    fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
+    expect(document.querySelector('[data-testid="chosen-option-hero"]')).not.toBeNull();
+  });
+
+  it('shows chosen option label inside the hero block', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT_WITH_BEHAVIOURS} />);
+    fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
+    const hero = document.querySelector('[data-testid="chosen-option-hero"]');
+    expect(hero?.textContent).toMatch(/your chosen option/i);
+  });
+
+  it('recommendation is still visible alongside chosen option', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT_WITH_BEHAVIOURS} />);
+    fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
+    expect(screen.getByText(/ATLAS RECOMMENDS/i)).toBeTruthy();
+    expect(document.querySelector('[data-testid="chosen-option-hero"]')).not.toBeNull();
+  });
+
+  it('chosen-option-hero is not shown when customer picks the recommended option', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT_WITH_BEHAVIOURS} />);
+    // combi is the recommended option — choosing it should NOT show the hero
+    fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
+    fireEvent.click(screen.getByTestId('clear-choice-btn-stored_unvented'));
+    expect(document.querySelector('[data-testid="chosen-option-hero"]')).toBeNull();
+  });
+});
+
+describe('DecisionSynthesisPage — PR6 comparison summary', () => {
+  it('does not show comparison summary before a choice is made', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT_WITH_BEHAVIOURS} />);
+    expect(document.querySelector('[data-testid="comparison-summary-wrapper"]')).toBeNull();
+  });
+
+  it('shows comparison summary wrapper when customer diverges and behaviour cards exist', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT_WITH_BEHAVIOURS} />);
+    fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
+    expect(document.querySelector('[data-testid="comparison-summary-wrapper"]')).not.toBeNull();
+  });
+
+  it('shows "How they compare in everyday use" heading when customer diverges', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT_WITH_BEHAVIOURS} />);
+    fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
+    // The heading is shown in the behaviour section (section 1g) when divergent
+    const behaviourSection = screen.getByTestId('behaviour-cards-section');
+    expect(behaviourSection.textContent).toMatch(/how they compare in everyday use/i);
+  });
+});
+
+describe('DecisionSynthesisPage — PR6 behaviour section heading', () => {
+  it('shows "In daily use" heading when no divergence', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT_WITH_BEHAVIOURS} />);
+    // No customer choice made
+    expect(screen.getByText(/in daily use/i)).toBeTruthy();
+  });
+
+  it('shows "How they compare in everyday use" heading when divergent', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT_WITH_BEHAVIOURS} />);
+    fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
+    const behaviourSection = screen.getByTestId('behaviour-cards-section');
+    expect(behaviourSection.textContent).toMatch(/how they compare in everyday use/i);
+  });
+});
+
+describe('DecisionSynthesisPage — PR6 primary inline explainer', () => {
+  it('shows primary inline explainer when a behaviour card has a limiting factor', () => {
+    render(
+      <GlobalMenuShell>
+        <DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT_WITH_BEHAVIOURS} />
+      </GlobalMenuShell>,
+    );
+    expect(document.querySelector('[data-testid="primary-inline-explainer"]')).not.toBeNull();
+  });
+
+  it('does not show primary inline explainer when no behaviour cards', () => {
+    render(
+      <GlobalMenuShell>
+        <DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />
+      </GlobalMenuShell>,
+    );
+    expect(document.querySelector('[data-testid="primary-inline-explainer"]')).toBeNull();
+  });
+
+  it('primary inline explainer opens the overlay when clicked', () => {
+    render(
+      <GlobalMenuShell>
+        <DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT_WITH_BEHAVIOURS} />
+      </GlobalMenuShell>,
+    );
+    const btn = document.querySelector('[data-testid="primary-inline-explainer"] button');
+    expect(btn).not.toBeNull();
+    fireEvent.click(btn!);
+    expect(document.querySelector('[data-testid="explainers-overlay"]')).not.toBeNull();
+  });
+});
+
+describe('DecisionSynthesisPage — PR6 objective priority framing', () => {
+  it('renders priority framing copy in "Best by objective" section', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    // At least one of the known framing strings should appear
+    const text = document.body.textContent ?? '';
+    expect(text).toMatch(/if your priority is/i);
+  });
+});
+
+describe('DecisionSynthesisPage — PR6 safe rendering without optional sections', () => {
+  it('renders cleanly with no verdict, no behaviours, no chosen option', () => {
+    const minimalOutput: EngineOutputV1 = {
+      ...DEMO_OUTPUT,
+      verdict: undefined,
+      realWorldBehaviours: undefined,
+    };
+    expect(() => render(<DecisionSynthesisPage engineOutput={minimalOutput} />)).not.toThrow();
+  });
+
+  it('recommended-only flow renders without chosen-option sections', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(document.querySelector('[data-testid="chosen-option-hero"]')).toBeNull();
+    expect(document.querySelector('[data-testid="comparison-summary-wrapper"]')).toBeNull();
+    expect(document.querySelector('[data-testid="chosen-option-hero"]')).toBeNull();
   });
 });
