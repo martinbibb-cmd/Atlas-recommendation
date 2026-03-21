@@ -248,6 +248,25 @@ export const BEHAVIOUR_LIMITING_FACTOR_LABEL: Record<string, string> = {
   distribution:        'Pipework distribution pressure shapes this result.',
 };
 
+// ─── PR5 — Inline explainer link copy ────────────────────────────────────────
+
+/**
+ * Customer-facing label for inline "Learn why" links that open the
+ * explainers overlay at the relevant explainer for a behaviour card.
+ *
+ * These labels appear on RealWorldBehaviourCards when a limiting factor
+ * maps to an available educational explainer.
+ */
+export const EXPLAINER_LINK_LABEL = 'Learn why';
+
+/**
+ * Aria label for inline explainer links — includes the explainer title
+ * for accessibility. Use with string interpolation:
+ *   EXPLAINER_LINK_ARIA(explainer.title)
+ */
+export const EXPLAINER_LINK_ARIA = (title: string): string =>
+  `Learn why: ${title}`;
+
 // ─── Banned phrasing guard (development aid) ─────────────────────────────────
 
 /**

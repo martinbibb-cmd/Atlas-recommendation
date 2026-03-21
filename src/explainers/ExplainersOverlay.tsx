@@ -5,7 +5,7 @@
  *
  * Renders a launcher button (☰ Explainers) that opens a two-level overlay:
  *   1. Menu — list of explainers split into "For this recommendation" and
- *      "More explainers" sections.
+ *      category-grouped sections (Water, Energy, Heating, Space).
  *   2. Viewer — full content for a selected explainer, with back/close actions.
  *
  * State model:
@@ -18,12 +18,15 @@
  *   - ESC dismisses the overlay from either view.
  *   - Focus is trapped inside the overlay while open.
  *   - On close, focus returns to the launcher button.
+ *   - openExplainerById from GlobalMenuContext opens the overlay directly at
+ *     a specific explainer without requiring the user to click the launcher.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EDUCATIONAL_EXPLAINERS } from './educational/content';
-import type { EducationalExplainer } from './educational/types';
+import type { EducationalExplainer, ExplainerCategory } from './educational/types';
 import type { GlobalMenuSection } from '../components/shell/GlobalMenuContext';
+import { useGlobalMenu } from '../components/shell/GlobalMenuContext';
 import './ExplainersOverlay.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -32,7 +35,7 @@ interface Props {
   /**
    * IDs from EDUCATIONAL_EXPLAINERS that are relevant to the current
    * recommendation. These are shown first under "For this recommendation".
-   * All other explainers appear under "More explainers".
+   * All other explainers appear under grouped category sections.
    */
   contextExplainerIds: ReadonlyArray<string>;
   /**
@@ -43,6 +46,32 @@ interface Props {
   contextMenuSections?: ReadonlyArray<GlobalMenuSection>;
 }
 
+// ─── Category group labels ─────────────────────────────────────────────────────
+
+/**
+ * Customer-facing heading for each explainer category group.
+ * 'physics' and 'system_behaviour' are merged under "Heating behaviour".
+ */
+const CATEGORY_GROUP_LABEL: Record<ExplainerCategory | 'heating', string> = {
+  water:            'Water and hot water behaviour',
+  energy:           'Energy and running style',
+  physics:          'Heating behaviour',
+  system_behaviour: 'Heating behaviour',
+  heating:          'Heating behaviour',
+  space:            'Space and installation',
+};
+
+/**
+ * Display order for category groups in the library section.
+ * 'heating' is the merged key for physics + system_behaviour.
+ */
+const CATEGORY_GROUP_ORDER: ReadonlyArray<ExplainerCategory | 'heating'> = [
+  'water',
+  'energy',
+  'heating',
+  'space',
+];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Returns explainers matching the given IDs, preserving order. */
@@ -50,6 +79,34 @@ function pickExplainers(ids: ReadonlyArray<string>): EducationalExplainer[] {
   return ids
     .map(id => EDUCATIONAL_EXPLAINERS.find(e => e.id === id))
     .filter((e): e is EducationalExplainer => e != null);
+}
+
+/** Maps an explainer category to its canonical group key. */
+function categoryToGroupKey(category: ExplainerCategory): ExplainerCategory | 'heating' {
+  if (category === 'physics' || category === 'system_behaviour') return 'heating';
+  return category;
+}
+
+/** Groups an array of explainers by category, preserving CATEGORY_GROUP_ORDER. */
+function groupByCategory(
+  explainers: EducationalExplainer[],
+): Array<{ groupKey: ExplainerCategory | 'heating'; label: string; items: EducationalExplainer[] }> {
+  const grouped = new Map<ExplainerCategory | 'heating', EducationalExplainer[]>();
+
+  for (const e of explainers) {
+    const key = categoryToGroupKey(e.category);
+    const bucket = grouped.get(key) ?? [];
+    bucket.push(e);
+    grouped.set(key, bucket);
+  }
+
+  return CATEGORY_GROUP_ORDER
+    .filter(key => grouped.has(key))
+    .map(key => ({
+      groupKey: key,
+      label: CATEGORY_GROUP_LABEL[key],
+      items: grouped.get(key)!,
+    }));
 }
 
 // ─── Sub-component: SectionPanel ─────────────────────────────────────────────
@@ -168,6 +225,8 @@ interface MenuProps {
 }
 
 function ExplainerMenu({ contextExplainers, libraryExplainers, contextMenuSections, onSelect, onSelectSection, onClose }: MenuProps) {
+  const categoryGroups = groupByCategory(libraryExplainers);
+
   return (
     <div
       className="eo-menu"
@@ -239,7 +298,7 @@ function ExplainerMenu({ contextExplainers, libraryExplainers, contextMenuSectio
         </section>
       )}
 
-      {/* ── More explainers ──────────────────────────────────────────────── */}
+      {/* ── Library grouped by category ──────────────────────────────────── */}
       {libraryExplainers.length > 0 && (
         <section
           className="eo-menu__section"
@@ -247,21 +306,31 @@ function ExplainerMenu({ contextExplainers, libraryExplainers, contextMenuSectio
           data-testid="explainers-library-section"
         >
           <h3 className="eo-menu__section-heading">More explainers</h3>
-          <ul className="eo-menu__list" role="list">
-            {libraryExplainers.map(e => (
-              <li key={e.id} role="listitem">
-                <button
-                  className="eo-menu__item"
-                  onClick={() => onSelect(e.id)}
-                  aria-label={`Open explainer: ${e.title}`}
-                  data-testid={`explainers-menu-item-${e.id}`}
-                >
-                  <span className="eo-menu__item-title">{e.title}</span>
-                  <span className="eo-menu__item-point">{e.point}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+
+          {categoryGroups.map(group => (
+            <div
+              key={group.groupKey}
+              className="eo-menu__category-group"
+              data-testid={`explainers-category-section-${group.groupKey}`}
+            >
+              <h4 className="eo-menu__category-heading">{group.label}</h4>
+              <ul className="eo-menu__list" role="list">
+                {group.items.map(e => (
+                  <li key={e.id} role="listitem">
+                    <button
+                      className="eo-menu__item"
+                      onClick={() => onSelect(e.id)}
+                      aria-label={`Open explainer: ${e.title}`}
+                      data-testid={`explainers-menu-item-${e.id}`}
+                    >
+                      <span className="eo-menu__item-title">{e.title}</span>
+                      <span className="eo-menu__item-point">{e.point}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </section>
       )}
     </div>
@@ -283,6 +352,18 @@ export default function ExplainersOverlay({ contextExplainerIds, contextMenuSect
 
   const launcherRef = useRef<HTMLButtonElement>(null);
   const overlayRef  = useRef<HTMLDivElement>(null);
+
+  // ── External trigger: open at a specific explainer via GlobalMenuContext ─────
+  const { pendingExplainerId, clearPendingExplainerId } = useGlobalMenu();
+
+  useEffect(() => {
+    if (pendingExplainerId != null) {
+      setMenuOpen(true);
+      setActiveExplainerId(pendingExplainerId);
+      setActiveSectionId(null);
+      clearPendingExplainerId();
+    }
+  }, [pendingExplainerId, clearPendingExplainerId]);
 
   // ── Derived data ────────────────────────────────────────────────────────────
   const contextExplainers = pickExplainers(contextExplainerIds);

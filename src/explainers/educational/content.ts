@@ -1,7 +1,7 @@
 /**
  * Educational explainer content.
  *
- * Twelve short, terminology-compliant topics that give users the physics
+ * Fourteen short, terminology-compliant topics that give users the physics
  * background needed to understand Atlas recommendations.
  *
  * Language rules (docs/atlas-terminology.md §8):
@@ -17,6 +17,7 @@ import type { EducationalExplainer } from './types';
 export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
   {
     id: 'on_demand_vs_stored',
+    category: 'water',
     title: 'On-demand vs stored hot water',
     point:
       'On-demand hot water heats water as you draw it; stored hot water pre-heats and holds a reserve in a cylinder.',
@@ -32,7 +33,25 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
   },
 
   {
+    id: 'shared_mains_flow',
+    category: 'water',
+    title: 'Why flow is shared across your home',
+    point:
+      'When two or more outlets draw from the same mains supply, they compete for the same incoming flow rate — the total available flow is divided between them, not multiplied.',
+    bullets: [
+      'Mains flow rate at the stop-tap is a fixed ceiling; every open outlet takes a share of that ceiling.',
+      'A cold tap running at the same time as a shower reduces the hot-water draw rate available to the shower.',
+      'Combi boilers are sensitive to this because they heat on demand: a reduced cold-water supply directly limits hot-water output.',
+      'Stored systems partly buffer this by drawing from the cylinder reserve rather than directly from the mains.',
+      'A measured dynamic mains flow test gives the most accurate picture of what is actually available in the home.',
+    ],
+    simulatorPanelId: 'draw_off',
+    simulatorLabel: 'Draw-Off panel',
+  },
+
+  {
     id: 'pressure_vs_flow',
+    category: 'water',
     title: 'Pressure and flow rate',
     point:
       'Pressure drives water into the system; flow rate is how much water actually moves — the two are related but not the same.',
@@ -49,6 +68,7 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
 
   {
     id: 'multiple_taps',
+    category: 'water',
     title: 'Why simultaneous outlets matter',
     point:
       'When two outlets draw hot water at the same time, combined demand can exceed what a single on-demand source can supply.',
@@ -65,6 +85,7 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
 
   {
     id: 'cycling_efficiency',
+    category: 'energy',
     title: 'Why boiler cycling hurts efficiency',
     point:
       'A boiler that fires, reaches its set point quickly, and switches off — then repeats — wastes energy in repeated warm-up losses.',
@@ -81,6 +102,7 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
 
   {
     id: 'condensing_return_temp',
+    category: 'energy',
     title: 'Why condensing mode needs a low return temperature',
     point:
       'A condensing boiler only recovers latent heat — its efficiency advantage — when the return water temperature stays below roughly 55 °C.',
@@ -97,6 +119,7 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
 
   {
     id: 'heat_pump_flow_temp',
+    category: 'energy',
     title: 'Why heat pumps prefer low flow temperatures',
     point:
       'Heat pump efficiency (Coefficient of Performance, COP) rises sharply as the target flow temperature falls.',
@@ -112,7 +135,25 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
   },
 
   {
+    id: 'low_and_slow',
+    category: 'energy',
+    title: 'Why some systems work best low and slow',
+    point:
+      'Heat pumps and low-temperature systems reach their best efficiency by running continuously at a gentle, steady output rather than in high-power bursts.',
+    bullets: [
+      'Heat pump COP peaks at low flow temperatures — continuous gentle operation keeps flow temperatures low and efficiency high.',
+      'Long, steady run periods are more efficient than many short bursts, which repeatedly waste energy on startup transitions.',
+      'Low-and-slow operation suits well-insulated homes best: lower heat loss means the system can meet demand at a lower output rate.',
+      'Oversized heat pumps cycling on and off are the most common cause of poor real-world efficiency in heat pump installations.',
+      'Correct system sizing — matched to actual heat loss, not peak comfort — is the single biggest factor in enabling low-and-slow operation.',
+    ],
+    simulatorPanelId: 'efficiency',
+    simulatorLabel: 'Efficiency panel',
+  },
+
+  {
     id: 'standard_vs_mixergy',
+    category: 'water',
     title: 'Standard cylinder vs Mixergy',
     point:
       'A standard cylinder heats the entire volume uniformly; a Mixergy cylinder heats from the top down, delivering usable stored hot water sooner and reducing cycling.',
@@ -129,6 +170,7 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
 
   {
     id: 'cylinder_age_condition',
+    category: 'water',
     title: 'Why cylinder age and condition matter',
     point:
       'An older or poorly maintained cylinder loses more heat while idle and transfers heat less effectively through its coil — both reduce overall system efficiency.',
@@ -145,6 +187,7 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
 
   {
     id: 'pipe_capacity',
+    category: 'space',
     title: 'Why primary pipe size limits heat pump output',
     point:
       'A heat pump moves the same heating energy as a boiler using significantly lower temperature water, which means it needs to circulate a significantly higher flow rate through the primary circuit.',
@@ -161,6 +204,7 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
 
   {
     id: 'water_quality_scale',
+    category: 'space',
     title: 'How water hardness affects heating system life',
     point:
       'Hard water deposits calcium and magnesium scale inside heat exchangers and pipework, gradually reducing heat transfer efficiency and shortening appliance life.',
@@ -177,6 +221,7 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
 
   {
     id: 'thermal_mass_inertia',
+    category: 'physics',
     title: 'How building mass shapes your heating strategy',
     point:
       'Heavy-mass buildings absorb and release heat slowly — this thermal inertia affects how quickly a room responds to heating and how long warmth is retained after the boiler switches off.',
@@ -193,6 +238,7 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
 
   {
     id: 'splan_vs_yplan',
+    category: 'system_behaviour',
     title: 'S-plan vs Y-plan zone control',
     point:
       'S-plan and Y-plan describe how a system boiler controls the flow of hot water between the heating circuit and the domestic hot water cylinder.',
