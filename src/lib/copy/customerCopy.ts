@@ -267,6 +267,42 @@ export const EXPLAINER_LINK_LABEL = 'Learn why';
 export const EXPLAINER_LINK_ARIA = (title: string): string =>
   `Learn why: ${title}`;
 
+// ─── PR6 — Decision flow copy ────────────────────────────────────────────────
+
+/** Section heading for the main recommendation hero. */
+export const RECOMMENDATION_HERO_HEADING = 'Recommended for your home';
+
+/** Section heading for the chosen option block (only when divergent). */
+export const CHOSEN_SECTION_HEADING = 'Your chosen option';
+
+/** Section heading for the everyday-use comparison (replaces "In daily use" when divergent). */
+export const COMPARISON_SECTION_HEADING = 'How they compare in everyday use';
+
+/** Heading for the "Why Atlas suggested this" mini-summary. */
+export const WHY_ATLAS_HEADING = 'Why Atlas suggested this';
+
+/** Intro for the compact comparison summary between recommended and chosen options. */
+export const COMPARISON_SUMMARY_INTRO =
+  "Here's how they compare on the things that matter most day to day.";
+
+/**
+ * Customer-facing intro framing for "Best by objective" cards.
+ *
+ * Keyed by ObjectiveCard id. Each reads as a decision-support opener:
+ *   "If your priority is [framing]…"
+ *
+ * Connects the objective section back to the customer's specific priorities
+ * rather than presenting it as a detached technical report.
+ */
+export const OBJECTIVE_PRIORITY_FRAMING: Record<string, string> = {
+  running_cost:     'If your priority is keeping running costs low…',
+  install_cost:     'If your priority is keeping installation costs down…',
+  longevity:        'If your priority is long-term reliability…',
+  carbon:           'If your priority is reducing carbon emissions…',
+  performance:      'If your priority is consistent comfort and hot water…',
+  future_readiness: 'If your priority is staying future-ready…',
+};
+
 // ─── Banned phrasing guard (development aid) ─────────────────────────────────
 
 /**

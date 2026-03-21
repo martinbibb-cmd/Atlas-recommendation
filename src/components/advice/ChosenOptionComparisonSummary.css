@@ -1,0 +1,140 @@
+/* ChosenOptionComparisonSummary.css
+ *
+ * PR6 — Compact comparison panel for recommended vs chosen options.
+ *
+ * Layout: intro text + a table-style grid with 3 columns:
+ *   Scenario | Recommended option | Chosen option
+ */
+
+.comparison-summary {
+  margin-top: 0.75rem;
+}
+
+.comparison-summary__intro {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 0.75rem;
+}
+
+/* Grid layout: 3 columns — scenario name, recommended note, chosen note */
+.comparison-summary__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+  border: 1px solid #dde;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 0.875rem;
+}
+
+/* ── Header row ─────────────────────────────────────────────────────────── */
+.comparison-summary__header {
+  display: contents;
+}
+
+.comparison-summary__header-scenario,
+.comparison-summary__header-rec,
+.comparison-summary__header-chosen {
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  background: #f4f4f8;
+  border-bottom: 1px solid #dde;
+  color: #444;
+}
+
+.comparison-summary__header-rec {
+  background: #eef7ee;
+  border-left: 1px solid #dde;
+}
+
+.comparison-summary__header-chosen {
+  background: #f0f4fa;
+  border-left: 1px solid #dde;
+}
+
+/* ── Badges ─────────────────────────────────────────────────────────────── */
+.comparison-summary__badge {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.comparison-summary__badge--rec {
+  color: #2e7d32;
+}
+
+.comparison-summary__badge--chosen {
+  color: #1565c0;
+}
+
+/* ── Data rows ──────────────────────────────────────────────────────────── */
+.comparison-summary__row {
+  display: contents;
+}
+
+.comparison-summary__scenario,
+.comparison-summary__rec-note,
+.comparison-summary__chosen-note {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #eee;
+  vertical-align: top;
+}
+
+.comparison-summary__scenario {
+  font-weight: 500;
+  color: #333;
+}
+
+.comparison-summary__rec-note {
+  color: #2e6b30;
+  background: #f7fbf7;
+  border-left: 1px solid #eee;
+}
+
+.comparison-summary__chosen-note {
+  background: #f5f8fc;
+  border-left: 1px solid #eee;
+}
+
+/* Colour-code chosen note by outcome tier */
+.comparison-summary__chosen-note--works_well {
+  color: #2e6b30;
+}
+
+.comparison-summary__chosen-note--works_with_limits {
+  color: #795700;
+}
+
+.comparison-summary__chosen-note--best_for_lighter_use {
+  color: #b44700;
+}
+
+/* Remove border-bottom from the last row */
+.comparison-summary__row:last-child .comparison-summary__scenario,
+.comparison-summary__row:last-child .comparison-summary__rec-note,
+.comparison-summary__row:last-child .comparison-summary__chosen-note {
+  border-bottom: none;
+}
+
+/* ── Responsive — stack on narrow viewports ─────────────────────────────── */
+@media (max-width: 600px) {
+  .comparison-summary__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .comparison-summary__header-rec,
+  .comparison-summary__header-chosen {
+    border-left: none;
+    border-top: 1px solid #dde;
+  }
+
+  .comparison-summary__rec-note,
+  .comparison-summary__chosen-note {
+    border-left: none;
+    border-top: 1px solid #eee;
+  }
+}
