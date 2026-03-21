@@ -321,7 +321,11 @@ function assessDhwDemandStability(
       'Mixergy cylinder: demand mirroring and reduced cycling penalty support steadier condensing operation.',
     );
   }
-  if (input.dhwTankType === 'standard') {
+  if (
+    input.dhwTankType === 'standard' ||
+    input.dhwTankType === 'standard_unvented' ||
+    input.dhwTankType === 'standard_vented'
+  ) {
     return makeDriver(
       'dhw_demand_stability',
       'DHW demand stability',

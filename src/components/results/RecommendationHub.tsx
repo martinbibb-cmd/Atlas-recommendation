@@ -941,7 +941,11 @@ function buildHotWaterDemandSection(result: FullEngineResult, input: EngineInput
       combiDeliveryLpm,
       combiRisk:        combi.verdict.combiRisk,
       storedVolumeBand: (stored as { recommended?: { volumeBand?: string } }).recommended?.volumeBand ?? 'medium',
-      storedType:       (stored as { recommended?: { type?: string } }).recommended?.type ?? 'standard',
+      // Stratification is ONLY a feature of Mixergy cylinders — use the user's
+      // dhwTankType selection, NOT the engine's upgrade recommendation.
+      // The engine may recommend Mixergy based on space/demand, but that is an
+      // upgrade suggestion; the current proposal is what dhwTankType captures.
+      storedType:       input.dhwTankType === 'mixergy' ? 'mixergy' : 'standard',
     },
   };
 }

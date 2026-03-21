@@ -28,6 +28,7 @@ import { runSmartTopUpController } from './modules/SmartTopUpController';
 import { runSolarBoostModule } from './modules/SolarBoostModule';
 import { runCondensingStateModule } from './modules/CondensingStateModule';
 import { runCondensingRuntimeModule } from './modules/CondensingRuntimeModule';
+import { runEngineInputValidation } from './modules/EngineInputValidationModule';
 
 
 function interpolateDemandKw(minuteIdx: number, hourlyDemandKw: number[]): number {
@@ -248,5 +249,6 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
   };
 
   const engineOutput = buildEngineOutputV1(core, input);
-  return { ...core, engineOutput };
+  const inputValidation = runEngineInputValidation(input);
+  return { ...core, engineOutput, inputValidation };
 }

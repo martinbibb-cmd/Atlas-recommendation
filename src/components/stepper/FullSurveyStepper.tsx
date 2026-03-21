@@ -2804,6 +2804,8 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                       Conventional stored hot water for whole-home demand.
                     </div>
                   </button>
+                  {/* Mixergy is not available for combi — combi has no stored cylinder. */}
+                  {input.preferCombi !== true && input.currentHeatSourceType !== 'combi' && (
                   <button
                     onClick={() => setInput({ ...input, dhwTankType: 'mixergy' })}
                     style={{
@@ -2821,6 +2823,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                       Stored hot water with top-down heating and active stratification.
                     </div>
                   </button>
+                  )}
                 </div>
                 {/* Explainer: standard vs Mixergy */}
                 <p style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.5rem', marginBottom: 0, lineHeight: 1.5 }}>

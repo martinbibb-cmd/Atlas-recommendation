@@ -941,17 +941,24 @@ export default function DecisionSynthesisPage({
         )}
         {/* Save Report */}
         {compareAdvice != null && saveState !== 'saved' && (
-          <button
-            className="advice-page__save-btn"
-            onClick={saveState === 'failed' ? handleRetrySave : handleSaveReport}
-            aria-label="Save Atlas report"
-            disabled={saveState === 'saving' || saveState === 'retrying'}
-          >
-            {saveState === 'saving'   && '⏳ Saving…'}
-            {saveState === 'retrying' && '⏳ Retrying…'}
-            {saveState === 'failed'   && '❌ Save failed — retry?'}
-            {saveState === 'idle'     && '💾 Save Report'}
-          </button>
+          <>
+            {saveState === 'idle' && (
+              <p className="advice-page__save-hint" data-testid="save-report-hint">
+                Save this report to generate a shareable link and QR code.
+              </p>
+            )}
+            <button
+              className="advice-page__save-btn"
+              onClick={saveState === 'failed' ? handleRetrySave : handleSaveReport}
+              aria-label="Save Atlas report"
+              disabled={saveState === 'saving' || saveState === 'retrying'}
+            >
+              {saveState === 'saving'   && '⏳ Saving…'}
+              {saveState === 'retrying' && '⏳ Retrying…'}
+              {saveState === 'failed'   && '❌ Save failed — retry?'}
+              {saveState === 'idle'     && '💾 Save Report'}
+            </button>
+          </>
         )}
         {/* Show me why — Physics Story Mode */}
         <button
