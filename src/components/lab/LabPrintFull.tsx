@@ -17,6 +17,7 @@
  */
 
 import type { OutputHubSection } from '../../live/printSections.model';
+import { OPTION_STATUS_LABEL, COMBI_RISK_LABEL as CUSTOMER_COMBI_RISK_LABEL } from '../../lib/copy/customerCopy';
 import './lab-print.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -183,9 +184,9 @@ function CurrentSystemSection({ section }: { section: OutputHubSection }) {
 function WaterPowerSection({ section }: { section: OutputHubSection }) {
   const c = section.content as { combiRisk: string };
   const riskLabel =
-    c.combiRisk === 'fail' ? 'Fail — simultaneous demand not met'
-    : c.combiRisk === 'warn' ? 'Caution — borderline simultaneous demand'
-    : 'Pass — simultaneous demand within range';
+    c.combiRisk === 'fail' ? 'Performance may be limited by simultaneous demand'
+    : c.combiRisk === 'warn' ? 'Borderline — performance may vary at peak demand'
+    : 'Simultaneous demand is within range';
 
   return (
     <section className="lp-section" aria-labelledby="lpf-water-power">
@@ -212,9 +213,9 @@ function UsageModelSection({ section }: { section: OutputHubSection }) {
   };
 
   const storedRiskLabel =
-    c.storedRisk === 'fail' ? 'Fail'
-    : c.storedRisk === 'warn' ? 'Caution'
-    : 'Pass';
+    c.storedRisk === 'fail' ? 'Performance may be limited'
+    : c.storedRisk === 'warn' ? 'Worth monitoring'
+    : 'Within expected range';
 
   return (
     <section className="lp-section" aria-labelledby="lpf-usage-model">
@@ -655,11 +656,7 @@ function HeatMapSection({ section }: { section: OutputHubSection }) {
   );
 }
 
-const COMBI_RISK_LABEL: Record<string, string> = {
-  fail: 'Combi cannot meet simultaneous demand',
-  warn: 'Combi may struggle at peak demand',
-  pass: 'Combi demand manageable',
-};
+const COMBI_RISK_LABEL: Record<string, string> = CUSTOMER_COMBI_RISK_LABEL;
 
 const VOLUME_BAND_LABEL: Record<string, string> = {
   small: 'Small (≤150 L)', medium: 'Medium (180–210 L)', large: 'Large (≥250 L)',
@@ -787,9 +784,7 @@ function SuitabilitySummarySection({ section }: { section: OutputHubSection }) {
   const c = section.content as {
     rows: Array<{ id: string; label: string; status: string; why: string[] }>;
   };
-  const STATUS_LABEL_MAP: Record<string, string> = {
-    viable: 'Best fit', caution: 'Possible with upgrades', rejected: 'Not suitable',
-  };
+  const STATUS_LABEL_MAP: Record<string, string> = OPTION_STATUS_LABEL;
   return (
     <section className="lp-section" aria-labelledby="lpf-suitability">
       <h2 className="lp-section__title" id="lpf-suitability">

@@ -9,6 +9,7 @@
 import type { LimitersV1, LimiterV1, LimiterSeverity } from '../../contracts/EngineOutputV1';
 import { AtlasPanel } from '../ui/AtlasPanel';
 import { SeverityBadge } from '../ui/SeverityBadge';
+import { SEVERITY_LABEL as CUSTOMER_SEVERITY_LABEL } from '../../lib/copy/customerCopy';
 
 interface Props {
   limiters?: LimitersV1;
@@ -21,11 +22,7 @@ const BADGE_LEVEL: Record<'fail' | 'warn', 'danger' | 'warning'> = {
   warn: 'warning',
 };
 
-const BADGE_LABEL: Record<LimiterSeverity, string> = {
-  fail: 'Fail',
-  warn: 'Warn',
-  info: 'Info',
-};
+const BADGE_LABEL: Record<LimiterSeverity, string> = CUSTOMER_SEVERITY_LABEL as Record<LimiterSeverity, string>;
 
 function LimiterRow({ limiter }: { limiter: LimiterV1 }) {
   const severity = limiter.severity;
@@ -54,9 +51,9 @@ export default function ActiveLimitersCard({ limiters }: Props) {
 
   const subtitle =
     failCount > 0
-      ? `${failCount} fail${failCount > 1 ? 's' : ''}${warnCount > 0 ? `, ${warnCount} warn${warnCount > 1 ? 's' : ''}` : ''}`
+      ? `${failCount} item${failCount > 1 ? 's' : ''} needing attention${warnCount > 0 ? `, ${warnCount} to check` : ''}`
       : warnCount > 0
-      ? `${warnCount} warning${warnCount > 1 ? 's' : ''}`
+      ? `${warnCount} item${warnCount > 1 ? 's' : ''} worth checking`
       : 'None active';
 
   return (

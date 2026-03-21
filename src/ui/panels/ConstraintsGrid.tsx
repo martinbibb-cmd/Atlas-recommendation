@@ -28,8 +28,8 @@ interface Props {
 // ── Severity styles ───────────────────────────────────────────────────────────
 
 const SEVERITY_STYLES: Record<LimiterSeverity, { chip: string; text: string; label: string }> = {
-  fail: { chip: '#e53e3e', text: '#9b2c2c', label: 'Fix Required' },
-  warn: { chip: '#d69e2e', text: '#7b341e', label: 'Watch' },
+  fail: { chip: '#e53e3e', text: '#9b2c2c', label: 'Needs attention' },
+  warn: { chip: '#d69e2e', text: '#7b341e', label: 'Worth checking' },
   info: { chip: '#3182ce', text: '#2a4365', label: 'Info' },
 };
 
@@ -42,10 +42,10 @@ function deriveVerdict(limiters: LimiterV1[]): {
   text: string;
 } {
   if (limiters.some(l => l.severity === 'fail')) {
-    return { label: 'Fix Required', bg: '#fff5f5', border: '#fc8181', text: '#9b2c2c' };
+    return { label: 'Needs attention', bg: '#fff5f5', border: '#fc8181', text: '#9b2c2c' };
   }
   if (limiters.some(l => l.severity === 'warn')) {
-    return { label: 'Watch', bg: '#fffff0', border: '#f6e05e', text: '#7b341e' };
+    return { label: 'Worth checking', bg: '#fffff0', border: '#f6e05e', text: '#7b341e' };
   }
   return { label: 'Good', bg: '#f0fff4', border: '#9ae6b4', text: '#276749' };
 }
@@ -145,7 +145,7 @@ export default function ConstraintsGrid({ limiters }: Props) {
           color: '#276749',
         }}
       >
-        ✅ No active constraints — system is operating within all physics limits.
+        ✅ No known limitations — the system is operating within expected physics bounds.
       </div>
     );
   }
@@ -173,7 +173,7 @@ export default function ConstraintsGrid({ limiters }: Props) {
             color: verdict.text,
           }}
         >
-          Direct Constraints
+          Things to be aware of
         </span>
         <span
           style={{
@@ -188,7 +188,7 @@ export default function ConstraintsGrid({ limiters }: Props) {
           {verdict.label}
         </span>
         <span style={{ fontSize: 11, color: '#718096', marginLeft: 'auto' }}>
-          {limiters.limiters.length} constraint{limiters.limiters.length !== 1 ? 's' : ''}
+          {limiters.limiters.length} item{limiters.limiters.length !== 1 ? 's' : ''} to review
         </span>
       </div>
 
@@ -216,7 +216,7 @@ export default function ConstraintsGrid({ limiters }: Props) {
               }}
             >
               <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, color: '#718096', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                Constraint
+                What to be aware of
               </th>
               <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, color: '#718096', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>
                 Observed vs Limit

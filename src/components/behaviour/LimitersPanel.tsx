@@ -12,16 +12,13 @@
  *   - "Simulate fix" CTA (stub)
  */
 import type { LimitersV1, LimiterV1, LimiterSeverity } from '../../contracts/EngineOutputV1';
+import { SEVERITY_LABEL as CUSTOMER_SEVERITY_LABEL } from '../../lib/copy/customerCopy';
 
 interface Props {
   limiters: LimitersV1;
 }
 
-const SEVERITY_LABEL: Record<LimiterSeverity, string> = {
-  fail: 'Fail',
-  warn: 'Warning',
-  info: 'Info',
-};
+const SEVERITY_LABEL: Record<LimiterSeverity, string> = CUSTOMER_SEVERITY_LABEL as Record<LimiterSeverity, string>;
 
 const BADGE_VARIANT: Record<LimiterSeverity, string> = {
   fail: 'danger',

@@ -9,15 +9,16 @@
  */
 import { useState } from 'react';
 import type { VerdictV1, AssumptionV1 } from '../../contracts/EngineOutputV1';
+import { VERDICT_STATUS_LABEL } from '../../lib/copy/customerCopy';
 
 interface Props {
   verdict: VerdictV1;
 }
 
 const STATUS_META: Record<VerdictV1['status'], { label: string }> = {
-  good:    { label: 'Recommended' },
-  caution: { label: 'Caution' },
-  fail:    { label: 'Not Suitable' },
+  good:    { label: VERDICT_STATUS_LABEL.good },
+  caution: { label: VERDICT_STATUS_LABEL.caution },
+  fail:    { label: VERDICT_STATUS_LABEL.fail },
 };
 
 const CONFIDENCE_LABELS: Record<string, string> = {

@@ -9,12 +9,9 @@
  */
 
 import type { OutputHubSection } from '../../live/printSections.model';
+import { OPTION_STATUS_LABEL, OPTION_STATUS_ICON } from '../../lib/copy/customerCopy';
 
-const STATUS_LABEL: Record<string, string> = {
-  viable:   'Best fit',
-  caution:  'Possible with upgrades',
-  rejected: 'Not suitable',
-};
+const STATUS_LABEL: Record<string, string> = OPTION_STATUS_LABEL;
 
 const STATUS_CLASS: Record<string, string> = {
   viable:   'hub-suitability__status--viable',
@@ -22,11 +19,7 @@ const STATUS_CLASS: Record<string, string> = {
   rejected: 'hub-suitability__status--rejected',
 };
 
-const STATUS_ICON: Record<string, string> = {
-  viable:   '✅',
-  caution:  '⚠️',
-  rejected: '❌',
-};
+const STATUS_ICON: Record<string, string> = OPTION_STATUS_ICON;
 
 interface SuitabilityRow {
   id:     string;

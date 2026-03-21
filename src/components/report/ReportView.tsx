@@ -97,7 +97,7 @@ function SystemSummarySection({ section }: { section: SystemSummarySection }) {
       : section.verdictStatus === 'caution'
         ? 'Caution'
         : section.verdictStatus === 'fail'
-          ? 'Fail'
+          ? 'Less suited to this setup'
           : undefined;
 
   return (
@@ -158,11 +158,11 @@ function DecisionRationaleRenderer({ section }: { section: DecisionRationaleSect
         </div>
       )}
 
-      {/* Key physical constraints */}
+      {/* Key physical considerations */}
       {section.keyPhysicalConstraints.length > 0 && (
         <div className="rv-rationale-block">
-          <p className="rv-rationale-block__heading">Key physical constraints</p>
-          <ul className="rv-bullet-list rv-bullet-list--constraints" aria-label="Key physical constraints">
+          <p className="rv-rationale-block__heading">Things to be aware of</p>
+          <ul className="rv-bullet-list rv-bullet-list--constraints" aria-label="Things to be aware of">
             {section.keyPhysicalConstraints.map((c, i) => <li key={i}>{c}</li>)}
           </ul>
         </div>
@@ -262,7 +262,7 @@ function BehaviourSummarySection({ section }: { section: BehaviourSummarySection
 function KeyLimitersSection({ section }: { section: KeyLimitersSection }) {
   return (
     <section className="rv-section rv-page-break-before" aria-labelledby="rv-key-limiters">
-      <h2 className="rv-section__title" id="rv-key-limiters">Key limiters / constraints</h2>
+      <h2 className="rv-section__title" id="rv-key-limiters">Things to be aware of</h2>
       {section.limiters.map(l => (
         <div key={l.id} className="rv-limiter">
           <span className={`rv-limiter__badge rv-limiter__badge--${l.severity}`}>
@@ -296,8 +296,8 @@ function VerdictSection({ section }: { section: VerdictSection }) {
           {section.status === 'good'
             ? 'Recommended'
             : section.status === 'caution'
-              ? 'Caution'
-              : 'Does not meet criteria'}
+              ? 'Possible with caveats'
+              : 'Less suited to this setup'}
         </div>
         <p className="rv-verdict__title">{section.title}</p>
         <div className="rv-verdict__confidence-block">
