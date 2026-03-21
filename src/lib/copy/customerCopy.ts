@@ -126,6 +126,74 @@ export const PORTAL_FOOTER_COPY =
 /** Label for the "required changes" section in portal / report. */
 export const PORTAL_CHANGES_HEADING = 'What the installation would involve';
 
+// ─── PR3 — Customer-chosen option copy ───────────────────────────────────────
+
+/**
+ * Label for the "choose this option" affordance on option cards.
+ * Used on recommendation cards, comparison surfaces, and the portal.
+ */
+export const CHOOSE_OPTION_LABEL = 'Choose this option';
+
+/**
+ * Label shown when a customer has already chosen an option.
+ * Confirms their selection without being confrontational.
+ */
+export const CHOSEN_OPTION_CONFIRMED_LABEL = 'Your chosen option';
+
+/**
+ * Label for the "use in comparison" affordance — a softer entry point
+ * when the customer hasn't committed to a choice yet.
+ */
+export const USE_IN_COMPARISON_LABEL = 'Use this option in the comparison';
+
+/**
+ * Framing block copy for when the customer-chosen option differs from
+ * the Atlas recommendation.
+ *
+ * Structure: Affirm → Align → Explain behaviour → Guide
+ * (reuses the PR2 copy framework — no separate tone)
+ */
+export const CHOSEN_OPTION_FRAMING = {
+  /** Opening affirmation — never confrontational. */
+  affirm: "I can see why this option appeals.",
+  /** Alignment sentence — links choice to their priorities. */
+  align:  "It fits with what matters to you.",
+  /**
+   * Behaviour intro — leads into the physics-honest consequence.
+   * The specific consequence is populated from option-level data,
+   * not hardcoded here.
+   */
+  behaviourIntro: "In your home, the main thing shaping performance is",
+  /**
+   * Guide sentence — steers back toward the recommended option
+   * without dismissing the customer's choice.
+   */
+  guide: "That's why the recommended option gives you more headroom here.",
+  /** Section heading for the chosen-option framing block. */
+  heading: "Your chosen option",
+  /** Sub-heading clarifying the recommended option is still available. */
+  recommendedStillAvailable:
+    "The recommended option is still shown below for comparison.",
+} as const;
+
+/**
+ * Real-world behaviour consequence phrases for customer-chosen options.
+ *
+ * These describe daily-use implications in lived-experience terms.
+ * Used when the customer has chosen an option that differs from the
+ * Atlas recommendation.
+ */
+export const CHOSEN_OPTION_BEHAVIOUR_NOTES: Record<string, string> = {
+  simultaneous_demand:
+    'Performance may feel more limited when more than one outlet is in use.',
+  stored_vs_combi:
+    'This keeps things compact, but stored hot water would give you more flexibility at busier times.',
+  lighter_demand:
+    'This can still work well for lighter demand.',
+  reduced_cycling:
+    'This option reduces boiler cycling, which helps efficiency over time.',
+};
+
 // ─── Banned phrasing guard (development aid) ─────────────────────────────────
 
 /**
@@ -146,4 +214,7 @@ export const BANNED_CUSTOMER_PHRASES: ReadonlyArray<string> = [
   'Fail — simultaneous demand not met',
   'Combi cannot meet simultaneous demand',
   'Recommendation withheld',
+  'You chose against advice',
+  'Override',
+  'Overridden',
 ];

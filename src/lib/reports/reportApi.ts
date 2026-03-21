@@ -8,6 +8,7 @@
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
+import type { RecommendationPresentationState } from '../selection/optionSelection';
 
 export interface ReportMeta {
   id: string;
@@ -26,6 +27,16 @@ export interface ReportPayload {
   engineInput: EngineInputV2_3;
   engineOutput: EngineOutputV1;
   decisionSynthesis: unknown;
+  /**
+   * PR3 — Presentation-layer selection state.
+   *
+   * Records both the recommended option and any customer-chosen preference.
+   * The engine recommendation is never replaced — both coexist so the
+   * difference is always visible.
+   *
+   * Absent in reports saved before PR3.  Consumers must treat as optional.
+   */
+  presentationState?: RecommendationPresentationState;
 }
 
 export interface ReportDetail extends ReportMeta {

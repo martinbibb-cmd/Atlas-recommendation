@@ -1261,3 +1261,105 @@
   margin: 0 0 0.4rem;
   text-align: center;
 }
+
+/* ── PR3 — Customer-chosen option affordance ─────────────────────────────── */
+
+.advice-multi-option--chosen {
+  border: 2px solid #3182ce;
+  background: #ebf8ff;
+}
+
+.advice-multi-option--recommended {
+  border-left: 4px solid #38a169;
+}
+
+.advice-multi-option__chosen-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 20px;
+  padding: 0.2rem 0.7rem;
+  background: #bee3f8;
+  color: #2b6cb0;
+}
+
+.advice-multi-option__badge--recommended {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.advice-multi-option__actions {
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.advice-multi-option__choose-btn {
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.35rem 0.9rem;
+  border-radius: 6px;
+  border: 1.5px solid #3182ce;
+  background: #fff;
+  color: #2b6cb0;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.advice-multi-option__choose-btn:hover {
+  background: #ebf8ff;
+}
+
+.advice-multi-option__choose-btn--chosen {
+  background: #bee3f8;
+  color: #2b6cb0;
+  border-color: #2b6cb0;
+}
+
+/* ── PR3 — Chosen-option framing banner ──────────────────────────────────── */
+
+.advice-chosen-banner {
+  background: #f0f9ff;
+  border: 1px solid #bee3f8;
+  border-radius: 8px;
+  padding: 1.2rem 1.4rem;
+}
+
+.advice-chosen-banner__heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2b6cb0;
+  margin: 0 0 0.75rem;
+}
+
+.advice-chosen-banner__affirm {
+  font-size: 0.95rem;
+  color: #2d3748;
+  margin: 0 0 0.5rem;
+  font-style: italic;
+}
+
+.advice-chosen-banner__align {
+  font-size: 0.9rem;
+  color: #4a5568;
+  margin: 0 0 0.5rem;
+}
+
+.advice-chosen-banner__headline {
+  font-size: 0.9rem;
+  color: #2d3748;
+  margin: 0 0 0.5rem;
+  font-weight: 500;
+}
+
+.advice-chosen-banner__guide {
+  font-size: 0.9rem;
+  color: #744210;
+  margin: 0 0 0.5rem;
+}
+
+.advice-chosen-banner__recommendation-note {
+  font-size: 0.82rem;
+  color: #718096;
+  margin: 0;
+  font-style: italic;
+}

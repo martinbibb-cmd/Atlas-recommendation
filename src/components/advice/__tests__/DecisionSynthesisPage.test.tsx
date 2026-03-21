@@ -1055,3 +1055,119 @@ describe('DecisionSynthesisPage — portal/QR pre-save affordance', () => {
     );
   });
 });
+
+// ─── PR3 — Customer-chosen option ────────────────────────────────────────────
+
+// Engine output with multiple options so the "All available options" section
+// is rendered even when there's a single clear recommendation.
+const MULTI_OPTION_OUTPUT: EngineOutputV1 = {
+  eligibility: [],
+  redFlags: [],
+  recommendation: { primary: 'Combi boiler' },
+  explainers: [],
+  options: [
+    makeOption('combi', 'viable'),
+    makeOption('stored_unvented', 'caution'),
+    makeOption('ashp', 'caution'),
+  ],
+  verdict: {
+    title: 'Good match',
+    status: 'good',
+    reasons: ['Good mains pressure for combi'],
+    confidence: { level: 'medium', reasons: [] },
+    assumptionsUsed: [],
+  },
+};
+
+describe('DecisionSynthesisPage — PR3 customer-chosen option', () => {
+  it('renders "All available options" section when multiple options exist', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT} />);
+    expect(screen.getByTestId('all-options-section')).toBeTruthy();
+  });
+
+  it('renders a "Choose this option" button for non-recommended options', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT} />);
+    const chooseButtons = screen.getAllByTestId(/^choose-btn-/);
+    // Should have buttons for stored_unvented and ashp (not combi — it's recommended).
+    expect(chooseButtons.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('does not render a "Choose this option" button for the recommended option', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT} />);
+    // The recommended option (combi) should not have a choose button.
+    expect(screen.queryByTestId('choose-btn-combi')).toBeNull();
+  });
+
+  it('customer can choose a non-recommended option — chosen badge appears', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT} />);
+
+    // Click "Choose this option" for stored_unvented.
+    const chooseBtn = screen.getByTestId('choose-btn-stored_unvented');
+    fireEvent.click(chooseBtn);
+
+    // The chosen badge should now appear for stored_unvented.
+    expect(screen.getByTestId('chosen-badge-stored_unvented')).toBeTruthy();
+  });
+
+  it('the framing banner appears after the customer makes a non-recommended choice', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT} />);
+
+    // Banner is not shown before choice.
+    expect(screen.queryByTestId('chosen-option-banner')).toBeNull();
+
+    // Customer picks an alternative.
+    fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
+
+    // Banner should now be visible.
+    expect(screen.getByTestId('chosen-option-banner')).toBeTruthy();
+  });
+
+  it('framing banner uses affirm-first language — no confrontational wording', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT} />);
+    fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
+
+    const banner = screen.getByTestId('chosen-option-banner');
+    // Should include the affirm phrase.
+    expect(banner.textContent).toMatch(/I can see why this option appeals/i);
+    // Must not include banned confrontational phrases.
+    expect(banner.textContent).not.toMatch(/override/i);
+    expect(banner.textContent).not.toMatch(/you chose against advice/i);
+    expect(banner.textContent).not.toMatch(/not suitable/i);
+  });
+
+  it('recommended option remains visible after customer chooses another', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT} />);
+    fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
+
+    // The recommended system (combi) should still appear in the hero.
+    expect(screen.getByText(/ATLAS RECOMMENDS/i)).toBeTruthy();
+    const combiMatches = screen.getAllByText('combi');
+    expect(combiMatches.length).toBeGreaterThan(0);
+  });
+
+  it('customer can clear their choice — banner disappears', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT} />);
+
+    // Choose an option.
+    fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
+    expect(screen.getByTestId('chosen-option-banner')).toBeTruthy();
+
+    // Clear the choice.
+    fireEvent.click(screen.getByTestId('clear-choice-btn-stored_unvented'));
+    expect(screen.queryByTestId('chosen-option-banner')).toBeNull();
+  });
+
+  it('framing banner does not appear when customer has not made a choice', () => {
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT} />);
+    expect(screen.queryByTestId('chosen-option-banner')).toBeNull();
+  });
+
+  it('framing banner does not appear when customer chooses the recommended option', () => {
+    // The recommended option card (combi) does not have a choose button.
+    // Verify the banner stays absent.
+    render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT} />);
+    expect(screen.queryByTestId('chosen-option-banner')).toBeNull();
+    // Also verify no choose button exists for combi.
+    expect(screen.queryByTestId('choose-btn-combi')).toBeNull();
+  });
+});
