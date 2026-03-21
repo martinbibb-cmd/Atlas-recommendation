@@ -269,7 +269,8 @@ describe('CustomerPortalPage — loaded state', () => {
     const token = await makeValidToken('test-report-1');
     render(<CustomerPortalPage reference="test-report-1" token={token} />);
     await waitFor(() => {
-      expect(screen.getByText('Adequate mains pressure')).toBeTruthy();
+      // "Adequate mains pressure" appears in both the why-atlas section and the why-bullets section
+      expect(screen.getAllByText('Adequate mains pressure').length).toBeGreaterThan(0);
     });
   });
 
@@ -369,7 +370,7 @@ describe('CustomerPortalPage — PR3 chosen option banner', () => {
     const token = await makeValidToken('test-report-1');
     render(<CustomerPortalPage reference="test-report-1" token={token} />);
     await waitFor(() => {
-      expect(document.querySelector('[data-testid="portal-chosen-option-banner"]')).not.toBeNull();
+      expect(document.querySelector('[data-testid="portal-chosen-option-hero"]')).not.toBeNull();
     });
   });
 
@@ -380,7 +381,7 @@ describe('CustomerPortalPage — PR3 chosen option banner', () => {
     await waitFor(() => {
       expect(document.querySelector('[data-testid="portal-hero"]')).not.toBeNull();
     });
-    expect(document.querySelector('[data-testid="portal-chosen-option-banner"]')).toBeNull();
+    expect(document.querySelector('[data-testid="portal-chosen-option-hero"]')).toBeNull();
   });
 
   it('does not show the banner when presentationState is absent (pre-PR3 report)', async () => {
@@ -390,7 +391,7 @@ describe('CustomerPortalPage — PR3 chosen option banner', () => {
     await waitFor(() => {
       expect(document.querySelector('[data-testid="portal-hero"]')).not.toBeNull();
     });
-    expect(document.querySelector('[data-testid="portal-chosen-option-banner"]')).toBeNull();
+    expect(document.querySelector('[data-testid="portal-chosen-option-hero"]')).toBeNull();
   });
 
   it('chosen-option banner uses affirm-first language', async () => {
@@ -398,9 +399,9 @@ describe('CustomerPortalPage — PR3 chosen option banner', () => {
     const token = await makeValidToken('test-report-1');
     render(<CustomerPortalPage reference="test-report-1" token={token} />);
     await waitFor(() => {
-      expect(document.querySelector('[data-testid="portal-chosen-option-banner"]')).not.toBeNull();
+      expect(document.querySelector('[data-testid="portal-chosen-option-hero"]')).not.toBeNull();
     });
-    const banner = document.querySelector('[data-testid="portal-chosen-option-banner"]')!;
+    const banner = document.querySelector('[data-testid="portal-chosen-option-hero"]')!;
     expect(banner.textContent).toMatch(/I can see why this option appeals/i);
     // Must not use confrontational language.
     expect(banner.textContent).not.toMatch(/override/i);
@@ -417,7 +418,163 @@ describe('CustomerPortalPage — PR3 chosen option banner', () => {
     });
     // The recommended system hero is still present.
     expect(document.querySelector('[data-testid="portal-hero"]')).not.toBeNull();
-    // And the chosen-option banner is also present.
-    expect(document.querySelector('[data-testid="portal-chosen-option-banner"]')).not.toBeNull();
+    // And the chosen-option hero is also present.
+    expect(document.querySelector('[data-testid="portal-chosen-option-hero"]')).not.toBeNull();
+  });
+});
+
+// ─── PR7 — Portal parity: PR6 decision structure ──────────────────────────────
+
+describe('CustomerPortalPage — PR7 portal parity', () => {
+  it('renders "Recommended for your home" heading in the hero section', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(screen.getByText(/recommended for your home/i)).toBeTruthy();
+    });
+  });
+
+  it('renders "Why Atlas suggested this" section when verdict has reasons', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-why-atlas"]')).not.toBeNull();
+    });
+  });
+
+  it('"Why Atlas suggested this" section contains the primary reason', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-why-atlas"]')).not.toBeNull();
+    });
+    const whyAtlas = document.querySelector('[data-testid="portal-why-atlas"]')!;
+    expect(whyAtlas.textContent).toMatch(/adequate mains pressure/i);
+  });
+
+  it('does not render "Why Atlas suggested this" when verdict has no reasons', async () => {
+    const reportNoReasons: ReportDetail = {
+      ...STUB_REPORT,
+      payload: {
+        ...STUB_REPORT.payload,
+        engineOutput: {
+          ...STUB_ENGINE_OUTPUT,
+          verdict: {
+            title: 'Good match',
+            status: 'good',
+            reasons: [],
+            confidence: { level: 'high', reasons: [] },
+            assumptionsUsed: [],
+          },
+        },
+      },
+    };
+    mockFetchSuccess(reportNoReasons);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-hero"]')).not.toBeNull();
+    });
+    expect(document.querySelector('[data-testid="portal-why-atlas"]')).toBeNull();
+  });
+
+  it('renders the comparison summary when customer has diverged and behaviour cards exist', async () => {
+    const STUB_OUTPUT_WITH_BEHAVIOURS: EngineOutputV1 = {
+      ...STUB_ENGINE_OUTPUT,
+      options: [
+        {
+          id: 'combi',
+          label: 'Combi boiler',
+          status: 'viable',
+          headline: 'Best fit',
+          why: ['Compact installation'],
+          requirements: [],
+          heat: { status: 'ok', headline: '', bullets: [] },
+          dhw: { status: 'ok', headline: '', bullets: [] },
+          engineering: { status: 'ok', headline: '', bullets: [] },
+          sensitivities: [],
+        },
+        {
+          id: 'stored_unvented',
+          label: 'Stored unvented',
+          status: 'caution',
+          headline: 'Possible with upgrades',
+          why: ['More hot water'],
+          requirements: [],
+          heat: { status: 'ok', headline: '', bullets: [] },
+          dhw: { status: 'ok', headline: '', bullets: [] },
+          engineering: { status: 'ok', headline: '', bullets: [] },
+          sensitivities: [],
+        },
+      ],
+      realWorldBehaviours: [
+        {
+          scenario_id: 'simultaneous_showers',
+          title: 'Two showers at once',
+          summary: 'Performance depends on flow.',
+          recommended_option_outcome: 'acceptable',
+          alternative_option_outcome: 'limited',
+          limiting_factor: 'mains',
+        },
+      ],
+    };
+    const reportWithDivergence: ReportDetail = {
+      ...STUB_REPORT,
+      payload: {
+        ...STUB_REPORT.payload,
+        engineOutput: STUB_OUTPUT_WITH_BEHAVIOURS,
+        presentationState: {
+          recommendedOptionId: 'combi',
+          chosenOptionId: 'stored_unvented',
+          chosenByCustomer: true,
+        },
+      },
+    };
+    mockFetchSuccess(reportWithDivergence);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-comparison-summary"]')).not.toBeNull();
+    });
+  });
+
+  it('renders behaviour cards section when engine output has realWorldBehaviours', async () => {
+    const reportWithBehaviours: ReportDetail = {
+      ...STUB_REPORT,
+      payload: {
+        ...STUB_REPORT.payload,
+        engineOutput: {
+          ...STUB_ENGINE_OUTPUT,
+          realWorldBehaviours: [
+            {
+              scenario_id: 'morning_shower',
+              title: 'Morning shower',
+              summary: 'Hot water available on demand.',
+              recommended_option_outcome: 'strong',
+              limiting_factor: undefined,
+            },
+          ],
+        },
+      },
+    };
+    mockFetchSuccess(reportWithBehaviours);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-behaviour-cards"]')).not.toBeNull();
+    });
+  });
+
+  it('does not render behaviour cards section when engine output has no realWorldBehaviours', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-hero"]')).not.toBeNull();
+    });
+    expect(document.querySelector('[data-testid="portal-behaviour-cards"]')).toBeNull();
   });
 });
