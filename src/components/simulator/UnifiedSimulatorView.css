@@ -1,0 +1,8 @@
+.unified-simulator-view { display:grid; grid-template-columns:minmax(0,2.2fr) minmax(320px,1fr); gap:1.25rem; align-items:start; }
+.unified-simulator-view__simulator,.unified-simulator-view__insights { display:grid; gap:1rem; }
+.unified-simulator-view__header { display:flex; justify-content:space-between; gap:1rem; padding:1rem 1.25rem; border-radius:20px; background:linear-gradient(135deg,#eff6ff 0%,#f8fbff 100%); border:1px solid #d8e6ff; }
+.unified-simulator-view__header h2 { margin:0 0 .35rem; }
+.unified-simulator-view__header p { margin:0; color:#4c6282; }
+.unified-simulator-view__day-painter { min-width:220px; padding:.85rem 1rem; border-radius:16px; background:#10243d; color:#eaf2ff; display:grid; gap:.3rem; }
+.unified-simulator-view__day-painter-label { font-size:.8rem; text-transform:uppercase; letter-spacing:.08em; color:#93c5fd; }
+@media (max-width:1100px){ .unified-simulator-view { grid-template-columns:1fr; } }

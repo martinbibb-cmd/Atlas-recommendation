@@ -97,7 +97,6 @@ const SYSTEM_CHOICE_OPTIONS: { value: SimulatorSystemChoice; label: string; desc
   { value: 'unvented',    label: 'Unvented',    description: 'Mains-fed cylinder, S-plan zone valves. CH and reheat independent.' },
   { value: 'open_vented', label: 'Open vented', description: 'Tank-fed cylinder, Y-plan mid-position valve. Gravity cold supply.' },
   { value: 'heat_pump',   label: 'Heat pump',   description: 'ASHP primary loop with cylinder. Low flow temps, no condensing.' },
-  { value: 'mixergy',     label: 'Mixergy',     description: 'Stratified mains-fed cylinder. Top-down heat; demand mirroring; reduced cycling.' },
 ];
 
 // ─── Phase bar ────────────────────────────────────────────────────────────────

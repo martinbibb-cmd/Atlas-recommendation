@@ -68,12 +68,6 @@ const SYSTEM_CHOICES: { value: SimulatorSystemChoice; label: string; description
     description: 'Air-source heat pump with thermal store cylinder. Low flow temps, high COP, no condensing classification.',
     icon: '🌬',
   },
-  {
-    value: 'mixergy',
-    label: 'Mixergy cylinder',
-    description: 'Stratified mains-fed cylinder with top-down heating and demand mirroring controls.',
-    icon: '🧠',
-  },
 ];
 
 // ─── Control strategy choices per system type ─────────────────────────────────

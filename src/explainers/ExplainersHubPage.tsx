@@ -14,20 +14,16 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import SimulatorDashboard from './lego/simulator/SimulatorDashboard';
-import type { FloorplanOperatingAssumptions } from './lego/simulator/SimulatorDashboard';
 import SimulatorStepper from './lego/simulator/SimulatorStepper';
 import type { StepperConfig } from './lego/simulator/SimulatorStepper';
 import { adaptFullSurveyToSimulatorInputs } from './lego/simulator/adaptFullSurveyToSimulatorInputs';
-import { buildCompareSeedFromSurvey } from '../lib/simulator/buildCompareSeedFromSurvey';
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import ExplainerPanel from './educational/ExplainerPanel';
 import { EnergyLiteracyPanel } from '../features/explainers/energy';
 import { runEngine } from '../engine/Engine';
-import DecisionSynthesisPage from '../components/advice/DecisionSynthesisPage';
-import { adaptFloorplanToAtlasInputs } from '../lib/floorplan/adaptFloorplanToAtlasInputs';
-import { buildHeatingOperatingState, FLOOR_PLAN_EMITTER_EXPLANATION_TAGS } from '../lib/heating/buildHeatingOperatingState';
 import type { DerivedFloorplanOutput } from '../components/floorplan/floorplanDerivations';
+import UnifiedSimulatorView from '../components/simulator/UnifiedSimulatorView';
 import { useGlobalMenu } from '../components/shell/GlobalMenuContext';
 import type { GlobalMenuSection } from '../components/shell/GlobalMenuContext';
 
@@ -59,50 +55,12 @@ interface Props {
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
-/**
- * Build a FloorplanOperatingAssumptions summary from AtlasFloorplanInputs.
- * Returns null when the floor plan is not reliable or has no actionable data.
- */
-function buildFloorplanOperatingAssumptions(
-  floorplanOutput: DerivedFloorplanOutput,
-  heatLossWatts?: number,
-): FloorplanOperatingAssumptions | null {
-  const fp = adaptFloorplanToAtlasInputs(floorplanOutput);
-  if (!fp.isReliable) return null;
-
-  const adequacy = fp.wholeSystemEmitterAdequacy;
-  const fpOperatingState = adequacy.hasActualData
-    ? buildHeatingOperatingState({
-        flowTempC: 70,
-        floorplanEmitterAdequacy: adequacy,
-        heatLossWatts,
-      })
-    : null;
-
-  const emitterExplanationTags =
-    fpOperatingState?.explanationTags.filter((t) => FLOOR_PLAN_EMITTER_EXPLANATION_TAGS.has(t)) ?? [];
-
-  return {
-    refinedHeatLossKw: fp.refinedHeatLossKw > 0 ? fp.refinedHeatLossKw : null,
-    coverageClassification: adequacy.hasActualData ? adequacy.coverageClassification : null,
-    undersizedRooms: adequacy.undersizedRooms,
-    oversizedRooms: adequacy.oversizedRooms,
-    operatingTempInfluenced:
-      adequacy.hasActualData &&
-      adequacy.impliedOversizingFactor !== null &&
-      adequacy.impliedOversizingFactor !== 1.0,
-    emitterExplanationTags,
-  };
-}
-
 // ─── View ─────────────────────────────────────────────────────────────────────
 
 export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab, floorplanOutput }: Props) {
   const [config, setConfig] = useState<StepperConfig | null>(null);
   // When launched from a survey, hide the stepper by default.
   const [showStepper, setShowStepper] = useState<boolean>(!surveyData);
-  // Advice page — only available when survey-backed (engine output derivable).
-  const [showAdvice, setShowAdvice] = useState<boolean>(false);
 
   // Adapt survey data once when present.
   // The adapter accepts FullSurveyModelV1; EngineInputV2_3 satisfies it because
@@ -120,31 +78,9 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
     [surveyData],
   );
 
-  // Build the compare seed when both survey and engine output are available.
-  // This seeds the proposed (right) column from the engine's first viable recommendation.
-  const compareSeed = useMemo(
-    () =>
-      surveyData != null && engineOutput != null
-        ? buildCompareSeedFromSurvey(surveyData as FullSurveyModelV1, engineOutput)
-        : null,
-    [surveyData, engineOutput],
-  );
-
-  // Build floor-plan operating assumptions from the floor-plan output (once).
-  // These are passed to the simulator and advice page to surface which physics
-  // constraints are informed by the floor plan.
-  const floorplanOperatingAssumptions = useMemo(
-    () =>
-      floorplanOutput != null
-        ? buildFloorplanOperatingAssumptions(
-            floorplanOutput,
-            (surveyData as FullSurveyModelV1 | undefined)?.heatLossWatts,
-          )
-        : null,
-    [floorplanOutput, surveyData],
-  );
 
   // Show dashboard when:
+
   //   (a) survey-backed entry (surveyAdapted present and stepper not explicitly requested), or
   //   (b) stepper has completed and config is set.
   const showDashboard = !showStepper && (surveyAdapted != null || config != null);
@@ -180,19 +116,6 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
       ? surveyAdapted.systemInputs
       : undefined;
 
-    // Advice page — shown when user taps "View Decision Advice"
-    if (showAdvice && engineOutput) {
-      return (
-        <DecisionSynthesisPage
-          engineOutput={engineOutput}
-          onBack={() => setShowAdvice(false)}
-          compareSeed={compareSeed ?? undefined}
-          surveyData={isSurveyBacked ? (surveyData as FullSurveyModelV1) : undefined}
-          floorplanOutput={floorplanOutput}
-        />
-      );
-    }
-
     return (
       <div className="hub-page">
         <div className="hub-page__header">
@@ -225,55 +148,25 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
               🔭 System Lab
             </button>
           )}
-          {engineOutput && (
-            <button
-              className="hub-back-btn"
-              onClick={() => setShowAdvice(true)}
-              aria-label="View advice page"
-            >
-              🎯 Advice
-            </button>
-          )}
           <div>
             <h1 className="hub-page__title">Simulator</h1>
             <p className="hub-page__subtitle">Physics-first heating system simulator</p>
           </div>
         </div>
 
-        <SimulatorDashboard
-          initialSystemChoice={initialSystemChoice}
-          initialSystemInputs={initialSystemInputs}
-          surveyBacked={isSurveyBacked}
-          defaultMode={isSurveyBacked ? 'compare' : 'single'}
-          initialProposedSystemChoice={compareSeed?.right.systemChoice}
-          initialProposedSystemInputs={compareSeed?.right.systemInputs}
-          compareLabels={isSurveyBacked
-            ? { current: 'Current system', proposed: 'Proposed system' }
-            : undefined
-          }
-          floorplanOperatingAssumptions={floorplanOperatingAssumptions ?? undefined}
-        />
-
-        {/* Decision Advice CTA — only available when survey-backed */}
-        {engineOutput && (
-          <div className="hub-advice-cta">
-            <div className="hub-advice-cta__inner">
-              <div className="hub-advice-cta__icon" aria-hidden="true">🎯</div>
-              <div className="hub-advice-cta__content">
-                <div className="hub-advice-cta__title">Decision Advice</div>
-                <div className="hub-advice-cta__subtitle">
-                  Atlas advises — not just simulates. See the recommended path by objective.
-                </div>
-              </div>
-              <button
-                className="hub-advice-cta__btn"
-                onClick={() => setShowAdvice(true)}
-                aria-label="View decision advice page"
-              >
-                View Advice →
-              </button>
-            </div>
-          </div>
+        {surveyData && engineOutput ? (
+          <UnifiedSimulatorView
+            engineOutput={engineOutput}
+            surveyData={surveyData as FullSurveyModelV1}
+            floorplanOutput={floorplanOutput}
+          />
+        ) : (
+          <SimulatorDashboard
+            initialSystemChoice={initialSystemChoice}
+            initialSystemInputs={initialSystemInputs}
+            surveyBacked={isSurveyBacked}
+            defaultMode={isSurveyBacked ? 'compare' : 'single'}
+          />
         )}
 
       </div>
@@ -291,9 +184,9 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
           <button
             className="hub-back-btn"
             onClick={() => setShowStepper(false)}
-            aria-label="Back to simulator"
+            aria-label="Back to setup"
           >
-            ← Back to simulator
+            ← Back to setup
           </button>
         )}
         <div>
