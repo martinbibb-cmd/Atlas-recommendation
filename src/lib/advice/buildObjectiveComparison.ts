@@ -78,12 +78,12 @@ const PRIORITY_RANK_ORDER: Record<ObjectivePriorityId, string[]> = {
     'combi',
   ],
   space_saving: [
-    'combi',
-    'regular_vented',
-    'stored_vented',
-    'stored_unvented',
-    'system_unvented',
-    'ashp',
+    'combi',           // best: no cylinder at all — frees the airing cupboard entirely
+    'stored_unvented', // mains-fed cylinder; no cold-water storage tank in the loft
+    'system_unvented', // mains-fed cylinder (system boiler variant); no loft tank
+    'stored_vented',   // vented cylinder plus a cold-water storage tank in the loft
+    'regular_vented',  // regular boiler layout plus vented cylinder plus loft tank
+    'ashp',            // worst: large thermal store cylinder plus an outdoor unit
   ],
   simplicity: [
     'combi',

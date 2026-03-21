@@ -22,6 +22,7 @@ const SYSTEM_OPTIONS: { value: ComparisonSystemType; label: string }[] = [
   { value: 'combi',           label: 'Combi' },
   { value: 'stored_vented',   label: 'Stored — Vented' },
   { value: 'stored_unvented', label: 'Stored — Unvented' },
+  { value: 'mixergy',         label: 'Mixergy' },
   { value: 'ashp',            label: 'ASHP' },
 ];
 
