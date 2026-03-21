@@ -96,9 +96,13 @@ describe('buildRecommendationReasonSummary — fallback to option why[]', () => 
 
   it('does not use option why[] when verdict already provides 2+ reasons', () => {
     const { reasons } = buildRecommendationReasonSummary(BASE_OUTPUT, 'combi');
-    // Should not include option.why strings like raw 'Good mains pressure' since
-    // verdict already provides enough (primaryReason + 2 verdict reasons = 3 total)
+    // verdict provides: primaryReason + 2 verdict.reasons = 3 signals (>= 2),
+    // so fallback to option.why[] should NOT trigger.
+    // The option's raw why strings ('Good mains pressure', 'Single bathroom') must
+    // not appear — the verdict's richer strings supersede them.
     expect(reasons.length).toBeGreaterThanOrEqual(2);
+    expect(reasons).not.toContain('Good mains pressure');
+    expect(reasons).not.toContain('Single bathroom');
   });
 
   it('returns empty array when no verdict and no option why signals', () => {
