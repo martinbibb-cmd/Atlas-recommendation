@@ -105,7 +105,7 @@ const COMBI_PURGE_FUEL_INPUT_KWH = 0.5;
  * Heating system archetypes available for comparison in the Demand Profile Painter.
  * Matches the DayPainterSystem type in LifestyleInteractive.
  */
-export type ComparisonSystemType = 'combi' | 'stored_vented' | 'stored_unvented' | 'ashp';
+export type ComparisonSystemType = 'combi' | 'stored_vented' | 'stored_unvented' | 'mixergy' | 'ashp';
 
 // ─── ScenarioProfileV1 ────────────────────────────────────────────────────────
 
@@ -331,7 +331,7 @@ function ashpHourPhysics(
  * @param isPurgePulse   Whether this is the first DHW draw after idle (combi purge).
  * @param resolutionMins Timeline resolution in minutes (used to scale purge energy).
  */
-function computeSystemHourPhysics(
+export function computeSystemHourPhysics(
   systemType: ComparisonSystemType,
   qChDemandKw: number,
   qDhwDemandKw: number,
@@ -345,6 +345,11 @@ function computeSystemHourPhysics(
       return combiHourPhysics(qChDemandKw, qDhwDemandKw, isPurgePulse, resolutionMins);
     case 'stored_vented':
     case 'stored_unvented':
+    // Mixergy uses stored-boiler macro-level CH+DHW accounting.
+    // The Mixergy-specific improvements (demand mirroring, reduced cycling,
+    // stratification) are handled in the engine's MixergyVolumetricsModule
+    // and MixergyStratificationModule — not at this hourly-simulation layer.
+    case 'mixergy':
       return storedBoilerHourPhysics(qChDemandKw, qDhwDemandKw);
     case 'ashp':
       return ashpHourPhysics(qChDemandKw, qDhwDemandKw, hour, spfMidpoint);

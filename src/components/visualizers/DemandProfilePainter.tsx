@@ -63,6 +63,7 @@ const SYSTEM_LABELS: Record<ComparisonSystemType, string> = {
   combi:           'Combi',
   stored_vented:   'Stored — Vented',
   stored_unvented: 'Stored — Unvented',
+  mixergy:         'Mixergy',
   ashp:            'ASHP',
 };
 
