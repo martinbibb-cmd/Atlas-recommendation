@@ -1252,3 +1252,12 @@
   padding: 0;
   line-height: 1.5;
 }
+
+/* ── Portal / QR pre-save hint ───────────────────────────────────────────── */
+
+.advice-page__save-hint {
+  font-size: 0.82rem;
+  color: #4a5568;
+  margin: 0 0 0.4rem;
+  text-align: center;
+}

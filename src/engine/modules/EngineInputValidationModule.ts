@@ -65,12 +65,13 @@ const SURVEY_COLLECTABLE_CHECKS: Array<{
     id: 'mains_flow',
     label: 'Mains dynamic flow rate (L/min)',
     isMissing: (i) => {
-      // Missing only when the survey had a confirmed flow reading but the
-      // measurement was not provided.  Unconfirmed readings are not penalised
-      // here — the CWS module handles that separately.
-      return !i.mainsDynamicFlowLpm && i.mainsDynamicFlowLpmKnown !== true;
+      // Missing when no flow value has been provided.
+      // We do not penalise for the known/unknown flag alone because an
+      // engineer who hasn't measured flow yet has not 'skipped' the input
+      // — it is deferred rather than ignored.  The value itself is what matters.
+      return !i.mainsDynamicFlowLpm;
     },
-    critical: true,
+    critical: false, // Flow is important but not always measurable on first visit.
   },
   {
     id: 'bathroom_count',
