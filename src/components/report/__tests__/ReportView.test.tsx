@@ -254,7 +254,7 @@ describe('ReportView — verdict section', () => {
 describe('ReportView — key limiters section', () => {
   it('renders limiters section heading when limiters are present', () => {
     render(<ReportView output={FULL_OUTPUT} />);
-    expect(screen.getByText('Key limiters / constraints')).toBeTruthy();
+    expect(screen.getAllByText('Things to be aware of').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders limiter title', () => {
@@ -275,7 +275,7 @@ describe('ReportView — key limiters section', () => {
 
   it('does not render limiters section when no limiters', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.queryByText('Key limiters / constraints')).toBeNull();
+    expect(document.querySelector('#rv-key-limiters')).toBeNull();
   });
 });
 

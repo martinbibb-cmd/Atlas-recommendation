@@ -8,6 +8,7 @@
  */
 import type { VerdictV1 } from '../../contracts/EngineOutputV1';
 import { AtlasPanel } from '../ui/AtlasPanel';
+import { VERDICT_STATUS_LABEL } from '../../lib/copy/customerCopy';
 
 interface Props {
   verdict?: VerdictV1;
@@ -22,11 +23,7 @@ const STATUS_BADGE: Record<VerdictV1['status'], string> = {
   fail:    'atlas-badge--danger',
 };
 
-const STATUS_LABELS: Record<VerdictV1['status'], string> = {
-  good:    'Recommended',
-  caution: 'Caution',
-  fail:    'Not suitable',
-};
+const STATUS_LABELS: Record<VerdictV1['status'], string> = VERDICT_STATUS_LABEL as Record<VerdictV1['status'], string>;
 
 export default function VerdictCard({ verdict, baseVerdict }: Props) {
   if (!verdict) {

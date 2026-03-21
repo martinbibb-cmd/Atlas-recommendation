@@ -273,10 +273,10 @@ export default function CustomerPortalPage({ reference, token }: Props) {
         {whyBullets.length > 0 && (
           <section
             className="portal-section"
-            aria-label="Why this suits your home"
+            aria-label="Why this works well for your home"
             data-testid="portal-why"
           >
-            <h2 className="portal-section__title">Why this suits your home</h2>
+            <h2 className="portal-section__title">Why this works well for your home</h2>
             <ul className="portal-why__list">
               {whyBullets.map((bullet, i) => (
                 <li key={i} className="portal-why__item">{bullet}</li>
@@ -303,10 +303,10 @@ export default function CustomerPortalPage({ reference, token }: Props) {
         {requiredChanges.length > 0 && (
           <section
             className="portal-section"
-            aria-label="Required changes"
+            aria-label="What the installation would involve"
             data-testid="portal-changes"
           >
-            <h2 className="portal-section__title">Required changes</h2>
+            <h2 className="portal-section__title">What the installation would involve</h2>
             <ul className="portal-changes__list">
               {requiredChanges.map((change, i) => (
                 <li key={i} className="portal-changes__item">{change}</li>

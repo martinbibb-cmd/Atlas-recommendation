@@ -82,8 +82,8 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
   const storeTempC = result.storedDhwV1.dhwMixing.storeTempC;
 
   const combiStatusLabel =
-    combiRisk === 'fail' ? 'Not suitable'
-    : combiRisk === 'warn' ? 'Caution'
+    combiRisk === 'fail' ? 'Limited in this setup'
+    : combiRisk === 'warn' ? 'Possible with caveats'
     : 'Suitable';
   const combiPillClass =
     combiRisk === 'fail' ? 'status-pill status-pill--red'

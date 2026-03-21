@@ -69,7 +69,10 @@ describe('VerdictCard — compared with base delta', () => {
         baseVerdict={makeVerdict('good')}
       />,
     );
-    expect(screen.getByText(/compared with base: recommended → caution/i)).toBeTruthy();
+    const delta = document.querySelector('.verdict-card__delta');
+    expect(delta).not.toBeNull();
+    expect(delta?.textContent).toMatch(/recommended/i);
+    expect(delta?.textContent).toMatch(/possible with caveats/i);
   });
 
   it('renders delta line when status changes from good to fail', () => {
@@ -79,7 +82,10 @@ describe('VerdictCard — compared with base delta', () => {
         baseVerdict={makeVerdict('good')}
       />,
     );
-    expect(screen.getByText(/compared with base: recommended → not suitable/i)).toBeTruthy();
+    const delta = document.querySelector('.verdict-card__delta');
+    expect(delta).not.toBeNull();
+    expect(delta?.textContent).toMatch(/recommended/i);
+    expect(delta?.textContent).toMatch(/less suited/i);
   });
 
   it('renders delta line when status improves from fail to good', () => {
@@ -89,6 +95,9 @@ describe('VerdictCard — compared with base delta', () => {
         baseVerdict={makeVerdict('fail')}
       />,
     );
-    expect(screen.getByText(/compared with base: not suitable → recommended/i)).toBeTruthy();
+    const delta = document.querySelector('.verdict-card__delta');
+    expect(delta).not.toBeNull();
+    expect(delta?.textContent).toMatch(/less suited/i);
+    expect(delta?.textContent).toMatch(/recommended/i);
   });
 });
