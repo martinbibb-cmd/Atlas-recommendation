@@ -32,6 +32,11 @@ import TradeOffSummary from '../advice/TradeOffSummary';
 import { buildTradeOffSummary } from '../../lib/advice/buildTradeOffSummary';
 import ExploreOptionsPanel from './ExploreOptionsPanel';
 import GlobalMenuShell from '../shell/GlobalMenuShell';
+import {
+  type RecommendationPresentationState,
+  hasCustomerDivergence,
+} from '../../lib/selection/optionSelection';
+import { CHOSEN_OPTION_FRAMING } from '../../lib/copy/customerCopy';
 import './CustomerPortalPage.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -116,6 +121,8 @@ export default function CustomerPortalPage({ reference, token }: Props) {
   const [engineInput, setEngineInput] = useState<EngineInputV2_3 | null>(null);
   const [surveyData, setSurveyData] = useState<FullSurveyModelV1 | null>(null);
   const [postcode, setPostcode] = useState<string | null>(null);
+  // PR3 — presentation state loaded from the saved report.
+  const [presentationState, setPresentationState] = useState<RecommendationPresentationState | null>(null);
 
   // Validate token, then load report data
   useEffect(() => {
@@ -150,6 +157,8 @@ export default function CustomerPortalPage({ reference, token }: Props) {
         setEngineInput(report.payload.engineInput ?? null);
         setSurveyData(report.payload.surveyData ?? null);
         setPostcode(report.postcode ?? null);
+        // PR3 — load presentation state if available (absent in pre-PR3 reports).
+        setPresentationState(report.payload.presentationState ?? null);
       } catch (err: unknown) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : String(err));
@@ -230,6 +239,14 @@ export default function CustomerPortalPage({ reference, token }: Props) {
     ?? engineOutput.meta?.confidence?.level
     ?? '—';
 
+  // PR3 — Resolve chosen option for framing display.
+  const showChosenOptionBanner =
+    presentationState != null && hasCustomerDivergence(presentationState);
+  const chosenOptionCard =
+    showChosenOptionBanner && engineOutput.options && presentationState?.chosenOptionId
+      ? engineOutput.options.find(o => o.id === presentationState.chosenOptionId) ?? null
+      : null;
+
   return (
     <GlobalMenuShell>
       <div className="portal-page" data-testid="customer-portal">
@@ -268,6 +285,36 @@ export default function CustomerPortalPage({ reference, token }: Props) {
             </p>
           )}
         </section>
+
+        {/* ── Section 1b: PR3 — Customer-chosen option framing ─────────────── */}
+        {showChosenOptionBanner && chosenOptionCard != null && (
+          <section
+            className="portal-section portal-chosen-banner"
+            aria-label="Your chosen option"
+            data-testid="portal-chosen-option-banner"
+          >
+            <h2 className="portal-section__title portal-chosen-banner__heading">
+              {CHOSEN_OPTION_FRAMING.heading}: {chosenOptionCard.label}
+            </h2>
+            <p className="portal-chosen-banner__affirm">
+              {CHOSEN_OPTION_FRAMING.affirm}
+            </p>
+            {chosenOptionCard.why.length > 0 && (
+              <p className="portal-chosen-banner__align">
+                {CHOSEN_OPTION_FRAMING.align} {chosenOptionCard.why[0]}
+              </p>
+            )}
+            <p className="portal-chosen-banner__headline">
+              {chosenOptionCard.headline}
+            </p>
+            <p className="portal-chosen-banner__guide">
+              {CHOSEN_OPTION_FRAMING.guide}
+            </p>
+            <p className="portal-chosen-banner__recommendation-note">
+              {CHOSEN_OPTION_FRAMING.recommendedStillAvailable}
+            </p>
+          </section>
+        )}
 
         {/* ── Section 2: Why this suits your home ──────────────────────────── */}
         {whyBullets.length > 0 && (

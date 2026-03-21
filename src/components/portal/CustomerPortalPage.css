@@ -230,3 +230,49 @@
     border-bottom: 1px solid #000;
   }
 }
+
+/* ── PR3 — Customer-chosen option framing banner ─────────────────────────── */
+
+.portal-chosen-banner {
+  background: #f0f9ff;
+  border: 1px solid #bee3f8;
+  border-radius: 8px;
+  padding: 1.1rem 1.3rem;
+}
+
+.portal-chosen-banner__heading {
+  color: #2b6cb0;
+}
+
+.portal-chosen-banner__affirm {
+  font-size: 0.95rem;
+  color: #2d3748;
+  margin: 0 0 0.5rem;
+  font-style: italic;
+}
+
+.portal-chosen-banner__align {
+  font-size: 0.9rem;
+  color: #4a5568;
+  margin: 0 0 0.5rem;
+}
+
+.portal-chosen-banner__headline {
+  font-size: 0.9rem;
+  color: #2d3748;
+  margin: 0 0 0.5rem;
+  font-weight: 500;
+}
+
+.portal-chosen-banner__guide {
+  font-size: 0.9rem;
+  color: #744210;
+  margin: 0 0 0.4rem;
+}
+
+.portal-chosen-banner__recommendation-note {
+  font-size: 0.82rem;
+  color: #718096;
+  margin: 0;
+  font-style: italic;
+}

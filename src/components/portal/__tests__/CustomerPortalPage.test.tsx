@@ -309,3 +309,115 @@ describe('CustomerPortalPage — loaded state', () => {
     });
   });
 });
+
+// ─── PR3 — Customer-chosen option portal display ──────────────────────────────
+
+describe('CustomerPortalPage — PR3 chosen option banner', () => {
+  const STUB_OUTPUT_WITH_OPTIONS: EngineOutputV1 = {
+    ...STUB_ENGINE_OUTPUT,
+    options: [
+      {
+        id: 'combi',
+        label: 'Combi boiler',
+        status: 'viable',
+        headline: 'Best fit for this property',
+        why: ['Compact installation'],
+        requirements: [],
+        heat: { status: 'ok', headline: '', bullets: [] },
+        dhw: { status: 'ok', headline: '', bullets: [] },
+        engineering: { status: 'ok', headline: '', bullets: [] },
+        sensitivities: [],
+      },
+      {
+        id: 'stored_unvented',
+        label: 'Stored unvented',
+        status: 'caution',
+        headline: 'Possible with upgrades',
+        why: ['More stored hot water'],
+        requirements: [],
+        heat: { status: 'ok', headline: '', bullets: [] },
+        dhw: { status: 'ok', headline: '', bullets: [] },
+        engineering: { status: 'ok', headline: '', bullets: [] },
+        sensitivities: [],
+      },
+    ],
+  };
+
+  const STUB_REPORT_WITH_CHOSEN_OPTION: ReportDetail = {
+    ...STUB_REPORT,
+    payload: {
+      ...STUB_REPORT.payload,
+      engineOutput: STUB_OUTPUT_WITH_OPTIONS,
+      presentationState: {
+        recommendedOptionId: 'combi',
+        chosenOptionId: 'stored_unvented',
+        chosenByCustomer: true,
+      },
+    },
+  };
+
+  const STUB_REPORT_NO_CHOICE: ReportDetail = {
+    ...STUB_REPORT,
+    payload: {
+      ...STUB_REPORT.payload,
+      engineOutput: STUB_OUTPUT_WITH_OPTIONS,
+    },
+  };
+
+  it('shows the chosen-option banner when presentationState has a customer divergence', async () => {
+    mockFetchSuccess(STUB_REPORT_WITH_CHOSEN_OPTION);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-chosen-option-banner"]')).not.toBeNull();
+    });
+  });
+
+  it('does not show the chosen-option banner when no customer choice was made', async () => {
+    mockFetchSuccess(STUB_REPORT_NO_CHOICE);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-hero"]')).not.toBeNull();
+    });
+    expect(document.querySelector('[data-testid="portal-chosen-option-banner"]')).toBeNull();
+  });
+
+  it('does not show the banner when presentationState is absent (pre-PR3 report)', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-hero"]')).not.toBeNull();
+    });
+    expect(document.querySelector('[data-testid="portal-chosen-option-banner"]')).toBeNull();
+  });
+
+  it('chosen-option banner uses affirm-first language', async () => {
+    mockFetchSuccess(STUB_REPORT_WITH_CHOSEN_OPTION);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-chosen-option-banner"]')).not.toBeNull();
+    });
+    const banner = document.querySelector('[data-testid="portal-chosen-option-banner"]')!;
+    expect(banner.textContent).toMatch(/I can see why this option appeals/i);
+    // Must not use confrontational language.
+    expect(banner.textContent).not.toMatch(/override/i);
+    expect(banner.textContent).not.toMatch(/not suitable/i);
+    expect(banner.textContent).not.toMatch(/you chose against advice/i);
+  });
+
+  it('recommended system remains visible alongside the chosen-option banner', async () => {
+    mockFetchSuccess(STUB_REPORT_WITH_CHOSEN_OPTION);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-hero"]')).not.toBeNull();
+    });
+    // The recommended system hero is still present.
+    expect(document.querySelector('[data-testid="portal-hero"]')).not.toBeNull();
+    // And the chosen-option banner is also present.
+    expect(document.querySelector('[data-testid="portal-chosen-option-banner"]')).not.toBeNull();
+  });
+});

@@ -51,6 +51,15 @@ import { buildPhysicsStory } from '../../lib/story/buildPhysicsStory';
 import { useGlobalMenu } from '../shell/GlobalMenuContext';
 import TradeOffSummary from './TradeOffSummary';
 import { buildTradeOffSummary } from '../../lib/advice/buildTradeOffSummary';
+import {
+  type RecommendationPresentationState,
+  hasCustomerDivergence,
+} from '../../lib/selection/optionSelection';
+import {
+  CHOOSE_OPTION_LABEL,
+  CHOSEN_OPTION_CONFIRMED_LABEL,
+  CHOSEN_OPTION_FRAMING,
+} from '../../lib/copy/customerCopy';
 import './DecisionSynthesisPage.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -595,6 +604,11 @@ export default function DecisionSynthesisPage({
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // PR3 — Customer-chosen option state (presentation layer only).
+  // chosenOptionId tracks which option the customer has actively preferred.
+  // This NEVER alters engine scoring or the recommended option.
+  const [chosenOptionId, setChosenOptionId] = useState<string | null>(null);
+
   // Register context-specific explainer IDs with the global menu shell.
   const { setContextExplainerIds, setContextMenuSections } = useGlobalMenu();
 
@@ -665,6 +679,9 @@ export default function DecisionSynthesisPage({
   surveyDataRef.current = surveyData;
   const engineOutputRef = useRef(engineOutput);
   engineOutputRef.current = engineOutput;
+  // PR3 — ref so persistReport always uses the latest chosen option.
+  const chosenOptionIdRef = useRef(chosenOptionId);
+  chosenOptionIdRef.current = chosenOptionId;
 
   /**
    * Shared persist function — always reads from refs so retries use the
@@ -674,11 +691,27 @@ export default function DecisionSynthesisPage({
     const latestCompareAdvice = compareAdviceRef.current;
     const latestSurveyData = surveyDataRef.current;
     const latestEngineOutput = engineOutputRef.current;
+    const latestChosenOptionId = chosenOptionIdRef.current;
 
     if (latestCompareAdvice == null || latestSurveyData == null) {
       setSaveState('failed');
       return;
     }
+
+    // PR3 — Resolve recommended option ID from engine output for the
+    // presentation state. This is presentation-only and does not affect
+    // the engine recommendation.
+    const recommendedOptionId =
+      latestEngineOutput.options?.find(o => o.status === 'viable')?.id ??
+      latestEngineOutput.options?.[0]?.id ??
+      '';
+
+    const presentationState: RecommendationPresentationState = {
+      recommendedOptionId,
+      chosenOptionId: latestChosenOptionId ?? undefined,
+      chosenByCustomer: latestChosenOptionId != null,
+    };
+
     try {
       const engineInput = toEngineInput(latestSurveyData);
       const res = await fetch('/api/reports', {
@@ -691,6 +724,7 @@ export default function DecisionSynthesisPage({
             engineInput,
             engineOutput: latestEngineOutput,
             decisionSynthesis: latestCompareAdvice,
+            presentationState,
           },
         }),
       });
@@ -797,6 +831,32 @@ export default function DecisionSynthesisPage({
         ? viableOptions
         : engineOutput.options.filter(o => o.status === 'caution'))
     : [];
+
+  // PR3 — Resolve the recommended option ID from engine output.
+  // Used to build the presentation state for the "Choose this option" UI
+  // and for including in the saved report. Never affects engine scoring.
+  const recommendedOptionId =
+    engineOutput.options?.find(o => o.status === 'viable')?.id ??
+    engineOutput.options?.[0]?.id ??
+    '';
+
+  // PR3 — Build the current presentation state.
+  const presentationState: RecommendationPresentationState = {
+    recommendedOptionId,
+    chosenOptionId: chosenOptionId ?? undefined,
+    chosenByCustomer: chosenOptionId != null,
+  };
+
+  // PR3 — True when the customer has chosen an option different from the recommendation.
+  const showChosenOptionBanner =
+    hasCustomerDivergence(presentationState) &&
+    chosenOptionId != null;
+
+  // PR3 — The chosen option card (for framing the divergence banner).
+  const chosenOptionCard =
+    showChosenOptionBanner && engineOutput.options
+      ? engineOutput.options.find(o => o.id === chosenOptionId) ?? null
+      : null;
 
   // Engine explainer IDs emitted for this recommendation.
   const explainerIds = new Set(engineOutput.explainers.map(e => e.id));
@@ -1197,6 +1257,7 @@ export default function DecisionSynthesisPage({
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* SECTION 1d — Multiple suitable options                              */}
       {/* Shown when the engine signals ambiguity or multiple viable paths.   */}
+      {/* PR3 — "Choose this option" affordance added to each card.           */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       {showMultipleOptions && multipleOptions.length > 1 && (
         <div
@@ -1219,39 +1280,186 @@ export default function DecisionSynthesisPage({
             role="list"
             aria-label="All suitable options"
           >
-            {multipleOptions.map(option => (
-              <div
-                key={option.id}
-                className={`advice-multi-option advice-multi-option--${option.status}`}
-                role="listitem"
-              >
-                <div className="advice-multi-option__header">
-                  <div className="advice-multi-option__label">{option.label}</div>
-                  <span className={`advice-multi-option__badge advice-multi-option__badge--${option.status}`}>
-                    {option.status === 'viable' ? '✓ Viable' : '⚠ Review needed'}
-                  </span>
-                </div>
-                <p className="advice-multi-option__headline">{option.headline}</p>
-                {option.why.length > 0 && (
-                  <ul className="advice-multi-option__why" aria-label={`${option.label} reasons`}>
-                    {option.why.map((w, i) => (
-                      <li key={i}>{w}</li>
-                    ))}
-                  </ul>
-                )}
-                {option.typedRequirements.mustHave.length > 0 && (
-                  <div className="advice-multi-option__reqs">
-                    <span className="advice-multi-option__reqs-label">Must have:</span>
-                    <ul aria-label={`${option.label} requirements`}>
-                      {option.typedRequirements.mustHave.map((r, i) => (
-                        <li key={i}>{r}</li>
+            {multipleOptions.map(option => {
+              const isChosen = chosenOptionId === option.id;
+              return (
+                <div
+                  key={option.id}
+                  className={`advice-multi-option advice-multi-option--${option.status}${isChosen ? ' advice-multi-option--chosen' : ''}`}
+                  role="listitem"
+                  data-testid={`option-card-${option.id}`}
+                >
+                  <div className="advice-multi-option__header">
+                    <div className="advice-multi-option__label">{option.label}</div>
+                    <span className={`advice-multi-option__badge advice-multi-option__badge--${option.status}`}>
+                      {option.status === 'viable' ? '✓ Viable' : '⚠ Review needed'}
+                    </span>
+                    {isChosen && (
+                      <span
+                        className="advice-multi-option__chosen-badge"
+                        data-testid={`chosen-badge-${option.id}`}
+                      >
+                        {CHOSEN_OPTION_CONFIRMED_LABEL}
+                      </span>
+                    )}
+                  </div>
+                  <p className="advice-multi-option__headline">{option.headline}</p>
+                  {option.why.length > 0 && (
+                    <ul className="advice-multi-option__why" aria-label={`${option.label} reasons`}>
+                      {option.why.map((w, i) => (
+                        <li key={i}>{w}</li>
                       ))}
                     </ul>
+                  )}
+                  {option.typedRequirements.mustHave.length > 0 && (
+                    <div className="advice-multi-option__reqs">
+                      <span className="advice-multi-option__reqs-label">Must have:</span>
+                      <ul aria-label={`${option.label} requirements`}>
+                        {option.typedRequirements.mustHave.map((r, i) => (
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {/* PR3 — "Choose this option" affordance */}
+                  <div className="advice-multi-option__actions">
+                    {isChosen ? (
+                      <button
+                        className="advice-multi-option__choose-btn advice-multi-option__choose-btn--chosen"
+                        onClick={() => setChosenOptionId(null)}
+                        aria-label={`Clear choice: ${option.label}`}
+                        data-testid={`clear-choice-btn-${option.id}`}
+                      >
+                        ✓ {CHOSEN_OPTION_CONFIRMED_LABEL}
+                      </button>
+                    ) : (
+                      <button
+                        className="advice-multi-option__choose-btn"
+                        onClick={() => setChosenOptionId(option.id)}
+                        aria-label={`${CHOOSE_OPTION_LABEL}: ${option.label}`}
+                        data-testid={`choose-btn-${option.id}`}
+                      >
+                        {CHOOSE_OPTION_LABEL}
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 1e — Available options (single-recommendation case)         */}
+      {/* PR3 — When there is one clear recommendation but other options       */}
+      {/* exist, show them so the customer can express a preference.           */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {!showMultipleOptions && engineOutput.options != null && engineOutput.options.length > 1 && (
+        <div
+          className="advice-page__section"
+          aria-label="All available options"
+          data-testid="all-options-section"
+        >
+          <h2 className="advice-page__section-title">All available options</h2>
+          <p className="advice-page__section-intro">
+            The recommended option is shown above. If you have a preference for a different system, you can choose it here — the recommendation and physics will not change.
+          </p>
+          <div
+            className="advice-multi-options"
+            role="list"
+            aria-label="Available options"
+          >
+            {engineOutput.options.map(option => {
+              const isRecommended = option.id === recommendedOptionId;
+              const isChosen = chosenOptionId === option.id;
+              return (
+                <div
+                  key={option.id}
+                  className={`advice-multi-option advice-multi-option--${option.status}${isChosen ? ' advice-multi-option--chosen' : ''}${isRecommended ? ' advice-multi-option--recommended' : ''}`}
+                  role="listitem"
+                  data-testid={`option-card-${option.id}`}
+                >
+                  <div className="advice-multi-option__header">
+                    <div className="advice-multi-option__label">{option.label}</div>
+                    {isRecommended && (
+                      <span className="advice-multi-option__badge advice-multi-option__badge--recommended">
+                        ✓ Recommended
+                      </span>
+                    )}
+                    {isChosen && !isRecommended && (
+                      <span
+                        className="advice-multi-option__chosen-badge"
+                        data-testid={`chosen-badge-${option.id}`}
+                      >
+                        {CHOSEN_OPTION_CONFIRMED_LABEL}
+                      </span>
+                    )}
+                  </div>
+                  <p className="advice-multi-option__headline">{option.headline}</p>
+                  {/* PR3 — Only show "Choose this option" for non-recommended options */}
+                  {!isRecommended && (
+                    <div className="advice-multi-option__actions">
+                      {isChosen ? (
+                        <button
+                          className="advice-multi-option__choose-btn advice-multi-option__choose-btn--chosen"
+                          onClick={() => setChosenOptionId(null)}
+                          aria-label={`Clear choice: ${option.label}`}
+                          data-testid={`clear-choice-btn-${option.id}`}
+                        >
+                          ✓ {CHOSEN_OPTION_CONFIRMED_LABEL}
+                        </button>
+                      ) : (
+                        <button
+                          className="advice-multi-option__choose-btn"
+                          onClick={() => setChosenOptionId(option.id)}
+                          aria-label={`${CHOOSE_OPTION_LABEL}: ${option.label}`}
+                          data-testid={`choose-btn-${option.id}`}
+                        >
+                          {CHOOSE_OPTION_LABEL}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 1f — Customer-chosen option framing banner                  */}
+      {/* PR3 — Shown when customer has chosen a different option.            */}
+      {/* Structure: Affirm → Align → Explain behaviour → Guide               */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {showChosenOptionBanner && chosenOptionCard != null && (
+        <div
+          className="advice-page__section advice-chosen-banner"
+          aria-label="Your chosen option"
+          data-testid="chosen-option-banner"
+          role="region"
+        >
+          <h2 className="advice-chosen-banner__heading">
+            {CHOSEN_OPTION_FRAMING.heading}: {chosenOptionCard.label}
+          </h2>
+          <p className="advice-chosen-banner__affirm">
+            {CHOSEN_OPTION_FRAMING.affirm}
+          </p>
+          {chosenOptionCard.why.length > 0 && (
+            <p className="advice-chosen-banner__align">
+              {CHOSEN_OPTION_FRAMING.align} {chosenOptionCard.why[0]}
+            </p>
+          )}
+          <p className="advice-chosen-banner__headline">
+            {chosenOptionCard.headline}
+          </p>
+          <p className="advice-chosen-banner__guide">
+            {CHOSEN_OPTION_FRAMING.guide}
+          </p>
+          <p className="advice-chosen-banner__recommendation-note">
+            {CHOSEN_OPTION_FRAMING.recommendedStillAvailable}
+          </p>
         </div>
       )}
 

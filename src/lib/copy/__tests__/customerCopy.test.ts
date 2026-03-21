@@ -162,3 +162,84 @@ describe('CONSTRAINT_SUMMARY', () => {
     expect(CONSTRAINT_SUMMARY.clear).toMatch(/no known|all good|within/i);
   });
 });
+
+// ─── PR3 — Customer-chosen option copy ───────────────────────────────────────
+
+import {
+  CHOOSE_OPTION_LABEL,
+  CHOSEN_OPTION_CONFIRMED_LABEL,
+  CHOSEN_OPTION_FRAMING,
+  CHOSEN_OPTION_BEHAVIOUR_NOTES,
+} from '../customerCopy';
+
+describe('PR3 — CHOOSE_OPTION_LABEL', () => {
+  it('is defined and non-empty', () => {
+    expect(CHOOSE_OPTION_LABEL).toBeTruthy();
+    expect(CHOOSE_OPTION_LABEL.length).toBeGreaterThan(0);
+  });
+
+  it('does not use "override" language', () => {
+    expect(CHOOSE_OPTION_LABEL).not.toMatch(/override/i);
+  });
+});
+
+describe('PR3 — CHOSEN_OPTION_CONFIRMED_LABEL', () => {
+  it('is defined and non-empty', () => {
+    expect(CHOSEN_OPTION_CONFIRMED_LABEL).toBeTruthy();
+  });
+
+  it('does not use confrontational phrasing', () => {
+    expect(CHOSEN_OPTION_CONFIRMED_LABEL).not.toMatch(/override|against advice|not recommended/i);
+  });
+});
+
+describe('PR3 — CHOSEN_OPTION_FRAMING', () => {
+  it('has an affirm phrase that opens positively', () => {
+    expect(CHOSEN_OPTION_FRAMING.affirm).toMatch(/I can see why/i);
+  });
+
+  it('has an align phrase', () => {
+    expect(CHOSEN_OPTION_FRAMING.align).toBeTruthy();
+  });
+
+  it('has a guide phrase that steers back to the recommendation', () => {
+    expect(CHOSEN_OPTION_FRAMING.guide).toMatch(/recommended option/i);
+  });
+
+  it('has a heading', () => {
+    expect(CHOSEN_OPTION_FRAMING.heading).toBeTruthy();
+  });
+
+  it('has a "recommended still available" note', () => {
+    expect(CHOSEN_OPTION_FRAMING.recommendedStillAvailable).toMatch(/recommended/i);
+  });
+
+  it('no phrase uses confrontational language', () => {
+    const allPhrases = Object.values(CHOSEN_OPTION_FRAMING).join(' ');
+    expect(allPhrases).not.toMatch(/override|not suitable|does not meet|you chose against/i);
+  });
+});
+
+describe('PR3 — CHOSEN_OPTION_BEHAVIOUR_NOTES', () => {
+  it('has entries for common behaviour scenarios', () => {
+    expect(CHOSEN_OPTION_BEHAVIOUR_NOTES.simultaneous_demand).toBeTruthy();
+    expect(CHOSEN_OPTION_BEHAVIOUR_NOTES.stored_vs_combi).toBeTruthy();
+    expect(CHOSEN_OPTION_BEHAVIOUR_NOTES.lighter_demand).toBeTruthy();
+  });
+
+  it('all notes describe behaviour without judgement-first phrasing', () => {
+    for (const note of Object.values(CHOSEN_OPTION_BEHAVIOUR_NOTES)) {
+      expect(note).not.toMatch(/not suitable|fail|rejected|cannot meet/i);
+    }
+  });
+});
+
+describe('PR3 — BANNED_CUSTOMER_PHRASES includes override language', () => {
+  it('contains "Override"', () => {
+    expect(BANNED_CUSTOMER_PHRASES).toContain('Override');
+  });
+
+  it('contains "You chose against advice"', () => {
+    expect(BANNED_CUSTOMER_PHRASES).toContain('You chose against advice');
+  });
+});
