@@ -161,17 +161,26 @@ export function deriveOutletDisplayStates(
     : controls.supplyOrigins?.dhwHotStore ? 'stored'
     : undefined
 
-  // Count open hot outlets to detect potential sharing constraints.
-  const openHotOutlets = controls.outlets.filter(
-    o => o.enabled && !resolveIsColdOnly(o, controls),
-  )
-  const totalHotDemandLpm = openHotOutlets.reduce((sum, o) => sum + o.demandLpm, 0)
   const mainsFlowLpm = controls.mainsDynamicFlowLpm
 
-  // Constraint check: total hot demand exceeds mains dynamic flow capacity.
+  // All mains-fed outlets share a single property-level mains budget — both hot and cold.
+  // CWS-fed outlets (vented cylinders) draw from the cold-water storage cistern and do not
+  // compete for the pressurised mains supply.
+  const openMainsOutlets = controls.outlets.filter(
+    o => o.enabled && o.coldSourceKind !== 'cws',
+  )
+  const totalMainsDemandLpm = openMainsOutlets.reduce((sum, o) => sum + o.demandLpm, 0)
+
+  // Mains constraint: total concurrent draw (hot + cold) exceeds available mains flow.
+  // Physics rule: totalHotDraw + totalColdDraw <= mainsAvailableFlow
   const mainsIsConstraining =
-    openHotOutlets.length >= 2 &&
-    mainsFlowLpm < totalHotDemandLpm
+    openMainsOutlets.length >= 2 &&
+    mainsFlowLpm < totalMainsDemandLpm
+
+  // Proportional throttle: fraction of demand each mains-fed outlet actually receives.
+  const mainsThrottleScale = (mainsIsConstraining && totalMainsDemandLpm > 0)
+    ? mainsFlowLpm / totalMainsDemandLpm
+    : 1
 
   return controls.outlets.map((outlet): OutletDisplayState => {
     const isColdOnly = resolveIsColdOnly(outlet, controls)
@@ -209,15 +218,21 @@ export function deriveOutletDisplayStates(
     let isConstrained = false
     let constraintReason: string | undefined
 
-    if (!isColdOnly && mainsIsConstraining) {
+    // Any mains-fed outlet (hot or cold) is constrained when total concurrent draw
+    // exceeds the available mains flow — cold taps compete for the same mains budget.
+    const isMainsFed = outlet.coldSourceKind !== 'cws'
+    if (isMainsFed && mainsIsConstraining) {
       isConstrained = true
       constraintReason =
-        `Low mains flow: ${mainsFlowLpm.toFixed(1)} L/min shared across ${openHotOutlets.length} outlets`
+        `Low mains flow: ${mainsFlowLpm.toFixed(1)} L/min shared across ${openMainsOutlets.length} outlets`
     }
 
-    // Delivered flow — the outlet's demand when open (constraint not yet
-    // modelled per-outlet here; the simulation handles actual delivered flow).
-    const flowLpm = outlet.demandLpm
+    // Delivered flow: throttled by the mains when mains is the bottleneck.
+    // Reflects the same proportional reduction the simulation applies hydraulically.
+    // Never display raw per-outlet nominal flow when the shared mains is over-subscribed.
+    const flowLpm = (isMainsFed && mainsIsConstraining)
+      ? outlet.demandLpm * mainsThrottleScale
+      : outlet.demandLpm
 
     return {
       outletId: outlet.id,

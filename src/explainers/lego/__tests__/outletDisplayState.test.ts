@@ -156,19 +156,119 @@ describe('deriveOutletDisplayStates — constraint detection', () => {
     expect(a.isConstrained).toBe(false)
   })
 
-  it('does not count cold-only outlets toward hot-demand sharing constraint', () => {
-    // Cold tap + hot outlet — cold tap does not consume from the hot service.
+  it('marks both hot and cold outlets constrained when combined mains draw is over-subscribed', () => {
+    // Cold tap + hot outlet both draw from the same mains supply.
+    // Combined demand 16 L/min > 8 L/min mains → both outlets are constrained.
     const controls = makeControls({
       mainsDynamicFlowLpm: 8,
       outlets: [
-        { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 10 },
-        { id: 'B', enabled: true, kind: 'cold_tap',     demandLpm: 6  },
+        { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 10, coldSourceKind: 'mains' },
+        { id: 'B', enabled: true, kind: 'cold_tap',     demandLpm: 6,  coldSourceKind: 'mains' },
       ],
     })
-    // Only outlet A is a hot outlet; cold tap B does not count toward sharing.
     const states = deriveOutletDisplayStates(controls, makeFrame())
     const a = states.find(s => s.outletId === 'A')!
-    expect(a.isConstrained).toBe(false)
+    const b = states.find(s => s.outletId === 'B')!
+    expect(a.isConstrained).toBe(true)
+    expect(b.isConstrained).toBe(true)
+    expect(a.constraintReason).toContain('8.0 L/min')
+  })
+})
+
+describe('deriveOutletDisplayStates — shared mains budget (hot + cold)', () => {
+  it('two cold taps on 12 L/min mains: combined delivered must not exceed mains', () => {
+    // mains = 12 L/min, two cold taps each demanding 8 L/min = 16 L/min total
+    // Each should deliver 12 * (8/16) = 6 L/min, not 8 L/min
+    const controls = makeControls({
+      mainsDynamicFlowLpm: 12,
+      outlets: [
+        { id: 'A', enabled: true, kind: 'cold_tap', demandLpm: 8, coldSourceKind: 'mains' },
+        { id: 'B', enabled: true, kind: 'cold_tap', demandLpm: 8, coldSourceKind: 'mains' },
+      ],
+    })
+    const states = deriveOutletDisplayStates(controls, makeFrame())
+    const a = states.find(s => s.outletId === 'A')!
+    const b = states.find(s => s.outletId === 'B')!
+    // Both are constrained
+    expect(a.isConstrained).toBe(true)
+    expect(b.isConstrained).toBe(true)
+    // Delivered flow per outlet must be throttled
+    expect(a.flowLpm).toBeCloseTo(6)
+    expect(b.flowLpm).toBeCloseTo(6)
+    // Combined delivered flow must not exceed mains
+    expect(a.flowLpm + b.flowLpm).toBeLessThanOrEqual(12)
+  })
+
+  it('one hot + one cold on 12 L/min mains: combined delivered must not exceed mains', () => {
+    // mains = 12 L/min, hot demands 8, cold demands 8 = 16 total
+    // Each delivered: 12 * (8/16) = 6 L/min
+    const controls = makeControls({
+      mainsDynamicFlowLpm: 12,
+      outlets: [
+        { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 8, coldSourceKind: 'mains' },
+        { id: 'B', enabled: true, kind: 'cold_tap',     demandLpm: 8, coldSourceKind: 'mains' },
+      ],
+    })
+    const states = deriveOutletDisplayStates(controls, makeFrame())
+    const a = states.find(s => s.outletId === 'A')!
+    const b = states.find(s => s.outletId === 'B')!
+    expect(a.isConstrained).toBe(true)
+    expect(b.isConstrained).toBe(true)
+    expect(a.flowLpm + b.flowLpm).toBeLessThanOrEqual(12)
+  })
+
+  it('two hot + one cold on 12 L/min mains: all three constrained, combined ≤ mains', () => {
+    // mains = 12 L/min, two showers (8 each) + cold tap (8) = 24 L/min total
+    // Scale = 12/24 = 0.5 → each outlet delivers 4 L/min
+    const controls = makeControls({
+      mainsDynamicFlowLpm: 12,
+      outlets: [
+        { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 8, coldSourceKind: 'mains' },
+        { id: 'B', enabled: true, kind: 'shower_mixer', demandLpm: 8, coldSourceKind: 'mains' },
+        { id: 'C', enabled: true, kind: 'cold_tap',     demandLpm: 8, coldSourceKind: 'mains' },
+      ],
+    })
+    const states = deriveOutletDisplayStates(controls, makeFrame())
+    const a = states.find(s => s.outletId === 'A')!
+    const b = states.find(s => s.outletId === 'B')!
+    const c = states.find(s => s.outletId === 'C')!
+    expect(a.isConstrained).toBe(true)
+    expect(b.isConstrained).toBe(true)
+    expect(c.isConstrained).toBe(true)
+    expect(a.flowLpm + b.flowLpm + c.flowLpm).toBeLessThanOrEqual(12)
+  })
+
+  it('CWS-fed outlets do not compete for the mains budget', () => {
+    // Vented cylinder: cold supply is CWS (gravity-fed), not mains.
+    // Two CWS outlets should not trigger the mains constraint regardless of flow.
+    const controls = makeControls({
+      mainsDynamicFlowLpm: 6,
+      outlets: [
+        { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 10, coldSourceKind: 'cws' },
+        { id: 'B', enabled: true, kind: 'cold_tap',     demandLpm: 8,  coldSourceKind: 'cws' },
+      ],
+    })
+    const states = deriveOutletDisplayStates(controls, makeFrame())
+    // CWS outlets are outside the mains budget — no mains constraint.
+    expect(states[0].isConstrained).toBe(false)
+    expect(states[1].isConstrained).toBe(false)
+  })
+
+  it('mains sufficient for all concurrent draws: no outlet is constrained', () => {
+    // mains = 30 L/min, two outlets demanding 8 L/min each = 16 L/min total — no constraint
+    const controls = makeControls({
+      mainsDynamicFlowLpm: 30,
+      outlets: [
+        { id: 'A', enabled: true, kind: 'shower_mixer', demandLpm: 8, coldSourceKind: 'mains' },
+        { id: 'B', enabled: true, kind: 'cold_tap',     demandLpm: 8, coldSourceKind: 'mains' },
+      ],
+    })
+    const states = deriveOutletDisplayStates(controls, makeFrame())
+    expect(states[0].isConstrained).toBe(false)
+    expect(states[1].isConstrained).toBe(false)
+    // Full demand delivered when mains is not the bottleneck
+    expect(states[0].flowLpm).toBeCloseTo(8)
+    expect(states[1].flowLpm).toBeCloseTo(8)
   })
 })
 
