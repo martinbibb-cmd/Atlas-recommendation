@@ -17,13 +17,15 @@
  *   water           — hot water generation, storage, and delivery
  *   space           — installation requirements and spatial constraints
  *   system_behaviour — heating controls, zoning, and system scheduling
+ *   analogy         — everyday analogies that explain system behaviour
  */
 export type ExplainerCategory =
   | 'physics'
   | 'energy'
   | 'water'
   | 'space'
-  | 'system_behaviour';
+  | 'system_behaviour'
+  | 'analogy';
 
 export interface EducationalExplainer {
   /** Unique stable identifier (snake_case). */

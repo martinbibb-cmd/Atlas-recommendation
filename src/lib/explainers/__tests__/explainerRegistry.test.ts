@@ -22,6 +22,7 @@ const VALID_CATEGORIES: ReadonlyArray<ExplainerCategory> = [
   'water',
   'space',
   'system_behaviour',
+  'analogy',
 ];
 const EDUCATIONAL_IDS = new Set(EDUCATIONAL_EXPLAINERS.map(e => e.id));
 
@@ -105,6 +106,29 @@ describe('EXPLAINER_REGISTRY', () => {
     const entry = EXPLAINER_REGISTRY.find(e => e.id === 'low_and_slow');
     expect(entry).toBeDefined();
     expect(entry!.category).toBe('energy');
+  });
+
+  it('covers the analogy category', () => {
+    const analogyEntries = EXPLAINER_REGISTRY.filter(e => e.category === 'analogy');
+    expect(analogyEntries.length).toBeGreaterThan(0);
+  });
+
+  it('includes sponge_heat_transfer in the analogy category', () => {
+    const entry = EXPLAINER_REGISTRY.find(e => e.id === 'sponge_heat_transfer');
+    expect(entry).toBeDefined();
+    expect(entry!.category).toBe('analogy');
+  });
+
+  it('includes cars_running_style in the analogy category', () => {
+    const entry = EXPLAINER_REGISTRY.find(e => e.id === 'cars_running_style');
+    expect(entry).toBeDefined();
+    expect(entry!.category).toBe('analogy');
+  });
+
+  it('includes bees_energy_sources in the analogy category', () => {
+    const entry = EXPLAINER_REGISTRY.find(e => e.id === 'bees_energy_sources');
+    expect(entry).toBeDefined();
+    expect(entry!.category).toBe('analogy');
   });
 });
 

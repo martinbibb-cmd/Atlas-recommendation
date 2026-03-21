@@ -252,4 +252,51 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
     simulatorPanelId: 'efficiency',
     simulatorLabel: 'Efficiency panel',
   },
+
+  // ── Analogy explainers ──────────────────────────────────────────────────────
+
+  {
+    id: 'sponge_heat_transfer',
+    category: 'analogy',
+    title: 'How heat pumps absorb energy from the air',
+    point:
+      'A heat pump works like a sponge: it absorbs heat already present in the outdoor air and transfers it into your home, rather than generating heat by burning fuel.',
+    bullets: [
+      'Even at 0 °C, outdoor air contains usable heat energy — a heat pump extracts it using refrigerant and a compressor, just as a sponge absorbs liquid.',
+      'The lower the temperature lift (outdoor to indoor), the more efficiently the sponge can transfer heat — low flow temperatures keep COP high.',
+      'Running continuously at gentle output is more efficient than firing in short bursts, because each burst requires a new extraction and compression cycle.',
+      'A heat pump does not create heat — it moves it; the energy input drives the transfer, not the heat itself.',
+      'Well-insulated homes allow the sponge to work at its most efficient: lower heat loss means the pump can keep pace without raising output temperature.',
+    ],
+  },
+
+  {
+    id: 'cars_running_style',
+    category: 'analogy',
+    title: 'Burst vs steady: how heating systems differ',
+    point:
+      'Some heating systems are built for bursts of high output — like a sports car accelerating hard; others are built for steady, efficient cruising — like a hybrid on a motorway.',
+    bullets: [
+      'A gas boiler is a sprinter: it fires at high power, reaches temperature quickly, then stops — suited to short heat-up events and rapid recovery.',
+      'A heat pump is a long-distance cruiser: it runs continuously at low output, building warmth steadily across a longer period.',
+      'Burst-style systems suit well-scheduled homes that heat up and cool down between use periods; steady systems suit homes kept at a stable background temperature.',
+      'Mixing the two styles — running a heat pump in short on/off cycles — reduces efficiency significantly, just as stop-start motorway driving wastes fuel in a hybrid.',
+      "Understanding a system's natural running style helps set controls correctly and avoid the efficiency losses of fighting against its design.",
+    ],
+  },
+
+  {
+    id: 'bees_energy_sources',
+    category: 'analogy',
+    title: 'Why energy sources behave differently',
+    point:
+      'Different energy sources have different characters: gas delivers energy in concentrated, on-demand bursts; electricity can be continuous or time-shifted; heat pumps gather dispersed ambient energy collectively, like bees harvesting from a wide field.',
+    bullets: [
+      'Gas releases energy through combustion — concentrated, fast, and controllable, but producing carbon emissions and subject to supply price volatility.',
+      'Electricity can be delivered instantly and at any scale, making it flexible for resistance heating, heat pumps, and storage — but its carbon intensity depends on the grid mix.',
+      'Heat pumps gather low-grade ambient energy from a wide source (air, ground) and concentrate it — more energy output than electricity input, but dependent on source temperature.',
+      'Just as bees cannot harvest from a single flower at high speed, heat pumps cannot extract energy at very high rates without a significant drop in efficiency.',
+      'Choosing an energy source means choosing its character: on-demand combustion, flexible electrical, or steady ambient extraction — each suits different patterns of use.',
+    ],
+  },
 ] as const;

@@ -27,6 +27,10 @@ const ALLOWED_FILES = new Set([
   'FullSurveyModelV1.ts',     // schema definitions
   // Internal engine helper files whose strings are never directly surfaced
   'StoredDhwModule.ts',       // assumptions (gravity-fed is a physics fact, not label)
+  // Copy guardrail file — the BANNED_CUSTOMER_PHRASES list itself contains banned
+  // terms as reference strings for testing, not as customer-facing copy. Its own
+  // test suite (customerCopy.test.ts) verifies that no exported label uses banned phrases.
+  'customerCopy.ts',
   // This test file itself
   'noForbiddenTerminology.test.ts',
   'noBrandCopy.test.ts',

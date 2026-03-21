@@ -290,4 +290,5 @@ export const BANNED_CUSTOMER_PHRASES: ReadonlyArray<string> = [
   'You chose against advice',
   'Override',
   'Overridden',
+  'instantaneous hot water',
 ];

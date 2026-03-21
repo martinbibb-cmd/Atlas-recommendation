@@ -181,6 +181,32 @@ export const EXPLAINER_REGISTRY: readonly ExplainerDefinition[] = [
     component: 'water_quality_scale',
     relevanceTriggers: ['water-hardness'],
   },
+
+  // ── Analogy explainers ────────────────────────────────────────────────────
+  {
+    id: 'sponge_heat_transfer',
+    title: 'How heat pumps absorb energy from the air',
+    category: 'analogy',
+    kind: 'both',
+    component: 'sponge_heat_transfer',
+    relevanceTriggers: ['hydraulic-ashp-flow'],
+  },
+  {
+    id: 'cars_running_style',
+    title: 'Burst vs steady: how heating systems differ',
+    category: 'analogy',
+    kind: 'both',
+    component: 'cars_running_style',
+    relevanceTriggers: ['condensing-compromised', 'thermal-mass-heavy'],
+  },
+  {
+    id: 'bees_energy_sources',
+    title: 'Why energy sources behave differently',
+    category: 'analogy',
+    kind: 'both',
+    component: 'bees_energy_sources',
+    relevanceTriggers: ['hydraulic-ashp-flow', 'condensing-compromised'],
+  },
 ] as const;
 
 // ─── Lookup helpers ───────────────────────────────────────────────────────────

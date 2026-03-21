@@ -59,6 +59,7 @@ const CATEGORY_GROUP_LABEL: Record<ExplainerCategory | 'heating', string> = {
   system_behaviour: 'Heating behaviour',
   heating:          'Heating behaviour',
   space:            'Space and installation',
+  analogy:          'Everyday comparisons',
 };
 
 /**
@@ -70,6 +71,7 @@ const CATEGORY_GROUP_ORDER: ReadonlyArray<ExplainerCategory | 'heating'> = [
   'energy',
   'heating',
   'space',
+  'analogy',
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
