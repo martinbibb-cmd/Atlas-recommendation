@@ -180,6 +180,60 @@ describe('buildObjectiveComparison — chosenOptionNote', () => {
   });
 });
 
+describe('buildObjectiveComparison — nullability regression (PR9)', () => {
+  it('does not throw when chosenOptionId is undefined with chosenByCustomer true', () => {
+    // Regression: TypeScript narrowing fix for `string | undefined` passed to indexOf.
+    // Even though hasCustomerDivergence guards this at runtime, the explicit
+    // null-check inside the builder must not throw.
+    const output = makeOutput([{ id: 'combi' }]);
+    const state: RecommendationPresentationState = {
+      recommendedOptionId: 'combi',
+      chosenOptionId: undefined,
+      chosenByCustomer: true,
+    };
+    expect(() => buildObjectiveComparison(output, 'running_costs', state)).not.toThrow();
+  });
+
+  it('chosenOptionNote is undefined when chosenOptionId is absent', () => {
+    const output = makeOutput([{ id: 'combi' }]);
+    const state: RecommendationPresentationState = {
+      recommendedOptionId: 'combi',
+      chosenOptionId: undefined,
+      chosenByCustomer: false,
+    };
+    const view = buildObjectiveComparison(output, 'running_costs', state);
+    expect(view.chosenOptionNote).toBeUndefined();
+  });
+
+  it('chosenOptionNote is undefined when rankedOptionIds is empty (no options in output)', () => {
+    const output = makeOutput([]);
+    const state  = makeState('combi', 'ashp');
+    const view   = buildObjectiveComparison(output, 'running_costs', state);
+    expect(view.chosenOptionNote).toBeUndefined();
+  });
+
+  it('recommendedOptionNote is undefined when rankedOptionIds is empty', () => {
+    const output = makeOutput([]);
+    const state  = makeState('combi');
+    const view   = buildObjectiveComparison(output, 'running_costs', state);
+    expect(view.recommendedOptionNote).toBeUndefined();
+  });
+
+  it('builds correctly for a recommended-only portal state (no presentationState set)', () => {
+    // Simulates the CustomerPortalPage fallback: presentationState absent in pre-PR3 reports.
+    const output = makeOutput([{ id: 'combi' }, { id: 'ashp' }]);
+    const state: RecommendationPresentationState = {
+      recommendedOptionId: 'combi',
+      chosenOptionId: 'combi',
+      chosenByCustomer: false,
+    };
+    const view = buildObjectiveComparison(output, 'hot_water', state);
+    expect(view.objectiveId).toBe('hot_water');
+    expect(view.chosenOptionNote).toBeUndefined();
+    expect(view.recommendedOptionNote).toBeDefined();
+  });
+});
+
 describe('buildAllObjectiveComparisons', () => {
   it('returns a map with all 6 priority IDs', () => {
     const output = makeOutput([{ id: 'combi' }, { id: 'ashp' }]);

@@ -161,8 +161,8 @@ export function buildObjectiveComparison(
 
   let chosenOptionNote: string | undefined;
   if (hasCustomerDivergence(presentationState)) {
-    const chosenId   = presentationState.chosenOptionId;
-    const chosenRank = rankedOptionIds.indexOf(chosenId);
+    const chosenId = presentationState.chosenOptionId;
+    const chosenRank = chosenId != null ? rankedOptionIds.indexOf(chosenId) : -1;
     chosenOptionNote =
       chosenRank >= 0 ? rankNote(chosenRank, rankedOptionIds.length) : undefined;
   }

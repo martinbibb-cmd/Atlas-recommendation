@@ -372,6 +372,15 @@ export const EMPHASIS_RECOMMENDED_LABEL = 'Recommended';
 /** Label for the emphasis switch chip: chosen option view. */
 export const EMPHASIS_CHOSEN_LABEL = 'Your chosen option';
 
+// ─── PR9 — Portal simulator copy ─────────────────────────────────────────────
+
+/** Section heading for the read-only portal simulator panel. */
+export const PORTAL_SIMULATOR_HEADING = 'How your system handles everyday moments';
+
+/** Intro sentence for the portal simulator panel. */
+export const PORTAL_SIMULATOR_INTRO =
+  'Select a scenario to see how your recommended system would respond.';
+
 // ─── Banned phrasing guard (development aid) ─────────────────────────────────
 
 /**
