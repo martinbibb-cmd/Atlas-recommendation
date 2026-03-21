@@ -173,13 +173,13 @@ export default function PortalSimulatorPanel({
           BEHAVIOUR_LIMITING_FACTOR_LABEL[card.limitingFactor] != null && (
           <p className="portal-simulator__limiter">
             {BEHAVIOUR_LIMITING_FACTOR_LABEL[card.limitingFactor]}
-            {explainerId != null && (
+            {explainerId != null && explainerTitle != null && onOpenExplainer != null && (
               <>
                 {' '}
                 <button
                   className="portal-simulator__learn-why"
-                  onClick={() => onOpenExplainer!(explainerId)}
-                  aria-label={EXPLAINER_LINK_ARIA(explainerTitle!)}
+                  onClick={() => onOpenExplainer(explainerId)}
+                  aria-label={EXPLAINER_LINK_ARIA(explainerTitle)}
                   data-testid={`portal-simulator-learn-why-${card.id}`}
                 >
                   {EXPLAINER_LINK_LABEL}
