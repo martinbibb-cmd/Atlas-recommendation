@@ -244,6 +244,12 @@ describe('PR3 — BANNED_CUSTOMER_PHRASES includes override language', () => {
   });
 });
 
+describe('PR5 — BANNED_CUSTOMER_PHRASES includes DHW terminology guardrail', () => {
+  it('contains "instantaneous hot water"', () => {
+    expect(BANNED_CUSTOMER_PHRASES).toContain('instantaneous hot water');
+  });
+});
+
 // ─── PR4 — Real-world behaviour card copy ─────────────────────────────────────
 
 import {

@@ -33,6 +33,7 @@ const VALID_CATEGORIES: ReadonlyArray<ExplainerCategory> = [
   'water',
   'space',
   'system_behaviour',
+  'analogy',
 ];
 
 // ─── Required explainer ids ───────────────────────────────────────────────────
@@ -52,6 +53,9 @@ const REQUIRED_IDS: ReadonlyArray<string> = [
   'water_quality_scale',
   'thermal_mass_inertia',
   'splan_vs_yplan',
+  'sponge_heat_transfer',
+  'cars_running_style',
+  'bees_energy_sources',
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -68,8 +72,8 @@ describe('EDUCATIONAL_EXPLAINERS', () => {
     expect(EDUCATIONAL_EXPLAINERS.length).toBeGreaterThan(0);
   });
 
-  it('contains exactly 14 explainers', () => {
-    expect(EDUCATIONAL_EXPLAINERS).toHaveLength(14);
+  it('contains exactly 17 explainers', () => {
+    expect(EDUCATIONAL_EXPLAINERS).toHaveLength(17);
   });
 
   it('includes all required topic ids', () => {
@@ -107,6 +111,11 @@ describe('EDUCATIONAL_EXPLAINERS', () => {
   it('includes at least one water explainer', () => {
     const waterIds = EDUCATIONAL_EXPLAINERS.filter(e => e.category === 'water').map(e => e.id);
     expect(waterIds.length).toBeGreaterThan(0);
+  });
+
+  it('includes at least one analogy explainer', () => {
+    const analogyIds = EDUCATIONAL_EXPLAINERS.filter(e => e.category === 'analogy').map(e => e.id);
+    expect(analogyIds.length).toBeGreaterThan(0);
   });
 
   // ── Per-explainer structure checks ─────────────────────────────────────────
@@ -310,6 +319,31 @@ describe('EDUCATIONAL_EXPLAINERS', () => {
       expect(text).toContain('s-plan');
       expect(text).toContain('y-plan');
       expect(text).toMatch(/zone|valve|circuit/);
+    });
+
+    it('covers heat pump low-and-slow extraction (sponge analogy)', () => {
+      const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'sponge_heat_transfer');
+      expect(e).toBeDefined();
+      expect(e!.category).toBe('analogy');
+      const text = allText(e!).toLowerCase();
+      expect(text).toContain('heat pump');
+      expect(text).toMatch(/absorb|extract|transfer/);
+    });
+
+    it('covers burst vs steady running styles (cars analogy)', () => {
+      const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'cars_running_style');
+      expect(e).toBeDefined();
+      expect(e!.category).toBe('analogy');
+      const text = allText(e!).toLowerCase();
+      expect(text).toMatch(/burst|steady|continuous/);
+    });
+
+    it('covers energy source character (bees analogy)', () => {
+      const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'bees_energy_sources');
+      expect(e).toBeDefined();
+      expect(e!.category).toBe('analogy');
+      const text = allText(e!).toLowerCase();
+      expect(text).toMatch(/energy source|gas|electricity|heat pump/);
     });
   });
 });
