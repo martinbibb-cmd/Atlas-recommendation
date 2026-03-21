@@ -1011,3 +1011,47 @@ describe('DecisionSynthesisPage — trade-off summary', () => {
     expect(document.querySelector('[data-testid="trade-off-summary"]')).toBeNull();
   });
 });
+
+// ─── Portal / QR pre-save hint ────────────────────────────────────────────────
+
+describe('DecisionSynthesisPage — portal/QR pre-save affordance', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('shows pre-save hint text before the report is saved', () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ok: true, id: 'rpt-hint-test' }),
+    });
+    renderInCompareMode();
+    // The hint tells the user saving will generate a shareable link and QR code.
+    expect(screen.getByTestId('save-report-hint')).toBeTruthy();
+    expect(screen.getByTestId('save-report-hint').textContent).toMatch(
+      /save.*report.*generate|shareable.*link|qr.*code/i,
+    );
+  });
+
+  it('hint disappears after the report is saved', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ok: true, id: 'rpt-hint-gone' }),
+    });
+    renderInCompareMode();
+
+    // Hint should be present before saving.
+    expect(screen.getByTestId('save-report-hint')).toBeTruthy();
+
+    // Trigger save.
+    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+
+    // After save completes, hint (and save button) should be gone.
+    await waitFor(() =>
+      expect(screen.queryByTestId('save-report-hint')).toBeNull(),
+    );
+  });
+});

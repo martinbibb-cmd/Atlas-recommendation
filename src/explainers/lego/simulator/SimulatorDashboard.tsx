@@ -518,6 +518,7 @@ export default function SimulatorDashboard({
     <DrawOffStatusPanel
       state={drawOffState}
       systemChoice={systemChoice}
+      cylinderType={systemInputs.cylinderType}
       mainsPressureBar={systemInputs.mainsPressureBar}
       mainsFlowLpm={systemInputs.mainsFlowLpm}
       mode={isManualMode ? 'manual' : 'auto'}

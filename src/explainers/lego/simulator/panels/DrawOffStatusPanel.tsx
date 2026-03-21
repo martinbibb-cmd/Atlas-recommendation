@@ -26,6 +26,7 @@ import type { DrawOffDisplayState } from '../useDrawOffPlayback'
 import type { OutletDisplayState } from '../../state/outletDisplayState'
 import type { StoredHotWaterDisplayState } from '../useStoredHotWaterPlayback'
 import type { SimulatorSystemChoice } from '../useSystemDiagramPlayback'
+import type { CylinderType } from '../systemInputsTypes'
 import StoredHotWaterReservePanel from './StoredHotWaterReservePanel'
 import '../../../../components/lab/lab.css'
 
@@ -148,6 +149,7 @@ function outletToViewModel(
 function buildCylinderViewModel(
   state: DrawOffDisplayState,
   systemChoice: SimulatorSystemChoice,
+  cylinderType?: CylinderType,
 ): CylinderStatusViewModel {
   if (!state.isCylinder || !state.storedHotWaterState) {
     return {
@@ -162,7 +164,10 @@ function buildCylinderViewModel(
 
   const stored: StoredHotWaterDisplayState = state.storedHotWaterState
   const isHeatPump    = systemChoice === 'heat_pump'
-  const isMixergy     = systemChoice === 'mixergy'
+  // Mixergy is a cylinder type, not a system type.
+  // Use cylinderType when available; fall back to legacy systemChoice === 'mixergy'
+  // for backwards compatibility with callers that have not yet been updated.
+  const isMixergy     = cylinderType === 'mixergy' || systemChoice === 'mixergy'
   const storageRegime: StorageRegime = isMixergy
     ? 'mixergy_cylinder'
     : isHeatPump ? 'heat_pump_cylinder' : 'boiler_cylinder'
@@ -231,6 +236,14 @@ function SystemBanners({ state }: { state: DrawOffDisplayState }) {
 interface DrawOffStatusPanelProps {
   state: DrawOffDisplayState
   systemChoice: SimulatorSystemChoice
+  /**
+   * Cylinder technology type — drives Mixergy-specific behaviour in the cylinder
+   * status card.  When provided, takes precedence over the legacy
+   * `systemChoice === 'mixergy'` check.  Mixergy is a cylinder type, not a
+   * system type: it is valid alongside any stored-cylinder system (unvented,
+   * vented, heat pump) but NEVER for combi.
+   */
+  cylinderType?: CylinderType
   /** Mains dynamic pressure (bar) from system inputs — drives outlet flow physics. */
   mainsPressureBar?: number
   /** Mains dynamic flow rate (L/min) from system inputs — drives outlet delivery rate. */
@@ -252,7 +265,7 @@ interface DrawOffStatusPanelProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function DrawOffStatusPanel({ state, systemChoice, mainsPressureBar: _mainsPressureBar, mainsFlowLpm, ...controls }: DrawOffStatusPanelProps) {
+export default function DrawOffStatusPanel({ state, systemChoice, cylinderType, mainsPressureBar: _mainsPressureBar, mainsFlowLpm, ...controls }: DrawOffStatusPanelProps) {
   const openCount    = state.outletStates.filter(o => o.open).length
   const concurrent   = openCount >= 2
   const isCombi      = systemChoice === 'combi'
@@ -263,7 +276,7 @@ export default function DrawOffStatusPanel({ state, systemChoice, mainsPressureB
     : HOT_SUPPLY_COMBI_TEMP_C
 
   const outletCards   = state.outletStates.map(o => outletToViewModel(o, hotSupplyTempC, concurrent, effectiveMainsFlowLpm, isCombi))
-  const cylinderData  = buildCylinderViewModel(state, systemChoice)
+  const cylinderData  = buildCylinderViewModel(state, systemChoice, cylinderType)
 
   return (
     <div className="draw-off-panel" data-testid="draw-off-behaviour">

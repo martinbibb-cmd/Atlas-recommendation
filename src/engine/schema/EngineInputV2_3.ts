@@ -1641,6 +1641,13 @@ export interface FullEngineResultCore {
 export type FullEngineResult = FullEngineResultCore & {
   /** Canonical engine output (V1 contract). */
   engineOutput: EngineOutputV1;
+  /**
+   * Engine input validation result — identifies missing critical inputs and
+   * whether confidence has been degraded due to user-skipped survey fields.
+   * Only inputs collectable by the survey UI are checked; absent fields that
+   * the UI never collects do not penalise confidence.
+   */
+  inputValidation: import('../modules/EngineInputValidationModule').EngineInputValidation;
 };
 
 // ─── Connected Insights V2.4 ──────────────────────────────────────────────────
@@ -1958,7 +1965,33 @@ export interface PortfolioResult {
 
 // ─── Spec Edge Module ─────────────────────────────────────────────────────────
 
-export type DhwTankType = 'standard' | 'mixergy';
+/**
+ * DHW tank / cylinder type.
+ *
+ * 'standard_unvented' — mains-fed (sealed) cylinder; no active stratification.
+ * 'standard_vented'   — gravity-fed (open-vented) cylinder; no active stratification.
+ * 'mixergy'           — Mixergy stratified cylinder; top-down heating, active stratification.
+ *
+ * The legacy value 'standard' is kept for backward compatibility and is treated
+ * identically to 'standard_unvented' in all engine logic.
+ */
+export type DhwTankType = 'standard' | 'standard_unvented' | 'standard_vented' | 'mixergy';
+
+/**
+ * Returns true when the cylinder type has active stratification (Mixergy only).
+ * Used to gate stratification-specific features and advice copy.
+ */
+export function hasActivStratification(tankType: DhwTankType | undefined): boolean {
+  return tankType === 'mixergy';
+}
+
+/**
+ * Returns true for any standard (non-Mixergy) cylinder type, including the
+ * legacy 'standard' value.
+ */
+export function isStandardCylinder(tankType: DhwTankType | undefined): boolean {
+  return tankType === 'standard' || tankType === 'standard_unvented' || tankType === 'standard_vented';
+}
 
 export interface SpecEdgeInput {
   /** Installation policy – drives flow temperature and SPF curves */
