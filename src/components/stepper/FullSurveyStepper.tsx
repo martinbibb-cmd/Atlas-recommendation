@@ -2074,6 +2074,43 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
               </div>
             </div>
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+              <label>🌡️ Emitter Type</label>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                {([
+                  { value: 'radiators', label: '🔲 Radiators only', desc: 'Conventional panel radiators' },
+                  { value: 'ufh', label: '♨️ Underfloor heating', desc: 'UFH throughout — low flow temperature compatible' },
+                  { value: 'mixed', label: '⚙️ Mixed emitters', desc: 'Combination of radiators and UFH' },
+                ] as const).map(opt => {
+                  const isSelected = (input.emitterType ?? 'radiators') === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => setInput({ ...input, emitterType: opt.value })}
+                      style={{
+                        flex: 1,
+                        minWidth: '8rem',
+                        padding: '0.625rem',
+                        border: `2px solid ${isSelected ? '#3182ce' : '#e2e8f0'}`,
+                        borderRadius: '6px',
+                        background: isSelected ? '#ebf8ff' : '#fff',
+                        cursor: 'pointer',
+                        fontWeight: isSelected ? 700 : 400,
+                        fontSize: '0.85rem',
+                        textAlign: 'left' as const,
+                      }}
+                      data-testid={`emitter-type-${opt.value}`}
+                    >
+                      <div>{opt.label}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#718096', fontWeight: 400, marginTop: '0.2rem' }}>{opt.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: '0.78rem', color: '#718096', marginTop: '0.3rem', lineHeight: 1.4 }}>
+                UFH operates at lower flow temperatures — influences heat pump recommendation, condensing boiler efficiency range, and emitter upgrade advice.
+              </p>
+            </div>
+            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
               <label>Current Heat Source</label>
               <select
                 value={input.currentHeatSourceType ?? 'other'}

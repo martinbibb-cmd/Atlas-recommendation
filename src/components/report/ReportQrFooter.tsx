@@ -30,6 +30,13 @@ export default function ReportQrFooter({ reportReference }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [portalUrl, setPortalUrl] = useState<string | null>(null);
 
+  // Build a fallback portal URL immediately (unsigned) so the handover block
+  // renders as soon as the component mounts rather than waiting for async token
+  // generation.  The signed URL replaces it once the token is ready.
+  // buildPortalUrl defaults to window.location.origin, which is safe in a
+  // browser-only component.
+  const fallbackPortalUrl = buildPortalUrl(reportReference);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -51,7 +58,8 @@ export default function ReportQrFooter({ reportReference }: Props) {
         if (!cancelled) setQrDataUrl(dataUrl);
       })
       .catch(() => {
-        // QR generation failure is non-critical — fallback URL is shown instead.
+        // Token or QR generation failure is non-critical — the fallback portal URL
+        // is shown instead and the section remains visible.
       });
 
     return () => {
@@ -59,8 +67,9 @@ export default function ReportQrFooter({ reportReference }: Props) {
     };
   }, [reportReference]);
 
-  // Render nothing until at least the portal URL is resolved.
-  if (!portalUrl) return null;
+  // Always render the handover block when a report reference is present.
+  // The signed portalUrl replaces the fallback once the async token is ready.
+  const displayUrl = portalUrl ?? fallbackPortalUrl;
 
   return (
     <div
@@ -86,7 +95,9 @@ export default function ReportQrFooter({ reportReference }: Props) {
             Explore your options and see why this system was recommended
           </p>
           <p className="rv-qr-footer__fallback">
-            {reportReference}
+            <a href={displayUrl} target="_blank" rel="noopener noreferrer">
+              {displayUrl}
+            </a>
           </p>
         </div>
       </div>

@@ -7,8 +7,8 @@ export const ASSUMPTION_CATALOG: Record<AssumptionId, {
 }> = {
   'boiler.gc_missing': {
     title: 'GC number not provided',
-    detail: 'Boiler efficiency is estimated from manufacturer band defaults, not a direct SEDBUK database lookup.',
-    improveBy: 'Add the GC number from the boiler data plate.',
+    detail: 'Boiler efficiency is estimated from manufacturer band defaults, not a direct SEDBUK database lookup. GC number entry is not available in the current survey path.',
+    improveBy: 'Add the GC number from the boiler data plate when a GC lookup path becomes available.',
   },
   'boiler.gc_invalid': {
     title: 'GC number not recognised',
