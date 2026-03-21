@@ -41,7 +41,7 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
     bullets: [
       'Mains flow rate at the stop-tap is a fixed ceiling; every open outlet takes a share of that ceiling.',
       'A cold tap running at the same time as a shower reduces the hot-water draw rate available to the shower.',
-      'Combi boilers are sensitive to this because they heat on demand: a reduced cold-water supply directly limits hot output.',
+      'Combi boilers are sensitive to this because they heat on demand: a reduced cold-water supply directly limits hot-water output.',
       'Stored systems partly buffer this by drawing from the cylinder reserve rather than directly from the mains.',
       'A measured dynamic mains flow test gives the most accurate picture of what is actually available in the home.',
     ],

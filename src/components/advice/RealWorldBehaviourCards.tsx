@@ -23,6 +23,7 @@ import {
   EXPLAINER_LINK_ARIA,
 } from '../../lib/copy/customerCopy';
 import { getExplainerIdForLimitingFactor } from '../../lib/explainers/getRelevantExplainers';
+import { EDUCATIONAL_EXPLAINERS } from '../../explainers/educational/content';
 
 // ─── Outcome visual identifiers ───────────────────────────────────────────────
 
@@ -75,6 +76,9 @@ export default function RealWorldBehaviourCards({
         const explainerId = onOpenExplainer != null
           ? getExplainerIdForLimitingFactor(card.limitingFactor)
           : null;
+        const explainerTitle = explainerId != null
+          ? (EDUCATIONAL_EXPLAINERS.find(e => e.id === explainerId)?.title ?? explainerId)
+          : null;
 
         return (
           <div
@@ -114,7 +118,7 @@ export default function RealWorldBehaviourCards({
                     <button
                       className="behaviour-card__learn-why"
                       onClick={() => onOpenExplainer!(explainerId)}
-                      aria-label={EXPLAINER_LINK_ARIA(explainerId)}
+                      aria-label={EXPLAINER_LINK_ARIA(explainerTitle!)}
                       data-testid={`behaviour-card-learn-why-${card.id}`}
                     >
                       {EXPLAINER_LINK_LABEL}
