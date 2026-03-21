@@ -10,6 +10,7 @@
  *   1c. How they compare — behaviour card comparison when divergent (PR6)
  *   2. Everyday behaviour cards — top 3–5 real-world scenarios (PR7)
  *   2a. Objective comparison — priority selector + comparison panel (PR8)
+ *   2b. Portal simulator — read-only scenario-switching panel (PR9)
  *   3. Why this suits your home — comfort, hot water, space, disruption
  *   4. Trade-off summary — current vs recommended at a glance
  *   5. Required changes — cylinder, emitters, works if relevant
@@ -41,6 +42,7 @@ import { buildRealWorldBehaviourCards } from '../../lib/behaviour/buildRealWorld
 import { buildRecommendationReasonSummary } from '../../lib/advice/buildRecommendationReasonSummary';
 import { buildAllObjectiveComparisons } from '../../lib/advice/buildObjectiveComparison';
 import ObjectiveComparisonPanel from './ObjectiveComparisonPanel';
+import PortalSimulatorPanel from './PortalSimulatorPanel';
 import ExploreOptionsPanel from './ExploreOptionsPanel';
 import GlobalMenuShell from '../shell/GlobalMenuShell';
 import { useGlobalMenu } from '../shell/GlobalMenuContext';
@@ -478,6 +480,23 @@ export default function CustomerPortalPage({ reference, token }: Props) {
             chosenOptionLabel={chosenOptionCard?.label ?? 'Your chosen option'}
           />
         </section>
+
+        {/* ── Section 2b: Portal simulator (PR9) ───────────────────────────── */}
+        {behaviourCards.length > 0 && (
+          <section
+            className="portal-section"
+            aria-label="How your system handles everyday moments"
+            data-testid="portal-simulator-section"
+          >
+            <PortalSimulatorPanel
+              cards={behaviourCards}
+              isDivergent={emphasisIsDivergent}
+              recommendedOptionLabel={recommendedOptionCard?.label ?? 'Recommended option'}
+              chosenOptionLabel={chosenOptionCard?.label ?? 'Your chosen option'}
+              onOpenExplainer={openExplainerById}
+            />
+          </section>
+        )}
 
         {/* ── Section 3: Why this suits your home ──────────────────────────── */}
         {whyBullets.length > 0 && (
