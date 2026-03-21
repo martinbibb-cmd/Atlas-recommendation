@@ -303,6 +303,75 @@ export const OBJECTIVE_PRIORITY_FRAMING: Record<string, string> = {
   future_readiness: 'If your priority is staying future-ready…',
 };
 
+// ─── PR8 — Objective comparison panel copy ───────────────────────────────────
+
+/** Heading for the priority selector / objective comparison panel. */
+export const OBJECTIVE_COMPARISON_HEADING = 'What matters most to you?';
+
+/** Intro sentence for the objective comparison panel. */
+export const OBJECTIVE_COMPARISON_INTRO =
+  'Tap a priority below to see how the options compare on what matters to you.';
+
+/** Labels for the priority chip row in the objective comparison panel. */
+export const PRIORITY_CHIP_LABEL: Record<string, string> = {
+  running_costs:      'Running costs',
+  hot_water:          'Hot water',
+  space_saving:       'Space',
+  simplicity:         'Simplicity',
+  future_flexibility: 'Future ready',
+  lower_disruption:   'Lower disruption',
+};
+
+/**
+ * "A good fit when…" short description for each priority.
+ * Shown in the comparison panel under the ranked option.
+ */
+export const PRIORITY_GOOD_FIT: Record<string, string> = {
+  running_costs:
+    'A good fit when minimising long-term energy bills is the priority.',
+  hot_water:
+    'A good fit when the household needs consistent, mains-pressure hot water.',
+  space_saving:
+    'A good fit when cupboard or utility space is limited.',
+  simplicity:
+    'A good fit when you want a low-fuss system that is easy to understand and maintain.',
+  future_flexibility:
+    'A good fit when you want to keep your upgrade options open as technology improves.',
+  lower_disruption:
+    'A good fit when a contained, minimal-disruption installation matters.',
+};
+
+/**
+ * "Less strong where…" short caveat for each priority.
+ * Shown below the good-fit description.
+ */
+export const PRIORITY_LESS_STRONG: Record<string, string> = {
+  running_costs:
+    'Less strong where high upfront cost or extensive emitter upgrades are a barrier.',
+  hot_water:
+    'Less strong where there is limited space for a cylinder or low mains pressure.',
+  space_saving:
+    'Less strong where simultaneous hot-water demand from multiple outlets is common.',
+  simplicity:
+    'Less strong where future upgrade flexibility or lowest running cost is the priority.',
+  future_flexibility:
+    'Less strong where keeping installation cost low or disruption minimal is the main concern.',
+  lower_disruption:
+    'Less strong where stored hot water performance or future upgrade flexibility is the focus.',
+};
+
+/** Heading label for recommended-option note in the objective comparison panel. */
+export const OBJECTIVE_RECOMMENDED_LABEL = 'Recommended option';
+
+/** Heading label for chosen-option note in the objective comparison panel. */
+export const OBJECTIVE_CHOSEN_LABEL = 'Your chosen option';
+
+/** Label for the emphasis switch chip: recommended view. */
+export const EMPHASIS_RECOMMENDED_LABEL = 'Recommended';
+
+/** Label for the emphasis switch chip: chosen option view. */
+export const EMPHASIS_CHOSEN_LABEL = 'Your chosen option';
+
 // ─── Banned phrasing guard (development aid) ─────────────────────────────────
 
 /**

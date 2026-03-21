@@ -9,6 +9,7 @@
  *   1b. Your chosen option — when divergent (PR6)
  *   1c. How they compare — behaviour card comparison when divergent (PR6)
  *   2. Everyday behaviour cards — top 3–5 real-world scenarios (PR7)
+ *   2a. Objective comparison — priority selector + comparison panel (PR8)
  *   3. Why this suits your home — comfort, hot water, space, disruption
  *   4. Trade-off summary — current vs recommended at a glance
  *   5. Required changes — cylinder, emitters, works if relevant
@@ -38,8 +39,11 @@ import RealWorldBehaviourCards from '../advice/RealWorldBehaviourCards';
 import ChosenOptionComparisonSummary from '../advice/ChosenOptionComparisonSummary';
 import { buildRealWorldBehaviourCards } from '../../lib/behaviour/buildRealWorldBehaviourCards';
 import { buildRecommendationReasonSummary } from '../../lib/advice/buildRecommendationReasonSummary';
+import { buildAllObjectiveComparisons } from '../../lib/advice/buildObjectiveComparison';
+import ObjectiveComparisonPanel from './ObjectiveComparisonPanel';
 import ExploreOptionsPanel from './ExploreOptionsPanel';
 import GlobalMenuShell from '../shell/GlobalMenuShell';
+import { useGlobalMenu } from '../shell/GlobalMenuContext';
 import {
   type RecommendationPresentationState,
   hasCustomerDivergence,
@@ -50,6 +54,8 @@ import {
   WHY_ATLAS_HEADING,
   CHOSEN_SECTION_HEADING,
   COMPARISON_SECTION_HEADING,
+  EMPHASIS_RECOMMENDED_LABEL,
+  EMPHASIS_CHOSEN_LABEL,
 } from '../../lib/copy/customerCopy';
 import './CustomerPortalPage.css';
 
@@ -137,6 +143,11 @@ export default function CustomerPortalPage({ reference, token }: Props) {
   const [postcode, setPostcode] = useState<string | null>(null);
   // PR3 — presentation state loaded from the saved report.
   const [presentationState, setPresentationState] = useState<RecommendationPresentationState | null>(null);
+  // PR8 — emphasis switch: which option is foregrounded in divergent view.
+  const [viewEmphasis, setViewEmphasis] = useState<'recommended' | 'chosen'>('recommended');
+
+  // PR8 — explainer open handler via GlobalMenuContext (safe outside GlobalMenuShell too).
+  const { openExplainerById } = useGlobalMenu();
 
   // Validate token, then load report data
   useEffect(() => {
@@ -288,6 +299,22 @@ export default function CustomerPortalPage({ reference, token }: Props) {
       (engineOutput.verdict?.reasons?.length ?? 0) > 0) &&
     reasonSummary.reasons.length > 0;
 
+  // PR8 — Objective comparison views for all priorities.
+  const objectiveComparisonViews = buildAllObjectiveComparisons(
+    engineOutput,
+    resolvedPresentationState,
+  );
+
+  // PR8 — Label map for option IDs → human-readable labels.
+  const optionLabelMap: Record<string, string> = {};
+  for (const opt of engineOutput.options ?? []) {
+    optionLabelMap[opt.id] = opt.label;
+  }
+
+  // PR8 — Emphasis-aware labels for the divergent comparison display.
+  const emphasisIsDivergent =
+    showChosenOptionHero && viewEmphasis === 'chosen';
+
   return (
     <GlobalMenuShell>
       <div className="portal-page" data-testid="customer-portal">
@@ -357,6 +384,32 @@ export default function CustomerPortalPage({ reference, token }: Props) {
             <h2 className="portal-section__title portal-chosen-hero__heading">
               {CHOSEN_SECTION_HEADING}: {chosenOptionCard.label}
             </h2>
+
+            {/* PR8 — Emphasis switch: lets customer toggle which option is foregrounded. */}
+            <div
+              className="portal-chosen-hero__emphasis-switch"
+              role="group"
+              aria-label="View emphasis"
+              data-testid="portal-emphasis-switch"
+            >
+              <button
+                className={`portal-emphasis-chip${viewEmphasis === 'recommended' ? ' portal-emphasis-chip--active' : ''}`}
+                onClick={() => setViewEmphasis('recommended')}
+                aria-pressed={viewEmphasis === 'recommended'}
+                data-testid="emphasis-chip-recommended"
+              >
+                {EMPHASIS_RECOMMENDED_LABEL}
+              </button>
+              <button
+                className={`portal-emphasis-chip${viewEmphasis === 'chosen' ? ' portal-emphasis-chip--active' : ''}`}
+                onClick={() => setViewEmphasis('chosen')}
+                aria-pressed={viewEmphasis === 'chosen'}
+                data-testid="emphasis-chip-chosen"
+              >
+                {EMPHASIS_CHOSEN_LABEL}
+              </button>
+            </div>
+
             <p className="portal-chosen-hero__affirm">
               {CHOSEN_OPTION_FRAMING.affirm}
             </p>
@@ -389,7 +442,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
           </section>
         )}
 
-        {/* ── Section 2: Everyday behaviour cards (PR7) ────────────────────── */}
+        {/* ── Section 2: Everyday behaviour cards (PR7/PR8) ────────────────── */}
         {topBehaviourCards.length > 0 && (
           <section
             className="portal-section"
@@ -399,12 +452,32 @@ export default function CustomerPortalPage({ reference, token }: Props) {
             <h2 className="portal-section__title">
               {showChosenOptionHero ? COMPARISON_SECTION_HEADING : 'In daily use'}
             </h2>
+            {/* PR8: expandable cards + explainer links via GlobalMenuContext */}
             <RealWorldBehaviourCards
               cards={topBehaviourCards}
-              isDivergent={showChosenOptionHero}
+              isDivergent={emphasisIsDivergent}
+              recommendedOptionLabel={recommendedOptionCard?.label ?? 'Recommended option'}
+              chosenOptionLabel={chosenOptionCard?.label ?? 'Your chosen option'}
+              onOpenExplainer={openExplainerById}
+              expandable
             />
           </section>
         )}
+
+        {/* ── Section 2a: Objective comparison (PR8) ───────────────────────── */}
+        <section
+          className="portal-section"
+          aria-label="What matters most to you"
+          data-testid="portal-objective-comparison"
+        >
+          <ObjectiveComparisonPanel
+            comparisonViews={objectiveComparisonViews}
+            optionLabels={optionLabelMap}
+            isDivergent={showChosenOptionHero}
+            recommendedOptionLabel={recommendedOptionCard?.label ?? 'Recommended option'}
+            chosenOptionLabel={chosenOptionCard?.label ?? 'Your chosen option'}
+          />
+        </section>
 
         {/* ── Section 3: Why this suits your home ──────────────────────────── */}
         {whyBullets.length > 0 && (

@@ -578,3 +578,131 @@ describe('CustomerPortalPage — PR7 portal parity', () => {
     expect(document.querySelector('[data-testid="portal-behaviour-cards"]')).toBeNull();
   });
 });
+
+// ─── PR8 — Objective comparison panel + portal interaction ────────────────────
+
+describe('CustomerPortalPage — PR8 objective comparison', () => {
+  it('renders the objective comparison panel section', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-objective-comparison"]')).not.toBeNull();
+    });
+  });
+
+  it('renders the objective comparison panel itself', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="objective-comparison-panel"]')).not.toBeNull();
+    });
+  });
+
+  it('renders all 6 priority chips in the portal', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      const chipRow = document.querySelector('[data-testid="priority-chip-row"]');
+      expect(chipRow).not.toBeNull();
+      const chips = chipRow!.querySelectorAll('button');
+      expect(chips).toHaveLength(6);
+    });
+  });
+
+  it('shows comparison content after portal loads', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="priority-comparison-content"]')).not.toBeNull();
+    });
+  });
+});
+
+describe('CustomerPortalPage — PR8 emphasis switch', () => {
+  const STUB_OUTPUT_WITH_OPTIONS: EngineOutputV1 = {
+    ...STUB_ENGINE_OUTPUT,
+    options: [
+      {
+        id: 'combi',
+        label: 'Combi boiler',
+        status: 'viable',
+        headline: 'Best fit for this property',
+        why: ['Compact installation'],
+        requirements: [],
+        heat: { status: 'ok', headline: '', bullets: [] },
+        dhw: { status: 'ok', headline: '', bullets: [] },
+        engineering: { status: 'ok', headline: '', bullets: [] },
+        sensitivities: [],
+      },
+      {
+        id: 'stored_unvented',
+        label: 'Stored unvented',
+        status: 'caution',
+        headline: 'Possible with upgrades',
+        why: ['More stored hot water'],
+        requirements: [],
+        heat: { status: 'ok', headline: '', bullets: [] },
+        dhw: { status: 'ok', headline: '', bullets: [] },
+        engineering: { status: 'ok', headline: '', bullets: [] },
+        sensitivities: [],
+      },
+    ],
+  };
+
+  const STUB_REPORT_WITH_CHOSEN: ReportDetail = {
+    ...STUB_REPORT,
+    payload: {
+      ...STUB_REPORT.payload,
+      engineOutput: STUB_OUTPUT_WITH_OPTIONS,
+      presentationState: {
+        recommendedOptionId: 'combi',
+        chosenOptionId: 'stored_unvented',
+        chosenByCustomer: true,
+      },
+    },
+  };
+
+  it('renders the emphasis switch when customer has diverged', async () => {
+    mockFetchSuccess(STUB_REPORT_WITH_CHOSEN);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-emphasis-switch"]')).not.toBeNull();
+    });
+  });
+
+  it('emphasis switch has "Recommended" and "Your chosen option" chips', async () => {
+    mockFetchSuccess(STUB_REPORT_WITH_CHOSEN);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="emphasis-chip-recommended"]')).not.toBeNull();
+      expect(document.querySelector('[data-testid="emphasis-chip-chosen"]')).not.toBeNull();
+    });
+  });
+
+  it('emphasis switch is absent when there is no customer divergence', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-hero"]')).not.toBeNull();
+    });
+    expect(document.querySelector('[data-testid="portal-emphasis-switch"]')).toBeNull();
+  });
+
+  it('recommended hero remains visible regardless of emphasis state', async () => {
+    mockFetchSuccess(STUB_REPORT_WITH_CHOSEN);
+    const token = await makeValidToken('test-report-1');
+    render(<CustomerPortalPage reference="test-report-1" token={token} />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="portal-hero"]')).not.toBeNull();
+    });
+    expect(document.querySelector('[data-testid="portal-hero"]')).not.toBeNull();
+  });
+});
+
