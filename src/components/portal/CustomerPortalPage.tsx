@@ -314,7 +314,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
           <div className={`portal-hero__status portal-hero__status--${verdictStatus}`}>
             {verdictStatus === 'good' ? '✓' : verdictStatus === 'caution' ? '⚠' : '✗'}
           </div>
-          <div className="portal-hero__title">{verdictTitle}</div>
+          <h3 className="portal-hero__title">{verdictTitle}</h3>
           {engineOutput.recommendation.secondary && (
             <p className="portal-hero__secondary">
               {engineOutput.recommendation.secondary}
@@ -339,8 +339,8 @@ export default function CustomerPortalPage({ reference, token }: Props) {
           >
             <h2 className="portal-section__title">{WHY_ATLAS_HEADING}</h2>
             <ul className="portal-why-atlas__list" aria-label="Reasons for this recommendation">
-              {reasonSummary.reasons.map((reason, i) => (
-                <li key={i} className="portal-why-atlas__item">{reason}</li>
+              {reasonSummary.reasons.map((reason) => (
+                <li key={reason} className="portal-why-atlas__item">{reason}</li>
               ))}
             </ul>
           </section>

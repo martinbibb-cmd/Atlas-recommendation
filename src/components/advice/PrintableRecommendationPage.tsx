@@ -655,8 +655,8 @@ export default function PrintableRecommendationPage({
         >
           <h2 className="prp__section-title prp__section-title--small">{WHY_ATLAS_HEADING}</h2>
           <ul className="prp__why-atlas-list" aria-label="Reasons for this recommendation">
-            {printReasonSummary.reasons.map((reason, i) => (
-              <li key={i} className="prp__why-atlas-item">{reason}</li>
+            {printReasonSummary.reasons.map((reason) => (
+              <li key={reason} className="prp__why-atlas-item">{reason}</li>
             ))}
           </ul>
         </section>
