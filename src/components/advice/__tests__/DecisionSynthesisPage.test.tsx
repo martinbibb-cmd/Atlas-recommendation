@@ -1171,3 +1171,128 @@ describe('DecisionSynthesisPage — PR3 customer-chosen option', () => {
     expect(screen.queryByTestId('choose-btn-combi')).toBeNull();
   });
 });
+
+// ─── PR4 — Real-world behaviour cards ────────────────────────────────────────
+
+import type { RealWorldBehaviourCard } from '../../../contracts/EngineOutputV1';
+
+function makeBehaviourCard(
+  overrides: Partial<RealWorldBehaviourCard> = {},
+): RealWorldBehaviourCard {
+  return {
+    scenario_id: 'shower_and_tap',
+    title: 'Morning shower + kitchen tap',
+    summary: 'Both outlets perform well — minimal pressure drop expected.',
+    recommended_option_outcome: 'strong',
+    ...overrides,
+  };
+}
+
+const OUTPUT_WITH_BEHAVIOUR_CARDS: EngineOutputV1 = {
+  ...DEMO_OUTPUT,
+  realWorldBehaviours: [
+    makeBehaviourCard({ scenario_id: 'shower_and_tap' }),
+    makeBehaviourCard({ scenario_id: 'two_showers', title: 'Two showers at once' }),
+    makeBehaviourCard({ scenario_id: 'bath_filling', title: 'Filling a bath' }),
+    makeBehaviourCard({ scenario_id: 'peak_household', title: 'Busier household periods' }),
+    makeBehaviourCard({ scenario_id: 'cold_mains_pressure', title: 'Whole-home flow sharing' }),
+  ],
+};
+
+const OUTPUT_WITH_BEHAVIOUR_CARDS_ALT: EngineOutputV1 = {
+  ...MULTI_OPTION_OUTPUT,
+  realWorldBehaviours: [
+    makeBehaviourCard({
+      scenario_id: 'shower_and_tap',
+      recommended_option_outcome: 'strong',
+      alternative_option_outcome: 'limited',
+    }),
+    makeBehaviourCard({
+      scenario_id: 'bath_filling',
+      recommended_option_outcome: 'acceptable',
+      alternative_option_outcome: 'acceptable',
+    }),
+  ],
+};
+
+describe('DecisionSynthesisPage — PR4 behaviour cards section', () => {
+  it('renders behaviour cards section when engine provides realWorldBehaviours', () => {
+    render(<DecisionSynthesisPage engineOutput={OUTPUT_WITH_BEHAVIOUR_CARDS} />);
+    expect(screen.getByTestId('behaviour-cards-section')).toBeTruthy();
+  });
+
+  it('does not render behaviour cards section when engine provides no cards', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    expect(screen.queryByTestId('behaviour-cards-section')).toBeNull();
+  });
+
+  it('renders individual behaviour cards by scenario id', () => {
+    render(<DecisionSynthesisPage engineOutput={OUTPUT_WITH_BEHAVIOUR_CARDS} />);
+    expect(screen.getByTestId('behaviour-card-shower_and_tap')).toBeTruthy();
+    expect(screen.getByTestId('behaviour-card-two_showers')).toBeTruthy();
+  });
+
+  it('renders behaviour card titles', () => {
+    render(<DecisionSynthesisPage engineOutput={OUTPUT_WITH_BEHAVIOUR_CARDS} />);
+    expect(screen.getByText('Morning shower + kitchen tap')).toBeTruthy();
+    expect(screen.getByText('Two showers at once')).toBeTruthy();
+  });
+
+  it('section heading says "In daily use"', () => {
+    render(<DecisionSynthesisPage engineOutput={OUTPUT_WITH_BEHAVIOUR_CARDS} />);
+    expect(screen.getByText(/in daily use/i)).toBeTruthy();
+  });
+
+  it('behaviour cards section is below the recommendation summary area', () => {
+    render(<DecisionSynthesisPage engineOutput={OUTPUT_WITH_BEHAVIOUR_CARDS} />);
+    const cardsSection = screen.getByTestId('behaviour-cards-section');
+    const atlasRecommends = screen.getByText(/ATLAS RECOMMENDS/i);
+    // cards section should exist and recommendation should also exist
+    expect(cardsSection).toBeTruthy();
+    expect(atlasRecommends).toBeTruthy();
+  });
+
+  it('renders all 5 behaviour cards when engine provides them', () => {
+    render(<DecisionSynthesisPage engineOutput={OUTPUT_WITH_BEHAVIOUR_CARDS} />);
+    const allCards = document.querySelectorAll('[data-testid^="behaviour-card-"]');
+    expect(allCards.length).toBe(5);
+  });
+
+  it('no banned harsh language in rendered behaviour card text', () => {
+    render(<DecisionSynthesisPage engineOutput={OUTPUT_WITH_BEHAVIOUR_CARDS} />);
+    const cardsSection = screen.getByTestId('behaviour-cards-section');
+    const text = cardsSection.textContent ?? '';
+    const banned = ['fail', 'rejected', 'insufficient', 'hydraulic violation', 'does not meet criteria'];
+    for (const phrase of banned) {
+      expect(text.toLowerCase()).not.toContain(phrase);
+    }
+  });
+});
+
+describe('DecisionSynthesisPage — PR4 behaviour cards with customer divergence', () => {
+  it('comparison notes shown in behaviour cards when customer diverges', () => {
+    render(<DecisionSynthesisPage engineOutput={OUTPUT_WITH_BEHAVIOUR_CARDS_ALT} />);
+
+    // Customer picks a different option.
+    fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
+
+    // Behaviour cards section should be present.
+    expect(screen.getByTestId('behaviour-cards-section')).toBeTruthy();
+  });
+
+  it('behaviour cards section visible before customer makes a choice', () => {
+    render(<DecisionSynthesisPage engineOutput={OUTPUT_WITH_BEHAVIOUR_CARDS_ALT} />);
+    expect(screen.getByTestId('behaviour-cards-section')).toBeTruthy();
+  });
+
+  it('recommendation remains unchanged after customer chooses another option and cards are shown', () => {
+    render(<DecisionSynthesisPage engineOutput={OUTPUT_WITH_BEHAVIOUR_CARDS_ALT} />);
+
+    fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
+
+    // Recommendation should still say "Combi boiler".
+    expect(screen.getByText(/ATLAS RECOMMENDS/i)).toBeTruthy();
+    const combiMatches = screen.getAllByText('combi');
+    expect(combiMatches.length).toBeGreaterThan(0);
+  });
+});

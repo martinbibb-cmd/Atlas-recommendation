@@ -243,3 +243,98 @@ describe('PR3 — BANNED_CUSTOMER_PHRASES includes override language', () => {
     expect(BANNED_CUSTOMER_PHRASES).toContain('You chose against advice');
   });
 });
+
+// ─── PR4 — Real-world behaviour card copy ─────────────────────────────────────
+
+import {
+  BEHAVIOUR_OUTCOME_LABEL,
+  BEHAVIOUR_OUTCOME_RECOMMENDED_NOTE,
+  BEHAVIOUR_OUTCOME_CHOSEN_NOTE,
+  BEHAVIOUR_LIMITING_FACTOR_LABEL,
+} from '../customerCopy';
+
+describe('PR4 — BEHAVIOUR_OUTCOME_LABEL', () => {
+  it('has entries for all three outcome tiers', () => {
+    expect(BEHAVIOUR_OUTCOME_LABEL.works_well).toBeTruthy();
+    expect(BEHAVIOUR_OUTCOME_LABEL.works_with_limits).toBeTruthy();
+    expect(BEHAVIOUR_OUTCOME_LABEL.best_for_lighter_use).toBeTruthy();
+  });
+
+  it('no tier label uses banned phrases', () => {
+    for (const label of Object.values(BEHAVIOUR_OUTCOME_LABEL)) {
+      for (const phrase of BANNED_CUSTOMER_PHRASES) {
+        expect(label.toLowerCase()).not.toContain(phrase.toLowerCase());
+      }
+    }
+  });
+});
+
+describe('PR4 — BEHAVIOUR_OUTCOME_RECOMMENDED_NOTE', () => {
+  it('has notes for all four BehaviourOutcome values', () => {
+    expect(BEHAVIOUR_OUTCOME_RECOMMENDED_NOTE.strong).toBeTruthy();
+    expect(BEHAVIOUR_OUTCOME_RECOMMENDED_NOTE.acceptable).toBeTruthy();
+    expect(BEHAVIOUR_OUTCOME_RECOMMENDED_NOTE.limited).toBeTruthy();
+    expect(BEHAVIOUR_OUTCOME_RECOMMENDED_NOTE.poor).toBeTruthy();
+  });
+
+  it('no recommended note contains banned phrases', () => {
+    for (const note of Object.values(BEHAVIOUR_OUTCOME_RECOMMENDED_NOTE)) {
+      for (const phrase of BANNED_CUSTOMER_PHRASES) {
+        expect(note.toLowerCase()).not.toContain(phrase.toLowerCase());
+      }
+    }
+  });
+
+  it('no recommended note uses harsh engineering language', () => {
+    const combined = Object.values(BEHAVIOUR_OUTCOME_RECOMMENDED_NOTE).join(' ');
+    expect(combined).not.toMatch(/not suitable|fail|rejected|cannot meet|insufficient/i);
+  });
+});
+
+describe('PR4 — BEHAVIOUR_OUTCOME_CHOSEN_NOTE', () => {
+  it('has notes for all four BehaviourOutcome values', () => {
+    expect(BEHAVIOUR_OUTCOME_CHOSEN_NOTE.strong).toBeTruthy();
+    expect(BEHAVIOUR_OUTCOME_CHOSEN_NOTE.acceptable).toBeTruthy();
+    expect(BEHAVIOUR_OUTCOME_CHOSEN_NOTE.limited).toBeTruthy();
+    expect(BEHAVIOUR_OUTCOME_CHOSEN_NOTE.poor).toBeTruthy();
+  });
+
+  it('no chosen note contains banned phrases', () => {
+    for (const note of Object.values(BEHAVIOUR_OUTCOME_CHOSEN_NOTE)) {
+      for (const phrase of BANNED_CUSTOMER_PHRASES) {
+        expect(note.toLowerCase()).not.toContain(phrase.toLowerCase());
+      }
+    }
+  });
+
+  it('no chosen note uses harsh engineering language', () => {
+    const combined = Object.values(BEHAVIOUR_OUTCOME_CHOSEN_NOTE).join(' ');
+    expect(combined).not.toMatch(/not suitable|fail|rejected|cannot meet|insufficient/i);
+  });
+
+  it('chosen note for "limited" outcome uses consequence-led language', () => {
+    expect(BEHAVIOUR_OUTCOME_CHOSEN_NOTE.limited).toMatch(/more limited|busier times/i);
+  });
+});
+
+describe('PR4 — BEHAVIOUR_LIMITING_FACTOR_LABEL', () => {
+  it('has entries for mains, storage, instantaneous_output, recovery, distribution', () => {
+    expect(BEHAVIOUR_LIMITING_FACTOR_LABEL.mains).toBeTruthy();
+    expect(BEHAVIOUR_LIMITING_FACTOR_LABEL.storage).toBeTruthy();
+    expect(BEHAVIOUR_LIMITING_FACTOR_LABEL.instantaneous_output).toBeTruthy();
+    expect(BEHAVIOUR_LIMITING_FACTOR_LABEL.recovery).toBeTruthy();
+    expect(BEHAVIOUR_LIMITING_FACTOR_LABEL.distribution).toBeTruthy();
+  });
+
+  it('mains label references the incoming supply', () => {
+    expect(BEHAVIOUR_LIMITING_FACTOR_LABEL.mains).toMatch(/mains supply/i);
+  });
+
+  it('no limiting factor label contains banned phrases', () => {
+    for (const label of Object.values(BEHAVIOUR_LIMITING_FACTOR_LABEL)) {
+      for (const phrase of BANNED_CUSTOMER_PHRASES) {
+        expect(label.toLowerCase()).not.toContain(phrase.toLowerCase());
+      }
+    }
+  });
+});

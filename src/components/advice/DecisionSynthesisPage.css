@@ -1363,3 +1363,122 @@
   margin: 0;
   font-style: italic;
 }
+
+/* ── PR4 — Real-world behaviour cards ──────────────────────────────────────── */
+
+.behaviour-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.behaviour-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  border-left-width: 4px;
+}
+
+.behaviour-card--works_well {
+  border-left-color: #38a169;
+}
+
+.behaviour-card--works_with_limits {
+  border-left-color: #d69e2e;
+}
+
+.behaviour-card--best_for_lighter_use {
+  border-left-color: #718096;
+}
+
+.behaviour-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.behaviour-card__outcome-icon {
+  font-size: 1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.behaviour-card__outcome-icon--works_well     { color: #38a169; }
+.behaviour-card__outcome-icon--works_with_limits { color: #d69e2e; }
+.behaviour-card__outcome-icon--best_for_lighter_use { color: #718096; }
+
+.behaviour-card__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0;
+  flex: 1;
+}
+
+.behaviour-card__outcome-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.behaviour-card__outcome-badge--works_well {
+  background: #f0fff4;
+  color: #276749;
+}
+
+.behaviour-card__outcome-badge--works_with_limits {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.behaviour-card__outcome-badge--best_for_lighter_use {
+  background: #f7fafc;
+  color: #4a5568;
+}
+
+.behaviour-card__summary {
+  font-size: 0.875rem;
+  color: #4a5568;
+  margin: 0 0 0.5rem;
+  line-height: 1.5;
+}
+
+.behaviour-card__limiter {
+  font-size: 0.8rem;
+  color: #718096;
+  margin: 0 0 0.5rem;
+  font-style: italic;
+}
+
+.behaviour-card__comparison {
+  border-top: 1px solid #e2e8f0;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.behaviour-card__comparison-note {
+  font-size: 0.82rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.behaviour-card__comparison-note--recommended {
+  color: #2d6a4f;
+}
+
+.behaviour-card__comparison-note--chosen {
+  color: #92400e;
+}
+
+.behaviour-card__comparison-label {
+  font-weight: 600;
+}

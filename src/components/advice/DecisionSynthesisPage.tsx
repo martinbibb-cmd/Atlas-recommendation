@@ -60,6 +60,8 @@ import {
   CHOSEN_OPTION_CONFIRMED_LABEL,
   CHOSEN_OPTION_FRAMING,
 } from '../../lib/copy/customerCopy';
+import { buildRealWorldBehaviourCards } from '../../lib/behaviour/buildRealWorldBehaviourCards';
+import RealWorldBehaviourCards from './RealWorldBehaviourCards';
 import './DecisionSynthesisPage.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -858,6 +860,14 @@ export default function DecisionSynthesisPage({
       ? engineOutput.options.find(o => o.id === chosenOptionId) ?? null
       : null;
 
+  // PR4 — The recommended option card (for labelling the divergence comparison).
+  const recommendedOptionCard =
+    engineOutput.options?.find(o => o.id === recommendedOptionId) ?? null;
+
+  // PR4 — Build real-world behaviour cards from engine output and presentation state.
+  // Derived each render so they always reflect the latest chosenOptionId.
+  const behaviourCards = buildRealWorldBehaviourCards(engineOutput, presentationState);
+
   // Engine explainer IDs emitted for this recommendation.
   const explainerIds = new Set(engineOutput.explainers.map(e => e.id));
   const showMixergySuggested     = explainerIds.has('stored-mixergy-suggested');
@@ -1460,6 +1470,32 @@ export default function DecisionSynthesisPage({
           <p className="advice-chosen-banner__recommendation-note">
             {CHOSEN_OPTION_FRAMING.recommendedStillAvailable}
           </p>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 1g — Real-world behaviour cards                            */}
+      {/* PR4 — Shown below recommendation summary and chosen-option framing */}
+      {/* Translates engine outputs into daily-use scenarios so the customer */}
+      {/* understands practical consequences of the recommended option and,  */}
+      {/* when divergent, their chosen option too.                           */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {behaviourCards.length > 0 && (
+        <div
+          className="advice-page__section"
+          aria-label="In daily use"
+          data-testid="behaviour-cards-section"
+        >
+          <h2 className="advice-page__section-title">In daily use</h2>
+          <p className="advice-page__section-intro">
+            How this would feel day-to-day, based on the survey data.
+          </p>
+          <RealWorldBehaviourCards
+            cards={behaviourCards}
+            isDivergent={showChosenOptionBanner}
+            recommendedOptionLabel={recommendedOptionCard?.label ?? 'Recommended option'}
+            chosenOptionLabel={chosenOptionCard?.label ?? 'Your chosen option'}
+          />
         </div>
       )}
 
