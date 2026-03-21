@@ -491,6 +491,19 @@ export interface EngineInputV2_3 {
     emitterUpgradeAppetite?: 'none' | 'some' | 'full_job';
   };
 
+  /**
+   * Emitter type installed in the property — affects heat pump flow temperature
+   * requirements, condensing operation window, and recommendation copy.
+   *
+   *  radiators — conventional panel radiators (default)
+   *  ufh       — underfloor heating throughout (low flow temperature compatible)
+   *  mixed     — combination of radiators and underfloor heating
+   *
+   * Safe default: 'radiators' (most common UK installation).
+   * Backwards compatible: absence of this field is treated as 'radiators'.
+   */
+  emitterType?: 'radiators' | 'ufh' | 'mixed';
+
   /** Optional engine configuration — allows callers to customise engine behaviour without changing survey data. */
   engineConfig?: {
     /** Explicit pair of system IDs for the 24-hour comparative timeline. Defaults to ['current', primary recommendation]. */

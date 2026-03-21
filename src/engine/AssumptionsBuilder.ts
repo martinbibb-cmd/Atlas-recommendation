@@ -15,12 +15,14 @@ export function buildAssumptionsV1(
   const boiler = input?.currentSystem?.boiler;
 
   if (!boiler?.gcNumber) {
-    missingKeyCount++;
+    // GC number is recorded as informational only — there is no GC lookup or
+    // manual entry path in the current survey flow, so it would be unfair to
+    // penalise the user for data the UI never lets them provide.
     assumptions.push({
       id: ASSUMPTION_IDS.BOILER_GC_MISSING,
       ...ASSUMPTION_CATALOG[ASSUMPTION_IDS.BOILER_GC_MISSING],
-      affects: ['options', 'recommendation', 'context'],
-      severity: 'warn',
+      affects: ['context'],
+      severity: 'info',
     });
   }
 
@@ -102,7 +104,7 @@ export function buildAssumptionsV1(
   const reasons: string[] = [];
   let level: ConfidenceV1['level'] = 'high';
 
-  if (missingKeyCount >= 3 || (!hasPeakHeatLoss && boiler?.gcNumber == null)) {
+  if (missingKeyCount >= 3) {
     level = 'low';
   } else if (missingKeyCount >= 1) {
     level = 'medium';

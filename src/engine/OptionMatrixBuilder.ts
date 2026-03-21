@@ -12,6 +12,18 @@ import type { PenaltyId } from '../contracts/scoring.penaltyIds';
 const STRONG_FLOW_LPM = 20;
 
 /**
+ * Flow threshold (L/min) below which unvented performance is "limited / fair"
+ * for simultaneous multi-outlet demand, even when the eligibility gate is met.
+ *
+ * Gate minimum: 12 L/min (flow-only, no pressure recorded) or 10 L/min @ 1 bar.
+ * "Good" threshold: STRONG_FLOW_LPM (20 L/min).
+ * "Limited / fair" band: 12–17 L/min — passes the gate but not strong for
+ *   simultaneous demand; better than combi for stored scenarios, but
+ *   open-vent may be preferable for heavy simultaneous-demand weak-main properties.
+ */
+const MODERATE_FLOW_LPM = 18;
+
+/**
  * Returns true when the measured CWS operating point is clearly strong:
  *   - hasMeasurements is true
  *   - the unvented eligibility gate is met (≥ 10 L/min @ ≥ 1.0 bar)
@@ -27,6 +39,35 @@ function strongOperatingPoint(cwsSupplyV1: FullEngineResultCore['cwsSupplyV1']):
     cwsSupplyV1.hasMeasurements &&
     cwsSupplyV1.meetsUnventedRequirement &&
     (cwsSupplyV1.dynamic?.flowLpm ?? 0) >= STRONG_FLOW_LPM
+  );
+}
+
+/**
+ * Returns true when flow is in the "moderate" band (MODERATE_FLOW_LPM ≤ flow < STRONG_FLOW_LPM).
+ * Flow in this band passes the unvented gate but does NOT qualify as "strong".
+ * Wording should reflect "adequate / workable" rather than "good" for simultaneous demand.
+ */
+function moderateFlowOperatingPoint(cwsSupplyV1: FullEngineResultCore['cwsSupplyV1']): boolean {
+  const flow = cwsSupplyV1.dynamic?.flowLpm ?? 0;
+  return (
+    cwsSupplyV1.hasMeasurements &&
+    cwsSupplyV1.meetsUnventedRequirement &&
+    flow >= MODERATE_FLOW_LPM &&
+    flow < STRONG_FLOW_LPM
+  );
+}
+
+/**
+ * Returns true when flow passes the unvented gate but is below MODERATE_FLOW_LPM —
+ * the "limited / fair" band.  Usable for stored hot water but not strong for
+ * simultaneous multi-outlet demand.
+ */
+function limitedFlowOperatingPoint(cwsSupplyV1: FullEngineResultCore['cwsSupplyV1']): boolean {
+  const flow = cwsSupplyV1.dynamic?.flowLpm ?? 0;
+  return (
+    cwsSupplyV1.hasMeasurements &&
+    cwsSupplyV1.meetsUnventedRequirement &&
+    flow < MODERATE_FLOW_LPM
   );
 }
 
@@ -534,6 +575,13 @@ export function buildOptionMatrixV1(
       : `Mains-pressure DHW: ${mainsPressure.toFixed(1)} bar${mainsPressure < 1.5 ? ' (borderline — min 1.5 bar recommended)' : ' (adequate)'}.`,
     `Recommended cylinder type: ${recType === 'mixergy' ? 'Mixergy (stratified)' : 'standard indirect'}.`,
   ];
+  if (limitedFlowOperatingPoint(cwsSupplyV1)) {
+    const flowLpm = cwsSupplyV1.dynamic?.flowLpm ?? 0;
+    storedUnventedDhwBullets.push(
+      `Measured flow (${flowLpm} L/min) is workable for stored hot water but limited for strong simultaneous outlet demand. ` +
+      `Open-vent may suit better where simultaneous demand is heavy and mains supply is weak.`,
+    );
+  }
   if (cwsSupplyV1.inconsistent) {
     storedUnventedDhwBullets.push('Pressure readings inconsistent — confirm measurements before proceeding.');
   } else if (!cwsSupplyV1.hasMeasurements) {
@@ -555,7 +603,11 @@ export function buildOptionMatrixV1(
       ? 'DHW: mains supply not characterised — need L/min @ bar measurement.'
       : !cwsSupplyV1.meetsUnventedRequirement
       ? 'DHW: supply does not meet unvented requirement — boost pump likely required.'
-      : 'DHW: mains-pressure stored hot water — good flow at all outlets.';
+      : limitedFlowOperatingPoint(cwsSupplyV1)
+      ? 'DHW: mains-pressure stored hot water — usable but limited for simultaneous multi-outlet demand.'
+      : moderateFlowOperatingPoint(cwsSupplyV1)
+      ? 'DHW: mains-pressure stored hot water — adequate flow; better than on-demand for stored scenarios.'
+      : 'DHW: mains-pressure stored hot water — strong flow supports simultaneous outlet delivery.';
   const storedUnventedDhw: OptionPlane = {
     status: storedUnventedDhwStatus,
     headline: storedUnventedDhwHeadline,
@@ -871,7 +923,15 @@ export function buildOptionMatrixV1(
     operatingPointBullet(sysUnventedCws, pressure),
   ];
   if (sysUnventedCws.hasMeasurements && sysUnventedCws.meetsUnventedRequirement && pressure < 1.5) {
-    unventedWhy.push('Strong measured flow under load — mains-fed stored hot water is well supported.');
+    if (strongOperatingPoint(sysUnventedCws)) {
+      unventedWhy.push('Strong measured flow under load — mains-fed stored hot water is well supported.');
+    } else if (limitedFlowOperatingPoint(sysUnventedCws)) {
+      const flowLpm = sysUnventedCws.dynamic?.flowLpm ?? 0;
+      unventedWhy.push(
+        `Measured flow (${flowLpm} L/min) is workable for stored hot water ` +
+        `but limited for simultaneous multi-outlet demand.`,
+      );
+    }
   }
   if (input.futureAddBathroom) {
     unventedWhy.push('Adding a bathroom increases simultaneous demand — cylinder sizing important.');
@@ -896,6 +956,7 @@ export function buildOptionMatrixV1(
   };
 
   const unventedDhwIsStrong = pressure < 1.5 && strongOperatingPoint(sysUnventedCws);
+  const unventedDhwIsLimited = limitedFlowOperatingPoint(sysUnventedCws);
   const unventedDhw: OptionPlane = {
     status: pressure < 1.0 ? 'caution' : (pressure < 1.5 && !unventedDhwIsStrong) ? 'caution' : 'ok',
     headline: pressure < 1.0
@@ -904,14 +965,19 @@ export function buildOptionMatrixV1(
       ? 'DHW: mains-pressure stored hot water — strong measured flow supports delivery.'
       : pressure < 1.5
       ? 'DHW: borderline mains pressure — may require boost pump.'
-      : 'DHW: mains-pressure hot water — good flow at all outlets.',
+      : unventedDhwIsLimited
+      ? 'DHW: mains-pressure hot water — usable but limited for simultaneous multi-outlet demand.'
+      : 'DHW: mains-pressure hot water — adequate flow for stored delivery.',
     bullets: [
       unventedDhwIsStrong
         ? `Measured operating point: ${(sysUnventedCws.dynamic?.flowLpm ?? 0).toFixed(0)} L/min @ ${pressure.toFixed(1)} bar — strong flow under load.`
+        : unventedDhwIsLimited
+        ? `Measured flow: ${(sysUnventedCws.dynamic?.flowLpm ?? 0).toFixed(0)} L/min — workable for stored hot water, but not strong for simultaneous high-demand draws.`
         : `Mains pressure: ${pressure.toFixed(1)} bar${pressure < 1.5 ? ' (borderline — min 1.5 bar recommended)' : ' (adequate)'}.`,
       'Unvented cylinder: mains-pressure DHW — eliminates need for shower pump.',
       'G3 regulation: tundish and discharge pipe required by Building Regulations.',
       ...(input.futureAddBathroom ? ['Additional bathroom: confirm cylinder volume meets increased simultaneous demand.'] : []),
+      ...(unventedDhwIsLimited ? ['For heavy simultaneous demand, an open-vent (tank-fed) system may deliver more consistent flow.'] : []),
     ],
     evidenceIds: [],
   };

@@ -124,12 +124,18 @@ describe('buildAssumptionsV1', () => {
       const { assumptions } = buildAssumptionsV1(coreStub, input);
       const gcAssumption = assumptions.find(a => a.id === ASSUMPTION_IDS.BOILER_GC_MISSING);
       expect(gcAssumption).toBeDefined();
-      expect(gcAssumption!.severity).toBe('warn');
     });
 
-    it('downgrades confidence to medium', () => {
+    it('emits the GC assumption as info (not warn) — no UI path to provide GC number', () => {
+      const { assumptions } = buildAssumptionsV1(coreStub, input);
+      const gcAssumption = assumptions.find(a => a.id === ASSUMPTION_IDS.BOILER_GC_MISSING);
+      expect(gcAssumption!.severity).toBe('info');
+    });
+
+    it('does NOT downgrade confidence for missing GC alone — no UI path available', () => {
       const { confidence } = buildAssumptionsV1(coreStub, input);
-      expect(confidence.level).toBe('medium');
+      // GC is no longer counted in missingKeyCount; all other key fields present → high.
+      expect(confidence.level).toBe('high');
     });
 
     it('includes improveBy hint on the assumption', () => {
