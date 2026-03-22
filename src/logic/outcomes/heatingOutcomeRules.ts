@@ -13,7 +13,7 @@
  */
 
 import type { DayEvent } from '../events/types';
-import type { ClassifiedDayEvent, EventOutcomeResult, OutcomeSystemSpec } from './types';
+import type { ClassifiedDayEvent, OutcomeSystemSpec } from './types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -177,7 +177,6 @@ function classifyRecovery(
  * but still sensitive to controls quality and condition.
  */
 function classifyActive(
-  event: DayEvent,
   spec: OutcomeSystemSpec,
 ): Pick<ClassifiedDayEvent, 'result' | 'reason' | 'metrics' | 'tags'> {
   const outputKw = effectiveOutputKw(spec);
@@ -262,7 +261,6 @@ function classifyActive(
  * subsequent recovery will be feasible.
  */
 function classifySetback(
-  event: DayEvent,
   spec: OutcomeSystemSpec,
 ): Pick<ClassifiedDayEvent, 'result' | 'reason' | 'metrics' | 'tags'> {
   const outputKw = effectiveOutputKw(spec);
@@ -313,9 +311,9 @@ export function classifyHeatingEvent(
     case 'heating_recovery':
       return classifyRecovery(event, spec);
     case 'heating_active':
-      return classifyActive(event, spec);
+      return classifyActive(spec);
     case 'heating_setback':
-      return classifySetback(event, spec);
+      return classifySetback(spec);
     default:
       // Should never reach here when called from the main classifier.
       return {

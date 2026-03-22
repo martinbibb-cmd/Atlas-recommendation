@@ -10,7 +10,7 @@
  */
 
 import type { DayEvent } from '../events/types';
-import type { ClassifiedDayEvent, EventOutcomeResult, OutcomeSystemSpec } from './types';
+import type { ClassifiedDayEvent, OutcomeSystemSpec } from './types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -204,7 +204,6 @@ function classifyStoredWaterDraw(
   const recoveryLph = spec.recoveryRateLitresPerHour ?? 60;
 
   const priorDepleted = estimatePriorDepleted(event, allEvents, drawRate);
-  const thisVolume    = estimateDrawVolumeLitres(event, drawRate);
 
   // Simple recovery credit: litres recovered since last draw started.
   const lastEventBefore = [...allEvents]
@@ -293,7 +292,6 @@ function classifyHeatPumpDraw(
   const recoveryLph = spec.recoveryRateLitresPerHour ?? 30;
 
   const priorDepleted = estimatePriorDepleted(event, allEvents, drawRate);
-  const thisVolume    = estimateDrawVolumeLitres(event, drawRate);
 
   const lastEventBefore = [...allEvents]
     .filter((e) => e !== event && e.hotWaterDraw && e.startMinute < event.startMinute)
@@ -306,10 +304,6 @@ function classifyHeatPumpDraw(
   const recoveryCredit = Math.max(0, (gapMinutes / 60) * recoveryLph);
   const effectiveStorage = Math.min(storage, storage - priorDepleted + recoveryCredit);
   const remainingFraction = effectiveStorage / storage;
-
-  // Suppress unused variable warning — thisVolume captured for symmetry with
-  // stored_water path; may be used in future thermodynamic pass.
-  void thisVolume;
 
   if (event.type === 'bath') {
     const fillTime = BATH_VOLUME_LITRES / drawRate;
