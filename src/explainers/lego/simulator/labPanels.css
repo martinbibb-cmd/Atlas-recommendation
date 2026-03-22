@@ -1064,3 +1064,50 @@
   border-radius: 3px;
   transition: width 0.5s ease;
 }
+
+/* ─── Pipework advisory (draw-off panel, open-vented) ─────────────────────── */
+
+.draw-off-pipework-advisory {
+  margin-top: 0.75rem;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  background: rgba(251, 191, 36, 0.06);
+}
+
+.draw-off-pipework-advisory__summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #b7791f;
+  list-style: none;
+}
+
+.draw-off-pipework-advisory__summary::-webkit-details-marker {
+  display: none;
+}
+
+.draw-off-pipework-advisory__summary::before {
+  content: "⚠ ";
+}
+
+.draw-off-pipework-advisory__body {
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  color: #4a5568;
+  padding-left: 0.5rem;
+  border-left: 2px solid rgba(251, 191, 36, 0.35);
+}
+
+.draw-off-pipework-advisory__body p {
+  margin: 0.3rem 0;
+}
+
+.draw-off-pipework-advisory__body ul {
+  margin: 0.3rem 0;
+  padding-left: 1.2rem;
+}
+
+.draw-off-pipework-advisory__body li + li {
+  margin-top: 0.2rem;
+}

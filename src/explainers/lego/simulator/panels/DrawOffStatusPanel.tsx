@@ -27,6 +27,7 @@ import type { OutletDisplayState } from '../../state/outletDisplayState'
 import type { StoredHotWaterDisplayState } from '../useStoredHotWaterPlayback'
 import type { SimulatorSystemChoice } from '../useSystemDiagramPlayback'
 import type { CylinderType } from '../systemInputsTypes'
+import type { DrawOffFlowStability } from '../../../../engine/modules/StoredDhwModule'
 import StoredHotWaterReservePanel from './StoredHotWaterReservePanel'
 import '../../../../components/lab/lab.css'
 
@@ -241,6 +242,42 @@ function SystemBanners({ state }: { state: DrawOffDisplayState }) {
   )
 }
 
+// ─── Pipework advisory ────────────────────────────────────────────────────────
+
+/**
+ * Inline advisory shown for open-vented systems when flow stability is
+ * marginal or limited, explaining that performance depends on pipework layout.
+ *
+ * Only rendered when systemChoice === 'open_vented' AND flowStability is
+ * 'marginal' or 'limited' — so the label always reflects a constrained state.
+ */
+function PipeworkPerformanceAdvisory() {
+  return (
+    <details className="draw-off-pipework-advisory" data-testid="draw-off-pipework-advisory">
+      <summary className="draw-off-pipework-advisory__summary">
+        Limited by tank-fed supply + pipework resistance
+      </summary>
+      <div className="draw-off-pipework-advisory__body">
+        <p>
+          Tank-fed systems rely on the height of the cold-water storage tank above the outlets.
+          Pressure and flow are also influenced by pipe size, length, and fittings.
+        </p>
+        <p>Potential improvements to consider:</p>
+        <ul>
+          <li>Increase pipe size to bathroom (e.g. 15 mm → 22 mm)</li>
+          <li>Add a dedicated cold feed to key outlets</li>
+          <li>Reduce long runs or restrictive fittings</li>
+        </ul>
+        <p>
+          A qualified installer can assess whether these changes would improve performance.
+          Where tank height is fundamentally limited, a pump or mains-fed supply
+          may be required.
+        </p>
+      </div>
+    </details>
+  )
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface DrawOffStatusPanelProps {
@@ -258,6 +295,12 @@ interface DrawOffStatusPanelProps {
   mainsPressureBar?: number
   /** Mains dynamic flow rate (L/min) from system inputs — drives outlet delivery rate. */
   mainsFlowLpm?: number
+  /**
+   * Flow stability classification from the draw-off model.
+   * When 'marginal' or 'limited' on an open-vented system, surfaces the
+   * pipework-dependent performance advisory in the panel.
+   */
+  flowStability?: DrawOffFlowStability
   mode: 'auto' | 'manual'
   heatingEnabled: boolean
   shower: boolean
@@ -275,7 +318,7 @@ interface DrawOffStatusPanelProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function DrawOffStatusPanel({ state, systemChoice, cylinderType, mainsPressureBar: _mainsPressureBar, mainsFlowLpm, ...controls }: DrawOffStatusPanelProps) {
+export default function DrawOffStatusPanel({ state, systemChoice, cylinderType, mainsPressureBar: _mainsPressureBar, mainsFlowLpm, flowStability, ...controls }: DrawOffStatusPanelProps) {
   const openCount    = state.outletStates.filter(o => o.open).length
   const concurrent   = openCount >= 2
   const isCombi      = systemChoice === 'combi'
@@ -352,6 +395,11 @@ export default function DrawOffStatusPanel({ state, systemChoice, cylinderType, 
       {/* ── Stored hot water reserve (cylinder systems only) ─────────────── */}
       {state.storedHotWaterState !== null && (
         <StoredHotWaterReservePanel state={state.storedHotWaterState} />
+      )}
+
+      {/* ── Pipework advisory (open-vented with marginal/limited flow) ────── */}
+      {systemChoice === 'open_vented' && (flowStability === 'marginal' || flowStability === 'limited') && (
+        <PipeworkPerformanceAdvisory />
       )}
 
     </div>
