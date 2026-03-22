@@ -2,7 +2,7 @@
  * LabConfidenceStrip.test.tsx
  *
  * Validates that LabConfidenceStrip:
- *   - Renders the "Confidence drivers" heading
+ *   - Renders the collapsed summary showing "Confidence: X%"
  *   - Shows all four group labels when all groups have content
  *   - Renders each item in the measured, inferred, and missing lists
  *   - Renders the next-step text when provided
@@ -31,9 +31,11 @@ function makeData(overrides: Partial<ConfidenceStripData> = {}): ConfidenceStrip
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('LabConfidenceStrip — structure', () => {
-  it('renders the "Confidence drivers" heading', () => {
+  it('renders the collapsed summary with a Confidence percentage', () => {
     render(<LabConfidenceStrip data={makeData()} />);
-    expect(screen.getByText('Confidence drivers')).toBeTruthy();
+    const summary = screen.getByRole('button', { name: /confidence/i });
+    expect(summary).toBeTruthy();
+    expect(summary.textContent).toMatch(/Confidence:\s*\d+%/);
   });
 
   it('has the correct aria-label on the container', () => {
