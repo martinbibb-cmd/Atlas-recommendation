@@ -109,6 +109,39 @@ export interface UserPreferencesV1 {
   disruptionTolerance?: 'low' | 'medium' | 'high';
 }
 
+/**
+ * Actual household composition by age band.
+ *
+ * This is the primary source of truth for occupancy-driven demand modelling
+ * when the user enters real headcounts rather than choosing a broad archetype.
+ *
+ * The demographic profile (DemandPresetId) and occupancyCount are derived
+ * from this; they must not be set independently by the UI when
+ * householdComposition is populated.
+ *
+ * Derivation sequence (see deriveProfileFromHouseholdComposition):
+ *   householdComposition + daytimeOccupancy + bathUse
+ *     → DemandPresetId + occupancyCount + DemandTimingOverrides
+ *     → OccupancySignature → simulation
+ *
+ * Future-lifecycle note:
+ *   The age-band structure is intentionally designed to support near-future
+ *   household shift logic (e.g. "teenagers soon", "empty nest soon") without
+ *   requiring schema changes.
+ */
+export interface HouseholdComposition {
+  /** Number of adults (18+ years) in the household. Minimum 1. */
+  adultCount: number;
+  /** Number of children aged 0–4. */
+  childCount0to4: number;
+  /** Number of children aged 5–10. */
+  childCount5to10: number;
+  /** Number of children aged 11–17. */
+  childCount11to17: number;
+  /** Number of young adults aged 18–25 living at home (students / gap year). */
+  youngAdultCount18to25AtHome: number;
+}
+
 export interface EngineInputV2_3 {
   // Location & Water
   postcode: string;
@@ -350,9 +383,23 @@ export interface EngineInputV2_3 {
   /** Cylinder / airing-cupboard space availability. */
   availableSpace?: 'tight' | 'ok' | 'unknown';
   /**
+   * Actual household composition by age band.
+   *
+   * When present, this is the primary source of truth for occupancy-driven
+   * demand modelling.  The demographic profile (demandPreset) and occupancyCount
+   * are derived from this — they must not be set independently by the UI when
+   * householdComposition is populated.
+   *
+   * Derivation sequence:
+   *   householdComposition → derived DemandPresetId + occupancyCount
+   *   → OccupancySignature → simulation
+   */
+  householdComposition?: HouseholdComposition;
+  /**
    * User-facing demand preset selected in the survey lifestyle step.
    * When present, the survey UI uses this to drive the occupancySignature
    * and default timing values rather than the legacy 3-option dropdown.
+   * Prefer deriving this from householdComposition when that field is set.
    */
   demandPreset?: DemandPresetId;
   /**
