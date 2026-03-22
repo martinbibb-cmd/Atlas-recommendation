@@ -19,11 +19,12 @@ import type { ComparisonSystemType } from '../../engine/schema/ScenarioProfileV1
 // ─── System option list ───────────────────────────────────────────────────────
 
 const SYSTEM_OPTIONS: { value: ComparisonSystemType; label: string }[] = [
-  { value: 'combi',           label: 'Combi' },
-  { value: 'stored_vented',   label: 'Stored — Vented' },
-  { value: 'stored_unvented', label: 'Stored — Unvented' },
-  { value: 'mixergy',         label: 'Mixergy' },
-  { value: 'ashp',            label: 'ASHP' },
+  { value: 'combi',               label: 'Combi'              },
+  { value: 'stored_vented',       label: 'Stored — Vented'    },
+  { value: 'stored_unvented',     label: 'Stored — Unvented'  },
+  { value: 'mixergy',             label: 'Mixergy'            },
+  { value: 'mixergy_open_vented', label: 'Mixergy (Tank-fed)' },
+  { value: 'ashp',                label: 'ASHP'               },
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────

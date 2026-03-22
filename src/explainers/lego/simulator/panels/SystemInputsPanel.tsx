@@ -62,28 +62,30 @@ const EMITTER_TYPE_OPTIONS: { value: EmitterType; label: string }[] = [
   { value: 'ufh',                 label: 'Underfloor heating'  },
 ]
 
-// ─── Cylinder type options ────────────────────────────────────────────────────
-// open_vented is only relevant when the system choice is open_vented.
-// unvented and mixergy are relevant for unvented / heat_pump system choices.
-
-const CYLINDER_TYPE_OPTIONS: { value: CylinderType; label: string }[] = [
-  { value: 'open_vented', label: 'Open vented' },
-  { value: 'unvented',    label: 'Unvented'    },
-  { value: 'mixergy',     label: 'Mixergy'     },
-]
-
 /**
  * Returns the cylinder type options that are valid for the given system choice.
  *
- * open_vented system  → only open_vented cylinder
- * unvented / heat_pump → unvented or mixergy
- * combi               → none (cylinder not applicable)
+ * open_vented system   → Standard (open_vented cylinder) or Mixergy
+ * unvented / heat_pump → Standard (unvented cylinder) or Mixergy
+ * combi                → none (cylinder not applicable)
+ *
+ * Both open_vented and unvented architectures support the Mixergy cylinder
+ * variant. Mixergy describes the cylinder behaviour (stratified storage,
+ * smart demand mirroring), not the hydraulic pressure architecture.
  */
-function cylinderTypeOptionsFor(systemChoice: SimulatorSystemChoice) {
+function cylinderTypeOptionsFor(systemChoice: SimulatorSystemChoice): { value: CylinderType; label: string }[] {
+  if (systemChoice === 'combi') return []
   if (systemChoice === 'open_vented') {
-    return CYLINDER_TYPE_OPTIONS.filter(o => o.value === 'open_vented')
+    return [
+      { value: 'open_vented', label: 'Standard' },
+      { value: 'mixergy',     label: 'Mixergy'  },
+    ]
   }
-  return CYLINDER_TYPE_OPTIONS.filter(o => o.value !== 'open_vented')
+  // unvented, heat_pump, mixergy (legacy top-level choice)
+  return [
+    { value: 'unvented', label: 'Standard' },
+    { value: 'mixergy',  label: 'Mixergy'  },
+  ]
 }
 
 // ─── Control strategy options ─────────────────────────────────────────────────

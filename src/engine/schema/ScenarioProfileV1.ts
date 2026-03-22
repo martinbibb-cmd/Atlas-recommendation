@@ -104,8 +104,11 @@ const COMBI_PURGE_FUEL_INPUT_KWH = 0.5;
 /**
  * Heating system archetypes available for comparison in the Demand Profile Painter.
  * Matches the DayPainterSystem type in LifestyleInteractive.
+ *
+ * mixergy            — Mixergy smart cylinder with mains-fed (unvented) architecture.
+ * mixergy_open_vented — Mixergy smart cylinder with tank-fed (open-vented) architecture.
  */
-export type ComparisonSystemType = 'combi' | 'stored_vented' | 'stored_unvented' | 'mixergy' | 'ashp';
+export type ComparisonSystemType = 'combi' | 'stored_vented' | 'stored_unvented' | 'mixergy' | 'mixergy_open_vented' | 'ashp';
 
 // ─── ScenarioProfileV1 ────────────────────────────────────────────────────────
 
@@ -349,7 +352,10 @@ export function computeSystemHourPhysics(
     // The Mixergy-specific improvements (demand mirroring, reduced cycling,
     // stratification) are handled in the engine's MixergyVolumetricsModule
     // and MixergyStratificationModule — not at this hourly-simulation layer.
+    // mixergy_open_vented is the same physics as mixergy but with a tank-fed
+    // (open-vented) hydraulic architecture — macro-level accounting is identical.
     case 'mixergy':
+    case 'mixergy_open_vented':
       return storedBoilerHourPhysics(qChDemandKw, qDhwDemandKw);
     case 'ashp':
       return ashpHourPhysics(qChDemandKw, qDhwDemandKw, hour, spfMidpoint);

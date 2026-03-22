@@ -523,6 +523,21 @@ describe('adaptFullSurveyToSimulatorInputs — cylinderType', () => {
     )
     expect(systemInputs.cylinderType).toBe('mixergy')
   })
+
+  it('regular boiler + Mixergy cylinder → open_vented system choice + mixergy cylinderType', () => {
+    // Regression: Mixergy must be available for open-vented (tank-fed) architecture,
+    // not just for mains-fed (unvented) systems.
+    const { systemChoice, systemInputs } = adaptFullSurveyToSimulatorInputs(
+      minimalSurvey({
+        currentHeatSourceType: 'regular',
+        fullSurvey: {
+          dhwCondition: { cylinderType: 'mixergy' },
+        },
+      }),
+    )
+    expect(systemChoice).toBe('open_vented')
+    expect(systemInputs.cylinderType).toBe('mixergy')
+  })
 })
 
 // ─── No mutation ──────────────────────────────────────────────────────────────
