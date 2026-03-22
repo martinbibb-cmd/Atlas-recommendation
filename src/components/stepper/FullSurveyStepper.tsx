@@ -3876,10 +3876,11 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
     }));
   }
 
-  /** Increment / decrement a composition band, clamped to 0–10. */
+  /** Increment / decrement a composition band, clamped to 0–MAX_BAND_COUNT. */
+  const MAX_BAND_COUNT = 10;
   function adjustBand(band: keyof HouseholdComposition, delta: number) {
     const current = composition[band];
-    const next = Math.max(0, Math.min(10, current + delta));
+    const next = Math.max(0, Math.min(MAX_BAND_COUNT, current + delta));
     handleCompositionChange({ [band]: next });
   }
 
@@ -4144,7 +4145,7 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
         color: '#2b6cb0',
         marginBottom: '0.75rem',
       }}>
-        <strong>Derived demand style: </strong>{getDemandStyleLabel(activePresetId)}
+        <strong>{hasComposition ? 'Derived demand style: ' : 'Selected demand style: '}</strong>{getDemandStyleLabel(activePresetId)}
       </div>
 
       {/* ── DHW demand sanity indicator ──────────────────────────────────── */}

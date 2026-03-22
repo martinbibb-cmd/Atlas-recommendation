@@ -265,13 +265,13 @@ describe('bathFrequencyPerWeek derivation', () => {
     expect(result.bathFrequencyPerWeek).toBe(7);
   });
 
-  it('one toddler (0–4) boosts bath frequency to at least 1 even when bathUse=rare', () => {
+  it('one toddler (0–4) boosts bath frequency to exactly 1 when bathUse=rare', () => {
     const result = deriveProfileFromHouseholdComposition(
       compose({ adultCount: 2, childCount0to4: 1 }),
       'usually_out',
       'rare',
     );
-    expect(result.bathFrequencyPerWeek).toBeGreaterThanOrEqual(1);
+    expect(result.bathFrequencyPerWeek).toBe(1);
   });
 
   it('two toddlers (0–4) boost bath frequency to at least 2', () => {

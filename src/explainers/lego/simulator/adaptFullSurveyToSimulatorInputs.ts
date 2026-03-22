@@ -285,6 +285,9 @@ export function adaptFullSurveyToSimulatorInputs(
         ? 'irregular'
         : 'usually_out') as 'usually_out' | 'usually_home' | 'irregular'
 
+    // Map bathFrequencyPerWeek back to BathUsePattern.
+    // Thresholds mirror the forward mapping in deriveBathFrequencyPerWeek:
+    //   rare=0, sometimes=3, frequent=7 (per week).
     const bathUse = (
       (survey.demandTimingOverrides?.bathFrequencyPerWeek ?? 0) >= 7
         ? 'frequent'
