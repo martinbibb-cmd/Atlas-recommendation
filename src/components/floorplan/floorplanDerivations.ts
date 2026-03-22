@@ -88,16 +88,33 @@ function parseRoutePoints(pointsStr: string): Point[] {
 }
 
 /**
+ * Compute the pipe offset (in pixels) used to visually separate the flow and
+ * return pipes.  Scales with the grid so that small rooms or thick walls don't
+ * cause the pipes to overlap: 10% of a grid cell, with a minimum of 4 px.
+ *
+ * @param gridPx  Grid cell size in pixels (defaults to the module-level GRID constant).
+ */
+export function computePipeOffset(gridPx: number = GRID): number {
+  return Math.max(4, gridPx * 0.1);
+}
+
+/**
  * Auto-route flow and return heating pipes between the heat source and every
  * emitter on the same floor.  Returns an AutoRoute[] ready to render.
  *
- * Flow pipes run from heat source → emitter (offset +4 px right).
- * Return pipes run from emitter → heat source (offset -4 px left).
+ * Flow pipes run from heat source → emitter (offset +pipeOffset px right).
+ * Return pipes run from emitter → heat source (offset -pipeOffset px left).
  * Both are snapped to room-wall edges via routePipeAligned().
+ *
+ * @param nodes      Placement nodes on the floor plan.
+ * @param rooms      Room definitions used for wall-snap routing.
+ * @param pipeOffset Optional pixel offset between flow and return pipes.
+ *                   Defaults to computePipeOffset(GRID).
  */
 export function autoRouteHeatingPipes(
   nodes: PlacementNode[],
   rooms: Room[],
+  pipeOffset?: number,
 ): AutoRoute[] {
   const heatSource = nodes.find((n) => HEAT_SOURCE_KINDS.includes(n.type));
   if (!heatSource) return [];
@@ -109,7 +126,7 @@ export function autoRouteHeatingPipes(
     x: r.x, y: r.y, w: r.width, h: r.height, label: r.name,
   }));
 
-  const PIPE_OFFSET = 4; // px — separates flow/return visually
+  const PIPE_OFFSET = pipeOffset ?? computePipeOffset(GRID); // px — separates flow/return visually
   const routes: AutoRoute[] = [];
 
   for (const emitter of emitters) {

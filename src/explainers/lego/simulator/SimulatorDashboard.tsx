@@ -347,6 +347,13 @@ interface Props {
    * surfaces the pipework-dependent performance advisory.
    */
   initialCurrentFlowStability?: DrawOffFlowStability
+  /**
+   * When true, the simulator is running inside the customer portal.
+   * The SystemInputsPanel will hide expert-only fields (mains pressure, mains
+   * flow, boiler output, heat loss, etc.) and only show the portal-safe subset:
+   * system condition, cylinder size, emitter size, and primary pipe size.
+   */
+  portalMode?: boolean
 }
 
 export default function SimulatorDashboard({
@@ -359,6 +366,7 @@ export default function SimulatorDashboard({
   compareLabels = { current: 'Current system', proposed: 'Proposed system' },
   floorplanOperatingAssumptions,
   initialCurrentFlowStability,
+  portalMode = false,
 }: Props) {
   const [expanded, setExpanded] = useState<PanelId | null>(null);
   const [timeSpeed, setTimeSpeed] = useState(1);
@@ -574,6 +582,7 @@ export default function SimulatorDashboard({
         inputs={systemInputs}
         onInputChange={partial => setSystemInputs(prev => ({ ...prev, ...partial }))}
         systemChoice={systemChoice}
+        portalMode={portalMode}
       />
     ),
   };
@@ -676,6 +685,7 @@ export default function SimulatorDashboard({
                   inputs={systemInputs}
                   onInputChange={partial => setSystemInputs(prev => ({ ...prev, ...partial }))}
                   systemChoice={systemChoice}
+                  portalMode={portalMode}
                 />
               </SimulatorPanel>
             </div>
@@ -725,6 +735,7 @@ export default function SimulatorDashboard({
                   inputs={improvedInputs}
                   onInputChange={partial => setImprovedInputs(prev => ({ ...prev, ...partial }))}
                   systemChoice={systemChoiceImproved}
+                  portalMode={portalMode}
                 />
               </SimulatorPanel>
             </div>
@@ -852,6 +863,7 @@ export default function SimulatorDashboard({
             inputs={systemInputs}
             onInputChange={partial => setSystemInputs(prev => ({ ...prev, ...partial }))}
             systemChoice={systemChoice}
+            portalMode={portalMode}
           />
         </SimulatorPanel>
       </div>
