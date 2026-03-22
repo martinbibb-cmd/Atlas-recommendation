@@ -26,6 +26,7 @@ const KNOWN_COMPARISON_TYPES: ComparisonSystemType[] = [
   'stored_vented',
   'stored_unvented',
   'mixergy',
+  'mixergy_open_vented',
   'ashp',
 ];
 
@@ -50,6 +51,19 @@ describe('taxonomy parity — Mixergy in Day Painter comparison types', () => {
         ).toContain(record.comparisonSystemTypeId as ComparisonSystemType);
       }
     }
+  });
+});
+
+describe('taxonomy parity — mixergy_open_vented is a known ComparisonSystemType', () => {
+  it('mixergy_open_vented is included in KNOWN_COMPARISON_TYPES', () => {
+    expect(KNOWN_COMPARISON_TYPES).toContain('mixergy_open_vented');
+  });
+
+  it('mixergy_open_vented computeSystemHourPhysics uses stored-boiler physics (same as mixergy)', () => {
+    const openVented      = computeSystemHourPhysics('mixergy_open_vented', 3, 2, 12, 2.5, false, 60);
+    const mixergyUnvented = computeSystemHourPhysics('mixergy',             3, 2, 12, 2.5, false, 60);
+    expect(openVented.qToChKw).toBe(mixergyUnvented.qToChKw);
+    expect(openVented.qToDhwKw).toBe(mixergyUnvented.qToDhwKw);
   });
 });
 
