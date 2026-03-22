@@ -388,18 +388,32 @@ export default function SimulatorDashboard({
     simHour,
   } = useSystemDiagramPlayback(initialSystemChoice, timeSpeed, systemInputs.occupancyProfile, systemInputs.demandPreset);
 
-  // When switching to Mixergy, auto-set cylinderType so downstream physics
-  // (useLimiterPlayback, useStoredHotWaterPlayback) use Mixergy behaviour.
-  // When switching away, restore 'unvented' as the default cylinder type.
+  // When switching system choice, keep cylinderType consistent with the new
+  // system's valid options.  Both open_vented and unvented architectures support
+  // the Mixergy cylinder variant — Mixergy is never silently reset when moving
+  // between stored-water system types.
+  //
+  //   open_vented  → valid: open_vented (Standard) or mixergy.  Reset unvented → open_vented.
+  //   unvented / heat_pump → valid: unvented (Standard) or mixergy.  Reset open_vented → unvented.
+  //   mixergy (legacy top-level) → ensure cylinderType reflects Mixergy behaviour.
+  //   combi → no cylinder; cylinderType is ignored so no reset required.
   const setSystemChoice = (c: SimulatorSystemChoice) => {
     setSystemChoiceRaw(c)
     if (c === 'mixergy') {
+      // Legacy top-level Mixergy choice: ensure cylinderType reflects Mixergy.
       setSystemInputs(prev => ({ ...prev, cylinderType: 'mixergy' }))
-    } else {
+    } else if (c === 'open_vented') {
+      // open_vented does not support the unvented cylinder type.
       setSystemInputs(prev =>
-        prev.cylinderType === 'mixergy' ? { ...prev, cylinderType: 'unvented' } : prev
+        prev.cylinderType === 'unvented' ? { ...prev, cylinderType: 'open_vented' } : prev
+      )
+    } else if (c === 'unvented' || c === 'heat_pump') {
+      // unvented / heat_pump do not support the open_vented cylinder type.
+      setSystemInputs(prev =>
+        prev.cylinderType === 'open_vented' ? { ...prev, cylinderType: 'unvented' } : prev
       )
     }
+    // combi: no cylinder, no reset needed (cylinderType is unused for combi)
   }
   const houseState = useHousePlayback(diagramState);
   const drawOffState = useDrawOffPlayback(diagramState, systemInputs.cylinderType, systemInputs.cylinderSizeLitres);

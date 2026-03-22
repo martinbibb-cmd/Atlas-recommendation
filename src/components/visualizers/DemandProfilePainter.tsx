@@ -60,11 +60,12 @@ const DEFAULT_ENGINE_INPUT: EngineInputV2_3 = {
 // ─── System labels ────────────────────────────────────────────────────────────
 
 const SYSTEM_LABELS: Record<ComparisonSystemType, string> = {
-  combi:           'Combi',
-  stored_vented:   'Stored — Vented',
-  stored_unvented: 'Stored — Unvented',
-  mixergy:         'Mixergy',
-  ashp:            'ASHP',
+  combi:                'Combi',
+  stored_vented:        'Stored — Vented',
+  stored_unvented:      'Stored — Unvented',
+  mixergy:              'Mixergy',
+  mixergy_open_vented:  'Mixergy (Tank-fed)',
+  ashp:                 'ASHP',
 };
 
 /** Default background colour for painter blocks with no intensity (zero / off). */

@@ -15,8 +15,10 @@
  * Modifier model (Option B):
  *   Mixergy is never rendered alone. It is applied on top of a stored-water
  *   base system (stored_unvented, system_unvented, or stored_vented).
- *   The simulator exposes Mixergy as a top-level selector for convenience, but
- *   internally always pairs it with an unvented_cylinder system type.
+ *   Mixergy is a cylinder/storage technology variant — not a pressure
+ *   architecture. It is selectable for both unvented (mains-fed) and open-vented
+ *   (tank-fed) architectures. The simulator exposes Mixergy as a CylinderType
+ *   choice within either architecture, not as a top-level system selector.
  *
  * Space-saving order (best → worst):
  *   combi → stored_unvented / system_unvented → stored_vented → regular_vented → ashp
@@ -177,10 +179,11 @@ const REGISTRY_ENTRIES: SystemRecord[] = [
     baseSystemIds: ['stored_unvented', 'system_unvented', 'stored_vented'],
     // Modifier — does not appear as a standalone engine option.
     engineOptionId: undefined,
-    // Mixergy has its own simulator choice — internally maps to unvented_cylinder
-    // system type with cylinderType='mixergy'.
+    // Mixergy is a CylinderType choice within the unvented or open_vented simulator
+    // system choice — it is no longer exposed as a standalone top-level selector.
     simulatorChoiceIds: ['mixergy'],
-    // Mixergy has its own comparison system type in the Day Painter.
+    // Mixergy has its own comparison system type in the Day Painter (mains-fed variant).
+    // The tank-fed variant is represented by 'mixergy_open_vented'.
     comparisonSystemTypeId: 'mixergy',
   },
 ];

@@ -205,3 +205,29 @@ describe('Mixergy Availability — not for combi', () => {
     expect(() => runEngine(combiWithMixergy)).not.toThrow();
   });
 });
+
+// ─── ComparisonSystemType — mixergy_open_vented ───────────────────────────────
+
+import { computeSystemHourPhysics } from '../schema/ScenarioProfileV1';
+
+describe('ComparisonSystemType — mixergy_open_vented physics', () => {
+  it('mixergy_open_vented returns stored-boiler physics (same as stored_vented and mixergy)', () => {
+    const mixeryOpenVented = computeSystemHourPhysics(
+      'mixergy_open_vented', 5, 2, 12, 3.0, false, 60,
+    );
+    const storedVented = computeSystemHourPhysics(
+      'stored_vented', 5, 2, 12, 3.0, false, 60,
+    );
+    expect(mixeryOpenVented).toEqual(storedVented);
+  });
+
+  it('mixergy_open_vented physics matches mixergy (mains-fed variant)', () => {
+    const mixeryOpenVented = computeSystemHourPhysics(
+      'mixergy_open_vented', 4, 3, 8, 3.0, false, 60,
+    );
+    const mixergy = computeSystemHourPhysics(
+      'mixergy', 4, 3, 8, 3.0, false, 60,
+    );
+    expect(mixeryOpenVented).toEqual(mixergy);
+  });
+});
