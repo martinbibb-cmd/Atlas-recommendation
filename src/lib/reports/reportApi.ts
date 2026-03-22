@@ -9,6 +9,7 @@ import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendationPresentationState } from '../selection/optionSelection';
+import type { DerivedFloorplanOutput } from '../../components/floorplan/floorplanDerivations';
 
 export interface ReportMeta {
   id: string;
@@ -37,6 +38,14 @@ export interface ReportPayload {
    * Absent in reports saved before PR3.  Consumers must treat as optional.
    */
   presentationState?: RecommendationPresentationState;
+  /**
+   * Optional floor-plan derived outputs captured when the user completes the
+   * floor-plan tool before generating the report.
+   *
+   * Absent in reports saved before this field was introduced.  Consumers must
+   * treat as optional.
+   */
+  floorplanOutput?: DerivedFloorplanOutput | null;
 }
 
 export interface ReportDetail extends ReportMeta {
