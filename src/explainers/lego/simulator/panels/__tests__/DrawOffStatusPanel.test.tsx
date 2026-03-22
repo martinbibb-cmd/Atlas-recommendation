@@ -175,3 +175,94 @@ describe('DrawOffStatusPanel — multi-outlet state with propagated mains flow',
     expect(chips.length).toBeGreaterThanOrEqual(2)
   })
 })
+
+// ─── Shared mains budget across concurrent outlets ─────────────────────────────
+
+describe('DrawOffStatusPanel — shared mains cold-supply budget', () => {
+  it('single open outlet receives the full mains flow as cold supply', () => {
+    const { container } = render(
+      <DrawOffStatusPanel
+        state={makeState([{
+          outletId: 'shower', label: 'Shower',
+          open: true, service: 'mixed_hot_running', flowLpm: 9,
+          deliveredTempC: 45, isConstrained: false, coldSource: 'mains',
+        }])}
+        systemChoice="combi"
+        mainsFlowLpm={12}
+        {...BASE_CONTROLS}
+      />,
+    )
+    // The card should show the full 12 L/min for a solo outlet.
+    expect(container.textContent).toContain('12')
+    // The card must NOT show 6 (half-share would be wrong for a solo outlet).
+    // We allow 12 to appear as the flow label, not 6.
+    const coldRow = container.querySelector('.draw-off-card__row--cold')
+    expect(coldRow?.textContent).toContain('12')
+  })
+
+  it('two concurrent mains-fed outlets each receive half the mains flow as cold supply (not the full flow)', () => {
+    const { container } = render(
+      <DrawOffStatusPanel
+        state={makeState([
+          { outletId: 'shower',  label: 'Shower',  open: true, service: 'mixed_hot_running', flowLpm: 6, deliveredTempC: 43, isConstrained: true,  coldSource: 'mains' },
+          { outletId: 'kitchen', label: 'Kitchen', open: true, service: 'mixed_hot_running', flowLpm: 6, deliveredTempC: 42, isConstrained: true,  coldSource: 'mains' },
+        ])}
+        systemChoice="combi"
+        mainsFlowLpm={12}
+        {...BASE_CONTROLS}
+      />,
+    )
+    // Each card's cold-in row must show 6 L/min (12 shared across 2 outlets).
+    const coldRows = container.querySelectorAll('.draw-off-card__row--cold')
+    expect(coldRows.length).toBeGreaterThanOrEqual(2)
+    coldRows.forEach(row => {
+      expect(row.textContent).toContain('6')
+      // Must NOT show the full 12 as the cold supply for each concurrent outlet.
+      expect(row.textContent).not.toMatch(/\b12\b/)
+    })
+  })
+
+  it('three concurrent mains-fed outlets each receive one-third of the mains budget (not the full flow)', () => {
+    const { container } = render(
+      <DrawOffStatusPanel
+        state={makeState([
+          { outletId: 'shower',  label: 'Shower',  open: true, service: 'mixed_hot_running', flowLpm: 4, deliveredTempC: 40, isConstrained: true, coldSource: 'mains' },
+          { outletId: 'bath',    label: 'Bath',    open: true, service: 'mixed_hot_running', flowLpm: 4, deliveredTempC: 40, isConstrained: true, coldSource: 'mains' },
+          { outletId: 'kitchen', label: 'Kitchen', open: true, service: 'mixed_hot_running', flowLpm: 4, deliveredTempC: 40, isConstrained: true, coldSource: 'mains' },
+        ])}
+        systemChoice="combi"
+        mainsFlowLpm={12}
+        {...BASE_CONTROLS}
+      />,
+    )
+    // Each cold-in row must show 4 L/min (12 / 3).
+    const coldRows = container.querySelectorAll('.draw-off-card__row--cold')
+    expect(coldRows.length).toBeGreaterThanOrEqual(3)
+    coldRows.forEach(row => {
+      expect(row.textContent).toContain('4')
+    })
+  })
+
+  it('CWS-fed outlets are not counted in the mains-sharing budget', () => {
+    const { container } = render(
+      <DrawOffStatusPanel
+        state={makeState([
+          { outletId: 'shower',  label: 'Shower',  open: true, service: 'mixed_hot_running', flowLpm: 8, deliveredTempC: 44, isConstrained: false, coldSource: 'cws'   },
+          { outletId: 'kitchen', label: 'Kitchen', open: true, service: 'mixed_hot_running', flowLpm: 5, deliveredTempC: 44, isConstrained: false, coldSource: 'mains' },
+        ])}
+        systemChoice="unvented"
+        mainsFlowLpm={12}
+        {...BASE_CONTROLS}
+      />,
+    )
+    // Kitchen (mains) is the only mains-fed outlet — it should see the full 12 L/min.
+    // Shower (CWS) should see the CWS rate (8 L/min).
+    const coldRows = container.querySelectorAll('.draw-off-card__row--cold')
+    expect(coldRows.length).toBeGreaterThanOrEqual(2)
+    // We verify that not all cold rows show the same flow (CWS vs mains differ).
+    const texts = Array.from(coldRows).map(r => r.textContent ?? '')
+    // At least one row must contain '8' (CWS rate) and at least one must contain '12' (full mains).
+    expect(texts.some(t => t.includes('8'))).toBe(true)
+    expect(texts.some(t => t.includes('12'))).toBe(true)
+  })
+})

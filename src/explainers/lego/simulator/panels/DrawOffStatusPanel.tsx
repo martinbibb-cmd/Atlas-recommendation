@@ -85,9 +85,19 @@ function outletToViewModel(
   concurrent: boolean,
   mainsFlowLpm: number,
   isCombi: boolean,
+  openMainsFedCount: number,
 ): DrawOffViewModel {
   const icon           = OUTLET_ICONS[outlet.outletId] ?? '🚰'
-  const coldSupplyFlow = outlet.coldSource === 'cws' ? CWS_FLOW_RATE_LPM : mainsFlowLpm
+  // Cold supply available to this outlet from the shared mains.
+  // When multiple mains-fed outlets are open concurrently they divide the
+  // property-level mains budget equally — each sees only its proportional
+  // share, not the full incoming flow.  CWS-fed outlets use the gravity-tank
+  // rate regardless of concurrency.
+  const coldSupplyFlow = outlet.coldSource === 'cws'
+    ? CWS_FLOW_RATE_LPM
+    : (openMainsFedCount >= 2
+        ? Math.round(mainsFlowLpm / openMainsFedCount * 10) / 10
+        : mainsFlowLpm)
   const hotAvailFlow   = outlet.open
     ? (isCombi
         ? deriveCombiHotFlow(mainsFlowLpm, concurrent)
@@ -275,7 +285,11 @@ export default function DrawOffStatusPanel({ state, systemChoice, cylinderType, 
     ? Math.round(state.storedHotWaterState.topTempC)
     : HOT_SUPPLY_COMBI_TEMP_C
 
-  const outletCards   = state.outletStates.map(o => outletToViewModel(o, hotSupplyTempC, concurrent, effectiveMainsFlowLpm, isCombi))
+  // Count concurrent mains-fed outlets so each card shows its proportional
+  // cold-supply share rather than the full incoming mains flow.
+  const openMainsFedCount = Math.max(1, state.outletStates.filter(o => o.open && o.coldSource !== 'cws').length)
+
+  const outletCards   = state.outletStates.map(o => outletToViewModel(o, hotSupplyTempC, concurrent, effectiveMainsFlowLpm, isCombi, openMainsFedCount))
   const cylinderData  = buildCylinderViewModel(state, systemChoice, cylinderType)
 
   return (

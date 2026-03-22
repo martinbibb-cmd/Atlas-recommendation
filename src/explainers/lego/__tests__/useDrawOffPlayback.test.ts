@@ -174,16 +174,41 @@ describe('useDrawOffPlayback — stored hot draw', () => {
     expect(shower?.open).toBe(true)
   })
 
-  it('bath is open during stored draw (concurrent draws at full spec)', () => {
+  it('bath is open during stored draw', () => {
     const result = useDrawOffPlayback(storedDraw())
     const bath = result.outletStates.find(o => o.outletId === 'bath')
     expect(bath?.open).toBe(true)
   })
 
-  it('bath is NOT constrained during stored draw', () => {
+  it('shower and bath are constrained when concurrent demand on a mains-fed stored system exceeds budget', () => {
+    // unvented cylinder is mains-fed.  Shower (9.5) + Bath (8.0) = 17.5 L/min > 12 L/min mains.
     const result = useDrawOffPlayback(storedDraw())
-    const bath = result.outletStates.find(o => o.outletId === 'bath')
-    expect(bath?.isConstrained).toBe(false)
+    const shower = result.outletStates.find(o => o.outletId === 'shower')
+    const bath   = result.outletStates.find(o => o.outletId === 'bath')
+    expect(shower?.isConstrained).toBe(true)
+    expect(bath?.isConstrained).toBe(true)
+  })
+
+  it('constraint reason mentions shared cold main', () => {
+    const result = useDrawOffPlayback(storedDraw())
+    const shower = result.outletStates.find(o => o.outletId === 'shower')
+    expect(shower?.constraintReason).toMatch(/shared cold main/i)
+  })
+
+  it('shower flowLpm is throttled below solo rate under concurrent demand', () => {
+    const result = useDrawOffPlayback(storedDraw())
+    const shower = result.outletStates.find(o => o.outletId === 'shower')
+    // Solo rate is 9.5 L/min; throttled rate must be less.
+    expect(shower?.flowLpm).toBeLessThan(9.5)
+  })
+
+  it('total delivered flow does not exceed the mains budget', () => {
+    const result = useDrawOffPlayback(storedDraw())
+    const total = result.outletStates
+      .filter(o => o.open && o.coldSource !== 'cws')
+      .reduce((sum, o) => sum + o.flowLpm, 0)
+    // Must not exceed 12 L/min (DEMO_MAINS_FLOW_LPM).
+    expect(total).toBeLessThanOrEqual(12.1)
   })
 
   it('shower hotSource is stored for cylinder', () => {
@@ -234,12 +259,15 @@ describe('useDrawOffPlayback — vented cylinder', () => {
     expect(result.isCylinder).toBe(true)
   })
 
-  it('both shower and bath open for vented (stored draws at full spec)', () => {
+  it('both shower and bath open for vented (CWS-fed, no mains sharing constraint)', () => {
     const result = useDrawOffPlayback(ventedDraw())
     const shower = result.outletStates.find(o => o.outletId === 'shower')
     const bath = result.outletStates.find(o => o.outletId === 'bath')
     expect(shower?.open).toBe(true)
     expect(bath?.open).toBe(true)
+    // CWS outlets do not share the pressurised mains — no mains constraint.
+    expect(shower?.isConstrained).toBe(false)
+    expect(bath?.isConstrained).toBe(false)
   })
 })
 
@@ -283,5 +311,52 @@ describe('useDrawOffPlayback — storedHotWaterState integration', () => {
     expect(result.storedHotWaterState).not.toBeNull()
     expect(result.storedHotWaterState?.cylinderSizeLitres).toBe(150)
     expect(result.storedHotWaterState?.cylinderType).toBe('unvented')
+  })
+})
+
+describe('useDrawOffPlayback — shared mains budget (stored unvented)', () => {
+  function storedDrawWithOutlets(outlets: { shower: boolean; bath: boolean; kitchen: boolean }): SystemDiagramDisplayState {
+    return {
+      ...storedIdle(),
+      hotDrawActive: true,
+      outletDemands: outlets,
+    }
+  }
+
+  it('solo shower on mains-fed stored: not constrained (no sharing required)', () => {
+    const result = useDrawOffPlayback(storedDrawWithOutlets({ shower: true, bath: false, kitchen: false }))
+    const shower = result.outletStates.find(o => o.outletId === 'shower')
+    expect(shower?.isConstrained).toBe(false)
+    expect(shower?.flowLpm).toBeCloseTo(9.5)
+  })
+
+  it('shower + bath concurrent: both constrained because 9.5+8.0=17.5 > 12 L/min mains', () => {
+    const result = useDrawOffPlayback(storedDrawWithOutlets({ shower: true, bath: true, kitchen: false }))
+    const shower = result.outletStates.find(o => o.outletId === 'shower')
+    const bath   = result.outletStates.find(o => o.outletId === 'bath')
+    expect(shower?.isConstrained).toBe(true)
+    expect(bath?.isConstrained).toBe(true)
+  })
+
+  it('shower + bath + kitchen: total delivered ≤ 12 L/min shared budget', () => {
+    const result = useDrawOffPlayback(storedDrawWithOutlets({ shower: true, bath: true, kitchen: true }))
+    const total = result.outletStates
+      .filter(o => o.open && o.coldSource !== 'cws')
+      .reduce((sum, o) => sum + o.flowLpm, 0)
+    expect(total).toBeLessThanOrEqual(12.1)
+  })
+
+  it('shower (mains) + kitchen (mains): each receives a proportional share', () => {
+    const result = useDrawOffPlayback(storedDrawWithOutlets({ shower: true, bath: false, kitchen: true }))
+    const shower  = result.outletStates.find(o => o.outletId === 'shower')
+    const kitchen = result.outletStates.find(o => o.outletId === 'kitchen')
+    // Demand: shower 9.5 + kitchen 5.5 = 15 L/min > 12 mains → both throttled
+    expect(shower?.isConstrained).toBe(true)
+    expect(kitchen?.isConstrained).toBe(true)
+    // shower gets (9.5/15)*12 ≈ 7.6 L/min; kitchen gets (5.5/15)*12 ≈ 4.4 L/min
+    expect(shower?.flowLpm).toBeLessThan(9.5)
+    expect(kitchen?.flowLpm).toBeLessThan(5.5)
+    const total = (shower?.flowLpm ?? 0) + (kitchen?.flowLpm ?? 0)
+    expect(total).toBeLessThanOrEqual(12.1)
   })
 })

@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import SimulatorDashboard from '../../explainers/lego/simulator/SimulatorDashboard';
 import type { FloorplanOperatingAssumptions } from '../../explainers/lego/simulator/SimulatorDashboard';
@@ -9,6 +10,7 @@ import { adaptFullSurveyToSimulatorInputs } from '../../explainers/lego/simulato
 import { adaptFloorplanToAtlasInputs } from '../../lib/floorplan/adaptFloorplanToAtlasInputs';
 import { buildHeatingOperatingState, FLOOR_PLAN_EMITTER_EXPLANATION_TAGS } from '../../lib/heating/buildHeatingOperatingState';
 import { buildAdviceFromCompare } from '../../lib/advice/buildAdviceFromCompare';
+import type { RecommendationPresentationState } from '../../lib/selection/optionSelection';
 import AdvicePanel from '../advice/AdvicePanel';
 import PerformanceOutcomesPanel from '../outcomes/PerformanceOutcomesPanel';
 import './UnifiedSimulatorView.css';
@@ -51,6 +53,57 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
     floorplanInputs: floorplanOutput ? adaptFloorplanToAtlasInputs(floorplanOutput) : undefined,
   }), [compareSeed, engineOutput, floorplanOutput, surveyData]);
 
+  // ── Save/report state ─────────────────────────────────────────────────────
+  type SaveState = 'idle' | 'saving' | 'saved' | 'failed';
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [savedReportId, setSavedReportId] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
+  const saveStateRef = useRef<SaveState>('idle');
+  saveStateRef.current = saveState;
+
+  const persistReport = useCallback(async () => {
+    if (advice == null) { setSaveState('failed'); return; }
+    try {
+      const engineInput = toEngineInput(surveyData);
+      const recommendedOptionId =
+        engineOutput.options?.find(o => o.status === 'viable')?.id ??
+        engineOutput.options?.[0]?.id ?? '';
+      const presentationState: RecommendationPresentationState = {
+        recommendedOptionId,
+        chosenByCustomer: false,
+      };
+      const res = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postcode: surveyData.postcode ?? null,
+          payload: { surveyData, engineInput, engineOutput, decisionSynthesis: advice, presentationState },
+        }),
+      });
+      if (!res.ok) { setSaveState('failed'); return; }
+      const json = await res.json() as { ok: boolean; id?: string };
+      if (json.ok && json.id) { setSavedReportId(json.id); setSaveState('saved'); }
+      else { setSaveState('failed'); }
+    } catch { setSaveState('failed'); }
+  }, [advice, engineOutput, surveyData]);
+
+  const handleSaveReport = useCallback(() => {
+    if (saveStateRef.current === 'saving') return;
+    setSaveState('saving');
+    persistReport();
+  }, [persistReport]);
+
+  const handlePrint = useCallback(() => { window.print(); }, []);
+
+  const handleCopyPortalLink = useCallback(() => {
+    if (!savedReportId) return;
+    const url = `${window.location.origin}/report/${savedReportId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopyState('copied');
+      setTimeout(() => setCopyState('idle'), 2000);
+    }).catch(() => {});
+  }, [savedReportId]);
+
   return (
     <div className="unified-simulator-view" data-testid="unified-simulator-view">
       <div className="unified-simulator-view__simulator">
@@ -59,9 +112,37 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
             <h2>Glass Box Simulator</h2>
             <p>Inputs → simulation → outcomes → advice. No separate recommendation page.</p>
           </div>
-          <div className="unified-simulator-view__day-painter" aria-label="Day Painter placeholder">
-            <span className="unified-simulator-view__day-painter-label">Day Painter</span>
-            <span>24-hour lifestyle timeline placeholder for the next iteration.</span>
+          <div className="unified-simulator-view__actions" data-testid="simulator-actions">
+            <button
+              className="unified-simulator-view__action-btn"
+              onClick={handleSaveReport}
+              disabled={saveState === 'saving' || saveState === 'saved'}
+              aria-label="Save report"
+              data-testid="save-report-btn"
+            >
+              {saveState === 'saving' && '⏳ Saving…'}
+              {saveState === 'saved'  && '✅ Saved'}
+              {saveState === 'failed' && '❌ Save failed — retry?'}
+              {saveState === 'idle'   && '💾 Save report'}
+            </button>
+            {savedReportId && (
+              <button
+                className="unified-simulator-view__action-btn"
+                onClick={handleCopyPortalLink}
+                aria-label="Share portal link"
+                data-testid="share-portal-btn"
+              >
+                {copyState === 'copied' ? '✅ Link copied!' : '🔗 Share portal'}
+              </button>
+            )}
+            <button
+              className="unified-simulator-view__action-btn"
+              onClick={handlePrint}
+              aria-label="Print report"
+              data-testid="print-report-btn"
+            >
+              🖨 Print report
+            </button>
           </div>
         </div>
         <SimulatorDashboard

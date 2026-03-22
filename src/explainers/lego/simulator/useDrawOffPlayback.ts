@@ -22,6 +22,21 @@ import type { CylinderType } from './systemInputsTypes'
 import { useStoredHotWaterPlayback } from './useStoredHotWaterPlayback'
 import type { StoredHotWaterDisplayState } from './useStoredHotWaterPlayback'
 
+// ─── Physics constants ────────────────────────────────────────────────────────
+
+/**
+ * Default cold-main flow budget used in the demo when no real survey value is
+ * available.  Matches DEFAULT_MAINS_FLOW_RATE_LPM in DrawOffStatusPanel.
+ */
+const DEMO_MAINS_FLOW_LPM = 12
+
+/** Nominal solo-outlet delivered flows for a stored (cylinder) system (L/min). */
+const STORED_SOLO_FLOW_LPM = {
+  shower:  9.5,
+  bath:    8.0,
+  kitchen: 5.5,
+} as const
+
 // ─── Public state type ────────────────────────────────────────────────────────
 
 /**
@@ -125,25 +140,57 @@ function buildOutletStates(
     ]
   }
 
-  // Stored / vented cylinder: concurrent draws remain strong because the
-  // thermal store buffers demand.  Two outlets open simultaneously show the
-  // stored advantage over on-demand.
+  // Stored / vented cylinder: the thermal store buffers hot demand, but ALL
+  // outlets still share a single cold-mains budget when they are mains-fed.
+  // CWS-fed outlets (vented systems) draw from the cold-water storage cistern
+  // and do NOT compete for the pressurised mains supply.
+  //
+  // Mains-fed outlets: apply proportional throttle when combined demand exceeds
+  // the DEMO_MAINS_FLOW_LPM budget.
+  const isMainsFedStore = coldSource !== 'cws'
+  const mainsOpenDemand =
+    (showerOpen  && isMainsFedStore ? STORED_SOLO_FLOW_LPM.shower  : 0) +
+    (bathOpen    && isMainsFedStore ? STORED_SOLO_FLOW_LPM.bath    : 0) +
+    (kitchenOpen                    ? STORED_SOLO_FLOW_LPM.kitchen : 0)
+
+  // Throttle is the fraction of demand each mains outlet actually receives.
+  // When the total demand fits within the budget, throttle = 1 (no reduction).
+  const mainsThrottle = (isMainsFedStore && mainsOpenDemand > DEMO_MAINS_FLOW_LPM)
+    ? DEMO_MAINS_FLOW_LPM / mainsOpenDemand
+    : 1
+  const mainsConstrained = mainsThrottle < 1
+  const mainsConstraintReason = mainsConstrained
+    ? `Shared cold main at ${DEMO_MAINS_FLOW_LPM} L/min — concurrent demand reduces per-outlet flow`
+    : undefined
+
   return [
     showerOpen ? {
       outletId: 'shower', label: 'Shower', open: true,
-      service: 'mixed_hot_running', flowLpm: 9.5, deliveredTempC: 47,
-      isConstrained: false, coldSource, hotSource,
+      service: 'mixed_hot_running',
+      flowLpm: Math.round(STORED_SOLO_FLOW_LPM.shower * (isMainsFedStore ? mainsThrottle : 1) * 10) / 10,
+      deliveredTempC: 47,
+      isConstrained: isMainsFedStore && mainsConstrained,
+      constraintReason: isMainsFedStore ? mainsConstraintReason : undefined,
+      coldSource, hotSource,
     } : closedShower,
     bathOpen ? {
       outletId: 'bath', label: 'Bath', open: true,
-      service: 'mixed_hot_running', flowLpm: 8.0, deliveredTempC: 45,
-      isConstrained: false, coldSource, hotSource,
+      service: 'mixed_hot_running',
+      flowLpm: Math.round(STORED_SOLO_FLOW_LPM.bath * (isMainsFedStore ? mainsThrottle : 1) * 10) / 10,
+      deliveredTempC: 45,
+      isConstrained: isMainsFedStore && mainsConstrained,
+      constraintReason: isMainsFedStore ? mainsConstraintReason : undefined,
+      coldSource, hotSource,
     } : closedBath,
     kitchenOpen
       ? {
           outletId: 'kitchen', label: 'Kitchen tap', open: true,
-          service: 'mixed_hot_running', flowLpm: 5.5, deliveredTempC: 46,
-          isConstrained: false, coldSource: 'mains', hotSource,
+          service: 'mixed_hot_running',
+          flowLpm: Math.round(STORED_SOLO_FLOW_LPM.kitchen * mainsThrottle * 10) / 10,
+          deliveredTempC: 46,
+          isConstrained: mainsConstrained,
+          constraintReason: mainsConstraintReason,
+          coldSource: 'mains', hotSource,
         }
       : closedKitchen,
   ]
