@@ -48,6 +48,7 @@ import { SCENARIO_PRESETS, SCENARIO_PRESET_LIST, DEFAULT_SCENARIO_KEY } from './
 import { buildOccupancyBehaviourFromSurvey, buildOccupancyDisplayTags } from '../../../lib/occupancy/buildOccupancyBehaviourFromSurvey';
 import type { DemandPresetId } from './systemInputsTypes';
 import type { EmitterCoverageClassification } from '../../../lib/floorplan/adaptFloorplanToAtlasInputs';
+import type { DrawOffFlowStability } from '../../../engine/modules/StoredDhwModule';
 import './labDashboard.css';
 import './labPanels.css';
 
@@ -340,6 +341,12 @@ interface Props {
    * by the floor plan (refined heat loss, emitter coverage, operating temperature).
    */
   floorplanOperatingAssumptions?: FloorplanOperatingAssumptions
+  /**
+   * Flow stability for the initial (current) system, derived from CWS head data.
+   * When provided alongside an open-vented initial system, the Draw-Off panel
+   * surfaces the pipework-dependent performance advisory.
+   */
+  initialCurrentFlowStability?: DrawOffFlowStability
 }
 
 export default function SimulatorDashboard({
@@ -351,6 +358,7 @@ export default function SimulatorDashboard({
   initialProposedSystemInputs,
   compareLabels = { current: 'Current system', proposed: 'Proposed system' },
   floorplanOperatingAssumptions,
+  initialCurrentFlowStability,
 }: Props) {
   const [expanded, setExpanded] = useState<PanelId | null>(null);
   const [timeSpeed, setTimeSpeed] = useState(1);
@@ -534,6 +542,7 @@ export default function SimulatorDashboard({
       cylinderType={systemInputs.cylinderType}
       mainsPressureBar={systemInputs.mainsPressureBar}
       mainsFlowLpm={systemInputs.mainsFlowLpm}
+      flowStability={systemChoice === initialSystemChoice ? initialCurrentFlowStability : undefined}
       mode={isManualMode ? 'manual' : 'auto'}
       heatingEnabled={demandControls.heatingEnabled}
       shower={demandControls.shower}

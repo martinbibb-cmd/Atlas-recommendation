@@ -10,6 +10,9 @@ import { adaptFullSurveyToSimulatorInputs } from '../../explainers/lego/simulato
 import { adaptFloorplanToAtlasInputs } from '../../lib/floorplan/adaptFloorplanToAtlasInputs';
 import { buildHeatingOperatingState, FLOOR_PLAN_EMITTER_EXPLANATION_TAGS } from '../../lib/heating/buildHeatingOperatingState';
 import { buildAdviceFromCompare } from '../../lib/advice/buildAdviceFromCompare';
+import { buildStoredHotWaterContextFromSurvey } from '../../lib/dhw/buildStoredHotWaterContextFromSurvey';
+import { computeDrawOff } from '../../engine/modules/StoredDhwModule';
+import type { DrawOffFlowStability } from '../../engine/modules/StoredDhwModule';
 import type { RecommendationPresentationState } from '../../lib/selection/optionSelection';
 import AdvicePanel from '../advice/AdvicePanel';
 import PerformanceOutcomesPanel from '../outcomes/PerformanceOutcomesPanel';
@@ -52,6 +55,22 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
     surveyData,
     floorplanInputs: floorplanOutput ? adaptFloorplanToAtlasInputs(floorplanOutput) : undefined,
   }), [compareSeed, engineOutput, floorplanOutput, surveyData]);
+
+  // Compute flow stability for the current (survey) system so that the AdvicePanel
+  // can show the pipework advisory when the system is open-vented with marginal/limited flow.
+  const currentSystemFlowStability = useMemo((): DrawOffFlowStability | undefined => {
+    if (surveyAdapted.systemChoice !== 'open_vented') return undefined;
+    const dhwCtx = buildStoredHotWaterContextFromSurvey(surveyData);
+    // computeDrawOff(systemType, mainsDynamicPressureBar, mainsDynamicFlowLpm, cwsHeadMetres)
+    // For open-vented systems, only cwsHeadMetres is relevant; mains args are not used.
+    const drawOff = computeDrawOff(
+      'stored_vented',
+      /* mainsDynamicPressureBar */ undefined,
+      /* mainsDynamicFlowLpm    */ undefined,
+      dhwCtx.cwsHeadMetres ?? undefined,
+    );
+    return drawOff.flowStability;
+  }, [surveyAdapted.systemChoice, surveyData]);
 
   // ── Save/report state ─────────────────────────────────────────────────────
   type SaveState = 'idle' | 'saving' | 'saved' | 'failed';
@@ -156,11 +175,16 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
           initialProposedSystemInputs={compareSeed.right.systemInputs}
           compareLabels={{ current: 'Current system', proposed: 'Proposed system' }}
           floorplanOperatingAssumptions={floorplanOperatingAssumptions ?? undefined}
+          initialCurrentFlowStability={currentSystemFlowStability}
         />
       </div>
       <aside className="unified-simulator-view__insights" aria-label="Simulation outcomes and advice">
         <PerformanceOutcomesPanel advice={advice} />
-        <AdvicePanel advice={advice} />
+        <AdvicePanel
+          advice={advice}
+          systemChoice={surveyAdapted.systemChoice}
+          flowStability={currentSystemFlowStability}
+        />
       </aside>
     </div>
   );
