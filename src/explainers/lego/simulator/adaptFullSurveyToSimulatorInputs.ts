@@ -22,6 +22,7 @@ import type { SystemInputs, CylinderType, PrimaryPipeSize, ControlStrategy, Occu
 import type { SimulatorSystemChoice } from './useSystemDiagramPlayback'
 import { CYLINDER_SIZES_BY_TYPE } from './systemInputsTypes'
 import { buildStoredHotWaterContextFromSurvey } from '../../../lib/dhw/buildStoredHotWaterContextFromSurvey'
+import { deriveProfileFromHouseholdComposition } from '../../../lib/occupancy/deriveProfileFromHouseholdComposition'
 
 // ─── Result type ──────────────────────────────────────────────────────────────
 
@@ -269,12 +270,39 @@ export function adaptFullSurveyToSimulatorInputs(
   systemInputs.controlStrategy = controlStrategy
 
   // ── Occupancy profile ────────────────────────────────────────────────────────
-  // Map the survey's occupancySignature / demandPreset to the simulator's
-  // OccupancyProfile so that the auto-demo and daily efficiency summary reflect
-  // the household archetype selected during the survey.
+  // When householdComposition is present, derive the demandPreset and
+  // occupancyCount from composition counts rather than from the flat survey
+  // fields.  This keeps the sequence:
+  //   householdComposition → derivedPresetId / occupancyCount → occupancyProfile
+  // consistent with the engine's composition-first philosophy.
+  let effectivePreset: string | undefined = survey.demandPreset
+
+  if (survey.householdComposition != null) {
+    const composition = survey.householdComposition
+    const daytimePattern = (survey.demandTimingOverrides?.daytimeOccupancy === 'full'
+      ? 'usually_home'
+      : survey.demandTimingOverrides?.daytimeOccupancy === 'partial'
+        ? 'irregular'
+        : 'usually_out') as 'usually_out' | 'usually_home' | 'irregular'
+
+    // Map bathFrequencyPerWeek back to BathUsePattern.
+    // Thresholds mirror the forward mapping in deriveBathFrequencyPerWeek:
+    //   rare=0, sometimes=3, frequent=7 (per week).
+    const bathUse = (
+      (survey.demandTimingOverrides?.bathFrequencyPerWeek ?? 0) >= 7
+        ? 'frequent'
+        : (survey.demandTimingOverrides?.bathFrequencyPerWeek ?? 0) >= 2
+          ? 'sometimes'
+          : 'rare'
+    ) as 'rare' | 'sometimes' | 'frequent'
+
+    const derived = deriveProfileFromHouseholdComposition(composition, daytimePattern, bathUse)
+    effectivePreset = derived.derivedPresetId
+  }
+
   const occupancyProfile = deriveOccupancyProfile(
     survey.occupancySignature,
-    survey.demandPreset,
+    effectivePreset,
   )
   if (occupancyProfile != null) {
     systemInputs.occupancyProfile = occupancyProfile
@@ -284,8 +312,8 @@ export function adaptFullSurveyToSimulatorInputs(
   // Pass the richer demand preset directly to the simulator so that
   // useSystemDiagramPlayback can select the per-preset occupancy table instead
   // of collapsing 11 survey profiles down to 4 generic archetypes.
-  if (survey.demandPreset != null) {
-    systemInputs.demandPreset = survey.demandPreset as DemandPresetId
+  if (effectivePreset != null) {
+    systemInputs.demandPreset = effectivePreset as DemandPresetId
   }
 
   return { systemChoice, systemInputs }

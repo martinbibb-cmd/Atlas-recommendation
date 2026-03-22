@@ -19,7 +19,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import OperatingPointChart, { OPERATING_POINT_NOTE } from '../visualizers/OperatingPointChart';
-import type { EngineInputV2_3, FullEngineResult, BuildingFabricType } from '../../engine/schema/EngineInputV2_3';
+import type { EngineInputV2_3, FullEngineResult, BuildingFabricType, HouseholdComposition } from '../../engine/schema/EngineInputV2_3';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1, HeatingConditionDiagnosticsV1, DhwConditionDiagnosticsV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
@@ -28,6 +28,11 @@ import { inferSystemConditionFlags } from '../../engine/modules/SystemConditionI
 import { runEngine } from '../../engine/Engine';
 import { runThermalInertiaModule } from '../../engine/modules/ThermalInertiaModule';
 import { calcFlowLpm, PIPE_THRESHOLDS } from '../../engine/modules/HydraulicModule';
+import {
+  deriveProfileFromHouseholdComposition,
+  type DaytimeOccupancyPattern,
+  type BathUsePattern,
+} from '../../lib/occupancy/deriveProfileFromHouseholdComposition';
 import { runCombiDhwModuleV1 } from '../../engine/modules/CombiDhwModule';
 import { analysePressure } from '../../engine/modules/PressureModule';
 import { runRegionalHardness } from '../../engine/modules/RegionalHardness';
@@ -3825,11 +3830,118 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
 
   const dropWarning = thermalResult.totalDropC > 4;
 
+  // ── Household composition state ───────────────────────────────────────────
+  // Default to a minimal composition when none has been set yet.
+  const DEFAULT_COMPOSITION: HouseholdComposition = {
+    adultCount: 1,
+    childCount0to4: 0,
+    childCount5to10: 0,
+    childCount11to17: 0,
+    youngAdultCount18to25AtHome: 0,
+  };
+  const composition: HouseholdComposition = input.householdComposition ?? DEFAULT_COMPOSITION;
+  const hasComposition = input.householdComposition != null;
+
+  // Read daytime pattern from existing timing overrides (mapped from engine values).
+  const daytimePattern: DaytimeOccupancyPattern =
+    input.demandTimingOverrides?.daytimeOccupancy === 'full'    ? 'usually_home' :
+    input.demandTimingOverrides?.daytimeOccupancy === 'partial' ? 'irregular' :
+    'usually_out';
+
+  // Read bath use band from bathFrequencyPerWeek.
+  const bathUse: BathUsePattern =
+    (input.demandTimingOverrides?.bathFrequencyPerWeek ?? 0) >= 7 ? 'frequent' :
+    (input.demandTimingOverrides?.bathFrequencyPerWeek ?? 0) >= 2 ? 'sometimes' :
+    'rare';
+
+  // ── Composition handlers ──────────────────────────────────────────────────
+
+  /** Update a single composition band and re-derive the demand profile. */
+  function handleCompositionChange(patch: Partial<HouseholdComposition>) {
+    const newComposition: HouseholdComposition = { ...composition, ...patch };
+    const derived = deriveProfileFromHouseholdComposition(newComposition, daytimePattern, bathUse);
+    const sig = presetToEngineSignature(derived.derivedPresetId);
+    setInput(prev => ({
+      ...prev,
+      householdComposition: newComposition,
+      demandPreset: derived.derivedPresetId,
+      occupancySignature: sig,
+      occupancyCount: derived.occupancyCount,
+      demandTimingOverrides: {
+        ...prev.demandTimingOverrides,
+        bathFrequencyPerWeek: derived.bathFrequencyPerWeek,
+        simultaneousUseSeverity: derived.simultaneousUseSeverity,
+        daytimeOccupancy: derived.daytimeOccupancyHint,
+      },
+    }));
+  }
+
+  /** Increment / decrement a composition band, clamped to 0–MAX_BAND_COUNT. */
+  const MAX_BAND_COUNT = 10;
+  function adjustBand(band: keyof HouseholdComposition, delta: number) {
+    const current = composition[band];
+    const next = Math.max(0, Math.min(MAX_BAND_COUNT, current + delta));
+    handleCompositionChange({ [band]: next });
+  }
+
+  /** Update the weekday pattern and re-derive the profile. */
+  function handleDaytimePatternChange(pattern: DaytimeOccupancyPattern) {
+    const daytimeOccupancy: DemandTimingOverrides['daytimeOccupancy'] =
+      pattern === 'usually_home' ? 'full' :
+      pattern === 'irregular'    ? 'partial' : 'absent';
+    if (hasComposition) {
+      const derived = deriveProfileFromHouseholdComposition(composition, pattern, bathUse);
+      const sig = presetToEngineSignature(derived.derivedPresetId);
+      setInput(prev => ({
+        ...prev,
+        demandPreset: derived.derivedPresetId,
+        occupancySignature: sig,
+        occupancyCount: derived.occupancyCount,
+        demandTimingOverrides: {
+          ...prev.demandTimingOverrides,
+          daytimeOccupancy,
+          simultaneousUseSeverity: derived.simultaneousUseSeverity,
+        },
+      }));
+    } else {
+      setInput(prev => ({
+        ...prev,
+        demandTimingOverrides: { ...prev.demandTimingOverrides, daytimeOccupancy },
+      }));
+    }
+  }
+
+  /** Update the bath use band and re-derive the profile. */
+  function handleBathUseChange(bath: BathUsePattern) {
+    if (hasComposition) {
+      const derived = deriveProfileFromHouseholdComposition(composition, daytimePattern, bath);
+      const sig = presetToEngineSignature(derived.derivedPresetId);
+      setInput(prev => ({
+        ...prev,
+        demandPreset: derived.derivedPresetId,
+        occupancySignature: sig,
+        occupancyCount: derived.occupancyCount,
+        demandTimingOverrides: {
+          ...prev.demandTimingOverrides,
+          bathFrequencyPerWeek: derived.bathFrequencyPerWeek,
+          simultaneousUseSeverity: derived.simultaneousUseSeverity,
+          daytimeOccupancy: derived.daytimeOccupancyHint,
+        },
+      }));
+    } else {
+      const bathFrequency = bath === 'frequent' ? 7 : bath === 'sometimes' ? 3 : 0;
+      setInput(prev => ({
+        ...prev,
+        demandTimingOverrides: { ...prev.demandTimingOverrides, bathFrequencyPerWeek: bathFrequency },
+      }));
+    }
+  }
+
   // ── Derive the active preset id — fall back to a sensible default ───────────
   const activePresetId: DemandPresetId = (input.demandPreset as DemandPresetId | undefined)
     ?? 'single_working_adult';
 
-  // ── Apply preset selection ────────────────────────────────────────────────
+  // ── Apply preset selection (manual override path) ─────────────────────────
   function handlePresetSelect(id: DemandPresetId) {
     const sig = presetToEngineSignature(id);
     setInput(prev => ({
@@ -3879,10 +3991,191 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
     <div className="step-card">
       <h2>🏠 Step 4: Lifestyle &amp; Thermal Comfort</h2>
 
-      {/* ── Preset selector ─────────────────────────────────────────────── */}
-      <div style={{ marginBottom: '1.25rem' }}>
-        <p style={{ fontSize: '0.85rem', color: '#4a5568', marginBottom: '0.75rem' }}>
-          Choose the household type that best describes day-to-day hot-water usage.
+      {/* ── Household composition card ───────────────────────────────────── */}
+      <div
+        data-testid="household-composition-card"
+        style={{
+          padding: '1rem',
+          background: '#f7fafc',
+          border: '1px solid #e2e8f0',
+          borderRadius: '8px',
+          marginBottom: '1.25rem',
+        }}
+      >
+        <p style={{ fontWeight: 600, fontSize: '0.9rem', color: '#2d3748', marginBottom: '0.75rem', marginTop: 0 }}>
+          Who lives here?
+        </p>
+        <p style={{ fontSize: '0.78rem', color: '#718096', marginBottom: '0.875rem', marginTop: 0 }}>
+          Enter the number of people in each age group. The demand profile is derived automatically.
+        </p>
+
+        {/* ── Age-band stepper rows ─────────────────────────────────────── */}
+        {(
+          [
+            { band: 'adultCount',                label: 'Adults',             emoji: '👤' },
+            { band: 'childCount0to4',             label: 'Age 0–4',            emoji: '🍼' },
+            { band: 'childCount5to10',            label: 'Age 5–10',           emoji: '🎒' },
+            { band: 'childCount11to17',           label: 'Age 11–17',          emoji: '🎧' },
+            { band: 'youngAdultCount18to25AtHome', label: 'Age 18–25 at home', emoji: '🎓' },
+          ] as Array<{ band: keyof HouseholdComposition; label: string; emoji: string }>
+        ).map(({ band, label, emoji }) => (
+          <div
+            key={band}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.375rem 0',
+              borderBottom: '1px solid #edf2f7',
+            }}
+          >
+            <span style={{ fontSize: '0.85rem', color: '#4a5568' }}>
+              {emoji} {label}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                aria-label={`Decrease ${label}`}
+                onClick={() => adjustBand(band, -1)}
+                disabled={composition[band] <= 0}
+                style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  border: '1px solid #cbd5e0', background: '#fff',
+                  cursor: composition[band] <= 0 ? 'not-allowed' : 'pointer',
+                  fontSize: '1rem', fontWeight: 700, color: '#4a5568',
+                  opacity: composition[band] <= 0 ? 0.4 : 1,
+                }}
+              >−</button>
+              <span
+                data-testid={`composition-${band}`}
+                style={{ minWidth: 20, textAlign: 'center', fontWeight: 700, fontSize: '0.9rem', color: '#2d3748' }}
+              >
+                {composition[band]}
+              </span>
+              <button
+                aria-label={`Increase ${label}`}
+                onClick={() => adjustBand(band, 1)}
+                style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  border: '1px solid #cbd5e0', background: '#fff',
+                  cursor: 'pointer', fontSize: '1rem', fontWeight: 700, color: '#4a5568',
+                }}
+              >+</button>
+            </div>
+          </div>
+        ))}
+
+        {/* ── Weekday pattern ───────────────────────────────────────────── */}
+        <div style={{ marginTop: '1rem' }}>
+          <p style={{ fontWeight: 600, fontSize: '0.85rem', color: '#4a5568', marginBottom: '0.5rem', marginTop: 0 }}>
+            Weekday pattern
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {(
+              [
+                { value: 'usually_out',  label: 'Usually out' },
+                { value: 'usually_home', label: 'Usually someone home' },
+                { value: 'irregular',    label: 'Irregular / shifts' },
+              ] as Array<{ value: DaytimeOccupancyPattern; label: string }>
+            ).map(({ value, label }) => (
+              <button
+                key={value}
+                data-testid={`daytime-pattern-${value}`}
+                onClick={() => handleDaytimePatternChange(value)}
+                style={{
+                  padding: '0.375rem 0.75rem',
+                  borderRadius: '6px',
+                  border: daytimePattern === value ? '2px solid #3182ce' : '1px solid #e2e8f0',
+                  background: daytimePattern === value ? '#ebf8ff' : '#fff',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: daytimePattern === value ? 600 : 400,
+                  color: daytimePattern === value ? '#2b6cb0' : '#4a5568',
+                  transition: 'border-color 0.15s, background 0.15s',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Bath use ─────────────────────────────────────────────────── */}
+        <div style={{ marginTop: '0.875rem' }}>
+          <p style={{ fontWeight: 600, fontSize: '0.85rem', color: '#4a5568', marginBottom: '0.5rem', marginTop: 0 }}>
+            Bath use
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {(
+              [
+                { value: 'rare',      label: 'Rare' },
+                { value: 'sometimes', label: 'Sometimes' },
+                { value: 'frequent',  label: 'Frequent' },
+              ] as Array<{ value: BathUsePattern; label: string }>
+            ).map(({ value, label }) => (
+              <button
+                key={value}
+                data-testid={`bath-use-${value}`}
+                onClick={() => handleBathUseChange(value)}
+                style={{
+                  padding: '0.375rem 0.75rem',
+                  borderRadius: '6px',
+                  border: bathUse === value ? '2px solid #3182ce' : '1px solid #e2e8f0',
+                  background: bathUse === value ? '#ebf8ff' : '#fff',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: bathUse === value ? 600 : 400,
+                  color: bathUse === value ? '#2b6cb0' : '#4a5568',
+                  transition: 'border-color 0.15s, background 0.15s',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Derived demand style badge ────────────────────────────────────── */}
+      <div style={{
+        padding: '0.625rem 0.875rem',
+        background: '#ebf8ff',
+        border: '1px solid #bee3f8',
+        borderRadius: '6px',
+        fontSize: '0.82rem',
+        color: '#2b6cb0',
+        marginBottom: '0.75rem',
+      }}>
+        <strong>{hasComposition ? 'Derived demand style: ' : 'Selected demand style: '}</strong>{getDemandStyleLabel(activePresetId)}
+      </div>
+
+      {/* ── DHW demand sanity indicator ──────────────────────────────────── */}
+      <div
+        data-testid="dhw-demand-summary"
+        style={{
+          padding: '0.5rem 0.875rem',
+          background: dhwSummaryOk ? '#f0fff4' : '#fff5f5',
+          border: `1px solid ${dhwSummaryOk ? '#9ae6b4' : '#feb2b2'}`,
+          borderRadius: '6px',
+          fontSize: '0.8rem',
+          color: dhwSummaryOk ? '#276749' : '#c53030',
+          marginBottom: '1.25rem',
+          display: 'flex',
+          gap: '1rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        <span>💧 Daily hot water: <strong>~{estimatedDailyLitres}L</strong></span>
+        <span>🚿 Peak demand: <strong>{estimatedPeakOutlets} outlet{estimatedPeakOutlets !== 1 ? 's' : ''}</strong></span>
+        {!dhwSummaryOk && <span style={{ fontWeight: 700 }}>⚠️ Zero demand — check occupancy</span>}
+      </div>
+
+      {/* ── Advanced: manual archetype override ─────────────────────────── */}
+      <details style={{ marginBottom: '1.25rem' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#4a5568', fontSize: '0.9rem' }}>
+          🔧 Advanced: manual archetype override (optional)
+        </summary>
+        <p style={{ fontSize: '0.78rem', color: '#718096', margin: '0.5rem 0 0.75rem' }}>
+          The profile above is derived automatically from household composition. You can override it here if needed.
         </p>
         <div style={{
           display: 'grid',
@@ -3919,41 +4212,7 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
             );
           })}
         </div>
-      </div>
-
-      {/* ── Demand style summary ─────────────────────────────────────────── */}
-      <div style={{
-        padding: '0.625rem 0.875rem',
-        background: '#ebf8ff',
-        border: '1px solid #bee3f8',
-        borderRadius: '6px',
-        fontSize: '0.82rem',
-        color: '#2b6cb0',
-        marginBottom: '0.75rem',
-      }}>
-        <strong>Selected demand style: </strong>{getDemandStyleLabel(activePresetId)}
-      </div>
-
-      {/* ── DHW demand sanity indicator ──────────────────────────────────── */}
-      <div
-        data-testid="dhw-demand-summary"
-        style={{
-          padding: '0.5rem 0.875rem',
-          background: dhwSummaryOk ? '#f0fff4' : '#fff5f5',
-          border: `1px solid ${dhwSummaryOk ? '#9ae6b4' : '#feb2b2'}`,
-          borderRadius: '6px',
-          fontSize: '0.8rem',
-          color: dhwSummaryOk ? '#276749' : '#c53030',
-          marginBottom: '1.25rem',
-          display: 'flex',
-          gap: '1rem',
-          flexWrap: 'wrap',
-        }}
-      >
-        <span>💧 Daily hot water: <strong>~{estimatedDailyLitres}L</strong></span>
-        <span>🚿 Peak demand: <strong>{estimatedPeakOutlets} outlet{estimatedPeakOutlets !== 1 ? 's' : ''}</strong></span>
-        {!dhwSummaryOk && <span style={{ fontWeight: 700 }}>⚠️ Zero demand — check occupancy</span>}
-      </div>
+      </details>
 
       {/* ── Quick timing controls ────────────────────────────────────────── */}
       <details style={{ marginBottom: '1.25rem' }}>
