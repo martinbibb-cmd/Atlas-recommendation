@@ -81,7 +81,7 @@ afterEach(() => {
 // ─── Day Painter placeholder ──────────────────────────────────────────────────
 
 describe('UnifiedSimulatorView — Day Painter placeholder regression', () => {
-  it('does not render the Day Painter placeholder in the customer-facing simulator', () => {
+  it('does not render the Day Painter placeholder', () => {
     render(
       <UnifiedSimulatorView
         engineOutput={DEMO_ENGINE_OUTPUT}

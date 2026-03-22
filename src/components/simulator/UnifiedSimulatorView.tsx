@@ -81,9 +81,11 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
         }),
       });
       if (!res.ok) { setSaveState('failed'); return; }
-      const json = await res.json() as { ok: boolean; id?: string };
-      if (json.ok && json.id) { setSavedReportId(json.id); setSaveState('saved'); }
-      else { setSaveState('failed'); }
+      const json = await res.json() as unknown;
+      if (json != null && typeof json === 'object' && 'ok' in json && 'id' in json && (json as { ok: boolean }).ok && typeof (json as { id: unknown }).id === 'string') {
+        const { id } = json as { ok: boolean; id: string };
+        setSavedReportId(id); setSaveState('saved');
+      } else { setSaveState('failed'); }
     } catch { setSaveState('failed'); }
   }, [advice, engineOutput, surveyData]);
 
@@ -117,7 +119,7 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
               className="unified-simulator-view__action-btn"
               onClick={handleSaveReport}
               disabled={saveState === 'saving' || saveState === 'saved'}
-              aria-label="Save report"
+              aria-label={saveState === 'failed' ? 'Retry save report' : 'Save report'}
               data-testid="save-report-btn"
             >
               {saveState === 'saving' && '⏳ Saving…'}
