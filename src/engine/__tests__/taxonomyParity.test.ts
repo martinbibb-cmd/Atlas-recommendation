@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
 import type { ComparisonSystemType } from '../schema/ScenarioProfileV1';
 import { computeSystemHourPhysics } from '../schema/ScenarioProfileV1';
 import { SYSTEM_REGISTRY } from '../../lib/system/systemRegistry';
-import { computeDrawOff } from '../modules/StoredDhwModule';
+import { computeDrawOff, type BranchHydraulics } from '../modules/StoredDhwModule';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -229,5 +229,198 @@ describe('draw-off micro-behaviour — vented flow cap scales with √head', () 
     const sv = computeDrawOff('stored_vented',       undefined, undefined, 0.8);
     const ov = computeDrawOff('mixergy_open_vented', undefined, undefined, 0.8);
     expect(sv.ventedMaxFlowLpm).toBe(ov.ventedMaxFlowLpm);
+  });
+});
+
+// ─── Branch hydraulic model ───────────────────────────────────────────────────
+
+describe('draw-off — branch hydraulic model (multi-factor vented delivery)', () => {
+  // When BranchHydraulics is supplied, branchModel is populated and
+  // ventedMaxFlowLpm reflects the branch result, not the sqrt-head shortcut.
+
+  it('branchModel is present when BranchHydraulics is supplied, absent otherwise', () => {
+    const branch: BranchHydraulics = {
+      source: 'shared_cws',
+      headM: 1.0,
+      pipeMm: 22,
+      equivalentLengthM: 5,
+      outletClass: 'shower',
+    };
+    const withBranch    = computeDrawOff('stored_vented', undefined, undefined, undefined, branch);
+    const withoutBranch = computeDrawOff('stored_vented', undefined, undefined, 1.0);
+    expect(withBranch.branchModel).toBeDefined();
+    expect(withoutBranch.branchModel).toBeUndefined();
+  });
+
+  it('larger pipe bore yields higher flow at identical head and run length', () => {
+    const base: Omit<BranchHydraulics, 'pipeMm'> = {
+      source: 'shared_cws',
+      headM: 1.0,
+      equivalentLengthM: 5,
+      outletClass: 'shower',
+    };
+    const r15 = computeDrawOff('stored_vented', undefined, undefined, undefined, { ...base, pipeMm: 15 });
+    const r22 = computeDrawOff('stored_vented', undefined, undefined, undefined, { ...base, pipeMm: 22 });
+    const r28 = computeDrawOff('stored_vented', undefined, undefined, undefined, { ...base, pipeMm: 28 });
+    expect(r22.ventedMaxFlowLpm!).toBeGreaterThan(r15.ventedMaxFlowLpm!);
+    expect(r28.ventedMaxFlowLpm!).toBeGreaterThan(r22.ventedMaxFlowLpm!);
+  });
+
+  it('longer equivalent run length reduces flow at identical head and bore', () => {
+    const base: Omit<BranchHydraulics, 'equivalentLengthM'> = {
+      source: 'shared_cws',
+      headM: 1.5,
+      pipeMm: 22,
+      outletClass: 'shower',
+    };
+    const short = computeDrawOff('stored_vented', undefined, undefined, undefined, { ...base, equivalentLengthM: 5 });
+    const long  = computeDrawOff('stored_vented', undefined, undefined, undefined, { ...base, equivalentLengthM: 20 });
+    expect(short.ventedMaxFlowLpm!).toBeGreaterThan(long.ventedMaxFlowLpm!);
+  });
+
+  it('mixer_shower outlet is more restrictive than tap outlet at same head and bore', () => {
+    const base: Omit<BranchHydraulics, 'outletClass'> = {
+      source: 'shared_cws',
+      headM: 2.0,
+      pipeMm: 22,
+      equivalentLengthM: 5,
+    };
+    const tap     = computeDrawOff('stored_vented', undefined, undefined, undefined, { ...base, outletClass: 'tap' });
+    const shower  = computeDrawOff('stored_vented', undefined, undefined, undefined, { ...base, outletClass: 'shower' });
+    const mixer   = computeDrawOff('stored_vented', undefined, undefined, undefined, { ...base, outletClass: 'mixer_shower' });
+    expect(tap.ventedMaxFlowLpm!).toBeGreaterThan(shower.ventedMaxFlowLpm!);
+    expect(shower.ventedMaxFlowLpm!).toBeGreaterThan(mixer.ventedMaxFlowLpm!);
+  });
+
+  it('mains_cold source on a mixer_shower applies a mixer balance penalty', () => {
+    const shared: BranchHydraulics = {
+      source: 'shared_cws',
+      headM: 1.0,
+      pipeMm: 22,
+      equivalentLengthM: 5,
+      outletClass: 'mixer_shower',
+    };
+    const mains: BranchHydraulics = { ...shared, source: 'mains_cold' };
+    const r_shared = computeDrawOff('stored_vented', undefined, undefined, undefined, shared);
+    const r_mains  = computeDrawOff('stored_vented', 2.0, undefined, undefined, mains);
+    // Mains cold with vented hot at 1m head → severe pressure mismatch → penalty
+    expect(r_mains.branchModel!.mixerBalancePenalty).toBeGreaterThan(0);
+    // Effective flow is reduced by the penalty
+    expect(r_mains.ventedMaxFlowLpm!).toBeLessThan(r_shared.ventedMaxFlowLpm!);
+  });
+
+  it('mains_cold source on a tap does not apply a mixer balance penalty', () => {
+    const branch: BranchHydraulics = {
+      source: 'mains_cold',
+      headM: 1.0,
+      pipeMm: 22,
+      equivalentLengthM: 5,
+      outletClass: 'tap',
+    };
+    const result = computeDrawOff('stored_vented', 2.0, undefined, undefined, branch);
+    // Taps are not mixing-valve fixtures — no balance penalty applies
+    expect(result.branchModel!.mixerBalancePenalty).toBe(0);
+  });
+
+  it('dedicated_cws source has no mixer balance penalty (pressures are balanced)', () => {
+    const branch: BranchHydraulics = {
+      source: 'dedicated_cws',
+      headM: 1.0,
+      pipeMm: 22,
+      equivalentLengthM: 5,
+      outletClass: 'mixer_shower',
+    };
+    const result = computeDrawOff('stored_vented', 2.0, undefined, undefined, branch);
+    expect(result.branchModel!.mixerBalancePenalty).toBe(0);
+  });
+
+  it('limitingFactor is route_length when equivalent length is ≥ 15 m', () => {
+    const branch: BranchHydraulics = {
+      source: 'shared_cws',
+      headM: 1.5,
+      pipeMm: 15,
+      equivalentLengthM: 20,
+      outletClass: 'shower',
+    };
+    const result = computeDrawOff('stored_vented', undefined, undefined, undefined, branch);
+    expect(result.branchModel!.limitingFactor).toBe('route_length');
+  });
+
+  it('limitingFactor is head when head is below adequate threshold on a short run', () => {
+    const branch: BranchHydraulics = {
+      source: 'shared_cws',
+      headM: 0.3,
+      pipeMm: 22,
+      equivalentLengthM: 4,
+      outletClass: 'shower',
+    };
+    const result = computeDrawOff('stored_vented', undefined, undefined, undefined, branch);
+    expect(result.branchModel!.limitingFactor).toBe('head');
+  });
+
+  it('limitingFactor is mixer_imbalance when mains_cold penalty is severe (≥ 0.3)', () => {
+    // 0.3 m head → hot pressure = 0.029 bar; cold at 2.0 bar → ratio ≈ 0.015 → severe
+    const branch: BranchHydraulics = {
+      source: 'mains_cold',
+      headM: 0.3,
+      pipeMm: 22,
+      equivalentLengthM: 5,
+      outletClass: 'mixer_shower',
+    };
+    const result = computeDrawOff('stored_vented', 2.0, undefined, undefined, branch);
+    expect(result.branchModel!.mixerBalancePenalty).toBeCloseTo(0.3, 1);
+    expect(result.branchModel!.limitingFactor).toBe('mixer_imbalance');
+  });
+
+  it('branchModel.effectiveFlowLpm matches ventedMaxFlowLpm when branch supplied', () => {
+    const branch: BranchHydraulics = {
+      source: 'shared_cws',
+      headM: 2.0,
+      pipeMm: 22,
+      equivalentLengthM: 8,
+      outletClass: 'shower',
+    };
+    const result = computeDrawOff('stored_vented', undefined, undefined, undefined, branch);
+    expect(result.ventedMaxFlowLpm).toBe(result.branchModel!.effectiveFlowLpm);
+  });
+
+  it('flowStability is stable when effective flow ≥ 7 L/min and head ≥ 0.5 m', () => {
+    // 3 m head, 22 mm, 5 m run, bath → good delivery
+    const branch: BranchHydraulics = {
+      source: 'shared_cws',
+      headM: 3.0,
+      pipeMm: 22,
+      equivalentLengthM: 5,
+      outletClass: 'bath',
+    };
+    const result = computeDrawOff('stored_vented', undefined, undefined, undefined, branch);
+    expect(result.flowStability).toBe('stable');
+    expect(result.ventedMaxFlowLpm!).toBeGreaterThanOrEqual(7);
+  });
+
+  it('flowStability is limited when effective flow is very low (long 15mm run, low head)', () => {
+    // 0.2 m head, 15 mm, 25 m run, mixer_shower → very weak delivery
+    const branch: BranchHydraulics = {
+      source: 'shared_cws',
+      headM: 0.2,
+      pipeMm: 15,
+      equivalentLengthM: 25,
+      outletClass: 'mixer_shower',
+    };
+    const result = computeDrawOff('stored_vented', undefined, undefined, undefined, branch);
+    expect(result.flowStability).toBe('limited');
+  });
+
+  it('headM in BranchHydraulics takes precedence over cwsHeadMetres parameter', () => {
+    const branch: BranchHydraulics = {
+      source: 'shared_cws',
+      headM: 2.0,
+      pipeMm: 22,
+      equivalentLengthM: 5,
+      outletClass: 'shower',
+    };
+    // cwsHeadMetres = 1.0 but headM in branch = 2.0 → maxPressureBar should use 2.0
+    const result = computeDrawOff('stored_vented', undefined, undefined, 1.0, branch);
+    expect(result.maxPressureBar).toBeCloseTo(2.0 * 0.0981, 3);
   });
 });
