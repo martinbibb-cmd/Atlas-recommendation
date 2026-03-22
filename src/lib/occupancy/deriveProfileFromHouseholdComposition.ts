@@ -64,6 +64,16 @@ export interface HouseholdProfileDerivation {
   derivedPresetId: DemandPresetId;
 
   /**
+   * Human-readable explanation of why this preset was selected.
+   * Useful for debugging, "why this profile?" tooltips, and portal/support workflows.
+   *
+   * Examples:
+   *   "Teenagers present → family_teenagers"
+   *   "Two adults + usually someone home → retired_couple"
+   */
+  derivationReason: string;
+
+  /**
    * Total number of regular occupants derived from headcounts.
    * This should be written into EngineInputV2_3.occupancyCount.
    */
@@ -121,12 +131,15 @@ function mapDaytimeOccupancy(
  *   8. Single adult, usually home → 'home_worker'
  *   9. Single adult, irregular → 'shift_worker'
  *  10. Default → 'single_working_adult'
+ *
+ * Returns a `{ presetId, reason }` pair so the derivation rationale is
+ * available for debugging, tooltips, and portal/support workflows.
  */
-function deriveDemandPreset(
+function deriveDemandPresetWithReason(
   composition: HouseholdComposition,
   pattern: DaytimeOccupancyPattern,
   bathUse: BathUsePattern,
-): DemandPresetId {
+): { presetId: DemandPresetId; reason: string } {
   const {
     adultCount,
     childCount0to4,
@@ -139,27 +152,43 @@ function deriveDemandPreset(
   const hasYoungChildren = childCount0to4 > 0 || childCount5to10 > 0;
 
   // ── Child-age bands take priority ────────────────────────────────────────
-  if (hasTeenagers) return 'family_teenagers';
-  if (hasYoungChildren) return 'family_young_children';
+  if (hasTeenagers) {
+    return { presetId: 'family_teenagers', reason: 'Teenagers present → family_teenagers' };
+  }
+  if (hasYoungChildren) {
+    return { presetId: 'family_young_children', reason: 'Young children present → family_young_children' };
+  }
 
   // ── Bath-heavy pattern (adults only) ─────────────────────────────────────
-  if (bathUse === 'frequent') return 'bath_heavy';
+  if (bathUse === 'frequent') {
+    return { presetId: 'bath_heavy', reason: 'Frequent bath use (adults only) → bath_heavy' };
+  }
 
   // ── Multi-person households ───────────────────────────────────────────────
   const totalAdultLike = adultCount + youngAdultCount18to25AtHome;
-  if (totalAdultLike >= 3) return 'multigenerational';
+  if (totalAdultLike >= 3) {
+    return { presetId: 'multigenerational', reason: '3+ adults/young-adults at home → multigenerational' };
+  }
 
   // ── Two-adult households ──────────────────────────────────────────────────
   if (totalAdultLike === 2) {
-    if (pattern === 'usually_home') return 'retired_couple';
-    if (pattern === 'irregular')    return 'shift_worker';
-    return 'working_couple';
+    if (pattern === 'usually_home') {
+      return { presetId: 'retired_couple', reason: 'Two adults + usually someone home → retired_couple' };
+    }
+    if (pattern === 'irregular') {
+      return { presetId: 'shift_worker', reason: 'Two adults + irregular schedule → shift_worker' };
+    }
+    return { presetId: 'working_couple', reason: 'Two adults + usually out → working_couple' };
   }
 
   // ── Single-adult household ────────────────────────────────────────────────
-  if (pattern === 'usually_home') return 'home_worker';
-  if (pattern === 'irregular')    return 'shift_worker';
-  return 'single_working_adult';
+  if (pattern === 'usually_home') {
+    return { presetId: 'home_worker', reason: 'Single adult + usually home → home_worker' };
+  }
+  if (pattern === 'irregular') {
+    return { presetId: 'shift_worker', reason: 'Single adult + irregular schedule → shift_worker' };
+  }
+  return { presetId: 'single_working_adult', reason: 'Single adult + usually out → single_working_adult' };
 }
 
 /**
@@ -235,11 +264,14 @@ export function deriveProfileFromHouseholdComposition(
     composition.childCount5to10 +
     composition.childCount11to17;
 
+  const { presetId, reason } = deriveDemandPresetWithReason(composition, daytimeOccupancy, bathUse);
+
   return {
-    derivedPresetId:       deriveDemandPreset(composition, daytimeOccupancy, bathUse),
+    derivedPresetId:          presetId,
+    derivationReason:         reason,
     occupancyCount,
-    daytimeOccupancyHint:  mapDaytimeOccupancy(daytimeOccupancy),
-    bathFrequencyPerWeek:  deriveBathFrequencyPerWeek(composition, bathUse),
-    simultaneousUseSeverity: deriveSimultaneousUseSeverity(composition),
+    daytimeOccupancyHint:     mapDaytimeOccupancy(daytimeOccupancy),
+    bathFrequencyPerWeek:     deriveBathFrequencyPerWeek(composition, bathUse),
+    simultaneousUseSeverity:  deriveSimultaneousUseSeverity(composition),
   };
 }

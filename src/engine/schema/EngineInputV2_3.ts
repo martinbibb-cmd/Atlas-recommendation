@@ -403,6 +403,15 @@ export interface EngineInputV2_3 {
    */
   demandPreset?: DemandPresetId;
   /**
+   * When true, demandPreset was explicitly chosen by the user or surveyor and
+   * must not be overridden by the household-composition derivation.
+   *
+   * When householdComposition is present and this flag is absent or false,
+   * demandPreset is treated as a derived field and will be overwritten by the
+   * sanitiser with the composition-derived preset.
+   */
+  demandPresetIsManualOverride?: boolean;
+  /**
    * Optional quick timing overrides applied on top of the preset defaults.
    * All fields are optional — absent values fall through to preset defaults.
    */
