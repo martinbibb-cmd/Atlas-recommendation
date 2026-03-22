@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import WhatIfLab from '../explainers/WhatIfLab';
 import ExplainerPanel from '../../explainers/educational/ExplainerPanel';
 import LabHomeLink from './LabHomeLink';
@@ -17,6 +17,12 @@ import {
   COMPARISON_HEADINGS,
   CANDIDATE_SYSTEMS,
 } from './labSharedData';
+import SystemFitMap from '../fit-map/SystemFitMap';
+import {
+  computeFitPosition,
+  type FitInputs,
+  type FitPosition,
+} from '../../logic/fit-map/computeFitPosition';
 import './lab.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -43,6 +49,49 @@ const SYSTEM_TYPE_LABELS: Record<string, string> = {
   ashp:    'Heat Pump',
   other:   'Other system',
 };
+
+/** Standard UK primary pipe sizes accepted by FitInputs. */
+const PIPE_SIZES: ReadonlyArray<FitInputs['primaryPipeSizeMm']> = [15, 22, 28, 35];
+
+/** Default assumed concurrent outlets when peakConcurrentOutlets is not provided. */
+const DEFAULT_CONCURRENT_OUTLETS = 1;
+
+/** Default assumed mains pressure (bar) when no measurement is available. */
+const DEFAULT_MAINS_PRESSURE_BAR = 1.5;
+
+/**
+ * Snap an arbitrary pipe diameter to the nearest standard size accepted by
+ * FitInputs.  Defaults to 22 mm when no diameter is provided.
+ */
+function snapPipeSize(mm?: number): FitInputs['primaryPipeSizeMm'] {
+  if (mm == null) return 22;
+  let nearest = PIPE_SIZES[0];
+  let minDiff = Math.abs(mm - nearest);
+  for (const size of PIPE_SIZES) {
+    const diff = Math.abs(mm - size);
+    if (diff < minDiff) { minDiff = diff; nearest = size; }
+  }
+  return nearest;
+}
+
+/**
+ * Map the engine OccupancySignature to the simplified FitInputs occupancy
+ * value.
+ */
+function mapOccupancy(sig?: string): FitInputs['occupancy'] {
+  if (sig === 'steady_home' || sig === 'steady') return 'steady';
+  if (sig === 'shift_worker' || sig === 'shift')  return 'shift';
+  return 'professional';
+}
+
+/**
+ * Map the engine BuildingMass to FitInputs thermalInertia.
+ */
+function mapThermalInertia(mass?: string): FitInputs['thermalInertia'] {
+  if (mass === 'heavy') return 'high';
+  if (mass === 'medium') return 'medium';
+  return 'low';
+}
 
 // ─── Summary tab ──────────────────────────────────────────────────────────────
 
@@ -89,8 +138,16 @@ const VISUAL_DEMO_KEY = 'atlasVisualDemoSeen';
  * Wraps DrawOffWorkbench.  On first open (PR 6 — Auto Demo Run) shows a brief
  * intro banner that auto-dismisses after 3 s, giving users an instant
  * understanding of the simulation before they interact.
+ *
+ * When a fitPosition is provided the System Fit Map is shown above the
+ * simulator so users can see where their home sits before diving into detail.
  */
-function VisualTab() {
+interface VisualTabProps {
+  fitPosition?: FitPosition;
+  onShowExplainer?: (system: FitPosition['nearestSystem']) => void;
+}
+
+function VisualTab({ fitPosition, onShowExplainer }: VisualTabProps) {
   const [showIntro, setShowIntro] = useState(
     () => localStorage.getItem(VISUAL_DEMO_KEY) !== 'true',
   );
@@ -106,6 +163,9 @@ function VisualTab() {
 
   return (
     <div className="lab-visual-tab">
+      {fitPosition && (
+        <SystemFitMap fitPosition={fitPosition} onShowExplainer={onShowExplainer} />
+      )}
       {showIntro && (
         <div className="lab-visual-tab__intro" role="status" aria-live="polite">
           <span className="lab-visual-tab__intro-icon" aria-hidden="true">▶</span>
@@ -136,6 +196,29 @@ export default function LabShell({ onHome, engineInput }: Props) {
   const [activeTab, setActiveTab] = useState<LabTab>('visual');
   /** PR 1 — Replay tour state. */
   const [replayTour, setReplayTour] = useState(false);
+
+  /**
+   * Derive a FitPosition from engineInput when available.
+   * Returns undefined when there is no input so the fit map is hidden.
+   */
+  const fitPosition: FitPosition | undefined = engineInput
+    ? computeFitPosition({
+        peakConcurrentOutlets:   engineInput.peakConcurrentOutlets ?? DEFAULT_CONCURRENT_OUTLETS,
+        mainsDynamicPressureBar:
+          engineInput.dynamicMainsPressureBar ?? engineInput.dynamicMainsPressure ?? DEFAULT_MAINS_PRESSURE_BAR,
+        primaryPipeSizeMm: snapPipeSize(engineInput.primaryPipeDiameter),
+        thermalInertia:    mapThermalInertia(engineInput.buildingMass),
+        occupancy:         mapOccupancy(engineInput.occupancySignature),
+      })
+    : undefined;
+
+  /**
+   * Navigate to the Physics Explainers tab when the user taps "Show me why"
+   * on the fit map.  The tab contains the ExplainerPanel with all topics.
+   */
+  const handleShowExplainer = useCallback(() => {
+    setActiveTab('explainers');
+  }, []);
 
   const TAB_LABELS: Record<LabTab, string> = {
     visual:     'Simulator',
@@ -265,7 +348,7 @@ export default function LabShell({ onHome, engineInput }: Props) {
 
       {/* ── Tab content ────────────────────────────────────────────────────── */}
       <div className="lab-tab-content" role="tabpanel">
-        {activeTab === 'visual'     && <VisualTab />}
+        {activeTab === 'visual'     && <VisualTab fitPosition={fitPosition} onShowExplainer={handleShowExplainer} />}
         {activeTab === 'summary'    && <SummaryTab />}
         {activeTab === 'whatif'     && <WhatIfLab />}
         {activeTab === 'explainers' && <ExplainerPanel />}
