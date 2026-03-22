@@ -8,6 +8,13 @@ import {
 import { normalizeInput } from '../../engine/normalizer/Normalizer';
 import { resolveTimingOverrides } from '../../engine/schema/OccupancyPreset';
 import type { DemandPresetId } from '../../engine/schema/OccupancyPreset';
+import {
+  deriveProfileFromHouseholdComposition,
+} from '../../lib/occupancy/deriveProfileFromHouseholdComposition';
+import type {
+  DaytimeOccupancyPattern,
+  BathUsePattern,
+} from '../../lib/occupancy/deriveProfileFromHouseholdComposition';
 
 /**
  * Cleans and validates a FullSurveyModelV1 before passing it to the engine.
@@ -256,6 +263,50 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
         repeatedPumpOrValveReplacements: hc?.repeatedPumpOrValveReplacements,
       });
       sanitised.boilerConditionBand = boilerCondition.conditionBand;
+    }
+  }
+
+  // ── Household composition → source of truth enforcement ──────────────────
+  // When householdComposition is present, occupancyCount and demandPreset are
+  // derived fields.  The composition is the authoritative source; any
+  // previously stored values are overwritten unless demandPresetIsManualOverride
+  // is explicitly set to true (surveyor-initiated manual override).
+  //
+  // Derivation sequence:
+  //   householdComposition + daytimeOccupancy + bathUse
+  //     → derivedPresetId + occupancyCount
+  //
+  // daytimeOccupancyPattern is back-mapped from demandTimingOverrides when
+  // present (mirrors the forward mapping in adaptFullSurveyToSimulatorInputs).
+  if (sanitised.householdComposition != null) {
+    const dto = sanitised.demandTimingOverrides;
+
+    const daytimePattern: DaytimeOccupancyPattern =
+      dto?.daytimeOccupancy === 'full'
+        ? 'usually_home'
+        : dto?.daytimeOccupancy === 'partial'
+          ? 'irregular'
+          : 'usually_out';
+
+    const bathUse: BathUsePattern =
+      (dto?.bathFrequencyPerWeek ?? 0) >= 7
+        ? 'frequent'
+        : (dto?.bathFrequencyPerWeek ?? 0) >= 2
+          ? 'sometimes'
+          : 'rare';
+
+    const derived = deriveProfileFromHouseholdComposition(
+      sanitised.householdComposition,
+      daytimePattern,
+      bathUse,
+    );
+
+    // occupancyCount is always derived from composition.
+    sanitised.occupancyCount = derived.occupancyCount;
+
+    // demandPreset is derived unless the surveyor has explicitly overridden it.
+    if (!sanitised.demandPresetIsManualOverride) {
+      sanitised.demandPreset = derived.derivedPresetId;
     }
   }
 

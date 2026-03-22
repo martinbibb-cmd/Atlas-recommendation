@@ -452,3 +452,107 @@ describe('all DaytimeOccupancyPattern values produce valid output', () => {
     }
   }
 });
+
+// ─── 9. derivationReason ──────────────────────────────────────────────────────
+
+describe('derivationReason — explanation string', () => {
+  it('is a non-empty string for every result', () => {
+    const result = deriveProfileFromHouseholdComposition(
+      compose({ adultCount: 2 }),
+      'usually_out',
+      'sometimes',
+    );
+    expect(typeof result.derivationReason).toBe('string');
+    expect(result.derivationReason.length).toBeGreaterThan(0);
+  });
+
+  it('mentions "Teenagers" when childCount11to17 > 0', () => {
+    const result = deriveProfileFromHouseholdComposition(
+      compose({ adultCount: 2, childCount11to17: 1 }),
+      'usually_out',
+      'rare',
+    );
+    expect(result.derivationReason).toContain('Teenagers');
+    expect(result.derivedPresetId).toBe('family_teenagers');
+  });
+
+  it('mentions "Young children" when childCount5to10 > 0 and no teenagers', () => {
+    const result = deriveProfileFromHouseholdComposition(
+      compose({ adultCount: 2, childCount5to10: 1 }),
+      'usually_out',
+      'rare',
+    );
+    expect(result.derivationReason).toContain('Young children');
+    expect(result.derivedPresetId).toBe('family_young_children');
+  });
+
+  it('mentions "Frequent bath" when bathUse=frequent and adults only', () => {
+    const result = deriveProfileFromHouseholdComposition(
+      compose({ adultCount: 2 }),
+      'usually_out',
+      'frequent',
+    );
+    expect(result.derivationReason).toContain('Frequent bath');
+    expect(result.derivedPresetId).toBe('bath_heavy');
+  });
+
+  it('mentions "3+" or "multigenerational" when 3+ adults', () => {
+    const result = deriveProfileFromHouseholdComposition(
+      compose({ adultCount: 3 }),
+      'usually_out',
+      'rare',
+    );
+    expect(result.derivationReason).toContain('multigenerational');
+    expect(result.derivedPresetId).toBe('multigenerational');
+  });
+
+  it('mentions "usually someone home" for retired_couple path', () => {
+    const result = deriveProfileFromHouseholdComposition(
+      compose({ adultCount: 2 }),
+      'usually_home',
+      'rare',
+    );
+    expect(result.derivationReason).toContain('usually someone home');
+    expect(result.derivedPresetId).toBe('retired_couple');
+  });
+
+  it('derivationReason matches derivedPresetId for single working adult', () => {
+    const result = deriveProfileFromHouseholdComposition(
+      compose({ adultCount: 1 }),
+      'usually_out',
+      'rare',
+    );
+    expect(result.derivationReason).toContain('single_working_adult');
+    expect(result.derivedPresetId).toBe('single_working_adult');
+  });
+
+  it('derivationReason contains "home_worker" for home_worker path', () => {
+    const result = deriveProfileFromHouseholdComposition(
+      compose({ adultCount: 1 }),
+      'usually_home',
+      'rare',
+    );
+    expect(result.derivationReason).toContain('home_worker');
+    expect(result.derivedPresetId).toBe('home_worker');
+  });
+
+  it('derivationReason contains "shift_worker" for shift_worker path', () => {
+    const result = deriveProfileFromHouseholdComposition(
+      compose({ adultCount: 1 }),
+      'irregular',
+      'rare',
+    );
+    expect(result.derivationReason).toContain('shift_worker');
+    expect(result.derivedPresetId).toBe('shift_worker');
+  });
+
+  it('derivationReason contains "working_couple" for working_couple path', () => {
+    const result = deriveProfileFromHouseholdComposition(
+      compose({ adultCount: 2 }),
+      'usually_out',
+      'rare',
+    );
+    expect(result.derivationReason).toContain('working_couple');
+    expect(result.derivedPresetId).toBe('working_couple');
+  });
+});
