@@ -1,5 +1,14 @@
 import type { PartKind } from '../../explainers/lego/builder/types';
-import type { ConnectionPath, PlacementNode, Point, PropertyPlan, Room } from './propertyPlan.types';
+import type {
+  ConnectionPath,
+  DisruptionAnnotation,
+  DisruptionKind,
+  PlacementNode,
+  Point,
+  PropertyPlan,
+  Room,
+  ServiceType,
+} from './propertyPlan.types';
 import { BOILER_VALID_ROOM_TYPES, CYLINDER_VALID_ROOM_TYPES } from './propertyPlan.types';
 import { routePipeAligned } from '../../explainers/lego/builder/router';
 
@@ -77,6 +86,10 @@ export interface AutoRoute {
   toNodeId: string;
   /** Ordered canvas-coordinate waypoints. */
   route: Point[];
+  /** Semantic service type for engineer-view labels. */
+  serviceType: ServiceType;
+  /** Suggested nominal pipe bore in mm based on connected emitter heat load. */
+  pipeSizeMm: 15 | 22 | 28 | 35;
 }
 
 /** Parse the "x1,y1 x2,y2 …" string from routePipeAligned into Point[]. */
@@ -96,6 +109,23 @@ function parseRoutePoints(pointsStr: string): Point[] {
  */
 export function computePipeOffset(gridPx: number = GRID): number {
   return Math.max(4, gridPx * 0.1);
+}
+
+/**
+ * Suggest a nominal pipe bore (mm) for a heating circuit based on the
+ * connected emitter heat load at design conditions.
+ *
+ * Rules (UK standard practice, 20 °C ΔT in the circuit):
+ *   ≤ 3 kW   → 15 mm microbore / standard small rad
+ *   ≤ 8 kW   → 22 mm — most residential circuits
+ *   ≤ 20 kW  → 28 mm — larger system / multiple rads on one sub-circuit
+ *   > 20 kW  → 35 mm — high-load / commercial sizing
+ */
+export function computePipeSizeMm(heatLossKw: number): 15 | 22 | 28 | 35 {
+  if (heatLossKw <= 3)  return 15;
+  if (heatLossKw <= 8)  return 22;
+  if (heatLossKw <= 20) return 28;
+  return 35;
 }
 
 /**
@@ -130,12 +160,18 @@ export function autoRouteHeatingPipes(
   const routes: AutoRoute[] = [];
 
   for (const emitter of emitters) {
+    // Use the emitter's rated output (if known) to suggest pipe bore.
+    const emitterKw = typeof emitter.emitterOutputKw === 'number' ? emitter.emitterOutputKw : 2;
+    const pipeSizeMm = computePipeSizeMm(emitterKw);
+
     // Flow: heat source → emitter
     const flowFrom = { x: heatSource.anchor.x + PIPE_OFFSET, y: heatSource.anchor.y };
     const flowTo   = { x: emitter.anchor.x + PIPE_OFFSET,    y: emitter.anchor.y };
     routes.push({
       id: `auto_flow_${heatSource.id}_${emitter.id}`,
       type: 'flow',
+      serviceType: 'primary_flow',
+      pipeSizeMm,
       fromNodeId: heatSource.id,
       toNodeId: emitter.id,
       route: parseRoutePoints(routePipeAligned(flowFrom, flowTo, routerRooms)),
@@ -147,6 +183,8 @@ export function autoRouteHeatingPipes(
     routes.push({
       id: `auto_return_${emitter.id}_${heatSource.id}`,
       type: 'return',
+      serviceType: 'primary_return',
+      pipeSizeMm,
       fromNodeId: emitter.id,
       toNodeId: heatSource.id,
       route: parseRoutePoints(routePipeAligned(retFrom, retTo, routerRooms)),
@@ -407,4 +445,112 @@ export function deriveFloorplanOutputs(plan: PropertyPlan, defaultRoomHeightM: n
     feasibilityChecks: { hasOutdoorHeatPump, hasHeatSource, hasEmitters },
     sitingFlags,
   };
+}
+
+// ─── Disruption annotation auto-computation ───────────────────────────────────
+
+let _disruptionSeq = 0;
+function disruptionId() {
+  return `dis_${(++_disruptionSeq).toString(16)}`;
+}
+
+/**
+ * Derive a suggested set of disruption / consequence annotations from the
+ * current property plan.  These are heuristic flags — the installer should
+ * review and amend them before sharing with the customer.
+ *
+ * Rules applied:
+ *   • Any auto-routed pipe that crosses a room boundary likely requires a
+ *     floor lift (if the room has a timber floor type) or boxing.
+ *   • A heat pump outdoor unit always implies an external run back to the
+ *     plant room.
+ *   • A cylinder that is on a different floor from the boiler implies a
+ *     pipe run through a wall or floor — flagged as a core drill.
+ *
+ * Returns a DisruptionAnnotation[] positioned near the relevant features.
+ */
+export function computeDisruptionAnnotations(plan: PropertyPlan): DisruptionAnnotation[] {
+  const annotations: DisruptionAnnotation[] = [];
+  const allRooms = plan.floors.flatMap((f) => f.rooms);
+
+  const heatSourceNodes = plan.placementNodes.filter((n) =>
+    n.type === 'heat_source_combi' ||
+    n.type === 'heat_source_system_boiler' ||
+    n.type === 'heat_source_regular_boiler',
+  );
+
+  const cylinderNodes = plan.placementNodes.filter(
+    (n) =>
+      n.type === 'dhw_unvented_cylinder' ||
+      n.type === 'dhw_mixergy' ||
+      n.type === 'dhw_vented_cylinder',
+  );
+
+  const heatPumpNodes = plan.placementNodes.filter(
+    (n) => n.type === 'heat_source_heat_pump',
+  );
+
+  // Cylinder on a different floor from the boiler → likely core drill or
+  // vertical pipe run through the ceiling/floor void.
+  for (const hs of heatSourceNodes) {
+    for (const cyl of cylinderNodes) {
+      if (hs.floorId !== cyl.floorId) {
+        annotations.push({
+          id: disruptionId(),
+          kind: 'coreDrill' as DisruptionKind,
+          floorId: hs.floorId,
+          x: hs.anchor.x,
+          y: hs.anchor.y,
+          note: 'Vertical pipe run between floors — core drill likely required',
+        });
+      }
+    }
+  }
+
+  // Heat pump outdoor unit → external run back into the building.
+  for (const hp of heatPumpNodes) {
+    const room = hp.roomId ? allRooms.find((r) => r.id === hp.roomId) : undefined;
+    if (room?.roomType === 'outside') {
+      annotations.push({
+        id: disruptionId(),
+        kind: 'externalRun' as DisruptionKind,
+        floorId: hp.floorId,
+        x: hp.anchor.x,
+        y: hp.anchor.y,
+        note: 'External pipe run from outdoor unit through building envelope',
+      });
+    }
+  }
+
+  // Any manual connection route that spans more than two rooms is likely to
+  // require boxing or a floor chase.
+  for (const conn of plan.connections) {
+    if (conn.route.length < 2) continue;
+    // Count distinct rooms the route passes through using midpoints of segments.
+    const roomsTraversed = new Set<string>();
+    for (let i = 0; i + 1 < conn.route.length; i++) {
+      const mx = (conn.route[i].x + conn.route[i + 1].x) / 2;
+      const my = (conn.route[i].y + conn.route[i + 1].y) / 2;
+      for (const room of allRooms) {
+        if (mx >= room.x && mx <= room.x + room.width && my >= room.y && my <= room.y + room.height) {
+          roomsTraversed.add(room.id);
+        }
+      }
+    }
+    if (roomsTraversed.size >= 2) {
+      // Midpoint of the route as the annotation anchor.
+      const mid = conn.route[Math.floor(conn.route.length / 2)];
+      const fromNode = plan.placementNodes.find((n) => n.id === conn.fromNodeId);
+      annotations.push({
+        id: disruptionId(),
+        kind: 'boxing' as DisruptionKind,
+        floorId: fromNode?.floorId ?? plan.floors[0]?.id ?? '',
+        x: mid.x,
+        y: mid.y,
+        note: `Pipe route crosses ${roomsTraversed.size} rooms — boxing or floor chase likely`,
+      });
+    }
+  }
+
+  return annotations;
 }

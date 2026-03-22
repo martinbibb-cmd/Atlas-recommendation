@@ -1170,3 +1170,88 @@
 /* ── Legacy compatibility (old floor-builder styles, for fallback) ──────── */
 /* These are kept to ensure nothing referencing the old class names breaks. */
 .floor-builder { display: none; }
+
+/* ── View mode toggle ─────────────────────────────────────────────────── */
+
+.fpb__view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.fpb__view-btn {
+  border: none;
+  background: transparent;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #64748b;
+  transition: background 0.12s, color 0.12s;
+}
+
+.fpb__view-btn:hover { background: #f1f5f9; color: #0f172a; }
+
+.fpb__view-btn.active {
+  background: #1e40af;
+  color: #fff;
+}
+
+/* ── Engineer-view pipe labels ────────────────────────────────────────── */
+
+.fpb__pipe-label {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 7px;
+  font-weight: 700;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Disruption annotations ────────────────────────────────────────────── */
+
+.fpb__disruption-label {
+  font-size: 7px;
+  fill: #78350f;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Disruption kind picker (sidebar) ───────────────────────────────────── */
+
+.fpb__disruption-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  padding: 6px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+}
+
+.fpb__disruption-kind-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #78350f;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.fpb__disruption-kind-btn:hover { background: #fef3c7; }
+
+.fpb__disruption-kind-btn.active {
+  background: #f59e0b;
+  color: #fff;
+  border-color: #d97706;
+}

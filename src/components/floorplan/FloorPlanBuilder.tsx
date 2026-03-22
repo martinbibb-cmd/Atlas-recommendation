@@ -22,6 +22,8 @@ import {
   type PropertyLayoutId,
 } from '../../explainers/lego/builder/propertyLayouts';
 import type {
+  DisruptionAnnotation,
+  DisruptionKind,
   EditorTool,
   FloorPlan,
   PlacementNode,
@@ -30,11 +32,16 @@ import type {
   Room,
   RoomType,
   SelectionTarget,
+  ViewMode,
   Wall,
   WallKind,
 } from './propertyPlan.types';
-import { ROOM_TYPE_LABELS } from './propertyPlan.types';
-import { autoRouteHeatingPipes, canPlaceInProfessionalPlan, createManualRoom, deriveFloorplanOutputs } from './floorplanDerivations';
+import {
+  DISRUPTION_KIND_EMOJI,
+  DISRUPTION_KIND_LABELS,
+  ROOM_TYPE_LABELS,
+} from './propertyPlan.types';
+import { autoRouteHeatingPipes, canPlaceInProfessionalPlan, computeDisruptionAnnotations, createManualRoom, deriveFloorplanOutputs } from './floorplanDerivations';
 import type { AutoRoute, DerivedFloorplanOutput } from './floorplanDerivations';
 import { badgeForObject, validatePropertyPlan } from './propertyValidation';
 import type { ValidationResult } from './propertyValidation';
@@ -287,12 +294,13 @@ interface Props {
 // ─── Tool config ──────────────────────────────────────────────────────────────
 
 const TOOL_DEFS: { id: EditorTool; label: string; icon: string; hint: string }[] = [
-  { id: 'select',       label: 'Select',      icon: '↖',  hint: 'Click to select; drag to move' },
-  { id: 'addRoom',      label: 'Add Room',    icon: '⬛', hint: 'Click canvas to place room; drag to size' },
-  { id: 'drawWall',     label: 'Draw Wall',   icon: '📏', hint: 'Click start, click end to draw wall' },
-  { id: 'addOpening',   label: 'Opening',     icon: '🚪', hint: 'Click a wall to add door/window' },
-  { id: 'placeNode',    label: 'Place Node',  icon: '🔧', hint: 'Select component from tray, click canvas' },
-  { id: 'connectRoute', label: 'Connect',     icon: '〰', hint: 'Click source node, then target node' },
+  { id: 'select',        label: 'Select',       icon: '↖',  hint: 'Click to select; drag to move' },
+  { id: 'addRoom',       label: 'Add Room',     icon: '⬛', hint: 'Click canvas to place room; drag to size' },
+  { id: 'drawWall',      label: 'Draw Wall',    icon: '📏', hint: 'Click start, click end to draw wall' },
+  { id: 'addOpening',    label: 'Opening',      icon: '🚪', hint: 'Click a wall to add door/window' },
+  { id: 'placeNode',     label: 'Place Node',   icon: '🔧', hint: 'Select component from tray, click canvas' },
+  { id: 'connectRoute',  label: 'Connect',      icon: '〰', hint: 'Click source node, then target node' },
+  { id: 'addDisruption', label: 'Disruption',   icon: '⚠️', hint: 'Click canvas to place a disruption / consequence marker' },
 ];
 
 // ─── FloorPlanBuilder ─────────────────────────────────────────────────────────
@@ -326,6 +334,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   const [manualRoomWidthM, setManualRoomWidthM] = useState(3.6);
   const [manualRoomLengthM, setManualRoomLengthM] = useState(3.6);
   const [manualRoomFloorId, setManualRoomFloorId] = useState<string>(() => plan.floors[0]?.id ?? '');
+
+  /** Customer / engineer presentation mode */
+  const [viewMode, setViewMode] = useState<ViewMode>('customer');
+  /** Disruption kind selected for the addDisruption tool */
+  const [pendingDisruptionKind, setPendingDisruptionKind] = useState<DisruptionKind>('boxing');
 
   // ── Zoom & pan state ────────────────────────────────────────────────────
   const [zoom, setZoom] = useState(1);
@@ -403,6 +416,29 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     return autoRouteHeatingPipes(visibleNodes, activeFloor.rooms);
   }, [visibleNodes, activeFloor]);
 
+  /** Auto-suggested disruption annotations derived from the full plan. */
+  const suggestedDisruptions = useMemo<DisruptionAnnotation[]>(
+    () => computeDisruptionAnnotations(plan),
+    [plan],
+  );
+
+  /** All disruption annotations to render: user-placed + auto-suggested. */
+  const allDisruptions = useMemo<DisruptionAnnotation[]>(() => {
+    const userPlaced = plan.disruptions ?? [];
+    // Only show suggestions that don't duplicate a user-placed annotation at the
+    // same position and kind.
+    const suggested = suggestedDisruptions.filter(
+      (s) => !userPlaced.some((u) => u.kind === s.kind && Math.abs(u.x - s.x) < 12 && Math.abs(u.y - s.y) < 12),
+    );
+    return [...userPlaced, ...suggested];
+  }, [plan.disruptions, suggestedDisruptions]);
+
+  /** Disruptions on the currently active floor. */
+  const activeFloorDisruptions = useMemo(
+    () => allDisruptions.filter((d) => d.floorId === activeFloorId),
+    [allDisruptions, activeFloorId],
+  );
+
   useEffect(() => {
     if (!manualRoomFloorId && plan.floors[0]?.id) setManualRoomFloorId(plan.floors[0].id);
   }, [manualRoomFloorId, plan.floors]);
@@ -421,6 +457,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     if (selection?.kind !== 'node') return null;
     return visibleNodes.find((n) => n.id === selection.id) ?? null;
   }, [selection, visibleNodes]);
+
+  const selectedDisruption = useMemo(() => {
+    if (selection?.kind !== 'disruption') return null;
+    return (plan.disruptions ?? []).find((d) => d.id === selection.id) ?? null;
+  }, [selection, plan.disruptions]);
 
   // ── Emit helper ──────────────────────────────────────────────────────────
 
@@ -619,6 +660,35 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     setPendingPort(null);
   }
 
+  // ── Disruption annotation mutations ──────────────────────────────────────
+
+  function placeDisruption(kind: DisruptionKind, x: number, y: number) {
+    const ann: DisruptionAnnotation = {
+      id: uid('dis'),
+      kind,
+      floorId: activeFloorId,
+      x: snapToGrid(x),
+      y: snapToGrid(y),
+    };
+    updatePlan((p) => ({ ...p, disruptions: [...(p.disruptions ?? []), ann] }));
+    setSelection({ kind: 'disruption', id: ann.id });
+  }
+
+  function updateDisruption(id: string, patch: Partial<DisruptionAnnotation>) {
+    updatePlan((p) => ({
+      ...p,
+      disruptions: (p.disruptions ?? []).map((d) => (d.id === id ? { ...d, ...patch } : d)),
+    }));
+  }
+
+  function deleteDisruption(id: string) {
+    updatePlan((p) => ({
+      ...p,
+      disruptions: (p.disruptions ?? []).filter((d) => d.id !== id),
+    }));
+    if (selection?.kind === 'disruption' && selection.id === id) setSelection(null);
+  }
+
   // ── Pointer helpers ──────────────────────────────────────────────────────
 
   function boardPos(e: React.PointerEvent<HTMLDivElement>): { x: number; y: number } {
@@ -667,6 +737,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       placeNode(pendingKind, pos.x, pos.y);
       setPendingKind(null);
       setGhostPos(null);
+      return;
+    }
+
+    if (tool === 'addDisruption') {
+      placeDisruption(pendingDisruptionKind, pos.x, pos.y);
       return;
     }
 
@@ -868,6 +943,17 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
 
   // ─── Render helpers ───────────────────────────────────────────────────────
 
+  /** Customer-friendly label for each disruption kind. */
+  function customerDisruptionLabel(kind: DisruptionKind): string {
+    switch (kind) {
+      case 'floorLift':   return 'Floor work here';
+      case 'boxing':      return 'Boxed pipework';
+      case 'wallChase':   return 'Wall work here';
+      case 'coreDrill':   return 'Drill through wall';
+      case 'externalRun': return 'External pipework';
+    }
+  }
+
   function validationBadge(objectId: string) {
     const state = badgeForObject(validation, objectId);
     if (state === 'ok') return null;
@@ -907,9 +993,26 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       <header className="fpb__header">
         <div className="fpb__header-title">
           <h2>Property Builder</h2>
-          <p>Layer 1: geometry &nbsp;·&nbsp; Layer 2: components &nbsp;·&nbsp; Layer 3: routes</p>
+          <p>Layer 1: geometry &nbsp;·&nbsp; Layer 2: components &nbsp;·&nbsp; Layer 3: routes &nbsp;·&nbsp; Layer 4: consequences</p>
         </div>
         <div className="fpb__header-actions">
+          {/* ── View mode toggle ── */}
+          <div className="fpb__view-toggle" role="group" aria-label="View mode">
+            <button
+              className={`fpb__view-btn ${viewMode === 'customer' ? 'active' : ''}`}
+              onClick={() => setViewMode('customer')}
+              title="Customer view — simplified labels, disruption emphasis"
+            >
+              👤 Customer
+            </button>
+            <button
+              className={`fpb__view-btn ${viewMode === 'engineer' ? 'active' : ''}`}
+              onClick={() => setViewMode('engineer')}
+              title="Engineer view — full dimensions, pipe sizes, route labels"
+            >
+              🔧 Engineer
+            </button>
+          </div>
           <div className={`fpb__validation-summary fpb__validation-summary--${validation.isValid ? 'ok' : validation.errorCount > 0 ? 'error' : 'warning'}`}>
             {validation.isValid
               ? '✓ Valid'
@@ -1028,6 +1131,22 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 {t.label}
               </button>
             ))}
+            {/* Disruption kind picker — visible when addDisruption is active */}
+            {tool === 'addDisruption' && (
+              <div className="fpb__disruption-picker">
+                {(Object.keys(DISRUPTION_KIND_LABELS) as DisruptionKind[]).map((k) => (
+                  <button
+                    key={k}
+                    className={`fpb__disruption-kind-btn ${pendingDisruptionKind === k ? 'active' : ''}`}
+                    onClick={() => setPendingDisruptionKind(k)}
+                    title={DISRUPTION_KIND_LABELS[k]}
+                  >
+                    <span>{DISRUPTION_KIND_EMOJI[k]}</span>
+                    {DISRUPTION_KIND_LABELS[k]}
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
 
           {/* Component tray */}
@@ -1167,14 +1286,36 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               ))}
 
               {/* ── Layer 3a: Auto-routed heating pipes ── */}
-              {autoRoutes.map((route) => (
-                <polyline
-                  key={route.id}
-                  className={`fpb__pipe fpb__pipe--${route.type}`}
-                  points={route.route.map((p) => `${p.x},${p.y}`).join(' ')}
-                  fill="none"
-                />
-              ))}
+              {autoRoutes.map((route) => {
+                // Mid-point for the engineer label
+                const mid = route.route[Math.floor(route.route.length / 2)];
+                const labelText = viewMode === 'engineer'
+                  ? `${route.pipeSizeMm}mm ${route.type === 'flow' ? 'F' : 'R'}`
+                  : null;
+                return (
+                  <g key={route.id}>
+                    <polyline
+                      className={`fpb__pipe fpb__pipe--${route.type}`}
+                      points={route.route.map((p) => `${p.x},${p.y}`).join(' ')}
+                      fill="none"
+                    />
+                    {/* Engineer-view: pipe size + type label at mid-point */}
+                    {labelText && (
+                      <text
+                        x={mid.x}
+                        y={mid.y - 5}
+                        fontSize="8"
+                        fill={route.type === 'flow' ? '#b45309' : '#1d4ed8'}
+                        textAnchor="middle"
+                        className="fpb__pipe-label"
+                        style={{ pointerEvents: 'none' }}
+                      >
+                        {labelText}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
 
               {/* ── Layer 3b: Lego edges (manual connection routes) ── */}
               {activeEdges.map((edge) => {
@@ -1195,6 +1336,56 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                     strokeWidth={2}
                     strokeDasharray="6 3"
                   />
+                );
+              })}
+
+              {/* ── Layer 4: Disruption annotations ── */}
+              {activeFloorDisruptions.map((dis) => {
+                const isUserPlaced = (plan.disruptions ?? []).some((d) => d.id === dis.id);
+                const isSelected = selection?.kind === 'disruption' && selection.id === dis.id;
+                const emoji = DISRUPTION_KIND_EMOJI[dis.kind];
+                const label = viewMode === 'engineer'
+                  ? DISRUPTION_KIND_LABELS[dis.kind]
+                  : customerDisruptionLabel(dis.kind);
+                return (
+                  <g
+                    key={dis.id}
+                    style={{ cursor: tool === 'select' ? 'pointer' : 'default' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (tool === 'select') setSelection({ kind: 'disruption', id: dis.id });
+                    }}
+                  >
+                    <circle
+                      cx={dis.x}
+                      cy={dis.y}
+                      r={10}
+                      fill={isSelected ? '#fef3c7' : isUserPlaced ? '#fff7ed' : '#f0fdf4'}
+                      stroke={isSelected ? '#d97706' : isUserPlaced ? '#f59e0b' : '#86efac'}
+                      strokeWidth={isSelected ? 2.5 : 1.5}
+                      strokeDasharray={isUserPlaced ? 'none' : '3 2'}
+                    />
+                    <text
+                      x={dis.x}
+                      y={dis.y + 4}
+                      fontSize="10"
+                      textAnchor="middle"
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {emoji}
+                    </text>
+                    <text
+                      x={dis.x}
+                      y={dis.y + 20}
+                      fontSize="7"
+                      fill="#78350f"
+                      textAnchor="middle"
+                      className="fpb__disruption-label"
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {label}
+                    </text>
+                  </g>
                 );
               })}
 
@@ -1549,6 +1740,13 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 onDelete={() => deleteNode(selectedNode.id)}
               />
             )}
+            {selectedDisruption && (
+              <InspectorDisruption
+                disruption={selectedDisruption}
+                onUpdate={(patch) => updateDisruption(selectedDisruption.id, patch)}
+                onDelete={() => deleteDisruption(selectedDisruption.id)}
+              />
+            )}
           </aside>
         )}
       </div>
@@ -1559,8 +1757,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
           <p>Fabric heat-loss estimates, emitter sizing, route lengths, and siting checks derived from the current room layout.</p>
         </div>
         <div className="fpb__issue-list">
-          {/* ── Room metrics ── */}
-          {derivedOutputs.roomMetrics.map((m) => {
+          {/* ── Room metrics — engineer view only ── */}
+          {viewMode === 'engineer' && derivedOutputs.roomMetrics.map((m) => {
             const loss   = derivedOutputs.roomHeatLossKw.find((r) => r.roomId === m.roomId);
             const emitter = derivedOutputs.emitterSizing.find((e) => e.roomId === m.roomId);
             return (
@@ -1572,12 +1770,26 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               </div>
             );
           })}
+          {/* ── Customer view: simplified room summary ── */}
+          {viewMode === 'customer' && derivedOutputs.roomMetrics.length > 0 && (
+            <div className="fpb__issue fpb__issue--info">
+              {derivedOutputs.roomMetrics.length} room{derivedOutputs.roomMetrics.length !== 1 ? 's' : ''} mapped
+              {derivedOutputs.totalPipeLengthM > 0 && <> · est. {derivedOutputs.totalPipeLengthM.toFixed(0)} m pipework</>}
+            </div>
+          )}
           {/* ── Pipe routing ── */}
           {autoRoutes.length > 0 && (
             <div className="fpb__issue fpb__issue--info">
-              Auto-routed: {autoRoutes.filter(r => r.type === 'flow').length} flow circuits,{' '}
-              {autoRoutes.filter(r => r.type === 'return').length} return circuits
-              {derivedOutputs.totalPipeLengthM > 0 && <> — est. {derivedOutputs.totalPipeLengthM.toFixed(1)} m</>}
+              {viewMode === 'engineer' ? (
+                <>
+                  Auto-routed: {autoRoutes.filter(r => r.type === 'flow').length} flow circuits,{' '}
+                  {autoRoutes.filter(r => r.type === 'return').length} return circuits
+                  {derivedOutputs.totalPipeLengthM > 0 && <> — est. {derivedOutputs.totalPipeLengthM.toFixed(1)} m</>}
+                  {' '}· sizes: {[...new Set(autoRoutes.map(r => r.pipeSizeMm))].sort().join(', ')} mm
+                </>
+              ) : (
+                <>Heating circuits routed — {autoRoutes.filter(r => r.type === 'flow').length} zone{autoRoutes.filter(r => r.type === 'flow').length !== 1 ? 's' : ''}</>
+              )}
             </div>
           )}
           {autoRoutes.length === 0 && derivedOutputs.totalPipeLengthM > 0 && (
@@ -1586,9 +1798,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             </div>
           )}
           {/* ── Feasibility ── */}
-          <div className="fpb__issue fpb__issue--info">
-            Feasibility — heat source: {derivedOutputs.feasibilityChecks.hasHeatSource ? 'yes' : 'no'}, emitters: {derivedOutputs.feasibilityChecks.hasEmitters ? 'yes' : 'no'}, outdoor heat pump: {derivedOutputs.feasibilityChecks.hasOutdoorHeatPump ? 'yes' : 'n/a or missing'}
-          </div>
+          {viewMode === 'engineer' && (
+            <div className="fpb__issue fpb__issue--info">
+              Feasibility — heat source: {derivedOutputs.feasibilityChecks.hasHeatSource ? 'yes' : 'no'}, emitters: {derivedOutputs.feasibilityChecks.hasEmitters ? 'yes' : 'no'}, outdoor heat pump: {derivedOutputs.feasibilityChecks.hasOutdoorHeatPump ? 'yes' : 'n/a or missing'}
+            </div>
+          )}
           {/* ── Siting flags ── */}
           {derivedOutputs.sitingFlags.map((flag) => (
             <div
@@ -1598,6 +1812,24 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               {flag.status === 'ok' ? '✓' : '⚠'} {flag.message}
             </div>
           ))}
+          {/* ── Disruption / consequence summary ── */}
+          {allDisruptions.length > 0 && (
+            <div className="fpb__issue fpb__issue--warning">
+              {viewMode === 'customer' ? (
+                <>
+                  <strong>Installation disruption</strong>
+                  {': '}
+                  {[...new Set(allDisruptions.map((d) => customerDisruptionLabel(d.kind)))].join(' · ')}
+                </>
+              ) : (
+                <>
+                  <strong>Consequence flags ({allDisruptions.length})</strong>
+                  {': '}
+                  {allDisruptions.map((d) => `${DISRUPTION_KIND_LABELS[d.kind]}${d.note ? ` — ${d.note}` : ''}`).join(' · ')}
+                </>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
@@ -1826,4 +2058,53 @@ function InspectorNode({
 
 function toMeters(px: number) {
   return (px / GRID).toFixed(1);
+}
+
+// ─── InspectorDisruption ───────────────────────────────────────────────────────
+
+function InspectorDisruption({
+  disruption,
+  onUpdate,
+  onDelete,
+}: {
+  disruption: DisruptionAnnotation;
+  onUpdate: (patch: Partial<DisruptionAnnotation>) => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="fpb__inspector-body">
+      <div className="fpb__inspector-heading">
+        <span>
+          {DISRUPTION_KIND_EMOJI[disruption.kind]} {DISRUPTION_KIND_LABELS[disruption.kind]}
+        </span>
+        <button className="fpb__delete-btn" onClick={onDelete} title="Delete disruption marker">✕</button>
+      </div>
+      <label className="fpb__field">
+        <span>Kind</span>
+        <select
+          value={disruption.kind}
+          onChange={(e) => onUpdate({ kind: e.target.value as DisruptionKind })}
+        >
+          {(Object.keys(DISRUPTION_KIND_LABELS) as DisruptionKind[]).map((k) => (
+            <option key={k} value={k}>
+              {DISRUPTION_KIND_EMOJI[k]} {DISRUPTION_KIND_LABELS[k]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="fpb__field">
+        <span>Note</span>
+        <textarea
+          rows={3}
+          value={disruption.note ?? ''}
+          placeholder="e.g. Floorboards lifted in hallway"
+          onChange={(e) => onUpdate({ note: e.target.value || undefined })}
+        />
+      </label>
+      <div className="fpb__field fpb__field--static">
+        <span>Position</span>
+        <span>{toMeters(disruption.x)} m, {toMeters(disruption.y)} m</span>
+      </div>
+    </div>
+  );
 }
