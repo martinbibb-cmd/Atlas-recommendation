@@ -92,6 +92,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
             engineOutput={engineOutput}
             surveyData={surveyData}
             floorplanOutput={floorplanOutput}
+            portalMode
           />
         </section>
 

@@ -14,6 +14,7 @@ import { buildStoredHotWaterContextFromSurvey } from '../../lib/dhw/buildStoredH
 import { computeDrawOff } from '../../engine/modules/StoredDhwModule';
 import type { DrawOffFlowStability } from '../../engine/modules/StoredDhwModule';
 import type { RecommendationPresentationState } from '../../lib/selection/optionSelection';
+import PrintableRecommendationPage from '../advice/PrintableRecommendationPage';
 import AdvicePanel from '../advice/AdvicePanel';
 import PerformanceOutcomesPanel from '../outcomes/PerformanceOutcomesPanel';
 import './UnifiedSimulatorView.css';
@@ -43,9 +44,16 @@ interface Props {
   engineOutput: EngineOutputV1;
   surveyData: FullSurveyModelV1;
   floorplanOutput?: DerivedFloorplanOutput;
+  /**
+   * When true the simulator is running in the customer portal.
+   * Restricts the simulator inputs panel to the portal-safe subset and replaces
+   * the direct window.print() call with a dedicated print-preview route that
+   * renders PrintableRecommendationPage before triggering the browser print dialog.
+   */
+  portalMode?: boolean;
 }
 
-export default function UnifiedSimulatorView({ engineOutput, surveyData, floorplanOutput }: Props) {
+export default function UnifiedSimulatorView({ engineOutput, surveyData, floorplanOutput, portalMode = false }: Props) {
   const surveyAdapted = useMemo(() => adaptFullSurveyToSimulatorInputs(surveyData), [surveyData]);
   const compareSeed = useMemo(() => buildCompareSeedFromSurvey(surveyData, engineOutput), [surveyData, engineOutput]);
   const floorplanOperatingAssumptions = useMemo(() => floorplanOutput ? buildFloorplanOperatingAssumptions(floorplanOutput, surveyData.heatLossWatts) : null, [floorplanOutput, surveyData]);
@@ -71,6 +79,9 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
     );
     return drawOff.flowStability;
   }, [surveyAdapted.systemChoice, surveyData]);
+
+  // ── Print state ────────────────────────────────────────────────────────────
+  const [isPrinting, setIsPrinting] = useState(false);
 
   // ── Save/report state ─────────────────────────────────────────────────────
   type SaveState = 'idle' | 'saving' | 'saved' | 'failed';
@@ -114,7 +125,17 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
     persistReport();
   }, [persistReport]);
 
-  const handlePrint = useCallback(() => { window.print(); }, []);
+  // In portal mode, navigate to a dedicated print-preview component that renders
+  // PrintableRecommendationPage before triggering window.print() — this ensures
+  // the printable layout is fully rendered before the dialog opens, consistent
+  // with the DecisionSynthesisPage print flow.
+  const handlePrint = useCallback(() => {
+    if (portalMode) {
+      setIsPrinting(true);
+    } else {
+      window.print();
+    }
+  }, [portalMode]);
 
   const handleCopyPortalLink = useCallback(() => {
     if (!savedReportId) return;
@@ -124,6 +145,28 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
       setTimeout(() => setCopyState('idle'), 2000);
     }).catch(() => {});
   }, [savedReportId]);
+
+  // Build a minimal presentation state for the printable report.
+  const presentationState = useMemo((): RecommendationPresentationState => {
+    const recommendedOptionId =
+      engineOutput.options?.find((o) => o.status === 'viable')?.id ??
+      engineOutput.options?.[0]?.id ?? '';
+    return { recommendedOptionId, chosenByCustomer: false };
+  }, [engineOutput]);
+
+  // Portal print view — render the print-friendly page instead of the dashboard.
+  if (isPrinting) {
+    return (
+      <PrintableRecommendationPage
+        advice={advice}
+        compareSeed={compareSeed}
+        onBack={() => setIsPrinting(false)}
+        reportReference={savedReportId ?? undefined}
+        engineOutput={engineOutput}
+        presentationState={presentationState}
+      />
+    );
+  }
 
   return (
     <div className="unified-simulator-view" data-testid="unified-simulator-view">
@@ -176,6 +219,7 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
           compareLabels={{ current: 'Current system', proposed: 'Proposed system' }}
           floorplanOperatingAssumptions={floorplanOperatingAssumptions ?? undefined}
           initialCurrentFlowStability={currentSystemFlowStability}
+          portalMode={portalMode}
         />
       </div>
       <aside className="unified-simulator-view__insights" aria-label="Simulation outcomes and advice">

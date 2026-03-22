@@ -46,27 +46,34 @@ describe('runCwsSupplyModuleV1', () => {
 
   // ── Flow-only (pressure not recorded — mainsPressureRecorded: false) ─────────
 
-  it('flow-only, pressure not recorded (12 L/min) → meetsUnventedRequirement true', () => {
+  it('flow-only, pressure not recorded (12 L/min) → meetsUnventedRequirement false (both required)', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({ mainsPressureRecorded: false, mainsDynamicFlowLpm: 12 })
     );
-    expect(result.meetsUnventedRequirement).toBe(true);
+    expect(result.meetsUnventedRequirement).toBe(false);
     expect(result.hasMeasurements).toBe(true);
     expect(result.hasDynOpPoint).toBe(false); // no pressure → no operating point
   });
 
-  it('flow-only, pressure not recorded (11 L/min) → meetsUnventedRequirement false (needs >= 12)', () => {
+  it('flow-only, pressure not recorded (20 L/min) → meetsUnventedRequirement false regardless of flow magnitude', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ mainsPressureRecorded: false, mainsDynamicFlowLpm: 20 })
+    );
+    expect(result.meetsUnventedRequirement).toBe(false);
+  });
+
+  it('flow-only, pressure not recorded (11 L/min) → meetsUnventedRequirement false', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({ mainsPressureRecorded: false, mainsDynamicFlowLpm: 11 })
     );
     expect(result.meetsUnventedRequirement).toBe(false);
   });
 
-  it('flow-only, pressure not recorded → note says "pressure not recorded"', () => {
+  it('flow-only, pressure not recorded → note warns that eligibility cannot be confirmed', () => {
     const result = runCwsSupplyModuleV1(
       baseInput({ mainsPressureRecorded: false, mainsDynamicFlowLpm: 14 })
     );
-    expect(result.notes.some(n => n.includes('pressure not recorded'))).toBe(true);
+    expect(result.notes.some(n => n.includes('cannot confirm unvented eligibility'))).toBe(true);
   });
 
   it('flow at 0 bar (explicitly entered) → does NOT meet unvented requirement', () => {
@@ -86,7 +93,7 @@ describe('runCwsSupplyModuleV1', () => {
     expect(result.inconsistent).toBe(false);
   });
 
-  // ── Unvented eligibility gate: 10 L/min @ ≥ 1.0 bar OR 12 L/min with pressure not recorded ─
+  // ── Unvented eligibility gate: 10 L/min @ ≥ 1.0 bar (both required) ─────────
 
   it('10 L/min @ 1.0 bar → meets unvented requirement', () => {
     const result = runCwsSupplyModuleV1(

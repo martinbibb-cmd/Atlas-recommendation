@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createManualRoom, canPlaceInProfessionalPlan, deriveFloorplanOutputs, computeExposedPerimeterM } from '../floorplanDerivations';
-import type { PropertyPlan, Room } from '../propertyPlan.types';
+import { createManualRoom, canPlaceInProfessionalPlan, deriveFloorplanOutputs, computeExposedPerimeterM, computePipeOffset, autoRouteHeatingPipes } from '../floorplanDerivations';
+import type { PropertyPlan, Room, PlacementNode } from '../propertyPlan.types';
 
 function makePlan(): PropertyPlan {
   return {
@@ -203,5 +203,99 @@ describe('floorplan derived outputs', () => {
     plan.placementNodes[0] = { ...plan.placementNodes[0], roomId: 'kit' };
     const warnOutput = deriveFloorplanOutputs(plan, 2.4);
     expect(warnOutput.sitingFlags.find((f) => f.nodeId === 'hp1')?.status).toBe('warn');
+  });
+});
+
+// ─── computePipeOffset ────────────────────────────────────────────────────────
+
+describe('computePipeOffset', () => {
+  it('returns at least 4 px for any grid size', () => {
+    expect(computePipeOffset(24)).toBeGreaterThanOrEqual(4);
+    expect(computePipeOffset(8)).toBeGreaterThanOrEqual(4);
+    expect(computePipeOffset(1)).toBeGreaterThanOrEqual(4);
+  });
+
+  it('returns 10% of grid when that exceeds 4', () => {
+    // 60 * 0.1 = 6 > 4 → offset should be 6
+    expect(computePipeOffset(60)).toBeCloseTo(6);
+    // 100 * 0.1 = 10 > 4 → offset should be 10
+    expect(computePipeOffset(100)).toBeCloseTo(10);
+  });
+
+  it('clamps to 4 for small grid values where 10% < 4', () => {
+    // 24 * 0.1 = 2.4 < 4 → offset should be 4
+    expect(computePipeOffset(24)).toBe(4);
+    // 30 * 0.1 = 3 < 4 → offset should be 4
+    expect(computePipeOffset(30)).toBe(4);
+  });
+});
+
+// ─── autoRouteHeatingPipes ────────────────────────────────────────────────────
+
+describe('autoRouteHeatingPipes', () => {
+  const GRID = 24;
+
+  function makeNodes(): PlacementNode[] {
+    return [
+      {
+        id: 'hs1',
+        type: 'heat_source_combi',
+        floorId: 'f1',
+        roomId: 'boiler_room',
+        anchor: { x: GRID * 2, y: GRID * 2 },
+        metadata: {},
+      },
+      {
+        id: 'em1',
+        type: 'radiator_loop',
+        floorId: 'f1',
+        roomId: 'lounge',
+        anchor: { x: GRID * 6, y: GRID * 4 },
+        metadata: {},
+      },
+    ];
+  }
+
+  const rooms: Room[] = [
+    { id: 'boiler_room', floorId: 'f1', name: 'Kitchen', roomType: 'kitchen', x: 0, y: 0, width: GRID * 4, height: GRID * 4 },
+    { id: 'lounge', floorId: 'f1', name: 'Lounge', roomType: 'living', x: GRID * 4, y: 0, width: GRID * 4, height: GRID * 8 },
+  ];
+
+  it('produces one flow route and one return route', () => {
+    const routes = autoRouteHeatingPipes(makeNodes(), rooms);
+    expect(routes.filter(r => r.type === 'flow')).toHaveLength(1);
+    expect(routes.filter(r => r.type === 'return')).toHaveLength(1);
+  });
+
+  it('returns empty array when no heat source present', () => {
+    const nodes = makeNodes().filter(n => n.type !== 'heat_source_combi');
+    expect(autoRouteHeatingPipes(nodes, rooms)).toHaveLength(0);
+  });
+
+  it('returns empty array when no emitters present', () => {
+    const nodes = makeNodes().filter(n => n.type !== 'radiator_loop');
+    expect(autoRouteHeatingPipes(nodes, rooms)).toHaveLength(0);
+  });
+
+  it('custom pipeOffset separates flow and return start points', () => {
+    const customOffset = 10;
+    const nodes = makeNodes();
+    const routes = autoRouteHeatingPipes(nodes, rooms, customOffset);
+    const flow = routes.find(r => r.type === 'flow')!;
+    const ret = routes.find(r => r.type === 'return')!;
+    // Flow start x = heatSource.anchor.x + customOffset
+    expect(flow.route[0].x).toBe(nodes[0].anchor.x + customOffset);
+    // Return start x = emitter.anchor.x - customOffset
+    expect(ret.route[0].x).toBe(nodes[1].anchor.x - customOffset);
+  });
+
+  it('flow and return routes have node IDs set correctly', () => {
+    const routes = autoRouteHeatingPipes(makeNodes(), rooms);
+    const flow = routes.find(r => r.type === 'flow')!;
+    const ret = routes.find(r => r.type === 'return')!;
+    expect(flow.fromNodeId).toBe('hs1');
+    expect(flow.toNodeId).toBe('em1');
+    expect(ret.fromNodeId).toBe('em1');
+    expect(ret.toNodeId).toBe('hs1');
   });
 });

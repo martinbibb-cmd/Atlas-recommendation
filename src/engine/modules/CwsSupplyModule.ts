@@ -2,15 +2,16 @@
  * CwsSupplyModule
  *
  * Models the cold-water supply (CWS) evidence from available measurements.
- * Flow-only is valid evidence — pressure is not required for hasMeasurements.
+ * Flow-only is valid evidence for hasMeasurements, but unvented eligibility
+ * now requires BOTH dynamic flow and dynamic pressure to be recorded.
  * "Pressure not recorded" must be represented as undefined (via mainsPressureRecorded: false),
  * NOT as 0.0 bar. A recorded 0 bar is treated as a real entered value and fails the ≥1.0 bar gate.
  *
  * Hard rule: dynamic must not exceed static + 0.2 bar (INCONSISTENCY_TOLERANCE).
  *
- * Unvented eligibility gate:
- *   - flowLpm ≥ 10 AND dynamicBar ≥ 1.0  (operating-point evidence)
- *   - OR flowLpm ≥ 12 AND dynamicBar === undefined  (flow-only evidence, pressure not recorded)
+ * Unvented eligibility gate (operating-point evidence only):
+ *   - flowLpm ≥ 10 AND dynamicBar ≥ 1.0
+ *   - Both flow AND pressure must be recorded; flow-only evidence is not sufficient.
  *
  * Water confidence levels:
  *   - 'good':    plausible flow (≤ MAX_PLAUSIBLE_FLOW_LPM) and consistent readings
@@ -24,10 +25,9 @@ import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
 /** Tolerance (bar) for dynamic > static inconsistency check. */
 const INCONSISTENCY_TOLERANCE = 0.2;
 
-/** Unvented requirement: 10 L/min @ ≥ 1.0 bar (operating-point evidence), or 12 L/min with pressure not recorded (flow-only evidence). */
+/** Unvented requirement: 10 L/min @ ≥ 1.0 bar (operating-point evidence only; both values required). */
 const UNVENTED_FLOW_AT_PRESSURE_LPM = 10;
 const UNVENTED_FLOW_AT_PRESSURE_BAR = 1.0;
-const UNVENTED_FLOW_ONLY_LPM = 12;
 
 /**
  * Threshold above which a flow reading is treated as unrealistic / unit-error suspect.
@@ -184,18 +184,22 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
       notes.push('Static pressure not measured — pressure-drop unknown.');
     }
 
-    // Unvented eligibility gate:
-    //   - Operating-point evidence: flow ≥ 10 L/min AND pressure ≥ 1.0 bar
-    //   - Flow-only evidence: flow ≥ 12 L/min AND pressure not recorded (undefined)
-    // A recorded 0 bar does NOT satisfy either gate (fails ≥1.0 bar and is not undefined).
-    // Suspect flow (above MAX_PLAUSIBLE_FLOW_LPM) never satisfies the gate — junk inputs
-    // must not be allowed to pass eligibility checks.
+    // Unvented eligibility gate (operating-point evidence only):
+    //   - flow ≥ 10 L/min AND pressure ≥ 1.0 bar; both values must be recorded.
+    // A recorded 0 bar does NOT satisfy the gate (fails ≥1.0 bar).
+    // Flow without pressure (pressure not recorded / undefined) does NOT satisfy
+    // the gate — incomplete data cannot confirm unvented eligibility.
+    // Suspect flow (above MAX_PLAUSIBLE_FLOW_LPM) never satisfies the gate.
     const meetsUnventedRequirement =
       !inconsistent &&
-      !hasSuspectFlow && (
-        (dynamicPressureBar !== undefined && flow >= UNVENTED_FLOW_AT_PRESSURE_LPM && dynamicPressureBar >= UNVENTED_FLOW_AT_PRESSURE_BAR) ||
-        (dynamicPressureBar === undefined && flow >= UNVENTED_FLOW_ONLY_LPM)
-      );
+      !hasSuspectFlow &&
+      dynamicPressureBar !== undefined &&
+      flow >= UNVENTED_FLOW_AT_PRESSURE_LPM &&
+      dynamicPressureBar >= UNVENTED_FLOW_AT_PRESSURE_BAR;
+
+    if (!hasSuspectFlow && dynamicPressureBar === undefined) {
+      notes.push('Pressure not recorded — cannot confirm unvented eligibility without both flow and pressure.');
+    }
 
     const waterConfidence: WaterConfidence =
       hasSuspectFlow || inconsistent ? 'suspect' : 'good';

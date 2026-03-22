@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import CustomerPortalPage from '../CustomerPortalPage';
 import type { ReportDetail } from '../../../lib/reports/reportApi';
 import type { EngineOutputV1 } from '../../../contracts/EngineOutputV1';
@@ -47,5 +47,29 @@ describe('CustomerPortalPage', () => {
     expect(screen.getByTestId('performance-outcomes-panel')).toBeTruthy();
     expect(screen.getByTestId('advice-panel')).toBeTruthy();
     expect(screen.getByText('SW1A 1AA')).toBeTruthy();
+  });
+
+  it('clicking the print button shows PrintableRecommendationPage in portal mode', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('unified-simulator-view')).toBeTruthy());
+    const printBtn = screen.getByTestId('print-report-btn');
+    fireEvent.click(printBtn);
+    // After clicking, PrintableRecommendationPage should replace the simulator view.
+    // The printable page renders a back button and print button in its toolbar.
+    await waitFor(() => expect(screen.getByLabelText('Back to advice page')).toBeTruthy());
+    // The original simulator view should no longer be visible.
+    expect(document.querySelector('[data-testid="unified-simulator-view"]')).toBeNull();
+  });
+
+  it('portal mode hides expert-only inputs (mains pressure, mains flow, boiler output)', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('unified-simulator-view')).toBeTruthy());
+    // Expert-only labels must not appear in the portal simulator inputs
+    expect(screen.queryByText('Mains pressure')).toBeNull();
+    expect(screen.queryByText('Mains flow')).toBeNull();
+    expect(screen.queryByText('Boiler output')).toBeNull();
+    expect(screen.queryByText('Actual heat loss')).toBeNull();
   });
 });

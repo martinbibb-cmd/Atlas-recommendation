@@ -136,6 +136,12 @@ interface SystemInputsPanelProps {
   onInputChange: (partial: Partial<SystemInputs>) => void
   /** Current system choice — used to disable irrelevant inputs. */
   systemChoice: SimulatorSystemChoice
+  /**
+   * When true, the panel is running in the customer portal.
+   * Expert-only inputs are hidden; only the portal-safe subset is shown:
+   * system condition, cylinder type & size, emitter size, and primary pipe size.
+   */
+  portalMode?: boolean
 }
 
 interface InputRowProps {
@@ -181,52 +187,61 @@ export default function SystemInputsPanel({
   inputs,
   onInputChange,
   systemChoice,
+  portalMode = false,
 }: SystemInputsPanelProps) {
   const isCombi = systemChoice === 'combi'
 
   return (
     <div className="sys-inputs-panel">
-      <InputRow
-        label="Time speed"
-        icon="⏱"
-        value={timeSpeed}
-        min={TIME_SPEED_MIN}
-        max={TIME_SPEED_MAX}
-        step={TIME_SPEED_STEP}
-        unit="×"
-        onChange={onTimeSpeedChange}
-        formatValue={v => `${v}×`}
-      />
-      <InputRow
-        label="Mains pressure"
-        icon="💧"
-        value={inputs.mainsPressureBar}
-        min={0.5}
-        max={6}
-        step={0.5}
-        unit="bar"
-        onChange={v => onInputChange({ mainsPressureBar: v })}
-      />
-      <InputRow
-        label="Mains flow"
-        icon="🚿"
-        value={inputs.mainsFlowLpm}
-        min={3}
-        max={50}
-        step={1}
-        unit="L/min"
-        onChange={v => onInputChange({ mainsFlowLpm: v })}
-      />
-      <InputRow
-        label="Cold inlet temp"
-        icon="🌡"
-        value={inputs.coldInletTempC}
-        min={5}
-        max={20}
-        step={1}
-        unit="°C"
-        onChange={v => onInputChange({ coldInletTempC: v })}
-      />
+      {!portalMode && (
+        <InputRow
+          label="Time speed"
+          icon="⏱"
+          value={timeSpeed}
+          min={TIME_SPEED_MIN}
+          max={TIME_SPEED_MAX}
+          step={TIME_SPEED_STEP}
+          unit="×"
+          onChange={onTimeSpeedChange}
+          formatValue={v => `${v}×`}
+        />
+      )}
+      {!portalMode && (
+        <InputRow
+          label="Mains pressure"
+          icon="💧"
+          value={inputs.mainsPressureBar}
+          min={0.5}
+          max={6}
+          step={0.5}
+          unit="bar"
+          onChange={v => onInputChange({ mainsPressureBar: v })}
+        />
+      )}
+      {!portalMode && (
+        <InputRow
+          label="Mains flow"
+          icon="🚿"
+          value={inputs.mainsFlowLpm}
+          min={3}
+          max={50}
+          step={1}
+          unit="L/min"
+          onChange={v => onInputChange({ mainsFlowLpm: v })}
+        />
+      )}
+      {!portalMode && (
+        <InputRow
+          label="Cold inlet temp"
+          icon="🌡"
+          value={inputs.coldInletTempC}
+          min={5}
+          max={20}
+          step={1}
+          unit="°C"
+          onChange={v => onInputChange({ coldInletTempC: v })}
+        />
+      )}
 
       {/* ── Cylinder type ────────────────────────────────────────────────── */}
       <div className={`sys-input-row${isCombi ? ' sys-input-row--disabled' : ''}`}>
@@ -273,41 +288,47 @@ export default function SystemInputsPanel({
           </select>
         )}
       </div>
-      <InputRow
-        label="Combi power"
-        icon="🔥"
-        value={inputs.combiPowerKw}
-        min={18}
-        max={42}
-        step={2}
-        unit="kW"
-        disabled={!isCombi}
-        onChange={v => onInputChange({ combiPowerKw: v })}
-      />
+      {!portalMode && (
+        <InputRow
+          label="Combi power"
+          icon="🔥"
+          value={inputs.combiPowerKw}
+          min={18}
+          max={42}
+          step={2}
+          unit="kW"
+          disabled={!isCombi}
+          onChange={v => onInputChange({ combiPowerKw: v })}
+        />
+      )}
 
       {/* ── Heating System ────────────────────────────────────────────────── */}
       <div className="sys-inputs-section-heading">Heating System</div>
 
-      <InputRow
-        label="Actual heat loss"
-        icon="🏚"
-        value={inputs.heatLossKw}
-        min={HEAT_LOSS_MIN}
-        max={HEAT_LOSS_MAX}
-        step={HEAT_LOSS_STEP}
-        unit="kW"
-        onChange={v => onInputChange({ heatLossKw: v })}
-      />
-      <InputRow
-        label="Boiler output"
-        icon="🔥"
-        value={inputs.boilerOutputKw}
-        min={BOILER_OUTPUT_MIN}
-        max={BOILER_OUTPUT_MAX}
-        step={BOILER_OUTPUT_STEP}
-        unit="kW"
-        onChange={v => onInputChange({ boilerOutputKw: v })}
-      />
+      {!portalMode && (
+        <InputRow
+          label="Actual heat loss"
+          icon="🏚"
+          value={inputs.heatLossKw}
+          min={HEAT_LOSS_MIN}
+          max={HEAT_LOSS_MAX}
+          step={HEAT_LOSS_STEP}
+          unit="kW"
+          onChange={v => onInputChange({ heatLossKw: v })}
+        />
+      )}
+      {!portalMode && (
+        <InputRow
+          label="Boiler output"
+          icon="🔥"
+          value={inputs.boilerOutputKw}
+          min={BOILER_OUTPUT_MIN}
+          max={BOILER_OUTPUT_MAX}
+          step={BOILER_OUTPUT_STEP}
+          unit="kW"
+          onChange={v => onInputChange({ boilerOutputKw: v })}
+        />
+      )}
 
       <InputRow
         label="Emitter size"
@@ -338,68 +359,76 @@ export default function SystemInputsPanel({
         </div>
       </div>
 
-      <div className="sys-input-row">
-        <span className="sys-input-row__icon" aria-hidden="true">♨</span>
-        <span className="sys-input-row__label">Emitter type</span>
-        <div className="sys-input-row__segmented" role="group" aria-label="Emitter type">
-          {EMITTER_TYPE_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              className={`sys-input-row__seg-btn${inputs.emitterType === opt.value ? ' sys-input-row__seg-btn--active' : ''}`}
-              onClick={() => onInputChange({ emitterType: opt.value })}
-              aria-pressed={inputs.emitterType === opt.value}
-            >
-              {opt.label}
-            </button>
-          ))}
+      {!portalMode && (
+        <div className="sys-input-row">
+          <span className="sys-input-row__icon" aria-hidden="true">♨</span>
+          <span className="sys-input-row__label">Emitter type</span>
+          <div className="sys-input-row__segmented" role="group" aria-label="Emitter type">
+            {EMITTER_TYPE_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                className={`sys-input-row__seg-btn${inputs.emitterType === opt.value ? ' sys-input-row__seg-btn--active' : ''}`}
+                onClick={() => onInputChange({ emitterType: opt.value })}
+                aria-pressed={inputs.emitterType === opt.value}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="sys-input-row">
-        <span className="sys-input-row__icon" aria-hidden="true">🌤</span>
-        <span className="sys-input-row__label">Weather compensation</span>
-        <button
-          className={`sys-input-row__toggle${inputs.weatherCompensation ? ' sys-input-row__toggle--on' : ''}`}
-          onClick={() => onInputChange({ weatherCompensation: !inputs.weatherCompensation })}
-          aria-pressed={inputs.weatherCompensation}
-          aria-label="Weather compensation"
-        >
-          {inputs.weatherCompensation ? 'On' : 'Off'}
-        </button>
-      </div>
+      {!portalMode && (
+        <div className="sys-input-row">
+          <span className="sys-input-row__icon" aria-hidden="true">🌤</span>
+          <span className="sys-input-row__label">Weather compensation</span>
+          <button
+            className={`sys-input-row__toggle${inputs.weatherCompensation ? ' sys-input-row__toggle--on' : ''}`}
+            onClick={() => onInputChange({ weatherCompensation: !inputs.weatherCompensation })}
+            aria-pressed={inputs.weatherCompensation}
+            aria-label="Weather compensation"
+          >
+            {inputs.weatherCompensation ? 'On' : 'Off'}
+          </button>
+        </div>
+      )}
 
       {/* ── Load compensation ─────────────────────────────────────────────── */}
-      <div className="sys-input-row">
-        <span className="sys-input-row__icon" aria-hidden="true">📉</span>
-        <span className="sys-input-row__label">Load compensation</span>
-        <button
-          className={`sys-input-row__toggle${inputs.loadCompensation ? ' sys-input-row__toggle--on' : ''}`}
-          onClick={() => onInputChange({ loadCompensation: !inputs.loadCompensation })}
-          aria-pressed={inputs.loadCompensation}
-          aria-label="Load compensation"
-        >
-          {inputs.loadCompensation ? 'On' : 'Off'}
-        </button>
-      </div>
+      {!portalMode && (
+        <div className="sys-input-row">
+          <span className="sys-input-row__icon" aria-hidden="true">📉</span>
+          <span className="sys-input-row__label">Load compensation</span>
+          <button
+            className={`sys-input-row__toggle${inputs.loadCompensation ? ' sys-input-row__toggle--on' : ''}`}
+            onClick={() => onInputChange({ loadCompensation: !inputs.loadCompensation })}
+            aria-pressed={inputs.loadCompensation}
+            aria-label="Load compensation"
+          >
+            {inputs.loadCompensation ? 'On' : 'Off'}
+          </button>
+        </div>
+      )}
 
       {/* ── Control strategy / layout ─────────────────────────────────────── */}
-      <div className="sys-input-row">
-        <span className="sys-input-row__icon" aria-hidden="true">🗺</span>
-        <span className="sys-input-row__label">Control layout</span>
-        <div className="sys-input-row__segmented" role="group" aria-label="Control layout">
-          {controlStrategyOptionsFor(systemChoice).map(opt => (
-            <button
-              key={opt.value}
-              className={`sys-input-row__seg-btn${inputs.controlStrategy === opt.value ? ' sys-input-row__seg-btn--active' : ''}`}
-              onClick={() => onInputChange({ controlStrategy: opt.value })}
-              aria-pressed={inputs.controlStrategy === opt.value}
-              title={opt.description}
-            >
-              {opt.label}
-            </button>
-          ))}
+      {!portalMode && (
+        <div className="sys-input-row">
+          <span className="sys-input-row__icon" aria-hidden="true">🗺</span>
+          <span className="sys-input-row__label">Control layout</span>
+          <div className="sys-input-row__segmented" role="group" aria-label="Control layout">
+            {controlStrategyOptionsFor(systemChoice).map(opt => (
+              <button
+                key={opt.value}
+                className={`sys-input-row__seg-btn${inputs.controlStrategy === opt.value ? ' sys-input-row__seg-btn--active' : ''}`}
+                onClick={() => onInputChange({ controlStrategy: opt.value })}
+                aria-pressed={inputs.controlStrategy === opt.value}
+                title={opt.description}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="sys-input-row">
         <span className="sys-input-row__icon" aria-hidden="true">🧹</span>
@@ -419,25 +448,29 @@ export default function SystemInputsPanel({
       </div>
 
       {/* ── Occupancy profile ─────────────────────────────────────────────── */}
-      <div className="sys-inputs-section-heading">Occupancy</div>
+      {!portalMode && (
+        <>
+          <div className="sys-inputs-section-heading">Occupancy</div>
 
-      <div className="sys-input-row">
-        <span className="sys-input-row__icon" aria-hidden="true">🏡</span>
-        <span className="sys-input-row__label">Household pattern</span>
-        <div className="sys-input-row__segmented" role="group" aria-label="Occupancy profile">
-          {OCCUPANCY_PROFILE_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              className={`sys-input-row__seg-btn${inputs.occupancyProfile === opt.value ? ' sys-input-row__seg-btn--active' : ''}`}
-              onClick={() => onInputChange({ occupancyProfile: opt.value })}
-              aria-pressed={inputs.occupancyProfile === opt.value}
-              title={opt.description}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
+          <div className="sys-input-row">
+            <span className="sys-input-row__icon" aria-hidden="true">🏡</span>
+            <span className="sys-input-row__label">Household pattern</span>
+            <div className="sys-input-row__segmented" role="group" aria-label="Occupancy profile">
+              {OCCUPANCY_PROFILE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  className={`sys-input-row__seg-btn${inputs.occupancyProfile === opt.value ? ' sys-input-row__seg-btn--active' : ''}`}
+                  onClick={() => onInputChange({ occupancyProfile: opt.value })}
+                  aria-pressed={inputs.occupancyProfile === opt.value}
+                  title={opt.description}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

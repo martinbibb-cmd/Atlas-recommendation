@@ -1,4 +1,4 @@
-import { isMissingTableError, isMissingColumnError, SCHEMA_DRIFT_RESPONSE } from "../_utils/errors.js";
+import { isMissingTableError, SCHEMA_DRIFT_RESPONSE } from "../_utils/errors.js";
 
 /**
  * GET /api/visits/:id
@@ -94,40 +94,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     console.log(`[Atlas] Visit loaded: id=${id}`);
     return buildVisitResponse(row);
   } catch (err) {
-    if (isMissingColumnError(err)) {
-      // Migration 0004 has not been applied yet — fall back to the legacy
-      // column set and populate visit_reference as null so the app keeps
-      // working until the migration is deployed.
-      console.warn(`[Atlas] visit_reference column missing — using legacy schema fallback: id=${id}`);
-      try {
-        const row = await env.ATLAS_REPORTS_D1.prepare(
-          `SELECT id, created_at, updated_at, status,
-                  customer_name, address_line_1, postcode, current_step, working_payload_json
-           FROM visits WHERE id = ?`
-        )
-          .bind(id)
-          .first<Omit<VisitRow, "visit_reference">>();
-
-        if (row == null) {
-          console.warn(`[Atlas] Visit not found (legacy schema): id=${id}`);
-          return Response.json(
-            { ok: false, error: "Visit not found" },
-            { status: 404 }
-          );
-        }
-
-        return buildVisitResponse({ ...row, visit_reference: null });
-      } catch (fallbackErr) {
-        console.error(`[Atlas] Visit legacy-schema load failed: id=${id}`, String(fallbackErr));
-        if (isMissingTableError(fallbackErr)) {
-          return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
-        }
-        return Response.json(
-          { ok: false, error: String(fallbackErr) },
-          { status: 500 }
-        );
-      }
-    }
     console.error(`[Atlas] Visit load failed: id=${id}`, String(err));
     if (isMissingTableError(err)) {
       return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
@@ -207,10 +173,6 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
   }
   const visitReferenceValue = typeof body.visit_reference === "string" ? body.visit_reference : null;
   const visitReferenceIncluded = visitReferenceValue !== null;
-  // Record the binding array index at which visit_reference will be inserted so
-  // the fallback path can remove it precisely without relying on positional
-  // coincidence between the two arrays.
-  const visitReferenceBindingIdx = visitReferenceIncluded ? bindings.length : -1;
   if (visitReferenceIncluded) {
     setClauses.push("visit_reference = ?");
     bindings.push(visitReferenceValue.trim() || null);
@@ -237,34 +199,6 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
   } catch (err) {
     if (isMissingTableError(err)) {
       return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
-    }
-    if (isMissingColumnError(err) && visitReferenceIncluded) {
-      // Migration 0004 has not been applied yet — retry the UPDATE without the
-      // visit_reference column so other fields are still persisted.
-      console.warn(`[Atlas] visit_reference column missing — using legacy schema fallback for update: id=${id}`);
-      const legacyClauses = setClauses.filter((c) => c !== "visit_reference = ?");
-      const legacyBindings = bindings.filter((_, i) => i !== visitReferenceBindingIdx);
-      if (legacyClauses.length === 0) {
-        // Only visit_reference was being updated; nothing else to persist now.
-        return Response.json({ ok: true, id });
-      }
-      try {
-        await env.ATLAS_REPORTS_D1.prepare(
-          `UPDATE visits SET ${legacyClauses.join(", ")} WHERE id = ?`
-        )
-          .bind(...legacyBindings)
-          .run();
-        return Response.json({ ok: true, id });
-      } catch (fallbackErr) {
-        console.error(`[Atlas] Visit legacy-schema update failed: id=${id}`, String(fallbackErr));
-        if (isMissingTableError(fallbackErr)) {
-          return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
-        }
-        return Response.json(
-          { ok: false, error: String(fallbackErr) },
-          { status: 500 }
-        );
-      }
     }
     return Response.json(
       { ok: false, error: String(err) },
