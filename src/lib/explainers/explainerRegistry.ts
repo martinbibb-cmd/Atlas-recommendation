@@ -182,6 +182,16 @@ export const EXPLAINER_REGISTRY: readonly ExplainerDefinition[] = [
     relevanceTriggers: ['water-hardness'],
   },
 
+  // ── Building physics and airflow ──────────────────────────────────────────
+  {
+    id: 'convection_airflow',
+    title: 'How opening windows moves heat — not just air',
+    category: 'physics',
+    kind: 'both',
+    component: 'convection_airflow',
+    relevanceTriggers: ['thermal-mass-heavy'],
+  },
+
   // ── Analogy explainers ────────────────────────────────────────────────────
   {
     id: 'sponge_heat_transfer',

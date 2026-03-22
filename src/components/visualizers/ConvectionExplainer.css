@@ -1,0 +1,311 @@
+/**
+ * ConvectionExplainer.css
+ *
+ * Styles for the interactive convection airflow explainer.
+ *
+ * BEM prefix: .cex__ (Convection EXplainer)
+ *
+ * CSS custom properties used:
+ *   --cex-warm  warm-air arrow / overlay colour (red family)
+ *   --cex-cool  cool-air arrow / overlay colour (blue family)
+ *
+ * Animation note: all motion is driven by React state (time slider), not
+ * by CSS keyframe animation. Reduced-motion media query is honoured by
+ * the slider approach naturally — the user initiates all motion.
+ */
+
+/* ─── Theme tokens ──────────────────────────────────────────────────────────── */
+
+.cex {
+  --cex-warm: #e53e3e;   /* red-600  */
+  --cex-cool: #3182ce;   /* blue-600 */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Container
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cex {
+  background:    var(--surface-subtle);
+  border:        1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding:       var(--space-5) var(--space-6);
+  font-family:   var(--font-sans);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Header
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cex__header {
+  margin-bottom: var(--space-4);
+}
+
+.cex__title {
+  font-size:   var(--text-lg);
+  font-weight: var(--weight-bold);
+  color:       var(--text-primary);
+  margin:      0 0 var(--space-1);
+}
+
+.cex__subtitle {
+  font-size:   var(--text-sm);
+  color:       var(--text-secondary);
+  margin:      0;
+  font-style:  italic;
+  line-height: var(--leading-relaxed);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Scene tabs
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cex__scene-tabs {
+  display:       flex;
+  gap:           var(--space-2);
+  margin-bottom: var(--space-3);
+  flex-wrap:     wrap;
+}
+
+.cex__scene-tab {
+  padding:       var(--space-1) var(--space-3);
+  font-size:     var(--text-sm);
+  font-weight:   var(--weight-medium);
+  font-family:   var(--font-sans);
+  color:         var(--text-secondary);
+  background:    var(--surface-default);
+  border:        1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  cursor:        pointer;
+  white-space:   nowrap;
+  transition:    background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.cex__scene-tab:hover {
+  background:   var(--surface-subtle);
+  border-color: var(--color-neutral-400);
+}
+
+.cex__scene-tab--active {
+  color:        var(--color-blue-700);
+  background:   var(--color-blue-50);
+  border-color: var(--color-blue-300);
+  font-weight:  var(--weight-semibold);
+}
+
+.cex__scene-tab:focus-visible {
+  outline:        2px solid var(--color-blue-500);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Visualisation area
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cex__visual {
+  margin-bottom: var(--space-3);
+}
+
+.cex__house-svg {
+  display:  block;
+  width:    100%;
+  max-width: 320px;
+  margin:   0 auto;
+  height:   auto;
+}
+
+/* ── House structural elements ──────────────────────────────────────────────── */
+
+.cex__house-roof {
+  fill:   var(--color-neutral-300, #d1d5db);
+  stroke: var(--color-neutral-500, #6b7280);
+  stroke-width: 1.5;
+}
+
+.cex__house-wall {
+  fill:         var(--color-neutral-50, #f9fafb);
+  stroke:       var(--color-neutral-500, #6b7280);
+  stroke-width: 1.5;
+}
+
+.cex__house-floor-line {
+  stroke:       var(--color-neutral-400, #9ca3af);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.cex__house-stairs {
+  fill:   var(--color-neutral-200, #e5e7eb);
+  stroke: var(--color-neutral-400, #9ca3af);
+  stroke-width: 1;
+}
+
+.cex__house-stair-step {
+  stroke:       var(--color-neutral-400, #9ca3af);
+  stroke-width: 0.75;
+}
+
+.cex__house-window {
+  fill:         var(--color-blue-100, #dbeafe);
+  stroke:       var(--color-neutral-500, #6b7280);
+  stroke-width: 1;
+}
+
+.cex__house-window--open {
+  fill:   var(--color-neutral-50, #f9fafb);
+  stroke: var(--color-blue-500, #3b82f6);
+}
+
+.cex__house-window-sash {
+  fill:         var(--color-neutral-100, #f3f4f6);
+  stroke:       var(--color-blue-400, #60a5fa);
+  stroke-width: 0.75;
+}
+
+.cex__house-door {
+  stroke:       var(--color-neutral-500, #6b7280);
+  stroke-width: 1;
+}
+
+.cex__house-door--closed {
+  fill: var(--color-amber-200, #fde68a);
+}
+
+.cex__house-door-frame {
+  stroke:       var(--color-neutral-400, #9ca3af);
+  stroke-width: 1;
+}
+
+.cex__house-ground {
+  stroke:       var(--color-neutral-600, #4b5563);
+  stroke-width: 2;
+}
+
+/* ── Zone labels inside SVG ──────────────────────────────────────────────────── */
+
+.cex__zone-label {
+  font-size:   9px;
+  fill:        var(--color-neutral-500, #6b7280);
+  text-anchor: middle;
+}
+
+.cex__heat-loss-label {
+  font-size:   8px;
+  fill:        var(--cex-warm);
+  text-anchor: middle;
+  font-weight: bold;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Caption
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cex__caption {
+  font-size:     var(--text-sm);
+  font-weight:   var(--weight-semibold);
+  color:         var(--text-primary);
+  margin:        0 0 var(--space-3);
+  text-align:    center;
+  min-height:    1.5em;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Time slider
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cex__time-slider {
+  margin-bottom: var(--space-4);
+}
+
+.cex__time-label {
+  display:       block;
+  font-size:     var(--text-sm);
+  color:         var(--text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.cex__slider {
+  display:   block;
+  width:     100%;
+  cursor:    pointer;
+  accent-color: var(--color-blue-500, #3b82f6);
+}
+
+.cex__time-endpoints {
+  display:         flex;
+  justify-content: space-between;
+  font-size:       var(--text-xs);
+  color:           var(--text-secondary);
+  margin-top:      var(--space-1);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Toggle label buttons
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cex__toggles {
+  display:       flex;
+  gap:           var(--space-2);
+  margin-bottom: var(--space-3);
+  flex-wrap:     wrap;
+}
+
+.cex__toggle-btn {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           var(--space-1);
+  padding:       var(--space-1) var(--space-3);
+  font-size:     var(--text-xs);
+  font-weight:   var(--weight-medium);
+  font-family:   var(--font-sans);
+  color:         var(--text-secondary);
+  background:    var(--surface-default);
+  border:        1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  cursor:        pointer;
+  white-space:   nowrap;
+  transition:    background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.cex__toggle-btn:hover {
+  background:   var(--surface-subtle);
+  border-color: var(--color-neutral-400);
+}
+
+.cex__toggle-btn--active {
+  color:        var(--color-blue-700);
+  background:   var(--color-blue-50);
+  border-color: var(--color-blue-300);
+}
+
+.cex__toggle-btn:focus-visible {
+  outline:        2px solid var(--color-blue-500);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Tagline
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cex__tagline {
+  font-size:   var(--text-xs);
+  color:       var(--text-secondary);
+  margin:      0;
+  font-style:  italic;
+  line-height: var(--leading-relaxed);
+  border-top:  1px dashed var(--border-default);
+  padding-top: var(--space-2);
+  min-height:  2em;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Print / reduced-motion
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media print {
+  .cex__time-slider,
+  .cex__toggles,
+  .cex__scene-tabs {
+    display: none;
+  }
+}
