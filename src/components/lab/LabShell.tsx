@@ -50,6 +50,13 @@ const SYSTEM_TYPE_LABELS: Record<string, string> = {
   other:   'Other system',
 };
 
+/** Maps a fit-map nearestSystem result to a user-facing category label. */
+const FIT_MAP_CATEGORY_LABELS: Record<FitPosition['nearestSystem'], string> = {
+  combi:      'On-demand',
+  system:     'Stored water',
+  heat_pump:  'Heat Pump',
+};
+
 /** Standard UK primary pipe sizes accepted by FitInputs. */
 const PIPE_SIZES: ReadonlyArray<FitInputs['primaryPipeSizeMm']> = [15, 22, 28, 35];
 
@@ -286,7 +293,11 @@ export default function LabShell({ onHome, engineInput }: Props) {
             ? SYSTEM_TYPE_LABELS[engineInput.currentHeatSourceType] ?? PLACEHOLDER_CURRENT_SYSTEM
             : PLACEHOLDER_CURRENT_SYSTEM}
         </span>
-        <span className="lab-context-label">Comparing:</span>
+        <span className="lab-context-label">
+          {fitPosition
+            ? `${FIT_MAP_CATEGORY_LABELS[fitPosition.nearestSystem]} options:`
+            : 'Comparing:'}
+        </span>
         {CANDIDATE_SYSTEMS.map(s => (
           <span key={s.id} className="lab-context-chip">{s.label}</span>
         ))}

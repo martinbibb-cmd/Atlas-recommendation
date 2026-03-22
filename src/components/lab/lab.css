@@ -138,14 +138,65 @@
   background: #f7fafc;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  padding: 0.65rem 0.85rem 0.75rem;
   margin: 0 0 0.75rem;
-  /* Sticky positioning so the confidence strip and next step stay visible */
+  /* Sticky positioning so the confidence strip stays visible */
   position: sticky;
   top: 0;
   z-index: 20;
   /* Slight shadow to lift it visually off scrolling content */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+/* ── Collapsed summary row (always visible) ───────────────────────────────── */
+
+.lab-confidence-strip__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.55rem 0.85rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.lab-confidence-strip__summary:hover,
+.lab-confidence-strip__summary:focus-visible {
+  background: rgba(0, 0, 0, 0.03);
+  outline: none;
+}
+
+.lab-confidence-strip__summary-text {
+  font-size: 0.8rem;
+  color: #4a5568;
+  letter-spacing: 0.01em;
+}
+
+.lab-confidence-strip__summary-text strong {
+  color: #2d3748;
+  font-weight: 800;
+}
+
+.lab-confidence-strip__summary-chevron {
+  font-size: 0.85rem;
+  color: #718096;
+  flex-shrink: 0;
+}
+
+/* ── Expandable body ──────────────────────────────────────────────────────── */
+
+.lab-confidence-strip__body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+  padding: 0 0.85rem;
+}
+
+.lab-confidence-strip__body--open {
+  max-height: 600px;
+  padding: 0 0.85rem 0.75rem;
 }
 
 .lab-confidence-strip__title {
