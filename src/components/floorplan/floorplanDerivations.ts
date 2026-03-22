@@ -161,6 +161,8 @@ export function autoRouteHeatingPipes(
 
   for (const emitter of emitters) {
     // Use the emitter's rated output (if known) to suggest pipe bore.
+    // 2 kW is the minimum practical single-radiator output and safely selects
+    // 22 mm microbore — the most common UK residential pipe size.
     const emitterKw = typeof emitter.emitterOutputKw === 'number' ? emitter.emitterOutputKw : 2;
     const pipeSizeMm = computePipeSizeMm(emitterKw);
 

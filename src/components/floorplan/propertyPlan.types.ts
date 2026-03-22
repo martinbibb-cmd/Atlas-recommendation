@@ -169,7 +169,7 @@ export type ConnectionType =
   | 'control';
 
 /**
- * Semantic service type used for engineer-view labelling and PDF/print outputs.
+ * Semantic service type used for engineer-view labeling and PDF/print outputs.
  * More granular than ConnectionType — distinguishes primary from secondary
  * and labels DHW / cold-main runs explicitly.
  */

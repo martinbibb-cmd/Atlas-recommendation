@@ -993,7 +993,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       <header className="fpb__header">
         <div className="fpb__header-title">
           <h2>Property Builder</h2>
-          <p>Layer 1: geometry &nbsp;·&nbsp; Layer 2: components &nbsp;·&nbsp; Layer 3: routes &nbsp;·&nbsp; Layer 4: consequences</p>
+          <p>Layer 1: geometry &nbsp;·&nbsp; Layer 2: components &nbsp;·&nbsp; Layer 3: routes &nbsp;·&nbsp; Layer 4: disruptions</p>
         </div>
         <div className="fpb__header-actions">
           {/* ── View mode toggle ── */}
@@ -1290,7 +1290,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 // Mid-point for the engineer label
                 const mid = route.route[Math.floor(route.route.length / 2)];
                 const labelText = viewMode === 'engineer'
-                  ? `${route.pipeSizeMm}mm ${route.type === 'flow' ? 'F' : 'R'}`
+                  ? `${route.pipeSizeMm}mm ${route.type === 'flow' ? 'Flow' : 'Return'}`
                   : null;
                 return (
                   <g key={route.id}>
@@ -1771,6 +1771,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             );
           })}
           {/* ── Customer view: simplified room summary ── */}
+          {/* Customer view rounds to 0 dp — a rough figure is sufficient for disruption discussions.
+              Engineer view uses 1 dp for accurate materials estimation. */}
           {viewMode === 'customer' && derivedOutputs.roomMetrics.length > 0 && (
             <div className="fpb__issue fpb__issue--info">
               {derivedOutputs.roomMetrics.length} room{derivedOutputs.roomMetrics.length !== 1 ? 's' : ''} mapped
