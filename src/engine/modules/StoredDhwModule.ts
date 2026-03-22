@@ -36,10 +36,60 @@ const UNVENTED_MARGINAL_LPM = 12;
 
 /**
  * Nominal gravity-fed flow rate (L/min) at VENTED_NOMINAL_HEAD_M.
- * Derived from typical UK domestic gravity-fed pipe sizing at 1 m head.
+ * Used in the legacy sqrt-head flow cap (backward-compatible path).
  * Scales with √(head) via the Torricelli / orifice-flow relationship.
  */
 const VENTED_BASE_FLOW_LPM = 10;
+
+// ─── Branch hydraulic model constants ────────────────────────────────────────
+
+/**
+ * Base flow (L/min) for the branch hydraulic model at nominal conditions:
+ * 1 m head, 15 mm pipe, 5 m equivalent length, shower outlet.
+ *
+ * Calibrated so that nominal-condition output matches real-world experience
+ * of a gravity shower on a typical domestic 15 mm branch run.
+ */
+const BRANCH_BASE_FLOW_LPM = 9.0;
+
+/**
+ * Reference equivalent pipe length (m) for the branch model.
+ * Route resistance is expressed as (equivalentLengthM / BRANCH_NOMINAL_LENGTH_M).
+ */
+const BRANCH_NOMINAL_LENGTH_M = 5.0;
+
+/**
+ * Pipe bore diameter factors relative to 15 mm baseline.
+ * Based on cross-sectional area ratio (d_bore / 13)^2 using approximate
+ * UK copper bore sizes; rounded to practical multipliers for explainability.
+ */
+const PIPE_DIAMETER_FACTOR: Record<15 | 22 | 28, number> = {
+  15: 1.0,   // baseline
+  22: 2.15,  // (20/13.6)^2 ≈ 2.15 — typical UK 22 mm copper bore
+  28: 3.54,  // (25.6/13.6)^2 ≈ 3.54 — typical UK 28 mm copper bore
+};
+
+/**
+ * Outlet resistance factors (dimensionless divisor applied to branch flow).
+ * Higher values mean more restrictive outlets.
+ *
+ * tap          — wide-open tap, low resistance.
+ * bath         — larger-bore tap/fill, moderate restriction.
+ * shower       — gravity shower head, moderate-high restriction.
+ * mixer_shower — thermostatic/pressure-balancing mixer, highest restriction.
+ */
+const OUTLET_RESISTANCE_FACTOR: Record<'tap' | 'bath' | 'shower' | 'mixer_shower', number> = {
+  tap:          1.0,
+  bath:         1.2,
+  shower:       1.5,
+  mixer_shower: 1.8,
+};
+
+/** Minimum effective flow (L/min) for a branch to be classified 'stable'. */
+const BRANCH_ADEQUATE_FLOW_LPM = 7.0;
+
+/** Minimum effective flow (L/min) for a branch to be classified 'marginal' (below = 'limited'). */
+const BRANCH_MARGINAL_FLOW_LPM = 4.0;
 
 /**
  * Minimum cylinder volume (litres) per bathroom for the thermal-capacity adequacy check.
@@ -545,6 +595,72 @@ export function runStoredDhwModuleV1(
 export type DrawOffFlowStability = 'stable' | 'marginal' | 'limited';
 
 /**
+ * Cold-water source type for a vented branch.
+ *
+ * shared_cws     — branch draws from a shared cold-water storage cistern supplying both
+ *                  hot and cold; pressure is balanced but cold competes with other outlets.
+ * dedicated_cws  — separate cold branch from the same cistern; eliminates cold-side
+ *                  competition and keeps hot/cold pressures balanced at a mixer.
+ * mains_cold     — cold side is at mains pressure; creates a large hot/cold pressure
+ *                  mismatch at mixer showers when the hot side is gravity-fed.
+ */
+export type VentedColdSource = 'shared_cws' | 'dedicated_cws' | 'mains_cold';
+
+/**
+ * Primary factor that most limits delivery on a vented branch.
+ *
+ * head             — gravity head (CWS height above draw-off) is the governing constraint.
+ * pipe_diameter    — small bore (typically 15 mm) limits achievable flow.
+ * route_length     — long equivalent pipe run creates high hydraulic resistance.
+ * outlet_resistance — restrictive fixture (e.g. mixer shower) limits delivery.
+ * mixer_imbalance  — significant hot/cold pressure mismatch degrades mixer performance.
+ */
+export type VentedLimitingFactor =
+  | 'head'
+  | 'pipe_diameter'
+  | 'route_length'
+  | 'outlet_resistance'
+  | 'mixer_imbalance';
+
+/**
+ * Per-branch hydraulic inputs for vented draw-off assessment.
+ *
+ * Replaces the pure √(head) shortcut with a multi-factor model that captures
+ * pipe bore, route resistance, outlet class, and mixer balance independently.
+ *
+ * Example usage:
+ *   const shower: BranchHydraulics = {
+ *     source: 'dedicated_cws',
+ *     headM: 2.5,
+ *     pipeMm: 22,
+ *     equivalentLengthM: 8,
+ *     outletClass: 'mixer_shower',
+ *   };
+ */
+export interface BranchHydraulics {
+  /**
+   * Cold-water source for this branch.
+   * Determines cold-side pressure and whether mixer balance is affected.
+   */
+  source: VentedColdSource;
+  /**
+   * Gravity head from the CWS cistern surface to the draw-off point (m).
+   * Used for `shared_cws` and `dedicated_cws` sources.
+   * Defaults to VENTED_NOMINAL_HEAD_M when absent.
+   */
+  headM?: number;
+  /** Nominal pipe bore for this branch (mm). */
+  pipeMm: 15 | 22 | 28;
+  /**
+   * Total equivalent pipe length including fittings (m).
+   * Each elbow adds ≈ 0.5–1 m; each gate valve ≈ 0.1 m; each ball valve ≈ 0.4 m.
+   */
+  equivalentLengthM: number;
+  /** Outlet fixture class — determines outlet resistance factor. */
+  outletClass: 'tap' | 'bath' | 'shower' | 'mixer_shower';
+}
+
+/**
  * Micro-level draw-off behaviour for a stored-cylinder system archetype.
  *
  * This is intentionally distinct from the macro-level hourly energy accounting
@@ -558,17 +674,40 @@ export interface DrawOffBehaviour {
   /** Flow stability classification under concurrent draw. */
   flowStability: DrawOffFlowStability;
   /**
-   * Head-derived flow cap (L/min) for tank-fed (open-vented) systems.
+   * Best-estimate flow cap (L/min) for tank-fed (open-vented) systems.
    *
-   * Computed as: VENTED_BASE_FLOW_LPM × √(head / VENTED_NOMINAL_HEAD_M)
+   * When `BranchHydraulics` is supplied to `computeDrawOff`, this is derived
+   * from the full branch hydraulic model (pipe bore + route resistance + outlet
+   * class + mixer balance penalty).
    *
-   * This couples flow delivery to gravity head, preventing an open-vented
-   * system from appearing to sustain mains-equivalent flow even when it is
-   * classified as 'marginal' or 'limited' from a pressure standpoint.
+   * Without branch inputs, falls back to the legacy formula:
+   *   VENTED_BASE_FLOW_LPM × √(head / VENTED_NOMINAL_HEAD_M)
    *
    * Undefined for mains-fed systems (flow is governed by mains supply, not head).
    */
   ventedMaxFlowLpm?: number;
+  /**
+   * Detailed branch hydraulic model breakdown.
+   * Present only when `BranchHydraulics` was supplied to `computeDrawOff`.
+   */
+  branchModel?: {
+    /** Effective flow after all factors and mixer balance penalty (L/min). */
+    effectiveFlowLpm: number;
+    /** Pipe bore multiplier relative to 15 mm baseline (≥ 1.0). */
+    diameterFactor: number;
+    /** Route resistance divisor (≥ 1.0); higher = more resistance. */
+    routeResistanceFactor: number;
+    /** Outlet class resistance divisor. */
+    outletFactor: number;
+    /**
+     * Mixer balance penalty as a fraction (0 = none, 0.3 = severe).
+     * Non-zero when cold source is `mains_cold` and hot/cold pressures are
+     * significantly mismatched at a mixer fixture.
+     */
+    mixerBalancePenalty: number;
+    /** Primary bottleneck for this branch. */
+    limitingFactor: VentedLimitingFactor;
+  };
 }
 
 /**
@@ -582,26 +721,33 @@ export interface DrawOffBehaviour {
  * head — the height of the cold-water storage tank above the draw-off point.
  * Every metre of head contributes ≈ 0.098 bar; a typical domestic loft tank at
  * 1 m above the draw-off delivers only ≈ 0.1 bar — far below mains pressure.
- * Head also limits achievable flow via the Torricelli relationship (flow ∝ √head),
- * so a gravity-fed system cannot sustain mains-equivalent flow even when it is
- * classified as pressure-adequate.  The derived ventedMaxFlowLpm captures this.
  *
- * @param systemType            Comparison system archetype.
+ * When `branchHydraulics` is supplied, the vented flow cap uses the full
+ * branch model (pipe bore × route resistance × outlet class × mixer balance).
+ * Without it, a legacy sqrt-head cap is applied for backward compatibility.
+ *
+ * @param systemType               Comparison system archetype.
  * @param mainsDynamicPressureBar  Measured mains dynamic pressure (bar).  Used
- *                              for mains-fed systems only.  Defaults to
- *                              UNVENTED_NOMINAL_MAINS_PRESSURE_BAR when absent.
- * @param mainsDynamicFlowLpm   Measured mains dynamic flow (L/min).  Used for
- *                              mains-fed flow-stability classification.  When
- *                              absent, stability is conservatively 'marginal'.
- * @param cwsHeadMetres         Gravity head (m) from CWS tank to draw-off.
- *                              Used for tank-fed systems only.  Defaults to
- *                              VENTED_NOMINAL_HEAD_M when absent.
+ *                                 for mains-fed systems only.  Defaults to
+ *                                 UNVENTED_NOMINAL_MAINS_PRESSURE_BAR when absent.
+ * @param mainsDynamicFlowLpm      Measured mains dynamic flow (L/min).  Used for
+ *                                 mains-fed flow-stability classification.  When
+ *                                 absent, stability is conservatively 'marginal'.
+ * @param cwsHeadMetres            Gravity head (m) from CWS tank to draw-off.
+ *                                 Used for tank-fed systems only when branch
+ *                                 hydraulics are not provided.  Defaults to
+ *                                 VENTED_NOMINAL_HEAD_M when absent.
+ * @param branchHydraulics         Optional per-branch hydraulic inputs.  When
+ *                                 supplied for a tank-fed system, enables the
+ *                                 full branch hydraulic model.  `headM` inside
+ *                                 the struct takes precedence over `cwsHeadMetres`.
  */
 export function computeDrawOff(
   systemType: 'mixergy' | 'mixergy_open_vented' | 'stored_unvented' | 'stored_vented',
   mainsDynamicPressureBar?: number,
   mainsDynamicFlowLpm?: number,
   cwsHeadMetres?: number,
+  branchHydraulics?: BranchHydraulics,
 ): DrawOffBehaviour {
   const isMainsFed = systemType === 'mixergy' || systemType === 'stored_unvented';
 
@@ -622,25 +768,177 @@ export function computeDrawOff(
 
     return { maxPressureBar: pressure, flowStability };
   } else {
-    // Tank-fed (open-vented): gravity head governs delivery pressure AND flow.
-    // Flow ∝ √head (Torricelli / orifice-flow): at double the head you get
-    // √2 × the flow, not 2×.  This cap prevents open-vented systems from
-    // appearing to sustain mains-equivalent flow in downstream consumers.
-    const head = cwsHeadMetres ?? VENTED_NOMINAL_HEAD_M;
+    // Tank-fed (open-vented): gravity head governs delivery pressure.
+    const head = branchHydraulics?.headM ?? cwsHeadMetres ?? VENTED_NOMINAL_HEAD_M;
     const pressure = parseFloat((head * METRES_HEAD_TO_BAR).toFixed(4));
-    const ventedMaxFlowLpm = parseFloat(
-      (VENTED_BASE_FLOW_LPM * Math.sqrt(head / VENTED_NOMINAL_HEAD_M)).toFixed(2),
-    );
 
-    let flowStability: DrawOffFlowStability;
-    if (head >= VENTED_MIN_ADEQUATE_HEAD_M) {
-      flowStability = 'stable';
-    } else if (head >= VENTED_VERY_LOW_HEAD_M) {
-      flowStability = 'marginal';
+    if (branchHydraulics !== undefined) {
+      // ── Branch hydraulic model ────────────────────────────────────────────
+      // Flow depends on head, pipe bore, route resistance, outlet class, and
+      // whether cold supply is separately balanced or shared with hot.
+      const branchModel = computeBranchFlow(
+        head,
+        branchHydraulics,
+        mainsDynamicPressureBar ?? UNVENTED_NOMINAL_MAINS_PRESSURE_BAR,
+      );
+
+      const effectiveFlow = branchModel.effectiveFlowLpm;
+      let flowStability: DrawOffFlowStability;
+      if (effectiveFlow >= BRANCH_ADEQUATE_FLOW_LPM && head >= VENTED_MIN_ADEQUATE_HEAD_M) {
+        flowStability = 'stable';
+      } else if (effectiveFlow >= BRANCH_MARGINAL_FLOW_LPM && head >= VENTED_VERY_LOW_HEAD_M) {
+        flowStability = 'marginal';
+      } else {
+        flowStability = 'limited';
+      }
+
+      return {
+        maxPressureBar: pressure,
+        flowStability,
+        ventedMaxFlowLpm: parseFloat(effectiveFlow.toFixed(2)),
+        branchModel,
+      };
     } else {
-      flowStability = 'limited';
-    }
+      // ── Legacy sqrt-head cap (backward compatible) ────────────────────────
+      // Flow ∝ √head (Torricelli / orifice-flow): at double the head you get
+      // √2 × the flow, not 2×.  Used when branch hydraulics are not provided.
+      const ventedMaxFlowLpm = parseFloat(
+        (VENTED_BASE_FLOW_LPM * Math.sqrt(head / VENTED_NOMINAL_HEAD_M)).toFixed(2),
+      );
 
-    return { maxPressureBar: pressure, flowStability, ventedMaxFlowLpm };
+      let flowStability: DrawOffFlowStability;
+      if (head >= VENTED_MIN_ADEQUATE_HEAD_M) {
+        flowStability = 'stable';
+      } else if (head >= VENTED_VERY_LOW_HEAD_M) {
+        flowStability = 'marginal';
+      } else {
+        flowStability = 'limited';
+      }
+
+      return { maxPressureBar: pressure, flowStability, ventedMaxFlowLpm };
+    }
   }
+}
+
+// ─── Branch hydraulic model helper ───────────────────────────────────────────
+
+/**
+ * Compute effective branch flow for a vented draw-off using the branch
+ * hydraulic model.
+ *
+ * Formula:
+ *   rawFlowLpm = BRANCH_BASE_FLOW_LPM
+ *                × √(headM / BRANCH_NOMINAL_HEAD_M)   ← head contribution
+ *                × diameterFactor                      ← pipe bore multiplier
+ *                / routeResistanceFactor               ← equivalent length divisor
+ *                / outletFactor                        ← fixture restriction divisor
+ *
+ *   effectiveFlowLpm = rawFlowLpm × (1 − mixerBalancePenalty)
+ *
+ * Mixer balance penalty is non-zero only when `source === 'mains_cold'` and
+ * the hot-side (gravity) pressure is significantly lower than cold-side
+ * (mains) pressure — a classic vented-hot / mains-cold mismatch.
+ *
+ * @internal Not exported; called only by `computeDrawOff`.
+ */
+function computeBranchFlow(
+  headM: number,
+  branch: BranchHydraulics,
+  mainsDynamicPressureBar: number,
+): NonNullable<DrawOffBehaviour['branchModel']> {
+  // Diameter factor: cross-sectional area relative to 15 mm baseline.
+  const pipeMmKey = ([28, 22, 15] as const).find(k => branch.pipeMm >= k) ?? 15;
+  const diameterFactor = PIPE_DIAMETER_FACTOR[pipeMmKey];
+
+  // Route resistance: equivalent length relative to 5 m reference run.
+  const routeResistanceFactor = Math.max(1.0, branch.equivalentLengthM / BRANCH_NOMINAL_LENGTH_M);
+
+  // Outlet resistance.
+  const outletFactor = OUTLET_RESISTANCE_FACTOR[branch.outletClass];
+
+  // Raw branch flow before mixer balance adjustment.
+  const rawFlowLpm =
+    BRANCH_BASE_FLOW_LPM *
+    Math.sqrt(headM / VENTED_NOMINAL_HEAD_M) *
+    diameterFactor /
+    (routeResistanceFactor * outletFactor);
+
+  // Mixer balance penalty.
+  // Only applies when cold supply is at mains pressure while hot is gravity-fed,
+  // and only at mixing-valve fixtures where hot and cold are blended (not taps/baths
+  // where the user adjusts handles independently).
+  //
+  // Thresholds are calibrated from observed UK field behaviour:
+  //   ratio < 0.2  (e.g. 1 m head ≈ 0.098 bar vs 2 bar mains → ratio 0.049): the
+  //                thermostatic cartridge cannot balance reliably — severe temperature
+  //                swings, nuisance trips, and poor flow control.  30% effective-flow
+  //                penalty reflects typical perceived performance loss.
+  //   ratio 0.2–0.5 (e.g. 3 m head ≈ 0.294 bar vs 1.5 bar mains → ratio 0.196):
+  //                noticeable pressure imbalance; cartridge fights a 3–5:1 difference.
+  //                15% penalty captures the moderate, manageable degradation seen in
+  //                practice when a pump or pressurisation unit is absent.
+  //   ratio ≥ 0.5: pressures are within approximately 2:1 of each other; a standard
+  //                thermostatic cartridge can compensate adequately — no penalty applied.
+  let mixerBalancePenalty = 0;
+  if (branch.source === 'mains_cold' && branch.outletClass !== 'tap' && branch.outletClass !== 'bath') {
+    const hotPressureBar = headM * METRES_HEAD_TO_BAR;
+    const pressureRatio = hotPressureBar / mainsDynamicPressureBar;
+    if (pressureRatio < 0.2) {
+      mixerBalancePenalty = 0.30;  // severe mismatch — gravity vs. mains
+    } else if (pressureRatio < 0.5) {
+      mixerBalancePenalty = 0.15;  // moderate mismatch
+    }
+  }
+
+  const effectiveFlowLpm = rawFlowLpm * (1 - mixerBalancePenalty);
+
+  const limitingFactor = determineLimitingFactor(
+    headM,
+    diameterFactor,
+    routeResistanceFactor,
+    outletFactor,
+    mixerBalancePenalty,
+  );
+
+  return {
+    effectiveFlowLpm: parseFloat(effectiveFlowLpm.toFixed(2)),
+    diameterFactor,
+    routeResistanceFactor: parseFloat(routeResistanceFactor.toFixed(2)),
+    outletFactor,
+    mixerBalancePenalty,
+    limitingFactor,
+  };
+}
+
+/**
+ * Determine the single most constraining factor on a vented branch.
+ * Used to generate human-readable explanations such as
+ * "Shower weak because 15 mm long run" or "Dedicated cold feed improves
+ * mixer balance but not hot-side head".
+ *
+ * @internal
+ */
+function determineLimitingFactor(
+  headM: number,
+  diameterFactor: number,
+  routeResistanceFactor: number,
+  outletFactor: number,
+  mixerBalancePenalty: number,
+): VentedLimitingFactor {
+  // Mixer imbalance overrides physical constraints — it is a system design issue.
+  if (mixerBalancePenalty >= 0.3) return 'mixer_imbalance';
+  // Low head is the vented system's fundamental physical limit.
+  if (headM < VENTED_MIN_ADEQUATE_HEAD_M) return 'head';
+  // Long runs (≥ 15 m equivalent, i.e. routeResistanceFactor ≥ 3.0) dominate
+  // resistance on real installations: a 22 mm pipe at 15 m still halves flow
+  // compared to a 5 m run, overwhelming the pipe-size benefit.
+  if (routeResistanceFactor >= 3.0) return 'route_length';
+  // 15 mm pipe (diameterFactor = 1.0) is the bottleneck when the run is longer
+  // than 1.5× the 5 m reference (i.e. > 7.5 m equivalent).  Below that, friction
+  // on a short 15 mm run is manageable; above it the bore becomes the weak link.
+  if (diameterFactor <= 1.0 && routeResistanceFactor > 1.5) return 'pipe_diameter';
+  // Restrictive outlet (mixer shower) limits peak throughput even on a well-designed branch.
+  if (outletFactor >= 1.8) return 'outlet_resistance';
+  // Default: gravity head is always the underlying constraint on a vented system.
+  return 'head';
 }
