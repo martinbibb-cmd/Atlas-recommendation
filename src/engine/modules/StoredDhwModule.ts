@@ -35,6 +35,13 @@ const VENTED_NOMINAL_HEAD_M = 1.0;
 const UNVENTED_MARGINAL_LPM = 12;
 
 /**
+ * Nominal gravity-fed flow rate (L/min) at VENTED_NOMINAL_HEAD_M.
+ * Derived from typical UK domestic gravity-fed pipe sizing at 1 m head.
+ * Scales with √(head) via the Torricelli / orifice-flow relationship.
+ */
+const VENTED_BASE_FLOW_LPM = 10;
+
+/**
  * Minimum cylinder volume (litres) per bathroom for the thermal-capacity adequacy check.
  * Each bathroom represents a full hot-water draw point.
  */
@@ -550,6 +557,18 @@ export interface DrawOffBehaviour {
   maxPressureBar: number;
   /** Flow stability classification under concurrent draw. */
   flowStability: DrawOffFlowStability;
+  /**
+   * Head-derived flow cap (L/min) for tank-fed (open-vented) systems.
+   *
+   * Computed as: VENTED_BASE_FLOW_LPM × √(head / VENTED_NOMINAL_HEAD_M)
+   *
+   * This couples flow delivery to gravity head, preventing an open-vented
+   * system from appearing to sustain mains-equivalent flow even when it is
+   * classified as 'marginal' or 'limited' from a pressure standpoint.
+   *
+   * Undefined for mains-fed systems (flow is governed by mains supply, not head).
+   */
+  ventedMaxFlowLpm?: number;
 }
 
 /**
@@ -563,6 +582,9 @@ export interface DrawOffBehaviour {
  * head — the height of the cold-water storage tank above the draw-off point.
  * Every metre of head contributes ≈ 0.098 bar; a typical domestic loft tank at
  * 1 m above the draw-off delivers only ≈ 0.1 bar — far below mains pressure.
+ * Head also limits achievable flow via the Torricelli relationship (flow ∝ √head),
+ * so a gravity-fed system cannot sustain mains-equivalent flow even when it is
+ * classified as pressure-adequate.  The derived ventedMaxFlowLpm captures this.
  *
  * @param systemType            Comparison system archetype.
  * @param mainsDynamicPressureBar  Measured mains dynamic pressure (bar).  Used
@@ -600,9 +622,15 @@ export function computeDrawOff(
 
     return { maxPressureBar: pressure, flowStability };
   } else {
-    // Tank-fed (open-vented): gravity head governs delivery pressure
+    // Tank-fed (open-vented): gravity head governs delivery pressure AND flow.
+    // Flow ∝ √head (Torricelli / orifice-flow): at double the head you get
+    // √2 × the flow, not 2×.  This cap prevents open-vented systems from
+    // appearing to sustain mains-equivalent flow in downstream consumers.
     const head = cwsHeadMetres ?? VENTED_NOMINAL_HEAD_M;
     const pressure = parseFloat((head * METRES_HEAD_TO_BAR).toFixed(4));
+    const ventedMaxFlowLpm = parseFloat(
+      (VENTED_BASE_FLOW_LPM * Math.sqrt(head / VENTED_NOMINAL_HEAD_M)).toFixed(2),
+    );
 
     let flowStability: DrawOffFlowStability;
     if (head >= VENTED_MIN_ADEQUATE_HEAD_M) {
@@ -613,6 +641,6 @@ export function computeDrawOff(
       flowStability = 'limited';
     }
 
-    return { maxPressureBar: pressure, flowStability };
+    return { maxPressureBar: pressure, flowStability, ventedMaxFlowLpm };
   }
 }

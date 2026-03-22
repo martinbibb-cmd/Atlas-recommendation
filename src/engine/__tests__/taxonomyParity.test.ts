@@ -189,3 +189,45 @@ describe('draw-off micro-behaviour — mixergy vs mixergy_open_vented must diver
     expect(su.flowStability).toBe(uv.flowStability);
   });
 });
+
+// ─── Vented flow cap: head also limits achievable flow (flow ∝ √head) ──────────
+
+describe('draw-off micro-behaviour — vented flow cap scales with √head', () => {
+  it('ventedMaxFlowLpm is present for tank-fed systems and absent for mains-fed', () => {
+    const ov = computeDrawOff('mixergy_open_vented', undefined, undefined, 1.0);
+    const uv = computeDrawOff('mixergy',             2.5, 20, undefined);
+    expect(ov.ventedMaxFlowLpm).toBeDefined();
+    expect(uv.ventedMaxFlowLpm).toBeUndefined();
+  });
+
+  it('ventedMaxFlowLpm at nominal head (1.0 m) equals VENTED_BASE_FLOW_LPM (10 L/min)', () => {
+    const ov = computeDrawOff('mixergy_open_vented', undefined, undefined, 1.0);
+    expect(ov.ventedMaxFlowLpm).toBeCloseTo(10, 1);
+  });
+
+  it('ventedMaxFlowLpm scales as √head: doubling head gives √2 × flow', () => {
+    const ov1 = computeDrawOff('stored_vented', undefined, undefined, 1.0);
+    const ov2 = computeDrawOff('stored_vented', undefined, undefined, 4.0);
+    // flow ∝ √head  →  at 4 m head, flow = 10 × √4 = 20 L/min (2×, not 4×)
+    expect(ov2.ventedMaxFlowLpm!).toBeCloseTo(ov1.ventedMaxFlowLpm! * 2, 1);
+  });
+
+  it('ventedMaxFlowLpm at 0.4 m head is significantly below 10 L/min', () => {
+    // 0.4 m head → 10 × √(0.4/1.0) ≈ 6.32 L/min — well below mains-fed delivery
+    const ov = computeDrawOff('mixergy_open_vented', undefined, undefined, 0.4);
+    expect(ov.ventedMaxFlowLpm).toBeCloseTo(6.32, 1);
+    expect(ov.ventedMaxFlowLpm!).toBeLessThan(10);
+  });
+
+  it('ventedMaxFlowLpm at borderline head (0.3 m) is substantially reduced', () => {
+    // 0.3 m → 10 × √0.3 ≈ 5.48 L/min — confirms flow collapse at very low head
+    const ov = computeDrawOff('stored_vented', undefined, undefined, 0.3);
+    expect(ov.ventedMaxFlowLpm!).toBeCloseTo(5.48, 1);
+  });
+
+  it('stored_vented and mixergy_open_vented return identical ventedMaxFlowLpm at same head', () => {
+    const sv = computeDrawOff('stored_vented',       undefined, undefined, 0.8);
+    const ov = computeDrawOff('mixergy_open_vented', undefined, undefined, 0.8);
+    expect(sv.ventedMaxFlowLpm).toBe(ov.ventedMaxFlowLpm);
+  });
+});
