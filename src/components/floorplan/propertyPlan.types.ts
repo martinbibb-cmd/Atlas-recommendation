@@ -168,6 +168,27 @@ export type ConnectionType =
   | 'prv'
   | 'control';
 
+/**
+ * Semantic service type used for engineer-view labeling and PDF/print outputs.
+ * More granular than ConnectionType — distinguishes primary from secondary
+ * and labels DHW / cold-main runs explicitly.
+ */
+export type ServiceType =
+  | 'primary_flow'
+  | 'primary_return'
+  | 'dhw_hot'
+  | 'cold_main'
+  | 'gas'
+  | 'condensate'
+  | 'prv'
+  | 'control';
+
+export type PipeSizeMm = 15 | 22 | 28 | 35;
+
+export type InstallMethod = 'underfloor' | 'boxed' | 'surface' | 'void' | 'external';
+
+export type RouteStatus = 'ok' | 'borderline' | 'upgrade_required';
+
 export interface ConnectionPath {
   id: string;
   type: ConnectionType;
@@ -176,7 +197,75 @@ export interface ConnectionPath {
   /** Ordered waypoints including start and end */
   route: Point[];
   routeMode: 'manual' | 'auto';
+  /** Semantic service classification for engineer-view labels. */
+  serviceType?: ServiceType;
+  /** Nominal pipe bore in mm (15 / 22 / 28 / 35). */
+  pipeSizeMm?: PipeSizeMm;
+  /** How the run is physically installed. */
+  installMethod?: InstallMethod;
+  /** Calculated run length in metres (populated by deriveFloorplanOutputs). */
+  lengthM?: number;
+  /** Route health — ok, borderline velocity/pressure, or upgrade required. */
+  status?: RouteStatus;
+  /** Free-text engineer annotation for this segment (e.g. "floorboards lifted"). */
+  annotation?: string;
 }
+
+// ─── Disruption / consequence annotations ─────────────────────────────────────
+
+/**
+ * Kind of physical disruption or access implication associated with a
+ * pipe route or component placement.
+ */
+export type DisruptionKind =
+  | 'floorLift'
+  | 'boxing'
+  | 'wallChase'
+  | 'coreDrill'
+  | 'externalRun';
+
+export const DISRUPTION_KIND_LABELS: Record<DisruptionKind, string> = {
+  floorLift:   'Floor lift',
+  boxing:      'Boxing',
+  wallChase:   'Wall chase',
+  coreDrill:   'Core drill',
+  externalRun: 'External run',
+};
+
+export const DISRUPTION_KIND_EMOJI: Record<DisruptionKind, string> = {
+  floorLift:   '🪵',
+  boxing:      '📦',
+  wallChase:   '🔨',
+  coreDrill:   '🔩',
+  externalRun: '🌿',
+};
+
+/**
+ * A consequence / disruption marker anchored to a specific canvas position.
+ * Used to communicate installation implications to customers and engineers.
+ */
+export interface DisruptionAnnotation {
+  id: string;
+  kind: DisruptionKind;
+  floorId: string;
+  x: number;
+  y: number;
+  /** Optional free-text note (e.g. "floorboards lifted in hallway"). */
+  note?: string;
+}
+
+// ─── View mode ────────────────────────────────────────────────────────────────
+
+/**
+ * Presentation mode for the floor plan.
+ *
+ * customer  — simplified labels, main routes and disruption emphasis.
+ *             Language: "new cylinder here", "pipes likely under this floor".
+ * engineer  — full dimensions, route labels, pipe sizes, run lengths,
+ *             engineering notes and warnings.
+ *             Language: "22mm primary F/R", "route via first-floor void".
+ */
+export type ViewMode = 'customer' | 'engineer';
 
 // ─── Property metadata ────────────────────────────────────────────────────────
 
@@ -198,6 +287,16 @@ export interface PropertyPlan {
   floors: FloorPlan[];
   placementNodes: PlacementNode[];
   connections: ConnectionPath[];
+  /**
+   * Consequence / disruption annotations placed on the plan.
+   * Layer 4 of the canonical model.
+   */
+  disruptions?: DisruptionAnnotation[];
+  /**
+   * Active presentation mode.  Drives which labels and layers are shown in
+   * FloorPlanBuilder without changing the underlying data.
+   */
+  viewMode?: ViewMode;
   metadata: PropertyMetadata;
 }
 
@@ -223,12 +322,14 @@ export type EditorTool =
   | 'addOpening'
   | 'placeNode'
   | 'connectRoute'
+  | 'addDisruption'
   | 'pan';
 
 // ─── Selection model ──────────────────────────────────────────────────────────
 
 export type SelectionTarget =
-  | { kind: 'room';       id: string }
-  | { kind: 'wall';       id: string }
-  | { kind: 'node';       id: string }
-  | { kind: 'connection'; id: string };
+  | { kind: 'room';        id: string }
+  | { kind: 'wall';        id: string }
+  | { kind: 'node';        id: string }
+  | { kind: 'connection';  id: string }
+  | { kind: 'disruption';  id: string };

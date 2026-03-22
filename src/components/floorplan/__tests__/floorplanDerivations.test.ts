@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createManualRoom, canPlaceInProfessionalPlan, deriveFloorplanOutputs, computeExposedPerimeterM, computePipeOffset, autoRouteHeatingPipes } from '../floorplanDerivations';
+import { createManualRoom, canPlaceInProfessionalPlan, deriveFloorplanOutputs, computeExposedPerimeterM, computePipeOffset, autoRouteHeatingPipes, computePipeSizeMm, computeDisruptionAnnotations } from '../floorplanDerivations';
 import type { PropertyPlan, Room, PlacementNode } from '../propertyPlan.types';
 
 function makePlan(): PropertyPlan {
@@ -297,5 +297,119 @@ describe('autoRouteHeatingPipes', () => {
     expect(flow.toNodeId).toBe('em1');
     expect(ret.fromNodeId).toBe('em1');
     expect(ret.toNodeId).toBe('hs1');
+  });
+
+  it('flow route has serviceType primary_flow and return has primary_return', () => {
+    const routes = autoRouteHeatingPipes(makeNodes(), rooms);
+    expect(routes.find(r => r.type === 'flow')?.serviceType).toBe('primary_flow');
+    expect(routes.find(r => r.type === 'return')?.serviceType).toBe('primary_return');
+  });
+
+  it('populates pipeSizeMm on each auto-route', () => {
+    const routes = autoRouteHeatingPipes(makeNodes(), rooms);
+    for (const route of routes) {
+      expect([15, 22, 28, 35]).toContain(route.pipeSizeMm);
+    }
+  });
+
+  it('uses emitterOutputKw to select pipe bore when provided', () => {
+    const nodes = makeNodes();
+    // Give the emitter a high rated output that requires 28mm
+    nodes[1] = { ...nodes[1], emitterOutputKw: 10 };
+    const routes = autoRouteHeatingPipes(nodes, rooms);
+    // 10 kW > 8 kW threshold → 28 mm
+    expect(routes.find(r => r.type === 'flow')?.pipeSizeMm).toBe(28);
+  });
+});
+
+// ─── computePipeSizeMm ────────────────────────────────────────────────────────
+
+describe('computePipeSizeMm', () => {
+  it('returns 15mm for very small heat loads (≤ 3 kW)', () => {
+    expect(computePipeSizeMm(0.5)).toBe(15);
+    expect(computePipeSizeMm(3)).toBe(15);
+  });
+
+  it('returns 22mm for typical residential loads (3–8 kW)', () => {
+    expect(computePipeSizeMm(3.1)).toBe(22);
+    expect(computePipeSizeMm(8)).toBe(22);
+  });
+
+  it('returns 28mm for larger loads (8–20 kW)', () => {
+    expect(computePipeSizeMm(8.1)).toBe(28);
+    expect(computePipeSizeMm(20)).toBe(28);
+  });
+
+  it('returns 35mm for high loads (> 20 kW)', () => {
+    expect(computePipeSizeMm(20.1)).toBe(35);
+    expect(computePipeSizeMm(50)).toBe(35);
+  });
+});
+
+// ─── computeDisruptionAnnotations ────────────────────────────────────────────
+
+describe('computeDisruptionAnnotations', () => {
+  it('returns empty array for a plan with no nodes or connections', () => {
+    const plan: PropertyPlan = {
+      version: '1.0',
+      propertyId: 'p1',
+      floors: [{ id: 'f1', name: 'Ground', levelIndex: 0, rooms: [], walls: [], openings: [], zones: [] }],
+      placementNodes: [],
+      connections: [],
+      metadata: {},
+    };
+    expect(computeDisruptionAnnotations(plan)).toHaveLength(0);
+  });
+
+  it('flags externalRun for a heat pump placed in an outside room', () => {
+    const plan: PropertyPlan = {
+      version: '1.0',
+      propertyId: 'p1',
+      floors: [{ id: 'f1', name: 'Ground', levelIndex: 0, rooms: [
+        { id: 'garden', floorId: 'f1', name: 'Garden', roomType: 'outside', x: 0, y: 0, width: 48, height: 48 },
+      ], walls: [], openings: [], zones: [] }],
+      placementNodes: [
+        { id: 'hp1', type: 'heat_source_heat_pump', floorId: 'f1', roomId: 'garden', anchor: { x: 24, y: 24 }, metadata: {} },
+      ],
+      connections: [],
+      metadata: {},
+    };
+    const result = computeDisruptionAnnotations(plan);
+    expect(result.some(d => d.kind === 'externalRun')).toBe(true);
+  });
+
+  it('flags coreDrill when boiler and cylinder are on different floors', () => {
+    const plan: PropertyPlan = {
+      version: '1.0',
+      propertyId: 'p1',
+      floors: [
+        { id: 'f1', name: 'Ground', levelIndex: 0, rooms: [], walls: [], openings: [], zones: [] },
+        { id: 'f2', name: 'First',  levelIndex: 1, rooms: [], walls: [], openings: [], zones: [] },
+      ],
+      placementNodes: [
+        { id: 'b1',  type: 'heat_source_combi',      floorId: 'f1', anchor: { x: 24, y: 24 }, metadata: {} },
+        { id: 'cyl', type: 'dhw_unvented_cylinder',  floorId: 'f2', anchor: { x: 24, y: 24 }, metadata: {} },
+      ],
+      connections: [],
+      metadata: {},
+    };
+    const result = computeDisruptionAnnotations(plan);
+    expect(result.some(d => d.kind === 'coreDrill')).toBe(true);
+  });
+
+  it('does not flag coreDrill when boiler and cylinder share the same floor', () => {
+    const plan: PropertyPlan = {
+      version: '1.0',
+      propertyId: 'p1',
+      floors: [{ id: 'f1', name: 'Ground', levelIndex: 0, rooms: [], walls: [], openings: [], zones: [] }],
+      placementNodes: [
+        { id: 'b1',  type: 'heat_source_combi',     floorId: 'f1', anchor: { x: 24, y: 24 }, metadata: {} },
+        { id: 'cyl', type: 'dhw_unvented_cylinder', floorId: 'f1', anchor: { x: 48, y: 48 }, metadata: {} },
+      ],
+      connections: [],
+      metadata: {},
+    };
+    const result = computeDisruptionAnnotations(plan);
+    expect(result.some(d => d.kind === 'coreDrill')).toBe(false);
   });
 });
