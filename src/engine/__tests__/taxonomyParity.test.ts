@@ -13,6 +13,7 @@ import { describe, it, expect } from 'vitest';
 import type { ComparisonSystemType } from '../schema/ScenarioProfileV1';
 import { computeSystemHourPhysics } from '../schema/ScenarioProfileV1';
 import { SYSTEM_REGISTRY } from '../../lib/system/systemRegistry';
+import { computeDrawOff } from '../modules/StoredDhwModule';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -121,5 +122,70 @@ describe('taxonomy parity — simulator and registry alignment', () => {
   it('stored_unvented registry entry has simulatorChoiceIds containing unvented', () => {
     const storedUnvented = SYSTEM_REGISTRY.get('stored_unvented')!;
     expect(storedUnvented.simulatorChoiceIds).toContain('unvented');
+  });
+});
+
+// ─── Draw-off micro-behaviour: mains-fed vs tank-fed must diverge ─────────────
+
+describe('draw-off micro-behaviour — mixergy vs mixergy_open_vented must diverge', () => {
+  it('maxPressureBar is always higher for mains-fed (mixergy) than tank-fed (mixergy_open_vented)', () => {
+    // Mains-fed: delivery pressure = mains dynamic pressure (~2.5 bar typical).
+    // Tank-fed:  delivery pressure = gravity head × 0.0981 bar/m (~0.039 bar at 0.4 m head).
+    // These must NEVER be equal — the hydraulic supply source is fundamentally different.
+    const uv = computeDrawOff('mixergy',              2.5, 20,        undefined);
+    const ov = computeDrawOff('mixergy_open_vented',  undefined, undefined, 0.4);
+    expect(uv.maxPressureBar).not.toBe(ov.maxPressureBar);
+    // Mains-fed pressure must be substantially higher than gravity head
+    expect(uv.maxPressureBar).toBeGreaterThan(ov.maxPressureBar);
+  });
+
+  it('flowStability diverges between adequate mains-fed and borderline tank-fed head', () => {
+    // Adequate mains (20 L/min ≥ 18 L/min threshold) → 'stable'
+    // Borderline gravity head (0.4 m < 0.5 m adequate threshold) → 'marginal'
+    const uv = computeDrawOff('mixergy',              2.5, 20,        undefined);
+    const ov = computeDrawOff('mixergy_open_vented',  undefined, undefined, 0.4);
+    expect(uv.flowStability).not.toBe(ov.flowStability);
+    expect(uv.flowStability).toBe('stable');
+    expect(ov.flowStability).toBe('marginal');
+  });
+
+  it('maxPressureBar for mixergy_open_vented equals head × 0.0981 bar/m', () => {
+    // Assert the physics formula is correctly applied: each metre of head ≈ 0.0981 bar.
+    const ov1 = computeDrawOff('mixergy_open_vented', undefined, undefined, 1.0);
+    const ov2 = computeDrawOff('mixergy_open_vented', undefined, undefined, 2.0);
+    expect(ov1.maxPressureBar).toBeCloseTo(0.0981, 3);
+    expect(ov2.maxPressureBar).toBeCloseTo(0.1962, 3);
+  });
+
+  it('mixergy (mains-fed) maxPressureBar equals provided mains dynamic pressure', () => {
+    const uv = computeDrawOff('mixergy', 3.0, 22);
+    expect(uv.maxPressureBar).toBe(3.0);
+    expect(uv.flowStability).toBe('stable');
+  });
+
+  it('mixergy_open_vented with very low head (< 0.3 m) is flow-limited', () => {
+    const ov = computeDrawOff('mixergy_open_vented', undefined, undefined, 0.2);
+    expect(ov.flowStability).toBe('limited');
+  });
+
+  it('mixergy with low mains flow (< 12 L/min) is flow-limited', () => {
+    const uv = computeDrawOff('mixergy', 1.5, 10);
+    expect(uv.flowStability).toBe('limited');
+  });
+
+  it('stored_vented and mixergy_open_vented share tank-fed physics (both head-governed)', () => {
+    // Both tank-fed archetypes use gravity head for pressure and stability.
+    const sv = computeDrawOff('stored_vented',       undefined, undefined, 1.0);
+    const ov = computeDrawOff('mixergy_open_vented', undefined, undefined, 1.0);
+    expect(sv.maxPressureBar).toBe(ov.maxPressureBar);
+    expect(sv.flowStability).toBe(ov.flowStability);
+  });
+
+  it('stored_unvented and mixergy share mains-fed physics (both mains-governed)', () => {
+    // Both mains-fed archetypes use mains pressure for delivery and flow stability.
+    const su = computeDrawOff('stored_unvented', 2.5, 20);
+    const uv = computeDrawOff('mixergy',         2.5, 20);
+    expect(su.maxPressureBar).toBe(uv.maxPressureBar);
+    expect(su.flowStability).toBe(uv.flowStability);
   });
 });

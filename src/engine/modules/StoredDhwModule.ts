@@ -22,6 +22,18 @@ const VENTED_MIN_ADEQUATE_HEAD_M = 0.5;
 /** Very low head threshold (m) for vented systems — below this, shower experience is poor. */
 const VENTED_VERY_LOW_HEAD_M = 0.3;
 
+/** Physics constant: 1 m water column ≈ 0.0981 bar. */
+const METRES_HEAD_TO_BAR = 0.0981;
+
+/** Nominal mains dynamic pressure (bar) used when no measurement is provided for unvented. */
+const UNVENTED_NOMINAL_MAINS_PRESSURE_BAR = 2.0;
+
+/** Nominal gravity head (m) used when no measurement is provided for open-vented. */
+const VENTED_NOMINAL_HEAD_M = 1.0;
+
+/** Marginal mains flow threshold (L/min) — below this, flow is limited but not zero. */
+const UNVENTED_MARGINAL_LPM = 12;
+
 /**
  * Minimum cylinder volume (litres) per bathroom for the thermal-capacity adequacy check.
  * Each bathroom represents a full hot-water draw point.
@@ -512,4 +524,95 @@ export function runStoredDhwModuleV1(
       },
     }),
   };
+}
+
+// ─── Draw-off micro-behaviour ─────────────────────────────────────────────────
+
+/**
+ * Stability classification for draw-off flow under concurrent demand.
+ *
+ * stable   — adequate flow / head for sustained multi-outlet delivery.
+ * marginal — borderline; acceptable for single outlets but may disappoint under load.
+ * limited  — insufficient for reliable delivery; system is head-limited or flow-limited.
+ */
+export type DrawOffFlowStability = 'stable' | 'marginal' | 'limited';
+
+/**
+ * Micro-level draw-off behaviour for a stored-cylinder system archetype.
+ *
+ * This is intentionally distinct from the macro-level hourly energy accounting
+ * in `computeSystemHourPhysics`: these values capture pressure and flow stability
+ * characteristics that differ between mains-fed (unvented) and tank-fed
+ * (open-vented) architectures even when thermal demand is identical.
+ */
+export interface DrawOffBehaviour {
+  /** Maximum expected delivery pressure at the draw-off point (bar). */
+  maxPressureBar: number;
+  /** Flow stability classification under concurrent draw. */
+  flowStability: DrawOffFlowStability;
+}
+
+/**
+ * Compute draw-off micro-behaviour for a stored-cylinder system archetype.
+ *
+ * Mains-fed systems (mixergy / stored_unvented): governed by mains dynamic
+ * pressure and flow rate.  Typical domestic mains pressure is 1.5–4 bar,
+ * giving substantially higher and more stable delivery pressure than gravity.
+ *
+ * Tank-fed systems (mixergy_open_vented / stored_vented): governed by gravity
+ * head — the height of the cold-water storage tank above the draw-off point.
+ * Every metre of head contributes ≈ 0.098 bar; a typical domestic loft tank at
+ * 1 m above the draw-off delivers only ≈ 0.1 bar — far below mains pressure.
+ *
+ * @param systemType            Comparison system archetype.
+ * @param mainsDynamicPressureBar  Measured mains dynamic pressure (bar).  Used
+ *                              for mains-fed systems only.  Defaults to
+ *                              UNVENTED_NOMINAL_MAINS_PRESSURE_BAR when absent.
+ * @param mainsDynamicFlowLpm   Measured mains dynamic flow (L/min).  Used for
+ *                              mains-fed flow-stability classification.  When
+ *                              absent, stability is conservatively 'marginal'.
+ * @param cwsHeadMetres         Gravity head (m) from CWS tank to draw-off.
+ *                              Used for tank-fed systems only.  Defaults to
+ *                              VENTED_NOMINAL_HEAD_M when absent.
+ */
+export function computeDrawOff(
+  systemType: 'mixergy' | 'mixergy_open_vented' | 'stored_unvented' | 'stored_vented',
+  mainsDynamicPressureBar?: number,
+  mainsDynamicFlowLpm?: number,
+  cwsHeadMetres?: number,
+): DrawOffBehaviour {
+  const isMainsFed = systemType === 'mixergy' || systemType === 'stored_unvented';
+
+  if (isMainsFed) {
+    const pressure = mainsDynamicPressureBar ?? UNVENTED_NOMINAL_MAINS_PRESSURE_BAR;
+
+    let flowStability: DrawOffFlowStability;
+    if (mainsDynamicFlowLpm === undefined) {
+      // No measurement — conservatively assume marginal until confirmed
+      flowStability = 'marginal';
+    } else if (mainsDynamicFlowLpm >= UNVENTED_MIN_ADEQUATE_LPM) {
+      flowStability = 'stable';
+    } else if (mainsDynamicFlowLpm >= UNVENTED_MARGINAL_LPM) {
+      flowStability = 'marginal';
+    } else {
+      flowStability = 'limited';
+    }
+
+    return { maxPressureBar: pressure, flowStability };
+  } else {
+    // Tank-fed (open-vented): gravity head governs delivery pressure
+    const head = cwsHeadMetres ?? VENTED_NOMINAL_HEAD_M;
+    const pressure = parseFloat((head * METRES_HEAD_TO_BAR).toFixed(4));
+
+    let flowStability: DrawOffFlowStability;
+    if (head >= VENTED_MIN_ADEQUATE_HEAD_M) {
+      flowStability = 'stable';
+    } else if (head >= VENTED_VERY_LOW_HEAD_M) {
+      flowStability = 'marginal';
+    } else {
+      flowStability = 'limited';
+    }
+
+    return { maxPressureBar: pressure, flowStability };
+  }
 }
