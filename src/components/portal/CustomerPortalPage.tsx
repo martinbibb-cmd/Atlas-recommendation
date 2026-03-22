@@ -43,7 +43,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
         if (!report.payload?.engineOutput) throw new Error('This report does not contain recommendation data.');
         setEngineOutput(report.payload.engineOutput);
         setSurveyData((report.payload.surveyData ?? report.payload.engineInput ?? null) as FullSurveyModelV1 | null);
-        setFloorplanOutput(report.payload.floorplanOutput as DerivedFloorplanOutput | undefined);
+        setFloorplanOutput(report.payload.floorplanOutput ?? undefined);
         setPostcode(report.postcode ?? null);
       } catch (err: unknown) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
