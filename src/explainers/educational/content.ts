@@ -299,4 +299,21 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
       'Choosing an energy source means choosing its character: on-demand combustion, flexible electrical, or steady ambient extraction — each suits different patterns of use.',
     ],
   },
+
+  // ── Convection and airflow explainer ───────────────────────────────────────
+
+  {
+    id: 'convection_airflow',
+    category: 'physics',
+    title: 'How opening windows moves heat — not just air',
+    point:
+      'Opening an upstairs window does not just let air out — it drives a convection loop that actively pulls cold air in from below, accelerating heat loss throughout the building.',
+    bullets: [
+      'Warm air rises and exits through an open upstairs window; the pressure drop draws cold replacement air in at ground level — heat loss is a whole-house loop, not a local effect.',
+      'A closed house allows convection loops to circulate and gradually even out temperature between floors — heat is redistributed rather than lost.',
+      'Closing internal doors breaks the loop into contained zones: each room stabilises at its own temperature, reducing inter-zone airflow and improving control.',
+      'The rate of heat loss through an open window increases with time — the longer it stays open, the colder the whole house becomes, not just the room.',
+      'Heat does not simply rise and collect upstairs — it moves in driven loops whose direction and strength depend on where openings are.',
+    ],
+  },
 ] as const;

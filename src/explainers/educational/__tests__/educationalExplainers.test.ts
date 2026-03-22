@@ -56,6 +56,7 @@ const REQUIRED_IDS: ReadonlyArray<string> = [
   'sponge_heat_transfer',
   'cars_running_style',
   'bees_energy_sources',
+  'convection_airflow',
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -72,8 +73,8 @@ describe('EDUCATIONAL_EXPLAINERS', () => {
     expect(EDUCATIONAL_EXPLAINERS.length).toBeGreaterThan(0);
   });
 
-  it('contains exactly 17 explainers', () => {
-    expect(EDUCATIONAL_EXPLAINERS).toHaveLength(17);
+  it('contains exactly 18 explainers', () => {
+    expect(EDUCATIONAL_EXPLAINERS).toHaveLength(18);
   });
 
   it('includes all required topic ids', () => {
@@ -344,6 +345,15 @@ describe('EDUCATIONAL_EXPLAINERS', () => {
       expect(e!.category).toBe('analogy');
       const text = allText(e!).toLowerCase();
       expect(text).toMatch(/energy source|gas|electricity|heat pump/);
+    });
+
+    it('covers convection airflow and window/door effects', () => {
+      const e = EDUCATIONAL_EXPLAINERS.find(x => x.id === 'convection_airflow');
+      expect(e).toBeDefined();
+      expect(e!.category).toBe('physics');
+      const text = allText(e!).toLowerCase();
+      expect(text).toMatch(/convection|loop|airflow|window/);
+      expect(text).toMatch(/heat/);
     });
   });
 });

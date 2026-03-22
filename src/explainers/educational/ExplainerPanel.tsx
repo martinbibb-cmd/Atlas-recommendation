@@ -9,6 +9,7 @@
 import { EDUCATIONAL_EXPLAINERS } from './content';
 import ExplainerCard from './ExplainerCard';
 import DrivingStylePhysicsExplainer from '../../components/visualizers/DrivingStylePhysicsExplainer';
+import ConvectionExplainer from '../../components/visualizers/ConvectionExplainer';
 import './ExplainerPanel.css';
 
 export default function ExplainerPanel() {
@@ -29,6 +30,11 @@ export default function ExplainerPanel() {
       {/* ── Driving-style system comparison explainer ──────────────────────── */}
       <div className="ep-panel__visual-explainer">
         <DrivingStylePhysicsExplainer />
+      </div>
+
+      {/* ── Convection airflow explainer ────────────────────────────────────── */}
+      <div className="ep-panel__visual-explainer">
+        <ConvectionExplainer />
       </div>
 
       {/* ── Cards grid ─────────────────────────────────────────────────────── */}
