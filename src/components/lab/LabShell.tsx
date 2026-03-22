@@ -293,11 +293,17 @@ export default function LabShell({ onHome, engineInput }: Props) {
             ? SYSTEM_TYPE_LABELS[engineInput.currentHeatSourceType] ?? PLACEHOLDER_CURRENT_SYSTEM
             : PLACEHOLDER_CURRENT_SYSTEM}
         </span>
-        <span className="lab-context-label">
-          {fitPosition
-            ? `${FIT_MAP_CATEGORY_LABELS[fitPosition.nearestSystem]} options:`
-            : 'Comparing:'}
-        </span>
+        {fitPosition ? (
+          <>
+            <span className="lab-context-label">Family:</span>
+            <span className="lab-context-chip lab-context-chip--family">
+              {FIT_MAP_CATEGORY_LABELS[fitPosition.nearestSystem]}
+            </span>
+            <span className="lab-context-label">Options:</span>
+          </>
+        ) : (
+          <span className="lab-context-label">Comparing:</span>
+        )}
         {CANDIDATE_SYSTEMS.map(s => (
           <span key={s.id} className="lab-context-chip">{s.label}</span>
         ))}
