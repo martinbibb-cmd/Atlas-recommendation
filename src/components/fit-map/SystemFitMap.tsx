@@ -20,17 +20,31 @@ import './SystemFitMap.css';
 const SYSTEM_LABELS: Record<FitPosition['nearestSystem'], string> = {
   combi:      'On-demand systems',
   system:     'Stored water systems',
-  heat_pump:  'Heat Pump',
+  heat_pump:  'Low-temp fit systems',
 };
 
-/** Short explainer surfaced in the inline drawer when "Show me why" is tapped. */
-const SYSTEM_EXPLAINER: Record<FitPosition['nearestSystem'], string> = {
-  combi:
-    "Your home has lower simultaneous demand and adequate mains pressure, so there's no need to pre-store hot water. A combi fires only when needed — no standing losses, no cylinder space.",
-  system:
-    "Your home's demand profile or pressure measurement suggests that stored hot water will outperform on-demand supply. A cylinder buffers peak draw, protects flow rate under load, and lets the boiler run at its most efficient condensing range.",
-  heat_pump:
-    "Your building's thermal characteristics — lower heat loss rate and slower temperature swing — allow a heat pump to run at the low flow temperatures where it is most efficient. Stored cylinder supply handles the DHW lift without affecting space-heating COP.",
+/** Safe inset margin (fraction of map width/height) for the visible anchor. */
+const ANCHOR_INSET = 0.08;
+
+/** Clamps a value between min and max. */
+function clamp(v: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, v));
+}
+
+/** Structured explainer shown in the inline drawer when "Show me why" is tapped. */
+const SYSTEM_EXPLAINER: Record<FitPosition['nearestSystem'], { lead: string; bullets: string[] }> = {
+  combi: {
+    lead:    "Your home has lower simultaneous demand and adequate mains pressure.",
+    bullets: ["Low simultaneous demand", "Adequate mains pressure", "No cylinder needed"],
+  },
+  system: {
+    lead:    "Your demand profile suggests stored hot water will outperform on-demand supply.",
+    bullets: ["Higher peak draw", "Mains pressure limited", "Cylinder buffers flow"],
+  },
+  heat_pump: {
+    lead:    "Your building's thermal characteristics suit low-flow-temperature operation.",
+    bullets: ["Low heat-loss rate", "Slower temperature swing", "Cylinder handles DHW lift"],
+  },
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -51,6 +65,12 @@ export default function SystemFitMap({ fitPosition, onShowExplainer }: Props) {
   const { x, y, nearestSystem } = fitPosition;
   const [explainerOpen, setExplainerOpen] = useState(false);
 
+  /* Clamp visible anchor so the dot/label never clips into the rounded corners. */
+  const visibleX = clamp(x, ANCHOR_INSET, 1 - ANCHOR_INSET);
+  const visibleY = clamp(y, ANCHOR_INSET, 1 - ANCHOR_INSET);
+
+  const explainer = SYSTEM_EXPLAINER[nearestSystem];
+
   return (
     <div className="fit-map-section">
       {/* Faint subtitle — sets expectation before the map */}
@@ -62,12 +82,12 @@ export default function SystemFitMap({ fitPosition, onShowExplainer }: Props) {
         {/* Gradient background */}
         <div className="fit-map__gradient" aria-hidden="true" />
 
-        {/* User position dot + "Your home" label */}
+        {/* User position dot + "Your home" label — clamped to safe inset */}
         <div
           className="fit-map__dot-anchor"
           style={{
-            left: `${x * 100}%`,
-            top:  `${(1 - y) * 100}%`,
+            left: `${visibleX * 100}%`,
+            top:  `${(1 - visibleY) * 100}%`,
           }}
           aria-label={`Your home position: ${SYSTEM_LABELS[nearestSystem]}`}
         >
@@ -75,19 +95,28 @@ export default function SystemFitMap({ fitPosition, onShowExplainer }: Props) {
           <div className="fit-map__dot" />
         </div>
 
-        {/* Zone labels */}
+        {/* Zone labels — behaviour-first primary, technical secondary */}
         <div className="fit-map__labels" aria-hidden="true">
-          <span className="fit-map__label fit-map__label--combi">Combi</span>
-          <span className="fit-map__label fit-map__label--system">System &amp; Cylinder</span>
-          <span className="fit-map__label fit-map__label--heat-pump">Heat Pump</span>
+          <span className="fit-map__label fit-map__label--combi">
+            <span className="fit-map__label-primary">On-demand</span>
+            <span className="fit-map__label-secondary">combi</span>
+          </span>
+          <span className="fit-map__label fit-map__label--system">
+            <span className="fit-map__label-primary">Stored water</span>
+            <span className="fit-map__label-secondary">boiler / cylinder</span>
+          </span>
+          <span className="fit-map__label fit-map__label--heat-pump">
+            <span className="fit-map__label-primary">Low-temp fit</span>
+            <span className="fit-map__label-secondary">heat pump</span>
+          </span>
         </div>
 
-        {/* Axis captions */}
+        {/* Axis captions — descriptive microcopy for first-read understanding */}
         <span className="fit-map__axis fit-map__axis--x" aria-hidden="true">
-          Demand →
+          More simultaneous demand →
         </span>
         <span className="fit-map__axis fit-map__axis--y" aria-hidden="true">
-          Low-temp fit ↑
+          Better low-temp suitability ↑
         </span>
 
         {/* Nearest-system callout */}
@@ -115,9 +144,12 @@ export default function SystemFitMap({ fitPosition, onShowExplainer }: Props) {
         role="region"
         aria-label="Why this system fits your home"
       >
-        <p className="fit-map__explainer-text">
-          {SYSTEM_EXPLAINER[nearestSystem]}
-        </p>
+        <p className="fit-map__explainer-lead">{explainer.lead}</p>
+        <ul className="fit-map__explainer-bullets">
+          {explainer.bullets.map(b => (
+            <li key={b} className="fit-map__explainer-bullet">{b}</li>
+          ))}
+        </ul>
         {onShowExplainer && (
           <button
             className="fit-map__explainer-link"
