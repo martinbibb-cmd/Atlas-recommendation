@@ -283,12 +283,9 @@ function buildOpenVentedSimpleInstallSpec(
     hotWaterStorageLitres:       cylinderLitres,
     recoveryRateLitresPerHour:   90,
     fuelSource:                  'gas',
-    // Open-vented is typically older stock; no mainsDynamicPressureBar constraint
-    // (gravity-fed from cistern, not mains).
-    mainsDynamicPressureBar:     undefined,
     ...facts,
-    // Override mains pressure — not applicable for gravity-fed systems.
-    ...(facts.mainsDynamicPressureBar != null ? {} : {}),
+    // Override mains pressure — not applicable for gravity-fed (open-vented) systems.
+    mainsDynamicPressureBar:     undefined,
   };
 }
 
