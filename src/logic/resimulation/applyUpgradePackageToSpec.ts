@@ -88,9 +88,10 @@ export function applyUpgradePackageToSpec(
         if (typeof upgrade.value !== 'number') break;
         const targetLitres = upgrade.value;
         // Guard: only increase storage — never downgrade.  When
-        // hotWaterStorageLitres is unset, the classifier falls back to 150 L
-        // (stored_water) or 250 L (heat_pump).  Use the same defaults so the
-        // upgrade never produces a worse bath fill time than the base spec.
+        // hotWaterStorageLitres is unset, classifyStoredWaterDraw() falls back
+        // to 150 L and classifyHeatPumpDraw() to 250 L (both in
+        // hotWaterOutcomeRules.ts).  Use the same defaults so the upgrade
+        // never produces a worse bath fill time than the base spec.
         const effectiveBaseline = spec.hotWaterStorageLitres
           ?? (spec.systemType === 'heat_pump' ? 250 : 150);
         if (targetLitres > effectiveBaseline) {
