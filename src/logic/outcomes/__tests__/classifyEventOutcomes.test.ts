@@ -529,7 +529,53 @@ describe('heating summary aggregation', () => {
   });
 });
 
-// ─── 13. Same schedule, different specs → different outcomes ─────────────────
+// ─── 14. simultaneousEventCount and refined conflict logic ───────────────────
+
+describe('simultaneousEventCount separates circumstance from outcome', () => {
+  it('tracks concurrent-demand events independently of their outcome', () => {
+    const schedule = makeSchedule([
+      makeEvent({ id: 'shower_0', type: 'shower', startMinute: 420, durationMinutes: 8, canConflict: true }),
+      makeEvent({ id: 'shower_1', type: 'shower', startMinute: 422, durationMinutes: 8, canConflict: true }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, GOOD_COMBI);
+
+    // Both events have concurrent demand — simultaneousEventCount should be > 0.
+    expect(result.hotWater.simultaneousEventCount).toBeGreaterThan(0);
+  });
+
+  it('simultaneousEventCount is zero when events are well-separated', () => {
+    const schedule = makeSchedule([
+      makeEvent({ id: 'shower_0', type: 'shower', startMinute: 420, durationMinutes: 8 }),
+      makeEvent({ id: 'shower_1', type: 'shower', startMinute: 480, durationMinutes: 8 }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, GOOD_COMBI);
+
+    expect(result.hotWater.simultaneousEventCount).toBe(0);
+  });
+
+  it('high-capacity combi with concurrent demand at adequate effective flow → successful', () => {
+    // peakLpm=20, concurrent=1, effectiveLpm=10 — above COMBI_ADEQUATE_FLOW_LPM (8)
+    const highCapCombi: OutcomeSystemSpec = {
+      ...GOOD_COMBI,
+      peakHotWaterCapacityLpm: 20,
+    };
+
+    const schedule = makeSchedule([
+      makeEvent({ id: 'shower_0', type: 'shower', startMinute: 420, durationMinutes: 8, canConflict: true }),
+      makeEvent({ id: 'shower_1', type: 'shower', startMinute: 422, durationMinutes: 8, canConflict: true }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, highCapCombi);
+
+    // Effective flow = 20 / 2 = 10 lpm — adequate; events should be successful.
+    expect(result.events.every((e) => e.result === 'successful')).toBe(true);
+    // But simultaneous demand is still recorded.
+    expect(result.hotWater.simultaneousEventCount).toBeGreaterThan(0);
+  });
+});
+
 
 describe('same schedule produces different outcomes for different system specs', () => {
   it('low-pressure combi produces more conflicts than good combi', () => {

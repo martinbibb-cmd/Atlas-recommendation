@@ -61,6 +61,7 @@ function buildHotWaterSummary(events: ClassifiedDayEvent[]): HotWaterOutcomeSumm
   let successful = 0;
   let reduced    = 0;
   let conflict   = 0;
+  let simultaneousEventCount = 0;
 
   const bathFillTimes: number[] = [];
 
@@ -68,6 +69,9 @@ function buildHotWaterSummary(events: ClassifiedDayEvent[]): HotWaterOutcomeSumm
     if (e.result === 'successful') successful++;
     else if (e.result === 'reduced') reduced++;
     else conflict++;
+
+    // Count events that had concurrent/overlapping demand — regardless of outcome.
+    if (e.tags.includes('concurrent_demand')) simultaneousEventCount++;
 
     if (e.type === 'bath' && e.metrics?.bathFillTimeMinutes !== undefined) {
       bathFillTimes.push(e.metrics.bathFillTimeMinutes);
@@ -79,6 +83,7 @@ function buildHotWaterSummary(events: ClassifiedDayEvent[]): HotWaterOutcomeSumm
     successful,
     reduced,
     conflict,
+    simultaneousEventCount,
     averageBathFillTimeMinutes:
       bathFillTimes.length > 0
         ? bathFillTimes.reduce((a, b) => a + b, 0) / bathFillTimes.length

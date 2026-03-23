@@ -29,6 +29,14 @@ const COMBI_MIN_PRESSURE_BAR = 0.5;
  */
 const COMBI_CONFLICT_PRESSURE_BAR = 0.3;
 
+/**
+ * Minimum delivered flow (lpm) for a combi to be considered adequate even
+ * under simultaneous demand.  Above this threshold the concurrent event is
+ * tagged `concurrent_demand` but classified `successful` — the overlap is a
+ * circumstance, not a performance failure.
+ */
+const COMBI_ADEQUATE_FLOW_LPM = 8;
+
 /** Default combi peak capacity when not specified (litres per minute). */
 const COMBI_DEFAULT_PEAK_LPM = 12;
 
@@ -37,12 +45,6 @@ const STORED_DEFAULT_DRAW_RATE_LPM = 15;
 
 /** Default heat-pump cylinder draw rate (slower, larger vessel). */
 const HP_DEFAULT_DRAW_RATE_LPM = 12;
-
-/**
- * Threshold at which a single draw event's estimated volume exceeds what is
- * left in the cylinder after accounting for prior events in the cluster.
- * Below this fraction of storage remaining the outcome is reduced.
- */
 const STORAGE_REDUCED_FRACTION = 0.4;
 
 /**
@@ -145,20 +147,31 @@ function classifyCombiDraw(
     };
   }
 
-  // Concurrent demand — combi cannot serve two high-intensity draws simultaneously.
+  // Concurrent demand — only degrades service when effective flow drops below
+  // usable thresholds.  Simultaneous demand alone is not a conflict.
   if (concurrent >= 1 && event.canConflict) {
     const effectiveLpm = peakLpm / (concurrent + 1);
     if (effectiveLpm < 6) {
       return {
         result: 'conflict',
-        reason: `Simultaneous demand: ${concurrent + 1} concurrent hot-water draw(s) exceed combi capacity (${peakLpm} lpm).`,
+        reason: `Simultaneous demand: ${concurrent + 1} concurrent hot-water draw(s) reduce combi flow to ~${effectiveLpm.toFixed(1)} lpm — below usable threshold.`,
         metrics: { estimatedFlowLpm: effectiveLpm },
         tags: ['concurrent_demand'],
       };
     }
+    if (effectiveLpm < COMBI_ADEQUATE_FLOW_LPM) {
+      return {
+        result: 'reduced',
+        reason: `Overlapping demand reduces effective flow to ~${effectiveLpm.toFixed(1)} lpm from combi capacity of ${peakLpm} lpm — noticeable but tolerable.`,
+        metrics: { estimatedFlowLpm: effectiveLpm },
+        tags: ['concurrent_demand'],
+      };
+    }
+    // Effective flow is still adequate — mark as successful but flag the
+    // simultaneous circumstance so it appears in simultaneousEventCount.
     return {
-      result: 'reduced',
-      reason: `Overlapping demand reduces effective flow to ~${effectiveLpm.toFixed(1)} lpm from combi capacity of ${peakLpm} lpm.`,
+      result: 'successful',
+      reason: `Combi delivers ~${effectiveLpm.toFixed(1)} lpm under simultaneous demand — adequate flow maintained.`,
       metrics: { estimatedFlowLpm: effectiveLpm },
       tags: ['concurrent_demand'],
     };

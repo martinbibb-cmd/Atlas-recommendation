@@ -62,6 +62,13 @@ export interface HotWaterOutcomeSummary {
   reduced: number;
   conflict: number;
   /**
+   * Number of events that involved concurrent / overlapping demand,
+   * regardless of whether the overlap caused measurable degradation.
+   * Simultaneous demand alone is NOT a conflict — this counter separates
+   * the circumstance from its outcome.
+   */
+  simultaneousEventCount: number;
+  /**
    * Average fill time for bath events, in minutes.
    * null when no bath events exist in the schedule.
    */
