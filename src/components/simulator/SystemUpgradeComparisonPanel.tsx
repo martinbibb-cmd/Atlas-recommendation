@@ -105,6 +105,7 @@ export default function SystemUpgradeComparisonPanel({
           variant="simple"
           outcome={resimulation.simpleInstall}
           summary={simpleSummary}
+          systemType={resimulation.systemType}
         />
 
         {/* ── Suggested upgrades strip ───────────────────────────────── */}
@@ -115,6 +116,7 @@ export default function SystemUpgradeComparisonPanel({
           variant="best-fit"
           outcome={resimulation.bestFitInstall}
           summary={bestFitSummary}
+          systemType={resimulation.systemType}
         />
       </div>
     </section>

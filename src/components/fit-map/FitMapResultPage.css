@@ -1,0 +1,57 @@
+/* ── FitMapResultPage ─────────────────────────────────────────────────────── */
+
+.fit-map-result-page {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem;
+  background: #f7f8fa;
+  min-height: 100%;
+}
+
+.fit-map-result-page__card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  padding: 2rem 1.75rem 1.75rem;
+  width: 100%;
+  max-width: 680px;
+}
+
+.fit-map-result-page__title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.5rem;
+}
+
+.fit-map-result-page__subtitle {
+  font-size: 0.9rem;
+  color: #4a5568;
+  line-height: 1.55;
+  margin: 0 0 1.25rem;
+}
+
+.fit-map-result-page__continue {
+  display: block;
+  width: 100%;
+  margin-top: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #3182ce;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s ease, transform 0.1s ease;
+  letter-spacing: 0.01em;
+}
+
+.fit-map-result-page__continue:hover,
+.fit-map-result-page__continue:focus-visible {
+  background: #2b6cb0;
+  outline: 2px solid #90cdf4;
+  outline-offset: 2px;
+  transform: scale(1.01);
+}
