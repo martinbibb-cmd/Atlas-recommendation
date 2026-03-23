@@ -7,10 +7,22 @@
  * Each exported function accepts the event under evaluation, the full ordered
  * list of events in the schedule (for overlap detection), and the system spec,
  * and returns an outcome result, a reason string, and any quantitative metrics.
+ *
+ * When spec.heatSourceBehaviour is present, physics-derived values from the
+ * HeatSourceBehaviourModel are used in place of the previous fixed threshold
+ * constants.  This ensures combi flow rates, cylinder recovery rates, and
+ * simultaneous-demand effects all emerge from source behaviour rather than
+ * generic family-level shortcuts.
  */
 
 import type { DayEvent } from '../events/types';
 import type { ClassifiedDayEvent, OutcomeSystemSpec } from './types';
+import {
+  buildHeatSourceBehaviour,
+  type CombiBehaviourV1,
+  type BoilerCylinderBehaviourV1,
+  type HeatPumpCylinderBehaviourV1,
+} from '../../engine/modules/HeatSourceBehaviourModel';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -20,25 +32,21 @@ const BATH_VOLUME_LITRES = 150;
 /**
  * Minimum mains dynamic pressure (bar) required for a combi to deliver
  * adequate hot-water flow.  Below this the outlet is noticeably weak.
+ *
+ * @deprecated Prefer the physics-derived value from CombiBehaviourV1.
+ *             Kept as a fallback when heatSourceBehaviour is absent.
  */
 const COMBI_MIN_PRESSURE_BAR = 0.5;
-
-/**
- * Mains pressure (bar) below which simultaneous demand causes an audible /
- * temperature drop — classified as conflict rather than reduced.
- */
-const COMBI_CONFLICT_PRESSURE_BAR = 0.3;
 
 /**
  * Minimum delivered flow (lpm) for a combi to be considered adequate even
  * under simultaneous demand.  Above this threshold the concurrent event is
  * tagged `concurrent_demand` but classified `successful` — the overlap is a
  * circumstance, not a performance failure.
+ *
+ * @deprecated Prefer flow derived from CombiBehaviourV1.dualOutletDhwLpmPerOutlet.
  */
 const COMBI_ADEQUATE_FLOW_LPM = 8;
-
-/** Default combi peak capacity when not specified (litres per minute). */
-const COMBI_DEFAULT_PEAK_LPM = 12;
 
 /** Default stored-water peak draw rate used for bath fill-time estimate. */
 const STORED_DEFAULT_DRAW_RATE_LPM = 15;
@@ -149,21 +157,23 @@ function estimateDrawDurationHours(event: DayEvent, drawRateLpm: number): number
 // ─── Combi rules ─────────────────────────────────────────────────────────────
 
 /**
- * Classify a hot-water draw event for a combi boiler system.
+ * Classify a hot-water draw event for a combi boiler system using physics
+ * outputs from CombiBehaviourV1.
  *
- * Key factors:
- *   - mains dynamic pressure
- *   - peak flow capacity
- *   - concurrent demand from overlapping events
+ * Key factors (source-behaviour driven):
+ *   - pressure lockout (from CombiBehaviourV1.pressureLockoutActive)
+ *   - maximum DHW flow (from CombiBehaviourV1.singleOutletDhwLpm)
+ *   - simultaneous flow split (from CombiBehaviourV1.dualOutletDhwLpmPerOutlet)
+ *   - initiation delay (from CombiBehaviourV1.initiationDelaySeconds)
+ *   - CH paused during DHW (from CombiBehaviourV1.chPausedDuringDhw — always true)
  *   - short-draw events (tap_draw) are almost always successful
  */
 function classifyCombiDraw(
   event: DayEvent,
   allEvents: DayEvent[],
   spec: OutcomeSystemSpec,
+  behaviour: CombiBehaviourV1,
 ): Pick<ClassifiedDayEvent, 'result' | 'reason' | 'metrics' | 'tags'> {
-  const pressure = spec.mainsDynamicPressureBar ?? 1.0;
-  const peakLpm  = spec.peakHotWaterCapacityLpm ?? COMBI_DEFAULT_PEAK_LPM;
   const concurrent = concurrentDrawCount(event, allEvents);
 
   // Very short taps are largely unaffected by pressure or concurrency.
@@ -171,76 +181,99 @@ function classifyCombiDraw(
     return {
       result: 'successful',
       reason: 'Brief tap draw; combi delivers without meaningful pressure loss.',
-      metrics: { estimatedFlowLpm: peakLpm },
+      metrics: { estimatedFlowLpm: behaviour.singleOutletDhwLpm },
       tags: ['short_draw'],
     };
   }
 
-  // Low pressure — hard failure gate.
-  if (pressure < COMBI_CONFLICT_PRESSURE_BAR) {
+  // Pressure lockout from behaviour model — hard failure gate.
+  if (behaviour.pressureLockoutActive) {
+    const pressure = spec.mainsDynamicPressureBar ?? 1.0;
     return {
       result: 'conflict',
-      reason: `Mains dynamic pressure (${pressure} bar) is too low for combi to deliver adequate flow.`,
-      metrics: { estimatedFlowLpm: pressure * peakLpm },
-      tags: ['low_pressure'],
+      reason: `Mains dynamic pressure (${pressure} bar) is too low for combi to ignite — pressure lockout active. Minimum ${1.0} bar required.`,
+      metrics: { estimatedFlowLpm: 0 },
+      tags: ['low_pressure', 'pressure_lockout'],
     };
   }
 
-  // Borderline pressure — degraded delivery.
+  // Legacy low-pressure check (below adequate but above lockout).
+  // This remains relevant for marginal pressure conditions not captured by the
+  // hard lockout threshold.
+  const pressure = spec.mainsDynamicPressureBar ?? 1.0;
   if (pressure < COMBI_MIN_PRESSURE_BAR) {
     return {
       result: 'reduced',
       reason: `Mains dynamic pressure (${pressure} bar) is marginal; flow will be noticeably reduced.`,
-      metrics: { estimatedFlowLpm: pressure * peakLpm * 1.5 },
+      // Marginal-pressure flow estimate: pressure × maxDhwLpm gives the
+      // ideal reduction, but real combi output clips rather than scaling
+      // linearly — the 1.5 factor is a heuristic to avoid over-penalising
+      // borderline pressure by assuming the boiler can partially compensate.
+      metrics: { estimatedFlowLpm: pressure * behaviour.maxDhwLpm * 1.5 },
       tags: ['low_pressure'],
     };
   }
 
-  // Concurrent demand — only degrades service when effective flow drops below
-  // usable thresholds.  Simultaneous demand alone is not a conflict.
+  // Concurrent demand — use behaviour model's flow values rather than generic
+  // capacity divided by outlet count.
   if (concurrent >= 1 && event.canConflict) {
-    const effectiveLpm = peakLpm / (concurrent + 1);
-    if (effectiveLpm < 6) {
+    const effectiveLpm = behaviour.dualOutletDhwLpmPerOutlet;
+
+    if (!behaviour.canServeSimultaneousDhwEvents) {
       return {
         result: 'conflict',
-        reason: `Simultaneous demand: ${concurrent + 1} concurrent hot-water draw(s) reduce combi flow to ~${effectiveLpm.toFixed(1)} lpm — below usable threshold.`,
+        reason:
+          `Simultaneous demand: combi flow split across ${concurrent + 1} concurrent outlet(s) ` +
+          `delivers ~${effectiveLpm.toFixed(1)} lpm per outlet — below usable threshold. ` +
+          `CH is paused while DHW is active (DHW priority).`,
         metrics: { estimatedFlowLpm: effectiveLpm },
-        tags: ['concurrent_demand'],
+        tags: ['concurrent_demand', 'dhw_priority'],
       };
     }
+
     if (effectiveLpm < COMBI_ADEQUATE_FLOW_LPM) {
       return {
         result: 'reduced',
-        reason: `Overlapping demand reduces effective flow to ~${effectiveLpm.toFixed(1)} lpm from combi capacity of ${peakLpm} lpm — noticeable but tolerable.`,
+        reason:
+          `Overlapping demand splits combi output: ~${effectiveLpm.toFixed(1)} lpm per outlet ` +
+          `(rated ${behaviour.singleOutletDhwLpm.toFixed(1)} lpm single outlet) — noticeable but tolerable.`,
         metrics: { estimatedFlowLpm: effectiveLpm },
         tags: ['concurrent_demand'],
       };
     }
-    // Effective flow is still adequate — mark as successful but flag the
-    // simultaneous circumstance so it appears in simultaneousEventCount.
+
+    // Flow is adequate — mark circumstance but classify as successful.
     return {
       result: 'successful',
-      reason: `Combi delivers ~${effectiveLpm.toFixed(1)} lpm under simultaneous demand — adequate flow maintained.`,
+      reason:
+        `Combi delivers ~${effectiveLpm.toFixed(1)} lpm per outlet under simultaneous demand — adequate flow maintained. ` +
+        `Note: CH pauses while DHW is active (DHW priority; initiation delay ${behaviour.initiationDelaySeconds}s).`,
       metrics: { estimatedFlowLpm: effectiveLpm },
-      tags: ['concurrent_demand'],
+      tags: ['concurrent_demand', 'dhw_priority'],
     };
   }
 
-  // Bath fill time for bath events.
+  // Bath fill time for bath events — use behaviour model's flow rate.
   if (event.type === 'bath') {
-    const fillTime = BATH_VOLUME_LITRES / peakLpm;
+    const flowLpm = behaviour.singleOutletDhwLpm;
+    const fillTime = BATH_VOLUME_LITRES / flowLpm;
     return {
       result: 'successful',
-      reason: `Combi delivers ${peakLpm} lpm; estimated bath fill time ${fillTime.toFixed(1)} minutes.`,
-      metrics: { estimatedFlowLpm: peakLpm, bathFillTimeMinutes: fillTime },
+      reason:
+        `Combi delivers ${flowLpm.toFixed(1)} lpm (rated output); ` +
+        `estimated bath fill time ${fillTime.toFixed(1)} min. ` +
+        `CH pauses during fill (DHW priority); hot water after ${behaviour.initiationDelaySeconds}s initiation delay.`,
+      metrics: { estimatedFlowLpm: flowLpm, bathFillTimeMinutes: fillTime },
       tags: [],
     };
   }
 
   return {
     result: 'successful',
-    reason: `Combi delivers adequate flow at ${peakLpm} lpm with sufficient mains pressure (${pressure} bar).`,
-    metrics: { estimatedFlowLpm: peakLpm },
+    reason:
+      `Combi delivers ${behaviour.singleOutletDhwLpm.toFixed(1)} lpm at adequate mains pressure (${pressure} bar). ` +
+      `Hot water available after ${behaviour.initiationDelaySeconds}s initiation delay; CH paused during draw (DHW priority).`,
+    metrics: { estimatedFlowLpm: behaviour.singleOutletDhwLpm },
     tags: [],
   };
 }
@@ -248,45 +281,60 @@ function classifyCombiDraw(
 // ─── Stored water rules ───────────────────────────────────────────────────────
 
 /**
- * Classify a hot-water draw event for a stored-water system
- * (cylinder-fed, boiler or immersion).
+ * Classify a hot-water draw event for a stored-water system using physics
+ * outputs from BoilerCylinderBehaviourV1.
  *
- * Key factors:
- *   - storage volume vs cumulative prior depletion
- *   - recovery rate
- *   - clustering of events
+ * Key factors (source-behaviour driven):
+ *   - effective usable volume (from BoilerCylinderBehaviourV1.effectiveUsableVolumeLitres)
+ *   - coil recovery rate (from BoilerCylinderBehaviourV1.coilRecoveryRateLph)
+ *   - S-plan vs Y-plan effect (from BoilerCylinderBehaviourV1.simultaneousChDhw)
+ *   - running-balance storage simulation
  */
 function classifyStoredWaterDraw(
   event: DayEvent,
   allEvents: DayEvent[],
   spec: OutcomeSystemSpec,
+  behaviour: BoilerCylinderBehaviourV1,
 ): Pick<ClassifiedDayEvent, 'result' | 'reason' | 'metrics' | 'tags'> {
-  const storage     = spec.hotWaterStorageLitres ?? 150;
+  const storage     = behaviour.effectiveUsableVolumeLitres;
   const drawRate    = STORED_DEFAULT_DRAW_RATE_LPM;
-  const recoveryLph = spec.recoveryRateLitresPerHour ?? 60;
+  const recoveryLph = behaviour.coilRecoveryRateLph;
+  // Nominal storage for remaining-fraction display (before usable-volume factor).
+  const nominalStorage = spec.hotWaterStorageLitres ?? 150;
 
   // Use the running-balance model to get accurate available storage,
   // accounting for recovery between all prior draw clusters.
   const effectiveStorage = computeEffectiveStorageAtEvent(event, allEvents, storage, drawRate, recoveryLph);
-  const remainingFraction = effectiveStorage / storage;
+  const remainingFraction = effectiveStorage / nominalStorage;
 
   // Volume-based outcome: compare this draw's demand against available storage.
-  // A draw that fits within available storage is successful; if storage is
-  // insufficient the outcome is reduced (recovery partially compensates) or
-  // conflict (storage is too depleted to serve the demand even with recovery).
   const drawLitres = estimateDrawVolumeLitres(event, drawRate);
   const usableLitres = Math.max(0, effectiveStorage);
   const recoveryDuringDraw = Math.max(0, estimateDrawDurationHours(event, drawRate) * recoveryLph);
-  // estimatedFlowLpm for degraded outcomes: proportional to fraction of demand
-  // that can be served from available storage (usableLitres / drawLitres * drawRate).
   const servedFraction = drawLitres > 0 ? Math.min(1, usableLitres / drawLitres) : 1;
+
+  // S-plan / Y-plan note: if CH is active and DHW starts, the plan type
+  // determines whether heating is throttled.  We surface this in reason strings
+  // so the user understands the system topology effect.
+  const { chThrottledByDhwDemand, planType } = behaviour.simultaneousChDhw;
+  let planNote: string;
+  if (!chThrottledByDhwDemand) {
+    planNote = ' S-plan: CH and DHW circuits are independent.';
+  } else if (planType !== 'unknown') {
+    planNote = ` Note: ${planType.toUpperCase()} arrangement — DHW demand may throttle space heating.`;
+  } else {
+    planNote = ' Note: DHW demand may throttle space heating.';
+  }
 
   if (event.type === 'bath') {
     const fillTime = BATH_VOLUME_LITRES / drawRate;
     if (drawLitres > usableLitres + recoveryDuringDraw) {
       return {
         result: 'conflict',
-        reason: `Stored cylinder severely depleted (≈${Math.round(remainingFraction * 100)}% remaining); insufficient for bath fill.`,
+        reason:
+          `Stored cylinder severely depleted (≈${Math.round(remainingFraction * 100)}% remaining, ` +
+          `${usableLitres.toFixed(0)} L available vs ${drawLitres} L needed); insufficient for bath fill.` +
+          planNote,
         metrics: { estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: fillTime / Math.max(servedFraction, 0.1) },
         tags: ['storage_depleted'],
       };
@@ -295,14 +343,21 @@ function classifyStoredWaterDraw(
       const adjustedFill = fillTime / Math.max(servedFraction, 0.1);
       return {
         result: 'reduced',
-        reason: `Cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); bath fill will be longer or cooler.`,
+        reason:
+          `Cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); ` +
+          `bath fill will be longer or cooler (recovery rate: ${recoveryLph.toFixed(0)} L/h, ` +
+          `full recovery in ${behaviour.fullRecoveryHours.toFixed(1)} h).` +
+          planNote,
         metrics: { estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: adjustedFill },
         tags: ['storage_depleted'],
       };
     }
     return {
       result: 'successful',
-      reason: `Cylinder has adequate stored volume (≈${Math.round(remainingFraction * 100)}% remaining); bath fills normally.`,
+      reason:
+        `Cylinder has adequate stored volume (≈${Math.round(remainingFraction * 100)}% remaining, ` +
+        `${usableLitres.toFixed(0)} L usable); bath fills normally.` +
+        planNote,
       metrics: { estimatedFlowLpm: drawRate, bathFillTimeMinutes: fillTime },
       tags: [],
     };
@@ -311,7 +366,10 @@ function classifyStoredWaterDraw(
   if (drawLitres > usableLitres + recoveryDuringDraw) {
     return {
       result: 'conflict',
-      reason: `Stored cylinder severely depleted (≈${Math.round(remainingFraction * 100)}% remaining); hot water likely exhausted.`,
+      reason:
+        `Stored cylinder severely depleted (≈${Math.round(remainingFraction * 100)}% remaining); ` +
+        `hot water likely exhausted. Coil recovery rate: ${recoveryLph.toFixed(0)} L/h.` +
+        planNote,
       metrics: { estimatedFlowLpm: drawRate * servedFraction },
       tags: ['storage_depleted'],
     };
@@ -320,7 +378,10 @@ function classifyStoredWaterDraw(
   if (drawLitres > usableLitres) {
     return {
       result: 'reduced',
-      reason: `Cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); draw may be warm rather than hot.`,
+      reason:
+        `Cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); ` +
+        `draw may be warm rather than hot (recovery rate: ${recoveryLph.toFixed(0)} L/h).` +
+        planNote,
       metrics: { estimatedFlowLpm: drawRate * servedFraction },
       tags: ['storage_depleted'],
     };
@@ -328,7 +389,9 @@ function classifyStoredWaterDraw(
 
   return {
     result: 'successful',
-    reason: `Cylinder has adequate stored volume (≈${Math.round(remainingFraction * 100)}% remaining).`,
+    reason:
+      `Cylinder has adequate stored volume (≈${Math.round(remainingFraction * 100)}% remaining). ` +
+      `Coil recovery rate: ${recoveryLph.toFixed(0)} L/h.`,
     metrics: { estimatedFlowLpm: drawRate },
     tags: [],
   };
@@ -337,43 +400,50 @@ function classifyStoredWaterDraw(
 // ─── Heat pump rules ──────────────────────────────────────────────────────────
 
 /**
- * Classify a hot-water draw event for a heat-pump system.
+ * Classify a hot-water draw event for a heat-pump system using physics outputs
+ * from HeatPumpCylinderBehaviourV1.
  *
- * Heat-pump cylinders are typically larger but recover more slowly than gas
- * boiler stores.  Sudden pressure-style failures do not occur; the dominant
- * failure mode is "not ready again yet" after a cluster.
+ * Key factors (source-behaviour driven):
+ *   - effective usable volume (from HeatPumpCylinderBehaviourV1.effectiveUsableVolumeLitres)
+ *   - recovery rate (from HeatPumpCylinderBehaviourV1.recoveryRateLph — much slower than gas)
+ *   - COP and lift penalty (from HeatPumpCylinderBehaviourV1.cop, liftPenaltyFactor)
+ *   - low-temp suitability (from HeatPumpCylinderBehaviourV1.lowTempSuitability)
  */
 function classifyHeatPumpDraw(
   event: DayEvent,
   allEvents: DayEvent[],
   spec: OutcomeSystemSpec,
+  behaviour: HeatPumpCylinderBehaviourV1,
 ): Pick<ClassifiedDayEvent, 'result' | 'reason' | 'metrics' | 'tags'> {
-  // Heat pumps typically ship with 200–300 L cylinders; default 250 L.
-  const storage     = spec.hotWaterStorageLitres ?? 250;
+  const storage     = behaviour.effectiveUsableVolumeLitres;
   const drawRate    = HP_DEFAULT_DRAW_RATE_LPM;
-  // Heat pumps recover slowly — default 30 L/h vs ~60 L/h for gas.
-  const recoveryLph = spec.recoveryRateLitresPerHour ?? 30;
+  const recoveryLph = behaviour.recoveryRateLph;
+  // Nominal storage for remaining-fraction display (before usable-volume factor).
+  const nominalStorage = spec.hotWaterStorageLitres ?? 250;
 
   // Use the running-balance model to get accurate available storage.
   const effectiveStorage = computeEffectiveStorageAtEvent(event, allEvents, storage, drawRate, recoveryLph);
-  const remainingFraction = effectiveStorage / storage;
+  const remainingFraction = effectiveStorage / nominalStorage;
 
-  // Volume-based outcome: compare draw demand against available storage.
-  // Heat pumps recover slowly so recoveryDuringDraw is small; once depleted
-  // the dominant failure mode is "not ready again yet".
   const drawLitres = estimateDrawVolumeLitres(event, drawRate);
   const usableLitres = Math.max(0, effectiveStorage);
   const recoveryDuringDraw = Math.max(0, estimateDrawDurationHours(event, drawRate) * recoveryLph);
-  // estimatedFlowLpm for degraded outcomes: proportional to how much of the
-  // demand can be served from available storage (usableLitres / drawLitres).
   const servedFraction = drawLitres > 0 ? Math.min(1, usableLitres / drawLitres) : 1;
+
+  // Build a string summarising the HP recovery physics for reason strings.
+  const recoveryNote =
+    `Recovery rate: ${recoveryLph.toFixed(0)} L/h (COP ${behaviour.cop.toFixed(1)}, ` +
+    `lift factor ${behaviour.liftPenaltyFactor.toFixed(2)}); ` +
+    `full recovery in ${isFinite(behaviour.fullRecoveryHours) ? behaviour.fullRecoveryHours.toFixed(1) + ' h' : 'unknown'}.`;
 
   if (event.type === 'bath') {
     const fillTime = BATH_VOLUME_LITRES / drawRate;
     if (drawLitres > usableLitres + recoveryDuringDraw) {
       return {
         result: 'conflict',
-        reason: `Heat-pump cylinder severely depleted (≈${Math.round(remainingFraction * 100)}% remaining); slow recovery rate means water may be cold.`,
+        reason:
+          `Heat-pump cylinder severely depleted (≈${Math.round(remainingFraction * 100)}% remaining); ` +
+          `slow recovery means hot water unlikely for bath fill. ${recoveryNote}`,
         metrics: { estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: fillTime / Math.max(servedFraction, 0.05) },
         tags: ['storage_depleted', 'slow_recovery'],
       };
@@ -382,14 +452,18 @@ function classifyHeatPumpDraw(
       const adjustedFill = fillTime / Math.max(servedFraction, 0.1);
       return {
         result: 'reduced',
-        reason: `Heat-pump cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); slow recovery means bath fill is longer.`,
+        reason:
+          `Heat-pump cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); ` +
+          `slow recovery means bath fill is longer. ${recoveryNote}`,
         metrics: { estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: adjustedFill },
         tags: ['storage_depleted', 'slow_recovery'],
       };
     }
     return {
       result: 'successful',
-      reason: `Heat-pump cylinder has adequate volume (≈${Math.round(remainingFraction * 100)}% remaining); bath fills normally.`,
+      reason:
+        `Heat-pump cylinder has adequate volume (≈${Math.round(remainingFraction * 100)}% remaining); ` +
+        `bath fills normally. ${recoveryNote}`,
       metrics: { estimatedFlowLpm: drawRate, bathFillTimeMinutes: fillTime },
       tags: [],
     };
@@ -398,7 +472,9 @@ function classifyHeatPumpDraw(
   if (drawLitres > usableLitres + recoveryDuringDraw) {
     return {
       result: 'conflict',
-      reason: `Heat-pump cylinder severely depleted and slow recovery rate cannot replenish in time; hot water likely unavailable.`,
+      reason:
+        `Heat-pump cylinder severely depleted; slow recovery cannot replenish in time — hot water likely unavailable. ` +
+        recoveryNote,
       metrics: { estimatedFlowLpm: drawRate * servedFraction },
       tags: ['storage_depleted', 'slow_recovery'],
     };
@@ -407,7 +483,9 @@ function classifyHeatPumpDraw(
   if (drawLitres > usableLitres) {
     return {
       result: 'reduced',
-      reason: `Heat-pump cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); slow recovery means subsequent draws may be warm only.`,
+      reason:
+        `Heat-pump cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); ` +
+        `subsequent draws may be warm only. ${recoveryNote}`,
       metrics: { estimatedFlowLpm: drawRate * servedFraction },
       tags: ['storage_depleted', 'slow_recovery'],
     };
@@ -415,7 +493,9 @@ function classifyHeatPumpDraw(
 
   return {
     result: 'successful',
-    reason: `Heat-pump cylinder has adequate stored volume (≈${Math.round(remainingFraction * 100)}% remaining).`,
+    reason:
+      `Heat-pump cylinder has adequate stored volume (≈${Math.round(remainingFraction * 100)}% remaining). ` +
+      recoveryNote,
     metrics: { estimatedFlowLpm: drawRate },
     tags: [],
   };
@@ -426,6 +506,11 @@ function classifyHeatPumpDraw(
 /**
  * Classify a single hot-water draw event (shower, bath, kitchen_draw, tap_draw)
  * against the provided system spec.
+ *
+ * When spec.heatSourceBehaviour is present, physics-derived values from the
+ * HeatSourceBehaviourModel are used.  Otherwise the model is built on-the-fly
+ * from the spec — callers may pre-compute it for efficiency when classifying
+ * many events against the same spec.
  *
  * @param event      - The DayEvent being classified.
  * @param allEvents  - Complete ordered event list (used for overlap / depletion
@@ -438,12 +523,15 @@ export function classifyHotWaterEvent(
   allEvents: DayEvent[],
   spec: OutcomeSystemSpec,
 ): Pick<ClassifiedDayEvent, 'result' | 'reason' | 'metrics' | 'tags'> {
+  // Build (or reuse) the heat-source behaviour model.
+  const behaviour = spec.heatSourceBehaviour ?? buildHeatSourceBehaviour(spec);
+
   switch (spec.systemType) {
     case 'combi':
-      return classifyCombiDraw(event, allEvents, spec);
+      return classifyCombiDraw(event, allEvents, spec, behaviour.combi!);
     case 'stored_water':
-      return classifyStoredWaterDraw(event, allEvents, spec);
+      return classifyStoredWaterDraw(event, allEvents, spec, behaviour.boilerCylinder!);
     case 'heat_pump':
-      return classifyHeatPumpDraw(event, allEvents, spec);
+      return classifyHeatPumpDraw(event, allEvents, spec, behaviour.heatPumpCylinder!);
   }
 }

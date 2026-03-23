@@ -7,6 +7,8 @@
  * OutcomeSystemSpec and classifies what happens for every event.
  */
 
+import type { HeatSourceBehaviourV1 } from '../../engine/modules/HeatSourceBehaviourModel';
+
 // ─── Outcome result ───────────────────────────────────────────────────────────
 
 /**
@@ -141,4 +143,29 @@ export interface OutcomeSystemSpec {
   controlsQuality?: 'basic' | 'good' | 'excellent';
   /** Assessed condition of the primary system (scale / sludge / wear). */
   systemCondition?: 'clean' | 'average' | 'poor';
+
+  // ── Zone-control topology ────────────────────────────────────────────────────
+  /**
+   * Zone-control plan type, relevant for stored-water systems.
+   *
+   *   'y_plan' — 3-port mid-position valve: DHW demand throttles CH (shared path).
+   *   's_plan' — twin 2-port zone valves: CH and DHW can run independently.
+   *
+   * Defaults to 'y_plan' when absent (more common in UK existing stock and
+   * more conservative for simultaneous-demand classification).
+   */
+  systemPlanType?: 'y_plan' | 's_plan';
+
+  // ── Heat-source behaviour model ──────────────────────────────────────────────
+  /**
+   * Pre-computed heat-source behaviour model result.
+   *
+   * When present, the outcome classifier uses physics-derived values from
+   * this model (flow rates, recovery rates, lockout flags, CH-pause behaviour,
+   * S/Y-plan effect) instead of fixed threshold constants.
+   *
+   * Build with: `buildHeatSourceBehaviour(spec)` from HeatSourceBehaviourModel.ts.
+   * The classifier populates this automatically when it is absent.
+   */
+  heatSourceBehaviour?: HeatSourceBehaviourV1;
 }

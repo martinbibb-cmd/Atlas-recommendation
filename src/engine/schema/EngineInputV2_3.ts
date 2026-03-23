@@ -17,6 +17,22 @@ export type { BoilerSizingResultV1 };
 import type { BoilerEfficiencyModelV1 } from '../modules/BoilerEfficiencyModelV1';
 export type { BoilerEfficiencyModelV1 };
 import type {
+  HeatSourceBehaviourV1,
+  HeatSourceBehaviourInput,
+  CombiBehaviourV1,
+  BoilerCylinderBehaviourV1,
+  HeatPumpCylinderBehaviourV1,
+  SimultaneousChDhwEffect,
+} from '../modules/HeatSourceBehaviourModel';
+export type {
+  HeatSourceBehaviourV1,
+  HeatSourceBehaviourInput,
+  CombiBehaviourV1,
+  BoilerCylinderBehaviourV1,
+  HeatPumpCylinderBehaviourV1,
+  SimultaneousChDhwEffect,
+};
+import type {
   FabricModelV1Result,
   FabricWallType,
   FabricInsulationLevel,
