@@ -93,9 +93,18 @@ describe('buildResimulationFromSurvey', () => {
     expect(simpleIds).toEqual(bestFitIds);
   });
 
-  it('upgradePackage systemType matches the simple-install system type', () => {
+  it('upgradePackage systemType matches the proposed (recommended) system type from engine output', () => {
+    // Current system is combi, but engine recommends stored_vented → upgrade
+    // package should be for stored_water, not combi.
     const survey = makeMinimalSurvey({ currentHeatSourceType: 'combi' });
-    const result = buildResimulationFromSurvey(survey, makeEngineOutput());
+    const result = buildResimulationFromSurvey(survey, makeEngineOutput('Stored water', 'stored_vented'));
+    expect(result).not.toBeNull();
+    expect(result!.upgradePackage.systemType).toBe('stored_water');
+  });
+
+  it('upgradePackage systemType is combi when engine recommends combi', () => {
+    const survey = makeMinimalSurvey({ currentHeatSourceType: 'combi' });
+    const result = buildResimulationFromSurvey(survey, makeEngineOutput('Combi boiler', 'combi'));
     expect(result).not.toBeNull();
     expect(result!.upgradePackage.systemType).toBe('combi');
   });
@@ -152,6 +161,45 @@ describe('buildResimulationFromSurvey', () => {
     const result = buildResimulationFromSurvey(survey, engine);
     expect(result).not.toBeNull();
     expect(result!.upgradePackage.systemType).toBe('stored_water');
+  });
+
+  it('cross-family: combi current system with stored_unvented recommendation uses stored_water path', () => {
+    // The current system is combi but the engine recommends stored_unvented.
+    // The upgrade package must target stored_water (cylinder size, S-plan), not combi.
+    const survey: FullSurveyModelV1 = {
+      ...makeMinimalSurvey(),
+      currentHeatSourceType: 'combi',
+    };
+    const engine = makeEngineOutput('Unvented cylinder system', 'stored_unvented');
+    const result = buildResimulationFromSurvey(survey, engine);
+    expect(result).not.toBeNull();
+    expect(result!.upgradePackage.systemType).toBe('stored_water');
+    // A combi_size upgrade should NOT appear for a stored_water path
+    const combiSizeUpgrade = result!.upgradePackage.upgrades.find((u) => u.kind === 'combi_size');
+    expect(combiSizeUpgrade).toBeUndefined();
+    // An S-plan controls upgrade SHOULD appear for stored_water
+    const splanUpgrade = result!.upgradePackage.upgrades.find((u) => u.kind === 'system_controls_plan');
+    expect(splanUpgrade).toBeDefined();
+  });
+
+  it('cross-family: combi current system with heat_pump recommendation uses heat_pump path', () => {
+    // The current system is combi but the engine recommends ashp.
+    // The upgrade package must target heat_pump (cylinder, pipe upgrade), not combi.
+    const survey: FullSurveyModelV1 = {
+      ...makeMinimalSurvey(),
+      currentHeatSourceType: 'combi',
+      primaryPipeDiameter: 22,   // triggers pipe-upgrade rule for heat_pump
+    };
+    const engine = makeEngineOutput('Air source heat pump', 'ashp');
+    const result = buildResimulationFromSurvey(survey, engine);
+    expect(result).not.toBeNull();
+    expect(result!.upgradePackage.systemType).toBe('heat_pump');
+    // A combi_size upgrade should NOT appear for a heat_pump path
+    const combiSizeUpgrade = result!.upgradePackage.upgrades.find((u) => u.kind === 'combi_size');
+    expect(combiSizeUpgrade).toBeUndefined();
+    // A cylinder_size upgrade SHOULD appear for heat_pump
+    const cylUpgrade = result!.upgradePackage.upgrades.find((u) => u.kind === 'cylinder_size');
+    expect(cylUpgrade).toBeDefined();
   });
 
   it('result contains resimulation with all required fields', () => {
