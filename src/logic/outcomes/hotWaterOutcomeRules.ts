@@ -29,13 +29,59 @@ import {
 /** Standard bath volume used for fill-time calculations (litres). */
 const BATH_VOLUME_LITRES = 150;
 
-/** Default stored-water peak draw rate used for bath fill-time estimate. */
+/**
+ * Bath tap fill rate for stored-water systems (litres per minute).
+ * Used only for bath fill-time and recovery-during-fill calculations.
+ * Short draws and showers use their own lower rates (see below).
+ */
 const STORED_DEFAULT_DRAW_RATE_LPM = 15;
 
-/** Default heat-pump cylinder draw rate (slower, larger vessel). */
+/**
+ * Bath tap fill rate for heat-pump cylinder systems (litres per minute).
+ * Slightly slower than gas systems due to lower delivery temperature.
+ */
 const HP_DEFAULT_DRAW_RATE_LPM = 12;
 
+/**
+ * Per-event-type draw rate constants.
+ *
+ * These replace the previous single STORED_DEFAULT_DRAW_RATE_LPM (15 lpm) that
+ * was applied to all events, including showers and tap draws — causing severe
+ * over-depletion (an 8-min shower was charged 120 L instead of ~72 L, leaving
+ * the cylinder critically low and producing impossible conflict totals).
+ *
+ *   tap_draw     — brief hand wash / dental use; gravity tap pressure
+ *   kitchen_draw — washing up, filling a kettle or bowl
+ *   shower       — gravity-fed or pumped stored-water shower (stored path)
+ *                  or mains-pressure shower from HP cylinder (HP path)
+ */
+const TAP_DRAW_RATE_LPM      = 3;   // ~3 L/min at low gravity pressure
+const KITCHEN_DRAW_RATE_LPM  = 7;   // typical kitchen mixer flow
+const STORED_SHOWER_RATE_LPM = 9;   // gravity / pumped shower at stored-water pressure
+const HP_SHOWER_RATE_LPM     = 10;  // mains-pressure shower from HP cylinder
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Return the effective hot-water draw rate (L/min) for a specific event type
+ * and system category.
+ *
+ * This prevents short tap draws and showers from inheriting the bath fill rate
+ * (15 lpm), which previously caused severe over-depletion in the stored-water
+ * running-balance model and produced impossible conflict totals.
+ *
+ * Bath events always return the full bath-fill rate for fill-time and
+ * recovery-during-draw calculations; their volume is computed from the fixed
+ * BATH_VOLUME_LITRES constant rather than rate × duration.
+ */
+function getEventDrawRateLpm(event: DayEvent, systemType: 'stored_water' | 'heat_pump'): number {
+  switch (event.type) {
+    case 'tap_draw':     return TAP_DRAW_RATE_LPM;
+    case 'kitchen_draw': return KITCHEN_DRAW_RATE_LPM;
+    case 'bath':         return systemType === 'heat_pump' ? HP_DEFAULT_DRAW_RATE_LPM : STORED_DEFAULT_DRAW_RATE_LPM;
+    default:             return systemType === 'heat_pump' ? HP_SHOWER_RATE_LPM : STORED_SHOWER_RATE_LPM;
+  }
+}
 
 /**
  * Estimate the hot-water volume consumed by a single draw event (litres).
@@ -88,7 +134,7 @@ function computeEffectiveStorageAtEvent(
   event: DayEvent,
   allEvents: DayEvent[],
   maxStorageLitres: number,
-  drawRateLpm: number,
+  getDrawRateFn: (e: DayEvent) => number,
   recoveryLph: number,
 ): number {
   const priorEvents = allEvents
@@ -104,9 +150,9 @@ function computeEffectiveStorageAtEvent(
     const recovery = (gap / 60) * recoveryLph;
     balance = Math.min(maxStorageLitres, balance + recovery);
 
-    // Subtract this draw's volume (the cylinder can't go below 0).
-    const draw = estimateDrawVolumeLitres(prior, drawRateLpm);
-    balance = Math.max(0, balance - draw);
+    // Subtract this draw's volume using the per-event-type rate.
+    const draw = estimateDrawVolumeLitres(prior, getDrawRateFn(prior));
+    balance = Math.max(0, balance - draw); // floored at 0 — cylinder cannot go negative
 
     // Advance the "last draw end" marker.  Using a conditional here intentionally
     // handles simultaneous events (e.g. shower and kitchen_draw both at 7:00).
@@ -263,14 +309,18 @@ function classifyStoredWaterDraw(
   behaviour: BoilerCylinderBehaviourV1,
 ): Pick<ClassifiedDayEvent, 'result' | 'reason' | 'metrics' | 'tags'> {
   const storage     = behaviour.effectiveUsableVolumeLitres;
-  const drawRate    = STORED_DEFAULT_DRAW_RATE_LPM;
+  // Use per-event-type draw rate to avoid charging showers and taps at bath-fill rate.
+  const drawRate    = getEventDrawRateLpm(event, 'stored_water');
   const recoveryLph = behaviour.coilRecoveryRateLph;
   // Nominal storage for remaining-fraction display (before usable-volume factor).
   const nominalStorage = spec.hotWaterStorageLitres ?? 150;
 
   // Use the running-balance model to get accurate available storage,
   // accounting for recovery between all prior draw clusters.
-  const effectiveStorage = computeEffectiveStorageAtEvent(event, allEvents, storage, drawRate, recoveryLph);
+  // Each prior event uses its own per-type draw rate via the callback.
+  const effectiveStorage = computeEffectiveStorageAtEvent(
+    event, allEvents, storage, (e) => getEventDrawRateLpm(e, 'stored_water'), recoveryLph,
+  );
   const remainingFraction = effectiveStorage / nominalStorage;
 
   // Volume-based outcome: compare this draw's demand against available storage.
@@ -278,6 +328,15 @@ function classifyStoredWaterDraw(
   const usableLitres = Math.max(0, effectiveStorage);
   const recoveryDuringDraw = Math.max(0, estimateDrawDurationHours(event, drawRate) * recoveryLph);
   const servedFraction = drawLitres > 0 ? Math.min(1, usableLitres / drawLitres) : 1;
+
+  // Shared trace fields populated in every return path.
+  const traceMetrics = {
+    requiredLitres:          drawLitres,
+    usableLitresBeforeDraw:  usableLitres,
+    recoveryDuringDrawLitres: recoveryDuringDraw,
+    servedFraction,
+    drawRateLpm:             drawRate,
+  };
 
   // S-plan / Y-plan note: if CH is active and DHW starts, the plan type
   // determines whether heating is throttled.  We surface this in reason strings
@@ -301,7 +360,7 @@ function classifyStoredWaterDraw(
           `Stored cylinder severely depleted (≈${Math.round(remainingFraction * 100)}% remaining, ` +
           `${usableLitres.toFixed(0)} L available vs ${drawLitres} L needed); insufficient for bath fill.` +
           planNote,
-        metrics: { estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: fillTime / Math.max(servedFraction, 0.1) },
+        metrics: { ...traceMetrics, estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: fillTime / Math.max(servedFraction, 0.1) },
         tags: ['storage_depleted'],
       };
     }
@@ -314,7 +373,7 @@ function classifyStoredWaterDraw(
           `bath fill will be longer or cooler (recovery rate: ${recoveryLph.toFixed(0)} L/h, ` +
           `full recovery in ${behaviour.fullRecoveryHours.toFixed(1)} h).` +
           planNote,
-        metrics: { estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: adjustedFill },
+        metrics: { ...traceMetrics, estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: adjustedFill },
         tags: ['storage_depleted'],
       };
     }
@@ -324,7 +383,7 @@ function classifyStoredWaterDraw(
         `Cylinder has adequate stored volume (≈${Math.round(remainingFraction * 100)}% remaining, ` +
         `${usableLitres.toFixed(0)} L usable); bath fills normally.` +
         planNote,
-      metrics: { estimatedFlowLpm: drawRate, bathFillTimeMinutes: fillTime },
+      metrics: { ...traceMetrics, estimatedFlowLpm: drawRate, bathFillTimeMinutes: fillTime },
       tags: [],
     };
   }
@@ -336,7 +395,7 @@ function classifyStoredWaterDraw(
         `Stored cylinder severely depleted (≈${Math.round(remainingFraction * 100)}% remaining); ` +
         `hot water likely exhausted. Coil recovery rate: ${recoveryLph.toFixed(0)} L/h.` +
         planNote,
-      metrics: { estimatedFlowLpm: drawRate * servedFraction },
+      metrics: { ...traceMetrics, estimatedFlowLpm: drawRate * servedFraction },
       tags: ['storage_depleted'],
     };
   }
@@ -348,7 +407,7 @@ function classifyStoredWaterDraw(
         `Cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); ` +
         `draw may be warm rather than hot (recovery rate: ${recoveryLph.toFixed(0)} L/h).` +
         planNote,
-      metrics: { estimatedFlowLpm: drawRate * servedFraction },
+      metrics: { ...traceMetrics, estimatedFlowLpm: drawRate * servedFraction },
       tags: ['storage_depleted'],
     };
   }
@@ -358,7 +417,7 @@ function classifyStoredWaterDraw(
     reason:
       `Cylinder has adequate stored volume (≈${Math.round(remainingFraction * 100)}% remaining). ` +
       `Coil recovery rate: ${recoveryLph.toFixed(0)} L/h.`,
-    metrics: { estimatedFlowLpm: drawRate },
+    metrics: { ...traceMetrics, estimatedFlowLpm: drawRate },
     tags: [],
   };
 }
@@ -382,19 +441,32 @@ function classifyHeatPumpDraw(
   behaviour: HeatPumpCylinderBehaviourV1,
 ): Pick<ClassifiedDayEvent, 'result' | 'reason' | 'metrics' | 'tags'> {
   const storage     = behaviour.effectiveUsableVolumeLitres;
-  const drawRate    = HP_DEFAULT_DRAW_RATE_LPM;
+  // Use per-event-type draw rate to avoid charging showers and taps at bath-fill rate.
+  const drawRate    = getEventDrawRateLpm(event, 'heat_pump');
   const recoveryLph = behaviour.recoveryRateLph;
   // Nominal storage for remaining-fraction display (before usable-volume factor).
   const nominalStorage = spec.hotWaterStorageLitres ?? 250;
 
   // Use the running-balance model to get accurate available storage.
-  const effectiveStorage = computeEffectiveStorageAtEvent(event, allEvents, storage, drawRate, recoveryLph);
+  // Each prior event uses its own per-type draw rate via the callback.
+  const effectiveStorage = computeEffectiveStorageAtEvent(
+    event, allEvents, storage, (e) => getEventDrawRateLpm(e, 'heat_pump'), recoveryLph,
+  );
   const remainingFraction = effectiveStorage / nominalStorage;
 
   const drawLitres = estimateDrawVolumeLitres(event, drawRate);
   const usableLitres = Math.max(0, effectiveStorage);
   const recoveryDuringDraw = Math.max(0, estimateDrawDurationHours(event, drawRate) * recoveryLph);
   const servedFraction = drawLitres > 0 ? Math.min(1, usableLitres / drawLitres) : 1;
+
+  // Shared trace fields populated in every return path.
+  const traceMetrics = {
+    requiredLitres:           drawLitres,
+    usableLitresBeforeDraw:   usableLitres,
+    recoveryDuringDrawLitres: recoveryDuringDraw,
+    servedFraction,
+    drawRateLpm:              drawRate,
+  };
 
   // Build a string summarising the HP recovery physics for reason strings.
   const recoveryNote =
@@ -410,7 +482,7 @@ function classifyHeatPumpDraw(
         reason:
           `Heat-pump cylinder severely depleted (≈${Math.round(remainingFraction * 100)}% remaining); ` +
           `slow recovery means hot water unlikely for bath fill. ${recoveryNote}`,
-        metrics: { estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: fillTime / Math.max(servedFraction, 0.05) },
+        metrics: { ...traceMetrics, estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: fillTime / Math.max(servedFraction, 0.05) },
         tags: ['storage_depleted', 'slow_recovery'],
       };
     }
@@ -421,7 +493,7 @@ function classifyHeatPumpDraw(
         reason:
           `Heat-pump cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); ` +
           `slow recovery means bath fill is longer. ${recoveryNote}`,
-        metrics: { estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: adjustedFill },
+        metrics: { ...traceMetrics, estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: adjustedFill },
         tags: ['storage_depleted', 'slow_recovery'],
       };
     }
@@ -430,7 +502,7 @@ function classifyHeatPumpDraw(
       reason:
         `Heat-pump cylinder has adequate volume (≈${Math.round(remainingFraction * 100)}% remaining); ` +
         `bath fills normally. ${recoveryNote}`,
-      metrics: { estimatedFlowLpm: drawRate, bathFillTimeMinutes: fillTime },
+      metrics: { ...traceMetrics, estimatedFlowLpm: drawRate, bathFillTimeMinutes: fillTime },
       tags: [],
     };
   }
@@ -441,7 +513,7 @@ function classifyHeatPumpDraw(
       reason:
         `Heat-pump cylinder severely depleted; slow recovery cannot replenish in time — hot water likely unavailable. ` +
         recoveryNote,
-      metrics: { estimatedFlowLpm: drawRate * servedFraction },
+      metrics: { ...traceMetrics, estimatedFlowLpm: drawRate * servedFraction },
       tags: ['storage_depleted', 'slow_recovery'],
     };
   }
@@ -452,7 +524,7 @@ function classifyHeatPumpDraw(
       reason:
         `Heat-pump cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); ` +
         `subsequent draws may be warm only. ${recoveryNote}`,
-      metrics: { estimatedFlowLpm: drawRate * servedFraction },
+      metrics: { ...traceMetrics, estimatedFlowLpm: drawRate * servedFraction },
       tags: ['storage_depleted', 'slow_recovery'],
     };
   }
@@ -462,7 +534,7 @@ function classifyHeatPumpDraw(
     reason:
       `Heat-pump cylinder has adequate stored volume (≈${Math.round(remainingFraction * 100)}% remaining). ` +
       recoveryNote,
-    metrics: { estimatedFlowLpm: drawRate },
+    metrics: { ...traceMetrics, estimatedFlowLpm: drawRate },
     tags: [],
   };
 }

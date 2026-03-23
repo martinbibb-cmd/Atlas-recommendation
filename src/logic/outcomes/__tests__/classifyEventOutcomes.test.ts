@@ -715,3 +715,135 @@ describe('CH / DHW interaction (heatSourceBehaviour)', () => {
     expect(heatingEvent!.tags).not.toContain('ch_throttled_for_dhw');
   });
 });
+
+// ─── 16. Stored-water physics regression tests ────────────────────────────────
+//
+// These guard against the impossible outcomes observed in the live UI:
+//   - boiler cylinder selected
+//   - 0 simultaneous events
+//   - 31 conflicts
+//   - 100 min bath fill
+//
+// Root cause: the previous code used a single 15 lpm rate for ALL event types,
+// charging an 8-min shower 120 L instead of the realistic ~72 L.  This caused
+// severe over-depletion and cascading conflicts even without any overlap.
+
+describe('stored-water regression: physically plausible outcomes', () => {
+  // 210 L / 120 L/h — the same defaults used by buildStoredWaterSimpleInstallSpec.
+  const REAL_CYLINDER: OutcomeSystemSpec = {
+    systemType:                'stored_water',
+    hotWaterStorageLitres:     210,
+    recoveryRateLitresPerHour: 120,
+    heatOutputKw:              18,
+    controlsQuality:           'good',
+    systemCondition:           'clean',
+  };
+
+  it('ordinary family demand with 210 L cylinder: mostly successful with no impossible conflicts', () => {
+    // 3 adults staggered every 15 min, kitchen draw, tap draw, then an evening bath.
+    // Showers are sequential (no overlap), so simultaneousEventCount must be 0.
+    const schedule = makeSchedule([
+      makeEvent({ id: 'shower_0',  type: 'shower',       startMinute: 420, durationMinutes: 8  }),
+      makeEvent({ id: 'shower_1',  type: 'shower',       startMinute: 435, durationMinutes: 8  }),
+      makeEvent({ id: 'shower_2',  type: 'shower',       startMinute: 450, durationMinutes: 8  }),
+      makeEvent({ id: 'kitchen_0', type: 'kitchen_draw', startMinute: 480, durationMinutes: 4, canConflict: false }),
+      makeEvent({ id: 'tap_0',     type: 'tap_draw',     startMinute: 485, durationMinutes: 1, canConflict: false }),
+      makeEvent({ id: 'bath_0',    type: 'bath',         startMinute: 1200, durationMinutes: 20 }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, REAL_CYLINDER);
+
+    // Zero overlapping events — simultaneous count must be 0.
+    expect(result.hotWater.simultaneousEventCount).toBe(0);
+
+    // With 210 L / 120 L/h a realistic family should have mostly successful draws.
+    expect(result.hotWater.successful).toBeGreaterThanOrEqual(4);
+
+    // Zero simultaneous events cannot produce a large conflict total.
+    expect(result.hotWater.conflict).toBeLessThan(3);
+  });
+
+  it('zero simultaneous events must never produce conflict-heavy outcome', () => {
+    // Events spaced well apart throughout the day — no overlap at all.
+    const schedule = makeSchedule([
+      makeEvent({ id: 'shower_0',  type: 'shower',       startMinute: 420, durationMinutes: 8 }),
+      makeEvent({ id: 'shower_1',  type: 'shower',       startMinute: 500, durationMinutes: 8 }),
+      makeEvent({ id: 'shower_2',  type: 'shower',       startMinute: 580, durationMinutes: 8 }),
+      makeEvent({ id: 'kitchen_0', type: 'kitchen_draw', startMinute: 720, durationMinutes: 4, canConflict: false }),
+      makeEvent({ id: 'tap_0',     type: 'tap_draw',     startMinute: 800, durationMinutes: 1, canConflict: false }),
+      makeEvent({ id: 'bath_0',    type: 'bath',         startMinute: 1200, durationMinutes: 20 }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, REAL_CYLINDER);
+
+    expect(result.hotWater.simultaneousEventCount).toBe(0);
+    // Cylinder recovers fully over 7–9 h between morning cluster and evening bath.
+    expect(result.hotWater.conflict).toBe(0);
+  });
+
+  it('bath fill time for stored water is physically plausible (≤ 20 min for adequate cylinder)', () => {
+    // Isolated bath event — cylinder is full, no prior depletion.
+    const schedule = makeSchedule([
+      makeEvent({ id: 'bath_0', type: 'bath', startMinute: 1200, durationMinutes: 20 }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, REAL_CYLINDER);
+    const bathEvent = result.events[0];
+
+    expect(bathEvent.result).toBe('successful');
+    expect(bathEvent.metrics?.bathFillTimeMinutes).toBeDefined();
+    // 150 L ÷ 15 lpm = 10 min — must not be inflated by over-depletion.
+    expect(bathEvent.metrics!.bathFillTimeMinutes!).toBeLessThanOrEqual(20);
+  });
+
+  it('per-event demand trace metrics are populated for stored-water events', () => {
+    const schedule = makeSchedule([
+      makeEvent({ id: 'shower_0', type: 'shower', startMinute: 420, durationMinutes: 8 }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, REAL_CYLINDER);
+    const ev = result.events[0];
+
+    expect(ev.metrics?.requiredLitres).toBeDefined();
+    expect(ev.metrics?.usableLitresBeforeDraw).toBeDefined();
+    expect(ev.metrics?.recoveryDuringDrawLitres).toBeDefined();
+    expect(ev.metrics?.servedFraction).toBeDefined();
+    expect(ev.metrics?.drawRateLpm).toBeDefined();
+
+    // Shower draws at 9 lpm × 8 min = 72 L (not the old bath-scale 120 L).
+    expect(ev.metrics!.requiredLitres!).toBeCloseTo(72, 0);
+    expect(ev.metrics!.drawRateLpm!).toBe(9);
+
+    // Cylinder is full for first event — should be fully served.
+    expect(ev.metrics!.servedFraction!).toBe(1);
+    expect(ev.result).toBe('successful');
+  });
+
+  it('tap draw uses realistic low volume (not bath-scale)', () => {
+    const schedule = makeSchedule([
+      makeEvent({ id: 'tap_0', type: 'tap_draw', startMinute: 420, durationMinutes: 1, canConflict: false }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, REAL_CYLINDER);
+    const ev = result.events[0];
+
+    // Tap draw: 3 lpm × 1 min = 3 L — not the old 15 L.
+    expect(ev.metrics?.requiredLitres).toBeCloseTo(3, 0);
+    expect(ev.metrics?.drawRateLpm).toBe(3);
+    expect(ev.result).toBe('successful');
+  });
+
+  it('kitchen draw uses realistic moderate volume', () => {
+    const schedule = makeSchedule([
+      makeEvent({ id: 'kitchen_0', type: 'kitchen_draw', startMinute: 480, durationMinutes: 4, canConflict: false }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, REAL_CYLINDER);
+    const ev = result.events[0];
+
+    // Kitchen draw: 7 lpm × 4 min = 28 L — not the old 60 L.
+    expect(ev.metrics?.requiredLitres).toBeCloseTo(28, 0);
+    expect(ev.metrics?.drawRateLpm).toBe(7);
+    expect(ev.result).toBe('successful');
+  });
+});
