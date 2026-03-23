@@ -210,4 +210,32 @@ describe('buildResimulationFromSurvey', () => {
     expect(resimulation.comparison).toBeDefined();
     expect(resimulation.comparison.headlineImprovements).toBeInstanceOf(Array);
   });
+
+  // ── overrideSystemType ────────────────────────────────────────────────────
+
+  it('overrideSystemType forces the resimulation to use the specified system family', () => {
+    // Engine recommends combi, but override forces stored_water.
+    const survey = makeMinimalSurvey({ currentHeatSourceType: 'combi' });
+    const engine = makeEngineOutput('Combi boiler', 'combi');
+    const result = buildResimulationFromSurvey(survey, engine, 'stored_water');
+    expect(result).not.toBeNull();
+    expect(result!.resimulation.systemType).toBe('stored_water');
+    expect(result!.upgradePackage.systemType).toBe('stored_water');
+  });
+
+  it('overrideSystemType heat_pump forces heat_pump path even when engine recommends combi', () => {
+    const survey = makeMinimalSurvey({ currentHeatSourceType: 'combi' });
+    const engine = makeEngineOutput('Combi boiler', 'combi');
+    const result = buildResimulationFromSurvey(survey, engine, 'heat_pump');
+    expect(result).not.toBeNull();
+    expect(result!.resimulation.systemType).toBe('heat_pump');
+  });
+
+  it('overrideSystemType undefined falls back to engine recommendation', () => {
+    const survey = makeMinimalSurvey();
+    const engine = makeEngineOutput('Stored water', 'stored_vented');
+    const result = buildResimulationFromSurvey(survey, engine, undefined);
+    expect(result).not.toBeNull();
+    expect(result!.upgradePackage.systemType).toBe('stored_water');
+  });
 });

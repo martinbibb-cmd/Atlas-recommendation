@@ -45,12 +45,25 @@ const STORED_DEFAULT_DRAW_RATE_LPM = 15;
 
 /** Default heat-pump cylinder draw rate (slower, larger vessel). */
 const HP_DEFAULT_DRAW_RATE_LPM = 12;
-const STORAGE_REDUCED_FRACTION = 0.4;
+/**
+ * Below this fraction of storage remaining the draw is classified as `reduced`.
+ *
+ * Stored-water / unvented systems tolerate simultaneous demand well — two
+ * overlapping outlets can still deliver usable performance.  A fraction of
+ * 0.25 (25 %) reflects the point where temperature or flow begins to degrade
+ * noticeably but service remains acceptable.
+ */
+const STORAGE_REDUCED_FRACTION = 0.25;
 
 /**
- * Below this fraction of storage remaining the outcome is conflict.
+ * Below this fraction of storage remaining the outcome is `conflict`.
+ *
+ * For stored-water paths, conflict means the cylinder is effectively
+ * exhausted and delivered performance falls below defined usable thresholds.
+ * Simultaneous demand alone is NOT a conflict — only actual depletion below
+ * this fraction is.
  */
-const STORAGE_CONFLICT_FRACTION = 0.15;
+const STORAGE_CONFLICT_FRACTION = 0.10;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

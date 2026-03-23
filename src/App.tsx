@@ -35,6 +35,9 @@ import { getMissingLabFields } from './lib/lab/getMissingLabFields';
 import { mergeLabQuickInputs } from './lib/lab/mergeLabQuickInputs';
 import { parsePortalPath } from './lib/portal/portalUrl';
 import type { DerivedFloorplanOutput } from './components/floorplan/floorplanDerivations';
+import { computeFitPosition } from './logic/fit-map/computeFitPosition';
+import type { FitPosition } from './logic/fit-map/computeFitPosition';
+import FitMapResultPage from './components/fit-map/FitMapResultPage';
 import './App.css';
 
 /** Detect ?lab=1 feature flag — renders Demo Lab directly for previewing. */
@@ -80,7 +83,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   preferCombi: true,
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -108,6 +111,23 @@ const PORTAL_TOKEN =
 const EXPLORER_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('explorer') === '1';
+
+/** Derive FitInputs from a completed engine input for the fit-map page. */
+function deriveFitPosition(engineInput: EngineInputV2_3): FitPosition {
+  const pipe = engineInput.primaryPipeDiameter;
+  const pipeMm: 15 | 22 | 28 | 35 =
+    pipe === 15 || pipe === 22 || pipe === 28 || pipe === 35 ? pipe : 22;
+
+  return computeFitPosition({
+    peakConcurrentOutlets: Math.max(1, (engineInput.bathroomCount ?? 1)),
+    mainsDynamicPressureBar: engineInput.dynamicMainsPressure ?? 1.5,
+    primaryPipeSizeMm: pipeMm,
+    thermalInertia: engineInput.buildingMass === 'high' ? 'high'
+      : engineInput.buildingMass === 'low' ? 'low' : 'medium',
+    occupancy: engineInput.occupancySignature === 'steady' ? 'steady'
+      : engineInput.occupancySignature === 'shift' ? 'shift' : 'professional',
+  });
+}
 
 export default function App() {
   const [journey, setJourney] = useState<Journey>(
@@ -137,6 +157,8 @@ export default function App() {
   const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
   /** Active visit ID — set when the user starts or opens a visit. */
   const [activeVisitId, setActiveVisitId] = useState<string | undefined>();
+  /** Fit position computed after survey completion — shown on the fit-map page. */
+  const [fitPosition, setFitPosition] = useState<FitPosition | undefined>();
   /** Controls whether the new-visit dialog is open. */
   const [showNewVisitDialog, setShowNewVisitDialog] = useState(false);
   /** Tracks whether "Start new visit" is in flight. */
@@ -210,7 +232,8 @@ export default function App() {
         const engineInput = toEngineInput(sanitiseModelForEngine(survey));
         setActiveVisitId(visitId);
         setLabEngineInput(engineInput);
-        setJourney('simulator');
+        setFitPosition(deriveFitPosition(engineInput));
+        setJourney('fit-map');
         return;
       }
     } catch (err) {
@@ -310,7 +333,8 @@ export default function App() {
             onBack={() => setJourney('landing')}
             onComplete={(engineInput) => {
               setLabEngineInput(engineInput);
-              setJourney('simulator');
+              setFitPosition(deriveFitPosition(engineInput));
+              setJourney('fit-map');
             }}
             onOpenFloorPlan={(surveyResults) => {
               const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
@@ -331,11 +355,11 @@ export default function App() {
             onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }}
             prefill={fullSurveyPrefill}
             onComplete={(engineInput) => {
-              // Route directly to the Simulator Dashboard after survey completion —
-              // the primary result experience.
+              // Route through fit-map page before simulator.
               setFullSurveyPrefill(undefined);
               setLabEngineInput(engineInput);
-              setJourney('simulator');
+              setFitPosition(deriveFitPosition(engineInput));
+              setJourney('fit-map');
             }}
             onOpenFloorPlan={(surveyResults) => {
               const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
@@ -349,6 +373,12 @@ export default function App() {
       {journey === 'methodology' && <MethodologyPage onBack={() => setJourney('landing')} />}
       {journey === 'neutrality' && <NeutralityPage onBack={() => setJourney('landing')} />}
       {journey === 'privacy' && <PrivacyPage onBack={() => setJourney('landing')} />}
+      {journey === 'fit-map' && fitPosition != null && (
+        <FitMapResultPage
+          fitPosition={fitPosition}
+          onContinue={() => setJourney('simulator')}
+        />
+      )}
       {journey === 'lab-quick-inputs' && (
         <LabQuickInputsPanel
           initialInput={labPartialInput}

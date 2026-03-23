@@ -186,12 +186,18 @@ export interface ResimulationFromSurveyResult {
  *
  * Uses the existing PR 2–5 engines exclusively — no new physics logic.
  *
+ * @param overrideSystemType - When provided, forces the resimulation pipeline
+ *        to use this system type instead of the engine-recommended option.
+ *        This allows the events/upgrades panel to be driven by a user-chosen
+ *        system family (combi, stored_water, heat_pump).
+ *
  * @returns ResimulationFromSurveyResult or null when insufficient data is
  *          available to run the pipeline (e.g. no household composition).
  */
 export function buildResimulationFromSurvey(
   survey: FullSurveyModelV1,
   engineOutput: EngineOutputV1,
+  overrideSystemType?: OutcomeSystemSpec['systemType'],
 ): ResimulationFromSurveyResult | null {
   // ── Step 1: Derive household profile ──────────────────────────────────────
   const composition = survey.householdComposition ?? DEFAULT_HOUSEHOLD_COMPOSITION;
@@ -227,7 +233,7 @@ export function buildResimulationFromSurvey(
     options.find((o) => o.status === 'caution') ??
     options[0];
 
-  const proposedSystemType = optionIdToSystemType(recommendedOption?.id);
+  const proposedSystemType = overrideSystemType ?? optionIdToSystemType(recommendedOption?.id);
 
   // ── Step 3: Build the simple-install OutcomeSystemSpec ────────────────────
   const simpleInstallSpec = buildSimpleInstallSpec(survey, proposedSystemType);
