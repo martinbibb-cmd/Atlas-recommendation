@@ -104,22 +104,16 @@ function derivePrimaryPipeSizeMm(
 // ─── OutcomeSystemSpec builders ───────────────────────────────────────────────
 
 /**
- * Build the simple-install OutcomeSystemSpec for the proposed system.
- *
- * The systemType is derived from the engine-recommended option so that
- * stored-water and heat-pump paths receive appropriate upgrade packages
- * rather than falling back to combi defaults.
- *
- * Property facts (pressure, pipe size, heat output) are still sourced from
- * the survey since they describe the home, not the specific system chosen.
- *
- * @param survey          - Completed survey data (property facts).
- * @param proposedSystemType - System type of the engine-recommended option.
+ * Shared property facts derived from the survey (describe the home, not the
+ * chosen system family).
  */
-function buildSimpleInstallSpec(
-  survey: FullSurveyModelV1,
-  proposedSystemType: OutcomeSystemSpec['systemType'],
-): OutcomeSystemSpec {
+function deriveSurveyPropertyFacts(survey: FullSurveyModelV1): {
+  mainsDynamicPressureBar: number | undefined;
+  heatOutputKw: number | undefined;
+  primaryPipeSizeMm: OutcomeSystemSpec['primaryPipeSizeMm'];
+  controlsQuality: OutcomeSystemSpec['controlsQuality'];
+  systemCondition: OutcomeSystemSpec['systemCondition'];
+} {
   const dynBar = survey.dynamicMainsPressureBar ?? survey.dynamicMainsPressure;
   const mainsDynamicPressureBar =
     dynBar != null && dynBar > 0 ? Math.min(Math.max(dynBar, 0.5), 6.0) : undefined;
@@ -130,13 +124,84 @@ function buildSimpleInstallSpec(
       : undefined;
 
   return {
-    systemType:         proposedSystemType,
-    heatOutputKw,
     mainsDynamicPressureBar,
+    heatOutputKw,
     primaryPipeSizeMm:  derivePrimaryPipeSizeMm(survey),
     controlsQuality:    deriveControlsQuality(survey),
     systemCondition:    deriveSystemCondition(survey),
   };
+}
+
+/**
+ * Build a combi OutcomeSystemSpec with explicit peak hot-water capacity.
+ * A standard 24 kW combi at a 35 °C temperature rise delivers ≈ 11.5 lpm;
+ * we seed 12 lpm as the conservative base assumption.
+ */
+function buildCombiSimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSystemSpec {
+  const facts = deriveSurveyPropertyFacts(survey);
+  return {
+    systemType:              'combi',
+    peakHotWaterCapacityLpm: 12,
+    ...facts,
+  };
+}
+
+/**
+ * Build a stored-water OutcomeSystemSpec with realistic cylinder and recovery
+ * defaults.
+ *
+ * Defaults:
+ *   - 210 L storage  — standard UK unvented cylinder (A-rated, EN 12897)
+ *   - 120 L/h recovery — gas boiler indirect coil (~24 kW input, coil losses)
+ *
+ * Without these values the classifier falls back to 150 L / 60 L/h, which
+ * produces extreme conflict counts and implausible bath-fill times for a
+ * typical household.
+ */
+function buildStoredWaterSimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSystemSpec {
+  const facts = deriveSurveyPropertyFacts(survey);
+  return {
+    systemType:                  'stored_water',
+    hotWaterStorageLitres:       210,
+    recoveryRateLitresPerHour:   120,
+    ...facts,
+  };
+}
+
+/**
+ * Build a heat-pump OutcomeSystemSpec with larger store and slower recovery.
+ *
+ * Defaults:
+ *   - 250 L storage  — standard ASHP cylinder
+ *   - 30 L/h recovery — heat pumps recover slowly vs gas (~2–3 h full cycle)
+ */
+function buildHeatPumpSimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSystemSpec {
+  const facts = deriveSurveyPropertyFacts(survey);
+  return {
+    systemType:                'heat_pump',
+    hotWaterStorageLitres:     250,
+    recoveryRateLitresPerHour: 30,
+    ...facts,
+    // Heat pumps do not carry a heatOutputKw from the existing gas boiler survey field.
+    heatOutputKw: undefined,
+  };
+}
+
+/**
+ * Dispatch to the correct family-aware spec builder.
+ *
+ * Each family receives a complete base spec so that the outcome classifier
+ * always operates on realistic physics, not generic fallbacks.
+ */
+function buildFamilySpec(
+  survey: FullSurveyModelV1,
+  proposedSystemType: OutcomeSystemSpec['systemType'],
+): OutcomeSystemSpec {
+  switch (proposedSystemType) {
+    case 'combi':        return buildCombiSimpleInstallSpec(survey);
+    case 'stored_water': return buildStoredWaterSimpleInstallSpec(survey);
+    case 'heat_pump':    return buildHeatPumpSimpleInstallSpec(survey);
+  }
 }
 
 // ─── Daytime occupancy + bath use ─────────────────────────────────────────────
@@ -235,8 +300,8 @@ export function buildResimulationFromSurvey(
 
   const proposedSystemType = overrideSystemType ?? optionIdToSystemType(recommendedOption?.id);
 
-  // ── Step 3: Build the simple-install OutcomeSystemSpec ────────────────────
-  const simpleInstallSpec = buildSimpleInstallSpec(survey, proposedSystemType);
+  // ── Step 3: Build the family-aware simple-install OutcomeSystemSpec ──────
+  const simpleInstallSpec = buildFamilySpec(survey, proposedSystemType);
 
   // ── Step 4: Generate the upgrade package for the simple-install system ────
   const simpleInstallOutcomes = classifyEventOutcomes(schedule, simpleInstallSpec);
