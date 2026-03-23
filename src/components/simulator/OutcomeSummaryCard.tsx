@@ -37,6 +37,7 @@ const HOT_WATER_SECTION_LABEL: Record<OutcomeSystemSpec['systemType'], string> =
   combi:        'On-demand hot water',
   stored_water: 'Hot water performance',
   heat_pump:    'Hot water performance',
+  open_vented:  'Hot water performance',
 };
 
 export default function OutcomeSummaryCard({
