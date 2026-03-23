@@ -14,6 +14,7 @@
 
 import type { HouseholdComposition } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendUpgradesInputs, RecommendedUpgrade } from './types';
+import type { HeatSourceBehaviourV1 } from '../../engine/modules/HeatSourceBehaviourModel';
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -80,11 +81,24 @@ function deriveCylinderSizeLitres(inputs: RecommendUpgradesInputs): number {
   return baseLitres;
 }
 
+/**
+ * Extract the heat-source behaviour model from inputs.
+ * Inputs are guaranteed to have heatSourceBehaviour set by the time rules run
+ * (recommendUpgrades pre-builds it before dispatching to rules).
+ */
+function behaviour(inputs: RecommendUpgradesInputs): HeatSourceBehaviourV1 | undefined {
+  return inputs.heatSourceBehaviour;
+}
+
 // ─── Rule 1: Combi size ───────────────────────────────────────────────────────
 
 /**
  * Recommend a larger combi output when hot-water shortfall events are high
  * and mains pressure is not the bottleneck.
+ *
+ * When heatSourceBehaviour is present, the physics-derived pressureLockoutActive
+ * flag replaces the raw pressure threshold check, and canServeSimultaneousDhwEvents
+ * informs the reason string when simultaneous demand is the root cause.
  *
  * If mains pressure is the real limiting factor we surface an explanatory note
  * instead of silently recommending a bigger boiler.
@@ -98,11 +112,18 @@ export function ruleCombiSize(
   if (shortfall === 0) return null;
 
   // Mains pressure bottleneck check.
-  // Below ~0.3 bar dynamic pressure the combi cannot sustain adequate DHW flow
-  // regardless of heat output — upsizing the boiler alone will not help.
-  const pressure =
-    inputs.mainsDynamicPressureBar ?? inputs.systemSpec.mainsDynamicPressureBar;
-  const pressureIsBottleneck = pressure !== undefined && pressure < 0.3;
+  // Prefer the physics-derived pressureLockoutActive flag from the behaviour
+  // model when available — it uses the canonical lockout threshold from the
+  // HeatSourceBehaviourModel rather than a hardcoded constant here.
+  const combi = behaviour(inputs)?.combi;
+  const pressureIsBottleneck =
+    combi != null
+      ? combi.pressureLockoutActive
+      : (() => {
+          const pressure =
+            inputs.mainsDynamicPressureBar ?? inputs.systemSpec.mainsDynamicPressureBar;
+          return pressure !== undefined && pressure < 0.3;
+        })();
 
   if (pressureIsBottleneck) {
     // Bigger combi alone is not the fix — return an explanatory note upgrade
@@ -111,8 +132,9 @@ export function ruleCombiSize(
       category: 'water',
       label: 'Mains pressure improvement required before upsizing combi',
       reason:
-        'Hot-water shortfall events are present but mains dynamic pressure is low. ' +
-        'Upsizing the combi boiler alone will not resolve the issue; mains pressure must be addressed first.',
+        'Hot-water shortfall events are present but mains dynamic pressure is below ' +
+        'the minimum threshold for reliable combi ignition. Upsizing the combi boiler ' +
+        'alone will not resolve the issue; mains pressure must be addressed first.',
       effectTags: ['reduces_conflict', 'reduces_reduced_events'],
       priority: 'recommended',
     };
@@ -125,13 +147,23 @@ export function ruleCombiSize(
   const currentOutputKw = inputs.systemSpec.heatOutputKw ?? 24;
   const targetKw = currentOutputKw < 32 ? 35 : currentOutputKw;
 
+  // When the behaviour model shows the combi cannot serve simultaneous draws,
+  // surface that as the specific cause in the reason string.
+  // Note: simultaneousCause either is empty ('') or ends with a space so that
+  // the appended sentence begins correctly when concatenated.
+  const simultaneousCause =
+    combi != null && !combi.canServeSimultaneousDhwEvents
+      ? 'The boiler cannot sustain rated flow across concurrent draws — each outlet ' +
+        'receives a reduced share of the total output. '
+      : '';
+
   return {
     kind: 'combi_size',
     category: 'water',
     label: `${targetKw} kW combi boiler`,
     reason:
-      'Clustered hot-water demand is producing reduced-flow or conflict events. ' +
-      'A larger combi output would reduce these events under peak demand.',
+      simultaneousCause +
+      'A larger combi output would reduce reduced-flow and conflict events under peak demand.',
     effectTags: ['reduces_conflict', 'reduces_reduced_events'],
     priority: shortfall >= 3 ? 'essential' : 'recommended',
     value: targetKw,
@@ -143,6 +175,11 @@ export function ruleCombiSize(
 /**
  * Recommend an appropriately-sized cylinder for stored-water and heat-pump paths.
  * Not applicable to combi systems.
+ *
+ * When heatSourceBehaviour is present, the physics-derived effectiveUsableVolumeLitres
+ * is compared against the household-appropriate recommendation. The rule is skipped
+ * when the current effective volume already meets or exceeds the recommended size and
+ * no shortfall events are present — avoiding unnecessary upsizing suggestions.
  */
 export function ruleCylinderSize(
   inputs: RecommendUpgradesInputs,
@@ -151,8 +188,24 @@ export function ruleCylinderSize(
   if (systemType === 'combi') return null;
 
   const shortfall = hwShortfallCount(inputs);
-  // Recommend if there are shortfall events OR as a best-fit sizing suggestion
   const sizeLitres = deriveCylinderSizeLitres(inputs);
+
+  // Use the physics-derived effective usable volume when available to determine
+  // whether the current cylinder already meets the household's needs.
+  // Note: HeatSourceBehaviourV1 populates exactly one of boilerCylinder or
+  // heatPumpCylinder based on systemType; the fallback chain is safe because
+  // the one not matching systemType will always be undefined.
+  const b = behaviour(inputs);
+  const currentEffectiveLitres =
+    b?.boilerCylinder?.effectiveUsableVolumeLitres ??
+    b?.heatPumpCylinder?.effectiveUsableVolumeLitres;
+
+  // When the behaviour model confirms the current effective volume already meets
+  // or exceeds the household-appropriate recommendation and no shortfall events
+  // have occurred, skip the sizing suggestion — the cylinder is adequate.
+  if (currentEffectiveLitres != null && currentEffectiveLitres >= sizeLitres && shortfall === 0) {
+    return null;
+  }
 
   const isMixergy =
     (inputs.systemSpec as { cylinderType?: string }).cylinderType === 'mixergy';
@@ -274,6 +327,11 @@ export function ruleControlsUpgrade(
  * independent control of heating and stored hot water would be beneficial.
  *
  * Not applicable to combi systems (no cylinder to zone independently).
+ *
+ * When heatSourceBehaviour is present, the zone-control topology is checked
+ * before firing: if the system already uses S-plan (independent circuits),
+ * this recommendation is skipped — recommending S-plan when it already exists
+ * would be misleading.
  */
 export function ruleSystemControlsPlan(
   inputs: RecommendUpgradesInputs,
@@ -281,11 +339,27 @@ export function ruleSystemControlsPlan(
   const { systemType } = inputs.systemSpec;
   if (systemType === 'combi') return null;
 
+  // Use the physics-derived plan type when available.
+  // S-plan: twin 2-port zone valves — CH and DHW already independent.
+  //   → Recommending S-plan again is unnecessary; skip.
+  // Y-plan or unknown: DHW demand throttles CH (Y-plan) or topology is
+  //   unconfirmed — an S-plan upgrade is a meaningful improvement.
+  const planType = behaviour(inputs)?.boilerCylinder?.simultaneousChDhw.planType;
+  if (planType === 's_plan') return null;
+
+  // Tailor the reason string when the Y-plan throttling effect is confirmed.
+  const yPlanContext =
+    planType === 'y_plan'
+      ? 'The current Y-plan arrangement gives DHW priority, throttling space heating ' +
+        'whenever the cylinder calls for heat. '
+      : '';
+
   return {
     kind: 'system_controls_plan',
     category: 'controls',
     label: 'S-plan zone controls',
     reason:
+      yPlanContext +
       'S-plan controls allow independent scheduling of space heating and stored ' +
       'hot water. This reduces unnecessary cylinder reheats during heating-only periods ' +
       'and vice versa, improving overall system efficiency.',

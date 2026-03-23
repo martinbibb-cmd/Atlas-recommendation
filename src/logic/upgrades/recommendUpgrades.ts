@@ -25,6 +25,7 @@ import {
   ruleSystemControlsPlan,
   rulePrimaryPipeUpgrade,
 } from './upgradeRules';
+import { buildHeatSourceBehaviour } from '../../engine/modules/HeatSourceBehaviourModel';
 
 // ─── Rule pipeline ────────────────────────────────────────────────────────────
 
@@ -70,8 +71,18 @@ export function recommendUpgrades(
 ): RecommendedUpgradePackage {
   const upgrades: RecommendedUpgrade[] = [];
 
+  // Pre-build the heat-source behaviour model once for all rules.
+  // If the caller has already populated heatSourceBehaviour (e.g. from
+  // buildResimulationFromSurvey where it was built as the shared source of
+  // truth), reuse it; otherwise build it here so that every rule in this
+  // package is evaluated against the same physics-derived outputs.
+  const enrichedInputs: RecommendUpgradesInputs =
+    inputs.heatSourceBehaviour != null
+      ? inputs
+      : { ...inputs, heatSourceBehaviour: buildHeatSourceBehaviour(inputs.systemSpec) };
+
   for (const rule of UPGRADE_RULES) {
-    const result = rule(inputs);
+    const result = rule(enrichedInputs);
     if (result !== null) {
       upgrades.push(result);
     }
