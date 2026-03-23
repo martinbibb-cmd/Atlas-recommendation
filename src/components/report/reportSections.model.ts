@@ -41,6 +41,7 @@ import type {
   SensitivityItem,
   OpportunityStatus,
 } from '../../contracts/EngineOutputV1';
+import type { ResimulationFromSurveyResult } from '../../lib/simulator/buildResimulationFromSurvey';
 
 // ─── Section types ────────────────────────────────────────────────────────────
 
@@ -59,7 +60,12 @@ export type ReportSectionId =
   | 'assumptions'
   | 'physics_trace'
   | 'engineering_notes'
-  | 'future_energy_opportunities';
+  | 'future_energy_opportunities'
+  // ── Simulator-derived sections (new product journey) ──────────────────────
+  | 'simulator_outcomes'
+  | 'upgrade_path'
+  | 'best_fit_install'
+  | 'handover_notes';
 
 export interface SystemSummarySection {
   id: 'system_summary';
@@ -250,6 +256,113 @@ export interface FutureEnergyOpportunitiesSection {
   };
 }
 
+// ─── Simulator-derived section interfaces ─────────────────────────────────────
+
+/**
+ * Simulator outcomes — typical day hot-water and heating results from the
+ * simple-install system spec.
+ *
+ * Structured around the two classification axes (hot water / heating) so the
+ * report can surface what the household would actually experience on a typical
+ * day without the upgrade package applied.
+ */
+export interface SimulatorOutcomesSection {
+  id: 'simulator_outcomes';
+  /** Label of the system being evaluated (e.g. "On-demand hot water"). */
+  systemLabel: string;
+  /** Fuel source for this system — 'gas' or 'electric'. */
+  fuelSource: 'gas' | 'electric';
+  hotWater: {
+    totalDraws: number;
+    successful: number;
+    reduced: number;
+    conflict: number;
+    simultaneousEventCount: number;
+    averageBathFillTimeMinutes: number | null;
+  };
+  heating: {
+    totalHeatingEvents: number;
+    successful: number;
+    reduced: number;
+    conflict: number;
+    outsideTargetEventCount: number;
+  };
+}
+
+/** A single recommended upgrade item. */
+export interface UpgradeItem {
+  kind: string;
+  label: string;
+  reason: string;
+  priority: string;
+}
+
+/**
+ * Upgrade path — list of recommended upgrades from the simple-install spec.
+ *
+ * Covers Priority 5 (Suggested upgrades) in the product story.
+ */
+export interface UpgradePathSection {
+  id: 'upgrade_path';
+  /** Label of the system the upgrades apply to. */
+  systemLabel: string;
+  /** Ordered list of recommended upgrades (highest priority first). */
+  upgrades: UpgradeItem[];
+}
+
+/**
+ * Best-fit install — outcomes of the system after applying all upgrade
+ * recommendations.  Compared directly to the simple-install outcomes to
+ * demonstrate the value of the upgrade package.
+ *
+ * Covers Priority 6 (Best-fit install) in the product story.
+ */
+export interface BestFitInstallSection {
+  id: 'best_fit_install';
+  /** Label of the upgraded system. */
+  systemLabel: string;
+  hotWater: {
+    totalDraws: number;
+    successful: number;
+    reduced: number;
+    conflict: number;
+    averageBathFillTimeMinutes: number | null;
+  };
+  heating: {
+    totalHeatingEvents: number;
+    successful: number;
+    reduced: number;
+    conflict: number;
+  };
+  /** Headline improvements versus the simple install. */
+  headlineImprovements: string[];
+}
+
+/**
+ * Handover notes — key assumptions and engineer-facing notes that should be
+ * recorded at the point of handing over the recommendation to the customer or
+ * installation team.
+ *
+ * Covers Priority 7 (Handover / assumptions / notes) in the product story.
+ */
+export interface HandoverNotesSection {
+  id: 'handover_notes';
+  /** Assumptions that were applied during the simulation. */
+  assumptions: Array<{
+    id: string;
+    title: string;
+    detail: string;
+    severity: 'info' | 'warn' | 'fail';
+  }>;
+  /** Any red flags that should be actioned before or during installation. */
+  redFlags: Array<{
+    id: string;
+    title: string;
+    detail: string;
+    severity: 'info' | 'warn' | 'fail';
+  }>;
+}
+
 export type ReportSection =
   | SystemSummarySection
   | DecisionRationaleSection
@@ -265,7 +378,11 @@ export type ReportSection =
   | AssumptionsSection
   | PhysicsTraceSection
   | EngineeringNotesSection
-  | FutureEnergyOpportunitiesSection;
+  | FutureEnergyOpportunitiesSection
+  | SimulatorOutcomesSection
+  | UpgradePathSection
+  | BestFitInstallSection
+  | HandoverNotesSection;
 
 // ─── Completeness ─────────────────────────────────────────────────────────────
 
@@ -844,6 +961,174 @@ export function buildReportSections(output: EngineOutputV1): ReportSection[] {
 
   const engNotesSection = buildEngineeringNotesSection(output);
   if (engNotesSection) sections.push(engNotesSection);
+
+  return sections;
+}
+
+// ─── Simulator-derived section builders ──────────────────────────────────────
+
+/**
+ * Map a system family identifier to the correct fuel source.
+ * This prevents heat-pump paths from inheriting gas labels.
+ */
+function resolveFuelSource(systemType: string): 'gas' | 'electric' {
+  return systemType === 'heat_pump' ? 'electric' : 'gas';
+}
+
+/**
+ * Build the SimulatorOutcomesSection from a ResimulationFromSurveyResult.
+ *
+ * Surfaces the simple-install outcomes so the report shows what the household
+ * would experience on a typical day without upgrades applied.
+ */
+function buildSimulatorOutcomesSection(
+  result: ResimulationFromSurveyResult,
+): SimulatorOutcomesSection {
+  const { simpleInstall, systemType } = result.resimulation;
+  return {
+    id: 'simulator_outcomes',
+    systemLabel: result.recommendedSystemLabel,
+    fuelSource: resolveFuelSource(systemType),
+    hotWater: {
+      totalDraws:                 simpleInstall.hotWater.totalDraws,
+      successful:                 simpleInstall.hotWater.successful,
+      reduced:                    simpleInstall.hotWater.reduced,
+      conflict:                   simpleInstall.hotWater.conflict,
+      simultaneousEventCount:     simpleInstall.hotWater.simultaneousEventCount,
+      averageBathFillTimeMinutes: simpleInstall.hotWater.averageBathFillTimeMinutes,
+    },
+    heating: {
+      totalHeatingEvents:      simpleInstall.heating.totalHeatingEvents,
+      successful:              simpleInstall.heating.successful,
+      reduced:                 simpleInstall.heating.reduced,
+      conflict:                simpleInstall.heating.conflict,
+      outsideTargetEventCount: simpleInstall.heating.outsideTargetEventCount,
+    },
+  };
+}
+
+/**
+ * Build the UpgradePathSection from a ResimulationFromSurveyResult.
+ *
+ * Lists all recommended upgrades in priority order.
+ */
+function buildUpgradePathSection(
+  result: ResimulationFromSurveyResult,
+): UpgradePathSection | null {
+  const { upgrades } = result.upgradePackage;
+  if (upgrades.length === 0) return null;
+
+  return {
+    id: 'upgrade_path',
+    systemLabel: result.recommendedSystemLabel,
+    upgrades: upgrades.map((u) => ({
+      kind:     u.kind,
+      label:    u.label,
+      reason:   u.reason,
+      priority: u.priority,
+    })),
+  };
+}
+
+/**
+ * Build the BestFitInstallSection from a ResimulationFromSurveyResult.
+ *
+ * Shows outcomes after the upgrade package is applied, with a direct comparison
+ * to the simple-install outcomes via headlineImprovements.
+ */
+function buildBestFitInstallSection(
+  result: ResimulationFromSurveyResult,
+): BestFitInstallSection {
+  const { bestFitInstall, comparison } = result.resimulation;
+  return {
+    id: 'best_fit_install',
+    systemLabel: result.recommendedSystemLabel,
+    hotWater: {
+      totalDraws:                 bestFitInstall.hotWater.totalDraws,
+      successful:                 bestFitInstall.hotWater.successful,
+      reduced:                    bestFitInstall.hotWater.reduced,
+      conflict:                   bestFitInstall.hotWater.conflict,
+      averageBathFillTimeMinutes: bestFitInstall.hotWater.averageBathFillTimeMinutes,
+    },
+    heating: {
+      totalHeatingEvents: bestFitInstall.heating.totalHeatingEvents,
+      successful:         bestFitInstall.heating.successful,
+      reduced:            bestFitInstall.heating.reduced,
+      conflict:           bestFitInstall.heating.conflict,
+    },
+    headlineImprovements: comparison.headlineImprovements,
+  };
+}
+
+/**
+ * Build the HandoverNotesSection from an EngineOutputV1.
+ *
+ * Combines verdict-level and meta-level assumptions with red flags so that
+ * the engineer has a complete record at the point of handing over.
+ */
+function buildHandoverNotesSection(output: EngineOutputV1): HandoverNotesSection | null {
+  const verdictAssumptions = output.verdict?.assumptionsUsed ?? [];
+  const metaAssumptions    = output.meta?.assumptions ?? [];
+  const redFlags           = output.redFlags ?? [];
+
+  const seenIds = new Set(verdictAssumptions.map((a) => a.id));
+  const combined = [
+    ...verdictAssumptions,
+    ...metaAssumptions.filter((a) => !seenIds.has(a.id)),
+  ];
+
+  if (combined.length === 0 && redFlags.length === 0) return null;
+
+  return {
+    id: 'handover_notes',
+    assumptions: combined.map((a) => ({
+      id:       a.id,
+      title:    a.title,
+      detail:   a.detail,
+      severity: a.severity,
+    })),
+    redFlags: redFlags.map((f) => ({
+      id:       f.id,
+      title:    f.title,
+      detail:   f.detail,
+      severity: f.severity,
+    })),
+  };
+}
+
+// ─── Simulator report builder ─────────────────────────────────────────────────
+
+/**
+ * Build the simulator-derived report sections from a ResimulationFromSurveyResult.
+ *
+ * These sections reflect the new product story:
+ *   simulator_outcomes  — what the household experiences on a typical day
+ *   upgrade_path        — recommended improvements (if any)
+ *   best_fit_install    — outcomes after upgrades, with comparison deltas
+ *   handover_notes      — assumptions and red flags for installation handover
+ *
+ * Intended to be combined with the engine-derived sections from
+ * `buildReportSections` when producing a complete report.
+ *
+ * Section ordering follows the product journey:
+ *   Chosen system → Simulator outcomes → Simple install → Upgrades →
+ *   Best-fit install → Handover notes
+ */
+export function buildSimulatorReportSections(
+  result: ResimulationFromSurveyResult,
+  engineOutput: EngineOutputV1,
+): ReportSection[] {
+  const sections: ReportSection[] = [];
+
+  sections.push(buildSimulatorOutcomesSection(result));
+
+  const upgradeSection = buildUpgradePathSection(result);
+  if (upgradeSection) sections.push(upgradeSection);
+
+  sections.push(buildBestFitInstallSection(result));
+
+  const handoverSection = buildHandoverNotesSection(engineOutput);
+  if (handoverSection) sections.push(handoverSection);
 
   return sections;
 }

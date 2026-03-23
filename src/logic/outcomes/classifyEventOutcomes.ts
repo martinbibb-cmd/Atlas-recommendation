@@ -36,6 +36,7 @@ function buildSystemLabel(spec: OutcomeSystemSpec): string {
     combi:        'Combi boiler',
     stored_water: 'Stored-water system',
     heat_pump:    'Heat pump',
+    open_vented:  'Open-vented cylinder',
   };
   const parts: string[] = [typeLabel[spec.systemType]];
 

@@ -35,7 +35,7 @@ function makeOption(
 
 function makeEngineOutput(
   primary = 'Stored water',
-  optionId: OptionCardV1['id'] = 'stored_vented',
+  optionId: OptionCardV1['id'] = 'stored_unvented',
 ): EngineOutputV1 {
   return {
     eligibility: [],
@@ -94,10 +94,18 @@ describe('buildResimulationFromSurvey', () => {
   });
 
   it('upgradePackage systemType matches the proposed (recommended) system type from engine output', () => {
-    // Current system is combi, but engine recommends stored_vented → upgrade
-    // package should be for stored_water, not combi.
+    // Current system is combi, but engine recommends stored_vented (open_vented) → upgrade
+    // package should be for open_vented, not combi.
     const survey = makeMinimalSurvey({ currentHeatSourceType: 'combi' });
-    const result = buildResimulationFromSurvey(survey, makeEngineOutput('Stored water', 'stored_vented'));
+    const result = buildResimulationFromSurvey(survey, makeEngineOutput('Open-vented cylinder', 'stored_vented'));
+    expect(result).not.toBeNull();
+    expect(result!.upgradePackage.systemType).toBe('open_vented');
+  });
+
+  it('upgradePackage systemType is stored_water when engine recommends stored_unvented', () => {
+    // stored_unvented maps to stored_water (mains-fed unvented cylinder).
+    const survey = makeMinimalSurvey({ currentHeatSourceType: 'combi' });
+    const result = buildResimulationFromSurvey(survey, makeEngineOutput('Unvented cylinder', 'stored_unvented'));
     expect(result).not.toBeNull();
     expect(result!.upgradePackage.systemType).toBe('stored_water');
   });
@@ -152,15 +160,27 @@ describe('buildResimulationFromSurvey', () => {
     expect(result!.upgradePackage.systemType).toBe('heat_pump');
   });
 
-  it('handles stored_water current system correctly', () => {
+  it('handles stored_water current system correctly (unvented)', () => {
     const survey: FullSurveyModelV1 = {
       ...makeMinimalSurvey(),
       currentHeatSourceType: 'system',
     };
-    const engine = makeEngineOutput('Stored water', 'stored_vented');
+    const engine = makeEngineOutput('Stored water', 'stored_unvented');
     const result = buildResimulationFromSurvey(survey, engine);
     expect(result).not.toBeNull();
     expect(result!.upgradePackage.systemType).toBe('stored_water');
+  });
+
+  it('handles open_vented current system correctly (vented)', () => {
+    const survey: FullSurveyModelV1 = {
+      ...makeMinimalSurvey(),
+      currentHeatSourceType: 'regular',
+    };
+    const engine = makeEngineOutput('Open-vented cylinder', 'stored_vented');
+    const result = buildResimulationFromSurvey(survey, engine);
+    expect(result).not.toBeNull();
+    expect(result!.upgradePackage.systemType).toBe('open_vented');
+    expect(result!.resimulation.systemType).toBe('open_vented');
   });
 
   it('cross-family: combi current system with stored_unvented recommendation uses stored_water path', () => {
@@ -233,7 +253,7 @@ describe('buildResimulationFromSurvey', () => {
 
   it('overrideSystemType undefined falls back to engine recommendation', () => {
     const survey = makeMinimalSurvey();
-    const engine = makeEngineOutput('Stored water', 'stored_vented');
+    const engine = makeEngineOutput('Stored water', 'stored_unvented');
     const result = buildResimulationFromSurvey(survey, engine, undefined);
     expect(result).not.toBeNull();
     expect(result!.upgradePackage.systemType).toBe('stored_water');
@@ -241,15 +261,15 @@ describe('buildResimulationFromSurvey', () => {
 
   // ── Family-spec seeding ───────────────────────────────────────────────────
 
-  it('stored_water simple-install spec seeds 210 L storage so bath fill time is plausible', () => {
+  it('stored_water simple-install spec uses occupancy-based cylinder sizing and bath fill time is plausible', () => {
     // A 2-person household with unvented cylinder + good mains pressure.
-    // Bath fill time for a single bath event should be well under 20 minutes
-    // when using the realistic 210 L / 120 L/h stored-water defaults.
+    // With occupancy-based sizing (≤2 people → 150 L), bath fill time for a
+    // single bath event should be well under 20 minutes.
     const survey = makeMinimalSurvey({
       dynamicMainsPressureBar: 2.5,
       currentBoilerOutputKw:   24,
     });
-    const engine = makeEngineOutput('Stored water', 'stored_vented');
+    const engine = makeEngineOutput('Stored water', 'stored_unvented');
     const result = buildResimulationFromSurvey(survey, engine);
     expect(result).not.toBeNull();
 
@@ -272,9 +292,9 @@ describe('buildResimulationFromSurvey', () => {
 
   it('stored_water override does not produce extreme conflict counts for a 2-person household', () => {
     // 2-person household + single bathroom → stored_water conflicts should be
-    // limited when using realistic defaults (210 L / 120 L/h).
+    // limited when using occupancy-based sizing (2 people → 150 L / 120 L/h).
     // Morning clusters may produce a small number of conflicts (tight sequential
-    // showers + kitchen draws can exceed the 210 L cylinder), but the evening
+    // showers + kitchen draws can deplete the 150 L cylinder), but the evening
     // events should be fully recovered.
     //
     // Regression: the broken model (no family spec + no running-balance recovery)
@@ -388,10 +408,10 @@ describe('Mixergy override — stored-water path with 150 L cylinder', () => {
     );
   });
 
-  it('Mixergy 150 L cylinder produces more conflicts than standard 210 L stored_water under heavy demand', () => {
+  it('Mixergy 150 L cylinder produces at least as many conflicts as standard stored_water under heavy demand', () => {
     // 4-person household (3 adults + 1 toddler) generates more morning demand than
-    // a 150 L Mixergy can serve without some depletion, while the 210 L standard
-    // cylinder has a larger store.
+    // a 150 L Mixergy can serve without some depletion.  Standard stored_water
+    // for 4 people gets 180 L (occupancy-based sizing), larger than Mixergy.
     const survey = makeMinimalSurvey({
       householdComposition: {
         adultCount:               3,
@@ -402,14 +422,13 @@ describe('Mixergy override — stored-water path with 150 L cylinder', () => {
       },
       dynamicMainsPressureBar: 2.5,
     });
-    const engine = makeEngineOutput('Stored water', 'stored_vented');
+    const engine = makeEngineOutput('Stored water', 'stored_unvented');
 
     const standardResult = buildResimulationFromSurvey(survey, engine, 'stored_water')!;
     const mixergyResult  = buildResimulationFromSurvey(survey, engine, 'mixergy')!;
 
-    // 150 L Mixergy is smaller; under 4-person demand it may deplete more.
-    // At minimum the standard 210 L cylinder should perform no worse than the
-    // 150 L Mixergy (could tie when morning recovery is sufficient for both).
+    // 150 L Mixergy is smaller than 180 L standard; under 4-person demand it may deplete more.
+    // At minimum the standard cylinder should perform no worse than the smaller Mixergy.
     expect(mixergyResult.resimulation.simpleInstall.hotWater.conflict).toBeGreaterThanOrEqual(
       standardResult.resimulation.simpleInstall.hotWater.conflict,
     );

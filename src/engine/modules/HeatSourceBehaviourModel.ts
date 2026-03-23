@@ -35,7 +35,7 @@
  */
 export interface HeatSourceBehaviourInput {
   /** Broad category driving the primary behaviour model. */
-  systemType: 'combi' | 'stored_water' | 'heat_pump';
+  systemType: 'combi' | 'stored_water' | 'heat_pump' | 'open_vented';
   /** Dynamic mains pressure at the property inlet (bar). */
   mainsDynamicPressureBar?: number;
   /** Survey-measured peak hot-water capacity (L/min). Used by combi model. */
@@ -498,15 +498,19 @@ export function buildBoilerCylinderBehaviour(spec: HeatSourceBehaviourInput): Bo
         'space heating is throttled or interrupted until the cylinder thermostat satisfies.',
     };
   } else {
-    // Default to Y-plan behaviour when topology is unknown (more common in UK
-    // existing stock and more conservative classification).
+    // Default to independent-circuit behaviour when topology is unknown.
+    // A new stored-water installation is typically specified with S-plan controls,
+    // and heating misses should not be applied when the topology has not been
+    // confirmed as Y-plan.  The S-plan upgrade rule still fires (planType is
+    // 'unknown', not 's_plan') so the engineer is prompted to confirm wiring.
     simultaneousChDhw = {
       planType: 'unknown',
-      chThrottledByDhwDemand: true,
-      dhwIndependentOfCh: false,
+      chThrottledByDhwDemand: false,
+      dhwIndependentOfCh: true,
       explanation:
-        'Zone-control topology unknown; assuming Y-plan behaviour (DHW priority may throttle CH). ' +
-        'Survey the system wiring to confirm S-plan or Y-plan arrangement.',
+        'Zone-control topology not confirmed; assuming independent circuits. ' +
+        'Survey the system wiring to confirm S-plan or Y-plan arrangement. ' +
+        'Upgrade to S-plan if Y-plan is found.',
     };
   }
 
@@ -674,6 +678,13 @@ export interface HeatSourceBehaviourV1 {
   /** Populated when systemType is 'stored_water'. */
   boilerCylinder?: BoilerCylinderBehaviourV1;
 
+  /**
+   * Populated when systemType is 'open_vented'.
+   * Uses the same BoilerCylinderBehaviourV1 model as stored_water, but
+   * the spec is built with gravity-fed / vented-pressure assumptions.
+   */
+  openVentedCylinder?: BoilerCylinderBehaviourV1;
+
   /** Populated when systemType is 'heat_pump'. */
   heatPumpCylinder?: HeatPumpCylinderBehaviourV1;
 }
@@ -703,6 +714,12 @@ export function buildHeatSourceBehaviour(
       return {
         systemType: 'stored_water',
         boilerCylinder: buildBoilerCylinderBehaviour(spec),
+      };
+    case 'open_vented':
+      return {
+        systemType: 'open_vented',
+        boilerCylinder: buildBoilerCylinderBehaviour(spec),
+        openVentedCylinder: buildBoilerCylinderBehaviour(spec),
       };
     case 'heat_pump':
       return {

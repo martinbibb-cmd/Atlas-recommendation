@@ -129,7 +129,7 @@ export interface ClassifiedDaySchedule {
  */
 export interface OutcomeSystemSpec {
   /** Broad category that drives the primary classification strategy. */
-  systemType: 'combi' | 'stored_water' | 'heat_pump';
+  systemType: 'combi' | 'stored_water' | 'heat_pump' | 'open_vented';
 
   // ── Water capability ────────────────────────────────────────────────────────
   /** Maximum sustained hot-water flow rate (litres per minute). */
@@ -166,10 +166,18 @@ export interface OutcomeSystemSpec {
    *   'y_plan' — 3-port mid-position valve: DHW demand throttles CH (shared path).
    *   's_plan' — twin 2-port zone valves: CH and DHW can run independently.
    *
-   * Defaults to 'y_plan' when absent (more common in UK existing stock and
-   * more conservative for simultaneous-demand classification).
+   * Defaults to independent-circuit behaviour when absent (new installations
+   * are typically S-plan; the S-plan upgrade rule still fires when unconfirmed).
    */
   systemPlanType?: 'y_plan' | 's_plan';
+
+  // ── Fuel / energy source ─────────────────────────────────────────────────────
+  /**
+   * Primary energy carrier for this system.
+   * Defaults to 'gas' for combi / stored_water / open_vented paths.
+   * Must be 'electric' for heat_pump paths to avoid inheriting gas labels.
+   */
+  fuelSource?: 'gas' | 'electric';
 
   // ── Heat-source behaviour model ──────────────────────────────────────────────
   /**

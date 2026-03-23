@@ -84,6 +84,13 @@ function getEventDrawRateLpm(event: DayEvent, systemType: 'stored_water' | 'heat
 }
 
 /**
+ * Minimum single-outlet flow rate (L/min) required for a comfortable shower.
+ * Below this threshold the combi is classified as 'reduced' for shower events
+ * even without concurrent demand — enforcing the hard DHW cap.
+ */
+const COMBI_MIN_SHOWER_LPM = 8;
+
+/**
  * Estimate the hot-water volume consumed by a single draw event (litres).
  * For bath events we use the standard fill volume, otherwise we estimate from
  * the assumed flow rate and duration.
@@ -264,6 +271,25 @@ function classifyCombiDraw(
   }
 
   const pressure = spec.mainsDynamicPressureBar ?? 1.0;
+
+  // Hard cap: enforce minimum single-outlet flow for shower / kitchen events.
+  // A combi can only deliver what its DHW power and mains conditions allow.
+  // If the rated single-outlet flow is below the minimum comfortable shower
+  // threshold, the outcome is 'reduced' — the cap is non-negotiable.
+  if (
+    (event.type === 'shower' || event.type === 'kitchen_draw') &&
+    behaviour.singleOutletDhwLpm < COMBI_MIN_SHOWER_LPM
+  ) {
+    return {
+      result: 'reduced',
+      reason:
+        `Combi single-outlet flow (${behaviour.singleOutletDhwLpm.toFixed(1)} lpm) ` +
+        `is below the comfortable threshold (${COMBI_MIN_SHOWER_LPM} lpm). ` +
+        `${event.type === 'shower' ? 'Shower' : 'Kitchen draw'} will be weaker than expected.`,
+      metrics: { estimatedFlowLpm: behaviour.singleOutletDhwLpm },
+      tags: ['low_flow'],
+    };
+  }
 
   // Bath fill time for bath events — use behaviour model's flow rate.
   if (event.type === 'bath') {
@@ -568,6 +594,10 @@ export function classifyHotWaterEvent(
     case 'combi':
       return classifyCombiDraw(event, allEvents, spec, behaviour.combi!);
     case 'stored_water':
+      return classifyStoredWaterDraw(event, allEvents, spec, behaviour.boilerCylinder!);
+    case 'open_vented':
+      // Open-vented uses the same stored-water classification path with
+      // vented-pressure physics (lower draw rates, gravity-fed assumptions).
       return classifyStoredWaterDraw(event, allEvents, spec, behaviour.boilerCylinder!);
     case 'heat_pump':
       return classifyHeatPumpDraw(event, allEvents, spec, behaviour.heatPumpCylinder!);

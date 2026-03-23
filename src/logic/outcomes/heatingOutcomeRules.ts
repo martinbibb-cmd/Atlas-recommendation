@@ -361,7 +361,7 @@ function applyChDhwInteraction(
     }
   }
 
-  if (spec.systemType === 'stored_water') {
+  if (spec.systemType === 'stored_water' || spec.systemType === 'open_vented') {
     const chEffect = behaviour.boilerCylinder?.simultaneousChDhw;
     if (chEffect?.chThrottledByDhwDemand) {
       const planLabel =

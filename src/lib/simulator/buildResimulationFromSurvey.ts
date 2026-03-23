@@ -41,6 +41,9 @@ import { buildHeatSourceBehaviour } from '../../engine/modules/HeatSourceBehavio
  * is modelled as a stored_water path with distinct physics (150 L, top-down
  * immersion recovery) rather than a conventional gas-boiler indirect coil.
  * Internally it maps to 'stored_water' for classification purposes.
+ *
+ * 'open_vented' is a first-class family with gravity-fed / tank-fed pressure
+ * assumptions, distinct from mains-fed unvented stored_water systems.
  */
 export type SimulatorSystemOverride = OutcomeSystemSpec['systemType'] | 'mixergy';
 
@@ -53,8 +56,8 @@ function optionIdToSystemType(
     case 'combi':                 return 'combi';
     case 'ashp':                  return 'heat_pump';
     case 'stored_vented':
+    case 'regular_vented':        return 'open_vented';
     case 'stored_unvented':
-    case 'regular_vented':
     case 'system_unvented':       return 'stored_water';
     case 'mixergy':
     case 'mixergy_open_vented':   return 'stored_water';
@@ -67,6 +70,7 @@ function optionIdToSystemType(
 const SYSTEM_TYPE_LABELS: Record<SimulatorSystemOverride, string> = {
   combi:        'On-demand hot water',
   stored_water: 'Stored water system',
+  open_vented:  'Open-vented (tank-fed hot water)',
   mixergy:      'Mixergy cylinder',
   heat_pump:    'Heat pump',
 };
@@ -149,6 +153,51 @@ function deriveSurveyPropertyFacts(survey: FullSurveyModelV1): {
 }
 
 /**
+ * Derive a sensible stored-water cylinder size (litres) from the survey.
+ *
+ * Replaces the blanket 210 L default with an occupancy-aware recommendation:
+ *   ≤ 2 occupants → 150 L
+ *   3–4 occupants → 180 L
+ *   5+ occupants  → 210 L
+ * Bath-use uplift: +30 L when bathUse === 'frequent'.
+ *
+ * These values are intentionally conservative — the upgrade engine will
+ * recommend upsizing when shortfall events are detected.
+ */
+function deriveStoredCylinderSizeLitres(
+  survey: FullSurveyModelV1,
+  bathUse: BathUsePattern,
+): number {
+  // Prefer explicit occupancyCount; fall back to composition sum; default 2.
+  let occupancy = survey.occupancyCount ?? 2;
+  if (survey.householdComposition) {
+    const c = survey.householdComposition;
+    occupancy =
+      c.adultCount +
+      c.youngAdultCount18to25AtHome +
+      c.childCount0to4 +
+      c.childCount5to10 +
+      c.childCount11to17;
+    occupancy = Math.max(1, occupancy);
+  }
+
+  let base: number;
+  if (occupancy <= 2) {
+    base = 150;
+  } else if (occupancy <= 4) {
+    base = 180;
+  } else {
+    base = 210;
+  }
+
+  if (bathUse === 'frequent') {
+    base += 30;
+  }
+
+  return base;
+}
+
+/**
  * Build a combi OutcomeSystemSpec with explicit peak hot-water capacity.
  * A standard 24 kW combi at a 35 °C temperature rise delivers ≈ 11.5 lpm;
  * we seed 12 lpm as the conservative base assumption.
@@ -158,28 +207,31 @@ function buildCombiSimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSystemSp
   return {
     systemType:              'combi',
     peakHotWaterCapacityLpm: 12,
+    fuelSource:              'gas',
     ...facts,
   };
 }
 
 /**
- * Build a stored-water OutcomeSystemSpec with realistic cylinder and recovery
- * defaults.
+ * Build a stored-water OutcomeSystemSpec with occupancy-based cylinder sizing.
  *
- * Defaults:
- *   - 210 L storage  — standard UK unvented cylinder (A-rated, EN 12897)
- *   - 120 L/h recovery — gas boiler indirect coil (~24 kW input, coil losses)
+ * Cylinder size is derived from household composition and bath use rather than
+ * a blanket 210 L default, so the simple-install spec reflects what a correct
+ * installation would actually provide for the household.
  *
- * Without these values the classifier falls back to 150 L / 60 L/h, which
- * produces extreme conflict counts and implausible bath-fill times for a
- * typical household.
+ * Recovery rate: 120 L/h — gas boiler indirect coil (~24 kW input, coil losses).
  */
-function buildStoredWaterSimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSystemSpec {
+function buildStoredWaterSimpleInstallSpec(
+  survey: FullSurveyModelV1,
+  bathUse: BathUsePattern,
+): OutcomeSystemSpec {
   const facts = deriveSurveyPropertyFacts(survey);
+  const cylinderLitres = deriveStoredCylinderSizeLitres(survey, bathUse);
   return {
     systemType:                  'stored_water',
-    hotWaterStorageLitres:       210,
+    hotWaterStorageLitres:       cylinderLitres,
     recoveryRateLitresPerHour:   120,
+    fuelSource:                  'gas',
     ...facts,
   };
 }
@@ -188,8 +240,11 @@ function buildStoredWaterSimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSy
  * Build a heat-pump OutcomeSystemSpec with larger store and slower recovery.
  *
  * Defaults:
- *   - 250 L storage  — standard ASHP cylinder
+ *   - 250 L storage  — standard ASHP cylinder (larger than gas to buffer slow reheat)
  *   - 30 L/h recovery — heat pumps recover slowly vs gas (~2–3 h full cycle)
+ *
+ * fuelSource is explicitly 'electric' to prevent report layers from inheriting
+ * gas-boiler labels.  Heat pumps run on electricity, not gas.
  */
 function buildHeatPumpSimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSystemSpec {
   const facts = deriveSurveyPropertyFacts(survey);
@@ -197,9 +252,43 @@ function buildHeatPumpSimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSyste
     systemType:                'heat_pump',
     hotWaterStorageLitres:     250,
     recoveryRateLitresPerHour: 30,
+    fuelSource:                'electric',
     ...facts,
     // Heat pumps do not carry a heatOutputKw from the existing gas boiler survey field.
     heatOutputKw: undefined,
+  };
+}
+
+/**
+ * Build an OutcomeSystemSpec for an open-vented (tank-fed) cylinder system.
+ *
+ * Open-vented systems have different physics from unvented stored-water systems:
+ *   - Gravity-fed pressure from a cold-water storage cistern in the loft.
+ *   - Lower outlet flow rates than mains-fed unvented systems.
+ *   - No mains pressure dependency for outlet flow.
+ *   - Typically older stock with smaller cylinders (120–150 L).
+ *
+ * Defaults:
+ *   - 150 L storage  — typical vented cylinder size
+ *   - 90 L/h recovery — slightly lower than unvented due to older coil design
+ */
+function buildOpenVentedSimpleInstallSpec(
+  survey: FullSurveyModelV1,
+  bathUse: BathUsePattern,
+): OutcomeSystemSpec {
+  const facts = deriveSurveyPropertyFacts(survey);
+  const cylinderLitres = Math.min(deriveStoredCylinderSizeLitres(survey, bathUse), 180);
+  return {
+    systemType:                  'open_vented',
+    hotWaterStorageLitres:       cylinderLitres,
+    recoveryRateLitresPerHour:   90,
+    fuelSource:                  'gas',
+    // Open-vented is typically older stock; no mainsDynamicPressureBar constraint
+    // (gravity-fed from cistern, not mains).
+    mainsDynamicPressureBar:     undefined,
+    ...facts,
+    // Override mains pressure — not applicable for gravity-fed systems.
+    ...(facts.mainsDynamicPressureBar != null ? {} : {}),
   };
 }
 
@@ -219,10 +308,9 @@ function buildHeatPumpSimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSyste
  *
  * Classification path: mapped to 'stored_water' so that the stored-water
  * volume / recovery classifier handles it.  The 150 L cylinder is smaller
- * than the standard 210 L recommendation, so the comparison panel will
- * correctly show a smaller usable store for very heavy demand, while
- * demonstrating that Mixergy avoids the simultaneous-demand limitations
- * of a combi.
+ * than the standard recommendation, so the comparison panel will correctly
+ * show a smaller usable store for very heavy demand, while demonstrating that
+ * Mixergy avoids the simultaneous-demand limitations of a combi.
  */
 function buildMixergySimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSystemSpec {
   const facts = deriveSurveyPropertyFacts(survey);
@@ -230,6 +318,7 @@ function buildMixergySimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSystem
     systemType:                  'stored_water',
     hotWaterStorageLitres:       150,
     recoveryRateLitresPerHour:   120,
+    fuelSource:                  'gas',
     ...facts,
   };
 }
@@ -243,10 +332,12 @@ function buildMixergySimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSystem
 function buildFamilySpec(
   survey: FullSurveyModelV1,
   proposedSystemType: SimulatorSystemOverride,
+  bathUse: BathUsePattern,
 ): OutcomeSystemSpec {
   switch (proposedSystemType) {
     case 'combi':        return buildCombiSimpleInstallSpec(survey);
-    case 'stored_water': return buildStoredWaterSimpleInstallSpec(survey);
+    case 'stored_water': return buildStoredWaterSimpleInstallSpec(survey, bathUse);
+    case 'open_vented':  return buildOpenVentedSimpleInstallSpec(survey, bathUse);
     case 'mixergy':      return buildMixergySimpleInstallSpec(survey);
     case 'heat_pump':    return buildHeatPumpSimpleInstallSpec(survey);
   }
@@ -353,7 +444,7 @@ export function buildResimulationFromSurvey(
   const proposedSystemType = overrideSystemType ?? optionIdToSystemType(recommendedOption?.id);
 
   // ── Step 3: Build the family-aware simple-install OutcomeSystemSpec ──────
-  const simpleInstallSpecBase = buildFamilySpec(survey, proposedSystemType);
+  const simpleInstallSpecBase = buildFamilySpec(survey, proposedSystemType, bathUse);
 
   // Pre-build the heat-source behaviour model once so that all downstream
   // consumers (classifyEventOutcomes, recommendUpgrades, resimulateWithUpgrades)
