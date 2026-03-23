@@ -444,6 +444,32 @@ function dhwDemandBand(bathrooms: number, outlets: number, highOcc: boolean): { 
   return              { label: 'Very High', colour: '#b7791f' };
 }
 
+/** Format a HouseholdComposition into a compact readable summary string. */
+function formatHouseholdCompositionSummary(composition: HouseholdComposition): string {
+  const parts: string[] = [];
+  if (composition.adultCount > 0) {
+    const n = composition.adultCount;
+    parts.push(`${n} adult${n !== 1 ? 's' : ''}`);
+  }
+  if (composition.youngAdultCount18to25AtHome > 0) {
+    const n = composition.youngAdultCount18to25AtHome;
+    parts.push(`${n} young adult${n !== 1 ? 's' : ''} (18–25)`);
+  }
+  if (composition.childCount0to4 > 0) {
+    const n = composition.childCount0to4;
+    parts.push(`${n} child${n !== 1 ? 'ren' : ''} age 0–4`);
+  }
+  if (composition.childCount5to10 > 0) {
+    const n = composition.childCount5to10;
+    parts.push(`${n} child${n !== 1 ? 'ren' : ''} age 5–10`);
+  }
+  if (composition.childCount11to17 > 0) {
+    const n = composition.childCount11to17;
+    parts.push(`${n} child${n !== 1 ? 'ren' : ''} age 11–17`);
+  }
+  return parts.join(', ');
+}
+
 // ─── Hydraulic Behaviour Helpers ─────────────────────────────────────────────
 
 const RISK_COLOUR: Record<'pass' | 'warn' | 'fail', string> = {
@@ -2930,61 +2956,38 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                 </div>
               </div>
 
-              {/* Household size — 3 granular tiers */}
-              <div>
-                <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
-                  Household size
-                </label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button
-                    onClick={() => setInput({ ...input, highOccupancy: false, occupancyCount: 2 })}
-                    style={{
-                      flex: 1, padding: '0.5rem',
-                      border: `2px solid ${!input.highOccupancy && (input.occupancyCount ?? 2) <= 2 ? '#3182ce' : '#e2e8f0'}`,
-                      borderRadius: '6px',
-                      background: !input.highOccupancy && (input.occupancyCount ?? 2) <= 2 ? '#ebf8ff' : '#fff',
-                      cursor: 'pointer',
-                      fontSize: '0.85rem',
-                      fontWeight: !input.highOccupancy && (input.occupancyCount ?? 2) <= 2 ? 700 : 400,
-                    }}
-                  >
-                    1–2 people
-                  </button>
-                  <button
-                    onClick={() => setInput({ ...input, highOccupancy: false, occupancyCount: 3 })}
-                    style={{
-                      flex: 1, padding: '0.5rem',
-                      border: `2px solid ${!input.highOccupancy && input.occupancyCount === 3 ? '#d69e2e' : '#e2e8f0'}`,
-                      borderRadius: '6px',
-                      background: !input.highOccupancy && input.occupancyCount === 3 ? '#fefcbf' : '#fff',
-                      cursor: 'pointer',
-                      fontSize: '0.85rem',
-                      fontWeight: !input.highOccupancy && input.occupancyCount === 3 ? 700 : 400,
-                    }}
-                  >
-                    3 people ⚠️
-                  </button>
-                  <button
-                    onClick={() => setInput({ ...input, highOccupancy: true, occupancyCount: 4 })}
-                    style={{
-                      flex: 1, padding: '0.5rem',
-                      border: `2px solid ${input.highOccupancy ? '#c53030' : '#e2e8f0'}`,
-                      borderRadius: '6px',
-                      background: input.highOccupancy ? '#fff5f5' : '#fff',
-                      cursor: 'pointer',
-                      fontSize: '0.85rem',
-                      fontWeight: input.highOccupancy ? 700 : 400,
-                    }}
-                  >
-                    4+ people
-                  </button>
-                </div>
-                {!input.highOccupancy && input.occupancyCount === 3 && (
-                  <p style={{ fontSize: '0.75rem', color: '#975a16', marginTop: '0.3rem', lineHeight: 1.4 }}>
-                    ⚠️ 3 people puts on-demand hot water at its throughput limit. Stored hot water handles back-to-back morning draws without flow or temperature degradation.
+
+              {/* Derived household profile — read-only, sourced from Step 4 */}
+              {input.householdComposition ? (
+                <div style={{
+                  padding: '0.75rem 1rem',
+                  background: '#f0fff4',
+                  border: '1px solid #9ae6b4',
+                  borderRadius: '8px',
+                }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#276749', margin: '0 0 0.5rem 0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Derived from household profile
                   </p>
-                )}
-              </div>
+                  <div style={{ fontSize: '0.82rem', color: '#2d3748', lineHeight: 1.7 }}>
+                    <div>{formatHouseholdCompositionSummary(input.householdComposition) || `${Math.max(1, input.occupancyCount ?? 1)} occupant${(input.occupancyCount ?? 1) !== 1 ? 's' : ''}`}</div>
+                    {DEMAND_PRESETS.find(p => p.id === input.demandPreset) && (
+                      <div style={{ color: '#276749' }}>{DEMAND_PRESETS.find(p => p.id === input.demandPreset)!.label}</div>
+                    )}
+                    <div style={{ color: '#718096' }}>Peak demand: {input.peakConcurrentOutlets ?? 1} outlet{(input.peakConcurrentOutlets ?? 1) !== 1 ? 's' : ''}</div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  padding: '0.75rem 1rem',
+                  background: '#fffbeb',
+                  border: '1px solid #f6e05e',
+                  borderRadius: '8px',
+                  fontSize: '0.82rem',
+                  color: '#975a16',
+                }}>
+                  ℹ️ Complete Step 4 (Lifestyle) to see the derived household profile here.
+                </div>
+              )}
             </div>
 
             {/* Right: live response panel */}
@@ -3005,7 +3008,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                   {dhwBand.label}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#718096' }}>
-                  {input.bathroomCount} bathroom{input.bathroomCount !== 1 ? 's' : ''} · {input.peakConcurrentOutlets ?? 1} peak outlet{(input.peakConcurrentOutlets ?? 1) !== 1 ? 's' : ''} · {input.highOccupancy ? '4+ people' : input.occupancyCount === 3 ? '3 people' : '1–2 people'}
+                  {input.bathroomCount} bathroom{input.bathroomCount !== 1 ? 's' : ''} · {input.peakConcurrentOutlets ?? 1} peak outlet{(input.peakConcurrentOutlets ?? 1) !== 1 ? 's' : ''} · {(input.occupancyCount ?? 2) >= 4 ? '4+ people' : (input.occupancyCount ?? 2) === 3 ? '3 people' : '1–2 people'}
                 </div>
               </div>
 
@@ -3867,6 +3870,7 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
       demandPreset: derived.derivedPresetId,
       occupancySignature: sig,
       occupancyCount: derived.occupancyCount,
+      highOccupancy: derived.occupancyCount >= 4,
       demandTimingOverrides: {
         ...prev.demandTimingOverrides,
         bathFrequencyPerWeek: derived.bathFrequencyPerWeek,
@@ -3893,16 +3897,17 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
       const derived = deriveProfileFromHouseholdComposition(composition, pattern, bathUse);
       const sig = presetToEngineSignature(derived.derivedPresetId);
       setInput(prev => ({
-        ...prev,
-        demandPreset: derived.derivedPresetId,
-        occupancySignature: sig,
-        occupancyCount: derived.occupancyCount,
-        demandTimingOverrides: {
-          ...prev.demandTimingOverrides,
-          daytimeOccupancy,
-          simultaneousUseSeverity: derived.simultaneousUseSeverity,
-        },
-      }));
+          ...prev,
+          demandPreset: derived.derivedPresetId,
+          occupancySignature: sig,
+          occupancyCount: derived.occupancyCount,
+          highOccupancy: derived.occupancyCount >= 4,
+          demandTimingOverrides: {
+            ...prev.demandTimingOverrides,
+            daytimeOccupancy,
+            simultaneousUseSeverity: derived.simultaneousUseSeverity,
+          },
+        }));
     } else {
       setInput(prev => ({
         ...prev,
@@ -3921,6 +3926,7 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
         demandPreset: derived.derivedPresetId,
         occupancySignature: sig,
         occupancyCount: derived.occupancyCount,
+        highOccupancy: derived.occupancyCount >= 4,
         demandTimingOverrides: {
           ...prev.demandTimingOverrides,
           bathFrequencyPerWeek: derived.bathFrequencyPerWeek,
