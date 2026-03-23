@@ -23,6 +23,7 @@ import type {
 } from './types';
 import { classifyHotWaterEvent } from './hotWaterOutcomeRules';
 import { classifyHeatingEvent } from './heatingOutcomeRules';
+import { buildHeatSourceBehaviour } from '../../engine/modules/HeatSourceBehaviourModel';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -157,9 +158,19 @@ export function classifyEventOutcomes(
   const allDayEvents = schedule.events;
   const classifiedEvents: ClassifiedDayEvent[] = [];
 
+  // Pre-build the heat-source behaviour model once for all events.
+  // If the caller has already populated spec.heatSourceBehaviour (e.g. for
+  // testing or custom override) we reuse it; otherwise we build it here so
+  // that every event in this schedule is classified against the same
+  // physics-derived outputs.
+  const specWithBehaviour: OutcomeSystemSpec =
+    spec.heatSourceBehaviour != null
+      ? spec
+      : { ...spec, heatSourceBehaviour: buildHeatSourceBehaviour(spec) };
+
   for (const event of allDayEvents) {
     if (event.hotWaterDraw) {
-      const outcome = classifyHotWaterEvent(event, allDayEvents, spec);
+      const outcome = classifyHotWaterEvent(event, allDayEvents, specWithBehaviour);
       classifiedEvents.push({
         eventId:         event.id,
         type:            event.type,
@@ -174,7 +185,7 @@ export function classifyEventOutcomes(
     }
 
     if (event.heatingRelated) {
-      const outcome = classifyHeatingEvent(event, spec);
+      const outcome = classifyHeatingEvent(event, specWithBehaviour);
       classifiedEvents.push({
         eventId:         event.id,
         type:            event.type,
