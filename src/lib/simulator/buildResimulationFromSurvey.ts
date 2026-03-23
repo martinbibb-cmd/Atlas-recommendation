@@ -33,18 +33,6 @@ import { resimulateWithUpgrades } from '../../logic/resimulation/resimulateWithU
 
 // ─── System type mapping ──────────────────────────────────────────────────────
 
-function currentHeatSourceToSystemType(
-  heatSourceType: string | undefined,
-): OutcomeSystemSpec['systemType'] {
-  switch (heatSourceType) {
-    case 'combi':   return 'combi';
-    case 'ashp':    return 'heat_pump';
-    case 'system':
-    case 'regular': return 'stored_water';
-    default:        return 'combi';
-  }
-}
-
 function optionIdToSystemType(
   id: string | undefined,
 ): OutcomeSystemSpec['systemType'] {
@@ -116,11 +104,22 @@ function derivePrimaryPipeSizeMm(
 // ─── OutcomeSystemSpec builders ───────────────────────────────────────────────
 
 /**
- * Build the simple-install OutcomeSystemSpec for the current system from survey data.
+ * Build the simple-install OutcomeSystemSpec for the proposed system.
+ *
+ * The systemType is derived from the engine-recommended option so that
+ * stored-water and heat-pump paths receive appropriate upgrade packages
+ * rather than falling back to combi defaults.
+ *
+ * Property facts (pressure, pipe size, heat output) are still sourced from
+ * the survey since they describe the home, not the specific system chosen.
+ *
+ * @param survey          - Completed survey data (property facts).
+ * @param proposedSystemType - System type of the engine-recommended option.
  */
-function buildSimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSystemSpec {
-  const systemType = currentHeatSourceToSystemType(survey.currentHeatSourceType);
-
+function buildSimpleInstallSpec(
+  survey: FullSurveyModelV1,
+  proposedSystemType: OutcomeSystemSpec['systemType'],
+): OutcomeSystemSpec {
   const dynBar = survey.dynamicMainsPressureBar ?? survey.dynamicMainsPressure;
   const mainsDynamicPressureBar =
     dynBar != null && dynBar > 0 ? Math.min(Math.max(dynBar, 0.5), 6.0) : undefined;
@@ -131,7 +130,7 @@ function buildSimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSystemSpec {
       : undefined;
 
   return {
-    systemType,
+    systemType:         proposedSystemType,
     heatOutputKw,
     mainsDynamicPressureBar,
     primaryPipeSizeMm:  derivePrimaryPipeSizeMm(survey),
@@ -215,8 +214,23 @@ export function buildResimulationFromSurvey(
   };
   const schedule = generateTypicalDaySchedule(scheduleInputs);
 
+  // ── Step 2.5: Resolve the recommended/proposed option and its system type ──
+  //
+  // The simpleInstallSpec is built for the *proposed* system (the engine's
+  // recommendation), not the current system.  This ensures the upgrade
+  // comparison panel always shows the correct family (stored_water, heat_pump,
+  // combi) rather than falling back to combi defaults when the current and
+  // proposed systems are different families.
+  const options = engineOutput.options ?? [];
+  const recommendedOption =
+    options.find((o) => o.status === 'viable') ??
+    options.find((o) => o.status === 'caution') ??
+    options[0];
+
+  const proposedSystemType = optionIdToSystemType(recommendedOption?.id);
+
   // ── Step 3: Build the simple-install OutcomeSystemSpec ────────────────────
-  const simpleInstallSpec = buildSimpleInstallSpec(survey);
+  const simpleInstallSpec = buildSimpleInstallSpec(survey, proposedSystemType);
 
   // ── Step 4: Generate the upgrade package for the simple-install system ────
   const simpleInstallOutcomes = classifyEventOutcomes(schedule, simpleInstallSpec);
@@ -242,15 +256,8 @@ export function buildResimulationFromSurvey(
   );
 
   // ── Step 6: Derive recommended system metadata ────────────────────────────
-  const options = engineOutput.options ?? [];
-  const recommendedOption =
-    options.find((o) => o.status === 'viable') ??
-    options.find((o) => o.status === 'caution') ??
-    options[0];
-
-  const recommendedSystemType = optionIdToSystemType(recommendedOption?.id);
   const recommendedSystemLabel =
-    recommendedOption?.label ?? systemTypeToLabel(recommendedSystemType);
+    recommendedOption?.label ?? systemTypeToLabel(proposedSystemType);
 
   const fitSummary =
     engineOutput.recommendation.secondary ??
