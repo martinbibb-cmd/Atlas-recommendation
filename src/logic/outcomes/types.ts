@@ -47,6 +47,21 @@ export interface ClassifiedDayEvent {
     bathFillTimeMinutes?: number;
     /** How many degrees outside the comfort target this event sits (°C). */
     outsideTargetDegrees?: number;
+
+    // ── Per-event demand / supply trace (stored-water and heat-pump paths) ──────
+    /** Volume of hot water demanded by this event (litres). */
+    requiredLitres?: number;
+    /** Usable stored volume available immediately before this draw starts (litres). */
+    usableLitresBeforeDraw?: number;
+    /** Volume recovered by the heating coil / heat pump during this draw (litres). */
+    recoveryDuringDrawLitres?: number;
+    /**
+     * Fraction of demand actually served: 1.0 = fully served; < 1.0 = partial.
+     * Useful for debugging impossible conflict totals.
+     */
+    servedFraction?: number;
+    /** Effective draw rate assumed for this event type (litres per minute). */
+    drawRateLpm?: number;
   };
 
   /** Freeform tags carried forward from the originating DayEvent, plus any
