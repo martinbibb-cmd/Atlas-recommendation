@@ -194,10 +194,13 @@ describe('buildBoilerCylinderBehaviour', () => {
     expect(b.simultaneousChDhw.planType).toBe('y_plan');
   });
 
-  // Unknown plan type defaults to conservative Y-plan behaviour
-  it('unknown plan type defaults to conservative chThrottledByDhwDemand=true', () => {
+  // Unknown plan type defaults to independent-circuit behaviour (S-plan assumption)
+  // so that new stored-water installs don't incorrectly show heating misses.
+  // The S-plan upgrade rule still fires because planType is 'unknown' (not 's_plan').
+  it('unknown plan type defaults to chThrottledByDhwDemand=false (independent circuits)', () => {
     const b = buildBoilerCylinderBehaviour(BASE_STORED);
-    expect(b.simultaneousChDhw.chThrottledByDhwDemand).toBe(true);
+    expect(b.simultaneousChDhw.chThrottledByDhwDemand).toBe(false);
+    expect(b.simultaneousChDhw.dhwIndependentOfCh).toBe(true);
     expect(b.simultaneousChDhw.planType).toBe('unknown');
   });
 

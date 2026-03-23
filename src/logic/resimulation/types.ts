@@ -22,7 +22,7 @@ import type { ClassifiedDaySchedule, OutcomeSystemSpec } from '../outcomes/types
  */
 export interface ResimulationResult {
   /** System type shared by both runs. */
-  systemType: 'combi' | 'stored_water' | 'heat_pump';
+  systemType: 'combi' | 'stored_water' | 'heat_pump' | 'open_vented';
 
   /** The original, unmodified spec (simple install path). */
   simpleInstallSpec: OutcomeSystemSpec;

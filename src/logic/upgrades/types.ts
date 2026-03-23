@@ -71,7 +71,7 @@ export interface RecommendedUpgrade {
 /** The full upgrade package produced for a given system and outcome set. */
 export interface RecommendedUpgradePackage {
   /** System type the package is targeted at. */
-  systemType: 'combi' | 'stored_water' | 'heat_pump';
+  systemType: 'combi' | 'stored_water' | 'heat_pump' | 'open_vented';
   /** Ordered list of recommended upgrades. */
   upgrades: RecommendedUpgrade[];
 }
