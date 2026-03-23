@@ -263,7 +263,9 @@ export function buildResimulationFromSurvey(
 
   // ── Step 6: Derive recommended system metadata ────────────────────────────
   const recommendedSystemLabel =
-    recommendedOption?.label ?? systemTypeToLabel(proposedSystemType);
+    overrideSystemType != null
+      ? systemTypeToLabel(overrideSystemType)
+      : (recommendedOption?.label ?? systemTypeToLabel(proposedSystemType));
 
   const fitSummary =
     engineOutput.recommendation.secondary ??

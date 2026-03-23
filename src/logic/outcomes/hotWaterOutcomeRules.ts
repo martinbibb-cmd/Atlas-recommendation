@@ -45,25 +45,6 @@ const STORED_DEFAULT_DRAW_RATE_LPM = 15;
 
 /** Default heat-pump cylinder draw rate (slower, larger vessel). */
 const HP_DEFAULT_DRAW_RATE_LPM = 12;
-/**
- * Below this fraction of storage remaining the draw is classified as `reduced`.
- *
- * Stored-water / unvented systems tolerate simultaneous demand well — two
- * overlapping outlets can still deliver usable performance.  A fraction of
- * 0.25 (25 %) reflects the point where temperature or flow begins to degrade
- * noticeably but service remains acceptable.
- */
-const STORAGE_REDUCED_FRACTION = 0.25;
-
-/**
- * Below this fraction of storage remaining the outcome is `conflict`.
- *
- * For stored-water paths, conflict means the cylinder is effectively
- * exhausted and delivered performance falls below defined usable thresholds.
- * Simultaneous demand alone is NOT a conflict — only actual depletion below
- * this fraction is.
- */
-const STORAGE_CONFLICT_FRACTION = 0.10;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -108,6 +89,19 @@ function estimatePriorDepleted(
   return allEvents
     .filter((e) => e !== event && e.hotWaterDraw && e.startMinute < event.startMinute)
     .reduce((sum, e) => sum + estimateDrawVolumeLitres(e, drawRateLpm), 0);
+}
+
+/**
+ * Estimate how many hours a draw event takes, used for recovery-during-draw
+ * calculations in stored-system classifiers.
+ *
+ * Bath fill time is derived from draw rate rather than the event's
+ * durationMinutes (which is a schedule placeholder, not the actual fill time).
+ */
+function estimateDrawDurationHours(event: DayEvent, drawRateLpm: number): number {
+  return event.type === 'bath'
+    ? (BATH_VOLUME_LITRES / drawRateLpm) / 60
+    : event.durationMinutes / 60;
 }
 
 // ─── Combi rules ─────────────────────────────────────────────────────────────
@@ -244,22 +238,33 @@ function classifyStoredWaterDraw(
   const effectiveStorage = Math.min(storage, storage - priorDepleted + recoveryCredit);
   const remainingFraction = effectiveStorage / storage;
 
+  // Volume-based outcome: compare this draw's demand against available storage.
+  // A draw that fits within available storage is successful; if storage is
+  // insufficient the outcome is reduced (recovery partially compensates) or
+  // conflict (storage is too depleted to serve the demand even with recovery).
+  const drawLitres = estimateDrawVolumeLitres(event, drawRate);
+  const usableLitres = Math.max(0, effectiveStorage);
+  const recoveryDuringDraw = Math.max(0, estimateDrawDurationHours(event, drawRate) * recoveryLph);
+  // estimatedFlowLpm for degraded outcomes: proportional to fraction of demand
+  // that can be served from available storage (usableLitres / drawLitres * drawRate).
+  const servedFraction = drawLitres > 0 ? Math.min(1, usableLitres / drawLitres) : 1;
+
   if (event.type === 'bath') {
     const fillTime = BATH_VOLUME_LITRES / drawRate;
-    if (remainingFraction < STORAGE_CONFLICT_FRACTION) {
+    if (drawLitres > usableLitres + recoveryDuringDraw) {
       return {
         result: 'conflict',
         reason: `Stored cylinder severely depleted (≈${Math.round(remainingFraction * 100)}% remaining); insufficient for bath fill.`,
-        metrics: { estimatedFlowLpm: drawRate * remainingFraction, bathFillTimeMinutes: fillTime / remainingFraction },
+        metrics: { estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: fillTime / Math.max(servedFraction, 0.1) },
         tags: ['storage_depleted'],
       };
     }
-    if (remainingFraction < STORAGE_REDUCED_FRACTION) {
-      const adjustedFill = fillTime / Math.max(remainingFraction, 0.1);
+    if (drawLitres > usableLitres) {
+      const adjustedFill = fillTime / Math.max(servedFraction, 0.1);
       return {
         result: 'reduced',
         reason: `Cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); bath fill will be longer or cooler.`,
-        metrics: { estimatedFlowLpm: drawRate * remainingFraction, bathFillTimeMinutes: adjustedFill },
+        metrics: { estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: adjustedFill },
         tags: ['storage_depleted'],
       };
     }
@@ -271,20 +276,20 @@ function classifyStoredWaterDraw(
     };
   }
 
-  if (remainingFraction < STORAGE_CONFLICT_FRACTION) {
+  if (drawLitres > usableLitres + recoveryDuringDraw) {
     return {
       result: 'conflict',
       reason: `Stored cylinder severely depleted (≈${Math.round(remainingFraction * 100)}% remaining); hot water likely exhausted.`,
-      metrics: { estimatedFlowLpm: drawRate * remainingFraction },
+      metrics: { estimatedFlowLpm: drawRate * servedFraction },
       tags: ['storage_depleted'],
     };
   }
 
-  if (remainingFraction < STORAGE_REDUCED_FRACTION) {
+  if (drawLitres > usableLitres) {
     return {
       result: 'reduced',
       reason: `Cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); draw may be warm rather than hot.`,
-      metrics: { estimatedFlowLpm: drawRate * remainingFraction },
+      metrics: { estimatedFlowLpm: drawRate * servedFraction },
       tags: ['storage_depleted'],
     };
   }
@@ -331,22 +336,32 @@ function classifyHeatPumpDraw(
   const effectiveStorage = Math.min(storage, storage - priorDepleted + recoveryCredit);
   const remainingFraction = effectiveStorage / storage;
 
+  // Volume-based outcome: compare draw demand against available storage.
+  // Heat pumps recover slowly so recoveryDuringDraw is small; once depleted
+  // the dominant failure mode is "not ready again yet".
+  const drawLitres = estimateDrawVolumeLitres(event, drawRate);
+  const usableLitres = Math.max(0, effectiveStorage);
+  const recoveryDuringDraw = Math.max(0, estimateDrawDurationHours(event, drawRate) * recoveryLph);
+  // estimatedFlowLpm for degraded outcomes: proportional to how much of the
+  // demand can be served from available storage (usableLitres / drawLitres).
+  const servedFraction = drawLitres > 0 ? Math.min(1, usableLitres / drawLitres) : 1;
+
   if (event.type === 'bath') {
     const fillTime = BATH_VOLUME_LITRES / drawRate;
-    if (remainingFraction < STORAGE_CONFLICT_FRACTION) {
+    if (drawLitres > usableLitres + recoveryDuringDraw) {
       return {
         result: 'conflict',
         reason: `Heat-pump cylinder severely depleted (≈${Math.round(remainingFraction * 100)}% remaining); slow recovery rate means water may be cold.`,
-        metrics: { estimatedFlowLpm: drawRate * remainingFraction, bathFillTimeMinutes: fillTime / Math.max(remainingFraction, 0.05) },
+        metrics: { estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: fillTime / Math.max(servedFraction, 0.05) },
         tags: ['storage_depleted', 'slow_recovery'],
       };
     }
-    if (remainingFraction < STORAGE_REDUCED_FRACTION) {
-      const adjustedFill = fillTime / Math.max(remainingFraction, 0.1);
+    if (drawLitres > usableLitres) {
+      const adjustedFill = fillTime / Math.max(servedFraction, 0.1);
       return {
         result: 'reduced',
         reason: `Heat-pump cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); slow recovery means bath fill is longer.`,
-        metrics: { estimatedFlowLpm: drawRate * remainingFraction, bathFillTimeMinutes: adjustedFill },
+        metrics: { estimatedFlowLpm: drawRate * servedFraction, bathFillTimeMinutes: adjustedFill },
         tags: ['storage_depleted', 'slow_recovery'],
       };
     }
@@ -358,20 +373,20 @@ function classifyHeatPumpDraw(
     };
   }
 
-  if (remainingFraction < STORAGE_CONFLICT_FRACTION) {
+  if (drawLitres > usableLitres + recoveryDuringDraw) {
     return {
       result: 'conflict',
       reason: `Heat-pump cylinder severely depleted and slow recovery rate cannot replenish in time; hot water likely unavailable.`,
-      metrics: { estimatedFlowLpm: drawRate * remainingFraction },
+      metrics: { estimatedFlowLpm: drawRate * servedFraction },
       tags: ['storage_depleted', 'slow_recovery'],
     };
   }
 
-  if (remainingFraction < STORAGE_REDUCED_FRACTION) {
+  if (drawLitres > usableLitres) {
     return {
       result: 'reduced',
       reason: `Heat-pump cylinder partially depleted (≈${Math.round(remainingFraction * 100)}% remaining); slow recovery means subsequent draws may be warm only.`,
-      metrics: { estimatedFlowLpm: drawRate * remainingFraction },
+      metrics: { estimatedFlowLpm: drawRate * servedFraction },
       tags: ['storage_depleted', 'slow_recovery'],
     };
   }
