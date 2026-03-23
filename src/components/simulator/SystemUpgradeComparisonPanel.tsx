@@ -35,10 +35,10 @@ function buildSimpleInstallSummary(
 ): string {
   const { hotWater, heating } = resimulation.simpleInstall;
   if (hotWater.conflict > 0 || heating.outsideTargetEventCount > 0) {
-    return 'Works, but busy periods may feel tighter.';
+    return 'Works for lighter demand, but busy periods may feel tighter.';
   }
   if (hotWater.reduced > 0) {
-    return 'Handles most demand well; some draws may feel slightly reduced.';
+    return 'Handles most demand well; some outlets may deliver reduced flow during peak times.';
   }
   return 'Meets typical demand comfortably.';
 }
@@ -46,15 +46,11 @@ function buildSimpleInstallSummary(
 function buildBestFitSummary(
   resimulation: ResimulationResult,
 ): string {
-  const { hotWater, heating } = resimulation.bestFitInstall;
   const { headlineImprovements } = resimulation.comparison;
   if (headlineImprovements.length === 0) {
     return 'Already well-matched — upgrades maintain performance.';
   }
-  if (hotWater.conflict === 0 && heating.outsideTargetEventCount === 0) {
-    return 'Better matched to clustered demand and evening recovery.';
-  }
-  return 'Improved outcome with upgrades applied.';
+  return 'Better matched to your home and daily demand.';
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -68,6 +64,7 @@ export default function SystemUpgradeComparisonPanel({
   const { headlineImprovements } = resimulation.comparison;
   const simpleSummary  = buildSimpleInstallSummary(resimulation);
   const bestFitSummary = buildBestFitSummary(resimulation);
+  const visibleHeadlines = headlineImprovements.slice(0, 3);
 
   return (
     <section
@@ -83,14 +80,14 @@ export default function SystemUpgradeComparisonPanel({
         <p className="system-upgrade-comparison-panel__fit-summary">{fitSummary}</p>
       </div>
 
-      {/* ── 5. Headline improvements (shown above the cards when present) */}
-      {headlineImprovements.length > 0 && (
+      {/* ── 2. Headline improvements — the emotional payoff ──────────── */}
+      {visibleHeadlines.length > 0 && (
         <div className="system-upgrade-comparison-panel__headlines" data-testid="headline-improvements">
           <div className="system-upgrade-comparison-panel__headlines-label">
             What the upgrades deliver
           </div>
           <ul className="system-upgrade-comparison-panel__headlines-list">
-            {headlineImprovements.map((item, idx) => (
+            {visibleHeadlines.map((item, idx) => (
               <li key={idx} className="system-upgrade-comparison-panel__headline-item">
                 <span className="system-upgrade-comparison-panel__headline-icon" aria-hidden="true">✓</span>
                 {item}
@@ -100,20 +97,20 @@ export default function SystemUpgradeComparisonPanel({
         </div>
       )}
 
-      {/* ── Layout: [simple install] [upgrades] [best-fit install] ─── */}
+      {/* ── 3. Layout: [simple install] [upgrades] [best-fit install] ── */}
       <div className="system-upgrade-comparison-panel__layout">
 
-        {/* ── 2. Simple install card ─────────────────────────────────── */}
+        {/* ── Simple install card ────────────────────────────────────── */}
         <OutcomeSummaryCard
           variant="simple"
           outcome={resimulation.simpleInstall}
           summary={simpleSummary}
         />
 
-        {/* ── 3. Suggested upgrades strip ───────────────────────────── */}
+        {/* ── Suggested upgrades strip ───────────────────────────────── */}
         <UpgradeListPanel upgradePackage={upgradePackage} />
 
-        {/* ── 4. Best-fit install card ───────────────────────────────── */}
+        {/* ── Best-fit install card ──────────────────────────────────── */}
         <OutcomeSummaryCard
           variant="best-fit"
           outcome={resimulation.bestFitInstall}
