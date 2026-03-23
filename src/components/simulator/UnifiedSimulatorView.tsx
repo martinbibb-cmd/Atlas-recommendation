@@ -17,6 +17,8 @@ import type { RecommendationPresentationState } from '../../lib/selection/option
 import PrintableRecommendationPage from '../advice/PrintableRecommendationPage';
 import AdvicePanel from '../advice/AdvicePanel';
 import PerformanceOutcomesPanel from '../outcomes/PerformanceOutcomesPanel';
+import SystemUpgradeComparisonPanel from './SystemUpgradeComparisonPanel';
+import { buildResimulationFromSurvey } from '../../lib/simulator/buildResimulationFromSurvey';
 import './UnifiedSimulatorView.css';
 
 function buildFloorplanOperatingAssumptions(
@@ -63,6 +65,11 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
     surveyData,
     floorplanInputs: floorplanOutput ? adaptFloorplanToAtlasInputs(floorplanOutput) : undefined,
   }), [compareSeed, engineOutput, floorplanOutput, surveyData]);
+
+  const resimulationResult = useMemo(
+    () => buildResimulationFromSurvey(surveyData, engineOutput),
+    [surveyData, engineOutput],
+  );
 
   // Compute flow stability for the current (survey) system so that the AdvicePanel
   // can show the pipework advisory when the system is open-vented with marginal/limited flow.
@@ -223,6 +230,14 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
         />
       </div>
       <aside className="unified-simulator-view__insights" aria-label="Simulation outcomes and advice">
+        {resimulationResult != null && (
+          <SystemUpgradeComparisonPanel
+            resimulation={resimulationResult.resimulation}
+            upgradePackage={resimulationResult.upgradePackage}
+            recommendedSystemLabel={resimulationResult.recommendedSystemLabel}
+            fitSummary={resimulationResult.fitSummary}
+          />
+        )}
         <PerformanceOutcomesPanel advice={advice} />
         <AdvicePanel
           advice={advice}
