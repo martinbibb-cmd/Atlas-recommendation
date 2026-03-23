@@ -1,0 +1,25 @@
+{
+  "_comment": "ASHP scenario with 22mm primary pipework and high heat load — pipe diameter may be a limiter for heat pump flow.",
+  "postcode": "EH1 1AA",
+  "dynamicMainsPressure": 2.5,
+  "staticMainsPressureBar": 3.0,
+  "mainsDynamicFlowLpm": 20,
+  "mainsDynamicFlowLpmKnown": true,
+  "bathroomCount": 2,
+  "occupancySignature": "steady_home",
+  "highOccupancy": false,
+  "primaryPipeDiameter": 22,
+  "heatLossWatts": 14000,
+  "radiatorCount": 14,
+  "buildingMass": "medium",
+  "hasLoftConversion": false,
+  "returnWaterTemp": 55,
+  "preferCombi": false,
+  "pipingTopology": "two_pipe",
+  "cylinderVolumeLitres": 250,
+  "dhwTankType": "unvented",
+  "householdComposition": {
+    "adults": 2,
+    "children5to16": 2
+  }
+}

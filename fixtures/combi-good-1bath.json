@@ -1,0 +1,19 @@
+{
+  "_comment": "Good combi scenario: single bathroom, adequate mains pressure and flow, 2-person household.",
+  "postcode": "SW1A 1AA",
+  "dynamicMainsPressure": 2.5,
+  "staticMainsPressureBar": 3.0,
+  "mainsDynamicFlowLpm": 20,
+  "mainsDynamicFlowLpmKnown": true,
+  "bathroomCount": 1,
+  "occupancySignature": "professional",
+  "highOccupancy": false,
+  "primaryPipeDiameter": 22,
+  "heatLossWatts": 7000,
+  "radiatorCount": 8,
+  "buildingMass": "medium",
+  "hasLoftConversion": false,
+  "returnWaterTemp": 45,
+  "preferCombi": true,
+  "pipingTopology": "two_pipe"
+}

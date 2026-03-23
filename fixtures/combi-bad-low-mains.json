@@ -1,0 +1,23 @@
+{
+  "_comment": "Combi risk scenario: low mains pressure (0.8 bar) and low flow (9 lpm), 3-person household, single bathroom.",
+  "postcode": "SW1A 1AA",
+  "dynamicMainsPressure": 0.8,
+  "staticMainsPressureBar": 1.0,
+  "mainsDynamicFlowLpm": 9,
+  "mainsDynamicFlowLpmKnown": true,
+  "bathroomCount": 1,
+  "occupancySignature": "steady_home",
+  "highOccupancy": false,
+  "primaryPipeDiameter": 22,
+  "heatLossWatts": 8000,
+  "radiatorCount": 10,
+  "buildingMass": "medium",
+  "hasLoftConversion": false,
+  "returnWaterTemp": 45,
+  "preferCombi": true,
+  "pipingTopology": "two_pipe",
+  "householdComposition": {
+    "adults": 2,
+    "children5to16": 1
+  }
+}

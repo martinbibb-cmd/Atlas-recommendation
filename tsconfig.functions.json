@@ -12,5 +12,15 @@
     "composite": true,
     "types": []
   },
-  "include": ["functions/**/*.ts", "worker-configuration.d.ts"]
+  "include": [
+    "functions/**/*.ts",
+    "worker-configuration.d.ts",
+    "src/engine/**/*.ts",
+    "src/contracts/**/*.ts",
+    "src/ui/fullSurvey/FullSurveyModelV1.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/__tests__/**"
+  ]
 }

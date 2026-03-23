@@ -5,6 +5,7 @@ declare namespace Cloudflare {
 	interface Env {
 		ATLAS_CACHE_KV: KVNamespace;
 		ATLAS_REPORTS_D1: D1Database;
+		ATLAS_AGENT_TOKEN: string;
 	}
 }
 interface Env extends Cloudflare.Env {}

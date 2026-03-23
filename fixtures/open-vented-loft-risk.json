@@ -1,0 +1,22 @@
+{
+  "_comment": "Open-vented system with loft tank: tank-fed hot water supply from loft-mounted cold water tank, no mains pressure benefit.",
+  "postcode": "M1 1AA",
+  "dynamicMainsPressure": 2.5,
+  "staticMainsPressureBar": 3.0,
+  "mainsDynamicFlowLpm": 18,
+  "mainsDynamicFlowLpmKnown": true,
+  "bathroomCount": 1,
+  "occupancySignature": "professional",
+  "highOccupancy": false,
+  "primaryPipeDiameter": 22,
+  "heatLossWatts": 9000,
+  "radiatorCount": 10,
+  "buildingMass": "heavy",
+  "hasLoftConversion": false,
+  "returnWaterTemp": 45,
+  "preferCombi": false,
+  "pipingTopology": "two_pipe",
+  "coldWaterSource": "loft_tank",
+  "dhwDeliveryMode": "gravity",
+  "cylinderVolumeLitres": 120
+}

@@ -246,7 +246,7 @@ export function generateMagicLink(
 
   // Generate a cryptographically secure random token using the Web Crypto API.
   // No plaintext property data is embedded to prevent enumeration attacks.
-  const token = globalThis.crypto.randomUUID().replace(/-/g, '');
+  const token = crypto.randomUUID().replace(/-/g, '');
 
   const url = `${baseUrl.replace(/\/$/, '')}/share/${token}?expires=${encodeURIComponent(expiresAt)}`;
 

@@ -1,0 +1,25 @@
+{
+  "_comment": "Stored water system scenario: family home, adequate cylinder, good mains pressure, 2 bathrooms.",
+  "postcode": "LS1 1AA",
+  "dynamicMainsPressure": 2.8,
+  "staticMainsPressureBar": 3.2,
+  "mainsDynamicFlowLpm": 22,
+  "mainsDynamicFlowLpmKnown": true,
+  "bathroomCount": 2,
+  "occupancySignature": "steady_home",
+  "highOccupancy": false,
+  "primaryPipeDiameter": 22,
+  "heatLossWatts": 10000,
+  "radiatorCount": 12,
+  "buildingMass": "medium",
+  "hasLoftConversion": false,
+  "returnWaterTemp": 45,
+  "preferCombi": false,
+  "pipingTopology": "two_pipe",
+  "cylinderVolumeLitres": 210,
+  "dhwTankType": "unvented",
+  "householdComposition": {
+    "adults": 2,
+    "children5to16": 2
+  }
+}

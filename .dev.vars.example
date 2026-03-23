@@ -3,5 +3,5 @@
 # D1 and KV bindings (DB, KV) are wired automatically via wrangler.jsonc —
 # no entries are needed here for those bindings.
 #
-# Add any secret environment variables below:
-# MY_SECRET=replace_me
+# Required secrets:
+ATLAS_AGENT_TOKEN=replace_with_a_long_random_secret

@@ -1,0 +1,45 @@
+name: CI — build, lint, and test
+
+# Runs on every push and pull-request to ensure the build is clean and all
+# tests (including engine regression tests) pass before code is merged.
+#
+# Steps:
+#   1. Install Node.js dependencies
+#   2. TypeScript type-check (tsc)
+#   3. ESLint
+#   4. Vitest (unit + regression tests, including fixture-driven regressions)
+
+on:
+  push:
+    branches:
+      - main
+      - '**'
+  pull_request:
+
+jobs:
+  ci:
+    name: Build, lint, and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript type-check
+        run: npx tsc -b --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
