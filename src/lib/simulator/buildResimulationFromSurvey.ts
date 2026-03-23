@@ -1,0 +1,265 @@
+// src/lib/simulator/buildResimulationFromSurvey.ts
+//
+// Adapter that builds a full ResimulationResult from a completed survey and
+// engine output.
+//
+// Pipeline:
+//   FullSurveyModelV1  → TypicalDaySchedule (PR 2)
+//   FullSurveyModelV1  → OutcomeSystemSpec  (simple-install baseline)
+//   OutcomeSystemSpec  → ClassifiedDaySchedule (PR 3)
+//   ClassifiedDaySchedule → RecommendedUpgradePackage (PR 4)
+//   resimulateWithUpgrades(schedule, spec, upgrades) → ResimulationResult (PR 5)
+//
+// Design rules:
+//   - No physics invented here — all logic delegated to the canonical engines.
+//   - Graceful fallbacks for every absent survey field.
+//   - Identical inputs → identical outputs (no randomness).
+
+import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
+import type { OutcomeSystemSpec } from '../../logic/outcomes/types';
+import type { ResimulationResult } from '../../logic/resimulation/types';
+import type { RecommendedUpgradePackage } from '../../logic/upgrades/types';
+import type { GenerateTypicalDayScheduleInputs } from '../../logic/events/types';
+import type {
+  DaytimeOccupancyPattern,
+  BathUsePattern,
+} from '../../lib/occupancy/deriveProfileFromHouseholdComposition';
+import { deriveProfileFromHouseholdComposition } from '../../lib/occupancy/deriveProfileFromHouseholdComposition';
+import { generateTypicalDaySchedule } from '../../logic/events/generateTypicalDaySchedule';
+import { classifyEventOutcomes } from '../../logic/outcomes/classifyEventOutcomes';
+import { recommendUpgrades } from '../../logic/upgrades/recommendUpgrades';
+import { resimulateWithUpgrades } from '../../logic/resimulation/resimulateWithUpgrades';
+
+// ─── System type mapping ──────────────────────────────────────────────────────
+
+function currentHeatSourceToSystemType(
+  heatSourceType: string | undefined,
+): OutcomeSystemSpec['systemType'] {
+  switch (heatSourceType) {
+    case 'combi':   return 'combi';
+    case 'ashp':    return 'heat_pump';
+    case 'system':
+    case 'regular': return 'stored_water';
+    default:        return 'combi';
+  }
+}
+
+function optionIdToSystemType(
+  id: string | undefined,
+): OutcomeSystemSpec['systemType'] {
+  switch (id) {
+    case 'combi':           return 'combi';
+    case 'ashp':            return 'heat_pump';
+    case 'stored_vented':
+    case 'stored_unvented':
+    case 'regular_vented':
+    case 'system_unvented': return 'stored_water';
+    default:                return 'combi';
+  }
+}
+
+// ─── System label ─────────────────────────────────────────────────────────────
+
+const SYSTEM_TYPE_LABELS: Record<OutcomeSystemSpec['systemType'], string> = {
+  combi:        'On-demand hot water',
+  stored_water: 'Stored water system',
+  heat_pump:    'Heat pump',
+};
+
+function systemTypeToLabel(systemType: OutcomeSystemSpec['systemType']): string {
+  return SYSTEM_TYPE_LABELS[systemType];
+}
+
+// ─── System condition ─────────────────────────────────────────────────────────
+
+function deriveSystemCondition(
+  survey: FullSurveyModelV1,
+): OutcomeSystemSpec['systemCondition'] {
+  const hc = survey.fullSurvey?.heatingCondition;
+  const dc = survey.fullSurvey?.dhwCondition;
+
+  const hasSludgeSignal =
+    hc?.bleedWaterColour === 'brown' ||
+    hc?.bleedWaterColour === 'black' ||
+    hc?.magneticDebrisEvidence === true ||
+    hc?.radiatorsColdAtBottom === true;
+
+  const hasScaleSignal = dc?.kettlingOrScaleSymptoms === true;
+
+  if (hasSludgeSignal) return 'poor';
+  if (hasScaleSignal)  return 'average';
+  return 'clean';
+}
+
+// ─── Controls quality ─────────────────────────────────────────────────────────
+
+function deriveControlsQuality(
+  _survey: FullSurveyModelV1,
+): OutcomeSystemSpec['controlsQuality'] {
+  // No direct survey field maps to controlsQuality.
+  // Use a conservative default — the upgrade engine will flag an upgrade
+  // when basic controls are detected.
+  return 'basic';
+}
+
+// ─── Primary pipe size ────────────────────────────────────────────────────────
+
+function derivePrimaryPipeSizeMm(
+  survey: FullSurveyModelV1,
+): OutcomeSystemSpec['primaryPipeSizeMm'] {
+  const raw = survey.primaryPipeDiameter;
+  if (raw === 15 || raw === 22 || raw === 28 || raw === 35) return raw;
+  return undefined;
+}
+
+// ─── OutcomeSystemSpec builders ───────────────────────────────────────────────
+
+/**
+ * Build the simple-install OutcomeSystemSpec for the current system from survey data.
+ */
+function buildSimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSystemSpec {
+  const systemType = currentHeatSourceToSystemType(survey.currentHeatSourceType);
+
+  const dynBar = survey.dynamicMainsPressureBar ?? survey.dynamicMainsPressure;
+  const mainsDynamicPressureBar =
+    dynBar != null && dynBar > 0 ? Math.min(Math.max(dynBar, 0.5), 6.0) : undefined;
+
+  const heatOutputKw =
+    survey.currentBoilerOutputKw != null && survey.currentBoilerOutputKw > 0
+      ? survey.currentBoilerOutputKw
+      : undefined;
+
+  return {
+    systemType,
+    heatOutputKw,
+    mainsDynamicPressureBar,
+    primaryPipeSizeMm:  derivePrimaryPipeSizeMm(survey),
+    controlsQuality:    deriveControlsQuality(survey),
+    systemCondition:    deriveSystemCondition(survey),
+  };
+}
+
+// ─── Daytime occupancy + bath use ─────────────────────────────────────────────
+
+function deriveDaytimeOccupancy(survey: FullSurveyModelV1): DaytimeOccupancyPattern {
+  const raw = survey.demandTimingOverrides?.daytimeOccupancy;
+  if (raw === 'full')    return 'usually_home';
+  if (raw === 'partial') return 'irregular';
+  return 'usually_out';
+}
+
+function deriveBathUsePattern(survey: FullSurveyModelV1): BathUsePattern {
+  const freq = survey.demandTimingOverrides?.bathFrequencyPerWeek ?? 0;
+  if (freq >= 7) return 'frequent';
+  if (freq >= 2) return 'sometimes';
+  return 'rare';
+}
+
+// ─── Default household composition ───────────────────────────────────────────
+
+const DEFAULT_HOUSEHOLD_COMPOSITION = {
+  adultCount:               2,
+  youngAdultCount18to25AtHome: 0,
+  childCount0to4:           0,
+  childCount5to10:          0,
+  childCount11to17:         0,
+};
+
+// ─── Public result type ───────────────────────────────────────────────────────
+
+export interface ResimulationFromSurveyResult {
+  /** The full re-simulation result (simple + best-fit + comparison). */
+  resimulation: ResimulationResult;
+  /** Upgrade package generated for the current system. */
+  upgradePackage: RecommendedUpgradePackage;
+  /** Human-readable label for the recommended system. */
+  recommendedSystemLabel: string;
+  /** Short description of why this system path was chosen. */
+  fitSummary: string;
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+/**
+ * Build a ResimulationResult from a completed FullSurveyModelV1 and its
+ * corresponding EngineOutputV1.
+ *
+ * Uses the existing PR 2–5 engines exclusively — no new physics logic.
+ *
+ * @returns ResimulationFromSurveyResult or null when insufficient data is
+ *          available to run the pipeline (e.g. no household composition).
+ */
+export function buildResimulationFromSurvey(
+  survey: FullSurveyModelV1,
+  engineOutput: EngineOutputV1,
+): ResimulationFromSurveyResult | null {
+  // ── Step 1: Derive household profile ──────────────────────────────────────
+  const composition = survey.householdComposition ?? DEFAULT_HOUSEHOLD_COMPOSITION;
+  const daytimeOccupancy = deriveDaytimeOccupancy(survey);
+  const bathUse = deriveBathUsePattern(survey);
+
+  const profile = deriveProfileFromHouseholdComposition(
+    composition,
+    daytimeOccupancy,
+    bathUse,
+  );
+
+  // ── Step 2: Generate the typical day schedule ─────────────────────────────
+  const scheduleInputs: GenerateTypicalDayScheduleInputs = {
+    derivedPresetId:   profile.derivedPresetId,
+    derivationReason:  profile.derivationReason,
+    householdComposition: composition,
+    daytimeOccupancy,
+    bathUse,
+  };
+  const schedule = generateTypicalDaySchedule(scheduleInputs);
+
+  // ── Step 3: Build the simple-install OutcomeSystemSpec ────────────────────
+  const simpleInstallSpec = buildSimpleInstallSpec(survey);
+
+  // ── Step 4: Generate the upgrade package for the simple-install system ────
+  const simpleInstallOutcomes = classifyEventOutcomes(schedule, simpleInstallSpec);
+
+  const upgradePackage = recommendUpgrades({
+    systemSpec:         simpleInstallSpec,
+    outcomes:           simpleInstallOutcomes,
+    primaryPipeSizeMm:  derivePrimaryPipeSizeMm(survey),
+    bathroomCount:      survey.bathroomCount,
+    mainsDynamicPressureBar:
+      survey.dynamicMainsPressureBar ?? survey.dynamicMainsPressure,
+    householdComposition: composition,
+    systemCondition:    deriveSystemCondition(survey),
+    controlsQuality:    deriveControlsQuality(survey),
+    bathUse,
+  });
+
+  // ── Step 5: Re-simulate with the upgraded spec ────────────────────────────
+  const resimulation = resimulateWithUpgrades(
+    schedule,
+    simpleInstallSpec,
+    upgradePackage,
+  );
+
+  // ── Step 6: Derive recommended system metadata ────────────────────────────
+  const options = engineOutput.options ?? [];
+  const recommendedOption =
+    options.find((o) => o.status === 'viable') ??
+    options.find((o) => o.status === 'caution') ??
+    options[0];
+
+  const recommendedSystemType = optionIdToSystemType(recommendedOption?.id);
+  const recommendedSystemLabel =
+    recommendedOption?.label ?? systemTypeToLabel(recommendedSystemType);
+
+  const fitSummary =
+    engineOutput.recommendation.secondary ??
+    engineOutput.recommendation.primary;
+
+  return {
+    resimulation,
+    upgradePackage,
+    recommendedSystemLabel,
+    fitSummary,
+  };
+}
