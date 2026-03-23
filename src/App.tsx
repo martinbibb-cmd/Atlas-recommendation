@@ -257,9 +257,12 @@ export default function App() {
       setJourney('lab-quick-inputs');
     } else {
       // All quick-form fields are present.  Merge with safe defaults to fill
-      // any remaining required EngineInputV2_3 fields before opening the simulator.
-      setLabEngineInput(mergeLabQuickInputs(partial, {}));
-      setJourney('simulator');
+      // any remaining required EngineInputV2_3 fields, then route through the
+      // fit-map page before opening the simulator.
+      const engineInput = mergeLabQuickInputs(partial, {});
+      setLabEngineInput(engineInput);
+      setFitPosition(deriveFitPosition(engineInput));
+      setJourney('fit-map');
     }
   }
 
@@ -385,7 +388,8 @@ export default function App() {
           missingFields={getMissingLabFields(labPartialInput)}
           onComplete={(completed) => {
             setLabEngineInput(completed);
-            setJourney('simulator');
+            setFitPosition(deriveFitPosition(completed));
+            setJourney('fit-map');
           }}
           onCancel={() => setJourney('landing')}
         />
