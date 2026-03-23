@@ -122,8 +122,8 @@ function deriveFitPosition(engineInput: EngineInputV2_3): FitPosition {
     peakConcurrentOutlets: Math.max(1, (engineInput.bathroomCount ?? 1)),
     mainsDynamicPressureBar: engineInput.dynamicMainsPressure ?? 1.5,
     primaryPipeSizeMm: pipeMm,
-    thermalInertia: engineInput.buildingMass === 'high' ? 'high'
-      : engineInput.buildingMass === 'low' ? 'low' : 'medium',
+    thermalInertia: engineInput.buildingMass === 'heavy' ? 'high'
+      : engineInput.buildingMass === 'light' ? 'low' : 'medium',
     occupancy: engineInput.occupancySignature === 'steady' ? 'steady'
       : engineInput.occupancySignature === 'shift' ? 'shift' : 'professional',
   });
