@@ -185,7 +185,7 @@ export function classifyEventOutcomes(
     }
 
     if (event.heatingRelated) {
-      const outcome = classifyHeatingEvent(event, specWithBehaviour);
+      const outcome = classifyHeatingEvent(event, specWithBehaviour, allDayEvents);
       classifiedEvents.push({
         eventId:         event.id,
         type:            event.type,

@@ -122,6 +122,19 @@ const COMBI_MIN_IGNITION_FLOW_LPM = 2.5;
 const COMBI_ADEQUATE_OUTLET_LPM = 6;
 
 /**
+ * Minimum per-outlet flow (L/min) for a simultaneous DHW draw to be
+ * classified as a comfortable delivery rather than a 'reduced' outcome.
+ *
+ * Set at 4/3 × COMBI_ADEQUATE_OUTLET_LPM = 8 lpm — the boundary between
+ * "technically serves but noticeably reduced" (6–8 lpm) and "comfortably
+ * adequate" (≥ 8 lpm) under concurrent outlet demand.
+ *
+ * This is the single source of truth for that boundary; the outcome
+ * classifier imports it from here rather than hard-coding a literal.
+ */
+const COMBI_COMFORTABLE_CONCURRENT_LPM = (COMBI_ADEQUATE_OUTLET_LPM * 4) / 3; // 8 lpm
+
+/**
  * Reference flow for pressure-proportional combi DHW capacity scaling.
  * At COMBI_PRESSURE_LOCKOUT_BAR the boiler can just about fire; above that
  * the rated DHW kW is available.
@@ -283,6 +296,19 @@ export interface CombiBehaviourV1 {
    * True when effective flow per outlet remains above COMBI_ADEQUATE_OUTLET_LPM.
    */
   canServeSimultaneousDhwEvents: boolean;
+
+  /**
+   * Minimum per-outlet flow (L/min) for a simultaneous draw to be classified
+   * as 'successful' rather than 'reduced'.
+   *
+   * Above this value the user can draw from two outlets simultaneously without
+   * a noticeable comfort penalty.  Between this and the ignition threshold (6
+   * lpm) the draw is technically served but the reduced flow is perceptible.
+   *
+   * Derived in the model as COMBI_COMFORTABLE_CONCURRENT_LPM (8 lpm); the
+   * outcome classifier uses this value rather than hard-coding its own constant.
+   */
+  adequateConcurrentFlowLpm: number;
 }
 
 /**
@@ -328,6 +354,7 @@ export function buildCombiBehaviour(spec: HeatSourceBehaviourInput): CombiBehavi
     chPausedDuringDhw: true,
     canServeSingleDhwEvent,
     canServeSimultaneousDhwEvents,
+    adequateConcurrentFlowLpm: COMBI_COMFORTABLE_CONCURRENT_LPM,
   };
 }
 

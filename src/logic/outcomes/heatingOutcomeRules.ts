@@ -10,10 +10,12 @@
  *   - system condition
  *   - low-temperature suitability
  *   - event intensity
+ *   - concurrent DHW draws (via heatSourceBehaviour — CH/DHW interaction)
  */
 
 import type { DayEvent } from '../events/types';
 import type { ClassifiedDayEvent, OutcomeSystemSpec } from './types';
+import { buildHeatSourceBehaviour } from '../../engine/modules/HeatSourceBehaviourModel';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -293,27 +295,133 @@ function classifySetback(
   };
 }
 
+// ─── CH / DHW interaction helper ─────────────────────────────────────────────
+
+/**
+ * Return true when a hot-water draw (shower, bath, kitchen_draw) overlaps with
+ * the given heating event.  Tap draws are excluded — they are too brief to
+ * cause a meaningful CH interruption.
+ */
+function hasConcurrentDhwDraw(event: DayEvent, allEvents: DayEvent[]): boolean {
+  const eventEnd = event.startMinute + event.durationMinutes;
+  return allEvents.some(
+    (e) =>
+      e !== event &&
+      e.hotWaterDraw &&
+      e.type !== 'tap_draw' &&
+      e.startMinute < eventEnd &&
+      e.startMinute + e.durationMinutes > event.startMinute,
+  );
+}
+
+/**
+ * Apply the CH/DHW interaction from the heat-source behaviour model to an
+ * already-classified heating outcome.
+ *
+ * - **Combi** (`chPausedDuringDhw: true`): whenever a DHW draw overlaps the
+ *   heating window, CH is fully paused.  A 'successful' result is downgraded
+ *   to 'reduced' and tagged `ch_paused_for_dhw`.  Results already at 'reduced'
+ *   or 'conflict' keep their existing classification (they are already degraded).
+ *
+ * - **Stored water — Y-plan** (`chThrottledByDhwDemand: true`): when the
+ *   cylinder calls for heat the mid-position valve moves to DHW priority,
+ *   throttling CH output.  A 'successful' result is downgraded to 'reduced'
+ *   and tagged `ch_throttled_for_dhw`.
+ *
+ * - **Stored water — S-plan** (`chThrottledByDhwDemand: false`) and **heat
+ *   pump**: no change — circuits are independent.
+ */
+function applyChDhwInteraction(
+  base: Pick<ClassifiedDayEvent, 'result' | 'reason' | 'metrics' | 'tags'>,
+  spec: OutcomeSystemSpec,
+  concurrentDhw: boolean,
+): Pick<ClassifiedDayEvent, 'result' | 'reason' | 'metrics' | 'tags'> {
+  if (!concurrentDhw) return base;
+
+  // Resolve behaviour model (reuse pre-built instance if available).
+  const behaviour = spec.heatSourceBehaviour ?? buildHeatSourceBehaviour(spec);
+
+  if (spec.systemType === 'combi') {
+    // chPausedDuringDhw is always true for a combi; checked explicitly for clarity.
+    if (behaviour.combi?.chPausedDuringDhw) {
+      if (base.result === 'successful') {
+        return {
+          result: 'reduced',
+          reason:
+            `${base.reason} CH is paused while a concurrent DHW draw is active (combi DHW priority).`,
+          metrics: base.metrics,
+          tags: [...base.tags, 'ch_paused_for_dhw'],
+        };
+      }
+      // Already 'reduced' or 'conflict' — just add the tag.
+      return {
+        ...base,
+        tags: [...base.tags, 'ch_paused_for_dhw'],
+      };
+    }
+  }
+
+  if (spec.systemType === 'stored_water') {
+    const chEffect = behaviour.boilerCylinder?.simultaneousChDhw;
+    if (chEffect?.chThrottledByDhwDemand) {
+      const planLabel =
+        chEffect.planType === 's_plan' ? 'S-plan' :
+        chEffect.planType === 'y_plan' ? 'Y-plan' :
+        'Y-plan (assumed)';
+      if (base.result === 'successful') {
+        return {
+          result: 'reduced',
+          reason:
+            `${base.reason} DHW demand throttles CH while the cylinder reheats (${planLabel}).`,
+          metrics: base.metrics,
+          tags: [...base.tags, 'ch_throttled_for_dhw'],
+        };
+      }
+      return {
+        ...base,
+        tags: [...base.tags, 'ch_throttled_for_dhw'],
+      };
+    }
+  }
+
+  return base;
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
  * Classify a single heating event (heating_recovery, heating_active,
  * heating_setback) against the provided system spec.
  *
- * @param event  - The DayEvent being classified.
- * @param spec   - The system specification to classify against.
+ * When `allDayEvents` is provided the classifier also checks for concurrent
+ * DHW draws and applies the appropriate CH/DHW interaction from the
+ * heat-source behaviour model:
+ *   - Combi: CH paused during any concurrent DHW draw.
+ *   - Stored water / Y-plan: CH throttled during cylinder reheat call.
+ *   - Stored water / S-plan: no effect (independent circuits).
+ *
+ * @param event      - The DayEvent being classified.
+ * @param spec       - The system specification to classify against.
+ * @param allEvents  - All events in the day schedule (used for overlap check).
  * @returns A partial ClassifiedDayEvent (result, reason, metrics, tags).
  */
 export function classifyHeatingEvent(
   event: DayEvent,
   spec: OutcomeSystemSpec,
+  allEvents: DayEvent[] = [],
 ): Pick<ClassifiedDayEvent, 'result' | 'reason' | 'metrics' | 'tags'> {
+  let base: Pick<ClassifiedDayEvent, 'result' | 'reason' | 'metrics' | 'tags'>;
+
   switch (event.type) {
     case 'heating_recovery':
-      return classifyRecovery(event, spec);
+      base = classifyRecovery(event, spec);
+      break;
     case 'heating_active':
-      return classifyActive(spec);
+      base = classifyActive(spec);
+      break;
     case 'heating_setback':
-      return classifySetback(spec);
+      base = classifySetback(spec);
+      break;
     default:
       // Should never reach here when called from the main classifier.
       return {
@@ -323,4 +431,7 @@ export function classifyHeatingEvent(
         tags: [],
       };
   }
+
+  const concurrentDhw = hasConcurrentDhwDraw(event, allEvents);
+  return applyChDhwInteraction(base, spec, concurrentDhw);
 }

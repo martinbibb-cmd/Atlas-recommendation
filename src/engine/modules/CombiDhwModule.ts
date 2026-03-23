@@ -234,8 +234,19 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
         'A combi with a single bathroom may manage, but expect reduced comfort margins ' +
         'when two people draw hot water in quick succession. ' +
         'Stored hot water removes this risk — it handles simultaneous demand well and ' +
-        'decouples delivery from instantaneous heat transfer capacity.',
+        'decouples delivery from on-demand hot water capacity.',
     });
+  } else if (
+    input.occupancyCount != null &&
+    input.occupancyCount <= 2 &&
+    !simultaneousFail
+  ) {
+    // ≤ 2 occupants, single bathroom: no occupancy-based simultaneous demand risk.
+    // Emit an explicit pass assumption so the audit trail is complete.
+    assumptions.push(
+      `occupancyCount ${input.occupancyCount} ≤ 2: single-household occupancy — no simultaneous ` +
+      'demand risk from occupancy alone (pass).',
+    );
   }
 
   // ── Rule 5: Large household DHW intensity ───────────────────────────────

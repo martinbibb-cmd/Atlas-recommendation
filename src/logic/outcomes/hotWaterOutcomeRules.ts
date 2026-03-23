@@ -29,25 +29,6 @@ import {
 /** Standard bath volume used for fill-time calculations (litres). */
 const BATH_VOLUME_LITRES = 150;
 
-/**
- * Minimum mains dynamic pressure (bar) required for a combi to deliver
- * adequate hot-water flow.  Below this the outlet is noticeably weak.
- *
- * @deprecated Prefer the physics-derived value from CombiBehaviourV1.
- *             Kept as a fallback when heatSourceBehaviour is absent.
- */
-const COMBI_MIN_PRESSURE_BAR = 0.5;
-
-/**
- * Minimum delivered flow (lpm) for a combi to be considered adequate even
- * under simultaneous demand.  Above this threshold the concurrent event is
- * tagged `concurrent_demand` but classified `successful` — the overlap is a
- * circumstance, not a performance failure.
- *
- * @deprecated Prefer flow derived from CombiBehaviourV1.dualOutletDhwLpmPerOutlet.
- */
-const COMBI_ADEQUATE_FLOW_LPM = 8;
-
 /** Default stored-water peak draw rate used for bath fill-time estimate. */
 const STORED_DEFAULT_DRAW_RATE_LPM = 15;
 
@@ -197,25 +178,7 @@ function classifyCombiDraw(
     };
   }
 
-  // Legacy low-pressure check (below adequate but above lockout).
-  // This remains relevant for marginal pressure conditions not captured by the
-  // hard lockout threshold.
-  const pressure = spec.mainsDynamicPressureBar ?? 1.0;
-  if (pressure < COMBI_MIN_PRESSURE_BAR) {
-    return {
-      result: 'reduced',
-      reason: `Mains dynamic pressure (${pressure} bar) is marginal; flow will be noticeably reduced.`,
-      // Marginal-pressure flow estimate: pressure × maxDhwLpm gives the
-      // ideal reduction, but real combi output clips rather than scaling
-      // linearly — the 1.5 factor is a heuristic to avoid over-penalising
-      // borderline pressure by assuming the boiler can partially compensate.
-      metrics: { estimatedFlowLpm: pressure * behaviour.maxDhwLpm * 1.5 },
-      tags: ['low_pressure'],
-    };
-  }
-
-  // Concurrent demand — use behaviour model's flow values rather than generic
-  // capacity divided by outlet count.
+  // Concurrent demand — use behaviour model's flow values and thresholds.
   if (concurrent >= 1 && event.canConflict) {
     const effectiveLpm = behaviour.dualOutletDhwLpmPerOutlet;
 
@@ -231,7 +194,8 @@ function classifyCombiDraw(
       };
     }
 
-    if (effectiveLpm < COMBI_ADEQUATE_FLOW_LPM) {
+    // Use the behaviour model's comfort threshold rather than a hard-coded constant.
+    if (effectiveLpm < behaviour.adequateConcurrentFlowLpm) {
       return {
         result: 'reduced',
         reason:
@@ -252,6 +216,8 @@ function classifyCombiDraw(
       tags: ['concurrent_demand', 'dhw_priority'],
     };
   }
+
+  const pressure = spec.mainsDynamicPressureBar ?? 1.0;
 
   // Bath fill time for bath events — use behaviour model's flow rate.
   if (event.type === 'bath') {

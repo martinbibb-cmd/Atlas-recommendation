@@ -122,6 +122,20 @@ describe('buildCombiBehaviour', () => {
     const b = buildCombiBehaviour({ ...BASE_COMBI, mainsDynamicPressureBar: 1.0 });
     expect(b.pressureLockoutActive).toBe(false);
   });
+
+  it('adequateConcurrentFlowLpm is greater than the minimum ignition threshold', () => {
+    // The comfort threshold must be strictly above the 6 lpm "just-serves" gate
+    // so that dual-outlet flows in the 6–8 lpm range are classified as 'reduced'
+    // rather than 'successful'.
+    const b = buildCombiBehaviour(BASE_COMBI);
+    expect(b.adequateConcurrentFlowLpm).toBeGreaterThan(6);
+  });
+
+  it('adequateConcurrentFlowLpm is consistent across identical specs (deterministic)', () => {
+    const a = buildCombiBehaviour(BASE_COMBI);
+    const b = buildCombiBehaviour(BASE_COMBI);
+    expect(a.adequateConcurrentFlowLpm).toBe(b.adequateConcurrentFlowLpm);
+  });
 });
 
 // ─── 2. BoilerCylinderBehaviourV1 ────────────────────────────────────────────

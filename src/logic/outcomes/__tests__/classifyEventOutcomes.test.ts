@@ -556,7 +556,8 @@ describe('simultaneousEventCount separates circumstance from outcome', () => {
   });
 
   it('high-capacity combi with concurrent demand at adequate effective flow → successful', () => {
-    // peakLpm=20, concurrent=1, effectiveLpm=10 — above COMBI_ADEQUATE_FLOW_LPM (8)
+    // peakLpm=20, concurrent=1, effectiveLpm=10 — above behaviour model's
+    // adequateConcurrentFlowLpm (8 lpm), so both events should be successful.
     const highCapCombi: OutcomeSystemSpec = {
       ...GOOD_COMBI,
       peakHotWaterCapacityLpm: 20,
@@ -612,5 +613,105 @@ describe('same schedule produces different outcomes for different system specs',
     expect(resultOrder[hpResult.events[0].result]).toBeLessThanOrEqual(
       resultOrder[combiResult.events[0].result],
     );
+  });
+});
+
+// ─── 15. CH / DHW interaction via heatSourceBehaviour ────────────────────────
+
+describe('CH / DHW interaction (heatSourceBehaviour)', () => {
+  it('combi: heating_active concurrent with a shower is downgraded to reduced (CH paused) and tagged', () => {
+    // Shower runs 420–428; heating_active also starts at 420.
+    const schedule = makeSchedule([
+      makeEvent({ id: 'shower_0', type: 'shower',        startMinute: 420, durationMinutes: 8, hotWaterDraw: true,  heatingRelated: false }),
+      makeEvent({ id: 'ha_0',     type: 'heating_active', startMinute: 420, durationMinutes: 60, hotWaterDraw: false, heatingRelated: true, canConflict: false }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, GOOD_COMBI);
+    const heatingEvent = result.events.find((e) => e.type === 'heating_active');
+
+    expect(heatingEvent).toBeDefined();
+    // With good combi the standalone heating would be 'successful', but the
+    // concurrent shower causes CH to pause → downgraded to 'reduced'.
+    expect(heatingEvent!.result).toBe('reduced');
+    expect(heatingEvent!.tags).toContain('ch_paused_for_dhw');
+  });
+
+  it('combi: heating_active NOT overlapping with any DHW draw stays successful', () => {
+    const schedule = makeSchedule([
+      makeEvent({ id: 'shower_0', type: 'shower',        startMinute: 420, durationMinutes: 8,   hotWaterDraw: true,  heatingRelated: false }),
+      // Heating starts after shower finishes (428+).
+      makeEvent({ id: 'ha_0',     type: 'heating_active', startMinute: 480, durationMinutes: 60,  hotWaterDraw: false, heatingRelated: true, canConflict: false }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, GOOD_COMBI);
+    const heatingEvent = result.events.find((e) => e.type === 'heating_active');
+
+    expect(heatingEvent!.result).toBe('successful');
+    expect(heatingEvent!.tags).not.toContain('ch_paused_for_dhw');
+  });
+
+  it('combi: brief tap_draw does NOT trigger CH-paused downgrade', () => {
+    // tap_draw is excluded from the CH interaction check (too brief to matter).
+    const schedule = makeSchedule([
+      makeEvent({ id: 'tap_0', type: 'tap_draw',        startMinute: 420, durationMinutes: 1,  hotWaterDraw: true,  heatingRelated: false }),
+      makeEvent({ id: 'ha_0',  type: 'heating_active',  startMinute: 420, durationMinutes: 60, hotWaterDraw: false, heatingRelated: true, canConflict: false }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, GOOD_COMBI);
+    const heatingEvent = result.events.find((e) => e.type === 'heating_active');
+
+    expect(heatingEvent!.result).toBe('successful');
+    expect(heatingEvent!.tags).not.toContain('ch_paused_for_dhw');
+  });
+
+  it('stored water Y-plan: heating_active concurrent with a shower is downgraded (CH throttled) and tagged', () => {
+    const yPlanSpec: OutcomeSystemSpec = {
+      ...STORED_WATER_SPEC,
+      systemPlanType: 'y_plan',
+    };
+
+    const schedule = makeSchedule([
+      makeEvent({ id: 'shower_0', type: 'shower',        startMinute: 420, durationMinutes: 8, hotWaterDraw: true,  heatingRelated: false }),
+      makeEvent({ id: 'ha_0',     type: 'heating_active', startMinute: 420, durationMinutes: 60, hotWaterDraw: false, heatingRelated: true, canConflict: false }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, yPlanSpec);
+    const heatingEvent = result.events.find((e) => e.type === 'heating_active');
+
+    expect(heatingEvent!.result).toBe('reduced');
+    expect(heatingEvent!.tags).toContain('ch_throttled_for_dhw');
+  });
+
+  it('stored water S-plan: heating_active concurrent with a shower stays unaffected (independent circuits)', () => {
+    const sPlanSpec: OutcomeSystemSpec = {
+      ...STORED_WATER_SPEC,
+      systemPlanType: 's_plan',
+    };
+
+    const schedule = makeSchedule([
+      makeEvent({ id: 'shower_0', type: 'shower',        startMinute: 420, durationMinutes: 8, hotWaterDraw: true,  heatingRelated: false }),
+      makeEvent({ id: 'ha_0',     type: 'heating_active', startMinute: 420, durationMinutes: 60, hotWaterDraw: false, heatingRelated: true, canConflict: false }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, sPlanSpec);
+    const heatingEvent = result.events.find((e) => e.type === 'heating_active');
+
+    expect(heatingEvent!.result).toBe('successful');
+    expect(heatingEvent!.tags).not.toContain('ch_throttled_for_dhw');
+    expect(heatingEvent!.tags).not.toContain('ch_paused_for_dhw');
+  });
+
+  it('heat pump: heating_active concurrent with a shower stays unaffected', () => {
+    // Heat pumps do not have combi CH-pause or Y-plan throttle behaviour.
+    const schedule = makeSchedule([
+      makeEvent({ id: 'shower_0', type: 'shower',        startMinute: 420, durationMinutes: 8, hotWaterDraw: true,  heatingRelated: false }),
+      makeEvent({ id: 'ha_0',     type: 'heating_active', startMinute: 420, durationMinutes: 60, hotWaterDraw: false, heatingRelated: true, canConflict: false }),
+    ]);
+
+    const result = classifyEventOutcomes(schedule, HEAT_PUMP_SPEC);
+    const heatingEvent = result.events.find((e) => e.type === 'heating_active');
+
+    expect(heatingEvent!.tags).not.toContain('ch_paused_for_dhw');
+    expect(heatingEvent!.tags).not.toContain('ch_throttled_for_dhw');
   });
 });
