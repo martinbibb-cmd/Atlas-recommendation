@@ -19,6 +19,7 @@ import AdvicePanel from '../advice/AdvicePanel';
 import PerformanceOutcomesPanel from '../outcomes/PerformanceOutcomesPanel';
 import SystemUpgradeComparisonPanel from './SystemUpgradeComparisonPanel';
 import { buildResimulationFromSurvey } from '../../lib/simulator/buildResimulationFromSurvey';
+import type { OutcomeSystemSpec } from '../../logic/outcomes/types';
 import './UnifiedSimulatorView.css';
 
 function buildFloorplanOperatingAssumptions(
@@ -55,6 +56,18 @@ interface Props {
   portalMode?: boolean;
 }
 
+// ─── System family selector for events/upgrades panel ─────────────────────────
+
+type EventsSystemFamily = OutcomeSystemSpec['systemType'];
+
+const EVENTS_SYSTEM_OPTIONS: { value: EventsSystemFamily; label: string }[] = [
+  { value: 'combi',        label: 'Combi' },
+  { value: 'stored_water', label: 'Boiler cylinder' },
+  { value: 'heat_pump',    label: 'Heat pump cylinder' },
+];
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function UnifiedSimulatorView({ engineOutput, surveyData, floorplanOutput, portalMode = false }: Props) {
   const surveyAdapted = useMemo(() => adaptFullSurveyToSimulatorInputs(surveyData), [surveyData]);
   const compareSeed = useMemo(() => buildCompareSeedFromSurvey(surveyData, engineOutput), [surveyData, engineOutput]);
@@ -66,9 +79,12 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
     floorplanInputs: floorplanOutput ? adaptFloorplanToAtlasInputs(floorplanOutput) : undefined,
   }), [compareSeed, engineOutput, floorplanOutput, surveyData]);
 
+  // ── System selector for the events/upgrades panel ─────────────────────────
+  const [eventsSystem, setEventsSystem] = useState<EventsSystemFamily | undefined>(undefined);
+
   const resimulationResult = useMemo(
-    () => buildResimulationFromSurvey(surveyData, engineOutput),
-    [surveyData, engineOutput],
+    () => buildResimulationFromSurvey(surveyData, engineOutput, eventsSystem),
+    [surveyData, engineOutput, eventsSystem],
   );
 
   // Compute flow stability for the current (survey) system so that the AdvicePanel
@@ -132,17 +148,13 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
     persistReport();
   }, [persistReport]);
 
-  // In portal mode, navigate to a dedicated print-preview component that renders
+  // Navigate to a dedicated print-preview component that renders
   // PrintableRecommendationPage before triggering window.print() — this ensures
   // the printable layout is fully rendered before the dialog opens, consistent
   // with the DecisionSynthesisPage print flow.
   const handlePrint = useCallback(() => {
-    if (portalMode) {
-      setIsPrinting(true);
-    } else {
-      window.print();
-    }
-  }, [portalMode]);
+    setIsPrinting(true);
+  }, []);
 
   const handleCopyPortalLink = useCallback(() => {
     if (!savedReportId) return;
@@ -230,6 +242,22 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
         />
       </div>
       <aside className="unified-simulator-view__insights" aria-label="Simulation outcomes and advice">
+        {/* ── System selector for events/upgrades panel ───────────────── */}
+        <div className="unified-simulator-view__system-selector" data-testid="events-system-selector">
+          <span className="unified-simulator-view__system-selector-label">Show events for:</span>
+          <div className="unified-simulator-view__system-selector-pills">
+            {EVENTS_SYSTEM_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                className={`unified-simulator-view__system-pill${(eventsSystem ?? resimulationResult?.resimulation.systemType) === opt.value ? ' unified-simulator-view__system-pill--active' : ''}`}
+                onClick={() => setEventsSystem(opt.value)}
+                aria-pressed={(eventsSystem ?? resimulationResult?.resimulation.systemType) === opt.value}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
         {resimulationResult != null && (
           <SystemUpgradeComparisonPanel
             resimulation={resimulationResult.resimulation}

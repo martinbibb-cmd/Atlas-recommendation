@@ -847,3 +847,99 @@ describe('applyUpgradePackageToSpec: combi_size scales peakHotWaterCapacityLpm',
     expect(bestFit.heatOutputKw).toBe(35);
   });
 });
+
+// ─── cylinder_size: guard against downgrade ──────────────────────────────────
+
+describe('applyUpgradePackageToSpec: cylinder_size never downgrades storage', () => {
+  it('does not downgrade hotWaterStorageLitres when value is lower than current', () => {
+    const spec: OutcomeSystemSpec = {
+      systemType:           'stored_water',
+      hotWaterStorageLitres: 200,
+    };
+    const pkg: RecommendedUpgradePackage = {
+      systemType: 'stored_water',
+      upgrades: [
+        {
+          kind:       'cylinder_size',
+          category:   'water',
+          label:      '150 L',
+          reason:     'Downgrade test.',
+          effectTags: ['improves_hot_water_recovery'],
+          priority:   'recommended',
+          value:      150,
+        },
+      ],
+    };
+    const bestFit = applyUpgradePackageToSpec(spec, pkg);
+    expect(bestFit.hotWaterStorageLitres).toBe(200);
+  });
+
+  it('does not set storage below classifier default (150 L) for stored_water when field is unset', () => {
+    const spec: OutcomeSystemSpec = {
+      systemType: 'stored_water',
+      // hotWaterStorageLitres is undefined → classifier default 150 L
+    };
+    const pkg: RecommendedUpgradePackage = {
+      systemType: 'stored_water',
+      upgrades: [
+        {
+          kind:       'cylinder_size',
+          category:   'water',
+          label:      '120 L',
+          reason:     'Below default test.',
+          effectTags: ['improves_hot_water_recovery'],
+          priority:   'essential',
+          value:      120,
+        },
+      ],
+    };
+    const bestFit = applyUpgradePackageToSpec(spec, pkg);
+    // 120 < 150 (classifier default) → should NOT apply
+    expect(bestFit.hotWaterStorageLitres).toBeUndefined();
+  });
+
+  it('does not set storage below classifier default (250 L) for heat_pump when field is unset', () => {
+    const spec: OutcomeSystemSpec = {
+      systemType: 'heat_pump',
+    };
+    const pkg: RecommendedUpgradePackage = {
+      systemType: 'heat_pump',
+      upgrades: [
+        {
+          kind:       'cylinder_size',
+          category:   'water',
+          label:      '200 L',
+          reason:     'Below HP default.',
+          effectTags: ['improves_hot_water_recovery'],
+          priority:   'essential',
+          value:      200,
+        },
+      ],
+    };
+    const bestFit = applyUpgradePackageToSpec(spec, pkg);
+    // 200 < 250 (heat pump classifier default) → should NOT apply
+    expect(bestFit.hotWaterStorageLitres).toBeUndefined();
+  });
+
+  it('applies cylinder_size when value exceeds heat_pump classifier default', () => {
+    const spec: OutcomeSystemSpec = {
+      systemType: 'heat_pump',
+    };
+    const pkg: RecommendedUpgradePackage = {
+      systemType: 'heat_pump',
+      upgrades: [
+        {
+          kind:       'cylinder_size',
+          category:   'water',
+          label:      '300 L',
+          reason:     'Above HP default.',
+          effectTags: ['improves_hot_water_recovery'],
+          priority:   'essential',
+          value:      300,
+        },
+      ],
+    };
+    const bestFit = applyUpgradePackageToSpec(spec, pkg);
+    expect(bestFit.hotWaterStorageLitres).toBe(300);
+  });
+});
