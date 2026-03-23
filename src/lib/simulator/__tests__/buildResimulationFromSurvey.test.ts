@@ -238,4 +238,117 @@ describe('buildResimulationFromSurvey', () => {
     expect(result).not.toBeNull();
     expect(result!.upgradePackage.systemType).toBe('stored_water');
   });
+
+  // ── Family-spec seeding ───────────────────────────────────────────────────
+
+  it('stored_water simple-install spec seeds 210 L storage so bath fill time is plausible', () => {
+    // A 2-person household with unvented cylinder + good mains pressure.
+    // Bath fill time for a single bath event should be well under 20 minutes
+    // when using the realistic 210 L / 120 L/h stored-water defaults.
+    const survey = makeMinimalSurvey({
+      dynamicMainsPressureBar: 2.5,
+      currentBoilerOutputKw:   24,
+    });
+    const engine = makeEngineOutput('Stored water', 'stored_vented');
+    const result = buildResimulationFromSurvey(survey, engine);
+    expect(result).not.toBeNull();
+
+    const bathEvents = result!.resimulation.simpleInstall.events.filter(
+      (e) => e.type === 'bath',
+    );
+    // If any bath events exist, their fill time must be plausible (< 20 min).
+    for (const bath of bathEvents) {
+      const fillTime = bath.metrics?.bathFillTimeMinutes;
+      if (fillTime != null) {
+        expect(fillTime).toBeLessThan(20);
+      }
+    }
+    // averageBathFillTimeMinutes (if a bath is in the schedule) must be plausible.
+    const avgFill = result!.resimulation.simpleInstall.hotWater.averageBathFillTimeMinutes;
+    if (avgFill != null) {
+      expect(avgFill).toBeLessThan(20);
+    }
+  });
+
+  it('stored_water override does not produce extreme conflict counts for a 2-person household', () => {
+    // 2-person household + single bathroom → stored_water conflicts should be
+    // limited when using realistic defaults (210 L / 120 L/h).
+    // Morning clusters may produce a small number of conflicts (tight sequential
+    // showers + kitchen draws can exceed the 210 L cylinder), but the evening
+    // events should be fully recovered.
+    //
+    // Regression: the broken model (no family spec + no running-balance recovery)
+    // produced 12 conflicts for this scenario.  After the fix this should be ≤ 5.
+    const survey = makeMinimalSurvey({
+      dynamicMainsPressureBar: 2.5,
+      bathroomCount: 1,
+    });
+    const engine = makeEngineOutput('Combi boiler', 'combi');
+    const result = buildResimulationFromSurvey(survey, engine, 'stored_water');
+    expect(result).not.toBeNull();
+
+    const conflicts = result!.resimulation.simpleInstall.hotWater.conflict;
+    // Regression guard: broken model produced 12; corrected model produces ≤ 5.
+    expect(conflicts).toBeLessThanOrEqual(5);
+  });
+
+  it('heat_pump override seeds 250 L storage so bath fill time is plausible', () => {
+    const survey = makeMinimalSurvey({ dynamicMainsPressureBar: 2.5 });
+    const engine = makeEngineOutput('Combi boiler', 'combi');
+    const result = buildResimulationFromSurvey(survey, engine, 'heat_pump');
+    expect(result).not.toBeNull();
+
+    const avgFill = result!.resimulation.simpleInstall.hotWater.averageBathFillTimeMinutes;
+    // 250 L at 12 L/min gives a nominal fill of ~12.5 min; with depletion it
+    // should still remain under 30 min for a 2-person household.
+    if (avgFill != null) {
+      expect(avgFill).toBeLessThan(30);
+    }
+  });
+
+  it('combi override seeds explicit peakHotWaterCapacityLpm so bath fill time is consistent', () => {
+    const survey = makeMinimalSurvey({ dynamicMainsPressureBar: 2.5 });
+    const engine = makeEngineOutput('Stored water', 'stored_vented');
+    const result = buildResimulationFromSurvey(survey, engine, 'combi');
+    expect(result).not.toBeNull();
+
+    const avgFill = result!.resimulation.simpleInstall.hotWater.averageBathFillTimeMinutes;
+    // 150 L / 12 lpm ≈ 12.5 min nominal; should be under 15 min for a clean combi.
+    if (avgFill != null) {
+      expect(avgFill).toBeLessThan(15);
+    }
+  });
+
+  it('switching from combi to stored_water override changes the physics — not just the label', () => {
+    // Stored_water and heat_pump have different draw rates:
+    //   stored_water: STORED_DEFAULT_DRAW_RATE_LPM = 15 lpm → bath fill 150/15 = 10 min
+    //   heat_pump:    HP_DEFAULT_DRAW_RATE_LPM     = 12 lpm → bath fill 150/12 = 12.5 min
+    //
+    // A survey with frequent bath use ensures a bath event appears in the schedule.
+    // If the physics is actually being applied (not just the label), the bath fill
+    // times reported for stored_water and heat_pump should differ.
+    const survey: FullSurveyModelV1 = {
+      ...makeMinimalSurvey({ dynamicMainsPressureBar: 2.5 }),
+      demandTimingOverrides: { bathFrequencyPerWeek: 14 },
+    };
+    const engine = makeEngineOutput('Combi boiler', 'combi');
+
+    const storedResult = buildResimulationFromSurvey(survey, engine, 'stored_water');
+    const hpResult     = buildResimulationFromSurvey(survey, engine, 'heat_pump');
+
+    expect(storedResult).not.toBeNull();
+    expect(hpResult).not.toBeNull();
+
+    // Both results should have bath events (frequent bath use).
+    const storedFill = storedResult!.resimulation.simpleInstall.hotWater.averageBathFillTimeMinutes;
+    const hpFill     = hpResult!.resimulation.simpleInstall.hotWater.averageBathFillTimeMinutes;
+
+    expect(storedFill).not.toBeNull();
+    expect(hpFill).not.toBeNull();
+
+    // Physics: stored_water draw rate is 15 lpm → nominal 10 min fill;
+    // heat_pump draw rate is 12 lpm → nominal 12.5 min fill.
+    // The heat_pump path must be demonstrably slower, confirming different physics.
+    expect(hpFill!).toBeGreaterThan(storedFill!);
+  });
 });

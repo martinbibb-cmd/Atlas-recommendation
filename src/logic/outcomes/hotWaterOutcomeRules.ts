@@ -78,17 +78,59 @@ function concurrentDrawCount(event: DayEvent, allEvents: DayEvent[]): number {
 }
 
 /**
- * Sum the estimated litres drawn by all hot-water events that start before this
- * event (used as a simple running depletion model for stored systems).
+ * Compute the effective available storage (litres) immediately before the
+ * given event starts, using a running chronological simulation.
+ *
+ * This replaces the previous approach of summing all prior draws and crediting
+ * only the gap from the last event — which produced wildly inflated depletion
+ * figures when events were spread across a full day (e.g. morning draws
+ * "persisted" into evening even after 6+ hours of recovery).
+ *
+ * The simulation:
+ *   1. Starts with a full cylinder (maxStorageLitres).
+ *   2. Processes each prior hot-water draw in chronological order.
+ *   3. Credits recovery for the idle gap between the previous draw's end and
+ *      the next draw's start (capped at maxStorageLitres).
+ *   4. Subtracts the draw volume (floored at 0).
+ *   5. After processing all prior events, credits recovery from the last draw's
+ *      end to this event's start.
  */
-function estimatePriorDepleted(
+function computeEffectiveStorageAtEvent(
   event: DayEvent,
   allEvents: DayEvent[],
+  maxStorageLitres: number,
   drawRateLpm: number,
+  recoveryLph: number,
 ): number {
-  return allEvents
+  const priorEvents = allEvents
     .filter((e) => e !== event && e.hotWaterDraw && e.startMinute < event.startMinute)
-    .reduce((sum, e) => sum + estimateDrawVolumeLitres(e, drawRateLpm), 0);
+    .sort((a, b) => a.startMinute - b.startMinute);
+
+  let balance = maxStorageLitres;
+  let lastEndMinute = 0;
+
+  for (const prior of priorEvents) {
+    // Credit recovery for the idle gap since the previous draw finished.
+    const gap = Math.max(0, prior.startMinute - lastEndMinute);
+    const recovery = (gap / 60) * recoveryLph;
+    balance = Math.min(maxStorageLitres, balance + recovery);
+
+    // Subtract this draw's volume (the cylinder can't go below 0).
+    const draw = estimateDrawVolumeLitres(prior, drawRateLpm);
+    balance = Math.max(0, balance - draw);
+
+    // Advance the "last draw end" marker.  Using a conditional here intentionally
+    // handles simultaneous events (e.g. shower and kitchen_draw both at 7:00).
+    // Without the guard, processing the shorter event last would shrink
+    // lastEndMinute and incorrectly credit extra recovery for the next event.
+    const endMinute = prior.startMinute + prior.durationMinutes;
+    if (endMinute > lastEndMinute) lastEndMinute = endMinute;
+  }
+
+  // Credit any remaining recovery between the last draw end and this event.
+  const finalGap = Math.max(0, event.startMinute - lastEndMinute);
+  const finalRecovery = (finalGap / 60) * recoveryLph;
+  return Math.min(maxStorageLitres, balance + finalRecovery);
 }
 
 /**
@@ -223,19 +265,9 @@ function classifyStoredWaterDraw(
   const drawRate    = STORED_DEFAULT_DRAW_RATE_LPM;
   const recoveryLph = spec.recoveryRateLitresPerHour ?? 60;
 
-  const priorDepleted = estimatePriorDepleted(event, allEvents, drawRate);
-
-  // Simple recovery credit: litres recovered since last draw started.
-  const lastEventBefore = [...allEvents]
-    .filter((e) => e !== event && e.hotWaterDraw && e.startMinute < event.startMinute)
-    .sort((a, b) => b.startMinute - a.startMinute)[0];
-
-  const gapMinutes = lastEventBefore
-    ? event.startMinute - (lastEventBefore.startMinute + lastEventBefore.durationMinutes)
-    : event.startMinute;
-
-  const recoveryCredit = Math.max(0, (gapMinutes / 60) * recoveryLph);
-  const effectiveStorage = Math.min(storage, storage - priorDepleted + recoveryCredit);
+  // Use the running-balance model to get accurate available storage,
+  // accounting for recovery between all prior draw clusters.
+  const effectiveStorage = computeEffectiveStorageAtEvent(event, allEvents, storage, drawRate, recoveryLph);
   const remainingFraction = effectiveStorage / storage;
 
   // Volume-based outcome: compare this draw's demand against available storage.
@@ -322,18 +354,8 @@ function classifyHeatPumpDraw(
   // Heat pumps recover slowly — default 30 L/h vs ~60 L/h for gas.
   const recoveryLph = spec.recoveryRateLitresPerHour ?? 30;
 
-  const priorDepleted = estimatePriorDepleted(event, allEvents, drawRate);
-
-  const lastEventBefore = [...allEvents]
-    .filter((e) => e !== event && e.hotWaterDraw && e.startMinute < event.startMinute)
-    .sort((a, b) => b.startMinute - a.startMinute)[0];
-
-  const gapMinutes = lastEventBefore
-    ? event.startMinute - (lastEventBefore.startMinute + lastEventBefore.durationMinutes)
-    : event.startMinute;
-
-  const recoveryCredit = Math.max(0, (gapMinutes / 60) * recoveryLph);
-  const effectiveStorage = Math.min(storage, storage - priorDepleted + recoveryCredit);
+  // Use the running-balance model to get accurate available storage.
+  const effectiveStorage = computeEffectiveStorageAtEvent(event, allEvents, storage, drawRate, recoveryLph);
   const remainingFraction = effectiveStorage / storage;
 
   // Volume-based outcome: compare draw demand against available storage.
