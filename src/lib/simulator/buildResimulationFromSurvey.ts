@@ -32,31 +32,46 @@ import { recommendUpgrades } from '../../logic/upgrades/recommendUpgrades';
 import { resimulateWithUpgrades } from '../../logic/resimulation/resimulateWithUpgrades';
 import { buildHeatSourceBehaviour } from '../../engine/modules/HeatSourceBehaviourModel';
 
+// ─── Simulator system override type ──────────────────────────────────────────
+
+/**
+ * All system families that can be selected in the events/upgrades panel.
+ *
+ * Extends OutcomeSystemSpec['systemType'] with 'mixergy' — a Mixergy cylinder
+ * is modelled as a stored_water path with distinct physics (150 L, top-down
+ * immersion recovery) rather than a conventional gas-boiler indirect coil.
+ * Internally it maps to 'stored_water' for classification purposes.
+ */
+export type SimulatorSystemOverride = OutcomeSystemSpec['systemType'] | 'mixergy';
+
 // ─── System type mapping ──────────────────────────────────────────────────────
 
 function optionIdToSystemType(
   id: string | undefined,
 ): OutcomeSystemSpec['systemType'] {
   switch (id) {
-    case 'combi':           return 'combi';
-    case 'ashp':            return 'heat_pump';
+    case 'combi':                 return 'combi';
+    case 'ashp':                  return 'heat_pump';
     case 'stored_vented':
     case 'stored_unvented':
     case 'regular_vented':
-    case 'system_unvented': return 'stored_water';
-    default:                return 'combi';
+    case 'system_unvented':       return 'stored_water';
+    case 'mixergy':
+    case 'mixergy_open_vented':   return 'stored_water';
+    default:                      return 'combi';
   }
 }
 
 // ─── System label ─────────────────────────────────────────────────────────────
 
-const SYSTEM_TYPE_LABELS: Record<OutcomeSystemSpec['systemType'], string> = {
+const SYSTEM_TYPE_LABELS: Record<SimulatorSystemOverride, string> = {
   combi:        'On-demand hot water',
   stored_water: 'Stored water system',
+  mixergy:      'Mixergy cylinder',
   heat_pump:    'Heat pump',
 };
 
-function systemTypeToLabel(systemType: OutcomeSystemSpec['systemType']): string {
+function systemTypeToLabel(systemType: SimulatorSystemOverride): string {
   return SYSTEM_TYPE_LABELS[systemType];
 }
 
@@ -189,6 +204,37 @@ function buildHeatPumpSimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSyste
 }
 
 /**
+ * Build an OutcomeSystemSpec for a Mixergy cylinder.
+ *
+ * Mixergy uses top-down heating (immersion at the top of the tank), which
+ * gives very effective thermal stratification — the first 30–40 % of the
+ * cylinder reaches target temperature quickly and is immediately usable.
+ *
+ * Defaults:
+ *   - 150 L storage  — standard Mixergy cylinder (product-line default)
+ *   - 120 L/h recovery — top-down immersion heater at ~3 kW recovers at a
+ *                        similar rate to a gas indirect coil; the hot zone
+ *                        is available from the top sooner than a conventional
+ *                        bottom-coil cylinder of the same size.
+ *
+ * Classification path: mapped to 'stored_water' so that the stored-water
+ * volume / recovery classifier handles it.  The 150 L cylinder is smaller
+ * than the standard 210 L recommendation, so the comparison panel will
+ * correctly show a smaller usable store for very heavy demand, while
+ * demonstrating that Mixergy avoids the simultaneous-demand limitations
+ * of a combi.
+ */
+function buildMixergySimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSystemSpec {
+  const facts = deriveSurveyPropertyFacts(survey);
+  return {
+    systemType:                  'stored_water',
+    hotWaterStorageLitres:       150,
+    recoveryRateLitresPerHour:   120,
+    ...facts,
+  };
+}
+
+/**
  * Dispatch to the correct family-aware spec builder.
  *
  * Each family receives a complete base spec so that the outcome classifier
@@ -196,11 +242,12 @@ function buildHeatPumpSimpleInstallSpec(survey: FullSurveyModelV1): OutcomeSyste
  */
 function buildFamilySpec(
   survey: FullSurveyModelV1,
-  proposedSystemType: OutcomeSystemSpec['systemType'],
+  proposedSystemType: SimulatorSystemOverride,
 ): OutcomeSystemSpec {
   switch (proposedSystemType) {
     case 'combi':        return buildCombiSimpleInstallSpec(survey);
     case 'stored_water': return buildStoredWaterSimpleInstallSpec(survey);
+    case 'mixergy':      return buildMixergySimpleInstallSpec(survey);
     case 'heat_pump':    return buildHeatPumpSimpleInstallSpec(survey);
   }
 }
@@ -255,7 +302,11 @@ export interface ResimulationFromSurveyResult {
  * @param overrideSystemType - When provided, forces the resimulation pipeline
  *        to use this system type instead of the engine-recommended option.
  *        This allows the events/upgrades panel to be driven by a user-chosen
- *        system family (combi, stored_water, heat_pump).
+ *        system family (combi, stored_water, heat_pump, mixergy).
+ *
+ *        'mixergy' maps to the stored_water classification path with a 150 L
+ *        Mixergy-specific spec so the panel correctly compares Mixergy against
+ *        a standard boiler cylinder or combi.
  *
  * @returns ResimulationFromSurveyResult or null when insufficient data is
  *          available to run the pipeline (e.g. no household composition).
@@ -263,7 +314,7 @@ export interface ResimulationFromSurveyResult {
 export function buildResimulationFromSurvey(
   survey: FullSurveyModelV1,
   engineOutput: EngineOutputV1,
-  overrideSystemType?: OutcomeSystemSpec['systemType'],
+  overrideSystemType?: SimulatorSystemOverride,
 ): ResimulationFromSurveyResult | null {
   // ── Step 1: Derive household profile ──────────────────────────────────────
   const composition = survey.householdComposition ?? DEFAULT_HOUSEHOLD_COMPOSITION;

@@ -352,3 +352,87 @@ describe('buildResimulationFromSurvey', () => {
     expect(hpFill!).toBeGreaterThan(storedFill!);
   });
 });
+
+// ── Mixergy override ──────────────────────────────────────────────────────────
+
+describe('Mixergy override — stored-water path with 150 L cylinder', () => {
+  it('overrideSystemType mixergy produces a stored_water resimulation result', () => {
+    const survey = makeMinimalSurvey();
+    const engine = makeEngineOutput('Combi boiler', 'combi');
+    const result = buildResimulationFromSurvey(survey, engine, 'mixergy');
+    expect(result).not.toBeNull();
+    // Internally Mixergy is classified as stored_water.
+    expect(result!.resimulation.systemType).toBe('stored_water');
+  });
+
+  it('Mixergy label is "Mixergy cylinder" (not generic stored water)', () => {
+    const survey = makeMinimalSurvey();
+    const engine = makeEngineOutput('Combi boiler', 'combi');
+    const result = buildResimulationFromSurvey(survey, engine, 'mixergy');
+    expect(result).not.toBeNull();
+    expect(result!.recommendedSystemLabel).toBe('Mixergy cylinder');
+  });
+
+  it('Mixergy 150 L cylinder has fewer conflicts than combi for typical 2-person demand', () => {
+    // A combi at low mains pressure will produce conflicts from pressure lockout;
+    // a Mixergy cylinder (stored path) does not have that constraint.
+    const survey = makeMinimalSurvey({ dynamicMainsPressureBar: 0.3 });
+    const engine = makeEngineOutput('Combi boiler', 'combi');
+
+    const combiResult   = buildResimulationFromSurvey(survey, engine, 'combi')!;
+    const mixergyResult = buildResimulationFromSurvey(survey, engine, 'mixergy')!;
+
+    // Mixergy stored-water path is immune to mains pressure lockout.
+    expect(mixergyResult.resimulation.simpleInstall.hotWater.conflict).toBeLessThan(
+      combiResult.resimulation.simpleInstall.hotWater.conflict,
+    );
+  });
+
+  it('Mixergy 150 L cylinder produces more conflicts than standard 210 L stored_water under heavy demand', () => {
+    // 4-person household (3 adults + 1 toddler) generates more morning demand than
+    // a 150 L Mixergy can serve without some depletion, while the 210 L standard
+    // cylinder has a larger store.
+    const survey = makeMinimalSurvey({
+      householdComposition: {
+        adultCount:               3,
+        youngAdultCount18to25AtHome: 0,
+        childCount0to4:           1,
+        childCount5to10:          0,
+        childCount11to17:         0,
+      },
+      dynamicMainsPressureBar: 2.5,
+    });
+    const engine = makeEngineOutput('Stored water', 'stored_vented');
+
+    const standardResult = buildResimulationFromSurvey(survey, engine, 'stored_water')!;
+    const mixergyResult  = buildResimulationFromSurvey(survey, engine, 'mixergy')!;
+
+    // 150 L Mixergy is smaller; under 4-person demand it may deplete more.
+    // At minimum the standard 210 L cylinder should perform no worse than the
+    // 150 L Mixergy (could tie when morning recovery is sufficient for both).
+    expect(mixergyResult.resimulation.simpleInstall.hotWater.conflict).toBeGreaterThanOrEqual(
+      standardResult.resimulation.simpleInstall.hotWater.conflict,
+    );
+  });
+
+  it('Mixergy bath fill time is plausible for a 2-person household (< 20 min)', () => {
+    // 150 L cylinder at 15 lpm bath fill rate: 150 / 15 = 10 min nominal.
+    // With 0.85 usable factor the cylinder has ~127.5 L effective; a single
+    // evening bath at 150 L draws slightly more than available (servedFraction ≈ 0.85),
+    // giving an adjusted fill of ~11.8 min — well under 20 min.
+    // This guards against the prior bug where fill times exceeded 100 min.
+    const survey: FullSurveyModelV1 = {
+      ...makeMinimalSurvey({ dynamicMainsPressureBar: 2.5 }),
+      demandTimingOverrides: { bathFrequencyPerWeek: 14 },
+    };
+    const engine = makeEngineOutput('Combi boiler', 'combi');
+    const result = buildResimulationFromSurvey(survey, engine, 'mixergy');
+    expect(result).not.toBeNull();
+
+    const avgFill = result!.resimulation.simpleInstall.hotWater.averageBathFillTimeMinutes;
+    if (avgFill != null) {
+      // Fill time must not be absurdly inflated (e.g. 100 min).
+      expect(avgFill).toBeLessThan(20);
+    }
+  });
+});

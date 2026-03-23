@@ -19,7 +19,7 @@ import AdvicePanel from '../advice/AdvicePanel';
 import PerformanceOutcomesPanel from '../outcomes/PerformanceOutcomesPanel';
 import SystemUpgradeComparisonPanel from './SystemUpgradeComparisonPanel';
 import { buildResimulationFromSurvey } from '../../lib/simulator/buildResimulationFromSurvey';
-import type { OutcomeSystemSpec } from '../../logic/outcomes/types';
+import type { SimulatorSystemOverride } from '../../lib/simulator/buildResimulationFromSurvey';
 import './UnifiedSimulatorView.css';
 
 function buildFloorplanOperatingAssumptions(
@@ -58,11 +58,12 @@ interface Props {
 
 // ─── System family selector for events/upgrades panel ─────────────────────────
 
-type EventsSystemFamily = OutcomeSystemSpec['systemType'];
+type EventsSystemFamily = SimulatorSystemOverride;
 
 const EVENTS_SYSTEM_OPTIONS: { value: EventsSystemFamily; label: string }[] = [
   { value: 'combi',        label: 'Combi' },
   { value: 'stored_water', label: 'Boiler cylinder' },
+  { value: 'mixergy',      label: 'Mixergy cylinder' },
   { value: 'heat_pump',    label: 'Heat pump cylinder' },
 ];
 
