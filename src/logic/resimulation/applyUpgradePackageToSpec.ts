@@ -137,5 +137,15 @@ export function applyUpgradePackageToSpec(
     }
   }
 
-  return spec;
+  // Clear the cached heat-source behaviour model so the event classifier
+  // rebuilds it from the upgraded spec parameters.  Without this, the best-fit
+  // re-simulation would reuse stale physics derived from the pre-upgrade spec
+  // (e.g. the old combi flow rate or pre-upgrade cylinder volume), producing
+  // outcomes that do not reflect the actual improvements.
+  //
+  // Destructure to remove the key entirely rather than setting it to undefined,
+  // so that callers checking `spec.heatSourceBehaviour != null` see a clean miss.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { heatSourceBehaviour: _discarded, ...specWithoutBehaviour } = spec;
+  return specWithoutBehaviour;
 }

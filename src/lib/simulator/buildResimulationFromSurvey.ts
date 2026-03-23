@@ -30,6 +30,7 @@ import { generateTypicalDaySchedule } from '../../logic/events/generateTypicalDa
 import { classifyEventOutcomes } from '../../logic/outcomes/classifyEventOutcomes';
 import { recommendUpgrades } from '../../logic/upgrades/recommendUpgrades';
 import { resimulateWithUpgrades } from '../../logic/resimulation/resimulateWithUpgrades';
+import { buildHeatSourceBehaviour } from '../../engine/modules/HeatSourceBehaviourModel';
 
 // ─── System type mapping ──────────────────────────────────────────────────────
 
@@ -301,22 +302,33 @@ export function buildResimulationFromSurvey(
   const proposedSystemType = overrideSystemType ?? optionIdToSystemType(recommendedOption?.id);
 
   // ── Step 3: Build the family-aware simple-install OutcomeSystemSpec ──────
-  const simpleInstallSpec = buildFamilySpec(survey, proposedSystemType);
+  const simpleInstallSpecBase = buildFamilySpec(survey, proposedSystemType);
+
+  // Pre-build the heat-source behaviour model once so that all downstream
+  // consumers (classifyEventOutcomes, recommendUpgrades, resimulateWithUpgrades)
+  // share the same physics-derived outputs.  This is the "single source of
+  // truth" wire: survey inputs → heat-source behaviour model → all consumers.
+  const heatSourceBehaviour = buildHeatSourceBehaviour(simpleInstallSpecBase);
+  const simpleInstallSpec: OutcomeSystemSpec = {
+    ...simpleInstallSpecBase,
+    heatSourceBehaviour,
+  };
 
   // ── Step 4: Generate the upgrade package for the simple-install system ────
   const simpleInstallOutcomes = classifyEventOutcomes(schedule, simpleInstallSpec);
 
   const upgradePackage = recommendUpgrades({
-    systemSpec:         simpleInstallSpec,
-    outcomes:           simpleInstallOutcomes,
-    primaryPipeSizeMm:  derivePrimaryPipeSizeMm(survey),
-    bathroomCount:      survey.bathroomCount,
+    systemSpec:           simpleInstallSpec,
+    outcomes:             simpleInstallOutcomes,
+    primaryPipeSizeMm:    derivePrimaryPipeSizeMm(survey),
+    bathroomCount:        survey.bathroomCount,
     mainsDynamicPressureBar:
       survey.dynamicMainsPressureBar ?? survey.dynamicMainsPressure,
     householdComposition: composition,
-    systemCondition:    deriveSystemCondition(survey),
-    controlsQuality:    deriveControlsQuality(survey),
+    systemCondition:      deriveSystemCondition(survey),
+    controlsQuality:      deriveControlsQuality(survey),
     bathUse,
+    heatSourceBehaviour,
   });
 
   // ── Step 5: Re-simulate with the upgraded spec ────────────────────────────

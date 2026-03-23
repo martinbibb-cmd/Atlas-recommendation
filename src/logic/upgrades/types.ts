@@ -10,6 +10,7 @@
 
 import type { HouseholdComposition } from '../../engine/schema/EngineInputV2_3';
 import type { ClassifiedDaySchedule, OutcomeSystemSpec } from '../outcomes/types';
+import type { HeatSourceBehaviourV1 } from '../../engine/modules/HeatSourceBehaviourModel';
 
 // ─── Upgrade taxonomy ─────────────────────────────────────────────────────────
 
@@ -104,4 +105,15 @@ export interface RecommendUpgradesInputs {
   controlsQuality?: 'basic' | 'good' | 'excellent';
   /** Bath use frequency — used as a stored-water sizing helper. */
   bathUse?: 'rare' | 'sometimes' | 'frequent';
+  /**
+   * Pre-computed heat-source behaviour model result.
+   *
+   * When present, upgrade rules use physics-derived values (flow rates,
+   * recovery rates, pressure lockout, S/Y-plan topology) instead of
+   * fixed threshold constants.
+   *
+   * Build with `buildHeatSourceBehaviour(systemSpec)` from HeatSourceBehaviourModel.ts.
+   * `recommendUpgrades` populates this automatically when it is absent.
+   */
+  heatSourceBehaviour?: HeatSourceBehaviourV1;
 }
