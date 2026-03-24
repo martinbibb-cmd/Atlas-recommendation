@@ -455,3 +455,63 @@ describe('Mixergy override — stored-water path with 150 L cylinder', () => {
     }
   });
 });
+
+// ─── Family isolation: selected system must not leak other family semantics ───
+
+describe('family isolation: selected system as source of truth', () => {
+  it('stored_water override does not emit combi-only event tags (dhw_priority, pressure_lockout)', () => {
+    // A stored-water system does not have DHW priority (CH pausing) or pressure
+    // lockout semantics — those are combi-specific.  If the selected family is
+    // stored_water, no event in the schedule should carry combi-only tags.
+    const survey = makeMinimalSurvey({ dynamicMainsPressureBar: 2.5 });
+    const engine = makeEngineOutput('Combi boiler', 'combi'); // engine recommends combi
+    const result = buildResimulationFromSurvey(survey, engine, 'stored_water');
+    expect(result).not.toBeNull();
+
+    const allTags = result!.resimulation.simpleInstall.events.flatMap((e) => e.tags);
+    expect(allTags).not.toContain('dhw_priority');
+    expect(allTags).not.toContain('pressure_lockout');
+  });
+
+  it('open_vented override does not emit ch_paused_for_dhw tag', () => {
+    // ch_paused_for_dhw is combi-specific behaviour (DHW priority fully pauses CH).
+    // An open-vented system may have ch_throttled_for_dhw (Y-plan) but must
+    // never carry the combi-specific ch_paused_for_dhw tag.
+    const survey = makeMinimalSurvey({ dynamicMainsPressureBar: 2.5 });
+    const engine = makeEngineOutput('Combi boiler', 'combi');
+    const result = buildResimulationFromSurvey(survey, engine, 'open_vented');
+    expect(result).not.toBeNull();
+
+    const allTags = result!.resimulation.simpleInstall.events.flatMap((e) => e.tags);
+    expect(allTags).not.toContain('ch_paused_for_dhw');
+    expect(allTags).not.toContain('dhw_priority');
+    expect(allTags).not.toContain('pressure_lockout');
+  });
+
+  it('heat_pump override does not emit combi-specific tags', () => {
+    const survey = makeMinimalSurvey({ dynamicMainsPressureBar: 2.5 });
+    const engine = makeEngineOutput('Combi boiler', 'combi');
+    const result = buildResimulationFromSurvey(survey, engine, 'heat_pump');
+    expect(result).not.toBeNull();
+
+    const allTags = result!.resimulation.simpleInstall.events.flatMap((e) => e.tags);
+    expect(allTags).not.toContain('ch_paused_for_dhw');
+    expect(allTags).not.toContain('dhw_priority');
+    expect(allTags).not.toContain('pressure_lockout');
+  });
+
+  it('combi override at low pressure produces pressure_lockout tags on hot-water events', () => {
+    // Verify that combi-specific tags DO appear on combi paths (not suppressed globally).
+    const survey = makeMinimalSurvey({ dynamicMainsPressureBar: 0.3 }); // below lockout
+    const engine = makeEngineOutput('Stored water', 'stored_unvented');
+    const result = buildResimulationFromSurvey(survey, engine, 'combi');
+    expect(result).not.toBeNull();
+
+    // With pressure < 1.0 bar, combi ignition fails → pressure_lockout on draws.
+    const hwEvents = result!.resimulation.simpleInstall.events.filter(
+      (e) => ['shower', 'bath', 'kitchen_draw'].includes(e.type),
+    );
+    const hasLockout = hwEvents.some((e) => e.tags.includes('pressure_lockout'));
+    expect(hasLockout).toBe(true);
+  });
+});

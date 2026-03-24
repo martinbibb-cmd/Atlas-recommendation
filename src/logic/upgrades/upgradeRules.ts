@@ -16,6 +16,35 @@ import type { HouseholdComposition } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendUpgradesInputs, RecommendedUpgrade } from './types';
 import type { HeatSourceBehaviourV1 } from '../../engine/modules/HeatSourceBehaviourModel';
 
+// ─── Physics constants ────────────────────────────────────────────────────────
+
+/**
+ * Specific heat capacity of water (kJ / kg·K).
+ * Used in the DHW kW ↔ flow-rate conversion:
+ *   P (kW) = flow (L/min) × WATER_CP_KJ_KG_K × ΔT / 60
+ */
+const WATER_CP_KJ_KG_K = 4.186;
+
+/**
+ * Standard UK DHW temperature rise (°C): cold inlet 10 °C → combi delivery 50 °C.
+ * Used when deriving required combi output from a target flow rate.
+ */
+const DHW_DELTA_T_C = 40;
+
+/**
+ * Minimum comfortable single-outlet flow (L/min) for a shower or kitchen draw.
+ * Mirrors `COMBI_MIN_SHOWER_LPM` in hotWaterOutcomeRules.ts — kept as a local
+ * constant here to avoid a circular import; must stay in sync if that value changes.
+ */
+const SIZING_SINGLE_OUTLET_FLOOR_LPM = 8;
+
+/**
+ * Minimum adequate flow per outlet (L/min) when two outlets run simultaneously.
+ * Mirrors the `COMBI_ADEQUATE_OUTLET_LPM` threshold in HeatSourceBehaviourModel.ts
+ * (the gate for `canServeSimultaneousDhwEvents`) — kept local for the same reason.
+ */
+const SIZING_ADEQUATE_LPM_PER_OUTLET = 6;
+
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
 /** Total hot-water shortfall events (reduced + conflict). */
@@ -40,18 +69,102 @@ function occupancyFromComposition(c: HouseholdComposition): number {
   );
 }
 
-/** Return a cylinder size in litres appropriate for the household and system. */
+/** Standard cylinder volume bands (litres) used to round recommendations up. */
+const CYLINDER_BANDS_LITRES = [120, 150, 180, 210, 250, 300] as const;
+
+/** Round a raw volume up to the nearest standard cylinder band. */
+function roundUpToCylinderBand(litres: number): number {
+  return CYLINDER_BANDS_LITRES.find((b) => b >= litres) ?? 300;
+}
+
+/**
+ * Derive peak clustered demand (litres) from the classified event schedule.
+ *
+ * Slides a 2-hour window over all draw events that carry `requiredLitres`
+ * data (stored-water / heat-pump paths), totalling gross demand and crediting
+ * the recovery that occurs in the gaps between consecutive events.  The
+ * result is the minimum cylinder size that would have served the most
+ * demanding cluster, plus a 20 L safety margin.
+ *
+ * Returns undefined when no volume data is available (e.g. combi events).
+ */
+function deriveClusteredPeakLitres(
+  inputs: RecommendUpgradesInputs,
+): number | undefined {
+  const CLUSTER_WINDOW_MINUTES = 120;
+  const DEMAND_SAFETY_MARGIN_LITRES = 20;
+
+  const b = behaviour(inputs);
+  const recoveryRateLph =
+    b?.boilerCylinder?.coilRecoveryRateLph ??
+    b?.heatPumpCylinder?.recoveryRateLph;
+
+  if (recoveryRateLph == null || recoveryRateLph <= 0) return undefined;
+
+  const drawEvents = (inputs.outcomes.events ?? [])
+    .filter((e) => e.metrics?.requiredLitres != null)
+    .sort((a, bEvt) => a.startMinute - bEvt.startMinute);
+
+  if (drawEvents.length === 0) return undefined;
+
+  let maxNetDemand = 0;
+
+  for (let i = 0; i < drawEvents.length; i++) {
+    const windowStart = drawEvents[i].startMinute;
+    const windowEnd = windowStart + CLUSTER_WINDOW_MINUTES;
+
+    const inWindow = drawEvents.filter(
+      (e) => e.startMinute >= windowStart && e.startMinute < windowEnd,
+    );
+
+    // Gross demand for all events in this window.
+    const gross = inWindow.reduce(
+      (sum, e) => sum + (e.metrics!.requiredLitres as number),
+      0,
+    );
+
+    // Recovery credit: recovery during each inter-event gap inside the window.
+    let interEventRecovery = 0;
+    for (let j = 1; j < inWindow.length; j++) {
+      const prev = inWindow[j - 1];
+      const curr = inWindow[j];
+      const gapMinutes = curr.startMinute - (prev.startMinute + prev.durationMinutes);
+      if (gapMinutes > 0) {
+        interEventRecovery += (gapMinutes / 60) * recoveryRateLph;
+      }
+    }
+
+    const netDemand = Math.max(0, gross - interEventRecovery);
+    maxNetDemand = Math.max(maxNetDemand, netDemand);
+  }
+
+  if (maxNetDemand <= 0) return undefined;
+
+  return maxNetDemand + DEMAND_SAFETY_MARGIN_LITRES;
+}
+
+/**
+ * Return a cylinder size in litres appropriate for the household and system.
+ *
+ * Sizing strategy (in priority order):
+ *   1. Peak clustered demand from classified events — used as the primary
+ *      driver when shortfall events are present and volume data is available.
+ *      Occupancy-based recommendation acts as a floor.
+ *   2. Occupancy-based fallback — used when no demand data is available or
+ *      when no shortfall events occurred (cylinder is already adequate).
+ *
+ * The result is always rounded up to a standard cylinder band.
+ */
 function deriveCylinderSizeLitres(inputs: RecommendUpgradesInputs): number {
   const { systemSpec, householdComposition, bathUse } = inputs;
 
-  // Derive occupancy count — default to 2 (smallest common household: couple/pair)
-  // when no composition data is available, to avoid over-sizing recommendations.
+  // ── Occupancy-based baseline (always computed as a floor) ────────────────
+  // Derive occupancy count — default to 2 when no composition data.
   let occupancy = 2;
   if (householdComposition) {
     occupancy = occupancyFromComposition(householdComposition);
   }
 
-  // Base size from occupancy
   let baseLitres: number;
   if (occupancy <= 2) {
     baseLitres = 150;
@@ -78,7 +191,23 @@ function deriveCylinderSizeLitres(inputs: RecommendUpgradesInputs): number {
     baseLitres = Math.max(baseLitres - 30, 120);
   }
 
-  return baseLitres;
+  const occupancyBasedLitres = baseLitres;
+
+  // ── Peak clustered demand (primary driver when shortfall events exist) ────
+  // Only consult demand data when the classifier has flagged actual shortfall
+  // events — that is when the occupancy heuristic is provably insufficient and
+  // we have real cluster data to derive from.
+  const shortfall = hwShortfallCount(inputs);
+  if (shortfall > 0) {
+    const peakLitres = deriveClusteredPeakLitres(inputs);
+    if (peakLitres != null) {
+      // Demand-derived size is the primary recommendation; occupancy is the floor.
+      return roundUpToCylinderBand(Math.max(peakLitres, occupancyBasedLitres));
+    }
+  }
+
+  // Fallback: occupancy-based recommendation, rounded to a standard band.
+  return roundUpToCylinderBand(occupancyBasedLitres);
 }
 
 /**
@@ -140,12 +269,39 @@ export function ruleCombiSize(
     };
   }
 
-  // Determine target output.
-  // Standard residential combis top out at ~30–32 kW for DHW; the next common
-  // band is 35 kW, which meaningfully increases sustained flow rate.
-  // If the current output is already ≥ 32 kW, keep it (no further upsizing needed).
+  // Physics-based output requirement from the concurrent demand profile.
+  //
+  // Required DHW flow:
+  //   - Single bathroom (1 outlet): SIZING_SINGLE_OUTLET_FLOOR_LPM = 8 lpm
+  //   - Two or more bathrooms (2 outlets): 2 × SIZING_ADEQUATE_LPM_PER_OUTLET = 12 lpm
+  //
+  // Required output (kW): P = flow_lpm × WATER_CP_KJ_KG_K × DHW_DELTA_T_C / 60
+  //
+  // Spot-checks:
+  //   Single outlet: ceil(8 × 4.186 × 40 / 60) = ceil(22.3) = 23 kW → 24 kW band
+  //   Dual outlets:  ceil(12 × 4.186 × 40 / 60) = ceil(33.5) = 34 kW → 35 kW band
+
   const currentOutputKw = inputs.systemSpec.heatOutputKw ?? 24;
-  const targetKw = currentOutputKw < 32 ? 35 : currentOutputKw;
+
+  const concurrentOutlets = Math.max(1, Math.min(inputs.bathroomCount ?? 1, 2));
+  const requiredFlowLpm =
+    concurrentOutlets === 1
+      ? SIZING_SINGLE_OUTLET_FLOOR_LPM
+      : concurrentOutlets * SIZING_ADEQUATE_LPM_PER_OUTLET;
+
+  const requiredOutputKw = Math.ceil(requiredFlowLpm * WATER_CP_KJ_KG_K * DHW_DELTA_T_C / 60);
+
+  // If the demand profile does not exceed the current output, the shortfall has
+  // a different root cause (mains conditions, system condition, controls) and
+  // those rules address it.  Do not recommend a combi that is already large
+  // enough on paper.
+  if (requiredOutputKw <= currentOutputKw) {
+    return null;
+  }
+
+  // Map to the smallest standard combi band that meets the required output.
+  const COMBI_BANDS_KW = [24, 28, 30, 32, 35, 40] as const;
+  const targetKw = COMBI_BANDS_KW.find((b) => b >= requiredOutputKw) ?? 40;
 
   // When the behaviour model shows the combi cannot serve simultaneous draws,
   // surface that as the specific cause in the reason string.
