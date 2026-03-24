@@ -376,7 +376,7 @@ export function buildSystemTopologyFromSpec(
       }
     : undefined;
 
-  const topology: SystemTopology = { appliance, emitters, storage, ...(drawOff !== undefined ? { drawOff } : {}) };
+  const topology: SystemTopology = { appliance, emitters, storage, drawOff };
 
   // Validate hard rules before returning — fail fast if data is inconsistent.
   assertTopologyConsistency(topology);
