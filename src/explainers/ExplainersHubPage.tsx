@@ -22,9 +22,9 @@ import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import ExplainerPanel from './educational/ExplainerPanel';
 import { EnergyLiteracyPanel } from '../features/explainers/energy';
-import { runEngine } from '../engine/Engine';
 import type { DerivedFloorplanOutput } from '../components/floorplan/floorplanDerivations';
-import UnifiedSimulatorView from '../components/simulator/UnifiedSimulatorView';
+import { useSelectedFamilyData } from '../components/family-view/useSelectedFamilyData';
+import SelectedFamilyDashboard from '../components/family-view/SelectedFamilyDashboard';
 import { useGlobalMenu } from '../components/shell/GlobalMenuContext';
 import type { GlobalMenuSection } from '../components/shell/GlobalMenuContext';
 
@@ -56,6 +56,20 @@ interface Props {
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
+/**
+ * Wrapper rendered when survey data is present.  Calls the `useSelectedFamilyData`
+ * hook (which must not be called conditionally) and renders the family-bound
+ * dashboard that is the live results screen as of PR10b.
+ */
+interface SurveyFamilyDashboardProps {
+  surveyInput: EngineInputV2_3;
+}
+
+function SurveyFamilyDashboard({ surveyInput }: SurveyFamilyDashboardProps) {
+  const { data, setSelectedFamily } = useSelectedFamilyData(surveyInput);
+  return <SelectedFamilyDashboard data={data} onSelectFamily={setSelectedFamily} />;
+}
+
 // ─── View ─────────────────────────────────────────────────────────────────────
 
 export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab, floorplanOutput }: Props) {
@@ -69,13 +83,6 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
   // are handled gracefully by the adapter's optional-chaining guards.
   const surveyAdapted = useMemo(
     () => (surveyData != null ? adaptFullSurveyToSimulatorInputs(surveyData as FullSurveyModelV1) : null),
-    [surveyData],
-  );
-
-  // Run the engine once from survey data to power the advice page and compare seed.
-  // Only computed when surveyData is present; the advice CTA is hidden otherwise.
-  const engineOutput = useMemo(
-    () => (surveyData != null ? runEngine(surveyData as EngineInputV2_3).engineOutput : null),
     [surveyData],
   );
 
@@ -170,12 +177,8 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
           </div>
         </div>
 
-        {surveyData && engineOutput ? (
-          <UnifiedSimulatorView
-            engineOutput={engineOutput}
-            surveyData={surveyData as FullSurveyModelV1}
-            floorplanOutput={floorplanOutput}
-          />
+        {surveyData != null ? (
+          <SurveyFamilyDashboard surveyInput={surveyData as EngineInputV2_3} />
         ) : (
           <SimulatorDashboard
             initialSystemChoice={initialSystemChoice}

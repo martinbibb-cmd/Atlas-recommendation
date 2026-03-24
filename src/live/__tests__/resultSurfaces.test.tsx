@@ -105,11 +105,46 @@ beforeEach(() => {
 
 // ─── 1. Canonical flow — ExplainersHubPage (Simulator) ───────────────────────
 
+const SURVEY_BACKED_INPUT: FullSurveyModelV1 = {
+  postcode: 'SW1A 1AA',
+  dynamicMainsPressure: 2.5,
+  buildingMass: 'medium',
+  primaryPipeDiameter: 22,
+  heatLossWatts: 8000,
+  radiatorCount: 10,
+  hasLoftConversion: false,
+  returnWaterTemp: 45,
+  bathroomCount: 1,
+  occupancyCount: 3,
+  occupancySignature: 'professional',
+  highOccupancy: false,
+  preferCombi: true,
+  mainsDynamicFlowLpm: 18,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+} as any as FullSurveyModelV1;
+
 describe('resultSurfaces — ExplainersHubPage (Simulator)', () => {
   it('renders "Simulator" as the page title (not "Simulator Dashboard")', () => {
     render(<ExplainersHubPage />);
     expect(screen.getByRole('heading', { name: /^simulator$/i })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: /simulator dashboard/i })).toBeNull();
+  });
+
+  it('survey-backed: renders SelectedFamilyDashboard as the live results view', () => {
+    render(<ExplainersHubPage surveyData={SURVEY_BACKED_INPUT} />);
+    expect(screen.queryByTestId('selected-family-dashboard')).not.toBeNull();
+  });
+
+  it('survey-backed: renders the family selector pills', () => {
+    render(<ExplainersHubPage surveyData={SURVEY_BACKED_INPUT} />);
+    expect(screen.queryByTestId('family-pill-combi')).not.toBeNull();
+    expect(screen.queryByTestId('family-pill-stored_water')).not.toBeNull();
+    expect(screen.queryByTestId('family-pill-heat_pump')).not.toBeNull();
+  });
+
+  it('survey-backed: still renders "Simulator" page heading', () => {
+    render(<ExplainersHubPage surveyData={SURVEY_BACKED_INPUT} />);
+    expect(screen.getByRole('heading', { name: /^simulator$/i })).toBeTruthy();
   });
 });
 
