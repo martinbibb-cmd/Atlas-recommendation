@@ -52,6 +52,7 @@ import type {
   BomItem,
   GridFlexResult,
 } from '../schema/EngineInputV2_3';
+import type { CombiDhwPhaseResult } from '../modules/CombiDhwPhaseModel';
 import type { SystemTopology } from '../topology/SystemTopology';
 
 /**
@@ -74,6 +75,22 @@ export interface DhwResultEnvelope {
   readonly sourcePath: string;
   /** Owned by the combi runner; `undefined` in hydronic runners. */
   readonly combiDhwV1?: CombiDhwV1Result;
+  /**
+   * PR5: Combi direct-DHW service-switching phase model.
+   *
+   * Present for the combi runner only; `undefined` in hydronic runners.
+   *
+   * Captures the multi-phase combi DHW sequence:
+   *   1. CH interruption (diverter valve switches)
+   *   2. Ignition / stabilisation (HEX temperature rising)
+   *   3. Direct DHW delivery (tap served by appliance, not a store)
+   *   4. Purge / fan overrun (post-delivery fan cycle)
+   *   5. Return to CH
+   *
+   * `combiDhwPhase.usedStoredDhwPath` is always `false` — a machine-checkable
+   * assertion that the stored-water draw-off path was not invoked.
+   */
+  readonly combiDhwPhase?: CombiDhwPhaseResult;
   /** Owned by stored-system runners; `undefined` in the combi runner. */
   readonly storedDhwV1?: StoredDhwV1Result;
   /**
