@@ -53,6 +53,7 @@ import { runCondensingStateModule } from '../modules/CondensingStateModule';
 import { runCondensingRuntimeModule } from '../modules/CondensingRuntimeModule';
 import type { SystemTopology } from '../topology/SystemTopology';
 import type { FamilyRunnerResult } from './types';
+import { buildDemandHeatKw96, computeAverageLoadFraction } from './sharedRunnerUtils';
 
 /**
  * Runs all engine modules for a regular (open-vented) boiler installation.
@@ -156,18 +157,7 @@ export function runRegularStoredSystemModel(
       )
     : undefined;
 
-  const demandHeatKw96 = lifestyle.hourlyData.length > 0
-    ? Array.from({ length: 96 }, (_, i) => {
-        const minute = i * 15;
-        const hour = Math.floor(minute / 60);
-        const frac = (minute % 60) / 60;
-        const h0 = hour % 24;
-        const h1 = (hour + 1) % 24;
-        const d0 = lifestyle.hourlyData[h0]?.demandKw ?? 0;
-        const d1 = lifestyle.hourlyData[h1]?.demandKw ?? 0;
-        return parseFloat(Math.max(0, d0 + (d1 - d0) * frac).toFixed(3));
-      })
-    : undefined;
+  const demandHeatKw96 = buildDemandHeatKw96(lifestyle);
 
   const boilerEfficiencyModelV1 = boilerInput
     ? buildBoilerEfficiencyModelV1({
@@ -202,18 +192,10 @@ export function runRegularStoredSystemModel(
     ? runSolarBoostModule(input)
     : undefined;
 
-  let _lifestylePeak = 0;
-  let _lifestyleSum = 0;
-  for (const h of lifestyle.hourlyData) {
-    if (h.demandKw > _lifestylePeak) _lifestylePeak = h.demandKw;
-    _lifestyleSum += h.demandKw;
-  }
   const condensingState = runCondensingStateModule({
     flowTempC: input.supplyTempC ?? 70,
     returnTempC: legacyInfrastructure.onePipe?.averageReturnTempC,
-    averageLoadFraction: _lifestylePeak > 0
-      ? (_lifestyleSum / lifestyle.hourlyData.length) / _lifestylePeak
-      : undefined,
+    averageLoadFraction: computeAverageLoadFraction(lifestyle),
   });
 
   const condensingRuntime = runCondensingRuntimeModule({
