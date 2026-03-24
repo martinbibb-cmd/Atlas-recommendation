@@ -4,11 +4,12 @@
  * Shows the best-overall recommendation with:
  *   - Title: "Best for your home"
  *   - System name + suitability badge
- *   - Top 3 reasons why
+ *   - Top 3 reasons why (family-aware + context-tailored)
  *   - One trade-off line
  *   - Upgrade interventions
  *
  * Data source: RecommendationResult.bestOverall and interventions (PR11).
+ * Context: SurveyorContext flags shift emphasis toward what the customer cares about.
  *
  * Language rules:
  *   - Use "your home" and "how your home is used"
@@ -21,6 +22,7 @@ import type {
   RecommendationDecision,
   RecommendationIntervention,
 } from '../../engine/recommendation/RecommendationModel';
+import type { SurveyorContext } from './presentationTypes';
 import { getLimiterHumanCopy } from './limiterHumanLanguage';
 import './RecommendationCard.css';
 
@@ -41,28 +43,121 @@ const SUITABILITY_BADGE: Record<string, { label: string; cls: string }> = {
   not_recommended:       { label: 'Worth discussing further', cls: 'discuss' },
 };
 
-/** Derives the top 3 human-readable strengths from objective scores. */
-function topStrengths(decision: RecommendationDecision): string[] {
-  const strengths: { label: string; score: number }[] = [
-    { label: 'Handles busy mornings without running short',   score: decision.objectiveScores.performance },
-    { label: 'Heating stays on while hot water runs',        score: decision.objectiveScores.reliability },
-    { label: 'Built to last with fewer high-wear moments',   score: decision.objectiveScores.longevity },
-    { label: 'Simple to set and forget',                     score: decision.objectiveScores.ease_of_control },
-    { label: 'Lower carbon output for your home',            score: decision.objectiveScores.eco },
-    { label: 'Straightforward installation for your home',   score: decision.objectiveScores.disruption },
-    { label: 'Compact — fits your available space',          score: decision.objectiveScores.space },
+// ─── Family-aware strength copy ───────────────────────────────────────────────
+
+/**
+ * Per-family strength statements keyed by objective.
+ * These replace generic copy with specific claims the family actually delivers.
+ */
+const FAMILY_STRENGTH_COPY: Record<string, Partial<Record<string, string>>> = {
+  stored_water: {
+    performance:     'Hot water for everyone, even in a busy morning',
+    reliability:     'Heating runs uninterrupted — no switching between heating and hot water',
+    longevity:       'Fewer high-demand moments means less wear on the boiler',
+    ease_of_control: 'Set once and the cylinder maintains its own schedule',
+    eco:             'Lower peak demand makes it easier to add renewables later',
+    disruption:      'Works with your existing pipework in most cases',
+    space:           'Cylinder can often replace an existing unit in the same location',
+  },
+  heat_pump: {
+    performance:     'Consistent hot water with lower running temperatures',
+    reliability:     'No combustion — fewer components that can wear or fail',
+    longevity:       'Heat pump compressors typically last 15–20 years',
+    ease_of_control: 'Smart controls keep efficiency high automatically',
+    eco:             'Runs on electricity — compatible with solar panels and green tariffs',
+    disruption:      'External unit is the main installation work; indoor disruption is minimal',
+    space:           'Outdoor space for the unit is the main space consideration',
+  },
+  combi: {
+    performance:     'Hot water on demand — no waiting for a cylinder to heat',
+    reliability:     'No stored hot water to lose overnight',
+    longevity:       'Fewer components than a full system boiler setup',
+    ease_of_control: 'No cylinder timer to manage — simpler to run',
+    eco:             'Modern condensing combis recover heat from flue gases',
+    disruption:      'Straightforward swap-out in most homes',
+    space:           'Compact — no cylinder needed',
+  },
+  open_vented: {
+    performance:     'Proven in older homes with existing tank infrastructure',
+    reliability:     'Works at low mains pressure — suitable for most properties',
+    longevity:       'Simple open system is well understood and straightforward to service',
+    ease_of_control: 'Standard timer controls — familiar to most occupants',
+    eco:             'Compatible with solar thermal diverter systems',
+    disruption:      'Keeps the existing loft-tank arrangement in place',
+    space:           'Uses existing loft space already allocated to the tank',
+  },
+};
+
+/** Default strength copy used when no family-specific version exists. */
+const DEFAULT_STRENGTH_COPY: Record<string, string> = {
+  performance:     'Handles busy mornings without running short',
+  reliability:     'Heating stays on while hot water runs',
+  longevity:       'Built to last with fewer high-wear moments',
+  ease_of_control: 'Simple to set and forget',
+  eco:             'Lower carbon output for your home',
+  disruption:      'Straightforward installation for your home',
+  space:           'Compact — fits your available space',
+};
+
+/** Derives the top 3 human-readable strengths, family-aware, context-weighted. */
+function topStrengths(
+  decision: RecommendationDecision,
+  surveyorContext: SurveyorContext,
+): string[] {
+  const familyCopy =
+    FAMILY_STRENGTH_COPY[decision.family] ?? {};
+
+  const objectives: Array<{ key: string; score: number; contextBoost: number }> = [
+    {
+      key: 'performance',
+      score: decision.objectiveScores.performance,
+      contextBoost: surveyorContext.highHotWaterUse ? 20 : 0,
+    },
+    {
+      key: 'reliability',
+      score: decision.objectiveScores.reliability,
+      contextBoost: surveyorContext.wantsReliability ? 20 : 0,
+    },
+    {
+      key: 'longevity',
+      score: decision.objectiveScores.longevity,
+      contextBoost: surveyorContext.wantsReliability ? 10 : 0,
+    },
+    {
+      key: 'ease_of_control',
+      score: decision.objectiveScores.ease_of_control,
+      contextBoost: 0,
+    },
+    {
+      key: 'eco',
+      score: decision.objectiveScores.eco,
+      contextBoost: surveyorContext.futureProofingImportant ? 20 : 0,
+    },
+    {
+      key: 'disruption',
+      score: decision.objectiveScores.disruption,
+      contextBoost: surveyorContext.costSensitive ? 10 : 0,
+    },
+    {
+      key: 'space',
+      score: decision.objectiveScores.space,
+      contextBoost: surveyorContext.spaceIsLimited ? 20 : 0,
+    },
   ];
 
-  return strengths
-    .filter((s) => s.score >= 60)
-    .sort((a, b) => b.score - a.score)
+  return objectives
+    .filter((o) => o.score >= 60)
+    .sort((a, b) => (b.score + b.contextBoost) - (a.score + a.contextBoost))
     .slice(0, 3)
-    .map((s) => s.label);
+    .map((o) => familyCopy[o.key] ?? DEFAULT_STRENGTH_COPY[o.key] ?? o.key);
 }
 
-/** Derives the primary trade-off using evidence trace limiters or space/disruption scores. */
-function primaryTradeOff(decision: RecommendationDecision): string | null {
-  // Find the first soft limiter (not a hard-stop) to surface as a trade-off
+/** Derives the primary trade-off, with context-aware framing. */
+function primaryTradeOff(
+  decision: RecommendationDecision,
+  surveyorContext: SurveyorContext,
+): string | null {
+  // Soft limiters are surfaced as trade-offs, not blocking reasons
   const hardStopSet = new Set(decision.evidenceTrace.hardStopLimiters);
   const softLimiters = decision.evidenceTrace.limitersConsidered.filter(
     (id) => !hardStopSet.has(id),
@@ -71,8 +166,18 @@ function primaryTradeOff(decision: RecommendationDecision): string | null {
     const copy = getLimiterHumanCopy(softLimiters[0]);
     return copy.headline;
   }
-  if (decision.objectiveScores.space < 50) return 'Needs space for a cylinder — worth planning in early';
-  if (decision.objectiveScores.disruption < 50) return 'Some installation work will be needed — one-time effort';
+
+  // Fall back to objective-derived framing
+  if (decision.objectiveScores.space < 50) {
+    return surveyorContext.spaceIsLimited
+      ? 'Space for the cylinder needs to be confirmed — this is the one thing to solve early'
+      : 'Needs space for a cylinder — worth planning in early';
+  }
+  if (decision.objectiveScores.disruption < 50) {
+    return surveyorContext.costSensitive
+      ? "Installation involves some work, but it's a one-time cost"
+      : 'Some installation work will be needed — one-time effort';
+  }
   return null;
 }
 
@@ -81,18 +186,24 @@ function primaryTradeOff(decision: RecommendationDecision): string | null {
 interface Props {
   bestOverall: RecommendationDecision;
   interventions: readonly RecommendationIntervention[];
+  /** Surveyor context flags — adjust copy emphasis to match household priorities. */
+  surveyorContext?: SurveyorContext;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function RecommendationCard({ bestOverall, interventions }: Props) {
+export default function RecommendationCard({
+  bestOverall,
+  interventions,
+  surveyorContext = { highHotWaterUse: false, futureProofingImportant: false, spaceIsLimited: false, wantsReliability: false, costSensitive: false },
+}: Props) {
   const display = FAMILY_DISPLAY[bestOverall.family] ?? {
     label: bestOverall.family,
     icon: '🏠',
   };
   const badge = SUITABILITY_BADGE[bestOverall.suitability] ?? SUITABILITY_BADGE.suitable;
-  const strengths = topStrengths(bestOverall);
-  const tradeOff = primaryTradeOff(bestOverall);
+  const strengths = topStrengths(bestOverall, surveyorContext);
+  const tradeOff = primaryTradeOff(bestOverall, surveyorContext);
 
   // Top 2 interventions most relevant to this family
   const relevantInterventions = interventions

@@ -14,6 +14,7 @@
  */
 
 import type { RecommendationDecision } from '../../engine/recommendation/RecommendationModel';
+import type { SurveyorContext } from './presentationTypes';
 import { getLimiterHumanCopy } from './limiterHumanLanguage';
 import './WhyNotPanel.css';
 
@@ -32,16 +33,35 @@ function familyLabel(family: string): string {
   return FAMILY_LABEL[family] ?? family;
 }
 
+/**
+ * Returns a tailored "resolve this" action sentence based on context.
+ * For heat pumps, adjusts framing based on future-proofing flag.
+ */
+function resolveAction(family: string, surveyorContext: SurveyorContext): string {
+  if (family === 'heat_pump' && surveyorContext.futureProofingImportant) {
+    return 'This is still the right long-term direction — the steps to get there are clear.';
+  }
+  if (family === 'heat_pump') {
+    return 'Resolve the infrastructure and this becomes a realistic future option.';
+  }
+  return 'Resolve this and it becomes a realistic option.';
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
   /** Candidates that were excluded from the primary recommendation. */
   disqualifiedCandidates: readonly RecommendationDecision[];
+  /** Surveyor context flags — adjust action sentence framing. */
+  surveyorContext?: SurveyorContext;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function WhyNotPanel({ disqualifiedCandidates }: Props) {
+export default function WhyNotPanel({
+  disqualifiedCandidates,
+  surveyorContext = { highHotWaterUse: false, futureProofingImportant: false, spaceIsLimited: false, wantsReliability: false, costSensitive: false },
+}: Props) {
   if (disqualifiedCandidates.length === 0) {
     return null;
   }
@@ -62,7 +82,7 @@ export default function WhyNotPanel({ disqualifiedCandidates }: Props) {
               <p className="why-not__reason">{reason}</p>
               {blockingLimiterId && (
                 <p className="why-not__action">
-                  Resolve this and it becomes a realistic option.
+                  {resolveAction(candidate.family, surveyorContext)}
                 </p>
               )}
             </div>

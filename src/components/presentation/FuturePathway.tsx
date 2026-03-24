@@ -6,11 +6,15 @@
  *
  * Example: Stored system → pipe upgrade → heat pump ready
  *
+ * Copy is context-aware — the future pathway sentence changes based on
+ * whether future-proofing, cost, or reliability is the customer's priority.
+ *
  * Data source: RecommendationResult.interventions (PR11).
  */
 
 import type { RecommendationIntervention } from '../../engine/recommendation/RecommendationModel';
 import type { RecommendationDecision } from '../../engine/recommendation/RecommendationModel';
+import type { SurveyorContext } from './presentationTypes';
 import './FuturePathway.css';
 
 // ─── Family display helpers ───────────────────────────────────────────────────
@@ -24,17 +28,70 @@ const FAMILY_SHORT: Record<string, string> = {
   open_vented:  'Tank-fed system',
 };
 
+// ─── Context-aware future pathway copy ───────────────────────────────────────
+
+interface FutureStepCopy {
+  label: string;
+  detail: string;
+}
+
+function deriveFutureStepCopy(
+  family: string,
+  surveyorContext: SurveyorContext,
+): FutureStepCopy {
+  if (family === 'heat_pump') {
+    // Already on the best long-term path
+    return {
+      label: 'Grid-interactive',
+      detail: surveyorContext.costSensitive
+        ? 'Time-of-use tariffs can cut running costs further when the system is running efficiently.'
+        : 'Time-of-use tariffs and grid export when the system is running efficiently.',
+    };
+  }
+
+  // Heat pump as next step — tone changes based on priorities
+  if (surveyorContext.futureProofingImportant) {
+    return {
+      label: 'Heat pump ready',
+      detail: "This system is designed with that next step in mind — the infrastructure will be in place when you're ready.",
+    };
+  }
+  if (surveyorContext.costSensitive) {
+    return {
+      label: 'Heat pump pathway',
+      detail: 'A heat pump becomes an option once the home is ready — no wasted investment in the meantime.',
+    };
+  }
+  if (surveyorContext.wantsReliability) {
+    return {
+      label: 'Heat pump ready',
+      detail: 'Heat pumps are simpler mechanically than gas boilers — fewer parts that can fail over time.',
+    };
+  }
+  return {
+    label: 'Heat pump ready',
+    detail: 'Once the infrastructure is in place, a heat pump becomes a realistic next step.',
+  };
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
   bestOverall: RecommendationDecision;
   interventions: readonly RecommendationIntervention[];
+  /** Surveyor context flags — adjust future pathway copy to match household priorities. */
+  surveyorContext?: SurveyorContext;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function FuturePathway({ bestOverall, interventions }: Props) {
+export default function FuturePathway({
+  bestOverall,
+  interventions,
+  surveyorContext = { highHotWaterUse: false, futureProofingImportant: false, spaceIsLimited: false, wantsReliability: false, costSensitive: false },
+}: Props) {
   const nowLabel = FAMILY_SHORT[bestOverall.family] ?? bestOverall.family;
+  const futureStep = deriveFutureStepCopy(bestOverall.family, surveyorContext);
 
   // Infrastructure and hydraulic upgrades are most relevant for future-pathway.
   // Deduplicate by ID to avoid repeated steps in the strip.
@@ -52,14 +109,6 @@ export default function FuturePathway({ bestOverall, interventions }: Props) {
       return true;
     })
     .slice(0, 2);
-
-  // Simple future step — if HP is not already the best, suggest heat pump readiness
-  const futureStep =
-    bestOverall.family !== 'heat_pump' ? 'Heat pump ready' : 'Grid-interactive';
-  const futureStepDetail =
-    bestOverall.family !== 'heat_pump'
-      ? 'Once infrastructure is in place, a heat pump becomes a realistic next step.'
-      : 'Time-of-use tariffs and grid export when the system is running efficiently.';
 
   return (
     <section className="future-pathway" aria-label="Future upgrade pathway">
@@ -87,8 +136,8 @@ export default function FuturePathway({ bestOverall, interventions }: Props) {
           <div className="future-pathway__connector" aria-hidden="true">→</div>
           <span className="future-pathway__step-dot" aria-hidden="true" />
           <span className="future-pathway__step-label">Future option</span>
-          <span className="future-pathway__step-name">{futureStep}</span>
-          <span className="future-pathway__step-detail">{futureStepDetail}</span>
+          <span className="future-pathway__step-name">{futureStep.label}</span>
+          <span className="future-pathway__step-detail">{futureStep.detail}</span>
         </div>
       </div>
     </section>
