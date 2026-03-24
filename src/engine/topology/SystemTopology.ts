@@ -60,17 +60,23 @@ export interface CombiApplianceModel {
 }
 
 /**
- * A storage-charging appliance (regular, system, heat pump, open-vented).
+ * A hydronic appliance (regular, system, heat pump, open-vented).
  *
- * These appliances charge a storage cylinder or buffer for DHW; they never
- * serve a draw-off point directly.  The `directDrawOffService: false` literal
- * makes this constraint statically enforceable — any code path that attempts
- * to route a draw-off through one of these appliance types will fail at the
- * type level.
+ * These appliances deliver heat into the primary hydronic circuit — either
+ * charging a storage cylinder/buffer for DHW or driving emitters for CH.
+ * They never serve a draw-off point directly; that role belongs exclusively
+ * to combi appliances.  The `directDrawOffService: false` literal makes this
+ * constraint statically enforceable — any code path that attempts to route a
+ * draw-off through one of these appliance types will fail at the type level.
+ *
+ * The name "hydronic" is intentional: regular boilers, system boilers, and
+ * heat pumps are all primarily "heat into hydronic circuit" devices.  Calling
+ * them "storage charging" would be too DHW-specific and would not accommodate
+ * buffer-only or heating-only configurations in future topology variants.
  */
-export interface StorageChargingApplianceModel {
+export interface HydronicApplianceModel {
   readonly family: Exclude<ApplianceFamily, 'combi'>;
-  /** Non-combi appliances cannot serve draw-offs directly. */
+  /** Hydronic appliances cannot serve draw-offs directly. */
   readonly directDrawOffService: false;
   /** Peak rated output in kW (nameplate / design value). */
   readonly nominalOutputKw: number;
@@ -85,9 +91,9 @@ export interface StorageChargingApplianceModel {
  * specific appliance variant:
  *
  *   if (appliance.family === 'combi') { // CombiApplianceModel }
- *   if (!appliance.directDrawOffService) { // StorageChargingApplianceModel }
+ *   if (!appliance.directDrawOffService) { // HydronicApplianceModel }
  */
-export type ApplianceModel = CombiApplianceModel | StorageChargingApplianceModel;
+export type ApplianceModel = CombiApplianceModel | HydronicApplianceModel;
 
 // ─── Emitter model ────────────────────────────────────────────────────────────
 
@@ -196,7 +202,7 @@ export interface DrawOffModel {
  *
  * Hard rules (enforced by `assertTopologyConsistency`):
  *   1. Only a combi appliance may carry `drawOff.source === 'combi_direct'`.
- *   2. Non-combi appliances must be accompanied by a storage vessel.
+ *   2. Non-combi Atlas DHW topologies must include a DHW storage load.
  *   3. Storage vessels must declare `role === 'load'` (never a heat source).
  *   4. All emitters must declare `purpose === 'ch_only'`.
  */
@@ -211,8 +217,17 @@ export interface SystemTopology {
    * Must be absent (or omitted) for pure combi systems with no buffer.
    */
   readonly storage?: StorageLoadModel;
-  /** How domestic hot water reaches the draw-off point. */
-  readonly drawOff: DrawOffModel;
+  /**
+   * How domestic hot water reaches the draw-off point.
+   *
+   * Present only when the appliance can serve draw-off fixtures directly
+   * (i.e. combi systems).  For hydronic appliances (regular, system, heat pump,
+   * open-vented), the delivery chain is appliance → storage → fixture: the
+   * appliance is not topologically connected to the draw-off point, so this
+   * field is absent.  Delivery fixtures still exist in the building; they are
+   * just not an appliance-topology concern for non-combi systems.
+   */
+  readonly drawOff?: DrawOffModel;
 }
 
 // ─── Consistency assertion ────────────────────────────────────────────────────
@@ -226,7 +241,7 @@ export interface SystemTopology {
  *
  * Rules enforced:
  *   1. `combi_direct` draw-off is only permitted when `appliance.family === 'combi'`.
- *   2. Non-combi appliances require a storage vessel.
+ *   2. Non-combi Atlas DHW topologies must include a DHW storage load.
  *   3. Storage role must always be `'load'` (compile-time + runtime guard).
  *   4. Every emitter must declare `purpose === 'ch_only'`.
  */
@@ -234,7 +249,7 @@ export function assertTopologyConsistency(topology: SystemTopology): void {
   const { appliance, emitters, storage, drawOff } = topology;
 
   // Rule 1: only combi can serve direct draw-off
-  if (drawOff.source === 'combi_direct' && appliance.family !== 'combi') {
+  if (drawOff !== undefined && drawOff.source === 'combi_direct' && appliance.family !== 'combi') {
     throw new Error(
       `Topology violation: draw-off source is 'combi_direct' but appliance family is '${appliance.family}'. ` +
         `Only a combi appliance may serve draw-offs directly.`
@@ -244,8 +259,8 @@ export function assertTopologyConsistency(topology: SystemTopology): void {
   // Rule 2: non-combi appliances must have associated storage for DHW
   if (appliance.family !== 'combi' && storage === undefined) {
     throw new Error(
-      `Topology violation: appliance family '${appliance.family}' must have associated storage for DHW. ` +
-        `Regular, system, heat-pump, and open-vented appliances charge storage — they do not serve draw-offs directly.`
+      `Topology violation: non-combi Atlas recommendation topologies must include a DHW storage load. ` +
+        `Appliance family '${appliance.family}' charges storage — it does not serve draw-offs directly.`
     );
   }
 
@@ -310,7 +325,7 @@ export function buildSystemTopologyFromSpec(
         directDrawOffService: false,
         nominalOutputKw: spec.systemType === 'heat_pump' ? 10 : 18,
         condensing: spec.systemType !== 'open_vented',
-      } satisfies StorageChargingApplianceModel);
+      } satisfies HydronicApplianceModel);
 
   // ── Emitters ───────────────────────────────────────────────────────────────
   // The existing input schema does not capture emitter detail at this
@@ -350,12 +365,16 @@ export function buildSystemTopologyFromSpec(
   }
 
   // ── Draw-off ───────────────────────────────────────────────────────────────
-  const drawOff: DrawOffModel = {
-    source: isCombi ? 'combi_direct' : 'store_delivery',
-    maxFlowLpm: isCombi
-      ? (spec.peakHotWaterCapacityLpm ?? 10)
-      : 10, // conservative mains-fed cylinder outlet default
-  };
+  // Only combi appliances can serve draw-off points directly.  For hydronic
+  // systems (regular, system, heat pump, open-vented) the delivery chain is
+  // appliance → storage → fixture; the appliance is not topologically
+  // connected to the draw-off outlet, so this field is intentionally absent.
+  const drawOff: DrawOffModel | undefined = isCombi
+    ? {
+        source: 'combi_direct',
+        maxFlowLpm: spec.peakHotWaterCapacityLpm ?? 10,
+      }
+    : undefined;
 
   const topology: SystemTopology = { appliance, emitters, storage, drawOff };
 
