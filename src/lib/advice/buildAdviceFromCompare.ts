@@ -19,6 +19,7 @@
 import type { EngineOutputV1, OptionCardV1 } from '../../contracts/EngineOutputV1';
 import type { CompareSeed } from '../simulator/buildCompareSeedFromSurvey';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import type { SimulatorSystemOverride } from '../simulator/buildResimulationFromSurvey';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { SimulatorSystemChoice } from '../../explainers/lego/simulator/useSystemDiagramPlayback';
 import {
@@ -287,6 +288,19 @@ export interface AdviceFromCompareResult {
    * AdviceFromCompareInput.floorplanInputs.
    */
   floorplanInsights: FloorplanInsights | null;
+  /**
+   * Physics-derived performance summary for the user's selected system family.
+   *
+   * Present when `selectedSystemOverride` was supplied in the input.  When the
+   * user has selected a family different from the engine's primary recommendation
+   * this gives the correct fuel/conversion/storage characteristics for that
+   * family, allowing the "Performance outcomes" panel to stay bound to the
+   * selected path rather than always showing the primary recommendation.
+   *
+   * null when no matching engine option is available for the selected family and
+   * a synthetic fallback could not be derived.
+   */
+  selectedSystemPerformanceSummary: PerformanceSummary | null;
 }
 
 // ─── Input type ───────────────────────────────────────────────────────────────
@@ -306,6 +320,16 @@ export interface AdviceFromCompareInput {
    * When absent, all estimates fall back to survey-only presets.
    */
   floorplanInputs?: AtlasFloorplanInputs;
+  /**
+   * When provided, a physics-derived performance summary for this system family
+   * is computed and returned as `selectedSystemPerformanceSummary`.
+   *
+   * This allows the events/upgrades panel to keep the "Performance outcomes"
+   * section keyed to the user's selected family (combi, stored_water, heat_pump,
+   * open_vented, or mixergy) rather than always showing the engine's primary
+   * recommendation.
+   */
+  selectedSystemOverride?: SimulatorSystemOverride;
 }
 
 // ─── Internal constants ───────────────────────────────────────────────────────
@@ -388,6 +412,40 @@ const OPT_ID_TO_SYSTEM_CHOICE: Partial<Record<string, SimulatorSystemChoice>> = 
   // stored_vented / regular_vented: gravity-fed open-vented cylinder systems.
   stored_vented:   'open_vented',
   regular_vented:  'open_vented',
+};
+
+/**
+ * Maps a SimulatorSystemOverride selection to the engine option IDs that
+ * represent the same family, in preference order (first match wins via `find()`).
+ *
+ * For 'mixergy' the preference order is: dedicated Mixergy option first, then
+ * fall through to the standard unvented options (same physics class) so that
+ * the performance summary reflects the correct fuel/conversion characteristics
+ * even when a dedicated 'mixergy' option is absent from the engine output.
+ *
+ * Used to find the matching OptionCardV1 when computing the performance
+ * summary for the user's selected system family.
+ */
+const SYSTEM_OVERRIDE_CANDIDATE_OPT_IDS: Partial<Record<SimulatorSystemOverride, string[]>> = {
+  combi:        ['combi'],
+  stored_water: ['stored_unvented', 'system_unvented'],
+  open_vented:  ['stored_vented', 'regular_vented'],
+  heat_pump:    ['ashp'],
+  mixergy:      ['mixergy', 'stored_unvented', 'system_unvented'],
+};
+
+/**
+ * Fallback SimulatorSystemChoice when no matching engine option exists for a
+ * selected override.  Allows `derivePerformanceSummary` to apply the correct
+ * fuel-type and conversion physics even when the engine rejected or did not
+ * produce an option for that family.
+ */
+const SYSTEM_OVERRIDE_FALLBACK_CHOICE: Partial<Record<SimulatorSystemOverride, SimulatorSystemChoice>> = {
+  combi:        'combi',
+  stored_water: 'unvented',
+  open_vented:  'open_vented',
+  heat_pump:    'heat_pump',
+  mixergy:      'mixergy',
 };
 
 /**
@@ -1182,6 +1240,30 @@ export function buildAdviceFromCompare(
     recommendationScope,
     confidenceSummary,
     floorplanInsights,
+    selectedSystemPerformanceSummary: (() => {
+      const override = input.selectedSystemOverride;
+      if (!override) return null;
+      const candidateIds = SYSTEM_OVERRIDE_CANDIDATE_OPT_IDS[override] ?? [];
+      const matchingOption = options.find(o => candidateIds.includes(o.id)) ?? null;
+      // When no matching engine option exists, build a state with the fallback
+      // system choice so that derivePerformanceSummary uses the correct fuel type
+      // and conversion physics for the selected family.
+      const fallbackChoice = SYSTEM_OVERRIDE_FALLBACK_CHOICE[override];
+      // Guard: every SimulatorSystemOverride must have a fallback choice.
+      // If this assertion fires a new override value was added without a
+      // corresponding entry in SYSTEM_OVERRIDE_FALLBACK_CHOICE.
+      if (matchingOption == null && fallbackChoice == null) {
+        return null;
+      }
+      const overrideState: SimulatorSystemState =
+        matchingOption != null
+          ? proposed
+          : {
+              ...proposed,
+              systemChoice: fallbackChoice ?? proposed.systemChoice,
+            };
+      return derivePerformanceSummary(overrideState, matchingOption);
+    })(),
   };
 }
 

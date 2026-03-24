@@ -14,7 +14,7 @@ function outcomeRows(summary: PerformanceSummary | null) {
 }
 
 export default function PerformanceOutcomesPanel({ advice }: Props) {
-  const summary = advice.bestOverall.performanceSummary;
+  const summary = advice.selectedSystemPerformanceSummary ?? advice.bestOverall.performanceSummary;
   return (
     <div className="performance-outcomes" data-testid="performance-outcomes-panel">
       <div className="performance-outcomes__header"><h2>Performance outcomes</h2><p>Live readout from the simulator-backed recommendation layer.</p></div>

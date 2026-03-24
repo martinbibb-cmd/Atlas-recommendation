@@ -944,3 +944,87 @@ describe('buildAdviceFromCompare — floorplanInsights extended fields', () => {
     expect(result.floorplanInsights?.emitterExplanationTags).toEqual([]);
   });
 });
+
+// ─── Performance outcome binding ──────────────────────────────────────────────
+
+describe('buildAdviceFromCompare — performance outcome binding', () => {
+  it('selectedSystemPerformanceSummary is null when no selectedSystemOverride is provided', () => {
+    const result = buildAdviceFromCompare(makeInput());
+    expect(result.selectedSystemPerformanceSummary).toBeNull();
+  });
+
+  it('selectedSystemPerformanceSummary reflects heat_pump physics when heat_pump override is selected', () => {
+    // Engine recommends stored_unvented (gas boiler cylinder) as primary.
+    // When the user selects heat_pump, the performance summary must reflect HP physics
+    // (COP-based, electricity tariff, high local generation impact).
+    const result = buildAdviceFromCompare(
+      makeInput({
+        engineOutput: makeEngineOutput([
+          makeOption('stored_unvented', 'viable'),
+          makeOption('ashp', 'viable'),
+        ]),
+        selectedSystemOverride: 'heat_pump',
+      }),
+    );
+
+    expect(result.selectedSystemPerformanceSummary).not.toBeNull();
+    const ps = result.selectedSystemPerformanceSummary!;
+    // Heat pump performance: COP-based conversion ratio (e.g. "1 kWh → 3 kWh heat")
+    // and high local generation impact.
+    expect(ps.optimisationPotential).toBe('high');
+    expect(ps.localGenerationImpact).toBe('high');
+    // efficiencyBand must be 'optimal' for heat pump (COP ≥ 1)
+    expect(ps.efficiencyBand).toBe('optimal');
+  });
+
+  it('selectedSystemPerformanceSummary for combi is not heat_pump (no COP / no storage impact)', () => {
+    // Engine recommends ashp as primary. When the user selects combi, the performance
+    // summary must reflect gas-boiler physics, not heat-pump COP physics.
+    const result = buildAdviceFromCompare(
+      makeInput({
+        engineOutput: makeEngineOutput([
+          makeOption('ashp', 'viable'),
+          makeOption('combi', 'caution'),
+        ]),
+        selectedSystemOverride: 'combi',
+      }),
+    );
+
+    expect(result.selectedSystemPerformanceSummary).not.toBeNull();
+    const ps = result.selectedSystemPerformanceSummary!;
+    // Combi: gas boiler, no stored cylinder → limited optimisation potential.
+    expect(ps.localGenerationImpact).not.toBe('high');
+    expect(ps.optimisationPotential).toBe('limited');
+  });
+
+  it('heat_pump override produces HP physics even when no ashp option exists in engine output', () => {
+    // The engine may have rejected heat pump (no 'ashp' option).
+    // When the user selects heat_pump override, the fallback state should still
+    // yield heat-pump performance physics (COP-based, not gas-boiler).
+    const result = buildAdviceFromCompare(
+      makeInput({
+        engineOutput: makeEngineOutput([makeOption('combi', 'viable')]), // no ashp option
+        selectedSystemOverride: 'heat_pump',
+      }),
+    );
+
+    expect(result.selectedSystemPerformanceSummary).not.toBeNull();
+    const ps = result.selectedSystemPerformanceSummary!;
+    // Fallback to heat_pump system choice: must still yield HP physics.
+    expect(ps.efficiencyBand).toBe('optimal');
+    expect(ps.localGenerationImpact).toBe('high');
+  });
+
+  it('bestOverall.performanceSummary is unchanged regardless of selectedSystemOverride', () => {
+    // The bestOverall card must always reflect the primary engine recommendation,
+    // not the user's selected override.
+    const withoutOverride = buildAdviceFromCompare(makeInput());
+    const withOverride = buildAdviceFromCompare(makeInput({ selectedSystemOverride: 'heat_pump' }));
+
+    // bestOverall should be identical in both cases.
+    expect(withOverride.bestOverall.performanceSummary?.efficiencyBand)
+      .toBe(withoutOverride.bestOverall.performanceSummary?.efficiencyBand);
+    expect(withOverride.bestOverall.performanceSummary?.localGenerationImpact)
+      .toBe(withoutOverride.bestOverall.performanceSummary?.localGenerationImpact);
+  });
+});
