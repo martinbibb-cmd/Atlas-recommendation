@@ -48,8 +48,10 @@ describe('buildOptionMatrixV1', () => {
 
   it('combi card status matches combiDhwV1 verdict — rejected when peakConcurrentOutlets >= 2', () => {
     // 2 bathrooms + 2 concurrent outlets → simultaneous demand → combi rejected
-    const result = runEngine({ ...baseInput, bathroomCount: 2, peakConcurrentOutlets: 2 });
-    const options = buildOptionMatrixV1(result, { ...baseInput, bathroomCount: 2, peakConcurrentOutlets: 2 });
+    // Must use combi family so that combiDhwV1 is populated.
+    const combiInput = { ...baseInput, currentHeatSourceType: 'combi' as const, bathroomCount: 2, peakConcurrentOutlets: 2 };
+    const result = runEngine(combiInput);
+    const options = buildOptionMatrixV1(result, combiInput);
     const combi = options.find(o => o.id === 'combi')!;
     expect(combi.status).toBe('rejected');
   });
@@ -306,7 +308,8 @@ describe('buildOptionMatrixV1', () => {
 
   it('combi DHW plane reflects combi risk verdict', () => {
     // 2 bathrooms → combi simultaneous demand → combi DHW caution
-    const input = { ...baseInput, bathroomCount: 2 };
+    // Must use combi family so that combiDhwV1 is populated.
+    const input = { ...baseInput, currentHeatSourceType: 'combi' as const, bathroomCount: 2 };
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
     const combi = options.find(o => o.id === 'combi')!;
@@ -479,7 +482,7 @@ describe('sensitivities on option cards', () => {
   });
 
   it('combi sensitivities mention peak outlets when combi is rejected (2 bathrooms)', () => {
-    const input = { ...baseInput, bathroomCount: 2 };
+    const input = { ...baseInput, currentHeatSourceType: 'combi' as const, bathroomCount: 2 };
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
     const combi = options.find(o => o.id === 'combi')!;

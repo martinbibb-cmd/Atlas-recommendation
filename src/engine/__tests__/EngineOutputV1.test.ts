@@ -66,13 +66,13 @@ describe('EngineOutputV1 shape', () => {
   });
 
   it('rejects combi when bathroomCount >= 2 (hard simultaneous-demand gate, even if peakConcurrentOutlets < 2)', () => {
-    const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2, highOccupancy: false });
+    const { engineOutput } = runEngine({ ...baseInput, currentHeatSourceType: 'combi' as const, bathroomCount: 2, highOccupancy: false });
     const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
     expect(onDemand.status).toBe('rejected');
   });
 
   it('rejects combi when peakConcurrentOutlets >= 2 (explicit simultaneous demand)', () => {
-    const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2, peakConcurrentOutlets: 2 });
+    const { engineOutput } = runEngine({ ...baseInput, currentHeatSourceType: 'combi' as const, bathroomCount: 2, peakConcurrentOutlets: 2 });
     const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
     expect(onDemand.status).toBe('rejected');
   });
@@ -176,7 +176,7 @@ describe('EngineOutputV1 shape', () => {
   });
 
   it('on_demand is rejected when peakConcurrentOutlets >= 2 (combiDhwV1 simultaneous demand)', () => {
-    const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 1, peakConcurrentOutlets: 2 });
+    const { engineOutput } = runEngine({ ...baseInput, currentHeatSourceType: 'combi' as const, bathroomCount: 1, peakConcurrentOutlets: 2 });
     const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
     expect(onDemand.status).toBe('rejected');
   });
@@ -184,6 +184,7 @@ describe('EngineOutputV1 shape', () => {
   it('on_demand is caution for steady_home signature with 1 bathroom + 1 outlet', () => {
     const { engineOutput } = runEngine({
       ...baseInput,
+      currentHeatSourceType: 'combi' as const,
       bathroomCount: 1,
       peakConcurrentOutlets: 1,
       occupancySignature: 'steady_home',
@@ -195,6 +196,7 @@ describe('EngineOutputV1 shape', () => {
   it('on_demand is caution for steady signature (V3 alias) with 1 bathroom + 1 outlet', () => {
     const { engineOutput } = runEngine({
       ...baseInput,
+      currentHeatSourceType: 'combi' as const,
       bathroomCount: 1,
       peakConcurrentOutlets: 1,
       occupancySignature: 'steady',
@@ -206,6 +208,7 @@ describe('EngineOutputV1 shape', () => {
   it('combiDhwV1 flags are included in engineOutput.redFlags', () => {
     const { engineOutput } = runEngine({
       ...baseInput,
+      currentHeatSourceType: 'combi' as const,
       dynamicMainsPressure: 0.5,
       bathroomCount: 1,
       peakConcurrentOutlets: 1,
@@ -218,6 +221,7 @@ describe('EngineOutputV1 shape', () => {
   it('short-draw explainer present when occupancy is steady_home', () => {
     const { engineOutput } = runEngine({
       ...baseInput,
+      currentHeatSourceType: 'combi' as const,
       bathroomCount: 1,
       peakConcurrentOutlets: 1,
       occupancySignature: 'steady_home',
@@ -227,10 +231,10 @@ describe('EngineOutputV1 shape', () => {
     expect(explainer!.body).toContain('28 %');
   });
 
-  it('combiDhwV1 is present in full engine result', () => {
-    const result = runEngine(baseInput);
+  it('combiDhwV1 is present in full engine result when currentHeatSourceType is combi', () => {
+    const result = runEngine({ ...baseInput, currentHeatSourceType: 'combi' as const });
     expect(result.combiDhwV1).toBeDefined();
-    expect(['pass', 'warn', 'fail']).toContain(result.combiDhwV1.verdict.combiRisk);
+    expect(['pass', 'warn', 'fail']).toContain(result.combiDhwV1!.verdict.combiRisk);
   });
 
   // ── StoredDhwModuleV1 driving Stored eligibility ──────────────────────────
@@ -292,11 +296,14 @@ describe('EngineOutputV1 shape', () => {
   // ── Recommendation resolver V1 ────────────────────────────────────────────
 
   it('recommendation primary is "Stored hot water — Unvented cylinder" when on_demand is rejected and stored unvented is viable', () => {
-    // 2 bathrooms + 2 concurrent outlets → combi rejected; 14 L/min @ 2.5 bar → stored unvented viable
+    // 2 bathrooms + 2 concurrent outlets → combi rejected; 14 L/min @ 2.5 bar → stored unvented viable.
+    // hasLoftConversion: true rejects stored_vented (no storedDhwV1 on a combi run).
     const { engineOutput } = runEngine({
       ...baseInput,
+      currentHeatSourceType: 'combi' as const,
       bathroomCount: 2,
       peakConcurrentOutlets: 2,
+      hasLoftConversion: true,   // rejects stored_vented regardless of storedDhwV1
       mainsDynamicFlowLpm: 14,   // qualifies stored_unvented (10 L/min @ 1 bar threshold)
       currentBoilerAgeYears: 10, // reduces missingKeyCount for medium confidence
       currentBoilerOutputKw: 24, // reduces missingKeyCount for medium confidence
@@ -318,14 +325,17 @@ describe('EngineOutputV1 shape', () => {
   });
 
   it('recommendation primary is "Air Source Heat Pump" for steady_home with viable ASHP (28mm) and medium confidence', () => {
-    // 28mm + 8kW → ASHP viable; on_demand caution (steady_home); stored unvented caution (9 L/min < 10)
+    // 28mm + 8kW → ASHP viable; on_demand caution (steady_home); stored unvented caution (9 L/min < 10).
+    // hasLoftConversion: true rejects stored_vented (no storedDhwV1 on a combi run).
     const { engineOutput } = runEngine({
       ...baseInput,
+      currentHeatSourceType: 'combi' as const,
       primaryPipeDiameter: 28,
       heatLossWatts: 8000,
       occupancySignature: 'steady_home',
       bathroomCount: 1,
       peakConcurrentOutlets: 1,
+      hasLoftConversion: true,   // rejects stored_vented
       mainsDynamicFlowLpm: 9,    // below unvented gate (< 10 L/min at pressure) → stored unvented stays caution
       currentBoilerAgeYears: 10, // reduces missingKeyCount for medium confidence
       currentBoilerOutputKw: 24, // reduces missingKeyCount for medium confidence

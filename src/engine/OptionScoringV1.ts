@@ -80,7 +80,7 @@ export function scoreOptionV1(
   }
 
   // Combi short-draw collapse warning
-  if (id === 'combi') {
+  if (id === 'combi' && combiDhwV1) {
     const shortDrawFlag = combiDhwV1.flags.find(f => f.id === 'combi-short-draw-collapse');
     if (shortDrawFlag) {
       breakdown.push({ id: PENALTY_IDS.DHW_SHORT_DRAW_WARN, label: 'Combi short-draw collapse risk', penalty: 10 });

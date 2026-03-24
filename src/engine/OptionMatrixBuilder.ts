@@ -133,7 +133,7 @@ function buildSensitivities(
   }
 
   if (optionId === 'combi') {
-    if (combiDhwV1.verdict.combiRisk === 'fail' || combiDhwV1.verdict.combiRisk === 'warn') {
+    if (combiDhwV1?.verdict.combiRisk === 'fail' || combiDhwV1?.verdict.combiRisk === 'warn') {
       items.push({
         lever: 'Peak outlets at once',
         effect: 'upgrade',
@@ -156,7 +156,7 @@ function buildSensitivities(
   }
 
   if (optionId === 'stored_vented' || optionId === 'stored_unvented') {
-    const recType = storedDhwV1.recommended.type;
+    const recType = storedDhwV1?.recommended.type;
     if (input.availableSpace === 'tight') {
       items.push({
         lever: 'Available space',
@@ -274,7 +274,7 @@ export function buildOptionMatrixV1(
   const hasFutureLoftConversion = input.futureLoftConversion ?? input.hasLoftConversion ?? false;
 
   // ── On Demand (Combi) card ───────────────────────────────────────────────
-  const combiRisk = core.combiDhwV1.verdict.combiRisk;
+  const combiRisk = core.combiDhwV1?.verdict.combiRisk ?? 'pass';
   const combiRejectedByTopology = core.redFlags.rejectCombi ?? false;
 
   let combiStatus: OptionCardV1['status'];
@@ -290,7 +290,7 @@ export function buildOptionMatrixV1(
   if (combiRejectedByTopology) {
     combiWhy.push('Topology prevents combi installation (one-pipe or similar).');
   }
-  for (const f of core.combiDhwV1.flags) {
+  for (const f of (core.combiDhwV1?.flags ?? [])) {
     combiWhy.push(`${f.title}: ${f.detail}`);
   }
   if (combiWhy.length === 0) {
@@ -306,7 +306,7 @@ export function buildOptionMatrixV1(
     combiRequirements.push('Mains pressure boost may be required (< 1.5 bar detected).');
   }
 
-  const combiEvidenceIds = core.combiDhwV1.flags.map(f => f.id);
+  const combiEvidenceIds = (core.combiDhwV1?.flags ?? []).map(f => f.id);
 
   // Combi heat plane: boiler wet-side — same physics as system/regular
   const combiHeat: OptionPlane = {
@@ -325,7 +325,7 @@ export function buildOptionMatrixV1(
     'On demand: no stored volume — heat delivery starts on demand.',
     'Stop/start draws cause purge loss and cold-water sandwich effect.',
   ];
-  for (const f of core.combiDhwV1.flags) {
+  for (const f of (core.combiDhwV1?.flags ?? [])) {
     combiDhwBullets.push(`${f.title}: ${f.detail}`);
   }
   const combiDhw: OptionPlane = {
@@ -386,7 +386,7 @@ export function buildOptionMatrixV1(
   // ventedRelevantRisk excludes unvented-specific flags so that a missing
   // mains-flow measurement (which is only relevant for mains-pressure / unvented
   // cylinders) does not cascade into a caution state for the vented card.
-  const ventedRelevantRisk: 'warn' | 'pass' = core.storedDhwV1.flags.some(
+  const ventedRelevantRisk: 'warn' | 'pass' = (core.storedDhwV1?.flags ?? []).some(
     f => f.severity === 'warn' && !UNVENTED_SPECIFIC_FLAG_IDS.has(f.id),
   ) ? 'warn' : 'pass';
 
@@ -405,14 +405,14 @@ export function buildOptionMatrixV1(
   ];
   // Only include flags that are relevant to vented cylinders — unvented-specific
   // mains-supply flags are not applicable to a tank-fed (loft-tank) supply.
-  for (const f of core.storedDhwV1.flags.filter(f => !UNVENTED_SPECIFIC_FLAG_IDS.has(f.id))) {
+  for (const f of (core.storedDhwV1?.flags ?? []).filter(f => !UNVENTED_SPECIFIC_FLAG_IDS.has(f.id))) {
     storedVentedWhy.push(`${f.title}: ${f.detail}`);
   }
   if (hasFutureLoftConversion) {
     storedVentedWhy.push('Loft conversion planned — CWS and F&E header tanks may lose their space.');
   }
 
-  const recType = core.storedDhwV1.recommended.type;
+  const recType = core.storedDhwV1?.recommended.type;
   const storedVentedRequirements: string[] = [
     'Loft tanks required (CWS + F&E) unless converting to sealed/unvented.',
   ];
@@ -425,7 +425,7 @@ export function buildOptionMatrixV1(
     storedVentedRequirements.push('Mixergy recommended: stratified heating reduces gas use and effective tank size needed.');
   }
 
-  const storedEvidenceIds = core.storedDhwV1.flags.map(f => f.id);
+  const storedEvidenceIds = (core.storedDhwV1?.flags ?? []).map(f => f.id);
 
   const storedVentedHeat: OptionPlane = {
     status: 'ok',
@@ -444,7 +444,7 @@ export function buildOptionMatrixV1(
     `Recommended cylinder type: ${recType === 'mixergy' ? 'Mixergy (stratified)' : 'standard indirect'}.`,
   ];
   // Filter unvented-specific flags — they are not applicable to tank-fed supply.
-  for (const f of core.storedDhwV1.flags.filter(f => !UNVENTED_SPECIFIC_FLAG_IDS.has(f.id))) {
+  for (const f of (core.storedDhwV1?.flags ?? []).filter(f => !UNVENTED_SPECIFIC_FLAG_IDS.has(f.id))) {
     storedVentedDhwBullets.push(`${f.title}: ${f.detail}`);
   }
   const storedVentedDhw: OptionPlane = {
@@ -538,7 +538,7 @@ export function buildOptionMatrixV1(
   // Unvented-specific mains-flow flags are excluded here because they are already
   // surfaced by the CWS supply check above — duplicating them would repeat the same
   // constraint in consecutive bullets and confuse the installer.
-  for (const f of core.storedDhwV1.flags.filter(f => !UNVENTED_SPECIFIC_FLAG_IDS.has(f.id))) {
+  for (const f of (core.storedDhwV1?.flags ?? []).filter(f => !UNVENTED_SPECIFIC_FLAG_IDS.has(f.id))) {
     storedUnventedWhy.push(`${f.title}: ${f.detail}`);
   }
 
@@ -591,7 +591,7 @@ export function buildOptionMatrixV1(
   }
   // Only include non-unvented-specific flags — unvented mains-flow flags are already
   // captured by the CWS supply bullets above and must not be repeated.
-  for (const f of core.storedDhwV1.flags.filter(f => !UNVENTED_SPECIFIC_FLAG_IDS.has(f.id))) {
+  for (const f of (core.storedDhwV1?.flags ?? []).filter(f => !UNVENTED_SPECIFIC_FLAG_IDS.has(f.id))) {
     storedUnventedDhwBullets.push(`${f.title}: ${f.detail}`);
   }
   const cwsIssue = cwsSupplyV1.inconsistent || !cwsSupplyV1.hasMeasurements || !cwsSupplyV1.meetsUnventedRequirement;
@@ -652,7 +652,7 @@ export function buildOptionMatrixV1(
   // This is used to make the headline positive about demand fit even when a mains
   // measurement is still needed — demand suitability and installation constraints
   // are separate concerns.
-  const isHighDemandHousehold = core.storedDhwV1.flags.some(f => f.id === 'stored-high-demand');
+  const isHighDemandHousehold = (core.storedDhwV1?.flags ?? []).some(f => f.id === 'stored-high-demand');
 
   cards.push({
     id: 'stored_unvented',

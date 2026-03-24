@@ -75,14 +75,14 @@ function sectionStatus(
       return hasRejected ? 'watch' : hasCaution ? 'watch' : 'ok';
     }
     case 'water': {
-      const combiRisk = result.combiDhwV1.verdict.combiRisk;
+      const combiRisk = result.combiDhwV1?.verdict.combiRisk ?? 'pass';
       return combiRisk === 'fail' ? 'watch' : combiRisk === 'warn' ? 'watch' : 'ok';
     }
     case 'usage': {
       const hasOccupancy = input?.occupancyCount != null;
       const hasBathrooms = input?.bathroomCount != null;
       if (!hasOccupancy || !hasBathrooms) return 'missing';
-      const storedRisk = result.storedDhwV1.verdict.storedRisk;
+      const storedRisk = result.storedDhwV1?.verdict.storedRisk ?? 'pass';
       return storedRisk === 'warn' ? 'watch' : 'ok';
     }
     case 'evidence': {

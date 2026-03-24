@@ -1,3 +1,12 @@
+/**
+ * runEngine.ts — PR2/PR3: Topology-aware engine orchestrator.
+ *
+ * PR3 change: `runEngine()` no longer computes both combi and stored DHW paths
+ * for every input.  Fallback logic is now restricted to the selected family:
+ *   - combi family  → may backfill combiDhwV1 and combiStress only
+ *   - hydronic families → may backfill storedDhwV1, mixergy, and mixergyLegacy only
+ * Cross-family DHW fields remain absent (undefined) in the FullEngineResultCore output.
+ */
 import type { EngineInputV2_3, FullEngineResult, FullEngineResultCore } from './schema/EngineInputV2_3';
 import { runCombiDhwModuleV1 } from './modules/CombiDhwModule';
 import { runCombiStressModule } from './modules/CombiStressModule';
@@ -14,6 +23,7 @@ import { runSystemStoredSystemModel } from './runners/runSystemStoredSystemModel
 import { runRegularStoredSystemModel } from './runners/runRegularStoredSystemModel';
 import { runHeatPumpStoredSystemModel } from './runners/runHeatPumpStoredSystemModel';
 import type { FamilyRunnerResult } from './runners/types';
+import { assertValidDhwOwnership } from './runners/dhwOwnership';
 
 /**
  * Maps EngineInputV2_3.currentHeatSourceType to a HeatSourceBehaviourInput.systemType
@@ -70,34 +80,48 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const runner = selectRunner(topology);
   const result = runner(input, topology);
 
-  // ── Step 3: Map FamilyRunnerResult back to FullEngineResultCore ───────────
-  // The runner owns its family-specific modules.  For backward compatibility,
-  // non-owned modules that FullEngineResultCore requires are computed here as
-  // legacy fallbacks.  These fallbacks will be removed in later PRs once
-  // callers have migrated to the runner-level result shape.
+  // ── Step 3: Assert DHW ownership before mapping to legacy shape ───────────
+  // PR3: assertValidDhwOwnership throws if a runner has cross-contaminated the
+  // DHW envelope (e.g. stored fields present in a combi result).
+  assertValidDhwOwnership(result.dhw, result.topology);
+
+  // ── Step 4: Map FamilyRunnerResult back to FullEngineResultCore ───────────
+  // PR3: Fallback logic is now family-gated.  Only fields valid for the selected
+  // family are ever backfilled — the cross-family fallback paths from PR2 have
+  // been removed.
 
   const { sludgeVsScale } = result.hydraulic;
+  const isCombi = result.topology.appliance.family === 'combi';
 
-  // DHW backward compat — combi modules for stored-system runs
-  // Wire dhwCapacityDeratePct into CombiDhwModule: maxQtoDhwKw *= (1 − dhwCapacityDeratePct)
-  const combiDhwV1 = result.dhw.combiDhwV1
-    ?? runCombiDhwModuleV1(input, sludgeVsScale.dhwCapacityDeratePct);
-  const combiStress = result.heating.combiStress
-    ?? runCombiStressModule(input);
+  // ── Combi-family DHW fallbacks (valid only when isCombi) ──────────────────
+  // The combi runner always populates combiDhwV1 and combiStress directly, so
+  // these fallbacks should never fire in practice.  They are retained only as
+  // a last-resort guard in case a future refactor leaves the runner output
+  // incomplete.  For hydronic families these branches are never entered.
+  const combiDhwV1 = isCombi
+    ? (result.dhw.combiDhwV1 ?? runCombiDhwModuleV1(input, sludgeVsScale.dhwCapacityDeratePct))
+    : undefined;
+  const combiStress = isCombi
+    ? (result.heating.combiStress ?? runCombiStressModule(input))
+    : undefined;
 
-  // DHW backward compat — stored modules for combi runs
-  // combiSimultaneousFailed is used to wire combi stress into the stored DHW path
-  const combiSimultaneousFailed = combiDhwV1.flags.some(f => f.id === 'combi-simultaneous-demand');
-  const storedDhwV1 = result.dhw.storedDhwV1
-    ?? runStoredDhwModuleV1(input, combiSimultaneousFailed);
-  const mixergy = result.dhw.mixergy
-    ?? runMixergyVolumetricsModule(input);
-  const mixergyLegacy = result.dhw.mixergyLegacy
-    ?? runMixergyLegacyModule({
+  // ── Hydronic-family DHW fallbacks (valid only when !isCombi) ─────────────
+  // Similarly, the hydronic runners always populate storedDhwV1/mixergy directly.
+  // combiSimultaneousFailed is not meaningful for hydronic runners, so it is
+  // omitted from the stored fallback path.
+  const storedDhwV1 = !isCombi
+    ? (result.dhw.storedDhwV1 ?? runStoredDhwModuleV1(input, false))
+    : undefined;
+  const mixergy = !isCombi
+    ? (result.dhw.mixergy ?? runMixergyVolumetricsModule(input))
+    : undefined;
+  const mixergyLegacy = !isCombi
+    ? (result.dhw.mixergyLegacy ?? runMixergyLegacyModule({
         hasIotIntegration: input.hasIotIntegration ?? false,
         installerNetwork: input.installerNetwork ?? 'independent',
         dhwStorageLitres: input.dhwStorageLitres ?? 150,
-      });
+      }))
+    : undefined;
 
   const core: FullEngineResultCore = {
     hydraulic: result.hydraulic.safety,

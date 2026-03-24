@@ -48,7 +48,7 @@ function classifyRecommendedSystem(
 
   // Combi is viable when not hard-rejected and combi risk is not 'fail'.
   const combiViable =
-    !redFlags.rejectCombi && combiDhwV1.verdict.combiRisk !== 'fail';
+    !redFlags.rejectCombi && (combiDhwV1?.verdict.combiRisk ?? 'pass') !== 'fail';
 
   // Unvented stored is viable when the mains gate is met.
   const unventedViable = cwsSupplyV1.meetsUnventedRequirement && !redFlags.rejectStored;
@@ -57,7 +57,7 @@ function classifyRecommendedSystem(
   // High demand = 2+ bathrooms, or simultaneous-demand flag on combi.
   const isHighDemand =
     (input.bathroomCount ?? 1) >= 2 ||
-    combiDhwV1.flags.some(f => f.id === 'combi-simultaneous-demand');
+    (combiDhwV1?.flags ?? []).some(f => f.id === 'combi-simultaneous-demand');
 
   if (isHighDemand && unventedViable) return 'stored_unvented';
   if (combiViable && !isHighDemand) return 'combi';
@@ -86,7 +86,7 @@ function classifyAlternativeSystem(
 ): SystemClass | null {
   const { combiDhwV1, cwsSupplyV1, redFlags } = result;
   const combiViable =
-    !redFlags.rejectCombi && combiDhwV1.verdict.combiRisk !== 'fail';
+    !redFlags.rejectCombi && (combiDhwV1?.verdict.combiRisk ?? 'pass') !== 'fail';
   const unventedViable = cwsSupplyV1.meetsUnventedRequirement && !redFlags.rejectStored;
 
   switch (primary) {
@@ -117,7 +117,7 @@ function combiSimultaneousOutcome(
   outletCount: number,
 ): BehaviourOutcome {
   const { combiDhwV1, cwsSupplyV1 } = result;
-  const combiRisk = combiDhwV1.verdict.combiRisk;
+  const combiRisk = combiDhwV1?.verdict.combiRisk ?? 'pass';
   const flowLpm = cwsSupplyV1.dynamic?.flowLpm;
   const hasMeasurements = cwsSupplyV1.hasMeasurements;
 
@@ -140,8 +140,8 @@ function storedSustainedOutcome(
   _input: EngineInputV2_3,
 ): BehaviourOutcome {
   const { storedDhwV1 } = result;
-  const constraintKind = storedDhwV1.constraintKind;
-  const volumeBand = storedDhwV1.recommended.volumeBand;
+  const constraintKind = storedDhwV1?.constraintKind;
+  const volumeBand = storedDhwV1?.recommended.volumeBand;
 
   if (constraintKind === 'thermal-capacity-limited') return 'limited';
   if (constraintKind === 'recovery-limited') return 'limited';
@@ -309,8 +309,8 @@ function buildTwoShowersScenario(
 
   const limitingFactor: BehaviourLimitingFactor =
     primary === 'combi' ? 'hot_water_generation'
-    : (result.storedDhwV1.constraintKind === 'thermal-capacity-limited' ? 'stored_volume'
-    : result.storedDhwV1.constraintKind === 'mains-limited' ? 'mains'
+    : (result.storedDhwV1?.constraintKind === 'thermal-capacity-limited' ? 'stored_volume'
+    : result.storedDhwV1?.constraintKind === 'mains-limited' ? 'mains'
     : 'stored_volume');
 
   return {
@@ -337,8 +337,8 @@ function buildBathFillingScenario(
         // Bath filling on a combi: sustained high draw.
         const { combiDhwV1, cwsSupplyV1 } = result;
         const flowLpm = cwsSupplyV1.dynamic?.flowLpm;
-        if (combiDhwV1.verdict.combiRisk === 'fail') return 'poor';
-        if (combiDhwV1.verdict.combiRisk === 'warn') return 'limited';
+        if (combiDhwV1?.verdict.combiRisk === 'fail') return 'poor';
+        if (combiDhwV1?.verdict.combiRisk === 'warn') return 'limited';
         if (!cwsSupplyV1.hasMeasurements) return 'acceptable'; // unknown, assume ok
         if (flowLpm != null && flowLpm >= FLOW_STRONG_LPM) return 'acceptable';
         return 'limited';
@@ -377,8 +377,8 @@ function buildBathFillingScenario(
   const limitingFactor: BehaviourLimitingFactor =
     primary === 'combi' ? 'hot_water_generation'
     : primary === 'stored_vented' ? 'distribution'
-    : result.storedDhwV1.constraintKind === 'thermal-capacity-limited' ? 'stored_volume'
-    : result.storedDhwV1.constraintKind === 'mains-limited' ? 'mains'
+    : result.storedDhwV1?.constraintKind === 'thermal-capacity-limited' ? 'stored_volume'
+    : result.storedDhwV1?.constraintKind === 'mains-limited' ? 'mains'
     : 'stored_volume';
 
   return {

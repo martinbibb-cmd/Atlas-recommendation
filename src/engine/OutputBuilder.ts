@@ -25,11 +25,11 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
   if (redFlags.rejectCombi) {
     onDemandStatus = 'rejected';
     onDemandReason = redFlags.reasons.filter(r => r.includes('Combi')).join(' ') || undefined;
-  } else if (combiDhwV1.verdict.combiRisk === 'fail') {
+  } else if (combiDhwV1?.verdict.combiRisk === 'fail') {
     onDemandStatus = 'rejected';
     const failFlag = combiDhwV1.flags.find(f => f.severity === 'fail');
     onDemandReason = failFlag ? `${failFlag.title}: ${failFlag.detail}` : undefined;
-  } else if (combiDhwV1.verdict.combiRisk === 'warn') {
+  } else if (combiDhwV1?.verdict.combiRisk === 'warn') {
     // When space-saving priority is high, a borderline (warn) combi verdict is
     // upgraded to viable — the customer has explicitly accepted the trade-off.
     if (spacePriority === 'high') {
@@ -62,9 +62,9 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
     storedVentedReason = result.redFlags.reasons
       .filter(r => r.includes('Stored') || r.includes('Cylinder') || r.includes('Loft'))
       .join(' ') || undefined;
-  } else if (hasFutureLoftConversion || storedDhwV1.verdict.storedRisk === 'warn') {
+  } else if (hasFutureLoftConversion || storedDhwV1?.verdict.storedRisk === 'warn') {
     storedVentedStatus = 'caution';
-    const warnFlag = storedDhwV1.flags.find(f => f.severity === 'warn');
+    const warnFlag = storedDhwV1?.flags.find(f => f.severity === 'warn');
     storedVentedReason = hasFutureLoftConversion
       ? 'Loft conversion planned — header tank space at risk.'
       : warnFlag ? `${warnFlag.title}: ${warnFlag.detail}` : undefined;
@@ -166,7 +166,7 @@ function buildExplainers(result: FullEngineResultCore, input?: EngineInputV2_3):
     });
   }
 
-  if (result.combiStress.isCondensingCompromised) {
+  if (result.combiStress?.isCondensingCompromised) {
     items.push({
       id: 'condensing-compromised',
       title: 'Condensing Mode Compromised',
@@ -183,7 +183,7 @@ function buildExplainers(result: FullEngineResultCore, input?: EngineInputV2_3):
     });
   }
 
-  const shortDrawFlag = result.combiDhwV1.flags.find(f => f.id === 'combi-short-draw-collapse');
+  const shortDrawFlag = result.combiDhwV1?.flags.find(f => f.id === 'combi-short-draw-collapse');
   if (shortDrawFlag) {
     items.push({
       id: 'combi-short-draw-collapse',
@@ -194,11 +194,11 @@ function buildExplainers(result: FullEngineResultCore, input?: EngineInputV2_3):
 
   // Stored DHW: Mixergy explainer when recommended (space tight or high demand) or space warn present.
   // Both cases benefit from the Mixergy stratification explanation.
-  const storedRec = result.storedDhwV1.recommended;
-  const spaceWarnFlag = result.storedDhwV1.flags.find(f =>
+  const storedRec = result.storedDhwV1?.recommended;
+  const spaceWarnFlag = result.storedDhwV1?.flags.find(f =>
     f.id === 'stored-space-tight' || f.id === 'stored-space-unknown',
   );
-  if (storedRec.type === 'mixergy' || spaceWarnFlag) {
+  if (storedRec?.type === 'mixergy' || spaceWarnFlag) {
     items.push({
       id: 'stored-mixergy-suggested',
       title: 'Mixergy Cylinder Suggested',
@@ -213,7 +213,7 @@ function buildExplainers(result: FullEngineResultCore, input?: EngineInputV2_3):
   }
 
   // Stored DHW: cylinder condition section — only renders when cylinder evidence was supplied.
-  const cylCondition = result.storedDhwV1.cylinderCondition;
+  const cylCondition = result.storedDhwV1?.cylinderCondition;
   if (cylCondition) {
     const { conditionBand, insulationFactor, coilTransferFactor, standingLossRelative } = cylCondition;
 
@@ -360,15 +360,17 @@ function buildEvidence(result: FullEngineResultCore, input?: EngineInputV2_3): E
     confidence: bathroomCount !== undefined ? 'high' : 'low',
     affectsOptionIds: ['combi'],
   });
-  items.push({
-    id: 'ev-combi-risk',
-    fieldPath: 'combiDhwV1.verdict.combiRisk',
-    label: 'Combi DHW risk verdict',
-    value: combiDhwV1.verdict.combiRisk,
-    source: 'derived',
-    confidence: 'high',
-    affectsOptionIds: ['combi'],
-  });
+  if (combiDhwV1) {
+    items.push({
+      id: 'ev-combi-risk',
+      fieldPath: 'combiDhwV1.verdict.combiRisk',
+      label: 'Combi DHW risk verdict',
+      value: combiDhwV1.verdict.combiRisk,
+      source: 'derived',
+      confidence: 'high',
+      affectsOptionIds: ['combi'],
+    });
+  }
 
   // Stored DHW verdict
   const { storedDhwV1 } = result;
@@ -382,15 +384,17 @@ function buildEvidence(result: FullEngineResultCore, input?: EngineInputV2_3): E
     confidence: availableSpace !== undefined && availableSpace !== 'unknown' ? 'high' : 'low',
     affectsOptionIds: ['stored_vented', 'stored_unvented', 'system_unvented'],
   });
-  items.push({
-    id: 'ev-stored-risk',
-    fieldPath: 'storedDhwV1.verdict.storedRisk',
-    label: 'Stored DHW risk verdict',
-    value: storedDhwV1.verdict.storedRisk,
-    source: 'derived',
-    confidence: 'high',
-    affectsOptionIds: ['stored_vented', 'stored_unvented', 'ashp', 'system_unvented'],
-  });
+  if (storedDhwV1) {
+    items.push({
+      id: 'ev-stored-risk',
+      fieldPath: 'storedDhwV1.verdict.storedRisk',
+      label: 'Stored DHW risk verdict',
+      value: storedDhwV1.verdict.storedRisk,
+      source: 'derived',
+      confidence: 'high',
+      affectsOptionIds: ['stored_vented', 'stored_unvented', 'ashp', 'system_unvented'],
+    });
+  }
 
   // Heat loss — drives ASHP sizing and flow requirements
   const heatLossWatts = input?.heatLossWatts;
@@ -449,33 +453,37 @@ function buildVisuals(result: FullEngineResultCore, input?: EngineInputV2_3): Vi
 
   // dhw_outlets — combi simultaneous demand: outlets vs capacity
   const { combiDhwV1 } = result;
-  const simultaneousFlag = combiDhwV1.flags.find(f => f.id === 'combi-simultaneous-demand');
-  visuals.push({
-    id: 'dhw_outlets',
-    type: 'dhw_outlets',
-    title: 'DHW Simultaneous Demand',
-    data: {
-      combiRisk: combiDhwV1.verdict.combiRisk,
-      simultaneousFail: !!simultaneousFlag,
-    },
-    affectsOptionIds: ['combi'],
-  });
+  if (combiDhwV1) {
+    const simultaneousFlag = combiDhwV1.flags.find(f => f.id === 'combi-simultaneous-demand');
+    visuals.push({
+      id: 'dhw_outlets',
+      type: 'dhw_outlets',
+      title: 'DHW Simultaneous Demand',
+      data: {
+        combiRisk: combiDhwV1.verdict.combiRisk,
+        simultaneousFail: !!simultaneousFlag,
+      },
+      affectsOptionIds: ['combi'],
+    });
+  }
 
   // space_footprint — cylinder / buffer space from storedDhwV1
   const { storedDhwV1, mixergy } = result;
-  visuals.push({
-    id: 'space_footprint',
-    type: 'space_footprint',
-    title: 'Cylinder Space Footprint',
-    data: {
-      storedRisk: storedDhwV1.verdict.storedRisk,
-      recommendedType: storedDhwV1.recommended.type,
-      mixergyLitres: mixergy.mixergyLitres,
-      conventionalLitres: mixergy.equivalentConventionalLitres,
-      footprintSavingPct: mixergy.footprintSavingPct,
-    },
-    affectsOptionIds: ['stored_vented', 'stored_unvented', 'ashp', 'system_unvented'],
-  });
+  if (storedDhwV1 && mixergy) {
+    visuals.push({
+      id: 'space_footprint',
+      type: 'space_footprint',
+      title: 'Cylinder Space Footprint',
+      data: {
+        storedRisk: storedDhwV1.verdict.storedRisk,
+        recommendedType: storedDhwV1.recommended.type,
+        mixergyLitres: mixergy.mixergyLitres,
+        conventionalLitres: mixergy.equivalentConventionalLitres,
+        footprintSavingPct: mixergy.footprintSavingPct,
+      },
+      affectsOptionIds: ['stored_vented', 'stored_unvented', 'ashp', 'system_unvented'],
+    });
+  }
 
   // timeline_24h — 24-hour A/B comparison timeline (current vs primary recommendation)
   if (input) {
@@ -527,16 +535,16 @@ export function buildEngineOutputV1(result: FullEngineResultCore, input?: Engine
 
   const allReasons = [...result.redFlags.reasons, ...result.hydraulicV1.notes];
 
-  // Merge combiDhwV1 flags into redFlags output
-  const combiFlags: RedFlagItem[] = result.combiDhwV1.flags.map(f => ({
+  // Merge combiDhwV1 flags into redFlags output (combi family only)
+  const combiFlags: RedFlagItem[] = (result.combiDhwV1?.flags ?? []).map(f => ({
     id: f.id,
     severity: f.severity,
     title: f.title,
     detail: f.detail,
   }));
 
-  // Merge storedDhwV1 flags into redFlags output
-  const storedFlags: RedFlagItem[] = result.storedDhwV1.flags.map(f => ({
+  // Merge storedDhwV1 flags into redFlags output (hydronic families only)
+  const storedFlags: RedFlagItem[] = (result.storedDhwV1?.flags ?? []).map(f => ({
     id: f.id,
     severity: f.severity,
     title: f.title,

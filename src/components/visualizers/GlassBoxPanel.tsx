@@ -227,8 +227,8 @@ function PhysicsTraceTab({ results }: { results: FullEngineResult }) {
     { title: '🔩 Metallurgy Edge', notes: results.metallurgyEdge.notes },
     { title: '🏗️ Legacy Infrastructure', notes: results.legacyInfrastructure.notes },
     { title: '📊 Spec Edge (Full Analysis)', notes: results.specEdge.notes },
-    { title: '💧 Mixergy Legacy', notes: results.mixergyLegacy.notes },
-    { title: '📉 Combi Stress', notes: results.combiStress.notes },
+    ...(results.mixergyLegacy ? [{ title: '💧 Mixergy Legacy', notes: results.mixergyLegacy.notes }] : []),
+    ...(results.combiStress ? [{ title: '📉 Combi Stress', notes: results.combiStress.notes }] : []),
     { title: '👥 Lifestyle Simulation', notes: results.lifestyle.notes },
     { title: '🔬 Condensing State (lab)', notes: results.condensingState.notes },
     { title: '🚩 Red Flags', notes: results.redFlags.reasons },
@@ -299,14 +299,14 @@ function VisualOutcomeTab({ results }: { results: FullEngineResult }) {
       <section style={{ marginBottom: 24 }}>
         <h4 style={sectionHeadStyle}>🛢️ Proportional Tank X-Ray</h4>
         <p style={{ fontSize: '0.82rem', color: '#718096', marginBottom: 10 }}>
-          Proportional 2D comparison: a {results.mixergy.mixergyLitres}L Mixergy delivers
-          the same usable hot water as a {results.mixergy.equivalentConventionalLitres}L
-          conventional cylinder — {results.mixergy.footprintSavingPct}% less floor space,
-          {' '}{results.mixergy.gasSavingPct}% less gas.
+          Proportional 2D comparison: a {results.mixergy?.mixergyLitres}L Mixergy delivers
+          the same usable hot water as a {results.mixergy?.equivalentConventionalLitres}L
+          conventional cylinder — {results.mixergy?.footprintSavingPct}% less floor space,
+          {' '}{results.mixergy?.gasSavingPct}% less gas.
         </p>
         <FootprintXRay
-          mixergyLitres={results.mixergy.mixergyLitres}
-          conventionalLitres={results.mixergy.equivalentConventionalLitres}
+          mixergyLitres={results.mixergy?.mixergyLitres ?? 150}
+          conventionalLitres={results.mixergy?.equivalentConventionalLitres ?? 210}
         />
       </section>
 

@@ -213,7 +213,10 @@ export function runCombiSystemModel(
       cwsSupplyV1,
     },
     dhw: {
-      // Combi runner owns combiDhwV1; storedDhwV1 and mixergy are absent
+      // PR3: canonical DHW envelope — combi runner owns combiDhwV1 only.
+      // storedDhwV1, mixergy, and mixergyLegacy must be absent for this family.
+      kind: 'direct_combi',
+      sourcePath: 'combi_runner',
       combiDhwV1,
     },
     heating: {

@@ -1646,10 +1646,26 @@ export interface HeatPumpRegimeModuleV1Result {
 export interface FullEngineResultCore {
   hydraulic: HydraulicResult;
   hydraulicV1: HydraulicModuleV1Result;
-  combiStress: CombiStressResult;
-  combiDhwV1: CombiDhwV1Result;
-  storedDhwV1: StoredDhwV1Result;
-  mixergy: MixergyResult;
+  /**
+   * Present only for combi-family runs.
+   * Absent (undefined) for all hydronic families (system, regular, heat pump).
+   */
+  combiStress?: CombiStressResult;
+  /**
+   * Present only for combi-family runs.
+   * Absent (undefined) for all hydronic families (system, regular, heat pump).
+   */
+  combiDhwV1?: CombiDhwV1Result;
+  /**
+   * Present only for hydronic-family runs (system, regular, heat pump).
+   * Absent (undefined) for combi-family runs.
+   */
+  storedDhwV1?: StoredDhwV1Result;
+  /**
+   * Present only for hydronic-family runs.
+   * Absent (undefined) for combi-family runs.
+   */
+  mixergy?: MixergyResult;
   lifestyle: LifestyleResult;
   normalizer: NormalizerOutput;
   redFlags: RedFlagResult;
@@ -1658,7 +1674,11 @@ export interface FullEngineResultCore {
   sludgeVsScale: SludgeVsScaleResult;
   systemOptimization: SystemOptimizationResult;
   metallurgyEdge: MetallurgyEdgeResult;
-  mixergyLegacy: MixergyLegacyResult;
+  /**
+   * Present only for hydronic-family runs.
+   * Absent (undefined) for combi-family runs.
+   */
+  mixergyLegacy?: MixergyLegacyResult;
   specEdge: SpecEdgeResult;
   gridFlex?: GridFlexResult;
   heatPumpRegime: HeatPumpRegimeModuleV1Result;

@@ -74,7 +74,7 @@ function LiveUsageSection({
   input: FullSurveyModelV1;
 }) {
   const { storedDhwV1 } = result;
-  const storedRisk = storedDhwV1.verdict.storedRisk;
+  const storedRisk = storedDhwV1?.verdict.storedRisk ?? 'pass';
 
   // Determine whether the minimum usage inputs are present.
   const hasOccupancy = input.occupancyCount != null;
@@ -180,7 +180,7 @@ function LiveUsageSection({
             ? '⚠️ Stored system has sizing or space concerns'
             : '✅ Stored system sizing is suitable'}
         </div>
-        {storedDhwV1.recommended && (
+        {storedDhwV1?.recommended && (
           <div style={{ marginTop: '0.75rem' }}>
             <div className="metric-row">
               <span className="metric-label">Recommended type</span>
@@ -194,11 +194,11 @@ function LiveUsageSection({
         )}
       </div>
 
-      {storedDhwV1.flags.length > 0 && (
+      {(storedDhwV1?.flags.length ?? 0) > 0 && (
         <div className="result-section">
           <h3>Active Flags</h3>
           <ul style={{ margin: 0, padding: '0 0 0 1.25rem', lineHeight: 1.8 }}>
-            {storedDhwV1.flags.map(flag => (
+            {storedDhwV1?.flags.map(flag => (
               <li key={flag.id} style={{ fontSize: '0.9rem', color: '#2d3748' }}>
                 <strong>{flag.title}:</strong> {flag.detail}
               </li>

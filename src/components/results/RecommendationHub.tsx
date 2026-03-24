@@ -613,7 +613,7 @@ export function buildComponentHealthItems(result: FullEngineResult): ComponentHe
   const items: ComponentHealthItem[] = [];
 
   // ── Plate HEX (combi path) ────────────────────────────────────────────────
-  const hexBand = result.combiDhwV1.plateHexConditionBand;
+  const hexBand = result.combiDhwV1?.plateHexConditionBand;
   if (hexBand !== undefined) {
     items.push({
       component: 'Plate heat exchanger',
@@ -625,7 +625,7 @@ export function buildComponentHealthItems(result: FullEngineResult): ComponentHe
   }
 
   // ── Cylinder (stored path) ────────────────────────────────────────────────
-  const cyl = result.storedDhwV1.cylinderCondition;
+  const cyl = result.storedDhwV1?.cylinderCondition;
   if (cyl !== undefined) {
     const implications: string[] = [];
     if (cyl.insulationFactor < 1.0) implications.push('Standing heat loss elevated.');
@@ -768,8 +768,8 @@ const HEALTH_MESSAGE: Record<SystemHealthLevel, string> = {
  * Exported for unit testing. Does not mutate inputs.
  */
 export function buildSystemHealthLevel(result: FullEngineResult): SystemHealthResult | null {
-  const hexBand    = result.combiDhwV1.plateHexConditionBand;
-  const cylBand    = result.storedDhwV1.cylinderCondition?.conditionBand;
+  const hexBand    = result.combiDhwV1?.plateHexConditionBand;
+  const cylBand    = result.storedDhwV1?.cylinderCondition?.conditionBand;
   const boilerBand = result.boilerEfficiencyModelV1?.conditionBand;
 
   if (hexBand === undefined && cylBand === undefined && boilerBand === undefined) return null;
@@ -923,14 +923,14 @@ function buildHotWaterDemandSection(result: FullEngineResult, input: EngineInput
   const peakOutlets = (input as { peakConcurrentOutlets?: number }).peakConcurrentOutlets
     ?? (bathrooms != null ? Math.min(bathrooms, 2) : null);
   const peakDemandLpm = peakOutlets != null ? peakOutlets * 8 : null;
-  const combiMaxKw = (combi as { maxQtoDhwKwDerated?: number }).maxQtoDhwKwDerated;
+  const combiMaxKw = (combi as { maxQtoDhwKwDerated?: number } | undefined)?.maxQtoDhwKwDerated;
   const combiDeliveryLpm = combiMaxKw != null
     ? parseFloat((combiMaxKw / (4.2 * 40 / 60)).toFixed(1))
     : null;
   return {
     id: 'hotWaterDemand' as const,
     title: 'Hot Water Demand',
-    status: combi.verdict.combiRisk === 'fail' ? 'watch' as const : 'ok' as const,
+    status: combi?.verdict.combiRisk === 'fail' ? 'watch' as const : 'ok' as const,
     visible: true,
     customerSafe: true,
     content: {
@@ -939,8 +939,8 @@ function buildHotWaterDemandSection(result: FullEngineResult, input: EngineInput
       peakOutlets:      peakOutlets,
       peakDemandLpm,
       combiDeliveryLpm,
-      combiRisk:        combi.verdict.combiRisk,
-      storedVolumeBand: (stored as { recommended?: { volumeBand?: string } }).recommended?.volumeBand ?? 'medium',
+      combiRisk:        combi?.verdict.combiRisk ?? 'pass',
+      storedVolumeBand: (stored as { recommended?: { volumeBand?: string } } | undefined)?.recommended?.volumeBand ?? 'medium',
       // Stratification is ONLY a feature of Mixergy cylinders — use the user's
       // dhwTankType selection, NOT the engine's upgrade recommendation.
       // The engine may recommend Mixergy based on space/demand, but that is an

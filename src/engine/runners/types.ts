@@ -1,5 +1,5 @@
 /**
- * types.ts — PR2: Canonical intermediate result shape for topology-aware family runners.
+ * types.ts — PR3: Canonical intermediate result shape for topology-aware family runners.
  *
  * `FamilyRunnerResult` is the output contract shared by all four family runners.
  * It groups module outputs into semantic buckets (hydraulic, dhw, heating, efficiency,
@@ -8,17 +8,17 @@
  *
  * Design rules:
  *   - `topology` carries the PR1 topology contract and implicitly identifies the family.
- *   - Fields owned by the combi runner are marked with comments; they are absent (undefined)
- *     in hydronic runners.
- *   - Fields owned by stored-system runners are marked similarly; they are absent in the
- *     combi runner.
+ *   - `dhw.kind` is the canonical discriminant for DHW ownership: 'direct_combi' for the
+ *     combi runner, 'stored' for all hydronic runners.
+ *   - `dhw.sourcePath` identifies which runner populated the envelope (e.g. 'combi_runner').
+ *   - Fields owned by the combi runner are absent (undefined) in hydronic runners.
+ *   - Fields owned by stored-system runners are absent in the combi runner.
  *   - Common fields (hydraulic, heating, efficiency, lifecycle, advisories) are always present.
  *
  * Backward-compat note:
  *   `runEngine()` maps this result back to the legacy `FullEngineResultCore` shape.
- *   Fields not populated by the chosen runner are computed in `runEngine()` as fallbacks
- *   so that existing callers do not break.  Those fallbacks will be removed in later PRs
- *   as callers migrate to the runner-level result.
+ *   From PR3 onward, `runEngine()` only backfills DHW fields that are valid for the
+ *   selected family — cross-family fallback paths have been removed.
  */
 
 import type {
@@ -54,6 +54,34 @@ import type {
 import type { SystemTopology } from '../topology/SystemTopology';
 
 /**
+ * Canonical DHW result envelope for a topology-aware family runner.
+ *
+ * `kind` is the primary discriminant:
+ *   - 'direct_combi' — the combi runner populated this envelope; `combiDhwV1` is present,
+ *     `storedDhwV1`, `mixergy`, and `mixergyLegacy` must be absent.
+ *   - 'stored'        — a hydronic runner populated this envelope; `storedDhwV1` is present,
+ *     `combiDhwV1` must be absent.
+ *
+ * `sourcePath` is a human-readable label identifying the runner that created this envelope.
+ * It is intended for defensive assertions and debug output only — do not use it for
+ * branching logic in downstream modules.
+ */
+export interface DhwResultEnvelope {
+  /** Family discriminant — which DHW path was used. */
+  readonly kind: 'direct_combi' | 'stored';
+  /** Runner that produced this envelope (debug/assertion label). */
+  readonly sourcePath: string;
+  /** Owned by the combi runner; `undefined` in hydronic runners. */
+  readonly combiDhwV1?: CombiDhwV1Result;
+  /** Owned by stored-system runners; `undefined` in the combi runner. */
+  readonly storedDhwV1?: StoredDhwV1Result;
+  /** Owned by stored-system runners when a Mixergy cylinder is present. */
+  readonly mixergy?: MixergyResult;
+  /** Mixergy legacy settings; present when `dhwTankType === 'mixergy'`. */
+  readonly mixergyLegacy?: MixergyLegacyResult;
+}
+
+/**
  * Canonical intermediate result returned by each topology-aware family runner.
  *
  * Fields tagged "owned by combi runner" are populated exclusively by
@@ -83,19 +111,12 @@ export interface FamilyRunnerResult {
   };
 
   /**
-   * DHW module results.
-   * Ownership is family-specific; only the correct runner populates each field.
+   * DHW result envelope.
+   * `dhw.kind` is the canonical discriminant: 'direct_combi' for the combi runner,
+   * 'stored' for all hydronic runners.  Only family-valid fields are populated;
+   * cross-family fields are always `undefined`.
    */
-  readonly dhw: {
-    /** Owned by the combi runner; `undefined` in hydronic runners. */
-    readonly combiDhwV1?: CombiDhwV1Result;
-    /** Owned by stored-system runners; `undefined` in the combi runner. */
-    readonly storedDhwV1?: StoredDhwV1Result;
-    /** Owned by stored-system runners when a Mixergy cylinder is present. */
-    readonly mixergy?: MixergyResult;
-    /** Mixergy legacy settings; present when `dhwTankType === 'mixergy'`. */
-    readonly mixergyLegacy?: MixergyLegacyResult;
-  };
+  readonly dhw: DhwResultEnvelope;
 
   /** Heating, demand, and heat-source regime (common — present in all runners). */
   readonly heating: {

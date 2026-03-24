@@ -286,7 +286,7 @@ function deriveHotWaterFit(
   const isCombi = /combi/i.test(primary) && !isStoredOrMixergy;
 
   if (isCombi) {
-    const combiRisk = result.combiDhwV1.verdict.combiRisk;
+    const combiRisk = result.combiDhwV1?.verdict.combiRisk ?? 'pass';
     if (combiRisk === 'fail') {
       return {
         id: 'hot_water_fit',
@@ -315,7 +315,7 @@ function deriveHotWaterFit(
   }
 
   if (isStoredOrMixergy) {
-    const storedRisk = result.storedDhwV1.verdict.storedRisk;
+    const storedRisk = result.storedDhwV1?.verdict.storedRisk;
     if (storedRisk === 'warn') {
       return {
         id: 'hot_water_fit',
@@ -335,8 +335,8 @@ function deriveHotWaterFit(
   }
 
   // Recommendation is not clearly combi or stored — derive from module verdicts.
-  const combiRisk = result.combiDhwV1.verdict.combiRisk;
-  const storedRisk = result.storedDhwV1.verdict.storedRisk;
+  const combiRisk = result.combiDhwV1?.verdict.combiRisk ?? 'pass';
+  const storedRisk = result.storedDhwV1?.verdict.storedRisk ?? 'pass';
   if (combiRisk === 'fail' && storedRisk === 'pass') {
     return {
       id: 'hot_water_fit',

@@ -218,8 +218,10 @@ export function runHeatPumpStoredSystemModel(
       cwsSupplyV1,
     },
     dhw: {
-      // Stored-system runner owns storedDhwV1, mixergy, and mixergyLegacy;
-      // combiDhwV1 and combiStress are absent (combi runner owns those).
+      // PR3: canonical DHW envelope — heat pump runner owns storedDhwV1, mixergy, mixergyLegacy.
+      // combiDhwV1 and combiStress must be absent for this family.
+      kind: 'stored',
+      sourcePath: 'heat_pump_runner',
       storedDhwV1,
       mixergy,
       mixergyLegacy,
