@@ -72,7 +72,7 @@ function SurveyFamilyDashboard({ surveyInput }: SurveyFamilyDashboardProps) {
 
 // ─── View ─────────────────────────────────────────────────────────────────────
 
-export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab, floorplanOutput }: Props) {
+export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab }: Props) {
   const [config, setConfig] = useState<StepperConfig | null>(null);
   // When launched from a survey, hide the stepper by default.
   const [showStepper, setShowStepper] = useState<boolean>(!surveyData);
