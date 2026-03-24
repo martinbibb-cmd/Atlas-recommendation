@@ -209,7 +209,7 @@ function buildCurrentSystemSection(
 }
 
 function buildWaterPowerSection(result: FullEngineResult): OutputHubSection {
-  const combiRisk = result.combiDhwV1.verdict.combiRisk;
+  const combiRisk = result.combiDhwV1?.verdict.combiRisk ?? 'pass';
   return {
     id: 'waterPower',
     title: 'Water Power',
@@ -218,7 +218,7 @@ function buildWaterPowerSection(result: FullEngineResult): OutputHubSection {
     customerSafe: true,
     content: {
       combiRisk,
-      verdict: result.combiDhwV1.verdict,
+      verdict: result.combiDhwV1?.verdict,
     },
   };
 }
@@ -229,7 +229,7 @@ function buildUsageModelSection(
 ): OutputHubSection {
   const hasOccupancy = input.occupancyCount != null;
   const hasBathrooms = input.bathroomCount  != null;
-  const storedRisk   = result.storedDhwV1.verdict.storedRisk;
+  const storedRisk   = result.storedDhwV1?.verdict.storedRisk ?? 'pass';
 
   const missingFields: string[] = [];
   if (!hasOccupancy) missingFields.push('Occupancy count');
@@ -473,13 +473,13 @@ function buildHotWaterDemandSection(
   const peakOutlets = input.peakConcurrentOutlets ?? (bathrooms != null ? Math.min(bathrooms, 2) : null);
   const peakDemandLpm = peakOutlets != null ? peakOutlets * 8 : null;
   // Combi delivery: kW → L/min at 40°C rise (4.2 kJ/kg·K × 1 kg/L → kW/kW = L/s × 60)
-  const combiDeliveryLpm = combi.maxQtoDhwKwDerated != null
+  const combiDeliveryLpm = combi?.maxQtoDhwKwDerated != null
     ? parseFloat(((combi.maxQtoDhwKwDerated / (4.2 * 40 / 60)) ).toFixed(1))
     : null;
   return {
     id: 'hotWaterDemand',
     title: 'Hot Water Demand',
-    status: combi.verdict.combiRisk === 'fail' ? 'watch' : 'ok',
+    status: combi?.verdict.combiRisk === 'fail' ? 'watch' : 'ok',
     visible: true,
     customerSafe: true,
     content: {
@@ -488,9 +488,9 @@ function buildHotWaterDemandSection(
       peakOutlets:          peakOutlets,
       peakDemandLpm,
       combiDeliveryLpm,
-      combiRisk:            combi.verdict.combiRisk,
-      storedVolumeBand:     stored.recommended?.volumeBand ?? 'medium',
-      storedType:           stored.recommended?.type       ?? 'standard',
+      combiRisk:            combi?.verdict.combiRisk ?? 'pass',
+      storedVolumeBand:     stored?.recommended?.volumeBand ?? 'medium',
+      storedType:           stored?.recommended?.type       ?? 'standard',
     },
   };
 }

@@ -236,9 +236,9 @@ export function buildPathwaysV1(
   const hasHydraulicConstraint = result.hydraulicV1.verdict.ashpRisk !== 'pass';
   const ashpViable = !result.redFlags.rejectAshp && result.hydraulicV1.verdict.ashpRisk !== 'fail';
   // When space-saving priority is high, treat borderline (warn) combi as viable for pathway building.
-  const combiPhysicsViable = result.combiDhwV1.verdict.combiRisk !== 'fail' && !result.redFlags.rejectCombi;
+  const combiPhysicsViable = (result.combiDhwV1?.verdict.combiRisk ?? 'pass') !== 'fail' && !result.redFlags.rejectCombi;
   const combiViable = combiPhysicsViable &&
-    (result.combiDhwV1.verdict.combiRisk !== 'warn' || spacePriority === 'high' || spacePriority === 'medium');
+    ((result.combiDhwV1?.verdict.combiRisk ?? 'pass') !== 'warn' || spacePriority === 'high' || spacePriority === 'medium');
   const lowMainsFlow = detectLowMainsFlow(result, input);
   const mainsUnknown = detectMainsFlowUnknown(result, input);
   const mainsFlowLpm = input.mainsDynamicFlowLpm ?? result.cwsSupplyV1.dynamic?.flowLpm;

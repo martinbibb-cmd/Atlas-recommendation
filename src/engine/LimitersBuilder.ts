@@ -70,8 +70,8 @@ export function buildLimitersV1(
   }
 
   // ── 2. Combi concurrency constraint ───────────────────────────────────────
-  // Triggered by combi simultaneous demand flag.
-  const simultaneousFlag = combiDhwV1.flags.find(f => f.id === 'combi-simultaneous-demand');
+  // Triggered by combi simultaneous demand flag (combi family only).
+  const simultaneousFlag = combiDhwV1?.flags.find(f => f.id === 'combi-simultaneous-demand');
   if (simultaneousFlag) {
     const bathroomCount = input.bathroomCount ?? 1;
     const peakOutlets = input.peakConcurrentOutlets ?? bathroomCount;

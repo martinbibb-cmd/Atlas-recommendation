@@ -72,7 +72,7 @@ describe('OutputBuilder visuals', () => {
   });
 
   it('emits a dhw_outlets visual', () => {
-    const { engineOutput } = runEngine(baseInput);
+    const { engineOutput } = runEngine({ ...baseInput, currentHeatSourceType: 'combi' as const });
     const visual = engineOutput.visuals?.find(v => v.type === 'dhw_outlets');
     expect(visual).toBeDefined();
     expect(['pass', 'warn', 'fail']).toContain(visual!.data.combiRisk);
@@ -80,13 +80,13 @@ describe('OutputBuilder visuals', () => {
   });
 
   it('dhw_outlets simultaneousFail is true when bathroomCount >= 2', () => {
-    const { engineOutput } = runEngine({ ...baseInput, bathroomCount: 2 });
+    const { engineOutput } = runEngine({ ...baseInput, currentHeatSourceType: 'combi' as const, bathroomCount: 2 });
     const visual = engineOutput.visuals?.find(v => v.type === 'dhw_outlets');
     expect(visual!.data.simultaneousFail).toBe(true);
   });
 
   it('emits a space_footprint visual', () => {
-    const { engineOutput } = runEngine(baseInput);
+    const { engineOutput } = runEngine({ ...baseInput, currentHeatSourceType: 'stored_water' as const });
     const visual = engineOutput.visuals?.find(v => v.type === 'space_footprint');
     expect(visual).toBeDefined();
     expect(['pass', 'warn']).toContain(visual!.data.storedRisk);

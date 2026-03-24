@@ -60,7 +60,7 @@ describe('buildLimitersV1', () => {
   });
 
   it('emits combi-concurrency-constraint when bathroomCount >= 2', () => {
-    const input = { ...BASE_INPUT, bathroomCount: 2 };
+    const input = { ...BASE_INPUT, currentHeatSourceType: 'combi' as const, bathroomCount: 2 };
     const result = runEngine(input);
     const { limiters } = buildLimitersV1(result, input);
     const concurrencyConstraint = limiters.find(l => l.id === 'combi-concurrency-constraint');

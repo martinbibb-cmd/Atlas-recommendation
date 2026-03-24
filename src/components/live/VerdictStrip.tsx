@@ -16,8 +16,8 @@ interface Props {
 export default function VerdictStrip({ result, onOpenCombi, onOpenStored, onOpenConstraints }: Props) {
   if (!result) return null;
 
-  const combiRisk = result.combiDhwV1.verdict.combiRisk;
-  const storedRisk = result.storedDhwV1.verdict.storedRisk;
+  const combiRisk = result.combiDhwV1?.verdict.combiRisk ?? 'pass';
+  const storedRisk = result.storedDhwV1?.verdict.storedRisk ?? 'pass';
   const limiters = result.engineOutput.limiters;
   const topConstraint = limiters?.limiters.find(l => l.severity === 'fail' || l.severity === 'warn');
   const constraintSummary = topConstraint

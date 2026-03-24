@@ -139,7 +139,8 @@ describe('EngineOutputV1 evidence block', () => {
   });
 
   it('source/confidence classification: combi risk verdict is derived/high', () => {
-    const { engineOutput } = runEngine(baseInput);
+    // Must use combi family so that combiDhwV1 is populated and the evidence item is emitted.
+    const { engineOutput } = runEngine({ ...baseInput, currentHeatSourceType: 'combi' as const });
     const riskItem = engineOutput.evidence?.find(e => e.id === 'ev-combi-risk');
     expect(riskItem).toBeDefined();
     expect(riskItem!.source).toBe('derived');

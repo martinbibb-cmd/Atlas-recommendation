@@ -26,6 +26,11 @@ import * as CombiRunnerModule from '../runners/runCombiSystemModel';
 import * as SystemRunnerModule from '../runners/runSystemStoredSystemModel';
 import * as RegularRunnerModule from '../runners/runRegularStoredSystemModel';
 import * as HPRunnerModule from '../runners/runHeatPumpStoredSystemModel';
+import * as StoredDhwModule from '../modules/StoredDhwModule';
+import * as MixergyVolumetricsModule from '../modules/MixergyVolumetricsModule';
+import * as MixergyLegacyModule from '../modules/MixergyLegacyModule';
+import * as CombiDhwModule from '../modules/CombiDhwModule';
+import * as CombiStressModule from '../modules/CombiStressModule';
 
 // ─── Shared input stubs ───────────────────────────────────────────────────────
 
@@ -102,6 +107,16 @@ describe('runCombiSystemModel', () => {
     expect(result.dhw.combiDhwV1).toBeDefined();
   });
 
+  it('dhw.kind is "direct_combi" — canonical family discriminant', () => {
+    const result = runCombiSystemModel(combiInput, combiTopology);
+    expect(result.dhw.kind).toBe('direct_combi');
+  });
+
+  it('dhw.sourcePath is "combi_runner"', () => {
+    const result = runCombiSystemModel(combiInput, combiTopology);
+    expect(result.dhw.sourcePath).toBe('combi_runner');
+  });
+
   it('owns combiStress — the field is populated in heating', () => {
     const result = runCombiSystemModel(combiInput, combiTopology);
     expect(result.heating.combiStress).toBeDefined();
@@ -150,6 +165,16 @@ describe('runSystemStoredSystemModel', () => {
   it('owns storedDhwV1 — the field is populated in dhw', () => {
     const result = runSystemStoredSystemModel(systemInput, systemTopology);
     expect(result.dhw.storedDhwV1).toBeDefined();
+  });
+
+  it('dhw.kind is "stored" — canonical family discriminant', () => {
+    const result = runSystemStoredSystemModel(systemInput, systemTopology);
+    expect(result.dhw.kind).toBe('stored');
+  });
+
+  it('dhw.sourcePath is "system_runner"', () => {
+    const result = runSystemStoredSystemModel(systemInput, systemTopology);
+    expect(result.dhw.sourcePath).toBe('system_runner');
   });
 
   it('owns mixergy — the field is populated in dhw', () => {
@@ -313,16 +338,13 @@ describe('runEngine topology contract — topology passed to runner matches PR1 
 
 // ─── Legacy output shape stability ───────────────────────────────────────────
 
-describe('runEngine — legacy FullEngineResult shape remains stable', () => {
-  it('combi input: all required FullEngineResultCore fields are populated', () => {
+describe('runEngine — PR3: family-gated DHW output shape', () => {
+  it('combi input: combi-family DHW fields are populated', () => {
     const result = runEngine(combiInput);
     expect(result.hydraulic).toBeDefined();
     expect(result.hydraulicV1).toBeDefined();
     expect(result.combiDhwV1).toBeDefined();
     expect(result.combiStress).toBeDefined();
-    expect(result.storedDhwV1).toBeDefined();
-    expect(result.mixergy).toBeDefined();
-    expect(result.mixergyLegacy).toBeDefined();
     expect(result.lifestyle).toBeDefined();
     expect(result.normalizer).toBeDefined();
     expect(result.redFlags).toBeDefined();
@@ -341,42 +363,107 @@ describe('runEngine — legacy FullEngineResult shape remains stable', () => {
     expect(result.inputValidation).toBeDefined();
   });
 
-  it('system input: all required FullEngineResultCore fields are populated', () => {
+  it('combi input: stored-family DHW fields are absent (forbidden cross-family fields)', () => {
+    const result = runEngine(combiInput);
+    expect(result.storedDhwV1).toBeUndefined();
+    expect(result.mixergy).toBeUndefined();
+    expect(result.mixergyLegacy).toBeUndefined();
+  });
+
+  it('system input: stored-family DHW fields are populated', () => {
     const result = runEngine(systemInput);
     expect(result.hydraulic).toBeDefined();
-    expect(result.combiDhwV1).toBeDefined();
-    expect(result.combiStress).toBeDefined();
     expect(result.storedDhwV1).toBeDefined();
     expect(result.mixergy).toBeDefined();
+    expect(result.mixergyLegacy).toBeDefined();
     expect(result.lifestyle).toBeDefined();
     expect(result.engineOutput).toBeDefined();
   });
 
-  it('regular input: all required FullEngineResultCore fields are populated', () => {
+  it('system input: combi-family DHW fields are absent (forbidden cross-family fields)', () => {
+    const result = runEngine(systemInput);
+    expect(result.combiDhwV1).toBeUndefined();
+    expect(result.combiStress).toBeUndefined();
+  });
+
+  it('regular input: stored-family DHW fields are populated', () => {
     const result = runEngine(regularInput);
     expect(result.hydraulic).toBeDefined();
-    expect(result.combiDhwV1).toBeDefined();
     expect(result.storedDhwV1).toBeDefined();
     expect(result.mixergy).toBeDefined();
+    expect(result.mixergyLegacy).toBeDefined();
     expect(result.lifestyle).toBeDefined();
     expect(result.engineOutput).toBeDefined();
   });
 
-  it('heat pump input: all required FullEngineResultCore fields are populated', () => {
+  it('regular input: combi-family DHW fields are absent (forbidden cross-family fields)', () => {
+    const result = runEngine(regularInput);
+    expect(result.combiDhwV1).toBeUndefined();
+    expect(result.combiStress).toBeUndefined();
+  });
+
+  it('heat pump input: stored-family DHW fields are populated', () => {
     const result = runEngine(heatPumpInput);
     expect(result.hydraulic).toBeDefined();
-    expect(result.combiDhwV1).toBeDefined();
     expect(result.storedDhwV1).toBeDefined();
     expect(result.mixergy).toBeDefined();
+    expect(result.mixergyLegacy).toBeDefined();
     expect(result.lifestyle).toBeDefined();
     expect(result.engineOutput).toBeDefined();
   });
 
-  it('input without currentHeatSourceType defaults to system boiler (stored_water path)', () => {
+  it('heat pump input: combi-family DHW fields are absent (forbidden cross-family fields)', () => {
+    const result = runEngine(heatPumpInput);
+    expect(result.combiDhwV1).toBeUndefined();
+    expect(result.combiStress).toBeUndefined();
+  });
+
+  it('input without currentHeatSourceType defaults to stored_water path', () => {
     const inputNoType: EngineInputV2_3 = { ...baseInput };
     const result = runEngine(inputNoType);
     expect(result.hydraulic).toBeDefined();
     expect(result.storedDhwV1).toBeDefined();
     expect(result.engineOutput).toBeDefined();
+    // combi fields must be absent for stored_water default
+    expect(result.combiDhwV1).toBeUndefined();
+    expect(result.combiStress).toBeUndefined();
+  });
+});
+
+// ─── PR3: runEngine cross-family fallback gate tests ─────────────────────────
+
+describe('runEngine — PR3: cross-family DHW fallback is suppressed', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('combi run: runStoredDhwModuleV1 is never called', () => {
+    const spy = vi.spyOn(StoredDhwModule, 'runStoredDhwModuleV1');
+    runEngine(combiInput);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('combi run: runMixergyVolumetricsModule is never called', () => {
+    const spy = vi.spyOn(MixergyVolumetricsModule, 'runMixergyVolumetricsModule');
+    runEngine(combiInput);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('combi run: runMixergyLegacyModule is never called', () => {
+    const spy = vi.spyOn(MixergyLegacyModule, 'runMixergyLegacyModule');
+    runEngine(combiInput);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('system run: runCombiDhwModuleV1 is never called', () => {
+    const spy = vi.spyOn(CombiDhwModule, 'runCombiDhwModuleV1');
+    runEngine(systemInput);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('system run: runCombiStressModule is never called', () => {
+    const spy = vi.spyOn(CombiStressModule, 'runCombiStressModule');
+    runEngine(systemInput);
+    expect(spy).not.toHaveBeenCalled();
   });
 });

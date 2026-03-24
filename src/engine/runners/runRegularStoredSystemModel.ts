@@ -220,8 +220,10 @@ export function runRegularStoredSystemModel(
       cwsSupplyV1,
     },
     dhw: {
-      // Stored-system runner owns storedDhwV1, mixergy, and mixergyLegacy;
-      // combiDhwV1 and combiStress are absent (combi runner owns those).
+      // PR3: canonical DHW envelope — regular runner owns storedDhwV1, mixergy, mixergyLegacy.
+      // combiDhwV1 and combiStress must be absent for this family.
+      kind: 'stored',
+      sourcePath: 'regular_runner',
       storedDhwV1,
       mixergy,
       mixergyLegacy,

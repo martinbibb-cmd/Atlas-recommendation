@@ -73,13 +73,13 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
   const [season, setSeason] = useState<Season>('typical');
 
   // ── A: Verdict derivation ────────────────────────────────────────────────
-  const combiRisk = result.combiDhwV1.verdict.combiRisk;
-  const storedRisk = result.storedDhwV1.verdict.storedRisk;
+  const combiRisk = result.combiDhwV1?.verdict.combiRisk ?? 'pass';
+  const storedRisk = result.storedDhwV1?.verdict.storedRisk ?? 'pass';
 
   // Storage regime from engine result — drives the UI copy for stored rows
-  const storageRegime = result.storedDhwV1.storageRegime ?? 'boiler_cylinder';
-  const usableVolumeFactor = result.storedDhwV1.usableVolumeFactor ?? 1.0;
-  const storeTempC = result.storedDhwV1.dhwMixing.storeTempC;
+  const storageRegime = result.storedDhwV1?.storageRegime ?? 'boiler_cylinder';
+  const usableVolumeFactor = result.storedDhwV1?.usableVolumeFactor ?? 1.0;
+  const storeTempC = result.storedDhwV1?.dhwMixing.storeTempC ?? 60;
 
   const combiStatusLabel =
     combiRisk === 'fail' ? 'Limited in this setup'
@@ -109,7 +109,7 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
   const deltaT = DHW_SETPOINT - coldTemp;
 
   // Combi DHW kW — prefer derated value from engine
-  const combiKw = result.combiDhwV1.maxQtoDhwKwDerated;
+  const combiKw = result.combiDhwV1?.maxQtoDhwKwDerated ?? 0;
   const combiLimitFlow = flowForKw(combiKw, deltaT);
 
   // Household-driven representative flow — no manual preset selector
