@@ -53,6 +53,7 @@ import { runCondensingRuntimeModule } from '../modules/CondensingRuntimeModule';
 import type { SystemTopology } from '../topology/SystemTopology';
 import type { FamilyRunnerResult } from './types';
 import { buildDemandHeatKw96, computeAverageLoadFraction } from './sharedRunnerUtils';
+import { buildCombiStateTimeline } from '../timeline/buildCombiStateTimeline';
 
 /**
  * Runs all engine modules for a combi boiler system.
@@ -93,6 +94,9 @@ export function runCombiSystemModel(
   const combiDhwV1 = runCombiDhwModuleV1(input, sludgeVsScale.dhwCapacityDeratePct);
   const combiDhwPhase = runCombiDhwPhaseModel(adaptEngineInputToCombiPhase(input));
   const combiStress = runCombiStressModule(input);
+
+  // PR6: Build canonical internal state timeline from combi phase model result.
+  const stateTimeline = buildCombiStateTimeline(combiDhwPhase, topology.appliance.family);
 
   const lifestyle = runLifestyleSimulationModule(input, sludgeVsScale.cyclingLossPct);
 
@@ -250,5 +254,6 @@ export function runCombiSystemModel(
       bomItems,
       gridFlex,
     },
+    stateTimeline,
   };
 }

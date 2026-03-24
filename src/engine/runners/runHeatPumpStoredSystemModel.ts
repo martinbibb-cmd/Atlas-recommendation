@@ -53,6 +53,7 @@ import { runCondensingRuntimeModule } from '../modules/CondensingRuntimeModule';
 import type { SystemTopology } from '../topology/SystemTopology';
 import type { FamilyRunnerResult } from './types';
 import { buildDemandHeatKw96, computeAverageLoadFraction } from './sharedRunnerUtils';
+import { buildHydronicStateTimeline } from '../timeline/buildHydronicStateTimeline';
 
 /**
  * Runs all engine modules for a heat pump installation.
@@ -95,6 +96,9 @@ export function runHeatPumpStoredSystemModel(
   const storedDhwPhase = runStoredDhwPhaseModel(
     adaptEngineInputToStoredPhase(input, 'heat_pump_stored'),
   );
+
+  // PR6: Build canonical internal state timeline from stored phase model result.
+  const stateTimeline = buildHydronicStateTimeline(storedDhwPhase, topology.appliance.family);
   const mixergy = runMixergyVolumetricsModule(input);
   const mixergyLegacy = runMixergyLegacyModule({
     hasIotIntegration: input.hasIotIntegration ?? false,
@@ -258,5 +262,6 @@ export function runHeatPumpStoredSystemModel(
       bomItems,
       gridFlex,
     },
+    stateTimeline,
   };
 }
