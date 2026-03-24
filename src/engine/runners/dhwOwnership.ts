@@ -88,6 +88,18 @@ export function assertValidDhwOwnership(
         `(sourcePath: '${dhw.sourcePath}')`,
       );
     }
+    if (dhw.storedDhwPhase === undefined) {
+      throw new Error(
+        `[dhwOwnership] hydronic topology requires dhw.storedDhwPhase to be present ` +
+        `(sourcePath: '${dhw.sourcePath}') — PR4: stored-water delivery/recharge phases must be modelled`,
+      );
+    }
+    if (dhw.storedDhwPhase.usedCombiDhwPath !== false) {
+      throw new Error(
+        `[dhwOwnership] hydronic topology: dhw.storedDhwPhase.usedCombiDhwPath must be false ` +
+        `(sourcePath: '${dhw.sourcePath}') — stored systems must not use the combi DHW path`,
+      );
+    }
     if (dhw.combiDhwV1 !== undefined) {
       throw new Error(
         `[dhwOwnership] hydronic topology forbids dhw.combiDhwV1 ` +

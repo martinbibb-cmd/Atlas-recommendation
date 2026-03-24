@@ -30,6 +30,7 @@ import type {
   CwsSupplyV1Result,
   CombiDhwV1Result,
   StoredDhwV1Result,
+  StoredDhwPhaseResult,
   MixergyResult,
   MixergyLegacyResult,
   LifestyleResult,
@@ -75,6 +76,19 @@ export interface DhwResultEnvelope {
   readonly combiDhwV1?: CombiDhwV1Result;
   /** Owned by stored-system runners; `undefined` in the combi runner. */
   readonly storedDhwV1?: StoredDhwV1Result;
+  /**
+   * PR4: Stored-water delivery and recharge phase model.
+   *
+   * Present for all hydronic runners; `undefined` in the combi runner.
+   *
+   * Captures the two-phase semantic picture:
+   *   1. Draw-off is served from stored state (not directly from the appliance).
+   *   2. Recharge is a separate, conditional phase triggered by control logic.
+   *
+   * `storedDhwPhase.usedCombiDhwPath` is always `false` — a machine-checkable
+   * assertion that the combi direct-DHW path was not invoked.
+   */
+  readonly storedDhwPhase?: StoredDhwPhaseResult;
   /** Owned by stored-system runners when a Mixergy cylinder is present. */
   readonly mixergy?: MixergyResult;
   /** Mixergy legacy settings; present when `dhwTankType === 'mixergy'`. */

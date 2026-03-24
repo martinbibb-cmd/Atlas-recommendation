@@ -24,6 +24,7 @@ const systemTopology = buildSystemTopologyFromSpec({ systemType: 'stored_water' 
 
 const stubCombiDhwV1 = { verdict: { combiRisk: 'pass' }, flags: [], maxQtoDhwKwDerated: 30 } as unknown as DhwResultEnvelope['combiDhwV1'];
 const stubStoredDhwV1 = { verdict: { storedRisk: 'pass' }, flags: [], recommended: { type: 'standard', volumeBand: 'medium' } } as unknown as DhwResultEnvelope['storedDhwV1'];
+const stubStoredDhwPhase = { usedCombiDhwPath: false as const, recoveryCharacteristic: 'boiler_stored', controlMode: 'thermostat_call', cylinderVolumeLitres: 150, recoveryRateLph: 200, initialStoreState: { usableHotWaterLitres: 250, storeTopTempC: 60, storeMeanTempC: 55, reheatRequired: false, estimatedRecoveryMinutes: 0 }, drawOffResult: { deliveredVolumeLitres: 54, deliveredFlowLpm: 9, deliveredTempC: 40, storeDepletionLitres: 32, reheatTriggered: false, chInterruptedByReheat: false, postDrawStoreState: { usableHotWaterLitres: 200, storeTopTempC: 59, storeMeanTempC: 54, reheatRequired: false, estimatedRecoveryMinutes: 5 } } } as unknown as DhwResultEnvelope['storedDhwPhase'];
 const stubMixergy = { mixergyLitres: 150 } as unknown as DhwResultEnvelope['mixergy'];
 const stubMixergyLegacy = { notes: [] } as unknown as DhwResultEnvelope['mixergyLegacy'];
 
@@ -100,11 +101,12 @@ describe('assertValidDhwOwnership — combi topology', () => {
 // ─── Hydronic ownership tests ─────────────────────────────────────────────────
 
 describe('assertValidDhwOwnership — hydronic topology (system)', () => {
-  it('passes when dhw.kind is "stored" and storedDhwV1 is present', () => {
+  it('passes when dhw.kind is "stored" and storedDhwV1 and storedDhwPhase are present', () => {
     const dhw: DhwResultEnvelope = {
       kind: 'stored',
       sourcePath: 'system_runner',
       storedDhwV1: stubStoredDhwV1,
+      storedDhwPhase: stubStoredDhwPhase,
       mixergy: stubMixergy,
       mixergyLegacy: stubMixergyLegacy,
     };
@@ -132,11 +134,36 @@ describe('assertValidDhwOwnership — hydronic topology (system)', () => {
     );
   });
 
+  it('throws when storedDhwPhase is absent for a hydronic topology (PR4 requirement)', () => {
+    const dhw: DhwResultEnvelope = {
+      kind: 'stored',
+      sourcePath: 'system_runner',
+      storedDhwV1: stubStoredDhwV1,
+      // storedDhwPhase intentionally omitted
+    };
+    expect(() => assertValidDhwOwnership(dhw, systemTopology)).toThrow(
+      /storedDhwPhase to be present/,
+    );
+  });
+
+  it('throws when storedDhwPhase.usedCombiDhwPath is not false (invariant violation)', () => {
+    const dhw: DhwResultEnvelope = {
+      kind: 'stored',
+      sourcePath: 'system_runner',
+      storedDhwV1: stubStoredDhwV1,
+      storedDhwPhase: { ...stubStoredDhwPhase!, usedCombiDhwPath: true as unknown as false },
+    };
+    expect(() => assertValidDhwOwnership(dhw, systemTopology)).toThrow(
+      /usedCombiDhwPath must be false/,
+    );
+  });
+
   it('throws when combiDhwV1 is present for a hydronic topology (forbidden field)', () => {
     const dhw: DhwResultEnvelope = {
       kind: 'stored',
       sourcePath: 'system_runner',
       storedDhwV1: stubStoredDhwV1,
+      storedDhwPhase: stubStoredDhwPhase,
       combiDhwV1: stubCombiDhwV1,
     };
     expect(() => assertValidDhwOwnership(dhw, systemTopology)).toThrow(
