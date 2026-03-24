@@ -48,13 +48,13 @@ export default function WhyNotPanel({ disqualifiedCandidates }: Props) {
 
   return (
     <section className="why-not" aria-label="Why not other options">
-      <p className="why-not__heading">Why not other options?</p>
+      <p className="why-not__heading">Why not the others?</p>
       <div className="why-not__cards">
         {disqualifiedCandidates.map((candidate) => {
           const blockingLimiterId = candidate.evidenceTrace.hardStopLimiters[0];
           const reason = blockingLimiterId
             ? getLimiterHumanCopy(blockingLimiterId).headline
-            : candidate.caveats[0] ?? 'Further review needed for your home.';
+            : candidate.caveats[0] ?? 'Worth a closer look before committing.';
 
           return (
             <div key={candidate.family} className="why-not__card">
@@ -62,7 +62,7 @@ export default function WhyNotPanel({ disqualifiedCandidates }: Props) {
               <p className="why-not__reason">{reason}</p>
               {blockingLimiterId && (
                 <p className="why-not__action">
-                  This can change once that constraint is resolved.
+                  Resolve this and it becomes a realistic option.
                 </p>
               )}
             </div>

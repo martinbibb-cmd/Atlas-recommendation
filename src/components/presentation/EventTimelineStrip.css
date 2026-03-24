@@ -56,6 +56,18 @@
   border: 1px solid #fed7aa;
 }
 
+/* Interruption: amber/warm — boiler pauses heating for hot water */
+.evt-strip__event--problem-interruption {
+  background: #fffbeb;
+  border: 2px solid #f59e0b;
+}
+
+/* Recharge: blue tint — cylinder is filling back up */
+.evt-strip__event--problem-recharge {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
 .evt-strip__event--improvement {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
@@ -75,6 +87,15 @@
 
 .evt-strip__event--problem .evt-strip__label {
   color: #c2410c;
+}
+
+.evt-strip__event--problem-interruption .evt-strip__label {
+  color: #92400e;
+  font-weight: 600;
+}
+
+.evt-strip__event--problem-recharge .evt-strip__label {
+  color: #1d4ed8;
 }
 
 .evt-strip__event--improvement .evt-strip__label {

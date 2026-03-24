@@ -2,9 +2,9 @@
  * StoryCanvas.tsx — Presentation Layer v1.
  *
  * The main story canvas — three stacked sections:
- *   A. "What happens in your home" — EventTimelineStrip
- *   B. "Why this happens" — CauseCards
- *   C. ModeToggle (current ↔ proposed)
+ *   A. "What happens now" — EventTimelineStrip
+ *   B. "Why" — CauseCards
+ *   C. ModeToggle (your home now ↔ with this system)
  *
  * Props bind directly to engine outputs: SystemStateTimeline, events,
  * LimiterLedger, and the current recommendation.

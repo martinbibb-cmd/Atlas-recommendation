@@ -3,8 +3,9 @@
  *
  * Top strip of the PresentationFlow screen:
  *   Left  — home summary chips (bed count, bathrooms, pipes, pressure)
- *   Centre — "Simulator" label
+ *   Centre — "In-room Presentation" label
  *   Right  — family selector pills (Combi | Stored | Heat pump)
+ *            Pills for the current and recommended families are annotated.
  *
  * The family pills are the primary system-selector control on this screen.
  */
@@ -30,6 +31,10 @@ interface Props {
   selectedFamily: SelectableFamily;
   /** Called when the user taps a family pill. */
   onSelectFamily: (family: SelectableFamily) => void;
+  /** The family currently installed in the home. */
+  currentFamily?: SelectableFamily;
+  /** The recommended family for the home. */
+  recommendedFamily?: SelectableFamily;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -38,6 +43,8 @@ export default function PresentationHeader({
   homeSummary,
   selectedFamily,
   onSelectFamily,
+  currentFamily,
+  recommendedFamily,
 }: Props) {
   return (
     <header className="pres-header" role="banner">
@@ -51,22 +58,36 @@ export default function PresentationHeader({
       </div>
 
       {/* Centre — screen title */}
-      <span className="pres-header__title" aria-label="Simulator">
-        Simulator
+      <span className="pres-header__title" aria-label="In-room Presentation">
+        In-room Presentation
       </span>
 
       {/* Right — family selector pills */}
       <nav className="pres-header__families" aria-label="System family selector">
-        {FAMILY_PILL_LABELS.map(({ family, label }) => (
-          <button
-            key={family}
-            className={`pres-header__family-pill ${selectedFamily === family ? 'pres-header__family-pill--active' : ''}`}
-            onClick={() => onSelectFamily(family)}
-            aria-pressed={selectedFamily === family}
-          >
-            {label}
-          </button>
-        ))}
+        {FAMILY_PILL_LABELS.map(({ family, label }) => {
+          const isCurrent = family === currentFamily;
+          const isRecommended = family === recommendedFamily;
+          const badge = isRecommended ? '★' : isCurrent ? '·' : null;
+          const ariaLabel = isRecommended
+            ? `${label} — recommended`
+            : isCurrent
+              ? `${label} — current system`
+              : label;
+          return (
+            <button
+              key={family}
+              className={`pres-header__family-pill ${selectedFamily === family ? 'pres-header__family-pill--active' : ''} ${isRecommended ? 'pres-header__family-pill--recommended' : ''} ${isCurrent && !isRecommended ? 'pres-header__family-pill--current' : ''}`}
+              onClick={() => onSelectFamily(family)}
+              aria-pressed={selectedFamily === family}
+              aria-label={ariaLabel}
+            >
+              {label}
+              {badge != null && (
+                <span className="pres-header__pill-badge" aria-hidden="true">{badge}</span>
+              )}
+            </button>
+          );
+        })}
       </nav>
     </header>
   );

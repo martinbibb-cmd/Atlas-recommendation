@@ -46,6 +46,11 @@ interface Props {
    */
   onOpenSystemLab?: () => void;
   /**
+   * When provided and surveyData is present, an "In-room presentation" action
+   * is shown so surveyors can navigate to PresentationFlow from the simulator.
+   */
+  onOpenPresentation?: () => void;
+  /**
    * Optional floor-plan derived outputs from the FloorPlanBuilder.
    * When provided, the simulator and advice page surface which physics
    * assumptions are informed by the floor plan (heat loss, emitter coverage,
@@ -72,7 +77,7 @@ function SurveyFamilyDashboard({ surveyInput }: SurveyFamilyDashboardProps) {
 
 // ─── View ─────────────────────────────────────────────────────────────────────
 
-export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab }: Props) {
+export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab, onOpenPresentation }: Props) {
   const [config, setConfig] = useState<StepperConfig | null>(null);
   // When launched from a survey, hide the stepper by default.
   const [showStepper, setShowStepper] = useState<boolean>(!surveyData);
@@ -169,6 +174,15 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab 
               aria-label="Open System Lab"
             >
               🔭 System Lab
+            </button>
+          )}
+          {onOpenPresentation != null && isSurveyBacked && (
+            <button
+              className="hub-back-btn"
+              onClick={onOpenPresentation}
+              aria-label="Open in-room presentation"
+            >
+              ▶ Presentation
             </button>
           )}
           <div>

@@ -25,7 +25,7 @@ export default function ModeToggle({ mode, onToggle }: Props) {
         onClick={() => onToggle('current')}
         aria-pressed={mode === 'current'}
       >
-        Current
+        Your home now
       </button>
       <span className="mode-toggle__arrow" aria-hidden="true">↔</span>
       <button
@@ -33,7 +33,7 @@ export default function ModeToggle({ mode, onToggle }: Props) {
         onClick={() => onToggle('proposed')}
         aria-pressed={mode === 'proposed'}
       >
-        Proposed
+        With this system
       </button>
     </div>
   );

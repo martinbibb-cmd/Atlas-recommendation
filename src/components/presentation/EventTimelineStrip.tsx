@@ -10,7 +10,13 @@
  * Visual: intentionally icon-based and non-charty.
  *
  * Layout: left-to-right scenario strip
- *   [ 🚿 Shower ] [ 🚰 Tap ] [ 🔥 Heating ] [ ⚡ Interruption? ] [ 🔄 Recharge? ]
+ *   [ 🚿 Shower ] [ 🚰 Tap ] [ 🔥 Heating ] [ ⏸ Interrupted? ] [ 🔄 Recharging? ]
+ *
+ * Visual distinction:
+ *   problem events     — amber/orange border + red label (current mode)
+ *   improvement events — green border + green label (proposed mode)
+ *   interruption       — amber/pulsing (distinct from recharge which is blue)
+ *   recharge           — blue tint (stored system fills back up)
  */
 
 import type { DerivedSystemEventSummary } from '../../engine/timeline/DerivedSystemEvent';
@@ -23,7 +29,7 @@ import './EventTimelineStrip.css';
 interface StripEvent {
   icon: string;
   label: string;
-  kind: 'neutral' | 'problem' | 'improvement';
+  kind: 'neutral' | 'problem' | 'problem-interruption' | 'problem-recharge' | 'improvement';
 }
 
 /**
@@ -56,7 +62,7 @@ function buildStripEvents(
   // ── Heating ────────────────────────────────────────────────────────────
   strip.push({
     icon: '🔥',
-    label: 'Heating',
+    label: 'Heating on',
     kind: 'neutral',
   });
 
@@ -65,15 +71,15 @@ function buildStripEvents(
     const hasInterruption = events.counters.heatingInterruptions > 0;
     if (hasInterruption) {
       strip.push({
-        icon: '⏸',
-        label: isProposed ? 'Heating stable' : 'Heating interrupted',
-        kind: isProposed ? 'improvement' : 'problem',
+        icon: isProposed ? '✅' : '⏸',
+        label: isProposed ? 'Heating continuous' : 'Heating paused',
+        kind: isProposed ? 'improvement' : 'problem-interruption',
       });
     }
     if (events.counters.purgeCycles > 0) {
       strip.push({
-        icon: isProposed ? '✅' : '💨',
-        label: isProposed ? 'Clean delivery' : 'Purge cycle',
+        icon: isProposed ? '🟢' : '💨',
+        label: isProposed ? 'Hot water ready' : 'Purge cycle',
         kind: isProposed ? 'improvement' : 'problem',
       });
     }
@@ -86,8 +92,8 @@ function buildStripEvents(
       icon: isProposed ? '🟢' : (hasRecharge ? '🔄' : '✅'),
       label: isProposed
         ? 'Reserve maintained'
-        : (hasRecharge ? 'Cylinder recharge' : 'Reserve full'),
-      kind: isProposed ? 'improvement' : (hasRecharge ? 'neutral' : 'neutral'),
+        : (hasRecharge ? 'Cylinder recharging' : 'Reserve full'),
+      kind: isProposed ? 'improvement' : (hasRecharge ? 'problem-recharge' : 'neutral'),
     });
   }
 
@@ -95,7 +101,7 @@ function buildStripEvents(
   if (events.counters.reducedDhwEvents > 0) {
     strip.push({
       icon: isProposed ? '✅' : '📉',
-      label: isProposed ? 'Full flow' : 'Reduced flow',
+      label: isProposed ? 'Full flow' : 'Flow reduced',
       kind: isProposed ? 'improvement' : 'problem',
     });
   }
@@ -115,10 +121,11 @@ interface Props {
 
 export default function EventTimelineStrip({ events, family, mode }: Props) {
   const stripEvents = buildStripEvents(events, family, mode);
+  const heading = mode === 'current' ? 'What happens now' : 'What changes';
 
   return (
-    <section className="evt-strip" aria-label="What happens in your home">
-      <p className="evt-strip__heading">What happens in your home</p>
+    <section className="evt-strip" aria-label={heading}>
+      <p className="evt-strip__heading">{heading}</p>
       <div className="evt-strip__track" role="list">
         {stripEvents.map((evt, idx) => (
           <div key={idx} className={`evt-strip__event evt-strip__event--${evt.kind}`} role="listitem">

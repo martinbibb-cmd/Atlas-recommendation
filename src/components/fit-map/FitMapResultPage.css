@@ -31,10 +31,40 @@
   margin: 0 0 1.25rem;
 }
 
+.fit-map-result-page__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.fit-map-result-page__presentation-btn {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  background: #2d3748;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s ease, transform 0.1s ease;
+  letter-spacing: 0.01em;
+}
+
+.fit-map-result-page__presentation-btn:hover,
+.fit-map-result-page__presentation-btn:focus-visible {
+  background: #1a202c;
+  outline: 2px solid #90cdf4;
+  outline-offset: 2px;
+  transform: scale(1.01);
+}
+
 .fit-map-result-page__continue {
   display: block;
   width: 100%;
-  margin-top: 1.5rem;
   padding: 0.75rem 1.5rem;
   background: #3182ce;
   color: #ffffff;

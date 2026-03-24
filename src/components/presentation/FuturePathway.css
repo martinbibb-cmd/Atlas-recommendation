@@ -87,3 +87,11 @@
 .future-pathway__step--future .future-pathway__step-name {
   color: #15803d;
 }
+
+.future-pathway__step-detail {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  line-height: 1.4;
+  text-align: center;
+  max-width: 130px;
+}

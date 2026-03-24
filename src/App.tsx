@@ -64,8 +64,18 @@ const REPORT_MODE_ENABLED =
   new URLSearchParams(window.location.search).get('report') === '1';
 
 /**
- * Demo engine input used by the report mode (?report=1).
- * Produces a realistic UK combi-vs-stored scenario for demonstration.
+ * Detect ?presentation=1 — renders PresentationFlow directly with demo data.
+ * Useful for in-room demo and development.
+ */
+const PRESENTATION_MODE_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('presentation') === '1';
+
+/**
+ * Demo engine input used by the report mode (?report=1) and presentation demo (?presentation=1).
+ * Produces a realistic UK combi scenario for demonstration:
+ *   - 3-bed semi, 3 occupants, 1 bathroom, standard mains pressure
+ *   - Combi boiler (current) with high heat loss — the "struggling combi" scenario
  */
 const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   postcode: 'SW1A 1AA',
@@ -82,6 +92,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   buildingMass: 'medium',
   highOccupancy: false,
   preferCombi: true,
+  currentHeatSourceType: 'combi',
 };
 
 type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report' | 'presentation';
@@ -285,6 +296,16 @@ export default function App() {
     );
   }
 
+  // ?presentation=1 feature flag — render PresentationFlow directly with demo data.
+  if (PRESENTATION_MODE_ENABLED) {
+    return (
+      <PresentationFlow
+        engineInput={CONSOLE_DEMO_INPUT}
+        onBack={() => { window.location.href = window.location.pathname; }}
+      />
+    );
+  }
+
   // ?lab=1 feature flag — render Demo Lab directly.
   if (LAB_MODE_ENABLED) {
     return <ExplainersHubPage onBack={() => { window.location.href = window.location.pathname; }} />;
@@ -380,6 +401,7 @@ export default function App() {
       {journey === 'fit-map' && fitPosition != null && (
         <FitMapResultPage
           fitPosition={fitPosition}
+          onOpenPresentation={labEngineInput != null ? () => setJourney('presentation') : undefined}
           onContinue={() => setJourney('simulator')}
         />
       )}
@@ -400,6 +422,7 @@ export default function App() {
           <ExplainersHubPage
             onBack={() => setJourney('landing')}
             onOpenSystemLab={() => setJourney('lab')}
+            onOpenPresentation={labEngineInput != null ? () => setJourney('presentation') : undefined}
             surveyData={labEngineInput}
             floorplanOutput={floorplanOutput}
           />
@@ -410,6 +433,7 @@ export default function App() {
         <PresentationFlow
           engineInput={labEngineInput}
           onBack={() => setJourney('simulator')}
+          onOpenSimulator={() => setJourney('simulator')}
         />
       )}
       {journey === 'explorer' && EXPLORER_ENABLED && <AtlasExplorerPage onBack={() => setJourney('landing')} />}

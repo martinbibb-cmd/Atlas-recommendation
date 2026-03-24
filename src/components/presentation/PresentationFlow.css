@@ -60,6 +60,9 @@
   padding: 1rem 1.25rem;
   border-top: 1px solid #e5e7eb;
   background: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .pres-flow__back-btn {
@@ -76,4 +79,21 @@
 .pres-flow__back-btn:hover {
   background: #f3f4f6;
   color: #374151;
+}
+
+.pres-flow__simulator-btn {
+  background: none;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
+  color: #1d4ed8;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  margin-left: auto;
+}
+
+.pres-flow__simulator-btn:hover {
+  background: #eff6ff;
+  color: #1e40af;
 }

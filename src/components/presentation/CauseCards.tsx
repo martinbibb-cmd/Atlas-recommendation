@@ -50,12 +50,12 @@ export default function CauseCards({ limiterLedger, mode, maxCards = 3 }: Props)
     return (
       <section className="cause-cards" aria-label="Why this happens">
         <p className="cause-cards__heading">
-          {isProposed ? 'Why this system works for your home' : 'Why this happens'}
+          {isProposed ? 'Why this works for your home' : 'Why this happens'}
         </p>
         <p className="cause-cards__empty">
           {isProposed
-            ? 'No significant constraints for this system in your home.'
-            : 'No significant constraints identified.'}
+            ? 'This system has no significant constraints in your home.'
+            : 'No significant issues identified.'}
         </p>
       </section>
     );
