@@ -4,7 +4,7 @@
  * Dedicated post-survey framing step that shows the System Fit Map in a
  * light-card context, positioned in the journey as:
  *
- *   Survey → Fit Map (this page) → Simulator → Events / Upgrades → Report
+ *   Survey → Fit Map (this page) → Presentation / Simulator
  *
  * Props are derived from the completed survey (EngineInputV2_3) so the
  * fit position is always grounded in real household data, not placeholders.
@@ -18,11 +18,13 @@ interface Props {
   fitPosition: FitPosition;
   /** Called when the user taps "Continue to simulator". */
   onContinue: () => void;
+  /** Optional — called when the user wants to open the in-room presentation. */
+  onOpenPresentation?: () => void;
   /** Optional — called when the user wants to review the full physics explainer. */
   onShowExplainer?: (system: FitPosition['nearestSystem']) => void;
 }
 
-export default function FitMapResultPage({ fitPosition, onContinue, onShowExplainer }: Props) {
+export default function FitMapResultPage({ fitPosition, onContinue, onOpenPresentation, onShowExplainer }: Props) {
   return (
     <div className="fit-map-result-page">
       <div className="fit-map-result-page__card">
@@ -35,13 +37,24 @@ export default function FitMapResultPage({ fitPosition, onContinue, onShowExplai
 
         <SystemFitMap fitPosition={fitPosition} onShowExplainer={onShowExplainer} />
 
-        <button
-          className="fit-map-result-page__continue"
-          onClick={onContinue}
-          aria-label="Continue to simulator"
-        >
-          Continue to simulator →
-        </button>
+        <div className="fit-map-result-page__actions">
+          {onOpenPresentation != null && (
+            <button
+              className="fit-map-result-page__presentation-btn"
+              onClick={onOpenPresentation}
+              aria-label="Open in-room presentation"
+            >
+              ▶ Open in-room presentation
+            </button>
+          )}
+          <button
+            className="fit-map-result-page__continue"
+            onClick={onContinue}
+            aria-label="Continue to simulator"
+          >
+            Continue to simulator →
+          </button>
+        </div>
       </div>
     </div>
   );

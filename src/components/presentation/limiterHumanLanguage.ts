@@ -10,6 +10,7 @@
  *   - Use: "tank-fed hot water", "mains-fed supply", "on-demand hot water".
  *   - Language must use "your home" and "how your home is used".
  *   - Never say "this system fails" or "not suitable".
+ *   - Be confident, human, and home-focused.
  */
 
 export interface LimiterHumanCopy {
@@ -26,64 +27,64 @@ export interface LimiterHumanCopy {
  */
 const LIMITER_COPY: Record<string, LimiterHumanCopy> = {
   combi_service_switching: {
-    headline: 'Heating pauses when hot water runs',
-    detail: 'Your home switches between heating and hot water — it cannot do both at once.',
+    headline: 'Heating pauses every time on-demand hot water runs',
+    detail: 'Your boiler can only do one thing at a time — it switches between heating and hot water, never both.',
   },
   simultaneous_demand_constraint: {
-    headline: 'Multiple water uses exceed what the system can deliver at once',
-    detail: 'Running a shower and taps at the same time places high demand on the system.',
+    headline: 'Two outlets running at once is more than this system can manage',
+    detail: 'Running a shower alongside another tap puts more demand on the system than it was designed for.',
   },
   stored_volume_shortfall: {
-    headline: 'Hot water may run short during busy periods',
-    detail: 'The stored volume is sized close to the peak demand in your home.',
+    headline: 'Hot water can run short during a busy morning',
+    detail: 'The cylinder holds just enough for most days — high demand periods push it close to empty.',
   },
   reduced_dhw_service: {
-    headline: 'Hot water flow is reduced under heavy use',
-    detail: 'When demand is high, the flow rate drops below the comfortable threshold.',
+    headline: 'Flow drops when hot water demand is high',
+    detail: 'At peak times, the system cannot sustain a comfortable flow rate to all outlets.',
   },
   hp_reheat_latency: {
-    headline: 'The heat pump takes longer to reheat after heavy use',
-    detail: 'Heat pumps recharge at lower power — recovery time is longer than a gas boiler.',
+    headline: 'Recovery time is longer after a lot of hot water use',
+    detail: 'Heat pumps recharge at lower power than a gas boiler — the cylinder takes more time to refill.',
   },
   mains_flow_constraint: {
-    headline: 'Mains flow limits how much hot water can reach your taps',
-    detail: 'The incoming mains supply capacity constrains peak hot water delivery.',
+    headline: 'Incoming mains flow limits how much hot water your home can use at once',
+    detail: 'The supply from the street restricts peak delivery — no system can exceed what comes in.',
   },
   pressure_constraint: {
-    headline: 'Mains pressure affects hot water performance in your home',
-    detail: 'Low incoming pressure reduces flow at outlets, particularly upstairs.',
+    headline: 'Mains pressure is a factor in how hot water performs upstairs',
+    detail: 'Lower incoming pressure means less push at outlets — especially noticeable on upper floors.',
   },
   primary_pipe_constraint: {
-    headline: 'Pipe size limits future upgrades in your home',
-    detail: 'The existing pipework diameter restricts flow and may need upsizing for new systems.',
+    headline: 'Existing pipework may need upsizing for a different system',
+    detail: 'The current pipe diameter is fine for now but would limit flow with a new or larger system.',
   },
   open_vented_head_limit: {
-    headline: 'Tank height limits water pressure in your home',
-    detail: 'Tank-fed hot water relies on gravity — the head of water determines pressure at taps.',
+    headline: 'Tank-fed supply pressure depends on how high the tank is',
+    detail: 'Tank-fed hot water uses gravity — the higher the tank, the better the pressure at taps.',
   },
   emitter_temperature_constraint: {
-    headline: 'Your radiators need high flow temperatures',
-    detail: 'The current emitters require high temperatures to reach comfort — limiting low-temperature systems.',
+    headline: 'Your radiators need high temperatures to heat the home well',
+    detail: 'Older or undersized radiators require hotter water to reach comfort, which limits low-temperature systems.',
   },
   cycling_risk: {
-    headline: 'Short-cycling increases wear on the boiler',
-    detail: 'The boiler fires and stops frequently, which reduces efficiency and longevity.',
+    headline: 'The boiler fires and stops too often — this wears it down',
+    detail: 'Short-cycling happens when the boiler is oversized for the demand. It reduces efficiency and longevity.',
   },
   high_return_temp_non_condensing: {
-    headline: 'Your boiler is not condensing efficiently',
-    detail: 'High return temperatures prevent the boiler from recovering heat from flue gases.',
+    headline: 'The boiler is losing heat it could be recovering',
+    detail: 'High return temperatures stop the boiler condensing — it misses out on free heat from its own flue gases.',
   },
   hp_high_flow_temp_penalty: {
-    headline: 'High flow temperatures reduce heat pump efficiency',
-    detail: 'Running at elevated temperatures reduces the coefficient of performance (COP).',
+    headline: 'Running at high temperatures reduces heat pump efficiency',
+    detail: 'The hotter the water it makes, the harder the heat pump has to work — and the more energy it uses.',
   },
   dhw_storage_required: {
-    headline: 'A hot water cylinder is needed for this system',
-    detail: 'This type of system requires a cylinder to store and deliver domestic hot water.',
+    headline: 'This system needs a hot water cylinder',
+    detail: 'Unlike a combi, it stores hot water rather than delivering on-demand — a cylinder is part of the package.',
   },
   space_for_cylinder_unavailable: {
-    headline: 'There is limited space for a hot water cylinder',
-    detail: 'A suitable location for the cylinder has not been identified in your home.',
+    headline: 'Finding space for a cylinder is worth discussing',
+    detail: 'A suitable location for the hot water storage has not been identified yet — it may be solvable.',
   },
 };
 
@@ -93,6 +94,6 @@ const LIMITER_COPY: Record<string, LimiterHumanCopy> = {
  */
 export function getLimiterHumanCopy(limiterId: string): LimiterHumanCopy {
   return LIMITER_COPY[limiterId] ?? {
-    headline: 'A system constraint was identified in your home',
+    headline: 'A constraint was identified that affects how this system performs in your home',
   };
 }

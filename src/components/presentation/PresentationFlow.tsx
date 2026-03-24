@@ -115,6 +115,8 @@ interface Props {
   homeSummary?: string[];
   /** Navigation callback — back to the previous screen. */
   onBack?: () => void;
+  /** Optional callback to navigate to the full simulator dashboard. */
+  onOpenSimulator?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -124,6 +126,7 @@ export default function PresentationFlow({
   recommendationResult: recommendationResultProp,
   homeSummary,
   onBack,
+  onOpenSimulator,
 }: Props) {
   // ── Compute recommendation result if not provided ─────────────────────
   const engineResult = useMemo(() => runEngine(engineInput), [engineInput]);
@@ -182,6 +185,8 @@ export default function PresentationFlow({
         homeSummary={chips}
         selectedFamily={activeFamily}
         onSelectFamily={handleSelectFamily}
+        currentFamily={currentFamily}
+        recommendedFamily={proposedFamily}
       />
 
       {/* ── What matters in your home ─────────────────────────────────── */}
@@ -235,12 +240,19 @@ export default function PresentationFlow({
         </div>
       </main>
 
-      {/* ── Back navigation ───────────────────────────────────────────── */}
-      {onBack != null && (
+      {/* ── Footer navigation ─────────────────────────────────────────── */}
+      {(onBack != null || onOpenSimulator != null) && (
         <div className="pres-flow__footer">
-          <button className="pres-flow__back-btn" onClick={onBack}>
-            ← Back
-          </button>
+          {onBack != null && (
+            <button className="pres-flow__back-btn" onClick={onBack}>
+              ← Back
+            </button>
+          )}
+          {onOpenSimulator != null && (
+            <button className="pres-flow__simulator-btn" onClick={onOpenSimulator}>
+              Full simulator →
+            </button>
+          )}
         </div>
       )}
     </div>

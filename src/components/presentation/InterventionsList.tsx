@@ -30,7 +30,13 @@ function groupInterventions(
   const heating: RecommendationIntervention[] = [];
   const infrastructure: RecommendationIntervention[] = [];
 
+  // Deduplicate by ID across all groups — each intervention ID is shown once.
+  const seenIds = new Set<string>();
+
   for (const intervention of interventions) {
+    if (seenIds.has(intervention.id)) continue;
+    seenIds.add(intervention.id);
+
     const objs = intervention.affectedObjectives;
     if (objs.includes('performance') || objs.includes('reliability')) {
       hotWater.push(intervention);

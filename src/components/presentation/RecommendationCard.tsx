@@ -21,6 +21,7 @@ import type {
   RecommendationDecision,
   RecommendationIntervention,
 } from '../../engine/recommendation/RecommendationModel';
+import { getLimiterHumanCopy } from './limiterHumanLanguage';
 import './RecommendationCard.css';
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
@@ -43,13 +44,13 @@ const SUITABILITY_BADGE: Record<string, { label: string; cls: string }> = {
 /** Derives the top 3 human-readable strengths from objective scores. */
 function topStrengths(decision: RecommendationDecision): string[] {
   const strengths: { label: string; score: number }[] = [
-    { label: 'Handles multiple hot water uses well',   score: decision.objectiveScores.performance },
-    { label: 'Keeps heating stable and consistent',    score: decision.objectiveScores.reliability },
-    { label: 'Low long-term wear on components',       score: decision.objectiveScores.longevity },
-    { label: 'Easy to programme and control',          score: decision.objectiveScores.ease_of_control },
-    { label: 'Lower carbon impact for your home',      score: decision.objectiveScores.eco },
-    { label: 'Minimal installation disruption',        score: decision.objectiveScores.disruption },
-    { label: "Compact — suits your home's space",     score: decision.objectiveScores.space },
+    { label: 'Handles busy mornings without running short',   score: decision.objectiveScores.performance },
+    { label: 'Heating stays on while hot water runs',        score: decision.objectiveScores.reliability },
+    { label: 'Built to last with fewer high-wear moments',   score: decision.objectiveScores.longevity },
+    { label: 'Simple to set and forget',                     score: decision.objectiveScores.ease_of_control },
+    { label: 'Lower carbon output for your home',            score: decision.objectiveScores.eco },
+    { label: 'Straightforward installation for your home',   score: decision.objectiveScores.disruption },
+    { label: 'Compact — fits your available space',          score: decision.objectiveScores.space },
   ];
 
   return strengths
@@ -59,11 +60,19 @@ function topStrengths(decision: RecommendationDecision): string[] {
     .map((s) => s.label);
 }
 
-/** Derives the primary trade-off from caveats or space score. */
+/** Derives the primary trade-off using evidence trace limiters or space/disruption scores. */
 function primaryTradeOff(decision: RecommendationDecision): string | null {
-  if (decision.caveats.length > 0) return decision.caveats[0];
-  if (decision.objectiveScores.space < 50) return 'Requires space for a cylinder or additional components';
-  if (decision.objectiveScores.disruption < 50) return 'Some installation work may be required in your home';
+  // Find the first soft limiter (not a hard-stop) to surface as a trade-off
+  const hardStopSet = new Set(decision.evidenceTrace.hardStopLimiters);
+  const softLimiters = decision.evidenceTrace.limitersConsidered.filter(
+    (id) => !hardStopSet.has(id),
+  );
+  if (softLimiters.length > 0) {
+    const copy = getLimiterHumanCopy(softLimiters[0]);
+    return copy.headline;
+  }
+  if (decision.objectiveScores.space < 50) return 'Needs space for a cylinder — worth planning in early';
+  if (decision.objectiveScores.disruption < 50) return 'Some installation work will be needed — one-time effort';
   return null;
 }
 

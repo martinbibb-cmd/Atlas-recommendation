@@ -74,3 +74,22 @@
   color: #fff;
   border-color: #3b82f6;
 }
+
+.pres-header__family-pill--recommended {
+  border-color: #10b981;
+}
+
+.pres-header__family-pill--recommended.pres-header__family-pill--active {
+  background: #10b981;
+  border-color: #10b981;
+}
+
+.pres-header__family-pill--current {
+  border-color: #6b7280;
+}
+
+.pres-header__pill-badge {
+  margin-left: 0.3rem;
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
