@@ -17,6 +17,7 @@ import SimulatorDashboard from './lego/simulator/SimulatorDashboard';
 import SimulatorStepper from './lego/simulator/SimulatorStepper';
 import type { StepperConfig } from './lego/simulator/SimulatorStepper';
 import { adaptFullSurveyToSimulatorInputs } from './lego/simulator/adaptFullSurveyToSimulatorInputs';
+import type { OccupancyProfile, SystemInputs } from './lego/simulator/systemInputsTypes';
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import ExplainerPanel from './educational/ExplainerPanel';
@@ -112,9 +113,24 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
     const initialSystemChoice = surveyAdapted != null && isSurveyBacked
       ? surveyAdapted.systemChoice
       : (config?.systemChoice ?? 'combi');
-    const initialSystemInputs = surveyAdapted != null && isSurveyBacked
-      ? surveyAdapted.systemInputs
-      : undefined;
+
+    // Build initialSystemInputs:
+    // - Survey-backed: use surveyAdapted.systemInputs (occupancyProfile derived from survey)
+    // - Stepper-based: derive occupancyProfile from the numeric config.occupancy entered in the
+    //   stepper, and also wire controlStrategy and condition from the stepper config.
+    const initialSystemInputs: Partial<SystemInputs> | undefined = (() => {
+      if (surveyAdapted != null && isSurveyBacked) return surveyAdapted.systemInputs;
+      if (config == null) return undefined;
+      const occupancyProfile: OccupancyProfile =
+        config.occupancy >= 5 ? 'family' :
+        config.occupancy >= 3 ? 'steady_home' :
+        'professional';
+      return {
+        occupancyProfile,
+        controlStrategy: config.controlStrategy,
+        systemCondition: config.condition === 'poor' ? 'sludged' : 'clean',
+      };
+    })();
 
     return (
       <div className="hub-page">
