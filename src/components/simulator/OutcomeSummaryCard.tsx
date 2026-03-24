@@ -89,12 +89,19 @@ export default function OutcomeSummaryCard({
       </div>
 
       {/* ── Heating events outside target ─────────────────────────────── */}
-      <div className="outcome-summary-card__section">
-        <div className="outcome-summary-card__section-label">Heating events outside target</div>
-        <div className={`outcome-summary-card__single-metric ${heating.outsideTargetEventCount > 0 ? 'outcome-summary-card__single-metric--warn' : ''}`}>
-          {heating.outsideTargetEventCount}
+      {/* Only surfaced for system families where it reflects a genuine family-
+          specific mechanism (combi CH/DHW pause, heat-pump low-temp mismatch).
+          For stored-water and open-vented paths the metric conflates general
+          controls/condition drift with family-specific effects, making it
+          misleading in the comparison view. */}
+      {(systemType === 'combi' || systemType === 'heat_pump') && (
+        <div className="outcome-summary-card__section">
+          <div className="outcome-summary-card__section-label">Heating events outside target</div>
+          <div className={`outcome-summary-card__single-metric ${heating.outsideTargetEventCount > 0 ? 'outcome-summary-card__single-metric--warn' : ''}`}>
+            {heating.outsideTargetEventCount}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Narrative summary ─────────────────────────────────────────── */}
       <p className="outcome-summary-card__summary">{summary}</p>

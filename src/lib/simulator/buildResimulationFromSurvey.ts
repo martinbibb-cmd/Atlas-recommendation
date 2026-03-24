@@ -425,13 +425,21 @@ export function buildResimulationFromSurvey(
   };
   const schedule = generateTypicalDaySchedule(scheduleInputs);
 
-  // ── Step 2.5: Resolve the recommended/proposed option and its system type ──
+  // ── Step 2.5: Resolve the selected / proposed system type ─────────────────
   //
-  // The simpleInstallSpec is built for the *proposed* system (the engine's
-  // recommendation), not the current system.  This ensures the upgrade
-  // comparison panel always shows the correct family (stored_water, heat_pump,
-  // combi) rather than falling back to combi defaults when the current and
-  // proposed systems are different families.
+  // When the caller supplies overrideSystemType (i.e. the user has chosen a
+  // specific system family in the events panel), that selection is the
+  // authoritative source of truth for the entire pipeline:
+  //   buildFamilySpec → classifyEventOutcomes → recommendUpgrades → resimulateWithUpgrades
+  //
+  // Only when no override is present do we fall back to the engine's
+  // recommended option (the first viable / caution / any option in the list).
+  // This fallback is intentional — before the user makes an explicit choice the
+  // panel should pre-populate with the engine's best recommendation.
+  //
+  // Caution: never add logic here that re-introduces the recommended-option
+  // family once an override has been set.  All downstream builders receive
+  // proposedSystemType and must not branch on engineOutput.options independently.
   const options = engineOutput.options ?? [];
   const recommendedOption =
     options.find((o) => o.status === 'viable') ??

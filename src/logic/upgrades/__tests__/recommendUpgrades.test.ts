@@ -29,7 +29,7 @@
 import { describe, it, expect } from 'vitest';
 import { recommendUpgrades } from '../recommendUpgrades';
 import type { RecommendUpgradesInputs } from '../types';
-import type { ClassifiedDaySchedule, OutcomeSystemSpec } from '../../outcomes/types';
+import type { ClassifiedDayEvent, ClassifiedDaySchedule, OutcomeSystemSpec } from '../../outcomes/types';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -107,6 +107,8 @@ describe('combi: clustered hot-water demand', () => {
     const inputs: RecommendUpgradesInputs = {
       systemSpec: CLEAN_COMBI,
       outcomes:   makeOutcomes({ hwReduced: 2, hwConflict: 1 }),
+      // Two bathrooms → concurrent demand profile drives sizing to 35 kW.
+      bathroomCount: 2,
     };
 
     const pkg = recommendUpgrades(inputs);
@@ -122,6 +124,8 @@ describe('combi: clustered hot-water demand', () => {
     const inputs: RecommendUpgradesInputs = {
       systemSpec: CLEAN_COMBI,
       outcomes:   makeOutcomes({ hwReduced: 2, hwConflict: 2 }),
+      // Two bathrooms to trigger the concurrent-demand sizing rule.
+      bathroomCount: 2,
     };
 
     const pkg = recommendUpgrades(inputs);
@@ -502,6 +506,144 @@ describe('general: upgrade structure', () => {
       expect(upgrade.reason.length).toBeGreaterThan(0);
       expect(upgrade.effectTags.length).toBeGreaterThan(0);
       expect(['essential', 'recommended', 'best_fit']).toContain(upgrade.priority);
+    }
+  });
+});
+
+// ─── Physics-based combi sizing ───────────────────────────────────────────────
+
+describe('combi: physics-based sizing replaces fixed 35 kW heuristic', () => {
+  it('2-bathroom concurrent demand profile drives 35 kW recommendation', () => {
+    // Physics: 2 outlets × 6 lpm adequate = 12 lpm total;
+    // P = 12 × 4.186 × 40 / 60 ≈ 33.5 kW → 35 kW standard band.
+    const inputs: RecommendUpgradesInputs = {
+      systemSpec:    { ...CLEAN_COMBI, heatOutputKw: 24 },
+      outcomes:      makeOutcomes({ hwReduced: 1, hwConflict: 1 }),
+      bathroomCount: 2,
+    };
+
+    const pkg = recommendUpgrades(inputs);
+    const combiUpgrade = pkg.upgrades.find((u) => u.kind === 'combi_size');
+
+    expect(combiUpgrade).toBeDefined();
+    // Physics-derived target: 35 kW (not the old fixed heuristic).
+    expect(combiUpgrade?.value).toBe(35);
+  });
+
+  it('single-bathroom combi (24 kW) does not recommend upsizing when demand profile is met', () => {
+    // Physics: 1 outlet × 8 lpm; P = 8 × 4.186 × 40 / 60 ≈ 22.3 kW → 24 kW is adequate.
+    // The shortfall has a different root cause; combi upsizing is not appropriate.
+    const inputs: RecommendUpgradesInputs = {
+      systemSpec:    { ...CLEAN_COMBI, heatOutputKw: 24 },
+      outcomes:      makeOutcomes({ hwReduced: 1, hwConflict: 1 }),
+      bathroomCount: 1,
+    };
+
+    const pkg = recommendUpgrades(inputs);
+    const combiUpgrade = pkg.upgrades.find((u) => u.kind === 'combi_size');
+
+    // 24 kW meets the single-outlet demand profile (~23 kW required).
+    // ruleCombiSize must not fire for this scenario.
+    expect(combiUpgrade).toBeUndefined();
+  });
+
+  it('undersized combi (15 kW) triggers upsizing even for single bathroom', () => {
+    // A 15 kW combi delivers ~5.4 lpm at 40°C rise — below the 8 lpm single-outlet floor.
+    const inputs: RecommendUpgradesInputs = {
+      systemSpec:    { ...CLEAN_COMBI, heatOutputKw: 15 },
+      outcomes:      makeOutcomes({ hwReduced: 2 }),
+      bathroomCount: 1,
+    };
+
+    const pkg = recommendUpgrades(inputs);
+    const combiUpgrade = pkg.upgrades.find((u) => u.kind === 'combi_size');
+
+    expect(combiUpgrade).toBeDefined();
+    // 15 kW is below single-outlet floor (23 kW required); recommend 24 kW band.
+    expect(combiUpgrade?.value).toBe(24);
+  });
+});
+
+// ─── Peak clustered demand cylinder sizing ────────────────────────────────────
+
+describe('cylinder: peak clustered demand as primary sizing driver', () => {
+  it('cylinder recommendation uses peak cluster demand when event volume data is available', () => {
+    // Three back-to-back showers: 3 × 72 L = 216 L gross demand.
+    // CLEAN_STORED recovery rate = 60 L/h = 1 L/min.
+    // Gaps: shower1 ends min 428, shower2 starts min 429 → 1 min gap → 1 L recovery.
+    //       shower2 ends min 437, shower3 starts min 438 → 1 min gap → 1 L recovery.
+    // Inter-event recovery: 2 L total.
+    // Net cluster demand: 216 − 2 = 214 L.
+    // +20 L safety margin = 234 L → rounds to 250 L standard band.
+    // vs occupancy-based for 2 adults: 150 L.
+    const events: ClassifiedDayEvent[] = [
+      {
+        eventId: 'e1', type: 'shower', startMinute: 420, durationMinutes: 8,
+        result: 'conflict', reason: '', tags: [],
+        metrics: { requiredLitres: 72, usableLitresBeforeDraw: 150,
+                   recoveryDuringDrawLitres: 0, servedFraction: 0.7, drawRateLpm: 9 },
+      },
+      {
+        eventId: 'e2', type: 'shower', startMinute: 429, durationMinutes: 8,
+        result: 'conflict', reason: '', tags: [],
+        metrics: { requiredLitres: 72, usableLitresBeforeDraw: 90,
+                   recoveryDuringDrawLitres: 1, servedFraction: 0.6, drawRateLpm: 9 },
+      },
+      {
+        eventId: 'e3', type: 'shower', startMinute: 438, durationMinutes: 8,
+        result: 'reduced', reason: '', tags: [],
+        metrics: { requiredLitres: 72, usableLitresBeforeDraw: 30,
+                   recoveryDuringDrawLitres: 1, servedFraction: 0.4, drawRateLpm: 9 },
+      },
+    ];
+    const schedule: ClassifiedDaySchedule = {
+      systemLabel: 'test-system',
+      events,
+      hotWater: {
+        totalDraws: 3, successful: 0, reduced: 1, conflict: 2,
+        simultaneousEventCount: 0, averageBathFillTimeMinutes: null,
+      },
+      heating: {
+        totalHeatingEvents: 0, successful: 0, reduced: 0, conflict: 0,
+        outsideTargetEventCount: 0,
+      },
+    };
+
+    const inputs: RecommendUpgradesInputs = {
+      systemSpec: CLEAN_STORED,
+      outcomes:   schedule,
+      householdComposition: {
+        adultCount: 2, youngAdultCount18to25AtHome: 0,
+        childCount0to4: 0, childCount5to10: 0, childCount11to17: 0,
+      },
+    };
+
+    const pkg = recommendUpgrades(inputs);
+    const cylUpgrade = pkg.upgrades.find((u) => u.kind === 'cylinder_size');
+
+    expect(cylUpgrade).toBeDefined();
+    // Peak cluster path: ≈ 234 L → 250 L band — well above occupancy floor (150 L).
+    expect(cylUpgrade?.value as number).toBeGreaterThan(150);
+  });
+
+  it('cylinder falls back to occupancy sizing when no shortfall events exist', () => {
+    // No shortfall → demand data does not activate the peak-demand path.
+    // Occupancy-based sizing is used as the sole driver.
+    const inputs: RecommendUpgradesInputs = {
+      systemSpec: CLEAN_STORED,
+      outcomes:   makeOutcomes({ hwSuccessful: 4 }),
+      householdComposition: {
+        adultCount: 2, youngAdultCount18to25AtHome: 0,
+        childCount0to4: 0, childCount5to10: 0, childCount11to17: 0,
+      },
+    };
+
+    const pkg = recommendUpgrades(inputs);
+    const cylUpgrade = pkg.upgrades.find((u) => u.kind === 'cylinder_size');
+
+    // No essential upsizing without shortfall evidence.
+    if (cylUpgrade) {
+      expect(cylUpgrade.priority).not.toBe('essential');
     }
   });
 });
