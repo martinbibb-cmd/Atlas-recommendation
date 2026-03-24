@@ -37,6 +37,7 @@ import {
 } from '../family-view/useSelectedFamilyData';
 import type { PresentationMode } from './presentationTypes';
 import { DEFAULT_SURVEYOR_CONTEXT, type SurveyorContext } from './presentationTypes';
+import type { HouseholdContext } from './limiterHumanLanguage';
 import PresentationHeader from './PresentationHeader';
 import SurveyorContextPanel from './SurveyorContextPanel';
 import StoryCanvas from './StoryCanvas';
@@ -173,6 +174,15 @@ export default function PresentationFlow({
     [homeSummary, engineInput],
   );
 
+  // ── Household context (for copy tailoring in CauseCards) ───────────────
+  const householdContext = useMemo<HouseholdContext>(
+    () => ({
+      occupancyCount: engineInput.occupancyCount ?? undefined,
+      bathroomCount: engineInput.bathroomCount ?? undefined,
+    }),
+    [engineInput.occupancyCount, engineInput.bathroomCount],
+  );
+
   // ── Recommendation data ────────────────────────────────────────────────
   const bestOverall = recommendationResult.bestOverall;
   const interventions = recommendationResult.interventions;
@@ -205,6 +215,7 @@ export default function PresentationFlow({
             family={activeFamily}
             mode={mode}
             onModeChange={handleModeChange}
+            householdContext={householdContext}
           />
         </div>
 

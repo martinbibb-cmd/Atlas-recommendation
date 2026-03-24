@@ -58,6 +58,20 @@
   border-left-color: #16a34a;
 }
 
+/* ── Active / highlighted state (linked from timeline click) ──────────── */
+
+.cause-card--active {
+  outline: 2px solid #7c3aed;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px #ede9fe;
+  animation: cause-card-pulse 0.4s ease-out;
+}
+
+@keyframes cause-card-pulse {
+  0%   { box-shadow: 0 0 0 0 #c4b5fd; }
+  100% { box-shadow: 0 0 0 4px #ede9fe; }
+}
+
 .cause-card__headline {
   font-size: 0.9rem;
   font-weight: 600;

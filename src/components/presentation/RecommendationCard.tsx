@@ -170,8 +170,8 @@ function primaryTradeOff(
   // Fall back to objective-derived framing
   if (decision.objectiveScores.space < 50) {
     return surveyorContext.spaceIsLimited
-      ? 'Space for the cylinder needs to be confirmed — this is the one thing to solve early'
-      : 'Needs space for a cylinder — worth planning in early';
+      ? "Needs space for a cylinder — we'll help you find the best location"
+      : "Needs space for a cylinder — worth planning in early";
   }
   if (decision.objectiveScores.disruption < 50) {
     return surveyorContext.costSensitive
@@ -219,6 +219,7 @@ export default function RecommendationCard({
         <span className="rec-card__icon" aria-hidden="true">{display.icon}</span>
         <div className="rec-card__system-info">
           <h2 className="rec-card__system-name">{display.label}</h2>
+          <p className="rec-card__anchor">Designed for how your home is used</p>
           <span className={`rec-card__badge rec-card__badge--${badge.cls}`}>
             {badge.label}
           </span>

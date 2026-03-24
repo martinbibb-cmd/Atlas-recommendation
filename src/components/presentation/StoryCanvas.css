@@ -28,3 +28,32 @@
   padding: 1rem;
   background: #f9fafb;
 }
+
+/* ── Staged reveal — each section fades in with a staggered delay ─────── */
+
+@keyframes story-section-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.story-canvas__section {
+  animation: story-section-in 0.35s ease-out both;
+}
+
+.story-canvas__section--step1 {
+  animation-delay: 0s;
+}
+
+.story-canvas__section--step2 {
+  animation-delay: 0.12s;
+}
+
+.story-canvas__section--step3 {
+  animation-delay: 0.24s;
+}

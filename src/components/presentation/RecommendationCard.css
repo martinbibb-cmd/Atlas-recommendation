@@ -49,6 +49,13 @@
   margin: 0;
 }
 
+.rec-card__anchor {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0.1rem 0 0 0;
+  font-style: italic;
+}
+
 /* ── Suitability badge ────────────────────────────────────────────────── */
 
 .rec-card__badge {
