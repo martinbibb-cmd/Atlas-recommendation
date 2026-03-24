@@ -54,6 +54,7 @@ import type {
 } from '../schema/EngineInputV2_3';
 import type { CombiDhwPhaseResult } from '../modules/CombiDhwPhaseModel';
 import type { SystemTopology } from '../topology/SystemTopology';
+import type { SystemStateTimeline } from '../timeline/SystemStateTimeline';
 
 /**
  * Canonical DHW result envelope for a topology-aware family runner.
@@ -183,4 +184,19 @@ export interface FamilyRunnerResult {
     readonly bomItems: BomItem[];
     readonly gridFlex?: GridFlexResult;
   };
+
+  /**
+   * PR6: Canonical internal state timeline.
+   *
+   * Ordered sequence of `SystemStateTick` records capturing what the system was
+   * doing during the modelled DHW service event.  All family runners populate
+   * this field; the shape is family-agnostic but the service modes are
+   * family-specific (combi-only modes absent from hydronic timelines, and
+   * vice versa).
+   *
+   * This is the machine-readable source of truth that PR7+ event derivation
+   * and the PR10 UI rebinding will consume.  No recommendation or fit-map
+   * logic should be written against this field yet.
+   */
+  readonly stateTimeline: SystemStateTimeline;
 }
