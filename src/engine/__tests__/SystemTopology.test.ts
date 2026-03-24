@@ -15,7 +15,7 @@ import {
   buildSystemTopologyFromSpec,
   type ApplianceModel,
   type CombiApplianceModel,
-  type StorageChargingApplianceModel,
+  type HydronicApplianceModel,
   type DrawOffModel,
   type EmitterModel,
   type StorageLoadModel,
@@ -39,8 +39,8 @@ function makeCombiAppliance(
 }
 
 function makeStorageAppliance(
-  overrides?: Partial<StorageChargingApplianceModel>
-): StorageChargingApplianceModel {
+  overrides?: Partial<HydronicApplianceModel>
+): HydronicApplianceModel {
   return {
     family: 'system',
     directDrawOffService: false,
@@ -113,7 +113,7 @@ describe('assertTopologyConsistency', () => {
         appliance: makeStorageAppliance({ family: 'system' }),
         emitters: [makeEmitter()],
         storage: makeStorage({ kind: 'cylinder_unvented' }),
-        drawOff: makeStoreDrawOff(),
+        // no drawOff — system boiler → storage → fixture, not appliance → fixture
       };
       expect(() => assertTopologyConsistency(topology)).not.toThrow();
     });
@@ -123,7 +123,7 @@ describe('assertTopologyConsistency', () => {
         appliance: makeStorageAppliance({ family: 'regular' }),
         emitters: [makeEmitter()],
         storage: makeStorage({ kind: 'cylinder_vented' }),
-        drawOff: makeStoreDrawOff(),
+        // no drawOff — regular boiler charges storage; storage serves fixtures
       };
       expect(() => assertTopologyConsistency(topology)).not.toThrow();
     });
@@ -133,7 +133,7 @@ describe('assertTopologyConsistency', () => {
         appliance: makeStorageAppliance({ family: 'heat_pump', condensing: false }),
         emitters: [makeEmitter({ designFlowTempC: 45 })],
         storage: makeStorage({ kind: 'cylinder_unvented', primaryCoilKw: undefined }),
-        drawOff: makeStoreDrawOff(),
+        // no drawOff — heat pump charges storage; storage serves fixtures
       };
       expect(() => assertTopologyConsistency(topology)).not.toThrow();
     });
@@ -143,7 +143,7 @@ describe('assertTopologyConsistency', () => {
         appliance: makeStorageAppliance({ family: 'open_vented', condensing: false }),
         emitters: [makeEmitter()],
         storage: makeStorage({ kind: 'cylinder_vented' }),
-        drawOff: makeStoreDrawOff(),
+        // no drawOff — open-vented boiler charges vented cylinder; cylinder serves fixtures
       };
       expect(() => assertTopologyConsistency(topology)).not.toThrow();
     });
@@ -153,7 +153,7 @@ describe('assertTopologyConsistency', () => {
         appliance: makeStorageAppliance({ family: 'system' }),
         emitters: [makeEmitter()],
         storage: makeStorage({ kind: 'mixergy' }),
-        drawOff: makeStoreDrawOff(),
+        // no drawOff — system boiler charges Mixergy; Mixergy serves fixtures
       };
       expect(() => assertTopologyConsistency(topology)).not.toThrow();
     });
@@ -166,7 +166,7 @@ describe('assertTopologyConsistency', () => {
           makeEmitter({ kind: 'underfloor', designFlowTempC: 40, count: 2 }),
         ],
         storage: makeStorage(),
-        drawOff: makeStoreDrawOff(),
+        // no drawOff — non-combi system
       };
       expect(() => assertTopologyConsistency(topology)).not.toThrow();
     });
@@ -232,10 +232,9 @@ describe('assertTopologyConsistency', () => {
         appliance: makeStorageAppliance({ family: 'system' }),
         emitters: [makeEmitter()],
         // no storage
-        drawOff: makeStoreDrawOff(),
       };
       expect(() => assertTopologyConsistency(topology)).toThrow(
-        /must have associated storage for DHW/i
+        /non-combi Atlas recommendation topologies must include a DHW storage load/i
       );
     });
 
@@ -244,10 +243,9 @@ describe('assertTopologyConsistency', () => {
         appliance: makeStorageAppliance({ family: 'heat_pump', condensing: false }),
         emitters: [],
         // no storage
-        drawOff: makeStoreDrawOff(),
       };
       expect(() => assertTopologyConsistency(topology)).toThrow(
-        /must have associated storage for DHW/i
+        /non-combi Atlas recommendation topologies must include a DHW storage load/i
       );
     });
 
@@ -256,10 +254,9 @@ describe('assertTopologyConsistency', () => {
         appliance: makeStorageAppliance({ family: 'regular' }),
         emitters: [],
         // no storage
-        drawOff: makeStoreDrawOff(),
       };
       expect(() => assertTopologyConsistency(topology)).toThrow(
-        /must have associated storage for DHW/i
+        /non-combi Atlas recommendation topologies must include a DHW storage load/i
       );
     });
   });
@@ -386,9 +383,9 @@ describe('buildSystemTopologyFromSpec', () => {
       expect(topology.appliance.directDrawOffService).toBe(false);
     });
 
-    it('returns store_delivery draw-off', () => {
+    it('does not include a drawOff path (appliance does not serve fixtures directly)', () => {
       const topology = buildSystemTopologyFromSpec(storedSpec);
-      expect(topology.drawOff.source).toBe('store_delivery');
+      expect(topology.drawOff).toBeUndefined();
     });
 
     it('creates a storage vessel with role === "load"', () => {
@@ -424,6 +421,11 @@ describe('buildSystemTopologyFromSpec', () => {
       expect(topology.appliance.directDrawOffService).toBe(false);
     });
 
+    it('does not include a drawOff path (heat pump charges storage; storage serves fixtures)', () => {
+      const topology = buildSystemTopologyFromSpec(hpSpec);
+      expect(topology.drawOff).toBeUndefined();
+    });
+
     it('emitter uses low flow temperature for heat pump', () => {
       const topology = buildSystemTopologyFromSpec(hpSpec);
       expect(topology.emitters[0].designFlowTempC).toBe(45);
@@ -451,6 +453,11 @@ describe('buildSystemTopologyFromSpec', () => {
     it('returns an open_vented appliance', () => {
       const topology = buildSystemTopologyFromSpec(ovenSpec);
       expect(topology.appliance.family).toBe('open_vented');
+    });
+
+    it('does not include a drawOff path (open-vented boiler charges vented cylinder; cylinder serves fixtures)', () => {
+      const topology = buildSystemTopologyFromSpec(ovenSpec);
+      expect(topology.drawOff).toBeUndefined();
     });
 
     it('uses cylinder_vented for open_vented systems', () => {
@@ -501,7 +508,7 @@ describe('buildSystemTopologyFromSpec', () => {
       }
     });
 
-    it('correctly narrows stored appliance to StorageChargingApplianceModel', () => {
+    it('correctly narrows stored appliance to HydronicApplianceModel', () => {
       const topology = buildSystemTopologyFromSpec({
         systemType: 'stored_water',
         hotWaterStorageLitres: 150,
