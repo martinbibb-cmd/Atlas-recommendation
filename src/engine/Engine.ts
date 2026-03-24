@@ -1,251 +1,133 @@
 import type { EngineInputV2_3, FullEngineResult, FullEngineResultCore } from './schema/EngineInputV2_3';
-import { normalizeInput } from './normalizer/Normalizer';
-import { runHydraulicSafetyModule } from './modules/HydraulicSafetyModule';
-import { runHydraulicModuleV1 } from './modules/HydraulicModule';
-import { runCombiStressModule } from './modules/CombiStressModule';
 import { runCombiDhwModuleV1 } from './modules/CombiDhwModule';
+import { runCombiStressModule } from './modules/CombiStressModule';
 import { runStoredDhwModuleV1 } from './modules/StoredDhwModule';
 import { runMixergyVolumetricsModule } from './modules/MixergyVolumetricsModule';
-import { runLifestyleSimulationModule } from './modules/LifestyleSimulationModule';
-import { runRedFlagModule } from './modules/RedFlagModule';
-import { generateBom } from './modules/BomGenerator';
-import { runLegacyInfrastructureModule } from './modules/LegacyInfrastructureModule';
-import { runSludgeVsScaleModule } from './modules/SludgeVsScaleModule';
-import { runSystemOptimizationModule } from './modules/SystemOptimizationModule';
-import { runMetallurgyEdgeModule } from './modules/MetallurgyEdgeModule';
 import { runMixergyLegacyModule } from './modules/MixergyLegacyModule';
-import { runSpecEdgeModule } from './modules/SpecEdgeModule';
-import { runGridFlexModule } from './modules/GridFlexModule';
-import { runHeatPumpRegimeModuleV1 } from './modules/HeatPumpRegimeModule';
-import { analysePressure } from './modules/PressureModule';
-import { runCwsSupplyModuleV1 } from './modules/CwsSupplyModule';
-import { lookupSedbukV1 } from './modules/SedbukModule';
-import { runBoilerSizingModuleV1 } from './modules/BoilerSizingModule';
-import { buildBoilerEfficiencyModelV1 } from './modules/BoilerEfficiencyModelV1';
 import { buildEngineOutputV1 } from './OutputBuilder';
-import { runFabricModelV1 } from './modules/FabricModelModule';
-import { runSmartTopUpController } from './modules/SmartTopUpController';
-import { runSolarBoostModule } from './modules/SolarBoostModule';
-import { runCondensingStateModule } from './modules/CondensingStateModule';
-import { runCondensingRuntimeModule } from './modules/CondensingRuntimeModule';
 import { runEngineInputValidation } from './modules/EngineInputValidationModule';
+import { buildSystemTopologyFromSpec } from './topology/SystemTopology';
+import type { SystemTopology } from './topology/SystemTopology';
+import type { HeatSourceBehaviourInput } from './modules/HeatSourceBehaviourModel';
+import { runCombiSystemModel } from './runners/runCombiSystemModel';
+import { runSystemStoredSystemModel } from './runners/runSystemStoredSystemModel';
+import { runRegularStoredSystemModel } from './runners/runRegularStoredSystemModel';
+import { runHeatPumpStoredSystemModel } from './runners/runHeatPumpStoredSystemModel';
+import type { FamilyRunnerResult } from './runners/types';
 
+/**
+ * Maps EngineInputV2_3.currentHeatSourceType to a HeatSourceBehaviourInput.systemType
+ * for building the PR1 SystemTopology.
+ *
+ * Mapping:
+ *   'combi'   → 'combi'        → appliance.family: 'combi'
+ *   'system'  → 'stored_water' → appliance.family: 'system'
+ *   'regular' → 'open_vented'  → appliance.family: 'open_vented'
+ *   'ashp'    → 'heat_pump'    → appliance.family: 'heat_pump'
+ *   'other' / undefined → 'stored_water' (conservative default)
+ */
+function toHeatSourceSystemType(
+  heatSourceType: EngineInputV2_3['currentHeatSourceType'],
+): HeatSourceBehaviourInput['systemType'] {
+  switch (heatSourceType) {
+    case 'combi':   return 'combi';
+    case 'ashp':    return 'heat_pump';
+    case 'regular': return 'open_vented';
+    case 'system':
+    case 'other':
+    default:        return 'stored_water';
+  }
+}
 
-function interpolateDemandKw(minuteIdx: number, hourlyDemandKw: number[]): number {
-  const minute = minuteIdx * 15;
-  const hour = Math.floor(minute / 60);
-  const frac = (minute % 60) / 60;
-  const h0 = hour % 24;
-  const h1 = (hour + 1) % 24;
-  const d0 = hourlyDemandKw[h0] ?? 0;
-  const d1 = hourlyDemandKw[h1] ?? 0;
-  return Math.max(0, d0 + (d1 - d0) * frac);
+/**
+ * Selects the topology-aware family runner based on the appliance family in the
+ * PR1 topology.
+ *
+ * Runner ownership:
+ *   'combi'                  → runCombiSystemModel
+ *   'system'                 → runSystemStoredSystemModel
+ *   'heat_pump'              → runHeatPumpStoredSystemModel
+ *   'regular' / 'open_vented'→ runRegularStoredSystemModel
+ */
+function selectRunner(
+  topology: SystemTopology,
+): (input: EngineInputV2_3, topology: SystemTopology) => FamilyRunnerResult {
+  switch (topology.appliance.family) {
+    case 'combi':      return runCombiSystemModel;
+    case 'system':     return runSystemStoredSystemModel;
+    case 'heat_pump':  return runHeatPumpStoredSystemModel;
+    case 'regular':
+    case 'open_vented': return runRegularStoredSystemModel;
+  }
 }
 
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
-  const normalizer = normalizeInput(input);
+  // ── Step 1: Build topology from input — determines which runner to delegate to ──
+  const systemType = toHeatSourceSystemType(input.currentHeatSourceType);
+  const topology = buildSystemTopologyFromSpec({ systemType });
 
-  // Apply maintenance service level: a power-flush/filter service proportionally
-  // recovers the 10-year efficiency decay.  0 = as-found, 100 = fully restored.
-  if (input.maintenance?.serviceLevelPct) {
-    normalizer.tenYearEfficiencyDecayPct *= (1 - input.maintenance.serviceLevelPct / 100);
-  }
+  // ── Step 2: Delegate to the topology-aware family runner ─────────────────
+  const runner = selectRunner(topology);
+  const result = runner(input, topology);
 
-  const hydraulic = runHydraulicSafetyModule(input);
+  // ── Step 3: Map FamilyRunnerResult back to FullEngineResultCore ───────────
+  // The runner owns its family-specific modules.  For backward compatibility,
+  // non-owned modules that FullEngineResultCore requires are computed here as
+  // legacy fallbacks.  These fallbacks will be removed in later PRs once
+  // callers have migrated to the runner-level result shape.
 
-  // ── Sludge vs Scale must run before HydraulicModule and LifestyleSimulationModule ──
-  // so that flowDeratePct, cyclingLossPct and dhwCapacityDeratePct can be wired into
-  // the correct physical channels (flow restriction, cycling loss, DHW capacity derate).
-  const sludgeVsScale = runSludgeVsScaleModule({
-    pipingTopology: input.pipingTopology ?? 'two_pipe',
-    hasMagneticFilter: input.hasMagneticFilter ?? false,
-    waterHardnessCategory: normalizer.waterHardnessCategory,
-    systemAgeYears: input.systemAgeYears ?? 0,
-    annualGasSpendGbp: input.annualGasSpendGbp,
-  });
+  const { sludgeVsScale } = result.hydraulic;
 
-  // Wire flowDeratePct into HydraulicModule: effectiveFlow = designFlow / (1 − flowDeratePct)
-  const hydraulicV1 = runHydraulicModuleV1(input, sludgeVsScale.flowDeratePct);
-
-  const combiStress = runCombiStressModule(input);
-
+  // DHW backward compat — combi modules for stored-system runs
   // Wire dhwCapacityDeratePct into CombiDhwModule: maxQtoDhwKw *= (1 − dhwCapacityDeratePct)
-  const combiDhwV1 = runCombiDhwModuleV1(input, sludgeVsScale.dhwCapacityDeratePct);
+  const combiDhwV1 = result.dhw.combiDhwV1
+    ?? runCombiDhwModuleV1(input, sludgeVsScale.dhwCapacityDeratePct);
+  const combiStress = result.heating.combiStress
+    ?? runCombiStressModule(input);
+
+  // DHW backward compat — stored modules for combi runs
+  // combiSimultaneousFailed is used to wire combi stress into the stored DHW path
   const combiSimultaneousFailed = combiDhwV1.flags.some(f => f.id === 'combi-simultaneous-demand');
-  const storedDhwV1 = runStoredDhwModuleV1(input, combiSimultaneousFailed);
-  const mixergy = runMixergyVolumetricsModule(input);
-
-  // Wire cyclingLossPct into LifestyleSimulationModule: fuelInput *= (1 + cyclingLossPct)
-  // when loadFrac < 0.25 (low-load short-cycling from sludge-restricted dirty system).
-  const lifestyle = runLifestyleSimulationModule(input, sludgeVsScale.cyclingLossPct);
-
-  const redFlags = runRedFlagModule(input);
-  const bomItems = generateBom(input, hydraulic, redFlags);
-  const legacyInfrastructure = runLegacyInfrastructureModule(input);
-
-  const systemOptimization = runSystemOptimizationModule({
-    installationPolicy: input.installationPolicy ?? 'high_temp_retrofit',
-    heatLossWatts: input.heatLossWatts,
-    radiatorCount: input.radiatorCount,
-  });
-
-  const metallurgyEdge = runMetallurgyEdgeModule({
-    hasSoftener: input.hasSoftener ?? false,
-    waterHardnessCategory: normalizer.waterHardnessCategory,
-    preferredMetallurgy: input.preferredMetallurgy,
-  });
-
-  const mixergyLegacy = runMixergyLegacyModule({
-    hasIotIntegration: input.hasIotIntegration ?? false,
-    installerNetwork: input.installerNetwork ?? 'independent',
-    dhwStorageLitres: input.dhwStorageLitres ?? 150,
-  });
-
-  const specEdge = runSpecEdgeModule({
-    installationPolicy: input.installationPolicy ?? 'high_temp_retrofit',
-    heatLossWatts: input.heatLossWatts,
-    unitModulationFloorKw: input.unitModulationFloorKw ?? 3,
-    waterHardnessCategory: normalizer.waterHardnessCategory,
-    hasSoftener: input.hasSoftener ?? false,
-    hasMagneticFilter: input.hasMagneticFilter ?? false,
-    dhwTankType: input.dhwTankType,
-    annualGasSpendGbp: input.annualGasSpendGbp,
-    preferredMetallurgy: input.preferredMetallurgy,
-  });
-
-  const gridFlex = input.gridFlexInput
-    ? runGridFlexModule(input.gridFlexInput)
-    : undefined;
-
-  const heatPumpRegime = runHeatPumpRegimeModuleV1(input);
-
-  const dynamicBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
-  const pressureAnalysis = analysePressure(dynamicBar, input.staticMainsPressureBar);
-  const cwsSupplyV1 = runCwsSupplyModuleV1(input);
-
-  // SEDBUK baseline — only computed when currentSystem.boiler is provided
-  const boilerInput = input.currentSystem?.boiler;
-  const sedbukV1 = boilerInput
-    ? lookupSedbukV1({
-        gcNumber:   boilerInput.gcNumber,
-        ageYears:   boilerInput.ageYears,
-        condensing: boilerInput.condensing,
-      })
-    : undefined;
-
-  // Boiler sizing — only computed when currentSystem.boiler is provided
-  const peakHeatLossKw = input.heatLossWatts != null ? input.heatLossWatts / 1000 : null;
-  const sizingV1 = boilerInput
-    ? runBoilerSizingModuleV1(
-        boilerInput.nominalOutputKw,
-        boilerInput.type,
-        peakHeatLossKw,
-      )
-    : undefined;
-
-  const demandHeatKw96 = lifestyle.hourlyData.length > 0
-    ? Array.from({ length: 96 }, (_, i) => parseFloat(interpolateDemandKw(i, lifestyle.hourlyData.map(h => h.demandKw)).toFixed(3)))
-    : undefined;
-
-  const boilerEfficiencyModelV1 = boilerInput
-    ? buildBoilerEfficiencyModelV1({
-        gcNumber: boilerInput.gcNumber,
-        ageYears: boilerInput.ageYears,
-        type: boilerInput.type,
-        condensing: boilerInput.condensing,
-        nominalOutputKw: boilerInput.nominalOutputKw,
-        peakHeatLossKw,
-        demandHeatKw96,
-        // ErP / surveyor-entered SEDBUK % — used as baseline when the SEDBUK
-        // database lookup returns no result (no GC number match or band fallback).
-        inputSedbukPct: input.currentBoilerSedbukPct,
-        // Pre-computed boiler condition band from the survey layer (sanitiseModelForEngine).
-        // When present (full-survey path), captures symptoms not visible to the engine.
-        // When absent, the band is computed from age, condensing, and oversize signals.
-        boilerConditionBand: input.boilerConditionBand,
-      })
-    : undefined;
-
-  // Fabric model V1 — only computed when input.building is provided
-  const fabricModelV1 = input.building
-    ? runFabricModelV1({
-        wallType:       input.building.fabric?.wallType,
-        insulationLevel: input.building.fabric?.insulationLevel,
-        glazing:        input.building.fabric?.glazing,
-        roofInsulation: input.building.fabric?.roofInsulation,
-        airTightness:   input.building.fabric?.airTightness,
-        thermalMass:    input.building.thermalMass,
-      })
-    : undefined;
-
-  // Smart top-up controller — only computed for Mixergy cylinders
-  const smartTopUp = input.dhwTankType === 'mixergy'
-    ? runSmartTopUpController(input)
-    : undefined;
-
-  // Solar boost module — only computed when solarBoost.enabled is true
-  const solarBoost = input.solarBoost?.enabled
-    ? runSolarBoostModule(input)
-    : undefined;
-
-  // Condensing state — lab diagnostic.
-  // Uses the current system's supply temperature (default 70 °C) as the flow
-  // temperature, and the one-pipe average return when available.
-  // Average load fraction is derived from the lifestyle hourly demand profile.
-  let _lifestylePeak = 0;
-  let _lifestyleSum = 0;
-  for (const h of lifestyle.hourlyData) {
-    if (h.demandKw > _lifestylePeak) _lifestylePeak = h.demandKw;
-    _lifestyleSum += h.demandKw;
-  }
-  const condensingState = runCondensingStateModule({
-    flowTempC: input.supplyTempC ?? 70,
-    returnTempC: legacyInfrastructure.onePipe?.averageReturnTempC,
-    averageLoadFraction: _lifestylePeak > 0
-      ? (_lifestyleSum / lifestyle.hourlyData.length) / _lifestylePeak
-      : undefined,
-  });
-
-  const condensingRuntime = runCondensingRuntimeModule({
-    condensingState,
-    flowTempC: input.supplyTempC ?? 70,
-    condensingModeAvailable: systemOptimization.condensingModeAvailable,
-    installationPolicy: systemOptimization.installationPolicy,
-    systemPlanType: input.systemPlanType,
-    dhwTankType: input.dhwTankType,
-    primaryPipeDiameter: input.primaryPipeDiameter,
-    heatLossWatts: input.heatLossWatts,
-  });
+  const storedDhwV1 = result.dhw.storedDhwV1
+    ?? runStoredDhwModuleV1(input, combiSimultaneousFailed);
+  const mixergy = result.dhw.mixergy
+    ?? runMixergyVolumetricsModule(input);
+  const mixergyLegacy = result.dhw.mixergyLegacy
+    ?? runMixergyLegacyModule({
+        hasIotIntegration: input.hasIotIntegration ?? false,
+        installerNetwork: input.installerNetwork ?? 'independent',
+        dhwStorageLitres: input.dhwStorageLitres ?? 150,
+      });
 
   const core: FullEngineResultCore = {
-    hydraulic,
-    hydraulicV1,
+    hydraulic: result.hydraulic.safety,
+    hydraulicV1: result.hydraulic.v1,
     combiStress,
     combiDhwV1,
     storedDhwV1,
     mixergy,
-    lifestyle,
-    normalizer,
-    redFlags,
-    bomItems,
-    legacyInfrastructure,
+    lifestyle: result.heating.lifestyle,
+    normalizer: result.normalizer,
+    redFlags: result.advisories.redFlags,
+    bomItems: result.advisories.bomItems,
+    legacyInfrastructure: result.lifecycle.legacyInfrastructure,
     sludgeVsScale,
-    systemOptimization,
-    metallurgyEdge,
+    systemOptimization: result.efficiency.systemOptimization,
+    metallurgyEdge: result.lifecycle.metallurgyEdge,
     mixergyLegacy,
-    specEdge,
-    gridFlex,
-    heatPumpRegime,
-    pressureAnalysis,
-    cwsSupplyV1,
-    sedbukV1,
-    sizingV1,
-    boilerEfficiencyModelV1,
-    fabricModelV1,
-    smartTopUp,
-    solarBoost,
-    condensingState,
-    condensingRuntime,
+    specEdge: result.lifecycle.specEdge,
+    gridFlex: result.advisories.gridFlex,
+    heatPumpRegime: result.heating.heatPumpRegime,
+    pressureAnalysis: result.hydraulic.pressureAnalysis,
+    cwsSupplyV1: result.hydraulic.cwsSupplyV1,
+    sedbukV1: result.efficiency.sedbukV1,
+    sizingV1: result.efficiency.sizingV1,
+    boilerEfficiencyModelV1: result.efficiency.boilerEfficiencyModelV1,
+    fabricModelV1: result.lifecycle.fabricModelV1,
+    smartTopUp: result.lifecycle.smartTopUp,
+    solarBoost: result.lifecycle.solarBoost,
+    condensingState: result.efficiency.condensingState,
+    condensingRuntime: result.efficiency.condensingRuntime,
   };
 
   const engineOutput = buildEngineOutputV1(core, input);
