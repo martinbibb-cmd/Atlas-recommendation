@@ -53,24 +53,24 @@ function deriveFutureStepCopy(
   if (surveyorContext.futureProofingImportant) {
     return {
       label: 'Heat pump ready',
-      detail: "This system is designed with that next step in mind — the infrastructure will be in place when you're ready.",
+      detail: "You're on the path — the infrastructure will be in place when you're ready to make the switch.",
     };
   }
   if (surveyorContext.costSensitive) {
     return {
       label: 'Heat pump pathway',
-      detail: 'A heat pump becomes an option once the home is ready — no wasted investment in the meantime.',
+      detail: "A heat pump becomes a natural next step once the home is ready — no wasted investment in the meantime.",
     };
   }
   if (surveyorContext.wantsReliability) {
     return {
       label: 'Heat pump ready',
-      detail: 'Heat pumps are simpler mechanically than gas boilers — fewer parts that can fail over time.',
+      detail: 'Heat pumps have fewer moving parts than gas boilers — simpler mechanically, and more reliable over time.',
     };
   }
   return {
     label: 'Heat pump ready',
-    detail: 'Once the infrastructure is in place, a heat pump becomes a realistic next step.',
+    detail: "This isn't the end — it's step one. Once the home is ready, a heat pump becomes a natural upgrade.",
   };
 }
 
@@ -119,6 +119,7 @@ export default function FuturePathway({
           <span className="future-pathway__step-dot" aria-hidden="true" />
           <span className="future-pathway__step-label">Now</span>
           <span className="future-pathway__step-name">{nowLabel}</span>
+          <span className="future-pathway__step-detail">Solves today's demand</span>
         </div>
 
         {/* Step 2 — Improvements (from interventions) */}
@@ -126,7 +127,7 @@ export default function FuturePathway({
           <div key={intervention.id} className="future-pathway__step future-pathway__step--improve" role="listitem">
             <div className="future-pathway__connector" aria-hidden="true">→</div>
             <span className="future-pathway__step-dot" aria-hidden="true" />
-            <span className="future-pathway__step-label">Upgrade</span>
+            <span className="future-pathway__step-label">Next</span>
             <span className="future-pathway__step-name">{intervention.label}</span>
           </div>
         ))}

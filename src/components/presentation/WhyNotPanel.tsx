@@ -11,6 +11,8 @@
  *   - Never say "not suitable" — use "requires a change first" or similar
  *   - Never say "this system fails"
  *   - Use "your home" framing
+ *   - Pattern: "Could work here, but… / would feel limited when… / becomes a stronger option when…"
+ *   - Heat pump: decisive and long-term positive
  */
 
 import type { RecommendationDecision } from '../../engine/recommendation/RecommendationModel';
@@ -33,18 +35,39 @@ function familyLabel(family: string): string {
   return FAMILY_LABEL[family] ?? family;
 }
 
+// ─── Per-family copy helpers ──────────────────────────────────────────────────
+
 /**
- * Returns a tailored "resolve this" action sentence based on context.
- * For heat pumps, adjusts framing based on future-proofing flag.
+ * Returns the "could work here, but…" qualifying sentence.
+ * This is shown after the blocking reason to keep the tone non-dismissive.
  */
-function resolveAction(family: string, surveyorContext: SurveyorContext): string {
-  if (family === 'heat_pump' && surveyorContext.futureProofingImportant) {
-    return 'This is still the right long-term direction — the steps to get there are clear.';
+function couldWorkCaveat(family: string): string {
+  switch (family) {
+    case 'heat_pump':
+      return 'Could work here, but needs some infrastructure first.';
+    case 'combi':
+      return 'Could work here, but would feel limited during busy mornings.';
+    case 'open_vented':
+      return 'Could work here, but is better suited to lower-demand homes.';
+    default:
+      return 'Could work here, but requires a change before it fits well.';
   }
+}
+
+/**
+ * Returns the "becomes a stronger option when…" future-hook sentence.
+ * Keeps the door open and avoids any dismissive framing.
+ */
+function futureHook(family: string, surveyorContext: SurveyorContext): string {
   if (family === 'heat_pump') {
-    return 'Resolve the infrastructure and this becomes a realistic future option.';
+    return surveyorContext.futureProofingImportant
+      ? 'A heat pump is the right direction long-term. With pipe and emitter upgrades, it becomes a strong option for your home.'
+      : 'Becomes a strong option once pipework and emitters are upgraded — the path there is clear.';
   }
-  return 'Resolve this and it becomes a realistic option.';
+  if (family === 'combi') {
+    return 'Becomes a stronger option when occupancy or bathroom count is lower.';
+  }
+  return 'Becomes a stronger option when the underlying constraint is resolved.';
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -79,12 +102,11 @@ export default function WhyNotPanel({
           return (
             <div key={candidate.family} className="why-not__card">
               <p className="why-not__family">{familyLabel(candidate.family)}</p>
+              <p className="why-not__caveat">{couldWorkCaveat(candidate.family)}</p>
               <p className="why-not__reason">{reason}</p>
-              {blockingLimiterId && (
-                <p className="why-not__action">
-                  {resolveAction(candidate.family, surveyorContext)}
-                </p>
-              )}
+              <p className="why-not__hook">
+                {futureHook(candidate.family, surveyorContext)}
+              </p>
             </div>
           );
         })}

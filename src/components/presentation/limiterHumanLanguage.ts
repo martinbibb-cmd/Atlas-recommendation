@@ -11,6 +11,7 @@
  *   - Language must use "your home" and "how your home is used".
  *   - Never say "this system fails" or "not suitable".
  *   - Be confident, human, and home-focused.
+ *   - Where possible, phrase copy around how the household actually uses the home.
  */
 
 export interface LimiterHumanCopy {
@@ -18,6 +19,17 @@ export interface LimiterHumanCopy {
   readonly headline: string;
   /** Optional short supporting detail (1 sentence, lower contrast). */
   readonly detail?: string;
+}
+
+/**
+ * Household context used to tailor copy to how this home is actually used.
+ * All fields are optional — generic copy is used when context is absent.
+ */
+export interface HouseholdContext {
+  /** Total number of regular occupants. */
+  occupancyCount?: number;
+  /** Number of bathrooms (including en-suites). */
+  bathroomCount?: number;
 }
 
 /**
@@ -88,12 +100,74 @@ const LIMITER_COPY: Record<string, LimiterHumanCopy> = {
   },
 };
 
+// ─── Context-aware overrides ──────────────────────────────────────────────────
+
+/**
+ * Returns a household-tailored headline for `combi_service_switching`.
+ * With 2+ occupants the impact is personal: "when two people use hot water
+ * at the same time, your heating pauses".
+ */
+function combiSwitchingHeadline(ctx: HouseholdContext | undefined): string {
+  const occ = ctx?.occupancyCount ?? 1;
+  if (occ >= 2) {
+    return 'When two people use hot water at the same time, your heating pauses';
+  }
+  return LIMITER_COPY.combi_service_switching.headline;
+}
+
+/**
+ * Returns a household-tailored headline for `simultaneous_demand_constraint`.
+ * With 2+ bathrooms or 3+ occupants the busy-morning framing is specific
+ * enough to feel like it is describing this household.
+ */
+function simultaneousHeadline(ctx: HouseholdContext | undefined): string {
+  const baths = ctx?.bathroomCount ?? 1;
+  const occ   = ctx?.occupancyCount ?? 1;
+  if (baths >= 2 || occ >= 3) {
+    return 'In a busy morning, your hot water gets shared between taps';
+  }
+  return LIMITER_COPY.simultaneous_demand_constraint.headline;
+}
+
+/**
+ * Returns a household-tailored headline for `stored_volume_shortfall`.
+ * With 3+ occupants the shortfall is a daily reality, not just a risk.
+ */
+function storedVolumeHeadline(ctx: HouseholdContext | undefined): string {
+  const occ = ctx?.occupancyCount ?? 1;
+  if (occ >= 3) {
+    return 'With several people showering in the morning, hot water can run short';
+  }
+  return LIMITER_COPY.stored_volume_shortfall.headline;
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
 /**
  * Returns human-readable copy for a given limiter ID.
- * Falls back to a generic statement when the ID is not mapped.
+ * Accepts an optional HouseholdContext to tailor the headline to how this
+ * home is actually used.  Falls back to a generic statement when the ID is
+ * not mapped.
  */
-export function getLimiterHumanCopy(limiterId: string): LimiterHumanCopy {
-  return LIMITER_COPY[limiterId] ?? {
-    headline: 'A constraint was identified that affects how this system performs in your home',
-  };
+export function getLimiterHumanCopy(
+  limiterId: string,
+  ctx?: HouseholdContext,
+): LimiterHumanCopy {
+  const base = LIMITER_COPY[limiterId];
+  if (base == null) {
+    return {
+      headline: 'A constraint was identified that affects how this system performs in your home',
+    };
+  }
+
+  switch (limiterId) {
+    case 'combi_service_switching':
+      return { ...base, headline: combiSwitchingHeadline(ctx) };
+    case 'simultaneous_demand_constraint':
+      return { ...base, headline: simultaneousHeadline(ctx) };
+    case 'stored_volume_shortfall':
+      return { ...base, headline: storedVolumeHeadline(ctx) };
+    default:
+      return base;
+  }
 }

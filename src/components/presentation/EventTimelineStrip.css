@@ -36,13 +36,15 @@
   margin: 0 0 0.2rem 0;
 }
 
-/* Arrow separator between sections */
+/* Arrow separator between sections — cause → effect; make it prominent */
 .evt-strip__section-divider {
-  font-size: 1.25rem;
-  color: #d1d5db;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #6b7280;
   align-self: center;
   margin-top: 1.2rem;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .evt-strip__track {
@@ -140,4 +142,22 @@
 
 .evt-strip__event--improvement .evt-strip__label {
   color: #15803d;
+}
+
+/* ── Clickable events (linked to cause cards) ─────────────────────────── */
+
+.evt-strip__event--clickable {
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.evt-strip__event--clickable:hover,
+.evt-strip__event--clickable:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  outline: none;
+}
+
+.evt-strip__event--clickable:active {
+  transform: translateY(0);
 }

@@ -16,9 +16,12 @@
  *   improvement   — green border, green label
  *   neutral       — grey border, default label
  *
- * Kept to a maximum of 4 events per section to avoid clutter.
+ * Kept to a maximum of 3 events per section to avoid clutter.
+ * Supports onEventClick — clicking a problem event notifies the parent so it
+ * can highlight the corresponding cause card ("wow" interaction).
  */
 
+import type { KeyboardEvent } from 'react';
 import type { DerivedSystemEventSummary } from '../../engine/timeline/DerivedSystemEvent';
 import type { SelectableFamily } from '../family-view/useSelectedFamilyData';
 import type { PresentationMode } from './presentationTypes';
@@ -30,6 +33,11 @@ interface StripEvent {
   icon: string;
   label: string;
   kind: 'neutral' | 'problem' | 'problem-interruption' | 'problem-recharge' | 'improvement';
+  /**
+   * Limiter ID that corresponds to this event.  When set, clicking the event
+   * notifies the parent to highlight the matching cause card.
+   */
+  limiterId?: string;
 }
 
 /**
@@ -48,7 +56,12 @@ function buildDemandEvents(
     events.counters.simultaneousDemandConstraints > 0 ||
     events.counters.dhwRequests > 1;
   if (hasSimultaneous) {
-    strip.push({ icon: '🚰', label: 'Hot tap', kind: 'neutral' });
+    strip.push({
+      icon: '🚰',
+      label: 'Hot tap',
+      kind: 'neutral',
+      limiterId: 'simultaneous_demand_constraint',
+    });
   }
 
   return strip;
@@ -81,14 +94,17 @@ function buildResponseEvents(
         icon: isProposed ? '✅' : '⏸',
         label: isProposed ? 'Continuous' : 'Heating paused',
         kind: isProposed ? 'improvement' : 'problem-interruption',
+        limiterId: 'combi_service_switching',
       });
     }
     // Purge cycle only shown in current mode — it disappears with proposed system
-    if (!isProposed && events.counters.purgeCycles > 0) {
+    // Cap at 3 total — omit purge if interruption is already shown
+    if (!isProposed && events.counters.purgeCycles > 0 && strip.length < 3) {
       strip.push({
         icon: '💨',
         label: 'Cold burst',
         kind: 'problem',
+        limiterId: 'combi_service_switching',
       });
     }
   }
@@ -107,6 +123,7 @@ function buildResponseEvents(
         icon: '🔄',
         label: 'Recharging',
         kind: 'problem-recharge',
+        limiterId: 'stored_volume_shortfall',
       });
     } else {
       strip.push({
@@ -117,12 +134,13 @@ function buildResponseEvents(
     }
   }
 
-  // ── Reduced flow: only in current mode ────────────────────────────────
-  if (!isProposed && events.counters.reducedDhwEvents > 0) {
+  // ── Reduced flow: only in current mode (cap at 3) ─────────────────────
+  if (!isProposed && events.counters.reducedDhwEvents > 0 && strip.length < 3) {
     strip.push({
       icon: '📉',
       label: 'Flow drops',
       kind: 'problem',
+      limiterId: 'reduced_dhw_service',
     });
   }
 
@@ -135,14 +153,38 @@ interface Props {
   events: DerivedSystemEventSummary;
   family: SelectableFamily;
   mode: PresentationMode;
+  /**
+   * Called when the user clicks a problem event that has a limiter ID.
+   * The parent can use this to highlight the corresponding cause card.
+   */
+  onEventClick?: (limiterId: string) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function EventTimelineStrip({ events, family, mode }: Props) {
+export default function EventTimelineStrip({ events, family, mode, onEventClick }: Props) {
   const demandEvents = buildDemandEvents(events);
   const responseEvents = buildResponseEvents(events, family, mode);
   const heading = mode === 'current' ? 'What happens now' : 'What changes';
+
+  /** Builds click/keydown props for a single strip event. */
+  function eventInteraction(evt: StripEvent) {
+    const { limiterId } = evt;
+    if (onEventClick == null || limiterId == null) return {};
+    const handleClick = () => onEventClick(limiterId);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onEventClick(limiterId);
+      }
+    };
+    return {
+      tabIndex: 0 as const,
+      'aria-label': `${evt.label} — tap to see why`,
+      onClick: handleClick,
+      onKeyDown: handleKeyDown,
+    };
+  }
 
   return (
     <section className="evt-strip" aria-label={heading}>
@@ -152,16 +194,26 @@ export default function EventTimelineStrip({ events, family, mode }: Props) {
         <div className="evt-strip__section">
           <p className="evt-strip__section-label">Demand</p>
           <div className="evt-strip__track" role="list">
-            {demandEvents.map((evt, idx) => (
-              <div
-                key={idx}
-                className={`evt-strip__event evt-strip__event--${evt.kind}`}
-                role="listitem"
-              >
-                <span className="evt-strip__icon" aria-hidden="true">{evt.icon}</span>
-                <span className="evt-strip__label">{evt.label}</span>
-              </div>
-            ))}
+            {demandEvents.map((evt, idx) => {
+              const isClickable = onEventClick != null && evt.limiterId != null;
+              return (
+                <div
+                  key={idx}
+                  className={[
+                    'evt-strip__event',
+                    `evt-strip__event--${evt.kind}`,
+                    isClickable ? 'evt-strip__event--clickable' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  role="listitem"
+                  {...eventInteraction(evt)}
+                >
+                  <span className="evt-strip__icon" aria-hidden="true">{evt.icon}</span>
+                  <span className="evt-strip__label">{evt.label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -171,16 +223,26 @@ export default function EventTimelineStrip({ events, family, mode }: Props) {
         <div className="evt-strip__section">
           <p className="evt-strip__section-label">System</p>
           <div className="evt-strip__track" role="list">
-            {responseEvents.map((evt, idx) => (
-              <div
-                key={idx}
-                className={`evt-strip__event evt-strip__event--${evt.kind}`}
-                role="listitem"
-              >
-                <span className="evt-strip__icon" aria-hidden="true">{evt.icon}</span>
-                <span className="evt-strip__label">{evt.label}</span>
-              </div>
-            ))}
+            {responseEvents.map((evt, idx) => {
+              const isClickable = onEventClick != null && evt.limiterId != null;
+              return (
+                <div
+                  key={idx}
+                  className={[
+                    'evt-strip__event',
+                    `evt-strip__event--${evt.kind}`,
+                    isClickable ? 'evt-strip__event--clickable' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  role="listitem"
+                  {...eventInteraction(evt)}
+                >
+                  <span className="evt-strip__icon" aria-hidden="true">{evt.icon}</span>
+                  <span className="evt-strip__label">{evt.label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
