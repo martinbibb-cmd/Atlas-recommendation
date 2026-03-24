@@ -215,6 +215,7 @@ export default function PresentationFlow({
             <RecommendationCard
               bestOverall={bestOverall}
               interventions={interventions}
+              surveyorContext={surveyorContext}
             />
           )}
 
@@ -225,13 +226,17 @@ export default function PresentationFlow({
           )}
 
           {/* Why not other options */}
-          <WhyNotPanel disqualifiedCandidates={disqualified} />
+          <WhyNotPanel
+            disqualifiedCandidates={disqualified}
+            surveyorContext={surveyorContext}
+          />
 
           {/* Future upgrade pathway */}
           {bestOverall != null && (
             <FuturePathway
               bestOverall={bestOverall}
               interventions={interventions}
+              surveyorContext={surveyorContext}
             />
           )}
 

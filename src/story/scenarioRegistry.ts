@@ -21,10 +21,12 @@ import { combiSwitchScenario } from './scenarios/combiSwitch';
 import { oldBoilerRealityScenario } from './scenarios/oldBoilerReality';
 import { heatPumpViabilityScenario } from './scenarios/heatPumpViability';
 import type { HeatPumpViabilityInputs } from './scenarios/heatPumpViability';
+import { flagshipDemoScenario } from './scenarios/flagshipDemo';
 export { combiSwitchScenario } from './scenarios/combiSwitch';
 export { oldBoilerRealityScenario } from './scenarios/oldBoilerReality';
 export { heatPumpViabilityScenario } from './scenarios/heatPumpViability';
 export type { HeatPumpViabilityInputs } from './scenarios/heatPumpViability';
+export { flagshipDemoScenario } from './scenarios/flagshipDemo';
 
 // ── Scenario field keys ───────────────────────────────────────────────────────
 
@@ -173,6 +175,7 @@ export interface StoryScenario<TInputs extends ScenarioInputs = ScenarioInputs> 
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const STORY_SCENARIOS: StoryScenario<any>[] = [
+  flagshipDemoScenario,
   combiSwitchScenario,
   oldBoilerRealityScenario,
   heatPumpViabilityScenario,

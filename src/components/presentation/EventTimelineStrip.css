@@ -13,6 +13,38 @@
   margin: 0 0 0.75rem 0;
 }
 
+/* Two-section layout: Demand → System response */
+.evt-strip__layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.evt-strip__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.evt-strip__section-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin: 0 0 0.2rem 0;
+}
+
+/* Arrow separator between sections */
+.evt-strip__section-divider {
+  font-size: 1.25rem;
+  color: #d1d5db;
+  align-self: center;
+  margin-top: 1.2rem;
+  flex-shrink: 0;
+}
+
 .evt-strip__track {
   display: flex;
   align-items: center;
@@ -34,7 +66,7 @@
   text-align: center;
 }
 
-/* Connector line between events */
+/* Connector line between events within the same section */
 .evt-strip__event + .evt-strip__event::before {
   content: '';
   position: absolute;
@@ -56,16 +88,23 @@
   border: 1px solid #fed7aa;
 }
 
-/* Interruption: amber/warm — boiler pauses heating for hot water */
+/*
+ * Interruption: warm amber — boiler has paused heating to serve hot water.
+ * Stronger visual weight than recharge because it directly affects comfort.
+ */
 .evt-strip__event--problem-interruption {
   background: #fffbeb;
   border: 2px solid #f59e0b;
+  box-shadow: 0 0 0 2px #fef3c7;
 }
 
-/* Recharge: blue tint — cylinder is filling back up */
+/*
+ * Recharge: blue — cylinder is refilling.  Distinct blue palette keeps it
+ * clearly separate from the amber interruption signal.
+ */
 .evt-strip__event--problem-recharge {
   background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  border: 2px solid #3b82f6;
 }
 
 .evt-strip__event--improvement {
@@ -91,11 +130,12 @@
 
 .evt-strip__event--problem-interruption .evt-strip__label {
   color: #92400e;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .evt-strip__event--problem-recharge .evt-strip__label {
   color: #1d4ed8;
+  font-weight: 600;
 }
 
 .evt-strip__event--improvement .evt-strip__label {

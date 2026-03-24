@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { STORY_SCENARIOS, combiSwitchScenario, oldBoilerRealityScenario } from '../scenarioRegistry';
+import { STORY_SCENARIOS, combiSwitchScenario, oldBoilerRealityScenario, flagshipDemoScenario } from '../scenarioRegistry';
 import {
   sedbukBandToPct,
   resolveManufacturedPct,
@@ -39,10 +39,28 @@ describe('scenarioRegistry integrity', () => {
     expect(oldBoilerRealityScenario.escalationAllowed).toBe(true);
   });
 
-  it('STORY_SCENARIOS contains both scenarios', () => {
+  it('STORY_SCENARIOS contains all scenarios including flagship_demo', () => {
     const ids = STORY_SCENARIOS.map(s => s.id);
+    expect(ids).toContain('flagship_demo');
     expect(ids).toContain('combi_switch');
     expect(ids).toContain('old_boiler_reality');
+  });
+
+  it('flagship_demo is the first scenario in STORY_SCENARIOS', () => {
+    expect(STORY_SCENARIOS[0].id).toBe('flagship_demo');
+  });
+
+  it('flagship_demo has the correct locked defaults', () => {
+    const d = flagshipDemoScenario.defaults;
+    expect(d.occupancyCount).toBe(3);
+    expect(d.bathroomCount).toBe(1);
+    expect(d.simultaneousUse).toBe('often');
+    expect(d.mainsFlowLpmKnown).toBe(true);
+    expect(d.mainsFlowLpm).toBe(8);
+    expect(d.hotWaterDemand).toBe('high');
+    expect(d.storedType).toBe('unvented');
+    expect(flagshipDemoScenario.compareDefaults.systemA).toBe('combi');
+    expect(flagshipDemoScenario.compareDefaults.systemB).toBe('stored_unvented');
   });
 
   it('combi_switch defaults are valid CombiSwitchInputs', () => {
