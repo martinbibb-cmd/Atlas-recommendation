@@ -121,6 +121,8 @@ describe('PR12 migration — canonical evidence path', () => {
     // tight space triggers space_for_cylinder_unavailable limiter on stored/heat_pump families
     const result = runEngine(TIGHT_SPACE_INPUT);
     const { disqualifiedCandidates } = result.recommendationResult;
+    // Tight space must disqualify at least one candidate
+    expect(disqualifiedCandidates.length).toBeGreaterThan(0);
     // If any candidate is disqualified, it must have suitability === 'not_recommended'
     for (const d of disqualifiedCandidates) {
       expect(d.suitability).toBe('not_recommended');

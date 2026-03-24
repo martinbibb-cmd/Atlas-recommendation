@@ -126,8 +126,9 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
 
   // ── Step 5: Build evidence bundles for all candidate families ─────────────
   // PR12: Run every candidate family to produce the limiter ledger and fit-map
-  // evidence required by buildRecommendationsFromEvidence.  The primary result
-  // (current system) is re-used rather than re-computed.
+  // evidence required by buildRecommendationsFromEvidence.
+  // The primary family result (already computed above) is reused instead of
+  // re-running the same family runner a second time.
   const candidateFamilySpecs: Array<{ systemType: HeatSourceBehaviourInput['systemType'] }> = [
     { systemType: 'combi' },
     { systemType: 'stored_water' },
@@ -142,8 +143,11 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
         ? (input.dhwStorageLitres ?? 150)
         : undefined,
     });
-    const familyRunner = selectRunner(familyTopology);
-    const familyResult: FamilyRunnerResult = familyRunner(input, familyTopology);
+    // Reuse the primary result when the candidate family matches to avoid redundant computation.
+    const isPrimaryFamily = spec.systemType === systemType;
+    const familyResult: FamilyRunnerResult = isPrimaryFamily
+      ? result
+      : selectRunner(familyTopology)(input, familyTopology);
     const events = buildDerivedEventsFromTimeline(familyResult.stateTimeline);
     const limiterLedger = buildLimiterLedger(familyResult, events);
     const fitMap = buildFitMapModel(

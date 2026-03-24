@@ -57,7 +57,7 @@ const CONFIDENCE_ICON: Record<string, string> = {
 };
 
 function familyLabel(family: string): string {
-  return FAMILY_LABELS[family] ?? family;
+  return FAMILY_LABELS[family] ?? `System (${family})`;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
