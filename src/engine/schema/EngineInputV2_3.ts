@@ -17,6 +17,20 @@ export type { BoilerSizingResultV1 };
 import type { BoilerEfficiencyModelV1 } from '../modules/BoilerEfficiencyModelV1';
 export type { BoilerEfficiencyModelV1 };
 import type {
+  StoredDhwControlMode,
+  StoredDhwReheatReason,
+  StoredDhwState,
+  StoredDrawOffResult,
+  StoredDhwPhaseResult,
+} from '../modules/StoredDhwPhaseModel';
+export type {
+  StoredDhwControlMode,
+  StoredDhwReheatReason,
+  StoredDhwState,
+  StoredDrawOffResult,
+  StoredDhwPhaseResult,
+};
+import type {
   HeatSourceBehaviourV1,
   HeatSourceBehaviourInput,
   CombiBehaviourV1,

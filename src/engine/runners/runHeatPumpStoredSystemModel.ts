@@ -27,6 +27,7 @@ import { normalizeInput } from '../normalizer/Normalizer';
 import { runHydraulicSafetyModule } from '../modules/HydraulicSafetyModule';
 import { runHydraulicModuleV1 } from '../modules/HydraulicModule';
 import { runStoredDhwModuleV1 } from '../modules/StoredDhwModule';
+import { runStoredDhwPhaseModel, adaptEngineInputToStoredPhase } from '../modules/StoredDhwPhaseModel';
 import { runMixergyVolumetricsModule } from '../modules/MixergyVolumetricsModule';
 import { runMixergyLegacyModule } from '../modules/MixergyLegacyModule';
 import { runLifestyleSimulationModule } from '../modules/LifestyleSimulationModule';
@@ -89,6 +90,11 @@ export function runHeatPumpStoredSystemModel(
   // Heat pumps always charge a cylinder — the topology has no direct draw-off
   // path.  The heat pump regime is the primary heat-source model for this family.
   const storedDhwV1 = runStoredDhwModuleV1(input, false);
+  // PR4: model draw-off from store and recharge as separate phases.
+  // Heat pump stored systems use 'heat_pump_stored' for slower recovery characteristics.
+  const storedDhwPhase = runStoredDhwPhaseModel(
+    adaptEngineInputToStoredPhase(input, 'heat_pump_stored'),
+  );
   const mixergy = runMixergyVolumetricsModule(input);
   const mixergyLegacy = runMixergyLegacyModule({
     hasIotIntegration: input.hasIotIntegration ?? false,
@@ -223,6 +229,7 @@ export function runHeatPumpStoredSystemModel(
       kind: 'stored',
       sourcePath: 'heat_pump_runner',
       storedDhwV1,
+      storedDhwPhase,
       mixergy,
       mixergyLegacy,
     },
