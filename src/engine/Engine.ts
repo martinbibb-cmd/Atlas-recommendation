@@ -148,7 +148,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     const familyResult: FamilyRunnerResult = isPrimaryFamily
       ? result
       : selectRunner(familyTopology)(input, familyTopology);
-    const events = buildDerivedEventsFromTimeline(familyResult.stateTimeline);
+    const events = buildDerivedEventsFromTimeline(familyResult.stateTimeline, familyTopology.appliance.family);
     const limiterLedger = buildLimiterLedger(familyResult, events);
     const fitMap = buildFitMapModel(
       familyResult,
