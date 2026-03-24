@@ -1,0 +1,79 @@
+/* PresentationFlow — Presentation Layer v1 */
+
+/* ── Root container ──────────────────────────────────────────────────────── */
+
+.pres-flow {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #f3f4f6;
+  font-family: inherit;
+}
+
+/* ── Main layout ──────────────────────────────────────────────────────────── */
+
+.pres-flow__main {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  flex: 1;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .pres-flow__main {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Canvas column ───────────────────────────────────────────────────────── */
+
+.pres-flow__canvas-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ── Side column ─────────────────────────────────────────────────────────── */
+
+.pres-flow__side-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ── No recommendation state ─────────────────────────────────────────────── */
+
+.pres-flow__no-rec {
+  padding: 1.25rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+/* ── Footer / back ───────────────────────────────────────────────────────── */
+
+.pres-flow__footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.pres-flow__back-btn {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.pres-flow__back-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}

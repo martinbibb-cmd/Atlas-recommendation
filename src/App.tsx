@@ -38,6 +38,7 @@ import type { DerivedFloorplanOutput } from './components/floorplan/floorplanDer
 import { computeFitPosition } from './logic/fit-map/computeFitPosition';
 import type { FitPosition } from './logic/fit-map/computeFitPosition';
 import FitMapResultPage from './components/fit-map/FitMapResultPage';
+import PresentationFlow from './components/presentation/PresentationFlow';
 import './App.css';
 
 /** Detect ?lab=1 feature flag — renders Demo Lab directly for previewing. */
@@ -83,7 +84,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   preferCombi: true,
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report' | 'presentation';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -405,6 +406,12 @@ export default function App() {
         </GlobalMenuShell>
       )}
       {journey === 'lab' && <LabShell onHome={() => setJourney('landing')} engineInput={labEngineInput} />}
+      {journey === 'presentation' && labEngineInput != null && (
+        <PresentationFlow
+          engineInput={labEngineInput}
+          onBack={() => setJourney('simulator')}
+        />
+      )}
       {journey === 'explorer' && EXPLORER_ENABLED && <AtlasExplorerPage onBack={() => setJourney('landing')} />}
       {journey === 'floor-plan' && (
         <div className="floor-plan-page">
@@ -523,6 +530,17 @@ export default function App() {
               <p>Sketch the property perimeter and get a fast whole-house heat loss estimate.</p>
               <button className="cta-btn">Open Heat Loss →</button>
             </div>
+            {labEngineInput != null && (
+              <div
+                className="journey-card journey-card--featured"
+                onClick={() => setJourney('presentation')}
+              >
+                <div className="card-icon">🎯</div>
+                <h2>In-Room Presentation</h2>
+                <p>Guided story screen — show the customer what happens, why, and what fixes it.</p>
+                <button className="cta-btn">Open Presentation →</button>
+              </div>
+            )}
             {/* System Explorer hidden from primary UX — access via ?explorer=1 */}
           </div>
           <Footer onNavigate={setJourney} />

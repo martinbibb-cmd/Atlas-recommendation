@@ -1,0 +1,54 @@
+/* SurveyorContextPanel — Presentation Layer v1 */
+
+.surveyor-context {
+  padding: 1rem 1.25rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.surveyor-context__heading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin: 0 0 0.6rem 0;
+}
+
+.surveyor-context__chips {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.surveyor-context__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 24px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  min-height: 2.5rem; /* tap-friendly */
+}
+
+.surveyor-context__chip:hover {
+  border-color: #9ca3af;
+  background: #f3f4f6;
+}
+
+.surveyor-context__chip--active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.surveyor-context__chip-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
