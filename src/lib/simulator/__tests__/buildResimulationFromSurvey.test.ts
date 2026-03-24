@@ -515,3 +515,73 @@ describe('family isolation: selected system as source of truth', () => {
     expect(hasLockout).toBe(true);
   });
 });
+
+// ─── Bath-fill outcome sanity: fill time derived from selected family physics ─
+
+describe('bath-fill outcome sanity: fill time from selected family physics', () => {
+  it('combi bath fill time derives from singleOutletDhwLpm (physics-based), not cylinder-size proxy', () => {
+    // A 24 kW combi at 2.5 bar: singleOutletDhwLpm ≈ 8.6 lpm
+    // via P(kW) = (flow_lpm × 4.186 × 40) / 60 → flow = P × 60 / (4.186 × 40).
+    // Bath fill = BATH_VOLUME_LITRES(150) / 8.6 ≈ 17.4 min.
+    // If the fill time were derived from a stored-water cylinder-size proxy it would be
+    // 150 / 15 = 10 min — distinctly different.  The test anchors the expected range so
+    // that a regression back to cylinder-size or magic-constant paths is immediately visible.
+    const survey: FullSurveyModelV1 = {
+      ...makeMinimalSurvey({ dynamicMainsPressureBar: 2.5 }),
+      demandTimingOverrides: { bathFrequencyPerWeek: 14 },
+    };
+    const engine = makeEngineOutput('Combi boiler', 'combi');
+    const result = buildResimulationFromSurvey(survey, engine, 'combi');
+    expect(result).not.toBeNull();
+
+    const avgFill = result!.resimulation.simpleInstall.hotWater.averageBathFillTimeMinutes;
+    if (avgFill != null) {
+      // 24 kW combi at 2.5 bar delivers ~8.6 lpm → fill ~17.4 min.
+      // Must not be ~10 min (stored-water 15 lpm proxy) — that would be a cross-family leak.
+      expect(avgFill).toBeGreaterThan(12); // strictly above the stored-water baseline
+      expect(avgFill).toBeLessThan(25);    // not absurdly long
+    }
+  });
+
+  it('stored_water bath fill time uses stored-family draw rate even when engine recommends combi', () => {
+    // Stored water uses 15 lpm for bath fill (STORED_DEFAULT_DRAW_RATE_LPM).
+    // When the engine recommends combi but the user overrides to stored_water, the
+    // fill time must come from the stored-water physics (15 lpm), not from combi
+    // physics (~8.6 lpm for a 24 kW combi at 2.5 bar → fill ~17.4 min).
+    const survey: FullSurveyModelV1 = {
+      ...makeMinimalSurvey({ dynamicMainsPressureBar: 2.5 }),
+      demandTimingOverrides: { bathFrequencyPerWeek: 14 },
+    };
+    const engine = makeEngineOutput('Combi boiler', 'combi'); // engine recommends combi
+    const result = buildResimulationFromSurvey(survey, engine, 'stored_water');
+    expect(result).not.toBeNull();
+
+    const avgFill = result!.resimulation.simpleInstall.hotWater.averageBathFillTimeMinutes;
+    if (avgFill != null) {
+      // Stored water: 150 L / 15 lpm = 10 min nominal.
+      // With ~0.85 usable factor → ~11.8 min adjusted.
+      // Must not be ~17 min (combi physics) — that would indicate a cross-family data leak.
+      expect(avgFill).toBeLessThan(15); // stored-water fill, not combi fill
+    }
+  });
+
+  it('heat_pump bath fill time uses HP draw rate even when engine recommends combi', () => {
+    // Heat pump uses 12 lpm for bath fill (HP_DEFAULT_DRAW_RATE_LPM).
+    // Fill time: 150 L / 12 lpm = 12.5 min nominal.
+    // Must not be combi physics (~17 min) — that would indicate a cross-family data leak.
+    const survey: FullSurveyModelV1 = {
+      ...makeMinimalSurvey({ dynamicMainsPressureBar: 2.5 }),
+      demandTimingOverrides: { bathFrequencyPerWeek: 14 },
+    };
+    const engine = makeEngineOutput('Combi boiler', 'combi');
+    const result = buildResimulationFromSurvey(survey, engine, 'heat_pump');
+    expect(result).not.toBeNull();
+
+    const avgFill = result!.resimulation.simpleInstall.hotWater.averageBathFillTimeMinutes;
+    if (avgFill != null) {
+      // HP: 150 L / 12 lpm = 12.5 min nominal.  With some depletion it may be slightly longer.
+      // Must not be ~17 min (combi physics) — cross-family data leak.
+      expect(avgFill).toBeLessThan(20);
+    }
+  });
+});

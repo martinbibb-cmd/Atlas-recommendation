@@ -73,15 +73,17 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
   const surveyAdapted = useMemo(() => adaptFullSurveyToSimulatorInputs(surveyData), [surveyData]);
   const compareSeed = useMemo(() => buildCompareSeedFromSurvey(surveyData, engineOutput), [surveyData, engineOutput]);
   const floorplanOperatingAssumptions = useMemo(() => floorplanOutput ? buildFloorplanOperatingAssumptions(floorplanOutput, surveyData.heatLossWatts) : null, [floorplanOutput, surveyData]);
+
+  // ── System selector for the events/upgrades panel ─────────────────────────
+  const [eventsSystem, setEventsSystem] = useState<EventsSystemFamily | undefined>(undefined);
+
   const advice = useMemo(() => buildAdviceFromCompare({
     engineOutput,
     compareSeed,
     surveyData,
     floorplanInputs: floorplanOutput ? adaptFloorplanToAtlasInputs(floorplanOutput) : undefined,
-  }), [compareSeed, engineOutput, floorplanOutput, surveyData]);
-
-  // ── System selector for the events/upgrades panel ─────────────────────────
-  const [eventsSystem, setEventsSystem] = useState<EventsSystemFamily | undefined>(undefined);
+    selectedSystemOverride: eventsSystem,
+  }), [compareSeed, engineOutput, eventsSystem, floorplanOutput, surveyData]);
 
   const resimulationResult = useMemo(
     () => buildResimulationFromSurvey(surveyData, engineOutput, eventsSystem),
