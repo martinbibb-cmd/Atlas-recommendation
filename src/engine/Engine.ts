@@ -1,18 +1,14 @@
 /**
- * runEngine.ts — PR2/PR3: Topology-aware engine orchestrator.
+ * runEngine.ts — PR2/PR3/PR12: Topology-aware engine orchestrator.
  *
- * PR3 change: `runEngine()` no longer computes both combi and stored DHW paths
- * for every input.  Fallback logic is now restricted to the selected family:
- *   - combi family  → may backfill combiDhwV1 and combiStress only
- *   - hydronic families → may backfill storedDhwV1, mixergy, and mixergyLegacy only
- * Cross-family DHW fields remain absent (undefined) in the FullEngineResultCore output.
+ * PR3  family-gated DHW: each family runner owns only its DHW fields; no
+ *      cross-family fallback paths.
+ * PR12 multi-family evidence: all four candidate families are run so that
+ *      `buildRecommendationsFromEvidence` can rank them against each other.
+ *      The primary family (current heat source) still drives FullEngineResultCore.
+ *      The canonical recommendation result is exposed via `FullEngineResult.recommendationResult`.
  */
 import type { EngineInputV2_3, FullEngineResult, FullEngineResultCore } from './schema/EngineInputV2_3';
-import { runCombiDhwModuleV1 } from './modules/CombiDhwModule';
-import { runCombiStressModule } from './modules/CombiStressModule';
-import { runStoredDhwModuleV1 } from './modules/StoredDhwModule';
-import { runMixergyVolumetricsModule } from './modules/MixergyVolumetricsModule';
-import { runMixergyLegacyModule } from './modules/MixergyLegacyModule';
 import { buildEngineOutputV1 } from './OutputBuilder';
 import { runEngineInputValidation } from './modules/EngineInputValidationModule';
 import { buildSystemTopologyFromSpec } from './topology/SystemTopology';
@@ -24,6 +20,11 @@ import { runRegularStoredSystemModel } from './runners/runRegularStoredSystemMod
 import { runHeatPumpStoredSystemModel } from './runners/runHeatPumpStoredSystemModel';
 import type { FamilyRunnerResult } from './runners/types';
 import { assertValidDhwOwnership } from './runners/dhwOwnership';
+import { buildDerivedEventsFromTimeline } from './timeline/buildDerivedEventsFromTimeline';
+import { buildLimiterLedger } from './limiter/buildLimiterLedger';
+import { buildFitMapModel } from './fitmap/buildFitMapModel';
+import { buildRecommendationsFromEvidence } from './recommendation/buildRecommendationsFromEvidence';
+import type { CandidateEvidenceBundle } from './recommendation/RecommendationModel';
 
 /**
  * Maps EngineInputV2_3.currentHeatSourceType to a HeatSourceBehaviourInput.systemType
@@ -86,59 +87,28 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
   assertValidDhwOwnership(result.dhw, result.topology);
 
   // ── Step 4: Map FamilyRunnerResult back to FullEngineResultCore ───────────
-  // PR3: Fallback logic is now family-gated.  Only fields valid for the selected
-  // family are ever backfilled — the cross-family fallback paths from PR2 have
-  // been removed.
+  // PR12: DHW topology-flattening fallback paths removed.  Each runner always
+  // populates its own family's DHW fields; the fallback (?? runXxx) guards
+  // are no longer needed and would mask runner bugs if retained.
 
-  const { sludgeVsScale } = result.hydraulic;
   const isCombi = result.topology.appliance.family === 'combi';
-
-  // ── Combi-family DHW fallbacks (valid only when isCombi) ──────────────────
-  // The combi runner always populates combiDhwV1 and combiStress directly, so
-  // these fallbacks should never fire in practice.  They are retained only as
-  // a last-resort guard in case a future refactor leaves the runner output
-  // incomplete.  For hydronic families these branches are never entered.
-  const combiDhwV1 = isCombi
-    ? (result.dhw.combiDhwV1 ?? runCombiDhwModuleV1(input, sludgeVsScale.dhwCapacityDeratePct))
-    : undefined;
-  const combiStress = isCombi
-    ? (result.heating.combiStress ?? runCombiStressModule(input))
-    : undefined;
-
-  // ── Hydronic-family DHW fallbacks (valid only when !isCombi) ─────────────
-  // Similarly, the hydronic runners always populate storedDhwV1/mixergy directly.
-  // combiSimultaneousFailed is not meaningful for hydronic runners, so it is
-  // omitted from the stored fallback path.
-  const storedDhwV1 = !isCombi
-    ? (result.dhw.storedDhwV1 ?? runStoredDhwModuleV1(input, false))
-    : undefined;
-  const mixergy = !isCombi
-    ? (result.dhw.mixergy ?? runMixergyVolumetricsModule(input))
-    : undefined;
-  const mixergyLegacy = !isCombi
-    ? (result.dhw.mixergyLegacy ?? runMixergyLegacyModule({
-        hasIotIntegration: input.hasIotIntegration ?? false,
-        installerNetwork: input.installerNetwork ?? 'independent',
-        dhwStorageLitres: input.dhwStorageLitres ?? 150,
-      }))
-    : undefined;
 
   const core: FullEngineResultCore = {
     hydraulic: result.hydraulic.safety,
     hydraulicV1: result.hydraulic.v1,
-    combiStress,
-    combiDhwV1,
-    storedDhwV1,
-    mixergy,
+    combiStress:  isCombi ? result.heating.combiStress : undefined,
+    combiDhwV1:   isCombi ? result.dhw.combiDhwV1      : undefined,
+    storedDhwV1: !isCombi ? result.dhw.storedDhwV1     : undefined,
+    mixergy:     !isCombi ? result.dhw.mixergy          : undefined,
     lifestyle: result.heating.lifestyle,
     normalizer: result.normalizer,
     redFlags: result.advisories.redFlags,
     bomItems: result.advisories.bomItems,
     legacyInfrastructure: result.lifecycle.legacyInfrastructure,
-    sludgeVsScale,
+    sludgeVsScale: result.hydraulic.sludgeVsScale,
     systemOptimization: result.efficiency.systemOptimization,
     metallurgyEdge: result.lifecycle.metallurgyEdge,
-    mixergyLegacy,
+    mixergyLegacy: !isCombi ? result.dhw.mixergyLegacy : undefined,
     specEdge: result.lifecycle.specEdge,
     gridFlex: result.advisories.gridFlex,
     heatPumpRegime: result.heating.heatPumpRegime,
@@ -154,7 +124,44 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     condensingRuntime: result.efficiency.condensingRuntime,
   };
 
+  // ── Step 5: Build evidence bundles for all candidate families ─────────────
+  // PR12: Run every candidate family to produce the limiter ledger and fit-map
+  // evidence required by buildRecommendationsFromEvidence.
+  // The primary family result (already computed above) is reused instead of
+  // re-running the same family runner a second time.
+  const candidateFamilySpecs: Array<{ systemType: HeatSourceBehaviourInput['systemType'] }> = [
+    { systemType: 'combi' },
+    { systemType: 'stored_water' },
+    { systemType: 'heat_pump' },
+    { systemType: 'open_vented' },
+  ];
+
+  const bundles: CandidateEvidenceBundle[] = candidateFamilySpecs.map(spec => {
+    const familyTopology = buildSystemTopologyFromSpec({
+      systemType: spec.systemType,
+      hotWaterStorageLitres: spec.systemType === 'heat_pump'
+        ? (input.dhwStorageLitres ?? 150)
+        : undefined,
+    });
+    // Reuse the primary result when the candidate family matches to avoid redundant computation.
+    const isPrimaryFamily = spec.systemType === systemType;
+    const familyResult: FamilyRunnerResult = isPrimaryFamily
+      ? result
+      : selectRunner(familyTopology)(input, familyTopology);
+    const events = buildDerivedEventsFromTimeline(familyResult.stateTimeline);
+    const limiterLedger = buildLimiterLedger(familyResult, events);
+    const fitMap = buildFitMapModel(
+      familyResult,
+      familyResult.stateTimeline,
+      events,
+      limiterLedger,
+    );
+    return { runnerResult: familyResult, events, limiterLedger, fitMap };
+  });
+
+  const recommendationResult = buildRecommendationsFromEvidence(bundles);
+
   const engineOutput = buildEngineOutputV1(core, input);
   const inputValidation = runEngineInputValidation(input);
-  return { ...core, engineOutput, inputValidation };
+  return { ...core, engineOutput, inputValidation, recommendationResult };
 }

@@ -71,6 +71,7 @@ import { getExplainerIdForLimitingFactor } from '../../lib/explainers/getRelevan
 import { getRegistryEntry } from '../../lib/explainers/explainerRegistry';
 import RealWorldBehaviourCards from './RealWorldBehaviourCards';
 import ChosenOptionComparisonSummary from './ChosenOptionComparisonSummary';
+import EvidenceRecommendationPanel from '../recommendation/EvidenceRecommendationPanel';
 import './DecisionSynthesisPage.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -110,6 +111,14 @@ interface Props {
    * the user saves the current session report.
    */
   reportReference?: string;
+  /**
+   * PR11/PR12 canonical recommendation result.
+   *
+   * When provided (present on FullEngineResult since PR12), the evidence-backed
+   * recommendation panel is rendered above the legacy advice cards.
+   * Optional for backward compat with ReportPage which persists EngineOutputV1.
+   */
+  recommendationResult?: import('../../engine/recommendation/RecommendationModel').RecommendationResult;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -605,6 +614,7 @@ export default function DecisionSynthesisPage({
   surveyData,
   floorplanOutput,
   reportReference,
+  recommendationResult,
 }: Props) {
   const [showPrint, setShowPrint] = useState(false);
   const [showPrintQr, setShowPrintQr] = useState(false);
@@ -1155,6 +1165,14 @@ export default function DecisionSynthesisPage({
       {/* ── Floor-plan provenance banners ───────────────────────────────────── */}
       {compareAdvice?.floorplanInsights != null && (
         <FloorplanProvenanceBanner insights={compareAdvice.floorplanInsights} />
+      )}
+
+      {/* ── PR11/PR12: Evidence-backed recommendation ────────────────────────── */}
+      {recommendationResult != null && (
+        <div className="advice-page__section" aria-label="Evidence-backed recommendation">
+          <h2 className="advice-page__section-title">Evidence-Backed Recommendation</h2>
+          <EvidenceRecommendationPanel recommendation={recommendationResult} />
+        </div>
       )}
 
       {/* ── Physics Story Mode — full panel (shown when expanded) ────────── */}

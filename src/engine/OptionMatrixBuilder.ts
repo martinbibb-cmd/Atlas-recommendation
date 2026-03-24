@@ -1,13 +1,9 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
 import type { OptionCardV1, OptionPlane, OptionRequirements, SensitivityItem } from '../contracts/EngineOutputV1';
-import { scoreOptionV1 } from './OptionScoringV1';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
-import { PENALTY_NARRATIVES, selectTopNarrativePenalties } from './scoring/penaltyNarratives';
-import type { PenaltyId } from '../contracts/scoring.penaltyIds';
 
 /**
  * Minimum measured flow (L/min) that represents a clearly-strong CWS operating point.
- * Must stay in sync with the same constant in OptionScoringV1.ts.
  */
 const STRONG_FLOW_LPM = 20;
 
@@ -1035,8 +1031,8 @@ export function buildOptionMatrixV1(
     sensitivities: buildSensitivities('system_unvented', core, input),
   });
 
-  // ── Score all option cards ────────────────────────────────────────────────
-  const { confidence, assumptions } = buildAssumptionsV1(core, input);
+  // ── Attach confidence badges and delivery-mode requirements ─────────────
+  const { confidence } = buildAssumptionsV1(core, input);
 
   // Derive the confidence badge label from the engine-level confidence level
   const confidenceBadgeLabel: Record<'high' | 'medium' | 'low', string> = {
@@ -1046,28 +1042,11 @@ export function buildOptionMatrixV1(
   };
 
   for (const card of cards) {
-    card.score = scoreOptionV1(core, input, card, confidence, assumptions);
-
     // ── Confidence badge — shown at top of every option card ──────────────
     card.confidenceBadge = {
       level: confidence.level,
       label: confidenceBadgeLabel[confidence.level],
     };
-
-    // ── Inject penalty narratives into why / requirements ─────────────────
-    // Select top N=3 penalties by value, with at most one per group, to
-    // avoid repetitive bullets from the same root cause.
-    const topPenalties = selectTopNarrativePenalties(card.score.breakdown);
-
-    for (const item of topPenalties) {
-      const narrative = PENALTY_NARRATIVES[item.id as PenaltyId];
-      if (narrative?.why && !card.why.includes(narrative.why)) {
-        card.why.push(narrative.why);
-      }
-      if (narrative?.requirement && !card.requirements.includes(narrative.requirement)) {
-        card.requirements.push(narrative.requirement);
-      }
-    }
 
     // ── Inject delivery-mode requirements ─────────────────────────────────
     // Normalise legacy aliases before checking (matches CwsSupplyModule logic).

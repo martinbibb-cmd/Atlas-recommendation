@@ -25,6 +25,7 @@ import PerformanceEnablersPanel from '../performance/PerformanceEnablersPanel';
 import OperatingPointChart from '../visualizers/OperatingPointChart';
 import HouseHeatMapPanel from '../live/HouseHeatMapPanel';
 import HotWaterDemandPanel from '../live/HotWaterDemandPanel';
+import EvidenceRecommendationPanel from '../recommendation/EvidenceRecommendationPanel';
 import './results.css';
 import '../../live/LiveHubPage.css';
 
@@ -1046,6 +1047,12 @@ export default function RecommendationHub({ result, input }: Props) {
       <div className="rec-hub__sticky-strip">
         <TrustStrip result={result} />
       </div>
+
+      {/* 1a — Evidence-backed recommendation (PR11/PR12 canonical output) */}
+      <section className="rec-hub__section" aria-label="Evidence-backed recommendation">
+        <h3 className="rec-hub__section-title">Evidence-Backed Recommendation</h3>
+        <EvidenceRecommendationPanel recommendation={result.recommendationResult} />
+      </section>
 
       {/* 2 — Performance Enablers — install-readiness conditions near the verdict */}
       <section className="rec-hub__section">

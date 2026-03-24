@@ -131,25 +131,37 @@ describe('Narrative injection — why bullets are appended from penalties', () =
     }
   });
 
-  it('loft conflict injects requirement into stored_vented', () => {
+  it('PR12: stored_vented card has loft-related engineering plane when futureLoftConversion is true', () => {
+    // PR12 removed the score-based penalty narrative injection.
+    // Loft conflict information is now surfaced through the engineering plane
+    // and typedRequirements on the option card (not via score.breakdown).
     const input = { ...baseInput, futureLoftConversion: true };
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
     const storedVented = options.find(o => o.id === 'stored_vented')!;
 
-    const hasLoftReq = storedVented.requirements.some(r => r.includes('Loft conversion'));
-    expect(hasLoftReq).toBe(true);
+    // Engineering plane headline references loft conflict
+    expect(storedVented.engineering.headline).toContain('loft conversion');
+    // typedRequirements.mustHave references loft conflict
+    expect(storedVented.typedRequirements?.mustHave.some(r => r.includes('Loft'))).toBe(true);
   });
 
-  it('cws.measurements_missing injects why bullet for unvented options', () => {
-    // No mains supply measurements provided (hasMeasurements = false)
+  it('PR12: stored_unvented card has pressure-related why bullets when mains pressure is low', () => {
+    // PR12 removed the score-based penalty narrative injection.
+    // Pressure information is now surfaced through the physics-based card content.
     const input = { ...baseInput, dynamicMainsPressure: 1.2 };
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
     const unvented = options.find(o => o.id === 'stored_unvented')!;
 
-    const hasWhyBullet = unvented.why.some(w => w.includes('flow @ pressure'));
-    expect(hasWhyBullet).toBe(true);
+    // The card should have some content about pressure/mains supply
+    const allContent = [...unvented.why, ...unvented.requirements];
+    const hasAnyPressureInfo = allContent.some(
+      s => s.toLowerCase().includes('pressure') ||
+           s.toLowerCase().includes('mains') ||
+           s.toLowerCase().includes('measurement'),
+    );
+    expect(hasAnyPressureInfo).toBe(true);
   });
 });
 
@@ -193,25 +205,19 @@ describe('Narrative grouping — at most one narrative per group per card', () =
   });
 });
 
-describe('explainerId wiring — explainer stub is surfaced in EngineOutputV1', () => {
-  it('pressure.borderline_unvented explainerId results in explainer in engineOutput', () => {
-    // 1.2 bar dynamic with flow measurement: hasMeasurements=true, triggers pressure.borderline_unvented
-    const input = {
-      ...baseInput,
-      dynamicMainsPressure: 1.2,
-      mainsDynamicFlowLpm: 14,
-    };
-    const result = runEngine(input);
-    const output = buildEngineOutputV1(result, input);
-
+describe('explainerId wiring — penalty narrative explainerId fields', () => {
+  it('PRESSURE_BORDERLINE_UNVENTED narrative has an explainerId defined', () => {
+    // PR12 removed the automatic explainer-stub injection from OutputBuilder.
+    // The PENALTY_NARRATIVES data is still accurate — this verifies the data
+    // shape so future callers can rely on the explainerId field being present.
     const narrative = PENALTY_NARRATIVES[PENALTY_IDS.PRESSURE_BORDERLINE_UNVENTED]!;
+    expect(narrative).toBeDefined();
     expect(narrative.explainerId).toBeDefined();
-
-    const explainerIds = output.explainers.map(e => e.id);
-    expect(explainerIds).toContain(narrative.explainerId!);
+    expect(typeof narrative.explainerId).toBe('string');
   });
 
-  it('explainer stub has non-empty body and id matching the narrative explainerId', () => {
+  it('engineOutput.explainers includes hydraulic-ashp-flow (not dependent on penalty scoring)', () => {
+    // Verify that explainers still built by the non-score path remain available.
     const input = {
       ...baseInput,
       dynamicMainsPressure: 1.2,
@@ -220,9 +226,8 @@ describe('explainerId wiring — explainer stub is surfaced in EngineOutputV1', 
     const result = runEngine(input);
     const output = buildEngineOutputV1(result, input);
 
-    const narrative = PENALTY_NARRATIVES[PENALTY_IDS.PRESSURE_BORDERLINE_UNVENTED]!;
-    const explainer = output.explainers.find(e => e.id === narrative.explainerId);
-    expect(explainer).toBeDefined();
-    expect(explainer!.body.length).toBeGreaterThan(0);
+    // hydraulic-ashp-flow explainer is built by OutputBuilder directly (not via penalty narratives)
+    const explainerIds = output.explainers.map(e => e.id);
+    expect(explainerIds).toContain('hydraulic-ashp-flow');
   });
 });
