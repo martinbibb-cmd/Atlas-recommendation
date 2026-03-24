@@ -2,12 +2,13 @@
 
 .rec-card {
   background: #fff;
-  border: 1px solid #e5e7eb;
+  border: 1.5px solid #bfdbfe;
   border-radius: 10px;
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.08);
 }
 
 /* ── Eyebrow ──────────────────────────────────────────────────────────── */
@@ -100,6 +101,19 @@
 .rec-card__score-max {
   font-size: 0.8rem;
   color: #9ca3af;
+}
+
+/* ── Confidence anchor ────────────────────────────────────────────────── */
+
+.rec-card__confidence-anchor {
+  font-size: 0.78rem;
+  color: #6b7280;
+  font-style: italic;
+  margin: -0.25rem 0 0 0;
+  padding: 0.5rem 0.75rem;
+  background: #f0f9ff;
+  border-left: 3px solid #38bdf8;
+  border-radius: 0 4px 4px 0;
 }
 
 /* ── Section label ────────────────────────────────────────────────────── */

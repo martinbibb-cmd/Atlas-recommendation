@@ -43,6 +43,17 @@
   gap: 1rem;
 }
 
+/*
+ * The recommendation card is the visual centrepiece of the side column.
+ * Sticky positioning keeps it in view while the user scans the timeline and
+ * cause cards, reinforcing the eye order: timeline → recommendation → causes.
+ */
+.pres-flow__side-col > :first-child {
+  position: sticky;
+  top: 1rem;
+  z-index: 1;
+}
+
 /* ── No recommendation state ─────────────────────────────────────────────── */
 
 .pres-flow__no-rec {

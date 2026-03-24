@@ -70,7 +70,7 @@ function deriveFutureStepCopy(
   }
   return {
     label: 'Heat pump ready',
-    detail: "This isn't the end — it's step one. Once the home is ready, a heat pump becomes a natural upgrade.",
+    detail: "When you're ready, a heat pump becomes a natural next step — your home is already on that path.",
   };
 }
 
@@ -119,7 +119,7 @@ export default function FuturePathway({
           <span className="future-pathway__step-dot" aria-hidden="true" />
           <span className="future-pathway__step-label">Now</span>
           <span className="future-pathway__step-name">{nowLabel}</span>
-          <span className="future-pathway__step-detail">Solves today's demand</span>
+          <span className="future-pathway__step-detail">Right for your home today</span>
         </div>
 
         {/* Step 2 — Improvements (from interventions) */}
