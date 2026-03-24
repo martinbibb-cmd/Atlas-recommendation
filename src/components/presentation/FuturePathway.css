@@ -1,0 +1,89 @@
+/* FuturePathway — Presentation Layer v1 */
+
+.future-pathway {
+  padding: 1.25rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.future-pathway__heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin: 0 0 0.75rem 0;
+}
+
+.future-pathway__strip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.future-pathway__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 90px;
+  text-align: center;
+}
+
+.future-pathway__connector {
+  font-size: 1.1rem;
+  color: #9ca3af;
+  align-self: center;
+  margin: 0 0.25rem;
+  padding-top: 0.4rem;
+}
+
+.future-pathway__step-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: block;
+  border: 2px solid currentColor;
+}
+
+.future-pathway__step--now .future-pathway__step-dot {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.future-pathway__step--improve .future-pathway__step-dot {
+  background: #f59e0b;
+  border-color: #f59e0b;
+}
+
+.future-pathway__step--future .future-pathway__step-dot {
+  background: #16a34a;
+  border-color: #16a34a;
+}
+
+.future-pathway__step-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+}
+
+.future-pathway__step-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.future-pathway__step--now .future-pathway__step-name {
+  color: #1d4ed8;
+}
+
+.future-pathway__step--future .future-pathway__step-name {
+  color: #15803d;
+}

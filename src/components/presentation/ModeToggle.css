@@ -1,0 +1,45 @@
+/* ModeToggle — Presentation Layer v1 */
+
+.mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f3f4f6;
+  border-radius: 32px;
+  padding: 0.25rem;
+}
+
+.mode-toggle__btn {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 24px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: #6b7280;
+  transition: background 0.18s, color 0.18s;
+}
+
+.mode-toggle__btn--active {
+  color: #fff;
+}
+
+.mode-toggle__btn--current.mode-toggle__btn--active {
+  background: #f97316;
+}
+
+.mode-toggle__btn--proposed.mode-toggle__btn--active {
+  background: #16a34a;
+}
+
+.mode-toggle__btn:hover:not(.mode-toggle__btn--active) {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.mode-toggle__arrow {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  user-select: none;
+}

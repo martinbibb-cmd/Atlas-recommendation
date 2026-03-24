@@ -1,0 +1,30 @@
+/* StoryCanvas — Presentation Layer v1 */
+
+.story-canvas {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.story-canvas--current {
+  border-color: #fed7aa;
+}
+
+.story-canvas--proposed {
+  border-color: #bbf7d0;
+}
+
+.story-canvas__divider {
+  border: none;
+  border-top: 1px solid #f3f4f6;
+  margin: 0;
+}
+
+.story-canvas__toggle-row {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  background: #f9fafb;
+}

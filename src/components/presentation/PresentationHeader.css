@@ -1,0 +1,76 @@
+/* PresentationHeader — Presentation Layer v1 */
+
+.pres-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  background: #1f2937;
+  border-bottom: 1px solid #374151;
+  flex-wrap: wrap;
+}
+
+/* ── Home summary chips ───────────────────────────────────────────────── */
+
+.pres-header__chips {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.pres-header__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  background: #374151;
+  color: #d1d5db;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+/* ── Centre title ─────────────────────────────────────────────────────── */
+
+.pres-header__title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+/* ── Family pills ─────────────────────────────────────────────────────── */
+
+.pres-header__families {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.pres-header__family-pill {
+  padding: 0.3rem 0.85rem;
+  border: 1px solid #4b5563;
+  border-radius: 16px;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.pres-header__family-pill:hover {
+  background: #374151;
+  color: #e5e7eb;
+  border-color: #6b7280;
+}
+
+.pres-header__family-pill--active {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #3b82f6;
+}

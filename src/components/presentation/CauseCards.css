@@ -1,0 +1,73 @@
+/* CauseCards — Presentation Layer v1 */
+
+.cause-cards {
+  padding: 0 1.25rem 1rem;
+}
+
+.cause-cards__heading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin: 0 0 0.6rem 0;
+}
+
+.cause-cards__empty {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.cause-cards__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* ── Individual card ──────────────────────────────────────────────────── */
+
+.cause-card {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+}
+
+.cause-card--hard_stop {
+  background: #fef2f2;
+  border-left-color: #ef4444;
+}
+
+.cause-card--limit {
+  background: #fff7ed;
+  border-left-color: #f97316;
+}
+
+.cause-card--warning {
+  background: #fffbeb;
+  border-left-color: #f59e0b;
+}
+
+.cause-card--info {
+  background: #f0f9ff;
+  border-left-color: #38bdf8;
+}
+
+.cause-card--improvement {
+  background: #f0fdf4;
+  border-left-color: #16a34a;
+}
+
+.cause-card__headline {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.2rem 0;
+}
+
+.cause-card__detail {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.4;
+}

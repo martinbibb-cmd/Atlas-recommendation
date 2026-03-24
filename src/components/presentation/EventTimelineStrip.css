@@ -1,0 +1,82 @@
+/* EventTimelineStrip — Presentation Layer v1 */
+
+.evt-strip {
+  padding: 1rem 1.25rem;
+}
+
+.evt-strip__heading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin: 0 0 0.75rem 0;
+}
+
+.evt-strip__track {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.evt-strip__event {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  min-width: 72px;
+  flex-shrink: 0;
+  position: relative;
+  text-align: center;
+}
+
+/* Connector line between events */
+.evt-strip__event + .evt-strip__event::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 2px;
+  background: #e5e7eb;
+}
+
+.evt-strip__event--neutral {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.evt-strip__event--problem {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+}
+
+.evt-strip__event--improvement {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.evt-strip__icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.evt-strip__label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.evt-strip__event--problem .evt-strip__label {
+  color: #c2410c;
+}
+
+.evt-strip__event--improvement .evt-strip__label {
+  color: #15803d;
+}

@@ -1,0 +1,74 @@
+/**
+ * WhyNotPanel.tsx — Presentation Layer v1.
+ *
+ * Shows a brief explanation for each non-recommended family, tied directly
+ * to the limiter that rules it out or constrains it.
+ *
+ * Data source: RecommendationResult.disqualifiedCandidates (PR11).
+ * Each card shows 1 sentence tied to the blocking limiter.
+ *
+ * Language rules:
+ *   - Never say "not suitable" — use "requires a change first" or similar
+ *   - Never say "this system fails"
+ *   - Use "your home" framing
+ */
+
+import type { RecommendationDecision } from '../../engine/recommendation/RecommendationModel';
+import { getLimiterHumanCopy } from './limiterHumanLanguage';
+import './WhyNotPanel.css';
+
+// ─── Family display helpers ───────────────────────────────────────────────────
+
+const FAMILY_LABEL: Record<string, string> = {
+  combi:        'On-demand hot water system',
+  system:       'Stored hot water system',
+  stored_water: 'Stored hot water system',
+  heat_pump:    'Air source heat pump',
+  regular:      'Tank-fed hot water system',
+  open_vented:  'Tank-fed hot water system',
+};
+
+function familyLabel(family: string): string {
+  return FAMILY_LABEL[family] ?? family;
+}
+
+// ─── Props ────────────────────────────────────────────────────────────────────
+
+interface Props {
+  /** Candidates that were excluded from the primary recommendation. */
+  disqualifiedCandidates: readonly RecommendationDecision[];
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export default function WhyNotPanel({ disqualifiedCandidates }: Props) {
+  if (disqualifiedCandidates.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="why-not" aria-label="Why not other options">
+      <p className="why-not__heading">Why not other options?</p>
+      <div className="why-not__cards">
+        {disqualifiedCandidates.map((candidate) => {
+          const blockingLimiterId = candidate.evidenceTrace.hardStopLimiters[0];
+          const reason = blockingLimiterId
+            ? getLimiterHumanCopy(blockingLimiterId).headline
+            : candidate.caveats[0] ?? 'Further review needed for your home.';
+
+          return (
+            <div key={candidate.family} className="why-not__card">
+              <p className="why-not__family">{familyLabel(candidate.family)}</p>
+              <p className="why-not__reason">{reason}</p>
+              {blockingLimiterId && (
+                <p className="why-not__action">
+                  This can change once that constraint is resolved.
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
