@@ -29,6 +29,7 @@ import { runHydraulicSafetyModule } from '../modules/HydraulicSafetyModule';
 import { runHydraulicModuleV1 } from '../modules/HydraulicModule';
 import { runCombiStressModule } from '../modules/CombiStressModule';
 import { runCombiDhwModuleV1 } from '../modules/CombiDhwModule';
+import { runCombiDhwPhaseModel, adaptEngineInputToCombiPhase } from '../modules/CombiDhwPhaseModel';
 import { runLifestyleSimulationModule } from '../modules/LifestyleSimulationModule';
 import { runRedFlagModule } from '../modules/RedFlagModule';
 import { generateBom } from '../modules/BomGenerator';
@@ -90,6 +91,7 @@ export function runCombiSystemModel(
   // topology guarantees a direct draw-off path, so these results are
   // physically meaningful only in this runner.
   const combiDhwV1 = runCombiDhwModuleV1(input, sludgeVsScale.dhwCapacityDeratePct);
+  const combiDhwPhase = runCombiDhwPhaseModel(adaptEngineInputToCombiPhase(input));
   const combiStress = runCombiStressModule(input);
 
   const lifestyle = runLifestyleSimulationModule(input, sludgeVsScale.cyclingLossPct);
@@ -215,9 +217,11 @@ export function runCombiSystemModel(
     dhw: {
       // PR3: canonical DHW envelope — combi runner owns combiDhwV1 only.
       // storedDhwV1, mixergy, and mixergyLegacy must be absent for this family.
+      // PR5: combiDhwPhase added — combi direct-DHW service-switching phase model.
       kind: 'direct_combi',
       sourcePath: 'combi_runner',
       combiDhwV1,
+      combiDhwPhase,
     },
     heating: {
       lifestyle,
