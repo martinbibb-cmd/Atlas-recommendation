@@ -315,7 +315,7 @@ function deriveHotWaterFit(
   }
 
   if (isStoredOrMixergy) {
-    const storedRisk = result.storedDhwV1?.verdict.storedRisk;
+    const storedRisk = result.storedDhwV1?.verdict.storedRisk ?? 'pass';
     if (storedRisk === 'warn') {
       return {
         id: 'hot_water_fit',

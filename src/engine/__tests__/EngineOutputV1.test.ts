@@ -297,13 +297,13 @@ describe('EngineOutputV1 shape', () => {
 
   it('recommendation primary is "Stored hot water — Unvented cylinder" when on_demand is rejected and stored unvented is viable', () => {
     // 2 bathrooms + 2 concurrent outlets → combi rejected; 14 L/min @ 2.5 bar → stored unvented viable.
-    // hasLoftConversion: true rejects stored_vented (no storedDhwV1 on a combi run).
+    // hasLoftConversion: true is the primary rejection gate for stored_vented (combi run has no storedDhwV1).
     const { engineOutput } = runEngine({
       ...baseInput,
       currentHeatSourceType: 'combi' as const,
       bathroomCount: 2,
       peakConcurrentOutlets: 2,
-      hasLoftConversion: true,   // rejects stored_vented regardless of storedDhwV1
+      hasLoftConversion: true,   // independently rejects stored_vented (combi run has no storedDhwV1)
       mainsDynamicFlowLpm: 14,   // qualifies stored_unvented (10 L/min @ 1 bar threshold)
       currentBoilerAgeYears: 10, // reduces missingKeyCount for medium confidence
       currentBoilerOutputKw: 24, // reduces missingKeyCount for medium confidence
@@ -326,7 +326,7 @@ describe('EngineOutputV1 shape', () => {
 
   it('recommendation primary is "Air Source Heat Pump" for steady_home with viable ASHP (28mm) and medium confidence', () => {
     // 28mm + 8kW → ASHP viable; on_demand caution (steady_home); stored unvented caution (9 L/min < 10).
-    // hasLoftConversion: true rejects stored_vented (no storedDhwV1 on a combi run).
+    // hasLoftConversion: true is the primary rejection gate for stored_vented (combi run has no storedDhwV1).
     const { engineOutput } = runEngine({
       ...baseInput,
       currentHeatSourceType: 'combi' as const,
@@ -335,7 +335,7 @@ describe('EngineOutputV1 shape', () => {
       occupancySignature: 'steady_home',
       bathroomCount: 1,
       peakConcurrentOutlets: 1,
-      hasLoftConversion: true,   // rejects stored_vented
+      hasLoftConversion: true,   // independently rejects stored_vented (combi run has no storedDhwV1)
       mainsDynamicFlowLpm: 9,    // below unvented gate (< 10 L/min at pressure) → stored unvented stays caution
       currentBoilerAgeYears: 10, // reduces missingKeyCount for medium confidence
       currentBoilerOutputKw: 24, // reduces missingKeyCount for medium confidence
