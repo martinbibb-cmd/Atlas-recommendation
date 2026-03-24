@@ -1,0 +1,326 @@
+/* EvidenceRecommendationPanel — PR11/PR12 canonical recommendation surface */
+
+.erp {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.25rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+/* ── Best overall ─────────────────────────────────────────────────────── */
+
+.erp-best-overall {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.erp-best-overall__eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.erp-best-overall__family {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+/* ── Score bar ────────────────────────────────────────────────────────── */
+
+.erp-score-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 0.625rem;
+  background: #f3f4f6;
+  border-radius: 9999px;
+  position: relative;
+  width: 100%;
+}
+
+.erp-score-bar__fill {
+  height: 100%;
+  background: #2563eb;
+  border-radius: 9999px;
+  max-width: 100%;
+}
+
+.erp-score-bar__label {
+  position: absolute;
+  right: 0;
+  top: -1.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* ── Suitability badge ────────────────────────────────────────────────── */
+
+.erp-suitability {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.erp-suitability--suitable {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.erp-suitability--suitable_with_caveats {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.erp-suitability--not_recommended {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ── Caveats ─────────────────────────────────────────────────────────── */
+
+.erp-caveats {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.erp-caveats li {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+/* ── Confidence ──────────────────────────────────────────────────────── */
+
+.erp-confidence {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.erp-confidence__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.erp-confidence__badge--high   { background: #dcfce7; color: #166534; }
+.erp-confidence__badge--medium { background: #fef9c3; color: #854d0e; }
+.erp-confidence__badge--low    { background: #fee2e2; color: #991b1b; }
+
+.erp-confidence__detail {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.erp-confidence__notes {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.erp-confidence__notes li {
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+/* ── Sections ────────────────────────────────────────────────────────── */
+
+.erp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.erp-section__heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.erp-section__intro {
+  font-size: 0.875rem;
+  color: #4b5563;
+  margin: 0;
+}
+
+.erp-section--disqualified {
+  background: #fef2f2;
+  padding: 1rem;
+  border-radius: 6px;
+  border: 1px solid #fca5a5;
+}
+
+/* ── Objective grid ──────────────────────────────────────────────────── */
+
+.erp-objective-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.erp-objective-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.erp-objective-card__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #374151;
+  margin: 0;
+}
+
+.erp-objective-card__family {
+  font-size: 0.8125rem;
+  color: #111827;
+  font-weight: 600;
+  margin: 0;
+}
+
+.erp-objective-card__no-winner {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-style: italic;
+  margin: 0;
+}
+
+/* ── Interventions ───────────────────────────────────────────────────── */
+
+.erp-interventions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.erp-intervention {
+  padding: 0.75rem;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.erp-intervention__label {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #0c4a6e;
+}
+
+.erp-intervention__desc {
+  font-size: 0.875rem;
+  color: #0369a1;
+  margin: 0;
+}
+
+.erp-intervention__meta {
+  font-size: 0.75rem;
+  color: #0284c7;
+  margin: 0;
+}
+
+/* ── Disqualified ────────────────────────────────────────────────────── */
+
+.erp-disqualified {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.erp-disqualified__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.erp-disqualified__family {
+  font-size: 0.9375rem;
+  margin: 0;
+  color: #991b1b;
+}
+
+.erp-disqualified__why-heading,
+.erp-disqualified__blockers-heading {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #7f1d1d;
+  margin: 0 0 0.125rem;
+}
+
+.erp-disqualified__caveats,
+.erp-disqualified__blockers {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.erp-disqualified__caveats li,
+.erp-disqualified__blockers li {
+  font-size: 0.8125rem;
+  color: #991b1b;
+}
+
+.erp-disqualified__limiter-id {
+  font-family: monospace;
+  font-size: 0.75rem;
+  background: #fee2e2;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  color: #7f1d1d;
+}
+
+/* ── No recommendation ───────────────────────────────────────────────── */
+
+.erp-no-recommendation {
+  padding: 1rem;
+  background: #fef9c3;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+}
+
+.erp-no-recommendation p {
+  font-size: 0.875rem;
+  color: #78350f;
+  margin: 0 0 0.375rem;
+}
+
+.erp-no-recommendation p:last-child {
+  margin-bottom: 0;
+}

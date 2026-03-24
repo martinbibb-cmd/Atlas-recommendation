@@ -1,5 +1,5 @@
 /**
- * runners.test.ts — PR2: Tests for topology-aware family runners and runEngine delegation.
+ * runners.test.ts — PR2/PR12: Tests for topology-aware family runners and runEngine delegation.
  *
  * Focus:
  *   1. Each runner produces a `FamilyRunnerResult` with the correct topology shape.
@@ -7,6 +7,7 @@
  *   3. Hydronic runners receive a topology with `drawOff === undefined`.
  *   4. `runEngine()` delegates to the correct family runner based on `currentHeatSourceType`.
  *   5. The legacy `FullEngineResult` output shape remains populated for all input families.
+ *   6. PR12: `runEngine()` produces `recommendationResult` from all four candidate families.
  *
  * No physics logic is exercised here — this is pure orchestration validation.
  */
@@ -26,11 +27,6 @@ import * as CombiRunnerModule from '../runners/runCombiSystemModel';
 import * as SystemRunnerModule from '../runners/runSystemStoredSystemModel';
 import * as RegularRunnerModule from '../runners/runRegularStoredSystemModel';
 import * as HPRunnerModule from '../runners/runHeatPumpStoredSystemModel';
-import * as StoredDhwModule from '../modules/StoredDhwModule';
-import * as MixergyVolumetricsModule from '../modules/MixergyVolumetricsModule';
-import * as MixergyLegacyModule from '../modules/MixergyLegacyModule';
-import * as CombiDhwModule from '../modules/CombiDhwModule';
-import * as CombiStressModule from '../modules/CombiStressModule';
 
 // ─── Shared input stubs ───────────────────────────────────────────────────────
 
@@ -238,50 +234,55 @@ describe('runHeatPumpStoredSystemModel', () => {
 });
 
 // ─── runEngine delegation tests ───────────────────────────────────────────────
+// PR12 note: runEngine now runs all four candidate families to produce the
+// multi-family evidence bundle for buildRecommendationsFromEvidence.  The
+// PRIMARY family (determined by currentHeatSourceType) still drives the
+// FullEngineResultCore output.  Tests here verify the primary-family
+// delegation and the output shape — not single-call counts.
 
 describe('runEngine delegation — selects correct runner by currentHeatSourceType', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('delegates combi inputs to runCombiSystemModel', () => {
+  it('delegates combi inputs to runCombiSystemModel (primary family)', () => {
     const spy = vi.spyOn(CombiRunnerModule, 'runCombiSystemModel');
     runEngine(combiInput);
-    expect(spy).toHaveBeenCalledOnce();
+    // PR12: combi runner is called at least once (primary + multi-family bundle)
+    expect(spy).toHaveBeenCalled();
   });
 
-  it('delegates system inputs to runSystemStoredSystemModel', () => {
+  it('delegates system inputs to runSystemStoredSystemModel (primary family)', () => {
     const spy = vi.spyOn(SystemRunnerModule, 'runSystemStoredSystemModel');
     runEngine(systemInput);
-    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalled();
   });
 
-  it('delegates regular inputs to runRegularStoredSystemModel', () => {
+  it('delegates regular inputs to runRegularStoredSystemModel (primary family)', () => {
     const spy = vi.spyOn(RegularRunnerModule, 'runRegularStoredSystemModel');
     runEngine(regularInput);
-    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalled();
   });
 
-  it('delegates heat pump inputs to runHeatPumpStoredSystemModel', () => {
+  it('delegates heat pump inputs to runHeatPumpStoredSystemModel (primary family)', () => {
     const spy = vi.spyOn(HPRunnerModule, 'runHeatPumpStoredSystemModel');
     runEngine(heatPumpInput);
-    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalled();
   });
 
-  it('does not call combi runner for system inputs', () => {
-    const spy = vi.spyOn(CombiRunnerModule, 'runCombiSystemModel');
-    runEngine(systemInput);
-    expect(spy).not.toHaveBeenCalled();
+  it('combi primary family: FullEngineResultCore has combi DHW fields, not stored DHW fields', () => {
+    const result = runEngine(combiInput);
+    expect(result.combiDhwV1).toBeDefined();
+    expect(result.combiStress).toBeDefined();
+    expect(result.storedDhwV1).toBeUndefined();
+    expect(result.mixergy).toBeUndefined();
   });
 
-  it('does not call hydronic runners for combi inputs', () => {
-    const systemSpy = vi.spyOn(SystemRunnerModule, 'runSystemStoredSystemModel');
-    const regularSpy = vi.spyOn(RegularRunnerModule, 'runRegularStoredSystemModel');
-    const hpSpy = vi.spyOn(HPRunnerModule, 'runHeatPumpStoredSystemModel');
-    runEngine(combiInput);
-    expect(systemSpy).not.toHaveBeenCalled();
-    expect(regularSpy).not.toHaveBeenCalled();
-    expect(hpSpy).not.toHaveBeenCalled();
+  it('system primary family: FullEngineResultCore has stored DHW fields, not combi DHW fields', () => {
+    const result = runEngine(systemInput);
+    expect(result.storedDhwV1).toBeDefined();
+    expect(result.combiDhwV1).toBeUndefined();
+    expect(result.combiStress).toBeUndefined();
   });
 });
 
@@ -430,40 +431,34 @@ describe('runEngine — PR3: family-gated DHW output shape', () => {
   });
 });
 
-// ─── PR3: runEngine cross-family fallback gate tests ─────────────────────────
+// ─── PR12: primary-family DHW ownership in FullEngineResultCore ─────────────
+// PR12 removed the topology-flattening DHW fallback guards from Engine.ts.
+// Each runner directly owns its DHW fields; cross-family DHW fields are
+// excluded from FullEngineResultCore by the isCombi gate.
+//
+// The old "PR3: cross-family DHW fallback is suppressed" tests that spied on
+// individual module calls are no longer appropriate here: PR12 runs all four
+// candidate families to build the evidence bundle, so those modules ARE called
+// as part of the multi-family pass.  The important invariant is captured in the
+// PR3 family-gated DHW output shape tests above (combi → combiDhwV1 defined,
+// storedDhwV1 undefined; and vice-versa).
 
-describe('runEngine — PR3: cross-family DHW fallback is suppressed', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
+describe('runEngine — PR12: recommendationResult is produced for all inputs', () => {
+  it('combi input: recommendationResult is populated', () => {
+    const result = runEngine(combiInput);
+    expect(result.recommendationResult).toBeDefined();
+    expect(result.recommendationResult.bestOverall).not.toBeUndefined();
   });
 
-  it('combi run: runStoredDhwModuleV1 is never called', () => {
-    const spy = vi.spyOn(StoredDhwModule, 'runStoredDhwModuleV1');
-    runEngine(combiInput);
-    expect(spy).not.toHaveBeenCalled();
+  it('system input: recommendationResult is populated', () => {
+    const result = runEngine(systemInput);
+    expect(result.recommendationResult).toBeDefined();
+    expect(result.recommendationResult.bestByObjective).toBeDefined();
   });
 
-  it('combi run: runMixergyVolumetricsModule is never called', () => {
-    const spy = vi.spyOn(MixergyVolumetricsModule, 'runMixergyVolumetricsModule');
-    runEngine(combiInput);
-    expect(spy).not.toHaveBeenCalled();
-  });
-
-  it('combi run: runMixergyLegacyModule is never called', () => {
-    const spy = vi.spyOn(MixergyLegacyModule, 'runMixergyLegacyModule');
-    runEngine(combiInput);
-    expect(spy).not.toHaveBeenCalled();
-  });
-
-  it('system run: runCombiDhwModuleV1 is never called', () => {
-    const spy = vi.spyOn(CombiDhwModule, 'runCombiDhwModuleV1');
-    runEngine(systemInput);
-    expect(spy).not.toHaveBeenCalled();
-  });
-
-  it('system run: runCombiStressModule is never called', () => {
-    const spy = vi.spyOn(CombiStressModule, 'runCombiStressModule');
-    runEngine(systemInput);
-    expect(spy).not.toHaveBeenCalled();
+  it('heat pump input: recommendationResult is populated', () => {
+    const result = runEngine(heatPumpInput);
+    expect(result.recommendationResult).toBeDefined();
+    expect(result.recommendationResult.confidenceSummary.level).toMatch(/^(high|medium|low)$/);
   });
 });

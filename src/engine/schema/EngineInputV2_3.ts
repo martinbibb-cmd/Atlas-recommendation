@@ -1754,6 +1754,17 @@ export type FullEngineResult = FullEngineResultCore & {
    * the UI never collects do not penalise confidence.
    */
   inputValidation: import('../modules/EngineInputValidationModule').EngineInputValidation;
+  /**
+   * PR11/PR12: Evidence-backed recommendation result.
+   *
+   * Produced by running all four candidate families (combi, system, heat_pump,
+   * open_vented), building limiter ledger + fit-map evidence for each, and
+   * calling `buildRecommendationsFromEvidence`.
+   *
+   * This is the canonical recommendation — it replaces the old mixed-state
+   * heuristics.  UI recommendation surfaces must bind to this field.
+   */
+  recommendationResult: import('../recommendation/RecommendationModel').RecommendationResult;
 };
 
 // ─── Connected Insights V2.4 ──────────────────────────────────────────────────
