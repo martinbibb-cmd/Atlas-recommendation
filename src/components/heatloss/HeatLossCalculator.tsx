@@ -104,6 +104,7 @@ interface HeatLossResult {
   floorHL:     number;
   ventHL:      number;
   totalHL:     number;
+  thermalInertiaTauHours: number;
 }
 
 /** View/interaction state — pan, zoom, hover, drag. No polygon data. */
@@ -128,6 +129,7 @@ interface Settings {
   glazingType:    string;
   glazingAmount:  string;
   floorType:      string;
+  thermalMass:    'light' | 'medium' | 'heavy';
 }
 
 // ── Geometry helpers ──────────────────────────────────────────────────────────
@@ -213,6 +215,15 @@ function calculateHeatLoss(layer: Layer, settings: Settings): HeatLossResult | n
   const floorHL   = floorArea   * uFloor   * DELTA_T;
   const ventHL    = volume * ACH * 0.33 * DELTA_T;
   const totalHL   = wallHL + glazingHL + roofHL + floorHL + ventHL;
+  const heatLossCoefficient = totalHL / DELTA_T; // W/K
+  const thermalCapacityKwhPerK =
+    settings.thermalMass === 'light' ? 2.5 :
+    settings.thermalMass === 'medium' ? 4.5 :
+    7.0;
+  const thermalCapacityWhPerK = thermalCapacityKwhPerK * 1000;
+  const thermalInertiaTauHours = heatLossCoefficient > 0
+    ? thermalCapacityWhPerK / heatLossCoefficient
+    : 0;
 
   return {
     floorArea:   round(floorArea,   1),
@@ -227,6 +238,7 @@ function calculateHeatLoss(layer: Layer, settings: Settings): HeatLossResult | n
     floorHL:     round(floorHL   / 1000, 2),
     ventHL:      round(ventHL    / 1000, 2),
     totalHL:     round(totalHL   / 1000, 1),
+    thermalInertiaTauHours: round(thermalInertiaTauHours, 1),
   };
 }
 
@@ -557,6 +569,7 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
     glazingType:    'doubleArated',
     glazingAmount:  'medium',
     floorType:      'suspendedUninsulated',
+    thermalMass:    'medium',
   });
 
   // Layer panel UI state (mirrors layersRef for rendering).
@@ -815,13 +828,17 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
     repaint();
   }, [repaint]);
 
-  const clientPos = (e: MouseEvent | TouchEvent): Point =>
-    'touches' in e
-      ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
-      : { x: e.clientX, y: e.clientY };
+  const clientPos = (e: MouseEvent | TouchEvent): Point | null => {
+    if ('touches' in e) {
+      const touch = e.touches[0] ?? e.changedTouches[0];
+      return touch ? { x: touch.clientX, y: touch.clientY } : null;
+    }
+    return { x: e.clientX, y: e.clientY };
+  };
 
   const onPointerDown = useCallback((e: MouseEvent | TouchEvent) => {
     const pos   = clientPos(e);
+    if (!pos) return;
     const vs    = vsRef.current;
     const layer = getActiveLayer();
 
@@ -845,7 +862,7 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
       }
       // Toggle party wall
       const edgeIdx = getEdgeAtClient(pos.x, pos.y);
-      if (edgeIdx >= 0) {
+      if (edgeIdx >= 0 && layer.edges[edgeIdx] != null) {
         layer.edges[edgeIdx].isPartyWall = !layer.edges[edgeIdx].isPartyWall;
         refreshResults();
         repaint();
@@ -869,6 +886,7 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
 
   const onPointerMove = useCallback((e: MouseEvent | TouchEvent) => {
     const pos   = clientPos(e);
+    if (!pos) return;
     const vs    = vsRef.current;
     const layer = getActiveLayer();
 
@@ -1305,6 +1323,18 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
                 <option value="insulated">Insulated (U 0.20)</option>
               </select>
             </div>
+
+            <div className="hlc__field">
+              <label>Thermal mass</label>
+              <select
+                value={settings.thermalMass}
+                onChange={e => setSettings(s => ({ ...s, thermalMass: e.target.value as Settings['thermalMass'] }))}
+              >
+                <option value="light">Lightweight</option>
+                <option value="medium">Medium</option>
+                <option value="heavy">Heavy masonry</option>
+              </select>
+            </div>
           </div>
 
           {/* Results */}
@@ -1349,6 +1379,10 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
                     <label>Volume</label>
                     <span>{result.volume} m³</span>
                   </div>
+                  <div className="hlc__geo-item">
+                    <label>Thermal inertia τ</label>
+                    <span>{result.thermalInertiaTauHours} h</span>
+                  </div>
                 </div>
 
                 <div className="hlc__breakdown">
@@ -1390,4 +1424,3 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
     </div>
   );
 }
-
