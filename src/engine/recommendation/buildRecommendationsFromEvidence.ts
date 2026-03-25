@@ -29,6 +29,7 @@ import type {
   RecommendationConfidenceSummary,
   CandidateEvidenceBundle,
   CandidateSuitability,
+  RecommendationContextSignals,
 } from './RecommendationModel';
 import { ALL_OBJECTIVES } from './RecommendationModel';
 import type { LimiterLedgerEntry } from '../limiter/LimiterLedger';
@@ -318,10 +319,56 @@ function familySortKey(family: ApplianceFamily): string {
 // ─── Scoring ──────────────────────────────────────────────────────────────────
 
 /**
- * Score a single candidate from its evidence bundle.
+ * Families that benefit from stored hot water (non-combi).
+ * Used when applying storageBenefitSignal bonuses/penalties.
+ */
+const STORED_WATER_FAMILIES: ReadonlySet<ApplianceFamily> = new Set([
+  'system', 'regular', 'heat_pump', 'open_vented',
+]);
+
+/**
+ * Context-signal objective adjustments.
+ *
+ * storageBenefitSignal:
+ *   high   → stored families +10 performance, +5 reliability
+ *            combi −8 performance
+ *   medium → stored families +5 performance
+ *            (no combi penalty — borderline households may still suit a combi)
+ *
+ * solarStorageOpportunity:
+ *   high   → stored families +10 eco
+ *            combi −5 eco  (cannot self-consume PV surplus without a cylinder)
+ *   medium → stored families +5 eco
+ */
+const STORAGE_BENEFIT_BONUS: Record<string, Partial<Record<RecommendationObjective, number>>> = {
+  high:   { performance: 10, reliability: 5 },
+  medium: { performance: 5 },
+  low:    {},
+};
+const STORAGE_BENEFIT_COMBI_PENALTY: Record<string, Partial<Record<RecommendationObjective, number>>> = {
+  high:   { performance: 8 },
+  medium: {},
+  low:    {},
+};
+const SOLAR_STORAGE_BONUS: Record<string, Partial<Record<RecommendationObjective, number>>> = {
+  high:   { eco: 10 },
+  medium: { eco: 5 },
+  low:    {},
+};
+const SOLAR_STORAGE_COMBI_PENALTY: Record<string, Partial<Record<RecommendationObjective, number>>> = {
+  high:   { eco: 5 },
+  medium: {},
+  low:    {},
+};
+
+/**
+ * Score a single candidate from its evidence bundle and optional context signals.
  * Returns a fully-populated RecommendationDecision.
  */
-function scoreCandidate(bundle: CandidateEvidenceBundle): RecommendationDecision {
+function scoreCandidate(
+  bundle: CandidateEvidenceBundle,
+  context?: RecommendationContextSignals,
+): RecommendationDecision {
   const family = bundle.runnerResult.topology.appliance.family;
   const baseline = FAMILY_BASELINE_SCORES[family];
 
@@ -385,13 +432,34 @@ function scoreCandidate(bundle: CandidateEvidenceBundle): RecommendationDecision
     positiveEvidence.push('no_simultaneous_demand_constraint');
   }
 
-  // Compute final objective scores
+  // Compute final objective scores (with optional context-signal adjustments)
   const objectiveScores = {} as Record<RecommendationObjective, number>;
   for (const obj of ALL_OBJECTIVES) {
-    const raw =
+    let raw =
       (baseline[obj] ?? 50) -
       (limiterPenalties[obj] ?? 0) +
       (fitMapContributions[obj] ?? 0);
+
+    // Apply context-signal adjustments (storageBenefitSignal, solarStorageOpportunity)
+    if (context) {
+      const isStoredFamily = STORED_WATER_FAMILIES.has(family);
+      const isCombi = family === 'combi';
+
+      const storageBonus = STORAGE_BENEFIT_BONUS[context.storageBenefitSignal] ?? {};
+      const storagePenalty = STORAGE_BENEFIT_COMBI_PENALTY[context.storageBenefitSignal] ?? {};
+      const solarBonus = SOLAR_STORAGE_BONUS[context.solarStorageOpportunity] ?? {};
+      const solarPenalty = SOLAR_STORAGE_COMBI_PENALTY[context.solarStorageOpportunity] ?? {};
+
+      if (isStoredFamily) {
+        raw += storageBonus[obj] ?? 0;
+        raw += solarBonus[obj] ?? 0;
+      }
+      if (isCombi) {
+        raw -= storagePenalty[obj] ?? 0;
+        raw -= solarPenalty[obj] ?? 0;
+      }
+    }
+
     objectiveScores[obj] = clamp100(raw);
   }
 
@@ -596,16 +664,21 @@ function buildConfidenceSummary(
  * @param constraints  Optional product constraints — controls which intervention
  *                     types (e.g. UFH, heat pump) are eligible for inclusion.
  *                     When absent, UFH is excluded by default.
+ * @param context      Optional demographic and PV context signals that adjust
+ *                     objective scores to reflect household demand and solar
+ *                     opportunity. When absent, no context-signal adjustments
+ *                     are applied (backward-compatible).
  * @returns            RecommendationResult with bestOverall, bestByObjective,
  *                     interventions, disqualifiedCandidates, and confidenceSummary.
  */
 export function buildRecommendationsFromEvidence(
   bundles: readonly CandidateEvidenceBundle[],
   constraints?: ProductConstraints,
+  context?: RecommendationContextSignals,
 ): RecommendationResult {
   // Score every candidate
   const allDecisions: RecommendationDecision[] = bundles
-    .map(scoreCandidate)
+    .map(bundle => scoreCandidate(bundle, context))
     .sort((a, b) => {
       // Primary: overall score descending
       const scoreDiff = b.overallScore - a.overallScore;

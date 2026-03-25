@@ -25,6 +25,8 @@ import { buildLimiterLedger } from './limiter/buildLimiterLedger';
 import { buildFitMapModel } from './fitmap/buildFitMapModel';
 import { buildRecommendationsFromEvidence } from './recommendation/buildRecommendationsFromEvidence';
 import type { CandidateEvidenceBundle } from './recommendation/RecommendationModel';
+import { runDemographicsAssessmentModule } from './modules/DemographicsAssessmentModule';
+import { runPvAssessmentModule } from './modules/PvAssessmentModule';
 
 /**
  * Maps EngineInputV2_3.currentHeatSourceType to a HeatSourceBehaviourInput.systemType
@@ -122,6 +124,8 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     solarBoost: result.lifecycle.solarBoost,
     condensingState: result.efficiency.condensingState,
     condensingRuntime: result.efficiency.condensingRuntime,
+    demographicOutputs: runDemographicsAssessmentModule(input),
+    pvAssessment: runPvAssessmentModule(input),
   };
 
   // ── Step 5: Build evidence bundles for all candidate families ─────────────
@@ -163,7 +167,10 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     return { runnerResult: familyResult, events, limiterLedger, fitMap };
   });
 
-  const recommendationResult = buildRecommendationsFromEvidence(bundles, input.productConstraints);
+  const recommendationResult = buildRecommendationsFromEvidence(bundles, input.productConstraints, {
+    storageBenefitSignal: core.demographicOutputs.storageBenefitSignal,
+    solarStorageOpportunity: core.pvAssessment.solarStorageOpportunity,
+  });
 
   const engineOutput = buildEngineOutputV1(core, input);
   const inputValidation = runEngineInputValidation(input);

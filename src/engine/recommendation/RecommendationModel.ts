@@ -287,3 +287,35 @@ export interface CandidateEvidenceBundle {
   /** Fit-map model (PR9). */
   readonly fitMap: import('../fitmap/FitMapModel').FitMapModel;
 }
+
+// ─── Context signals ──────────────────────────────────────────────────────────
+
+/**
+ * Optional demographic and PV signals that influence recommendation scoring.
+ *
+ * Passed by `runEngine()` so the recommendation engine can apply bonus/penalty
+ * adjustments based on household demand characteristics and solar opportunity.
+ *
+ * These are intentionally separate from the per-candidate limiter/fit-map
+ * evidence — they represent whole-home context rather than family-specific
+ * physics results.
+ */
+export interface RecommendationContextSignals {
+  /**
+   * Composite stored-hot-water benefit signal derived from household composition.
+   *   high   → stored families receive a performance/reliability bonus;
+   *            combi receives a performance penalty.
+   *   medium → stored families receive a smaller bonus; combi unchanged.
+   *   low    → no adjustment (combi-neutral).
+   */
+  storageBenefitSignal: import('../modules/DemographicsAssessmentModule').StorageBenefitSignal;
+
+  /**
+   * Opportunity to capture PV surplus as stored hot water.
+   *   high   → stored families receive an eco bonus; combi receives eco penalty.
+   *   medium → stored families receive a smaller eco bonus.
+   *   low    → no adjustment.
+   */
+  solarStorageOpportunity: import('../modules/PvAssessmentModule').SolarStorageOpportunity;
+}
+
