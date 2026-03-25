@@ -199,13 +199,6 @@
   .dsv__bar {
     animation: none !important;
   }
-
-  /* Static fallback heights so the relative output levels remain clear */
-  .dsv--reduced-motion .dsv__bar--combi   { height: 44px; }
-  .dsv--reduced-motion .dsv__bar--stored  { height: 32px; }
-  .dsv--reduced-motion .dsv__bar--heat_pump { height: 22px; }
-
-  .dsv--reduced-motion .dsv__pulse { opacity: 0.7; }
 }
 
 .dsv--reduced-motion .dsv__pulse,
@@ -213,6 +206,14 @@
   animation: none !important;
 }
 
-.dsv--reduced-motion .dsv__bar--combi   { height: 44px; }
-.dsv--reduced-motion .dsv__bar--stored  { height: 32px; }
+/* Static fallback heights so the relative output levels remain clear.
+   Applied both in OS-level reduced-motion and via the prop-driven class. */
+@media (prefers-reduced-motion: reduce) {
+  .dsv__bar--combi     { height: 44px; }
+  .dsv__bar--stored    { height: 32px; }
+  .dsv__bar--heat_pump { height: 22px; }
+}
+
+.dsv--reduced-motion .dsv__bar--combi     { height: 44px; }
+.dsv--reduced-motion .dsv__bar--stored    { height: 32px; }
 .dsv--reduced-motion .dsv__bar--heat_pump { height: 22px; }
