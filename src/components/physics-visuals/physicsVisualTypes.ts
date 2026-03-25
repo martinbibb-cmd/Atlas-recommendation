@@ -19,7 +19,11 @@ export type PhysicsVisualId =
   | 'bees_vs_tortoise'
   | 'sponge'
   | 'u_gauge'
-  | 'trv_flow';
+  | 'trv_flow'
+  | 'boiler_cycling'
+  | 'flow_restriction'
+  | 'radiator_upgrade'
+  | 'controls_upgrade';
 
 // ─── Registry entry ────────────────────────────────────────────────────────────
 

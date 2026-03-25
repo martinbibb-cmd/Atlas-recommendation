@@ -125,6 +125,54 @@ const SCRIPTS: Record<PhysicsVisualId, PhysicsVisualScript> = {
     takeaway:
       'TRVs prevent overheating room by room — but they work best when the boiler flow temperature is also set correctly.',
   },
+
+  boiler_cycling: {
+    title: 'Why an oversized boiler cycles too much',
+    summary:
+      'An oversized boiler reaches setpoint too quickly. It fires in short intense bursts, then cuts out — only to restart moments later.',
+    bullets: [
+      'Oversized output exceeds what the building needs.',
+      'Each short burst stresses the heat exchanger and burner.',
+      'Frequent cold-starts reduce efficiency and shorten component life.',
+    ],
+    takeaway: 'A correctly sized boiler modulates more steadily and lasts longer.',
+  },
+
+  flow_restriction: {
+    title: 'What happens when mains flow rate is too low',
+    summary:
+      'A combi boiler needs a minimum flow rate to ignite and stay stable. When mains pressure is low, supply lags behind demand.',
+    bullets: [
+      'Combi minimum ignition threshold: typically 7–10 L/min.',
+      'Low mains flow → boiler cannot maintain stable output.',
+      'A stored cylinder absorbs the gap — it delivers at cylinder pressure, not mains.',
+    ],
+    takeaway: 'Low mains flow is a hard limit for combi DHW performance. A cylinder removes that dependency.',
+  },
+
+  radiator_upgrade: {
+    title: 'How bigger radiators lower flow temperature',
+    summary:
+      'Larger radiators emit the same heat at a lower water temperature. A lower flow temperature lets the boiler condense, recovering extra energy.',
+    bullets: [
+      'Standard radiators need ~70–75 °C flow to meet design heat load.',
+      'Upsized radiators can meet the same load at ~50 °C — well below the ~55 °C condensing threshold.',
+      'Below ~55 °C return temperature, flue gases condense and release latent heat — efficiency improves up to 15 %.',
+    ],
+    takeaway: 'Upsizing radiators is one of the most cost-effective efficiency upgrades — and a prerequisite for heat pump readiness.',
+  },
+
+  controls_upgrade: {
+    title: 'Better controls — steadier, more efficient running',
+    summary:
+      'Fixed high flow temperatures force the boiler into blocky on/off cycling. Lower, steadier settings let it modulate more smoothly.',
+    bullets: [
+      'Fixed higher flow: boiler overshoots, cuts out, restarts — high cycling.',
+      'Lower steady running: smaller, less frequent adjustments — stays in condensing range longer.',
+      'No hardware change needed — just better settings or a load compensator.',
+    ],
+    takeaway: 'Optimising boiler controls costs almost nothing and can recover several percent of seasonal efficiency.',
+  },
 };
 
 // ─── Lookup ────────────────────────────────────────────────────────────────────

@@ -23,6 +23,10 @@ import DrivingStyleVisual from '../visuals/DrivingStyleVisual';
 import FlowSplitVisual from '../visuals/FlowSplitVisual';
 import SolarMismatchVisual from '../visuals/SolarMismatchVisual';
 import CylinderChargeVisual from '../visuals/CylinderChargeVisual';
+import BoilerCyclingAnimation from '../../whatif/BoilerCyclingAnimation';
+import FlowRestrictionAnimation from '../../whatif/FlowRestrictionAnimation';
+import RadiatorUpgradeAnimation from '../../whatif/RadiatorUpgradeAnimation';
+import ControlsVisual from '../../whatif/visuals/ControlsVisual';
 import './PhysicsVisualGallery.css';
 
 // ─── Per-visual card controls state ───────────────────────────────────────────
@@ -192,6 +196,42 @@ function VisualWithControls({
         </div>
       );
 
+    case 'boiler_cycling':
+      return (
+        <div className="pvg__visual-section">
+          <div className="pvg__visual-frame">
+            <BoilerCyclingAnimation />
+          </div>
+        </div>
+      );
+
+    case 'flow_restriction':
+      return (
+        <div className="pvg__visual-section">
+          <div className="pvg__visual-frame">
+            <FlowRestrictionAnimation />
+          </div>
+        </div>
+      );
+
+    case 'radiator_upgrade':
+      return (
+        <div className="pvg__visual-section">
+          <div className="pvg__visual-frame">
+            <RadiatorUpgradeAnimation />
+          </div>
+        </div>
+      );
+
+    case 'controls_upgrade':
+      return (
+        <div className="pvg__visual-section">
+          <div className="pvg__visual-frame">
+            <ControlsVisual />
+          </div>
+        </div>
+      );
+
     default:
       return (
         <div className="pvg__visual-frame pvg__visual-frame--placeholder">
@@ -290,7 +330,7 @@ export default function PhysicsVisualGallery({ onBack }: PhysicsVisualGalleryPro
           <h1 className="pvg__page-title">Physics Visual Library</h1>
           <p className="pvg__page-subtitle">
             Atlas explainer animations — preview and review surface.
-            First 4 visuals available; others shown as placeholders.
+            First 4 physics visuals plus 4 wired whatif animations; remaining placeholders shown as stubs.
           </p>
         </div>
       </div>
