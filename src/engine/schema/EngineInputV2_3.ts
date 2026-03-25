@@ -111,6 +111,16 @@ export interface ExpertAssumptionsV1 {
    * Default: 'low' (null treated identically).
    */
   spaceSavingPriority?: 'low' | 'medium' | 'high' | null;
+  /**
+   * Whether the home has or is planning a battery storage system.
+   * Used by PvAssessmentModule to surface battery as a relevant capture
+   * technology when PV is present.
+   *
+   * true      — battery is installed or definitely planned.
+   * false     — battery is not planned.
+   * undefined — not captured; treat as unknown.
+   */
+  batteryPlanned?: boolean;
 }
 
 /**
@@ -1779,6 +1789,28 @@ export interface FullEngineResultCore {
    * Must not be used in customer-facing recommendation copy.
    */
   condensingRuntime: CondensingRuntimeResult;
+  /**
+   * Canonical demographic assessment — the "Home" anchor for presentation.
+   *
+   * Exposes demand profile label, daily hot-water litres, peak simultaneous
+   * outlets, bath-use intensity, occupancy timing profile, storage-benefit
+   * signal, and narrative flags.
+   *
+   * All presentation copy referencing household demand must bind to this field;
+   * it must not be re-derived in UI components.
+   */
+  demographicOutputs: import('../modules/DemographicsAssessmentModule').DemographicAssessmentResult;
+  /**
+   * Canonical PV assessment — the "Energy" anchor for presentation.
+   *
+   * Exposes PV suitability, generation timing profile, energy-demand alignment,
+   * solar storage opportunity, existing-PV flag, battery flag, and narrative
+   * signals.
+   *
+   * All presentation copy referencing solar potential must bind to this field;
+   * it must not be re-derived in UI components.
+   */
+  pvAssessment: import('../modules/PvAssessmentModule').PvAssessmentResult;
 }
 
 /** Full engine result including the canonical V1 output contract. */
