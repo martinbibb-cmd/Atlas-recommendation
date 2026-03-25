@@ -25,6 +25,10 @@ import DrivingStyleVisual from './visuals/DrivingStyleVisual';
 import FlowSplitVisual from './visuals/FlowSplitVisual';
 import SolarMismatchVisual from './visuals/SolarMismatchVisual';
 import CylinderChargeVisual from './visuals/CylinderChargeVisual';
+import BoilerCyclingAnimation from '../whatif/BoilerCyclingAnimation';
+import FlowRestrictionAnimation from '../whatif/FlowRestrictionAnimation';
+import RadiatorUpgradeAnimation from '../whatif/RadiatorUpgradeAnimation';
+import ControlsVisual from '../whatif/visuals/ControlsVisual';
 
 // ─── Typed data union ──────────────────────────────────────────────────────────
 
@@ -40,6 +44,11 @@ export type PhysicsVisualDataMap = {
   sponge: Record<string, never>;
   u_gauge: Record<string, never>;
   trv_flow: Record<string, never>;
+  // Wired whatif animations — no domain-specific data required
+  boiler_cycling: Record<string, never>;
+  flow_restriction: Record<string, never>;
+  radiator_upgrade: Record<string, never>;
+  controls_upgrade: Record<string, never>;
 };
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
@@ -62,23 +71,17 @@ export default function PhysicsVisual<T extends PhysicsVisualId>({
   const shared: PhysicsVisualProps = { reducedMotion, emphasis, caption };
 
   switch (id) {
-    case 'driving_style':
-      return (
-        <DrivingStyleVisual
-          {...shared}
-          mode="combi"
-          {...(data as Omit<DrivingStyleVisualProps, keyof PhysicsVisualProps>)}
-        />
-      );
+    case 'driving_style': {
+      const typedData = data as Omit<DrivingStyleVisualProps, keyof PhysicsVisualProps> | undefined;
+      const mode: import('./physicsVisualTypes').DrivingStyleMode = typedData?.mode ?? 'combi';
+      return <DrivingStyleVisual {...shared} mode={mode} />;
+    }
 
-    case 'flow_split':
-      return (
-        <FlowSplitVisual
-          {...shared}
-          outletsActive={1}
-          {...(data as Omit<FlowSplitVisualProps, keyof PhysicsVisualProps>)}
-        />
-      );
+    case 'flow_split': {
+      const typedData = data as Omit<FlowSplitVisualProps, keyof PhysicsVisualProps> | undefined;
+      const outletsActive: 1 | 2 | 3 = typedData?.outletsActive ?? 1;
+      return <FlowSplitVisual {...shared} outletsActive={outletsActive} pressureLevel={typedData?.pressureLevel} />;
+    }
 
     case 'solar_mismatch':
       return (
@@ -95,6 +98,18 @@ export default function PhysicsVisual<T extends PhysicsVisualId>({
           {...(data as Omit<CylinderChargeVisualProps, keyof PhysicsVisualProps>)}
         />
       );
+
+    case 'boiler_cycling':
+      return <BoilerCyclingAnimation />;
+
+    case 'flow_restriction':
+      return <FlowRestrictionAnimation />;
+
+    case 'radiator_upgrade':
+      return <RadiatorUpgradeAnimation />;
+
+    case 'controls_upgrade':
+      return <ControlsVisual />;
 
     default:
       // Visual not yet implemented — show a placeholder

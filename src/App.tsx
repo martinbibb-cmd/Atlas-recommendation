@@ -625,6 +625,16 @@ export default function App() {
                 <button className="cta-btn">Open Presentation →</button>
               </div>
             )}
+            {/* Physics Visual Library — dev review surface */}
+            <div
+              className="journey-card"
+              onClick={() => setJourney('gallery')}
+            >
+              <div className="card-icon">🎨</div>
+              <h2>Physics Visual Library</h2>
+              <p>Dev preview — browse all registered explainer animations with controls and scripts.</p>
+              <button className="cta-btn">Open Gallery →</button>
+            </div>
             {/* System Explorer hidden from primary UX — access via ?explorer=1 */}
           </div>
           <Footer onNavigate={setJourney} />

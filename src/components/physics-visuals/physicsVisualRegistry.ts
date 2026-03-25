@@ -89,6 +89,42 @@ const REGISTRY: PhysicsVisualDefinition[] = [
     supportsReducedMotion: true,
     category: 'controls',
   },
+  {
+    id: 'boiler_cycling',
+    title: 'Oversized boiler cycling',
+    purpose:
+      'Animated diagram showing how an oversized boiler fires in short intense bursts, reaching setpoint too quickly and cycling excessively.',
+    defaultDurationMs: 3000,
+    supportsReducedMotion: true,
+    category: 'system_behaviour',
+  },
+  {
+    id: 'flow_restriction',
+    title: 'Mains flow vs. demand',
+    purpose:
+      'Shows the gap between mains supply flow rate and household hot-water demand that causes instability in a combi boiler.',
+    defaultDurationMs: 2500,
+    supportsReducedMotion: true,
+    category: 'water',
+  },
+  {
+    id: 'radiator_upgrade',
+    title: 'Radiator upgrade — flow temperature',
+    purpose:
+      'Illustrates how upsized radiators allow a lower flow temperature, enabling the boiler to condense and improve efficiency.',
+    defaultDurationMs: 2500,
+    supportsReducedMotion: true,
+    category: 'heat',
+  },
+  {
+    id: 'controls_upgrade',
+    title: 'Fixed high flow vs. lower steady running',
+    purpose:
+      'Contrasts blocky on/off firing at a fixed high flow temperature against steadier, lower-temperature modulation.',
+    defaultDurationMs: 3000,
+    supportsReducedMotion: true,
+    category: 'controls',
+  },
 ];
 
 // ─── Lookup helpers ────────────────────────────────────────────────────────────
