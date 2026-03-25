@@ -33,6 +33,7 @@ import type {
 import { ALL_OBJECTIVES } from './RecommendationModel';
 import type { LimiterLedgerEntry } from '../limiter/LimiterLedger';
 import type { ApplianceFamily } from '../topology/SystemTopology';
+import type { ProductConstraints } from '../schema/EngineInputV2_3';
 
 // ─── Objective weights ────────────────────────────────────────────────────────
 
@@ -445,7 +446,17 @@ function scoreCandidate(bundle: CandidateEvidenceBundle): RecommendationDecision
  * intervention per `candidateInterventions` entry.  Duplicate
  * (intervention id + family) pairs are de-duplicated.
  */
-function buildInterventions(bundles: readonly CandidateEvidenceBundle[]): RecommendationIntervention[] {
+function buildInterventions(
+  bundles: readonly CandidateEvidenceBundle[],
+  constraints?: ProductConstraints,
+): RecommendationIntervention[] {
+  // Build the set of blocked intervention IDs from product constraints.
+  // UFH is excluded by default (allowUFH defaults to false).
+  const blockedInterventions = new Set<string>();
+  if (!(constraints?.allowUFH === true)) {
+    blockedInterventions.add('add_underfloor_heating');
+  }
+
   const seen = new Set<string>();
   const interventions: RecommendationIntervention[] = [];
 
@@ -456,6 +467,9 @@ function buildInterventions(bundles: readonly CandidateEvidenceBundle[]): Recomm
       if (!entry.removableByUpgrade) continue;
 
       for (const interventionId of entry.candidateInterventions) {
+        // Skip interventions blocked by product constraints
+        if (blockedInterventions.has(interventionId)) continue;
+
         const key = `${interventionId}::${family}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -577,13 +591,17 @@ function buildConfidenceSummary(
  * LimiterLedger, FitMapModel) and produces an objective-aware ranking with
  * evidence traces, interventions, and a confidence summary.
  *
- * @param bundles  One CandidateEvidenceBundle per candidate family.
- *                 Must be non-empty; order does not affect output.
- * @returns        RecommendationResult with bestOverall, bestByObjective,
- *                 interventions, disqualifiedCandidates, and confidenceSummary.
+ * @param bundles      One CandidateEvidenceBundle per candidate family.
+ *                     Must be non-empty; order does not affect output.
+ * @param constraints  Optional product constraints — controls which intervention
+ *                     types (e.g. UFH, heat pump) are eligible for inclusion.
+ *                     When absent, UFH is excluded by default.
+ * @returns            RecommendationResult with bestOverall, bestByObjective,
+ *                     interventions, disqualifiedCandidates, and confidenceSummary.
  */
 export function buildRecommendationsFromEvidence(
   bundles: readonly CandidateEvidenceBundle[],
+  constraints?: ProductConstraints,
 ): RecommendationResult {
   // Score every candidate
   const allDecisions: RecommendationDecision[] = bundles
@@ -608,8 +626,8 @@ export function buildRecommendationsFromEvidence(
   // Best by objective
   const bestByObjective = buildBestByObjective(eligible);
 
-  // Interventions from removable limiters
-  const interventions = buildInterventions(bundles);
+  // Interventions from removable limiters — filtered by product constraints
+  const interventions = buildInterventions(bundles, constraints);
 
   // Confidence summary
   const confidenceSummary = buildConfidenceSummary(bundles, allDecisions);

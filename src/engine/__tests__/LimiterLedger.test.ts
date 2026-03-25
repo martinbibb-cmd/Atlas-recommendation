@@ -851,6 +851,80 @@ describe('LimiterLedger — installability: space_for_cylinder_unavailable', () 
   });
 });
 
+// ─── combi_dhw_demand_risk — occupancy/bathroom demand gate ──────────────────
+
+describe('LimiterLedger — combi: combi_dhw_demand_risk', () => {
+  it('emits a limit entry when bathroomCount >= 2 (hard simultaneous-demand gate)', () => {
+    const { runnerResult, eventSummary } = combiClean();
+    const ledger = buildLimiterLedger(runnerResult, eventSummary, {
+      bathroomCount: 2,
+      occupancyCount: 3,
+    });
+    const entry = ledger.entries.find(e => e.id === 'combi_dhw_demand_risk');
+    expect(entry).toBeDefined();
+    expect(entry?.severity).toBe('limit');
+  });
+
+  it('emits a limit entry when peakConcurrentOutlets >= 2 (hard simultaneous-demand gate)', () => {
+    const { runnerResult, eventSummary } = combiClean();
+    const ledger = buildLimiterLedger(runnerResult, eventSummary, {
+      bathroomCount: 1,
+      peakConcurrentOutlets: 2,
+    });
+    const entry = ledger.entries.find(e => e.id === 'combi_dhw_demand_risk');
+    expect(entry).toBeDefined();
+    expect(entry?.severity).toBe('limit');
+  });
+
+  it('emits a warning entry when occupancyCount === 3 without bathroom/outlet gate', () => {
+    const { runnerResult, eventSummary } = combiClean();
+    const ledger = buildLimiterLedger(runnerResult, eventSummary, {
+      bathroomCount: 1,
+      occupancyCount: 3,
+    });
+    const entry = ledger.entries.find(e => e.id === 'combi_dhw_demand_risk');
+    expect(entry).toBeDefined();
+    expect(entry?.severity).toBe('warning');
+  });
+
+  it('does not emit combi_dhw_demand_risk for occupancyCount <= 2 with single bathroom', () => {
+    const { runnerResult, eventSummary } = combiClean();
+    const ledger = buildLimiterLedger(runnerResult, eventSummary, {
+      bathroomCount: 1,
+      occupancyCount: 2,
+    });
+    expect(ledger.entries.some(e => e.id === 'combi_dhw_demand_risk')).toBe(false);
+  });
+
+  it('does not emit combi_dhw_demand_risk when no demographic context is provided', () => {
+    const { runnerResult, eventSummary } = combiClean();
+    const ledger = buildLimiterLedger(runnerResult, eventSummary);
+    expect(ledger.entries.some(e => e.id === 'combi_dhw_demand_risk')).toBe(false);
+  });
+
+  it('does not emit combi_dhw_demand_risk for non-combi families', () => {
+    const runnerResult = runSystemStoredSystemModel(CLEAN_INPUT, systemTopology);
+    const eventSummary = buildDerivedEventsFromTimeline(runnerResult.stateTimeline, 'system');
+    const ledger = buildLimiterLedger(runnerResult, eventSummary, {
+      bathroomCount: 3,
+      occupancyCount: 4,
+    });
+    expect(ledger.entries.some(e => e.id === 'combi_dhw_demand_risk')).toBe(false);
+  });
+
+  it('bathroomCount gate (limit) takes precedence over occupancy warning', () => {
+    const { runnerResult, eventSummary } = combiClean();
+    const ledger = buildLimiterLedger(runnerResult, eventSummary, {
+      bathroomCount: 2,
+      occupancyCount: 3,
+    });
+    const entries = ledger.entries.filter(e => e.id === 'combi_dhw_demand_risk');
+    // Only one entry (no duplication — limit wins over warning)
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.severity).toBe('limit');
+  });
+});
+
 // ─── 15. Negative — no limiter without evidence ───────────────────────────────
 
 describe('LimiterLedger — negative: no limiter without evidence', () => {

@@ -184,10 +184,6 @@ function HeatingTab({ data }: HeatingTabProps) {
           >
             Heating interrupted {events.counters.heatingInterruptions} time
             {events.counters.heatingInterruptions !== 1 ? 's' : ''} during hot water use.
-            {' '}
-            <span className="selected-family-dashboard__evidence-trace">
-              ← <code>heating_interrupted_by_dhw</code> / <code>combi_service_switching</code>
-            </span>
           </div>
         )}
         {heatingEvidence.length > 0 && (
@@ -199,8 +195,6 @@ function HeatingTab({ data }: HeatingTabProps) {
                 data-evidence-id={e.id}
               >
                 {e.description}
-                {' '}
-                <code className="selected-family-dashboard__evidence-id">← {e.id}</code>
               </li>
             ))}
           </ul>
@@ -280,10 +274,6 @@ function HotWaterTab({ data }: HotWaterTabProps) {
               >
                 Hot water delivered from a partial store {counters.reducedDhwEvents} time
                 {counters.reducedDhwEvents !== 1 ? 's' : ''} — shortfall risk.
-                {' '}
-                <span className="selected-family-dashboard__evidence-trace">
-                  ← <code>reduced_dhw_service</code>
-                </span>
               </div>
             )}
           </div>
@@ -298,8 +288,6 @@ function HotWaterTab({ data }: HotWaterTabProps) {
                 data-evidence-id={e.id}
               >
                 {e.description}
-                {' '}
-                <code className="selected-family-dashboard__evidence-id">← {e.id}</code>
               </li>
             ))}
           </ul>
@@ -349,8 +337,6 @@ function EfficiencyTab({ data }: EfficiencyTabProps) {
                 data-evidence-id={e.id}
               >
                 {e.description}
-                {' '}
-                <code className="selected-family-dashboard__evidence-id">← {e.id}</code>
               </li>
             ))}
           </ul>

@@ -114,6 +114,38 @@ export interface ExpertAssumptionsV1 {
 }
 
 /**
+ * Commercial product constraints — what this installer can actually offer.
+ *
+ * These gates are applied to the intervention catalogue before recommendations
+ * are surfaced. An intervention whose product type is disabled is silently
+ * removed from the output so it never appears in the presentation layer.
+ *
+ * Currently enforced:
+ *   - `allowUFH`      — controls the `add_underfloor_heating` intervention.
+ *
+ * Not yet enforced (reserved for future use):
+ *   - `allowHeatPump` — would filter heat-pump-specific interventions.
+ *   - `allowCylinder` — would filter cylinder installation interventions.
+ */
+export interface ProductConstraints {
+  /**
+   * When `true`, underfloor heating is an available product and may be
+   * recommended. Defaults to `false` — UFH is excluded by default.
+   */
+  allowUFH?: boolean;
+  /**
+   * Reserved. When `true`, heat-pump installations are available.
+   * Not yet enforced in the intervention filter.
+   */
+  allowHeatPump?: boolean;
+  /**
+   * Reserved. When `true`, hot-water cylinder installations are available.
+   * Not yet enforced in the intervention filter.
+   */
+  allowCylinder?: boolean;
+}
+
+/**
  * User-expressed preferences from the survey.
  * Distinct from ExpertAssumptionsV1 — these come from the homeowner,
  * not from the surveyor's professional judgement.
@@ -200,6 +232,12 @@ export interface EngineInputV2_3 {
    * Distinct from expertAssumptions — these come from the homeowner.
    */
   preferences?: UserPreferencesV1;
+  /**
+   * Commercial product constraints — controls which intervention types can
+   * appear in the recommendation output.
+   * When absent, UFH and heat-pump interventions are excluded by default.
+   */
+  productConstraints?: ProductConstraints;
   /**
    * Set to `true` when mainsDynamicFlowLpm is a real measured reading (flow cup / bucket
    * test or flow meter).  When `false` or absent, the value is a conservative estimate

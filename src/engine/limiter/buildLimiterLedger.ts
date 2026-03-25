@@ -41,6 +41,24 @@ import type { DerivedSystemEventSummary } from '../timeline/DerivedSystemEvent';
 import type { LimiterLedger, LimiterLedgerEntry, LimiterSeverity } from './LimiterLedger';
 import type { ApplianceFamily } from '../topology/SystemTopology';
 
+// ─── Demographic context ──────────────────────────────────────────────────────
+
+/**
+ * Household demographic inputs used for occupancy-driven limiter rules.
+ *
+ * All fields are optional — absent values cause the corresponding rules to be
+ * skipped (no entry emitted).  This type is always passed as an optional third
+ * argument so existing call sites without demographic data are unaffected.
+ */
+export interface LimiterDemographicContext {
+  /** Number of people regularly resident. */
+  occupancyCount?: number;
+  /** Number of bathrooms. */
+  bathroomCount?: number;
+  /** Peak simultaneous DHW outlets (e.g. 1 = single shower, 2 = shower + basin). */
+  peakConcurrentOutlets?: number;
+}
+
 // ─── Thresholds ───────────────────────────────────────────────────────────────
 
 /** HP post-draw recovery > this (minutes) is classified as slow reheat. */
@@ -118,6 +136,7 @@ function sortEntries(entries: LimiterLedgerEntry[]): LimiterLedgerEntry[] {
 export function buildLimiterLedger(
   runnerResult: FamilyRunnerResult,
   eventSummary: DerivedSystemEventSummary,
+  demographic?: LimiterDemographicContext,
 ): LimiterLedger {
   const entries: LimiterLedgerEntry[] = [];
 
@@ -145,6 +164,63 @@ export function buildLimiterLedger(
       candidateInterventions: ['switch_to_stored_system', 'install_stored_hot_water_cylinder'],
       confidence: 'derived',
     });
+  }
+
+  // 1a. combi_dhw_demand_risk — combi-only; occupancy/bathroom demand gate.
+  //     Rules (from household physics):
+  //       bathroomCount >= 2 || peakConcurrentOutlets >= 2 → 'limit'  (hard simultaneous-demand gate)
+  //       occupancyCount === 3                              → 'warning' (borderline demand)
+  //       occupancyCount <= 2                              → pass (no entry emitted)
+  //     A 'limit' takes precedence over a 'warning'.
+  if (family === 'combi' && demographic != null) {
+    const { occupancyCount, bathroomCount, peakConcurrentOutlets } = demographic;
+    const isHardGate =
+      (bathroomCount != null && bathroomCount >= 2) ||
+      (peakConcurrentOutlets != null && peakConcurrentOutlets >= 2);
+    const isBorderline =
+      !isHardGate && occupancyCount != null && occupancyCount === 3;
+
+    if (isHardGate) {
+      // Determine which field triggered the gate and its value for the description.
+      const triggerField = (bathroomCount != null && bathroomCount >= 2)
+        ? `${bathroomCount} bathrooms`
+        : `${peakConcurrentOutlets!} simultaneous outlets`;
+      entries.push({
+        id: 'combi_dhw_demand_risk',
+        family,
+        domain: 'dhw',
+        severity: 'limit',
+        title: 'Simultaneous demand risk — combi not suitable',
+        description:
+          `This home has ${triggerField}, ` +
+          `creating a high risk of concurrent hot-water demand. A combi boiler can only serve one ` +
+          `outlet at full flow at a time — simultaneous draws will result in reduced temperature ` +
+          `or pressure at one or more outlets.`,
+        source: 'demographic',
+        triggerKeys: ['bathroomCount', 'peakConcurrentOutlets'],
+        removableByUpgrade: true,
+        candidateInterventions: ['switch_to_stored_system', 'install_stored_hot_water_cylinder'],
+        confidence: 'assumed',
+      });
+    } else if (isBorderline) {
+      entries.push({
+        id: 'combi_dhw_demand_risk',
+        family,
+        domain: 'dhw',
+        severity: 'warning',
+        title: 'Borderline combi demand — three-person household',
+        description:
+          `With ${occupancyCount} occupants, peak morning demand may approach the limits of ` +
+          `on-demand hot water. Back-to-back showers without a stored system can result in ` +
+          `reduced temperature towards the end of consecutive draws.`,
+        source: 'demographic',
+        triggerKeys: ['occupancyCount'],
+        removableByUpgrade: true,
+        candidateInterventions: ['switch_to_stored_system', 'install_stored_hot_water_cylinder'],
+        confidence: 'assumed',
+      });
+    }
+    // occupancyCount <= 2 with bathroomCount < 2: pass — no entry emitted.
   }
 
   // 2. simultaneous_demand_constraint — shared
