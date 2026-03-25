@@ -250,6 +250,67 @@ describe('buildCanonicalPresentation — current system signal', () => {
     const model = buildCanonicalPresentation(result, input);
     expect(model.page1.currentSystem.ageContext).toMatch(/young|service life/i);
   });
+
+  it('drivingStyleMode is "combi" for a combi boiler', () => {
+    const input = withInput({ currentHeatSourceType: 'combi' });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1.currentSystem.drivingStyleMode).toBe('combi');
+  });
+
+  it('drivingStyleMode is "stored" for a system boiler', () => {
+    const input = withInput({ currentHeatSourceType: 'system' });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1.currentSystem.drivingStyleMode).toBe('stored');
+  });
+
+  it('drivingStyleMode is "stored" for a regular boiler', () => {
+    const input = withInput({ currentHeatSourceType: 'regular' });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1.currentSystem.drivingStyleMode).toBe('stored');
+  });
+
+  it('drivingStyleMode is "heat_pump" for an ASHP', () => {
+    const input = withInput({ currentHeatSourceType: 'ashp' });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1.currentSystem.drivingStyleMode).toBe('heat_pump');
+  });
+});
+
+// ─── House signal — wallTypeKey ───────────────────────────────────────────────
+
+describe('buildCanonicalPresentation — house signal wallTypeKey', () => {
+  it('solid_masonry wall → wallTypeKey solid_masonry', () => {
+    const input = withInput({ building: { fabric: { wallType: 'solid_masonry' } } });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1.house.wallTypeKey).toBe('solid_masonry');
+  });
+
+  it('cavity_unfilled wall → wallTypeKey cavity_uninsulated (same high heat-loss physics)', () => {
+    const input = withInput({ building: { fabric: { wallType: 'cavity_unfilled' } } });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1.house.wallTypeKey).toBe('cavity_uninsulated');
+  });
+
+  it('cavity_filled wall → wallTypeKey cavity_insulated', () => {
+    const input = withInput({ building: { fabric: { wallType: 'cavity_filled' } } });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1.house.wallTypeKey).toBe('cavity_insulated');
+  });
+
+  it('no wall type → wallTypeKey defaults to cavity_insulated', () => {
+    const result = runEngine(BASE_INPUT);
+    const model = buildCanonicalPresentation(result, BASE_INPUT);
+    expect(['solid_masonry', 'cavity_uninsulated', 'cavity_insulated']).toContain(
+      model.page1.house.wallTypeKey,
+    );
+  });
 });
 
 // ─── Page 1.5 — Ageing context ────────────────────────────────────────────────
