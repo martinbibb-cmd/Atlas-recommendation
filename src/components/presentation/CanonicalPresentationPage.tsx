@@ -56,18 +56,6 @@ function SignalRow({ label, value }: { label: string; value: string | number }) 
   );
 }
 
-function NarrativeList({ heading, items }: { heading: string; items: string[] }) {
-  if (items.length === 0) return null;
-  return (
-    <div className="cpp-narrative">
-      <p className="cpp-narrative__heading">{heading}</p>
-      <ul className="cpp-narrative__list">
-        {items.map((item, i) => <li key={i}>{item}</li>)}
-      </ul>
-    </div>
-  );
-}
-
 // ─── Page 1 sections (visual-first) ──────────────────────────────────────────
 
 function HouseSection({ house }: { house: HouseSignal }) {
