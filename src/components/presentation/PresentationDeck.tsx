@@ -87,16 +87,16 @@ function useReducedMotion(): boolean {
 function HousePage({ house }: { house: HouseSignal }) {
   return (
     <>
-      <p className="deck__page-eyebrow">Your house</p>
-      <h2 className="deck__page-title">{house.heatLossLabel}</h2>
-      <div className="deck__visual">
+      <p className="atlas-presentation-deck__page-eyebrow">Your house</p>
+      <h2 className="atlas-presentation-deck__page-title">{house.heatLossLabel}</h2>
+      <div className="atlas-presentation-deck__visual">
         <PresentationVisualSlot
           visualId="heat_particles"
           visualData={{ wallType: house.wallTypeKey }}
         />
       </div>
-      <p className="deck__takeaway">{house.wallTypeLabel} — {house.insulationLabel}</p>
-      <p className="deck__context">{house.heatLossBand}</p>
+      <p className="atlas-presentation-deck__takeaway">{house.wallTypeLabel} — {house.insulationLabel}</p>
+      <p className="atlas-presentation-deck__context">{house.heatLossBand}</p>
     </>
   );
 }
@@ -105,16 +105,16 @@ function HomePage({ home }: { home: HomeSignal }) {
   const outletsActive = Math.max(MIN_OUTLETS, Math.min(home.peakSimultaneousOutlets, MAX_OUTLETS)) as 1 | 2 | 3;
   return (
     <>
-      <p className="deck__page-eyebrow">Your home</p>
-      <h2 className="deck__page-title">{home.demandProfileLabel}</h2>
-      <div className="deck__visual">
+      <p className="atlas-presentation-deck__page-eyebrow">Your home</p>
+      <h2 className="atlas-presentation-deck__page-title">{home.demandProfileLabel}</h2>
+      <div className="atlas-presentation-deck__visual">
         <PresentationVisualSlot
           visualId="flow_split"
           visualData={{ outletsActive }}
         />
       </div>
-      <p className="deck__takeaway">{home.dailyHotWaterLabel}</p>
-      <p className="deck__context">{home.peakOutletsLabel}</p>
+      <p className="atlas-presentation-deck__takeaway">{home.dailyHotWaterLabel}</p>
+      <p className="atlas-presentation-deck__context">{home.peakOutletsLabel}</p>
     </>
   );
 }
@@ -122,13 +122,13 @@ function HomePage({ home }: { home: HomeSignal }) {
 function EnergyPage({ energy }: { energy: EnergySignal }) {
   return (
     <>
-      <p className="deck__page-eyebrow">Your energy</p>
-      <h2 className="deck__page-title">{energy.pvStatusLabel}</h2>
-      <div className="deck__visual">
+      <p className="atlas-presentation-deck__page-eyebrow">Your energy</p>
+      <h2 className="atlas-presentation-deck__page-title">{energy.pvStatusLabel}</h2>
+      <div className="atlas-presentation-deck__visual">
         <PresentationVisualSlot visualId="solar_mismatch" />
       </div>
-      <p className="deck__takeaway">{energy.pvSuitabilityLabel}</p>
-      <p className="deck__context">{energy.energyAlignmentLabel}</p>
+      <p className="atlas-presentation-deck__takeaway">{energy.pvSuitabilityLabel}</p>
+      <p className="atlas-presentation-deck__context">{energy.energyAlignmentLabel}</p>
     </>
   );
 }
@@ -136,16 +136,16 @@ function EnergyPage({ energy }: { energy: EnergySignal }) {
 function CurrentSystemPage({ sys }: { sys: CurrentSystemSignal }) {
   return (
     <>
-      <p className="deck__page-eyebrow">Your current system</p>
-      <h2 className="deck__page-title">{sys.systemTypeLabel}</h2>
-      <div className="deck__visual">
+      <p className="atlas-presentation-deck__page-eyebrow">Your current system</p>
+      <h2 className="atlas-presentation-deck__page-title">{sys.systemTypeLabel}</h2>
+      <div className="atlas-presentation-deck__visual">
         <PresentationVisualSlot
           visualId="driving_style"
           visualData={{ mode: sys.drivingStyleMode }}
         />
       </div>
-      <p className="deck__takeaway">{sys.ageLabel}</p>
-      <p className="deck__context">{sys.ageContext}</p>
+      <p className="atlas-presentation-deck__takeaway">{sys.ageLabel}</p>
+      <p className="atlas-presentation-deck__context">{sys.ageContext}</p>
     </>
   );
 }
@@ -153,15 +153,15 @@ function CurrentSystemPage({ sys }: { sys: CurrentSystemSignal }) {
 function AgeingPage({ ctx }: { ctx: Page1_5AgeingContext }) {
   return (
     <>
-      <p className="deck__page-eyebrow">System condition</p>
-      <h2 className="deck__page-title">{ctx.heading}</h2>
-      <div className="deck__ageing-card">
-        <p className="deck__ageing-band">Age band: <strong>{ctx.ageBandLabel}</strong></p>
-        <ul className="deck__ageing-notes">
+      <p className="atlas-presentation-deck__page-eyebrow">System condition</p>
+      <h2 className="atlas-presentation-deck__page-title">{ctx.heading}</h2>
+      <div className="atlas-presentation-deck__ageing-card">
+        <p className="atlas-presentation-deck__ageing-band">Age band: <strong>{ctx.ageBandLabel}</strong></p>
+        <ul className="atlas-presentation-deck__ageing-notes">
           {ctx.probabilisticNotes.map((note, i) => <li key={i}>{note}</li>)}
         </ul>
         {ctx.waterQualityNote && (
-          <p className="deck__ageing-water-note">{ctx.waterQualityNote}</p>
+          <p className="atlas-presentation-deck__ageing-water-note">{ctx.waterQualityNote}</p>
         )}
       </div>
     </>
@@ -176,15 +176,15 @@ function OptionsPage({ options }: { options: AvailableOptionExplanation[] }) {
 
   return (
     <>
-      <p className="deck__page-eyebrow">Available options</p>
-      <h2 className="deck__page-title">{title}</h2>
-      <div className="deck__visual">
+      <p className="atlas-presentation-deck__page-eyebrow">Available options</p>
+      <h2 className="atlas-presentation-deck__page-title">{title}</h2>
+      <div className="atlas-presentation-deck__visual">
         <PresentationVisualSlot visualId="cylinder_charge" hideExplainer={false} />
       </div>
-      <ul className="deck__options-list">
+      <ul className="atlas-presentation-deck__options-list">
         {options.map(opt => (
-          <li key={opt.id} className="deck__options-item">
-            <span className={`deck__options-badge deck__options-badge--${opt.status}`}>
+          <li key={opt.id} className="atlas-presentation-deck__options-item">
+            <span className={`atlas-presentation-deck__options-badge atlas-presentation-deck__options-badge--${opt.status}`}>
               {opt.status === 'viable' ? '✅' : opt.status === 'caution' ? '⚠️' : '🚫'}
             </span>
             <span>{opt.label}</span>
@@ -201,22 +201,22 @@ function RankingPage({ items }: { items: PhysicsRankingItem[] }) {
 
   return (
     <>
-      <p className="deck__page-eyebrow">Best fit</p>
-      <h2 className="deck__page-title">{title}</h2>
+      <p className="atlas-presentation-deck__page-eyebrow">Best fit</p>
+      <h2 className="atlas-presentation-deck__page-title">{title}</h2>
       {best && (
-        <p className="deck__takeaway">{best.reasonLine}</p>
+        <p className="atlas-presentation-deck__takeaway">{best.reasonLine}</p>
       )}
-      <div className="deck__ranking-podium">
+      <div className="atlas-presentation-deck__ranking-podium">
         {items.slice(0, 3).map(item => (
           <div
             key={item.family}
-            className={`deck__ranking-row${item.rank === 1 ? ' deck__ranking-row--rank-1' : ''}`}
+            className={`atlas-presentation-deck__ranking-row${item.rank === 1 ? ' atlas-presentation-deck__ranking-row--rank-1' : ''}`}
             aria-label={`Rank ${item.rank}: ${item.label}`}
           >
-            <span className="deck__ranking-num" aria-hidden="true">{item.rank}</span>
-            <span className="deck__ranking-label">{item.label}</span>
+            <span className="atlas-presentation-deck__ranking-num" aria-hidden="true">{item.rank}</span>
+            <span className="atlas-presentation-deck__ranking-label">{item.label}</span>
             {item.overallScore > 0 && (
-              <span className="deck__ranking-reason">{item.overallScore} pts</span>
+              <span className="atlas-presentation-deck__ranking-reason">{item.overallScore} pts</span>
             )}
           </div>
         ))}
@@ -234,30 +234,30 @@ function ShortlistPage({ option, index }: { option: ShortlistedOptionDetail; ind
   const visualId = visualIdForFamily(option.family);
   return (
     <>
-      <p className="deck__page-eyebrow">Option {index + 1}</p>
-      <h2 className="deck__page-title">{option.label}</h2>
-      <div className="deck__visual">
+      <p className="atlas-presentation-deck__page-eyebrow">Option {index + 1}</p>
+      <h2 className="atlas-presentation-deck__page-title">{option.label}</h2>
+      <div className="atlas-presentation-deck__visual">
         <PresentationVisualSlot visualId={visualId} />
       </div>
-      <div className="deck__shortlist-body">
-        <div className="deck__shortlist-section deck__shortlist-section--required">
-          <p className="deck__shortlist-section-heading">🔨 Required work</p>
+      <div className="atlas-presentation-deck__shortlist-body">
+        <div className="atlas-presentation-deck__shortlist-section atlas-presentation-deck__shortlist-section--required">
+          <p className="atlas-presentation-deck__shortlist-section-heading">🔨 Required work</p>
           {option.requiredWork.length > 0 ? (
-            <ul className="deck__shortlist-list">
+            <ul className="atlas-presentation-deck__shortlist-list">
               {option.requiredWork.map((item, i) => <li key={i}>{item}</li>)}
             </ul>
           ) : (
-            <p className="deck__shortlist-empty">No enabling works recorded.</p>
+            <p className="atlas-presentation-deck__shortlist-empty">No enabling works recorded.</p>
           )}
         </div>
-        <div className="deck__shortlist-section deck__shortlist-section--best">
-          <p className="deck__shortlist-section-heading">✨ To get the most from it</p>
+        <div className="atlas-presentation-deck__shortlist-section atlas-presentation-deck__shortlist-section--best">
+          <p className="atlas-presentation-deck__shortlist-section-heading">✨ To get the most from it</p>
           {option.bestPerformanceUpgrades.length > 0 ? (
-            <ul className="deck__shortlist-list">
+            <ul className="atlas-presentation-deck__shortlist-list">
               {option.bestPerformanceUpgrades.map((item, i) => <li key={i}>{item}</li>)}
             </ul>
           ) : (
-            <p className="deck__shortlist-empty">No additional upgrades identified.</p>
+            <p className="atlas-presentation-deck__shortlist-empty">No additional upgrades identified.</p>
           )}
         </div>
       </div>
@@ -274,24 +274,24 @@ function SimulatorPage({
 }) {
   return (
     <>
-      <p className="deck__page-eyebrow">Proof</p>
-      <h2 className="deck__page-title">Test this recommendation</h2>
-      <div className="deck__simulator-card">
-        <p className="deck__simulator-scenario">{sim.homeScenarioDescription}</p>
+      <p className="atlas-presentation-deck__page-eyebrow">Proof</p>
+      <h2 className="atlas-presentation-deck__page-title">Test this recommendation</h2>
+      <div className="atlas-presentation-deck__simulator-card">
+        <p className="atlas-presentation-deck__simulator-scenario">{sim.homeScenarioDescription}</p>
         {sim.houseConstraintNotes.length > 0 && (
-          <ul className="deck__simulator-notes">
+          <ul className="atlas-presentation-deck__simulator-notes">
             {sim.houseConstraintNotes.map((note, i) => <li key={i}>{note}</li>)}
           </ul>
         )}
         {sim.energyTimingNotes.length > 0 && (
-          <ul className="deck__simulator-notes">
+          <ul className="atlas-presentation-deck__simulator-notes">
             {sim.energyTimingNotes.map((note, i) => <li key={i}>{note}</li>)}
           </ul>
         )}
         {onOpenSimulator && (
           <button
             type="button"
-            className="deck__simulator-cta"
+            className="atlas-presentation-deck__simulator-cta"
             onClick={onOpenSimulator}
           >
             Open simulator →
@@ -415,45 +415,45 @@ export default function PresentationDeck({
 
   return (
     <div
-      className="deck"
+      className="atlas-presentation-deck"
       data-testid="presentation-deck"
       aria-roledescription="carousel"
       aria-label="Recommendation story deck"
     >
 
       {/* ── Progress dots ───────────────────────────────────────── */}
-      <nav className="deck__progress" aria-label="Deck navigation">
+      <nav className="atlas-presentation-deck__progress" aria-label="Deck navigation">
         {pages.map((page, i) => (
           <button
             key={page.id}
             type="button"
-            className={`deck__dot${i === currentIndex ? ' deck__dot--active' : ''}`}
+            className={`atlas-presentation-deck__dot${i === currentIndex ? ' atlas-presentation-deck__dot--active' : ''}`}
             aria-label={`Go to page: ${page.label}`}
             aria-current={i === currentIndex ? 'true' : undefined}
             onClick={() => goTo(i)}
           />
         ))}
-        <span className="deck__progress-label" aria-live="polite">
+        <span className="atlas-presentation-deck__progress-label" aria-live="polite">
           {currentIndex + 1} / {total}
         </span>
       </nav>
 
       {/* ── Slide viewport ──────────────────────────────────────── */}
       <div
-        className="deck__viewport"
+        className="atlas-presentation-deck__viewport"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         aria-live="polite"
         aria-atomic="true"
       >
         <div
-          className="deck__track"
+          className="atlas-presentation-deck__track"
           style={trackStyle}
         >
           {pages.map((page, i) => (
             <div
               key={page.id}
-              className="deck__page"
+              className="atlas-presentation-deck__page"
               role="group"
               aria-roledescription="slide"
               aria-label={`${page.label} (${i + 1} of ${total})`}
@@ -466,10 +466,10 @@ export default function PresentationDeck({
       </div>
 
       {/* ── Navigation buttons ───────────────────────────────────── */}
-      <div className="deck__nav" aria-label="Deck controls">
+      <div className="atlas-presentation-deck__nav" aria-label="Deck controls">
         <button
           type="button"
-          className="deck__nav-btn"
+          className="atlas-presentation-deck__nav-btn"
           onClick={goPrev}
           disabled={currentIndex === 0}
           aria-label="Previous page"
@@ -477,13 +477,13 @@ export default function PresentationDeck({
           ← Back
         </button>
 
-        <span className="deck__nav-counter" aria-hidden="true">
+        <span className="atlas-presentation-deck__nav-counter" aria-hidden="true">
           {pages[currentIndex]?.label ?? ''}
         </span>
 
         <button
           type="button"
-          className="deck__nav-btn"
+          className="atlas-presentation-deck__nav-btn"
           onClick={goNext}
           disabled={currentIndex === total - 1}
           aria-label="Next page"
