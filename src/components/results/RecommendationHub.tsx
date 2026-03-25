@@ -26,6 +26,7 @@ import OperatingPointChart from '../visualizers/OperatingPointChart';
 import HouseHeatMapPanel from '../live/HouseHeatMapPanel';
 import HotWaterDemandPanel from '../live/HotWaterDemandPanel';
 import EvidenceRecommendationPanel from '../recommendation/EvidenceRecommendationPanel';
+import PvDemographicsDebugCard from './PvDemographicsDebugCard';
 import './results.css';
 import '../../live/LiveHubPage.css';
 
@@ -1154,6 +1155,13 @@ export default function RecommendationHub({ result, input }: Props) {
           </section>
         );
       })()}
+
+      {/* 9 — Model inspection (dev) — demographic + PV canonical outputs */}
+      <section className="rec-hub__section" aria-label="Model inspection">
+        <h3 className="rec-hub__section-title">Model Inspection</h3>
+        <PvDemographicsDebugCard result={result} input={input} />
+      </section>
+
     </div>
   );
 }

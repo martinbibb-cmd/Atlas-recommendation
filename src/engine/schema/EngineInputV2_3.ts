@@ -412,6 +412,34 @@ export interface EngineInputV2_3 {
   solarShading?: 'low' | 'medium' | 'high' | 'unknown';
 
   /**
+   * Actual solar PV installation status for this property.
+   *
+   * This is DISTINCT from roof suitability (roofType / roofOrientation / solarShading).
+   * Solar potential describes what the roof could support; pvStatus describes reality.
+   *
+   * 'none'     — no PV installed, none planned
+   * 'existing' — panels are already installed
+   * 'planned'  — customer is actively planning to install PV
+   *
+   * When 'existing': hasExistingPv = true in PvAssessmentResult.
+   * When 'planned':  influences narrative copy and recommendation messaging.
+   * When undefined:  not captured; treated as unknown.
+   */
+  pvStatus?: 'none' | 'existing' | 'planned';
+
+  /**
+   * Battery storage status for this property.
+   *
+   * 'none'     — no battery installed, none planned
+   * 'existing' — battery system is already installed
+   * 'planned'  — customer is actively planning a battery
+   *
+   * When 'existing' or 'planned': batteryPlanned = true in PvAssessmentResult.
+   * When undefined:  not captured; treated as unknown.
+   */
+  batteryStatus?: 'none' | 'existing' | 'planned';
+
+  /**
    * Structured building fabric inputs — used by FabricModelV1 to independently
    * derive heat-loss band and thermal inertia (τ).
    * All sub-fields are optional; unknown/missing values fall back to mid-range defaults.

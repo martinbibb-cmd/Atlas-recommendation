@@ -261,4 +261,91 @@ describe('runPvAssessmentModule', () => {
     const result = run(northFront);
     expect(result.pvSuitability).toBe('good');
   });
+
+  // ─── pvStatus field ────────────────────────────────────────────────────────
+
+  it('pvStatus=existing sets hasExistingPv=true regardless of solarBoost', () => {
+    const input: Partial<EngineInputV2_3> = {
+      ...southFacingLowShade,
+      pvStatus: 'existing',
+    };
+    expect(run(input).hasExistingPv).toBe(true);
+  });
+
+  it('pvStatus=planned does not set hasExistingPv=true', () => {
+    const input: Partial<EngineInputV2_3> = {
+      ...southFacingLowShade,
+      pvStatus: 'planned',
+    };
+    expect(run(input).hasExistingPv).toBe(false);
+  });
+
+  it('pvStatus=none overrides solarBoost.enabled: hasExistingPv=false', () => {
+    const input: Partial<EngineInputV2_3> = {
+      ...southFacingLowShade,
+      pvStatus: 'none',
+      solarBoost: { enabled: true, source: 'PV_diverter' },
+    };
+    // pvStatus='none' explicitly says no PV — solarBoost.enabled legacy is NOT consulted
+    expect(run(input).hasExistingPv).toBe(false);
+  });
+
+  it('pvStatus=planned narrative mentions planned PV', () => {
+    const input: Partial<EngineInputV2_3> = {
+      ...southFacingLowShade,
+      pvStatus: 'planned',
+    };
+    const signals = run(input).solarNarrativeSignals;
+    const hasPlanned = signals.some(s => s.toLowerCase().includes('planned'));
+    expect(hasPlanned).toBe(true);
+  });
+
+  // ─── batteryStatus field ───────────────────────────────────────────────────
+
+  it('batteryStatus=existing sets batteryPlanned=true', () => {
+    const input: Partial<EngineInputV2_3> = {
+      ...southFacingLowShade,
+      batteryStatus: 'existing',
+    };
+    expect(run(input).batteryPlanned).toBe(true);
+  });
+
+  it('batteryStatus=planned sets batteryPlanned=true', () => {
+    const input: Partial<EngineInputV2_3> = {
+      ...southFacingLowShade,
+      batteryStatus: 'planned',
+    };
+    expect(run(input).batteryPlanned).toBe(true);
+  });
+
+  it('batteryStatus=none sets batteryPlanned=false', () => {
+    const input: Partial<EngineInputV2_3> = {
+      ...southFacingLowShade,
+      batteryStatus: 'none',
+    };
+    expect(run(input).batteryPlanned).toBe(false);
+  });
+
+  it('batteryStatus absent falls back to expertAssumptions.batteryPlanned', () => {
+    const withBattery: Partial<EngineInputV2_3> = {
+      ...southFacingLowShade,
+      expertAssumptions: { batteryPlanned: true },
+    };
+    const withoutBattery: Partial<EngineInputV2_3> = {
+      ...southFacingLowShade,
+      expertAssumptions: { batteryPlanned: false },
+    };
+    expect(run(withBattery).batteryPlanned).toBe(true);
+    expect(run(withoutBattery).batteryPlanned).toBe(false);
+  });
+
+  it('batteryStatus=existing narrative mentions battery installed', () => {
+    const input: Partial<EngineInputV2_3> = {
+      ...southFacingLowShade,
+      batteryStatus: 'existing',
+    };
+    const signals = run(input).solarNarrativeSignals;
+    const hasBattery = signals.some(s => s.toLowerCase().includes('battery'));
+    expect(hasBattery).toBe(true);
+  });
 });
