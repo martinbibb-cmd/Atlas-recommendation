@@ -40,6 +40,7 @@ import HotWaterDemandPanel from '../components/live/HotWaterDemandPanel';
 import SystemArchitecturePanel from '../components/live/SystemArchitecturePanel';
 import SuitabilitySummaryPanel from '../components/live/SuitabilitySummaryPanel';
 import UpgradePathwayPanel from '../components/live/UpgradePathwayPanel';
+import CanonicalPresentationPage from '../components/presentation/CanonicalPresentationPage';
 import './LiveHubPage.css';
 
 export type LiveSection =
@@ -312,6 +313,19 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
         <p className="live-hub__subtitle">
           Physics-driven analysis. Every result answers: what system, why, what changes, what's next.
         </p>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* SECTION 0 — Canonical Presentation (physics-first, primary)   */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <div className="live-hub__section live-hub__section--canonical">
+        <h2 className="live-hub__section-title">🏡 Canonical Presentation Preview</h2>
+        <CanonicalPresentationPage
+          result={result}
+          input={input}
+          recommendationResult={result.recommendationResult}
+          onOpenSimulator={() => setActiveSection('simulator')}
+        />
       </div>
 
       {/* ══════════════════════════════════════════════════════════════ */}
