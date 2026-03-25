@@ -359,7 +359,7 @@ export default function CanonicalPresentationPage({
   input,
   recommendationResult,
   onOpenSimulator,
-  deckMode = false,
+  deckMode = true,
 }: Props) {
   // Delegate to the swipeable deck when deckMode is enabled.
   if (deckMode) {

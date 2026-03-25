@@ -1057,6 +1057,7 @@ export default function RecommendationHub({ result, input }: Props) {
             result={result}
             input={input}
             recommendationResult={result.recommendationResult}
+            deckMode={true}
           />
         </section>
       )}
