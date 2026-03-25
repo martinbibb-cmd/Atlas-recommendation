@@ -196,7 +196,7 @@ function RecommendationChip({ primary }: { primary: string }) {
 export default function LiveHubPage({ result, input, onBack }: Props) {
   const [activeSection, setActiveSection] = useState<LiveSection | null>(null);
   const [printView, setPrintView] = useState<PrintView | null>(null);
-  const [deckMode, setDeckMode] = useState(false);
+  const [deckMode, setDeckMode] = useState(true);
 
   const { engineOutput } = result;
 
