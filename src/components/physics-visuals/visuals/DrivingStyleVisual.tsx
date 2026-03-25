@@ -57,13 +57,14 @@ export default function DrivingStyleVisual({
   mode,
   reducedMotion = false,
   emphasis = 'medium',
+  displayMode = 'preview',
   caption,
 }: DrivingStyleVisualProps) {
   const config = MODE_CONFIG[mode];
 
   return (
     <div
-      className={`dsv dsv--${mode} dsv--emphasis-${emphasis}${reducedMotion ? ' dsv--reduced-motion' : ''}`}
+      className={`dsv dsv--${mode} dsv--emphasis-${emphasis} dsv--mode-${displayMode}${reducedMotion ? ' dsv--reduced-motion' : ''}`}
       role="img"
       aria-label={`${config.label}: ${config.description}`}
     >

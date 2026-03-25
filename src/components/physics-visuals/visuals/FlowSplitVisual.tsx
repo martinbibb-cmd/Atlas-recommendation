@@ -35,6 +35,7 @@ export default function FlowSplitVisual({
   pressureLevel = 'normal',
   reducedMotion = false,
   emphasis = 'medium',
+  displayMode = 'preview',
   caption,
 }: FlowSplitVisualProps) {
   const streamClass = getStreamWidthClass(outletsActive);
@@ -42,7 +43,7 @@ export default function FlowSplitVisual({
 
   return (
     <div
-      className={`fsv fsv--outlets-${outletsActive} fsv--pressure-${pressureLevel} fsv--emphasis-${emphasis}${reducedMotion ? ' fsv--reduced-motion' : ''}`}
+      className={`fsv fsv--outlets-${outletsActive} fsv--pressure-${pressureLevel} fsv--emphasis-${emphasis} fsv--mode-${displayMode}${reducedMotion ? ' fsv--reduced-motion' : ''}`}
       role="img"
       aria-label={`${pressureLabel}: ${outletsActive} outlet${outletsActive === 1 ? '' : 's'} active`}
     >

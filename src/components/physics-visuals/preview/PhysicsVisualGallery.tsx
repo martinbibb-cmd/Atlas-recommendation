@@ -4,10 +4,11 @@
  * Developer preview surface for the Atlas Physics Visual Library.
  *
  * Shows every registered visual in a card layout with:
- *   - title and purpose from the registry
+ *   - title, concept, and purpose from the registry
  *   - the live animation
- *   - the associated script (title, summary, bullets, takeaway)
+ *   - the associated script (title, summary, bullets, takeaway, focusCopy)
  *   - simple per-card controls where the visual accepts configurable state
+ *   - display mode selector (preview / inline / focus) for each card
  *
  * This component is intentionally dev-facing. It does not need to be polished
  * for end-user consumption — it exists so the team can review visuals quickly.
@@ -18,11 +19,12 @@
 import { useState } from 'react';
 import { getAllVisualDefinitions } from '../physicsVisualRegistry';
 import { getVisualScript } from '../physicsVisualScripts';
-import type { PhysicsVisualId, DrivingStyleMode } from '../physicsVisualTypes';
+import type { PhysicsVisualId, DrivingStyleMode, VisualDisplayMode } from '../physicsVisualTypes';
 import DrivingStyleVisual from '../visuals/DrivingStyleVisual';
 import FlowSplitVisual from '../visuals/FlowSplitVisual';
 import SolarMismatchVisual from '../visuals/SolarMismatchVisual';
 import CylinderChargeVisual from '../visuals/CylinderChargeVisual';
+import HeatParticlesVisual from '../visuals/HeatParticlesVisual';
 import BoilerCyclingAnimation from '../../whatif/BoilerCyclingAnimation';
 import FlowRestrictionAnimation from '../../whatif/FlowRestrictionAnimation';
 import RadiatorUpgradeAnimation from '../../whatif/RadiatorUpgradeAnimation';
@@ -33,6 +35,7 @@ import './PhysicsVisualGallery.css';
 
 interface CardState {
   reducedMotion: boolean;
+  displayMode: VisualDisplayMode;
   // driving_style
   drivingMode: DrivingStyleMode;
   // flow_split
@@ -41,22 +44,26 @@ interface CardState {
   // cylinder_charge
   fillLevel: number;
   mixergyMode: boolean;
+  // heat_particles
+  wallType: 'solid_masonry' | 'cavity_uninsulated' | 'cavity_insulated';
 }
 
 function defaultCardState(): CardState {
   return {
     reducedMotion: false,
+    displayMode: 'preview',
     drivingMode: 'combi',
     outletsActive: 1,
     pressureLevel: 'normal',
     fillLevel: 0.6,
     mixergyMode: false,
+    wallType: 'cavity_uninsulated',
   };
 }
 
 // ─── Script panel ─────────────────────────────────────────────────────────────
 
-function ScriptPanel({ id }: { id: PhysicsVisualId }) {
+function ScriptPanel({ id, showFocusCopy }: { id: PhysicsVisualId; showFocusCopy?: boolean }) {
   const script = getVisualScript(id);
   return (
     <div className="pvg__script">
@@ -73,6 +80,9 @@ function ScriptPanel({ id }: { id: PhysicsVisualId }) {
           <strong>Key point:</strong> {script.takeaway}
         </p>
       )}
+      {showFocusCopy && script.focusCopy && (
+        <p className="pvg__script-focus-copy">{script.focusCopy}</p>
+      )}
     </div>
   );
 }
@@ -88,7 +98,7 @@ function VisualWithControls({
   state: CardState;
   onStateChange: (patch: Partial<CardState>) => void;
 }) {
-  const shared = { reducedMotion: state.reducedMotion };
+  const shared = { reducedMotion: state.reducedMotion, displayMode: state.displayMode };
 
   switch (id) {
     case 'driving_style':
@@ -196,6 +206,39 @@ function VisualWithControls({
         </div>
       );
 
+    case 'heat_particles':
+      return (
+        <div className="pvg__visual-section">
+          <div className="pvg__visual-frame">
+            <HeatParticlesVisual {...shared} wallType={state.wallType} />
+          </div>
+          <div className="pvg__controls">
+            <label className="pvg__control-label">Wall type</label>
+            <div className="pvg__btn-row">
+              {(
+                [
+                  'solid_masonry',
+                  'cavity_uninsulated',
+                  'cavity_insulated',
+                ] as CardState['wallType'][]
+              ).map((w) => (
+                <button
+                  key={w}
+                  className={`pvg__btn${state.wallType === w ? ' pvg__btn--active' : ''}`}
+                  onClick={() => onStateChange({ wallType: w })}
+                >
+                  {w === 'solid_masonry'
+                    ? 'Solid'
+                    : w === 'cavity_uninsulated'
+                      ? 'Cavity (empty)'
+                      : 'Cavity (filled)'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+
     case 'boiler_cycling':
       return (
         <div className="pvg__visual-section">
@@ -251,6 +294,8 @@ function VisualCard({ id }: { id: PhysicsVisualId }) {
 
   if (!def) return null;
 
+  const displayModes: VisualDisplayMode[] = def.displayModes ?? ['preview'];
+
   return (
     <div className="pvg__card">
       {/* Header */}
@@ -258,14 +303,36 @@ function VisualCard({ id }: { id: PhysicsVisualId }) {
         <div className="pvg__card-meta">
           <span className={`pvg__category pvg__category--${def.category}`}>{def.category.replace('_', ' ')}</span>
           <h3 className="pvg__card-title">{def.title}</h3>
+          <p className="pvg__card-concept">{def.concept}</p>
           <p className="pvg__card-purpose">{def.purpose}</p>
         </div>
         <div className="pvg__card-flags">
           {def.supportsReducedMotion && (
             <span className="pvg__flag">♿ reduced motion</span>
           )}
+          {def.supportsInteraction && (
+            <span className="pvg__flag pvg__flag--interaction">⚙ interactive</span>
+          )}
         </div>
       </div>
+
+      {/* Display mode selector */}
+      {displayModes.length > 1 && (
+        <div className="pvg__mode-row">
+          <span className="pvg__mode-label">Display mode</span>
+          <div className="pvg__btn-row">
+            {displayModes.map((m) => (
+              <button
+                key={m}
+                className={`pvg__btn pvg__btn--mode${state.displayMode === m ? ' pvg__btn--active' : ''}`}
+                onClick={() => setState((prev) => ({ ...prev, displayMode: m }))}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Visual + controls */}
       <VisualWithControls
@@ -286,6 +353,22 @@ function VisualCard({ id }: { id: PhysicsVisualId }) {
         </label>
       </div>
 
+      {/* Registry metadata */}
+      <div className="pvg__registry-meta">
+        {def.applicablePages && (
+          <span className="pvg__meta-item">
+            <span className="pvg__meta-key">Pages:</span>{' '}
+            {def.applicablePages.join(', ')}
+          </span>
+        )}
+        {def.applicableSystemFamilies && (
+          <span className="pvg__meta-item">
+            <span className="pvg__meta-key">Families:</span>{' '}
+            {def.applicableSystemFamilies.join(', ')}
+          </span>
+        )}
+      </div>
+
       {/* Script toggle */}
       <button
         className="pvg__script-toggle"
@@ -297,7 +380,7 @@ function VisualCard({ id }: { id: PhysicsVisualId }) {
       {showScript && (
         <div className="pvg__script-section">
           <p className="pvg__script-title">{script.title}</p>
-          <ScriptPanel id={id} />
+          <ScriptPanel id={id} showFocusCopy={state.displayMode === 'focus'} />
         </div>
       )}
     </div>
@@ -330,7 +413,8 @@ export default function PhysicsVisualGallery({ onBack }: PhysicsVisualGalleryPro
           <h1 className="pvg__page-title">Physics Visual Library</h1>
           <p className="pvg__page-subtitle">
             Atlas explainer animations — preview and review surface.
-            First 4 physics visuals plus 4 wired whatif animations; remaining placeholders shown as stubs.
+            5 fully implemented physics visuals (driving style, flow split, solar mismatch, cylinder charge, heat particles) plus 4 wired whatif animations; remaining placeholders shown as stubs.
+            Each card supports preview / inline / focus display modes.
           </p>
         </div>
       </div>
