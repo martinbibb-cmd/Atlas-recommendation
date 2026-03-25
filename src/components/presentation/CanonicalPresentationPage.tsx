@@ -42,6 +42,7 @@ import {
   type ShortlistedOptionDetail,
   type FinalPageSimulator,
 } from './buildCanonicalPresentation';
+import PresentationVisualSlot from './PresentationVisualSlot';
 import './CanonicalPresentationPage.css';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -67,66 +68,80 @@ function NarrativeList({ heading, items }: { heading: string; items: string[] })
   );
 }
 
-// ─── Page 1 sections ──────────────────────────────────────────────────────────
+// ─── Page 1 sections (visual-first) ──────────────────────────────────────────
 
 function HouseSection({ house }: { house: HouseSignal }) {
   return (
-    <div className="cpp-signal-card cpp-signal-card--house">
-      <p className="cpp-signal-card__heading">🏠 Your house</p>
-      <SignalRow label="Heat loss"     value={house.heatLossLabel} />
-      <SignalRow label="Heat loss band" value={house.heatLossBand} />
-      <SignalRow label="Wall type"     value={house.wallTypeLabel} />
-      <SignalRow label="Insulation"    value={house.insulationLabel} />
-      <SignalRow label="Pipework"      value={house.pipeworkLabel} />
-      <SignalRow label="Water supply"  value={house.waterSupplyLabel} />
-      <SignalRow label="PV potential"  value={house.pvPotentialLabel} />
-      {house.notes.length > 0 && (
-        <ul className="cpp-narrative__list" style={{ marginTop: '0.5rem', paddingLeft: '1rem', fontSize: '0.78rem' }}>
-          {house.notes.map((note, i) => <li key={i}>{note}</li>)}
-        </ul>
-      )}
+    <div className="cpp-visual-section">
+      <PresentationVisualSlot
+        visualId="heat_particles"
+        visualData={{ wallType: house.wallTypeKey }}
+      />
+      <div className="cpp-visual-section__context">
+        <p className="cpp-visual-section__context-detail">
+          {house.heatLossLabel} · {house.heatLossBand}
+        </p>
+        <p className="cpp-visual-section__context-detail">
+          {house.wallTypeLabel} · {house.insulationLabel}
+        </p>
+      </div>
     </div>
   );
 }
 
 function HomeSection({ home }: { home: HomeSignal }) {
+  const outletsActive = Math.max(1, Math.min(home.peakSimultaneousOutlets, 3)) as 1 | 2 | 3;
   return (
-    <div className="cpp-signal-card cpp-signal-card--home">
-      <p className="cpp-signal-card__heading">👥 Your home</p>
-      <SignalRow label="Demand profile"        value={home.demandProfileLabel} />
-      <SignalRow label="Hot water est."        value={home.dailyHotWaterLabel} />
-      <SignalRow label="Peak outlets"          value={home.peakOutletsLabel} />
-      <SignalRow label="Bath use"              value={home.bathUseIntensityLabel} />
-      <SignalRow label="Occupancy timing"      value={home.occupancyTimingLabel} />
-      <SignalRow label="Storage benefit"       value={home.storageBenefitLabel} />
+    <div className="cpp-visual-section">
+      <PresentationVisualSlot
+        visualId="flow_split"
+        visualData={{ outletsActive }}
+      />
+      <div className="cpp-visual-section__context">
+        <p className="cpp-visual-section__context-detail">
+          {home.dailyHotWaterLabel}
+        </p>
+        <p className="cpp-visual-section__context-detail">
+          {home.peakOutletsLabel}
+        </p>
+      </div>
     </div>
   );
 }
 
 function EnergySection({ energy }: { energy: EnergySignal }) {
   return (
-    <div className="cpp-signal-card cpp-signal-card--energy">
-      <p className="cpp-signal-card__heading">⚡ Your energy</p>
-      <SignalRow label="PV status"           value={energy.pvStatusLabel} />
-      <SignalRow label="Battery"             value={energy.batteryStatusLabel} />
-      <SignalRow label="PV suitability"      value={energy.pvSuitabilityLabel} />
-      <SignalRow label="Demand alignment"    value={energy.energyAlignmentLabel} />
-      <SignalRow label="Storage opportunity" value={energy.solarStorageOpportunityLabel} />
+    <div className="cpp-visual-section">
+      <PresentationVisualSlot
+        visualId="solar_mismatch"
+      />
+      <div className="cpp-visual-section__context">
+        <p className="cpp-visual-section__context-detail">
+          {energy.pvStatusLabel} · {energy.pvSuitabilityLabel}
+        </p>
+        <p className="cpp-visual-section__context-detail">
+          {energy.energyAlignmentLabel}
+        </p>
+      </div>
     </div>
   );
 }
 
 function CurrentSystemSection({ sys }: { sys: CurrentSystemSignal }) {
   return (
-    <div className="cpp-signal-card cpp-signal-card--system">
-      <p className="cpp-signal-card__heading">🔧 Your current system</p>
-      <SignalRow label="System type"  value={sys.systemTypeLabel} />
-      <SignalRow label="Age"          value={sys.ageLabel} />
-      {sys.makeModelText && <SignalRow label="Make / model" value={sys.makeModelText} />}
-      {sys.outputLabel   && <SignalRow label="Output"       value={sys.outputLabel} />}
-      <p style={{ fontSize: '0.78rem', color: '#718096', marginTop: '0.4rem', fontStyle: 'italic' }}>
-        {sys.ageContext}
-      </p>
+    <div className="cpp-visual-section">
+      <PresentationVisualSlot
+        visualId="driving_style"
+        visualData={{ mode: sys.drivingStyleMode }}
+      />
+      <div className="cpp-visual-section__context">
+        <p className="cpp-visual-section__context-detail">
+          {sys.systemTypeLabel} · {sys.ageLabel}
+        </p>
+        <p className="cpp-visual-section__context-detail cpp-visual-section__context-detail--muted">
+          {sys.ageContext}
+        </p>
+      </div>
     </div>
   );
 }
@@ -370,22 +385,29 @@ export default function CanonicalPresentationPage({
         <p className="cpp-page__eyebrow">Page 1</p>
         <h2 className="cpp-page__heading">What we know about this home</h2>
 
-        <div className="cpp-signal-grid">
-          <HouseSection         house={page1.house} />
-          <HomeSection          home={page1.home} />
-          <EnergySection        energy={page1.energy} />
-          <CurrentSystemSection sys={page1.currentSystem} />
-          <ObjectivesSection    objectives={page1.objectives} />
+        <div className="cpp-visual-sections">
+          <div className="cpp-visual-section-wrapper">
+            <p className="cpp-visual-section__heading">🏠 Your house</p>
+            <HouseSection house={page1.house} />
+          </div>
+
+          <div className="cpp-visual-section-wrapper">
+            <p className="cpp-visual-section__heading">👥 Your home</p>
+            <HomeSection home={page1.home} />
+          </div>
+
+          <div className="cpp-visual-section-wrapper">
+            <p className="cpp-visual-section__heading">⚡ Your energy</p>
+            <EnergySection energy={page1.energy} />
+          </div>
+
+          <div className="cpp-visual-section-wrapper">
+            <p className="cpp-visual-section__heading">🔧 Your current system</p>
+            <CurrentSystemSection sys={page1.currentSystem} />
+          </div>
         </div>
 
-        <NarrativeList
-          heading="Home demand context"
-          items={page1.home.narrativeSignals}
-        />
-        <NarrativeList
-          heading="Solar / energy context"
-          items={page1.energy.narrativeSignals}
-        />
+        <ObjectivesSection objectives={page1.objectives} />
       </section>
 
       {/* ── Page 1.5 — Contextual ageing ────────────────────────────── */}

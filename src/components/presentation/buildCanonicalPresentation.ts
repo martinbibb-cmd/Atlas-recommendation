@@ -32,6 +32,11 @@ export interface HouseSignal {
   wallTypeLabel: string;
   insulationLabel: string;
   notes: string[];
+  /**
+   * Wall type key normalised for HeatParticlesVisual.
+   * cavity_unfilled is mapped to cavity_uninsulated (same high heat-loss physics).
+   */
+  wallTypeKey: 'solid_masonry' | 'cavity_uninsulated' | 'cavity_insulated';
 }
 
 /** Home signals — demand profile, demographics, storage benefit. */
@@ -64,6 +69,8 @@ export interface CurrentSystemSignal {
   makeModelText: string | undefined;
   outputLabel: string | undefined;
   ageContext: string;
+  /** Driving-style visual mode derived from the current heat source type. */
+  drivingStyleMode: 'combi' | 'stored' | 'heat_pump';
 }
 
 /** Objectives signals — user priorities from expert assumptions and preferences. */
@@ -259,6 +266,43 @@ const FAMILY_LABELS: Record<string, string> = {
   open_vented: 'Regular boiler (vented)',
 };
 
+// ─── Visual signal helpers ─────────────────────────────────────────────────────
+
+/**
+ * Map a FabricWallType to the normalised wall type key expected by
+ * HeatParticlesVisual. cavity_unfilled (engine type) is treated as
+ * cavity_uninsulated — same high heat-loss physics, different label.
+ * timber_frame and unknown default to cavity_insulated (low heat-loss
+ * appearance) as the safest visual representation.
+ */
+function wallTypeToVisualKey(
+  wallType: string,
+): 'solid_masonry' | 'cavity_uninsulated' | 'cavity_insulated' {
+  if (wallType === 'solid_masonry') return 'solid_masonry';
+  if (wallType === 'cavity_unfilled') return 'cavity_uninsulated';
+  if (wallType === 'cavity_filled') return 'cavity_insulated';
+  if (wallType === 'timber_frame') return 'cavity_insulated';
+  // unknown — default to low-loss visual (cavity_insulated) to avoid
+  // overstating heat loss when the wall type has not been recorded.
+  return 'cavity_insulated';
+}
+
+/**
+ * Map currentHeatSourceType to the DrivingStyleMode expected by
+ * DrivingStyleVisual. Defaults to 'combi' for unrecognised types
+ * because the burst-firing pattern is the most conservative illustration
+ * when system behaviour is unknown.
+ */
+function systemTypeToDrivingMode(
+  type: string | undefined,
+): 'combi' | 'stored' | 'heat_pump' {
+  if (type === 'combi') return 'combi';
+  if (type === 'system' || type === 'regular') return 'stored';
+  if (type === 'ashp') return 'heat_pump';
+  // unknown / other (e.g. electric, district) — default to combi appearance
+  return 'combi';
+}
+
 // ─── Page 1 — What we know ─────────────────────────────────────────────────────
 
 function buildHouseSignal(result: FullEngineResult, input: EngineInputV2_3): HouseSignal {
@@ -311,6 +355,7 @@ function buildHouseSignal(result: FullEngineResult, input: EngineInputV2_3): Hou
     wallTypeLabel: WALL_TYPE_LABELS[wallType] ?? wallType,
     insulationLabel: INSULATION_LABELS[insulation] ?? insulation,
     notes,
+    wallTypeKey: wallTypeToVisualKey(wallType),
   };
 }
 
@@ -400,6 +445,7 @@ function buildCurrentSystemSignal(input: EngineInputV2_3): CurrentSystemSignal {
     makeModelText: input.makeModelText,
     outputLabel,
     ageContext,
+    drivingStyleMode: systemTypeToDrivingMode(type),
   };
 }
 
