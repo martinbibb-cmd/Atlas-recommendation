@@ -39,6 +39,7 @@ import { computeFitPosition } from './logic/fit-map/computeFitPosition';
 import type { FitPosition } from './logic/fit-map/computeFitPosition';
 import FitMapResultPage from './components/fit-map/FitMapResultPage';
 import CanonicalPresentationPage from './components/presentation/CanonicalPresentationPage';
+import PhysicsVisualGallery from './components/physics-visuals/preview/PhysicsVisualGallery';
 import './App.css';
 
 /** Detect ?lab=1 feature flag — renders Demo Lab directly for previewing. */
@@ -72,6 +73,14 @@ const PRESENTATION_MODE_ENABLED =
   new URLSearchParams(window.location.search).get('presentation') === '1';
 
 /**
+ * Detect ?gallery=1 — renders the Physics Visual Library gallery directly.
+ * Developer/review surface for previewing animation components.
+ */
+const GALLERY_MODE_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('gallery') === '1';
+
+/**
  * Demo engine input used by the report mode (?report=1) and presentation demo (?presentation=1).
  * Produces a realistic UK combi scenario for demonstration:
  *   - 3-bed semi, 3 occupants, 1 bathroom, standard mains pressure
@@ -95,7 +104,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report' | 'presentation';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report' | 'presentation' | 'gallery';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -336,6 +345,15 @@ export default function App() {
     );
   }
 
+  // ?gallery=1 feature flag — render Physics Visual Library gallery for review.
+  if (GALLERY_MODE_ENABLED) {
+    return (
+      <div style={{ background: 'var(--surface-page, #f8fafc)', minHeight: '100vh' }}>
+        <PhysicsVisualGallery onBack={() => { window.location.href = window.location.pathname; }} />
+      </div>
+    );
+  }
+
   // ?lab=1 feature flag — render Demo Lab directly.
   if (LAB_MODE_ENABLED) {
     return <ExplainersHubPage onBack={() => { window.location.href = window.location.pathname; }} />;
@@ -465,6 +483,11 @@ export default function App() {
           onBack={() => setJourney('simulator')}
           onOpenSimulator={() => setJourney('simulator')}
         />
+      )}
+      {journey === 'gallery' && (
+        <div style={{ background: 'var(--surface-page, #f8fafc)', minHeight: '100vh' }}>
+          <PhysicsVisualGallery onBack={() => setJourney('landing')} />
+        </div>
       )}
       {journey === 'explorer' && EXPLORER_ENABLED && <AtlasExplorerPage onBack={() => setJourney('landing')} />}
       {journey === 'floor-plan' && (

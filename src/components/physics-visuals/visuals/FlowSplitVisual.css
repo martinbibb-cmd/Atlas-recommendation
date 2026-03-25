@@ -1,0 +1,201 @@
+/*
+ * FlowSplitVisual.css
+ *
+ * BEM prefix: .fsv
+ *
+ * Layout: vertical column with a supply header at the top feeding three outlet
+ * columns below. Active outlets show an animated stream; inactive outlets show
+ * a greyed-out tap.
+ *
+ * Stream widths map directly to outlet count:
+ *   1 active → full width (8px stream)
+ *   2 active → half  width (5px stream)
+ *   3 active → third width (3px stream)
+ */
+
+/* ─── Block ─────────────────────────────────────────────────────────────────── */
+
+.fsv {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-3);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  user-select: none;
+}
+
+/* ─── Supply ────────────────────────────────────────────────────────────────── */
+
+.fsv__supply {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+}
+
+.fsv__supply-pipe {
+  width: 80%;
+  height: 8px;
+  background: var(--color-blue-300, #93c5fd);
+  border-radius: var(--radius-sm);
+}
+
+.fsv__supply-flow {
+  width: 6px;
+  height: 12px;
+  background: var(--color-blue-400, #60a5fa);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  opacity: 0.8;
+}
+
+.fsv__supply-flow--high {
+  background: var(--color-blue-600, #2563eb);
+  height: 16px;
+}
+
+/* ─── Outlets row ───────────────────────────────────────────────────────────── */
+
+.fsv__outlets {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+/* ─── Individual outlet ─────────────────────────────────────────────────────── */
+
+.fsv__outlet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 48px;
+}
+
+.fsv__outlet--inactive {
+  opacity: 0.3;
+}
+
+/* ─── Tap icon ──────────────────────────────────────────────────────────────── */
+
+.fsv__tap {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-blue-500, #3b82f6);
+  position: relative;
+}
+
+.fsv__tap::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: var(--surface-default);
+  border-radius: 50%;
+}
+
+.fsv__outlet--inactive .fsv__tap {
+  background: var(--color-neutral-300, #d1d5db);
+}
+
+/* ─── Stream ────────────────────────────────────────────────────────────────── */
+
+.fsv__stream {
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  background: linear-gradient(
+    to bottom,
+    var(--color-blue-400, #60a5fa) 0%,
+    var(--color-blue-200, #bfdbfe) 100%
+  );
+  height: 40px;
+}
+
+.fsv__stream--full  { width: 8px; }
+.fsv__stream--half  { width: 5px; }
+.fsv__stream--third { width: 3px; }
+
+/* Animated drip */
+@keyframes fsv-drip {
+  0%   { opacity: 0.6; transform: scaleY(0.9); }
+  50%  { opacity: 1;   transform: scaleY(1.05); }
+  100% { opacity: 0.6; transform: scaleY(0.9); }
+}
+
+.fsv__stream--animated {
+  animation: fsv-drip 1.2s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+/* ─── Outlet label ──────────────────────────────────────────────────────────── */
+
+.fsv__outlet-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ─── Summary bar ───────────────────────────────────────────────────────────── */
+
+.fsv__summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.fsv__pressure-badge {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+}
+
+.fsv__pressure-badge--1 {
+  background: var(--chip-success-bg, #dcfce7);
+  color: var(--chip-success-text, #166534);
+}
+
+.fsv__pressure-badge--2 {
+  background: var(--chip-warning-bg, #fef9c3);
+  color: var(--chip-warning-text, #854d0e);
+}
+
+.fsv__pressure-badge--3 {
+  background: var(--chip-danger-bg, #fee2e2);
+  color: var(--chip-danger-text, #991b1b);
+}
+
+.fsv__active-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ─── Caption ───────────────────────────────────────────────────────────────── */
+
+.fsv__caption {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0;
+  line-height: var(--leading-relaxed);
+}
+
+/* ─── Reduced motion ────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .fsv__stream--animated {
+    animation: none;
+  }
+}
+
+.fsv--reduced-motion .fsv__stream--animated {
+  animation: none;
+}
