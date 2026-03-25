@@ -1,0 +1,423 @@
+/**
+ * PresentationDeck.css
+ *
+ * Styles for the swipeable visual story deck.
+ * One idea per page, left/right navigation, snap scrolling.
+ */
+
+/* ─── Deck shell ──────────────────────────────────────────────────────────── */
+
+.deck {
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #1a202c;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0;
+  position: relative;
+  user-select: none;
+}
+
+/* ─── Progress indicator ──────────────────────────────────────────────────── */
+
+.deck__progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 1rem 0.5rem;
+  flex-wrap: wrap;
+}
+
+.deck__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cbd5e0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.deck__dot--active {
+  background: #3182ce;
+  transform: scale(1.35);
+}
+
+.deck__dot:hover:not(.deck__dot--active) {
+  background: #a0aec0;
+}
+
+.deck__progress-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #718096;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0 0.25rem;
+}
+
+/* ─── Slider viewport ─────────────────────────────────────────────────────── */
+
+.deck__viewport {
+  overflow: hidden;
+  position: relative;
+}
+
+/* ─── Slide track ─────────────────────────────────────────────────────────── */
+
+.deck__track {
+  display: flex;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+/* ─── Individual deck page ────────────────────────────────────────────────── */
+
+.deck__page {
+  flex: 0 0 100%;
+  width: 100%;
+  min-height: 480px;
+  padding: 1.5rem 1rem 2rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.deck__page-eyebrow {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #718096;
+  margin: 0 0 0.35rem;
+}
+
+.deck__page-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 1.25rem;
+  line-height: 1.25;
+}
+
+/* ─── Visual area (primary, above-fold) ──────────────────────────────────── */
+
+.deck__visual {
+  flex: 1;
+  min-height: 200px;
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 1rem;
+}
+
+.deck__visual > * {
+  flex: 1;
+}
+
+/* ─── Takeaway banner ─────────────────────────────────────────────────────── */
+
+.deck__takeaway {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #2d3748;
+  background: #edf2f7;
+  border-radius: 6px;
+  padding: 0.5rem 0.875rem;
+  margin-top: 0.75rem;
+  line-height: 1.4;
+}
+
+/* ─── Context detail (minimal, below visual) ─────────────────────────────── */
+
+.deck__context {
+  font-size: 0.8rem;
+  color: #718096;
+  margin-top: 0.4rem;
+  line-height: 1.5;
+}
+
+/* ─── Options summary page ────────────────────────────────────────────────── */
+
+.deck__options-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.deck__options-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #2d3748;
+}
+
+.deck__options-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.deck__options-badge--viable   { background: #c6f6d5; color: #22543d; }
+.deck__options-badge--caution  { background: #fefcbf; color: #744210; }
+.deck__options-badge--rejected { background: #fed7d7; color: #742a2a; }
+
+/* ─── Ranking summary page ────────────────────────────────────────────────── */
+
+.deck__ranking-podium {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.deck__ranking-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.85rem;
+}
+
+.deck__ranking-row--rank-1 {
+  background: #f0fff4;
+  border-color: #9ae6b4;
+}
+
+.deck__ranking-num {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: #4a5568;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.deck__ranking-row--rank-1 .deck__ranking-num {
+  background: #38a169;
+}
+
+.deck__ranking-label {
+  font-weight: 600;
+  color: #1a202c;
+}
+
+.deck__ranking-reason {
+  font-size: 0.75rem;
+  color: #718096;
+  text-align: right;
+}
+
+/* ─── Shortlist detail page ───────────────────────────────────────────────── */
+
+.deck__shortlist-body {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.deck__shortlist-section-heading {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 0 0 0.35rem;
+}
+
+.deck__shortlist-section--required .deck__shortlist-section-heading { color: #c05621; }
+.deck__shortlist-section--best     .deck__shortlist-section-heading { color: #276749; }
+
+.deck__shortlist-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: #4a5568;
+  line-height: 1.5;
+}
+
+.deck__shortlist-empty {
+  font-size: 0.82rem;
+  color: #a0aec0;
+  font-style: italic;
+}
+
+/* ─── Simulator page ──────────────────────────────────────────────────────── */
+
+.deck__simulator-card {
+  background: #ebf8ff;
+  border: 1px solid #90cdf4;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin-top: 0.5rem;
+  flex: 1;
+}
+
+.deck__simulator-scenario {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #2c5282;
+  margin: 0 0 1rem;
+  line-height: 1.4;
+}
+
+.deck__simulator-notes {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  color: #2a4365;
+  line-height: 1.5;
+}
+
+.deck__simulator-notes li {
+  margin-bottom: 0.25rem;
+}
+
+.deck__simulator-cta {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.55rem 1.35rem;
+  background: #3182ce;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.deck__simulator-cta:hover {
+  background: #2b6cb0;
+}
+
+/* ─── Navigation controls ─────────────────────────────────────────────────── */
+
+.deck__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem 1.25rem;
+  gap: 1rem;
+}
+
+.deck__nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 1.1rem;
+  background: #fff;
+  color: #2d3748;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1.5px solid #cbd5e0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.deck__nav-btn:hover:not(:disabled) {
+  background: #edf2f7;
+  border-color: #a0aec0;
+}
+
+.deck__nav-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.deck__nav-counter {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #a0aec0;
+  letter-spacing: 0.05em;
+}
+
+/* ─── Ageing context inline card ──────────────────────────────────────────── */
+
+.deck__ageing-card {
+  background: #fffaf0;
+  border: 1px solid #fbd38d;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-top: 0.5rem;
+  flex: 1;
+}
+
+.deck__ageing-band {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #c05621;
+  margin: 0 0 0.625rem;
+}
+
+.deck__ageing-notes {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  color: #744210;
+  line-height: 1.5;
+}
+
+.deck__ageing-notes li {
+  margin-bottom: 0.25rem;
+}
+
+.deck__ageing-water-note {
+  font-size: 0.8rem;
+  color: #975a16;
+  font-style: italic;
+  margin: 0.5rem 0 0;
+}
+
+/* ─── Reduced-motion overrides ────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .deck__track {
+    transition: none;
+  }
+
+  .deck__dot {
+    transition: none;
+  }
+
+  .deck__nav-btn,
+  .deck__simulator-cta {
+    transition: none;
+  }
+}
+
+/* ─── Responsive ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .deck__page {
+    padding: 1.25rem 0.875rem 1.75rem;
+  }
+
+  .deck__page-title {
+    font-size: 1.15rem;
+  }
+
+  .deck__nav-btn {
+    padding: 0.45rem 0.75rem;
+    font-size: 0.78rem;
+  }
+}

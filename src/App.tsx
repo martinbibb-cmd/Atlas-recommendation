@@ -73,6 +73,14 @@ const PRESENTATION_MODE_ENABLED =
   new URLSearchParams(window.location.search).get('presentation') === '1';
 
 /**
+ * Detect ?deck=1 — renders the swipeable PresentationDeck directly with demo data.
+ * Use alongside ?presentation=1 or standalone to preview the deck experience.
+ */
+const DECK_MODE_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('deck') === '1';
+
+/**
  * Detect ?gallery=1 — renders the Physics Visual Library gallery directly.
  * Developer/review surface for previewing animation components.
  */
@@ -325,6 +333,24 @@ export default function App() {
           window.location.href = window.location.pathname;
         }}
       />
+    );
+  }
+
+  // ?deck=1 feature flag — render swipeable PresentationDeck directly with demo data.
+  if (DECK_MODE_ENABLED) {
+    const result = runEngine(CONSOLE_DEMO_INPUT);
+    return (
+      <div style={{ padding: '1rem', background: '#f8fafc', minHeight: '100vh' }}>
+        <button className="back-btn" onClick={() => { window.location.href = window.location.pathname; }}>
+          ← Back
+        </button>
+        <CanonicalPresentationPage
+          result={result}
+          input={CONSOLE_DEMO_INPUT}
+          recommendationResult={result.recommendationResult}
+          deckMode={true}
+        />
+      </div>
     );
   }
 
