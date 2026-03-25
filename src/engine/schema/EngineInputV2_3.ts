@@ -111,6 +111,16 @@ export interface ExpertAssumptionsV1 {
    * Default: 'low' (null treated identically).
    */
   spaceSavingPriority?: 'low' | 'medium' | 'high' | null;
+  /**
+   * Whether the home has or is planning a battery storage system.
+   * Used by PvAssessmentModule to surface battery as a relevant capture
+   * technology when PV is present.
+   *
+   * true      — battery is installed or definitely planned.
+   * false     — battery is not planned.
+   * undefined — not captured; treat as unknown.
+   */
+  batteryPlanned?: boolean;
 }
 
 /**

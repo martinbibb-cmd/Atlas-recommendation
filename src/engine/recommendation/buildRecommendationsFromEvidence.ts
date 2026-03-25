@@ -322,7 +322,7 @@ function familySortKey(family: ApplianceFamily): string {
  * Families that benefit from stored hot water (non-combi).
  * Used when applying storageBenefitSignal bonuses/penalties.
  */
-const STORED_WATER_FAMILIES: ReadonlySet<ApplianceFamily> = new Set([
+const STORED_HOT_WATER_FAMILIES: ReadonlySet<ApplianceFamily> = new Set([
   'system', 'regular', 'heat_pump', 'open_vented',
 ]);
 
@@ -442,7 +442,7 @@ function scoreCandidate(
 
     // Apply context-signal adjustments (storageBenefitSignal, solarStorageOpportunity)
     if (context) {
-      const isStoredFamily = STORED_WATER_FAMILIES.has(family);
+      const isStoredFamily = STORED_HOT_WATER_FAMILIES.has(family);
       const isCombi = family === 'combi';
 
       const storageBonus = STORAGE_BENEFIT_BONUS[context.storageBenefitSignal] ?? {};

@@ -344,9 +344,8 @@ export function runPvAssessmentModule(input: EngineInputV2_3): PvAssessmentResul
 
   const hasExistingPv = input.solarBoost?.enabled === true;
 
-  // Battery: sourced from expertAssumptions if the field exists; otherwise undefined
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const batteryPlanned: boolean | undefined = (input.expertAssumptions as any)?.batteryPlanned ?? undefined;
+  // Battery: sourced from expertAssumptions.batteryPlanned if available; otherwise undefined
+  const batteryPlanned: boolean | undefined = input.expertAssumptions?.batteryPlanned ?? undefined;
 
   const isMixergy = input.dhwTankType === 'mixergy';
   const hasStored = hasStoredHotWater(input);
