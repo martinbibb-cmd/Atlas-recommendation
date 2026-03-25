@@ -88,13 +88,13 @@ const SECTION_VISUAL_MAP: Record<CanonicalPresentationSectionId, SectionVisualCo
     preferredVisualId: 'cylinder_charge',
     fallbackVisualId: 'driving_style',
     displayMode: 'inline',
-    signalPriority: ['storageBenefitSignal'],
+    signalPriority: ['solarStorageOpportunity', 'peakSimultaneousOutlets', 'demandProfile'],
   },
   shortlist_option_2: {
     preferredVisualId: 'cylinder_charge',
     fallbackVisualId: 'driving_style',
     displayMode: 'inline',
-    signalPriority: ['storageBenefitSignal'],
+    signalPriority: ['solarStorageOpportunity', 'peakSimultaneousOutlets', 'demandProfile'],
   },
   simulator: {
     preferredVisualId: 'driving_style',
@@ -113,6 +113,39 @@ export function getVisualConfigForSection(
   sectionId: CanonicalPresentationSectionId,
 ): SectionVisualConfig {
   return SECTION_VISUAL_MAP[sectionId];
+}
+
+/**
+ * Resolve the best visual for a shortlist page using signal priority:
+ *   1. signal-driven: cylinder_charge when solarStorageOpportunity is high
+ *   2. signal-driven: flow_split when peakSimultaneousOutlets >= 2
+ *   3. section default based on option family (stored families → cylinder_charge)
+ *   4. family fallback → driving_style
+ *
+ * Visual priority:  signalMatch ?? sectionDefault ?? familyFallback
+ */
+export function resolveShortlistVisualId(
+  solarStorageOpportunity: string,
+  peakSimultaneousOutlets: number,
+  optionFamily: string,
+): PhysicsVisualId {
+  // 1. Signal: solar storage opportunity is high → cylinder charge is the key story
+  if (solarStorageOpportunity === 'high') return 'cylinder_charge';
+
+  // 2. Signal: concurrent demand risk → flow split is the key story
+  if (peakSimultaneousOutlets >= 2) return 'flow_split';
+
+  // 3. Section default based on whether this option has stored water
+  const STORED_OPTION_FAMILIES = new Set([
+    'stored_vented',
+    'stored_unvented',
+    'regular_vented',
+    'system_unvented',
+  ]);
+  if (STORED_OPTION_FAMILIES.has(optionFamily)) return 'cylinder_charge';
+
+  // 4. Family fallback — on-demand or heat pump
+  return 'driving_style';
 }
 
 export default SECTION_VISUAL_MAP;

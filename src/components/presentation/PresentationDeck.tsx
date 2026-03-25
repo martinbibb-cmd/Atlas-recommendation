@@ -36,6 +36,7 @@ import {
   type EnergySignal,
   type CurrentSystemSignal,
 } from './buildCanonicalPresentation';
+import { resolveShortlistVisualId } from './presentationVisualMapping';
 import PresentationVisualSlot from './PresentationVisualSlot';
 import './PresentationDeck.css';
 
@@ -50,18 +51,6 @@ const MAX_OUTLETS = 3 as const;
  * Filters out incidental horizontal movement during vertical scroll.
  */
 const SWIPE_THRESHOLD_PX = 40;
-
-/**
- * Map from shortlisted option family to the physics visual that best
- * explains how that system handles domestic hot water.
- * Stored families (stored_water, open_vented) use cylinder_charge;
- * on-demand families (combi, heat_pump) use driving_style.
- */
-const STORED_WATER_FAMILIES = new Set(['stored_water', 'open_vented']);
-
-function visualIdForFamily(family: string): 'cylinder_charge' | 'driving_style' {
-  return STORED_WATER_FAMILIES.has(family) ? 'cylinder_charge' : 'driving_style';
-}
 
 // ─── Reduced-motion hook ──────────────────────────────────────────────────────
 
@@ -231,7 +220,11 @@ function RankingPage({ items }: { items: PhysicsRankingItem[] }) {
 }
 
 function ShortlistPage({ option, index }: { option: ShortlistedOptionDetail; index: number }) {
-  const visualId = visualIdForFamily(option.family);
+  const visualId = resolveShortlistVisualId(
+    option.solarStorageOpportunity,
+    option.peakSimultaneousOutlets,
+    option.family,
+  );
   return (
     <>
       <p className="atlas-presentation-deck__page-eyebrow">Option {index + 1}</p>
@@ -240,6 +233,14 @@ function ShortlistPage({ option, index }: { option: ShortlistedOptionDetail; ind
         <PresentationVisualSlot visualId={visualId} />
       </div>
       <div className="atlas-presentation-deck__shortlist-body">
+        {option.complianceItems.length > 0 && (
+          <div className="atlas-presentation-deck__shortlist-section atlas-presentation-deck__shortlist-section--compliance">
+            <p className="atlas-presentation-deck__shortlist-section-heading">🔒 Required safety &amp; compliance</p>
+            <ul className="atlas-presentation-deck__shortlist-list">
+              {option.complianceItems.map((item, i) => <li key={i}>{item}</li>)}
+            </ul>
+          </div>
+        )}
         <div className="atlas-presentation-deck__shortlist-section atlas-presentation-deck__shortlist-section--required">
           <p className="atlas-presentation-deck__shortlist-section-heading">🔨 Required work</p>
           {option.requiredWork.length > 0 ? (

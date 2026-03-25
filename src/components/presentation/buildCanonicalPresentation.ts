@@ -22,6 +22,22 @@ import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
 
 // ─── Output model ─────────────────────────────────────────────────────────────
 
+/**
+ * DHW storage configuration — separate from appliance family.
+ *
+ * open_vented  — tank-fed cylinder, gravity-head supply from a CWS tank
+ * unvented     — mains-pressure sealed cylinder
+ * thermal_store — thermal store (primary-side hot water store)
+ * mixergy      — Mixergy stratified cylinder
+ * unknown      — storage type not recorded
+ */
+export type DhwStorageType =
+  | 'open_vented'
+  | 'unvented'
+  | 'thermal_store'
+  | 'mixergy'
+  | 'unknown';
+
 /** House signals — fabric, heat loss, infrastructure, PV potential. */
 export interface HouseSignal {
   heatLossLabel: string;
@@ -71,6 +87,11 @@ export interface CurrentSystemSignal {
   ageContext: string;
   /** Driving-style visual mode derived from the current heat source type. */
   drivingStyleMode: 'combi' | 'stored' | 'heat_pump';
+  /**
+   * DHW storage configuration — explicitly separate from appliance family.
+   * Derived from input.dhwStorageType; never inferred from heat source type.
+   */
+  dhwStorageType: DhwStorageType;
 }
 
 /** Objectives signals — user priorities from expert assumptions and preferences. */
@@ -136,8 +157,23 @@ export interface Page3PhysicsRanking {
 export interface ShortlistedOptionDetail {
   family: string;
   label: string;
+  /**
+   * Regulatory / safety items that are not optional — rendered separately
+   * from required enabling works so they are never confused with upgrades.
+   */
+  complianceItems: string[];
   requiredWork: string[];
   bestPerformanceUpgrades: string[];
+  /**
+   * Solar storage opportunity signal — used for signal-driven visual selection
+   * on the shortlist page (cylinder_charge when high).
+   */
+  solarStorageOpportunity: string;
+  /**
+   * Peak simultaneous hot water outlets — used for visual selection
+   * (flow_split when >= 2).
+   */
+  peakSimultaneousOutlets: number;
 }
 
 /** Pages 4+ — Shortlisted option detail. */
@@ -303,6 +339,21 @@ function systemTypeToDrivingMode(
   return 'combi';
 }
 
+/**
+ * Map input.dhwStorageType to the DhwStorageType signal used in the
+ * presentation layer.  Storage type is NEVER inferred from appliance
+ * family — it must be explicitly recorded in the input.
+ */
+function inputDhwStorageTypeToSignal(
+  raw: EngineInputV2_3['dhwStorageType'],
+): DhwStorageType {
+  if (raw === 'vented') return 'open_vented';
+  if (raw === 'unvented') return 'unvented';
+  if (raw === 'mixergy') return 'mixergy';
+  // heat_pump_cylinder and 'none' do not map to a stored storage type
+  return 'unknown';
+}
+
 // ─── Page 1 — What we know ─────────────────────────────────────────────────────
 
 function buildHouseSignal(result: FullEngineResult, input: EngineInputV2_3): HouseSignal {
@@ -446,6 +497,7 @@ function buildCurrentSystemSignal(input: EngineInputV2_3): CurrentSystemSignal {
     outputLabel,
     ageContext,
     drivingStyleMode: systemTypeToDrivingMode(type),
+    dhwStorageType: inputDhwStorageTypeToSignal(input.dhwStorageType),
   };
 }
 
@@ -825,6 +877,9 @@ function buildPage4Plus(
     return { options: [] };
   }
 
+  const demo = result.demographicOutputs;
+  const pv   = result.pvAssessment;
+
   // Shortlist: best overall + viable options from OptionCardV1
   const options = result.engineOutput.options ?? [];
   const viableOptions = options.filter(opt => opt.status !== 'rejected');
@@ -834,8 +889,13 @@ function buildPage4Plus(
     return {
       family: opt.id,
       label: opt.label,
+      // Compliance items are never upgrades — they are regulatory requirements.
+      complianceItems:           req?.complianceRequired ?? [],
       requiredWork:              req?.mustHave ?? [],
       bestPerformanceUpgrades:   [...(req?.likelyUpgrades ?? []), ...(req?.niceToHave ?? [])],
+      // Signal fields for visual selection — never inferred from family alone.
+      solarStorageOpportunity:   pv.solarStorageOpportunity,
+      peakSimultaneousOutlets:   demo.peakSimultaneousOutlets,
     };
   });
 
