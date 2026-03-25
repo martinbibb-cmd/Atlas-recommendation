@@ -7,7 +7,7 @@
 
 /* ─── Deck shell ──────────────────────────────────────────────────────────── */
 
-.deck {
+.atlas-presentation-deck {
   font-family: system-ui, -apple-system, sans-serif;
   color: #1a202c;
   max-width: 860px;
@@ -19,7 +19,7 @@
 
 /* ─── Progress indicator ──────────────────────────────────────────────────── */
 
-.deck__progress {
+.atlas-presentation-deck__progress {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -28,7 +28,7 @@
   flex-wrap: wrap;
 }
 
-.deck__dot {
+.atlas-presentation-deck__dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -40,16 +40,16 @@
   flex-shrink: 0;
 }
 
-.deck__dot--active {
+.atlas-presentation-deck__dot--active {
   background: #3182ce;
   transform: scale(1.35);
 }
 
-.deck__dot:hover:not(.deck__dot--active) {
+.atlas-presentation-deck__dot:hover:not(.atlas-presentation-deck__dot--active) {
   background: #a0aec0;
 }
 
-.deck__progress-label {
+.atlas-presentation-deck__progress-label {
   font-size: 0.7rem;
   font-weight: 600;
   color: #718096;
@@ -60,14 +60,14 @@
 
 /* ─── Slider viewport ─────────────────────────────────────────────────────── */
 
-.deck__viewport {
+.atlas-presentation-deck__viewport {
   overflow: hidden;
   position: relative;
 }
 
 /* ─── Slide track ─────────────────────────────────────────────────────────── */
 
-.deck__track {
+.atlas-presentation-deck__track {
   display: flex;
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
@@ -75,7 +75,7 @@
 
 /* ─── Individual deck page ────────────────────────────────────────────────── */
 
-.deck__page {
+.atlas-presentation-deck__page {
   flex: 0 0 100%;
   width: 100%;
   min-height: 480px;
@@ -85,7 +85,7 @@
   flex-direction: column;
 }
 
-.deck__page-eyebrow {
+.atlas-presentation-deck__page-eyebrow {
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -94,7 +94,7 @@
   margin: 0 0 0.35rem;
 }
 
-.deck__page-title {
+.atlas-presentation-deck__page-title {
   font-size: 1.3rem;
   font-weight: 700;
   color: #1a202c;
@@ -104,7 +104,7 @@
 
 /* ─── Visual area (primary, above-fold) ──────────────────────────────────── */
 
-.deck__visual {
+.atlas-presentation-deck__visual {
   flex: 1;
   min-height: 200px;
   display: flex;
@@ -112,13 +112,13 @@
   margin-bottom: 1rem;
 }
 
-.deck__visual > * {
+.atlas-presentation-deck__visual > * {
   flex: 1;
 }
 
 /* ─── Takeaway banner ─────────────────────────────────────────────────────── */
 
-.deck__takeaway {
+.atlas-presentation-deck__takeaway {
   font-size: 0.88rem;
   font-weight: 600;
   color: #2d3748;
@@ -131,7 +131,7 @@
 
 /* ─── Context detail (minimal, below visual) ─────────────────────────────── */
 
-.deck__context {
+.atlas-presentation-deck__context {
   font-size: 0.8rem;
   color: #718096;
   margin-top: 0.4rem;
@@ -140,7 +140,7 @@
 
 /* ─── Options summary page ────────────────────────────────────────────────── */
 
-.deck__options-list {
+.atlas-presentation-deck__options-list {
   list-style: none;
   margin: 0.75rem 0 0;
   padding: 0;
@@ -149,7 +149,7 @@
   gap: 0.4rem;
 }
 
-.deck__options-item {
+.atlas-presentation-deck__options-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -157,7 +157,7 @@
   color: #2d3748;
 }
 
-.deck__options-badge {
+.atlas-presentation-deck__options-badge {
   font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -167,20 +167,20 @@
   flex-shrink: 0;
 }
 
-.deck__options-badge--viable   { background: #c6f6d5; color: #22543d; }
-.deck__options-badge--caution  { background: #fefcbf; color: #744210; }
-.deck__options-badge--rejected { background: #fed7d7; color: #742a2a; }
+.atlas-presentation-deck__options-badge--viable   { background: #c6f6d5; color: #22543d; }
+.atlas-presentation-deck__options-badge--caution  { background: #fefcbf; color: #744210; }
+.atlas-presentation-deck__options-badge--rejected { background: #fed7d7; color: #742a2a; }
 
 /* ─── Ranking summary page ────────────────────────────────────────────────── */
 
-.deck__ranking-podium {
+.atlas-presentation-deck__ranking-podium {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   margin-top: 0.75rem;
 }
 
-.deck__ranking-row {
+.atlas-presentation-deck__ranking-row {
   display: grid;
   grid-template-columns: 2rem 1fr auto;
   align-items: center;
@@ -192,12 +192,12 @@
   font-size: 0.85rem;
 }
 
-.deck__ranking-row--rank-1 {
+.atlas-presentation-deck__ranking-row--rank-1 {
   background: #f0fff4;
   border-color: #9ae6b4;
 }
 
-.deck__ranking-num {
+.atlas-presentation-deck__ranking-num {
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 50%;
@@ -211,16 +211,16 @@
   flex-shrink: 0;
 }
 
-.deck__ranking-row--rank-1 .deck__ranking-num {
+.atlas-presentation-deck__ranking-row--rank-1 .atlas-presentation-deck__ranking-num {
   background: #38a169;
 }
 
-.deck__ranking-label {
+.atlas-presentation-deck__ranking-label {
   font-weight: 600;
   color: #1a202c;
 }
 
-.deck__ranking-reason {
+.atlas-presentation-deck__ranking-reason {
   font-size: 0.75rem;
   color: #718096;
   text-align: right;
@@ -228,14 +228,14 @@
 
 /* ─── Shortlist detail page ───────────────────────────────────────────────── */
 
-.deck__shortlist-body {
+.atlas-presentation-deck__shortlist-body {
   margin-top: 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
 }
 
-.deck__shortlist-section-heading {
+.atlas-presentation-deck__shortlist-section-heading {
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -243,10 +243,10 @@
   margin: 0 0 0.35rem;
 }
 
-.deck__shortlist-section--required .deck__shortlist-section-heading { color: #c05621; }
-.deck__shortlist-section--best     .deck__shortlist-section-heading { color: #276749; }
+.atlas-presentation-deck__shortlist-section--required .atlas-presentation-deck__shortlist-section-heading { color: #c05621; }
+.atlas-presentation-deck__shortlist-section--best     .atlas-presentation-deck__shortlist-section-heading { color: #276749; }
 
-.deck__shortlist-list {
+.atlas-presentation-deck__shortlist-list {
   margin: 0;
   padding-left: 1.1rem;
   font-size: 0.82rem;
@@ -254,7 +254,7 @@
   line-height: 1.5;
 }
 
-.deck__shortlist-empty {
+.atlas-presentation-deck__shortlist-empty {
   font-size: 0.82rem;
   color: #a0aec0;
   font-style: italic;
@@ -262,7 +262,7 @@
 
 /* ─── Simulator page ──────────────────────────────────────────────────────── */
 
-.deck__simulator-card {
+.atlas-presentation-deck__simulator-card {
   background: #ebf8ff;
   border: 1px solid #90cdf4;
   border-radius: 10px;
@@ -271,7 +271,7 @@
   flex: 1;
 }
 
-.deck__simulator-scenario {
+.atlas-presentation-deck__simulator-scenario {
   font-size: 0.95rem;
   font-weight: 600;
   color: #2c5282;
@@ -279,7 +279,7 @@
   line-height: 1.4;
 }
 
-.deck__simulator-notes {
+.atlas-presentation-deck__simulator-notes {
   margin: 0 0 0.75rem;
   padding-left: 1.25rem;
   font-size: 0.85rem;
@@ -287,11 +287,11 @@
   line-height: 1.5;
 }
 
-.deck__simulator-notes li {
+.atlas-presentation-deck__simulator-notes li {
   margin-bottom: 0.25rem;
 }
 
-.deck__simulator-cta {
+.atlas-presentation-deck__simulator-cta {
   display: inline-block;
   margin-top: 1rem;
   padding: 0.55rem 1.35rem;
@@ -305,13 +305,13 @@
   transition: background 0.15s ease;
 }
 
-.deck__simulator-cta:hover {
+.atlas-presentation-deck__simulator-cta:hover {
   background: #2b6cb0;
 }
 
 /* ─── Navigation controls ─────────────────────────────────────────────────── */
 
-.deck__nav {
+.atlas-presentation-deck__nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -319,7 +319,7 @@
   gap: 1rem;
 }
 
-.deck__nav-btn {
+.atlas-presentation-deck__nav-btn {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -334,17 +334,17 @@
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.deck__nav-btn:hover:not(:disabled) {
+.atlas-presentation-deck__nav-btn:hover:not(:disabled) {
   background: #edf2f7;
   border-color: #a0aec0;
 }
 
-.deck__nav-btn:disabled {
+.atlas-presentation-deck__nav-btn:disabled {
   opacity: 0.35;
   cursor: default;
 }
 
-.deck__nav-counter {
+.atlas-presentation-deck__nav-counter {
   font-size: 0.75rem;
   font-weight: 600;
   color: #a0aec0;
@@ -353,7 +353,7 @@
 
 /* ─── Ageing context inline card ──────────────────────────────────────────── */
 
-.deck__ageing-card {
+.atlas-presentation-deck__ageing-card {
   background: #fffaf0;
   border: 1px solid #fbd38d;
   border-radius: 8px;
@@ -362,14 +362,14 @@
   flex: 1;
 }
 
-.deck__ageing-band {
+.atlas-presentation-deck__ageing-band {
   font-size: 0.95rem;
   font-weight: 700;
   color: #c05621;
   margin: 0 0 0.625rem;
 }
 
-.deck__ageing-notes {
+.atlas-presentation-deck__ageing-notes {
   margin: 0;
   padding-left: 1.25rem;
   font-size: 0.85rem;
@@ -377,11 +377,11 @@
   line-height: 1.5;
 }
 
-.deck__ageing-notes li {
+.atlas-presentation-deck__ageing-notes li {
   margin-bottom: 0.25rem;
 }
 
-.deck__ageing-water-note {
+.atlas-presentation-deck__ageing-water-note {
   font-size: 0.8rem;
   color: #975a16;
   font-style: italic;
@@ -391,16 +391,16 @@
 /* ─── Reduced-motion overrides ────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
-  .deck__track {
+  .atlas-presentation-deck__track {
     transition: none;
   }
 
-  .deck__dot {
+  .atlas-presentation-deck__dot {
     transition: none;
   }
 
-  .deck__nav-btn,
-  .deck__simulator-cta {
+  .atlas-presentation-deck__nav-btn,
+  .atlas-presentation-deck__simulator-cta {
     transition: none;
   }
 }
@@ -408,15 +408,15 @@
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 
 @media (max-width: 480px) {
-  .deck__page {
+  .atlas-presentation-deck__page {
     padding: 1.25rem 0.875rem 1.75rem;
   }
 
-  .deck__page-title {
+  .atlas-presentation-deck__page-title {
     font-size: 1.15rem;
   }
 
-  .deck__nav-btn {
+  .atlas-presentation-deck__nav-btn {
     padding: 0.45rem 0.75rem;
     font-size: 0.78rem;
   }
