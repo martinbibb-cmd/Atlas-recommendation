@@ -43,6 +43,7 @@ import {
   type FinalPageSimulator,
 } from './buildCanonicalPresentation';
 import PresentationVisualSlot from './PresentationVisualSlot';
+import PresentationDeck from './PresentationDeck';
 import './CanonicalPresentationPage.css';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -340,6 +341,11 @@ interface Props {
    * When provided, the final page shows an "Open simulator" CTA.
    */
   onOpenSimulator?: () => void;
+  /**
+   * When true, renders the swipeable visual story deck instead of the
+   * vertical scrollable layout.  Defaults to false (vertical mode).
+   */
+  deckMode?: boolean;
 }
 
 /**
@@ -353,7 +359,20 @@ export default function CanonicalPresentationPage({
   input,
   recommendationResult,
   onOpenSimulator,
+  deckMode = false,
 }: Props) {
+  // Delegate to the swipeable deck when deckMode is enabled.
+  if (deckMode) {
+    return (
+      <PresentationDeck
+        result={result}
+        input={input}
+        recommendationResult={recommendationResult}
+        onOpenSimulator={onOpenSimulator}
+      />
+    );
+  }
+
   const model: CanonicalPresentationModel = buildCanonicalPresentation(
     result,
     input,

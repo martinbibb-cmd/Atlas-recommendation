@@ -196,6 +196,7 @@ function RecommendationChip({ primary }: { primary: string }) {
 export default function LiveHubPage({ result, input, onBack }: Props) {
   const [activeSection, setActiveSection] = useState<LiveSection | null>(null);
   const [printView, setPrintView] = useState<PrintView | null>(null);
+  const [deckMode, setDeckMode] = useState(false);
 
   const { engineOutput } = result;
 
@@ -319,12 +320,23 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
       {/* SECTION 0 — Canonical Presentation (physics-first, primary)   */}
       {/* ══════════════════════════════════════════════════════════════ */}
       <div className="live-hub__section live-hub__section--canonical">
-        <h2 className="live-hub__section-title">🏡 Canonical Presentation Preview</h2>
+        <div className="live-hub__section-header">
+          <h2 className="live-hub__section-title">🏡 Canonical Presentation Preview</h2>
+          <button
+            type="button"
+            className="live-hub__deck-toggle"
+            onClick={() => setDeckMode(m => !m)}
+            aria-pressed={deckMode}
+          >
+            {deckMode ? '⬇ Vertical view' : '↔ Deck view'}
+          </button>
+        </div>
         <CanonicalPresentationPage
           result={result}
           input={input}
           recommendationResult={result.recommendationResult}
           onOpenSimulator={() => setActiveSection('simulator')}
+          deckMode={deckMode}
         />
       </div>
 
