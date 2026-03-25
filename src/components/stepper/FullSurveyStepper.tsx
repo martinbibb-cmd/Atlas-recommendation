@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, type CSSProperties } from 'react';
+import { useState, useMemo, useEffect, type CSSProperties } from 'react';
 import {
   DEMAND_PRESETS,
   presetToEngineSignature,
@@ -39,17 +39,12 @@ import { analysePressure } from '../../engine/modules/PressureModule';
 import { runRegionalHardness } from '../../engine/modules/RegionalHardness';
 import { ERP_TO_NOMINAL_PCT } from '../../engine/utils/efficiency';
 import {
-  getFabricPreset,
   type WallType,
   type InsulationLevel,
   type AirTightness,
   type Glazing,
   type RoofInsulation,
   type ThermalMass,
-  type DwellingForm,
-  type AgeBand,
-  type SizeProxy,
-  type InsulationToggle,
 } from '../../engine/presets/FabricPresets';
 import LiveHubPage from '../../live/LiveHubPage';
 import LivePhysicsOverlay, { type OverlayStepKey } from '../../ui/overlay/LivePhysicsOverlay';
@@ -640,7 +635,6 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   //   'passive'         → 'passive_level'   (airTightness only)
   const prefillFabric = prefill?.building?.fabric;
   const prefillThermalMass = prefill?.building?.thermalMass;
-  const hasPrefillFabric = !!(prefillFabric || prefillThermalMass);
 
   const [wallType, setWallType] = useState<WallType>(() => {
     const fw = prefillFabric?.wallType;
@@ -676,19 +670,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     if (tm === 'light' || tm === 'medium' || tm === 'heavy') return tm;
     return 'heavy';
   });
-  const [dwellingForm, setDwellingForm] = useState<DwellingForm>('semi');
-  const [ageBand, setAgeBand] = useState<AgeBand>('1970_90');
-  const [sizeProxy, setSizeProxy] = useState<SizeProxy>('medium');
-  const [insulationToggle, setInsulationToggle] = useState<InsulationToggle>('ok');
-  // When fabric data is hydrated from prefill, start in 'custom' mode so the UI
-  // correctly labels the state as "Custom override" rather than "Preset-derived".
-  const [presetMode, setPresetMode] = useState<'preset' | 'custom'>(hasPrefillFabric ? 'custom' : 'preset');
   const [showAdvancedFabric, setShowAdvancedFabric] = useState(false);
-  // Ref guard: skip the fabric-preset effect on first mount when controls have
-  // been hydrated from a prefill — prevents the default preset from overwriting
-  // the restored values.  Cleared after the first skipped run so that subsequent
-  // changes to dwellingForm/ageBand/sizeProxy/insulationToggle still apply.
-  const skipPresetOnMountRef = useRef(hasPrefillFabric);
   /** Roof type — used for solar PV suitability assessment. */
   const [roofType, setRoofType] = useState<'pitched' | 'flat' | 'mixed' | 'unknown' | undefined>(
     () => prefill?.roofType ?? undefined,
@@ -721,28 +703,6 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     border: 'none', background: 'transparent', color: '#3182ce',
     cursor: 'pointer', fontSize: '0.8rem', textAlign: 'left', padding: '0.25rem 0',
   };
-
-  useEffect(() => {
-    // Skip the first run when fabric controls were hydrated from a saved prefill.
-    // This prevents the default preset values from overwriting the restored state.
-    // After the first skip the ref is cleared so subsequent user changes to the
-    // dwelling-form / age-band selectors still apply the preset as expected.
-    if (skipPresetOnMountRef.current) {
-      skipPresetOnMountRef.current = false;
-      return;
-    }
-    const preset = getFabricPreset(dwellingForm, ageBand, sizeProxy, insulationToggle);
-    setWallType(preset.wall);
-    setInsulationLevel(preset.insulation);
-    setAirTightness(preset.air);
-    setGlazing(preset.glaz);
-    setRoofInsulation(preset.roof);
-    setThermalMass(preset.mass);
-    setInput(prev => ({ ...prev, heatLossWatts: preset.heatLossWatts }));
-    setPresetMode('preset');
-  }, [dwellingForm, ageBand, sizeProxy, insulationToggle]);
-
-  const markCustom = () => setPresetMode('custom');
 
   // Derived values — update whenever any fabric control changes
   const derivedTau = useMemo(() => deriveTau(thermalMass, insulationLevel, airTightness), [thermalMass, insulationLevel, airTightness]);
@@ -1023,39 +983,14 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
               Solid masonry without insulation leaks as badly as any wall type.
             </p>
 
-            {/* ── Building preset selectors (3-click completion) ── */}
+            {/* ── Building controls ── */}
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
-                🏠 Building preset (form + age + size)
+                🏠 Building fabric controls
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(140px, 1fr))', gap: '0.5rem' }}>
-                <select value={dwellingForm} onChange={e => setDwellingForm(e.target.value as DwellingForm)}>
-                  <option value="detached">Detached</option>
-                  <option value="semi">Semi</option>
-                  <option value="terrace">Terrace</option>
-                  <option value="flat">Flat</option>
-                </select>
-                <select value={ageBand} onChange={e => setAgeBand(e.target.value as AgeBand)}>
-                  <option value="pre1930">Pre-1930</option>
-                  <option value="1930_70">1930-70</option>
-                  <option value="1970_90">1970-90</option>
-                  <option value="1990_2010">1990-2010</option>
-                  <option value="2010plus">2010+</option>
-                </select>
-                <select value={sizeProxy} onChange={e => setSizeProxy(e.target.value as SizeProxy)}>
-                  <option value="small">Small</option>
-                  <option value="medium">Medium</option>
-                  <option value="large">Large</option>
-                </select>
-                <select value={insulationToggle} onChange={e => setInsulationToggle(e.target.value as InsulationToggle)}>
-                  <option value="poor">Insulation: Poor</option>
-                  <option value="ok">Insulation: OK</option>
-                  <option value="good">Insulation: Good</option>
-                </select>
-              </div>
               <div style={{ fontSize: '0.74rem', color: '#718096', marginTop: '0.35rem' }}>
-                Mode: <strong>{presetMode === 'preset' ? 'Preset-derived' : 'Custom override'}</strong>
-                {' · '}
+                Building presets removed — adjust this home directly with advanced controls.
+                {' '}
                 <button onClick={() => setShowAdvancedFabric(v => !v)} style={{ border: 'none', background: 'transparent', color: '#3182ce', cursor: 'pointer' }}>
                   {showAdvancedFabric ? 'Hide advanced controls' : 'Show advanced controls'}
                 </button>
@@ -1368,7 +1303,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                     ] as Array<{ value: WallType; label: string; sub: string }>).map(opt => (
                       <button
                         key={opt.value}
-                        onClick={() => { markCustom(); setWallType(opt.value); }}
+                        onClick={() => { setWallType(opt.value); }}
                         style={{
                           padding: '0.5rem 0.75rem',
                           border: `2px solid ${wallType === opt.value ? '#3182ce' : '#e2e8f0'}`,
@@ -1395,7 +1330,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                     {(['poor', 'moderate', 'good', 'exceptional'] as InsulationLevel[]).map(lvl => (
                       <button
                         key={lvl}
-                        onClick={() => { markCustom(); setInsulationLevel(lvl); }}
+                        onClick={() => { setInsulationLevel(lvl); }}
                         style={{
                           padding: '0.45rem 0.6rem',
                           border: `2px solid ${insulationLevel === lvl ? '#38a169' : '#e2e8f0'}`,
@@ -1427,7 +1362,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                     ] as Array<{ value: Glazing; label: string }>).map(opt => (
                       <button
                         key={opt.value}
-                        onClick={() => { markCustom(); setGlazing(opt.value); }}
+                        onClick={() => { setGlazing(opt.value); }}
                         style={{
                           padding: '0.45rem 0.6rem',
                           border: `2px solid ${glazing === opt.value ? '#3182ce' : '#e2e8f0'}`,
@@ -1454,7 +1389,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                     {(['poor', 'moderate', 'good'] as RoofInsulation[]).map(lvl => (
                       <button
                         key={lvl}
-                        onClick={() => { markCustom(); setRoofInsulation(lvl); }}
+                        onClick={() => { setRoofInsulation(lvl); }}
                         style={{
                           padding: '0.45rem 0.6rem',
                           border: `2px solid ${roofInsulation === lvl ? '#dd6b20' : '#e2e8f0'}`,
@@ -1487,7 +1422,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                     ] as Array<{ value: AirTightness; label: string }>).map(opt => (
                       <button
                         key={opt.value}
-                        onClick={() => { markCustom(); setAirTightness(opt.value); }}
+                        onClick={() => { setAirTightness(opt.value); }}
                         style={{
                           padding: '0.45rem 0.6rem',
                           border: `2px solid ${airTightness === opt.value ? '#805ad5' : '#e2e8f0'}`,
@@ -1598,7 +1533,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                 ] as Array<{ value: ThermalMass; label: string; sub: string }>).map(opt => (
                   <button
                     key={opt.value}
-                    onClick={() => { markCustom(); setThermalMass(opt.value); }}
+                    onClick={() => { setThermalMass(opt.value); }}
                     style={{
                       padding: '0.6rem 0.75rem',
                       border: `2px solid ${thermalMass === opt.value ? '#3182ce' : '#e2e8f0'}`,

@@ -38,7 +38,7 @@ import type { DerivedFloorplanOutput } from './components/floorplan/floorplanDer
 import { computeFitPosition } from './logic/fit-map/computeFitPosition';
 import type { FitPosition } from './logic/fit-map/computeFitPosition';
 import FitMapResultPage from './components/fit-map/FitMapResultPage';
-import PresentationFlow from './components/presentation/PresentationFlow';
+import CanonicalPresentationPage from './components/presentation/CanonicalPresentationPage';
 import './App.css';
 
 /** Detect ?lab=1 feature flag — renders Demo Lab directly for previewing. */
@@ -64,7 +64,7 @@ const REPORT_MODE_ENABLED =
   new URLSearchParams(window.location.search).get('report') === '1';
 
 /**
- * Detect ?presentation=1 — renders PresentationFlow directly with demo data.
+ * Detect ?presentation=1 — renders CanonicalPresentationPage directly with demo data.
  * Useful for in-room demo and development.
  */
 const PRESENTATION_MODE_ENABLED =
@@ -139,6 +139,29 @@ function deriveFitPosition(engineInput: EngineInputV2_3): FitPosition {
     occupancy: engineInput.occupancySignature === 'steady' ? 'steady'
       : engineInput.occupancySignature === 'shift' ? 'shift' : 'professional',
   });
+}
+
+function CanonicalPresentationRoute({
+  engineInput,
+  onBack,
+  onOpenSimulator,
+}: {
+  engineInput: EngineInputV2_3;
+  onBack: () => void;
+  onOpenSimulator?: () => void;
+}) {
+  const result = runEngine(engineInput);
+  return (
+    <div style={{ padding: '1rem', background: '#f8fafc', minHeight: '100vh' }}>
+      <button className="back-btn" onClick={onBack}>← Back</button>
+      <CanonicalPresentationPage
+        result={result}
+        input={engineInput}
+        recommendationResult={result.recommendationResult}
+        onOpenSimulator={onOpenSimulator}
+      />
+    </div>
+  );
 }
 
 export default function App() {
@@ -296,13 +319,20 @@ export default function App() {
     );
   }
 
-  // ?presentation=1 feature flag — render PresentationFlow directly with demo data.
+  // ?presentation=1 feature flag — render CanonicalPresentationPage directly with demo data.
   if (PRESENTATION_MODE_ENABLED) {
+    const result = runEngine(CONSOLE_DEMO_INPUT);
     return (
-      <PresentationFlow
-        engineInput={CONSOLE_DEMO_INPUT}
-        onBack={() => { window.location.href = window.location.pathname; }}
-      />
+      <div style={{ padding: '1rem', background: '#f8fafc', minHeight: '100vh' }}>
+        <button className="back-btn" onClick={() => { window.location.href = window.location.pathname; }}>
+          ← Back
+        </button>
+        <CanonicalPresentationPage
+          result={result}
+          input={CONSOLE_DEMO_INPUT}
+          recommendationResult={result.recommendationResult}
+        />
+      </div>
     );
   }
 
@@ -430,7 +460,7 @@ export default function App() {
       )}
       {journey === 'lab' && <LabShell onHome={() => setJourney('landing')} engineInput={labEngineInput} />}
       {journey === 'presentation' && labEngineInput != null && (
-        <PresentationFlow
+        <CanonicalPresentationRoute
           engineInput={labEngineInput}
           onBack={() => setJourney('simulator')}
           onOpenSimulator={() => setJourney('simulator')}
@@ -457,7 +487,14 @@ export default function App() {
         </div>
       )}
       {journey === 'heat-loss' && (
-        <HeatLossCalculator onBack={() => setJourney('landing')} />
+        <HeatLossCalculator
+          onBack={() => setJourney('landing')}
+          onComplete={(totalHL) => {
+            const heatLossWatts = Math.round(totalHL * 1000);
+            setLabEngineInput(prev => ({ ...(prev ?? CONSOLE_DEMO_INPUT), heatLossWatts }));
+            setJourney('simulator');
+          }}
+        />
       )}
       {journey === 'landing' && (
         <div className="landing">
@@ -585,4 +622,3 @@ export default function App() {
     </>
   );
 }
-

@@ -1,5 +1,6 @@
 /**
  * PresentationFlow.tsx — Presentation Layer v1.
+ * @deprecated Use CanonicalPresentationPage for the primary in-room presentation route.
  *
  * Guided in-room story screen for surveyors.  Shows:
  *   1. What happens in the home
