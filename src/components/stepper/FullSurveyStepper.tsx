@@ -26,6 +26,7 @@ import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { sanitiseModelForEngine } from '../../ui/fullSurvey/sanitiseModelForEngine';
 import { inferSystemConditionFlags } from '../../engine/modules/SystemConditionInferenceModule';
 import { runEngine } from '../../engine/Engine';
+import { runPvAssessmentModule } from '../../engine/modules/PvAssessmentModule';
 import { runThermalInertiaModule } from '../../engine/modules/ThermalInertiaModule';
 import { calcFlowLpm, PIPE_THRESHOLDS } from '../../engine/modules/HydraulicModule';
 import {
@@ -702,6 +703,14 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   const [solarShading, setSolarShading] = useState<'low' | 'medium' | 'high' | 'unknown' | undefined>(
     () => prefill?.solarShading ?? undefined,
   );
+  /** Solar PV installation status — actual presence, not just roof suitability. */
+  const [pvStatus, setPvStatus] = useState<'none' | 'existing' | 'planned' | undefined>(
+    () => prefill?.pvStatus ?? undefined,
+  );
+  /** Battery storage status — actual presence, not just PV suitability. */
+  const [batteryStatus, setBatteryStatus] = useState<'none' | 'existing' | 'planned' | undefined>(
+    () => prefill?.batteryStatus ?? undefined,
+  );
   /** Hydraulic step — flow-demand chart hidden by default to keep the step fast. */
   const [showHydraulicDetail, setShowHydraulicDetail] = useState(false);
   /** Hot-water step — outlet-vs-demand analysis hidden by default. */
@@ -809,6 +818,21 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     [input.dynamicMainsPressure, input.dynamicMainsPressureBar, input.staticMainsPressureBar],
   );
   const inputWarnings = useMemo(() => collectInputValidationWarnings(input), [input]);
+
+  // ── PV assessment — recomputed when solar inputs change ────────────────────
+  const livePvAssessment = useMemo(
+    () => runPvAssessmentModule(toEngineInput(input)),
+    [
+      input.roofType,
+      input.roofOrientation,
+      input.solarShading,
+      input.pvStatus,
+      input.batteryStatus,
+      input.dhwTankType,
+      input.occupancySignature,
+      input.preferCombi,
+    ],
+  );
 
   // ── System condition inference — heating + DHW diagnostics ─────────────────
   const systemConditionFlags = useMemo(() => inferSystemConditionFlags({
@@ -1189,6 +1213,137 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                   </div>
                 )}
               </div>
+
+              {/* ── PV status — actual installation, not just roof suitability ── */}
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.3rem', color: '#4a5568' }}>
+                  ☀️ Does this property have or plan solar PV panels?
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' }}>
+                  {([
+                    { value: 'none',     label: '🚫 None',     sub: 'No PV installed or planned' },
+                    { value: 'existing', label: '✅ Existing', sub: 'PV panels already installed' },
+                    { value: 'planned',  label: '🔜 Planned',  sub: 'Planning to install PV' },
+                  ] as Array<{ value: 'none' | 'existing' | 'planned'; label: string; sub: string }>).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        const next = pvStatus === opt.value ? undefined : opt.value;
+                        setPvStatus(next);
+                        setInput(prev => ({ ...prev, pvStatus: next }));
+                      }}
+                      style={{
+                        padding: '0.5rem 0.4rem',
+                        border: `2px solid ${pvStatus === opt.value ? '#d69e2e' : '#e2e8f0'}`,
+                        borderRadius: '6px',
+                        background: pvStatus === opt.value ? '#fffff0' : '#fff',
+                        cursor: 'pointer',
+                        fontWeight: pvStatus === opt.value ? 700 : 400,
+                        fontSize: '0.82rem',
+                        textAlign: 'center',
+                        transition: 'all 0.12s',
+                      }}
+                    >
+                      <div>{opt.label}</div>
+                      <div style={{ fontSize: '0.72rem', color: '#718096', marginTop: '0.15rem' }}>{opt.sub}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Battery status ──────────────────────────────────────────── */}
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.3rem', color: '#4a5568' }}>
+                  🔋 Does this property have or plan a battery storage system?
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' }}>
+                  {([
+                    { value: 'none',     label: '🚫 None',     sub: 'No battery installed or planned' },
+                    { value: 'existing', label: '✅ Existing', sub: 'Battery already installed' },
+                    { value: 'planned',  label: '🔜 Planned',  sub: 'Planning to add a battery' },
+                  ] as Array<{ value: 'none' | 'existing' | 'planned'; label: string; sub: string }>).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        const next = batteryStatus === opt.value ? undefined : opt.value;
+                        setBatteryStatus(next);
+                        setInput(prev => ({ ...prev, batteryStatus: next }));
+                      }}
+                      style={{
+                        padding: '0.5rem 0.4rem',
+                        border: `2px solid ${batteryStatus === opt.value ? '#d69e2e' : '#e2e8f0'}`,
+                        borderRadius: '6px',
+                        background: batteryStatus === opt.value ? '#fffff0' : '#fff',
+                        cursor: 'pointer',
+                        fontWeight: batteryStatus === opt.value ? 700 : 400,
+                        fontSize: '0.82rem',
+                        textAlign: 'center',
+                        transition: 'all 0.12s',
+                      }}
+                    >
+                      <div>{opt.label}</div>
+                      <div style={{ fontSize: '0.72rem', color: '#718096', marginTop: '0.15rem' }}>{opt.sub}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Derived PV summary — closes the loop ────────────────────── */}
+              {(() => {
+                const pv = livePvAssessment;
+                const pvStatusLabel =
+                  pvStatus === 'existing' ? 'Existing' :
+                  pvStatus === 'planned'  ? 'Planned'  :
+                  pvStatus === 'none'     ? 'None'     : 'Not captured';
+                const batteryLabel =
+                  batteryStatus === 'existing' ? 'Existing' :
+                  batteryStatus === 'planned'  ? 'Planned'  :
+                  batteryStatus === 'none'     ? 'None'     : 'Not captured';
+                const suitabilityColour =
+                  pv.pvSuitability === 'good'    ? '#276749' :
+                  pv.pvSuitability === 'fair'    ? '#7b341e' :
+                  '#9b2c2c';
+                const alignmentLabel =
+                  pv.energyDemandAlignment === 'aligned'        ? 'Strong' :
+                  pv.energyDemandAlignment === 'partly_aligned' ? 'Moderate' :
+                  'Limited';
+                const generationLabel =
+                  pv.pvGenerationTimingProfile === 'peak_daytime'   ? 'Strong (peak midday)' :
+                  pv.pvGenerationTimingProfile === 'spread'          ? 'Moderate (morning/afternoon)' :
+                  'Limited (seasonal / high shading)';
+                const hasBattery = batteryStatus === 'existing' || batteryStatus === 'planned';
+                const bestUseLabel =
+                  pv.solarStorageOpportunity === 'high'   ? 'Stored hot water / Mixergy' :
+                  pv.solarStorageOpportunity === 'medium' ? (hasBattery ? 'Battery + direct use' : 'Direct daytime use') :
+                  'Limited benefit without storage';
+                return (
+                  <div style={{
+                    border: '1px solid #d69e2e',
+                    borderRadius: '8px',
+                    background: '#fffff0',
+                    padding: '0.75rem 1rem',
+                    fontSize: '0.8rem',
+                    color: '#4a5568',
+                  }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem', color: '#744210' }}>
+                      ☀️ Solar / PV Summary
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.3rem 1rem' }}>
+                      <div><span style={{ fontWeight: 600 }}>PV status:</span> {pvStatusLabel}</div>
+                      <div><span style={{ fontWeight: 600 }}>Battery:</span> {batteryLabel}</div>
+                      <div>
+                        <span style={{ fontWeight: 600 }}>PV suitability:</span>{' '}
+                        <span style={{ color: suitabilityColour, fontWeight: 600 }}>
+                          {pv.pvSuitability.charAt(0).toUpperCase() + pv.pvSuitability.slice(1)}
+                        </span>
+                      </div>
+                      <div><span style={{ fontWeight: 600 }}>Likely generation:</span> {generationLabel}</div>
+                      <div><span style={{ fontWeight: 600 }}>Demand alignment:</span> {alignmentLabel}</div>
+                      <div><span style={{ fontWeight: 600 }}>Best use here:</span> {bestUseLabel}</div>
+                    </div>
+                  </div>
+                );
+              })()}
 
             </div>
 

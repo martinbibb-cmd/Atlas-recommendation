@@ -256,6 +256,8 @@ function buildPvNarrativeSignals(
   isMixergy: boolean,
   hasStored: boolean,
   daytimeHome: boolean,
+  pvStatus: EngineInputV2_3['pvStatus'],
+  batteryStatus: EngineInputV2_3['batteryStatus'],
 ): string[] {
   const signals: string[] = [];
 
@@ -277,11 +279,22 @@ function buildPvNarrativeSignals(
     signals.push('Heavy shading significantly limits PV viability — detailed survey recommended.');
   }
 
-  // Existing PV
+  // Existing / planned PV
   if (hasExistingPv) {
     signals.push(
-      'Existing solar installation detected — diverter or load-shift optimisation may increase self-consumption.',
+      'Existing solar installation — diverter or load-shift optimisation may increase self-consumption.',
     );
+  } else if (pvStatus === 'planned') {
+    signals.push(
+      'Solar PV is planned — recommendations should account for future generation and self-consumption opportunities.',
+    );
+  }
+
+  // Planned battery
+  if (batteryStatus === 'existing') {
+    signals.push('Battery storage is installed — surplus PV can be shifted to evening demand.');
+  } else if (batteryStatus === 'planned') {
+    signals.push('Battery storage is planned — this will increase PV self-consumption significantly.');
   }
 
   // Storage opportunity
@@ -341,10 +354,16 @@ export function runPvAssessmentModule(input: EngineInputV2_3): PvAssessmentResul
     input,
   );
 
-  const hasExistingPv = input.solarBoost?.enabled === true;
+  // Existing PV: prefer explicit pvStatus field; fall back to solarBoost.enabled (legacy)
+  const hasExistingPv =
+    input.pvStatus === 'existing' ||
+    (input.pvStatus === undefined && input.solarBoost?.enabled === true);
 
-  // Battery: sourced from expertAssumptions.batteryPlanned if available; otherwise undefined
-  const batteryPlanned: boolean | undefined = input.expertAssumptions?.batteryPlanned ?? undefined;
+  // Battery: prefer explicit batteryStatus field; fall back to expertAssumptions.batteryPlanned
+  const batteryPlanned: boolean | undefined =
+    input.batteryStatus !== undefined
+      ? input.batteryStatus === 'existing' || input.batteryStatus === 'planned'
+      : (input.expertAssumptions?.batteryPlanned ?? undefined);
 
   const isMixergy = input.dhwTankType === 'mixergy';
   const hasStored = hasStoredHotWater(input);
@@ -360,6 +379,8 @@ export function runPvAssessmentModule(input: EngineInputV2_3): PvAssessmentResul
     isMixergy,
     hasStored,
     daytimeHome,
+    input.pvStatus,
+    input.batteryStatus,
   );
 
   return {
