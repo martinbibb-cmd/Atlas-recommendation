@@ -65,7 +65,7 @@ function futureHook(family: string, surveyorContext: SurveyorContext): string {
       : 'Becomes a strong option once pipework and emitters are upgraded — the path there is clear.';
   }
   if (family === 'combi') {
-    return 'Becomes a stronger option when occupancy or bathroom count is lower.';
+    return 'Becomes a stronger option in a lower-demand home — and is already worth considering for future properties.';
   }
   return 'Becomes a stronger option when the underlying constraint is resolved.';
 }

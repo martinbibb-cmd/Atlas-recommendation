@@ -158,11 +158,16 @@ interface Props {
    * The parent can use this to highlight the corresponding cause card.
    */
   onEventClick?: (limiterId: string) => void;
+  /**
+   * The limiter ID of the currently active event (set by the parent after a
+   * click).  The matching event shows a "This happens because…" micro-label.
+   */
+  activeLimiterId?: string | null;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function EventTimelineStrip({ events, family, mode, onEventClick }: Props) {
+export default function EventTimelineStrip({ events, family, mode, onEventClick, activeLimiterId }: Props) {
   const demandEvents = buildDemandEvents(events);
   const responseEvents = buildResponseEvents(events, family, mode);
   const heading = mode === 'current' ? 'What happens now' : 'What changes';
@@ -196,6 +201,7 @@ export default function EventTimelineStrip({ events, family, mode, onEventClick 
           <div className="evt-strip__track" role="list">
             {demandEvents.map((evt, idx) => {
               const isClickable = onEventClick != null && evt.limiterId != null;
+              const isActive = activeLimiterId != null && evt.limiterId != null && activeLimiterId === evt.limiterId;
               return (
                 <div
                   key={idx}
@@ -203,6 +209,7 @@ export default function EventTimelineStrip({ events, family, mode, onEventClick 
                     'evt-strip__event',
                     `evt-strip__event--${evt.kind}`,
                     isClickable ? 'evt-strip__event--clickable' : '',
+                    isActive ? 'evt-strip__event--micro-active' : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
@@ -211,6 +218,11 @@ export default function EventTimelineStrip({ events, family, mode, onEventClick 
                 >
                   <span className="evt-strip__icon" aria-hidden="true">{evt.icon}</span>
                   <span className="evt-strip__label">{evt.label}</span>
+                  {isActive && (
+                    <span className="evt-strip__micro-label" aria-live="polite">
+                      This happens because…
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -225,6 +237,7 @@ export default function EventTimelineStrip({ events, family, mode, onEventClick 
           <div className="evt-strip__track" role="list">
             {responseEvents.map((evt, idx) => {
               const isClickable = onEventClick != null && evt.limiterId != null;
+              const isActive = activeLimiterId != null && evt.limiterId != null && activeLimiterId === evt.limiterId;
               return (
                 <div
                   key={idx}
@@ -232,6 +245,7 @@ export default function EventTimelineStrip({ events, family, mode, onEventClick 
                     'evt-strip__event',
                     `evt-strip__event--${evt.kind}`,
                     isClickable ? 'evt-strip__event--clickable' : '',
+                    isActive ? 'evt-strip__event--micro-active' : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
@@ -240,6 +254,11 @@ export default function EventTimelineStrip({ events, family, mode, onEventClick 
                 >
                   <span className="evt-strip__icon" aria-hidden="true">{evt.icon}</span>
                   <span className="evt-strip__label">{evt.label}</span>
+                  {isActive && (
+                    <span className="evt-strip__micro-label" aria-live="polite">
+                      This happens because…
+                    </span>
+                  )}
                 </div>
               );
             })}

@@ -95,6 +95,7 @@ export default function StoryCanvas({
           family={family}
           mode={mode}
           onEventClick={mode === 'current' ? handleEventClick : undefined}
+          activeLimiterId={effectiveLimiterId}
         />
       </div>
 

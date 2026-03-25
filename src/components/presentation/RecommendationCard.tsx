@@ -51,40 +51,40 @@ const SUITABILITY_BADGE: Record<string, { label: string; cls: string }> = {
  */
 const FAMILY_STRENGTH_COPY: Record<string, Partial<Record<string, string>>> = {
   stored_water: {
-    performance:     'Hot water for everyone, even in a busy morning',
-    reliability:     'Heating runs uninterrupted — no switching between heating and hot water',
-    longevity:       'Fewer high-demand moments means less wear on the boiler',
-    ease_of_control: 'Set once and the cylinder maintains its own schedule',
-    eco:             'Lower peak demand makes it easier to add renewables later',
+    performance:     'Your hot water reaches everyone, even on a busy morning',
+    reliability:     'Your heating keeps running, even when hot water is used',
+    longevity:       'Your boiler faces fewer high-demand moments, so it lasts longer',
+    ease_of_control: 'Set once and your home manages its own hot water schedule',
+    eco:             'Lower peak demand gives your home more flexibility for renewables',
     disruption:      'Works with your existing pipework in most cases',
     space:           'Cylinder can often replace an existing unit in the same location',
   },
   heat_pump: {
-    performance:     'Consistent hot water with lower running temperatures',
-    reliability:     'No combustion — fewer components that can wear or fail',
-    longevity:       'Heat pump compressors typically last 15–20 years',
-    ease_of_control: 'Smart controls keep efficiency high automatically',
-    eco:             'Runs on electricity — compatible with solar panels and green tariffs',
-    disruption:      'External unit is the main installation work; indoor disruption is minimal',
+    performance:     'Your home gets consistent hot water at lower running temperatures',
+    reliability:     'Fewer moving parts in your home means less that can go wrong',
+    longevity:       'Your heat pump compressor is built to last 15–20 years',
+    ease_of_control: 'Smart controls keep your home efficient automatically',
+    eco:             'Your home runs on electricity — compatible with solar panels and green tariffs',
+    disruption:      'External unit is the main installation work; your home stays undisturbed',
     space:           'Outdoor space for the unit is the main space consideration',
   },
   combi: {
-    performance:     'Hot water on demand — no waiting for a cylinder to heat',
-    reliability:     'No stored hot water to lose overnight',
-    longevity:       'Fewer components than a full system boiler setup',
-    ease_of_control: 'No cylinder timer to manage — simpler to run',
-    eco:             'Modern condensing combis recover heat from flue gases',
+    performance:     'Hot water the moment your household needs it — no cylinder to wait for',
+    reliability:     'Your hot water is available on-demand, not from stored supply',
+    longevity:       'Fewer components in your home means less to maintain',
+    ease_of_control: 'No cylinder timer to manage — simpler for your household to run',
+    eco:             'Your modern condensing combi recovers heat from its own flue gases',
     disruption:      'Straightforward swap-out in most homes',
-    space:           'Compact — no cylinder needed',
+    space:           'Compact — no cylinder needed in your home',
   },
   open_vented: {
-    performance:     'Proven in older homes with existing tank infrastructure',
-    reliability:     'Works at low mains pressure — suitable for most properties',
-    longevity:       'Simple open system is well understood and straightforward to service',
-    ease_of_control: 'Standard timer controls — familiar to most occupants',
-    eco:             'Compatible with solar thermal diverter systems',
-    disruption:      'Keeps the existing loft-tank arrangement in place',
-    space:           'Uses existing loft space already allocated to the tank',
+    performance:     'Your home benefits from proven infrastructure that is well understood',
+    reliability:     'Your system works with lower mains pressure — suitable for most properties',
+    longevity:       'Your open system is straightforward to service and maintain long-term',
+    ease_of_control: 'Standard timer controls — familiar to everyone in your home',
+    eco:             'Your system is compatible with solar thermal diverter upgrades',
+    disruption:      'Keeps your existing loft-tank arrangement in place',
+    space:           'Uses the loft space your home already has allocated',
   },
 };
 
@@ -229,6 +229,11 @@ export default function RecommendationCard({
           <span className="rec-card__score-max">/100</span>
         </div>
       </div>
+
+      {/* Confidence anchor */}
+      <p className="rec-card__confidence-anchor">
+        Based on what we measured in your home today
+      </p>
 
       {/* Top 3 reasons */}
       {strengths.length > 0 && (
