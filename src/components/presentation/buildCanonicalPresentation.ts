@@ -18,6 +18,7 @@
 import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { OptionCardV1 } from '../../contracts/EngineOutputV1';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
+import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
 
 // ─── Output model ─────────────────────────────────────────────────────────────
 
@@ -597,7 +598,7 @@ function buildOptionExplanation(
     : [];
   const limitedWhen = option.heat.status !== 'ok'
     ? option.heat.bullets.slice(0, 3)
-    : option.dhw.bullets.filter(b => option.dhw.status !== 'ok').slice(0, 2);
+    : option.dhw.status !== 'ok' ? option.dhw.bullets.slice(0, 2) : [];
 
   const whatItIs = OPTION_WHAT_IT_IS[option.id] ?? option.headline;
 
@@ -687,7 +688,7 @@ function buildPage3(
   ].filter((d): d is NonNullable<typeof d> => d != null);
 
   // Deduplicate by family; keep highest score per family
-  const familyMap = new Map<string, { family: string; score: number }>();
+  const familyMap = new Map<ApplianceFamily, { family: ApplianceFamily; score: number }>();
   for (const d of allDecisions) {
     const existing = familyMap.get(d.family);
     if (!existing || d.overallScore > existing.score) {
@@ -728,7 +729,7 @@ function buildPage3(
           ? `Mains ${dynamicBar} bar — adequate for combi`
           : `Mains ${dynamicBar} bar — low; combi flow rate constrained`;
       }
-    } else if (entry.family === 'stored' || entry.family === 'system') {
+    } else if (entry.family === 'system') {
       waterFitNote = `Stored water buffers mains demand — less pressure-sensitive`;
     }
 
