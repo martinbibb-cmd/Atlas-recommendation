@@ -10,21 +10,24 @@
  * Usage:
  *   <PhysicsVisual id="driving_style" data={{ mode: 'combi' }} />
  *   <PhysicsVisual id="flow_split" data={{ outletsActive: 2 }} reducedMotion />
+ *   <PhysicsVisual id="heat_particles" displayMode="inline" />
  */
 
-import type { PhysicsVisualId } from './physicsVisualTypes';
+import type { PhysicsVisualId, VisualDisplayMode } from './physicsVisualTypes';
 import type {
   PhysicsVisualProps,
   DrivingStyleVisualProps,
   FlowSplitVisualProps,
   SolarMismatchVisualProps,
   CylinderChargeVisualProps,
+  HeatParticlesVisualProps,
 } from './physicsVisualTypes';
 
 import DrivingStyleVisual from './visuals/DrivingStyleVisual';
 import FlowSplitVisual from './visuals/FlowSplitVisual';
 import SolarMismatchVisual from './visuals/SolarMismatchVisual';
 import CylinderChargeVisual from './visuals/CylinderChargeVisual';
+import HeatParticlesVisual from './visuals/HeatParticlesVisual';
 import BoilerCyclingAnimation from '../whatif/BoilerCyclingAnimation';
 import FlowRestrictionAnimation from '../whatif/FlowRestrictionAnimation';
 import RadiatorUpgradeAnimation from '../whatif/RadiatorUpgradeAnimation';
@@ -38,8 +41,8 @@ export type PhysicsVisualDataMap = {
   flow_split: Omit<FlowSplitVisualProps, keyof PhysicsVisualProps>;
   solar_mismatch: Omit<SolarMismatchVisualProps, keyof PhysicsVisualProps>;
   cylinder_charge: Omit<CylinderChargeVisualProps, keyof PhysicsVisualProps>;
-  // Future visuals — currently no data required beyond shared props
-  heat_particles: Record<string, never>;
+  heat_particles: Omit<HeatParticlesVisualProps, keyof PhysicsVisualProps>;
+  // Remaining visuals — currently no data required beyond shared props
   bees_vs_tortoise: Record<string, never>;
   sponge: Record<string, never>;
   u_gauge: Record<string, never>;
@@ -57,6 +60,8 @@ export interface PhysicsVisualRendererProps<T extends PhysicsVisualId> extends P
   id: T;
   /** Domain-specific data for the chosen visual. */
   data?: PhysicsVisualDataMap[T];
+  /** Display context passed to visuals that support layout adaptation. */
+  displayMode?: VisualDisplayMode;
 }
 
 // ─── Renderer ──────────────────────────────────────────────────────────────────
@@ -67,8 +72,9 @@ export default function PhysicsVisual<T extends PhysicsVisualId>({
   reducedMotion,
   emphasis,
   caption,
+  displayMode,
 }: PhysicsVisualRendererProps<T>) {
-  const shared: PhysicsVisualProps = { reducedMotion, emphasis, caption };
+  const shared: PhysicsVisualProps = { reducedMotion, emphasis, caption, displayMode };
 
   switch (id) {
     case 'driving_style': {
@@ -96,6 +102,14 @@ export default function PhysicsVisual<T extends PhysicsVisualId>({
         <CylinderChargeVisual
           {...shared}
           {...(data as Omit<CylinderChargeVisualProps, keyof PhysicsVisualProps>)}
+        />
+      );
+
+    case 'heat_particles':
+      return (
+        <HeatParticlesVisual
+          {...shared}
+          {...(data as Omit<HeatParticlesVisualProps, keyof PhysicsVisualProps>)}
         />
       );
 

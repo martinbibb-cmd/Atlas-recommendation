@@ -23,6 +23,7 @@ export default function CylinderChargeVisual({
   mixergyMode = false,
   reducedMotion = false,
   emphasis = 'medium',
+  displayMode = 'preview',
   caption,
 }: CylinderChargeVisualProps) {
   const clampedLevel = Math.max(0, Math.min(1, fillLevel));
@@ -35,7 +36,7 @@ export default function CylinderChargeVisual({
 
   return (
     <div
-      className={`ccv ccv--emphasis-${emphasis}${mixergyMode ? ' ccv--mixergy' : ''}${reducedMotion ? ' ccv--reduced-motion' : ''}`}
+      className={`ccv ccv--emphasis-${emphasis} ccv--mode-${displayMode}${mixergyMode ? ' ccv--mixergy' : ''}${reducedMotion ? ' ccv--reduced-motion' : ''}`}
       role="img"
       aria-label={`Cylinder charge: ${chargeLabel} (${fillPercent}%)`}
     >

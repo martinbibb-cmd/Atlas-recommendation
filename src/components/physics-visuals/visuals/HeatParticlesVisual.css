@@ -1,0 +1,428 @@
+/*
+ * HeatParticlesVisual.css
+ *
+ * BEM prefix: .hpv
+ *
+ * Renders a wall cross-section with animated heat particles showing:
+ *   - Conduction: orange dots travelling left-to-right through wall layers
+ *   - Convection: warm air particles cycling up the interior face
+ *
+ * Wall type modifiers:
+ *   .hpv--solid_masonry       — three solid layers, fast conduction
+ *   .hpv--cavity_uninsulated  — four layers with air gap, medium conduction
+ *   .hpv--cavity_insulated    — four layers with insulation fill, slow conduction
+ *
+ * Display mode modifiers:
+ *   .hpv--mode-inline    — compact, no legend, reduced padding
+ *   .hpv--mode-focus     — full-size, labels visible, legend shown
+ *   .hpv--mode-preview   — default gallery size
+ *
+ * Reduced motion:
+ *   .hpv--reduced-motion — all animations disabled; particles/arrows are static
+ */
+
+/* ─── Block ─────────────────────────────────────────────────────────────────── */
+
+.hpv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-default, #fff);
+  border-radius: var(--radius-lg, 8px);
+  border: 1px solid var(--border-default, #e0e0e0);
+  overflow: hidden;
+  position: relative;
+}
+
+/* ─── Mode overrides ────────────────────────────────────────────────────────── */
+
+.hpv--mode-inline {
+  padding: var(--space-2);
+  gap: var(--space-2);
+  border-radius: var(--radius-md, 6px);
+}
+
+.hpv--mode-focus {
+  padding: var(--space-4);
+  gap: var(--space-4);
+}
+
+/* ─── Scene ─────────────────────────────────────────────────────────────────── */
+
+.hpv__scene {
+  display: grid;
+  grid-template-columns: 72px 1fr 72px;
+  align-items: stretch;
+  min-height: 140px;
+  gap: 0;
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
+}
+
+.hpv--mode-inline .hpv__scene {
+  min-height: 100px;
+  grid-template-columns: 52px 1fr 52px;
+}
+
+.hpv--mode-focus .hpv__scene {
+  min-height: 180px;
+}
+
+/* ─── Interior ──────────────────────────────────────────────────────────────── */
+
+.hpv__interior {
+  background: linear-gradient(to right, #fff3e0, #ffe0b2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  position: relative;
+  overflow: hidden;
+}
+
+.hpv__exterior {
+  background: linear-gradient(to right, #e3f2fd, #bbdefb);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+}
+
+.hpv__room-label {
+  font-size: var(--text-2xs, 10px);
+  font-weight: 600;
+  color: var(--text-secondary, #666);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hpv__interior-label,
+.hpv__exterior-label {
+  font-size: var(--text-2xs, 10px);
+  color: var(--text-muted, #999);
+  text-align: center;
+}
+
+/* Hide labels in inline mode to keep things compact */
+.hpv--mode-inline .hpv__interior-label,
+.hpv--mode-inline .hpv__exterior-label,
+.hpv--mode-inline .hpv__room-label {
+  display: none;
+}
+
+/* ─── Convection track ──────────────────────────────────────────────────────── */
+
+.hpv__convection-track {
+  position: relative;
+  width: 28px;
+  height: 80px;
+  margin: auto;
+}
+
+.hpv--mode-inline .hpv__convection-track {
+  height: 56px;
+  width: 22px;
+}
+
+/* ─── Air particles (convection) ────────────────────────────────────────────── */
+
+.hpv__air-particle {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff8f00;
+  opacity: 0.8;
+}
+
+.hpv--mode-inline .hpv__air-particle {
+  width: 6px;
+  height: 6px;
+}
+
+.hpv__air-particle--offset-0 { top: 75%; }
+.hpv__air-particle--offset-1 { top: 50%; }
+.hpv__air-particle--offset-2 { top: 25%; }
+
+/* Convection rise animation */
+@keyframes hpv-air-rise {
+  0%   { top: 80%; opacity: 0.5; }
+  80%  { opacity: 0.9; }
+  100% { top: 5%;  opacity: 0; }
+}
+
+.hpv__air-particle--fast.hpv__air-particle--offset-0 {
+  animation: hpv-air-rise 1.2s ease-in infinite;
+}
+.hpv__air-particle--fast.hpv__air-particle--offset-1 {
+  animation: hpv-air-rise 1.2s ease-in 0.4s infinite;
+}
+.hpv__air-particle--fast.hpv__air-particle--offset-2 {
+  animation: hpv-air-rise 1.2s ease-in 0.8s infinite;
+}
+
+.hpv__air-particle--medium.hpv__air-particle--offset-0 {
+  animation: hpv-air-rise 1.8s ease-in infinite;
+}
+.hpv__air-particle--medium.hpv__air-particle--offset-1 {
+  animation: hpv-air-rise 1.8s ease-in 0.6s infinite;
+}
+.hpv__air-particle--medium.hpv__air-particle--offset-2 {
+  animation: hpv-air-rise 1.8s ease-in 1.2s infinite;
+}
+
+.hpv__air-particle--slow.hpv__air-particle--offset-0 {
+  animation: hpv-air-rise 2.8s ease-in infinite;
+}
+.hpv__air-particle--slow.hpv__air-particle--offset-1 {
+  animation: hpv-air-rise 2.8s ease-in 0.9s infinite;
+}
+.hpv__air-particle--slow.hpv__air-particle--offset-2 {
+  animation: hpv-air-rise 2.8s ease-in 1.8s infinite;
+}
+
+/* Static fallback */
+.hpv__air-particle--static {
+  animation: none !important;
+  top: 50% !important;
+  opacity: 0.6;
+}
+
+/* ─── Convection arrow (reduced motion / inline) ────────────────────────────── */
+
+.hpv__convection-arrow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 10px solid #ff8f00;
+  opacity: 0.7;
+}
+
+/* ─── Wall cross-section ────────────────────────────────────────────────────── */
+
+.hpv__wall {
+  display: flex;
+  flex-direction: row;
+  position: relative;
+  background: #bdbdbd;
+}
+
+/* Wall layer fills */
+.hpv__layer {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: var(--space-1);
+  min-height: 100%;
+}
+
+.hpv__layer--plaster      { background: #e0d7c8; flex: 0.5; }
+.hpv__layer--brick-solid  { background: #c8956c; flex: 2; }
+.hpv__layer--render       { background: #d4c4a8; flex: 0.5; }
+.hpv__layer--brick-inner  { background: #c8956c; flex: 1.5; }
+.hpv__layer--cavity       { background: #e8e8d0; flex: 0.8; }
+.hpv__layer--insulation   { background: #fff9c4; flex: 0.8; }
+.hpv__layer--brick-outer  { background: #b87245; flex: 1.5; }
+
+.hpv__layer-label {
+  font-size: var(--text-2xs, 9px);
+  color: rgba(0,0,0,0.55);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 60px;
+}
+
+/* Hide layer labels in inline mode */
+.hpv--mode-inline .hpv__layer-label {
+  display: none;
+}
+
+/* ─── Conduction particles ──────────────────────────────────────────────────── */
+
+.hpv__particle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ff6f00;
+  box-shadow: 0 0 5px 2px rgba(255,111,0,0.4);
+  left: 0;
+  pointer-events: none;
+}
+
+.hpv--mode-inline .hpv__particle {
+  width: 7px;
+  height: 7px;
+}
+
+.hpv__particle--row-0 { top: 18%; }
+.hpv__particle--row-1 { top: 36%; }
+.hpv__particle--row-2 { top: 58%; }
+.hpv__particle--row-3 { top: 76%; }
+
+/* Conduction travel animation — particle travels from left (inside) to right (outside) */
+@keyframes hpv-conduct {
+  0%   { left: 0;    opacity: 0; }
+  10%  {             opacity: 1; }
+  90%  {             opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+.hpv__particle--fast.hpv__particle--row-0 {
+  animation: hpv-conduct 1.0s linear infinite;
+}
+.hpv__particle--fast.hpv__particle--row-1 {
+  animation: hpv-conduct 1.0s linear 0.25s infinite;
+}
+.hpv__particle--fast.hpv__particle--row-2 {
+  animation: hpv-conduct 1.0s linear 0.5s infinite;
+}
+.hpv__particle--fast.hpv__particle--row-3 {
+  animation: hpv-conduct 1.0s linear 0.75s infinite;
+}
+
+.hpv__particle--medium.hpv__particle--row-0 {
+  animation: hpv-conduct 1.8s linear infinite;
+}
+.hpv__particle--medium.hpv__particle--row-1 {
+  animation: hpv-conduct 1.8s linear 0.45s infinite;
+}
+.hpv__particle--medium.hpv__particle--row-2 {
+  animation: hpv-conduct 1.8s linear 0.9s infinite;
+}
+.hpv__particle--medium.hpv__particle--row-3 {
+  animation: hpv-conduct 1.8s linear 1.35s infinite;
+}
+
+.hpv__particle--slow.hpv__particle--row-0 {
+  animation: hpv-conduct 3.2s linear infinite;
+}
+.hpv__particle--slow.hpv__particle--row-1 {
+  animation: hpv-conduct 3.2s linear 0.8s infinite;
+}
+.hpv__particle--slow.hpv__particle--row-2 {
+  animation: hpv-conduct 3.2s linear 1.6s infinite;
+}
+.hpv__particle--slow.hpv__particle--row-3 {
+  animation: hpv-conduct 3.2s linear 2.4s infinite;
+}
+
+/* Static fallback — position midway */
+.hpv__particle--static {
+  animation: none !important;
+  left: 40% !important;
+  opacity: 0.7;
+}
+
+/* ─── Loss badge ────────────────────────────────────────────────────────────── */
+
+.hpv__loss-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 3px 10px;
+  border-radius: var(--radius-full, 999px);
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.hpv__loss-badge--high {
+  background: #ffebe6;
+  color: #c0392b;
+}
+
+.hpv__loss-badge--medium {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.hpv__loss-badge--low {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+/* ─── Legend ────────────────────────────────────────────────────────────────── */
+
+.hpv__legend {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.hpv__legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs, 11px);
+  color: var(--text-secondary, #666);
+}
+
+.hpv__legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.hpv__legend-item--conduction .hpv__legend-dot { background: #ff6f00; }
+.hpv__legend-item--convection .hpv__legend-dot { background: #ff8f00; opacity: 0.8; }
+
+/* ─── Caption ───────────────────────────────────────────────────────────────── */
+
+.hpv__caption {
+  font-size: var(--text-xs, 11px);
+  color: var(--text-muted, #999);
+  margin: 0;
+}
+
+/* ─── Reduced motion ────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .hpv__particle,
+  .hpv__air-particle {
+    animation: none !important;
+  }
+
+  .hpv__particle {
+    left: 40% !important;
+    opacity: 0.7;
+  }
+
+  .hpv__air-particle {
+    top: 50% !important;
+    opacity: 0.6;
+  }
+}
+
+.hpv--reduced-motion .hpv__particle,
+.hpv--reduced-motion .hpv__air-particle {
+  animation: none !important;
+}
+
+.hpv--reduced-motion .hpv__particle {
+  left: 40% !important;
+  opacity: 0.7;
+}
+
+.hpv--reduced-motion .hpv__air-particle {
+  top: 50% !important;
+  opacity: 0.6;
+}

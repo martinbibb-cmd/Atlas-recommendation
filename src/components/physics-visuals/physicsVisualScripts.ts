@@ -24,6 +24,8 @@ const SCRIPTS: Record<PhysicsVisualId, PhysicsVisualScript> = {
       'A heat pump runs slowly for long periods — low output, low cycling, very efficient.',
     ],
     takeaway: 'Smooth and steady wins on efficiency. Burst firing suits fast on-demand needs.',
+    focusCopy:
+      'The rhythm of a heating system matters as much as its output. A combi boiler fires at full rate and cuts out repeatedly — this "bang-bang" pattern stresses components and wastes energy on each cold start. A stored-water system runs more like a car on a motorway: longer, smoother, with fewer gear changes. A heat pump takes this further: it runs for hours at very low output, never over-shooting, always condensing efficiently. When comparing systems, ask not just "how much heat?" but "how does it deliver that heat over time?"',
   },
 
   flow_split: {
@@ -37,6 +39,8 @@ const SCRIPTS: Record<PhysicsVisualId, PhysicsVisualScript> = {
     ],
     takeaway:
       'If your household runs several outlets at the same time, mains-fed supply needs checking.',
+    focusCopy:
+      'A combi boiler draws directly from the mains. There is no stored buffer — every outlet competes for the same incoming flow. In a household with two bathrooms or three or more people, simultaneous demand (a shower while someone runs a tap downstairs) regularly halves the available pressure at each outlet. A stored-water cylinder removes this dependency: it delivers at cylinder pressure, not mains pressure, so simultaneous demand does not cause the same drop-off.',
   },
 
   solar_mismatch: {
@@ -50,6 +54,8 @@ const SCRIPTS: Record<PhysicsVisualId, PhysicsVisualScript> = {
     ],
     takeaway:
       'Storage — either a battery or a hot water cylinder — bridges that gap and captures free solar energy.',
+    focusCopy:
+      'Without storage, solar electricity generated at midday either gets exported to the grid at a low rate or goes unused. A hot water cylinder acts as a cheap thermal battery: it can be instructed to heat up during peak generation hours, storing that energy for use in the morning and evening peaks. This "solar divert" strategy can significantly cut heating bills without needing a separate battery installation. A heat pump with an appropriately sized cylinder amplifies this effect further, because it uses electricity more efficiently than a direct electric immersion.',
   },
 
   cylinder_charge: {
@@ -63,6 +69,8 @@ const SCRIPTS: Record<PhysicsVisualId, PhysicsVisualScript> = {
     ],
     takeaway:
       'A well-sized cylinder removes the rush — no waiting for a boiler to catch up under demand.',
+    focusCopy:
+      'A stored-water system decouples generation from demand. The heat source (boiler or heat pump) can run at the most efficient time — overnight on cheap tariffs, or during solar generation — and the cylinder holds that energy for use whenever the household needs it. This is why cylinder sizing matters: too small and it runs out during peak use; too large and reheating takes longer and loses more heat through the jacket. A Mixergy-style cylinder improves on this by charging from the top down, so even a partially charged cylinder delivers full-temperature water immediately.',
   },
 
   heat_particles: {
@@ -75,6 +83,8 @@ const SCRIPTS: Record<PhysicsVisualId, PhysicsVisualScript> = {
       'Better insulation slows both down.',
     ],
     takeaway: 'Stopping heat escaping is the first step — before choosing a new heating system.',
+    focusCopy:
+      'In an uninsulated cavity wall, heat conducts steadily outward through the brick leaves while the air gap provides only partial resistance. Add insulation and you disrupt conductive pathways and suppress convection within the cavity — both loss routes slow significantly. Solid masonry walls have no cavity at all, so conduction is the dominant pathway and losses per degree-day are higher. Understanding which mechanism dominates in a given wall type is how you prioritise: solid walls and roof together account for the majority of fabric heat loss in pre-1940 UK housing stock.',
   },
 
   bees_vs_tortoise: {

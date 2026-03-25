@@ -25,16 +25,49 @@ export type PhysicsVisualId =
   | 'radiator_upgrade'
   | 'controls_upgrade';
 
+// ─── Display mode ──────────────────────────────────────────────────────────────
+
+/**
+ * Three-state display contract shared by every visual.
+ *
+ *   preview  — gallery / demo thumbnail (current default)
+ *   inline   — compact version used inside a presentation page
+ *   focus    — expanded interactive version with full copy
+ */
+export type VisualDisplayMode = 'preview' | 'inline' | 'focus';
+
 // ─── Registry entry ────────────────────────────────────────────────────────────
 
 export interface PhysicsVisualDefinition {
   id: PhysicsVisualId;
   title: string;
+  /** One-sentence plain-English concept statement. */
+  concept: string;
+  /** Longer developer-facing description of what the visual illustrates. */
   purpose: string;
   /** Animation loop duration in milliseconds. */
   defaultDurationMs?: number;
   supportsReducedMotion?: boolean;
   category: 'heat' | 'water' | 'energy' | 'controls' | 'system_behaviour';
+  /** Which display modes this visual fully supports. */
+  displayModes: VisualDisplayMode[];
+  /** Whether the visual has interactive controls (e.g. sliders, toggles). */
+  supportsInteraction?: boolean;
+  /**
+   * Presentation page types where this visual is appropriate.
+   * Used by the page layer to select visuals declaratively.
+   */
+  applicablePages?: string[];
+  /**
+   * System families this visual is relevant to.
+   * Matches the family identifiers used by the recommendation engine.
+   */
+  applicableSystemFamilies?: string[];
+  /**
+   * Engine signal keys that trigger or enrich this visual.
+   * Used for future signal-driven visual selection.
+   */
+  applicableSignalTypes?: string[];
 }
 
 // ─── Shared visual props ───────────────────────────────────────────────────────
@@ -50,6 +83,13 @@ export interface PhysicsVisualProps {
   emphasis?: 'low' | 'medium' | 'high';
   /** Optional accessible caption rendered below the visual. */
   caption?: string;
+  /**
+   * Display context. Defaults to 'preview' when omitted.
+   *   inline  — compact layout for use inside a presentation page
+   *   focus   — expanded layout with full interactive controls
+   *   preview — default gallery/demo size
+   */
+  displayMode?: VisualDisplayMode;
 }
 
 // ─── Per-visual prop extensions ───────────────────────────────────────────────
@@ -85,15 +125,27 @@ export interface CylinderChargeVisualProps extends PhysicsVisualProps {
   mixergyMode?: boolean;
 }
 
+export interface HeatParticlesVisualProps extends PhysicsVisualProps {
+  /**
+   * Wall construction type — affects how quickly particles conduct
+   * through the wall section.
+   */
+  wallType?: 'solid_masonry' | 'cavity_uninsulated' | 'cavity_insulated';
+}
+
 // ─── Script contract ───────────────────────────────────────────────────────────
 
 /**
  * Short explanatory copy tied to a single visual.
  * Kept brief and dyslexia-friendly — one idea per bullet.
+ *
+ * focusCopy is optional longer prose shown only in focus mode.
  */
 export interface PhysicsVisualScript {
   title: string;
   summary: string;
   bullets?: string[];
   takeaway?: string;
+  /** Extended copy shown only in focus display mode. */
+  focusCopy?: string;
 }

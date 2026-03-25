@@ -50,6 +50,7 @@ export default function SolarMismatchVisual({
   highlightHour,
   reducedMotion = false,
   emphasis = 'medium',
+  displayMode = 'preview',
   caption,
 }: SolarMismatchVisualProps) {
   const gen = useMemo(() => generationProfile(), []);
@@ -57,7 +58,7 @@ export default function SolarMismatchVisual({
 
   return (
     <div
-      className={`smv smv--emphasis-${emphasis}${reducedMotion ? ' smv--reduced-motion' : ''}`}
+      className={`smv smv--emphasis-${emphasis} smv--mode-${displayMode}${reducedMotion ? ' smv--reduced-motion' : ''}`}
       role="img"
       aria-label="Solar generation peaks at midday; household demand peaks in the morning and evening"
     >
