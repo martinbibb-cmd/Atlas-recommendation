@@ -27,6 +27,7 @@ import HouseHeatMapPanel from '../live/HouseHeatMapPanel';
 import HotWaterDemandPanel from '../live/HotWaterDemandPanel';
 import EvidenceRecommendationPanel from '../recommendation/EvidenceRecommendationPanel';
 import PvDemographicsDebugCard from './PvDemographicsDebugCard';
+import CanonicalPresentationPage from '../presentation/CanonicalPresentationPage';
 import './results.css';
 import '../../live/LiveHubPage.css';
 
@@ -1048,6 +1049,17 @@ export default function RecommendationHub({ result, input }: Props) {
       <div className="rec-hub__sticky-strip">
         <TrustStrip result={result} />
       </div>
+
+      {/* 1 — Canonical presentation (house/home/energy/system/objectives — physics-first) */}
+      {input && (
+        <section className="rec-hub__section" aria-label="Canonical presentation">
+          <CanonicalPresentationPage
+            result={result}
+            input={input}
+            recommendationResult={result.recommendationResult}
+          />
+        </section>
+      )}
 
       {/* 1a — Evidence-backed recommendation (PR11/PR12 canonical output) */}
       <section className="rec-hub__section" aria-label="Evidence-backed recommendation">
