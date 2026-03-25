@@ -1,0 +1,339 @@
+/*
+ * PhysicsVisualGallery.css
+ *
+ * BEM prefix: .pvg
+ *
+ * Developer preview gallery for the Atlas Physics Visual Library.
+ * Responsive card grid — 1 column on narrow screens, 2 on medium+.
+ */
+
+/* ─── Block ─────────────────────────────────────────────────────────────────── */
+
+.pvg {
+  max-width: var(--max-width-wide, 1100px);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* ─── Page header ───────────────────────────────────────────────────────────── */
+
+.pvg__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.pvg__back-btn {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition-fast);
+}
+
+.pvg__back-btn:hover {
+  background: var(--surface-subtle);
+}
+
+.pvg__title-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.pvg__page-title {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  line-height: var(--leading-tight);
+}
+
+.pvg__page-subtitle {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  max-width: 480px;
+}
+
+/* ─── Filter row ────────────────────────────────────────────────────────────── */
+
+.pvg__filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.pvg__filter-btn {
+  background: var(--surface-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-transform: capitalize;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.pvg__filter-btn:hover {
+  background: var(--surface-subtle);
+}
+
+.pvg__filter-btn--active {
+  background: var(--color-indigo-600, #4f46e5);
+  border-color: var(--color-indigo-600, #4f46e5);
+  color: #fff;
+}
+
+/* ─── Grid ──────────────────────────────────────────────────────────────────── */
+
+.pvg__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 700px) {
+  .pvg__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ─── Card ──────────────────────────────────────────────────────────────────── */
+
+.pvg__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--surface-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ─── Card header ───────────────────────────────────────────────────────────── */
+
+.pvg__card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.pvg__card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.pvg__category {
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  width: fit-content;
+}
+
+.pvg__category--heat             { background: #fee2e2; color: #991b1b; }
+.pvg__category--water            { background: #dbeafe; color: #1e40af; }
+.pvg__category--energy           { background: #fef9c3; color: #854d0e; }
+.pvg__category--controls         { background: #f3e8ff; color: #6b21a8; }
+.pvg__category--system_behaviour { background: #dcfce7; color: #166534; }
+
+.pvg__card-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  line-height: var(--leading-tight);
+}
+
+.pvg__card-purpose {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.pvg__card-flags {
+  flex-shrink: 0;
+}
+
+.pvg__flag {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ─── Visual section ────────────────────────────────────────────────────────── */
+
+.pvg__visual-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.pvg__visual-frame {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-3);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-lg);
+  min-height: 120px;
+  align-items: center;
+}
+
+.pvg__visual-frame--placeholder {
+  border: 1px dashed var(--border-default);
+}
+
+.pvg__coming-soon {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ─── Controls ──────────────────────────────────────────────────────────────── */
+
+.pvg__controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pvg__control-label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.pvg__btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.pvg__btn {
+  background: var(--surface-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 3px var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.pvg__btn:hover {
+  background: var(--surface-subtle);
+}
+
+.pvg__btn--active {
+  background: var(--color-indigo-100, #e0e7ff);
+  border-color: var(--color-indigo-400, #818cf8);
+  color: var(--color-indigo-700, #4338ca);
+  font-weight: var(--weight-medium);
+}
+
+.pvg__slider {
+  width: 100%;
+  cursor: pointer;
+}
+
+/* ─── Reduced motion toggle row ─────────────────────────────────────────────── */
+
+.pvg__motion-row {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-2);
+}
+
+.pvg__motion-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* ─── Script section ────────────────────────────────────────────────────────── */
+
+.pvg__script-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.pvg__script-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.pvg__script-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.pvg__script {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pvg__script-summary {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-body);
+  line-height: var(--leading-relaxed);
+}
+
+.pvg__script-bullets {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pvg__script-bullets li {
+  font-size: var(--text-xs);
+  color: var(--text-body);
+  line-height: var(--leading-relaxed);
+}
+
+.pvg__script-takeaway {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  border-left: 3px solid var(--color-indigo-400, #818cf8);
+  padding-left: var(--space-2);
+}
