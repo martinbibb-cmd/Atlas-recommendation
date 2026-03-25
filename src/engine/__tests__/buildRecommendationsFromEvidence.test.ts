@@ -576,3 +576,50 @@ describe('buildRecommendationsFromEvidence — structural', () => {
     expect(result.confidenceSummary.evidenceCount).toBeGreaterThan(0);
   });
 });
+
+// ─── ProductConstraints — UFH filter ─────────────────────────────────────────
+
+describe('buildRecommendationsFromEvidence — ProductConstraints', () => {
+  it('add_underfloor_heating is excluded from interventions by default (no constraints provided)', () => {
+    const hp     = hpBundle(HP_PENALTY_INPUT);
+    const system = systemBundle(CLEAN_INPUT);
+
+    const result = buildRecommendationsFromEvidence([hp, system]);
+
+    expect(result.interventions.some(i => i.id === 'add_underfloor_heating')).toBe(false);
+  });
+
+  it('add_underfloor_heating is excluded when allowUFH is false', () => {
+    const hp     = hpBundle(HP_PENALTY_INPUT);
+    const system = systemBundle(CLEAN_INPUT);
+
+    const result = buildRecommendationsFromEvidence([hp, system], { allowUFH: false });
+
+    expect(result.interventions.some(i => i.id === 'add_underfloor_heating')).toBe(false);
+  });
+
+  it('add_underfloor_heating is included when allowUFH is true', () => {
+    const hp     = hpBundle(HP_PENALTY_INPUT);
+    const system = systemBundle(CLEAN_INPUT);
+
+    const result = buildRecommendationsFromEvidence([hp, system], { allowUFH: true });
+
+    // The HP_PENALTY_INPUT has a high design flow temp, which should trigger
+    // emitter_temperature_constraint or hp_high_flow_temp_penalty — both include
+    // add_underfloor_heating in their candidateInterventions.
+    expect(result.interventions.some(i => i.id === 'add_underfloor_heating')).toBe(true);
+  });
+
+  it('other interventions are unaffected by the UFH constraint', () => {
+    const hp     = hpBundle(HP_PENALTY_INPUT);
+    const system = systemBundle(CLEAN_INPUT);
+
+    const resultWithConstraint    = buildRecommendationsFromEvidence([hp, system], { allowUFH: false });
+    const resultWithoutConstraint = buildRecommendationsFromEvidence([hp, system]);
+
+    // Both should have the same non-UFH interventions
+    const nonUfhWith    = resultWithConstraint.interventions.filter(i => i.id !== 'add_underfloor_heating');
+    const nonUfhWithout = resultWithoutConstraint.interventions.filter(i => i.id !== 'add_underfloor_heating');
+    expect(nonUfhWith).toEqual(nonUfhWithout);
+  });
+});

@@ -149,7 +149,11 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
       ? result
       : selectRunner(familyTopology)(input, familyTopology);
     const events = buildDerivedEventsFromTimeline(familyResult.stateTimeline, familyTopology.appliance.family);
-    const limiterLedger = buildLimiterLedger(familyResult, events);
+    const limiterLedger = buildLimiterLedger(familyResult, events, {
+      occupancyCount: input.occupancyCount,
+      bathroomCount: input.bathroomCount,
+      peakConcurrentOutlets: input.peakConcurrentOutlets,
+    });
     const fitMap = buildFitMapModel(
       familyResult,
       familyResult.stateTimeline,
@@ -159,7 +163,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     return { runnerResult: familyResult, events, limiterLedger, fitMap };
   });
 
-  const recommendationResult = buildRecommendationsFromEvidence(bundles);
+  const recommendationResult = buildRecommendationsFromEvidence(bundles, input.productConstraints);
 
   const engineOutput = buildEngineOutputV1(core, input);
   const inputValidation = runEngineInputValidation(input);

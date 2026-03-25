@@ -27,7 +27,7 @@
  *   ModeToggle → real-data wiring → context panel → supporting actions.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
 import { runEngine } from '../../engine/Engine';
@@ -166,7 +166,17 @@ export default function PresentationFlow({
   }
 
   // ── Per-family data (from PR10 hook) ───────────────────────────────────
-  const { data: familyData } = useSelectedFamilyData(engineInput, activeFamily);
+  // The hook uses its second arg only as initial state. We use setSelectedFamily
+  // to keep the hook in sync whenever activeFamily changes (e.g. on mode toggle).
+  const { data: familyData, setSelectedFamily } = useSelectedFamilyData(engineInput, activeFamily);
+
+  useEffect(() => {
+    // Only update if the hook's state has drifted from the desired activeFamily,
+    // avoiding a redundant setState on the first render when they already match.
+    if (familyData.selectedFamily !== activeFamily) {
+      setSelectedFamily(activeFamily);
+    }
+  }, [activeFamily, familyData.selectedFamily, setSelectedFamily]);
 
   // ── Home summary chips ─────────────────────────────────────────────────
   const chips = useMemo(

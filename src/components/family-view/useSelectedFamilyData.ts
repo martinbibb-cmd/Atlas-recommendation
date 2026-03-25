@@ -158,7 +158,11 @@ function deriveSelectedFamilyData(
   const runnerResult = runFamilyRunner(family, input);
   const stateTimeline = runnerResult.stateTimeline;
   const events = buildDerivedEventsFromTimeline(stateTimeline, familyToTimelineFamily(family));
-  const limiterLedger = buildLimiterLedger(runnerResult, events);
+  const limiterLedger = buildLimiterLedger(runnerResult, events, {
+    occupancyCount: input.occupancyCount,
+    bathroomCount: input.bathroomCount,
+    peakConcurrentOutlets: input.peakConcurrentOutlets,
+  });
   const fitMap = buildFitMapModel(runnerResult, stateTimeline, events, limiterLedger);
   return { selectedFamily: family, runnerResult, stateTimeline, events, limiterLedger, fitMap };
 }
