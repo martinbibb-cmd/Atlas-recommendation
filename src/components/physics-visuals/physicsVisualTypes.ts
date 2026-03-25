@@ -130,7 +130,7 @@ export interface HeatParticlesVisualProps extends PhysicsVisualProps {
    * Wall construction type — affects how quickly particles conduct
    * through the wall section.
    */
-  wallType?: 'solid_masonry' | 'cavity_insulated' | 'cavity_uninsulated';
+  wallType?: 'solid_masonry' | 'cavity_uninsulated' | 'cavity_insulated';
 }
 
 // ─── Script contract ───────────────────────────────────────────────────────────

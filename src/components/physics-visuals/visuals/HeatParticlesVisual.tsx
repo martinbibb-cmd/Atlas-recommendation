@@ -11,7 +11,8 @@
  *   cavity_insulated    — slowest conduction (insulation blocks both pathways)
  *
  * reducedMotion: all particles become static; arrows show direction only.
- * displayMode:  inline hides the legend; focus shows the legend and wall labels.
+ * displayMode:  preview and focus show layer labels; inline hides them to stay compact.
+ *               Legend is hidden in inline mode.
  */
 
 import type { HeatParticlesVisualProps } from '../physicsVisualTypes';
@@ -79,7 +80,7 @@ export default function HeatParticlesVisual({
   caption,
 }: HeatParticlesVisualProps) {
   const config = WALL_CONFIG[wallType];
-  const showLabels = displayMode === 'focus' || displayMode === 'preview';
+  const showLabels = displayMode !== 'inline';
   const showLegend = displayMode !== 'inline';
 
   return (

@@ -413,7 +413,7 @@ export default function PhysicsVisualGallery({ onBack }: PhysicsVisualGalleryPro
           <h1 className="pvg__page-title">Physics Visual Library</h1>
           <p className="pvg__page-subtitle">
             Atlas explainer animations — preview and review surface.
-            5 fully implemented physics visuals (driving style, flow split, solar mismatch, cylinder charge, heat particles) plus 4 wired whatif animations; remaining placeholders shown as stubs.
+            5 fully implemented physics visuals (Heating Behaviour Styles, Simultaneous Outlet Demand, Solar Generation vs Demand, Stored Water Charge, Heat Transfer Through Walls) plus 4 wired animations; remaining placeholders shown as stubs.
             Each card supports preview / inline / focus display modes.
           </p>
         </div>
