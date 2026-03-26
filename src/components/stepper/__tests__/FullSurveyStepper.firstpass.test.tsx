@@ -52,22 +52,22 @@ async function advanceToStep(user: ReturnType<typeof userEvent.setup>, targetInd
 // ─── Deep content hidden by default ──────────────────────────────────────────
 
 describe('FullSurveyStepper — deep explanatory content hidden by default', () => {
-  it('does not render the hydraulic flow-demand chart on initial mount of step 3', async () => {
+  it('does not render the hydraulic flow-demand chart on initial mount of step 4', async () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    // Advance to step 3 (hydraulic — index 2).
-    await advanceToStep(user, 2);
+    // Advance to step 4 (hydraulic — index 3, after the new services step at index 2).
+    await advanceToStep(user, 3);
 
     // The detail section should be absent until the toggle is clicked.
     expect(document.querySelector('[data-testid="survey-hydraulic-detail"]')).toBeNull();
   });
 
-  it('renders the hydraulic detail-toggle button on step 3', async () => {
+  it('renders the hydraulic detail-toggle button on step 4', async () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 2);
+    await advanceToStep(user, 3);
 
     expect(document.querySelector('[data-testid="survey-hydraulic-detail-toggle"]')).not.toBeNull();
   });
@@ -76,7 +76,7 @@ describe('FullSurveyStepper — deep explanatory content hidden by default', () 
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 2);
+    await advanceToStep(user, 3);
 
     const toggle = document.querySelector('[data-testid="survey-hydraulic-detail-toggle"]') as HTMLElement;
     await user.click(toggle);
@@ -84,21 +84,21 @@ describe('FullSurveyStepper — deep explanatory content hidden by default', () 
     expect(document.querySelector('[data-testid="survey-hydraulic-detail"]')).not.toBeNull();
   });
 
-  it('does not render the hot-water outlet analysis on initial mount of step 5', async () => {
+  it('does not render the hot-water outlet analysis on initial mount of step 7', async () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    // Advance to step 5 (hot_water — index 5 with new system_builder step at index 3).
-    await advanceToStep(user, 5);
+    // Advance to step 7 (hot_water — index 6, with services at index 2 and system_builder at index 4).
+    await advanceToStep(user, 6);
 
     expect(document.querySelector('[data-testid="survey-hotwater-analysis"]')).toBeNull();
   }, 15000);
 
-  it('renders the hot-water analysis toggle button on step 5', async () => {
+  it('renders the hot-water analysis toggle button on step 7', async () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 5);
+    await advanceToStep(user, 6);
 
     expect(document.querySelector('[data-testid="survey-hotwater-analysis-toggle"]')).not.toBeNull();
   }, 15000);
@@ -107,7 +107,7 @@ describe('FullSurveyStepper — deep explanatory content hidden by default', () 
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 5);
+    await advanceToStep(user, 6);
 
     const toggle = document.querySelector('[data-testid="survey-hotwater-analysis-toggle"]') as HTMLElement;
     await user.click(toggle);
@@ -119,12 +119,12 @@ describe('FullSurveyStepper — deep explanatory content hidden by default', () 
 // ─── onComplete routing ───────────────────────────────────────────────────────
 
 /**
- * Advance through ALL 8 survey steps and trigger the final action button.
- * Steps 1–7 use "Next →"; step 8 (overlay) uses "Run Full Analysis →".
+ * Advance through ALL 9 survey steps and trigger the final action button.
+ * Steps 1–8 use "Next →"; step 9 (overlay) uses "Run Full Analysis →".
  */
 async function completeFullSurvey(user: ReturnType<typeof userEvent.setup>) {
-  // Steps 1–7: click "Next →"
-  for (let i = 0; i < 7; i++) {
+  // Steps 1–8: click "Next →"
+  for (let i = 0; i < 8; i++) {
     // When on the System Architecture step, fill mandatory fields before advancing.
     if (document.querySelector('[data-testid="system-builder-step"]')) {
       await fillSystemBuilderMinimum(user);
@@ -132,13 +132,13 @@ async function completeFullSurvey(user: ReturnType<typeof userEvent.setup>) {
     const nextBtn = screen.getByRole('button', { name: /Next →/ });
     await user.click(nextBtn);
   }
-  // Step 8 (overlay): click "Run Full Analysis →"
+  // Step 9 (overlay): click "Run Full Analysis →"
   const finalBtn = screen.getByRole('button', { name: /Run Full Analysis/ });
   await user.click(finalBtn);
 }
 
 describe('FullSurveyStepper — onComplete routing', () => {
-  it('calls onComplete with a clean EngineInputV2_3 after completing all 8 steps', async () => {
+  it('calls onComplete with a clean EngineInputV2_3 after completing all 9 steps', async () => {
     const onComplete = vi.fn();
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} onComplete={onComplete} />);

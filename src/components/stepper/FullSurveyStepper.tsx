@@ -53,6 +53,8 @@ import { EDUCATIONAL_EXPLAINERS } from '../../explainers/educational/content';
 import HeatLossCalculator from '../heatloss/HeatLossCalculator';
 import { SystemBuilderStep } from '../../features/survey/systemBuilder/SystemBuilderStep';
 import { INITIAL_SYSTEM_BUILDER_STATE } from '../../features/survey/systemBuilder/systemBuilderTypes';
+import { ServicesStep } from '../../features/survey/services/ServicesStep';
+import { INITIAL_WATER_QUALITY_STATE } from '../../features/survey/services/waterQualityTypes';
 
 interface Props {
   onBack: () => void;
@@ -74,10 +76,10 @@ interface Props {
   onDraft?: (draft: FullSurveyModelV1) => void;
 }
 
-type Step = 'location' | 'pressure' | 'hydraulic' | 'system_builder' | 'lifestyle' | 'hot_water' | 'commercial' | 'overlay';
-/** Step 9 ("results") is intentionally excluded — the survey ends at "overlay"
+type Step = 'location' | 'pressure' | 'services' | 'hydraulic' | 'system_builder' | 'lifestyle' | 'hot_water' | 'commercial' | 'overlay';
+/** Step 10 ("results") is intentionally excluded — the survey ends at "overlay"
  *  and the stepper transitions to hub mode after the engine run. */
-const STEPS: Step[] = ['location', 'pressure', 'hydraulic', 'system_builder', 'lifestyle', 'hot_water', 'commercial', 'overlay'];
+const STEPS: Step[] = ['location', 'pressure', 'services', 'hydraulic', 'system_builder', 'lifestyle', 'hot_water', 'commercial', 'overlay'];
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
 // Two independent physics dimensions:
@@ -570,6 +572,9 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   const [systemBuilderState, setSystemBuilderState] = useState(
     () => prefill?.fullSurvey?.systemBuilder ?? INITIAL_SYSTEM_BUILDER_STATE
   );
+  const [waterQualityState, setWaterQualityState] = useState(
+    () => prefill?.fullSurvey?.waterQuality ?? INITIAL_WATER_QUALITY_STATE
+  );
   const [overlayDetail, setOverlayDetail] = useState<{ systemLabel: string; rowLabel: string; step: Step; risk: RiskLevel; explanation: OverlayExplanation } | null>(null);
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
@@ -821,13 +826,14 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     window.scrollTo(0, 0);
   }, [currentStep]);
 
-  /** Build a draft that embeds compareMixergy and systemBuilder into fullSurvey for persistence. */
+  /** Build a draft that embeds compareMixergy, systemBuilder, and waterQuality into fullSurvey for persistence. */
   const buildDraft = (): FullSurveyModelV1 => ({
     ...input,
     fullSurvey: {
       ...input.fullSurvey,
       compareMixergy,
       systemBuilder: systemBuilderState,
+      waterQuality: waterQualityState,
     },
   });
 
@@ -1876,9 +1882,20 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
         </div>
       )}
 
+      {currentStep === 'services' && (
+        <ServicesStep
+          state={waterQualityState}
+          surveyPostcode={input.postcode}
+          onChange={setWaterQualityState}
+          onNext={next}
+          onPrev={prev}
+          showDebugOutput={true}
+        />
+      )}
+
       {currentStep === 'hydraulic' && (
         <div className="step-card">
-          <h2>🔧 Step 3: Hydraulic Integrity</h2>
+          <h2>🔧 Step 4: Hydraulic Integrity</h2>
 
           {/* ─── Physics levers + live panel ─────────────────────────────── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start', marginBottom: '1.5rem' }}>
@@ -2655,7 +2672,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
 
       {currentStep === 'hot_water' && (
         <div className="step-card">
-          <h2>🚿 Step 5: Hot Water Demand</h2>
+          <h2>🚿 Step 6: Hot Water Demand</h2>
 
           {/* ─── Canonical DHW setup path ─────────────────────────────────── */}
           <div data-testid="survey-dhw-setup" style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
@@ -3432,7 +3449,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
 
       {currentStep === 'commercial' && (
         <div className="step-card">
-          <h2>💼 Step 6: Installation approach</h2>
+          <h2>💼 Step 7: Installation approach</h2>
           <div className="form-grid">
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
               <label>🏗️ Upgrade strategy</label>
@@ -3687,7 +3704,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
 
         return (
           <div className="step-card">
-            <h2>🔬 Step 7: System Overlay</h2>
+            <h2>🔬 Step 8: System Overlay</h2>
 
             {/* Grid table */}
             <div style={{ overflowX: 'auto', marginTop: '0.5rem' }}>
@@ -3918,7 +3935,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   );
 }
 
-// ─── Step 3: Lifestyle & Thermal Comfort ─────────────────────────────────────
+// ─── Step 5: Lifestyle & Thermal Comfort ─────────────────────────────────────
 
 interface LifestyleStepProps {
   input: FullSurveyModelV1;
@@ -4101,7 +4118,7 @@ function LifestyleComfortStep({ input, fabricType, selectedArchetype, setInput, 
 
   return (
     <div className="step-card">
-      <h2>🏠 Step 4: Lifestyle &amp; Thermal Comfort</h2>
+      <h2>🏠 Step 5: Lifestyle &amp; Thermal Comfort</h2>
 
       {/* ── Household composition card ───────────────────────────────────── */}
       <div

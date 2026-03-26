@@ -1,7 +1,7 @@
 /**
  * VisitPage.persistence.test.tsx
  *
- * Tests for Step 5 hot-water persistence, save/retry state machine, and the
+ * Tests for Step 7 hot-water persistence, save/retry state machine, and the
  * global ExplainersOverlay (hamburger) in the stepper.
  *
  * Covers:
@@ -11,8 +11,8 @@
  *   - compareMixergy is hydrated from prefill.fullSurvey.compareMixergy
  *   - ExplainersOverlay launcher button is present in FullSurveyStepper header
  *   - SaveState type includes 'retrying'
- *   - Step 4 does NOT render the top live-physics strip (PR 3 duplicate removal)
- *   - Step 4 bottom dhw-demand-summary block remains present (PR 3 keep working summary)
+ *   - Step 6 does NOT render the top live-physics strip (PR 3 duplicate removal)
+ *   - Step 6 bottom dhw-demand-summary block remains present (PR 3 keep working summary)
  *   - Heating circuit condition fields (pumpingOverObserved, systemCircuitType,
  *     bleedWaterColour, checkbox observations) are preserved in the draft (PR 1)
  *   - Hydrated heatingCondition values are not overwritten by defaults on mount (PR 1)
@@ -107,7 +107,7 @@ describe('FullSurveyStepper — onDraft persistence callback', () => {
     };
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
-    await advanceToStep(user, 5); // step 5: hot_water (index 5 with new system_builder step at index 3)
+    await advanceToStep(user, 6); // step 7: hot_water (index 6 with services at index 2 and system_builder at index 4)
 
     const checkbox = screen.getByRole('checkbox', { name: /show mixergy comparison/i });
     await user.click(checkbox);
@@ -122,7 +122,7 @@ describe('FullSurveyStepper — onDraft persistence callback', () => {
 
 // ── compareMixergy hydration ──────────────────────────────────────────────────
 
-describe('FullSurveyStepper — Step 5 compareMixergy hydration from prefill', () => {
+describe('FullSurveyStepper — Step 7 compareMixergy hydration from prefill', () => {
   it('hydrates compareMixergy=true from fullSurvey.compareMixergy in prefill', async () => {
     const user = userEvent.setup();
     render(
@@ -137,7 +137,7 @@ describe('FullSurveyStepper — Step 5 compareMixergy hydration from prefill', (
       />
     );
 
-    await advanceToStep(user, 5); // hot_water is now at index 5
+    await advanceToStep(user, 6); // hot_water is now at index 6
 
     expect(screen.getByRole('checkbox', { name: /show mixergy comparison/i })).toBeChecked();
   }, 15000);
@@ -155,7 +155,7 @@ describe('FullSurveyStepper — Step 5 compareMixergy hydration from prefill', (
       />
     );
 
-    await advanceToStep(user, 5); // hot_water is now at index 5
+    await advanceToStep(user, 6); // hot_water is now at index 6
 
     expect(screen.getByRole('checkbox', { name: /show mixergy comparison/i })).not.toBeChecked();
   }, 15000);
@@ -198,35 +198,35 @@ describe('VisitPage — SaveState includes retrying variant', () => {
   });
 });
 
-// ── Step 5 duplicate strip removal (PR 3) ────────────────────────────────────
+// ── Step 6 duplicate strip removal (PR 3) ────────────────────────────────────
 
-describe('FullSurveyStepper — Step 5 duplicate live-physics strip removed', () => {
-  it('does not render the live-physics overlay panel on Step 5 (lifestyle)', async () => {
+describe('FullSurveyStepper — Step 6 duplicate live-physics strip removed', () => {
+  it('does not render the live-physics overlay panel on Step 6 (lifestyle)', async () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 4); // lifestyle is index 4 (system_builder added at index 3)
+    await advanceToStep(user, 5); // lifestyle is index 5 (services added at index 2, system_builder at index 4)
 
-    // The LivePhysicsOverlay has className 'live-physics-overlay' — must be absent on Step 5.
+    // The LivePhysicsOverlay has className 'live-physics-overlay' — must be absent on Step 6.
     expect(document.querySelector('.live-physics-overlay')).toBeNull();
   }, 15000);
 
-  it('still renders the dhw-demand-summary block on Step 5 (working bottom summary)', async () => {
+  it('still renders the dhw-demand-summary block on Step 6 (working bottom summary)', async () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 4); // lifestyle is index 4 (system_builder added at index 3)
+    await advanceToStep(user, 5); // lifestyle is index 5 (services added at index 2, system_builder at index 4)
 
     expect(document.querySelector('[data-testid="dhw-demand-summary"]')).not.toBeNull();
   }, 15000);
 
-  it('does not render the live-physics overlay on Step 5 regardless of engine output', async () => {
+  it('does not render the live-physics overlay on Step 6 regardless of engine output', async () => {
     // The overlayStepKey is null for 'lifestyle' so the overlay must not be
     // rendered even if the engine has produced output from a previous step.
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 4); // lifestyle is index 4 (system_builder added at index 3)
+    await advanceToStep(user, 5); // lifestyle is index 5 (services added at index 2, system_builder at index 4)
 
     // Allow any debounced engine tick to settle.
     await new Promise(r => setTimeout(r, 500));
