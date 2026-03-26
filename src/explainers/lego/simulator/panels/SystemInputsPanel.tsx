@@ -94,7 +94,7 @@ const CONTROL_STRATEGY_OPTIONS: { value: ControlStrategy; label: string; descrip
   { value: 'combi',      label: 'Combi',     description: 'on-demand hot water via plate HEX. No zone valves.' },
   { value: 's_plan',     label: 'S-plan',    description: 'Independent CH and DHW zones via motorised valves.' },
   { value: 'y_plan',     label: 'Y-plan',    description: 'Mid-position valve; cannot run CH and DHW fully simultaneously.' },
-  { value: 'heat_pump',  label: 'HP layout', description: 'Heat pump primary loop with thermal store cylinder.' },
+  { value: 'heat_pump',  label: 'HP layout', description: 'Heat pump primary loop with primary thermal store.' },
 ]
 
 /**

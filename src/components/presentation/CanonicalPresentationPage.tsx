@@ -119,10 +119,19 @@ function EnergySection({ energy }: { energy: EnergySignal }) {
 function CurrentSystemSection({ sys }: { sys: CurrentSystemSignal }) {
   return (
     <div className="cpp-visual-section">
-      <PresentationVisualSlot
-        visualId="driving_style"
-        visualData={{ mode: sys.drivingStyleMode }}
-      />
+      {sys.dhwStorageType === 'thermal_store' ? (
+        // Thermal stores always require high primary temperatures (75–85 °C) —
+        // that is the defining physics constraint of this architecture.
+        <PresentationVisualSlot
+          visualId="thermal_store"
+          visualData={{ flowTempBand: 'high' }}
+        />
+      ) : (
+        <PresentationVisualSlot
+          visualId="driving_style"
+          visualData={{ mode: sys.drivingStyleMode }}
+        />
+      )}
       <div className="cpp-visual-section__context">
         <p className="cpp-visual-section__context-detail">
           {sys.systemTypeLabel} · {sys.ageLabel}

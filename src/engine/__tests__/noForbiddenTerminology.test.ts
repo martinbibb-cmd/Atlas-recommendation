@@ -280,3 +280,43 @@ describe('No absolute/unsupported claims in source (EvidenceTiers guardrails)', 
     ).toHaveLength(0);
   });
 });
+
+// ─── Guardrails: thermal store must never be conflated with cylinder language ─
+//
+// A thermal store stores HEAT in primary circuit water, not finished domestic
+// hot water. The DHW is produced via a heat exchanger on draw-off.
+// Using "cylinder" or "stores hot water" for a thermal store is a physics error.
+
+describe('No thermal-store / cylinder conflation in source', () => {
+  const files = collectSourceFiles(SRC_DIR).filter(
+    f => !ALLOWED_FILES.has(path.basename(f)) && !f.includes('__tests__'),
+  );
+
+  it('does not contain "thermal store cylinder" (a thermal store is not a cylinder)', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const hits = findPhraseLines(file, 'thermal store cylinder');
+      if (hits.length > 0) {
+        violations.push(`${path.relative(SRC_DIR, file)}:\n${hits.join('\n')}`);
+      }
+    }
+    expect(
+      violations,
+      `Forbidden phrase "thermal store cylinder" found — a thermal store is not a cylinder:\n${violations.join('\n\n')}`,
+    ).toHaveLength(0);
+  });
+
+  it('does not contain "thermal store stores hot water" (it stores heat in primary water, not finished DHW)', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const hits = findPhraseLines(file, 'thermal store stores hot water');
+      if (hits.length > 0) {
+        violations.push(`${path.relative(SRC_DIR, file)}:\n${hits.join('\n')}`);
+      }
+    }
+    expect(
+      violations,
+      `Forbidden phrase "thermal store stores hot water" found — use "stores heat in primary water":\n${violations.join('\n\n')}`,
+    ).toHaveLength(0);
+  });
+});
