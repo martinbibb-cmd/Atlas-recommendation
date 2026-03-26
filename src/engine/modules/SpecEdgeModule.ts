@@ -27,8 +27,9 @@ const VAILLANT_MODEL = 'Vaillant ecoTEC Exclusive';
 const VAILLANT_PREFERRED_HARDNESS = new Set(['soft', 'moderate']);
 
 const WB_SOFTENER_FLAG =
-  'Worcester Bosch heat exchangers are uniquely compatible with salt-water ' +
-  'softeners for DHW protection, providing superior scale protection without voiding the manufacturer\'s warranty.';
+  'Worcester Bosch 8000+ heat exchangers explicitly support salt-water ' +
+  'softeners on the DHW circuit per manufacturer guidance. Always confirm ' +
+  'softened-water compatibility with the selected appliance datasheet.';
 
 // "Motorway Cruise" rule tolerance: heat loss must be within ±15% of the
 // unit's modulation floor to grant the Longevity Bonus.
@@ -81,9 +82,10 @@ const MIXERGY_FOOTPRINT_REDUCTION_PCT = 30; // vs. conventional cylinder
  *    matched to the building heat loss – no short-cycling.
  *
  * 3. Salt-Water Softener Compatibility (WB Edge):
- *    Worcester Bosch is uniquely compatible with softened water on the domestic
- *    side. Triggers a softenerCompatibilityFlag installer briefing alert when
- *    hasSoftener is true.
+ *    Worcester Bosch explicitly allows softened water on the domestic side per
+ *    manufacturer guidance. Triggers a softenerCompatibilityFlag installer
+ *    briefing alert when hasSoftener is true. Compatibility must be confirmed
+ *    against the selected appliance datasheet.
  *
  * 4. Maintenance ROI Visualizer (Hive Premium Hook):
  *    Calculates the Annualised Cost of Inaction from magnetite sludge tax and

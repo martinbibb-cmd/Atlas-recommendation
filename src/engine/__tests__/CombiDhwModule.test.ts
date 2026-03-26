@@ -24,27 +24,36 @@ describe('runCombiDhwModuleV1', () => {
     expect(result.flags).toHaveLength(0);
   });
 
-  // ── Rule 1: Pressure lockout ─────────────────────────────────────────────
+  // ── Rule 1: Pressure constraint ─────────────────────────────────────────────
 
-  it('returns fail when dynamicMainsPressure < 1.0 bar', () => {
-    const result = runCombiDhwModuleV1({ ...baseInput, dynamicMainsPressure: 0.8 });
+  it('returns warn (not fail) when dynamicMainsPressure is between 0.3 and 1.0 bar', () => {
+    const result = runCombiDhwModuleV1({ ...baseInput, dynamicMainsPressure: 0.8, peakConcurrentOutlets: 1 });
+    expect(result.verdict.combiRisk).toBe('warn');
+    const flag = result.flags.find(f => f.id === 'combi-pressure-constraint');
+    expect(flag).toBeDefined();
+    expect(flag!.severity).toBe('warn');
+    expect(flag!.title).toBe('Combi hot-water output limited by low mains pressure');
+  });
+
+  it('returns fail when dynamicMainsPressure is below 0.3 bar (absolute minimum operating condition)', () => {
+    const result = runCombiDhwModuleV1({ ...baseInput, dynamicMainsPressure: 0.2, peakConcurrentOutlets: 1 });
     expect(result.verdict.combiRisk).toBe('fail');
-    const flag = result.flags.find(f => f.id === 'combi-pressure-lockout');
+    const flag = result.flags.find(f => f.id === 'combi-pressure-constraint');
     expect(flag).toBeDefined();
     expect(flag!.severity).toBe('fail');
-    expect(flag!.title).toBe('Combi safety cut-off risk');
+    expect(flag!.title).toBe('Mains pressure below combi minimum operating condition');
   });
 
   it('dynamicMainsPressureBar alias takes precedence over dynamicMainsPressure', () => {
-    // dynamicMainsPressureBar = 0.8 (low) should trigger lockout even though legacy field is fine
+    // dynamicMainsPressureBar = 0.8 (reduced flow) should trigger warn even though legacy field is fine
     const result = runCombiDhwModuleV1({
       ...baseInput,
       dynamicMainsPressure: 2.5,
       dynamicMainsPressureBar: 0.8,
       peakConcurrentOutlets: 1,
     });
-    expect(result.verdict.combiRisk).toBe('fail');
-    expect(result.flags.some(f => f.id === 'combi-pressure-lockout')).toBe(true);
+    expect(result.verdict.combiRisk).toBe('warn');
+    expect(result.flags.some(f => f.id === 'combi-pressure-constraint')).toBe(true);
   });
 
   it('dynamicMainsPressureBar alias: adequate pressure passes lockout check', () => {
@@ -54,17 +63,17 @@ describe('runCombiDhwModuleV1', () => {
       dynamicMainsPressureBar: 2.0, // preferred field — should pass
       peakConcurrentOutlets: 1,
     });
-    expect(result.flags.some(f => f.id === 'combi-pressure-lockout')).toBe(false);
+    expect(result.flags.some(f => f.id === 'combi-pressure-constraint')).toBe(false);
   });
 
   it('returns pass when dynamicMainsPressure is exactly 1.0 bar', () => {
     const result = runCombiDhwModuleV1({ ...baseInput, dynamicMainsPressure: 1.0, peakConcurrentOutlets: 1 });
-    expect(result.flags.some(f => f.id === 'combi-pressure-lockout')).toBe(false);
+    expect(result.flags.some(f => f.id === 'combi-pressure-constraint')).toBe(false);
   });
 
   it('detail includes the actual pressure value', () => {
     const result = runCombiDhwModuleV1({ ...baseInput, dynamicMainsPressure: 0.6 });
-    const flag = result.flags.find(f => f.id === 'combi-pressure-lockout')!;
+    const flag = result.flags.find(f => f.id === 'combi-pressure-constraint')!;
     expect(flag.detail).toContain('0.6 bar');
   });
 
@@ -156,7 +165,7 @@ describe('runCombiDhwModuleV1', () => {
 
   // ── Combinations ─────────────────────────────────────────────────────────
 
-  it('fail takes precedence over warn (low pressure + steady_home)', () => {
+  it('warn pressure (0.5 bar) + steady_home both produce warn — combined risk is warn', () => {
     const result = runCombiDhwModuleV1({
       ...baseInput,
       dynamicMainsPressure: 0.5,
@@ -164,8 +173,20 @@ describe('runCombiDhwModuleV1', () => {
       peakConcurrentOutlets: 1,
       occupancySignature: 'steady_home',
     });
+    expect(result.verdict.combiRisk).toBe('warn');
+    expect(result.flags.length).toBe(2); // pressure-constraint + short-draw
+  });
+
+  it('fail pressure (below 0.3 bar) + steady_home: fail takes precedence', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      dynamicMainsPressure: 0.1,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      occupancySignature: 'steady_home',
+    });
     expect(result.verdict.combiRisk).toBe('fail');
-    expect(result.flags.length).toBe(2); // pressure-lockout + short-draw
+    expect(result.flags.length).toBe(2); // pressure (fail) + short-draw (warn)
   });
 
   // ── Rule 4: Three-person household caution ───────────────────────────────
@@ -648,7 +669,7 @@ describe('runCombiDhwModuleV1 — mains nested object', () => {
       mains: { dynamicPressureBar: 0.8 },
       peakConcurrentOutlets: 1,
     });
-    expect(result.flags.some(f => f.id === 'combi-pressure-lockout')).toBe(true);
+    expect(result.flags.some(f => f.id === 'combi-pressure-constraint')).toBe(true);
   });
 
   it('mains.flowRateLpm is used for flow adequacy when flat field is absent', () => {

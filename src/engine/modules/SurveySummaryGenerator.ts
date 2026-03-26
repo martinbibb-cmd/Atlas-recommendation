@@ -126,9 +126,9 @@ export const generateSurveySummary = (input: SurveySummaryInput): SummaryDataPac
     commercialInsights.push({
       title: 'WB 8000+ Softener Warranty: Compatible ✅',
       detail:
-        'Worcester Bosch heat exchangers are uniquely compatible with salt-water softeners ' +
-        'for DHW protection without voiding the warranty. ' +
-        '⚠️ Vaillant: softened water on the DHW circuit is not permitted and would void the warranty.',
+        'Worcester Bosch 8000+ explicitly supports salt-water softeners on the DHW circuit ' +
+        'per manufacturer guidance — with the heating circuit filled with hard water and inhibitor. ' +
+        '⚠️ Vaillant: confirm softened-water compatibility with manufacturer before specifying.',
       status: 'pass',
     });
   } else {

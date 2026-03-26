@@ -250,6 +250,44 @@ describe('PR5 — BANNED_CUSTOMER_PHRASES includes DHW terminology guardrail', (
   });
 });
 
+describe('feat(guardrails) — BANNED_CUSTOMER_PHRASES includes evidence-tier forbidden claims', () => {
+  it('contains "mains systems are bad for baths"', () => {
+    expect(BANNED_CUSTOMER_PHRASES).toContain('mains systems are bad for baths');
+  });
+
+  it('contains "combis cut out below"', () => {
+    expect(BANNED_CUSTOMER_PHRASES).toContain('combis cut out below');
+  });
+
+  it('contains "will lock out"', () => {
+    expect(BANNED_CUSTOMER_PHRASES).toContain('will lock out');
+  });
+
+  it('contains "required for safe combi operation"', () => {
+    expect(BANNED_CUSTOMER_PHRASES).toContain('required for safe combi operation');
+  });
+
+  it('contains "system boilers are for unvented only"', () => {
+    expect(BANNED_CUSTOMER_PHRASES).toContain('system boilers are for unvented only');
+  });
+
+  it('contains "radiators need to be 2.5"', () => {
+    expect(BANNED_CUSTOMER_PHRASES).toContain('radiators need to be 2.5');
+  });
+
+  it('contains "weekly anti-legionella immersion is required"', () => {
+    expect(BANNED_CUSTOMER_PHRASES).toContain('weekly anti-legionella immersion is required');
+  });
+
+  it('contains "Worcester uniquely supports"', () => {
+    expect(BANNED_CUSTOMER_PHRASES).toContain('Worcester uniquely supports');
+  });
+
+  it('contains "uniquely compatible with salt-water"', () => {
+    expect(BANNED_CUSTOMER_PHRASES).toContain('uniquely compatible with salt-water');
+  });
+});
+
 // ─── PR4 — Real-world behaviour card copy ─────────────────────────────────────
 
 import {

@@ -175,7 +175,7 @@ describe('SurveySummaryGenerator', () => {
     const result = generateSurveySummary({ ...baseInput, hasSoftener: true });
     const softenerInsight = result.commercialInsights[2];
     expect(softenerInsight.status).toBe('pass');
-    expect(softenerInsight.detail).toContain('Worcester Bosch heat exchangers are uniquely compatible');
+    expect(softenerInsight.detail).toContain('Worcester Bosch 8000+ explicitly supports salt-water softeners');
   });
 
   it('WB softener insight warns about Vaillant incompatibility when softener is fitted', () => {

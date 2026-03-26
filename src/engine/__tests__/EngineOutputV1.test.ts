@@ -169,8 +169,22 @@ describe('EngineOutputV1 shape', () => {
 
   // ── CombiDhwModuleV1 driving On Demand eligibility ───────────────────────
 
-  it('on_demand is rejected when pressure < 1.0 bar (combiDhwV1 pressure lockout)', () => {
-    const { engineOutput } = runEngine({ ...baseInput, dynamicMainsPressure: 0.8, bathroomCount: 1 });
+  it('on_demand is caution (not rejected) when pressure is between 0.3 and 1.0 bar', () => {
+    // 0.8 bar is between 0.3 (absolute min) and 1.0 (min for max flow): warn, not reject
+    // currentHeatSourceType: 'combi' is needed so CombiDhwModuleV1 runs and emits the pressure warn
+    const { engineOutput } = runEngine({
+      ...baseInput,
+      currentHeatSourceType: 'combi' as const,
+      dynamicMainsPressure: 0.8,
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+    });
+    const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
+    expect(onDemand.status).toBe('caution');
+  });
+
+  it('on_demand is rejected when pressure is below 0.3 bar (absolute minimum operating condition)', () => {
+    const { engineOutput } = runEngine({ ...baseInput, dynamicMainsPressure: 0.2, bathroomCount: 1 });
     const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
     expect(onDemand.status).toBe('rejected');
   });
@@ -213,9 +227,10 @@ describe('EngineOutputV1 shape', () => {
       bathroomCount: 1,
       peakConcurrentOutlets: 1,
     });
-    const pressureFlag = engineOutput.redFlags.find(f => f.id === 'combi-pressure-lockout');
+    const pressureFlag = engineOutput.redFlags.find(f => f.id === 'combi-pressure-constraint');
     expect(pressureFlag).toBeDefined();
-    expect(pressureFlag!.severity).toBe('fail');
+    // 0.5 bar is between 0.3 (absolute min) and 1.0 (min for max flow) — severity is warn, not fail
+    expect(pressureFlag!.severity).toBe('warn');
   });
 
   it('short-draw explainer present when occupancy is steady_home', () => {
@@ -311,13 +326,19 @@ describe('EngineOutputV1 shape', () => {
     expect(engineOutput.recommendation.primary).toBe('Stored hot water — Unvented cylinder');
   });
 
-  it('recommendation primary is "Multiple options need review" when pressure lockout fails on_demand with no single viable option', () => {
-    // 0.5 bar → combi rejected; stored unvented caution (0.5 bar < 1 bar gate); ASHP caution (22mm)
+  it('recommendation primary is "Multiple options need review" when combi is rejected and no single viable option remains', () => {
+    // bathroomCount: 2 + highOccupancy → combi hard-rejected (simultaneous demand)
+    // mainsDynamicFlowLpm: 6 (below 10 L/min threshold) → stored_unvented caution
+    // futureLoftConversion: true → stored_vented caution
+    // 22mm + 8kW → ASHP caution
     const { engineOutput } = runEngine({
       ...baseInput,
-      dynamicMainsPressure: 0.5,
-      bathroomCount: 1,
-      mainsDynamicFlowLpm: 14,   // flow present but pressure below 1 bar → stored unvented stays caution
+      currentHeatSourceType: 'combi' as const,
+      bathroomCount: 2,
+      highOccupancy: true,
+      dynamicMainsPressure: 2.5,
+      mainsDynamicFlowLpm: 6,       // below 10 L/min → stored_unvented caution
+      futureLoftConversion: true,   // stored_vented caution
       currentBoilerAgeYears: 10,
       currentBoilerOutputKw: 24,
     });

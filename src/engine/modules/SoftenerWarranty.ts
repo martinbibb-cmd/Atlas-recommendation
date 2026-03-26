@@ -15,10 +15,10 @@ const HARD_CATEGORIES = new Set(['hard', 'very_hard']);
 
 // ─── WB Softener Edge Policy ──────────────────────────────────────────────────
 
-// Worcester Bosch Greenstar 8000+ Series uses an Al-Si heat exchanger that is
-// uniquely certified for use with artificially softened domestic water.
-// Most competitors (e.g. Vaillant) do NOT support softened water in the primary
-// circuit due to dezincification / pitting risks.
+// Worcester Bosch Greenstar 8000+ Series uses an Al-Si heat exchanger that
+// explicitly supports artificially softened water on the domestic (DHW) circuit
+// per manufacturer guidance. Compatibility with softened water varies by
+// manufacturer and model — always confirm with the selected appliance datasheet.
 const WB_COMPATIBLE_MODELS = new Set<SoftenerWarrantyInput['boilerCompatibility']>([
   'wb_8000plus',
 ]);
@@ -40,8 +40,8 @@ const PRIMARY_BYPASS_RULE =
  *
  * Models the Worcester Bosch "Softener Edge":
  *
- *  - WB Greenstar 8000+ (Al-Si) is uniquely compatible with artificially
- *    softened water on the domestic (DHW) side of the secondary circuit.
+ *  - WB Greenstar 8000+ (Al-Si) explicitly allows artificially softened water on
+ *    the domestic (DHW) side per manufacturer guidance.
  *    This removes the 11% "DHW Scaling Tax" in hard/very_hard water zones.
  *
  *  - PRIMARY BYPASS RULE: The heating circuit must still be filled with hard
@@ -49,8 +49,8 @@ const PRIMARY_BYPASS_RULE =
  *    A bypass valve must be installed to prevent softened water from reaching
  *    the primary loop.
  *
- *  - Vaillant and most other manufacturers do NOT support artificially softened
- *    water in the primary circuit.
+ *  - Softened-water compatibility varies by manufacturer and model. Always
+ *    confirm compatibility with the selected appliance datasheet.
  *
  * Commercial value: Justifies the premium WB 8000+ specification over competitors
  * in hard/very_hard postcodes where a softener is fitted or planned.
@@ -95,18 +95,18 @@ export function runSoftenerWarranty(input: SoftenerWarrantyInput): SoftenerWarra
 
   if (wbEdgeActive) {
     notes.push(
-      `⭐ WB Softener Edge Active: Worcester Bosch 8000+ (Al-Si) is uniquely ` +
-      `compatible with artificially softened water on the domestic (DHW) side. ` +
-      `Vaillant and most other manufacturers do NOT support softened water in ` +
-      `the primary circuit – making WB 8000+ the only warranty-safe specification ` +
-      `where a domestic softener is fitted.`
+      `⭐ WB Softener Edge Active: Worcester Bosch 8000+ (Al-Si) explicitly allows ` +
+      `artificially softened water on the domestic (DHW) side per manufacturer guidance. ` +
+      `Always confirm softened-water compatibility with the selected appliance datasheet — ` +
+      `manufacturer guidance on softened water varies by model and circuit.`
     );
   } else if (input.hasSoftener && input.boilerCompatibility === 'vaillant') {
     notes.push(
       `⚠️ Softener Conflict (Vaillant): Vaillant units are not certified for use ` +
       `with artificially softened water in the primary circuit. Risk of ` +
       `dezincification and pitting on internal alloys. Warranty may be voided. ` +
-      `Consider upgrading to WB 8000+ (Al-Si) for full softener compatibility.`
+      `Confirm compatibility requirements with the manufacturer before specifying ` +
+      `a water softener.`
     );
   }
 

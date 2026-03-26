@@ -147,7 +147,7 @@ function buildExplainers(result: FullEngineResultCore, input?: EngineInputV2_3):
     items.push({
       id: 'hydraulic-bottleneck',
       title: 'Hydraulic Bottleneck Detected',
-      body: `Primary pipework is undersized. Flow rate ${(result.hydraulic.flowRateLs * 1000).toFixed(1)} L/min at ${result.hydraulic.velocityMs.toFixed(2)} m/s exceeds safe limits.${result.hydraulic.ashpRequires28mm ? ' Upgrade to 28mm required for ASHP installation.' : ' Pipe upgrade recommended.'}`,
+      body: `Primary pipework is undersized. Flow rate ${(result.hydraulic.flowRateLs * 1000).toFixed(1)} L/min at ${result.hydraulic.velocityMs.toFixed(2)} m/s exceeds safe limits.${result.hydraulic.ashpRequires28mm ? ' Pipework upgrade may be needed for heat pump installation — confirm against heat pump primary flow rate requirements.' : ' Pipe upgrade may be recommended.'}`,
     });
   }
 

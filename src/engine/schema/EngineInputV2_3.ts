@@ -864,7 +864,7 @@ export type CombiDhwRampPhase =
 /** Structured red-flag item for CombiDhwModuleV1. */
 export interface CombiDhwFlagItem {
   id:
-    | 'combi-pressure-lockout'
+    | 'combi-pressure-constraint'
     | 'combi-simultaneous-demand'
     | 'combi-short-draw-collapse'
     | 'combi-three-person-caution'
