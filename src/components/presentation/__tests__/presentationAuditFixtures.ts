@@ -474,6 +474,30 @@ export const SCENARIO_PAIRS: ScenarioPair[] = [
       demandTimingOverrides: { simultaneousUseSeverity: 'high' },
     },
   },
+  // ── DHW architecture: on_demand vs standard_cylinder (architecture-only pair) ─
+  {
+    name: 'on_demand_vs_standard_cylinder',
+    description: 'Same home profile — combi (on_demand) vs. system boiler with unvented cylinder (standard_cylinder)',
+    differingDimension: 'dhwArchitecture (on_demand→standard_cylinder)',
+    scA: {
+      ...PAIRED_SCENARIO_BASE,
+      currentHeatSourceType: 'combi',
+      dhwStorageType: 'none',
+      coldWaterSource: 'mains_true',
+      dynamicMainsPressure: 2.5,
+      mainsDynamicFlowLpm: 20,
+      mainsDynamicFlowLpmKnown: true,
+      preferCombi: false,
+      pvStatus: 'none',
+    },
+    scB: {
+      ...PAIRED_SCENARIO_BASE,
+      currentHeatSourceType: 'system',
+      dhwStorageType: 'unvented',
+      coldWaterSource: 'mains_true',
+      pvStatus: 'none',
+    },
+  },
   // ── DHW architecture: standard cylinder vs Mixergy ───────────────────────
   {
     name: 'standard_cylinder_vs_mixergy',

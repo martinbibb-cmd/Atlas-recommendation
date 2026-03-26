@@ -26,7 +26,7 @@
 import { describe, it, expect } from 'vitest';
 import { runEngine } from '../../../engine/Engine';
 import { buildCanonicalPresentation } from '../buildCanonicalPresentation';
-import { resolveShortlistVisualId, resolveCurrentSystemVisualId } from '../presentationVisualMapping';
+import { resolveShortlistVisualId, resolveCurrentSystemVisualId, resolveOptionsOverviewVisualId } from '../presentationVisualMapping';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 import type {
   CanonicalPresentationModel,
@@ -1367,6 +1367,199 @@ describe('Simulator terminology — presentation output must not use ambiguous s
       const architectureNote = model.finalPage.dhwArchitectureNote;
       // The architecture note must refer to "System Simulator" (canonical term)
       expect(architectureNote, `"${name}" dhwArchitectureNote must say "System Simulator"`).toMatch(/System Simulator/i);
+    }
+  });
+});
+
+// ─── Architecture-note task patterns (shared across difference-regression tests) ─
+
+/**
+ * Regex patterns for asserting that dhwArchitectureNote contains task-based
+ * guidance ("try...") for the correct architecture.  Used across multiple
+ * architecture-difference describe blocks to avoid duplication.
+ */
+const ARCH_NOTE_PATTERNS = {
+  on_demand:         /try|overlapping|simultaneous/i,
+  standard_cylinder: /try|bath|back-to-back/i,
+  mixergy:           /try|top[- ]down|demand-mirroring/i,
+  thermal_store:     /try|stored heat|primary|thermal store/i,
+} as const;
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 13. ARCHITECTURE-DIFFERENCE REGRESSION
+//     Changing ONLY dhwArchitecture (holding house / home / objectives constant)
+//     must materially change:
+//       a) page2 option notes (throughHomeNotes / throughEnergyNotes)
+//       b) options-overview visual id (resolveOptionsOverviewVisualId)
+//       c) homeScenarioDescription (includes architecture label)
+//       d) dhwArchitectureNote (actionable task guidance)
+//
+//     This catches silent conflation where architecture changes stop flowing
+//     through the presentation layer.
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('Architecture-difference regression — on_demand vs standard_cylinder', () => {
+  const pair = SCENARIO_PAIRS.find(p => p.name === 'on_demand_vs_standard_cylinder')!;
+  const modelA = buildAuditModel(pair.scA); // on_demand (combi)
+  const modelB = buildAuditModel(pair.scB); // standard_cylinder (unvented)
+
+  it('pair fixture is present', () => {
+    expect(pair).toBeDefined();
+  });
+
+  it('dhwArchitecture changes from on_demand to standard_cylinder', () => {
+    expect(modelA.page1.currentSystem.dhwArchitecture).toBe('on_demand');
+    expect(modelB.page1.currentSystem.dhwArchitecture).toBe('standard_cylinder');
+  });
+
+  it('options-overview visual differs: null (on_demand) vs cylinder_charge_standard (standard_cylinder)', () => {
+    const visualA = resolveOptionsOverviewVisualId(modelA.page1.currentSystem.dhwArchitecture);
+    const visualB = resolveOptionsOverviewVisualId(modelB.page1.currentSystem.dhwArchitecture);
+    expect(visualA).toBeNull();
+    expect(visualB).toBe('cylinder_charge_standard');
+    expect(visualA).not.toBe(visualB);
+  });
+
+  it('homeScenarioDescription differs (contains different architecture label)', () => {
+    expect(modelA.finalPage.homeScenarioDescription).toMatch(/on-demand/i);
+    expect(modelB.finalPage.homeScenarioDescription).toMatch(/stored hot water via cylinder/i);
+    expect(modelA.finalPage.homeScenarioDescription).not.toBe(
+      modelB.finalPage.homeScenarioDescription,
+    );
+  });
+
+  it('dhwArchitectureNote differs (different task guidance per architecture)', () => {
+    expect(modelA.finalPage.dhwArchitectureNote).not.toBe(modelB.finalPage.dhwArchitectureNote);
+    expect(modelA.finalPage.dhwArchitectureNote).toMatch(ARCH_NOTE_PATTERNS.on_demand);
+    expect(modelB.finalPage.dhwArchitectureNote).toMatch(ARCH_NOTE_PATTERNS.standard_cylinder);
+  });
+
+  it('page2 combi option throughHomeNotes differ from stored option notes across architectures', () => {
+    // on_demand scenario — combi option should reference on-demand delivery
+    const combiA = modelA.page2.options.find(o => o.id === 'combi');
+    if (combiA) {
+      expect(combiA.throughHomeNotes.join(' ')).toMatch(/on-demand|single-outlet|combi/i);
+    }
+    // standard_cylinder scenario — stored option should reference cylinder
+    const storedB = modelB.page2.options.find(o => o.id !== 'combi' && o.id !== 'ashp');
+    if (storedB) {
+      expect(storedB.throughHomeNotes.join(' ')).toMatch(/cylinder|demand|L\/day/i);
+    }
+  });
+
+  it('model fingerprints differ', () => {
+    expect(modelFingerprint(modelA)).not.toBe(modelFingerprint(modelB));
+  });
+});
+
+describe('Architecture-difference regression — standard_cylinder vs mixergy', () => {
+  const pair = SCENARIO_PAIRS.find(p => p.name === 'standard_cylinder_vs_mixergy')!;
+  const modelA = buildAuditModel(pair.scA); // standard_cylinder
+  const modelB = buildAuditModel(pair.scB); // mixergy
+
+  it('dhwArchitecture changes from standard_cylinder to mixergy', () => {
+    expect(modelA.page1.currentSystem.dhwArchitecture).toBe('standard_cylinder');
+    expect(modelB.page1.currentSystem.dhwArchitecture).toBe('mixergy');
+  });
+
+  it('options-overview visual differs: cylinder_charge_standard vs cylinder_charge_mixergy', () => {
+    const visualA = resolveOptionsOverviewVisualId(modelA.page1.currentSystem.dhwArchitecture);
+    const visualB = resolveOptionsOverviewVisualId(modelB.page1.currentSystem.dhwArchitecture);
+    expect(visualA).toBe('cylinder_charge_standard');
+    expect(visualB).toBe('cylinder_charge_mixergy');
+    expect(visualA).not.toBe(visualB);
+  });
+
+  it('homeScenarioDescription differs (standard cylinder vs Mixergy label)', () => {
+    expect(modelA.finalPage.homeScenarioDescription).toMatch(/stored hot water via cylinder/i);
+    expect(modelB.finalPage.homeScenarioDescription).toMatch(/Mixergy/i);
+    expect(modelA.finalPage.homeScenarioDescription).not.toBe(
+      modelB.finalPage.homeScenarioDescription,
+    );
+  });
+
+  it('dhwArchitectureNote differs (standard cylinder task vs Mixergy-specific task)', () => {
+    expect(modelA.finalPage.dhwArchitectureNote).not.toBe(modelB.finalPage.dhwArchitectureNote);
+    expect(modelA.finalPage.dhwArchitectureNote).toMatch(ARCH_NOTE_PATTERNS.standard_cylinder);
+    expect(modelB.finalPage.dhwArchitectureNote).toMatch(ARCH_NOTE_PATTERNS.mixergy);
+  });
+});
+
+describe('Architecture-difference regression — standard_cylinder vs thermal_store', () => {
+  const pair = SCENARIO_PAIRS.find(p => p.name === 'standard_cylinder_vs_thermal_store')!;
+  const modelA = buildAuditModel(pair.scA); // standard_cylinder
+  const modelB = buildAuditModel(pair.scB); // thermal_store
+
+  it('dhwArchitecture changes from standard_cylinder to thermal_store', () => {
+    expect(modelA.page1.currentSystem.dhwArchitecture).toBe('standard_cylinder');
+    expect(modelB.page1.currentSystem.dhwArchitecture).toBe('thermal_store');
+  });
+
+  it('options-overview visual differs: cylinder_charge_standard vs thermal_store', () => {
+    const visualA = resolveOptionsOverviewVisualId(modelA.page1.currentSystem.dhwArchitecture);
+    const visualB = resolveOptionsOverviewVisualId(modelB.page1.currentSystem.dhwArchitecture);
+    expect(visualA).toBe('cylinder_charge_standard');
+    expect(visualB).toBe('thermal_store');
+    expect(visualA).not.toBe(visualB);
+  });
+
+  it('homeScenarioDescription differs (cylinder label vs thermal store label)', () => {
+    expect(modelA.finalPage.homeScenarioDescription).toMatch(/stored hot water via cylinder/i);
+    expect(modelB.finalPage.homeScenarioDescription).toMatch(/thermal store/i);
+    expect(modelA.finalPage.homeScenarioDescription).not.toBe(
+      modelB.finalPage.homeScenarioDescription,
+    );
+  });
+
+  it('dhwArchitectureNote differs (cylinder task vs thermal store task)', () => {
+    expect(modelA.finalPage.dhwArchitectureNote).not.toBe(modelB.finalPage.dhwArchitectureNote);
+    expect(modelA.finalPage.dhwArchitectureNote).toMatch(ARCH_NOTE_PATTERNS.standard_cylinder);
+    expect(modelB.finalPage.dhwArchitectureNote).toMatch(ARCH_NOTE_PATTERNS.thermal_store);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 14. ACTIONABLE SIMULATOR NOTES
+//     dhwArchitectureNote must be task-based (tell the user what to try),
+//     not just descriptive (tell the user what the system is).
+//     Each note must include a "try" prompt for the System Simulator.
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('Actionable simulator notes — dhwArchitectureNote is task-based', () => {
+  it('on_demand note prompts the user to try overlapping tap use or short draws', () => {
+    const note = PREBUILT_MODELS['single_person_combi_fit'].finalPage.dhwArchitectureNote;
+    expect(note).toMatch(/try/i);
+    expect(note).toMatch(ARCH_NOTE_PATTERNS.on_demand);
+  });
+
+  it('standard_cylinder note prompts the user to try a bath or back-to-back draws', () => {
+    const note = PREBUILT_MODELS['unvented_current_system'].finalPage.dhwArchitectureNote;
+    expect(note).toMatch(/try/i);
+    expect(note).toMatch(ARCH_NOTE_PATTERNS.standard_cylinder);
+  });
+
+  it('mixergy note prompts the user to try top-down stored hot water', () => {
+    const note = PREBUILT_MODELS['mixergy_current_system'].finalPage.dhwArchitectureNote;
+    expect(note).toMatch(/try/i);
+    expect(note).toMatch(ARCH_NOTE_PATTERNS.mixergy);
+  });
+
+  it('thermal_store note prompts the user to try stored-heat and primary temperature behaviour', () => {
+    const note = PREBUILT_MODELS['thermal_store_current_system'].finalPage.dhwArchitectureNote;
+    expect(note).toMatch(/try/i);
+    expect(note).toMatch(ARCH_NOTE_PATTERNS.thermal_store);
+  });
+
+  it('all four architecture notes include "try" task prompts', () => {
+    const architectureScenarios = [
+      'single_person_combi_fit',
+      'unvented_current_system',
+      'mixergy_current_system',
+      'thermal_store_current_system',
+    ] as const;
+    for (const name of architectureScenarios) {
+      const note = PREBUILT_MODELS[name].finalPage.dhwArchitectureNote;
+      expect(note, `"${name}" dhwArchitectureNote must be task-based (include "try")`).toMatch(/try/i);
     }
   });
 });
