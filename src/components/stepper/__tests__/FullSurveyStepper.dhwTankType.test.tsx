@@ -28,6 +28,11 @@ import userEvent from '@testing-library/user-event';
 import FullSurveyStepper from '../FullSurveyStepper';
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
 
+// Navigation through the new System Architecture step adds ~3 extra click interactions per
+// test that reaches Step 5.  Set a generous per-test timeout so parallel CI runs don't
+// timeout on slower workers.
+vi.setConfig({ testTimeout: 15000 });
+
 // jsdom does not implement window.scrollTo — stub it.
 beforeEach(() => {
   vi.stubGlobal('scrollTo', vi.fn());
@@ -38,6 +43,15 @@ beforeEach(() => {
 /** Navigate the stepper to the given 0-based step index by clicking Next. */
 async function advanceToStep(user: ReturnType<typeof userEvent.setup>, targetIndex: number) {
   for (let i = 0; i < targetIndex; i++) {
+    // When on the System Architecture step, fill mandatory fields before advancing.
+    if (document.querySelector('[data-testid="system-builder-step"]')) {
+      const heatSource = document.querySelector('[data-testid="heat-source-combi"]') as HTMLElement | null;
+      if (heatSource) await user.click(heatSource);
+      const dhwType = document.querySelector('[data-testid="dhw-type-plate_hex"]') as HTMLElement | null;
+      if (dhwType) await user.click(dhwType);
+      const emitter = document.querySelector('[data-testid="emitter-radiators_standard"]') as HTMLElement | null;
+      if (emitter) await user.click(emitter);
+    }
     const nextBtn = screen.getByRole('button', { name: /next/i });
     await user.click(nextBtn);
   }
@@ -53,8 +67,8 @@ async function renderAtHotWaterStep(dhwCondition: FullSurveyModelV1['fullSurvey'
     fullSurvey: { dhwCondition },
   };
   render(<FullSurveyStepper onBack={() => {}} prefill={prefill} />);
-  // Advance to step 5 (hot_water — index 4).
-  await advanceToStep(user, 4);
+  // Advance to step 5 (hot_water — index 5 with new system_builder step at index 3).
+  await advanceToStep(user, 5);
   return user;
 }
 

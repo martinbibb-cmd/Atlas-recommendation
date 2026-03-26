@@ -1,4 +1,5 @@
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
+import type { SystemBuilderState } from '../../features/survey/systemBuilder/systemBuilderTypes';
 
 /**
  * HeatingConditionDiagnosticsV1
@@ -128,6 +129,13 @@ export type FullSurveyModelV1 = EngineInputV2_3 & {
      * so the choice survives step navigation and save/reload.
      */
     compareMixergy?: boolean;
+    /**
+     * System Architecture step — captures heat source, DHW type, emitters,
+     * pipework, controls, and existing asset health.
+     * Normalised into engine-friendly format by systemBuilderNormalizer before
+     * being passed to the engine.
+     */
+    systemBuilder?: SystemBuilderState;
   };
 };
 
