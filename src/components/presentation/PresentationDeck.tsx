@@ -224,6 +224,7 @@ function ShortlistPage({ option, index }: { option: ShortlistedOptionDetail; ind
     option.solarStorageOpportunity,
     option.peakSimultaneousOutlets,
     option.dhwStorageType,
+    option.storageBenefitSignal,
   );
   return (
     <>

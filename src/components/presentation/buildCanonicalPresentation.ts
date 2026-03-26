@@ -181,6 +181,12 @@ export interface ShortlistedOptionDetail {
    * stored types, null/none for combi or unknown.
    */
   dhwStorageType: DhwStorageType;
+  /**
+   * Storage benefit signal — used to determine whether a cylinder animation
+   * is relevant for this household (avoids showing irrelevant storage visuals
+   * for low-demand single-occupancy homes with no solar).
+   */
+  storageBenefitSignal: string;
 }
 
 /** Pages 4+ — Shortlisted option detail. */
@@ -906,6 +912,7 @@ function buildPage4Plus(
       solarStorageOpportunity:   pv.solarStorageOpportunity,
       peakSimultaneousOutlets:   demo.peakSimultaneousOutlets,
       dhwStorageType,
+      storageBenefitSignal:      demo.storageBenefitSignal,
     };
   });
 

@@ -183,7 +183,7 @@ describe('resolveShortlistVisualId — signal-driven selection', () => {
   });
 
   it('returns null when no signal matches — no family-based fallback', () => {
-    // combi / on-demand family — no solar, no concurrent demand
+    // combi / on-demand family — no solar, no concurrent demand, no storage benefit
     expect(resolveShortlistVisualId('low', 1)).toBeNull();
     expect(resolveShortlistVisualId('none', 0)).toBeNull();
     expect(resolveShortlistVisualId('medium', 1)).toBeNull();
@@ -203,6 +203,56 @@ describe('resolveShortlistVisualId — signal-driven selection', () => {
       const result = resolveShortlistVisualId(solar, outlets);
       expect(result, `resolveShortlistVisualId('${solar}', ${outlets}) should not be 'driving_style'`).not.toBe('driving_style');
     }
+  });
+
+  // ── storageBenefitSignal path ────────────────────────────────────────────────
+
+  it('returns cylinder_charge_standard when storageBenefitSignal is high and storage is unvented', () => {
+    expect(resolveShortlistVisualId('low', 1, 'unvented', 'high')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('none', 0, 'open_vented', 'high')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('medium', 1, 'thermal_store', 'high')).toBe('cylinder_charge_standard');
+  });
+
+  it('returns cylinder_charge_mixergy when storageBenefitSignal is high and storage is mixergy', () => {
+    expect(resolveShortlistVisualId('low', 0, 'mixergy', 'high')).toBe('cylinder_charge_mixergy');
+    expect(resolveShortlistVisualId('none', 1, 'mixergy', 'high')).toBe('cylinder_charge_mixergy');
+  });
+
+  it('returns null when storageBenefitSignal is high but dhwStorageType is unknown', () => {
+    expect(resolveShortlistVisualId('low', 0, 'unknown', 'high')).toBeNull();
+    expect(resolveShortlistVisualId('none', 1, undefined, 'high')).toBeNull();
+  });
+
+  it('solarStorageOpportunity takes priority over storageBenefitSignal', () => {
+    // Solar=high + storageBenefit=high: solar wins with the correct subtype visual
+    expect(resolveShortlistVisualId('high', 0, 'unvented', 'high')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('high', 0, 'mixergy', 'high')).toBe('cylinder_charge_mixergy');
+  });
+
+  it('flow_split takes priority over storageBenefitSignal when outlets >= 2', () => {
+    // Concurrent demand is more important than storage benefit for visual selection
+    expect(resolveShortlistVisualId('low', 2, 'unvented', 'high')).toBe('flow_split');
+    expect(resolveShortlistVisualId('none', 3, 'mixergy', 'high')).toBe('flow_split');
+  });
+
+  it('returns null when storageBenefitSignal is low — no storage relevance', () => {
+    // Low-demand single-person home: no solar, no outlets, no storage benefit
+    expect(resolveShortlistVisualId('low', 0, 'unvented', 'low')).toBeNull();
+    expect(resolveShortlistVisualId('none', 1, 'mixergy', 'medium')).toBeNull();
+  });
+
+  // ── Audit checks ─────────────────────────────────────────────────────────────
+
+  it('mixergy visual and standard visual must differ', () => {
+    const mixergyVisual = resolveShortlistVisualId('high', 0, 'mixergy');
+    const standardVisual = resolveShortlistVisualId('high', 0, 'unvented');
+    expect(mixergyVisual).not.toEqual(standardVisual);
+  });
+
+  it('unknown storage type must not render a cylinder visual', () => {
+    // No signals strong enough to force a visual → null
+    expect(resolveShortlistVisualId('low', 0, 'unknown')).toBeNull();
+    expect(resolveShortlistVisualId('none', 1, 'unknown', 'low')).toBeNull();
   });
 });
 
@@ -231,5 +281,23 @@ describe('isVisualValid — validity constraint enforcement', () => {
 
   it('passes when invalidForFamilies does not include the option family', () => {
     expect(isVisualValid('flow_split', { optionFamily: 'stored_vented' })).toBe(true);
+  });
+
+  it('generic cylinder_charge on a shortlist page throws an Error', () => {
+    expect(() => isVisualValid('cylinder_charge', { pageType: 'shortlist' })).toThrow(
+      "Generic 'cylinder_charge' visual not allowed on shortlist pages",
+    );
+  });
+
+  it('subtype-specific cylinder visuals are allowed on shortlist pages', () => {
+    // These should not throw — only the generic 'cylinder_charge' is banned
+    expect(() => isVisualValid('cylinder_charge_standard', { pageType: 'shortlist' })).not.toThrow();
+    expect(() => isVisualValid('cylinder_charge_mixergy', { pageType: 'shortlist' })).not.toThrow();
+  });
+
+  it('generic cylinder_charge is allowed on non-shortlist pages', () => {
+    expect(() => isVisualValid('cylinder_charge', { pageType: 'options' })).not.toThrow();
+    expect(() => isVisualValid('cylinder_charge', { pageType: 'gallery' })).not.toThrow();
+    expect(() => isVisualValid('cylinder_charge', {})).not.toThrow();
   });
 });
