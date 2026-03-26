@@ -194,18 +194,14 @@ function NullVisualCard({
 export default function PresentationVisualSlot<T extends PhysicsVisualId>(
   props: PresentationVisualSlotProps<T> | PresentationVisualSlotNullProps,
 ) {
-  // When no visual is available, render a neutral explanatory card
+  // When no visual is available, render a neutral explanatory card.
+  // Cast once to the narrow null-props type to avoid repeated assertions.
   if (props.visualId === null) {
-    return (
-      <NullVisualCard
-        title={(props as PresentationVisualSlotNullProps).title}
-        summary={(props as PresentationVisualSlotNullProps).summary}
-        takeaway={(props as PresentationVisualSlotNullProps).takeaway}
-      />
-    );
+    const { title, summary, takeaway } = props as PresentationVisualSlotNullProps;
+    return <NullVisualCard title={title} summary={summary} takeaway={takeaway} />;
   }
 
-  // From here on, visualId is a known PhysicsVisualId
+  // From here on, visualId is a known PhysicsVisualId.
   const { visualId, visualData, hideExplainer = false } = props as PresentationVisualSlotProps<T>;
 
   return <VisualSlotWithId visualId={visualId} visualData={visualData} hideExplainer={hideExplainer} />;
