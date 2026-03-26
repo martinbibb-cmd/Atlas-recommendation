@@ -7,8 +7,8 @@ import type {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 // Worcester Bosch 8000+ uses an Aluminium-Silicon (Al-Si) heat exchanger.
-// Lightweight, high thermal conductivity, and – uniquely among major brands –
-// fully compatible with salt-water softened water on the domestic side.
+// Lightweight, high thermal conductivity, and explicitly supports salt-water
+// softened water on the domestic side per manufacturer guidance.
 const WB_8000_MODEL = 'Worcester Bosch 8000 Series';
 const WB_8000_METALLURGY: HeatExchangerMetallurgy = 'al_si';
 
@@ -26,8 +26,9 @@ const VAILLANT_PREFERRED_HARDNESS = new Set(['soft', 'moderate']);
 
 // Softener compatibility flag text (used by sales / installer tooling)
 const WB_SOFTENER_FLAG =
-  'Worcester Bosch heat exchangers are uniquely compatible with salt-water ' +
-  'softeners for DHW protection, providing superior scale protection without voiding the manufacturer\'s warranty.';
+  'Worcester Bosch 8000+ heat exchangers explicitly support salt-water ' +
+  'softeners on the DHW circuit per manufacturer guidance. Always confirm ' +
+  'softened-water compatibility with the selected appliance datasheet.';
 
 // Primary Bypass Rule: even with a WB 8000+ Al-Si unit, the heating (primary)
 // loop must still be filled with untreated hard water + Sentinel X100 inhibitor

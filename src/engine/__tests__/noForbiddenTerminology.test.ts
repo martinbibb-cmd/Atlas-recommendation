@@ -183,3 +183,100 @@ describe('No forbidden terminology in user-facing copy (atlas-terminology.md § 
     ).toHaveLength(0);
   });
 });
+
+// ─── Guardrails: absolute claims that must not appear in source  ──────────────
+//
+// These tests enforce the evidence-tier guardrails introduced in the
+// EvidenceTiers.ts claim-governance layer (§ feat(guardrails)).
+// Each banned phrase represents a claim that was previously stated as hard
+// physics but is either incorrect, unsupported, or a vendor talking point.
+
+describe('No absolute/unsupported claims in source (EvidenceTiers guardrails)', () => {
+  const files = collectSourceFiles(SRC_DIR).filter(
+    f => !ALLOWED_FILES.has(path.basename(f)) && !f.includes('__tests__'),
+  );
+
+  it('does not contain "uniquely compatible with salt-water" (use "explicitly supports" with manufacturer citation)', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const hits = findPhraseLines(file, 'uniquely compatible with salt-water');
+      if (hits.length > 0) {
+        violations.push(`${path.relative(SRC_DIR, file)}:\n${hits.join('\n')}`);
+      }
+    }
+    expect(
+      violations,
+      `Forbidden phrase "uniquely compatible with salt-water" found — use "explicitly supports" with manufacturer source:\n${violations.join('\n\n')}`,
+    ).toHaveLength(0);
+  });
+
+  it('does not contain "uniquely compatible with artificially softened" (remove "uniquely" claim)', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const hits = findPhraseLines(file, 'uniquely compatible with artificially softened');
+      if (hits.length > 0) {
+        violations.push(`${path.relative(SRC_DIR, file)}:\n${hits.join('\n')}`);
+      }
+    }
+    expect(
+      violations,
+      `Forbidden phrase "uniquely compatible with artificially softened" found:\n${violations.join('\n\n')}`,
+    ).toHaveLength(0);
+  });
+
+  it('does not contain "required even for modest 8kW" (use caveated pipework language)', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const hits = findPhraseLines(file, 'required even for modest');
+      if (hits.length > 0) {
+        violations.push(`${path.relative(SRC_DIR, file)}:\n${hits.join('\n')}`);
+      }
+    }
+    expect(
+      violations,
+      `Forbidden phrase "required even for modest" found — pipework claims must be caveated:\n${violations.join('\n\n')}`,
+    ).toHaveLength(0);
+  });
+
+  it('does not contain "Upgrade to 28mm required for ASHP" (use "may be needed" language)', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const hits = findPhraseLines(file, 'Upgrade to 28mm required for ASHP');
+      if (hits.length > 0) {
+        violations.push(`${path.relative(SRC_DIR, file)}:\n${hits.join('\n')}`);
+      }
+    }
+    expect(
+      violations,
+      `Forbidden phrase "Upgrade to 28mm required for ASHP" found — use "may be needed" language:\n${violations.join('\n\n')}`,
+    ).toHaveLength(0);
+  });
+
+  it('does not contain "minimum required for safe combi operation" (use flow/temperature-lift constrained model)', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const hits = findPhraseLines(file, 'minimum required for safe combi operation');
+      if (hits.length > 0) {
+        violations.push(`${path.relative(SRC_DIR, file)}:\n${hits.join('\n')}`);
+      }
+    }
+    expect(
+      violations,
+      `Forbidden phrase "minimum required for safe combi operation" found — combi must be modelled as flow/temperature-lift constrained:\n${violations.join('\n\n')}`,
+    ).toHaveLength(0);
+  });
+
+  it('does not contain "The unit will lock out" in combi pressure context (use flow-constrained model)', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const hits = findPhraseLines(file, 'The unit will lock out');
+      if (hits.length > 0) {
+        violations.push(`${path.relative(SRC_DIR, file)}:\n${hits.join('\n')}`);
+      }
+    }
+    expect(
+      violations,
+      `Forbidden phrase "The unit will lock out" found — use flow/temperature-lift constrained model instead:\n${violations.join('\n\n')}`,
+    ).toHaveLength(0);
+  });
+});

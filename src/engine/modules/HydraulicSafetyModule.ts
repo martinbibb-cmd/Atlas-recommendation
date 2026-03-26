@@ -8,6 +8,12 @@ const PIPE_15MM_AREA = Math.PI * (0.006) ** 2; // m² (inner radius ~6mm for 15m
 const PIPE_22MM_AREA = Math.PI * (0.009) ** 2; // m² (inner radius ~9mm for standard 22mm copper)
 const PIPE_28MM_AREA = Math.PI * (0.014) ** 2; // m² (inner radius ~14mm)
 const BOTTLENECK_THRESHOLD_KW = 19.0;
+/**
+ * Threshold (bar) below which mains pressure may be insufficient for reliable combi operation.
+ * This is used for legacy hydraulic safety checks only.
+ * The CombiDhwModuleV1 and RedFlagModule use tiered thresholds (0.3 bar absolute min,
+ * 1.0 bar for maximum rated flow) for more accurate pressure constraint modelling.
+ */
 const MIN_MAINS_PRESSURE_BAR = 1.0;
 
 /**
@@ -56,13 +62,16 @@ export function runHydraulicSafetyModule(input: EngineInputV2_3): HydraulicResul
     );
   }
 
-  // Safety lockout: low mains pressure on combi
+  // Low mains pressure check: flags a risk that combi hot-water performance may be reduced.
+  // Note: 1.0 bar is the minimum for maximum rated flow; not a hard cut-off.
+  // The CombiDhwModuleV1 provides more precise tiered pressure constraint modelling.
   const isSafetyCutoffRisk = input.dynamicMainsPressure < MIN_MAINS_PRESSURE_BAR;
   if (isSafetyCutoffRisk) {
     notes.push(
-      `🚨 Safety Cut-off Risk: Dynamic mains pressure ${input.dynamicMainsPressure.toFixed(1)}bar ` +
-      `< 1.0bar minimum. Combination boiler will lock out to prevent heat exchanger damage ` +
-      `during simultaneous hot water draws.`
+      `⚠️ Low Mains Pressure: Dynamic mains pressure ${input.dynamicMainsPressure.toFixed(1)} bar ` +
+      `is below the 1.0 bar minimum for maximum rated combi DHW flow. ` +
+      `Hot-water performance depends on inlet flow and temperature rise at this pressure. ` +
+      `See CombiDhwModuleV1 results for appliance-specific constraints.`
     );
   }
 
@@ -74,8 +83,9 @@ export function runHydraulicSafetyModule(input: EngineInputV2_3): HydraulicResul
   if (ashpRequires28mm) {
     notes.push(
       `ℹ️ ASHP ΔT Reality: Heat pumps operate at 5–7°C ΔT (vs 20°C for boilers). ` +
-      `This demands ${(ashpFlowRate * 1000).toFixed(2)} L/min flow, exceeding 22mm capacity. ` +
-      `28mm primary pipework required even for modest 8kW loads.`
+      `This demands ${(ashpFlowRate * 1000).toFixed(2)} L/min flow, exceeding 22mm pipe capacity ` +
+      `at this heat loss. Pipework upgrade may be needed — the exact requirement depends ` +
+      `on the heat pump model, installed flow rates, and circuit layout.`
     );
   }
 

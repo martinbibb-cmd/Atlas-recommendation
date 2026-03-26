@@ -43,9 +43,14 @@ describe('RedFlagModule', () => {
     expect(result.flagAshp).toBe(false);
   });
 
-  it('rejects combi for low mains pressure', () => {
-    const result = runRedFlagModule({ ...baseInput, dynamicMainsPressure: 0.7 });
+  it('rejects combi for very low mains pressure (below 0.3 bar absolute minimum operating condition)', () => {
+    const result = runRedFlagModule({ ...baseInput, dynamicMainsPressure: 0.1 });
     expect(result.rejectCombi).toBe(true);
+  });
+
+  it('does not hard-reject combi for pressure between 0.3 and 1.0 bar (reduced flow, handled by CombiDhwModuleV1)', () => {
+    const result = runRedFlagModule({ ...baseInput, dynamicMainsPressure: 0.7 });
+    expect(result.rejectCombi).toBe(false);
   });
 
   it('rejectAshp is false for two-pipe topology', () => {

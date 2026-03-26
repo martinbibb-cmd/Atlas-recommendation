@@ -48,12 +48,16 @@ export function runRedFlagModule(input: EngineInputV2_3): RedFlagResult {
     );
   }
 
-  // Low mains pressure → combi safety risk
-  if (input.dynamicMainsPressure < 1.0) {
+  // Low mains pressure — combi may be below minimum operating condition
+  // Using absolute minimum operating pressure (0.3 bar per manufacturer data,
+  // e.g. Vaillant ecoFIT sustain spec). At this level the burner may not fire at all.
+  // Pressures 0.3–1.0 bar are handled as a warn by CombiDhwModuleV1 (reduced flow).
+  if (input.dynamicMainsPressure < 0.3) {
     rejectCombi = true;
     reasons.push(
-      `🚫 Combi Rejected: Dynamic mains pressure ${input.dynamicMainsPressure.toFixed(1)}bar ` +
-      `is below the 1.0bar minimum. Combi will lock out during simultaneous draws.`
+      `🚫 Combi cannot operate: Dynamic mains pressure ${input.dynamicMainsPressure.toFixed(2)}bar ` +
+      `is below the 0.3 bar minimum operating condition. Hot-water delivery cannot be guaranteed ` +
+      `at this pressure — check mains supply or consider a pressure booster.`
     );
   }
 

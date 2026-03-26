@@ -405,4 +405,14 @@ export const BANNED_CUSTOMER_PHRASES: ReadonlyArray<string> = [
   'Override',
   'Overridden',
   'instantaneous hot water',
+  // Guardrails — evidence-tier forbidden claims (feat(guardrails))
+  'combis cut out below',
+  'will lock out',
+  'required for safe combi operation',
+  'system boilers are for unvented only',
+  'mains systems are bad for baths',
+  'radiators need to be 2.5',
+  'weekly anti-legionella immersion is required',
+  'Worcester uniquely supports',
+  'uniquely compatible with salt-water',
 ];

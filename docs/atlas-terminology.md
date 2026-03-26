@@ -388,3 +388,47 @@ This document is the single source of truth for Atlas terminology.
 - All UI text copy, PDF templates, and recommendation explanation strings must use only the terms defined here.
 - Pull requests that introduce terminology not present in this document must update this document first and justify the addition.
 - Engine-internal identifiers (e.g. TypeScript enum values such as `gravity`, `mains_mixer`) are implementation details and are not subject to this vocabulary — only user-facing text is governed.
+
+---
+
+## 13. Evidence Tiers
+
+Every recommendation statement Atlas emits must be classifiable against one of the five evidence tiers below. Tier 1–3 claims may be stated as facts. Tier 4 claims must use hedged language ("may", "can", "depends"). Tier 5 claims must be labelled as vendor guidance and never presented as facts.
+
+| Tier | Name | Description |
+|------|------|-------------|
+| 1 | `tier_1_measured` | User/site measurements and directly entered survey facts (flow rate, pressure, heat loss). |
+| 2 | `tier_2_model_specific` | Manufacturer data for the selected appliance or cylinder. |
+| 3 | `tier_3_standard_rule` | HSE / MCS / WRAS / Building Regulations rule. |
+| 4 | `tier_4_engineering_heuristic` | Internal fallback: a rule of thumb with no cited standard or model data. Always caveated. |
+| 5 | `tier_5_vendor_claim` | Manufacturer marketing or sales material. Never shown as fact. |
+
+---
+
+## 14. Absolute Claims Prohibited in Atlas Output
+
+The following statements must never appear in Atlas UI copy, explanations, or PDF output. Each represents a claim that is either incorrect, unsupported, or a vendor talking point presented as hard physics.
+
+| Prohibited statement | Why forbidden | Correct approach |
+|---|---|---|
+| "Combis cut out below 1.0 bar." | The actual minimum operating condition is lower (e.g. 0.3 bar per Vaillant spec). 1.0 bar is the minimum for *maximum rated flow*, not for operation. | Model as flow/temperature-lift constrained. State the selected model's minimum operating pressure. |
+| "System boilers are basically for unvented only." | System boilers can be paired with vented or unvented cylinders. Vaillant explicitly states both are supported. | "System boilers are commonly used with stored hot water and may be paired with vented or unvented cylinders depending on the system design." |
+| "Mains systems are bad for baths." | Unvented and mains-fed hot water can fill baths at mains pressure. Suitability depends on mains flow, pressure, and cylinder sizing. | Reference measured mains flow and cylinder recovery rate. |
+| "ASHPs require 28mm primaries from 8 kW." | Pipework requirements depend on heat pump model, installed flow rates, and circuit layout. | "Pipework upgrade may be needed — confirm against the selected heat pump's primary flow rate requirements." |
+| "Radiators need to be 2.5× bigger." | The oversize factor varies significantly by case (MCS example: 3.1×). | "Low-temperature systems often need more emitter output. The exact change depends on room-by-room heat loss and target flow temperature." |
+| "Weekly anti-legionella immersion is required." | HSE requires a *control strategy*; the specific approach depends on system design. | "Where stored hot water is used, a Legionella control strategy is needed per HSE guidance. The specific approach depends on system design." |
+| "Worcester uniquely supports softened water." | Other manufacturers may also allow water softeners; this is a manufacturer-specific policy, not a unique feature. | "Worcester Bosch 8000+ explicitly allows a water softener on the DHW circuit per manufacturer guidance — confirm compatibility with the selected appliance datasheet." |
+| Any theta / wetting-angle plumbing explanation. | Pipe theta and wetting angle are not sensible Atlas-facing guard rails for normal UK domestic plumbing. | Remove. Do not use as a decision rule. |
+
+---
+
+## 15. Soft-Rule Phrasing
+
+The following claims are valid only with caveats. They must never be stated as absolute facts.
+
+| Claim | Required caveats |
+|---|---|
+| "Combi may struggle with simultaneous DHW use." | Only if measured flow, pressure, temperature rise, and outlet concurrency indicate it. |
+| "Open-vented hot water is less dependent on mains performance." | True, but delivery still depends on head, pipe sizing, fittings, restrictions, and layout. |
+| "Stored hot water can support multi-outlet demand better." | Depends on storage volume, recovery rate, coil performance, and inlet conditions. Vaillant uniSTOR guidance: supply pressure below 1 bar means the unvented cylinder should not be installed. |
+| "Heat pumps often need emitter and hydraulic changes." | The exact requirement must come from room-by-room heat loss, target flow temperature, and pipework calculation. |

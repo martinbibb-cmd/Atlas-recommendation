@@ -37,7 +37,22 @@ export function getCombiDhwRampPhase(elapsedS: number): CombiDhwRampPhase {
   return 'steady';
 }
 
-const PRESSURE_LOCKOUT_BAR = 1.0;
+/**
+ * Minimum mains dynamic pressure (bar) for maximum-rated DHW flow.
+ * Below this pressure, hot-water delivery will be lower than the rated maximum.
+ * Source: manufacturer specification data (e.g. Vaillant ecoFIT sustain 30 kW
+ * lists 1.0 bar as the minimum pressure for maximum flow rate).
+ * This is a tier_2_model_specific threshold — not a universal hard cut-off.
+ */
+const PRESSURE_MINIMUM_MAX_FLOW_BAR = 1.0;
+
+/**
+ * Absolute minimum operating pressure (bar) — below this the burner may not
+ * fire at all and hot-water delivery cannot be guaranteed.
+ * Source: manufacturer specification data (e.g. Vaillant ecoFIT sustain 30 kW
+ * lists 0.3 bar / 1.9 L/min as the lowest operating conditions).
+ */
+const PRESSURE_MINIMUM_OPERATION_BAR = 0.3;
 
 /** Minimum L/min per hot-water outlet for a combi to deliver acceptable flow. */
 const REQUIRED_LPM_PER_OUTLET = 9;
@@ -149,7 +164,10 @@ export function estimateMorningOverlapProbability(
  *
  * Deterministic combi / on-demand DHW eligibility gate based on three
  * physics-grounded rules:
- *   1. Pressure lockout   – mains dynamic pressure < 1.0 bar (hard fail)
+ *   1. Pressure constraint – mains dynamic pressure:
+ *        < 0.3 bar  → hard fail (below minimum operating condition)
+ *        0.3–1.0 bar → warn (below minimum for maximum rated flow)
+ *        ≥ 1.0 bar  → pass (at or above minimum for maximum rated flow)
  *   2. Simultaneous demand – peak concurrent outlets ≥ 2 OR bathrooms ≥ 2 (hard fail)
  *   3. Short-draw collapse – continuous-occupancy signature (warn)
  *
@@ -166,17 +184,34 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
   const resolvedDynamicBar = input.mains?.dynamicPressureBar ?? input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
   const resolvedFlowLpm = input.mains?.flowRateLpm ?? input.mainsDynamicFlowLpm;
 
-  // ── Rule 1: Pressure lockout ─────────────────────────────────────────────
+  // ── Rule 1: Pressure constraint ─────────────────────────────────────────────
+  // Modelled as flow/temperature-lift constrained, not a binary cut-off.
+  // Below 0.3 bar (absolute minimum operating condition): hard fail.
+  // 0.3–1.0 bar (below minimum for maximum rated flow): warn.
+  // ≥ 1.0 bar: no pressure flag.
   const dynamicBar = resolvedDynamicBar;
-  if (dynamicBar != null && dynamicBar < PRESSURE_LOCKOUT_BAR) {
+  if (dynamicBar != null && dynamicBar < PRESSURE_MINIMUM_OPERATION_BAR) {
     flags.push({
-      id: 'combi-pressure-lockout',
+      id: 'combi-pressure-constraint',
       severity: 'fail',
-      title: 'Combi safety cut-off risk',
+      title: 'Mains pressure below combi minimum operating condition',
+      detail:
+        `Dynamic mains pressure ${dynamicBar.toFixed(2)} bar is below the ` +
+        `${PRESSURE_MINIMUM_OPERATION_BAR.toFixed(1)} bar minimum operating condition. ` +
+        `At this pressure, hot-water delivery cannot be guaranteed — the burner may not fire. ` +
+        `Check mains supply; a pressure booster or alternative system may be needed.`,
+    });
+  } else if (dynamicBar != null && dynamicBar < PRESSURE_MINIMUM_MAX_FLOW_BAR) {
+    flags.push({
+      id: 'combi-pressure-constraint',
+      severity: 'warn',
+      title: 'Combi hot-water output limited by low mains pressure',
       detail:
         `Dynamic mains pressure ${dynamicBar.toFixed(1)} bar is below the ` +
-        `${PRESSURE_LOCKOUT_BAR.toFixed(1)} bar minimum required for safe combi operation. ` +
-        `The unit will lock out during simultaneous draws, causing cold-water slugs.`,
+        `${PRESSURE_MINIMUM_MAX_FLOW_BAR.toFixed(1)} bar minimum for maximum rated DHW flow. ` +
+        `Hot-water delivery will depend on inlet flow and temperature rise — expect reduced flow ` +
+        `rates or lower delivered temperature compared to maximum rated output. ` +
+        `Confirm against the selected appliance's performance data at this pressure.`,
     });
   }
 
@@ -280,9 +315,9 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
     perOutletFlowLpm = parseFloat((flowLpm / peakOutlets).toFixed(1));
 
     // Ignition state: classified before delivery check so the correct flag message is used.
-    if (dynamicBar != null && dynamicBar < PRESSURE_LOCKOUT_BAR) {
+    if (dynamicBar != null && dynamicBar < PRESSURE_MINIMUM_MAX_FLOW_BAR) {
       ignitionState = 'pressure_limited';
-      // No additional flag here — combi-pressure-lockout was already added in Rule 1.
+      // No additional flag here — combi-pressure-constraint was already added in Rule 1.
     } else if (perOutletFlowLpm < MIN_COMBI_FLOW) {
       // Flow is below ignition threshold — combi cannot fire at all.
       ignitionState = 'below_ignition_threshold';
