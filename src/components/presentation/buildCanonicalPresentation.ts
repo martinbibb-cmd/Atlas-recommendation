@@ -1046,19 +1046,22 @@ function dhwArchitectureToLabel(architecture: DhwArchitecture): string {
 
 /**
  * Map a DHW architecture to the architecture-specific note shown on the
- * final/simulator page — tells the user what is worth testing in the System
- * Simulator for their specific architecture.
+ * final/simulator page — tells the user what task to actually try in the
+ * System Simulator for their specific architecture.
+ *
+ * Notes are task-based ("try...") so the System Simulator handoff is
+ * actionable, not just descriptive.
  */
 function dhwArchitectureToSimulatorNote(architecture: DhwArchitecture): string {
   switch (architecture) {
     case 'on_demand':
-      return 'On-demand hot water (combi) — use the System Simulator to test flow rate under simultaneous draw and peak-load sizing.';
+      return 'On-demand hot water (combi) — in the System Simulator, try overlapping tap use and short hot-water draws to test flow rate and simultaneous-demand behaviour.';
     case 'standard_cylinder':
-      return 'Stored hot water via cylinder — use the System Simulator to test cylinder sizing, recovery time, and solar diverter scenarios.';
+      return 'Stored hot water via cylinder — in the System Simulator, try a bath or back-to-back hot-water draws to test cylinder sizing and recovery time.';
     case 'mixergy':
-      return 'Mixergy stratified cylinder — use the System Simulator to test demand-mirroring behaviour, reduced cycling, and top-up efficiency.';
+      return 'Mixergy stratified cylinder — in the System Simulator, try how stored hot water is built from the top down to test demand-mirroring behaviour and reduced cycling.';
     case 'thermal_store':
-      return 'Thermal store system — use the System Simulator to verify primary temperature requirements (75–85 °C) and DHW draw via exchanger.';
+      return 'Thermal store system — in the System Simulator, try how hot water depends on stored heat and high primary temperature to verify the 75–85 °C primary requirement and DHW draw via exchanger.';
   }
 }
 

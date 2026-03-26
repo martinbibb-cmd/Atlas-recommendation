@@ -82,9 +82,21 @@ const SECTION_VISUAL_MAP: Record<CanonicalPresentationSectionId, SectionVisualCo
     signalPriority: ['system_family', 'cycling_rate'],
   },
   options: {
-    preferredVisualId: 'cylinder_charge',
+    /**
+     * The options overview visual is resolved at runtime by
+     * resolveOptionsOverviewVisualId() using DHW architecture as the
+     * primary discriminator.  For on_demand the function returns null and
+     * the page renders a neutral architecture card instead of an animation.
+     *
+     * This sentinel 'driving_style' is chosen because it is a valid
+     * PhysicsVisualId that resolveOptionsOverviewVisualId() never returns,
+     * so any accidental use of this static map for options rendering would
+     * be immediately detectable.  It is NOT used in actual OptionsPage
+     * rendering — all visual selection goes through resolveOptionsOverviewVisualId().
+     */
+    preferredVisualId: 'driving_style',
     displayMode: 'inline',
-    signalPriority: ['storageBenefitSignal', 'demandProfileLabel'],
+    signalPriority: ['dhwArchitecture', 'storageBenefitSignal'],
   },
   ranking: {
     preferredVisualId: 'driving_style',
@@ -240,6 +252,35 @@ export function resolveCurrentSystemVisualId(
   if (architecture === 'standard_cylinder') return 'cylinder_charge_standard';
   // on_demand (or undefined fallback) → driving_style
   return 'driving_style';
+}
+
+/**
+ * Resolve the visual id for the options-overview page using DHW architecture
+ * as the sole discriminator.
+ *
+ * Design rule: show a visual ONLY when the architecture is explicit and the
+ * visual adds genuine information.  Return null for on_demand (no cylinder
+ * to animate) and for unknown/undefined architectures so the caller renders
+ * a neutral architecture card instead of a misleading fallback animation.
+ *
+ *   thermal_store     → 'thermal_store'            (current-system physics context)
+ *   mixergy           → 'cylinder_charge_mixergy'  (stratified cylinder)
+ *   standard_cylinder → 'cylinder_charge_standard' (standard stored cylinder)
+ *   on_demand         → null  (combi needs no cylinder; neutral card is cleaner)
+ *   undefined         → null  (unknown architecture; neutral card is safer)
+ *
+ * @param architecture   DHW architecture from CurrentSystemSignal.
+ * @returns              Architecture-valid PhysicsVisualId, or null for neutral card.
+ */
+export function resolveOptionsOverviewVisualId(
+  architecture: DhwArchitecture | undefined,
+): PhysicsVisualId | null {
+  if (architecture === 'thermal_store')     return 'thermal_store';
+  if (architecture === 'mixergy')           return 'cylinder_charge_mixergy';
+  if (architecture === 'standard_cylinder') return 'cylinder_charge_standard';
+  // on_demand (combi) and undefined: no cylinder to animate.
+  // Returning null signals the caller to render a neutral architecture card.
+  return null;
 }
 
 /**

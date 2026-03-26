@@ -37,7 +37,7 @@ import {
   type CurrentSystemSignal,
   type DhwArchitecture,
 } from './buildCanonicalPresentation';
-import { resolveShortlistVisualId, resolveCurrentSystemVisualId } from './presentationVisualMapping';
+import { resolveShortlistVisualId, resolveCurrentSystemVisualId, resolveOptionsOverviewVisualId } from './presentationVisualMapping';
 import PresentationVisualSlot from './PresentationVisualSlot';
 import './PresentationDeck.css';
 
@@ -184,10 +184,10 @@ function OptionsPage({
     ? '1 viable system for this home'
     : `${viableCount} viable systems for this home`;
 
-  // Use the current system's DHW architecture to select a meaningful visual.
-  // This avoids showing the generic 'cylinder_charge' and instead selects
-  // an architecture-specific visual (or null when no visual applies).
-  const visualId = resolveCurrentSystemVisualId(currentSystemArchitecture);
+  // Use the current system's DHW architecture to select an architecture-valid
+  // visual.  Returns null for on_demand (no cylinder to animate) and undefined
+  // architectures so a neutral card is rendered instead of a fallback animation.
+  const visualId = resolveOptionsOverviewVisualId(currentSystemArchitecture);
 
   return (
     <>
@@ -204,10 +204,9 @@ function OptionsPage({
         ) : visualId === 'cylinder_charge_standard' ? (
           <PresentationVisualSlot visualId="cylinder_charge_standard" />
         ) : (
-          <PresentationVisualSlot
-            visualId="driving_style"
-            visualData={{ mode: 'combi' }}
-          />
+          // null — architecture has no animation (on_demand / unknown).
+          // Render a neutral card: the options list below carries the story.
+          <div className="atlas-presentation-deck__neutral-architecture-card" aria-hidden="true" />
         )}
       </div>
       <ul className="atlas-presentation-deck__options-list">

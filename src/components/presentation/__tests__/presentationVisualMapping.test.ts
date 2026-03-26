@@ -16,6 +16,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getVisualConfigForSection,
   resolveShortlistVisualId,
+  resolveOptionsOverviewVisualId,
   isVisualValid,
   type CanonicalPresentationSectionId,
 } from '../presentationVisualMapping';
@@ -113,9 +114,9 @@ describe('presentationVisualMapping — priority section assignments', () => {
     expect(cfg.displayMode).toBe('inline');
   });
 
-  it('options → cylinder_charge inline', () => {
+  it('options → driving_style sentinel (resolved by resolveOptionsOverviewVisualId)', () => {
     const cfg = getVisualConfigForSection('options');
-    expect(cfg.preferredVisualId).toBe('cylinder_charge');
+    expect(cfg.preferredVisualId).toBe('driving_style');
     expect(cfg.displayMode).toBe('inline');
   });
 });
@@ -306,5 +307,55 @@ describe('isVisualValid — validity constraint enforcement', () => {
     expect(() => isVisualValid('thermal_store', { pageType: 'current_system' })).not.toThrow();
     expect(() => isVisualValid('thermal_store', { pageType: 'gallery' })).not.toThrow();
     expect(() => isVisualValid('thermal_store', {})).not.toThrow();
+  });
+});
+
+// ─── resolveOptionsOverviewVisualId ───────────────────────────────────────────
+
+describe('resolveOptionsOverviewVisualId — architecture-valid or null', () => {
+  it('thermal_store → thermal_store (current-system physics context)', () => {
+    expect(resolveOptionsOverviewVisualId('thermal_store')).toBe('thermal_store');
+  });
+
+  it('mixergy → cylinder_charge_mixergy (stratified cylinder)', () => {
+    expect(resolveOptionsOverviewVisualId('mixergy')).toBe('cylinder_charge_mixergy');
+  });
+
+  it('standard_cylinder → cylinder_charge_standard (standard stored cylinder)', () => {
+    expect(resolveOptionsOverviewVisualId('standard_cylinder')).toBe('cylinder_charge_standard');
+  });
+
+  it('on_demand → null (no cylinder; neutral card preferred over driving_style fallback)', () => {
+    expect(resolveOptionsOverviewVisualId('on_demand')).toBeNull();
+  });
+
+  it('undefined → null (unknown architecture; neutral card is safer than any animation)', () => {
+    expect(resolveOptionsOverviewVisualId(undefined)).toBeNull();
+  });
+
+  it('never returns driving_style (generic fallback banned on options overview)', () => {
+    const architectures = ['on_demand', 'standard_cylinder', 'mixergy', 'thermal_store', undefined] as const;
+    for (const arch of architectures) {
+      expect(
+        resolveOptionsOverviewVisualId(arch),
+        `resolveOptionsOverviewVisualId('${arch}') must not return driving_style`,
+      ).not.toBe('driving_style');
+    }
+  });
+
+  it('never returns the generic cylinder_charge (only subtype-specific or null)', () => {
+    const architectures = ['on_demand', 'standard_cylinder', 'mixergy', 'thermal_store', undefined] as const;
+    for (const arch of architectures) {
+      expect(
+        resolveOptionsOverviewVisualId(arch),
+        `resolveOptionsOverviewVisualId('${arch}') must not return generic cylinder_charge`,
+      ).not.toBe('cylinder_charge');
+    }
+  });
+
+  it('mixergy and standard_cylinder return distinct visuals', () => {
+    expect(resolveOptionsOverviewVisualId('mixergy')).not.toBe(
+      resolveOptionsOverviewVisualId('standard_cylinder'),
+    );
   });
 });
