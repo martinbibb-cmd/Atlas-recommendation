@@ -73,6 +73,36 @@ const SCRIPTS: Record<PhysicsVisualId, PhysicsVisualScript> = {
       'A stored-water system decouples generation from demand. The heat source (boiler or heat pump) can run at the most efficient time — overnight on cheap tariffs, or during solar generation — and the cylinder holds that energy for use whenever the household needs it. This is why cylinder sizing matters: too small and it runs out during peak use; too large and reheating takes longer and loses more heat through the jacket. A Mixergy-style cylinder improves on this by charging from the top down, so even a partially charged cylinder delivers full-temperature water immediately.',
   },
 
+  cylinder_charge_standard: {
+    title: 'How a standard stored hot water cylinder charges',
+    summary:
+      'A standard cylinder warms progressively through its full body as it charges — the whole stored volume heats up, top first.',
+    bullets: [
+      'Energy in: the heat source warms the entire water volume.',
+      'The top warms slightly ahead of the bottom, but the whole body charges together.',
+      'Discharge draws from the top, depleting the overall stored volume.',
+    ],
+    takeaway:
+      'A standard cylinder delivers reliable stored hot water — sizing and insulation determine how long the charge lasts.',
+    focusCopy:
+      'In a standard open-vented or unvented cylinder, the heat source (boiler coil or immersion element) warms the bulk of the stored water. Thermally, the top layer is always hottest — natural stratification means lighter warm water rises — but the cylinder charges as a body rather than concentrating heat in one layer. This means a partially charged standard cylinder still delivers warm water, but not at full temperature. Sizing is everything: a too-small cylinder runs out under simultaneous demand; a too-large cylinder takes longer to reheat and loses more heat through the jacket.',
+  },
+
+  cylinder_charge_mixergy: {
+    title: 'How a Mixergy cylinder charges from the top',
+    summary:
+      'A Mixergy cylinder concentrates heat at the top. The hot boundary moves downward as charging continues — so usable hot water is ready immediately, even when only partially charged.',
+    bullets: [
+      'Energy in: heat is directed to the top of the cylinder.',
+      'The hot/warm boundary descends as charge increases.',
+      'Even at 40% charge, the top volume delivers full-temperature water.',
+    ],
+    takeaway:
+      'Stratified charging means more usable hot water from less energy — ideal for solar divert and off-peak tariffs.',
+    focusCopy:
+      'A Mixergy cylinder uses a mixing valve and targeted heat injection to keep the upper portion of the cylinder at full temperature, while the lower portion remains cooler until needed. This stratified approach is the opposite of bulk heating: rather than slowly raising the temperature of the whole volume, it builds a sharp hot/cold boundary and moves it downward. The practical benefit is that at 40–50% charge a Mixergy cylinder can still deliver a full-temperature shower, whereas a standard cylinder at the same charge level would deliver lukewarm water. For solar divert, this means capturing a shorter midday solar burst still gives a usable result for the evening.',
+  },
+
   heat_particles: {
     title: 'How heat moves through your home',
     summary:

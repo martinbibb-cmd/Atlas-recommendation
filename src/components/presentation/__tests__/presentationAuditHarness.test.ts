@@ -482,10 +482,30 @@ describe('Rule audit — storage type conflation must never occur', () => {
 });
 
 describe('Rule audit — shortlist visuals must use signal logic, not raw family names', () => {
-  it('solar storage opportunity=high → cylinder_charge visual regardless of family', () => {
-    // Signal override: solar=high wins — family argument no longer accepted
-    expect(resolveShortlistVisualId('high', 1)).toBe('cylinder_charge');
-    expect(resolveShortlistVisualId('high', 0)).toBe('cylinder_charge');
+  it('solar storage opportunity=high + mixergy → cylinder_charge_mixergy', () => {
+    expect(resolveShortlistVisualId('high', 1, 'mixergy')).toBe('cylinder_charge_mixergy');
+    expect(resolveShortlistVisualId('high', 0, 'mixergy')).toBe('cylinder_charge_mixergy');
+  });
+
+  it('solar storage opportunity=high + unvented → cylinder_charge_standard', () => {
+    expect(resolveShortlistVisualId('high', 1, 'unvented')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('high', 0, 'unvented')).toBe('cylinder_charge_standard');
+  });
+
+  it('solar storage opportunity=high + open_vented → cylinder_charge_standard', () => {
+    expect(resolveShortlistVisualId('high', 1, 'open_vented')).toBe('cylinder_charge_standard');
+  });
+
+  it('solar storage opportunity=high + thermal_store → cylinder_charge_standard', () => {
+    expect(resolveShortlistVisualId('high', 1, 'thermal_store')).toBe('cylinder_charge_standard');
+  });
+
+  it('solar storage opportunity=high + unknown dhwStorageType → null (never show wrong animation)', () => {
+    // Unknown storage subtype: show nothing rather than the wrong visual
+    expect(resolveShortlistVisualId('high', 1, 'unknown')).toBeNull();
+    expect(resolveShortlistVisualId('high', 0, 'unknown')).toBeNull();
+    expect(resolveShortlistVisualId('high', 1)).toBeNull();
+    expect(resolveShortlistVisualId('high', 0)).toBeNull();
   });
 
   it('peakSimultaneousOutlets >= 2 → flow_split when solar is not high', () => {
@@ -518,8 +538,9 @@ describe('Rule audit — shortlist visuals must use signal logic, not raw family
   });
 
   it('solar signal takes priority over simultaneous outlet count', () => {
-    // solar=high overrides the outlets>=2 rule — cylinder_charge is the correct answer
-    expect(resolveShortlistVisualId('high', 3)).toBe('cylinder_charge');
+    // solar=high overrides the outlets>=2 rule — cylinder subtype visual is the correct answer
+    expect(resolveShortlistVisualId('high', 3, 'unvented')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('high', 3, 'mixergy')).toBe('cylinder_charge_mixergy');
   });
 });
 

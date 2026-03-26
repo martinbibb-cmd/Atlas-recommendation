@@ -223,6 +223,7 @@ function ShortlistPage({ option, index }: { option: ShortlistedOptionDetail; ind
   const visualId = resolveShortlistVisualId(
     option.solarStorageOpportunity,
     option.peakSimultaneousOutlets,
+    option.dhwStorageType,
   );
   return (
     <>

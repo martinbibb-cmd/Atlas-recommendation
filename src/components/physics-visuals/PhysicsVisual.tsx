@@ -41,6 +41,8 @@ export type PhysicsVisualDataMap = {
   flow_split: Omit<FlowSplitVisualProps, keyof PhysicsVisualProps>;
   solar_mismatch: Omit<SolarMismatchVisualProps, keyof PhysicsVisualProps>;
   cylinder_charge: Omit<CylinderChargeVisualProps, keyof PhysicsVisualProps>;
+  cylinder_charge_standard: Omit<CylinderChargeVisualProps, keyof PhysicsVisualProps>;
+  cylinder_charge_mixergy: Omit<CylinderChargeVisualProps, keyof PhysicsVisualProps>;
   heat_particles: Omit<HeatParticlesVisualProps, keyof PhysicsVisualProps>;
   // Remaining visuals — currently no data required beyond shared props
   bees_vs_tortoise: Record<string, never>;
@@ -102,6 +104,24 @@ export default function PhysicsVisual<T extends PhysicsVisualId>({
         <CylinderChargeVisual
           {...shared}
           {...(data as Omit<CylinderChargeVisualProps, keyof PhysicsVisualProps>)}
+        />
+      );
+
+    case 'cylinder_charge_standard':
+      return (
+        <CylinderChargeVisual
+          {...shared}
+          {...(data as Omit<CylinderChargeVisualProps, keyof PhysicsVisualProps>)}
+          mixergyMode={false}
+        />
+      );
+
+    case 'cylinder_charge_mixergy':
+      return (
+        <CylinderChargeVisual
+          {...shared}
+          {...(data as Omit<CylinderChargeVisualProps, keyof PhysicsVisualProps>)}
+          mixergyMode={true}
         />
       );
 

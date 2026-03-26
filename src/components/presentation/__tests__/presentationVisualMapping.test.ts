@@ -147,9 +147,27 @@ describe('presentationVisualMapping — signal priority fields', () => {
 // ─── resolveShortlistVisualId ──────────────────────────────────────────────────
 
 describe('resolveShortlistVisualId — signal-driven selection', () => {
-  it('returns cylinder_charge when solarStorageOpportunity is high', () => {
-    expect(resolveShortlistVisualId('high', 0)).toBe('cylinder_charge');
-    expect(resolveShortlistVisualId('high', 1)).toBe('cylinder_charge');
+  it('returns cylinder_charge_standard when solarStorageOpportunity is high and storage is unvented', () => {
+    expect(resolveShortlistVisualId('high', 0, 'unvented')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('high', 1, 'unvented')).toBe('cylinder_charge_standard');
+  });
+
+  it('returns cylinder_charge_standard when solarStorageOpportunity is high and storage is open_vented', () => {
+    expect(resolveShortlistVisualId('high', 0, 'open_vented')).toBe('cylinder_charge_standard');
+  });
+
+  it('returns cylinder_charge_standard when solarStorageOpportunity is high and storage is thermal_store', () => {
+    expect(resolveShortlistVisualId('high', 1, 'thermal_store')).toBe('cylinder_charge_standard');
+  });
+
+  it('returns cylinder_charge_mixergy when solarStorageOpportunity is high and storage is mixergy', () => {
+    expect(resolveShortlistVisualId('high', 0, 'mixergy')).toBe('cylinder_charge_mixergy');
+    expect(resolveShortlistVisualId('high', 1, 'mixergy')).toBe('cylinder_charge_mixergy');
+  });
+
+  it('returns null when solarStorageOpportunity is high but dhwStorageType is unknown', () => {
+    expect(resolveShortlistVisualId('high', 0, 'unknown')).toBeNull();
+    expect(resolveShortlistVisualId('high', 1)).toBeNull();
   });
 
   it('returns flow_split when peakSimultaneousOutlets >= 2 and solar is not high', () => {
@@ -160,7 +178,8 @@ describe('resolveShortlistVisualId — signal-driven selection', () => {
 
   it('solar=high takes priority over concurrent outlets', () => {
     // Both signals present — solar wins (signal order priority)
-    expect(resolveShortlistVisualId('high', 2)).toBe('cylinder_charge');
+    expect(resolveShortlistVisualId('high', 2, 'unvented')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('high', 2, 'mixergy')).toBe('cylinder_charge_mixergy');
   });
 
   it('returns null when no signal matches — no family-based fallback', () => {

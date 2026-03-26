@@ -15,6 +15,8 @@ export type PhysicsVisualId =
   | 'flow_split'
   | 'solar_mismatch'
   | 'cylinder_charge'
+  | 'cylinder_charge_standard'
+  | 'cylinder_charge_mixergy'
   | 'driving_style'
   | 'bees_vs_tortoise'
   | 'sponge'
