@@ -58,7 +58,7 @@ const DHW_META: Record<DhwType, { label: string; description: string }> = {
   open_vented:   { label: 'Mains-fed (open vented)',  description: 'Cylinder fed from loft cistern via gravity' },
   unvented:      { label: 'Unvented cylinder',         description: 'Mains pressure cylinder with pressure relief discharge' },
   thermal_store: { label: 'Thermal store',             description: 'Large primary store feeding DHW via internal coil' },
-  plate_hex:     { label: 'On-demand hot water',       description: 'Hot water produced instantly via plate heat exchanger in combi boiler' },
+  plate_hex:     { label: 'On-demand hot water',       description: 'Hot water heated on demand via plate heat exchanger in combi boiler' },
   small_store:   { label: 'Integral small store',      description: 'Compact integrated cylinder within storage combi' },
 };
 
