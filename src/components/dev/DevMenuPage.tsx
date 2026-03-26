@@ -12,7 +12,7 @@
  * NOT customer-facing. Accessible via ?devmenu=1 URL flag.
  */
 
-import { useState, useMemo, type CSSProperties } from 'react';
+import { useState, useMemo, type CSSProperties, type ReactNode } from 'react';
 import {
   DEV_UI_REGISTRY,
   type DevUiRegistryItem,
