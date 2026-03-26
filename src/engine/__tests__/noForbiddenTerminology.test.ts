@@ -31,6 +31,9 @@ const ALLOWED_FILES = new Set([
   // terms as reference strings for testing, not as customer-facing copy. Its own
   // test suite (customerCopy.test.ts) verifies that no exported label uses banned phrases.
   'customerCopy.ts',
+  // Presentation audit page — FORBIDDEN_PHRASES array contains banned terms as
+  // detection rules for the developer audit surface, not as customer-facing copy.
+  'PresentationAuditPage.tsx',
   // This test file itself
   'noForbiddenTerminology.test.ts',
   'noBrandCopy.test.ts',

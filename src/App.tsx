@@ -40,6 +40,7 @@ import type { FitPosition } from './logic/fit-map/computeFitPosition';
 import FitMapResultPage from './components/fit-map/FitMapResultPage';
 import CanonicalPresentationPage from './components/presentation/CanonicalPresentationPage';
 import PhysicsVisualGallery from './components/physics-visuals/preview/PhysicsVisualGallery';
+import PresentationAuditPage from './components/audit/PresentationAuditPage';
 import './App.css';
 
 /** Detect ?lab=1 feature flag — renders Demo Lab directly for previewing. */
@@ -87,6 +88,14 @@ const DECK_MODE_ENABLED =
 const GALLERY_MODE_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('gallery') === '1';
+
+/**
+ * Detect ?audit=1 — renders the Presentation Audit Page directly.
+ * Developer/review surface for inspecting all golden scenarios and rule violations.
+ */
+const AUDIT_MODE_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('audit') === '1';
 
 /**
  * Demo engine input used by the report mode (?report=1) and presentation demo (?presentation=1).
@@ -378,6 +387,11 @@ export default function App() {
         <PhysicsVisualGallery onBack={() => { window.location.href = window.location.pathname; }} />
       </div>
     );
+  }
+
+  // ?audit=1 — render Presentation Audit Page for developer scenario review.
+  if (AUDIT_MODE_ENABLED) {
+    return <PresentationAuditPage />;
   }
 
   // ?lab=1 feature flag — render Demo Lab directly.
