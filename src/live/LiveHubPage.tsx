@@ -10,7 +10,7 @@
  *  4. Suitability Summary — system comparison table
  *  5. Future Upgrade Path — staged retrofit roadmap
  *  6. Detail Tiles — drill-down to physics detail sections
- *  7. Launch Simulator CTA
+ *  7. Launch Proof Workspace CTA
  *  8. Export actions (primary: Print Recommendation; secondary: Technical Comparison, Engineering Detail)
  *
  * PR16: Added "Launch Simulator" CTA that opens the simulator pre-configured
@@ -429,12 +429,12 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
         </div>
       </div>
 
-      {/* ── Launch Simulator CTA ─────────────────────────────────────── */}
+      {/* ── Launch Proof Workspace CTA ───────────────────────────────── */}
       <div className="live-hub__simulator-cta">
         <div className="live-hub__simulator-cta-inner">
           <div className="live-hub__simulator-cta-icon" aria-hidden="true">🧱</div>
           <div className="live-hub__simulator-cta-content">
-            <div className="live-hub__simulator-cta-title">Launch Simulator</div>
+            <div className="live-hub__simulator-cta-title">Open Proof Workspace</div>
             <div className="live-hub__simulator-cta-subtitle">
               See this home's system behaviour — prefilled from your survey data
             </div>
@@ -442,9 +442,9 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
           <button
             className="live-hub__simulator-cta-btn"
             onClick={() => setActiveSection('simulator')}
-            aria-label="Launch simulator prefilled from full survey data"
+            aria-label="Open proof workspace prefilled from full survey data"
           >
-            Open Simulator →
+            Open Workspace →
           </button>
         </div>
       </div>

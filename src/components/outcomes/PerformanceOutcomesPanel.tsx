@@ -17,7 +17,7 @@ export default function PerformanceOutcomesPanel({ advice }: Props) {
   const summary = advice.selectedSystemPerformanceSummary ?? advice.bestOverall.performanceSummary;
   return (
     <div className="performance-outcomes" data-testid="performance-outcomes-panel">
-      <div className="performance-outcomes__header"><h2>Performance outcomes</h2><p>Live readout from the simulator-backed recommendation layer.</p></div>
+      <div className="performance-outcomes__header"><h2>Performance outcomes</h2><p>Live readout from the physics-backed recommendation layer.</p></div>
       <dl className="performance-outcomes__grid">{outcomeRows(summary).map(([label, value]) => <div key={label} className="performance-outcomes__card"><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
     </div>
   );

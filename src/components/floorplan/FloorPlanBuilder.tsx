@@ -1835,11 +1835,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
         </div>
       </section>
 
-      {/* ── Simulation panel ── */}
+      {/* ── Behaviour panel ── */}
       {visibleNodes.length > 0 && (
         <section className="fpb__simulation">
           <div className="fpb__simulation-header">
-            <h3>System Simulation</h3>
+            <h3>System Behaviour</h3>
             <p>
               {visibleNodes.length} component{visibleNodes.length !== 1 ? 's' : ''} placed on {activeFloor.name}.
               {' '}The lego builder below uses this floor's components to run a live physics model.
@@ -1848,7 +1848,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               className={`fpb__sim-toggle ${showSimulation ? 'active' : ''}`}
               onClick={() => setShowSimulation((v) => !v)}
             >
-              {showSimulation ? 'Hide simulation' : 'Run simulation ▶'}
+              {showSimulation ? 'Hide behaviour view' : 'Run behaviour view ▶'}
             </button>
           </div>
           {showSimulation && (
