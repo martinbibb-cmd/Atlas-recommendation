@@ -1,6 +1,7 @@
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { SystemBuilderState } from '../../features/survey/systemBuilder/systemBuilderTypes';
 import type { WaterQualityState } from '../../features/survey/services/waterQualityTypes';
+import type { UsageState } from '../../features/survey/usage/usageTypes';
 
 /**
  * HeatingConditionDiagnosticsV1
@@ -144,6 +145,12 @@ export type FullSurveyModelV1 = EngineInputV2_3 & {
      * modelling.
      */
     waterQuality?: WaterQualityState;
+    /**
+     * Usage / Demand step — captures behavioural demand inputs describing how
+     * heat and hot water are used in the home.
+     * Normalised by usageNormalizer for later demand and sizing wiring.
+     */
+    usage?: UsageState;
   };
 };
 
