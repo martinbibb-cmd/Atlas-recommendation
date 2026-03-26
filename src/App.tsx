@@ -41,7 +41,13 @@ import FitMapResultPage from './components/fit-map/FitMapResultPage';
 import CanonicalPresentationPage from './components/presentation/CanonicalPresentationPage';
 import PhysicsVisualGallery from './components/physics-visuals/preview/PhysicsVisualGallery';
 import PresentationAuditPage from './components/audit/PresentationAuditPage';
+import DevMenuPage from './components/dev/DevMenuPage';
 import './App.css';
+
+/** Detect ?devmenu=1 — renders the developer component browser on the landing page. */
+const DEV_MENU_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('devmenu') === '1';
 
 /** Detect ?lab=1 feature flag — renders Demo Lab directly for previewing. */
 const LAB_MODE_ENABLED =
@@ -121,7 +127,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report' | 'presentation' | 'gallery';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -394,6 +400,13 @@ export default function App() {
     return <PresentationAuditPage />;
   }
 
+  // ?devmenu=1 feature flag — render Developer Component Browser directly.
+  if (DEV_MENU_ENABLED) {
+    return (
+      <DevMenuPage onBack={() => { window.location.href = window.location.pathname; }} />
+    );
+  }
+
   // ?lab=1 feature flag — render Demo Lab directly.
   if (LAB_MODE_ENABLED) {
     return <ExplainersHubPage onBack={() => { window.location.href = window.location.pathname; }} />;
@@ -528,6 +541,9 @@ export default function App() {
         <div style={{ background: 'var(--surface-page, #f8fafc)', minHeight: '100vh' }}>
           <PhysicsVisualGallery onBack={() => setJourney('landing')} />
         </div>
+      )}
+      {journey === 'dev-menu' && (
+        <DevMenuPage onBack={() => setJourney('landing')} />
       )}
       {journey === 'explorer' && EXPLORER_ENABLED && <AtlasExplorerPage onBack={() => setJourney('landing')} />}
       {journey === 'floor-plan' && (
@@ -675,6 +691,18 @@ export default function App() {
               <p>Dev preview — browse all registered explainer animations with controls and scripts.</p>
               <button className="cta-btn">Open Gallery →</button>
             </div>
+            {/* Dev Menu — component browser, only visible when ?devmenu=1 */}
+            {DEV_MENU_ENABLED && (
+              <div
+                className="journey-card"
+                onClick={() => setJourney('dev-menu')}
+              >
+                <div className="card-icon">🛠</div>
+                <h2>Dev Menu</h2>
+                <p>Component browser — inspect registered UI surfaces by name, file and status.</p>
+                <button className="cta-btn">Open Dev Menu →</button>
+              </div>
+            )}
             {/* System Explorer hidden from primary UX — access via ?explorer=1 */}
           </div>
           <Footer onNavigate={setJourney} />
