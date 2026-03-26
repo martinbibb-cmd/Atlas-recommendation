@@ -20,6 +20,10 @@ import FootprintXRay from '../components/visualizers/FootprintXRay';
 import FastChoiceStepper from '../components/stepper/FastChoiceStepper';
 import FullSurveyStepper from '../components/stepper/FullSurveyStepper';
 import PresentationAuditPage from '../components/audit/PresentationAuditPage';
+import DrawOffWorkbench from '../components/lab/DrawOffWorkbench';
+import LabShell from '../components/lab/LabShell';
+import AtlasExplorerPage from '../components/explorer/AtlasExplorerPage';
+import CanonicalPresentationPage from '../components/presentation/CanonicalPresentationPage';
 import { runEngine } from '../engine/Engine';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 
@@ -55,16 +59,22 @@ export type DevUiCategory =
   | 'visualiser'
   | 'journey'
   | 'presentation'
+  | 'assessment'
+  | 'report'
+  | 'utility'
   | 'audit'
-  | 'deprecated';
+  | 'deprecated'
+  | 'unknown';
 
-export type DevUiStatus = 'canonical' | 'active' | 'experimental' | 'deprecated';
+export type DevUiStatus = 'canonical' | 'active' | 'experimental' | 'review' | 'duplicate' | 'deprecated' | 'remove';
 
 export interface DevUiRegistryItem {
   /** Unique identifier for this entry. */
   id: string;
-  /** Human-readable label shown in the browser. */
+  /** Human-readable label shown in the browser. Falls back to codeName if not yet assigned. */
   commonName: string;
+  /** Exact export/component name in the source file (e.g. ExplainersHubPage). */
+  codeName: string;
   /** Exact source file name (including extension). */
   fileName: string;
   /** Relative path from repo root. */
@@ -73,10 +83,13 @@ export interface DevUiRegistryItem {
   category: DevUiCategory;
   /**
    * Lifecycle status.
-   * - canonical  – the definitive, production-live surface for its category
-   * - active     – in use, not yet promoted to canonical
+   * - canonical   – the definitive, production-live surface for its category
+   * - active      – in use, not yet promoted to canonical
    * - experimental – work-in-progress / preview
+   * - review      – needs decision: keep, rename, or remove
+   * - duplicate   – a second surface that overlaps with a canonical one
    * - deprecated  – scheduled for removal; still browsable for review
+   * - remove      – confirmed for deletion
    */
   status: DevUiStatus;
   /** Optional human note explaining the component's purpose or deprecation reason. */
@@ -101,6 +114,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
   {
     id: 'explainers-hub',
     commonName: 'Real Simulator',
+    codeName: 'ExplainersHubPage',
     fileName: 'ExplainersHubPage.tsx',
     filePath: 'src/explainers/ExplainersHubPage.tsx',
     category: 'simulator',
@@ -111,10 +125,32 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     render: () => <ExplainersHubPage onBack={() => undefined} />,
   },
 
+  // ── Presentation ──────────────────────────────────────────────────────────
+  {
+    id: 'canonical-presentation',
+    commonName: 'Presentation Deck',
+    codeName: 'CanonicalPresentationPage',
+    fileName: 'CanonicalPresentationPage.tsx',
+    filePath: 'src/components/presentation/CanonicalPresentationPage.tsx',
+    category: 'presentation',
+    status: 'canonical',
+    notes:
+      'Full multi-page recommendation presentation shown to customers. ' +
+      'Rendered here with demo inputs in vertical (non-deck) mode.',
+    render: () => (
+      <CanonicalPresentationPage
+        result={runEngine(DEV_DEMO_INPUT)}
+        input={DEV_DEMO_INPUT}
+        deckMode={false}
+      />
+    ),
+  },
+
   // ── Visualisers ────────────────────────────────────────────────────────────
   {
     id: 'lifestyle-interactive',
     commonName: 'Lifestyle Interactive',
+    codeName: 'LifestyleInteractive',
     fileName: 'LifestyleInteractive.tsx',
     filePath: 'src/components/visualizers/LifestyleInteractive.tsx',
     category: 'visualiser',
@@ -124,6 +160,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
   {
     id: 'interactive-comfort-clock',
     commonName: 'Comfort Clock',
+    codeName: 'InteractiveComfortClock',
     fileName: 'InteractiveComfortClock.tsx',
     filePath: 'src/components/visualizers/InteractiveComfortClock.tsx',
     category: 'visualiser',
@@ -133,6 +170,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
   {
     id: 'glass-box-panel',
     commonName: 'Glass Box Panel',
+    codeName: 'GlassBoxPanel',
     fileName: 'GlassBoxPanel.tsx',
     filePath: 'src/components/visualizers/GlassBoxPanel.tsx',
     category: 'visualiser',
@@ -142,6 +180,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
   {
     id: 'efficiency-curve',
     commonName: 'Efficiency Curve',
+    codeName: 'EfficiencyCurve',
     fileName: 'EfficiencyCurve.tsx',
     filePath: 'src/components/visualizers/EfficiencyCurve.tsx',
     category: 'visualiser',
@@ -151,6 +190,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
   {
     id: 'footprint-xray',
     commonName: 'Footprint X-Ray',
+    codeName: 'FootprintXRay',
     fileName: 'FootprintXRay.tsx',
     filePath: 'src/components/visualizers/FootprintXRay.tsx',
     category: 'visualiser',
@@ -163,6 +203,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
   {
     id: 'fast-choice-stepper',
     commonName: 'Fast Choice Stepper',
+    codeName: 'FastChoiceStepper',
     fileName: 'FastChoiceStepper.tsx',
     filePath: 'src/components/stepper/FastChoiceStepper.tsx',
     category: 'journey',
@@ -172,6 +213,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
   {
     id: 'full-survey-stepper',
     commonName: 'Full Survey Stepper',
+    codeName: 'FullSurveyStepper',
     fileName: 'FullSurveyStepper.tsx',
     filePath: 'src/components/stepper/FullSurveyStepper.tsx',
     category: 'journey',
@@ -179,10 +221,46 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     render: () => <FullSurveyStepper onBack={() => undefined} />,
   },
 
+  // ── Assessment / Lab ────────────────────────────────────────────────────────
+  {
+    id: 'lab-shell',
+    commonName: 'System Lab',
+    codeName: 'LabShell',
+    fileName: 'LabShell.tsx',
+    filePath: 'src/components/lab/LabShell.tsx',
+    category: 'assessment',
+    status: 'active',
+    notes: 'Full System Lab shell with tabbed view. Normally accessed after completing a survey.',
+    render: () => <LabShell onHome={() => undefined} engineInput={DEV_DEMO_INPUT} />,
+  },
+  {
+    id: 'draw-off-workbench',
+    commonName: 'Hot Water Workbench',
+    codeName: 'DrawOffWorkbench',
+    fileName: 'DrawOffWorkbench.tsx',
+    filePath: 'src/components/lab/DrawOffWorkbench.tsx',
+    category: 'assessment',
+    status: 'active',
+    notes: 'Visual draw-off workbench showing hot water performance by system type. Part of System Lab.',
+    render: () => <DrawOffWorkbench />,
+  },
+  {
+    id: 'atlas-explorer',
+    commonName: 'System Explorer',
+    codeName: 'AtlasExplorerPage',
+    fileName: 'AtlasExplorerPage.tsx',
+    filePath: 'src/components/explorer/AtlasExplorerPage.tsx',
+    category: 'assessment',
+    status: 'review',
+    notes: 'Advanced physics explorer with system diagram, heat source panel and room breakdown. Normally accessed via ?explorer=1.',
+    render: () => <AtlasExplorerPage onBack={() => undefined} />,
+  },
+
   // ── Audit ───────────────────────────────────────────────────────────────────
   {
     id: 'presentation-audit',
     commonName: 'Presentation Audit',
+    codeName: 'PresentationAuditPage',
     fileName: 'PresentationAuditPage.tsx',
     filePath: 'src/components/audit/PresentationAuditPage.tsx',
     category: 'audit',

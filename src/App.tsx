@@ -691,16 +691,16 @@ export default function App() {
               <p>Dev preview — browse all registered explainer animations with controls and scripts.</p>
               <button className="cta-btn">Open Gallery →</button>
             </div>
-            {/* Dev Menu — component browser, only visible when ?devmenu=1 */}
+            {/* UI Inventory — component browser, only visible when ?devmenu=1 */}
             {DEV_MENU_ENABLED && (
               <div
                 className="journey-card"
                 onClick={() => setJourney('dev-menu')}
               >
-                <div className="card-icon">🛠</div>
-                <h2>Dev Menu</h2>
-                <p>Component browser — inspect registered UI surfaces by name, file and status.</p>
-                <button className="cta-btn">Open Dev Menu →</button>
+                <div className="card-icon">🗂</div>
+                <h2>UI Inventory</h2>
+                <p>Browse and classify all registered UI surfaces by human name, code name, category and status.</p>
+                <button className="cta-btn">Open UI Inventory →</button>
               </div>
             )}
             {/* System Explorer hidden from primary UX — access via ?explorer=1 */}
