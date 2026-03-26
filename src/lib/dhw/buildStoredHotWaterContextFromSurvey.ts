@@ -3,10 +3,17 @@
  *
  * Canonical bridge from FullSurveyModelV1 → StoredHotWaterContext.
  *
- * This is the single normalization layer that turns survey cylinder/water data
- * into simulator-ready stored hot water inputs.  Consumers (adaptFullSurveyToSimulatorInputs,
- * compare-mode seed generation, report adapters) should call this function instead
- * of reading survey cylinder fields directly.
+ * This function covers ONLY potable stored hot water cylinder architectures:
+ *   - vented (tank-fed / open-vented cylinder)
+ *   - unvented (mains-fed cylinder)
+ *   - mixergy (stratified mains-fed cylinder)
+ *   - heat_pump_cylinder
+ *   - none (combi / no cylinder)
+ *
+ * ARCHITECTURAL INVARIANT: thermal_store is NOT a potable stored hot water
+ * cylinder and must never be processed by this function.  Callers that need
+ * to handle thermal stores must use buildThermalStoreContextFromSurvey, or
+ * call the top-level buildDhwContextFromSurvey which routes correctly.
  *
  * Design rules:
  *   - Reads both top-level EngineInputV2_3 fields AND fullSurvey.dhwCondition fields.
@@ -96,8 +103,11 @@ function deriveStorageType(
     return 'none';
   }
 
-  // 2. Engine-level dhwStorageType field is authoritative when set
-  if (survey.dhwStorageType != null) {
+  // 2. Engine-level dhwStorageType field is authoritative when set.
+  // INVARIANT: 'thermal_store' is excluded here — it is not a potable stored hot water
+  // cylinder architecture.  When dhwStorageType is 'thermal_store', fall through to
+  // inference so callers that use buildDhwContextFromSurvey never reach this branch.
+  if (survey.dhwStorageType != null && survey.dhwStorageType !== 'thermal_store') {
     return survey.dhwStorageType;
   }
 
