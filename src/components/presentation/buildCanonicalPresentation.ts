@@ -136,6 +136,16 @@ export interface AvailableOptionExplanation {
   status: OptionCardV1['status'];
   headline: string;
   whatItIs: string;
+  /**
+   * Top-level DHW architecture this option would use — the primary discriminator
+   * for visuals and wording on the options page.
+   *
+   *   on_demand        — option delivers hot water on demand (combi)
+   *   standard_cylinder — option uses a standard vented or unvented cylinder
+   *   mixergy          — option uses a Mixergy stratified cylinder
+   *   thermal_store    — not a recommended future option (legacy)
+   */
+  dhwArchitecture: DhwArchitecture;
   throughHouseNotes: string[];
   throughHomeNotes: string[];
   throughEnergyNotes: string[];
@@ -222,6 +232,11 @@ export interface FinalPageSimulator {
   homeScenarioDescription: string;
   houseConstraintNotes: string[];
   energyTimingNotes: string[];
+  /**
+   * Architecture-specific guidance for what to test in the System Simulator.
+   * Derived from the top-level DHW architecture so the handoff is physics-first.
+   */
+  dhwArchitectureNote: string;
 }
 
 /** Full canonical presentation model. */
@@ -702,11 +717,15 @@ function buildOptionExplanation(
   option: OptionCardV1,
   result: FullEngineResult,
   input: EngineInputV2_3,
+  dhwStorageType: DhwStorageType,
 ): AvailableOptionExplanation {
   const demo = result.demographicOutputs;
   const pv = result.pvAssessment;
   const occupancy = input.occupancyCount ?? 2;
   const bathrooms = input.bathroomCount;
+
+  // Determine the DHW architecture this option would use — the primary discriminator.
+  const dhwArchitecture = optionIdToArchitecture(option.id, dhwStorageType);
 
   // Through-house notes: fabric, heat loss, pipework, infrastructure
   const throughHouseNotes: string[] = [];
@@ -736,10 +755,10 @@ function buildOptionExplanation(
     throughHouseNotes.push('Requires loft tank and hot-water cylinder — needs adequate roof space.');
   }
 
-  // Through-home notes: demand profile, occupancy, bath use, storage benefit
+  // Through-home notes: branch on DHW architecture first.
   const throughHomeNotes: string[] = [];
 
-  if (option.id === 'combi') {
+  if (dhwArchitecture === 'on_demand') {
     if (demo.peakSimultaneousOutlets >= 2) {
       throughHomeNotes.push(`In your home, ${demo.peakSimultaneousOutlets} simultaneous outlets are expected — a combi may not sustain both at full pressure.`);
     } else {
@@ -752,7 +771,7 @@ function buildOptionExplanation(
       throughHomeNotes.push('Your household profile indicates high benefit from stored water — a combi is likely to struggle here.');
     }
   } else {
-    // Stored / ASHP
+    // standard_cylinder, mixergy, or standard ASHP cylinder
     const litres = Math.round(demo.dailyHotWaterLitres);
     throughHomeNotes.push(`Estimated demand of ~${litres} L/day helps size the cylinder correctly for this household.`);
     if (demo.bathUseIntensity === 'high') {
@@ -765,28 +784,28 @@ function buildOptionExplanation(
     }
   }
 
-  // Through-energy notes: PV status, alignment, storage opportunity
+  // Through-energy notes: branch on DHW architecture first.
   const throughEnergyNotes: string[] = [];
 
   if (pv.hasExistingPv) {
-    if (option.id === 'stored_unvented' || option.id === 'system_unvented') {
+    if (dhwArchitecture === 'standard_cylinder' || dhwArchitecture === 'mixergy') {
       throughEnergyNotes.push('Existing PV — a solar diverter can use surplus generation to heat water, reducing import.');
     } else if (option.id === 'ashp') {
       throughEnergyNotes.push('Existing PV — ASHP can run preferentially during generation peak, improving economics.');
-    } else if (option.id === 'combi') {
+    } else if (dhwArchitecture === 'on_demand') {
       throughEnergyNotes.push('Existing PV — a combi cannot store surplus heat; most generation benefit is lost unless a battery is added.');
     }
   } else if (input.pvStatus === 'planned') {
-    if (option.id === 'stored_unvented' || option.id === 'system_unvented') {
+    if (dhwArchitecture === 'standard_cylinder' || dhwArchitecture === 'mixergy') {
       throughEnergyNotes.push('Planned PV — a solar diverter fitted at the same time as new PV is cost-effective and captures surplus generation.');
-    } else if (option.id === 'combi') {
+    } else if (dhwArchitecture === 'on_demand') {
       throughEnergyNotes.push('Planned PV — a combi offers no solar storage; planned generation would mostly be exported.');
     }
   } else if (pv.pvSuitability === 'good') {
     throughEnergyNotes.push('Good roof for PV — if solar is added in future, a cylinder would allow storage of surplus generation.');
   }
 
-  if (pv.solarStorageOpportunity === 'high' && (option.id === 'stored_unvented' || option.id === 'system_unvented')) {
+  if (pv.solarStorageOpportunity === 'high' && (dhwArchitecture === 'standard_cylinder' || dhwArchitecture === 'mixergy')) {
     throughEnergyNotes.push('Solar storage opportunity is high for this option — PV surplus capture is efficient with a cylinder.');
   }
 
@@ -806,6 +825,7 @@ function buildOptionExplanation(
     status: option.status,
     headline: option.headline,
     whatItIs,
+    dhwArchitecture,
     throughHouseNotes,
     throughHomeNotes,
     throughEnergyNotes,
@@ -819,8 +839,9 @@ function buildPage2(
   input: EngineInputV2_3,
 ): Page2AvailableOptions {
   const options = result.engineOutput.options ?? [];
+  const dhwStorageType = inputDhwStorageTypeToSignal(input.dhwStorageType);
   return {
-    options: options.map(opt => buildOptionExplanation(opt, result, input)),
+    options: options.map(opt => buildOptionExplanation(opt, result, input, dhwStorageType)),
   };
 }
 
@@ -1010,9 +1031,41 @@ function buildPage4Plus(
 
 // ─── Final page — Simulator / proof ───────────────────────────────────────────
 
+/**
+ * Map a DHW architecture to the short human-readable label used in
+ * homeScenarioDescription on the final/simulator page.
+ */
+function dhwArchitectureToLabel(architecture: DhwArchitecture): string {
+  switch (architecture) {
+    case 'on_demand':         return 'on-demand hot water (combi)';
+    case 'standard_cylinder': return 'stored hot water via cylinder';
+    case 'mixergy':           return 'stored hot water via Mixergy cylinder';
+    case 'thermal_store':     return 'thermal store system';
+  }
+}
+
+/**
+ * Map a DHW architecture to the architecture-specific note shown on the
+ * final/simulator page — tells the user what is worth testing in the System
+ * Simulator for their specific architecture.
+ */
+function dhwArchitectureToSimulatorNote(architecture: DhwArchitecture): string {
+  switch (architecture) {
+    case 'on_demand':
+      return 'On-demand hot water (combi) — use the System Simulator to test flow rate under simultaneous draw and peak-load sizing.';
+    case 'standard_cylinder':
+      return 'Stored hot water via cylinder — use the System Simulator to test cylinder sizing, recovery time, and solar diverter scenarios.';
+    case 'mixergy':
+      return 'Mixergy stratified cylinder — use the System Simulator to test demand-mirroring behaviour, reduced cycling, and top-up efficiency.';
+    case 'thermal_store':
+      return 'Thermal store system — use the System Simulator to verify primary temperature requirements (75–85 °C) and DHW draw via exchanger.';
+  }
+}
+
 function buildFinalPage(
   result: FullEngineResult,
   input: EngineInputV2_3,
+  dhwArchitecture: DhwArchitecture,
 ): FinalPageSimulator {
   const demo = result.demographicOutputs;
   const pv   = result.pvAssessment;
@@ -1021,7 +1074,8 @@ function buildFinalPage(
     `${input.occupancyCount ?? 2}-person household, ` +
     `${input.bathroomCount} ${input.bathroomCount === 1 ? 'bathroom' : 'bathrooms'}, ` +
     `${demo.demandProfileLabel.toLowerCase()} — ` +
-    `${Math.round(demo.dailyHotWaterLitres)} L/day estimated hot-water demand.`;
+    `${Math.round(demo.dailyHotWaterLitres)} L/day estimated hot-water demand, ` +
+    `${dhwArchitectureToLabel(dhwArchitecture)}.`;
 
   const houseConstraintNotes: string[] = [
     `Design heat loss: ${(input.heatLossWatts / 1000).toFixed(1)} kW — determines system sizing.`,
@@ -1042,12 +1096,13 @@ function buildFinalPage(
   if (pv.batteryPlanned) {
     energyTimingNotes.push('Battery present/planned — test the battery charge-shift scenario.');
   }
-  energyTimingNotes.push('Use the simulator to vary occupancy, bath frequency, and draw timing to validate the recommendation.');
+  energyTimingNotes.push('Use the System Simulator to vary occupancy, bath frequency, and draw timing to validate the recommendation.');
 
   return {
     homeScenarioDescription,
     houseConstraintNotes,
     energyTimingNotes,
+    dhwArchitectureNote: dhwArchitectureToSimulatorNote(dhwArchitecture),
   };
 }
 
@@ -1064,18 +1119,19 @@ export function buildCanonicalPresentation(
   input: EngineInputV2_3,
   recommendation?: RecommendationResult,
 ): CanonicalPresentationModel {
+  const currentSystem = buildCurrentSystemSignal(input);
   return {
     page1: {
       house:         buildHouseSignal(result, input),
       home:          buildHomeSignal(result, input),
       energy:        buildEnergySignal(result, input),
-      currentSystem: buildCurrentSystemSignal(input),
+      currentSystem,
       objectives:    buildObjectivesSignal(input),
     },
     page1_5: buildAgeingContext(input, result),
     page2:   buildPage2(result, input),
     page3:   buildPage3(result, input, recommendation),
     page4Plus: buildPage4Plus(result, recommendation, input),
-    finalPage: buildFinalPage(result, input),
+    finalPage: buildFinalPage(result, input, currentSystem.dhwArchitecture),
   };
 }
