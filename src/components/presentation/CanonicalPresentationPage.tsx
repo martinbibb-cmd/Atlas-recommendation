@@ -42,6 +42,7 @@ import {
   type ShortlistedOptionDetail,
   type FinalPageSimulator,
 } from './buildCanonicalPresentation';
+import { resolveCurrentSystemVisualId } from './presentationVisualMapping';
 import PresentationVisualSlot from './PresentationVisualSlot';
 import PresentationDeck from './PresentationDeck';
 import './CanonicalPresentationPage.css';
@@ -117,15 +118,20 @@ function EnergySection({ energy }: { energy: EnergySignal }) {
 }
 
 function CurrentSystemSection({ sys }: { sys: CurrentSystemSignal }) {
+  const visualId = resolveCurrentSystemVisualId(sys.dhwArchitecture);
   return (
     <div className="cpp-visual-section">
-      {sys.dhwStorageType === 'thermal_store' ? (
+      {visualId === 'thermal_store' ? (
         // Thermal stores always require high primary temperatures (75–85 °C) —
         // that is the defining physics constraint of this architecture.
         <PresentationVisualSlot
           visualId="thermal_store"
           visualData={{ flowTempBand: 'high' }}
         />
+      ) : visualId === 'cylinder_charge_mixergy' ? (
+        <PresentationVisualSlot visualId="cylinder_charge_mixergy" />
+      ) : visualId === 'cylinder_charge_standard' ? (
+        <PresentationVisualSlot visualId="cylinder_charge_standard" />
       ) : (
         <PresentationVisualSlot
           visualId="driving_style"

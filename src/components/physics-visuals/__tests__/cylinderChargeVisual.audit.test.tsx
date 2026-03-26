@@ -142,23 +142,17 @@ describe('CylinderChargeVisual — standard vs Mixergy distinguishability', () =
 // ─── Shortlist visual selection — Mixergy gate ────────────────────────────────
 
 describe('Shortlist Mixergy gate — resolveShortlistVisualId audit', () => {
-  it('cylinder_charge_mixergy is returned ONLY for dhwStorageType mixergy', () => {
-    // Only mixergy storage → mixergy visual
+  it('cylinder_charge_mixergy is returned ONLY for architecture=mixergy', () => {
+    // Only mixergy architecture → mixergy visual
     expect(resolveShortlistVisualId('high', 0, 'mixergy')).toBe('cylinder_charge_mixergy');
   });
 
-  it('cylinder_charge_standard is returned for open_vented, not mixergy visual', () => {
-    expect(resolveShortlistVisualId('high', 0, 'open_vented')).toBe('cylinder_charge_standard');
-    expect(resolveShortlistVisualId('high', 0, 'open_vented')).not.toBe('cylinder_charge_mixergy');
+  it('cylinder_charge_standard is returned for standard_cylinder architecture, not mixergy visual', () => {
+    expect(resolveShortlistVisualId('high', 0, 'standard_cylinder')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('high', 0, 'standard_cylinder')).not.toBe('cylinder_charge_mixergy');
   });
 
-  it('cylinder_charge_standard is returned for unvented, not mixergy visual', () => {
-    expect(resolveShortlistVisualId('high', 0, 'unvented')).toBe('cylinder_charge_standard');
-    expect(resolveShortlistVisualId('high', 0, 'unvented')).not.toBe('cylinder_charge_mixergy');
-  });
-
-  it('null is returned for unknown storage type — never shows wrong cylinder visual', () => {
-    expect(resolveShortlistVisualId('high', 0, 'unknown')).toBeNull();
+  it('null is returned when no architecture provided — never shows wrong cylinder visual', () => {
     expect(resolveShortlistVisualId('high', 0)).toBeNull();
   });
 
@@ -171,8 +165,8 @@ describe('Shortlist Mixergy gate — resolveShortlistVisualId audit', () => {
     expect(resolveShortlistVisualId('none', 1, 'mixergy', 'high')).toBe('cylinder_charge_mixergy');
   });
 
-  it('storageBenefitSignal=high + non-mixergy storage → cylinder_charge_standard, never mixergy', () => {
-    expect(resolveShortlistVisualId('low', 0, 'unvented', 'high')).toBe('cylinder_charge_standard');
-    expect(resolveShortlistVisualId('low', 0, 'unvented', 'high')).not.toBe('cylinder_charge_mixergy');
+  it('storageBenefitSignal=high + standard_cylinder → cylinder_charge_standard, never mixergy', () => {
+    expect(resolveShortlistVisualId('low', 0, 'standard_cylinder', 'high')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('low', 0, 'standard_cylinder', 'high')).not.toBe('cylinder_charge_mixergy');
   });
 });

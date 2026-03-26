@@ -147,26 +147,21 @@ describe('presentationVisualMapping — signal priority fields', () => {
 // ─── resolveShortlistVisualId ──────────────────────────────────────────────────
 
 describe('resolveShortlistVisualId — signal-driven selection', () => {
-  it('returns cylinder_charge_standard when solarStorageOpportunity is high and storage is unvented', () => {
-    expect(resolveShortlistVisualId('high', 0, 'unvented')).toBe('cylinder_charge_standard');
-    expect(resolveShortlistVisualId('high', 1, 'unvented')).toBe('cylinder_charge_standard');
+  it('returns cylinder_charge_standard when solarStorageOpportunity is high and architecture is standard_cylinder', () => {
+    expect(resolveShortlistVisualId('high', 0, 'standard_cylinder')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('high', 1, 'standard_cylinder')).toBe('cylinder_charge_standard');
   });
 
-  it('returns cylinder_charge_standard when solarStorageOpportunity is high and storage is open_vented', () => {
-    expect(resolveShortlistVisualId('high', 0, 'open_vented')).toBe('cylinder_charge_standard');
-  });
-
-  it('returns null when solarStorageOpportunity is high and storage is thermal_store (audit guard: thermal store is a legacy explainer, not a shortlist visual)', () => {
+  it('returns null when solarStorageOpportunity is high and architecture is thermal_store (audit guard: thermal store is a legacy explainer, not a shortlist visual)', () => {
     expect(resolveShortlistVisualId('high', 1, 'thermal_store')).toBeNull();
   });
 
-  it('returns cylinder_charge_mixergy when solarStorageOpportunity is high and storage is mixergy', () => {
+  it('returns cylinder_charge_mixergy when solarStorageOpportunity is high and architecture is mixergy', () => {
     expect(resolveShortlistVisualId('high', 0, 'mixergy')).toBe('cylinder_charge_mixergy');
     expect(resolveShortlistVisualId('high', 1, 'mixergy')).toBe('cylinder_charge_mixergy');
   });
 
-  it('returns null when solarStorageOpportunity is high but dhwStorageType is unknown', () => {
-    expect(resolveShortlistVisualId('high', 0, 'unknown')).toBeNull();
+  it('returns null when solarStorageOpportunity is high but no architecture provided', () => {
     expect(resolveShortlistVisualId('high', 1)).toBeNull();
   });
 
@@ -178,7 +173,7 @@ describe('resolveShortlistVisualId — signal-driven selection', () => {
 
   it('solar=high takes priority over concurrent outlets', () => {
     // Both signals present — solar wins (signal order priority)
-    expect(resolveShortlistVisualId('high', 2, 'unvented')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('high', 2, 'standard_cylinder')).toBe('cylinder_charge_standard');
     expect(resolveShortlistVisualId('high', 2, 'mixergy')).toBe('cylinder_charge_mixergy');
   });
 
@@ -207,38 +202,37 @@ describe('resolveShortlistVisualId — signal-driven selection', () => {
 
   // ── storageBenefitSignal path ────────────────────────────────────────────────
 
-  it('returns cylinder_charge_standard when storageBenefitSignal is high and storage is unvented', () => {
-    expect(resolveShortlistVisualId('low', 1, 'unvented', 'high')).toBe('cylinder_charge_standard');
-    expect(resolveShortlistVisualId('none', 0, 'open_vented', 'high')).toBe('cylinder_charge_standard');
+  it('returns cylinder_charge_standard when storageBenefitSignal is high and architecture is standard_cylinder', () => {
+    expect(resolveShortlistVisualId('low', 1, 'standard_cylinder', 'high')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('none', 0, 'standard_cylinder', 'high')).toBe('cylinder_charge_standard');
     // thermal_store returns null: audit guard suppresses it from shortlist pages
     expect(resolveShortlistVisualId('medium', 1, 'thermal_store', 'high')).toBeNull();
   });
 
-  it('returns cylinder_charge_mixergy when storageBenefitSignal is high and storage is mixergy', () => {
+  it('returns cylinder_charge_mixergy when storageBenefitSignal is high and architecture is mixergy', () => {
     expect(resolveShortlistVisualId('low', 0, 'mixergy', 'high')).toBe('cylinder_charge_mixergy');
     expect(resolveShortlistVisualId('none', 1, 'mixergy', 'high')).toBe('cylinder_charge_mixergy');
   });
 
-  it('returns null when storageBenefitSignal is high but dhwStorageType is unknown', () => {
-    expect(resolveShortlistVisualId('low', 0, 'unknown', 'high')).toBeNull();
+  it('returns null when storageBenefitSignal is high but architecture is undefined', () => {
     expect(resolveShortlistVisualId('none', 1, undefined, 'high')).toBeNull();
   });
 
   it('solarStorageOpportunity takes priority over storageBenefitSignal', () => {
     // Solar=high + storageBenefit=high: solar wins with the correct subtype visual
-    expect(resolveShortlistVisualId('high', 0, 'unvented', 'high')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('high', 0, 'standard_cylinder', 'high')).toBe('cylinder_charge_standard');
     expect(resolveShortlistVisualId('high', 0, 'mixergy', 'high')).toBe('cylinder_charge_mixergy');
   });
 
   it('flow_split takes priority over storageBenefitSignal when outlets >= 2', () => {
     // Concurrent demand is more important than storage benefit for visual selection
-    expect(resolveShortlistVisualId('low', 2, 'unvented', 'high')).toBe('flow_split');
+    expect(resolveShortlistVisualId('low', 2, 'standard_cylinder', 'high')).toBe('flow_split');
     expect(resolveShortlistVisualId('none', 3, 'mixergy', 'high')).toBe('flow_split');
   });
 
   it('returns null when storageBenefitSignal is low — no storage relevance', () => {
     // Low-demand single-person home: no solar, no outlets, no storage benefit
-    expect(resolveShortlistVisualId('low', 0, 'unvented', 'low')).toBeNull();
+    expect(resolveShortlistVisualId('low', 0, 'standard_cylinder', 'low')).toBeNull();
     expect(resolveShortlistVisualId('none', 1, 'mixergy', 'medium')).toBeNull();
   });
 
@@ -246,14 +240,14 @@ describe('resolveShortlistVisualId — signal-driven selection', () => {
 
   it('mixergy visual and standard visual must differ', () => {
     const mixergyVisual = resolveShortlistVisualId('high', 0, 'mixergy');
-    const standardVisual = resolveShortlistVisualId('high', 0, 'unvented');
+    const standardVisual = resolveShortlistVisualId('high', 0, 'standard_cylinder');
     expect(mixergyVisual).not.toEqual(standardVisual);
   });
 
-  it('unknown storage type must not render a cylinder visual', () => {
-    // No signals strong enough to force a visual → null
-    expect(resolveShortlistVisualId('low', 0, 'unknown')).toBeNull();
-    expect(resolveShortlistVisualId('none', 1, 'unknown', 'low')).toBeNull();
+  it('on_demand architecture must not render a cylinder visual', () => {
+    // No cylinder for combi/on-demand options
+    expect(resolveShortlistVisualId('low', 0, 'on_demand')).toBeNull();
+    expect(resolveShortlistVisualId('none', 1, 'on_demand', 'low')).toBeNull();
   });
 });
 

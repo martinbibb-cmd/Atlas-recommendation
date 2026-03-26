@@ -26,7 +26,7 @@
 import { describe, it, expect } from 'vitest';
 import { runEngine } from '../../../engine/Engine';
 import { buildCanonicalPresentation } from '../buildCanonicalPresentation';
-import { resolveShortlistVisualId } from '../presentationVisualMapping';
+import { resolveShortlistVisualId, resolveCurrentSystemVisualId } from '../presentationVisualMapping';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 import type {
   CanonicalPresentationModel,
@@ -127,6 +127,7 @@ function collectAllStrings(model: CanonicalPresentationModel): string[] {
  */
 function modelFingerprint(model: CanonicalPresentationModel): string {
   return JSON.stringify({
+    dhwArchitecture:   model.page1.currentSystem.dhwArchitecture,
     dhwStorageType:    model.page1.currentSystem.dhwStorageType,
     drivingStyleMode:  model.page1.currentSystem.drivingStyleMode,
     systemTypeLabel:   model.page1.currentSystem.systemTypeLabel,
@@ -182,6 +183,10 @@ describe('Contract audit — canonical presentation model shape', () => {
         expect(model.page1.currentSystem.drivingStyleMode).toMatch(/^(combi|stored|heat_pump)$/);
         expect(model.page1.currentSystem.dhwStorageType).toMatch(
           /^(open_vented|unvented|thermal_store|mixergy|unknown)$/,
+        );
+        // Architecture is the primary discriminator — must always be present.
+        expect(model.page1.currentSystem.dhwArchitecture).toMatch(
+          /^(on_demand|standard_cylinder|mixergy|thermal_store)$/,
         );
       });
 
@@ -483,29 +488,28 @@ describe('Rule audit — storage type conflation must never occur', () => {
   });
 });
 
-describe('Rule audit — shortlist visuals must use signal logic, not raw family names', () => {
-  it('solar storage opportunity=high + mixergy → cylinder_charge_mixergy', () => {
+describe('Rule audit — shortlist visuals must use architecture, not storage-type strings', () => {
+  it('architecture=mixergy → cylinder_charge_mixergy', () => {
     expect(resolveShortlistVisualId('high', 1, 'mixergy')).toBe('cylinder_charge_mixergy');
     expect(resolveShortlistVisualId('high', 0, 'mixergy')).toBe('cylinder_charge_mixergy');
   });
 
-  it('solar storage opportunity=high + unvented → cylinder_charge_standard', () => {
-    expect(resolveShortlistVisualId('high', 1, 'unvented')).toBe('cylinder_charge_standard');
-    expect(resolveShortlistVisualId('high', 0, 'unvented')).toBe('cylinder_charge_standard');
+  it('architecture=standard_cylinder → cylinder_charge_standard', () => {
+    expect(resolveShortlistVisualId('high', 1, 'standard_cylinder')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('high', 0, 'standard_cylinder')).toBe('cylinder_charge_standard');
   });
 
-  it('solar storage opportunity=high + open_vented → cylinder_charge_standard', () => {
-    expect(resolveShortlistVisualId('high', 1, 'open_vented')).toBe('cylinder_charge_standard');
-  });
-
-  it('solar storage opportunity=high + thermal_store → null (audit guard: thermal store is legacy, suppressed from shortlist)', () => {
+  it('architecture=thermal_store → null (audit guard: thermal store is legacy, suppressed from shortlist)', () => {
     expect(resolveShortlistVisualId('high', 1, 'thermal_store')).toBeNull();
   });
 
-  it('solar storage opportunity=high + unknown dhwStorageType → null (never show wrong animation)', () => {
-    // Unknown storage subtype: show nothing rather than the wrong visual
-    expect(resolveShortlistVisualId('high', 1, 'unknown')).toBeNull();
-    expect(resolveShortlistVisualId('high', 0, 'unknown')).toBeNull();
+  it('architecture=on_demand → null (no cylinder visual for on-demand)', () => {
+    expect(resolveShortlistVisualId('high', 1, 'on_demand')).toBeNull();
+    expect(resolveShortlistVisualId('high', 0, 'on_demand')).toBeNull();
+  });
+
+  it('no architecture → null (never show wrong animation)', () => {
+    // Missing architecture: show nothing rather than the wrong visual
     expect(resolveShortlistVisualId('high', 1)).toBeNull();
     expect(resolveShortlistVisualId('high', 0)).toBeNull();
   });
@@ -541,7 +545,7 @@ describe('Rule audit — shortlist visuals must use signal logic, not raw family
 
   it('solar signal takes priority over simultaneous outlet count', () => {
     // solar=high overrides the outlets>=2 rule — cylinder subtype visual is the correct answer
-    expect(resolveShortlistVisualId('high', 3, 'unvented')).toBe('cylinder_charge_standard');
+    expect(resolveShortlistVisualId('high', 3, 'standard_cylinder')).toBe('cylinder_charge_standard');
     expect(resolveShortlistVisualId('high', 3, 'mixergy')).toBe('cylinder_charge_mixergy');
   });
 });
@@ -910,8 +914,8 @@ describe('Architecture distinction — shortlist visual for thermal_store is alw
     expect(resolveShortlistVisualId('high', 1, 'mixergy')).toBe('cylinder_charge_mixergy');
   });
 
-  it('unvented + solar=high → cylinder_charge_standard (standard stored cylinder)', () => {
-    expect(resolveShortlistVisualId('high', 1, 'unvented')).toBe('cylinder_charge_standard');
+  it('standard_cylinder + solar=high → cylinder_charge_standard (standard stored cylinder)', () => {
+    expect(resolveShortlistVisualId('high', 1, 'standard_cylinder')).toBe('cylinder_charge_standard');
   });
 });
 
@@ -971,5 +975,186 @@ describe('Difference tests — combi-friendly vs stored-friendly home', () => {
 
   it('model fingerprints differ', () => {
     expect(modelFingerprint(modelA)).not.toBe(modelFingerprint(modelB));
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 9. ARCHITECTURE AS PRIMARY DISCRIMINATOR
+//    dhwArchitecture must be the first branching key for visuals, wording,
+//    and requirements.  These tests enforce the architecture contract end-to-end.
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('Architecture contract — dhwArchitecture field is present on every scenario model', () => {
+  it('every scenario currentSystem has dhwArchitecture in the valid set', () => {
+    const validArchitectures = new Set([
+      'on_demand', 'standard_cylinder', 'mixergy', 'thermal_store',
+    ]);
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      const arch = model.page1.currentSystem.dhwArchitecture;
+      expect(
+        validArchitectures.has(arch),
+        `"${name}" — unexpected dhwArchitecture: "${arch}"`,
+      ).toBe(true);
+    }
+  });
+
+  it('every shortlist option has dhwArchitecture in the valid set', () => {
+    const validArchitectures = new Set([
+      'on_demand', 'standard_cylinder', 'mixergy', 'thermal_store',
+    ]);
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      for (const opt of model.page4Plus.options) {
+        const arch = opt.dhwArchitecture;
+        expect(
+          validArchitectures.has(arch),
+          `"${name}" option "${opt.family}" — unexpected dhwArchitecture: "${arch}"`,
+        ).toBe(true);
+      }
+    }
+  });
+});
+
+describe('Architecture contract — correct architecture per scenario', () => {
+  it('combi scenario → dhwArchitecture is on_demand', () => {
+    expect(
+      PREBUILT_MODELS['single_person_combi_fit'].page1.currentSystem.dhwArchitecture,
+    ).toBe('on_demand');
+  });
+
+  it('standard unvented scenario → dhwArchitecture is standard_cylinder', () => {
+    expect(
+      PREBUILT_MODELS['unvented_current_system'].page1.currentSystem.dhwArchitecture,
+    ).toBe('standard_cylinder');
+  });
+
+  it('open-vented scenario → dhwArchitecture is standard_cylinder', () => {
+    expect(
+      PREBUILT_MODELS['open_vented_current_system'].page1.currentSystem.dhwArchitecture,
+    ).toBe('standard_cylinder');
+  });
+
+  it('Mixergy scenario → dhwArchitecture is mixergy', () => {
+    expect(
+      PREBUILT_MODELS['mixergy_current_system'].page1.currentSystem.dhwArchitecture,
+    ).toBe('mixergy');
+  });
+
+  it('thermal store scenario → dhwArchitecture is thermal_store', () => {
+    expect(
+      PREBUILT_MODELS['thermal_store_current_system'].page1.currentSystem.dhwArchitecture,
+    ).toBe('thermal_store');
+  });
+
+  it('combi shortlist option → dhwArchitecture is on_demand', () => {
+    const model = PREBUILT_MODELS['single_person_combi_fit'];
+    const combiOpt = model.page4Plus.options.find(o => o.family === 'combi');
+    if (combiOpt) {
+      expect(combiOpt.dhwArchitecture).toBe('on_demand');
+    }
+  });
+});
+
+describe('Architecture contract — four architectures produce four distinct dhwArchitecture values', () => {
+  it('all four architecture values appear across the scenario set', () => {
+    const architectures = Object.values(PREBUILT_MODELS).map(
+      m => m.page1.currentSystem.dhwArchitecture,
+    );
+    const unique = new Set(architectures);
+    expect(unique.has('on_demand')).toBe(true);
+    expect(unique.has('standard_cylinder')).toBe(true);
+    expect(unique.has('mixergy')).toBe(true);
+    expect(unique.has('thermal_store')).toBe(true);
+  });
+
+  it('standard_cylinder and thermal_store architectures produce different fingerprints', () => {
+    expect(
+      modelFingerprint(PREBUILT_MODELS['unvented_current_system']),
+    ).not.toBe(
+      modelFingerprint(PREBUILT_MODELS['thermal_store_current_system']),
+    );
+  });
+
+  it('standard_cylinder and mixergy architectures produce different fingerprints', () => {
+    expect(
+      modelFingerprint(PREBUILT_MODELS['unvented_current_system']),
+    ).not.toBe(
+      modelFingerprint(PREBUILT_MODELS['mixergy_current_system']),
+    );
+  });
+
+  it('mixergy and thermal_store architectures produce different fingerprints', () => {
+    expect(
+      modelFingerprint(PREBUILT_MODELS['mixergy_current_system']),
+    ).not.toBe(
+      modelFingerprint(PREBUILT_MODELS['thermal_store_current_system']),
+    );
+  });
+});
+
+describe('Architecture contract — resolveCurrentSystemVisualId returns correct visual per architecture', () => {
+  it('on_demand → driving_style visual', () => {
+    expect(resolveCurrentSystemVisualId('on_demand')).toBe('driving_style');
+  });
+
+  it('standard_cylinder → cylinder_charge_standard visual', () => {
+    expect(resolveCurrentSystemVisualId('standard_cylinder')).toBe('cylinder_charge_standard');
+  });
+
+  it('mixergy → cylinder_charge_mixergy visual', () => {
+    expect(resolveCurrentSystemVisualId('mixergy')).toBe('cylinder_charge_mixergy');
+  });
+
+  it('thermal_store → thermal_store visual', () => {
+    expect(resolveCurrentSystemVisualId('thermal_store')).toBe('thermal_store');
+  });
+
+  it('undefined architecture → driving_style fallback', () => {
+    expect(resolveCurrentSystemVisualId(undefined)).toBe('driving_style');
+  });
+
+  it('thermal_store scenario uses thermal_store visual (architecture-first branching)', () => {
+    const arch = PREBUILT_MODELS['thermal_store_current_system'].page1.currentSystem.dhwArchitecture;
+    expect(resolveCurrentSystemVisualId(arch)).toBe('thermal_store');
+  });
+
+  it('mixergy scenario uses cylinder_charge_mixergy visual (not driving_style)', () => {
+    const arch = PREBUILT_MODELS['mixergy_current_system'].page1.currentSystem.dhwArchitecture;
+    expect(resolveCurrentSystemVisualId(arch)).toBe('cylinder_charge_mixergy');
+  });
+
+  it('standard_cylinder scenario uses cylinder_charge_standard visual (not driving_style)', () => {
+    const arch = PREBUILT_MODELS['unvented_current_system'].page1.currentSystem.dhwArchitecture;
+    expect(resolveCurrentSystemVisualId(arch)).toBe('cylinder_charge_standard');
+  });
+
+  it('combi scenario uses driving_style visual', () => {
+    const arch = PREBUILT_MODELS['single_person_combi_fit'].page1.currentSystem.dhwArchitecture;
+    expect(resolveCurrentSystemVisualId(arch)).toBe('driving_style');
+  });
+});
+
+describe('Architecture contract — architecture never derived from appliance family alone', () => {
+  it('system boiler + vented storage → standard_cylinder (not confused with open-vented family inference)', () => {
+    const model = PREBUILT_MODELS['system_boiler_vented'];
+    expect(model.page1.currentSystem.dhwArchitecture).toBe('standard_cylinder');
+    expect(model.page1.currentSystem.dhwStorageType).toBe('open_vented');
+  });
+
+  it('regular boiler + unvented storage → standard_cylinder (not confused with regular family inference)', () => {
+    const model = PREBUILT_MODELS['regular_boiler_unvented'];
+    expect(model.page1.currentSystem.dhwArchitecture).toBe('standard_cylinder');
+    expect(model.page1.currentSystem.dhwStorageType).toBe('unvented');
+  });
+
+  it('thermal_store architecture is independent of driving style mode', () => {
+    // A regular boiler with thermal store → thermal_store architecture even though
+    // drivingStyleMode is 'stored' (same as a regular boiler with a vented cylinder)
+    const thermalModel = PREBUILT_MODELS['thermal_store_current_system'];
+    const ventedModel  = PREBUILT_MODELS['open_vented_current_system'];
+    expect(thermalModel.page1.currentSystem.drivingStyleMode).toBe('stored');
+    expect(ventedModel.page1.currentSystem.drivingStyleMode).toBe('stored');
+    // But architectures must differ
+    expect(thermalModel.page1.currentSystem.dhwArchitecture).toBe('thermal_store');
+    expect(ventedModel.page1.currentSystem.dhwArchitecture).toBe('standard_cylinder');
   });
 });
