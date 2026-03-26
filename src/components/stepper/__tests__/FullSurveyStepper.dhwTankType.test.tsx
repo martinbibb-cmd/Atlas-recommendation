@@ -1,7 +1,7 @@
 /**
  * FullSurveyStepper.dhwTankType.test.tsx
  *
- * Branch-coverage tests for the `dhwTankType` picker visibility rule in Step 5.
+ * Branch-coverage tests for the `dhwTankType` picker visibility rule in Step 7.
  *
  * The picker is visible when stored hot water is being considered:
  *   - A cylinder is already present (regardless of upgrade intent), OR
@@ -29,7 +29,7 @@ import FullSurveyStepper from '../FullSurveyStepper';
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
 
 // Navigation through the new System Architecture step adds ~3 extra click interactions per
-// test that reaches Step 5.  Set a generous per-test timeout so parallel CI runs don't
+// test that reaches Step 7.  Set a generous per-test timeout so parallel CI runs don't
 // timeout on slower workers.
 vi.setConfig({ testTimeout: 15000 });
 
@@ -58,7 +58,7 @@ async function advanceToStep(user: ReturnType<typeof userEvent.setup>, targetInd
 }
 
 /**
- * Render the stepper with a prefilled fullSurvey.dhwCondition and advance to Step 5.
+ * Render the stepper with a prefilled fullSurvey.dhwCondition and advance to Step 7.
  * Returns the user event instance for further interactions.
  */
 async function renderAtHotWaterStep(dhwCondition: FullSurveyModelV1['fullSurvey']['dhwCondition']) {
@@ -67,14 +67,14 @@ async function renderAtHotWaterStep(dhwCondition: FullSurveyModelV1['fullSurvey'
     fullSurvey: { dhwCondition },
   };
   render(<FullSurveyStepper onBack={() => {}} prefill={prefill} />);
-  // Advance to step 5 (hot_water — index 5 with new system_builder step at index 3).
-  await advanceToStep(user, 5);
+  // Advance to step 7 (hot_water — index 6 with services at index 2 and system_builder at index 4).
+  await advanceToStep(user, 6);
   return user;
 }
 
 // ─── dhwTankType picker visibility ───────────────────────────────────────────
 
-describe('FullSurveyStepper — Step 5 dhwTankType picker visibility', () => {
+describe('FullSurveyStepper — Step 7 dhwTankType picker visibility', () => {
   it('hides the picker when no cylinder is present and intent is "keep"', async () => {
     await renderAtHotWaterStep({
       currentCylinderPresent: false,
@@ -141,7 +141,7 @@ describe('FullSurveyStepper — Step 5 dhwTankType picker visibility', () => {
 
 // ─── Stored hot water explainer copy ─────────────────────────────────────────
 
-describe('FullSurveyStepper — Step 5 stored hot water explainer', () => {
+describe('FullSurveyStepper — Step 7 stored hot water explainer', () => {
   it('shows the "Stored hot water is being considered" notice when the picker is visible', async () => {
     await renderAtHotWaterStep({
       currentCylinderPresent: false,
@@ -177,7 +177,7 @@ describe('FullSurveyStepper — Step 5 stored hot water explainer', () => {
 
 // ─── Explainer links ─────────────────────────────────────────────────────────
 
-describe('FullSurveyStepper — Step 5 explainer links', () => {
+describe('FullSurveyStepper — Step 7 explainer links', () => {
   it('shows the on-demand vs stored explainer link on the DHW setup card', async () => {
     await renderAtHotWaterStep({
       currentCylinderPresent: false,

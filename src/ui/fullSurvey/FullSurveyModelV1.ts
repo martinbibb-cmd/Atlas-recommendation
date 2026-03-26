@@ -1,5 +1,6 @@
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { SystemBuilderState } from '../../features/survey/systemBuilder/systemBuilderTypes';
+import type { WaterQualityState } from '../../features/survey/services/waterQualityTypes';
 
 /**
  * HeatingConditionDiagnosticsV1
@@ -136,6 +137,13 @@ export type FullSurveyModelV1 = EngineInputV2_3 & {
      * being passed to the engine.
      */
     systemBuilder?: SystemBuilderState;
+    /**
+     * Services step — captures incoming supply properties, starting with
+     * water quality (hardness, limescale risk, silicate scaffold risk).
+     * Normalised by waterQualityNormalizer for later degradation / longevity
+     * modelling.
+     */
+    waterQuality?: WaterQualityState;
   };
 };
 
