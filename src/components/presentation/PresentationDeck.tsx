@@ -35,6 +35,7 @@ import {
   type HomeSignal,
   type EnergySignal,
   type CurrentSystemSignal,
+  type DhwArchitecture,
 } from './buildCanonicalPresentation';
 import { resolveShortlistVisualId, resolveCurrentSystemVisualId } from './presentationVisualMapping';
 import PresentationVisualSlot from './PresentationVisualSlot';
@@ -171,18 +172,43 @@ function AgeingPage({ ctx }: { ctx: Page1_5AgeingContext }) {
   );
 }
 
-function OptionsPage({ options }: { options: AvailableOptionExplanation[] }) {
+function OptionsPage({
+  options,
+  currentSystemArchitecture,
+}: {
+  options: AvailableOptionExplanation[];
+  currentSystemArchitecture: DhwArchitecture;
+}) {
   const viableCount = options.filter(o => o.status === 'viable').length;
   const title = viableCount === 1
     ? '1 viable system for this home'
     : `${viableCount} viable systems for this home`;
+
+  // Use the current system's DHW architecture to select a meaningful visual.
+  // This avoids showing the generic 'cylinder_charge' and instead selects
+  // an architecture-specific visual (or null when no visual applies).
+  const visualId = resolveCurrentSystemVisualId(currentSystemArchitecture);
 
   return (
     <>
       <p className="atlas-presentation-deck__page-eyebrow">Available options</p>
       <h2 className="atlas-presentation-deck__page-title">{title}</h2>
       <div className="atlas-presentation-deck__visual">
-        <PresentationVisualSlot visualId="cylinder_charge" hideExplainer={false} />
+        {visualId === 'thermal_store' ? (
+          <PresentationVisualSlot
+            visualId="thermal_store"
+            visualData={{ flowTempBand: 'high' }}
+          />
+        ) : visualId === 'cylinder_charge_mixergy' ? (
+          <PresentationVisualSlot visualId="cylinder_charge_mixergy" />
+        ) : visualId === 'cylinder_charge_standard' ? (
+          <PresentationVisualSlot visualId="cylinder_charge_standard" />
+        ) : (
+          <PresentationVisualSlot
+            visualId="driving_style"
+            visualData={{ mode: 'combi' }}
+          />
+        )}
       </div>
       <ul className="atlas-presentation-deck__options-list">
         {options.map(opt => (
@@ -294,6 +320,7 @@ function SimulatorPage({
       <h2 className="atlas-presentation-deck__page-title">Test this recommendation</h2>
       <div className="atlas-presentation-deck__simulator-card">
         <p className="atlas-presentation-deck__simulator-scenario">{sim.homeScenarioDescription}</p>
+        <p className="atlas-presentation-deck__simulator-architecture-note">{sim.dhwArchitectureNote}</p>
         {sim.houseConstraintNotes.length > 0 && (
           <ul className="atlas-presentation-deck__simulator-notes">
             {sim.houseConstraintNotes.map((note, i) => <li key={i}>{note}</li>)}
@@ -310,7 +337,7 @@ function SimulatorPage({
             className="atlas-presentation-deck__simulator-cta"
             onClick={onOpenSimulator}
           >
-            Open simulator →
+            Open System Simulator →
           </button>
         )}
       </div>
@@ -365,7 +392,7 @@ export default function PresentationDeck({
     { id: 'energy',         label: 'Energy',        content: <EnergyPage energy={page1.energy} /> },
     { id: 'current_system', label: 'System',        content: <CurrentSystemPage sys={page1.currentSystem} /> },
     { id: 'ageing',         label: 'Condition',     content: <AgeingPage ctx={page1_5} /> },
-    { id: 'options',        label: 'Options',       content: <OptionsPage options={page2.options} /> },
+    { id: 'options',        label: 'Options',       content: <OptionsPage options={page2.options} currentSystemArchitecture={page1.currentSystem.dhwArchitecture} /> },
     { id: 'ranking',        label: 'Best fit',      content: <RankingPage items={page3.items} /> },
     ...page4Plus.options.map((opt, i) => ({
       id:      `option_${i + 1}`,

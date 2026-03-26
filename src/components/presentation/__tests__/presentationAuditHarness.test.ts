@@ -1158,3 +1158,215 @@ describe('Architecture contract — architecture never derived from appliance fa
     expect(ventedModel.page1.currentSystem.dhwArchitecture).toBe('standard_cylinder');
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 10. ARCHITECTURE AS PRIMARY DISCRIMINATOR — OPTIONS PAGE (Page 2)
+//     Each AvailableOptionExplanation must carry its own dhwArchitecture.
+//     The four architectures must produce distinct through-energy wording.
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('Architecture contract — page2 options carry dhwArchitecture field', () => {
+  const VALID_ARCHITECTURES = new Set([
+    'on_demand', 'standard_cylinder', 'mixergy', 'thermal_store',
+  ]);
+
+  it('every scenario page2 option has a valid dhwArchitecture', () => {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      for (const opt of model.page2.options) {
+        expect(
+          VALID_ARCHITECTURES.has(opt.dhwArchitecture),
+          `"${name}" option "${opt.id}" — unexpected dhwArchitecture: "${opt.dhwArchitecture}"`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it('combi option always has dhwArchitecture = on_demand', () => {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      const combi = model.page2.options.find(o => o.id === 'combi');
+      if (combi) {
+        expect(combi.dhwArchitecture, `"${name}" combi option must be on_demand`).toBe('on_demand');
+      }
+    }
+  });
+
+  it('ashp option always has dhwArchitecture = standard_cylinder', () => {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      const ashp = model.page2.options.find(o => o.id === 'ashp');
+      if (ashp) {
+        expect(ashp.dhwArchitecture, `"${name}" ashp option must be standard_cylinder`).toBe('standard_cylinder');
+      }
+    }
+  });
+
+  it('stored options in Mixergy scenario have dhwArchitecture = mixergy', () => {
+    const model = PREBUILT_MODELS['mixergy_current_system'];
+    const storedOptions = model.page2.options.filter(o => o.id !== 'combi' && o.id !== 'ashp');
+    for (const opt of storedOptions) {
+      expect(opt.dhwArchitecture, `stored option "${opt.id}" in Mixergy scenario must be mixergy`).toBe('mixergy');
+    }
+  });
+
+  it('stored options in standard unvented scenario have dhwArchitecture = standard_cylinder', () => {
+    const model = PREBUILT_MODELS['unvented_current_system'];
+    const storedOptions = model.page2.options.filter(o => o.id !== 'combi' && o.id !== 'ashp');
+    for (const opt of storedOptions) {
+      expect(opt.dhwArchitecture, `stored option "${opt.id}" in standard unvented scenario must be standard_cylinder`).toBe('standard_cylinder');
+    }
+  });
+
+  it('combi option throughHomeNotes reference on-demand delivery for low-demand household', () => {
+    const model = PREBUILT_MODELS['single_person_combi_fit'];
+    const combi = model.page2.options.find(o => o.id === 'combi');
+    expect(combi).toBeDefined();
+    // on_demand architecture — home notes must mention on-demand or outlet/draw profile
+    const homeNotesJoined = combi!.throughHomeNotes.join(' ');
+    expect(homeNotesJoined).toMatch(/on-demand|single-outlet|combi/i);
+  });
+
+  it('stored option throughHomeNotes reference cylinder sizing / demand volume', () => {
+    const model = PREBUILT_MODELS['large_family_stored_fit'];
+    const stored = model.page2.options.find(o => o.id !== 'combi' && o.status !== 'rejected');
+    if (stored) {
+      const homeNotesJoined = stored.throughHomeNotes.join(' ');
+      expect(homeNotesJoined).toMatch(/cylinder|demand|L\/day/i);
+    }
+  });
+
+  it('existing PV: stored option throughEnergyNotes mention solar diverter', () => {
+    const model = PREBUILT_MODELS['strong_pv_good_alignment'];
+    const stored = model.page2.options.find(o =>
+      (o.id === 'stored_unvented' || o.id === 'system_unvented') && o.status !== 'rejected',
+    );
+    if (stored) {
+      const energyNotesJoined = stored.throughEnergyNotes.join(' ');
+      expect(energyNotesJoined).toMatch(/solar diverter|surplus|PV/i);
+    }
+  });
+
+  it('existing PV: combi option throughEnergyNotes mention cannot store surplus', () => {
+    const model = PREBUILT_MODELS['strong_pv_poor_alignment'];
+    const combi = model.page2.options.find(o => o.id === 'combi');
+    if (combi) {
+      const energyNotesJoined = combi.throughEnergyNotes.join(' ');
+      expect(energyNotesJoined).toMatch(/cannot store|battery|surplus/i);
+    }
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 11. SIMULATOR HANDOFF — architecture-specific note
+//     The finalPage must carry a dhwArchitectureNote that differs across the
+//     four architectures.  The CTA label must refer to "System Simulator".
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('Architecture contract — finalPage carries dhwArchitectureNote', () => {
+  it('every scenario finalPage has a non-empty dhwArchitectureNote', () => {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      expect(
+        model.finalPage.dhwArchitectureNote,
+        `"${name}" finalPage.dhwArchitectureNote is empty`,
+      ).toBeTruthy();
+    }
+  });
+
+  it('four architectures produce four distinct dhwArchitectureNote values', () => {
+    const notes = [
+      PREBUILT_MODELS['single_person_combi_fit'].finalPage.dhwArchitectureNote,
+      PREBUILT_MODELS['unvented_current_system'].finalPage.dhwArchitectureNote,
+      PREBUILT_MODELS['mixergy_current_system'].finalPage.dhwArchitectureNote,
+      PREBUILT_MODELS['thermal_store_current_system'].finalPage.dhwArchitectureNote,
+    ];
+    const unique = new Set(notes);
+    expect(unique.size).toBe(4);
+  });
+
+  it('on_demand note references System Simulator and on-demand/combi behaviour', () => {
+    const note = PREBUILT_MODELS['single_person_combi_fit'].finalPage.dhwArchitectureNote;
+    expect(note).toMatch(/System Simulator/i);
+    expect(note).toMatch(/on-demand|combi|flow rate|simultaneous/i);
+  });
+
+  it('standard_cylinder note references System Simulator and cylinder/recovery', () => {
+    const note = PREBUILT_MODELS['unvented_current_system'].finalPage.dhwArchitectureNote;
+    expect(note).toMatch(/System Simulator/i);
+    expect(note).toMatch(/cylinder|recovery|solar/i);
+  });
+
+  it('mixergy note references System Simulator and Mixergy-specific behaviour', () => {
+    const note = PREBUILT_MODELS['mixergy_current_system'].finalPage.dhwArchitectureNote;
+    expect(note).toMatch(/System Simulator/i);
+    expect(note).toMatch(/Mixergy|demand-mirroring|cycling/i);
+  });
+
+  it('thermal_store note references System Simulator and thermal-store-specific behaviour', () => {
+    const note = PREBUILT_MODELS['thermal_store_current_system'].finalPage.dhwArchitectureNote;
+    expect(note).toMatch(/System Simulator/i);
+    expect(note).toMatch(/thermal store|primary temperature|exchanger/i);
+  });
+
+  it('homeScenarioDescription includes DHW architecture label for all four scenarios', () => {
+    // on_demand
+    expect(PREBUILT_MODELS['single_person_combi_fit'].finalPage.homeScenarioDescription)
+      .toMatch(/on-demand/i);
+    // standard_cylinder
+    expect(PREBUILT_MODELS['unvented_current_system'].finalPage.homeScenarioDescription)
+      .toMatch(/stored hot water via cylinder/i);
+    // mixergy
+    expect(PREBUILT_MODELS['mixergy_current_system'].finalPage.homeScenarioDescription)
+      .toMatch(/Mixergy/i);
+    // thermal_store
+    expect(PREBUILT_MODELS['thermal_store_current_system'].finalPage.homeScenarioDescription)
+      .toMatch(/thermal store/i);
+  });
+
+  it('energyTimingNotes reference "System Simulator" not just "simulator"', () => {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      const notesJoined = model.finalPage.energyTimingNotes.join(' ');
+      // Must not use the ambiguous bare "simulator" word — must say "System Simulator"
+      expect(notesJoined, `"${name}" energyTimingNotes must reference "System Simulator"`).toMatch(/System Simulator/i);
+    }
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 12. NO FORBIDDEN SIMULATOR TERMINOLOGY
+//     Lightweight preview surfaces must never be called "simulator".
+//     All "simulator" references in the presentation output must target
+//     the real System Simulator (not the Scenario Preview / Behaviour Preview).
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('Simulator terminology — presentation output must not use ambiguous simulator wording', () => {
+  const FORBIDDEN_SIMULATOR_PHRASES = [
+    'scenario preview',
+    'behaviour preview',
+    'preview panel',
+    'ScenarioPreviewPanel',
+    'PortalSimulatorPanel',
+  ] as const;
+
+  for (const phrase of FORBIDDEN_SIMULATOR_PHRASES) {
+    it(`no scenario output contains the forbidden simulator phrase "${phrase}"`, () => {
+      const violations: string[] = [];
+      for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+        const strings = collectAllStrings(model);
+        const hits = strings.filter(s => s.toLowerCase().includes(phrase.toLowerCase()));
+        if (hits.length > 0) {
+          violations.push(`"${name}": ${hits.join('; ')}`);
+        }
+      }
+      expect(
+        violations,
+        `Forbidden phrase "${phrase}" found in presentation output:\n${violations.join('\n')}`,
+      ).toHaveLength(0);
+    });
+  }
+
+  it('simulator references in finalPage use "System Simulator" not bare "simulator"', () => {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      const architectureNote = model.finalPage.dhwArchitectureNote;
+      // The architecture note must refer to "System Simulator" (canonical term)
+      expect(architectureNote, `"${name}" dhwArchitectureNote must say "System Simulator"`).toMatch(/System Simulator/i);
+    }
+  });
+});

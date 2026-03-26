@@ -326,6 +326,7 @@ function SimulatorSection({
   return (
     <div className="cpp-simulator">
       <p className="cpp-simulator__scenario">{sim.homeScenarioDescription}</p>
+      <p className="cpp-simulator__architecture-note">{sim.dhwArchitectureNote}</p>
       {sim.houseConstraintNotes.length > 0 && (
         <ul className="cpp-simulator__notes">
           {sim.houseConstraintNotes.map((note, i) => <li key={i}>{note}</li>)}
@@ -342,7 +343,7 @@ function SimulatorSection({
           className="cpp-simulator__cta"
           onClick={onOpenSimulator}
         >
-          Open simulator →
+          Open System Simulator →
         </button>
       )}
     </div>
