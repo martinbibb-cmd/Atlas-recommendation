@@ -65,9 +65,9 @@ export default function EnergyLiteracyPanel() {
         </div>
       </div>
 
-      {/* ── Phase 3 — simulator ─────────────────────────────────────────────── */}
+      {/* ── Phase 3 — explorer ─────────────────────────────────────────────── */}
       <div className="elp__section">
-        <h3 className="elp__section-title">Grid scenario simulator</h3>
+        <h3 className="elp__section-title">Grid Scenario Explorer</h3>
         <EnergyScenarioSimulator />
       </div>
 

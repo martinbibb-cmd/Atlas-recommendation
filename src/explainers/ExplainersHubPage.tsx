@@ -171,9 +171,9 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
             <button
               className="hub-back-btn"
               onClick={onOpenSystemLab}
-              aria-label="Open System Lab"
+              aria-label="Open System Summary"
             >
-              🔭 System Lab
+              🔭 System Summary
             </button>
           )}
           {onOpenPresentation != null && isSurveyBacked && (

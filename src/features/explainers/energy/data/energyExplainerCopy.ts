@@ -105,10 +105,10 @@ export const ENERGY_COPY = {
   },
 
   simulator: {
-    title: 'Grid scenario simulator',
+    title: 'Grid Scenario Explorer',
     subtitle:
       'An educational systems model. Not a market forecast — shows the direction of change, not precise numbers.',
     disclaimer:
-      'This is an educational simulator. It illustrates system-level logic; it does not predict market prices or grid outcomes.',
+      'This is an educational model. It illustrates system-level logic; it does not predict market prices or grid outcomes.',
   },
 } as const;

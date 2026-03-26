@@ -933,7 +933,7 @@ export default function LabPrintFull({ onBack, sections, generatedDate }: Props)
           <div className="lp-doc-header__brand" aria-label="Atlas">ATLAS</div>
           <h1 className="lp-doc-header__title">Full Output Report</h1>
           <p className="lp-doc-header__sub">
-            System Lab — all visible result panels
+            System Summary — all visible result panels
           </p>
         </div>
         <div className="lp-doc-header__meta">

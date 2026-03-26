@@ -1,7 +1,7 @@
 /**
  * EnergyScenarioSimulator.tsx
  *
- * Educational grid scenario simulator.
+ * Educational grid scenario explorer.
  *
  * Sliders: wind, solar, nuclear, hydro/tidal, storage, gas
  * Outputs: gas dependence, balancing stress, carbon intensity,
@@ -85,7 +85,7 @@ export default function EnergyScenarioSimulator() {
   return (
     <EnergyExplainerCard
       title={ENERGY_COPY.simulator.title}
-      badge="Simulator"
+      badge="Explainer"
       className="ess"
     >
       <p className="ess__subtitle">{ENERGY_COPY.simulator.subtitle}</p>

@@ -142,7 +142,7 @@ export default function LabShell({ onHome, engineInput }: Props) {
   const [replayTour, setReplayTour] = useState(false);
 
   const TAB_LABELS: Record<LabTab, string> = {
-    visual:     'Simulator',
+    visual:     'Behaviour Preview',
     summary:    'Summary',
     whatif:     'What if…?',
     explainers: 'Physics Explainers',
@@ -179,7 +179,7 @@ export default function LabShell({ onHome, engineInput }: Props) {
         <LabHomeLink onHome={onHome} />
         <div className="lab-title">
           <div className="lab-brand" aria-label="Atlas">ATLAS</div>
-          <h1 className="lab-h1">System Lab</h1>
+          <h1 className="lab-h1">System Summary</h1>
           <p className="lab-subtitle">Compare heating systems using real operating constraints.</p>
         </div>
 

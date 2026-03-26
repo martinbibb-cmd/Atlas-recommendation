@@ -34,7 +34,7 @@ describe('LabPrintCustomer — document structure', () => {
 
   it('renders the subtitle', () => {
     render(<LabPrintCustomer />);
-    expect(screen.getByText(/System Lab — heating recommendation overview/)).toBeTruthy();
+    expect(screen.getByText(/System Summary — heating recommendation overview/)).toBeTruthy();
   });
 });
 

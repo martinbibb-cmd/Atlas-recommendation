@@ -571,7 +571,7 @@ export default function App() {
           <div className="hero">
             <h1>
               <span className="hero-brand">Atlas</span>
-              System Lab
+              System Summary
             </h1>
             <p className="tagline">
               Compare heating systems and see why one fits better.
@@ -632,9 +632,9 @@ export default function App() {
               onClick={() => { setLabEngineInput(undefined); setJourney('lab'); }}
             >
               <div className="card-icon">🔭</div>
-              <h2>System Lab</h2>
+              <h2>System Summary</h2>
               <p>Side-by-side system comparison with physical constraints and trade-offs.</p>
-              <button className="cta-btn">Open System Lab →</button>
+              <button className="cta-btn">Open System Summary →</button>
             </div>
             <div
               className="journey-card"

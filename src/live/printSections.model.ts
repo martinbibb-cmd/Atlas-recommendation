@@ -351,7 +351,7 @@ function buildControlRoomSection(): OutputHubSection {
     visible: true,
     customerSafe: false,
     content: {
-      note: 'Full physics explainer and sandbox available in the System Lab.',
+      note: 'Full physics explainer and sandbox available in the System Summary.',
     },
   };
 }

@@ -64,7 +64,7 @@ export default function LabPrintComparison({ onBack, data }: Props) {
         <div>
           <div className="lp-doc-header__brand" aria-label="Atlas">ATLAS</div>
           <h1 className="lp-doc-header__title">Comparison Sheet</h1>
-          <p className="lp-doc-header__sub">System Lab — side-by-side system comparison</p>
+          <p className="lp-doc-header__sub">System Summary — side-by-side system comparison</p>
         </div>
         <div className="lp-doc-header__meta">
           <div>Confidence: {confidence}</div>
