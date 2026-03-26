@@ -6,9 +6,19 @@
  * Layout:
  *   Energy input arrow  →  Cylinder body  →  Demand output arrow
  *
- * The cylinder body has a water fill column whose height is driven by the CSS
- * custom property --ccv-fill (0–1 fraction). An animated gradient and a
- * pulsing Mixergy band are layered inside the cylinder.
+ * Two visual modes with deliberately distinct physics language:
+ *
+ *   .ccv--standard  (mixergyMode=false)
+ *     Diffuse full-body warming. A soft warm overlay (amber) grows over a
+ *     cool blue base as fill level increases. Top warms ahead of the bottom
+ *     but there is NO sharp boundary line — the whole body charges together.
+ *
+ *   .ccv--mixergy  (mixergyMode=true)
+ *     Stratified top-down charge. A hot zone (amber) descends from the top;
+ *     a sharp orange thermocline boundary line marks the hot/cold front;
+ *     the cold zone (blue) fills the remaining lower volume.
+ *
+ * Both modes share input/output arrows, level label, and status badge.
  */
 
 /* ─── Block ─────────────────────────────────────────────────────────────────── */
@@ -25,7 +35,7 @@
   user-select: none;
 }
 
-/* ─── Input arrow ───────────────────────────────────────────────────────────── */
+/* ─── Input / output arrows ──────────────────────────────────────────────────── */
 
 .ccv__input,
 .ccv__output {
@@ -76,7 +86,7 @@
   color: var(--text-muted);
 }
 
-/* ─── Cylinder ──────────────────────────────────────────────────────────────── */
+/* ─── Cylinder shell ────────────────────────────────────────────────────────── */
 
 .ccv__cylinder {
   position: relative;
@@ -88,70 +98,115 @@
   overflow: hidden;
 }
 
-/* ─── Fill column ───────────────────────────────────────────────────────────── */
+/* ─── Standard cylinder — diffuse full-body warming ────────────────────────── */
 
-.ccv__fill {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: calc(var(--ccv-fill, 0.6) * 100%);
-  background: linear-gradient(
-    to top,
-    var(--color-blue-500, #3b82f6) 0%,
-    var(--color-blue-300, #93c5fd) 80%,
-    var(--color-blue-200, #bfdbfe) 100%
-  );
-  border-radius: 0 0 10px 10px;
-  transition: height 0.6s ease;
-}
-
-@keyframes ccv-fill-ripple {
-  0%   { background-position: 0% 0%; }
-  100% { background-position: 100% 0%; }
-}
-
-.ccv__fill--animated {
-  background-size: 200% 100%;
-  animation: ccv-fill-ripple 2s linear infinite;
-}
-
-/* ─── Gradient overlay ──────────────────────────────────────────────────────── */
-
-.ccv__gradient-overlay {
+/* Cool base: always visible, covers the full cylinder */
+.ccv__std-cool-base {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(255, 100, 50, 0.15) 0%,
-    transparent 50%
+    var(--color-blue-200, #bfdbfe) 0%,
+    var(--color-blue-400, #60a5fa) 100%
   );
-  pointer-events: none;
 }
 
-/* ─── Mixergy band ──────────────────────────────────────────────────────────── */
+/*
+ * Warm overlay: no hard boundary — the overlay covers the whole body but
+ * fades from strongest at the top to zero at the bottom. Opacity is driven
+ * by fill level: low fill = faint warmth, high fill = rich warmth everywhere.
+ * This creates "whole body warming, top first" without any descending line.
+ */
+.ccv__std-warm-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--color-amber-400, #fbbf24) 0%,    /* top: most advanced */
+    var(--color-amber-200, #fde68a) 45%,   /* mid: gentler warmth */
+    transparent 100%                        /* bottom: still blue, no cut-off */
+  );
+  opacity: calc(var(--ccv-fill, 0.6) * 0.9); /* cap at ~0.9 to keep the cool base visible even when fully charged */
+}
 
-.ccv__mixergy-band {
+/* Subtle pulsing breathe to suggest ongoing heat transfer — not a boundary.
+ * Pulse range is ±5 % around the base opacity (×0.85 / ×0.95 of fill level)
+ * to keep the effect gentle and non-directional. */
+@keyframes ccv-std-breathe {
+  0%, 100% { opacity: calc(var(--ccv-fill, 0.6) * 0.85); }
+  50%       { opacity: calc(var(--ccv-fill, 0.6) * 0.95); }
+}
+
+.ccv__std-warm-overlay--animated {
+  animation: ccv-std-breathe 3s ease-in-out infinite;
+}
+
+/* ─── Mixergy cylinder — sharp stratified hot/cold zones ───────────────────── */
+
+/*
+ * Hot zone: occupies the top fraction of the cylinder (= fillLevel).
+ * Warm amber — this is the usable stored hot water.
+ */
+.ccv__mx-hot {
   position: absolute;
   top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--ccv-fill, 0.6) * 100%);
+  background: linear-gradient(
+    to bottom,
+    var(--color-amber-400, #fbbf24) 0%,
+    var(--color-amber-300, #fcd34d) 100%
+  );
+}
+
+@keyframes ccv-mx-glow {
+  /* +12 % brightness gives a warm glow without washing out the amber hue */
+  0%, 100% { filter: brightness(1); }
+  50%       { filter: brightness(1.12); }
+}
+
+.ccv__mx-hot--animated {
+  animation: ccv-mx-glow 2s ease-in-out infinite;
+}
+
+/*
+ * Thermocline boundary: the sharp front between hot and cold zones.
+ * This is the key visual differentiator from a standard cylinder —
+ * a hard orange line that marks where usable heat ends.
+ */
+.ccv__mx-boundary {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--ccv-fill, 0.6) * 100% - 2px);
+  height: 4px;
+  background: var(--color-orange-500, #f97316);
+  box-shadow: 0 0 6px var(--color-orange-400, #fb923c);
+  z-index: 3;
+}
+
+@keyframes ccv-mx-boundary-pulse {
+  0%, 100% { box-shadow: 0 0 4px var(--color-orange-400, #fb923c); }
+  50%       { box-shadow: 0 0 10px var(--color-orange-400, #fb923c); }
+}
+
+.ccv__mx-boundary--animated {
+  animation: ccv-mx-boundary-pulse 2s ease-in-out infinite;
+}
+
+/* Cold zone: the cooler stored volume below the thermocline */
+.ccv__mx-cold {
+  position: absolute;
+  bottom: 0;
   left: 0;
   right: 0;
   height: calc((1 - var(--ccv-fill, 0.6)) * 100%);
   background: linear-gradient(
     to bottom,
-    var(--color-amber-300, #fcd34d) 0%,
-    transparent 100%
+    var(--color-blue-200, #bfdbfe) 0%,
+    var(--color-blue-400, #60a5fa) 100%
   );
-  opacity: 0.5;
-}
-
-@keyframes ccv-mixergy-glow {
-  0%, 100% { opacity: 0.4; }
-  50%       { opacity: 0.7; }
-}
-
-.ccv__mixergy-band--animated {
-  animation: ccv-mixergy-glow 2.5s ease-in-out infinite;
 }
 
 /* ─── Level label ───────────────────────────────────────────────────────────── */
@@ -166,7 +221,7 @@
   font-weight: var(--weight-bold);
   color: var(--surface-default);
   text-shadow: 0 1px 2px rgba(0,0,0,0.4);
-  z-index: 2;
+  z-index: 4;
 }
 
 /* ─── Status / badge ────────────────────────────────────────────────────────── */
@@ -198,9 +253,10 @@
   color: var(--chip-danger-text, #991b1b);
 }
 
-/* ─── Mixergy note ──────────────────────────────────────────────────────────── */
+/* ─── Behaviour notes ───────────────────────────────────────────────────────── */
 
-.ccv__mixergy-note {
+.ccv__mixergy-note,
+.ccv__standard-note {
   font-size: var(--text-xs);
   color: var(--text-secondary);
   font-style: italic;
@@ -222,23 +278,17 @@
 @media (prefers-reduced-motion: reduce) {
   .ccv__energy-arrow--animated,
   .ccv__demand-arrow--animated,
-  .ccv__fill--animated,
-  .ccv__mixergy-band--animated {
+  .ccv__std-warm-overlay--animated,
+  .ccv__mx-hot--animated,
+  .ccv__mx-boundary--animated {
     animation: none;
-  }
-
-  .ccv__fill {
-    transition: none;
   }
 }
 
 .ccv--reduced-motion .ccv__energy-arrow--animated,
 .ccv--reduced-motion .ccv__demand-arrow--animated,
-.ccv--reduced-motion .ccv__fill--animated,
-.ccv--reduced-motion .ccv__mixergy-band--animated {
+.ccv--reduced-motion .ccv__std-warm-overlay--animated,
+.ccv--reduced-motion .ccv__mx-hot--animated,
+.ccv--reduced-motion .ccv__mx-boundary--animated {
   animation: none;
-}
-
-.ccv--reduced-motion .ccv__fill {
-  transition: none;
 }

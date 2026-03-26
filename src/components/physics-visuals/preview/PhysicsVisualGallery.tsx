@@ -387,6 +387,85 @@ function VisualCard({ id }: { id: PhysicsVisualId }) {
   );
 }
 
+// ─── Cylinder compare panel ───────────────────────────────────────────────────
+
+/**
+ * Side-by-side comparison of standard vs Mixergy cylinder visuals.
+ * Both visuals share the same charge-level slider so the distinction is
+ * immediately obvious at any fill level.
+ */
+function CylinderComparePanel() {
+  const [fillLevel, setFillLevel] = useState(0.6);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  return (
+    <div className="pvg__compare-panel">
+      <div className="pvg__compare-header">
+        <h2 className="pvg__compare-title">Cylinder type — side-by-side comparison</h2>
+        <p className="pvg__compare-subtitle">
+          Same charge level, different physics. Standard: diffuse body warming, top first.
+          Mixergy: sharp hot boundary descends from top as charge builds.
+        </p>
+      </div>
+
+      <div className="pvg__compare-controls">
+        <label className="pvg__control-label">
+          Charge level: {Math.round(fillLevel * 100)}%
+        </label>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={Math.round(fillLevel * 100)}
+          onChange={(e) => setFillLevel(Number(e.target.value) / 100)}
+          className="pvg__slider pvg__compare-slider"
+          aria-label="Shared charge level for cylinder comparison"
+        />
+        <label className="pvg__motion-label">
+          <input
+            type="checkbox"
+            checked={reducedMotion}
+            onChange={(e) => setReducedMotion(e.target.checked)}
+          />
+          {' '}Simulate reduced motion
+        </label>
+      </div>
+
+      <div className="pvg__compare-row">
+        <div className="pvg__compare-col">
+          <h3 className="pvg__compare-col-title">Standard cylinder</h3>
+          <p className="pvg__compare-col-desc">
+            Whole body warms progressively. Top becomes useful first — but no sharp
+            hot/cold boundary.
+          </p>
+          <div className="pvg__visual-frame">
+            <CylinderChargeVisual
+              fillLevel={fillLevel}
+              mixergyMode={false}
+              reducedMotion={reducedMotion}
+            />
+          </div>
+        </div>
+
+        <div className="pvg__compare-col">
+          <h3 className="pvg__compare-col-title">Mixergy cylinder</h3>
+          <p className="pvg__compare-col-desc">
+            Usable hot zone builds from the top down. A sharp thermocline boundary
+            marks where heat ends.
+          </p>
+          <div className="pvg__visual-frame">
+            <CylinderChargeVisual
+              fillLevel={fillLevel}
+              mixergyMode={true}
+              reducedMotion={reducedMotion}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Gallery ──────────────────────────────────────────────────────────────────
 
 interface PhysicsVisualGalleryProps {
@@ -399,6 +478,7 @@ export default function PhysicsVisualGallery({ onBack }: PhysicsVisualGalleryPro
 
   const categories = ['all', ...Array.from(new Set(all.map((d) => d.category)))];
   const visible = filter === 'all' ? all : all.filter((d) => d.category === filter);
+  const showCompare = filter === 'all' || filter === 'water';
 
   return (
     <div className="pvg">
@@ -431,6 +511,9 @@ export default function PhysicsVisualGallery({ onBack }: PhysicsVisualGalleryPro
           </button>
         ))}
       </div>
+
+      {/* Cylinder compare panel — shown for 'all' and 'water' filters */}
+      {showCompare && <CylinderComparePanel />}
 
       {/* Card grid */}
       <div className="pvg__grid">
