@@ -17,6 +17,7 @@ export type PhysicsVisualId =
   | 'cylinder_charge'
   | 'cylinder_charge_standard'
   | 'cylinder_charge_mixergy'
+  | 'thermal_store'
   | 'driving_style'
   | 'bees_vs_tortoise'
   | 'sponge'
@@ -137,6 +138,14 @@ export interface CylinderChargeVisualProps extends PhysicsVisualProps {
   fillLevel?: number;
   /** Emphasises top-down layering for the Mixergy variant. */
   mixergyMode?: boolean;
+}
+
+export interface ThermalStoreVisualProps extends PhysicsVisualProps {
+  /**
+   * Primary flow temperature band — drives the colour of the hot-side indicator.
+   * Defaults to 'high' (75–85 °C typical thermal store range).
+   */
+  flowTempBand?: 'high' | 'very_high';
 }
 
 export interface HeatParticlesVisualProps extends PhysicsVisualProps {

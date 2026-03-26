@@ -149,6 +149,8 @@ export interface VisualValidationContext {
  * @throws {Error} When `cylinder_charge` (generic) is used on a shortlist page.
  *   Only the subtype-specific visuals (`cylinder_charge_standard`,
  *   `cylinder_charge_mixergy`) are permitted on shortlist pages.
+ * @throws {Error} When `thermal_store` is used on a shortlist page.
+ *   Thermal store is a legacy/current-system explainer, not a recommended future option.
  */
 export function isVisualValid(
   visualId: PhysicsVisualId,
@@ -159,6 +161,15 @@ export function isVisualValid(
     throw new Error(
       "Generic 'cylinder_charge' visual not allowed on shortlist pages. " +
       "Use 'cylinder_charge_standard' or 'cylinder_charge_mixergy' instead.",
+    );
+  }
+
+  // Audit guard: thermal_store is a legacy / current-system explainer.
+  // It must never appear on shortlist or recommendation pages as a future option.
+  if (context.pageType === 'shortlist' && visualId === 'thermal_store') {
+    throw new Error(
+      "'thermal_store' visual is not permitted on shortlist pages. " +
+      'Thermal store is a legacy current-system explainer only — it must not appear as a recommended future option.',
     );
   }
 
@@ -191,14 +202,19 @@ export function isVisualValid(
  * Map a DHW storage subtype to the appropriate cylinder visual id.
  * Returns the subtype-specific visual, or null when the subtype is unknown/absent
  * (no animation beats a wrong animation).
+ *
+ * Thermal store is intentionally excluded: it is a legacy/current-system
+ * architecture and must not be shown on shortlist pages as a recommended future option.
+ * When the current system is a thermal store, the shortlist page returns null so
+ * callers render a neutral explanatory card instead.
  */
 function getCylinderVisualForStorageType(dhwStorageType?: string): 'cylinder_charge_mixergy' | 'cylinder_charge_standard' | null {
   if (dhwStorageType === 'mixergy') return 'cylinder_charge_mixergy';
   if (
     dhwStorageType === 'open_vented' ||
-    dhwStorageType === 'unvented' ||
-    dhwStorageType === 'thermal_store'
+    dhwStorageType === 'unvented'
   ) return 'cylinder_charge_standard';
+  // thermal_store and unknown: no animation is better than a wrong animation.
   return null;
 }
 

@@ -156,8 +156,8 @@ describe('resolveShortlistVisualId — signal-driven selection', () => {
     expect(resolveShortlistVisualId('high', 0, 'open_vented')).toBe('cylinder_charge_standard');
   });
 
-  it('returns cylinder_charge_standard when solarStorageOpportunity is high and storage is thermal_store', () => {
-    expect(resolveShortlistVisualId('high', 1, 'thermal_store')).toBe('cylinder_charge_standard');
+  it('returns null when solarStorageOpportunity is high and storage is thermal_store (audit guard: thermal store is a legacy explainer, not a shortlist visual)', () => {
+    expect(resolveShortlistVisualId('high', 1, 'thermal_store')).toBeNull();
   });
 
   it('returns cylinder_charge_mixergy when solarStorageOpportunity is high and storage is mixergy', () => {
@@ -210,7 +210,8 @@ describe('resolveShortlistVisualId — signal-driven selection', () => {
   it('returns cylinder_charge_standard when storageBenefitSignal is high and storage is unvented', () => {
     expect(resolveShortlistVisualId('low', 1, 'unvented', 'high')).toBe('cylinder_charge_standard');
     expect(resolveShortlistVisualId('none', 0, 'open_vented', 'high')).toBe('cylinder_charge_standard');
-    expect(resolveShortlistVisualId('medium', 1, 'thermal_store', 'high')).toBe('cylinder_charge_standard');
+    // thermal_store returns null: audit guard suppresses it from shortlist pages
+    expect(resolveShortlistVisualId('medium', 1, 'thermal_store', 'high')).toBeNull();
   });
 
   it('returns cylinder_charge_mixergy when storageBenefitSignal is high and storage is mixergy', () => {
@@ -299,5 +300,17 @@ describe('isVisualValid — validity constraint enforcement', () => {
     expect(() => isVisualValid('cylinder_charge', { pageType: 'options' })).not.toThrow();
     expect(() => isVisualValid('cylinder_charge', { pageType: 'gallery' })).not.toThrow();
     expect(() => isVisualValid('cylinder_charge', {})).not.toThrow();
+  });
+
+  it('thermal_store on a shortlist page throws an Error (audit guard)', () => {
+    expect(() => isVisualValid('thermal_store', { pageType: 'shortlist' })).toThrow(
+      "'thermal_store' visual is not permitted on shortlist pages",
+    );
+  });
+
+  it('thermal_store is allowed on current_system and non-shortlist pages', () => {
+    expect(() => isVisualValid('thermal_store', { pageType: 'current_system' })).not.toThrow();
+    expect(() => isVisualValid('thermal_store', { pageType: 'gallery' })).not.toThrow();
+    expect(() => isVisualValid('thermal_store', {})).not.toThrow();
   });
 });

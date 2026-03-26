@@ -112,6 +112,27 @@ const REGISTRY: PhysicsVisualDefinition[] = [
     applicableSignalTypes: ['storageBenefitSignal', 'dailyHotWaterLitres', 'demandProfileLabel'],
   },
   {
+    id: 'thermal_store',
+    title: 'Thermal store — legacy high-temperature architecture',
+    concept: 'A thermal store holds heat, not domestic hot water — it produces hot water through a heat exchanger and typically depends on very high primary temperatures.',
+    purpose:
+      'Explains the legacy thermal store architecture: boiler pumps high-temperature primary water into the store, hot water at the tap is produced through a heat exchanger, and the whole system depends on maintaining elevated primary temperatures (75–85 °C). Used as a current-system / legacy explainer — not a mainstream modern recommendation.',
+    defaultDurationMs: 3500,
+    supportsReducedMotion: true,
+    supportsInteraction: false,
+    category: 'water',
+    displayModes: ['preview', 'inline', 'focus'],
+    applicablePages: ['current_system'],
+    // Audit guard: this visual is intentionally restricted to current-system pages.
+    // Runtime enforcement (throwing on shortlist) is in isVisualValid()
+    // in presentationVisualMapping.ts.
+    applicableSystemFamilies: ['stored_water'],
+    applicableSignalTypes: ['dhwStorageType'],
+    validWhen: {
+      invalidForFamilies: ['combi', 'ashp'],
+    },
+  },
+  {
     id: 'heat_particles',
     title: 'Heat transfer through walls',
     concept: 'Heat moves through walls by conduction and through rooms by convection.',
