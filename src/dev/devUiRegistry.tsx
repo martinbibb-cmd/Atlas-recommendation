@@ -68,6 +68,24 @@ export type DevUiCategory =
 
 export type DevUiStatus = 'canonical' | 'active' | 'experimental' | 'review' | 'duplicate' | 'deprecated' | 'remove';
 
+/**
+ * Who may access this surface.
+ * - production – reachable by real users in production
+ * - dev_only   – developer / internal access only (query flag or dev menu)
+ * - fallback   – used as a fallback / degraded path
+ * - review     – still under evaluation; not yet production-confirmed
+ */
+export type DevUiAccess = 'production' | 'dev_only' | 'fallback' | 'review';
+
+/**
+ * How this surface is reached.
+ * - path        – absolute URL pathname (e.g. /floor-plan-tool)
+ * - query_flag  – URL query param (e.g. ?lab=1)
+ * - derived     – reached through internal state / journey (no URL change)
+ * - unknown     – route not yet resolved — do not invent a value
+ */
+export type DevUiRouteKind = 'path' | 'query_flag' | 'derived' | 'unknown';
+
 export interface DevUiRegistryItem {
   /** Unique identifier for this entry. */
   id: string;
@@ -100,6 +118,37 @@ export interface DevUiRegistryItem {
    * provides its own back button.
    */
   render: () => ReactNode;
+
+  // ── Route / access metadata ────────────────────────────────────────────────
+
+  /** Absolute pathname if the surface has a URL path route. */
+  routePath?: string;
+  /** URL query flag(s) that activate this surface, e.g. ['lab=1']. */
+  queryFlags?: string[];
+  /** Ready-to-paste full route example, e.g. '/?lab=1'. */
+  fullRouteExample?: string;
+  /** How this surface is reached. Default: 'unknown'. */
+  routeKind?: DevUiRouteKind;
+  /** Who may access this surface. Default: 'dev_only'. */
+  access?: DevUiAccess;
+
+  // ── Hierarchy metadata ─────────────────────────────────────────────────────
+
+  /** codeName of the parent surface that contains or leads to this one. */
+  parentCodeName?: string;
+  /** IDs of child surfaces contained within this surface. */
+  childElementIds?: string[];
+  /** Additional source files used by this surface (beyond the main fileName). */
+  sourceFiles?: string[];
+  /** Route IDs or codeNames of surfaces that link into this one. */
+  usedByRoutes?: string[];
+
+  // ── Copy-box ──────────────────────────────────────────────────────────────
+
+  /** Include this item in the copy-box output. Also included if status=canonical or access=production. */
+  includeInCopyBox?: boolean;
+  /** Override label used in copy-box output. Defaults to commonName. */
+  copyLabel?: string;
 }
 
 // ─── Registry ─────────────────────────────────────────────────────────────────
@@ -122,6 +171,13 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     notes:
       'The canonical System Simulator / System Lab experience. ' +
       'Only this surface and SimulatorDashboard may use the "Simulator" label.',
+    routeKind: 'query_flag',
+    queryFlags: ['lab=1'],
+    fullRouteExample: '/?lab=1',
+    access: 'production',
+    childElementIds: ['lab-shell', 'draw-off-workbench'],
+    sourceFiles: ['src/explainers/ExplainersHubPage.tsx', 'src/explainers/lego/simulator/SimulatorDashboard.tsx'],
+    includeInCopyBox: true,
     render: () => <ExplainersHubPage onBack={() => undefined} />,
   },
 
@@ -137,6 +193,17 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     notes:
       'Full multi-page recommendation presentation shown to customers. ' +
       'Rendered here with demo inputs in vertical (non-deck) mode.',
+    routeKind: 'query_flag',
+    queryFlags: ['presentation=1'],
+    fullRouteExample: '/?presentation=1',
+    access: 'production',
+    sourceFiles: [
+      'src/components/presentation/CanonicalPresentationPage.tsx',
+      'src/components/presentation/PresentationDeck.tsx',
+      'src/components/presentation/buildCanonicalPresentation.ts',
+    ],
+    usedByRoutes: ['full-survey-stepper'],
+    includeInCopyBox: true,
     render: () => (
       <CanonicalPresentationPage
         result={runEngine(DEV_DEMO_INPUT)}
@@ -155,6 +222,10 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     filePath: 'src/components/visualizers/LifestyleInteractive.tsx',
     category: 'visualiser',
     status: 'active',
+    routeKind: 'derived',
+    fullRouteExample: 'unresolved — embedded in simulator',
+    access: 'dev_only',
+    parentCodeName: 'ExplainersHubPage',
     render: () => <LifestyleInteractive />,
   },
   {
@@ -165,6 +236,10 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     filePath: 'src/components/visualizers/InteractiveComfortClock.tsx',
     category: 'visualiser',
     status: 'active',
+    routeKind: 'derived',
+    fullRouteExample: 'unresolved — embedded in simulator',
+    access: 'dev_only',
+    parentCodeName: 'ExplainersHubPage',
     render: () => <InteractiveComfortClock />,
   },
   {
@@ -175,6 +250,10 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     filePath: 'src/components/visualizers/GlassBoxPanel.tsx',
     category: 'visualiser',
     status: 'active',
+    routeKind: 'derived',
+    fullRouteExample: 'unresolved — embedded in simulator',
+    access: 'dev_only',
+    parentCodeName: 'ExplainersHubPage',
     render: () => <GlassBoxPanel results={runEngine(DEV_DEMO_INPUT)} />,
   },
   {
@@ -185,6 +264,10 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     filePath: 'src/components/visualizers/EfficiencyCurve.tsx',
     category: 'visualiser',
     status: 'active',
+    routeKind: 'derived',
+    fullRouteExample: 'unresolved — embedded in simulator',
+    access: 'dev_only',
+    parentCodeName: 'ExplainersHubPage',
     render: () => <EfficiencyCurve />,
   },
   {
@@ -196,6 +279,10 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     category: 'visualiser',
     status: 'active',
     notes: 'Rendered with demo values: Mixergy 180 L vs conventional 210 L.',
+    routeKind: 'derived',
+    fullRouteExample: 'unresolved — embedded in simulator',
+    access: 'dev_only',
+    parentCodeName: 'ExplainersHubPage',
     render: () => <FootprintXRay mixergyLitres={180} conventionalLitres={210} />,
   },
 
@@ -208,6 +295,11 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     filePath: 'src/components/stepper/FastChoiceStepper.tsx',
     category: 'journey',
     status: 'active',
+    routeKind: 'derived',
+    fullRouteExample: 'landing → "Quick check" card',
+    access: 'production',
+    usedByRoutes: ['explainers-hub'],
+    includeInCopyBox: true,
     render: () => <FastChoiceStepper onBack={() => undefined} />,
   },
   {
@@ -218,6 +310,12 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     filePath: 'src/components/stepper/FullSurveyStepper.tsx',
     category: 'journey',
     status: 'active',
+    notes: 'The canonical technical input journey. Feeds System Lab and the Presentation Deck.',
+    routeKind: 'derived',
+    fullRouteExample: 'landing → "Full survey" card',
+    access: 'production',
+    usedByRoutes: ['lab-shell', 'canonical-presentation'],
+    includeInCopyBox: true,
     render: () => <FullSurveyStepper onBack={() => undefined} />,
   },
 
@@ -231,6 +329,12 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     category: 'assessment',
     status: 'active',
     notes: 'Full System Lab shell with tabbed view. Normally accessed after completing a survey.',
+    routeKind: 'derived',
+    fullRouteExample: 'landing → "System Lab" card',
+    access: 'production',
+    childElementIds: ['draw-off-workbench'],
+    usedByRoutes: ['full-survey-stepper'],
+    includeInCopyBox: true,
     render: () => <LabShell onHome={() => undefined} engineInput={DEV_DEMO_INPUT} />,
   },
   {
@@ -242,6 +346,10 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     category: 'assessment',
     status: 'active',
     notes: 'Visual draw-off workbench showing hot water performance by system type. Part of System Lab.',
+    routeKind: 'derived',
+    fullRouteExample: 'unresolved — embedded in System Lab',
+    access: 'dev_only',
+    parentCodeName: 'LabShell',
     render: () => <DrawOffWorkbench />,
   },
   {
@@ -253,6 +361,11 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     category: 'assessment',
     status: 'review',
     notes: 'Advanced physics explorer with system diagram, heat source panel and room breakdown. Normally accessed via ?explorer=1.',
+    routeKind: 'query_flag',
+    queryFlags: ['explorer=1'],
+    fullRouteExample: '/?explorer=1',
+    access: 'review',
+    includeInCopyBox: true,
     render: () => <AtlasExplorerPage onBack={() => undefined} />,
   },
 
@@ -266,6 +379,11 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     category: 'audit',
     status: 'active',
     notes: 'Internal audit surface for the presentation engine. Normally accessed via ?audit=1.',
+    routeKind: 'query_flag',
+    queryFlags: ['audit=1'],
+    fullRouteExample: '/?audit=1',
+    access: 'dev_only',
+    includeInCopyBox: true,
     render: () => <PresentationAuditPage />,
   },
 ];
