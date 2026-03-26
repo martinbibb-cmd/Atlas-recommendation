@@ -51,6 +51,8 @@ import LivePhysicsOverlay, { type OverlayStepKey } from '../../ui/overlay/LivePh
 import DeltaStrip from '../../ui/panels/DeltaStrip';
 import { EDUCATIONAL_EXPLAINERS } from '../../explainers/educational/content';
 import HeatLossCalculator from '../heatloss/HeatLossCalculator';
+import { SystemBuilderStep } from '../../features/survey/systemBuilder/SystemBuilderStep';
+import { INITIAL_SYSTEM_BUILDER_STATE } from '../../features/survey/systemBuilder/systemBuilderTypes';
 
 interface Props {
   onBack: () => void;
@@ -72,10 +74,10 @@ interface Props {
   onDraft?: (draft: FullSurveyModelV1) => void;
 }
 
-type Step = 'location' | 'pressure' | 'hydraulic' | 'lifestyle' | 'hot_water' | 'commercial' | 'overlay';
-/** Step 8 ("results") is intentionally excluded — the survey ends at "overlay"
+type Step = 'location' | 'pressure' | 'hydraulic' | 'system_builder' | 'lifestyle' | 'hot_water' | 'commercial' | 'overlay';
+/** Step 9 ("results") is intentionally excluded — the survey ends at "overlay"
  *  and the stepper transitions to hub mode after the engine run. */
-const STEPS: Step[] = ['location', 'pressure', 'hydraulic', 'lifestyle', 'hot_water', 'commercial', 'overlay'];
+const STEPS: Step[] = ['location', 'pressure', 'hydraulic', 'system_builder', 'lifestyle', 'hot_water', 'commercial', 'overlay'];
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
 // Two independent physics dimensions:
@@ -565,6 +567,9 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   const [prefillActive] = useState<boolean>(!!prefill);
   const [showPrefillBanner, setShowPrefillBanner] = useState<boolean>(!!prefill);
   const [compareMixergy, setCompareMixergy] = useState(() => prefill?.fullSurvey?.compareMixergy ?? false);
+  const [systemBuilderState, setSystemBuilderState] = useState(
+    () => prefill?.fullSurvey?.systemBuilder ?? INITIAL_SYSTEM_BUILDER_STATE
+  );
   const [overlayDetail, setOverlayDetail] = useState<{ systemLabel: string; rowLabel: string; step: Step; risk: RiskLevel; explanation: OverlayExplanation } | null>(null);
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
@@ -816,12 +821,13 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     window.scrollTo(0, 0);
   }, [currentStep]);
 
-  /** Build a draft that embeds compareMixergy into fullSurvey for persistence. */
+  /** Build a draft that embeds compareMixergy and systemBuilder into fullSurvey for persistence. */
   const buildDraft = (): FullSurveyModelV1 => ({
     ...input,
     fullSurvey: {
       ...input.fullSurvey,
       compareMixergy,
+      systemBuilder: systemBuilderState,
     },
   });
 
@@ -2625,6 +2631,16 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           </div>
         </div>
       )} 
+
+      {currentStep === 'system_builder' && (
+        <SystemBuilderStep
+          state={systemBuilderState}
+          onChange={setSystemBuilderState}
+          onNext={next}
+          onPrev={prev}
+          showDebugOutput={true}
+        />
+      )}
 
       {currentStep === 'lifestyle' && (
         <LifestyleComfortStep

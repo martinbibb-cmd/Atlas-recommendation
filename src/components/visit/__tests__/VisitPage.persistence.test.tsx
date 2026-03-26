@@ -43,6 +43,15 @@ afterEach(() => {
 
 async function advanceToStep(user: ReturnType<typeof userEvent.setup>, targetIndex: number) {
   for (let i = 0; i < targetIndex; i++) {
+    // When on the System Architecture step, fill mandatory fields before advancing.
+    if (document.querySelector('[data-testid="system-builder-step"]')) {
+      const heatSource = document.querySelector('[data-testid="heat-source-combi"]') as HTMLElement | null;
+      if (heatSource) await user.click(heatSource);
+      const dhwType = document.querySelector('[data-testid="dhw-type-plate_hex"]') as HTMLElement | null;
+      if (dhwType) await user.click(dhwType);
+      const emitter = document.querySelector('[data-testid="emitter-radiators_standard"]') as HTMLElement | null;
+      if (emitter) await user.click(emitter);
+    }
     await user.click(screen.getByRole('button', { name: /next/i }));
   }
 }
@@ -98,7 +107,7 @@ describe('FullSurveyStepper — onDraft persistence callback', () => {
     };
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
-    await advanceToStep(user, 4); // step 5: hot_water
+    await advanceToStep(user, 5); // step 5: hot_water (index 5 with new system_builder step at index 3)
 
     const checkbox = screen.getByRole('checkbox', { name: /show mixergy comparison/i });
     await user.click(checkbox);
@@ -128,7 +137,7 @@ describe('FullSurveyStepper — Step 5 compareMixergy hydration from prefill', (
       />
     );
 
-    await advanceToStep(user, 4);
+    await advanceToStep(user, 5); // hot_water is now at index 5
 
     expect(screen.getByRole('checkbox', { name: /show mixergy comparison/i })).toBeChecked();
   }, 15000);
@@ -146,7 +155,7 @@ describe('FullSurveyStepper — Step 5 compareMixergy hydration from prefill', (
       />
     );
 
-    await advanceToStep(user, 4);
+    await advanceToStep(user, 5); // hot_water is now at index 5
 
     expect(screen.getByRole('checkbox', { name: /show mixergy comparison/i })).not.toBeChecked();
   }, 15000);
@@ -189,35 +198,35 @@ describe('VisitPage — SaveState includes retrying variant', () => {
   });
 });
 
-// ── Step 4 duplicate strip removal (PR 3) ────────────────────────────────────
+// ── Step 5 duplicate strip removal (PR 3) ────────────────────────────────────
 
-describe('FullSurveyStepper — Step 4 duplicate live-physics strip removed', () => {
-  it('does not render the live-physics overlay panel on Step 4 (lifestyle)', async () => {
+describe('FullSurveyStepper — Step 5 duplicate live-physics strip removed', () => {
+  it('does not render the live-physics overlay panel on Step 5 (lifestyle)', async () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 3); // Step 4 is index 3
+    await advanceToStep(user, 4); // lifestyle is index 4 (system_builder added at index 3)
 
-    // The LivePhysicsOverlay has className 'live-physics-overlay' — must be absent on Step 4.
+    // The LivePhysicsOverlay has className 'live-physics-overlay' — must be absent on Step 5.
     expect(document.querySelector('.live-physics-overlay')).toBeNull();
   }, 15000);
 
-  it('still renders the dhw-demand-summary block on Step 4 (working bottom summary)', async () => {
+  it('still renders the dhw-demand-summary block on Step 5 (working bottom summary)', async () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 3); // Step 4 is index 3
+    await advanceToStep(user, 4); // lifestyle is index 4 (system_builder added at index 3)
 
     expect(document.querySelector('[data-testid="dhw-demand-summary"]')).not.toBeNull();
   }, 15000);
 
-  it('does not render the live-physics overlay on Step 4 regardless of engine output', async () => {
+  it('does not render the live-physics overlay on Step 5 regardless of engine output', async () => {
     // The overlayStepKey is null for 'lifestyle' so the overlay must not be
     // rendered even if the engine has produced output from a previous step.
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 3); // Step 4 is index 3
+    await advanceToStep(user, 4); // lifestyle is index 4 (system_builder added at index 3)
 
     // Allow any debounced engine tick to settle.
     await new Promise(r => setTimeout(r, 500));

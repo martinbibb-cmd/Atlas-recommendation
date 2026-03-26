@@ -24,9 +24,26 @@ beforeEach(() => {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Fill in the minimum required fields on the System Architecture step so the
+ * "Next" button becomes enabled.  Selects combi + plate_hex + radiators_standard.
+ */
+async function fillSystemBuilderMinimum(user: ReturnType<typeof userEvent.setup>) {
+  const heatSource = document.querySelector('[data-testid="heat-source-combi"]') as HTMLElement | null;
+  if (heatSource) await user.click(heatSource);
+  const dhwType = document.querySelector('[data-testid="dhw-type-plate_hex"]') as HTMLElement | null;
+  if (dhwType) await user.click(dhwType);
+  const emitter = document.querySelector('[data-testid="emitter-radiators_standard"]') as HTMLElement | null;
+  if (emitter) await user.click(emitter);
+}
+
 /** Navigate the stepper to the given 0-based step index by clicking Next. */
 async function advanceToStep(user: ReturnType<typeof userEvent.setup>, targetIndex: number) {
   for (let i = 0; i < targetIndex; i++) {
+    // When on the System Architecture step, fill mandatory fields before advancing.
+    if (document.querySelector('[data-testid="system-builder-step"]')) {
+      await fillSystemBuilderMinimum(user);
+    }
     const nextBtn = screen.getByRole('button', { name: /next/i });
     await user.click(nextBtn);
   }
@@ -71,53 +88,57 @@ describe('FullSurveyStepper — deep explanatory content hidden by default', () 
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    // Advance to step 5 (hot_water — index 4).
-    await advanceToStep(user, 4);
+    // Advance to step 5 (hot_water — index 5 with new system_builder step at index 3).
+    await advanceToStep(user, 5);
 
     expect(document.querySelector('[data-testid="survey-hotwater-analysis"]')).toBeNull();
-  });
+  }, 15000);
 
   it('renders the hot-water analysis toggle button on step 5', async () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 4);
+    await advanceToStep(user, 5);
 
     expect(document.querySelector('[data-testid="survey-hotwater-analysis-toggle"]')).not.toBeNull();
-  });
+  }, 15000);
 
   it('reveals the hot-water outlet analysis when the toggle is clicked', async () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 4);
+    await advanceToStep(user, 5);
 
     const toggle = document.querySelector('[data-testid="survey-hotwater-analysis-toggle"]') as HTMLElement;
     await user.click(toggle);
 
     expect(document.querySelector('[data-testid="survey-hotwater-analysis"]')).not.toBeNull();
-  });
+  }, 15000);
 });
 
 // ─── onComplete routing ───────────────────────────────────────────────────────
 
 /**
- * Advance through ALL 7 survey steps and trigger the final action button.
- * Steps 1–6 use "Next →"; step 7 (overlay) uses "Run Full Analysis →".
+ * Advance through ALL 8 survey steps and trigger the final action button.
+ * Steps 1–7 use "Next →"; step 8 (overlay) uses "Run Full Analysis →".
  */
 async function completeFullSurvey(user: ReturnType<typeof userEvent.setup>) {
-  // Steps 1–6: click "Next →"
-  for (let i = 0; i < 6; i++) {
+  // Steps 1–7: click "Next →"
+  for (let i = 0; i < 7; i++) {
+    // When on the System Architecture step, fill mandatory fields before advancing.
+    if (document.querySelector('[data-testid="system-builder-step"]')) {
+      await fillSystemBuilderMinimum(user);
+    }
     const nextBtn = screen.getByRole('button', { name: /Next →/ });
     await user.click(nextBtn);
   }
-  // Step 7 (overlay): click "Run Full Analysis →"
+  // Step 8 (overlay): click "Run Full Analysis →"
   const finalBtn = screen.getByRole('button', { name: /Run Full Analysis/ });
   await user.click(finalBtn);
 }
 
 describe('FullSurveyStepper — onComplete routing', () => {
-  it('calls onComplete with a clean EngineInputV2_3 after completing all 7 steps', async () => {
+  it('calls onComplete with a clean EngineInputV2_3 after completing all 8 steps', async () => {
     const onComplete = vi.fn();
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} onComplete={onComplete} />);
@@ -133,7 +154,7 @@ describe('FullSurveyStepper — onComplete routing', () => {
     expect(typeof engineInput.primaryPipeDiameter).toBe('number');
     expect(typeof engineInput.bathroomCount).toBe('number');
     expect(typeof engineInput.heatLossWatts).toBe('number');
-  });
+  }, 20000);
 
   it('does NOT enter hub mode when onComplete is provided', async () => {
     const onComplete = vi.fn();
@@ -144,7 +165,7 @@ describe('FullSurveyStepper — onComplete routing', () => {
 
     // If onComplete is provided, LiveHubPage must not render.
     expect(screen.queryByText(/Atlas Live Output Hub/i)).toBeNull();
-  });
+  }, 20000);
 
   it('enters hub mode (LiveHubPage) when onComplete is NOT provided', async () => {
     const user = userEvent.setup();
@@ -154,5 +175,5 @@ describe('FullSurveyStepper — onComplete routing', () => {
 
     // Without onComplete, the stepper falls back to LiveHubPage.
     expect(screen.getByText(/Atlas Live Output Hub/i)).toBeTruthy();
-  });
+  }, 20000);
 });
