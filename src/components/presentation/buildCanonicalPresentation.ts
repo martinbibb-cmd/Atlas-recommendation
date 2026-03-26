@@ -19,6 +19,9 @@ import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/Engi
 import type { OptionCardV1 } from '../../contracts/EngineOutputV1';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
 import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
+import type { DhwArchitecture } from '../../lib/dhw/buildDhwContextFromSurvey';
+
+export type { DhwArchitecture };
 
 // ─── Output model ─────────────────────────────────────────────────────────────
 
@@ -92,6 +95,16 @@ export interface CurrentSystemSignal {
    * Derived from input.dhwStorageType; never inferred from heat source type.
    */
   dhwStorageType: DhwStorageType;
+  /**
+   * Top-level DHW architecture — the primary discriminator for visuals, copy,
+   * and requirements.  Derived from dhwStorageType + drivingStyleMode.
+   *
+   *   on_demand        — combi / no stored DHW
+   *   standard_cylinder — vented or unvented potable cylinder
+   *   mixergy          — Mixergy stratified cylinder
+   *   thermal_store    — stored heat (not stored hot water); DHW via exchanger
+   */
+  dhwArchitecture: DhwArchitecture;
 }
 
 /** Objectives signals — user priorities from expert assumptions and preferences. */
@@ -175,12 +188,22 @@ export interface ShortlistedOptionDetail {
    */
   peakSimultaneousOutlets: number;
   /**
-   * DHW storage subtype — used to select the correct cylinder visual.
-   * Never inferred from appliance family; must come from explicit input signal.
-   * cylinder_charge_mixergy when 'mixergy', cylinder_charge_standard for standard
-   * stored types, null/none for combi or unknown.
+   * DHW storage subtype of the current system — retained for backward
+   * compatibility and low-level storage type queries.
+   * For architecture-first branching, use `dhwArchitecture` instead.
    */
   dhwStorageType: DhwStorageType;
+  /**
+   * Top-level DHW architecture for this option — the primary discriminator for
+   * visuals and wording on the shortlist page.
+   *
+   *   on_demand        — option delivers hot water on demand (combi)
+   *   standard_cylinder — option uses a standard vented or unvented cylinder
+   *   mixergy          — option uses a Mixergy stratified cylinder
+   *   thermal_store    — option uses a primary thermal store (legacy; not a
+   *                      recommended new option — shortlist visual suppressed)
+   */
+  dhwArchitecture: DhwArchitecture;
   /**
    * Storage benefit signal — used to determine whether a cylinder animation
    * is relevant for this household (avoids showing irrelevant storage visuals
@@ -316,6 +339,65 @@ const FAMILY_LABELS: Record<string, string> = {
 };
 
 // ─── Visual signal helpers ─────────────────────────────────────────────────────
+
+/**
+ * Map a DHW storage type + driving style mode to the top-level DHW
+ * architecture discriminator used throughout the presentation layer.
+ *
+ * Architecture is the primary branching key for visuals, wording, and
+ * requirements — never infer it from appliance family alone.
+ *
+ * Resolution:
+ *   thermal_store  → thermal_store  (always, regardless of driving mode)
+ *   mixergy        → mixergy
+ *   open_vented | unvented → standard_cylinder
+ *   unknown + combi mode   → on_demand  (no evidence of stored DHW)
+ *   unknown + stored/hp    → standard_cylinder (heat source implies cylinder)
+ */
+function storageTypeToArchitecture(
+  storageType: DhwStorageType,
+  drivingStyleMode: 'combi' | 'stored' | 'heat_pump',
+): DhwArchitecture {
+  if (storageType === 'thermal_store') return 'thermal_store';
+  if (storageType === 'mixergy')       return 'mixergy';
+  if (storageType === 'open_vented' || storageType === 'unvented') return 'standard_cylinder';
+  // unknown storage type — fall back to driving mode as the best available signal
+  if (drivingStyleMode === 'combi') return 'on_demand';
+  // Both 'stored' (system/regular boiler) and 'heat_pump' always have a cylinder,
+  // so standard_cylinder is the correct architecture for both when storage type
+  // is unknown.
+  return 'standard_cylinder';
+}
+
+/**
+ * Map a shortlisted-option ID and the current-system DHW storage type to the
+ * architecture this OPTION would use if installed.
+ *
+ * For combi options the architecture is always on_demand.
+ * For stored options we use the current-system storage type as a proxy for
+ * what cylinder would be recommended (Mixergy homes get Mixergy options).
+ * For ASHP options the architecture is always standard_cylinder.
+ *
+ * Note: thermal_store is never a recommended future option; this function
+ * maps all stored non-mixergy options to standard_cylinder.
+ *
+ * Unrecognised option IDs (e.g. future option families not yet in the enum)
+ * fall through to the final stored-option path and inherit the Mixergy signal.
+ * This is intentionally conservative — standard_cylinder is the safe default
+ * for any stored architecture that is not explicitly classified above.
+ */
+function optionIdToArchitecture(
+  optionId: string,
+  dhwStorageType: DhwStorageType,
+): DhwArchitecture {
+  if (optionId === 'combi') return 'on_demand';
+  if (optionId === 'ashp')  return 'standard_cylinder';
+  // Stored options (stored_vented, stored_unvented, system_unvented, regular_vented,
+  // and any future stored-DHW option IDs): honour the Mixergy signal from the
+  // current system so Mixergy households continue to see Mixergy-specific visuals.
+  if (dhwStorageType === 'mixergy') return 'mixergy';
+  return 'standard_cylinder';
+}
 
 /**
  * Map a FabricWallType to the normalised wall type key expected by
@@ -504,14 +586,18 @@ function buildCurrentSystemSignal(input: EngineInputV2_3): CurrentSystemSignal {
     ageContext = 'System age context not available for this type.';
   }
 
+  const drivingStyleMode = systemTypeToDrivingMode(type);
+  const dhwStorageType   = inputDhwStorageTypeToSignal(input.dhwStorageType);
+
   return {
     systemTypeLabel,
     ageLabel,
     makeModelText: input.makeModelText,
     outputLabel,
     ageContext,
-    drivingStyleMode: systemTypeToDrivingMode(type),
-    dhwStorageType: inputDhwStorageTypeToSignal(input.dhwStorageType),
+    drivingStyleMode,
+    dhwStorageType,
+    dhwArchitecture: storageTypeToArchitecture(dhwStorageType, drivingStyleMode),
   };
 }
 
@@ -913,6 +999,8 @@ function buildPage4Plus(
       solarStorageOpportunity:   pv.solarStorageOpportunity,
       peakSimultaneousOutlets:   demo.peakSimultaneousOutlets,
       dhwStorageType,
+      // Architecture is the primary discriminator for visuals and wording.
+      dhwArchitecture:           optionIdToArchitecture(opt.id, dhwStorageType),
       storageBenefitSignal:      demo.storageBenefitSignal,
     };
   });

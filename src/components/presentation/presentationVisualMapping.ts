@@ -27,6 +27,9 @@
 
 import type { PhysicsVisualId, VisualDisplayMode } from '../physics-visuals/physicsVisualTypes';
 import { getVisualDefinition } from '../physics-visuals/physicsVisualRegistry';
+import type { DhwArchitecture } from './buildCanonicalPresentation';
+
+export type { DhwArchitecture };
 
 // ─── Section identifiers ───────────────────────────────────────────────────────
 
@@ -199,64 +202,88 @@ export function isVisualValid(
 }
 
 /**
- * Map a DHW storage subtype to the appropriate cylinder visual id.
- * Returns the subtype-specific visual, or null when the subtype is unknown/absent
- * (no animation beats a wrong animation).
+ * Map a DHW architecture to the appropriate cylinder visual id.
+ * Returns the architecture-specific visual, or null when the architecture
+ * has no cylinder visual (no animation beats a wrong animation).
  *
- * Thermal store is intentionally excluded: it is a legacy/current-system
- * architecture and must not be shown on shortlist pages as a recommended future option.
- * When the current system is a thermal store, the shortlist page returns null so
- * callers render a neutral explanatory card instead.
+ * Thermal store and on-demand are intentionally excluded:
+ *   - thermal_store is a current-system explainer with its own dedicated visual.
+ *   - on_demand has no cylinder to animate.
  */
-function getCylinderVisualForStorageType(dhwStorageType?: string): 'cylinder_charge_mixergy' | 'cylinder_charge_standard' | null {
-  if (dhwStorageType === 'mixergy') return 'cylinder_charge_mixergy';
-  if (
-    dhwStorageType === 'open_vented' ||
-    dhwStorageType === 'unvented'
-  ) return 'cylinder_charge_standard';
-  // thermal_store and unknown: no animation is better than a wrong animation.
+function getCylinderVisualForArchitecture(architecture?: DhwArchitecture): 'cylinder_charge_mixergy' | 'cylinder_charge_standard' | null {
+  if (architecture === 'mixergy')           return 'cylinder_charge_mixergy';
+  if (architecture === 'standard_cylinder') return 'cylinder_charge_standard';
+  // thermal_store, on_demand, and undefined: no animation is better than a wrong animation.
   return null;
 }
 
 /**
- * Resolve the best visual for a shortlist page using signal priority:
- *   1. signal-driven: cylinder_charge_mixergy or cylinder_charge_standard when
- *      solarStorageOpportunity is high, selected by dhwStorageType.
- *      If dhwStorageType is unknown, return null (no animation is better than wrong animation).
+ * Resolve the visual id for the current-system presentation section using
+ * DHW architecture as the primary discriminator.
+ *
+ *   thermal_store    → 'thermal_store'  (stores heat, high primary temp)
+ *   mixergy          → 'cylinder_charge_mixergy'
+ *   standard_cylinder → 'cylinder_charge_standard'
+ *   on_demand        → 'driving_style' (mode driven by heat source type)
+ *
+ * When architecture is undefined the function falls back to driving_style so
+ * the current-system page always shows a meaningful visual.
+ *
+ * @param architecture   Top-level DHW architecture from CurrentSystemSignal.
+ * @returns              The PhysicsVisualId to render for the current system.
+ */
+export function resolveCurrentSystemVisualId(
+  architecture: DhwArchitecture | undefined,
+): PhysicsVisualId {
+  if (architecture === 'thermal_store')     return 'thermal_store';
+  if (architecture === 'mixergy')           return 'cylinder_charge_mixergy';
+  if (architecture === 'standard_cylinder') return 'cylinder_charge_standard';
+  // on_demand (or undefined fallback) → driving_style
+  return 'driving_style';
+}
+
+/**
+ * Resolve the best visual for a shortlist page using signal priority, with
+ * DHW architecture as the primary cylinder-type discriminator.
+ *
+ *   1. signal-driven: cylinder visual when solarStorageOpportunity is high,
+ *      selected by dhwArchitecture.  Returns null for thermal_store and
+ *      on_demand (no cylinder visual is better than a wrong one).
  *   2. signal-driven: flow_split when peakSimultaneousOutlets >= 2
- *   3. signal-driven: cylinder_charge_mixergy or cylinder_charge_standard when
- *      storageBenefitSignal is high, selected by dhwStorageType.
- *      If dhwStorageType is unknown, return null.
+ *   3. signal-driven: cylinder visual when storageBenefitSignal is high,
+ *      selected by dhwArchitecture.
  *   4. null — no family-based fallback; show a neutral card instead
  *
- * Storage relevance guard: if neither storageBenefitSignal nor solarStorageOpportunity
- * is 'high', cylinder visuals are suppressed — showing a cylinder for a low-demand
- * single-person home with no solar adds noise rather than insight.
+ * Storage relevance guard: if neither storageBenefitSignal nor
+ * solarStorageOpportunity is 'high', cylinder visuals are suppressed —
+ * showing a cylinder for a low-demand single-person home with no solar adds
+ * noise rather than insight.
  *
  * Visual priority:  signalMatch ?? sectionDefault ?? null
  *
- * Family-based fallbacks are intentionally removed. Showing an incorrect
- * animation is worse than showing no animation. When null is returned,
- * callers must render a neutral explanatory card.
+ * @param solarStorageOpportunity  'high' | 'medium' | 'low'
+ * @param peakSimultaneousOutlets  Count of simultaneous hot-water outlets.
+ * @param dhwArchitecture          Top-level DHW architecture of the option.
+ * @param storageBenefitSignal     'high' | 'medium' | 'low'
  */
 export function resolveShortlistVisualId(
   solarStorageOpportunity: string,
   peakSimultaneousOutlets: number,
-  dhwStorageType?: string,
+  dhwArchitecture?: DhwArchitecture,
   storageBenefitSignal?: string,
 ): PhysicsVisualId | null {
-  // 1. Signal: solar storage opportunity is high → select cylinder visual by storage subtype
+  // 1. Signal: solar storage opportunity is high → select cylinder visual by architecture
   if (solarStorageOpportunity === 'high') {
-    return getCylinderVisualForStorageType(dhwStorageType);
+    return getCylinderVisualForArchitecture(dhwArchitecture);
   }
 
   // 2. Signal: concurrent demand risk → flow split is the key story
   if (peakSimultaneousOutlets >= 2) return 'flow_split';
 
-  // 3. Signal: storage benefit is high → cylinder visual by storage subtype
+  // 3. Signal: storage benefit is high → cylinder visual by architecture
   //    Guard: skip if storage benefit is not high (avoids noise for low-demand homes)
   if (storageBenefitSignal === 'high') {
-    return getCylinderVisualForStorageType(dhwStorageType);
+    return getCylinderVisualForArchitecture(dhwArchitecture);
   }
 
   // 4. No direct signal match — return null so callers show a neutral card

@@ -36,7 +36,7 @@ import {
   type EnergySignal,
   type CurrentSystemSignal,
 } from './buildCanonicalPresentation';
-import { resolveShortlistVisualId } from './presentationVisualMapping';
+import { resolveShortlistVisualId, resolveCurrentSystemVisualId } from './presentationVisualMapping';
 import PresentationVisualSlot from './PresentationVisualSlot';
 import './PresentationDeck.css';
 
@@ -123,18 +123,23 @@ function EnergyPage({ energy }: { energy: EnergySignal }) {
 }
 
 function CurrentSystemPage({ sys }: { sys: CurrentSystemSignal }) {
+  const visualId = resolveCurrentSystemVisualId(sys.dhwArchitecture);
   return (
     <>
       <p className="atlas-presentation-deck__page-eyebrow">Your current system</p>
       <h2 className="atlas-presentation-deck__page-title">{sys.systemTypeLabel}</h2>
       <div className="atlas-presentation-deck__visual">
-        {sys.dhwStorageType === 'thermal_store' ? (
+        {visualId === 'thermal_store' ? (
           // Thermal stores always require high primary temperatures (75–85 °C) —
           // that is the defining physics constraint of this architecture.
           <PresentationVisualSlot
             visualId="thermal_store"
             visualData={{ flowTempBand: 'high' }}
           />
+        ) : visualId === 'cylinder_charge_mixergy' ? (
+          <PresentationVisualSlot visualId="cylinder_charge_mixergy" />
+        ) : visualId === 'cylinder_charge_standard' ? (
+          <PresentationVisualSlot visualId="cylinder_charge_standard" />
         ) : (
           <PresentationVisualSlot
             visualId="driving_style"
@@ -232,7 +237,7 @@ function ShortlistPage({ option, index }: { option: ShortlistedOptionDetail; ind
   const visualId = resolveShortlistVisualId(
     option.solarStorageOpportunity,
     option.peakSimultaneousOutlets,
-    option.dhwStorageType,
+    option.dhwArchitecture,
     option.storageBenefitSignal,
   );
   return (
