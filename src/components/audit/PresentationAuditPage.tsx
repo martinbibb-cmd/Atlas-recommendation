@@ -142,7 +142,7 @@ function detectViolations(model: CanonicalPresentationModel): RuleViolation[] {
     const visual = resolveShortlistVisualId(
       opt.solarStorageOpportunity,
       opt.peakSimultaneousOutlets,
-      opt.dhwStorageType,
+      opt.dhwArchitecture,
       opt.storageBenefitSignal,
     );
     // If solar is high but no cylinder visual resolved — storage subtype is unknown
@@ -278,7 +278,7 @@ function ShortlistSummary({ model }: { model: CanonicalPresentationModel }) {
         const visual = resolveShortlistVisualId(
           opt.solarStorageOpportunity,
           opt.peakSimultaneousOutlets,
-          opt.dhwStorageType,
+          opt.dhwArchitecture,
           opt.storageBenefitSignal,
         );
         return (
