@@ -80,6 +80,12 @@ export interface OptionPlane {
 }
 
 export interface OptionRequirements {
+  /**
+   * Items that are regulatory or safety requirements — not optional, not
+   * upgrades.  Cylinder thermostat, G3 compliance controls, 2-port zone
+   * valves and similar mandatory control components belong here.
+   */
+  complianceRequired?: string[];
   mustHave: string[];
   likelyUpgrades: string[];
   niceToHave: string[];

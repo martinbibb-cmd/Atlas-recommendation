@@ -256,6 +256,7 @@
 
 .atlas-presentation-deck__shortlist-section--required .atlas-presentation-deck__shortlist-section-heading { color: #c05621; }
 .atlas-presentation-deck__shortlist-section--best     .atlas-presentation-deck__shortlist-section-heading { color: #276749; }
+.atlas-presentation-deck__shortlist-section--compliance .atlas-presentation-deck__shortlist-section-heading { color: #2b6cb0; }
 
 .atlas-presentation-deck__shortlist-list {
   margin: 0;

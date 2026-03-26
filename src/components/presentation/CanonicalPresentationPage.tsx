@@ -266,6 +266,14 @@ function ShortlistedCard({ option }: { option: ShortlistedOptionDetail }) {
         <p className="cpp-shortlist-card__label">{option.label}</p>
       </header>
       <div className="cpp-shortlist-card__body">
+        {option.complianceItems.length > 0 && (
+          <section className="cpp-shortlist-section cpp-shortlist-section--compliance">
+            <p className="cpp-shortlist-section__heading">🔒 Required safety &amp; compliance</p>
+            <ul className="cpp-shortlist-section__list">
+              {option.complianceItems.map((item, i) => <li key={i}>{item}</li>)}
+            </ul>
+          </section>
+        )}
         <section className="cpp-shortlist-section cpp-shortlist-section--required">
           <p className="cpp-shortlist-section__heading">🔨 Required work</p>
           {option.requiredWork.length > 0 ? (

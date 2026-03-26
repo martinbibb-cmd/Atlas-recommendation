@@ -875,11 +875,14 @@ export function buildOptionMatrixV1(
   };
 
   const regularTypedReqs: OptionRequirements = {
+    complianceRequired: [
+      'Cylinder thermostat for independent DHW temperature control.',
+      'Programmer or timer for separate heating and hot water scheduling.',
+    ],
     mustHave: hasFutureLoftConversion
       ? ['Loft conversion conflict: switch to sealed system boiler + unvented cylinder.']
       : ['Loft remains accessible and frost-free for F&E header tank.'],
     likelyUpgrades: [
-      'Cylinder thermostat + programmer for independent DHW control.',
       ...(input.futureAddBathroom ? ['Pump for shower pressure if adding bathroom.'] : []),
     ],
     niceToHave: ['Magnetic filter on primary return.', 'Smart programmer with weather compensation.'],
