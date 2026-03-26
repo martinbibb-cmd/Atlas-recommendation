@@ -140,7 +140,7 @@ function modelFingerprint(model: CanonicalPresentationModel): string {
 
 // ─── Pre-built models for all scenarios ──────────────────────────────────────
 
-const BUILT = Object.fromEntries(
+const PREBUILT_MODELS = Object.fromEntries(
   Object.entries(AUDIT_SCENARIOS).map(([name, input]) => [name, buildAuditModel(input)]),
 ) as Record<string, CanonicalPresentationModel>;
 
@@ -153,14 +153,14 @@ describe('Contract audit — canonical presentation model shape', () => {
   describe('every scenario produces a fully-populated model', () => {
     for (const [name] of Object.entries(AUDIT_SCENARIOS)) {
       it(`scenario "${name}" — page1 house signals are populated`, () => {
-        const model = BUILT[name];
+        const model = PREBUILT_MODELS[name];
         expect(model.page1.house.heatLossLabel).toBeTruthy();
         expect(model.page1.house.pipeworkLabel).toBeTruthy();
         expect(model.page1.house.wallTypeKey).toMatch(/^(solid_masonry|cavity_uninsulated|cavity_insulated)$/);
       });
 
       it(`scenario "${name}" — page1 home signals are populated`, () => {
-        const model = BUILT[name];
+        const model = PREBUILT_MODELS[name];
         expect(model.page1.home.demandProfileLabel).toBeTruthy();
         expect(model.page1.home.dailyHotWaterLitres).toBeGreaterThan(0);
         expect(model.page1.home.peakSimultaneousOutlets).toBeGreaterThanOrEqual(1);
@@ -168,13 +168,13 @@ describe('Contract audit — canonical presentation model shape', () => {
       });
 
       it(`scenario "${name}" — page1 energy signals are populated`, () => {
-        const model = BUILT[name];
+        const model = PREBUILT_MODELS[name];
         expect(model.page1.energy.pvStatusLabel).toBeTruthy();
         expect(model.page1.energy.pvSuitabilityLabel).toBeTruthy();
       });
 
       it(`scenario "${name}" — page1 currentSystem signals are populated`, () => {
-        const model = BUILT[name];
+        const model = PREBUILT_MODELS[name];
         expect(model.page1.currentSystem.systemTypeLabel).toBeTruthy();
         expect(model.page1.currentSystem.ageLabel).toBeTruthy();
         expect(model.page1.currentSystem.drivingStyleMode).toMatch(/^(combi|stored|heat_pump)$/);
@@ -184,28 +184,28 @@ describe('Contract audit — canonical presentation model shape', () => {
       });
 
       it(`scenario "${name}" — page1_5 ageing context is populated`, () => {
-        const model = BUILT[name];
+        const model = PREBUILT_MODELS[name];
         expect(model.page1_5.heading).toBeTruthy();
         expect(model.page1_5.ageBandLabel).toBeTruthy();
       });
 
       it(`scenario "${name}" — page2 options list is non-empty`, () => {
-        const model = BUILT[name];
+        const model = PREBUILT_MODELS[name];
         expect(model.page2.options.length).toBeGreaterThan(0);
       });
 
       it(`scenario "${name}" — page3 ranking items are non-empty`, () => {
-        const model = BUILT[name];
+        const model = PREBUILT_MODELS[name];
         expect(model.page3.items.length).toBeGreaterThan(0);
       });
 
       it(`scenario "${name}" — page4Plus shortlist options are non-empty`, () => {
-        const model = BUILT[name];
+        const model = PREBUILT_MODELS[name];
         expect(model.page4Plus.options.length).toBeGreaterThan(0);
       });
 
       it(`scenario "${name}" — finalPage home scenario description is populated`, () => {
-        const model = BUILT[name];
+        const model = PREBUILT_MODELS[name];
         expect(model.finalPage.homeScenarioDescription).toBeTruthy();
       });
     }
@@ -215,8 +215,8 @@ describe('Contract audit — canonical presentation model shape', () => {
     // When dhwStorageType is given, the presentation must use it exactly.
     // Input 'vented' → output 'open_vented'; input 'unvented' → output 'unvented'.
     // This test ensures the inputDhwStorageTypeToSignal mapping is applied, not bypassed.
-    const ventedModel  = BUILT['open_vented_current_system'];
-    const unventedModel = BUILT['unvented_current_system'];
+    const ventedModel  = PREBUILT_MODELS['open_vented_current_system'];
+    const unventedModel = PREBUILT_MODELS['unvented_current_system'];
 
     expect(ventedModel.page1.currentSystem.dhwStorageType).toBe('open_vented');
     expect(unventedModel.page1.currentSystem.dhwStorageType).toBe('unvented');
@@ -224,20 +224,20 @@ describe('Contract audit — canonical presentation model shape', () => {
 
   it('appliance family does not determine dhwStorageType — system+vented is open_vented', () => {
     // system family with 'vented' storage must produce 'open_vented', not 'unvented'
-    const model = BUILT['system_boiler_vented'];
+    const model = PREBUILT_MODELS['system_boiler_vented'];
     expect(model.page1.currentSystem.drivingStyleMode).toBe('stored'); // system family → stored mode
     expect(model.page1.currentSystem.dhwStorageType).toBe('open_vented'); // vented storage, not inferred from family
   });
 
   it('appliance family does not determine dhwStorageType — regular+unvented is unvented', () => {
     // regular family with 'unvented' storage must produce 'unvented', not 'open_vented'
-    const model = BUILT['regular_boiler_unvented'];
+    const model = PREBUILT_MODELS['regular_boiler_unvented'];
     expect(model.page1.currentSystem.drivingStyleMode).toBe('stored'); // regular family → stored mode
     expect(model.page1.currentSystem.dhwStorageType).toBe('unvented'); // unvented storage, not inferred from family
   });
 
   it('page2 every option has a non-empty whatItIs description', () => {
-    for (const [name, model] of Object.entries(BUILT)) {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
       for (const opt of model.page2.options) {
         expect(opt.whatItIs, `"${name}" option "${opt.id}" has empty whatItIs`).toBeTruthy();
       }
@@ -245,7 +245,7 @@ describe('Contract audit — canonical presentation model shape', () => {
   });
 
   it('page2 every option has a status within the expected set', () => {
-    for (const [name, model] of Object.entries(BUILT)) {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
       for (const opt of model.page2.options) {
         expect(
           ['viable', 'caution', 'rejected'].includes(opt.status),
@@ -256,7 +256,7 @@ describe('Contract audit — canonical presentation model shape', () => {
   });
 
   it('page3 ranking items have ranks starting at 1 without gaps', () => {
-    for (const [name, model] of Object.entries(BUILT)) {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
       const ranks = model.page3.items.map(i => i.rank);
       ranks.forEach((r, idx) => {
         expect(r, `"${name}" ranking item ${idx} has unexpected rank ${r}`).toBe(idx + 1);
@@ -270,7 +270,7 @@ describe('Contract audit — canonical presentation model shape', () => {
 // ═════════════════════════════════════════════════════════════════════════════
 
 describe('Scenario audit — single_person_combi_fit', () => {
-  const model = BUILT['single_person_combi_fit'];
+  const model = PREBUILT_MODELS['single_person_combi_fit'];
 
   it('home signal: 1 outlet, low daily demand', () => {
     expect(model.page1.home.peakSimultaneousOutlets).toBe(1);
@@ -293,7 +293,7 @@ describe('Scenario audit — single_person_combi_fit', () => {
 });
 
 describe('Scenario audit — large_family_stored_fit', () => {
-  const model = BUILT['large_family_stored_fit'];
+  const model = PREBUILT_MODELS['large_family_stored_fit'];
 
   it('home signal: 2+ outlets, high daily demand (>100 L/day)', () => {
     expect(model.page1.home.peakSimultaneousOutlets).toBeGreaterThanOrEqual(2);
@@ -310,7 +310,7 @@ describe('Scenario audit — large_family_stored_fit', () => {
 });
 
 describe('Scenario audit — open_vented_current_system', () => {
-  const model = BUILT['open_vented_current_system'];
+  const model = PREBUILT_MODELS['open_vented_current_system'];
 
   it('currentSystem: dhwStorageType is open_vented', () => {
     expect(model.page1.currentSystem.dhwStorageType).toBe('open_vented');
@@ -326,7 +326,7 @@ describe('Scenario audit — open_vented_current_system', () => {
 });
 
 describe('Scenario audit — unvented_current_system', () => {
-  const model = BUILT['unvented_current_system'];
+  const model = PREBUILT_MODELS['unvented_current_system'];
 
   it('currentSystem: dhwStorageType is unvented', () => {
     expect(model.page1.currentSystem.dhwStorageType).toBe('unvented');
@@ -342,8 +342,8 @@ describe('Scenario audit — unvented_current_system', () => {
 });
 
 describe('Scenario audit — strong_pv_poor_alignment vs strong_pv_good_alignment', () => {
-  const poorModel = BUILT['strong_pv_poor_alignment'];
-  const goodModel = BUILT['strong_pv_good_alignment'];
+  const poorModel = PREBUILT_MODELS['strong_pv_poor_alignment'];
+  const goodModel = PREBUILT_MODELS['strong_pv_good_alignment'];
 
   it('both show existing PV in pvStatusLabel', () => {
     expect(poorModel.page1.energy.pvStatusLabel).toMatch(/installed/i);
@@ -366,7 +366,7 @@ describe('Scenario audit — strong_pv_poor_alignment vs strong_pv_good_alignmen
 });
 
 describe('Scenario audit — heat_pump_borderline', () => {
-  const model = BUILT['heat_pump_borderline'];
+  const model = PREBUILT_MODELS['heat_pump_borderline'];
 
   it('currentSystem: drivingStyleMode is heat_pump', () => {
     expect(model.page1.currentSystem.drivingStyleMode).toBe('heat_pump');
@@ -383,7 +383,7 @@ describe('Scenario audit — heat_pump_borderline', () => {
 });
 
 describe('Scenario audit — high_hardness_combi_risk', () => {
-  const model = BUILT['high_hardness_combi_risk'];
+  const model = PREBUILT_MODELS['high_hardness_combi_risk'];
 
   it('combi option appears in page2 options', () => {
     const optIds = model.page2.options.map(o => o.id);
@@ -399,7 +399,7 @@ describe('Scenario audit — high_hardness_combi_risk', () => {
 });
 
 describe('Scenario audit — loft_conversion_vented_constraint', () => {
-  const model = BUILT['loft_conversion_vented_constraint'];
+  const model = PREBUILT_MODELS['loft_conversion_vented_constraint'];
 
   it('stored_vented option is caution or lower due to loft constraints', () => {
     const opt = model.page2.options.find(o => o.id === 'stored_vented');
@@ -421,7 +421,7 @@ describe('Rule audit — compliance items must never appear in upgrades', () => 
   it('no scenario has a compliance item that also appears in bestPerformanceUpgrades', () => {
     const violations: string[] = [];
 
-    for (const [name, model] of Object.entries(BUILT)) {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
       for (const opt of model.page4Plus.options) {
         const complianceSet = new Set(opt.complianceItems);
         for (const upgrade of opt.bestPerformanceUpgrades) {
@@ -441,7 +441,7 @@ describe('Rule audit — compliance items must never appear in upgrades', () => 
   it('no scenario has a compliance item that also appears in requiredWork', () => {
     const violations: string[] = [];
 
-    for (const [name, model] of Object.entries(BUILT)) {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
       for (const opt of model.page4Plus.options) {
         const complianceSet = new Set(opt.complianceItems);
         for (const work of opt.requiredWork) {
@@ -461,22 +461,22 @@ describe('Rule audit — compliance items must never appear in upgrades', () => 
 
 describe('Rule audit — storage type conflation must never occur', () => {
   it('open-vented scenarios never produce dhwStorageType="unvented"', () => {
-    const ventedModel = BUILT['open_vented_current_system'];
+    const ventedModel = PREBUILT_MODELS['open_vented_current_system'];
     expect(ventedModel.page1.currentSystem.dhwStorageType).not.toBe('unvented');
   });
 
   it('unvented scenarios never produce dhwStorageType="open_vented"', () => {
-    const unventedModel = BUILT['unvented_current_system'];
+    const unventedModel = PREBUILT_MODELS['unvented_current_system'];
     expect(unventedModel.page1.currentSystem.dhwStorageType).not.toBe('open_vented');
   });
 
   it('system boiler + vented storage is not conflated to unvented', () => {
-    const model = BUILT['system_boiler_vented'];
+    const model = PREBUILT_MODELS['system_boiler_vented'];
     expect(model.page1.currentSystem.dhwStorageType).toBe('open_vented');
   });
 
   it('regular boiler + unvented storage is not conflated to open_vented', () => {
-    const model = BUILT['regular_boiler_unvented'];
+    const model = PREBUILT_MODELS['regular_boiler_unvented'];
     expect(model.page1.currentSystem.dhwStorageType).toBe('unvented');
   });
 });
@@ -517,8 +517,8 @@ describe('Rule audit — shortlist visuals must use signal logic, not raw family
 });
 
 describe('Rule audit — open-vented and unvented must produce distinct outputs', () => {
-  const ventedModel  = BUILT['open_vented_current_system'];
-  const unventedModel = BUILT['unvented_current_system'];
+  const ventedModel  = PREBUILT_MODELS['open_vented_current_system'];
+  const unventedModel = PREBUILT_MODELS['unvented_current_system'];
 
   it('dhwStorageType differs between open-vented and unvented scenarios', () => {
     expect(ventedModel.page1.currentSystem.dhwStorageType).not.toBe(
@@ -553,7 +553,7 @@ describe('Rule audit — no forbidden phrases in any scenario output', () => {
   for (const phrase of FORBIDDEN_PHRASES) {
     it(`no scenario output contains the forbidden phrase "${phrase}"`, () => {
       const violations: string[] = [];
-      for (const [name, model] of Object.entries(BUILT)) {
+      for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
         const strings = collectAllStrings(model);
         const hits = strings.filter(s => s.toLowerCase().includes(phrase.toLowerCase()));
         if (hits.length > 0) {
@@ -571,7 +571,7 @@ describe('Rule audit — no forbidden phrases in any scenario output', () => {
 describe('Rule audit — no empty takeaways for required sections', () => {
   it('every scenario page1 energy narrativeSignals contains at least one entry', () => {
     // Energy page must always produce at least one narrative signal
-    for (const [name, model] of Object.entries(BUILT)) {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
       // We allow empty narrative signals for energy in some cases (e.g. no PV, no roof data)
       // but the pvStatusLabel must never be empty.
       expect(model.page1.energy.pvStatusLabel, `"${name}" pvStatusLabel is empty`).toBeTruthy();
@@ -579,7 +579,7 @@ describe('Rule audit — no empty takeaways for required sections', () => {
   });
 
   it('every scenario page1 home storageBenefitLabel is populated', () => {
-    for (const [name, model] of Object.entries(BUILT)) {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
       expect(
         model.page1.home.storageBenefitLabel,
         `"${name}" storageBenefitLabel is empty`,
@@ -588,13 +588,13 @@ describe('Rule audit — no empty takeaways for required sections', () => {
   });
 
   it('every scenario page1_5 heading is non-empty', () => {
-    for (const [name, model] of Object.entries(BUILT)) {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
       expect(model.page1_5.heading, `"${name}" page1_5 heading is empty`).toBeTruthy();
     }
   });
 
   it('every scenario finalPage homeScenarioDescription is non-empty', () => {
-    for (const [name, model] of Object.entries(BUILT)) {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
       expect(
         model.finalPage.homeScenarioDescription,
         `"${name}" homeScenarioDescription is empty`,
@@ -605,26 +605,26 @@ describe('Rule audit — no empty takeaways for required sections', () => {
 
 describe('Rule audit — intentionally different scenarios must not produce identical output', () => {
   it('single_person_combi_fit and large_family_stored_fit have distinct fingerprints', () => {
-    expect(modelFingerprint(BUILT['single_person_combi_fit'])).not.toBe(
-      modelFingerprint(BUILT['large_family_stored_fit']),
+    expect(modelFingerprint(PREBUILT_MODELS['single_person_combi_fit'])).not.toBe(
+      modelFingerprint(PREBUILT_MODELS['large_family_stored_fit']),
     );
   });
 
   it('open_vented_current_system and unvented_current_system have distinct fingerprints', () => {
-    expect(modelFingerprint(BUILT['open_vented_current_system'])).not.toBe(
-      modelFingerprint(BUILT['unvented_current_system']),
+    expect(modelFingerprint(PREBUILT_MODELS['open_vented_current_system'])).not.toBe(
+      modelFingerprint(PREBUILT_MODELS['unvented_current_system']),
     );
   });
 
   it('strong_pv_poor_alignment and strong_pv_good_alignment have distinct fingerprints', () => {
-    expect(modelFingerprint(BUILT['strong_pv_poor_alignment'])).not.toBe(
-      modelFingerprint(BUILT['strong_pv_good_alignment']),
+    expect(modelFingerprint(PREBUILT_MODELS['strong_pv_poor_alignment'])).not.toBe(
+      modelFingerprint(PREBUILT_MODELS['strong_pv_good_alignment']),
     );
   });
 
   it('system_boiler_vented and regular_boiler_unvented have distinct fingerprints', () => {
-    expect(modelFingerprint(BUILT['system_boiler_vented'])).not.toBe(
-      modelFingerprint(BUILT['regular_boiler_unvented']),
+    expect(modelFingerprint(PREBUILT_MODELS['system_boiler_vented'])).not.toBe(
+      modelFingerprint(PREBUILT_MODELS['regular_boiler_unvented']),
     );
   });
 });

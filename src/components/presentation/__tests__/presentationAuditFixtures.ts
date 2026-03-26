@@ -23,7 +23,7 @@ import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 // ─── Shared base ──────────────────────────────────────────────────────────────
 
 /** Minimal valid base — used as a starting point for derived fixtures. */
-const BASE: EngineInputV2_3 = {
+const BASE_FIXTURE: EngineInputV2_3 = {
   postcode: 'SW1A 1AA',
   dynamicMainsPressure: 2.5,
   mainsDynamicFlowLpm: 18,
@@ -47,7 +47,7 @@ const BASE: EngineInputV2_3 = {
  *    Distinguishing traits: 1 adult, 1 bath, professional, good mains pressure.
  */
 export const SINGLE_PERSON_COMBI_FIT: EngineInputV2_3 = {
-  ...BASE,
+  ...BASE_FIXTURE,
   occupancyCount: 1,
   bathroomCount: 1,
   occupancySignature: 'professional',
@@ -66,7 +66,7 @@ export const SINGLE_PERSON_COMBI_FIT: EngineInputV2_3 = {
  *    Distinguishing traits: 5 people, 2 baths, steady_home, high bath frequency.
  */
 export const LARGE_FAMILY_STORED_FIT: EngineInputV2_3 = {
-  ...BASE,
+  ...BASE_FIXTURE,
   occupancyCount: 5,
   bathroomCount: 2,
   occupancySignature: 'steady_home',
@@ -91,7 +91,7 @@ export const LARGE_FAMILY_STORED_FIT: EngineInputV2_3 = {
  *    imply storage type.
  */
 export const OPEN_VENTED_CURRENT_SYSTEM: EngineInputV2_3 = {
-  ...BASE,
+  ...BASE_FIXTURE,
   occupancyCount: 3,
   bathroomCount: 1,
   preferCombi: false,
@@ -108,7 +108,7 @@ export const OPEN_VENTED_CURRENT_SYSTEM: EngineInputV2_3 = {
  *    scenario 3 in every storage-related copy field.
  */
 export const UNVENTED_CURRENT_SYSTEM: EngineInputV2_3 = {
-  ...BASE,
+  ...BASE_FIXTURE,
   occupancyCount: 3,
   bathroomCount: 1,
   preferCombi: false,
@@ -125,7 +125,7 @@ export const UNVENTED_CURRENT_SYSTEM: EngineInputV2_3 = {
  *    Tests that system family does not automatically imply unvented storage.
  */
 export const SYSTEM_BOILER_VENTED: EngineInputV2_3 = {
-  ...BASE,
+  ...BASE_FIXTURE,
   occupancyCount: 3,
   bathroomCount: 1,
   preferCombi: false,
@@ -141,7 +141,7 @@ export const SYSTEM_BOILER_VENTED: EngineInputV2_3 = {
  *    Tests that regular boiler family does not automatically imply open-vented storage.
  */
 export const REGULAR_BOILER_UNVENTED: EngineInputV2_3 = {
-  ...BASE,
+  ...BASE_FIXTURE,
   occupancyCount: 3,
   bathroomCount: 1,
   preferCombi: false,
@@ -160,7 +160,7 @@ export const REGULAR_BOILER_UNVENTED: EngineInputV2_3 = {
  *    No stored cylinder → hasStoredHotWater=false → solarStorageOpportunity stays low.
  */
 export const STRONG_PV_POOR_ALIGNMENT: EngineInputV2_3 = {
-  ...BASE,
+  ...BASE_FIXTURE,
   occupancyCount: 1,
   bathroomCount: 1,
   occupancySignature: 'professional',   // out all day — solar production wasted
@@ -182,7 +182,7 @@ export const STRONG_PV_POOR_ALIGNMENT: EngineInputV2_3 = {
  *    dhwTankType set so PvAssessmentModule recognises stored hot water.
  */
 export const STRONG_PV_GOOD_ALIGNMENT: EngineInputV2_3 = {
-  ...BASE,
+  ...BASE_FIXTURE,
   occupancyCount: 3,
   bathroomCount: 1,
   occupancySignature: 'steady_home',    // home all day — solar production used
@@ -205,7 +205,7 @@ export const STRONG_PV_GOOD_ALIGNMENT: EngineInputV2_3 = {
  *    Tests that heat pump borderline scenarios produce caution rather than pass.
  */
 export const HEAT_PUMP_BORDERLINE: EngineInputV2_3 = {
-  ...BASE,
+  ...BASE_FIXTURE,
   occupancyCount: 2,
   bathroomCount: 1,
   preferCombi: false,
@@ -224,7 +224,7 @@ export const HEAT_PUMP_BORDERLINE: EngineInputV2_3 = {
  *     Combi with 2 bathrooms surfaces the combined simultaneous + hardness risk.
  */
 export const HIGH_HARDNESS_COMBI_RISK: EngineInputV2_3 = {
-  ...BASE,
+  ...BASE_FIXTURE,
   postcode: 'NR1 1AA',   // Norwich — very_hard water (320 ppm CaCO₃)
   occupancyCount: 3,
   bathroomCount: 2,
@@ -242,7 +242,7 @@ export const HIGH_HARDNESS_COMBI_RISK: EngineInputV2_3 = {
  *     headroom and loft-tank option.
  */
 export const LOFT_CONVERSION_VENTED_CONSTRAINT: EngineInputV2_3 = {
-  ...BASE,
+  ...BASE_FIXTURE,
   occupancyCount: 3,
   bathroomCount: 1,
   preferCombi: false,
@@ -303,7 +303,7 @@ export interface ScenarioPair {
   scB: EngineInputV2_3;
 }
 
-const PAIRED_BASE: EngineInputV2_3 = {
+const PAIRED_SCENARIO_BASE: EngineInputV2_3 = {
   postcode: 'SW1A 1AA',
   dynamicMainsPressure: 2.0,
   mainsDynamicFlowLpm: 18,
@@ -329,7 +329,7 @@ export const SCENARIO_PAIRS: ScenarioPair[] = [
     description: 'Same home — no PV vs. existing PV on a south roof',
     differingDimension: 'pvStatus',
     scA: {
-      ...PAIRED_BASE,
+      ...PAIRED_SCENARIO_BASE,
       roofOrientation: 'south',
       solarShading: 'low',
       roofType: 'pitched',
@@ -338,7 +338,7 @@ export const SCENARIO_PAIRS: ScenarioPair[] = [
       pvStatus: 'none',
     },
     scB: {
-      ...PAIRED_BASE,
+      ...PAIRED_SCENARIO_BASE,
       roofOrientation: 'south',
       solarShading: 'low',
       roofType: 'pitched',
@@ -352,13 +352,13 @@ export const SCENARIO_PAIRS: ScenarioPair[] = [
     description: 'Same home — no PV vs. planned PV',
     differingDimension: 'pvStatus (none→planned)',
     scA: {
-      ...PAIRED_BASE,
+      ...PAIRED_SCENARIO_BASE,
       dhwStorageType: 'unvented',
       coldWaterSource: 'mains_true',
       pvStatus: 'none',
     },
     scB: {
-      ...PAIRED_BASE,
+      ...PAIRED_SCENARIO_BASE,
       dhwStorageType: 'unvented',
       coldWaterSource: 'mains_true',
       pvStatus: 'planned',
@@ -370,14 +370,14 @@ export const SCENARIO_PAIRS: ScenarioPair[] = [
     description: 'Same home — open-vented vs. unvented current DHW',
     differingDimension: 'dhwStorageType',
     scA: {
-      ...PAIRED_BASE,
+      ...PAIRED_SCENARIO_BASE,
       currentHeatSourceType: 'regular',
       dhwStorageType: 'vented',
       coldWaterSource: 'loft_tank',
       cwsHeadMetres: 1.2,
     },
     scB: {
-      ...PAIRED_BASE,
+      ...PAIRED_SCENARIO_BASE,
       currentHeatSourceType: 'system',
       dhwStorageType: 'unvented',
       coldWaterSource: 'mains_true',
@@ -389,7 +389,7 @@ export const SCENARIO_PAIRS: ScenarioPair[] = [
     description: 'Same house — 1 person vs. 5 people',
     differingDimension: 'occupancyCount',
     scA: {
-      ...PAIRED_BASE,
+      ...PAIRED_SCENARIO_BASE,
       occupancyCount: 1,
       bathroomCount: 1,
       occupancySignature: 'professional',  // single adult, out all day
@@ -399,7 +399,7 @@ export const SCENARIO_PAIRS: ScenarioPair[] = [
       demandTimingOverrides: { simultaneousUseSeverity: 'low', bathFrequencyPerWeek: 0 },
     },
     scB: {
-      ...PAIRED_BASE,
+      ...PAIRED_SCENARIO_BASE,
       occupancyCount: 5,
       bathroomCount: 2,
       occupancySignature: 'steady_home',   // large family, home all day
@@ -415,7 +415,7 @@ export const SCENARIO_PAIRS: ScenarioPair[] = [
     description: 'Same family size — single outlet vs. high simultaneous demand',
     differingDimension: 'simultaneousUseSeverity / bathroomCount',
     scA: {
-      ...PAIRED_BASE,
+      ...PAIRED_SCENARIO_BASE,
       occupancyCount: 3,
       bathroomCount: 1,
       dhwStorageType: 'unvented',
@@ -423,7 +423,7 @@ export const SCENARIO_PAIRS: ScenarioPair[] = [
       demandTimingOverrides: { simultaneousUseSeverity: 'low' },
     },
     scB: {
-      ...PAIRED_BASE,
+      ...PAIRED_SCENARIO_BASE,
       occupancyCount: 3,
       bathroomCount: 2,
       dhwStorageType: 'unvented',

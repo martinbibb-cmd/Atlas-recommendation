@@ -47,40 +47,40 @@ const FORBIDDEN_PHRASES = [
 
 /** Collect all visible strings from a model for phrase scanning. */
 function collectStrings(model: CanonicalPresentationModel): string[] {
-  const s: string[] = [];
+  const strings: string[] = [];
   const h = model.page1.house;
-  s.push(h.heatLossLabel, h.pipeworkLabel, h.waterSupplyLabel, h.pvPotentialLabel,
+  strings.push(h.heatLossLabel, h.pipeworkLabel, h.waterSupplyLabel, h.pvPotentialLabel,
     h.wallTypeLabel, h.insulationLabel, ...h.notes);
   const ho = model.page1.home;
-  s.push(ho.demandProfileLabel, ho.dailyHotWaterLabel, ho.peakOutletsLabel,
+  strings.push(ho.demandProfileLabel, ho.dailyHotWaterLabel, ho.peakOutletsLabel,
     ho.bathUseIntensityLabel, ho.occupancyTimingLabel, ho.storageBenefitLabel,
     ...ho.narrativeSignals);
   const e = model.page1.energy;
-  s.push(e.pvStatusLabel, e.batteryStatusLabel, e.pvSuitabilityLabel,
+  strings.push(e.pvStatusLabel, e.batteryStatusLabel, e.pvSuitabilityLabel,
     e.energyAlignmentLabel, e.solarStorageOpportunityLabel, ...e.narrativeSignals);
   const cs = model.page1.currentSystem;
-  s.push(cs.systemTypeLabel, cs.ageLabel, cs.ageContext);
-  if (cs.makeModelText) s.push(cs.makeModelText);
-  if (cs.outputLabel) s.push(cs.outputLabel);
-  s.push(model.page1_5.heading, model.page1_5.ageBandLabel, ...model.page1_5.probabilisticNotes);
-  if (model.page1_5.waterQualityNote) s.push(model.page1_5.waterQualityNote);
+  strings.push(cs.systemTypeLabel, cs.ageLabel, cs.ageContext);
+  if (cs.makeModelText) strings.push(cs.makeModelText);
+  if (cs.outputLabel) strings.push(cs.outputLabel);
+  strings.push(model.page1_5.heading, model.page1_5.ageBandLabel, ...model.page1_5.probabilisticNotes);
+  if (model.page1_5.waterQualityNote) strings.push(model.page1_5.waterQualityNote);
   for (const opt of model.page2.options) {
-    s.push(opt.label, opt.headline, opt.whatItIs, ...opt.throughHouseNotes,
+    strings.push(opt.label, opt.headline, opt.whatItIs, ...opt.throughHouseNotes,
       ...opt.throughHomeNotes, ...opt.throughEnergyNotes, ...opt.worksWellWhen, ...opt.limitedWhen);
   }
   for (const item of model.page3.items) {
-    s.push(item.label, item.reasonLine);
-    if (item.demandFitNote) s.push(item.demandFitNote);
-    if (item.waterFitNote) s.push(item.waterFitNote);
-    if (item.infrastructureFitNote) s.push(item.infrastructureFitNote);
-    if (item.energyFitNote) s.push(item.energyFitNote);
+    strings.push(item.label, item.reasonLine);
+    if (item.demandFitNote) strings.push(item.demandFitNote);
+    if (item.waterFitNote) strings.push(item.waterFitNote);
+    if (item.infrastructureFitNote) strings.push(item.infrastructureFitNote);
+    if (item.energyFitNote) strings.push(item.energyFitNote);
   }
   for (const opt of model.page4Plus.options) {
-    s.push(opt.label, ...opt.complianceItems, ...opt.requiredWork, ...opt.bestPerformanceUpgrades);
+    strings.push(opt.label, ...opt.complianceItems, ...opt.requiredWork, ...opt.bestPerformanceUpgrades);
   }
-  s.push(model.finalPage.homeScenarioDescription,
+  strings.push(model.finalPage.homeScenarioDescription,
     ...model.finalPage.houseConstraintNotes, ...model.finalPage.energyTimingNotes);
-  return s.filter(str => str.length > 0);
+  return strings.filter(str => str.length > 0);
 }
 
 /** Run all rule checks on a model and return violations. */
