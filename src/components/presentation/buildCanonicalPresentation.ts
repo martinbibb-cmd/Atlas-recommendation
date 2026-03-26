@@ -166,7 +166,7 @@ export interface ShortlistedOptionDetail {
   bestPerformanceUpgrades: string[];
   /**
    * Solar storage opportunity signal — used for signal-driven visual selection
-   * on the shortlist page (cylinder_charge when high).
+   * on the shortlist page (cylinder_charge_standard or cylinder_charge_mixergy when high).
    */
   solarStorageOpportunity: string;
   /**
@@ -174,6 +174,13 @@ export interface ShortlistedOptionDetail {
    * (flow_split when >= 2).
    */
   peakSimultaneousOutlets: number;
+  /**
+   * DHW storage subtype — used to select the correct cylinder visual.
+   * Never inferred from appliance family; must come from explicit input signal.
+   * cylinder_charge_mixergy when 'mixergy', cylinder_charge_standard for standard
+   * stored types, null/none for combi or unknown.
+   */
+  dhwStorageType: DhwStorageType;
 }
 
 /** Pages 4+ — Shortlisted option detail. */
@@ -872,6 +879,7 @@ function buildPage3(
 function buildPage4Plus(
   result: FullEngineResult,
   recommendation: RecommendationResult | undefined,
+  input: EngineInputV2_3,
 ): Page4PlusShortlistedDetail {
   if (!recommendation) {
     return { options: [] };
@@ -879,6 +887,7 @@ function buildPage4Plus(
 
   const demo = result.demographicOutputs;
   const pv   = result.pvAssessment;
+  const dhwStorageType = inputDhwStorageTypeToSignal(input.dhwStorageType);
 
   // Shortlist: best overall + viable options from OptionCardV1
   const options = result.engineOutput.options ?? [];
@@ -896,6 +905,7 @@ function buildPage4Plus(
       // Signal fields for visual selection — never inferred from family alone.
       solarStorageOpportunity:   pv.solarStorageOpportunity,
       peakSimultaneousOutlets:   demo.peakSimultaneousOutlets,
+      dhwStorageType,
     };
   });
 
@@ -969,7 +979,7 @@ export function buildCanonicalPresentation(
     page1_5: buildAgeingContext(input, result),
     page2:   buildPage2(result, input),
     page3:   buildPage3(result, input, recommendation),
-    page4Plus: buildPage4Plus(result, recommendation),
+    page4Plus: buildPage4Plus(result, recommendation, input),
     finalPage: buildFinalPage(result, input),
   };
 }

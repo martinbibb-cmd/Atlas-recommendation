@@ -172,7 +172,9 @@ export function isVisualValid(
 
 /**
  * Resolve the best visual for a shortlist page using signal priority:
- *   1. signal-driven: cylinder_charge when solarStorageOpportunity is high
+ *   1. signal-driven: cylinder_charge_mixergy or cylinder_charge_standard when
+ *      solarStorageOpportunity is high, selected by dhwStorageType.
+ *      If dhwStorageType is unknown, return null (no animation is better than wrong animation).
  *   2. signal-driven: flow_split when peakSimultaneousOutlets >= 2
  *   3. null — no family-based fallback; show a neutral card instead
  *
@@ -185,9 +187,19 @@ export function isVisualValid(
 export function resolveShortlistVisualId(
   solarStorageOpportunity: string,
   peakSimultaneousOutlets: number,
+  dhwStorageType?: string,
 ): PhysicsVisualId | null {
-  // 1. Signal: solar storage opportunity is high → cylinder charge is the key story
-  if (solarStorageOpportunity === 'high') return 'cylinder_charge';
+  // 1. Signal: solar storage opportunity is high → select cylinder visual by storage subtype
+  if (solarStorageOpportunity === 'high') {
+    if (dhwStorageType === 'mixergy') return 'cylinder_charge_mixergy';
+    if (
+      dhwStorageType === 'open_vented' ||
+      dhwStorageType === 'unvented' ||
+      dhwStorageType === 'thermal_store'
+    ) return 'cylinder_charge_standard';
+    // Unknown or absent storage subtype — show nothing rather than the wrong visual
+    return null;
+  }
 
   // 2. Signal: concurrent demand risk → flow split is the key story
   if (peakSimultaneousOutlets >= 2) return 'flow_split';

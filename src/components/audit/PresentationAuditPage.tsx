@@ -142,14 +142,18 @@ function detectViolations(model: CanonicalPresentationModel): RuleViolation[] {
     const visual = resolveShortlistVisualId(
       opt.solarStorageOpportunity,
       opt.peakSimultaneousOutlets,
-      opt.family,
+      opt.dhwStorageType,
     );
-    // If solar is high but visual is not cylinder_charge — that's a conflict
-    if (opt.solarStorageOpportunity === 'high' && visual !== 'cylinder_charge') {
+    // If solar is high but no cylinder visual resolved — storage subtype is unknown
+    if (
+      opt.solarStorageOpportunity === 'high' &&
+      visual !== 'cylinder_charge_standard' &&
+      visual !== 'cylinder_charge_mixergy'
+    ) {
       violations.push({
         severity: 'warning',
         rule: 'Visual signal mismatch',
-        detail: `Option "${opt.family}": solar=high but visual="${visual}" (expected cylinder_charge)`,
+        detail: `Option "${opt.family}": solar=high but no cylinder visual resolved (dhwStorageType="${opt.dhwStorageType}") — showing neutral card`,
       });
     }
   }
