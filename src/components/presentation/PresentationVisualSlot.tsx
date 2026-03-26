@@ -49,6 +49,10 @@ function useReducedMotion(): boolean {
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+/**
+ * Props when a visual is available.
+ * `visualId` is a known PhysicsVisualId and an optional data payload applies.
+ */
 export interface PresentationVisualSlotProps<T extends PhysicsVisualId> {
   /** Visual to render. Drives both the animation and the script copy. */
   visualId: T;
@@ -58,6 +62,21 @@ export interface PresentationVisualSlotProps<T extends PhysicsVisualId> {
    * When true the "Open explainer" CTA is hidden.
    * Defaults to false — explainer is shown by default.
    */
+  hideExplainer?: boolean;
+}
+
+/**
+ * Props when no suitable visual is available.
+ * Renders a neutral explanatory card instead of an animation.
+ */
+export interface PresentationVisualSlotNullProps {
+  visualId: null;
+  /** Optional title for the neutral card. */
+  title?: string;
+  /** Optional one-line context message shown in the neutral card. */
+  summary?: string;
+  /** Optional takeaway shown below the summary. */
+  takeaway?: string;
   hideExplainer?: boolean;
 }
 
@@ -142,9 +161,57 @@ function FocusPanel<T extends PhysicsVisualId>({
   );
 }
 
+// ─── Null visual card ─────────────────────────────────────────────────────────
+
+/**
+ * Rendered when no valid visual is available for the current context.
+ * Shows a neutral explanation instead of an incorrect or misleading animation.
+ */
+function NullVisualCard({
+  title,
+  summary,
+  takeaway,
+}: {
+  title?: string;
+  summary?: string;
+  takeaway?: string;
+}) {
+  return (
+    <div className="pvs pvs--unavailable" data-testid="pvs-unavailable">
+      <div className="pvs__null-card">
+        {title && <p className="pvs__title">{title}</p>}
+        <p className="pvs__null-message">
+          {summary ?? 'This part of your system depends on installation details and cannot be shown visually here.'}
+        </p>
+        {takeaway && <p className="pvs__takeaway">{takeaway}</p>}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function PresentationVisualSlot<T extends PhysicsVisualId>({
+export default function PresentationVisualSlot<T extends PhysicsVisualId>(
+  props: PresentationVisualSlotProps<T> | PresentationVisualSlotNullProps,
+) {
+  // When no visual is available, render a neutral explanatory card
+  if (props.visualId === null) {
+    return (
+      <NullVisualCard
+        title={(props as PresentationVisualSlotNullProps).title}
+        summary={(props as PresentationVisualSlotNullProps).summary}
+        takeaway={(props as PresentationVisualSlotNullProps).takeaway}
+      />
+    );
+  }
+
+  // From here on, visualId is a known PhysicsVisualId
+  const { visualId, visualData, hideExplainer = false } = props as PresentationVisualSlotProps<T>;
+
+  return <VisualSlotWithId visualId={visualId} visualData={visualData} hideExplainer={hideExplainer} />;
+}
+
+function VisualSlotWithId<T extends PhysicsVisualId>({
   visualId,
   visualData,
   hideExplainer = false,

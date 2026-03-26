@@ -15,11 +15,18 @@
  *   current_system → driving_style
  *   options        → cylinder_charge
  *   ranking        → driving_style
- *   shortlist_*    → cylinder_charge
+ *   shortlist_*    → signal-driven (null if no signal matches)
  *   simulator      → driving_style (preview)
+ *
+ * Visual selection rule:
+ *   visual = signalMatch ?? sectionDefault ?? null
+ *
+ * NEVER fall back to a family-based visual. If no signal matches, return null
+ * so callers render a neutral explanatory card rather than a wrong animation.
  */
 
 import type { PhysicsVisualId, VisualDisplayMode } from '../physics-visuals/physicsVisualTypes';
+import { getVisualDefinition } from '../physics-visuals/physicsVisualRegistry';
 
 // ─── Section identifiers ───────────────────────────────────────────────────────
 
@@ -39,8 +46,6 @@ export type CanonicalPresentationSectionId =
 export interface SectionVisualConfig {
   /** Preferred visual for this section. */
   preferredVisualId: PhysicsVisualId;
-  /** Fallback visual if preferred cannot be rendered. */
-  fallbackVisualId?: PhysicsVisualId;
   /** Display mode used when rendering inline on a presentation page. */
   displayMode: VisualDisplayMode;
   /**
@@ -75,7 +80,6 @@ const SECTION_VISUAL_MAP: Record<CanonicalPresentationSectionId, SectionVisualCo
   },
   options: {
     preferredVisualId: 'cylinder_charge',
-    fallbackVisualId: 'driving_style',
     displayMode: 'inline',
     signalPriority: ['storageBenefitSignal', 'demandProfileLabel'],
   },
@@ -86,13 +90,11 @@ const SECTION_VISUAL_MAP: Record<CanonicalPresentationSectionId, SectionVisualCo
   },
   shortlist_option_1: {
     preferredVisualId: 'cylinder_charge',
-    fallbackVisualId: 'driving_style',
     displayMode: 'inline',
     signalPriority: ['solarStorageOpportunity', 'peakSimultaneousOutlets', 'demandProfile'],
   },
   shortlist_option_2: {
     preferredVisualId: 'cylinder_charge',
-    fallbackVisualId: 'driving_style',
     displayMode: 'inline',
     signalPriority: ['solarStorageOpportunity', 'peakSimultaneousOutlets', 'demandProfile'],
   },
@@ -115,37 +117,84 @@ export function getVisualConfigForSection(
   return SECTION_VISUAL_MAP[sectionId];
 }
 
+// ─── Visual validity ───────────────────────────────────────────────────────────
+
+/**
+ * Context passed to isVisualValid() so it can check signal and family
+ * constraints defined on a visual's `validWhen` field.
+ */
+export interface VisualValidationContext {
+  /** Active signal keys (those whose values are present / truthy). */
+  activeSignals?: string[];
+  /** Appliance family for the option being rendered. */
+  optionFamily?: string;
+}
+
+/**
+ * Returns true if the visual is valid to render in the given context.
+ *
+ * A visual is invalid when:
+ *   - Its `validWhen.requiredSignals` list is non-empty and none of those
+ *     signals are present in `context.activeSignals`.
+ *   - Its `validWhen.invalidForFamilies` list includes `context.optionFamily`.
+ *
+ * If the visual has no `validWhen` constraints it is always considered valid.
+ * If the visual id is not found in the registry it is considered invalid.
+ */
+export function isVisualValid(
+  visualId: PhysicsVisualId,
+  context: VisualValidationContext,
+): boolean {
+  const definition = getVisualDefinition(visualId);
+  if (!definition) return false;
+
+  const { validWhen } = definition;
+  if (!validWhen) return true;
+
+  // Family exclusion check
+  if (
+    validWhen.invalidForFamilies &&
+    context.optionFamily &&
+    validWhen.invalidForFamilies.includes(context.optionFamily)
+  ) {
+    return false;
+  }
+
+  // Signal requirement check — at least one required signal must be active
+  if (validWhen.requiredSignals && validWhen.requiredSignals.length > 0) {
+    const active = context.activeSignals ?? [];
+    const hasRequiredSignal = validWhen.requiredSignals.some((sig) => active.includes(sig));
+    if (!hasRequiredSignal) return false;
+  }
+
+  return true;
+}
+
 /**
  * Resolve the best visual for a shortlist page using signal priority:
  *   1. signal-driven: cylinder_charge when solarStorageOpportunity is high
  *   2. signal-driven: flow_split when peakSimultaneousOutlets >= 2
- *   3. section default based on option family (stored families → cylinder_charge)
- *   4. family fallback → driving_style
+ *   3. null — no family-based fallback; show a neutral card instead
  *
- * Visual priority:  signalMatch ?? sectionDefault ?? familyFallback
+ * Visual priority:  signalMatch ?? sectionDefault ?? null
+ *
+ * Family-based fallbacks are intentionally removed. Showing an incorrect
+ * animation is worse than showing no animation. When null is returned,
+ * callers must render a neutral explanatory card.
  */
 export function resolveShortlistVisualId(
   solarStorageOpportunity: string,
   peakSimultaneousOutlets: number,
-  optionFamily: string,
-): PhysicsVisualId {
+): PhysicsVisualId | null {
   // 1. Signal: solar storage opportunity is high → cylinder charge is the key story
   if (solarStorageOpportunity === 'high') return 'cylinder_charge';
 
   // 2. Signal: concurrent demand risk → flow split is the key story
   if (peakSimultaneousOutlets >= 2) return 'flow_split';
 
-  // 3. Section default based on whether this option has stored water
-  const STORED_OPTION_FAMILIES = new Set([
-    'stored_vented',
-    'stored_unvented',
-    'regular_vented',
-    'system_unvented',
-  ]);
-  if (STORED_OPTION_FAMILIES.has(optionFamily)) return 'cylinder_charge';
-
-  // 4. Family fallback — on-demand or heat pump
-  return 'driving_style';
+  // 3. No direct signal match — return null so callers show a neutral card
+  //    rather than a misleading family-based animation.
+  return null;
 }
 
 export default SECTION_VISUAL_MAP;

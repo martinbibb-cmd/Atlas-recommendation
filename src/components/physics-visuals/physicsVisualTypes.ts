@@ -68,6 +68,18 @@ export interface PhysicsVisualDefinition {
    * Used for future signal-driven visual selection.
    */
   applicableSignalTypes?: string[];
+  /**
+   * Optional validity constraints for this visual.
+   * When provided, the visual must only be rendered when these conditions hold.
+   *
+   *   requiredSignals    — at least one of these signal keys must be present and
+   *                        truthy in the rendering context for the visual to be valid.
+   *   invalidForFamilies — the visual must never appear for these appliance families.
+   */
+  validWhen?: {
+    requiredSignals?: string[];
+    invalidForFamilies?: string[];
+  };
 }
 
 // ─── Shared visual props ───────────────────────────────────────────────────────
