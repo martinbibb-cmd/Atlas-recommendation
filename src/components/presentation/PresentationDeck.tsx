@@ -128,10 +128,19 @@ function CurrentSystemPage({ sys }: { sys: CurrentSystemSignal }) {
       <p className="atlas-presentation-deck__page-eyebrow">Your current system</p>
       <h2 className="atlas-presentation-deck__page-title">{sys.systemTypeLabel}</h2>
       <div className="atlas-presentation-deck__visual">
-        <PresentationVisualSlot
-          visualId="driving_style"
-          visualData={{ mode: sys.drivingStyleMode }}
-        />
+        {sys.dhwStorageType === 'thermal_store' ? (
+          // Thermal stores always require high primary temperatures (75–85 °C) —
+          // that is the defining physics constraint of this architecture.
+          <PresentationVisualSlot
+            visualId="thermal_store"
+            visualData={{ flowTempBand: 'high' }}
+          />
+        ) : (
+          <PresentationVisualSlot
+            visualId="driving_style"
+            visualData={{ mode: sys.drivingStyleMode }}
+          />
+        )}
       </div>
       <p className="atlas-presentation-deck__takeaway">{sys.ageLabel}</p>
       <p className="atlas-presentation-deck__context">{sys.ageContext}</p>

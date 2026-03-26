@@ -65,7 +65,7 @@ const SYSTEM_CHOICES: { value: SimulatorSystemChoice; label: string; description
   {
     value: 'heat_pump',
     label: 'Heat pump',
-    description: 'Air-source heat pump with thermal store cylinder. Low flow temps, high COP, no condensing classification.',
+    description: 'Air-source heat pump with primary thermal store. Low flow temps, high COP, no condensing classification.',
     icon: '🌬',
   },
 ];
@@ -101,7 +101,7 @@ const CONTROL_STRATEGY_CHOICES: ControlStrategyChoice[] = [
   {
     value: 'heat_pump',
     label: 'HP layout',
-    description: 'Heat pump primary loop with thermal store cylinder. Low flow temperatures throughout.',
+    description: 'Heat pump primary loop with primary thermal store. Low flow temperatures throughout.',
     icon: '🌬',
   },
 ]
