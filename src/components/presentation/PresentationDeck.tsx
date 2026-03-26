@@ -318,8 +318,16 @@ function SimulatorPage({
       <p className="atlas-presentation-deck__page-eyebrow">Proof</p>
       <h2 className="atlas-presentation-deck__page-title">Test this recommendation</h2>
       <div className="atlas-presentation-deck__simulator-card">
+        <p className="atlas-presentation-deck__simulator-identity">
+          System Simulator · Live taps, heating, and full system diagram
+        </p>
         <p className="atlas-presentation-deck__simulator-scenario">{sim.homeScenarioDescription}</p>
         <p className="atlas-presentation-deck__simulator-architecture-note">{sim.dhwArchitectureNote}</p>
+        {sim.simulatorCapabilities.length > 0 && (
+          <ul className="atlas-presentation-deck__simulator-capabilities">
+            {sim.simulatorCapabilities.map((cap, i) => <li key={i}>{cap}</li>)}
+          </ul>
+        )}
         {sim.houseConstraintNotes.length > 0 && (
           <ul className="atlas-presentation-deck__simulator-notes">
             {sim.houseConstraintNotes.map((note, i) => <li key={i}>{note}</li>)}

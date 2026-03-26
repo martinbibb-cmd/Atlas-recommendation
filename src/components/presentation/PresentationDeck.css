@@ -297,6 +297,15 @@
   flex: 1;
 }
 
+.atlas-presentation-deck__simulator-identity {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #2b6cb0;
+  margin: 0 0 0.75rem;
+}
+
 .atlas-presentation-deck__simulator-scenario {
   font-size: 0.95rem;
   font-weight: 600;
@@ -315,6 +324,19 @@
 
 .atlas-presentation-deck__simulator-notes li {
   margin-bottom: 0.25rem;
+}
+
+.atlas-presentation-deck__simulator-capabilities {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  color: #1a365d;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.atlas-presentation-deck__simulator-capabilities li {
+  margin-bottom: 0.2rem;
 }
 
 .atlas-presentation-deck__simulator-cta {
