@@ -273,12 +273,11 @@ function ShortlistSummary({ model }: { model: CanonicalPresentationModel }) {
         const visual = resolveShortlistVisualId(
           opt.solarStorageOpportunity,
           opt.peakSimultaneousOutlets,
-          opt.family,
         );
         return (
           <div key={opt.family} style={STYLES.shortlistItem}>
             <div style={{ fontWeight: 'bold', marginBottom: 4 }}>
-              {opt.label} <span style={STYLES.visualBadge}>visual: {visual}</span>
+              {opt.label} <span style={STYLES.visualBadge}>visual: {visual ?? 'none'}</span>
             </div>
             {opt.complianceItems.length > 0 && (
               <div style={{ color: '#c00' }}>

@@ -483,36 +483,43 @@ describe('Rule audit — storage type conflation must never occur', () => {
 
 describe('Rule audit — shortlist visuals must use signal logic, not raw family names', () => {
   it('solar storage opportunity=high → cylinder_charge visual regardless of family', () => {
-    // Signal override: solar=high wins over any family-based fallback
-    expect(resolveShortlistVisualId('high', 1, 'combi')).toBe('cylinder_charge');
-    expect(resolveShortlistVisualId('high', 1, 'stored_unvented')).toBe('cylinder_charge');
-    expect(resolveShortlistVisualId('high', 1, 'ashp')).toBe('cylinder_charge');
+    // Signal override: solar=high wins — family argument no longer accepted
+    expect(resolveShortlistVisualId('high', 1)).toBe('cylinder_charge');
+    expect(resolveShortlistVisualId('high', 0)).toBe('cylinder_charge');
   });
 
   it('peakSimultaneousOutlets >= 2 → flow_split when solar is not high', () => {
-    expect(resolveShortlistVisualId('low', 2, 'combi')).toBe('flow_split');
-    expect(resolveShortlistVisualId('medium', 2, 'stored_vented')).toBe('flow_split');
-    expect(resolveShortlistVisualId('low', 3, 'system_unvented')).toBe('flow_split');
+    expect(resolveShortlistVisualId('low', 2)).toBe('flow_split');
+    expect(resolveShortlistVisualId('medium', 2)).toBe('flow_split');
+    expect(resolveShortlistVisualId('low', 3)).toBe('flow_split');
   });
 
-  it('stored families with low solar and single outlet → cylinder_charge', () => {
-    const STORED_FAMILIES = ['stored_vented', 'stored_unvented', 'regular_vented', 'system_unvented'];
-    for (const family of STORED_FAMILIES) {
-      expect(resolveShortlistVisualId('low', 1, family)).toBe('cylinder_charge');
+  it('no signal match → null (family-based fallbacks are removed)', () => {
+    // Previously stored families returned cylinder_charge and combi/ashp returned
+    // driving_style. Now all no-signal cases return null — truth over completeness.
+    expect(resolveShortlistVisualId('low', 1)).toBeNull();
+    expect(resolveShortlistVisualId('medium', 1)).toBeNull();
+    expect(resolveShortlistVisualId('none', 0)).toBeNull();
+  });
+
+  it('never shows a family-based visual (driving_style or cylinder_charge) without a matching signal', () => {
+    const noSignalCases: [string, number][] = [
+      ['low', 0],
+      ['low', 1],
+      ['medium', 0],
+      ['medium', 1],
+      ['none', 0],
+      ['none', 1],
+    ];
+    for (const [solar, outlets] of noSignalCases) {
+      const result = resolveShortlistVisualId(solar, outlets);
+      expect(result, `should be null for solar=${solar}, outlets=${outlets}`).toBeNull();
     }
-  });
-
-  it('combi with low solar and single outlet → driving_style fallback', () => {
-    expect(resolveShortlistVisualId('low', 1, 'combi')).toBe('driving_style');
-  });
-
-  it('heat_pump with low solar and single outlet → driving_style fallback', () => {
-    expect(resolveShortlistVisualId('low', 1, 'ashp')).toBe('driving_style');
   });
 
   it('solar signal takes priority over simultaneous outlet count', () => {
     // solar=high overrides the outlets>=2 rule — cylinder_charge is the correct answer
-    expect(resolveShortlistVisualId('high', 3, 'combi')).toBe('cylinder_charge');
+    expect(resolveShortlistVisualId('high', 3)).toBe('cylinder_charge');
   });
 });
 
@@ -729,7 +736,6 @@ describe('Difference tests — low vs high simultaneous demand', () => {
       const visual = resolveShortlistVisualId(
         opt.solarStorageOpportunity,
         opt.peakSimultaneousOutlets,
-        opt.family,
       );
       // With 2+ outlets and no high solar, all options get flow_split
       if (opt.peakSimultaneousOutlets >= 2 && opt.solarStorageOpportunity !== 'high') {

@@ -195,6 +195,26 @@
   padding-top: 1rem;
 }
 
+/* ─── Null / unavailable visual card ─────────────────────────────────────── */
+
+.pvs--unavailable {
+  margin-bottom: 1.5rem;
+}
+
+.pvs__null-card {
+  border-radius: 10px;
+  background: var(--surface-subtle, #f7fafc);
+  border: 1px dashed var(--border-default, #e2e8f0);
+  padding: 1.25rem 1.5rem;
+}
+
+.pvs__null-message {
+  font-size: 0.85rem;
+  color: var(--text-muted, #718096);
+  margin: 0 0 0.35rem;
+  line-height: 1.55;
+}
+
 /* ─── Reduced-motion ──────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {

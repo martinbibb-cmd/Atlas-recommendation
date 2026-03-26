@@ -8,11 +8,15 @@
  *   - the four priority sections map to the expected visuals
  *   - wallTypeToVisualKey and systemTypeToDrivingMode are exercised via
  *     buildCanonicalPresentation integration
+ *   - resolveShortlistVisualId returns correct signal-driven visuals or null
+ *   - isVisualValid enforces validWhen constraints
  */
 
 import { describe, it, expect } from 'vitest';
 import {
   getVisualConfigForSection,
+  resolveShortlistVisualId,
+  isVisualValid,
   type CanonicalPresentationSectionId,
 } from '../presentationVisualMapping';
 import { getVisualDefinition } from '../../physics-visuals/physicsVisualRegistry';
@@ -64,16 +68,13 @@ describe('presentationVisualMapping — shape', () => {
     }
   });
 
-  it('every fallback visual id (if present) exists in the registry', () => {
+  it('no section config has a fallbackVisualId (fallbacks are removed)', () => {
     for (const id of ALL_SECTIONS) {
       const config = getVisualConfigForSection(id);
-      if (config.fallbackVisualId) {
-        const def = getVisualDefinition(config.fallbackVisualId);
-        expect(
-          def,
-          `section "${id}" fallback visual "${config.fallbackVisualId}" not in registry`,
-        ).toBeDefined();
-      }
+      expect(
+        (config as Record<string, unknown>)['fallbackVisualId'],
+        `section "${id}" should not have a fallbackVisualId`,
+      ).toBeUndefined();
     }
   });
 
@@ -140,5 +141,76 @@ describe('presentationVisualMapping — signal priority fields', () => {
   it('current_system section references system_family signal', () => {
     const cfg = getVisualConfigForSection('current_system');
     expect(cfg.signalPriority).toContain('system_family');
+  });
+});
+
+// ─── resolveShortlistVisualId ──────────────────────────────────────────────────
+
+describe('resolveShortlistVisualId — signal-driven selection', () => {
+  it('returns cylinder_charge when solarStorageOpportunity is high', () => {
+    expect(resolveShortlistVisualId('high', 0)).toBe('cylinder_charge');
+    expect(resolveShortlistVisualId('high', 1)).toBe('cylinder_charge');
+  });
+
+  it('returns flow_split when peakSimultaneousOutlets >= 2 and solar is not high', () => {
+    expect(resolveShortlistVisualId('low', 2)).toBe('flow_split');
+    expect(resolveShortlistVisualId('medium', 3)).toBe('flow_split');
+    expect(resolveShortlistVisualId('none', 2)).toBe('flow_split');
+  });
+
+  it('solar=high takes priority over concurrent outlets', () => {
+    // Both signals present — solar wins (signal order priority)
+    expect(resolveShortlistVisualId('high', 2)).toBe('cylinder_charge');
+  });
+
+  it('returns null when no signal matches — no family-based fallback', () => {
+    // combi / on-demand family — no solar, no concurrent demand
+    expect(resolveShortlistVisualId('low', 1)).toBeNull();
+    expect(resolveShortlistVisualId('none', 0)).toBeNull();
+    expect(resolveShortlistVisualId('medium', 1)).toBeNull();
+  });
+
+  it('never returns driving_style as a fallback', () => {
+    // Previously the family fallback returned 'driving_style'. Ensure it no longer does.
+    const cases: [string, number][] = [
+      ['low', 0],
+      ['low', 1],
+      ['medium', 0],
+      ['medium', 1],
+      ['none', 0],
+      ['none', 1],
+    ];
+    for (const [solar, outlets] of cases) {
+      const result = resolveShortlistVisualId(solar, outlets);
+      expect(result, `resolveShortlistVisualId('${solar}', ${outlets}) should not be 'driving_style'`).not.toBe('driving_style');
+    }
+  });
+});
+
+// ─── isVisualValid ─────────────────────────────────────────────────────────────
+
+describe('isVisualValid — validity constraint enforcement', () => {
+  it('returns true for a known visual with no validWhen constraints', () => {
+    expect(isVisualValid('driving_style', {})).toBe(true);
+    expect(isVisualValid('heat_particles', {})).toBe(true);
+  });
+
+  it('returns false for an unregistered visual id', () => {
+    // Cast to bypass TypeScript — simulates a stale/unknown id at runtime
+    expect(isVisualValid('unknown_visual' as never, {})).toBe(false);
+  });
+
+  it('passes when requiredSignals is empty', () => {
+    expect(isVisualValid('driving_style', { activeSignals: [] })).toBe(true);
+  });
+
+  it('passes when at least one requiredSignal is active', () => {
+    // cylinder_charge has no validWhen by default, so test with a hypothetical
+    // definition by relying on the registry returning true when there are no constraints
+    expect(isVisualValid('cylinder_charge', { activeSignals: ['storageBenefitSignal'] })).toBe(true);
+  });
+
+  it('passes when invalidForFamilies does not include the option family', () => {
+    expect(isVisualValid('flow_split', { optionFamily: 'stored_vented' })).toBe(true);
   });
 });
