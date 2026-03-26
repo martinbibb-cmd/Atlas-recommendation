@@ -21,6 +21,7 @@ import type {
   SolarMismatchVisualProps,
   CylinderChargeVisualProps,
   HeatParticlesVisualProps,
+  ThermalStoreVisualProps,
 } from './physicsVisualTypes';
 
 import DrivingStyleVisual from './visuals/DrivingStyleVisual';
@@ -28,6 +29,7 @@ import FlowSplitVisual from './visuals/FlowSplitVisual';
 import SolarMismatchVisual from './visuals/SolarMismatchVisual';
 import CylinderChargeVisual from './visuals/CylinderChargeVisual';
 import HeatParticlesVisual from './visuals/HeatParticlesVisual';
+import ThermalStoreVisual from './visuals/ThermalStoreVisual';
 import BoilerCyclingAnimation from '../whatif/BoilerCyclingAnimation';
 import FlowRestrictionAnimation from '../whatif/FlowRestrictionAnimation';
 import RadiatorUpgradeAnimation from '../whatif/RadiatorUpgradeAnimation';
@@ -44,6 +46,7 @@ export type PhysicsVisualDataMap = {
   cylinder_charge_standard: Omit<CylinderChargeVisualProps, keyof PhysicsVisualProps>;
   cylinder_charge_mixergy: Omit<CylinderChargeVisualProps, keyof PhysicsVisualProps>;
   heat_particles: Omit<HeatParticlesVisualProps, keyof PhysicsVisualProps>;
+  thermal_store: Omit<ThermalStoreVisualProps, keyof PhysicsVisualProps>;
   // Remaining visuals — currently no data required beyond shared props
   bees_vs_tortoise: Record<string, never>;
   sponge: Record<string, never>;
@@ -130,6 +133,14 @@ export default function PhysicsVisual<T extends PhysicsVisualId>({
         <HeatParticlesVisual
           {...shared}
           {...(data as Omit<HeatParticlesVisualProps, keyof PhysicsVisualProps>)}
+        />
+      );
+
+    case 'thermal_store':
+      return (
+        <ThermalStoreVisual
+          {...shared}
+          {...(data as Omit<ThermalStoreVisualProps, keyof PhysicsVisualProps>)}
         />
       );
 

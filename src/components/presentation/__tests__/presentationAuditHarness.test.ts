@@ -496,8 +496,8 @@ describe('Rule audit — shortlist visuals must use signal logic, not raw family
     expect(resolveShortlistVisualId('high', 1, 'open_vented')).toBe('cylinder_charge_standard');
   });
 
-  it('solar storage opportunity=high + thermal_store → cylinder_charge_standard', () => {
-    expect(resolveShortlistVisualId('high', 1, 'thermal_store')).toBe('cylinder_charge_standard');
+  it('solar storage opportunity=high + thermal_store → null (audit guard: thermal store is legacy, suppressed from shortlist)', () => {
+    expect(resolveShortlistVisualId('high', 1, 'thermal_store')).toBeNull();
   });
 
   it('solar storage opportunity=high + unknown dhwStorageType → null (never show wrong animation)', () => {

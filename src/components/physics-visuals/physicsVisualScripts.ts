@@ -103,6 +103,22 @@ const SCRIPTS: Record<PhysicsVisualId, PhysicsVisualScript> = {
       'A Mixergy cylinder uses a mixing valve and targeted heat injection to keep the upper portion of the cylinder at full temperature, while the lower portion remains cooler until needed. This stratified approach is the opposite of bulk heating: rather than slowly raising the temperature of the whole volume, it builds a sharp hot/cold boundary and moves it downward. The practical benefit is that at 40–50% charge a Mixergy cylinder can still deliver a full-temperature shower, whereas a standard cylinder at the same charge level would deliver lukewarm water. For solar divert, this means capturing a shorter midday solar burst still gives a usable result for the evening.',
   },
 
+  thermal_store: {
+    title: 'Thermal store',
+    summary:
+      'This system stores heat, not domestic hot water. Hot water at the tap is produced through a heat exchanger, which means the whole system depends on maintaining very high primary temperatures.',
+    bullets: [
+      'Stores heat in a primary water vessel — not finished domestic hot water.',
+      'Hot water is made on demand through an internal heat exchanger.',
+      'Primary circuit typically needs 75–85 °C to deliver usable output.',
+      'High primary temperatures increase running costs and reduce efficiency.',
+    ],
+    takeaway:
+      'This sort of system likes very hot water. That usually means higher running costs and a poor fit with modern lower-temperature heating strategies.',
+    focusCopy:
+      'A thermal store works differently from a standard cylinder. Instead of storing finished hot water, it stores hot primary circuit water in a large vessel. When a tap opens, cold mains water passes through an internal heat exchanger and picks up heat from the stored primary water. The catch is that usable output at the tap depends on the primary water staying very hot — typically 75–85 °C. At lower primary temperatures (such as those produced by a modern condensing boiler running efficiently, or a heat pump), the heat exchanger cannot deliver adequate tap temperatures and performance falls apart. This is why thermal stores are rarely the right choice for a modern installation: the architecture actively discourages the low-flow-temperature operation that maximises boiler and heat pump efficiency.',
+  },
+
   heat_particles: {
     title: 'How heat moves through your home',
     summary:
