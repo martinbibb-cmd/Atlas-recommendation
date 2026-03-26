@@ -189,24 +189,24 @@ describe('PhysicsStoryCard — action buttons', () => {
     expect(onOpenExplainer).toHaveBeenCalledWith('combi_flow_limit');
   });
 
-  it('renders "Show simulation" button when handler is provided', () => {
+  it('renders "Open visualiser" button when handler is provided', () => {
     render(<PhysicsStoryCard card={SAMPLE_CARD} onShowSimulation={() => {}} />);
     expect(
-      screen.getByRole('button', { name: /show simulation for:/i }),
+      screen.getByRole('button', { name: /open visualiser for:/i }),
     ).toBeTruthy();
   });
 
   it('calls onShowSimulation with the visualiserId when clicked', () => {
     const onShowSimulation = vi.fn();
     render(<PhysicsStoryCard card={SAMPLE_CARD} onShowSimulation={onShowSimulation} />);
-    fireEvent.click(screen.getByRole('button', { name: /show simulation for:/i }));
+    fireEvent.click(screen.getByRole('button', { name: /open visualiser for:/i }));
     expect(onShowSimulation).toHaveBeenCalledWith('hot_water_concurrency');
   });
 
   it('does not render action buttons when handlers are absent', () => {
     render(<PhysicsStoryCard card={SAMPLE_CARD} />);
     expect(screen.queryByRole('button', { name: /open explainer/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /show simulation/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /open visualiser/i })).toBeNull();
   });
 
   it('does not render action buttons when visualiserId and explainerId are null', () => {
@@ -223,6 +223,6 @@ describe('PhysicsStoryCard — action buttons', () => {
       />,
     );
     expect(screen.queryByRole('button', { name: /open explainer/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /show simulation/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /open visualiser/i })).toBeNull();
   });
 });

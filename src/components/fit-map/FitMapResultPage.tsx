@@ -16,7 +16,7 @@ import './FitMapResultPage.css';
 
 interface Props {
   fitPosition: FitPosition;
-  /** Called when the user taps "Continue to simulator". */
+  /** Called when the user taps "Continue to workspace". */
   onContinue: () => void;
   /** Optional — called when the user wants to open the in-room presentation. */
   onOpenPresentation?: () => void;
@@ -50,9 +50,9 @@ export default function FitMapResultPage({ fitPosition, onContinue, onOpenPresen
           <button
             className="fit-map-result-page__continue"
             onClick={onContinue}
-            aria-label="Continue to simulator"
+            aria-label="Continue to workspace"
           >
-            Continue to simulator →
+            Continue to workspace →
           </button>
         </div>
       </div>

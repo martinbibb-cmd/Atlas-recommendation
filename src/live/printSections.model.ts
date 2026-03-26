@@ -360,7 +360,7 @@ function buildSimulatorSummarySection(input: FullSurveyModelV1): OutputHubSectio
   const available = input.occupancyCount != null && input.bathroomCount != null;
   return {
     id: 'simulatorSummary',
-    title: 'Simulator Summary',
+    title: 'Workspace Summary',
     status: 'ok',
     visible: available,
     customerSafe: true,
@@ -369,7 +369,7 @@ function buildSimulatorSummarySection(input: FullSurveyModelV1): OutputHubSectio
       occupancyCount: input.occupancyCount ?? null,
       bathroomCount:  input.bathroomCount  ?? null,
       prefillHint: available
-        ? 'Survey data available — simulator can be pre-configured from this result.'
+        ? 'Survey data available — proof workspace can be pre-configured from this result.'
         : null,
     },
   };

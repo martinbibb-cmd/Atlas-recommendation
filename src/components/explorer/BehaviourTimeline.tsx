@@ -188,7 +188,7 @@ export default function BehaviourTimeline({ events, onLoadChange }: Props) {
         <button
           className={`btl__play-btn ${playing ? 'btl__play-btn--stop' : ''}`}
           onClick={handlePlay}
-          aria-label={playing ? 'Stop simulation' : 'Play day simulation'}
+          aria-label={playing ? 'Stop playback' : 'Play day playback'}
         >
           {playing ? '■ Stop' : '▶ Play day'}
         </button>

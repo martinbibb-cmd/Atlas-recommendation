@@ -244,7 +244,7 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
           portalMode={portalMode}
         />
       </div>
-      <aside className="unified-simulator-view__insights" aria-label="Simulation outcomes and advice">
+      <aside className="unified-simulator-view__insights" aria-label="Behaviour outcomes and advice">
         {/* ── System selector for events/upgrades panel ───────────────── */}
         <div className="unified-simulator-view__system-selector" data-testid="events-system-selector">
           <span className="unified-simulator-view__system-selector-label">Show events for:</span>

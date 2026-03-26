@@ -77,14 +77,14 @@ export default function CustomerPortalPage({ reference, token }: Props) {
           <div className="portal-page__brand" aria-label="Atlas">ATLAS</div>
           <div className="portal-page__header-text">
             <h1 className="portal-page__heading">Glass Box Portal</h1>
-            <p className="portal-page__subheading">The simulator is now the portal. Advice stays beside the proof, not on a separate page.</p>
+            <p className="portal-page__subheading">The proof workspace is now the portal. Advice stays beside the evidence, not on a separate page.</p>
             {postcode && <span className="portal-page__postcode">{postcode}</span>}
           </div>
         </header>
 
         <section className="portal-section portal-section--hero" data-testid="portal-hero">
           <h2 className="portal-section__title">Your heating recommendation</h2>
-          <p className="portal-hero__explanation">Explore the current system, test the proposed upgrade, and see the outcomes and advice update from the same simulation model.</p>
+          <p className="portal-hero__explanation">Explore the current system, test the proposed upgrade, and see outcomes and advice update from the same physics model.</p>
         </section>
 
         <section className="portal-section" data-testid="portal-unified-simulator">
@@ -97,7 +97,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
         </section>
 
         <footer className="portal-page__footer">
-          <p className="portal-page__footer-text">Atlas keeps the evidence visible: setup, simulation, outcomes, and advice in one place.</p>
+          <p className="portal-page__footer-text">Atlas keeps the evidence visible: setup, proof, outcomes, and advice in one place.</p>
         </footer>
       </div>
     </GlobalMenuShell>

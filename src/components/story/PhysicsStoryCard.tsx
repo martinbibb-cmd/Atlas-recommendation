@@ -9,7 +9,7 @@
  *   • summary body
  *   • evidence line (sourced from real engine/input values)
  *   • optional "Open explainer" action
- *   • optional "Show simulation" action
+ *   • optional "Open visualiser" action
  *
  * Rules:
  *   - No physics logic here — all content is pre-built by buildPhysicsStory.
@@ -70,9 +70,9 @@ export default function PhysicsStoryCard({
             <button
               className="psc__action-btn psc__action-btn--sim"
               onClick={() => onShowSimulation(card.visualiserId!)}
-              aria-label={`Show simulation for: ${card.title}`}
+              aria-label={`Open visualiser for: ${card.title}`}
             >
-              Show simulation
+              Open visualiser
             </button>
           )}
         </div>
