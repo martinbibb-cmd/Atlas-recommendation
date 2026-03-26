@@ -201,11 +201,11 @@ describe('VisitPage — SaveState includes retrying variant', () => {
 // ── Step 6 duplicate strip removal (PR 3) ────────────────────────────────────
 
 describe('FullSurveyStepper — Step 6 duplicate live-physics strip removed', () => {
-  it('does not render the live-physics overlay panel on Step 6 (lifestyle)', async () => {
+  it('does not render the live-physics overlay panel on Step 6 (usage)', async () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 5); // lifestyle is index 5 (services added at index 2, system_builder at index 4)
+    await advanceToStep(user, 5); // usage is index 5 (services added at index 2, system_builder at index 4)
 
     // The LivePhysicsOverlay has className 'live-physics-overlay' — must be absent on Step 6.
     expect(document.querySelector('.live-physics-overlay')).toBeNull();
@@ -215,18 +215,18 @@ describe('FullSurveyStepper — Step 6 duplicate live-physics strip removed', ()
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 5); // lifestyle is index 5 (services added at index 2, system_builder at index 4)
+    await advanceToStep(user, 5); // usage is index 5 (services added at index 2, system_builder at index 4)
 
     expect(document.querySelector('[data-testid="dhw-demand-summary"]')).not.toBeNull();
   }, 15000);
 
   it('does not render the live-physics overlay on Step 6 regardless of engine output', async () => {
-    // The overlayStepKey is null for 'lifestyle' so the overlay must not be
+    // The overlayStepKey is null for 'usage' so the overlay must not be
     // rendered even if the engine has produced output from a previous step.
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 5); // lifestyle is index 5 (services added at index 2, system_builder at index 4)
+    await advanceToStep(user, 5); // usage is index 5 (services added at index 2, system_builder at index 4)
 
     // Allow any debounced engine tick to settle.
     await new Promise(r => setTimeout(r, 500));

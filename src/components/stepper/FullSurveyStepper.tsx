@@ -55,6 +55,8 @@ import { SystemBuilderStep } from '../../features/survey/systemBuilder/SystemBui
 import { INITIAL_SYSTEM_BUILDER_STATE } from '../../features/survey/systemBuilder/systemBuilderTypes';
 import { ServicesStep } from '../../features/survey/services/ServicesStep';
 import { INITIAL_WATER_QUALITY_STATE } from '../../features/survey/services/waterQualityTypes';
+import { UsageStep } from '../../features/survey/usage/UsageStep';
+import { INITIAL_USAGE_STATE } from '../../features/survey/usage/usageTypes';
 
 interface Props {
   onBack: () => void;
@@ -76,10 +78,10 @@ interface Props {
   onDraft?: (draft: FullSurveyModelV1) => void;
 }
 
-type Step = 'location' | 'pressure' | 'services' | 'hydraulic' | 'system_builder' | 'lifestyle' | 'hot_water' | 'commercial' | 'overlay';
+type Step = 'location' | 'pressure' | 'services' | 'hydraulic' | 'system_builder' | 'usage' | 'hot_water' | 'commercial' | 'overlay';
 /** Step 10 ("results") is intentionally excluded — the survey ends at "overlay"
  *  and the stepper transitions to hub mode after the engine run. */
-const STEPS: Step[] = ['location', 'pressure', 'services', 'hydraulic', 'system_builder', 'lifestyle', 'hot_water', 'commercial', 'overlay'];
+const STEPS: Step[] = ['location', 'pressure', 'services', 'hydraulic', 'system_builder', 'usage', 'hot_water', 'commercial', 'overlay'];
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
 // Two independent physics dimensions:
@@ -575,6 +577,9 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   const [waterQualityState, setWaterQualityState] = useState(
     () => prefill?.fullSurvey?.waterQuality ?? INITIAL_WATER_QUALITY_STATE
   );
+  const [usageState, setUsageState] = useState(
+    () => prefill?.fullSurvey?.usage ?? INITIAL_USAGE_STATE
+  );
   const [overlayDetail, setOverlayDetail] = useState<{ systemLabel: string; rowLabel: string; step: Step; risk: RiskLevel; explanation: OverlayExplanation } | null>(null);
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
@@ -601,11 +606,9 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   /**
    * Maps survey step names to LivePhysicsOverlay step keys.
    *
-   * The 'lifestyle' step (Step 4) is intentionally excluded: the LifePanel
-   * content (Peak DHW demand / CH lockout) duplicates the dhw-demand-summary
-   * block that lives inside the step card itself. Removing the 'life' mapping
-   * keeps the working in-card summary as the single source of truth and avoids
-   * the faulty highlighted strip at the top of Step 4.
+   * The 'usage' step is intentionally excluded: the demand summary block
+   * lives inside the step card itself, and rendering the overlay panel
+   * alongside it would duplicate information.
    */
   const overlayStepKey: OverlayStepKey | null = useMemo(() => {
     if (currentStep === 'location')   return 'shell';
@@ -826,7 +829,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     window.scrollTo(0, 0);
   }, [currentStep]);
 
-  /** Build a draft that embeds compareMixergy, systemBuilder, and waterQuality into fullSurvey for persistence. */
+  /** Build a draft that embeds compareMixergy, systemBuilder, waterQuality, and usage into fullSurvey for persistence. */
   const buildDraft = (): FullSurveyModelV1 => ({
     ...input,
     fullSurvey: {
@@ -834,6 +837,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
       compareMixergy,
       systemBuilder: systemBuilderState,
       waterQuality: waterQualityState,
+      usage: usageState,
     },
   });
 
@@ -867,7 +871,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     }
   };
 
-  // selectedArchetype shape kept for LifestyleComfortStep compatibility
+  // selectedArchetype is used inside the LifestyleComfortStep component definition below.
   const selectedArchetype = { label: `${thermalMass} mass / ${insulationLevel}`, tauHours: derivedTau, fabricType };
 
   if (mode === 'hub' && results) {
@@ -2659,14 +2663,13 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
         />
       )}
 
-      {currentStep === 'lifestyle' && (
-        <LifestyleComfortStep
-          input={input}
-          fabricType={fabricType}
-          selectedArchetype={selectedArchetype}
-          setInput={setInput}
+      {currentStep === 'usage' && (
+        <UsageStep
+          state={usageState}
+          onChange={setUsageState}
           onNext={next}
           onPrev={prev}
+          showDebugOutput={true}
         />
       )}
 
@@ -3080,8 +3083,8 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
               </div>
 
 
-              {/* Derived household profile — read-only, sourced from Step 4 */}
-              {input.householdComposition ? (
+              {/* Demand summary — read-only, sourced from Usage step */}
+              {usageState.occupancyPattern !== 'unknown' || usageState.peakHotWaterConcurrency !== 'unknown' ? (
                 <div style={{
                   padding: '0.75rem 1rem',
                   background: '#f0fff4',
@@ -3089,14 +3092,17 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                   borderRadius: '8px',
                 }}>
                   <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#276749', margin: '0 0 0.5rem 0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Derived from household profile
+                    From usage step
                   </p>
                   <div style={{ fontSize: '0.82rem', color: '#2d3748', lineHeight: 1.7 }}>
-                    <div>{formatHouseholdCompositionSummary(input.householdComposition) || `${Math.max(1, input.occupancyCount ?? 1)} occupant${(input.occupancyCount ?? 1) !== 1 ? 's' : ''}`}</div>
-                    {DEMAND_PRESETS.find(p => p.id === input.demandPreset) && (
-                      <div style={{ color: '#276749' }}>{DEMAND_PRESETS.find(p => p.id === input.demandPreset)!.label}</div>
+                    {usageState.householdSize !== null && (
+                      <div>{usageState.householdSize} occupant{usageState.householdSize !== 1 ? 's' : ''}</div>
                     )}
-                    <div style={{ color: '#718096' }}>Peak demand: {input.peakConcurrentOutlets ?? 1} outlet{(input.peakConcurrentOutlets ?? 1) !== 1 ? 's' : ''}</div>
+                    {usageState.peakHotWaterConcurrency !== 'unknown' && (
+                      <div style={{ color: '#718096' }}>
+                        Peak concurrency: {usageState.peakHotWaterConcurrency === '4_plus' ? '4+' : usageState.peakHotWaterConcurrency} outlet{usageState.peakHotWaterConcurrency !== 1 ? 's' : ''}
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -3108,7 +3114,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                   fontSize: '0.82rem',
                   color: '#975a16',
                 }}>
-                  ℹ️ Complete Step 4 (Lifestyle) to see the derived household profile here.
+                  ℹ️ Complete Step 6 (Usage &amp; Demand) to see the demand summary here.
                 </div>
               )}
             </div>
