@@ -255,36 +255,79 @@ export const LOFT_CONVERSION_VENTED_CONSTRAINT: EngineInputV2_3 = {
   pvStatus: 'none',
 };
 
+/**
+ * 12. Mixergy cylinder current system.
+ *     System boiler with a Mixergy stratified cylinder.
+ *     Tests that 'mixergy' storage type is correctly preserved through the
+ *     presentation layer and not conflated with a standard unvented cylinder.
+ */
+export const MIXERGY_CURRENT_SYSTEM: EngineInputV2_3 = {
+  ...BASE_FIXTURE,
+  occupancyCount: 3,
+  bathroomCount: 1,
+  preferCombi: false,
+  currentHeatSourceType: 'system',
+  dhwStorageType: 'mixergy',
+  dhwTankType: 'mixergy',
+  coldWaterSource: 'mains_true',
+  dynamicMainsPressure: 2.0,
+  mainsDynamicFlowLpm: 18,
+  pvStatus: 'none',
+};
+
+/**
+ * 13. Thermal store current system.
+ *     Regular boiler (or system boiler) feeding a primary-side thermal store.
+ *     Hot water is delivered via an indirect coil exchanger — not a direct cylinder.
+ *     Tests that thermal_store is presented as its own DHW architecture, separate
+ *     from open-vented and unvented cylinder architectures.
+ */
+export const THERMAL_STORE_CURRENT_SYSTEM: EngineInputV2_3 = {
+  ...BASE_FIXTURE,
+  occupancyCount: 3,
+  bathroomCount: 1,
+  preferCombi: false,
+  currentHeatSourceType: 'regular',
+  dhwStorageType: 'thermal_store',
+  coldWaterSource: 'loft_tank',
+  cwsHeadMetres: 1.5,
+  pvStatus: 'none',
+};
+
 // ─── Named scenario map ───────────────────────────────────────────────────────
 
 /** All golden scenarios keyed by scenario name. */
 export const AUDIT_SCENARIOS: Record<string, EngineInputV2_3> = {
-  single_person_combi_fit:          SINGLE_PERSON_COMBI_FIT,
-  large_family_stored_fit:          LARGE_FAMILY_STORED_FIT,
-  open_vented_current_system:       OPEN_VENTED_CURRENT_SYSTEM,
-  unvented_current_system:          UNVENTED_CURRENT_SYSTEM,
-  system_boiler_vented:             SYSTEM_BOILER_VENTED,
-  regular_boiler_unvented:          REGULAR_BOILER_UNVENTED,
-  strong_pv_poor_alignment:         STRONG_PV_POOR_ALIGNMENT,
-  strong_pv_good_alignment:         STRONG_PV_GOOD_ALIGNMENT,
-  heat_pump_borderline:             HEAT_PUMP_BORDERLINE,
-  high_hardness_combi_risk:         HIGH_HARDNESS_COMBI_RISK,
+  single_person_combi_fit:           SINGLE_PERSON_COMBI_FIT,
+  large_family_stored_fit:           LARGE_FAMILY_STORED_FIT,
+  open_vented_current_system:        OPEN_VENTED_CURRENT_SYSTEM,
+  unvented_current_system:           UNVENTED_CURRENT_SYSTEM,
+  system_boiler_vented:              SYSTEM_BOILER_VENTED,
+  regular_boiler_unvented:           REGULAR_BOILER_UNVENTED,
+  strong_pv_poor_alignment:          STRONG_PV_POOR_ALIGNMENT,
+  strong_pv_good_alignment:          STRONG_PV_GOOD_ALIGNMENT,
+  heat_pump_borderline:              HEAT_PUMP_BORDERLINE,
+  high_hardness_combi_risk:          HIGH_HARDNESS_COMBI_RISK,
   loft_conversion_vented_constraint: LOFT_CONVERSION_VENTED_CONSTRAINT,
+  mixergy_current_system:            MIXERGY_CURRENT_SYSTEM,
+  thermal_store_current_system:      THERMAL_STORE_CURRENT_SYSTEM,
 };
 
 /** Human-readable descriptions for the review surface. */
 export const AUDIT_SCENARIO_DESCRIPTIONS: Record<string, string> = {
-  single_person_combi_fit:          '1 adult, 1 bath, professional, good pressure — combi is well matched',
-  large_family_stored_fit:          '5 people, 2 baths, home all day, high bath use — stored water wins',
-  open_vented_current_system:       'Regular boiler + vented cylinder (tank-fed, open-vented DHW)',
-  unvented_current_system:          'System boiler + unvented cylinder (mains-fed DHW)',
-  system_boiler_vented:             'System boiler family with open-vented storage (family ≠ storage type)',
-  regular_boiler_unvented:          'Regular boiler family with unvented storage (family ≠ storage type)',
-  strong_pv_poor_alignment:         'South roof + existing PV, but professional (absent all day) → poor alignment',
-  strong_pv_good_alignment:         'South roof + existing PV, steady_home (present all day) → good alignment',
-  heat_pump_borderline:             'ASHP current, high heat loss, few radiators — borderline infrastructure',
-  high_hardness_combi_risk:         'Norwich (very hard water) + combi + 2 baths — combined scale/simultaneous risk',
+  single_person_combi_fit:           '1 adult, 1 bath, professional, good pressure — combi is well matched',
+  large_family_stored_fit:           '5 people, 2 baths, home all day, high bath use — stored water wins',
+  open_vented_current_system:        'Regular boiler + vented cylinder (tank-fed, open-vented DHW)',
+  unvented_current_system:           'System boiler + unvented cylinder (mains-fed DHW)',
+  system_boiler_vented:              'System boiler family with open-vented storage (family ≠ storage type)',
+  regular_boiler_unvented:           'Regular boiler family with unvented storage (family ≠ storage type)',
+  strong_pv_poor_alignment:          'South roof + existing PV, but professional (absent all day) → poor alignment',
+  strong_pv_good_alignment:          'South roof + existing PV, steady_home (present all day) → good alignment',
+  heat_pump_borderline:              'ASHP current, high heat loss, few radiators — borderline infrastructure',
+  high_hardness_combi_risk:          'Norwich (very hard water) + combi + 2 baths — combined scale/simultaneous risk',
   loft_conversion_vented_constraint: 'Loft conversion + future conversion + low CWS head — vented viability constrained',
+  mixergy_current_system:            'System boiler + Mixergy stratified cylinder — architecture must stay distinct from standard unvented',
+  thermal_store_current_system:      'Regular boiler + thermal store (indirect DHW via exchanger) — architecture distinct from direct cylinder',
 };
 
 // ─── Paired scenarios for difference tests ────────────────────────────────────
@@ -429,6 +472,82 @@ export const SCENARIO_PAIRS: ScenarioPair[] = [
       dhwStorageType: 'unvented',
       coldWaterSource: 'mains_true',
       demandTimingOverrides: { simultaneousUseSeverity: 'high' },
+    },
+  },
+  // ── DHW architecture: standard cylinder vs Mixergy ───────────────────────
+  {
+    name: 'standard_cylinder_vs_mixergy',
+    description: 'Same home — standard unvented cylinder vs. Mixergy stratified cylinder',
+    differingDimension: 'dhwStorageType (unvented→mixergy)',
+    scA: {
+      ...PAIRED_SCENARIO_BASE,
+      currentHeatSourceType: 'system',
+      dhwStorageType: 'unvented',
+      coldWaterSource: 'mains_true',
+      pvStatus: 'none',
+    },
+    scB: {
+      ...PAIRED_SCENARIO_BASE,
+      currentHeatSourceType: 'system',
+      dhwStorageType: 'mixergy',
+      dhwTankType: 'mixergy',
+      coldWaterSource: 'mains_true',
+      pvStatus: 'none',
+    },
+  },
+  // ── DHW architecture: standard cylinder vs thermal store ─────────────────
+  {
+    name: 'standard_cylinder_vs_thermal_store',
+    description: 'Same home — standard unvented cylinder vs. thermal store (indirect DHW)',
+    differingDimension: 'dhwStorageType (unvented→thermal_store)',
+    scA: {
+      ...PAIRED_SCENARIO_BASE,
+      currentHeatSourceType: 'system',
+      dhwStorageType: 'unvented',
+      coldWaterSource: 'mains_true',
+      pvStatus: 'none',
+    },
+    scB: {
+      ...PAIRED_SCENARIO_BASE,
+      currentHeatSourceType: 'regular',
+      dhwStorageType: 'thermal_store',
+      coldWaterSource: 'loft_tank',
+      cwsHeadMetres: 1.5,
+      pvStatus: 'none',
+    },
+  },
+  // ── Combi-friendly vs stored-friendly demand profile ─────────────────────
+  {
+    name: 'combi_friendly_vs_stored_friendly',
+    description: 'Combi-friendly home (1 person, 1 bath, professional) vs. stored-friendly (3 people, 2 baths, steady_home)',
+    differingDimension: 'occupancyCount / bathroomCount / occupancySignature',
+    scA: {
+      ...PAIRED_SCENARIO_BASE,
+      occupancyCount: 1,
+      bathroomCount: 1,
+      occupancySignature: 'professional',
+      highOccupancy: false,
+      preferCombi: true,
+      currentHeatSourceType: 'combi',
+      dhwStorageType: 'none',
+      dynamicMainsPressure: 2.5,
+      mainsDynamicFlowLpm: 20,
+      mainsDynamicFlowLpmKnown: true,
+      demandTimingOverrides: { simultaneousUseSeverity: 'low', bathFrequencyPerWeek: 0 },
+      pvStatus: 'none',
+    },
+    scB: {
+      ...PAIRED_SCENARIO_BASE,
+      occupancyCount: 3,
+      bathroomCount: 2,
+      occupancySignature: 'steady_home',
+      highOccupancy: false,
+      preferCombi: false,
+      currentHeatSourceType: 'system',
+      dhwStorageType: 'unvented',
+      coldWaterSource: 'mains_true',
+      demandTimingOverrides: { simultaneousUseSeverity: 'high', bathFrequencyPerWeek: 3 },
+      pvStatus: 'none',
     },
   },
 ];

@@ -363,6 +363,7 @@ function inputDhwStorageTypeToSignal(
   if (raw === 'vented') return 'open_vented';
   if (raw === 'unvented') return 'unvented';
   if (raw === 'mixergy') return 'mixergy';
+  if (raw === 'thermal_store') return 'thermal_store';
   // heat_pump_cylinder and 'none' do not map to a stored storage type
   return 'unknown';
 }
