@@ -27,22 +27,32 @@ const CATEGORY_LABELS: Record<DevUiCategory, string> = {
   visualiser: 'Visualiser',
   journey: 'Journey',
   presentation: 'Presentation',
+  assessment: 'Assessment',
+  report: 'Report',
+  utility: 'Utility',
   audit: 'Audit',
   deprecated: 'Deprecated',
+  unknown: 'Unknown',
 };
 
 const STATUS_LABELS: Record<DevUiStatus, string> = {
   canonical: 'Canonical',
   active: 'Active',
   experimental: 'Experimental',
+  review: 'Review',
+  duplicate: 'Duplicate',
   deprecated: 'Deprecated',
+  remove: 'Remove',
 };
 
 const STATUS_COLORS: Record<DevUiStatus, string> = {
   canonical: '#16a34a',
   active: '#2563eb',
   experimental: '#d97706',
+  review: '#7c3aed',
+  duplicate: '#0891b2',
   deprecated: '#dc2626',
+  remove: '#991b1b',
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -86,12 +96,13 @@ export default function DevMenuPage({ onBack }: Props) {
           ← Home
         </button>
         <div style={STYLES.titleRow}>
-          <h1 style={STYLES.title}>🛠 Dev Menu</h1>
+          <h1 style={STYLES.title}>🗂 UI Inventory</h1>
           <span style={STYLES.devBadge}>DEV ONLY</span>
         </div>
         <p style={STYLES.subtitle}>
-          Atlas UI component browser — {DEV_UI_REGISTRY.length} surfaces registered.
-          Not customer-facing. Access via <code>?devmenu=1</code>.
+          Atlas UI surface browser — {DEV_UI_REGISTRY.length} surfaces registered.
+          Inspect every meaningful UI element, see its human name and code name, and
+          classify its status. Not customer-facing. Access via <code>?devmenu=1</code>.
         </p>
       </header>
 
@@ -110,7 +121,7 @@ export default function DevMenuPage({ onBack }: Props) {
       {/* Status filter chips */}
       <div style={STYLES.filterRow}>
         <span style={STYLES.filterLabel}>Status:</span>
-        {(['canonical', 'active', 'experimental', 'deprecated'] as DevUiStatus[]).map(s => (
+        {(['canonical', 'active', 'experimental', 'review', 'duplicate', 'deprecated', 'remove'] as DevUiStatus[]).map(s => (
           <button
             key={s}
             className={`chip-btn${statusFilter === s ? ' chip-btn--active' : ''}`}
@@ -167,6 +178,7 @@ function RegistryRow({
       <button style={STYLES.row} onClick={onClick} aria-label={`Preview ${item.commonName}`}>
         <div style={STYLES.rowMain}>
           <span style={STYLES.commonName}>{item.commonName}</span>
+          <span style={STYLES.codeName}>{item.codeName}</span>
           <span style={STYLES.fileName}>{item.fileName}</span>
           {item.notes != null && <span style={STYLES.rowNote}>{item.notes}</span>}
         </div>
@@ -223,6 +235,8 @@ function PreviewPage({
 
           <table style={STYLES.metaTable}>
             <tbody>
+              <MetaRow label="Human name" value={item.commonName} />
+              <MetaRow label="Code name" value={<code style={STYLES.code}>{item.codeName}</code>} />
               <MetaRow label="File" value={<code style={STYLES.code}>{item.fileName}</code>} />
               <MetaRow
                 label="Path"
@@ -391,6 +405,11 @@ const STYLES: Record<string, CSSProperties> = {
     fontWeight: 600,
     fontSize: '0.95rem',
     color: '#1e293b',
+  },
+  codeName: {
+    fontFamily: 'monospace',
+    fontSize: '0.8rem',
+    color: '#2563eb',
   },
   fileName: {
     fontFamily: 'monospace',
