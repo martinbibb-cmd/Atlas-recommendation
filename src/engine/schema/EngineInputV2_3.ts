@@ -320,12 +320,13 @@ export interface EngineInputV2_3 {
    *   'vented'             — open-vented cylinder fed from a cold water storage tank (tank-fed supply)
    *   'unvented'           — sealed unvented (mains-pressure) cylinder (mains-fed supply)
    *   'mixergy'            — Mixergy cylinder with active top-down stratification
+   *   'thermal_store'      — thermal store (primary-side stored heat, indirect DHW via exchanger)
    *   'heat_pump_cylinder' — cylinder heated by heat pump (typically at 48–55 °C)
    *
    * When provided, StoredDhwModule uses this to apply the correct failure-mode
    * evaluation (head-limited for vented; mains-limited for unvented; etc.).
    */
-  dhwStorageType?: 'none' | 'vented' | 'unvented' | 'mixergy' | 'heat_pump_cylinder';
+  dhwStorageType?: 'none' | 'vented' | 'unvented' | 'mixergy' | 'thermal_store' | 'heat_pump_cylinder';
   /**
    * Whether a hot water cylinder is currently installed in the property.
    * When false, StoredDhwModule treats missing cylinder data as "no cylinder"

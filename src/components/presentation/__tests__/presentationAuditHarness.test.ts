@@ -45,6 +45,8 @@ import {
   HEAT_PUMP_BORDERLINE,
   HIGH_HARDNESS_COMBI_RISK,
   LOFT_CONVERSION_VENTED_CONSTRAINT,
+  MIXERGY_CURRENT_SYSTEM,
+  THERMAL_STORE_CURRENT_SYSTEM,
   SCENARIO_PAIRS,
 } from './presentationAuditFixtures';
 
@@ -816,5 +818,158 @@ describe('Combi DHW rules — occupancy/bathroom gate thresholds', () => {
     const combi = getCombiCard({ bathroomCount: 1, occupancyCount: 1 });
     expect(combi).toBeDefined();
     expect(combi!.status).toBe('viable');
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 6. SCENARIO AUDIT — Mixergy and thermal store architecture distinction
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('Scenario audit — mixergy_current_system', () => {
+  const model = PREBUILT_MODELS['mixergy_current_system'];
+
+  it('currentSystem: dhwStorageType is mixergy (not conflated with unvented)', () => {
+    expect(model.page1.currentSystem.dhwStorageType).toBe('mixergy');
+  });
+
+  it('currentSystem: drivingStyleMode is stored (system boiler)', () => {
+    expect(model.page1.currentSystem.drivingStyleMode).toBe('stored');
+  });
+
+  it('model fingerprint differs from standard unvented scenario', () => {
+    expect(modelFingerprint(model)).not.toBe(
+      modelFingerprint(PREBUILT_MODELS['unvented_current_system']),
+    );
+  });
+});
+
+describe('Scenario audit — thermal_store_current_system', () => {
+  const model = PREBUILT_MODELS['thermal_store_current_system'];
+
+  it('currentSystem: dhwStorageType is thermal_store (not conflated with open_vented)', () => {
+    expect(model.page1.currentSystem.dhwStorageType).toBe('thermal_store');
+  });
+
+  it('currentSystem: drivingStyleMode is stored (regular boiler)', () => {
+    expect(model.page1.currentSystem.drivingStyleMode).toBe('stored');
+  });
+
+  it('model fingerprint differs from open-vented scenario', () => {
+    expect(modelFingerprint(model)).not.toBe(
+      modelFingerprint(PREBUILT_MODELS['open_vented_current_system']),
+    );
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 7. ARCHITECTURE DISTINCTION — four DHW stories must stay separate
+//    on-demand combi | standard stored | stratified (Mixergy) | thermal store
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('Architecture distinction — four DHW storage types produce four distinct dhwStorageType values', () => {
+  it('combi (no storage) → dhwStorageType is unknown', () => {
+    expect(PREBUILT_MODELS['single_person_combi_fit'].page1.currentSystem.dhwStorageType).toBe('unknown');
+  });
+
+  it('standard stored hot water (unvented) → dhwStorageType is unvented', () => {
+    expect(PREBUILT_MODELS['unvented_current_system'].page1.currentSystem.dhwStorageType).toBe('unvented');
+  });
+
+  it('stratified stored hot water (Mixergy) → dhwStorageType is mixergy', () => {
+    expect(PREBUILT_MODELS['mixergy_current_system'].page1.currentSystem.dhwStorageType).toBe('mixergy');
+  });
+
+  it('thermal store (stored heat with exchanger) → dhwStorageType is thermal_store', () => {
+    expect(PREBUILT_MODELS['thermal_store_current_system'].page1.currentSystem.dhwStorageType).toBe('thermal_store');
+  });
+
+  it('all four DHW architectures produce distinct dhwStorageType values', () => {
+    const types = [
+      PREBUILT_MODELS['single_person_combi_fit'].page1.currentSystem.dhwStorageType,
+      PREBUILT_MODELS['unvented_current_system'].page1.currentSystem.dhwStorageType,
+      PREBUILT_MODELS['mixergy_current_system'].page1.currentSystem.dhwStorageType,
+      PREBUILT_MODELS['thermal_store_current_system'].page1.currentSystem.dhwStorageType,
+    ];
+    const uniqueTypes = new Set(types);
+    expect(uniqueTypes.size).toBe(4);
+  });
+});
+
+describe('Architecture distinction — shortlist visual for thermal_store is always null (uncertainty guard)', () => {
+  it('thermal_store + solar=high → null (thermal store is legacy; show uncertainty card)', () => {
+    expect(resolveShortlistVisualId('high', 1, 'thermal_store')).toBeNull();
+    expect(resolveShortlistVisualId('high', 0, 'thermal_store')).toBeNull();
+  });
+
+  it('thermal_store + storageBenefit=high → null (thermal store must not get a cylinder visual)', () => {
+    expect(resolveShortlistVisualId('low', 1, 'thermal_store', 'high')).toBeNull();
+    expect(resolveShortlistVisualId('none', 0, 'thermal_store', 'high')).toBeNull();
+  });
+
+  it('mixergy + solar=high → cylinder_charge_mixergy (stratified cylinder is distinct from standard)', () => {
+    expect(resolveShortlistVisualId('high', 1, 'mixergy')).toBe('cylinder_charge_mixergy');
+  });
+
+  it('unvented + solar=high → cylinder_charge_standard (standard stored cylinder)', () => {
+    expect(resolveShortlistVisualId('high', 1, 'unvented')).toBe('cylinder_charge_standard');
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 8. DIFFERENCE TESTS — standard cylinder vs Mixergy and thermal store
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('Difference tests — standard cylinder vs Mixergy', () => {
+  const pair = SCENARIO_PAIRS.find(p => p.name === 'standard_cylinder_vs_mixergy')!;
+  const modelA = buildAuditModel(pair.scA); // standard unvented
+  const modelB = buildAuditModel(pair.scB); // Mixergy
+
+  it('dhwStorageType changes from unvented to mixergy', () => {
+    expect(modelA.page1.currentSystem.dhwStorageType).toBe('unvented');
+    expect(modelB.page1.currentSystem.dhwStorageType).toBe('mixergy');
+  });
+
+  it('overall model fingerprints differ', () => {
+    expect(modelFingerprint(modelA)).not.toBe(modelFingerprint(modelB));
+  });
+});
+
+describe('Difference tests — standard cylinder vs thermal store', () => {
+  const pair = SCENARIO_PAIRS.find(p => p.name === 'standard_cylinder_vs_thermal_store')!;
+  const modelA = buildAuditModel(pair.scA); // standard unvented
+  const modelB = buildAuditModel(pair.scB); // thermal store
+
+  it('dhwStorageType changes from unvented to thermal_store', () => {
+    expect(modelA.page1.currentSystem.dhwStorageType).toBe('unvented');
+    expect(modelB.page1.currentSystem.dhwStorageType).toBe('thermal_store');
+  });
+
+  it('overall model fingerprints differ', () => {
+    expect(modelFingerprint(modelA)).not.toBe(modelFingerprint(modelB));
+  });
+});
+
+describe('Difference tests — combi-friendly vs stored-friendly home', () => {
+  const pair = SCENARIO_PAIRS.find(p => p.name === 'combi_friendly_vs_stored_friendly')!;
+  const modelA = buildAuditModel(pair.scA); // combi-friendly (1 person)
+  const modelB = buildAuditModel(pair.scB); // stored-friendly (3 people, 2 baths)
+
+  it('drivingStyleMode changes from combi to stored', () => {
+    expect(modelA.page1.currentSystem.drivingStyleMode).toBe('combi');
+    expect(modelB.page1.currentSystem.drivingStyleMode).toBe('stored');
+  });
+
+  it('peakSimultaneousOutlets is higher for stored-friendly home', () => {
+    expect(modelB.page1.home.peakSimultaneousOutlets).toBeGreaterThan(
+      modelA.page1.home.peakSimultaneousOutlets,
+    );
+  });
+
+  it('storageBenefitLabel differs between combi-friendly and stored-friendly', () => {
+    expect(modelA.page1.home.storageBenefitLabel).not.toBe(modelB.page1.home.storageBenefitLabel);
+  });
+
+  it('model fingerprints differ', () => {
+    expect(modelFingerprint(modelA)).not.toBe(modelFingerprint(modelB));
   });
 });
