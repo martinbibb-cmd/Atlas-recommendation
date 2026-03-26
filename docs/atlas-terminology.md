@@ -449,6 +449,23 @@ The System Simulator (also called System Lab) is the full interactive experience
 
 All CTAs that say "Open simulator", "Continue to simulator", "Launch Simulator", or similar **must route exclusively to this surface**.
 
+### Non-proof surfaces — banned terms
+
+Any surface that **lacks** live taps, live heating behaviour, and a full system diagram is **not** a simulator. Such surfaces must not use:
+- "Simulator" / "System Simulator" / "System Lab" in their heading, tab label, or badge
+- "educational simulator" (use "educational model" instead)
+- "scenario simulator" (use "Scenario Explorer" or "Scenario Explainer" instead)
+
+### Product surface inventory
+
+| Surface | Component | Classification | Allowed name |
+|---|---|---|---|
+| Full interactive proof tool | `ExplainersHubPage` + `SimulatorDashboard` | Proof simulator | Simulator / System Simulator / System Lab |
+| Glass Box wrapper | `UnifiedSimulatorView` | Proof simulator | Glass Box Simulator |
+| Legacy comparison shell | `LabShell` | Summary | System Summary |
+| Portal scenario panel | `ScenarioPreviewPanel` | Preview | Scenario Preview / Behaviour Preview |
+| Energy literacy grid tool | `EnergyScenarioSimulator` | Explainer | Grid Scenario Explorer |
+
 ### Lightweight behaviour preview widgets
 
 Any simplified or read-only scenario-switching widget (e.g. `ScenarioPreviewPanel`) must **not** use the word "simulator" in:
@@ -465,3 +482,5 @@ Acceptable names for such surfaces: **Scenario Preview**, **Behaviour Preview**,
 | "Simulator" / "System Simulator" / "System Lab" | ExplainersHubPage + SimulatorDashboard only |
 | "Scenario Preview" / "Behaviour Preview" | Lightweight read-only behaviour card panels |
 | "Glass Box Simulator" | UnifiedSimulatorView (wraps SimulatorDashboard — acceptable because it contains the real simulator) |
+| "System Summary" | LabShell (legacy comparison shell — not a proof simulator) |
+| "Grid Scenario Explorer" | EnergyScenarioSimulator (educational tool — not a proof simulator) |

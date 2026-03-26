@@ -96,7 +96,7 @@ export default function StoryModeContainer({ onBack, onEscalate, onOpenLab }: Pr
         <span className="fc-info-banner__icon">ℹ️</span>
         <div className="fc-info-banner__text">
           <p>Fast Choice is a quick first-pass recommendation.</p>
-          <p>Use System Lab to compare options and see the physical reasons behind the result.</p>
+          <p>Use System Summary to compare options and see the physical reasons behind the result.</p>
         </div>
       </div>
       <ScenarioSelector onSelect={handleSelectScenario} />

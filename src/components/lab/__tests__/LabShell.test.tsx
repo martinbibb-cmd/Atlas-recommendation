@@ -2,12 +2,12 @@
  * LabShell.test.tsx
  *
  * Validates that LabShell:
- *   - Renders the Simulator, Summary, What if…?, and Physics Explainers tabs
+ *   - Renders the Behaviour Preview, Summary, What if…?, and Physics Explainers tabs
  *   - Does not render a Floor Plan tab
  *   - Does not render an Engineer/Customer mode toggle
  *   - Does not render a Behaviour Console tab
  *   - Does not render a Physics tab
- *   - Simulator tab is selected by default (simulation-first)
+ *   - Behaviour Preview tab is selected by default (simulation-first)
  *   - Physics Explainers tab shows the explainer panel heading when clicked
  */
 
@@ -16,9 +16,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import LabShell from '../LabShell';
 
 describe('LabShell — tabs', () => {
-  it('renders Simulator, Summary, What if…? and Physics Explainers tab buttons', () => {
+  it('renders Behaviour Preview, Summary, What if…? and Physics Explainers tab buttons', () => {
     render(<LabShell onHome={() => {}} />);
-    expect(screen.getByRole('tab', { name: 'Simulator' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Behaviour Preview' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Summary' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'What if…?' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Physics Explainers' })).toBeTruthy();
@@ -39,9 +39,14 @@ describe('LabShell — tabs', () => {
     expect(screen.queryByRole('tab', { name: 'Physics' })).toBeNull();
   });
 
-  it('marks Simulator tab as selected on initial render (simulation-first)', () => {
+  it('does not render a Simulator tab', () => {
     render(<LabShell onHome={() => {}} />);
-    const tab = screen.getByRole('tab', { name: 'Simulator' });
+    expect(screen.queryByRole('tab', { name: 'Simulator' })).toBeNull();
+  });
+
+  it('marks Behaviour Preview tab as selected on initial render (simulation-first)', () => {
+    render(<LabShell onHome={() => {}} />);
+    const tab = screen.getByRole('tab', { name: 'Behaviour Preview' });
     expect(tab.getAttribute('aria-selected')).toBe('true');
   });
 
@@ -58,11 +63,11 @@ describe('LabShell — tabs', () => {
     expect(tab.getAttribute('aria-selected')).toBe('true');
   });
 
-  it('deselects the Simulator tab when Explainers tab is activated', () => {
+  it('deselects the Behaviour Preview tab when Explainers tab is activated', () => {
     render(<LabShell onHome={() => {}} />);
     fireEvent.click(screen.getByRole('tab', { name: 'Physics Explainers' }));
-    const simTab = screen.getByRole('tab', { name: 'Simulator' });
-    expect(simTab.getAttribute('aria-selected')).toBe('false');
+    const previewTab = screen.getByRole('tab', { name: 'Behaviour Preview' });
+    expect(previewTab.getAttribute('aria-selected')).toBe('false');
   });
 });
 

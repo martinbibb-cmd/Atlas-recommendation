@@ -287,7 +287,7 @@ function OnwardActions({
           onClick={() => onOpenLab?.(prefill)}
           disabled={!onOpenLab}
         >
-          Open in System Lab →
+          Open in System Summary →
         </button>
         <button
           className="cta-btn fc-onward-actions__full-btn"
@@ -297,7 +297,7 @@ function OnwardActions({
         </button>
       </div>
       <p className="fc-onward-actions__hint">
-        System Lab shows side-by-side comparison and physical trade-offs.
+        System Summary shows side-by-side comparison and physical trade-offs.
         Full Survey captures more detail to increase certainty.
       </p>
     </div>

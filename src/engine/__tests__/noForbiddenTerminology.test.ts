@@ -320,3 +320,47 @@ describe('No thermal-store / cylinder conflation in source', () => {
     ).toHaveLength(0);
   });
 });
+
+// ─── Guardrails: simulator naming — only the proof simulator may use these ───
+//
+// "Simulator", "System Lab", and "System Simulator" are reserved exclusively
+// for the full interactive proof surface (ExplainersHubPage + SimulatorDashboard)
+// with live taps, heating behaviour, and full system diagram.
+//
+// Non-proof surfaces (summary dashboards, educational panels, preview cards)
+// must not use the word "simulator" in their user-facing copy.
+// See docs/atlas-terminology.md § 16.
+
+describe('Simulator naming reserved for proof surface only (atlas-terminology.md § 16)', () => {
+  const files = collectSourceFiles(SRC_DIR).filter(
+    f => !ALLOWED_FILES.has(path.basename(f)) && !f.includes('__tests__'),
+  );
+
+  it('does not contain "educational simulator" (use "educational model" for non-proof explainer panels)', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const hits = findPhraseLines(file, 'educational simulator');
+      if (hits.length > 0) {
+        violations.push(`${path.relative(SRC_DIR, file)}:\n${hits.join('\n')}`);
+      }
+    }
+    expect(
+      violations,
+      `Forbidden phrase "educational simulator" found — use "educational model" for non-proof explainer panels:\n${violations.join('\n\n')}`,
+    ).toHaveLength(0);
+  });
+
+  it('does not contain "scenario simulator" (use "Scenario Explorer" or "Scenario Explainer" for non-proof educational tools)', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const hits = findPhraseLines(file, 'scenario simulator');
+      if (hits.length > 0) {
+        violations.push(`${path.relative(SRC_DIR, file)}:\n${hits.join('\n')}`);
+      }
+    }
+    expect(
+      violations,
+      `Forbidden phrase "scenario simulator" found — non-proof educational tools must not use "simulator":\n${violations.join('\n\n')}`,
+    ).toHaveLength(0);
+  });
+});

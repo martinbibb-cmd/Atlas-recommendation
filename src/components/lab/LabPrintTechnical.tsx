@@ -63,7 +63,7 @@ export default function LabPrintTechnical({ onBack, data }: Props) {
         <div>
           <div className="lp-doc-header__brand" aria-label="Atlas">ATLAS</div>
           <h1 className="lp-doc-header__title">Technical Specification</h1>
-          <p className="lp-doc-header__sub">System Lab — engineer / internal reference</p>
+          <p className="lp-doc-header__sub">System Summary — engineer / internal reference</p>
         </div>
         <div className="lp-doc-header__meta">
           <div>Confidence: {confidence}</div>
