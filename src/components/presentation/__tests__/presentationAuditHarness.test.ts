@@ -116,7 +116,9 @@ function collectAllStrings(model: CanonicalPresentationModel): string[] {
 
   // Final page
   strings.push(model.finalPage.homeScenarioDescription,
-    ...model.finalPage.houseConstraintNotes, ...model.finalPage.energyTimingNotes);
+    model.finalPage.dhwArchitectureNote,
+    ...model.finalPage.houseConstraintNotes, ...model.finalPage.energyTimingNotes,
+    ...model.finalPage.simulatorCapabilities);
 
   return strings.filter(s => s.length > 0);
 }
@@ -1560,6 +1562,112 @@ describe('Actionable simulator notes — dhwArchitectureNote is task-based', () 
     for (const name of architectureScenarios) {
       const note = PREBUILT_MODELS[name].finalPage.dhwArchitectureNote;
       expect(note, `"${name}" dhwArchitectureNote must be task-based (include "try")`).toMatch(/try/i);
+    }
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 15. SIMULATOR-PRESENCE AUDIT
+//     The presentation model must always carry a valid, populated final page
+//     that routes to the real System Simulator, not a lightweight preview.
+//
+//     Checks:
+//       a) finalPage is always present and has a non-empty homeScenarioDescription
+//       b) simulatorCapabilities is always a non-empty array
+//       c) simulatorCapabilities mention core simulator features (diagram, taps, etc.)
+//       d) no simulatorCapabilities entry references a forbidden preview surface
+//       e) the canonical simulator note always targets "System Simulator"
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('Simulator-presence audit — finalPage always routes to the real System Simulator', () => {
+  it('every scenario produces a non-empty finalPage homeScenarioDescription', () => {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      expect(
+        model.finalPage.homeScenarioDescription,
+        `"${name}" finalPage.homeScenarioDescription is empty`,
+      ).toBeTruthy();
+    }
+  });
+
+  it('every scenario finalPage has a non-empty simulatorCapabilities list', () => {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      expect(
+        model.finalPage.simulatorCapabilities.length,
+        `"${name}" finalPage.simulatorCapabilities must not be empty`,
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  it('simulatorCapabilities covers the full system diagram', () => {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      const caps = model.finalPage.simulatorCapabilities.join(' ');
+      expect(
+        caps,
+        `"${name}" simulatorCapabilities must mention "system diagram"`,
+      ).toMatch(/system diagram/i);
+    }
+  });
+
+  it('simulatorCapabilities covers live tap controls', () => {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      const caps = model.finalPage.simulatorCapabilities.join(' ');
+      expect(
+        caps,
+        `"${name}" simulatorCapabilities must mention tap controls`,
+      ).toMatch(/tap|outlet/i);
+    }
+  });
+
+  it('simulatorCapabilities covers hot-water behaviour', () => {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      const caps = model.finalPage.simulatorCapabilities.join(' ');
+      expect(
+        caps,
+        `"${name}" simulatorCapabilities must mention hot-water behaviour`,
+      ).toMatch(/hot[- ]water|draw|recovery/i);
+    }
+  });
+
+  it('simulatorCapabilities covers heating response', () => {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      const caps = model.finalPage.simulatorCapabilities.join(' ');
+      expect(
+        caps,
+        `"${name}" simulatorCapabilities must mention heating response`,
+      ).toMatch(/heat/i);
+    }
+  });
+
+  const FORBIDDEN_PREVIEW_PHRASES = [
+    'scenario preview',
+    'behaviour preview',
+    'preview panel',
+    'ScenarioPreviewPanel',
+    'PortalSimulatorPanel',
+  ] as const;
+
+  for (const phrase of FORBIDDEN_PREVIEW_PHRASES) {
+    it(`simulatorCapabilities do not reference forbidden preview surface "${phrase}"`, () => {
+      for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+        const caps = model.finalPage.simulatorCapabilities.join(' ');
+        expect(
+          caps.toLowerCase(),
+          `"${name}" simulatorCapabilities must not reference "${phrase}"`,
+        ).not.toContain(phrase.toLowerCase());
+      }
+    });
+  }
+
+  it('dhwArchitectureNote always references the real System Simulator (not preview surface)', () => {
+    for (const [name, model] of Object.entries(PREBUILT_MODELS)) {
+      const note = model.finalPage.dhwArchitectureNote;
+      expect(note, `"${name}" dhwArchitectureNote must reference "System Simulator"`).toMatch(/System Simulator/i);
+      FORBIDDEN_PREVIEW_PHRASES.forEach(phrase => {
+        expect(
+          note.toLowerCase(),
+          `"${name}" dhwArchitectureNote must not reference "${phrase}"`,
+        ).not.toContain(phrase.toLowerCase());
+      });
     }
   });
 });

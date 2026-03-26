@@ -186,8 +186,8 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
             </button>
           )}
           <div>
-            <h1 className="hub-page__title">Simulator</h1>
-            <p className="hub-page__subtitle">Physics-first heating system simulator</p>
+            <h1 className="hub-page__title">System Simulator</h1>
+            <p className="hub-page__subtitle">Live taps, heating, and full system diagram</p>
           </div>
         </div>
 
@@ -223,8 +223,8 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
           </button>
         )}
         <div>
-          <h1 className="hub-page__title">Simulator</h1>
-          <p className="hub-page__subtitle">Physics-first heating system simulator</p>
+          <h1 className="hub-page__title">System Simulator</h1>
+          <p className="hub-page__subtitle">Live taps, heating, and full system diagram</p>
         </div>
       </div>
 

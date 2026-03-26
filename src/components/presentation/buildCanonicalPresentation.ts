@@ -237,6 +237,11 @@ export interface FinalPageSimulator {
    * Derived from the top-level DHW architecture so the handoff is physics-first.
    */
   dhwArchitectureNote: string;
+  /**
+   * Architecture-neutral list of what the user can do in the real System Simulator.
+   * Rendered on the handoff page so users know exactly what they are opening.
+   */
+  simulatorCapabilities: readonly string[];
 }
 
 /** Full canonical presentation model. */
@@ -1101,11 +1106,19 @@ function buildFinalPage(
   }
   energyTimingNotes.push('Use the System Simulator to vary occupancy, bath frequency, and draw timing to validate the recommendation.');
 
+  const simulatorCapabilities: readonly string[] = [
+    'Full system diagram',
+    'Live tap controls — turn outlets on and off',
+    'Hot-water draw behaviour and recovery',
+    'Heating response and system cycling',
+  ];
+
   return {
     homeScenarioDescription,
     houseConstraintNotes,
     energyTimingNotes,
     dhwArchitectureNote: dhwArchitectureToSimulatorNote(dhwArchitecture),
+    simulatorCapabilities,
   };
 }
 

@@ -325,8 +325,16 @@ function SimulatorSection({
 }) {
   return (
     <div className="cpp-simulator">
+      <p className="cpp-simulator__identity">
+        System Simulator · Live taps, heating, and full system diagram
+      </p>
       <p className="cpp-simulator__scenario">{sim.homeScenarioDescription}</p>
       <p className="cpp-simulator__architecture-note">{sim.dhwArchitectureNote}</p>
+      {sim.simulatorCapabilities.length > 0 && (
+        <ul className="cpp-simulator__capabilities">
+          {sim.simulatorCapabilities.map((cap, i) => <li key={i}>{cap}</li>)}
+        </ul>
+      )}
       {sim.houseConstraintNotes.length > 0 && (
         <ul className="cpp-simulator__notes">
           {sim.houseConstraintNotes.map((note, i) => <li key={i}>{note}</li>)}
