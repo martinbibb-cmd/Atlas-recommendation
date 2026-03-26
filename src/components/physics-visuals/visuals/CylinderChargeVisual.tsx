@@ -1,16 +1,22 @@
 /**
  * CylinderChargeVisual.tsx
  *
- * Demonstrates stored hot water behaviour:
- *   1. Energy enters the cylinder (animated fill rising from bottom)
- *   2. Cylinder holds the charge
- *   3. Demand draws it down (animated level dropping)
+ * Demonstrates stored hot water behaviour for two distinct cylinder types:
  *
- * mixergyMode adds a top-down fill indicator that represents stratified heating
- * (Mixergy charges from the top, unlike standard cylinders).
+ *   Standard (mixergyMode=false):
+ *     The whole cylinder body warms progressively. The top region becomes
+ *     useful first due to natural thermal stratification, but there is no
+ *     hard hot/cold boundary — the visual language is "diffuse body warming".
  *
- * The fillLevel prop (0–1) drives the animated water column height.
- * reducedMotion: the fill animation is replaced with a static level bar.
+ *   Mixergy (mixergyMode=true):
+ *     Heat is directed to the top of the cylinder, building a usable hot zone
+ *     that expands downward. A sharp thermocline boundary separates the hot
+ *     zone (top) from the cooler stored volume (bottom). Visual language is
+ *     "stratified top-down charge front".
+ *
+ * The fillLevel prop (0–1) drives the degree of warmth (standard) or the
+ * fraction of the cylinder that forms the usable hot zone (Mixergy).
+ * reducedMotion suppresses all animations.
  */
 
 import type { CylinderChargeVisualProps } from '../physicsVisualTypes';
@@ -28,17 +34,27 @@ export default function CylinderChargeVisual({
 }: CylinderChargeVisualProps) {
   const clampedLevel = Math.max(0, Math.min(1, fillLevel));
   const fillPercent = Math.round(clampedLevel * 100);
+  const badgeLevel = clampedLevel >= 0.7 ? 'high' : clampedLevel >= 0.4 ? 'mid' : 'low';
 
-  // Derive a label from level
-  let chargeLabel = 'Low charge';
-  if (clampedLevel >= 0.7) chargeLabel = 'Well charged';
-  else if (clampedLevel >= 0.4) chargeLabel = 'Partially charged';
+  // Labels differ by mode
+  let chargeLabel: string;
+  if (mixergyMode) {
+    chargeLabel = `Hot zone: ${fillPercent}%`;
+  } else {
+    if (clampedLevel >= 0.7) chargeLabel = 'Well charged';
+    else if (clampedLevel >= 0.4) chargeLabel = 'Partially charged';
+    else chargeLabel = 'Low charge';
+  }
 
   return (
     <div
-      className={`ccv ccv--emphasis-${emphasis} ccv--mode-${displayMode}${mixergyMode ? ' ccv--mixergy' : ''}${reducedMotion ? ' ccv--reduced-motion' : ''}`}
+      className={`ccv ccv--emphasis-${emphasis} ccv--mode-${displayMode}${mixergyMode ? ' ccv--mixergy' : ' ccv--standard'}${reducedMotion ? ' ccv--reduced-motion' : ''}`}
       role="img"
-      aria-label={`Cylinder charge: ${chargeLabel} (${fillPercent}%)`}
+      aria-label={
+        mixergyMode
+          ? `Mixergy cylinder: usable hot zone ${fillPercent}%`
+          : `Standard cylinder: charge level ${fillPercent}%`
+      }
     >
       {/* Energy input indicator */}
       <div className="ccv__input" aria-hidden="true">
@@ -48,30 +64,40 @@ export default function CylinderChargeVisual({
 
       {/* Cylinder body */}
       <div className="ccv__cylinder" aria-hidden="true">
-        {/* Mixergy top-down charge band */}
-        {mixergyMode && (
-          <div
-            className={`ccv__mixergy-band${reducedMotion ? '' : ' ccv__mixergy-band--animated'}`}
-            style={{ '--ccv-fill': clampedLevel } as React.CSSProperties}
-          />
+        {mixergyMode ? (
+          <>
+            {/* Mixergy: targeted top-down hot zone with sharp thermocline boundary */}
+            <div
+              className={`ccv__mx-hot${reducedMotion ? '' : ' ccv__mx-hot--animated'}`}
+              style={{ '--ccv-fill': clampedLevel } as React.CSSProperties}
+            />
+            <div
+              className={`ccv__mx-boundary${reducedMotion ? '' : ' ccv__mx-boundary--animated'}`}
+              style={{ '--ccv-fill': clampedLevel } as React.CSSProperties}
+            />
+            <div
+              className="ccv__mx-cold"
+              style={{ '--ccv-fill': clampedLevel } as React.CSSProperties}
+            />
+          </>
+        ) : (
+          <>
+            {/* Standard: diffuse full-body warming — top warms first, no sharp boundary */}
+            <div className="ccv__std-cool-base" />
+            <div
+              className={`ccv__std-warm-overlay${reducedMotion ? '' : ' ccv__std-warm-overlay--animated'}`}
+              style={{ '--ccv-fill': clampedLevel } as React.CSSProperties}
+            />
+          </>
         )}
 
-        {/* Water fill level */}
-        <div
-          className={`ccv__fill${reducedMotion ? '' : ' ccv__fill--animated'}`}
-          style={{ '--ccv-fill': clampedLevel } as React.CSSProperties}
-        />
-
-        {/* Percentage label inside cylinder */}
+        {/* Charge percentage label */}
         <div className="ccv__level-label">{fillPercent}%</div>
-
-        {/* Temperature gradient overlay */}
-        <div className="ccv__gradient-overlay" />
       </div>
 
-      {/* Charge label */}
+      {/* Charge status badge */}
       <div className="ccv__status">
-        <span className={`ccv__charge-badge ccv__charge-badge--${clampedLevel >= 0.7 ? 'high' : clampedLevel >= 0.4 ? 'mid' : 'low'}`}>
+        <span className={`ccv__charge-badge ccv__charge-badge--${badgeLevel}`}>
           {chargeLabel}
         </span>
       </div>
@@ -79,12 +105,19 @@ export default function CylinderChargeVisual({
       {/* Demand output indicator */}
       <div className="ccv__output" aria-hidden="true">
         <div className={`ccv__demand-arrow${reducedMotion ? '' : ' ccv__demand-arrow--animated'}`} />
-        <span className="ccv__output-label">Heat to home</span>
+        <span className="ccv__output-label">
+          {mixergyMode ? 'Hot water ready' : 'Heat to home'}
+        </span>
       </div>
 
-      {mixergyMode && (
+      {/* Behaviour note */}
+      {mixergyMode ? (
         <div className="ccv__mixergy-note">
-          Mixergy: charges from top down
+          Usable hot water builds from the top down
+        </div>
+      ) : (
+        <div className="ccv__standard-note">
+          Whole body warms — top first
         </div>
       )}
 
