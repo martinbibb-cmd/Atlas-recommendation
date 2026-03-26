@@ -128,6 +128,11 @@ export interface VisualValidationContext {
   activeSignals?: string[];
   /** Appliance family for the option being rendered. */
   optionFamily?: string;
+  /**
+   * Page type for the rendering context.
+   * Used to enforce that generic visuals are never shown on signal-driven pages.
+   */
+  pageType?: string;
 }
 
 /**
@@ -140,11 +145,23 @@ export interface VisualValidationContext {
  *
  * If the visual has no `validWhen` constraints it is always considered valid.
  * If the visual id is not found in the registry it is considered invalid.
+ *
+ * @throws {Error} When `cylinder_charge` (generic) is used on a shortlist page.
+ *   Only the subtype-specific visuals (`cylinder_charge_standard`,
+ *   `cylinder_charge_mixergy`) are permitted on shortlist pages.
  */
 export function isVisualValid(
   visualId: PhysicsVisualId,
   context: VisualValidationContext,
 ): boolean {
+  // Guard: generic cylinder is never allowed on signal-driven shortlist pages.
+  if (context.pageType === 'shortlist' && visualId === 'cylinder_charge') {
+    throw new Error(
+      "Generic 'cylinder_charge' visual not allowed on shortlist pages. " +
+      "Use 'cylinder_charge_standard' or 'cylinder_charge_mixergy' instead.",
+    );
+  }
+
   const definition = getVisualDefinition(visualId);
   if (!definition) return false;
 
@@ -171,12 +188,34 @@ export function isVisualValid(
 }
 
 /**
+ * Map a DHW storage subtype to the appropriate cylinder visual id.
+ * Returns the subtype-specific visual, or null when the subtype is unknown/absent
+ * (no animation beats a wrong animation).
+ */
+function getCylinderVisualForStorageType(dhwStorageType?: string): 'cylinder_charge_mixergy' | 'cylinder_charge_standard' | null {
+  if (dhwStorageType === 'mixergy') return 'cylinder_charge_mixergy';
+  if (
+    dhwStorageType === 'open_vented' ||
+    dhwStorageType === 'unvented' ||
+    dhwStorageType === 'thermal_store'
+  ) return 'cylinder_charge_standard';
+  return null;
+}
+
+/**
  * Resolve the best visual for a shortlist page using signal priority:
  *   1. signal-driven: cylinder_charge_mixergy or cylinder_charge_standard when
  *      solarStorageOpportunity is high, selected by dhwStorageType.
  *      If dhwStorageType is unknown, return null (no animation is better than wrong animation).
  *   2. signal-driven: flow_split when peakSimultaneousOutlets >= 2
- *   3. null — no family-based fallback; show a neutral card instead
+ *   3. signal-driven: cylinder_charge_mixergy or cylinder_charge_standard when
+ *      storageBenefitSignal is high, selected by dhwStorageType.
+ *      If dhwStorageType is unknown, return null.
+ *   4. null — no family-based fallback; show a neutral card instead
+ *
+ * Storage relevance guard: if neither storageBenefitSignal nor solarStorageOpportunity
+ * is 'high', cylinder visuals are suppressed — showing a cylinder for a low-demand
+ * single-person home with no solar adds noise rather than insight.
  *
  * Visual priority:  signalMatch ?? sectionDefault ?? null
  *
@@ -188,23 +227,23 @@ export function resolveShortlistVisualId(
   solarStorageOpportunity: string,
   peakSimultaneousOutlets: number,
   dhwStorageType?: string,
+  storageBenefitSignal?: string,
 ): PhysicsVisualId | null {
   // 1. Signal: solar storage opportunity is high → select cylinder visual by storage subtype
   if (solarStorageOpportunity === 'high') {
-    if (dhwStorageType === 'mixergy') return 'cylinder_charge_mixergy';
-    if (
-      dhwStorageType === 'open_vented' ||
-      dhwStorageType === 'unvented' ||
-      dhwStorageType === 'thermal_store'
-    ) return 'cylinder_charge_standard';
-    // Unknown or absent storage subtype — show nothing rather than the wrong visual
-    return null;
+    return getCylinderVisualForStorageType(dhwStorageType);
   }
 
   // 2. Signal: concurrent demand risk → flow split is the key story
   if (peakSimultaneousOutlets >= 2) return 'flow_split';
 
-  // 3. No direct signal match — return null so callers show a neutral card
+  // 3. Signal: storage benefit is high → cylinder visual by storage subtype
+  //    Guard: skip if storage benefit is not high (avoids noise for low-demand homes)
+  if (storageBenefitSignal === 'high') {
+    return getCylinderVisualForStorageType(dhwStorageType);
+  }
+
+  // 4. No direct signal match — return null so callers show a neutral card
   //    rather than a misleading family-based animation.
   return null;
 }
