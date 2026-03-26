@@ -1,31 +1,34 @@
 /*
- * PortalSimulatorPanel.css
+ * ScenarioPreviewPanel.css
  *
- * PR9 — Styles for the read-only portal simulator panel.
+ * PR9 — Styles for the read-only portal scenario preview panel.
  *
  * Design intent:
  *   - Calm, customer-facing, tab-based scenario switcher
  *   - Consistent with ObjectiveComparisonPanel visual language
  *   - Readable on mobile and tablet
+ *
+ * Renamed from PortalSimulatorPanel.css — this is a lightweight behaviour
+ * preview surface, not the full System Simulator / System Lab.
  */
 
 /* ── Panel wrapper ───────────────────────────────────────────────────────── */
 
-.portal-simulator {
+.portal-scenario-preview {
   background: #f7fafc;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 1.1rem 1.25rem 1.25rem;
 }
 
-.portal-simulator__heading {
+.portal-scenario-preview__heading {
   margin: 0 0 0.35rem;
   font-size: 1.05rem;
   font-weight: 700;
   color: #1a202c;
 }
 
-.portal-simulator__intro {
+.portal-scenario-preview__intro {
   margin: 0 0 0.9rem;
   font-size: 0.84rem;
   color: #718096;
@@ -34,14 +37,14 @@
 
 /* ── Scenario selector (tab row) ─────────────────────────────────────────── */
 
-.portal-simulator__selector {
+.portal-scenario-preview__selector {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
   margin-bottom: 1.1rem;
 }
 
-.portal-simulator__tab {
+.portal-scenario-preview__tab {
   padding: 0.3rem 0.75rem;
   border: 1px solid #cbd5e0;
   border-radius: 999px;
@@ -54,19 +57,19 @@
   transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 
-.portal-simulator__tab:hover {
+.portal-scenario-preview__tab:hover {
   background: #ebf4ff;
   border-color: #90cdf4;
   color: #2b6cb0;
 }
 
-.portal-simulator__tab--active {
+.portal-scenario-preview__tab--active {
   background: #2b6cb0;
   border-color: #2b6cb0;
   color: #fff;
 }
 
-.portal-simulator__tab--active:hover {
+.portal-scenario-preview__tab--active:hover {
   background: #2c5282;
   border-color: #2c5282;
   color: #fff;
@@ -74,21 +77,21 @@
 
 /* ── Scenario detail panel ───────────────────────────────────────────────── */
 
-.portal-simulator__panel {
+.portal-scenario-preview__panel {
   border-top: 1px solid #e2e8f0;
   padding-top: 0.9rem;
 }
 
 /* ── Outcome row ─────────────────────────────────────────────────────────── */
 
-.portal-simulator__outcome {
+.portal-scenario-preview__outcome {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.55rem;
 }
 
-.portal-simulator__outcome-icon {
+.portal-scenario-preview__outcome-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -100,11 +103,11 @@
   flex-shrink: 0;
 }
 
-.portal-simulator__outcome-icon--works_well           { background: #c6f6d5; color: #22543d; }
-.portal-simulator__outcome-icon--works_with_limits    { background: #fefcbf; color: #744210; }
-.portal-simulator__outcome-icon--best_for_lighter_use { background: #fed7d7; color: #742a2a; }
+.portal-scenario-preview__outcome-icon--works_well           { background: #c6f6d5; color: #22543d; }
+.portal-scenario-preview__outcome-icon--works_with_limits    { background: #fefcbf; color: #744210; }
+.portal-scenario-preview__outcome-icon--best_for_lighter_use { background: #fed7d7; color: #742a2a; }
 
-.portal-simulator__outcome-badge {
+.portal-scenario-preview__outcome-badge {
   font-size: 0.78rem;
   font-weight: 600;
   padding: 0.15rem 0.55rem;
@@ -112,13 +115,13 @@
   line-height: 1.4;
 }
 
-.portal-simulator__outcome-badge--works_well           { background: #c6f6d5; color: #22543d; }
-.portal-simulator__outcome-badge--works_with_limits    { background: #fefcbf; color: #744210; }
-.portal-simulator__outcome-badge--best_for_lighter_use { background: #fed7d7; color: #742a2a; }
+.portal-scenario-preview__outcome-badge--works_well           { background: #c6f6d5; color: #22543d; }
+.portal-scenario-preview__outcome-badge--works_with_limits    { background: #fefcbf; color: #744210; }
+.portal-scenario-preview__outcome-badge--best_for_lighter_use { background: #fed7d7; color: #742a2a; }
 
 /* ── Summary ─────────────────────────────────────────────────────────────── */
 
-.portal-simulator__summary {
+.portal-scenario-preview__summary {
   margin: 0 0 0.55rem;
   font-size: 0.88rem;
   color: #2d3748;
@@ -127,14 +130,14 @@
 
 /* ── Limiting factor line ────────────────────────────────────────────────── */
 
-.portal-simulator__limiter {
+.portal-scenario-preview__limiter {
   margin: 0 0 0.75rem;
   font-size: 0.8rem;
   color: #718096;
   line-height: 1.45;
 }
 
-.portal-simulator__learn-why {
+.portal-scenario-preview__learn-why {
   background: none;
   border: none;
   padding: 0;
@@ -146,13 +149,13 @@
   text-underline-offset: 2px;
 }
 
-.portal-simulator__learn-why:hover {
+.portal-scenario-preview__learn-why:hover {
   color: #2c5282;
 }
 
 /* ── Divergence comparison ───────────────────────────────────────────────── */
 
-.portal-simulator__comparison {
+.portal-scenario-preview__comparison {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -161,7 +164,7 @@
   margin-top: 0.65rem;
 }
 
-.portal-simulator__comparison-note {
+.portal-scenario-preview__comparison-note {
   margin: 0;
   font-size: 0.82rem;
   line-height: 1.45;
@@ -169,16 +172,16 @@
   border-radius: 6px;
 }
 
-.portal-simulator__comparison-note--recommended {
+.portal-scenario-preview__comparison-note--recommended {
   background: #ebf8ff;
   color: #2c5282;
 }
 
-.portal-simulator__comparison-note--chosen {
+.portal-scenario-preview__comparison-note--chosen {
   background: #f0fff4;
   color: #276749;
 }
 
-.portal-simulator__comparison-label {
+.portal-scenario-preview__comparison-label {
   font-weight: 600;
 }

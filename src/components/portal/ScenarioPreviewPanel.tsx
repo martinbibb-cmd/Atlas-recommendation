@@ -1,7 +1,7 @@
 /**
- * PortalSimulatorPanel.tsx
+ * ScenarioPreviewPanel.tsx
  *
- * PR9 — Read-only portal simulator panel.
+ * PR9 — Read-only portal scenario preview panel.
  *
  * Presents a scenario-switching view of real-world behaviour cards for the
  * customer portal.  The panel is customer-facing and read-only: no engine
@@ -13,6 +13,10 @@
  *
  * When the customer has diverged from the Atlas recommendation, both the
  * recommended and chosen option outcomes are shown side-by-side.
+ *
+ * This component is a lightweight behaviour preview surface — it is NOT the
+ * full System Simulator / System Lab.  See ExplainersHubPage for the real
+ * interactive simulator with live taps, heating behaviour, and system diagrams.
  *
  * Rules:
  *   - Presentation layer only — no engine changes.
@@ -28,12 +32,12 @@ import {
   BEHAVIOUR_LIMITING_FACTOR_LABEL,
   EXPLAINER_LINK_LABEL,
   EXPLAINER_LINK_ARIA,
-  PORTAL_SIMULATOR_HEADING,
-  PORTAL_SIMULATOR_INTRO,
+  PORTAL_SCENARIO_PREVIEW_HEADING,
+  PORTAL_SCENARIO_PREVIEW_INTRO,
 } from '../../lib/copy/customerCopy';
 import { getExplainerIdForLimitingFactor } from '../../lib/explainers/getRelevantExplainers';
 import { EDUCATIONAL_EXPLAINERS } from '../../explainers/educational/content';
-import './PortalSimulatorPanel.css';
+import './ScenarioPreviewPanel.css';
 
 // ─── Scenario definitions ─────────────────────────────────────────────────────
 
@@ -80,7 +84,7 @@ interface Props {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function PortalSimulatorPanel({
+export default function ScenarioPreviewPanel({
   cards,
   isDivergent,
   recommendedOptionLabel,
@@ -117,25 +121,25 @@ export default function PortalSimulatorPanel({
       : null;
 
   return (
-    <div className="portal-simulator" data-testid="portal-simulator">
-      <h2 className="portal-simulator__heading">{PORTAL_SIMULATOR_HEADING}</h2>
-      <p className="portal-simulator__intro">{PORTAL_SIMULATOR_INTRO}</p>
+    <div className="portal-scenario-preview" data-testid="portal-scenario-preview">
+      <h2 className="portal-scenario-preview__heading">{PORTAL_SCENARIO_PREVIEW_HEADING}</h2>
+      <p className="portal-scenario-preview__intro">{PORTAL_SCENARIO_PREVIEW_INTRO}</p>
 
       {/* ── Scenario selector ─────────────────────────────────────────────── */}
       <div
-        className="portal-simulator__selector"
+        className="portal-scenario-preview__selector"
         role="tablist"
         aria-label="Scenarios"
       >
         {displayCards.map((s, i) => (
           <button
             key={s.scenarioId}
-            className={`portal-simulator__tab${i === safeIndex ? ' portal-simulator__tab--active' : ''}`}
+            className={`portal-scenario-preview__tab${i === safeIndex ? ' portal-scenario-preview__tab--active' : ''}`}
             role="tab"
             aria-selected={i === safeIndex}
-            aria-controls="portal-simulator-panel"
+            aria-controls="portal-scenario-preview-panel"
             onClick={() => setSelectedIndex(i)}
-            data-testid={`portal-simulator-tab-${s.scenarioId}`}
+            data-testid={`portal-scenario-preview-tab-${s.scenarioId}`}
           >
             {s.label}
           </button>
@@ -144,43 +148,43 @@ export default function PortalSimulatorPanel({
 
       {/* ── Selected scenario detail ──────────────────────────────────────── */}
       <div
-        className="portal-simulator__panel"
-        id="portal-simulator-panel"
+        className="portal-scenario-preview__panel"
+        id="portal-scenario-preview-panel"
         role="tabpanel"
         aria-label={`${selected.label} scenario`}
-        data-testid="portal-simulator-detail"
+        data-testid="portal-scenario-preview-detail"
       >
         {/* Outcome badge */}
-        <div className="portal-simulator__outcome">
+        <div className="portal-scenario-preview__outcome">
           <span
-            className={`portal-simulator__outcome-icon portal-simulator__outcome-icon--${card.outcome}`}
+            className={`portal-scenario-preview__outcome-icon portal-scenario-preview__outcome-icon--${card.outcome}`}
             aria-hidden="true"
           >
             {OUTCOME_ICON[card.outcome]}
           </span>
           <span
-            className={`portal-simulator__outcome-badge portal-simulator__outcome-badge--${card.outcome}`}
+            className={`portal-scenario-preview__outcome-badge portal-scenario-preview__outcome-badge--${card.outcome}`}
           >
             {BEHAVIOUR_OUTCOME_LABEL[card.outcome]}
           </span>
         </div>
 
         {/* Summary */}
-        <p className="portal-simulator__summary">{card.summary}</p>
+        <p className="portal-scenario-preview__summary">{card.summary}</p>
 
         {/* Limiting factor + optional Learn why link */}
         {card.limitingFactor != null &&
           BEHAVIOUR_LIMITING_FACTOR_LABEL[card.limitingFactor] != null && (
-          <p className="portal-simulator__limiter">
+          <p className="portal-scenario-preview__limiter">
             {BEHAVIOUR_LIMITING_FACTOR_LABEL[card.limitingFactor]}
             {explainerId != null && explainerTitle != null && onOpenExplainer != null && (
               <>
                 {' '}
                 <button
-                  className="portal-simulator__learn-why"
+                  className="portal-scenario-preview__learn-why"
                   onClick={() => onOpenExplainer(explainerId)}
                   aria-label={EXPLAINER_LINK_ARIA(explainerTitle)}
-                  data-testid={`portal-simulator-learn-why-${card.id}`}
+                  data-testid={`portal-scenario-preview-learn-why-${card.id}`}
                 >
                   {EXPLAINER_LINK_LABEL}
                 </button>
@@ -193,20 +197,20 @@ export default function PortalSimulatorPanel({
         {isDivergent &&
           (card.recommendedOptionNote != null || card.chosenOptionNote != null) && (
           <div
-            className="portal-simulator__comparison"
+            className="portal-scenario-preview__comparison"
             aria-label={`Comparison for ${card.title}`}
           >
             {card.recommendedOptionNote != null && (
-              <p className="portal-simulator__comparison-note portal-simulator__comparison-note--recommended">
-                <span className="portal-simulator__comparison-label">
+              <p className="portal-scenario-preview__comparison-note portal-scenario-preview__comparison-note--recommended">
+                <span className="portal-scenario-preview__comparison-label">
                   {recommendedOptionLabel}:
                 </span>{' '}
                 {card.recommendedOptionNote}
               </p>
             )}
             {card.chosenOptionNote != null && (
-              <p className="portal-simulator__comparison-note portal-simulator__comparison-note--chosen">
-                <span className="portal-simulator__comparison-label">
+              <p className="portal-scenario-preview__comparison-note portal-scenario-preview__comparison-note--chosen">
+                <span className="portal-scenario-preview__comparison-label">
                   {chosenOptionLabel}:
                 </span>{' '}
                 {card.chosenOptionNote}

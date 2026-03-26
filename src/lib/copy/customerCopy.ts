@@ -372,13 +372,15 @@ export const EMPHASIS_RECOMMENDED_LABEL = 'Recommended';
 /** Label for the emphasis switch chip: chosen option view. */
 export const EMPHASIS_CHOSEN_LABEL = 'Your chosen option';
 
-// ─── PR9 — Portal simulator copy ─────────────────────────────────────────────
+// ─── PR9 — Portal scenario preview copy ──────────────────────────────────────
+// This is a lightweight behaviour preview surface (ScenarioPreviewPanel), NOT
+// the full System Simulator / System Lab (ExplainersHubPage + SimulatorDashboard).
 
-/** Section heading for the read-only portal simulator panel. */
-export const PORTAL_SIMULATOR_HEADING = 'How your system handles everyday moments';
+/** Section heading for the read-only portal scenario preview panel. */
+export const PORTAL_SCENARIO_PREVIEW_HEADING = 'How your system handles everyday moments';
 
-/** Intro sentence for the portal simulator panel. */
-export const PORTAL_SIMULATOR_INTRO =
+/** Intro sentence for the portal scenario preview panel. */
+export const PORTAL_SCENARIO_PREVIEW_INTRO =
   'Select a scenario to see how your recommended system would respond.';
 
 // ─── Banned phrasing guard (development aid) ─────────────────────────────────

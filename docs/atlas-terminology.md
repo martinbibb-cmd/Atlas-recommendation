@@ -432,3 +432,36 @@ The following claims are valid only with caveats. They must never be stated as a
 | "Open-vented hot water is less dependent on mains performance." | True, but delivery still depends on head, pipe sizing, fittings, restrictions, and layout. |
 | "Stored hot water can support multi-outlet demand better." | Depends on storage volume, recovery rate, coil performance, and inlet conditions. Vaillant uniSTOR guidance: supply pressure below 1 bar means the unvented cylinder should not be installed. |
 | "Heat pumps often need emitter and hydraulic changes." | The exact requirement must come from room-by-room heat loss, target flow temperature, and pipework calculation. |
+
+---
+
+## 16. Product Surface Naming — Simulator / System Lab
+
+**Canonical rule:** "Simulator" means only the full interactive System Simulator / System Lab experience.
+
+### The System Simulator / System Lab
+
+The System Simulator (also called System Lab) is the full interactive experience at `ExplainersHubPage` + `SimulatorDashboard`. It includes:
+- Full system diagrams
+- Live tap on/off interaction
+- Heating behaviour and system response
+- Compare mode (current vs proposed system)
+
+All CTAs that say "Open simulator", "Continue to simulator", "Launch Simulator", or similar **must route exclusively to this surface**.
+
+### Lightweight behaviour preview widgets
+
+Any simplified or read-only scenario-switching widget (e.g. `ScenarioPreviewPanel`) must **not** use the word "simulator" in:
+- Its component or file name
+- Its primary heading or label
+- Any user-facing copy it renders
+
+Acceptable names for such surfaces: **Scenario Preview**, **Behaviour Preview**, **Explainer Preview**.
+
+### Naming enforcement
+
+| Term | Allowed surface |
+|---|---|
+| "Simulator" / "System Simulator" / "System Lab" | ExplainersHubPage + SimulatorDashboard only |
+| "Scenario Preview" / "Behaviour Preview" | Lightweight read-only behaviour card panels |
+| "Glass Box Simulator" | UnifiedSimulatorView (wraps SimulatorDashboard — acceptable because it contains the real simulator) |
