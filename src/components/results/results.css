@@ -410,6 +410,100 @@
   line-height: 1.5;
 }
 
+/* ── Why this fits (visible, non-collapsible) ───────────────────────────── */
+
+.opt-card__why-fits {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 1rem;
+  background: #f0fff4;
+  border-left: 3px solid #9ae6b4;
+  border-radius: 0 6px 6px 0;
+}
+
+.opt-card__why-fits-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #276749;
+  margin: 0 0 0.4rem;
+}
+
+.opt-card__why-fits-list {
+  margin: 0;
+  padding-left: 1.125rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.opt-card__why-fits-list li {
+  font-size: 0.88rem;
+  color: #2d3748;
+  line-height: 1.5;
+}
+
+/* ── Trade-off block (visible for viable/caution) ───────────────────────── */
+
+.opt-card__tradeoff-block {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 1rem;
+  background: #fffaf0;
+  border-left: 3px solid #f6ad55;
+  border-radius: 0 6px 6px 0;
+}
+
+.opt-card__tradeoff-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #c05621;
+  margin: 0 0 0.3rem;
+}
+
+.opt-card__tradeoff-note {
+  font-size: 0.88rem;
+  color: #744210;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── Supports your priorities ────────────────────────────────────────────── */
+
+.opt-card__priorities {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 1rem;
+  background: #ebf8ff;
+  border-left: 3px solid #90cdf4;
+  border-radius: 0 6px 6px 0;
+}
+
+.opt-card__priorities-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #2b6cb0;
+  margin: 0 0 0.5rem;
+}
+
+.opt-card__priority-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.opt-card__priority-pill {
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  background: #bee3f8;
+  color: #1a365d;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 /* ── Measurement Confidence Panel ───────────────────────────────────────── */
 
 .conf-panel {

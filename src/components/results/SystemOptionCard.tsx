@@ -22,10 +22,14 @@
  */
 import { useState } from 'react';
 import type { OptionCardV1, SensitivityItem } from '../../contracts/EngineOutputV1';
+import type { PriorityKey } from '../../features/survey/priorities/prioritiesTypes';
+import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
 import './results.css';
 
 interface Props {
   card: OptionCardV1;
+  /** Selected priorities from the survey — drives the "Supports your priorities" block. */
+  selectedPriorities?: PriorityKey[];
 }
 
 // ─── Status mapping ───────────────────────────────────────────────────────────
@@ -79,6 +83,53 @@ const WHAT_TO_EXPECT: Partial<Record<OptionCardV1['id'], string[]>> = {
     'Quieter in operation than open vented systems.',
   ],
 };
+
+// ─── Priority support mapping ─────────────────────────────────────────────────
+
+/**
+ * Maps each system option to the priorities it inherently supports well.
+ * Used to derive the "Supports your priorities" block — purely presentational.
+ * Physics-based suitability/ranking is unchanged.
+ *
+ * Rationale by system:
+ *   combi          — simple swap (disruption) + fewer components (reliability); no stored water
+ *                    means it cannot claim performance at peak demand or future-compatibility.
+ *   stored_vented  — pre-stored supply (performance) + proven tech (reliability, longevity) +
+ *                    keeps existing loft infrastructure (disruption); open vented limits
+ *                    future-compatibility (not HP-ready without pressurisation).
+ *   stored_unvented — pre-stored supply (performance) + mature tech (reliability, longevity) +
+ *                    mains-pressure supply makes it HP-ready (future_compatibility).
+ *   ashp           — renewable electricity (eco) + seasonal efficiency gain (cost_tendency) +
+ *                    aligned with Future Homes Standard (future_compatibility) + long compressor
+ *                    lifespan (longevity) + fewer combustion parts (reliability).
+ *   regular_vented — like stored_vented: performance + reliability + longevity + minimal
+ *                    change to existing pipework (disruption).
+ *   system_unvented — like stored_unvented: performance + reliability + longevity +
+ *                    mains-pressure ready for HP upgrade (future_compatibility).
+ */
+const OPTION_PRIORITY_SUPPORT: Record<OptionCardV1['id'], PriorityKey[]> = {
+  combi:           ['reliability', 'disruption'],
+  stored_vented:   ['performance', 'reliability', 'longevity', 'disruption'],
+  stored_unvented: ['performance', 'reliability', 'longevity', 'future_compatibility'],
+  ashp:            ['eco', 'cost_tendency', 'future_compatibility', 'longevity', 'reliability'],
+  regular_vented:  ['performance', 'reliability', 'longevity', 'disruption'],
+  system_unvented: ['performance', 'reliability', 'longevity', 'future_compatibility'],
+};
+
+/**
+ * Returns priority labels from the user's selected set that this option supports.
+ * Returns an empty array when there is no intersection or no priorities were selected.
+ */
+function supportedPriorityLabels(
+  cardId: OptionCardV1['id'],
+  selectedPriorities: PriorityKey[],
+): string[] {
+  if (selectedPriorities.length === 0) return [];
+  const supported = new Set(OPTION_PRIORITY_SUPPORT[cardId] ?? []);
+  return selectedPriorities
+    .filter(k => supported.has(k))
+    .map(k => PRIORITY_META.find(m => m.key === k)?.label ?? k);
+}
 
 // ─── Impact bullets for non-viable systems ────────────────────────────────────
 
@@ -140,30 +191,41 @@ function CollapsibleSection({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function SystemOptionCard({ card }: Props) {
+export default function SystemOptionCard({ card, selectedPriorities = [] }: Props) {
   const badge = STATUS_BADGE[card.status];
   const cardModifier = badge.modifier;
 
-  // Combine why[] from the card with plane headlines for the "Why this result" block.
-  // For rejected cards, why[0] is already shown as the "Reason" above the collapsible,
-  // so skip it here to avoid repeating the same point twice.
-  const whySource = card.status === 'rejected' ? card.why.slice(1) : card.why;
+  const isViableOrCaution = card.status === 'viable' || card.status === 'caution';
+
+  // For viable/caution cards, show the first 2 why[] lines as a visible
+  // "Why this fits" block, and keep the rest in a collapsible.
+  // For rejected cards, why[0] is shown as "Reason" above the collapsible.
+  const visibleWhyLines = isViableOrCaution ? card.why.slice(0, 2) : [];
+  const collapsibleWhySource = isViableOrCaution ? card.why.slice(2) : card.why.slice(1);
   const whyLines: string[] = [
-    ...whySource,
+    ...collapsibleWhySource,
     ...[card.dhw, card.heat, card.engineering]
       .filter(p => p.status !== 'ok' && p.headline)
       .map(p => p.headline),
   ].filter(Boolean);
 
+  // Trade-off: first downgrade sensitivity for viable/caution cards
+  const sensitivities = card.sensitivities ?? [];
+  const tradeOffNote = isViableOrCaution
+    ? (sensitivities.find(s => s.effect === 'downgrade')?.note ?? null)
+    : null;
+
   // Impact bullets for non-viable status
   const impacts = card.status !== 'viable' ? impactBullets(card) : [];
 
   // What would change — only for non-viable, using sensitivities
-  const sensitivities = card.sensitivities ?? [];
   const hasChanges = card.status !== 'viable' && sensitivities.some(s => s.effect === 'upgrade');
 
   // What to expect — static lived-experience copy for this system type
   const expectBullets = WHAT_TO_EXPECT[card.id] ?? [];
+
+  // Supports your priorities — intersection of user's selected priorities and this option's strengths
+  const supportedPriorities = supportedPriorityLabels(card.id, selectedPriorities);
 
   return (
     <div className={`opt-card opt-card--${cardModifier}`}>
@@ -180,6 +242,26 @@ export default function SystemOptionCard({ card }: Props) {
 
       {/* Headline */}
       <p className="opt-card__headline">{card.headline}</p>
+
+      {/* ── Why this fits (visible, first 2 reasons — viable/caution only) ── */}
+      {visibleWhyLines.length > 0 && (
+        <div className="opt-card__why-fits">
+          <p className="opt-card__why-fits-label">Why this fits</p>
+          <ul className="opt-card__why-fits-list">
+            {visibleWhyLines.map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* ── Trade-off (visible, viable/caution only) ─────────────────────── */}
+      {tradeOffNote && (
+        <div className="opt-card__tradeoff-block">
+          <p className="opt-card__tradeoff-label">The trade-off here is</p>
+          <p className="opt-card__tradeoff-note">{tradeOffNote}</p>
+        </div>
+      )}
 
       {/* ── What to expect ──────────────────────────────────────────────── */}
       {expectBullets.length > 0 && (
@@ -217,9 +299,21 @@ export default function SystemOptionCard({ card }: Props) {
         </div>
       )}
 
-      {/* ── Why this result ─────────────────────────────────────────────── */}
+      {/* ── Supports your priorities ─────────────────────────────────────── */}
+      {supportedPriorities.length > 0 && (
+        <div className="opt-card__priorities">
+          <p className="opt-card__priorities-label">Supports your priorities</p>
+          <div className="opt-card__priority-pills">
+            {supportedPriorities.map(label => (
+              <span key={label} className="opt-card__priority-pill">{label}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Why this result (collapsible — remaining reasons + plane detail) */}
       {whyLines.length > 0 && (
-        <CollapsibleSection label="Why this result">
+        <CollapsibleSection label={isViableOrCaution ? 'More detail' : 'Why this result'}>
           <ul className="opt-card__why-list">
             {whyLines.map((line, i) => (
               <li key={i}>{line}</li>
