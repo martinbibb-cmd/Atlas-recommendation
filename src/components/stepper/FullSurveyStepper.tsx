@@ -64,10 +64,10 @@ interface Props {
   onDraft?: (draft: FullSurveyModelV1) => void;
 }
 
-type Step = 'location' | 'pressure' | 'services' | 'hydraulic' | 'system_builder' | 'usage' | 'hot_water' | 'commercial' | 'overlay';
-/** Step 10 ("results") is intentionally excluded — the survey ends at "overlay"
- *  and the stepper transitions to hub mode after the engine run. */
-const STEPS: Step[] = ['location', 'pressure', 'services', 'hydraulic', 'system_builder', 'usage', 'hot_water', 'commercial', 'overlay'];
+type Step = 'system_builder' | 'usage' | 'services';
+/** Legacy steps are preserved in the component body for their engine/physics logic,
+ *  but are no longer part of the active V2 survey flow. */
+const STEPS: Step[] = ['system_builder', 'usage', 'services'];
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
 // Two independent physics dimensions:
@@ -516,7 +516,7 @@ function InlineExplainerLink({ explainerId, testId, style }: {
 }
 
 export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft }: Props) {
-  const [currentStep, setCurrentStep] = useState<Step>('location');
+  const [currentStep, setCurrentStep] = useState<Step>('system_builder');
   const [input, setInput] = useState<FullSurveyModelV1>(() =>
     prefill ? { ...defaultInput, ...prefill } : defaultInput
   );
@@ -572,19 +572,9 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usageState]);
 
-  /**
-   * Maps survey step names to LivePhysicsOverlay step keys.
-   *
-   * The 'usage' step is intentionally excluded: the demand summary block
-   * lives inside the step card itself, and rendering the overlay panel
-   * alongside it would duplicate information.
-   */
-  const overlayStepKey: OverlayStepKey | null = useMemo(() => {
-    if (currentStep === 'location')   return 'shell';
-    if (currentStep === 'pressure')   return 'supply';
-    if (currentStep === 'hot_water')  return 'storage';
-    return null;
-  }, [currentStep]);
+  // The overlay panel is not shown in the V2 survey flow — all legacy steps
+  // that used it (location, pressure, hot_water) are no longer active.
+  const overlayStepKey: OverlayStepKey | null = null;
 
   // Water hardness search: shows a live preview when the user clicks "Search"
   const [hardnessPreview, setHardnessPreview] = useState<ReturnType<typeof runRegionalHardness> | null>(null);
@@ -810,8 +800,8 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   });
 
   const next = () => {
-    if (currentStep === 'overlay') {
-      // Strip fullSurvey extras — pass only the EngineInputV2_3 subset to the engine.
+    if (stepIndex === STEPS.length - 1) {
+      // Last survey step — run the engine and advance to results.
       const draft = buildDraft();
       const engineInput = toEngineInput(sanitiseModelForEngine(draft));
       if (onDraft) onDraft(draft);
@@ -1859,6 +1849,20 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           onNext={next}
           onPrev={prev}
           showDebugOutput={true}
+          nextLabel="Run Full Analysis →"
+          staticPressureBar={input.staticMainsPressureBar}
+          dynamicPressureBar={input.dynamicMainsPressureBar ?? input.dynamicMainsPressure}
+          dynamicFlowLpm={input.mainsDynamicFlowLpm}
+          onMeasurementsChange={(staticBar, dynamicBar, flowLpm) => {
+            setInput(prev => ({
+              ...prev,
+              staticMainsPressureBar: staticBar,
+              dynamicMainsPressureBar: dynamicBar,
+              dynamicMainsPressure: dynamicBar ?? prev.dynamicMainsPressure,
+              mainsDynamicFlowLpm: flowLpm,
+              mainsDynamicFlowLpmKnown: flowLpm !== undefined ? true : undefined,
+            }));
+          }}
         />
       )}
 

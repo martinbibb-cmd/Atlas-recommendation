@@ -15,11 +15,22 @@ beforeEach(() => {
   vi.stubGlobal('scrollTo', vi.fn());
 });
 
+/** Fill system_builder minimum so the "Next →" button becomes enabled. */
+async function fillSystemBuilderMinimum(user: ReturnType<typeof userEvent.setup>) {
+  const heatSource = document.querySelector('[data-testid="heat-source-combi"]') as HTMLElement | null;
+  if (heatSource) await user.click(heatSource);
+  const dhwType = document.querySelector('[data-testid="dhw-type-plate_hex"]') as HTMLElement | null;
+  if (dhwType) await user.click(dhwType);
+  const emitter = document.querySelector('[data-testid="emitter-radiators_standard"]') as HTMLElement | null;
+  if (emitter) await user.click(emitter);
+}
+
 describe('FullSurveyStepper — scroll-to-top on navigation', () => {
   it('scrolls to top when the Next button is clicked', async () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
+    await fillSystemBuilderMinimum(user);
     const nextBtn = screen.getByRole('button', { name: /next/i });
     await user.click(nextBtn);
 
@@ -30,8 +41,9 @@ describe('FullSurveyStepper — scroll-to-top on navigation', () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    // Advance to step 2 first so the Back button navigates within the stepper
+    // Advance to step 2 (usage) first so the Back button navigates within the stepper
     // rather than calling the onBack prop.
+    await fillSystemBuilderMinimum(user);
     const nextBtn = screen.getByRole('button', { name: /next/i });
     await user.click(nextBtn);
 
@@ -50,12 +62,13 @@ describe('FullSurveyStepper — scroll-to-top on navigation', () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    // Clear the initial mount scroll (step = 'location' on mount).
+    // Clear the initial mount scroll.
     vi.clearAllMocks();
 
-    // Interact with the postcode input — this should NOT trigger a scroll.
-    const postcodeInput = screen.getByPlaceholderText(/e\.g\. SW1A/i);
-    await user.type(postcodeInput, 'B');
+    // Interact with a heat-source chip — this changes local state without
+    // triggering step navigation and must NOT call scrollTo.
+    const combiBtn = document.querySelector('[data-testid="heat-source-combi"]') as HTMLElement | null;
+    if (combiBtn) await user.click(combiBtn);
 
     expect(window.scrollTo).not.toHaveBeenCalled();
   });

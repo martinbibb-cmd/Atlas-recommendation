@@ -53,15 +53,67 @@ export function coerceDhwAfterHeatSourceChange(
   return ALLOWED_DHW_BY_HEAT_SOURCE[newHeatSource].includes(currentDhw) ? currentDhw : null;
 }
 
+// ─── Control family narrowing ──────────────────────────────────────────────────
+
+/**
+ * Returns the set of control families that are contextually appropriate for
+ * the given heat source and DHW type, split into primary (recommended) and
+ * secondary (available but not typical) groups.
+ *
+ * Narrowing rules:
+ *   combi              → primary: combi_integral; secondary: (none)
+ *   regular/system +
+ *     thermal_store    → primary: thermal_store; secondary: y_plan, s_plan, s_plan_plus
+ *   regular/system +
+ *     other cylinder   → primary: y_plan, s_plan, s_plan_plus; secondary: (none)
+ *   storage_combi      → primary: combi_integral; secondary: (none)
+ *   unknown / null     → all options available; no narrowing
+ */
+export function getNarrowedControlFamilies(
+  heatSource: HeatSource | null,
+  dhwType: DhwType | null,
+): { primary: ControlFamily[]; secondary: ControlFamily[] } {
+  if (heatSource === 'combi' || heatSource === 'storage_combi') {
+    return {
+      primary: ['combi_integral'],
+      secondary: [],
+    };
+  }
+  if ((heatSource === 'regular' || heatSource === 'system') && dhwType === 'thermal_store') {
+    return {
+      primary: ['thermal_store'],
+      secondary: ['y_plan', 's_plan', 's_plan_plus', 'unknown'],
+    };
+  }
+  if (heatSource === 'regular' || heatSource === 'system') {
+    return {
+      primary: ['y_plan', 's_plan', 's_plan_plus'],
+      secondary: ['unknown'],
+    };
+  }
+  // No heat source selected — all options, no narrowing
+  return {
+    primary: ['combi_integral', 'y_plan', 's_plan', 's_plan_plus', 'thermal_store', 'unknown'],
+    secondary: [],
+  };
+}
+
 // ─── Control family default ────────────────────────────────────────────────────
 
 /**
- * When the heat source is combi, the integral timer/programmer is the natural
- * default control family.  For other types this is unknown until the surveyor
+ * When the heat source is combi or storage_combi, the integral timer/programmer
+ * is the natural default control family.  For thermal_store DHW, thermal_store
+ * controls are suggested.  For other types this is unknown until the surveyor
  * selects it.
  */
-export function deriveDefaultControlFamily(heatSource: HeatSource | null): ControlFamily | null {
-  if (heatSource === 'combi') return 'combi_integral';
+export function deriveDefaultControlFamily(
+  heatSource: HeatSource | null,
+  dhwType?: DhwType | null,
+): ControlFamily | null {
+  if (heatSource === 'combi' || heatSource === 'storage_combi') return 'combi_integral';
+  if ((heatSource === 'regular' || heatSource === 'system') && dhwType === 'thermal_store') {
+    return 'thermal_store';
+  }
   return null;
 }
 

@@ -29,6 +29,16 @@ interface ServicesStepProps {
   onPrev: () => void;
   /** When true, renders a compact dev/debug summary of the normalised output. */
   showDebugOutput?: boolean;
+  /** Label for the forward navigation button. Defaults to "Next →". */
+  nextLabel?: string;
+  /** Mains static pressure (bar) — merged from former Mains Supply step. */
+  staticPressureBar?: number;
+  /** Mains dynamic pressure (bar) under flow — merged from former Mains Supply step. */
+  dynamicPressureBar?: number;
+  /** Mains dynamic flow rate (L/min) — merged from former Mains Supply step. */
+  dynamicFlowLpm?: number;
+  /** Called when any of the pressure/flow measurements change. */
+  onMeasurementsChange?: (staticBar: number | undefined, dynamicBar: number | undefined, flowLpm: number | undefined) => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -123,6 +133,11 @@ export function ServicesStep({
   onNext,
   onPrev,
   showDebugOutput = false,
+  nextLabel = 'Next →',
+  staticPressureBar,
+  dynamicPressureBar,
+  dynamicFlowLpm,
+  onMeasurementsChange,
 }: ServicesStepProps) {
   // Local postcode input — seeded from survey postcode but independently editable.
   const [postcodeInput, setPostcodeInput] = useState<string>(
@@ -175,6 +190,86 @@ export function ServicesStep({
         Water quality affects combi plate heat exchanger scaling, cylinder coil fouling,
         and long-term system performance.
       </p>
+
+      {/* ── Mains pressure & flow block ─────────────────────────────────────── */}
+      <div
+        data-testid="mains-supply-block"
+        style={{ marginTop: '1rem', padding: '1rem', background: '#fafafa', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+      >
+        <p style={{ ...sectionHeadingStyle, marginTop: 0 }}>Mains supply</p>
+        <p style={{ fontSize: '0.8rem', color: '#4a5568', margin: '0 0 0.75rem' }}>
+          Record standing and dynamic pressure, plus measured flow at full-bore.
+          These determine suitability for mains-fed (unvented) hot water.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div className="form-field">
+            <label style={{ fontWeight: 600, fontSize: '0.85rem', color: '#4a5568' }}>
+              Static pressure (bar) — no flow
+            </label>
+            <input
+              data-testid="static-pressure-input"
+              type="number"
+              min={0.5}
+              max={8}
+              step={0.1}
+              value={staticPressureBar ?? ''}
+              placeholder="e.g. 3.5 — optional"
+              onChange={e => {
+                const val = e.target.value ? +e.target.value : undefined;
+                onMeasurementsChange?.(val, dynamicPressureBar, dynamicFlowLpm);
+              }}
+              style={{ marginTop: '0.3rem', padding: '0.4rem 0.6rem', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '0.85rem', width: '120px' }}
+            />
+            <span style={{ fontSize: '0.72rem', color: '#718096', display: 'block', marginTop: '0.2rem' }}>
+              Measured with all taps closed. Leave blank if not taken.
+            </span>
+          </div>
+          <div className="form-field">
+            <label style={{ fontWeight: 600, fontSize: '0.85rem', color: '#4a5568' }}>
+              Dynamic pressure (bar) — under flow
+            </label>
+            <input
+              data-testid="dynamic-pressure-input"
+              type="number"
+              min={0.1}
+              max={8}
+              step={0.1}
+              value={dynamicPressureBar ?? ''}
+              placeholder="e.g. 2.0 — optional"
+              onChange={e => {
+                const val = e.target.value ? +e.target.value : undefined;
+                onMeasurementsChange?.(staticPressureBar, val, dynamicFlowLpm);
+              }}
+              style={{ marginTop: '0.3rem', padding: '0.4rem 0.6rem', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '0.85rem', width: '120px' }}
+            />
+            <span style={{ fontSize: '0.72rem', color: '#718096', display: 'block', marginTop: '0.2rem' }}>
+              Measured with the cold tap running at full bore.
+            </span>
+          </div>
+          <div className="form-field">
+            <label style={{ fontWeight: 600, fontSize: '0.85rem', color: '#4a5568' }}>
+              Dynamic flow (L/min) — at pressure
+            </label>
+            <input
+              data-testid="dynamic-flow-input"
+              type="number"
+              min={0.5}
+              max={40}
+              step={0.5}
+              value={dynamicFlowLpm ?? ''}
+              placeholder="e.g. 12 — optional"
+              onChange={e => {
+                const val = e.target.value ? +e.target.value : undefined;
+                onMeasurementsChange?.(staticPressureBar, dynamicPressureBar, val);
+              }}
+              style={{ marginTop: '0.3rem', padding: '0.4rem 0.6rem', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '0.85rem', width: '120px' }}
+            />
+            <span style={{ fontSize: '0.72rem', color: '#718096', display: 'block', marginTop: '0.2rem' }}>
+              Measured simultaneously with dynamic pressure. Leave blank if not taken.
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* ── Water quality block ─────────────────────────────────────────────── */}
       <div
@@ -338,7 +433,7 @@ export function ServicesStep({
           type="button"
           onClick={onNext}
         >
-          Next →
+          {nextLabel}
         </button>
       </div>
     </div>

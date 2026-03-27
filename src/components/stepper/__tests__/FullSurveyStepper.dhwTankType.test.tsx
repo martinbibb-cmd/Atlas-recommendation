@@ -60,6 +60,11 @@ async function advanceToStep(user: ReturnType<typeof userEvent.setup>, targetInd
 /**
  * Render the stepper with a prefilled fullSurvey.dhwCondition and advance to Step 7.
  * Returns the user event instance for further interactions.
+ *
+ * NOTE: The hot_water step has been removed from the active V2 survey flow.
+ * These tests are skipped until the step is re-integrated or a replacement surface
+ * is added. The `renderAtHotWaterStep` helper is preserved so the tests can be
+ * quickly un-skipped if the screen is reinstated.
  */
 async function renderAtHotWaterStep(dhwCondition: FullSurveyModelV1['fullSurvey']['dhwCondition']) {
   const user = userEvent.setup();
@@ -67,14 +72,18 @@ async function renderAtHotWaterStep(dhwCondition: FullSurveyModelV1['fullSurvey'
     fullSurvey: { dhwCondition },
   };
   render(<FullSurveyStepper onBack={() => {}} prefill={prefill} />);
-  // Advance to step 7 (hot_water — index 6 with services at index 2 and system_builder at index 4).
+  // hot_water was at index 6 in the old 9-step flow.
+  // It is no longer in the active V2 STEPS array, so navigation to it via
+  // the stepper is not possible. Tests below are skipped accordingly.
   await advanceToStep(user, 6);
   return user;
 }
 
 // ─── dhwTankType picker visibility ───────────────────────────────────────────
+// SKIPPED: hot_water step is removed from the active V2 survey flow.
+// These tests document the expected behaviour if the step is reinstated.
 
-describe('FullSurveyStepper — Step 7 dhwTankType picker visibility', () => {
+describe.skip('FullSurveyStepper — Step 7 dhwTankType picker visibility', () => {
   it('hides the picker when no cylinder is present and intent is "keep"', async () => {
     await renderAtHotWaterStep({
       currentCylinderPresent: false,
@@ -140,8 +149,9 @@ describe('FullSurveyStepper — Step 7 dhwTankType picker visibility', () => {
 });
 
 // ─── Stored hot water explainer copy ─────────────────────────────────────────
+// SKIPPED: hot_water step is removed from the active V2 survey flow.
 
-describe('FullSurveyStepper — Step 7 stored hot water explainer', () => {
+describe.skip('FullSurveyStepper — Step 7 stored hot water explainer', () => {
   it('shows the "Stored hot water is being considered" notice when the picker is visible', async () => {
     await renderAtHotWaterStep({
       currentCylinderPresent: false,
@@ -176,8 +186,9 @@ describe('FullSurveyStepper — Step 7 stored hot water explainer', () => {
 });
 
 // ─── Explainer links ─────────────────────────────────────────────────────────
+// SKIPPED: hot_water step is removed from the active V2 survey flow.
 
-describe('FullSurveyStepper — Step 7 explainer links', () => {
+describe.skip('FullSurveyStepper — Step 7 explainer links', () => {
   it('shows the on-demand vs stored explainer link on the DHW setup card', async () => {
     await renderAtHotWaterStep({
       currentCylinderPresent: false,
