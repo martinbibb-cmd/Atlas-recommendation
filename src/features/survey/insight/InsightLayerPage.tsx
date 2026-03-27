@@ -30,6 +30,10 @@ import {
   deriveQuickWins,
   deriveSystemRecommendations,
 } from './insightDerivations';
+import SystemArchitectureVisualiser from '../../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
+import { systemBuilderToConceptModel } from '../../../explainers/lego/autoBuilder/systemBuilderToConceptModel';
+import { optionToConceptModel } from '../../../explainers/lego/autoBuilder/optionToConceptModel';
+import type { OptionId } from '../../../explainers/lego/autoBuilder/optionToConceptModel';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -136,6 +140,18 @@ function formatDhwType(v: string | null): string {
   return map[v] ?? v;
 }
 
+// ─── Recommendation → OptionId mapping ───────────────────────────────────────
+
+/** Maps insight recommendation IDs to OptionId values used by optionToConceptModel. */
+function recIdToOptionId(recId: string): OptionId | null {
+  switch (recId) {
+    case 'combi_upgrade': return 'combi';
+    case 'system_unvented': return 'stored_unvented';
+    case 'heat_pump': return 'ashp';
+    default: return null;
+  }
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function InsightLayerPage({
@@ -154,6 +170,9 @@ export function InsightLayerPage({
   const quickWins    = deriveQuickWins(systemBuilder, input);
   const normPriorities = normalisePriorities(priorities);
   const recs         = deriveSystemRecommendations(systemBuilder, home, input, normPriorities);
+
+  // Build current system concept model for the Lego visualiser
+  const currentConcept = systemBuilderToConceptModel(systemBuilder);
 
   const hasLimitations =
     limitations.mainsPressureLow ||
@@ -181,6 +200,17 @@ export function InsightLayerPage({
   return (
     <div className="step-card" data-testid="insight-layer-page">
       <h2 style={{ marginBottom: '1.25rem' }}>🧠 What we need to keep in mind</h2>
+
+      {/* ── 0. Current system visualiser ─────────────────────────────────────── */}
+      {systemBuilder.heatSource && (
+        <div style={{ ...sectionStyle, marginBottom: '1rem' }}>
+          <p style={sectionTitleStyle}>🏠 Your current system</p>
+          <SystemArchitectureVisualiser
+            mode="current"
+            currentSystem={currentConcept}
+          />
+        </div>
+      )}
 
       {/* ── 1. At a glance ───────────────────────────────────────────────────── */}
       <div style={sectionStyle}>
@@ -337,6 +367,20 @@ export function InsightLayerPage({
                   {rec.tier === 'fallback' && <span style={pillStyle('grey')}>Fallback</span>}
                   <strong style={{ fontSize: '0.82rem', color: '#2d3748' }}>{rec.name}</strong>
                 </div>
+                {/* Compare visualiser: current system vs proposed system */}
+                {(() => {
+                  const optionId = recIdToOptionId(rec.id);
+                  if (!optionId) return null;
+                  return (
+                    <div style={{ marginBottom: '0.6rem' }}>
+                      <SystemArchitectureVisualiser
+                        mode="compare"
+                        currentSystem={currentConcept}
+                        recommendedSystem={optionToConceptModel(optionId)}
+                      />
+                    </div>
+                  );
+                })()}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
                   {rec.whyItFits.length > 0 && (
                     <div>

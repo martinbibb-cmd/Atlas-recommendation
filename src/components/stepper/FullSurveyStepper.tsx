@@ -287,6 +287,10 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     if (stepIndex === 0) {
       onBack();
     } else {
+      // Autosave draft on back-navigation too so that drawn heat-loss geometry
+      // and other step state survive reload / save-restore even when the user
+      // navigates backwards without first going forward.
+      if (onDraft) onDraft(buildDraft());
       setCurrentStep(STEPS[stepIndex - 1]);
     }
   };
