@@ -53,6 +53,15 @@ export type ProgrammerType =
   | 'none'              // no programmer installed
   | 'unknown';
 
+// ─── Regular-boiler system detail ─────────────────────────────────────────────
+// Only relevant when heatSource === 'regular'.
+
+/** Whether the heating circuit is open-vented or sealed. */
+export type HeatingSystemType = 'open_vented' | 'sealed' | 'unknown';
+
+/** Whether the primary pipework is accessible for inspection or replacement. */
+export type PipeworkAccess = 'accessible' | 'buried' | 'unknown';
+
 // ─── Asset health ─────────────────────────────────────────────────────────────
 
 export type SedbukBand = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'unknown';
@@ -79,6 +88,10 @@ export type SystemBuilderState = {
   boilerAgeYears: number | null;
   sedbukBand: SedbukBand | null;
   serviceHistory: ServiceHistory | null;
+  /** Only captured when heatSource === 'regular'. */
+  heatingSystemType: HeatingSystemType | null;
+  /** Only captured when heatSource === 'regular'. */
+  pipeworkAccess: PipeworkAccess | null;
 };
 
 export const INITIAL_SYSTEM_BUILDER_STATE: SystemBuilderState = {
@@ -93,4 +106,6 @@ export const INITIAL_SYSTEM_BUILDER_STATE: SystemBuilderState = {
   boilerAgeYears: null,
   sedbukBand: null,
   serviceHistory: null,
+  heatingSystemType: null,
+  pipeworkAccess: null,
 };

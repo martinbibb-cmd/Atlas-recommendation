@@ -21,6 +21,8 @@ import type {
   ProgrammerType,
   SedbukBand,
   ServiceHistory,
+  HeatingSystemType,
+  PipeworkAccess,
 } from './systemBuilderTypes';
 import {
   getAllowedDhwTypes,
@@ -126,6 +128,18 @@ const SERVICE_HISTORY_OPTIONS: { value: ServiceHistory; label: string; descripti
   { value: 'regular',   label: 'Regular',   description: 'Annually or near-annually serviced' },
   { value: 'irregular', label: 'Irregular', description: 'Serviced but not consistently' },
   { value: 'unknown',   label: 'Unknown',   description: '' },
+];
+
+const HEATING_SYSTEM_TYPE_OPTIONS: { value: HeatingSystemType; label: string; description: string }[] = [
+  { value: 'open_vented', label: 'Open-vented', description: 'Feed-and-expansion cistern in loft — vented to atmosphere' },
+  { value: 'sealed',      label: 'Sealed',      description: 'Pressurised closed circuit — no feed cistern' },
+  { value: 'unknown',     label: 'Unknown',     description: '' },
+];
+
+const PIPEWORK_ACCESS_OPTIONS: { value: PipeworkAccess; label: string; description: string }[] = [
+  { value: 'accessible', label: 'Exposed / accessible', description: 'Pipework visible and accessible for inspection or replacement' },
+  { value: 'buried',     label: 'Buried / in walls',    description: 'Pipework concealed — difficult access for inspection or repair' },
+  { value: 'unknown',    label: 'Unknown',              description: '' },
 ];
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -524,6 +538,58 @@ export function SystemBuilderStep({
           </div>
         </div>
       </div>
+
+      {/* ── 7. Regular system detail (only for regular / heat-only boilers) ──── */}
+      {state.heatSource === 'regular' && (
+        <>
+          <p style={sectionHeadingStyle}>7 — Regular system detail</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+
+            {/* 7a. Heating system type */}
+            <div>
+              <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0 0 0.35rem' }}>
+                Heating system type
+              </p>
+              <div style={inlineRowStyle}>
+                {HEATING_SYSTEM_TYPE_OPTIONS.map(({ value, label, description }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    data-testid={`heating-system-type-${value}`}
+                    onClick={() => onChange({ ...state, heatingSystemType: value })}
+                    style={chipStyle(state.heatingSystemType === value)}
+                    title={description || undefined}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 7b. Pipework routing */}
+            <div>
+              <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0.5rem 0 0.35rem' }}>
+                Pipework routing
+              </p>
+              <div style={inlineRowStyle}>
+                {PIPEWORK_ACCESS_OPTIONS.map(({ value, label, description }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    data-testid={`pipework-access-${value}`}
+                    onClick={() => onChange({ ...state, pipeworkAccess: value })}
+                    style={chipStyle(state.pipeworkAccess === value)}
+                    title={description || undefined}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </>
+      )}
 
       {/* ── Debug output ─────────────────────────────────────────────────────── */}
       {showDebugOutput && normalised && (
