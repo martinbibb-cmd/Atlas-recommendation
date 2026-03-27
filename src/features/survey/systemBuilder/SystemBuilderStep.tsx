@@ -23,6 +23,11 @@ import type {
   ServiceHistory,
   HeatingSystemType,
   PipeworkAccess,
+  BleedWaterColour,
+  RadiatorPerformance,
+  CirculationIssues,
+  MagneticFilter,
+  CleaningHistory,
 } from './systemBuilderTypes';
 import {
   getAllowedDhwTypes,
@@ -140,6 +145,41 @@ const PIPEWORK_ACCESS_OPTIONS: { value: PipeworkAccess; label: string; descripti
   { value: 'accessible', label: 'Exposed / accessible', description: 'Pipework visible and accessible for inspection or replacement' },
   { value: 'buried',     label: 'Buried / in walls',    description: 'Pipework concealed — difficult access for inspection or repair' },
   { value: 'unknown',    label: 'Unknown',              description: '' },
+];
+
+// ─── System condition signal options ──────────────────────────────────────────
+
+const BLEED_WATER_COLOUR_OPTIONS: { value: BleedWaterColour; label: string; description: string }[] = [
+  { value: 'clear',                label: 'Clear',               description: 'Water ran clear when bleeding' },
+  { value: 'slightly_discoloured', label: 'Slightly discoloured', description: 'Mild rust or grey tinge' },
+  { value: 'dark',                 label: 'Dark / brown',        description: 'Noticeably dark — indicates oxidised magnetite' },
+  { value: 'sludge',               label: 'Sludge / black',      description: 'Heavy black or gritty discharge — significant fouling' },
+  { value: 'unknown',              label: 'Unknown / not bled',  description: '' },
+];
+
+const RADIATOR_PERFORMANCE_OPTIONS: { value: RadiatorPerformance; label: string; description: string }[] = [
+  { value: 'all_even',       label: 'All heat evenly',   description: 'All radiators heat up fully and evenly' },
+  { value: 'some_cold_spots', label: 'Some cold spots',  description: 'One or more radiators have cold patches or slow heating' },
+  { value: 'many_cold',      label: 'Many cold / poor',  description: 'Multiple radiators cold or poorly performing' },
+];
+
+const CIRCULATION_ISSUES_OPTIONS: { value: CirculationIssues; label: string; description: string }[] = [
+  { value: 'none',                        label: 'None',              description: 'System runs quietly with good flow' },
+  { value: 'occasional_noise',            label: 'Occasional noise',  description: 'Intermittent gurgling, banging or dripping sounds' },
+  { value: 'frequent_noise_or_poor_flow', label: 'Frequent noise / poor flow', description: 'Persistent noise or radiators slow to heat' },
+];
+
+const MAGNETIC_FILTER_OPTIONS: { value: MagneticFilter; label: string; description: string }[] = [
+  { value: 'fitted',     label: 'Fitted',     description: 'Magnetic filter present — typically on return pipework near boiler' },
+  { value: 'not_fitted', label: 'Not fitted', description: 'No magnetic filter observed' },
+  { value: 'unknown',    label: 'Unknown',    description: '' },
+];
+
+const CLEANING_HISTORY_OPTIONS: { value: CleaningHistory; label: string; description: string }[] = [
+  { value: 'recently_cleaned',         label: 'Recently cleaned',          description: 'Power flush or chemical clean within last 2–3 years' },
+  { value: 'cleaned_over_5_years_ago', label: 'Cleaned 5+ years ago',      description: 'System was cleaned but not recently' },
+  { value: 'never_cleaned',            label: 'Never cleaned',             description: 'No record of any flush or chemical treatment' },
+  { value: 'unknown',                  label: 'Unknown',                   description: '' },
 ];
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -590,6 +630,120 @@ export function SystemBuilderStep({
           </div>
         </>
       )}
+
+      {/* ── 8. System condition ─────────────────────────────────────────────── */}
+      <p style={sectionHeadingStyle}>8 — System condition</p>
+      <p style={{ fontSize: '0.75rem', color: '#718096', marginBottom: '0.75rem', marginTop: '-0.25rem' }}>
+        These signals feed directly into the system health assessment and quick-win advice.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+
+        {/* 8a. Bleed water colour */}
+        <div>
+          <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0 0 0.35rem' }}>
+            Bleed water colour
+          </p>
+          <div style={inlineRowStyle}>
+            {BLEED_WATER_COLOUR_OPTIONS.map(({ value, label, description }) => (
+              <button
+                key={value}
+                type="button"
+                data-testid={`bleed-water-colour-${value}`}
+                onClick={() => onChange({ ...state, bleedWaterColour: value })}
+                style={chipStyle(state.bleedWaterColour === value)}
+                title={description || undefined}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 8b. Radiator performance */}
+        <div>
+          <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0.5rem 0 0.35rem' }}>
+            Radiator performance
+          </p>
+          <div style={inlineRowStyle}>
+            {RADIATOR_PERFORMANCE_OPTIONS.map(({ value, label, description }) => (
+              <button
+                key={value}
+                type="button"
+                data-testid={`radiator-performance-${value}`}
+                onClick={() => onChange({ ...state, radiatorPerformance: value })}
+                style={chipStyle(state.radiatorPerformance === value)}
+                title={description || undefined}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 8c. Circulation / noise */}
+        <div>
+          <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0.5rem 0 0.35rem' }}>
+            Circulation / noise
+          </p>
+          <div style={inlineRowStyle}>
+            {CIRCULATION_ISSUES_OPTIONS.map(({ value, label, description }) => (
+              <button
+                key={value}
+                type="button"
+                data-testid={`circulation-issues-${value}`}
+                onClick={() => onChange({ ...state, circulationIssues: value })}
+                style={chipStyle(state.circulationIssues === value)}
+                title={description || undefined}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 8d. Magnetic filter */}
+        <div>
+          <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0.5rem 0 0.35rem' }}>
+            Magnetic filter
+          </p>
+          <div style={inlineRowStyle}>
+            {MAGNETIC_FILTER_OPTIONS.map(({ value, label, description }) => (
+              <button
+                key={value}
+                type="button"
+                data-testid={`magnetic-filter-${value}`}
+                onClick={() => onChange({ ...state, magneticFilter: value })}
+                style={chipStyle(state.magneticFilter === value)}
+                title={description || undefined}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 8e. Cleaning history */}
+        <div>
+          <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0.5rem 0 0.35rem' }}>
+            Cleaning history
+          </p>
+          <div style={inlineRowStyle}>
+            {CLEANING_HISTORY_OPTIONS.map(({ value, label, description }) => (
+              <button
+                key={value}
+                type="button"
+                data-testid={`cleaning-history-${value}`}
+                onClick={() => onChange({ ...state, cleaningHistory: value })}
+                style={chipStyle(state.cleaningHistory === value)}
+                title={description || undefined}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+      </div>
 
       {/* ── Debug output ─────────────────────────────────────────────────────── */}
       {showDebugOutput && normalised && (

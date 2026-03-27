@@ -67,6 +67,43 @@ export type PipeworkAccess = 'accessible' | 'buried' | 'unknown';
 export type SedbukBand = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'unknown';
 export type ServiceHistory = 'regular' | 'irregular' | 'unknown';
 
+// ─── System condition signals ─────────────────────────────────────────────────
+// Captured during the system-condition section of System Builder.
+// These signals feed directly into condition grading and quick-win logic.
+
+/** Colour of water observed when bleeding radiators. */
+export type BleedWaterColour =
+  | 'clear'
+  | 'slightly_discoloured'
+  | 'dark'
+  | 'sludge'
+  | 'unknown';
+
+/** Radiator heat distribution across the system. */
+export type RadiatorPerformance =
+  | 'all_even'
+  | 'some_cold_spots'
+  | 'many_cold';
+
+/** Noise or poor-flow issues on the heating circuit. */
+export type CirculationIssues =
+  | 'none'
+  | 'occasional_noise'
+  | 'frequent_noise_or_poor_flow';
+
+/** Whether a magnetic system filter is fitted. */
+export type MagneticFilter =
+  | 'fitted'
+  | 'not_fitted'
+  | 'unknown';
+
+/** System cleaning / power-flush history. */
+export type CleaningHistory =
+  | 'never_cleaned'
+  | 'cleaned_over_5_years_ago'
+  | 'recently_cleaned'
+  | 'unknown';
+
 // ─── Complete UI state ────────────────────────────────────────────────────────
 
 /**
@@ -92,6 +129,12 @@ export type SystemBuilderState = {
   heatingSystemType: HeatingSystemType | null;
   /** Only captured when heatSource === 'regular'. */
   pipeworkAccess: PipeworkAccess | null;
+  // ── System condition signals ───────────────────────────────────────────────
+  bleedWaterColour: BleedWaterColour | null;
+  radiatorPerformance: RadiatorPerformance | null;
+  circulationIssues: CirculationIssues | null;
+  magneticFilter: MagneticFilter | null;
+  cleaningHistory: CleaningHistory | null;
 };
 
 export const INITIAL_SYSTEM_BUILDER_STATE: SystemBuilderState = {
@@ -108,4 +151,9 @@ export const INITIAL_SYSTEM_BUILDER_STATE: SystemBuilderState = {
   serviceHistory: null,
   heatingSystemType: null,
   pipeworkAccess: null,
+  bleedWaterColour: null,
+  radiatorPerformance: null,
+  circulationIssues: null,
+  magneticFilter: null,
+  cleaningHistory: null,
 };
