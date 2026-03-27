@@ -17,6 +17,27 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './heatloss.css';
+import type { RoofType, RoofOrientation, ShadingLevel, PvStatus, BatteryStatus } from '../../features/survey/heatLoss/heatLossTypes';
+import { RoofOrientationPicker } from '../../features/survey/heatLoss/RoofOrientationPicker';
+import { solarSuitabilitySummary } from '../../features/survey/heatLoss/heatLossDerivations';
+
+// ── Roof model (embedded in heat-loss calculator side panel) ─────────────────
+
+export interface RoofModel {
+  roofType: RoofType;
+  roofOrientation: RoofOrientation;
+  shadingLevel: ShadingLevel;
+  pvStatus: PvStatus;
+  batteryStatus: BatteryStatus;
+}
+
+export const INITIAL_ROOF_MODEL: RoofModel = {
+  roofType: 'unknown',
+  roofOrientation: 'unknown',
+  shadingLevel: 'unknown',
+  pvStatus: 'none',
+  batteryStatus: 'none',
+};
 
 // ── U-values (W/m²K) ─────────────────────────────────────────────────────────
 
@@ -520,17 +541,31 @@ function renderCanvas(
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface Props {
-  onBack: () => void;
+  onBack?: () => void;
   /** When provided, a "Use this value" button appears in the results panel.
    *  Receives the calculated totalHL in kW. */
   onComplete?: (totalHL: number) => void;
+  /**
+   * When true, hides the full-page header and back button so the calculator
+   * can be embedded inside a stepper step rather than rendered full-screen.
+   */
+  embedded?: boolean;
+  /**
+   * Called whenever the heat-loss result changes (or becomes null).
+   * Use this in embedded mode to propagate the value to parent state.
+   */
+  onHeatLossChange?: (totalKw: number | null) => void;
+  /** Roof model state, managed by the parent. */
+  roofModel?: RoofModel;
+  /** Called when the user changes any roof field inside the calculator. */
+  onRoofModelChange?: (next: RoofModel) => void;
 }
 
 function makeLayer(name: string, kind: LayerKind): Layer {
   return { id: generateLayerId(), name, kind, visible: true, points: [], closed: false, edges: [] };
 }
 
-export default function HeatLossCalculator({ onBack, onComplete }: Props) {
+export default function HeatLossCalculator({ onBack, onComplete, embedded, onHeatLossChange, roofModel, onRoofModelChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // View/interaction state (pan, zoom, hover, drag) — no polygon data.
@@ -633,12 +668,25 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
     repaint();
   }, [settings, refreshResults, repaint]);
 
+  // Propagate heat-loss result to parent (embedded mode)
+  useEffect(() => {
+    if (onHeatLossChange) {
+      onHeatLossChange(result ? result.totalHL : null);
+    }
+  // onHeatLossChange is omitted intentionally — calling it only when result changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
   // ── Canvas resize ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const observer = new ResizeObserver(() => repaint());
+    // Wrap repaint() in requestAnimationFrame to avoid the browser warning:
+    // "ResizeObserver loop completed with undelivered notifications"
+    // Synchronous layout reads inside the ResizeObserver callback can cause
+    // the browser to keep re-queuing notifications on the same frame.
+    const observer = new ResizeObserver(() => requestAnimationFrame(() => repaint()));
     observer.observe(canvas.parentElement ?? canvas);
     repaint();
     return () => observer.disconnect();
@@ -1040,15 +1088,17 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
   const activeLayerObj = layers.find(l => l.id === activeLayerId) ?? null;
 
   return (
-    <div className="hlc">
-      {/* Header */}
-      <div className="hlc__header">
-        <div className="hlc__header-title">
-          <h2>🔥 Heat Loss Calculator</h2>
-          <p>Sketch the ground-floor perimeter · set building assumptions · get an instant heat loss estimate</p>
+    <div className={embedded ? 'hlc hlc--embedded' : 'hlc'}>
+      {/* Header — hidden in embedded mode */}
+      {!embedded && (
+        <div className="hlc__header">
+          <div className="hlc__header-title">
+            <h2>🔥 Heat Loss Calculator</h2>
+            <p>Sketch the ground-floor perimeter · set building assumptions · get an instant heat loss estimate</p>
+          </div>
+          {onBack && <button className="hlc__back-btn" onClick={onBack}>← Back</button>}
         </div>
-        <button className="hlc__back-btn" onClick={onBack}>← Back</button>
-      </div>
+      )}
 
       <div className="hlc__body">
         {/* Canvas panel */}
@@ -1419,6 +1469,106 @@ export default function HeatLossCalculator({ onBack, onComplete }: Props) {
               </>
             )}
           </div>
+
+          {/* ── Roof modelling ──────────────────────────────────────────── */}
+          {roofModel && onRoofModelChange && (
+            <div className="hlc__section">
+              <h3>Roof &amp; Solar</h3>
+
+              {/* Roof type */}
+              <div className="hlc__field">
+                <label>Roof type</label>
+                <div className="hlc__chip-row">
+                  {(['pitched', 'flat', 'hipped', 'dormer', 'unknown'] as RoofType[]).map(rt => (
+                    <button
+                      key={rt}
+                      type="button"
+                      className={`hlc__chip${roofModel.roofType === rt ? ' hlc__chip--active' : ''}`}
+                      aria-pressed={roofModel.roofType === rt}
+                      onClick={() => onRoofModelChange({ ...roofModel, roofType: rt })}
+                    >
+                      {rt === 'unknown' ? 'Not sure' : rt.charAt(0).toUpperCase() + rt.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Roof orientation — compass */}
+              <div className="hlc__field">
+                <label>Orientation (main usable roof face)</label>
+                <RoofOrientationPicker
+                  value={roofModel.roofOrientation}
+                  onChange={(v) => onRoofModelChange({ ...roofModel, roofOrientation: v })}
+                />
+              </div>
+
+              {/* Shading */}
+              <div className="hlc__field">
+                <label>Shading on main roof face</label>
+                <div className="hlc__chip-row">
+                  {(['little_or_none', 'some', 'heavy', 'unknown'] as ShadingLevel[]).map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`hlc__chip${roofModel.shadingLevel === s ? ' hlc__chip--active' : ''}`}
+                      aria-pressed={roofModel.shadingLevel === s}
+                      onClick={() => onRoofModelChange({ ...roofModel, shadingLevel: s })}
+                    >
+                      {s === 'little_or_none' ? 'Little / none' : s === 'unknown' ? 'Not sure' : s.charAt(0).toUpperCase() + s.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* PV */}
+              <div className="hlc__field">
+                <label>Solar PV panels</label>
+                <div className="hlc__chip-row">
+                  {(['none', 'existing', 'planned'] as PvStatus[]).map(p => (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`hlc__chip${roofModel.pvStatus === p ? ' hlc__chip--active' : ''}`}
+                      aria-pressed={roofModel.pvStatus === p}
+                      onClick={() => onRoofModelChange({ ...roofModel, pvStatus: p })}
+                    >
+                      {p.charAt(0).toUpperCase() + p.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Battery */}
+              <div className="hlc__field">
+                <label>Battery storage</label>
+                <div className="hlc__chip-row">
+                  {(['none', 'existing', 'planned'] as BatteryStatus[]).map(b => (
+                    <button
+                      key={b}
+                      type="button"
+                      className={`hlc__chip${roofModel.batteryStatus === b ? ' hlc__chip--active' : ''}`}
+                      aria-pressed={roofModel.batteryStatus === b}
+                      onClick={() => onRoofModelChange({ ...roofModel, batteryStatus: b })}
+                    >
+                      {b.charAt(0).toUpperCase() + b.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Solar summary */}
+              {(() => {
+                const summary = solarSuitabilitySummary({
+                  estimatedPeakHeatLossW: null,
+                  heatLossConfidence: 'unknown',
+                  ...roofModel,
+                });
+                return summary ? (
+                  <p className="hlc__solar-summary">{summary}</p>
+                ) : null;
+              })()}
+            </div>
+          )}
         </div>
       </div>
     </div>

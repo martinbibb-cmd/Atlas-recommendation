@@ -10,6 +10,17 @@
   min-height: 100vh;
 }
 
+/* ── Embedded mode (no full-page layout) ─────────────────────────────────── */
+
+.hlc--embedded {
+  min-height: 0;
+  background: transparent;
+}
+
+.hlc--embedded .hlc__body {
+  min-height: 500px;
+}
+
 /* ── Header ─────────────────────────────────────────────────────────────── */
 
 .hlc__header {
@@ -268,6 +279,47 @@
   line-height: 1.4;
 }
 
+/* ── Result breakdown rows ───────────────────────────────────────────────── */
+
+.hlc__breakdown {
+  margin-bottom: 10px;
+}
+
+.hlc__breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 12px;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.hlc__breakdown-row:last-child {
+  border-bottom: none;
+}
+
+/* ── Use button (shown in results panel) ─────────────────────────────────── */
+
+.hlc__use-btn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 9px 14px;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.hlc__use-btn:hover {
+  background: #1e429f;
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 
 @media (max-width: 700px) {
@@ -305,6 +357,52 @@
 
 .hlc__use-value-btn:hover {
   background: #1e429f;
+}
+
+/* ── Chip row (roof type / shading / PV / battery) ───────────────────────── */
+
+.hlc__chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 4px;
+}
+
+.hlc__chip {
+  padding: 0.3rem 0.65rem;
+  border-radius: 16px;
+  border: 1px solid #cbd5e0;
+  background: #f7fafc;
+  color: #4a5568;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+  user-select: none;
+}
+
+.hlc__chip--active {
+  border: 2px solid #2b6cb0;
+  background: #ebf8ff;
+  color: #2b6cb0;
+  font-weight: 700;
+}
+
+.hlc__chip:hover:not(.hlc__chip--active) {
+  background: #edf2f7;
+}
+
+/* ── Solar summary box ───────────────────────────────────────────────────── */
+
+.hlc__solar-summary {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #276749;
+  line-height: 1.5;
 }
 
 /* ── Layer management panel ──────────────────────────────────────────────── */

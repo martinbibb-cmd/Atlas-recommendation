@@ -13,7 +13,6 @@ import {
   type ThermalMass,
 } from '../../engine/presets/FabricPresets';
 import LiveHubPage from '../../live/LiveHubPage';
-import HeatLossCalculator from '../heatloss/HeatLossCalculator';
 import { SystemBuilderStep } from '../../features/survey/systemBuilder/SystemBuilderStep';
 import { INITIAL_SYSTEM_BUILDER_STATE } from '../../features/survey/systemBuilder/systemBuilderTypes';
 import { ServicesStep } from '../../features/survey/services/ServicesStep';
@@ -92,8 +91,8 @@ const defaultInput: FullSurveyModelV1 = {
   },
 };
 
-/** Z-index for full-screen overlays rendered above the stepper. */
-const OVERLAY_Z_INDEX = 1000;
+/** Z-index reserved for any future full-screen overlays above the stepper. */
+// const OVERLAY_Z_INDEX = 1000;
 
 export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('system_builder');
@@ -120,7 +119,6 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   );
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
-  const [showHeatLossCalc, setShowHeatLossCalc] = useState(false);
 
   // ── Wire demographics into engine input ────────────────────────────────────
   // When the Home / Demographics step state changes, sync composition and
@@ -285,21 +283,6 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
         input={input}
         onBack={() => setMode('stepper')}
       />
-    );
-  }
-
-  // Heat loss calculator overlay — shown above the stepper when triggered.
-  if (showHeatLossCalc) {
-    return (
-      <div style={{ position: 'fixed', inset: 0, zIndex: OVERLAY_Z_INDEX, overflowY: 'auto', background: '#f8fafc' }}>
-        <HeatLossCalculator
-          onBack={() => setShowHeatLossCalc(false)}
-          onComplete={(totalHL) => {
-            setInput(prev => ({ ...prev, heatLossWatts: Math.round(totalHL * 1000) }));
-            setShowHeatLossCalc(false);
-          }}
-        />
-      </div>
     );
   }
 
