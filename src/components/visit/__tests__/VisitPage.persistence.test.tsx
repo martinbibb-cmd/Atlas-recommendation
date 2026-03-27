@@ -56,6 +56,19 @@ async function advanceToStep(user: ReturnType<typeof userEvent.setup>, targetInd
   }
 }
 
+/**
+ * Fill in the minimum required fields on the System Architecture step so the
+ * "Next" button becomes enabled.  Selects combi + plate_hex + radiators_standard.
+ */
+async function fillSystemBuilderMinimum(user: ReturnType<typeof userEvent.setup>) {
+  const heatSource = document.querySelector('[data-testid="heat-source-combi"]') as HTMLElement | null;
+  if (heatSource) await user.click(heatSource);
+  const dhwType = document.querySelector('[data-testid="dhw-type-plate_hex"]') as HTMLElement | null;
+  if (dhwType) await user.click(dhwType);
+  const emitter = document.querySelector('[data-testid="emitter-radiators_standard"]') as HTMLElement | null;
+  if (emitter) await user.click(emitter);
+}
+
 // ── onDraft persistence tests ─────────────────────────────────────────────────
 
 describe('FullSurveyStepper — onDraft persistence callback', () => {
@@ -64,6 +77,7 @@ describe('FullSurveyStepper — onDraft persistence callback', () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} onDraft={onDraft} />);
 
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     expect(onDraft).toHaveBeenCalledOnce();
@@ -86,6 +100,7 @@ describe('FullSurveyStepper — onDraft persistence callback', () => {
     };
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
@@ -93,72 +108,40 @@ describe('FullSurveyStepper — onDraft persistence callback', () => {
     expect(draft.fullSurvey?.dhwCondition?.currentCylinderType).toBe('mixergy');
     expect(draft.fullSurvey?.dhwCondition?.dhwUpgradeIntent).toBe('keep');
   }, 10000);
+});
 
-  it('draft includes compareMixergy=true after toggling the checkbox', async () => {
+// ── compareMixergy — state-level persistence (checkbox UI is in legacy hot_water step) ──
+
+describe('FullSurveyStepper — compareMixergy state persists in draft', () => {
+  it('compareMixergy=true from prefill is preserved in draft on step transition', async () => {
     const onDraft = vi.fn();
     const user = userEvent.setup();
-    const prefill: Partial<FullSurveyModelV1> = {
-      fullSurvey: {
-        dhwCondition: {
-          currentCylinderPresent: false,
-          dhwUpgradeIntent: 'replace',
-        },
-      },
-    };
-    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+    render(
+      <FullSurveyStepper
+        onBack={() => {}}
+        prefill={{ fullSurvey: { compareMixergy: true } }}
+        onDraft={onDraft}
+      />
+    );
 
-    await advanceToStep(user, 6); // step 7: hot_water (index 6 with services at index 2 and system_builder at index 4)
-
-    const checkbox = screen.getByRole('checkbox', { name: /show mixergy comparison/i });
-    await user.click(checkbox);
-
-    onDraft.mockClear();
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
     expect(draft.fullSurvey?.compareMixergy).toBe(true);
-  }, 15000);
-});
-
-// ── compareMixergy hydration ──────────────────────────────────────────────────
-
-describe('FullSurveyStepper — Step 7 compareMixergy hydration from prefill', () => {
-  it('hydrates compareMixergy=true from fullSurvey.compareMixergy in prefill', async () => {
-    const user = userEvent.setup();
-    render(
-      <FullSurveyStepper
-        onBack={() => {}}
-        prefill={{
-          fullSurvey: {
-            compareMixergy: true,
-            dhwCondition: { currentCylinderPresent: false, dhwUpgradeIntent: 'replace' },
-          },
-        }}
-      />
-    );
-
-    await advanceToStep(user, 6); // hot_water is now at index 6
-
-    expect(screen.getByRole('checkbox', { name: /show mixergy comparison/i })).toBeChecked();
-  }, 15000);
+  }, 10000);
 
   it('compareMixergy defaults to false when absent from prefill', async () => {
+    const onDraft = vi.fn();
     const user = userEvent.setup();
-    render(
-      <FullSurveyStepper
-        onBack={() => {}}
-        prefill={{
-          fullSurvey: {
-            dhwCondition: { currentCylinderPresent: false, dhwUpgradeIntent: 'replace' },
-          },
-        }}
-      />
-    );
+    render(<FullSurveyStepper onBack={() => {}} onDraft={onDraft} />);
 
-    await advanceToStep(user, 6); // hot_water is now at index 6
+    await fillSystemBuilderMinimum(user);
+    await user.click(screen.getByRole('button', { name: /next/i }));
 
-    expect(screen.getByRole('checkbox', { name: /show mixergy comparison/i })).not.toBeChecked();
-  }, 15000);
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.fullSurvey?.compareMixergy).toBeFalsy();
+  }, 10000);
 });
 
 // ── Global hamburger (ExplainersOverlay in FullSurveyStepper) ────────────────
@@ -205,9 +188,9 @@ describe('FullSurveyStepper — Step 6 duplicate live-physics strip removed', ()
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 5); // usage is index 5 (services added at index 2, system_builder at index 4)
+    await advanceToStep(user, 1); // usage is now at index 1 in V2 flow
 
-    // The LivePhysicsOverlay has className 'live-physics-overlay' — must be absent on Step 6.
+    // The LivePhysicsOverlay has className 'live-physics-overlay' — must be absent on the usage step.
     expect(document.querySelector('.live-physics-overlay')).toBeNull();
   }, 15000);
 
@@ -215,7 +198,7 @@ describe('FullSurveyStepper — Step 6 duplicate live-physics strip removed', ()
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 5); // usage is index 5 (services added at index 2, system_builder at index 4)
+    await advanceToStep(user, 1); // usage is now at index 1 in V2 flow
 
     expect(document.querySelector('[data-testid="dhw-demand-summary"]')).not.toBeNull();
   }, 15000);
@@ -226,7 +209,7 @@ describe('FullSurveyStepper — Step 6 duplicate live-physics strip removed', ()
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 5); // usage is index 5 (services added at index 2, system_builder at index 4)
+    await advanceToStep(user, 1); // usage is now at index 1 in V2 flow
 
     // Allow any debounced engine tick to settle.
     await new Promise(r => setTimeout(r, 500));
@@ -254,6 +237,7 @@ describe('FullSurveyStepper — heatingCondition fields persist in draft', () =>
     };
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
@@ -279,6 +263,7 @@ describe('FullSurveyStepper — heatingCondition fields persist in draft', () =>
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
     // Transition step immediately — no user interaction with heating fields.
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
@@ -306,6 +291,7 @@ describe('FullSurveyStepper — heatingCondition fields persist in draft', () =>
     };
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
@@ -338,6 +324,7 @@ describe('FullSurveyStepper — fabric controls hydrate from prefill and are not
     };
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
@@ -370,6 +357,7 @@ describe('FullSurveyStepper — fabric controls hydrate from prefill and are not
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
     // Transition immediately — no interaction with fabric controls.
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
@@ -389,6 +377,7 @@ describe('FullSurveyStepper — fabric controls hydrate from prefill and are not
     };
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
@@ -405,6 +394,7 @@ describe('FullSurveyStepper — solar roof fields hydrate from prefill and persi
     const prefill: Partial<FullSurveyModelV1> = { roofType: 'pitched' };
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
@@ -417,6 +407,7 @@ describe('FullSurveyStepper — solar roof fields hydrate from prefill and persi
     const prefill: Partial<FullSurveyModelV1> = { roofOrientation: 'south_west' };
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
@@ -429,6 +420,7 @@ describe('FullSurveyStepper — solar roof fields hydrate from prefill and persi
     const prefill: Partial<FullSurveyModelV1> = { solarShading: 'medium' };
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
@@ -445,6 +437,7 @@ describe('FullSurveyStepper — solar roof fields hydrate from prefill and persi
     };
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
@@ -465,6 +458,7 @@ describe('FullSurveyStepper — disruptionTolerance preference persistence', () 
     };
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
@@ -479,6 +473,7 @@ describe('FullSurveyStepper — disruptionTolerance preference persistence', () 
     };
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
@@ -493,6 +488,7 @@ describe('FullSurveyStepper — disruptionTolerance preference persistence', () 
     };
     render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
 
+    await fillSystemBuilderMinimum(user);
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];

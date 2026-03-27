@@ -18,6 +18,7 @@ import type {
   PipeLayout,
   ControlFamily,
   ThermostatStyle,
+  ProgrammerType,
   SedbukBand,
   ServiceHistory,
 } from './systemBuilderTypes';
@@ -25,6 +26,7 @@ import {
   getAllowedDhwTypes,
   coerceDhwAfterHeatSourceChange,
   deriveDefaultControlFamily,
+  getNarrowedControlFamilies,
   isSystemBuilderComplete,
 } from './systemBuilderRules';
 import {
@@ -55,7 +57,7 @@ const HEAT_SOURCE_OPTIONS: { value: HeatSource; label: string; description: stri
 ];
 
 const DHW_META: Record<DhwType, { label: string; description: string }> = {
-  open_vented:   { label: 'Mains-fed (open vented)',  description: 'Cylinder fed from loft cistern via gravity' },
+  open_vented:   { label: 'Open-vented cylinder',  description: 'Tank-fed hot water via loft cistern — gravity-fed' },
   unvented:      { label: 'Unvented cylinder',         description: 'Mains pressure cylinder with pressure relief discharge' },
   thermal_store: { label: 'Thermal store',             description: 'Large primary store feeding DHW via internal coil' },
   plate_hex:     { label: 'On-demand hot water',       description: 'Hot water heated on demand via plate heat exchanger in combi boiler' },
@@ -89,6 +91,7 @@ const CONTROL_FAMILY_OPTIONS: { value: ControlFamily; label: string; description
   { value: 'y_plan',         label: 'Y-plan',          description: 'Single mid-position valve for heating + DHW' },
   { value: 's_plan',         label: 'S-plan',          description: 'Separate zone valves for heating and DHW' },
   { value: 's_plan_plus',    label: 'S-plan+',         description: 'S-plan with additional zones or underfloor loop' },
+  { value: 'thermal_store',  label: 'Thermal store',   description: 'Thermal store primary circuit control arrangement' },
   { value: 'unknown',        label: 'Unknown',         description: '' },
 ];
 
@@ -97,6 +100,15 @@ const THERMOSTAT_OPTIONS: { value: ThermostatStyle; label: string }[] = [
   { value: 'programmable', label: 'Programmable' },
   { value: 'smart',        label: 'Smart / app-linked' },
   { value: 'unknown',      label: 'Unknown' },
+];
+
+const PROGRAMMER_OPTIONS: { value: ProgrammerType; label: string; description: string }[] = [
+  { value: 'integral',          label: 'Integral',           description: 'Built into the appliance' },
+  { value: 'electromechanical', label: 'Mechanical timer',   description: 'Basic dial or pin-wheel programmer' },
+  { value: 'digital',           label: 'Digital programmer', description: '7-day digital programmer' },
+  { value: 'smart',             label: 'Smart / connected',  description: 'Internet-connected or app-linked programmer' },
+  { value: 'none',              label: 'None',               description: 'No programmer installed' },
+  { value: 'unknown',           label: 'Unknown',            description: '' },
 ];
 
 const SEDBUK_BANDS: { value: SedbukBand; label: string }[] = [
@@ -184,7 +196,7 @@ export function SystemBuilderStep({
   // ── Heat source selection ────────────────────────────────────────────────────
   function handleHeatSource(value: HeatSource) {
     const coercedDhw = coerceDhwAfterHeatSourceChange(value, state.dhwType);
-    const defaultControl = deriveDefaultControlFamily(value);
+    const defaultControl = deriveDefaultControlFamily(value, coercedDhw);
     onChange({
       ...state,
       heatSource: value,
@@ -204,6 +216,10 @@ export function SystemBuilderStep({
 
   // ── Completion gate ──────────────────────────────────────────────────────────
   const canSubmit = isSystemBuilderComplete(state);
+
+  // ── Control narrowing ────────────────────────────────────────────────────────
+  const narrowed = getNarrowedControlFamilies(state.heatSource, state.dhwType);
+  const hasNarrowing = narrowed.primary.length < CONTROL_FAMILY_OPTIONS.length;
 
   // ── Debug normalised output ──────────────────────────────────────────────────
   const normalised = showDebugOutput ? normaliseSystemBuilder(state) : null;
@@ -351,25 +367,52 @@ export function SystemBuilderStep({
       {/* ── 5. Controls ────────────────────────────────────────────────────── */}
       <p style={sectionHeadingStyle}>5 — Controls</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+
+        {/* 5a. System controls */}
         <div>
           <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0 0 0.35rem' }}>
-            Control topology
+            System controls
+            {hasNarrowing && state.heatSource && (
+              <span style={{ marginLeft: '0.5rem', fontSize: '0.68rem', color: '#2b6cb0', background: '#ebf8ff', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 600 }}>
+                Auto-narrowed for {state.heatSource.replace('_', ' ')}
+              </span>
+            )}
           </p>
           <div style={inlineRowStyle}>
-            {CONTROL_FAMILY_OPTIONS.map(({ value, label, description }) => (
-              <button
-                key={value}
-                type="button"
-                data-testid={`control-family-${value}`}
-                onClick={() => onChange({ ...state, controlFamily: value })}
-                style={chipStyle(state.controlFamily === value)}
-                title={description || undefined}
-              >
-                {label}
-              </button>
-            ))}
+            {CONTROL_FAMILY_OPTIONS.map(({ value, label, description }) => {
+              const isPrimary = narrowed.primary.includes(value);
+              const isSecondary = narrowed.secondary.includes(value);
+              const isDeprioritised = hasNarrowing && !isPrimary;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  data-testid={`control-family-${value}`}
+                  onClick={() => onChange({ ...state, controlFamily: value })}
+                  style={{
+                    ...chipStyle(state.controlFamily === value),
+                    opacity: isDeprioritised ? 0.55 : 1,
+                  }}
+                  title={description || (isDeprioritised ? `Not typical for ${state.heatSource?.replace('_', ' ')} — select if present` : undefined)}
+                >
+                  {label}
+                  {isPrimary && hasNarrowing && (
+                    <span style={{ display: 'block', fontSize: '0.6rem', color: '#276749', fontWeight: 600 }}>
+                      ✓ typical
+                    </span>
+                  )}
+                  {isSecondary && hasNarrowing && (
+                    <span style={{ display: 'block', fontSize: '0.6rem', color: '#718096' }}>
+                      if present
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
+
+        {/* 5b. Thermostats */}
         <div>
           <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0.5rem 0 0.35rem' }}>
             Thermostat
@@ -382,6 +425,27 @@ export function SystemBuilderStep({
                 data-testid={`thermostat-${value}`}
                 onClick={() => onChange({ ...state, thermostatStyle: value })}
                 style={chipStyle(state.thermostatStyle === value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 5c. Programmers */}
+        <div>
+          <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0.5rem 0 0.35rem' }}>
+            Programmer
+          </p>
+          <div style={inlineRowStyle}>
+            {PROGRAMMER_OPTIONS.map(({ value, label, description }) => (
+              <button
+                key={value}
+                type="button"
+                data-testid={`programmer-${value}`}
+                onClick={() => onChange({ ...state, programmerType: value })}
+                style={chipStyle(state.programmerType === value)}
+                title={description || undefined}
               >
                 {label}
               </button>

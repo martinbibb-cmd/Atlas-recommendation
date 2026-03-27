@@ -40,9 +40,18 @@ export type ControlFamily =
   | 'y_plan'
   | 's_plan'
   | 's_plan_plus'
+  | 'thermal_store'
   | 'unknown';
 
 export type ThermostatStyle = 'basic' | 'programmable' | 'smart' | 'unknown';
+
+export type ProgrammerType =
+  | 'integral'          // built into the appliance (combi)
+  | 'electromechanical' // basic dial/pin timer
+  | 'digital'           // digital 7-day programmer
+  | 'smart'             // internet-connected / app-linked
+  | 'none'              // no programmer installed
+  | 'unknown';
 
 // ─── Asset health ─────────────────────────────────────────────────────────────
 
@@ -66,6 +75,7 @@ export type SystemBuilderState = {
   layout: PipeLayout | null;
   controlFamily: ControlFamily | null;
   thermostatStyle: ThermostatStyle | null;
+  programmerType: ProgrammerType | null;
   boilerAgeYears: number | null;
   sedbukBand: SedbukBand | null;
   serviceHistory: ServiceHistory | null;
@@ -79,6 +89,7 @@ export const INITIAL_SYSTEM_BUILDER_STATE: SystemBuilderState = {
   layout: null,
   controlFamily: null,
   thermostatStyle: null,
+  programmerType: null,
   boilerAgeYears: null,
   sedbukBand: null,
   serviceHistory: null,
