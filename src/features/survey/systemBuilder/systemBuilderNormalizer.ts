@@ -20,7 +20,7 @@
  *
  *   open_vented   → pressureSource: 'loft_tank',  pressureClass: 'gravity'
  *   unvented      → pressureSource: 'mains',       pressureClass: 'pressurised'
- *   thermal_store → pressureSource: 'primary_coil', pressureClass: 'mixed'
+ *   thermal_store → pressureSource: 'mains',        pressureClass: 'pressurised'
  *   plate_hex     → pressureSource: 'mains',        pressureClass: 'pressurised'
  *   small_store   → pressureSource: 'mains',        pressureClass: 'pressurised'
  */
@@ -37,13 +37,11 @@ import type {
 export type DhwPressureSource =
   | 'loft_tank'    // cold water storage cistern — gravity fed
   | 'mains'        // directly from mains supply — pressurised
-  | 'primary_coil' // fed from primary circuit via coil (thermal store)
   | 'unknown';
 
 export type DhwPressureClass =
   | 'gravity'      // open-vented: low pressure, head-dependent
   | 'pressurised'  // mains-fed or combi: full mains pressure
-  | 'mixed'        // thermal store: primary coil + secondary draw
   | 'unknown';
 
 /**
@@ -65,9 +63,10 @@ function deriveDhwPressureSemantics(dhwType: DhwType | null): {
       // Unvented cylinder is ALWAYS mains-fed and pressurised.
       return { pressureSource: 'mains', pressureClass: 'pressurised' };
     case 'thermal_store':
-      // Thermal store is fed via primary coil; hot water side can be mains or gravity
-      // depending on secondary circuit design, but primary is always a sealed loop.
-      return { pressureSource: 'primary_coil', pressureClass: 'mixed' };
+      // A thermal store holds primary water, but DHW delivered to taps is
+      // generated on demand from incoming mains cold water via an internal coil
+      // or plate heat exchanger — giving mains-pressure hot water at outlets.
+      return { pressureSource: 'mains', pressureClass: 'pressurised' };
     case 'plate_hex':
       // Combi plate heat exchanger draws directly from mains on the DHW side.
       return { pressureSource: 'mains', pressureClass: 'pressurised' };
