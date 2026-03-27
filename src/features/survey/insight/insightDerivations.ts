@@ -12,6 +12,7 @@
 import type { SystemBuilderState } from '../systemBuilder/systemBuilderTypes';
 import type { HomeState } from '../usage/usageTypes';
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
+import type { NormalisedPriorities } from '../priorities/prioritiesNormalizer';
 
 // ─── System condition ─────────────────────────────────────────────────────────
 
@@ -424,6 +425,7 @@ export function deriveSystemRecommendations(
   system: SystemBuilderState,
   home: HomeState,
   input: FullSurveyModelV1,
+  priorities?: NormalisedPriorities,
 ): SystemRecommendation[] {
   const occupancy = deriveDemandsInsight(home).occupancyCount;
   const bathroomCount = home.bathroomCount ?? 1;
@@ -440,40 +442,78 @@ export function deriveSystemRecommendations(
 
   // ── Combi ────────────────────────────────────────────────────────────────────
   if (suitableForCombi) {
+    const combiWhyItFits: string[] = [
+      `This is the strongest overall fit because demand is low — ${occupancy} person household with ${bathroomCount} bathroom.`,
+      `Mains pressure supports on-demand flow at ${dynamicPressure.toFixed(1)} bar — no simultaneous-draw risk at this occupancy.`,
+      'Removing the cylinder frees space and eliminates standing heat losses.',
+    ];
+
+    // Priority-shaped additions
+    if (priorities?.reliability) {
+      combiWhyItFits.push('Fewer components than a stored system — lower service complexity and simpler annual maintenance.');
+    }
+    if (priorities?.lowDisruption) {
+      combiWhyItFits.push('Like-for-like combi swap is the least disruptive changeover — no new cylinder space or pipework routing required.');
+    }
+    if (priorities?.runningEfficiency) {
+      combiWhyItFits.push('No cylinder standing losses — all heat produced goes directly to the demand point.');
+    }
+
+    const combiTradeOffs: string[] = [
+      'Cannot supply multiple outlets simultaneously — acceptable at this occupancy level.',
+      'Flow rate is bounded by mains supply pressure.',
+    ];
+
+    // Eco/future priority: note that gas combi is the highest-carbon pathway
+    if (priorities?.eco || priorities?.futureCompatibility) {
+      combiTradeOffs.push('Gas combi is the highest-carbon option — the heat pump pathway offers significantly lower carbon emissions.');
+    }
+
     recommendations.push({
       id: 'combi_upgrade',
       name: 'Modern combi boiler',
       tier: 'top',
-      whyItFits: [
-        `This is the strongest overall fit because demand is low — ${occupancy} person household with ${bathroomCount} bathroom.`,
-        `Mains pressure supports on-demand flow at ${dynamicPressure.toFixed(1)} bar — no simultaneous-draw risk at this occupancy.`,
-        'Removing the cylinder frees space and eliminates standing heat losses.',
-      ],
-      tradeOffs: [
-        'Cannot supply multiple outlets simultaneously — acceptable at this occupancy level.',
-        'Flow rate is bounded by mains supply pressure.',
-      ],
+      whyItFits: combiWhyItFits,
+      tradeOffs: combiTradeOffs,
       constraints: [],
     });
   }
 
   // ── System boiler + unvented cylinder ────────────────────────────────────────
   if (highDemand || !suitableForCombi) {
+    const systemWhyItFits: string[] = [
+      highDemand
+        ? `This would improve simultaneous hot-water delivery — ${occupancy} people across ${bathroomCount} bathrooms requires stored volume to avoid shortfalls.`
+        : 'Stored volume supports variable demand patterns where on-demand supply is borderline.',
+      'Mains-pressure hot water delivered to all outlets simultaneously — resolves any concurrent-draw risk.',
+      'A condensing system boiler with separate cylinder maximises seasonal efficiency.',
+    ];
+
+    if (priorities?.reliability) {
+      systemWhyItFits.push('Separate cylinder means the boiler and hot water store can be serviced independently — reliable architecture with lower single-point failure risk.');
+    }
+    if (priorities?.longevity) {
+      systemWhyItFits.push('Unvented cylinders typically last 20–25 years — separating the boiler and cylinder means each component can be replaced independently at end of life.');
+    }
+    if (priorities?.runningEfficiency) {
+      systemWhyItFits.push('System boiler with well-insulated cylinder minimises standing losses — more efficient than open-vented stored hot water.');
+    }
+
+    const systemTradeOffs: string[] = [
+      'Requires cylinder space — typically 180–210 L for this household size.',
+      'Hot water is finite — recovery time applies after large back-to-back draws.',
+    ];
+
+    if (priorities?.lowDisruption) {
+      systemTradeOffs.push('Cylinder installation requires access and space — plan for some installation disruption if a cylinder is not already present.');
+    }
+
     recommendations.push({
       id: 'system_unvented',
       name: 'System boiler with unvented cylinder',
       tier: suitableForCombi ? 'alternative' : 'top',
-      whyItFits: [
-        highDemand
-          ? `This would improve simultaneous hot-water delivery — ${occupancy} people across ${bathroomCount} bathrooms requires stored volume to avoid shortfalls.`
-          : 'Stored volume supports variable demand patterns where on-demand supply is borderline.',
-        'Mains-pressure hot water delivered to all outlets simultaneously — resolves any concurrent-draw risk.',
-        'A condensing system boiler with separate cylinder maximises seasonal efficiency.',
-      ],
-      tradeOffs: [
-        'Requires cylinder space — typically 180–210 L for this household size.',
-        'Hot water is finite — recovery time applies after large back-to-back draws.',
-      ],
+      whyItFits: systemWhyItFits,
+      tradeOffs: systemTradeOffs,
       constraints:
         dynamicPressure < 1.5
           ? ['Low mains pressure may affect unvented cylinder performance — static pressure check required before specifying.']
@@ -490,21 +530,51 @@ export function deriveSystemRecommendations(
   if (hpSuitable) {
     const requiresEmitterUpgrade =
       emitters === 'radiators_standard' || emitters === 'radiators_designer';
+
+    // Eco or future-readiness priorities promote the heat pump tier
+    const hpTier: RecommendationTier =
+      (priorities?.eco || priorities?.futureCompatibility) && !requiresEmitterUpgrade
+        ? 'top'
+        : 'alternative';
+
+    const hpWhyItFits: string[] = [
+      'This is possible and represents the low-carbon pathway — it eliminates gas combustion and qualifies for heat pump incentives.',
+      emitters === 'underfloor'
+        ? 'Underfloor heating is already an ideal low-flow-temperature emitter — no emitter change needed.'
+        : 'Low-flow-temperature operation is achievable but requires emitter sizing to confirm coverage.',
+    ];
+
+    if (priorities?.eco) {
+      hpWhyItFits.push('Switching to a heat pump eliminates on-site gas combustion — the most effective single step to reduce this home\'s carbon footprint.');
+    }
+    if (priorities?.futureCompatibility) {
+      hpWhyItFits.push('Heat pumps are the long-term direction of travel for home heating policy — this pathway is compatible with evolving grid and regulatory standards.');
+    }
+    if (priorities?.reliability) {
+      hpWhyItFits.push('Fewer mechanical components than gas — heat pumps typically have fewer wear points and long service intervals once established.');
+    }
+    if (priorities?.runningEfficiency) {
+      hpWhyItFits.push('Heat pumps deliver 2.5–4 units of heat per unit of electricity consumed — significantly more efficient per unit of energy input than gas combustion.');
+    }
+
+    const hpTradeOffs: string[] = [
+      'Higher installation cost than a like-for-like boiler replacement.',
+    ];
+    if (requiresEmitterUpgrade) {
+      hpTradeOffs.push('Existing radiators may need upsizing to deliver adequate output at lower flow temperatures.');
+    }
+    hpTradeOffs.push('Requires adequate external space for the outdoor unit.');
+
+    if (priorities?.lowDisruption) {
+      hpTradeOffs.push('Heat pump installation is typically more involved than a boiler swap — outdoor unit siting, pipework, and possibly emitter changes all need planning.');
+    }
+
     recommendations.push({
       id: 'heat_pump',
       name: 'Air source heat pump',
-      tier: 'alternative',
-      whyItFits: [
-        'This is possible and represents the low-carbon pathway — it eliminates gas combustion and qualifies for heat pump incentives.',
-        emitters === 'underfloor'
-          ? 'Underfloor heating is already an ideal low-flow-temperature emitter — no emitter change needed.'
-          : 'Low-flow-temperature operation is achievable but requires emitter sizing to confirm coverage.',
-      ],
-      tradeOffs: [
-        'Higher installation cost than a like-for-like boiler replacement.',
-        requiresEmitterUpgrade ? 'Existing radiators may need upsizing to deliver adequate output at lower flow temperatures.' : '',
-        'Requires adequate external space for the outdoor unit.',
-      ].filter(Boolean),
+      tier: hpTier,
+      whyItFits: hpWhyItFits,
+      tradeOffs: hpTradeOffs,
       constraints: requiresEmitterUpgrade
         ? ['Emitter heat output modelling required before final sizing — a heat loss survey per room is needed.']
         : [],

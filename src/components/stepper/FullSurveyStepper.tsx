@@ -20,6 +20,8 @@ import { ServicesStep } from '../../features/survey/services/ServicesStep';
 import { INITIAL_WATER_QUALITY_STATE } from '../../features/survey/services/waterQualityTypes';
 import { UsageStep } from '../../features/survey/usage/UsageStep';
 import { INITIAL_HOME_STATE } from '../../features/survey/usage/usageTypes';
+import { PrioritiesStep } from '../../features/survey/priorities/PrioritiesStep';
+import { INITIAL_PRIORITIES_STATE } from '../../features/survey/priorities/prioritiesTypes';
 import { InsightLayerPage } from '../../features/survey/insight/InsightLayerPage';
 
 interface Props {
@@ -42,8 +44,8 @@ interface Props {
   onDraft?: (draft: FullSurveyModelV1) => void;
 }
 
-type Step = 'system_builder' | 'usage' | 'services' | 'insight';
-const STEPS: Step[] = ['system_builder', 'usage', 'services', 'insight'];
+type Step = 'system_builder' | 'usage' | 'services' | 'priorities' | 'insight';
+const STEPS: Step[] = ['system_builder', 'usage', 'services', 'priorities', 'insight'];
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
 // Two independent physics dimensions:
@@ -108,6 +110,9 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   );
   const [usageState, setUsageState] = useState(
     () => prefill?.fullSurvey?.usage ?? INITIAL_HOME_STATE
+  );
+  const [prioritiesState, setPrioritiesState] = useState(
+    () => prefill?.fullSurvey?.priorities ?? INITIAL_PRIORITIES_STATE
   );
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
@@ -225,7 +230,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     window.scrollTo(0, 0);
   }, [currentStep]);
 
-  /** Build a draft that embeds compareMixergy, systemBuilder, waterQuality, and usage into fullSurvey for persistence. */
+  /** Build a draft that embeds compareMixergy, systemBuilder, waterQuality, usage, and priorities into fullSurvey for persistence. */
   const buildDraft = (): FullSurveyModelV1 => ({
     ...input,
     fullSurvey: {
@@ -234,6 +239,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
       systemBuilder: systemBuilderState,
       waterQuality: waterQualityState,
       usage: usageState,
+      priorities: prioritiesState,
     },
   });
 
@@ -367,11 +373,21 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
         />
       )}
 
+      {currentStep === 'priorities' && (
+        <PrioritiesStep
+          state={prioritiesState}
+          onChange={setPrioritiesState}
+          onNext={next}
+          onPrev={prev}
+        />
+      )}
+
       {currentStep === 'insight' && (
         <InsightLayerPage
           systemBuilder={systemBuilderState}
           home={usageState}
           input={input}
+          priorities={prioritiesState}
           onNext={next}
           onPrev={prev}
         />

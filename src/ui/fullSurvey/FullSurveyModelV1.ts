@@ -2,6 +2,7 @@ import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { SystemBuilderState } from '../../features/survey/systemBuilder/systemBuilderTypes';
 import type { WaterQualityState } from '../../features/survey/services/waterQualityTypes';
 import type { HomeState } from '../../features/survey/usage/usageTypes';
+import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
 
 /**
  * HeatingConditionDiagnosticsV1
@@ -154,6 +155,14 @@ export type FullSurveyModelV1 = EngineInputV2_3 & {
      * bathroomCount on the engine input.
      */
     usage?: HomeState;
+    /**
+     * Priorities / Objectives step — captures which outcomes matter most to
+     * this household (performance, reliability, longevity, disruption, eco,
+     * running efficiency, future-readiness).  Used by the insight page and
+     * recommendation layer to surface the most relevant reasons first.
+     * Does not override physics-based suitability ranking.
+     */
+    priorities?: PrioritiesState;
   };
 };
 
