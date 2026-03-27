@@ -345,7 +345,6 @@ export function deriveQuickWins(
   }
 
   // System cleaning — only when condition signals justify it
-  const needsClean = conditionGrade === 'poor' || conditionGrade === 'moderate';
   const hasConditionSignals =
     system.bleedWaterColour != null ||
     system.radiatorPerformance != null ||
