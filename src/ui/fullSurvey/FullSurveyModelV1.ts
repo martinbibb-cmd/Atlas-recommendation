@@ -3,6 +3,7 @@ import type { SystemBuilderState } from '../../features/survey/systemBuilder/sys
 import type { WaterQualityState } from '../../features/survey/services/waterQualityTypes';
 import type { HomeState } from '../../features/survey/usage/usageTypes';
 import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
+import type { HeatLossState } from '../../features/survey/heatLoss/heatLossTypes';
 
 /**
  * HeatingConditionDiagnosticsV1
@@ -163,6 +164,12 @@ export type FullSurveyModelV1 = EngineInputV2_3 & {
      * Does not override physics-based suitability ranking.
      */
     priorities?: PrioritiesState;
+    /**
+     * House / Heat Loss step — captures the peak design heat loss estimate,
+     * confidence, roof form, roof orientation, shading, and PV / battery
+     * presence.  Used by the insight page (heat load and potential sections).
+     */
+    heatLoss?: HeatLossState;
   };
 };
 

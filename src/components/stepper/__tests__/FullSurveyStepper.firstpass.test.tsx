@@ -3,8 +3,8 @@
  *
  * Validates the V2 survey UX requirements:
  *
- *   1. The active survey has exactly 5 canonical steps:
- *      system_builder → usage → services → priorities → insight.
+ *   1. The active survey has exactly 6 canonical steps:
+ *      system_builder → usage → services → heat_loss → priorities → insight.
  *
  *   2. onComplete is called with a clean EngineInputV2_3 when the user
  *      completes all survey steps (the insight page "Run Full Analysis" button)
@@ -102,6 +102,15 @@ describe('FullSurveyStepper — V2 active step structure', () => {
 
     await advanceToStep(user, 3);
 
+    expect(document.querySelector('[data-testid="heat-loss-step"]')).not.toBeNull();
+  });
+
+  it('advances to the priorities step after heat_loss', async () => {
+    const user = userEvent.setup();
+    render(<FullSurveyStepper onBack={() => {}} />);
+
+    await advanceToStep(user, 4);
+
     expect(document.querySelector('[data-testid="priorities-step"]')).not.toBeNull();
   });
 
@@ -109,7 +118,7 @@ describe('FullSurveyStepper — V2 active step structure', () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 4);
+    await advanceToStep(user, 5);
 
     expect(document.querySelector('[data-testid="insight-layer-page"]')).not.toBeNull();
   });
@@ -118,7 +127,7 @@ describe('FullSurveyStepper — V2 active step structure', () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
-    await advanceToStep(user, 4);
+    await advanceToStep(user, 5);
 
     expect(screen.getByRole('button', { name: /Run Full Analysis/i })).toBeTruthy();
   });
@@ -127,12 +136,12 @@ describe('FullSurveyStepper — V2 active step structure', () => {
 // ─── onComplete routing ───────────────────────────────────────────────────────
 
 /**
- * Advance through all 5 V2 survey steps and trigger the final action button.
- * Steps 1–4 use "Next →"; step 5 (insight) uses "Run Full Analysis →".
+ * Advance through all 6 V2 survey steps and trigger the final action button.
+ * Steps 1–5 use "Next →"; step 6 (insight) uses "Run Full Analysis →".
  */
 async function completeFullSurvey(user: ReturnType<typeof userEvent.setup>) {
-  // Steps 1–4: click "Next →"
-  for (let i = 0; i < 4; i++) {
+  // Steps 1–5: click "Next →"
+  for (let i = 0; i < 5; i++) {
     // When on the System Architecture step, fill mandatory fields before advancing.
     if (document.querySelector('[data-testid="system-builder-step"]')) {
       await fillSystemBuilderMinimum(user);
@@ -140,13 +149,13 @@ async function completeFullSurvey(user: ReturnType<typeof userEvent.setup>) {
     const nextBtn = screen.getByRole('button', { name: /Next →/ });
     await user.click(nextBtn);
   }
-  // Step 5 (insight): click "Run Full Analysis →"
+  // Step 6 (insight): click "Run Full Analysis →"
   const finalBtn = screen.getByRole('button', { name: /Run Full Analysis/ });
   await user.click(finalBtn);
 }
 
 describe('FullSurveyStepper — onComplete routing', () => {
-  it('calls onComplete with a clean EngineInputV2_3 after completing all 5 steps', async () => {
+  it('calls onComplete with a clean EngineInputV2_3 after completing all 6 steps', async () => {
     const onComplete = vi.fn();
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} onComplete={onComplete} />);
