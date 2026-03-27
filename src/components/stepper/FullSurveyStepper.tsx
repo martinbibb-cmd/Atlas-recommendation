@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
-import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { sanitiseModelForEngine } from '../../ui/fullSurvey/sanitiseModelForEngine';
@@ -14,8 +13,6 @@ import {
   type ThermalMass,
 } from '../../engine/presets/FabricPresets';
 import LiveHubPage from '../../live/LiveHubPage';
-import LivePhysicsOverlay, { type OverlayStepKey } from '../../ui/overlay/LivePhysicsOverlay';
-import DeltaStrip from '../../ui/panels/DeltaStrip';
 import HeatLossCalculator from '../heatloss/HeatLossCalculator';
 import { SystemBuilderStep } from '../../features/survey/systemBuilder/SystemBuilderStep';
 import { INITIAL_SYSTEM_BUILDER_STATE } from '../../features/survey/systemBuilder/systemBuilderTypes';
@@ -45,8 +42,6 @@ interface Props {
 }
 
 type Step = 'system_builder' | 'usage' | 'services';
-/** Legacy steps are preserved in the component body for their engine/physics logic,
- *  but are no longer part of the active V2 survey flow. */
 const STEPS: Step[] = ['system_builder', 'usage', 'services'];
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
@@ -117,24 +112,6 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
   const [showHeatLossCalc, setShowHeatLossCalc] = useState(false);
 
-  // Live physics overlay: runs a lightweight engine pass on every step for real-time feedback.
-  // Debounced so it doesn't block every keystroke.
-  const [liveEngineOutput, setLiveEngineOutput] = useState<EngineOutputV1 | null>(null);
-  const [prevEngineOutput, setPrevEngineOutput] = useState<EngineOutputV1 | null>(null);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const engineInput = toEngineInput(sanitiseModelForEngine(input));
-      const out = runEngine(engineInput);
-      setLiveEngineOutput(prev => {
-        setPrevEngineOutput(prev);
-        return out.engineOutput;
-      });
-    }, 400);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input]);
-
   // ── Wire demographics into engine input ────────────────────────────────────
   // When the Home / Demographics step state changes, sync composition and
   // bathroomCount into the EngineInputV2_3 portion of `input` so that
@@ -151,11 +128,6 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   // to avoid a feedback loop.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usageState]);
-
-  // The overlay panel is not shown in the V2 survey flow — all legacy steps
-  // that used it (location, pressure, hot_water) are no longer active.
-  const overlayStepKey: OverlayStepKey | null = null;
-
 
   // ── Fabric simulation controls ─────────────────────────────────────────────
   // Section A (heat loss): wall, insulation, glazing, roof, airtightness
@@ -347,19 +319,6 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
         </div>
         <span className="step-label">Step {stepIndex + 1} of {STEPS.length}</span>
       </div>
-
-      {/* Live physics overlay — shown on steps that have a step key mapping */}
-      {liveEngineOutput && overlayStepKey && (
-        <div style={{ maxWidth: '100%' }}>
-          <DeltaStrip previous={prevEngineOutput} current={liveEngineOutput} />
-          <LivePhysicsOverlay
-            engineOutput={liveEngineOutput}
-            activeStepKey={overlayStepKey}
-          />
-        </div>
-      )}
-
-
 
       {currentStep === 'services' && (
         <ServicesStep
