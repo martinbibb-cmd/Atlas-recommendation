@@ -31,7 +31,6 @@ import type {
   SedbukBand,
   DhwType,
 } from './systemBuilderTypes';
-
 // ─── DHW pressure semantics ────────────────────────────────────────────────────
 
 export type DhwPressureSource =
@@ -102,6 +101,11 @@ export type NormalisedCurrentSystem = {
       sedbukBand: string | null;
       serviceHistory: string | null;
     };
+    /** Only present when heatSourceType === 'regular'. */
+    regularSystemDetail?: {
+      heatingSystemType: string | null;
+      pipeworkAccess: string | null;
+    };
   };
 };
 
@@ -151,6 +155,12 @@ export function normaliseSystemBuilder(state: SystemBuilderState): NormalisedCur
         sedbukBand: normaliseSedbuk(state.sedbukBand),
         serviceHistory: state.serviceHistory,
       },
+      ...(state.heatSource === 'regular' ? {
+        regularSystemDetail: {
+          heatingSystemType: state.heatingSystemType,
+          pipeworkAccess: state.pipeworkAccess,
+        },
+      } : {}),
     },
   };
 }

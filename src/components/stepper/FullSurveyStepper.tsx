@@ -20,6 +20,7 @@ import { ServicesStep } from '../../features/survey/services/ServicesStep';
 import { INITIAL_WATER_QUALITY_STATE } from '../../features/survey/services/waterQualityTypes';
 import { UsageStep } from '../../features/survey/usage/UsageStep';
 import { INITIAL_HOME_STATE } from '../../features/survey/usage/usageTypes';
+import { InsightLayerPage } from '../../features/survey/insight/InsightLayerPage';
 
 interface Props {
   onBack: () => void;
@@ -41,8 +42,8 @@ interface Props {
   onDraft?: (draft: FullSurveyModelV1) => void;
 }
 
-type Step = 'system_builder' | 'usage' | 'services';
-const STEPS: Step[] = ['system_builder', 'usage', 'services'];
+type Step = 'system_builder' | 'usage' | 'services' | 'insight';
+const STEPS: Step[] = ['system_builder', 'usage', 'services', 'insight'];
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
 // Two independent physics dimensions:
@@ -237,8 +238,8 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   });
 
   const next = () => {
-    if (stepIndex === STEPS.length - 1) {
-      // Last survey step — run the engine and advance to results.
+    if (currentStep === 'insight') {
+      // Insight is the last step — run the engine and advance to results.
       const draft = buildDraft();
       const engineInput = toEngineInput(sanitiseModelForEngine(draft));
       if (onDraft) onDraft(draft);
@@ -328,7 +329,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           onNext={next}
           onPrev={prev}
           showDebugOutput={true}
-          nextLabel="Run Full Analysis →"
+          nextLabel="Next →"
           staticPressureBar={input.staticMainsPressureBar}
           dynamicPressureBar={input.dynamicMainsPressureBar ?? input.dynamicMainsPressure}
           dynamicFlowLpm={input.mainsDynamicFlowLpm}
@@ -363,6 +364,16 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           onNext={next}
           onPrev={prev}
           showDebugOutput={true}
+        />
+      )}
+
+      {currentStep === 'insight' && (
+        <InsightLayerPage
+          systemBuilder={systemBuilderState}
+          home={usageState}
+          input={input}
+          onNext={next}
+          onPrev={prev}
         />
       )}
 
