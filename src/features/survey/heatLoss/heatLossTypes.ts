@@ -53,6 +53,63 @@ export type PvStatus = 'none' | 'existing' | 'planned';
 /** Whether a battery storage system is absent, existing, or planned. */
 export type BatteryStatus = 'none' | 'existing' | 'planned';
 
+// ─── Shell / geometry model ───────────────────────────────────────────────────
+
+/**
+ * A single 2-D coordinate in the house-shape sketch (metres).
+ */
+export interface ShellPoint { x: number; y: number; }
+
+/**
+ * Metadata for one edge of the drawn polygon.
+ * `isPartyWall` controls heat-loss attribution for that wall segment.
+ */
+export interface ShellEdge { isPartyWall: boolean; }
+
+/** Kind of layer in the multi-layer house sketch. */
+export type ShellLayerKind = 'original' | 'extension' | 'upper_floor' | 'reference';
+
+/**
+ * A single named layer in the house sketch.
+ * Each layer holds one closed (or in-progress) polygon and its edge metadata.
+ */
+export interface ShellLayer {
+  id:      string;
+  name:    string;
+  kind:    ShellLayerKind;
+  visible: boolean;
+  points:  ShellPoint[];
+  closed:  boolean;
+  edges:   ShellEdge[];
+}
+
+/**
+ * Physics / building-fabric settings that accompany the drawn shell.
+ * Mirrors the `Settings` interface inside `HeatLossCalculator.tsx`.
+ */
+export interface ShellSettings {
+  storeys:        number;
+  ceilingHeight:  number;
+  dwellingType:   'detached' | 'semi' | 'endTerrace' | 'midTerrace';
+  wallType:       string;
+  loftInsulation: string;
+  glazingType:    string;
+  glazingAmount:  string;
+  floorType:      string;
+  thermalMass:    'light' | 'medium' | 'heavy';
+}
+
+/**
+ * Serialisable snapshot of the house-shape calculator state.
+ * Persisted in `HeatLossState.shellModel` so the drawn geometry and settings
+ * survive step navigation and save/reload.
+ */
+export interface ShellModel {
+  layers:        ShellLayer[];
+  activeLayerId: string;
+  settings:      ShellSettings;
+}
+
 // ─── Complete UI state ────────────────────────────────────────────────────────
 
 /**
@@ -69,6 +126,7 @@ export type BatteryStatus = 'none' | 'existing' | 'planned';
  * shadingLevel            — shading on that face
  * pvStatus                — PV panel presence
  * batteryStatus           — battery storage presence
+ * shellModel              — serialised canvas geometry + settings (optional; absent until first draw)
  */
 export type HeatLossState = {
   /** Peak design heat loss in watts. null = not yet entered / unknown. */
@@ -85,6 +143,12 @@ export type HeatLossState = {
   pvStatus: PvStatus;
   /** Battery storage status. */
   batteryStatus: BatteryStatus;
+  /**
+   * Serialised house-shape sketch state — layers, active layer, and
+   * building-fabric settings.  Absent until the user draws at least one point.
+   * Persisted so the drawn geometry survives step navigation and save/reload.
+   */
+  shellModel?: ShellModel;
 };
 
 export const INITIAL_HEAT_LOSS_STATE: HeatLossState = {

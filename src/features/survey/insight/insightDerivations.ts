@@ -90,18 +90,40 @@ export interface HeatLoadInsight {
   emitterCompatibilitySignal: 'compatible' | 'upgrade_may_be_needed' | 'unknown';
 }
 
+/**
+ * Resolve the confidence label for a heat-loss reading.
+ *
+ * Priority order:
+ *   1. Use the persisted survey confidence when it is a known/non-unknown value.
+ *   2. Infer 'estimated' when the effective watts is not the fallback default.
+ *   3. Fall back to 'default' (no measurement made).
+ */
+function resolveHeatLossConfidence(
+  surveyConfidence: string | null | undefined,
+  effectiveHeatLossW: number,
+): HeatLoadConfidence {
+  if (surveyConfidence != null && surveyConfidence !== 'unknown') {
+    return surveyConfidence as HeatLoadConfidence;
+  }
+  return effectiveHeatLossW !== 8000 ? 'estimated' : 'default';
+}
+
 export function deriveHeatLoadInsight(
   input: FullSurveyModelV1,
   system: SystemBuilderState,
 ): HeatLoadInsight {
-  const peakHeatLossKw = (input.heatLossWatts ?? 8000) / 1000;
+  // Prefer the calculator-derived value persisted in fullSurvey.heatLoss over
+  // the root heatLossWatts field.  This ensures that models loaded from saved
+  // drafts show the correct value even when the root field still holds the
+  // pre-draw default.
+  const surveyHeatLossW = input.fullSurvey?.heatLoss?.estimatedPeakHeatLossW;
+  const effectiveHeatLossW = surveyHeatLossW ?? input.heatLossWatts ?? 8000;
+  const peakHeatLossKw = effectiveHeatLossW / 1000;
 
-  // If the user ran the heat loss calculator we treat it as measured.
-  // Otherwise it is the default.
-  const confidence: HeatLoadConfidence =
-    input.heatLossWatts != null && input.heatLossWatts !== 8000
-      ? 'estimated'
-      : 'default';
+  const confidence = resolveHeatLossConfidence(
+    input.fullSurvey?.heatLoss?.heatLossConfidence,
+    effectiveHeatLossW,
+  );
 
   const emitters = system.emitters;
   const emitterCompatibilitySignal =

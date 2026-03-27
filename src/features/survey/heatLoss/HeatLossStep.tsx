@@ -19,7 +19,7 @@
  */
 
 import type { CSSProperties } from 'react';
-import type { HeatLossState } from './heatLossTypes';
+import type { HeatLossState, ShellModel } from './heatLossTypes';
 import { INITIAL_HEAT_LOSS_STATE } from './heatLossTypes';
 import HeatLossCalculator, { INITIAL_ROOF_MODEL } from '../../../components/heatloss/HeatLossCalculator';
 import type { RoofModel } from '../../../components/heatloss/HeatLossCalculator';
@@ -92,6 +92,11 @@ export function HeatLossStep({
     });
   }
 
+  function handleShellChange(shell: ShellModel) {
+    // Persist the drawn geometry + settings so the shape survives step navigation.
+    onChange({ ...state, shellModel: shell });
+  }
+
   return (
     <div style={wrapperStyle} data-testid="heat-loss-step">
       {/* ── Primary surface: house-shape heat-loss calculator ───────────── */}
@@ -100,6 +105,8 @@ export function HeatLossStep({
         onHeatLossChange={handleHeatLossChange}
         roofModel={roofModel}
         onRoofModelChange={handleRoofModelChange}
+        initialShell={state.shellModel}
+        onShellChange={handleShellChange}
       />
 
       {/* ── Navigation ───────────────────────────────────────────────────── */}
