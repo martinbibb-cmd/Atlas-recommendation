@@ -45,6 +45,10 @@ import {
 import { resolveCurrentSystemVisualId } from './presentationVisualMapping';
 import PresentationVisualSlot from './PresentationVisualSlot';
 import PresentationDeck from './PresentationDeck';
+import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
+import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
+import { optionToConceptModel } from '../../explainers/lego/autoBuilder/optionToConceptModel';
+import type { OptionId } from '../../explainers/lego/autoBuilder/optionToConceptModel';
 import './CanonicalPresentationPage.css';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -274,12 +278,40 @@ function RankingItem({ item }: { item: PhysicsRankingItem }) {
 
 // ─── Pages 4+ ────────────────────────────────────────────────────────────────
 
-function ShortlistedCard({ option }: { option: ShortlistedOptionDetail }) {
+function ShortlistedCard({
+  option,
+  input,
+}: {
+  option: ShortlistedOptionDetail;
+  input: EngineInputV2_3;
+}) {
+  const currentConcept      = inputToConceptModel(input);
+  const isMixergy           = option.dhwArchitecture === 'mixergy';
+  const recommendedConcept  = optionToConceptModel(
+    option.family as OptionId,
+    isMixergy,
+    input.emitterType ? [input.emitterType] : undefined,
+  );
+  const futurePathways = option.solarStorageOpportunity === 'high'
+    ? [{ id: 'solar_connection' as const }]
+    : [];
+
   return (
     <div className="cpp-shortlist-card">
       <header className="cpp-shortlist-card__header">
         <p className="cpp-shortlist-card__label">{option.label}</p>
       </header>
+      {/* Architecture diff — shown when current system data is available */}
+      {currentConcept && (
+        <div className="cpp-shortlist-card__architecture">
+          <SystemArchitectureVisualiser
+            mode="compare"
+            currentSystem={currentConcept}
+            recommendedSystem={recommendedConcept}
+            futurePathways={futurePathways}
+          />
+        </div>
+      )}
       <div className="cpp-shortlist-card__body">
         {option.complianceItems.length > 0 && (
           <section className="cpp-shortlist-section cpp-shortlist-section--compliance">
@@ -505,7 +537,7 @@ export default function CanonicalPresentationPage({
           <h2 className="cpp-page__heading">Shortlisted options — required work and upgrades</h2>
           <div className="cpp-shortlist-options">
             {page4Plus.options.map(opt => (
-              <ShortlistedCard key={opt.family} option={opt} />
+              <ShortlistedCard key={opt.family} option={opt} input={input} />
             ))}
           </div>
         </section>
