@@ -9,21 +9,30 @@
  *   - Quick wins vary based on condition / system / house inputs
  *   - Mitigation signals (magnetic filter, recent clean) reduce condition grade
  *   - deriveSystemConditionGrade returns correct band from signal combinations
+ *   - deriveSystemRecommendations uses canonical bathroom count (home.bathroomCount
+ *     falling back to input.bathroomCount when home value is null)
  */
 import { describe, it, expect } from 'vitest';
 import {
   deriveSystemConditionGrade,
   deriveQuickWins,
   derivePresentSystemInsight,
+  deriveSystemRecommendations,
 } from '../insightDerivations';
 import type { SystemBuilderState } from '../../systemBuilder/systemBuilderTypes';
 import { INITIAL_SYSTEM_BUILDER_STATE } from '../../systemBuilder/systemBuilderTypes';
+import type { HomeState } from '../../usage/usageTypes';
+import { INITIAL_HOME_STATE } from '../../usage/usageTypes';
 import type { FullSurveyModelV1 } from '../../../../ui/fullSurvey/FullSurveyModelV1';
 
 // ─── Factories ────────────────────────────────────────────────────────────────
 
 function makeSystem(overrides: Partial<SystemBuilderState> = {}): SystemBuilderState {
   return { ...INITIAL_SYSTEM_BUILDER_STATE, ...overrides };
+}
+
+function makeHome(overrides: Partial<HomeState> = {}): HomeState {
+  return { ...INITIAL_HOME_STATE, ...overrides };
 }
 
 function makeInput(overrides: Partial<FullSurveyModelV1> = {}): FullSurveyModelV1 {
@@ -234,5 +243,62 @@ describe('derivePresentSystemInsight — condition signals', () => {
     const system = makeSystem();
     const insight = derivePresentSystemInsight(system);
     expect(insight.condition).toBe('unknown');
+  });
+});
+
+// ─── deriveSystemRecommendations — bathroom count canonical source ─────────────
+
+describe('deriveSystemRecommendations — bathroom count source of truth', () => {
+  // Two-person household, single bathroom, strong mains → combi should be "top"
+  // regardless of the bathroomCount source.
+  const twoPersonComposition = {
+    adultCount: 2,
+    childCount0to4: 0,
+    childCount5to10: 0,
+    childCount11to17: 0,
+    youngAdultCount18to25AtHome: 0,
+  };
+
+  it('shows combi as top for small household when home.bathroomCount=1 and pressure is sufficient', () => {
+    const system = makeSystem({ emitters: 'radiators_standard' });
+    const home = makeHome({ composition: twoPersonComposition, bathroomCount: 1 });
+    const input = makeInput({ dynamicMainsPressure: 2.0 });
+
+    const recs = deriveSystemRecommendations(system, home, input);
+    const combi = recs.find(r => r.id === 'combi_upgrade');
+    expect(combi).toBeDefined();
+    expect(combi?.tier).toBe('top');
+  });
+
+  it('falls back to input.bathroomCount when home.bathroomCount is null', () => {
+    // home.bathroomCount = null; input.bathroomCount = 2 → highDemand = true → no combi top
+    const system = makeSystem({ emitters: 'radiators_standard' });
+    const home = makeHome({ composition: twoPersonComposition, bathroomCount: null });
+    const input = makeInput({ bathroomCount: 2, dynamicMainsPressure: 2.0 });
+
+    const recs = deriveSystemRecommendations(system, home, input);
+    const combi = recs.find(r => r.id === 'combi_upgrade');
+    // With 2 bathrooms from input fallback, highDemand=true → combi not top
+    expect(combi).toBeUndefined();
+  });
+
+  it('combi is not top for large household (4+ occupants)', () => {
+    const largeHousehold = {
+      adultCount: 3,
+      childCount0to4: 0,
+      childCount5to10: 0,
+      childCount11to17: 1,
+      youngAdultCount18to25AtHome: 0,
+    };
+    const system = makeSystem({ emitters: 'radiators_standard' });
+    const home = makeHome({ composition: largeHousehold, bathroomCount: 1 });
+    const input = makeInput({ dynamicMainsPressure: 2.0 });
+
+    const recs = deriveSystemRecommendations(system, home, input);
+    const combi = recs.find(r => r.id === 'combi_upgrade');
+    expect(combi).toBeUndefined();
+
+    const systemBoiler = recs.find(r => r.id === 'system_unvented');
+    expect(systemBoiler?.tier).toBe('top');
   });
 });

@@ -156,6 +156,10 @@ const EXPLORER_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('explorer') === '1';
 
+/** Minimum occupancy count that triggers 'steady' demand profile on the fit map.
+ *  At 3+ occupants concurrent hot-water draw is likely — treat as steady demand. */
+const FIT_MAP_STEADY_OCCUPANCY_MIN = 3;
+
 /** Derive FitInputs from a completed engine input for the fit-map page. */
 function deriveFitPosition(engineInput: EngineInputV2_3): FitPosition {
   const pipe = engineInput.primaryPipeDiameter;
@@ -169,14 +173,24 @@ function deriveFitPosition(engineInput: EngineInputV2_3): FitPosition {
   // Prefer the newer dynamicMainsPressureBar field over the legacy dynamicMainsPressure.
   const pressureBar = engineInput.dynamicMainsPressureBar ?? engineInput.dynamicMainsPressure ?? 1.5;
 
+  // Derive occupancy type from canonical occupancyCount when available.
+  // occupancySignature is a legacy field that defaults to 'professional' and is
+  // never updated from survey data, so it would produce a systematically low
+  // demand signal.  Using occupancyCount (set by sanitiseModelForEngine from
+  // householdComposition) gives an accurate demand signal.
+  const occupancyCount = engineInput.occupancyCount ?? 0;
+  const occupancyForFitMap: 'professional' | 'steady' | 'shift' =
+    occupancyCount >= FIT_MAP_STEADY_OCCUPANCY_MIN ? 'steady'
+    : engineInput.occupancySignature === 'shift' ? 'shift'
+    : 'professional';
+
   return computeFitPosition({
     peakConcurrentOutlets: Math.max(1, peakOutlets),
     mainsDynamicPressureBar: pressureBar,
     primaryPipeSizeMm: pipeMm,
     thermalInertia: engineInput.buildingMass === 'heavy' ? 'high'
       : engineInput.buildingMass === 'light' ? 'low' : 'medium',
-    occupancy: engineInput.occupancySignature === 'steady' ? 'steady'
-      : engineInput.occupancySignature === 'shift' ? 'shift' : 'professional',
+    occupancy: occupancyForFitMap,
   });
 }
 

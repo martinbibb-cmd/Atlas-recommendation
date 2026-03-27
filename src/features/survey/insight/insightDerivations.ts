@@ -450,7 +450,10 @@ export function deriveSystemRecommendations(
   priorities?: NormalisedPriorities,
 ): SystemRecommendation[] {
   const occupancy = deriveDemandsInsight(home).occupancyCount;
-  const bathroomCount = home.bathroomCount ?? 1;
+  // Prefer the usage-step bathroom count; fall back to the engine input value
+  // (which is synced from the survey and more likely to be correct than a
+  // hard-coded 1 when the usage step hasn't captured the field explicitly).
+  const bathroomCount = home.bathroomCount ?? input.bathroomCount ?? 1;
   const dynamicPressure = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure ?? 2.0;
   const emitters = system.emitters;
   const recommendations: SystemRecommendation[] = [];
