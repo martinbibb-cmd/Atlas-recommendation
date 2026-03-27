@@ -36,10 +36,10 @@ describe('systemBuilderToConceptModel — heat source mapping', () => {
     expect(result.hotWaterService).toBe('combi_plate_hex');
   });
 
-  it('maps storage_combi to system_boiler with combi_plate_hex', () => {
+  it('maps storage_combi to system_boiler with storage_combi hot water service', () => {
     const result = systemBuilderToConceptModel(state({ heatSource: 'storage_combi' }));
     expect(result.heatSource).toBe('system_boiler');
-    expect(result.hotWaterService).toBe('combi_plate_hex');
+    expect(result.hotWaterService).toBe('storage_combi');
   });
 
   it('falls back to system_boiler for null heatSource', () => {
@@ -59,9 +59,9 @@ describe('systemBuilderToConceptModel — DHW type mapping', () => {
     expect(result.hotWaterService).toBe('unvented_cylinder');
   });
 
-  it('maps thermal_store to unvented_cylinder (nearest concept-model equivalent)', () => {
+  it('maps thermal_store to thermal_store hot water service', () => {
     const result = systemBuilderToConceptModel(state({ heatSource: 'system', dhwType: 'thermal_store' }));
-    expect(result.hotWaterService).toBe('unvented_cylinder');
+    expect(result.hotWaterService).toBe('thermal_store');
   });
 
   it('maps plate_hex to combi_plate_hex', () => {

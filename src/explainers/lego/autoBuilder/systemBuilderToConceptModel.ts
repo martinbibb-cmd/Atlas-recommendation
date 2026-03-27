@@ -31,15 +31,15 @@ function mapDhwType(
   heatSource: HeatSource | null,
   dhwType: DhwType | null,
 ): HotWaterServiceKind {
-  // Combi and storage_combi deliver DHW via an integrated plate HEX
-  if (heatSource === 'combi' || heatSource === 'storage_combi') {
-    return 'combi_plate_hex';
-  }
+  // Storage combi has an integrated store; regular combi uses on-demand plate HEX
+  if (heatSource === 'storage_combi') return 'storage_combi';
+  // Plain combi delivers DHW via integrated plate HEX
+  if (heatSource === 'combi') return 'combi_plate_hex';
 
   switch (dhwType) {
     case 'open_vented':   return 'vented_cylinder';
     case 'unvented':      return 'unvented_cylinder';
-    case 'thermal_store': return 'unvented_cylinder'; // nearest concept-model equivalent
+    case 'thermal_store': return 'thermal_store';
     case 'plate_hex':     return 'combi_plate_hex';
     case 'small_store':   return 'unvented_cylinder';
     default:              return 'vented_cylinder';   // safe fallback
@@ -53,6 +53,7 @@ function mapControlFamily(
   controlFamily: ControlFamily | null,
 ): ControlTopologyKind {
   // Combi systems have no external zone-control topology
+  // Storage combi still has an integrated store but no separate zone valve
   if (heatSource === 'combi' || heatSource === 'storage_combi') {
     return 'none';
   }
@@ -105,7 +106,7 @@ export function systemBuilderToConceptModel(state: SystemBuilderState): SystemCo
     traits: {
       integratedPump:      heatSource !== 'regular_boiler',
       integratedExpansion: heatSource !== 'regular_boiler',
-      integratedPlateHex:  hotWaterService === 'combi_plate_hex',
+      integratedPlateHex:  hotWaterService === 'combi_plate_hex' || hotWaterService === 'storage_combi',
     },
   };
 }
