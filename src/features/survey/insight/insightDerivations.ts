@@ -405,7 +405,7 @@ export function deriveSystemRecommendations(
       ],
       tradeOffs: [
         'Higher installation cost',
-        requiresEmitterUpgrade ? 'Radiator upgrades likely required to achieve design flow temperature' : '',
+        requiresEmitterUpgrade ? 'Radiator upgrades likely required for low-temperature operation' : '',
         'Needs adequate external space for the unit',
       ].filter(Boolean),
       constraints: requiresEmitterUpgrade
