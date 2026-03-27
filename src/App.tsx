@@ -162,9 +162,16 @@ function deriveFitPosition(engineInput: EngineInputV2_3): FitPosition {
   const pipeMm: 15 | 22 | 28 | 35 =
     pipe === 15 || pipe === 22 || pipe === 28 || pipe === 35 ? pipe : 22;
 
+  // Prefer the explicitly measured or derived peakConcurrentOutlets when available
+  // (set by sanitiseModelForEngine from demandPreset); fall back to bathroomCount.
+  const peakOutlets = engineInput.peakConcurrentOutlets ?? (engineInput.bathroomCount ?? 1);
+
+  // Prefer the newer dynamicMainsPressureBar field over the legacy dynamicMainsPressure.
+  const pressureBar = engineInput.dynamicMainsPressureBar ?? engineInput.dynamicMainsPressure ?? 1.5;
+
   return computeFitPosition({
-    peakConcurrentOutlets: Math.max(1, (engineInput.bathroomCount ?? 1)),
-    mainsDynamicPressureBar: engineInput.dynamicMainsPressure ?? 1.5,
+    peakConcurrentOutlets: Math.max(1, peakOutlets),
+    mainsDynamicPressureBar: pressureBar,
     primaryPipeSizeMm: pipeMm,
     thermalInertia: engineInput.buildingMass === 'heavy' ? 'high'
       : engineInput.buildingMass === 'light' ? 'low' : 'medium',

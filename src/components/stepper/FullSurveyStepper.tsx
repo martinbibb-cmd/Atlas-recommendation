@@ -137,6 +137,21 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usageState]);
 
+  // ── Wire heat-loss calculator output into engine input ─────────────────────
+  // When the HeatLossCalculator produces a result, sync it into input.heatLossWatts
+  // so the insight page, recommendations, fit map, and engine all read the same
+  // canonical value.  When the calculator output is cleared (null), fall back to
+  // the default 8000 W.
+  useEffect(() => {
+    setInput(prev => ({
+      ...prev,
+      heatLossWatts: heatLossState.estimatedPeakHeatLossW ?? 8000,
+    }));
+  // setInput is the stable React setter — safe to omit.  Only the calculator
+  // result value should re-trigger this sync; setInput never changes identity.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heatLossState.estimatedPeakHeatLossW]);
+
   // ── Fabric simulation controls ─────────────────────────────────────────────
   // Section A (heat loss): wall, insulation, glazing, roof, airtightness
   // Section B (inertia): thermalMass (independent from wall type)
@@ -384,7 +399,13 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
         <InsightLayerPage
           systemBuilder={systemBuilderState}
           home={usageState}
-          input={input}
+          input={{
+            ...input,
+            fullSurvey: {
+              ...input.fullSurvey,
+              heatLoss: heatLossState,
+            },
+          }}
           priorities={prioritiesState}
           onNext={next}
           onPrev={prev}

@@ -17,9 +17,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './heatloss.css';
-import type { RoofType, RoofOrientation, ShadingLevel, PvStatus, BatteryStatus } from '../../features/survey/heatLoss/heatLossTypes';
+import type { RoofType, RoofOrientation, ShadingLevel, PvStatus, BatteryStatus, ShellModel } from '../../features/survey/heatLoss/heatLossTypes';
 import { RoofOrientationPicker } from '../../features/survey/heatLoss/RoofOrientationPicker';
 import { solarSuitabilitySummary } from '../../features/survey/heatLoss/heatLossDerivations';
+
+export type { ShellModel };
 
 // ── Roof model (embedded in heat-loss calculator side panel) ─────────────────
 
@@ -95,6 +97,23 @@ function generateLayerId(): string {
   // Counter-only ID — deterministic and unique within the page lifetime.
   // No Math.random() per project "No Theatre" rule.
   return 'layer-' + (++_layerCounter).toString(36);
+}
+
+/**
+ * When restoring layers from a saved ShellModel, advance the module-level
+ * counter past the highest saved ID so that newly created layers never get
+ * an ID that collides with a restored layer.
+ * IDs follow the pattern 'layer-<base36 counter>' so we parse the numeric
+ * part and keep _layerCounter > max(parsed values).
+ */
+function advanceCounterPastIds(savedIds: string[]): void {
+  for (const id of savedIds) {
+    const m = id.match(/^layer-([0-9a-z]+)/);
+    if (m) {
+      const n = parseInt(m[1], 36);
+      if (n >= _layerCounter) _layerCounter = n + 1;
+    }
+  }
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -559,13 +578,24 @@ interface Props {
   roofModel?: RoofModel;
   /** Called when the user changes any roof field inside the calculator. */
   onRoofModelChange?: (next: RoofModel) => void;
+  /**
+   * Optional saved shell snapshot to rehydrate on mount.
+   * When present, the calculator restores layers, active layer, and settings
+   * so the drawn shape survives step navigation and save/reload.
+   */
+  initialShell?: ShellModel;
+  /**
+   * Called whenever the canvas geometry or settings change.
+   * Use this to persist the shell state in parent survey state.
+   */
+  onShellChange?: (shell: ShellModel) => void;
 }
 
 function makeLayer(name: string, kind: LayerKind): Layer {
   return { id: generateLayerId(), name, kind, visible: true, points: [], closed: false, edges: [] };
 }
 
-export default function HeatLossCalculator({ onBack, onComplete, embedded, onHeatLossChange, roofModel, onRoofModelChange }: Props) {
+export default function HeatLossCalculator({ onBack, onComplete, embedded, onHeatLossChange, roofModel, onRoofModelChange, initialShell, onShellChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // View/interaction state (pan, zoom, hover, drag) — no polygon data.
@@ -584,7 +614,14 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
   // Compute initial layer data once — lazy useState ensures the layer
   // (and its id) are created only on mount, and re-used by both the
   // mutable ref and the rendered state without accessing .current during render.
+  // When `initialShell` is provided, restore the persisted layers instead.
   const [initialLayerData] = useState<{ layers: Layer[]; activeId: string }>(() => {
+    if (initialShell && initialShell.layers.length > 0) {
+      // Advance the counter so any newly created layers won't collide with
+      // the restored IDs.
+      advanceCounterPastIds(initialShell.layers.map(l => l.id));
+      return { layers: initialShell.layers as Layer[], activeId: initialShell.activeLayerId };
+    }
     const layer = makeLayer('Original footprint', 'original');
     return { layers: [layer], activeId: layer.id };
   });
@@ -595,17 +632,19 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
   // Mutable ref for the active layer ID.
   const activeLayerIdRef = useRef<string>(initialLayerData.activeId);
 
-  const [settings, setSettings] = useState<Settings>({
-    storeys:        2,
-    ceilingHeight:  2.4,
-    dwellingType:   'semi',
-    wallType:       'cavityUninsulated',
-    loftInsulation: 'mm270plus',
-    glazingType:    'doubleArated',
-    glazingAmount:  'medium',
-    floorType:      'suspendedUninsulated',
-    thermalMass:    'medium',
-  });
+  const [settings, setSettings] = useState<Settings>(() =>
+    initialShell ? { ...initialShell.settings } : {
+      storeys:        2,
+      ceilingHeight:  2.4,
+      dwellingType:   'semi',
+      wallType:       'cavityUninsulated',
+      loftInsulation: 'mm270plus',
+      glazingType:    'doubleArated',
+      glazingAmount:  'medium',
+      floorType:      'suspendedUninsulated',
+      thermalMass:    'medium',
+    }
+  );
 
   // Layer panel UI state (mirrors layersRef for rendering).
   const [layers, setLayers] = useState<Layer[]>(initialLayerData.layers);
@@ -619,6 +658,16 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
 
   const settingsRef = useRef(settings);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
+
+  // Notify parent whenever the shell geometry or settings change so the state
+  // can be persisted and rehydrated on step navigation.
+  const onShellChangeRef = useRef(onShellChange);
+  useEffect(() => { onShellChangeRef.current = onShellChange; }, [onShellChange]);
+  useEffect(() => {
+    if (onShellChangeRef.current) {
+      onShellChangeRef.current({ layers, activeLayerId, settings });
+    }
+  }, [layers, activeLayerId, settings]);
 
   /** Returns the currently active layer. */
   const getActiveLayer = useCallback((): Layer | null => {
