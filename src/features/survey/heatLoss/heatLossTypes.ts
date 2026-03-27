@@ -28,16 +28,13 @@ export type RoofType = 'pitched' | 'flat' | 'mixed' | 'unknown';
  * The surveyor picks the direction the roof slope faces outward (i.e. where
  * solar panels would point) — not the direction the house faces.
  */
-export type RoofOrientation =
-  | 'N'
-  | 'NE'
-  | 'E'
-  | 'SE'
-  | 'S'
-  | 'SW'
-  | 'W'
-  | 'NW'
-  | 'unknown';
+export type CompassOrientation = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
+
+/**
+ * Persisted survey value for roof orientation — one of the 8 compass directions
+ * or 'unknown' when not yet captured.
+ */
+export type RoofOrientation = CompassOrientation | 'unknown';
 
 // ─── Shading ──────────────────────────────────────────────────────────────────
 

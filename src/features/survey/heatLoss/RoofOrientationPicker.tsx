@@ -18,7 +18,7 @@
  */
 
 import type { CSSProperties } from 'react';
-import type { RoofOrientation } from './heatLossTypes';
+import type { CompassOrientation, RoofOrientation } from './heatLossTypes';
 import { roofOrientationSummary } from './heatLossDerivations';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -31,14 +31,14 @@ interface RoofOrientationPickerProps {
 // ─── Grid layout ──────────────────────────────────────────────────────────────
 
 /** The 9-cell compass grid (row-major order, null = centre roof icon). */
-const GRID_CELLS: (RoofOrientation | null)[] = [
+const GRID_CELLS: (CompassOrientation | null)[] = [
   'NW', 'N',  'NE',
   'W',  null, 'E',
   'SW', 'S',  'SE',
 ];
 
 /** Short display label for each direction. */
-const DIR_LABEL: Record<Exclude<RoofOrientation, 'unknown'>, string> = {
+const DIR_LABEL: Record<CompassOrientation, string> = {
   N:  'N',
   NE: 'NE',
   E:  'E',
