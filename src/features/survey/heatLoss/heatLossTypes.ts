@@ -19,7 +19,7 @@
  * Physical form of the main roof.
  * Influences PV yield potential and, to a lesser extent, heat loss.
  */
-export type RoofType = 'pitched' | 'flat' | 'mixed' | 'unknown';
+export type RoofType = 'pitched' | 'flat' | 'hipped' | 'dormer' | 'unknown';
 
 // ─── Compass orientation ──────────────────────────────────────────────────────
 
