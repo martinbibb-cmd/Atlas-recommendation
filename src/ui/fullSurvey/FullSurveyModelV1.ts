@@ -1,7 +1,7 @@
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { SystemBuilderState } from '../../features/survey/systemBuilder/systemBuilderTypes';
 import type { WaterQualityState } from '../../features/survey/services/waterQualityTypes';
-import type { UsageState } from '../../features/survey/usage/usageTypes';
+import type { HomeState } from '../../features/survey/usage/usageTypes';
 
 /**
  * HeatingConditionDiagnosticsV1
@@ -146,11 +146,14 @@ export type FullSurveyModelV1 = EngineInputV2_3 & {
      */
     waterQuality?: WaterQualityState;
     /**
-     * Usage / Demand step — captures behavioural demand inputs describing how
-     * heat and hot water are used in the home.
-     * Normalised by usageNormalizer for later demand and sizing wiring.
+     * Home / Demographics step — captures household composition (age groups +
+     * headcounts), daytime occupancy pattern, bath use frequency, and bathroom
+     * count.  Demographics are the primary demand signal — usage is derived
+     * automatically via deriveProfileFromHouseholdComposition.
+     * Normalised by usageNormalizer; wired into householdComposition +
+     * bathroomCount on the engine input.
      */
-    usage?: UsageState;
+    usage?: HomeState;
   };
 };
 
