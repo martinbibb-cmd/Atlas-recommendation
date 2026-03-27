@@ -22,6 +22,7 @@ import { UsageStep } from '../../features/survey/usage/UsageStep';
 import { INITIAL_HOME_STATE } from '../../features/survey/usage/usageTypes';
 import { PrioritiesStep } from '../../features/survey/priorities/PrioritiesStep';
 import { INITIAL_PRIORITIES_STATE } from '../../features/survey/priorities/prioritiesTypes';
+import { HeatLossStep, INITIAL_HEAT_LOSS_STATE } from '../../features/survey/heatLoss/HeatLossStep';
 import { InsightLayerPage } from '../../features/survey/insight/InsightLayerPage';
 
 interface Props {
@@ -44,8 +45,8 @@ interface Props {
   onDraft?: (draft: FullSurveyModelV1) => void;
 }
 
-type Step = 'system_builder' | 'usage' | 'services' | 'priorities' | 'insight';
-const STEPS: Step[] = ['system_builder', 'usage', 'services', 'priorities', 'insight'];
+type Step = 'system_builder' | 'usage' | 'services' | 'heat_loss' | 'priorities' | 'insight';
+const STEPS: Step[] = ['system_builder', 'usage', 'services', 'heat_loss', 'priorities', 'insight'];
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
 // Two independent physics dimensions:
@@ -113,6 +114,9 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   );
   const [prioritiesState, setPrioritiesState] = useState(
     () => prefill?.fullSurvey?.priorities ?? INITIAL_PRIORITIES_STATE
+  );
+  const [heatLossState, setHeatLossState] = useState(
+    () => prefill?.fullSurvey?.heatLoss ?? INITIAL_HEAT_LOSS_STATE
   );
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
@@ -230,7 +234,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     window.scrollTo(0, 0);
   }, [currentStep]);
 
-  /** Build a draft that embeds compareMixergy, systemBuilder, waterQuality, usage, and priorities into fullSurvey for persistence. */
+  /** Build a draft that embeds compareMixergy, systemBuilder, waterQuality, usage, priorities, and heatLoss into fullSurvey for persistence. */
   const buildDraft = (): FullSurveyModelV1 => ({
     ...input,
     fullSurvey: {
@@ -240,6 +244,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
       waterQuality: waterQualityState,
       usage: usageState,
       priorities: prioritiesState,
+      heatLoss: heatLossState,
     },
   });
 
@@ -370,6 +375,16 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           onNext={next}
           onPrev={prev}
           showDebugOutput={true}
+        />
+      )}
+
+      {currentStep === 'heat_loss' && (
+        <HeatLossStep
+          state={heatLossState}
+          onChange={setHeatLossState}
+          onNext={next}
+          onPrev={prev}
+          engineHeatLossW={input.heatLossWatts ?? null}
         />
       )}
 
