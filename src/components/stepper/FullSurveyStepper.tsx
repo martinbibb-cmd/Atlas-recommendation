@@ -42,7 +42,7 @@ import { INITIAL_SYSTEM_BUILDER_STATE } from '../../features/survey/systemBuilde
 import { ServicesStep } from '../../features/survey/services/ServicesStep';
 import { INITIAL_WATER_QUALITY_STATE } from '../../features/survey/services/waterQualityTypes';
 import { UsageStep } from '../../features/survey/usage/UsageStep';
-import { INITIAL_USAGE_STATE } from '../../features/survey/usage/usageTypes';
+import { INITIAL_HOME_STATE } from '../../features/survey/usage/usageTypes';
 
 interface Props {
   onBack: () => void;
@@ -295,7 +295,7 @@ function overlayExplanation(
   if (row === 'hot_water' && system === 'combi') {
     return {
       ruleName: 'Combi simultaneous draw limit',
-      observedValue: `${input.peakConcurrentOutlets ?? 1} peak outlet(s), ${input.bathroomCount} bathroom(s)`,
+      observedValue: `${input.bathroomCount} bathroom(s), ${input.occupancyCount ?? '?'} occupant(s)`,
       threshold: 'Combi on-demand performs best with one outlet at a time.',
       whyItMatters: 'Simultaneous or back-to-back draws can reduce outlet temperature and flow stability.',
       whatWouldChange: 'Selecting stored hot water removes this throughput constraint for multi-outlet use.',
@@ -530,7 +530,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     () => prefill?.fullSurvey?.waterQuality ?? INITIAL_WATER_QUALITY_STATE
   );
   const [usageState, setUsageState] = useState(
-    () => prefill?.fullSurvey?.usage ?? INITIAL_USAGE_STATE
+    () => prefill?.fullSurvey?.usage ?? INITIAL_HOME_STATE
   );
   const [overlayDetail, setOverlayDetail] = useState<{ systemLabel: string; rowLabel: string; step: Step; risk: RiskLevel; explanation: OverlayExplanation } | null>(null);
   const [results, setResults] = useState<FullEngineResult | null>(null);
@@ -554,6 +554,23 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input]);
+
+  // ── Wire demographics into engine input ────────────────────────────────────
+  // When the Home / Demographics step state changes, sync composition and
+  // bathroomCount into the EngineInputV2_3 portion of `input` so that
+  // sanitiseModelForEngine can derive occupancyCount + demandPreset from them.
+  useEffect(() => {
+    setInput(prev => ({
+      ...prev,
+      householdComposition: usageState.composition,
+      ...(usageState.bathroomCount != null
+        ? { bathroomCount: usageState.bathroomCount }
+        : {}),
+    }));
+  // usageState is the only relevant dependency — input is intentionally omitted
+  // to avoid a feedback loop.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usageState]);
 
   /**
    * Maps survey step names to LivePhysicsOverlay step keys.
@@ -2969,102 +2986,48 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           {/* ─── Physics levers + live panel ─────────────────────────────── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start' }}>
 
-            {/* Left: controls */}
+            {/* Left: demographics summary (read-only — set in Home step) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-              {/* Bathrooms */}
-              <div>
-                <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
-                  Bathrooms
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
-                  {[1, 2, 3, 4].map(n => (
-                    <button
-                      key={n}
-                      onClick={() => setInput({ ...input, bathroomCount: n })}
-                      style={{
-                        padding: '0.5rem',
-                        border: `2px solid ${input.bathroomCount === n ? '#3182ce' : '#e2e8f0'}`,
-                        borderRadius: '6px',
-                        background: input.bathroomCount === n ? '#ebf8ff' : '#fff',
-                        cursor: 'pointer',
-                        fontWeight: input.bathroomCount === n ? 700 : 400,
-                        fontSize: '0.9rem',
-                        transition: 'all 0.12s',
-                      }}
-                    >
-                      {n}{n === 4 ? '+' : ''}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Peak concurrent outlets */}
-              <div>
-                <label style={{ fontWeight: 600, fontSize: '0.88rem', display: 'block', marginBottom: '0.4rem', color: '#4a5568' }}>
-                  Peak simultaneous outlets
-                </label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  {([
-                    { value: 1, label: '1 outlet',  sub: 'Single shower or tap' },
-                    { value: 2, label: '2 outlets',  sub: 'e.g. shower + basin simultaneously' },
-                    { value: 3, label: '3+ outlets', sub: 'Multiple simultaneous draws' },
-                  ] as Array<{ value: number; label: string; sub: string }>).map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setInput({ ...input, peakConcurrentOutlets: opt.value })}
-                      style={{
-                        padding: '0.5rem 0.75rem',
-                        border: `2px solid ${(input.peakConcurrentOutlets ?? 1) === opt.value ? '#3182ce' : '#e2e8f0'}`,
-                        borderRadius: '6px',
-                        background: (input.peakConcurrentOutlets ?? 1) === opt.value ? '#ebf8ff' : '#fff',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all 0.12s',
-                      }}
-                    >
-                      <div style={{ fontWeight: (input.peakConcurrentOutlets ?? 1) === opt.value ? 700 : 500, fontSize: '0.88rem' }}>{opt.label}</div>
-                      <div style={{ fontSize: '0.72rem', color: '#718096' }}>{opt.sub}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-
-              {/* Demand summary — read-only, sourced from Usage step */}
-              {usageState.occupancyPattern !== 'unknown' || usageState.peakHotWaterConcurrency !== 'unknown' ? (
-                <div style={{
-                  padding: '0.75rem 1rem',
-                  background: '#f0fff4',
-                  border: '1px solid #9ae6b4',
-                  borderRadius: '8px',
-                }}>
-                  <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#276749', margin: '0 0 0.5rem 0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    From usage step
-                  </p>
-                  <div style={{ fontSize: '0.82rem', color: '#2d3748', lineHeight: 1.7 }}>
-                    {usageState.householdSize !== null && (
-                      <div>{usageState.householdSize} occupant{usageState.householdSize !== 1 ? 's' : ''}</div>
-                    )}
-                    {usageState.peakHotWaterConcurrency !== 'unknown' && (
-                      <div style={{ color: '#718096' }}>
-                        Peak concurrency: {usageState.peakHotWaterConcurrency === '4_plus' ? '4+' : usageState.peakHotWaterConcurrency} outlet{usageState.peakHotWaterConcurrency !== 1 ? 's' : ''}
-                      </div>
-                    )}
+              {/* Household demographics — sourced from Home step */}
+              {(() => {
+                const occ = input.occupancyCount ?? null;
+                const baths = input.bathroomCount ?? null;
+                const hasData = occ != null || baths != null;
+                return hasData ? (
+                  <div style={{
+                    padding: '0.75rem 1rem',
+                    background: '#f0fff4',
+                    border: '1px solid #9ae6b4',
+                    borderRadius: '8px',
+                  }}>
+                    <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#276749', margin: '0 0 0.5rem 0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      From Home step
+                    </p>
+                    <div style={{ fontSize: '0.82rem', color: '#2d3748', lineHeight: 1.7 }}>
+                      {occ != null && (
+                        <div>{occ} occupant{occ !== 1 ? 's' : ''}</div>
+                      )}
+                      {baths != null && (
+                        <div style={{ color: '#718096' }}>
+                          {baths} bathroom{baths !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div style={{
-                  padding: '0.75rem 1rem',
-                  background: '#fffbeb',
-                  border: '1px solid #f6e05e',
-                  borderRadius: '8px',
-                  fontSize: '0.82rem',
-                  color: '#975a16',
-                }}>
-                  ℹ️ Complete Step 6 (Usage &amp; Demand) to see the demand summary here.
-                </div>
-              )}
+                ) : (
+                  <div style={{
+                    padding: '0.75rem 1rem',
+                    background: '#fffbeb',
+                    border: '1px solid #f6e05e',
+                    borderRadius: '8px',
+                    fontSize: '0.82rem',
+                    color: '#975a16',
+                  }}>
+                    ℹ️ Complete Step 6 (Home &amp; Household) to see the demand summary here.
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Right: live response panel */}
@@ -3085,12 +3048,12 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                   {dhwBand.label}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#718096' }}>
-                  {input.bathroomCount} bathroom{input.bathroomCount !== 1 ? 's' : ''} · {input.peakConcurrentOutlets ?? 1} peak outlet{(input.peakConcurrentOutlets ?? 1) !== 1 ? 's' : ''} · {(input.occupancyCount ?? 2) >= 4 ? '4+ people' : (input.occupancyCount ?? 2) === 3 ? '3 people' : '1–2 people'}
+                  {input.bathroomCount} bathroom{input.bathroomCount !== 1 ? 's' : ''} · {(input.occupancyCount ?? 2) >= 4 ? '4+ people' : (input.occupancyCount ?? 2) === 3 ? '3 people' : '1–2 people'}
                 </div>
               </div>
 
               {/* Stored-hot-water fit shown early as primary recommendation */}
-              {(input.bathroomCount >= 2 || (input.peakConcurrentOutlets ?? 1) >= 2) && (
+              {(input.bathroomCount >= 2) && (
                 <div style={{
                   padding: '0.6rem 0.875rem',
                   background: '#ebf8ff',
@@ -3103,10 +3066,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                     Stored hot water strongly favoured
                   </div>
                   <div style={{ color: '#4a5568', lineHeight: 1.4 }}>
-                    {(input.peakConcurrentOutlets ?? 1) >= 2
-                      ? 'Two or more simultaneous outlets are better served by stored volume than by on-demand hot water.'
-                      : 'Multiple bathrooms increase the likelihood of simultaneous demand — stored hot water handles this without throughput constraints.'
-                    }
+                    Multiple bathrooms increase the likelihood of simultaneous demand — stored hot water handles this without throughput constraints.
                   </div>
                 </div>
               )}
@@ -3187,11 +3147,11 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
                 {/* Peak demand bar */}
                 <div>
                   <div style={{ fontSize: '0.72rem', color: '#718096', marginBottom: '0.2rem' }}>
-                    Your peak — {input.peakConcurrentOutlets ?? 1} outlet{(input.peakConcurrentOutlets ?? 1) !== 1 ? 's' : ''}
+                    Your household — {input.bathroomCount} bathroom{input.bathroomCount !== 1 ? 's' : ''} (concurrent draw risk)
                   </div>
                   <div style={{ background: '#e2e8f0', borderRadius: '4px', height: '10px', position: 'relative' }}>
                     <div style={{
-                      width: `${Math.min(((input.peakConcurrentOutlets ?? 1) / 3) * 100, 100)}%`,
+                      width: `${Math.min(((input.bathroomCount ?? 1) / 3) * 100, 100)}%`,
                       background: RISK_COLOUR[combiDhwLive.verdict.combiRisk],
                       height: '100%', borderRadius: '4px', transition: 'width 0.2s',
                     }} />

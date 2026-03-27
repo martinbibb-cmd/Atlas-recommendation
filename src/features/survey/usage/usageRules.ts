@@ -1,26 +1,27 @@
 /**
  * usageRules.ts
  *
- * Derivation rules that map a UsageState to demand characterisation outputs.
+ * Derivation rules for the Home / Demographics step.
  *
- * These rules are auditable: each mapping step is explicit and one-directional.
- * The mapping chain is:
- *   peakHotWaterConcurrency → concurrencyRisk
- *   bathUse + drawStyle     → volumeDemandBand
- *   occupancyPattern        → peakTimingHint
- *   householdSize           → sizingHint
+ * All demand signals are derived from household composition (age groups +
+ * headcounts) and two simple lifestyle answers.  Users do not enter flow
+ * rates, concurrency figures, or draw styles directly.
  *
- * These outputs are informational — they inform the normaliser and eventually
- * the engine, but do not yet alter recommendation ranking directly.
+ * The mapping chain:
+ *   composition + daytimeOccupancy + bathUse
+ *     → deriveProfileFromHouseholdComposition (lib/occupancy)
+ *     → occupancyCount + demandPreset + simultaneousUseSeverity
+ *     → concurrencyRisk + summaryLine
  */
 
+import type { HomeState, BathUse, DaytimeOccupancy } from './usageTypes';
+import {
+  deriveProfileFromHouseholdComposition,
+} from '../../../lib/occupancy/deriveProfileFromHouseholdComposition';
 import type {
-  UsageState,
-  OccupancyPattern,
-  BathUse,
-  ConcurrencyLevel,
-  DrawStyle,
-} from './usageTypes';
+  DaytimeOccupancyPattern,
+  BathUsePattern,
+} from '../../../lib/occupancy/deriveProfileFromHouseholdComposition';
 
 // ─── Output types ─────────────────────────────────────────────────────────────
 
@@ -30,99 +31,95 @@ export type ConcurrencyRisk = 'low' | 'medium' | 'high' | 'unknown';
 /** Broad volume demand band — affects cylinder sizing. */
 export type VolumeDemandBand = 'low' | 'moderate' | 'high' | 'unknown';
 
-/** Hint about when peak demand occurs during the day. */
-export type PeakTimingHint = 'morning_and_evening' | 'spread_through_day' | 'evening_concentrated' | 'unknown';
-
-/** Sizing band derived from household size. */
-export type SizingHint = 'single_or_couple' | 'small_family' | 'large_household' | 'unknown';
-
-export type DerivedUsageSummary = {
+export type DerivedHomeSummary = {
+  occupancyCount: number;
   concurrencyRisk: ConcurrencyRisk;
   volumeDemandBand: VolumeDemandBand;
-  peakTimingHint: PeakTimingHint;
-  sizingHint: SizingHint;
   /** Human-readable one-line summary for dev/debug output. */
   summaryLine: string;
 };
 
-// ─── Rules ────────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Map peak concurrency level to a risk classification. */
-export function deriveConcurrencyRisk(level: ConcurrencyLevel): ConcurrencyRisk {
-  if (level === 'unknown') return 'unknown';
-  if (level === 1) return 'low';
-  if (level === 2) return 'medium';
-  if (level === 3 || level === '4_plus') return 'high';
-  return 'unknown';
+/** Map DaytimeOccupancy to the library's DaytimeOccupancyPattern. */
+function mapDaytimeOccupancy(val: DaytimeOccupancy): DaytimeOccupancyPattern {
+  if (val === 'usually_out')  return 'usually_out';
+  if (val === 'usually_home') return 'usually_home';
+  if (val === 'irregular')    return 'irregular';
+  return 'usually_out'; // default for 'unknown'
 }
 
-/** Map bath use + draw style to a volume demand band. */
-export function deriveVolumeDemandBand(bathUse: BathUse, drawStyle: DrawStyle): VolumeDemandBand {
-  if (bathUse === 'unknown' && drawStyle === 'unknown') return 'unknown';
+/** Map BathUse to the library's BathUsePattern. */
+function mapBathUse(val: BathUse): BathUsePattern {
+  if (val === 'rare')      return 'rare';
+  if (val === 'sometimes') return 'sometimes';
+  if (val === 'frequent')  return 'frequent';
+  return 'sometimes'; // default for 'unknown'
+}
+
+/** Map simultaneousUseSeverity to a concurrency risk. */
+function severityToRisk(
+  severity: 'low' | 'medium' | 'high',
+): ConcurrencyRisk {
+  if (severity === 'high')   return 'high';
+  if (severity === 'medium') return 'medium';
+  return 'low';
+}
+
+/** Derive a broad volume demand band from bath use and occupancy count. */
+function deriveVolumeDemandBand(bathUse: BathUse, occupancy: number): VolumeDemandBand {
   const bathScore =
     bathUse === 'frequent' ? 2 :
     bathUse === 'sometimes' ? 1 :
-    bathUse === 'rare' ? 0 : 0;
-  const drawScore =
-    drawStyle === 'mostly_long' ? 2 :
-    drawStyle === 'mixed' ? 1 :
-    drawStyle === 'mostly_short' ? 0 : 0;
-  const total = bathScore + drawScore;
+    0;
+  const sizeScore =
+    occupancy >= 5 ? 2 :
+    occupancy >= 3 ? 1 :
+    0;
+  const total = bathScore + sizeScore;
   if (total >= 3) return 'high';
   if (total >= 1) return 'moderate';
   return 'low';
 }
 
-/** Map occupancy pattern to a peak timing hint. */
-export function derivePeakTimingHint(pattern: OccupancyPattern): PeakTimingHint {
-  switch (pattern) {
-    case 'usually_out':      return 'morning_and_evening';
-    case 'someone_home':     return 'spread_through_day';
-    case 'irregular_shifts': return 'evening_concentrated';
-    default:                 return 'unknown';
-  }
-}
-
-/** Map household size to a sizing hint. */
-export function deriveSizingHint(householdSize: number | null): SizingHint {
-  if (householdSize === null) return 'unknown';
-  if (householdSize <= 2)  return 'single_or_couple';
-  if (householdSize <= 4)  return 'small_family';
-  return 'large_household';
-}
-
 // ─── Top-level deriver ────────────────────────────────────────────────────────
 
 /**
- * Derive a full demand summary from a UsageState.
+ * Derive a full home demand summary from HomeState.
  *
- * All mapping steps are explicit and auditable.
- * Returns 'unknown' for any dimension where input is unknown.
+ * All derivation is from demographics — no manual demand entry required.
+ * When daytimeOccupancy or bathUse are 'unknown', sensible defaults are used
+ * so that occupancyCount and concurrencyRisk are always available.
  */
-export function deriveUsageSummary(state: UsageState): DerivedUsageSummary {
-  const concurrencyRisk   = deriveConcurrencyRisk(state.peakHotWaterConcurrency);
-  const volumeDemandBand  = deriveVolumeDemandBand(state.bathUse, state.drawStyle);
-  const peakTimingHint    = derivePeakTimingHint(state.occupancyPattern);
-  const sizingHint        = deriveSizingHint(state.householdSize);
+export function deriveHomeSummary(state: HomeState): DerivedHomeSummary {
+  const daytimePattern = mapDaytimeOccupancy(state.daytimeOccupancy);
+  const bathPattern    = mapBathUse(state.bathUse);
+
+  const profile = deriveProfileFromHouseholdComposition(
+    state.composition,
+    daytimePattern,
+    bathPattern,
+  );
+
+  const occupancyCount  = profile.occupancyCount;
+  const concurrencyRisk = state.daytimeOccupancy === 'unknown' && state.bathUse === 'unknown'
+    ? 'unknown' as ConcurrencyRisk
+    : severityToRisk(profile.simultaneousUseSeverity);
+  const volumeDemandBand = state.bathUse === 'unknown'
+    ? 'unknown' as VolumeDemandBand
+    : deriveVolumeDemandBand(state.bathUse, occupancyCount);
 
   const parts: string[] = [];
-  if (sizingHint !== 'unknown')        parts.push(SIZING_LABELS[sizingHint]);
-  if (volumeDemandBand !== 'unknown')  parts.push(`${VOLUME_LABELS[volumeDemandBand]} volume demand`);
-  if (concurrencyRisk !== 'unknown')   parts.push(`${CONCURRENCY_RISK_LABELS[concurrencyRisk]} concurrency risk`);
+  parts.push(`${occupancyCount} occupant${occupancyCount !== 1 ? 's' : ''}`);
+  if (volumeDemandBand !== 'unknown') parts.push(`${VOLUME_LABELS[volumeDemandBand]} volume demand`);
+  if (concurrencyRisk  !== 'unknown') parts.push(`${CONCURRENCY_RISK_LABELS[concurrencyRisk]} concurrency risk`);
 
-  const summaryLine = parts.length > 0 ? parts.join(' · ') : 'Usage not yet specified';
+  const summaryLine = parts.join(' · ');
 
-  return { concurrencyRisk, volumeDemandBand, peakTimingHint, sizingHint, summaryLine };
+  return { occupancyCount, concurrencyRisk, volumeDemandBand, summaryLine };
 }
 
 // ─── Labels ───────────────────────────────────────────────────────────────────
-
-export const SIZING_LABELS: Record<SizingHint, string> = {
-  single_or_couple: '1–2 occupants',
-  small_family:     '3–4 occupants',
-  large_household:  '5+ occupants',
-  unknown:          'Unknown household size',
-};
 
 export const VOLUME_LABELS: Record<VolumeDemandBand, string> = {
   low:      'Low',

@@ -1,28 +1,26 @@
 /**
- * UsageStep.tsx
+ * UsageStep.tsx  (Home / Demographics step)
  *
- * Step: Usage / Demand
+ * Step: Home & Household
  *
- * Captures behavioural demand inputs — how heat and hot water are actually
- * used in this home.  This is a demand modelling step, not a demographics
- * step: the framing is physical behaviour, not social profile.
+ * Captures household demographics as the primary demand signal.
+ * Age group headcounts drive demand shape, concurrency likelihood,
+ * and draw type — users do not enter flow rates or concurrency figures.
  *
  * Sections:
- *   1. Occupancy pattern — daytime presence / absence
- *   2. Peak simultaneous hot water use — concurrency level
- *   3. Bath use — frequency of bath vs shower
- *   4. Draw style — short taps vs long showers
- *   5. Household size — optional sizing context
- *   6. Demand summary — physics-derived indicator (dhw-demand-summary)
+ *   1. Household composition — headcounts by age band
+ *   2. Daytime occupancy — three-option fast question
+ *   3. Bath use frequency — three-option fast question
+ *   4. Bathroom count — concurrent draw risk gate
+ *   5. Demand summary — physics-derived indicator
  */
 
 import { type CSSProperties } from 'react';
 import type {
-  UsageState,
-  OccupancyPattern,
+  HomeState,
+  DaytimeOccupancy,
   BathUse,
-  ConcurrencyLevel,
-  DrawStyle,
+  HouseholdComposition,
 } from './usageTypes';
 import { normaliseUsage } from './usageNormalizer';
 import {
@@ -33,8 +31,8 @@ import {
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface UsageStepProps {
-  state: UsageState;
-  onChange: (next: UsageState) => void;
+  state: HomeState;
+  onChange: (next: HomeState) => void;
   onNext: () => void;
   onPrev: () => void;
   /** When true, renders a compact dev/debug summary of the normalised output. */
@@ -43,33 +41,18 @@ interface UsageStepProps {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const OCCUPANCY_PATTERN_OPTIONS: { value: OccupancyPattern; label: string; sub: string }[] = [
-  { value: 'usually_out',      label: 'Usually out',      sub: 'Most occupants out during weekday days' },
-  { value: 'someone_home',     label: 'Someone home',     sub: 'At least one person home most of the day' },
-  { value: 'irregular_shifts', label: 'Irregular shifts', sub: 'Shift workers or mixed / unpredictable hours' },
-  { value: 'unknown',          label: 'Not sure',         sub: '' },
-];
-
-const CONCURRENCY_OPTIONS: { value: ConcurrencyLevel; label: string; sub: string }[] = [
-  { value: 1,       label: '1 outlet',   sub: 'One shower or tap at a time' },
-  { value: 2,       label: '2 outlets',  sub: 'e.g. shower + kitchen simultaneously' },
-  { value: 3,       label: '3 outlets',  sub: 'Multiple bathrooms in use at once' },
-  { value: '4_plus', label: '4 or more', sub: 'High-demand household' },
-  { value: 'unknown', label: 'Not sure', sub: '' },
+const DAYTIME_OPTIONS: { value: DaytimeOccupancy; label: string; sub: string }[] = [
+  { value: 'usually_out',  label: 'Usually out',   sub: 'Most adults out during working hours' },
+  { value: 'usually_home', label: 'Someone home',  sub: 'At least one adult home most of the day' },
+  { value: 'irregular',    label: 'Irregular',     sub: 'Shift work, part-time or variable schedule' },
+  { value: 'unknown',      label: 'Not sure',      sub: '' },
 ];
 
 const BATH_USE_OPTIONS: { value: BathUse; label: string; sub: string }[] = [
-  { value: 'rare',      label: 'Rarely',     sub: 'Showers only, baths almost never' },
+  { value: 'rare',      label: 'Rarely',     sub: 'Showers only — baths almost never' },
   { value: 'sometimes', label: 'Sometimes',  sub: 'Occasional baths (a few per week)' },
   { value: 'frequent',  label: 'Frequently', sub: 'Baths most days' },
   { value: 'unknown',   label: 'Not sure',   sub: '' },
-];
-
-const DRAW_STYLE_OPTIONS: { value: DrawStyle; label: string; sub: string }[] = [
-  { value: 'mostly_short', label: 'Short draws',  sub: 'Brief taps, quick showers, appliances' },
-  { value: 'mixed',        label: 'Mixed',         sub: 'Combination of short and long draws' },
-  { value: 'mostly_long',  label: 'Long draws',    sub: 'Long showers, deep baths' },
-  { value: 'unknown',      label: 'Not sure',      sub: '' },
 ];
 
 const CONCURRENCY_RISK_COLOURS: Record<string, { bg: string; border: string; text: string }> = {
@@ -78,6 +61,22 @@ const CONCURRENCY_RISK_COLOURS: Record<string, { bg: string; border: string; tex
   high:    { bg: '#fff5f5', border: '#feb2b2', text: '#c53030' },
   unknown: { bg: '#f7fafc', border: '#e2e8f0', text: '#4a5568' },
 };
+
+// ─── Age band definitions ─────────────────────────────────────────────────────
+
+type AgeField = keyof HouseholdComposition;
+
+const AGE_BANDS: {
+  field: AgeField;
+  label: string;
+  sub: string;
+}[] = [
+  { field: 'adultCount',               label: 'Adults',          sub: '26+ years' },
+  { field: 'youngAdultCount18to25AtHome', label: 'Young adults',  sub: '18–25 at home (student / gap year)' },
+  { field: 'childCount11to17',          label: 'Teenagers',       sub: '11–17 years' },
+  { field: 'childCount5to10',           label: 'Children',        sub: '5–10 years' },
+  { field: 'childCount0to4',            label: 'Young children',  sub: '0–4 years' },
+];
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -106,6 +105,18 @@ function chipStyle(isSelected: boolean): CSSProperties {
   };
 }
 
+function spinnerBtnStyle(): CSSProperties {
+  return {
+    padding: '0.3rem 0.7rem',
+    border: '1px solid #e2e8f0',
+    borderRadius: '5px',
+    background: '#fff',
+    cursor: 'pointer',
+    fontSize: '1rem',
+    lineHeight: 1,
+  };
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function UsageStep({
@@ -116,41 +127,99 @@ export function UsageStep({
   showDebugOutput = false,
 }: UsageStepProps) {
   const normalised = showDebugOutput ? normaliseUsage(state) : null;
-  const { concurrencyRisk, volumeDemandBand, summaryLine } = normalised?.demand ??
-    { concurrencyRisk: 'unknown' as const, volumeDemandBand: 'unknown' as const, summaryLine: 'Usage not yet specified' };
+  const { concurrencyRisk, volumeDemandBand, summaryLine } = normalised?.home ??
+    { concurrencyRisk: 'unknown' as const, volumeDemandBand: 'unknown' as const, summaryLine: 'Household not yet specified' };
 
   const colours = CONCURRENCY_RISK_COLOURS[concurrencyRisk] ?? CONCURRENCY_RISK_COLOURS.unknown;
 
-  function set<K extends keyof UsageState>(key: K, value: UsageState[K]) {
-    onChange({ ...state, [key]: value });
+  function setComp<K extends AgeField>(field: K, value: number) {
+    onChange({ ...state, composition: { ...state.composition, [field]: Math.max(0, value) } });
   }
 
   return (
     <div className="step-card" data-testid="usage-step">
-      <h2>📊 Step 6: Usage &amp; Demand</h2>
+      <h2>🏠 Step 6: Home &amp; Household</h2>
       <p style={{ color: '#4a5568', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-        Describe how heat and hot water are used in this home.
-        This is about behaviour and demand patterns — not demographics.
+        Tell us about who lives here. Demand is derived automatically from
+        household composition — no need to estimate flow rates or concurrency.
       </p>
 
-      {/* ── 1. Occupancy pattern ─────────────────────────────────────────── */}
+      {/* ── 1. Household composition ─────────────────────────────────── */}
       <div>
         <p style={{ ...sectionHeadingStyle, marginTop: '1rem' }}>
-          Daytime occupancy pattern
+          Who lives here?
+        </p>
+        <p style={{ fontSize: '0.78rem', color: '#718096', margin: '0 0 0.75rem' }}>
+          Enter headcounts by age group. Teenagers and young adults are the
+          strongest predictors of simultaneous hot water demand.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {AGE_BANDS.map(({ field, label, sub }) => (
+            <div
+              key={field}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.5rem 0.75rem',
+                background: '#f7fafc',
+                borderRadius: '6px',
+                border: '1px solid #e2e8f0',
+              }}
+            >
+              <div>
+                <span style={{ fontWeight: 600, fontSize: '0.88rem', color: '#2d3748' }}>{label}</span>
+                <span style={{ fontSize: '0.75rem', color: '#718096', marginLeft: '0.4rem' }}>{sub}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  data-testid={`comp-dec-${field}`}
+                  onClick={() => setComp(field, (state.composition[field] as number) - 1)}
+                  style={spinnerBtnStyle()}
+                  aria-label={`Decrease ${label}`}
+                >
+                  −
+                </button>
+                <span
+                  data-testid={`comp-val-${field}`}
+                  style={{ fontWeight: 700, fontSize: '1rem', minWidth: '1.75rem', textAlign: 'center' }}
+                >
+                  {state.composition[field]}
+                </span>
+                <button
+                  type="button"
+                  data-testid={`comp-inc-${field}`}
+                  onClick={() => setComp(field, (state.composition[field] as number) + 1)}
+                  style={spinnerBtnStyle()}
+                  aria-label={`Increase ${label}`}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── 2. Daytime occupancy ─────────────────────────────────────── */}
+      <div>
+        <p style={sectionHeadingStyle}>
+          Weekday daytime occupancy
         </p>
         <p style={{ fontSize: '0.78rem', color: '#718096', margin: '0 0 0.5rem' }}>
-          How is the home occupied during weekday daytime hours?
+          Is anyone at home during working hours on weekdays?
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.4rem' }}>
-          {OCCUPANCY_PATTERN_OPTIONS.map(opt => (
+          {DAYTIME_OPTIONS.map(opt => (
             <button
               key={opt.value}
               type="button"
-              data-testid={`occupancy-pattern-${opt.value}`}
-              onClick={() => set('occupancyPattern', opt.value)}
-              style={chipStyle(state.occupancyPattern === opt.value)}
+              data-testid={`daytime-${opt.value}`}
+              onClick={() => onChange({ ...state, daytimeOccupancy: opt.value })}
+              style={chipStyle(state.daytimeOccupancy === opt.value)}
             >
-              <div style={{ fontWeight: state.occupancyPattern === opt.value ? 700 : 500, fontSize: '0.88rem' }}>
+              <div style={{ fontWeight: state.daytimeOccupancy === opt.value ? 700 : 500, fontSize: '0.88rem' }}>
                 {opt.label}
               </div>
               {opt.sub && (
@@ -163,37 +232,7 @@ export function UsageStep({
         </div>
       </div>
 
-      {/* ── 2. Peak simultaneous hot water use ──────────────────────────── */}
-      <div>
-        <p style={sectionHeadingStyle}>
-          Peak simultaneous hot water outlets
-        </p>
-        <p style={{ fontSize: '0.78rem', color: '#718096', margin: '0 0 0.5rem' }}>
-          At the busiest moment — how many hot water outlets run at once?
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.4rem' }}>
-          {CONCURRENCY_OPTIONS.map(opt => (
-            <button
-              key={String(opt.value)}
-              type="button"
-              data-testid={`concurrency-${String(opt.value).replace('+', 'plus')}`}
-              onClick={() => set('peakHotWaterConcurrency', opt.value)}
-              style={chipStyle(state.peakHotWaterConcurrency === opt.value)}
-            >
-              <div style={{ fontWeight: state.peakHotWaterConcurrency === opt.value ? 700 : 500, fontSize: '0.88rem' }}>
-                {opt.label}
-              </div>
-              {opt.sub && (
-                <div style={{ fontSize: '0.72rem', color: '#718096', marginTop: '0.1rem' }}>
-                  {opt.sub}
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── 3. Bath use ─────────────────────────────────────────────────── */}
+      {/* ── 3. Bath use ──────────────────────────────────────────────── */}
       <div>
         <p style={sectionHeadingStyle}>Bath use</p>
         <p style={{ fontSize: '0.78rem', color: '#718096', margin: '0 0 0.5rem' }}>
@@ -205,7 +244,7 @@ export function UsageStep({
               key={opt.value}
               type="button"
               data-testid={`bath-use-${opt.value}`}
-              onClick={() => set('bathUse', opt.value)}
+              onClick={() => onChange({ ...state, bathUse: opt.value })}
               style={chipStyle(state.bathUse === opt.value)}
             >
               <div style={{ fontWeight: state.bathUse === opt.value ? 700 : 500, fontSize: '0.88rem' }}>
@@ -221,73 +260,38 @@ export function UsageStep({
         </div>
       </div>
 
-      {/* ── 4. Draw style ───────────────────────────────────────────────── */}
+      {/* ── 4. Bathroom count ────────────────────────────────────────── */}
       <div>
-        <p style={sectionHeadingStyle}>Hot water draw style</p>
+        <p style={sectionHeadingStyle}>Number of bathrooms</p>
         <p style={{ fontSize: '0.78rem', color: '#718096', margin: '0 0 0.5rem' }}>
-          How is hot water mainly drawn off?
+          How many bathrooms does the property have? Multiple bathrooms increase
+          concurrent draw risk for combi and small-store systems.
         </p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-          {DRAW_STYLE_OPTIONS.map(opt => (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
+          {[1, 2, 3, 4].map(n => (
             <button
-              key={opt.value}
+              key={n}
               type="button"
-              data-testid={`draw-style-${opt.value}`}
-              onClick={() => set('drawStyle', opt.value)}
-              style={chipStyle(state.drawStyle === opt.value)}
+              data-testid={`bathroom-count-${n}`}
+              onClick={() => onChange({ ...state, bathroomCount: n })}
+              style={{
+                padding: '0.5rem',
+                border: `2px solid ${state.bathroomCount === n ? '#3182ce' : '#e2e8f0'}`,
+                borderRadius: '6px',
+                background: state.bathroomCount === n ? '#ebf8ff' : '#fff',
+                cursor: 'pointer',
+                fontWeight: state.bathroomCount === n ? 700 : 400,
+                fontSize: '0.9rem',
+                transition: 'all 0.12s',
+              }}
             >
-              <div style={{ fontWeight: state.drawStyle === opt.value ? 700 : 500, fontSize: '0.88rem' }}>
-                {opt.label}
-              </div>
-              {opt.sub && (
-                <div style={{ fontSize: '0.72rem', color: '#718096', marginTop: '0.1rem' }}>
-                  {opt.sub}
-                </div>
-              )}
+              {n}{n === 4 ? '+' : ''}
             </button>
           ))}
         </div>
       </div>
 
-      {/* ── 5. Household size (optional sizing context) ─────────────────── */}
-      <div>
-        <p style={sectionHeadingStyle}>Household size (optional)</p>
-        <p style={{ fontSize: '0.78rem', color: '#718096', margin: '0 0 0.5rem' }}>
-          Number of occupants — used for cylinder sizing context only.
-        </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <button
-            type="button"
-            onClick={() => set('householdSize', Math.max(1, (state.householdSize ?? 2) - 1))}
-            style={{ padding: '0.3rem 0.7rem', border: '1px solid #e2e8f0', borderRadius: '5px', background: '#fff', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}
-            aria-label="Decrease household size"
-          >
-            −
-          </button>
-          <span style={{ fontSize: '1rem', fontWeight: 700, minWidth: '2rem', textAlign: 'center' }}>
-            {state.householdSize ?? '—'}
-          </span>
-          <button
-            type="button"
-            onClick={() => set('householdSize', Math.min(10, (state.householdSize ?? 1) + 1))}
-            style={{ padding: '0.3rem 0.7rem', border: '1px solid #e2e8f0', borderRadius: '5px', background: '#fff', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}
-            aria-label="Increase household size"
-          >
-            +
-          </button>
-          {state.householdSize !== null && (
-            <button
-              type="button"
-              onClick={() => set('householdSize', null)}
-              style={{ fontSize: '0.75rem', color: '#718096', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-            >
-              Clear
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ── 6. Demand summary indicator ─────────────────────────────────── */}
+      {/* ── 5. Demand summary indicator ──────────────────────────────── */}
       <div
         data-testid="dhw-demand-summary"
         style={{
@@ -312,11 +316,11 @@ export function UsageStep({
         )}
       </div>
 
-      {/* ── Debug output ─────────────────────────────────────────────────── */}
+      {/* ── Debug output ─────────────────────────────────────────────── */}
       {showDebugOutput && normalised && (
         <details style={{ marginTop: '1.5rem' }}>
           <summary style={{ fontSize: '0.75rem', color: '#718096', cursor: 'pointer' }}>
-            Dev: normalised demand output
+            Dev: normalised home output
           </summary>
           <pre
             data-testid="usage-normalised-output"
@@ -335,7 +339,7 @@ export function UsageStep({
         </details>
       )}
 
-      {/* ── Navigation ───────────────────────────────────────────────────── */}
+      {/* ── Navigation ───────────────────────────────────────────────── */}
       <div className="step-actions" style={{ marginTop: '1.5rem' }}>
         <button className="back-btn" type="button" onClick={onPrev}>
           ← Back
