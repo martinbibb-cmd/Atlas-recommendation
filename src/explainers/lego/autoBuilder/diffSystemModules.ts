@@ -33,6 +33,7 @@ function heatSourceLabel(kind: HeatSourceKind): { label: string; sublabel: strin
 }
 
 function heatSourceVisualId(kind: HeatSourceKind, hotWaterService: HotWaterServiceKind): ModuleVisualId {
+  if (hotWaterService === 'storage_combi') return 'storage_combi_boiler';
   if (hotWaterService === 'combi_plate_hex') return 'combi_boiler';
   switch (kind) {
     case 'regular_boiler': return 'regular_boiler';
@@ -68,8 +69,10 @@ function dhwLabel(kind: HotWaterServiceKind): { label: string; sublabel: string 
   switch (kind) {
     case 'none':             return { label: 'No Storage',           sublabel: 'Heating only' };
     case 'combi_plate_hex':  return { label: 'On-Demand Hot Water',  sublabel: 'Via integrated plate HEX' };
+    case 'storage_combi':    return { label: 'Integrated Store',     sublabel: 'Built-in thermal store' };
     case 'vented_cylinder':  return { label: 'Open-Vented Cylinder', sublabel: 'Tank-fed hot water' };
     case 'unvented_cylinder':return { label: 'Unvented Cylinder',    sublabel: 'Mains-pressure hot water' };
+    case 'thermal_store':    return { label: 'Thermal Store',        sublabel: 'Primary-side heat store' };
     case 'mixergy':          return { label: 'Mixergy Cylinder',     sublabel: 'Stratified mains-pressure' };
     default:                 return { label: 'Hot Water',            sublabel: '' };
   }
@@ -79,8 +82,10 @@ function dhwVisualId(kind: HotWaterServiceKind): ModuleVisualId {
   switch (kind) {
     case 'none':             return 'combi_on_demand';
     case 'combi_plate_hex':  return 'combi_on_demand';
+    case 'storage_combi':    return 'combi_on_demand';   // stored inside the heat source module
     case 'vented_cylinder':  return 'vented_cylinder';
     case 'unvented_cylinder':return 'unvented_cylinder';
+    case 'thermal_store':    return 'thermal_store';
     case 'mixergy':          return 'mixergy_cylinder';
     default:                 return 'unvented_cylinder';
   }
@@ -108,11 +113,12 @@ function emitterVisualId(kind: EmitterKind): ModuleVisualId {
 
 function buildHeatSourceModule(concept: SystemConceptModel, state: ModuleState): SystemModule {
   const visualId = heatSourceVisualId(concept.heatSource, concept.hotWaterService);
-  // Override label to 'Combi Boiler' when the heat source is a system_boiler
-  // acting as a combi (integrated plate HEX).
-  const { label, sublabel } = concept.hotWaterService === 'combi_plate_hex'
-    ? { label: 'Combi Boiler', sublabel: 'Integrated plate HEX' }
-    : heatSourceLabel(concept.heatSource);
+  // Override label for combi variants to make the appliance type clear
+  const { label, sublabel } = concept.hotWaterService === 'storage_combi'
+    ? { label: 'Storage Combi',   sublabel: 'Integrated store' }
+    : concept.hotWaterService === 'combi_plate_hex'
+      ? { label: 'Combi Boiler',  sublabel: 'Integrated plate HEX' }
+      : heatSourceLabel(concept.heatSource);
   return { id: `heat_source_${state}`, role: 'heat_source', visualId, label, sublabel, state };
 }
 
@@ -125,8 +131,10 @@ function buildControlsModule(concept: SystemConceptModel, state: ModuleState): S
 }
 
 function buildDhwModule(concept: SystemConceptModel, state: ModuleState): SystemModule | null {
-  // Only suppress the DHW module when there is genuinely no hot-water service
-  if (concept.hotWaterService === 'none') return null;
+  // Suppress DHW layer when there is no separate hot-water service:
+  //   'none'          — heating-only system
+  //   'storage_combi' — the store is inside the boiler body (shown in heat_source module)
+  if (concept.hotWaterService === 'none' || concept.hotWaterService === 'storage_combi') return null;
   const { label, sublabel } = dhwLabel(concept.hotWaterService);
   const visualId = dhwVisualId(concept.hotWaterService);
   return { id: `dhw_${state}`, role: 'dhw_storage', visualId, label, sublabel, state };
@@ -156,6 +164,7 @@ function conceptToModules(concept: SystemConceptModel, state: ModuleState): Syst
 /** Returns a stable string identity for comparing heat-source layers. */
 function heatSourceIdentity(concept: SystemConceptModel): string {
   // Combi identity is determined by the plate HEX — heat source alone is not enough
+  if (concept.hotWaterService === 'storage_combi') return 'storage_combi_boiler';
   if (concept.hotWaterService === 'combi_plate_hex') return 'combi_boiler';
   return concept.heatSource;
 }

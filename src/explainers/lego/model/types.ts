@@ -44,15 +44,19 @@ export type HeatSourceKind =
  *
  *  none              — no DHW service (heating-only system)
  *  combi_plate_hex   — on-demand mains-fed supply via integrated plate HEX
+ *  storage_combi     — combi with a small integrated store (storage combi boiler)
  *  vented_cylinder   — indirect cylinder fed from a cold-water storage cistern (tank-fed)
  *  unvented_cylinder — indirect cylinder fed directly from the mains (mains-fed)
+ *  thermal_store     — primary-side thermal store with a heat exchanger for DHW
  *  mixergy           — stratified Mixergy cylinder (mains-fed, bottom-up heating)
  */
 export type HotWaterServiceKind =
   | 'none'
   | 'combi_plate_hex'
+  | 'storage_combi'
   | 'vented_cylinder'
   | 'unvented_cylinder'
+  | 'thermal_store'
   | 'mixergy';
 
 // ─── Layer 3: Controls topology ───────────────────────────────────────────────

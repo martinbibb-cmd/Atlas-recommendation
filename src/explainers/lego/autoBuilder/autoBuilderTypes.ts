@@ -48,10 +48,11 @@ export type ModuleState =
  * ModuleVisualId — canonical rendering identifier for the SVG graphic.
  *
  * Heat source layer
- *   regular_boiler     — open-vented boiler with feed-and-expansion tank
- *   system_boiler      — sealed-system boiler (integrated pump + expansion)
- *   combi_boiler       — system boiler with integrated plate HEX
- *   heat_pump          — air/ground source heat pump unit
+ *   regular_boiler       — open-vented boiler with feed-and-expansion tank
+ *   system_boiler        — sealed-system boiler (integrated pump + expansion)
+ *   combi_boiler         — system boiler with integrated plate HEX
+ *   storage_combi_boiler — combi with a small integrated thermal store
+ *   heat_pump            — air/ground source heat pump unit
  *
  * Controls layer
  *   y_plan             — 3-port mid-position diverter valve
@@ -63,6 +64,7 @@ export type ModuleState =
  * DHW storage layer
  *   vented_cylinder    — open-vented (tank-fed) indirect cylinder
  *   unvented_cylinder  — mains-pressure sealed indirect cylinder
+ *   thermal_store      — primary-circuit thermal store with HEX coil for DHW
  *   mixergy_cylinder   — Mixergy stratified cylinder (mains-pressure)
  *   combi_on_demand    — no storage — on-demand via combi plate HEX
  *
@@ -80,6 +82,7 @@ export type ModuleVisualId =
   | 'regular_boiler'
   | 'system_boiler'
   | 'combi_boiler'
+  | 'storage_combi_boiler'
   | 'heat_pump'
   // Controls
   | 'y_plan'
@@ -90,6 +93,7 @@ export type ModuleVisualId =
   // DHW storage
   | 'vented_cylinder'
   | 'unvented_cylinder'
+  | 'thermal_store'
   | 'mixergy_cylinder'
   | 'combi_on_demand'
   // Emitters

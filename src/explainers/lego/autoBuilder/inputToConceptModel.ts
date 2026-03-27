@@ -47,7 +47,7 @@ function mapInputDhwStorage(
     case 'vented':             return 'vented_cylinder';
     case 'unvented':           return 'unvented_cylinder';
     case 'mixergy':            return 'mixergy';
-    case 'thermal_store':      return 'unvented_cylinder';   // closest model
+    case 'thermal_store':      return 'thermal_store';
     case 'heat_pump_cylinder': return 'unvented_cylinder';   // HP systems use sealed cylinder
     case 'none':               return 'combi_plate_hex';     // no storage = on-demand
     default:                   return 'vented_cylinder';     // safe fallback
@@ -58,7 +58,7 @@ function inferControls(
   heatSource: HeatSourceKind,
   hotWaterService: HotWaterServiceKind,
 ): ControlTopologyKind {
-  if (hotWaterService === 'combi_plate_hex') return 'none';
+  if (hotWaterService === 'combi_plate_hex' || hotWaterService === 'storage_combi') return 'none';
   if (heatSource === 'heat_pump') return 'hp_diverter';
   if (heatSource === 'regular_boiler') return 'y_plan';   // regular boilers typically Y-plan
   // system_boiler with cylinder → S-plan is standard
@@ -102,7 +102,7 @@ export function inputToConceptModel(input: EngineInputV2_3): SystemConceptModel 
     traits: {
       integratedPump:      heatSource !== 'regular_boiler',
       integratedExpansion: heatSource !== 'regular_boiler',
-      integratedPlateHex:  hotWaterService === 'combi_plate_hex',
+      integratedPlateHex:  hotWaterService === 'combi_plate_hex' || hotWaterService === 'storage_combi',
     },
   };
 }
