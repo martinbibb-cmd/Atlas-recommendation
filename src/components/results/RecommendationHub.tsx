@@ -19,6 +19,8 @@ import { useState } from 'react';
 import type { FullEngineResult } from '../../engine/schema/EngineInputV2_3';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { EvidenceItemV1, OptionCardV1 } from '../../contracts/EngineOutputV1';
+import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import type { PriorityKey } from '../../features/survey/priorities/prioritiesTypes';
 import RecommendationCard from '../live/RecommendationCard';
 import SystemOptionCard from './SystemOptionCard';
 import PerformanceEnablersPanel from '../performance/PerformanceEnablersPanel';
@@ -1006,6 +1008,11 @@ export default function RecommendationHub({ result, input }: Props) {
   const comparisonSummary = buildComparisonSummary(options);
   const contextBullets = engineOutput.contextSummary?.bullets ?? [];
 
+  // Extract selected priorities from the survey model (FullSurveyModelV1 extends EngineInputV2_3).
+  // Cast is safe: CurrentSituationSection always passes FullSurveyModelV1 here.
+  const selectedPriorities: PriorityKey[] =
+    (input as FullSurveyModelV1 | undefined)?.fullSurvey?.priorities?.selected ?? [];
+
   // Depot notes clipboard state
   const [depotCopied, setDepotCopied] = useState(false);
   const handleDepotCopy = () => {
@@ -1119,7 +1126,7 @@ export default function RecommendationHub({ result, input }: Props) {
             <p className="rec-comparison__summary">{comparisonSummary}</p>
           )}
           {options.map(card => (
-            <SystemOptionCard key={card.id} card={card} />
+            <SystemOptionCard key={card.id} card={card} selectedPriorities={selectedPriorities} />
           ))}
         </section>
       )}
