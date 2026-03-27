@@ -35,7 +35,7 @@ import { getMissingLabFields } from './lib/lab/getMissingLabFields';
 import { mergeLabQuickInputs } from './lib/lab/mergeLabQuickInputs';
 import { parsePortalPath } from './lib/portal/portalUrl';
 import type { DerivedFloorplanOutput } from './components/floorplan/floorplanDerivations';
-import { computeFitPosition } from './logic/fit-map/computeFitPosition';
+import { deriveFitPosition } from './logic/fit-map/deriveFitPosition';
 import type { FitPosition } from './logic/fit-map/computeFitPosition';
 import FitMapResultPage from './components/fit-map/FitMapResultPage';
 import CanonicalPresentationPage from './components/presentation/CanonicalPresentationPage';
@@ -155,44 +155,6 @@ const PORTAL_TOKEN =
 const EXPLORER_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('explorer') === '1';
-
-/** Minimum occupancy count that triggers 'steady' demand profile on the fit map.
- *  At 3+ occupants concurrent hot-water draw is likely — treat as steady demand. */
-const FIT_MAP_STEADY_OCCUPANCY_MIN = 3;
-
-/** Derive FitInputs from a completed engine input for the fit-map page. */
-function deriveFitPosition(engineInput: EngineInputV2_3): FitPosition {
-  const pipe = engineInput.primaryPipeDiameter;
-  const pipeMm: 15 | 22 | 28 | 35 =
-    pipe === 15 || pipe === 22 || pipe === 28 || pipe === 35 ? pipe : 22;
-
-  // Prefer the explicitly measured or derived peakConcurrentOutlets when available
-  // (set by sanitiseModelForEngine from demandPreset); fall back to bathroomCount.
-  const peakOutlets = engineInput.peakConcurrentOutlets ?? (engineInput.bathroomCount ?? 1);
-
-  // Prefer the newer dynamicMainsPressureBar field over the legacy dynamicMainsPressure.
-  const pressureBar = engineInput.dynamicMainsPressureBar ?? engineInput.dynamicMainsPressure ?? 1.5;
-
-  // Derive occupancy type from canonical occupancyCount when available.
-  // occupancySignature is a legacy field that defaults to 'professional' and is
-  // never updated from survey data, so it would produce a systematically low
-  // demand signal.  Using occupancyCount (set by sanitiseModelForEngine from
-  // householdComposition) gives an accurate demand signal.
-  const occupancyCount = engineInput.occupancyCount ?? 0;
-  const occupancyForFitMap: 'professional' | 'steady' | 'shift' =
-    occupancyCount >= FIT_MAP_STEADY_OCCUPANCY_MIN ? 'steady'
-    : engineInput.occupancySignature === 'shift' ? 'shift'
-    : 'professional';
-
-  return computeFitPosition({
-    peakConcurrentOutlets: Math.max(1, peakOutlets),
-    mainsDynamicPressureBar: pressureBar,
-    primaryPipeSizeMm: pipeMm,
-    thermalInertia: engineInput.buildingMass === 'heavy' ? 'high'
-      : engineInput.buildingMass === 'light' ? 'low' : 'medium',
-    occupancy: occupancyForFitMap,
-  });
-}
 
 function CanonicalPresentationRoute({
   engineInput,

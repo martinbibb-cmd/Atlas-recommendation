@@ -455,14 +455,19 @@ export function deriveSystemRecommendations(
   // hard-coded 1 when the usage step hasn't captured the field explicitly).
   const bathroomCount = home.bathroomCount ?? input.bathroomCount ?? 1;
   const dynamicPressure = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure ?? 2.0;
+  const peakConcurrentOutlets = input.peakConcurrentOutlets ?? 0;
   const emitters = system.emitters;
   const recommendations: SystemRecommendation[] = [];
 
   // ── High-demand household: stored DHW is the physics-fit ────────────────────
-  const highDemand = occupancy >= 4 || bathroomCount >= 2;
+  // peakConcurrentOutlets >= 2 is a hard simultaneous-demand gate (same as
+  // bathroomCount >= 2) — mirrors the CombiDhwModule rule so the insight layer
+  // and the engine-level verdict are consistent.
+  const highDemand = occupancy >= 4 || bathroomCount >= 2 || peakConcurrentOutlets >= 2;
   const suitableForCombi =
     occupancy <= 2 &&
     bathroomCount < 2 &&
+    peakConcurrentOutlets < 2 &&
     dynamicPressure >= 1.5;
 
   // ── Combi ────────────────────────────────────────────────────────────────────
