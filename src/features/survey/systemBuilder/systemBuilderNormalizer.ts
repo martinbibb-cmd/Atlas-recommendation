@@ -101,6 +101,13 @@ export type NormalisedCurrentSystem = {
       sedbukBand: string | null;
       serviceHistory: string | null;
     };
+    systemConditionSignals?: {
+      bleedWaterColour: 'clear' | 'slightly_discoloured' | 'dark' | 'sludge' | 'unknown' | null;
+      radiatorPerformance: 'all_even' | 'some_cold_spots' | 'many_cold' | null;
+      circulationIssues: 'none' | 'occasional_noise' | 'frequent_noise_or_poor_flow' | null;
+      magneticFilter: 'fitted' | 'not_fitted' | 'unknown' | null;
+      cleaningHistory: 'never_cleaned' | 'cleaned_over_5_years_ago' | 'recently_cleaned' | 'unknown' | null;
+    };
     /** Only present when heatSourceType === 'regular'. */
     regularSystemDetail?: {
       heatingSystemType: string | null;
