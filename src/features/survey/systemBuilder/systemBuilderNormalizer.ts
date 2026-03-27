@@ -155,6 +155,13 @@ export function normaliseSystemBuilder(state: SystemBuilderState): NormalisedCur
         sedbukBand: normaliseSedbuk(state.sedbukBand),
         serviceHistory: state.serviceHistory,
       },
+      systemConditionSignals: {
+        bleedWaterColour: state.bleedWaterColour,
+        radiatorPerformance: state.radiatorPerformance,
+        circulationIssues: state.circulationIssues,
+        magneticFilter: state.magneticFilter,
+        cleaningHistory: state.cleaningHistory,
+      },
       ...(state.heatSource === 'regular' ? {
         regularSystemDetail: {
           heatingSystemType: state.heatingSystemType,

@@ -13,6 +13,71 @@ import type { SystemBuilderState } from '../systemBuilder/systemBuilderTypes';
 import type { HomeState } from '../usage/usageTypes';
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
 
+// ─── System condition ─────────────────────────────────────────────────────────
+
+/**
+ * Derived three-band system cleanliness rating based on condition signals
+ * captured in System Builder.
+ *
+ * Logic:
+ *   sludge bleed OR many cold spots  → poor  (unless recently cleaned)
+ *   dark bleed OR some cold spots    → moderate
+ *   clear bleed AND all even         → clean
+ *   unknown / unset                  → moderate (safe default)
+ *
+ * Modifiers:
+ *   - magnetic filter fitted  reduces severity by one band
+ *   - recently cleaned        reduces severity by one band
+ */
+export type SystemConditionGrade = 'clean' | 'moderate' | 'poor';
+
+export function deriveSystemConditionGrade(
+  system: SystemBuilderState,
+): SystemConditionGrade {
+  const { bleedWaterColour, radiatorPerformance, circulationIssues, magneticFilter, cleaningHistory } = system;
+
+  // Base severity from primary signals
+  let grade: SystemConditionGrade;
+
+  const hasSludgeBleed = bleedWaterColour === 'sludge';
+  const hasDarkBleed   = bleedWaterColour === 'dark';
+  const hasManyCold    = radiatorPerformance === 'many_cold';
+  const hasSomeCold    = radiatorPerformance === 'some_cold_spots';
+  const hasPoorFlow    = circulationIssues === 'frequent_noise_or_poor_flow';
+
+  if (hasSludgeBleed || hasManyCold || (hasDarkBleed && hasPoorFlow)) {
+    grade = 'poor';
+  } else if (hasDarkBleed || hasSomeCold || hasPoorFlow) {
+    grade = 'moderate';
+  } else if (
+    bleedWaterColour === 'clear' &&
+    (radiatorPerformance === 'all_even' || radiatorPerformance === null) &&
+    (circulationIssues === 'none' || circulationIssues === null)
+  ) {
+    grade = 'clean';
+  } else if (bleedWaterColour === 'slightly_discoloured') {
+    grade = 'moderate';
+  } else {
+    // unknown / unset — default moderate (cautious)
+    grade = 'moderate';
+  }
+
+  // Modifiers: each reduces severity by one band
+  const filterMitigates    = magneticFilter === 'fitted';
+  const recentlyCleanedMitigates = cleaningHistory === 'recently_cleaned';
+  const mitigationCount    = (filterMitigates ? 1 : 0) + (recentlyCleanedMitigates ? 1 : 0);
+
+  if (mitigationCount >= 2) {
+    // Two mitigations: poor → clean, moderate → clean
+    if (grade === 'poor' || grade === 'moderate') grade = 'clean';
+  } else if (mitigationCount === 1) {
+    if (grade === 'poor') grade = 'moderate';
+    else if (grade === 'moderate') grade = 'clean';
+  }
+
+  return grade;
+}
+
 // ─── Heat load ────────────────────────────────────────────────────────────────
 
 export type HeatLoadConfidence = 'measured' | 'estimated' | 'default';
@@ -73,19 +138,35 @@ export function derivePresentSystemInsight(system: SystemBuilderState): PresentS
       ? 'C_or_below'
       : 'unknown';
 
-  let condition: ConditionBand = 'unknown';
-  const age = system.boilerAgeYears;
-  const service = system.serviceHistory;
+  // Incorporate condition-signal grade first; fall back to age/service heuristic
+  const conditionGrade = deriveSystemConditionGrade(system);
+  const hasConditionSignals =
+    system.bleedWaterColour != null ||
+    system.radiatorPerformance != null ||
+    system.circulationIssues != null;
 
-  if (age != null) {
-    if (age < 5 && service === 'regular') condition = 'good';
-    else if (age < 10 && service !== 'irregular') condition = 'good';
-    else if (age < 15) condition = service === 'regular' ? 'fair' : 'poor';
-    else condition = 'poor';
-  } else if (service === 'regular') {
-    condition = 'fair';
-  } else if (service === 'irregular') {
-    condition = 'poor';
+  let condition: ConditionBand;
+
+  if (hasConditionSignals) {
+    condition =
+      conditionGrade === 'clean'    ? 'good'  :
+      conditionGrade === 'moderate' ? 'fair'  : 'poor';
+  } else {
+    // Legacy age/service heuristic when no condition signals are present
+    condition = 'unknown';
+    const age = system.boilerAgeYears;
+    const service = system.serviceHistory;
+
+    if (age != null) {
+      if (age < 5 && service === 'regular') condition = 'good';
+      else if (age < 10 && service !== 'irregular') condition = 'good';
+      else if (age < 15) condition = service === 'regular' ? 'fair' : 'poor';
+      else condition = 'poor';
+    } else if (service === 'regular') {
+      condition = 'fair';
+    } else if (service === 'irregular') {
+      condition = 'poor';
+    }
   }
 
   return {
@@ -242,22 +323,52 @@ export function deriveQuickWins(
   input: FullSurveyModelV1,
 ): QuickWin[] {
   const wins: QuickWin[] = [];
+  const conditionGrade = deriveSystemConditionGrade(system);
 
   // Servicing
   if (system.serviceHistory === 'irregular' || system.serviceHistory === 'unknown') {
     wins.push({
       id: 'service',
       title: 'Annual boiler service',
-      reason: 'No regular service history recorded — servicing restores efficiency and extends appliance life.',
+      reason: 'No regular service history recorded — a service restores efficiency and catches deterioration early.',
     });
   }
 
-  // Magnetic filter
-  if (!input.hasMagneticFilter) {
+  // Magnetic filter — conditional on not already fitted
+  const filterFitted = system.magneticFilter === 'fitted';
+  if (!filterFitted) {
     wins.push({
       id: 'magnetic_filter',
       title: 'Magnetic system filter',
-      reason: 'No magnetic filter detected — fitting one protects the heat exchanger from magnetite and reduces sludge buildup.',
+      reason: 'No magnetic filter detected — fitting one protects the heat exchanger from magnetite and slows sludge accumulation.',
+    });
+  }
+
+  // System cleaning — only when condition signals justify it
+  const needsClean = conditionGrade === 'poor' || conditionGrade === 'moderate';
+  const hasConditionSignals =
+    system.bleedWaterColour != null ||
+    system.radiatorPerformance != null ||
+    system.circulationIssues != null;
+
+  if (conditionGrade === 'poor' && hasConditionSignals) {
+    wins.push({
+      id: 'flush',
+      title: 'System clean and flush',
+      reason: 'System appears dirty — bleed water colour and/or cold spots suggest significant sludge. Cleaning and a magnetic filter are likely to improve performance before any replacement.',
+    });
+  } else if (conditionGrade === 'moderate' && hasConditionSignals) {
+    wins.push({
+      id: 'flush',
+      title: 'Chemical system clean',
+      reason: 'System shows signs of partial fouling — a chemical clean and magnetic filter may improve heat distribution and reduce cycling.',
+    });
+  } else if (!hasConditionSignals && system.heatSource === 'regular' && system.boilerAgeYears !== null && system.boilerAgeYears > 10) {
+    // Soft hint only when no condition signals captured and system is old
+    wins.push({
+      id: 'flush',
+      title: 'Consider a system health check',
+      reason: 'Older system with no condition data captured — a visual check or bleed test is worthwhile before any upgrade.',
     });
   }
 
@@ -270,19 +381,7 @@ export function deriveQuickWins(
     wins.push({
       id: 'controls',
       title: 'Controls upgrade',
-      reason: 'Basic or missing controls — a programmable or smart thermostat can cut heating energy use by 10–15%.',
-    });
-  }
-
-  // System flush
-  const openVented =
-    system.heatSource === 'regular' &&
-    (system.heatingSystemType === 'open_vented' || system.heatingSystemType === 'unknown');
-  if (openVented || (system.boilerAgeYears != null && system.boilerAgeYears > 10)) {
-    wins.push({
-      id: 'flush',
-      title: 'Power flush / chemical clean',
-      reason: 'Older system or open-vented circuit — a system flush removes sludge and restores heat distribution.',
+      reason: 'Controls upgrade could improve comfort and condensing opportunity — a programmable or smart thermostat can reduce heating energy use by 10–15%.',
     });
   }
 
@@ -292,7 +391,7 @@ export function deriveQuickWins(
     wins.push({
       id: 'loft_insulation',
       title: 'Loft insulation',
-      reason: 'Poor or unknown roof insulation — upgrading to 270 mm mineral wool is the most cost-effective heat-loss reduction.',
+      reason: 'Loft insulation likely gives faster gains than changing the boiler — upgrading to 270 mm mineral wool is the most cost-effective heat-loss reduction.',
     });
   }
 
@@ -347,13 +446,13 @@ export function deriveSystemRecommendations(
       name: 'Modern combi boiler',
       tier: 'top',
       whyItFits: [
-        `Low concurrent demand (${occupancy} person household, ${bathroomCount} bathroom)`,
-        `Mains pressure supports on-demand flow (${dynamicPressure.toFixed(1)} bar)`,
-        'Removes need for cylinder — saves space',
+        `This is the strongest overall fit because demand is low — ${occupancy} person household with ${bathroomCount} bathroom.`,
+        `Mains pressure supports on-demand flow at ${dynamicPressure.toFixed(1)} bar — no simultaneous-draw risk at this occupancy.`,
+        'Removing the cylinder frees space and eliminates standing heat losses.',
       ],
       tradeOffs: [
-        'Cannot supply multiple outlets simultaneously',
-        'Flow rate limited by mains supply pressure',
+        'Cannot supply multiple outlets simultaneously — acceptable at this occupancy level.',
+        'Flow rate is bounded by mains supply pressure.',
       ],
       constraints: [],
     });
@@ -367,18 +466,18 @@ export function deriveSystemRecommendations(
       tier: suitableForCombi ? 'alternative' : 'top',
       whyItFits: [
         highDemand
-          ? `Household size (${occupancy} people, ${bathroomCount} bathrooms) needs stored DHW volume`
-          : 'Stored volume supports variable demand patterns',
-        'Mains-pressure hot water delivered to all outlets simultaneously',
-        'Condensing system boiler maximises efficiency',
+          ? `This would improve simultaneous hot-water delivery — ${occupancy} people across ${bathroomCount} bathrooms requires stored volume to avoid shortfalls.`
+          : 'Stored volume supports variable demand patterns where on-demand supply is borderline.',
+        'Mains-pressure hot water delivered to all outlets simultaneously — resolves any concurrent-draw risk.',
+        'A condensing system boiler with separate cylinder maximises seasonal efficiency.',
       ],
       tradeOffs: [
-        'Requires cylinder space',
-        'Hot water volume is finite — recovery time applies after large draws',
+        'Requires cylinder space — typically 180–210 L for this household size.',
+        'Hot water is finite — recovery time applies after large back-to-back draws.',
       ],
       constraints:
         dynamicPressure < 1.5
-          ? ['Low mains pressure may affect unvented cylinder performance — check static pressure']
+          ? ['Low mains pressure may affect unvented cylinder performance — static pressure check required before specifying.']
           : [],
     });
   }
@@ -397,18 +496,18 @@ export function deriveSystemRecommendations(
       name: 'Air source heat pump',
       tier: 'alternative',
       whyItFits: [
-        'Low-carbon heating pathway',
+        'This is possible and represents the low-carbon pathway — it eliminates gas combustion and qualifies for heat pump incentives.',
         emitters === 'underfloor'
-          ? 'Underfloor heating is an ideal low-flow-temperature emitter'
-          : 'Potential for low-flow-temperature operation with upgraded emitters',
+          ? 'Underfloor heating is already an ideal low-flow-temperature emitter — no emitter change needed.'
+          : 'Low-flow-temperature operation is achievable but requires emitter sizing to confirm coverage.',
       ],
       tradeOffs: [
-        'Higher installation cost',
-        requiresEmitterUpgrade ? 'Radiator upgrades likely required for low-temperature operation' : '',
-        'Needs adequate external space for the unit',
+        'Higher installation cost than a like-for-like boiler replacement.',
+        requiresEmitterUpgrade ? 'Existing radiators may need upsizing to deliver adequate output at lower flow temperatures.' : '',
+        'Requires adequate external space for the outdoor unit.',
       ].filter(Boolean),
       constraints: requiresEmitterUpgrade
-        ? ['Emitter heat output modelling required before final sizing']
+        ? ['Emitter heat output modelling required before final sizing — a heat loss survey per room is needed.']
         : [],
     });
   }
