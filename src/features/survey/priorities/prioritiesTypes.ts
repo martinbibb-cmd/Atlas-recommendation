@@ -90,7 +90,7 @@ export const PRIORITY_META: PriorityMeta[] = [
   },
   {
     key: 'future_compatibility',
-    label: 'Future-readiness',
+    label: 'Future compatibility',
     sub: 'Compatible with clean-energy upgrades and evolving standards',
     emoji: '🔮',
   },

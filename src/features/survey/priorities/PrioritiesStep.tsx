@@ -48,11 +48,12 @@ function chipStyle(isSelected: boolean): CSSProperties {
     gap: '0.5rem',
     padding: '0.65rem 0.85rem',
     borderRadius: '8px',
-    border: isSelected ? '2px solid #3182ce' : '1px solid #e2e8f0',
+    border: isSelected ? '2px solid #2b6cb0' : '1px solid #e2e8f0',
     background: isSelected ? '#ebf8ff' : '#fff',
+    boxShadow: isSelected ? '0 0 0 3px rgba(66, 153, 225, 0.2)' : 'none',
     cursor: 'pointer',
     textAlign: 'left' as const,
-    transition: 'border-color 0.15s, background 0.15s',
+    transition: 'border-color 0.15s, background 0.15s, box-shadow 0.15s',
     width: '100%',
   };
 }
@@ -79,13 +80,9 @@ export function PrioritiesStep({
 
   return (
     <div className="step-card" data-testid="priorities-step">
-      <h2>🎯 What matters most?</h2>
-      <p style={{ color: '#4a5568', fontSize: '0.85rem', marginTop: '0.25rem', marginBottom: '0.5rem' }}>
-        Select the things that matter most to this household. These shape
-        how we frame recommendations — physics suitability stays the same.
-      </p>
-      <p style={{ color: '#718096', fontSize: '0.78rem', marginBottom: '1rem' }}>
-        Select any that apply — or skip to see recommendations based on physics fit only.
+      <h2>🎯 What matters most in this home?</h2>
+      <p style={{ color: '#4a5568', fontSize: '0.85rem', marginTop: '0.25rem', marginBottom: '0.75rem' }}>
+        These priorities shape how Atlas presents suitable options. Physics fit stays the same.
       </p>
 
       {/* ── Priority chips ─────────────────────────────────────────────── */}
