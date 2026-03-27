@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './heatloss.css';
 import type { RoofType, RoofOrientation, ShadingLevel, PvStatus, BatteryStatus, ShellModel } from '../../features/survey/heatLoss/heatLossTypes';
-import { RoofOrientationPicker } from '../../features/survey/heatLoss/RoofOrientationPicker';
+import { RoofRotationControl } from '../../features/survey/heatLoss/RoofRotationControl';
 import { solarSuitabilitySummary } from '../../features/survey/heatLoss/heatLossDerivations';
 
 export type { ShellModel };
@@ -1542,10 +1542,10 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
                 </div>
               </div>
 
-              {/* Roof orientation — compass */}
+              {/* Roof orientation — rotation model */}
               <div className="hlc__field">
                 <label>Orientation (main usable roof face)</label>
-                <RoofOrientationPicker
+                <RoofRotationControl
                   value={roofModel.roofOrientation}
                   onChange={(v) => onRoofModelChange({ ...roofModel, roofOrientation: v })}
                 />
