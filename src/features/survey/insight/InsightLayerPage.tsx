@@ -22,6 +22,9 @@ import type { CSSProperties } from 'react';
 import type { SystemBuilderState } from '../systemBuilder/systemBuilderTypes';
 import type { HomeState } from '../usage/usageTypes';
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
+import type { PrioritiesState } from '../priorities/prioritiesTypes';
+import { PRIORITY_META } from '../priorities/prioritiesTypes';
+import { normalisePriorities } from '../priorities/prioritiesNormalizer';
 import {
   deriveHeatLoadInsight,
   derivePresentSystemInsight,
@@ -38,6 +41,7 @@ interface InsightLayerPageProps {
   systemBuilder: SystemBuilderState;
   home: HomeState;
   input: FullSurveyModelV1;
+  priorities: PrioritiesState;
   onNext: () => void;
   onPrev: () => void;
 }
@@ -153,6 +157,7 @@ export function InsightLayerPage({
   systemBuilder,
   home,
   input,
+  priorities,
   onNext,
   onPrev,
 }: InsightLayerPageProps) {
@@ -162,7 +167,8 @@ export function InsightLayerPage({
   const potential    = derivePotentialInsight(systemBuilder, input);
   const limitations  = deriveLimitationsInsight(systemBuilder, input);
   const quickWins    = deriveQuickWins(systemBuilder, input);
-  const recs         = deriveSystemRecommendations(systemBuilder, home, input);
+  const normPriorities = normalisePriorities(priorities);
+  const recs         = deriveSystemRecommendations(systemBuilder, home, input, normPriorities);
 
   const hasLimitations =
     limitations.mainsPressureLow ||
@@ -266,10 +272,41 @@ export function InsightLayerPage({
       {/* ── 4. Objectives ────────────────────────────────────────────────────── */}
       <div style={sectionStyle}>
         <p style={sectionTitleStyle}>4 — Objectives</p>
-        <p style={{ fontSize: '0.78rem', color: '#718096', fontStyle: 'italic', margin: 0 }}>
-          Priorities not yet captured in this survey — these will be collected at the recommendation stage.
-          Typical factors include: performance, disruption tolerance, running cost, future-readiness.
-        </p>
+        {normPriorities.hasPriorities ? (
+          <div>
+            <p style={{ fontSize: '0.75rem', color: '#718096', marginBottom: '0.75rem' }}>
+              {normPriorities.count} {normPriorities.count === 1 ? 'priority' : 'priorities'} captured —
+              recommendations surface these benefits first where relevant.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+              {PRIORITY_META.filter(m => priorities.selected.includes(m.key)).map(m => (
+                <span
+                  key={m.key}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    padding: '0.25rem 0.65rem',
+                    borderRadius: '999px',
+                    background: '#ebf8ff',
+                    border: '1px solid #bee3f8',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: '#2b6cb0',
+                  }}
+                >
+                  <span>{m.emoji}</span>
+                  {m.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p style={{ fontSize: '0.78rem', color: '#718096', fontStyle: 'italic', margin: 0 }}>
+            No priorities selected — recommendations are shown by physics fit only.
+            You can go back to the Priorities step to add objectives.
+          </p>
+        )}
       </div>
 
       {/* ── 5. Potential ─────────────────────────────────────────────────────── */}
