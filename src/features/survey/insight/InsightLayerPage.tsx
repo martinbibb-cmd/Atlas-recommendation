@@ -270,32 +270,31 @@ export function InsightLayerPage({
       </div>
 
       {/* ── 4. Objectives ────────────────────────────────────────────────────── */}
-      <div style={sectionStyle}>
+      <div style={{ ...sectionStyle, borderColor: normPriorities.hasPriorities ? '#bee3f8' : '#e2e8f0', background: normPriorities.hasPriorities ? '#f0f8ff' : '#f8fafc' }}>
         <p style={sectionTitleStyle}>4 — Objectives</p>
         {normPriorities.hasPriorities ? (
           <div>
-            <p style={{ fontSize: '0.75rem', color: '#718096', marginBottom: '0.75rem' }}>
-              {normPriorities.count} {normPriorities.count === 1 ? 'priority' : 'priorities'} captured —
-              recommendations surface these benefits first where relevant.
+            <p style={{ fontSize: '0.78rem', color: '#2b6cb0', fontWeight: 600, marginBottom: '0.75rem', marginTop: 0 }}>
+              What matters most in this home — these shape the emphasis of each recommendation.
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {PRIORITY_META.filter(m => priorities.selected.includes(m.key)).map(m => (
                 <span
                   key={m.key}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '0.3rem',
-                    padding: '0.25rem 0.65rem',
+                    gap: '0.35rem',
+                    padding: '0.35rem 0.8rem',
                     borderRadius: '999px',
                     background: '#ebf8ff',
-                    border: '1px solid #bee3f8',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    color: '#2b6cb0',
+                    border: '2px solid #90cdf4',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    color: '#1a4971',
                   }}
                 >
-                  <span>{m.emoji}</span>
+                  <span style={{ fontSize: '1rem' }}>{m.emoji}</span>
                   {m.label}
                 </span>
               ))}
@@ -304,7 +303,6 @@ export function InsightLayerPage({
         ) : (
           <p style={{ fontSize: '0.78rem', color: '#718096', fontStyle: 'italic', margin: 0 }}>
             No priorities selected — recommendations are shown by physics fit only.
-            You can go back to the Priorities step to add objectives.
           </p>
         )}
       </div>
