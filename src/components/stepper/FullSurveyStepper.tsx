@@ -1,12 +1,4 @@
 import { useState, useMemo, useEffect, type CSSProperties } from 'react';
-import {
-  DEMAND_PRESETS,
-  presetToEngineSignature,
-  resolveTimingOverrides,
-  getDemandStyleLabel,
-  type DemandPresetId,
-  type DemandTimingOverrides,
-} from '../../engine/schema/OccupancyPreset';
 import { deriveRawPressureStr, deriveRawFlowStr } from './pressureFlowHelpers';
 import {
   LineChart,
@@ -19,7 +11,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import OperatingPointChart, { OPERATING_POINT_NOTE } from '../visualizers/OperatingPointChart';
-import type { EngineInputV2_3, FullEngineResult, BuildingFabricType } from '../../engine/schema/EngineInputV2_3';
+import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1, HeatingConditionDiagnosticsV1, DhwConditionDiagnosticsV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
@@ -27,7 +19,6 @@ import { sanitiseModelForEngine } from '../../ui/fullSurvey/sanitiseModelForEngi
 import { inferSystemConditionFlags } from '../../engine/modules/SystemConditionInferenceModule';
 import { runEngine } from '../../engine/Engine';
 import { runPvAssessmentModule } from '../../engine/modules/PvAssessmentModule';
-import { runThermalInertiaModule } from '../../engine/modules/ThermalInertiaModule';
 import { calcFlowLpm, PIPE_THRESHOLDS } from '../../engine/modules/HydraulicModule';
 import { runCombiDhwModuleV1 } from '../../engine/modules/CombiDhwModule';
 import { analysePressure } from '../../engine/modules/PressureModule';
@@ -154,14 +145,6 @@ function deriveTau(mass: ThermalMass, insulation: InsulationLevel, air: AirTight
     return 190.5; // Passivhaus standard
   }
   return Math.round(BASE_TAU[mass][insulation] * AIR_TIGHTNESS_FACTOR[air]);
-}
-
-/** Map thermal mass + insulation + airtightness to BuildingFabricType for ThermalInertiaModule. */
-function deriveFabricType(mass: ThermalMass, insulation: InsulationLevel, air: AirTightness): BuildingFabricType {
-  if (mass === 'light' && insulation === 'exceptional' && air === 'passive_level') return 'passivhaus_standard';
-  if (mass === 'heavy')  return 'solid_brick_1930s';
-  if (mass === 'medium') return '1970s_cavity_wall';
-  return 'lightweight_new';
 }
 
 /** Map thermal mass to buildingMass for the engine contract. */
@@ -688,7 +671,6 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
 
   // Derived values — update whenever any fabric control changes
   const derivedTau = useMemo(() => deriveTau(thermalMass, insulationLevel, airTightness), [thermalMass, insulationLevel, airTightness]);
-  const fabricType: BuildingFabricType = useMemo(() => deriveFabricType(thermalMass, insulationLevel, airTightness), [thermalMass, insulationLevel, airTightness]);
   const heatLossBand = useMemo(() => deriveHeatLossBand(wallType, insulationLevel, glazing, roofInsulation), [wallType, insulationLevel, glazing, roofInsulation]);
   const inertiaBand = useMemo(() => deriveInertiaBand(derivedTau), [derivedTau]);
   const decayTrace = useMemo(() => buildDecayTrace(derivedTau), [derivedTau]);
