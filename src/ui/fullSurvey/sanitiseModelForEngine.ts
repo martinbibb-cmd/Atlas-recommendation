@@ -53,16 +53,15 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
   }
 
   // Sync calculator-derived heat loss from fullSurvey.heatLoss into the
-  // canonical heatLossWatts field.  This acts as a safety net for models
-  // loaded from saved drafts where the root field may still carry the old
-  // default 8000 W value.  The stepper also syncs this live via useEffect,
-  // but sanitiseModelForEngine must be self-contained so that saved/prefilled
-  // models are always correct regardless of how they reach the engine.
+  // canonical heatLossWatts field.  fullSurvey.heatLoss.estimatedPeakHeatLossW
+  // is the authoritative source when it is present — it always wins over the
+  // root field, which may carry a stale or default value from a previous
+  // session or an older saved draft.  The stepper also syncs this live via
+  // useEffect, but sanitiseModelForEngine must be self-contained so that
+  // saved/prefilled models are always correct regardless of how they reach
+  // the engine.
   const surveyHeatLossW = sanitised.fullSurvey?.heatLoss?.estimatedPeakHeatLossW;
-  if (
-    surveyHeatLossW != null &&
-    (sanitised.heatLossWatts == null || sanitised.heatLossWatts === 8000)
-  ) {
+  if (surveyHeatLossW != null) {
     sanitised.heatLossWatts = surveyHeatLossW;
   }
 

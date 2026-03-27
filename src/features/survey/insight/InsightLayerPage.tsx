@@ -425,6 +425,54 @@ export function InsightLayerPage({
         </div>
       )}
 
+      {/* ── DEV: canonical input readout ─────────────────────────────────────
+           Compact readout of the exact inputs driving insight + recommendations.
+           Only rendered in development builds (import.meta.env.DEV).
+           This proves the source-of-truth is correct after PR1 repairs. */}
+      {import.meta.env.DEV && (() => {
+        const canonicalHeatLossW =
+          input.fullSurvey?.heatLoss?.estimatedPeakHeatLossW ?? input.heatLossWatts ?? 8000;
+        const shellPersisted = !!(input.fullSurvey?.heatLoss?.shellModel);
+        const roofOrientation = input.fullSurvey?.heatLoss?.roofOrientation ?? '—';
+        const systemFamily = systemBuilder.heatSource ?? '—';
+        const canonicalBathrooms = home.bathroomCount ?? input.bathroomCount ?? 1;
+        const peakOutlets = input.peakConcurrentOutlets ?? '—';
+        const mainsFlow = input.mainsDynamicFlowLpm != null ? `${input.mainsDynamicFlowLpm} L/min` : '—';
+        const mainsPressure =
+          input.dynamicMainsPressureBar != null ? `${input.dynamicMainsPressureBar} bar`
+          : input.dynamicMainsPressure != null   ? `${input.dynamicMainsPressure} bar`
+          : '—';
+        const prioritiesPresent = normPriorities.hasPriorities;
+
+        return (
+          <div
+            data-testid="dev-canonical-inputs"
+            style={{
+              margin: '1rem 0',
+              padding: '0.75rem 1rem',
+              background: '#1a1a2e',
+              borderRadius: '8px',
+              border: '1px dashed #4a5568',
+              fontFamily: 'monospace',
+              fontSize: '0.72rem',
+              color: '#a0aec0',
+            }}
+          >
+            <div style={{ color: '#68d391', fontWeight: 700, marginBottom: '0.4rem' }}>
+              🔍 DEV — canonical inputs (PR1 truth check)
+            </div>
+            <div>heatLossWatts: <span style={{ color: '#fbbf24' }}>{canonicalHeatLossW} W ({(canonicalHeatLossW / 1000).toFixed(2)} kW)</span></div>
+            <div>shell persisted: <span style={{ color: shellPersisted ? '#68d391' : '#fc8181' }}>{shellPersisted ? 'yes' : 'no'}</span></div>
+            <div>roof orientation: <span style={{ color: '#fbbf24' }}>{roofOrientation}</span></div>
+            <div>current system family: <span style={{ color: '#fbbf24' }}>{systemFamily}</span></div>
+            <div>bathrooms: <span style={{ color: '#fbbf24' }}>{canonicalBathrooms}</span></div>
+            <div>peak concurrent outlets: <span style={{ color: '#fbbf24' }}>{peakOutlets}</span></div>
+            <div>mains flow: <span style={{ color: '#fbbf24' }}>{mainsFlow}</span> @ <span style={{ color: '#fbbf24' }}>{mainsPressure}</span></div>
+            <div>priorities present: <span style={{ color: prioritiesPresent ? '#68d391' : '#fc8181' }}>{prioritiesPresent ? 'yes' : 'no'}</span></div>
+          </div>
+        );
+      })()}
+
       {/* ── Navigation ───────────────────────────────────────────────────────── */}
       <div className="step-actions" style={{ marginTop: '1.5rem' }}>
         <button className="back-btn" type="button" onClick={onPrev}>
