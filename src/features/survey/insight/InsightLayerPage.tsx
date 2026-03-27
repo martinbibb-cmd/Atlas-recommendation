@@ -161,7 +161,7 @@ export function InsightLayerPage({
   const demands      = deriveDemandsInsight(home);
   const potential    = derivePotentialInsight(systemBuilder, input);
   const limitations  = deriveLimitationsInsight(systemBuilder, input);
-  const quickWins    = deriveQuickWins(systemBuilder, home, input);
+  const quickWins    = deriveQuickWins(systemBuilder, input);
   const recs         = deriveSystemRecommendations(systemBuilder, home, input);
 
   const hasLimitations =

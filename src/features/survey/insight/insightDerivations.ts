@@ -239,7 +239,6 @@ export interface QuickWin {
 
 export function deriveQuickWins(
   system: SystemBuilderState,
-  home: HomeState,
   input: FullSurveyModelV1,
 ): QuickWin[] {
   const wins: QuickWin[] = [];
