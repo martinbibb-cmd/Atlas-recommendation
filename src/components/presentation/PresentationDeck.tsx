@@ -39,6 +39,10 @@ import {
 } from './buildCanonicalPresentation';
 import { resolveShortlistVisualId, resolveCurrentSystemVisualId, resolveOptionsOverviewVisualId } from './presentationVisualMapping';
 import PresentationVisualSlot from './PresentationVisualSlot';
+import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
+import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
+import { optionToConceptModel } from '../../explainers/lego/autoBuilder/optionToConceptModel';
+import type { OptionId } from '../../explainers/lego/autoBuilder/optionToConceptModel';
 import './PresentationDeck.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -150,6 +154,60 @@ function CurrentSystemPage({ sys }: { sys: CurrentSystemSignal }) {
       </div>
       <p className="atlas-presentation-deck__takeaway">{sys.ageLabel}</p>
       <p className="atlas-presentation-deck__context">{sys.ageContext}</p>
+    </>
+  );
+}
+
+function ArchitecturePage({ input }: { input: EngineInputV2_3 }) {
+  const concept = inputToConceptModel(input);
+  if (!concept) return null;
+  return (
+    <>
+      <p className="atlas-presentation-deck__page-eyebrow">System architecture</p>
+      <h2 className="atlas-presentation-deck__page-title">Your current system — built from modules</h2>
+      <div className="atlas-presentation-deck__visual atlas-presentation-deck__visual--architecture">
+        <SystemArchitectureVisualiser
+          mode="current"
+          currentSystem={concept}
+        />
+      </div>
+    </>
+  );
+}
+
+function CompareArchitecturePage({
+  input,
+  option,
+}: {
+  input: EngineInputV2_3;
+  option: ShortlistedOptionDetail;
+}) {
+  const currentConcept   = inputToConceptModel(input);
+  const isMixergy        = option.dhwArchitecture === 'mixergy';
+  const recommendedConcept = optionToConceptModel(
+    option.family as OptionId,
+    isMixergy,
+    input.emitterType ? [input.emitterType] : undefined,
+  );
+  if (!currentConcept) return null;
+
+  // Show future solar pathway when solar storage opportunity is high
+  const futurePathways = option.solarStorageOpportunity === 'high'
+    ? [{ id: 'solar_connection' as const }]
+    : [];
+
+  return (
+    <>
+      <p className="atlas-presentation-deck__page-eyebrow">System changes</p>
+      <h2 className="atlas-presentation-deck__page-title">What changes — what stays</h2>
+      <div className="atlas-presentation-deck__visual atlas-presentation-deck__visual--architecture">
+        <SystemArchitectureVisualiser
+          mode="compare"
+          currentSystem={currentConcept}
+          recommendedSystem={recommendedConcept}
+          futurePathways={futurePathways}
+        />
+      </div>
     </>
   );
 }
@@ -391,6 +449,9 @@ export default function PresentationDeck({
   const model = buildCanonicalPresentation(result, input, recommendationResult);
   const { page1, page1_5, page2, page3, page4Plus, finalPage } = model;
 
+  // Derive the current system concept model once — used for architecture slides.
+  const currentSystemConcept = inputToConceptModel(input);
+
   // ─── Build page list ───────────────────────────────────────────────────────
 
   const pages: DeckPageDescriptor[] = [
@@ -398,14 +459,28 @@ export default function PresentationDeck({
     { id: 'home',           label: 'Home',          content: <HomePage home={page1.home} /> },
     { id: 'energy',         label: 'Energy',        content: <EnergyPage energy={page1.energy} /> },
     { id: 'current_system', label: 'System',        content: <CurrentSystemPage sys={page1.currentSystem} /> },
+    // Architecture slide — auto-built schematic of the current system from modules
+    ...(currentSystemConcept
+      ? [{ id: 'architecture', label: 'Blueprint', content: <ArchitecturePage input={input} /> }]
+      : []),
     { id: 'ageing',         label: 'Condition',     content: <AgeingPage ctx={page1_5} /> },
     { id: 'options',        label: 'Options',       content: <OptionsPage options={page2.options} currentSystemArchitecture={page1.currentSystem.dhwArchitecture} /> },
     { id: 'ranking',        label: 'Best fit',      content: <RankingPage items={page3.items} /> },
-    ...page4Plus.options.map((opt, i) => ({
-      id:      `option_${i + 1}`,
-      label:   `Option ${i + 1}`,
-      content: <ShortlistPage option={opt} index={i} />,
-    })),
+    ...page4Plus.options.flatMap((opt, i) => [
+      {
+        id:      `option_${i + 1}`,
+        label:   `Option ${i + 1}`,
+        content: <ShortlistPage option={opt} index={i} />,
+      },
+      // Compare architecture slide — shows what changes vs current system
+      ...(currentSystemConcept
+        ? [{
+            id:      `compare_${i + 1}`,
+            label:   `Changes ${i + 1}`,
+            content: <CompareArchitecturePage input={input} option={opt} />,
+          }]
+        : []),
+    ]),
     {
       id:      'simulator',
       label:   'Proof',

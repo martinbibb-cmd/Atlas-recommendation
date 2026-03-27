@@ -424,6 +424,12 @@
   margin: 0;
 }
 
+.cpp-shortlist-card__architecture {
+  padding: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fafbfc;
+}
+
 .cpp-shortlist-card__body {
   display: grid;
   grid-template-columns: 1fr 1fr;

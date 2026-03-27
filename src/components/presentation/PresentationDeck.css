@@ -127,6 +127,13 @@
   flex: 1;
 }
 
+/* Architecture visualiser override — needs auto height, not stretched */
+.atlas-presentation-deck__visual--architecture {
+  min-height: auto;
+  align-items: flex-start;
+  overflow-y: auto;
+}
+
 /* ─── Takeaway banner ─────────────────────────────────────────────────────── */
 
 .atlas-presentation-deck__takeaway {
