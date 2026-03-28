@@ -18,14 +18,23 @@
  *   - shellSnapshotUrl shown when available; heat-particles fallback otherwise
  */
 
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import type { HouseSignal, HomeSignal, CurrentSystemSignal } from './buildCanonicalPresentation';
 import type { HeatLossState } from '../../features/survey/heatLoss/heatLossTypes';
 import type { PrioritiesState, PriorityKey } from '../../features/survey/priorities/prioritiesTypes';
 import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
 import PresentationVisualSlot from './PresentationVisualSlot';
-import { resolveCurrentSystemVisualId } from './presentationVisualMapping';
+import { imageForCurrentSystem, imageForOptionId } from '../../ui/systemImages/systemImageMap';
+import type { SystemConceptModel } from '../../explainers/lego/model/types';
+import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
 import './QuadrantDashboardPage.css';
+
+function onTileKeyDown(event: KeyboardEvent<HTMLElement>, onToggle: () => void) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    onToggle();
+  }
+}
 
 // ─── House quadrant ───────────────────────────────────────────────────────────
 
@@ -45,17 +54,23 @@ function HouseQuadrant({
   const solarHint = house.pvPotentialLabel;
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       className={`qdp-quadrant qdp-quadrant--house${expanded ? ' qdp-quadrant--expanded' : ''}`}
       onClick={onToggle}
+      onKeyDown={event => onTileKeyDown(event, onToggle)}
       aria-expanded={expanded}
       aria-label="Your House — tap to expand"
     >
       <div className="qdp-quadrant__header">
         <span className="qdp-quadrant__icon" aria-hidden="true">🏠</span>
         <span className="qdp-quadrant__title">Your House</span>
-        <span className="qdp-quadrant__chevron" aria-hidden="true">{expanded ? '▲' : '▼'}</span>
+        {expanded && (
+          <button type="button" className="qdp-quadrant__close" onClick={e => { e.stopPropagation(); onToggle(); }}>
+            Close
+          </button>
+        )}
       </div>
 
       {/* Visual: perimeter snapshot if available, heat-particles fallback */}
@@ -86,6 +101,12 @@ function HouseQuadrant({
       </div>
 
       {/* Expanded detail */}
+      {!expanded && (
+        <p className="qdp-quadrant__collapsed-copy">
+          {house.wallTypeLabel} · {house.insulationLabel}
+        </p>
+      )}
+
       {expanded && (
         <div className="qdp-quadrant__detail" role="region" aria-label="House details">
           <p className="qdp-detail__row"><strong>Heat loss:</strong> {house.heatLossLabel} — {house.heatLossBand}</p>
@@ -97,7 +118,7 @@ function HouseQuadrant({
           ))}
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -115,17 +136,23 @@ function HomeQuadrant({
   const outletsActive = Math.max(1, Math.min(home.peakSimultaneousOutlets, 3)) as 1 | 2 | 3;
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       className={`qdp-quadrant qdp-quadrant--home${expanded ? ' qdp-quadrant--expanded' : ''}`}
       onClick={onToggle}
+      onKeyDown={event => onTileKeyDown(event, onToggle)}
       aria-expanded={expanded}
       aria-label="Your Home — tap to expand"
     >
       <div className="qdp-quadrant__header">
         <span className="qdp-quadrant__icon" aria-hidden="true">👥</span>
         <span className="qdp-quadrant__title">Your Home</span>
-        <span className="qdp-quadrant__chevron" aria-hidden="true">{expanded ? '▲' : '▼'}</span>
+        {expanded && (
+          <button type="button" className="qdp-quadrant__close" onClick={e => { e.stopPropagation(); onToggle(); }}>
+            Close
+          </button>
+        )}
       </div>
 
       <div className="qdp-quadrant__visual">
@@ -140,6 +167,8 @@ function HomeQuadrant({
         <span className="qdp-quadrant__badge">{home.demandProfileLabel}</span>
       </div>
 
+      {!expanded && <p className="qdp-quadrant__collapsed-copy">{home.dailyHotWaterLabel}</p>}
+
       {expanded && (
         <div className="qdp-quadrant__detail" role="region" aria-label="Home details">
           <p className="qdp-detail__row"><strong>Daily hot water:</strong> {home.dailyHotWaterLabel}</p>
@@ -152,7 +181,7 @@ function HomeQuadrant({
           ))}
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -160,36 +189,47 @@ function HomeQuadrant({
 
 function SystemQuadrant({
   sys,
+  currentSystemConcept,
   expanded,
   onToggle,
 }: {
   sys: CurrentSystemSignal;
+  currentSystemConcept?: SystemConceptModel;
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const visualId = resolveCurrentSystemVisualId(sys.dhwArchitecture);
+  const image = sys.currentHeatSourceType === 'ashp'
+    ? imageForOptionId('ashp')
+    : imageForCurrentSystem(
+      sys.currentHeatSourceType === 'other' || sys.currentHeatSourceType == null ? null : sys.currentHeatSourceType,
+      sys.systemDhwType,
+    );
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       className={`qdp-quadrant qdp-quadrant--system${expanded ? ' qdp-quadrant--expanded' : ''}`}
       onClick={onToggle}
+      onKeyDown={event => onTileKeyDown(event, onToggle)}
       aria-expanded={expanded}
       aria-label="Your System — tap to expand"
     >
       <div className="qdp-quadrant__header">
         <span className="qdp-quadrant__icon" aria-hidden="true">🔧</span>
         <span className="qdp-quadrant__title">Your System</span>
-        <span className="qdp-quadrant__chevron" aria-hidden="true">{expanded ? '▲' : '▼'}</span>
+        {expanded && (
+          <button type="button" className="qdp-quadrant__close" onClick={e => { e.stopPropagation(); onToggle(); }}>
+            Close
+          </button>
+        )}
       </div>
 
       <div className="qdp-quadrant__visual">
-        {visualId === 'thermal_store' ? (
-          <PresentationVisualSlot visualId="thermal_store" visualData={{ flowTempBand: 'high' }} hideExplainer />
-        ) : visualId === 'cylinder_charge_mixergy' ? (
-          <PresentationVisualSlot visualId="cylinder_charge_mixergy" hideExplainer />
-        ) : visualId === 'cylinder_charge_standard' ? (
-          <PresentationVisualSlot visualId="cylinder_charge_standard" hideExplainer />
+        {image ? (
+          <img src={image.src} alt={image.alt} className="qdp-quadrant__snapshot" />
+        ) : currentSystemConcept ? (
+          <SystemArchitectureVisualiser mode="current" currentSystem={currentSystemConcept} />
         ) : (
           <PresentationVisualSlot visualId="driving_style" visualData={{ mode: sys.drivingStyleMode }} hideExplainer />
         )}
@@ -199,6 +239,8 @@ function SystemQuadrant({
         <span className="qdp-quadrant__badge">{sys.systemTypeLabel}</span>
         <span className="qdp-quadrant__badge qdp-quadrant__badge--secondary">{sys.ageLabel}</span>
       </div>
+
+      {!expanded && <p className="qdp-quadrant__collapsed-copy">{sys.ageContext}</p>}
 
       {expanded && (
         <div className="qdp-quadrant__detail" role="region" aria-label="System details">
@@ -213,7 +255,7 @@ function SystemQuadrant({
           )}
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -236,17 +278,23 @@ function PrioritiesQuadrant({
   const selected = prioritiesState?.selected ?? [];
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       className={`qdp-quadrant qdp-quadrant--priorities${expanded ? ' qdp-quadrant--expanded' : ''}`}
       onClick={onToggle}
+      onKeyDown={event => onTileKeyDown(event, onToggle)}
       aria-expanded={expanded}
       aria-label="Your Priorities — tap to expand"
     >
       <div className="qdp-quadrant__header">
         <span className="qdp-quadrant__icon" aria-hidden="true">🎯</span>
         <span className="qdp-quadrant__title">Your Priorities</span>
-        <span className="qdp-quadrant__chevron" aria-hidden="true">{expanded ? '▲' : '▼'}</span>
+        {expanded && (
+          <button type="button" className="qdp-quadrant__close" onClick={e => { e.stopPropagation(); onToggle(); }}>
+            Close
+          </button>
+        )}
       </div>
 
       <div className="qdp-quadrant__chips">
@@ -261,6 +309,10 @@ function PrioritiesQuadrant({
         )}
       </div>
 
+      {!expanded && selected.length === 0 && (
+        <p className="qdp-quadrant__collapsed-copy">Tell us what matters most to tune recommendations.</p>
+      )}
+
       {expanded && selected.length > 0 && (
         <div className="qdp-quadrant__detail" role="region" aria-label="Priority details">
           {PRIORITY_META.filter(m => selected.includes(m.key)).map(m => (
@@ -271,7 +323,7 @@ function PrioritiesQuadrant({
           ))}
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -281,6 +333,7 @@ export interface QuadrantDashboardPageProps {
   house: HouseSignal;
   home: HomeSignal;
   currentSystem: CurrentSystemSignal;
+  currentSystemConcept?: SystemConceptModel;
   heatLossState?: HeatLossState;
   prioritiesState?: PrioritiesState;
 }
@@ -297,6 +350,7 @@ export default function QuadrantDashboardPage({
   house,
   home,
   currentSystem,
+  currentSystemConcept,
   heatLossState,
   prioritiesState,
 }: QuadrantDashboardPageProps) {
@@ -325,6 +379,7 @@ export default function QuadrantDashboardPage({
       />
       <SystemQuadrant
         sys={currentSystem}
+        currentSystemConcept={currentSystemConcept}
         expanded={expanded === 'system'}
         onToggle={() => toggle('system')}
       />

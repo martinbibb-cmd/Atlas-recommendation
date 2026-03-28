@@ -477,6 +477,7 @@ export default function PresentationDeck({
             house={page1.house}
             home={page1.home}
             currentSystem={page1.currentSystem}
+            currentSystemConcept={currentSystemConcept}
             heatLossState={heatLossState}
             prioritiesState={prioritiesState}
           />
