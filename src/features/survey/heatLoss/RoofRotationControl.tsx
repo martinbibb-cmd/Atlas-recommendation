@@ -9,7 +9,8 @@
  * displayed as a one-line summary below the graphic.
  *
  * Interaction:
- *   - Step rotate buttons: ±45° increments (L / R arrows + direct N/E/S/W shortcuts)
+ *   - Step rotate buttons: ±45° increments (L / R arrows)
+ *   - Cardinal / intercardinal shortcut buttons: N / NE / E / SE / S / SW / W / NW
  *   - Pointer drag: drag anywhere on the house graphic to spin it freely
  *
  * Orientation derivation: the rotation angle is snapped to the nearest 45°
@@ -21,6 +22,8 @@
  *   - No Math.random() — fully deterministic
  *   - Spatial / model-first, not form-first
  *   - All rendering via inline SVG — no external dependencies
+ *   - Compass stays fixed; the house/roof model rotates
+ *   - Snap feedback: brief ring highlight when the house locks to a compass point
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -117,10 +120,20 @@ const summaryStyle: CSSProperties = {
   minHeight: '1.1rem',
 };
 
-const buttonRowStyle: CSSProperties = {
-  display: 'flex',
-  gap: '0.4rem',
+const instructionStyle: CSSProperties = {
+  textAlign: 'center',
+  fontSize: '0.75rem',
+  color: '#718096',
+  minHeight: '1rem',
+};
+
+/** 3×3 grid: top row = NW/N/NE, middle row = W/–/E, bottom row = SW/S/SE, plus ↺/↻ ends */
+const buttonGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(5, auto)',
+  gap: '0.3rem',
   alignItems: 'center',
+  justifyItems: 'center',
 };
 
 function stepBtnStyle(active?: boolean): CSSProperties {
@@ -128,14 +141,33 @@ function stepBtnStyle(active?: boolean): CSSProperties {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '36px',
-    height: '36px',
+    width: '34px',
+    height: '34px',
     borderRadius: '8px',
     border: active ? '2px solid #2b6cb0' : '1px solid #e2e8f0',
     background: active ? '#ebf8ff' : '#fff',
     color: active ? '#2b6cb0' : '#4a5568',
     cursor: 'pointer',
-    fontSize: '0.85rem',
+    fontSize: '0.8rem',
+    fontWeight: 600,
+    padding: 0,
+    transition: 'border-color 0.15s, background 0.15s',
+  };
+}
+
+function rotateBtnStyle(): CSSProperties {
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '34px',
+    height: '34px',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0',
+    background: '#f7fafc',
+    color: '#4a5568',
+    cursor: 'pointer',
+    fontSize: '1rem',
     fontWeight: 600,
     padding: 0,
     transition: 'border-color 0.15s, background 0.15s',
@@ -145,13 +177,17 @@ function stepBtnStyle(active?: boolean): CSSProperties {
 // ─── House SVG ────────────────────────────────────────────────────────────────
 
 /**
- * A simple top-down house footprint with a pitched roof triangle and an arrow
- * indicating the "main usable face" direction.
+ * Top-down house silhouette with a pitched roof and a bold direction arrow
+ * indicating the "main usable face" (the face the roof slope points toward).
  *
- * The SVG rotates about its centre; the caller applies the rotation via CSS
- * transform.
+ * The arrow points upward in local SVG space; the caller rotates the whole
+ * element so the arrow always points in the selected compass direction.
+ *
+ * `snapped` highlights the arrow in accent blue when the house is locked to
+ * a compass point (snap feedback).
  */
-function HouseSvg() {
+function HouseSvg({ snapped }: { snapped: boolean }) {
+  const arrowColor = snapped ? '#1a56db' : '#2b6cb0';
   return (
     <svg
       viewBox="0 0 80 80"
@@ -161,11 +197,20 @@ function HouseSvg() {
       style={{ display: 'block', overflow: 'visible' }}
     >
       {/* House body */}
-      <rect x="16" y="28" width="48" height="36" rx="2" fill="#e2e8f0" stroke="#64748b" strokeWidth="1.5" />
-      {/* Roof triangle — apex points "north" in local SVG space (upward in default orientation) */}
-      <polygon points="40,4 68,30 12,30" fill="#94a3b8" stroke="#475569" strokeWidth="1.5" />
-      {/* Direction arrow on roof face (pointing upward = facing the selected direction) */}
-      <polygon points="40,8 44,20 40,17 36,20" fill="#2b6cb0" opacity="0.85" />
+      <rect x="18" y="30" width="44" height="32" rx="2" fill="#dbe8f8" stroke="#4a7abf" strokeWidth="1.5" />
+      {/* Door */}
+      <rect x="33" y="47" width="14" height="15" rx="2" fill="#9ab4d8" stroke="#4a7abf" strokeWidth="1" />
+      {/* Roof ridge (apex points "north" = upward in default orientation) */}
+      <polygon points="40,6 66,32 14,32" fill="#7aa2c8" stroke="#3a6ea8" strokeWidth="1.5" />
+      {/* Direction arrow: prominent upward arrow on the roof face */}
+      {/* Arrow shaft */}
+      <rect x="38" y="14" width="4" height="10" rx="1" fill={arrowColor} opacity={snapped ? 1 : 0.85} />
+      {/* Arrow head */}
+      <polygon points="40,6 45,16 35,16" fill={arrowColor} opacity={snapped ? 1 : 0.85} />
+      {/* Snap ring — glows when snapped to a compass point */}
+      {snapped && (
+        <circle cx="40" cy="40" r="36" fill="none" stroke="#1a56db" strokeWidth="2.5" opacity="0.35" strokeDasharray="4 3" />
+      )}
     </svg>
   );
 }
@@ -208,6 +253,8 @@ function CompassLabels() {
 
 export function RoofRotationControl({ value, onChange }: RoofRotationControlProps) {
   const [angleDeg, setAngleDeg] = useState(() => orientationToAngle(value));
+  // Snap feedback: true while the house is at a clean 45° boundary
+  const [isSnapped, setIsSnapped] = useState(value !== 'unknown');
   // Track pointer-drag state
   const dragRef = useRef<{ startAngle: number; startPointerAngle: number } | null>(null);
   const houseRef = useRef<HTMLDivElement>(null);
@@ -216,6 +263,7 @@ export function RoofRotationControl({ value, onChange }: RoofRotationControlProp
   useEffect(() => {
     if (value !== 'unknown') {
       setAngleDeg(orientationToAngle(value));
+      setIsSnapped(true);
     }
   }, [value]);
 
@@ -231,6 +279,7 @@ export function RoofRotationControl({ value, onChange }: RoofRotationControlProp
   const commitAngle = useCallback((raw: number) => {
     const snapped = snapTo45(normalise360(raw));
     setAngleDeg(snapped);
+    setIsSnapped(true);
     onChange(angleToOrientation(snapped));
   }, [onChange]);
 
@@ -241,6 +290,7 @@ export function RoofRotationControl({ value, onChange }: RoofRotationControlProp
       startAngle: angleDeg,
       startPointerAngle: pointerAngleFrom(e.clientX, e.clientY),
     };
+    setIsSnapped(false);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -250,6 +300,7 @@ export function RoofRotationControl({ value, onChange }: RoofRotationControlProp
     const raw = dragRef.current.startAngle + delta;
     const snapped = snapTo45(normalise360(raw));
     setAngleDeg(snapped);
+    setIsSnapped(false);
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
@@ -265,11 +316,20 @@ export function RoofRotationControl({ value, onChange }: RoofRotationControlProp
   const rotateBy = (delta: number) => commitAngle(angleDeg + delta);
 
   // Derive orientation consistently from internal angle state.
-  // `value` is used only for the summary text (to distinguish 'unknown' from a set value).
   const orientation = angleToOrientation(angleDeg);
+
+  // All 8 compass directions for the shortcut button grid
+  const cardinalDirs: CompassOrientation[] = ['NW', 'N', 'NE'];
+  const midDirs: (CompassOrientation | null)[] = ['W', null, 'E'];
+  const lowerDirs: CompassOrientation[] = ['SW', 'S', 'SE'];
 
   return (
     <div style={containerStyle} data-testid="roof-rotation-control">
+      {/* Instruction copy */}
+      <p style={instructionStyle}>
+        Rotate so the arrow points the way your roof faces
+      </p>
+
       {/* Compass rose + rotating house */}
       <div style={compassWrapStyle}>
         <CompassLabels />
@@ -303,27 +363,32 @@ export function RoofRotationControl({ value, onChange }: RoofRotationControlProp
             width: '80px',
             height: '80px',
             borderRadius: '50%',
-            background: 'rgba(255,255,255,0.85)',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+            background: isSnapped ? 'rgba(235, 248, 255, 0.9)' : 'rgba(255,255,255,0.85)',
+            boxShadow: isSnapped
+              ? '0 0 0 3px rgba(43, 108, 176, 0.25), 0 1px 4px rgba(0,0,0,0.12)'
+              : '0 1px 4px rgba(0,0,0,0.12)',
+            transition: 'background 0.2s, box-shadow 0.2s',
           }}
         >
-          <HouseSvg />
+          <HouseSvg snapped={isSnapped} />
         </div>
       </div>
 
-      {/* Step-rotate buttons */}
-      <div style={buttonRowStyle} role="group" aria-label="Rotate house orientation">
+      {/* ±45° rotate + all 8 compass shortcuts */}
+      <div style={buttonGridStyle} role="group" aria-label="Set roof orientation">
+        {/* Rotate anti-clockwise */}
         <button
           type="button"
-          style={stepBtnStyle()}
+          style={rotateBtnStyle()}
           aria-label="Rotate anti-clockwise 45°"
           data-testid="rotate-ccw"
           onClick={() => rotateBy(-45)}
         >
           ↺
         </button>
-        {(['N','E','S','W'] as CompassOrientation[]).map((dir) => {
-          const active = orientation === dir;
+        {/* NW / N / NE row */}
+        {cardinalDirs.map((dir) => {
+          const active = orientation === dir && isSnapped;
           return (
             <button
               key={dir}
@@ -335,6 +400,7 @@ export function RoofRotationControl({ value, onChange }: RoofRotationControlProp
               onClick={() => {
                 const a = orientationToAngle(dir);
                 setAngleDeg(a);
+                setIsSnapped(true);
                 onChange(dir);
               }}
             >
@@ -342,15 +408,67 @@ export function RoofRotationControl({ value, onChange }: RoofRotationControlProp
             </button>
           );
         })}
+        {/* Rotate clockwise */}
         <button
           type="button"
-          style={stepBtnStyle()}
+          style={rotateBtnStyle()}
           aria-label="Rotate clockwise 45°"
           data-testid="rotate-cw"
           onClick={() => rotateBy(45)}
         >
           ↻
         </button>
+        {/* W / – / E row */}
+        {midDirs.map((dir, idx) => {
+          if (dir === null) {
+            return <div key={`mid-${idx}`} style={{ width: '34px', height: '34px' }} />;
+          }
+          const active = orientation === dir && isSnapped;
+          return (
+            <button
+              key={dir}
+              type="button"
+              style={stepBtnStyle(active)}
+              aria-label={dir}
+              aria-pressed={active}
+              data-testid={`roof-orientation-${dir}`}
+              onClick={() => {
+                const a = orientationToAngle(dir);
+                setAngleDeg(a);
+                setIsSnapped(true);
+                onChange(dir);
+              }}
+            >
+              {dir}
+            </button>
+          );
+        })}
+        {/* Empty cell to maintain grid alignment in bottom row */}
+        <div />
+        {/* SW / S / SE row */}
+        {lowerDirs.map((dir) => {
+          const active = orientation === dir && isSnapped;
+          return (
+            <button
+              key={dir}
+              type="button"
+              style={stepBtnStyle(active)}
+              aria-label={dir}
+              aria-pressed={active}
+              data-testid={`roof-orientation-${dir}`}
+              onClick={() => {
+                const a = orientationToAngle(dir);
+                setAngleDeg(a);
+                setIsSnapped(true);
+                onChange(dir);
+              }}
+            >
+              {dir}
+            </button>
+          );
+        })}
+        {/* Empty cell to complete the row */}
+        <div />
       </div>
 
       {/* Summary line */}

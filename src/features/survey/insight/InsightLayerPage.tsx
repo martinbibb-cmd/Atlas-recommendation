@@ -37,6 +37,12 @@ import type { OptionId } from '../../../explainers/lego/autoBuilder/optionToConc
 import type { SystemConceptModel } from '../../../explainers/lego/model/types';
 import { imageForCurrentSystem, imageForRecId } from '../../../ui/systemImages/systemImageMap';
 import { SystemRealWorldImage } from '../../../components/systemImages/SystemRealWorldImage';
+import {
+  solarSuitabilitySummary,
+  deriveSolarPotential,
+  roofOrientationLabel,
+} from '../heatLoss/heatLossDerivations';
+import type { RoofType } from '../heatLoss/heatLossTypes';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -139,6 +145,17 @@ function formatDhwType(v: string | null): string {
     thermal_store: 'Thermal store',
     plate_hex: 'On-demand hot water',
     small_store: 'Integral small store',
+  };
+  return map[v] ?? v;
+}
+
+function formatRoofType(v: RoofType | undefined): string {
+  if (!v || v === 'unknown') return '—';
+  const map: Record<string, string> = {
+    pitched: 'Pitched',
+    flat:    'Flat',
+    hipped:  'Hipped',
+    dormer:  'Dormer',
   };
   return map[v] ?? v;
 }
@@ -271,6 +288,17 @@ export function InsightLayerPage({
   // Real-world image for the current system (null when no confident mapping)
   const currentSystemImage = imageForCurrentSystem(systemBuilder.heatSource, systemBuilder.dhwType);
 
+  // Roof / solar context — sourced from the heat-loss step's HeatLossState
+  const heatLossState = input.fullSurvey?.heatLoss;
+  const roofType = heatLossState?.roofType;
+  const roofOrientation = heatLossState?.roofOrientation;
+  const shadingLevel = heatLossState?.shadingLevel;
+  const hasRoofData = roofType !== undefined && roofType !== 'unknown';
+  const hasOrientationData = roofOrientation !== undefined && roofOrientation !== 'unknown';
+  const solarPotential = heatLossState
+    ? deriveSolarPotential(heatLossState.roofOrientation, heatLossState.shadingLevel)
+    : 'unknown';
+
   const hasLimitations =
     limitations.mainsPressureLow ||
     limitations.pipeworkAccessDifficult ||
@@ -375,6 +403,41 @@ export function InsightLayerPage({
               <span style={pillStyle('grey')}>Unknown</span>
             )}
           </Row>
+          {/* Roof / solar summary — only shown when at least roof type or orientation is known */}
+          {(hasRoofData || hasOrientationData) && (
+            <Row label="Roof">
+              {hasRoofData && <span>{formatRoofType(roofType)}</span>}
+              {hasRoofData && hasOrientationData && <span style={{ color: '#718096', margin: '0 0.3rem' }}>·</span>}
+              {hasOrientationData && roofOrientation && <span>{roofOrientationLabel(roofOrientation)} facing</span>}
+            </Row>
+          )}
+          {solarPotential !== 'unknown' && (
+            <Row label="Solar potential">
+              {(() => {
+                const potentialMeta: Record<string, { variant: 'green' | 'blue' | 'amber'; label: string }> = {
+                  good:     { variant: 'green', label: 'Good' },
+                  moderate: { variant: 'blue',  label: 'Moderate' },
+                  poor:     { variant: 'amber', label: 'Limited' },
+                };
+                const shadingMeta: Record<string, string> = {
+                  little_or_none: '· Little shading',
+                  some:           '· Some shading',
+                  heavy:          '· Heavy shading',
+                };
+                const meta = potentialMeta[solarPotential];
+                return (
+                  <>
+                    {meta && <span style={pillStyle(meta.variant)}>{meta.label}</span>}
+                    {shadingLevel && shadingLevel !== 'unknown' && (
+                      <span style={{ color: '#718096', fontSize: '0.74rem', marginLeft: '0.4rem' }}>
+                        {shadingMeta[shadingLevel]}
+                      </span>
+                    )}
+                  </>
+                );
+              })()}
+            </Row>
+          )}
         </div>
         {normPriorities.hasPriorities && (
           <div style={{ marginTop: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
@@ -465,7 +528,15 @@ export function InsightLayerPage({
         const canonicalHeatLossW =
           input.fullSurvey?.heatLoss?.estimatedPeakHeatLossW ?? input.heatLossWatts ?? 8000;
         const shellPersisted = !!(input.fullSurvey?.heatLoss?.shellModel);
-        const roofOrientation = input.fullSurvey?.heatLoss?.roofOrientation ?? '—';
+        const devRoofOrientation = input.fullSurvey?.heatLoss?.roofOrientation ?? '—';
+        const devRoofType = input.fullSurvey?.heatLoss?.roofType ?? '—';
+        const roofOrientationPersisted =
+          input.fullSurvey?.heatLoss?.roofOrientation !== undefined &&
+          input.fullSurvey?.heatLoss?.roofOrientation !== 'unknown';
+        const devSolarPotential = heatLossState
+          ? deriveSolarPotential(heatLossState.roofOrientation, heatLossState.shadingLevel)
+          : 'unknown';
+        const devSolarSummary = heatLossState ? solarSuitabilitySummary(heatLossState) : '—';
         const systemFamily = systemBuilder.heatSource ?? '—';
         const canonicalBathrooms = home.bathroomCount ?? input.bathroomCount ?? 1;
         const peakOutlets = input.peakConcurrentOutlets ?? '—';
@@ -491,11 +562,14 @@ export function InsightLayerPage({
             }}
           >
             <div style={{ color: '#68d391', fontWeight: 700, marginBottom: '0.4rem' }}>
-              🔍 DEV — canonical inputs (PR1 truth check)
+              🔍 DEV — canonical inputs (PR4 roof truth check)
             </div>
             <div>heatLossWatts: <span style={{ color: '#fbbf24' }}>{canonicalHeatLossW} W ({(canonicalHeatLossW / 1000).toFixed(2)} kW)</span></div>
             <div>shell persisted: <span style={{ color: shellPersisted ? '#68d391' : '#fc8181' }}>{shellPersisted ? 'yes' : 'no'}</span></div>
-            <div>roof orientation: <span style={{ color: '#fbbf24' }}>{roofOrientation}</span></div>
+            <div>roof type: <span style={{ color: '#fbbf24' }}>{devRoofType}</span></div>
+            <div>roof orientation: <span style={{ color: '#fbbf24' }}>{devRoofOrientation}</span>{' '}<span style={{ color: roofOrientationPersisted ? '#68d391' : '#fc8181' }}>({roofOrientationPersisted ? 'persisted' : 'not set'})</span></div>
+            <div>solar suitability: <span style={{ color: devSolarPotential === 'good' ? '#68d391' : devSolarPotential === 'moderate' ? '#fbbf24' : devSolarPotential === 'poor' ? '#fc8181' : '#a0aec0' }}>{devSolarPotential}</span></div>
+            <div>solar summary: <span style={{ color: '#fbbf24' }}>{devSolarSummary}</span></div>
             <div>current system family: <span style={{ color: '#fbbf24' }}>{systemFamily}</span></div>
             <div>bathrooms: <span style={{ color: '#fbbf24' }}>{canonicalBathrooms}</span></div>
             <div>peak concurrent outlets: <span style={{ color: '#fbbf24' }}>{peakOutlets}</span></div>

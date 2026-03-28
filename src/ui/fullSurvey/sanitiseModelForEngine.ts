@@ -1,4 +1,5 @@
 import type { FullSurveyModelV1 } from './FullSurveyModelV1';
+import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import {
   inferPlateHexCondition,
   inferCylinderCondition,
@@ -211,6 +212,63 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
       sanitised.cylinderInsulationFactor = cylCondition.insulationFactor;
       sanitised.cylinderCoilTransferFactor = cylCondition.coilTransferFactor;
       sanitised.cylinderConditionBand = cylCondition.conditionBand;
+    }
+  }
+
+  // ── fullSurvey.heatLoss roof / solar bridge ───────────────────────────────
+  // Map the heat-loss step's internal compass format and shading codes to the
+  // engine root fields consumed by PvAssessmentModule and FutureEnergyOpportunitiesModule.
+  // Existing explicit root values are never overwritten (explicit always wins).
+  const hl = sanitised.fullSurvey?.heatLoss;
+  if (hl !== undefined) {
+    // roofOrientation: CompassOrientation ('N'|'NE'|…) → engine format
+    if (sanitised.roofOrientation === undefined && hl.roofOrientation !== undefined) {
+      const orientationMap: Record<string, EngineInputV2_3['roofOrientation']> = {
+        N:       'north',
+        NE:      'north',   // no north_east in engine schema — conservative
+        E:       'east',
+        SE:      'south_east',
+        S:       'south',
+        SW:      'south_west',
+        W:       'west',
+        NW:      'north',   // no north_west in engine schema — conservative
+        unknown: 'unknown',
+      };
+      const mapped = orientationMap[hl.roofOrientation];
+      if (mapped !== undefined) sanitised.roofOrientation = mapped;
+    }
+
+    // roofType: HeatLossState types → engine root types
+    if (sanitised.roofType === undefined && hl.roofType !== undefined) {
+      const roofTypeMap: Record<string, EngineInputV2_3['roofType']> = {
+        pitched: 'pitched',
+        flat:    'flat',
+        hipped:  'pitched',   // hipped is a form of pitched roof
+        dormer:  'pitched',   // dormer sits on a pitched roof
+        unknown: 'unknown',
+      };
+      const mapped = roofTypeMap[hl.roofType];
+      if (mapped !== undefined) sanitised.roofType = mapped;
+    }
+
+    // shadingLevel → solarShading
+    if (sanitised.solarShading === undefined && hl.shadingLevel !== undefined) {
+      const shadingMap: Record<string, EngineInputV2_3['solarShading']> = {
+        little_or_none: 'low',
+        some:           'medium',
+        heavy:          'high',
+        unknown:        'unknown',
+      };
+      const mapped = shadingMap[hl.shadingLevel];
+      if (mapped !== undefined) sanitised.solarShading = mapped;
+    }
+
+    // pvStatus and batteryStatus have identical value sets — pass through directly
+    if (sanitised.pvStatus === undefined && hl.pvStatus !== undefined) {
+      sanitised.pvStatus = hl.pvStatus;
+    }
+    if (sanitised.batteryStatus === undefined && hl.batteryStatus !== undefined) {
+      sanitised.batteryStatus = hl.batteryStatus;
     }
   }
 
