@@ -198,6 +198,12 @@ export default function App() {
   const [labPartialInput, setLabPartialInput] = useState<Partial<EngineInputV2_3>>({});
   /** Completed engine input passed to the Simulator Dashboard and LabShell. */
   const [labEngineInput, setLabEngineInput] = useState<EngineInputV2_3 | undefined>();
+  /**
+   * The journey that last opened the simulator, used to navigate Back correctly.
+   * When the simulator is opened from the recommendation/survey pages, Back
+   * should return there instead of going to the landing page.
+   */
+  const [simulatorFromJourney, setSimulatorFromJourney] = useState<Journey>('landing');
   const [floorPlanSystemType, setFloorPlanSystemType] = useState<'combi' | 'system' | 'regular' | 'heat_pump' | undefined>();
   /**
    * Latest floor-plan derived output captured from FloorPlanBuilder.
@@ -448,6 +454,7 @@ export default function App() {
             onOpenSimulator={(engineInput) => {
               // Direct shortcut from InsightLayerPage — skip fit-map.
               setLabEngineInput(engineInput);
+              setSimulatorFromJourney('visit');
               setJourney('simulator');
             }}
             onOpenFloorPlan={(surveyResults) => {
@@ -479,6 +486,7 @@ export default function App() {
               // Direct shortcut from InsightLayerPage — skip fit-map.
               setFullSurveyPrefill(undefined);
               setLabEngineInput(engineInput);
+              setSimulatorFromJourney('full');
               setJourney('simulator');
             }}
             onOpenFloorPlan={(surveyResults) => {
@@ -515,7 +523,8 @@ export default function App() {
       {journey === 'simulator' && (
         <GlobalMenuShell>
           <ExplainersHubPage
-            onBack={() => setJourney('landing')}
+            onBack={() => setJourney(simulatorFromJourney)}
+            onEditSetup={() => setJourney(simulatorFromJourney)}
             onOpenSystemLab={() => setJourney('lab')}
             onOpenPresentation={labEngineInput != null ? () => setJourney('presentation') : undefined}
             surveyData={labEngineInput}

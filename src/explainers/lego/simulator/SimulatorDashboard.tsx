@@ -639,6 +639,16 @@ export default function SimulatorDashboard({
           </div>
         )}
 
+        {/* Context banner — shown when in survey-backed compare mode to explain what's being compared */}
+        {surveyBacked && (
+          <div className="sim-compare-context" role="note" data-testid="compare-context-banner">
+            <span className="sim-compare-context__label">Comparing</span>
+            <span className="sim-compare-context__current">{compareLabels.current}</span>
+            <span className="sim-compare-context__arrow" aria-hidden="true">→</span>
+            <span className="sim-compare-context__proposed">{compareLabels.proposed}</span>
+          </div>
+        )}
+
         {/* Floor-plan operating assumptions badge */}
         {floorplanOperatingAssumptions != null && (
           <FloorplanOperatingBadge assumptions={floorplanOperatingAssumptions} />
@@ -678,6 +688,20 @@ export default function SimulatorDashboard({
               <SimulatorPanel title="System Diagram" icon="⚙" onExpand={() => {}}>
                 <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} boilerOutputKw={boilerOutputKwForDiagram} />
               </SimulatorPanel>
+            </div>
+
+            {/* System Behaviour graph — shown early so dynamics are the second thing the user sees */}
+            <div className="sim-compare-behaviour">
+              <SimulatorPanel title="System Behaviour" icon="📈" onExpand={() => {}}>
+                <BehaviourGraph
+                  timeline={behaviourTimeline}
+                  systemChoice={systemChoice}
+                  maxKw={behaviourMaxKw}
+                />
+              </SimulatorPanel>
+            </div>
+
+            <div className="sim-compare-efficiency">
               <SimulatorPanel title="Efficiency" icon="📊" onExpand={() => {}}>
                 <EfficiencyPanel state={efficiencyState} />
               </SimulatorPanel>
@@ -698,17 +722,6 @@ export default function SimulatorDashboard({
                   onInputChange={partial => setSystemInputs(prev => ({ ...prev, ...partial }))}
                   systemChoice={systemChoice}
                   portalMode={portalMode}
-                />
-              </SimulatorPanel>
-            </div>
-
-            {/* System Behaviour graph — current column */}
-            <div className="sim-compare-behaviour">
-              <SimulatorPanel title="System Behaviour" icon="📈" onExpand={() => {}}>
-                <BehaviourGraph
-                  timeline={behaviourTimeline}
-                  systemChoice={systemChoice}
-                  maxKw={behaviourMaxKw}
                 />
               </SimulatorPanel>
             </div>
@@ -739,6 +752,20 @@ export default function SimulatorDashboard({
               <SimulatorPanel title="System Diagram" icon="⚙" onExpand={() => {}}>
                 <SystemDiagramPanel state={diagramStateImproved} highlightedComponents={highlightedComponentsImproved} boilerOutputKw={boilerOutputKwForDiagramImproved} />
               </SimulatorPanel>
+            </div>
+
+            {/* System Behaviour graph — shown early so dynamics are the second thing the user sees */}
+            <div className="sim-compare-behaviour">
+              <SimulatorPanel title="System Behaviour" icon="📈" onExpand={() => {}}>
+                <BehaviourGraph
+                  timeline={behaviourTimelineImproved}
+                  systemChoice={systemChoiceImproved}
+                  maxKw={behaviourMaxKwImproved}
+                />
+              </SimulatorPanel>
+            </div>
+
+            <div className="sim-compare-efficiency">
               <SimulatorPanel title="Efficiency" icon="📊" onExpand={() => {}}>
                 <EfficiencyPanel state={efficiencyStateImproved} />
               </SimulatorPanel>
@@ -759,17 +786,6 @@ export default function SimulatorDashboard({
                   onInputChange={partial => setImprovedInputs(prev => ({ ...prev, ...partial }))}
                   systemChoice={systemChoiceImproved}
                   portalMode={portalMode}
-                />
-              </SimulatorPanel>
-            </div>
-
-            {/* System Behaviour graph — proposed column */}
-            <div className="sim-compare-behaviour">
-              <SimulatorPanel title="System Behaviour" icon="📈" onExpand={() => {}}>
-                <BehaviourGraph
-                  timeline={behaviourTimelineImproved}
-                  systemChoice={systemChoiceImproved}
-                  maxKw={behaviourMaxKwImproved}
                 />
               </SimulatorPanel>
             </div>
