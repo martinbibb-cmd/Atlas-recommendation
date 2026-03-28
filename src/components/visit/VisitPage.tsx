@@ -365,6 +365,7 @@ export default function VisitPage({
         onBack={onBack}
         prefill={prefill}
         onComplete={handleComplete}
+        onOpenSimulator={handleComplete}
         onDraft={handleDraft}
         onOpenFloorPlan={onOpenFloorPlan}
       />

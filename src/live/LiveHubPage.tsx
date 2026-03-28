@@ -200,6 +200,15 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
   const [deckMode, setDeckMode] = useState(true);
 
   const { engineOutput } = result;
+  const canonicalFamily = result.recommendationResult?.bestOverall?.family;
+  const canonicalEligibilityId =
+    canonicalFamily != null
+      ? (FAMILY_TO_ELIGIBILITY_ID[canonicalFamily as keyof typeof FAMILY_TO_ELIGIBILITY_ID] ?? null)
+      : null;
+  const canonicalHeadline =
+    (canonicalEligibilityId != null
+      ? engineOutput.eligibility.find(e => e.id === canonicalEligibilityId)?.label
+      : undefined) ?? engineOutput.recommendation.primary;
 
   // ── Compare seed + advice — used to power the canonical Print Recommendation output ─
   const compareSeed = useMemo(
@@ -304,7 +313,7 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
               onOpenStored={() => setActiveSection('usage')}
               onOpenConstraints={() => setActiveSection('constraints')}
             />
-            <RecommendationChip primary={engineOutput.recommendation.primary} />
+            <RecommendationChip primary={canonicalHeadline} />
           </div>
         </div>
       </div>
@@ -323,14 +332,28 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
            After PR6a these must always agree — any divergence here is a bug.
            Only rendered in development builds. */}
       {import.meta.env.DEV && result.recommendationResult != null && (() => {
-        const canonicalFamily = result.recommendationResult.bestOverall?.family ?? '(none)';
-        const headlinePrimary = engineOutput.recommendation.primary;
-        const expectedEligId = canonicalFamily !== '(none)' ? (FAMILY_TO_ELIGIBILITY_ID[canonicalFamily as keyof typeof FAMILY_TO_ELIGIBILITY_ID] ?? '—') : '—';
-        const expectedLabel = engineOutput.eligibility.find(e => e.id === expectedEligId)?.label ?? canonicalFamily;
-        const aligned = headlinePrimary === expectedLabel || canonicalFamily === '(none)';
+        const canonicalTopOptionId = result.recommendationResult.bestOverall?.family ?? '(none)';
+        const headlineOptionId = canonicalEligibilityId ?? '(none)';
+        const inRoomOptionId = result.recommendationResult.bestOverall?.family ?? '(none)';
+        const simulatorTargetStateId = result.recommendationResult.bestOverall?.family ?? '(none)';
+        const peakHeatLossKw = ((input.heatLossWatts ?? 8000) / 1000).toFixed(2);
+        const bathrooms = input.bathroomCount ?? 1;
+        const peakOutlets = input.peakConcurrentOutlets ?? '—';
+        const mainsFlow = input.mainsDynamicFlowLpm != null ? `${input.mainsDynamicFlowLpm} L/min` : '—';
+        const mainsPressure = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure ?? '—';
+        const currentSystemFamily = input.currentHeatSourceType ?? '(unknown)';
+        const roofOrientation =
+          input.fullSurvey?.heatLoss?.roofOrientation != null && input.fullSurvey.heatLoss.roofOrientation !== 'unknown'
+            ? input.fullSurvey.heatLoss.roofOrientation
+            : '—';
+        const solarSummary =
+          input.fullSurvey?.heatLoss != null
+            ? `${input.fullSurvey.heatLoss.roofType}/${input.fullSurvey.heatLoss.shadingLevel}`
+            : '—';
+        const aligned = canonicalTopOptionId === headlineOptionId || canonicalTopOptionId === '(none)';
         return (
           <div
-            data-testid="dev-rec-alignment"
+            data-testid="dev-truth-panel"
             style={{
               margin: '0.5rem 1rem 1rem',
               padding: '0.6rem 0.875rem',
@@ -343,13 +366,21 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
             }}
           >
             <div style={{ color: aligned ? '#4ade80' : '#fb923c', fontWeight: 700, marginBottom: '0.25rem' }}>
-              {aligned ? '✅ DEV — recommendation sources aligned (PR6a)' : '⚠️ DEV — recommendation source DIVERGENCE (PR6a bug)'}
+              {aligned ? '✅ DEV — truth panel aligned' : '⚠️ DEV — truth panel mismatch'}
             </div>
-            <div>canonical family (bestOverall): <span style={{ color: '#fbbf24' }}>{canonicalFamily}</span></div>
-            <div>headline primary (engineOutput): <span style={{ color: aligned ? '#fbbf24' : '#f87171' }}>{headlinePrimary}</span></div>
+            <div>canonical top option id: <span style={{ color: '#fbbf24' }}>{canonicalTopOptionId}</span></div>
+            <div>headline option id: <span style={{ color: aligned ? '#fbbf24' : '#f87171' }}>{headlineOptionId}</span></div>
+            <div>in-room option id: <span style={{ color: '#fbbf24' }}>{inRoomOptionId}</span></div>
+            <div>heat loss kW: <span style={{ color: '#fbbf24' }}>{peakHeatLossKw}</span></div>
+            <div>bathrooms: <span style={{ color: '#fbbf24' }}>{bathrooms}</span></div>
+            <div>peak outlets: <span style={{ color: '#fbbf24' }}>{peakOutlets}</span></div>
+            <div>mains flow @ pressure: <span style={{ color: '#fbbf24' }}>{mainsFlow}</span> @ <span style={{ color: '#fbbf24' }}>{mainsPressure}</span></div>
+            <div>current system family: <span style={{ color: '#fbbf24' }}>{currentSystemFamily}</span></div>
+            <div>roof orientation / solar summary: <span style={{ color: '#fbbf24' }}>{roofOrientation} · {solarSummary}</span></div>
+            <div>simulator target state id: <span style={{ color: '#fbbf24' }}>{simulatorTargetStateId}</span></div>
             {!aligned && (
               <div style={{ color: '#f87171', marginTop: '0.25rem' }}>
-                expected headline: &quot;{expectedLabel}&quot; — OutputBuilder and RecommendationResult disagree
+                Canonical best option and headline mapping disagree.
               </div>
             )}
           </div>
