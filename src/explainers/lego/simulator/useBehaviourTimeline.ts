@@ -107,6 +107,40 @@ function makeShapeState(): ShapeState {
   return { smoothedHeatKw: 0, postRunKw: 0, purgeTicksLeft: 0, prevMode: null }
 }
 
+// ─── Behaviour-family classification ──────────────────────────────────────────
+
+/**
+ * Coarse behavioural classification used for temporal shaping and ramp logic.
+ *
+ * This is a separate concept from the appliance-family union (`HeatSourceType`).
+ * It translates the raw simulator domain types into a shaping-relevant axis:
+ *   - combi             → fast DHW spike, service-switching purge
+ *   - stored            → medium ramp, buffered draw
+ *   - mixergy           → same ramp rate as stored (α = 0.28); reduced cycling vs combi
+ *   - heat_pump         → slow ramp, long post-run tail
+ *   - boiler_heating_only → medium ramp, no DHW cylinder
+ */
+type BehaviourFamily =
+  | 'combi'
+  | 'stored'
+  | 'mixergy'
+  | 'heat_pump'
+  | 'boiler_heating_only'
+
+/**
+ * Derives the behaviour family from the current simulator display state.
+ * This is the translation seam between simulator domain types and shaping logic —
+ * shaping code must use this value, not raw `heatSourceType` comparisons.
+ */
+function deriveBehaviourFamily(state: SystemDiagramDisplayState): BehaviourFamily {
+  if (state.heatSourceType === 'heat_pump') return 'heat_pump'
+  if (state.heatSourceType === 'combi') return 'combi'
+  if (state.cylinderVariant === 'mixergy') return 'mixergy'
+  if (state.cylinderVariant === 'standard') return 'stored'
+  // regular_boiler or system_boiler with no cylinder variant — heating only.
+  return 'boiler_heating_only'
+}
+
 // ─── Approach-rate helpers ─────────────────────────────────────────────────────
 
 /**
@@ -119,9 +153,10 @@ function makeShapeState(): ShapeState {
  * - Standard combi CH: medium ramp
  */
 function approachRate(state: SystemDiagramDisplayState): number {
-  if (state.heatSourceType === 'heat_pump') return 0.10
-  if (state.heatSourceType === 'combi' && state.systemMode === 'dhw_draw') return 0.65
-  if (state.heatSourceType === 'stored' || state.heatSourceType === 'mixergy') return 0.28
+  const family = deriveBehaviourFamily(state)
+  if (family === 'heat_pump') return 0.10
+  if (family === 'combi' && state.systemMode === 'dhw_draw') return 0.65
+  if (family === 'stored' || family === 'mixergy') return 0.28
   return 0.38
 }
 
