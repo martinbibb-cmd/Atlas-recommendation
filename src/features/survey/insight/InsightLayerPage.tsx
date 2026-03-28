@@ -34,6 +34,9 @@ import SystemArchitectureVisualiser from '../../../explainers/lego/autoBuilder/S
 import { systemBuilderToConceptModel } from '../../../explainers/lego/autoBuilder/systemBuilderToConceptModel';
 import { optionToConceptModel } from '../../../explainers/lego/autoBuilder/optionToConceptModel';
 import type { OptionId } from '../../../explainers/lego/autoBuilder/optionToConceptModel';
+import type { SystemConceptModel } from '../../../explainers/lego/model/types';
+import { imageForCurrentSystem, imageForRecId } from '../../../ui/systemImages/systemImageMap';
+import { SystemRealWorldImage } from '../../../components/systemImages/SystemRealWorldImage';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -152,6 +155,97 @@ function recIdToOptionId(recId: string): OptionId | null {
   }
 }
 
+// ─── Rec card sub-component ───────────────────────────────────────────────────
+
+type RecItem = ReturnType<typeof deriveSystemRecommendations>[number];
+
+function RecCard({
+  rec,
+  index,
+  currentConcept,
+}: {
+  rec: RecItem;
+  index: number;
+  currentConcept: SystemConceptModel;
+}) {
+  const optionId = recIdToOptionId(rec.id);
+  const recImage = imageForRecId(rec.id);
+
+  return (
+    <div
+      key={rec.id}
+      data-testid={`recommendation-${rec.id}`}
+      style={{
+        padding: '0.75rem',
+        background: index === 0 ? '#f0fff4' : '#fff',
+        border: index === 0 ? '1px solid #68d391' : '1px solid #e2e8f0',
+        borderRadius: '8px',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+        {index === 0 && <span style={pillStyle('green')}>Best fit</span>}
+        {rec.tier === 'alternative' && <span style={pillStyle('blue')}>Alternative</span>}
+        {rec.tier === 'fallback' && <span style={pillStyle('grey')}>Fallback</span>}
+        <strong style={{ fontSize: '0.82rem', color: '#2d3748' }}>{rec.name}</strong>
+      </div>
+      {/* Compare visualiser: current system vs proposed system */}
+      {optionId && (
+        <div style={{ marginBottom: '0.6rem' }}>
+          <SystemArchitectureVisualiser
+            mode="compare"
+            currentSystem={currentConcept}
+            recommendedSystem={optionToConceptModel(optionId)}
+          />
+        </div>
+      )}
+      {/* Real-world reference image for the proposed system type */}
+      {recImage && (
+        <div style={{ marginBottom: '0.6rem' }}>
+          <SystemRealWorldImage image={recImage} testId={`rec-real-world-image-${rec.id}`} />
+        </div>
+      )}
+      <div data-testid="rec-prose-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
+        {rec.whyItFits.length > 0 && (
+          <div>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#276749', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Why it fits
+            </span>
+            <ul style={{ margin: '0.15rem 0 0', paddingLeft: '1rem' }}>
+              {rec.whyItFits.map(r => (
+                <li key={r} style={{ fontSize: '0.74rem', color: '#2d3748', marginBottom: '0.1rem' }}>{r}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {rec.tradeOffs.length > 0 && (
+          <div>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Trade-offs
+            </span>
+            <ul style={{ margin: '0.15rem 0 0', paddingLeft: '1rem' }}>
+              {rec.tradeOffs.map(t => (
+                <li key={t} style={{ fontSize: '0.74rem', color: '#4a5568', marginBottom: '0.1rem' }}>{t}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {rec.constraints.length > 0 && (
+          <div>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9b2c2c', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Constraints
+            </span>
+            <ul style={{ margin: '0.15rem 0 0', paddingLeft: '1rem' }}>
+              {rec.constraints.map(c => (
+                <li key={c} style={{ fontSize: '0.74rem', color: '#9b2c2c', marginBottom: '0.1rem' }}>{c}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function InsightLayerPage({
@@ -173,6 +267,9 @@ export function InsightLayerPage({
 
   // Build current system concept model for the Lego visualiser
   const currentConcept = systemBuilderToConceptModel(systemBuilder);
+
+  // Real-world image for the current system (null when no confident mapping)
+  const currentSystemImage = imageForCurrentSystem(systemBuilder.heatSource, systemBuilder.dhwType);
 
   const hasLimitations =
     limitations.mainsPressureLow ||
@@ -209,6 +306,9 @@ export function InsightLayerPage({
             mode="current"
             currentSystem={currentConcept}
           />
+          {currentSystemImage && (
+            <SystemRealWorldImage image={currentSystemImage} testId="current-system-real-world-image" />
+          )}
         </div>
       )}
 
@@ -351,75 +451,7 @@ export function InsightLayerPage({
           <p style={sectionTitleStyle}>🔧 Recommendations</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {recs.map((rec, i) => (
-              <div
-                key={rec.id}
-                data-testid={`recommendation-${rec.id}`}
-                style={{
-                  padding: '0.75rem',
-                  background: i === 0 ? '#f0fff4' : '#fff',
-                  border: i === 0 ? '1px solid #68d391' : '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
-                  {i === 0 && <span style={pillStyle('green')}>Best fit</span>}
-                  {rec.tier === 'alternative' && <span style={pillStyle('blue')}>Alternative</span>}
-                  {rec.tier === 'fallback' && <span style={pillStyle('grey')}>Fallback</span>}
-                  <strong style={{ fontSize: '0.82rem', color: '#2d3748' }}>{rec.name}</strong>
-                </div>
-                {/* Compare visualiser: current system vs proposed system */}
-                {(() => {
-                  const optionId = recIdToOptionId(rec.id);
-                  if (!optionId) return null;
-                  return (
-                    <div style={{ marginBottom: '0.6rem' }}>
-                      <SystemArchitectureVisualiser
-                        mode="compare"
-                        currentSystem={currentConcept}
-                        recommendedSystem={optionToConceptModel(optionId)}
-                      />
-                    </div>
-                  );
-                })()}
-                <div data-testid="rec-prose-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
-                  {rec.whyItFits.length > 0 && (
-                    <div>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#276749', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Why it fits
-                      </span>
-                      <ul style={{ margin: '0.15rem 0 0', paddingLeft: '1rem' }}>
-                        {rec.whyItFits.map(r => (
-                          <li key={r} style={{ fontSize: '0.74rem', color: '#2d3748', marginBottom: '0.1rem' }}>{r}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {rec.tradeOffs.length > 0 && (
-                    <div>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Trade-offs
-                      </span>
-                      <ul style={{ margin: '0.15rem 0 0', paddingLeft: '1rem' }}>
-                        {rec.tradeOffs.map(t => (
-                          <li key={t} style={{ fontSize: '0.74rem', color: '#4a5568', marginBottom: '0.1rem' }}>{t}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {rec.constraints.length > 0 && (
-                    <div>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9b2c2c', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Constraints
-                      </span>
-                      <ul style={{ margin: '0.15rem 0 0', paddingLeft: '1rem' }}>
-                        {rec.constraints.map(c => (
-                          <li key={c} style={{ fontSize: '0.74rem', color: '#9b2c2c', marginBottom: '0.1rem' }}>{c}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <RecCard key={rec.id} rec={rec} index={i} currentConcept={currentConcept} />
             ))}
           </div>
         </div>
