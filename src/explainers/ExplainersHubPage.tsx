@@ -273,8 +273,8 @@ export default function ExplainersHubPage({ onBack, onEditSetup, surveyData, onO
           compareLabels={
             compareSeed != null
               ? {
-                  current:  SYSTEM_CHOICE_LABEL[compareSeed.left.systemChoice]  ?? 'Current system',
-                  proposed: SYSTEM_CHOICE_LABEL[compareSeed.right.systemChoice] ?? 'Proposed system',
+                  current:  SYSTEM_CHOICE_LABEL[compareSeed.left.systemChoice],
+                  proposed: SYSTEM_CHOICE_LABEL[compareSeed.right.systemChoice],
                 }
               : undefined
           }
