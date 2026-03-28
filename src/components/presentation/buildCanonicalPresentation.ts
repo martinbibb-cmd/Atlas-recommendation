@@ -121,10 +121,57 @@ export interface Page1WhatWeKnow {
   objectives: ObjectivesSignal;
 }
 
+/**
+ * Architecture-specific component degradation block (Block B).
+ * Describes what degrades in the current system architecture.
+ */
+export interface ComponentDegradationBlock {
+  /** Driving architecture — determines which degradation narrative is shown. */
+  architecture: 'combi' | 'stored' | 'heat_pump' | 'other';
+  /** Human-readable component name (e.g. "Plate heat exchanger", "Cylinder coil"). */
+  componentLabel: string;
+  /** What the primary degradation mechanism is for this architecture. */
+  degradationMechanism: string;
+  /** Inferred condition band from survey evidence, or 'unknown' when absent. */
+  conditionBand: 'good' | 'moderate' | 'poor' | 'severe' | 'unknown';
+  /** Short human-readable condition label. */
+  conditionLabel: string;
+}
+
+/**
+ * Single circulation / cleanliness signal pill (Block C).
+ */
+export interface CirculationSignal {
+  label: string;
+  status: 'ok' | 'warn' | 'unknown';
+}
+
 /** Page 1.5 — Contextual ageing / degradation framing (probabilistic). */
 export interface Page1_5AgeingContext {
   heading: string;
   ageBandLabel: string;
+  /** One-line condition summary based on surveyed signals. */
+  conditionSummary: string;
+
+  // ── Block A: Efficiency drift ──────────────────────────────────────────────
+  /** Which band on the healthy → ageing → neglected path this system sits in. */
+  currentEfficiencyBand: 'healthy' | 'ageing' | 'neglected';
+  /** Short description of what the current efficiency band means. */
+  efficiencyBandDescription: string;
+
+  // ── Block B: Architecture-specific component degradation ─────────────────
+  componentDegradation: ComponentDegradationBlock;
+
+  // ── Block C: Circulation / cleanliness signals ────────────────────────────
+  circulationSignals: CirculationSignal[];
+
+  // ── What this means in this home ─────────────────────────────────────────
+  homeImpacts: string[];
+
+  // ── Likely first improvements (conditional, shown at bottom) ─────────────
+  likelyFirstImprovements: string[];
+
+  /** Legacy probabilistic notes — retained for downstream compatibility. */
   probabilisticNotes: string[];
   waterQualityNote: string | undefined;
 }
@@ -656,11 +703,229 @@ function buildObjectivesSignal(input: EngineInputV2_3): ObjectivesSignal {
 
 // ─── Page 1.5 — Ageing context ────────────────────────────────────────────────
 
+/** Derive the efficiency drift band from age and condition signals. */
+function deriveEfficiencyBand(
+  age: number | undefined,
+  boilerConditionBand: string | undefined,
+): 'healthy' | 'ageing' | 'neglected' {
+  // Condition evidence takes priority over age alone
+  if (boilerConditionBand === 'poor' || boilerConditionBand === 'severe') return 'neglected';
+  if (boilerConditionBand === 'moderate') return 'ageing';
+  // Fall back to age-based heuristic
+  if (age == null) return 'ageing'; // unknown age — assume mid-life context
+  if (age >= 15) return 'neglected';
+  if (age >= 8)  return 'ageing';
+  return 'healthy';
+}
+
+/** Derive the component degradation block from architecture and condition signals. */
+function deriveComponentDegradation(
+  type: string,
+  age: number | undefined,
+  plateHexConditionBand: string | undefined,
+  cylinderConditionBand: string | undefined,
+): ComponentDegradationBlock {
+  if (type === 'combi') {
+    const rawBand = plateHexConditionBand ?? deriveConditionBandFromAge(age, 'combi');
+    const conditionBand = rawBand as ComponentDegradationBlock['conditionBand'];
+    return {
+      architecture:        'combi',
+      componentLabel:      'Plate heat exchanger (plate HEX)',
+      degradationMechanism: 'Limescale and mineral deposits narrow the water channels in the plate HEX over time, reducing hot-water output and increasing energy needed per litre.',
+      conditionBand,
+      conditionLabel:      conditionBandToLabel(conditionBand),
+    };
+  }
+
+  if (type === 'system' || type === 'regular') {
+    const rawBand = cylinderConditionBand ?? deriveConditionBandFromAge(age, 'stored');
+    const conditionBand = rawBand as ComponentDegradationBlock['conditionBand'];
+    return {
+      architecture:        'stored',
+      componentLabel:      'Cylinder heating coil',
+      degradationMechanism: 'Sludge and scale accumulate on the coil over time, reducing heat transfer efficiency and slowing cylinder recovery. Circulation can also be impaired by magnetite build-up in the primary circuit.',
+      conditionBand,
+      conditionLabel:      conditionBandToLabel(conditionBand),
+    };
+  }
+
+  if (type === 'ashp') {
+    return {
+      architecture:        'heat_pump',
+      componentLabel:      'Heat pump refrigerant circuit',
+      degradationMechanism: 'Heat pump performance degrades gradually as refrigerant charge decreases or evaporator coil becomes restricted. Cylinder coil fouling follows the same pattern as stored systems.',
+      conditionBand:       'unknown',
+      conditionLabel:      'Not assessed',
+    };
+  }
+
+  return {
+    architecture:        'other',
+    componentLabel:      'Heat source',
+    degradationMechanism: 'Component wear accumulates with age — servicing history and observed performance are the primary indicators.',
+    conditionBand:       'unknown',
+    conditionLabel:      'Not assessed',
+  };
+}
+
+/** Estimate a rough condition band from age alone when no survey evidence exists. */
+function deriveConditionBandFromAge(
+  age: number | undefined,
+  _architecture: 'combi' | 'stored',
+): 'good' | 'moderate' | 'poor' | 'unknown' {
+  if (age == null) return 'unknown';
+  if (age >= 15)  return 'poor';
+  if (age >= 8)   return 'moderate';
+  return 'good';
+}
+
+function conditionBandToLabel(band: ComponentDegradationBlock['conditionBand']): string {
+  switch (band) {
+    case 'good':    return 'Good — performing close to spec';
+    case 'moderate': return 'Moderate — some performance reduction likely';
+    case 'poor':    return 'Poor — noticeable degradation';
+    case 'severe':  return 'Severe — significant degradation';
+    default:        return 'Not assessed';
+  }
+}
+
+/** Build circulation/cleanliness signal pills from available survey signals. */
+function buildCirculationSignals(
+  age: number | undefined,
+  hardness: string,
+  hasMagneticFilter: boolean | undefined,
+  hasSoftener: boolean | undefined,
+): CirculationSignal[] {
+  const signals: CirculationSignal[] = [];
+
+  // Magnetic filter
+  if (hasMagneticFilter === true) {
+    signals.push({ label: 'Magnetic filter fitted', status: 'ok' });
+  } else if (hasMagneticFilter === false && (age ?? 0) >= 5) {
+    signals.push({ label: 'No magnetic filter', status: 'warn' });
+  } else {
+    signals.push({ label: 'Magnetic filter: not recorded', status: 'unknown' });
+  }
+
+  // Water hardness
+  if (hardness === 'very_hard') {
+    signals.push({ label: 'Very hard water area', status: 'warn' });
+  } else if (hardness === 'hard') {
+    signals.push({ label: 'Hard water area', status: 'warn' });
+  } else if (hardness === 'moderate') {
+    signals.push({ label: 'Moderate water hardness', status: 'ok' });
+  } else {
+    signals.push({ label: 'Soft water area', status: 'ok' });
+  }
+
+  // Softener
+  if ((hardness === 'hard' || hardness === 'very_hard')) {
+    if (hasSoftener === true) {
+      signals.push({ label: 'Water softener fitted', status: 'ok' });
+    } else {
+      signals.push({ label: 'No water softener', status: 'warn' });
+    }
+  }
+
+  return signals;
+}
+
+/** Build "what this means in your home" bullets from architecture and condition. */
+function buildHomeImpacts(
+  type: string,
+  efficiencyBand: 'healthy' | 'ageing' | 'neglected',
+  hardness: string,
+): string[] {
+  const impacts: string[] = [];
+
+  if (efficiencyBand === 'healthy') {
+    impacts.push('Hot water and heating output close to original specification.');
+    impacts.push('Running costs tracking near-new levels.');
+    if (type === 'combi') {
+      impacts.push('Plate HEX delivering near-rated flow at this age.');
+    } else {
+      impacts.push('Cylinder recovery time within expected range.');
+    }
+  } else if (efficiencyBand === 'ageing') {
+    if (type === 'combi') {
+      impacts.push('Hot water may take longer to reach temperature at taps.');
+      impacts.push('Peak flow rate may be below original specification.');
+    } else {
+      impacts.push('Cylinder recovery after peak demand may be slower than when new.');
+      impacts.push('Standing losses may have increased — cylinder holds heat less well.');
+    }
+    impacts.push('Efficiency drift tends to increase running costs over time.');
+    impacts.push('More frequent cycling is a common symptom at this age.');
+  } else {
+    if (type === 'combi') {
+      impacts.push('Reduced hot-water output — plate HEX restriction likely.');
+    } else {
+      impacts.push('Noticeably slower cylinder recovery after demand.');
+      impacts.push('Increased standing losses from insulation and coil degradation.');
+    }
+    impacts.push('Higher running cost tendency — efficiency significantly below original spec.');
+    impacts.push('Increased cycling and wear accelerates further degradation.');
+    if (hardness === 'hard' || hardness === 'very_hard') {
+      impacts.push('Hard water area — scale accumulation is likely contributing to performance loss.');
+    }
+  }
+
+  return impacts;
+}
+
+/** Build conditional "likely first improvements" based on condition signals. */
+function buildLikelyImprovements(
+  type: string,
+  age: number | undefined,
+  efficiencyBand: 'healthy' | 'ageing' | 'neglected',
+  hardness: string,
+  hasMagneticFilter: boolean | undefined,
+  hasSoftener: boolean | undefined,
+): string[] {
+  const improvements: string[] = [];
+
+  // Annual service is always relevant
+  improvements.push('Annual service — confirms current performance against spec.');
+
+  // Magnetic filter where absent and age warrants it
+  if (!hasMagneticFilter && (age ?? 0) >= 5) {
+    improvements.push('Fit a magnetic filter — captures sludge before it circulates.');
+  }
+
+  // Architecture-specific descaling
+  if (efficiencyBand !== 'healthy') {
+    if (type === 'combi' && (age ?? 0) >= 8) {
+      improvements.push('Plate HEX inspection / descale — recovers lost flow performance.');
+    }
+    if ((type === 'system' || type === 'regular') && (age ?? 0) >= 8) {
+      improvements.push('Cylinder coil check — identifies fouling before it worsens.');
+    }
+  }
+
+  // Chemical inhibitor top-up
+  if (efficiencyBand !== 'healthy') {
+    improvements.push('Check and top up corrosion inhibitor — protects the primary circuit.');
+  }
+
+  // Chemical clean when moderate+ degradation in hard water
+  if (efficiencyBand !== 'healthy' && (hardness === 'hard' || hardness === 'very_hard') && !hasSoftener) {
+    improvements.push('Chemical clean — removes scale and sludge build-up in hard water areas.');
+  }
+
+  // Powerflush only when genuinely justified
+  if (efficiencyBand === 'neglected' && (age ?? 0) >= 12) {
+    improvements.push('System powerflush — consider when radiator cold spots or sludge are confirmed.');
+  }
+
+  return improvements;
+}
+
 function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): Page1_5AgeingContext {
   const type = input.currentHeatSourceType ?? 'other';
   const age = input.currentBoilerAgeYears ?? input.currentSystem?.boiler?.ageYears;
+  const hardness = result.normalizer.waterHardnessCategory;
 
-  let heading = 'About your current system';
+  let heading = 'What systems like yours usually become over time';
   let ageBandLabel = 'Age not recorded — typical service-life context applies';
   const notes: string[] = [];
 
@@ -694,7 +959,6 @@ function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): P
     }
 
     // Water quality context from normalizer
-    const hardness = result.normalizer.waterHardnessCategory;
     if (hardness === 'hard' || hardness === 'very_hard') {
       notes.push('Hard water area — limescale accumulation is a factor for any heat exchanger over time.');
     }
@@ -706,14 +970,61 @@ function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): P
   notes.push('These observations are probabilistic context — not a diagnosis of the specific boiler.');
 
   let waterQualityNote: string | undefined;
-  const hardness = result.normalizer.waterHardnessCategory;
   if (hardness === 'hard' || hardness === 'very_hard') {
     waterQualityNote = 'Hard water area — limescale accumulation is a factor for any heat exchanger over time.';
   } else if (hardness === 'soft') {
     waterQualityNote = 'Soft water area — scale risk is low but corrosion inhibitor maintenance still matters.';
   }
 
-  return { heading, ageBandLabel, probabilisticNotes: notes, waterQualityNote };
+  // ── New PR10 fields ────────────────────────────────────────────────────────
+
+  const efficiencyBand = deriveEfficiencyBand(age, input.boilerConditionBand);
+
+  const conditionSummaryMap: Record<typeof efficiencyBand, string> = {
+    healthy:   age != null
+      ? `At ${age} years old, this system is likely still performing close to specification.`
+      : 'No age recorded — general service-life context applies.',
+    ageing:    age != null
+      ? `At ${age} years old, this system shows the typical signs of mid-life drift.`
+      : 'No age recorded — mid-life performance drift is the working assumption.',
+    neglected: age != null
+      ? `At ${age} years old, this system is likely operating well below its original specification.`
+      : 'Condition signals suggest this system may be operating below original specification.',
+  };
+
+  const efficiencyBandDescriptionMap: Record<typeof efficiencyBand, string> = {
+    healthy:   'Efficiency is likely tracking near original spec. Component wear is a minor factor at this stage.',
+    ageing:    'Efficiency typically drops 5–15% over this period due to scale, sludge, and cycling wear. Servicing can slow the drift.',
+    neglected: 'Efficiency is likely significantly below original spec. Scale, sludge, and component fatigue compound each other at this stage.',
+  };
+
+  const componentDegradation = deriveComponentDegradation(
+    type, age, input.plateHexConditionBand, input.cylinderConditionBand,
+  );
+
+  const circulationSignals = buildCirculationSignals(
+    age, hardness, input.hasMagneticFilter, input.hasSoftener,
+  );
+
+  const homeImpacts = buildHomeImpacts(type, efficiencyBand, hardness);
+
+  const likelyFirstImprovements = buildLikelyImprovements(
+    type, age, efficiencyBand, hardness, input.hasMagneticFilter, input.hasSoftener,
+  );
+
+  return {
+    heading,
+    ageBandLabel,
+    conditionSummary:          conditionSummaryMap[efficiencyBand],
+    currentEfficiencyBand:     efficiencyBand,
+    efficiencyBandDescription: efficiencyBandDescriptionMap[efficiencyBand],
+    componentDegradation,
+    circulationSignals,
+    homeImpacts,
+    likelyFirstImprovements,
+    probabilisticNotes:        notes,
+    waterQualityNote,
+  };
 }
 
 // ─── Page 2 — Available options ───────────────────────────────────────────────
