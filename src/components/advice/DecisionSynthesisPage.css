@@ -1632,3 +1632,156 @@
   margin: 0 0 0.3rem;
   font-style: italic;
 }
+
+/* ── PR9 — 4-block structured option card ───────────────────────────────── */
+
+.advice-option-block {
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.advice-option-block__title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  margin-bottom: 0.6rem;
+}
+
+.advice-option-block__headline {
+  font-size: 0.875rem;
+  color: #2d3748;
+  margin: 0.5rem 0 0;
+  line-height: 1.5;
+}
+
+/* Block A */
+.advice-option-block--system {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+/* Block B */
+.advice-option-block--why {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+/* Block C */
+.advice-option-block--changes {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+/* Block D */
+.advice-option-block--behaviour {
+  background: #faf5ff;
+  border-color: #e9d5ff;
+}
+
+/* ── What changes tiers ─────────────────────────────────────────────────── */
+
+.advice-option-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.advice-option-changes__tier {
+  font-size: 0.82rem;
+  color: #4a5568;
+}
+
+.advice-option-changes__tier ul {
+  margin: 0.2rem 0 0 1.1rem;
+  padding: 0;
+  line-height: 1.6;
+}
+
+.advice-option-changes__tier-label {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  margin-bottom: 0.3rem;
+}
+
+.advice-option-changes__tier--must .advice-option-changes__tier-label {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.advice-option-changes__tier--worth .advice-option-changes__tier-label {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.advice-option-changes__tier--future .advice-option-changes__tier-label {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+/* ── Option behaviour preview ───────────────────────────────────────────── */
+
+.advice-option-behaviour {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.advice-option-behaviour__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6d28d9;
+  margin-bottom: 0.2rem;
+}
+
+.advice-option-behaviour__traits {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.advice-option-behaviour__trait {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.advice-option-behaviour__icon {
+  flex-shrink: 0;
+  width: 1.2rem;
+  text-align: center;
+}
+
+/* ── Simulator CTA on option cards ─────────────────────────────────────── */
+
+.advice-option-simulator-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.65rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 6px;
+  border: 1.5px solid #7c3aed;
+  background: #fff;
+  color: #6d28d9;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.advice-option-simulator-btn:hover {
+  background: #f5f3ff;
+}
