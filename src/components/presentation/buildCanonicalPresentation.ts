@@ -20,6 +20,7 @@ import type { OptionCardV1 } from '../../contracts/EngineOutputV1';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
 import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
 import type { DhwArchitecture } from '../../lib/dhw/buildDhwContextFromSurvey';
+import type { DhwType } from '../../features/survey/systemBuilder/systemBuilderTypes';
 
 export type { DhwArchitecture };
 
@@ -105,6 +106,10 @@ export interface CurrentSystemSignal {
    *   thermal_store    — stored heat (not stored hot water); DHW via exchanger
    */
   dhwArchitecture: DhwArchitecture;
+  /** Canonical current heat source from the survey/model (for image mapping). */
+  currentHeatSourceType: EngineInputV2_3['currentHeatSourceType'];
+  /** Canonical DHW type from survey/model (for image mapping). */
+  systemDhwType?: DhwType;
 }
 
 /** Objectives signals — user priorities from expert assumptions and preferences. */
@@ -665,6 +670,12 @@ function buildCurrentSystemSignal(input: EngineInputV2_3): CurrentSystemSignal {
     drivingStyleMode,
     dhwStorageType,
     dhwArchitecture: storageTypeToArchitecture(dhwStorageType, drivingStyleMode),
+    currentHeatSourceType: input.currentHeatSourceType,
+    systemDhwType:
+      dhwStorageType === 'open_vented' ? 'open_vented'
+        : dhwStorageType === 'unvented' ? 'unvented'
+          : dhwStorageType === 'thermal_store' ? 'thermal_store'
+            : undefined,
   };
 }
 
@@ -924,22 +935,32 @@ function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): P
   const type = input.currentHeatSourceType ?? 'other';
   const age = input.currentBoilerAgeYears ?? input.currentSystem?.boiler?.ageYears;
   const hardness = result.normalizer.waterHardnessCategory;
+  const systemCondition = input.boilerConditionBand ?? input.cylinderConditionBand ?? input.plateHexConditionBand;
+  const noMagFilter = input.hasMagneticFilter === false;
+  const sludgeDetected = (result.sludgeVsScale.flowDeratePct > 0.03) || (result.sludgeVsScale.primarySludgeCostGbp > 10);
+  const poorPerformance = systemCondition === 'poor' || systemCondition === 'severe' || sludgeDetected;
+  const ageEstimate = age
+    ?? (systemCondition === 'poor' || systemCondition === 'severe' ? 15 : systemCondition === 'moderate' ? 10 : 6);
 
-  let heading = 'What systems like yours usually become over time';
-  let ageBandLabel = 'Age not recorded — typical service-life context applies';
+  let heading = 'Systems like yours typically show these condition patterns over time';
+  let ageBandLabel = age != null
+    ? `${age} ${age === 1 ? 'year' : 'years'} old`
+    : `Estimated service-life band: around ${ageEstimate} years`;
   const notes: string[] = [];
 
-  if (age != null) {
-    ageBandLabel = `${age} ${age === 1 ? 'year' : 'years'} old`;
+  if (ageEstimate != null) {
+    if (age == null) {
+      notes.push(`Age not recorded — using a condition-led service-life estimate (~${ageEstimate} years).`);
+    }
 
     if (type === 'combi' || type === 'system') {
-      if (age < 5) {
+      if (ageEstimate < 5) {
         notes.push('Boilers of this age typically retain their original performance characteristics.');
         notes.push('Component wear is not yet a major factor for most makes.');
-      } else if (age < 10) {
+      } else if (ageEstimate < 10) {
         notes.push('At this age, most boilers are in the second half of their expected service life.');
         notes.push('Routine servicing should confirm whether efficiency is tracking original spec.');
-      } else if (age < 15) {
+      } else if (ageEstimate < 15) {
         notes.push('Boilers of this age may show measurable efficiency reduction compared to when new.');
         notes.push('Heat exchanger scaling, plate HEX fouling, or expansion vessel fatigue are common at this age.');
         notes.push('This is a common decision point — whether to repair or replace.');
@@ -949,7 +970,7 @@ function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): P
         notes.push('Not a diagnosis of current condition — age alone is context, not a verdict.');
       }
     } else if (type === 'regular') {
-      if (age < 15) {
+      if (ageEstimate < 15) {
         notes.push('Regular (open-vented) boilers often have longer service lives than modern condensing boilers.');
         notes.push('The heat exchanger is typically simpler and more tolerant of hard water and sludge.');
       } else {
@@ -962,9 +983,6 @@ function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): P
     if (hardness === 'hard' || hardness === 'very_hard') {
       notes.push('Hard water area — limescale accumulation is a factor for any heat exchanger over time.');
     }
-  } else {
-    notes.push('Without a confirmed age, we can only provide general service-life context.');
-    notes.push('Asking for the installation year or make/model allows us to be more specific.');
   }
 
   notes.push('These observations are probabilistic context — not a diagnosis of the specific boiler.');
@@ -978,18 +996,17 @@ function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): P
 
   // ── New PR10 fields ────────────────────────────────────────────────────────
 
-  const efficiencyBand = deriveEfficiencyBand(age, input.boilerConditionBand);
+  const efficiencyBand = deriveEfficiencyBand(ageEstimate, systemCondition);
+  const conditionLine = poorPerformance
+    ? 'Condition and maintenance signals indicate avoidable degradation is already present.'
+    : noMagFilter
+      ? 'No magnetic filter is recorded, so cleanliness risks are elevated even if comfort is currently acceptable.'
+      : 'Condition signals are broadly stable with maintenance opportunities to hold performance.';
 
   const conditionSummaryMap: Record<typeof efficiencyBand, string> = {
-    healthy:   age != null
-      ? `At ${age} years old, this system is likely still performing close to specification.`
-      : 'No age recorded — general service-life context applies.',
-    ageing:    age != null
-      ? `At ${age} years old, this system shows the typical signs of mid-life drift.`
-      : 'No age recorded — mid-life performance drift is the working assumption.',
-    neglected: age != null
-      ? `At ${age} years old, this system is likely operating well below its original specification.`
-      : 'Condition signals suggest this system may be operating below original specification.',
+    healthy:   `Condition signals place this system in the healthy band. ${conditionLine}`,
+    ageing:    `Condition signals place this system in the ageing band. ${conditionLine}`,
+    neglected: `Condition signals place this system in the neglected band. ${conditionLine}`,
   };
 
   const efficiencyBandDescriptionMap: Record<typeof efficiencyBand, string> = {
@@ -999,17 +1016,19 @@ function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): P
   };
 
   const componentDegradation = deriveComponentDegradation(
-    type, age, input.plateHexConditionBand, input.cylinderConditionBand,
+    type, ageEstimate, input.plateHexConditionBand, input.cylinderConditionBand,
   );
 
   const circulationSignals = buildCirculationSignals(
-    age, hardness, input.hasMagneticFilter, input.hasSoftener,
+    ageEstimate, hardness, input.hasMagneticFilter, input.hasSoftener,
   );
 
   const homeImpacts = buildHomeImpacts(type, efficiencyBand, hardness);
+  if (noMagFilter) homeImpacts.unshift('Without a magnetic filter, primary sludge can reduce radiator output and increase cycling losses.');
+  if (sludgeDetected) homeImpacts.unshift('Observed sludge/scale signals suggest slower warm-up and poorer circulation at peak demand.');
 
   const likelyFirstImprovements = buildLikelyImprovements(
-    type, age, efficiencyBand, hardness, input.hasMagneticFilter, input.hasSoftener,
+    type, ageEstimate, efficiencyBand, hardness, input.hasMagneticFilter, input.hasSoftener,
   );
 
   return {

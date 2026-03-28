@@ -51,6 +51,8 @@ const CURRENT_SYSTEM: CurrentSystemSignal = {
   drivingStyleMode: 'combi',
   dhwStorageType:   'none',
   dhwArchitecture:  'on_demand',
+  currentHeatSourceType: 'combi',
+  systemDhwType:    undefined,
 };
 
 const PRIORITIES: PrioritiesState = {
