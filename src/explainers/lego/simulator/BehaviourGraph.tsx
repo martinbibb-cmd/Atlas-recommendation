@@ -147,7 +147,7 @@ export default function BehaviourGraph({ timeline, systemChoice, maxKw }: Props)
 
             {/* Space-heating demand — filled area */}
             <Area
-              type="stepAfter"
+              type="monotone"
               dataKey="heatDemandKw"
               name="Heat demand"
               stroke="#4299e1"
@@ -160,7 +160,7 @@ export default function BehaviourGraph({ timeline, systemChoice, maxKw }: Props)
 
             {/* DHW demand — teal filled area */}
             <Area
-              type="stepAfter"
+              type="monotone"
               dataKey="dhwDemandKw"
               name="DHW demand"
               stroke="#0bc5ea"
@@ -225,10 +225,10 @@ export default function BehaviourGraph({ timeline, systemChoice, maxKw }: Props)
             )}
             <Tooltip content={ResponseTooltip} />
 
-            {/* Heat-source output — orange filled area (stepped) */}
+            {/* Heat-source output — orange filled area (shaped/smoothed) */}
             <Area
               yAxisId="kw"
-              type="stepAfter"
+              type="monotone"
               dataKey="heatKw"
               name={isHeatPump ? 'HP output' : 'Boiler output'}
               stroke="#dd6b20"

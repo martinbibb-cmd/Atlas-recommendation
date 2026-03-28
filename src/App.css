@@ -443,6 +443,23 @@ body {
 
 .next-btn:hover { background: #2c5282; }
 
+/* Secondary CTA — used for "Try in Simulator →" on InsightLayerPage */
+.simulator-shortcut-btn {
+  padding: 0.75rem 1.5rem;
+  background: white;
+  color: #2b6cb0;
+  border: 1.5px solid #90cdf4;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.simulator-shortcut-btn:hover {
+  background: #ebf8ff;
+  border-color: #63b3ed;
+}
+
 .prev-btn {
   padding: 0.75rem 1.5rem;
   background: white;

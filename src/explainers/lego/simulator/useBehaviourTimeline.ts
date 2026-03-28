@@ -77,9 +77,65 @@ export type BehaviourTimelineState = {
   eventMarkers: BehaviourEventMarker[]
 }
 
+// ─── Shape state ──────────────────────────────────────────────────────────────
+
+/**
+ * Per-tick mutable shape state maintained as a ref — drives the
+ * temporal smoothing / ramp-up / tail-off applied to the raw binary
+ * values before they are written to the tick buffer.
+ *
+ * All values start at 0; they are updated inside the tick interval.
+ */
+type ShapeState = {
+  /** Exponentially smoothed heat-source output value (kW). */
+  smoothedHeatKw: number
+  /**
+   * Post-run residual (kW) — decays to 0 a few ticks after the heat
+   * source switches to idle.  Represents purge / post-circulation tail.
+   */
+  postRunKw: number
+  /**
+   * Ticks of combi post-DHW purge remaining.  During these ticks a small
+   * elevated output is maintained before CH ramps back up.
+   */
+  purgeTicksLeft: number
+  /** Mode captured at the previous tick — used to detect transitions. */
+  prevMode: SystemDiagramDisplayState['systemMode'] | null
+}
+
+function makeShapeState(): ShapeState {
+  return { smoothedHeatKw: 0, postRunKw: 0, purgeTicksLeft: 0, prevMode: null }
+}
+
+// ─── Approach-rate helpers ─────────────────────────────────────────────────────
+
+/**
+ * Returns α — the fraction of the gap between current and target that is
+ * closed each tick (0 < α ≤ 1; larger = faster response).
+ *
+ * - Heat pumps: slow ramp (~8 s to 90 %)
+ * - Combi DHW draw: fast hard spike (~1.5 s to 90 %)
+ * - Stored / system boiler: medium ramp (~3 s to 90 %)
+ * - Standard combi CH: medium ramp
+ */
+function approachRate(state: SystemDiagramDisplayState): number {
+  if (state.heatSourceType === 'heat_pump') return 0.10
+  if (state.heatSourceType === 'combi' && state.systemMode === 'dhw_draw') return 0.65
+  if (state.heatSourceType === 'stored' || state.heatSourceType === 'mixergy') return 0.28
+  return 0.38
+}
+
+/**
+ * Decay multiplier applied to the post-run residual each tick.
+ * HP runs a longer, gentler post-circulation tail; boilers tail off faster.
+ */
+function postRunDecay(heatSourceType: SystemDiagramDisplayState['heatSourceType']): number {
+  return heatSourceType === 'heat_pump' ? 0.72 : 0.50
+}
+
 // ─── Derivation helpers ────────────────────────────────────────────────────────
 
-function deriveHeatKw(
+function deriveRawHeatKw(
   state: SystemDiagramDisplayState,
   inputs: SystemInputs,
 ): number {
@@ -140,6 +196,71 @@ function deriveEfficiencyPct(state: SystemDiagramDisplayState): number | null {
     default:
       return null
   }
+}
+
+// ─── Shaped heat-output helper ─────────────────────────────────────────────────
+
+/**
+ * Applies deterministic temporal shaping to the raw binary heat-source output.
+ *
+ * The function updates `shape` in place and returns the shaped output kW.
+ *
+ * Behaviour per system type:
+ *   - Heat pump   — slow exponential ramp (α = 0.10), long post-run tail
+ *   - Combi DHW   — fast hard spike (α = 0.65), 2-tick post-draw purge
+ *   - Stored/system boiler — medium ramp (α = 0.28), brief tail
+ *   - Combi CH    — medium ramp (α = 0.38), brief tail
+ */
+function applyShaping(
+  rawTarget: number,
+  shape: ShapeState,
+  state: SystemDiagramDisplayState,
+): number {
+  const prevMode = shape.prevMode
+  const currMode = state.systemMode
+
+  // ── Transition detection ──────────────────────────────────────────────────
+
+  // Active → idle: seed the post-run residual from the current smoothed level.
+  const justStopped =
+    prevMode !== null &&
+    prevMode !== 'idle' &&
+    currMode === 'idle'
+
+  // Combi DHW draw just ended (service switching resumes CH): start purge phase.
+  const combiPurgeStart =
+    state.heatSourceType === 'combi' &&
+    prevMode === 'dhw_draw' &&
+    currMode !== 'dhw_draw'
+
+  // ── Update shape state ────────────────────────────────────────────────────
+
+  const α = approachRate(state)
+  shape.smoothedHeatKw = shape.smoothedHeatKw + α * (rawTarget - shape.smoothedHeatKw)
+
+  if (justStopped) {
+    // Post-run: inject a residual proportional to the last output level.
+    shape.postRunKw = Math.max(shape.postRunKw, shape.smoothedHeatKw * 0.30)
+    shape.purgeTicksLeft = 0
+  } else if (combiPurgeStart) {
+    // Combi: brief purge after DHW draw — burner stays slightly elevated
+    // for one or two ticks before CH ramp restarts.
+    shape.purgeTicksLeft = 2
+    shape.postRunKw = 0
+  } else if (shape.purgeTicksLeft > 0) {
+    shape.purgeTicksLeft -= 1
+    // During purge hold a small residual above normal to simulate the
+    // post-DHW momentary overshoot before CH recovery.
+    shape.postRunKw = shape.smoothedHeatKw * 0.15
+  } else {
+    // Normal decay of post-run tail.
+    shape.postRunKw = shape.postRunKw * postRunDecay(state.heatSourceType)
+    if (shape.postRunKw < 0.05) shape.postRunKw = 0
+  }
+
+  shape.prevMode = currMode
+
+  return Math.max(0, shape.smoothedHeatKw + shape.postRunKw)
 }
 
 // ─── Event detection ──────────────────────────────────────────────────────────
@@ -210,6 +331,14 @@ function detectEvents(
  * systemInputs from refs — so the interval never needs to be torn down
  * when props change.  Event markers are detected from state transitions.
  *
+ * The raw binary values from the simulator state are passed through
+ * `applyShaping` before being written to the buffer, giving the graph
+ * ramp-up, modulation-settle, and tail-off characteristics appropriate
+ * to each system type:
+ *   - combi  → bursty / spiky DHW draw, fast CH recovery
+ *   - stored → buffered / steadier, gentle reheat signature
+ *   - HP     → slow smooth ramp, long post-run tail
+ *
  * @param diagramState   Live simulator state from useSystemDiagramPlayback.
  * @param systemInputs   Current system inputs (heat loss, output ratings, etc.).
  */
@@ -222,6 +351,7 @@ export function useBehaviourTimeline(
   const eventsRef = useRef<BehaviourEventMarker[]>([])
   const diagramStateRef = useRef(diagramState)
   const systemInputsRef = useRef(systemInputs)
+  const shapeRef = useRef<ShapeState>(makeShapeState())
   const [state, setState] = useState<BehaviourTimelineState>({ ticks: [], eventMarkers: [] })
 
   // Keep refs in sync with latest props without re-mounting the interval.
@@ -241,9 +371,13 @@ export function useBehaviourTimeline(
       // Snapshot the state for next tick's transition detection.
       prevStateRef.current = { ...currState }
 
+      // Derive raw (binary) values, then apply temporal shaping.
+      const rawHeatKw = deriveRawHeatKw(currState, currInputs)
+      const shapedHeatKw = applyShaping(rawHeatKw, shapeRef.current, currState)
+
       const tick: BehaviourTick = {
         t,
-        heatKw: deriveHeatKw(currState, currInputs),
+        heatKw: shapedHeatKw,
         heatDemandKw: deriveHeatDemandKw(currState, currInputs),
         dhwDemandKw: deriveDhwDemandKw(currState, currInputs),
         efficiencyPct: deriveEfficiencyPct(currState),
