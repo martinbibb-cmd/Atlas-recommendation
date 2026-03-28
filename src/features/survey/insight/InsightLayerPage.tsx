@@ -381,7 +381,7 @@ export function InsightLayerPage({
                     </div>
                   );
                 })()}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
+                <div data-testid="rec-prose-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
                   {rec.whyItFits.length > 0 && (
                     <div>
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#276749', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
