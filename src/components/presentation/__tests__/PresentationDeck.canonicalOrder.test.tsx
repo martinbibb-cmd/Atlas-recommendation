@@ -64,7 +64,7 @@ function getPageLabels(): string[] {
 describe('PresentationDeck — canonical page order', () => {
   let labels: string[];
 
-  beforeEach(() => {
+  beforeAll(() => {
     const result = runEngine(FIXTURE);
     render(
       <PresentationDeck
