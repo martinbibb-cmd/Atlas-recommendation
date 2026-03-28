@@ -148,16 +148,18 @@ describe('resultSurfaces — ExplainersHubPage (Simulator)', () => {
     expect(screen.queryByRole('heading', { name: /simulator dashboard/i })).toBeNull();
   });
 
-  it('survey-backed: renders SelectedFamilyDashboard as the live results view', () => {
+  it('survey-backed: renders the canonical SimulatorDashboard (compare layout) as the live results view', () => {
     render(<ExplainersHubPage surveyData={SURVEY_BACKED_INPUT} />);
-    expect(screen.queryByTestId('selected-family-dashboard')).not.toBeNull();
+    // compare-layout is the canonical SimulatorDashboard two-column layout.
+    expect(document.querySelector('[data-testid="compare-layout"]')).not.toBeNull();
   });
 
-  it('survey-backed: renders the family selector pills', () => {
+  it('survey-backed: does NOT render the legacy SelectedFamilyDashboard family selector pills', () => {
     render(<ExplainersHubPage surveyData={SURVEY_BACKED_INPUT} />);
-    expect(screen.queryByTestId('family-pill-combi')).not.toBeNull();
-    expect(screen.queryByTestId('family-pill-stored_water')).not.toBeNull();
-    expect(screen.queryByTestId('family-pill-heat_pump')).not.toBeNull();
+    // These testIds only exist on the legacy SelectedFamilyDashboard — not on SimulatorDashboard.
+    expect(screen.queryByTestId('family-pill-combi')).toBeNull();
+    expect(screen.queryByTestId('family-pill-stored_water')).toBeNull();
+    expect(screen.queryByTestId('family-pill-heat_pump')).toBeNull();
   });
 
   it('survey-backed: still renders "Simulator" page heading', () => {
