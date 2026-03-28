@@ -108,6 +108,13 @@ export type SystemDiagramDisplayState = {
    */
   cylinderFillPct?: number
   /**
+   * Cylinder architecture variant.
+   * 'mixergy'  — stratified smart cylinder (Mixergy-style).
+   * 'standard' — conventional vented or unvented cylinder.
+   * Absent for combi and heat-pump-only systems (no boiler-served cylinder).
+   */
+  cylinderVariant?: 'standard' | 'mixergy'
+  /**
    * Human-readable label for the current simulation phase.
    * Shown in the sim-time/phase bar.
    */
@@ -698,10 +705,13 @@ function buildOccupancyAutoState(
     case 'mixergy': {
       const storeNeedsReheat = cylinderFill < 0.5
       const returnTempC = heatingEnabled ? 44 : 46
-      return buildStoredState(
-        { heatingEnabled, storeNeedsReheat, hotDrawActive, returnTempC, cylinderFillPct: cylinderFill, phaseLabel },
-        'unvented_cylinder',
-      )
+      return {
+        ...buildStoredState(
+          { heatingEnabled, storeNeedsReheat, hotDrawActive, returnTempC, cylinderFillPct: cylinderFill, phaseLabel },
+          'unvented_cylinder',
+        ),
+        cylinderVariant: 'mixergy',
+      }
     }
   }
 }
@@ -766,6 +776,7 @@ function buildStoredState(
     returnTempC: phase.returnTempC,
     hotDrawActive: phase.hotDrawActive,
     cylinderFillPct: phase.cylinderFillPct,
+    cylinderVariant: 'standard',
     phaseLabel: phase.phaseLabel,
     outletDemands: {
       shower: phase.hotDrawActive,
@@ -875,7 +886,7 @@ function buildManualState(
         serviceSwitchingActive: false,
         supplyOrigins: supplyOriginsForSystemType('unvented_cylinder'),
         condensingState: deriveCondensingState(returnTempC), returnTempC,
-        hotDrawActive, cylinderFillPct: cylinderFillRef, phaseLabel,
+        hotDrawActive, cylinderFillPct: cylinderFillRef, cylinderVariant: 'standard', phaseLabel,
         outletDemands: {
           shower: demand.shower,
           bath: demand.bath,
@@ -898,7 +909,7 @@ function buildManualState(
         serviceSwitchingActive: false,
         supplyOrigins: supplyOriginsForSystemType('vented_cylinder'),
         condensingState: deriveCondensingState(returnTempC), returnTempC,
-        hotDrawActive, cylinderFillPct: cylinderFillRef, phaseLabel,
+        hotDrawActive, cylinderFillPct: cylinderFillRef, cylinderVariant: 'standard', phaseLabel,
         outletDemands: {
           shower: demand.shower,
           bath: demand.bath,
@@ -945,7 +956,7 @@ function buildManualState(
         serviceSwitchingActive: false,
         supplyOrigins: supplyOriginsForSystemType('unvented_cylinder'),
         condensingState: deriveCondensingState(returnTempC), returnTempC,
-        hotDrawActive, cylinderFillPct: cylinderFillRef, phaseLabel,
+        hotDrawActive, cylinderFillPct: cylinderFillRef, cylinderVariant: 'mixergy', phaseLabel,
         outletDemands: {
           shower: demand.shower,
           bath: demand.bath,
