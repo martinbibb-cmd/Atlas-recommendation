@@ -53,6 +53,8 @@ interface InsightLayerPageProps {
   priorities: PrioritiesState;
   onNext: () => void;
   onPrev: () => void;
+  /** When provided, renders a "Try in Simulator →" shortcut CTA in the footer. */
+  onOpenSimulator?: () => void;
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -272,6 +274,7 @@ export function InsightLayerPage({
   priorities,
   onNext,
   onPrev,
+  onOpenSimulator,
 }: InsightLayerPageProps) {
   const heatLoad     = deriveHeatLoadInsight(input, systemBuilder);
   const presentSys   = derivePresentSystemInsight(systemBuilder);
@@ -584,13 +587,24 @@ export function InsightLayerPage({
         <button className="back-btn" type="button" onClick={onPrev}>
           ← Back
         </button>
-        <button
-          className="next-btn"
-          type="button"
-          onClick={onNext}
-        >
-          Run Full Analysis →
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {onOpenSimulator != null && (
+            <button
+              className="simulator-shortcut-btn"
+              type="button"
+              onClick={onOpenSimulator}
+            >
+              Try in Simulator →
+            </button>
+          )}
+          <button
+            className="next-btn"
+            type="button"
+            onClick={onNext}
+          >
+            Run Full Analysis →
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -42,6 +42,12 @@ interface Props {
    * save/reload all preserve the full survey including Step 5 hot-water data.
    */
   onDraft?: (draft: FullSurveyModelV1) => void;
+  /**
+   * When provided, the InsightLayerPage shows a "Try in Simulator →" shortcut
+   * CTA that jumps directly to the simulator without the fit-map intermediate
+   * step.  Receives the cleaned EngineInputV2_3 ready for the simulator.
+   */
+  onOpenSimulator?: (engineInput: EngineInputV2_3) => void;
 }
 
 type Step = 'system_builder' | 'usage' | 'services' | 'heat_loss' | 'priorities' | 'insight';
@@ -94,7 +100,7 @@ const defaultInput: FullSurveyModelV1 = {
 /** Z-index reserved for any future full-screen overlays above the stepper. */
 // const OVERLAY_Z_INDEX = 1000;
 
-export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft }: Props) {
+export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft, onOpenSimulator }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('system_builder');
   const [input, setInput] = useState<FullSurveyModelV1>(() =>
     prefill ? { ...defaultInput, ...prefill } : defaultInput
@@ -413,6 +419,12 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           priorities={prioritiesState}
           onNext={next}
           onPrev={prev}
+          onOpenSimulator={onOpenSimulator != null ? () => {
+            const draft = buildDraft();
+            const engineInput = toEngineInput(sanitiseModelForEngine(draft));
+            if (onDraft) onDraft(draft);
+            onOpenSimulator(engineInput);
+          } : undefined}
         />
       )}
 
