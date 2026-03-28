@@ -1,5 +1,6 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
 import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem, VisualSpecV1, EvidenceItemV1, VerdictV1, InfluenceSummaryV1 } from '../contracts/EngineOutputV1';
+import type { ApplianceFamily } from './topology/SystemTopology';
 import { ENGINE_VERSION, CONTRACT_VERSION } from '../contracts/versions';
 import { buildOptionMatrixV1 } from './OptionMatrixBuilder';
 import { buildTimeline24hV1 } from './TimelineBuilder';
@@ -491,22 +492,60 @@ function buildVisuals(result: FullEngineResultCore, input?: EngineInputV2_3): Vi
   return visuals;
 }
 
-export function buildEngineOutputV1(result: FullEngineResultCore, input?: EngineInputV2_3): EngineOutputV1 {
+/**
+ * Maps a canonical `ApplianceFamily` (from `RecommendationResult.bestOverall`) to the
+ * corresponding eligibility item ID used in `buildEligibility`.
+ *
+ * Used to override `recommendation.primary` with the label of the canonical best
+ * option so that every consumer of `engineOutput.recommendation.primary` reads the
+ * same recommendation as `recommendationResult.bestOverall`.
+ *
+ * Exported so that dev-mode alignment checks and tests can use the same mapping.
+ */
+export const FAMILY_TO_ELIGIBILITY_ID: Record<ApplianceFamily, string> = {
+  combi:       'on_demand',
+  system:      'stored_unvented',
+  heat_pump:   'ashp',
+  regular:     'stored_vented',
+  open_vented: 'stored_vented',
+};
+
+export function buildEngineOutputV1(
+  result: FullEngineResultCore,
+  input?: EngineInputV2_3,
+  /**
+   * Canonical best-overall appliance family from `RecommendationResult.bestOverall`.
+   * When provided and confidence is not low, this overrides the heuristic resolver
+   * so that `recommendation.primary` always matches the evidence-backed ranking.
+   */
+  canonicalBestFamily?: ApplianceFamily | null,
+): EngineOutputV1 {
   // ── Eligibility & confidence — computed early for the recommendation hierarchy ──
   const eligibilityItems = buildEligibility(result, input);
   const { confidence, assumptions } = buildAssumptionsV1(result, input);
 
   // ── Recommendation resolver V1 ────────────────────────────────────────────
-  // Deterministic hierarchy — no scoring, no heuristics:
-  //   1. Confidence gate: low confidence → withheld
-  //   2. Only viable (not caution/rejected) options qualify for a recommendation
-  //   3. Exactly one viable → recommend it
-  //   4. Multiple viable → "Multiple suitable options"
-  //   5. No viable → fall back through caution options; if still ambiguous, surface
+  // When a canonical best family is supplied (from buildRecommendationsFromEvidence),
+  // use it directly — this ensures all recommendation surfaces agree.
+  // Fallback (eligibility heuristic) is kept for callers that cannot supply a
+  // canonical family (e.g. unit tests that call buildEngineOutputV1 directly).
+  //
+  // Deterministic hierarchy:
+  //   1. Confidence gate: low confidence → withheld (always)
+  //   2. Canonical family provided → label from matching eligibility item
+  //   3. Only viable (not caution/rejected) options qualify for a recommendation
+  //   4. Exactly one viable → recommend it
+  //   5. Multiple viable → "Multiple suitable options"
+  //   6. No viable → fall back through caution options; if still ambiguous, surface
   //      "Multiple options need review"
   let primaryRecommendation: string;
   if (confidence?.level === 'low') {
     primaryRecommendation = 'Recommendation withheld — not enough measured data';
+  } else if (canonicalBestFamily != null) {
+    // Canonical path: use the evidence-backed bestOverall family label.
+    const eligibilityId = FAMILY_TO_ELIGIBILITY_ID[canonicalBestFamily];
+    const canonicalItem = eligibilityItems.find(e => e.id === eligibilityId);
+    primaryRecommendation = canonicalItem?.label ?? canonicalBestFamily;
   } else {
     const viableItems = eligibilityItems.filter(e => e.status === 'viable');
     const viableStoredItems = viableItems.filter(e => e.id.includes('stored'));

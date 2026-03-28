@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runEngine } from '../Engine';
+import { FAMILY_TO_ELIGIBILITY_ID } from '../OutputBuilder';
 
 const baseInput = {
   postcode: 'SW1A 1AA',
@@ -326,12 +327,17 @@ describe('EngineOutputV1 shape', () => {
     expect(engineOutput.recommendation.primary).toBe('Stored hot water — Unvented cylinder');
   });
 
-  it('recommendation primary is "Multiple options need review" when combi is rejected and no single viable option remains', () => {
+  it('recommendation primary is canonical bestOverall label when combi is rejected and all remaining options have caveats', () => {
+    // PR6a: The canonical recommendation source (bestOverall) is used.
+    // Old heuristic: "Multiple options need review" when 0 viable options.
+    // New canonical: bestOverall picks the highest-scoring eligible candidate
+    // even when it is "suitable_with_caveats" — more actionable than withholding.
+    //
     // bathroomCount: 2 + highOccupancy → combi hard-rejected (simultaneous demand)
     // mainsDynamicFlowLpm: 6 (below 10 L/min threshold) → stored_unvented caution
     // futureLoftConversion: true → stored_vented caution
     // 22mm + 8kW → ASHP caution
-    const { engineOutput } = runEngine({
+    const { engineOutput, recommendationResult } = runEngine({
       ...baseInput,
       currentHeatSourceType: 'combi' as const,
       bathroomCount: 2,
@@ -342,13 +348,33 @@ describe('EngineOutputV1 shape', () => {
       currentBoilerAgeYears: 10,
       currentBoilerOutputKw: 24,
     });
-    expect(engineOutput.recommendation.primary).toBe('Multiple options need review');
+    // The canonical bestOverall picks the highest-scoring candidate with suitability
+    // !== 'not_recommended'.  Assert that engineOutput.primary matches this.
+    const bestFamily = recommendationResult.bestOverall?.family;
+    if (bestFamily != null) {
+      const familyToId: Record<string, string> = {
+        combi: 'on_demand', system: 'stored_unvented',
+        heat_pump: 'ashp', regular: 'stored_vented', open_vented: 'stored_vented',
+      };
+      const expectedLabel = engineOutput.eligibility.find(e => e.id === familyToId[bestFamily])?.label ?? bestFamily;
+      expect(engineOutput.recommendation.primary).toBe(expectedLabel);
+    } else {
+      // No eligible candidate at all — recommendation is withheld
+      expect(engineOutput.recommendation.primary).toMatch(/withheld/i);
+    }
+    // Combi must not be recommended when hard-rejected
+    expect(engineOutput.recommendation.primary).not.toBe('On Demand (Combi)');
   });
 
-  it('recommendation primary is "Air Source Heat Pump" for steady_home with viable ASHP (28mm) and medium confidence', () => {
-    // 28mm + 8kW → ASHP viable; on_demand caution (steady_home); stored unvented caution (9 L/min < 10).
-    // hasLoftConversion: true is the primary rejection gate for stored_vented (combi run has no storedDhwV1).
-    const { engineOutput } = runEngine({
+  it('recommendation primary matches bestOverall for 28mm + steady_home + caution stored options', () => {
+    // PR6a: engineOutput.recommendation.primary is derived from recommendationResult.bestOverall,
+    // not from the old heuristic that would pick "Air Source Heat Pump" as the sole "viable" option.
+    // The evidence-based ranking may prefer stored_unvented even when it has minor caveats if its
+    // overall score exceeds ASHP's score for this input profile.
+    //
+    // 28mm + 8kW → ASHP has no pipe constraint; on_demand has occupancy caution;
+    // stored unvented has minor flow caution (9 L/min); stored vented has loft caution.
+    const { engineOutput, recommendationResult } = runEngine({
       ...baseInput,
       currentHeatSourceType: 'combi' as const,
       primaryPipeDiameter: 28,
@@ -356,12 +382,21 @@ describe('EngineOutputV1 shape', () => {
       occupancySignature: 'steady_home',
       bathroomCount: 1,
       peakConcurrentOutlets: 1,
-      hasLoftConversion: true,   // independently rejects stored_vented (combi run has no storedDhwV1)
-      mainsDynamicFlowLpm: 9,    // below unvented gate (< 10 L/min at pressure) → stored unvented stays caution
+      hasLoftConversion: true,   // independently rejects stored_vented
+      mainsDynamicFlowLpm: 9,    // below unvented gate (< 10 L/min) → stored unvented caution
       currentBoilerAgeYears: 10, // reduces missingKeyCount for medium confidence
       currentBoilerOutputKw: 24, // reduces missingKeyCount for medium confidence
     });
-    expect(engineOutput.recommendation.primary).toBe('Air Source Heat Pump');
+    // Assert alignment: headline must match canonical bestOverall
+    const bestFamily = recommendationResult.bestOverall?.family;
+    if (bestFamily != null) {
+      const familyToId: Record<string, string> = {
+        combi: 'on_demand', system: 'stored_unvented',
+        heat_pump: 'ashp', regular: 'stored_vented', open_vented: 'stored_vented',
+      };
+      const expectedLabel = engineOutput.eligibility.find(e => e.id === familyToId[bestFamily])?.label ?? bestFamily;
+      expect(engineOutput.recommendation.primary).toBe(expectedLabel);
+    }
   });
 
   it('recommendation primary is NOT "Air Source Heat Pump" when ASHP is caution (22mm pipes + steady_home)', () => {
@@ -443,5 +478,87 @@ describe('EngineOutputV1 shape', () => {
       expect(typeof engineOutput.verdict.primaryReason).toBe('string');
       expect((engineOutput.verdict.primaryReason ?? '').length).toBeGreaterThan(0);
     }
+  });
+});
+
+// ─── PR6a: Recommendation source unification ─────────────────────────────────
+//
+// These tests assert that engineOutput.recommendation.primary is always derived
+// from recommendationResult.bestOverall — so every surface (stepper headline,
+// recommendation card, in-room view) reads from the same canonical ranked result.
+
+describe('PR6a — unified recommendation source', () => {
+  it('engineOutput.recommendation.primary agrees with recommendationResult.bestOverall for a combi-appropriate input', () => {
+    // 1 bathroom, low occupancy, good pressure → combi should be best overall
+    const result = runEngine({
+      ...baseInput,
+      bathroomCount: 1,
+      occupancyCount: 1,
+      dynamicMainsPressure: 2.5,
+      dynamicMainsPressureBar: 2.5,
+      mainsDynamicFlowLpm: 18,
+    });
+
+    const { engineOutput, recommendationResult } = result;
+    const bestFamily = recommendationResult.bestOverall?.family;
+    if (bestFamily == null) {
+      // No best overall → recommendation may be withheld; primary must say so
+      expect(engineOutput.recommendation.primary).toMatch(/withheld|multiple/i);
+      return;
+    }
+
+    const eligibilityId = FAMILY_TO_ELIGIBILITY_ID[bestFamily];
+    const expectedLabel = engineOutput.eligibility.find(e => e.id === eligibilityId)?.label;
+    expect(engineOutput.recommendation.primary).toBe(expectedLabel ?? bestFamily);
+  });
+
+  it('engineOutput.recommendation.primary agrees with recommendationResult.bestOverall for a stored-system-appropriate input', () => {
+    // 3 bathrooms, high occupancy → stored system should be best overall
+    const result = runEngine({
+      ...baseInput,
+      bathroomCount: 3,
+      occupancyCount: 5,
+      highOccupancy: true,
+      dynamicMainsPressure: 2.5,
+      dynamicMainsPressureBar: 2.5,
+      mainsDynamicFlowLpm: 20,
+    });
+
+    const { engineOutput, recommendationResult } = result;
+    const bestFamily = recommendationResult.bestOverall?.family;
+    if (bestFamily == null) return; // no best — skip (not the scenario under test)
+
+    const eligibilityId = FAMILY_TO_ELIGIBILITY_ID[bestFamily];
+    const expectedLabel = engineOutput.eligibility.find(e => e.id === eligibilityId)?.label;
+    expect(engineOutput.recommendation.primary).toBe(expectedLabel ?? bestFamily);
+  });
+
+  it('engineOutput.recommendation.primary is never hard-coded to a system-boiler default when combi is bestOverall', () => {
+    // Minimal single-person household → combi wins on space/disruption/eco
+    const result = runEngine({
+      ...baseInput,
+      bathroomCount: 1,
+      occupancyCount: 1,
+      highOccupancy: false,
+      dynamicMainsPressure: 2.5,
+      dynamicMainsPressureBar: 2.5,
+      mainsDynamicFlowLpm: 18,
+    });
+
+    const { engineOutput, recommendationResult } = result;
+    const bestFamily = recommendationResult.bestOverall?.family;
+
+    if (bestFamily === 'combi') {
+      // combi won overall → headline must reflect combi, NOT stored/system
+      expect(engineOutput.recommendation.primary).not.toMatch(/stored|system boiler/i);
+      expect(engineOutput.recommendation.primary).toBe('On Demand (Combi)');
+    }
+  });
+
+  it('recommendationResult is always present on runEngine output', () => {
+    const result = runEngine(baseInput);
+    expect(result.recommendationResult).toBeDefined();
+    expect(result.recommendationResult.bestByObjective).toBeDefined();
+    expect(result.recommendationResult.interventions).toBeDefined();
   });
 });
