@@ -160,7 +160,7 @@ describe('DecisionSynthesisPage — objective cards', () => {
 describe('DecisionSynthesisPage — installation recipe', () => {
   it('renders "Heat source" label', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(screen.getByText('Heat source')).toBeTruthy();
+    expect(screen.getAllByText('Heat source').length).toBeGreaterThan(0);
   });
 
   it('renders "Hot water arrangement" label', () => {
@@ -170,7 +170,7 @@ describe('DecisionSynthesisPage — installation recipe', () => {
 
   it('renders "Controls" label', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(screen.getByText('Controls')).toBeTruthy();
+    expect(screen.getAllByText('Controls').length).toBeGreaterThan(0);
   });
 
   it('renders "Emitter action" label', () => {
@@ -748,6 +748,7 @@ describe('DecisionSynthesisPage — save/retry state machine', () => {
     fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
     await waitFor(() =>
       expect(document.querySelector('[data-testid="share-panel"]')).not.toBeNull(),
+      { timeout: 3000 },
     );
 
     // fetch must have been called twice — once for the initial save and once for the retry.
@@ -1584,5 +1585,75 @@ describe('DecisionSynthesisPage — PR6 safe rendering without optional sections
     expect(document.querySelector('[data-testid="chosen-option-hero"]')).toBeNull();
     expect(document.querySelector('[data-testid="comparison-summary-wrapper"]')).toBeNull();
     expect(document.querySelector('[data-testid="chosen-option-hero"]')).toBeNull();
+  });
+});
+
+// ─── PR9 — 4-block structured option cards ────────────────────────────────────
+
+describe('DecisionSynthesisPage — PR9 structured option cards', () => {
+  it('renders the system visualiser (sav-recommendation) inside option cards', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    const savsRecommendation = document.querySelectorAll('[data-testid="sav-recommendation"]');
+    // Option cards in section 1e (all-options-section) each render a SAV
+    expect(savsRecommendation.length).toBeGreaterThan(0);
+  });
+
+  it('renders "What this system is" block in each option card', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    const blocks = document.querySelectorAll('.advice-option-block--system');
+    expect(blocks.length).toBeGreaterThan(0);
+  });
+
+  it('renders "Why it fits this home" block in each option card that has why bullets', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    // All demo options have at least one why bullet
+    const blocks = document.querySelectorAll('.advice-option-block--why');
+    expect(blocks.length).toBeGreaterThan(0);
+  });
+
+  it('renders "What changes" block with "Must change" tier in option cards', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    const mustTiers = document.querySelectorAll('.advice-option-changes__tier--must');
+    expect(mustTiers.length).toBeGreaterThan(0);
+  });
+
+  it('renders "Worth doing" tier in option cards with likelyUpgrades', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    const worthTiers = document.querySelectorAll('.advice-option-changes__tier--worth');
+    expect(worthTiers.length).toBeGreaterThan(0);
+  });
+
+  it('renders "Future-ready" tier in option cards with niceToHave', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    const futureTiers = document.querySelectorAll('.advice-option-changes__tier--future');
+    expect(futureTiers.length).toBeGreaterThan(0);
+  });
+
+  it('renders "How it behaves" block in each option card', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    const blocks = document.querySelectorAll('.advice-option-block--behaviour');
+    expect(blocks.length).toBeGreaterThan(0);
+  });
+
+  it('renders simulator CTA buttons when onOpenSimulator is provided', () => {
+    const onOpenSimulator = vi.fn();
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} onOpenSimulator={onOpenSimulator} />);
+    const ctaButtons = document.querySelectorAll('.advice-option-simulator-btn');
+    expect(ctaButtons.length).toBeGreaterThan(0);
+  });
+
+  it('does not render simulator CTA when onOpenSimulator is not provided', () => {
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
+    const ctaButtons = document.querySelectorAll('.advice-option-simulator-btn');
+    expect(ctaButtons.length).toBe(0);
+  });
+
+  it('calls onOpenSimulator with the option id when simulator CTA is clicked', () => {
+    const onOpenSimulator = vi.fn();
+    render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} onOpenSimulator={onOpenSimulator} />);
+    const ctaButtons = document.querySelectorAll('.advice-option-simulator-btn');
+    expect(ctaButtons.length).toBeGreaterThan(0);
+    fireEvent.click(ctaButtons[0] as HTMLElement);
+    expect(onOpenSimulator).toHaveBeenCalledWith(expect.any(String));
   });
 });

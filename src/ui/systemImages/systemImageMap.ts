@@ -84,6 +84,30 @@ export function imageForRecId(recId: string): SystemImageInfo | null {
   }
 }
 
+// ─── Option card image ────────────────────────────────────────────────────────
+
+/**
+ * Returns a real-world image for an OptionCardV1 recommendation option.
+ * Uses the canonical OptionCardV1 id field.
+ * Returns null when no confident mapping exists for the option.
+ */
+export function imageForOptionId(optionId: string): SystemImageInfo | null {
+  switch (optionId) {
+    case 'combi':
+      return { src: `${BASE}/Combination.PNG`, alt: 'Combination boiler — real-world example' };
+    case 'stored_unvented':
+    case 'system_unvented':
+      return { src: `${BASE}/unvented-cylinder.JPG`, alt: 'System boiler with unvented cylinder — real-world example' };
+    case 'stored_vented':
+    case 'regular_vented':
+      return { src: `${BASE}/open-vented-schematic.JPG`, alt: 'Regular boiler with vented cylinder — real-world example' };
+    case 'ashp':
+      return { src: `${BASE}/ASHP.PNG`, alt: 'Air source heat pump — real-world example' };
+    default:
+      return null;
+  }
+}
+
 // ─── Controls/architecture image ─────────────────────────────────────────────
 
 /**

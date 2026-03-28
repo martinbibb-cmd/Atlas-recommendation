@@ -72,6 +72,11 @@ import { getRegistryEntry } from '../../lib/explainers/explainerRegistry';
 import RealWorldBehaviourCards from './RealWorldBehaviourCards';
 import ChosenOptionComparisonSummary from './ChosenOptionComparisonSummary';
 import EvidenceRecommendationPanel from '../recommendation/EvidenceRecommendationPanel';
+import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
+import { optionToConceptModel } from '../../explainers/lego/autoBuilder/optionToConceptModel';
+import type { OptionId } from '../../explainers/lego/autoBuilder/optionToConceptModel';
+import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
+import { SystemRealWorldImage } from '../systemImages/SystemRealWorldImage';
 import './DecisionSynthesisPage.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -119,6 +124,13 @@ interface Props {
    * Optional for backward compat with ReportPage which persists EngineOutputV1.
    */
   recommendationResult?: import('../../engine/recommendation/RecommendationModel').RecommendationResult;
+  /**
+   * PR9 — Simulator handoff.
+   *
+   * When provided, option cards show a "Try this option in Simulator →" CTA.
+   * The callback receives the option ID so the simulator can preselect that option.
+   */
+  onOpenSimulator?: (optionId?: string) => void;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -607,6 +619,88 @@ function OpportunityCardUI({
   );
 }
 
+// ── PR9 — Option behaviour preview ────────────────────────────────────────────
+
+/**
+ * Characteristic behaviour traits for each system type.
+ * Sourced from physics of the system — no Math.random().
+ */
+const OPTION_BEHAVIOUR_TRAITS: Record<string, {
+  label: string;
+  traits: Array<{ icon: string; text: string }>;
+}> = {
+  combi: {
+    label: 'On-demand supply',
+    traits: [
+      { icon: '⚡', text: 'Instant heat — no warm-up wait' },
+      { icon: '🔁', text: 'Short-cycle bursts under partial load' },
+      { icon: '🚿', text: 'On-demand hot water — sequential use, not simultaneous' },
+    ],
+  },
+  stored_unvented: {
+    label: 'Stored mains-fed supply',
+    traits: [
+      { icon: '🪣', text: 'Cylinder charges at controlled rate — less cycling' },
+      { icon: '⚡', text: 'High-pressure stored hot water — simultaneous outlets OK' },
+      { icon: '📊', text: 'Recovery time after peak draw; cylinder size governs capacity' },
+    ],
+  },
+  system_unvented: {
+    label: 'Stored mains-fed supply',
+    traits: [
+      { icon: '🪣', text: 'Cylinder charges at controlled rate — less cycling' },
+      { icon: '⚡', text: 'High-pressure stored hot water — simultaneous outlets OK' },
+      { icon: '📊', text: 'Recovery time after peak draw; cylinder size governs capacity' },
+    ],
+  },
+  stored_vented: {
+    label: 'Stored tank-fed supply',
+    traits: [
+      { icon: '🪣', text: 'Open-vented cylinder — tank-fed or pumped pressure' },
+      { icon: '🔁', text: 'Regular boiler drives heat and hot water zone valves' },
+      { icon: '📊', text: 'Recovery after peak draw governed by cylinder size and boiler output' },
+    ],
+  },
+  regular_vented: {
+    label: 'Stored tank-fed supply',
+    traits: [
+      { icon: '🪣', text: 'Open-vented cylinder — tank-fed or pumped pressure' },
+      { icon: '🔁', text: 'Regular boiler drives heat and hot water zone valves' },
+      { icon: '📊', text: 'Recovery after peak draw governed by cylinder size and boiler output' },
+    ],
+  },
+  ashp: {
+    label: 'Steady low-grade output',
+    traits: [
+      { icon: '〰️', text: 'Sustained low-temperature output — not stepped bursts' },
+      { icon: '❄️', text: 'Performance (COP) peaks in mild weather; drops in deep cold' },
+      { icon: '🌡', text: 'Lower flow temps need adequate emitter area — UFH or oversize rads' },
+    ],
+  },
+};
+
+/**
+ * Static mini preview of how a system type behaves.
+ * Deterministic — data comes from known physics of each system type.
+ */
+function OptionBehaviourPreview({ optionId }: { optionId: string }) {
+  const meta = OPTION_BEHAVIOUR_TRAITS[optionId];
+  if (!meta) return null;
+  return (
+    <div className="advice-option-behaviour" aria-label={`${meta.label} behaviour`}>
+      <div className="advice-option-behaviour__label">{meta.label}</div>
+      <ul className="advice-option-behaviour__traits">
+        {meta.traits.map((t, i) => (
+          <li key={i} className="advice-option-behaviour__trait">
+            <span className="advice-option-behaviour__icon" aria-hidden="true">{t.icon}</span>
+            <span>{t.text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function DecisionSynthesisPage({
   engineOutput,
   onBack,
@@ -615,6 +709,7 @@ export default function DecisionSynthesisPage({
   floorplanOutput,
   reportReference,
   recommendationResult,
+  onOpenSimulator,
 }: Props) {
   const [showPrint, setShowPrint] = useState(false);
   const [showPrintQr, setShowPrintQr] = useState(false);
@@ -1412,6 +1507,7 @@ export default function DecisionSynthesisPage({
       {/* SECTION 1d — Multiple suitable options                              */}
       {/* Shown when the engine signals ambiguity or multiple viable paths.   */}
       {/* PR3 — "Choose this option" affordance added to each card.           */}
+      {/* PR9 — Rebuilt into 4-block decision structure.                      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       {showMultipleOptions && multipleOptions.length > 1 && (
         <div
@@ -1436,6 +1532,15 @@ export default function DecisionSynthesisPage({
           >
             {multipleOptions.map(option => {
               const isChosen = chosenOptionId === option.id;
+              const optionConcept = optionToConceptModel(option.id as OptionId);
+              const optionImage = imageForOptionId(option.id);
+              const mustChangeItems = [
+                ...(option.typedRequirements.complianceRequired ?? []),
+                ...option.typedRequirements.mustHave,
+              ];
+              const worthDoingItems = option.typedRequirements.likelyUpgrades;
+              const futureReadyItems = option.typedRequirements.niceToHave;
+              const hasChangesContent = mustChangeItems.length > 0 || worthDoingItems.length > 0 || futureReadyItems.length > 0;
               return (
                 <div
                   key={option.id}
@@ -1443,6 +1548,7 @@ export default function DecisionSynthesisPage({
                   role="listitem"
                   data-testid={`option-card-${option.id}`}
                 >
+                  {/* Header row */}
                   <div className="advice-multi-option__header">
                     <div className="advice-multi-option__label">{option.label}</div>
                     <span className={`advice-multi-option__badge advice-multi-option__badge--${option.status}`}>
@@ -1457,24 +1563,81 @@ export default function DecisionSynthesisPage({
                       </span>
                     )}
                   </div>
-                  <p className="advice-multi-option__headline">{option.headline}</p>
+
+                  {/* ── Block A: What this system is ─────────────────────── */}
+                  <div className="advice-option-block advice-option-block--system">
+                    <div className="advice-option-block__title">What this system is</div>
+                    <SystemArchitectureVisualiser
+                      mode="recommendation"
+                      recommendedSystem={optionConcept}
+                    />
+                    {optionImage && (
+                      <SystemRealWorldImage image={optionImage} testId={`option-real-world-image-${option.id}`} />
+                    )}
+                    <p className="advice-option-block__headline">{option.headline}</p>
+                  </div>
+
+                  {/* ── Block B: Why it fits this home ───────────────────── */}
                   {option.why.length > 0 && (
-                    <ul className="advice-multi-option__why" aria-label={`${option.label} reasons`}>
-                      {option.why.map((w, i) => (
-                        <li key={i}>{w}</li>
-                      ))}
-                    </ul>
-                  )}
-                  {option.typedRequirements.mustHave.length > 0 && (
-                    <div className="advice-multi-option__reqs">
-                      <span className="advice-multi-option__reqs-label">Must have:</span>
-                      <ul aria-label={`${option.label} requirements`}>
-                        {option.typedRequirements.mustHave.map((r, i) => (
-                          <li key={i}>{r}</li>
+                    <div className="advice-option-block advice-option-block--why">
+                      <div className="advice-option-block__title">Why it fits this home</div>
+                      <ul className="advice-multi-option__why" aria-label={`${option.label} reasons`}>
+                        {option.why.slice(0, 3).map((w, i) => (
+                          <li key={i}>{w}</li>
                         ))}
                       </ul>
                     </div>
                   )}
+
+                  {/* ── Block C: What changes ────────────────────────────── */}
+                  {hasChangesContent && (
+                    <div className="advice-option-block advice-option-block--changes">
+                      <div className="advice-option-block__title">What changes</div>
+                      <div className="advice-option-changes">
+                        {mustChangeItems.length > 0 && (
+                          <div className="advice-option-changes__tier advice-option-changes__tier--must">
+                            <span className="advice-option-changes__tier-label">Must change</span>
+                            <ul aria-label={`${option.label} — must change`}>
+                              {mustChangeItems.map((r, i) => <li key={i}>{r}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {worthDoingItems.length > 0 && (
+                          <div className="advice-option-changes__tier advice-option-changes__tier--worth">
+                            <span className="advice-option-changes__tier-label">Worth doing</span>
+                            <ul aria-label={`${option.label} — worth doing`}>
+                              {worthDoingItems.map((r, i) => <li key={i}>{r}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {futureReadyItems.length > 0 && (
+                          <div className="advice-option-changes__tier advice-option-changes__tier--future">
+                            <span className="advice-option-changes__tier-label">Future-ready</span>
+                            <ul aria-label={`${option.label} — future-ready`}>
+                              {futureReadyItems.map((r, i) => <li key={i}>{r}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Block D: How it behaves ──────────────────────────── */}
+                  <div className="advice-option-block advice-option-block--behaviour">
+                    <div className="advice-option-block__title">How it behaves</div>
+                    <OptionBehaviourPreview optionId={option.id} />
+                    {onOpenSimulator != null && (
+                      <button
+                        className="advice-option-simulator-btn"
+                        type="button"
+                        onClick={() => onOpenSimulator(option.id)}
+                        aria-label={`Try ${option.label} in Simulator`}
+                      >
+                        Try this option in Simulator →
+                      </button>
+                    )}
+                  </div>
+
                   {/* PR3 — "Choose this option" affordance */}
                   <div className="advice-multi-option__actions">
                     {isChosen ? (
@@ -1508,6 +1671,7 @@ export default function DecisionSynthesisPage({
       {/* SECTION 1e — Available options (single-recommendation case)         */}
       {/* PR3 — When there is one clear recommendation but other options       */}
       {/* exist, show them so the customer can express a preference.           */}
+      {/* PR9 — Rebuilt into 4-block decision structure.                      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       {!showMultipleOptions && engineOutput.options != null && engineOutput.options.length > 1 && (
         <div
@@ -1527,6 +1691,15 @@ export default function DecisionSynthesisPage({
             {engineOutput.options.map(option => {
               const isRecommended = option.id === recommendedOptionId;
               const isChosen = chosenOptionId === option.id;
+              const optionConcept = optionToConceptModel(option.id as OptionId);
+              const optionImage = imageForOptionId(option.id);
+              const mustChangeItems = [
+                ...(option.typedRequirements.complianceRequired ?? []),
+                ...option.typedRequirements.mustHave,
+              ];
+              const worthDoingItems = option.typedRequirements.likelyUpgrades;
+              const futureReadyItems = option.typedRequirements.niceToHave;
+              const hasChangesContent = mustChangeItems.length > 0 || worthDoingItems.length > 0 || futureReadyItems.length > 0;
               return (
                 <div
                   key={option.id}
@@ -1534,6 +1707,7 @@ export default function DecisionSynthesisPage({
                   role="listitem"
                   data-testid={`option-card-${option.id}`}
                 >
+                  {/* Header row */}
                   <div className="advice-multi-option__header">
                     <div className="advice-multi-option__label">{option.label}</div>
                     {isRecommended && (
@@ -1550,7 +1724,81 @@ export default function DecisionSynthesisPage({
                       </span>
                     )}
                   </div>
-                  <p className="advice-multi-option__headline">{option.headline}</p>
+
+                  {/* ── Block A: What this system is ─────────────────────── */}
+                  <div className="advice-option-block advice-option-block--system">
+                    <div className="advice-option-block__title">What this system is</div>
+                    <SystemArchitectureVisualiser
+                      mode="recommendation"
+                      recommendedSystem={optionConcept}
+                    />
+                    {optionImage && (
+                      <SystemRealWorldImage image={optionImage} testId={`option-real-world-image-${option.id}`} />
+                    )}
+                    <p className="advice-option-block__headline">{option.headline}</p>
+                  </div>
+
+                  {/* ── Block B: Why it fits this home ───────────────────── */}
+                  {option.why.length > 0 && (
+                    <div className="advice-option-block advice-option-block--why">
+                      <div className="advice-option-block__title">Why it fits this home</div>
+                      <ul className="advice-multi-option__why" aria-label={`${option.label} reasons`}>
+                        {option.why.slice(0, 3).map((w, i) => (
+                          <li key={i}>{w}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* ── Block C: What changes ────────────────────────────── */}
+                  {hasChangesContent && (
+                    <div className="advice-option-block advice-option-block--changes">
+                      <div className="advice-option-block__title">What changes</div>
+                      <div className="advice-option-changes">
+                        {mustChangeItems.length > 0 && (
+                          <div className="advice-option-changes__tier advice-option-changes__tier--must">
+                            <span className="advice-option-changes__tier-label">Must change</span>
+                            <ul aria-label={`${option.label} — must change`}>
+                              {mustChangeItems.map((r, i) => <li key={i}>{r}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {worthDoingItems.length > 0 && (
+                          <div className="advice-option-changes__tier advice-option-changes__tier--worth">
+                            <span className="advice-option-changes__tier-label">Worth doing</span>
+                            <ul aria-label={`${option.label} — worth doing`}>
+                              {worthDoingItems.map((r, i) => <li key={i}>{r}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {futureReadyItems.length > 0 && (
+                          <div className="advice-option-changes__tier advice-option-changes__tier--future">
+                            <span className="advice-option-changes__tier-label">Future-ready</span>
+                            <ul aria-label={`${option.label} — future-ready`}>
+                              {futureReadyItems.map((r, i) => <li key={i}>{r}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Block D: How it behaves ──────────────────────────── */}
+                  <div className="advice-option-block advice-option-block--behaviour">
+                    <div className="advice-option-block__title">How it behaves</div>
+                    <OptionBehaviourPreview optionId={option.id} />
+                    {onOpenSimulator != null && (
+                      <button
+                        className="advice-option-simulator-btn"
+                        type="button"
+                        onClick={() => onOpenSimulator(option.id)}
+                        aria-label={`Try ${option.label} in Simulator`}
+                      >
+                        Try this option in Simulator →
+                      </button>
+                    )}
+                  </div>
+
                   {/* PR3 — Only show "Choose this option" for non-recommended options */}
                   {!isRecommended && (
                     <div className="advice-multi-option__actions">
