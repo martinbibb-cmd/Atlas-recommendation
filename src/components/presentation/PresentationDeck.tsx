@@ -43,6 +43,7 @@ import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/Syst
 import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
 import { optionToConceptModel } from '../../explainers/lego/autoBuilder/optionToConceptModel';
 import type { OptionId } from '../../explainers/lego/autoBuilder/optionToConceptModel';
+import QuadrantDashboardPage from './QuadrantDashboardPage';
 import './PresentationDeck.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -425,6 +426,17 @@ export interface PresentationDeckProps {
   input: EngineInputV2_3;
   recommendationResult?: RecommendationResult;
   onOpenSimulator?: () => void;
+  /**
+   * Optional heat-loss survey state.
+   * When provided, the quadrant dashboard uses the shell perimeter snapshot
+   * (shellSnapshotUrl) in the Your House tile and shows the roof orientation.
+   */
+  heatLossState?: import('../../features/survey/heatLoss/heatLossTypes').HeatLossState;
+  /**
+   * Optional chip-style priorities from the Priorities step.
+   * When provided, the Your Priorities tile shows the selected chips.
+   */
+  prioritiesState?: import('../../features/survey/priorities/prioritiesTypes').PrioritiesState;
 }
 
 /**
@@ -438,6 +450,8 @@ export default function PresentationDeck({
   input,
   recommendationResult,
   onOpenSimulator,
+  heatLossState,
+  prioritiesState,
 }: PresentationDeckProps) {
   const reducedMotion = useReducedMotion();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -455,6 +469,23 @@ export default function PresentationDeck({
   // ─── Build page list ───────────────────────────────────────────────────────
 
   const pages: DeckPageDescriptor[] = [
+    // ── PR8a: Quadrant overview — first page ──────────────────────────────
+    {
+      id:    'quadrant_overview',
+      label: 'Overview',
+      content: (
+        <div className="atlas-presentation-deck__quadrant-wrapper">
+          <p className="atlas-presentation-deck__page-eyebrow">What we know</p>
+          <QuadrantDashboardPage
+            house={page1.house}
+            home={page1.home}
+            currentSystem={page1.currentSystem}
+            heatLossState={heatLossState}
+            prioritiesState={prioritiesState}
+          />
+        </div>
+      ),
+    },
     { id: 'house',          label: 'House',         content: <HousePage house={page1.house} /> },
     { id: 'home',           label: 'Home',          content: <HomePage home={page1.home} /> },
     { id: 'energy',         label: 'Energy',        content: <EnergyPage energy={page1.energy} /> },

@@ -97,6 +97,15 @@ export function HeatLossStep({
     onChange({ ...state, shellModel: shell });
   }
 
+  function handleSnapshotChange(dataUrl: string | null) {
+    // Persist the rendered snapshot so the house shape is available in the
+    // presentation layer (Your House quadrant) without re-mounting the canvas.
+    onChange({
+      ...state,
+      shellSnapshotUrl: dataUrl ?? undefined,
+    });
+  }
+
   return (
     <div style={wrapperStyle} data-testid="heat-loss-step">
       {/* ── Primary surface: house-shape heat-loss calculator ───────────── */}
@@ -107,6 +116,7 @@ export function HeatLossStep({
         onRoofModelChange={handleRoofModelChange}
         initialShell={state.shellModel}
         onShellChange={handleShellChange}
+        onSnapshotChange={handleSnapshotChange}
       />
 
       {/* ── Navigation ───────────────────────────────────────────────────── */}

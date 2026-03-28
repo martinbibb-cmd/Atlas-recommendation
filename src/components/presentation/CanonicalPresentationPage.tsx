@@ -410,6 +410,17 @@ interface Props {
    * vertical scrollable layout.  Defaults to false (vertical mode).
    */
   deckMode?: boolean;
+  /**
+   * Optional heat-loss survey state (PR8b/PR8c).
+   * When provided, the quadrant dashboard uses the shell perimeter snapshot
+   * and roof orientation.
+   */
+  heatLossState?: import('../../features/survey/heatLoss/heatLossTypes').HeatLossState;
+  /**
+   * Optional chip-style priorities from the Priorities step (PR8a).
+   * When provided, the Your Priorities tile shows the selected chips.
+   */
+  prioritiesState?: import('../../features/survey/priorities/prioritiesTypes').PrioritiesState;
 }
 
 /**
@@ -424,6 +435,8 @@ export default function CanonicalPresentationPage({
   recommendationResult,
   onOpenSimulator,
   deckMode = true,
+  heatLossState,
+  prioritiesState,
 }: Props) {
   // Delegate to the swipeable deck when deckMode is enabled.
   if (deckMode) {
@@ -433,6 +446,8 @@ export default function CanonicalPresentationPage({
         input={input}
         recommendationResult={recommendationResult}
         onOpenSimulator={onOpenSimulator}
+        heatLossState={heatLossState}
+        prioritiesState={prioritiesState}
       />
     );
   }
