@@ -589,13 +589,20 @@ interface Props {
    * Use this to persist the shell state in parent survey state.
    */
   onShellChange?: (shell: ShellModel) => void;
+  /**
+   * Called whenever the canvas is repainted with a new shell.
+   * Receives a PNG data-URL suitable for use as a lightweight snapshot
+   * image in the presentation layer (Your House quadrant).
+   * Called with null when no closed polygon exists yet.
+   */
+  onSnapshotChange?: (dataUrl: string | null) => void;
 }
 
 function makeLayer(name: string, kind: LayerKind): Layer {
   return { id: generateLayerId(), name, kind, visible: true, points: [], closed: false, edges: [] };
 }
 
-export default function HeatLossCalculator({ onBack, onComplete, embedded, onHeatLossChange, roofModel, onRoofModelChange, initialShell, onShellChange }: Props) {
+export default function HeatLossCalculator({ onBack, onComplete, embedded, onHeatLossChange, roofModel, onRoofModelChange, initialShell, onShellChange, onSnapshotChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // View/interaction state (pan, zoom, hover, drag) — no polygon data.
@@ -669,6 +676,10 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
     }
   }, [layers, activeLayerId, settings]);
 
+  // Snapshot callback ref — kept up to date without re-creating repaint().
+  const onSnapshotChangeRef = useRef(onSnapshotChange);
+  useEffect(() => { onSnapshotChangeRef.current = onSnapshotChange; }, [onSnapshotChange]);
+
   /** Returns the currently active layer. */
   const getActiveLayer = useCallback((): Layer | null => {
     return layersRef.current.find(l => l.id === activeLayerIdRef.current) ?? null;
@@ -685,6 +696,20 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
     const canvas = canvasRef.current;
     if (!canvas) return;
     renderCanvas(canvas, vsRef.current, layersRef.current, activeLayerIdRef.current);
+    // Generate a snapshot after painting if any layer has a closed polygon.
+    // Only fire if a consumer registered the callback.
+    if (onSnapshotChangeRef.current) {
+      const hasClosed = layersRef.current.some(l => l.closed && l.points.length >= 3);
+      if (hasClosed) {
+        try {
+          onSnapshotChangeRef.current(canvas.toDataURL('image/png'));
+        } catch {
+          // Cross-origin canvas taint or unavailable context — silently skip.
+        }
+      } else {
+        onSnapshotChangeRef.current(null);
+      }
+    }
   }, []);
 
   const refreshResults = useCallback(() => {

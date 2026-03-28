@@ -482,3 +482,18 @@
     font-size: 0.78rem;
   }
 }
+
+/* ─── Quadrant overview slide wrapper ──────────────────────────────────────── */
+
+.atlas-presentation-deck__quadrant-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  height: 100%;
+  min-height: 0;
+}
+
+.atlas-presentation-deck__quadrant-wrapper > .qdp {
+  flex: 1;
+  min-height: 0;
+}

@@ -149,6 +149,13 @@ export type HeatLossState = {
    * Persisted so the drawn geometry survives step navigation and save/reload.
    */
   shellModel?: ShellModel;
+  /**
+   * PNG data-URL snapshot of the house perimeter canvas.
+   * Generated automatically when the shell geometry changes.
+   * Used in the quadrant dashboard (Your House tile) to show the drawn
+   * house shape without re-instantiating the canvas tool.
+   */
+  shellSnapshotUrl?: string;
 };
 
 export const INITIAL_HEAT_LOSS_STATE: HeatLossState = {

@@ -39,6 +39,8 @@ import { deriveFitPosition } from './logic/fit-map/deriveFitPosition';
 import type { FitPosition } from './logic/fit-map/computeFitPosition';
 import FitMapResultPage from './components/fit-map/FitMapResultPage';
 import CanonicalPresentationPage from './components/presentation/CanonicalPresentationPage';
+import type { HeatLossState } from './features/survey/heatLoss/heatLossTypes';
+import type { PrioritiesState } from './features/survey/priorities/prioritiesTypes';
 import PhysicsVisualGallery from './components/physics-visuals/preview/PhysicsVisualGallery';
 import PresentationAuditPage from './components/audit/PresentationAuditPage';
 import DevMenuPage from './components/dev/DevMenuPage';
@@ -160,10 +162,14 @@ function CanonicalPresentationRoute({
   engineInput,
   onBack,
   onOpenSimulator,
+  heatLossState,
+  prioritiesState,
 }: {
   engineInput: EngineInputV2_3;
   onBack: () => void;
   onOpenSimulator?: () => void;
+  heatLossState?: HeatLossState;
+  prioritiesState?: PrioritiesState;
 }) {
   const result = runEngine(engineInput);
   return (
@@ -174,6 +180,8 @@ function CanonicalPresentationRoute({
         input={engineInput}
         recommendationResult={result.recommendationResult}
         onOpenSimulator={onOpenSimulator}
+        heatLossState={heatLossState}
+        prioritiesState={prioritiesState}
       />
     </div>
   );
@@ -198,6 +206,18 @@ export default function App() {
   const [labPartialInput, setLabPartialInput] = useState<Partial<EngineInputV2_3>>({});
   /** Completed engine input passed to the Simulator Dashboard and LabShell. */
   const [labEngineInput, setLabEngineInput] = useState<EngineInputV2_3 | undefined>();
+  /**
+   * Heat-loss survey state captured from the most recent full survey draft.
+   * Passed to the presentation layer so the Your House quadrant can show the
+   * perimeter snapshot and roof orientation (PR8a/PR8b/PR8c).
+   */
+  const [labHeatLossState, setLabHeatLossState] = useState<HeatLossState | undefined>();
+  /**
+   * Priorities state captured from the most recent full survey draft.
+   * Passed to the presentation layer so the Your Priorities quadrant shows
+   * the selected chips (PR8a).
+   */
+  const [labPrioritiesState, setLabPrioritiesState] = useState<PrioritiesState | undefined>();
   /**
    * The journey that last opened the simulator, used to navigate Back correctly.
    * When the simulator is opened from the recommendation/survey pages, Back
@@ -475,6 +495,13 @@ export default function App() {
           <FullSurveyStepper
             onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }}
             prefill={fullSurveyPrefill}
+            onDraft={(draft) => {
+              // Capture heatLoss and priorities as they are updated during the
+              // survey so they are available when the user reaches the
+              // presentation layer (PR8a/PR8b/PR8c).
+              if (draft.fullSurvey?.heatLoss) setLabHeatLossState(draft.fullSurvey.heatLoss);
+              if (draft.fullSurvey?.priorities) setLabPrioritiesState(draft.fullSurvey.priorities);
+            }}
             onComplete={(engineInput) => {
               // Route through fit-map page before simulator.
               setFullSurveyPrefill(undefined);
@@ -538,6 +565,8 @@ export default function App() {
           engineInput={labEngineInput}
           onBack={() => setJourney('simulator')}
           onOpenSimulator={() => setJourney('simulator')}
+          heatLossState={labHeatLossState}
+          prioritiesState={labPrioritiesState}
         />
       )}
       {journey === 'gallery' && (
