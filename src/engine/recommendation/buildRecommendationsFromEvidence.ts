@@ -133,6 +133,16 @@ const LIMITER_OBJECTIVE_PENALTIES: Readonly<Record<string, LimiterObjectivePenal
     objectives: ['performance', 'reliability'],
     basePenalty: 20,
   },
+  // combi_dhw_demand_risk: hard simultaneous-demand gate (bathroomCount >= 2 or
+  // peakConcurrentOutlets >= 2) or borderline occupancy warning.  This limiter
+  // was previously emitted but had no entry here, so it left combi's ranking
+  // score unchanged even when a hard demand gate was triggered.  Adding a
+  // penalty ensures combi is ranked behind stored options for large/multi-outlet
+  // households rather than appearing as the "obvious best fit".
+  combi_dhw_demand_risk: {
+    objectives: ['performance', 'reliability'],
+    basePenalty: 20,
+  },
   stored_volume_shortfall: {
     objectives: ['performance', 'reliability'],
     basePenalty: 25,
