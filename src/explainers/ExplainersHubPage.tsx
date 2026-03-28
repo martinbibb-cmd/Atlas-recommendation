@@ -19,6 +19,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import SimulatorDashboard from './lego/simulator/SimulatorDashboard';
 import type { FloorplanOperatingAssumptions } from './lego/simulator/SimulatorDashboard';
+import type { SimulatorSystemChoice } from './lego/simulator/useSystemDiagramPlayback';
 import SimulatorStepper from './lego/simulator/SimulatorStepper';
 import type { StepperConfig } from './lego/simulator/SimulatorStepper';
 import { adaptFullSurveyToSimulatorInputs } from './lego/simulator/adaptFullSurveyToSimulatorInputs';
@@ -39,6 +40,14 @@ import type { GlobalMenuSection } from '../components/shell/GlobalMenuContext';
 
 interface Props {
   onBack?: () => void;
+  /**
+   * Called when the user clicks "Edit setup" in survey-backed mode.
+   * When provided, clicking "Edit setup" calls this callback instead of
+   * showing the internal stepper — allowing the parent to navigate back to
+   * the originating survey/setup context (e.g. FullSurveyStepper or VisitPage).
+   * When absent, the legacy stepper-within-hub behaviour is used.
+   */
+  onEditSetup?: () => void;
   /**
    * Engine input used to pre-configure the simulator.  Accepts either a
    * completed EngineInputV2_3 (e.g. from the Full Survey or Fast Choice) or
@@ -100,7 +109,20 @@ function buildFloorplanOperatingAssumptions(
 
 // ─── View ─────────────────────────────────────────────────────────────────────
 
-export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab, onOpenPresentation, floorplanOutput }: Props) {
+/**
+ * Human-readable labels for each SimulatorSystemChoice.
+ * Used to build compare-mode column headings that are specific to the
+ * surveyed and recommended systems (e.g. "Combi boiler" / "Heat pump").
+ */
+const SYSTEM_CHOICE_LABEL: Record<SimulatorSystemChoice, string> = {
+  combi:       'Combi boiler',
+  unvented:    'Unvented cylinder',
+  open_vented: 'Open vented cylinder',
+  heat_pump:   'Heat pump',
+  mixergy:     'Mixergy cylinder',
+};
+
+export default function ExplainersHubPage({ onBack, onEditSetup, surveyData, onOpenSystemLab, onOpenPresentation, floorplanOutput }: Props) {
   const [config, setConfig] = useState<StepperConfig | null>(null);
   // When launched from a survey, hide the stepper by default.
   const [showStepper, setShowStepper] = useState<boolean>(!surveyData);
@@ -202,7 +224,7 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
           {isSurveyBacked ? (
             <button
               className="hub-back-btn"
-              onClick={() => setShowStepper(true)}
+              onClick={onEditSetup != null ? onEditSetup : () => setShowStepper(true)}
               aria-label="Edit simulator setup"
             >
               ⚙ Edit setup
@@ -248,6 +270,14 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
           defaultMode={isSurveyBacked ? 'compare' : 'single'}
           initialProposedSystemChoice={compareSeed?.right.systemChoice}
           initialProposedSystemInputs={compareSeed?.right.systemInputs}
+          compareLabels={
+            compareSeed != null
+              ? {
+                  current:  SYSTEM_CHOICE_LABEL[compareSeed.left.systemChoice]  ?? 'Current system',
+                  proposed: SYSTEM_CHOICE_LABEL[compareSeed.right.systemChoice] ?? 'Proposed system',
+                }
+              : undefined
+          }
           floorplanOperatingAssumptions={floorplanOperatingAssumptions ?? undefined}
         />
 

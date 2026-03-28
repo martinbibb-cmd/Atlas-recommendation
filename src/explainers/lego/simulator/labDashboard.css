@@ -1061,6 +1061,54 @@
   margin-top: 8px;
 }
 
+.sim-compare-efficiency {
+  padding: 0 0 8px;
+}
+
+/* ─── Compare context banner ─────────────────────────────────────────────────
+   Shown at the top of survey-backed compare mode to make it immediately clear
+   what the two columns are comparing (current system → proposed system).
+   ────────────────────────────────────────────────────────────────────────── */
+
+.sim-compare-context {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px;
+  margin: 0 0 10px;
+  background: #f0fff4;
+  border: 1px solid #68d391;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #22543d;
+}
+
+.sim-compare-context__label {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: #276749;
+  margin-right: 2px;
+}
+
+.sim-compare-context__current {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.sim-compare-context__arrow {
+  color: #48bb78;
+  font-weight: 700;
+  margin: 0 2px;
+}
+
+.sim-compare-context__proposed {
+  font-weight: 600;
+  color: #276749;
+}
+
 /* ─── Daily efficiency summary panel ────────────────────────────────────────── */
 
 .daily-summary {
