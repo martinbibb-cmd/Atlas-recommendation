@@ -623,3 +623,127 @@ describe('buildRecommendationsFromEvidence — ProductConstraints', () => {
     expect(nonUfhWith).toEqual(nonUfhWithout);
   });
 });
+
+// ─── Bug #6 regression: combi_dhw_demand_risk must reduce combi score ─────────
+
+describe('buildRecommendationsFromEvidence — combi_dhw_demand_risk penalty', () => {
+  /**
+   * Bug #6: `combi_dhw_demand_risk` limiter (emitted when bathroomCount >= 2 or
+   * peakConcurrentOutlets >= 2) was not registered in LIMITER_OBJECTIVE_PENALTIES,
+   * so it had no effect on the combi score. This meant combi could still win as
+   * bestOverall even for large multi-bathroom households.
+   *
+   * After the fix, the penalty is applied to performance and reliability
+   * objectives — ensuring combi ranks behind stored options for high-demand
+   * households.
+   *
+   * Test strategy:
+   *   • Use heatLossWatts: 0 to suppress combi_service_switching (no CH demand →
+   *     no heating interruptions) so other penalties do not push scores to zero.
+   *   • Pass demographic context to buildLimiterLedger (mirrors Engine.ts behaviour)
+   *     so combi_dhw_demand_risk fires when the bathroom/outlet gate is hit.
+   *   • Compare single-bath vs multi-bath combi scores.
+   */
+
+  /** No CH demand → no combi service switching — isolates the DHW demand risk gate. */
+  const NO_CH_SINGLE_BATH: EngineInputV2_3 = {
+    ...CLEAN_INPUT,
+    heatLossWatts: 0,
+    bathroomCount: 1,
+    peakConcurrentOutlets: undefined,
+    occupancyCount: 2,
+  };
+
+  /** Same CH silence, but now with the simultaneous-demand hard gate triggered. */
+  const NO_CH_MULTI_BATH: EngineInputV2_3 = {
+    ...CLEAN_INPUT,
+    heatLossWatts: 0,
+    bathroomCount: 2,
+    peakConcurrentOutlets: 2,
+    occupancyCount: 5,
+  };
+
+  /** Build a combi bundle with demographic context forwarded (mirrors Engine.ts). */
+  function combiBundleWithDemographic(input: EngineInputV2_3): CandidateEvidenceBundle {
+    const runnerResult = runCombiSystemModel(input, combiTopology);
+    const events = buildDerivedEventsFromTimeline(runnerResult.stateTimeline, 'combi');
+    const limiterLedger = buildLimiterLedger(runnerResult, events, {
+      occupancyCount: input.occupancyCount,
+      bathroomCount: input.bathroomCount,
+      peakConcurrentOutlets: input.peakConcurrentOutlets,
+    });
+    const fitMap = buildFitMapModel(runnerResult, runnerResult.stateTimeline, events, limiterLedger);
+    return { runnerResult, events, limiterLedger, fitMap };
+  }
+
+  /** Build a system-boiler bundle with demographic context forwarded. */
+  function systemBundleWithDemographic(input: EngineInputV2_3): CandidateEvidenceBundle {
+    const runnerResult = runSystemStoredSystemModel(input, systemTopology);
+    const events = buildDerivedEventsFromTimeline(runnerResult.stateTimeline, 'system');
+    const limiterLedger = buildLimiterLedger(runnerResult, events, {
+      occupancyCount: input.occupancyCount,
+      bathroomCount: input.bathroomCount,
+      peakConcurrentOutlets: input.peakConcurrentOutlets,
+    });
+    const fitMap = buildFitMapModel(runnerResult, runnerResult.stateTimeline, events, limiterLedger);
+    return { runnerResult, events, limiterLedger, fitMap };
+  }
+
+  it('combi_dhw_demand_risk appears in the limiter ledger when bathroomCount >= 2', () => {
+    const bundle = combiBundleWithDemographic(NO_CH_MULTI_BATH);
+    expect(bundle.limiterLedger.entries.some(e => e.id === 'combi_dhw_demand_risk')).toBe(true);
+  });
+
+  it('combi_dhw_demand_risk does NOT appear for single-bath, low-occupancy input', () => {
+    const bundle = combiBundleWithDemographic(NO_CH_SINGLE_BATH);
+    expect(bundle.limiterLedger.entries.some(e => e.id === 'combi_dhw_demand_risk')).toBe(false);
+  });
+
+  it('combi_dhw_demand_risk is registered in the evidence trace limiterPenalties', () => {
+    const combi  = combiBundleWithDemographic(NO_CH_MULTI_BATH);
+    const result = buildRecommendationsFromEvidence([combi]);
+    const decision = result.bestOverall;
+    expect(decision).not.toBeNull();
+    expect(decision!.evidenceTrace.limitersConsidered).toContain('combi_dhw_demand_risk');
+    expect(decision!.evidenceTrace.limiterPenalties['performance']).toBeGreaterThan(0);
+    expect(decision!.evidenceTrace.limiterPenalties['reliability']).toBeGreaterThan(0);
+  });
+
+  it('combi performance and reliability scores are lower with multi-bath than single-bath', () => {
+    const combiSingle = combiBundleWithDemographic(NO_CH_SINGLE_BATH);
+    const combiMulti  = combiBundleWithDemographic(NO_CH_MULTI_BATH);
+
+    const singleResult = buildRecommendationsFromEvidence([combiSingle]);
+    const multiResult  = buildRecommendationsFromEvidence([combiMulti]);
+
+    const singlePerf = singleResult.bestOverall!.objectiveScores['performance'];
+    const multiPerf  = multiResult.bestOverall!.objectiveScores['performance'];
+    expect(multiPerf).toBeLessThan(singlePerf);
+
+    const singleRel = singleResult.bestOverall!.objectiveScores['reliability'];
+    const multiRel  = multiResult.bestOverall!.objectiveScores['reliability'];
+    expect(multiRel).toBeLessThan(singleRel);
+  });
+
+  it('stored system outranks combi for high-demand multi-bath household', () => {
+    const combi  = combiBundleWithDemographic(NO_CH_MULTI_BATH);
+    const system = systemBundleWithDemographic(NO_CH_MULTI_BATH);
+
+    const result = buildRecommendationsFromEvidence([combi, system]);
+
+    // Stored system should win overall when the simultaneous-demand gate fires
+    expect(result.bestOverall?.family).toBe('system');
+  });
+
+  it('combi_dhw_demand_risk is reflected in combi caveats', () => {
+    const combi  = combiBundleWithDemographic(NO_CH_MULTI_BATH);
+    const result = buildRecommendationsFromEvidence([combi]);
+
+    const decision = findDecision(result, 'combi');
+    expect(decision).not.toBeNull();
+    const hasDemandRiskCaveat = decision?.caveats.some(c =>
+      c.toLowerCase().includes('simultaneous') || c.toLowerCase().includes('demand'),
+    );
+    expect(hasDemandRiskCaveat).toBe(true);
+  });
+});

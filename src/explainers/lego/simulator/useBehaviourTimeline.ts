@@ -27,12 +27,6 @@ const MAX_TICKS = 80
 /** Interval between buffer ticks in milliseconds. */
 const TICK_INTERVAL_MS = 750
 
-/**
- * Fallback COP used when a heat pump system has no explicit COP reading.
- * Represents a reasonable mid-range ASHP COP at typical UK winter conditions.
- */
-const DEFAULT_HEAT_PUMP_COP = 3.0
-
 // ─── Public types ─────────────────────────────────────────────────────────────
 
 /** One data point in the rolling behaviour buffer. */
@@ -170,7 +164,15 @@ function postRunDecay(heatSourceType: SystemDiagramDisplayState['heatSourceType'
 
 // ─── Derivation helpers ────────────────────────────────────────────────────────
 
-function deriveRawHeatKw(
+/**
+ * Derive the raw (un-smoothed) heat-source output in kW for the current tick.
+ *
+ * For a heat pump the thermal output equals the space-heating demand (design
+ * heat loss) — COP governs electrical consumption, not heat delivered.
+ *
+ * Exported for unit testing only; callers must use useBehaviourTimeline.
+ */
+export function deriveRawHeatKw(
   state: SystemDiagramDisplayState,
   inputs: SystemInputs,
 ): number {
@@ -183,8 +185,12 @@ function deriveRawHeatKw(
     case 'heating':
     case 'dhw_reheat':
     case 'heating_and_reheat':
+      // Heat pump thermal output equals the space-heating demand (design heat
+      // loss).  COP determines electrical consumption, not heat delivered.
+      // Formerly: COP × heatLossKw — which would inflate a 14 kW heat loss to
+      // ~42–51 kW and falsely imply the HP is oversized for the home.
       return state.heatSourceType === 'heat_pump'
-        ? parseFloat(((state.cop ?? DEFAULT_HEAT_PUMP_COP) * inputs.heatLossKw).toFixed(1))
+        ? inputs.heatLossKw
         : inputs.boilerOutputKw
     default:
       return 0
