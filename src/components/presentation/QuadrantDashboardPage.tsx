@@ -70,6 +70,7 @@ function HouseQuadrant({
           <PresentationVisualSlot
             visualId="heat_particles"
             visualData={{ wallType: house.wallTypeKey }}
+            hideExplainer
           />
         )}
       </div>
@@ -131,6 +132,7 @@ function HomeQuadrant({
         <PresentationVisualSlot
           visualId="flow_split"
           visualData={{ outletsActive }}
+          hideExplainer
         />
       </div>
 
@@ -183,13 +185,13 @@ function SystemQuadrant({
 
       <div className="qdp-quadrant__visual">
         {visualId === 'thermal_store' ? (
-          <PresentationVisualSlot visualId="thermal_store" visualData={{ flowTempBand: 'high' }} />
+          <PresentationVisualSlot visualId="thermal_store" visualData={{ flowTempBand: 'high' }} hideExplainer />
         ) : visualId === 'cylinder_charge_mixergy' ? (
-          <PresentationVisualSlot visualId="cylinder_charge_mixergy" />
+          <PresentationVisualSlot visualId="cylinder_charge_mixergy" hideExplainer />
         ) : visualId === 'cylinder_charge_standard' ? (
-          <PresentationVisualSlot visualId="cylinder_charge_standard" />
+          <PresentationVisualSlot visualId="cylinder_charge_standard" hideExplainer />
         ) : (
-          <PresentationVisualSlot visualId="driving_style" visualData={{ mode: sys.drivingStyleMode }} />
+          <PresentationVisualSlot visualId="driving_style" visualData={{ mode: sys.drivingStyleMode }} hideExplainer />
         )}
       </div>
 

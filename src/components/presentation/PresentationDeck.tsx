@@ -33,13 +33,9 @@ import {
   type PhysicsRankingItem,
   type ShortlistedOptionDetail,
   type FinalPageSimulator,
-  type HouseSignal,
-  type HomeSignal,
-  type EnergySignal,
-  type CurrentSystemSignal,
   type DhwArchitecture,
 } from './buildCanonicalPresentation';
-import { resolveShortlistVisualId, resolveCurrentSystemVisualId, resolveOptionsOverviewVisualId } from './presentationVisualMapping';
+import { resolveShortlistVisualId, resolveOptionsOverviewVisualId } from './presentationVisualMapping';
 import PresentationVisualSlot from './PresentationVisualSlot';
 import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
 import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
@@ -49,10 +45,6 @@ import QuadrantDashboardPage from './QuadrantDashboardPage';
 import './PresentationDeck.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-/** Minimum/maximum rendered outlets for the flow_split visual (1–3). */
-const MIN_OUTLETS = 1 as const;
-const MAX_OUTLETS = 3 as const;
 
 /**
  * Minimum horizontal swipe distance (px) required to trigger a page change.
@@ -79,104 +71,7 @@ function useReducedMotion(): boolean {
   return reduced;
 }
 
-// ─── Page content components ──────────────────────────────────────────────────
-
-function HousePage({ house }: { house: HouseSignal }) {
-  return (
-    <>
-      <p className="atlas-presentation-deck__page-eyebrow">Your house</p>
-      <h2 className="atlas-presentation-deck__page-title">{house.heatLossLabel}</h2>
-      <div className="atlas-presentation-deck__visual">
-        <PresentationVisualSlot
-          visualId="heat_particles"
-          visualData={{ wallType: house.wallTypeKey }}
-        />
-      </div>
-      <p className="atlas-presentation-deck__takeaway">{house.wallTypeLabel} — {house.insulationLabel}</p>
-      <p className="atlas-presentation-deck__context">{house.heatLossBand}</p>
-    </>
-  );
-}
-
-function HomePage({ home }: { home: HomeSignal }) {
-  const outletsActive = Math.max(MIN_OUTLETS, Math.min(home.peakSimultaneousOutlets, MAX_OUTLETS)) as 1 | 2 | 3;
-  return (
-    <>
-      <p className="atlas-presentation-deck__page-eyebrow">Your home</p>
-      <h2 className="atlas-presentation-deck__page-title">{home.demandProfileLabel}</h2>
-      <div className="atlas-presentation-deck__visual">
-        <PresentationVisualSlot
-          visualId="flow_split"
-          visualData={{ outletsActive }}
-        />
-      </div>
-      <p className="atlas-presentation-deck__takeaway">{home.dailyHotWaterLabel}</p>
-      <p className="atlas-presentation-deck__context">{home.peakOutletsLabel}</p>
-    </>
-  );
-}
-
-function EnergyPage({ energy }: { energy: EnergySignal }) {
-  return (
-    <>
-      <p className="atlas-presentation-deck__page-eyebrow">Your energy</p>
-      <h2 className="atlas-presentation-deck__page-title">{energy.pvStatusLabel}</h2>
-      <div className="atlas-presentation-deck__visual">
-        <PresentationVisualSlot visualId="solar_mismatch" />
-      </div>
-      <p className="atlas-presentation-deck__takeaway">{energy.pvSuitabilityLabel}</p>
-      <p className="atlas-presentation-deck__context">{energy.energyAlignmentLabel}</p>
-    </>
-  );
-}
-
-function CurrentSystemPage({ sys }: { sys: CurrentSystemSignal }) {
-  const visualId = resolveCurrentSystemVisualId(sys.dhwArchitecture);
-  return (
-    <>
-      <p className="atlas-presentation-deck__page-eyebrow">Your current system</p>
-      <h2 className="atlas-presentation-deck__page-title">{sys.systemTypeLabel}</h2>
-      <div className="atlas-presentation-deck__visual">
-        {visualId === 'thermal_store' ? (
-          // Thermal stores always require high primary temperatures (75–85 °C) —
-          // that is the defining physics constraint of this architecture.
-          <PresentationVisualSlot
-            visualId="thermal_store"
-            visualData={{ flowTempBand: 'high' }}
-          />
-        ) : visualId === 'cylinder_charge_mixergy' ? (
-          <PresentationVisualSlot visualId="cylinder_charge_mixergy" />
-        ) : visualId === 'cylinder_charge_standard' ? (
-          <PresentationVisualSlot visualId="cylinder_charge_standard" />
-        ) : (
-          <PresentationVisualSlot
-            visualId="driving_style"
-            visualData={{ mode: sys.drivingStyleMode }}
-          />
-        )}
-      </div>
-      <p className="atlas-presentation-deck__takeaway">{sys.ageLabel}</p>
-      <p className="atlas-presentation-deck__context">{sys.ageContext}</p>
-    </>
-  );
-}
-
-function ArchitecturePage({ input }: { input: EngineInputV2_3 }) {
-  const concept = inputToConceptModel(input);
-  if (!concept) return null;
-  return (
-    <>
-      <p className="atlas-presentation-deck__page-eyebrow">System architecture</p>
-      <h2 className="atlas-presentation-deck__page-title">Your current system — built from modules</h2>
-      <div className="atlas-presentation-deck__visual atlas-presentation-deck__visual--architecture">
-        <SystemArchitectureVisualiser
-          mode="current"
-          currentSystem={concept}
-        />
-      </div>
-    </>
-  );
-}
+// ─── Compare architecture page (new system vs current) ────────────────────────
 
 function CompareArchitecturePage({
   input,
@@ -571,7 +466,7 @@ export default function PresentationDeck({
   // ─── Build page list ───────────────────────────────────────────────────────
 
   const pages: DeckPageDescriptor[] = [
-    // ── PR8a: Quadrant overview — first page ──────────────────────────────
+    // ── 1. Quadrant overview — full dashboard of house / home / system / priorities
     {
       id:    'quadrant_overview',
       label: 'Overview',
@@ -588,17 +483,13 @@ export default function PresentationDeck({
         </div>
       ),
     },
-    { id: 'house',          label: 'House',         content: <HousePage house={page1.house} /> },
-    { id: 'home',           label: 'Home',          content: <HomePage home={page1.home} /> },
-    { id: 'energy',         label: 'Energy',        content: <EnergyPage energy={page1.energy} /> },
-    { id: 'current_system', label: 'System',        content: <CurrentSystemPage sys={page1.currentSystem} /> },
-    // Architecture slide — auto-built schematic of the current system from modules
-    ...(currentSystemConcept
-      ? [{ id: 'architecture', label: 'Blueprint', content: <ArchitecturePage input={input} /> }]
-      : []),
-    { id: 'ageing',         label: 'Condition',     content: <AgeingPage ctx={page1_5} /> },
-    { id: 'options',        label: 'Options',       content: <OptionsPage options={page2.options} currentSystemArchitecture={page1.currentSystem.dhwArchitecture} /> },
-    { id: 'ranking',        label: 'Best fit',      content: <RankingPage items={page3.items} /> },
+    // ── 2. Ageing / degradation ───────────────────────────────────────────────
+    { id: 'ageing',   label: 'Condition', content: <AgeingPage ctx={page1_5} /> },
+    // ── 3. Available systems ─────────────────────────────────────────────────
+    { id: 'options',  label: 'Options',   content: <OptionsPage options={page2.options} currentSystemArchitecture={page1.currentSystem.dhwArchitecture} /> },
+    // ── 4. Physics ranking ───────────────────────────────────────────────────
+    { id: 'ranking',  label: 'Best fit',  content: <RankingPage items={page3.items} /> },
+    // ── 5 / 6. Options with compare architecture slides ──────────────────────
     ...page4Plus.options.flatMap((opt, i) => [
       {
         id:      `option_${i + 1}`,
@@ -614,6 +505,7 @@ export default function PresentationDeck({
           }]
         : []),
     ]),
+    // ── 7. Simulator handoff / print ─────────────────────────────────────────
     {
       id:      'simulator',
       label:   'Proof',

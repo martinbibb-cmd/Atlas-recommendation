@@ -12,6 +12,9 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
+  /* Implicit rows (created when an expanded tile pushes tiles to row 3)
+     also use 1fr so all tiles share height equally. */
+  grid-auto-rows: 1fr;
   gap: 0.75rem;
   width: 100%;
   /* Fixed height on iPad landscape so no scrolling is needed */
@@ -48,8 +51,10 @@
 .qdp-quadrant--expanded {
   border-color: #2b6cb0;
   box-shadow: 0 0 0 2px #ebf8ff, 0 2px 8px rgba(0, 0, 0, 0.1);
-  /* Expanded tile spans both columns and rows to show detail inline */
+  /* Expanded tile spans both columns to show detail inline */
   grid-column: span 2;
+  /* Allow expanded content to scroll within the tile rather than being clipped */
+  overflow-y: auto;
 }
 
 /* Colour accent per quadrant */
@@ -167,6 +172,16 @@
 }
 
 /* ── Expanded detail panel ────────────────────────────────────────────────── */
+
+/* Hide the animation/visual and chips when a tile is expanded so the detail
+   panel has enough room without requiring excessive scrolling. */
+.qdp-quadrant--expanded .qdp-quadrant__visual {
+  display: none;
+}
+
+.qdp-quadrant--expanded .qdp-quadrant__chips {
+  display: none;
+}
 
 .qdp-quadrant__detail {
   border-top: 1px solid #e2e8f0;
