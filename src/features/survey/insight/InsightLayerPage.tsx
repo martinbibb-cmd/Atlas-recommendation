@@ -207,10 +207,12 @@ function RecCard({
   const recImage = imageForRecId(rec.id);
   const description = systemDescription(rec.id);
 
-  // PR6b: limit why-it-fits bullets to 3 to avoid weak hierarchy from long lists
+  // PR6b: limit why-it-fits bullets to 3 to avoid weak hierarchy from long lists.
+  // Additional bullets beyond the first 3 are intentionally omitted.
   const topWhyBullets = rec.whyItFits.slice(0, 3);
 
-  // PR6b: merge trade-offs and constraints into a single "What changes" list
+  // PR6b: merge trade-offs and constraints into a single "What changes" list.
+  const constraintSet = new Set(rec.constraints);
   const whatChanges = [
     ...rec.tradeOffs,
     ...rec.constraints,
@@ -307,7 +309,7 @@ function RecCard({
                   key={item}
                   style={{
                     fontSize: '0.74rem',
-                    color: rec.constraints.includes(item) ? '#9b2c2c' : '#4a5568',
+                    color: constraintSet.has(item) ? '#9b2c2c' : '#4a5568',
                     marginBottom: '0.1rem',
                   }}
                 >

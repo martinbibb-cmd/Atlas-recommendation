@@ -499,8 +499,10 @@ function buildVisuals(result: FullEngineResultCore, input?: EngineInputV2_3): Vi
  * Used to override `recommendation.primary` with the label of the canonical best
  * option so that every consumer of `engineOutput.recommendation.primary` reads the
  * same recommendation as `recommendationResult.bestOverall`.
+ *
+ * Exported so that dev-mode alignment checks and tests can use the same mapping.
  */
-const FAMILY_TO_ELIGIBILITY_ID: Record<ApplianceFamily, string> = {
+export const FAMILY_TO_ELIGIBILITY_ID: Record<ApplianceFamily, string> = {
   combi:       'on_demand',
   system:      'stored_unvented',
   heat_pump:   'ashp',

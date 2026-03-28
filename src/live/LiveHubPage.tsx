@@ -23,6 +23,7 @@
 import { useState, useMemo } from 'react';
 import type { FullEngineResult } from '../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
+import { FAMILY_TO_ELIGIBILITY_ID } from '../engine/OutputBuilder';
 import LiveSectionPage from './LiveSectionPage';
 import VerdictStrip from '../components/live/VerdictStrip';
 import HubPage from '../components/hub/HubPage';
@@ -324,12 +325,7 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
       {import.meta.env.DEV && result.recommendationResult != null && (() => {
         const canonicalFamily = result.recommendationResult.bestOverall?.family ?? '(none)';
         const headlinePrimary = engineOutput.recommendation.primary;
-        // Derive what the canonical family would label (same logic as OutputBuilder)
-        const familyToEligId: Record<string, string> = {
-          combi: 'on_demand', system: 'stored_unvented',
-          heat_pump: 'ashp', regular: 'stored_vented', open_vented: 'stored_vented',
-        };
-        const expectedEligId = familyToEligId[canonicalFamily] ?? '—';
+        const expectedEligId = canonicalFamily !== '(none)' ? (FAMILY_TO_ELIGIBILITY_ID[canonicalFamily as keyof typeof FAMILY_TO_ELIGIBILITY_ID] ?? '—') : '—';
         const expectedLabel = engineOutput.eligibility.find(e => e.id === expectedEligId)?.label ?? canonicalFamily;
         const aligned = headlinePrimary === expectedLabel || canonicalFamily === '(none)';
         return (

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runEngine } from '../Engine';
+import { FAMILY_TO_ELIGIBILITY_ID } from '../OutputBuilder';
 
 const baseInput = {
   postcode: 'SW1A 1AA',
@@ -487,18 +488,6 @@ describe('EngineOutputV1 shape', () => {
 // recommendation card, in-room view) reads from the same canonical ranked result.
 
 describe('PR6a — unified recommendation source', () => {
-  /**
-   * Maps `bestOverall.family` to the eligibility item ID whose label will be
-   * used as `recommendation.primary`.  Mirrors the constant in OutputBuilder.ts.
-   */
-  const FAMILY_TO_ELIGIBILITY_ID: Record<string, string> = {
-    combi:       'on_demand',
-    system:      'stored_unvented',
-    heat_pump:   'ashp',
-    regular:     'stored_vented',
-    open_vented: 'stored_vented',
-  };
-
   it('engineOutput.recommendation.primary agrees with recommendationResult.bestOverall for a combi-appropriate input', () => {
     // 1 bathroom, low occupancy, good pressure → combi should be best overall
     const result = runEngine({
