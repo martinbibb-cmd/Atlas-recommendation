@@ -24,6 +24,7 @@ import { INITIAL_SYSTEM_BUILDER_STATE } from '../../systemBuilder/systemBuilderT
 import type { HomeState } from '../../usage/usageTypes';
 import { INITIAL_HOME_STATE } from '../../usage/usageTypes';
 import type { FullSurveyModelV1 } from '../../../../ui/fullSurvey/FullSurveyModelV1';
+import { normalisePriorities } from '../../priorities/prioritiesNormalizer';
 
 // ─── Factories ────────────────────────────────────────────────────────────────
 
@@ -300,5 +301,140 @@ describe('deriveSystemRecommendations — bathroom count source of truth', () =>
 
     const systemBoiler = recs.find(r => r.id === 'system_unvented');
     expect(systemBoiler?.tier).toBe('top');
+  });
+});
+
+// ─── deriveSystemRecommendations — large household sanity test ────────────────
+// Verifies the known bad case: 5+ people, multiple bathrooms, regular/open
+// vented current system, least disruption priority.
+// Previously, occupancySignature stuck at 'professional' + bathroom count
+// defaulting to 1 gave combi an unfair boost.  These tests confirm the fix.
+
+describe('deriveSystemRecommendations — large household (PR1b sanity)', () => {
+  const fivePersonComposition = {
+    adultCount: 3,
+    childCount0to4: 0,
+    childCount5to10: 1,
+    childCount11to17: 1,
+    youngAdultCount18to25AtHome: 0,
+  };
+
+  it('does not recommend combi for 5-person household with 2 bathrooms (open vented)', () => {
+    const system = makeSystem({
+      heatSource: 'regular',
+      dhwType: 'open_vented',
+      emitters: 'radiators_standard',
+    });
+    const home = makeHome({ composition: fivePersonComposition, bathroomCount: 2 });
+    const input = makeInput({ dynamicMainsPressure: 2.5, bathroomCount: 2 });
+
+    const recs = deriveSystemRecommendations(system, home, input);
+    const combi = recs.find(r => r.id === 'combi_upgrade');
+    expect(combi).toBeUndefined();
+  });
+
+  it('recommends system boiler (unvented) as top for 5-person, 2-bathroom household', () => {
+    const system = makeSystem({
+      heatSource: 'regular',
+      dhwType: 'open_vented',
+      emitters: 'radiators_standard',
+    });
+    const home = makeHome({ composition: fivePersonComposition, bathroomCount: 2 });
+    const input = makeInput({ dynamicMainsPressure: 2.5, bathroomCount: 2 });
+
+    const recs = deriveSystemRecommendations(system, home, input);
+    const systemBoiler = recs.find(r => r.id === 'system_unvented');
+    expect(systemBoiler).toBeDefined();
+    expect(systemBoiler?.tier).toBe('top');
+  });
+
+  it('does not recommend combi even when least-disruption priority is set (5+ people, 2 baths)', () => {
+    const normPriorities = normalisePriorities({ selected: ['disruption'] });
+
+    const system = makeSystem({ heatSource: 'regular', dhwType: 'open_vented', emitters: 'radiators_standard' });
+    const home = makeHome({ composition: fivePersonComposition, bathroomCount: 2 });
+    const input = makeInput({ dynamicMainsPressure: 2.5, bathroomCount: 2 });
+
+    const recs = deriveSystemRecommendations(system, home, input, normPriorities);
+    const combi = recs.find(r => r.id === 'combi_upgrade');
+    expect(combi).toBeUndefined();
+  });
+});
+
+// ─── deriveSystemRecommendations — peakConcurrentOutlets gate ────────────────
+// Mirrors the CombiDhwModule rule: bathroomCount >= 2 OR peakConcurrentOutlets >= 2
+// are hard simultaneous-demand gates in the insight layer.
+
+describe('deriveSystemRecommendations — peakConcurrentOutlets simultaneous-demand gate', () => {
+  const twoPersonComposition = {
+    adultCount: 2,
+    childCount0to4: 0,
+    childCount5to10: 0,
+    childCount11to17: 0,
+    youngAdultCount18to25AtHome: 0,
+  };
+
+  it('rejects combi when peakConcurrentOutlets >= 2 even with 1 bathroom and low occupancy', () => {
+    const system = makeSystem({ emitters: 'radiators_standard' });
+    const home = makeHome({ composition: twoPersonComposition, bathroomCount: 1 });
+    const input = makeInput({
+      bathroomCount: 1,
+      peakConcurrentOutlets: 2,
+      dynamicMainsPressure: 2.5,
+    });
+
+    const recs = deriveSystemRecommendations(system, home, input);
+    const combi = recs.find(r => r.id === 'combi_upgrade');
+    expect(combi).toBeUndefined();
+  });
+
+  it('allows combi when peakConcurrentOutlets is 1, occupancy <= 2, and 1 bathroom', () => {
+    const system = makeSystem({ emitters: 'radiators_standard' });
+    const home = makeHome({ composition: twoPersonComposition, bathroomCount: 1 });
+    const input = makeInput({
+      bathroomCount: 1,
+      peakConcurrentOutlets: 1,
+      dynamicMainsPressure: 2.5,
+    });
+
+    const recs = deriveSystemRecommendations(system, home, input);
+    const combi = recs.find(r => r.id === 'combi_upgrade');
+    expect(combi?.tier).toBe('top');
+  });
+});
+
+// ─── deriveSystemRecommendations — partial journey fallback ──────────────────
+// When the usage step hasn't been completed, home.bathroomCount may be null and
+// input.bathroomCount may be undefined.  The fallback chain must land on 1 (not
+// crash or produce undefined behaviour).
+
+describe('deriveSystemRecommendations — partial journey bathroom fallback', () => {
+  const twoPersonComposition = {
+    adultCount: 2,
+    childCount0to4: 0,
+    childCount5to10: 0,
+    childCount11to17: 0,
+    youngAdultCount18to25AtHome: 0,
+  };
+
+  it('defaults bathroom count to 1 when both home.bathroomCount and input.bathroomCount are absent', () => {
+    // Both null/undefined → bathroomCount falls back to 1 → small household → combi is top
+    const system = makeSystem({ emitters: 'radiators_standard' });
+    const home = makeHome({ composition: twoPersonComposition, bathroomCount: null });
+    // input.bathroomCount not set → undefined
+    const input = makeInput({ dynamicMainsPressure: 2.5 });
+
+    const recs = deriveSystemRecommendations(system, home, input);
+    // 2 people, 1 bathroom (fallback), good pressure → combi expected as top
+    const combi = recs.find(r => r.id === 'combi_upgrade');
+    expect(combi?.tier).toBe('top');
+  });
+
+  it('does not crash when home is entirely default (INITIAL_HOME_STATE)', () => {
+    const system = makeSystem({ emitters: 'radiators_standard' });
+    const home = makeHome(); // all defaults — composition is all zeros
+    const input = makeInput({ dynamicMainsPressure: 2.5 });
+
+    expect(() => deriveSystemRecommendations(system, home, input)).not.toThrow();
   });
 });
