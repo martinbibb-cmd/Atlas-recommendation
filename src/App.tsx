@@ -445,6 +445,11 @@ export default function App() {
               setFitPosition(deriveFitPosition(engineInput));
               setJourney('fit-map');
             }}
+            onOpenSimulator={(engineInput) => {
+              // Direct shortcut from InsightLayerPage — skip fit-map.
+              setLabEngineInput(engineInput);
+              setJourney('simulator');
+            }}
             onOpenFloorPlan={(surveyResults) => {
               const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
               setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
