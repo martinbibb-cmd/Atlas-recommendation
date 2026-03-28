@@ -443,6 +443,184 @@
   margin: 0.5rem 0 0;
 }
 
+/* ─── PR10 Ageing page — full visual layout ───────────────────────────────── */
+
+.ageing-page__condition-summary {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #2d3748;
+  background: #edf2f7;
+  border-radius: 6px;
+  padding: 0.45rem 0.875rem;
+  margin: 0 0 0.875rem;
+  line-height: 1.4;
+}
+
+/* Three visual blocks laid out in a row on wider viewports */
+.ageing-page__blocks {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.625rem;
+  margin-bottom: 0.875rem;
+}
+
+@media (max-width: 620px) {
+  .ageing-page__blocks {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Individual block */
+.ageing-block {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.ageing-block__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #718096;
+  margin: 0;
+}
+
+.ageing-block__desc {
+  font-size: 0.78rem;
+  color: #4a5568;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Block A: drift track */
+.ageing-block__drift-track {
+  display: flex;
+  gap: 2px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ageing-block__drift-band {
+  flex: 1;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.3rem 0.1rem 0.25rem;
+  position: relative;
+  transition: background 0.15s ease;
+}
+
+.ageing-block__drift-band--healthy   { background: #c6f6d5; color: #22543d; }
+.ageing-block__drift-band--ageing    { background: #fefcbf; color: #744210; }
+.ageing-block__drift-band--neglected { background: #fed7d7; color: #742a2a; }
+
+.ageing-block__drift-band--current {
+  outline: 2px solid #2b6cb0;
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+.ageing-block__drift-here {
+  display: block;
+  font-size: 0.6rem;
+  margin-top: 1px;
+}
+
+/* Block B: component name and condition badge */
+.ageing-block__component-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0;
+}
+
+.ageing-block__condition-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  margin: 0;
+  align-self: flex-start;
+}
+
+.ageing-condition--good    { background: #c6f6d5; color: #22543d; }
+.ageing-condition--moderate { background: #fefcbf; color: #744210; }
+.ageing-condition--poor    { background: #fed7d7; color: #742a2a; }
+.ageing-condition--severe  { background: #feb2b2; color: #63171b; }
+.ageing-condition--unknown { background: #e2e8f0; color: #718096; }
+
+/* Block C: signal pills */
+.ageing-block__signals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ageing-block__signal-pill {
+  font-size: 0.73rem;
+  font-weight: 500;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.ageing-block__signal-pill--ok      { background: #c6f6d5; color: #22543d; }
+.ageing-block__signal-pill--warn    { background: #fefcbf; color: #744210; }
+.ageing-block__signal-pill--unknown { background: #e2e8f0; color: #718096; }
+
+/* Section headings for impacts and improvements */
+.ageing-page__section-heading {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #4a5568;
+  margin: 0 0 0.3rem;
+}
+
+.ageing-page__impacts {
+  margin-bottom: 0.75rem;
+}
+
+.ageing-page__impact-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  color: #4a5568;
+  line-height: 1.5;
+}
+
+.ageing-page__impact-list li {
+  margin-bottom: 0.2rem;
+}
+
+.ageing-page__improvements {
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-radius: 8px;
+  padding: 0.625rem 0.875rem;
+}
+
+.ageing-page__improvement-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  color: #22543d;
+  line-height: 1.5;
+}
+
+.ageing-page__improvement-list li {
+  margin-bottom: 0.2rem;
+}
+
 /* ─── Reduced-motion overrides ────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {

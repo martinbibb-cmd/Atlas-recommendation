@@ -329,7 +329,132 @@ describe('buildCanonicalPresentation — page1_5 ageing context', () => {
     const model = buildCanonicalPresentation(result, input);
     expect(model.page1_5.ageBandLabel).toMatch(/8/);
   });
+
+  // ── PR10 fields ────────────────────────────────────────────────────────────
+
+  it('heading is the PR10 ageing-page title', () => {
+    const input = withInput({ currentBoilerAgeYears: 10 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1_5.heading).toMatch(/systems like yours/i);
+  });
+
+  it('conditionSummary is present and non-empty', () => {
+    const input = withInput({ currentBoilerAgeYears: 10 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1_5.conditionSummary.length).toBeGreaterThan(0);
+  });
+
+  it('young combi → healthy efficiency band', () => {
+    const input = withInput({ currentBoilerAgeYears: 3, currentHeatSourceType: 'combi' });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1_5.currentEfficiencyBand).toBe('healthy');
+  });
+
+  it('mid-age combi → ageing efficiency band', () => {
+    const input = withInput({ currentBoilerAgeYears: 10, currentHeatSourceType: 'combi' });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1_5.currentEfficiencyBand).toBe('ageing');
+  });
+
+  it('old combi → neglected efficiency band', () => {
+    const input = withInput({ currentBoilerAgeYears: 18, currentHeatSourceType: 'combi' });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1_5.currentEfficiencyBand).toBe('neglected');
+  });
+
+  it('poor boilerConditionBand → neglected regardless of age', () => {
+    const input = withInput({ currentBoilerAgeYears: 5, boilerConditionBand: 'poor' });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1_5.currentEfficiencyBand).toBe('neglected');
+  });
+
+  it('efficiencyBandDescription is non-empty', () => {
+    const input = withInput({ currentBoilerAgeYears: 10 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1_5.efficiencyBandDescription.length).toBeGreaterThan(0);
+  });
+
+  it('combi → plate HEX degradation architecture', () => {
+    const input = withInput({ currentHeatSourceType: 'combi', currentBoilerAgeYears: 10 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1_5.componentDegradation.architecture).toBe('combi');
+    expect(model.page1_5.componentDegradation.componentLabel).toMatch(/plate|hex/i);
+  });
+
+  it('system boiler → stored degradation architecture', () => {
+    const input = withInput({ currentHeatSourceType: 'system', currentBoilerAgeYears: 10 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1_5.componentDegradation.architecture).toBe('stored');
+    expect(model.page1_5.componentDegradation.componentLabel).toMatch(/coil/i);
+  });
+
+  it('plateHexConditionBand propagates to componentDegradation for combi', () => {
+    const input = withInput({
+      currentHeatSourceType: 'combi',
+      plateHexConditionBand: 'severe',
+    });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1_5.componentDegradation.conditionBand).toBe('severe');
+  });
+
+  it('circulationSignals includes a filter signal', () => {
+    const input = withInput({ hasMagneticFilter: true, currentBoilerAgeYears: 8 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    const filterSignal = model.page1_5.circulationSignals.find(s => /filter/i.test(s.label));
+    expect(filterSignal).toBeDefined();
+    expect(filterSignal?.status).toBe('ok');
+  });
+
+  it('no magnetic filter on ageing system → warn signal', () => {
+    const input = withInput({ hasMagneticFilter: false, currentBoilerAgeYears: 10 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    const filterSignal = model.page1_5.circulationSignals.find(s => /filter/i.test(s.label));
+    expect(filterSignal?.status).toBe('warn');
+  });
+
+  it('homeImpacts is a non-empty array', () => {
+    const input = withInput({ currentBoilerAgeYears: 10 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1_5.homeImpacts.length).toBeGreaterThan(0);
+  });
+
+  it('likelyFirstImprovements always includes a service item', () => {
+    const input = withInput({ currentBoilerAgeYears: 10 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    const hasService = model.page1_5.likelyFirstImprovements.some(i => /service/i.test(i));
+    expect(hasService).toBe(true);
+  });
+
+  it('powerflush only present for old neglected systems', () => {
+    const youngInput = withInput({ currentBoilerAgeYears: 4, currentHeatSourceType: 'combi' });
+    const youngResult = runEngine(youngInput);
+    const youngModel = buildCanonicalPresentation(youngResult, youngInput);
+    const hasPowerflush = youngModel.page1_5.likelyFirstImprovements.some(i => /powerflush/i.test(i));
+    expect(hasPowerflush).toBe(false);
+
+    const oldInput = withInput({ currentBoilerAgeYears: 18, currentHeatSourceType: 'combi' });
+    const oldResult = runEngine(oldInput);
+    const oldModel = buildCanonicalPresentation(oldResult, oldInput);
+    const oldHasPowerflush = oldModel.page1_5.likelyFirstImprovements.some(i => /powerflush/i.test(i));
+    expect(oldHasPowerflush).toBe(true);
+  });
 });
+
+
 
 // ─── Page 2 — Available options ───────────────────────────────────────────────
 
