@@ -496,3 +496,142 @@ describe('FullSurveyStepper — disruptionTolerance preference persistence', () 
     expect(draft.preferences?.disruptionTolerance).toBe('high');
   }, 10000);
 });
+
+// ── fullSurvey.heatLoss roof model persistence (PR4) ────────────────────────
+// Tests that the roof model captured by HeatLossStep (roofType, roofOrientation,
+// shadingLevel, pvStatus, batteryStatus) survives step navigation and reload.
+// These fields live inside fullSurvey.heatLoss, not at the model root.
+
+describe('FullSurveyStepper — fullSurvey.heatLoss roof fields persist in draft', () => {
+  it('fullSurvey.heatLoss.roofType is hydrated from prefill and preserved in draft', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      fullSurvey: {
+        heatLoss: {
+          estimatedPeakHeatLossW: null,
+          heatLossConfidence: 'unknown',
+          roofType: 'hipped',
+          roofOrientation: 'unknown',
+          shadingLevel: 'unknown',
+          pvStatus: 'none',
+          batteryStatus: 'none',
+        },
+      },
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await fillSystemBuilderMinimum(user);
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.fullSurvey?.heatLoss?.roofType).toBe('hipped');
+  }, 10000);
+
+  it('fullSurvey.heatLoss.roofOrientation is hydrated from prefill and preserved in draft', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      fullSurvey: {
+        heatLoss: {
+          estimatedPeakHeatLossW: null,
+          heatLossConfidence: 'unknown',
+          roofType: 'unknown',
+          roofOrientation: 'SW',
+          shadingLevel: 'unknown',
+          pvStatus: 'none',
+          batteryStatus: 'none',
+        },
+      },
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await fillSystemBuilderMinimum(user);
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.fullSurvey?.heatLoss?.roofOrientation).toBe('SW');
+  }, 10000);
+
+  it('fullSurvey.heatLoss.shadingLevel is hydrated from prefill and preserved in draft', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      fullSurvey: {
+        heatLoss: {
+          estimatedPeakHeatLossW: null,
+          heatLossConfidence: 'unknown',
+          roofType: 'unknown',
+          roofOrientation: 'unknown',
+          shadingLevel: 'some',
+          pvStatus: 'none',
+          batteryStatus: 'none',
+        },
+      },
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await fillSystemBuilderMinimum(user);
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.fullSurvey?.heatLoss?.shadingLevel).toBe('some');
+  }, 10000);
+
+  it('fullSurvey.heatLoss pvStatus and batteryStatus persist in draft', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      fullSurvey: {
+        heatLoss: {
+          estimatedPeakHeatLossW: null,
+          heatLossConfidence: 'unknown',
+          roofType: 'unknown',
+          roofOrientation: 'unknown',
+          shadingLevel: 'unknown',
+          pvStatus: 'existing',
+          batteryStatus: 'planned',
+        },
+      },
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await fillSystemBuilderMinimum(user);
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.fullSurvey?.heatLoss?.pvStatus).toBe('existing');
+    expect(draft.fullSurvey?.heatLoss?.batteryStatus).toBe('planned');
+  }, 10000);
+
+  it('all heatLoss roof fields persist together and roofOrientation is never reset to unknown', async () => {
+    const onDraft = vi.fn();
+    const user = userEvent.setup();
+    const prefill: Partial<FullSurveyModelV1> = {
+      fullSurvey: {
+        heatLoss: {
+          estimatedPeakHeatLossW: 11500,
+          heatLossConfidence: 'estimated',
+          roofType: 'pitched',
+          roofOrientation: 'S',
+          shadingLevel: 'little_or_none',
+          pvStatus: 'planned',
+          batteryStatus: 'none',
+        },
+      },
+    };
+    render(<FullSurveyStepper onBack={() => {}} prefill={prefill} onDraft={onDraft} />);
+
+    await fillSystemBuilderMinimum(user);
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const draft: FullSurveyModelV1 = onDraft.mock.calls[0][0];
+    expect(draft.fullSurvey?.heatLoss?.roofType).toBe('pitched');
+    // Orientation must be 'S' — not reset to 'unknown'
+    expect(draft.fullSurvey?.heatLoss?.roofOrientation).toBe('S');
+    expect(draft.fullSurvey?.heatLoss?.roofOrientation).not.toBe('unknown');
+    expect(draft.fullSurvey?.heatLoss?.shadingLevel).toBe('little_or_none');
+    expect(draft.fullSurvey?.heatLoss?.pvStatus).toBe('planned');
+    expect(draft.fullSurvey?.heatLoss?.estimatedPeakHeatLossW).toBe(11500);
+  }, 10000);
+});
