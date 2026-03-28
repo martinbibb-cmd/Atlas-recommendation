@@ -178,17 +178,43 @@ function recIdToOptionId(recId: string): OptionId | null {
 
 type RecItem = ReturnType<typeof deriveSystemRecommendations>[number];
 
+/** Short description of what each system type is. */
+function systemDescription(recId: string): string {
+  switch (recId) {
+    case 'combi_upgrade':
+      return 'On-demand hot water — single boiler provides both heating and hot water with no cylinder.';
+    case 'system_unvented':
+      return 'Stored hot water supplied at mains pressure — separate boiler plus unvented cylinder.';
+    case 'heat_pump':
+      return 'Low-carbon heating — air source heat pump plus hot water cylinder, no gas combustion.';
+    default:
+      return '';
+  }
+}
+
 function RecCard({
   rec,
   index,
   currentConcept,
+  onOpenSimulator,
 }: {
   rec: RecItem;
   index: number;
   currentConcept: SystemConceptModel;
+  onOpenSimulator?: () => void;
 }) {
   const optionId = recIdToOptionId(rec.id);
   const recImage = imageForRecId(rec.id);
+  const description = systemDescription(rec.id);
+
+  // PR6b: limit why-it-fits bullets to 3 to avoid weak hierarchy from long lists
+  const topWhyBullets = rec.whyItFits.slice(0, 3);
+
+  // PR6b: merge trade-offs and constraints into a single "What changes" list
+  const whatChanges = [
+    ...rec.tradeOffs,
+    ...rec.constraints,
+  ];
 
   return (
     <div
@@ -201,15 +227,20 @@ function RecCard({
         borderRadius: '8px',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+      {/* ── 1. What this system is ──────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
         {index === 0 && <span style={pillStyle('green')}>Best fit</span>}
         {rec.tier === 'alternative' && <span style={pillStyle('blue')}>Alternative</span>}
         {rec.tier === 'fallback' && <span style={pillStyle('grey')}>Fallback</span>}
         <strong style={{ fontSize: '0.82rem', color: '#2d3748' }}>{rec.name}</strong>
       </div>
-      {/* Compare visualiser: current system vs proposed system */}
+      {description && (
+        <p style={{ fontSize: '0.74rem', color: '#4a5568', margin: '0 0 0.5rem', lineHeight: 1.4 }}>
+          {description}
+        </p>
+      )}
       {optionId && (
-        <div style={{ marginBottom: '0.6rem' }}>
+        <div style={{ marginBottom: '0.5rem' }}>
           <SystemArchitectureVisualiser
             mode="compare"
             currentSystem={currentConcept}
@@ -217,45 +248,71 @@ function RecCard({
           />
         </div>
       )}
-      {/* Real-world reference image for the proposed system type */}
       {recImage && (
-        <div style={{ marginBottom: '0.6rem' }}>
+        <div style={{ marginBottom: '0.5rem' }}>
           <SystemRealWorldImage image={recImage} testId={`rec-real-world-image-${rec.id}`} />
         </div>
       )}
-      <div data-testid="rec-prose-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
-        {rec.whyItFits.length > 0 && (
+
+      <div data-testid="rec-prose-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem', marginTop: '0.5rem' }}>
+        {/* ── 2. Why it is right here (max 3 bullets) ─────────────────── */}
+        {topWhyBullets.length > 0 && (
           <div>
             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#276749', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Why it fits
             </span>
             <ul style={{ margin: '0.15rem 0 0', paddingLeft: '1rem' }}>
-              {rec.whyItFits.map(r => (
+              {topWhyBullets.map(r => (
                 <li key={r} style={{ fontSize: '0.74rem', color: '#2d3748', marginBottom: '0.1rem' }}>{r}</li>
               ))}
             </ul>
           </div>
         )}
-        {rec.tradeOffs.length > 0 && (
+
+        {/* ── 3. How it behaves — simulator CTA ───────────────────────── */}
+        {onOpenSimulator && (
           <div>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Trade-offs
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#2b6cb0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              How it behaves
             </span>
-            <ul style={{ margin: '0.15rem 0 0', paddingLeft: '1rem' }}>
-              {rec.tradeOffs.map(t => (
-                <li key={t} style={{ fontSize: '0.74rem', color: '#4a5568', marginBottom: '0.1rem' }}>{t}</li>
-              ))}
-            </ul>
+            <div style={{ marginTop: '0.25rem' }}>
+              <button
+                type="button"
+                onClick={onOpenSimulator}
+                style={{
+                  fontSize: '0.74rem',
+                  color: '#2b6cb0',
+                  background: '#ebf8ff',
+                  border: '1px solid #bee3f8',
+                  borderRadius: '4px',
+                  padding: '0.25rem 0.6rem',
+                  cursor: 'pointer',
+                }}
+              >
+                See behaviour in Simulator →
+              </button>
+            </div>
           </div>
         )}
-        {rec.constraints.length > 0 && (
+
+        {/* ── 4. What changes (trade-offs + constraints) ───────────────── */}
+        {whatChanges.length > 0 && (
           <div>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9b2c2c', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Constraints
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              What changes
             </span>
             <ul style={{ margin: '0.15rem 0 0', paddingLeft: '1rem' }}>
-              {rec.constraints.map(c => (
-                <li key={c} style={{ fontSize: '0.74rem', color: '#9b2c2c', marginBottom: '0.1rem' }}>{c}</li>
+              {whatChanges.map(item => (
+                <li
+                  key={item}
+                  style={{
+                    fontSize: '0.74rem',
+                    color: rec.constraints.includes(item) ? '#9b2c2c' : '#4a5568',
+                    marginBottom: '0.1rem',
+                  }}
+                >
+                  {item}
+                </li>
               ))}
             </ul>
           </div>
@@ -517,7 +574,7 @@ export function InsightLayerPage({
           <p style={sectionTitleStyle}>🔧 Recommendations</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {recs.map((rec, i) => (
-              <RecCard key={rec.id} rec={rec} index={i} currentConcept={currentConcept} />
+              <RecCard key={rec.id} rec={rec} index={i} currentConcept={currentConcept} onOpenSimulator={onOpenSimulator} />
             ))}
           </div>
         </div>
@@ -549,6 +606,10 @@ export function InsightLayerPage({
           : input.dynamicMainsPressure != null   ? `${input.dynamicMainsPressure} bar`
           : '—';
         const prioritiesPresent = normPriorities.hasPriorities;
+        // PR6a: surface the in-room top recommendation so installers can spot-check
+        // against the engine output (shown in LiveHubPage after survey completion).
+        const inRoomTopId = recs[0]?.id ?? '(none)';
+        const inRoomTopName = recs[0]?.name ?? '—';
 
         return (
           <div
@@ -578,6 +639,10 @@ export function InsightLayerPage({
             <div>peak concurrent outlets: <span style={{ color: '#fbbf24' }}>{peakOutlets}</span></div>
             <div>mains flow: <span style={{ color: '#fbbf24' }}>{mainsFlow}</span> @ <span style={{ color: '#fbbf24' }}>{mainsPressure}</span></div>
             <div>priorities present: <span style={{ color: prioritiesPresent ? '#68d391' : '#fc8181' }}>{prioritiesPresent ? 'yes' : 'no'}</span></div>
+            <div style={{ marginTop: '0.35rem', borderTop: '1px dashed #2d3748', paddingTop: '0.35rem' }}>
+              in-room top rec id: <span data-testid="dev-in-room-top-id" style={{ color: '#fbbf24' }}>{inRoomTopId}</span>
+              {' — '}<span style={{ color: '#a0aec0' }}>{inRoomTopName}</span>
+            </div>
           </div>
         );
       })()}

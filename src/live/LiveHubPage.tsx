@@ -316,6 +316,50 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
         </p>
       </div>
 
+      {/* ── DEV: recommendation source alignment check ───────────────────
+           Shows canonical top option (from evidence-backed ranking) vs
+           the headline string (engineOutput.recommendation.primary).
+           After PR6a these must always agree — any divergence here is a bug.
+           Only rendered in development builds. */}
+      {import.meta.env.DEV && result.recommendationResult != null && (() => {
+        const canonicalFamily = result.recommendationResult.bestOverall?.family ?? '(none)';
+        const headlinePrimary = engineOutput.recommendation.primary;
+        // Derive what the canonical family would label (same logic as OutputBuilder)
+        const familyToEligId: Record<string, string> = {
+          combi: 'on_demand', system: 'stored_unvented',
+          heat_pump: 'ashp', regular: 'stored_vented', open_vented: 'stored_vented',
+        };
+        const expectedEligId = familyToEligId[canonicalFamily] ?? '—';
+        const expectedLabel = engineOutput.eligibility.find(e => e.id === expectedEligId)?.label ?? canonicalFamily;
+        const aligned = headlinePrimary === expectedLabel || canonicalFamily === '(none)';
+        return (
+          <div
+            data-testid="dev-rec-alignment"
+            style={{
+              margin: '0.5rem 1rem 1rem',
+              padding: '0.6rem 0.875rem',
+              background: '#0f172a',
+              borderRadius: '6px',
+              border: `1px dashed ${aligned ? '#22c55e' : '#f97316'}`,
+              fontFamily: 'monospace',
+              fontSize: '0.7rem',
+              color: '#94a3b8',
+            }}
+          >
+            <div style={{ color: aligned ? '#4ade80' : '#fb923c', fontWeight: 700, marginBottom: '0.25rem' }}>
+              {aligned ? '✅ DEV — recommendation sources aligned (PR6a)' : '⚠️ DEV — recommendation source DIVERGENCE (PR6a bug)'}
+            </div>
+            <div>canonical family (bestOverall): <span style={{ color: '#fbbf24' }}>{canonicalFamily}</span></div>
+            <div>headline primary (engineOutput): <span style={{ color: aligned ? '#fbbf24' : '#f87171' }}>{headlinePrimary}</span></div>
+            {!aligned && (
+              <div style={{ color: '#f87171', marginTop: '0.25rem' }}>
+                expected headline: &quot;{expectedLabel}&quot; — OutputBuilder and RecommendationResult disagree
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* ══════════════════════════════════════════════════════════════ */}
       {/* SECTION 0 — Canonical Presentation (physics-first, primary)   */}
       {/* ══════════════════════════════════════════════════════════════ */}

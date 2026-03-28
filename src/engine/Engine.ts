@@ -172,7 +172,9 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     solarStorageOpportunity: core.pvAssessment.solarStorageOpportunity,
   });
 
-  const engineOutput = buildEngineOutputV1(core, input);
+  // Pass canonicalBestFamily so engineOutput.recommendation.primary always
+  // mirrors recommendationResult.bestOverall — keeping every surface in sync.
+  const engineOutput = buildEngineOutputV1(core, input, recommendationResult.bestOverall?.family ?? null);
   const inputValidation = runEngineInputValidation(input);
   return { ...core, engineOutput, inputValidation, recommendationResult };
 }
