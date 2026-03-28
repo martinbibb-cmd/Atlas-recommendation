@@ -1,5 +1,5 @@
 /**
- * ExplainersHubPage — entry point for the lab simulator.
+ * ExplainersHubPage — entry point for the canonical System Simulator.
  *
  * PR6:  Added SimulatorStepper setup journey before the simulator dashboard.
  * PR16: Added survey-backed entry — when surveyData is provided, the stepper
@@ -10,10 +10,15 @@
  *       demonstration rather than a hidden secondary feature.
  * PR5b: Physics Explainers and Energy Literacy panels moved into GlobalMenuShell
  *       via context registration — no longer rendered inline in the dashboard.
+ * PR-SIM-FIX: Removed legacy SurveyFamilyDashboard / SelectedFamilyDashboard
+ *       branch.  All survey-backed entries now unconditionally render the
+ *       canonical SimulatorDashboard (system diagram, house view, draw-off
+ *       behaviour, efficiency, system limiters, system behaviour, system inputs).
  */
 
 import { useState, useMemo, useEffect } from 'react';
 import SimulatorDashboard from './lego/simulator/SimulatorDashboard';
+import type { FloorplanOperatingAssumptions } from './lego/simulator/SimulatorDashboard';
 import SimulatorStepper from './lego/simulator/SimulatorStepper';
 import type { StepperConfig } from './lego/simulator/SimulatorStepper';
 import { adaptFullSurveyToSimulatorInputs } from './lego/simulator/adaptFullSurveyToSimulatorInputs';
@@ -23,8 +28,10 @@ import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import ExplainerPanel from './educational/ExplainerPanel';
 import { EnergyLiteracyPanel } from '../features/explainers/energy';
 import type { DerivedFloorplanOutput } from '../components/floorplan/floorplanDerivations';
-import { useSelectedFamilyData } from '../components/family-view/useSelectedFamilyData';
-import SelectedFamilyDashboard from '../components/family-view/SelectedFamilyDashboard';
+import { runEngine } from '../engine/Engine';
+import { buildCompareSeedFromSurvey } from '../lib/simulator/buildCompareSeedFromSurvey';
+import { adaptFloorplanToAtlasInputs } from '../lib/floorplan/adaptFloorplanToAtlasInputs';
+import { buildHeatingOperatingState, FLOOR_PLAN_EMITTER_EXPLANATION_TAGS } from '../lib/heating/buildHeatingOperatingState';
 import { useGlobalMenu } from '../components/shell/GlobalMenuContext';
 import type { GlobalMenuSection } from '../components/shell/GlobalMenuContext';
 
@@ -62,22 +69,38 @@ interface Props {
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
 /**
- * Wrapper rendered when survey data is present.  Calls the `useSelectedFamilyData`
- * hook (which must not be called conditionally) and renders the family-bound
- * dashboard that is the live results screen as of PR10b.
+ * Derives FloorplanOperatingAssumptions from a DerivedFloorplanOutput so the
+ * SimulatorDashboard can surface which physics constraints come from the floor
+ * plan (refined heat loss, emitter coverage, operating temperature).
  */
-interface SurveyFamilyDashboardProps {
-  surveyInput: EngineInputV2_3;
-}
-
-function SurveyFamilyDashboard({ surveyInput }: SurveyFamilyDashboardProps) {
-  const { data, setSelectedFamily } = useSelectedFamilyData(surveyInput);
-  return <SelectedFamilyDashboard data={data} onSelectFamily={setSelectedFamily} />;
+function buildFloorplanOperatingAssumptions(
+  floorplanOutput: DerivedFloorplanOutput,
+  heatLossWatts?: number,
+): FloorplanOperatingAssumptions | null {
+  const fp = adaptFloorplanToAtlasInputs(floorplanOutput);
+  if (!fp.isReliable) return null;
+  const adequacy = fp.wholeSystemEmitterAdequacy;
+  const fpOperatingState = adequacy.hasActualData
+    ? buildHeatingOperatingState({ flowTempC: 70, floorplanEmitterAdequacy: adequacy, heatLossWatts })
+    : null;
+  const emitterExplanationTags =
+    fpOperatingState?.explanationTags.filter((t) => FLOOR_PLAN_EMITTER_EXPLANATION_TAGS.has(t)) ?? [];
+  return {
+    refinedHeatLossKw: fp.refinedHeatLossKw > 0 ? fp.refinedHeatLossKw : null,
+    coverageClassification: adequacy.hasActualData ? adequacy.coverageClassification : null,
+    undersizedRooms: adequacy.undersizedRooms,
+    oversizedRooms: adequacy.oversizedRooms,
+    operatingTempInfluenced:
+      adequacy.hasActualData &&
+      adequacy.impliedOversizingFactor !== null &&
+      adequacy.impliedOversizingFactor !== 1.0,
+    emitterExplanationTags,
+  };
 }
 
 // ─── View ─────────────────────────────────────────────────────────────────────
 
-export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab, onOpenPresentation }: Props) {
+export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab, onOpenPresentation, floorplanOutput }: Props) {
   const [config, setConfig] = useState<StepperConfig | null>(null);
   // When launched from a survey, hide the stepper by default.
   const [showStepper, setShowStepper] = useState<boolean>(!surveyData);
@@ -91,9 +114,35 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
     [surveyData],
   );
 
+  // Run the engine once when survey data is present so the compare seed can
+  // seed the proposed (right) column with the Atlas recommendation.
+  const engineResult = useMemo(
+    () => (surveyData != null ? runEngine(surveyData as EngineInputV2_3) : null),
+    [surveyData],
+  );
+
+  // Compare seed — left = current (surveyed) system, right = proposed recommendation.
+  const compareSeed = useMemo(
+    () =>
+      surveyData != null && engineResult != null
+        ? buildCompareSeedFromSurvey(surveyData as FullSurveyModelV1, engineResult.engineOutput)
+        : null,
+    [surveyData, engineResult],
+  );
+
+  // Floor-plan operating assumptions for the simulator badge / overlays.
+  const floorplanOperatingAssumptions = useMemo(
+    () =>
+      floorplanOutput != null
+        ? buildFloorplanOperatingAssumptions(
+            floorplanOutput,
+            (surveyData as EngineInputV2_3 | undefined)?.heatLossWatts,
+          )
+        : null,
+    [floorplanOutput, surveyData],
+  );
 
   // Show dashboard when:
-
   //   (a) survey-backed entry (surveyAdapted present and stepper not explicitly requested), or
   //   (b) stepper has completed and config is set.
   const showDashboard = !showStepper && (surveyAdapted != null || config != null);
@@ -191,16 +240,16 @@ export default function ExplainersHubPage({ onBack, surveyData, onOpenSystemLab,
           </div>
         </div>
 
-        {surveyData != null ? (
-          <SurveyFamilyDashboard surveyInput={surveyData as EngineInputV2_3} />
-        ) : (
-          <SimulatorDashboard
-            initialSystemChoice={initialSystemChoice}
-            initialSystemInputs={initialSystemInputs}
-            surveyBacked={isSurveyBacked}
-            defaultMode={isSurveyBacked ? 'compare' : 'single'}
-          />
-        )}
+        {/* ── Canonical SimulatorDashboard — the one true simulator surface ── */}
+        <SimulatorDashboard
+          initialSystemChoice={initialSystemChoice}
+          initialSystemInputs={initialSystemInputs}
+          surveyBacked={isSurveyBacked}
+          defaultMode={isSurveyBacked ? 'compare' : 'single'}
+          initialProposedSystemChoice={compareSeed?.right.systemChoice}
+          initialProposedSystemInputs={compareSeed?.right.systemInputs}
+          floorplanOperatingAssumptions={floorplanOperatingAssumptions ?? undefined}
+        />
 
       </div>
     );

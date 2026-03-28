@@ -9,10 +9,32 @@
 //   - Panel expansion (modal) works after stepper completion
 //   - Back button behaviour
 //   - Home button navigates back to stepper
+//   - Survey-backed entry renders canonical SimulatorDashboard panels (not legacy SelectedFamilyDashboard)
 
 import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import ExplainersHubPage from '../ExplainersHubPage'
+import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3'
+
+// ─── Minimal survey input ─────────────────────────────────────────────────────
+
+const SURVEY_INPUT: EngineInputV2_3 = {
+  postcode: 'SW1A 1AA',
+  dynamicMainsPressure: 1.8,
+  mainsDynamicFlowLpm: 14,
+  primaryPipeDiameter: 22,
+  heatLossWatts: 8000,
+  radiatorCount: 10,
+  bathroomCount: 1,
+  occupancyCount: 3,
+  hasLoftConversion: false,
+  returnWaterTemp: 45,
+  occupancySignature: 'professional',
+  buildingMass: 'medium',
+  highOccupancy: false,
+  preferCombi: true,
+  currentHeatSourceType: 'combi',
+};
 
 // ─── Helper: advance through the stepper to the dashboard ────────────────────
 
@@ -199,5 +221,62 @@ describe('ExplainersHubPage — secondary content moved to global menu', () => {
     // The Energy Literacy panel heading should not appear inline.
     const energyHeadings = screen.queryAllByRole('heading', { name: /energy literacy/i })
     expect(energyHeadings).toHaveLength(0)
+  })
+})
+
+// ─── Survey-backed entry: canonical simulator (regression) ────────────────────
+//
+// These tests guard against the regression where the survey-backed entry opened
+// SelectedFamilyDashboard (the legacy analysis shell with family pills, tab bar
+// and scores) instead of the canonical SimulatorDashboard.
+//
+// When launched with surveyData, ExplainersHubPage immediately opens
+// SimulatorDashboard in compare mode (current vs proposed), bypassing the
+// stepper.  Compare mode renders two columns each showing System Diagram,
+// Efficiency, System Limiters, System Inputs, and System Behaviour panels.
+
+describe('ExplainersHubPage — survey-backed entry opens canonical SimulatorDashboard', () => {
+  it('shows the compare layout (two-column canonical simulator) when surveyData is provided', () => {
+    render(<ExplainersHubPage surveyData={SURVEY_INPUT} />)
+    const compareLayout = document.querySelector('[data-testid="compare-layout"]')
+    expect(compareLayout).toBeTruthy()
+  })
+
+  it('shows at least one System Diagram panel when surveyData is provided', () => {
+    render(<ExplainersHubPage surveyData={SURVEY_INPUT} />)
+    const panels = screen.getAllByRole('button', { name: /expand system diagram/i })
+    expect(panels.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('shows at least one Efficiency panel when surveyData is provided', () => {
+    render(<ExplainersHubPage surveyData={SURVEY_INPUT} />)
+    const panels = screen.getAllByRole('button', { name: /expand efficiency/i })
+    expect(panels.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('does NOT show the stepper when surveyData is provided', () => {
+    render(<ExplainersHubPage surveyData={SURVEY_INPUT} />)
+    expect(screen.queryByText(/simulator setup/i)).toBeNull()
+  })
+
+  it('does NOT show the legacy SelectedFamilyDashboard summary strip when surveyData is provided', () => {
+    render(<ExplainersHubPage surveyData={SURVEY_INPUT} />)
+    // summary-strip is the hallmark of the legacy SelectedFamilyDashboard analysis shell.
+    const summaryStrip = document.querySelector('[data-testid="summary-strip"]')
+    expect(summaryStrip).toBeNull()
+  })
+
+  it('does NOT show the legacy SelectedFamilyDashboard key-scores section when surveyData is provided', () => {
+    render(<ExplainersHubPage surveyData={SURVEY_INPUT} />)
+    // key-scores is only part of SelectedFamilyDashboard, not SimulatorDashboard.
+    const scoresStrip = document.querySelector('[data-testid="key-scores"]')
+    expect(scoresStrip).toBeNull()
+  })
+
+  it('does NOT show the legacy SelectedFamilyDashboard family pills (data-testid) when surveyData is provided', () => {
+    render(<ExplainersHubPage surveyData={SURVEY_INPUT} />)
+    // These specific data-testids only exist on SelectedFamilyDashboard family selector pills.
+    const combiPill = document.querySelector('[data-testid="family-pill-combi"]')
+    expect(combiPill).toBeNull()
   })
 })
