@@ -1,0 +1,56 @@
+/* ─── BehaviourGraph ─────────────────────────────────────────────────────────
+   Compact dual-chart panel for the live System Behaviour row.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.behaviour-graph {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 8px 0 0;
+}
+
+@media (max-width: 680px) {
+  .behaviour-graph {
+    grid-template-columns: 1fr;
+  }
+}
+
+.behaviour-graph--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  grid-template-columns: 1fr;
+}
+
+.behaviour-graph__waiting {
+  font-size: 0.75rem;
+  color: #a0aec0;
+  font-style: italic;
+}
+
+.behaviour-graph__section {
+  min-width: 0; /* prevent chart overflow in flex/grid containers */
+}
+
+.behaviour-graph__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #718096;
+  margin-bottom: 2px;
+  padding-left: 28px; /* align with recharts y-axis width */
+}
+
+/* ─── Tooltip ────────────────────────────────────────────────────────────────── */
+
+.bgi-tooltip {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  line-height: 1.5;
+}

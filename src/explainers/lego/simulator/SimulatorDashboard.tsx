@@ -32,6 +32,8 @@ import SystemInputsPanel from './panels/SystemInputsPanel';
 import ComparisonSummaryStrip from './panels/ComparisonSummaryStrip';
 import DayTimelinePanel from './panels/DayTimelinePanel';
 import DailyEfficiencySummaryPanel from './panels/DailyEfficiencySummaryPanel';
+import BehaviourGraph from './BehaviourGraph';
+import { useBehaviourTimeline } from './useBehaviourTimeline';
 import type { SystemInputs } from './systemInputsTypes';
 import { DEFAULT_SYSTEM_INPUTS } from './systemInputsTypes';
 import { useSystemDiagramPlayback } from './useSystemDiagramPlayback';
@@ -501,6 +503,16 @@ export default function SimulatorDashboard({
   const efficiencyStateImproved = useEfficiencyPlayback(diagramStateImproved, emitterStateImproved, improvedInputs.systemCondition);
   const limiterStateImproved = useLimiterPlayback(diagramStateImproved, improvedInputs.combiPowerKw, improvedInputs.coldInletTempC, emitterStateImproved, improvedInputs.cylinderType, improvedInputs.systemCondition);
 
+  // ── Behaviour timeline (current and improved columns) ───────────────────────
+  // Hooks are always called unconditionally (React rules).
+  // The rolling buffer drives the BehaviourGraph panels shown in both modes.
+  const behaviourTimeline = useBehaviourTimeline(diagramState, systemInputs);
+  const behaviourTimelineImproved = useBehaviourTimeline(diagramStateImproved, improvedInputs);
+
+  // kW ceiling for the graph y-axes — keeps the scale consistent across phases.
+  const behaviourMaxKw = Math.max(systemInputs.boilerOutputKw, systemInputs.combiPowerKw, systemInputs.heatLossKw);
+  const behaviourMaxKwImproved = Math.max(improvedInputs.boilerOutputKw, improvedInputs.combiPowerKw, improvedInputs.heatLossKw);
+
   // ── Derived display values (current) ───────────────────────────────────────
 
   const highlightedComponents = limiterState.activeLimiters
@@ -689,6 +701,17 @@ export default function SimulatorDashboard({
                 />
               </SimulatorPanel>
             </div>
+
+            {/* System Behaviour graph — current column */}
+            <div className="sim-compare-behaviour">
+              <SimulatorPanel title="System Behaviour" icon="📈" onExpand={() => {}}>
+                <BehaviourGraph
+                  timeline={behaviourTimeline}
+                  systemChoice={systemChoice}
+                  maxKw={behaviourMaxKw}
+                />
+              </SimulatorPanel>
+            </div>
           </div>
 
           {/* ── Proposed System column ── */}
@@ -736,6 +759,17 @@ export default function SimulatorDashboard({
                   onInputChange={partial => setImprovedInputs(prev => ({ ...prev, ...partial }))}
                   systemChoice={systemChoiceImproved}
                   portalMode={portalMode}
+                />
+              </SimulatorPanel>
+            </div>
+
+            {/* System Behaviour graph — proposed column */}
+            <div className="sim-compare-behaviour">
+              <SimulatorPanel title="System Behaviour" icon="📈" onExpand={() => {}}>
+                <BehaviourGraph
+                  timeline={behaviourTimelineImproved}
+                  systemChoice={systemChoiceImproved}
+                  maxKw={behaviourMaxKwImproved}
                 />
               </SimulatorPanel>
             </div>
@@ -850,7 +884,22 @@ export default function SimulatorDashboard({
         <DailyEfficiencySummaryPanel state={dailySummaryState} />
       </div>
 
-      {/* System Inputs — full-width row below daily summary */}
+      {/* System Behaviour graph — full-width row below daily summary */}
+      <div className="sim-behaviour-row">
+        <SimulatorPanel
+          title="System Behaviour"
+          icon="📈"
+          onExpand={() => {}}
+        >
+          <BehaviourGraph
+            timeline={behaviourTimeline}
+            systemChoice={systemChoice}
+            maxKw={behaviourMaxKw}
+          />
+        </SimulatorPanel>
+      </div>
+
+      {/* System Inputs — full-width row below behaviour graph */}
       <div className="sim-inputs-row">
         <SimulatorPanel
           title="System Inputs"

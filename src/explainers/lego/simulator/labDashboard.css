@@ -1043,6 +1043,24 @@
   }
 }
 
+/* ─── System behaviour row (full-width, below daily summary) ────────────────── */
+
+.sim-behaviour-row {
+  padding: 0 16px 10px;
+}
+
+@media (max-width: 820px) {
+  .sim-behaviour-row {
+    padding: 0 12px 10px;
+  }
+}
+
+/* ─── Behaviour graph inside compare columns ────────────────────────────────── */
+
+.sim-compare-behaviour {
+  margin-top: 8px;
+}
+
 /* ─── Daily efficiency summary panel ────────────────────────────────────────── */
 
 .daily-summary {
