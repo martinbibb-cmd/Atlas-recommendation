@@ -35,6 +35,13 @@ interface Props {
   visitId: string;
   onBack: () => void;
   onComplete: (engineInput: EngineInputV2_3) => void;
+  /**
+   * When provided, "Try in Simulator →" on the InsightLayerPage navigates
+   * directly to the simulator surface instead of routing through onComplete
+   * (which may pass through the fit-map).  Receives the cleaned EngineInputV2_3
+   * built from the current survey state.
+   */
+  onOpenSimulator?: (engineInput: EngineInputV2_3) => void;
   onOpenFloorPlan: (surveyResults: Partial<FullSurveyModelV1>) => void;
   onOpenReport: (reportId: string) => void;
   floorplanOutput?: DerivedFloorplanOutput;
@@ -168,6 +175,7 @@ export default function VisitPage({
   visitId,
   onBack,
   onComplete,
+  onOpenSimulator,
   onOpenFloorPlan,
   onOpenReport,
 }: Props) {
@@ -365,7 +373,7 @@ export default function VisitPage({
         onBack={onBack}
         prefill={prefill}
         onComplete={handleComplete}
-        onOpenSimulator={handleComplete}
+        onOpenSimulator={onOpenSimulator ?? handleComplete}
         onDraft={handleDraft}
         onOpenFloorPlan={onOpenFloorPlan}
       />
