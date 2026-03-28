@@ -84,9 +84,7 @@ function deriveHeatKw(
   inputs: SystemInputs,
 ): number {
   switch (state.systemMode) {
-    case 'standby':
     case 'idle':
-    case 'cooling':
       return 0
     case 'dhw_draw':
       // Combi: full plate-HEX output.  Stored: cylinder draining, boiler not firing.
@@ -127,11 +125,8 @@ function deriveDhwDemandKw(
 function deriveEfficiencyPct(state: SystemDiagramDisplayState): number | null {
   // Heat pumps use COP, not SEDBUK efficiency.
   if (state.heatSourceType === 'heat_pump') return null
-  if (
-    state.systemMode === 'standby' ||
-    state.systemMode === 'idle' ||
-    state.systemMode === 'cooling'
-  ) {
+  // Null when the system is idle (not actively heating).
+  if (state.systemMode === 'idle') {
     return null
   }
   if (!state.condensingState) return null
@@ -182,9 +177,9 @@ function detectEvents(
     events.push({ t, label: 'Tap opened', kind: 'tap_opened' })
   }
 
-  // Burner ramped: moved from an off state to an active heating mode.
+  // Burner ramped: moved from idle to an active heating mode.
   if (
-    (prevMode === 'standby' || prevMode === 'idle' || prevMode === 'cooling') &&
+    prevMode === 'idle' &&
     (currMode === 'heating' ||
       currMode === 'dhw_reheat' ||
       currMode === 'heating_and_reheat' ||

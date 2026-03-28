@@ -29,7 +29,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
-  type TooltipProps,
+  type TooltipContentProps,
 } from 'recharts'
 import type { BehaviourTimelineState, BehaviourEventKind } from './useBehaviourTimeline'
 import type { SimulatorSystemChoice } from './useSystemDiagramPlayback'
@@ -63,28 +63,37 @@ const Y_AXIS_PADDING_MULTIPLIER = 1.15
 
 // ─── Custom tooltip ───────────────────────────────────────────────────────────
 
-function DemandTooltip({ active, payload }: TooltipProps<number, string>) {
-  if (!active || !payload?.length) return null
+type TooltipEntry = {
+  name?: string
+  value?: number
+  color?: string
+  dataKey?: string | number
+}
+
+function DemandTooltip(props: TooltipContentProps<number, string>) {
+  if (!props.active || !props.payload || props.payload.length === 0) return null
+  const payload = props.payload as TooltipEntry[]
   return (
     <div className="bgi-tooltip">
-      {payload.map(p => (
-        <div key={p.dataKey as string} style={{ color: p.color }}>
-          {p.name}: <strong>{(p.value as number).toFixed(1)} kW</strong>
+      {payload.map((p: TooltipEntry, idx: number) => (
+        <div key={String(p.dataKey ?? idx)} style={{ color: p.color }}>
+          {p.name}: <strong>{(p.value ?? 0).toFixed(1)} kW</strong>
         </div>
       ))}
     </div>
   )
 }
 
-function ResponseTooltip({ active, payload }: TooltipProps<number, string>) {
-  if (!active || !payload?.length) return null
+function ResponseTooltip(props: TooltipContentProps<number, string>) {
+  if (!props.active || !props.payload || props.payload.length === 0) return null
+  const payload = props.payload as TooltipEntry[]
   return (
     <div className="bgi-tooltip">
-      {payload.map(p => {
+      {payload.map((p: TooltipEntry, idx: number) => {
         const unit = (p.dataKey as string) === 'efficiencyPct' ? '%' : 'kW'
         return (
-          <div key={p.dataKey as string} style={{ color: p.color }}>
-            {p.name}: <strong>{(p.value as number).toFixed(1)}{unit}</strong>
+          <div key={String(p.dataKey ?? idx)} style={{ color: p.color }}>
+            {p.name}: <strong>{(p.value ?? 0).toFixed(1)}{unit}</strong>
           </div>
         )
       })}
@@ -134,7 +143,7 @@ export default function BehaviourGraph({ timeline, systemChoice, maxKw }: Props)
               width={28}
               allowDecimals={false}
             />
-            <Tooltip content={<DemandTooltip />} />
+            <Tooltip content={DemandTooltip} />
 
             {/* Space-heating demand — filled area */}
             <Area
@@ -214,7 +223,7 @@ export default function BehaviourGraph({ timeline, systemChoice, maxKw }: Props)
                 width={30}
               />
             )}
-            <Tooltip content={<ResponseTooltip />} />
+            <Tooltip content={ResponseTooltip} />
 
             {/* Heat-source output — orange filled area (stepped) */}
             <Area
