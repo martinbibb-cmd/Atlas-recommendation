@@ -19,7 +19,7 @@
  */
 
 import { useState, type KeyboardEvent } from 'react';
-import type { HouseSignal, HomeSignal, CurrentSystemSignal } from './buildCanonicalPresentation';
+import type { HouseSignal, HomeSignal, CurrentSystemSignal, ObjectivesSignal } from './buildCanonicalPresentation';
 import type { HeatLossState } from '../../features/survey/heatLoss/heatLossTypes';
 import type { PrioritiesState, PriorityKey } from '../../features/survey/priorities/prioritiesTypes';
 import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
@@ -86,6 +86,7 @@ function HouseQuadrant({
             visualId="heat_particles"
             visualData={{ wallType: house.wallTypeKey }}
             hideExplainer
+            hideScript
           />
         )}
       </div>
@@ -166,6 +167,7 @@ function HomeQuadrant({
           visualId="flow_split"
           visualData={{ outletsActive }}
           hideExplainer
+          hideScript
         />
       </div>
 
@@ -282,14 +284,17 @@ const PRIORITY_LABEL: Record<PriorityKey, string> = Object.fromEntries(
 
 function PrioritiesQuadrant({
   prioritiesState,
+  objectives,
   expanded,
   onToggle,
 }: {
   prioritiesState?: PrioritiesState;
+  objectives?: ObjectivesSignal;
   expanded: boolean;
   onToggle: () => void;
 }) {
   const selected = prioritiesState?.selected ?? [];
+  const fallbackPriorities = objectives?.priorities ?? [];
 
   return (
     <div
@@ -318,6 +323,12 @@ function PrioritiesQuadrant({
               {PRIORITY_LABEL[key] ?? key}
             </span>
           ))
+        ) : fallbackPriorities.length > 0 ? (
+          fallbackPriorities.map(priority => (
+            <span key={priority.label} className="qdp-chip">
+              {priority.label}
+            </span>
+          ))
         ) : (
           <span className="qdp-chip qdp-chip--empty">No priorities selected yet</span>
         )}
@@ -327,14 +338,27 @@ function PrioritiesQuadrant({
         <p className="qdp-quadrant__collapsed-copy">Tell us what matters most to tune recommendations.</p>
       )}
 
-      {expanded && selected.length > 0 && (
+      {expanded && (
         <div className="qdp-quadrant__detail" role="region" aria-label="Priority details">
-          {PRIORITY_META.filter(m => selected.includes(m.key)).map(m => (
-            <p key={m.key} className="qdp-detail__priority-row">
-              <span className="qdp-detail__priority-label">{m.emoji} {m.label}</span>
-              <span className="qdp-detail__priority-sub">{m.sub}</span>
+          {selected.length > 0 ? (
+            PRIORITY_META.filter(m => selected.includes(m.key)).map(m => (
+              <p key={m.key} className="qdp-detail__priority-row">
+                <span className="qdp-detail__priority-label">{m.emoji} {m.label}</span>
+                <span className="qdp-detail__priority-sub">{m.sub}</span>
+              </p>
+            ))
+          ) : fallbackPriorities.length > 0 ? (
+            fallbackPriorities.map(priority => (
+              <p key={priority.label} className="qdp-detail__priority-row">
+                <span className="qdp-detail__priority-label">{priority.label}</span>
+                <span className="qdp-detail__priority-sub">{priority.value}</span>
+              </p>
+            ))
+          ) : (
+            <p className="qdp-detail__row qdp-detail__row--muted">
+              No priorities are on record yet — complete the Priorities step to personalise this section.
             </p>
-          ))}
+          )}
         </div>
       )}
     </div>
@@ -350,6 +374,7 @@ export interface QuadrantDashboardPageProps {
   currentSystemConcept?: SystemConceptModel;
   heatLossState?: HeatLossState;
   prioritiesState?: PrioritiesState;
+  objectives?: ObjectivesSignal;
 }
 
 type QuadrantId = 'house' | 'home' | 'system' | 'priorities';
@@ -367,6 +392,7 @@ export default function QuadrantDashboardPage({
   currentSystemConcept,
   heatLossState,
   prioritiesState,
+  objectives,
 }: QuadrantDashboardPageProps) {
   const [expanded, setExpanded] = useState<QuadrantId | null>(null);
 
@@ -399,6 +425,7 @@ export default function QuadrantDashboardPage({
       />
       <PrioritiesQuadrant
         prioritiesState={prioritiesState}
+        objectives={objectives}
         expanded={expanded === 'priorities'}
         onToggle={() => toggle('priorities')}
       />

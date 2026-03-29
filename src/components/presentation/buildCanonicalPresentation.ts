@@ -1036,12 +1036,15 @@ function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): P
   const hardness = result.normalizer.waterHardnessCategory;
   const systemCondition = input.boilerConditionBand ?? input.cylinderConditionBand ?? input.plateHexConditionBand;
   const noMagFilter = input.hasMagneticFilter === false;
-  const sludgeDetected = ((result.sludgeVsScale?.flowDeratePct ?? 0) > 0.03) || ((result.sludgeVsScale?.primarySludgeCostGbp ?? 0) > 10);
-  const poorPerformance = systemCondition === 'poor' || systemCondition === 'severe' || sludgeDetected;
+  const poorPerformance = systemCondition === 'poor' || systemCondition === 'severe';
 
-  // Real evidence requires at least one of: explicit age, condition band, or sludge signal.
-  // Without any of these the efficiency/condition copy would be purely synthetic.
-  const hasRealEvidence = age != null || systemCondition != null || sludgeDetected;
+  // Real evidence requires direct user/system-recorded condition inputs.
+  // Derived model outputs alone are not enough to show this slide.
+  const hasRealEvidence =
+    age != null
+    || systemCondition != null
+    || input.hasMagneticFilter != null
+    || input.hasSoftener != null;
 
   const ageEstimate = age
     ?? (systemCondition === 'poor' || systemCondition === 'severe' ? 15 : systemCondition === 'moderate' ? 10 : 6);
@@ -1129,7 +1132,6 @@ function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): P
 
   const homeImpacts = buildHomeImpacts(type, efficiencyBand, hardness);
   if (noMagFilter) homeImpacts.unshift('Without a magnetic filter, primary sludge can reduce radiator output and increase cycling losses.');
-  if (sludgeDetected) homeImpacts.unshift('Observed sludge/scale signals suggest slower warm-up and poorer circulation at peak demand.');
 
   const likelyFirstImprovements = buildLikelyImprovements(
     type, ageEstimate, efficiencyBand, hardness, input.hasMagneticFilter, input.hasSoftener,

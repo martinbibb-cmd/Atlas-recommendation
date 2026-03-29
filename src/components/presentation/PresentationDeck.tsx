@@ -250,22 +250,20 @@ function OptionsPage({
     <>
       <p className="atlas-presentation-deck__page-eyebrow">Available options</p>
       <h2 className="atlas-presentation-deck__page-title">{title}</h2>
-      <div className="atlas-presentation-deck__visual">
-        {visualId === 'thermal_store' ? (
-          <PresentationVisualSlot
-            visualId="thermal_store"
-            visualData={{ flowTempBand: 'high' }}
-          />
-        ) : visualId === 'cylinder_charge_mixergy' ? (
-          <PresentationVisualSlot visualId="cylinder_charge_mixergy" />
-        ) : visualId === 'cylinder_charge_standard' ? (
-          <PresentationVisualSlot visualId="cylinder_charge_standard" />
-        ) : (
-          // null — architecture has no animation (on_demand / unknown).
-          // Render a neutral card: the options list below carries the story.
-          <div className="atlas-presentation-deck__neutral-architecture-card" aria-hidden="true" />
-        )}
-      </div>
+      {visualId !== null && (
+        <div className="atlas-presentation-deck__visual">
+          {visualId === 'thermal_store' ? (
+            <PresentationVisualSlot
+              visualId="thermal_store"
+              visualData={{ flowTempBand: 'high' }}
+            />
+          ) : visualId === 'cylinder_charge_mixergy' ? (
+            <PresentationVisualSlot visualId="cylinder_charge_mixergy" />
+          ) : (
+            <PresentationVisualSlot visualId="cylinder_charge_standard" />
+          )}
+        </div>
+      )}
       <ul className="atlas-presentation-deck__options-list">
         {options.map(opt => (
           <li key={opt.id} className="atlas-presentation-deck__options-item">
@@ -544,6 +542,7 @@ export default function PresentationDeck({
             currentSystemConcept={currentSystemConcept}
             heatLossState={heatLossState}
             prioritiesState={prioritiesState}
+            objectives={page1.objectives}
           />
         </div>
       ),
