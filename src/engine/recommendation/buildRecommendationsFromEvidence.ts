@@ -30,6 +30,7 @@ import type {
   CandidateEvidenceBundle,
   CandidateSuitability,
   RecommendationContextSignals,
+  WhyNotExplanation,
 } from './RecommendationModel';
 import { ALL_OBJECTIVES } from './RecommendationModel';
 import type { LimiterLedgerEntry } from '../limiter/LimiterLedger';
@@ -208,6 +209,19 @@ const SEVERITY_SCALE: Readonly<Record<LimiterLedgerEntry['severity'], number>> =
   limit:     1.5,
   hard_stop: 2.0,
 };
+
+/**
+ * Additional flat penalty applied to ALL objectives when a candidate has any
+ * 'limit' or 'hard_stop' severity limiter.  This forces clear score separation
+ * between candidates with and without hard physical constraints, preventing
+ * ASHP/system clustering in clearly unsuitable cases.
+ *
+ * Calibrated to ensure that a candidate with a single hard constraint sits
+ * visibly below a clean candidate (~5 pts on the 0–100 overall scale) without
+ * being so large that it double-penalises alongside the per-objective limiter
+ * penalties which already scale by severity.
+ */
+const HARD_CONSTRAINT_SEPARATION_BONUS = 5;
 
 // ─── Fit-map → objective contribution map ────────────────────────────────────
 
@@ -406,6 +420,19 @@ function scoreCandidate(
 
     for (const obj of penaltySpec.objectives) {
       limiterPenalties[obj] = (limiterPenalties[obj] ?? 0) + magnitude;
+    }
+  }
+
+  // Hard-constraint separation: when a candidate has 'limit' or 'hard_stop'
+  // severity limiters, apply an additional separation bonus to ensure the
+  // candidate is clearly ranked behind alternatives.  This prevents ASHP and
+  // system clustering when a hard physical constraint should clearly split them.
+  const hasHardConstraint = bundle.limiterLedger.entries.some(
+    e => e.severity === 'hard_stop' || e.severity === 'limit'
+  );
+  if (hasHardConstraint) {
+    for (const obj of ALL_OBJECTIVES) {
+      limiterPenalties[obj] = (limiterPenalties[obj] ?? 0) + HARD_CONSTRAINT_SEPARATION_BONUS;
     }
   }
 
@@ -659,6 +686,85 @@ function buildConfidenceSummary(
   return { level, evidenceCount, limitersConsidered: totalLimiters, notes };
 }
 
+// ─── "Why not this option?" builder ───────────────────────────────────────────
+
+/** Human-readable family labels for explanation text (engine-internal only). */
+const FAMILY_DISPLAY_NAMES: Readonly<Record<ApplianceFamily, string>> = {
+  combi: 'Combi boiler',
+  system: 'System boiler with cylinder',
+  regular: 'Regular boiler with cylinder',
+  heat_pump: 'Heat pump',
+  open_vented: 'Open vented system',
+};
+
+/**
+ * Build "why not this option?" explanations for every non-winning candidate.
+ *
+ * Each explanation cites the dominant limiting and supporting signals from
+ * the candidate's evidence trace, the score gap to the winner, and whether
+ * the candidate was disqualified outright.
+ */
+function buildWhyNotExplanations(
+  allDecisions: readonly RecommendationDecision[],
+  bestOverall: RecommendationDecision | null,
+): WhyNotExplanation[] {
+  if (!bestOverall) return [];
+
+  const explanations: WhyNotExplanation[] = [];
+
+  for (const decision of allDecisions) {
+    if (decision.family === bestOverall.family) continue;
+
+    const isDisqualified = decision.suitability === 'not_recommended';
+    const scoreGap = bestOverall.overallScore - decision.overallScore;
+
+    // Find dominant limiting signals (limiters with highest penalty impact)
+    const dominantLimiters = decision.evidenceTrace.hardStopLimiters.length > 0
+      ? [...decision.evidenceTrace.hardStopLimiters]
+      : decision.evidenceTrace.limitersConsidered.slice(0, 3);
+
+    const dominantSupports = [...decision.evidenceTrace.positiveEvidence].slice(0, 3);
+
+    // Build summary
+    const familyName = FAMILY_DISPLAY_NAMES[decision.family] ?? decision.family;
+    let summary: string;
+
+    if (isDisqualified) {
+      const hardStopNames = decision.evidenceTrace.hardStopLimiters.join(', ');
+      summary = `${familyName} is not recommended due to hard physical constraint(s): ${hardStopNames}.`;
+    } else if (dominantLimiters.length > 0) {
+      const limiterList = dominantLimiters.join(', ');
+      summary = `${familyName} scored ${scoreGap.toFixed(0)} points below the recommended option. ` +
+        `Key limiting signal(s): ${limiterList}.`;
+    } else {
+      summary = `${familyName} scored ${scoreGap.toFixed(0)} points below the recommended option ` +
+        `without specific physical constraints — the winner simply fits better overall.`;
+    }
+
+    // Append caveats if present
+    if (decision.caveats.length > 0) {
+      summary += ' ' + decision.caveats[0];
+    }
+
+    explanations.push({
+      family: decision.family,
+      dominantLimiters,
+      dominantSupports,
+      scoreGap,
+      summary,
+      isDisqualified,
+    });
+  }
+
+  // Deterministic order: disqualified first, then by score gap descending
+  explanations.sort((a, b) => {
+    if (a.isDisqualified !== b.isDisqualified) return a.isDisqualified ? -1 : 1;
+    return b.scoreGap - a.scoreGap;
+  });
+
+  return explanations;
+}
+
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
 /**
@@ -715,11 +821,15 @@ export function buildRecommendationsFromEvidence(
   // Confidence summary
   const confidenceSummary = buildConfidenceSummary(bundles, allDecisions);
 
+  // "Why not this option?" explanations for non-winning candidates
+  const whyNotExplanations = buildWhyNotExplanations(allDecisions, bestOverall);
+
   return {
     bestOverall,
     bestByObjective,
     interventions,
     disqualifiedCandidates,
     confidenceSummary,
+    whyNotExplanations,
   };
 }

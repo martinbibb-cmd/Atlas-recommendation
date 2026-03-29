@@ -16,6 +16,7 @@
  */
 
 import { type CSSProperties } from 'react';
+import { getStepMeta } from '../../../config/surveyStepRegistry';
 import type {
   HomeState,
   DaytimeOccupancy,
@@ -138,7 +139,7 @@ export function UsageStep({
 
   return (
     <div className="step-card" data-testid="usage-step">
-      <h2>🏠 Step 2: Home &amp; Household</h2>
+      <h2>{getStepMeta('usage').heading}</h2>
       <p style={{ color: '#4a5568', fontSize: '0.85rem', marginTop: '0.25rem' }}>
         Tell us about who lives here. Demand is derived automatically from
         household composition — no need to estimate flow rates or concurrency.

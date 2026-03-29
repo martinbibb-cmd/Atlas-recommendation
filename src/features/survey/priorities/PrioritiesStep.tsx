@@ -17,6 +17,7 @@
  */
 
 import type { CSSProperties } from 'react';
+import { getStepMeta } from '../../../config/surveyStepRegistry';
 import type { PrioritiesState, PriorityKey } from './prioritiesTypes';
 import { PRIORITY_META } from './prioritiesTypes';
 
@@ -80,7 +81,7 @@ export function PrioritiesStep({
 
   return (
     <div className="step-card" data-testid="priorities-step">
-      <h2>🎯 What matters most in this home?</h2>
+      <h2>{getStepMeta('priorities').heading}</h2>
       <p style={{ color: '#4a5568', fontSize: '0.85rem', marginTop: '0.25rem', marginBottom: '0.75rem' }}>
         These priorities shape how Atlas presents suitable options. Physics fit stays the same.
       </p>

@@ -13,6 +13,7 @@
  */
 
 import { useState, type CSSProperties } from 'react';
+import { getStepMeta } from '../../../config/surveyStepRegistry';
 import type { WaterQualityState, HardnessBand } from './waterQualityTypes';
 import { INITIAL_WATER_QUALITY_STATE } from './waterQualityTypes';
 import { lookupWaterQuality } from './waterQualityLookup';
@@ -185,7 +186,7 @@ export function ServicesStep({
 
   return (
     <div className="step-card" data-testid="services-step">
-      <h2>🔧 Step 3: Services</h2>
+      <h2>{getStepMeta('services').heading}</h2>
       <p style={{ color: '#4a5568', fontSize: '0.85rem', marginTop: '0.25rem' }}>
         Capture the incoming supply properties for this property.
         Water quality affects combi plate heat exchanger scaling, cylinder coil fouling,

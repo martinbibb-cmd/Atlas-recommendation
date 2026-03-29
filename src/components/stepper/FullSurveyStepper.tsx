@@ -23,6 +23,13 @@ import { PrioritiesStep } from '../../features/survey/priorities/PrioritiesStep'
 import { INITIAL_PRIORITIES_STATE } from '../../features/survey/priorities/prioritiesTypes';
 import { HeatLossStep, INITIAL_HEAT_LOSS_STATE } from '../../features/survey/heatLoss/HeatLossStep';
 import { InsightLayerPage } from '../../features/survey/insight/InsightLayerPage';
+import {
+  type SurveyStepId,
+  SURVEY_STEP_IDS,
+  SURVEY_STEP_COUNT,
+  getStepMeta,
+  progressLabel,
+} from '../../config/surveyStepRegistry';
 
 interface Props {
   onBack: () => void;
@@ -50,8 +57,9 @@ interface Props {
   onOpenSimulator?: (engineInput: EngineInputV2_3) => void;
 }
 
-type Step = 'system_builder' | 'usage' | 'services' | 'heat_loss' | 'priorities' | 'insight';
-const STEPS: Step[] = ['system_builder', 'usage', 'services', 'heat_loss', 'priorities', 'insight'];
+// Step type and ordered sequence derived from the canonical registry.
+type Step = SurveyStepId;
+const STEPS: readonly SurveyStepId[] = SURVEY_STEP_IDS;
 
 // ─── Fabric Behaviour Controls ────────────────────────────────────────────────
 // Two independent physics dimensions:
@@ -245,7 +253,8 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
 
 
   const stepIndex = STEPS.indexOf(currentStep);
-  const progress = ((stepIndex + 1) / STEPS.length) * 100;
+  const progress = ((stepIndex + 1) / SURVEY_STEP_COUNT) * 100;
+  const currentMeta = getStepMeta(currentStep);
 
   // Scroll to top whenever the active step changes so the user always sees the
   // top of the new step — prevents "mid-page carryover" between steps.
@@ -337,7 +346,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
         <div className="progress-bar">
           <div className="progress-fill" style={{ width: `${progress}%` }} />
         </div>
-        <span className="step-label">Step {stepIndex + 1} of {STEPS.length}</span>
+        <span className="step-label">{progressLabel(currentStep)}</span>
       </div>
 
       {currentStep === 'services' && (
