@@ -22,26 +22,31 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ReferenceLine,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
 import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
 import {
   buildCanonicalPresentation,
   type Page1_5AgeingContext,
-  type ComponentDegradationBlock,
-  type CirculationSignal,
   type AvailableOptionExplanation,
   type PhysicsRankingItem,
   type ShortlistedOptionDetail,
   type FinalPageSimulator,
-  type DhwArchitecture,
 } from './buildCanonicalPresentation';
-import { resolveShortlistVisualId, resolveOptionsOverviewVisualId } from './presentationVisualMapping';
+import { resolveShortlistVisualId } from './presentationVisualMapping';
 import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
 import PresentationVisualSlot from './PresentationVisualSlot';
-import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
 import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
-import { optionToConceptModel } from '../../explainers/lego/autoBuilder/optionToConceptModel';
-import type { OptionId } from '../../explainers/lego/autoBuilder/optionToConceptModel';
 import QuadrantDashboardPage from './QuadrantDashboardPage';
 import './PresentationDeck.css';
 
@@ -72,243 +77,326 @@ function useReducedMotion(): boolean {
   return reduced;
 }
 
-// ─── Compare architecture page (new system vs current) ────────────────────────
+// ─── Page 2 — Boiler degradation charts ─────────────────────────────────────
 
-function CompareArchitecturePage({
+function DegradationChartsPage({
+  ctx,
   input,
-  option,
 }: {
+  ctx: Page1_5AgeingContext;
   input: EngineInputV2_3;
-  option: ShortlistedOptionDetail;
 }) {
-  const currentConcept   = inputToConceptModel(input);
-  const isMixergy        = option.dhwArchitecture === 'mixergy';
-  const recommendedConcept = optionToConceptModel(
-    option.family as OptionId,
-    isMixergy,
-    input.emitterType ? [input.emitterType] : undefined,
-  );
-  if (!currentConcept) return null;
+  const ageYears = input.currentBoilerAgeYears ?? 8;
+  const maxAge = Math.max(ageYears + 5, 15);
 
-  // Show future solar pathway when solar storage opportunity is high
-  const futurePathways = option.solarStorageOpportunity === 'high'
-    ? [{ id: 'solar_connection' as const }]
-    : [];
+  // Efficiency data: condensing boiler starts ~91%, degrades ~0.5%/yr base
+  const effData = Array.from({ length: maxAge + 1 }, (_, year) => ({
+    year,
+    efficiency: Math.max(65, Math.round((91 - year * 0.5) * 10) / 10),
+  }));
+
+  // Scale accumulation: index 0–10, plate HEx faster than cylinder
+  const scaleData = Array.from({ length: maxAge + 1 }, (_, year) => ({
+    year,
+    'Plate HEx': Math.min(10, Math.round(year * 0.55 * 10) / 10),
+    'Cylinder': Math.min(10, Math.round(year * 0.28 * 10) / 10),
+  }));
+
+  const bandClass = ctx.currentEfficiencyBand === 'healthy'
+    ? 'atlas-deck-degradation__band--healthy'
+    : ctx.currentEfficiencyBand === 'ageing'
+    ? 'atlas-deck-degradation__band--ageing'
+    : 'atlas-deck-degradation__band--neglected';
+
+  const bandLabel = ctx.currentEfficiencyBand === 'healthy'
+    ? '✅ Healthy'
+    : ctx.currentEfficiencyBand === 'ageing'
+    ? '⚠ Ageing'
+    : '🔴 Neglected';
 
   return (
     <>
-      <p className="atlas-presentation-deck__page-eyebrow">System changes</p>
-      <h2 className="atlas-presentation-deck__page-title">What changes — what stays</h2>
-      <div className="atlas-presentation-deck__visual atlas-presentation-deck__visual--architecture">
-        <SystemArchitectureVisualiser
-          mode="compare"
-          currentSystem={currentConcept}
-          recommendedSystem={recommendedConcept}
-          futurePathways={futurePathways}
-        />
+      <p className="atlas-presentation-deck__page-eyebrow">System condition</p>
+      <h2 className="atlas-presentation-deck__page-title">
+        How boilers like yours age
+      </h2>
+      <p className="atlas-deck-degradation__subtitle">
+        Boilers of this type, at this age, typically degrade like this.
+      </p>
+
+      <div className="atlas-deck-degradation__charts">
+        {/* Left: efficiency curve */}
+        <div className="atlas-deck-degradation__chart-box">
+          <p className="atlas-deck-degradation__chart-label">Boiler efficiency (%)</p>
+          <ResponsiveContainer width="100%" height={170}>
+            <LineChart data={effData} margin={{ top: 4, right: 8, left: -10, bottom: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis
+                dataKey="year"
+                tick={{ fontSize: 9 }}
+                label={{ value: 'Years', position: 'insideBottom', offset: -4, fontSize: 9 }}
+              />
+              <YAxis domain={[60, 95]} tick={{ fontSize: 9 }} />
+              <Tooltip formatter={(v: number | undefined) => [v != null ? `${v}%` : '', 'Efficiency']} />
+              {ageYears > 0 && (
+                <ReferenceLine
+                  x={ageYears}
+                  stroke="#e53e3e"
+                  strokeDasharray="4 2"
+                  label={{ value: `Now`, position: 'top', fontSize: 8, fill: '#e53e3e' }}
+                />
+              )}
+              <Line
+                type="monotone"
+                dataKey="efficiency"
+                stroke="#3182ce"
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Right: scale build-up */}
+        <div className="atlas-deck-degradation__chart-box">
+          <p className="atlas-deck-degradation__chart-label">Scale build-up (0–10)</p>
+          <ResponsiveContainer width="100%" height={170}>
+            <LineChart data={scaleData} margin={{ top: 4, right: 8, left: -10, bottom: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis
+                dataKey="year"
+                tick={{ fontSize: 9 }}
+                label={{ value: 'Years', position: 'insideBottom', offset: -4, fontSize: 9 }}
+              />
+              <YAxis domain={[0, 10]} tick={{ fontSize: 9 }} />
+              <Tooltip />
+              <ReferenceLine
+                y={7}
+                stroke="#fc8181"
+                strokeDasharray="3 3"
+                label={{ value: 'Action', position: 'right', fontSize: 8, fill: '#e53e3e' }}
+              />
+              {ageYears > 0 && (
+                <ReferenceLine
+                  x={ageYears}
+                  stroke="#2b6cb0"
+                  strokeDasharray="4 2"
+                  label={{ value: 'Now', position: 'top', fontSize: 8, fill: '#2b6cb0' }}
+                />
+              )}
+              <Legend iconSize={8} wrapperStyle={{ fontSize: '0.65rem' }} />
+              <Line type="monotone" dataKey="Plate HEx" stroke="#e53e3e" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Cylinder" stroke="#ed8936" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="atlas-deck-degradation__footer">
+        <span className={`atlas-deck-degradation__band ${bandClass}`}>{bandLabel}</span>
+        <span className="atlas-deck-degradation__band-desc">{ctx.efficiencyBandDescription}</span>
       </div>
     </>
   );
 }
 
-// ─── Ageing page sub-components ─────────────────────────────────────────────
+// ─── Page 2.5 — Low-hanging fruit ────────────────────────────────────────────
 
-/** Block A: efficiency drift — shows healthy → ageing → neglected path */
-function EfficiencyDriftBlock({ ctx }: { ctx: Page1_5AgeingContext }) {
-  const bands: Array<{ key: 'healthy' | 'ageing' | 'neglected'; label: string }> = [
-    { key: 'healthy',   label: 'Healthy' },
-    { key: 'ageing',    label: 'Ageing' },
-    { key: 'neglected', label: 'Neglected' },
-  ];
+const FRUIT_TILES = [
+  { icon: '🌡️', label: 'TRV upgrade',        desc: 'Precise room-by-room control' },
+  { icon: '⚖️', label: 'System balance',      desc: 'Even heat, every radiator' },
+  { icon: '🧪', label: 'Chemical inhibitor',  desc: 'Corrosion & scale protection' },
+  { icon: '💧', label: 'Power flush',         desc: 'Remove sludge, restore flow' },
+  { icon: '🌤️', label: 'Weather comp.',       desc: 'Auto-modulate to outside temp' },
+] as const;
+
+function LowHangingFruitPage({ ctx }: { ctx: Page1_5AgeingContext }) {
   return (
-    <div className="ageing-block">
-      <p className="ageing-block__label">A — Efficiency drift</p>
-      <div className="ageing-block__drift-track">
-        {bands.map(b => {
-          const isCurrent = ctx.currentEfficiencyBand === b.key;
-          const cls = [
-            `ageing-block__drift-band ageing-block__drift-band--${b.key}`,
-            isCurrent ? 'ageing-block__drift-band--current' : '',
-          ].filter(Boolean).join(' ');
+    <>
+      <p className="atlas-presentation-deck__page-eyebrow">Quick wins</p>
+      <h2 className="atlas-presentation-deck__page-title">
+        The low-hanging fruit
+      </h2>
+      <p className="atlas-deck-fruit__subtitle">
+        Before any new system — getting your return temperature to 55°C or below unlocks
+        condensing-mode efficiency.
+      </p>
+      <div className="atlas-deck-fruit__tiles">
+        {FRUIT_TILES.map(t => (
+          <div key={t.label} className="atlas-deck-fruit__tile">
+            <span className="atlas-deck-fruit__icon" aria-hidden="true">{t.icon}</span>
+            <span className="atlas-deck-fruit__label">{t.label}</span>
+            <span className="atlas-deck-fruit__desc">{t.desc}</span>
+          </div>
+        ))}
+      </div>
+      {ctx.likelyFirstImprovements.length > 0 && (
+        <ul className="atlas-deck-fruit__extra">
+          {ctx.likelyFirstImprovements.map((item, i) => (
+            <li key={i}>{item}</li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+// ─── Page 3 — 4-quadrant system options grid ─────────────────────────────────
+
+const SYSTEM_OPTION_DEFS = [
+  {
+    key: 'regular_vented',
+    heading: 'Regular / System boiler',
+    sub: '+ Open vented stored hot water',
+    imageId: 'stored_vented',
+  },
+  {
+    key: 'stored_unvented',
+    heading: 'Regular / System boiler',
+    sub: '+ Unvented stored hot water',
+    imageId: 'stored_unvented',
+  },
+  {
+    key: 'ashp',
+    heading: 'Air source heat pump',
+    sub: '+ Stored hot water',
+    imageId: 'ashp',
+  },
+  {
+    key: 'combi',
+    heading: 'Combination boiler',
+    sub: 'On-demand hot water',
+    imageId: 'combi',
+  },
+] as const;
+
+function SystemOptionsGridPage({ options }: { options: AvailableOptionExplanation[] }) {
+  return (
+    <>
+      <p className="atlas-presentation-deck__page-eyebrow">Available systems</p>
+      <h2 className="atlas-presentation-deck__page-title">
+        The systems available to you
+      </h2>
+      <div className="atlas-deck-sys-grid">
+        {SYSTEM_OPTION_DEFS.map(def => {
+          const image = imageForOptionId(def.imageId);
+          // Match this cell to an available option by family / id
+          const opt = options.find(o =>
+            o.id === def.key || o.id === def.imageId ||
+            (def.key === 'regular_vented' && (o.id === 'regular' || o.id === 'stored_vented')) ||
+            (def.key === 'ashp' && (o.id === 'heat_pump' || o.id === 'ashp')),
+          );
+          const bullets = opt
+            ? [
+                ...opt.throughHouseNotes.slice(0, 1),
+                ...opt.throughHomeNotes.slice(0, 1),
+              ].filter(Boolean)
+            : [];
+          const status = opt?.status ?? 'viable';
+
           return (
-            <div key={b.key} className={cls}>
-              {b.label}
-              {isCurrent && (
-                <span className="ageing-block__drift-here" aria-label="Current position">▲</span>
+            <div
+              key={def.key}
+              className={`atlas-deck-sys-grid__cell atlas-deck-sys-grid__cell--${status}`}
+            >
+              <p className="atlas-deck-sys-grid__heading">{def.heading}</p>
+              <p className="atlas-deck-sys-grid__sub">{def.sub}</p>
+              {image ? (
+                <img
+                  src={image.src}
+                  alt={image.alt}
+                  className="atlas-deck-sys-grid__image"
+                />
+              ) : (
+                <div className="atlas-deck-sys-grid__image-placeholder" />
+              )}
+              {bullets.length > 0 && (
+                <ul className="atlas-deck-sys-grid__bullets">
+                  {bullets.map((b, i) => <li key={i}>{b}</li>)}
+                </ul>
               )}
             </div>
           );
         })}
       </div>
-      <p className="ageing-block__desc">{ctx.efficiencyBandDescription}</p>
-    </div>
-  );
-}
-
-/** Block B: architecture-specific component degradation */
-function ComponentDegradationBlockView({ block }: { block: ComponentDegradationBlock }) {
-  const conditionColour: Record<string, string> = {
-    good:     'ageing-condition--good',
-    moderate: 'ageing-condition--moderate',
-    poor:     'ageing-condition--poor',
-    severe:   'ageing-condition--severe',
-    unknown:  'ageing-condition--unknown',
-  };
-  return (
-    <div className="ageing-block">
-      <p className="ageing-block__label">B — Hot-water component</p>
-      <p className="ageing-block__component-name">{block.componentLabel}</p>
-      <p className={`ageing-block__condition-badge ${conditionColour[block.conditionBand] ?? ''}`}>
-        {block.conditionLabel}
-      </p>
-      <p className="ageing-block__desc">{block.degradationMechanism}</p>
-    </div>
-  );
-}
-
-/** Block C: cleanliness / circulation signal pills */
-function CirculationBlock({ signals }: { signals: CirculationSignal[] }) {
-  const statusIcon: Record<CirculationSignal['status'], string> = {
-    ok:      '✓ ',
-    warn:    '⚠ ',
-    unknown: '? ',
-  };
-  return (
-    <div className="ageing-block">
-      <p className="ageing-block__label">C — Cleanliness &amp; circulation</p>
-      <ul className="ageing-block__signals" aria-label="Circulation signals">
-        {signals.map((s, i) => (
-          <li
-            key={i}
-            className={`ageing-block__signal-pill ageing-block__signal-pill--${s.status}`}
-          >
-            {statusIcon[s.status]}{s.label}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function AgeingPage({ ctx }: { ctx: Page1_5AgeingContext }) {
-  return (
-    <>
-      <p className="atlas-presentation-deck__page-eyebrow">System condition</p>
-      <h2 className="atlas-presentation-deck__page-title">{ctx.heading}</h2>
-      <p className="ageing-page__condition-summary">{ctx.conditionSummary}</p>
-
-      {/* Three visual blocks */}
-      <div className="ageing-page__blocks">
-        <EfficiencyDriftBlock ctx={ctx} />
-        <ComponentDegradationBlockView block={ctx.componentDegradation} />
-        <CirculationBlock signals={ctx.circulationSignals} />
-      </div>
-
-      {/* What this means in your home */}
-      <div className="ageing-page__impacts">
-        <p className="ageing-page__section-heading">What this means in your home</p>
-        <ul className="ageing-page__impact-list">
-          {ctx.homeImpacts.map((impact, i) => (
-            <li key={i}>{impact}</li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Likely first improvements */}
-      {ctx.likelyFirstImprovements.length > 0 && (
-        <div className="ageing-page__improvements">
-          <p className="ageing-page__section-heading">Likely first improvements</p>
-          <ul className="ageing-page__improvement-list">
-            {ctx.likelyFirstImprovements.map((item, i) => (
-              <li key={i}>{item}</li>
-            ))}
-          </ul>
-        </div>
-      )}
     </>
   );
 }
 
-function OptionsPage({
-  options,
-  currentSystemArchitecture,
+// ─── Page 4 — Physics ranking (star ratings + pick 1 or 2) ──────────────────
+
+function RankingPage({
+  items,
+  onSelectOption1,
+  onSelectOption2,
 }: {
-  options: AvailableOptionExplanation[];
-  currentSystemArchitecture: DhwArchitecture;
+  items: PhysicsRankingItem[];
+  onSelectOption1: () => void;
+  onSelectOption2: () => void;
 }) {
-  const viableCount = options.filter(o => o.status === 'viable').length;
-  const title = viableCount === 1
-    ? '1 viable system for this home'
-    : `${viableCount} viable systems for this home`;
+  const maxScore = Math.max(...items.map(i => i.overallScore), 1);
+  const RANK_COLOURS = ['#b7791f', '#718096', '#744210', '#a0aec0'];
 
-  // Use the current system's DHW architecture to select an architecture-valid
-  // visual.  Returns null for on_demand (no cylinder to animate) and undefined
-  // architectures so a neutral card is rendered instead of a fallback animation.
-  const visualId = resolveOptionsOverviewVisualId(currentSystemArchitecture);
+  function starRating(score: number): string {
+    const filled = Math.round((score / maxScore) * 4);
+    return Array.from({ length: 4 }, (_, i) => (i < filled ? '★' : '☆')).join('');
+  }
 
   return (
     <>
-      <p className="atlas-presentation-deck__page-eyebrow">Available options</p>
-      <h2 className="atlas-presentation-deck__page-title">{title}</h2>
-      {visualId !== null && (
-        <div className="atlas-presentation-deck__visual">
-          {visualId === 'thermal_store' ? (
-            <PresentationVisualSlot
-              visualId="thermal_store"
-              visualData={{ flowTempBand: 'high' }}
-            />
-          ) : visualId === 'cylinder_charge_mixergy' ? (
-            <PresentationVisualSlot visualId="cylinder_charge_mixergy" />
-          ) : (
-            <PresentationVisualSlot visualId="cylinder_charge_standard" />
-          )}
-        </div>
-      )}
-      <ul className="atlas-presentation-deck__options-list">
-        {options.map(opt => (
-          <li key={opt.id} className="atlas-presentation-deck__options-item">
-            <span className={`atlas-presentation-deck__options-badge atlas-presentation-deck__options-badge--${opt.status}`}>
-              {opt.status === 'viable' ? '✅' : opt.status === 'caution' ? '⚠️' : '🚫'}
-            </span>
-            <span>{opt.label}</span>
-          </li>
-        ))}
-      </ul>
-    </>
-  );
-}
-
-function RankingPage({ items }: { items: PhysicsRankingItem[] }) {
-  const best = items[0];
-  const title = best ? `Best fit: ${best.label}` : 'Physics-first ranking';
-
-  return (
-    <>
-      <p className="atlas-presentation-deck__page-eyebrow">Best fit</p>
-      <h2 className="atlas-presentation-deck__page-title">{title}</h2>
-      {best && (
-        <p className="atlas-presentation-deck__takeaway">{best.reasonLine}</p>
-      )}
-      <div className="atlas-presentation-deck__ranking-podium">
-        {items.slice(0, 3).map(item => (
+      <p className="atlas-presentation-deck__page-eyebrow">Physics ranking</p>
+      <h2 className="atlas-presentation-deck__page-title">
+        From pure physics, these systems rank for your home
+      </h2>
+      <div className="atlas-deck-ranking__list">
+        {items.map((item, i) => (
           <div
             key={item.family}
-            className={`atlas-presentation-deck__ranking-row${item.rank === 1 ? ' atlas-presentation-deck__ranking-row--rank-1' : ''}`}
+            className={`atlas-deck-ranking__row${item.rank === 1 ? ' atlas-deck-ranking__row--rank-1' : ''}`}
             aria-label={`Rank ${item.rank}: ${item.label}`}
           >
-            <span className="atlas-presentation-deck__ranking-num" aria-hidden="true">{item.rank}</span>
-            <span className="atlas-presentation-deck__ranking-label">{item.label}</span>
-            {item.overallScore > 0 && (
-              <span className="atlas-presentation-deck__ranking-reason">{item.overallScore} pts</span>
-            )}
+            <span
+              className="atlas-deck-ranking__num"
+              aria-hidden="true"
+              style={{ background: RANK_COLOURS[i] ?? '#a0aec0' }}
+            >
+              {item.rank}
+            </span>
+            <div className="atlas-deck-ranking__body">
+              <span className="atlas-deck-ranking__label">{item.label}</span>
+              {item.overallScore > 0 && (
+                <span className="atlas-deck-ranking__stars" aria-label={`${Math.round((item.overallScore / maxScore) * 4)} out of 4 stars`}>
+                  {starRating(item.overallScore)}
+                </span>
+              )}
+              <span className="atlas-deck-ranking__reason">{item.reasonLine}</span>
+            </div>
           </div>
         ))}
         {items.length === 0 && (
           <p style={{ fontSize: '0.85rem', color: '#a0aec0', fontStyle: 'italic' }}>
-            No ranking available.
+            No ranking available — run the engine with recommendation output.
           </p>
         )}
       </div>
+      {items.length >= 2 && (
+        <div className="atlas-deck-ranking__cta-row">
+          <button
+            type="button"
+            className="atlas-deck-ranking__cta-btn atlas-deck-ranking__cta-btn--1"
+            onClick={onSelectOption1}
+          >
+            Explore option 1 →
+          </button>
+          <button
+            type="button"
+            className="atlas-deck-ranking__cta-btn atlas-deck-ranking__cta-btn--2"
+            onClick={onSelectOption2}
+          >
+            Explore option 2 →
+          </button>
+        </div>
+      )}
     </>
   );
 }
@@ -370,48 +458,68 @@ function ShortlistPage({ option, index }: { option: ShortlistedOptionDetail; ind
   );
 }
 
+// ─── Page 7 — Simulator + print handoff ─────────────────────────────────────
+
 function SimulatorPage({
   sim,
   onOpenSimulator,
+  onPrint,
 }: {
   sim: FinalPageSimulator;
   onOpenSimulator?: () => void;
+  onPrint?: () => void;
 }) {
   return (
     <>
       <p className="atlas-presentation-deck__page-eyebrow">Proof</p>
-      <h2 className="atlas-presentation-deck__page-title">Test this recommendation</h2>
-      <div className="atlas-presentation-deck__simulator-card">
-        <p className="atlas-presentation-deck__simulator-identity">
-          System Simulator · Live taps, heating, and full system diagram
-        </p>
-        <p className="atlas-presentation-deck__simulator-scenario">{sim.homeScenarioDescription}</p>
-        <p className="atlas-presentation-deck__simulator-architecture-note">{sim.dhwArchitectureNote}</p>
-        {sim.simulatorCapabilities.length > 0 && (
-          <ul className="atlas-presentation-deck__simulator-capabilities">
-            {sim.simulatorCapabilities.map((cap, i) => <li key={i}>{cap}</li>)}
-          </ul>
-        )}
-        {sim.houseConstraintNotes.length > 0 && (
-          <ul className="atlas-presentation-deck__simulator-notes">
-            {sim.houseConstraintNotes.map((note, i) => <li key={i}>{note}</li>)}
-          </ul>
-        )}
-        {sim.energyTimingNotes.length > 0 && (
-          <ul className="atlas-presentation-deck__simulator-notes">
-            {sim.energyTimingNotes.map((note, i) => <li key={i}>{note}</li>)}
-          </ul>
-        )}
-        {onOpenSimulator && (
-          <button
-            type="button"
-            className="atlas-presentation-deck__simulator-cta"
-            onClick={onOpenSimulator}
-          >
-            Open System Simulator →
-          </button>
-        )}
+      <h2 className="atlas-presentation-deck__page-title">
+        See how this will actually work in your home
+      </h2>
+      <div className="atlas-deck-simulator__tiles">
+        {/* Simulator tile */}
+        <div className="atlas-deck-simulator__tile atlas-deck-simulator__tile--sim">
+          <p className="atlas-deck-simulator__tile-icon" aria-hidden="true">⚡</p>
+          <p className="atlas-deck-simulator__tile-heading">System Simulator</p>
+          <p className="atlas-deck-simulator__tile-desc">
+            Live taps, heating and full system diagram. See exactly how your system performs.
+          </p>
+          {sim.simulatorCapabilities.length > 0 && (
+            <ul className="atlas-deck-simulator__caps">
+              {sim.simulatorCapabilities.map((cap, i) => <li key={i}>{cap}</li>)}
+            </ul>
+          )}
+          {onOpenSimulator && (
+            <button
+              type="button"
+              className="atlas-deck-simulator__tile-btn"
+              onClick={onOpenSimulator}
+            >
+              Open simulator →
+            </button>
+          )}
+        </div>
+
+        {/* Print tile */}
+        <div className="atlas-deck-simulator__tile atlas-deck-simulator__tile--print">
+          <p className="atlas-deck-simulator__tile-icon" aria-hidden="true">📄</p>
+          <p className="atlas-deck-simulator__tile-heading">Take this away</p>
+          <p className="atlas-deck-simulator__tile-desc">
+            We'll print a summary for you to review at home — everything in one place.
+          </p>
+          {onPrint && (
+            <button
+              type="button"
+              className="atlas-deck-simulator__tile-btn atlas-deck-simulator__tile-btn--print"
+              onClick={onPrint}
+            >
+              Print summary →
+            </button>
+          )}
+        </div>
       </div>
+      {sim.homeScenarioDescription && (
+        <p className="atlas-deck-simulator__scenario">{sim.homeScenarioDescription}</p>
+      )}
     </>
   );
 }
@@ -470,6 +578,8 @@ export interface PresentationDeckProps {
   input: EngineInputV2_3;
   recommendationResult?: RecommendationResult;
   onOpenSimulator?: () => void;
+  /** Optional callback to open the print/PDF view. */
+  onPrint?: () => void;
   /**
    * Optional heat-loss survey state.
    * When provided, the quadrant dashboard uses the shell perimeter snapshot
@@ -478,7 +588,7 @@ export interface PresentationDeckProps {
   heatLossState?: import('../../features/survey/heatLoss/heatLossTypes').HeatLossState;
   /**
    * Optional chip-style priorities from the Priorities step.
-   * When provided, the Your Priorities tile shows the selected chips.
+   * When provided, the Your Objectives tile shows the selected chips.
    */
   prioritiesState?: import('../../features/survey/priorities/prioritiesTypes').PrioritiesState;
 }
@@ -494,6 +604,7 @@ export default function PresentationDeck({
   input,
   recommendationResult,
   onOpenSimulator,
+  onPrint,
   heatLossState,
   prioritiesState,
 }: PresentationDeckProps) {
@@ -510,22 +621,34 @@ export default function PresentationDeck({
   // Derive the current system concept model once — used for architecture slides.
   const currentSystemConcept = inputToConceptModel(input);
 
+  // ─── Pre-compute page indices for ranking → option navigation ────────────
+  //
+  // Pages are always in this order:
+  //   0: quadrant_overview
+  //   1: degradation_charts  (conditional on page1_5.hasRealEvidence)
+  //   1|2: low_hanging_fruit
+  //   2|3: system_options_grid
+  //   3|4: ranking
+  //   4|5: option_1
+  //   5|6: option_2
+  //   last: simulator
+  //
+  const rankingIdx = 1 + (page1_5.hasRealEvidence ? 1 : 0) + 1 + 1;
+  const opt1Idx    = rankingIdx + 1;
+  const opt2Idx    = rankingIdx + 2;
+
   // ─── Build page list ───────────────────────────────────────────────────────
 
   const pages: DeckPageDescriptor[] = [
-    // ── 1. Quadrant overview — full dashboard of house / home / system / priorities
+    // ── 1. Quadrant overview — house / home / system / objectives ─────────────
     {
       id:    'quadrant_overview',
-      label: 'Overview',
+      label: 'What we know',
       canonicalSource: {
         component: 'QuadrantDashboardPage',
         fields: [
-          'page1.house (buildHouseSignal ← input.heatLossWatts/wallType/buildingMass)',
-          'page1.home (buildHomeSignal ← demographicOutputs)',
-          'page1.currentSystem (buildCurrentSystemSignal ← input.currentHeatSourceType/currentBoilerAgeYears)',
-          'page1.objectives (buildObjectivesSignal ← prioritiesState.selected OR expertAssumptions)',
-          'heatLossState.shellSnapshotUrl (survey HeatLossStep)',
-          'prioritiesState.selected (survey PrioritiesStep)',
+          'page1.house', 'page1.home', 'page1.currentSystem', 'page1.objectives',
+          'heatLossState', 'prioritiesState', 'input.bedrooms/bathroomCount/householdComposition',
         ],
       },
       content: (
@@ -533,7 +656,7 @@ export default function PresentationDeck({
           <p className="atlas-presentation-deck__page-eyebrow">What we know</p>
           <DevProvenanceBadge
             component="QuadrantDashboardPage"
-            fields={['page1.house', 'page1.home', 'page1.currentSystem', 'page1.objectives', 'heatLossState', 'prioritiesState']}
+            fields={['page1.house', 'page1.home', 'page1.currentSystem', 'page1.objectives']}
           />
           <QuadrantDashboardPage
             house={page1.house}
@@ -543,145 +666,146 @@ export default function PresentationDeck({
             heatLossState={heatLossState}
             prioritiesState={prioritiesState}
             objectives={page1.objectives}
+            input={input}
           />
         </div>
       ),
     },
-    // ── 2. Ageing / degradation — only shown when backed by real survey evidence
-    // (age recorded, condition band captured, or sludge signal detected).
-    // Suppressed when there is no input-derived evidence to avoid showing
-    // synthetic health-band copy that looks authoritative but is fabricated.
+
+    // ── 2. Degradation charts — boiler efficiency + scale build-up ────────────
+    //    Only shown when backed by real survey evidence.
     ...(page1_5.hasRealEvidence
       ? [{
-          id: 'ageing',
-          label: 'Condition',
+          id: 'degradation_charts',
+          label: 'How it ages',
           canonicalSource: {
-            component: 'AgeingPage',
+            component: 'DegradationChartsPage',
             fields: [
-              'page1_5.hasRealEvidence (gates this slide)',
-              'page1_5.efficiencyBand (input.currentBoilerAgeYears/boilerConditionBand)',
-              'page1_5.componentDegradation (input.plateHexConditionBand/cylinderConditionBand)',
-              'page1_5.circulationSignals (input.hasMagneticFilter/waterHardness)',
+              'page1_5.currentEfficiencyBand', 'page1_5.efficiencyBandDescription',
+              'input.currentBoilerAgeYears',
             ],
           },
           content: (
             <>
               <DevProvenanceBadge
-                component="AgeingPage"
-                fields={['page1_5.efficiencyBand', 'page1_5.componentDegradation', 'page1_5.circulationSignals', 'page1_5.hasRealEvidence=true']}
+                component="DegradationChartsPage"
+                fields={['page1_5.efficiencyBand', 'input.currentBoilerAgeYears']}
               />
-              <AgeingPage ctx={page1_5} />
+              <DegradationChartsPage ctx={page1_5} input={input} />
             </>
           ),
         }]
       : []),
-    // ── 3. Available systems ─────────────────────────────────────────────────
+
+    // ── 2.5. Low-hanging fruit — condensing-mode quick wins ───────────────────
     {
-      id: 'options',
-      label: 'Options',
+      id:    'low_hanging_fruit',
+      label: 'Quick wins',
       canonicalSource: {
-        component: 'OptionsPage',
-        fields: [
-          'page2.options (buildPage2 ← result.engineOutput.options)',
-          'page1.currentSystem.dhwArchitecture (storageTypeToArchitecture)',
-        ],
+        component: 'LowHangingFruitPage',
+        fields: ['page1_5.likelyFirstImprovements'],
       },
       content: (
         <>
           <DevProvenanceBadge
-            component="OptionsPage"
-            fields={['page2.options ← result.engineOutput.options', 'page1.currentSystem.dhwArchitecture']}
+            component="LowHangingFruitPage"
+            fields={['page1_5.likelyFirstImprovements']}
           />
-          <OptionsPage options={page2.options} currentSystemArchitecture={page1.currentSystem.dhwArchitecture} />
+          <LowHangingFruitPage ctx={page1_5} />
         </>
       ),
     },
-    // ── 4. Physics ranking ───────────────────────────────────────────────────
+
+    // ── 3. System options grid — 4-quadrant images with bullet points ─────────
     {
-      id: 'ranking',
+      id:    'system_options_grid',
+      label: 'Systems',
+      canonicalSource: {
+        component: 'SystemOptionsGridPage',
+        fields: ['page2.options ← result.engineOutput.options'],
+      },
+      content: (
+        <>
+          <DevProvenanceBadge
+            component="SystemOptionsGridPage"
+            fields={['page2.options ← engineOutput.options']}
+          />
+          <SystemOptionsGridPage options={page2.options} />
+        </>
+      ),
+    },
+
+    // ── 4. Physics ranking — star ratings + pick 1 or 2 ──────────────────────
+    {
+      id:    'ranking',
       label: 'Best fit',
       canonicalSource: {
         component: 'RankingPage',
         fields: [
-          'page3.items (buildPage3 ← recommendation.bestOverall/bestByObjective/disqualifiedCandidates)',
-          'each item.reasonLine derived from demographicOutputs/pvAssessment',
+          'page3.items ← recommendation.bestOverall/bestByObjective',
+          'item.reasonLine ← demographicOutputs/pvAssessment',
         ],
       },
       content: (
         <>
           <DevProvenanceBadge
             component="RankingPage"
-            fields={['page3.items ← recommendation.bestOverall/bestByObjective', 'item.reasonLine ← demographicOutputs/pvAssessment']}
+            fields={['page3.items', 'item.reasonLine']}
           />
-          <RankingPage items={page3.items} />
+          <RankingPage
+            items={page3.items}
+            onSelectOption1={() => goTo(opt1Idx)}
+            onSelectOption2={() => goTo(opt2Idx)}
+          />
         </>
       ),
     },
-    // ── 5 / 6. Options with compare architecture slides ──────────────────────
-    ...page4Plus.options.flatMap((opt, i) => [
-      {
-        id:      `option_${i + 1}`,
-        label:   `Option ${i + 1}`,
-        canonicalSource: {
-          component: 'ShortlistPage',
-          fields: [
-            `page4Plus.options[${i}] (buildPage4Plus ← recommendation shortlist)`,
-            'opt.complianceRequired/bestPerformanceUpgrades/optionalUpgrades',
-          ],
-        },
-        content: (
-          <>
-            <DevProvenanceBadge
-              component="ShortlistPage"
-              fields={[`page4Plus.options[${i}] ← recommendation shortlist`, 'complianceRequired', 'bestPerformanceUpgrades']}
-            />
-            <ShortlistPage option={opt} index={i} />
-          </>
-        ),
+
+    // ── 5 / 6. Shortlisted option detail (no compare-architecture slides) ─────
+    ...page4Plus.options.slice(0, 2).map((opt, i) => ({
+      id:    `option_${i + 1}`,
+      label: `Option ${i + 1}`,
+      canonicalSource: {
+        component: 'ShortlistPage',
+        fields: [
+          `page4Plus.options[${i}] ← recommendation shortlist`,
+          'complianceItems', 'requiredWork', 'bestPerformanceUpgrades',
+        ],
       },
-      // Compare architecture slide — shows what changes vs current system
-      ...(currentSystemConcept
-        ? [{
-            id:      `compare_${i + 1}`,
-            label:   `Changes ${i + 1}`,
-            canonicalSource: {
-              component: 'CompareArchitecturePage',
-              fields: [
-                'input (EngineInputV2_3 — current system architecture)',
-                `page4Plus.options[${i}].family (recommended option architecture)`,
-              ],
-            },
-            content: (
-              <>
-                <DevProvenanceBadge
-                  component="CompareArchitecturePage"
-                  fields={['input.currentHeatSourceType/dhwStorageType', `opt[${i}].family`]}
-                />
-                <CompareArchitecturePage input={input} option={opt} />
-              </>
-            ),
-          }]
-        : []),
-    ]),
-    // ── 7. Simulator handoff / print ─────────────────────────────────────────
+      content: (
+        <>
+          <DevProvenanceBadge
+            component="ShortlistPage"
+            fields={[`page4Plus.options[${i}]`, 'requiredWork', 'bestPerformanceUpgrades']}
+          />
+          <ShortlistPage option={opt} index={i} />
+        </>
+      ),
+    })),
+
+    // ── 7. Simulator + print handoff ─────────────────────────────────────────
     {
-      id:      'simulator',
-      label:   'Proof',
+      id:    'simulator',
+      label: 'Proof',
       canonicalSource: {
         component: 'SimulatorPage',
         fields: [
-          'finalPage (buildFinalPage ← result/input/currentSystem.dhwArchitecture)',
           'finalPage.homeScenarioDescription',
           'finalPage.simulatorCapabilities',
+          'finalPage.dhwArchitectureNote',
         ],
       },
       content: (
         <>
           <DevProvenanceBadge
             component="SimulatorPage"
-            fields={['finalPage.homeScenarioDescription', 'finalPage.simulatorCapabilities', 'finalPage.dhwArchitectureNote']}
+            fields={['finalPage.homeScenarioDescription', 'finalPage.simulatorCapabilities']}
           />
-          <SimulatorPage sim={finalPage} onOpenSimulator={onOpenSimulator} />
+          <SimulatorPage
+            sim={finalPage}
+            onOpenSimulator={onOpenSimulator}
+            onPrint={onPrint}
+          />
         </>
       ),
     },

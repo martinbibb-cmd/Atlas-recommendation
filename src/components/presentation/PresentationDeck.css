@@ -714,3 +714,395 @@
   opacity: 0.8;
   word-break: break-all;
 }
+
+/* ─── Page 2 — Degradation charts ────────────────────────────────────────── */
+
+.atlas-deck-degradation__subtitle {
+  font-size: 0.82rem;
+  color: #4a5568;
+  margin: 0 0 0.75rem;
+  line-height: 1.4;
+}
+
+.atlas-deck-degradation__charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 520px) {
+  .atlas-deck-degradation__charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+.atlas-deck-degradation__chart-box {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.5rem 0.5rem 0.25rem;
+}
+
+.atlas-deck-degradation__chart-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #4a5568;
+  margin: 0 0 0.35rem;
+}
+
+.atlas-deck-degradation__footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.atlas-deck-degradation__band {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.atlas-deck-degradation__band--healthy   { background: #c6f6d5; color: #22543d; }
+.atlas-deck-degradation__band--ageing    { background: #fefcbf; color: #744210; }
+.atlas-deck-degradation__band--neglected { background: #fed7d7; color: #742a2a; }
+
+.atlas-deck-degradation__band-desc {
+  font-size: 0.78rem;
+  color: #4a5568;
+  line-height: 1.3;
+}
+
+/* ─── Page 2.5 — Low-hanging fruit tiles ────────────────────────────────── */
+
+.atlas-deck-fruit__subtitle {
+  font-size: 0.82rem;
+  color: #4a5568;
+  margin: 0 0 0.875rem;
+  line-height: 1.4;
+}
+
+.atlas-deck-fruit__tiles {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scroll-snap-type: x mandatory;
+}
+
+.atlas-deck-fruit__tile {
+  flex: 0 0 auto;
+  width: 120px;
+  min-height: 100px;
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-radius: 10px;
+  padding: 0.625rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  text-align: center;
+  scroll-snap-align: start;
+}
+
+.atlas-deck-fruit__icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.atlas-deck-fruit__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #276749;
+  line-height: 1.2;
+}
+
+.atlas-deck-fruit__desc {
+  font-size: 0.65rem;
+  color: #4a5568;
+  line-height: 1.3;
+}
+
+.atlas-deck-fruit__extra {
+  margin: 0.75rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  color: #4a5568;
+  line-height: 1.5;
+}
+
+.atlas-deck-fruit__extra li {
+  margin-bottom: 0.2rem;
+}
+
+/* ─── Page 3 — System options grid ──────────────────────────────────────── */
+
+.atlas-deck-sys-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 480px) {
+  .atlas-deck-sys-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.atlas-deck-sys-grid__cell {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow: hidden;
+}
+
+.atlas-deck-sys-grid__cell--viable   { border-top: 2px solid #48bb78; }
+.atlas-deck-sys-grid__cell--caution  { border-top: 2px solid #ecc94b; }
+.atlas-deck-sys-grid__cell--rejected { border-top: 2px solid #fc8181; }
+
+.atlas-deck-sys-grid__heading {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.atlas-deck-sys-grid__sub {
+  font-size: 0.62rem;
+  color: #718096;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.atlas-deck-sys-grid__image {
+  width: 100%;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.atlas-deck-sys-grid__image-placeholder {
+  width: 100%;
+  height: 80px;
+  background: #edf2f7;
+  border-radius: 4px;
+  border: 1px dashed #cbd5e0;
+  flex-shrink: 0;
+}
+
+.atlas-deck-sys-grid__bullets {
+  margin: 0;
+  padding-left: 0.85rem;
+  font-size: 0.62rem;
+  color: #4a5568;
+  line-height: 1.35;
+}
+
+.atlas-deck-sys-grid__bullets li {
+  margin-bottom: 0.1rem;
+}
+
+/* ─── Page 4 — Physics ranking (star ratings) ────────────────────────────── */
+
+.atlas-deck-ranking__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.atlas-deck-ranking__row {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  gap: 0.5rem;
+  align-items: start;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+}
+
+.atlas-deck-ranking__row--rank-1 {
+  background: #f0fff4;
+  border-color: #9ae6b4;
+}
+
+.atlas-deck-ranking__num {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.atlas-deck-ranking__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.atlas-deck-ranking__label {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #1a202c;
+}
+
+.atlas-deck-ranking__stars {
+  font-size: 1rem;
+  color: #d69e2e;
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+.atlas-deck-ranking__reason {
+  font-size: 0.78rem;
+  color: #4a5568;
+  line-height: 1.35;
+}
+
+.atlas-deck-ranking__cta-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.atlas-deck-ranking__cta-btn {
+  flex: 1;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  text-align: center;
+}
+
+.atlas-deck-ranking__cta-btn:hover { opacity: 0.85; }
+
+.atlas-deck-ranking__cta-btn--1 {
+  background: #2b6cb0;
+  color: #fff;
+}
+
+.atlas-deck-ranking__cta-btn--2 {
+  background: #276749;
+  color: #fff;
+}
+
+/* ─── Page 7 — Simulator + print tiles ──────────────────────────────────── */
+
+.atlas-deck-simulator__tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .atlas-deck-simulator__tiles {
+    grid-template-columns: 1fr;
+  }
+}
+
+.atlas-deck-simulator__tile {
+  border-radius: 10px;
+  padding: 1rem 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.atlas-deck-simulator__tile--sim {
+  background: #ebf8ff;
+  border: 1px solid #90cdf4;
+}
+
+.atlas-deck-simulator__tile--print {
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+}
+
+.atlas-deck-simulator__tile-icon {
+  font-size: 1.75rem;
+  margin: 0;
+  line-height: 1;
+}
+
+.atlas-deck-simulator__tile-heading {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+}
+
+.atlas-deck-simulator__tile-desc {
+  font-size: 0.78rem;
+  color: #4a5568;
+  margin: 0;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.atlas-deck-simulator__caps {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.72rem;
+  color: #2a4365;
+  line-height: 1.4;
+}
+
+.atlas-deck-simulator__caps li {
+  margin-bottom: 0.15rem;
+}
+
+.atlas-deck-simulator__tile-btn {
+  display: inline-block;
+  padding: 0.45rem 0.875rem;
+  background: #3182ce;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.atlas-deck-simulator__tile-btn:hover { opacity: 0.88; }
+
+.atlas-deck-simulator__tile-btn--print {
+  background: #276749;
+}
+
+.atlas-deck-simulator__scenario {
+  font-size: 0.8rem;
+  color: #718096;
+  margin: 0;
+  font-style: italic;
+  line-height: 1.4;
+}

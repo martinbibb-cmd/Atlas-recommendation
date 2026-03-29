@@ -252,6 +252,61 @@
   color: #718096;
 }
 
+/* ── Occupant silhouettes (Home quadrant) ─────────────────────────────────── */
+
+.qdp-quadrant__visual--people {
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding-bottom: 0.25rem;
+}
+
+/* ── Issue chips (House quadrant) ─────────────────────────────────────────── */
+
+.qdp-house__issues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.2rem;
+}
+
+.qdp-issue-chip {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: #fefcbf;
+  color: #744210;
+  border: 1px solid #f6e05e;
+  white-space: nowrap;
+}
+
+/* ── Home collapsed copy stacking ─────────────────────────────────────────── */
+
+.qdp-home__collapsed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* Silhouette component */
+.occ-silhouettes {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.occ-silhouettes__count {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #4a5568;
+  margin-left: 2px;
+  align-self: flex-end;
+  line-height: 1;
+  padding-bottom: 2px;
+}
+
 /* ── Responsive: single-column on small screens ───────────────────────────── */
 
 @media (max-width: 480px) {

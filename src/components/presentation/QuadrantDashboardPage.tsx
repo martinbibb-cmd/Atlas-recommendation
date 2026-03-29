@@ -23,7 +23,9 @@ import type { HouseSignal, HomeSignal, CurrentSystemSignal, ObjectivesSignal } f
 import type { HeatLossState } from '../../features/survey/heatLoss/heatLossTypes';
 import type { PrioritiesState, PriorityKey } from '../../features/survey/priorities/prioritiesTypes';
 import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
+import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import PresentationVisualSlot from './PresentationVisualSlot';
+import OccupantSilhouettes from './OccupantSilhouettes';
 import { imageForCurrentSystem, imageForOptionId } from '../../ui/systemImages/systemImageMap';
 import type { SystemConceptModel } from '../../explainers/lego/model/types';
 import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
@@ -41,17 +43,21 @@ function onTileKeyDown(event: KeyboardEvent<HTMLElement>, onToggle: () => void) 
 function HouseQuadrant({
   house,
   heatLossState,
+  input,
   expanded,
   onToggle,
 }: {
   house: HouseSignal;
   heatLossState?: HeatLossState;
+  input?: EngineInputV2_3;
   expanded: boolean;
   onToggle: () => void;
 }) {
   const snapshot = heatLossState?.shellSnapshotUrl;
   const roofOrientation = heatLossState?.roofOrientation;
   const solarHint = house.pvPotentialLabel;
+  const bathroomCount = input?.bathroomCount;
+  const bedroomCount = input?.bedrooms;
 
   return (
     <div
@@ -94,6 +100,16 @@ function HouseQuadrant({
       {/* Summary row */}
       <div className="qdp-quadrant__summary">
         <span className="qdp-quadrant__badge">{house.heatLossLabel}</span>
+        {bedroomCount != null && (
+          <span className="qdp-quadrant__badge qdp-quadrant__badge--secondary">
+            {bedroomCount} bed
+          </span>
+        )}
+        {bathroomCount != null && (
+          <span className="qdp-quadrant__badge qdp-quadrant__badge--secondary">
+            {bathroomCount} bath
+          </span>
+        )}
         {roofOrientation && roofOrientation !== 'unknown' && (
           <span className="qdp-quadrant__badge qdp-quadrant__badge--secondary">
             Roof {roofOrientation}
@@ -101,11 +117,20 @@ function HouseQuadrant({
         )}
       </div>
 
-      {/* Expanded detail */}
+      {/* Collapsed: wall type + insulation, issues as chips */}
       {!expanded && (
-        <p className="qdp-quadrant__collapsed-copy">
-          {house.wallTypeLabel} · {house.insulationLabel}
-        </p>
+        <>
+          <p className="qdp-quadrant__collapsed-copy">
+            {house.wallTypeLabel} · {house.insulationLabel}
+          </p>
+          {house.notes.length > 0 && (
+            <div className="qdp-house__issues">
+              {house.notes.map((note, i) => (
+                <span key={i} className="qdp-issue-chip">⚠ {note}</span>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {expanded && (
@@ -113,6 +138,12 @@ function HouseQuadrant({
           <p className="qdp-detail__row"><strong>Heat loss:</strong> {house.heatLossLabel} — {house.heatLossBand}</p>
           <p className="qdp-detail__row"><strong>Walls:</strong> {house.wallTypeLabel}</p>
           <p className="qdp-detail__row"><strong>Insulation:</strong> {house.insulationLabel}</p>
+          {bedroomCount != null && (
+            <p className="qdp-detail__row"><strong>Bedrooms:</strong> {bedroomCount}</p>
+          )}
+          {bathroomCount != null && (
+            <p className="qdp-detail__row"><strong>Bathrooms:</strong> {bathroomCount}</p>
+          )}
           {house.roofOrientationLabel && (
             <p className="qdp-detail__row"><strong>Roof orientation:</strong> {house.roofOrientationLabel}</p>
           )}
@@ -121,7 +152,7 @@ function HouseQuadrant({
           )}
           {solarHint && <p className="qdp-detail__row"><strong>Solar potential:</strong> {solarHint}</p>}
           {house.notes.map((note, i) => (
-            <p key={i} className="qdp-detail__note">{note}</p>
+            <p key={i} className="qdp-detail__note">⚠ {note}</p>
           ))}
         </div>
       )}
@@ -133,15 +164,15 @@ function HouseQuadrant({
 
 function HomeQuadrant({
   home,
+  input,
   expanded,
   onToggle,
 }: {
   home: HomeSignal;
+  input?: EngineInputV2_3;
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const outletsActive = Math.max(1, Math.min(home.peakSimultaneousOutlets, 3)) as 1 | 2 | 3;
-
   return (
     <div
       role="button"
@@ -162,12 +193,11 @@ function HomeQuadrant({
         )}
       </div>
 
-      <div className="qdp-quadrant__visual">
-        <PresentationVisualSlot
-          visualId="flow_split"
-          visualData={{ outletsActive }}
-          hideExplainer
-          hideScript
+      {/* Occupant silhouettes — sized by age group */}
+      <div className="qdp-quadrant__visual qdp-quadrant__visual--people">
+        <OccupantSilhouettes
+          composition={input?.householdComposition}
+          occupancyCount={input?.occupancyCount ?? 2}
         />
       </div>
 
@@ -175,13 +205,18 @@ function HomeQuadrant({
         <span className="qdp-quadrant__badge">{home.demandProfileLabel}</span>
       </div>
 
-      {!expanded && <p className="qdp-quadrant__collapsed-copy">{home.dailyHotWaterLabel}</p>}
+      {!expanded && (
+        <div className="qdp-home__collapsed">
+          <p className="qdp-quadrant__collapsed-copy">{home.bathUseIntensityLabel}</p>
+          <p className="qdp-quadrant__collapsed-copy">{home.dailyHotWaterLabel}</p>
+        </div>
+      )}
 
       {expanded && (
         <div className="qdp-quadrant__detail" role="region" aria-label="Home details">
           <p className="qdp-detail__row"><strong>Daily hot water:</strong> {home.dailyHotWaterLabel}</p>
           <p className="qdp-detail__row"><strong>Peak outlets:</strong> {home.peakOutletsLabel}</p>
-          <p className="qdp-detail__row"><strong>Bath use:</strong> {home.bathUseIntensityLabel}</p>
+          <p className="qdp-detail__row"><strong>Bath / shower:</strong> {home.bathUseIntensityLabel}</p>
           <p className="qdp-detail__row"><strong>Occupancy timing:</strong> {home.occupancyTimingLabel}</p>
           <p className="qdp-detail__row"><strong>Storage benefit:</strong> {home.storageBenefitLabel}</p>
           {home.narrativeSignals.map((sig, i) => (
@@ -304,11 +339,11 @@ function PrioritiesQuadrant({
       onClick={onToggle}
       onKeyDown={event => onTileKeyDown(event, onToggle)}
       aria-expanded={expanded}
-      aria-label="Your Priorities — tap to expand"
+      aria-label="Your Objectives — tap to expand"
     >
       <div className="qdp-quadrant__header">
         <span className="qdp-quadrant__icon" aria-hidden="true">🎯</span>
-        <span className="qdp-quadrant__title">Your Priorities</span>
+        <span className="qdp-quadrant__title">Your Objectives</span>
         {expanded && (
           <button type="button" className="qdp-quadrant__close" onClick={e => { e.stopPropagation(); onToggle(); }}>
             Close
@@ -375,6 +410,8 @@ export interface QuadrantDashboardPageProps {
   heatLossState?: HeatLossState;
   prioritiesState?: PrioritiesState;
   objectives?: ObjectivesSignal;
+  /** Engine input — used for bedrooms, bathroomCount, householdComposition. */
+  input?: EngineInputV2_3;
 }
 
 type QuadrantId = 'house' | 'home' | 'system' | 'priorities';
@@ -393,6 +430,7 @@ export default function QuadrantDashboardPage({
   heatLossState,
   prioritiesState,
   objectives,
+  input,
 }: QuadrantDashboardPageProps) {
   const [expanded, setExpanded] = useState<QuadrantId | null>(null);
 
@@ -404,16 +442,18 @@ export default function QuadrantDashboardPage({
     <div
       className="qdp"
       data-testid="quadrant-dashboard-page"
-      aria-label="Summary dashboard — Your House, Home, System and Priorities"
+      aria-label="Summary dashboard — Your House, Home, System and Objectives"
     >
       <HouseQuadrant
         house={house}
         heatLossState={heatLossState}
+        input={input}
         expanded={expanded === 'house'}
         onToggle={() => toggle('house')}
       />
       <HomeQuadrant
         home={home}
+        input={input}
         expanded={expanded === 'home'}
         onToggle={() => toggle('home')}
       />
