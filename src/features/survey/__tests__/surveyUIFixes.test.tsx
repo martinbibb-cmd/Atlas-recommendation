@@ -43,7 +43,7 @@ const LOOKUP_RESULT_STATE: WaterQualityState = {
 // ─── 1. Step numbering ────────────────────────────────────────────────────────
 
 describe('UsageStep – step numbering', () => {
-  it('renders "Step 2: Home & Household"', () => {
+  it('renders the canonical "Home & Household" heading from the registry', () => {
     render(
       <UsageStep
         state={INITIAL_HOME_STATE}
@@ -54,7 +54,7 @@ describe('UsageStep – step numbering', () => {
     );
 
     const heading = screen.getByRole('heading', { level: 2 });
-    expect(heading.textContent).toContain('Step 2');
+    // Heading is now derived from the canonical registry — no longer includes "Step N:"
     expect(heading.textContent).toContain('Home');
     expect(heading.textContent).not.toContain('Step 6');
   });
