@@ -660,7 +660,7 @@ export default function PresentationDeck({
       canonicalSource: {
         component: 'QuadrantDashboardPage',
         fields: [
-          'page1.house', 'page1.home', 'page1.currentSystem', 'page1.objectives',
+          'page1.house', 'page1.home', 'page1.energy', 'page1.currentSystem', 'page1.objectives',
           'heatLossState', 'prioritiesState', 'input.bedrooms/bathroomCount/householdComposition',
         ],
       },
@@ -669,11 +669,12 @@ export default function PresentationDeck({
           <p className="atlas-presentation-deck__page-eyebrow">What we know</p>
           <DevProvenanceBadge
             component="QuadrantDashboardPage"
-            fields={['page1.house', 'page1.home', 'page1.currentSystem', 'page1.objectives']}
+            fields={['page1.house', 'page1.home', 'page1.energy', 'page1.currentSystem', 'page1.objectives']}
           />
           <QuadrantDashboardPage
             house={page1.house}
             home={page1.home}
+            energy={page1.energy}
             currentSystem={page1.currentSystem}
             currentSystemConcept={currentSystemConcept}
             heatLossState={heatLossState}
