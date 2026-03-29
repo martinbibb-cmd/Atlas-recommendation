@@ -36,6 +36,7 @@ import {
   type DhwArchitecture,
 } from './buildCanonicalPresentation';
 import { resolveShortlistVisualId, resolveOptionsOverviewVisualId } from './presentationVisualMapping';
+import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
 import PresentationVisualSlot from './PresentationVisualSlot';
 import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
 import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
@@ -321,12 +322,21 @@ function ShortlistPage({ option, index }: { option: ShortlistedOptionDetail; ind
     option.dhwArchitecture,
     option.storageBenefitSignal,
   );
+  const systemImage = imageForOptionId(option.family);
   return (
     <>
       <p className="atlas-presentation-deck__page-eyebrow">Option {index + 1}</p>
       <h2 className="atlas-presentation-deck__page-title">{option.label}</h2>
       <div className="atlas-presentation-deck__visual">
-        <PresentationVisualSlot visualId={visualId} />
+        {systemImage ? (
+          <img
+            src={systemImage.src}
+            alt={systemImage.alt}
+            className="atlas-presentation-deck__system-image"
+          />
+        ) : (
+          <PresentationVisualSlot visualId={visualId} />
+        )}
       </div>
       <div className="atlas-presentation-deck__shortlist-body">
         {option.complianceItems.length > 0 && (

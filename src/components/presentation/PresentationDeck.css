@@ -134,6 +134,14 @@
   overflow-y: auto;
 }
 
+/* Real-world system image shown in shortlist option pages */
+.atlas-presentation-deck__system-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
 /* ─── Takeaway banner ─────────────────────────────────────────────────────── */
 
 .atlas-presentation-deck__takeaway {
