@@ -350,7 +350,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           showDebugOutput={true}
           nextLabel="Next →"
           staticPressureBar={input.staticMainsPressureBar}
-          dynamicPressureBar={input.dynamicMainsPressureBar ?? input.dynamicMainsPressure}
+          dynamicPressureBar={input.dynamicMainsPressureBar}
           dynamicFlowLpm={input.mainsDynamicFlowLpm}
           onMeasurementsChange={(staticBar, dynamicBar, flowLpm) => {
             setInput(prev => ({
