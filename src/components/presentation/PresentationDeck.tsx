@@ -48,6 +48,7 @@ import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
 import PresentationVisualSlot from './PresentationVisualSlot';
 import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
 import QuadrantDashboardPage from './QuadrantDashboardPage';
+import { computeCurrentEfficiencyPct } from '../../engine/utils/efficiency';
 import './PresentationDeck.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -89,17 +90,23 @@ function DegradationChartsPage({
   const ageYears = input.currentBoilerAgeYears ?? 8;
   const maxAge = Math.max(ageYears + 5, 15);
 
-  // Efficiency data: condensing boiler starts ~91%, degrades ~0.5%/yr base
+  // Efficiency data: use engine-derived nominal SEDBUK % and 10-year decay from
+  // the normalizer (water hardness + system volume) — not hardcoded generic values.
+  const decayPerYear = ctx.tenYearDecayPct / 10;
   const effData = Array.from({ length: maxAge + 1 }, (_, year) => ({
     year,
-    efficiency: Math.max(65, Math.round((91 - year * 0.5) * 10) / 10),
+    efficiency: computeCurrentEfficiencyPct(ctx.nominalEfficiencyPct, decayPerYear * year),
   }));
 
-  // Scale accumulation: index 0–10, plate HEx faster than cylinder
+  // Scale accumulation: index 0–10, plate HEx faster than cylinder.
+  // Rates are proportional to the engine's tenYearDecayPct so soft/hard water
+  // areas produce materially different curves.
+  const plateHexRatePerYear = (ctx.tenYearDecayPct / 10) * 0.55;
+  const cylinderRatePerYear = (ctx.tenYearDecayPct / 10) * 0.28;
   const scaleData = Array.from({ length: maxAge + 1 }, (_, year) => ({
     year,
-    'Plate HEx': Math.min(10, Math.round(year * 0.55 * 10) / 10),
-    'Cylinder': Math.min(10, Math.round(year * 0.28 * 10) / 10),
+    'Plate HEx': Math.min(10, Math.round(year * plateHexRatePerYear * 10) / 10),
+    'Cylinder': Math.min(10, Math.round(year * cylinderRatePerYear * 10) / 10),
   }));
 
   const bandClass = ctx.currentEfficiencyBand === 'healthy'
@@ -136,7 +143,7 @@ function DegradationChartsPage({
                 tick={{ fontSize: 9 }}
                 label={{ value: 'Years', position: 'insideBottom', offset: -4, fontSize: 9 }}
               />
-              <YAxis domain={[60, 95]} tick={{ fontSize: 9 }} />
+              <YAxis domain={[Math.max(50, ctx.nominalEfficiencyPct - 40), ctx.nominalEfficiencyPct + 2]} tick={{ fontSize: 9 }} />
               <Tooltip formatter={(v: number | undefined) => [v != null ? `${v}%` : '', 'Efficiency']} />
               {ageYears > 0 && (
                 <ReferenceLine
