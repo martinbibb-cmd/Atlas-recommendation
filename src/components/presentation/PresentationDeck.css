@@ -683,3 +683,34 @@
   flex: 1;
   min-height: 0;
 }
+
+/* ─── Dev-only provenance badge ────────────────────────────────────────────── */
+/* These styles are loaded in all builds but the badge element is only        */
+/* rendered when import.meta.env.DEV is true (see DevProvenanceBadge).        */
+
+.atlas-deck-provenance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  padding: 0.3rem 0.6rem;
+  margin-bottom: 0.5rem;
+  background: #fffbeb;
+  border: 1px dashed #d97706;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: #92400e;
+  font-family: monospace;
+  pointer-events: none;
+}
+
+.atlas-deck-provenance__label {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.atlas-deck-provenance__fields {
+  opacity: 0.8;
+  word-break: break-all;
+}

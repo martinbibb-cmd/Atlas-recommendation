@@ -424,6 +424,45 @@ interface DeckPageDescriptor {
   id: string;
   label: string;
   content: React.ReactNode;
+  /**
+   * Canonical source descriptor — lists the component name and the canonical
+   * model fields that power this slide.  Used for automated tracing and the
+   * dev-only provenance badge.
+   */
+  canonicalSource: {
+    component: string;
+    fields: string[];
+  };
+}
+
+// ─── Dev-only provenance badge ────────────────────────────────────────────────
+
+/**
+ * DevProvenanceBadge — dev-only overlay showing which canonical fields
+ * drive this slide.  Rendered only when import.meta.env.DEV is true.
+ * Removed from production builds.
+ */
+function DevProvenanceBadge({
+  component,
+  fields,
+}: {
+  component: string;
+  fields: string[];
+}) {
+  if (!import.meta.env.DEV) return null;
+  return (
+    <div
+      className="atlas-deck-provenance"
+      aria-hidden="true"
+    >
+      <span className="atlas-deck-provenance__label">
+        🔬 {component}
+      </span>
+      <span className="atlas-deck-provenance__fields">
+        {fields.join(' · ')}
+      </span>
+    </div>
+  );
 }
 
 // ─── Main component props ─────────────────────────────────────────────────────
@@ -467,7 +506,7 @@ export default function PresentationDeck({
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
-  const model = buildCanonicalPresentation(result, input, recommendationResult);
+  const model = buildCanonicalPresentation(result, input, recommendationResult, prioritiesState);
   const { page1, page1_5, page2, page3, page4Plus, finalPage } = model;
 
   // Derive the current system concept model once — used for architecture slides.
@@ -480,9 +519,24 @@ export default function PresentationDeck({
     {
       id:    'quadrant_overview',
       label: 'Overview',
+      canonicalSource: {
+        component: 'QuadrantDashboardPage',
+        fields: [
+          'page1.house (buildHouseSignal ← input.heatLossWatts/wallType/buildingMass)',
+          'page1.home (buildHomeSignal ← demographicOutputs)',
+          'page1.currentSystem (buildCurrentSystemSignal ← input.currentHeatSourceType/currentBoilerAgeYears)',
+          'page1.objectives (buildObjectivesSignal ← prioritiesState.selected OR expertAssumptions)',
+          'heatLossState.shellSnapshotUrl (survey HeatLossStep)',
+          'prioritiesState.selected (survey PrioritiesStep)',
+        ],
+      },
       content: (
         <div className="atlas-presentation-deck__quadrant-wrapper">
           <p className="atlas-presentation-deck__page-eyebrow">What we know</p>
+          <DevProvenanceBadge
+            component="QuadrantDashboardPage"
+            fields={['page1.house', 'page1.home', 'page1.currentSystem', 'page1.objectives', 'heatLossState', 'prioritiesState']}
+          />
           <QuadrantDashboardPage
             house={page1.house}
             home={page1.home}
@@ -499,25 +553,114 @@ export default function PresentationDeck({
     // Suppressed when there is no input-derived evidence to avoid showing
     // synthetic health-band copy that looks authoritative but is fabricated.
     ...(page1_5.hasRealEvidence
-      ? [{ id: 'ageing', label: 'Condition', content: <AgeingPage ctx={page1_5} /> }]
+      ? [{
+          id: 'ageing',
+          label: 'Condition',
+          canonicalSource: {
+            component: 'AgeingPage',
+            fields: [
+              'page1_5.hasRealEvidence (gates this slide)',
+              'page1_5.efficiencyBand (input.currentBoilerAgeYears/boilerConditionBand)',
+              'page1_5.componentDegradation (input.plateHexConditionBand/cylinderConditionBand)',
+              'page1_5.circulationSignals (input.hasMagneticFilter/waterHardness)',
+            ],
+          },
+          content: (
+            <>
+              <DevProvenanceBadge
+                component="AgeingPage"
+                fields={['page1_5.efficiencyBand', 'page1_5.componentDegradation', 'page1_5.circulationSignals', 'page1_5.hasRealEvidence=true']}
+              />
+              <AgeingPage ctx={page1_5} />
+            </>
+          ),
+        }]
       : []),
     // ── 3. Available systems ─────────────────────────────────────────────────
-    { id: 'options',  label: 'Options',   content: <OptionsPage options={page2.options} currentSystemArchitecture={page1.currentSystem.dhwArchitecture} /> },
+    {
+      id: 'options',
+      label: 'Options',
+      canonicalSource: {
+        component: 'OptionsPage',
+        fields: [
+          'page2.options (buildPage2 ← result.engineOutput.options)',
+          'page1.currentSystem.dhwArchitecture (storageTypeToArchitecture)',
+        ],
+      },
+      content: (
+        <>
+          <DevProvenanceBadge
+            component="OptionsPage"
+            fields={['page2.options ← result.engineOutput.options', 'page1.currentSystem.dhwArchitecture']}
+          />
+          <OptionsPage options={page2.options} currentSystemArchitecture={page1.currentSystem.dhwArchitecture} />
+        </>
+      ),
+    },
     // ── 4. Physics ranking ───────────────────────────────────────────────────
-    { id: 'ranking',  label: 'Best fit',  content: <RankingPage items={page3.items} /> },
+    {
+      id: 'ranking',
+      label: 'Best fit',
+      canonicalSource: {
+        component: 'RankingPage',
+        fields: [
+          'page3.items (buildPage3 ← recommendation.bestOverall/bestByObjective/disqualifiedCandidates)',
+          'each item.reasonLine derived from demographicOutputs/pvAssessment',
+        ],
+      },
+      content: (
+        <>
+          <DevProvenanceBadge
+            component="RankingPage"
+            fields={['page3.items ← recommendation.bestOverall/bestByObjective', 'item.reasonLine ← demographicOutputs/pvAssessment']}
+          />
+          <RankingPage items={page3.items} />
+        </>
+      ),
+    },
     // ── 5 / 6. Options with compare architecture slides ──────────────────────
     ...page4Plus.options.flatMap((opt, i) => [
       {
         id:      `option_${i + 1}`,
         label:   `Option ${i + 1}`,
-        content: <ShortlistPage option={opt} index={i} />,
+        canonicalSource: {
+          component: 'ShortlistPage',
+          fields: [
+            `page4Plus.options[${i}] (buildPage4Plus ← recommendation shortlist)`,
+            'opt.complianceRequired/bestPerformanceUpgrades/optionalUpgrades',
+          ],
+        },
+        content: (
+          <>
+            <DevProvenanceBadge
+              component="ShortlistPage"
+              fields={[`page4Plus.options[${i}] ← recommendation shortlist`, 'complianceRequired', 'bestPerformanceUpgrades']}
+            />
+            <ShortlistPage option={opt} index={i} />
+          </>
+        ),
       },
       // Compare architecture slide — shows what changes vs current system
       ...(currentSystemConcept
         ? [{
             id:      `compare_${i + 1}`,
             label:   `Changes ${i + 1}`,
-            content: <CompareArchitecturePage input={input} option={opt} />,
+            canonicalSource: {
+              component: 'CompareArchitecturePage',
+              fields: [
+                'input (EngineInputV2_3 — current system architecture)',
+                `page4Plus.options[${i}].family (recommended option architecture)`,
+              ],
+            },
+            content: (
+              <>
+                <DevProvenanceBadge
+                  component="CompareArchitecturePage"
+                  fields={['input.currentHeatSourceType/dhwStorageType', `opt[${i}].family`]}
+                />
+                <CompareArchitecturePage input={input} option={opt} />
+              </>
+            ),
           }]
         : []),
     ]),
@@ -525,7 +668,23 @@ export default function PresentationDeck({
     {
       id:      'simulator',
       label:   'Proof',
-      content: <SimulatorPage sim={finalPage} onOpenSimulator={onOpenSimulator} />,
+      canonicalSource: {
+        component: 'SimulatorPage',
+        fields: [
+          'finalPage (buildFinalPage ← result/input/currentSystem.dhwArchitecture)',
+          'finalPage.homeScenarioDescription',
+          'finalPage.simulatorCapabilities',
+        ],
+      },
+      content: (
+        <>
+          <DevProvenanceBadge
+            component="SimulatorPage"
+            fields={['finalPage.homeScenarioDescription', 'finalPage.simulatorCapabilities', 'finalPage.dhwArchitectureNote']}
+          />
+          <SimulatorPage sim={finalPage} onOpenSimulator={onOpenSimulator} />
+        </>
+      ),
     },
   ];
 
@@ -624,6 +783,8 @@ export default function PresentationDeck({
               aria-roledescription="slide"
               aria-label={`${page.label} (${i + 1} of ${total})`}
               aria-hidden={i !== currentIndex}
+              data-canonical-source={page.id}
+              data-canonical-component={page.canonicalSource.component}
             >
               {page.content}
             </div>

@@ -16,6 +16,7 @@ import { describe, it, expect } from 'vitest';
 import { runEngine } from '../../../engine/Engine';
 import { buildCanonicalPresentation } from '../buildCanonicalPresentation';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
+import { PRIORITY_META } from '../../../features/survey/priorities/prioritiesTypes';
 
 // ─── Fixture helpers ──────────────────────────────────────────────────────────
 
@@ -530,5 +531,77 @@ describe('buildCanonicalPresentation — final page simulator', () => {
     const result = runEngine(input);
     const model = buildCanonicalPresentation(result, input);
     expect(model.finalPage.energyTimingNotes.join(' ')).toMatch(/pv|solar|simulator/i);
+  });
+});
+
+// ─── prioritiesState data-binding — survey chip selections ───────────────────
+
+describe('buildCanonicalPresentation — prioritiesState data binding', () => {
+  it('objectives are empty when no prioritiesState and no expertAssumptions', () => {
+    const result = runEngine(BASE_INPUT);
+    const model = buildCanonicalPresentation(result, BASE_INPUT);
+    // BASE_INPUT has no expertAssumptions or preferences, so objectives must be empty
+    expect(model.page1.objectives.priorities).toHaveLength(0);
+  });
+
+  it('survey priority chips populate objectives when prioritiesState is provided', () => {
+    const result = runEngine(BASE_INPUT);
+    const model = buildCanonicalPresentation(result, BASE_INPUT, undefined, {
+      selected: ['reliability', 'eco', 'future_compatibility'],
+    });
+    expect(model.page1.objectives.priorities).toHaveLength(3);
+    const labels = model.page1.objectives.priorities.map(p => p.label);
+    expect(labels.some(l => /reliability/i.test(l))).toBe(true);
+    expect(labels.some(l => /carbon|eco/i.test(l))).toBe(true);
+    expect(labels.some(l => /future/i.test(l))).toBe(true);
+  });
+
+  it('every selected priority key produces a non-empty label and value', () => {
+    const allKeys = PRIORITY_META.map(m => m.key);
+    const result = runEngine(BASE_INPUT);
+    const model = buildCanonicalPresentation(result, BASE_INPUT, undefined, {
+      selected: allKeys,
+    });
+    expect(model.page1.objectives.priorities).toHaveLength(allKeys.length);
+    for (const p of model.page1.objectives.priorities) {
+      expect(p.label.trim()).not.toBe('');
+      expect(p.value.trim()).not.toBe('');
+    }
+  });
+
+  it('prioritiesState with empty selected falls back to engine preferences', () => {
+    const inputWithPrefs: EngineInputV2_3 = {
+      ...BASE_INPUT,
+      expertAssumptions: {
+        spaceSavingPriority: 'high',
+      },
+    };
+    const result = runEngine(inputWithPrefs);
+    // Empty selected array — should fall through to expertAssumptions
+    const model = buildCanonicalPresentation(result, inputWithPrefs, undefined, {
+      selected: [],
+    });
+    const labels = model.page1.objectives.priorities.map(p => p.label);
+    expect(labels.some(l => /space saving/i.test(l))).toBe(true);
+  });
+
+  it('prioritiesState supersedes expertAssumptions when chips are selected', () => {
+    const inputWithPrefs: EngineInputV2_3 = {
+      ...BASE_INPUT,
+      expertAssumptions: {
+        spaceSavingPriority: 'high',
+        futureReadinessPriority: 'high',
+      },
+    };
+    const result = runEngine(inputWithPrefs);
+    // Chip-selected priorities take precedence over expertAssumptions
+    const model = buildCanonicalPresentation(result, inputWithPrefs, undefined, {
+      selected: ['eco'],
+    });
+    const labels = model.page1.objectives.priorities.map(p => p.label);
+    // Only 'eco' should appear — expertAssumptions should be ignored
+    expect(model.page1.objectives.priorities).toHaveLength(1);
+    expect(labels.some(l => /carbon|eco/i.test(l))).toBe(true);
+    expect(labels.some(l => /space saving/i.test(l))).toBe(false);
   });
 });

@@ -361,6 +361,8 @@ export default function App() {
   }
 
   // ?deck=1 feature flag — render swipeable PresentationDeck directly with demo data.
+  // NOTE: No heatLossState or prioritiesState available — demo input only.
+  // Dev provenance badges on each slide indicate which canonical fields are active.
   if (DECK_MODE_ENABLED) {
     const result = runEngine(CONSOLE_DEMO_INPUT);
     return (
@@ -368,6 +370,11 @@ export default function App() {
         <button className="back-btn" onClick={() => { window.location.href = window.location.pathname; }}>
           ← Back
         </button>
+        {import.meta.env.DEV && (
+          <p className="atlas-dev-notice">
+            🔬 Dev deck — CONSOLE_DEMO_INPUT (no survey heatLossState / prioritiesState)
+          </p>
+        )}
         <CanonicalPresentationPage
           result={result}
           input={CONSOLE_DEMO_INPUT}
@@ -379,6 +386,8 @@ export default function App() {
   }
 
   // ?presentation=1 feature flag — render CanonicalPresentationPage directly with demo data.
+  // NOTE: No heatLossState or prioritiesState available — demo input only.
+  // data-canonical-source attributes on each section trace the canonical fields.
   if (PRESENTATION_MODE_ENABLED) {
     const result = runEngine(CONSOLE_DEMO_INPUT);
     return (
@@ -386,6 +395,11 @@ export default function App() {
         <button className="back-btn" onClick={() => { window.location.href = window.location.pathname; }}>
           ← Back
         </button>
+        {import.meta.env.DEV && (
+          <p className="atlas-dev-notice">
+            🔬 Dev presentation — CONSOLE_DEMO_INPUT (no survey heatLossState / prioritiesState)
+          </p>
+        )}
         <CanonicalPresentationPage
           result={result}
           input={CONSOLE_DEMO_INPUT}

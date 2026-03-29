@@ -21,6 +21,8 @@ import type { RecommendationResult } from '../../engine/recommendation/Recommend
 import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
 import type { DhwArchitecture } from '../../lib/dhw/buildDhwContextFromSurvey';
 import type { DhwType } from '../../features/survey/systemBuilder/systemBuilderTypes';
+import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
+import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
 
 export type { DhwArchitecture };
 
@@ -754,7 +756,29 @@ function buildCurrentSystemSignal(input: EngineInputV2_3): CurrentSystemSignal {
   };
 }
 
-function buildObjectivesSignal(input: EngineInputV2_3): ObjectivesSignal {
+/** Pre-built lookup map for O(1) PriorityKey → PriorityMeta access. */
+const PRIORITY_META_MAP = new Map(PRIORITY_META.map(m => [m.key, m]));
+
+function buildObjectivesSignal(
+  input: EngineInputV2_3,
+  prioritiesState?: PrioritiesState,
+): ObjectivesSignal {
+  // When the survey Priorities step has been completed, use those chip selections
+  // as the canonical source of objective signals.  The PriorityKey values from
+  // the Priorities step are the authoritative customer-facing objectives — they
+  // supersede any legacy expertAssumptions / preferences fields.
+  if (prioritiesState && prioritiesState.selected.length > 0) {
+    const priorities = prioritiesState.selected.map(key => {
+      const meta = PRIORITY_META_MAP.get(key);
+      return meta
+        ? { label: `${meta.emoji} ${meta.label}`, value: meta.sub }
+        : { label: key, value: '' };
+    });
+    return { priorities };
+  }
+
+  // Fall back to legacy engine-preference fields when no survey priorities are
+  // available (e.g. demo inputs or pre-priorities-step engine-only inputs).
   const ea = input.expertAssumptions;
   const pref = input.preferences;
   const priorities: Array<{ label: string; value: string }> = [];
@@ -1540,11 +1564,17 @@ function buildFinalPage(
  *
  * Every field in the returned model is derived from a canonical signal —
  * no generic copy is inserted here.
+ *
+ * @param prioritiesState — Optional survey Priorities step state.  When provided,
+ *   the selected PriorityKey chips are used as the canonical source for the
+ *   objectives signal, superseding any legacy expertAssumptions / preferences
+ *   fields on the engine input.
  */
 export function buildCanonicalPresentation(
   result: FullEngineResult,
   input: EngineInputV2_3,
   recommendation?: RecommendationResult,
+  prioritiesState?: PrioritiesState,
 ): CanonicalPresentationModel {
   const currentSystem = buildCurrentSystemSignal(input);
   return {
@@ -1553,7 +1583,7 @@ export function buildCanonicalPresentation(
       home:          buildHomeSignal(result, input),
       energy:        buildEnergySignal(result, input),
       currentSystem,
-      objectives:    buildObjectivesSignal(input),
+      objectives:    buildObjectivesSignal(input, prioritiesState),
     },
     page1_5: buildAgeingContext(input, result),
     page2:   buildPage2(result, input),
