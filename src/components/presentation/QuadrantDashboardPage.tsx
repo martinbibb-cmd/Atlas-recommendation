@@ -236,16 +236,22 @@ function SystemQuadrant({
       </div>
 
       <div className="qdp-quadrant__summary">
-        <span className="qdp-quadrant__badge">{sys.systemTypeLabel}</span>
-        <span className="qdp-quadrant__badge qdp-quadrant__badge--secondary">{sys.ageLabel}</span>
+        <span className="qdp-quadrant__badge">{sys.systemTypeLabel ?? 'System type not recorded'}</span>
+        {sys.ageLabel != null && (
+          <span className="qdp-quadrant__badge qdp-quadrant__badge--secondary">{sys.ageLabel}</span>
+        )}
       </div>
 
       {!expanded && <p className="qdp-quadrant__collapsed-copy">{sys.ageContext}</p>}
 
       {expanded && (
         <div className="qdp-quadrant__detail" role="region" aria-label="System details">
-          <p className="qdp-detail__row"><strong>Type:</strong> {sys.systemTypeLabel}</p>
-          <p className="qdp-detail__row"><strong>Age:</strong> {sys.ageLabel}</p>
+          {sys.systemTypeLabel != null && (
+            <p className="qdp-detail__row"><strong>Type:</strong> {sys.systemTypeLabel}</p>
+          )}
+          {sys.ageLabel != null && (
+            <p className="qdp-detail__row"><strong>Age:</strong> {sys.ageLabel}</p>
+          )}
           <p className="qdp-detail__row qdp-detail__row--muted">{sys.ageContext}</p>
           {sys.makeModelText && (
             <p className="qdp-detail__row"><strong>Make / model:</strong> {sys.makeModelText}</p>

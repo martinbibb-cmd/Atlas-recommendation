@@ -21,6 +21,8 @@ import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { EvidenceItemV1, OptionCardV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { PriorityKey } from '../../features/survey/priorities/prioritiesTypes';
+import type { HeatLossState } from '../../features/survey/heatLoss/heatLossTypes';
+import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
 import RecommendationCard from '../live/RecommendationCard';
 import SystemOptionCard from './SystemOptionCard';
 import PerformanceEnablersPanel from '../performance/PerformanceEnablersPanel';
@@ -1010,8 +1012,18 @@ export default function RecommendationHub({ result, input }: Props) {
 
   // Extract selected priorities from the survey model (FullSurveyModelV1 extends EngineInputV2_3).
   // Cast is safe: CurrentSituationSection always passes FullSurveyModelV1 here.
+  const fullSurveyModel = input as FullSurveyModelV1 | undefined;
   const selectedPriorities: PriorityKey[] =
-    (input as FullSurveyModelV1 | undefined)?.fullSurvey?.priorities?.selected ?? [];
+    fullSurveyModel?.fullSurvey?.priorities?.selected ?? [];
+
+  // Extract heat-loss and priorities state from the full survey model so the
+  // presentation deck can show the house snapshot and selected priority chips.
+  // These are UI-only fields stripped by toEngineInput(); they are not present
+  // on bare EngineInputV2_3 objects.
+  const presentationHeatLossState: HeatLossState | undefined =
+    fullSurveyModel?.fullSurvey?.heatLoss;
+  const presentationPrioritiesState: PrioritiesState | undefined =
+    fullSurveyModel?.fullSurvey?.priorities;
 
   // Depot notes clipboard state
   const [depotCopied, setDepotCopied] = useState(false);
@@ -1065,6 +1077,8 @@ export default function RecommendationHub({ result, input }: Props) {
             input={input}
             recommendationResult={result.recommendationResult}
             deckMode={true}
+            heatLossState={presentationHeatLossState}
+            prioritiesState={presentationPrioritiesState}
           />
         </section>
       )}

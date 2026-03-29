@@ -83,7 +83,10 @@ function collectAllStrings(model: CanonicalPresentationModel): string[] {
 
   // Page 1 — current system
   const cs = model.page1.currentSystem;
-  strings.push(cs.systemTypeLabel, cs.ageLabel, cs.ageContext);
+  // systemTypeLabel and ageLabel are nullable — push only when present
+  if (cs.systemTypeLabel) strings.push(cs.systemTypeLabel);
+  if (cs.ageLabel)        strings.push(cs.ageLabel);
+  strings.push(cs.ageContext);
   if (cs.makeModelText) strings.push(cs.makeModelText);
   if (cs.outputLabel)   strings.push(cs.outputLabel);
 
@@ -180,8 +183,14 @@ describe('Contract audit — canonical presentation model shape', () => {
 
       it(`scenario "${name}" — page1 currentSystem signals are populated`, () => {
         const model = PREBUILT_MODELS[name];
+        // systemTypeLabel is non-null when currentHeatSourceType was captured — all
+        // audit fixtures set this explicitly so it must always be truthy here.
         expect(model.page1.currentSystem.systemTypeLabel).toBeTruthy();
-        expect(model.page1.currentSystem.ageLabel).toBeTruthy();
+        // ageLabel is nullable by design: it is null when age was not captured in
+        // the survey (which is the case for most audit fixtures).  The contract is
+        // that it must be a non-empty string ONLY when age data was provided.
+        // We only check it is not an empty string (null is acceptable).
+        expect(model.page1.currentSystem.ageLabel).not.toBe('');
         expect(model.page1.currentSystem.drivingStyleMode).toMatch(/^(combi|stored|heat_pump)$/);
         expect(model.page1.currentSystem.dhwStorageType).toMatch(
           /^(open_vented|unvented|thermal_store|mixergy|unknown)$/,

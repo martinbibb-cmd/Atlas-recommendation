@@ -408,6 +408,8 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
           recommendationResult={result.recommendationResult}
           onOpenSimulator={() => setActiveSection('simulator')}
           deckMode={deckMode}
+          heatLossState={input.fullSurvey?.heatLoss}
+          prioritiesState={input.fullSurvey?.priorities}
         />
       </div>
 
