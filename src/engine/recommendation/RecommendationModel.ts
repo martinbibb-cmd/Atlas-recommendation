@@ -237,6 +237,13 @@ export interface RecommendationResult {
    * Summary of the evidence base used to produce this recommendation set.
    */
   readonly confidenceSummary: RecommendationConfidenceSummary;
+
+  /**
+   * "Why not this option?" explanations for non-winning candidates.
+   * One entry per candidate that was not bestOverall.
+   * Explains the dominant limiting signal(s) and score gap.
+   */
+  readonly whyNotExplanations: readonly WhyNotExplanation[];
 }
 
 /**
@@ -317,5 +324,35 @@ export interface RecommendationContextSignals {
    *   low    → no adjustment.
    */
   solarStorageOpportunity: import('../modules/PvAssessmentModule').SolarStorageOpportunity;
+}
+
+// ─── "Why not this option?" explanation ───────────────────────────────────────
+
+/**
+ * Explains why a particular candidate was not the top recommendation.
+ *
+ * Each non-winning candidate gets one WhyNotExplanation that cites the
+ * dominant limiting signal(s) and the score gap to the winner.
+ *
+ * These are consequences of physics, not soft preference weighting.
+ */
+export interface WhyNotExplanation {
+  /** The appliance family this explanation is for. */
+  readonly family: ApplianceFamily;
+
+  /** The dominant limiting signals that reduced this candidate's score. */
+  readonly dominantLimiters: readonly string[];
+
+  /** The dominant supporting signals that helped this candidate. */
+  readonly dominantSupports: readonly string[];
+
+  /** Score gap between this candidate and the winner (positive = winner scored higher). */
+  readonly scoreGap: number;
+
+  /** Human-readable summary explaining why this option was not selected. */
+  readonly summary: string;
+
+  /** Whether this candidate was disqualified entirely (hard-stop). */
+  readonly isDisqualified: boolean;
 }
 
