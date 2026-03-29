@@ -23,6 +23,7 @@ import type { DhwArchitecture } from '../../lib/dhw/buildDhwContextFromSurvey';
 import type { DhwType } from '../../features/survey/systemBuilder/systemBuilderTypes';
 import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
 import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
+import { resolveNominalEfficiencyPct } from '../../engine/utils/efficiency';
 
 export type { DhwArchitecture };
 
@@ -193,6 +194,18 @@ export interface Page1_5AgeingContext {
   currentEfficiencyBand: 'healthy' | 'ageing' | 'neglected';
   /** Short description of what the current efficiency band means. */
   efficiencyBandDescription: string;
+  /**
+   * Nominal boiler efficiency percentage resolved from SEDBUK survey input
+   * (or DEFAULT_NOMINAL_EFFICIENCY_PCT when not recorded).
+   * Use this for the efficiency chart y-axis starting point.
+   */
+  nominalEfficiencyPct: number;
+  /**
+   * Projected 10-year efficiency decay percentage from the engine normalizer.
+   * Derived from postcode water hardness and system volume.
+   * Use this to compute per-year decay rates for the efficiency chart.
+   */
+  tenYearDecayPct: number;
 
   // ── Block B: Architecture-specific component degradation ─────────────────
   componentDegradation: ComponentDegradationBlock;
@@ -1137,6 +1150,9 @@ function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): P
     type, ageEstimate, efficiencyBand, hardness, input.hasMagneticFilter, input.hasSoftener,
   );
 
+  const nominalEfficiencyPct = resolveNominalEfficiencyPct(input.currentBoilerSedbukPct);
+  const tenYearDecayPct = result.normalizer.tenYearEfficiencyDecayPct;
+
   return {
     heading,
     ageBandLabel,
@@ -1144,6 +1160,8 @@ function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): P
     conditionSummary:          conditionSummaryMap[efficiencyBand],
     currentEfficiencyBand:     efficiencyBand,
     efficiencyBandDescription: efficiencyBandDescriptionMap[efficiencyBand],
+    nominalEfficiencyPct,
+    tenYearDecayPct,
     componentDegradation,
     circulationSignals,
     homeImpacts,

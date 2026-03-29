@@ -453,6 +453,37 @@ describe('buildCanonicalPresentation — page1_5 ageing context', () => {
     const oldHasPowerflush = oldModel.page1_5.likelyFirstImprovements.some(i => /powerflush/i.test(i));
     expect(oldHasPowerflush).toBe(true);
   });
+
+  // ── Engine-derived chart fields ─────────────────────────────────────────────
+
+  it('nominalEfficiencyPct uses supplied SEDBUK value when provided', () => {
+    const input = withInput({ currentBoilerSedbukPct: 84 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1_5.nominalEfficiencyPct).toBe(84);
+  });
+
+  it('nominalEfficiencyPct falls back to DEFAULT_NOMINAL_EFFICIENCY_PCT when not supplied', () => {
+    const result = runEngine(BASE_INPUT);
+    const model = buildCanonicalPresentation(result, BASE_INPUT);
+    // Must equal the canonical constant (92) — never a hardcoded literal in the component
+    expect(model.page1_5.nominalEfficiencyPct).toBe(92);
+  });
+
+  it('tenYearDecayPct is the engine normalizer value (not hardcoded)', () => {
+    // Hard water postcode (London) produces higher decay than soft water
+    const hardInput = withInput({ postcode: 'SW1A 1AA' });
+    const softInput = withInput({ postcode: 'IV1 1AA' }); // Highland — soft water
+    const hardResult = runEngine(hardInput);
+    const softResult = runEngine(softInput);
+    const hardModel = buildCanonicalPresentation(hardResult, hardInput);
+    const softModel = buildCanonicalPresentation(softResult, softInput);
+    // Hard water must produce more decay than soft water
+    expect(hardModel.page1_5.tenYearDecayPct).toBeGreaterThan(softModel.page1_5.tenYearDecayPct);
+    // Both must be the actual engine normalizer values
+    expect(hardModel.page1_5.tenYearDecayPct).toBe(hardResult.normalizer.tenYearEfficiencyDecayPct);
+    expect(softModel.page1_5.tenYearDecayPct).toBe(softResult.normalizer.tenYearEfficiencyDecayPct);
+  });
 });
 
 
