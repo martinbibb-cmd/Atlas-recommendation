@@ -483,6 +483,7 @@ export default function CanonicalPresentationPage({
     result,
     input,
     recommendationResult,
+    prioritiesState,
   );
 
   const { page1, page1_5, page2, page3, page4Plus, finalPage } = model;
@@ -494,39 +495,55 @@ export default function CanonicalPresentationPage({
       <section
         className="cpp-page"
         aria-label="Page 1 — What we know about this home"
+        data-canonical-source="page1"
       >
         <p className="cpp-page__eyebrow">Page 1</p>
         <h2 className="cpp-page__heading">What we know about this home</h2>
 
         <div className="cpp-visual-sections">
-          <div className="cpp-visual-section-wrapper">
+          <div
+            className="cpp-visual-section-wrapper"
+            data-canonical-source="page1.house"
+          >
             <p className="cpp-visual-section__heading">🏠 Your house</p>
             <HouseSection house={page1.house} />
           </div>
 
-          <div className="cpp-visual-section-wrapper">
+          <div
+            className="cpp-visual-section-wrapper"
+            data-canonical-source="page1.home"
+          >
             <p className="cpp-visual-section__heading">👥 Your home</p>
             <HomeSection home={page1.home} />
           </div>
 
-          <div className="cpp-visual-section-wrapper">
+          <div
+            className="cpp-visual-section-wrapper"
+            data-canonical-source="page1.energy"
+          >
             <p className="cpp-visual-section__heading">⚡ Your energy</p>
             <EnergySection energy={page1.energy} />
           </div>
 
-          <div className="cpp-visual-section-wrapper">
+          <div
+            className="cpp-visual-section-wrapper"
+            data-canonical-source="page1.currentSystem"
+          >
             <p className="cpp-visual-section__heading">🔧 Your current system</p>
             <CurrentSystemSection sys={page1.currentSystem} />
           </div>
         </div>
 
-        <ObjectivesSection objectives={page1.objectives} />
+        <div data-canonical-source="page1.objectives">
+          <ObjectivesSection objectives={page1.objectives} />
+        </div>
       </section>
 
       {/* ── Page 1.5 — Contextual ageing ────────────────────────────── */}
       <section
         className="cpp-page"
         aria-label="Page 1.5 — About your current system"
+        data-canonical-source="page1_5"
       >
         <p className="cpp-page__eyebrow">Page 1.5</p>
         <h2 className="cpp-page__heading">{page1_5.heading}</h2>
@@ -537,6 +554,7 @@ export default function CanonicalPresentationPage({
       <section
         className="cpp-page"
         aria-label="Page 2 — Available system options"
+        data-canonical-source="page2"
       >
         <p className="cpp-page__eyebrow">Page 2</p>
         <h2 className="cpp-page__heading">Available options for this home</h2>
@@ -555,6 +573,7 @@ export default function CanonicalPresentationPage({
       <section
         className="cpp-page"
         aria-label="Page 3 — Physics-first ranking"
+        data-canonical-source="page3"
       >
         <p className="cpp-page__eyebrow">Page 3</p>
         <h2 className="cpp-page__heading">Physics-first ranking</h2>
@@ -574,6 +593,7 @@ export default function CanonicalPresentationPage({
         <section
           className="cpp-page"
           aria-label="Pages 4+ — Shortlisted option detail"
+          data-canonical-source="page4Plus"
         >
           <p className="cpp-page__eyebrow">Pages 4 – 5</p>
           <h2 className="cpp-page__heading">Shortlisted options — required work and upgrades</h2>
@@ -589,6 +609,7 @@ export default function CanonicalPresentationPage({
       <section
         className="cpp-page"
         aria-label="Final page — Simulator and proof"
+        data-canonical-source="finalPage"
       >
         <p className="cpp-page__eyebrow">Final page</p>
         <h2 className="cpp-page__heading">Proof — test this recommendation</h2>
