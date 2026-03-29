@@ -937,7 +937,7 @@ function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): P
   const hardness = result.normalizer.waterHardnessCategory;
   const systemCondition = input.boilerConditionBand ?? input.cylinderConditionBand ?? input.plateHexConditionBand;
   const noMagFilter = input.hasMagneticFilter === false;
-  const sludgeDetected = (result.sludgeVsScale.flowDeratePct > 0.03) || (result.sludgeVsScale.primarySludgeCostGbp > 10);
+  const sludgeDetected = ((result.sludgeVsScale?.flowDeratePct ?? 0) > 0.03) || ((result.sludgeVsScale?.primarySludgeCostGbp ?? 0) > 10);
   const poorPerformance = systemCondition === 'poor' || systemCondition === 'severe' || sludgeDetected;
   const ageEstimate = age
     ?? (systemCondition === 'poor' || systemCondition === 'severe' ? 15 : systemCondition === 'moderate' ? 10 : 6);
