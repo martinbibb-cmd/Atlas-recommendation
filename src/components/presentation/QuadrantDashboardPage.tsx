@@ -7,7 +7,7 @@
  * Each tile is tappable to expand an inline detail panel.
  *
  * Quadrant content:
- *   Your House    — perimeter snapshot · house type · heat loss · solar hint
+ *   Your House    — perimeter snapshot · house type · heat loss · solar hint · energy/PV
  *   Your Home     — demand profile · daily litres · peak outlets
  *   Your System   — current system type · age badge · strengths / weaknesses
  *   Your Priorities — priority chips
@@ -15,11 +15,11 @@
  * Rules:
  *   - No Math.random()
  *   - All strings sourced from canonical model signals or PrioritiesState
- *   - shellSnapshotUrl shown when available; heat-particles fallback otherwise
+ *   - shellSnapshotUrl shown when available; text-only fallback otherwise
  */
 
 import { useState, type KeyboardEvent } from 'react';
-import type { HouseSignal, HomeSignal, CurrentSystemSignal, ObjectivesSignal } from './buildCanonicalPresentation';
+import type { HouseSignal, HomeSignal, CurrentSystemSignal, ObjectivesSignal, EnergySignal } from './buildCanonicalPresentation';
 import type { HeatLossState } from '../../features/survey/heatLoss/heatLossTypes';
 import type { PrioritiesState, PriorityKey } from '../../features/survey/priorities/prioritiesTypes';
 import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
@@ -42,12 +42,14 @@ function onTileKeyDown(event: KeyboardEvent<HTMLElement>, onToggle: () => void) 
 
 function HouseQuadrant({
   house,
+  energy,
   heatLossState,
   input,
   expanded,
   onToggle,
 }: {
   house: HouseSignal;
+  energy?: EnergySignal;
   heatLossState?: HeatLossState;
   input?: EngineInputV2_3;
   expanded: boolean;
@@ -79,23 +81,16 @@ function HouseQuadrant({
         )}
       </div>
 
-      {/* Visual: perimeter snapshot if available, heat-particles fallback */}
-      <div className="qdp-quadrant__visual">
-        {snapshot ? (
+      {/* Visual: perimeter snapshot when available */}
+      {snapshot && (
+        <div className="qdp-quadrant__visual">
           <img
             src={snapshot}
             alt="House perimeter sketch"
             className="qdp-quadrant__snapshot"
           />
-        ) : (
-          <PresentationVisualSlot
-            visualId="heat_particles"
-            visualData={{ wallType: house.wallTypeKey }}
-            hideExplainer
-            hideScript
-          />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Summary row */}
       <div className="qdp-quadrant__summary">
@@ -151,6 +146,17 @@ function HouseQuadrant({
             <p className="qdp-detail__row"><strong>Roof type:</strong> {house.roofTypeLabel}</p>
           )}
           {solarHint && <p className="qdp-detail__row"><strong>Solar potential:</strong> {solarHint}</p>}
+          {energy && (
+            <>
+              <p className="qdp-detail__row"><strong>PV status:</strong> {energy.pvStatusLabel}</p>
+              <p className="qdp-detail__row"><strong>Battery:</strong> {energy.batteryStatusLabel}</p>
+              <p className="qdp-detail__row"><strong>Energy alignment:</strong> {energy.energyAlignmentLabel}</p>
+              <p className="qdp-detail__row"><strong>Solar storage:</strong> {energy.solarStorageOpportunityLabel}</p>
+              {energy.narrativeSignals.map((sig, i) => (
+                <p key={i} className="qdp-detail__note">{sig}</p>
+              ))}
+            </>
+          )}
           {house.notes.map((note, i) => (
             <p key={i} className="qdp-detail__note">⚠ {note}</p>
           ))}
@@ -410,6 +416,8 @@ export interface QuadrantDashboardPageProps {
   heatLossState?: HeatLossState;
   prioritiesState?: PrioritiesState;
   objectives?: ObjectivesSignal;
+  /** Energy/PV signal from the engine output — displayed in expanded House tile. */
+  energy?: EnergySignal;
   /** Engine input — used for bedrooms, bathroomCount, householdComposition. */
   input?: EngineInputV2_3;
 }
@@ -430,6 +438,7 @@ export default function QuadrantDashboardPage({
   heatLossState,
   prioritiesState,
   objectives,
+  energy,
   input,
 }: QuadrantDashboardPageProps) {
   const [expanded, setExpanded] = useState<QuadrantId | null>(null);
@@ -446,6 +455,7 @@ export default function QuadrantDashboardPage({
     >
       <HouseQuadrant
         house={house}
+        energy={energy}
         heatLossState={heatLossState}
         input={input}
         expanded={expanded === 'house'}

@@ -67,10 +67,6 @@ function SignalRow({ label, value }: { label: string; value: string | number }) 
 function HouseSection({ house }: { house: HouseSignal }) {
   return (
     <div className="cpp-visual-section">
-      <PresentationVisualSlot
-        visualId="heat_particles"
-        visualData={{ wallType: house.wallTypeKey }}
-      />
       <div className="cpp-visual-section__context">
         <p className="cpp-visual-section__context-detail">
           {house.heatLossLabel} · {house.heatLossBand}

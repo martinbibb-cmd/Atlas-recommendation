@@ -7,11 +7,12 @@
  *     (house, home, energy, current_system, architecture).
  *   - The deck does contain the new slides in the correct order:
  *       1. quadrant_overview
- *       2. ageing
- *       3. options
- *       4. ranking
- *       5. option_* / compare_*
- *       6. simulator
+ *       2. condition (ageing)
+ *       3. quick wins (low-hanging fruit, conditional)
+ *       4. options
+ *       5. ranking
+ *       6. option_* / compare_*
+ *       7. simulator
  */
 
 import { describe, it, expect } from 'vitest';
@@ -89,12 +90,16 @@ describe('PresentationDeck — canonical page order', () => {
     expect(labels[1]).toBe('Condition');
   });
 
-  it('third page is Options (available systems)', () => {
-    expect(labels[2]).toBe('Options');
+  it('third page is Quick wins (low-hanging fruit)', () => {
+    expect(labels[2]).toBe('Quick wins');
   });
 
-  it('fourth page is Best fit (physics ranking)', () => {
-    expect(labels[3]).toBe('Best fit');
+  it('fourth page is Options (available systems)', () => {
+    expect(labels[3]).toBe('Options');
+  });
+
+  it('fifth page is Best fit (physics ranking)', () => {
+    expect(labels[4]).toBe('Best fit');
   });
 
   it('last page is the Proof (simulator handoff)', () => {
@@ -125,8 +130,8 @@ describe('PresentationDeck — canonical page order', () => {
 
   // ── Overall sequence structure ─────────────────────────────────────────────
 
-  it('deck has at least 5 pages (overview + condition + options + ranking + proof)', () => {
-    expect(labels.length).toBeGreaterThanOrEqual(5);
+  it('deck has at least 6 pages (overview + condition + quick-wins + options + ranking + proof)', () => {
+    expect(labels.length).toBeGreaterThanOrEqual(6);
   });
 
   it('pages after Best fit are Option or Changes slides before Proof', () => {
