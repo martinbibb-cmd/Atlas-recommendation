@@ -144,6 +144,7 @@ export function ServicesStep({
     state.postcode ?? surveyPostcode,
   );
   const [lookupError, setLookupError] = useState<string | null>(null);
+  const [showOverride, setShowOverride] = useState(false);
 
   // ── Lookup ───────────────────────────────────────────────────────────────────
 
@@ -360,30 +361,43 @@ export function ServicesStep({
         )}
 
         {/* Manual override */}
-        <div style={{ marginTop: '0.875rem' }}>
-          <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0 0 0.35rem', fontWeight: 600 }}>
-            {hasResult ? 'Override hardness band' : 'Or select hardness manually'}
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-            {HARDNESS_BAND_OPTIONS.map(({ value, label, ppmHint }) => (
-              <button
-                key={value}
-                type="button"
-                data-testid={`hardness-band-${value}`}
-                onClick={() => handleManualBandSelect(value)}
-                style={chipStyle(state.hardnessBand === value && state.source === 'user')}
-                title={ppmHint || undefined}
-              >
-                {label}
-                {ppmHint && (
-                  <span style={{ display: 'block', fontSize: '0.65rem', color: '#718096', fontWeight: 400 }}>
-                    {ppmHint}
-                  </span>
-                )}
-              </button>
-            ))}
+        {hasResult && !showOverride ? (
+          <div style={{ marginTop: '0.875rem' }}>
+            <button
+              type="button"
+              data-testid="hardness-override-toggle"
+              onClick={() => setShowOverride(true)}
+              style={{ fontSize: '0.78rem', color: '#3182ce', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+            >
+              Override hardness band
+            </button>
           </div>
-        </div>
+        ) : (
+          <div style={{ marginTop: '0.875rem' }}>
+            <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0 0 0.35rem', fontWeight: 600 }}>
+              {hasResult ? 'Override hardness band' : 'Or select hardness manually'}
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {HARDNESS_BAND_OPTIONS.map(({ value, label, ppmHint }) => (
+                <button
+                  key={value}
+                  type="button"
+                  data-testid={`hardness-band-${value}`}
+                  onClick={() => handleManualBandSelect(value)}
+                  style={chipStyle(state.hardnessBand === value && state.source === 'user')}
+                  title={ppmHint || undefined}
+                >
+                  {label}
+                  {ppmHint && (
+                    <span style={{ display: 'block', fontSize: '0.65rem', color: '#718096', fontWeight: 400 }}>
+                      {ppmHint}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Reset */}
         {hasResult && (
