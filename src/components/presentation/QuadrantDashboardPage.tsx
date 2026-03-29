@@ -339,11 +339,11 @@ function PrioritiesQuadrant({
       onClick={onToggle}
       onKeyDown={event => onTileKeyDown(event, onToggle)}
       aria-expanded={expanded}
-      aria-label="Your Objectives — tap to expand"
+      aria-label="Your Priorities — tap to expand"
     >
       <div className="qdp-quadrant__header">
         <span className="qdp-quadrant__icon" aria-hidden="true">🎯</span>
-        <span className="qdp-quadrant__title">Your Objectives</span>
+        <span className="qdp-quadrant__title">Your Priorities</span>
         {expanded && (
           <button type="button" className="qdp-quadrant__close" onClick={e => { e.stopPropagation(); onToggle(); }}>
             Close
