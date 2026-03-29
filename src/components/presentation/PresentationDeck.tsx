@@ -632,13 +632,14 @@ export default function PresentationDeck({
   // Pages are always in this order:
   //   0: quadrant_overview
   //   1: degradation_charts  (conditional on page1_5.hasRealEvidence)
-  //   1|2: system_options_grid
-  //   2|3: ranking
-  //   3|4: option_1
-  //   4|5: option_2
+  //   2: low_hanging_fruit   (conditional on page1_5.hasRealEvidence)
+  //   1|3: system_options_grid
+  //   2|4: ranking
+  //   3|5: option_1
+  //   4|6: option_2
   //   last: simulator
   //
-  const rankingIdx = 1 + (page1_5.hasRealEvidence ? 1 : 0) + 1;
+  const rankingIdx = 1 + (page1_5.hasRealEvidence ? 2 : 0) + 1;
   const opt1Idx    = rankingIdx + 1;
   const opt2Idx    = rankingIdx + 2;
 
@@ -697,6 +698,30 @@ export default function PresentationDeck({
                 fields={['page1_5.efficiencyBand', 'input.currentBoilerAgeYears']}
               />
               <DegradationChartsPage ctx={page1_5} input={input} />
+            </>
+          ),
+        }]
+      : []),
+
+    // ── 2.5. Low-hanging fruit — quick wins before committing to a new system ──
+    //    Only shown when backed by real survey evidence.
+    ...(page1_5.hasRealEvidence
+      ? [{
+          id: 'low_hanging_fruit',
+          label: 'Quick wins',
+          canonicalSource: {
+            component: 'LowHangingFruitPage',
+            fields: [
+              'page1_5.likelyFirstImprovements',
+            ],
+          },
+          content: (
+            <>
+              <DevProvenanceBadge
+                component="LowHangingFruitPage"
+                fields={['page1_5.likelyFirstImprovements']}
+              />
+              <LowHangingFruitPage ctx={page1_5} />
             </>
           ),
         }]
