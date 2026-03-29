@@ -42,6 +42,9 @@ const FIXTURE: EngineInputV2_3 = {
   currentHeatSourceType:      'combi',
   dhwStorageType:             'none',
   demandTimingOverrides:      { bathFrequencyPerWeek: 0, simultaneousUseSeverity: 'low' },
+  // Age is required to produce the System Condition (ageing) slide.
+  // Without it hasRealEvidence = false and the slide is suppressed.
+  currentBoilerAgeYears:      8,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

@@ -78,6 +78,12 @@ function HouseSection({ house }: { house: HouseSignal }) {
         <p className="cpp-visual-section__context-detail">
           {house.wallTypeLabel} · {house.insulationLabel}
         </p>
+        {house.roofOrientationLabel && (
+          <p className="cpp-visual-section__context-detail">
+            {house.roofOrientationLabel}
+            {house.roofTypeLabel ? ` · ${house.roofTypeLabel}` : ''}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -143,9 +149,11 @@ function CurrentSystemSection({ sys }: { sys: CurrentSystemSignal }) {
         />
       )}
       <div className="cpp-visual-section__context">
-        <p className="cpp-visual-section__context-detail">
-          {sys.systemTypeLabel} · {sys.ageLabel}
-        </p>
+        {(sys.systemTypeLabel != null || sys.ageLabel != null) && (
+          <p className="cpp-visual-section__context-detail">
+            {[sys.systemTypeLabel, sys.ageLabel].filter(Boolean).join(' · ')}
+          </p>
+        )}
         <p className="cpp-visual-section__context-detail cpp-visual-section__context-detail--muted">
           {sys.ageContext}
         </p>
@@ -155,6 +163,14 @@ function CurrentSystemSection({ sys }: { sys: CurrentSystemSignal }) {
 }
 
 function ObjectivesSection({ objectives }: { objectives: ObjectivesSignal }) {
+  if (objectives.priorities.length === 0) {
+    return (
+      <div className="cpp-signal-card cpp-signal-card--objectives">
+        <p className="cpp-signal-card__heading">🎯 Your objectives</p>
+        <p className="cpp-signal-card__empty">No priorities were selected.</p>
+      </div>
+    );
+  }
   return (
     <div className="cpp-signal-card cpp-signal-card--objectives">
       <p className="cpp-signal-card__heading">🎯 Your objectives</p>
@@ -168,6 +184,17 @@ function ObjectivesSection({ objectives }: { objectives: ObjectivesSignal }) {
 // ─── Page 1.5 ────────────────────────────────────────────────────────────────
 
 function AgeingContextSection({ ctx }: { ctx: Page1_5AgeingContext }) {
+  if (!ctx.hasRealEvidence) {
+    return (
+      <div className="cpp-ageing">
+        <p className="cpp-ageing__band">Condition not assessed from current survey data</p>
+        <p className="cpp-ageing__note">
+          No age, condition band, or sludge signal was recorded for this system.
+          Condition analysis is only shown when backed by captured evidence.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="cpp-ageing">
       <p className="cpp-ageing__band">

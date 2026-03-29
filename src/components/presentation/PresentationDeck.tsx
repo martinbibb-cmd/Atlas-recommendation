@@ -494,8 +494,13 @@ export default function PresentationDeck({
         </div>
       ),
     },
-    // ── 2. Ageing / degradation ───────────────────────────────────────────────
-    { id: 'ageing',   label: 'Condition', content: <AgeingPage ctx={page1_5} /> },
+    // ── 2. Ageing / degradation — only shown when backed by real survey evidence
+    // (age recorded, condition band captured, or sludge signal detected).
+    // Suppressed when there is no input-derived evidence to avoid showing
+    // synthetic health-band copy that looks authoritative but is fabricated.
+    ...(page1_5.hasRealEvidence
+      ? [{ id: 'ageing', label: 'Condition', content: <AgeingPage ctx={page1_5} /> }]
+      : []),
     // ── 3. Available systems ─────────────────────────────────────────────────
     { id: 'options',  label: 'Options',   content: <OptionsPage options={page2.options} currentSystemArchitecture={page1.currentSystem.dhwArchitecture} /> },
     // ── 4. Physics ranking ───────────────────────────────────────────────────
