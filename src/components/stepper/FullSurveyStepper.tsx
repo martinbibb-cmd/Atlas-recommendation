@@ -132,6 +132,10 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   );
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
+  // Full draft stored when transitioning to hub so the presentation deck has
+  // access to all fullSurvey step outputs (heatLoss, priorities, systemBuilder,
+  // waterQuality, usage, etc.) — not just the EngineInputV2_3 subset.
+  const [hubDraft, setHubDraft] = useState<FullSurveyModelV1 | null>(null);
 
   // ── Wire demographics into engine input ────────────────────────────────────
   // When the Home / Demographics step state changes, sync composition and
@@ -287,6 +291,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
       }
       const engineResult = runEngine(engineInput);
       setResults(engineResult);
+      setHubDraft(draft);
       setMode('hub');
       return;
     }
@@ -312,7 +317,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     return (
       <LiveHubPage
         result={results}
-        input={input}
+        input={hubDraft ?? input}
         onBack={() => setMode('stepper')}
       />
     );
