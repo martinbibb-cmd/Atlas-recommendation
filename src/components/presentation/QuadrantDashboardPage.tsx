@@ -112,7 +112,13 @@ function HouseQuadrant({
           <p className="qdp-detail__row"><strong>Heat loss:</strong> {house.heatLossLabel} — {house.heatLossBand}</p>
           <p className="qdp-detail__row"><strong>Walls:</strong> {house.wallTypeLabel}</p>
           <p className="qdp-detail__row"><strong>Insulation:</strong> {house.insulationLabel}</p>
-          {solarHint && <p className="qdp-detail__row"><strong>Solar:</strong> {solarHint}</p>}
+          {house.roofOrientationLabel && (
+            <p className="qdp-detail__row"><strong>Roof orientation:</strong> {house.roofOrientationLabel}</p>
+          )}
+          {house.roofTypeLabel && (
+            <p className="qdp-detail__row"><strong>Roof type:</strong> {house.roofTypeLabel}</p>
+          )}
+          {solarHint && <p className="qdp-detail__row"><strong>Solar potential:</strong> {solarHint}</p>}
           {house.notes.map((note, i) => (
             <p key={i} className="qdp-detail__note">{note}</p>
           ))}
@@ -236,7 +242,9 @@ function SystemQuadrant({
       </div>
 
       <div className="qdp-quadrant__summary">
-        <span className="qdp-quadrant__badge">{sys.systemTypeLabel ?? 'System type not recorded'}</span>
+        {sys.systemTypeLabel != null && (
+          <span className="qdp-quadrant__badge">{sys.systemTypeLabel}</span>
+        )}
         {sys.ageLabel != null && (
           <span className="qdp-quadrant__badge qdp-quadrant__badge--secondary">{sys.ageLabel}</span>
         )}

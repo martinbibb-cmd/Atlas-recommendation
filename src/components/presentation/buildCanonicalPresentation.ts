@@ -57,6 +57,17 @@ export interface HouseSignal {
    * cavity_unfilled is mapped to cavity_uninsulated (same high heat-loss physics).
    */
   wallTypeKey: 'solid_masonry' | 'cavity_uninsulated' | 'cavity_insulated';
+  /**
+   * Human-readable roof orientation label for the main usable roof face.
+   * null when orientation was not recorded in the survey.
+   * Drives solar suitability narrative in both deck and vertical presentation paths.
+   */
+  roofOrientationLabel: string | null;
+  /**
+   * Human-readable roof type label — pitched, flat, hipped, etc.
+   * null when not recorded.
+   */
+  roofTypeLabel: string | null;
 }
 
 /** Home signals — demand profile, demographics, storage benefit. */
@@ -392,6 +403,37 @@ const SYSTEM_TYPE_LABELS: Record<string, string> = {
   other:  'Other heat source',
 };
 
+/**
+ * Human-readable labels for compass roof orientations.
+ * 'unknown' maps to null — displayed only when orientation was captured.
+ */
+const ROOF_ORIENTATION_LABELS: Record<string, string> = {
+  N:  'Roof faces North',
+  NE: 'Roof faces North-East',
+  E:  'Roof faces East',
+  SE: 'Roof faces South-East',
+  S:  'Roof faces South (best solar)',
+  SW: 'Roof faces South-West',
+  W:  'Roof faces West',
+  NW: 'Roof faces North-West',
+  // Legacy lowercase aliases from EngineInputV2_3 roofOrientation field
+  north:       'Roof faces North',
+  east:        'Roof faces East',
+  south:       'Roof faces South (best solar)',
+  west:        'Roof faces West',
+  south_east:  'Roof faces South-East',
+  south_west:  'Roof faces South-West',
+  mixed:       'Mixed roof orientation',
+};
+
+const ROOF_TYPE_LABELS: Record<string, string> = {
+  pitched: 'Pitched roof',
+  flat:    'Flat roof',
+  hipped:  'Hipped roof',
+  dormer:  'Dormer roof',
+  mixed:   'Mixed roof form',
+};
+
 const BATH_INTENSITY_LABELS: Record<string, string> = {
   low:    'Low bath use (shower-only or rare baths)',
   medium: 'Moderate bath use (occasional baths)',
@@ -592,6 +634,15 @@ function buildHouseSignal(result: FullEngineResult, input: EngineInputV2_3): Hou
     insulationLabel: INSULATION_LABELS[insulation] ?? insulation,
     notes,
     wallTypeKey: wallTypeToVisualKey(wallType),
+    // Roof orientation — null when not captured, unknown, or unmapped.
+    // We do NOT fall back to raw internal identifiers; use null to hide the field.
+    roofOrientationLabel: (input.roofOrientation && input.roofOrientation !== 'unknown')
+      ? (ROOF_ORIENTATION_LABELS[input.roofOrientation] ?? null)
+      : null,
+    // Roof type — null when not captured, unknown, or unmapped.
+    roofTypeLabel: (input.roofType && input.roofType !== 'unknown')
+      ? (ROOF_TYPE_LABELS[input.roofType] ?? null)
+      : null,
   };
 }
 
@@ -652,8 +703,10 @@ function buildEnergySignal(result: FullEngineResult, input: EngineInputV2_3): En
 function buildCurrentSystemSignal(input: EngineInputV2_3): CurrentSystemSignal {
   // Use the raw type from input — never fall back to 'other' when the type
   // was not captured. 'other' is only used when the user explicitly selected it.
+  // For unmapped types (implementation identifiers not in SYSTEM_TYPE_LABELS),
+  // return null rather than exposing raw internal identifiers to the UI.
   const type = input.currentHeatSourceType;
-  const systemTypeLabel = type != null ? (SYSTEM_TYPE_LABELS[type] ?? type) : null;
+  const systemTypeLabel = type != null ? (SYSTEM_TYPE_LABELS[type] ?? null) : null;
 
   const age = input.currentBoilerAgeYears ?? input.currentSystem?.boiler?.ageYears;
   // ageLabel is null when age was not captured — callers must hide the label

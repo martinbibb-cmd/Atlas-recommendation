@@ -78,6 +78,12 @@ function HouseSection({ house }: { house: HouseSignal }) {
         <p className="cpp-visual-section__context-detail">
           {house.wallTypeLabel} · {house.insulationLabel}
         </p>
+        {house.roofOrientationLabel && (
+          <p className="cpp-visual-section__context-detail">
+            {house.roofOrientationLabel}
+            {house.roofTypeLabel ? ` · ${house.roofTypeLabel}` : ''}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -143,9 +149,11 @@ function CurrentSystemSection({ sys }: { sys: CurrentSystemSignal }) {
         />
       )}
       <div className="cpp-visual-section__context">
-        <p className="cpp-visual-section__context-detail">
-          {[sys.systemTypeLabel, sys.ageLabel].filter(Boolean).join(' · ') || 'System details not recorded'}
-        </p>
+        {(sys.systemTypeLabel != null || sys.ageLabel != null) && (
+          <p className="cpp-visual-section__context-detail">
+            {[sys.systemTypeLabel, sys.ageLabel].filter(Boolean).join(' · ')}
+          </p>
+        )}
         <p className="cpp-visual-section__context-detail cpp-visual-section__context-detail--muted">
           {sys.ageContext}
         </p>

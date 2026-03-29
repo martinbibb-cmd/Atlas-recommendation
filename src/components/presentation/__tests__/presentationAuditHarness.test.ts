@@ -187,10 +187,13 @@ describe('Contract audit — canonical presentation model shape', () => {
         // audit fixtures set this explicitly so it must always be truthy here.
         expect(model.page1.currentSystem.systemTypeLabel).toBeTruthy();
         // ageLabel is nullable by design: it is null when age was not captured in
-        // the survey (which is the case for most audit fixtures).  The contract is
-        // that it must be a non-empty string ONLY when age data was provided.
-        // We only check it is not an empty string (null is acceptable).
-        expect(model.page1.currentSystem.ageLabel).not.toBe('');
+        // the survey. When present it must be a non-empty string; when absent it
+        // must be exactly null (never an empty string, undefined, or other falsy).
+        const ageLabel = model.page1.currentSystem.ageLabel;
+        expect(
+          ageLabel === null || (typeof ageLabel === 'string' && ageLabel.length > 0),
+          `ageLabel must be null or a non-empty string, got: ${JSON.stringify(ageLabel)}`,
+        ).toBe(true);
         expect(model.page1.currentSystem.drivingStyleMode).toMatch(/^(combi|stored|heat_pump)$/);
         expect(model.page1.currentSystem.dhwStorageType).toMatch(
           /^(open_vented|unvented|thermal_store|mixergy|unknown)$/,
