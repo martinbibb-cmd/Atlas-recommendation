@@ -38,21 +38,15 @@ import type { RecommendationResult } from '../../engine/recommendation/Recommend
 import {
   buildCanonicalPresentation,
   type Page1_5AgeingContext,
-  type ComponentDegradationBlock,
-  type CirculationSignal,
   type AvailableOptionExplanation,
   type PhysicsRankingItem,
   type ShortlistedOptionDetail,
   type FinalPageSimulator,
-  type DhwArchitecture,
 } from './buildCanonicalPresentation';
 import { resolveShortlistVisualId } from './presentationVisualMapping';
 import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
 import PresentationVisualSlot from './PresentationVisualSlot';
-import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
 import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
-import { optionToConceptModel } from '../../explainers/lego/autoBuilder/optionToConceptModel';
-import type { OptionId } from '../../explainers/lego/autoBuilder/optionToConceptModel';
 import QuadrantDashboardPage from './QuadrantDashboardPage';
 import './PresentationDeck.css';
 
@@ -81,163 +75,6 @@ function useReducedMotion(): boolean {
   }, []);
 
   return reduced;
-}
-
-// ─── Compare architecture page (new system vs current) ────────────────────────
-
-function CompareArchitecturePage({
-  input,
-  option,
-}: {
-  input: EngineInputV2_3;
-  option: ShortlistedOptionDetail;
-}) {
-  const currentConcept   = inputToConceptModel(input);
-  const isMixergy        = option.dhwArchitecture === 'mixergy';
-  const recommendedConcept = optionToConceptModel(
-    option.family as OptionId,
-    isMixergy,
-    input.emitterType ? [input.emitterType] : undefined,
-  );
-  if (!currentConcept) return null;
-
-  // Show future solar pathway when solar storage opportunity is high
-  const futurePathways = option.solarStorageOpportunity === 'high'
-    ? [{ id: 'solar_connection' as const }]
-    : [];
-
-  return (
-    <>
-      <p className="atlas-presentation-deck__page-eyebrow">System changes</p>
-      <h2 className="atlas-presentation-deck__page-title">What changes — what stays</h2>
-      <div className="atlas-presentation-deck__visual atlas-presentation-deck__visual--architecture">
-        <SystemArchitectureVisualiser
-          mode="compare"
-          currentSystem={currentConcept}
-          recommendedSystem={recommendedConcept}
-          futurePathways={futurePathways}
-        />
-      </div>
-    </>
-  );
-}
-
-// ─── Ageing page sub-components ─────────────────────────────────────────────
-
-/** Block A: efficiency drift — shows healthy → ageing → neglected path */
-function EfficiencyDriftBlock({ ctx }: { ctx: Page1_5AgeingContext }) {
-  const bands: Array<{ key: 'healthy' | 'ageing' | 'neglected'; label: string }> = [
-    { key: 'healthy',   label: 'Healthy' },
-    { key: 'ageing',    label: 'Ageing' },
-    { key: 'neglected', label: 'Neglected' },
-  ];
-  return (
-    <div className="ageing-block">
-      <p className="ageing-block__label">A — Efficiency drift</p>
-      <div className="ageing-block__drift-track">
-        {bands.map(b => {
-          const isCurrent = ctx.currentEfficiencyBand === b.key;
-          const cls = [
-            `ageing-block__drift-band ageing-block__drift-band--${b.key}`,
-            isCurrent ? 'ageing-block__drift-band--current' : '',
-          ].filter(Boolean).join(' ');
-          return (
-            <div key={b.key} className={cls}>
-              {b.label}
-              {isCurrent && (
-                <span className="ageing-block__drift-here" aria-label="Current position">▲</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <p className="ageing-block__desc">{ctx.efficiencyBandDescription}</p>
-    </div>
-  );
-}
-
-/** Block B: architecture-specific component degradation */
-function ComponentDegradationBlockView({ block }: { block: ComponentDegradationBlock }) {
-  const conditionColour: Record<string, string> = {
-    good:     'ageing-condition--good',
-    moderate: 'ageing-condition--moderate',
-    poor:     'ageing-condition--poor',
-    severe:   'ageing-condition--severe',
-    unknown:  'ageing-condition--unknown',
-  };
-  return (
-    <div className="ageing-block">
-      <p className="ageing-block__label">B — Hot-water component</p>
-      <p className="ageing-block__component-name">{block.componentLabel}</p>
-      <p className={`ageing-block__condition-badge ${conditionColour[block.conditionBand] ?? ''}`}>
-        {block.conditionLabel}
-      </p>
-      <p className="ageing-block__desc">{block.degradationMechanism}</p>
-    </div>
-  );
-}
-
-/** Block C: cleanliness / circulation signal pills */
-function CirculationBlock({ signals }: { signals: CirculationSignal[] }) {
-  const statusIcon: Record<CirculationSignal['status'], string> = {
-    ok:      '✓ ',
-    warn:    '⚠ ',
-    unknown: '? ',
-  };
-  return (
-    <div className="ageing-block">
-      <p className="ageing-block__label">C — Cleanliness &amp; circulation</p>
-      <ul className="ageing-block__signals" aria-label="Circulation signals">
-        {signals.map((s, i) => (
-          <li
-            key={i}
-            className={`ageing-block__signal-pill ageing-block__signal-pill--${s.status}`}
-          >
-            {statusIcon[s.status]}{s.label}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function AgeingPage({ ctx }: { ctx: Page1_5AgeingContext }) {
-  return (
-    <>
-      <p className="atlas-presentation-deck__page-eyebrow">System condition</p>
-      <h2 className="atlas-presentation-deck__page-title">{ctx.heading}</h2>
-      <p className="ageing-page__condition-summary">{ctx.conditionSummary}</p>
-
-      {/* Three visual blocks */}
-      <div className="ageing-page__blocks">
-        <EfficiencyDriftBlock ctx={ctx} />
-        <ComponentDegradationBlockView block={ctx.componentDegradation} />
-        <CirculationBlock signals={ctx.circulationSignals} />
-      </div>
-
-      {/* What this means in your home */}
-      <div className="ageing-page__impacts">
-        <p className="ageing-page__section-heading">What this means in your home</p>
-        <ul className="ageing-page__impact-list">
-          {ctx.homeImpacts.map((impact, i) => (
-            <li key={i}>{impact}</li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Likely first improvements */}
-      {ctx.likelyFirstImprovements.length > 0 && (
-        <div className="ageing-page__improvements">
-          <p className="ageing-page__section-heading">Likely first improvements</p>
-          <ul className="ageing-page__improvement-list">
-            {ctx.likelyFirstImprovements.map((item, i) => (
-              <li key={i}>{item}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </>
-  );
 }
 
 // ─── Page 2 — Boiler degradation charts ─────────────────────────────────────
@@ -300,7 +137,7 @@ function DegradationChartsPage({
                 label={{ value: 'Years', position: 'insideBottom', offset: -4, fontSize: 9 }}
               />
               <YAxis domain={[60, 95]} tick={{ fontSize: 9 }} />
-              <Tooltip formatter={(v: number) => [`${v}%`, 'Efficiency']} />
+              <Tooltip formatter={(v: number | undefined) => [v != null ? `${v}%` : '', 'Efficiency']} />
               {ageYears > 0 && (
                 <ReferenceLine
                   x={ageYears}
