@@ -215,6 +215,11 @@ const SEVERITY_SCALE: Readonly<Record<LimiterLedgerEntry['severity'], number>> =
  * 'limit' or 'hard_stop' severity limiter.  This forces clear score separation
  * between candidates with and without hard physical constraints, preventing
  * ASHP/system clustering in clearly unsuitable cases.
+ *
+ * Calibrated to ensure that a candidate with a single hard constraint sits
+ * visibly below a clean candidate (~5 pts on the 0–100 overall scale) without
+ * being so large that it double-penalises alongside the per-objective limiter
+ * penalties which already scale by severity.
  */
 const HARD_CONSTRAINT_SEPARATION_BONUS = 5;
 
@@ -683,11 +688,11 @@ function buildConfidenceSummary(
 
 // ─── "Why not this option?" builder ───────────────────────────────────────────
 
-/** Human-readable family labels for explanation text. */
+/** Human-readable family labels for explanation text (engine-internal only). */
 const FAMILY_DISPLAY_NAMES: Readonly<Record<ApplianceFamily, string>> = {
   combi: 'Combi boiler',
-  system: 'System boiler (stored)',
-  regular: 'Regular boiler (stored)',
+  system: 'System boiler with cylinder',
+  regular: 'Regular boiler with cylinder',
   heat_pump: 'Heat pump',
   open_vented: 'Open vented system',
 };

@@ -75,6 +75,8 @@ const shellStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   height: '100%',
+  // 85vh leaves room for the browser chrome and any stepper header above this
+  // component, while still giving the canvas a generous working area.
   maxHeight: '85vh',
   position: 'relative',
 };
@@ -302,7 +304,11 @@ export function HeatLossStep({
 
 // ─── Geometry helpers ─────────────────────────────────────────────────────────
 
-/** Compute the area of a 2D polygon using the shoelace formula (m²). */
+/**
+ * Compute the area of a 2-D polygon using the shoelace formula.
+ * Input points are in real-world metres (matching the ShellPoint coordinate
+ * system); the returned value is in m².
+ */
 function computePolygonArea(points: { x: number; y: number }[]): number {
   if (points.length < 3) return 0;
   let area = 0;

@@ -184,6 +184,9 @@ export function normalizeDraftToEngineInput(draft: SurveyDraftInput): FullSurvey
     if (field.value !== undefined) return field.value;
     const fallback = ENGINE_SAFE_DEFAULTS[key];
     if (fallback !== undefined) return fallback as T;
+    // No value and no engine-safe default — return undefined.  This is
+    // expected for optional fields (e.g. staticMainsPressureBar); required
+    // fields must have an entry in ENGINE_SAFE_DEFAULTS.
     return undefined as T;
   }
 
