@@ -16,6 +16,7 @@ import { describe, it, expect } from 'vitest';
 import { runEngine } from '../../../engine/Engine';
 import { buildCanonicalPresentation } from '../buildCanonicalPresentation';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
+import { PRIORITY_META } from '../../../features/survey/priorities/prioritiesTypes';
 
 // ─── Fixture helpers ──────────────────────────────────────────────────────────
 
@@ -556,10 +557,7 @@ describe('buildCanonicalPresentation — prioritiesState data binding', () => {
   });
 
   it('every selected priority key produces a non-empty label and value', () => {
-    const allKeys: import('../../../features/survey/priorities/prioritiesTypes').PriorityKey[] = [
-      'performance', 'reliability', 'longevity', 'disruption',
-      'eco', 'cost_tendency', 'future_compatibility',
-    ];
+    const allKeys = PRIORITY_META.map(m => m.key);
     const result = runEngine(BASE_INPUT);
     const model = buildCanonicalPresentation(result, BASE_INPUT, undefined, {
       selected: allKeys,

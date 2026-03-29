@@ -756,6 +756,9 @@ function buildCurrentSystemSignal(input: EngineInputV2_3): CurrentSystemSignal {
   };
 }
 
+/** Pre-built lookup map for O(1) PriorityKey → PriorityMeta access. */
+const PRIORITY_META_MAP = new Map(PRIORITY_META.map(m => [m.key, m]));
+
 function buildObjectivesSignal(
   input: EngineInputV2_3,
   prioritiesState?: PrioritiesState,
@@ -766,7 +769,7 @@ function buildObjectivesSignal(
   // supersede any legacy expertAssumptions / preferences fields.
   if (prioritiesState && prioritiesState.selected.length > 0) {
     const priorities = prioritiesState.selected.map(key => {
-      const meta = PRIORITY_META.find(m => m.key === key);
+      const meta = PRIORITY_META_MAP.get(key);
       return meta
         ? { label: `${meta.emoji} ${meta.label}`, value: meta.sub }
         : { label: key, value: '' };

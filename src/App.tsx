@@ -371,7 +371,7 @@ export default function App() {
           ← Back
         </button>
         {import.meta.env.DEV && (
-          <p style={{ fontSize: '0.75rem', color: '#b45309', background: '#fffbeb', border: '1px dashed #d97706', borderRadius: 4, padding: '0.35rem 0.6rem', marginBottom: '0.5rem', fontFamily: 'monospace' }}>
+          <p className="atlas-dev-notice">
             🔬 Dev deck — CONSOLE_DEMO_INPUT (no survey heatLossState / prioritiesState)
           </p>
         )}
@@ -396,7 +396,7 @@ export default function App() {
           ← Back
         </button>
         {import.meta.env.DEV && (
-          <p style={{ fontSize: '0.75rem', color: '#b45309', background: '#fffbeb', border: '1px dashed #d97706', borderRadius: 4, padding: '0.35rem 0.6rem', marginBottom: '0.5rem', fontFamily: 'monospace' }}>
+          <p className="atlas-dev-notice">
             🔬 Dev presentation — CONSOLE_DEMO_INPUT (no survey heatLossState / prioritiesState)
           </p>
         )}

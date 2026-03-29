@@ -454,7 +454,6 @@ function DevProvenanceBadge({
     <div
       className="atlas-deck-provenance"
       aria-hidden="true"
-      title={`Dev: ${component} — ${fields.join(', ')}`}
     >
       <span className="atlas-deck-provenance__label">
         🔬 {component}
