@@ -9,6 +9,7 @@
  */
 
 import type { CSSProperties } from 'react';
+import { getStepMeta } from '../../../config/surveyStepRegistry';
 import type {
   SystemBuilderState,
   HeatSource,
@@ -280,7 +281,7 @@ export function SystemBuilderStep({
 
   return (
     <div className="step-card" data-testid="system-builder-step">
-      <h2>🔧 System Architecture</h2>
+      <h2>{getStepMeta('system_builder').heading}</h2>
       <p style={{ color: '#4a5568', fontSize: '0.85rem', marginTop: '0.25rem' }}>
         Describe the heating and hot-water system that is currently installed.
         Select options that match what you can observe on site.

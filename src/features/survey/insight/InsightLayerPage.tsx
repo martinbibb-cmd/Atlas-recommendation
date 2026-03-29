@@ -21,6 +21,7 @@ import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1
 import type { PrioritiesState } from '../priorities/prioritiesTypes';
 import { PRIORITY_META } from '../priorities/prioritiesTypes';
 import { normalisePriorities } from '../priorities/prioritiesNormalizer';
+import { getStepMeta } from '../../../config/surveyStepRegistry';
 import {
   deriveHeatLoadInsight,
   derivePresentSystemInsight,
@@ -219,7 +220,7 @@ export function InsightLayerPage({
 
   return (
     <div className="step-card" data-testid="insight-layer-page">
-      <h2 style={{ marginBottom: '1.25rem' }}>🧠 What we need to keep in mind</h2>
+      <h2 style={{ marginBottom: '1.25rem' }}>{getStepMeta('insight').heading}</h2>
 
       {/* ── 0. Current system visualiser ─────────────────────────────────────── */}
       {systemBuilder.heatSource && (
