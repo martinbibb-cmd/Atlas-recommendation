@@ -27,7 +27,6 @@ import {
   type SurveyStepId,
   SURVEY_STEP_IDS,
   SURVEY_STEP_COUNT,
-  getStepMeta,
   progressLabel,
 } from '../../config/surveyStepRegistry';
 
@@ -254,7 +253,6 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
 
   const stepIndex = STEPS.indexOf(currentStep);
   const progress = ((stepIndex + 1) / SURVEY_STEP_COUNT) * 100;
-  const currentMeta = getStepMeta(currentStep);
 
   // Scroll to top whenever the active step changes so the user always sees the
   // top of the new step — prevents "mid-page carryover" between steps.
