@@ -45,6 +45,13 @@ const FORBIDDEN_PHRASES = [
   'unlimited hot water',
 ];
 
+/** Push a string only when it is present and non-empty (after trimming). Silently skips null, undefined, and whitespace-only strings. */
+function pushOptionalString(target: string[], value: string | null | undefined): void {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    target.push(value);
+  }
+}
+
 /** Collect all visible strings from a model for phrase scanning. */
 function collectStrings(model: CanonicalPresentationModel): string[] {
   const strings: string[] = [];
@@ -59,7 +66,9 @@ function collectStrings(model: CanonicalPresentationModel): string[] {
   strings.push(e.pvStatusLabel, e.batteryStatusLabel, e.pvSuitabilityLabel,
     e.energyAlignmentLabel, e.solarStorageOpportunityLabel, ...e.narrativeSignals);
   const cs = model.page1.currentSystem;
-  strings.push(cs.systemTypeLabel, cs.ageLabel, cs.ageContext);
+  pushOptionalString(strings, cs.systemTypeLabel);
+  pushOptionalString(strings, cs.ageLabel);
+  strings.push(cs.ageContext);
   if (cs.makeModelText) strings.push(cs.makeModelText);
   if (cs.outputLabel) strings.push(cs.outputLabel);
   strings.push(model.page1_5.heading, model.page1_5.ageBandLabel, ...model.page1_5.probabilisticNotes);
