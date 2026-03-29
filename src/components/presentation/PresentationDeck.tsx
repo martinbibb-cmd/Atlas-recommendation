@@ -243,32 +243,42 @@ function LowHangingFruitPage({ ctx }: { ctx: Page1_5AgeingContext }) {
 
 // ─── Page 3 — 4-quadrant system options grid ─────────────────────────────────
 
-const SYSTEM_OPTION_DEFS = [
+const SYSTEM_OPTION_DEFS: ReadonlyArray<{
+  key: string;
+  heading: string;
+  sub: string;
+  imageId: string;
+  matchIds: ReadonlyArray<string>;
+}> = [
   {
     key: 'regular_vented',
     heading: 'Regular / System boiler',
     sub: '+ Open vented stored hot water',
-    imageId: 'stored_vented',
+    imageId: 'regular_vented',
+    matchIds: ['regular_vented', 'stored_vented'],
   },
   {
     key: 'stored_unvented',
     heading: 'Regular / System boiler',
     sub: '+ Unvented stored hot water',
     imageId: 'stored_unvented',
+    matchIds: ['stored_unvented', 'system_unvented'],
   },
   {
     key: 'ashp',
     heading: 'Air source heat pump',
     sub: '+ Stored hot water',
     imageId: 'ashp',
+    matchIds: ['ashp', 'gshp'],
   },
   {
     key: 'combi',
     heading: 'Combination boiler',
     sub: 'On-demand hot water',
     imageId: 'combi',
+    matchIds: ['combi'],
   },
-] as const;
+];
 
 function SystemOptionsGridPage({ options }: { options: AvailableOptionExplanation[] }) {
   return (
@@ -280,12 +290,8 @@ function SystemOptionsGridPage({ options }: { options: AvailableOptionExplanatio
       <div className="atlas-deck-sys-grid">
         {SYSTEM_OPTION_DEFS.map(def => {
           const image = imageForOptionId(def.imageId);
-          // Match this cell to an available option by family / id
-          const opt = options.find(o =>
-            o.id === def.key || o.id === def.imageId ||
-            (def.key === 'regular_vented' && (o.id === 'regular' || o.id === 'stored_vented')) ||
-            (def.key === 'ashp' && (o.id === 'heat_pump' || o.id === 'ashp')),
-          );
+          // Match this cell to an available option using the canonical matchIds list
+          const opt = options.find(o => def.matchIds.includes(o.id));
           const bullets = opt
             ? [
                 ...opt.throughHouseNotes.slice(0, 1),
