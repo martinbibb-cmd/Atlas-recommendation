@@ -100,9 +100,11 @@ export function imageForOptionId(optionId: string): SystemImageInfo | null {
       return { src: `${BASE}/unvented-cylinder.JPG`, alt: 'System boiler with unvented cylinder — real-world example' };
     case 'stored_vented':
     case 'regular_vented':
-      return { src: `${BASE}/open-vented-schematic.JPG`, alt: 'Regular boiler with vented cylinder — real-world example' };
+      return { src: `${BASE}/vented-cylinder.PNG`, alt: 'Regular boiler with open-vented cylinder — real-world example' };
     case 'ashp':
       return { src: `${BASE}/ASHP.PNG`, alt: 'Air source heat pump — real-world example' };
+    case 'gshp':
+      return { src: `${BASE}/GSHP.PNG`, alt: 'Ground source heat pump — real-world example' };
     default:
       return null;
   }
