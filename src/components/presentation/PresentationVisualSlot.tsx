@@ -63,6 +63,8 @@ export interface PresentationVisualSlotProps<T extends PhysicsVisualId> {
    * Defaults to false — explainer is shown by default.
    */
   hideExplainer?: boolean;
+  /** When true, hides title/summary/takeaway script copy and renders visual-only. */
+  hideScript?: boolean;
 }
 
 /**
@@ -78,6 +80,8 @@ export interface PresentationVisualSlotNullProps {
   /** Optional takeaway shown below the summary. */
   takeaway?: string;
   hideExplainer?: boolean;
+  /** When true, hides title/summary/takeaway script copy and renders visual-only. */
+  hideScript?: boolean;
 }
 
 // ─── Focus panel ──────────────────────────────────────────────────────────────
@@ -202,15 +206,23 @@ export default function PresentationVisualSlot<T extends PhysicsVisualId>(
   }
 
   // From here on, visualId is a known PhysicsVisualId.
-  const { visualId, visualData, hideExplainer = false } = props as PresentationVisualSlotProps<T>;
+  const { visualId, visualData, hideExplainer = false, hideScript = false } = props as PresentationVisualSlotProps<T>;
 
-  return <VisualSlotWithId visualId={visualId} visualData={visualData} hideExplainer={hideExplainer} />;
+  return (
+    <VisualSlotWithId
+      visualId={visualId}
+      visualData={visualData}
+      hideExplainer={hideExplainer}
+      hideScript={hideScript}
+    />
+  );
 }
 
 function VisualSlotWithId<T extends PhysicsVisualId>({
   visualId,
   visualData,
   hideExplainer = false,
+  hideScript = false,
 }: PresentationVisualSlotProps<T>) {
   const reducedMotion = useReducedMotion();
   const [explainerOpen, setExplainerOpen] = useState(false);
@@ -235,13 +247,15 @@ function VisualSlotWithId<T extends PhysicsVisualId>({
       </div>
 
       {/* ── Script copy ─────────────────────────────────────────── */}
-      <div className="pvs__script">
-        <p className="pvs__title">{script.title}</p>
-        <p className="pvs__summary">{script.summary}</p>
-        {script.takeaway && (
-          <p className="pvs__takeaway">{script.takeaway}</p>
-        )}
-      </div>
+      {!hideScript && (
+        <div className="pvs__script">
+          <p className="pvs__title">{script.title}</p>
+          <p className="pvs__summary">{script.summary}</p>
+          {script.takeaway && (
+            <p className="pvs__takeaway">{script.takeaway}</p>
+          )}
+        </div>
+      )}
 
       {/* ── Explainer CTA ───────────────────────────────────────── */}
       {!hideExplainer && hasFocusCopy && (
