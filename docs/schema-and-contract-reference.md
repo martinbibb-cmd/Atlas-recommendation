@@ -54,6 +54,9 @@ All fields below are on `FullSurveyModelV1`, which is used directly as the engin
 | `solarShading` | `'low' \| 'medium' \| 'high' \| 'unknown'` | — | **Derived** from `fullSurvey.heatLoss.shadingLevel` |
 | `pvStatus` | `'none' \| 'existing' \| 'planned'` | — | **Derived** from `fullSurvey.heatLoss.pvStatus` |
 | `batteryStatus` | `'none' \| 'existing' \| 'planned'` | — | **Derived** from `fullSurvey.heatLoss.batteryStatus` |
+| `perimeterM` | `number?` | **m** | **Derived** from closed shell polygon via `sanitiseModelForEngine`. Stored in `fullSurvey.heatLoss.perimeterM`. |
+| `groundFloorAreaM2` | `number?` | **m²** | **Derived** from closed shell polygon (shoelace formula). Stored in `fullSurvey.heatLoss.groundFloorAreaM2`. |
+| `buildingBearingDeg` | `number?` | **degrees** | Clockwise from north (0 = N, 90 = E). Captured via compass control; stored in `fullSurvey.heatLoss.buildingBearingDeg`. Distinct from `roofOrientation`. |
 | `building.fabric.wallType` | `FabricWallType` | — | Used by FabricModelModule |
 | `building.fabric.insulationLevel` | `FabricInsulationLevel` | — | Used by FabricModelModule |
 | `building.fabric.glazing` | `FabricGlazing` | — | Used by FabricModelModule |
@@ -262,6 +265,9 @@ This is a **presentation normalisation only** — the engine receives the raw `w
 | Cylinder volume | **litres** | `cylinderVolumeLitres` |
 | Boiler age | **years** | `currentBoilerAgeYears` |
 | Efficiency | **%** | `currentBoilerSedbukPct`, `computeCurrentEfficiencyPct` |
+| Perimeter | **m** | `perimeterM` |
+| Floor area | **m²** | `groundFloorAreaM2` |
+| Building bearing | **degrees** (clockwise from north) | `buildingBearingDeg`, `FloorPlan.compassBearingDeg` |
 
 **Critical:** `heatLossWatts` is always in **Watts**, never kW. Do not multiply or divide by 1000 unless explicitly converting for display. This is the most common unit-confusion bug in this codebase — treat every use of this field with care.
 

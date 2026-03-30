@@ -185,10 +185,26 @@ export function HeatLossStep({
   };
 
   function handleHeatLossChange(totalKw: number | null) {
+    // When a heat-loss result arrives, also capture the computed perimeter and
+    // area from the active shell layer so they are stored in state (and
+    // therefore flow through to the engine via sanitiseModelForEngine).
+    const shellModel = state.shellModel;
+    const activeLayerForMetrics = shellModel?.layers.find(
+      l => l.id === shellModel.activeLayerId
+    );
+    const derivedPerimeterM = activeLayerForMetrics?.closed
+      ? computePerimeter(activeLayerForMetrics.points)
+      : undefined;
+    const derivedAreaM2 = activeLayerForMetrics?.closed
+      ? computePolygonArea(activeLayerForMetrics.points)
+      : undefined;
+
     onChange({
       ...state,
       estimatedPeakHeatLossW: totalKw != null ? Math.round(totalKw * 1000) : null,
       heatLossConfidence: totalKw != null ? 'estimated' : state.heatLossConfidence,
+      perimeterM:       derivedPerimeterM,
+      groundFloorAreaM2: derivedAreaM2,
     });
   }
 

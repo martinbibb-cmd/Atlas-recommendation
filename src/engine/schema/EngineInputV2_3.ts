@@ -441,6 +441,33 @@ export interface EngineInputV2_3 {
   batteryStatus?: 'none' | 'existing' | 'planned';
 
   /**
+   * Ground-floor perimeter of the main building shell in metres.
+   * Derived from the drawn polygon in the heat-loss step when the user has
+   * closed the shape. Used by the engine to cross-check external wall area
+   * and flag anomalous heat-loss values.
+   * Absent when the perimeter has not been drawn.
+   */
+  perimeterM?: number;
+
+  /**
+   * Ground-floor area of the main building shell in square metres.
+   * Derived from the drawn polygon via the shoelace formula.
+   * Stored alongside perimeterM to avoid re-deriving from raw geometry.
+   * Absent when the perimeter has not been drawn.
+   */
+  groundFloorAreaM2?: number;
+
+  /**
+   * True-north bearing of the building's primary front face, in degrees
+   * clockwise from north (0 = north, 90 = east, 180 = south, 270 = west).
+   * Captured via the compass control on the floor plan or heat-loss step.
+   * Distinct from roofOrientation (qualitative enum): this is the raw numeric
+   * angle enabling precise solar irradiance modelling and north-arrow rendering.
+   * Absent when the compass has not been set.
+   */
+  buildingBearingDeg?: number;
+
+  /**
    * Structured building fabric inputs — used by FabricModelV1 to independently
    * derive heat-loss band and thermal inertia (τ).
    * All sub-fields are optional; unknown/missing values fall back to mid-range defaults.

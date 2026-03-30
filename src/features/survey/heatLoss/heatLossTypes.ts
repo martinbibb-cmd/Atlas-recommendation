@@ -63,8 +63,15 @@ export interface ShellPoint { x: number; y: number; }
 /**
  * Metadata for one edge of the drawn polygon.
  * `isPartyWall` controls heat-loss attribution for that wall segment.
+ * `material` records the wall construction type for that specific segment,
+ * enabling per-segment fabric override (e.g. solid masonry on one face,
+ * cavity on another).  When absent the global ShellSettings.wallType applies.
  */
-export interface ShellEdge { isPartyWall: boolean; }
+export interface ShellEdge {
+  isPartyWall: boolean;
+  /** Optional per-segment wall construction material. Overrides global ShellSettings.wallType for this edge. */
+  material?: string;
+}
 
 /** Kind of layer in the multi-layer house sketch. */
 export type ShellLayerKind = 'original' | 'extension' | 'upper_floor' | 'reference';
@@ -127,6 +134,9 @@ export interface ShellModel {
  * pvStatus                — PV panel presence
  * batteryStatus           — battery storage presence
  * shellModel              — serialised canvas geometry + settings (optional; absent until first draw)
+ * perimeterM              — computed ground-floor perimeter in metres (derived from shellModel)
+ * groundFloorAreaM2       — computed ground-floor area in m² (derived from shellModel)
+ * buildingBearingDeg      — true-north bearing of the building front face in degrees 0–360 (0 = north)
  */
 export type HeatLossState = {
   /** Peak design heat loss in watts. null = not yet entered / unknown. */
@@ -156,6 +166,25 @@ export type HeatLossState = {
    * house shape without re-instantiating the canvas tool.
    */
   shellSnapshotUrl?: string;
+  /**
+   * Ground-floor perimeter in metres, derived from the active shell layer
+   * polygon when the shape is closed.  Stored so the engine can consume it
+   * without re-deriving it from the raw polygon on every run.
+   */
+  perimeterM?: number;
+  /**
+   * Ground-floor area in square metres, derived via the shoelace formula
+   * when the shape is closed.  Stored alongside perimeterM for the same reason.
+   */
+  groundFloorAreaM2?: number;
+  /**
+   * True-north magnetic bearing of the building's primary front face, in
+   * degrees clockwise from north (0 = north, 90 = east, 180 = south, 270 = west).
+   * Captured via the compass control on the floor plan or heat-loss step.
+   * Distinct from roofOrientation (qualitative string) — this is the raw
+   * numeric angle used for solar modelling and floor-plan orientation.
+   */
+  buildingBearingDeg?: number;
 };
 
 export const INITIAL_HEAT_LOSS_STATE: HeatLossState = {
