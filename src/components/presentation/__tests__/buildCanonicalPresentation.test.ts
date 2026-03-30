@@ -636,3 +636,97 @@ describe('buildCanonicalPresentation — prioritiesState data binding', () => {
     expect(labels.some(l => /space saving/i.test(l))).toBe(false);
   });
 });
+
+// ─── Occupancy timing label — data-flow integration ──────────────────────────
+
+describe('buildCanonicalPresentation — occupancy timing label data-flow', () => {
+  it('occupancyTimingLabel reflects steady_home signature (daytime home)', () => {
+    const input = withInput({ occupancySignature: 'steady_home' });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1.home.occupancyTimingLabel).toMatch(/home during the day/i);
+  });
+
+  it('occupancyTimingLabel reflects shift_worker signature (irregular)', () => {
+    const input = withInput({ occupancySignature: 'shift_worker' });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1.home.occupancyTimingLabel).toMatch(/irregular|shift/i);
+  });
+
+  it('occupancyTimingLabel reflects professional signature (away daytime)', () => {
+    const input = withInput({ occupancySignature: 'professional' });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1.home.occupancyTimingLabel).toMatch(/away.*09:00|professional/i);
+  });
+
+  it('uses demandPreset timing when occupancySignature is default professional', () => {
+    // Simulates a survey where householdComposition was used (retired couple stays home)
+    // but occupancySignature was not explicitly set
+    const input = withInput({
+      occupancySignature: 'professional', // default that would be overridden by sanitiser
+      demandPreset: 'retired_couple',
+    });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    // retired_couple engineSignature = 'steady_home' → daytime_home timing
+    expect(model.page1.home.occupancyTimingLabel).toMatch(/home during the day/i);
+  });
+});
+
+// ─── Boiler age and degradation — data-flow integration ──────────────────────
+
+describe('buildCanonicalPresentation — boiler age and degradation data-flow', () => {
+  it('ageLabel is null when no age is provided', () => {
+    const input = withInput({ currentHeatSourceType: 'combi' });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1.currentSystem.ageLabel).toBeNull();
+  });
+
+  it('ageLabel shows recorded age for a combi boiler', () => {
+    const input = withInput({ currentHeatSourceType: 'combi', currentBoilerAgeYears: 8 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1.currentSystem.ageLabel).toMatch(/8\s*year/i);
+  });
+
+  it('ageContext for 12-year-old combi mentions approaching end of service life', () => {
+    const input = withInput({ currentHeatSourceType: 'combi', currentBoilerAgeYears: 12 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1.currentSystem.ageContext).toMatch(/approaching|end.*service|life/i);
+  });
+
+  it('ageContext for old regular boiler mentions component wear', () => {
+    const input = withInput({ currentHeatSourceType: 'regular', currentBoilerAgeYears: 20 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1.currentSystem.ageContext).toMatch(/component wear|long-served/i);
+  });
+
+  it('page1_5 degradation section is present when boiler age is provided', () => {
+    const input = withInput({ currentHeatSourceType: 'combi', currentBoilerAgeYears: 10 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1_5.hasRealEvidence).toBe(true);
+    expect(model.page1_5.ageBandLabel).toMatch(/10/);
+    expect(model.page1_5.conditionSummary.length).toBeGreaterThan(0);
+  });
+
+  it('page1_5 degradation section has no real evidence when no age is provided', () => {
+    const input = withInput({});
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    // Without any age or condition evidence, hasRealEvidence should be false
+    expect(model.page1_5.hasRealEvidence).toBe(false);
+  });
+
+  it('degradation componentDegradation architecture is combi for combi boiler', () => {
+    const input = withInput({ currentHeatSourceType: 'combi', currentBoilerAgeYears: 10 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+    expect(model.page1_5.componentDegradation.architecture).toBe('combi');
+  });
+});

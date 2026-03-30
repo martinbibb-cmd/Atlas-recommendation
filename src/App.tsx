@@ -480,6 +480,13 @@ export default function App() {
           <VisitPage
             visitId={activeVisitId}
             onBack={() => setJourney('landing')}
+            onDraft={(draft) => {
+              // Capture heatLoss and priorities from the visit survey draft so
+              // the presentation deck can show the house snapshot and selected
+              // priority chips — mirrors the same pattern used by the 'full' journey.
+              if (draft.fullSurvey?.heatLoss) setLabHeatLossState(draft.fullSurvey.heatLoss);
+              if (draft.fullSurvey?.priorities) setLabPrioritiesState(draft.fullSurvey.priorities);
+            }}
             onComplete={(engineInput) => {
               setLabEngineInput(engineInput);
               setFitPosition(deriveFitPosition(engineInput));

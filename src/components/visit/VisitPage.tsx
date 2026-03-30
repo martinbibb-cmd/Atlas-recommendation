@@ -42,6 +42,13 @@ interface Props {
    * built from the current survey state.
    */
   onOpenSimulator?: (engineInput: EngineInputV2_3) => void;
+  /**
+   * Optional callback invoked on every step transition with the full survey
+   * draft (including fullSurvey.priorities and fullSurvey.heatLoss).
+   * Parent components can use this to capture priorities and heat-loss state
+   * for the presentation layer without needing to re-run the engine.
+   */
+  onDraft?: (draft: FullSurveyModelV1) => void;
   onOpenFloorPlan: (surveyResults: Partial<FullSurveyModelV1>) => void;
   onOpenReport: (reportId: string) => void;
   floorplanOutput?: DerivedFloorplanOutput;
@@ -176,6 +183,7 @@ export default function VisitPage({
   onBack,
   onComplete,
   onOpenSimulator,
+  onDraft,
   onOpenFloorPlan,
   onOpenReport,
 }: Props) {
@@ -299,6 +307,8 @@ export default function VisitPage({
   /**
    * onDraft — called by FullSurveyStepper on every step transition.
    * Debounce-saves the raw FullSurveyModelV1 including fullSurvey extras.
+   * Also calls the optional external onDraft so parent components can capture
+   * fullSurvey.priorities / fullSurvey.heatLoss for the presentation layer.
    */
   const handleDraft = useCallback(
     (draft: FullSurveyModelV1) => {
@@ -311,8 +321,12 @@ export default function VisitPage({
       saveTimer.current = setTimeout(() => {
         persist(false);
       }, AUTOSAVE_DELAY_MS);
+
+      // Propagate to parent so it can capture priorities/heatLoss for the
+      // canonical presentation deck (occupied timing, objectives chips, etc.).
+      if (onDraft) onDraft(draft);
     },
-    [persist]
+    [persist, onDraft]
   );
 
   /**

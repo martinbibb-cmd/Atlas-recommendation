@@ -7,7 +7,7 @@ import {
   inferBoilerCondition,
 } from '../../engine/modules/ComponentConditionModule';
 import { normalizeInput } from '../../engine/normalizer/Normalizer';
-import { resolveTimingOverrides } from '../../engine/schema/OccupancyPreset';
+import { resolveTimingOverrides, presetToEngineSignature } from '../../engine/schema/OccupancyPreset';
 import type { DemandPresetId } from '../../engine/schema/OccupancyPreset';
 import {
   deriveProfileFromHouseholdComposition,
@@ -378,6 +378,12 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
     // demandPreset is derived unless the surveyor has explicitly overridden it.
     if (!sanitised.demandPresetIsManualOverride) {
       sanitised.demandPreset = derived.derivedPresetId;
+      // Keep occupancySignature in sync with the derived preset so that
+      // DemographicsAssessmentModule.deriveOccupancyTimingProfile produces the
+      // correct timing label (daytime_home / away_daytime / irregular).
+      // Without this, the signature stays as the survey default ('professional')
+      // even when composition implies a stay-at-home or shift-worker pattern.
+      sanitised.occupancySignature = presetToEngineSignature(derived.derivedPresetId);
     }
   }
 
