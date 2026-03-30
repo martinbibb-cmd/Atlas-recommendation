@@ -117,26 +117,6 @@ function controlStrategyOptionsFor(systemChoice: SimulatorSystemChoice): Control
   return CONTROL_STRATEGY_CHOICES.filter(c => c.value === 's_plan' || c.value === 'y_plan')
 }
 
-/**
- * Returns the natural / most-common default control strategy for a given
- * system type.  This is a pre-fill only — the user can always override it.
- *
- * unvented   → s_plan  (S-plan is the norm for system boilers with unvented cylinders)
- * open_vented → y_plan (Y-plan is the norm for regular boilers with vented cylinders)
- * combi      → combi
- * heat_pump  → heat_pump
- * mixergy   → s_plan
- */
-function defaultControlStrategyFor(systemChoice: SimulatorSystemChoice): ControlStrategy {
-  switch (systemChoice) {
-    case 'combi':       return 'combi'
-    case 'unvented':    return 's_plan'
-    case 'open_vented': return 'y_plan'
-    case 'heat_pump':   return 'heat_pump'
-    case 'mixergy':     return 's_plan'
-  }
-}
-
 // ─── Step-bar component ───────────────────────────────────────────────────────
 
 function StepBar({ step }: { step: number }) {
@@ -156,7 +136,7 @@ function StepBar({ step }: { step: number }) {
 // ─── Step 1: System type ─────────────────────────────────────────────────────
 
 function Step1({ systemChoice, onSelect }: {
-  systemChoice: SimulatorSystemChoice;
+  systemChoice: SimulatorSystemChoice | null;
   onSelect: (c: SimulatorSystemChoice) => void;
 }) {
   return (
@@ -187,18 +167,16 @@ function Step1({ systemChoice, onSelect }: {
 
 function Step2({ systemChoice, controlStrategy, onSelect }: {
   systemChoice: SimulatorSystemChoice;
-  controlStrategy: ControlStrategy;
+  controlStrategy: ControlStrategy | null;
   onSelect: (cs: ControlStrategy) => void;
 }) {
   const options = controlStrategyOptionsFor(systemChoice)
-  const isSingleOption = options.length === 1
 
   return (
     <div className="stepper-step">
       <h2 className="stepper-step__heading">Control strategy / layout</h2>
       <p className="stepper-step__hint">
         Choose the zone valve arrangement and control scheme for this system.
-        {!isSingleOption && ' The most common option for your system type is pre-selected — change it if your setup differs.'}
       </p>
       <div className="stepper-choice-grid">
         {options.map(c => (
@@ -395,26 +373,35 @@ function Step6({ condition, onSelect }: {
 
 export default function SimulatorStepper({ onComplete }: Props) {
   const [step, setStep]                 = useState(1);
-  const [systemChoice, setSystemChoice] = useState<SimulatorSystemChoice>('combi');
-  const [controlStrategy, setControlStrategy] = useState<ControlStrategy>('combi');
+  const [systemChoice, setSystemChoice] = useState<SimulatorSystemChoice | null>(null);
+  const [controlStrategy, setControlStrategy] = useState<ControlStrategy | null>(null);
   const [services, setServices]         = useState<WaterServices>({ occupancy: 2, bathrooms: 1 });
   const [fabric, setFabric]             = useState<FabricType>('medium');
   const [condition, setCondition]       = useState<Condition>('fair');
 
   function handleSystemChoiceChange(choice: SimulatorSystemChoice) {
     setSystemChoice(choice);
-    // Pre-fill the most natural control strategy for this system type.
-    // The user can change it on step 2.
-    setControlStrategy(defaultControlStrategyFor(choice));
+    // Auto-select only when there is exactly one valid control strategy for this system type
+    // (combi → combi, heat_pump → heat_pump). When multiple options exist, require
+    // explicit user selection on step 2.
+    const options = controlStrategyOptionsFor(choice);
+    setControlStrategy(options.length === 1 ? options[0].value : null);
+  }
+
+  function canGoNext(): boolean {
+    if (step === 1) return systemChoice !== null;
+    if (step === 2) return controlStrategy !== null;
+    return true;
   }
 
   function handleNext() {
+    if (!canGoNext()) return;
     if (step < TOTAL_STEPS) {
       setStep(s => s + 1);
     } else {
       onComplete({
-        systemChoice,
-        controlStrategy,
+        systemChoice: systemChoice!,
+        controlStrategy: controlStrategy!,
         occupancy: services.occupancy,
         bathrooms: services.bathrooms,
         fabric,
@@ -437,8 +424,8 @@ export default function SimulatorStepper({ onComplete }: Props) {
 
       <div className="stepper-body">
         {step === 1 && <Step1 systemChoice={systemChoice} onSelect={handleSystemChoiceChange} />}
-        {step === 2 && <Step2 systemChoice={systemChoice} controlStrategy={controlStrategy} onSelect={setControlStrategy} />}
-        {step === 3 && <Step3 systemChoice={systemChoice} controlStrategy={controlStrategy} />}
+        {step === 2 && systemChoice !== null && <Step2 systemChoice={systemChoice} controlStrategy={controlStrategy} onSelect={setControlStrategy} />}
+        {step === 3 && systemChoice !== null && controlStrategy !== null && <Step3 systemChoice={systemChoice} controlStrategy={controlStrategy} />}
         {step === 4 && <Step4 services={services} onChange={setServices} />}
         {step === 5 && <Step5 fabric={fabric} onSelect={setFabric} />}
         {step === 6 && <Step6 condition={condition} onSelect={setCondition} />}
@@ -457,6 +444,7 @@ export default function SimulatorStepper({ onComplete }: Props) {
         <button
           className="stepper-btn stepper-btn--next"
           onClick={handleNext}
+          disabled={!canGoNext()}
           aria-label={step < TOTAL_STEPS ? 'Go to next step' : 'Launch simulator'}
         >
           {step < TOTAL_STEPS ? 'Next →' : 'Launch Simulator →'}
