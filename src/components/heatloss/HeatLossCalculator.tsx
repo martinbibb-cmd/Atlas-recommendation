@@ -31,6 +31,14 @@ export interface RoofModel {
   shadingLevel: ShadingLevel;
   pvStatus: PvStatus;
   batteryStatus: BatteryStatus;
+  /**
+   * True-north bearing of the building's primary front face, in degrees
+   * clockwise from north (0 = north, 90 = east, 180 = south, 270 = west).
+   * Captured here so it flows through the same `onRoofModelChange` callback
+   * alongside the other solar/orientation fields.
+   * Absent when the user has not set a direction.
+   */
+  buildingBearingDeg?: number;
 }
 
 export const INITIAL_ROOF_MODEL: RoofModel = {
@@ -1548,6 +1556,39 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
           {roofModel && onRoofModelChange && (
             <div className="hlc__section">
               <h3>Roof &amp; Solar</h3>
+
+              {/* North direction */}
+              <div className="hlc__field">
+                <label>
+                  North direction (° clockwise from north)
+                </label>
+                <input
+                  type="number"
+                  min={0} max={359} step={1}
+                  placeholder="e.g. 180 = south-facing front"
+                  value={roofModel.buildingBearingDeg ?? ''}
+                  onChange={e => {
+                    const raw = e.target.value;
+                    if (raw === '') {
+                      onRoofModelChange({ ...roofModel, buildingBearingDeg: undefined });
+                    } else {
+                      // Wrap to 0-359 using modulo — compass angles are circular, so
+                      // 360 → 0 and -1 → 359 are both valid and expected.
+                      const deg = ((parseInt(raw, 10) % 360) + 360) % 360;
+                      onRoofModelChange({ ...roofModel, buildingBearingDeg: deg });
+                    }
+                  }}
+                />
+                {roofModel.buildingBearingDeg !== undefined && (
+                  <span className="hlc__field-hint">
+                    {roofModel.buildingBearingDeg === 0   ? 'Front faces north'
+                     : roofModel.buildingBearingDeg === 90  ? 'Front faces east'
+                     : roofModel.buildingBearingDeg === 180 ? 'Front faces south'
+                     : roofModel.buildingBearingDeg === 270 ? 'Front faces west'
+                     : `${roofModel.buildingBearingDeg}° clockwise from north`}
+                  </span>
+                )}
+              </div>
 
               {/* Roof type */}
               <div className="hlc__field">
