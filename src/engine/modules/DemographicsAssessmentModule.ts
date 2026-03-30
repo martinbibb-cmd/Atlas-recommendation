@@ -18,6 +18,7 @@ import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
 import {
   findDemandPreset,
   resolveTimingOverrides,
+  presetToEngineSignature,
 } from '../schema/OccupancyPreset';
 import type { DemandPresetId } from '../schema/OccupancyPreset';
 
@@ -134,7 +135,13 @@ function deriveBathUseIntensity(bathFrequencyPerWeek: number): BathUseIntensity 
 function deriveOccupancyTimingProfile(
   input: EngineInputV2_3,
 ): OccupancyTimingProfile {
-  const sig = input.occupancySignature;
+  // Prefer the explicit occupancySignature when set to a non-default value.
+  // When it is still the initial 'professional' default but a demandPreset has
+  // been derived from household composition, use the preset's engine signature
+  // so the timing label reflects the actual household pattern.
+  const sig = (input.demandPreset && input.occupancySignature === 'professional')
+    ? presetToEngineSignature(input.demandPreset)
+    : input.occupancySignature;
   if (sig === 'steady_home' || sig === 'steady') return 'daytime_home';
   if (sig === 'shift_worker' || sig === 'shift') return 'irregular';
   // 'professional' → away daytime

@@ -172,3 +172,63 @@ describe('FullSurveyFirstPass — peakConcurrentOutlets auto-derivation', () => 
     expect(cleaned.peakConcurrentOutlets).toBeUndefined();
   });
 });
+
+// ─── occupancySignature sync from derived demandPreset ────────────────────────
+
+describe('FullSurveyFirstPass — occupancySignature sync from householdComposition', () => {
+  it('derives steady_home signature when retired couple composition is set', () => {
+    // retired_couple engineSignature = 'steady_home' (daytime_home timing)
+    const withComposition: FullSurveyModelV1 = {
+      ...SURVEY_DEFAULT_INPUT,
+      householdComposition: {
+        adultCount: 2,
+        childCount0to4: 0,
+        childCount5to10: 0,
+        childCount11to17: 0,
+        youngAdultCount18to25AtHome: 0,
+      },
+      // daytimeOccupancy 'full' → 'usually_home' pattern → retired/home-worker preset
+      demandTimingOverrides: { daytimeOccupancy: 'full' },
+    };
+    const cleaned = sanitiseModelForEngine(withComposition);
+    // The derived preset should have updated occupancySignature to 'steady_home'
+    // so the presentation occupancyTimingLabel shows 'Typically home during the day'
+    expect(cleaned.occupancySignature).toBe('steady_home');
+  });
+
+  it('preserves professional signature when single working adult composition is set', () => {
+    const withComposition: FullSurveyModelV1 = {
+      ...SURVEY_DEFAULT_INPUT,
+      householdComposition: {
+        adultCount: 1,
+        childCount0to4: 0,
+        childCount5to10: 0,
+        childCount11to17: 0,
+        youngAdultCount18to25AtHome: 0,
+      },
+      // daytimeOccupancy omitted → 'usually_out' → professional preset
+      demandTimingOverrides: {},
+    };
+    const cleaned = sanitiseModelForEngine(withComposition);
+    expect(cleaned.occupancySignature).toBe('professional');
+  });
+
+  it('occupancySignature is not changed when demandPresetIsManualOverride is true', () => {
+    const withManualOverride: FullSurveyModelV1 = {
+      ...SURVEY_DEFAULT_INPUT,
+      occupancySignature: 'professional',
+      demandPreset: 'family_teenagers',
+      demandPresetIsManualOverride: true,
+      householdComposition: {
+        adultCount: 2,
+        childCount0to4: 0,
+        childCount5to10: 0,
+        childCount11to17: 2,
+        youngAdultCount18to25AtHome: 0,
+      },
+    };
+    const cleaned = sanitiseModelForEngine(withManualOverride);
+    // Manual override — occupancySignature must not be changed
+    expect(cleaned.occupancySignature).toBe('professional');
+  });
+});
