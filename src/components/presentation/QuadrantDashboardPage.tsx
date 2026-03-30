@@ -310,6 +310,44 @@ function SystemQuadrant({
           {sys.outputLabel && (
             <p className="qdp-detail__row"><strong>Output:</strong> {sys.outputLabel}</p>
           )}
+          {sys.emittersLabel != null && (
+            <p className="qdp-detail__row"><strong>Emitters:</strong> {sys.emittersLabel}</p>
+          )}
+          {sys.controlFamilyLabel != null && (
+            <p className="qdp-detail__row"><strong>Controls:</strong> {sys.controlFamilyLabel}
+              {sys.thermostatStyleLabel != null ? ` · ${sys.thermostatStyleLabel}` : ''}
+            </p>
+          )}
+          {sys.programmerTypeLabel != null && (
+            <p className="qdp-detail__row"><strong>Programmer:</strong> {sys.programmerTypeLabel}</p>
+          )}
+          {sys.pipeLayoutLabel != null && (
+            <p className="qdp-detail__row"><strong>Pipework:</strong> {sys.pipeLayoutLabel}</p>
+          )}
+          {sys.sedbukBandLabel != null && (
+            <p className="qdp-detail__row"><strong>Efficiency band:</strong> {sys.sedbukBandLabel}</p>
+          )}
+          {sys.serviceHistoryLabel != null && (
+            <p className="qdp-detail__row"><strong>Service history:</strong> {sys.serviceHistoryLabel}</p>
+          )}
+          {sys.heatingSystemTypeLabel != null && (
+            <p className="qdp-detail__row"><strong>Circuit type:</strong> {sys.heatingSystemTypeLabel}</p>
+          )}
+          {sys.pipeworkAccessLabel != null && (
+            <p className="qdp-detail__row"><strong>Pipework access:</strong> {sys.pipeworkAccessLabel}</p>
+          )}
+          {sys.conditionSignalPills.length > 0 && (
+            <div className="qdp-detail__condition-pills">
+              {sys.conditionSignalPills.map((pill, i) => (
+                <span
+                  key={i}
+                  className={`qdp-condition-pill qdp-condition-pill--${pill.status}`}
+                >
+                  {pill.label}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -53,6 +53,17 @@ const CURRENT_SYSTEM: CurrentSystemSignal = {
   dhwArchitecture:  'on_demand',
   currentHeatSourceType: 'combi',
   systemDhwType:    undefined,
+  // System architecture fields — all null/empty in this stub
+  emittersLabel:          null,
+  pipeLayoutLabel:        null,
+  controlFamilyLabel:     null,
+  thermostatStyleLabel:   null,
+  programmerTypeLabel:    null,
+  sedbukBandLabel:        null,
+  serviceHistoryLabel:    null,
+  heatingSystemTypeLabel: null,
+  pipeworkAccessLabel:    null,
+  conditionSignalPills:   [],
 };
 
 const PRIORITIES: PrioritiesState = {
