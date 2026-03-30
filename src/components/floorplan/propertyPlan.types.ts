@@ -132,6 +132,14 @@ export interface FloorPlan {
   walls: Wall[];
   openings: Opening[];
   zones: Zone[];
+  /**
+   * True-north bearing for this floor plan in degrees clockwise from north
+   * (0 = north, 90 = east, 180 = south, 270 = west).
+   * Captured via the compass overlay on the floor plan editor.
+   * Stored per-floor so multi-storey extensions can have independent orientations
+   * if the building geometry requires it (usually all floors share the same value).
+   */
+  compassBearingDeg?: number;
 }
 
 // ─── Placement layer ──────────────────────────────────────────────────────────

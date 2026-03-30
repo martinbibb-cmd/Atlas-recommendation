@@ -377,6 +377,21 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
     if (sanitised.batteryStatus === undefined && hl.batteryStatus !== undefined) {
       sanitised.batteryStatus = hl.batteryStatus;
     }
+
+    // perimeterM — stored computed value from the closed shell polygon
+    if (sanitised.perimeterM === undefined && hl.perimeterM !== undefined) {
+      sanitised.perimeterM = hl.perimeterM;
+    }
+
+    // groundFloorAreaM2 — stored computed value from the closed shell polygon
+    if (sanitised.groundFloorAreaM2 === undefined && hl.groundFloorAreaM2 !== undefined) {
+      sanitised.groundFloorAreaM2 = hl.groundFloorAreaM2;
+    }
+
+    // buildingBearingDeg — numeric compass bearing from the floor-plan compass control
+    if (sanitised.buildingBearingDeg === undefined && hl.buildingBearingDeg !== undefined) {
+      sanitised.buildingBearingDeg = hl.buildingBearingDeg;
+    }
   }
 
   // ── softenerPresent → hasSoftener bridge ─────────────────────────────────
