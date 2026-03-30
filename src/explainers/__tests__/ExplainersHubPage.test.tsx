@@ -39,8 +39,11 @@ const SURVEY_INPUT: EngineInputV2_3 = {
 // ─── Helper: advance through the stepper to the dashboard ────────────────────
 
 function completeStepper() {
-  // Click "Next →" until the "Launch Simulator →" button appears, then click it.
-  // This is resilient to changes in the total number of stepper steps.
+  // Select a system type on Step 1 so the Next button becomes enabled,
+  // then click "Next →" until the "Launch Simulator →" button appears.
+  const combiCard = screen.queryByRole('button', { name: /combi boiler/i })
+  if (combiCard) fireEvent.click(combiCard)
+
   let safetyLimit = 10;
   while (safetyLimit-- > 0) {
     const launchBtn = screen.queryByRole('button', { name: /launch simulator/i })
@@ -50,6 +53,9 @@ function completeStepper() {
     }
     const nextBtn = screen.queryByRole('button', { name: /go to next step/i })
     if (!nextBtn) break
+    // Only click Next if it is enabled
+    const isDisabled = (nextBtn as HTMLButtonElement).disabled
+    if (isDisabled) break
     fireEvent.click(nextBtn)
   }
 }
