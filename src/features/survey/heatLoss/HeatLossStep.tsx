@@ -177,11 +177,12 @@ export function HeatLossStep({
 
   // Derive a RoofModel slice from HeatLossState for the calculator's roof panel
   const roofModel: RoofModel = {
-    roofType:        state.roofType,
-    roofOrientation: state.roofOrientation,
-    shadingLevel:    state.shadingLevel,
-    pvStatus:        state.pvStatus,
-    batteryStatus:   state.batteryStatus,
+    roofType:          state.roofType,
+    roofOrientation:   state.roofOrientation,
+    shadingLevel:      state.shadingLevel,
+    pvStatus:          state.pvStatus,
+    batteryStatus:     state.batteryStatus,
+    buildingBearingDeg: state.buildingBearingDeg,
   };
 
   function handleHeatLossChange(totalKw: number | null) {
@@ -211,11 +212,12 @@ export function HeatLossStep({
   function handleRoofModelChange(next: RoofModel) {
     onChange({
       ...state,
-      roofType:        next.roofType,
-      roofOrientation: next.roofOrientation,
-      shadingLevel:    next.shadingLevel,
-      pvStatus:        next.pvStatus,
-      batteryStatus:   next.batteryStatus,
+      roofType:           next.roofType,
+      roofOrientation:    next.roofOrientation,
+      shadingLevel:       next.shadingLevel,
+      pvStatus:           next.pvStatus,
+      batteryStatus:      next.batteryStatus,
+      buildingBearingDeg: next.buildingBearingDeg,
     });
   }
 

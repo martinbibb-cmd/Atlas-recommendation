@@ -197,6 +197,12 @@
   outline-offset: 1px;
 }
 
+.hlc__field-hint {
+  font-size: 11px;
+  color: #6b7280;
+  font-style: italic;
+}
+
 /* ── Results ─────────────────────────────────────────────────────────────── */
 
 .hlc__result-headline {

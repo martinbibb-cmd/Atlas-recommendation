@@ -1,5 +1,5 @@
 import type { FullSurveyModelV1 } from './FullSurveyModelV1';
-import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
+import type { EngineInputV2_3, FabricWallType, FabricGlazing, FabricRoofInsulation } from '../../engine/schema/EngineInputV2_3';
 import {
   inferPlateHexCondition,
   inferCylinderCondition,
@@ -37,6 +37,10 @@ import type {
  * - Maps fullSurvey.dhwCondition.softenerPresent → hasSoftener when hasSoftener is not set.
  * - Wires systemAgeYears from currentBoilerAgeYears so that SystemConditionInferenceModule
  *   can use actual age (rather than zero) when no direct symptoms are present.
+ * - Bridges fullSurvey.heatLoss.shellModel.settings fields into building.fabric.*
+ *   (wallType → FabricWallType, loftInsulation → roofInsulation, glazingType → glazing)
+ *   and thermalMass → building.thermalMass for FabricModelModule. Existing values not overwritten.
+ * - Bridges fullSurvey.heatLoss.buildingBearingDeg → buildingBearingDeg when not already set.
  */
 export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyModelV1 {
   const sanitised: FullSurveyModelV1 = { ...model };
@@ -391,6 +395,73 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
     // buildingBearingDeg — numeric compass bearing from the floor-plan compass control
     if (sanitised.buildingBearingDeg === undefined && hl.buildingBearingDeg !== undefined) {
       sanitised.buildingBearingDeg = hl.buildingBearingDeg;
+    }
+
+    // ── Shell settings → building.fabric bridge ──────────────────────────
+    // Map the heat-loss calculator's shell settings into the structured
+    // building.fabric input that FabricModelModule consumes.
+    // Existing explicit values in building.fabric are never overwritten.
+    const ss = hl.shellModel?.settings;
+    if (ss !== undefined) {
+      // Ensure building.fabric exists before assigning sub-fields.
+      if (sanitised.building === undefined) {
+        sanitised.building = {};
+      }
+      if (sanitised.building.fabric === undefined) {
+        sanitised.building.fabric = {};
+      }
+      const fabric = sanitised.building.fabric;
+
+      // wallType: calculator string → FabricWallType
+      if (fabric.wallType === undefined && ss.wallType !== undefined) {
+        const wallTypeMap: Record<string, FabricWallType | undefined> = {
+          solidBrick:        'solid_masonry',
+          cavityUninsulated: 'cavity_unfilled',
+          cavityPartialFill: 'cavity_filled',
+          cavityFullFill:    'cavity_filled',
+          timberFrame:       'timber_frame',
+          solidStone:        'solid_masonry',
+        };
+        const mapped = wallTypeMap[ss.wallType];
+        if (mapped !== undefined) fabric.wallType = mapped;
+      }
+
+      // loftInsulation → roofInsulation: FabricRoofInsulation
+      if (fabric.roofInsulation === undefined && ss.loftInsulation !== undefined) {
+        const roofInsulationMap: Record<string, FabricRoofInsulation | undefined> = {
+          none:      'poor',
+          mm100:     'moderate',
+          mm200:     'good',
+          mm270plus: 'good',
+        };
+        const mapped = roofInsulationMap[ss.loftInsulation];
+        if (mapped !== undefined) fabric.roofInsulation = mapped;
+      }
+
+      // glazingType → glazing: FabricGlazing
+      if (fabric.glazing === undefined && ss.glazingType !== undefined) {
+        const glazingMap: Record<string, FabricGlazing | undefined> = {
+          single:       'single',
+          doubleOld:    'double',
+          doubleArated: 'double',
+          triple:       'triple',
+        };
+        const mapped = glazingMap[ss.glazingType];
+        if (mapped !== undefined) fabric.glazing = mapped;
+      }
+
+      // thermalMass → building.thermalMass (FabricThermalMass): used by FabricModelModule
+      // Note: building.thermalMass is distinct from the top-level buildingMass used by
+      // LifestyleSimulationModule — both can be set independently.
+      if (sanitised.building.thermalMass === undefined && ss.thermalMass !== undefined) {
+        const massMap: Record<string, 'light' | 'medium' | 'heavy' | undefined> = {
+          light:  'light',
+          medium: 'medium',
+          heavy:  'heavy',
+        };
+        const mapped = massMap[ss.thermalMass];
+        if (mapped !== undefined) sanitised.building.thermalMass = mapped;
+      }
     }
   }
 

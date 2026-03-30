@@ -11,6 +11,13 @@
  * pvStatus, batteryStatus) are bridged to the engine root fields so that
  * PvAssessmentModule and FutureEnergyOpportunitiesModule see the correct values.
  *
+ * fullSurvey.heatLoss.shellModel.settings fields (wallType, loftInsulation,
+ * glazingType, thermalMass) are bridged to building.fabric.* and building.thermalMass
+ * so that FabricModelModule sees the correct values.
+ *
+ * buildingBearingDeg is bridged from fullSurvey.heatLoss to the root field
+ * consumed by solar modelling and floor-plan orientation.
+ *
  * Covers:
  *   1. surveyHeatLossW overrides the default 8000 root value
  *   2. surveyHeatLossW overrides a non-default root value (stale saved draft)
@@ -23,6 +30,11 @@
  *   9. pvStatus and batteryStatus pass through unchanged
  *  10. Explicit root roof fields are never overwritten by the bridge
  *  11. 'unknown' values are mapped to engine 'unknown' (not left undefined)
+ *  12. wallType bridge: calculator strings → FabricWallType values
+ *  13. loftInsulation bridge: mm-depth strings → FabricRoofInsulation
+ *  14. glazingType bridge: calculator strings → FabricGlazing
+ *  15. thermalMass bridge: calculator strings → building.thermalMass (FabricThermalMass)
+ *  16. buildingBearingDeg bridged from heatLoss; does not overwrite explicit root value
  */
 
 import { describe, it, expect } from 'vitest';
@@ -241,5 +253,163 @@ describe('sanitiseModelForEngine — roof / solar bridge from fullSurvey.heatLos
       solarShading: 'low',  // explicit root value — must win
     };
     expect(sanitiseModelForEngine(model).solarShading).toBe('low');
+  });
+});
+
+// ─── Shell settings → building.fabric bridge tests ────────────────────────────
+
+import type { ShellModel } from '../../../features/survey/heatLoss/heatLossTypes';
+
+/** Minimal ShellModel with the given settings override. */
+function makeShell(settings: Partial<ShellModel['settings']>): ShellModel {
+  return {
+    layers: [],
+    activeLayerId: 'layer-1',
+    settings: {
+      storeys: 2,
+      ceilingHeight: 2.4,
+      dwellingType: 'semi',
+      wallType: 'cavityUninsulated',
+      loftInsulation: 'mm270plus',
+      glazingType: 'doubleArated',
+      glazingAmount: 'medium',
+      floorType: 'suspendedUninsulated',
+      thermalMass: 'medium',
+      ...settings,
+    },
+  };
+}
+
+function makeModelWithShell(settings: Partial<ShellModel['settings']> = {}): FullSurveyModelV1 {
+  return {
+    ...BASE,
+    fullSurvey: {
+      heatLoss: {
+        ...DEFAULT_HEAT_LOSS,
+        shellModel: makeShell(settings),
+      },
+    },
+  };
+}
+
+describe('sanitiseModelForEngine — shell settings → building.fabric bridge', () => {
+  it('bridges solidBrick wallType → solid_masonry', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ wallType: 'solidBrick' })).building?.fabric?.wallType)
+      .toBe('solid_masonry');
+  });
+
+  it('bridges cavityUninsulated wallType → cavity_unfilled', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ wallType: 'cavityUninsulated' })).building?.fabric?.wallType)
+      .toBe('cavity_unfilled');
+  });
+
+  it('bridges cavityPartialFill wallType → cavity_filled', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ wallType: 'cavityPartialFill' })).building?.fabric?.wallType)
+      .toBe('cavity_filled');
+  });
+
+  it('bridges cavityFullFill wallType → cavity_filled', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ wallType: 'cavityFullFill' })).building?.fabric?.wallType)
+      .toBe('cavity_filled');
+  });
+
+  it('bridges timberFrame wallType → timber_frame', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ wallType: 'timberFrame' })).building?.fabric?.wallType)
+      .toBe('timber_frame');
+  });
+
+  it('bridges solidStone wallType → solid_masonry', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ wallType: 'solidStone' })).building?.fabric?.wallType)
+      .toBe('solid_masonry');
+  });
+
+  it('bridges loftInsulation none → poor roofInsulation', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ loftInsulation: 'none' })).building?.fabric?.roofInsulation)
+      .toBe('poor');
+  });
+
+  it('bridges loftInsulation mm100 → moderate roofInsulation', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ loftInsulation: 'mm100' })).building?.fabric?.roofInsulation)
+      .toBe('moderate');
+  });
+
+  it('bridges loftInsulation mm200 → good roofInsulation', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ loftInsulation: 'mm200' })).building?.fabric?.roofInsulation)
+      .toBe('good');
+  });
+
+  it('bridges loftInsulation mm270plus → good roofInsulation', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ loftInsulation: 'mm270plus' })).building?.fabric?.roofInsulation)
+      .toBe('good');
+  });
+
+  it('bridges glazingType single → single glazing', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ glazingType: 'single' })).building?.fabric?.glazing)
+      .toBe('single');
+  });
+
+  it('bridges glazingType doubleOld → double glazing', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ glazingType: 'doubleOld' })).building?.fabric?.glazing)
+      .toBe('double');
+  });
+
+  it('bridges glazingType doubleArated → double glazing', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ glazingType: 'doubleArated' })).building?.fabric?.glazing)
+      .toBe('double');
+  });
+
+  it('bridges glazingType triple → triple glazing', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ glazingType: 'triple' })).building?.fabric?.glazing)
+      .toBe('triple');
+  });
+
+  it('bridges thermalMass light → building.thermalMass light', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ thermalMass: 'light' })).building?.thermalMass)
+      .toBe('light');
+  });
+
+  it('bridges thermalMass medium → building.thermalMass medium', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ thermalMass: 'medium' })).building?.thermalMass)
+      .toBe('medium');
+  });
+
+  it('bridges thermalMass heavy → building.thermalMass heavy', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ thermalMass: 'heavy' })).building?.thermalMass)
+      .toBe('heavy');
+  });
+
+  it('does NOT overwrite an explicit building.fabric.wallType', () => {
+    const model: FullSurveyModelV1 = {
+      ...makeModelWithShell({ wallType: 'timberFrame' }),
+      building: { fabric: { wallType: 'solid_masonry' } },
+    };
+    expect(sanitiseModelForEngine(model).building?.fabric?.wallType).toBe('solid_masonry');
+  });
+
+  it('does NOT overwrite an explicit building.thermalMass', () => {
+    const model: FullSurveyModelV1 = {
+      ...makeModelWithShell({ thermalMass: 'light' }),
+      building: { thermalMass: 'heavy' },
+    };
+    expect(sanitiseModelForEngine(model).building?.thermalMass).toBe('heavy');
+  });
+});
+
+describe('sanitiseModelForEngine — buildingBearingDeg bridge', () => {
+  it('bridges buildingBearingDeg from heatLoss to root field', () => {
+    const model: FullSurveyModelV1 = {
+      ...BASE,
+      fullSurvey: { heatLoss: { ...DEFAULT_HEAT_LOSS, buildingBearingDeg: 180 } },
+    };
+    expect(sanitiseModelForEngine(model).buildingBearingDeg).toBe(180);
+  });
+
+  it('does NOT overwrite an explicit root buildingBearingDeg', () => {
+    const model: FullSurveyModelV1 = {
+      ...BASE,
+      buildingBearingDeg: 90,
+      fullSurvey: { heatLoss: { ...DEFAULT_HEAT_LOSS, buildingBearingDeg: 180 } },
+    };
+    expect(sanitiseModelForEngine(model).buildingBearingDeg).toBe(90);
   });
 });
