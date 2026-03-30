@@ -26,7 +26,7 @@ const HOUSE: HouseSignal = {
   pvPotentialLabel: 'Good solar potential',
   wallTypeLabel:    'Cavity — uninsulated',
   insulationLabel:  'Partial loft insulation',
-  wallTypeKey:      'cavity_uninsulated',
+  wallTypeKey:      'solid_masonry',
   notes:            [],
 };
 

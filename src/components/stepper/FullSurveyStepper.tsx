@@ -282,7 +282,14 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     if (currentStep === 'insight') {
       // Insight is the last step — run the engine and advance to results.
       const draft = buildDraft();
-      const engineInput = toEngineInput(sanitiseModelForEngine(draft));
+      // Sanitise before engine run AND before storing as hubDraft so that
+      // buildCanonicalPresentation receives all bridged fields (roofOrientation,
+      // pvStatus, batteryStatus, heatLossWatts, occupancyCount, currentSystem.boiler.*)
+      // that sanitiseModelForEngine derives from fullSurvey extras.
+      // Without this, the presentation layer shows stale/raw values while the
+      // engine result was computed from the fully-bridged sanitised model.
+      const sanitisedDraft = sanitiseModelForEngine(draft);
+      const engineInput = toEngineInput(sanitisedDraft);
       if (onDraft) onDraft(draft);
       if (onComplete) {
         // Route directly to the simulator dashboard without stopping at LiveHubPage.
@@ -291,7 +298,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
       }
       const engineResult = runEngine(engineInput);
       setResults(engineResult);
-      setHubDraft(draft);
+      setHubDraft(sanitisedDraft);
       setMode('hub');
       return;
     }
