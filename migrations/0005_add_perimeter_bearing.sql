@@ -13,12 +13,10 @@
 -- Both columns are nullable — they are absent when the surveyor has not
 -- yet drawn the perimeter or set the compass bearing.
 
-ALTER TABLE visits
-  ADD COLUMN perimeter_m       REAL,
-  ADD COLUMN ground_floor_area_m2 REAL,
-  ADD COLUMN building_bearing_deg REAL;
+ALTER TABLE visits ADD COLUMN perimeter_m          REAL;
+ALTER TABLE visits ADD COLUMN ground_floor_area_m2  REAL;
+ALTER TABLE visits ADD COLUMN building_bearing_deg  REAL;
 
-ALTER TABLE reports
-  ADD COLUMN perimeter_m       REAL,
-  ADD COLUMN ground_floor_area_m2 REAL,
-  ADD COLUMN building_bearing_deg REAL;
+ALTER TABLE reports ADD COLUMN perimeter_m          REAL;
+ALTER TABLE reports ADD COLUMN ground_floor_area_m2 REAL;
+ALTER TABLE reports ADD COLUMN building_bearing_deg REAL;
