@@ -243,9 +243,12 @@ body {
 /* Visit primary CTA row */
 .visit-cta-row {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
+  justify-content: center;
+  gap: 1rem;
   margin: 1.5rem 0 0;
+  flex-wrap: wrap;
 }
 
 .visit-cta-error {
@@ -256,7 +259,7 @@ body {
 
 .cta-btn--visit {
   width: auto;
-  min-width: 240px;
+  min-width: 200px;
   padding: 0.9rem 2.5rem;
   font-size: 1.15rem;
   background: #2f855a;
@@ -270,6 +273,18 @@ body {
   opacity: 0.65;
   cursor: not-allowed;
 }
+
+.cta-btn--search-visits {
+  width: auto;
+  min-width: 200px;
+  padding: 0.9rem 2.5rem;
+  font-size: 1.15rem;
+  background: #2b6cb0;
+  color: white;
+  border-radius: 10px;
+}
+
+.cta-btn--search-visits:hover { background: #2c5282; }
 
 /* Visit page loading / error states */
 .visit-page__loading,
