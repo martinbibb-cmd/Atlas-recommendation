@@ -291,11 +291,11 @@ describe('buildCanonicalPresentation — house signal wallTypeKey', () => {
     expect(model.page1.house.wallTypeKey).toBe('solid_masonry');
   });
 
-  it('cavity_unfilled wall → wallTypeKey cavity_uninsulated (same high heat-loss physics)', () => {
+  it('cavity_unfilled wall → wallTypeKey solid_masonry (same high heat-loss band)', () => {
     const input = withInput({ building: { fabric: { wallType: 'cavity_unfilled' } } });
     const result = runEngine(input);
     const model = buildCanonicalPresentation(result, input);
-    expect(model.page1.house.wallTypeKey).toBe('cavity_uninsulated');
+    expect(model.page1.house.wallTypeKey).toBe('solid_masonry');
   });
 
   it('cavity_filled wall → wallTypeKey cavity_insulated', () => {
@@ -308,7 +308,7 @@ describe('buildCanonicalPresentation — house signal wallTypeKey', () => {
   it('no wall type → wallTypeKey defaults to cavity_insulated', () => {
     const result = runEngine(BASE_INPUT);
     const model = buildCanonicalPresentation(result, BASE_INPUT);
-    expect(['solid_masonry', 'cavity_uninsulated', 'cavity_insulated']).toContain(
+    expect(['solid_masonry', 'cavity_insulated']).toContain(
       model.page1.house.wallTypeKey,
     );
   });

@@ -57,9 +57,10 @@ export interface HouseSignal {
   notes: string[];
   /**
    * Wall type key normalised for HeatParticlesVisual.
-   * cavity_unfilled is mapped to cavity_uninsulated (same high heat-loss physics).
+   * cavity_unfilled is mapped to solid_masonry — both share the same high
+   * heat-loss band per physics rules (no insulation benefit in either).
    */
-  wallTypeKey: 'solid_masonry' | 'cavity_uninsulated' | 'cavity_insulated';
+  wallTypeKey: 'solid_masonry' | 'cavity_insulated';
   /**
    * Human-readable roof orientation label for the main usable roof face.
    * null when orientation was not recorded in the survey.
@@ -547,16 +548,19 @@ function optionIdToArchitecture(
 
 /**
  * Map a FabricWallType to the normalised wall type key expected by
- * HeatParticlesVisual. cavity_unfilled (engine type) is treated as
- * cavity_uninsulated — same high heat-loss physics, different label.
+ * HeatParticlesVisual.  cavity_unfilled (engine type) and cavity_uninsulated
+ * (stepper UI type) both map to solid_masonry — they share the same high
+ * heat-loss band per physics rules (no insulation benefit in either).
  * timber_frame and unknown default to cavity_insulated (low heat-loss
  * appearance) as the safest visual representation.
  */
 function wallTypeToVisualKey(
   wallType: string,
-): 'solid_masonry' | 'cavity_uninsulated' | 'cavity_insulated' {
+): 'solid_masonry' | 'cavity_insulated' {
   if (wallType === 'solid_masonry') return 'solid_masonry';
-  if (wallType === 'cavity_unfilled') return 'cavity_uninsulated';
+  // cavity_unfilled / cavity_uninsulated: same high heat-loss physics as
+  // solid_masonry — both treated as high-loss band, no animation difference.
+  if (wallType === 'cavity_unfilled' || wallType === 'cavity_uninsulated') return 'solid_masonry';
   if (wallType === 'cavity_filled') return 'cavity_insulated';
   if (wallType === 'timber_frame') return 'cavity_insulated';
   // unknown — default to low-loss visual (cavity_insulated) to avoid

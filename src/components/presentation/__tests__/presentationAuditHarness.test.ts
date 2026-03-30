@@ -164,7 +164,7 @@ describe('Contract audit — canonical presentation model shape', () => {
         const model = PREBUILT_MODELS[name];
         expect(model.page1.house.heatLossLabel).toBeTruthy();
         expect(model.page1.house.pipeworkLabel).toBeTruthy();
-        expect(model.page1.house.wallTypeKey).toMatch(/^(solid_masonry|cavity_uninsulated|cavity_insulated)$/);
+        expect(model.page1.house.wallTypeKey).toMatch(/^(solid_masonry|cavity_insulated)$/);
       });
 
       it(`scenario "${name}" — page1 home signals are populated`, () => {

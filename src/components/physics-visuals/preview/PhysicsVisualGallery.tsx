@@ -45,7 +45,7 @@ interface CardState {
   fillLevel: number;
   mixergyMode: boolean;
   // heat_particles
-  wallType: 'solid_masonry' | 'cavity_uninsulated' | 'cavity_insulated';
+  wallType: 'solid_masonry' | 'cavity_insulated';
 }
 
 function defaultCardState(): CardState {
@@ -57,7 +57,7 @@ function defaultCardState(): CardState {
     pressureLevel: 'normal',
     fillLevel: 0.6,
     mixergyMode: false,
-    wallType: 'cavity_uninsulated',
+    wallType: 'solid_masonry',
   };
 }
 
@@ -218,7 +218,6 @@ function VisualWithControls({
               {(
                 [
                   'solid_masonry',
-                  'cavity_uninsulated',
                   'cavity_insulated',
                 ] as CardState['wallType'][]
               ).map((w) => (
@@ -229,9 +228,7 @@ function VisualWithControls({
                 >
                   {w === 'solid_masonry'
                     ? 'Solid'
-                    : w === 'cavity_uninsulated'
-                      ? 'Cavity (empty)'
-                      : 'Cavity (filled)'}
+                    : 'Cavity (filled)'}
                 </button>
               ))}
             </div>

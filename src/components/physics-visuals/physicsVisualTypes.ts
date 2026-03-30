@@ -152,8 +152,12 @@ export interface HeatParticlesVisualProps extends PhysicsVisualProps {
   /**
    * Wall construction type — affects how quickly particles conduct
    * through the wall section.
+   *
+   * cavity_uninsulated has been removed: per physics rules it has the same
+   * high heat-loss band as solid_masonry.  Use solid_masonry for unfilled
+   * cavity walls.
    */
-  wallType?: 'solid_masonry' | 'cavity_uninsulated' | 'cavity_insulated';
+  wallType?: 'solid_masonry' | 'cavity_insulated';
 }
 
 // ─── Script contract ───────────────────────────────────────────────────────────

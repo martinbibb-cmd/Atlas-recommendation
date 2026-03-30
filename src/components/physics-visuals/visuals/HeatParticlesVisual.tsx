@@ -6,9 +6,12 @@
  *   - Convection: warm air particles rise on the interior side, forming a loop
  *
  * wallType affects how quickly conduction particles move:
- *   solid_masonry       — fastest conduction (no cavity barrier), high heat loss
- *   cavity_uninsulated  — moderate conduction (air gap but no fill), still high loss
- *   cavity_insulated    — slowest conduction (insulation blocks both pathways)
+ *   solid_masonry    — fastest conduction (no cavity barrier), high heat loss
+ *   cavity_insulated — slowest conduction (insulation blocks both pathways)
+ *
+ * cavity_uninsulated is not a valid option: it shares the same high heat-loss
+ * band as solid_masonry (per physics rules) — use solid_masonry for unfilled
+ * cavity walls.
  *
  * reducedMotion: all particles become static; arrows show direction only.
  * displayMode:  preview and focus show layer labels; inline hides them to stay compact.
@@ -42,19 +45,6 @@ const WALL_CONFIG: Record<NonNullable<HeatParticlesVisualProps['wallType']>, Wal
     lossLabel: 'High heat loss',
     lossLevel: 'high',
   },
-  cavity_uninsulated: {
-    label: 'Uninsulated cavity wall',
-    conductionSpeedClass: 'hpv__particle--medium',
-    convectionSpeedClass: 'hpv__air-particle--medium',
-    layers: [
-      { label: 'Plaster', className: 'hpv__layer--plaster' },
-      { label: 'Inner leaf', className: 'hpv__layer--brick-inner' },
-      { label: 'Air gap', className: 'hpv__layer--cavity' },
-      { label: 'Outer leaf', className: 'hpv__layer--brick-outer' },
-    ],
-    lossLabel: 'High heat loss',
-    lossLevel: 'high',
-  },
   cavity_insulated: {
     label: 'Insulated cavity wall',
     conductionSpeedClass: 'hpv__particle--slow',
@@ -73,7 +63,7 @@ const WALL_CONFIG: Record<NonNullable<HeatParticlesVisualProps['wallType']>, Wal
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 export default function HeatParticlesVisual({
-  wallType = 'cavity_uninsulated',
+  wallType = 'solid_masonry',
   reducedMotion = false,
   emphasis = 'medium',
   displayMode = 'preview',

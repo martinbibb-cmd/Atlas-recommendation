@@ -8,9 +8,11 @@
  *   - Convection: warm air particles cycling up the interior face
  *
  * Wall type modifiers:
- *   .hpv--solid_masonry       — three solid layers, fast conduction
- *   .hpv--cavity_uninsulated  — four layers with air gap, medium conduction
- *   .hpv--cavity_insulated    — four layers with insulation fill, slow conduction
+ *   .hpv--solid_masonry    — three solid layers, fast conduction (high loss)
+ *   .hpv--cavity_insulated — four layers with insulation fill, slow conduction
+ *
+ * Note: cavity_uninsulated has been removed. Unfilled cavity walls share the
+ * same high heat-loss band as solid masonry — use solid_masonry animation.
  *
  * Display mode modifiers:
  *   .hpv--mode-inline    — compact, no legend, reduced padding
