@@ -187,10 +187,46 @@ Key signal types in the presentation model:
 | `HouseSignal` | `heatLossWatts`, `primaryPipeDiameter`, `roofOrientation`, `wallType`, `pvStatus` | Fabric, infrastructure, PV potential |
 | `HomeSignal` | `occupancyCount`, `bathroomCount`, `demandPreset`, `peakConcurrentOutlets` | Demand profile, demographics |
 | `EnergySignal` | `pvStatus`, `batteryStatus`, `solarShading` | PV / battery / solar alignment |
-| `CurrentSystemSignal` | `currentHeatSourceType`, `currentBoilerAgeYears`, `boilerConditionBand` | Current boiler context |
+| `CurrentSystemSignal` | `currentHeatSourceType`, `currentBoilerAgeYears`, `boilerConditionBand`, `currentSystem.*` | Full system architecture — type, age, emitters, controls, pipework, SEDBUK band, service history, circuit type, condition signals |
 | `ObjectivesSignal` | `expertAssumptions`, `preferences`, `prioritiesState` | Ranked objectives |
 
-### 4.1 `wallTypeKey` normalisation
+### 4.1 `CurrentSystemSignal` — full system architecture fields
+
+`CurrentSystemSignal` now exposes all information collected in the System Architecture step of the canonical stepper. Every field is null/empty when the corresponding data was not captured (callers must hide labels rather than showing "not recorded" placeholders):
+
+| Field | Source | Description |
+|-------|--------|-------------|
+| `systemTypeLabel` | `currentHeatSourceType` | Human-readable heat source type |
+| `ageLabel` | `currentBoilerAgeYears` / `currentSystem.boiler.ageYears` | Age in years |
+| `ageContext` | Derived from age + type | Lifespan context sentence |
+| `makeModelText` | `makeModelText` | Make / model string |
+| `outputLabel` | `currentBoilerOutputKw` | Rated output in kW |
+| `emittersLabel` | `currentSystem.emittersType` or `emitterType` | Emitter type (radiators / UFH / mixed) |
+| `pipeLayoutLabel` | `currentSystem.pipeLayout` or `pipingTopology` | Primary pipework layout |
+| `controlFamilyLabel` | `currentSystem.controlFamily` or `systemPlanType` | Control arrangement (Y-plan, S-plan, etc.) |
+| `thermostatStyleLabel` | `currentSystem.thermostatStyle` | Thermostat type |
+| `programmerTypeLabel` | `currentSystem.programmerType` | Programmer / scheduling device type |
+| `sedbukBandLabel` | `currentSystem.sedbukBand` | ErP/SEDBUK efficiency band (A–G) |
+| `serviceHistoryLabel` | `currentSystem.serviceHistory` | Service regularity |
+| `heatingSystemTypeLabel` | `currentSystem.heatingSystemType` | Circuit type — open-vented vs sealed (regular boilers) |
+| `pipeworkAccessLabel` | `currentSystem.pipeworkAccess` | Pipework accessibility (regular boilers) |
+| `conditionSignalPills` | `currentSystem.conditionSignals.*` | Site-observed condition signals as status pills |
+
+### 4.2 System architecture → engine input bridge
+
+`sanitiseModelForEngine` bridges all `fullSurvey.systemBuilder` fields into `EngineInputV2_3`. Existing explicit values on the engine input are never overwritten. The bridge maps:
+
+- `systemBuilder.heatSource` → `currentHeatSourceType`
+- `systemBuilder.boilerAgeYears` → `currentBoilerAgeYears` + `systemAgeYears` (condition inference)
+- `systemBuilder.emitters` → `emitterType` (flat) + `currentSystem.emittersType` (detailed)
+- `systemBuilder.layout` → `pipingTopology` (flat) + `currentSystem.pipeLayout` (detailed)
+- `systemBuilder.controlFamily` → `systemPlanType` (flat, where mappable) + `currentSystem.controlFamily` (full)
+- `systemBuilder.primarySize` → `primaryPipeDiameter`
+- `systemBuilder.magneticFilter` → `hasMagneticFilter`
+- `systemBuilder.dhwType` → `dhwStorageType`
+- All other system builder fields → `currentSystem.*` (thermostatStyle, programmerType, sedbukBand, serviceHistory, heatingSystemType, pipeworkAccess, conditionSignals)
+
+### 4.3 `wallTypeKey` normalisation
 
 `HouseSignal.wallTypeKey` is normalised to `'solid_masonry' | 'cavity_insulated'`:
 - `cavity_uninsulated` → `solid_masonry` (same high heat-loss band; no insulation benefit)
@@ -198,6 +234,16 @@ Key signal types in the presentation model:
 - Insulated cavity → `cavity_insulated`
 
 This is a **presentation normalisation only** — the engine receives the raw `wallType` enum.
+
+### 4.4 System condition and system age
+
+`inferSystemConditionFlags` (SystemConditionInferenceModule) factors system age via the `systemAgeYears` input field in:
+
+- **Sludge risk**: age ≥20 yr → proxy score 3 (high); age ≥10 yr → proxy score 1 (moderate). Used as fallback when no direct symptoms observed.
+- **Scale risk**: hard water + age ≥15 yr → elevated to `high`; moderate water + age ≥20 yr → elevated to `moderate`.
+- **Plate HEX condition**: `systemAgeYears` used as proxy when no explicit `plateHexAgeYears` is recorded.
+
+`systemAgeYears` is always wired from `currentBoilerAgeYears` in `sanitiseModelForEngine` when not explicitly set, so that real survey age data always reaches the inference layer.
 
 ---
 

@@ -153,6 +153,54 @@ function CurrentSystemSection({ sys }: { sys: CurrentSystemSignal }) {
         <p className="cpp-visual-section__context-detail cpp-visual-section__context-detail--muted">
           {sys.ageContext}
         </p>
+        {sys.emittersLabel != null && (
+          <p className="cpp-visual-section__context-detail">
+            Emitters: {sys.emittersLabel}
+          </p>
+        )}
+        {sys.controlFamilyLabel != null && (
+          <p className="cpp-visual-section__context-detail">
+            Controls: {sys.controlFamilyLabel}
+            {sys.thermostatStyleLabel != null ? ` · ${sys.thermostatStyleLabel}` : ''}
+          </p>
+        )}
+        {sys.pipeLayoutLabel != null && (
+          <p className="cpp-visual-section__context-detail">
+            Pipework: {sys.pipeLayoutLabel}
+          </p>
+        )}
+        {sys.sedbukBandLabel != null && (
+          <p className="cpp-visual-section__context-detail">
+            Efficiency: {sys.sedbukBandLabel}
+          </p>
+        )}
+        {sys.serviceHistoryLabel != null && (
+          <p className="cpp-visual-section__context-detail">
+            Service: {sys.serviceHistoryLabel}
+          </p>
+        )}
+        {sys.heatingSystemTypeLabel != null && (
+          <p className="cpp-visual-section__context-detail">
+            Circuit: {sys.heatingSystemTypeLabel}
+          </p>
+        )}
+        {sys.pipeworkAccessLabel != null && (
+          <p className="cpp-visual-section__context-detail">
+            Pipework access: {sys.pipeworkAccessLabel}
+          </p>
+        )}
+        {sys.conditionSignalPills.length > 0 && (
+          <div className="cpp-condition-pills">
+            {sys.conditionSignalPills.map((pill, i) => (
+              <span
+                key={i}
+                className={`cpp-condition-pill cpp-condition-pill--${pill.status}`}
+              >
+                {pill.label}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

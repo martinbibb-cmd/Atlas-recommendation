@@ -22,6 +22,10 @@ import type {
  *
  * - Clamps out-of-range values (boiler age > 50, flow > 60 L/min, static pressure > 10 bar).
  * - Corrects dynamic pressure if it exceeds static pressure.
+ * - Bridges fullSurvey.systemBuilder into flat engine fields and currentSystem structure
+ *   (currentHeatSourceType, currentBoilerAgeYears, emitterType, systemPlanType,
+ *   pipingTopology, hasMagneticFilter, systemAgeYears, dhwStorageType, and the extended
+ *   currentSystem.* architecture fields). Existing values are never overwritten.
  * - Bridges flat survey fields (currentBoilerAgeYears, currentHeatSourceType,
  *   currentBoilerOutputKw) into the nested currentSystem.boiler structure that
  *   BoilerEfficiencyModelV1 expects. Existing nested values are never overwritten.
@@ -31,6 +35,8 @@ import type {
  *   cylinderCoilTransferFactor, and cylinderConditionBand for use by StoredDhwModule.
  *   Only runs for stored hot water paths (non-combi). Existing values are not overwritten.
  * - Maps fullSurvey.dhwCondition.softenerPresent → hasSoftener when hasSoftener is not set.
+ * - Wires systemAgeYears from currentBoilerAgeYears so that SystemConditionInferenceModule
+ *   can use actual age (rather than zero) when no direct symptoms are present.
  */
 export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyModelV1 {
   const sanitised: FullSurveyModelV1 = { ...model };
@@ -82,7 +88,108 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
     }
   }
 
-  // Bridge flat survey fields into currentSystem.boiler so the engine's
+  // ── System builder → engine input bridge ─────────────────────────────────
+  // Propagates all fields captured in the system-architecture step into their
+  // corresponding EngineInputV2_3 home. Only runs when fullSurvey.systemBuilder
+  // is present. Existing values on the sanitised model are never overwritten.
+  const sb = sanitised.fullSurvey?.systemBuilder;
+  if (sb !== undefined) {
+    // Flat engine fields
+    if (sanitised.currentHeatSourceType === undefined && sb.heatSource != null) {
+      // storage_combi is a combi variant — map to engine's 'combi' type
+      const heatSourceMap: Record<string, EngineInputV2_3['currentHeatSourceType']> = {
+        combi:          'combi',
+        system:         'system',
+        regular:        'regular',
+        storage_combi:  'combi', // storage combi is still a combi for engine purposes
+      };
+      sanitised.currentHeatSourceType = heatSourceMap[sb.heatSource];
+    }
+    if (sanitised.currentBoilerAgeYears === undefined && sb.boilerAgeYears != null) {
+      sanitised.currentBoilerAgeYears = sb.boilerAgeYears;
+    }
+
+    // emitterType — map system-builder granular emitters to engine's 3-value set
+    if (sanitised.emitterType === undefined && sb.emitters != null) {
+      sanitised.emitterType =
+        sb.emitters === 'underfloor'           ? 'ufh'       :
+        sb.emitters === 'mixed'                ? 'mixed'     :
+        'radiators'; // radiators_standard + radiators_designer
+    }
+
+    // systemPlanType — map control family to two-value engine enum (where possible)
+    if (sanitised.systemPlanType === undefined && sb.controlFamily != null) {
+      if (sb.controlFamily === 'y_plan')        sanitised.systemPlanType = 'y_plan';
+      if (sb.controlFamily === 's_plan' || sb.controlFamily === 's_plan_plus') {
+        sanitised.systemPlanType = 's_plan';
+      }
+      // combi_integral, thermal_store, unknown — no equivalent in systemPlanType
+    }
+
+    // pipingTopology — map system-builder layout to engine topology enum
+    if (sanitised.pipingTopology === undefined && sb.layout != null) {
+      if (sb.layout === 'two_pipe')   sanitised.pipingTopology = 'two_pipe';
+      if (sb.layout === 'one_pipe')   sanitised.pipingTopology = 'one_pipe';
+      if (sb.layout === 'microbore')  sanitised.pipingTopology = 'microbore';
+      // manifold and unknown — no direct engine topology equivalent
+    }
+
+    // primaryPipeDiameter from system builder pipe size
+    if (sanitised.primaryPipeDiameter === undefined && sb.primarySize != null && sb.primarySize !== 'unknown') {
+      sanitised.primaryPipeDiameter = sb.primarySize;
+    }
+
+    // hasMagneticFilter from condition signals
+    if (sanitised.hasMagneticFilter === undefined && sb.magneticFilter != null) {
+      if (sb.magneticFilter === 'fitted')     sanitised.hasMagneticFilter = true;
+      if (sb.magneticFilter === 'not_fitted') sanitised.hasMagneticFilter = false;
+      // 'unknown' → leave hasMagneticFilter undefined
+    }
+
+    // dhwStorageType — map system-builder DHW type to engine storage type
+    if (sanitised.dhwStorageType === undefined && sb.dhwType != null) {
+      const dhwTypeMap: Record<string, EngineInputV2_3['dhwStorageType']> = {
+        open_vented:  'vented',
+        unvented:     'unvented',
+        thermal_store:'thermal_store',
+        plate_hex:    'none',       // combi plate HEX = no stored DHW
+        small_store:  'unvented',   // storage combi integral store
+      };
+      const mapped = dhwTypeMap[sb.dhwType];
+      if (mapped !== undefined) sanitised.dhwStorageType = mapped;
+    }
+
+    // Extended currentSystem architecture fields
+    const existingCurrentSystem = sanitised.currentSystem ?? {};
+    sanitised.currentSystem = {
+      ...existingCurrentSystem,
+      // Preserve existing boiler sub-object — do not overwrite
+      boiler:            existingCurrentSystem.boiler,
+      emittersType:      existingCurrentSystem.emittersType      ?? sb.emitters         ?? undefined,
+      pipeLayout:        existingCurrentSystem.pipeLayout        ?? sb.layout           ?? undefined,
+      controlFamily:     existingCurrentSystem.controlFamily     ?? sb.controlFamily    ?? undefined,
+      thermostatStyle:   existingCurrentSystem.thermostatStyle   ?? sb.thermostatStyle  ?? undefined,
+      programmerType:    existingCurrentSystem.programmerType    ?? sb.programmerType   ?? undefined,
+      sedbukBand:        existingCurrentSystem.sedbukBand        ?? sb.sedbukBand       ?? undefined,
+      serviceHistory:    existingCurrentSystem.serviceHistory    ?? sb.serviceHistory   ?? undefined,
+      heatingSystemType: existingCurrentSystem.heatingSystemType ?? sb.heatingSystemType ?? undefined,
+      pipeworkAccess:    existingCurrentSystem.pipeworkAccess    ?? sb.pipeworkAccess   ?? undefined,
+      conditionSignals: existingCurrentSystem.conditionSignals ?? (
+        (sb.bleedWaterColour != null || sb.radiatorPerformance != null ||
+         sb.circulationIssues != null || sb.magneticFilter != null || sb.cleaningHistory != null)
+          ? {
+              bleedWaterColour:    sb.bleedWaterColour    ?? undefined,
+              radiatorPerformance: sb.radiatorPerformance ?? undefined,
+              circulationIssues:   sb.circulationIssues   ?? undefined,
+              magneticFilter:      sb.magneticFilter      ?? undefined,
+              cleaningHistory:     sb.cleaningHistory     ?? undefined,
+            }
+          : undefined
+      ),
+    };
+  }
+
+
   // BoilerEfficiencyModelV1 can apply age-decay and oversize calculations.
   // currentHeatSourceType only covers boiler-based systems (combi/system/regular).
   const boilerType = sanitised.currentHeatSourceType === 'combi'
@@ -334,6 +441,19 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
         repeatedPumpOrValveReplacements: hc?.repeatedPumpOrValveReplacements,
       });
       sanitised.boilerConditionBand = boilerCondition.conditionBand;
+    }
+  }
+
+  // ── systemAgeYears → condition inference bridge ──────────────────────────
+  // SystemConditionInferenceModule uses systemAgeYears as a proxy for sludge
+  // risk and scale risk when direct symptom observations are absent. Wire the
+  // captured boiler age into systemAgeYears so that age-based risk scaling
+  // works correctly from survey data rather than always defaulting to zero.
+  // Existing explicit values are never overwritten.
+  if (sanitised.systemAgeYears === undefined) {
+    const boilerAge = sanitised.currentSystem?.boiler?.ageYears ?? sanitised.currentBoilerAgeYears;
+    if (boilerAge !== undefined) {
+      sanitised.systemAgeYears = boilerAge;
     }
   }
 

@@ -97,7 +97,7 @@ export interface EnergySignal {
   narrativeSignals: string[];
 }
 
-/** Current system signals — type, age, make/model. */
+/** Current system signals — type, age, make/model, and full system architecture. */
 export interface CurrentSystemSignal {
   /**
    * Human-readable system type — null when heat source type was not captured
@@ -135,6 +135,56 @@ export interface CurrentSystemSignal {
   currentHeatSourceType: EngineInputV2_3['currentHeatSourceType'];
   /** Canonical DHW type from survey/model (for image mapping). */
   systemDhwType?: DhwType;
+
+  // ── Full system architecture — all fields from the System Architecture step ──
+
+  /**
+   * Human-readable emitter type label — null when not captured.
+   * Sourced from currentSystem.emittersType or input.emitterType.
+   */
+  emittersLabel: string | null;
+  /**
+   * Human-readable pipework layout label — null when not captured.
+   * Sourced from currentSystem.pipeLayout or input.pipingTopology.
+   */
+  pipeLayoutLabel: string | null;
+  /**
+   * Human-readable control family label — null when not captured.
+   * Sourced from currentSystem.controlFamily or input.systemPlanType.
+   */
+  controlFamilyLabel: string | null;
+  /**
+   * Human-readable thermostat style label — null when not captured.
+   */
+  thermostatStyleLabel: string | null;
+  /**
+   * Human-readable programmer type label — null when not captured.
+   */
+  programmerTypeLabel: string | null;
+  /**
+   * SEDBUK efficiency band label (e.g. "Band A") — null when not captured.
+   */
+  sedbukBandLabel: string | null;
+  /**
+   * Human-readable service history label — null when not captured.
+   */
+  serviceHistoryLabel: string | null;
+  /**
+   * Heating circuit type label for regular boilers (open-vented / sealed).
+   * null when not applicable or not captured.
+   */
+  heatingSystemTypeLabel: string | null;
+  /**
+   * Pipework access label for regular boilers.
+   * null when not applicable or not captured.
+   */
+  pipeworkAccessLabel: string | null;
+  /**
+   * System condition signal pills derived from site survey observations.
+   * Each pill carries a status of 'ok' | 'warn' | 'unknown' for colour-coding.
+   * Empty array when no condition data was captured.
+   */
+  conditionSignalPills: Array<{ label: string; status: 'ok' | 'warn' | 'unknown' }>;
 }
 
 /** Objectives signals — user priorities from expert assumptions and preferences. */
@@ -418,6 +468,149 @@ const SYSTEM_TYPE_LABELS: Record<string, string> = {
   ashp:   'Air source heat pump',
   other:  'Other heat source',
 };
+
+// ── System architecture label tables ────────────────────────────────────────
+
+const EMITTERS_LABELS: Record<string, string> = {
+  radiators_standard: 'Standard radiators',
+  radiators_designer: 'Designer radiators',
+  underfloor:         'Underfloor heating',
+  mixed:              'Mixed (radiators + underfloor)',
+  // Engine top-level emitterType aliases
+  radiators:          'Radiators',
+  ufh:                'Underfloor heating',
+};
+
+const PIPE_LAYOUT_LABELS: Record<string, string> = {
+  two_pipe:  'Two-pipe system',
+  one_pipe:  'One-pipe system',
+  manifold:  'Manifold distribution',
+  microbore: 'Microbore pipework',
+  unknown:   'Pipe layout not recorded',
+};
+
+const CONTROL_FAMILY_LABELS: Record<string, string> = {
+  combi_integral: 'Combi — integral controls',
+  y_plan:         'Y-plan (3-port mid-position valve)',
+  s_plan:         'S-plan (twin 2-port zone valves)',
+  s_plan_plus:    'S-plan Plus (twin zones + underfloor)',
+  thermal_store:  'Thermal store control',
+  unknown:        'Controls not recorded',
+};
+
+const THERMOSTAT_STYLE_LABELS: Record<string, string> = {
+  basic:        'Basic (on/off) thermostat',
+  programmable: 'Programmable thermostat',
+  smart:        'Smart thermostat',
+  unknown:      'Thermostat type not recorded',
+};
+
+const PROGRAMMER_TYPE_LABELS: Record<string, string> = {
+  integral:          'Integral programmer (built into appliance)',
+  electromechanical: 'Electromechanical dial timer',
+  digital:           'Digital 7-day programmer',
+  smart:             'Smart / app-linked programmer',
+  none:              'No programmer fitted',
+  unknown:           'Programmer type not recorded',
+};
+
+const SEDBUK_BAND_LABELS: Record<string, string> = {
+  A: 'Band A (≥90% seasonal efficiency)',
+  B: 'Band B (86–90% seasonal efficiency)',
+  C: 'Band C (82–86% seasonal efficiency)',
+  D: 'Band D (78–82% seasonal efficiency)',
+  E: 'Band E (74–78% seasonal efficiency)',
+  F: 'Band F (70–74% seasonal efficiency)',
+  G: 'Band G (<70% seasonal efficiency)',
+  unknown: 'SEDBUK band not recorded',
+};
+
+const SERVICE_HISTORY_LABELS: Record<string, string> = {
+  regular:   'Regularly serviced',
+  irregular: 'Service history irregular or unknown',
+  unknown:   'Service history not recorded',
+};
+
+const HEATING_SYSTEM_TYPE_LABELS: Record<string, string> = {
+  open_vented: 'Open-vented (tank-fed) circuit',
+  sealed:      'Sealed pressurised circuit',
+  unknown:     'Circuit type not recorded',
+};
+
+const PIPEWORK_ACCESS_LABELS: Record<string, string> = {
+  accessible: 'Primary pipework accessible',
+  buried:     'Primary pipework buried / concealed',
+  unknown:    'Pipework access not recorded',
+};
+
+const BLEED_WATER_LABELS: Record<string, string> = {
+  clear:                'Bleed water clear',
+  slightly_discoloured: 'Bleed water slightly discoloured',
+  dark:                 'Bleed water dark (magnetite likely)',
+  sludge:               'Bleed water shows sludge (contamination)',
+  unknown:              'Bleed water colour not recorded',
+};
+
+const RADIATOR_PERFORMANCE_LABELS: Record<string, string> = {
+  all_even:        'All radiators heating evenly',
+  some_cold_spots: 'Some radiators have cold spots',
+  many_cold:       'Many radiators have cold spots or poor heat',
+};
+
+const CIRCULATION_ISSUES_LABELS: Record<string, string> = {
+  none:                        'No noise or circulation issues observed',
+  occasional_noise:            'Occasional noise on the circuit',
+  frequent_noise_or_poor_flow: 'Frequent noise or poor flow observed',
+};
+
+const MAGNETIC_FILTER_LABELS: Record<string, string> = {
+  fitted:     'Magnetic filter fitted',
+  not_fitted: 'No magnetic filter fitted',
+  unknown:    'Magnetic filter status not recorded',
+};
+
+const CLEANING_HISTORY_LABELS: Record<string, string> = {
+  never_cleaned:           'System never cleaned',
+  cleaned_over_5_years_ago:'Last cleaned more than 5 years ago',
+  recently_cleaned:        'Recently cleaned',
+  unknown:                 'Cleaning history not recorded',
+};
+
+/** Map bleed water colour to a condition pill status. */
+function bleedWaterToStatus(colour: string | undefined): 'ok' | 'warn' | 'unknown' {
+  if (colour === 'clear') return 'ok';
+  if (colour === 'slightly_discoloured' || colour === 'dark' || colour === 'sludge') return 'warn';
+  return 'unknown';
+}
+
+/** Map radiator performance to a condition pill status. */
+function radiatorPerformanceToStatus(perf: string | undefined): 'ok' | 'warn' | 'unknown' {
+  if (perf === 'all_even')        return 'ok';
+  if (perf === 'some_cold_spots') return 'warn';
+  if (perf === 'many_cold')       return 'warn';
+  return 'unknown';
+}
+
+/** Map circulation issues to a condition pill status. */
+function circulationIssuesToStatus(issues: string | undefined): 'ok' | 'warn' | 'unknown' {
+  if (issues === 'none')                                          return 'ok';
+  if (issues === 'occasional_noise' || issues === 'frequent_noise_or_poor_flow') return 'warn';
+  return 'unknown';
+}
+
+/** Map magnetic filter status to a condition pill status. */
+function magneticFilterToStatus(filter: string | undefined): 'ok' | 'warn' | 'unknown' {
+  if (filter === 'fitted')     return 'ok';
+  if (filter === 'not_fitted') return 'warn';
+  return 'unknown';
+}
+
+/** Map cleaning history to a condition pill status. */
+function cleaningHistoryToStatus(history: string | undefined): 'ok' | 'warn' | 'unknown' {
+  if (history === 'recently_cleaned') return 'ok';
+  if (history === 'never_cleaned' || history === 'cleaned_over_5_years_ago') return 'warn';
+  return 'unknown';
+}
 
 /**
  * Human-readable labels for compass roof orientations.
@@ -755,6 +948,86 @@ function buildCurrentSystemSignal(input: EngineInputV2_3): CurrentSystemSignal {
   const drivingStyleMode = systemTypeToDrivingMode(type);
   const dhwStorageType   = inputDhwStorageTypeToSignal(input.dhwStorageType);
 
+  // ── System architecture fields ──────────────────────────────────────────────
+  const cs = input.currentSystem;
+
+  // Emitters — prefer detailed currentSystem.emittersType, fall back to emitterType
+  const emittersRaw = cs?.emittersType ?? input.emitterType;
+  const emittersLabel = emittersRaw != null ? (EMITTERS_LABELS[emittersRaw] ?? null) : null;
+
+  // Pipe layout — prefer currentSystem.pipeLayout, fall back to pipingTopology
+  const pipeLayoutRaw = cs?.pipeLayout ?? input.pipingTopology;
+  const pipeLayoutLabel = pipeLayoutRaw != null && pipeLayoutRaw !== 'unknown'
+    ? (PIPE_LAYOUT_LABELS[pipeLayoutRaw] ?? null)
+    : null;
+
+  // Control family — prefer currentSystem.controlFamily, fall back to systemPlanType
+  const controlFamilyRaw = cs?.controlFamily ?? (input.systemPlanType != null ? input.systemPlanType : null);
+  const controlFamilyLabel = controlFamilyRaw != null && controlFamilyRaw !== 'unknown'
+    ? (CONTROL_FAMILY_LABELS[controlFamilyRaw] ?? null)
+    : null;
+
+  const thermostatStyleLabel = (cs?.thermostatStyle != null && cs.thermostatStyle !== 'unknown')
+    ? (THERMOSTAT_STYLE_LABELS[cs.thermostatStyle] ?? null)
+    : null;
+
+  const programmerTypeLabel = (cs?.programmerType != null && cs.programmerType !== 'unknown')
+    ? (PROGRAMMER_TYPE_LABELS[cs.programmerType] ?? null)
+    : null;
+
+  const sedbukBandLabel = (cs?.sedbukBand != null && cs.sedbukBand !== 'unknown')
+    ? (SEDBUK_BAND_LABELS[cs.sedbukBand] ?? null)
+    : null;
+
+  const serviceHistoryLabel = (cs?.serviceHistory != null && cs.serviceHistory !== 'unknown')
+    ? (SERVICE_HISTORY_LABELS[cs.serviceHistory] ?? null)
+    : null;
+
+  // Heating system type and pipework access — only meaningful for regular boilers
+  const heatingSystemTypeLabel = (type === 'regular' && cs?.heatingSystemType != null && cs.heatingSystemType !== 'unknown')
+    ? (HEATING_SYSTEM_TYPE_LABELS[cs.heatingSystemType] ?? null)
+    : null;
+
+  const pipeworkAccessLabel = (type === 'regular' && cs?.pipeworkAccess != null && cs.pipeworkAccess !== 'unknown')
+    ? (PIPEWORK_ACCESS_LABELS[cs.pipeworkAccess] ?? null)
+    : null;
+
+  // Condition signal pills — sourced from currentSystem.conditionSignals
+  const sig = cs?.conditionSignals;
+  const conditionSignalPills: CurrentSystemSignal['conditionSignalPills'] = [];
+  if (sig != null) {
+    if (sig.bleedWaterColour != null) {
+      conditionSignalPills.push({
+        label:  BLEED_WATER_LABELS[sig.bleedWaterColour] ?? sig.bleedWaterColour,
+        status: bleedWaterToStatus(sig.bleedWaterColour),
+      });
+    }
+    if (sig.radiatorPerformance != null) {
+      conditionSignalPills.push({
+        label:  RADIATOR_PERFORMANCE_LABELS[sig.radiatorPerformance] ?? sig.radiatorPerformance,
+        status: radiatorPerformanceToStatus(sig.radiatorPerformance),
+      });
+    }
+    if (sig.circulationIssues != null) {
+      conditionSignalPills.push({
+        label:  CIRCULATION_ISSUES_LABELS[sig.circulationIssues] ?? sig.circulationIssues,
+        status: circulationIssuesToStatus(sig.circulationIssues),
+      });
+    }
+    if (sig.magneticFilter != null) {
+      conditionSignalPills.push({
+        label:  MAGNETIC_FILTER_LABELS[sig.magneticFilter] ?? sig.magneticFilter,
+        status: magneticFilterToStatus(sig.magneticFilter),
+      });
+    }
+    if (sig.cleaningHistory != null) {
+      conditionSignalPills.push({
+        label:  CLEANING_HISTORY_LABELS[sig.cleaningHistory] ?? sig.cleaningHistory,
+        status: cleaningHistoryToStatus(sig.cleaningHistory),
+      });
+    }
+  }
+
   return {
     systemTypeLabel,
     ageLabel,
@@ -770,6 +1043,17 @@ function buildCurrentSystemSignal(input: EngineInputV2_3): CurrentSystemSignal {
         : dhwStorageType === 'unvented' ? 'unvented'
           : dhwStorageType === 'thermal_store' ? 'thermal_store'
             : undefined,
+    // System architecture labels
+    emittersLabel,
+    pipeLayoutLabel,
+    controlFamilyLabel,
+    thermostatStyleLabel,
+    programmerTypeLabel,
+    sedbukBandLabel,
+    serviceHistoryLabel,
+    heatingSystemTypeLabel,
+    pipeworkAccessLabel,
+    conditionSignalPills,
   };
 }
 

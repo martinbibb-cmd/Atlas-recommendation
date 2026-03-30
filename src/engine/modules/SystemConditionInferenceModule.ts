@@ -240,7 +240,9 @@ export function inferSystemConditionFlags(
 
   // ── Sludge risk ───────────────────────────────────────────────────────────
   const symptomCount = countHeatingSymptoms(hc);
-  // Age-based fallback when no direct symptoms observed
+  // Age-based fallback when no direct symptoms observed.
+  // systemAgeYears is wired from currentBoilerAgeYears in sanitiseModelForEngine,
+  // ensuring real survey age data reaches this inference when available.
   const ageYears = input.systemAgeYears ?? 0;
   let ageSymptomProxy = 0;
   if (ageYears >= 20) ageSymptomProxy = 3;
@@ -256,23 +258,34 @@ export function inferSystemConditionFlags(
   }
 
   // ── Scale risk ────────────────────────────────────────────────────────────
-  // Seed from postcode water hardness; amplify with DHW symptom observations.
+  // Seed from postcode water hardness; amplify with DHW symptom observations
+  // and system age — old systems in hard water areas accumulate substantial
+  // scale regardless of observed symptoms.
   const dhwSymptomCount = countDhwScaleSymptoms(dc);
 
   let scaleRisk: RiskLevel = 'low';
   if (HARD_WATER_CATEGORIES.has(input.waterHardnessCategory ?? 'soft')) {
-    scaleRisk = dhwSymptomCount >= 1 ? 'high' : 'moderate';
+    // Hard water + symptoms → high; hard water + old system (≥15 yr) → high;
+    // hard water alone → moderate
+    const ageElevatesScale = ageYears >= 15;
+    scaleRisk = (dhwSymptomCount >= 1 || ageElevatesScale) ? 'high' : 'moderate';
   } else if (MODERATE_WATER_CATEGORIES.has(input.waterHardnessCategory ?? 'soft')) {
-    scaleRisk = dhwSymptomCount >= 1 ? 'moderate' : 'low';
+    // Moderate hardness + symptoms or old system → moderate
+    const ageElevatesScale = ageYears >= 20;
+    scaleRisk = (dhwSymptomCount >= 1 || ageElevatesScale) ? 'moderate' : 'low';
   } else if (dhwSymptomCount >= 1) {
     // Soft water area but symptoms present — unexpected; flag moderate
     scaleRisk = 'moderate';
   }
 
   // ── Plate HEX condition (legacy ConditionBand) ────────────────────────────
+  // When no explicit plateHexAgeYears is recorded, use systemAgeYears as a
+  // proxy (the plate HEX is internal to the appliance and ages with it).
   let plateHexCondition: ConditionBand = 'unknown';
-  if (dc.plateHexAgeYears !== undefined && dc.plateHexAgeYears !== 'unknown') {
-    plateHexCondition = dc.plateHexAgeYears >= PLATE_HEX_DEGRADED_AGE_YEARS
+  const effectivePlateHexAge =
+    typeof dc.plateHexAgeYears === 'number' ? dc.plateHexAgeYears : ageYears;
+  if (effectivePlateHexAge > 0) {
+    plateHexCondition = effectivePlateHexAge >= PLATE_HEX_DEGRADED_AGE_YEARS
       || dc.kettlingOrScaleSymptoms === true
       ? 'degraded'
       : 'good';

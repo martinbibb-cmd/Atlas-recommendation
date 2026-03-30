@@ -542,7 +542,7 @@ export interface EngineInputV2_3 {
    *  Used as the baseline for efficiency-decay calculations; falls back to 92 when absent.
    *  Valid range: 50–99. */
   currentBoilerSedbukPct?: number;
-  /** Structured current system context — used for SEDBUK baseline and tail-off model. */
+  /** Structured current system context — used for SEDBUK baseline, tail-off model, and full architecture capture. */
   currentSystem?: {
     boiler?: {
       /** Gas Council (GC) number — used for SEDBUK database lookup. */
@@ -555,6 +555,56 @@ export interface EngineInputV2_3 {
       condensing?: 'yes' | 'no' | 'unknown';
       /** Nominal rated output in kW (nameplate). Used for oversize ratio calculation. */
       nominalOutputKw?: number;
+    };
+    /**
+     * Emitter type with full system-builder detail.
+     * More granular than the engine's top-level `emitterType` field.
+     */
+    emittersType?: 'radiators_standard' | 'radiators_designer' | 'underfloor' | 'mixed';
+    /**
+     * Installed primary pipework layout.
+     * 'manifold' is captured by the system builder but has no engine topology equivalent;
+     * stored here for presentation and condition-assessment purposes.
+     */
+    pipeLayout?: 'two_pipe' | 'one_pipe' | 'manifold' | 'microbore' | 'unknown';
+    /**
+     * Full heating control family from the system builder.
+     * More detailed than `systemPlanType` — captures combi_integral, s_plan_plus, thermal_store.
+     */
+    controlFamily?: 'combi_integral' | 'y_plan' | 's_plan' | 's_plan_plus' | 'thermal_store' | 'unknown';
+    /** Thermostat type installed in the property. */
+    thermostatStyle?: 'basic' | 'programmable' | 'smart' | 'unknown';
+    /** Programmer / scheduling device type. */
+    programmerType?: 'integral' | 'electromechanical' | 'digital' | 'smart' | 'none' | 'unknown';
+    /** ErP / SEDBUK efficiency band (A–G) from the boiler's nameplate or database. */
+    sedbukBand?: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'unknown';
+    /** Service history for the current boiler / appliance. */
+    serviceHistory?: 'regular' | 'irregular' | 'unknown';
+    /**
+     * Heating circuit type — whether the primary circuit is open-vented or sealed.
+     * Relevant for regular (heat-only) boiler systems only.
+     */
+    heatingSystemType?: 'open_vented' | 'sealed' | 'unknown';
+    /**
+     * Whether the primary pipework is accessible for inspection or replacement.
+     * Relevant for regular boiler systems.
+     */
+    pipeworkAccess?: 'accessible' | 'buried' | 'unknown';
+    /**
+     * System condition signals captured during the site survey.
+     * These are direct site observations and drive condition grading and quick-win logic.
+     */
+    conditionSignals?: {
+      /** Colour of water when bleeding a radiator — key magnetite/sludge indicator. */
+      bleedWaterColour?: 'clear' | 'slightly_discoloured' | 'dark' | 'sludge' | 'unknown';
+      /** Radiator heat distribution across the system. */
+      radiatorPerformance?: 'all_even' | 'some_cold_spots' | 'many_cold';
+      /** Noise or poor-flow issues on the heating circuit. */
+      circulationIssues?: 'none' | 'occasional_noise' | 'frequent_noise_or_poor_flow';
+      /** Whether a magnetic system filter is fitted. */
+      magneticFilter?: 'fitted' | 'not_fitted' | 'unknown';
+      /** System cleaning / power-flush history. */
+      cleaningHistory?: 'never_cleaned' | 'cleaned_over_5_years_ago' | 'recently_cleaned' | 'unknown';
     };
   };
 
