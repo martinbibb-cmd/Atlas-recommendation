@@ -13,7 +13,7 @@ import LabQuickInputsPanel from './components/lab/LabQuickInputsPanel';
 import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
-import AtlasTour from './components/tour/AtlasTour';
+
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
 import HeatLossCalculator from './components/heatloss/HeatLossCalculator';
 import AtlasExplorerPage from './components/explorer/AtlasExplorerPage';
@@ -24,7 +24,7 @@ import NewVisitDialog from './components/visit/NewVisitDialog';
 import ReportPage from './components/reportpage/ReportPage';
 import CustomerPortalPage from './components/portal/CustomerPortalPage';
 import GlobalMenuShell from './components/shell/GlobalMenuShell';
-import { resetAtlasTourSeen } from './lib/tourStorage';
+
 import { createVisit, getVisit } from './lib/visits/visitApi';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from './ui/fullSurvey/FullSurveyModelV1';
@@ -196,8 +196,8 @@ export default function App() {
   /** Active report ID for the /report/:id route. */
   const [activeReportId, setActiveReportId] = useState<string | null>(INITIAL_REPORT_ID);
   const [fullSurveyPrefill, setFullSurveyPrefill] = useState<Partial<EngineInputV2_3> | undefined>();
-  /** Controls replay of the landing tour without a full page reload. */
-  const [replayLandingTour, setReplayLandingTour] = useState(false);
+  /** Controls whether the visits search panel is open on the home screen. */
+  const [showVisitsPanel, setShowVisitsPanel] = useState(false);
   /**
    * Partial engine input accumulated before opening the Simulator.
    * Populated by Fast Choice / home entry; merged with quick-input values
@@ -630,13 +630,6 @@ export default function App() {
       )}
       {journey === 'landing' && (
         <div className="landing">
-          {/* PR 1 — First-run tour: landing phase (steps 1–2) */}
-          <AtlasTour
-            context="landing"
-            run={replayLandingTour ? true : undefined}
-            onClose={() => setReplayLandingTour(false)}
-          />
-
           <div className="hero">
             <h1>
               <span className="hero-brand">Atlas</span>
@@ -645,33 +638,34 @@ export default function App() {
             <p className="tagline">
               Compare heating systems and see why one fits better.
             </p>
-            <div className="hero-actions">
-              <button
-                className="tour-replay-link"
-                onClick={() => {
-                  resetAtlasTourSeen();
-                  setReplayLandingTour(true);
-                }}
-                aria-label="Replay the Atlas tour"
-              >
-                ? Take a tour
-              </button>
-            </div>
           </div>
 
-          {/* Primary CTA — Start new visit */}
+          {/* Primary CTAs — new survey + search visits */}
           <div className="visit-cta-row">
             <button
               className="cta-btn cta-btn--visit"
               onClick={handleStartNewVisit}
               aria-haspopup="dialog"
             >
-              ＋ Start new visit
+              ＋ New Survey
+            </button>
+            <button
+              className="cta-btn cta-btn--search-visits"
+              onClick={() => setShowVisitsPanel(v => !v)}
+              aria-expanded={showVisitsPanel}
+              aria-controls="visits-panel"
+              aria-label="Search Visits"
+            >
+              🔍 Search Visits
             </button>
           </div>
 
-          {/* Recent visits — open an existing visit */}
-          <RecentVisitsList onOpenVisit={handleOpenVisit} />
+          {/* Visits panel — revealed when "Search Visits" is toggled */}
+          {showVisitsPanel && (
+            <div id="visits-panel">
+              <RecentVisitsList onOpenVisit={handleOpenVisit} />
+            </div>
+          )}
 
           <div className="journey-cards">
             <div
