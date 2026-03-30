@@ -22,41 +22,128 @@ export interface ExpertAssumptionsV1 {
   spaceSavingPriority?: 'low' | 'medium' | 'high' | null;
 }
 
-/** Normalized input contract accepted by the engine (V2.3). */
+/**
+ * Normalised input contract accepted by the engine (V2.3).
+ *
+ * Field naming and structure notes (SCHEMA ALIGNMENT):
+ *
+ *   • The engine's internal schema (`EngineInputV2_3` in `src/engine/schema/`) uses a
+ *     **flat** structure.  All fields here map 1-to-1 to the same flat field names:
+ *       - `primaryPipeDiameter`  — NOT `infrastructure.primaryPipeSizeMm`
+ *       - `heatLossWatts`        — in WATTS, NOT `property.peakHeatLossKw` in kilowatts
+ *       - `occupancySignature`   — NOT `occupancy.signature`
+ *       - `peakConcurrentOutlets`— optional, NOT required
+ *
+ *   • The logic layer (`src/logic/`) uses `primaryPipeSizeMm` in its own
+ *     `OutcomeSystemSpec` type.  That is a separate type for a separate layer and
+ *     must not be confused with this input contract.
+ *
+ *   • For V3 callers: `EngineInputV3` (in `src/engine/schema/EngineInputV3.ts`)
+ *     narrows `primaryPipeDiameter` to `15 | 22 | 28` (35 mm dropped) and requires
+ *     `drawFrequency` and `pipingTopology`.
+ */
 export interface EngineInputV2_3Contract {
-  infrastructure: {
-    /** Primary pipe size in mm. */
-    primaryPipeSizeMm: 15 | 22 | 28 | 35;
+  // ── Location ──────────────────────────────────────────────────────────────
+  /** UK postcode — used for hardness-zone lookup (scale/decay model). */
+  postcode: string;
+
+  // ── Building ──────────────────────────────────────────────────────────────
+  /**
+   * Peak fabric heat loss in **Watts** (not kilowatts).
+   *
+   * ⚠ UNIT: W  (e.g. 8 000 W = 8 kW design heat loss).
+   * Field name in the engine schema: `heatLossWatts`.
+   *
+   * Previous incorrect documentation listed this as `property.peakHeatLossKw`.
+   * That was a naming and unit error — the engine schema has always used `heatLossWatts`.
+   */
+  heatLossWatts: number;
+  /**
+   * Nominal bore of the primary distribution pipework (mm).
+   * Valid values: 15, 22, 28, or 35.
+   *
+   * Field name in the engine schema: `primaryPipeDiameter`.
+   * Previous incorrect documentation listed this as `infrastructure.primaryPipeSizeMm`.
+   *
+   * V3 note: `EngineInputV3` narrows this to `15 | 22 | 28` (35 mm is not valid in V3).
+   */
+  primaryPipeDiameter: 15 | 22 | 28 | 35;
+  /** Number of radiators / emitters (used for system-volume estimate). */
+  radiatorCount: number;
+  /** Whether the property has or plans a loft conversion (affects pipework adequacy). */
+  hasLoftConversion: boolean;
+  /** Design return water temperature (°C). Typical: 55–65 °C for gas, 40–50 °C for ASHP. */
+  returnWaterTemp: number;
+  /** Building thermal mass — affects heating demand spikiness and τ. */
+  buildingMass: 'light' | 'medium' | 'heavy';
+
+  // ── Mains services ────────────────────────────────────────────────────────
+  /**
+   * Dynamic mains pressure (bar) — legacy required field for backward compatibility.
+   * Prefer using the `mains` object for new integrations.
+   */
+  dynamicMainsPressure: number;
+  /**
+   * Static mains pressure (bar) — measured with no flow.
+   * Preferred alias: `mains.staticPressureBar`.
+   */
+  staticMainsPressureBar?: number;
+  /**
+   * Dynamic mains pressure (bar) — measured under flow.
+   * Preferred alias: `mains.dynamicPressureBar`.
+   */
+  dynamicMainsPressureBar?: number;
+  /** Dynamic mains flow rate (L/min). Preferred alias: `mains.flowRateLpm`. */
+  mainsDynamicFlowLpm?: number;
+  /**
+   * Nested mains supply object — preferred for new integrations.
+   * Values here take precedence over the flat `staticMainsPressureBar`,
+   * `dynamicMainsPressureBar`, and `mainsDynamicFlowLpm` fields.
+   */
+  mains?: {
+    staticPressureBar?: number;
+    dynamicPressureBar?: number;
+    flowRateLpm?: number;
   };
-  property: {
-    /** Peak heat loss in kilowatts. */
-    peakHeatLossKw: number;
-  };
-  occupancy: {
-    /** Occupancy pattern driving DHW demand profile. */
-    signature: 'professional' | 'steady' | 'shift';
-    /** Number of outlets that may run simultaneously at peak demand. */
-    peakConcurrentOutlets: number;
-  };
-  dhw: {
-    /** DHW heating architecture. */
-    architecture: 'on_demand' | 'stored_standard' | 'stored_mixergy' | 'unknown';
-    /** DHW delivery mode — affects which notes are relevant.
-     * Standardised modes: gravity / pumped_from_tank / mains_mixer / accumulator_supported / break_tank_booster / electric_cold_only.
-     * 'pumped' and 'tank_pumped' are accepted as legacy aliases for 'pumped_from_tank'.
-     */
-    deliveryMode?: 'unknown' | 'gravity' | 'pumped_from_tank' | 'tank_pumped' | 'pumped' | 'mains_mixer' | 'accumulator_supported' | 'break_tank_booster' | 'electric_cold_only';
-  };
-  services?: {
-    /** Static mains pressure (bar) — measured with no flow. */
-    mainsStaticPressureBar?: number;
-    /** Dynamic mains pressure (bar) — measured under flow. */
-    mainsDynamicPressureBar?: number;
-    /** Dynamic flow rate at pressure (L/min) — required for a meaningful dynamic point. */
-    mainsDynamicFlowLpm?: number;
-    /** Cold-water supply source. Defaults to 'unknown'. */
-    coldWaterSource?: 'unknown' | 'mains_true' | 'mains_shared' | 'loft_tank';
-  };
+  /** Cold-water supply source. Defaults to 'unknown'. */
+  coldWaterSource?: 'unknown' | 'mains_true' | 'mains_shared' | 'loft_tank';
+  /**
+   * DHW delivery mode.
+   * Standardised modes: gravity / pumped_from_tank / mains_mixer /
+   * accumulator_supported / break_tank_booster / electric_cold_only.
+   * 'pumped' and 'tank_pumped' are accepted as legacy aliases for 'pumped_from_tank'.
+   */
+  dhwDeliveryMode?: 'unknown' | 'gravity' | 'pumped_from_tank' | 'tank_pumped' | 'pumped' | 'mains_mixer' | 'accumulator_supported' | 'break_tank_booster' | 'electric_cold_only';
+
+  // ── Occupancy ─────────────────────────────────────────────────────────────
+  /** Number of bathrooms (used for simultaneous-demand gating). */
+  bathroomCount: number;
+  /**
+   * Occupancy pattern driving the DHW demand profile.
+   *
+   * V2 names (full):   'professional' | 'steady_home' | 'shift_worker'
+   * V3 aliases (short): 'steady' (≡ steady_home) | 'shift' (≡ shift_worker)
+   *
+   * The engine schema (`OccupancySignature`) accepts both V2 names and V3 aliases.
+   * V3 simplified names are preferred for new integrations.
+   *
+   * Field name in the engine schema: `occupancySignature`.
+   * Previous incorrect documentation listed this as `occupancy.signature`.
+   */
+  occupancySignature: 'professional' | 'steady_home' | 'shift_worker' | 'steady' | 'shift';
+  /** Whether the property is considered high-occupancy (drives stored-DHW sizing). */
+  highOccupancy: boolean;
+  /**
+   * Peak simultaneous DHW outlets (e.g. 1 = single shower, 2 = shower + basin).
+   * Optional — when absent the engine falls back to occupancy and bathroom-count heuristics.
+   *
+   * Previous incorrect documentation marked this as required. It is optional.
+   */
+  peakConcurrentOutlets?: number;
+  /** Number of people regularly resident — used for stored DHW sizing. */
+  occupancyCount?: number;
+
+  // ── Current system context ────────────────────────────────────────────────
   /** Optional current system context — used for SEDBUK baseline and tail-off model. */
   currentSystem?: {
     boiler?: {
@@ -72,8 +159,19 @@ export interface EngineInputV2_3Contract {
       nominalOutputKw?: number;
     };
   };
+  /** Flat alias for currentSystem.boiler.type — preferred for simple integrations. */
+  currentHeatSourceType?: 'combi' | 'system' | 'regular' | 'ashp' | 'other';
+  /** Current boiler age in years (flat alias for currentSystem.boiler.ageYears). */
+  currentBoilerAgeYears?: number;
+  /** Nominal boiler output in kW (flat alias for currentSystem.boiler.nominalOutputKw). */
+  currentBoilerOutputKw?: number;
+
+  // ── Preferences ───────────────────────────────────────────────────────────
+  /** Whether the user explicitly prefers a combi system. */
+  preferCombi: boolean;
   /** Expert assumption overrides — ranking and messaging only; physics unchanged. */
   expertAssumptions?: ExpertAssumptionsV1;
+
   /**
    * Hive-style day profile — single-day schedule for the Day Painter.
    * When present, overrides the legacy dayProgram and occupancy-based demand.

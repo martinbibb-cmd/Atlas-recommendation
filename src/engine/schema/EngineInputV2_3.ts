@@ -369,7 +369,8 @@ export interface EngineInputV2_3 {
 
   // Building
   buildingMass: BuildingMass;
-  primaryPipeDiameter: number; // mm, e.g. 22 or 28
+  /** Nominal bore of the primary distribution pipework (mm). Valid values: 15, 22, 28, or 35. */
+  primaryPipeDiameter: 15 | 22 | 28 | 35;
   heatLossWatts: number; // W
   radiatorCount: number;
   hasLoftConversion: boolean;
