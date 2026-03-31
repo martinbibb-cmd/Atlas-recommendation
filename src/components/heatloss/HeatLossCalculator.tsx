@@ -61,10 +61,11 @@ const U_WALL: Record<string, number> = {
 };
 
 const U_LOFT: Record<string, number> = {
-  none:      2.3,
-  mm100:     0.35,
-  mm200:     0.18,
-  mm270plus: 0.13,
+  none:           2.3,
+  mm100:          0.35,
+  mm200:          0.18,
+  mm270plus:      0.13,
+  neighbourHeated: 0.10,  // inter-flat ceiling — heated flat above (reduced ΔT effect included)
 };
 
 const U_GLAZING: Record<string, number> = {
@@ -78,6 +79,7 @@ const U_FLOOR: Record<string, number> = {
   solidUninsulated:     0.70,
   suspendedUninsulated: 0.80,
   insulated:            0.20,
+  neighbourHeated:      0.10,  // inter-flat floor — heated flat below (reduced ΔT effect included)
 };
 
 const GLAZING_FRACTION: Record<string, number> = { low: 0.12, medium: 0.18, high: 0.25 };
@@ -171,7 +173,13 @@ interface ViewState {
 interface Settings {
   storeys:        number;
   ceilingHeight:  number;
-  dwellingType:   'detached' | 'semi' | 'endTerrace' | 'midTerrace';
+  /**
+   * Dwelling form.
+   * Houses: 'detached' | 'semi' | 'endTerrace' | 'midTerrace'
+   * Flats:  'flatGround' | 'flatMid' | 'flatPenthouse'
+   */
+  dwellingType:   'detached' | 'semi' | 'endTerrace' | 'midTerrace'
+                | 'flatGround' | 'flatMid' | 'flatPenthouse';
   wallType:       string;
   loftInsulation: string;
   glazingType:    string;
@@ -303,9 +311,9 @@ function applyDefaultExposure(pts: Point[], edges: Edge[], dwellingType: string)
     })
     .sort((a, b) => b.length - a.length);
 
-  if (dwellingType === 'semi' || dwellingType === 'endTerrace') {
+  if (dwellingType === 'semi' || dwellingType === 'endTerrace' || dwellingType === 'flatGround' || dwellingType === 'flatPenthouse') {
     edges[sorted[0].i].isPartyWall = true;
-  } else if (dwellingType === 'midTerrace') {
+  } else if (dwellingType === 'midTerrace' || dwellingType === 'flatMid') {
     edges[sorted[0].i].isPartyWall = true;
     if (sorted.length > 1) edges[sorted[1].i].isPartyWall = true;
   }
@@ -1168,6 +1176,10 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
 
   // Compute once per render so IIFE and conditional expressions reuse the result.
   const activeLayerObj = layers.find(l => l.id === activeLayerId) ?? null;
+  // Closed polygon points for the compass perimeter render (null when not drawn yet).
+  const compassPerimeterPts = (activeLayerObj?.closed && (activeLayerObj.points.length ?? 0) >= 3)
+    ? activeLayerObj.points
+    : undefined;
 
   return (
     <div className={embedded ? 'hlc hlc--embedded' : 'hlc'}>
@@ -1353,120 +1365,177 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
           <div className="hlc__section">
             <h3>Building</h3>
 
-            <div className="hlc__field">
-              <label>Dwelling type</label>
-              <select
-                value={settings.dwellingType}
-                onChange={e => setSettings(s => ({ ...s, dwellingType: e.target.value as Settings['dwellingType'] }))}
-              >
-                <option value="detached">Detached</option>
-                <option value="semi">Semi-detached</option>
-                <option value="endTerrace">End-terrace</option>
-                <option value="midTerrace">Mid-terrace</option>
-              </select>
-            </div>
+            {(() => {
+              const isFlat = (settings.dwellingType === 'flatGround' || settings.dwellingType === 'flatMid' || settings.dwellingType === 'flatPenthouse');
+              return (
+                <>
+                  <div className="hlc__field">
+                    <label>Dwelling type</label>
+                    <select
+                      value={settings.dwellingType}
+                      onChange={e => {
+                        const next = e.target.value as Settings['dwellingType'];
+                        setSettings(s => {
+                          const updates: Partial<Settings> = { dwellingType: next };
+                          if (next === 'flatGround') {
+                            // Ground-floor flat: ceiling is neighbour's flat above, floor is ground-contact
+                            updates.loftInsulation = 'neighbourHeated';
+                            updates.storeys = 1;
+                            if (s.floorType === 'neighbourHeated') updates.floorType = 'suspendedUninsulated';
+                          } else if (next === 'flatMid') {
+                            // Mid-floor flat: both floor and ceiling are neighbour's flats
+                            updates.loftInsulation = 'neighbourHeated';
+                            updates.floorType = 'neighbourHeated';
+                            updates.storeys = 1;
+                          } else if (next === 'flatPenthouse') {
+                            // Top-floor flat: floor is neighbour's flat below, ceiling is exposed roof
+                            updates.floorType = 'neighbourHeated';
+                            updates.storeys = 1;
+                            if (s.loftInsulation === 'neighbourHeated') updates.loftInsulation = 'mm270plus';
+                          } else {
+                            // Switching to a house type — reset neighbourHeated values to house defaults
+                            if (s.loftInsulation === 'neighbourHeated') updates.loftInsulation = 'mm270plus';
+                            if (s.floorType === 'neighbourHeated') updates.floorType = 'suspendedUninsulated';
+                          }
+                          return { ...s, ...updates };
+                        });
+                      }}
+                    >
+                      <optgroup label="Houses">
+                        <option value="detached">Detached</option>
+                        <option value="semi">Semi-detached</option>
+                        <option value="endTerrace">End-terrace</option>
+                        <option value="midTerrace">Mid-terrace</option>
+                      </optgroup>
+                      <optgroup label="Flats">
+                        <option value="flatGround">Flat — ground floor</option>
+                        <option value="flatMid">Flat — mid floor</option>
+                        <option value="flatPenthouse">Flat — top floor / penthouse</option>
+                      </optgroup>
+                    </select>
+                  </div>
 
-            <div className="hlc__field">
-              <label>Storeys</label>
-              <input
-                type="number"
-                min={1} max={5} step={1}
-                value={settings.storeys}
-                onChange={e => setSettings(s => ({ ...s, storeys: Math.max(1, parseInt(e.target.value) || 1) }))}
-              />
-            </div>
+                  {isFlat && (
+                    <p className="hlc__field-hint" style={{ marginTop: '-0.25rem', marginBottom: '0.5rem' }}>
+                      {settings.dwellingType === 'flatGround' && 'Ground-floor flat: floor is ground-contact; ceiling is neighbour\'s flat above.'}
+                      {settings.dwellingType === 'flatMid' && 'Mid-floor flat: both floor and ceiling are neighbour\'s heated flats.'}
+                      {settings.dwellingType === 'flatPenthouse' && 'Top-floor flat: floor is neighbour\'s flat below; ceiling is exposed roof.'}
+                    </p>
+                  )}
 
-            <div className="hlc__field">
-              <label>Ceiling height (m)</label>
-              <input
-                type="number"
-                min={2} max={4} step={0.1}
-                value={settings.ceilingHeight}
-                onChange={e => setSettings(s => ({ ...s, ceilingHeight: parseFloat(e.target.value) || 2.4 }))}
-              />
-            </div>
+                  <div className="hlc__field">
+                    <label>Storeys</label>
+                    <input
+                      type="number"
+                      min={1} max={5} step={1}
+                      value={settings.storeys}
+                      onChange={e => setSettings(s => ({ ...s, storeys: Math.max(1, parseInt(e.target.value) || 1) }))}
+                    />
+                  </div>
+
+                  <div className="hlc__field">
+                    <label>Ceiling height (m)</label>
+                    <input
+                      type="number"
+                      min={2} max={4} step={0.1}
+                      value={settings.ceilingHeight}
+                      onChange={e => setSettings(s => ({ ...s, ceilingHeight: parseFloat(e.target.value) || 2.4 }))}
+                    />
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* Fabric settings */}
           <div className="hlc__section">
             <h3>Fabric</h3>
 
-            <div className="hlc__field">
-              <label>Wall construction</label>
-              <select
-                value={settings.wallType}
-                onChange={e => setSettings(s => ({ ...s, wallType: e.target.value }))}
-              >
-                <option value="solidBrick">Solid brick (U 2.1)</option>
-                <option value="cavityUninsulated">Cavity uninsulated (U 2.1 — high heat-loss band)</option>
-                <option value="cavityPartialFill">Cavity partial fill (U 0.5)</option>
-                <option value="cavityFullFill">Cavity full fill (U 0.28)</option>
-                <option value="timberFrame">Timber frame (U 0.25)</option>
-                <option value="solidStone">Solid stone (U 1.7)</option>
-              </select>
-            </div>
+            {(() => {
+              const isFlat = (settings.dwellingType === 'flatGround' || settings.dwellingType === 'flatMid' || settings.dwellingType === 'flatPenthouse');
+              return (
+                <>
+                  <div className="hlc__field">
+                    <label>Wall construction</label>
+                    <select
+                      value={settings.wallType}
+                      onChange={e => setSettings(s => ({ ...s, wallType: e.target.value }))}
+                    >
+                      <option value="solidBrick">Solid brick (U 2.1)</option>
+                      <option value="cavityUninsulated">Cavity uninsulated (U 2.1 — high heat-loss band)</option>
+                      <option value="cavityPartialFill">Cavity partial fill (U 0.5)</option>
+                      <option value="cavityFullFill">Cavity full fill (U 0.28)</option>
+                      <option value="timberFrame">Timber frame (U 0.25)</option>
+                      <option value="solidStone">Solid stone (U 1.7)</option>
+                    </select>
+                  </div>
 
-            <div className="hlc__field">
-              <label>Loft insulation</label>
-              <select
-                value={settings.loftInsulation}
-                onChange={e => setSettings(s => ({ ...s, loftInsulation: e.target.value }))}
-              >
-                <option value="none">None (U 2.3)</option>
-                <option value="mm100">100 mm (U 0.35)</option>
-                <option value="mm200">200 mm (U 0.18)</option>
-                <option value="mm270plus">270 mm+ (U 0.13)</option>
-              </select>
-            </div>
+                  <div className="hlc__field">
+                    <label>{isFlat ? 'Ceiling / roof insulation' : 'Loft insulation'}</label>
+                    <select
+                      value={settings.loftInsulation}
+                      onChange={e => setSettings(s => ({ ...s, loftInsulation: e.target.value }))}
+                    >
+                      {isFlat && <option value="neighbourHeated">Neighbour&apos;s heated flat above (U 0.10)</option>}
+                      <option value="none">None / exposed (U 2.3)</option>
+                      <option value="mm100">100 mm insulation (U 0.35)</option>
+                      <option value="mm200">200 mm insulation (U 0.18)</option>
+                      <option value="mm270plus">270 mm+ insulation (U 0.13)</option>
+                    </select>
+                  </div>
 
-            <div className="hlc__field">
-              <label>Glazing type</label>
-              <select
-                value={settings.glazingType}
-                onChange={e => setSettings(s => ({ ...s, glazingType: e.target.value }))}
-              >
-                <option value="single">Single glazed (U 4.8)</option>
-                <option value="doubleOld">Double old (U 2.8)</option>
-                <option value="doubleArated">Double A-rated (U 1.4)</option>
-                <option value="triple">Triple glazed (U 0.8)</option>
-              </select>
-            </div>
+                  <div className="hlc__field">
+                    <label>Glazing type</label>
+                    <select
+                      value={settings.glazingType}
+                      onChange={e => setSettings(s => ({ ...s, glazingType: e.target.value }))}
+                    >
+                      <option value="single">Single glazed (U 4.8)</option>
+                      <option value="doubleOld">Double old (U 2.8)</option>
+                      <option value="doubleArated">Double A-rated (U 1.4)</option>
+                      <option value="triple">Triple glazed (U 0.8)</option>
+                    </select>
+                  </div>
 
-            <div className="hlc__field">
-              <label>Glazing amount</label>
-              <select
-                value={settings.glazingAmount}
-                onChange={e => setSettings(s => ({ ...s, glazingAmount: e.target.value }))}
-              >
-                <option value="low">Low (12 % of wall)</option>
-                <option value="medium">Medium (18 %)</option>
-                <option value="high">High (25 %)</option>
-              </select>
-            </div>
+                  <div className="hlc__field">
+                    <label>Glazing amount</label>
+                    <select
+                      value={settings.glazingAmount}
+                      onChange={e => setSettings(s => ({ ...s, glazingAmount: e.target.value }))}
+                    >
+                      <option value="low">Low (12 % of wall)</option>
+                      <option value="medium">Medium (18 %)</option>
+                      <option value="high">High (25 %)</option>
+                    </select>
+                  </div>
 
-            <div className="hlc__field">
-              <label>Floor type</label>
-              <select
-                value={settings.floorType}
-                onChange={e => setSettings(s => ({ ...s, floorType: e.target.value }))}
-              >
-                <option value="solidUninsulated">Solid uninsulated (U 0.70)</option>
-                <option value="suspendedUninsulated">Suspended uninsulated (U 0.80)</option>
-                <option value="insulated">Insulated (U 0.20)</option>
-              </select>
-            </div>
+                  <div className="hlc__field">
+                    <label>Floor type</label>
+                    <select
+                      value={settings.floorType}
+                      onChange={e => setSettings(s => ({ ...s, floorType: e.target.value }))}
+                    >
+                      {isFlat && <option value="neighbourHeated">Neighbour&apos;s heated flat below (U 0.10)</option>}
+                      <option value="solidUninsulated">Solid uninsulated (U 0.70)</option>
+                      <option value="suspendedUninsulated">Suspended uninsulated (U 0.80)</option>
+                      <option value="insulated">Insulated (U 0.20)</option>
+                    </select>
+                  </div>
 
-            <div className="hlc__field">
-              <label>Thermal mass</label>
-              <select
-                value={settings.thermalMass}
-                onChange={e => setSettings(s => ({ ...s, thermalMass: e.target.value as Settings['thermalMass'] }))}
-              >
-                <option value="light">Lightweight</option>
-                <option value="medium">Medium</option>
-                <option value="heavy">Heavy masonry</option>
-              </select>
-            </div>
+                  <div className="hlc__field">
+                    <label>Thermal mass</label>
+                    <select
+                      value={settings.thermalMass}
+                      onChange={e => setSettings(s => ({ ...s, thermalMass: e.target.value as Settings['thermalMass'] }))}
+                    >
+                      <option value="light">Lightweight</option>
+                      <option value="medium">Medium</option>
+                      <option value="heavy">Heavy masonry</option>
+                    </select>
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* Results */}
@@ -1614,6 +1683,7 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
                 <RoofRotationControl
                   value={roofModel.roofOrientation}
                   onChange={(v) => onRoofModelChange({ ...roofModel, roofOrientation: v })}
+                  perimeterPoints={compassPerimeterPts}
                 />
               </div>
 
