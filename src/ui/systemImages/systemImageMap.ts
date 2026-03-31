@@ -14,7 +14,7 @@ import type { HeatSource, DhwType, ControlFamily, PipeLayout, HeatingSystemType 
 
 // ─── Image base path ─────────────────────────────────────────────────────────
 
-const BASE = '/images/systems';
+const BASE = `${(import.meta.env.BASE_URL || '/').replace(/\/$/, '')}/images/systems`;
 
 // ─── Public API types ─────────────────────────────────────────────────────────
 
