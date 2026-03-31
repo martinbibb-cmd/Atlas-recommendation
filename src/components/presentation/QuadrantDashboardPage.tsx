@@ -47,8 +47,7 @@ function systemVisualKeyFromSignal(
 ): OverviewSystemVisualKey | null {
   if (heatSource == null || heatSource === 'other') return null;
   if (heatSource === 'ashp') return 'overview_system_heat_pump';
-  if (heatSource === 'gshp') return 'overview_system_gshp';
-  if (heatSource === 'combi' || heatSource === 'storage_combi') return 'overview_system_combi';
+  if (heatSource === 'combi') return 'overview_system_combi';
   if (heatSource === 'system') {
     return dhwType === 'unvented' ? 'overview_system_system_unvented' : 'overview_system_system';
   }
