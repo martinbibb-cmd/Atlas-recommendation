@@ -25,6 +25,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -48,7 +50,7 @@ import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
 import PresentationVisualSlot from './PresentationVisualSlot';
 import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
 import QuadrantDashboardPage from './QuadrantDashboardPage';
-import { computeCurrentEfficiencyPct } from '../../engine/utils/efficiency';
+import { computeCurrentEfficiencyPct, DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
 import './PresentationDeck.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -59,7 +61,385 @@ import './PresentationDeck.css';
  */
 const SWIPE_THRESHOLD_PX = 40;
 
-// ─── Reduced-motion hook ──────────────────────────────────────────────────────
+// ─── System conversion data ────────────────────────────────────────────────────
+
+/**
+ * Normalized performance profiles for each system type.
+ * Scores are 0–100 (higher = better). Efficiency is normalized:
+ *   gas boilers: ~93 → 93 (actual SEDBUK %)
+ *   ASHP: COP 3.0–4.0 → 100 (capped to show clear relative advantage)
+ */
+interface SystemPerfProfile {
+  label: string;
+  flowRate: number;
+  multiOutlet: number;
+  heatingSpeed: number;
+  efficiencyPct: number;
+  efficiencyLabel: string;
+  primaryConstraint: string;
+}
+
+const SYSTEM_PERF: Record<string, SystemPerfProfile> = {
+  combi: {
+    label: 'Combi Boiler',
+    flowRate: 45,
+    multiOutlet: 20,
+    heatingSpeed: 95,
+    efficiencyPct: DEFAULT_NOMINAL_EFFICIENCY_PCT,
+    efficiencyLabel: '~92–94%',
+    primaryConstraint: 'No backup if boiler fails; limited by plate heat exchanger.',
+  },
+  regular_vented: {
+    label: 'Regular / System (Tank-fed)',
+    flowRate: 55,
+    multiOutlet: 50,
+    heatingSpeed: 85,
+    efficiencyPct: DEFAULT_NOMINAL_EFFICIENCY_PCT,
+    efficiencyLabel: '~92–94%',
+    primaryConstraint: 'Requires loft tanks; limited pressure without a pump.',
+  },
+  stored_unvented: {
+    label: 'Regular / System (Unvented)',
+    flowRate: 90,
+    multiOutlet: 90,
+    heatingSpeed: 85,
+    efficiencyPct: DEFAULT_NOMINAL_EFFICIENCY_PCT,
+    efficiencyLabel: '~92–94%',
+    primaryConstraint: 'Requires 22mm cold main and G3 safety discharge (D2).',
+  },
+  thermal_store: {
+    label: 'Thermal Store',
+    flowRate: 70,
+    multiOutlet: 70,
+    heatingSpeed: 78,
+    efficiencyPct: 87,
+    efficiencyLabel: '~85–90%',
+    primaryConstraint: 'Internal coils create flow restriction compared to unvented.',
+  },
+  ashp: {
+    label: 'ASHP (Low Temp)',
+    flowRate: 80,
+    multiOutlet: 90,
+    heatingSpeed: 25,
+    efficiencyPct: 100,
+    efficiencyLabel: 'COP 3.0–4.0',
+    primaryConstraint: 'Requires oversized radiators/UFH to compensate for low flow temps.',
+  },
+};
+
+/**
+ * Maps a current system category + target option key to the work involved.
+ * Returns an array of work item strings.
+ */
+function getConversionWork(
+  currentHeatSourceType: EngineInputV2_3['currentHeatSourceType'],
+  currentDhwType: EngineInputV2_3['dhwStorageType'],
+  targetKey: string,
+): string[] {
+  const isThermalStore = currentDhwType === 'thermal_store';
+  const isCombi = currentHeatSourceType === 'combi';
+  const isRegular = currentHeatSourceType === 'regular';
+  const isSystem = currentHeatSourceType === 'system';
+
+  if (targetKey === 'ashp') {
+    return [
+      'Full system assessment required — flow temperature compatibility check.',
+      'Oversized heat emitters (Type 22/33 radiators or UFH) typically required.',
+      'Dedicated heat pump cylinder with large-surface heat exchanger coil.',
+      'New electrical supply for heat pump unit (typically 6–10mm² SWA).',
+      'External pipework between heat pump and cylinder/header.',
+      'New controls: weather compensation, smart thermostat, TRV upgrade.',
+      'MCS certification required for any subsidy / grant application.',
+      isThermalStore ? 'Remove thermal store and loft tanks.' : 'Remove existing cylinder or reconfigure storage.',
+    ].filter(Boolean) as string[];
+  }
+
+  if (targetKey === 'combi') {
+    if (isThermalStore) {
+      return [
+        'Complete removal of thermal store and all loft tanks.',
+        'Gas: always needs increasing/re-routing for the combi\'s high kW load.',
+        'Full flue replacement to current building regulations.',
+        'Condensate: upgrade to 21.5mm or 32mm and reroute to suitable drain.',
+        'Re-route hot and cold feeds to new boiler location.',
+        'Risk — loss of buffer: flow now limited by boiler plate heat exchanger.',
+        'Risk — dead legs: must be removed to prevent stagnant water / Legionella.',
+        'Risk — pressure: old pipework may fail under 1.5–3 bar operating pressure.',
+      ];
+    }
+    if (isRegular || isSystem) {
+      return [
+        'Full flue replacement to current building regulations.',
+        'Condensate: even when already condensing, often needs replacing/upgrading.',
+        'Gas: always needs increasing to handle the high instantaneous demand.',
+        'Disconnection and removal of F&E tank, system controls, and hot water cylinder.',
+        'Drain down and disconnection of Cold Water Storage (CWS).',
+        'Risk — leaks: high risk on old pipework due to mains pressure.',
+        'Risk — shower incompatibility: existing tank-fed showers may not handle mains pressure.',
+        'Risk — performance: limited water delivery and no way to pump the hot water.',
+      ];
+    }
+    if (isCombi) {
+      return [
+        'Full flue replacement to current building regulations.',
+        'Condensate: replace/upgrade pipework to current standards.',
+        'Gas: check supply is adequate for new boiler kW rating.',
+        'Direct like-for-like swap; no major pipework changes required.',
+      ];
+    }
+  }
+
+  if (targetKey === 'stored_unvented') {
+    if (isThermalStore) {
+      return [
+        'Removal of the thermal store unit and any associated loft tanks.',
+        'Connect 22mm mains cold water directly to new unvented cylinder.',
+        'Install Tundish and D2 discharge pipe to safe, visible termination point.',
+        'Upgrade to two-port valves and high-limit stats for G3 compliance.',
+        'Complete electrical reconfiguration to standard S-Plan/G3 compliance.',
+        'Performance benefit: unvented will outperform thermal store (no flow restriction).',
+      ];
+    }
+    if (currentDhwType === 'vented' || (isRegular && !isThermalStore)) {
+      return [
+        'Remove F&E and Cold Water Storage tanks from loft.',
+        'Install unvented cylinder (e.g., Megaflo or equivalent).',
+        'Connect 22mm mains cold water directly to the cylinder for best performance.',
+        'Install Tundish and D2 discharge pipe — must terminate in safe, visible position.',
+        'Upgrade to two-port valves and high-limit stats for G3 compliance.',
+        'Full flue replacement to current building regulations.',
+        'Condensate: often needs replacing/upgrading.',
+        'Gas: sometimes needs increasing depending on boiler kW rating.',
+        'Risk — sealing the system: increased pressure can expose leaks in old joints/radiators.',
+      ];
+    }
+    if (isSystem) {
+      return [
+        'Full flue replacement to current building regulations.',
+        'Condensate: often needs replacing/upgrading.',
+        'Gas: sometimes needs increasing.',
+        'Expansion vessel: check internal vessel is sufficient; additional external vessels may be needed.',
+        'D2 discharge: verify Tundish and D2 pipe are correctly installed and terminated safely.',
+        'Controls: check S-Plan/Y-Plan configuration is correct for new cylinder.',
+      ];
+    }
+    if (isCombi) {
+      return [
+        'Full flue replacement to current building regulations.',
+        'Condensate: replace/upgrade pipework to current standards.',
+        'Gas: check supply is adequate.',
+        'Install new cylinder, associated pipework and controls.',
+        'Re-route cold and hot water feeds.',
+        'Install two-port valves and high-limit stats for G3 compliance.',
+        'Risk — significant additional pipework throughout property.',
+      ];
+    }
+  }
+
+  if (targetKey === 'regular_vented') {
+    if (isCombi) {
+      return [
+        'Full flue replacement to current building regulations.',
+        'Condensate: replace/upgrade pipework to current standards.',
+        'Gas: sometimes needs increasing.',
+        'Install F&E tank in loft and Cold Water Storage tank.',
+        'Install new vented cylinder and associated pipework.',
+        'Install external pump and reconfigure controls.',
+        'Risk — significant additional pipework; requires loft space.',
+      ];
+    }
+    if (isSystem) {
+      return [
+        'Full flue replacement to current building regulations.',
+        'Condensate: often needs replacing/upgrading.',
+        'Gas: sometimes needs increasing.',
+        'Addition of F&E tank and external pump.',
+        'Additional pipework to accommodate open vent and cold feed.',
+        'Reconfiguration of controls for external pump.',
+        'Risk — possible air ingression if pump and cold feed/vent not positioned correctly.',
+      ];
+    }
+    // Regular to Regular (same type)
+    return [
+      'Full flue replacement to current building regulations.',
+      'Condensate: even when already condensing, often needs replacing/upgrading to 21.5mm or 32mm.',
+      'Gas: sometimes needs increasing (e.g. 15mm to 22mm) to ensure correct working pressure.',
+    ];
+  }
+
+  // Fallback
+  return [
+    'Full flue replacement to current building regulations.',
+    'Condensate: pipework upgrade to current standards.',
+    'Gas supply: check and upsize if required.',
+    'Controls: reconfigure for new system type.',
+  ];
+}
+
+// ─── System Conversion Modal ──────────────────────────────────────────────────
+
+/**
+ * Derives the performance profile key from a SYSTEM_OPTION_DEFS key.
+ * The target option keys map to SYSTEM_PERF keys as follows:
+ *   regular_vented  → regular_vented
+ *   stored_unvented → stored_unvented
+ *   ashp            → ashp
+ *   combi           → combi
+ */
+function targetOptionToPerfKey(optionKey: string): string {
+  return SYSTEM_PERF[optionKey] ? optionKey : 'combi';
+}
+
+/**
+ * Derives the performance profile key for the current system from engine input.
+ */
+function currentSystemToPerfKey(
+  currentHeatSourceType: EngineInputV2_3['currentHeatSourceType'],
+  dhwStorageType: EngineInputV2_3['dhwStorageType'],
+): string {
+  if (currentHeatSourceType === 'combi') return 'combi';
+  if (currentHeatSourceType === 'ashp') return 'ashp';
+  if (dhwStorageType === 'thermal_store') return 'thermal_store';
+  if (dhwStorageType === 'unvented') return 'stored_unvented';
+  // regular or system with vented/unknown storage
+  return 'regular_vented';
+}
+
+function SystemConversionModal({
+  targetOptionKey,
+  input,
+  onClose,
+}: {
+  targetOptionKey: string;
+  input: EngineInputV2_3;
+  onClose: () => void;
+}) {
+  const currentPerfKey = currentSystemToPerfKey(input.currentHeatSourceType, input.dhwStorageType);
+  const targetPerfKey = targetOptionToPerfKey(targetOptionKey);
+
+  const currentProfile = SYSTEM_PERF[currentPerfKey];
+  const targetProfile = SYSTEM_PERF[targetPerfKey];
+
+  const workItems = getConversionWork(
+    input.currentHeatSourceType,
+    input.dhwStorageType,
+    targetOptionKey,
+  );
+
+  // Build comparison chart data
+  const chartData = [
+    { metric: 'Flow Rate',    current: currentProfile.flowRate,    target: targetProfile.flowRate },
+    { metric: 'Multi-Outlet', current: currentProfile.multiOutlet,  target: targetProfile.multiOutlet },
+    { metric: 'Heat Speed',   current: currentProfile.heatingSpeed, target: targetProfile.heatingSpeed },
+    { metric: 'Efficiency',   current: currentProfile.efficiencyPct, target: targetProfile.efficiencyPct },
+  ];
+
+  const isSameSystem = currentPerfKey === targetPerfKey;
+
+  return (
+    <div
+      className="sdg-modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${currentProfile.label} vs ${targetProfile.label}`}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="sdg-modal">
+        {/* Header */}
+        <div className="sdg-modal__header">
+          <div>
+            <p className="sdg-modal__eyebrow">System comparison</p>
+            <h3 className="sdg-modal__title">
+              {currentProfile.label} → {targetProfile.label}
+            </h3>
+          </div>
+          <button
+            type="button"
+            className="sdg-modal__close"
+            onClick={onClose}
+            aria-label="Close comparison"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="sdg-modal__body">
+          {/* Performance chart */}
+          <p className="sdg-modal__section-heading">Performance comparison</p>
+          <div className="sdg-modal__chart-wrap">
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart
+                data={chartData}
+                margin={{ top: 4, right: 8, left: -16, bottom: 4 }}
+                layout="vertical"
+              >
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 9 }} />
+                <YAxis type="category" dataKey="metric" tick={{ fontSize: 9 }} width={72} />
+                <Tooltip
+                  formatter={(value: number | undefined, name: string | undefined) => {
+                    if (value == null) return [`—`, name ?? ''];
+                    const nameStr = name ?? '';
+                    const label = nameStr === 'current' ? currentProfile.label : targetProfile.label;
+                    if (nameStr === 'current' && value === currentProfile.efficiencyPct) {
+                      return [`${value} (${currentProfile.efficiencyLabel})`, label];
+                    }
+                    if (nameStr === 'target' && value === targetProfile.efficiencyPct) {
+                      return [`${value} (${targetProfile.efficiencyLabel})`, label];
+                    }
+                    return [`${value}/100`, label];
+                  }}
+                />
+                <Legend
+                  formatter={(value: string) =>
+                    value === 'current' ? currentProfile.label : targetProfile.label
+                  }
+                  wrapperStyle={{ fontSize: '0.7rem' }}
+                />
+                <Bar dataKey="current" fill="#e53e3e" fillOpacity={0.8} radius={[0, 3, 3, 0]} />
+                <Bar dataKey="target"  fill="#3182ce" fillOpacity={0.8} radius={[0, 3, 3, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Key differences table */}
+          <p className="sdg-modal__section-heading">Key specifications</p>
+          <table className="sdg-modal__table" aria-label="System specifications comparison">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>{currentProfile.label}</th>
+                <th>{targetProfile.label}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Efficiency / COP</td>
+                <td>{currentProfile.efficiencyLabel}</td>
+                <td>{targetProfile.efficiencyLabel}</td>
+              </tr>
+              <tr>
+                <td>Primary constraint</td>
+                <td>{currentProfile.primaryConstraint}</td>
+                <td>{targetProfile.primaryConstraint}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          {/* Work involved */}
+          <p className="sdg-modal__section-heading">
+            {isSameSystem ? 'Work involved (like-for-like replacement)' : 'Work involved (conversion)'}
+          </p>
+          <ul className="sdg-modal__work-list" aria-label="Work involved">
+            {workItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function useReducedMotion(): boolean {
   const [reduced, setReduced] = useState(() => {
@@ -287,13 +667,20 @@ const SYSTEM_OPTION_DEFS: ReadonlyArray<{
   },
 ];
 
-function SystemOptionsGridPage({ options }: { options: AvailableOptionExplanation[] }) {
+function SystemOptionsGridPage({
+  options,
+  onOptionSelect,
+}: {
+  options: AvailableOptionExplanation[];
+  onOptionSelect: (key: string) => void;
+}) {
   return (
     <>
       <p className="atlas-presentation-deck__page-eyebrow">Available systems</p>
       <h2 className="atlas-presentation-deck__page-title">
         The systems available to you
       </h2>
+      <p className="atlas-deck-sys-grid__hint">Tap any option to compare with your current system</p>
       <div className="atlas-deck-sys-grid">
         {SYSTEM_OPTION_DEFS.map(def => {
           const image = imageForOptionId(def.imageId);
@@ -306,11 +693,15 @@ function SystemOptionsGridPage({ options }: { options: AvailableOptionExplanatio
               ].filter(Boolean)
             : [];
           const status = opt?.status ?? 'viable';
+          const cellLabel = `${def.heading} ${def.sub}`;
 
           return (
-            <div
+            <button
               key={def.key}
-              className={`atlas-deck-sys-grid__cell atlas-deck-sys-grid__cell--${status}`}
+              type="button"
+              className={`atlas-deck-sys-grid__cell atlas-deck-sys-grid__cell--${status} atlas-deck-sys-grid__cell--tappable`}
+              onClick={() => onOptionSelect(def.key)}
+              aria-label={`Compare ${cellLabel}`}
             >
               <p className="atlas-deck-sys-grid__heading">{def.heading}</p>
               <p className="atlas-deck-sys-grid__sub">{def.sub}</p>
@@ -328,7 +719,8 @@ function SystemOptionsGridPage({ options }: { options: AvailableOptionExplanatio
                   {bullets.map((b, i) => <li key={i}>{b}</li>)}
                 </ul>
               )}
-            </div>
+              <span className="atlas-deck-sys-grid__tap-hint" aria-hidden="true">Tap to compare →</span>
+            </button>
           );
         })}
       </div>
@@ -623,6 +1015,9 @@ export default function PresentationDeck({
 }: PresentationDeckProps) {
   const reducedMotion = useReducedMotion();
   const [currentIndex, setCurrentIndex] = useState(0);
+  // Tracks which system option the user tapped on the Options page.
+  // Rendered at this level so the modal can escape the transformed slide track.
+  const [comparisonOptionKey, setComparisonOptionKey] = useState<string | null>(null);
 
   // Touch tracking refs
   const touchStartX = useRef<number | null>(null);
@@ -749,7 +1144,7 @@ export default function PresentationDeck({
             component="SystemOptionsGridPage"
             fields={['page2.options ← engineOutput.options']}
           />
-          <SystemOptionsGridPage options={page2.options} />
+          <SystemOptionsGridPage options={page2.options} onOptionSelect={setComparisonOptionKey} />
         </>
       ),
     },
@@ -960,6 +1355,16 @@ export default function PresentationDeck({
           Next →
         </button>
       </div>
+
+      {/* System conversion modal — rendered here (outside the transformed track)
+          so position: fixed is relative to the viewport, not the slide container. */}
+      {comparisonOptionKey && (
+        <SystemConversionModal
+          targetOptionKey={comparisonOptionKey}
+          input={input}
+          onClose={() => setComparisonOptionKey(null)}
+        />
+      )}
 
     </div>
   );
