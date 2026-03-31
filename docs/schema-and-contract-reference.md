@@ -52,8 +52,9 @@ All fields below are on `FullSurveyModelV1`, which is used directly as the engin
 | `roofType` | `'pitched' \| 'flat' \| 'mixed' \| 'unknown'` | — | **Derived** from `fullSurvey.heatLoss.roofType` |
 | `roofOrientation` | `'north' \| 'east' \| 'south' \| 'west' \| 'south_east' \| 'south_west' \| 'mixed' \| 'unknown'` | — | **Derived** from `fullSurvey.heatLoss.roofOrientation` |
 | `solarShading` | `'low' \| 'medium' \| 'high' \| 'unknown'` | — | **Derived** from `fullSurvey.heatLoss.shadingLevel` |
-| `pvStatus` | `'none' \| 'existing' \| 'planned'` | — | **Derived** from `fullSurvey.heatLoss.pvStatus` |
-| `batteryStatus` | `'none' \| 'existing' \| 'planned'` | — | **Derived** from `fullSurvey.heatLoss.batteryStatus` |
+| `pvStatus` | `'none' \| 'existing' \| 'planned'` | — | **Derived** from `fullSurvey.heatLoss.pvStatus`. Forced to `'none'` for flat dwelling types (no independent roof access). |
+| `batteryStatus` | `'none' \| 'existing' \| 'planned'` | — | **Derived** from `fullSurvey.heatLoss.batteryStatus`. Forced to `'none'` for flat dwelling types. |
+| `dwellingType` | `'detached' \| 'semi' \| 'end_terrace' \| 'mid_terrace' \| 'flat_ground' \| 'flat_mid' \| 'flat_penthouse'` | — | **Derived** from `fullSurvey.heatLoss.shellModel.settings.dwellingType`. Absent when the heat-loss step has not been completed. |
 | `perimeterM` | `number?` | **m** | **Derived** from closed shell polygon via `sanitiseModelForEngine`. Stored in `fullSurvey.heatLoss.perimeterM`. |
 | `groundFloorAreaM2` | `number?` | **m²** | **Derived** from closed shell polygon (shoelace formula). Stored in `fullSurvey.heatLoss.groundFloorAreaM2`. |
 | `buildingBearingDeg` | `number?` | **degrees** | Clockwise from north (0 = N, 90 = E). Captured via compass control; stored in `fullSurvey.heatLoss.buildingBearingDeg`. Distinct from `roofOrientation`. |

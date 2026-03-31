@@ -203,6 +203,13 @@
   font-style: italic;
 }
 
+.hlc__field-note {
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+  margin: 4px 0 0;
+}
+
 /* ── Results ─────────────────────────────────────────────────────────────── */
 
 .hlc__result-headline {

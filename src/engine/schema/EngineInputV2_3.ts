@@ -468,6 +468,19 @@ export interface EngineInputV2_3 {
   buildingBearingDeg?: number;
 
   /**
+   * Form of the dwelling — derived from the heat-loss calculator's `dwellingType` setting.
+   * Used by the engine to apply flat-specific rules (e.g. solar unavailability)
+   * and to contextualise recommendations.
+   *
+   * Houses: 'detached' | 'semi' | 'end_terrace' | 'mid_terrace'
+   * Flats:  'flat_ground' | 'flat_mid' | 'flat_penthouse'
+   *
+   * Absent when not yet captured via the heat-loss step.
+   */
+  dwellingType?: 'detached' | 'semi' | 'end_terrace' | 'mid_terrace'
+               | 'flat_ground' | 'flat_mid' | 'flat_penthouse';
+
+  /**
    * Structured building fabric inputs — used by FabricModelV1 to independently
    * derive heat-loss band and thermal inertia (τ).
    * All sub-fields are optional; unknown/missing values fall back to mid-range defaults.

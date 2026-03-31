@@ -224,6 +224,11 @@ export default function App() {
    * should return there instead of going to the landing page.
    */
   const [simulatorFromJourney, setSimulatorFromJourney] = useState<Journey>('landing');
+  /**
+   * The journey that last opened the presentation, used to navigate Back correctly.
+   * When opened from the visit hub the Back button should return to 'visit-hub'.
+   */
+  const [presentationFromJourney, setPresentationFromJourney] = useState<Journey>('simulator');
   const [floorPlanSystemType, setFloorPlanSystemType] = useState<'combi' | 'system' | 'regular' | 'heat_pump' | undefined>();
   /**
    * Latest floor-plan derived output captured from FloorPlanBuilder.
@@ -297,7 +302,7 @@ export default function App() {
    * directly to the Simulator Dashboard.  Falls back to the survey if the
    * working payload is missing or cannot be converted.
    */
-  async function handleViewRecommendation(visitId: string) {
+  async function handleOpenPresentation(visitId: string) {
     try {
       const visitDetail = await getVisit(visitId);
       const workingPayload = visitDetail.working_payload;
@@ -308,13 +313,16 @@ export default function App() {
         const engineInput = toEngineInput(sanitiseModelForEngine(survey));
         setActiveVisitId(visitId);
         setLabEngineInput(engineInput);
-        setFitPosition(deriveFitPosition(engineInput));
-        setJourney('fit-map');
+        // Populate presentation quadrants (house snapshot, priority chips).
+        if (survey.fullSurvey?.heatLoss) setLabHeatLossState(survey.fullSurvey.heatLoss);
+        if (survey.fullSurvey?.priorities) setLabPrioritiesState(survey.fullSurvey.priorities);
+        setPresentationFromJourney('visit-hub');
+        setJourney('presentation');
         return;
       }
     } catch (err) {
       // Log the failure so it is visible in dev tools, then fall back to survey.
-      console.error('[Atlas] Could not load visit for recommendation', visitId, err);
+      console.error('[Atlas] Could not load visit for presentation', visitId, err);
     }
     // Fallback: no working payload — send back to survey so the user can
     // complete and save it.
@@ -468,7 +476,7 @@ export default function App() {
           visitId={activeVisitId}
           onBack={() => setJourney('landing')}
           onResumeSurvey={() => setJourney('visit')}
-          onViewRecommendation={() => { void handleViewRecommendation(activeVisitId); }}
+          onOpenPresentation={() => { void handleOpenPresentation(activeVisitId); }}
           onOpenReport={(reportId) => {
             setActiveReportId(reportId);
             setJourney('report');
@@ -552,7 +560,7 @@ export default function App() {
       {journey === 'fit-map' && fitPosition != null && (
         <FitMapResultPage
           fitPosition={fitPosition}
-          onOpenPresentation={labEngineInput != null ? () => setJourney('presentation') : undefined}
+          onOpenPresentation={labEngineInput != null ? () => { setPresentationFromJourney('fit-map'); setJourney('presentation'); } : undefined}
           onContinue={() => setJourney('simulator')}
         />
       )}
@@ -574,7 +582,7 @@ export default function App() {
             onBack={() => setJourney(simulatorFromJourney)}
             onEditSetup={() => setJourney(simulatorFromJourney)}
             onOpenSystemLab={() => setJourney('lab')}
-            onOpenPresentation={labEngineInput != null ? () => setJourney('presentation') : undefined}
+            onOpenPresentation={labEngineInput != null ? () => { setPresentationFromJourney('simulator'); setJourney('presentation'); } : undefined}
             surveyData={labEngineInput}
             floorplanOutput={floorplanOutput}
           />
@@ -584,7 +592,7 @@ export default function App() {
       {journey === 'presentation' && labEngineInput != null && (
         <CanonicalPresentationRoute
           engineInput={labEngineInput}
-          onBack={() => setJourney('simulator')}
+          onBack={() => setJourney(presentationFromJourney)}
           onOpenSimulator={() => setJourney('simulator')}
           heatLossState={labHeatLossState}
           prioritiesState={labPrioritiesState}

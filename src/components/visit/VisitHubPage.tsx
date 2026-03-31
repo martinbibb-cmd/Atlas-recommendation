@@ -24,8 +24,8 @@ interface Props {
   onBack: () => void;
   /** Route to the full survey stepper (resume / edit). */
   onResumeSurvey: () => void;
-  /** Open the saved report/recommendation for this visit. */
-  onViewRecommendation: () => void;
+  /** Open the in-room presentation for this visit. */
+  onOpenPresentation: () => void;
   /** Open a specific report by ID. */
   onOpenReport: (reportId: string) => void;
 }
@@ -139,11 +139,11 @@ function HubHeader({ meta, onBack, onReferenceChange }: { meta: VisitMeta; onBac
 function HubActions({
   meta,
   onResumeSurvey,
-  onViewRecommendation,
+  onOpenPresentation,
 }: {
   meta: VisitMeta;
   onResumeSurvey: () => void;
-  onViewRecommendation: () => void;
+  onOpenPresentation: () => void;
 }) {
   const surveyDone = isSurveyComplete(meta);
 
@@ -151,10 +151,10 @@ function HubActions({
     <div className="visit-hub__actions">
       <button
         className="visit-hub__action-btn visit-hub__action-btn--primary"
-        onClick={surveyDone ? onViewRecommendation : onResumeSurvey}
-        aria-label={surveyDone ? 'View recommendation' : 'Resume survey'}
+        onClick={surveyDone ? onOpenPresentation : onResumeSurvey}
+        aria-label={surveyDone ? 'Start in-room presentation' : 'Resume survey'}
       >
-        {surveyDone ? '▶ View recommendation' : '▶ Resume survey'}
+        {surveyDone ? '▶ Start in-room presentation' : '▶ Resume survey'}
       </button>
 
       {surveyDone && (
@@ -175,7 +175,7 @@ function HubActions({
           disabled
           aria-disabled="true"
         >
-          📊 Recommendation — complete survey first
+          📊 Presentation — complete survey first
         </button>
       )}
     </div>
@@ -188,7 +188,7 @@ export default function VisitHubPage({
   visitId,
   onBack,
   onResumeSurvey,
-  onViewRecommendation,
+  onOpenPresentation,
   onOpenReport,
 }: Props) {
   const [meta, setMeta] = useState<VisitMeta | null>(null);
@@ -248,7 +248,7 @@ export default function VisitHubPage({
         <HubActions
           meta={meta}
           onResumeSurvey={onResumeSurvey}
-          onViewRecommendation={onViewRecommendation}
+          onOpenPresentation={onOpenPresentation}
         />
 
         <VisitReportsList visitId={visitId} onOpenReport={onOpenReport} />
