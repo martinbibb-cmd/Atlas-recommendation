@@ -64,6 +64,36 @@ All fields below are on `FullSurveyModelV1`, which is used directly as the engin
 | `building.fabric.airTightness` | `FabricAirTightness` | — | Used by FabricModelModule |
 | `building.thermalMass` | `FabricThermalMass` | — | Independent from wallType heat-loss band |
 
+### 2.2a Shell / heat-loss calculator settings (`ShellSettings`)
+
+`ShellSettings` is persisted in `fullSurvey.heatLoss.shellModel.settings`. These are UI-layer inputs consumed by the canvas-based `HeatLossCalculator` tool; they are not passed directly to the engine.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `storeys` | `number` | Number of occupied storeys (1–5) |
+| `ceilingHeight` | `number` | Floor-to-ceiling height in metres |
+| `dwellingType` | see below | Building form — determines default party-wall assignment and floor/ceiling exposures |
+| `wallType` | `string` | Wall construction key (maps to `U_WALL` table in `HeatLossCalculator.tsx`) |
+| `loftInsulation` | `string` | Ceiling/roof insulation key — `'neighbourHeated'` for inter-flat ceilings |
+| `glazingType` | `string` | Glazing U-value key |
+| `glazingAmount` | `string` | Glazing fraction key (`'low' \| 'medium' \| 'high'`) |
+| `floorType` | `string` | Floor construction key — `'neighbourHeated'` for inter-flat floors |
+| `thermalMass` | `'light' \| 'medium' \| 'heavy'` | Used for thermal inertia τ calculation |
+
+#### `dwellingType` values
+
+| Value | Description | Default party walls | Default ceiling | Default floor |
+|-------|-------------|---------------------|-----------------|---------------|
+| `'detached'` | Detached house | 0 | Exposed roof | Exposed ground |
+| `'semi'` | Semi-detached house | 1 (longest wall) | Exposed roof | Exposed ground |
+| `'endTerrace'` | End-terrace house | 1 (longest wall) | Exposed roof | Exposed ground |
+| `'midTerrace'` | Mid-terrace house | 2 (two longest walls) | Exposed roof | Exposed ground |
+| `'flatGround'` | Flat — ground floor | 1 (longest wall) | `neighbourHeated` (flat above) | Exposed ground |
+| `'flatMid'` | Flat — mid floor | 2 (two longest walls) | `neighbourHeated` (flat above) | `neighbourHeated` (flat below) |
+| `'flatPenthouse'` | Flat — top floor / penthouse | 1 (longest wall) | Exposed roof | `neighbourHeated` (flat below) |
+
+**Neighbour U-values:** `loftInsulation = 'neighbourHeated'` and `floorType = 'neighbourHeated'` both use U = 0.10 W/m²K. This value accounts for the combined effect of the interflat element's actual U-value and the much-reduced temperature difference to a heated neighbouring flat (≈ 3 °C effective ΔT rather than 20 °C design ΔT to outside).
+
 ### 2.3 Occupancy / demand fields
 
 | Field | Type | Derived? | Notes |

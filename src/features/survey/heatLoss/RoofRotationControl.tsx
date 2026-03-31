@@ -36,6 +36,12 @@ import { roofOrientationSummary } from './heatLossDerivations';
 interface RoofRotationControlProps {
   value: RoofOrientation;
   onChange: (next: RoofOrientation) => void;
+  /**
+   * Optional closed polygon points (metres) from the drawn floor-plan perimeter.
+   * When provided and the polygon has ≥3 points, the drawn perimeter shape is
+   * shown in the compass centre instead of the generic house silhouette.
+   */
+  perimeterPoints?: { x: number; y: number }[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -215,6 +221,59 @@ function HouseSvg({ snapped }: { snapped: boolean }) {
   );
 }
 
+// ─── Perimeter SVG ────────────────────────────────────────────────────────────
+
+/**
+ * Renders the drawn floor-plan perimeter polygon inside the compass.
+ * The polygon is normalised to fill the 80×80 SVG viewBox with a small margin.
+ * A north-arrow is overlaid so orientation feedback is preserved.
+ */
+function PerimeterSvg({ points, snapped }: { points: { x: number; y: number }[]; snapped: boolean }) {
+  const MARGIN = 6;
+  const VIEW = 80;
+  const arrowColor = snapped ? '#1a56db' : '#2b6cb0';
+
+  // Normalise the polygon to fit in (MARGIN, MARGIN, VIEW-2*MARGIN, VIEW-2*MARGIN).
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const rangeX = maxX - minX || 1;
+  const rangeY = maxY - minY || 1;
+  const scale  = (VIEW - MARGIN * 2) / Math.max(rangeX, rangeY);
+  const offsetX = MARGIN + ((VIEW - MARGIN * 2) - rangeX * scale) / 2;
+  const offsetY = MARGIN + ((VIEW - MARGIN * 2) - rangeY * scale) / 2;
+
+  const toSvg = (p: { x: number; y: number }) => ({
+    x: offsetX + (p.x - minX) * scale,
+    y: offsetY + (p.y - minY) * scale,
+  });
+
+  const svgPts = points.map(toSvg);
+  const d = svgPts
+    .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+    .join(' ') + ' Z';
+
+  return (
+    <svg
+      viewBox="0 0 80 80"
+      width="80"
+      height="80"
+      aria-hidden="true"
+      style={{ display: 'block', overflow: 'visible' }}
+    >
+      {/* Perimeter polygon */}
+      <path d={d} fill="rgba(26, 86, 219, 0.15)" stroke="#4a7abf" strokeWidth="1.5" strokeLinejoin="round" />
+      {/* North arrow — always points upward (caller rotates the whole element) */}
+      <rect x="38" y="2" width="4" height="9" rx="1" fill={arrowColor} opacity={snapped ? 1 : 0.85} />
+      <polygon points="40,0 44,11 36,11" fill={arrowColor} opacity={snapped ? 1 : 0.85} />
+      {snapped && (
+        <circle cx="40" cy="40" r="36" fill="none" stroke="#1a56db" strokeWidth="2.5" opacity="0.35" strokeDasharray="4 3" />
+      )}
+    </svg>
+  );
+}
+
 // ─── Compass rose (static) ────────────────────────────────────────────────────
 
 /** Fixed N/E/S/W labels around the rotating house. */
@@ -251,7 +310,7 @@ function CompassLabels() {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function RoofRotationControl({ value, onChange }: RoofRotationControlProps) {
+export function RoofRotationControl({ value, onChange, perimeterPoints }: RoofRotationControlProps) {
   const [angleDeg, setAngleDeg] = useState(() => orientationToAngle(value));
   // Snap feedback: true while the house is at a clean 45° boundary
   const [isSnapped, setIsSnapped] = useState(value !== 'unknown');
@@ -370,7 +429,10 @@ export function RoofRotationControl({ value, onChange }: RoofRotationControlProp
             transition: 'background 0.2s, box-shadow 0.2s',
           }}
         >
-          <HouseSvg snapped={isSnapped} />
+          {perimeterPoints && perimeterPoints.length >= 3
+            ? <PerimeterSvg points={perimeterPoints} snapped={isSnapped} />
+            : <HouseSvg snapped={isSnapped} />
+          }
         </div>
       </div>
 

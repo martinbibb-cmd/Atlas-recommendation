@@ -97,7 +97,14 @@ export interface ShellLayer {
 export interface ShellSettings {
   storeys:        number;
   ceilingHeight:  number;
-  dwellingType:   'detached' | 'semi' | 'endTerrace' | 'midTerrace';
+  /**
+   * Form of the dwelling.
+   * Houses: 'detached' | 'semi' | 'endTerrace' | 'midTerrace'
+   * Flats: 'flatGround' (ground-floor flat) | 'flatMid' (mid-floor flat)
+   *        | 'flatPenthouse' (top-floor flat / penthouse)
+   */
+  dwellingType:   'detached' | 'semi' | 'endTerrace' | 'midTerrace'
+                | 'flatGround' | 'flatMid' | 'flatPenthouse';
   wallType:       string;
   loftInsulation: string;
   glazingType:    string;
