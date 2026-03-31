@@ -1,0 +1,329 @@
+/**
+ * OverviewInsightCard.css
+ *
+ * Styles for the image-first overview insight card used on the
+ * "What We Know" summary page.
+ *
+ * Card structure:
+ *   .oic__media    — fixed-height image / visual area (140 px)
+ *   .oic__title    — heading below image
+ *   .oic__chips    — compact chip row (2–3 max in collapsed state)
+ *   .oic__summary  — one-line description sentence
+ *   .oic__takeaway — highlighted single key insight at the bottom
+ *
+ * Colour themes applied via modifier class on .oic:
+ *   .oic--house       --oic-accent: #2b6cb0
+ *   .oic--home        --oic-accent: #276749
+ *   .oic--system      --oic-accent: #744210
+ *   .oic--priorities  --oic-accent: #553c9a
+ */
+
+/* ── Card shell ─────────────────────────────────────────────────────────────── */
+
+.oic {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: inherit;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.oic:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+/* Colour accent per quadrant */
+.oic--house      { --oic-accent: #2b6cb0; }
+.oic--home       { --oic-accent: #276749; }
+.oic--system     { --oic-accent: #744210; }
+.oic--priorities { --oic-accent: #553c9a; }
+
+.oic--expanded {
+  border-color: var(--oic-accent, #2b6cb0);
+  box-shadow: 0 0 0 2px #ebf8ff, 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  inset: 1rem;
+  z-index: 20;
+  border-width: 2px;
+  background: #fff;
+  overflow-y: auto;
+}
+
+/* ── Media area ─────────────────────────────────────────────────────────────── */
+
+.oic__media {
+  width: 100%;
+  height: 140px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #f7fafc;
+}
+
+.oic__media img,
+.oic__media-img {
+  max-width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* ── Heat-loss fallback panel (house card without snapshot) ─────────────────── */
+
+.oic__media-heatloss {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  width: 100%;
+  height: 100%;
+  background: #ebf8ff;
+}
+
+.oic__media-heatloss__value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #2b6cb0;
+  line-height: 1;
+}
+
+.oic__media-heatloss__band {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #4a5568;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── People silhouette area (home card) ─────────────────────────────────────── */
+
+.oic__media-people {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 0 0.75rem 0.4rem;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Priorities visual area ─────────────────────────────────────────────────── */
+
+.oic__media-priorities {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  background: #faf5ff;
+}
+
+.oic__media-priority-pill {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: #e9d8fd;
+  color: #553c9a;
+  border: 1px solid #d6bcfa;
+  white-space: nowrap;
+}
+
+/* ── Title ──────────────────────────────────────────────────────────────────── */
+
+.oic__title {
+  margin: 0;
+  padding: 0.45rem 0.75rem 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1a202c;
+  flex-shrink: 0;
+}
+
+/* ── Chips ──────────────────────────────────────────────────────────────────── */
+
+.oic__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0 0.75rem 0.2rem;
+  flex-shrink: 0;
+}
+
+.oic__chip {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: #ebf4ff;
+  color: var(--oic-accent, #2b6cb0);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
+}
+
+/* ── Summary ────────────────────────────────────────────────────────────────── */
+
+.oic__summary {
+  margin: 0;
+  padding: 0 0.75rem 0.25rem;
+  font-size: 0.73rem;
+  color: #4a5568;
+  line-height: 1.35;
+  flex-shrink: 0;
+}
+
+/* ── Takeaway strip ─────────────────────────────────────────────────────────── */
+
+.oic__takeaway {
+  margin-top: auto;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.71rem;
+  font-weight: 600;
+  line-height: 1.35;
+  border-top: 1px solid transparent;
+  flex-shrink: 0;
+}
+
+.oic__takeaway--neutral {
+  background: #f7fafc;
+  color: #4a5568;
+  border-top-color: #e2e8f0;
+}
+
+.oic__takeaway--positive {
+  background: #f0fff4;
+  color: #276749;
+  border-top-color: #c6f6d5;
+}
+
+.oic__takeaway--caution {
+  background: #fffaf0;
+  color: #744210;
+  border-top-color: #feebc8;
+}
+
+/* ── Expanded: header row ───────────────────────────────────────────────────── */
+
+.oic__expanded-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+  gap: 0.5rem;
+}
+
+.oic__expanded-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.oic__close {
+  font-size: 0.72rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 999px;
+  background: #edf2f7;
+  color: #2d3748;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Expanded: detail content ───────────────────────────────────────────────── */
+
+.oic__detail {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.oic-detail__row {
+  font-size: 0.8rem;
+  color: #2d3748;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.oic-detail__row--muted {
+  color: #718096;
+}
+
+.oic-detail__note {
+  font-size: 0.75rem;
+  color: #718096;
+  margin: 0;
+  font-style: italic;
+}
+
+.oic-detail__priority-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin: 0;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid #f0f4f8;
+}
+
+.oic-detail__priority-row:last-child {
+  border-bottom: none;
+}
+
+.oic-detail__priority-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #553c9a;
+}
+
+.oic-detail__priority-sub {
+  font-size: 0.72rem;
+  color: #718096;
+}
+
+.oic-detail__condition-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+}
+
+.oic-condition-pill {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.oic-condition-pill--ok      { background: #c6f6d5; color: #276749; }
+.oic-condition-pill--warn    { background: #fefcbf; color: #744210; }
+.oic-condition-pill--unknown { background: #e2e8f0; color: #4a5568; }
+
+/* ── Responsive ─────────────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .oic--expanded {
+    inset: 0.5rem;
+  }
+}

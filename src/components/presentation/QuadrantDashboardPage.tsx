@@ -4,39 +4,58 @@
  * PR8a — 4-quadrant visual dashboard for the first presentation page.
  *
  * Layout: fixed 2 × 2 grid (no scrolling on iPad).
- * Each tile is tappable to expand an inline detail panel.
+ * Each tile is an image-first OverviewInsightCard. Tapping expands a detail panel.
  *
- * Quadrant content:
- *   Your House    — perimeter snapshot · house type · heat loss · solar hint · energy/PV
- *   Your Home     — demand profile · daily litres · peak outlets
- *   Your System   — current system type · age badge · strengths / weaknesses
- *   Your Priorities — priority chips
+ * Card shape (collapsed):
+ *   [media area — 140 px — photo / illustration / silhouettes]
+ *   title
+ *   chips (2–3 strongest facts)
+ *   one-liner summary
+ *   [takeaway strip — visually distinct]
  *
  * Rules:
  *   - No Math.random()
  *   - All strings sourced from canonical model signals or PrioritiesState
- *   - shellSnapshotUrl shown when available; text-only fallback otherwise
+ *   - shellSnapshotUrl shown when available; data-driven fallback otherwise
+ *   - No PresentationVisualSlot colour-square on the system card
  */
 
-import { useState, type KeyboardEvent } from 'react';
+import { useState } from 'react';
 import type { HouseSignal, HomeSignal, CurrentSystemSignal, ObjectivesSignal, EnergySignal } from './buildCanonicalPresentation';
 import type { HeatLossState } from '../../features/survey/heatLoss/heatLossTypes';
 import type { PrioritiesState, PriorityKey } from '../../features/survey/priorities/prioritiesTypes';
 import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
-import PresentationVisualSlot from './PresentationVisualSlot';
 import OccupantSilhouettes from './OccupantSilhouettes';
-import { imageForCurrentSystem, imageForOptionId, imageForControlFamily, imageForZoneLayout, imageForPipeLayout } from '../../ui/systemImages/systemImageMap';
+import OverviewInsightCard from './OverviewInsightCard';
+import { imageForControlFamily, imageForZoneLayout, imageForPipeLayout } from '../../ui/systemImages/systemImageMap';
 import { SystemRealWorldImage } from '../systemImages/SystemRealWorldImage';
+import { getOverviewSystemVisual, type OverviewSystemVisualKey } from '../../config/visualRegistry';
 import type { SystemConceptModel } from '../../explainers/lego/model/types';
 import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
 import './QuadrantDashboardPage.css';
 
-function onTileKeyDown(event: KeyboardEvent<HTMLElement>, onToggle: () => void) {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault();
-    onToggle();
+// ─── System visual registry helper ───────────────────────────────────────────
+
+/**
+ * Derive the overview visual registry key from the current system signals.
+ * Returns null when no registry entry exists for the given combination.
+ */
+function systemVisualKeyFromSignal(
+  heatSource: CurrentSystemSignal['currentHeatSourceType'],
+  dhwType?: CurrentSystemSignal['systemDhwType'],
+): OverviewSystemVisualKey | null {
+  if (heatSource == null || heatSource === 'other') return null;
+  if (heatSource === 'ashp') return 'overview_system_heat_pump';
+  if (heatSource === 'gshp') return 'overview_system_gshp';
+  if (heatSource === 'combi' || heatSource === 'storage_combi') return 'overview_system_combi';
+  if (heatSource === 'system') {
+    return dhwType === 'unvented' ? 'overview_system_system_unvented' : 'overview_system_system';
   }
+  if (heatSource === 'regular') {
+    return dhwType === 'open_vented' ? 'overview_system_regular_vented' : 'overview_system_regular';
+  }
+  return null;
 }
 
 // ─── House quadrant ───────────────────────────────────────────────────────────
@@ -58,112 +77,86 @@ function HouseQuadrant({
 }) {
   const snapshot = heatLossState?.shellSnapshotUrl;
   const roofOrientation = heatLossState?.roofOrientation;
-  const solarHint = house.pvPotentialLabel;
   const bathroomCount = input?.bathroomCount;
   const bedroomCount = input?.bedrooms;
 
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      className={`qdp-quadrant qdp-quadrant--house${expanded ? ' qdp-quadrant--expanded' : ''}`}
-      onClick={onToggle}
-      onKeyDown={event => onTileKeyDown(event, onToggle)}
-      aria-expanded={expanded}
-      aria-label="Your House — tap to expand"
-    >
-      <div className="qdp-quadrant__header">
-        <span className="qdp-quadrant__icon" aria-hidden="true">🏠</span>
-        <span className="qdp-quadrant__title">Your House</span>
-        {expanded && (
-          <button type="button" className="qdp-quadrant__close" onClick={e => { e.stopPropagation(); onToggle(); }}>
-            Close
-          </button>
-        )}
-      </div>
+  // Build chips: heat loss (primary) + up to 2 secondary facts
+  const chips: string[] = [house.heatLossLabel];
+  if (bathroomCount != null) chips.push(`${bathroomCount} bath`);
+  if (roofOrientation && roofOrientation !== 'unknown') chips.push(`Roof ${roofOrientation}`);
 
-      {/* Visual: perimeter snapshot when available */}
-      {snapshot && (
-        <div className="qdp-quadrant__visual">
-          <img
-            src={snapshot}
-            alt="House perimeter sketch"
-            className="qdp-quadrant__snapshot"
-          />
-        </div>
+  // Summary: wall type + insulation
+  const summary = `${house.wallTypeLabel} · ${house.insulationLabel}`;
+
+  // Takeaway: first note if any, otherwise heat-loss band
+  const takeaway = house.notes.length > 0
+    ? house.notes[0]
+    : house.heatLossBand;
+  const tone = house.notes.length > 0 ? 'caution' as const : 'neutral' as const;
+
+  // Media: shell snapshot when available; heat-loss data panel otherwise
+  const mediaContent = snapshot ? (
+    <img src={snapshot} alt="House perimeter sketch" className="oic__media-img" />
+  ) : (
+    <div className="oic__media-heatloss">
+      <span className="oic__media-heatloss__value">{house.heatLossLabel}</span>
+      <span className="oic__media-heatloss__band">{house.heatLossBand}</span>
+    </div>
+  );
+
+  const detailContent = (
+    <>
+      <p className="oic-detail__row"><strong>Heat loss:</strong> {house.heatLossLabel} — {house.heatLossBand}</p>
+      <p className="oic-detail__row"><strong>Walls:</strong> {house.wallTypeLabel}</p>
+      <p className="oic-detail__row"><strong>Insulation:</strong> {house.insulationLabel}</p>
+      {bedroomCount != null && (
+        <p className="oic-detail__row"><strong>Bedrooms:</strong> {bedroomCount}</p>
       )}
-
-      {/* Summary row */}
-      <div className="qdp-quadrant__summary">
-        <span className="qdp-quadrant__badge">{house.heatLossLabel}</span>
-        {bedroomCount != null && (
-          <span className="qdp-quadrant__badge qdp-quadrant__badge--secondary">
-            {bedroomCount} bed
-          </span>
-        )}
-        {bathroomCount != null && (
-          <span className="qdp-quadrant__badge qdp-quadrant__badge--secondary">
-            {bathroomCount} bath
-          </span>
-        )}
-        {roofOrientation && roofOrientation !== 'unknown' && (
-          <span className="qdp-quadrant__badge qdp-quadrant__badge--secondary">
-            Roof {roofOrientation}
-          </span>
-        )}
-      </div>
-
-      {/* Collapsed: wall type + insulation, issues as chips */}
-      {!expanded && (
+      {bathroomCount != null && (
+        <p className="oic-detail__row"><strong>Bathrooms:</strong> {bathroomCount}</p>
+      )}
+      {house.roofOrientationLabel && (
+        <p className="oic-detail__row"><strong>Roof orientation:</strong> {house.roofOrientationLabel}</p>
+      )}
+      {house.roofTypeLabel && (
+        <p className="oic-detail__row"><strong>Roof type:</strong> {house.roofTypeLabel}</p>
+      )}
+      {house.pvPotentialLabel && (
+        <p className="oic-detail__row"><strong>Solar potential:</strong> {house.pvPotentialLabel}</p>
+      )}
+      {energy && (
         <>
-          <p className="qdp-quadrant__collapsed-copy">
-            {house.wallTypeLabel} · {house.insulationLabel}
-          </p>
-          {house.notes.length > 0 && (
-            <div className="qdp-house__issues">
-              {house.notes.map((note, i) => (
-                <span key={i} className="qdp-issue-chip">⚠ {note}</span>
-              ))}
-            </div>
-          )}
+          <p className="oic-detail__row"><strong>PV status:</strong> {energy.pvStatusLabel}</p>
+          <p className="oic-detail__row"><strong>Battery:</strong> {energy.batteryStatusLabel}</p>
+          <p className="oic-detail__row"><strong>Energy alignment:</strong> {energy.energyAlignmentLabel}</p>
+          <p className="oic-detail__row"><strong>Solar storage:</strong> {energy.solarStorageOpportunityLabel}</p>
+          {energy.narrativeSignals.map((sig, i) => (
+            <p key={i} className="oic-detail__note">{sig}</p>
+          ))}
         </>
       )}
+      {house.notes.map((note, i) => (
+        <p key={i} className="oic-detail__note">⚠ {note}</p>
+      ))}
+    </>
+  );
 
-      {expanded && (
-        <div className="qdp-quadrant__detail" role="region" aria-label="House details">
-          <p className="qdp-detail__row"><strong>Heat loss:</strong> {house.heatLossLabel} — {house.heatLossBand}</p>
-          <p className="qdp-detail__row"><strong>Walls:</strong> {house.wallTypeLabel}</p>
-          <p className="qdp-detail__row"><strong>Insulation:</strong> {house.insulationLabel}</p>
-          {bedroomCount != null && (
-            <p className="qdp-detail__row"><strong>Bedrooms:</strong> {bedroomCount}</p>
-          )}
-          {bathroomCount != null && (
-            <p className="qdp-detail__row"><strong>Bathrooms:</strong> {bathroomCount}</p>
-          )}
-          {house.roofOrientationLabel && (
-            <p className="qdp-detail__row"><strong>Roof orientation:</strong> {house.roofOrientationLabel}</p>
-          )}
-          {house.roofTypeLabel && (
-            <p className="qdp-detail__row"><strong>Roof type:</strong> {house.roofTypeLabel}</p>
-          )}
-          {solarHint && <p className="qdp-detail__row"><strong>Solar potential:</strong> {solarHint}</p>}
-          {energy && (
-            <>
-              <p className="qdp-detail__row"><strong>PV status:</strong> {energy.pvStatusLabel}</p>
-              <p className="qdp-detail__row"><strong>Battery:</strong> {energy.batteryStatusLabel}</p>
-              <p className="qdp-detail__row"><strong>Energy alignment:</strong> {energy.energyAlignmentLabel}</p>
-              <p className="qdp-detail__row"><strong>Solar storage:</strong> {energy.solarStorageOpportunityLabel}</p>
-              {energy.narrativeSignals.map((sig, i) => (
-                <p key={i} className="qdp-detail__note">{sig}</p>
-              ))}
-            </>
-          )}
-          {house.notes.map((note, i) => (
-            <p key={i} className="qdp-detail__note">⚠ {note}</p>
-          ))}
-        </div>
-      )}
-    </div>
+  return (
+    <OverviewInsightCard
+      title="Your House"
+      chips={chips}
+      summary={summary}
+      takeaway={takeaway}
+      tone={tone}
+      mediaContent={mediaContent}
+      mediaBg={snapshot ? '#f7fafc' : '#ebf8ff'}
+      expanded={expanded}
+      onToggle={onToggle}
+      detailContent={detailContent}
+      ariaLabel="Your House — tap to expand"
+      detailAriaLabel="House details"
+      colorClass="oic--house"
+    />
   );
 }
 
@@ -180,58 +173,54 @@ function HomeQuadrant({
   expanded: boolean;
   onToggle: () => void;
 }) {
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      className={`qdp-quadrant qdp-quadrant--home${expanded ? ' qdp-quadrant--expanded' : ''}`}
-      onClick={onToggle}
-      onKeyDown={event => onTileKeyDown(event, onToggle)}
-      aria-expanded={expanded}
-      aria-label="Your Home — tap to expand"
-    >
-      <div className="qdp-quadrant__header">
-        <span className="qdp-quadrant__icon" aria-hidden="true">👥</span>
-        <span className="qdp-quadrant__title">Your Home</span>
-        {expanded && (
-          <button type="button" className="qdp-quadrant__close" onClick={e => { e.stopPropagation(); onToggle(); }}>
-            Close
-          </button>
-        )}
-      </div>
+  const occupancyCount = input?.occupancyCount ?? 1;
 
-      {/* Occupant silhouettes — sized by age group */}
-      <div className="qdp-quadrant__visual qdp-quadrant__visual--people">
-        <OccupantSilhouettes
-          composition={input?.householdComposition}
-          occupancyCount={input?.occupancyCount ?? 2}
-        />
-      </div>
+  // Build chips: demand profile (primary) + occupancy + timing
+  const chips: string[] = [home.demandProfileLabel];
+  chips.push(`${occupancyCount} ${occupancyCount === 1 ? 'person' : 'people'}`);
+  if (home.occupancyTimingLabel) chips.push(home.occupancyTimingLabel);
 
-      <div className="qdp-quadrant__summary">
-        <span className="qdp-quadrant__badge">{home.demandProfileLabel}</span>
-      </div>
+  const summary = home.bathUseIntensityLabel;
+  const takeaway = home.storageBenefitLabel;
 
-      {!expanded && (
-        <div className="qdp-home__collapsed">
-          <p className="qdp-quadrant__collapsed-copy">{home.bathUseIntensityLabel}</p>
-          <p className="qdp-quadrant__collapsed-copy">{home.dailyHotWaterLabel}</p>
-        </div>
-      )}
-
-      {expanded && (
-        <div className="qdp-quadrant__detail" role="region" aria-label="Home details">
-          <p className="qdp-detail__row"><strong>Daily hot water:</strong> {home.dailyHotWaterLabel}</p>
-          <p className="qdp-detail__row"><strong>Peak outlets:</strong> {home.peakOutletsLabel}</p>
-          <p className="qdp-detail__row"><strong>Bath / shower:</strong> {home.bathUseIntensityLabel}</p>
-          <p className="qdp-detail__row"><strong>Occupancy timing:</strong> {home.occupancyTimingLabel}</p>
-          <p className="qdp-detail__row"><strong>Storage benefit:</strong> {home.storageBenefitLabel}</p>
-          {home.narrativeSignals.map((sig, i) => (
-            <p key={i} className="qdp-detail__note">{sig}</p>
-          ))}
-        </div>
-      )}
+  const mediaContent = (
+    <div className="oic__media-people">
+      <OccupantSilhouettes
+        composition={input?.householdComposition}
+        occupancyCount={occupancyCount}
+      />
     </div>
+  );
+
+  const detailContent = (
+    <>
+      <p className="oic-detail__row"><strong>Daily hot water:</strong> {home.dailyHotWaterLabel}</p>
+      <p className="oic-detail__row"><strong>Peak outlets:</strong> {home.peakOutletsLabel}</p>
+      <p className="oic-detail__row"><strong>Bath / shower:</strong> {home.bathUseIntensityLabel}</p>
+      <p className="oic-detail__row"><strong>Occupancy timing:</strong> {home.occupancyTimingLabel}</p>
+      <p className="oic-detail__row"><strong>Storage benefit:</strong> {home.storageBenefitLabel}</p>
+      {home.narrativeSignals.map((sig, i) => (
+        <p key={i} className="oic-detail__note">{sig}</p>
+      ))}
+    </>
+  );
+
+  return (
+    <OverviewInsightCard
+      title="Your Home"
+      chips={chips}
+      summary={summary}
+      takeaway={takeaway}
+      tone="neutral"
+      mediaContent={mediaContent}
+      mediaBg="#f0fff4"
+      expanded={expanded}
+      onToggle={onToggle}
+      detailContent={detailContent}
+      ariaLabel="Your Home — tap to expand"
+      detailAriaLabel="Home details"
+      colorClass="oic--home"
+    />
   );
 }
 
@@ -248,123 +237,119 @@ function SystemQuadrant({
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const image = sys.currentHeatSourceType === 'ashp'
-    ? imageForOptionId('ashp')
-    : imageForCurrentSystem(
-      sys.currentHeatSourceType === 'other' || sys.currentHeatSourceType == null ? null : sys.currentHeatSourceType,
-      sys.systemDhwType,
-    );
-
   const controlSchematicImage = imageForControlFamily(sys.controlFamilyRaw);
   const zoneLayoutImage       = imageForZoneLayout(sys.controlFamilyRaw);
   const pipeLayoutImage       = imageForPipeLayout(sys.pipeLayoutRaw);
 
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      className={`qdp-quadrant qdp-quadrant--system${expanded ? ' qdp-quadrant--expanded' : ''}`}
-      onClick={onToggle}
-      onKeyDown={event => onTileKeyDown(event, onToggle)}
-      aria-expanded={expanded}
-      aria-label="Your System — tap to expand"
-    >
-      <div className="qdp-quadrant__header">
-        <span className="qdp-quadrant__icon" aria-hidden="true">🔧</span>
-        <span className="qdp-quadrant__title">Your System</span>
-        {expanded && (
-          <button type="button" className="qdp-quadrant__close" onClick={e => { e.stopPropagation(); onToggle(); }}>
-            Close
-          </button>
-        )}
-      </div>
+  // Resolve the system photo from the visual registry (semantic key → src + alt).
+  const visualKey = systemVisualKeyFromSignal(sys.currentHeatSourceType, sys.systemDhwType);
+  const registryImage = visualKey != null ? getOverviewSystemVisual(visualKey) : null;
 
-      <div className="qdp-quadrant__visual">
-        {image ? (
-          <img src={image.src} alt={image.alt} className="qdp-quadrant__snapshot" />
-        ) : currentSystemConcept ? (
-          <SystemArchitectureVisualiser mode="current" currentSystem={currentSystemConcept} />
-        ) : (
-          <PresentationVisualSlot visualId="driving_style" visualData={{ mode: sys.drivingStyleMode }} hideExplainer />
-        )}
-      </div>
+  // Build chips: system type (primary) + age
+  const chips: string[] = [];
+  if (sys.systemTypeLabel != null) chips.push(sys.systemTypeLabel);
+  if (sys.ageLabel != null) chips.push(sys.ageLabel);
 
-      <div className="qdp-quadrant__summary">
-        {sys.systemTypeLabel != null && (
-          <span className="qdp-quadrant__badge">{sys.systemTypeLabel}</span>
-        )}
-        {sys.ageLabel != null && (
-          <span className="qdp-quadrant__badge qdp-quadrant__badge--secondary">{sys.ageLabel}</span>
-        )}
-      </div>
+  const summary = sys.ageContext;
 
-      {!expanded && <p className="qdp-quadrant__collapsed-copy">{sys.ageContext}</p>}
+  // Takeaway: first warn condition pill, or ageContext
+  const warnPill = sys.conditionSignalPills.find(p => p.status === 'warn');
+  const takeaway = warnPill?.label ?? sys.ageContext;
+  const tone = warnPill != null ? 'caution' as const : 'neutral' as const;
 
-      {expanded && (
-        <div className="qdp-quadrant__detail" role="region" aria-label="System details">
-          {sys.systemTypeLabel != null && (
-            <p className="qdp-detail__row"><strong>Type:</strong> {sys.systemTypeLabel}</p>
-          )}
-          {sys.ageLabel != null && (
-            <p className="qdp-detail__row"><strong>Age:</strong> {sys.ageLabel}</p>
-          )}
-          <p className="qdp-detail__row qdp-detail__row--muted">{sys.ageContext}</p>
-          {sys.makeModelText && (
-            <p className="qdp-detail__row"><strong>Make / model:</strong> {sys.makeModelText}</p>
-          )}
-          {sys.outputLabel && (
-            <p className="qdp-detail__row"><strong>Output:</strong> {sys.outputLabel}</p>
-          )}
-          {sys.emittersLabel != null && (
-            <p className="qdp-detail__row"><strong>Emitters:</strong> {sys.emittersLabel}</p>
-          )}
-          {sys.controlFamilyLabel != null && (
-            <p className="qdp-detail__row"><strong>Controls:</strong> {sys.controlFamilyLabel}
-              {sys.thermostatStyleLabel != null ? ` · ${sys.thermostatStyleLabel}` : ''}
-            </p>
-          )}
-          {controlSchematicImage && (
-            <SystemRealWorldImage image={controlSchematicImage} testId="control-schematic-image" />
-          )}
-          {zoneLayoutImage && (
-            <SystemRealWorldImage image={zoneLayoutImage} testId="zone-layout-image" />
-          )}
-          {sys.programmerTypeLabel != null && (
-            <p className="qdp-detail__row"><strong>Programmer:</strong> {sys.programmerTypeLabel}</p>
-          )}
-          {sys.pipeLayoutLabel != null && (
-            <p className="qdp-detail__row"><strong>Pipework:</strong> {sys.pipeLayoutLabel}</p>
-          )}
-          {pipeLayoutImage && (
-            <SystemRealWorldImage image={pipeLayoutImage} testId="pipe-layout-image" />
-          )}
-          {sys.sedbukBandLabel != null && (
-            <p className="qdp-detail__row"><strong>Efficiency band:</strong> {sys.sedbukBandLabel}</p>
-          )}
-          {sys.serviceHistoryLabel != null && (
-            <p className="qdp-detail__row"><strong>Service history:</strong> {sys.serviceHistoryLabel}</p>
-          )}
-          {sys.heatingSystemTypeLabel != null && (
-            <p className="qdp-detail__row"><strong>Circuit type:</strong> {sys.heatingSystemTypeLabel}</p>
-          )}
-          {sys.pipeworkAccessLabel != null && (
-            <p className="qdp-detail__row"><strong>Pipework access:</strong> {sys.pipeworkAccessLabel}</p>
-          )}
-          {sys.conditionSignalPills.length > 0 && (
-            <div className="qdp-detail__condition-pills">
-              {sys.conditionSignalPills.map((pill, i) => (
-                <span
-                  key={i}
-                  className={`qdp-condition-pill qdp-condition-pill--${pill.status}`}
-                >
-                  {pill.label}
-                </span>
-              ))}
-            </div>
-          )}
+  // Media: system architecture visualiser provides the richest technical diagram.
+  // Registry image (from visualRegistry.ts) is kept as fallback for edge cases
+  // where no concept model is built.
+  const mediaContent = currentSystemConcept != null ? (
+    <SystemArchitectureVisualiser mode="current" currentSystem={currentSystemConcept} />
+  ) : registryImage != null ? (
+    <img src={registryImage.src} alt={registryImage.alt} className="oic__media-img" />
+  ) : null;
+
+  const mediaBg = '#fef9f0';
+
+  const detailContent = (
+    <>
+      {sys.systemTypeLabel != null && (
+        <p className="oic-detail__row"><strong>Type:</strong> {sys.systemTypeLabel}</p>
+      )}
+      {sys.ageLabel != null && (
+        <p className="oic-detail__row"><strong>Age:</strong> {sys.ageLabel}</p>
+      )}
+      <p className="oic-detail__row oic-detail__row--muted">{sys.ageContext}</p>
+      {sys.makeModelText && (
+        <p className="oic-detail__row"><strong>Make / model:</strong> {sys.makeModelText}</p>
+      )}
+      {sys.outputLabel && (
+        <p className="oic-detail__row"><strong>Output:</strong> {sys.outputLabel}</p>
+      )}
+      {sys.emittersLabel != null && (
+        <p className="oic-detail__row"><strong>Emitters:</strong> {sys.emittersLabel}</p>
+      )}
+      {sys.controlFamilyLabel != null && (
+        <p className="oic-detail__row">
+          <strong>Controls:</strong> {sys.controlFamilyLabel}
+          {sys.thermostatStyleLabel != null ? ` · ${sys.thermostatStyleLabel}` : ''}
+        </p>
+      )}
+      {controlSchematicImage && (
+        <SystemRealWorldImage image={controlSchematicImage} testId="control-schematic-image" />
+      )}
+      {zoneLayoutImage && (
+        <SystemRealWorldImage image={zoneLayoutImage} testId="zone-layout-image" />
+      )}
+      {sys.programmerTypeLabel != null && (
+        <p className="oic-detail__row"><strong>Programmer:</strong> {sys.programmerTypeLabel}</p>
+      )}
+      {sys.pipeLayoutLabel != null && (
+        <p className="oic-detail__row"><strong>Pipework:</strong> {sys.pipeLayoutLabel}</p>
+      )}
+      {pipeLayoutImage && (
+        <SystemRealWorldImage image={pipeLayoutImage} testId="pipe-layout-image" />
+      )}
+      {sys.sedbukBandLabel != null && (
+        <p className="oic-detail__row"><strong>Efficiency band:</strong> {sys.sedbukBandLabel}</p>
+      )}
+      {sys.serviceHistoryLabel != null && (
+        <p className="oic-detail__row"><strong>Service history:</strong> {sys.serviceHistoryLabel}</p>
+      )}
+      {sys.heatingSystemTypeLabel != null && (
+        <p className="oic-detail__row"><strong>Circuit type:</strong> {sys.heatingSystemTypeLabel}</p>
+      )}
+      {sys.pipeworkAccessLabel != null && (
+        <p className="oic-detail__row"><strong>Pipework access:</strong> {sys.pipeworkAccessLabel}</p>
+      )}
+      {sys.conditionSignalPills.length > 0 && (
+        <div className="oic-detail__condition-pills">
+          {sys.conditionSignalPills.map((pill, i) => (
+            <span
+              key={i}
+              className={`oic-condition-pill oic-condition-pill--${pill.status}`}
+            >
+              {pill.label}
+            </span>
+          ))}
         </div>
       )}
-    </div>
+    </>
+  );
+
+  return (
+    <OverviewInsightCard
+      title="Your System"
+      chips={chips}
+      summary={summary}
+      takeaway={takeaway}
+      tone={tone}
+      mediaContent={mediaContent}
+      mediaBg={mediaBg}
+      expanded={expanded}
+      onToggle={onToggle}
+      detailContent={detailContent}
+      ariaLabel="Your System — tap to expand"
+      detailAriaLabel="System details"
+      colorClass="oic--system"
+    />
   );
 }
 
@@ -389,72 +374,81 @@ function PrioritiesQuadrant({
   const selected = prioritiesState?.selected ?? [];
   const fallbackPriorities = objectives?.priorities ?? [];
 
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      className={`qdp-quadrant qdp-quadrant--priorities${expanded ? ' qdp-quadrant--expanded' : ''}`}
-      onClick={onToggle}
-      onKeyDown={event => onTileKeyDown(event, onToggle)}
-      aria-expanded={expanded}
-      aria-label="Your Priorities — tap to expand"
-    >
-      <div className="qdp-quadrant__header">
-        <span className="qdp-quadrant__icon" aria-hidden="true">🎯</span>
-        <span className="qdp-quadrant__title">Your Priorities</span>
-        {expanded && (
-          <button type="button" className="qdp-quadrant__close" onClick={e => { e.stopPropagation(); onToggle(); }}>
-            Close
-          </button>
-        )}
-      </div>
+  // Top 3 chips for collapsed view
+  const chips: string[] = selected.length > 0
+    ? selected.slice(0, 3).map(key => PRIORITY_LABEL[key] ?? key)
+    : fallbackPriorities.slice(0, 3).map(p => p.label);
 
-      <div className="qdp-quadrant__chips">
-        {selected.length > 0 ? (
-          selected.map(key => (
-            <span key={key} className="qdp-chip">
-              {PRIORITY_LABEL[key] ?? key}
-            </span>
-          ))
-        ) : fallbackPriorities.length > 0 ? (
-          fallbackPriorities.map(priority => (
-            <span key={priority.label} className="qdp-chip">
-              {priority.label}
-            </span>
-          ))
-        ) : (
-          <span className="qdp-chip qdp-chip--empty">No priorities selected yet</span>
-        )}
-      </div>
+  // Summary: first priority sub-text, or a neutral fallback
+  const firstMeta = selected.length > 0
+    ? PRIORITY_META.find(m => m.key === selected[0])
+    : undefined;
+  const summary = firstMeta?.sub ?? (
+    selected.length === 0
+      ? 'No preferences recorded yet — complete the Priorities step to personalise this section.'
+      : ''
+  );
 
-      {!expanded && selected.length === 0 && (
-        <p className="qdp-quadrant__collapsed-copy">Tell us what matters most to tune recommendations.</p>
-      )}
+  // Takeaway: second priority sub-text, or how priorities bias recommendations
+  const secondMeta = selected.length > 1
+    ? PRIORITY_META.find(m => m.key === selected[1])
+    : undefined;
+  const takeaway = secondMeta?.sub ?? (
+    selected.length > 0 ? 'Preferences will shape which options are highlighted.' : ''
+  );
 
-      {expanded && (
-        <div className="qdp-quadrant__detail" role="region" aria-label="Priority details">
-          {selected.length > 0 ? (
-            PRIORITY_META.filter(m => selected.includes(m.key)).map(m => (
-              <p key={m.key} className="qdp-detail__priority-row">
-                <span className="qdp-detail__priority-label">{m.emoji} {m.label}</span>
-                <span className="qdp-detail__priority-sub">{m.sub}</span>
-              </p>
-            ))
-          ) : fallbackPriorities.length > 0 ? (
-            fallbackPriorities.map(priority => (
-              <p key={priority.label} className="qdp-detail__priority-row">
-                <span className="qdp-detail__priority-label">{priority.label}</span>
-                <span className="qdp-detail__priority-sub">{priority.value}</span>
-              </p>
-            ))
-          ) : (
-            <p className="qdp-detail__row qdp-detail__row--muted">
-              No priorities are on record yet — complete the Priorities step to personalise this section.
-            </p>
-          )}
-        </div>
-      )}
+  // Media: visual grid of priority pills
+  const mediaPills = selected.length > 0
+    ? selected.slice(0, 4).map(key => PRIORITY_LABEL[key] ?? key)
+    : fallbackPriorities.slice(0, 4).map(p => p.label);
+
+  const mediaContent = mediaPills.length > 0 ? (
+    <div className="oic__media-priorities">
+      {mediaPills.map((label, i) => (
+        <span key={i} className="oic__media-priority-pill">{label}</span>
+      ))}
     </div>
+  ) : null;
+
+  const detailContent = (
+    <>
+      {selected.length > 0 ? (
+        PRIORITY_META.filter(m => selected.includes(m.key)).map(m => (
+          <div key={m.key} className="oic-detail__priority-row">
+            <span className="oic-detail__priority-label">{m.emoji} {m.label}</span>
+            <span className="oic-detail__priority-sub">{m.sub}</span>
+          </div>
+        ))
+      ) : fallbackPriorities.length > 0 ? (
+        fallbackPriorities.map(priority => (
+          <div key={priority.label} className="oic-detail__priority-row">
+            <span className="oic-detail__priority-label">{priority.label}</span>
+            <span className="oic-detail__priority-sub">{priority.value}</span>
+          </div>
+        ))
+      ) : (
+        <p className="oic-detail__row oic-detail__row--muted">
+          No priorities are on record yet — complete the Priorities step to personalise this section.
+        </p>
+      )}
+    </>
+  );
+
+  return (
+    <OverviewInsightCard
+      title="Your Priorities"
+      chips={chips}
+      summary={summary}
+      takeaway={takeaway}
+      tone="neutral"
+      mediaContent={mediaContent}
+      expanded={expanded}
+      onToggle={onToggle}
+      detailContent={detailContent}
+      ariaLabel="Your Priorities — tap to expand"
+      detailAriaLabel="Priority details"
+      colorClass="oic--priorities"
+    />
   );
 }
 
