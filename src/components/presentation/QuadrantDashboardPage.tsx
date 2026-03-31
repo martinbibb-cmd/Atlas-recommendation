@@ -26,7 +26,8 @@ import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes'
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import PresentationVisualSlot from './PresentationVisualSlot';
 import OccupantSilhouettes from './OccupantSilhouettes';
-import { imageForCurrentSystem, imageForOptionId } from '../../ui/systemImages/systemImageMap';
+import { imageForCurrentSystem, imageForOptionId, imageForControlFamily, imageForZoneLayout, imageForPipeLayout } from '../../ui/systemImages/systemImageMap';
+import { SystemRealWorldImage } from '../systemImages/SystemRealWorldImage';
 import type { SystemConceptModel } from '../../explainers/lego/model/types';
 import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
 import './QuadrantDashboardPage.css';
@@ -254,6 +255,10 @@ function SystemQuadrant({
       sys.systemDhwType,
     );
 
+  const controlSchematicImage = imageForControlFamily(sys.controlFamilyRaw);
+  const zoneLayoutImage       = imageForZoneLayout(sys.controlFamilyRaw);
+  const pipeLayoutImage       = imageForPipeLayout(sys.pipeLayoutRaw);
+
   return (
     <div
       role="button"
@@ -318,11 +323,20 @@ function SystemQuadrant({
               {sys.thermostatStyleLabel != null ? ` · ${sys.thermostatStyleLabel}` : ''}
             </p>
           )}
+          {controlSchematicImage && (
+            <SystemRealWorldImage image={controlSchematicImage} testId="control-schematic-image" />
+          )}
+          {zoneLayoutImage && (
+            <SystemRealWorldImage image={zoneLayoutImage} testId="zone-layout-image" />
+          )}
           {sys.programmerTypeLabel != null && (
             <p className="qdp-detail__row"><strong>Programmer:</strong> {sys.programmerTypeLabel}</p>
           )}
           {sys.pipeLayoutLabel != null && (
             <p className="qdp-detail__row"><strong>Pipework:</strong> {sys.pipeLayoutLabel}</p>
+          )}
+          {pipeLayoutImage && (
+            <SystemRealWorldImage image={pipeLayoutImage} testId="pipe-layout-image" />
           )}
           {sys.sedbukBandLabel != null && (
             <p className="qdp-detail__row"><strong>Efficiency band:</strong> {sys.sedbukBandLabel}</p>
