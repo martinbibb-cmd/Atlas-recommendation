@@ -35,6 +35,8 @@
  *  14. glazingType bridge: calculator strings → FabricGlazing
  *  15. thermalMass bridge: calculator strings → building.thermalMass (FabricThermalMass)
  *  16. buildingBearingDeg bridged from heatLoss; does not overwrite explicit root value
+ *  17. dwellingType bridge: camelCase calculator values → snake_case engine values
+ *  18. Solar blocked for flats: 'planned' pvStatus/batteryStatus reset to 'none'
  */
 
 import { describe, it, expect } from 'vitest';
@@ -411,5 +413,92 @@ describe('sanitiseModelForEngine — buildingBearingDeg bridge', () => {
       fullSurvey: { heatLoss: { ...DEFAULT_HEAT_LOSS, buildingBearingDeg: 180 } },
     };
     expect(sanitiseModelForEngine(model).buildingBearingDeg).toBe(90);
+  });
+});
+
+describe('sanitiseModelForEngine — dwellingType bridge', () => {
+  it('bridges detached → detached', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ dwellingType: 'detached' })).dwellingType)
+      .toBe('detached');
+  });
+
+  it('bridges semi → semi', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ dwellingType: 'semi' })).dwellingType)
+      .toBe('semi');
+  });
+
+  it('bridges endTerrace → end_terrace', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ dwellingType: 'endTerrace' })).dwellingType)
+      .toBe('end_terrace');
+  });
+
+  it('bridges midTerrace → mid_terrace', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ dwellingType: 'midTerrace' })).dwellingType)
+      .toBe('mid_terrace');
+  });
+
+  it('bridges flatGround → flat_ground', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ dwellingType: 'flatGround' })).dwellingType)
+      .toBe('flat_ground');
+  });
+
+  it('bridges flatMid → flat_mid', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ dwellingType: 'flatMid' })).dwellingType)
+      .toBe('flat_mid');
+  });
+
+  it('bridges flatPenthouse → flat_penthouse', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ dwellingType: 'flatPenthouse' })).dwellingType)
+      .toBe('flat_penthouse');
+  });
+
+  it('does NOT overwrite an explicit root dwellingType', () => {
+    const model: FullSurveyModelV1 = {
+      ...makeModelWithShell({ dwellingType: 'semi' }),
+      dwellingType: 'detached',
+    };
+    expect(sanitiseModelForEngine(model).dwellingType).toBe('detached');
+  });
+});
+
+describe('sanitiseModelForEngine — solar blocked for flats', () => {
+  it('resets pvStatus "planned" to "none" for flat_ground', () => {
+    const model: FullSurveyModelV1 = {
+      ...makeModelWithShell({ dwellingType: 'flatGround' }),
+      fullSurvey: {
+        heatLoss: { ...DEFAULT_HEAT_LOSS, pvStatus: 'planned', shellModel: makeShell({ dwellingType: 'flatGround' }) },
+      },
+    };
+    expect(sanitiseModelForEngine(model).pvStatus).toBe('none');
+  });
+
+  it('resets batteryStatus "planned" to "none" for flat_mid', () => {
+    const model: FullSurveyModelV1 = {
+      ...makeModelWithShell({ dwellingType: 'flatMid' }),
+      fullSurvey: {
+        heatLoss: { ...DEFAULT_HEAT_LOSS, batteryStatus: 'planned', shellModel: makeShell({ dwellingType: 'flatMid' }) },
+      },
+    };
+    expect(sanitiseModelForEngine(model).batteryStatus).toBe('none');
+  });
+
+  it('does NOT suppress pvStatus "none" for flat_penthouse', () => {
+    const model: FullSurveyModelV1 = {
+      ...makeModelWithShell({ dwellingType: 'flatPenthouse' }),
+      fullSurvey: {
+        heatLoss: { ...DEFAULT_HEAT_LOSS, pvStatus: 'none', shellModel: makeShell({ dwellingType: 'flatPenthouse' }) },
+      },
+    };
+    expect(sanitiseModelForEngine(model).pvStatus).toBe('none');
+  });
+
+  it('does NOT suppress pvStatus "planned" for a house type', () => {
+    const model: FullSurveyModelV1 = {
+      ...makeModelWithShell({ dwellingType: 'detached' }),
+      fullSurvey: {
+        heatLoss: { ...DEFAULT_HEAT_LOSS, pvStatus: 'planned', shellModel: makeShell({ dwellingType: 'detached' }) },
+      },
+    };
+    expect(sanitiseModelForEngine(model).pvStatus).toBe('planned');
   });
 });

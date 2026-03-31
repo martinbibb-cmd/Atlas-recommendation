@@ -40,6 +40,8 @@ import type {
  * - Bridges fullSurvey.heatLoss.shellModel.settings fields into building.fabric.*
  *   (wallType → FabricWallType, loftInsulation → roofInsulation, glazingType → glazing)
  *   and thermalMass → building.thermalMass for FabricModelModule. Existing values not overwritten.
+ * - Bridges fullSurvey.heatLoss.shellModel.settings.dwellingType → dwellingType (snake_case)
+ *   so the engine knows the property form. Flats suppress 'planned' solar status.
  * - Bridges fullSurvey.heatLoss.buildingBearingDeg → buildingBearingDeg when not already set.
  */
 export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyModelV1 {
@@ -462,6 +464,35 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
         const mapped = massMap[ss.thermalMass];
         if (mapped !== undefined) sanitised.building.thermalMass = mapped;
       }
+
+      // dwellingType: calculator camelCase → engine snake_case
+      // Propagates property form so the engine can apply flat-specific rules.
+      if (sanitised.dwellingType === undefined && ss.dwellingType !== undefined) {
+        const dwellingTypeMap: Record<string, EngineInputV2_3['dwellingType']> = {
+          detached:     'detached',
+          semi:         'semi',
+          endTerrace:   'end_terrace',
+          midTerrace:   'mid_terrace',
+          flatGround:   'flat_ground',
+          flatMid:      'flat_mid',
+          flatPenthouse: 'flat_penthouse',
+        };
+        const mapped = dwellingTypeMap[ss.dwellingType];
+        if (mapped !== undefined) sanitised.dwellingType = mapped;
+      }
+    }
+
+    // ── Solar blocked for flats ───────────────────────────────────────────────
+    // Flats do not have independent roof access for solar installation.
+    // When the dwelling type is a flat, clear any 'planned' solar status so the
+    // engine does not treat solar as a viable opportunity for this property.
+    // 'existing' is preserved — communal or pre-installed solar may be present.
+    const isFlat = sanitised.dwellingType === 'flat_ground' ||
+                   sanitised.dwellingType === 'flat_mid' ||
+                   sanitised.dwellingType === 'flat_penthouse';
+    if (isFlat) {
+      if (sanitised.pvStatus === 'planned') sanitised.pvStatus = 'none';
+      if (sanitised.batteryStatus === 'planned') sanitised.batteryStatus = 'none';
     }
   }
 

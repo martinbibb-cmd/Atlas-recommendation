@@ -188,6 +188,17 @@ interface Settings {
   thermalMass:    'light' | 'medium' | 'heavy';
 }
 
+/** Returns true when the given dwelling type is a flat (any floor position). */
+function isFlatDwelling(dwellingType: Settings['dwellingType']): boolean {
+  return dwellingType === 'flatGround' ||
+         dwellingType === 'flatMid' ||
+         dwellingType === 'flatPenthouse';
+}
+
+/** User-visible message shown when solar options are unavailable for a flat. */
+const SOLAR_UNAVAILABLE_FOR_FLAT =
+  'Not available — flats do not have independent roof access for solar installation.';
+
 // ── Geometry helpers ──────────────────────────────────────────────────────────
 
 function polygonArea(pts: Point[]): number {
@@ -1366,7 +1377,7 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
             <h3>Building</h3>
 
             {(() => {
-              const isFlat = (settings.dwellingType === 'flatGround' || settings.dwellingType === 'flatMid' || settings.dwellingType === 'flatPenthouse');
+              const isFlat = isFlatDwelling(settings.dwellingType);
               return (
                 <>
                   <div className="hlc__field">
@@ -1375,6 +1386,7 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
                       value={settings.dwellingType}
                       onChange={e => {
                         const next = e.target.value as Settings['dwellingType'];
+                        const nextIsFlat = isFlatDwelling(next);
                         setSettings(s => {
                           const updates: Partial<Settings> = { dwellingType: next };
                           if (next === 'flatGround') {
@@ -1399,6 +1411,10 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
                           }
                           return { ...s, ...updates };
                         });
+                        // Flats do not have independent roof access — reset solar fields to 'none'.
+                        if (nextIsFlat && roofModel && onRoofModelChange) {
+                          onRoofModelChange({ ...roofModel, pvStatus: 'none', batteryStatus: 'none' });
+                        }
                       }}
                     >
                       <optgroup label="Houses">
@@ -1452,7 +1468,7 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
             <h3>Fabric</h3>
 
             {(() => {
-              const isFlat = (settings.dwellingType === 'flatGround' || settings.dwellingType === 'flatMid' || settings.dwellingType === 'flatPenthouse');
+              const isFlat = isFlatDwelling(settings.dwellingType);
               return (
                 <>
                   <div className="hlc__field">
@@ -1708,41 +1724,49 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
               {/* PV */}
               <div className="hlc__field">
                 <label>Solar PV panels</label>
-                <div className="hlc__chip-row">
-                  {(['none', 'existing', 'planned'] as PvStatus[]).map(p => (
-                    <button
-                      key={p}
-                      type="button"
-                      className={`hlc__chip${roofModel.pvStatus === p ? ' hlc__chip--active' : ''}`}
-                      aria-pressed={roofModel.pvStatus === p}
-                      onClick={() => onRoofModelChange({ ...roofModel, pvStatus: p })}
-                    >
-                      {p.charAt(0).toUpperCase() + p.slice(1)}
-                    </button>
-                  ))}
-                </div>
+                {isFlatDwelling(settings.dwellingType) ? (
+                  <p className="hlc__field-note">{SOLAR_UNAVAILABLE_FOR_FLAT}</p>
+                ) : (
+                  <div className="hlc__chip-row">
+                    {(['none', 'existing', 'planned'] as PvStatus[]).map(p => (
+                      <button
+                        key={p}
+                        type="button"
+                        className={`hlc__chip${roofModel.pvStatus === p ? ' hlc__chip--active' : ''}`}
+                        aria-pressed={roofModel.pvStatus === p}
+                        onClick={() => onRoofModelChange({ ...roofModel, pvStatus: p })}
+                      >
+                        {p.charAt(0).toUpperCase() + p.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Battery */}
               <div className="hlc__field">
                 <label>Battery storage</label>
-                <div className="hlc__chip-row">
-                  {(['none', 'existing', 'planned'] as BatteryStatus[]).map(b => (
-                    <button
-                      key={b}
-                      type="button"
-                      className={`hlc__chip${roofModel.batteryStatus === b ? ' hlc__chip--active' : ''}`}
-                      aria-pressed={roofModel.batteryStatus === b}
-                      onClick={() => onRoofModelChange({ ...roofModel, batteryStatus: b })}
-                    >
-                      {b.charAt(0).toUpperCase() + b.slice(1)}
-                    </button>
-                  ))}
-                </div>
+                {isFlatDwelling(settings.dwellingType) ? (
+                  <p className="hlc__field-note">{SOLAR_UNAVAILABLE_FOR_FLAT}</p>
+                ) : (
+                  <div className="hlc__chip-row">
+                    {(['none', 'existing', 'planned'] as BatteryStatus[]).map(b => (
+                      <button
+                        key={b}
+                        type="button"
+                        className={`hlc__chip${roofModel.batteryStatus === b ? ' hlc__chip--active' : ''}`}
+                        aria-pressed={roofModel.batteryStatus === b}
+                        onClick={() => onRoofModelChange({ ...roofModel, batteryStatus: b })}
+                      >
+                        {b.charAt(0).toUpperCase() + b.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* Solar summary */}
-              {(() => {
+              {/* Solar summary — hidden for flats */}
+              {!isFlatDwelling(settings.dwellingType) && (() => {
                 const summary = solarSuitabilitySummary({
                   estimatedPeakHeatLossW: null,
                   heatLossConfidence: 'unknown',
