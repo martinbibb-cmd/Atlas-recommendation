@@ -35,6 +35,15 @@ import type { SystemConceptModel } from '../../explainers/lego/model/types';
 import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
 import './QuadrantDashboardPage.css';
 
+function IconLabel({ icon, label }: { icon: string; label: string }) {
+  return (
+    <>
+      <span aria-hidden="true">{icon}</span>{' '}
+      {label}
+    </>
+  );
+}
+
 // ─── System visual registry helper ───────────────────────────────────────────
 
 /**
@@ -105,30 +114,30 @@ function HouseQuadrant({
 
   const detailContent = (
     <>
-      <p className="oic-detail__row"><strong>Heat loss:</strong> {house.heatLossLabel} — {house.heatLossBand}</p>
-      <p className="oic-detail__row"><strong>Walls:</strong> {house.wallTypeLabel}</p>
-      <p className="oic-detail__row"><strong>Insulation:</strong> {house.insulationLabel}</p>
+      <p className="oic-detail__row"><strong><IconLabel icon="🏠" label="Heat loss:" /></strong> {house.heatLossLabel} — {house.heatLossBand}</p>
+      <p className="oic-detail__row"><strong><IconLabel icon="🧱" label="Walls:" /></strong> {house.wallTypeLabel}</p>
+      <p className="oic-detail__row"><strong><IconLabel icon="🧥" label="Insulation:" /></strong> {house.insulationLabel}</p>
       {bedroomCount != null && (
-        <p className="oic-detail__row"><strong>Bedrooms:</strong> {bedroomCount}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="🛏️" label="Bedrooms:" /></strong> {bedroomCount}</p>
       )}
       {bathroomCount != null && (
-        <p className="oic-detail__row"><strong>Bathrooms:</strong> {bathroomCount}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="🛁" label="Bathrooms:" /></strong> {bathroomCount}</p>
       )}
       {house.roofOrientationLabel && (
-        <p className="oic-detail__row"><strong>Roof orientation:</strong> {house.roofOrientationLabel}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="🧭" label="Roof orientation:" /></strong> {house.roofOrientationLabel}</p>
       )}
       {house.roofTypeLabel && (
-        <p className="oic-detail__row"><strong>Roof type:</strong> {house.roofTypeLabel}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="🏘️" label="Roof type:" /></strong> {house.roofTypeLabel}</p>
       )}
       {house.pvPotentialLabel && (
-        <p className="oic-detail__row"><strong>Solar potential:</strong> {house.pvPotentialLabel}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="☀️" label="Solar potential:" /></strong> {house.pvPotentialLabel}</p>
       )}
       {energy && (
         <>
-          <p className="oic-detail__row"><strong>PV status:</strong> {energy.pvStatusLabel}</p>
-          <p className="oic-detail__row"><strong>Battery:</strong> {energy.batteryStatusLabel}</p>
-          <p className="oic-detail__row"><strong>Energy alignment:</strong> {energy.energyAlignmentLabel}</p>
-          <p className="oic-detail__row"><strong>Solar storage:</strong> {energy.solarStorageOpportunityLabel}</p>
+          <p className="oic-detail__row"><strong><IconLabel icon="🔆" label="PV status:" /></strong> {energy.pvStatusLabel}</p>
+          <p className="oic-detail__row"><strong><IconLabel icon="🔋" label="Battery:" /></strong> {energy.batteryStatusLabel}</p>
+          <p className="oic-detail__row"><strong><IconLabel icon="⚖️" label="Energy alignment:" /></strong> {energy.energyAlignmentLabel}</p>
+          <p className="oic-detail__row"><strong><IconLabel icon="🪫" label="Solar storage:" /></strong> {energy.solarStorageOpportunityLabel}</p>
           {energy.narrativeSignals.map((sig, i) => (
             <p key={i} className="oic-detail__note">{sig}</p>
           ))}
@@ -193,11 +202,11 @@ function HomeQuadrant({
 
   const detailContent = (
     <>
-      <p className="oic-detail__row"><strong>Daily hot water:</strong> {home.dailyHotWaterLabel}</p>
-      <p className="oic-detail__row"><strong>Peak outlets:</strong> {home.peakOutletsLabel}</p>
-      <p className="oic-detail__row"><strong>Bath / shower:</strong> {home.bathUseIntensityLabel}</p>
-      <p className="oic-detail__row"><strong>Occupancy timing:</strong> {home.occupancyTimingLabel}</p>
-      <p className="oic-detail__row"><strong>Storage benefit:</strong> {home.storageBenefitLabel}</p>
+      <p className="oic-detail__row"><strong><IconLabel icon="🚿" label="Daily hot water:" /></strong> {home.dailyHotWaterLabel}</p>
+      <p className="oic-detail__row"><strong><IconLabel icon="🚰" label="Peak outlets:" /></strong> {home.peakOutletsLabel}</p>
+      <p className="oic-detail__row"><strong><IconLabel icon="🛁" label="Bath / shower:" /></strong> {home.bathUseIntensityLabel}</p>
+      <p className="oic-detail__row"><strong><IconLabel icon="🕒" label="Occupancy timing:" /></strong> {home.occupancyTimingLabel}</p>
+      <p className="oic-detail__row"><strong><IconLabel icon="♨️" label="Storage benefit:" /></strong> {home.storageBenefitLabel}</p>
       {home.narrativeSignals.map((sig, i) => (
         <p key={i} className="oic-detail__note">{sig}</p>
       ))}
@@ -270,24 +279,24 @@ function SystemQuadrant({
   const detailContent = (
     <>
       {sys.systemTypeLabel != null && (
-        <p className="oic-detail__row"><strong>Type:</strong> {sys.systemTypeLabel}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="🔥" label="Type:" /></strong> {sys.systemTypeLabel}</p>
       )}
       {sys.ageLabel != null && (
-        <p className="oic-detail__row"><strong>Age:</strong> {sys.ageLabel}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="⏳" label="Age:" /></strong> {sys.ageLabel}</p>
       )}
       <p className="oic-detail__row oic-detail__row--muted">{sys.ageContext}</p>
       {sys.makeModelText && (
-        <p className="oic-detail__row"><strong>Make / model:</strong> {sys.makeModelText}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="🏷️" label="Make / model:" /></strong> {sys.makeModelText}</p>
       )}
       {sys.outputLabel && (
-        <p className="oic-detail__row"><strong>Output:</strong> {sys.outputLabel}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="📈" label="Output:" /></strong> {sys.outputLabel}</p>
       )}
       {sys.emittersLabel != null && (
-        <p className="oic-detail__row"><strong>Emitters:</strong> {sys.emittersLabel}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="🌡️" label="Emitters:" /></strong> {sys.emittersLabel}</p>
       )}
       {sys.controlFamilyLabel != null && (
         <p className="oic-detail__row">
-          <strong>Controls:</strong> {sys.controlFamilyLabel}
+          <strong><IconLabel icon="🎛️" label="Controls:" /></strong> {sys.controlFamilyLabel}
           {sys.thermostatStyleLabel != null ? ` · ${sys.thermostatStyleLabel}` : ''}
         </p>
       )}
@@ -298,25 +307,25 @@ function SystemQuadrant({
         <SystemRealWorldImage image={zoneLayoutImage} testId="zone-layout-image" />
       )}
       {sys.programmerTypeLabel != null && (
-        <p className="oic-detail__row"><strong>Programmer:</strong> {sys.programmerTypeLabel}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="🗓️" label="Programmer:" /></strong> {sys.programmerTypeLabel}</p>
       )}
       {sys.pipeLayoutLabel != null && (
-        <p className="oic-detail__row"><strong>Pipework:</strong> {sys.pipeLayoutLabel}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="🧵" label="Pipework:" /></strong> {sys.pipeLayoutLabel}</p>
       )}
       {pipeLayoutImage && (
         <SystemRealWorldImage image={pipeLayoutImage} testId="pipe-layout-image" />
       )}
       {sys.sedbukBandLabel != null && (
-        <p className="oic-detail__row"><strong>Efficiency band:</strong> {sys.sedbukBandLabel}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="✅" label="Efficiency band:" /></strong> {sys.sedbukBandLabel}</p>
       )}
       {sys.serviceHistoryLabel != null && (
-        <p className="oic-detail__row"><strong>Service history:</strong> {sys.serviceHistoryLabel}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="🛠️" label="Service history:" /></strong> {sys.serviceHistoryLabel}</p>
       )}
       {sys.heatingSystemTypeLabel != null && (
-        <p className="oic-detail__row"><strong>Circuit type:</strong> {sys.heatingSystemTypeLabel}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="🔁" label="Circuit type:" /></strong> {sys.heatingSystemTypeLabel}</p>
       )}
       {sys.pipeworkAccessLabel != null && (
-        <p className="oic-detail__row"><strong>Pipework access:</strong> {sys.pipeworkAccessLabel}</p>
+        <p className="oic-detail__row"><strong><IconLabel icon="🧰" label="Pipework access:" /></strong> {sys.pipeworkAccessLabel}</p>
       )}
       {sys.conditionSignalPills.length > 0 && (
         <div className="oic-detail__condition-pills">
