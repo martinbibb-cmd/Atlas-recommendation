@@ -20,7 +20,7 @@ import type { OptionCardV1 } from '../../contracts/EngineOutputV1';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
 import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
 import type { DhwArchitecture } from '../../lib/dhw/buildDhwContextFromSurvey';
-import type { DhwType } from '../../features/survey/systemBuilder/systemBuilderTypes';
+import type { DhwType, PipeLayout, ControlFamily } from '../../features/survey/systemBuilder/systemBuilderTypes';
 import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
 import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
 import { resolveNominalEfficiencyPct } from '../../engine/utils/efficiency';
@@ -149,10 +149,20 @@ export interface CurrentSystemSignal {
    */
   pipeLayoutLabel: string | null;
   /**
+   * Raw pipe layout value for image mapping — null when not captured or unknown.
+   * Sourced from currentSystem.pipeLayout or input.pipingTopology.
+   */
+  pipeLayoutRaw: PipeLayout | null;
+  /**
    * Human-readable control family label — null when not captured.
    * Sourced from currentSystem.controlFamily or input.systemPlanType.
    */
   controlFamilyLabel: string | null;
+  /**
+   * Raw control family value for image mapping — null when not captured or unknown.
+   * Sourced from currentSystem.controlFamily or input.systemPlanType.
+   */
+  controlFamilyRaw: ControlFamily | null;
   /**
    * Human-readable thermostat style label — null when not captured.
    */
@@ -1046,7 +1056,9 @@ function buildCurrentSystemSignal(input: EngineInputV2_3): CurrentSystemSignal {
     // System architecture labels
     emittersLabel,
     pipeLayoutLabel,
+    pipeLayoutRaw: (pipeLayoutRaw != null && pipeLayoutRaw !== 'unknown') ? pipeLayoutRaw : null,
     controlFamilyLabel,
+    controlFamilyRaw: (controlFamilyRaw != null && controlFamilyRaw !== 'unknown') ? controlFamilyRaw : null,
     thermostatStyleLabel,
     programmerTypeLabel,
     sedbukBandLabel,

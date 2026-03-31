@@ -9,6 +9,10 @@
  * - All three recommendation IDs return the expected images.
  * - Unsupported rec IDs return null.
  * - Control family mapping returns correct schematics.
+ * - Zone layout mapping returns correct images.
+ * - Pipe layout mapping returns correct images.
+ * - Boiler detail mapping returns the condensate image.
+ * - System components mapping returns the overview image.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -16,6 +20,10 @@ import {
   imageForCurrentSystem,
   imageForRecId,
   imageForControlFamily,
+  imageForZoneLayout,
+  imageForPipeLayout,
+  imageForBoilerDetail,
+  imageForSystemComponents,
 } from '../systemImageMap';
 
 // ─── imageForCurrentSystem ────────────────────────────────────────────────────
@@ -58,12 +66,28 @@ describe('imageForCurrentSystem', () => {
     expect(result!.src).toContain('unvented-cylinder.JPG');
   });
 
+  it('returns gravity.JPG for regular boiler with open_vented heating circuit and no DHW type', () => {
+    const result = imageForCurrentSystem('regular', null, 'open_vented');
+    expect(result).not.toBeNull();
+    expect(result!.src).toContain('gravity.JPG');
+  });
+
+  it('DHW type takes priority over heatingSystemType (open_vented DHW overrides open_vented heating)', () => {
+    const result = imageForCurrentSystem('regular', 'open_vented', 'open_vented');
+    expect(result).not.toBeNull();
+    expect(result!.src).toContain('open-vented-schematic.JPG');
+  });
+
   it('returns null for regular boiler with thermal_store (ambiguous)', () => {
     expect(imageForCurrentSystem('regular', 'thermal_store')).toBeNull();
   });
 
   it('returns null for regular boiler with plate_hex (combi-style, no cylinder image)', () => {
     expect(imageForCurrentSystem('regular', 'plate_hex')).toBeNull();
+  });
+
+  it('returns null for regular boiler with sealed heating circuit and no DHW type', () => {
+    expect(imageForCurrentSystem('regular', null, 'sealed')).toBeNull();
   });
 
   it('returns null when heatSource is null', () => {
@@ -141,5 +165,119 @@ describe('imageForControlFamily', () => {
 
   it('returns null when controlFamily is null', () => {
     expect(imageForControlFamily(null)).toBeNull();
+  });
+});
+
+// ─── imageForZoneLayout ───────────────────────────────────────────────────────
+
+describe('imageForZoneLayout', () => {
+  it('returns two-zone.jpg for s_plan', () => {
+    const result = imageForZoneLayout('s_plan');
+    expect(result).not.toBeNull();
+    expect(result!.src).toContain('two-zone.jpg');
+    expect(result!.alt).toBeTruthy();
+  });
+
+  it('returns two-zone.jpg for s_plan_plus', () => {
+    const result = imageForZoneLayout('s_plan_plus');
+    expect(result).not.toBeNull();
+    expect(result!.src).toContain('two-zone.jpg');
+  });
+
+  it('returns null for y_plan (single-zone)', () => {
+    expect(imageForZoneLayout('y_plan')).toBeNull();
+  });
+
+  it('returns null for combi_integral', () => {
+    expect(imageForZoneLayout('combi_integral')).toBeNull();
+  });
+
+  it('returns null when controlFamily is null', () => {
+    expect(imageForZoneLayout(null)).toBeNull();
+  });
+});
+
+// ─── imageForPipeLayout ───────────────────────────────────────────────────────
+
+describe('imageForPipeLayout', () => {
+  it('returns one-pipe.jpg for one_pipe layout', () => {
+    const result = imageForPipeLayout('one_pipe');
+    expect(result).not.toBeNull();
+    expect(result!.src).toContain('one-pipe.jpg');
+    expect(result!.alt).toBeTruthy();
+  });
+
+  it('returns null for two_pipe (standard layout, no reference diagram needed)', () => {
+    expect(imageForPipeLayout('two_pipe')).toBeNull();
+  });
+
+  it('returns null for manifold', () => {
+    expect(imageForPipeLayout('manifold')).toBeNull();
+  });
+
+  it('returns null for unknown layout', () => {
+    expect(imageForPipeLayout('unknown')).toBeNull();
+  });
+
+  it('returns null when layout is null', () => {
+    expect(imageForPipeLayout(null)).toBeNull();
+  });
+});
+
+// ─── imageForBoilerDetail ─────────────────────────────────────────────────────
+
+describe('imageForBoilerDetail', () => {
+  it('returns Condensate-internal.JPG for combi boiler', () => {
+    const result = imageForBoilerDetail('combi');
+    expect(result).not.toBeNull();
+    expect(result!.src).toContain('Condensate-internal.JPG');
+    expect(result!.alt).toBeTruthy();
+  });
+
+  it('returns Condensate-internal.JPG for storage_combi', () => {
+    const result = imageForBoilerDetail('storage_combi');
+    expect(result).not.toBeNull();
+    expect(result!.src).toContain('Condensate-internal.JPG');
+  });
+
+  it('returns Condensate-internal.JPG for system boiler', () => {
+    const result = imageForBoilerDetail('system');
+    expect(result).not.toBeNull();
+    expect(result!.src).toContain('Condensate-internal.JPG');
+  });
+
+  it('returns Condensate-internal.JPG for regular boiler', () => {
+    const result = imageForBoilerDetail('regular');
+    expect(result).not.toBeNull();
+    expect(result!.src).toContain('Condensate-internal.JPG');
+  });
+
+  it('returns null when heatSource is null', () => {
+    expect(imageForBoilerDetail(null)).toBeNull();
+  });
+});
+
+// ─── imageForSystemComponents ─────────────────────────────────────────────────
+
+describe('imageForSystemComponents', () => {
+  it('returns System-components.JPG for system boiler', () => {
+    const result = imageForSystemComponents('system');
+    expect(result).not.toBeNull();
+    expect(result!.src).toContain('System-components.JPG');
+    expect(result!.alt).toBeTruthy();
+  });
+
+  it('returns System-components.JPG for regular boiler', () => {
+    const result = imageForSystemComponents('regular');
+    expect(result).not.toBeNull();
+    expect(result!.src).toContain('System-components.JPG');
+  });
+
+  it('returns null for combi (on-demand, fewer components)', () => {
+    expect(imageForSystemComponents('combi')).toBeNull();
+  });
+
+  it('returns null when heatSource is null', () => {
+    expect(imageForSystemComponents(null)).toBeNull();
   });
 });

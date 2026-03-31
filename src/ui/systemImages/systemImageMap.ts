@@ -10,7 +10,7 @@
  * Returns null when no confident image mapping exists.
  */
 
-import type { HeatSource, DhwType, ControlFamily } from '../../features/survey/systemBuilder/systemBuilderTypes';
+import type { HeatSource, DhwType, ControlFamily, PipeLayout, HeatingSystemType } from '../../features/survey/systemBuilder/systemBuilderTypes';
 
 // ─── Image base path ─────────────────────────────────────────────────────────
 
@@ -30,11 +30,14 @@ export interface SystemImageInfo {
 /**
  * Returns a real-world image for the user's current heating system.
  * dhwType is consulted when the heat source alone is ambiguous (regular boiler).
+ * heatingSystemType is consulted for regular boilers where no specific DHW type
+ * is available — an open-vented heating circuit maps to the gravity layout image.
  * Returns null when the combination has no confident mapping.
  */
 export function imageForCurrentSystem(
   heatSource: HeatSource | null | undefined,
   dhwType?: DhwType | null,
+  heatingSystemType?: HeatingSystemType | null,
 ): SystemImageInfo | null {
   if (!heatSource) return null;
 
@@ -56,7 +59,12 @@ export function imageForCurrentSystem(
       if (dhwType === 'open_vented') {
         return { src: `${BASE}/open-vented-schematic.JPG`, alt: 'Open-vented cylinder system — real-world example' };
       }
-      // thermal_store, plate_hex, small_store, or unknown: no confident mapping
+      // When no specific DHW type is known but heating circuit is open-vented
+      // (gravity-fed with header tank), show the gravity circuit layout.
+      if (heatingSystemType === 'open_vented') {
+        return { src: `${BASE}/gravity.JPG`, alt: 'Open-vented heating circuit — gravity-fed layout, real-world example' };
+      }
+      // thermal_store, plate_hex, small_store, sealed circuit, or unknown: no confident mapping
       return null;
 
     default:
@@ -128,6 +136,90 @@ export function imageForControlFamily(
       return { src: `${BASE}/s-plan.jpg`, alt: 'S-plan control wiring schematic' };
     case 'y_plan':
       return { src: `${BASE}/y-plan.jpg`, alt: 'Y-plan control wiring schematic' };
+    default:
+      return null;
+  }
+}
+
+// ─── Zone layout image ────────────────────────────────────────────────────────
+
+/**
+ * Returns a physical zone-layout diagram for a control architecture family.
+ * Supplements (not replaces) the wiring schematic from imageForControlFamily.
+ * Returns null when the control family does not imply a specific zone layout.
+ */
+export function imageForZoneLayout(
+  controlFamily: ControlFamily | null | undefined,
+): SystemImageInfo | null {
+  if (!controlFamily) return null;
+
+  switch (controlFamily) {
+    case 's_plan':
+    case 's_plan_plus':
+      return { src: `${BASE}/two-zone.jpg`, alt: 'Two-zone heating layout — S-plan system, real-world example' };
+    default:
+      return null;
+  }
+}
+
+// ─── Pipe layout image ────────────────────────────────────────────────────────
+
+/**
+ * Returns a reference diagram for the heating pipework layout.
+ * Returns null when no confident image exists for the given layout.
+ */
+export function imageForPipeLayout(
+  layout: PipeLayout | null | undefined,
+): SystemImageInfo | null {
+  if (!layout) return null;
+
+  switch (layout) {
+    case 'one_pipe':
+      return { src: `${BASE}/one-pipe.jpg`, alt: 'One-pipe heating circuit — real-world example' };
+    default:
+      return null;
+  }
+}
+
+// ─── Boiler detail image ──────────────────────────────────────────────────────
+
+/**
+ * Returns a detail image highlighting the condensate drain — applicable to all
+ * modern condensing boilers (combi, system, and regular heat sources).
+ * Returns null for non-boiler heat sources.
+ */
+export function imageForBoilerDetail(
+  heatSource: HeatSource | null | undefined,
+): SystemImageInfo | null {
+  if (!heatSource) return null;
+
+  switch (heatSource) {
+    case 'combi':
+    case 'storage_combi':
+    case 'system':
+    case 'regular':
+      return { src: `${BASE}/Condensate-internal.JPG`, alt: 'Condensate drain inside boiler cupboard — real-world example' };
+    default:
+      return null;
+  }
+}
+
+// ─── System components overview ───────────────────────────────────────────────
+
+/**
+ * Returns a general system-components diagram for boiler-based heating systems.
+ * Suitable as a supporting explainer alongside the system architecture visualiser.
+ * Returns null for heat-pump systems where the components diagram is not applicable.
+ */
+export function imageForSystemComponents(
+  heatSource: HeatSource | null | undefined,
+): SystemImageInfo | null {
+  if (!heatSource) return null;
+
+  switch (heatSource) {
+    case 'system':
+    case 'regular':
+      return { src: `${BASE}/System-components.JPG`, alt: 'Heating system components overview — real-world example' };
     default:
       return null;
   }

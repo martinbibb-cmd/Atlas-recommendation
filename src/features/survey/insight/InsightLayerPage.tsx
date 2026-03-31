@@ -32,7 +32,14 @@ import {
 } from './insightDerivations';
 import SystemArchitectureVisualiser from '../../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
 import { systemBuilderToConceptModel } from '../../../explainers/lego/autoBuilder/systemBuilderToConceptModel';
-import { imageForCurrentSystem } from '../../../ui/systemImages/systemImageMap';
+import {
+  imageForCurrentSystem,
+  imageForPipeLayout,
+  imageForZoneLayout,
+  imageForControlFamily,
+  imageForBoilerDetail,
+  imageForSystemComponents,
+} from '../../../ui/systemImages/systemImageMap';
 import { SystemRealWorldImage } from '../../../components/systemImages/SystemRealWorldImage';
 import {
   solarSuitabilitySummary,
@@ -182,7 +189,14 @@ export function InsightLayerPage({
   const currentConcept = systemBuilderToConceptModel(systemBuilder);
 
   // Real-world image for the current system (null when no confident mapping)
-  const currentSystemImage = imageForCurrentSystem(systemBuilder.heatSource, systemBuilder.dhwType);
+  const currentSystemImage = imageForCurrentSystem(systemBuilder.heatSource, systemBuilder.dhwType, systemBuilder.heatingSystemType);
+
+  // Supplementary system detail images
+  const controlSchematicImage = imageForControlFamily(systemBuilder.controlFamily);
+  const zoneLayoutImage       = imageForZoneLayout(systemBuilder.controlFamily);
+  const pipeLayoutImage       = imageForPipeLayout(systemBuilder.layout);
+  const boilerDetailImage     = imageForBoilerDetail(systemBuilder.heatSource);
+  const systemComponentsImage = imageForSystemComponents(systemBuilder.heatSource);
 
   // Roof / solar context — sourced from the heat-loss step's HeatLossState
   const heatLossState = input.fullSurvey?.heatLoss;
@@ -232,6 +246,21 @@ export function InsightLayerPage({
           />
           {currentSystemImage && (
             <SystemRealWorldImage image={currentSystemImage} testId="current-system-real-world-image" />
+          )}
+          {systemComponentsImage && (
+            <SystemRealWorldImage image={systemComponentsImage} testId="system-components-image" />
+          )}
+          {boilerDetailImage && (
+            <SystemRealWorldImage image={boilerDetailImage} testId="boiler-detail-image" />
+          )}
+          {controlSchematicImage && (
+            <SystemRealWorldImage image={controlSchematicImage} testId="control-schematic-image" />
+          )}
+          {zoneLayoutImage && (
+            <SystemRealWorldImage image={zoneLayoutImage} testId="zone-layout-image" />
+          )}
+          {pipeLayoutImage && (
+            <SystemRealWorldImage image={pipeLayoutImage} testId="pipe-layout-image" />
           )}
         </div>
       )}
