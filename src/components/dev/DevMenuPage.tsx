@@ -3,7 +3,11 @@
  *
  * Developer-only component browser / UI atlas for Atlas.
  *
- * Lists all curated UI surfaces from the dev registry, with:
+ * Two top-level tabs:
+ *   - UI Inventory  – curated registry of all Atlas UI surfaces
+ *   - Visuals Gallery – individual visual elements (Physics Visuals, Lego Builder Components)
+ *
+ * UI Inventory lists all curated UI surfaces from the dev registry, with:
  *   - free-text search (by name, file, route, query flags, access class)
  *   - status, category, access, route-kind filter chips
  *   - view mode toggles (full metadata / routes only / hierarchy / flagged only)
@@ -15,6 +19,7 @@
  */
 
 import { useState, useMemo, useCallback, type CSSProperties, type ReactNode } from 'react';
+import VisualsGalleryPage from './VisualsGalleryPage';
 import {
   DEV_UI_REGISTRY,
   type DevUiRegistryItem,
@@ -108,9 +113,19 @@ interface Props {
   onBack: () => void;
 }
 
+// ─── Top-level page mode ──────────────────────────────────────────────────────
+
+type DevMenuPageMode = 'inventory' | 'visuals';
+
+const PAGE_MODE_LABELS: Record<DevMenuPageMode, string> = {
+  inventory: '🗂 UI Inventory',
+  visuals:   '🎨 Visuals Gallery',
+};
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function DevMenuPage({ onBack }: Props) {
+  const [pageMode, setPageMode] = useState<DevMenuPageMode>('inventory');
   const [filters, setFilters] = useState<DevUiFilterState>(INITIAL_FILTER_STATE);
   const [selectedItem, setSelectedItem] = useState<DevUiRegistryItem | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -157,6 +172,10 @@ export default function DevMenuPage({ onBack }: Props) {
     return <PreviewPage item={selectedItem} onBack={() => setSelectedItem(null)} />;
   }
 
+  if (pageMode === 'visuals') {
+    return <VisualsGalleryPage onBack={() => setPageMode('inventory')} />;
+  }
+
   return (
     <div style={STYLES.page}>
       <header style={STYLES.header}>
@@ -173,6 +192,19 @@ export default function DevMenuPage({ onBack }: Props) {
           Access via <code>?devmenu=1</code>.
         </p>
       </header>
+
+      {/* Top-level page mode selector */}
+      <div style={STYLES.pageModeRow}>
+        {(Object.keys(PAGE_MODE_LABELS) as DevMenuPageMode[]).map(mode => (
+          <button
+            key={mode}
+            className={`chip-btn${pageMode === mode ? ' chip-btn--active' : ''}`}
+            onClick={() => setPageMode(mode)}
+          >
+            {PAGE_MODE_LABELS[mode]}
+          </button>
+        ))}
+      </div>
 
       {/* Search */}
       <div style={STYLES.controls}>
@@ -701,6 +733,12 @@ const STYLES: Record<string, CSSProperties> = {
     fontSize: '0.875rem',
     marginTop: '0.4rem',
     marginBottom: 0,
+  },
+  pageModeRow: {
+    display: 'flex',
+    gap: '0.5rem',
+    marginBottom: '1.25rem',
+    flexWrap: 'wrap',
   },
   controls: {
     marginBottom: '0.75rem',
