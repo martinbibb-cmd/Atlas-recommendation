@@ -12,6 +12,7 @@
 
 import type { ReactNode } from 'react';
 import ExplainersHubPage from '../explainers/ExplainersHubPage';
+import LegoBuildingSetPage from '../explainers/lego/LegoBuildingSetPage';
 import LifestyleInteractive from '../components/visualizers/LifestyleInteractive';
 import InteractiveComfortClock from '../components/visualizers/InteractiveComfortClock';
 import GlassBoxPanel from '../components/visualizers/GlassBoxPanel';
@@ -179,6 +180,29 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     sourceFiles: ['src/explainers/ExplainersHubPage.tsx', 'src/explainers/lego/simulator/SimulatorDashboard.tsx'],
     includeInCopyBox: true,
     render: () => <ExplainersHubPage onBack={() => undefined} />,
+  },
+
+  // ── Lego Building Set ──────────────────────────────────────────────────────
+  {
+    id: 'lego-building-set',
+    commonName: 'Lego Building Set',
+    codeName: 'LegoBuildingSetPage',
+    fileName: 'LegoBuildingSetPage.tsx',
+    filePath: 'src/explainers/lego/LegoBuildingSetPage.tsx',
+    category: 'simulator',
+    status: 'active',
+    notes:
+      'Interactive drag-and-drop workbench for assembling heating systems from ' +
+      'first-principles blocks — boilers, cylinders, emitters and controls. ' +
+      'Accessible from the main landing page.',
+    routeKind: 'derived',
+    access: 'production',
+    sourceFiles: [
+      'src/explainers/lego/LegoBuildingSetPage.tsx',
+      'src/explainers/lego/builder/BuilderShell.tsx',
+    ],
+    includeInCopyBox: false,
+    render: () => <LegoBuildingSetPage onBack={() => undefined} />,
   },
 
   // ── Presentation ──────────────────────────────────────────────────────────

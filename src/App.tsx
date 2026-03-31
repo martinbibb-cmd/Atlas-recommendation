@@ -15,6 +15,7 @@ import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
 
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
+import LegoBuildingSetPage from './explainers/lego/LegoBuildingSetPage';
 import HeatLossCalculator from './components/heatloss/HeatLossCalculator';
 import AtlasExplorerPage from './components/explorer/AtlasExplorerPage';
 import VisitPage from './components/visit/VisitPage';
@@ -129,7 +130,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -636,6 +637,9 @@ export default function App() {
           }}
         />
       )}
+      {journey === 'lego-set' && (
+        <LegoBuildingSetPage onBack={() => setJourney('landing')} />
+      )}
       {journey === 'landing' && (
         <div className="landing">
           <div className="hero">
@@ -724,6 +728,15 @@ export default function App() {
               <h2>Heat Loss Calculator</h2>
               <p>Sketch the property perimeter and get a fast whole-house heat loss estimate.</p>
               <button className="cta-btn">Open Heat Loss →</button>
+            </div>
+            <div
+              className="journey-card"
+              onClick={() => setJourney('lego-set')}
+            >
+              <div className="card-icon">🧱</div>
+              <h2>Lego Building Set</h2>
+              <p>Assemble heating systems from first-principles blocks — boilers, cylinders, emitters and controls.</p>
+              <button className="cta-btn">Open Lego Set →</button>
             </div>
             {labEngineInput != null && (
               <div
