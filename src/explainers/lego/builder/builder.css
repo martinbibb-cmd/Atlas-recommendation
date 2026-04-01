@@ -311,11 +311,38 @@
 }
 
 .pipe-line {
-  stroke: #1e293b;
+  stroke: #94a3b8;
   stroke-width: 10;
   stroke-linecap: round;
   stroke-linejoin: round;
-  opacity: 0.25;
+  fill: none;
+  opacity: 0.55;
+}
+
+/* ── Pipe circuit colours ──────────────────────────────────────────────────── */
+
+/* DHW (domestic hot water) — red */
+.pipe-line--dhw {
+  stroke: #e53e3e;
+  opacity: 0.9;
+}
+
+/* Cold water (DCW / CWS) — blue */
+.pipe-line--cold {
+  stroke: #3182ce;
+  opacity: 0.9;
+}
+
+/* Heating / primary flow — purple */
+.pipe-line--flow {
+  stroke: #805ad5;
+  opacity: 0.9;
+}
+
+/* Heating / primary return — green */
+.pipe-line--return {
+  stroke: #38a169;
+  opacity: 0.9;
 }
 
 .pipe-line.softwarn {
@@ -386,16 +413,16 @@
   background: #ebf8ff;
 }
 
-/* Primary / heating flow — orange */
+/* Primary / heating flow — purple (matches pipe-line--flow) */
 .port--flow {
-  border-color: #c05621;
-  background: #fffaf0;
+  border-color: #805ad5;
+  background: #faf5ff;
 }
 
-/* Primary / heating return — purple */
+/* Primary / heating return — green (matches pipe-line--return) */
 .port--return {
-  border-color: #6b46c1;
-  background: #faf5ff;
+  border-color: #38a169;
+  background: #f0fff4;
 }
 
 /* Storage / outlet / unknown — default grey */
