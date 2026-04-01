@@ -5,18 +5,15 @@
  * visualisers into one educational simulation panel:
  *
  *   1. PerformanceBandLadder + RecoveryStepsPanel – SEDBUK band ladder with contextual steps
- *   2. OccupancyClock  – drag-and-drop 24-hour routine painter (drives EngineInput when baseInput provided)
- *   3. SystemFlushSlider – maintenance recovery scenario (drives EngineInput when baseInput provided)
- *   4. MixergyTankVisualizer – State of Charge animated tank
- *   5. Timeline24hRenderer – 24-hour comparative timeline, updated by every engine rerun
+ *   2. SystemFlushSlider – maintenance recovery scenario (drives EngineInput when baseInput provided)
+ *   3. MixergyTankVisualizer – State of Charge animated tank
+ *   4. Timeline24hRenderer – 24-hour comparative timeline, updated by every engine rerun
  */
 import { startTransition, useEffect, useRef, useState } from 'react';
-import OccupancyClock from './visualizers/OccupancyClock';
-import type { HourOccupancy } from './visualizers/OccupancyClock';
 import SystemFlushSlider from './visualizers/SystemFlushSlider';
 import MixergyTankVisualizer from './visualizers/MixergyTankVisualizer';
 import Timeline24hRenderer from './visualizers/Timeline24hRenderer';
-import type { EngineInputV2_3, HydraulicModuleV1Result, MixergyResult, OccupancySignature } from '../engine/schema/EngineInputV2_3';
+import type { EngineInputV2_3, HydraulicModuleV1Result, MixergyResult } from '../engine/schema/EngineInputV2_3';
 import type { Timeline24hV1, VisualSpecV1 } from '../contracts/EngineOutputV1';
 import { computeCurrentEfficiencyPct, getNominalEfficiencyPct } from '../engine/utils/efficiency';
 import { runEngine } from '../engine/Engine';
@@ -24,24 +21,6 @@ import PerformanceBandLadder from './PerformanceBandLadder';
 import RecoveryStepsPanel from './RecoveryStepsPanel';
 import type { SystemType } from './RecoveryStepsPanel';
 
-/** Minimum home+sleep hours per day to favour a heat pump's "continuous low-level" profile */
-const HEAT_PUMP_HOME_HOURS_THRESHOLD = 14;
-/** Minimum away-hours per day to favour a boiler's double-peak "fast response" profile */
-const BOILER_AWAY_HOURS_THRESHOLD = 10;
-/** Minimum home+sleep hours per day to classify as steady-home occupancy signature */
-const STEADY_HOME_MIN_HOURS = 16;
-/** Minimum away hours per day to classify as professional (double-peak) occupancy signature */
-const PROFESSIONAL_MIN_AWAY_HOURS = 10;
-
-/** Map a painted 24-hour occupancy array to the engine's OccupancySignature. */
-function toOccupancySignature(occ: HourOccupancy[]): OccupancySignature {
-  const homeHours  = occ.filter(o => o.state === 'home').length;
-  const sleepHours = occ.filter(o => o.state === 'sleep').length;
-  const awayHours  = occ.filter(o => o.state === 'away').length;
-  if (homeHours + sleepHours > STEADY_HOME_MIN_HOURS) return 'steady_home';
-  if (awayHours > PROFESSIONAL_MIN_AWAY_HOURS) return 'professional';
-  return 'shift_worker';
-}
 
 interface Props {
   mixergy: MixergyResult;
@@ -64,7 +43,7 @@ interface Props {
   /** Top degradation contributors (label + valuePct). */
   contributors?: { label: string; valuePct: number }[];
   /**
-   * When provided, OccupancyClock and SystemFlushSlider changes rerun the engine
+   * When provided, SystemFlushSlider changes rerun the engine
    * and update the displayed efficiency / demand metrics in real time.
    */
   baseInput?: EngineInputV2_3;
@@ -85,16 +64,11 @@ export default function InteractiveTwin({
   baseInput,
   onBack,
 }: Props) {
-  const [occupancy, setOccupancy] = useState<HourOccupancy[]>([]);
   const [hoveredMarker, setHoveredMarker] = useState<string | null>(null);
-  const homeHours = occupancy.filter(o => o.state === 'home').length;
-  const awayHours = occupancy.filter(o => o.state === 'away').length;
 
-  // Twin engine state — tracks the last rerun driven by occupancy or flush changes.
+  // Twin engine state — tracks the last rerun driven by flush changes.
   const twinInputRef = useRef<EngineInputV2_3 | null>(baseInput ?? null);
   const [twinCurrentEfficiencyPct, setTwinCurrentEfficiencyPct] = useState(currentEfficiencyPct);
-  const [twinDailyDemandKwh, setTwinDailyDemandKwh] = useState<number | null>(null);
-  const [twinRecommendedSystem, setTwinRecommendedSystem] = useState<'boiler' | 'ashp' | 'stored_water' | null>(null);
   /** Live 24h timeline updated on every engine rerun — rendered below the Flush slider. */
   const [twinTimelinePayload, setTwinTimelinePayload] = useState<Timeline24hV1 | null>(null);
 
@@ -106,8 +80,8 @@ export default function InteractiveTwin({
   // Seed the timeline on mount when baseInput is available, so the chart isn't blank
   // before the user makes a first interaction.
   // Intentionally empty deps: we only want to seed once at mount. Subsequent baseInput
-  // changes are handled by the handleOccupancyChange / handleFlushChange callbacks which
-  // already call rerunEngine with the latest twinInputRef.current.
+  // changes are handled by the handleFlushChange callback which already calls rerunEngine
+  // with the latest twinInputRef.current.
   useEffect(() => {
     if (baseInput && twinTimelinePayload === null) {
       rerunEngine(baseInput);
@@ -120,25 +94,12 @@ export default function InteractiveTwin({
     startTransition(() => {
       const out = runEngine(twinInput);
       setTwinCurrentEfficiencyPct(computeCurrentEfficiencyPct(nominalEfficiencyPct, out.normalizer.tenYearEfficiencyDecayPct));
-      // Each hourlyData entry is the average power (kW) for a 1-hour slot; summing 24 values gives kWh.
-      const dailyDemandKwh = out.lifestyle.hourlyData.reduce((sum, h) => sum + h.demandKw, 0);
-      setTwinDailyDemandKwh(parseFloat(dailyDemandKwh.toFixed(1)));
-      setTwinRecommendedSystem(out.lifestyle.recommendedSystem);
       // Extract the 24h timeline visual so the renderer shows a live response.
       const timelineVisual = out.engineOutput.visuals?.find((v: VisualSpecV1) => v.type === 'timeline_24h');
       if (timelineVisual?.type === 'timeline_24h') {
         setTwinTimelinePayload(timelineVisual.data as Timeline24hV1);
       }
     });
-  };
-
-  const handleOccupancyChange = (occ: HourOccupancy[]) => {
-    setOccupancy(occ);
-    if (!twinInputRef.current) return;
-    const sig = toOccupancySignature(occ);
-    const updated: EngineInputV2_3 = { ...twinInputRef.current, occupancySignature: sig };
-    twinInputRef.current = updated;
-    rerunEngine(updated);
   };
 
   const handleFlushChange = (serviceLevelPct: number) => {
@@ -212,41 +173,6 @@ export default function InteractiveTwin({
             />
           </div>
         </div>
-      </div>
-
-      {/* ── Occupancy Clock ─────────────────────────────────────────────── */}
-      <div className="result-section">
-        <h3>📅 Drag-and-Drop Occupancy Painter</h3>
-        <p className="description" style={{ marginBottom: '0.75rem' }}>
-          Paint your daily routine on the 24-hour clock. The engine recalculates heat demand
-          and system suitability in real time as you paint.
-        </p>
-        <OccupancyClock onChange={handleOccupancyChange} />
-        {occupancy.length > 0 && (
-          <div style={{
-            marginTop: 12, padding: '8px 14px',
-            background: '#ebf8ff', borderRadius: 8,
-            fontSize: '0.82rem', color: '#2c5282',
-          }}>
-            <strong>Live recalculation:</strong>{' '}
-            {homeHours}h at home · {awayHours}h away ·{' '}
-            {24 - homeHours - awayHours}h sleeping
-            {twinDailyDemandKwh !== null && (
-              <span> · <strong>{twinDailyDemandKwh} kWh</strong> estimated daily heat demand</span>
-            )}
-            {/* Prefer the engine-computed recommendation; fall back to local threshold heuristic
-                only when no engine rerun has happened yet (baseInput not supplied). */}
-            {(twinRecommendedSystem !== null ? twinRecommendedSystem === 'ashp' : homeHours > HEAT_PUMP_HOME_HOURS_THRESHOLD) ? (
-              <span style={{ color: '#276749', fontWeight: 600 }}>
-                {' '}— Continuous occupancy: heat pump suits this profile.
-              </span>
-            ) : (twinRecommendedSystem !== null ? twinRecommendedSystem === 'boiler' : awayHours > BOILER_AWAY_HOURS_THRESHOLD) ? (
-              <span style={{ color: '#744210', fontWeight: 600 }}>
-                {' '}— Double-peak profile: fast-response boiler suits this pattern.
-              </span>
-            ) : null}
-          </div>
-        )}
       </div>
 
       {/* ── System Flush Slider ─────────────────────────────────────────── */}

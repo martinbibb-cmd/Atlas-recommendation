@@ -10,13 +10,12 @@
  *                          showing every decision point and its physical
  *                          justification (e.g. "Velocity 1.9 m/s = ❌
  *                          Performance Clipping").
- *  Tab 3 – Visual Outcome: Radial comfort clock, proportional 2D tank X-ray,
- *                          and efficiency decay graph rendered together.
+ *  Tab 3 – Visual Outcome: Proportional 2D tank X-ray and efficiency decay
+ *                          graph rendered together.
  */
 
 import { useState } from 'react';
 import type { FullEngineResult, CondensingZone } from '../../engine/schema/EngineInputV2_3';
-import InteractiveComfortClock from './InteractiveComfortClock';
 import FootprintXRay from './FootprintXRay';
 import EfficiencyCurve from './EfficiencyCurve';
 import HydraulicVelocityBar from './HydraulicVelocityBar';
@@ -281,20 +280,8 @@ function noteColor(note: string): string {
 // ─── Tab 3: Visual Outcome ────────────────────────────────────────────────────
 
 function VisualOutcomeTab({ results }: { results: FullEngineResult }) {
-  const heatLossKw = results.hydraulic.flowRateLs * 1000 / 100 || 8;
-
   return (
     <div>
-      {/* Comfort Clock */}
-      <section style={{ marginBottom: 24 }}>
-        <h4 style={sectionHeadStyle}>🕐 Comfort Clock – Radial 24-Hour View</h4>
-        <p style={{ fontSize: '0.82rem', color: '#718096', marginBottom: 10 }}>
-          Paint your daily routine to see how heating demand changes hour by hour.
-          The clock updates in real-time to reflect your occupancy pattern.
-        </p>
-        <InteractiveComfortClock heatLossKw={heatLossKw} />
-      </section>
-
       {/* Tank X-Ray */}
       <section style={{ marginBottom: 24 }}>
         <h4 style={sectionHeadStyle}>🛢️ Proportional Tank X-Ray</h4>

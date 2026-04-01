@@ -24,6 +24,7 @@ import { useState } from 'react';
 import type { OptionCardV1, SensitivityItem } from '../../contracts/EngineOutputV1';
 import type { PriorityKey } from '../../features/survey/priorities/prioritiesTypes';
 import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
+import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
 import './results.css';
 
 interface Props {
@@ -227,6 +228,9 @@ export default function SystemOptionCard({ card, selectedPriorities = [] }: Prop
   // Supports your priorities — intersection of user's selected priorities and this option's strengths
   const supportedPriorities = supportedPriorityLabels(card.id, selectedPriorities);
 
+  // System topology thumbnail — real-world reference image for this option
+  const thumbnail = imageForOptionId(card.id);
+
   return (
     <div className={`opt-card opt-card--${cardModifier}`}>
       {/* ── Header ──────────────────────────────────────────────────────── */}
@@ -239,6 +243,15 @@ export default function SystemOptionCard({ card, selectedPriorities = [] }: Prop
           {badge.label}
         </span>
       </div>
+
+      {/* ── System topology thumbnail ─────────────────────────────────── */}
+      {thumbnail && (
+        <img
+          src={thumbnail.src}
+          alt={thumbnail.alt}
+          className="opt-card__thumbnail"
+        />
+      )}
 
       {/* Headline */}
       <p className="opt-card__headline">{card.headline}</p>

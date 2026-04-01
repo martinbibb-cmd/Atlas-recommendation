@@ -697,6 +697,16 @@ function SystemOptionsGridPage({
           const status = opt?.status ?? 'viable';
           const cellLabel = `${def.heading} ${def.sub}`;
 
+          // Unresolved visuals must fail loudly in development so gaps are caught
+          // before reaching production.  All system option IDs must have a mapped
+          // image in systemImageMap.ts — add one rather than relying on the fallback.
+          if (import.meta.env.DEV && !image) {
+            throw new Error(
+              `[PresentationDeck] No image mapped for option "${def.imageId}". ` +
+              `Add an entry to imageForOptionId() in systemImageMap.ts.`,
+            );
+          }
+
           return (
             <button
               key={def.key}
@@ -707,14 +717,12 @@ function SystemOptionsGridPage({
             >
               <p className="atlas-deck-sys-grid__heading">{def.heading}</p>
               <p className="atlas-deck-sys-grid__sub">{def.sub}</p>
-              {image ? (
+              {image && (
                 <img
                   src={image.src}
                   alt={image.alt}
                   className="atlas-deck-sys-grid__image"
                 />
-              ) : (
-                <div className="atlas-deck-sys-grid__image-placeholder" />
               )}
               {bullets.length > 0 && (
                 <ul className="atlas-deck-sys-grid__bullets">
