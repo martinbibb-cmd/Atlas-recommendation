@@ -37,6 +37,7 @@ import {
 } from 'recharts';
 import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
+import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
 import {
   buildCanonicalPresentation,
   type Page1_5AgeingContext,
@@ -731,24 +732,27 @@ function SystemOptionsGridPage({
 // ─── Page 4 — Physics ranking (star ratings + pick 1 or 2) ──────────────────
 
 /**
- * Maps a PhysicsRankingItem family to the imageForOptionId key.
- * Ranking items use appliance-family keys (combi, system, heat_pump, regular,
- * open_vented) while imageForOptionId uses option-card IDs.
+ * Single source of truth mapping each ApplianceFamily to:
+ *   - `imageId`   — the key accepted by `imageForOptionId`
+ *   - `optionIds` — the OptionCardV1 IDs that represent this family in page4Plus.options
+ *
+ * Using a `Record<ApplianceFamily, …>` ensures the compiler reports any
+ * missing or misspelled family key at build time.
  */
-function rankingFamilyToImageId(family: string): string {
-  switch (family) {
-    case 'system':      return 'stored_unvented';
-    case 'heat_pump':   return 'ashp';
-    case 'regular':
-    case 'open_vented': return 'regular_vented';
-    default:            return family; // 'combi' passes through unchanged
-  }
-}
+const RANKING_FAMILY_MAP: Record<ApplianceFamily, { imageId: string; optionIds: string[] }> = {
+  combi:       { imageId: 'combi',          optionIds: ['combi'] },
+  system:      { imageId: 'stored_unvented', optionIds: ['stored_unvented', 'system_unvented'] },
+  heat_pump:   { imageId: 'ashp',           optionIds: ['ashp', 'gshp'] },
+  regular:     { imageId: 'regular_vented', optionIds: ['regular_vented', 'stored_vented'] },
+  open_vented: { imageId: 'regular_vented', optionIds: ['regular_vented', 'stored_vented'] },
+};
 
 function RankingPage({
   items,
   selectedOption1Family,
   selectedOption2Family,
+  disabledFamilies,
+  hasOption2,
   onSetAsOption1,
   onSetAsOption2,
   onSelectOption1,
@@ -757,8 +761,12 @@ function RankingPage({
   items: PhysicsRankingItem[];
   selectedOption1Family: string | null;
   selectedOption2Family: string | null;
-  onSetAsOption1: (family: string) => void;
-  onSetAsOption2: (family: string) => void;
+  /** Families that cannot be selected (score = 0 or no corresponding option page). */
+  disabledFamilies: ReadonlySet<string>;
+  /** Whether a second viable option page exists — controls "Explore option 2" CTA. */
+  hasOption2: boolean;
+  onSetAsOption1: (family: ApplianceFamily) => void;
+  onSetAsOption2: (family: ApplianceFamily) => void;
   onSelectOption1: () => void;
   onSelectOption2: () => void;
 }) {
@@ -778,9 +786,10 @@ function RankingPage({
       </h2>
       <div className="atlas-deck-ranking__list">
         {items.map((item, i) => {
-          const image = imageForOptionId(rankingFamilyToImageId(item.family));
+          const image = imageForOptionId(RANKING_FAMILY_MAP[item.family].imageId);
           const isOpt1 = item.family === selectedOption1Family;
           const isOpt2 = item.family === selectedOption2Family;
+          const isDisabled = disabledFamilies.has(item.family);
           return (
             <div
               key={item.family}
@@ -789,6 +798,7 @@ function RankingPage({
                 item.rank === 1 ? 'atlas-deck-ranking__row--rank-1' : '',
                 isOpt1 ? 'atlas-deck-ranking__row--option-1' : '',
                 isOpt2 ? 'atlas-deck-ranking__row--option-2' : '',
+                isDisabled ? 'atlas-deck-ranking__row--disabled' : '',
               ].filter(Boolean).join(' ')}
               aria-label={`Rank ${item.rank}: ${item.label}`}
             >
@@ -815,22 +825,30 @@ function RankingPage({
                 )}
                 <span className="atlas-deck-ranking__reason">{item.reasonLine}</span>
                 <div className="atlas-deck-ranking__item-btns">
-                  <button
-                    type="button"
-                    className={`atlas-deck-ranking__item-btn atlas-deck-ranking__item-btn--1${isOpt1 ? ' atlas-deck-ranking__item-btn--active' : ''}`}
-                    onClick={() => onSetAsOption1(item.family)}
-                    aria-pressed={isOpt1}
-                  >
-                    {isOpt1 ? '✓ Option 1' : 'Option 1'}
-                  </button>
-                  <button
-                    type="button"
-                    className={`atlas-deck-ranking__item-btn atlas-deck-ranking__item-btn--2${isOpt2 ? ' atlas-deck-ranking__item-btn--active' : ''}`}
-                    onClick={() => onSetAsOption2(item.family)}
-                    aria-pressed={isOpt2}
-                  >
-                    {isOpt2 ? '✓ Option 2' : 'Option 2'}
-                  </button>
+                  {isDisabled ? (
+                    <span className="atlas-deck-ranking__item-btn atlas-deck-ranking__item-btn--unavailable">
+                      Not available
+                    </span>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className={`atlas-deck-ranking__item-btn atlas-deck-ranking__item-btn--1${isOpt1 ? ' atlas-deck-ranking__item-btn--active' : ''}`}
+                        onClick={() => onSetAsOption1(item.family)}
+                        aria-pressed={isOpt1}
+                      >
+                        {isOpt1 ? '✓ Option 1' : 'Option 1'}
+                      </button>
+                      <button
+                        type="button"
+                        className={`atlas-deck-ranking__item-btn atlas-deck-ranking__item-btn--2${isOpt2 ? ' atlas-deck-ranking__item-btn--active' : ''}`}
+                        onClick={() => onSetAsOption2(item.family)}
+                        aria-pressed={isOpt2}
+                      >
+                        {isOpt2 ? '✓ Option 2' : 'Option 2'}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -853,7 +871,7 @@ function RankingPage({
               Explore option 1 →
             </button>
           )}
-          {selectedOption2Family && (
+          {selectedOption2Family && hasOption2 && (
             <button
               type="button"
               className="atlas-deck-ranking__cta-btn atlas-deck-ranking__cta-btn--2"
@@ -1095,36 +1113,43 @@ export default function PresentationDeck({
   //
   // Defaults to the top-2 ranked families so following pages are pre-populated.
   // The user can override by tapping "Option 1" / "Option 2" on the ranking row.
-  const [selectedOption1Family, setSelectedOption1Family] = useState<string | null>(
+  const [selectedOption1Family, setSelectedOption1Family] = useState<ApplianceFamily | null>(
     () => page3.items[0]?.family ?? null,
   );
-  const [selectedOption2Family, setSelectedOption2Family] = useState<string | null>(
+  const [selectedOption2Family, setSelectedOption2Family] = useState<ApplianceFamily | null>(
     () => page3.items[1]?.family ?? null,
   );
 
-  /**
-   * Maps a ranking-item family key to the set of OptionCardV1 IDs that represent
-   * the same appliance family in page4Plus.options.
-   * Ranking uses appliance-family keys; page4Plus uses option-card IDs.
-   */
-  function rankingFamilyToOptionIds(family: string): string[] {
-    switch (family) {
-      case 'combi':      return ['combi'];
-      case 'system':     return ['stored_unvented', 'system_unvented'];
-      case 'heat_pump':  return ['ashp', 'gshp'];
-      case 'regular':
-      case 'open_vented':return ['regular_vented', 'stored_vented'];
-      default:           return [family];
-    }
-  }
+  // Re-seed selections when the ranked family list changes (e.g. when the model
+  // is updated while the deck stays mounted). If the previously selected family
+  // is still present in the new ranking, the user's choice is preserved; otherwise
+  // fall back to the new top-2 families so the option pages are never stale.
+  const rankingFamilyKey = page3.items.map(i => i.family).join(',');
+  useEffect(() => {
+    const families = page3.items.map(item => item.family);
+    setSelectedOption1Family(prev => {
+      if (families.length === 0) return null;
+      if (prev && families.includes(prev)) return prev;
+      return families[0] ?? null;
+    });
+    setSelectedOption2Family(prev => {
+      if (families.length === 0) return null;
+      if (prev && families.includes(prev)) return prev;
+      // Do not fall back to families[0]: if only one family is available, having
+      // both slots point at the same family would violate mutual exclusivity.
+      return families[1] ?? null;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rankingFamilyKey]);
 
   /**
    * Resolve the ShortlistedOptionDetail for a selected ranking family.
+   * Uses RANKING_FAMILY_MAP to translate from appliance-family key to option-card IDs.
    * Falls back to null when the family has no corresponding viable option.
    */
-  function resolveOptionDetail(family: string | null): ShortlistedOptionDetail | null {
+  function resolveOptionDetail(family: ApplianceFamily | null): ShortlistedOptionDetail | null {
     if (!family) return null;
-    const ids = rankingFamilyToOptionIds(family);
+    const ids = RANKING_FAMILY_MAP[family].optionIds;
     return page4Plus.options.find(o => ids.includes(o.family)) ?? null;
   }
 
@@ -1135,6 +1160,21 @@ export default function PresentationDeck({
   const opt2Detail = resolveOptionDetail(selectedOption2Family) ?? page4Plus.options[1] ?? null;
   const selectedShortlistOptions = [opt1Detail, opt2Detail].filter(
     (o): o is ShortlistedOptionDetail => o !== null,
+  );
+
+  // Pre-compute the set of option-card IDs that have a viable entry in page4Plus.
+  // Used to determine which ranking families map to a real option page without
+  // repeatedly calling resolveOptionDetail inside the filter below.
+  const viableOptionIdSet = new Set(page4Plus.options.map(o => o.family));
+
+  // Families that cannot be selected: score = 0 or no corresponding option page.
+  const disabledFamilies: ReadonlySet<string> = new Set(
+    page3.items
+      .filter(item =>
+        item.overallScore === 0 ||
+        !RANKING_FAMILY_MAP[item.family].optionIds.some(id => viableOptionIdSet.has(id)),
+      )
+      .map(item => item.family),
   );
 
   // ─── Pre-compute page indices for ranking → option navigation ────────────
@@ -1278,10 +1318,24 @@ export default function PresentationDeck({
             items={page3.items}
             selectedOption1Family={selectedOption1Family}
             selectedOption2Family={selectedOption2Family}
-            onSetAsOption1={(family) => setSelectedOption1Family(family)}
-            onSetAsOption2={(family) => setSelectedOption2Family(family)}
+            disabledFamilies={disabledFamilies}
+            hasOption2={selectedShortlistOptions.length >= 2}
+            onSetAsOption1={(family) => {
+              setSelectedOption1Family(family);
+              // Enforce mutual exclusivity: clear Option 2 if it used the same family.
+              setSelectedOption2Family(prev => prev === family ? null : prev);
+            }}
+            onSetAsOption2={(family) => {
+              setSelectedOption2Family(family);
+              // Enforce mutual exclusivity: clear Option 1 if it used the same family.
+              setSelectedOption1Family(prev => prev === family ? null : prev);
+            }}
             onSelectOption1={() => goTo(opt1Idx)}
-            onSelectOption2={() => goTo(opt2Idx)}
+            onSelectOption2={() => {
+              if (selectedShortlistOptions.length >= 2) {
+                goTo(opt2Idx);
+              }
+            }}
           />
         </>
       ),
