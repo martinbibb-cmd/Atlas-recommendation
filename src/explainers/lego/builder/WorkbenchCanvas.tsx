@@ -1,12 +1,17 @@
 import { useMemo, useRef, useEffect, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import type { BuildGraph, BuildNode, PartKind, PortRef } from './types';
+import type { BuildEdge, BuildGraph, BuildNode, PartKind, PortRef } from './types';
 import { PALETTE } from './palette';
 import { TOKEN_H, TOKEN_W } from './ports';
 import { getPortDefs } from './portDefs';
 import { SchematicFace } from './SchematicFace';
 import { findSnapCandidate, portAbs as snapPortAbs } from './snapConnect';
-import { routePipe } from './router';
+import {
+  routePipe,
+  findCrossings,
+  buildPathWithBumps,
+  offsetParallelPipes,
+} from './router';
 import { allZoneBands, ZONE_BAND_WIDTH, ZONE_BAND_X } from './zoneBands';
 import './builder.css';
 
@@ -97,6 +102,39 @@ function kindLabel(kind: PartKind) {
   return PALETTE.find(p => p.kind === kind)?.label ?? kind;
 }
 
+/**
+ * Return a CSS colour-modifier class for a pipe based on the port roles of its
+ * connected endpoints.
+ *
+ *   hot / DHW           → pipe-line--dhw    (red)
+ *   cold / CW           → pipe-line--cold   (blue)
+ *   heating/primary flow → pipe-line--flow  (purple)
+ *   heating/primary return → pipe-line--return (green)
+ */
+function pipeDomainClass(edge: BuildEdge): string {
+  const rf = edge.meta?.roleFrom;
+  const rt = edge.meta?.roleTo;
+  if (rf === 'hot'    || rt === 'hot')    return 'pipe-line--dhw';
+  if (rf === 'cold'   || rt === 'cold')   return 'pipe-line--cold';
+  if (rf === 'flow'   || rt === 'flow')   return 'pipe-line--flow';
+  if (rf === 'return' || rt === 'return') return 'pipe-line--return';
+  return '';
+}
+
+/**
+ * Return a numeric priority for crossing-bump resolution.
+ * Higher value = higher priority = this pipe goes straight (no bump).
+ */
+function pipePriority(edge: BuildEdge): number {
+  const rf = edge.meta?.roleFrom;
+  const rt = edge.meta?.roleTo;
+  if (rf === 'flow'   || rt === 'flow')   return 4;
+  if (rf === 'return' || rt === 'return') return 3;
+  if (rf === 'hot'    || rt === 'hot')    return 2;
+  if (rf === 'cold'   || rt === 'cold')   return 1;
+  return 2;
+}
+
 /** Maps a PartKind to a CSS modifier class for role-specific token styling. */
 function kindClass(kind: PartKind): string {
   if (kind === 'heat_source_combi') return 'token--combi';
@@ -181,6 +219,59 @@ export default function WorkbenchCanvas({
     graph.nodes.forEach(node => mapped.set(node.id, node));
     return mapped;
   }, [graph.nodes]);
+
+  /**
+   * Two-pass pipe render computation:
+   *   Pass 1 — compute base routes via routePipe, then apply parallel offsets.
+   *   Pass 2 — detect crossing points between all edge pairs; assign bumps to
+   *             the lower-priority pipe at each crossing.
+   *   Result — per-edge SVG `d` path strings and domain CSS classes.
+   */
+  const pipeRenderData = useMemo(() => {
+    // Pass 1a: compute base routes
+    const validEntries: Array<{ edge: BuildEdge; points: string }> = [];
+    for (const edge of graph.edges) {
+      const fromNode = nodesById.get(edge.from.nodeId);
+      const toNode   = nodesById.get(edge.to.nodeId);
+      if (!fromNode || !toNode) continue;
+      const from = portAbs(fromNode, edge.from.portId);
+      const to   = portAbs(toNode,   edge.to.portId);
+      validEntries.push({ edge, points: routePipe(from, to) });
+    }
+
+    // Pass 1b: offset parallel overlapping middle segments
+    const offsetPoints = offsetParallelPipes(validEntries.map(e => e.points));
+
+    // Pass 2: detect crossings between all pairs; lower-priority edge gets bump
+    const crossingsPerEdge = new Map<string, Array<{ x: number; y: number }>>();
+    for (let i = 0; i < validEntries.length; i++) {
+      for (let j = i + 1; j < validEntries.length; j++) {
+        const xings = findCrossings(offsetPoints[i], offsetPoints[j]);
+        if (xings.length === 0) continue;
+        const pi = pipePriority(validEntries[i].edge);
+        const pj = pipePriority(validEntries[j].edge);
+        // Higher-priority pipe goes straight; lower-priority gets the bump.
+        // Equal priorities: the later-drawn edge (j, higher index) gets the bump.
+        const bumpId =
+          pi > pj ? validEntries[j].edge.id   // i strictly higher → j bumps
+          : pi < pj ? validEntries[i].edge.id  // j strictly higher → i bumps
+          : validEntries[j].edge.id;            // tie → later edge (j) bumps
+        crossingsPerEdge.set(bumpId, [
+          ...(crossingsPerEdge.get(bumpId) ?? []),
+          ...xings,
+        ]);
+      }
+    }
+
+    // Build final render descriptors
+    return validEntries.map(({ edge }, idx) => {
+      const points  = offsetPoints[idx];
+      const bumps   = crossingsPerEdge.get(edge.id) ?? [];
+      const domCls  = pipeDomainClass(edge);
+      const pathD   = buildPathWithBumps(points, bumps);
+      return { edge, pathD, domainClass: domCls };
+    });
+  }, [graph.edges, nodesById]);
 
   // Keep a ref so pointer-up closures always read the latest graph state.
   const graphRef = useRef(graph);
@@ -355,26 +446,27 @@ export default function WorkbenchCanvas({
         </svg>
 
         <svg className="pipes">
-          {graph.edges.map(edge => {
-            const fromNode = nodesById.get(edge.from.nodeId);
-            const toNode = nodesById.get(edge.to.nodeId);
-            if (!fromNode || !toNode) {
-              return null;
-            }
-
-            const from = portAbs(fromNode, edge.from.portId);
-            const to = portAbs(toNode, edge.to.portId);
-            const points = routePipe(from, to);
-
-            const edgeClass =
-              edge.meta?.roleFrom === 'unknown' || edge.meta?.roleTo === 'unknown'
-                ? 'pipe-line softwarn'
-                : 'pipe-line';
-
+          {pipeRenderData.map(({ edge, pathD, domainClass }) => {
+            const isSoftWarn =
+              edge.meta?.roleFrom === 'unknown' || edge.meta?.roleTo === 'unknown';
             const highlighted = edge.id === highlightEdgeId;
-            const finalClass = highlighted ? `${edgeClass} highlighted` : edgeClass;
 
-            return <polyline key={edge.id} points={points} className={finalClass} fill="none" />;
+            const cls = [
+              'pipe-line',
+              domainClass,
+              isSoftWarn ? 'softwarn' : '',
+              highlighted ? 'highlighted' : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
+
+            return (
+              <path
+                key={edge.id}
+                d={pathD}
+                className={cls}
+              />
+            );
           })}
 
           {pendingPort
