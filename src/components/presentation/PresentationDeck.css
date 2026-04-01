@@ -917,22 +917,45 @@
   font-size: 0.78rem;
 }
 
-/* Suppress the redundant "Recommended system" panel title inside grid cells */
-.atlas-deck-sys-grid__diagram .sav-panel__title {
+/* ── Shared compact-diagram overrides (grid cards, ranking rows, shortlist) ── */
+/* Suppress redundant panel title in all compact contexts */
+.atlas-deck-sys-grid__diagram .sav-panel__title,
+.atlas-deck-ranking__diagram .sav-panel__title,
+.atlas-presentation-deck__system-image .sav-panel__title {
   display: none;
 }
 
-/* Tighten internal padding so the diagram fits the narrow cell */
-.atlas-deck-sys-grid__diagram .sav-panel {
+/* Tighten outer panel padding */
+.atlas-deck-sys-grid__diagram .sav-panel,
+.atlas-deck-ranking__diagram .sav-panel,
+.atlas-presentation-deck__system-image .sav-panel {
   padding: 0.5rem 0.6rem;
 }
 
-.atlas-deck-sys-grid__diagram .sav-panel__layers {
-  gap: 0.5rem;
+/* 2-column grid for the four architecture layers (heat source / controls /
+   hot water / emitters) — modules appear 2-up instead of stacked */
+.atlas-deck-sys-grid__diagram .sav-panel__layers,
+.atlas-deck-ranking__diagram .sav-panel__layers,
+.atlas-presentation-deck__system-image .sav-panel__layers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
 }
 
-.atlas-deck-sys-grid__diagram .sav-module {
-  min-width: 64px;
+/* Hide layer headings ("Heat source", "Controls", etc.) in compact view —
+   the SVG icons already communicate the layer identity */
+.atlas-deck-sys-grid__diagram .sav-layer__heading,
+.atlas-deck-ranking__diagram .sav-layer__heading,
+.atlas-presentation-deck__system-image .sav-layer__heading {
+  display: none;
+}
+
+/* Compact module block sizing */
+.atlas-deck-sys-grid__diagram .sav-module,
+.atlas-deck-ranking__diagram .sav-module,
+.atlas-presentation-deck__system-image .sav-module {
+  min-width: 0;
+  width: 100%;
   padding: 0.35rem 0.5rem 0.3rem;
 }
 
@@ -1166,28 +1189,6 @@
   border-radius: 6px;
   margin-bottom: 0.25rem;
   border: 1px solid #e2e8f0;
-}
-
-/* Suppress panel title and tighten padding for the compact ranking diagram */
-.atlas-deck-ranking__diagram .sav-panel__title,
-.atlas-presentation-deck__system-image .sav-panel__title {
-  display: none;
-}
-
-.atlas-deck-ranking__diagram .sav-panel,
-.atlas-presentation-deck__system-image .sav-panel {
-  padding: 0.5rem 0.6rem;
-}
-
-.atlas-deck-ranking__diagram .sav-panel__layers,
-.atlas-presentation-deck__system-image .sav-panel__layers {
-  gap: 0.5rem;
-}
-
-.atlas-deck-ranking__diagram .sav-module,
-.atlas-presentation-deck__system-image .sav-module {
-  min-width: 64px;
-  padding: 0.35rem 0.5rem 0.3rem;
 }
 
 .atlas-deck-ranking__label {
