@@ -250,6 +250,23 @@
   border: 1px solid #cbd5e0;
 }
 
+.opt-card__thumbnail {
+  display: block;
+  width: calc(100% - 2.5rem);
+  max-height: 120px;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  margin: 0 1.25rem 0.75rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .opt-card__thumbnail {
+    transition: opacity 0.2s ease;
+  }
+}
+
 .opt-card__headline {
   padding: 0 1.25rem 0.75rem;
   font-size: 0.9rem;

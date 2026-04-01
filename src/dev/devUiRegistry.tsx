@@ -14,7 +14,6 @@ import type { ReactNode } from 'react';
 import ExplainersHubPage from '../explainers/ExplainersHubPage';
 import LegoBuildingSetPage from '../explainers/lego/LegoBuildingSetPage';
 import LifestyleInteractive from '../components/visualizers/LifestyleInteractive';
-import InteractiveComfortClock from '../components/visualizers/InteractiveComfortClock';
 import GlassBoxPanel from '../components/visualizers/GlassBoxPanel';
 import EfficiencyCurve from '../components/visualizers/EfficiencyCurve';
 import FootprintXRay from '../components/visualizers/FootprintXRay';
@@ -251,20 +250,6 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     access: 'dev_only',
     parentCodeName: 'ExplainersHubPage',
     render: () => <LifestyleInteractive />,
-  },
-  {
-    id: 'interactive-comfort-clock',
-    commonName: 'Comfort Clock',
-    codeName: 'InteractiveComfortClock',
-    fileName: 'InteractiveComfortClock.tsx',
-    filePath: 'src/components/visualizers/InteractiveComfortClock.tsx',
-    category: 'visualiser',
-    status: 'active',
-    routeKind: 'derived',
-    fullRouteExample: 'unresolved — embedded in simulator',
-    access: 'dev_only',
-    parentCodeName: 'ExplainersHubPage',
-    render: () => <InteractiveComfortClock />,
   },
   {
     id: 'glass-box-panel',

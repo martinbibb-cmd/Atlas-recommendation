@@ -147,12 +147,6 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'dev_only',
   },
   {
-    codeName: 'InteractiveComfortClock',
-    fullRouteExample: 'unresolved — embedded in simulator',
-    routeKind: 'derived',
-    access: 'dev_only',
-  },
-  {
     codeName: 'GlassBoxPanel',
     fullRouteExample: 'unresolved — embedded in simulator',
     routeKind: 'derived',
