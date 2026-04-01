@@ -90,7 +90,7 @@ export const BUMP_RADIUS = 7;
 
 /** Perpendicular offset (px) applied to a pipe that runs parallel to an
  *  already-routed pipe through the same corridor. */
-export const LANE_PITCH = 14;
+export const LANE_PITCH = 20;
 
 /** Parse a polyline `points` string (e.g. "10,20 30,40 50,60") into an array
  *  of {x, y} coordinate objects.
