@@ -1122,6 +1122,17 @@
   border-color: #9ae6b4;
 }
 
+/* Highlight rows that have been designated as an option */
+.atlas-deck-ranking__row--option-1 {
+  border-color: #2b6cb0;
+  background: #ebf8ff;
+}
+
+.atlas-deck-ranking__row--option-2 {
+  border-color: #276749;
+  background: #f0fff4;
+}
+
 .atlas-deck-ranking__num {
   width: 1.75rem;
   height: 1.75rem;
@@ -1142,6 +1153,16 @@
   min-width: 0;
 }
 
+/* System diagram image shown above the label in each ranking row */
+.atlas-deck-ranking__diagram {
+  width: 100%;
+  max-height: 7rem;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-bottom: 0.25rem;
+  border: 1px solid #e2e8f0;
+}
+
 .atlas-deck-ranking__label {
   font-weight: 700;
   font-size: 0.88rem;
@@ -1159,6 +1180,44 @@
   font-size: 0.78rem;
   color: #4a5568;
   line-height: 1.35;
+}
+
+/* Per-item option-selection buttons */
+.atlas-deck-ranking__item-btns {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+.atlas-deck-ranking__item-btn {
+  flex: 1;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid #cbd5e0;
+  background: #fff;
+  color: #4a5568;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  text-align: center;
+}
+
+.atlas-deck-ranking__item-btn:hover {
+  background: #edf2f7;
+  border-color: #a0aec0;
+}
+
+.atlas-deck-ranking__item-btn--1.atlas-deck-ranking__item-btn--active {
+  background: #2b6cb0;
+  color: #fff;
+  border-color: #2b6cb0;
+}
+
+.atlas-deck-ranking__item-btn--2.atlas-deck-ranking__item-btn--active {
+  background: #276749;
+  color: #fff;
+  border-color: #276749;
 }
 
 .atlas-deck-ranking__cta-row {
