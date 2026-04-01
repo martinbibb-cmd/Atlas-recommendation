@@ -50,7 +50,7 @@ import { resolveShortlistVisualId } from './presentationVisualMapping';
 import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
 import PresentationVisualSlot from './PresentationVisualSlot';
 import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
-import { optionToConceptModel } from '../../explainers/lego/autoBuilder/optionToConceptModel';
+import { optionToConceptModel, type OptionId } from '../../explainers/lego/autoBuilder/optionToConceptModel';
 import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
 import QuadrantDashboardPage from './QuadrantDashboardPage';
 import GeminiAISummary from './GeminiAISummary';
@@ -687,7 +687,7 @@ function SystemOptionsGridPage({
       <p className="atlas-deck-sys-grid__hint">Tap any option to compare with your current system</p>
       <div className="atlas-deck-sys-grid">
         {SYSTEM_OPTION_DEFS.map(def => {
-          const concept = optionToConceptModel(def.imageId);
+          const concept = optionToConceptModel(def.imageId as OptionId);
           // Match this cell to an available option using the canonical matchIds list
           const opt = options.find(o => def.matchIds.includes(o.id));
           const bullets = opt
