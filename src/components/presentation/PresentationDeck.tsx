@@ -46,9 +46,6 @@ import {
   type ShortlistedOptionDetail,
   type FinalPageSimulator,
 } from './buildCanonicalPresentation';
-import { resolveShortlistVisualId } from './presentationVisualMapping';
-import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
-import PresentationVisualSlot from './PresentationVisualSlot';
 import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
 import { optionToConceptModel, type OptionId } from '../../explainers/lego/autoBuilder/optionToConceptModel';
 import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
@@ -786,7 +783,7 @@ function RankingPage({
       </h2>
       <div className="atlas-deck-ranking__list">
         {items.map((item, i) => {
-          const image = imageForOptionId(RANKING_FAMILY_MAP[item.family].imageId);
+          const concept = optionToConceptModel(RANKING_FAMILY_MAP[item.family].imageId as OptionId);
           const isOpt1 = item.family === selectedOption1Family;
           const isOpt2 = item.family === selectedOption2Family;
           const isDisabled = disabledFamilies.has(item.family);
@@ -810,13 +807,9 @@ function RankingPage({
                 {item.rank}
               </span>
               <div className="atlas-deck-ranking__body">
-                {image && (
-                  <img
-                    src={image.src}
-                    alt={image.alt}
-                    className="atlas-deck-ranking__diagram"
-                  />
-                )}
+                <div className="atlas-deck-ranking__diagram">
+                  <SystemArchitectureVisualiser mode="recommendation" recommendedSystem={concept} />
+                </div>
                 <span className="atlas-deck-ranking__label">{item.label}</span>
                 {item.overallScore > 0 && (
                   <span className="atlas-deck-ranking__stars" aria-label={`${Math.round((item.overallScore / maxScore) * 4)} out of 4 stars`}>
@@ -887,27 +880,15 @@ function RankingPage({
 }
 
 function ShortlistPage({ option, index }: { option: ShortlistedOptionDetail; index: number }) {
-  const visualId = resolveShortlistVisualId(
-    option.solarStorageOpportunity,
-    option.peakSimultaneousOutlets,
-    option.dhwArchitecture,
-    option.storageBenefitSignal,
-  );
-  const systemImage = imageForOptionId(option.family);
+  const concept = optionToConceptModel(option.family as OptionId);
   return (
     <>
       <p className="atlas-presentation-deck__page-eyebrow">Option {index + 1}</p>
       <h2 className="atlas-presentation-deck__page-title">{option.label}</h2>
       <div className="atlas-presentation-deck__visual">
-        {systemImage ? (
-          <img
-            src={systemImage.src}
-            alt={systemImage.alt}
-            className="atlas-presentation-deck__system-image"
-          />
-        ) : (
-          <PresentationVisualSlot visualId={visualId} />
-        )}
+        <div className="atlas-presentation-deck__system-image">
+          <SystemArchitectureVisualiser mode="recommendation" recommendedSystem={concept} />
+        </div>
       </div>
       <div className="atlas-presentation-deck__shortlist-body">
         {option.complianceItems.length > 0 && (
