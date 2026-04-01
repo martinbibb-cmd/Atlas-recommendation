@@ -51,6 +51,7 @@ import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
 import PresentationVisualSlot from './PresentationVisualSlot';
 import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
 import QuadrantDashboardPage from './QuadrantDashboardPage';
+import GeminiAISummary from './GeminiAISummary';
 import { computeCurrentEfficiencyPct, DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
 import './PresentationDeck.css';
 
@@ -1224,6 +1225,12 @@ export default function PresentationDeck({
             prioritiesState={prioritiesState}
             objectives={page1.objectives}
             input={input}
+          />
+          <GeminiAISummary
+            model={model}
+            input={input}
+            result={result}
+            recommendationResult={recommendationResult}
           />
         </div>
       ),
