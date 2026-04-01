@@ -23,6 +23,11 @@ import { PrioritiesStep } from '../../features/survey/priorities/PrioritiesStep'
 import { INITIAL_PRIORITIES_STATE } from '../../features/survey/priorities/prioritiesTypes';
 import { HeatLossStep, INITIAL_HEAT_LOSS_STATE } from '../../features/survey/heatLoss/HeatLossStep';
 import { InsightLayerPage } from '../../features/survey/insight/InsightLayerPage';
+import { RecommendationStep } from '../../features/survey/recommendation/RecommendationStep';
+import {
+  INITIAL_RECOMMENDATION_STATE,
+  type RecommendationState,
+} from '../../features/survey/recommendation/recommendationTypes';
 import {
   type SurveyStepId,
   SURVEY_STEP_IDS,
@@ -129,6 +134,9 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   );
   const [heatLossState, setHeatLossState] = useState(
     () => prefill?.fullSurvey?.heatLoss ?? INITIAL_HEAT_LOSS_STATE
+  );
+  const [recommendationState, setRecommendationState] = useState<RecommendationState>(
+    () => prefill?.fullSurvey?.recommendation ?? INITIAL_RECOMMENDATION_STATE
   );
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
@@ -264,7 +272,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     window.scrollTo(0, 0);
   }, [currentStep]);
 
-  /** Build a draft that embeds compareMixergy, systemBuilder, waterQuality, usage, priorities, and heatLoss into fullSurvey for persistence. */
+  /** Build a draft that embeds all step state into fullSurvey for persistence. */
   const buildDraft = (): FullSurveyModelV1 => ({
     ...input,
     fullSurvey: {
@@ -275,19 +283,18 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
       usage: usageState,
       priorities: prioritiesState,
       heatLoss: heatLossState,
+      recommendation: recommendationState,
     },
   });
 
   const next = () => {
-    if (currentStep === 'insight') {
-      // Insight is the last step — run the engine and advance to results.
+    if (currentStep === 'recommendation') {
+      // Recommendation is the last step — run the engine and advance to results.
       const draft = buildDraft();
       // Sanitise before engine run AND before storing as hubDraft so that
       // buildCanonicalPresentation receives all bridged fields (roofOrientation,
       // pvStatus, batteryStatus, heatLossWatts, occupancyCount, currentSystem.boiler.*)
       // that sanitiseModelForEngine derives from fullSurvey extras.
-      // Without this, the presentation layer shows stale/raw values while the
-      // engine result was computed from the fully-bridged sanitised model.
       const sanitisedDraft = sanitiseModelForEngine(draft);
       const engineInput = toEngineInput(sanitisedDraft);
       if (onDraft) onDraft(draft);
@@ -444,6 +451,15 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
             if (onDraft) onDraft(draft);
             onOpenSimulator(engineInput);
           } : undefined}
+        />
+      )}
+
+      {currentStep === 'recommendation' && (
+        <RecommendationStep
+          state={recommendationState}
+          onChange={setRecommendationState}
+          onNext={next}
+          onPrev={prev}
         />
       )}
 

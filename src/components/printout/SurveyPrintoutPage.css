@@ -1,0 +1,372 @@
+/**
+ * SurveyPrintoutPage.css
+ *
+ * Single A4 printout page for the customer to take home.
+ * Layout targets A4 portrait (210 × 297mm).
+ *
+ * Screen: shows toolbar + white A4-shaped page with drop shadow.
+ * Print: hides toolbar, removes shadow, fills the physical page.
+ */
+
+/* ─── Screen wrapper ──────────────────────────────────────────────────────── */
+
+.spp-wrap {
+  background: #e2e8f0;
+  min-height: 100vh;
+  padding: 1rem;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #1a202c;
+  box-sizing: border-box;
+}
+
+/* ─── Screen toolbar (hidden on print) ───────────────────────────────────── */
+
+.spp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 800px;
+  margin: 0 auto 1rem;
+  padding: 0.5rem 0;
+}
+
+.spp-toolbar__back {
+  background: #fff;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #4a5568;
+}
+
+.spp-toolbar__back:hover { background: #f7fafc; }
+
+.spp-toolbar__label {
+  font-size: 0.78rem;
+  color: #718096;
+}
+
+.spp-toolbar__print {
+  background: #3182ce;
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  margin-left: auto;
+}
+
+.spp-toolbar__print:hover { background: #2b6cb0; }
+
+/* ─── A4 page ─────────────────────────────────────────────────────────────── */
+
+.spp-page {
+  background: #fff;
+  max-width: 794px;          /* ~210mm at 96dpi */
+  min-height: 1123px;        /* ~297mm at 96dpi */
+  margin: 0 auto;
+  padding: 2rem 2.25rem 1.5rem;
+  box-sizing: border-box;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ─── Header ──────────────────────────────────────────────────────────────── */
+
+.spp-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 1rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 2px solid #1a202c;
+  margin-bottom: 1.25rem;
+}
+
+.spp-header__brand {
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #3182ce;
+  background: #ebf4ff;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  align-self: center;
+}
+
+.spp-header__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.spp-header__customer {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+}
+
+.spp-header__postcode {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #718096;
+  margin: 0;
+}
+
+.spp-header__date {
+  font-size: 0.75rem;
+  color: #a0aec0;
+  margin: 0;
+}
+
+.spp-header__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0;
+  text-align: right;
+  align-self: center;
+}
+
+/* ─── Body — two-column layout ────────────────────────────────────────────── */
+
+.spp-body {
+  display: grid;
+  grid-template-columns: 1fr 180px;
+  gap: 1.5rem;
+  flex: 1;
+  align-items: start;
+}
+
+/* ─── Left column ─────────────────────────────────────────────────────────── */
+
+.spp-col--main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+/* ─── Sections ────────────────────────────────────────────────────────────── */
+
+.spp-section {
+  /* no extra margin — gap handles spacing */
+}
+
+.spp-section__title {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #4a5568;
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* ─── Recommendation block ────────────────────────────────────────────────── */
+
+.spp-section--rec .spp-section__title { color: #2b6cb0; border-bottom-color: #bee3f8; }
+
+.spp-rec-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.spp-rec-row {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-size: 0.8rem;
+}
+
+.spp-rec-row--full {
+  grid-template-columns: 5.5rem 1fr;
+}
+
+.spp-rec-row--notes {
+  align-items: start;
+}
+
+.spp-rec-row__label {
+  font-size: 0.72rem;
+  color: #718096;
+  font-weight: 600;
+}
+
+.spp-rec-row__value {
+  font-weight: 600;
+  color: #1a202c;
+}
+
+/* ─── Best fit system (no surveyor rec) ──────────────────────────────────── */
+
+.spp-best-system {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #276749;
+  margin: 0 0 0.2rem;
+}
+
+.spp-best-reason {
+  font-size: 0.8rem;
+  color: #4a5568;
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* ─── Fact grid ───────────────────────────────────────────────────────────── */
+
+.spp-fact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 0.75rem;
+}
+
+.spp-fact {
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+  font-size: 0.78rem;
+}
+
+.spp-fact__label {
+  color: #718096;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+  min-width: 4.5rem;
+}
+
+.spp-fact__value {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+/* ─── Lists ───────────────────────────────────────────────────────────────── */
+
+.spp-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.78rem;
+  color: #4a5568;
+  line-height: 1.5;
+}
+
+.spp-list li {
+  margin-bottom: 0.15rem;
+}
+
+.spp-list--positive {
+  color: #276749;
+}
+
+/* ─── Right column — QR code ──────────────────────────────────────────────── */
+
+.spp-col--qr {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.spp-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  width: 175px;
+  padding: 0.875rem;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.spp-qr__img {
+  width: 140px;
+  height: 140px;
+  display: block;
+  image-rendering: pixelated;
+}
+
+.spp-qr__heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #2b6cb0;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.spp-qr__desc {
+  font-size: 0.68rem;
+  color: #4a5568;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.spp-qr__url {
+  font-size: 0.6rem;
+  color: #a0aec0;
+  margin: 0;
+  word-break: break-all;
+  font-family: monospace;
+  line-height: 1.35;
+}
+
+/* ─── Footer ──────────────────────────────────────────────────────────────── */
+
+.spp-footer {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.spp-footer__text {
+  font-size: 0.65rem;
+  color: #a0aec0;
+  margin: 0;
+  line-height: 1.45;
+  text-align: center;
+}
+
+/* ─── Print overrides ─────────────────────────────────────────────────────── */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  .spp-wrap {
+    background: none;
+    padding: 0;
+    min-height: unset;
+  }
+
+  .spp-toolbar {
+    display: none !important;
+  }
+
+  .spp-page {
+    box-shadow: none;
+    max-width: none;
+    min-height: unset;
+    padding: 0;
+    margin: 0;
+  }
+
+  .spp-list,
+  .spp-fact,
+  .spp-rec-row {
+    break-inside: avoid;
+  }
+}

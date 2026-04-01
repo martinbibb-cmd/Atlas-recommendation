@@ -4,6 +4,7 @@ import type { WaterQualityState } from '../../features/survey/services/waterQual
 import type { HomeState } from '../../features/survey/usage/usageTypes';
 import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
 import type { HeatLossState } from '../../features/survey/heatLoss/heatLossTypes';
+import type { RecommendationState } from '../../features/survey/recommendation/recommendationTypes';
 
 /**
  * HeatingConditionDiagnosticsV1
@@ -170,6 +171,11 @@ export type FullSurveyModelV1 = EngineInputV2_3 & {
      * presence.  Used by the insight page (heat load and potential sections).
      */
     heatLoss?: HeatLossState;
+    /**
+     * Recommendation step — the surveyor's agreed installation recommendation:
+     * heat source, water source, powerflush, filter, and additions.
+     */
+    recommendation?: RecommendationState;
   };
 };
 

@@ -13,6 +13,7 @@ import LabQuickInputsPanel from './components/lab/LabQuickInputsPanel';
 import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
+import SurveyPrintoutPage from './components/printout/SurveyPrintoutPage';
 
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
 import LegoBuildingSetPage from './explainers/lego/LegoBuildingSetPage';
@@ -42,6 +43,8 @@ import FitMapResultPage from './components/fit-map/FitMapResultPage';
 import CanonicalPresentationPage from './components/presentation/CanonicalPresentationPage';
 import type { HeatLossState } from './features/survey/heatLoss/heatLossTypes';
 import type { PrioritiesState } from './features/survey/priorities/prioritiesTypes';
+import type { RecommendationState } from './features/survey/recommendation/recommendationTypes';
+import { buildPortalUrl } from './lib/portal/portalUrl';
 import PhysicsVisualGallery from './components/physics-visuals/preview/PhysicsVisualGallery';
 import PresentationAuditPage from './components/audit/PresentationAuditPage';
 import DevMenuPage from './components/dev/DevMenuPage';
@@ -130,7 +133,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -163,12 +166,14 @@ function CanonicalPresentationRoute({
   engineInput,
   onBack,
   onOpenSimulator,
+  onPrint,
   heatLossState,
   prioritiesState,
 }: {
   engineInput: EngineInputV2_3;
   onBack: () => void;
   onOpenSimulator?: () => void;
+  onPrint?: () => void;
   heatLossState?: HeatLossState;
   prioritiesState?: PrioritiesState;
 }) {
@@ -181,6 +186,7 @@ function CanonicalPresentationRoute({
         input={engineInput}
         recommendationResult={result.recommendationResult}
         onOpenSimulator={onOpenSimulator}
+        onPrint={onPrint}
         heatLossState={heatLossState}
         prioritiesState={prioritiesState}
       />
@@ -219,6 +225,11 @@ export default function App() {
    * the selected chips (PR8a).
    */
   const [labPrioritiesState, setLabPrioritiesState] = useState<PrioritiesState | undefined>();
+  /**
+   * Recommendation state from the final survey step.
+   * Passed to the printout page so the surveyor's agreed recommendation is shown.
+   */
+  const [labRecommendationState, setLabRecommendationState] = useState<RecommendationState | undefined>();
   /**
    * The journey that last opened the simulator, used to navigate Back correctly.
    * When the simulator is opened from the recommendation/survey pages, Back
@@ -448,6 +459,18 @@ export default function App() {
   if (PRINT_VIEW === 'customer')   return <LabPrintCustomer />;
   if (PRINT_VIEW === 'technical')  return <LabPrintTechnical />;
   if (PRINT_VIEW === 'comparison') return <LabPrintComparison />;
+  if (PRINT_VIEW === 'survey') {
+    const demoResult = runEngine(CONSOLE_DEMO_INPUT);
+    return (
+      <SurveyPrintoutPage
+        result={demoResult}
+        input={CONSOLE_DEMO_INPUT}
+        recommendationResult={demoResult.recommendationResult}
+        portalUrl={buildPortalUrl('demo', window.location.origin)}
+        visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+      />
+    );
+  }
 
   return (
     <>
@@ -526,11 +549,12 @@ export default function App() {
             onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }}
             prefill={fullSurveyPrefill}
             onDraft={(draft) => {
-              // Capture heatLoss and priorities as they are updated during the
-              // survey so they are available when the user reaches the
-              // presentation layer (PR8a/PR8b/PR8c).
+              // Capture heatLoss, priorities and recommendation as they are
+              // updated during the survey so they are available for the
+              // presentation and printout layers.
               if (draft.fullSurvey?.heatLoss) setLabHeatLossState(draft.fullSurvey.heatLoss);
               if (draft.fullSurvey?.priorities) setLabPrioritiesState(draft.fullSurvey.priorities);
+              if (draft.fullSurvey?.recommendation) setLabRecommendationState(draft.fullSurvey.recommendation);
             }}
             onComplete={(engineInput) => {
               // Route through fit-map page before simulator.
@@ -595,10 +619,29 @@ export default function App() {
           engineInput={labEngineInput}
           onBack={() => setJourney(presentationFromJourney)}
           onOpenSimulator={() => setJourney('simulator')}
+          onPrint={() => setJourney('printout')}
           heatLossState={labHeatLossState}
           prioritiesState={labPrioritiesState}
         />
       )}
+      {journey === 'printout' && labEngineInput != null && (() => {
+        const result = runEngine(labEngineInput);
+        const portalUrl = activeVisitId
+          ? buildPortalUrl(activeVisitId)
+          : undefined;
+        return (
+          <SurveyPrintoutPage
+            result={result}
+            input={labEngineInput}
+            recommendationResult={result.recommendationResult}
+            prioritiesState={labPrioritiesState}
+            surveyorRecommendation={labRecommendationState}
+            portalUrl={portalUrl}
+            visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            onBack={() => setJourney('presentation')}
+          />
+        );
+      })()}
       {journey === 'gallery' && (
         <div style={{ background: 'var(--surface-page, #f8fafc)', minHeight: '100vh' }}>
           <PhysicsVisualGallery onBack={() => setJourney('landing')} />

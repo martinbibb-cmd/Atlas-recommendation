@@ -69,6 +69,56 @@
   padding: 1.25rem 0 1rem;
   border-bottom: 1px solid #e2e8f0;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.portal-page__header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── View toggle (Recommendation / Simulator) ────────────────────────────── */
+
+.portal-view-toggle {
+  display: flex;
+  gap: 0.25rem;
+  background: #edf2f7;
+  border-radius: 8px;
+  padding: 0.2rem;
+  flex-shrink: 0;
+}
+
+.portal-view-toggle__btn {
+  padding: 0.35rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #4a5568;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.portal-view-toggle__btn:hover:not(.portal-view-toggle__btn--active) {
+  background: #e2e8f0;
+}
+
+.portal-view-toggle__btn--active {
+  background: #fff;
+  color: #1a202c;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Presentation / Simulator containers ────────────────────────────────── */
+
+.portal-presentation {
+  /* The PresentationDeck manages its own height */
+}
+
+.portal-simulator {
+  /* UnifiedSimulatorView manages its own layout */
 }
 
 .portal-page__brand {
