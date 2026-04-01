@@ -187,8 +187,8 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
 
   heat_source_combi: {
     kind: 'heat_source_combi',
-    width: 96,
-    height: 132,
+    width: TOKEN_W,
+    height: TOKEN_H,
     visualSize: 'large',
     ports: [
       // CH circuit — both ports on right (system side): flow near top, return near bottom
@@ -202,8 +202,8 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
 
   heat_source_system_boiler: {
     kind: 'heat_source_system_boiler',
-    width: 96,
-    height: 132,
+    width: TOKEN_W,
+    height: TOKEN_H,
     visualSize: 'large',
     ports: [
       // Both CH ports on right (system side): flow near top, return near bottom
@@ -214,8 +214,8 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
 
   heat_source_regular_boiler: {
     kind: 'heat_source_regular_boiler',
-    width: 96,
-    height: 132,
+    width: TOKEN_W,
+    height: TOKEN_H,
     visualSize: 'large',
     ports: [
       // Both CH ports on right (system side): flow near top, return near bottom
@@ -286,8 +286,8 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
   /** Y-plan: single 3-port motorised valve routing flow to CH or HW. */
   three_port_valve: {
     kind: 'three_port_valve',
-    width: 74,
-    height: 74,
+    width: TOKEN_W,
+    height: TOKEN_H,
     visualSize: 'medium',
     ports: [
       { id: 'in',    label: 'flow in', side: 'left',  x: 0.5,            y: 0, direction: 'in',  semanticRole: 'flow'   },
@@ -299,8 +299,8 @@ export const SCHEMATIC_REGISTRY: Record<string, SchematicComponentDefinition> = 
   /** S-plan: independent 2-port zone valve (one per zone). */
   zone_valve: {
     kind: 'zone_valve',
-    width: 74,
-    height: 74,
+    width: TOKEN_W,
+    height: TOKEN_H,
     visualSize: 'medium',
     ports: [
       { id: 'in',    label: 'flow in',  side: 'left',  x: 0.5, y: 0, direction: 'in',  semanticRole: 'flow' },

@@ -332,4 +332,75 @@ export function resolveShortlistVisualId(
   return null;
 }
 
+// ─── System visual key resolver ────────────────────────────────────────────────
+
+/**
+ * Canonical visual key for a recommended system type shown on the
+ * "Select Your Option" page.
+ *
+ * Each key maps 1-to-1 to an entry in SYSTEM_OPTION_DEFS / imageForOptionId:
+ *   combi              — combination boiler (on-demand hot water)
+ *   system_unvented    — system/regular boiler + unvented cylinder
+ *   system_open_vented — system/regular boiler + open-vented cylinder
+ *   ashp_stored        — air/ground source heat pump + stored hot water
+ */
+export type SystemVisualKey =
+  | 'combi'
+  | 'system_unvented'
+  | 'system_open_vented'
+  | 'ashp_stored';
+
+/**
+ * Centralised resolver mapping a heat-source + DHW combination to a
+ * SystemVisualKey.
+ *
+ * Design rule: HARD FAIL (throw) when the combination has no known mapping so
+ * that gaps are caught at development time rather than silently falling back to
+ * a gradient placeholder in production.
+ *
+ * Mapping:
+ *   heat_pump + any                  → 'ashp_stored'
+ *   combi     + on_demand/undefined  → 'combi'
+ *   *         + unvented/mixergy     → 'system_unvented'
+ *   *         + open_vented/standard → 'system_open_vented'
+ *
+ * @param heatSourceFamily   e.g. 'combi' | 'system' | 'regular' | 'heat_pump'
+ * @param dhwArchitecture    e.g. 'on_demand' | 'mixergy' | 'standard_cylinder' | 'thermal_store'
+ * @returns                  The canonical SystemVisualKey for this combination.
+ * @throws {Error}           When the combination cannot be resolved to a known key.
+ */
+export function resolveSystemVisual(
+  heatSourceFamily: string,
+  dhwArchitecture?: DhwArchitecture | string,
+): SystemVisualKey {
+  // Heat pumps always use stored hot water
+  if (heatSourceFamily === 'heat_pump') return 'ashp_stored';
+
+  // Combi / on-demand: no cylinder
+  if (heatSourceFamily === 'combi' || dhwArchitecture === 'on_demand') return 'combi';
+
+  // Mains-fed stored cylinder (including Mixergy top-entry)
+  if (dhwArchitecture === 'mixergy' || dhwArchitecture === 'standard_cylinder') {
+    return 'system_unvented';
+  }
+
+  // Tank-fed stored cylinder (gravity / thermal store primary circuit)
+  if (dhwArchitecture === 'thermal_store') {
+    // Thermal store is treated as a tank-fed stored-water arrangement
+    return 'system_open_vented';
+  }
+
+  // Explicit fall-through: if DHW type is known-open-vented
+  if (!dhwArchitecture) {
+    // No DHW architecture provided; fall back by heat source family
+    if (heatSourceFamily === 'regular') return 'system_open_vented';
+    if (heatSourceFamily === 'system') return 'system_unvented';
+  }
+
+  throw new Error(
+    `resolveSystemVisual: no visual key for heatSourceFamily="${heatSourceFamily}" dhwArchitecture="${dhwArchitecture}". ` +
+    'Add a new SystemVisualKey entry and update the resolver.',
+  );
+}
+
 export default SECTION_VISUAL_MAP;
