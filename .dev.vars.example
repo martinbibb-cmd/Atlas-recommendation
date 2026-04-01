@@ -6,6 +6,7 @@
 # Add any secret environment variables below:
 # MY_SECRET=replace_me
 #
-# Google Gemini API key — used by the AI summary section on the first
-# presentation page. Obtain a key from https://aistudio.google.com/
-# VITE_GEMINI_API_KEY=replace_me
+# Google Gemini API key — used by the /api/gemini server-side proxy function.
+# The key is stored as a Cloudflare secret (GRMINI_API_KEY) and is never
+# exposed to the client. Obtain a key from https://aistudio.google.com/
+# GRMINI_API_KEY=replace_me

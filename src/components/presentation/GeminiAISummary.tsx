@@ -6,8 +6,8 @@
  * results and advice at the bottom of the first presentation page.
  *
  * Rules:
- *   - API key sourced from import.meta.env.VITE_GEMINI_API_KEY.
- *   - Renders nothing when the key is absent (graceful degradation).
+ *   - API call proxied through /api/gemini (Cloudflare Pages Function).
+ *   - Renders nothing when the server returns 503 (key not configured).
  *   - No Math.random() — prompt is built deterministically from model data.
  *   - All prompt data sourced from CanonicalPresentationModel + engine I/O.
  */
@@ -196,10 +196,11 @@ type LoadState = 'idle' | 'loading' | 'done' | 'error' | 'no_key';
  * GeminiAISummary
  *
  * Renders an AI-generated summary section at the bottom of the first
- * presentation page. Calls the Gemini 1.5 Flash API with the full
- * survey + engine data and shows the concise result.
+ * presentation page. Calls the Gemini 1.5 Flash API via the /api/gemini
+ * server-side proxy (which reads GRMINI_API_KEY from Cloudflare secrets)
+ * and shows the concise result.
  *
- * Renders nothing when VITE_GEMINI_API_KEY is not set.
+ * Renders nothing when the proxy returns 503 (key not configured).
  */
 export default function GeminiAISummary({
   model,
@@ -212,24 +213,18 @@ export default function GeminiAISummary({
   const [errorMsg, setErrorMsg] = useState<string>('');
   const hasFetched = useRef(false);
 
-  const apiKey = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) ?? '';
-
   useEffect(() => {
-    if (!apiKey || hasFetched.current) return;
+    if (hasFetched.current) return;
 
     hasFetched.current = true;
     setState('loading');
 
     const prompt = buildGeminiPrompt(model, input, result, recommendationResult);
-    const url =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
-    fetch(url, {
+    fetch('/api/gemini', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Passing the key as a header avoids it appearing in server/proxy logs.
-        'x-goog-api-key': apiKey,
       },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
@@ -240,8 +235,15 @@ export default function GeminiAISummary({
         },
       }),
     })
-      .then(res => res.json() as Promise<GeminiApiResponse>)
+      .then(res => {
+        if (res.status === 503) {
+          setState('no_key');
+          return null;
+        }
+        return res.json() as Promise<GeminiApiResponse>;
+      })
       .then(data => {
+        if (!data) return;
         if (data.error) {
           throw new Error(data.error.message);
         }
@@ -259,10 +261,10 @@ export default function GeminiAISummary({
   // would generate duplicate API calls. The component is only ever mounted
   // once per presentation session, so this matches the expected lifecycle.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey]);
+  }, []);
 
-  // Render nothing when no API key is configured.
-  if (!apiKey) return null;
+  // Render nothing until a fetch attempt has been made or when the key is absent.
+  if (state === 'idle' || state === 'no_key') return null;
 
   return (
     <section
