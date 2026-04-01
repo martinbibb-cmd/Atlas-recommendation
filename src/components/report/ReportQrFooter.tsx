@@ -42,20 +42,22 @@ export default function ReportQrFooter({ reportReference }: Props) {
 
     generatePortalToken(reportReference)
       .then((token) => {
+        if (cancelled) return null;
         const url = buildPortalUrl(reportReference, window.location.origin, token);
-        if (!cancelled) setPortalUrl(url);
+        setPortalUrl(url);
         return url;
       })
-      .then((url) =>
-        QRCode.toDataURL(url, {
+      .then((url) => {
+        if (!url || cancelled) return null;
+        return QRCode.toDataURL(url, {
           width: 120,
           margin: 1,
           color: { dark: '#1a202c', light: '#ffffff' },
           errorCorrectionLevel: 'M',
-        }),
-      )
+        });
+      })
       .then((dataUrl) => {
-        if (!cancelled) setQrDataUrl(dataUrl);
+        if (!cancelled && dataUrl) setQrDataUrl(dataUrl);
       })
       .catch(() => {
         // Token or QR generation failure is non-critical — the fallback portal URL
