@@ -5,6 +5,8 @@ declare namespace Cloudflare {
 	interface Env {
 		ATLAS_CACHE_KV: KVNamespace;
 		ATLAS_REPORTS_D1: D1Database;
+		/** Google Gemini API key. Stored as a Cloudflare secret (GRMINI_API_KEY). */
+		GRMINI_API_KEY: string;
 	}
 }
 interface Env extends Cloudflare.Env {}
