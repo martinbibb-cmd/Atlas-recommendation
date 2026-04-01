@@ -134,11 +134,9 @@
   overflow-y: auto;
 }
 
-/* Real-world system image shown in shortlist option pages */
+/* System architecture diagram shown in shortlist option pages */
 .atlas-presentation-deck__system-image {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
   border-radius: 8px;
 }
 
@@ -1162,14 +1160,34 @@
   min-width: 0;
 }
 
-/* System diagram image shown above the label in each ranking row */
+/* System architecture diagram shown above the label in each ranking row */
 .atlas-deck-ranking__diagram {
   width: 100%;
-  max-height: 7rem;
-  object-fit: cover;
   border-radius: 6px;
   margin-bottom: 0.25rem;
   border: 1px solid #e2e8f0;
+}
+
+/* Suppress panel title and tighten padding for the compact ranking diagram */
+.atlas-deck-ranking__diagram .sav-panel__title,
+.atlas-presentation-deck__system-image .sav-panel__title {
+  display: none;
+}
+
+.atlas-deck-ranking__diagram .sav-panel,
+.atlas-presentation-deck__system-image .sav-panel {
+  padding: 0.5rem 0.6rem;
+}
+
+.atlas-deck-ranking__diagram .sav-panel__layers,
+.atlas-presentation-deck__system-image .sav-panel__layers {
+  gap: 0.5rem;
+}
+
+.atlas-deck-ranking__diagram .sav-module,
+.atlas-presentation-deck__system-image .sav-module {
+  min-width: 64px;
+  padding: 0.35rem 0.5rem 0.3rem;
 }
 
 .atlas-deck-ranking__label {
