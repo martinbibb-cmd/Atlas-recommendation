@@ -50,6 +50,8 @@ import { resolveShortlistVisualId } from './presentationVisualMapping';
 import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
 import PresentationVisualSlot from './PresentationVisualSlot';
 import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
+import { optionToConceptModel } from '../../explainers/lego/autoBuilder/optionToConceptModel';
+import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
 import QuadrantDashboardPage from './QuadrantDashboardPage';
 import GeminiAISummary from './GeminiAISummary';
 import { computeCurrentEfficiencyPct, DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
@@ -685,7 +687,7 @@ function SystemOptionsGridPage({
       <p className="atlas-deck-sys-grid__hint">Tap any option to compare with your current system</p>
       <div className="atlas-deck-sys-grid">
         {SYSTEM_OPTION_DEFS.map(def => {
-          const image = imageForOptionId(def.imageId);
+          const concept = optionToConceptModel(def.imageId);
           // Match this cell to an available option using the canonical matchIds list
           const opt = options.find(o => def.matchIds.includes(o.id));
           const bullets = opt
@@ -697,16 +699,6 @@ function SystemOptionsGridPage({
           const status = opt?.status ?? 'viable';
           const cellLabel = `${def.heading} ${def.sub}`;
 
-          // Unresolved visuals must fail loudly in development so gaps are caught
-          // before reaching production.  All system option IDs must have a mapped
-          // image in systemImageMap.ts — add one rather than relying on the fallback.
-          if (import.meta.env.DEV && !image) {
-            throw new Error(
-              `[PresentationDeck] No image mapped for option "${def.imageId}". ` +
-              `Add an entry to imageForOptionId() in systemImageMap.ts.`,
-            );
-          }
-
           return (
             <button
               key={def.key}
@@ -717,13 +709,12 @@ function SystemOptionsGridPage({
             >
               <p className="atlas-deck-sys-grid__heading">{def.heading}</p>
               <p className="atlas-deck-sys-grid__sub">{def.sub}</p>
-              {image && (
-                <img
-                  src={image.src}
-                  alt={image.alt}
-                  className="atlas-deck-sys-grid__image"
+              <div className="atlas-deck-sys-grid__diagram">
+                <SystemArchitectureVisualiser
+                  mode="recommendation"
+                  recommendedSystem={concept}
                 />
-              )}
+              </div>
               {bullets.length > 0 && (
                 <ul className="atlas-deck-sys-grid__bullets">
                   {bullets.map((b, i) => <li key={i}>{b}</li>)}

@@ -28,8 +28,8 @@ function makeInput(overrides: Partial<FullSurveyModelV1> = {}): FullSurveyModelV
   } as unknown as FullSurveyModelV1;
 }
 
-describe('InsightLayerPage — current system real-world image', () => {
-  it('renders mapped current system image and keeps visualiser first', () => {
+describe('InsightLayerPage — current system architecture diagram', () => {
+  it('renders the system architecture visualiser for the current system', () => {
     const { container } = render(
       <InsightLayerPage
         systemBuilder={makeSystem({ heatSource: 'combi', emitters: 'radiators_standard' })}
@@ -42,10 +42,9 @@ describe('InsightLayerPage — current system real-world image', () => {
     );
 
     const visualiser = container.querySelector('[data-testid="sav-current"]');
-    const image = container.querySelector('[data-testid="current-system-real-world-image"]');
     expect(visualiser).not.toBeNull();
-    expect(image).not.toBeNull();
-    expect(visualiser!.compareDocumentPosition(image!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Real-world photos are no longer shown — the architecture diagram replaces them
+    expect(container.querySelector('[data-testid="current-system-real-world-image"]')).toBeNull();
   });
 
   it('does not render recommendation card images before engine run', () => {
