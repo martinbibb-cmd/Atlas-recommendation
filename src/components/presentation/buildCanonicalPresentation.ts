@@ -317,7 +317,7 @@ export interface Page2AvailableOptions {
 /** Per-option ranking entry (Page 3). */
 export interface PhysicsRankingItem {
   rank: number;
-  family: string;
+  family: ApplianceFamily;
   label: string;
   overallScore: number;
   reasonLine: string;
