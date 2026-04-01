@@ -77,6 +77,8 @@ interface SchematicFaceProps {
   kind: PartKind;
   label: string;
   slot?: string;
+  width?: number;
+  height?: number;
 }
 
 /**
@@ -621,9 +623,11 @@ export function SchematicFace({
   kind,
   label,
   slot,
+  width = 170,
+  height = 74,
 }: SchematicFaceProps): React.ReactElement {
   return (
-    <svg viewBox="0 0 170 74" width="170" height="74" aria-hidden="true" className="token-face">
+    <svg viewBox="0 0 170 74" width={width} height={height} aria-hidden="true" className="token-face">
       <SchematicFaceContent kind={kind} label={label} slot={slot} />
     </svg>
   )

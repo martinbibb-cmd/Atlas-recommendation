@@ -2,7 +2,6 @@ import { useMemo, useRef, useEffect, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { BuildEdge, BuildGraph, BuildNode, PartKind, PortRef } from './types';
 import { PALETTE } from './palette';
-import { TOKEN_H, TOKEN_W } from './ports';
 import { getPortDefs } from './portDefs';
 import { SchematicFace } from './SchematicFace';
 import { findSnapCandidate, portAbs as snapPortAbs } from './snapConnect';
@@ -12,6 +11,7 @@ import {
   buildPathWithBumps,
   offsetParallelPipes,
 } from './router';
+import { getSchematicDimensions } from './schematicBlocks';
 import { allZoneBands, ZONE_BAND_WIDTH, ZONE_BAND_X } from './zoneBands';
 import './builder.css';
 
@@ -111,9 +111,13 @@ function kindLabel(kind: PartKind) {
  *   heating/primary flow → pipe-line--flow  (purple)
  *   heating/primary return → pipe-line--return (green)
  */
-function pipeDomainClass(edge: BuildEdge): string {
-  const rf = edge.meta?.roleFrom;
-  const rt = edge.meta?.roleTo;
+function pipeDomainClass(edge: BuildEdge, graph: BuildGraph): string {
+  const fromNode = graph.nodes.find(n => n.id === edge.from.nodeId);
+  const toNode = graph.nodes.find(n => n.id === edge.to.nodeId);
+  const fromPort = fromNode ? getPortDefs(fromNode.kind).find(p => p.id === edge.from.portId) : null;
+  const toPort = toNode ? getPortDefs(toNode.kind).find(p => p.id === edge.to.portId) : null;
+  const rf = edge.meta?.roleFrom ?? fromPort?.role;
+  const rt = edge.meta?.roleTo ?? toPort?.role;
   if (rf === 'hot'    || rt === 'hot')    return 'pipe-line--dhw';
   if (rf === 'cold'   || rt === 'cold')   return 'pipe-line--cold';
   if (rf === 'flow'   || rt === 'flow')   return 'pipe-line--flow';
@@ -125,9 +129,13 @@ function pipeDomainClass(edge: BuildEdge): string {
  * Return a numeric priority for crossing-bump resolution.
  * Higher value = higher priority = this pipe goes straight (no bump).
  */
-function pipePriority(edge: BuildEdge): number {
-  const rf = edge.meta?.roleFrom;
-  const rt = edge.meta?.roleTo;
+function pipePriority(edge: BuildEdge, graph: BuildGraph): number {
+  const fromNode = graph.nodes.find(n => n.id === edge.from.nodeId);
+  const toNode = graph.nodes.find(n => n.id === edge.to.nodeId);
+  const fromPort = fromNode ? getPortDefs(fromNode.kind).find(p => p.id === edge.from.portId) : null;
+  const toPort = toNode ? getPortDefs(toNode.kind).find(p => p.id === edge.to.portId) : null;
+  const rf = edge.meta?.roleFrom ?? fromPort?.role;
+  const rt = edge.meta?.roleTo ?? toPort?.role;
   if (rf === 'flow'   || rt === 'flow')   return 4;
   if (rf === 'return' || rt === 'return') return 3;
   if (rf === 'hot'    || rt === 'hot')    return 2;
@@ -248,8 +256,8 @@ export default function WorkbenchCanvas({
       for (let j = i + 1; j < validEntries.length; j++) {
         const xings = findCrossings(offsetPoints[i], offsetPoints[j]);
         if (xings.length === 0) continue;
-        const pi = pipePriority(validEntries[i].edge);
-        const pj = pipePriority(validEntries[j].edge);
+        const pi = pipePriority(validEntries[i].edge, graph);
+        const pj = pipePriority(validEntries[j].edge, graph);
         // Higher-priority pipe goes straight; lower-priority gets the bump.
         // Equal priorities: the later-drawn edge (j, higher index) gets the bump.
         const bumpId =
@@ -267,7 +275,7 @@ export default function WorkbenchCanvas({
     return validEntries.map(({ edge }, idx) => {
       const points  = offsetPoints[idx];
       const bumps   = crossingsPerEdge.get(edge.id) ?? [];
-      const domCls  = pipeDomainClass(edge);
+      const domCls  = pipeDomainClass(edge, graph);
       const pathD   = buildPathWithBumps(points, bumps);
       return { edge, pathD, domainClass: domCls };
     });
@@ -501,14 +509,15 @@ export default function WorkbenchCanvas({
         {graph.nodes.map(node => {
           const ports = getPortDefs(node.kind);
           const slot = Object.entries(outletBindings ?? {}).find(([, id]) => id === node.id)?.[0];
+          const dims = getSchematicDimensions(node.kind);
 
           return (
             <div
               key={node.id}
               className={['token', kindClass(node.kind), node.id === selectedId ? 'selected' : '', node.id === highlightNodeId ? 'highlighted' : ''].filter(Boolean).join(' ')}
               style={{
-                width: TOKEN_W,
-                height: TOKEN_H,
+                width: dims.width,
+                height: dims.height,
                 transform: `translate(${node.x}px, ${node.y}px) rotate(${node.r}deg)`,
               }}
               onPointerDown={e => handlePointerDown(e, node.id)}
@@ -516,7 +525,13 @@ export default function WorkbenchCanvas({
               aria-label={kindLabel(node.kind)}
               title={kindLabel(node.kind)}
             >
-              <SchematicFace kind={node.kind} label={kindLabel(node.kind)} slot={slot} />
+              <SchematicFace
+                kind={node.kind}
+                label={kindLabel(node.kind)}
+                slot={slot}
+                width={dims.width}
+                height={dims.height}
+              />
 
               {ports.map(port => {
                 const isPending =
@@ -534,7 +549,7 @@ export default function WorkbenchCanvas({
 
                 // Flip label above the port button when the port is in the bottom half
                 // of the token so the label doesn't clip outside the canvas area.
-                const labelAbove = port.dy > TOKEN_H * 0.5;
+                const labelAbove = port.dy > dims.height * 0.5;
 
                 return (
                   <button

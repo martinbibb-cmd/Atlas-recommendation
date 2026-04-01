@@ -312,11 +312,11 @@
 
 .pipe-line {
   stroke: #94a3b8;
-  stroke-width: 10;
+  stroke-width: 8;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
-  opacity: 0.55;
+  opacity: 0.65;
 }
 
 /* ── Pipe circuit colours ──────────────────────────────────────────────────── */
