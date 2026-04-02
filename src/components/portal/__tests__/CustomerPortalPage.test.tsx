@@ -9,7 +9,7 @@ vi.mock('../../../lib/portal/portalToken', () => ({ validatePortalToken: vi.fn(a
 
 const STUB_ENGINE_OUTPUT: EngineOutputV1 = {
   eligibility: [], redFlags: [], recommendation: { primary: 'Combi boiler' }, explainers: [],
-  options: [{ id: 'combi', label: 'Combi boiler', status: 'viable', headline: 'Best fit', why: ['Compact installation'], requirements: [], heat: { status: 'ok', headline: '', bullets: [] }, dhw: { status: 'ok', headline: '', bullets: [] }, engineering: { status: 'ok', headline: '', bullets: [] }, sensitivities: [] }],
+  options: [{ id: 'combi', label: 'Combi boiler', status: 'viable', headline: 'Best fit', why: ['Compact installation'], requirements: [], heat: { status: 'ok', headline: '', bullets: [] }, dhw: { status: 'ok', headline: '', bullets: [] }, engineering: { status: 'ok', headline: '', bullets: [] }, sensitivities: [], typedRequirements: { mustHave: [], likelyUpgrades: [], niceToHave: [] } }],
   verdict: { title: 'Combi boiler recommended', status: 'good', reasons: ['Adequate mains pressure'], confidence: { level: 'high', reasons: [] }, assumptionsUsed: [] },
 };
 const STUB_ENGINE_INPUT: EngineInputV2_3 = { postcode: 'SW1A 1AA', dynamicMainsPressure: 2.5, mainsDynamicFlowLpm: 14, primaryPipeDiameter: 22, heatLossWatts: 8000, radiatorCount: 10, bathroomCount: 1, occupancyCount: 2, hasLoftConversion: false, returnWaterTemp: 45, occupancySignature: 'professional', buildingMass: 'medium', highOccupancy: false, preferCombi: true };
@@ -36,23 +36,72 @@ describe('CustomerPortalPage', () => {
     await waitFor(() => expect(screen.getByTestId('portal-error')).toBeTruthy());
   });
 
-  it('renders the unified portal when the report loads', async () => {
+  it('renders the premium portal with hero, signal cards, improvements, comparison and evidence when the report loads', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
     await waitFor(() => expect(screen.getByTestId('customer-portal')).toBeTruthy());
-    expect(screen.getByText('Glass Box Portal')).toBeTruthy();
+
+    // Hero section
     expect(screen.getByTestId('portal-hero')).toBeTruthy();
-    expect(screen.getByTestId('portal-unified-simulator')).toBeTruthy();
+    expect(screen.getByText('Recommended for your home')).toBeTruthy();
+    // The recommendation title appears in the hero heading
+    expect(screen.getByRole('heading', { name: 'Combi boiler recommended', level: 1 })).toBeTruthy();
+    expect(screen.getByText('SW1A 1AA')).toBeTruthy();
+
+    // Why this suits your home — signal cards
+    expect(screen.getByTestId('portal-signal-card-home')).toBeTruthy();
+    expect(screen.getByTestId('portal-signal-card-hot-water')).toBeTruthy();
+    expect(screen.getByTestId('portal-signal-card-current-system')).toBeTruthy();
+
+    // What this improves — improvement tiles rendered
+    expect(screen.getByText('What this improves')).toBeTruthy();
+
+    // Compare options
+    expect(screen.getByText('Other options considered')).toBeTruthy();
+    expect(screen.getByTestId('portal-comparison-cards')).toBeTruthy();
+
+    // Guided simulator intro is shown before the raw simulator
+    expect(screen.getByTestId('portal-simulator-intro')).toBeTruthy();
+    expect(screen.getByTestId('open-simulator-btn')).toBeTruthy();
+
+    // Evidence accordions
+    expect(screen.getByText('Evidence behind the advice')).toBeTruthy();
+    expect(screen.getByTestId('portal-evidence-accordions')).toBeTruthy();
+
+    // Plan section
+    expect(screen.getByTestId('portal-plan-ctas')).toBeTruthy();
+  });
+
+  it('opens the live simulator after clicking the CTA button', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('open-simulator-btn')).toBeTruthy());
+
+    // Simulator is not yet rendered
+    expect(document.querySelector('[data-testid="portal-unified-simulator"]')).toBeNull();
+
+    // Click the CTA
+    fireEvent.click(screen.getByTestId('open-simulator-btn'));
+
+    // Now the simulator section should be visible
+    await waitFor(() => expect(screen.getByTestId('portal-unified-simulator')).toBeTruthy());
     expect(screen.getByTestId('unified-simulator-view')).toBeTruthy();
     expect(screen.getByTestId('performance-outcomes-panel')).toBeTruthy();
     expect(screen.getByTestId('advice-panel')).toBeTruthy();
-    expect(screen.getByText('SW1A 1AA')).toBeTruthy();
+
+    // Guided intro should be replaced
+    expect(document.querySelector('[data-testid="portal-simulator-intro"]')).toBeNull();
   });
 
   it('clicking the print button shows PrintableRecommendationPage in portal mode', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('open-simulator-btn')).toBeTruthy());
+
+    // First open the simulator
+    fireEvent.click(screen.getByTestId('open-simulator-btn'));
     await waitFor(() => expect(screen.getByTestId('unified-simulator-view')).toBeTruthy());
+
     const printBtn = screen.getByTestId('print-report-btn');
     fireEvent.click(printBtn);
     // After clicking, PrintableRecommendationPage should replace the simulator view.
@@ -65,7 +114,12 @@ describe('CustomerPortalPage', () => {
   it('portal mode hides expert-only inputs (mains pressure, mains flow, boiler output)', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('open-simulator-btn')).toBeTruthy());
+
+    // Open the simulator first
+    fireEvent.click(screen.getByTestId('open-simulator-btn'));
     await waitFor(() => expect(screen.getByTestId('unified-simulator-view')).toBeTruthy());
+
     // Expert-only labels must not appear in the portal simulator inputs
     expect(screen.queryByText('Mains pressure')).toBeNull();
     expect(screen.queryByText('Mains flow')).toBeNull();
