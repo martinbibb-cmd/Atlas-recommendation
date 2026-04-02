@@ -699,30 +699,28 @@ describe('buildRecommendationsFromEvidence — combi_dhw_demand_risk penalty', (
     expect(bundle.limiterLedger.entries.some(e => e.id === 'combi_dhw_demand_risk')).toBe(false);
   });
 
-  it('combi_dhw_demand_risk is registered in the evidence trace limiterPenalties', () => {
+  it('combi_dhw_demand_risk is registered in the evidence trace when bathroomCount >= 2', () => {
     const combi  = combiBundleWithDemographic(NO_CH_MULTI_BATH);
     const result = buildRecommendationsFromEvidence([combi]);
-    const decision = result.bestOverall;
-    expect(decision).not.toBeNull();
+    // With hard_stop severity, combi is disqualified for 2+ bathrooms / outlets
+    const decision = result.disqualifiedCandidates.find(d => d.family === 'combi');
+    expect(decision).toBeDefined();
     expect(decision!.evidenceTrace.limitersConsidered).toContain('combi_dhw_demand_risk');
-    expect(decision!.evidenceTrace.limiterPenalties['performance']).toBeGreaterThan(0);
-    expect(decision!.evidenceTrace.limiterPenalties['reliability']).toBeGreaterThan(0);
+    expect(decision!.evidenceTrace.hardStopLimiters).toContain('combi_dhw_demand_risk');
   });
 
-  it('combi performance and reliability scores are lower with multi-bath than single-bath', () => {
+  it('combi is disqualified for multi-bath household but eligible for single-bath', () => {
     const combiSingle = combiBundleWithDemographic(NO_CH_SINGLE_BATH);
     const combiMulti  = combiBundleWithDemographic(NO_CH_MULTI_BATH);
 
     const singleResult = buildRecommendationsFromEvidence([combiSingle]);
     const multiResult  = buildRecommendationsFromEvidence([combiMulti]);
 
-    const singlePerf = singleResult.bestOverall!.objectiveScores['performance'];
-    const multiPerf  = multiResult.bestOverall!.objectiveScores['performance'];
-    expect(multiPerf).toBeLessThan(singlePerf);
-
-    const singleRel = singleResult.bestOverall!.objectiveScores['reliability'];
-    const multiRel  = multiResult.bestOverall!.objectiveScores['reliability'];
-    expect(multiRel).toBeLessThan(singleRel);
+    // Single-bath: combi should be eligible (no hard gate triggered)
+    expect(singleResult.bestOverall?.family).toBe('combi');
+    // Multi-bath: combi should be disqualified by the hard simultaneous-demand gate
+    expect(multiResult.bestOverall).toBeNull();
+    expect(multiResult.disqualifiedCandidates.some(d => d.family === 'combi')).toBe(true);
   });
 
   it('stored system outranks combi for high-demand multi-bath household', () => {

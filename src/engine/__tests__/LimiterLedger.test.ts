@@ -854,7 +854,7 @@ describe('LimiterLedger — installability: space_for_cylinder_unavailable', () 
 // ─── combi_dhw_demand_risk — occupancy/bathroom demand gate ──────────────────
 
 describe('LimiterLedger — combi: combi_dhw_demand_risk', () => {
-  it('emits a limit entry when bathroomCount >= 2 (hard simultaneous-demand gate)', () => {
+  it('emits a hard_stop entry when bathroomCount >= 2 (hard simultaneous-demand gate)', () => {
     const { runnerResult, eventSummary } = combiClean();
     const ledger = buildLimiterLedger(runnerResult, eventSummary, {
       bathroomCount: 2,
@@ -862,10 +862,10 @@ describe('LimiterLedger — combi: combi_dhw_demand_risk', () => {
     });
     const entry = ledger.entries.find(e => e.id === 'combi_dhw_demand_risk');
     expect(entry).toBeDefined();
-    expect(entry?.severity).toBe('limit');
+    expect(entry?.severity).toBe('hard_stop');
   });
 
-  it('emits a limit entry when peakConcurrentOutlets >= 2 (hard simultaneous-demand gate)', () => {
+  it('emits a hard_stop entry when peakConcurrentOutlets >= 2 (hard simultaneous-demand gate)', () => {
     const { runnerResult, eventSummary } = combiClean();
     const ledger = buildLimiterLedger(runnerResult, eventSummary, {
       bathroomCount: 1,
@@ -873,7 +873,7 @@ describe('LimiterLedger — combi: combi_dhw_demand_risk', () => {
     });
     const entry = ledger.entries.find(e => e.id === 'combi_dhw_demand_risk');
     expect(entry).toBeDefined();
-    expect(entry?.severity).toBe('limit');
+    expect(entry?.severity).toBe('hard_stop');
   });
 
   it('emits a warning entry when occupancyCount === 3 without bathroom/outlet gate', () => {
@@ -912,16 +912,16 @@ describe('LimiterLedger — combi: combi_dhw_demand_risk', () => {
     expect(ledger.entries.some(e => e.id === 'combi_dhw_demand_risk')).toBe(false);
   });
 
-  it('bathroomCount gate (limit) takes precedence over occupancy warning', () => {
+  it('bathroomCount gate (hard_stop) takes precedence over occupancy warning', () => {
     const { runnerResult, eventSummary } = combiClean();
     const ledger = buildLimiterLedger(runnerResult, eventSummary, {
       bathroomCount: 2,
       occupancyCount: 3,
     });
     const entries = ledger.entries.filter(e => e.id === 'combi_dhw_demand_risk');
-    // Only one entry (no duplication — limit wins over warning)
+    // Only one entry (no duplication — hard_stop wins over warning)
     expect(entries).toHaveLength(1);
-    expect(entries[0]?.severity).toBe('limit');
+    expect(entries[0]?.severity).toBe('hard_stop');
   });
 });
 
