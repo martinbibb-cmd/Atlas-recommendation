@@ -72,34 +72,49 @@ function getPostcodePrefix(postcode: string): string {
   return postcode.trim().toUpperCase().replace(/[0-9\s].*$/, '');
 }
 
+/**
+ * Canonical CaCO₃ (ppm) and silica (ppm) levels per water hardness category.
+ * Used for both postcode-derived classification and surveyor override to ensure
+ * all downstream scale-risk calculations use consistent chemistry values.
+ */
+const HARDNESS_CHEMISTRY: Record<
+  NormalizerOutput['waterHardnessCategory'],
+  { cacO3Level: number; silicaLevel: number }
+> = {
+  very_hard: { cacO3Level: 300, silicaLevel: 25 },
+  hard:      { cacO3Level: 200, silicaLevel: 15 },
+  moderate:  { cacO3Level: 120, silicaLevel: 8  },
+  soft:      { cacO3Level: 50,  silicaLevel: 3  },
+};
+
 export function normalizeInput(input: EngineInputV2_3): NormalizerOutput {
   const prefix = getPostcodePrefix(input.postcode);
   const isVeryHard = VERY_HARD_PREFIXES.includes(prefix);
   const isHard = HARD_WATER_PREFIXES.some(p => prefix.startsWith(p));
   const isHighSilica = HIGH_SILICA_PREFIXES.some(p => prefix.startsWith(p));
 
-  let cacO3Level: number;
-  let silicaLevel: number;
   let waterHardnessCategory: NormalizerOutput['waterHardnessCategory'];
 
   if (isVeryHard) {
-    cacO3Level = 300;
-    silicaLevel = 25;
     waterHardnessCategory = 'very_hard';
   } else if (isHard) {
-    cacO3Level = 200;
-    silicaLevel = 15;
     waterHardnessCategory = 'hard';
   } else if (prefix.match(/^(BD|DE|DN|HD|HG|HU|HX|LS|S|SE|WF|YO)/)) {
-    cacO3Level = 120;
-    silicaLevel = 8;
     waterHardnessCategory = 'moderate';
   } else {
     // Soft water (Scotland, Wales, North West)
-    cacO3Level = 50;
-    silicaLevel = 3;
     waterHardnessCategory = 'soft';
   }
+
+  // Surveyor-confirmed hardness override: when explicitly measured or confirmed
+  // on site, use the surveyor's value rather than the postcode-derived estimate.
+  // The override also updates the CaCO₃ and silica levels so that all downstream
+  // scale-risk calculations are consistent.
+  if (input.waterHardnessCategoryOverride != null) {
+    waterHardnessCategory = input.waterHardnessCategoryOverride;
+  }
+
+  const { cacO3Level, silicaLevel } = HARDNESS_CHEMISTRY[waterHardnessCategory];
 
   /**
    * Scaling scaffold coefficient.

@@ -23,8 +23,8 @@
  */
 import { useState, useMemo } from 'react';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
-import type { CombiSwitchInputs, OldBoilerRealityInputs, StorySharedBasics } from './scenarioRegistry';
-import { combiSwitchScenario, oldBoilerRealityScenario, heatPumpViabilityScenario, STORY_SCENARIOS } from './scenarioRegistry';
+import type { CombiSwitchInputs, OldBoilerRealityInputs, StorySharedBasics, StoryScenario } from './scenarioRegistry';
+import { combiSwitchScenario, oldBoilerRealityScenario, heatPumpViabilityScenario, flagshipDemoScenario, STORY_SCENARIOS } from './scenarioRegistry';
 import {
   COLD_SUPPLY_TEMP_PRESETS,
   COMBI_HOT_OUT_PRESETS,
@@ -344,6 +344,7 @@ function CombiSwitchShell({
   onOpenLab,
   sharedBasics,
   onSharedBasicsChange,
+  scenario = combiSwitchScenario,
 }: {
   onBack: () => void;
   onSwitch: (id: string) => void;
@@ -351,9 +352,10 @@ function CombiSwitchShell({
   onOpenLab?: (partialInput?: Partial<EngineInputV2_3>) => void;
   sharedBasics: StorySharedBasics;
   onSharedBasicsChange: (update: Partial<StorySharedBasics>) => void;
+  scenario?: StoryScenario<CombiSwitchInputs>;
 }) {
   const [inputs, setInputs] = useState<CombiSwitchInputs>(() => ({
-    ...combiSwitchScenario.defaults,
+    ...scenario.defaults,
     ...(sharedBasics.occupancyCount !== undefined && { occupancyCount: sharedBasics.occupancyCount }),
     ...(sharedBasics.bathroomCount !== undefined && { bathroomCount: sharedBasics.bathroomCount }),
     ...(sharedBasics.mainsFlowLpm !== undefined && { mainsFlowLpm: sharedBasics.mainsFlowLpm }),
@@ -361,7 +363,7 @@ function CombiSwitchShell({
   }));
 
   const show = (panel: OutputPanel) =>
-    shouldShowPanel(combiSwitchScenario.outputFocus, panel);
+    shouldShowPanel(scenario.outputFocus, panel);
 
   function handleInputChange(newInputs: CombiSwitchInputs) {
     setInputs(newInputs);
@@ -432,8 +434,8 @@ function CombiSwitchShell({
   return (
     <div className="scenario-shell">
       <ScenarioHeader
-        currentId="combi_switch"
-        title={combiSwitchScenario.title}
+        currentId={scenario.id}
+        title={scenario.title}
         onBack={onBack}
         onSwitch={onSwitch}
       />
@@ -1077,6 +1079,19 @@ function InputsSummary({ engineInput }: { engineInput: Partial<EngineInputV2_3> 
 // ── Main dispatcher ───────────────────────────────────────────────────────────
 
 export default function ScenarioShell({ scenarioId, sharedBasics, onBack, onSwitch, onEscalate, onOpenLab, onSharedBasicsChange }: Props) {
+  if (scenarioId === 'flagship_demo') {
+    return (
+      <CombiSwitchShell
+        onBack={onBack}
+        onSwitch={onSwitch}
+        onEscalate={onEscalate}
+        onOpenLab={onOpenLab}
+        sharedBasics={sharedBasics}
+        onSharedBasicsChange={onSharedBasicsChange}
+        scenario={flagshipDemoScenario}
+      />
+    );
+  }
   if (scenarioId === 'combi_switch') {
     return (
       <CombiSwitchShell

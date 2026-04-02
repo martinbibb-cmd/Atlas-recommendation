@@ -301,6 +301,10 @@ export function applyScenarioToEngineInput(
   state: CombiSwitchInputs,
 ): ScenarioEngineOutput;
 export function applyScenarioToEngineInput(
+  scenarioId: 'flagship_demo',
+  state: CombiSwitchInputs,
+): ScenarioEngineOutput;
+export function applyScenarioToEngineInput(
   scenarioId: 'old_boiler_reality',
   state: OldBoilerRealityInputs,
 ): ScenarioEngineOutput;
@@ -312,7 +316,7 @@ export function applyScenarioToEngineInput(
   scenarioId: string,
   state: ScenarioInputs,
 ): ScenarioEngineOutput {
-  if (scenarioId === 'combi_switch') {
+  if (scenarioId === 'combi_switch' || scenarioId === 'flagship_demo') {
     const inputs = state as CombiSwitchInputs;
     const engineInput = applyCombiSwitchInputs(inputs);
     const systemBWaterArchetype: WaterArchetypeId =

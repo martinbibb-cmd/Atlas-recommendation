@@ -96,6 +96,24 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
     }
   }
 
+  // ── Water quality user override ──────────────────────────────────────────
+  // When the surveyor has explicitly confirmed or measured the local water
+  // hardness in the services step (source === 'user'), promote it to
+  // waterHardnessCategoryOverride so the Normalizer uses it instead of the
+  // postcode-derived estimate.  Postcode lookups (source === 'lookup') are
+  // not promoted — they're no better than what the Normalizer already derives.
+  // Never overwrite an already-explicit override on the model.
+  if (sanitised.waterHardnessCategoryOverride === undefined) {
+    const wq = sanitised.fullSurvey?.waterQuality;
+    if (
+      wq != null &&
+      wq.source === 'user' &&
+      wq.hardnessBand !== 'unknown'
+    ) {
+      sanitised.waterHardnessCategoryOverride = wq.hardnessBand as 'soft' | 'moderate' | 'hard' | 'very_hard';
+    }
+  }
+
   // ── System builder → engine input bridge ─────────────────────────────────
   // Propagates all fields captured in the system-architecture step into their
   // corresponding EngineInputV2_3 home. Only runs when fullSurvey.systemBuilder
