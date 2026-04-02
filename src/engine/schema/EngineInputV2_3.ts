@@ -238,6 +238,14 @@ export interface EngineInputV2_3 {
     flowRateLpm?: number;
   };
   /**
+   * Surveyor-confirmed water hardness category override.
+   * When present, supersedes the postcode-derived hardness from the Normalizer.
+   * Only set when the surveyor has explicitly confirmed or measured the local
+   * hardness (source === 'user' in the services step). A postcode lookup result
+   * alone is not sufficient — use the postcode for that.
+   */
+  waterHardnessCategoryOverride?: 'soft' | 'moderate' | 'hard' | 'very_hard';
+  /**
    * User-expressed preferences from the survey.
    * Distinct from expertAssumptions — these come from the homeowner.
    */

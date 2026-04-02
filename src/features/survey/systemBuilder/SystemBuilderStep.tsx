@@ -266,7 +266,17 @@ export function SystemBuilderStep({
 
   function handleDhwType(value: DhwType) {
     if (!allowedDhw.includes(value)) return;
-    onChange({ ...state, dhwType: value });
+    // When DHW type changes, update controlFamily to avoid mismatches:
+    // - switching TO thermal_store → default to thermal_store controls
+    // - switching FROM thermal_store (when control was thermal_store) → clear so surveyor re-selects
+    const prevDhw = state.dhwType;
+    let newControlFamily = state.controlFamily;
+    if (value === 'thermal_store' && prevDhw !== 'thermal_store') {
+      newControlFamily = deriveDefaultControlFamily(state.heatSource, value);
+    } else if (prevDhw === 'thermal_store' && value !== 'thermal_store' && state.controlFamily === 'thermal_store') {
+      newControlFamily = null;
+    }
+    onChange({ ...state, dhwType: value, controlFamily: newControlFamily });
   }
 
   // ── Completion gate ──────────────────────────────────────────────────────────

@@ -268,6 +268,10 @@ export default function SurveyPrintoutPage({
                   <span className="spp-fact__label">Occupants</span>
                   <span className="spp-fact__value">{page1.home.dailyHotWaterLabel}</span>
                 </div>
+                <div className="spp-fact spp-fact--wide">
+                  <span className="spp-fact__label">Peak demand</span>
+                  <span className="spp-fact__value">{page1.home.peakOutletsLabel}</span>
+                </div>
               </div>
             </section>
 
@@ -306,7 +310,9 @@ export default function SurveyPrintoutPage({
                 <p className="spp-qr__desc">
                   Scan to revisit your full recommendation, explore the simulator, and review the evidence behind this advice.
                 </p>
-                <p className="spp-qr__url">{portalUrl}</p>
+                <p className="spp-qr__url">
+                  <a href={portalUrl} target="_blank" rel="noopener noreferrer">{portalUrl}</a>
+                </p>
               </div>
             </aside>
           )}
