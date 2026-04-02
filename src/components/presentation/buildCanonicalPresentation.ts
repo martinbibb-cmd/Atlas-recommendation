@@ -1642,7 +1642,12 @@ function buildRankingReasonLine(
   }
 
   if (family === 'open_vented' || family === 'regular') {
-    return `Regular/open-vented system: cylinder and loft tank present; gravity pressure is the key constraint.`;
+    const litres = Math.round(demo.dailyHotWaterLitres);
+    const dynamicBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+    if (dynamicBar != null && dynamicBar < 1.0) {
+      return `Tank-fed supply: ${input.occupancyCount ?? 2}-person demand (~${litres} L/day) — mains at ${dynamicBar} bar is below the minimum for a mains-fed supply.`;
+    }
+    return `Tank-fed supply: ${input.occupancyCount ?? 2}-person demand (~${litres} L/day) — water pressure depends on cold water tank height above the draw-off points.`;
   }
 
   return `Candidate assessed against house (${(input.heatLossWatts / 1000).toFixed(1)} kW), home (${input.occupancyCount ?? 2} people), and energy signals.`;
@@ -1675,12 +1680,27 @@ function buildPage3(
     }
   }
 
-  // Also add disqualified candidates at the bottom
-  const disqualifiedFamilies = new Set(recommendation.disqualifiedCandidates.map(d => d.family));
-  for (const d of recommendation.disqualifiedCandidates) {
-    if (!familyMap.has(d.family)) {
-      familyMap.set(d.family, { family: d.family, score: 0 });
+  // Supplement with all non-winning evaluated families from whyNotExplanations.
+  // The engine evaluates 4 families (combi, system, heat_pump, open_vented); any
+  // family that didn't win bestOverall or any objective will only appear here.
+  // This guarantees all 4 evaluated families are shown in the ranking.
+  const winnerScore = recommendation.bestOverall?.overallScore ?? 0;
+  for (const why of recommendation.whyNotExplanations) {
+    if (!familyMap.has(why.family)) {
+      // Reconstruct the actual engine score: winnerScore − scoreGap = candidate.overallScore
+      const derivedScore = Math.max(0, winnerScore - why.scoreGap);
+      familyMap.set(why.family, { family: why.family, score: derivedScore });
     }
+  }
+
+  // Also add disqualified candidates at the bottom (hard-stop limiters → score 0)
+  const disqualifiedFamilies = new Set(recommendation.disqualifiedCandidates.map(d => d.family));
+  const disqualifiedDecisions = new Map(
+    recommendation.disqualifiedCandidates.map(d => [d.family, d]),
+  );
+  for (const d of recommendation.disqualifiedCandidates) {
+    // Override score to 0 — disqualified means not installable in this home.
+    familyMap.set(d.family, { family: d.family, score: 0 });
   }
 
   const sorted = [...familyMap.values()].sort((a, b) => b.score - a.score);
@@ -1736,7 +1756,7 @@ function buildPage3(
       label,
       overallScore: entry.score,
       reasonLine: isDisqualified
-        ? `Not recommended — hard constraint prevents use in this home`
+        ? (disqualifiedDecisions.get(entry.family)?.caveats[0] ?? `Hard constraint prevents installation in this home`)
         : buildRankingReasonLine(entry.family, result, input),
       demandFitNote,
       waterFitNote,

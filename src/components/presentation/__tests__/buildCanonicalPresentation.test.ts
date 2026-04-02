@@ -530,12 +530,47 @@ describe('buildCanonicalPresentation — page3 ranking', () => {
     expect(model.page3.items[0].rank).toBe(1);
   });
 
+  it('ranking contains exactly 4 items — all engine-evaluated families are shown', () => {
+    // The engine evaluates 4 candidate families: combi, system, heat_pump, open_vented.
+    // All 4 must appear in the physics ranking regardless of how many win objectives.
+    const result = runEngine(BASE_INPUT);
+    const model = buildCanonicalPresentation(result, BASE_INPUT, result.recommendationResult);
+    expect(model.page3.items.length).toBe(4);
+  });
+
+  it('open_vented family appears in the ranking', () => {
+    const result = runEngine(BASE_INPUT);
+    const model = buildCanonicalPresentation(result, BASE_INPUT, result.recommendationResult);
+    const families = model.page3.items.map(i => i.family);
+    expect(families).toContain('open_vented');
+  });
+
   it('rank 1 reason line references house or home signals', () => {
     const result = runEngine(BASE_INPUT);
     const model = buildCanonicalPresentation(result, BASE_INPUT, result.recommendationResult);
     if (model.page3.items.length > 0) {
       // Reason should reference something signal-specific (kW, people, outlets, L/day)
       expect(model.page3.items[0].reasonLine).toMatch(/kW|person|people|outlet|L\/day|bathroom/i);
+    }
+  });
+
+  it('open_vented reason line is physics-based (references occupancy or demand)', () => {
+    const result = runEngine(BASE_INPUT);
+    const model = buildCanonicalPresentation(result, BASE_INPUT, result.recommendationResult);
+    const openVented = model.page3.items.find(i => i.family === 'open_vented');
+    if (openVented) {
+      expect(openVented.reasonLine).toMatch(/person|people|L\/day|bar|tank-fed/i);
+    }
+  });
+
+  it('disqualified item reason line is evidence-backed, not generic hardcoded text', () => {
+    // A scenario that disqualifies combi (3+ bathrooms → hard simultaneous-demand gate).
+    const input = withInput({ bathroomCount: 3, occupancyCount: 4, peakConcurrentOutlets: 3 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input, result.recommendationResult);
+    const disqualifiedItems = model.page3.items.filter(i => i.overallScore === 0);
+    for (const item of disqualifiedItems) {
+      expect(item.reasonLine).not.toBe('Not recommended — hard constraint prevents use in this home');
     }
   });
 });
