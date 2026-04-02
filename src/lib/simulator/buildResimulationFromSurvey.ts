@@ -346,13 +346,25 @@ function deriveDaytimeOccupancy(survey: FullSurveyModelV1): DaytimeOccupancyPatt
   const raw = survey.demandTimingOverrides?.daytimeOccupancy;
   if (raw === 'full')    return 'usually_home';
   if (raw === 'partial') return 'irregular';
+  if (raw === 'absent')  return 'usually_out';
+  // Fall back to fullSurvey.usage.daytimeOccupancy when demandTimingOverrides absent.
+  const usageDaytime = survey.fullSurvey?.usage?.daytimeOccupancy;
+  if (usageDaytime === 'usually_home') return 'usually_home';
+  if (usageDaytime === 'irregular')   return 'irregular';
   return 'usually_out';
 }
 
 function deriveBathUsePattern(survey: FullSurveyModelV1): BathUsePattern {
-  const freq = survey.demandTimingOverrides?.bathFrequencyPerWeek ?? 0;
-  if (freq >= 7) return 'frequent';
-  if (freq >= 2) return 'sometimes';
+  const freq = survey.demandTimingOverrides?.bathFrequencyPerWeek;
+  if (freq != null) {
+    if (freq >= 7) return 'frequent';
+    if (freq >= 2) return 'sometimes';
+    return 'rare';
+  }
+  // Fall back to fullSurvey.usage.bathUse when demandTimingOverrides absent.
+  const usageBathUse = survey.fullSurvey?.usage?.bathUse;
+  if (usageBathUse === 'frequent')  return 'frequent';
+  if (usageBathUse === 'sometimes') return 'sometimes';
   return 'rare';
 }
 

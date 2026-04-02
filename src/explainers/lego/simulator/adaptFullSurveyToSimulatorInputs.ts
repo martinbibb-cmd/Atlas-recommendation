@@ -279,21 +279,30 @@ export function adaptFullSurveyToSimulatorInputs(
 
   if (survey.householdComposition != null) {
     const composition = survey.householdComposition
-    const daytimePattern = (survey.demandTimingOverrides?.daytimeOccupancy === 'full'
-      ? 'usually_home'
-      : survey.demandTimingOverrides?.daytimeOccupancy === 'partial'
-        ? 'irregular'
-        : 'usually_out') as 'usually_out' | 'usually_home' | 'irregular'
+    const dto = survey.demandTimingOverrides
+    const usageStep = survey.fullSurvey?.usage
 
-    // Map bathFrequencyPerWeek back to BathUsePattern.
+    // Derive daytime pattern — demandTimingOverrides takes priority; fall back to
+    // the Usage step answer stored in fullSurvey.usage.daytimeOccupancy.
+    const daytimePattern = (
+      dto?.daytimeOccupancy === 'full'    ? 'usually_home' :
+      dto?.daytimeOccupancy === 'partial' ? 'irregular' :
+      dto?.daytimeOccupancy === 'absent'  ? 'usually_out' :
+      usageStep?.daytimeOccupancy === 'usually_home' ? 'usually_home' :
+      usageStep?.daytimeOccupancy === 'irregular'    ? 'irregular' :
+      'usually_out'
+    ) as 'usually_out' | 'usually_home' | 'irregular'
+
+    // Map bathFrequencyPerWeek back to BathUsePattern — demandTimingOverrides
+    // takes priority; fall back to the Usage step answer in fullSurvey.usage.bathUse.
     // Thresholds mirror the forward mapping in deriveBathFrequencyPerWeek:
     //   rare=0, sometimes=3, frequent=7 (per week).
     const bathUse = (
-      (survey.demandTimingOverrides?.bathFrequencyPerWeek ?? 0) >= 7
-        ? 'frequent'
-        : (survey.demandTimingOverrides?.bathFrequencyPerWeek ?? 0) >= 2
-          ? 'sometimes'
-          : 'rare'
+      dto?.bathFrequencyPerWeek != null
+        ? (dto.bathFrequencyPerWeek >= 7 ? 'frequent' : dto.bathFrequencyPerWeek >= 2 ? 'sometimes' : 'rare')
+        : usageStep?.bathUse === 'frequent'  ? 'frequent' :
+          usageStep?.bathUse === 'sometimes' ? 'sometimes' :
+          'rare'
     ) as 'rare' | 'sometimes' | 'frequent'
 
     const derived = deriveProfileFromHouseholdComposition(composition, daytimePattern, bathUse)
