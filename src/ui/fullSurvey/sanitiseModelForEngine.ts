@@ -1,5 +1,5 @@
 import type { FullSurveyModelV1 } from './FullSurveyModelV1';
-import type { EngineInputV2_3, FabricWallType, FabricGlazing, FabricRoofInsulation } from '../../engine/schema/EngineInputV2_3';
+import type { EngineInputV2_3, FabricWallType, FabricInsulationLevel, FabricGlazing, FabricRoofInsulation } from '../../engine/schema/EngineInputV2_3';
 import {
   inferPlateHexCondition,
   inferCylinderCondition,
@@ -38,8 +38,10 @@ import type {
  * - Wires systemAgeYears from currentBoilerAgeYears so that SystemConditionInferenceModule
  *   can use actual age (rather than zero) when no direct symptoms are present.
  * - Bridges fullSurvey.heatLoss.shellModel.settings fields into building.fabric.*
- *   (wallType → FabricWallType, loftInsulation → roofInsulation, glazingType → glazing)
- *   and thermalMass → building.thermalMass for FabricModelModule. Existing values not overwritten.
+ *   (wallType → FabricWallType, loftInsulation → roofInsulation and insulationLevel,
+ *   glazingType → glazing) and thermalMass → building.thermalMass for FabricModelModule.
+ *   Also syncs thermalMass → buildingMass for LifestyleSimulationModule.
+ *   Existing building.fabric values (wallType, roofInsulation, glazing, insulationLevel) are not overwritten.
  * - Bridges fullSurvey.heatLoss.shellModel.settings.dwellingType → dwellingType (snake_case)
  *   so the engine knows the property form. Flats suppress 'planned' solar status.
  * - Bridges fullSurvey.heatLoss.buildingBearingDeg → buildingBearingDeg when not already set.
@@ -452,6 +454,25 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
         if (mapped !== undefined) fabric.glazing = mapped;
       }
 
+      // insulationLevel: derive from loftInsulation as a proxy for overall insulation quality.
+      // Loft insulation depth is used as the primary proxy because it is the single largest
+      // contributor to fabric heat loss in UK dwellings (SAP 2012 / BRE guidance).
+      //   none      → 'poor'     (uninsulated loft; typically pre-1976 construction)
+      //   mm100     → 'moderate' (minimum recommended pre-2003 UK building regs)
+      //   mm200     → 'good'     (post-2003 UK building regs minimum, ~270 mm recommended)
+      //   mm270plus → 'good'     (current UK building regs recommended; 'exceptional' would
+      //                           require additional fabric measures beyond loft alone)
+      if (fabric.insulationLevel === undefined && ss.loftInsulation !== undefined) {
+        const insulationLevelMap: Record<string, FabricInsulationLevel | undefined> = {
+          none:       'poor',
+          mm100:      'moderate',
+          mm200:      'good',
+          mm270plus:  'good',
+        };
+        const mapped = insulationLevelMap[ss.loftInsulation];
+        if (mapped !== undefined) fabric.insulationLevel = mapped;
+      }
+
       // thermalMass → building.thermalMass (FabricThermalMass): used by FabricModelModule
       // Note: building.thermalMass is distinct from the top-level buildingMass used by
       // LifestyleSimulationModule — both can be set independently.
@@ -463,6 +484,13 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
         };
         const mapped = massMap[ss.thermalMass];
         if (mapped !== undefined) sanitised.building.thermalMass = mapped;
+      }
+
+      // buildingMass → top-level EngineInputV2_3.buildingMass used by LifestyleSimulationModule.
+      // Keep in sync with the shell model thermal mass so the lifestyle simulation uses the
+      // user-entered value rather than the static engine default.
+      if (ss.thermalMass === 'light' || ss.thermalMass === 'medium' || ss.thermalMass === 'heavy') {
+        sanitised.buildingMass = ss.thermalMass;
       }
 
       // dwellingType: calculator camelCase → engine snake_case

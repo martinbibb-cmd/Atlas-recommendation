@@ -167,7 +167,7 @@ const ENGINE_SAFE_DEFAULTS: Record<string, unknown> = {
   heatLossWatts:         8000,
   radiatorCount:         10,
   returnWaterTemp:       45,
-  bathroomCount:         2,
+  bathroomCount:         1,
   occupancySignature:    'professional',
   highOccupancy:         false,
 };
