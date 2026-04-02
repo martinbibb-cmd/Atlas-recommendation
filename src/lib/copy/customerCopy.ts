@@ -23,14 +23,14 @@
 export const OPTION_STATUS_LABEL: Record<string, string> = {
   viable:   'Best fit',
   caution:  'Possible with upgrades',
-  rejected: 'Less suited to this use',
+  rejected: 'Not advised',
 };
 
 /** Icon for OptionCardV1['status'] in customer-facing comparison panels. */
 export const OPTION_STATUS_ICON: Record<string, string> = {
   viable:   '✅',
   caution:  '⚠️',
-  rejected: '○',
+  rejected: '⚠️',
 };
 
 // ─── Verdict status ───────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ export const VERDICT_STATUS_LABEL: Record<string, string> = {
 // ─── Limiter / constraint severity ───────────────────────────────────────────
 
 /**
- * Customer-facing labels for LimiterSeverity ('fail' | 'warn' | 'info').
+ * Customer-facing labels for LimiterV1 severity ('fail' | 'warn' | 'info').
  *
  * These replace harsh engineering terms in customer-visible panels.
  * The underlying severity values in the engine contracts are unchanged.
@@ -54,6 +54,19 @@ export const SEVERITY_LABEL: Record<string, string> = {
   fail: 'Needs attention',
   warn: 'Something to be aware of',
   info: 'Info',
+};
+
+/**
+ * Customer-facing labels for LimiterLedgerEntry severity
+ * ('info' | 'warning' | 'limit' | 'hard_stop').
+ *
+ * 'hard_stop' is displayed as "Not advised" — no hard block language.
+ */
+export const LEDGER_SEVERITY_LABEL: Record<string, string> = {
+  info:      'Info',
+  warning:   'Warning',
+  limit:     'Limit reached',
+  hard_stop: 'Not advised',
 };
 
 /**
@@ -407,6 +420,11 @@ export const BANNED_CUSTOMER_PHRASES: ReadonlyArray<string> = [
   'Override',
   'Overridden',
   'instantaneous hot water',
+  // Hard block language — replaced with "not advised"
+  'Hard stop',
+  'hard stop',
+  'blocked by hard constraints',
+  'Hard-stop constraints',
   // Guardrails — evidence-tier forbidden claims (feat(guardrails))
   'combis cut out below',
   'will lock out',

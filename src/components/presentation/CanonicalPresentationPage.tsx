@@ -287,7 +287,7 @@ function AvailableOptionCard({ option }: { option: AvailableOptionExplanation })
         <span className={`cpp-status-badge cpp-status-badge--${option.status}`}>
           {option.status === 'viable'   ? '✅ Viable' :
            option.status === 'caution'  ? '⚠️ Caution' :
-           '🚫 Not recommended'}
+           '⚠️ Not advised'}
         </span>
       </header>
       <div className="cpp-option-card__body">

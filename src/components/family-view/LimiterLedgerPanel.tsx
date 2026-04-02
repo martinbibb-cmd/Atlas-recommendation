@@ -11,14 +11,21 @@
  */
 
 import type { LimiterLedger, LimiterLedgerEntry, LimiterSeverity, LimiterDomain } from '../../engine/limiter/LimiterLedger';
+import { LEDGER_SEVERITY_LABEL } from '../../lib/copy/customerCopy';
 
 // ─── Labels ───────────────────────────────────────────────────────────────────
 
+/**
+ * Exhaustive severity label map typed against LimiterSeverity.
+ * Uses LEDGER_SEVERITY_LABEL as the single source of truth.
+ * TypeScript will error here if LimiterSeverity gains a new value without
+ * a corresponding entry in LEDGER_SEVERITY_LABEL.
+ */
 const SEVERITY_LABELS: Record<LimiterSeverity, string> = {
-  info:      'Info',
-  warning:   'Warning',
-  limit:     'Limit reached',
-  hard_stop: 'Hard stop',
+  info:      LEDGER_SEVERITY_LABEL['info']      ?? 'Info',
+  warning:   LEDGER_SEVERITY_LABEL['warning']   ?? 'Warning',
+  limit:     LEDGER_SEVERITY_LABEL['limit']      ?? 'Limit reached',
+  hard_stop: LEDGER_SEVERITY_LABEL['hard_stop'] ?? 'Not advised',
 };
 
 const SEVERITY_CLASS: Record<LimiterSeverity, string> = {

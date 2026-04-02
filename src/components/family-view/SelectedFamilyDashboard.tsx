@@ -126,9 +126,9 @@ function SummaryStrip({ data, onSelectFamily }: SummaryStripProps) {
           <span
             className="selected-family-dashboard__badge selected-family-dashboard__badge--hard-stop"
             data-testid="hard-stop-badge"
-            aria-label={`${hardStopCount} hard stop${hardStopCount !== 1 ? 's' : ''}`}
+            aria-label={`${hardStopCount} not advised`}
           >
-            {hardStopCount} hard stop
+            {hardStopCount} not advised
           </span>
         )}
         {warningCount > 0 && (

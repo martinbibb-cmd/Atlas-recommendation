@@ -731,7 +731,7 @@ function buildWhyNotExplanations(
 
     if (isDisqualified) {
       const hardStopNames = decision.evidenceTrace.hardStopLimiters.join(', ');
-      summary = `${familyName} is not recommended due to hard physical constraint(s): ${hardStopNames}.`;
+      summary = `${familyName} is not advised for this home due to physical constraint(s): ${hardStopNames}.`;
     } else if (dominantLimiters.length > 0) {
       const limiterList = dominantLimiters.join(', ');
       summary = `${familyName} scored ${scoreGap.toFixed(0)} points below the recommended option. ` +

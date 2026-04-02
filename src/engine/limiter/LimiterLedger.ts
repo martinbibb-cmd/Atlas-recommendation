@@ -52,7 +52,7 @@ export type LimiterDomain =
  *   info      — informational; no performance impact at present
  *   warning   — degraded or suboptimal condition; impacts but does not block
  *   limit     — hard physics or topology constraint reached; service impaired
- *   hard_stop — fundamental incompatibility; upgrade pathway blocked
+ *   hard_stop — fundamental incompatibility; upgrade pathway not advised
  */
 export type LimiterSeverity = 'info' | 'warning' | 'limit' | 'hard_stop';
 

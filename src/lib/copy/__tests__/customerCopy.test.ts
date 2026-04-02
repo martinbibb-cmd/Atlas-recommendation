@@ -69,9 +69,10 @@ describe('OPTION_STATUS_LABEL', () => {
     expect(OPTION_STATUS_LABEL.rejected).toBeDefined();
   });
 
-  it('uses "Less suited" — not "Not suitable" — for rejected', () => {
+  it('uses "Not advised" — not "Not suitable" or "Hard stop" — for rejected', () => {
     expect(OPTION_STATUS_LABEL.rejected).not.toMatch(/not suitable/i);
-    expect(OPTION_STATUS_LABEL.rejected).toMatch(/less suited/i);
+    expect(OPTION_STATUS_LABEL.rejected).not.toMatch(/hard stop/i);
+    expect(OPTION_STATUS_LABEL.rejected).toMatch(/not advised/i);
   });
 
   it('"viable" maps to a positive phrase', () => {
