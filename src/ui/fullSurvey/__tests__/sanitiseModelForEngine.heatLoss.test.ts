@@ -31,9 +31,9 @@
  *  10. Explicit root roof fields are never overwritten by the bridge
  *  11. 'unknown' values are mapped to engine 'unknown' (not left undefined)
  *  12. wallType bridge: calculator strings → FabricWallType values
- *  13. loftInsulation bridge: mm-depth strings → FabricRoofInsulation
+ *  13. loftInsulation bridge: mm-depth strings → FabricRoofInsulation AND insulationLevel proxy
  *  14. glazingType bridge: calculator strings → FabricGlazing
- *  15. thermalMass bridge: calculator strings → building.thermalMass (FabricThermalMass)
+ *  15. thermalMass bridge: calculator strings → building.thermalMass (FabricThermalMass) AND buildingMass
  *  16. buildingBearingDeg bridged from heatLoss; does not overwrite explicit root value
  *  17. dwellingType bridge: camelCase calculator values → snake_case engine values
  *  18. Solar blocked for flats: 'planned' pvStatus/batteryStatus reset to 'none'
@@ -378,6 +378,41 @@ describe('sanitiseModelForEngine — shell settings → building.fabric bridge',
   it('bridges thermalMass heavy → building.thermalMass heavy', () => {
     expect(sanitiseModelForEngine(makeModelWithShell({ thermalMass: 'heavy' })).building?.thermalMass)
       .toBe('heavy');
+  });
+
+  it('bridges loftInsulation none → poor insulationLevel', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ loftInsulation: 'none' })).building?.fabric?.insulationLevel)
+      .toBe('poor');
+  });
+
+  it('bridges loftInsulation mm100 → moderate insulationLevel', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ loftInsulation: 'mm100' })).building?.fabric?.insulationLevel)
+      .toBe('moderate');
+  });
+
+  it('bridges loftInsulation mm200 → good insulationLevel', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ loftInsulation: 'mm200' })).building?.fabric?.insulationLevel)
+      .toBe('good');
+  });
+
+  it('bridges loftInsulation mm270plus → good insulationLevel', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ loftInsulation: 'mm270plus' })).building?.fabric?.insulationLevel)
+      .toBe('good');
+  });
+
+  it('does NOT overwrite explicit building.fabric.insulationLevel', () => {
+    const model: FullSurveyModelV1 = {
+      ...makeModelWithShell({ loftInsulation: 'mm270plus' }),
+      building: { fabric: { insulationLevel: 'poor' } },
+    };
+    expect(sanitiseModelForEngine(model).building?.fabric?.insulationLevel).toBe('poor');
+  });
+
+  it('bridges thermalMass → buildingMass (top-level) for LifestyleSimulationModule', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ thermalMass: 'light' })).buildingMass)
+      .toBe('light');
+    expect(sanitiseModelForEngine(makeModelWithShell({ thermalMass: 'medium' })).buildingMass)
+      .toBe('medium');
   });
 
   it('does NOT overwrite an explicit building.fabric.wallType', () => {

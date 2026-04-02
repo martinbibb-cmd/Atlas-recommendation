@@ -4,14 +4,6 @@ import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { sanitiseModelForEngine } from '../../ui/fullSurvey/sanitiseModelForEngine';
 import { runEngine } from '../../engine/Engine';
-import {
-  type WallType,
-  type InsulationLevel,
-  type AirTightness,
-  type Glazing,
-  type RoofInsulation,
-  type ThermalMass,
-} from '../../engine/presets/FabricPresets';
 import LiveHubPage from '../../live/LiveHubPage';
 import { SystemBuilderStep } from '../../features/survey/systemBuilder/SystemBuilderStep';
 import { INITIAL_SYSTEM_BUILDER_STATE } from '../../features/survey/systemBuilder/systemBuilderTypes';
@@ -78,13 +70,6 @@ const STEPS: readonly SurveyStepId[] = SURVEY_STEP_IDS;
 
 
 
-
-
-/** Map thermal mass to buildingMass for the engine contract. */
-function deriveBuildingMass(mass: ThermalMass): EngineInputV2_3['buildingMass'] {
-  return mass; // ThermalMass values match BuildingMass values exactly
-}
-
 const defaultInput: FullSurveyModelV1 = {
   postcode: '',
   dynamicMainsPressure: 1.0,
@@ -94,7 +79,7 @@ const defaultInput: FullSurveyModelV1 = {
   radiatorCount: 10,
   hasLoftConversion: false,
   returnWaterTemp: 45,
-  bathroomCount: 2,
+  bathroomCount: 1,
   occupancySignature: 'professional',
   highOccupancy: false,
   preferCombi: false,
@@ -175,86 +160,6 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   // result value should re-trigger this sync; setInput never changes identity.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heatLossState.estimatedPeakHeatLossW]);
-
-  // ── Fabric simulation controls ─────────────────────────────────────────────
-  // Section A (heat loss): wall, insulation, glazing, roof, airtightness
-  // Section B (inertia): thermalMass (independent from wall type)
-  //
-  // When a prefill is present with building.fabric / building.thermalMass values,
-  // the individual controls are initialised directly from those saved values so
-  // that a reload/navigate-away-back round-trip restores the exact fabric state
-  // the surveyor had selected.  The back-mapping from engine types to UI types:
-  //   'cavity_filled'   → 'cavity_insulated'
-  //   'cavity_unfilled' → 'cavity_uninsulated'
-  //   'timber_frame'    → 'timber_lightweight'
-  //   'solid_masonry'   → 'solid_masonry'
-  //   'passive'         → 'passive_level'   (airTightness only)
-  const prefillFabric = prefill?.building?.fabric;
-  const prefillThermalMass = prefill?.building?.thermalMass;
-
-  const [wallType] = useState<WallType>(() => {
-    const fw = prefillFabric?.wallType;
-    if (fw === 'cavity_filled')   return 'cavity_insulated';
-    if (fw === 'cavity_unfilled') return 'cavity_uninsulated';
-    if (fw === 'timber_frame')    return 'timber_lightweight';
-    if (fw === 'solid_masonry')   return 'solid_masonry';
-    return 'solid_masonry';
-  });
-  const [insulationLevel] = useState<InsulationLevel>(() => {
-    const fi = prefillFabric?.insulationLevel;
-    if (fi === 'poor' || fi === 'moderate' || fi === 'good' || fi === 'exceptional') return fi;
-    return 'moderate';
-  });
-  const [airTightness] = useState<AirTightness>(() => {
-    const fa = prefillFabric?.airTightness;
-    if (fa === 'passive') return 'passive_level';
-    if (fa === 'leaky' || fa === 'average' || fa === 'tight') return fa;
-    return 'average';
-  });
-  const [glazing] = useState<Glazing>(() => {
-    const fg = prefillFabric?.glazing;
-    if (fg === 'single' || fg === 'double' || fg === 'triple') return fg;
-    return 'single';
-  });
-  const [roofInsulation] = useState<RoofInsulation>(() => {
-    const fr = prefillFabric?.roofInsulation;
-    if (fr === 'poor' || fr === 'moderate' || fr === 'good') return fr;
-    return 'poor';
-  });
-  const [thermalMass] = useState<ThermalMass>(() => {
-    const tm = prefillThermalMass;
-    if (tm === 'light' || tm === 'medium' || tm === 'heavy') return tm;
-    return 'heavy';
-  });
-
-
-
-
-  // Keep buildingMass and building.fabric in engine input in sync with the fabric controls
-  useEffect(() => {
-    const wallTypeForEngine =
-      wallType === 'solid_masonry'        ? 'solid_masonry' :
-      wallType === 'cavity_insulated'     ? 'cavity_filled' :
-      wallType === 'cavity_uninsulated'   ? 'solid_masonry' :
-      'timber_frame' as const;
-    const airTightnessForEngine =
-      airTightness === 'passive_level' ? 'passive' : airTightness as 'leaky' | 'average' | 'tight';
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setInput(prev => ({
-      ...prev,
-      buildingMass: deriveBuildingMass(thermalMass),
-      building: {
-        fabric: {
-          wallType:       wallTypeForEngine,
-          insulationLevel,
-          glazing,
-          roofInsulation,
-          airTightness:   airTightnessForEngine,
-        },
-        thermalMass,
-      },
-    }));
-  }, [wallType, insulationLevel, airTightness, glazing, roofInsulation, thermalMass]);
 
 
 

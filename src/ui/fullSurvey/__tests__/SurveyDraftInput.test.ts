@@ -71,9 +71,9 @@ describe('SurveyDraftInput — normalization fills defaults for empty fields', (
     expect(result.heatLossWatts).toBe(8000);
   });
 
-  it('fills bathroomCount with 2 when empty', () => {
+  it('fills bathroomCount with 1 when empty', () => {
     const result = normalizeDraftToEngineInput(INITIAL_SURVEY_DRAFT);
-    expect(result.bathroomCount).toBe(2);
+    expect(result.bathroomCount).toBe(1);
   });
 
   it('fills occupancySignature with "professional" when empty', () => {
