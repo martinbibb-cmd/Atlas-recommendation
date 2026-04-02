@@ -477,6 +477,11 @@ interface Props {
    */
   onOpenSimulator?: () => void;
   /**
+   * Optional callback to open the print/PDF view.
+   * When provided, the final page shows a "Print summary" CTA.
+   */
+  onPrint?: () => void;
+  /**
    * When true, renders the swipeable visual story deck instead of the
    * vertical scrollable layout.  Defaults to false (vertical mode).
    */
@@ -505,6 +510,7 @@ export default function CanonicalPresentationPage({
   input,
   recommendationResult,
   onOpenSimulator,
+  onPrint,
   deckMode = true,
   heatLossState,
   prioritiesState,
@@ -517,6 +523,7 @@ export default function CanonicalPresentationPage({
         input={input}
         recommendationResult={recommendationResult}
         onOpenSimulator={onOpenSimulator}
+        onPrint={onPrint}
         heatLossState={heatLossState}
         prioritiesState={prioritiesState}
       />

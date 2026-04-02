@@ -121,6 +121,8 @@
   display: flex;
   align-items: stretch;
   margin-bottom: 1rem;
+  overflow: hidden;
+  position: relative;
 }
 
 .atlas-presentation-deck__visual > * {
@@ -675,11 +677,13 @@
   gap: 0.5rem;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
 }
 
 .atlas-presentation-deck__quadrant-wrapper > .qdp {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 /* ─── Dev-only provenance badge ────────────────────────────────────────────── */
