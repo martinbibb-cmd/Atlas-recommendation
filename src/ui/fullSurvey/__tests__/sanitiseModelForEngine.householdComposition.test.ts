@@ -15,6 +15,9 @@
  *   3. demandPresetIsManualOverride=true preserves the existing demandPreset
  *   4. Without householdComposition, existing occupancyCount/demandPreset are untouched
  *   5. daytimeOccupancy hint from demandTimingOverrides feeds derivation correctly
+ *   6. fullSurvey.usage.daytimeOccupancy feeds derivation when demandTimingOverrides absent
+ *   7. fullSurvey.usage.bathUse feeds derivation when demandTimingOverrides absent
+ *   8. demandTimingOverrides takes priority over fullSurvey.usage when both present
  */
 
 import { describe, it, expect } from 'vitest';
@@ -203,5 +206,156 @@ describe('sanitiseModelForEngine — no householdComposition: existing fields un
     };
     const sanitised = sanitiseModelForEngine(model);
     expect(sanitised.demandPreset).toBe('home_worker');
+  });
+});
+
+// ─── 6. fullSurvey.usage.daytimeOccupancy feeds derivation ───────────────────
+
+describe('sanitiseModelForEngine — fullSurvey.usage.daytimeOccupancy feeds derivation', () => {
+  it('derives retired_couple when fullSurvey.usage.daytimeOccupancy=usually_home and two adults', () => {
+    const model: FullSurveyModelV1 = {
+      ...BASE,
+      householdComposition: TWO_ADULT_COMPOSITION,
+      fullSurvey: {
+        manualEvidence: {},
+        telemetryPlaceholders: { coolingTau: null, confidence: 'none' },
+        usage: {
+          composition: TWO_ADULT_COMPOSITION,
+          daytimeOccupancy: 'usually_home',
+          bathUse: 'unknown',
+          bathroomCount: null,
+        },
+      },
+    };
+    const sanitised = sanitiseModelForEngine(model);
+    expect(sanitised.demandPreset).toBe('retired_couple');
+  });
+
+  it('derives shift_worker when fullSurvey.usage.daytimeOccupancy=irregular and two adults', () => {
+    const model: FullSurveyModelV1 = {
+      ...BASE,
+      householdComposition: TWO_ADULT_COMPOSITION,
+      fullSurvey: {
+        manualEvidence: {},
+        telemetryPlaceholders: { coolingTau: null, confidence: 'none' },
+        usage: {
+          composition: TWO_ADULT_COMPOSITION,
+          daytimeOccupancy: 'irregular',
+          bathUse: 'unknown',
+          bathroomCount: null,
+        },
+      },
+    };
+    const sanitised = sanitiseModelForEngine(model);
+    expect(sanitised.demandPreset).toBe('shift_worker');
+  });
+
+  it('defaults to working_couple (usually_out) when fullSurvey.usage.daytimeOccupancy=unknown', () => {
+    const model: FullSurveyModelV1 = {
+      ...BASE,
+      householdComposition: TWO_ADULT_COMPOSITION,
+      fullSurvey: {
+        manualEvidence: {},
+        telemetryPlaceholders: { coolingTau: null, confidence: 'none' },
+        usage: {
+          composition: TWO_ADULT_COMPOSITION,
+          daytimeOccupancy: 'unknown',
+          bathUse: 'unknown',
+          bathroomCount: null,
+        },
+      },
+    };
+    const sanitised = sanitiseModelForEngine(model);
+    expect(sanitised.demandPreset).toBe('working_couple');
+  });
+});
+
+// ─── 7. fullSurvey.usage.bathUse feeds derivation ────────────────────────────
+
+describe('sanitiseModelForEngine — fullSurvey.usage.bathUse feeds derivation', () => {
+  it('derives bath_heavy when fullSurvey.usage.bathUse=frequent and two adults', () => {
+    const model: FullSurveyModelV1 = {
+      ...BASE,
+      householdComposition: TWO_ADULT_COMPOSITION,
+      fullSurvey: {
+        manualEvidence: {},
+        telemetryPlaceholders: { coolingTau: null, confidence: 'none' },
+        usage: {
+          composition: TWO_ADULT_COMPOSITION,
+          daytimeOccupancy: 'unknown',
+          bathUse: 'frequent',
+          bathroomCount: null,
+        },
+      },
+    };
+    const sanitised = sanitiseModelForEngine(model);
+    expect(sanitised.demandPreset).toBe('bath_heavy');
+  });
+
+  it('does NOT derive bath_heavy when fullSurvey.usage.bathUse=rare', () => {
+    const model: FullSurveyModelV1 = {
+      ...BASE,
+      householdComposition: TWO_ADULT_COMPOSITION,
+      fullSurvey: {
+        manualEvidence: {},
+        telemetryPlaceholders: { coolingTau: null, confidence: 'none' },
+        usage: {
+          composition: TWO_ADULT_COMPOSITION,
+          daytimeOccupancy: 'unknown',
+          bathUse: 'rare',
+          bathroomCount: null,
+        },
+      },
+    };
+    const sanitised = sanitiseModelForEngine(model);
+    expect(sanitised.demandPreset).not.toBe('bath_heavy');
+  });
+});
+
+// ─── 8. demandTimingOverrides takes priority over fullSurvey.usage ────────────
+
+describe('sanitiseModelForEngine — demandTimingOverrides priority over fullSurvey.usage', () => {
+  it('uses demandTimingOverrides.daytimeOccupancy when both override and fullSurvey.usage are set', () => {
+    // fullSurvey.usage says usually_home but demandTimingOverrides says absent → usually_out
+    const model: FullSurveyModelV1 = {
+      ...BASE,
+      householdComposition: TWO_ADULT_COMPOSITION,
+      demandTimingOverrides: { daytimeOccupancy: 'absent' },
+      fullSurvey: {
+        manualEvidence: {},
+        telemetryPlaceholders: { coolingTau: null, confidence: 'none' },
+        usage: {
+          composition: TWO_ADULT_COMPOSITION,
+          daytimeOccupancy: 'usually_home',
+          bathUse: 'unknown',
+          bathroomCount: null,
+        },
+      },
+    };
+    const sanitised = sanitiseModelForEngine(model);
+    // demandTimingOverrides.absent → usually_out → working_couple
+    expect(sanitised.demandPreset).toBe('working_couple');
+  });
+
+  it('uses demandTimingOverrides.bathFrequencyPerWeek when both override and fullSurvey.usage.bathUse are set', () => {
+    // fullSurvey.usage says frequent but demandTimingOverrides says 0 baths/week → rare
+    const model: FullSurveyModelV1 = {
+      ...BASE,
+      householdComposition: TWO_ADULT_COMPOSITION,
+      demandTimingOverrides: { bathFrequencyPerWeek: 0 },
+      fullSurvey: {
+        manualEvidence: {},
+        telemetryPlaceholders: { coolingTau: null, confidence: 'none' },
+        usage: {
+          composition: TWO_ADULT_COMPOSITION,
+          daytimeOccupancy: 'unknown',
+          bathUse: 'frequent',
+          bathroomCount: null,
+        },
+      },
+    };
+    const sanitised = sanitiseModelForEngine(model);
+    // demandTimingOverrides.bathFrequencyPerWeek=0 → rare → NOT bath_heavy
+    expect(sanitised.demandPreset).not.toBe('bath_heavy');
   });
 });

@@ -636,24 +636,31 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
   //   householdComposition + daytimeOccupancy + bathUse
   //     → derivedPresetId + occupancyCount
   //
-  // daytimeOccupancyPattern is back-mapped from demandTimingOverrides when
-  // present (mirrors the forward mapping in adaptFullSurveyToSimulatorInputs).
+  // Priority for daytimeOccupancy: demandTimingOverrides (explicit engine override)
+  // > fullSurvey.usage.daytimeOccupancy (Usage step survey answer) > default.
+  // Priority for bathUse: demandTimingOverrides.bathFrequencyPerWeek > fullSurvey.usage.bathUse > default.
   if (sanitised.householdComposition != null) {
     const dto = sanitised.demandTimingOverrides;
+    const usageStep = sanitised.fullSurvey?.usage;
 
+    // Derive daytime pattern — demandTimingOverrides takes priority; fall back to
+    // the Usage step answer stored in fullSurvey.usage.daytimeOccupancy.
     const daytimePattern: DaytimeOccupancyPattern =
-      dto?.daytimeOccupancy === 'full'
-        ? 'usually_home'
-        : dto?.daytimeOccupancy === 'partial'
-          ? 'irregular'
-          : 'usually_out';
+      dto?.daytimeOccupancy === 'full'    ? 'usually_home' :
+      dto?.daytimeOccupancy === 'partial' ? 'irregular' :
+      dto?.daytimeOccupancy === 'absent'  ? 'usually_out' :
+      usageStep?.daytimeOccupancy === 'usually_home' ? 'usually_home' :
+      usageStep?.daytimeOccupancy === 'irregular'    ? 'irregular' :
+      'usually_out';
 
+    // Derive bath use — demandTimingOverrides takes priority; fall back to the
+    // Usage step answer stored in fullSurvey.usage.bathUse.
     const bathUse: BathUsePattern =
-      (dto?.bathFrequencyPerWeek ?? 0) >= 7
-        ? 'frequent'
-        : (dto?.bathFrequencyPerWeek ?? 0) >= 2
-          ? 'sometimes'
-          : 'rare';
+      dto?.bathFrequencyPerWeek != null
+        ? (dto.bathFrequencyPerWeek >= 7 ? 'frequent' : dto.bathFrequencyPerWeek >= 2 ? 'sometimes' : 'rare')
+        : usageStep?.bathUse === 'frequent'  ? 'frequent' :
+          usageStep?.bathUse === 'sometimes' ? 'sometimes' :
+          'rare';
 
     const derived = deriveProfileFromHouseholdComposition(
       sanitised.householdComposition,
