@@ -826,11 +826,7 @@ function RankingPage({
                 )}
                 <span className="atlas-deck-ranking__reason">{item.reasonLine}</span>
                 <div className="atlas-deck-ranking__item-btns">
-                  {isDisabled ? (
-                    <span className="atlas-deck-ranking__item-btn atlas-deck-ranking__item-btn--unavailable">
-                      Not available
-                    </span>
-                  ) : (
+                  {!isDisabled && (
                     <>
                       <button
                         type="button"

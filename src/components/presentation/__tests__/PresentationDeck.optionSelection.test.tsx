@@ -216,9 +216,9 @@ describe('PresentationDeck — option selection buttons', () => {
     }
   });
 
-  // ── Disqualified-family rows show "Not available" ─────────────────────────
+  // ── Disqualified-family rows have no selection buttons ───────────────────
 
-  it('rows whose family has no option page show "Not available" instead of buttons', () => {
+  it('rows whose family has no option page show no selection buttons', () => {
     render(
       <PresentationDeck
         result={result}
@@ -229,13 +229,13 @@ describe('PresentationDeck — option selection buttons', () => {
 
     goToSlide('Best fit');
 
-    // Any row classed "disabled" must contain "Not available" text and must
-    // NOT contain the regular option buttons.
+    // Any row classed "disabled" must NOT contain the regular option buttons,
+    // and must NOT contain the old "Not available" span (removed).
     const disabledRows = document.querySelectorAll('.atlas-deck-ranking__row--disabled');
     for (const row of disabledRows) {
+      // "Not available" label must be absent — the reason line explains the constraint.
       const unavailable = row.querySelector('.atlas-deck-ranking__item-btn--unavailable');
-      expect(unavailable).not.toBeNull();
-      expect(unavailable!.textContent).toMatch(/Not available/i);
+      expect(unavailable).toBeNull();
 
       // No selectable buttons on a disabled row
       const btn1 = row.querySelector('.atlas-deck-ranking__item-btn--1');

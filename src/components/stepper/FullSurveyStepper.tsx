@@ -235,7 +235,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
     const wallTypeForEngine =
       wallType === 'solid_masonry'        ? 'solid_masonry' :
       wallType === 'cavity_insulated'     ? 'cavity_filled' :
-      wallType === 'cavity_uninsulated'   ? 'solid_masonry' :
+      wallType === 'cavity_uninsulated'   ? 'cavity_unfilled' :
       'timber_frame' as const;
     const airTightnessForEngine =
       airTightness === 'passive_level' ? 'passive' : airTightness as 'leaky' | 'average' | 'tight';

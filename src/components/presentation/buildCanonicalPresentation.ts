@@ -1660,13 +1660,14 @@ function buildPage3(
   const demo = result.demographicOutputs;
   const pv   = result.pvAssessment;
 
-  // Collect all candidates with scores — sort by overallScore descending
+  // Collect all candidates with scores — sort by overallScore descending.
+  // bestByObjective covers every family that won at least one objective.
   const allDecisions = [
     recommendation.bestOverall,
     ...Object.values(recommendation.bestByObjective),
   ].filter((d): d is NonNullable<typeof d> => d != null);
 
-  // Deduplicate by family; keep highest score per family
+  // Deduplicate by family; keep highest score per family.
   const familyMap = new Map<ApplianceFamily, { family: ApplianceFamily; score: number }>();
   for (const d of allDecisions) {
     const existing = familyMap.get(d.family);
@@ -1675,14 +1676,47 @@ function buildPage3(
     }
   }
 
-  // Also add disqualified candidates at the bottom
-  const disqualifiedFamilies = new Set(recommendation.disqualifiedCandidates.map(d => d.family));
-  for (const d of recommendation.disqualifiedCandidates) {
-    if (!familyMap.has(d.family)) {
-      familyMap.set(d.family, { family: d.family, score: 0 });
+  // Supplement with families from whyNotExplanations that were evaluated but
+  // never won any objective (non-zero score, not disqualified).
+  // Score is derived as: winner score − score gap.
+  const winnerScore = recommendation.bestOverall?.overallScore ?? 0;
+  for (const why of recommendation.whyNotExplanations) {
+    if (!familyMap.has(why.family) && !why.isDisqualified) {
+      const derivedScore = Math.max(0, winnerScore - why.scoreGap);
+      familyMap.set(why.family, { family: why.family, score: derivedScore });
     }
   }
 
+  // Track disqualified families with their full decision (for caveat-based reason lines).
+  const disqualifiedDecisions = new Map(
+    recommendation.disqualifiedCandidates.map(d => [d.family, d]),
+  );
+  for (const [family, d] of disqualifiedDecisions) {
+    if (!familyMap.has(family)) {
+      familyMap.set(family, { family, score: 0 });
+    }
+  }
+
+  // ── Merge stored-water variants into a single 'system' entry ──────────────
+  // 'regular' and 'open_vented' represent legacy open-vented systems and are
+  // displayed identically to 'system' (stored hot water) in the ranking.
+  // Consolidating them avoids a 4th ranking row and matches the 3-option model
+  // (combi / stored / heat_pump) the presentation deck communicates.
+  const STORED_WATER_ALIASES: ReadonlyArray<ApplianceFamily> = ['regular', 'open_vented'];
+  for (const alias of STORED_WATER_ALIASES) {
+    const aliasEntry = familyMap.get(alias);
+    if (aliasEntry !== undefined) {
+      familyMap.delete(alias);
+      disqualifiedDecisions.delete(alias);
+      const systemEntry = familyMap.get('system');
+      if (systemEntry === undefined || aliasEntry.score > systemEntry.score) {
+        // Replace (or create) the system entry with the higher-scoring stored variant.
+        familyMap.set('system', { family: 'system', score: aliasEntry.score });
+      }
+    }
+  }
+
+  const disqualifiedFamilies = new Set(disqualifiedDecisions.keys());
   const sorted = [...familyMap.values()].sort((a, b) => b.score - a.score);
 
   const items: PhysicsRankingItem[] = sorted.map((entry, index) => {
@@ -1730,14 +1764,22 @@ function buildPage3(
       energyFitNote = `Existing PV: combi cannot store solar surplus`;
     }
 
+    // Reason line: for disqualified candidates use the engine's own caveat text
+    // (first non-empty caveat) so the reason is evidence-backed, not generic.
+    let reasonLine: string;
+    if (isDisqualified) {
+      const caveat = disqualifiedDecisions.get(entry.family)?.caveats[0];
+      reasonLine = caveat ?? `Not suitable — hard constraint identified for this home`;
+    } else {
+      reasonLine = buildRankingReasonLine(entry.family, result, input);
+    }
+
     return {
       rank: index + 1,
       family: entry.family,
       label,
       overallScore: entry.score,
-      reasonLine: isDisqualified
-        ? `Not recommended — hard constraint prevents use in this home`
-        : buildRankingReasonLine(entry.family, result, input),
+      reasonLine,
       demandFitNote,
       waterFitNote,
       infrastructureFitNote,

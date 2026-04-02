@@ -538,6 +538,34 @@ describe('buildCanonicalPresentation — page3 ranking', () => {
       expect(model.page3.items[0].reasonLine).toMatch(/kW|person|people|outlet|L\/day|bathroom/i);
     }
   });
+
+  it('ranking contains at most 3 items — open_vented and regular are merged into system', () => {
+    // Engine evaluates 4 candidate families: combi, system, heat_pump, open_vented.
+    // open_vented must be collapsed into system so the ranking shows ≤ 3 entries.
+    const result = runEngine(BASE_INPUT);
+    const model = buildCanonicalPresentation(result, BASE_INPUT, result.recommendationResult);
+    expect(model.page3.items.length).toBeLessThanOrEqual(3);
+  });
+
+  it('ranking never contains the open_vented or regular family label', () => {
+    const result = runEngine(BASE_INPUT);
+    const model = buildCanonicalPresentation(result, BASE_INPUT, result.recommendationResult);
+    const families = model.page3.items.map(i => i.family);
+    expect(families).not.toContain('open_vented');
+    expect(families).not.toContain('regular');
+  });
+
+  it('disqualified item reason line is evidence-backed, not generic hardcoded text', () => {
+    // A scenario that disqualifies combi (3+ bathrooms → hard simultaneous-demand gate).
+    const input = withInput({ bathroomCount: 3, occupancyCount: 4, peakConcurrentOutlets: 3 });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input, result.recommendationResult);
+    const disqualifiedItems = model.page3.items.filter(i => i.overallScore === 0);
+    for (const item of disqualifiedItems) {
+      // Reason line must not be the old generic hardcoded message.
+      expect(item.reasonLine).not.toBe('Not recommended — hard constraint prevents use in this home');
+    }
+  });
 });
 
 // ─── Final page — Simulator ───────────────────────────────────────────────────
