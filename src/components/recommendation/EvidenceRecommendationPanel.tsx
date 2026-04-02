@@ -47,7 +47,7 @@ const OBJECTIVE_LABELS: Record<RecommendationObjective, string> = {
 const SUITABILITY_LABELS: Record<string, string> = {
   suitable:              '✅ Suitable',
   suitable_with_caveats: '⚠️ Suitable with caveats',
-  not_recommended:       '🚫 Not recommended',
+  not_recommended:       '⚠️ Not advised',
 };
 
 const CONFIDENCE_ICON: Record<string, string> = {
@@ -151,10 +151,10 @@ function DisqualifiedList({
 }) {
   if (disqualified.length === 0) return null;
   return (
-    <section className="erp-section erp-section--disqualified" aria-label="Not recommended">
-      <h3 className="erp-section__heading">Not recommended for this home</h3>
+    <section className="erp-section erp-section--disqualified" aria-label="Not advised">
+      <h3 className="erp-section__heading">Not advised for this home</h3>
       <p className="erp-section__intro">
-        The following systems are blocked by hard constraints. Each entry explains why
+        The following systems are not advised for this home. Each entry explains why
         and what would need to change for them to become viable.
       </p>
       <ul className="erp-disqualified">
@@ -165,7 +165,7 @@ function DisqualifiedList({
             </p>
             {d.caveats.length > 0 && (
               <>
-                <p className="erp-disqualified__why-heading">Why it is not recommended:</p>
+                <p className="erp-disqualified__why-heading">Why it is not advised:</p>
                 <ul className="erp-disqualified__caveats">
                   {d.caveats.map((c, i) => <li key={i}>{c}</li>)}
                 </ul>
@@ -173,7 +173,7 @@ function DisqualifiedList({
             )}
             {d.evidenceTrace.hardStopLimiters.length > 0 && (
               <>
-                <p className="erp-disqualified__blockers-heading">Hard-stop constraints:</p>
+                <p className="erp-disqualified__blockers-heading">Limiting factors:</p>
                 <ul className="erp-disqualified__blockers">
                   {d.evidenceTrace.hardStopLimiters.map(id => (
                     <li key={id}>

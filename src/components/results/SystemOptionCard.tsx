@@ -5,9 +5,9 @@
  * Replaces the previous PASS / FAIL / WARN labels with:
  *   viable   → ✅ Suitable
  *   caution  → ⚠ Possible with caveats
- *   rejected → ⛔ Not recommended
+ *   rejected → ⚠️ Not advised
  *
- * For non-recommended systems it renders:
+ * For not-advised systems it renders:
  *   • Reason explaining the physics constraint (neutral language)
  *   • Typical impact bullets
  *   • "Why this result" collapsible section (card.why + plane headlines)
@@ -38,7 +38,7 @@ interface Props {
 const STATUS_BADGE: Record<OptionCardV1['status'], { label: string; modifier: string }> = {
   viable:   { label: '✅ Suitable',               modifier: 'suitable' },
   caution:  { label: '⚠ Possible with caveats',  modifier: 'caveats' },
-  rejected: { label: '⛔ Not recommended',        modifier: 'not-recommended' },
+  rejected: { label: '⚠️ Not advised',            modifier: 'not-recommended' },
 };
 
 // ─── What to expect — static lived-experience copy per system type ────────────
@@ -288,7 +288,7 @@ export default function SystemOptionCard({ card, selectedPriorities = [] }: Prop
         </div>
       )}
 
-      {/* ── Not-recommended detail ───────────────────────────────────────── */}
+      {/* ── Not-advised detail ────────────────────────────────────────── */}
       {card.status === 'rejected' && (card.why.length > 0 || impacts.length > 0) && (
         <div className="opt-card__body">
           <div className="opt-card__not-rec">

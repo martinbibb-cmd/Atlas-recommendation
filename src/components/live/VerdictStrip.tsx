@@ -29,7 +29,7 @@ export default function VerdictStrip({ result, onOpenCombi, onOpenStored, onOpen
       <button className={`verdict-tile verdict-tile--${combiRisk}`} onClick={onOpenCombi}>
         <h3 className="verdict-tile__label">Combi</h3>
         <span className={`verdict-tile__pill verdict-tile__pill--${combiRisk}`}>
-          {combiRisk === 'fail' ? '❌ Limited in this setup'
+          {combiRisk === 'fail' ? '⚠️ Not advised for this setup'
             : combiRisk === 'warn' ? '⚠️ Caution'
             : '✅ Viable'}
         </span>

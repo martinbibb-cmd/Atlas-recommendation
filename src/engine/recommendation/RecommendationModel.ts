@@ -87,8 +87,8 @@ export interface RecommendationEvidenceTrace {
   readonly fitMapContributions: Readonly<Record<RecommendationObjective, number>>;
 
   /**
-   * Limiter IDs with `hard_stop` severity that blocked this candidate from
-   * being recommended.  Empty when no hard-stop limiters were found.
+   * Limiter IDs with `hard_stop` severity that mean this candidate is not advised.
+   * Empty when no hard-stop limiters were found.
    */
   readonly hardStopLimiters: readonly string[];
 
@@ -144,7 +144,7 @@ export interface RecommendationIntervention {
  *
  *   suitable              — no significant limiters; recommended
  *   suitable_with_caveats — some limiting evidence but no hard stops; usable with notes
- *   not_recommended       — hard-stop limiters or installability blocks
+ *   not_recommended       — hard-stop limiters mean this option is not advised
  */
 export type CandidateSuitability =
   | 'suitable'
@@ -228,8 +228,8 @@ export interface RecommendationResult {
   readonly interventions: readonly RecommendationIntervention[];
 
   /**
-   * Candidates that were excluded from recommendation because of hard-stop limiters.
-   * Sorted by family name ascending for determinism.
+   * Candidates that were excluded from recommendation because of hard-stop limiters
+   * (not advised for this home). Sorted by family name ascending for determinism.
    */
   readonly disqualifiedCandidates: readonly RecommendationDecision[];
 
