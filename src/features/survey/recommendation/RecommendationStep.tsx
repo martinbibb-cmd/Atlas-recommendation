@@ -212,7 +212,7 @@ export function RecommendationStep({ state, onChange, onNext, onPrev }: Props) {
           <AdditionToggle
             checked={state.additions.smartControls}
             label="Smart controls"
-            sub="e.g. Nest, Hive, Honeywell T6R, Drayton Wiser"
+            sub="Programmable room thermostat with scheduling"
             onChange={v => setAddition('smartControls', v)}
           />
           <AdditionToggle

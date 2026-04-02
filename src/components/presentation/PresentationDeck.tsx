@@ -65,6 +65,14 @@ const SWIPE_THRESHOLD_PX = 40;
 // ─── System conversion data ────────────────────────────────────────────────────
 
 /**
+ * Nominal efficiency for thermal store systems (percentage points).
+ * Thermal stores have lower efficiency than condensing boilers due to
+ * internal coil heat exchange losses (~85–90 % in practice).
+ * Defined as a named constant — never use the literal 87 in this file.
+ */
+const THERMAL_STORE_NOMINAL_EFFICIENCY_PCT = 87;
+
+/**
  * Normalized performance profiles for each system type.
  * Scores are 0–100 (higher = better). Efficiency is normalized:
  *   gas boilers: ~93 → 93 (actual SEDBUK %)
@@ -87,7 +95,7 @@ const SYSTEM_PERF: Record<string, SystemPerfProfile> = {
     multiOutlet: 20,
     heatingSpeed: 95,
     efficiencyPct: DEFAULT_NOMINAL_EFFICIENCY_PCT,
-    efficiencyLabel: '~92–94%',
+    efficiencyLabel: `~${DEFAULT_NOMINAL_EFFICIENCY_PCT}–${DEFAULT_NOMINAL_EFFICIENCY_PCT + 2}%`,
     primaryConstraint: 'No backup if boiler fails; limited by plate heat exchanger.',
   },
   regular_vented: {
@@ -96,7 +104,7 @@ const SYSTEM_PERF: Record<string, SystemPerfProfile> = {
     multiOutlet: 50,
     heatingSpeed: 85,
     efficiencyPct: DEFAULT_NOMINAL_EFFICIENCY_PCT,
-    efficiencyLabel: '~92–94%',
+    efficiencyLabel: `~${DEFAULT_NOMINAL_EFFICIENCY_PCT}–${DEFAULT_NOMINAL_EFFICIENCY_PCT + 2}%`,
     primaryConstraint: 'Requires loft tanks; limited pressure without a pump.',
   },
   stored_unvented: {
@@ -105,7 +113,7 @@ const SYSTEM_PERF: Record<string, SystemPerfProfile> = {
     multiOutlet: 90,
     heatingSpeed: 85,
     efficiencyPct: DEFAULT_NOMINAL_EFFICIENCY_PCT,
-    efficiencyLabel: '~92–94%',
+    efficiencyLabel: `~${DEFAULT_NOMINAL_EFFICIENCY_PCT}–${DEFAULT_NOMINAL_EFFICIENCY_PCT + 2}%`,
     primaryConstraint: 'Requires 22mm cold main and G3 safety discharge (D2).',
   },
   thermal_store: {
@@ -113,8 +121,8 @@ const SYSTEM_PERF: Record<string, SystemPerfProfile> = {
     flowRate: 70,
     multiOutlet: 70,
     heatingSpeed: 78,
-    efficiencyPct: 87,
-    efficiencyLabel: '~85–90%',
+    efficiencyPct: THERMAL_STORE_NOMINAL_EFFICIENCY_PCT,
+    efficiencyLabel: `~${THERMAL_STORE_NOMINAL_EFFICIENCY_PCT - 2}–${THERMAL_STORE_NOMINAL_EFFICIENCY_PCT + 3}%`,
     primaryConstraint: 'Internal coils create flow restriction compared to unvented.',
   },
   ashp: {

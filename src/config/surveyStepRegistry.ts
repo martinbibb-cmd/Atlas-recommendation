@@ -17,8 +17,7 @@ export type SurveyStepId =
   | 'services'
   | 'heat_loss'
   | 'priorities'
-  | 'insight'
-  | 'recommendation';
+  | 'insight';
 
 // ─── Per-step metadata ────────────────────────────────────────────────────────
 
@@ -87,14 +86,6 @@ export const SURVEY_STEP_REGISTRY: readonly SurveyStepMeta[] = [
     shortLabel: 'Insight',
     testId: 'insight-layer-page',
     analyticsEvent: 'survey_step_insight',
-  },
-  {
-    id: 'recommendation',
-    displayIndex: 7,
-    heading: '✅ Your Recommendation',
-    shortLabel: 'Recommendation',
-    testId: 'recommendation-step',
-    analyticsEvent: 'survey_step_recommendation',
   },
 ] as const;
 
