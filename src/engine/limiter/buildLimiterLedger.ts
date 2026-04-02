@@ -168,10 +168,10 @@ export function buildLimiterLedger(
 
   // 1a. combi_dhw_demand_risk — combi-only; occupancy/bathroom demand gate.
   //     Rules (from household physics):
-  //       bathroomCount >= 2 || peakConcurrentOutlets >= 2 → 'limit'  (hard simultaneous-demand gate)
-  //       occupancyCount === 3                              → 'warning' (borderline demand)
+  //       bathroomCount >= 2 || peakConcurrentOutlets >= 2 → 'hard_stop' (hard simultaneous-demand gate)
+  //       occupancyCount === 3                              → 'warning'   (borderline demand)
   //       occupancyCount <= 2                              → pass (no entry emitted)
-  //     A 'limit' takes precedence over a 'warning'.
+  //     A 'hard_stop' takes precedence over a 'warning'.
   if (family === 'combi' && demographic != null) {
     const { occupancyCount, bathroomCount, peakConcurrentOutlets } = demographic;
     const isHardGate =
@@ -189,7 +189,7 @@ export function buildLimiterLedger(
         id: 'combi_dhw_demand_risk',
         family,
         domain: 'dhw',
-        severity: 'limit',
+        severity: 'hard_stop',
         title: 'Simultaneous demand risk — combi not suitable',
         description:
           `This home has ${triggerField}, ` +

@@ -38,6 +38,10 @@ export interface HouseholdContext {
  * Unknown IDs fall back to a generic summary.
  */
 const LIMITER_COPY: Record<string, LimiterHumanCopy> = {
+  combi_dhw_demand_risk: {
+    headline: 'Your home has too many hot-water outlets for on-demand heating',
+    detail: 'With multiple bathrooms, running hot water in two places at once will cause reduced temperature or pressure at one or both outlets.',
+  },
   combi_service_switching: {
     headline: 'Your heating pauses every time on-demand hot water runs',
     detail: 'Your boiler can only do one thing at a time — it switches between heating and hot water, never both.',
@@ -103,6 +107,18 @@ const LIMITER_COPY: Record<string, LimiterHumanCopy> = {
 // ─── Context-aware overrides ──────────────────────────────────────────────────
 
 /**
+ * Returns a household-tailored headline for `combi_dhw_demand_risk`.
+ * With 2+ bathrooms the headline names the specific count for clarity.
+ */
+function combiDhwDemandRiskHeadline(ctx: HouseholdContext | undefined): string {
+  const baths = ctx?.bathroomCount ?? 0;
+  if (baths >= 2) {
+    return `Your home has ${baths} bathrooms — on-demand heating cannot serve two outlets at once`;
+  }
+  return LIMITER_COPY.combi_dhw_demand_risk.headline;
+}
+
+/**
  * Returns a household-tailored headline for `combi_service_switching`.
  * With 2+ occupants the impact is personal: "when two people use hot water
  * at the same time, your heating pauses".
@@ -161,6 +177,8 @@ export function getLimiterHumanCopy(
   }
 
   switch (limiterId) {
+    case 'combi_dhw_demand_risk':
+      return { ...base, headline: combiDhwDemandRiskHeadline(ctx) };
     case 'combi_service_switching':
       return { ...base, headline: combiSwitchingHeadline(ctx) };
     case 'simultaneous_demand_constraint':

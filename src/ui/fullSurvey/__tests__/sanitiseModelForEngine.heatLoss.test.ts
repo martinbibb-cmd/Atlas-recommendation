@@ -400,6 +400,16 @@ describe('sanitiseModelForEngine — shell settings → building.fabric bridge',
       .toBe('good');
   });
 
+  it('bridges loftInsulation neighbourHeated → good roofInsulation (flat with heated flat above)', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ loftInsulation: 'neighbourHeated' })).building?.fabric?.roofInsulation)
+      .toBe('good');
+  });
+
+  it('bridges loftInsulation neighbourHeated → good insulationLevel (flat with heated flat above)', () => {
+    expect(sanitiseModelForEngine(makeModelWithShell({ loftInsulation: 'neighbourHeated' })).building?.fabric?.insulationLevel)
+      .toBe('good');
+  });
+
   it('does NOT overwrite explicit building.fabric.insulationLevel', () => {
     const model: FullSurveyModelV1 = {
       ...makeModelWithShell({ loftInsulation: 'mm270plus' }),

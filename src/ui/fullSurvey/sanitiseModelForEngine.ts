@@ -433,10 +433,13 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
       // loftInsulation → roofInsulation: FabricRoofInsulation
       if (fabric.roofInsulation === undefined && ss.loftInsulation !== undefined) {
         const roofInsulationMap: Record<string, FabricRoofInsulation | undefined> = {
-          none:      'poor',
-          mm100:     'moderate',
-          mm200:     'good',
-          mm270plus: 'good',
+          none:            'poor',
+          mm100:           'moderate',
+          mm200:           'good',
+          mm270plus:       'good',
+          // Flat-specific: a heated flat above means the ceiling loses minimal heat —
+          // equivalent to well-insulated loft in terms of fabric heat loss.
+          neighbourHeated: 'good',
         };
         const mapped = roofInsulationMap[ss.loftInsulation];
         if (mapped !== undefined) fabric.roofInsulation = mapped;
@@ -457,17 +460,20 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
       // insulationLevel: derive from loftInsulation as a proxy for overall insulation quality.
       // Loft insulation depth is used as the primary proxy because it is the single largest
       // contributor to fabric heat loss in UK dwellings (SAP 2012 / BRE guidance).
-      //   none      → 'poor'     (uninsulated loft; typically pre-1976 construction)
-      //   mm100     → 'moderate' (minimum recommended pre-2003 UK building regs)
-      //   mm200     → 'good'     (post-2003 UK building regs minimum, ~270 mm recommended)
-      //   mm270plus → 'good'     (current UK building regs recommended; 'exceptional' would
-      //                           require additional fabric measures beyond loft alone)
+      //   none            → 'poor'     (uninsulated loft; typically pre-1976 construction)
+      //   mm100           → 'moderate' (minimum recommended pre-2003 UK building regs)
+      //   mm200           → 'good'     (post-2003 UK building regs minimum, ~270 mm recommended)
+      //   mm270plus       → 'good'     (current UK building regs recommended; 'exceptional' would
+      //                                 require additional fabric measures beyond loft alone)
+      //   neighbourHeated → 'good'     (flat-specific: heated neighbour above — ceiling heat loss
+      //                                 is minimal; treated as equivalent to well-insulated loft)
       if (fabric.insulationLevel === undefined && ss.loftInsulation !== undefined) {
         const insulationLevelMap: Record<string, FabricInsulationLevel | undefined> = {
-          none:       'poor',
-          mm100:      'moderate',
-          mm200:      'good',
-          mm270plus:  'good',
+          none:            'poor',
+          mm100:           'moderate',
+          mm200:           'good',
+          mm270plus:       'good',
+          neighbourHeated: 'good',
         };
         const mapped = insulationLevelMap[ss.loftInsulation];
         if (mapped !== undefined) fabric.insulationLevel = mapped;

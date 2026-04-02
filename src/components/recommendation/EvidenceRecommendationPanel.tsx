@@ -22,6 +22,7 @@ import type {
   RecommendationObjective,
 } from '../../engine/recommendation/RecommendationModel';
 import { ALL_OBJECTIVES } from '../../engine/recommendation/RecommendationModel';
+import { getLimiterHumanCopy } from '../presentation/limiterHumanLanguage';
 import './EvidenceRecommendationPanel.css';
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
@@ -175,11 +176,15 @@ function DisqualifiedList({
               <>
                 <p className="erp-disqualified__blockers-heading">Limiting factors:</p>
                 <ul className="erp-disqualified__blockers">
-                  {d.evidenceTrace.hardStopLimiters.map(id => (
-                    <li key={id}>
-                      <code className="erp-disqualified__limiter-id">{id}</code>
-                    </li>
-                  ))}
+                  {d.evidenceTrace.hardStopLimiters.map(id => {
+                    const copy = getLimiterHumanCopy(id);
+                    return (
+                      <li key={id} className="erp-disqualified__blocker">
+                        <strong>{copy.headline}</strong>
+                        {copy.detail && <span className="erp-disqualified__blocker-detail"> {copy.detail}</span>}
+                      </li>
+                    );
+                  })}
                 </ul>
               </>
             )}
