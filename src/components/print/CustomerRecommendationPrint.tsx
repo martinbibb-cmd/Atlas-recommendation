@@ -258,9 +258,14 @@ export default function CustomerRecommendationPrint({
 
   // ── Fact blocks ─────────────────────────────────────────────────────────
 
-  /** Hide rows whose value is empty, "—", or contains "not recorded". */
+  /**
+   * Hide rows whose value is empty, a placeholder dash, or a "not recorded" label.
+   * Spec rule: "Never show not recorded — if missing, hide it."
+   */
+  const PLACEHOLDER_DASH = '—';
+  const NOT_RECORDED_RE = /not recorded/i;
   const isVisibleRow = (row: { value: string }): boolean =>
-    row.value !== '' && row.value !== '—' && !/not recorded/i.test(row.value);
+    row.value !== '' && row.value !== PLACEHOLDER_DASH && !NOT_RECORDED_RE.test(row.value);
 
   const homeFactRows = [
     { label: 'Heat loss',   value: house.heatLossLabel },
