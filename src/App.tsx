@@ -13,7 +13,7 @@ import LabQuickInputsPanel from './components/lab/LabQuickInputsPanel';
 import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
-import SurveyPrintoutPage from './components/printout/SurveyPrintoutPage';
+import CustomerRecommendationPrint from './components/print/CustomerRecommendationPrint';
 
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
 import LegoBuildingSetPage from './explainers/lego/LegoBuildingSetPage';
@@ -227,9 +227,10 @@ export default function App() {
   const [labPrioritiesState, setLabPrioritiesState] = useState<PrioritiesState | undefined>();
   /**
    * Recommendation state from the final survey step.
-   * Passed to the printout page so the surveyor's agreed recommendation is shown.
+   * Retained for future TechnicalSummaryPrint; the customer-facing print now
+   * derives its content entirely from the canonical presentation model.
    */
-  const [labRecommendationState, setLabRecommendationState] = useState<RecommendationState | undefined>();
+  const [, setLabRecommendationState] = useState<RecommendationState | undefined>();
   /**
    * The journey that last opened the simulator, used to navigate Back correctly.
    * When the simulator is opened from the recommendation/survey pages, Back
@@ -462,7 +463,7 @@ export default function App() {
   if (PRINT_VIEW === 'survey') {
     const demoResult = runEngine(CONSOLE_DEMO_INPUT);
     return (
-      <SurveyPrintoutPage
+      <CustomerRecommendationPrint
         result={demoResult}
         input={CONSOLE_DEMO_INPUT}
         recommendationResult={demoResult.recommendationResult}
@@ -630,12 +631,11 @@ export default function App() {
           ? buildPortalUrl(activeVisitId)
           : undefined;
         return (
-          <SurveyPrintoutPage
+          <CustomerRecommendationPrint
             result={result}
             input={labEngineInput}
             recommendationResult={result.recommendationResult}
             prioritiesState={labPrioritiesState}
-            surveyorRecommendation={labRecommendationState}
             portalUrl={portalUrl}
             visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
             onBack={() => setJourney('presentation')}

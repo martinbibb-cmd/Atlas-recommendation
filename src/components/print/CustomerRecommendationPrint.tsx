@@ -258,17 +258,21 @@ export default function CustomerRecommendationPrint({
 
   // ── Fact blocks ─────────────────────────────────────────────────────────
 
+  /** Hide rows whose value is empty, "—", or contains "not recorded". */
+  const isVisibleRow = (row: { value: string }): boolean =>
+    row.value !== '' && row.value !== '—' && !/not recorded/i.test(row.value);
+
   const homeFactRows = [
     { label: 'Heat loss',   value: house.heatLossLabel },
     { label: 'Insulation',  value: house.insulationLabel },
     { label: 'Walls',       value: house.wallTypeLabel },
-  ];
+  ].filter(isVisibleRow);
 
   const householdFactRows = [
     { label: 'Occupants',  value: `${input.occupancyCount ?? 2} ${(input.occupancyCount ?? 2) === 1 ? 'person' : 'people'}` },
     { label: 'Bathrooms',  value: `${input.bathroomCount ?? 1} ${(input.bathroomCount ?? 1) === 1 ? 'bathroom' : 'bathrooms'}` },
     { label: 'Peak demand', value: home.peakOutletsLabel },
-  ];
+  ].filter(isVisibleRow);
 
   const currentSystemRows: Array<{ label: string; value: string }> = [];
   if (currentSystem.systemTypeLabel) {
