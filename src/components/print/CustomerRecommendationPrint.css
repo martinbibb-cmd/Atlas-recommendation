@@ -1,0 +1,533 @@
+/**
+ * CustomerRecommendationPrint.css
+ *
+ * Premium A4 customer recommendation document.
+ * Print-first layout: A4 portrait, 12-column grid, 24px margins.
+ *
+ * Screen: toolbar + white A4-shaped page with drop shadow.
+ * Print: hides toolbar, removes shadow, fills the physical page.
+ *
+ * Sections:
+ *   .crp-header  — top 25 %: recommendation anchor
+ *   .crp-body    — middle 50 %: story (left) + evidence (right)
+ *   .crp-footer  — bottom 25 %: CTA + QR code
+ */
+
+/* ─── Tokens ──────────────────────────────────────────────────────────────── */
+
+:root {
+  --crp-green:      #276749;
+  --crp-green-bg:   #f0fdf4;
+  --crp-green-mid:  #48bb78;
+  --crp-blue:       #2b6cb0;
+  --crp-amber:      #b7791f;
+  --crp-amber-bg:   #fffbeb;
+  --crp-text:       #1a202c;
+  --crp-muted:      #718096;
+  --crp-subtle:     #a0aec0;
+  --crp-border:     #e2e8f0;
+  --crp-bg-light:   #f7fafc;
+  --crp-bg-section: #f0f4f8;
+  --crp-font:       system-ui, -apple-system, 'Inter', 'Segoe UI', sans-serif;
+  --crp-radius:     8px;
+  --crp-space:      8px;
+}
+
+/* ─── Screen wrapper ──────────────────────────────────────────────────────── */
+
+.crp-wrap {
+  background: #e2e8f0;
+  min-height: 100vh;
+  padding: 1rem;
+  font-family: var(--crp-font);
+  color: var(--crp-text);
+  box-sizing: border-box;
+}
+
+/* ─── Screen toolbar (hidden on print) ───────────────────────────────────── */
+
+.crp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 800px;
+  margin: 0 auto 1rem;
+  padding: 0.5rem 0;
+}
+
+.crp-toolbar__back {
+  background: #fff;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #4a5568;
+}
+
+.crp-toolbar__back:hover { background: #f7fafc; }
+
+.crp-toolbar__label {
+  font-size: 0.78rem;
+  color: #718096;
+}
+
+.crp-toolbar__print {
+  background: #3182ce;
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  margin-left: auto;
+}
+
+.crp-toolbar__print:hover { background: #2b6cb0; }
+
+/* ─── A4 page ─────────────────────────────────────────────────────────────── */
+
+.crp-page {
+  background: #fff;
+  max-width: 794px;        /* ~210mm at 96 dpi */
+  min-height: 1123px;      /* ~297mm at 96 dpi */
+  margin: 0 auto;
+  padding: 24px 24px 20px;
+  box-sizing: border-box;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   HEADER BAND (top ~25%)
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.crp-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: start;
+  background: var(--crp-bg-section);
+  border-radius: var(--crp-radius);
+  padding: 20px 22px;
+  margin-bottom: 18px;
+}
+
+/* ── Header left ── */
+
+.crp-header__left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.crp-header__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 2px;
+}
+
+.crp-header__brand {
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--crp-blue);
+  background: #ebf4ff;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+}
+
+.crp-header__recommended-pill {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--crp-green);
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+
+.crp-header__title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--crp-muted);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.crp-header__system-name {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--crp-green);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.crp-header__reason {
+  font-size: 0.85rem;
+  color: #4a5568;
+  margin: 0;
+  line-height: 1.5;
+  max-width: 420px;
+}
+
+.crp-header__reassurance {
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--crp-green);
+  margin: 4px 0 0;
+}
+
+/* ── Header right — summary chips ── */
+
+.crp-header__chips {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 195px;
+  background: #fff;
+  border: 1px solid var(--crp-border);
+  border-radius: var(--crp-radius);
+  padding: 12px 14px;
+}
+
+.crp-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.crp-chip__icon {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+}
+
+.crp-chip__label {
+  color: var(--crp-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.crp-chip__value {
+  color: var(--crp-text);
+  font-weight: 500;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   BODY (middle ~50%) — left 7 cols + right 5 cols
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.crp-body {
+  display: grid;
+  grid-template-columns: 7fr 5fr;
+  gap: 18px;
+  flex: 1;
+  align-items: start;
+}
+
+/* ── Generic section ── */
+
+.crp-section {
+  margin-bottom: 14px;
+}
+
+.crp-section:last-child {
+  margin-bottom: 0;
+}
+
+.crp-section__title {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #4a5568;
+  margin: 0 0 7px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--crp-border);
+}
+
+/* ── Bullet list ── */
+
+.crp-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.crp-list__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 0.8rem;
+  color: #4a5568;
+  line-height: 1.45;
+}
+
+.crp-list__item--green { color: var(--crp-green); }
+.crp-list__item--amber { color: var(--crp-amber); }
+
+.crp-list__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-size: 0.72rem;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   LEFT COLUMN
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.crp-col--story {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Comparison block (conditional) ── */
+
+.crp-comparison {
+  background: var(--crp-bg-light);
+  border: 1px solid var(--crp-border);
+  border-radius: var(--crp-radius);
+  padding: 10px 12px;
+  margin-top: 2px;
+}
+
+.crp-comparison__heading {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #4a5568;
+  margin: 0 0 5px;
+}
+
+.crp-comparison__name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--crp-text);
+  margin: 0 0 3px;
+}
+
+.crp-comparison__note {
+  font-size: 0.74rem;
+  color: var(--crp-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   RIGHT COLUMN
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.crp-col--evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Mini fact block ── */
+
+.crp-facts {
+  background: var(--crp-bg-light);
+  border-radius: var(--crp-radius);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.crp-facts__heading {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--crp-muted);
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.crp-facts__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.crp-fact-row {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.crp-fact-row__label {
+  color: var(--crp-muted);
+  min-width: 5rem;
+  flex-shrink: 0;
+  font-size: 0.68rem;
+}
+
+.crp-fact-row__value {
+  font-weight: 600;
+  color: var(--crp-text);
+}
+
+/* ── Work split ── */
+
+.crp-work-section {
+  margin-bottom: 10px;
+}
+
+.crp-work-section__label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--crp-muted);
+  margin: 0 0 5px;
+}
+
+.crp-work-section--required .crp-work-section__label { color: #c53030; }
+.crp-work-section--recommended .crp-work-section__label { color: var(--crp-green); }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   FOOTER (bottom ~25%)
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.crp-footer {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 2px solid var(--crp-border);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 18px;
+  align-items: start;
+}
+
+/* ── Footer left — CTA ── */
+
+.crp-footer__cta-heading {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--crp-text);
+  margin: 0 0 6px;
+}
+
+.crp-footer__cta-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.crp-footer__cta-item {
+  font-size: 0.74rem;
+  color: var(--crp-blue);
+  font-weight: 500;
+}
+
+.crp-footer__decision-line {
+  font-size: 0.64rem;
+  color: var(--crp-subtle);
+  margin: 8px 0 0;
+  line-height: 1.4;
+}
+
+/* ── Footer right — QR block ── */
+
+.crp-footer__qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+  width: 165px;
+  padding: 10px 12px;
+  background: var(--crp-bg-light);
+  border: 1px solid var(--crp-border);
+  border-radius: var(--crp-radius);
+}
+
+.crp-footer__qr-img {
+  width: 110px;
+  height: 110px;
+  display: block;
+  image-rendering: pixelated;
+}
+
+.crp-footer__qr-caption {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--crp-blue);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.crp-footer__qr-url {
+  font-size: 0.58rem;
+  color: var(--crp-subtle);
+  margin: 0;
+  word-break: break-all;
+  font-family: monospace;
+  line-height: 1.35;
+}
+
+.crp-footer__qr-url a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.crp-footer__qr-url a:hover {
+  text-decoration: underline;
+}
+
+/* ─── Print overrides ─────────────────────────────────────────────────────── */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  .crp-wrap {
+    background: none;
+    padding: 0;
+    min-height: unset;
+  }
+
+  .crp-toolbar {
+    display: none !important;
+  }
+
+  .crp-page {
+    box-shadow: none;
+    max-width: none;
+    min-height: unset;
+    padding: 0;
+    margin: 0;
+  }
+
+  .crp-list__item,
+  .crp-fact-row,
+  .crp-chip {
+    break-inside: avoid;
+  }
+
+  .crp-header,
+  .crp-footer {
+    break-inside: avoid;
+  }
+}
