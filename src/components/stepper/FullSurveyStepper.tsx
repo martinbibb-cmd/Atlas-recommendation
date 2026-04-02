@@ -23,7 +23,6 @@ import { PrioritiesStep } from '../../features/survey/priorities/PrioritiesStep'
 import { INITIAL_PRIORITIES_STATE } from '../../features/survey/priorities/prioritiesTypes';
 import { HeatLossStep, INITIAL_HEAT_LOSS_STATE } from '../../features/survey/heatLoss/HeatLossStep';
 import { InsightLayerPage } from '../../features/survey/insight/InsightLayerPage';
-import { RecommendationStep } from '../../features/survey/recommendation/RecommendationStep';
 import {
   INITIAL_RECOMMENDATION_STATE,
   type RecommendationState,
@@ -135,7 +134,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   const [heatLossState, setHeatLossState] = useState(
     () => prefill?.fullSurvey?.heatLoss ?? INITIAL_HEAT_LOSS_STATE
   );
-  const [recommendationState, setRecommendationState] = useState<RecommendationState>(
+  const [recommendationState] = useState<RecommendationState>(
     () => prefill?.fullSurvey?.recommendation ?? INITIAL_RECOMMENDATION_STATE
   );
   const [results, setResults] = useState<FullEngineResult | null>(null);
@@ -288,8 +287,8 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   });
 
   const next = () => {
-    if (currentStep === 'recommendation') {
-      // Recommendation is the last step — run the engine and advance to results.
+    if (currentStep === 'insight') {
+      // Insight is the last step — run the engine and advance to results.
       const draft = buildDraft();
       // Sanitise before engine run AND before storing as hubDraft so that
       // buildCanonicalPresentation receives all bridged fields (roofOrientation,
@@ -451,15 +450,6 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
             if (onDraft) onDraft(draft);
             onOpenSimulator(engineInput);
           } : undefined}
-        />
-      )}
-
-      {currentStep === 'recommendation' && (
-        <RecommendationStep
-          state={recommendationState}
-          onChange={setRecommendationState}
-          onNext={next}
-          onPrev={prev}
         />
       )}
 
