@@ -73,9 +73,9 @@ export default function ConfidenceScoreBar({ data }: ConfidenceScoreBarProps) {
   return (
     <div
       className="conf-score"
-      aria-label={`Atlas confidence: ${label} (${score}%)`}
+      aria-label={`Our confidence: ${label} (${score}%)`}
     >
-      <span className="conf-score__heading">Atlas Confidence</span>
+      <span className="conf-score__heading">Our Confidence</span>
       <div className="conf-score__bar-row">
         <div className="conf-score__track">
           <div

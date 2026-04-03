@@ -3,7 +3,6 @@
  *
  * Validates that LabPrintCustomer:
  *   - Renders the document title "Customer Summary"
- *   - Renders the ATLAS brand
  *   - Shows the headline verdict (system name + note)
  *   - Renders the "Why it's recommended" section with suits copy
  *   - Renders the "Key considerations" section with struggles copy
@@ -27,9 +26,9 @@ describe('LabPrintCustomer — document structure', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Customer Summary' })).toBeTruthy();
   });
 
-  it('renders the ATLAS brand', () => {
+  it('renders the document header brand element', () => {
     render(<LabPrintCustomer />);
-    expect(screen.getByText('ATLAS')).toBeTruthy();
+    expect(document.querySelector('.lp-doc-header__brand')).toBeTruthy();
   });
 
   it('renders the subtitle', () => {

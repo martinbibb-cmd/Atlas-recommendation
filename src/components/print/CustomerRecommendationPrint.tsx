@@ -329,7 +329,7 @@ export default function CustomerRecommendationPrint({
           {/* Left — dominant recommendation anchor */}
           <div className="crp-header__left">
             <p className="crp-header__eyebrow">
-              <span className="crp-header__brand">ATLAS</span>
+              <span className="crp-header__brand" aria-hidden="true"></span>
               <span className="crp-header__recommended-pill">Recommended</span>
             </p>
             <p className="crp-header__title">

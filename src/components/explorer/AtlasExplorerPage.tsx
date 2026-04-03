@@ -417,7 +417,7 @@ export default function AtlasExplorerPage({ onBack }: Props) {
         <button className="explorer-page__back" onClick={onBack} aria-label="Back">← Back</button>
         <div className="explorer-page__title-block">
           <h1 className="explorer-page__title">
-            <span className="explorer-page__brand">Atlas</span> System Explorer
+            System Explorer
           </h1>
           <p className="explorer-page__subtitle">
             Tap any room to reveal the heating system layer by layer

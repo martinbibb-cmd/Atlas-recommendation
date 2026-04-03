@@ -687,8 +687,7 @@ export default function App() {
         <div className="landing">
           <div className="hero">
             <h1>
-              <span className="hero-brand">Atlas</span>
-              System Summary
+              Heating System Summary
             </h1>
             <p className="tagline">
               Compare heating systems and see why one fits better.

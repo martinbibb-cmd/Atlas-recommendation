@@ -3,7 +3,6 @@
  *
  * Validates that LabPrintFull:
  *   - Renders the document title "Full Output Report"
- *   - Renders the ATLAS brand
  *   - Shows the "Includes all visible result panels" subtitle
  *   - Renders each visible section it receives
  *   - Shows a withheld-recommendation banner when the recommendation is withheld
@@ -88,9 +87,9 @@ describe('LabPrintFull — document structure', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Full Output Report' })).toBeTruthy();
   });
 
-  it('renders the ATLAS brand', () => {
+  it('renders the document header brand element', () => {
     render(<LabPrintFull sections={[makeRecommendationSection()]} />);
-    expect(screen.getByText('ATLAS')).toBeTruthy();
+    expect(document.querySelector('.lp-doc-header__brand')).toBeTruthy();
   });
 
   it('renders the "all visible result panels" subtitle in the document header', () => {

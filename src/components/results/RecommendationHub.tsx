@@ -874,7 +874,7 @@ function PrintHeader({ result }: { result: FullEngineResult }) {
 
   return (
     <div className="print-header">
-      <p className="print-header__title">Atlas — Heating System Recommendation</p>
+      <p className="print-header__title">Heating System Recommendation</p>
       <div className="print-header__meta">
         <span>{dateStr}</span>
         <span className="print-header__sep"> · </span>
@@ -975,7 +975,7 @@ function buildDepotNotes(result: FullEngineResult): string {
   });
 
   const lines: string[] = [];
-  lines.push(`ATLAS RECOMMENDATION — ${dateStr}`);
+  lines.push(`OUR RECOMMENDATION — ${dateStr}`);
   lines.push('');
   lines.push(`SYSTEM: ${primary}`);
   if (secondary) lines.push(`NOTE: ${secondary}`);

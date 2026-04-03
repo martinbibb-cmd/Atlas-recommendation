@@ -7,7 +7,7 @@ export default function MethodologyPage({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="governance-content">
-        <h1>Atlas Methodology</h1>
+        <h1>Our Methodology</h1>
         <p className="governance-lead">Draft structure — full equations will be published in a future release.</p>
 
         <h2>1. Heat Loss Modelling</h2>

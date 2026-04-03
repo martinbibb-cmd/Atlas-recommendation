@@ -81,9 +81,9 @@ describe('DecisionSynthesisPage — rendering', () => {
     expect(screen.getByRole('heading', { name: /advice/i })).toBeTruthy();
   });
 
-  it('renders the Atlas recommends section with the primary recommendation', () => {
+  it('renders the "We recommend" section with the primary recommendation', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(screen.getByText(/ATLAS RECOMMENDS/i)).toBeTruthy();
+    expect(screen.getByText(/WE RECOMMEND/i)).toBeTruthy();
     // The recommendation appears in multiple places — use getAllByText and check at least one exists
     const matches = screen.getAllByText('Combi boiler');
     expect(matches.length).toBeGreaterThan(0);
@@ -1141,7 +1141,7 @@ describe('DecisionSynthesisPage — PR3 customer-chosen option', () => {
     fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
 
     // The recommended system (combi) should still appear in the hero.
-    expect(screen.getByText(/ATLAS RECOMMENDS/i)).toBeTruthy();
+    expect(screen.getByText(/WE RECOMMEND/i)).toBeTruthy();
     const combiMatches = screen.getAllByText('combi');
     expect(combiMatches.length).toBeGreaterThan(0);
   });
@@ -1247,7 +1247,7 @@ describe('DecisionSynthesisPage — PR4 behaviour cards section', () => {
   it('behaviour cards section is below the recommendation summary area', () => {
     render(<DecisionSynthesisPage engineOutput={OUTPUT_WITH_BEHAVIOUR_CARDS} />);
     const cardsSection = screen.getByTestId('behaviour-cards-section');
-    const atlasRecommends = screen.getByText(/ATLAS RECOMMENDS/i);
+    const atlasRecommends = screen.getByText(/WE RECOMMEND/i);
     // cards section should exist and recommendation should also exist
     expect(cardsSection).toBeTruthy();
     expect(atlasRecommends).toBeTruthy();
@@ -1292,7 +1292,7 @@ describe('DecisionSynthesisPage — PR4 behaviour cards with customer divergence
     fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
 
     // Recommendation should still say "Combi boiler".
-    expect(screen.getByText(/ATLAS RECOMMENDS/i)).toBeTruthy();
+    expect(screen.getByText(/WE RECOMMEND/i)).toBeTruthy();
     const combiMatches = screen.getAllByText('combi');
     expect(combiMatches.length).toBeGreaterThan(0);
   });
@@ -1424,9 +1424,9 @@ describe('DecisionSynthesisPage — PR6 hero heading', () => {
     expect(screen.getByText(/recommended for your home/i)).toBeTruthy();
   });
 
-  it('renders ATLAS RECOMMENDS eyebrow label', () => {
+  it('renders WE RECOMMEND eyebrow label', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(screen.getByText(/ATLAS RECOMMENDS/i)).toBeTruthy();
+    expect(screen.getByText(/WE RECOMMEND/i)).toBeTruthy();
   });
 });
 
@@ -1480,7 +1480,7 @@ describe('DecisionSynthesisPage — PR6 chosen option elevated into hero', () =>
   it('recommendation is still visible alongside chosen option', () => {
     render(<DecisionSynthesisPage engineOutput={MULTI_OPTION_OUTPUT_WITH_BEHAVIOURS} />);
     fireEvent.click(screen.getByTestId('choose-btn-stored_unvented'));
-    expect(screen.getByText(/ATLAS RECOMMENDS/i)).toBeTruthy();
+    expect(screen.getByText(/WE RECOMMEND/i)).toBeTruthy();
     expect(document.querySelector('[data-testid="chosen-option-hero"]')).not.toBeNull();
   });
 

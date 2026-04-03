@@ -7,9 +7,9 @@ export default function NeutralityPage({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="governance-content">
-        <h1>Atlas Neutrality Statement</h1>
+        <h1>Our Neutrality Statement</h1>
 
-        <p className="governance-lead">Atlas is manufacturer-neutral.</p>
+        <p className="governance-lead">We are manufacturer-neutral.</p>
 
         <p>
           Product references are illustrative and do not imply endorsement. Where example products are
@@ -18,7 +18,7 @@ export default function NeutralityPage({ onBack }: { onBack: () => void }) {
         </p>
 
         <div className="governance-disclaimer">
-          Atlas modelling outcomes are determined entirely by the physics of the installation — pipe
+          Our modelling outcomes are determined entirely by the physics of the installation — pipe
           diameters, pressures, occupancy, and thermal characteristics — not by commercial relationships.
           No manufacturer, distributor, or installer has any influence over assessment verdicts.
         </div>

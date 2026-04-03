@@ -57,7 +57,7 @@ export const WHAT_IF_SCENARIOS: WhatIfScenario[] = [
       'When rated output far exceeds the true heat loss, the boiler reaches set-point almost instantly. ' +
       'It shuts off, cools, and restarts — each cold-start burning extra fuel on the heat exchanger warm-up.',
     recommendation:
-      'Atlas calculates actual heat loss to select output that matches load — not room count or gut feel.',
+      'We calculate actual heat loss to select output that matches load — not room count or gut feel.',
     visualType: 'cycling',
     appliesTo: ['combi', 'system', 'regular'],
   },
@@ -72,7 +72,7 @@ export const WHAT_IF_SCENARIOS: WhatIfScenario[] = [
       'For boilers the threshold is higher; for heat pumps it is lower because flow demand is much greater. ' +
       'Only when the system genuinely needs the extra flow does 28 mm outperform 22 mm.',
     recommendation:
-      'Atlas matches primary bore to the calculated flow requirement — upgrading only when demand justifies the extra volume.',
+      'We match primary bore to the calculated flow requirement — upgrading only when demand justifies the extra volume.',
     beforeLabel: '28 mm below threshold (extra volume, slow response)',
     afterLabel: '28 mm above threshold (adequate flow ✓)',
     visualType: 'velocity',
@@ -118,7 +118,7 @@ export const WHAT_IF_SCENARIOS: WhatIfScenario[] = [
       'Repeated handwashing, rinsing, and stop-start kitchen use can produce dozens of short draws per day. ' +
       'Each cold-start cycle carries a fixed energy penalty that a stored system avoids because the water is already hot.',
     recommendation:
-      'Atlas evaluates actual draw patterns — not just occupancy count — to determine whether on-demand or stored hot water is more efficient.',
+      'We evaluate actual draw patterns — not just occupancy count — to determine whether on-demand or stored hot water is more efficient.',
     visualType: 'storage',
     appliesTo: ['all'],
   },
@@ -147,7 +147,7 @@ export const WHAT_IF_SCENARIOS: WhatIfScenario[] = [
       'Usable hot-water performance depends on recovery rate, storage temperature, insulation losses, and the household draw pattern — ' +
       'not just litres of water. A right-sized cylinder matched to actual demand recovers faster and wastes less energy.',
     recommendation:
-      'Atlas sizes cylinder volume to actual daily draw, recovery capability, and draw pattern — not floor area or bedroom count.',
+      'We size cylinder volume to actual daily draw, recovery capability, and draw pattern — not floor area or bedroom count.',
     beforeLabel: '300 L (high losses, slow recovery)',
     afterLabel: '170 L (right-sized)',
     visualType: 'oversizing',
