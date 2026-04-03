@@ -54,7 +54,6 @@ import QuadrantDashboardPage from './QuadrantDashboardPage';
 import GeminiAISummary from './GeminiAISummary';
 import { computeCurrentEfficiencyPct, DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
 import CylinderComparePanel from '../physics-visuals/CylinderComparePanel';
-import LifestyleInteractive from '../visualizers/LifestyleInteractive';
 import ConvectionExplainer from '../visualizers/ConvectionExplainer';
 import './PresentationDeck.css';
 
@@ -697,11 +696,6 @@ function PerformanceUpgradesPage({ layer }: { layer: UpgradeLayer }) {
         <CylinderComparePanel />
       </div>
 
-      {/* ── System behaviour — Day Painter interactive simulation ── */}
-      <div className="atlas-deck-perf__section">
-        <p className="atlas-deck-perf__section-eyebrow">System behaviour</p>
-        <LifestyleInteractive />
-      </div>
     </>
   );
 }
