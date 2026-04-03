@@ -925,6 +925,28 @@
   padding: 0.1rem 0.35rem;
 }
 
+.atlas-deck-perf__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.atlas-deck-perf__section-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #718096;
+  margin: 0;
+}
+
+/* ─── Page 2.5 — Heat explainer (ConvectionExplainer embed) ─────────────── */
+
+.atlas-deck-fruit__heat-explainer {
+  margin-top: 1.25rem;
+}
+
 
 
 .atlas-deck-sys-grid__hint {
