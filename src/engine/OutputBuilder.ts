@@ -11,6 +11,14 @@ import { buildPathwaysV1 } from './modules/PathwayBuilderModule';
 import { assessFutureEnergyOpportunities } from './modules/FutureEnergyOpportunitiesModule';
 import { buildRealWorldBehavioursV1 } from './modules/RealWorldBehaviourModule';
 
+/**
+ * Flag ID emitted by CombiDhwModule when mains pressure is below the absolute
+ * minimum operating condition (< 0.3 bar).  At this pressure the burner cannot
+ * fire — this is the only combi-specific 'fail' flag that warrants 'rejected'
+ * eligibility rather than the advisory 'caution' used for demand-side gates.
+ */
+const COMBI_MIN_PRESSURE_FLAG_ID = 'combi-pressure-constraint' as const;
+
 function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3): EligibilityItem[] {
   const { redFlags, hydraulicV1, combiDhwV1, storedDhwV1 } = result;
   const items: EligibilityItem[] = [];
@@ -18,14 +26,32 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
 
   // On-demand eligibility is driven first by topology (redFlags.rejectCombi),
   // then by CombiDhwModuleV1 physics verdict.
+  //
+  // 'rejected' is reserved for genuine physical impossibilities:
+  //   - topology rejection (one-pipe system)
+  //   - pressure below absolute minimum operating condition (< 0.3 bar — burner cannot fire)
+  // All other 'fail' cases (simultaneous demand, large household) are advisory
+  // under the no-hard-stops policy → 'caution' so combi remains selectable.
   let onDemandStatus: EligibilityItem['status'];
   let onDemandReason: string | undefined;
 
-  if (redFlags.rejectCombi) {
+  const combiBelowMinPressure = combiDhwV1?.flags.some(
+    f => f.id === COMBI_MIN_PRESSURE_FLAG_ID && f.severity === 'fail',
+  ) ?? false;
+
+  if (redFlags.rejectCombi || combiBelowMinPressure) {
     onDemandStatus = 'rejected';
-    onDemandReason = redFlags.reasons.filter(r => r.includes('Combi')).join(' ') || undefined;
+    if (redFlags.rejectCombi) {
+      onDemandReason = redFlags.reasons.filter(r => r.includes('Combi')).join(' ') || undefined;
+    } else {
+      const failFlag = combiDhwV1?.flags.find(
+        f => f.id === COMBI_MIN_PRESSURE_FLAG_ID && f.severity === 'fail',
+      );
+      onDemandReason = failFlag ? `${failFlag.title}: ${failFlag.detail}` : undefined;
+    }
   } else if (combiDhwV1?.verdict.combiRisk === 'fail') {
-    onDemandStatus = 'rejected';
+    // Demand-side 'fail' (simultaneous demand gate, large household) — advisory only.
+    onDemandStatus = 'caution';
     const failFlag = combiDhwV1.flags.find(f => f.severity === 'fail');
     onDemandReason = failFlag ? `${failFlag.title}: ${failFlag.detail}` : undefined;
   } else if (combiDhwV1?.verdict.combiRisk === 'warn') {
@@ -104,8 +130,9 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
   });
 
   // ASHP eligibility is driven first by hydraulic physics, then by topology hard-fails.
+  // hasOutdoorSpaceForHeatPump === false means no confirmed outdoor space for the unit — hard gate.
   let ashpStatus: EligibilityItem['status'];
-  if (redFlags.rejectAshp) {
+  if (redFlags.rejectAshp || input?.hasOutdoorSpaceForHeatPump === false) {
     ashpStatus = 'rejected';
   } else if (hydraulicV1.verdict.ashpRisk === 'fail') {
     ashpStatus = 'rejected';

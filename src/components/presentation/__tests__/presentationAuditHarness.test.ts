@@ -826,10 +826,10 @@ describe('Combi DHW rules — occupancy/bathroom gate thresholds', () => {
     expect(['caution', 'rejected']).toContain(combi!.status);
   });
 
-  it('peakConcurrentOutlets >= 2 → combi option is rejected', () => {
+  it('peakConcurrentOutlets >= 2 → combi option is caution (no hard stop — advice only policy)', () => {
     const combi = getCombiCard({ bathroomCount: 2, peakConcurrentOutlets: 2, occupancyCount: 2 });
     expect(combi).toBeDefined();
-    expect(combi!.status).toBe('rejected');
+    expect(combi!.status).toBe('caution');
   });
 
   it('1 bathroom, 1 person → combi option is viable', () => {

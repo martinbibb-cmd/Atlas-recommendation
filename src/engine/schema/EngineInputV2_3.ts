@@ -538,6 +538,16 @@ export interface EngineInputV2_3 {
   /** Cylinder / airing-cupboard space availability. */
   availableSpace?: 'tight' | 'ok' | 'unknown';
   /**
+   * Whether the property has adequate outdoor space for an ASHP unit (min. 1 m
+   * clearance on all sides — garden, side return, or flat roof).
+   *
+   *   true   — surveyor has confirmed outdoor space is available
+   *   false  — surveyor has confirmed no suitable outdoor siting is available;
+   *            ASHP is not feasible regardless of hydraulics
+   *   absent — not yet assessed (treated as unknown, no gate applied)
+   */
+  hasOutdoorSpaceForHeatPump?: boolean;
+  /**
    * Actual household composition by age band.
    *
    * When present, this is the primary source of truth for occupancy-driven
