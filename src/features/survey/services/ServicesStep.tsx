@@ -40,6 +40,17 @@ interface ServicesStepProps {
   dynamicFlowLpm?: number;
   /** Called when any of the pressure/flow measurements change. */
   onMeasurementsChange?: (staticBar: number | undefined, dynamicBar: number | undefined, flowLpm: number | undefined) => void;
+  /**
+   * Available installation space — covers both indoor cylinder space and outdoor ASHP
+   * unit space.  Hard gate for stored water and ASHP recommendations.
+   *
+   *   'ok'      — confirmed adequate space (cylinder + outdoor unit)
+   *   'tight'   — at least one space is constrained (cylinder / outdoor unit)
+   *   'unknown' — surveyor has not yet assessed space (default)
+   */
+  availableSpace?: 'ok' | 'tight' | 'unknown';
+  /** Called when the available-space answer changes. */
+  onAvailableSpaceChange?: (value: 'ok' | 'tight' | 'unknown') => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -139,6 +150,8 @@ export function ServicesStep({
   dynamicPressureBar,
   dynamicFlowLpm,
   onMeasurementsChange,
+  availableSpace,
+  onAvailableSpaceChange,
 }: ServicesStepProps) {
   // Local postcode input — seeded from survey postcode but independently editable.
   const [postcodeInput, setPostcodeInput] = useState<string>(
@@ -413,6 +426,105 @@ export function ServicesStep({
             </button>
           </div>
         )}
+      </div>
+
+      {/* ── Installation space block ─────────────────────────────────────────── */}
+      <div
+        data-testid="installation-space-block"
+        style={{ marginTop: '1rem', padding: '1rem', background: '#fafafa', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+      >
+        <p style={{ ...sectionHeadingStyle, marginTop: 0 }}>Installation space</p>
+        <p style={{ fontSize: '0.8rem', color: '#4a5568', margin: '0 0 0.75rem' }}>
+          Confirm whether the property has adequate space for a hot water cylinder
+          (airing cupboard / utility room) and outdoor space for a heat pump unit
+          (garden, side return or roof). These are hard gates — no space means no stored
+          water or heat pump option.
+        </p>
+
+        {/* Cylinder space */}
+        <p style={{ ...sectionHeadingStyle, fontSize: '0.75rem', marginTop: '0.5rem', marginBottom: '0.25rem' }}>
+          Indoor space for a hot water cylinder
+        </p>
+        <p style={{ fontSize: '0.75rem', color: '#718096', margin: '0 0 0.4rem' }}>
+          At least 0.5 m² of clear floor space (e.g. airing cupboard, utility room).
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+          {[
+            { value: 'ok',      label: '✅ Yes — space available',    sub: 'Standard or slimline cylinder fits' },
+            { value: 'tight',   label: '⚠️ Tight — very limited',     sub: 'May need compact / Mixergy option' },
+            { value: 'unknown', label: '❓ Not assessed yet',           sub: 'Check before specifying system' },
+          ].map(({ value, label, sub }) => {
+            const isSelected = (availableSpace ?? 'unknown') === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                data-testid={`cylinder-space-${value}`}
+                onClick={() => onAvailableSpaceChange?.(value as 'ok' | 'tight' | 'unknown')}
+                style={{
+                  padding: '0.4rem 0.75rem',
+                  borderRadius: '6px',
+                  border: isSelected ? '2px solid #3182ce' : '1px solid #e2e8f0',
+                  background: isSelected ? '#ebf8ff' : '#fff',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: isSelected ? 600 : 400,
+                  color: isSelected ? '#2b6cb0' : '#4a5568',
+                  textAlign: 'left',
+                }}
+              >
+                {label}
+                <span style={{ display: 'block', fontSize: '0.68rem', color: '#718096', fontWeight: 400, marginTop: '0.15rem' }}>
+                  {sub}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Outdoor space for ASHP */}
+        <p style={{ ...sectionHeadingStyle, fontSize: '0.75rem', marginTop: '0.5rem', marginBottom: '0.25rem' }}>
+          Outdoor space for an air source heat pump unit
+        </p>
+        <p style={{ fontSize: '0.75rem', color: '#718096', margin: '0 0 0.4rem' }}>
+          Garden, side return or flat roof — min. 1 m clearance on all sides.
+          If no outdoor space exists, ASHP is not feasible regardless of hydraulics.
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+          {[
+            { value: 'ok',      label: '✅ Yes — outdoor space available', sub: 'ASHP siting is feasible' },
+            { value: 'tight',   label: '🚫 No outdoor space',               sub: 'ASHP not feasible — no siting location' },
+            { value: 'unknown', label: '❓ Not assessed yet',                sub: 'Check before specifying heat pump' },
+          ].map(({ value, label, sub }) => {
+            // Outdoor space feeds the same availableSpace field — if space is 'tight'
+            // it gates ASHP regardless of whether it was set by the cylinder question.
+            const isSelected = (availableSpace ?? 'unknown') === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                data-testid={`outdoor-space-${value}`}
+                onClick={() => onAvailableSpaceChange?.(value as 'ok' | 'tight' | 'unknown')}
+                style={{
+                  padding: '0.4rem 0.75rem',
+                  borderRadius: '6px',
+                  border: isSelected ? '2px solid #3182ce' : '1px solid #e2e8f0',
+                  background: isSelected ? '#ebf8ff' : '#fff',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: isSelected ? 600 : 400,
+                  color: isSelected ? '#2b6cb0' : '#4a5568',
+                  textAlign: 'left',
+                }}
+              >
+                {label}
+                <span style={{ display: 'block', fontSize: '0.68rem', color: '#718096', fontWeight: 400, marginTop: '0.15rem' }}>
+                  {sub}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Debug output ─────────────────────────────────────────────────────── */}

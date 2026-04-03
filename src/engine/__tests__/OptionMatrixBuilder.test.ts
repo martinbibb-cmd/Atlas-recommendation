@@ -46,14 +46,15 @@ describe('buildOptionMatrixV1', () => {
     }
   });
 
-  it('combi card status matches combiDhwV1 verdict — rejected when peakConcurrentOutlets >= 2', () => {
-    // 2 bathrooms + 2 concurrent outlets → simultaneous demand → combi rejected
-    // Must use combi family so that combiDhwV1 is populated.
+  it('combi card status matches combiDhwV1 verdict — caution when peakConcurrentOutlets >= 2 (no hard stop policy)', () => {
+    // 2 bathrooms + 2 concurrent outlets → simultaneous demand → combi caution
+    // Under the no-hard-stops policy, combi must remain selectable even with
+    // high simultaneous demand — it is heavily penalised in scoring but not blocked.
     const combiInput = { ...baseInput, currentHeatSourceType: 'combi' as const, bathroomCount: 2, peakConcurrentOutlets: 2 };
     const result = runEngine(combiInput);
     const options = buildOptionMatrixV1(result, combiInput);
     const combi = options.find(o => o.id === 'combi')!;
-    expect(combi.status).toBe('rejected');
+    expect(combi.status).toBe('caution');
   });
 
   it('combi card is viable for single bathroom + good pressure + professional', () => {
@@ -536,7 +537,7 @@ describe('sensitivities on option cards', () => {
     expect(pipeSensitivity!.effect).toBe('downgrade');
   });
 
-  it('combi sensitivities mention peak outlets when combi is rejected (2 bathrooms)', () => {
+  it('combi sensitivities mention peak outlets when combi is caution (2 bathrooms — demand advisory)', () => {
     const input = { ...baseInput, currentHeatSourceType: 'combi' as const, bathroomCount: 2 };
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);

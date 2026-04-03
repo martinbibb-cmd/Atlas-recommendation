@@ -273,10 +273,22 @@ export function buildOptionMatrixV1(
   const combiRisk = core.combiDhwV1?.verdict.combiRisk ?? 'pass';
   const combiRejectedByTopology = core.redFlags.rejectCombi ?? false;
 
+  // combi-pressure-constraint at 'fail' severity means pressure is below the
+  // absolute minimum operating condition (< 0.3 bar) — the burner physically
+  // cannot fire.  This is a genuine physical impossibility → 'rejected'.
+  // All other 'fail' flags (simultaneous demand, large household) are advisory
+  // under the no-hard-stops policy → 'caution' so combi remains selectable.
+  const combiBelowMinPressure = core.combiDhwV1?.flags.some(
+    f => f.id === 'combi-pressure-constraint' && f.severity === 'fail',
+  ) ?? false;
+
   let combiStatus: OptionCardV1['status'];
-  if (combiRejectedByTopology || combiRisk === 'fail') {
+  if (combiRejectedByTopology || combiBelowMinPressure) {
     combiStatus = 'rejected';
-  } else if (combiRisk === 'warn') {
+  } else if (combiRisk === 'fail' || combiRisk === 'warn') {
+    // combiRisk === 'fail' from demand-side flags (bathroomCount >= 2, occupancyCount >= 4)
+    // is advisory — combi is heavily penalised in the recommendation ranking but must remain
+    // selectable when it is still the best available option for the household.
     combiStatus = 'caution';
   } else {
     combiStatus = 'viable';
@@ -366,8 +378,12 @@ export function buildOptionMatrixV1(
     headline: combiStatus === 'viable'
       ? 'Combi boiler suits your single-outlet demand.'
       : combiStatus === 'caution'
-      ? 'Combi possible but demand is borderline.'
-      : 'Combi not suitable — simultaneous demand or pressure issue.',
+      ? combiRisk === 'fail'
+        ? 'Combi not advisable — simultaneous demand risk is high. Consider stored options.'
+        : 'Combi possible but demand is borderline.'
+      : combiRejectedByTopology
+      ? 'Combi not suitable — topology barrier.'
+      : 'Combi not suitable — mains pressure below minimum operating condition.',
     why: combiWhy,
     requirements: combiRequirements,
     evidenceIds: combiEvidenceIds,
@@ -681,7 +697,7 @@ export function buildOptionMatrixV1(
   const ashpRejectedByTopology = core.redFlags.rejectAshp ?? false;
 
   let ashpStatus: OptionCardV1['status'];
-  if (ashpRejectedByTopology || ashpRisk === 'fail') {
+  if (ashpRejectedByTopology || ashpRisk === 'fail' || input.availableSpace === 'tight') {
     ashpStatus = 'rejected';
   } else if (ashpRisk === 'warn' || (core.redFlags.flagAshp ?? false)) {
     ashpStatus = 'caution';
@@ -693,6 +709,9 @@ export function buildOptionMatrixV1(
   const ashpWhy: string[] = [
     `ΔT 5°C requires ~${(ashp.flowLpm / boiler.flowLpm).toFixed(1)}× boiler flow rate (${ashp.flowLpm.toFixed(1)} L/min vs ${boiler.flowLpm.toFixed(1)} L/min).`,
   ];
+  if (input.availableSpace === 'tight') {
+    ashpWhy.push('No adequate outdoor space for an ASHP unit — installation not feasible at this property.');
+  }
   for (const note of core.hydraulicV1.notes) {
     if (note.includes('ASHP')) {
       ashpWhy.push(note);
@@ -775,6 +794,9 @@ export function buildOptionMatrixV1(
       ...(ashpRejectedByTopology || ashpRisk === 'fail'
         ? ['Resolve hydraulic/topology barrier — pipe or system upgrade required.']
         : []),
+      ...(input.availableSpace === 'tight'
+        ? ['Outdoor space for ASHP unit not confirmed — installation not feasible until space is verified.']
+        : []),
       'MCS-certified heat pump installer and sizing survey.',
       '28mm primary pipework (upgrade from 22mm if required).',
       'Stored DHW cylinder with immersion backup.',
@@ -804,6 +826,8 @@ export function buildOptionMatrixV1(
       ? 'ASHP is hydraulically feasible — good pipe sizing for heat pump flow.'
       : ashpStatus === 'caution'
       ? 'ASHP possible but pipe sizing or topology needs checking.'
+      : input.availableSpace === 'tight'
+      ? 'ASHP not feasible — no confirmed outdoor space for the unit.'
       : 'ASHP not currently feasible — hydraulic or topology barrier.',
     why: ashpWhy,
     requirements: ashpRequirements,

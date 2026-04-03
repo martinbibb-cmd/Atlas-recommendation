@@ -292,6 +292,8 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
               mainsDynamicFlowLpmKnown: flowLpm !== undefined ? true : undefined,
             }));
           }}
+          availableSpace={input.availableSpace}
+          onAvailableSpaceChange={value => setInput(prev => ({ ...prev, availableSpace: value }))}
         />
       )}
 

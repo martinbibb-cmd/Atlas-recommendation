@@ -66,16 +66,21 @@ describe('EngineOutputV1 shape', () => {
     expect(onDemand.status).toBe('rejected');
   });
 
-  it('rejects combi when bathroomCount >= 2 (hard simultaneous-demand gate, even if peakConcurrentOutlets < 2)', () => {
+  it('combi is caution (not rejected) when bathroomCount >= 2 — simultaneous demand is advisory under no-hard-stops policy', () => {
+    // Under no-hard-stops policy, bathroomCount >= 2 triggers a 'limit' limiter
+    // that heavily penalises combi in the ranking but does not prevent selection
+    // when combi is still the best available option.
     const { engineOutput } = runEngine({ ...baseInput, currentHeatSourceType: 'combi' as const, bathroomCount: 2, highOccupancy: false });
     const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
-    expect(onDemand.status).toBe('rejected');
+    expect(onDemand.status).toBe('caution');
   });
 
-  it('rejects combi when peakConcurrentOutlets >= 2 (explicit simultaneous demand)', () => {
+  it('combi is caution (not rejected) when peakConcurrentOutlets >= 2 — advisory under no-hard-stops policy', () => {
+    // Same advisory policy: concurrent outlets >= 2 is a demand-side advisory,
+    // not a physical impossibility. Combi remains selectable with strong caveats.
     const { engineOutput } = runEngine({ ...baseInput, currentHeatSourceType: 'combi' as const, bathroomCount: 2, peakConcurrentOutlets: 2 });
     const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
-    expect(onDemand.status).toBe('rejected');
+    expect(onDemand.status).toBe('caution');
   });
 
   it('combi is viable for 1 bathroom + low occupancy + professional signature', () => {
@@ -190,10 +195,13 @@ describe('EngineOutputV1 shape', () => {
     expect(onDemand.status).toBe('rejected');
   });
 
-  it('on_demand is rejected when peakConcurrentOutlets >= 2 (combiDhwV1 simultaneous demand)', () => {
+  it('on_demand is caution when peakConcurrentOutlets >= 2 (simultaneous demand — advisory, not hard block)', () => {
+    // Under the no-hard-stops policy, simultaneous demand risk is advisory.
+    // Combi is heavily penalised in the recommendation ranking but must remain
+    // selectable when it is still the best available option for the household.
     const { engineOutput } = runEngine({ ...baseInput, currentHeatSourceType: 'combi' as const, bathroomCount: 1, peakConcurrentOutlets: 2 });
     const onDemand = engineOutput.eligibility.find(e => e.id === 'on_demand')!;
-    expect(onDemand.status).toBe('rejected');
+    expect(onDemand.status).toBe('caution');
   });
 
   it('on_demand is caution for steady_home signature with 1 bathroom + 1 outlet', () => {
@@ -311,15 +319,17 @@ describe('EngineOutputV1 shape', () => {
 
   // ── Recommendation resolver V1 ────────────────────────────────────────────
 
-  it('recommendation primary is "Stored hot water — Unvented cylinder" when on_demand is rejected and stored unvented is viable', () => {
-    // 2 bathrooms + 2 concurrent outlets → combi rejected; 14 L/min @ 2.5 bar → stored unvented viable.
-    // hasLoftConversion: true is the primary rejection gate for stored_vented (combi run has no storedDhwV1).
+  it('recommendation primary is "Stored hot water — Unvented cylinder" when on_demand is caution (high demand) and stored unvented is viable', () => {
+    // 2 bathrooms + 2 concurrent outlets → combi_dhw_demand_risk 'limit' penalty → combi caution;
+    // stored_unvented scores highest due to 14 L/min @ 2.5 bar operating point.
+    // hasLoftConversion: true independently makes stored_vented caution.
+    // Under no-hard-stops policy, combi is caution (not rejected) but heavily penalised in ranking.
     const { engineOutput } = runEngine({
       ...baseInput,
       currentHeatSourceType: 'combi' as const,
       bathroomCount: 2,
       peakConcurrentOutlets: 2,
-      hasLoftConversion: true,   // independently rejects stored_vented (combi run has no storedDhwV1)
+      hasLoftConversion: true,   // independently makes stored_vented caution
       mainsDynamicFlowLpm: 14,   // qualifies stored_unvented (10 L/min @ 1 bar threshold)
       currentBoilerAgeYears: 10, // reduces missingKeyCount for medium confidence
       currentBoilerOutputKw: 24, // reduces missingKeyCount for medium confidence
@@ -327,13 +337,13 @@ describe('EngineOutputV1 shape', () => {
     expect(engineOutput.recommendation.primary).toBe('Stored hot water — Unvented cylinder');
   });
 
-  it('recommendation primary is canonical bestOverall label when combi is rejected and all remaining options have caveats', () => {
+  it('recommendation primary is canonical bestOverall label when combi is heavily penalised and all remaining options have caveats', () => {
     // PR6a: The canonical recommendation source (bestOverall) is used.
     // Old heuristic: "Multiple options need review" when 0 viable options.
     // New canonical: bestOverall picks the highest-scoring eligible candidate
     // even when it is "suitable_with_caveats" — more actionable than withholding.
     //
-    // bathroomCount: 2 + highOccupancy → combi hard-rejected (simultaneous demand)
+    // bathroomCount: 2 + highOccupancy → combi_dhw_demand_risk 'limit' penalty (combi caution)
     // mainsDynamicFlowLpm: 6 (below 10 L/min threshold) → stored_unvented caution
     // futureLoftConversion: true → stored_vented caution
     // 22mm + 8kW → ASHP caution
@@ -362,7 +372,7 @@ describe('EngineOutputV1 shape', () => {
       // No eligible candidate at all — recommendation is withheld
       expect(engineOutput.recommendation.primary).toMatch(/withheld/i);
     }
-    // Combi must not be recommended when hard-rejected
+    // Combi must not be recommended when heavily penalised by simultaneous demand constraints
     expect(engineOutput.recommendation.primary).not.toBe('On Demand (Combi)');
   });
 
