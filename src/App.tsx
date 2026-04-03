@@ -28,7 +28,7 @@ import CustomerPortalPage from './components/portal/CustomerPortalPage';
 import GlobalMenuShell from './components/shell/GlobalMenuShell';
 
 import { createVisit, getVisit } from './lib/visits/visitApi';
-import { listReportsForVisit } from './lib/reports/reportApi';
+import { listReportsForVisit, saveReport } from './lib/reports/reportApi';
 import { generatePortalToken } from './lib/portal/portalToken';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from './ui/fullSurvey/FullSurveyModelV1';
@@ -337,6 +337,18 @@ export default function App() {
         // Populate presentation quadrants (house snapshot, priority chips).
         if (survey.fullSurvey?.heatLoss) setLabHeatLossState(survey.fullSurvey.heatLoss);
         if (survey.fullSurvey?.priorities) setLabPrioritiesState(survey.fullSurvey.priorities);
+        // Ensure a report is linked to this visit so the portal URL is available
+        // when the user returns to the Visit Hub after the presentation.
+        void listReportsForVisit(visitId).then((reports) => {
+          if (reports.length > 0) return;
+          const { engineOutput } = runEngine(engineInput);
+          return saveReport({
+            postcode: engineInput.postcode ?? null,
+            visit_id: visitId,
+            status: 'complete',
+            payload: { surveyData: survey, engineInput, engineOutput, decisionSynthesis: null },
+          });
+        }).catch(() => {/* best effort */});
         setPresentationFromJourney('visit-hub');
         setJourney('presentation');
         return;
@@ -369,15 +381,26 @@ export default function App() {
         if (survey.fullSurvey?.heatLoss) setLabHeatLossState(survey.fullSurvey.heatLoss);
         if (survey.fullSurvey?.priorities) setLabPrioritiesState(survey.fullSurvey.priorities);
         // Clear any stale portal URL; generate a fresh signed URL from the
-        // latest report so the QR code on the printout is always valid.
+        // latest report (creating one if needed) so the QR code on the
+        // printout is always valid.
         setLabPortalUrl(undefined);
         listReportsForVisit(visitId)
-          .then((reports) => {
-            if (reports.length === 0) return;
-            const latestReportId = reports[0].id;
-            return generatePortalToken(latestReportId).then((token) =>
-              setLabPortalUrl(buildPortalUrl(latestReportId, window.location.origin, token)),
-            );
+          .then(async (reports) => {
+            let reportId: string;
+            if (reports.length > 0) {
+              reportId = reports[0].id;
+            } else {
+              const { engineOutput } = runEngine(engineInput);
+              const saved = await saveReport({
+                postcode: engineInput.postcode ?? null,
+                visit_id: visitId,
+                status: 'complete',
+                payload: { surveyData: survey, engineInput, engineOutput, decisionSynthesis: null },
+              });
+              reportId = saved.id;
+            }
+            const token = await generatePortalToken(reportId);
+            setLabPortalUrl(buildPortalUrl(reportId, window.location.origin, token));
           })
           .catch((err) => { console.warn('[Atlas] Portal URL generation failed for printout:', err); });
         setJourney('printout');

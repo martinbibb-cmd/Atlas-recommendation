@@ -122,7 +122,7 @@ function HubHeader({ meta, onBack, onReferenceChange }: { meta: VisitMeta; onBac
             Visit ···{shortId}
           </p>
         )}
-        {meta.customer_name && meta.address_line_1 && (
+        {meta.customer_name && (
           <p className="visit-hub__customer">{meta.customer_name}</p>
         )}
         <div className="visit-hub__meta-row">
