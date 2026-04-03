@@ -139,7 +139,7 @@ export default function ReportPage({ reportId, onBack, onDuplicated }: Props) {
         if (!payload?.engineOutput) {
           throw new Error(
             'This report snapshot is incomplete: the engine output is missing. ' +
-            'The report may have been saved from an older version of Atlas.',
+            'The report may have been saved from an older version of the tool.',
           );
         }
 
@@ -209,7 +209,7 @@ export default function ReportPage({ reportId, onBack, onDuplicated }: Props) {
       {/* Shared report banner */}
       <div className="report-page__banner" aria-label="Shared report" data-print-hide>
         <span className="report-page__banner-label">
-          📋 Atlas Engineering Report
+          📋 Heating system report
         </span>
         {meta?.postcode && (
           <span className="report-page__banner-postcode">{meta.postcode}</span>
@@ -227,7 +227,7 @@ export default function ReportPage({ reportId, onBack, onDuplicated }: Props) {
           <button
             className="report-page__home-btn"
             onClick={onBack}
-            aria-label="Back to Atlas home"
+            aria-label="Back to home"
           >
             ← Home
           </button>

@@ -619,7 +619,7 @@ describe('DecisionSynthesisPage — save button', () => {
   // In legacy mode (no compareSeed), only the "Show me why" button is shown.
   it('does not render the Save Report button in legacy mode (no compareSeed)', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
-    expect(screen.queryByRole('button', { name: /save atlas report/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /save report/i })).toBeNull();
   });
 
   it('does not show the share panel before saving', () => {
@@ -681,7 +681,7 @@ describe('DecisionSynthesisPage — save/retry state machine', () => {
       json: async () => ({ ok: true, id: 'rpt-1' }),
     });
     renderInCompareMode();
-    expect(screen.getByRole('button', { name: /save atlas report/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /save report/i })).toBeTruthy();
   });
 
   it('shows saving state then saved after successful save', async () => {
@@ -691,10 +691,10 @@ describe('DecisionSynthesisPage — save/retry state machine', () => {
     });
     renderInCompareMode();
 
-    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save report/i }));
 
     // Saving… label should appear immediately.
-    expect(screen.getByRole('button', { name: /save atlas report/i }).textContent).toMatch(/saving/i);
+    expect(screen.getByRole('button', { name: /save report/i }).textContent).toMatch(/saving/i);
 
     // After resolution, share panel should appear.
     await waitFor(() =>
@@ -706,10 +706,10 @@ describe('DecisionSynthesisPage — save/retry state machine', () => {
     (fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Network error'));
     renderInCompareMode();
 
-    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save report/i }));
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /save atlas report/i }).textContent).toMatch(/save failed/i),
+      expect(screen.getByRole('button', { name: /save report/i }).textContent).toMatch(/save failed/i),
     );
   });
 
@@ -720,10 +720,10 @@ describe('DecisionSynthesisPage — save/retry state machine', () => {
     });
     renderInCompareMode();
 
-    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save report/i }));
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /save atlas report/i }).textContent).toMatch(/save failed/i),
+      expect(screen.getByRole('button', { name: /save report/i }).textContent).toMatch(/save failed/i),
     );
   });
 
@@ -739,13 +739,13 @@ describe('DecisionSynthesisPage — save/retry state machine', () => {
     renderInCompareMode();
 
     // First save — fails.
-    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save report/i }));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /save atlas report/i }).textContent).toMatch(/save failed/i),
+      expect(screen.getByRole('button', { name: /save report/i }).textContent).toMatch(/save failed/i),
     );
 
     // Retry — succeeds.
-    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save report/i }));
     await waitFor(() =>
       expect(document.querySelector('[data-testid="share-panel"]')).not.toBeNull(),
       { timeout: 3000 },
@@ -763,15 +763,15 @@ describe('DecisionSynthesisPage — save/retry state machine', () => {
     renderInCompareMode();
 
     // First save — fails.
-    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save report/i }));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /save atlas report/i }).textContent).toMatch(/save failed/i),
+      expect(screen.getByRole('button', { name: /save report/i }).textContent).toMatch(/save failed/i),
     );
 
     // Retry — also fails.
-    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save report/i }));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /save atlas report/i }).textContent).toMatch(/save failed/i),
+      expect(screen.getByRole('button', { name: /save report/i }).textContent).toMatch(/save failed/i),
     );
 
     // Share panel must NOT appear.
@@ -784,7 +784,7 @@ describe('DecisionSynthesisPage — save/retry state machine', () => {
     (fetch as ReturnType<typeof vi.fn>).mockReturnValueOnce(pending);
 
     renderInCompareMode();
-    const btn = screen.getByRole('button', { name: /save atlas report/i });
+    const btn = screen.getByRole('button', { name: /save report/i });
 
     fireEvent.click(btn);
 
@@ -809,15 +809,15 @@ describe('DecisionSynthesisPage — save/retry state machine', () => {
     renderInCompareMode();
 
     // First save fails.
-    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save report/i }));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /save atlas report/i }).textContent).toMatch(/save failed/i),
+      expect(screen.getByRole('button', { name: /save report/i }).textContent).toMatch(/save failed/i),
     );
 
     // Retry — in progress.
-    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save report/i }));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /save atlas report/i })).toBeDisabled(),
+      expect(screen.getByRole('button', { name: /save report/i })).toBeDisabled(),
     );
 
     // Resolve the retry to avoid act() warnings.
@@ -1048,7 +1048,7 @@ describe('DecisionSynthesisPage — portal/QR pre-save affordance', () => {
     expect(screen.getByTestId('save-report-hint')).toBeTruthy();
 
     // Trigger save.
-    fireEvent.click(screen.getByRole('button', { name: /save atlas report/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save report/i }));
 
     // After save completes, hint (and save button) should be gone.
     await waitFor(() =>
@@ -1430,20 +1430,20 @@ describe('DecisionSynthesisPage — PR6 hero heading', () => {
   });
 });
 
-describe('DecisionSynthesisPage — PR6 "Why Atlas suggested this"', () => {
-  it('renders "Why Atlas suggested this" when verdict primaryReason is present', () => {
+describe('DecisionSynthesisPage — PR6 "Why this works well"', () => {
+  it('renders "Why this works well" when verdict primaryReason is present', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
     expect(screen.getByTestId('why-atlas-section')).toBeTruthy();
-    expect(screen.getByText(/why atlas suggested this/i)).toBeTruthy();
+    expect(screen.getByText(/why this works well/i)).toBeTruthy();
   });
 
-  it('shows the verdict primaryReason in the "Why Atlas" list', () => {
+  it('shows the verdict primaryReason in the "Why this works well" section', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_OUTPUT} />);
     const whySection = screen.getByTestId('why-atlas-section');
     expect(whySection.textContent).toMatch(/single bathroom.*favour.*on-demand hot water/i);
   });
 
-  it('does not render "Why Atlas" section when output has no verdict reasons', () => {
+  it('does not render "Why this works well" section when output has no verdict reasons', () => {
     const output: EngineOutputV1 = {
       ...DEMO_OUTPUT,
       verdict: {

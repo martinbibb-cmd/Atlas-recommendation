@@ -167,9 +167,9 @@ describe('PrintableRecommendationPage — rendering', () => {
     )).not.toThrow();
   });
 
-  it('renders the Atlas Recommendation header', () => {
+  it('renders the recommendation header', () => {
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
-    expect(screen.getByText(/atlas recommendation/i)).toBeTruthy();
+    expect(screen.getAllByText(/recommended for your home/i).length).toBeGreaterThan(0);
   });
 
   it('renders the page title', () => {
@@ -192,9 +192,9 @@ describe('PrintableRecommendationPage — bestOverall', () => {
     expect(screen.getByText('Why best_overall is best')).toBeTruthy();
   });
 
-  it('renders the "Atlas recommends" label', () => {
+  it('renders the "Recommended for your home" label', () => {
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
-    expect(screen.getByText(/atlas recommends/i)).toBeTruthy();
+    expect(screen.getAllByText(/recommended for your home/i).length).toBeGreaterThan(0);
   });
 });
 
@@ -433,13 +433,13 @@ describe('PrintableRecommendationPage — fallback path', () => {
 describe('PrintableRecommendationPage — toolbar', () => {
   it('renders the print recommendation button', () => {
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
-    expect(screen.getByRole('button', { name: /print atlas recommendation/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /print recommendation/i })).toBeTruthy();
   });
 
   it('calls window.print() when print button is clicked', () => {
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
-    fireEvent.click(screen.getByRole('button', { name: /print atlas recommendation/i }));
+    fireEvent.click(screen.getByRole('button', { name: /print recommendation/i }));
     expect(printSpy).toHaveBeenCalledOnce();
     printSpy.mockRestore();
   });
@@ -468,12 +468,12 @@ describe('DecisionSynthesisPage — print entry point', () => {
         surveyData={MINIMAL_SURVEY}
       />,
     );
-    expect(screen.getByRole('button', { name: /print atlas recommendation/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /print recommendation/i })).toBeTruthy();
   });
 
   it('does not render the print button when no compareSeed is provided', () => {
     render(<DecisionSynthesisPage engineOutput={DEMO_ENGINE_OUTPUT} />);
-    expect(screen.queryByRole('button', { name: /print atlas recommendation/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /print recommendation/i })).toBeNull();
   });
 
   it('navigates to print view when print button is clicked', () => {
@@ -484,7 +484,7 @@ describe('DecisionSynthesisPage — print entry point', () => {
         surveyData={MINIMAL_SURVEY}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /print atlas recommendation/i }));
+    fireEvent.click(screen.getByRole('button', { name: /print recommendation/i }));
     // After navigating to print view, the PrintableRecommendationPage header is shown
     expect(screen.getByRole('heading', { name: /heating system recommendation/i })).toBeTruthy();
   });
@@ -498,7 +498,7 @@ describe('DecisionSynthesisPage — print entry point', () => {
       />,
     );
     // Go to print view
-    fireEvent.click(screen.getByRole('button', { name: /print atlas recommendation/i }));
+    fireEvent.click(screen.getByRole('button', { name: /print recommendation/i }));
     // Click back
     fireEvent.click(screen.getByRole('button', { name: /back to advice page/i }));
     // Should be back on advice page
@@ -562,10 +562,10 @@ describe('PrintableRecommendationPage — structure stability', () => {
   });
 });
 
-// ─── PR7 — Why Atlas suggested this in print ──────────────────────────────────
+// ─── PR7 — Why this works well in print ──────────────────────────────────────
 
-describe('PrintableRecommendationPage — PR7 why atlas section', () => {
-  it('renders "Why Atlas suggested this" when engineOutput has verdict reasons', () => {
+describe('PrintableRecommendationPage — PR7 why this works well section', () => {
+  it('renders the "why this works well" section when engineOutput has verdict reasons', () => {
     render(
       <PrintableRecommendationPage
         advice={DEMO_ADVICE}
@@ -575,7 +575,7 @@ describe('PrintableRecommendationPage — PR7 why atlas section', () => {
     expect(document.querySelector('[data-testid="prp-why-atlas"]')).not.toBeNull();
   });
 
-  it('"Why Atlas suggested this" contains the primaryReason', () => {
+  it('"why this works well" section contains the primaryReason', () => {
     render(
       <PrintableRecommendationPage
         advice={DEMO_ADVICE}
@@ -586,12 +586,12 @@ describe('PrintableRecommendationPage — PR7 why atlas section', () => {
     expect(whyAtlas.textContent).toMatch(/strong match for occupancy/i);
   });
 
-  it('does not render "Why Atlas suggested this" when engineOutput is absent', () => {
+  it('does not render "why this works well" section when engineOutput is absent', () => {
     render(<PrintableRecommendationPage advice={DEMO_ADVICE} />);
     expect(document.querySelector('[data-testid="prp-why-atlas"]')).toBeNull();
   });
 
-  it('does not render "Why Atlas suggested this" when verdict has no reasons', () => {
+  it('does not render "why this works well" section when verdict has no reasons', () => {
     const outputNoReasons: EngineOutputV1 = {
       ...DEMO_ENGINE_OUTPUT,
       verdict: {

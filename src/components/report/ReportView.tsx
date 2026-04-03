@@ -803,13 +803,11 @@ export default function ReportView({ output, onBack, reportReference }: Props) {
       {/* ── Document header ───────────────────────────────────────────────── */}
       <header className="rv-doc-header">
         <div>
-          <div className="rv-doc-header__brand" aria-label="Atlas">ATLAS</div>
-          <h1 className="rv-doc-header__title">Atlas Heating System Assessment</h1>
-          <p className="rv-doc-header__sub">Generated from system model</p>
+          <h1 className="rv-doc-header__title">Heating system assessment</h1>
+          <p className="rv-doc-header__sub">Based on your home survey</p>
         </div>
         <div className="rv-doc-header__meta">
           <div>Generated: {generatedDate}</div>
-          <div>Model version: EngineOutputV1</div>
           <div>Confidence: {confidenceLevel}</div>
         </div>
       </header>
