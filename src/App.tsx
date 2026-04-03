@@ -28,6 +28,8 @@ import CustomerPortalPage from './components/portal/CustomerPortalPage';
 import GlobalMenuShell from './components/shell/GlobalMenuShell';
 
 import { createVisit, getVisit } from './lib/visits/visitApi';
+import { listReportsForVisit } from './lib/reports/reportApi';
+import { generatePortalToken } from './lib/portal/portalToken';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from './ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from './ui/fullSurvey/FullSurveyModelV1';
@@ -259,6 +261,12 @@ export default function App() {
   const [startingVisit, setStartingVisit] = useState(false);
   /** Inline error shown when visit creation fails. Cleared on retry. */
   const [visitCreateError, setVisitCreateError] = useState<string | null>(null);
+  /**
+   * Signed portal URL for the printout journey — generated from the latest
+   * report for the active visit.  Uses report ID + HMAC token so the customer
+   * portal can validate the link.
+   */
+  const [labPortalUrl, setLabPortalUrl] = useState<string | undefined>();
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
@@ -339,6 +347,45 @@ export default function App() {
     }
     // Fallback: no working payload — send back to survey so the user can
     // complete and save it.
+    setJourney('visit');
+  }
+
+  /**
+   * Print summary for a completed visit.
+   *
+   * Loads the visit's working payload, converts it to engine input, generates a
+   * signed portal URL from the latest report, and routes to the printout journey.
+   * Falls back to the survey if the working payload is missing.
+   */
+  async function handlePrintSummary(visitId: string) {
+    try {
+      const visitDetail = await getVisit(visitId);
+      const workingPayload = visitDetail.working_payload;
+      if (workingPayload && Object.keys(workingPayload).length > 0) {
+        const survey = workingPayload as unknown as FullSurveyModelV1;
+        const engineInput = toEngineInput(sanitiseModelForEngine(survey));
+        setActiveVisitId(visitId);
+        setLabEngineInput(engineInput);
+        if (survey.fullSurvey?.heatLoss) setLabHeatLossState(survey.fullSurvey.heatLoss);
+        if (survey.fullSurvey?.priorities) setLabPrioritiesState(survey.fullSurvey.priorities);
+        // Clear any stale portal URL; generate a fresh signed URL from the
+        // latest report so the QR code on the printout is always valid.
+        setLabPortalUrl(undefined);
+        listReportsForVisit(visitId)
+          .then((reports) => {
+            if (reports.length === 0) return;
+            const latestReportId = reports[0].id;
+            return generatePortalToken(latestReportId).then((token) =>
+              setLabPortalUrl(buildPortalUrl(latestReportId, window.location.origin, token)),
+            );
+          })
+          .catch((err) => { console.warn('[Atlas] Portal URL generation failed for printout:', err); });
+        setJourney('printout');
+        return;
+      }
+    } catch (err) {
+      console.error('[Atlas] Could not load visit for print summary', visitId, err);
+    }
     setJourney('visit');
   }
 
@@ -502,6 +549,7 @@ export default function App() {
           onBack={() => setJourney('landing')}
           onResumeSurvey={() => setJourney('visit')}
           onOpenPresentation={() => { void handleOpenPresentation(activeVisitId); }}
+          onPrintSummary={() => { void handlePrintSummary(activeVisitId); }}
           onOpenReport={(reportId) => {
             setActiveReportId(reportId);
             setJourney('report');
@@ -627,16 +675,13 @@ export default function App() {
       )}
       {journey === 'printout' && labEngineInput != null && (() => {
         const result = runEngine(labEngineInput);
-        const portalUrl = activeVisitId
-          ? buildPortalUrl(activeVisitId)
-          : undefined;
         return (
           <CustomerRecommendationPrint
             result={result}
             input={labEngineInput}
             recommendationResult={result.recommendationResult}
             prioritiesState={labPrioritiesState}
-            portalUrl={portalUrl}
+            portalUrl={labPortalUrl}
             visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
             onBack={() => setJourney('presentation')}
           />
