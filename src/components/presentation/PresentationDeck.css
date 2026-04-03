@@ -845,7 +845,87 @@
   margin-bottom: 0.2rem;
 }
 
-/* ─── Page 3 — System options grid ──────────────────────────────────────── */
+/* ─── Page 2.6 — Performance upgrades ───────────────────────────────────── */
+
+.atlas-deck-perf__bridge {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0 0 0.4rem;
+  line-height: 1.4;
+}
+
+.atlas-deck-perf__description {
+  font-size: 0.78rem;
+  color: #718096;
+  margin: 0 0 0.875rem;
+  line-height: 1.4;
+}
+
+.atlas-deck-perf__items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+}
+
+.atlas-deck-perf__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  padding: 0.625rem 0.75rem;
+}
+
+.atlas-deck-perf__item-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.atlas-deck-perf__item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.atlas-deck-perf__item-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2d3748;
+  line-height: 1.2;
+}
+
+.atlas-deck-perf__item-desc {
+  font-size: 0.68rem;
+  color: #4a5568;
+  line-height: 1.4;
+}
+
+.atlas-deck-perf__item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.atlas-deck-perf__item-tag {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #2b6cb0;
+  background: #ebf8ff;
+  border: 1px solid #bee3f8;
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+}
+
+
 
 .atlas-deck-sys-grid__hint {
   font-size: 0.68rem;

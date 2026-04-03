@@ -45,6 +45,7 @@ import {
   type PhysicsRankingItem,
   type ShortlistedOptionDetail,
   type FinalPageSimulator,
+  type UpgradeLayer,
 } from './buildCanonicalPresentation';
 import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
 import { optionToConceptModel, type OptionId } from '../../explainers/lego/autoBuilder/optionToConceptModel';
@@ -633,6 +634,56 @@ function LowHangingFruitPage({ ctx }: { ctx: Page1_5AgeingContext }) {
           ))}
         </ul>
       )}
+    </>
+  );
+}
+
+// ─── Page 2.6 — Performance upgrades ─────────────────────────────────────────
+
+const CATEGORY_META: Record<string, { icon: string; colour: string }> = {
+  water:    { icon: '💧', colour: '#ebf8ff' },
+  heat:     { icon: '🔥', colour: '#fffaf0' },
+  energy:   { icon: '⚡', colour: '#fffff0' },
+  controls: { icon: '🎛️', colour: '#f0fff4' },
+};
+
+function PerformanceUpgradesPage({ layer }: { layer: UpgradeLayer }) {
+  return (
+    <>
+      <p className="atlas-presentation-deck__page-eyebrow">Go further</p>
+      <h2 className="atlas-presentation-deck__page-title">
+        {layer.title}
+      </h2>
+      <p className="atlas-deck-perf__bridge">
+        You can stop here — or go further and unlock better performance.
+      </p>
+      <p className="atlas-deck-perf__description">{layer.description}</p>
+      <div className="atlas-deck-perf__items">
+        {layer.items.map(item => {
+          const meta = CATEGORY_META[item.category] ?? { icon: '✦', colour: '#f7fafc' };
+          return (
+            <div
+              key={item.title}
+              className="atlas-deck-perf__item"
+              style={{ background: meta.colour }}
+              aria-label={`${item.category}: ${item.title}`}
+            >
+              <span className="atlas-deck-perf__item-icon" aria-hidden="true">{meta.icon}</span>
+              <div className="atlas-deck-perf__item-body">
+                <span className="atlas-deck-perf__item-title">{item.title}</span>
+                <span className="atlas-deck-perf__item-desc">{item.description}</span>
+                {item.impactTags.length > 0 && (
+                  <div className="atlas-deck-perf__item-tags">
+                    {item.impactTags.map(tag => (
+                      <span key={tag} className="atlas-deck-perf__item-tag">{tag}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </>
   );
 }
@@ -1268,6 +1319,30 @@ export default function PresentationDeck({
                 fields={['page1_5.likelyFirstImprovements']}
               />
               <LowHangingFruitPage ctx={page1_5} />
+            </>
+          ),
+        }]
+      : []),
+
+    // ── 2.6. Performance upgrades — "go further" higher-impact improvements ───
+    //    Only shown when backed by real survey evidence (same gate as quick wins).
+    ...(page1_5.hasRealEvidence
+      ? [{
+          id: 'performance_upgrades',
+          label: 'Go further',
+          canonicalSource: {
+            component: 'PerformanceUpgradesPage',
+            fields: [
+              'page1_5.performanceLayer',
+            ],
+          },
+          content: (
+            <>
+              <DevProvenanceBadge
+                component="PerformanceUpgradesPage"
+                fields={['page1_5.performanceLayer']}
+              />
+              <PerformanceUpgradesPage layer={page1_5.performanceLayer} />
             </>
           ),
         }]
