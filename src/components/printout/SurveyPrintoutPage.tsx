@@ -180,7 +180,7 @@ export default function SurveyPrintoutPage({
 
         {/* ── Header row ─────────────────────────────────────── */}
         <header className="spp-header">
-          <div className="spp-header__brand">ATLAS</div>
+          <div className="spp-header__brand" aria-hidden="true"></div>
           <div className="spp-header__info">
             {customerName && <p className="spp-header__customer">{customerName}</p>}
             {input.postcode && <p className="spp-header__postcode">{input.postcode}</p>}
@@ -322,7 +322,7 @@ export default function SurveyPrintoutPage({
         {/* ── Footer ─────────────────────────────────────────────── */}
         <footer className="spp-footer">
           <p className="spp-footer__text">
-            Atlas recommendation — for information only. All physics-based estimates. Exact specification subject to site survey confirmation.
+            Our recommendation — for information only. All physics-based estimates. Exact specification subject to site survey confirmation.
           </p>
         </footer>
 

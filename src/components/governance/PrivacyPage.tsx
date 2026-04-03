@@ -9,16 +9,16 @@ export default function PrivacyPage({ onBack }: { onBack: () => void }) {
       <div className="governance-content">
         <h1>Privacy</h1>
 
-        <p className="governance-lead">Atlas is designed with minimal data collection.</p>
+        <p className="governance-lead">We are designed with minimal data collection.</p>
 
-        <h2>What Atlas collects</h2>
+        <h2>What we collect</h2>
         <ul>
           <li>Survey inputs you provide during a session (pipe diameter, occupancy, pressure readings, etc.)</li>
           <li>No full postcode is stored or transmitted</li>
-          <li>No personal identifiers are required to use Atlas</li>
+          <li>No personal identifiers are required to use our service</li>
         </ul>
 
-        <h2>What Atlas does not collect</h2>
+        <h2>What we do not collect</h2>
         <ul>
           <li>No analytics tracking (zero third-party analytics at this time)</li>
           <li>No cookies beyond those required for the session</li>

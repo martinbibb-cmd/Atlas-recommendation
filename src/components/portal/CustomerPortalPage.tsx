@@ -133,12 +133,12 @@ export default function CustomerPortalPage({ reference, token }: Props) {
         if (!cancelled) { setTokenDenied('missing'); setLoading(false); }
         return;
       }
-      const tokenResult = await validatePortalToken(reference, token);
-      if (tokenResult !== 'valid') {
-        if (!cancelled) { setTokenDenied(tokenResult); setLoading(false); }
-        return;
-      }
       try {
+        const tokenResult = await validatePortalToken(reference, token);
+        if (tokenResult !== 'valid') {
+          if (!cancelled) { setTokenDenied(tokenResult); }
+          return;
+        }
         const report = await getReport(reference);
         if (cancelled) return;
         if (!report.payload?.engineOutput) throw new Error('This report does not contain recommendation data.');
@@ -222,7 +222,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
       {/* ── § 1  Hero / Recommendation ───────────────────────────────────── */}
       <header className="portal-page__hero" data-testid="portal-hero" ref={heroRef}>
         <div className="portal-hero__brand-row">
-          <span className="portal-page__brand" aria-label="Atlas">ATLAS</span>
+          <span className="portal-page__brand" aria-hidden="true"></span>
           {postcode && <span className="portal-page__postcode">{postcode}</span>}
         </div>
 
@@ -342,7 +342,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
       <section className="portal-section" id="portal-compare" aria-labelledby="portal-compare-heading">
         <h2 className="portal-section__heading" id="portal-compare-heading">Other options considered</h2>
         <p className="portal-section__intro">
-          Atlas assessed all viable options for your home. The recommended option is shown first.
+          We assessed all viable options for your home. The recommended option is shown first.
         </p>
         {model.comparisonCards.length > 0 ? (
           <div className="portal-comparison-cards" data-testid="portal-comparison-cards">
@@ -446,7 +446,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
       {/* ── Footer ─────────────────────────────────────────────────── */}
       <footer className="portal-page__footer">
         <p className="portal-page__footer-text">
-          Atlas — the evidence is always visible. Setup, proof, outcomes, and advice in one place.
+          The evidence is always visible. Setup, proof, outcomes, and advice in one place.
         </p>
       </footer>
     </div>

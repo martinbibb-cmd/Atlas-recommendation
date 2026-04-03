@@ -3,7 +3,6 @@
  *
  * Validates that LabPrintComparison:
  *   - Renders the document title "Comparison Sheet"
- *   - Renders the ATLAS brand
  *   - Shows the comparison table with all three system columns
  *   - Renders all normalized heading rows
  *   - Shows the trade-off summary section
@@ -26,9 +25,9 @@ describe('LabPrintComparison — document structure', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Comparison Sheet' })).toBeTruthy();
   });
 
-  it('renders the ATLAS brand', () => {
+  it('renders the document header brand element', () => {
     render(<LabPrintComparison />);
-    expect(screen.getByText('ATLAS')).toBeTruthy();
+    expect(document.querySelector('.lp-doc-header__brand')).toBeTruthy();
   });
 
   it('renders the comparison subtitle', () => {

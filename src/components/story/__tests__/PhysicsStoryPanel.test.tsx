@@ -96,9 +96,9 @@ describe('PhysicsStoryPanel — rendering', () => {
     expect(screen.getByText(/PHYSICS STORY MODE/i)).toBeTruthy();
   });
 
-  it('shows "Why Atlas recommends this" heading', () => {
+  it('shows "Why we recommend this" heading', () => {
     render(<PhysicsStoryPanel engineOutput={EMPTY_OUTPUT} onClose={() => {}} />);
-    expect(screen.getByRole('heading', { name: /why atlas recommends this/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /why we recommend this/i })).toBeTruthy();
   });
 });
 

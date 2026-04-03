@@ -3,7 +3,6 @@
  *
  * Validates that LabPrintTechnical:
  *   - Renders the document title "Technical Specification"
- *   - Renders the ATLAS brand
  *   - Shows the current system section
  *   - Shows candidate system names and their comparison rows
  *   - Shows the confidence drivers section with measured/inferred groups
@@ -26,9 +25,9 @@ describe('LabPrintTechnical — document structure', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Technical Specification' })).toBeTruthy();
   });
 
-  it('renders the ATLAS brand', () => {
+  it('renders the document header brand element', () => {
     render(<LabPrintTechnical />);
-    expect(screen.getByText('ATLAS')).toBeTruthy();
+    expect(document.querySelector('.lp-doc-header__brand')).toBeTruthy();
   });
 
   it('renders the engineer subtitle', () => {

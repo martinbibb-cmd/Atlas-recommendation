@@ -63,7 +63,7 @@ export default function PhysicsStoryPanel({
       <div className="psp__header">
         <div className="psp__header-text">
           <div className="psp__eyebrow">PHYSICS STORY MODE</div>
-          <h2 className="psp__title">Why Atlas recommends this</h2>
+          <h2 className="psp__title">Why we recommend this</h2>
           <p className="psp__subtitle">
             A short causal sequence — your home, the physics, and the fit.
           </p>

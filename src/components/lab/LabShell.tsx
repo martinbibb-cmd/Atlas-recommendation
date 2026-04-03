@@ -178,7 +178,7 @@ export default function LabShell({ onHome, engineInput }: Props) {
       <header className="lab-header">
         <LabHomeLink onHome={onHome} />
         <div className="lab-title">
-          <div className="lab-brand" aria-label="Atlas">ATLAS</div>
+          <div className="lab-brand" aria-hidden="true"></div>
           <h1 className="lab-h1">System Summary</h1>
           <p className="lab-subtitle">Compare heating systems using real operating constraints.</p>
         </div>
@@ -193,7 +193,7 @@ export default function LabShell({ onHome, engineInput }: Props) {
             resetAtlasTourSeen();
             setReplayTour(true);
           }}
-          aria-label="Replay the Atlas tour"
+          aria-label="Replay the guided tour"
         >
           ? Tour
         </button>

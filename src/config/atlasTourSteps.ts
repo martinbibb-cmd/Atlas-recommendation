@@ -26,7 +26,7 @@ export const LANDING_TOUR_STEPS: Step[] = [
   {
     target: '[data-tour="survey-panel"]',
     title: 'Enter key details',
-    content: 'Atlas uses these answers to model system behaviour and compare options.',
+    content: 'We use these answers to model system behaviour and compare options.',
   },
 ];
 

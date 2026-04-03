@@ -1310,7 +1310,7 @@ export default function DecisionSynthesisPage({
         <h2 className="advice-page__section-title">{RECOMMENDATION_HERO_HEADING}</h2>
 
         <div className="advice-hero" role="region" aria-label="Primary recommendation">
-          <div className="advice-hero__eyebrow">ATLAS RECOMMENDS</div>
+          <div className="advice-hero__eyebrow">WE RECOMMEND</div>
           <div className="advice-hero__system" aria-label="Recommended system">
             {heroSystemPath}
           </div>

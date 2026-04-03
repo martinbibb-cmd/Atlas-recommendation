@@ -179,7 +179,7 @@ export const EDUCATIONAL_EXPLAINERS: readonly EducationalExplainer[] = [
       'Limescale build-up on the internal coil surface reduces heat transfer, forcing longer reheat times and higher return temperatures.',
       'Poor coil transfer performance can suppress condensing operation in a boiler by raising the return temperature above the 55 °C threshold.',
       'Cylinder condition directly affects the recommendation rationale: a cylinder in poor condition may justify replacement even if the heating system is unchanged.',
-      'Recording age and condition enables Atlas to quantify standing-loss and coil-transfer effects rather than relying on generic assumptions.',
+      'Recording age and condition enables us to quantify standing-loss and coil-transfer effects rather than relying on generic assumptions.',
     ],
     simulatorPanelId: 'draw_off',
     simulatorLabel: 'Draw-Off panel',

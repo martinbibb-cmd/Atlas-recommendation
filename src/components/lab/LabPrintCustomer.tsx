@@ -66,7 +66,7 @@ export default function LabPrintCustomer({ onBack, data }: Props) {
       {/* ── Document header ────────────────────────────────────────────────── */}
       <header className="lp-doc-header">
         <div>
-          <div className="lp-doc-header__brand" aria-label="Atlas">ATLAS</div>
+          <div className="lp-doc-header__brand" aria-hidden="true"></div>
           <h1 className="lp-doc-header__title">Customer Summary</h1>
           <p className="lp-doc-header__sub">System Summary — heating recommendation overview</p>
         </div>

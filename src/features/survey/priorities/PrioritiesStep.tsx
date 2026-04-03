@@ -83,7 +83,7 @@ export function PrioritiesStep({
     <div className="step-card" data-testid="priorities-step">
       <h2>{getStepMeta('priorities').heading}</h2>
       <p style={{ color: '#4a5568', fontSize: '0.85rem', marginTop: '0.25rem', marginBottom: '0.75rem' }}>
-        These priorities shape how Atlas presents suitable options. Physics fit stays the same.
+        These priorities shape how we present suitable options. Physics fit stays the same.
       </p>
 
       {/* ── Priority chips ─────────────────────────────────────────────── */}

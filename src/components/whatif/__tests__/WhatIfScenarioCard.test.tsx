@@ -100,9 +100,9 @@ describe('WhatIfScenarioCard — recommendation', () => {
     expect(screen.getByText(CYCLING_SCENARIO.recommendation)).toBeTruthy();
   });
 
-  it('renders the "Atlas recommends" section label', () => {
+  it('renders the "We recommend" section label', () => {
     render(<WhatIfScenarioCard scenario={CYCLING_SCENARIO} VisualComponent={StubVisual} />);
-    expect(screen.getByText('Atlas recommends')).toBeTruthy();
+    expect(screen.getByText('We recommend')).toBeTruthy();
   });
 });
 

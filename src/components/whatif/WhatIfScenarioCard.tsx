@@ -63,7 +63,7 @@ export default function WhatIfScenarioCard({
 
       {/* ── Recommendation ───────────────────────────────────────────────── */}
       <div className="wisc__section-block wisc__section-block--rec">
-        <span className="wisc__section-label wisc__section-label--rec">Atlas recommends</span>
+        <span className="wisc__section-label wisc__section-label--rec">We recommend</span>
         <p className="wisc__rec-text">{recommendation}</p>
       </div>
 

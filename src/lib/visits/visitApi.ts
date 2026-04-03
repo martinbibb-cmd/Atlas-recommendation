@@ -106,7 +106,7 @@ async function extractApiError(res: Response, fallback: string): Promise<string>
   const body = await res.json().catch(() => null) as { error?: string } | null;
   const message = body?.error ?? fallback;
   if (res.status === 503 && message.includes("schema is out of date")) {
-    return "Atlas database needs an update before this visit can load. Please run remote D1 migrations.";
+    return "Our database needs an update before this visit can load. Please run remote D1 migrations.";
   }
   return message;
 }

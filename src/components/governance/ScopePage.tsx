@@ -7,13 +7,13 @@ export default function ScopePage({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="governance-content">
-        <h1>Atlas Scope Statement</h1>
+        <h1>Our Scope Statement</h1>
 
         <p className="governance-lead">
-          Atlas is a thermodynamic modelling engine for domestic heating systems.
+          We provide a thermodynamic modelling engine for domestic heating systems.
         </p>
 
-        <h2>Atlas provides</h2>
+        <h2>We provide</h2>
         <ul>
           <li>Hydraulic viability assessment</li>
           <li>Seasonal efficiency estimation</li>
@@ -22,7 +22,7 @@ export default function ScopePage({ onBack }: { onBack: () => void }) {
           <li>Behavioural performance simulation</li>
         </ul>
 
-        <h2>Atlas does not provide</h2>
+        <h2>We do not provide</h2>
         <ul>
           <li>Financial advice</li>
           <li>Tariff comparison</li>
@@ -33,7 +33,7 @@ export default function ScopePage({ onBack }: { onBack: () => void }) {
         </ul>
 
         <div className="governance-disclaimer">
-          Atlas outputs are modelled estimates based on declared assumptions and supplied inputs. Final
+          Our outputs are modelled estimates based on declared assumptions and supplied inputs. Final
           system specification, compliance, commissioning, and customer advice remain the responsibility
           of the installing professional.
         </div>

@@ -54,11 +54,11 @@ export default function RecommendationCard({ engineOutput }: Props) {
   return (
     <div className={`rec-card ${isWithheld ? 'rec-card--withheld' : 'rec-card--recommended'}`}
          role="region"
-         aria-label="Atlas recommendation">
+         aria-label="Our recommendation">
 
       {/* Header */}
       <div className="rec-card__header">
-        <div className="rec-card__brand">ATLAS RESULT</div>
+        <div className="rec-card__brand">OUR RECOMMENDATION</div>
         <div className="rec-card__eyebrow">RECOMMENDED SYSTEM</div>
       </div>
 
