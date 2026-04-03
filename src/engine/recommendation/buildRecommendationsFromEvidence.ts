@@ -305,11 +305,14 @@ const INTERVENTION_METADATA: Readonly<Record<string, {
 
 /**
  * Limiter IDs that always trigger a hard-stop (not_recommended) verdict
- * regardless of severity.  These represent physical impossibilities or
- * fundamental incompatibilities.
+ * regardless of severity.
+ *
+ * Policy: hard stops are not permitted — the engine produces advice only.
+ * This set is intentionally empty; all limiters are advisory.
  */
 const ALWAYS_HARD_STOP_LIMITER_IDS: ReadonlySet<string> = new Set([
-  'space_for_cylinder_unavailable',
+  // Hard stops are not allowed. This set is kept for structural compatibility
+  // but must remain empty. All limiters must use 'warning' or lower severity.
 ]);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -516,11 +519,12 @@ function scoreCandidate(
   const caveats: string[] = [];
   for (const entry of bundle.limiterLedger.entries) {
     if (entry.severity === 'hard_stop' || ALWAYS_HARD_STOP_LIMITER_IDS.has(entry.id)) {
-      caveats.push(`Hard stop: ${entry.title} — ${entry.description}`);
+      // Hard stops are not permitted — surface as an advisory note instead.
+      caveats.push(`Note: ${entry.title} — ${entry.description}`);
     } else if (entry.severity === 'limit') {
       caveats.push(`Limit reached: ${entry.title}`);
     } else if (entry.severity === 'warning') {
-      caveats.push(`Warning: ${entry.title}`);
+      caveats.push(`Advisory: ${entry.title}`);
     }
   }
 
