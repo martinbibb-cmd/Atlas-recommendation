@@ -280,9 +280,42 @@ export interface Page1_5AgeingContext {
   // ── Likely first improvements (conditional, shown at bottom) ─────────────
   likelyFirstImprovements: string[];
 
+  /**
+   * Performance upgrade layer — higher-impact system improvements shown
+   * below the quick-wins section as a "go further" invitation.
+   */
+  performanceLayer: UpgradeLayer;
+
   /** Legacy probabilistic notes — retained for downstream compatibility. */
   probabilisticNotes: string[];
   waterQualityNote: string | undefined;
+}
+
+/** Category of a performance upgrade item. */
+export type UpgradeItemCategory = 'water' | 'heat' | 'energy' | 'controls';
+
+/** A single performance upgrade item in a higher-tier improvement layer. */
+export interface UpgradeItem {
+  /** Grouping category for the upgrade. */
+  category: UpgradeItemCategory;
+  /** Short human-readable title. */
+  title: string;
+  /** Explanation of the upgrade's benefit. */
+  description: string;
+  /** Expected improvement tags (e.g. "efficiency", "comfort", "eco"). */
+  impactTags: string[];
+}
+
+/** A tier of upgrade suggestions grouped under a shared narrative. */
+export interface UpgradeLayer {
+  /** Machine-readable tier identifier. */
+  id: 'low_hanging' | 'performance';
+  /** Slide / section title. */
+  title: string;
+  /** Short narrative description for the tier. */
+  description: string;
+  /** Ordered list of upgrade items in this tier. */
+  items: UpgradeItem[];
 }
 
 /** Per-option explanation through house/home/energy lens (Page 2). */
@@ -1343,6 +1376,77 @@ function buildLikelyImprovements(
   return improvements;
 }
 
+/** Build the performance upgrade layer — higher-impact improvements for "going further". */
+function buildPerformanceLayer(
+  input: EngineInputV2_3,
+  result: FullEngineResult,
+): UpgradeLayer {
+  const items: UpgradeItem[] = [];
+
+  // ── Hot water: smart cylinder ─────────────────────────────────────────────
+  // Combi boiler has high short-draw inefficiency — cylinder storage decouples demand.
+  const isCombi = (input.currentHeatSourceType ?? 'other') === 'combi';
+  const storageBenefitHigh = result.demographicOutputs.storageBenefitSignal === 'high';
+
+  if (isCombi || storageBenefitHigh) {
+    items.push({
+      category: 'water',
+      title: 'Smart hot water cylinder',
+      description: 'Stores heat efficiently and delivers stored hot water without short-draw waste. Decouples demand from the boiler for stable, efficient operation.',
+      impactTags: ['efficiency', 'comfort'],
+    });
+  } else {
+    items.push({
+      category: 'water',
+      title: 'Smart hot water cylinder',
+      description: 'Stores heat efficiently and reduces cycling penalties by decoupling demand from the boiler.',
+      impactTags: ['efficiency', 'comfort'],
+    });
+  }
+
+  // ── Heat delivery: larger radiators ──────────────────────────────────────
+  // Lower flow temperature unlocks condensing efficiency and future heat-pump readiness.
+  const heatLossKw = input.heatLossWatts / 1000;
+  items.push({
+    category: 'heat',
+    title: 'Larger radiators or additional emitters',
+    description: `Larger radiator surface area allows lower flow temperatures, improving condensing-mode efficiency. At ${heatLossKw.toFixed(1)} kW heat loss, emitter sizing directly determines how low the flow temperature can go.`,
+    impactTags: ['efficiency'],
+  });
+
+  // ── Energy: solar PV ─────────────────────────────────────────────────────
+  // Include when PV suitability is not limited or PV is already planned.
+  const pvSuitability = result.pvAssessment?.suitabilityBand;
+  const pvStatus = input.pvStatus;
+  if (pvSuitability !== 'limited' || pvStatus === 'planned') {
+    const pvNote = pvStatus === 'planned'
+      ? 'Planned PV will supply free electricity for heating and hot water — a cylinder acts as a thermal battery.'
+      : 'Use free solar electricity to power heating and hot water. A cylinder acts as a thermal battery for self-consumption.';
+    items.push({
+      category: 'energy',
+      title: 'Solar PV',
+      description: pvNote,
+      impactTags: ['eco', 'cost'],
+    });
+  }
+
+  // ── Controls: zoned smart controls ────────────────────────────────────────
+  // Always relevant as a performance unlock.
+  items.push({
+    category: 'controls',
+    title: 'Zoned smart controls',
+    description: 'Heat only the zones you need, when you need them. Weather compensation and load-matching reduce boiler cycling and improve seasonal efficiency.',
+    impactTags: ['comfort', 'efficiency'],
+  });
+
+  return {
+    id: 'performance',
+    title: 'Go further: unlock better performance',
+    description: 'Larger improvements that change how your system works',
+    items,
+  };
+}
+
 function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): Page1_5AgeingContext {
   const type = input.currentHeatSourceType ?? 'other';
   const age = input.currentBoilerAgeYears ?? input.currentSystem?.boiler?.ageYears;
@@ -1466,6 +1570,7 @@ function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): P
     circulationSignals,
     homeImpacts,
     likelyFirstImprovements,
+    performanceLayer:          buildPerformanceLayer(input, result),
     probabilisticNotes:        notes,
     waterQualityNote,
   };
