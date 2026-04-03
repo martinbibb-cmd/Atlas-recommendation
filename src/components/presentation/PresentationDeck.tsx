@@ -1233,15 +1233,16 @@ export default function PresentationDeck({
   //
   // Pages are always in this order:
   //   0: quadrant_overview
-  //   1: degradation_charts  (conditional on page1_5.hasRealEvidence)
-  //   2: low_hanging_fruit   (conditional on page1_5.hasRealEvidence)
-  //   1|3: system_options_grid
-  //   2|4: ranking
-  //   3|5: option_1
-  //   4|6: option_2
+  //   1: degradation_charts    (conditional on page1_5.hasRealEvidence)
+  //   2: low_hanging_fruit     (conditional on page1_5.hasRealEvidence)
+  //   3: performance_upgrades  (conditional on page1_5.hasRealEvidence)
+  //   1|4: system_options_grid
+  //   2|5: ranking
+  //   3|6: option_1
+  //   4|7: option_2
   //   last: simulator
   //
-  const rankingIdx = 1 + (page1_5.hasRealEvidence ? 2 : 0) + 1;
+  const rankingIdx = 1 + (page1_5.hasRealEvidence ? 3 : 0) + 1;
   const opt1Idx    = rankingIdx + 1;
   const opt2Idx    = rankingIdx + 2;
 
