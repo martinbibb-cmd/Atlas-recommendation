@@ -477,7 +477,7 @@ export default function PrintableRecommendationPage({
     engineOutput?.options?.find(o => o.id === printRecommendedOptionId) ?? null;
 
   return (
-    <div className="prp" aria-label="Printable Atlas recommendation">
+    <div className="prp" aria-label="Printable heating system recommendation">
 
       {/* ── Toolbar — screen only, hidden in print ─────────────────────── */}
       <div className="prp__toolbar" aria-hidden="false">
@@ -493,7 +493,7 @@ export default function PrintableRecommendationPage({
         <button
           className="prp__toolbar-btn"
           onClick={() => window.print()}
-          aria-label="Print Atlas recommendation"
+          aria-label="Print recommendation"
         >
           🖨 Print recommendation
         </button>
@@ -534,10 +534,10 @@ export default function PrintableRecommendationPage({
       </div>
 
       {/* ── Page header ────────────────────────────────────────────────── */}
-      <header className="prp__header" aria-label="Atlas recommendation header">
+      <header className="prp__header" aria-label="Recommendation header">
         <div className="prp__header-inner">
           <div className="prp__header-text">
-            <div className="prp__header-eyebrow">Atlas Recommendation</div>
+            <div className="prp__header-eyebrow">Recommended for your home</div>
             <h1 className="prp__header-title">Heating System Recommendation</h1>
             <p className="prp__header-date">Prepared {today}</p>
           </div>
@@ -609,7 +609,7 @@ export default function PrintableRecommendationPage({
 
           {/* Hero card */}
           <div className="prp__hero" role="region" aria-label="Primary recommendation">
-            <div className="prp__hero-label">Atlas recommends</div>
+            <div className="prp__hero-label">Recommended for your home</div>
             <div className="prp__hero-system" aria-label="Recommended system">
               {advice.bestOverall.recommendedPathLabel}
             </div>
@@ -646,11 +646,11 @@ export default function PrintableRecommendationPage({
         </section>
       )}
 
-      {/* ── PR7 — Why Atlas suggested this ────────────────────────────── */}
+      {/* ── PR7 — Why this works well ──────────────────────────────────── */}
       {showPrintWhyAtlas && printReasonSummary != null && (
         <section
           className="prp__section prp__section--why-atlas"
-          aria-label="Why Atlas suggested this"
+          aria-label="Why this works well"
           data-testid="prp-why-atlas"
         >
           <h2 className="prp__section-title prp__section-title--small">{WHY_ATLAS_HEADING}</h2>

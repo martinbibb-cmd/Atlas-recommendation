@@ -2,7 +2,7 @@
  * ReportView.test.tsx
  *
  * Validates that ReportView:
- *   - Renders the ATLAS brand and "Atlas Heating System Assessment" heading
+ *   - Renders the "Heating system assessment" h1 heading
  *   - Shows the recommendation text from engine output
  *   - Shows a "No data available" blocked state when output is null
  *   - Shows a "Report not available" blocked state when essential data is missing
@@ -97,29 +97,19 @@ const BROKEN_OUTPUT: EngineOutputV1 = {
 // ─── Document structure ───────────────────────────────────────────────────────
 
 describe('ReportView — document structure', () => {
-  it('renders "Atlas Heating System Assessment" h1', () => {
+  it('renders "Heating system assessment" h1', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Atlas Heating System Assessment' })).toBeTruthy();
-  });
-
-  it('renders the ATLAS brand', () => {
-    render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.getByText('ATLAS')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Heating system assessment' })).toBeTruthy();
   });
 
   it('renders the subtitle', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.getByText('Generated from system model')).toBeTruthy();
+    expect(screen.getByText('Based on your home survey')).toBeTruthy();
   });
 
   it('renders a generated date in the meta', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
     expect(screen.getByText(/Generated:/)).toBeTruthy();
-  });
-
-  it('renders the model version in the meta', () => {
-    render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.getByText('Model version: EngineOutputV1')).toBeTruthy();
   });
 });
 

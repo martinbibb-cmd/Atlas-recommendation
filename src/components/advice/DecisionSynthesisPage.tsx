@@ -1128,7 +1128,7 @@ export default function DecisionSynthesisPage({
           <button
             className="advice-page__print-btn"
             onClick={() => setShowPrint(true)}
-            aria-label="Print Atlas recommendation"
+            aria-label="Print recommendation"
           >
             🖨 Print Recommendation
           </button>
@@ -1154,7 +1154,7 @@ export default function DecisionSynthesisPage({
             <button
               className="advice-page__save-btn"
               onClick={saveState === 'failed' ? handleRetrySave : handleSaveReport}
-              aria-label="Save Atlas report"
+              aria-label="Save report"
               disabled={saveState === 'saving' || saveState === 'retrying'}
             >
               {saveState === 'saving'   && '⏳ Saving…'}
@@ -1385,7 +1385,7 @@ export default function DecisionSynthesisPage({
         </div>
 
         {/* ──────────────────────────────────────────────────────────────── */}
-        {/* PR6 — "Why Atlas suggested this" mini-summary                    */}
+        {/* PR6 — "Why this works well" mini-summary                         */}
         {/* Shown inside the hero section when verdict signals are available. */}
         {/* Only uses verdict.primaryReason / verdict.reasons — not option   */}
         {/* why[] — to keep copy consequence-led rather than generic.         */}
@@ -1395,7 +1395,7 @@ export default function DecisionSynthesisPage({
           reasonSummary.reasons.length > 0 && (
           <div
             className="advice-why-atlas"
-            aria-label="Why Atlas suggested this"
+            aria-label="Why this works well"
             data-testid="why-atlas-section"
           >
             <h3 className="advice-why-atlas__heading">{WHY_ATLAS_HEADING}</h3>

@@ -175,15 +175,15 @@ describe('resultSurfaces — LiveHubPage primary export', () => {
     render(
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
-    expect(screen.getByRole('button', { name: /print atlas recommendation/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /print recommendation/i })).toBeTruthy();
   });
 
   it('clicking "Print Recommendation" opens PrintableRecommendationPage', () => {
     render(
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /print atlas recommendation/i }));
-    expect(screen.getByLabelText(/printable atlas recommendation/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /print recommendation/i }));
+    expect(screen.getByLabelText(/printable heating system recommendation/i)).toBeTruthy();
   });
 });
 
@@ -251,7 +251,7 @@ describe('resultSurfaces — DecisionSynthesisPage print button', () => {
       />,
     );
     // Button text must exactly match the preferred capitalised label
-    const btn = screen.getByRole('button', { name: /print atlas recommendation/i });
+    const btn = screen.getByRole('button', { name: /print recommendation/i });
     expect(btn.textContent).toMatch(/Print Recommendation/);
   });
 
@@ -269,6 +269,6 @@ describe('resultSurfaces — DecisionSynthesisPage print button', () => {
 
   it('does NOT expose print button when no compare seed is provided (non-survey path)', () => {
     render(<DecisionSynthesisPage engineOutput={MINIMAL_ENGINE_OUTPUT} />);
-    expect(screen.queryByRole('button', { name: /print atlas recommendation/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /print recommendation/i })).toBeNull();
   });
 });

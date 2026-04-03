@@ -532,7 +532,7 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
           <button
             className="live-hub__print-btn live-hub__print-btn--primary"
             onClick={() => setPrintView('recommendation')}
-            aria-label="Print Atlas recommendation"
+            aria-label="Print recommendation"
           >
             🎯 Print Recommendation
           </button>
