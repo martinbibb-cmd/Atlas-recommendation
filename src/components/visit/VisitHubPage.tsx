@@ -165,8 +165,9 @@ function HubActions({
 
   function handleSendPortal() {
     if (!portalUrl) return;
-    // Copy link to clipboard, then open the portal in a new tab so the
-    // advisor can preview what the customer will see.
+    // Copy the portal link to clipboard and open it in a new tab concurrently —
+    // both actions fire immediately so the advisor can share the link while
+    // also previewing what the customer will see.
     navigator.clipboard.writeText(portalUrl).then(() => {
       setCopyState('copied');
       setTimeout(() => setCopyState('idle'), 2000);
@@ -302,6 +303,9 @@ export default function VisitHubPage({
           // is available without requiring the user to go through the printout flow.
           const payload = workingPayloadRef.current;
           if (!payload || Object.keys(payload).length === 0) return;
+          // The working_payload is persisted as FullSurveyModelV1 by VisitPage — the same
+          // two-step cast (unknown → FullSurveyModelV1) used in App.tsx is the correct pattern
+          // here since VisitDetail.working_payload is typed as Record<string, unknown>.
           const survey = payload as unknown as FullSurveyModelV1;
           const engineInput = toEngineInput(sanitiseModelForEngine(survey));
           const { engineOutput } = runEngine(engineInput);
