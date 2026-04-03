@@ -14,11 +14,15 @@
  *   • the saved report/recommendation when the survey is complete
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getVisit, saveVisit, visitStatusLabel, visitDisplayLabel, isSurveyComplete, type VisitMeta } from '../../lib/visits/visitApi';
-import { listReportsForVisit } from '../../lib/reports/reportApi';
+import { listReportsForVisit, saveReport } from '../../lib/reports/reportApi';
 import { generatePortalToken } from '../../lib/portal/portalToken';
 import { buildPortalUrl } from '../../lib/portal/portalUrl';
+import { runEngine } from '../../engine/Engine';
+import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
+import { sanitiseModelForEngine } from '../../ui/fullSurvey/sanitiseModelForEngine';
+import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import VisitReportsList from './VisitReportsList';
 import './VisitHubPage.css';
 
@@ -147,18 +151,23 @@ function HubActions({
   onOpenPresentation,
   onPrintSummary,
   portalUrl,
+  portalLoading,
 }: {
   meta: VisitMeta;
   onResumeSurvey: () => void;
   onOpenPresentation: () => void;
   onPrintSummary?: () => void;
   portalUrl?: string;
+  portalLoading?: boolean;
 }) {
   const surveyDone = isSurveyComplete(meta);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
 
   function handleSendPortal() {
     if (!portalUrl) return;
+    // Copy the portal link to clipboard and open it in a new tab concurrently —
+    // both actions fire immediately so the advisor can share the link while
+    // also previewing what the customer will see.
     navigator.clipboard.writeText(portalUrl).then(() => {
       setCopyState('copied');
       setTimeout(() => setCopyState('idle'), 2000);
@@ -167,10 +176,6 @@ function HubActions({
       setCopyState('failed');
       setTimeout(() => setCopyState('idle'), 3000);
     });
-  }
-
-  function handleOpenPortal() {
-    if (!portalUrl) return;
     window.open(portalUrl, '_blank', 'noopener,noreferrer');
   }
 
@@ -204,25 +209,22 @@ function HubActions({
         </button>
       )}
 
-      {surveyDone && portalUrl && (
+      {surveyDone && (
         <button
           className="visit-hub__action-btn visit-hub__action-btn--secondary"
           onClick={handleSendPortal}
-          aria-label="Send portal link"
+          aria-label="Send customer portal link"
           data-testid="send-portal-btn"
+          disabled={!portalUrl || portalLoading}
+          aria-disabled={!portalUrl || portalLoading}
         >
-          {copyState === 'copied' ? '✅ Link copied!' : copyState === 'failed' ? '⚠ Copy failed — check URL' : '📤 Send portal'}
-        </button>
-      )}
-
-      {surveyDone && portalUrl && (
-        <button
-          className="visit-hub__action-btn visit-hub__action-btn--secondary"
-          onClick={handleOpenPortal}
-          aria-label="Open portal in new tab"
-          data-testid="open-portal-btn"
-        >
-          🔗 Open portal
+          {portalLoading
+            ? '⏳ Preparing portal…'
+            : copyState === 'copied'
+              ? '✅ Link copied!'
+              : copyState === 'failed'
+                ? '⚠ Copy failed — check URL'
+                : '📤 Send customer portal'}
         </button>
       )}
 
@@ -255,14 +257,18 @@ export default function VisitHubPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [portalUrl, setPortalUrl] = useState<string | undefined>();
+  const [portalLoading, setPortalLoading] = useState(false);
+  // Keep the working_payload so we can create a report (for portal) if none exists yet.
+  const workingPayloadRef = useRef<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     getVisit(visitId)
       .then((visit) => {
         if (cancelled) return;
-        // Hub only needs metadata fields — cast away working_payload.
-        setMeta(visit as VisitMeta);
+        const { working_payload, ...metaFields } = visit;
+        setMeta(metaFields);
+        workingPayloadRef.current = working_payload;
         setLoading(false);
       })
       .catch((err: unknown) => {
@@ -276,23 +282,55 @@ export default function VisitHubPage({
   }, [visitId]);
 
   // Generate a signed portal URL from the latest report for this visit.
+  // If no report exists yet and the survey is complete, create one first so
+  // the portal is always available after survey completion.
   useEffect(() => {
+    if (loading) return; // Wait until the visit is loaded.
+    if (!meta || !isSurveyComplete(meta)) return; // Portal only for complete surveys.
+
     let cancelled = false;
+    setPortalLoading(true);
+
     listReportsForVisit(visitId)
-      .then((reports) => {
-        if (cancelled || reports.length === 0) return;
-        const latestReportId = reports[0].id;
-        return generatePortalToken(latestReportId).then((token) => {
-          if (!cancelled) {
-            setPortalUrl(buildPortalUrl(latestReportId, window.location.origin, token));
-          }
-        });
+      .then(async (reports) => {
+        if (cancelled) return;
+
+        let reportId: string;
+        if (reports.length > 0) {
+          reportId = reports[0].id;
+        } else {
+          // No report yet — create one from the working payload so the portal link
+          // is available without requiring the user to go through the printout flow.
+          const payload = workingPayloadRef.current;
+          if (!payload || Object.keys(payload).length === 0) return;
+          // The working_payload is persisted as FullSurveyModelV1 by VisitPage — the same
+          // two-step cast (unknown → FullSurveyModelV1) used in App.tsx is the correct pattern
+          // here since VisitDetail.working_payload is typed as Record<string, unknown>.
+          const survey = payload as unknown as FullSurveyModelV1;
+          const engineInput = toEngineInput(sanitiseModelForEngine(survey));
+          const { engineOutput } = runEngine(engineInput);
+          const saved = await saveReport({
+            postcode: engineInput.postcode ?? null,
+            visit_id: visitId,
+            status: 'complete',
+            payload: { surveyData: survey, engineInput, engineOutput, decisionSynthesis: null },
+          });
+          if (cancelled) return;
+          reportId = saved.id;
+        }
+
+        const token = await generatePortalToken(reportId);
+        if (!cancelled) {
+          setPortalUrl(buildPortalUrl(reportId, window.location.origin, token));
+        }
       })
-      .catch((err) => { console.warn('[Atlas] Could not generate portal URL for visit hub:', err); });
+      .catch((err) => { console.warn('[Atlas] Could not generate portal URL for visit hub:', err); })
+      .finally(() => { if (!cancelled) setPortalLoading(false); });
+
     return () => {
       cancelled = true;
     };
-  }, [visitId]);
+  }, [visitId, meta, loading]);
 
   function handleReferenceChange(newRef: string) {
     if (!meta) return;
@@ -331,6 +369,7 @@ export default function VisitHubPage({
           onOpenPresentation={onOpenPresentation}
           onPrintSummary={onPrintSummary}
           portalUrl={portalUrl}
+          portalLoading={portalLoading}
         />
 
         <VisitReportsList visitId={visitId} onOpenReport={onOpenReport} />

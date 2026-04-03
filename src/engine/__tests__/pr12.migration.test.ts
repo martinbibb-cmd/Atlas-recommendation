@@ -117,32 +117,21 @@ describe('PR12 migration — canonical evidence path', () => {
     }
   });
 
-  it('not_recommended candidates are listed in disqualifiedCandidates — hard-stop is visible', () => {
+  it('tight space produces space_for_cylinder_unavailable advisory (no hard-stop — advice only policy)', () => {
     // tight space triggers space_for_cylinder_unavailable limiter on stored/heat_pump families
     const result = runEngine(TIGHT_SPACE_INPUT);
-    const { disqualifiedCandidates } = result.recommendationResult;
-    // Tight space must disqualify at least one candidate
-    expect(disqualifiedCandidates.length).toBeGreaterThan(0);
-    // If any candidate is disqualified, it must have suitability === 'not_recommended'
-    for (const d of disqualifiedCandidates) {
-      expect(d.suitability).toBe('not_recommended');
-    }
-    // Hard-stop limiter IDs must be listed (not silent)
-    for (const d of disqualifiedCandidates) {
-      expect(d.evidenceTrace.hardStopLimiters.length).toBeGreaterThan(0);
-    }
+    const { disqualifiedCandidates, bestOverall } = result.recommendationResult;
+    // Per "no hard stops" policy, no candidate should be disqualified as not_recommended.
+    expect(disqualifiedCandidates.length).toBe(0);
+    // A recommendation must still be produced — tight space is advisory only.
+    expect(bestOverall).toBeDefined();
   });
 
-  it('not_recommended candidates do not appear in bestByObjective', () => {
+  it('disqualifiedCandidates is empty — no hard stops in advice-only policy', () => {
+    // With the advice-only policy, no candidate should ever be fully disqualified.
     const result = runEngine(TIGHT_SPACE_INPUT);
-    const { disqualifiedCandidates, bestByObjective } = result.recommendationResult;
-    const disqualifiedFamilies = new Set(disqualifiedCandidates.map(d => d.family));
-    for (const obj of ALL_OBJECTIVES) {
-      const winner = bestByObjective[obj];
-      if (winner && disqualifiedFamilies.has(winner.family)) {
-        expect(winner.suitability).not.toBe('not_recommended');
-      }
-    }
+    const { disqualifiedCandidates } = result.recommendationResult;
+    expect(disqualifiedCandidates.length).toBe(0);
   });
 
   it('all intervention sourceLimiterIds reference real limiter IDs', () => {

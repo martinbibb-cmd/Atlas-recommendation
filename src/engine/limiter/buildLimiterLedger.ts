@@ -22,7 +22,7 @@
  *   Hydraulic
  *     mains_flow_constraint            shared; mains flow below delivery threshold
  *     pressure_constraint              shared; mains dynamic pressure too low
- *     primary_pipe_constraint          shared; pipe bore limits HP/high-flow operation
+ *     primary_pipe_constraint          heat-pump-only; pipe bore limits HP flow (advice only, no hard stop)
  *     open_vented_head_limit           open_vented-only; gravity head limits pressure
  *
  *   Heating / temperature
@@ -168,10 +168,10 @@ export function buildLimiterLedger(
 
   // 1a. combi_dhw_demand_risk — combi-only; occupancy/bathroom demand gate.
   //     Rules (from household physics):
-  //       bathroomCount >= 2 || peakConcurrentOutlets >= 2 → 'hard_stop' (hard simultaneous-demand gate)
-  //       occupancyCount === 3                              → 'warning'   (borderline demand)
+  //       bathroomCount >= 2 || peakConcurrentOutlets >= 2 → 'limit'    (simultaneous-demand advisory)
+  //       occupancyCount === 3                              → 'warning'  (borderline demand)
   //       occupancyCount <= 2                              → pass (no entry emitted)
-  //     A 'hard_stop' takes precedence over a 'warning'.
+  //     Hard stops are not permitted — the maximum severity is 'limit' (advice only).
   if (family === 'combi' && demographic != null) {
     const { occupancyCount, bathroomCount, peakConcurrentOutlets } = demographic;
     const isHardGate =
@@ -189,13 +189,13 @@ export function buildLimiterLedger(
         id: 'combi_dhw_demand_risk',
         family,
         domain: 'dhw',
-        severity: 'hard_stop',
-        title: 'Simultaneous demand risk — combi not suitable',
+        severity: 'limit',
+        title: 'Simultaneous demand risk — combi not advisable',
         description:
           `This home has ${triggerField}, ` +
           `creating a high risk of concurrent hot-water demand. A combi boiler can only serve one ` +
           `outlet at full flow at a time — simultaneous draws will result in reduced temperature ` +
-          `or pressure at one or more outlets.`,
+          `or pressure at one or more outlets. A stored system is strongly advisable.`,
         source: 'demographic',
         triggerKeys: ['bathroomCount', 'peakConcurrentOutlets'],
         removableByUpgrade: true,
@@ -371,11 +371,13 @@ export function buildLimiterLedger(
     });
   }
 
-  // 8. primary_pipe_constraint — shared
+  // 8. primary_pipe_constraint — heat-pump family only
   //    Evidence: hydraulicV1.verdict.ashpRisk is not 'pass'.
-  if (runnerResult.hydraulic.v1.verdict.ashpRisk !== 'pass') {
-    const pipeSeverity: LimiterSeverity =
-      runnerResult.hydraulic.v1.verdict.ashpRisk === 'fail' ? 'hard_stop' : 'warning';
+  //    This constraint is about heat-pump flow requirements and is not relevant
+  //    to boiler families (regular, system, combi, open_vented).  Hard stops are
+  //    never permitted — the maximum severity is 'warning' (advice only).
+  if (family === 'heat_pump' && runnerResult.hydraulic.v1.verdict.ashpRisk !== 'pass') {
+    const pipeSeverity: LimiterSeverity = 'warning';
     entries.push({
       id: 'primary_pipe_constraint',
       family,
@@ -383,8 +385,9 @@ export function buildLimiterLedger(
       severity: pipeSeverity,
       title: 'Primary pipe constraint',
       description:
-        `Primary pipework cannot safely carry the flow required for a heat pump installation. ` +
-        `Pipe velocity would exceed safe limits, causing erosion, noise, and reduced heat transfer.`,
+        `Primary pipework may not carry the flow required for optimal heat pump operation. ` +
+        `Pipe velocity could exceed recommended limits, affecting efficiency and noise levels. ` +
+        `A hydraulic calculation is needed to confirm whether pipework upgrades are required.`,
       source: 'hydraulic',
       triggerKeys: ['hydraulicV1.verdict.ashpRisk'],
       removableByUpgrade: true,

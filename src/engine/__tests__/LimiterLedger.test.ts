@@ -449,21 +449,27 @@ describe('LimiterLedger — hydraulic: mains_flow_constraint', () => {
 });
 
 describe('LimiterLedger — hydraulic: primary_pipe_constraint', () => {
-  it('emits primary_pipe_constraint when ASHP pipe risk is not pass', () => {
+  it('emits primary_pipe_constraint for heat_pump family when ASHP pipe risk is not pass', () => {
     // 22mm pipe + high heat loss triggers ashpRisk
     const input = { ...CLEAN_INPUT, primaryPipeDiameter: 22, heatLossWatts: 14000 };
-    const runnerResult = runCombiSystemModel(input, combiTopology);
-    const eventSummary = buildDerivedEventsFromTimeline(runnerResult.stateTimeline, 'combi');
+    const { runnerResult, eventSummary } = heatPumpRun(input);
     if (runnerResult.hydraulic.v1.verdict.ashpRisk !== 'pass') {
       const ledger = buildLimiterLedger(runnerResult, eventSummary);
       expect(ledger.entries.some(e => e.id === 'primary_pipe_constraint')).toBe(true);
     }
   });
 
-  it('primary_pipe_constraint has domain "hydraulic"', () => {
+  it('does NOT emit primary_pipe_constraint for combi family (HP constraint is not relevant to boiler families)', () => {
     const input = { ...CLEAN_INPUT, primaryPipeDiameter: 22, heatLossWatts: 14000 };
     const runnerResult = runCombiSystemModel(input, combiTopology);
     const eventSummary = buildDerivedEventsFromTimeline(runnerResult.stateTimeline, 'combi');
+    const ledger = buildLimiterLedger(runnerResult, eventSummary);
+    expect(ledger.entries.some(e => e.id === 'primary_pipe_constraint')).toBe(false);
+  });
+
+  it('primary_pipe_constraint has domain "hydraulic"', () => {
+    const input = { ...CLEAN_INPUT, primaryPipeDiameter: 22, heatLossWatts: 14000 };
+    const { runnerResult, eventSummary } = heatPumpRun(input);
     if (runnerResult.hydraulic.v1.verdict.ashpRisk !== 'pass') {
       const ledger = buildLimiterLedger(runnerResult, eventSummary);
       const entry = ledger.entries.find(e => e.id === 'primary_pipe_constraint');
@@ -471,22 +477,20 @@ describe('LimiterLedger — hydraulic: primary_pipe_constraint', () => {
     }
   });
 
-  it('primary_pipe_constraint has severity "hard_stop" when ashpRisk is fail', () => {
+  it('primary_pipe_constraint has severity "warning" (hard stops are not permitted — advice only)', () => {
     const input = { ...CLEAN_INPUT, primaryPipeDiameter: 22, heatLossWatts: 14000 };
-    const runnerResult = runCombiSystemModel(input, combiTopology);
-    const eventSummary = buildDerivedEventsFromTimeline(runnerResult.stateTimeline, 'combi');
+    const { runnerResult, eventSummary } = heatPumpRun(input);
     if (runnerResult.hydraulic.v1.verdict.ashpRisk === 'fail') {
       const ledger = buildLimiterLedger(runnerResult, eventSummary);
       const entry = ledger.entries.find(e => e.id === 'primary_pipe_constraint');
-      expect(entry!.severity).toBe('hard_stop');
+      if (entry) expect(entry.severity).toBe('warning');
     }
   });
 
   it('does NOT emit primary_pipe_constraint when ASHP pipe risk is pass', () => {
     // 28mm pipe passes for most heat loss values
     const input = { ...CLEAN_INPUT, primaryPipeDiameter: 28, heatLossWatts: 8000 };
-    const runnerResult = runCombiSystemModel(input, combiTopology);
-    const eventSummary = buildDerivedEventsFromTimeline(runnerResult.stateTimeline, 'combi');
+    const { runnerResult, eventSummary } = heatPumpRun(input);
     if (runnerResult.hydraulic.v1.verdict.ashpRisk === 'pass') {
       const ledger = buildLimiterLedger(runnerResult, eventSummary);
       expect(ledger.entries.some(e => e.id === 'primary_pipe_constraint')).toBe(false);
@@ -854,7 +858,7 @@ describe('LimiterLedger — installability: space_for_cylinder_unavailable', () 
 // ─── combi_dhw_demand_risk — occupancy/bathroom demand gate ──────────────────
 
 describe('LimiterLedger — combi: combi_dhw_demand_risk', () => {
-  it('emits a hard_stop entry when bathroomCount >= 2 (hard simultaneous-demand gate)', () => {
+  it('emits a limit entry when bathroomCount >= 2 (simultaneous-demand advisory — no hard stops permitted)', () => {
     const { runnerResult, eventSummary } = combiClean();
     const ledger = buildLimiterLedger(runnerResult, eventSummary, {
       bathroomCount: 2,
@@ -862,10 +866,10 @@ describe('LimiterLedger — combi: combi_dhw_demand_risk', () => {
     });
     const entry = ledger.entries.find(e => e.id === 'combi_dhw_demand_risk');
     expect(entry).toBeDefined();
-    expect(entry?.severity).toBe('hard_stop');
+    expect(entry?.severity).toBe('limit');
   });
 
-  it('emits a hard_stop entry when peakConcurrentOutlets >= 2 (hard simultaneous-demand gate)', () => {
+  it('emits a limit entry when peakConcurrentOutlets >= 2 (simultaneous-demand advisory — no hard stops permitted)', () => {
     const { runnerResult, eventSummary } = combiClean();
     const ledger = buildLimiterLedger(runnerResult, eventSummary, {
       bathroomCount: 1,
@@ -873,7 +877,7 @@ describe('LimiterLedger — combi: combi_dhw_demand_risk', () => {
     });
     const entry = ledger.entries.find(e => e.id === 'combi_dhw_demand_risk');
     expect(entry).toBeDefined();
-    expect(entry?.severity).toBe('hard_stop');
+    expect(entry?.severity).toBe('limit');
   });
 
   it('emits a warning entry when occupancyCount === 3 without bathroom/outlet gate', () => {
@@ -912,16 +916,16 @@ describe('LimiterLedger — combi: combi_dhw_demand_risk', () => {
     expect(ledger.entries.some(e => e.id === 'combi_dhw_demand_risk')).toBe(false);
   });
 
-  it('bathroomCount gate (hard_stop) takes precedence over occupancy warning', () => {
+  it('bathroomCount gate (limit) takes precedence over occupancy warning', () => {
     const { runnerResult, eventSummary } = combiClean();
     const ledger = buildLimiterLedger(runnerResult, eventSummary, {
       bathroomCount: 2,
       occupancyCount: 3,
     });
     const entries = ledger.entries.filter(e => e.id === 'combi_dhw_demand_risk');
-    // Only one entry (no duplication — hard_stop wins over warning)
+    // Only one entry (no duplication — limit wins over warning)
     expect(entries).toHaveLength(1);
-    expect(entries[0]?.severity).toBe('hard_stop');
+    expect(entries[0]?.severity).toBe('limit');
   });
 });
 

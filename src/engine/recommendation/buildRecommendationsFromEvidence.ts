@@ -302,15 +302,12 @@ const INTERVENTION_METADATA: Readonly<Record<string, {
 } as const;
 
 // ─── Hard-stop policy ─────────────────────────────────────────────────────────
-
-/**
- * Limiter IDs that always trigger a hard-stop (not_recommended) verdict
- * regardless of severity.  These represent physical impossibilities or
- * fundamental incompatibilities.
- */
-const ALWAYS_HARD_STOP_LIMITER_IDS: ReadonlySet<string> = new Set([
-  'space_for_cylinder_unavailable',
-]);
+//
+// Policy: hard stops are not permitted — the engine produces advice only.
+// No limiter may use 'hard_stop' severity.  All constraints are advisory.
+//
+// The `hardStopLimiters` evidence-trace field (below) is preserved for
+// structural compatibility but will always be empty under this policy.
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -404,11 +401,8 @@ function scoreCandidate(
   for (const entry of bundle.limiterLedger.entries) {
     limitersConsidered.push(entry.id);
 
-    // Detect hard stops
-    if (
-      entry.severity === 'hard_stop' ||
-      ALWAYS_HARD_STOP_LIMITER_IDS.has(entry.id)
-    ) {
+    // Detect hard stops (none expected under the advice-only policy, but tracked for transparency)
+    if (entry.severity === 'hard_stop') {
       hardStopLimiters.push(entry.id);
     }
 
@@ -515,12 +509,13 @@ function scoreCandidate(
   // Build human-readable caveats
   const caveats: string[] = [];
   for (const entry of bundle.limiterLedger.entries) {
-    if (entry.severity === 'hard_stop' || ALWAYS_HARD_STOP_LIMITER_IDS.has(entry.id)) {
-      caveats.push(`Hard stop: ${entry.title} — ${entry.description}`);
+    if (entry.severity === 'hard_stop') {
+      // Hard stops are not permitted — surface as an advisory note instead.
+      caveats.push(`Note: ${entry.title} — ${entry.description}`);
     } else if (entry.severity === 'limit') {
       caveats.push(`Limit reached: ${entry.title}`);
     } else if (entry.severity === 'warning') {
-      caveats.push(`Warning: ${entry.title}`);
+      caveats.push(`Advisory: ${entry.title}`);
     }
   }
 
