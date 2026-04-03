@@ -9,10 +9,11 @@
  *       1. quadrant_overview
  *       2. condition (ageing)
  *       3. quick wins (low-hanging fruit, conditional)
- *       4. options
- *       5. ranking
- *       6. option_* / compare_*
- *       7. simulator
+ *       4. go further (performance upgrades, conditional)
+ *       5. options
+ *       6. ranking
+ *       7. option_* / compare_*
+ *       8. simulator
  */
 
 import { describe, it, expect } from 'vitest';
@@ -94,12 +95,16 @@ describe('PresentationDeck — canonical page order', () => {
     expect(labels[2]).toBe('Quick wins');
   });
 
-  it('fourth page is Options (available systems)', () => {
-    expect(labels[3]).toBe('Options');
+  it('fourth page is Go further (performance upgrades)', () => {
+    expect(labels[3]).toBe('Go further');
   });
 
-  it('fifth page is Best fit (physics ranking)', () => {
-    expect(labels[4]).toBe('Best fit');
+  it('fifth page is Options (available systems)', () => {
+    expect(labels[4]).toBe('Options');
+  });
+
+  it('sixth page is Best fit (physics ranking)', () => {
+    expect(labels[5]).toBe('Best fit');
   });
 
   it('last page is the Proof (simulator handoff)', () => {
@@ -130,8 +135,8 @@ describe('PresentationDeck — canonical page order', () => {
 
   // ── Overall sequence structure ─────────────────────────────────────────────
 
-  it('deck has at least 6 pages (overview + condition + quick-wins + options + ranking + proof)', () => {
-    expect(labels.length).toBeGreaterThanOrEqual(6);
+  it('deck has at least 7 pages (overview + condition + quick-wins + go-further + options + ranking + proof)', () => {
+    expect(labels.length).toBeGreaterThanOrEqual(7);
   });
 
   it('pages after Best fit are Option or Changes slides before Proof', () => {
