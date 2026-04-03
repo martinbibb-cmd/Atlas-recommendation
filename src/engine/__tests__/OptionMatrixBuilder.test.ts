@@ -264,6 +264,61 @@ describe('buildOptionMatrixV1', () => {
     expect(hasBoostPump).toBe(false);
   });
 
+  it('boost pump is NOT recommended when only dynamic pressure is low (no static reading)', () => {
+    // Dynamic (working) pressure alone should never trigger a boost pump recommendation.
+    // Only low static (standing) pressure is a valid trigger.
+    const input = {
+      ...baseInput,
+      dynamicMainsPressure: 1.2,
+      mainsDynamicFlowLpm: 15,
+      // staticMainsPressureBar deliberately omitted
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+
+    const stored = options.find(o => o.id === 'stored_unvented')!;
+    const storedHasBoostPump =
+      stored.requirements.some(r => r.toLowerCase().includes('boost pump')) ||
+      (stored.typedRequirements.likelyUpgrades ?? []).some(r => r.toLowerCase().includes('boost pump'));
+    expect(storedHasBoostPump).toBe(false);
+
+    const sysUnvented = options.find(o => o.id === 'system_unvented')!;
+    const sysHasBoostPump =
+      sysUnvented.requirements.some(r => r.toLowerCase().includes('boost pump')) ||
+      (sysUnvented.typedRequirements.likelyUpgrades ?? []).some(r => r.toLowerCase().includes('boost pump'));
+    expect(sysHasBoostPump).toBe(false);
+
+    const combi = options.find(o => o.id === 'combi')!;
+    const combiHasBoostPump =
+      combi.requirements.some(r => r.toLowerCase().includes('boost pump')) ||
+      (combi.typedRequirements.likelyUpgrades ?? []).some(r => r.toLowerCase().includes('boost pump'));
+    expect(combiHasBoostPump).toBe(false);
+  });
+
+  it('boost pump IS recommended when static (standing) pressure is low', () => {
+    // Low static pressure is the correct signal for a boost pump recommendation.
+    const input = {
+      ...baseInput,
+      dynamicMainsPressure: 1.2,
+      staticMainsPressureBar: 1.2,
+      mainsDynamicFlowLpm: 15,
+    };
+    const result = runEngine(input);
+    const options = buildOptionMatrixV1(result, input);
+
+    const stored = options.find(o => o.id === 'stored_unvented')!;
+    const storedHasBoostPump =
+      stored.requirements.some(r => r.toLowerCase().includes('boost pump')) ||
+      (stored.typedRequirements.likelyUpgrades ?? []).some(r => r.toLowerCase().includes('boost pump'));
+    expect(storedHasBoostPump).toBe(true);
+
+    const sysUnvented = options.find(o => o.id === 'system_unvented')!;
+    const sysHasBoostPump =
+      sysUnvented.requirements.some(r => r.toLowerCase().includes('boost pump')) ||
+      (sysUnvented.typedRequirements.likelyUpgrades ?? []).some(r => r.toLowerCase().includes('boost pump'));
+    expect(sysHasBoostPump).toBe(true);
+  });
+
   it('each card has heat, dhw, engineering planes', () => {
     const result = runEngine(baseInput);
     const options = buildOptionMatrixV1(result, baseInput);

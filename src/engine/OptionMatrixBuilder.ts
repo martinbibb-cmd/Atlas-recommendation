@@ -298,8 +298,8 @@ export function buildOptionMatrixV1(
     'Only works well when peak outlets = 1 (single bathroom in use).',
     'Move to stored cylinder if demand grows (second bathroom, higher occupancy).',
   ];
-  if ((core.pressureAnalysis.dynamicBar) < 1.5) {
-    combiRequirements.push('Mains pressure boost may be required (< 1.5 bar detected).');
+  if (core.pressureAnalysis.staticBar !== undefined && core.pressureAnalysis.staticBar < 1.5) {
+    combiRequirements.push('Standing mains pressure low — pressure boost may be required.');
   }
 
   const combiEvidenceIds = (core.combiDhwV1?.flags ?? []).map(f => f.id);
@@ -353,8 +353,8 @@ export function buildOptionMatrixV1(
     mustHave: combiRisk === 'fail' || combiRejectedByTopology
       ? ['Resolve pressure/topology barrier before installation.']
       : ['Confirm peak simultaneous outlets = 1.'],
-    likelyUpgrades: core.pressureAnalysis.dynamicBar < 1.5
-      ? ['Mains pressure boost pump (< 1.5 bar detected).']
+    likelyUpgrades: (core.pressureAnalysis.staticBar !== undefined && core.pressureAnalysis.staticBar < 1.5)
+      ? ['Mains pressure boost pump (standing pressure low).']
       : [],
     niceToHave: ['Smart thermostat for occupancy-led control.'],
   };
@@ -505,6 +505,7 @@ export function buildOptionMatrixV1(
   // ── Stored hot water — Unvented cylinder card ────────────────────────────
   const { cwsSupplyV1 } = core;
   const mainsPressure = core.pressureAnalysis.dynamicBar;
+  const mainsStaticPressure = core.pressureAnalysis.staticBar;
 
   let storedUnventedStatus: OptionCardV1['status'];
   if (cwsSupplyV1.inconsistent) {
@@ -546,8 +547,8 @@ export function buildOptionMatrixV1(
   if (!cwsSupplyV1.hasMeasurements) {
     storedUnventedRequirements.push('Measure mains flow (L/min) and pressure (bar) before specifying cylinder.');
   }
-  if (mainsPressure < 1.5 && mainsPressure >= 1.0 && !strongOperatingPoint(cwsSupplyV1)) {
-    storedUnventedRequirements.push('Pressure boost pump may be required before installation.');
+  if (mainsStaticPressure !== undefined && mainsStaticPressure < 1.5 && mainsStaticPressure >= 1.0 && !strongOperatingPoint(cwsSupplyV1)) {
+    storedUnventedRequirements.push('Standing pressure low — pressure boost pump may be required before installation.');
   }
   if (recType === 'mixergy') {
     storedUnventedRequirements.push('Mixergy recommended: stratified heating reduces gas use and effective tank size needed.');
@@ -612,15 +613,15 @@ export function buildOptionMatrixV1(
   };
 
   const storedUnventedEngineering: OptionPlane = {
-    status: (mainsPressure < 1.5 && !strongOperatingPoint(cwsSupplyV1)) ? 'caution' : 'ok',
+    status: (mainsStaticPressure !== undefined && mainsStaticPressure < 1.5 && !strongOperatingPoint(cwsSupplyV1)) ? 'caution' : 'ok',
     headline: 'Engineering: G3 compliance + discharge route are key constraints.',
     bullets: [
       'G3-qualified installer required — regulatory requirement for unvented cylinders.',
       'Tundish and discharge pipe to external drain required (typically 2× pipe size).',
-      mainsPressure < 1.5 && strongOperatingPoint(cwsSupplyV1)
-        ? `Measured flow under load is strong — mains-fed stored hot water appears supportive despite dynamic pressure below 1.5 bar.`
-        : mainsPressure < 1.5
-        ? 'Pressure below 1.5 bar — pressure boost pump likely required before cylinder.'
+      mainsStaticPressure !== undefined && mainsStaticPressure < 1.5 && strongOperatingPoint(cwsSupplyV1)
+        ? `Measured flow under load is strong — mains-fed stored hot water appears supportive despite low standing pressure.`
+        : mainsStaticPressure !== undefined && mainsStaticPressure < 1.5
+        ? 'Standing pressure below 1.5 bar — pressure boost pump likely required before cylinder.'
         : 'Mains pressure adequate — no boost pump needed.',
       'Annual service required by regulation: PRV, expansion vessel, tundish check.',
     ],
@@ -635,7 +636,7 @@ export function buildOptionMatrixV1(
       ...(!cwsSupplyV1.hasMeasurements ? ['Measure mains flow (L/min) and pressure (bar) before specifying.'] : []),
     ],
     likelyUpgrades: [
-      ...(mainsPressure < 1.5 && mainsPressure >= 1.0 && !strongOperatingPoint(cwsSupplyV1) ? ['Pressure boost pump before cylinder inlet.'] : []),
+      ...(mainsStaticPressure !== undefined && mainsStaticPressure < 1.5 && mainsStaticPressure >= 1.0 && !strongOperatingPoint(cwsSupplyV1) ? ['Pressure boost pump before cylinder inlet.'] : []),
       'Expansion vessel sized to cylinder volume.',
     ],
     niceToHave: [
@@ -816,6 +817,7 @@ export function buildOptionMatrixV1(
 
   // ── Regular Vented / System Unvented (feasibility-only cards) ────────────
   const pressure = core.pressureAnalysis.dynamicBar;
+  const staticPressure = core.pressureAnalysis.staticBar;
   const spaceOk = input.availableSpace === 'ok';
 
   const regularStatus: OptionCardV1['status'] = hasFutureLoftConversion ? 'rejected' : spaceOk ? 'viable' : 'caution';
@@ -939,8 +941,8 @@ export function buildOptionMatrixV1(
     'Mains pressure ≥ 1.5 bar recommended for reliable performance.',
     'Unvented cylinder requires G3-qualified installer and annual servicing.',
   ];
-  if (pressure < 1.5 && !strongOperatingPoint(sysUnventedCws)) {
-    unventedRequirements.push('Pressure boost pump may be required before installation.');
+  if (staticPressure !== undefined && staticPressure < 1.5 && !strongOperatingPoint(sysUnventedCws)) {
+    unventedRequirements.push('Standing pressure low — pressure boost pump may be required before installation.');
   }
 
   const unventedHeat: OptionPlane = {
@@ -963,7 +965,7 @@ export function buildOptionMatrixV1(
       : unventedDhwIsStrong
       ? 'DHW: mains-pressure stored hot water — strong measured flow supports delivery.'
       : pressure < 1.5
-      ? 'DHW: borderline mains pressure — may require boost pump.'
+      ? 'DHW: borderline working pressure — verify mains standing pressure before specifying.'
       : unventedDhwIsLimited
       ? 'DHW: mains-pressure hot water — usable but limited for simultaneous multi-outlet demand.'
       : 'DHW: mains-pressure hot water — adequate flow for stored delivery.',
@@ -982,15 +984,15 @@ export function buildOptionMatrixV1(
   };
 
   const unventedEngineering: OptionPlane = {
-    status: (pressure < 1.5 && !strongOperatingPoint(sysUnventedCws)) ? 'caution' : 'ok',
+    status: (staticPressure !== undefined && staticPressure < 1.5 && !strongOperatingPoint(sysUnventedCws)) ? 'caution' : 'ok',
     headline: 'Engineering: G3 compliance + discharge route are key constraints.',
     bullets: [
       'G3-qualified installer required — regulatory requirement for unvented cylinders.',
       'Tundish and discharge pipe to external drain required (typically 2× pipe size).',
-      pressure < 1.5 && strongOperatingPoint(sysUnventedCws)
-        ? `Measured flow under load is strong — mains-fed stored hot water appears supportive despite dynamic pressure below 1.5 bar.`
-        : pressure < 1.5
-        ? 'Pressure below 1.5 bar — pressure boost pump likely required before cylinder.'
+      staticPressure !== undefined && staticPressure < 1.5 && strongOperatingPoint(sysUnventedCws)
+        ? `Measured flow under load is strong — mains-fed stored hot water appears supportive despite low standing pressure.`
+        : staticPressure !== undefined && staticPressure < 1.5
+        ? 'Standing pressure below 1.5 bar — pressure boost pump likely required before cylinder.'
         : 'Mains pressure adequate — no boost pump needed.',
       'Annual service required by regulation: PRV, expansion vessel, tundish check.',
     ],
@@ -1004,7 +1006,7 @@ export function buildOptionMatrixV1(
       ...(pressure < 1.0 ? ['Mains pressure must be resolved — too low for unvented cylinder.'] : []),
     ],
     likelyUpgrades: [
-      ...(pressure < 1.5 && !strongOperatingPoint(sysUnventedCws) ? ['Pressure boost pump before cylinder inlet.'] : []),
+      ...(staticPressure !== undefined && staticPressure < 1.5 && !strongOperatingPoint(sysUnventedCws) ? ['Pressure boost pump before cylinder inlet.'] : []),
       'Expansion vessel sized to cylinder volume.',
     ],
     niceToHave: [
