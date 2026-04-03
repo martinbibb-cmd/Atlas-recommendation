@@ -53,6 +53,9 @@ import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/Syst
 import QuadrantDashboardPage from './QuadrantDashboardPage';
 import GeminiAISummary from './GeminiAISummary';
 import { computeCurrentEfficiencyPct, DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
+import CylinderComparePanel from '../physics-visuals/CylinderComparePanel';
+import LifestyleInteractive from '../visualizers/LifestyleInteractive';
+import ConvectionExplainer from '../visualizers/ConvectionExplainer';
 import './PresentationDeck.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -634,6 +637,9 @@ function LowHangingFruitPage({ ctx }: { ctx: Page1_5AgeingContext }) {
           ))}
         </ul>
       )}
+      <div className="atlas-deck-fruit__heat-explainer">
+        <ConvectionExplainer />
+      </div>
     </>
   );
 }
@@ -683,6 +689,18 @@ function PerformanceUpgradesPage({ layer }: { layer: UpgradeLayer }) {
             </div>
           );
         })}
+      </div>
+
+      {/* ── Cylinder type — side-by-side comparison ── */}
+      <div className="atlas-deck-perf__section">
+        <p className="atlas-deck-perf__section-eyebrow">Cylinder physics</p>
+        <CylinderComparePanel />
+      </div>
+
+      {/* ── System behaviour — Day Painter interactive simulation ── */}
+      <div className="atlas-deck-perf__section">
+        <p className="atlas-deck-perf__section-eyebrow">System behaviour</p>
+        <LifestyleInteractive />
       </div>
     </>
   );
