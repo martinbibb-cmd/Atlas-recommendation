@@ -1416,7 +1416,7 @@ function buildPerformanceLayer(
 
   // ── Energy: solar PV ─────────────────────────────────────────────────────
   // Include when PV suitability is not limited or PV is already planned.
-  const pvSuitability = result.pvAssessment?.suitabilityBand;
+  const pvSuitability = result.pvAssessment?.pvSuitability;
   const pvStatus = input.pvStatus;
   if (pvSuitability !== 'limited' || pvStatus === 'planned') {
     const pvNote = pvStatus === 'planned'
