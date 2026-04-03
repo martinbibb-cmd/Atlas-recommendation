@@ -16,6 +16,9 @@
 
 import { useEffect, useState } from 'react';
 import { getVisit, saveVisit, visitStatusLabel, visitDisplayLabel, isSurveyComplete, type VisitMeta } from '../../lib/visits/visitApi';
+import { listReportsForVisit } from '../../lib/reports/reportApi';
+import { generatePortalToken } from '../../lib/portal/portalToken';
+import { buildPortalUrl } from '../../lib/portal/portalUrl';
 import VisitReportsList from './VisitReportsList';
 import './VisitHubPage.css';
 
@@ -26,6 +29,8 @@ interface Props {
   onResumeSurvey: () => void;
   /** Open the in-room presentation for this visit. */
   onOpenPresentation: () => void;
+  /** Print the customer summary for this visit. */
+  onPrintSummary?: () => void;
   /** Open a specific report by ID. */
   onOpenReport: (reportId: string) => void;
 }
@@ -140,12 +145,34 @@ function HubActions({
   meta,
   onResumeSurvey,
   onOpenPresentation,
+  onPrintSummary,
+  portalUrl,
 }: {
   meta: VisitMeta;
   onResumeSurvey: () => void;
   onOpenPresentation: () => void;
+  onPrintSummary?: () => void;
+  portalUrl?: string;
 }) {
   const surveyDone = isSurveyComplete(meta);
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+
+  function handleSendPortal() {
+    if (!portalUrl) return;
+    navigator.clipboard.writeText(portalUrl).then(() => {
+      setCopyState('copied');
+      setTimeout(() => setCopyState('idle'), 2000);
+    }).catch(() => {
+      // Clipboard API unavailable — surface the URL so the user can copy manually.
+      setCopyState('failed');
+      setTimeout(() => setCopyState('idle'), 3000);
+    });
+  }
+
+  function handleOpenPortal() {
+    if (!portalUrl) return;
+    window.open(portalUrl, '_blank', 'noopener,noreferrer');
+  }
 
   return (
     <div className="visit-hub__actions">
@@ -164,6 +191,38 @@ function HubActions({
           aria-label="Edit survey inputs"
         >
           ✏ Edit survey
+        </button>
+      )}
+
+      {surveyDone && onPrintSummary && (
+        <button
+          className="visit-hub__action-btn visit-hub__action-btn--secondary"
+          onClick={onPrintSummary}
+          aria-label="Print summary"
+        >
+          🖨 Print summary
+        </button>
+      )}
+
+      {surveyDone && portalUrl && (
+        <button
+          className="visit-hub__action-btn visit-hub__action-btn--secondary"
+          onClick={handleSendPortal}
+          aria-label="Send portal link"
+          data-testid="send-portal-btn"
+        >
+          {copyState === 'copied' ? '✅ Link copied!' : copyState === 'failed' ? '⚠ Copy failed — check URL' : '📤 Send portal'}
+        </button>
+      )}
+
+      {surveyDone && portalUrl && (
+        <button
+          className="visit-hub__action-btn visit-hub__action-btn--secondary"
+          onClick={handleOpenPortal}
+          aria-label="Open portal in new tab"
+          data-testid="open-portal-btn"
+        >
+          🔗 Open portal
         </button>
       )}
 
@@ -189,11 +248,13 @@ export default function VisitHubPage({
   onBack,
   onResumeSurvey,
   onOpenPresentation,
+  onPrintSummary,
   onOpenReport,
 }: Props) {
   const [meta, setMeta] = useState<VisitMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [portalUrl, setPortalUrl] = useState<string | undefined>();
 
   useEffect(() => {
     let cancelled = false;
@@ -209,6 +270,25 @@ export default function VisitHubPage({
         setError(err instanceof Error ? err.message : String(err));
         setLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
+  }, [visitId]);
+
+  // Generate a signed portal URL from the latest report for this visit.
+  useEffect(() => {
+    let cancelled = false;
+    listReportsForVisit(visitId)
+      .then((reports) => {
+        if (cancelled || reports.length === 0) return;
+        const latestReportId = reports[0].id;
+        return generatePortalToken(latestReportId).then((token) => {
+          if (!cancelled) {
+            setPortalUrl(buildPortalUrl(latestReportId, window.location.origin, token));
+          }
+        });
+      })
+      .catch((err) => { console.warn('[Atlas] Could not generate portal URL for visit hub:', err); });
     return () => {
       cancelled = true;
     };
@@ -249,6 +329,8 @@ export default function VisitHubPage({
           meta={meta}
           onResumeSurvey={onResumeSurvey}
           onOpenPresentation={onOpenPresentation}
+          onPrintSummary={onPrintSummary}
+          portalUrl={portalUrl}
         />
 
         <VisitReportsList visitId={visitId} onOpenReport={onOpenReport} />
