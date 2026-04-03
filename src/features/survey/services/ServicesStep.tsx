@@ -41,16 +41,27 @@ interface ServicesStepProps {
   /** Called when any of the pressure/flow measurements change. */
   onMeasurementsChange?: (staticBar: number | undefined, dynamicBar: number | undefined, flowLpm: number | undefined) => void;
   /**
-   * Available installation space — covers both indoor cylinder space and outdoor ASHP
-   * unit space.  Hard gate for stored water and ASHP recommendations.
+   * Indoor space for a hot water cylinder (airing cupboard / utility room).
+   * Hard gate for stored water recommendations.
    *
-   *   'ok'      — confirmed adequate space (cylinder + outdoor unit)
-   *   'tight'   — at least one space is constrained (cylinder / outdoor unit)
+   *   'ok'      — confirmed adequate space for a standard or slimline cylinder
+   *   'tight'   — space is constrained; compact / Mixergy option may be needed
    *   'unknown' — surveyor has not yet assessed space (default)
    */
   availableSpace?: 'ok' | 'tight' | 'unknown';
-  /** Called when the available-space answer changes. */
+  /** Called when the cylinder-space answer changes. */
   onAvailableSpaceChange?: (value: 'ok' | 'tight' | 'unknown') => void;
+  /**
+   * Whether the property has adequate outdoor space for an ASHP unit.
+   * Hard gate for ASHP recommendations.
+   *
+   *   true   — confirmed outdoor space (garden, side return, flat roof)
+   *   false  — no suitable outdoor siting; ASHP not feasible
+   *   absent — not yet assessed (no gate applied)
+   */
+  hasOutdoorSpaceForHeatPump?: boolean;
+  /** Called when the outdoor-space answer changes. */
+  onOutdoorSpaceChange?: (value: boolean | undefined) => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -152,6 +163,8 @@ export function ServicesStep({
   onMeasurementsChange,
   availableSpace,
   onAvailableSpaceChange,
+  hasOutdoorSpaceForHeatPump,
+  onOutdoorSpaceChange,
 }: ServicesStepProps) {
   // Local postcode input — seeded from survey postcode but independently editable.
   const [postcodeInput, setPostcodeInput] = useState<string>(
@@ -435,10 +448,9 @@ export function ServicesStep({
       >
         <p style={{ ...sectionHeadingStyle, marginTop: 0 }}>Installation space</p>
         <p style={{ fontSize: '0.8rem', color: '#4a5568', margin: '0 0 0.75rem' }}>
-          Confirm whether the property has adequate space for a hot water cylinder
-          (airing cupboard / utility room) and outdoor space for a heat pump unit
-          (garden, side return or roof). These are hard gates — no space means no stored
-          water or heat pump option.
+          Confirm whether the property has adequate space for a hot water cylinder and
+          outdoor space for a heat pump unit. These are independent hard gates — each
+          constrains different system options.
         </p>
 
         {/* Cylinder space */}
@@ -447,6 +459,7 @@ export function ServicesStep({
         </p>
         <p style={{ fontSize: '0.75rem', color: '#718096', margin: '0 0 0.4rem' }}>
           At least 0.5 m² of clear floor space (e.g. airing cupboard, utility room).
+          Constrains stored water options — system boiler, regular boiler, heat pump.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
           {[
@@ -492,19 +505,17 @@ export function ServicesStep({
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
           {[
-            { value: 'ok',      label: '✅ Yes — outdoor space available', sub: 'ASHP siting is feasible' },
-            { value: 'tight',   label: '🚫 No outdoor space',               sub: 'ASHP not feasible — no siting location' },
-            { value: 'unknown', label: '❓ Not assessed yet',                sub: 'Check before specifying heat pump' },
+            { value: true as boolean | undefined,      label: '✅ Yes — outdoor space available', sub: 'ASHP siting is feasible' },
+            { value: false as boolean | undefined,     label: '🚫 No outdoor space',               sub: 'ASHP not feasible — no siting location' },
+            { value: undefined as boolean | undefined, label: '❓ Not assessed yet',                sub: 'Check before specifying heat pump' },
           ].map(({ value, label, sub }) => {
-            // Outdoor space feeds the same availableSpace field — if space is 'tight'
-            // it gates ASHP regardless of whether it was set by the cylinder question.
-            const isSelected = (availableSpace ?? 'unknown') === value;
+            const isSelected = hasOutdoorSpaceForHeatPump === value;
             return (
               <button
-                key={value}
+                key={String(value)}
                 type="button"
-                data-testid={`outdoor-space-${value}`}
-                onClick={() => onAvailableSpaceChange?.(value as 'ok' | 'tight' | 'unknown')}
+                data-testid={`outdoor-space-${value === true ? 'yes' : value === false ? 'no' : 'unknown'}`}
+                onClick={() => onOutdoorSpaceChange?.(value)}
                 style={{
                   padding: '0.4rem 0.75rem',
                   borderRadius: '6px',
