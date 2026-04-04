@@ -687,11 +687,7 @@ function IconWeather() {
 
 // ─── Page 2.5 — Low-hanging fruit ────────────────────────────────────────────
 
-const FRUIT_TILES: ReadonlyArray<{
-  Icon: () => React.JSX.Element;
-  label: string;
-  desc:  string;
-}> = [
+const FRUIT_TILES = [
   { Icon: IconTRV,       label: 'TRV upgrade',       desc: 'Precise room-by-room control' },
   { Icon: IconBalance,   label: 'System balance',     desc: 'Even heat, every radiator' },
   { Icon: IconInhibitor, label: 'Inhibitor dose',     desc: 'Corrosion & scale protection' },
