@@ -423,53 +423,6 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     setTemplateApplied(true);
   }
 
-  // ── Undo / redo helpers ───────────────────────────────────────────────────
-
-  function undo() {
-    if (pastRef.current.length === 0) return;
-    setPlan((current) => {
-      const previous = pastRef.current[pastRef.current.length - 1];
-      futureRef.current = [current, ...futureRef.current.slice(0, MAX_HISTORY - 1)];
-      pastRef.current = pastRef.current.slice(0, -1);
-      setCanUndo(pastRef.current.length > 0);
-      setCanRedo(true);
-      emit(previous);
-      return previous;
-    });
-  }
-
-  function redo() {
-    if (futureRef.current.length === 0) return;
-    setPlan((current) => {
-      const next = futureRef.current[0];
-      pastRef.current = [...pastRef.current.slice(-(MAX_HISTORY - 1)), current];
-      futureRef.current = futureRef.current.slice(1);
-      setCanUndo(true);
-      setCanRedo(futureRef.current.length > 0);
-      emit(next);
-      return next;
-    });
-  }
-
-  // ── Keyboard shortcuts (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z) ─────────────────
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      const isCtrl = e.ctrlKey || e.metaKey;
-      if (!isCtrl) return;
-      if (e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        undo();
-      } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
-        e.preventDefault();
-        redo();
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // ── Layer toggle helper ───────────────────────────────────────────────────
 
   function toggleLayer(layer: keyof typeof visibleLayers) {
@@ -512,10 +465,10 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   }, []);
 
   // Autosave whenever the plan changes.
+  // floorPlanAutosave.save is stable (memoised with useCallback inside useAutosave).
   useEffect(() => {
     floorPlanAutosave.save(plan);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan]);
+  }, [plan, floorPlanAutosave.save]);
 
   // Warn on navigation/close when a save is pending.
   useEffect(() => {
@@ -628,6 +581,53 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     },
     [onChange, activeFloorId, buildEdgesByFloor, defaultRoomHeightM],
   );
+
+  // ── Undo / redo helpers ───────────────────────────────────────────────────
+  // Defined after emit so that emit is already initialised (avoids TDZ errors).
+
+  const undo = useCallback(() => {
+    if (pastRef.current.length === 0) return;
+    setPlan((current) => {
+      const previous = pastRef.current[pastRef.current.length - 1];
+      futureRef.current = [current, ...futureRef.current.slice(0, MAX_HISTORY - 1)];
+      pastRef.current = pastRef.current.slice(0, -1);
+      setCanUndo(pastRef.current.length > 0);
+      setCanRedo(true);
+      emit(previous);
+      return previous;
+    });
+  }, [emit]);
+
+  const redo = useCallback(() => {
+    if (futureRef.current.length === 0) return;
+    setPlan((current) => {
+      const next = futureRef.current[0];
+      pastRef.current = [...pastRef.current.slice(-(MAX_HISTORY - 1)), current];
+      futureRef.current = futureRef.current.slice(1);
+      setCanUndo(true);
+      setCanRedo(futureRef.current.length > 0);
+      emit(next);
+      return next;
+    });
+  }, [emit]);
+
+  // ── Keyboard shortcuts (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z) ─────────────────
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const isCtrl = e.ctrlKey || e.metaKey;
+      if (!isCtrl) return;
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        redo();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
 
   // ── Floor mutations ──────────────────────────────────────────────────────
 
@@ -1180,7 +1180,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 ['geometry',    '🏠', 'Geometry'],
                 ['openings',    '🚪', 'Openings'],
                 ['components',  '🔧', 'Components'],
-                ['routes',      '〰', 'Routes'],
+                ['routes',      '〰',  'Routes'],
                 ['disruptions', '⚠️', 'Disruptions'],
               ] as const
             ).map(([layer, icon, label]) => (

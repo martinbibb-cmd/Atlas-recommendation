@@ -1249,6 +1249,8 @@ export default function PresentationDeck({
   // into a newly-visible slide (e.g. ConvectionExplainer's interactive slider),
   // causing the wrong slide to be shown offset by one page width.
   const viewportRef = useRef<HTMLDivElement>(null);
+  // Ref to the track so we can reset the active page's vertical scroll on slide change.
+  const trackRef = useRef<HTMLDivElement>(null);
 
   const model = buildCanonicalPresentation(result, input, recommendationResult, prioritiesState);
   const { page1, page1_5, page2, page3, page4Plus, finalPage } = model;
@@ -1601,6 +1603,11 @@ export default function PresentationDeck({
     if (viewportRef.current) {
       viewportRef.current.scrollLeft = 0;
     }
+    // Reset the vertical scroll of the newly active slide page.
+    if (trackRef.current) {
+      const pageEl = trackRef.current.children[currentIndex] as HTMLElement | undefined;
+      if (pageEl) pageEl.scrollTop = 0;
+    }
   }, [currentIndex]);
 
   // ─── Touch handlers ────────────────────────────────────────────────────────
@@ -1667,6 +1674,7 @@ export default function PresentationDeck({
         aria-atomic="true"
       >
         <div
+          ref={trackRef}
           className="atlas-presentation-deck__track"
           style={trackStyle}
         >

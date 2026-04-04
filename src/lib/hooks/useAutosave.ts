@@ -78,7 +78,7 @@ export function useAutosave<T>(
     };
   }, []);
 
-  const executesSave = useCallback(() => {
+  const executeSave = useCallback(() => {
     const data = latestDataRef.current;
     if (data === null) {
       setStatus('failed');
@@ -118,15 +118,15 @@ export function useAutosave<T>(
 
       if (opts.immediate) {
         setHasPendingSave(false);
-        executesSave();
+        executeSave();
       } else {
         setHasPendingSave(true);
         debounceTimerRef.current = setTimeout(() => {
-          executesSave();
+          executeSave();
         }, debounceMs);
       }
     },
-    [executesSave, debounceMs],
+    [executeSave, debounceMs],
   );
 
   const retry = useCallback(() => {
@@ -134,8 +134,8 @@ export function useAutosave<T>(
     if (statusRef.current !== 'failed') return;
     setStatus('retrying');
     statusRef.current = 'retrying';
-    executesSave();
-  }, [executesSave]);
+    executeSave();
+  }, [executeSave]);
 
   return { status, save, retry, hasPendingSave };
 }
