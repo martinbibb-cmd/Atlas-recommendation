@@ -1070,6 +1070,10 @@ export default function DecisionSynthesisPage({
 
   // Print view — render the dedicated print component.
   if (showPrint) {
+    const printHeatLossKw = surveyData?.heatLossWatts != null
+      ? surveyData.heatLossWatts / 1000
+      : undefined;
+    const printWallType = surveyData?.building?.fabric?.wallType ?? undefined;
     return (
       <PrintableRecommendationPage
         advice={compareAdvice}
@@ -1078,6 +1082,8 @@ export default function DecisionSynthesisPage({
         reportReference={printableReportReference}
         engineOutput={engineOutput}
         presentationState={presentationState}
+        heatLossKw={printHeatLossKw}
+        wallType={printWallType}
       />
     );
   }

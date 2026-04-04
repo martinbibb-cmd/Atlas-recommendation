@@ -1,0 +1,124 @@
+/**
+ * HeatLossContextCard.css
+ *
+ * Styles for the heat demand context benchmarking card.
+ * Renders cleanly both on screen and in print.
+ */
+
+.hlcc {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  background: #f8fafc;
+  margin: 1rem 0;
+}
+
+.hlcc__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1a202c;
+  margin: 0 0 0.75rem;
+}
+
+.hlcc__benchmarks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.hlcc__row {
+  display: grid;
+  grid-template-columns: 9rem 1fr 5rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hlcc__row-label {
+  font-size: 0.8rem;
+  color: #4a5568;
+  white-space: nowrap;
+}
+
+.hlcc__row-label--this-home {
+  font-weight: 600;
+  color: #1a202c;
+}
+
+.hlcc__bar-track {
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.hlcc__bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.hlcc__bar--ref {
+  background: #a0aec0;
+}
+
+.hlcc__bar--this-home {
+  background: #e53e3e;
+}
+
+.hlcc__row-value {
+  font-size: 0.8rem;
+  color: #4a5568;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.hlcc__row-value--this-home {
+  font-weight: 700;
+  color: #e53e3e;
+}
+
+.hlcc__band-label {
+  font-size: 0.8rem;
+  color: #4a5568;
+  margin: 0 0 0.5rem;
+}
+
+.hlcc__band-text {
+  color: #2d3748;
+}
+
+.hlcc__summary {
+  font-size: 0.8rem;
+  font-style: italic;
+  color: #2d3748;
+  margin: 0;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.5rem;
+}
+
+/* ── Print styles ─────────────────────────────────────────────────────────── */
+
+@media print {
+  .hlcc {
+    break-inside: avoid;
+    border-color: #999;
+    background: #fff;
+  }
+
+  .hlcc__bar--ref {
+    background: #bbb;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .hlcc__bar--this-home {
+    background: #333;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .hlcc__row-value--this-home {
+    color: #000;
+  }
+}

@@ -1,0 +1,85 @@
+/**
+ * WhatIfImprovements.css
+ *
+ * Styles for the "If you improve your home" section.
+ */
+
+.wii {
+  border: 1px solid #c3dafe;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  background: #ebf4ff;
+  margin: 1rem 0;
+}
+
+.wii__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2b6cb0;
+  margin: 0 0 0.75rem;
+}
+
+.wii__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.wii__item {
+  margin: 0;
+}
+
+.wii__item-heading {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #2c5282;
+  margin: 0 0 0.25rem;
+}
+
+.wii__bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.wii__bullet {
+  font-size: 0.8rem;
+  color: #2d3748;
+  padding-left: 1rem;
+  position: relative;
+}
+
+.wii__bullet::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: #4299e1;
+}
+
+/* ── Print styles ─────────────────────────────────────────────────────────── */
+
+@media print {
+  .wii {
+    break-inside: avoid;
+    border-color: #999;
+    background: #fff;
+  }
+
+  .wii__title {
+    color: #000;
+  }
+
+  .wii__item-heading {
+    color: #333;
+  }
+
+  .wii__bullet::before {
+    color: #333;
+  }
+}

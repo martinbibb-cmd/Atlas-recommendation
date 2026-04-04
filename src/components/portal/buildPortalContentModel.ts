@@ -178,7 +178,7 @@ function confidenceLabel(level: string | undefined): string {
 const DEFAULT_IMPROVEMENT_TILES: PortalImprovementTile[] = [
   {
     label:   'Hot water reliability',
-    outcome: 'Consistent hot water suited to your household pattern',
+    outcome: 'Two showers can run at once — on-demand hot water suited to your household pattern',
     detail:  'Hot water availability matched to the way your home is used, without unnecessary waiting time.',
   },
   {
