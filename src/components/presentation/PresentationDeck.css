@@ -971,7 +971,9 @@
 }
 
 /* ─── CylinderComparePanel within the presentation deck ─────────────────── */
-/* Override CylinderComparePanel's natural height so it fits the flex section */
+/* Compact the panel so the cylinder visuals fit within the flex section.
+   The interactive controls (slider / checkbox) are hidden in this context —
+   the presenter talks to the 60 % static charge state shown visually. */
 
 .atlas-deck-perf__section .ccp__panel {
   flex: 1;
@@ -979,26 +981,86 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  /* Reduce internal spacing to leave maximum height for the cylinder columns */
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem 0.5rem;
 }
 
+/* Hide interactive controls in deck — presenter talks to visual only */
+.atlas-deck-perf__section .ccp__controls {
+  display: none;
+}
+
+/* Compact title and subtitle */
+.atlas-deck-perf__section .ccp__title {
+  font-size: 0.78rem;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.atlas-deck-perf__section .ccp__subtitle {
+  font-size: 0.65rem;
+  line-height: 1.3;
+  margin: 0;
+  /* Clamp to 2 lines so the header doesn't grow too tall */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Row expands to fill all remaining panel height after the compact header */
 .atlas-deck-perf__section .ccp__row {
   flex: 1;
   min-height: 0;
 }
 
+/* Each column fills the row height and stacks title → desc → visual */
+.atlas-deck-perf__section .ccp__col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.atlas-deck-perf__section .ccp__col-title {
+  font-size: 0.68rem;
+  flex-shrink: 0;
+}
+
+.atlas-deck-perf__section .ccp__col-desc {
+  font-size: 0.6rem;
+  line-height: 1.3;
+  flex-shrink: 0;
+  /* Limit to 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+}
+
+/* Visual frame takes remaining column height so the cylinder fills it */
 .atlas-deck-perf__section .ccp__visual-frame {
-  /* Reduce min-height so the frame fits within the compact deck viewport */
-  min-height: 60px;
   flex: 1;
+  min-height: 50px;
   overflow: hidden;
 }
 
-/* Ensure CylinderChargeVisual SVG scales to fill available height */
-.atlas-deck-perf__section .ccp__visual-frame svg,
-.atlas-deck-perf__section .ccp__visual-frame canvas {
-  max-width: 100%;
-  max-height: 100%;
-  height: auto;
+/* Scale down the cylinder body to fit within the compact visual frame */
+.atlas-deck-perf__section .ccv__cylinder {
+  height: 80px;
+}
+
+/* Hide the energy/demand arrows and status badge in deck (too small to be legible) */
+.atlas-deck-perf__section .ccv__input,
+.atlas-deck-perf__section .ccv__output,
+.atlas-deck-perf__section .ccv__status {
+  display: none;
+}
+
+/* Caption is not needed in deck context */
+.atlas-deck-perf__section .ccv__caption {
+  display: none;
 }
 
 .atlas-deck-perf__section-eyebrow {
