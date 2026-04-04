@@ -38,7 +38,7 @@ function buildImprovements(wallType: string | undefined): ImprovementItem[] {
       heading: 'Cavity wall insulation',
       bullets: [
         'Filling cavity walls could reduce heat loss.',
-        'This will improve efficiency and can expand your system options.',
+        'This may improve efficiency and may make lower-temperature systems like heat pumps more suitable.',
       ],
     });
   }
