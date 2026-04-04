@@ -6,9 +6,10 @@
  *   2. Layer visibility toggles
  *   3. Clean view toggle
  *   4. Autosave status badge renders
+ *   5. localStorage restore hardening (corrupt payload, version mismatch)
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import FloorPlanBuilder from '../FloorPlanBuilder';
 
 // Stub localStorage so tests don't bleed state between runs.
@@ -112,5 +113,76 @@ describe('FloorPlanBuilder — clean view', () => {
     const btn = screen.getByRole('button', { name: /clean.*view/i });
     fireEvent.click(btn);
     expect(btn).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+describe('FloorPlanBuilder — localStorage restore hardening', () => {
+  beforeEach(() => {
+    localStorageMock.clear();
+    vi.clearAllMocks();
+  });
+
+  it('renders without error when localStorage contains corrupt JSON', () => {
+    localStorageMock.getItem.mockImplementation((key: string) => {
+      if (key === 'atlas.floorplan.draft.v1') return 'not-valid-json{{{';
+      return null;
+    });
+    // Should not throw — corrupt payload is silently ignored.
+    expect(() => render(<FloorPlanBuilder />)).not.toThrow();
+  });
+
+  it('ignores a localStorage payload with a mismatched schema version', () => {
+    const badVersion = JSON.stringify({
+      version: '0.9',   // wrong version — should not be restored
+      propertyId: 'prop_test',
+      floors: [{ id: 'f1', name: 'Ground', levelIndex: 0, rooms: [{ id: 'r1', name: 'Stale Room', roomType: 'other', floorId: 'f1', x: 0, y: 0, width: 96, height: 96 }], walls: [], openings: [], zones: [] }],
+      placementNodes: [],
+      connections: [],
+      metadata: {},
+    });
+    localStorageMock.getItem.mockImplementation((key: string) => {
+      if (key === 'atlas.floorplan.draft.v1') return badVersion;
+      return null;
+    });
+    render(<FloorPlanBuilder />);
+    // The stale room from the mismatched-version payload must NOT appear.
+    expect(screen.queryByText('Stale Room')).not.toBeInTheDocument();
+  });
+
+  it('restores a valid v1.0 payload from localStorage', async () => {
+    const validDraft = JSON.stringify({
+      version: '1.0',
+      propertyId: 'prop_test',
+      floors: [{ id: 'f1', name: 'Ground', levelIndex: 0, rooms: [{ id: 'r1', name: 'Saved Room', roomType: 'other', floorId: 'f1', x: 0, y: 0, width: 96, height: 96 }], walls: [], openings: [], zones: [] }],
+      placementNodes: [],
+      connections: [],
+      metadata: {},
+    });
+    localStorageMock.getItem.mockImplementation((key: string) => {
+      if (key === 'atlas.floorplan.draft.v1') return validDraft;
+      return null;
+    });
+    await act(async () => {
+      render(<FloorPlanBuilder />);
+    });
+    // The room from the persisted draft should be visible.
+    expect(screen.getByText('Saved Room')).toBeInTheDocument();
+  });
+
+  it('ignores a localStorage payload missing floors', () => {
+    const noFloors = JSON.stringify({
+      version: '1.0',
+      propertyId: 'prop_test',
+      floors: [],           // empty floors — should not be restored
+      placementNodes: [],
+      connections: [],
+      metadata: {},
+    });
+    localStorageMock.getItem.mockImplementation((key: string) => {
+      if (key === 'atlas.floorplan.draft.v1') return noFloors;
+      return null;
+    });
+    // Should not throw and should render the default empty floor view.
+    expect(() => render(<FloorPlanBuilder />)).not.toThrow();
   });
 });
