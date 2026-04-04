@@ -12,7 +12,7 @@
 // No Math.random() is used.
 
 import { useState, useEffect, useRef } from 'react'
-import type { SystemDiagramDisplayState } from './useSystemDiagramPlayback'
+import type { SystemDiagramDisplayState, SimulatorSystemChoice } from './useSystemDiagramPlayback'
 import type { SystemInputs } from './systemInputsTypes'
 import {
   computeCurrentEfficiencyPct,
@@ -372,6 +372,10 @@ function detectEvents(
  * systemInputs from refs — so the interval never needs to be torn down
  * when props change.  Event markers are detected from state transitions.
  *
+ * When `systemChoice` changes the entire buffer is cleared immediately so
+ * that stale data from the previous system type is never shown alongside
+ * data from the new one.
+ *
  * The raw binary values from the simulator state are passed through
  * `applyShaping` before being written to the buffer, giving the graph
  * ramp-up, modulation-settle, and tail-off characteristics appropriate
@@ -382,10 +386,12 @@ function detectEvents(
  *
  * @param diagramState   Live simulator state from useSystemDiagramPlayback.
  * @param systemInputs   Current system inputs (heat loss, output ratings, etc.).
+ * @param systemChoice   Current system choice — triggers a full buffer reset on change.
  */
 export function useBehaviourTimeline(
   diagramState: SystemDiagramDisplayState,
   systemInputs: SystemInputs,
+  systemChoice: SimulatorSystemChoice,
 ): BehaviourTimelineState {
   const tickRef = useRef(0)
   const prevStateRef = useRef<SystemDiagramDisplayState | null>(null)
@@ -398,6 +404,15 @@ export function useBehaviourTimeline(
   // Keep refs in sync with latest props without re-mounting the interval.
   diagramStateRef.current = diagramState
   systemInputsRef.current = systemInputs
+
+  // Reset the entire buffer when the system type changes so that stale
+  // data from the previous system is never rendered alongside new data.
+  useEffect(() => {
+    setState({ ticks: [], eventMarkers: [] })
+    eventsRef.current = []
+    prevStateRef.current = null
+    shapeRef.current = makeShapeState()
+  }, [systemChoice])
 
   useEffect(() => {
     const interval = setInterval(() => {
