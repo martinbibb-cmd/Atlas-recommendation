@@ -54,18 +54,18 @@ const STATUS_BADGE: Record<OptionCardV1['status'], { label: string; modifier: st
 const WHAT_TO_EXPECT: Partial<Record<OptionCardV1['id'], string[]>> = {
   combi: [
     'On-demand hot water delivered across outlets.',
-    'Performance reduces when multiple outlets are used at the same time.',
+    'Struggles with 2 simultaneous outlets — hot water flow drops under demand.',
     'Best suited to homes with light, sequential hot water use.',
   ],
   stored_vented: [
-    'Better stability at peak demand — hot water is pre-stored.',
+    'Two showers can run at once — hot water is pre-stored.',
     'Recovery depends on cylinder condition and heat source output.',
     'Tank-fed supply; pressure is governed by cold water storage cistern height.',
   ],
   stored_unvented: [
-    'Better stability at peak demand — hot water is pre-stored.',
-    'Recovery depends on cylinder condition and heat source output.',
-    'Mains-fed supply at higher pressure than a vented cylinder.',
+    'Two showers can run at once — hot water is pre-stored.',
+    'Higher pressure performance — no sudden drops when taps are used.',
+    'Requires additional safety components (pressure relief valve, expansion vessel).',
   ],
   ashp: [
     'Runs most efficiently at lower flow temperatures — low-temp space heating protects COP.',

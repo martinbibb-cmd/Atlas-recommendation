@@ -71,7 +71,7 @@ const LIMITER_COPY: Record<string, LimiterHumanCopy> = {
     detail: 'Lower incoming pressure means less push at outlets — especially noticeable on upper floors.',
   },
   primary_pipe_constraint: {
-    headline: 'Your existing pipework may need upsizing for a different system',
+    headline: 'Pipework will be configured to deliver adequate flow for the new system',
     detail: 'The current pipe diameter is fine for now but would limit flow with a new or larger system.',
   },
   open_vented_head_limit: {

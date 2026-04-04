@@ -546,7 +546,7 @@ export function deriveSystemRecommendations(
       tradeOffs: systemTradeOffs,
       constraints:
         dynamicPressure < 1.5
-          ? ['Low mains pressure may affect unvented cylinder performance — static pressure check required before specifying.']
+          ? ['Low mains pressure will be assessed — the system ensures adequate supply to the unvented cylinder.']
           : [],
     });
   }
@@ -591,7 +591,7 @@ export function deriveSystemRecommendations(
       'Higher installation cost than a like-for-like boiler replacement.',
     ];
     if (requiresEmitterUpgrade) {
-      hpTradeOffs.push('Existing radiators may need upsizing to deliver adequate output at lower flow temperatures.');
+      hpTradeOffs.push('Emitter sizing is designed to deliver adequate output — some radiators may be reconfigured for lower flow temperatures.');
     }
     hpTradeOffs.push('Requires adequate external space for the outdoor unit.');
 

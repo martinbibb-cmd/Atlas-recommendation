@@ -1840,7 +1840,7 @@ function buildPage3(
     // Infrastructure fit note
     let infrastructureFitNote: string | undefined;
     if (entry.family === 'heat_pump') {
-      infrastructureFitNote = `${(input.heatLossWatts / 1000).toFixed(1)} kW — emitter adequacy check required`;
+      infrastructureFitNote = `${(input.heatLossWatts / 1000).toFixed(1)} kW — emitter sizing is designed to match room heat demand`;
     } else if (entry.family === 'combi') {
       infrastructureFitNote = input.hasLoftConversion ? 'Loft conversion: check pipework routing' : undefined;
     }

@@ -372,7 +372,10 @@ export function buildOptionMatrixV1(
 
   const combiTypedReqs: OptionRequirements = {
     mustHave: combiRisk === 'fail' || combiRejectedByTopology
-      ? ['Resolve pressure/topology barrier before installation.']
+      ? [
+          'System design adjustment required:',
+          'Pipework and layout will be configured to ensure consistent water pressure across multiple outlets.',
+        ]
       : ['Confirm peak simultaneous outlets = 1.'],
     likelyUpgrades: (core.pressureAnalysis.staticBar !== undefined && core.pressureAnalysis.staticBar < 1.5)
       ? ['Mains pressure boost pump (standing pressure low).']
@@ -685,7 +688,7 @@ export function buildOptionMatrixV1(
         ? 'Unvented cylinder is a strong fit — mains-fed stored hot water suits high household demand.'
         : 'Unvented cylinder suits your mains pressure and demand.'
       : storedUnventedStatus === 'caution' && cwsSupplyV1.hasMeasurements && !cwsSupplyV1.meetsUnventedRequirement
-      ? 'Unvented cylinder possible — mains supply may need boosting to meet the installation gate.'
+      ? 'Unvented cylinder possible — mains supply is designed to meet required flow through a pressure boost where needed.'
       : storedUnventedStatus === 'caution'
       ? isHighDemandHousehold
         ? 'Unvented cylinder suits your demand profile — confirm mains supply before proceeding.'
@@ -864,7 +867,7 @@ export function buildOptionMatrixV1(
   }
   const regularRequirements: string[] = [
     'Loft must remain accessible and frost-free for header tank.',
-    'Pressure at taps will be limited by head height — high-flow showers may need a dedicated pump.',
+    'Pressure at taps will be limited by head height — high-flow showers are designed with a dedicated pump.',
   ];
   if (input.futureAddBathroom) {
     regularRequirements.push('Adding a bathroom will increase demand — confirm vented system can meet peak flow.');

@@ -41,6 +41,8 @@ import {
   BEHAVIOUR_OUTCOME_LABEL,
 } from '../../lib/copy/customerCopy';
 import ReportQrFooter from '../report/ReportQrFooter';
+import HeatLossContextCard from '../report/HeatLossContextCard';
+import WhatIfImprovements from '../report/WhatIfImprovements';
 import './advice-print.css';
 
 // ─── Performance visual dashboard (print) ─────────────────────────────────────
@@ -187,6 +189,19 @@ interface Props {
    * Required to determine divergence and render chosen-option section.
    */
   presentationState?: RecommendationPresentationState;
+  /**
+   * Peak heat loss for this property in kW.
+   * When provided, the HeatLossContextCard is rendered to contextualise
+   * the recommendation relative to new-build and typical-home benchmarks.
+   */
+  heatLossKw?: number;
+  /**
+   * Building fabric wall type from the survey.
+   * When provided (and indicates an unfilled cavity), the WhatIfImprovements
+   * block is rendered with cavity wall fill suggestion.
+   * Accepts both engine value ('cavity_unfilled') and UI value ('cavity_uninsulated').
+   */
+  wallType?: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -377,6 +392,8 @@ export default function PrintableRecommendationPage({
   reportReference,
   engineOutput,
   presentationState,
+  heatLossKw,
+  wallType,
 }: Props) {
   // Detect whether this is a genuine survey-backed print or fallback.
   const isSurveyBacked = advice != null;
@@ -659,6 +676,28 @@ export default function PrintableRecommendationPage({
               <li key={reason} className="prp__why-atlas-item">{reason}</li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {/* ── Heat loss context card ─────────────────────────────────────── */}
+      {heatLossKw != null && heatLossKw > 0 && (
+        <section
+          className="prp__section"
+          aria-label="Heat demand context"
+          data-testid="prp-heat-loss-context"
+        >
+          <HeatLossContextCard heatLossKw={heatLossKw} />
+        </section>
+      )}
+
+      {/* ── What if improvements ──────────────────────────────────────── */}
+      {wallType != null && (
+        <section
+          className="prp__section"
+          aria-label="If you improve your home"
+          data-testid="prp-what-if-improvements"
+        >
+          <WhatIfImprovements wallType={wallType} />
         </section>
       )}
 
