@@ -62,12 +62,22 @@
 /* ─── Slider viewport ─────────────────────────────────────────────────────── */
 
 .atlas-presentation-deck__viewport {
-  overflow: hidden;
+  /* overflow: clip (not hidden) prevents the browser from setting scrollLeft
+     on this element via focus management or scrollIntoView calls.
+     With overflow: hidden the browser can still set scrollLeft programmatically
+     (e.g. when a child element gains focus), which shifts the visible slide by
+     one full page width and makes the wrong slide appear.
+     overflow: clip eliminates all scroll — only the CSS transform on the track
+     controls which slide is visible. */
+  overflow: clip;
   position: relative;
   /* Fixed-height window so the deck shows exactly one slide at a time.
      Without this the viewport expands to the tallest page and the component
-     behaves like a long document rather than a discrete-page presentation. */
-  height: clamp(480px, 60vh, 700px);
+     behaves like a long document rather than a discrete-page presentation.
+     Increased min from 480→520px and max from 700→820px for iPad landscape.
+     72 vh gives 554px on a 768px-tall iPad (landscape) which fits the 2×2
+     quadrant grid with responsive media areas. */
+  height: clamp(520px, 72vh, 820px);
 }
 
 /* ─── Slide track ─────────────────────────────────────────────────────────── */
@@ -648,11 +658,19 @@
 
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 
+/* ─── iPad / tablet breakpoint (768 px – 1024 px wide, landscape + portrait) */
+/* Ensure the full 2×2 quadrant grid and visual panels fit without scrolling  */
+@media (min-width: 768px) and (min-height: 700px) {
+  .atlas-presentation-deck__viewport {
+    height: clamp(600px, 75vh, 900px);
+  }
+}
+
 @media (max-width: 480px) {
   .atlas-presentation-deck__viewport {
     /* On small screens use a shorter fixed height so the deck fits within
        the visible area without requiring the user to scroll the outer page. */
-    height: clamp(360px, 55vh, 540px);
+    height: clamp(380px, 60vh, 540px);
   }
 
   .atlas-presentation-deck__page {
@@ -787,86 +805,102 @@
 .atlas-deck-fruit__subtitle {
   font-size: 0.82rem;
   color: #4a5568;
-  margin: 0 0 0.875rem;
+  margin: 0 0 0.625rem;
   line-height: 1.4;
 }
 
 .atlas-deck-fruit__tiles {
-  display: flex;
+  /* 5-column grid on wide screens — tiles fill space evenly without scroll.
+     Each tile contains an SVG icon + label + desc stacked vertically. */
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
   gap: 0.5rem;
-  overflow-x: auto;
-  padding-bottom: 0.5rem;
-  scroll-snap-type: x mandatory;
+}
+
+/* Narrow phones: 3-col grid with horizontal scroll for the remaining tiles */
+@media (max-width: 480px) {
+  .atlas-deck-fruit__tiles {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .atlas-deck-fruit__tile {
-  flex: 0 0 auto;
-  width: 120px;
-  min-height: 100px;
+  min-height: 88px;
   background: #f0fff4;
   border: 1px solid #9ae6b4;
   border-radius: 10px;
-  padding: 0.625rem 0.5rem;
+  padding: 0.625rem 0.4rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.25rem;
   text-align: center;
-  scroll-snap-align: start;
 }
 
 .atlas-deck-fruit__icon {
-  font-size: 1.5rem;
-  line-height: 1;
+  /* Wrapper for the SVG icon — gives it consistent sizing */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
 }
 
 .atlas-deck-fruit__label {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: #276749;
   line-height: 1.2;
 }
 
 .atlas-deck-fruit__desc {
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   color: #4a5568;
   line-height: 1.3;
 }
 
 .atlas-deck-fruit__extra {
-  margin: 0.75rem 0 0;
+  margin: 0.5rem 0 0;
   padding-left: 1.1rem;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: #4a5568;
   line-height: 1.5;
+  /* Limit to two items max so the ConvectionExplainer is always visible */
+  max-height: 3.5rem;
+  overflow: hidden;
 }
 
 .atlas-deck-fruit__extra li {
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.15rem;
 }
 
 /* ─── Page 2.6 — Performance upgrades ───────────────────────────────────── */
 
 .atlas-deck-perf__bridge {
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: #2d3748;
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.25rem;
   line-height: 1.4;
 }
 
 .atlas-deck-perf__description {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: #718096;
-  margin: 0 0 0.875rem;
+  margin: 0 0 0.625rem;
   line-height: 1.4;
 }
 
 .atlas-deck-perf__items {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  /* Strictly limit items height so the CylinderComparePanel above is always
+     visible on-screen. 15 vh gives about 2–3 compact items on iPad. */
+  max-height: 15vh;
   overflow-y: auto;
+  flex-shrink: 0;
 }
 
 .atlas-deck-perf__item {
@@ -928,8 +962,43 @@
 .atlas-deck-perf__section {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 1.25rem;
+  gap: 0.4rem;
+  /* Section uses remaining flex space so the cylinder visual fills the page */
+  flex: 1;
+  min-height: 0;
+  margin-top: 0.625rem;
+  overflow: hidden;
+}
+
+/* ─── CylinderComparePanel within the presentation deck ─────────────────── */
+/* Override CylinderComparePanel's natural height so it fits the flex section */
+
+.atlas-deck-perf__section .ccp__panel {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.atlas-deck-perf__section .ccp__row {
+  flex: 1;
+  min-height: 0;
+}
+
+.atlas-deck-perf__section .ccp__visual-frame {
+  /* Reduce min-height so the frame fits within the compact deck viewport */
+  min-height: 60px;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Ensure CylinderChargeVisual SVG scales to fill available height */
+.atlas-deck-perf__section .ccp__visual-frame svg,
+.atlas-deck-perf__section .ccp__visual-frame canvas {
+  max-width: 100%;
+  max-height: 100%;
+  height: auto;
 }
 
 .atlas-deck-perf__section-eyebrow {
@@ -944,7 +1013,27 @@
 /* ─── Page 2.5 — Heat explainer (ConvectionExplainer embed) ─────────────── */
 
 .atlas-deck-fruit__heat-explainer {
-  margin-top: 1.25rem;
+  /* flex: 1 lets this section absorb remaining page height so the physics
+     visual is always on-screen without needing to scroll.  min-height: 0
+     allows the flex child to shrink below its intrinsic content size. */
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  margin-top: 0.625rem;
+  /* Scale down the ConvectionExplainer to fit the available area */
+  container-type: size;
+}
+
+/* Ensure the SVG inside ConvectionExplainer scales to fill its container */
+.atlas-deck-fruit__heat-explainer svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Scale the ConvectionExplainer component to fill available area */
+.atlas-deck-fruit__heat-explainer .cex {
+  height: 100%;
+  overflow: hidden;
 }
 
 

@@ -56,6 +56,7 @@ import { computeCurrentEfficiencyPct, DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../
 import CylinderComparePanel from '../physics-visuals/CylinderComparePanel';
 import ConvectionExplainer from '../visualizers/ConvectionExplainer';
 import './PresentationDeck.css';
+import type React from 'react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -599,15 +600,104 @@ function DegradationChartsPage({
   );
 }
 
+// ─── Quick-wins tile SVG icons ────────────────────────────────────────────────
+// Real SVG illustrations replace the former emoji placeholders.
+
+function IconTRV() {
+  return (
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+      {/* Thermometer tube */}
+      <rect x="14" y="3" width="8" height="20" rx="4" fill="#bee3f8" stroke="#2b6cb0" strokeWidth="1.5"/>
+      {/* Mercury fill */}
+      <rect x="16" y="12" width="4" height="10" rx="2" fill="#2b6cb0"/>
+      {/* Bulb */}
+      <circle cx="18" cy="27" r="5" fill="#2b6cb0"/>
+      {/* Scale marks */}
+      <line x1="22" y1="9"  x2="26" y2="9"  stroke="#2b6cb0" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="22" y1="14" x2="25" y2="14" stroke="#2b6cb0" strokeWidth="1.5" strokeLinecap="round"/>
+      {/* TRV head (adjustment knob) */}
+      <rect x="12" y="1" width="12" height="5" rx="2" fill="#3182ce" stroke="#2b6cb0" strokeWidth="1"/>
+    </svg>
+  );
+}
+
+function IconBalance() {
+  return (
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+      {/* Radiator body */}
+      <rect x="3" y="11" width="30" height="14" rx="3" fill="#ebf8ff" stroke="#2b6cb0" strokeWidth="1.5"/>
+      {/* Vertical fins */}
+      <line x1="11" y1="11" x2="11" y2="25" stroke="#2b6cb0" strokeWidth="1.5"/>
+      <line x1="18" y1="11" x2="18" y2="25" stroke="#2b6cb0" strokeWidth="1.5"/>
+      <line x1="25" y1="11" x2="25" y2="25" stroke="#2b6cb0" strokeWidth="1.5"/>
+      {/* Balanced flow arrows */}
+      <path d="M6 7.5 L18 5 L30 7.5" stroke="#2b6cb0" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+      <polygon points="5,6 7,8 5,9" fill="#2b6cb0"/>
+      <polygon points="31,6 29,8 31,9" fill="#2b6cb0"/>
+    </svg>
+  );
+}
+
+function IconInhibitor() {
+  return (
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+      {/* Flask body */}
+      <path d="M13 4h10v10l7 14H6l7-14V4z" fill="#c6f6d5" stroke="#276749" strokeWidth="1.5" strokeLinejoin="round"/>
+      {/* Stopper */}
+      <line x1="13" y1="4" x2="23" y2="4" stroke="#276749" strokeWidth="2" strokeLinecap="round"/>
+      {/* Bubbles (chemical reaction) */}
+      <circle cx="13" cy="22" r="1.75" fill="#276749"/>
+      <circle cx="19" cy="24" r="1.75" fill="#276749"/>
+      <circle cx="23" cy="20" r="1.25" fill="#276749"/>
+    </svg>
+  );
+}
+
+function IconFlush() {
+  return (
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+      {/* Water droplet */}
+      <path d="M18 2 C18 2 9 13 9 20 a9 9 0 0 0 18 0 C27 13 18 2 18 2z"
+            fill="#bee3f8" stroke="#2b6cb0" strokeWidth="1.5"/>
+      {/* Swirl (flush action) */}
+      <path d="M14 17 Q14 23 19 23 Q23 23 23 19 Q23 15 19 15" stroke="#2b6cb0" strokeWidth="1.5"
+            fill="none" strokeLinecap="round"/>
+      <polygon points="18,14 20,16 16,16" fill="#2b6cb0"/>
+    </svg>
+  );
+}
+
+function IconWeather() {
+  return (
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+      {/* Sun circle */}
+      <circle cx="18" cy="15" r="6" fill="#fefcbf" stroke="#d69e2e" strokeWidth="1.5"/>
+      {/* Sun rays */}
+      <line x1="18" y1="5"  x2="18" y2="3"  stroke="#d69e2e" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="25" y1="8"  x2="27" y2="6"  stroke="#d69e2e" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="28" y1="15" x2="30" y2="15" stroke="#d69e2e" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="8"  y1="15" x2="6"  y2="15" stroke="#d69e2e" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="11" y1="8"  x2="9"  y2="6"  stroke="#d69e2e" strokeWidth="1.5" strokeLinecap="round"/>
+      {/* Down-arrow (weather compensation adjusts output temp) */}
+      <line x1="18" y1="24" x2="18" y2="32" stroke="#2b6cb0" strokeWidth="2" strokeLinecap="round"/>
+      <polygon points="14,29 18,33 22,29" fill="#2b6cb0"/>
+    </svg>
+  );
+}
+
 // ─── Page 2.5 — Low-hanging fruit ────────────────────────────────────────────
 
-const FRUIT_TILES = [
-  { icon: '🌡️', label: 'TRV upgrade',        desc: 'Precise room-by-room control' },
-  { icon: '⚖️', label: 'System balance',      desc: 'Even heat, every radiator' },
-  { icon: '🧪', label: 'Chemical inhibitor',  desc: 'Corrosion & scale protection' },
-  { icon: '💧', label: 'Power flush',         desc: 'Remove sludge, restore flow' },
-  { icon: '🌤️', label: 'Weather comp.',       desc: 'Auto-modulate to outside temp' },
-] as const;
+const FRUIT_TILES: ReadonlyArray<{
+  Icon: () => React.JSX.Element;
+  label: string;
+  desc:  string;
+}> = [
+  { Icon: IconTRV,       label: 'TRV upgrade',       desc: 'Precise room-by-room control' },
+  { Icon: IconBalance,   label: 'System balance',     desc: 'Even heat, every radiator' },
+  { Icon: IconInhibitor, label: 'Inhibitor dose',     desc: 'Corrosion & scale protection' },
+  { Icon: IconFlush,     label: 'Power flush',        desc: 'Remove sludge, restore flow' },
+  { Icon: IconWeather,   label: 'Weather comp.',      desc: 'Auto-modulate flow temp' },
+];
 
 function LowHangingFruitPage({ ctx }: { ctx: Page1_5AgeingContext }) {
   return (
@@ -623,7 +713,7 @@ function LowHangingFruitPage({ ctx }: { ctx: Page1_5AgeingContext }) {
       <div className="atlas-deck-fruit__tiles">
         {FRUIT_TILES.map(t => (
           <div key={t.label} className="atlas-deck-fruit__tile">
-            <span className="atlas-deck-fruit__icon" aria-hidden="true">{t.icon}</span>
+            <span className="atlas-deck-fruit__icon" aria-hidden="true"><t.Icon /></span>
             <span className="atlas-deck-fruit__label">{t.label}</span>
             <span className="atlas-deck-fruit__desc">{t.desc}</span>
           </div>
@@ -659,6 +749,14 @@ function PerformanceUpgradesPage({ layer }: { layer: UpgradeLayer }) {
       <h2 className="atlas-presentation-deck__page-title">
         {layer.title}
       </h2>
+
+      {/* ── Cylinder type comparison — visual-first so it is always on-screen ── */}
+      <div className="atlas-deck-perf__section">
+        <p className="atlas-deck-perf__section-eyebrow">Cylinder physics</p>
+        <CylinderComparePanel />
+      </div>
+
+      {/* ── Upgrade items — compact scrollable list below the visual ── */}
       <p className="atlas-deck-perf__bridge">
         You can stop here — or go further and unlock better performance.
       </p>
@@ -688,12 +786,6 @@ function PerformanceUpgradesPage({ layer }: { layer: UpgradeLayer }) {
             </div>
           );
         })}
-      </div>
-
-      {/* ── Cylinder type — side-by-side comparison ── */}
-      <div className="atlas-deck-perf__section">
-        <p className="atlas-deck-perf__section-eyebrow">Cylinder physics</p>
-        <CylinderComparePanel />
       </div>
 
     </>
@@ -1155,6 +1247,13 @@ export default function PresentationDeck({
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
+  // Ref to the slide viewport DOM node.
+  // Used to imperatively reset scrollLeft after each slide change.
+  // Even with overflow: clip the browser may set scrollLeft when focus moves
+  // into a newly-visible slide (e.g. ConvectionExplainer's interactive slider),
+  // causing the wrong slide to be shown offset by one page width.
+  const viewportRef = useRef<HTMLDivElement>(null);
+
   const model = buildCanonicalPresentation(result, input, recommendationResult, prioritiesState);
   const { page1, page1_5, page2, page3, page4Plus, finalPage } = model;
 
@@ -1495,6 +1594,19 @@ export default function PresentationDeck({
     return () => window.removeEventListener('keydown', handleKey);
   }, [goPrev, goNext]);
 
+  // Reset viewport scrollLeft after every slide change.
+  // The CSS `overflow: clip` on the viewport prevents the *user* from scrolling
+  // horizontally, but some browsers (Safari/Chrome) still set scrollLeft via
+  // focus management when an interactive element inside the newly-visible slide
+  // gains focus (e.g. the ConvectionExplainer slider).  That shifts the
+  // viewport's scroll origin by one page width making it appear as if the
+  // wrong slide is showing even though the CSS transform is correct.
+  useEffect(() => {
+    if (viewportRef.current) {
+      viewportRef.current.scrollLeft = 0;
+    }
+  }, [currentIndex]);
+
   // ─── Touch handlers ────────────────────────────────────────────────────────
 
   function handleTouchStart(e: React.TouchEvent) {
@@ -1551,6 +1663,7 @@ export default function PresentationDeck({
 
       {/* ── Slide viewport ──────────────────────────────────────── */}
       <div
+        ref={viewportRef}
         className="atlas-presentation-deck__viewport"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}

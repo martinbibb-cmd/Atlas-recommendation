@@ -62,7 +62,10 @@
 
 .oic__media {
   width: 100%;
-  height: 140px;
+  /* clamp so media shrinks on compact iPad landscape viewports while staying
+     generous on larger screens. 14 vh = ~107px on iPad landscape (768px tall),
+     scaling up to 140px max on taller screens. */
+  height: clamp(80px, 14vh, 140px);
   flex-shrink: 0;
   display: flex;
   align-items: center;
