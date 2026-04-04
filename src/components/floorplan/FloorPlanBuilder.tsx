@@ -401,6 +401,12 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     | { mode: 'node-move'; id: string; dx: number; dy: number }
     | null
   >(null);
+  // Captures the plan state immediately before a drag begins so we can commit
+  // exactly one history entry when the drag ends (pointer-up).
+  const dragStartPlanRef = useRef<PropertyPlan | null>(null);
+  // True once the pointer has actually moved during a drag (distinguishes a
+  // click from a real move so we don't record spurious history entries).
+  const dragHasMovedRef = useRef(false);
 
   // ── Starter template loading ──────────────────────────────────────────────
 
@@ -449,7 +455,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       const raw = localStorage.getItem(FLOOR_PLAN_STORAGE_KEY);
       if (!raw) return;
       const restored = JSON.parse(raw) as PropertyPlan;
-      if (restored?.version && restored.floors?.length > 0) {
+      if (restored?.version === '1.0' && restored.floors?.length > 0) {
         pastRef.current = [];
         futureRef.current = [];
         setCanUndo(false);
@@ -473,7 +479,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   // Warn on navigation/close when a save is pending.
   useEffect(() => {
     function handleBeforeUnload(e: BeforeUnloadEvent) {
-      if (floorPlanAutosave.hasPendingSave || floorPlanAutosave.status === 'saving') {
+      if (floorPlanAutosave.hasPendingSave || floorPlanAutosave.status === 'saving' || floorPlanAutosave.status === 'retrying') {
         e.preventDefault();
       }
     }
@@ -646,6 +652,27 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
 
   function updateActiveFloor(updater: (f: FloorPlan) => FloorPlan) {
     updatePlan((p) => ({
+      ...p,
+      floors: p.floors.map((f) => (f.id === activeFloorId ? updater(f) : f)),
+    }));
+  }
+
+  /**
+   * Apply a plan mutation during drag preview — emits to onChange but does NOT
+   * record a history entry.  Call `updatePlan` (not this) for any user-visible
+   * edit that should be undoable.
+   */
+  function applyPlanDirect(updater: (p: PropertyPlan) => PropertyPlan) {
+    setPlan((prev) => {
+      const next = updater(prev);
+      emit(next);
+      return next;
+    });
+  }
+
+  /** Apply a mutation to the active floor without recording history (drag preview). */
+  function applyActiveFloorDirect(updater: (f: FloorPlan) => FloorPlan) {
+    applyPlanDirect((p) => ({
       ...p,
       floors: p.floors.map((f) => (f.id === activeFloorId ? updater(f) : f)),
     }));
@@ -938,25 +965,30 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
         draft,
         activeFloor.rooms.filter((r) => r.id !== state.id),
       );
-      updateActiveFloor((f) => ({
+      // Use direct update (no history) — one history entry is committed on pointer-up.
+      applyActiveFloorDirect((f) => ({
         ...f,
         rooms: f.rooms.map((r) => (r.id === state.id ? snapped : r)),
       }));
+      dragHasMovedRef.current = true;
     }
 
     if (state.mode === 'room-resize') {
       const w = Math.max(GRID * 3, snapToGrid(state.baseW + (pos.x - state.startX)));
       const h = Math.max(GRID * 3, snapToGrid(state.baseH + (pos.y - state.startY)));
-      updateActiveFloor((f) => ({
+      // Use direct update (no history) — one history entry is committed on pointer-up.
+      applyActiveFloorDirect((f) => ({
         ...f,
         rooms: f.rooms.map((r) =>
           r.id === state.id ? { ...r, width: w, height: h } : r,
         ),
       }));
+      dragHasMovedRef.current = true;
     }
 
     if (state.mode === 'node-move') {
-      updatePlan((p) => ({
+      // Use direct update (no history) — one history entry is committed on pointer-up.
+      applyPlanDirect((p) => ({
         ...p,
         placementNodes: p.placementNodes.map((n) =>
           n.id === state.id
@@ -964,6 +996,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             : n,
         ),
       }));
+      dragHasMovedRef.current = true;
     }
   }
 
@@ -983,6 +1016,18 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       return;
     }
 
+    // Commit one history entry per drag operation (room-move / room-resize / node-move).
+    // We push the pre-drag snapshot so undo returns the element to where it was
+    // before the drag started.  A simple click (no movement) is ignored.
+    if (dragRef.current !== null && dragHasMovedRef.current && dragStartPlanRef.current !== null) {
+      const preDrag = dragStartPlanRef.current;
+      pastRef.current = [...pastRef.current.slice(-(MAX_HISTORY - 1)), preDrag];
+      futureRef.current = [];
+      setCanUndo(true);
+      setCanRedo(false);
+    }
+    dragStartPlanRef.current = null;
+    dragHasMovedRef.current = false;
     dragRef.current = null;
     emit(plan);
   }
@@ -1665,6 +1710,9 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                     e.stopPropagation();
                     setSelection({ kind: 'room', id: room.id });
                     const pos = boardPos(e as unknown as React.PointerEvent<HTMLDivElement>);
+                    // Capture pre-drag snapshot for single history commit on pointer-up.
+                    dragStartPlanRef.current = plan;
+                    dragHasMovedRef.current = false;
                     dragRef.current = { mode: 'room-move', id: room.id, dx: pos.x - room.x, dy: pos.y - room.y };
                   }}
                 >
@@ -1681,6 +1729,9 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                         onPointerDown={(e) => {
                           e.stopPropagation();
                           const pos = boardPos(e as unknown as React.PointerEvent<HTMLDivElement>);
+                          // Capture pre-drag snapshot for single history commit on pointer-up.
+                          dragStartPlanRef.current = plan;
+                          dragHasMovedRef.current = false;
                           dragRef.current = {
                             mode: 'room-resize',
                             id: room.id,
@@ -1745,6 +1796,9 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                     setSelection({ kind: 'node', id: node.id });
                     if (tool === 'select') {
                       const pos = boardPos(e as unknown as React.PointerEvent<HTMLDivElement>);
+                      // Capture pre-drag snapshot for single history commit on pointer-up.
+                      dragStartPlanRef.current = plan;
+                      dragHasMovedRef.current = false;
                       dragRef.current = { mode: 'node-move', id: node.id, dx: pos.x - node.anchor.x, dy: pos.y - node.anchor.y };
                     }
                   }}
