@@ -506,8 +506,8 @@ export default function SimulatorDashboard({
   // ── Behaviour timeline (current and improved columns) ───────────────────────
   // Hooks are always called unconditionally (React rules).
   // The rolling buffer drives the BehaviourGraph panels shown in both modes.
-  const behaviourTimeline = useBehaviourTimeline(diagramState, systemInputs);
-  const behaviourTimelineImproved = useBehaviourTimeline(diagramStateImproved, improvedInputs);
+  const behaviourTimeline = useBehaviourTimeline(diagramState, systemInputs, systemChoice);
+  const behaviourTimelineImproved = useBehaviourTimeline(diagramStateImproved, improvedInputs, systemChoiceImproved);
 
   // kW ceiling for the graph y-axes — keeps the scale consistent across phases.
   const behaviourMaxKw = Math.max(systemInputs.boilerOutputKw, systemInputs.combiPowerKw, systemInputs.heatLossKw);
