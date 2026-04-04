@@ -39,9 +39,19 @@ function demandBandLabel(kw: number): string {
   return 'high demand — significant heat loss';
 }
 
+/**
+ * Returns a prominent home-type label when heat loss is notably high.
+ * Only emitted above 14 kW — below this threshold no extra label is shown.
+ */
+function heatLossBandLabel(kw: number): string | undefined {
+  if (kw > 14) return 'High heat demand home';
+  return undefined;
+}
+
 export default function HeatLossContextCard({ heatLossKw }: Props) {
   const thisHomeKw = Math.round(heatLossKw * 10) / 10;
   const demandBand = demandBandLabel(thisHomeKw);
+  const bandLabel = heatLossBandLabel(thisHomeKw);
 
   return (
     <div className="hlcc" aria-label="Heat demand context">
@@ -77,8 +87,16 @@ export default function HeatLossContextCard({ heatLossKw }: Props) {
         {thisHomeKw} kW — <span className="hlcc__band-text">{demandBand}</span>
       </p>
 
+      {bandLabel && (
+        <p className="hlcc__demand-label" aria-label="Home demand classification">
+          {bandLabel}
+        </p>
+      )}
+
       <p className="hlcc__summary">
-        This level of heat demand is why higher output and stored hot water are recommended.
+        {bandLabel
+          ? 'Your home needs significantly more heat than most — this is why higher output and stored hot water are required.'
+          : 'This level of heat demand is why higher output and stored hot water are recommended.'}
       </p>
     </div>
   );
