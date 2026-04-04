@@ -965,11 +965,16 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     if (!dragRef.current) return;
     const state = dragRef.current;
 
-    // Only mark as dragged once the pointer has travelled past the jitter threshold.
-    const hasCrossedThreshold =
-      dragHasMovedRef.current ||
-      (dragStartPosRef.current !== null &&
-        Math.hypot(pos.x - dragStartPosRef.current.x, pos.y - dragStartPosRef.current.y) >= DRAG_THRESHOLD_PX);
+    // Skip all per-mode processing until the pointer has travelled past the
+    // jitter threshold.  This prevents sub-pixel wobble or shaky touch input
+    // from creating unwanted preview updates or undo entries.
+    if (
+      !dragHasMovedRef.current &&
+      (dragStartPosRef.current === null ||
+        Math.hypot(pos.x - dragStartPosRef.current.x, pos.y - dragStartPosRef.current.y) < DRAG_THRESHOLD_PX)
+    ) {
+      return;
+    }
 
     if (state.mode === 'room-move' && activeFloor) {
       const gx = snapToGrid(pos.x - state.dx);
@@ -983,7 +988,6 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
         draft,
         activeFloor.rooms.filter((r) => r.id !== state.id),
       );
-      if (!hasCrossedThreshold) return;
       // Use direct update (no history) — one history entry is committed on pointer-up.
       applyActiveFloorDirect((f) => ({
         ...f,
@@ -995,7 +999,6 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     if (state.mode === 'room-resize') {
       const w = Math.max(GRID * 3, snapToGrid(state.baseW + (pos.x - state.startX)));
       const h = Math.max(GRID * 3, snapToGrid(state.baseH + (pos.y - state.startY)));
-      if (!hasCrossedThreshold) return;
       // Use direct update (no history) — one history entry is committed on pointer-up.
       applyActiveFloorDirect((f) => ({
         ...f,
@@ -1007,7 +1010,6 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     }
 
     if (state.mode === 'node-move') {
-      if (!hasCrossedThreshold) return;
       // Use direct update (no history) — one history entry is committed on pointer-up.
       applyPlanDirect((p) => ({
         ...p,
