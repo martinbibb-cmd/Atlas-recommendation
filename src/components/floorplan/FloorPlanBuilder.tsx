@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BuilderShell from '../../explainers/lego/builder/BuilderShell';
 import { PALETTE_SECTIONS } from '../../explainers/lego/builder/palette';
 import { getPortDefs } from '../../explainers/lego/builder/portDefs';
+import { useAutosave } from '../../lib/hooks/useAutosave';
 import { portAbs } from '../../explainers/lego/builder/snapConnect';
 import { isTopologyAllowed } from '../../explainers/lego/builder/snapConnect';
 import type { BuildEdge, BuildGraph, BuildNode, PartKind, PortRef } from '../../explainers/lego/builder/types';
@@ -55,6 +56,9 @@ const CANVAS_H = 620;
 const SNAP_DIST = 14;
 const DEFAULT_ROOM_W = 192; // 8 grid units ≈ 4.8 m
 const DEFAULT_ROOM_H = 144; // 6 grid units ≈ 3.6 m
+
+/** localStorage key for persisting the floor plan draft between sessions. */
+const FLOOR_PLAN_STORAGE_KEY = 'atlas.floorplan.draft.v1';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -340,6 +344,42 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   /** Disruption kind selected for the addDisruption tool */
   const [pendingDisruptionKind, setPendingDisruptionKind] = useState<DisruptionKind>('boxing');
 
+  // ── Undo / redo history ──────────────────────────────────────────────────
+
+  /**
+   * History ring for undo/redo.  We keep a bounded list of past plan snapshots
+   * (before the mutation) and a stack of future ones (after an undo).
+   * Using refs avoids spurious re-renders from history bookkeeping.
+   */
+  const MAX_HISTORY = 50;
+  const pastRef = useRef<PropertyPlan[]>([]);
+  const futureRef = useRef<PropertyPlan[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  // ── Layer visibility toggles ──────────────────────────────────────────────
+
+  /**
+   * Controls which visual layers are rendered on the canvas.
+   * All layers are visible by default.
+   */
+  const [visibleLayers, setVisibleLayers] = useState<{
+    geometry: boolean;
+    openings: boolean;
+    components: boolean;
+    routes: boolean;
+    disruptions: boolean;
+  }>({
+    geometry: true,
+    openings: true,
+    components: true,
+    routes: true,
+    disruptions: true,
+  });
+
+  /** "Clean view" collapses all labels/dimensions — useful for presentation screenshots. */
+  const [cleanView, setCleanView] = useState(false);
+
   // ── Zoom & pan state ────────────────────────────────────────────────────
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -368,6 +408,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     const layout = PROPERTY_LAYOUTS.find(l => l.id === id);
     if (!layout) return;
     const newPlan = planFromLayout(layout, { systemType: surveyResults?.systemType });
+    // Clear history when a template is loaded — new starting point.
+    pastRef.current = [];
+    futureRef.current = [];
+    setCanUndo(false);
+    setCanRedo(false);
     setPlan(newPlan);
     setActiveFloorId(newPlan.floors[0]?.id ?? '');
     setBuildEdgesByFloor({});
@@ -378,7 +423,65 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     setTemplateApplied(true);
   }
 
-  // ── Derived ──────────────────────────────────────────────────────────────
+  // ── Layer toggle helper ───────────────────────────────────────────────────
+
+  function toggleLayer(layer: keyof typeof visibleLayers) {
+    setVisibleLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
+  }
+
+  // ── localStorage autosave ─────────────────────────────────────────────────
+
+  const floorPlanAutosave = useAutosave<PropertyPlan>(
+    async (planSnapshot) => {
+      try {
+        localStorage.setItem(FLOOR_PLAN_STORAGE_KEY, JSON.stringify(planSnapshot));
+      } catch {
+        // localStorage unavailable (private browsing, quota exceeded, etc.)
+        throw new Error('localStorage write failed');
+      }
+    },
+    { debounceMs: 600 },
+  );
+
+  // Restore from localStorage on first mount.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(FLOOR_PLAN_STORAGE_KEY);
+      if (!raw) return;
+      const restored = JSON.parse(raw) as PropertyPlan;
+      if (restored?.version && restored.floors?.length > 0) {
+        pastRef.current = [];
+        futureRef.current = [];
+        setCanUndo(false);
+        setCanRedo(false);
+        setPlan(restored);
+        setActiveFloorId(restored.floors[0]?.id ?? '');
+      }
+    } catch {
+      // Corrupt or missing — silently ignore and start fresh.
+    }
+    // Run only on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Autosave whenever the plan changes.
+  // floorPlanAutosave.save is stable (memoised with useCallback inside useAutosave).
+  useEffect(() => {
+    floorPlanAutosave.save(plan);
+  }, [plan, floorPlanAutosave.save]);
+
+  // Warn on navigation/close when a save is pending.
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (floorPlanAutosave.hasPendingSave || floorPlanAutosave.status === 'saving') {
+        e.preventDefault();
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [floorPlanAutosave.hasPendingSave, floorPlanAutosave.status]);
+
+
 
   const activeFloor = useMemo(
     () => plan.floors.find((f) => f.id === activeFloorId) ?? plan.floors[0],
@@ -479,10 +582,62 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     [onChange, activeFloorId, buildEdgesByFloor, defaultRoomHeightM],
   );
 
+  // ── Undo / redo helpers ───────────────────────────────────────────────────
+  // Defined after emit so that emit is already initialised (avoids TDZ errors).
+
+  const undo = useCallback(() => {
+    if (pastRef.current.length === 0) return;
+    setPlan((current) => {
+      const previous = pastRef.current[pastRef.current.length - 1];
+      futureRef.current = [current, ...futureRef.current.slice(0, MAX_HISTORY - 1)];
+      pastRef.current = pastRef.current.slice(0, -1);
+      setCanUndo(pastRef.current.length > 0);
+      setCanRedo(true);
+      emit(previous);
+      return previous;
+    });
+  }, [emit]);
+
+  const redo = useCallback(() => {
+    if (futureRef.current.length === 0) return;
+    setPlan((current) => {
+      const next = futureRef.current[0];
+      pastRef.current = [...pastRef.current.slice(-(MAX_HISTORY - 1)), current];
+      futureRef.current = futureRef.current.slice(1);
+      setCanUndo(true);
+      setCanRedo(futureRef.current.length > 0);
+      emit(next);
+      return next;
+    });
+  }, [emit]);
+
+  // ── Keyboard shortcuts (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z) ─────────────────
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const isCtrl = e.ctrlKey || e.metaKey;
+      if (!isCtrl) return;
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        redo();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
+
   // ── Floor mutations ──────────────────────────────────────────────────────
 
   function updatePlan(updater: (p: PropertyPlan) => PropertyPlan) {
     setPlan((prev) => {
+      // Push previous state to history before mutating.
+      pastRef.current = [...pastRef.current.slice(-(MAX_HISTORY - 1)), prev];
+      futureRef.current = [];
+      setCanUndo(true);
+      setCanRedo(false);
       const next = updater(prev);
       emit(next);
       return next;
@@ -988,7 +1143,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   if (!activeFloor) return <div>No floors defined.</div>;
 
   return (
-    <div className="fpb">
+    <div className={`fpb${cleanView ? ' fpb--clean-view' : ''}`}>
       {/* ── Header ── */}
       <header className="fpb__header">
         <div className="fpb__header-title">
@@ -996,6 +1151,63 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
           <p>Layer 1: geometry &nbsp;·&nbsp; Layer 2: components &nbsp;·&nbsp; Layer 3: routes &nbsp;·&nbsp; Layer 4: disruptions</p>
         </div>
         <div className="fpb__header-actions">
+          {/* ── Undo / redo ── */}
+          <div className="fpb__undo-redo" role="group" aria-label="Undo and redo">
+            <button
+              className="fpb__action-btn fpb__undo-btn"
+              onClick={undo}
+              disabled={!canUndo}
+              title="Undo (Ctrl+Z)"
+              aria-label="Undo"
+            >
+              ↩ Undo
+            </button>
+            <button
+              className="fpb__action-btn fpb__redo-btn"
+              onClick={redo}
+              disabled={!canRedo}
+              title="Redo (Ctrl+Y)"
+              aria-label="Redo"
+            >
+              ↪ Redo
+            </button>
+          </div>
+
+          {/* ── Layer visibility toggles ── */}
+          <div className="fpb__layer-toggles" role="group" aria-label="Layer visibility">
+            {(
+              [
+                ['geometry',    '🏠', 'Geometry'],
+                ['openings',    '🚪', 'Openings'],
+                ['components',  '🔧', 'Components'],
+                ['routes',      '〰',  'Routes'],
+                ['disruptions', '⚠️', 'Disruptions'],
+              ] as const
+            ).map(([layer, icon, label]) => (
+              <button
+                key={layer}
+                className={`fpb__layer-btn ${visibleLayers[layer] ? 'active' : ''}`}
+                onClick={() => toggleLayer(layer)}
+                title={`${visibleLayers[layer] ? 'Hide' : 'Show'} ${label.toLowerCase()}`}
+                aria-pressed={visibleLayers[layer]}
+                aria-label={`${visibleLayers[layer] ? 'Hide' : 'Show'} ${label}`}
+              >
+                <span aria-hidden="true">{icon}</span>
+                <span className="fpb__layer-btn-label">{label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* ── Clean view toggle ── */}
+          <button
+            className={`fpb__action-btn fpb__clean-view-btn ${cleanView ? 'active' : ''}`}
+            onClick={() => setCleanView((v) => !v)}
+            title={cleanView ? 'Exit clean view' : 'Clean presentation view (hides labels)'}
+            aria-pressed={cleanView}
+          >
+            {cleanView ? '🔍 Detail' : '🖼 Clean view'}
+          </button>
+
           {/* ── View mode toggle ── */}
           <div className="fpb__view-toggle" role="group" aria-label="View mode">
             <button
@@ -1018,6 +1230,26 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               ? '✓ Valid'
               : `${validation.errorCount > 0 ? `${validation.errorCount} error${validation.errorCount > 1 ? 's' : ''}` : ''}${validation.errorCount > 0 && validation.warningCount > 0 ? ', ' : ''}${validation.warningCount > 0 ? `${validation.warningCount} warning${validation.warningCount > 1 ? 's' : ''}` : ''}`}
           </div>
+
+          {/* ── Autosave status badge ── */}
+          {floorPlanAutosave.status !== 'idle' && (
+            <div
+              className={`fpb__save-badge fpb__save-badge--${floorPlanAutosave.status}`}
+              role="status"
+              aria-live="polite"
+            >
+              {floorPlanAutosave.status === 'saving'   && '⏳ Saving…'}
+              {floorPlanAutosave.status === 'saved'    && '✓ Saved'}
+              {floorPlanAutosave.status === 'failed'   && (
+                <>
+                  ⚠ Save failed{' '}
+                  <button className="fpb__save-retry" onClick={floorPlanAutosave.retry}>Retry</button>
+                </>
+              )}
+              {floorPlanAutosave.status === 'retrying' && '⏳ Retrying…'}
+            </div>
+          )}
+
           <button className="fpb__action-btn" onClick={exportJSON}>Export JSON</button>
           <label className="fpb__action-btn">
             Import JSON
@@ -1257,8 +1489,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               </defs>
               <rect width="100%" height="100%" fill="url(#fpb-grid-major)" />
 
-              {/* ── Layer 1: Walls (SVG) ── */}
-              {activeFloor.walls.map((wall) => (
+              {/* ── Layer 1: Walls (SVG) — gated by visibleLayers.geometry ── */}
+              {visibleLayers.geometry && activeFloor.walls.map((wall) => (
                 <g key={wall.id}>
                   <line
                     x1={wall.x1} y1={wall.y1} x2={wall.x2} y2={wall.y2}
@@ -1285,8 +1517,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 </g>
               ))}
 
-              {/* ── Layer 3a: Auto-routed heating pipes ── */}
-              {autoRoutes.map((route) => {
+              {/* ── Layer 3a: Auto-routed heating pipes — gated by visibleLayers.routes ── */}
+              {visibleLayers.routes && autoRoutes.map((route) => {
                 // Mid-point for the engineer label
                 const mid = route.route[Math.floor(route.route.length / 2)];
                 const labelText = viewMode === 'engineer'
@@ -1317,8 +1549,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 );
               })}
 
-              {/* ── Layer 3b: Lego edges (manual connection routes) ── */}
-              {activeEdges.map((edge) => {
+              {/* ── Layer 3b: Lego edges (manual connection routes) — gated by visibleLayers.routes ── */}
+              {visibleLayers.routes && activeEdges.map((edge) => {
                 const fromNode = visibleNodes.find((n) => n.id === edge.from.nodeId);
                 const toNode = visibleNodes.find((n) => n.id === edge.to.nodeId);
                 if (!fromNode || !toNode) return null;
@@ -1339,8 +1571,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 );
               })}
 
-              {/* ── Layer 4: Disruption annotations ── */}
-              {activeFloorDisruptions.map((dis) => {
+              {/* ── Layer 4: Disruption annotations — gated by visibleLayers.disruptions ── */}
+              {visibleLayers.disruptions && activeFloorDisruptions.map((dis) => {
                 const isUserPlaced = (plan.disruptions ?? []).some((d) => d.id === dis.id);
                 const isSelected = selection?.kind === 'disruption' && selection.id === dis.id;
                 const emoji = DISRUPTION_KIND_EMOJI[dis.kind];
@@ -1419,8 +1651,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               )}
             </svg>
 
-            {/* ── Layer 1: Rooms (DOM divs for easy interaction) ── */}
-            {activeFloor.rooms.map((room) => {
+            {/* ── Layer 1: Rooms (DOM divs for easy interaction) — gated by visibleLayers.geometry ── */}
+            {visibleLayers.geometry && activeFloor.rooms.map((room) => {
               const isSelected = selection?.kind === 'room' && selection.id === room.id;
               const badge = badgeForObject(validation, room.id);
               return (
@@ -1495,8 +1727,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               );
             })}
 
-            {/* ── Layer 2: Placement nodes (DOM divs) ── */}
-            {visibleNodes.map((node) => {
+            {/* ── Layer 2: Placement nodes (DOM divs) — gated by visibleLayers.components ── */}
+            {visibleLayers.components && visibleNodes.map((node) => {
               const isSelected = selection?.kind === 'node' && selection.id === node.id;
               const badge = badgeForObject(validation, node.id);
               const palette = PALETTE_SECTIONS.flatMap((s) => s.items).find((i) => i.kind === node.type);

@@ -1255,3 +1255,136 @@
   color: #fff;
   border-color: #d97706;
 }
+
+/* ── Undo / redo button group ───────────────────────────────────────────── */
+
+.fpb__undo-redo {
+  display: flex;
+  gap: 4px;
+}
+
+.fpb__undo-btn,
+.fpb__redo-btn {
+  min-width: 72px;
+}
+
+.fpb__undo-btn:disabled,
+.fpb__redo-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Layer visibility toggles ────────────────────────────────────────────── */
+
+.fpb__layer-toggles {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.fpb__layer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.fpb__layer-btn.active {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+.fpb__layer-btn:hover:not(.active) {
+  background: #e2e8f0;
+}
+
+.fpb__layer-btn-label {
+  font-size: 10px;
+}
+
+/* ── Clean presentation view toggle ────────────────────────────────────── */
+
+.fpb__clean-view-btn.active {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #166534;
+}
+
+/* In clean view: hide text labels inside rooms and nodes */
+.fpb--clean-view .fpb__room-type,
+.fpb--clean-view .fpb__room-measure,
+.fpb--clean-view .fpb__node-label,
+.fpb--clean-view .fpb__edge-label,
+.fpb--clean-view .fpb__disruption-label,
+.fpb--clean-view .fpb__pipe-label {
+  display: none;
+}
+
+/* Stronger selected-state styling for rooms */
+.fpb__room.selected {
+  border: 2.5px solid #2563eb;
+  background: rgba(219, 234, 254, 0.75) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22), 0 2px 8px rgba(37, 99, 235, 0.12);
+  z-index: 10;
+}
+
+/* Stronger selected-state styling for nodes */
+.fpb__node.selected {
+  border: 2.5px solid #7c3aed;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.25), 0 2px 8px rgba(124, 58, 237, 0.1);
+  z-index: 30;
+}
+
+/* ── Autosave status badge ──────────────────────────────────────────────── */
+
+.fpb__save-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.fpb__save-badge--saving,
+.fpb__save-badge--retrying {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.fpb__save-badge--saved {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.fpb__save-badge--failed {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.fpb__save-retry {
+  background: transparent;
+  border: 1px solid #dc2626;
+  border-radius: 4px;
+  color: #dc2626;
+  font-size: 11px;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+
+.fpb__save-retry:hover {
+  background: #fee2e2;
+}

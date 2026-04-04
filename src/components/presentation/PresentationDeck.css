@@ -1629,3 +1629,29 @@
   font-style: italic;
   line-height: 1.4;
 }
+
+/* ─── Print mode — disable internal scroll, expand full content ───────────── */
+@media print {
+  .atlas-presentation-deck__viewport {
+    height: auto;
+    overflow: visible;
+  }
+
+  .atlas-presentation-deck__track {
+    display: block;
+    transform: none !important;
+    height: auto;
+  }
+
+  .atlas-presentation-deck__page {
+    overflow: visible;
+    height: auto;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .atlas-presentation-deck__progress,
+  .atlas-presentation-deck__nav {
+    display: none;
+  }
+}
