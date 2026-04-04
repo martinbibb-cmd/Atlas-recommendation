@@ -56,6 +56,9 @@ const CANVAS_H = 620;
 const SNAP_DIST = 14;
 const DEFAULT_ROOM_W = 192; // 8 grid units ≈ 4.8 m
 const DEFAULT_ROOM_H = 144; // 6 grid units ≈ 3.6 m
+/** Minimum pointer movement (px) required before a drag is registered.
+ *  Prevents sub-pixel jitter or shaky touch input from creating undo entries. */
+const DRAG_THRESHOLD_PX = 4;
 
 /** localStorage key for persisting the floor plan draft between sessions. */
 const FLOOR_PLAN_STORAGE_KEY = 'atlas.floorplan.draft.v1';
@@ -404,9 +407,13 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   // Captures the plan state immediately before a drag begins so we can commit
   // exactly one history entry when the drag ends (pointer-up).
   const dragStartPlanRef = useRef<PropertyPlan | null>(null);
-  // True once the pointer has actually moved during a drag (distinguishes a
-  // click from a real move so we don't record spurious history entries).
+  // True once the pointer has actually moved past DRAG_THRESHOLD_PX during a
+  // drag (distinguishes a click from a real move, and guards against sub-pixel
+  // jitter or shaky touch input creating spurious undo entries).
   const dragHasMovedRef = useRef(false);
+  // Captures the board-space pointer position when a drag begins so we can
+  // compute the movement distance for the threshold check.
+  const dragStartPosRef = useRef<{ x: number; y: number } | null>(null);
 
   // ── Starter template loading ──────────────────────────────────────────────
 
@@ -455,14 +462,19 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       const raw = localStorage.getItem(FLOOR_PLAN_STORAGE_KEY);
       if (!raw) return;
       const restored = JSON.parse(raw) as PropertyPlan;
-      if (restored?.version === '1.0' && restored.floors?.length > 0) {
-        pastRef.current = [];
-        futureRef.current = [];
-        setCanUndo(false);
-        setCanRedo(false);
-        setPlan(restored);
-        setActiveFloorId(restored.floors[0]?.id ?? '');
+      if (restored?.version !== '1.0') {
+        // Surface a dev/QA note so schema issues are easy to spot.
+        // eslint-disable-next-line no-console
+        console.warn('[FloorPlanBuilder] localStorage draft discarded: schema version mismatch (found: %s)', restored?.version);
+        return;
       }
+      if (!restored.floors?.length) return;
+      pastRef.current = [];
+      futureRef.current = [];
+      setCanUndo(false);
+      setCanRedo(false);
+      setPlan(restored);
+      setActiveFloorId(restored.floors[0]?.id ?? '');
     } catch {
       // Corrupt or missing — silently ignore and start fresh.
     }
@@ -953,6 +965,17 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     if (!dragRef.current) return;
     const state = dragRef.current;
 
+    // Skip all per-mode processing until the pointer has travelled past the
+    // jitter threshold.  This prevents sub-pixel wobble or shaky touch input
+    // from creating unwanted preview updates or undo entries.
+    if (
+      !dragHasMovedRef.current &&
+      (dragStartPosRef.current === null ||
+        Math.hypot(pos.x - dragStartPosRef.current.x, pos.y - dragStartPosRef.current.y) < DRAG_THRESHOLD_PX)
+    ) {
+      return;
+    }
+
     if (state.mode === 'room-move' && activeFloor) {
       const gx = snapToGrid(pos.x - state.dx);
       const gy = snapToGrid(pos.y - state.dy);
@@ -1028,6 +1051,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     }
     dragStartPlanRef.current = null;
     dragHasMovedRef.current = false;
+    dragStartPosRef.current = null;
     dragRef.current = null;
     emit(plan);
   }
@@ -1713,6 +1737,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                     // Capture pre-drag snapshot for single history commit on pointer-up.
                     dragStartPlanRef.current = plan;
                     dragHasMovedRef.current = false;
+                    dragStartPosRef.current = pos;
                     dragRef.current = { mode: 'room-move', id: room.id, dx: pos.x - room.x, dy: pos.y - room.y };
                   }}
                 >
@@ -1732,6 +1757,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                           // Capture pre-drag snapshot for single history commit on pointer-up.
                           dragStartPlanRef.current = plan;
                           dragHasMovedRef.current = false;
+                          dragStartPosRef.current = pos;
                           dragRef.current = {
                             mode: 'room-resize',
                             id: room.id,
@@ -1799,6 +1825,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       // Capture pre-drag snapshot for single history commit on pointer-up.
                       dragStartPlanRef.current = plan;
                       dragHasMovedRef.current = false;
+                      dragStartPosRef.current = pos;
                       dragRef.current = { mode: 'node-move', id: node.id, dx: pos.x - node.anchor.x, dy: pos.y - node.anchor.y };
                     }
                   }}

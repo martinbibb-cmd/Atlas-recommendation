@@ -132,6 +132,7 @@ describe('FloorPlanBuilder — localStorage restore hardening', () => {
   });
 
   it('ignores a localStorage payload with a mismatched schema version', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const badVersion = JSON.stringify({
       version: '0.9',   // wrong version — should not be restored
       propertyId: 'prop_test',
@@ -147,6 +148,12 @@ describe('FloorPlanBuilder — localStorage restore hardening', () => {
     render(<FloorPlanBuilder />);
     // The stale room from the mismatched-version payload must NOT appear.
     expect(screen.queryByText('Stale Room')).not.toBeInTheDocument();
+    // A dev/QA warning must be emitted so schema issues are easy to spot.
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('schema version mismatch'),
+      expect.anything(),
+    );
+    warnSpy.mockRestore();
   });
 
   it('restores a valid v1.0 payload from localStorage', async () => {
