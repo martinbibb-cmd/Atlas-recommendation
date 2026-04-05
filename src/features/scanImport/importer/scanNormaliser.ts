@@ -23,7 +23,7 @@
  *     This matches the expected density of the FloorPlanBuilder grid.
  */
 
-import type { ScanBundleV1, ScanRoom, ScanWall, ScanPoint2D, ScanPoint3D } from '../contracts/scanContracts';
+import type { ScanBundleV1, ScanRoom, ScanWall, ScanPoint2D, ScanPoint3D } from '@atlas/contracts';
 
 // ─── Scale / offset constants ─────────────────────────────────────────────────
 

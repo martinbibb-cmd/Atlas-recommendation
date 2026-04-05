@@ -14,7 +14,7 @@
  *   - Recommendation / simulation state is never touched here.
  */
 
-import { validateScanBundle, isUnsupportedVersion } from '../contracts/scanValidation';
+import { validateScanBundle, isUnsupportedVersion, SUPPORTED_SCAN_BUNDLE_VERSIONS } from '@atlas/contracts';
 import { normaliseScanCoordinates } from './scanNormaliser';
 import {
   mapScanBundleToFloorPlanDraft,
@@ -23,7 +23,6 @@ import {
   type ScanImportWarning,
   type ProvenanceSummary,
 } from './scanMapper';
-import { SUPPORTED_SCAN_BUNDLE_VERSIONS } from '../contracts/scanContracts';
 
 // ─── Result type ──────────────────────────────────────────────────────────────
 

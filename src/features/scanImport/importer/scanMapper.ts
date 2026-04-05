@@ -18,7 +18,7 @@
  */
 
 import type { Room, Wall, Opening, FloorPlan, EntityProvenance } from '../../../components/floorplan/propertyPlan.types';
-import type { ScanBundleV1, ScanRoom, ScanWall, ScanOpening } from '../contracts/scanContracts';
+import type { ScanBundleV1, ScanRoom, ScanWall, ScanOpening } from '@atlas/contracts';
 import type { RoomType } from '../../../components/floorplan/propertyPlan.types';
 
 /** Generate a short unique ID for imported entities. */
