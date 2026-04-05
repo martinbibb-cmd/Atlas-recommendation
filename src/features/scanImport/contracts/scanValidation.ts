@@ -20,6 +20,7 @@
 import {
   SUPPORTED_SCAN_BUNDLE_VERSIONS,
   type ScanBundle,
+  type ScanBundleV1,
   type UnknownScanBundle,
 } from './scanContracts';
 
@@ -182,6 +183,25 @@ function validateBundleV1(raw: UnknownScanBundle): string[] {
   return errors;
 }
 
+/**
+ * assertIsScanBundleV1 — assertion function that narrows UnknownScanBundle to
+ * ScanBundleV1.
+ *
+ * Runs the same structural checks as validateBundleV1 and throws if any fail.
+ * Call this after the explicit early-return checks above have already
+ * eliminated all invalid/unsupported bundles — this acts as both a runtime
+ * safety-net and an explicit proof point for the TypeScript compiler.
+ */
+function assertIsScanBundleV1(value: unknown): asserts value is ScanBundleV1 {
+  if (!isObject(value)) {
+    throw new Error('assertIsScanBundleV1: expected a non-null object');
+  }
+  const errors = validateBundleV1(value);
+  if (errors.length > 0) {
+    throw new Error(`assertIsScanBundleV1: structural validation failed — ${errors.join('; ')}`);
+  }
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -228,7 +248,10 @@ export function validateScanBundle(input: unknown): ScanValidationResult {
     return { ok: false, errors: structuralErrors };
   }
 
-  return { ok: true, bundle: raw as ScanBundle };
+  // All structural checks passed. assertIsScanBundleV1 narrows the type so the
+  // compiler has explicit proof that runtime validation has confirmed the shape.
+  assertIsScanBundleV1(raw);
+  return { ok: true, bundle: raw };
 }
 
 /**
