@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "jobRef": "ATLAS-JOB-003",
+  "propertyAddress": "7 Maple Street, Leeds, LS1 7BT",
+  "generatedAt": "2024-06-17T14:20:00Z",
+  "bundleFile": "scan_bundle.json",
+  "stats": {
+    "roomCount": 2,
+    "reviewedRoomCount": 0,
+    "scannedRoomCount": 2,
+    "totalObjects": 5,
+    "totalPhotos": 0
+  },
+  "evidenceIncluded": false,
+  "evidenceFiles": [],
+  "blockingIssues": true,
+  "validationWarnings": [
+    "Scan session was interrupted — data may be incomplete",
+    "Coordinate anchor missing — spatial reference unreliable"
+  ]
+}

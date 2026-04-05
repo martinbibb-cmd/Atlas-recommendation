@@ -51,6 +51,7 @@ import PhysicsVisualGallery from './components/physics-visuals/preview/PhysicsVi
 import PresentationAuditPage from './components/audit/PresentationAuditPage';
 import DevMenuPage from './components/dev/DevMenuPage';
 import ScanImportHarness from './features/scanImport/dev/ScanImportHarness';
+import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlow';
 import './App.css';
 
 /** Detect ?devmenu=1 — renders the developer component browser on the landing page. */
@@ -120,6 +121,14 @@ const AUDIT_MODE_ENABLED =
 const SCAN_IMPORT_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('scan-import') === '1';
+
+/**
+ * Detect ?scan-package=1 — renders the Atlas Scan package import flow.
+ * Production import UI for ingesting Atlas Scan export packages.
+ */
+const SCAN_PACKAGE_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('scan-package') === '1';
 
 /**
  * Demo engine input used by the report mode (?report=1) and presentation demo (?presentation=1).
@@ -527,6 +536,16 @@ export default function App() {
   // ?scan-import=1 — render Scan Import Dev Harness for testing scan bundle ingestion.
   if (SCAN_IMPORT_ENABLED) {
     return <ScanImportHarness onBack={() => { window.location.href = window.location.pathname; }} />;
+  }
+
+  // ?scan-package=1 — render Atlas Scan package import flow.
+  if (SCAN_PACKAGE_ENABLED) {
+    return (
+      <ScanPackageImportFlow
+        onImported={() => { window.location.href = window.location.pathname; }}
+        onCancel={() => { window.location.href = window.location.pathname; }}
+      />
+    );
   }
 
   // ?devmenu=1 feature flag — render Developer Component Browser directly.

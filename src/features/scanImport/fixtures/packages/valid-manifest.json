@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "jobRef": "ATLAS-JOB-001",
+  "propertyAddress": "12 Oakfield Road, Bristol, BS3 4NR",
+  "generatedAt": "2024-06-15T10:30:00Z",
+  "bundleFile": "scan_bundle.json",
+  "stats": {
+    "roomCount": 1,
+    "reviewedRoomCount": 1,
+    "scannedRoomCount": 1,
+    "totalObjects": 3,
+    "totalPhotos": 4
+  },
+  "evidenceIncluded": false,
+  "evidenceFiles": [],
+  "blockingIssues": false,
+  "validationWarnings": []
+}

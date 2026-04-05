@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "jobRef": "ATLAS-JOB-004",
+  "propertyAddress": "22 Victoria Terrace, Edinburgh, EH1 3EF",
+  "generatedAt": "2024-06-18T11:45:00Z",
+  "bundleFile": "scan_bundle.json",
+  "stats": {
+    "roomCount": 2,
+    "reviewedRoomCount": 2,
+    "scannedRoomCount": 2,
+    "totalObjects": 8,
+    "totalPhotos": 6
+  },
+  "evidenceIncluded": true,
+  "evidenceFiles": ["evidence/photo_01.jpg", "evidence/photo_02.jpg"],
+  "blockingIssues": false,
+  "validationWarnings": []
+}

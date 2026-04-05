@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "jobRef": "ATLAS-JOB-002",
+  "propertyAddress": "45 Church Lane, Bath, BA1 2PQ",
+  "generatedAt": "2024-06-16T09:00:00Z",
+  "bundleFile": "scan_bundle.json",
+  "stats": {
+    "roomCount": 3,
+    "reviewedRoomCount": 1,
+    "scannedRoomCount": 3,
+    "totalObjects": 12,
+    "totalPhotos": 0
+  },
+  "evidenceIncluded": false,
+  "evidenceFiles": [],
+  "blockingIssues": false,
+  "validationWarnings": [
+    "Room 'bedroom-02' has low scan confidence — review geometry",
+    "Outdoor areas excluded from import"
+  ]
+}
