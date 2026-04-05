@@ -22,7 +22,10 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+    "paths": {
+      "@atlas/contracts": ["./node_modules/@atlas/contracts/src/scan/index.ts"]
+    }
   },
   "include": ["src"],
   "exclude": [
