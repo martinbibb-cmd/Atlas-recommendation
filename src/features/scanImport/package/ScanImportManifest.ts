@@ -138,5 +138,27 @@ export function validateScanManifest(input: unknown): ManifestValidationResult {
     return { ok: false, errors };
   }
 
-  return { ok: true, manifest: input as ScanImportManifest };
+  // Construct the manifest explicitly so TypeScript can verify the shape
+  // rather than relying on an unsafe cast from Record<string, unknown>.
+  const rawStats = input['stats'] as Record<string, unknown>;
+  const manifest: ScanImportManifest = {
+    version: input['version'] as ScanImportManifest['version'],
+    jobRef: input['jobRef'] as string,
+    propertyAddress: input['propertyAddress'] as string,
+    generatedAt: input['generatedAt'] as string,
+    bundleFile: input['bundleFile'] as string,
+    stats: {
+      roomCount: rawStats['roomCount'] as number,
+      reviewedRoomCount: rawStats['reviewedRoomCount'] as number,
+      scannedRoomCount: rawStats['scannedRoomCount'] as number,
+      totalObjects: rawStats['totalObjects'] as number,
+      totalPhotos: rawStats['totalPhotos'] as number,
+    },
+    evidenceIncluded: input['evidenceIncluded'] as boolean,
+    evidenceFiles: input['evidenceFiles'] as string[],
+    blockingIssues: input['blockingIssues'] as boolean,
+    validationWarnings: input['validationWarnings'] as string[],
+  };
+
+  return { ok: true, manifest };
 }
