@@ -50,6 +50,7 @@ import { buildPortalUrl } from './lib/portal/portalUrl';
 import PhysicsVisualGallery from './components/physics-visuals/preview/PhysicsVisualGallery';
 import PresentationAuditPage from './components/audit/PresentationAuditPage';
 import DevMenuPage from './components/dev/DevMenuPage';
+import ScanImportHarness from './features/scanImport/dev/ScanImportHarness';
 import './App.css';
 
 /** Detect ?devmenu=1 — renders the developer component browser on the landing page. */
@@ -110,6 +111,15 @@ const GALLERY_MODE_ENABLED =
 const AUDIT_MODE_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('audit') === '1';
+
+/**
+ * Detect ?scan-import=1 — renders the Scan Import Dev Harness directly.
+ * Developer/review surface for testing scan bundle ingestion.
+ * Not visible in production UX.
+ */
+const SCAN_IMPORT_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('scan-import') === '1';
 
 /**
  * Demo engine input used by the report mode (?report=1) and presentation demo (?presentation=1).
@@ -512,6 +522,11 @@ export default function App() {
   // ?audit=1 — render Presentation Audit Page for developer scenario review.
   if (AUDIT_MODE_ENABLED) {
     return <PresentationAuditPage />;
+  }
+
+  // ?scan-import=1 — render Scan Import Dev Harness for testing scan bundle ingestion.
+  if (SCAN_IMPORT_ENABLED) {
+    return <ScanImportHarness onBack={() => { window.location.href = window.location.pathname; }} />;
   }
 
   // ?devmenu=1 feature flag — render Developer Component Browser directly.
