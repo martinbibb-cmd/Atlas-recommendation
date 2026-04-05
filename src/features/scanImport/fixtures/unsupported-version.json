@@ -1,0 +1,14 @@
+{
+  "_comment": "unsupported-version.json — should be rejected_unsupported_version.",
+  "version": "99.0",
+  "bundleId": "fixture-future-version-001",
+  "rooms": [],
+  "anchors": [],
+  "qaFlags": [],
+  "meta": {
+    "capturedAt": "2030-01-01T00:00:00Z",
+    "deviceModel": "Future Device",
+    "scannerApp": "AtlasScan 99.0.0",
+    "coordinateConvention": "metric_m"
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "_comment": "valid-single-room.json — a minimal valid ScanBundleV1 with one high-confidence room.",
+  "version": "1.0",
+  "bundleId": "fixture-single-room-001",
+  "rooms": [
+    {
+      "id": "room-living-01",
+      "label": "Living Room",
+      "floorIndex": 0,
+      "polygon": [
+        { "x": 0.0, "y": 0.0 },
+        { "x": 4.5, "y": 0.0 },
+        { "x": 4.5, "y": 3.8 },
+        { "x": 0.0, "y": 3.8 }
+      ],
+      "areaM2": 17.1,
+      "heightM": 2.4,
+      "walls": [
+        {
+          "id": "wall-north-01",
+          "start": { "x": 0.0, "y": 0.0, "z": 0.0 },
+          "end": { "x": 4.5, "y": 0.0, "z": 0.0 },
+          "heightM": 2.4,
+          "thicknessMm": 280,
+          "kind": "external",
+          "openings": [
+            {
+              "id": "opening-window-01",
+              "widthM": 1.2,
+              "heightM": 1.1,
+              "offsetM": 1.6,
+              "type": "window",
+              "confidence": "high"
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "wall-south-01",
+          "start": { "x": 0.0, "y": 3.8, "z": 0.0 },
+          "end": { "x": 4.5, "y": 3.8, "z": 0.0 },
+          "heightM": 2.4,
+          "thicknessMm": 280,
+          "kind": "external",
+          "openings": [],
+          "confidence": "high"
+        },
+        {
+          "id": "wall-west-01",
+          "start": { "x": 0.0, "y": 0.0, "z": 0.0 },
+          "end": { "x": 0.0, "y": 3.8, "z": 0.0 },
+          "heightM": 2.4,
+          "thicknessMm": 280,
+          "kind": "external",
+          "openings": [],
+          "confidence": "high"
+        },
+        {
+          "id": "wall-east-01",
+          "start": { "x": 4.5, "y": 0.0, "z": 0.0 },
+          "end": { "x": 4.5, "y": 3.8, "z": 0.0 },
+          "heightM": 2.4,
+          "thicknessMm": 100,
+          "kind": "internal",
+          "openings": [
+            {
+              "id": "opening-door-01",
+              "widthM": 0.82,
+              "heightM": 2.0,
+              "offsetM": 1.5,
+              "type": "door",
+              "confidence": "high"
+            }
+          ],
+          "confidence": "high"
+        }
+      ],
+      "detectedObjects": [
+        {
+          "id": "obj-sofa-01",
+          "category": "furniture",
+          "label": "sofa",
+          "boundingBox": { "minX": 0.5, "minY": 0.5, "maxX": 2.5, "maxY": 1.2, "minZ": 0.0, "maxZ": 0.8 },
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high"
+    }
+  ],
+  "anchors": [],
+  "qaFlags": [],
+  "meta": {
+    "capturedAt": "2025-06-01T10:00:00Z",
+    "deviceModel": "iPhone 15 Pro",
+    "scannerApp": "AtlasScan 1.0.0",
+    "coordinateConvention": "metric_m",
+    "propertyRef": "visit-fixture-001",
+    "operatorNotes": "Clear scan, good lighting"
+  }
+}

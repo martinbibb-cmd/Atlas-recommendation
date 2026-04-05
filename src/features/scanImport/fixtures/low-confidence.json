@@ -1,0 +1,49 @@
+{
+  "_comment": "low-confidence.json — valid bundle where several rooms and walls have low confidence; should produce success_with_warnings.",
+  "version": "1.0",
+  "bundleId": "fixture-low-confidence-001",
+  "rooms": [
+    {
+      "id": "room-loft-01",
+      "label": "Loft",
+      "floorIndex": 2,
+      "polygon": [
+        { "x": 0.0, "y": 0.0 },
+        { "x": 5.0, "y": 0.0 },
+        { "x": 5.0, "y": 4.0 },
+        { "x": 0.0, "y": 4.0 }
+      ],
+      "areaM2": 20.0,
+      "heightM": 1.8,
+      "walls": [
+        {
+          "id": "wall-loft-north",
+          "start": { "x": 0.0, "y": 0.0, "z": 0.0 },
+          "end": { "x": 5.0, "y": 0.0, "z": 0.0 },
+          "heightM": 1.8,
+          "thicknessMm": 0,
+          "kind": "external",
+          "openings": [],
+          "confidence": "low"
+        }
+      ],
+      "detectedObjects": [],
+      "confidence": "low"
+    }
+  ],
+  "anchors": [],
+  "qaFlags": [
+    {
+      "code": "PARTIAL_COVERAGE",
+      "message": "Scanner coverage was incomplete in loft area — data may be unreliable.",
+      "severity": "warning",
+      "entityId": "room-loft-01"
+    }
+  ],
+  "meta": {
+    "capturedAt": "2025-06-03T14:00:00Z",
+    "deviceModel": "iPhone 14",
+    "scannerApp": "AtlasScan 1.0.0",
+    "coordinateConvention": "metric_m"
+  }
+}

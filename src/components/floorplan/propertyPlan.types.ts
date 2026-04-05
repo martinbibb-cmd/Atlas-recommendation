@@ -9,6 +9,50 @@
 
 import type { PartKind } from '../../explainers/lego/builder/types';
 
+// ─── Entity provenance ────────────────────────────────────────────────────────
+
+/**
+ * How a floor-plan entity was originally obtained.
+ *
+ * scanned         — measured by a native scan client (LiDAR / RoomPlan)
+ * inferred        — derived algorithmically from other scan or survey data
+ * manual          — entered or drawn by a user inside Atlas
+ * imported_legacy — migrated from an older data format
+ */
+export type EntitySource = 'scanned' | 'inferred' | 'manual' | 'imported_legacy';
+
+/**
+ * Human review status for an imported entity.
+ *
+ * unreviewed  — imported but not yet inspected by a user
+ * reviewed    — a user has confirmed the entity looks correct
+ * corrected   — a user has edited the entity after import
+ */
+export type EntityReviewStatus = 'unreviewed' | 'reviewed' | 'corrected';
+
+/**
+ * Provenance metadata attached to any canonical floor-plan entity that was
+ * not created directly by a user in Atlas.
+ *
+ * source              — how the entity was originally obtained
+ * sourceBundleVersion — version of the scan contract that produced it (if scanned)
+ * sourceBundleId      — unique ID of the originating scan bundle (if scanned)
+ * confidence          — optional numeric confidence 0–1 (1 = fully certain)
+ * confidenceBand      — banded confidence 'high' | 'medium' | 'low'
+ * reviewStatus        — whether a user has inspected this entity
+ *
+ * All fields are optional so that provenance can be added incrementally
+ * without invalidating existing PropertyPlan documents.
+ */
+export interface EntityProvenance {
+  source: EntitySource;
+  sourceBundleVersion?: string;
+  sourceBundleId?: string;
+  confidence?: number;
+  confidenceBand?: 'high' | 'medium' | 'low';
+  reviewStatus: EntityReviewStatus;
+}
+
 // ─── Primitives ───────────────────────────────────────────────────────────────
 
 export interface Point {
@@ -89,6 +133,8 @@ export interface Room {
   volumeM3?: number;
   heightM?: number;
   notes?: string;
+  /** Provenance metadata — present when this entity was not created manually in Atlas. */
+  provenance?: EntityProvenance;
 }
 
 export type WallKind = 'internal' | 'external';
@@ -103,6 +149,8 @@ export interface Wall {
   y2: number;
   thicknessMm?: number;
   roomIds?: string[];
+  /** Provenance metadata — present when this entity was not created manually in Atlas. */
+  provenance?: EntityProvenance;
 }
 
 export type OpeningType = 'door' | 'window';
@@ -114,6 +162,8 @@ export interface Opening {
   wallId: string;
   offsetM: number;
   widthM: number;
+  /** Provenance metadata — present when this entity was not created manually in Atlas. */
+  provenance?: EntityProvenance;
 }
 
 export interface Zone {

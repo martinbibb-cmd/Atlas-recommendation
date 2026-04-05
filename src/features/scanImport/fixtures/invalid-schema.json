@@ -1,0 +1,26 @@
+{
+  "_comment": "invalid-schema.json — should be rejected_invalid because required fields are missing.",
+  "version": "1.0",
+  "bundleId": "fixture-invalid-001",
+  "rooms": [
+    {
+      "id": "room-bad-01",
+      "label": "Kitchen",
+      "floorIndex": 0,
+      "polygon": "not-an-array",
+      "areaM2": "twelve",
+      "heightM": 2.4,
+      "walls": [],
+      "detectedObjects": [],
+      "confidence": "super-high"
+    }
+  ],
+  "anchors": [],
+  "qaFlags": [],
+  "meta": {
+    "capturedAt": "2025-06-05T08:00:00Z",
+    "deviceModel": "iPhone 15 Pro",
+    "scannerApp": "AtlasScan 1.0.0",
+    "coordinateConvention": "metric_m"
+  }
+}
