@@ -47,6 +47,7 @@ describe('importScanBundle — valid single-room fixture', () => {
     const result = importScanBundle(validSingleRoom);
     if (result.status !== 'success') throw new Error('Expected success');
     expect(result.draft.floors[0].rooms).toHaveLength(1);
+    expect(result.draft.floors[0].rooms[0].id).toBe('room-living-01');
     expect(result.draft.floors[0].rooms[0].roomType).toBe('living');
   });
 
@@ -68,6 +69,15 @@ describe('importScanBundle — valid single-room fixture', () => {
     if (result.status !== 'success') throw new Error('Expected success');
     expect(result.provenanceSummary.bundleId).toBe('fixture-single-room-001');
     expect(result.provenanceSummary.totalRooms).toBe(1);
+  });
+
+  it('returns a PropertyScanSession with one shared session id', () => {
+    const result = importScanBundle(validSingleRoom);
+    if (result.status !== 'success') throw new Error('Expected success');
+    expect(result.session.id).toBe('fixture-single-room-001');
+    expect(result.session.floors).toHaveLength(1);
+    expect(result.session.rooms).toHaveLength(1);
+    expect(result.session.scanState).toBe('scanned');
   });
 });
 

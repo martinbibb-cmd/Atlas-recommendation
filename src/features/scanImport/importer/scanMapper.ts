@@ -21,11 +21,6 @@ import type { Room, Wall, Opening, FloorPlan, EntityProvenance } from '../../../
 import type { ScanBundleV1, ScanRoom, ScanWall, ScanOpening } from '@atlas/contracts';
 import type { RoomType } from '../../../components/floorplan/propertyPlan.types';
 
-/** Generate a short unique ID for imported entities. */
-function newId(): string {
-  return globalThis.crypto.randomUUID().replace(/-/g, '').slice(0, 16);
-}
-
 // ─── Warning types ────────────────────────────────────────────────────────────
 
 export type ScanImportWarningCode =
@@ -195,7 +190,7 @@ function mapScanOpeningToOpening(
   bundle: ScanBundleV1,
   warnings: ScanImportWarning[],
 ): Opening {
-  const id = newId();
+  const id = scanOpening.id;
   if (scanOpening.type === 'unknown') {
     warnings.push({
       code: 'UNKNOWN_OPENING_TYPE',
@@ -220,7 +215,7 @@ function mapScanWallToWall(
   bundle: ScanBundleV1,
   warnings: ScanImportWarning[],
 ): { wall: Wall; openings: Opening[] } {
-  const wallId = newId();
+  const wallId = scanWall.id;
 
   if (scanWall.kind === 'unknown') {
     warnings.push({
@@ -320,7 +315,7 @@ function mapScanRoomToRoom(
   }
 
   const room: Room = {
-    id: newId(),
+    id: scanRoom.id,
     name: scanRoom.label || roomType,
     roomType,
     floorId,
