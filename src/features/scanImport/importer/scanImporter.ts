@@ -23,6 +23,7 @@ import {
   type ScanImportWarning,
   type ProvenanceSummary,
 } from './scanMapper';
+import { buildPropertyScanSession, type PropertyScanSession } from '../session/propertyScanSession';
 
 // ─── Result type ──────────────────────────────────────────────────────────────
 
@@ -47,12 +48,14 @@ export type ScanImportResult =
   | {
       status: 'success';
       draft: CanonicalFloorPlanDraft;
+      session: PropertyScanSession;
       warnings: [];
       provenanceSummary: ProvenanceSummary;
     }
   | {
       status: 'success_with_warnings';
       draft: CanonicalFloorPlanDraft;
+      session: PropertyScanSession;
       warnings: ScanImportWarning[];
       provenanceSummary: ProvenanceSummary;
     }
@@ -114,6 +117,7 @@ export function importScanBundle(input: unknown): ScanImportResult {
 
   // 4. Map to canonical floor-plan draft entities.
   const { draft, warnings } = mapScanBundleToFloorPlanDraft(normalisedBundle);
+  const session = buildPropertyScanSession(normalisedBundle, draft);
 
   // 5. Build provenance summary.
   const provenanceSummary = buildProvenanceSummary(normalisedBundle, draft);
@@ -123,6 +127,7 @@ export function importScanBundle(input: unknown): ScanImportResult {
     return {
       status: 'success',
       draft,
+      session,
       warnings: [],
       provenanceSummary,
     };
@@ -131,6 +136,7 @@ export function importScanBundle(input: unknown): ScanImportResult {
   return {
     status: 'success_with_warnings',
     draft,
+    session,
     warnings,
     provenanceSummary,
   };

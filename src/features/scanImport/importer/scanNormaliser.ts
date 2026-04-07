@@ -32,6 +32,8 @@ export const SCAN_METRES_TO_CANVAS_PX = 50;
 
 /** Margin in canvas units applied around the imported floor plan. */
 const CANVAS_MARGIN = 40;
+const TARGET_CANVAS_WIDTH = 980;
+const TARGET_CANVAS_HEIGHT = 540;
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -54,6 +56,15 @@ function getBoundingBox(rooms: ScanRoom[]): BoundingBox2D {
       if (pt.y < minY) minY = pt.y;
       if (pt.x > maxX) maxX = pt.x;
       if (pt.y > maxY) maxY = pt.y;
+    }
+    for (const wall of room.walls) {
+      const points = [wall.start, wall.end];
+      for (const pt of points) {
+        if (pt.x < minX) minX = pt.x;
+        if (pt.y < minY) minY = pt.y;
+        if (pt.x > maxX) maxX = pt.x;
+        if (pt.y > maxY) maxY = pt.y;
+      }
     }
   }
 
@@ -109,8 +120,12 @@ function normaliseRoom(room: ScanRoom, offsetX: number, offsetY: number, scale: 
  * where origin is the minimum bounding box corner across all room polygons.
  */
 export function normaliseScanCoordinates(bundle: ScanBundleV1): ScanBundleV1 {
-  const { minX, minY } = getBoundingBox(bundle.rooms);
-  const scale = SCAN_METRES_TO_CANVAS_PX;
+  const { minX, minY, maxX, maxY } = getBoundingBox(bundle.rooms);
+  const width = Math.max(0.001, maxX - minX);
+  const height = Math.max(0.001, maxY - minY);
+  const fitScaleX = (TARGET_CANVAS_WIDTH - 2 * CANVAS_MARGIN) / width;
+  const fitScaleY = (TARGET_CANVAS_HEIGHT - 2 * CANVAS_MARGIN) / height;
+  const scale = Math.min(SCAN_METRES_TO_CANVAS_PX, fitScaleX, fitScaleY);
 
   return {
     ...bundle,
