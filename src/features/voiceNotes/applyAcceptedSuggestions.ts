@@ -152,8 +152,9 @@ const SUGGESTION_MAPPINGS: Record<string, SuggestionMapping> = {
     applyToModel: (current) => {
       const existing: HeatingConditionDiagnosticsV1 =
         current.fullSurvey?.heatingCondition ?? {};
-      // Do not override a manually-confirmed false value.
+      // Do not override a manually-confirmed false value; skip if already true.
       if (existing.magneticDebrisEvidence === false) return null;
+      if (existing.magneticDebrisEvidence === true) return null;
       return {
         fullSurvey: {
           ...current.fullSurvey,
@@ -169,6 +170,7 @@ const SUGGESTION_MAPPINGS: Record<string, SuggestionMapping> = {
       const existing: HeatingConditionDiagnosticsV1 =
         current.fullSurvey?.heatingCondition ?? {};
       if (existing.radiatorsHeatingUnevenly === false) return null;
+      if (existing.radiatorsHeatingUnevenly === true) return null;
       return {
         fullSurvey: {
           ...current.fullSurvey,
@@ -220,6 +222,42 @@ const SUGGESTION_MAPPINGS: Record<string, SuggestionMapping> = {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
+ * mergeFullSurveyUpdates
+ *
+ * Deep-merges two partial FullSurveyModelV1 objects, preserving the
+ * heatingCondition sub-object on both sides.  Used when accumulating multiple
+ * note-derived updates and when applying them into the working payload.
+ *
+ * Exported so that consumers (e.g. VisitHubPage) can use the same merge
+ * logic without duplicating it.
+ */
+export function mergeFullSurveyUpdates(
+  base: Partial<FullSurveyModelV1>,
+  incoming: Partial<FullSurveyModelV1>,
+): Partial<FullSurveyModelV1> {
+  if (!incoming.fullSurvey || !base.fullSurvey) {
+    return { ...base, ...incoming };
+  }
+  return {
+    ...base,
+    ...incoming,
+    fullSurvey: {
+      ...base.fullSurvey,
+      ...incoming.fullSurvey,
+      // Deep-merge heatingCondition sub-object when both sides have it.
+      ...(incoming.fullSurvey.heatingCondition && base.fullSurvey.heatingCondition
+        ? {
+            heatingCondition: {
+              ...base.fullSurvey.heatingCondition,
+              ...incoming.fullSurvey.heatingCondition,
+            },
+          }
+        : {}),
+    },
+  };
+}
+
+/**
  * applyAcceptedSuggestions
  *
  * Processes all accepted VoiceNoteSuggestions and produces:
@@ -247,30 +285,8 @@ export function applyAcceptedSuggestions(
 
     const fieldUpdates = mapping.applyToModel({ ...current, ...accumulator });
 
-    // Deep-merge fullSurvey if both sides have it, otherwise shallow spread.
     if (fieldUpdates !== null) {
-      if (fieldUpdates.fullSurvey && accumulator.fullSurvey) {
-        accumulator = {
-          ...accumulator,
-          ...fieldUpdates,
-          fullSurvey: {
-            ...accumulator.fullSurvey,
-            ...fieldUpdates.fullSurvey,
-            // Merge heatingCondition sub-object if both present
-            ...(fieldUpdates.fullSurvey.heatingCondition &&
-              accumulator.fullSurvey.heatingCondition
-              ? {
-                  heatingCondition: {
-                    ...accumulator.fullSurvey.heatingCondition,
-                    ...fieldUpdates.fullSurvey.heatingCondition,
-                  },
-                }
-              : {}),
-          },
-        };
-      } else {
-        accumulator = { ...accumulator, ...fieldUpdates };
-      }
+      accumulator = mergeFullSurveyUpdates(accumulator, fieldUpdates);
     }
 
     applied.push({

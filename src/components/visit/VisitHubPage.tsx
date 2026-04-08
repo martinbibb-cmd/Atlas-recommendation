@@ -25,7 +25,7 @@ import { sanitiseModelForEngine } from '../../ui/fullSurvey/sanitiseModelForEngi
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { VoiceNotesPanel } from '../../features/voiceNotes/VoiceNotesPanel';
 import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
-import { applyAcceptedSuggestions, mergeAppliedSuggestions } from '../../features/voiceNotes/applyAcceptedSuggestions';
+import { applyAcceptedSuggestions, mergeAppliedSuggestions, mergeFullSurveyUpdates } from '../../features/voiceNotes/applyAcceptedSuggestions';
 import VisitReportsList from './VisitReportsList';
 import './VisitHubPage.css';
 
@@ -376,27 +376,16 @@ export default function VisitHubPage({
     const acceptedIds = new Set(allAccepted.map(s => s.id));
     const activeApplied = mergedApplied.filter(a => acceptedIds.has(a.sourceSuggestionId));
 
-    const merged: Partial<FullSurveyModelV1> = {
-      ...existing,
-      // Spread note-derived field updates (e.g. preferCombi, highOccupancy).
+    const merged: Partial<FullSurveyModelV1> = mergeFullSurveyUpdates(existing, {
       ...noteUpdates,
       fullSurvey: {
         ...existing.fullSurvey,
-        // Deep-merge heatingCondition from noteUpdates if present.
-        ...(noteUpdates.fullSurvey
-          ? {
-              ...noteUpdates.fullSurvey,
-              heatingCondition: {
-                ...existing.fullSurvey?.heatingCondition,
-                ...noteUpdates.fullSurvey.heatingCondition,
-              },
-            }
-          : {}),
+        ...(noteUpdates.fullSurvey ?? {}),
         voiceNotes: updated,
         acceptedNoteSuggestions: allAccepted,
         appliedNoteSuggestions: activeApplied,
       },
-    };
+    });
     workingPayloadRef.current = merged as Record<string, unknown>;
     saveVisit(visitId, { working_payload: merged as Record<string, unknown> }).catch(() => {/* best effort */});
   }
