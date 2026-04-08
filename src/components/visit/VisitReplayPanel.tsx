@@ -256,7 +256,7 @@ function VoiceNoteCard({ note }: { note: VoiceNote }) {
             borderRadius: '4px',
             borderLeft: '3px solid #bee3f8',
           }}>
-            {note.transcript || <em style={{ color: '#a0aec0' }}>No transcript recorded.</em>}
+            {note.transcript?.trim() || <em style={{ color: '#a0aec0' }}>No transcript recorded.</em>}
           </p>
 
           {/* Accepted suggestion categories */}
@@ -310,11 +310,7 @@ function VoiceNotesSection({ notes }: { notes: VoiceNote[] }) {
 
 // ─── Note decision trail ──────────────────────────────────────────────────────
 
-function NoteDecisionTrail({ survey }: { survey: FullSurveyModelV1 | null }) {
-  const summary = buildNoteInfluenceSummary(
-    survey?.fullSurvey?.appliedNoteSuggestions,
-  );
-
+function NoteDecisionTrail({ summary }: { summary: ReturnType<typeof buildNoteInfluenceSummary> }) {
   if (!summary.hasActiveInfluence && summary.overridden.length === 0) {
     return (
       <p style={{ fontSize: '0.82rem', color: '#718096', margin: 0, fontStyle: 'italic' }}>
@@ -468,7 +464,7 @@ export function VisitReplayPanel({ survey, voiceNotes }: Props) {
                 : undefined}
             testId="visit-replay-decision-trail"
           >
-            <NoteDecisionTrail survey={survey} />
+            <NoteDecisionTrail summary={summary} />
           </CollapsibleSection>
         </div>
       )}
