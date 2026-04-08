@@ -24,8 +24,9 @@ import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { sanitiseModelForEngine } from '../../ui/fullSurvey/sanitiseModelForEngine';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { VoiceNotesPanel } from '../../features/voiceNotes/VoiceNotesPanel';
-import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
+import type { VoiceNote, AppliedNoteSuggestion } from '../../features/voiceNotes/voiceNoteTypes';
 import { applyAcceptedSuggestions, mergeAppliedSuggestions, mergeFullSurveyUpdates } from '../../features/voiceNotes/applyAcceptedSuggestions';
+import { VisitReplayPanel } from './VisitReplayPanel';
 import VisitReportsList from './VisitReportsList';
 import './VisitHubPage.css';
 
@@ -265,6 +266,8 @@ export default function VisitHubPage({
   const workingPayloadRef = useRef<Record<string, unknown> | null>(null);
   // Voice notes — loaded from working_payload and saved back on change.
   const [voiceNotes, setVoiceNotes] = useState<VoiceNote[]>([]);
+  // Applied suggestions — for the visit replay / decision trail.
+  const [appliedNoteSuggestions, setAppliedNoteSuggestions] = useState<AppliedNoteSuggestion[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -278,6 +281,9 @@ export default function VisitHubPage({
         const payload = working_payload as Partial<FullSurveyModelV1> | null;
         const persisted = payload?.fullSurvey?.voiceNotes;
         if (Array.isArray(persisted)) setVoiceNotes(persisted);
+        // Hydrate applied suggestions for the visit replay / decision trail.
+        const persistedApplied = payload?.fullSurvey?.appliedNoteSuggestions;
+        if (Array.isArray(persistedApplied)) setAppliedNoteSuggestions(persistedApplied);
         setLoading(false);
       })
       .catch((err: unknown) => {
@@ -387,6 +393,8 @@ export default function VisitHubPage({
       },
     });
     workingPayloadRef.current = merged as Record<string, unknown>;
+    // Keep derived state in sync so VisitReplayPanel reflects the latest applied set.
+    setAppliedNoteSuggestions(activeApplied);
     saveVisit(visitId, { working_payload: merged as Record<string, unknown> }).catch(() => {/* best effort */});
   }
 
@@ -427,6 +435,11 @@ export default function VisitHubPage({
           visitId={visitId}
           notes={voiceNotes}
           onChange={handleNotesChange}
+        />
+
+        <VisitReplayPanel
+          voiceNotes={voiceNotes}
+          appliedNoteSuggestions={appliedNoteSuggestions}
         />
 
         <VisitReportsList visitId={visitId} onOpenReport={onOpenReport} />

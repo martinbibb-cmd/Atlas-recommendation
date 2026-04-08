@@ -148,6 +148,11 @@ export interface AppliedNoteSuggestion {
   /** Category of the original suggestion (for grouping in UI). */
   category: SuggestionCategory;
   /**
+   * Verbatim snippet from the transcript that supported the original suggestion.
+   * Carried forward so explanations can quote the engineer's own words.
+   */
+  sourceSnippet?: string;
+  /**
    * When true, this applied value was subsequently overridden by a
    * manually-entered or measured value.  The note value is retained for
    * provenance / audit purposes but no longer influences recommendations.

@@ -298,6 +298,7 @@ export function applyAcceptedSuggestions(
       confidence:         suggestion.confidence,
       provenance:         'accepted_atlas_suggestion',
       category:           suggestion.category,
+      sourceSnippet:      suggestion.sourceSnippet,
     });
   }
 
