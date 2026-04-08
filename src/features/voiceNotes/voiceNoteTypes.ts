@@ -141,6 +141,11 @@ export interface AppliedNoteSuggestion {
   label: string;
   /** The value that was applied, as a string (may represent a boolean or enum). */
   appliedValue: string;
+  /**
+   * Verbatim snippet from the original transcript that supported this suggestion.
+   * Preserved from the source VoiceNoteSuggestion for provenance display.
+   */
+  sourceSnippet?: string;
   /** Confidence from the original extraction. */
   confidence: 'high' | 'medium' | 'low';
   /** Provenance — always 'accepted_atlas_suggestion' for applied note values. */
