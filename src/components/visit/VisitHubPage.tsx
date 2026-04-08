@@ -27,6 +27,7 @@ import { VoiceNotesPanel } from '../../features/voiceNotes/VoiceNotesPanel';
 import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
 import { applyAcceptedSuggestions, mergeAppliedSuggestions, mergeFullSurveyUpdates } from '../../features/voiceNotes/applyAcceptedSuggestions';
 import VisitReportsList from './VisitReportsList';
+import { VisitReplayPanel } from './VisitReplayPanel';
 import './VisitHubPage.css';
 
 interface Props {
@@ -427,6 +428,11 @@ export default function VisitHubPage({
           visitId={visitId}
           notes={voiceNotes}
           onChange={handleNotesChange}
+        />
+
+        <VisitReplayPanel
+          survey={workingPayloadRef.current as FullSurveyModelV1 | null}
+          voiceNotes={voiceNotes}
         />
 
         <VisitReportsList visitId={visitId} onOpenReport={onOpenReport} />
