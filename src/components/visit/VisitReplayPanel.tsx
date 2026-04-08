@@ -127,13 +127,11 @@ function SurveySnapshot({ survey }: { survey: FullSurveyModelV1 | null }) {
 
   const rows: Array<{ label: string; value: string | number | undefined | null }> = [
     { label: 'Postcode',   value: survey.postcode },
-    { label: 'Property',   value: survey.propertyType },
     { label: 'Bedrooms',   value: survey.bedrooms },
     { label: 'Bathrooms',  value: survey.bathroomCount },
     { label: 'Occupants',  value: survey.occupancyCount },
-    { label: 'Build era',  value: survey.buildEra },
-    { label: 'Wall type',  value: survey.wallType },
-    { label: 'Boiler age', value: survey.boilerAgeYears != null ? `${survey.boilerAgeYears} yrs` : undefined },
+    { label: 'Wall type',  value: survey.building?.fabric?.wallType },
+    { label: 'Boiler age', value: survey.currentBoilerAgeYears != null ? `${survey.currentBoilerAgeYears} yrs` : undefined },
   ].filter(r => r.value != null && r.value !== '');
 
   if (rows.length === 0) {
