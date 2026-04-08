@@ -5,7 +5,7 @@ import type { HomeState } from '../../features/survey/usage/usageTypes';
 import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
 import type { HeatLossState } from '../../features/survey/heatLoss/heatLossTypes';
 import type { RecommendationState } from '../../features/survey/recommendation/recommendationTypes';
-import type { VoiceNote, VoiceNoteSuggestion } from '../../features/voiceNotes/voiceNoteTypes';
+import type { VoiceNote, VoiceNoteSuggestion, AppliedNoteSuggestion } from '../../features/voiceNotes/voiceNoteTypes';
 
 /**
  * HeatingConditionDiagnosticsV1
@@ -190,6 +190,14 @@ export type FullSurveyModelV1 = EngineInputV2_3 & {
      * measured / scanned / manually-entered values.
      */
     acceptedNoteSuggestions?: VoiceNoteSuggestion[];
+    /**
+     * Provenance-tagged records of every accepted suggestion that has been
+     * mapped and applied to a survey field.  Each record retains the source
+     * suggestion ID, the target field name, the applied value, and the
+     * confidence band so the survey UI and recommendation engine can render
+     * and use them appropriately without treating them as measured truth.
+     */
+    appliedNoteSuggestions?: AppliedNoteSuggestion[];
   };
 };
 

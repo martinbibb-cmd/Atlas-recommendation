@@ -25,6 +25,7 @@ import { sanitiseModelForEngine } from '../../ui/fullSurvey/sanitiseModelForEngi
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { VoiceNotesPanel } from '../../features/voiceNotes/VoiceNotesPanel';
 import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
+import { applyAcceptedSuggestions, mergeAppliedSuggestions } from '../../features/voiceNotes/applyAcceptedSuggestions';
 import VisitReportsList from './VisitReportsList';
 import './VisitHubPage.css';
 
@@ -352,14 +353,48 @@ export default function VisitHubPage({
     setVoiceNotes(updated);
     // Merge into the existing working payload so we don't overwrite other fields.
     const existing = (workingPayloadRef.current ?? {}) as Partial<FullSurveyModelV1>;
+
+    // Gather all accepted suggestions across all notes.
+    const allAccepted = updated.flatMap(n =>
+      n.suggestions.filter(s => s.status === 'accepted'),
+    );
+
+    // Apply accepted suggestions to survey fields with full provenance tracking.
+    const { updates: noteUpdates, applied: newApplied } = applyAcceptedSuggestions(
+      allAccepted,
+      existing,
+    );
+
+    // Preserve any previously applied records not in the new set — mergeAppliedSuggestions
+    // de-duplicates by sourceSuggestionId and preserves overriddenByManual state.
+    const mergedApplied = mergeAppliedSuggestions(
+      existing.fullSurvey?.appliedNoteSuggestions ?? [],
+      newApplied,
+    );
+
+    // Remove applied records whose originating suggestion is no longer accepted.
+    const acceptedIds = new Set(allAccepted.map(s => s.id));
+    const activeApplied = mergedApplied.filter(a => acceptedIds.has(a.sourceSuggestionId));
+
     const merged: Partial<FullSurveyModelV1> = {
       ...existing,
+      // Spread note-derived field updates (e.g. preferCombi, highOccupancy).
+      ...noteUpdates,
       fullSurvey: {
         ...existing.fullSurvey,
+        // Deep-merge heatingCondition from noteUpdates if present.
+        ...(noteUpdates.fullSurvey
+          ? {
+              ...noteUpdates.fullSurvey,
+              heatingCondition: {
+                ...existing.fullSurvey?.heatingCondition,
+                ...noteUpdates.fullSurvey.heatingCondition,
+              },
+            }
+          : {}),
         voiceNotes: updated,
-        acceptedNoteSuggestions: updated.flatMap(n =>
-          n.suggestions.filter(s => s.status === 'accepted'),
-        ),
+        acceptedNoteSuggestions: allAccepted,
+        appliedNoteSuggestions: activeApplied,
       },
     };
     workingPayloadRef.current = merged as Record<string, unknown>;
