@@ -113,3 +113,44 @@ export const SUGGESTION_CATEGORY_META: SuggestionCategoryMeta[] = [
   { key: 'risks',       label: 'Risk / condition flags',  emoji: '🔴' },
   { key: 'follow_ups',  label: 'Follow-up questions',     emoji: '❓' },
 ];
+
+// ─── Applied suggestion (post-acceptance) ─────────────────────────────────────
+
+/**
+ * AppliedNoteSuggestion
+ *
+ * An accepted suggestion that has been mapped and applied to the survey model.
+ * Retains full provenance so the recommendation engine can treat it with
+ * appropriate trust (lower than measured / scanned / manually-confirmed values).
+ *
+ * These are stored in fullSurvey.appliedNoteSuggestions and rendered in the
+ * survey UI as "Accepted from note" values.
+ */
+export interface AppliedNoteSuggestion {
+  /** ID of the originating VoiceNoteSuggestion. */
+  sourceSuggestionId: string;
+  /** ID of the originating VoiceNote. */
+  sourceNoteId: string;
+  /**
+   * The survey / engine field this suggestion was applied to, or a logical
+   * concept name for indirect influences (e.g. 'risk.likely_sludge',
+   * 'constraint.cupboard_tight').
+   */
+  targetField: string;
+  /** Human-readable label for display in the survey. */
+  label: string;
+  /** The value that was applied, as a string (may represent a boolean or enum). */
+  appliedValue: string;
+  /** Confidence from the original extraction. */
+  confidence: 'high' | 'medium' | 'low';
+  /** Provenance — always 'accepted_atlas_suggestion' for applied note values. */
+  provenance: 'accepted_atlas_suggestion';
+  /** Category of the original suggestion (for grouping in UI). */
+  category: SuggestionCategory;
+  /**
+   * When true, this applied value was subsequently overridden by a
+   * manually-entered or measured value.  The note value is retained for
+   * provenance / audit purposes but no longer influences recommendations.
+   */
+  overriddenByManual?: boolean;
+}

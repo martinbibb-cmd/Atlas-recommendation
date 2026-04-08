@@ -25,6 +25,7 @@ import {
   SURVEY_STEP_COUNT,
   progressLabel,
 } from '../../config/surveyStepRegistry';
+import { AcceptedSuggestionsReview } from '../../features/voiceNotes/AcceptedSuggestionsReview';
 
 interface Props {
   onBack: () => void;
@@ -260,6 +261,15 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           >
             ✕
           </button>
+        </div>
+      )}
+
+      {/* Show accepted note-derived values so the engineer can see what was
+          applied from voice notes and identify fields pre-filled from notes. */}
+      {input.fullSurvey?.appliedNoteSuggestions &&
+        input.fullSurvey.appliedNoteSuggestions.length > 0 && (
+        <div style={{ padding: '0 1rem', marginTop: '0.5rem' }}>
+          <AcceptedSuggestionsReview applied={input.fullSurvey.appliedNoteSuggestions} />
         </div>
       )}
       <div className="stepper-header">
