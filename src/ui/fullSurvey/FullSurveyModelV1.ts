@@ -5,6 +5,7 @@ import type { HomeState } from '../../features/survey/usage/usageTypes';
 import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
 import type { HeatLossState } from '../../features/survey/heatLoss/heatLossTypes';
 import type { RecommendationState } from '../../features/survey/recommendation/recommendationTypes';
+import type { VoiceNote, VoiceNoteSuggestion } from '../../features/voiceNotes/voiceNoteTypes';
 
 /**
  * HeatingConditionDiagnosticsV1
@@ -176,6 +177,19 @@ export type FullSurveyModelV1 = EngineInputV2_3 & {
      * heat source, water source, powerflush, filter, and additions.
      */
     recommendation?: RecommendationState;
+    /**
+     * Voice notes captured during or before the site visit.
+     * Each note holds its raw transcript and the Atlas-derived suggestions
+     * extracted from it.  These are suggestions only — never authoritative.
+     */
+    voiceNotes?: VoiceNote[];
+    /**
+     * Flattened list of Atlas suggestions that have been explicitly accepted
+     * by the engineer.  Provenance is 'inferred_from_voice_note' and the
+     * recommendation engine treats these with lower confidence than
+     * measured / scanned / manually-entered values.
+     */
+    acceptedNoteSuggestions?: VoiceNoteSuggestion[];
   };
 };
 

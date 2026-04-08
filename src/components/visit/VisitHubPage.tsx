@@ -23,6 +23,8 @@ import { runEngine } from '../../engine/Engine';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { sanitiseModelForEngine } from '../../ui/fullSurvey/sanitiseModelForEngine';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import { VoiceNotesPanel } from '../../features/voiceNotes/VoiceNotesPanel';
+import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
 import VisitReportsList from './VisitReportsList';
 import './VisitHubPage.css';
 
@@ -260,6 +262,8 @@ export default function VisitHubPage({
   const [portalLoading, setPortalLoading] = useState(false);
   // Keep the working_payload so we can create a report (for portal) if none exists yet.
   const workingPayloadRef = useRef<Record<string, unknown> | null>(null);
+  // Voice notes — loaded from working_payload and saved back on change.
+  const [voiceNotes, setVoiceNotes] = useState<VoiceNote[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -269,6 +273,10 @@ export default function VisitHubPage({
         const { working_payload, ...metaFields } = visit;
         setMeta(metaFields);
         workingPayloadRef.current = working_payload;
+        // Hydrate voice notes from the persisted working payload.
+        const payload = working_payload as Partial<FullSurveyModelV1> | null;
+        const persisted = payload?.fullSurvey?.voiceNotes;
+        if (Array.isArray(persisted)) setVoiceNotes(persisted);
         setLoading(false);
       })
       .catch((err: unknown) => {
@@ -339,6 +347,25 @@ export default function VisitHubPage({
     saveVisit(visitId, { visit_reference: trimmed ?? '' }).catch(() => {/* best effort */});
   }
 
+  /** Persist updated voice notes into the visit's working_payload. */
+  function handleNotesChange(updated: VoiceNote[]) {
+    setVoiceNotes(updated);
+    // Merge into the existing working payload so we don't overwrite other fields.
+    const existing = (workingPayloadRef.current ?? {}) as Partial<FullSurveyModelV1>;
+    const merged: Partial<FullSurveyModelV1> = {
+      ...existing,
+      fullSurvey: {
+        ...existing.fullSurvey,
+        voiceNotes: updated,
+        acceptedNoteSuggestions: updated.flatMap(n =>
+          n.suggestions.filter(s => s.status === 'accepted'),
+        ),
+      },
+    };
+    workingPayloadRef.current = merged as Record<string, unknown>;
+    saveVisit(visitId, { working_payload: merged as Record<string, unknown> }).catch(() => {/* best effort */});
+  }
+
   if (loading) {
     return (
       <div className="visit-hub__loading" role="status" aria-live="polite">
@@ -370,6 +397,12 @@ export default function VisitHubPage({
           onPrintSummary={onPrintSummary}
           portalUrl={portalUrl}
           portalLoading={portalLoading}
+        />
+
+        <VoiceNotesPanel
+          visitId={visitId}
+          notes={voiceNotes}
+          onChange={handleNotesChange}
         />
 
         <VisitReportsList visitId={visitId} onOpenReport={onOpenReport} />
