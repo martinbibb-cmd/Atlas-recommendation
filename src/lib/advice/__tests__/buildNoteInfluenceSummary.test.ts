@@ -247,6 +247,29 @@ describe('buildNoteInfluenceSummary', () => {
     });
   });
 
+  describe('category preservation', () => {
+    it('preserves category from the original suggestion', () => {
+      const applied = [makeApplied({ targetField: 'highOccupancy', category: 'usage' })];
+      const result = buildNoteInfluenceSummary(applied);
+      expect(result.direct[0].category).toBe('usage');
+    });
+
+    it('preserves risks category for condition-flagging suggestions', () => {
+      const applied = [makeApplied({
+        targetField: 'fullSurvey.heatingCondition.magneticDebrisEvidence',
+        category: 'risks',
+      })];
+      const result = buildNoteInfluenceSummary(applied);
+      expect(result.direct[0].category).toBe('risks');
+    });
+
+    it('preserves constraints category for advisory items', () => {
+      const applied = [makeApplied({ targetField: 'constraint.cupboard_tight', category: 'constraints' })];
+      const result = buildNoteInfluenceSummary(applied);
+      expect(result.advisory[0].category).toBe('constraints');
+    });
+  });
+
   describe('guardrails', () => {
     it('excludes items that do not have accepted_atlas_suggestion provenance', () => {
       const applied: AppliedNoteSuggestion[] = [{

@@ -13,7 +13,7 @@
  *    active influence but may be surfaced separately for audit purposes.
  */
 
-import type { AppliedNoteSuggestion } from '../../features/voiceNotes/voiceNoteTypes';
+import type { AppliedNoteSuggestion, SuggestionCategory } from '../../features/voiceNotes/voiceNoteTypes';
 
 // ─── Output types ─────────────────────────────────────────────────────────────
 
@@ -31,6 +31,8 @@ export interface NoteInfluenceItem {
   confidence: 'high' | 'medium' | 'low';
   /** The survey field or logical concept this mapped to. */
   targetField: string;
+  /** Category of the original suggestion (for UI grouping / emoji). */
+  category: SuggestionCategory;
   /**
    * 'direct'   — the suggestion updated a concrete survey / engine field.
    * 'advisory' — the suggestion is held as advisory context; no hard engine
@@ -195,6 +197,7 @@ export function buildNoteInfluenceSummary(
       sourceSnippet:      item.sourceSnippet,
       confidence:         item.confidence,
       targetField:        item.targetField,
+      category:           item.category,
       influenceType:      isDirect ? 'direct' : 'advisory',
       explanation,
     };

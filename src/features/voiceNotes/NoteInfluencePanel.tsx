@@ -14,7 +14,6 @@
 
 import type { NoteInfluenceSummary, NoteInfluenceItem } from '../../lib/advice/buildNoteInfluenceSummary';
 import { SUGGESTION_CATEGORY_META } from './voiceNoteTypes';
-import type { SuggestionCategory } from './voiceNoteTypes';
 
 // ─── Confidence badge ─────────────────────────────────────────────────────────
 
@@ -74,9 +73,7 @@ interface InfluenceRowProps {
 }
 
 function InfluenceRow({ item, muted = false }: InfluenceRowProps) {
-  const catMeta = SUGGESTION_CATEGORY_META.find(
-    m => m.key === (item.targetField.split('.')[0] as SuggestionCategory),
-  );
+  const catMeta = SUGGESTION_CATEGORY_META.find(m => m.key === item.category);
 
   return (
     <div
@@ -101,6 +98,11 @@ function InfluenceRow({ item, muted = false }: InfluenceRowProps) {
         lineHeight: 1.45,
       }}>
         {catMeta?.emoji ?? '📝'} {item.explanation}
+        {muted && (
+          <span style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' }}>
+            {' '}(No longer active — overridden manually)
+          </span>
+        )}
       </p>
 
       {/* ── Meta row: badges + target field ── */}
@@ -108,15 +110,18 @@ function InfluenceRow({ item, muted = false }: InfluenceRowProps) {
         <InfluenceTypeBadge type={item.influenceType} />
         <ConfidenceBadge level={item.confidence} />
         {muted && (
-          <span style={{
-            fontSize: '0.65rem',
-            fontWeight: 600,
-            color: '#718096',
-            background: '#f7fafc',
-            padding: '0.1rem 0.35rem',
-            borderRadius: '4px',
-            border: '1px solid #e2e8f0',
-          }}>
+          <span
+            aria-label="This suggestion was overridden by a manually-entered value"
+            style={{
+              fontSize: '0.65rem',
+              fontWeight: 600,
+              color: '#718096',
+              background: '#f7fafc',
+              padding: '0.1rem 0.35rem',
+              borderRadius: '4px',
+              border: '1px solid #e2e8f0',
+            }}
+          >
             Overridden manually
           </span>
         )}
