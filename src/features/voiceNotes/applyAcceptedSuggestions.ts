@@ -295,6 +295,7 @@ export function applyAcceptedSuggestions(
       targetField:        mapping.targetField,
       label:              suggestion.label,
       appliedValue:       suggestion.suggestedValue,
+      sourceSnippet:      suggestion.sourceSnippet,
       confidence:         suggestion.confidence,
       provenance:         'accepted_atlas_suggestion',
       category:           suggestion.category,

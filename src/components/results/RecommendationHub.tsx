@@ -32,6 +32,8 @@ import HotWaterDemandPanel from '../live/HotWaterDemandPanel';
 import EvidenceRecommendationPanel from '../recommendation/EvidenceRecommendationPanel';
 import PvDemographicsDebugCard from './PvDemographicsDebugCard';
 import CanonicalPresentationPage from '../presentation/CanonicalPresentationPage';
+import { NoteInfluencePanel } from '../../features/voiceNotes/NoteInfluencePanel';
+import { buildNoteInfluenceSummary } from '../../lib/advice/buildNoteInfluenceSummary';
 import './results.css';
 import '../../live/LiveHubPage.css';
 
@@ -1025,6 +1027,12 @@ export default function RecommendationHub({ result, input }: Props) {
   const presentationPrioritiesState: PrioritiesState | undefined =
     fullSurveyModel?.fullSurvey?.priorities;
 
+  // Build note influence summary from accepted note suggestions (UI-only extras,
+  // not part of EngineInputV2_3 — cast is safe as above).
+  const noteInfluenceSummary = buildNoteInfluenceSummary(
+    fullSurveyModel?.fullSurvey?.appliedNoteSuggestions,
+  );
+
   // Depot notes clipboard state
   const [depotCopied, setDepotCopied] = useState(false);
   const handleDepotCopy = () => {
@@ -1068,6 +1076,14 @@ export default function RecommendationHub({ result, input }: Props) {
       <div className="rec-hub__sticky-strip">
         <TrustStrip result={result} />
       </div>
+
+      {/* Note influence provenance — show when accepted note suggestions shaped this recommendation */}
+      {noteInfluenceSummary.hasActiveInfluence || noteInfluenceSummary.overridden.length > 0 ? (
+        <section className="rec-hub__section" aria-label="Note influence">
+          <h3 className="rec-hub__section-title">Influenced by Accepted Notes</h3>
+          <NoteInfluencePanel summary={noteInfluenceSummary} />
+        </section>
+      ) : null}
 
       {/* 1 — Canonical presentation (house/home/energy/system/objectives — physics-first) */}
       {input && (
