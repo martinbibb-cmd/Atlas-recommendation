@@ -79,47 +79,49 @@ const DIRECT_TARGET_FIELDS = new Set<string>([
  */
 type ExplanationBuilder = (item: AppliedNoteSuggestion) => string;
 
+const COMBI_BY_CONFIDENCE: Record<string, string> = {
+  high:   'Combi preference strengthened — customer confirmed they want to avoid a cylinder.',
+  medium: 'Combi preference noted — customer indicated they would prefer to avoid a cylinder.',
+  low:    'Combi preference weakly indicated — verify customer intent on site.',
+};
+
+const HIGH_OCCUPANCY_BY_CONFIDENCE: Record<string, string> = {
+  high:   'High concurrent hot-water demand confirmed — simultaneous shower use expected.',
+  medium: 'Elevated hot-water demand indicated — concurrent shower use likely.',
+  low:    'Hot-water demand signal present — verify household usage patterns.',
+};
+
+const SLUDGE_BY_CONFIDENCE: Record<string, string> = {
+  high:   'Sludge risk confirmed — magnetic filter and system flush are required.',
+  medium: 'Sludge risk indicated — magnetic filter and flush are likely required.',
+  low:    'Possible sludge risk — inspect system condition before proceeding.',
+};
+
+const RADIATOR_IMBALANCE_BY_CONFIDENCE: Record<string, string> = {
+  high:   'Radiator imbalance confirmed — balancing or power-flush required before installation.',
+  medium: 'Radiator imbalance indicated — balancing or power-flush is likely required.',
+  low:    'Possible radiator imbalance — verify heat distribution during survey.',
+};
+
 const EXPLANATION_BY_FIELD: Record<string, ExplanationBuilder> = {
-  preferCombi: (item) =>
-    item.confidence === 'high'
-      ? 'Combi preference strengthened — customer confirmed they want to avoid a cylinder.'
-      : item.confidence === 'medium'
-        ? 'Combi preference noted — customer indicated they would prefer to avoid a cylinder.'
-        : 'Combi preference weakly indicated — verify customer intent on site.',
-
-  highOccupancy: (item) =>
-    item.confidence === 'high'
-      ? 'High concurrent hot-water demand confirmed — simultaneous shower use expected.'
-      : item.confidence === 'medium'
-        ? 'Elevated hot-water demand indicated — concurrent shower use likely.'
-        : 'Hot-water demand signal present — verify household usage patterns.',
-
-  'fullSurvey.heatingCondition.magneticDebrisEvidence': (item) =>
-    item.confidence === 'high'
-      ? 'Sludge risk confirmed — magnetic filter and system flush are required.'
-      : item.confidence === 'medium'
-        ? 'Sludge risk indicated — magnetic filter and flush are likely required.'
-        : 'Possible sludge risk — inspect system condition before proceeding.',
-
-  'fullSurvey.heatingCondition.radiatorsHeatingUnevenly': (item) =>
-    item.confidence === 'high'
-      ? 'Radiator imbalance confirmed — balancing or power-flush required before installation.'
-      : item.confidence === 'medium'
-        ? 'Radiator imbalance indicated — balancing or power-flush is likely required.'
-        : 'Possible radiator imbalance — verify heat distribution during survey.',
+  preferCombi:    (item) => COMBI_BY_CONFIDENCE[item.confidence],
+  highOccupancy:  (item) => HIGH_OCCUPANCY_BY_CONFIDENCE[item.confidence],
+  'fullSurvey.heatingCondition.magneticDebrisEvidence':  (item) => SLUDGE_BY_CONFIDENCE[item.confidence],
+  'fullSurvey.heatingCondition.radiatorsHeatingUnevenly': (item) => RADIATOR_IMBALANCE_BY_CONFIDENCE[item.confidence],
 };
 
 /**
  * Fallback explanation for advisory items without a specific template.
  * Confidence shapes the qualifier appended to the label.
  */
+const ADVISORY_QUALIFIER: Record<string, string> = {
+  high:   '',
+  medium: ' (medium confidence)',
+  low:    ' (low confidence — verify on site)',
+};
+
 function buildAdvisoryExplanation(item: AppliedNoteSuggestion): string {
-  const qualifier =
-    item.confidence === 'high'
-      ? ''
-      : item.confidence === 'medium'
-        ? ' (medium confidence)'
-        : ' (low confidence — verify on site)';
+  const qualifier = ADVISORY_QUALIFIER[item.confidence] ?? '';
   return `${item.label}${qualifier} — context only, does not directly affect engine inputs.`;
 }
 

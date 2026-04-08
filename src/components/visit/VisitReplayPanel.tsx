@@ -66,7 +66,7 @@ function NoteCard({ note }: { note: VoiceNote }) {
       {/* Card header */}
       <button
         type="button"
-        onClick={() => setExpanded(e => !e)}
+        onClick={() => setExpanded(prev => !prev)}
         aria-expanded={expanded}
         style={{
           width: '100%',
