@@ -23,6 +23,14 @@ body {
   padding: 3rem 1rem;
 }
 
+
+.hero-logo {
+  width: min(300px, 82vw);
+  height: auto;
+  margin: 0 auto 1.25rem;
+  display: block;
+}
+
 .hero h1 {
   font-size: 2.5rem;
   font-weight: 700;
