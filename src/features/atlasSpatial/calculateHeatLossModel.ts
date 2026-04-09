@@ -61,9 +61,10 @@ const U_WINDOW_DEFAULT_W_M2K = 2.8;
 // ─── Design temperature assumptions ──────────────────────────────────────────
 
 /**
- * Outdoor design temperature (°C) for UK EN 12831 sizing.
- * Represents a cold winter design condition (-1 °C at the boundary of the
- * heated envelope, effectively -1 °C outdoor for standard UK calculations).
+ * Outdoor design temperature (°C) for UK heat-loss sizing.
+ * Matches the assumption in floorplanDerivations.ts (DESIGN_DELTA_T_K = 21,
+ * indoor 21 °C − outdoor 0 °C), giving a conservative but consistent
+ * ΔT of 21 K for living spaces.
  */
 const OUTDOOR_DESIGN_TEMP_C = 0;
 
