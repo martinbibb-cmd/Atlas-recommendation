@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Atlas Mind by PHM logo</title>
+  <desc id="desc">Stylized round Atlas Mind logo with blue and green ring and ribbon title.</desc>
+  <defs>
+    <linearGradient id="greenGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#9dbb57"/>
+      <stop offset="100%" stop-color="#7da441"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4d76aa"/>
+      <stop offset="100%" stop-color="#2e5f99"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="256" cy="190" r="120" fill="#fff" stroke="#3d6ea6" stroke-width="7"/>
+  <path d="M146 190a110 110 0 0 0 54 95l39-67-54-28z" fill="url(#greenGrad)"/>
+  <path d="M367 190a110 110 0 0 1-54 95l-39-67 54-28z" fill="url(#greenGrad)"/>
+  <path d="M173 165h166c-6-32-36-62-83-62s-77 30-83 62z" fill="url(#blueGrad)"/>
+
+  <path d="M256 135c-22 18-31 44-18 70 11 23 33 30 44 47 12 19 8 45-17 66"
+        fill="none" stroke="#3d6ea6" stroke-width="17" stroke-linecap="round"/>
+  <circle cx="256" cy="181" r="16" fill="#3d6ea6"/>
+
+  <path d="M90 302c55-13 113-20 166-20s111 7 166 20v44c-55-13-113-20-166-20s-111 7-166 20z"
+        fill="#3d6ea6"/>
+  <text x="256" y="332" text-anchor="middle" font-size="42" font-family="Arial, Helvetica, sans-serif" font-weight="700" fill="#fff" letter-spacing="1.5">ATLAS MIND</text>
+  <text x="256" y="364" text-anchor="middle" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#9a9aa0">by PHM</text>
+</svg>
