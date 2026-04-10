@@ -697,9 +697,9 @@ const FRUIT_TILES = [
 
 function LowHangingFruitPage({ ctx }: { ctx: Page1_5AgeingContext }) {
   return (
-    <>
+    <div className="atlas-deck-fruit__layout">
       <p className="atlas-presentation-deck__page-eyebrow">Quick wins</p>
-      <h2 className="atlas-presentation-deck__page-title">
+      <h2 className="atlas-deck-fruit__page-title">
         The low-hanging fruit
       </h2>
       <p className="atlas-deck-fruit__subtitle">
@@ -725,7 +725,7 @@ function LowHangingFruitPage({ ctx }: { ctx: Page1_5AgeingContext }) {
       <div className="atlas-deck-fruit__heat-explainer">
         <ConvectionExplainer />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -739,52 +739,108 @@ const CATEGORY_META: Record<string, { icon: string; colour: string }> = {
 };
 
 function PerformanceUpgradesPage({ layer }: { layer: UpgradeLayer }) {
+  const [subIdx, setSubIdx] = useState<0 | 1>(0);
+  const subTouchStartY = useRef<number | null>(null);
+
+  function handleSubTouchStart(e: React.TouchEvent) {
+    subTouchStartY.current = e.touches[0].clientY;
+  }
+
+  function handleSubTouchEnd(e: React.TouchEvent) {
+    if (subTouchStartY.current === null) return;
+    const dy = e.changedTouches[0].clientY - subTouchStartY.current;
+    subTouchStartY.current = null;
+    if (dy < -SWIPE_THRESHOLD_PX && subIdx === 0) setSubIdx(1); // swipe up → upgrades
+    if (dy > SWIPE_THRESHOLD_PX  && subIdx === 1) setSubIdx(0); // swipe down → cylinder
+  }
+
+  const subTrackStyle: React.CSSProperties = {
+    transform: `translateY(-${subIdx * 100}%)`,
+  };
+
   return (
-    <>
-      <p className="atlas-presentation-deck__page-eyebrow">Go further</p>
-      <h2 className="atlas-presentation-deck__page-title">
-        {layer.title}
-      </h2>
-
-      {/* ── Cylinder type comparison — visual-first so it is always on-screen ── */}
-      <div className="atlas-deck-perf__section">
-        <p className="atlas-deck-perf__section-eyebrow">Cylinder physics</p>
-        <CylinderComparePanel />
+    <div className="atlas-deck-perf__layout">
+      {/* ── Sub-panel dots ─────────────────────────────────── */}
+      <div className="atlas-deck-perf__sub-indicator" aria-label="Section navigation">
+        <button
+          type="button"
+          className={`atlas-deck-perf__sub-dot${subIdx === 0 ? ' atlas-deck-perf__sub-dot--active' : ''}`}
+          onClick={() => setSubIdx(0)}
+          aria-label="Show cylinder comparison"
+          aria-pressed={subIdx === 0}
+        />
+        <button
+          type="button"
+          className={`atlas-deck-perf__sub-dot${subIdx === 1 ? ' atlas-deck-perf__sub-dot--active' : ''}`}
+          onClick={() => setSubIdx(1)}
+          aria-label="Show performance upgrades"
+          aria-pressed={subIdx === 1}
+        />
       </div>
 
-      {/* ── Upgrade items — compact scrollable list below the visual ── */}
-      <p className="atlas-deck-perf__bridge">
-        You can stop here — or go further and unlock better performance.
-      </p>
-      <p className="atlas-deck-perf__description">{layer.description}</p>
-      <div className="atlas-deck-perf__items">
-        {layer.items.map(item => {
-          const meta = CATEGORY_META[item.category] ?? { icon: '✦', colour: '#f7fafc' };
-          return (
-            <div
-              key={item.title}
-              className="atlas-deck-perf__item"
-              style={{ background: meta.colour }}
-              aria-label={`${item.category}: ${item.title}`}
-            >
-              <span className="atlas-deck-perf__item-icon" aria-hidden="true">{meta.icon}</span>
-              <div className="atlas-deck-perf__item-body">
-                <span className="atlas-deck-perf__item-title">{item.title}</span>
-                <span className="atlas-deck-perf__item-desc">{item.description}</span>
-                {item.impactTags.length > 0 && (
-                  <div className="atlas-deck-perf__item-tags">
-                    {item.impactTags.map(tag => (
-                      <span key={tag} className="atlas-deck-perf__item-tag">{tag}</span>
-                    ))}
-                  </div>
-                )}
-              </div>
+      {/* ── Vertical swipe viewport ─────────────────────────── */}
+      <div
+        className="atlas-deck-perf__sub-panels"
+        onTouchStart={handleSubTouchStart}
+        onTouchEnd={handleSubTouchEnd}
+      >
+        <div className="atlas-deck-perf__sub-track" style={subTrackStyle}>
+
+          {/* Sub-panel 1 — Scholarly cylinder comparison */}
+          <div className="atlas-deck-perf__sub-panel" aria-hidden={subIdx !== 0}>
+            <p className="atlas-presentation-deck__page-eyebrow">Go further</p>
+            <h2 className="atlas-presentation-deck__page-title">
+              {layer.title}
+            </h2>
+            <p className="atlas-deck-perf__section-eyebrow">Cylinder physics</p>
+            <div className="atlas-deck-perf__section atlas-deck-perf__section--active">
+              <CylinderComparePanel />
             </div>
-          );
-        })}
-      </div>
+            <p className="atlas-deck-perf__swipe-hint">Swipe up to see performance upgrades ↑</p>
+          </div>
 
-    </>
+          {/* Sub-panel 2 — Upgrade items */}
+          <div className="atlas-deck-perf__sub-panel" aria-hidden={subIdx !== 1}>
+            <p className="atlas-presentation-deck__page-eyebrow">Go further</p>
+            <h2 className="atlas-presentation-deck__page-title">
+              {layer.title}
+            </h2>
+            <p className="atlas-deck-perf__bridge">
+              You can stop here — or go further and unlock better performance.
+            </p>
+            <p className="atlas-deck-perf__description">{layer.description}</p>
+            <div className="atlas-deck-perf__items atlas-deck-perf__items--full">
+              {layer.items.map(item => {
+                const meta = CATEGORY_META[item.category] ?? { icon: '✦', colour: '#f7fafc' };
+                return (
+                  <div
+                    key={item.title}
+                    className="atlas-deck-perf__item"
+                    style={{ background: meta.colour }}
+                    aria-label={`${item.category}: ${item.title}`}
+                  >
+                    <span className="atlas-deck-perf__item-icon" aria-hidden="true">{meta.icon}</span>
+                    <div className="atlas-deck-perf__item-body">
+                      <span className="atlas-deck-perf__item-title">{item.title}</span>
+                      <span className="atlas-deck-perf__item-desc">{item.description}</span>
+                      {item.impactTags.length > 0 && (
+                        <div className="atlas-deck-perf__item-tags">
+                          {item.impactTags.map(tag => (
+                            <span key={tag} className="atlas-deck-perf__item-tag">{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="atlas-deck-perf__swipe-hint">Swipe down to see cylinder physics ↓</p>
+          </div>
+
+        </div>
+      </div>
+    </div>
   );
 }
 
