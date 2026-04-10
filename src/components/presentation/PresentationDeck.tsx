@@ -696,34 +696,95 @@ const FRUIT_TILES = [
 ];
 
 function LowHangingFruitPage({ ctx }: { ctx: Page1_5AgeingContext }) {
+  const [subIdx, setSubIdx] = useState<0 | 1>(0);
+  const subTouchStartY = useRef<number | null>(null);
+
+  function handleSubTouchStart(e: React.TouchEvent) {
+    subTouchStartY.current = e.touches[0].clientY;
+  }
+
+  function handleSubTouchEnd(e: React.TouchEvent) {
+    if (subTouchStartY.current === null) return;
+    const dy = e.changedTouches[0].clientY - subTouchStartY.current;
+    subTouchStartY.current = null;
+    if (dy < -SWIPE_THRESHOLD_PX && subIdx === 0) setSubIdx(1); // swipe up → section 2
+    if (dy > SWIPE_THRESHOLD_PX  && subIdx === 1) setSubIdx(0); // swipe down → section 1
+  }
+
+  const subTrackStyle: React.CSSProperties = {
+    transform: `translateY(-${subIdx * 100}%)`,
+  };
+
   return (
     <div className="atlas-deck-fruit__layout">
-      <p className="atlas-presentation-deck__page-eyebrow">Quick wins</p>
-      <h2 className="atlas-deck-fruit__page-title">
-        The low-hanging fruit
-      </h2>
-      <p className="atlas-deck-fruit__subtitle">
-        Before any new system — getting your return temperature to 55°C or below unlocks
-        condensing-mode efficiency.
-      </p>
-      <div className="atlas-deck-fruit__tiles">
-        {FRUIT_TILES.map(t => (
-          <div key={t.label} className="atlas-deck-fruit__tile">
-            <span className="atlas-deck-fruit__icon" aria-hidden="true"><t.Icon /></span>
-            <span className="atlas-deck-fruit__label">{t.label}</span>
-            <span className="atlas-deck-fruit__desc">{t.desc}</span>
-          </div>
-        ))}
+      {/* ── Sub-panel dots ─────────────────────────────────── */}
+      <div className="atlas-deck-perf__sub-indicator" aria-label="Section navigation">
+        <button
+          type="button"
+          className={`atlas-deck-perf__sub-dot${subIdx === 0 ? ' atlas-deck-perf__sub-dot--active' : ''}`}
+          onClick={() => setSubIdx(0)}
+          aria-label="Show quick wins"
+          aria-pressed={subIdx === 0}
+        />
+        <button
+          type="button"
+          className={`atlas-deck-perf__sub-dot${subIdx === 1 ? ' atlas-deck-perf__sub-dot--active' : ''}`}
+          onClick={() => setSubIdx(1)}
+          aria-label="Show heat explainer"
+          aria-pressed={subIdx === 1}
+        />
       </div>
-      {ctx.likelyFirstImprovements.length > 0 && (
-        <ul className="atlas-deck-fruit__extra">
-          {ctx.likelyFirstImprovements.map((item, i) => (
-            <li key={i}>{item}</li>
-          ))}
-        </ul>
-      )}
-      <div className="atlas-deck-fruit__heat-explainer">
-        <ConvectionExplainer />
+
+      {/* ── Vertical swipe viewport ─────────────────────────── */}
+      <div
+        className="atlas-deck-perf__sub-panels"
+        onTouchStart={handleSubTouchStart}
+        onTouchEnd={handleSubTouchEnd}
+      >
+        <div className="atlas-deck-perf__sub-track" style={subTrackStyle}>
+
+          {/* Sub-panel 1 — Quick wins tiles */}
+          <div className="atlas-deck-perf__sub-panel" aria-hidden={subIdx !== 0}>
+            <p className="atlas-presentation-deck__page-eyebrow">Quick wins</p>
+            <h2 className="atlas-deck-fruit__page-title">
+              The low-hanging fruit
+            </h2>
+            <p className="atlas-deck-fruit__subtitle">
+              Before any new system — getting your return temperature to 55°C or below unlocks
+              condensing-mode efficiency.
+            </p>
+            <div className="atlas-deck-fruit__tiles">
+              {FRUIT_TILES.map(t => (
+                <div key={t.label} className="atlas-deck-fruit__tile">
+                  <span className="atlas-deck-fruit__icon" aria-hidden="true"><t.Icon /></span>
+                  <span className="atlas-deck-fruit__label">{t.label}</span>
+                  <span className="atlas-deck-fruit__desc">{t.desc}</span>
+                </div>
+              ))}
+            </div>
+            <p className="atlas-deck-perf__swipe-hint">Swipe up to see heat physics ↑</p>
+          </div>
+
+          {/* Sub-panel 2 — Heat explainer + improvements */}
+          <div className="atlas-deck-perf__sub-panel" aria-hidden={subIdx !== 1}>
+            <p className="atlas-presentation-deck__page-eyebrow">Quick wins</p>
+            <h2 className="atlas-deck-fruit__page-title">
+              The low-hanging fruit
+            </h2>
+            {ctx.likelyFirstImprovements.length > 0 && (
+              <ul className="atlas-deck-fruit__extra">
+                {ctx.likelyFirstImprovements.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            )}
+            <div className="atlas-deck-fruit__heat-explainer">
+              <ConvectionExplainer />
+            </div>
+            <p className="atlas-deck-perf__swipe-hint">Swipe down to see quick wins ↓</p>
+          </div>
+
+        </div>
       </div>
     </div>
   );
