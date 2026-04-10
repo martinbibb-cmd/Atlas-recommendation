@@ -1089,10 +1089,10 @@
   overflow: hidden;
 }
 
-/* Active variant (inside sub-panel 1) — remove overflow clip so the cylinder
-   visual renders at full height and the interactive controls are accessible. */
+/* Active variant (inside sub-panel 1) — allow the CylinderComparePanel to
+   fill its allocated flex space without clipping the interactive controls. */
 .atlas-deck-perf__section--active {
-  overflow: visible;
+  overflow: auto;
 }
 
 /* ─── CylinderComparePanel within the presentation deck ─────────────────── */
