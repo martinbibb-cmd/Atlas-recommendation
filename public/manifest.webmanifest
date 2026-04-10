@@ -1,0 +1,16 @@
+{
+  "name": "Heating System Recommendation",
+  "short_name": "Atlas Mind",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e5e7eb",
+  "theme_color": "#e5e7eb",
+  "icons": [
+    {
+      "src": "/atlas-mind-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
