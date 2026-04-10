@@ -788,11 +788,6 @@ export default function App() {
       {journey === 'landing' && (
         <div className="landing">
           <div className="hero">
-            <img
-              className="hero-logo"
-              src="/atlas-mind-logo.svg"
-              alt="Atlas Mind by PHM"
-            />
             <h1>
               Heating System Summary
             </h1>
