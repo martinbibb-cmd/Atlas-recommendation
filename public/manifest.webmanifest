@@ -7,9 +7,9 @@
   "theme_color": "#e5e7eb",
   "icons": [
     {
-      "src": "/atlas-mind-logo.svg",
+      "src": "/Heating%20System%20Recommendation.PNG",
       "sizes": "any",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     }
   ]
