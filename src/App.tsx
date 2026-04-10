@@ -200,17 +200,29 @@ function CanonicalPresentationRoute({
 }) {
   const result = runEngine(engineInput);
   return (
-    <div style={{ padding: '1rem', background: '#f8fafc', minHeight: '100vh' }}>
-      <button className="back-btn" onClick={onBack}>← Back</button>
-      <CanonicalPresentationPage
-        result={result}
-        input={engineInput}
-        recommendationResult={result.recommendationResult}
-        onOpenSimulator={onOpenSimulator}
-        onPrint={onPrint}
-        heatLossState={heatLossState}
-        prioritiesState={prioritiesState}
-      />
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      background: '#f8fafc',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      zIndex: 10,
+    }}>
+      <div style={{ padding: '0.5rem 1rem', flexShrink: 0 }}>
+        <button className="back-btn" onClick={onBack}>← Back</button>
+      </div>
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <CanonicalPresentationPage
+          result={result}
+          input={engineInput}
+          recommendationResult={result.recommendationResult}
+          onOpenSimulator={onOpenSimulator}
+          onPrint={onPrint}
+          heatLossState={heatLossState}
+          prioritiesState={prioritiesState}
+        />
+      </div>
     </div>
   );
 }

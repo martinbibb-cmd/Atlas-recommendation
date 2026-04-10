@@ -16,6 +16,10 @@
   padding: 0;
   position: relative;
   user-select: none;
+  /* Fill parent when the parent provides a fixed height (e.g. full-screen route) */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ─── Progress indicator ──────────────────────────────────────────────────── */
@@ -71,13 +75,13 @@
      controls which slide is visible. */
   overflow: clip;
   position: relative;
-  /* Fixed-height window so the deck shows exactly one slide at a time.
-     Without this the viewport expands to the tallest page and the component
-     behaves like a long document rather than a discrete-page presentation.
-     Increased min from 480→520px and max from 700→820px for iPad landscape.
-     72 vh gives 554px on a 768px-tall iPad (landscape) which fits the 2×2
-     quadrant grid with responsive media areas. */
-  height: clamp(520px, 72vh, 820px);
+  /* Grow to fill all space the deck flex layout allocates.
+     When the deck is inside a fixed-height container (e.g. full-screen route)
+     the viewport fills all remaining height after the progress bar and nav strip.
+     When the parent has no fixed height (e.g. dev preview), min-height provides
+     a sensible fallback floor so the viewport is never collapsed. */
+  flex: 1;
+  min-height: clamp(520px, 72vh, 820px);
 }
 
 /* ─── Slide track ─────────────────────────────────────────────────────────── */
@@ -662,15 +666,15 @@
 /* Ensure the full 2×2 quadrant grid and visual panels fit without scrolling  */
 @media (min-width: 768px) and (min-height: 700px) {
   .atlas-presentation-deck__viewport {
-    height: clamp(600px, 75vh, 900px);
+    min-height: clamp(600px, 75vh, 900px);
   }
 }
 
 @media (max-width: 480px) {
   .atlas-presentation-deck__viewport {
-    /* On small screens use a shorter fixed height so the deck fits within
+    /* On small screens use a shorter minimum height so the deck fits within
        the visible area without requiring the user to scroll the outer page. */
-    height: clamp(380px, 60vh, 540px);
+    min-height: clamp(380px, 60vh, 540px);
   }
 
   .atlas-presentation-deck__page {
