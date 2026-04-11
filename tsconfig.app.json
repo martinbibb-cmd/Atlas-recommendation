@@ -25,11 +25,11 @@
     "noUncheckedSideEffectImports": true,
 
     /* @atlas/contracts is installed from GitHub and has no compiled dist/.
-       Point directly at the TypeScript source entry-point until the package
-       publishes a tagged release with a pre-built dist.
+       Point directly at the top-level TypeScript source entry-point so that
+       both scan types and the new atlasProperty module are available.
        Keep in sync with the resolve.alias in vite.config.ts. */
     "paths": {
-      "@atlas/contracts": ["./node_modules/@atlas/contracts/src/scan/index.ts"]
+      "@atlas/contracts": ["./node_modules/@atlas/contracts/src/index.ts"]
     }
   },
   "include": ["src"],

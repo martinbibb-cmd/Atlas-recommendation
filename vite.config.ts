@@ -14,7 +14,7 @@ export default defineConfig({
     alias: {
       '@atlas/contracts': path.resolve(
         __dirname,
-        'node_modules/@atlas/contracts/src/scan/index.ts',
+        'node_modules/@atlas/contracts/src/index.ts',
       ),
     },
   },
