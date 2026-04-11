@@ -20,6 +20,8 @@ import PerformanceOutcomesPanel from '../outcomes/PerformanceOutcomesPanel';
 import SystemUpgradeComparisonPanel from './SystemUpgradeComparisonPanel';
 import { buildResimulationFromSurvey } from '../../lib/simulator/buildResimulationFromSurvey';
 import type { SimulatorSystemOverride } from '../../lib/simulator/buildResimulationFromSurvey';
+import { buildCanonicalReportPayload } from '../../features/reports/adapters/buildCanonicalReportPayload';
+import { saveReport } from '../../lib/reports/reportApi';
 import './UnifiedSimulatorView.css';
 
 function buildFloorplanOperatingAssumptions(
@@ -128,20 +130,19 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
         recommendedOptionId,
         chosenByCustomer: false,
       };
-      const res = await fetch('/api/reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          postcode: surveyData.postcode ?? null,
-          payload: { surveyData, engineInput, engineOutput, decisionSynthesis: advice, presentationState },
-        }),
+      const payload = buildCanonicalReportPayload({
+        surveyData,
+        engineInput,
+        engineOutput,
+        decisionSynthesis: advice,
+        presentationState,
+        runMeta: { source: 'atlas_mind' },
       });
-      if (!res.ok) { setSaveState('failed'); return; }
-      const json = await res.json() as unknown;
-      if (json != null && typeof json === 'object' && 'ok' in json && 'id' in json && (json as { ok: boolean }).ok && typeof (json as { id: unknown }).id === 'string') {
-        const { id } = json as { ok: boolean; id: string };
-        setSavedReportId(id); setSaveState('saved');
-      } else { setSaveState('failed'); }
+      const res = await saveReport({
+        postcode: surveyData.postcode ?? null,
+        payload,
+      });
+      setSavedReportId(res.id); setSaveState('saved');
     } catch { setSaveState('failed'); }
   }, [advice, engineOutput, surveyData]);
 
