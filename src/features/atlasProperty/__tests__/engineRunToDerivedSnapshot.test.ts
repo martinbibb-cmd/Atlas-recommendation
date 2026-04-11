@@ -58,7 +58,7 @@ const META: EngineRunMeta = {
   runId: 'run_abc123',
   ranAt: '2024-06-01T10:00:00Z',
   usedInput: {
-    property: { peakHeatLossKw: 8.5 },
+    heatLossWatts: 8500,
     dynamicMainsPressureBar: 2.5,
     mainsDynamicFlowLpm: 18,
   },
@@ -100,7 +100,7 @@ describe('engineRunToDerivedSnapshot', () => {
     it('omits hydraulics when usedInput has no pressure or flow', () => {
       const meta: EngineRunMeta = {
         runId: 'run_x',
-        usedInput: { property: { peakHeatLossKw: 5 } },
+        usedInput: { heatLossWatts: 5000 },
       };
       const { derived } = engineRunToDerivedSnapshot(MINIMAL_OUTPUT, meta);
       expect(derived.hydraulics).toBeUndefined();

@@ -32,18 +32,18 @@ function unwrap<T>(fv: { value: T | null } | undefined): T | undefined {
   return fv.value ?? undefined;
 }
 
-// ─── DHW architecture mapping ─────────────────────────────────────────────────
+// ─── DHW storage type mapping ─────────────────────────────────────────────────
 
-function mapDhwArch(
+function mapDhwTypeToStorageType(
   dhwType: string | null | undefined,
-): EngineInputV2_3['dhw']['architecture'] {
+): EngineInputV2_3['dhwStorageType'] {
   switch (dhwType) {
-    case 'combi':            return 'on_demand';
-    case 'mixergy':          return 'stored_mixergy';
-    case 'vented_cylinder':
-    case 'unvented_cylinder':
-    case 'thermal_store':    return 'stored_standard';
-    default:                 return 'unknown';
+    case 'combi':              return 'none';
+    case 'mixergy':            return 'mixergy';
+    case 'vented_cylinder':    return 'vented';
+    case 'unvented_cylinder':  return 'unvented';
+    case 'thermal_store':      return 'thermal_store';
+    default:                   return undefined;
   }
 }
 
@@ -60,7 +60,24 @@ function mapSystemFamilyToBoilerType(family: string | null | undefined): EngineB
   }
 }
 
-// ─── Occupancy signature derivation ──────────────────────────────────────────
+// ─── Family to currentHeatSourceType mapping ──────────────────────────────────
+
+function mapFamilyToHeatSourceType(
+  family: string | null | undefined,
+): EngineInputV2_3['currentHeatSourceType'] {
+  switch (family) {
+    case 'combi':     return 'combi';
+    case 'system':    return 'system';
+    case 'regular':   return 'regular';
+    case 'heat_pump': return 'ashp';
+    case 'hybrid':    return 'other';
+    default:          return undefined;
+  }
+}
+
+// ─── Valid primary pipe sizes ─────────────────────────────────────────────────
+
+const VALID_PIPE_SIZES = new Set([15, 22, 28, 35]);
 
 function mapOccupancyPattern(
   pattern: string | null | undefined,
@@ -78,9 +95,8 @@ function mapOccupancyPattern(
 /**
  * Derives a partial EngineInputV2_3 from a canonical AtlasPropertyV1.
  *
- * The returned object is a partial — required engine fields (postcode,
- * dynamicMainsPressure, bathroomCount, occupancySignature, highOccupancy,
- * and dhw) are set only when the canonical property has the necessary data.
+ * The returned object is a partial — engine fields are set only when the
+ * canonical property has the necessary data.
  *
  * The caller is responsible for merging this result with any remaining engine
  * input fields before running the engine.
@@ -137,18 +153,25 @@ export function atlasPropertyToEngineInput(
   // will apply its own concurrency logic from bathroomCount + peakConcurrentOutlets.
   result.bathroomCount = 1;
 
-  // ── DHW architecture ───────────────────────────────────────────────────────
+  // ── DHW storage type ───────────────────────────────────────────────────────
 
   const dhwType = unwrap(property.currentSystem.dhwType);
-  result.dhw = {
-    architecture: mapDhwArch(dhwType),
-  };
+  const dhwStorageType = mapDhwTypeToStorageType(dhwType);
+  if (dhwStorageType != null) {
+    result.dhwStorageType = dhwStorageType;
+  }
 
   // ── Current boiler / system ────────────────────────────────────────────────
 
   const heatSource = property.currentSystem.heatSource;
+  const familyValue = unwrap(property.currentSystem.family);
+  const heatSourceType = mapFamilyToHeatSourceType(familyValue);
+  if (heatSourceType != null) {
+    result.currentHeatSourceType = heatSourceType;
+  }
+
   if (heatSource) {
-    const boilerType      = mapSystemFamilyToBoilerType(unwrap(property.currentSystem.family));
+    const boilerType      = mapSystemFamilyToBoilerType(familyValue);
     const installYear     = unwrap(heatSource.installYear);
     const ageYears        = installYear != null
       ? new Date().getFullYear() - installYear
@@ -164,14 +187,12 @@ export function atlasPropertyToEngineInput(
     };
   }
 
-  // ── Infrastructure — pipe size ─────────────────────────────────────────────
+  // ── Primary pipe diameter ──────────────────────────────────────────────────
 
   const pipeDiameterMm = unwrap(property.currentSystem.distribution?.dominantPipeDiameterMm);
   if (pipeDiameterMm != null) {
-    const pipeSizeMap: Record<number, 15 | 22 | 28 | 35> = { 15: 15, 22: 22, 28: 28, 35: 35 };
-    const canonicalPipeSize = pipeSizeMap[pipeDiameterMm];
-    if (canonicalPipeSize != null) {
-      result.infrastructure = { primaryPipeSizeMm: canonicalPipeSize };
+    if (VALID_PIPE_SIZES.has(pipeDiameterMm)) {
+      result.primaryPipeDiameter = pipeDiameterMm;
     }
   }
 
@@ -179,7 +200,7 @@ export function atlasPropertyToEngineInput(
 
   const peakWatts = unwrap(property.derived?.heatLoss?.peakWatts);
   if (peakWatts != null) {
-    result.property = { peakHeatLossKw: peakWatts / 1000 };
+    result.heatLossWatts = peakWatts;
   }
 
   // ── Hydraulics (derived or measured) ──────────────────────────────────────
@@ -195,14 +216,13 @@ export function atlasPropertyToEngineInput(
     result.mainsDynamicFlowLpm = flowLpm;
   }
 
-  // ── Services — mains supply ────────────────────────────────────────────────
+  // ── Cold water source ──────────────────────────────────────────────────────
 
   const services = property.building.services;
   if (services) {
-    result.services = {};
     const mainsPressure = unwrap(services.water?.mainsPressure);
     if (mainsPressure != null) {
-      result.services.coldWaterSource = mainsPressure ? 'mains_true' : 'unknown';
+      result.coldWaterSource = mainsPressure ? 'mains_true' : 'unknown';
     }
   }
 
