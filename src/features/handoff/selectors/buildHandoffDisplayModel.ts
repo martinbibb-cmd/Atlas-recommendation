@@ -83,9 +83,8 @@ function countExtractedFacts(p: AtlasPropertyV1): number {
     p.household?.composition?.childCount11to17,
     p.household?.composition?.youngAdultCount18to25AtHome,
     p.household?.occupancyPattern,
-    p.household?.hotWaterUsage?.bathroomCount,
     p.household?.hotWaterUsage?.bathPresent,
-    p.household?.hotWaterUsage?.showerPresent,
+    p.household?.hotWaterUsage?.showerCount,
     p.currentSystem?.family,
     p.currentSystem?.dhwType,
     p.currentSystem?.heatSource?.ratedOutputKw,
@@ -108,19 +107,23 @@ function countExtractedFacts(p: AtlasPropertyV1): number {
 // ─── Knowledge summary ────────────────────────────────────────────────────────
 
 function buildKnowledgeSummary(p: AtlasPropertyV1): HandoffKnowledgeSummary {
-  const adultFv       = p.household?.composition?.adultCount;
-  const occupancyFv   = p.household?.occupancyPattern;
-  const bathroomFv    = p.household?.hotWaterUsage?.bathroomCount;
+  const adultFv        = p.household?.composition?.adultCount;
+  const occupancyFv    = p.household?.occupancyPattern;
   const systemFamilyFv = p.currentSystem?.family;
 
   // household: present if adult count is known
   const household = fvStatus(adultFv);
 
-  // usage: present if occupancy pattern or bathroom count is known
+  // usage: confirmed/review if occupancy pattern is known, or if hotWaterUsage
+  // has any populated values; otherwise missing
+  const hasAnyHotWaterUsage =
+    !!p.household?.hotWaterUsage &&
+    Object.values(p.household.hotWaterUsage).some((v) => v != null);
+
   const usage: KnowledgeStatus =
-    fvStatus(occupancyFv) === 'confirmed' || fvStatus(bathroomFv) === 'confirmed'
+    fvStatus(occupancyFv) === 'confirmed'
       ? 'confirmed'
-      : fvStatus(occupancyFv) === 'review' || fvStatus(bathroomFv) === 'review'
+      : fvStatus(occupancyFv) === 'review' || hasAnyHotWaterUsage
         ? 'review'
         : 'missing';
 
