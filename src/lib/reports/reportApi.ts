@@ -10,6 +10,7 @@ import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendationPresentationState } from '../selection/optionSelection';
 import type { DerivedFloorplanOutput } from '../../components/floorplan/floorplanDerivations';
+import type { CanonicalReportPayloadV1 } from '../../features/reports/types/reportPayload.types';
 
 export interface ReportMeta {
   id: string;
@@ -48,8 +49,15 @@ export interface ReportPayload {
   floorplanOutput?: DerivedFloorplanOutput | null;
 }
 
+/**
+ * Union of all known persisted payload shapes.
+ * New saves use CanonicalReportPayloadV1; old rows remain as ReportPayload.
+ * Readers should call readCanonicalReportPayload() to normalise either shape.
+ */
+export type AnyReportPayload = CanonicalReportPayloadV1 | ReportPayload;
+
 export interface ReportDetail extends ReportMeta {
-  payload: ReportPayload;
+  payload: AnyReportPayload;
 }
 
 /**
@@ -86,7 +94,7 @@ export async function saveReport(opts: {
   postcode?: string | null;
   visit_id?: string | null;
   status?: string;
-  payload: ReportPayload;
+  payload: AnyReportPayload;
 }): Promise<{ ok: true; id: string }> {
   const res = await fetch('/api/reports', {
     method: 'POST',

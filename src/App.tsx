@@ -35,6 +35,7 @@ import type { FullSurveyModelV1 } from './ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from './ui/fullSurvey/FullSurveyModelV1';
 import { sanitiseModelForEngine } from './ui/fullSurvey/sanitiseModelForEngine';
 import { runEngine } from './engine/Engine';
+import { buildCanonicalReportPayload } from './features/reports/adapters/buildCanonicalReportPayload';
 import { getMissingLabFields } from './lib/lab/getMissingLabFields';
 import { mergeLabQuickInputs } from './lib/lab/mergeLabQuickInputs';
 import { parsePortalPath } from './lib/portal/portalUrl';
@@ -377,7 +378,13 @@ export default function App() {
             postcode: engineInput.postcode ?? null,
             visit_id: visitId,
             status: 'complete',
-            payload: { surveyData: survey, engineInput, engineOutput, decisionSynthesis: null },
+            payload: buildCanonicalReportPayload({
+              surveyData: survey,
+              engineInput,
+              engineOutput,
+              decisionSynthesis: null,
+              runMeta: { source: 'portal_bootstrap' },
+            }),
           });
         }).catch(() => {/* best effort */});
         setPresentationFromJourney('visit-hub');
@@ -426,7 +433,13 @@ export default function App() {
                 postcode: engineInput.postcode ?? null,
                 visit_id: visitId,
                 status: 'complete',
-                payload: { surveyData: survey, engineInput, engineOutput, decisionSynthesis: null },
+                payload: buildCanonicalReportPayload({
+                  surveyData: survey,
+                  engineInput,
+                  engineOutput,
+                  decisionSynthesis: null,
+                  runMeta: { source: 'portal_bootstrap' },
+                }),
               });
               reportId = saved.id;
             }

@@ -23,6 +23,7 @@ import { runEngine } from '../../engine/Engine';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { sanitiseModelForEngine } from '../../ui/fullSurvey/sanitiseModelForEngine';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import { buildCanonicalReportPayload } from '../../features/reports/adapters/buildCanonicalReportPayload';
 import { VoiceNotesPanel } from '../../features/voiceNotes/VoiceNotesPanel';
 import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
 import { applyAcceptedSuggestions, mergeAppliedSuggestions, mergeFullSurveyUpdates } from '../../features/voiceNotes/applyAcceptedSuggestions';
@@ -323,7 +324,13 @@ export default function VisitHubPage({
             postcode: engineInput.postcode ?? null,
             visit_id: visitId,
             status: 'complete',
-            payload: { surveyData: survey, engineInput, engineOutput, decisionSynthesis: null },
+            payload: buildCanonicalReportPayload({
+              surveyData: survey,
+              engineInput,
+              engineOutput,
+              decisionSynthesis: null,
+              runMeta: { source: 'visit_hub' },
+            }),
           });
           if (cancelled) return;
           reportId = saved.id;
