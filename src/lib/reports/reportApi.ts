@@ -50,9 +50,13 @@ export interface ReportPayload {
 }
 
 /**
- * Union of all known persisted payload shapes.
+ * Union of all known persisted payload shapes accepted by the report API.
  * New saves use CanonicalReportPayloadV1; old rows remain as ReportPayload.
  * Readers should call readCanonicalReportPayload() to normalise either shape.
+ *
+ * Note: features/reports/types/reportPayload.types.ts defines a narrower union
+ * (CanonicalReportPayloadV1 | LegacyReportPayloadV1) for internal boundary use.
+ * This is the union used by the API client and covers all persisted shapes.
  */
 export type AnyReportPayload = CanonicalReportPayloadV1 | ReportPayload;
 

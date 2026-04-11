@@ -90,6 +90,10 @@ export interface LegacyReportPayloadV1 {
 /**
  * Union of all known report payload shapes.
  * Use readCanonicalReportPayload() to normalise into a consistent read result.
+ *
+ * Note: reportApi.ts exports an AnyReportPayload union that includes the legacy
+ * ReportPayload type used by the report API.  This is the self-contained type
+ * used within the features/reports boundary.
  */
 export type AnyReportPayload = CanonicalReportPayloadV1 | LegacyReportPayloadV1;
 
