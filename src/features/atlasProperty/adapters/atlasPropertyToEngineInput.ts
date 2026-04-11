@@ -132,12 +132,10 @@ export function atlasPropertyToEngineInput(
 
   // ── Hot water (bathroom count) ─────────────────────────────────────────────
 
-  const bathPresent = unwrap(property.household.hotWaterUsage?.bathPresent);
-
-  // Derive a conservative bathroom count from bath presence.
-  // A proper bathroomCount will come from spatial room counting — this is a
-  // fallback that keeps the engine running when spatial data is absent.
-  result.bathroomCount = bathPresent === true ? 1 : 1;
+  // A proper bathroomCount should be derived from spatial room counting once
+  // the building model is populated.  Until then we default to 1 — the engine
+  // will apply its own concurrency logic from bathroomCount + peakConcurrentOutlets.
+  result.bathroomCount = 1;
 
   // ── DHW architecture ───────────────────────────────────────────────────────
 
@@ -150,9 +148,10 @@ export function atlasPropertyToEngineInput(
 
   const heatSource = property.currentSystem.heatSource;
   if (heatSource) {
-    const boilerType   = mapSystemFamilyToBoilerType(unwrap(property.currentSystem.family));
-    const ageYears     = unwrap(heatSource.installYear) != null
-      ? new Date().getFullYear() - unwrap(heatSource.installYear)!
+    const boilerType      = mapSystemFamilyToBoilerType(unwrap(property.currentSystem.family));
+    const installYear     = unwrap(heatSource.installYear);
+    const ageYears        = installYear != null
+      ? new Date().getFullYear() - installYear
       : undefined;
     const nominalOutputKw = unwrap(heatSource.ratedOutputKw);
 

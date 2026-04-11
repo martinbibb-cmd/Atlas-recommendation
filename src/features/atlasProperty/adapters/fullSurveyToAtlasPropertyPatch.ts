@@ -260,11 +260,6 @@ export function fullSurveyToAtlasPropertyPatch(survey: FullSurveyModelV1): Atlas
       'unknown';
 
     patch.currentSystem.waterQuality = {
-      magneticFilterPresent: fv(
-        heatingCondition.pumpSpeedHigh !== undefined ? false : undefined,
-        'observed',
-        'low',
-      ),
       visualAssessment: fv(visualAssessment, 'observed', 'medium'),
     };
   }

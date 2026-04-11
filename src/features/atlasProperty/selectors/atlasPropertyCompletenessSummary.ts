@@ -74,7 +74,7 @@ export function atlasPropertyCompletenessSummary(
   if (!hasBuilding) {
     missing.push('building.rooms');
   } else {
-    highConf.push(`building.rooms (${property.building!.rooms!.length})`);
+    highConf.push(`building.rooms (${property.building?.rooms?.length ?? 0})`);
   }
 
   // ── Derived heat loss ─────────────────────────────────────────────────────
