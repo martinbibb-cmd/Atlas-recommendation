@@ -37,6 +37,8 @@ import UnifiedSimulatorView from '../simulator/UnifiedSimulatorView';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import { buildPortalContentModel } from './buildPortalContentModel';
 import type { PortalContentModel, PortalComparisonCard, PortalEvidenceSection } from './buildPortalContentModel';
+import { readCanonicalReportPayload } from '../../features/reports/adapters/readCanonicalReportPayload';
+import { extractEngineRunFromPayload } from '../../features/reports/adapters/extractEngineRunFromPayload';
 import './CustomerPortalPage.css';
 
 interface Props { reference: string; token?: string; }
@@ -141,11 +143,13 @@ export default function CustomerPortalPage({ reference, token }: Props) {
         }
         const report = await getReport(reference);
         if (cancelled) return;
-        if (!report.payload?.engineOutput) throw new Error('This report does not contain recommendation data.');
-        setEngineOutput(report.payload.engineOutput);
-        setSurveyData((report.payload.surveyData ?? report.payload.engineInput ?? null) as FullSurveyModelV1 | null);
-        setEngineInput(report.payload.engineInput ?? null);
-        setFloorplanOutput(report.payload.floorplanOutput ?? undefined);
+        const payloadInfo = readCanonicalReportPayload(report.payload);
+        const engineRun = extractEngineRunFromPayload(report.payload);
+        if (!engineRun?.engineOutput) throw new Error('This report does not contain recommendation data.');
+        setEngineOutput(engineRun.engineOutput);
+        setEngineInput((engineRun.engineInput ?? null) as EngineInputV2_3 | null);
+        setSurveyData((payloadInfo.legacy?.surveyData ?? payloadInfo.legacy?.engineInput ?? null) as FullSurveyModelV1 | null);
+        setFloorplanOutput(payloadInfo.legacy?.floorplanOutput ?? undefined);
         setPostcode(report.postcode ?? null);
       } catch (err: unknown) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));

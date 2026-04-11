@@ -21,6 +21,7 @@ import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
 import type { RecommendationPresentationState } from '../../../lib/selection/optionSelection';
 import type { AdviceFromCompareResult } from '../../../lib/advice/buildAdviceFromCompare';
+import type { DerivedFloorplanOutput } from '../../../components/floorplan/floorplanDerivations';
 
 // ─── Engine run ───────────────────────────────────────────────────────────────
 
@@ -81,6 +82,7 @@ export interface LegacyReportPayloadV1 {
   surveyData?: FullSurveyModelV1;
   engineInput?: Partial<EngineInputV2_3>;
   engineOutput?: EngineOutputV1;
+  floorplanOutput?: DerivedFloorplanOutput;
   decisionSynthesis?: AdviceFromCompareResult | null;
   presentationState?: RecommendationPresentationState | null;
 }
