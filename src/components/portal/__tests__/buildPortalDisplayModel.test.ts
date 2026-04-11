@@ -284,15 +284,12 @@ describe('buildPortalDisplayModel', () => {
 
   describe('knowledge summary edge cases', () => {
     it('household is "missing" when adultCount is absent', () => {
+      const composition = { ...STUB_ATLAS_PROPERTY.household!.composition };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (composition as any).adultCount = undefined;
       const p: AtlasPropertyV1 = {
         ...STUB_ATLAS_PROPERTY,
-        household: {
-          ...STUB_ATLAS_PROPERTY.household,
-          composition: {
-            ...STUB_ATLAS_PROPERTY.household!.composition,
-            adultCount: undefined as unknown as typeof STUB_ATLAS_PROPERTY.household.composition.adultCount,
-          },
-        },
+        household: { ...STUB_ATLAS_PROPERTY.household!, composition },
       };
       const payload = { ...CANONICAL_PAYLOAD, atlasProperty: p };
       const model = buildPortalDisplayModel(payload);

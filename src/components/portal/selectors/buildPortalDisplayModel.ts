@@ -188,7 +188,7 @@ export function buildPortalDisplayModel(
 
   // ── Recommendation option ids ─────────────────────────────────────────────
   const recommendedOptionId = resolveRecommendedOptionId(payload, engineOutput);
-  const chosenOptionId      = presentationState?.chosenByCustomer
+  const chosenOptionId      = presentationState?.chosenByCustomer && presentationState.chosenOptionId
     ? presentationState.chosenOptionId
     : undefined;
 
