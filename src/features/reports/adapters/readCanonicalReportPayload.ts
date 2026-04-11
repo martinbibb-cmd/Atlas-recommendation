@@ -86,6 +86,7 @@ export function readCanonicalReportPayload(payload: unknown): ReadCanonicalRepor
         surveyData: p.surveyData,
         engineInput: p.engineInput,
         engineOutput: p.engineOutput,
+        floorplanOutput: p.floorplanOutput,
       },
     };
   }

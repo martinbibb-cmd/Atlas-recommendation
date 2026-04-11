@@ -25,6 +25,8 @@ import {
 } from '../../lib/reports/reportApi';
 import DecisionSynthesisPage from '../advice/DecisionSynthesisPage';
 import { buildCompareSeedFromSurvey } from '../../lib/simulator/buildCompareSeedFromSurvey';
+import { readCanonicalReportPayload } from '../../features/reports/adapters/readCanonicalReportPayload';
+import { extractEngineRunFromPayload } from '../../features/reports/adapters/extractEngineRunFromPayload';
 import './ReportPage.css';
 
 interface Props {
@@ -135,8 +137,11 @@ export default function ReportPage({ reportId, onBack, onDuplicated }: Props) {
         if (cancelled) return;
         const { payload, ...reportMeta } = report;
 
+        const payloadInfo = readCanonicalReportPayload(payload);
+        const engineRun = extractEngineRunFromPayload(payload);
+
         // Guard: engineOutput must be present for the report to be renderable.
-        if (!payload?.engineOutput) {
+        if (!engineRun?.engineOutput) {
           throw new Error(
             'This report snapshot is incomplete: the engine output is missing. ' +
             'The report may have been saved from an older version of the tool.',
@@ -144,8 +149,8 @@ export default function ReportPage({ reportId, onBack, onDuplicated }: Props) {
         }
 
         setMeta(reportMeta);
-        setEngineOutput(payload.engineOutput);
-        setSurveyData(payload.surveyData ?? null);
+        setEngineOutput(engineRun.engineOutput);
+        setSurveyData((payloadInfo.legacy?.surveyData ?? null) as FullSurveyModelV1 | null);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
