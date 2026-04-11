@@ -28,7 +28,6 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { getReport } from '../../lib/reports/reportApi';
@@ -38,7 +37,8 @@ import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import { buildPortalContentModel } from './buildPortalContentModel';
 import type { PortalContentModel, PortalComparisonCard, PortalEvidenceSection } from './buildPortalContentModel';
 import { readCanonicalReportPayload } from '../../features/reports/adapters/readCanonicalReportPayload';
-import { extractEngineRunFromPayload } from '../../features/reports/adapters/extractEngineRunFromPayload';
+import { buildPortalDisplayModel } from './selectors/buildPortalDisplayModel';
+import type { PortalDisplayModel } from './types/portalDisplay.types';
 import './CustomerPortalPage.css';
 
 interface Props { reference: string; token?: string; }
@@ -119,7 +119,8 @@ export default function CustomerPortalPage({ reference, token }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tokenDenied, setTokenDenied] = useState<'missing' | 'invalid' | 'expired' | null>(null);
-  const [engineOutput, setEngineOutput] = useState<EngineOutputV1 | null>(null);
+  const [displayModel, setDisplayModel] = useState<PortalDisplayModel | null>(null);
+  // Legacy fields kept for simulator launch compat during the migration window.
   const [surveyData, setSurveyData] = useState<FullSurveyModelV1 | null>(null);
   const [engineInput, setEngineInput] = useState<EngineInputV2_3 | null>(null);
   const [postcode, setPostcode] = useState<string | null>(null);
@@ -143,12 +144,20 @@ export default function CustomerPortalPage({ reference, token }: Props) {
         }
         const report = await getReport(reference);
         if (cancelled) return;
+
+        // Canonical-first: build the portal display model from the payload.
+        const dm = buildPortalDisplayModel(report.payload, report.postcode);
+        if (!dm) throw new Error('This report does not contain recommendation data.');
+        setDisplayModel(dm);
+
+        // Legacy compat: keep surveyData/engineInput/floorplanOutput for
+        // simulator launch until that consumer migrates to engineRun directly.
         const payloadInfo = readCanonicalReportPayload(report.payload);
-        const engineRun = extractEngineRunFromPayload(report.payload);
-        if (!engineRun?.engineOutput) throw new Error('This report does not contain recommendation data.');
-        setEngineOutput(engineRun.engineOutput);
-        setEngineInput((engineRun.engineInput ?? null) as EngineInputV2_3 | null);
         setSurveyData((payloadInfo.legacy?.surveyData ?? payloadInfo.legacy?.engineInput ?? null) as FullSurveyModelV1 | null);
+        // engineInput: prefer canonical engineRun.engineInput, fall back to legacy block
+        const canonicalEngineInput =
+          payloadInfo.engineRun?.engineInput ?? payloadInfo.legacy?.engineInput ?? null;
+        setEngineInput(canonicalEngineInput as EngineInputV2_3 | null);
         setFloorplanOutput(payloadInfo.legacy?.floorplanOutput ?? undefined);
         setPostcode(report.postcode ?? null);
       } catch (err: unknown) {
@@ -191,7 +200,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
     );
   }
 
-  if (error || !engineOutput || !surveyData) {
+  if (error || !displayModel || !surveyData) {
     const isNotFound = error?.toLowerCase().includes('not found');
     return (
       <div className="portal-page__error" role="alert" data-testid="portal-error">
@@ -202,6 +211,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
   }
 
   // Build portal content model — pure, deterministic, customer-safe.
+  const engineOutput = displayModel.engineOutput;
   const inputForModel: EngineInputV2_3 = (engineInput ?? surveyData) as EngineInputV2_3;
   const model: PortalContentModel = buildPortalContentModel(engineOutput, inputForModel);
 
