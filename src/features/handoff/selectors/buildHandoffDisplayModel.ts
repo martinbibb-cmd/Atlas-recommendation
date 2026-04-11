@@ -52,7 +52,7 @@ function buildSubtitle(property: AtlasPropertyV1): string | undefined {
   const eraFv  = property.property.buildEra;
   const parts: string[] = [];
   if (typeFv?.value) parts.push(String(typeFv.value).replace(/_/g, ' '));
-  if (eraFv?.value)  parts.push(String(eraFv.value).replace(/_/g, '–'));
+  if (eraFv?.value)  parts.push(String(eraFv.value).replace(/_/g, ' '));
   return parts.length > 0 ? parts.join(' · ') : undefined;
 }
 

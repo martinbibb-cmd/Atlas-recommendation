@@ -111,7 +111,7 @@ export default function HandoffSummaryCard({ model }: HandoffSummaryCardProps) {
         <CaptureStatItem label="System objects" value={model.objectCount} />
         <CaptureStatItem label="Photos"         value={model.photoCount} />
         <CaptureStatItem label="Voice notes"    value={model.voiceNoteCount} />
-        <CaptureStatItem label="Notes"          value={model.noteCount} />
+        <CaptureStatItem label="Text notes"    value={model.noteCount} />
         <CaptureStatItem label="Extracted facts" value={model.extractedFactCount} />
       </div>
     </div>
