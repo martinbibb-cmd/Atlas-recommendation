@@ -53,6 +53,7 @@ import PresentationAuditPage from './components/audit/PresentationAuditPage';
 import DevMenuPage from './components/dev/DevMenuPage';
 import ScanImportHarness from './features/scanImport/dev/ScanImportHarness';
 import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlow';
+import AtlasPropertyHandoffHarness from './features/handoff/dev/AtlasPropertyHandoffHarness';
 import './App.css';
 
 /** Detect ?devmenu=1 — renders the developer component browser on the landing page. */
@@ -130,6 +131,15 @@ const SCAN_IMPORT_ENABLED =
 const SCAN_PACKAGE_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('scan-package') === '1';
+
+/**
+ * Detect ?handoff=1 — renders the canonical AtlasPropertyV1 handoff dev harness.
+ * Developer/internal surface for testing canonical property handoff arrival.
+ * Not visible in production UX.
+ */
+const HANDOFF_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('handoff') === '1';
 
 /**
  * Demo engine input used by the report mode (?report=1) and presentation demo (?presentation=1).
@@ -561,6 +571,11 @@ export default function App() {
   // ?scan-import=1 — render Scan Import Dev Harness for testing scan bundle ingestion.
   if (SCAN_IMPORT_ENABLED) {
     return <ScanImportHarness onBack={() => { window.location.href = window.location.pathname; }} />;
+  }
+
+  // ?handoff=1 — render canonical AtlasPropertyV1 handoff dev harness.
+  if (HANDOFF_ENABLED) {
+    return <AtlasPropertyHandoffHarness onBack={() => { window.location.href = window.location.pathname; }} />;
   }
 
   // ?scan-package=1 — render Atlas Scan package import flow.
