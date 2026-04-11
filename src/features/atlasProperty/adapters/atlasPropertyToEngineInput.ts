@@ -75,7 +75,9 @@ function mapFamilyToHeatSourceType(
   }
 }
 
-// ─── Occupancy signature derivation ──────────────────────────────────────────
+// ─── Valid primary pipe sizes ─────────────────────────────────────────────────
+
+const VALID_PIPE_SIZES = new Set([15, 22, 28, 35]);
 
 function mapOccupancyPattern(
   pattern: string | null | undefined,
@@ -189,8 +191,7 @@ export function atlasPropertyToEngineInput(
 
   const pipeDiameterMm = unwrap(property.currentSystem.distribution?.dominantPipeDiameterMm);
   if (pipeDiameterMm != null) {
-    const validPipeSizes = new Set([15, 22, 28, 35]);
-    if (validPipeSizes.has(pipeDiameterMm)) {
+    if (VALID_PIPE_SIZES.has(pipeDiameterMm)) {
       result.primaryPipeDiameter = pipeDiameterMm;
     }
   }

@@ -50,6 +50,7 @@ function mapHeatSourceTypeToFamily(
     case 'system':  return 'system';
     case 'regular': return 'regular';
     case 'ashp':    return 'heat_pump';
+    default:        break; // fall through to engineBoilerType fallback
   }
   // Fall back to boiler type from currentSystem.boiler
   switch (engineBoilerType) {
