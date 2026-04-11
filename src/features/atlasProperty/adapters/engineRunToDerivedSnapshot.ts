@@ -54,7 +54,7 @@ function mapOptionIdToCategory(optionId: string): RecommendationCategory {
 type ItemStatus = RecommendationItemSummaryV1['status'];
 
 function mapOptionStatusToItemStatus(
-  status: 'viable' | 'caution' | 'rejected',
+  _status: 'viable' | 'caution' | 'rejected',
 ): ItemStatus {
   // All options from the engine start as 'draft' regardless of viability.
   // The engineer review step will update status to 'accepted' or 'rejected'.
@@ -102,16 +102,15 @@ export function engineRunToDerivedSnapshot(
   if (meta.usedInput != null) {
     const input = meta.usedInput as Record<string, unknown>;
 
-    // Heat loss: engine input carries peakHeatLossKw under property.peakHeatLossKw
-    const propInput = input['property'] as Record<string, unknown> | undefined;
-    const peakKw = typeof propInput?.['peakHeatLossKw'] === 'number'
-      ? propInput['peakHeatLossKw']
+    // Heat loss: flat EngineInputV2_3 carries heatLossWatts at the top level
+    const peakWatts = typeof input['heatLossWatts'] === 'number'
+      ? input['heatLossWatts']
       : undefined;
 
-    if (peakKw != null) {
+    if (peakWatts != null) {
       derived.heatLoss = {
         peakWatts: {
-          value:      peakKw * 1000,
+          value:      peakWatts,
           source:     'derived',
           confidence: 'medium',
         },

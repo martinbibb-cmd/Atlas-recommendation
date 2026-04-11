@@ -14,8 +14,15 @@ const BASE_SURVEY: FullSurveyModelV1 = {
   bathroomCount: 2,
   occupancySignature: 'steady_home',
   highOccupancy: false,
-  dhw: { architecture: 'on_demand' },
-  infrastructure: { primaryPipeSizeMm: 22 },
+  buildingMass: 'medium',
+  primaryPipeDiameter: 22,
+  heatLossWatts: 8500,
+  radiatorCount: 8,
+  hasLoftConversion: false,
+  returnWaterTemp: 70,
+  preferCombi: false,
+  currentHeatSourceType: 'combi',
+  dhwStorageType: 'none',
   currentSystem: {
     boiler: {
       type: 'combi',
@@ -126,7 +133,8 @@ describe('fullSurveyToAtlasPropertyPatch', () => {
     it('maps system boiler type to system family', () => {
       const survey: FullSurveyModelV1 = {
         ...BASE_SURVEY,
-        dhw: { architecture: 'stored_standard' },
+        currentHeatSourceType: 'system',
+        dhwStorageType: 'vented',
         currentSystem: { boiler: { type: 'system' } },
       };
       const patch = fullSurveyToAtlasPropertyPatch(survey);
@@ -136,17 +144,19 @@ describe('fullSurveyToAtlasPropertyPatch', () => {
     it('maps regular boiler to regular family', () => {
       const survey: FullSurveyModelV1 = {
         ...BASE_SURVEY,
-        dhw: { architecture: 'stored_standard' },
+        currentHeatSourceType: 'regular',
+        dhwStorageType: 'vented',
         currentSystem: { boiler: { type: 'regular' } },
       };
       const patch = fullSurveyToAtlasPropertyPatch(survey);
       expect(patch.currentSystem?.family?.value).toBe('regular');
     });
 
-    it('maps stored_mixergy DHW to mixergy dhwType', () => {
+    it('maps mixergy dhwStorageType to mixergy dhwType', () => {
       const survey: FullSurveyModelV1 = {
         ...BASE_SURVEY,
-        dhw: { architecture: 'stored_mixergy' },
+        currentHeatSourceType: 'system',
+        dhwStorageType: 'mixergy',
         currentSystem: { boiler: { type: 'system' } },
       };
       const patch = fullSurveyToAtlasPropertyPatch(survey);

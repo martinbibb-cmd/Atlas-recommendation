@@ -40,38 +40,48 @@ function fv<T>(
 
 type EngineFamilyFamily = 'combi' | 'system' | 'regular' | 'heat_pump' | 'hybrid' | 'unknown';
 
-function mapBoilerTypeToFamily(
-  boilerType: string | undefined,
-  dhwArch: string | undefined,
+function mapHeatSourceTypeToFamily(
+  heatSourceType: string | undefined,
+  engineBoilerType: string | undefined,
 ): EngineFamilyFamily {
-  if (dhwArch === 'on_demand') return 'combi';
-  switch (boilerType) {
-    case 'combi':      return 'combi';
-    case 'system':     return 'system';
-    case 'regular':    return 'regular';
+  // Prefer flat currentHeatSourceType from the survey
+  switch (heatSourceType) {
+    case 'combi':   return 'combi';
+    case 'system':  return 'system';
+    case 'regular': return 'regular';
+    case 'ashp':    return 'heat_pump';
+  }
+  // Fall back to boiler type from currentSystem.boiler
+  switch (engineBoilerType) {
+    case 'combi':       return 'combi';
+    case 'system':      return 'system';
+    case 'regular':     return 'regular';
     case 'back_boiler': return 'regular';
-    default:           return 'unknown';
+    default:            return 'unknown';
   }
 }
 
 type DhwTypeValue = 'combi' | 'vented_cylinder' | 'unvented_cylinder' | 'thermal_store' | 'mixergy' | 'unknown';
 
-function mapDhwArchToDhwType(
-  dhwArch: string | undefined,
+function mapDhwStorageTypeToDhwType(
+  dhwStorageType: string | undefined,
   builderDhwType: string | null | undefined,
 ): DhwTypeValue {
-  if (dhwArch === 'on_demand') return 'combi';
-  if (dhwArch === 'stored_mixergy') return 'mixergy';
-
-  // Check systemBuilder dhwType for finer-grained mapping
+  // Prefer flat dhwStorageType from the survey
+  switch (dhwStorageType) {
+    case 'none':          return 'combi';
+    case 'vented':        return 'vented_cylinder';
+    case 'unvented':      return 'unvented_cylinder';
+    case 'mixergy':       return 'mixergy';
+    case 'thermal_store': return 'thermal_store';
+  }
+  // Fall back to systemBuilder dhwType for finer-grained mapping
   switch (builderDhwType) {
     case 'open_vented':   return 'vented_cylinder';
     case 'unvented':      return 'unvented_cylinder';
     case 'thermal_store': return 'thermal_store';
     default:              break;
   }
-
-  if (dhwArch === 'stored_standard') return 'vented_cylinder';
   return 'unknown';
 }
 
@@ -162,11 +172,14 @@ export function fullSurveyToAtlasPropertyPatch(survey: FullSurveyModelV1): Atlas
 
   const engineBoiler = survey.currentSystem?.boiler;
   const systemBuilder = survey.fullSurvey?.systemBuilder;
-  const dhwArch = survey.dhw?.architecture;
+
+  // Use flat survey fields as the primary source for family and dhwType
+  const surveyHeatSourceType = survey.currentHeatSourceType;
+  const surveyDhwStorageType = survey.dhwStorageType;
 
   const heatSourceType = engineBoiler?.type ?? systemBuilder?.heatSource ?? undefined;
-  const systemFamily = mapBoilerTypeToFamily(heatSourceType, dhwArch);
-  const dhwTypeValue = mapDhwArchToDhwType(dhwArch, systemBuilder?.dhwType);
+  const systemFamily = mapHeatSourceTypeToFamily(surveyHeatSourceType, heatSourceType);
+  const dhwTypeValue = mapDhwStorageTypeToDhwType(surveyDhwStorageType, systemBuilder?.dhwType);
 
   patch.currentSystem = {
     family: fv(systemFamily, 'engineer_entered', 'medium'),
@@ -175,7 +188,7 @@ export function fullSurveyToAtlasPropertyPatch(survey: FullSurveyModelV1): Atlas
 
   // Heat source details
   if (engineBoiler || systemBuilder) {
-    const pipeSize = survey.infrastructure?.primaryPipeSizeMm ?? systemBuilder?.primarySize;
+    const pipeSize = survey.primaryPipeDiameter ?? systemBuilder?.primarySize;
 
     patch.currentSystem.heatSource = {};
     patch.currentSystem.distribution = {};

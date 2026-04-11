@@ -154,36 +154,36 @@ describe('atlasPropertyToEngineInput', () => {
     });
   });
 
-  describe('DHW architecture', () => {
-    it('maps combi dhwType to on_demand architecture', () => {
+  describe('DHW storage type', () => {
+    it('maps combi dhwType to none storage type', () => {
       const input = atlasPropertyToEngineInput(BASE_PROPERTY);
-      expect(input.dhw?.architecture).toBe('on_demand');
+      expect(input.dhwStorageType).toBe('none');
     });
 
-    it('maps mixergy dhwType to stored_mixergy architecture', () => {
+    it('maps mixergy dhwType to mixergy storage type', () => {
       const property: AtlasPropertyV1 = {
         ...BASE_PROPERTY,
         currentSystem: { ...BASE_PROPERTY.currentSystem, dhwType: fv('mixergy') },
       };
       const input = atlasPropertyToEngineInput(property);
-      expect(input.dhw?.architecture).toBe('stored_mixergy');
+      expect(input.dhwStorageType).toBe('mixergy');
     });
 
-    it('maps vented_cylinder dhwType to stored_standard architecture', () => {
+    it('maps vented_cylinder dhwType to vented storage type', () => {
       const property: AtlasPropertyV1 = {
         ...BASE_PROPERTY,
         currentSystem: { ...BASE_PROPERTY.currentSystem, dhwType: fv('vented_cylinder') },
       };
       const input = atlasPropertyToEngineInput(property);
-      expect(input.dhw?.architecture).toBe('stored_standard');
+      expect(input.dhwStorageType).toBe('vented');
     });
   });
 
   describe('heat loss', () => {
-    it('converts peakWatts to peakHeatLossKw', () => {
+    it('maps peakWatts to heatLossWatts', () => {
       const input = atlasPropertyToEngineInput(BASE_PROPERTY);
-      // 8500 W → 8.5 kW
-      expect(input.property?.peakHeatLossKw).toBeCloseTo(8.5);
+      // 8500 W stays as 8500 W
+      expect(input.heatLossWatts).toBe(8500);
     });
   });
 
@@ -219,12 +219,12 @@ describe('atlasPropertyToEngineInput', () => {
   });
 
   describe('infrastructure', () => {
-    it('maps 22mm pipe diameter to primaryPipeSizeMm', () => {
+    it('maps 22mm pipe diameter to primaryPipeDiameter', () => {
       const input = atlasPropertyToEngineInput(BASE_PROPERTY);
-      expect(input.infrastructure?.primaryPipeSizeMm).toBe(22);
+      expect(input.primaryPipeDiameter).toBe(22);
     });
 
-    it('omits infrastructure when pipe size is not a canonical value', () => {
+    it('omits primaryPipeDiameter when pipe size is not a canonical value', () => {
       const property: AtlasPropertyV1 = {
         ...BASE_PROPERTY,
         currentSystem: {
@@ -235,7 +235,7 @@ describe('atlasPropertyToEngineInput', () => {
         },
       };
       const input = atlasPropertyToEngineInput(property);
-      expect(input.infrastructure).toBeUndefined();
+      expect(input.primaryPipeDiameter).toBeUndefined();
     });
   });
 });
