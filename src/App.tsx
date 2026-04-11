@@ -53,7 +53,7 @@ import PresentationAuditPage from './components/audit/PresentationAuditPage';
 import DevMenuPage from './components/dev/DevMenuPage';
 import ScanImportHarness from './features/scanImport/dev/ScanImportHarness';
 import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlow';
-import AtlasPropertyHandoffHarness from './features/handoff/dev/AtlasPropertyHandoffHarness';
+import HandoffArrivalPage from './components/handoff/HandoffArrivalPage';
 import './App.css';
 
 /** Detect ?devmenu=1 — renders the developer component browser on the landing page. */
@@ -133,8 +133,8 @@ const SCAN_PACKAGE_ENABLED =
   new URLSearchParams(window.location.search).get('scan-package') === '1';
 
 /**
- * Detect ?handoff=1 — renders the canonical AtlasPropertyV1 handoff dev harness.
- * Developer/internal surface for testing canonical property handoff arrival.
+ * Detect ?handoff=1 — renders the canonical AtlasPropertyV1 handoff arrival page.
+ * Entry point for post-handoff arrival flow from Atlas Scan.
  * Not visible in production UX.
  */
 const HANDOFF_ENABLED =
@@ -573,9 +573,9 @@ export default function App() {
     return <ScanImportHarness onBack={() => { window.location.href = window.location.pathname; }} />;
   }
 
-  // ?handoff=1 — render canonical AtlasPropertyV1 handoff dev harness.
+  // ?handoff=1 — render canonical AtlasPropertyV1 handoff arrival page.
   if (HANDOFF_ENABLED) {
-    return <AtlasPropertyHandoffHarness onBack={() => { window.location.href = window.location.pathname; }} />;
+    return <HandoffArrivalPage onBack={() => { window.location.href = window.location.pathname; }} />;
   }
 
   // ?scan-package=1 — render Atlas Scan package import flow.

@@ -37,7 +37,15 @@ export type {
   AtlasMindHandoffState,
 } from './types/atlasPropertyHandoff.types';
 
+export type {
+  KnowledgeStatus,
+  HandoffKnowledgeSummary,
+  HandoffReadinessSummary,
+  HandoffDisplayModel,
+} from './types/handoffDisplay.types';
+
 export { importAtlasProperty } from './importer/importAtlasProperty';
 export { buildVisitSeedFromAtlasProperty } from './importer/buildVisitSeedFromAtlasProperty';
 export { buildReportSeedFromAtlasProperty } from './importer/buildReportSeedFromAtlasProperty';
 export { buildPresentationSeedFromAtlasProperty } from './importer/buildPresentationSeedFromAtlasProperty';
+export { buildHandoffDisplayModel } from './selectors/buildHandoffDisplayModel';
