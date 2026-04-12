@@ -26,7 +26,6 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { getReport } from '../../lib/reports/reportApi';
 import { validatePortalToken } from '../../lib/portal/portalToken';
@@ -56,7 +55,6 @@ export default function CustomerPortalPage({ reference, token }: Props) {
   const [displayModel, setDisplayModel] = useState<PortalDisplayModel | null>(null);
   // Legacy fields kept for simulator launch compat during the migration window.
   const [surveyData, setSurveyData] = useState<FullSurveyModelV1 | null>(null);
-  const [engineInput, setEngineInput] = useState<EngineInputV2_3 | null>(null);
   const [postcode, setPostcode] = useState<string | null>(null);
   const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
   const [showSimulator, setShowSimulator] = useState(false);
@@ -84,14 +82,10 @@ export default function CustomerPortalPage({ reference, token }: Props) {
         if (!dm) throw new Error('This report does not contain recommendation data.');
         setDisplayModel(dm);
 
-        // Legacy compat: keep surveyData/engineInput/floorplanOutput for
+        // Legacy compat: keep surveyData/floorplanOutput for
         // simulator launch until that consumer migrates to engineRun directly.
         const payloadInfo = readCanonicalReportPayload(report.payload);
         setSurveyData((payloadInfo.legacy?.surveyData ?? payloadInfo.legacy?.engineInput ?? null) as FullSurveyModelV1 | null);
-        // engineInput: prefer canonical engineRun.engineInput, fall back to legacy block
-        const canonicalEngineInput =
-          payloadInfo.engineRun?.engineInput ?? payloadInfo.legacy?.engineInput ?? null;
-        setEngineInput(canonicalEngineInput as EngineInputV2_3 | null);
         setFloorplanOutput(payloadInfo.legacy?.floorplanOutput ?? undefined);
         setPostcode(report.postcode ?? null);
       } catch (err: unknown) {
