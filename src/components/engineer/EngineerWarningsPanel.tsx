@@ -17,9 +17,9 @@ function WarningList({ items, variant }: { items: string[]; variant: 'critical' 
   if (items.length === 0) return null;
 
   const config = {
-    critical:   { icon: '⚠️', color: '#742a2a', bg: '#fff5f5', border: '#fed7d7', heading: 'Confirm before starting' },
+    critical:   { icon: '🔴', color: '#742a2a', bg: '#fff5f5', border: '#fed7d7', heading: 'Confirm before starting' },
     recommended: { icon: '💡', color: '#744210', bg: '#fffff0', border: '#fefcbf', heading: 'Worth checking on arrival' },
-    confidence: { icon: '✓', color: '#2a4365', bg: '#ebf8ff', border: '#bee3f8', heading: 'Assumption to verify on arrival' },
+    confidence: { icon: '⚠️', color: '#2a4365', bg: '#ebf8ff', border: '#bee3f8', heading: 'Assumption to verify on arrival' },
   }[variant];
 
   return (
