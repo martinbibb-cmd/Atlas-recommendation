@@ -67,7 +67,7 @@ export interface EngineerRequiredWorkItem {
 // ─── Warnings ─────────────────────────────────────────────────────────────────
 
 /**
- * Pre-install review warnings grouped by type.
+ * Before-you-start confirmations grouped by type.
  */
 export interface EngineerWarnings {
   missingCritical: string[];
@@ -130,7 +130,7 @@ export interface EngineerDisplayModel {
   /** Ordered list of required and recommended work items. */
   requiredWork: EngineerRequiredWorkItem[];
 
-  /** Pre-install warnings grouped by severity. */
+  /** Before-you-start confirmations grouped by severity. */
   warnings: EngineerWarnings;
 
   /** Aggregated evidence counts for the evidence panel. */

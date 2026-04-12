@@ -17,9 +17,9 @@ function WarningList({ items, variant }: { items: string[]; variant: 'critical' 
   if (items.length === 0) return null;
 
   const config = {
-    critical:   { icon: '⛔', color: '#742a2a', bg: '#fff5f5', border: '#fed7d7', heading: 'Missing — check before attending' },
-    recommended: { icon: '⚠️', color: '#744210', bg: '#fffff0', border: '#fefcbf', heading: 'Missing — review when possible' },
-    confidence: { icon: '💡', color: '#2a4365', bg: '#ebf8ff', border: '#bee3f8', heading: 'Low confidence — confirm on site' },
+    critical:   { icon: '🔴', color: '#742a2a', bg: '#fff5f5', border: '#fed7d7', heading: 'Confirm before starting' },
+    recommended: { icon: '💡', color: '#744210', bg: '#fffff0', border: '#fefcbf', heading: 'Worth checking on arrival' },
+    confidence: { icon: '⚠️', color: '#2a4365', bg: '#ebf8ff', border: '#bee3f8', heading: 'Assumption to verify on arrival' },
   }[variant];
 
   return (
@@ -75,12 +75,12 @@ export function EngineerWarningsPanel({ model }: Props) {
       }}
     >
       <h2 style={{ margin: '0 0 0.85rem', fontSize: '0.9rem', fontWeight: 700, color: '#2d3748' }}>
-        ⚠️ Pre-install review
+        Before you start
       </h2>
 
       {!hasWarnings ? (
         <p style={{ margin: 0, fontSize: '0.82rem', color: '#276749', fontWeight: 500 }}>
-          ✓ No outstanding warnings — data looks complete.
+          ✓ All good — nothing to confirm before starting.
         </p>
       ) : (
         <>
