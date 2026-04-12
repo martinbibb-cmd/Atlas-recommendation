@@ -854,7 +854,7 @@ function derivePrimaryConstraint(
 ): string | null {
   if (!bestOverall) return null;
 
-  const bundle = bundles.find(b => b.runnerResult.family === bestOverall.family);
+  const bundle = bundles.find(b => b.runnerResult.topology.appliance.family === bestOverall.family);
   if (!bundle) return null;
 
   const entries = bundle.limiterLedger.entries;
@@ -883,7 +883,7 @@ function deriveFitMapPosition(
 ): { readonly heatingScore: number; readonly dhwScore: number } | null {
   if (!bestOverall) return null;
 
-  const bundle = bundles.find(b => b.runnerResult.family === bestOverall.family);
+  const bundle = bundles.find(b => b.runnerResult.topology.appliance.family === bestOverall.family);
   if (!bundle) return null;
 
   return {
