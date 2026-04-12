@@ -5,7 +5,7 @@
  *
  * Validates:
  *   - checkCompleteness correctly identifies essential vs optional data
- *   - buildReportSections returns sections in canonical order
+ *   - buildReportSections returns sections in canonical five-page order
  *   - Section builders derive correct display values from engine output
  *   - Partial output (no behaviourTimeline) produces correct completeness status
  *   - Missing essential data blocks the report
@@ -35,7 +35,7 @@ const MINIMAL_OUTPUT: EngineOutputV1 = {
   },
 };
 
-/** Full output with all optional data present. */
+/** Full output with all optional data present, including a flow-rate limiter. */
 const FULL_OUTPUT: EngineOutputV1 = {
   ...MINIMAL_OUTPUT,
   behaviourTimeline: {
@@ -77,6 +77,50 @@ const FULL_OUTPUT: EngineOutputV1 = {
       { id: 'occ_sig', title: 'Occupancy derived', detail: 'From 3-person professional household.', affects: ['timeline_24h'], severity: 'info' },
     ],
   },
+};
+
+/** Output with a full option card so pages 2–4 are populated. */
+const OUTPUT_WITH_OPTIONS: EngineOutputV1 = {
+  ...FULL_OUTPUT,
+  options: [
+    {
+      id: 'system_unvented',
+      label: 'System boiler with unvented cylinder',
+      status: 'viable',
+      headline: 'Stored hot water system',
+      why: ['Stored volume removes flow dependency'],
+      requirements: [],
+      heat: { status: 'ok', headline: 'Good at mid flow temp', bullets: ['60°C flow comfortable'] },
+      dhw: { status: 'ok', headline: 'Adequate stored volume', bullets: ['150L cylinder needed', 'Meets peak demand'] },
+      engineering: { status: 'caution', headline: 'Minor installation works', bullets: ['Add cylinder and pipework', 'Discharge valve required'] },
+      typedRequirements: {
+        mustHave: ['Cylinder space required'],
+        likelyUpgrades: ['Primary pipework upsize'],
+        niceToHave: ['Smart controls'],
+      },
+      sensitivities: [
+        { lever: 'Cylinder size', effect: 'upgrade', note: 'Larger cylinder reduces re-heat frequency.' },
+        { lever: 'Loft headroom', effect: 'downgrade', note: 'Low loft restricts cylinder siting.' },
+      ],
+    },
+    {
+      id: 'ashp',
+      label: 'Heat pump',
+      status: 'caution',
+      headline: 'Heat pump system',
+      why: ['Low carbon alternative'],
+      requirements: [],
+      heat: { status: 'ok', headline: 'Efficient at low flow temp', bullets: ['45°C flow comfortable'] },
+      dhw: { status: 'caution', headline: 'Stored with immersion backup', bullets: ['210L cylinder needed'] },
+      engineering: { status: 'caution', headline: 'Significant installation works', bullets: ['External unit space needed', 'Larger radiators likely required'] },
+      typedRequirements: {
+        mustHave: ['External wall space for heat pump unit', 'Larger emitters or underfloor heating'],
+        likelyUpgrades: ['Radiator upgrades'],
+        niceToHave: [],
+      },
+      sensitivities: [],
+    },
+  ],
 };
 
 // ─── checkCompleteness ────────────────────────────────────────────────────────
@@ -122,565 +166,236 @@ describe('checkCompleteness', () => {
   });
 });
 
-// ─── buildReportSections ──────────────────────────────────────────────────────
+// ─── buildReportSections — minimal output (no options, no limiters) ───────────
 
 describe('buildReportSections — minimal output', () => {
-  it('always includes system_summary as the first section', () => {
+  it('always includes decision_page as the first section', () => {
     const sections = buildReportSections(MINIMAL_OUTPUT);
-    expect(sections[0].id).toBe('system_summary');
+    expect(sections[0].id).toBe('decision_page');
   });
 
-  it('includes verdict section from minimal output', () => {
+  it('always includes engineer_summary as the last section', () => {
     const sections = buildReportSections(MINIMAL_OUTPUT);
-    expect(sections.some(s => s.id === 'verdict')).toBe(true);
+    expect(sections[sections.length - 1].id).toBe('engineer_summary');
   });
 
-  it('omits operating_point when behaviourTimeline is absent', () => {
+  it('produces exactly 2 sections (decision_page + engineer_summary) with no option data', () => {
     const sections = buildReportSections(MINIMAL_OUTPUT);
-    expect(sections.some(s => s.id === 'operating_point')).toBe(false);
+    expect(sections).toHaveLength(2);
   });
 
-  it('omits behaviour_summary when behaviourTimeline is absent', () => {
+  it('decision_page carries the recommendation text from engine output', () => {
     const sections = buildReportSections(MINIMAL_OUTPUT);
-    expect(sections.some(s => s.id === 'behaviour_summary')).toBe(false);
+    const s = sections.find(sec => sec.id === 'decision_page');
+    if (s?.id === 'decision_page') {
+      expect(s.recommendedSystem).toBe('Gas combi boiler');
+    }
   });
 
-  it('omits key_limiters when no limiters are present', () => {
+  it('decision_page has empty measuredFacts when no limiters are present', () => {
     const sections = buildReportSections(MINIMAL_OUTPUT);
-    expect(sections.some(s => s.id === 'key_limiters')).toBe(false);
-  });
-});
-
-describe('buildReportSections — full output', () => {
-  it('includes all 6 sections for a full output', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    const ids = sections.map(s => s.id);
-    expect(ids).toContain('system_summary');
-    expect(ids).toContain('operating_point');
-    expect(ids).toContain('behaviour_summary');
-    expect(ids).toContain('key_limiters');
-    expect(ids).toContain('verdict');
-    expect(ids).toContain('assumptions');
+    const s = sections.find(sec => sec.id === 'decision_page');
+    if (s?.id === 'decision_page') {
+      expect(s.measuredFacts).toHaveLength(0);
+    }
   });
 
-  it('sections follow canonical order', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    const ids = sections.map(s => s.id);
-    expect(ids.indexOf('system_summary')).toBeLessThan(ids.indexOf('operating_point'));
-    expect(ids.indexOf('operating_point')).toBeLessThan(ids.indexOf('behaviour_summary'));
-    expect(ids.indexOf('behaviour_summary')).toBeLessThan(ids.indexOf('key_limiters'));
-    expect(ids.indexOf('key_limiters')).toBeLessThan(ids.indexOf('verdict'));
-    expect(ids.indexOf('verdict')).toBeLessThan(ids.indexOf('assumptions'));
+  it('decision_page headline falls back to verdict.title when no limiters', () => {
+    const sections = buildReportSections(MINIMAL_OUTPUT);
+    const s = sections.find(sec => sec.id === 'decision_page');
+    if (s?.id === 'decision_page') {
+      expect(s.headline).toBe('Combi recommended');
+    }
   });
 
-  it('system_summary carries the correct recommendation text', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    const s = sections.find(sec => sec.id === 'system_summary');
-    expect(s).toBeTruthy();
-    if (s?.id === 'system_summary') {
-      expect(s.primary).toBe('Gas combi boiler');
+  it('decision_page.verdictStatus matches verdict.status', () => {
+    const sections = buildReportSections(MINIMAL_OUTPUT);
+    const s = sections.find(sec => sec.id === 'decision_page');
+    if (s?.id === 'decision_page') {
       expect(s.verdictStatus).toBe('good');
     }
   });
 
-  it('operating_point derives peak DHW kW from timeline', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    const s = sections.find(sec => sec.id === 'operating_point');
-    expect(s).toBeTruthy();
-    if (s?.id === 'operating_point') {
-      expect(s.peakDhwKw).toBe(8);
-      expect(s.peakDhwTime).toBe('07:00');
+  it('engineer_summary carries verdict confidence level', () => {
+    const sections = buildReportSections(MINIMAL_OUTPUT);
+    const s = sections.find(sec => sec.id === 'engineer_summary');
+    if (s?.id === 'engineer_summary') {
+      expect(s.confidenceLevel).toBe('medium');
     }
   });
 
-  it('operating_point estimates flow from peak DHW kW (~2.4 kW per L/min)', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    const s = sections.find(sec => sec.id === 'operating_point');
-    if (s?.id === 'operating_point') {
-      // 8 kW / 2.4 = 3.3... → rounded to 3.3
-      expect(s.estimatedFlowLpm).toBe(3.3);
+  it('engineer_summary has empty beforeYouStart when no options/unknowns', () => {
+    const sections = buildReportSections(MINIMAL_OUTPUT);
+    const s = sections.find(sec => sec.id === 'engineer_summary');
+    if (s?.id === 'engineer_summary') {
+      expect(s.beforeYouStart).toHaveLength(0);
     }
   });
 
-  it('key_limiters section carries limiter data', () => {
+  it('omits daily_experience when no option data is available', () => {
+    const sections = buildReportSections(MINIMAL_OUTPUT);
+    expect(sections.some(s => s.id === 'daily_experience')).toBe(false);
+  });
+
+  it('omits what_changes when no option data is available', () => {
+    const sections = buildReportSections(MINIMAL_OUTPUT);
+    expect(sections.some(s => s.id === 'what_changes')).toBe(false);
+  });
+
+  it('omits alternatives_page when no option data is available', () => {
+    const sections = buildReportSections(MINIMAL_OUTPUT);
+    expect(sections.some(s => s.id === 'alternatives_page')).toBe(false);
+  });
+});
+
+// ─── buildReportSections — full output (limiters, no options) ─────────────────
+
+describe('buildReportSections — full output with limiters', () => {
+  it('decision_page headline signals constraint when warn limiter is present', () => {
     const sections = buildReportSections(FULL_OUTPUT);
-    const s = sections.find(sec => sec.id === 'key_limiters');
-    if (s?.id === 'key_limiters') {
-      expect(s.limiters).toHaveLength(1);
-      expect(s.limiters[0].id).toBe('flow_rate');
-      expect(s.limiters[0].severity).toBe('warn');
+    const s = sections.find(sec => sec.id === 'decision_page');
+    if (s?.id === 'decision_page') {
+      expect(s.headline).toBe('System constraint identified');
     }
   });
 
-  it('key_limiters section caps output at 8 items when more are present', () => {
-    // Build an output with 10 limiters
-    const makeLimiter = (n: number) => ({
-      id: `limiter_${n}`,
-      title: `Limiter ${n}`,
-      severity: 'info' as const,
-      observed: { label: 'Value', value: n, unit: 'bar' as const },
-      limit: { label: 'Max', value: 10, unit: 'bar' as const },
-      impact: { summary: `Impact of limiter ${n}.` },
-      confidence: 'medium' as const,
-      sources: [] as never[],
-      suggestedFixes: [] as never[],
-    });
-    const outputWithManyLimiters: EngineOutputV1 = {
+  it('decision_page includes measuredFacts from the primary limiter', () => {
+    const sections = buildReportSections(FULL_OUTPUT);
+    const s = sections.find(sec => sec.id === 'decision_page');
+    if (s?.id === 'decision_page') {
+      expect(s.measuredFacts).toHaveLength(2);
+      expect(s.measuredFacts[0].value).toMatch(/12/);
+      expect(s.measuredFacts[1].value).toMatch(/15/);
+    }
+  });
+
+  it('decision_page consequence comes from limiter impact.summary', () => {
+    const sections = buildReportSections(FULL_OUTPUT);
+    const s = sections.find(sec => sec.id === 'decision_page');
+    if (s?.id === 'decision_page') {
+      expect(s.consequence).toBe('Observed flow is below recommended minimum.');
+    }
+  });
+
+  it('engineer_summary keyConstraint includes limiter title and observed value', () => {
+    const sections = buildReportSections(FULL_OUTPUT);
+    const s = sections.find(sec => sec.id === 'engineer_summary');
+    if (s?.id === 'engineer_summary') {
+      expect(s.keyConstraint).toMatch(/Flow rate marginal/);
+      expect(s.keyConstraint).toMatch(/12/);
+    }
+  });
+
+  it('sections follow canonical order: decision_page before engineer_summary', () => {
+    const sections = buildReportSections(FULL_OUTPUT);
+    const ids = sections.map(s => s.id);
+    expect(ids.indexOf('decision_page')).toBeLessThan(ids.indexOf('engineer_summary'));
+  });
+});
+
+// ─── buildReportSections — output with options ────────────────────────────────
+
+describe('buildReportSections — output with option data', () => {
+  it('includes all five page sections when option data is present', () => {
+    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
+    const ids = sections.map(s => s.id);
+    expect(ids).toContain('decision_page');
+    expect(ids).toContain('daily_experience');
+    expect(ids).toContain('what_changes');
+    expect(ids).toContain('alternatives_page');
+    expect(ids).toContain('engineer_summary');
+  });
+
+  it('sections follow canonical page order', () => {
+    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
+    const ids = sections.map(s => s.id);
+    expect(ids.indexOf('decision_page')).toBeLessThan(ids.indexOf('daily_experience'));
+    expect(ids.indexOf('daily_experience')).toBeLessThan(ids.indexOf('what_changes'));
+    expect(ids.indexOf('what_changes')).toBeLessThan(ids.indexOf('alternatives_page'));
+    expect(ids.indexOf('alternatives_page')).toBeLessThan(ids.indexOf('engineer_summary'));
+  });
+
+  it('daily_experience scenarios are non-empty for a stored option', () => {
+    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
+    const s = sections.find(sec => sec.id === 'daily_experience');
+    if (s?.id === 'daily_experience') {
+      expect(s.scenarios.length).toBeGreaterThan(0);
+      expect(s.scenarios.some(sc => sc.outcome === 'ok')).toBe(true);
+      expect(s.scenarios.some(sc => sc.outcome === 'limited' || sc.outcome === 'slow')).toBe(true);
+    }
+  });
+
+  it('what_changes contains mustHave items from the recommended option', () => {
+    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
+    const s = sections.find(sec => sec.id === 'what_changes');
+    if (s?.id === 'what_changes') {
+      expect(s.changes).toContain('Cylinder space required');
+      expect(s.changes.length).toBeLessThanOrEqual(5);
+    }
+  });
+
+  it('what_changes.systemLabel matches recommended option label', () => {
+    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
+    const s = sections.find(sec => sec.id === 'what_changes');
+    if (s?.id === 'what_changes') {
+      expect(s.systemLabel).toBe('System boiler with unvented cylinder');
+    }
+  });
+
+  it('alternatives_page shows the secondary option', () => {
+    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
+    const s = sections.find(sec => sec.id === 'alternatives_page');
+    if (s?.id === 'alternatives_page') {
+      expect(s.recommendedLabel).toBe('System boiler with unvented cylinder');
+      expect(s.alternative).not.toBeNull();
+      expect(s.alternative?.label).toBe('Heat pump');
+    }
+  });
+
+  it('alternatives_page tradeOffs contain mustHave requirements of the alternative', () => {
+    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
+    const s = sections.find(sec => sec.id === 'alternatives_page');
+    if (s?.id === 'alternatives_page') {
+      expect(s.alternative?.tradeOffs).toContain('External wall space for heat pump unit');
+    }
+  });
+
+  it('engineer_summary.beforeYouStart contains mustHave from recommended option', () => {
+    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
+    const s = sections.find(sec => sec.id === 'engineer_summary');
+    if (s?.id === 'engineer_summary') {
+      expect(s.beforeYouStart).toContain('Cylinder space required');
+    }
+  });
+});
+
+// ─── Hard fail limiter headline ───────────────────────────────────────────────
+
+describe('buildReportSections — hard fail limiter headline', () => {
+  it('decision_page shows "cannot meet demand" headline when fail limiter is present', () => {
+    const outputWithFailLimiter: EngineOutputV1 = {
       ...FULL_OUTPUT,
       limiters: {
-        limiters: Array.from({ length: 10 }, (_, i) => makeLimiter(i + 1)),
+        limiters: [
+          {
+            id: 'flow_insufficient',
+            title: 'Mains flow insufficient',
+            severity: 'fail' as const,
+            observed: { label: 'Flow rate', value: 10, unit: 'L/min' as const },
+            limit: { label: 'Min flow', value: 13, unit: 'L/min' as const },
+            impact: { summary: 'Flow rate too low for combi operation.' },
+            confidence: 'high' as const,
+            sources: [],
+            suggestedFixes: [],
+          },
+        ],
       },
     };
-    const sections = buildReportSections(outputWithManyLimiters);
-    const s = sections.find(sec => sec.id === 'key_limiters');
-    if (s?.id === 'key_limiters') {
-      expect(s.limiters).toHaveLength(8);
-      expect(s.limiters[0].id).toBe('limiter_1');
-      expect(s.limiters[7].id).toBe('limiter_8');
-    }
-  });
-
-  it('verdict section carries status and reasons', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    const s = sections.find(sec => sec.id === 'verdict');
-    if (s?.id === 'verdict') {
-      expect(s.status).toBe('good');
-      expect(s.confidenceLevel).toBe('medium');
-      expect(s.reasons).toContain('Adequate flow rate');
-    }
-  });
-
-  it('assumptions section includes engine assumption', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    const s = sections.find(sec => sec.id === 'assumptions');
-    if (s?.id === 'assumptions') {
-      expect(s.assumptions.length).toBeGreaterThan(0);
-      expect(s.assumptions[0].title).toBe('Occupancy derived');
-    }
-  });
-
-  it('includes physics_trace section when behaviourTimeline is present', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    expect(sections.some(s => s.id === 'physics_trace')).toBe(true);
-  });
-
-  it('physics_trace appends after assumptions in canonical order', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    const assumptionsIdx = sections.findIndex(s => s.id === 'assumptions');
-    const traceIdx = sections.findIndex(s => s.id === 'physics_trace');
-    expect(assumptionsIdx).toBeGreaterThanOrEqual(0);
-    expect(traceIdx).toBeGreaterThan(assumptionsIdx);
-  });
-
-  it('physics_trace carries appliance name and resolution', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    const s = sections.find(sec => sec.id === 'physics_trace');
-    if (s?.id === 'physics_trace') {
-      expect(s.applianceName).toBe('Gas combi boiler');
-      expect(s.resolutionMins).toBe(30);
+    const sections = buildReportSections(outputWithFailLimiter);
+    const s = sections.find(sec => sec.id === 'decision_page');
+    if (s?.id === 'decision_page') {
+      expect(s.headline).toBe('Current setup cannot meet demand');
     }
   });
 });
 
-// ─── New section builders (options-dependent) ─────────────────────────────────
-
-/**
- * Minimal "combi" option used in tests that need an option without trade-off
- * data (no likelyUpgrades, no sensitivities, not a stored system type).
- */
-const MINIMAL_COMBI_OPTION = {
-  id: 'combi' as const,
-  label: 'Gas combi',
-  status: 'viable' as const,
-  headline: 'Combi boiler',
-  why: ['Low occupancy'],
-  requirements: [] as string[],
-  heat: { status: 'ok' as const, headline: 'Good', bullets: [] as string[] },
-  dhw: { status: 'ok' as const, headline: 'Adequate', bullets: [] as string[] },
-  engineering: { status: 'ok' as const, headline: 'Minimal works', bullets: [] as string[] },
-  typedRequirements: { mustHave: [] as string[], likelyUpgrades: [] as string[], niceToHave: [] as string[] },
-};
-
-/** Output with full option card data, sensitivities, and plans. */
-const OUTPUT_WITH_OPTIONS: EngineOutputV1 = {
-  ...FULL_OUTPUT,
-  options: [
-    {
-      id: 'ashp',
-      label: 'ASHP with unvented cylinder',
-      status: 'viable',
-      headline: 'Low-carbon heat pump system',
-      why: ['Low carbon heat source', 'Silent operation outdoors'],
-      requirements: [],
-      heat: { status: 'ok', headline: 'Good at low flow temperature', bullets: ['Operates well at 45°C flow'] },
-      dhw: { status: 'ok', headline: 'Adequate stored volume', bullets: ['210L cylinder recommended', 'Legionella immersion required'] },
-      engineering: { status: 'caution', headline: 'Moderate works required', bullets: ['External unit siting required', 'Primary pipework may need upsizing'] },
-      typedRequirements: {
-        mustHave: ['External wall space for outdoor unit', 'Adequate loft space for cylinder'],
-        likelyUpgrades: ['Primary pipework 22→28mm', 'Additional radiators in 2 rooms'],
-        niceToHave: ['Thermal store pre-plumbing', 'Smart controls'],
-      },
-      sensitivities: [
-        { lever: 'Primary pipe diameter', effect: 'upgrade', note: 'Upgrading to 28mm removes hydraulic limiter.' },
-        { lever: 'Loft space', effect: 'downgrade', note: 'Insufficient loft space would prevent cylinder siting.' },
-      ],
-    },
-    {
-      id: 'stored_unvented',
-      label: 'System boiler + unvented cylinder',
-      status: 'viable',
-      headline: 'Stored hot water system',
-      why: ['Simultaneous DHW from stored volume'],
-      requirements: [],
-      heat: { status: 'ok', headline: 'Compatible with existing radiators', bullets: ['Operates at 70°C flow'] },
-      dhw: { status: 'ok', headline: 'Unvented cylinder with stored supply', bullets: ['210L capacity sufficient', 'G3 compliance required'] },
-      engineering: { status: 'ok', headline: 'Minor works', bullets: ['Cylinder space required', 'Expansion vessel needed'] },
-      typedRequirements: {
-        mustHave: ['Cylinder cupboard or loft space', 'G3 qualified installer'],
-        likelyUpgrades: [],
-        niceToHave: ['Smart thermostat'],
-      },
-      sensitivities: [
-        { lever: 'Water softener', effect: 'upgrade', note: 'Softened water extends cylinder life.' },
-      ],
-    },
-  ],
-  plans: {
-    pathways: [
-      {
-        id: 'path_1',
-        title: 'ASHP now',
-        rationale: 'Best long-term carbon reduction under current assumptions.',
-        outcomeToday: 'Low-carbon heat and hot water',
-        prerequisites: [],
-        confidence: { level: 'medium', reasons: [] },
-        rank: 1,
-      },
-      {
-        id: 'path_2',
-        title: 'System boiler now, ASHP later',
-        rationale: 'Lower upfront cost; ASHP when primary pipework upgraded.',
-        outcomeToday: 'Reliable stored hot water from gas',
-        outcomeAfterTrigger: 'ASHP ready once pipework upgraded',
-        prerequisites: [{ description: 'Upgrade primary pipework to 28mm' }],
-        confidence: { level: 'low', reasons: [] },
-        rank: 2,
-      },
-    ],
-    sharedConstraints: ['Primary pipework currently 22mm'],
-  },
-};
-
-describe('buildReportSections — key_trade_off section', () => {
-  it('includes key_trade_off when options with likelyUpgrades are present', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    expect(sections.some(s => s.id === 'key_trade_off')).toBe(true);
-  });
-
-  it('key_trade_off carries the recommended system label', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    const s = sections.find(sec => sec.id === 'key_trade_off');
-    if (s?.id === 'key_trade_off') {
-      expect(s.systemLabel).toBe('ASHP with unvented cylinder');
-    }
-  });
-
-  it('key_trade_off carries likelyUpgrades from recommended option', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    const s = sections.find(sec => sec.id === 'key_trade_off');
-    if (s?.id === 'key_trade_off') {
-      expect(s.likelyUpgrades).toContain('Primary pipework 22→28mm');
-      expect(s.likelyUpgrades).toContain('Additional radiators in 2 rooms');
-    }
-  });
-
-  it('key_trade_off carries engineering bullets from recommended option', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    const s = sections.find(sec => sec.id === 'key_trade_off');
-    if (s?.id === 'key_trade_off') {
-      expect(s.engineeringBullets).toContain('External unit siting required');
-    }
-  });
-
-  it('omits key_trade_off when options is absent', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    expect(sections.some(s => s.id === 'key_trade_off')).toBe(false);
-  });
-});
-
-describe('buildReportSections — future_path section', () => {
-  it('includes future_path when options with sensitivities are present', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    expect(sections.some(s => s.id === 'future_path')).toBe(true);
-  });
-
-  it('future_path separates upgrade enablers from downgrade risks', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    const s = sections.find(sec => sec.id === 'future_path');
-    if (s?.id === 'future_path') {
-      expect(s.enablers.some(e => e.lever === 'Primary pipe diameter')).toBe(true);
-      expect(s.risks.some(r => r.lever === 'Loft space')).toBe(true);
-    }
-  });
-
-  it('future_path includes pathway titles when plans data is present', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    const s = sections.find(sec => sec.id === 'future_path');
-    if (s?.id === 'future_path') {
-      expect(s.pathways.length).toBeGreaterThan(0);
-      expect(s.pathways[0].title).toBe('ASHP now');
-    }
-  });
-
-  it('omits future_path when options has no sensitivities and plans is absent', () => {
-    const output: EngineOutputV1 = {
-      ...FULL_OUTPUT,
-      options: [MINIMAL_COMBI_OPTION],
-      // no plans
-    };
-    const sections = buildReportSections(output);
-    expect(sections.some(s => s.id === 'future_path')).toBe(false);
-  });
-});
-
-describe('buildReportSections — system_architecture section', () => {
-  it('includes system_architecture when options are present', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    expect(sections.some(s => s.id === 'system_architecture')).toBe(true);
-  });
-
-  it('system_architecture carries headline and engineering bullets', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    const s = sections.find(sec => sec.id === 'system_architecture');
-    if (s?.id === 'system_architecture') {
-      expect(s.headline).toBe('Moderate works required');
-      expect(s.bullets).toContain('External unit siting required');
-    }
-  });
-
-  it('system_architecture carries mustHave conditions', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    const s = sections.find(sec => sec.id === 'system_architecture');
-    if (s?.id === 'system_architecture') {
-      expect(s.mustHave).toContain('External wall space for outdoor unit');
-    }
-  });
-
-  it('omits system_architecture when options is absent', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    expect(sections.some(s => s.id === 'system_architecture')).toBe(false);
-  });
-});
-
-describe('buildReportSections — stored_hot_water section', () => {
-  it('includes stored_hot_water when recommended option is a stored system', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    expect(sections.some(s => s.id === 'stored_hot_water')).toBe(true);
-  });
-
-  it('stored_hot_water carries dhw headline and bullets', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    const s = sections.find(sec => sec.id === 'stored_hot_water');
-    if (s?.id === 'stored_hot_water') {
-      expect(s.headline).toBe('Adequate stored volume');
-      expect(s.bullets).toContain('210L cylinder recommended');
-    }
-  });
-
-  it('omits stored_hot_water when recommended option is a combi (on-demand)', () => {
-    const output: EngineOutputV1 = {
-      ...FULL_OUTPUT,
-      options: [{ ...MINIMAL_COMBI_OPTION, dhw: { status: 'ok', headline: 'On-demand hot water', bullets: ['Requires 0.4 bar min'] } }],
-    };
-    const sections = buildReportSections(output);
-    expect(sections.some(s => s.id === 'stored_hot_water')).toBe(false);
-  });
-});
-
-describe('buildReportSections — risks_enablers section', () => {
-  it('includes risks_enablers when sensitivities are present across options', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    expect(sections.some(s => s.id === 'risks_enablers')).toBe(true);
-  });
-
-  it('risks_enablers separates downgrade risks from upgrade enablers', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    const s = sections.find(sec => sec.id === 'risks_enablers');
-    if (s?.id === 'risks_enablers') {
-      expect(s.risks.some(r => r.lever === 'Loft space')).toBe(true);
-      expect(s.enablers.some(e => e.lever === 'Primary pipe diameter')).toBe(true);
-    }
-  });
-
-  it('omits risks_enablers when no options have sensitivities', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    expect(sections.some(s => s.id === 'risks_enablers')).toBe(false);
-  });
-});
-
-describe('buildReportSections — engineering_notes section', () => {
-  it('includes engineering_notes when options have mustHave or niceToHave items', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    expect(sections.some(s => s.id === 'engineering_notes')).toBe(true);
-  });
-
-  it('engineering_notes carries mustHave and niceToHave items', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    const s = sections.find(sec => sec.id === 'engineering_notes');
-    if (s?.id === 'engineering_notes') {
-      expect(s.mustHave).toContain('External wall space for outdoor unit');
-      expect(s.niceToHave).toContain('Thermal store pre-plumbing');
-    }
-  });
-
-  it('engineering_notes appears after physics_trace (appendix last)', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    const traceIdx = sections.findIndex(s => s.id === 'physics_trace');
-    const notesIdx = sections.findIndex(s => s.id === 'engineering_notes');
-    expect(traceIdx).toBeGreaterThanOrEqual(0);
-    expect(notesIdx).toBeGreaterThan(traceIdx);
-  });
-
-  it('omits engineering_notes when recommended option has no mustHave or niceToHave', () => {
-    const output: EngineOutputV1 = {
-      ...FULL_OUTPUT,
-      options: [MINIMAL_COMBI_OPTION],
-    };
-    const sections = buildReportSections(output);
-    expect(sections.some(s => s.id === 'engineering_notes')).toBe(false);
-  });
-});
-
-// ─── Section structure sanity tests ──────────────────────────────────────────
-
-describe('buildReportSections — section structure sanity', () => {
-  it('returns no duplicate section IDs for minimal output', () => {
-    const sections = buildReportSections(MINIMAL_OUTPUT);
-    const ids = sections.map(s => s.id);
-    const uniqueIds = new Set(ids);
-    expect(ids.length).toBe(uniqueIds.size);
-  });
-
-  it('returns no duplicate section IDs for full output', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    const ids = sections.map(s => s.id);
-    const uniqueIds = new Set(ids);
-    expect(ids.length).toBe(uniqueIds.size);
-  });
-
-  it('returns no duplicate section IDs for output with options', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    const ids = sections.map(s => s.id);
-    const uniqueIds = new Set(ids);
-    expect(ids.length).toBe(uniqueIds.size);
-  });
-
-  it('every section has a defined id', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    sections.forEach(s => {
-      expect(s.id).toBeTruthy();
-    });
-  });
-
-  it('system_summary always appears first', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    expect(sections[0].id).toBe('system_summary');
-  });
-
-  it('customer group (system_summary → verdict) appears before technical group', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    const verdictIdx = sections.findIndex(s => s.id === 'verdict');
-    const archIdx = sections.findIndex(s => s.id === 'system_architecture');
-    expect(verdictIdx).toBeGreaterThanOrEqual(0);
-    expect(archIdx).toBeGreaterThan(verdictIdx);
-  });
-
-  it('appendix sections appear after all technical summary sections', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPTIONS);
-    const assumptionsIdx = sections.findIndex(s => s.id === 'assumptions');
-    const traceIdx = sections.findIndex(s => s.id === 'physics_trace');
-    expect(assumptionsIdx).toBeGreaterThanOrEqual(0);
-    expect(traceIdx).toBeGreaterThan(assumptionsIdx);
-  });
-
-  it('omits physics_trace when behaviourTimeline is absent', () => {
-    const output: EngineOutputV1 = {
-      ...OUTPUT_WITH_OPTIONS,
-      behaviourTimeline: undefined,
-    };
-    const sections = buildReportSections(output);
-    expect(sections.some(s => s.id === 'physics_trace')).toBe(false);
-  });
-});
-
-// ─── FutureEnergyOpportunitiesSection ────────────────────────────────────────
-
-/** Engine output with futureEnergyOpportunities populated. */
-const OUTPUT_WITH_OPPORTUNITIES: EngineOutputV1 = {
-  ...FULL_OUTPUT,
-  futureEnergyOpportunities: {
-    solarPv: {
-      status: 'suitable_now',
-      summary: 'Solar PV looks promising for this home.',
-      reasons: ['Stored hot water enables solar self-consumption.', 'Daytime occupancy supports direct solar use.'],
-      checksRequired: ['Roof orientation and obstruction survey required.'],
-    },
-    evCharging: {
-      status: 'check_required',
-      summary: 'EV charging could be a good fit — commuter profile suggests vehicle use.',
-      reasons: ['Commuter household pattern indicates likely vehicle ownership.'],
-      checksRequired: ['Off-street parking arrangement and supply route to be confirmed on site.'],
-    },
-  },
-};
-
-describe('buildReportSections — future_energy_opportunities section', () => {
-  it('includes future_energy_opportunities when futureEnergyOpportunities is present', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPPORTUNITIES);
-    expect(sections.some(s => s.id === 'future_energy_opportunities')).toBe(true);
-  });
-
-  it('omits future_energy_opportunities when futureEnergyOpportunities is absent', () => {
-    const sections = buildReportSections(FULL_OUTPUT);
-    expect(sections.some(s => s.id === 'future_energy_opportunities')).toBe(false);
-  });
-
-  it('future_energy_opportunities carries solar PV and EV assessments', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPPORTUNITIES);
-    const s = sections.find(sec => sec.id === 'future_energy_opportunities');
-    if (s?.id === 'future_energy_opportunities') {
-      expect(s.solarPv.status).toBe('suitable_now');
-      expect(s.evCharging.status).toBe('check_required');
-    }
-  });
-
-  it('future_energy_opportunities carries the correct summary text', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPPORTUNITIES);
-    const s = sections.find(sec => sec.id === 'future_energy_opportunities');
-    if (s?.id === 'future_energy_opportunities') {
-      expect(s.solarPv.summary).toBe('Solar PV looks promising for this home.');
-      expect(s.evCharging.checksRequired).toContain('Off-street parking arrangement and supply route to be confirmed on site.');
-    }
-  });
-
-  it('future_energy_opportunities appears after verdict in canonical order', () => {
-    const sections = buildReportSections(OUTPUT_WITH_OPPORTUNITIES);
-    const verdictIdx = sections.findIndex(s => s.id === 'verdict');
-    const oppIdx = sections.findIndex(s => s.id === 'future_energy_opportunities');
-    expect(verdictIdx).toBeGreaterThanOrEqual(0);
-    expect(oppIdx).toBeGreaterThan(verdictIdx);
-  });
-
-  it('future_energy_opportunities appears before technical summary sections', () => {
-    const sections = buildReportSections({
-      ...OUTPUT_WITH_OPPORTUNITIES,
-      ...OUTPUT_WITH_OPTIONS,
-      futureEnergyOpportunities: OUTPUT_WITH_OPPORTUNITIES.futureEnergyOpportunities,
-    });
-    const oppIdx = sections.findIndex(s => s.id === 'future_energy_opportunities');
-    const archIdx = sections.findIndex(s => s.id === 'system_architecture');
-    if (archIdx >= 0) {
-      expect(oppIdx).toBeLessThan(archIdx);
-    }
-  });
-});
