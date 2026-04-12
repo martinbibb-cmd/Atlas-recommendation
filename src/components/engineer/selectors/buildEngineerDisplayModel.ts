@@ -288,26 +288,26 @@ function buildWarnings(
 
   // Critical missing fields
   if (knowledgeSummary.currentSystem === 'missing') {
-    missingCritical.push('Current system type not confirmed');
+    missingCritical.push('Current system type — confirm on arrival');
   }
   if (knowledgeSummary.household === 'missing') {
-    missingCritical.push('Household composition not captured');
+    missingCritical.push('Household composition — verify with customer on arrival');
   }
 
   // Recommended fields
   if (knowledgeSummary.usage === 'missing') {
-    missingRecommended.push('Occupancy pattern and hot-water usage not confirmed');
+    missingRecommended.push('Occupancy and hot-water usage — verify with customer');
   }
   if (knowledgeSummary.constraints === 'missing') {
-    missingRecommended.push('No install constraints recorded — verify on arrival');
+    missingRecommended.push('No constraints noted — confirm access and clearances on arrival');
   }
 
   // Confidence warnings from field values
   if (knowledgeSummary.currentSystem === 'review') {
-    confidenceWarnings.push('Current system type has low confidence — confirm on site');
+    confidenceWarnings.push('Current system type from survey — confirm on arrival');
   }
   if (knowledgeSummary.household === 'review') {
-    confidenceWarnings.push('Household data is unconfirmed — review before sizing');
+    confidenceWarnings.push('Household size from survey — verify with customer');
   }
 
   // QA flags as warnings

@@ -9,7 +9,7 @@
  *   2. Layout summary    — captured rooms, components, and evidence counts
  *   3. Current system    — what Atlas understood about the property
  *   4. Required work     — what needs to happen and why
- *   5. Warnings          — pre-install review items and missing data
+ *   5. Before you start   — quick confirmations and low-confidence assumptions
  *   6. Evidence          — grouped evidence inspector
  *   7. Visit replay      — survey snapshot, voice notes, and note decision trail
  *
