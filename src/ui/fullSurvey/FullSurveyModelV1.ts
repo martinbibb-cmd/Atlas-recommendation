@@ -161,9 +161,13 @@ export type FullSurveyModelV1 = EngineInputV2_3 & {
     /**
      * Priorities / Objectives step — captures which outcomes matter most to
      * this household (performance, reliability, longevity, disruption, eco,
-     * running efficiency, future-readiness).  Used by the insight page and
-     * recommendation layer to surface the most relevant reasons first.
-     * Does not override physics-based suitability ranking.
+     * running efficiency, future-readiness).
+     *
+     * Wired into preferences.selectedPriorities by sanitiseModelForEngine so
+     * that the recommendation engine boosts the corresponding objective weights
+     * and bestOverall reflects the household's scenario rather than a fixed
+     * weighting.  Physics suitability constraints (limiters) remain authoritative
+     * — preferences only shift relative weights, they cannot override physics.
      */
     priorities?: PrioritiesState;
     /**

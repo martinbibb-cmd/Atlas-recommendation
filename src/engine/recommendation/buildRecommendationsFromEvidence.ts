@@ -35,23 +35,113 @@ import type {
 import { ALL_OBJECTIVES } from './RecommendationModel';
 import type { LimiterLedgerEntry } from '../limiter/LimiterLedger';
 import type { ApplianceFamily } from '../topology/SystemTopology';
-import type { ProductConstraints } from '../schema/EngineInputV2_3';
+import type { ProductConstraints, UserPreferencesV1 } from '../schema/EngineInputV2_3';
 
 // ─── Objective weights ────────────────────────────────────────────────────────
 
 /**
- * Weights for computing the overall score from objective scores.
+ * Default weights for computing the overall score from objective scores.
+ * These are the physics-neutral defaults used when no user preferences are expressed.
  * All weights sum to 1.0.
  */
-const OBJECTIVE_WEIGHTS: Readonly<Record<RecommendationObjective, number>> = {
-  performance:    0.30,
-  reliability:    0.20,
-  longevity:      0.15,
+const DEFAULT_OBJECTIVE_WEIGHTS: Readonly<Record<RecommendationObjective, number>> = {
+  performance:     0.30,
+  reliability:     0.20,
+  longevity:       0.15,
   ease_of_control: 0.10,
-  eco:            0.10,
-  disruption:     0.08,
-  space:          0.07,
+  eco:             0.10,
+  disruption:      0.08,
+  space:           0.07,
 } as const;
+
+/** Minimum allowed weight for any objective after scenario adjustments. */
+const MIN_OBJECTIVE_WEIGHT = 0.01;
+
+/**
+ * Additive weight boosts applied per selected PriorityKey.
+ * Applied before normalization so weights always sum to 1.0.
+ *
+ * cost_tendency maps to eco + longevity (running efficiency relates to both).
+ * future_compatibility maps to eco + performance (heat-pump pathway).
+ */
+const PRIORITY_WEIGHT_BOOST: Readonly<Record<string, Partial<Record<RecommendationObjective, number>>>> = {
+  performance:          { performance: 0.08 },
+  reliability:          { reliability: 0.08 },
+  longevity:            { longevity:   0.08 },
+  disruption:           { disruption:  0.08 },
+  eco:                  { eco:         0.08 },
+  cost_tendency:        { eco: 0.04, longevity: 0.04 },
+  future_compatibility: { eco: 0.06, performance: 0.02 },
+} as const;
+
+/**
+ * Derive scenario-specific objective weights from user preferences.
+ *
+ * Starting from DEFAULT_OBJECTIVE_WEIGHTS, boosts are applied for each
+ * expressed preference dimension (spacePriority, disruptionTolerance, and
+ * selectedPriorities chip selections). The result is then normalised so that
+ * weights always sum to 1.0.
+ *
+ * Falls back to DEFAULT_OBJECTIVE_WEIGHTS when preferences are absent or
+ * entirely empty, preserving backward-compatibility for callers that do not
+ * supply preferences.
+ *
+ * Exported for unit testing.
+ */
+export function deriveObjectiveWeights(
+  preferences?: UserPreferencesV1,
+): Readonly<Record<RecommendationObjective, number>> {
+  if (!preferences) return DEFAULT_OBJECTIVE_WEIGHTS;
+
+  const hasSpacePriority = preferences.spacePriority != null && preferences.spacePriority !== 'low';
+  const hasDisruptionTolerance = preferences.disruptionTolerance != null && preferences.disruptionTolerance !== 'medium';
+  const hasSelectedPriorities = (preferences.selectedPriorities?.length ?? 0) > 0;
+
+  if (!hasSpacePriority && !hasDisruptionTolerance && !hasSelectedPriorities) {
+    return DEFAULT_OBJECTIVE_WEIGHTS;
+  }
+
+  // Mutable copy of defaults
+  const weights: Record<RecommendationObjective, number> = { ...DEFAULT_OBJECTIVE_WEIGHTS };
+
+  // spacePriority boosts the space (and disruption) objective weights
+  if (preferences.spacePriority === 'high') {
+    weights.space      += 0.08;
+    weights.disruption += 0.04;
+  } else if (preferences.spacePriority === 'medium') {
+    weights.space += 0.04;
+  }
+
+  // disruptionTolerance: 'low' → disruption matters more (user wants minimal upheaval)
+  //                      'high' → disruption matters less (user accepts major works)
+  if (preferences.disruptionTolerance === 'low') {
+    weights.disruption += 0.08;
+  } else if (preferences.disruptionTolerance === 'high') {
+    weights.disruption = Math.max(MIN_OBJECTIVE_WEIGHT, weights.disruption - 0.04);
+  }
+
+  // selectedPriorities chip selections
+  for (const key of preferences.selectedPriorities ?? []) {
+    const boosts = PRIORITY_WEIGHT_BOOST[key];
+    if (boosts == null) continue;
+    for (const obj of ALL_OBJECTIVES) {
+      const boost = boosts[obj];
+      if (boost != null) {
+        weights[obj] += boost;
+      }
+    }
+  }
+
+  // Normalise so weights sum to 1.0
+  const total = ALL_OBJECTIVES.reduce((sum, obj) => sum + weights[obj], 0);
+  if (total === 0) return DEFAULT_OBJECTIVE_WEIGHTS;
+
+  const normalised = {} as Record<RecommendationObjective, number>;
+  for (const obj of ALL_OBJECTIVES) {
+    normalised[obj] = weights[obj] / total;
+  }
+  return normalised;
+}
 
 // ─── Baseline scores ──────────────────────────────────────────────────────────
 
@@ -324,10 +414,13 @@ function zeroObjectiveRecord(): Record<RecommendationObjective, number> {
 }
 
 /** Compute weighted overall score from per-objective scores. */
-function computeOverallScore(objectiveScores: Readonly<Record<RecommendationObjective, number>>): number {
+function computeOverallScore(
+  objectiveScores: Readonly<Record<RecommendationObjective, number>>,
+  weights: Readonly<Record<RecommendationObjective, number>>,
+): number {
   let total = 0;
   for (const obj of ALL_OBJECTIVES) {
-    total += objectiveScores[obj] * OBJECTIVE_WEIGHTS[obj];
+    total += objectiveScores[obj] * weights[obj];
   }
   return clamp100(total);
 }
@@ -385,10 +478,16 @@ const SOLAR_STORAGE_COMBI_PENALTY: Record<string, Partial<Record<RecommendationO
 /**
  * Score a single candidate from its evidence bundle and optional context signals.
  * Returns a fully-populated RecommendationDecision.
+ *
+ * @param bundle   Evidence bundle for this candidate family.
+ * @param context  Optional context signals (demographics, PV, preferences).
+ * @param weights  Scenario-derived objective weights (from deriveObjectiveWeights).
+ *                 Defaults to DEFAULT_OBJECTIVE_WEIGHTS when absent.
  */
 function scoreCandidate(
   bundle: CandidateEvidenceBundle,
   context?: RecommendationContextSignals,
+  weights: Readonly<Record<RecommendationObjective, number>> = DEFAULT_OBJECTIVE_WEIGHTS,
 ): RecommendationDecision {
   const family = bundle.runnerResult.topology.appliance.family;
   const baseline = FAMILY_BASELINE_SCORES[family];
@@ -494,7 +593,7 @@ function scoreCandidate(
     objectiveScores[obj] = clamp100(raw);
   }
 
-  const overallScore = computeOverallScore(objectiveScores);
+  const overallScore = computeOverallScore(objectiveScores, weights);
 
   // Determine suitability
   let suitability: CandidateSuitability;
@@ -775,10 +874,12 @@ function buildWhyNotExplanations(
  * @param constraints  Optional product constraints — controls which intervention
  *                     types (e.g. UFH, heat pump) are eligible for inclusion.
  *                     When absent, UFH is excluded by default.
- * @param context      Optional demographic and PV context signals that adjust
- *                     objective scores to reflect household demand and solar
- *                     opportunity. When absent, no context-signal adjustments
- *                     are applied (backward-compatible).
+ * @param context      Optional context signals — demographics, PV opportunity, and
+ *                     user preferences.  When `context.userPreferences` is present,
+ *                     objective weights are derived from the household's stated
+ *                     priorities so bestOverall reflects their scenario rather than
+ *                     a single fixed weighting.  When absent, no context-signal
+ *                     adjustments are applied (backward-compatible).
  * @returns            RecommendationResult with bestOverall, bestByObjective,
  *                     interventions, disqualifiedCandidates, and confidenceSummary.
  */
@@ -787,9 +888,13 @@ export function buildRecommendationsFromEvidence(
   constraints?: ProductConstraints,
   context?: RecommendationContextSignals,
 ): RecommendationResult {
-  // Score every candidate
+  // Derive scenario-specific objective weights from user preferences (if any).
+  // Falls back to DEFAULT_OBJECTIVE_WEIGHTS when no preferences are expressed.
+  const weights = deriveObjectiveWeights(context?.userPreferences);
+
+  // Score every candidate using the scenario weights
   const allDecisions: RecommendationDecision[] = bundles
-    .map(bundle => scoreCandidate(bundle, context))
+    .map(bundle => scoreCandidate(bundle, context, weights))
     .sort((a, b) => {
       // Primary: overall score descending
       const scoreDiff = b.overallScore - a.overallScore;

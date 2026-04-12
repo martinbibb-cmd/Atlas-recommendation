@@ -179,6 +179,25 @@ export interface UserPreferencesV1 {
    * Default: 'medium' when absent.
    */
   disruptionTolerance?: 'low' | 'medium' | 'high';
+  /**
+   * Objectives the household has explicitly selected as priorities in the survey.
+   *
+   * Populated from PrioritiesState.selected via sanitiseModelForEngine.
+   * When present, the recommendation engine boosts the objective weights for
+   * the selected dimensions so that bestOverall reflects the household's stated
+   * priorities rather than a single fixed weighting.
+   *
+   * Structurally identical to PriorityKey[] from prioritiesTypes.ts.
+   */
+  selectedPriorities?: readonly (
+    | 'performance'
+    | 'reliability'
+    | 'longevity'
+    | 'disruption'
+    | 'eco'
+    | 'cost_tendency'
+    | 'future_compatibility'
+  )[];
 }
 
 /**
