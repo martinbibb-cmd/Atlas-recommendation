@@ -67,7 +67,7 @@ export default function PortalFindingsSection({ findings }: Props) {
           <div className="portal-findings__card" data-testid="portal-findings-priorities">
             <h3 className="portal-findings__card-title">Priorities noted</h3>
             <ul className="portal-findings__list">
-              {priorities.map((p, i) => <li key={i}>{p}</li>)}
+              {priorities.map((p) => <li key={p}>{p}</li>)}
             </ul>
           </div>
         )}
@@ -77,7 +77,7 @@ export default function PortalFindingsSection({ findings }: Props) {
           <div className="portal-findings__card portal-findings__card--constraint" data-testid="portal-findings-constraints">
             <h3 className="portal-findings__card-title">Constraints identified</h3>
             <ul className="portal-findings__list">
-              {constraints.map((c, i) => <li key={i}>{c}</li>)}
+              {constraints.map((c) => <li key={c}>{c}</li>)}
             </ul>
           </div>
         )}
@@ -89,8 +89,8 @@ export default function PortalFindingsSection({ findings }: Props) {
         <div className="portal-findings__evidence" data-testid="portal-findings-evidence">
           <h3 className="portal-findings__evidence-title">Evidence captured</h3>
           <ul className="portal-findings__evidence-list">
-            {evidenceSummary.map((obs, i) => (
-              <li key={i} className="portal-findings__evidence-item">{obs}</li>
+            {evidenceSummary.map((obs) => (
+              <li key={obs} className="portal-findings__evidence-item">{obs}</li>
             ))}
           </ul>
         </div>

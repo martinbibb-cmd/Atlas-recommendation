@@ -25,8 +25,8 @@ export default function PortalWhatToExpectSection({ whatToExpect }: Props) {
       </h2>
 
       <ul className="portal-what-to-expect__list" data-testid="portal-what-to-expect-list">
-        {whatToExpect.map((item, i) => (
-          <li key={i} className="portal-what-to-expect__item">
+        {whatToExpect.map((item) => (
+          <li key={item} className="portal-what-to-expect__item">
             {item}
           </li>
         ))}

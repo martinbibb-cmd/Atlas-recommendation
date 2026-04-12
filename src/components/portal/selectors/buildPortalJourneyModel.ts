@@ -48,8 +48,7 @@ function buildFindings(dm: PortalDisplayModel): JourneyFindings {
   const evidence = dm.evidenceSummary;
 
   // Current system — from verdict context or first option label
-  const verdictTitle = engine.verdict?.title ?? '';
-  const currentSystemGuess = undefined; // populated via knowledge summary below
+  // (not yet surfaced in findings; reserved for future enhancement)
 
   // Household summary from knowledge / evidence meta
   let householdSummary: string | undefined;
@@ -113,10 +112,6 @@ function buildFindings(dm: PortalDisplayModel): JourneyFindings {
       priorities.push(a.title);
     }
   }
-
-  // Suppress generic title from findings (not useful to customer)
-  void verdictTitle;
-  void currentSystemGuess;
 
   return {
     currentSystem:    undefined,
@@ -287,10 +282,6 @@ function buildAlternatives(dm: PortalDisplayModel): JourneyAlternative[] {
     if (option.id === recId) continue;
     if (option.status === 'rejected') continue;
 
-    const whyNot = option.why[0]
-      ? undefined  // 'why' lists reasons it IS good — not why it lost
-      : undefined;
-
     // Derive a 'why not top choice' from heat/dhw/engineering caveats
     const caveatParts: string[] = [];
     if (option.dhw.status === 'caution')         caveatParts.push(option.dhw.headline);
@@ -301,7 +292,7 @@ function buildAlternatives(dm: PortalDisplayModel): JourneyAlternative[] {
       optionId:         option.id,
       title:            option.label,
       summary:          option.headline,
-      whyNotTopChoice:  caveatParts.length > 0 ? caveatParts.filter(Boolean).join('; ') : whyNot,
+      whyNotTopChoice:  caveatParts.length > 0 ? caveatParts.filter(Boolean).join('; ') : undefined,
     });
   }
 

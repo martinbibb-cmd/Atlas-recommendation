@@ -27,11 +27,11 @@ export default function PortalWhyFitsSection({ whyFits }: Props) {
       </h2>
 
       <div className="portal-why-fits__cards">
-        {whyFits.map((item, i) => (
+        {whyFits.map((item) => (
           <div
-            key={i}
+            key={item.title}
             className={`portal-why-fits__card portal-why-fits__card--${item.status}`}
-            data-testid={`portal-why-fits-item-${i}`}
+            data-testid={`portal-why-fits-item-${item.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
           >
             <h3 className="portal-why-fits__card-title">
               <span

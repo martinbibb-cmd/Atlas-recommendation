@@ -39,8 +39,8 @@ export default function PortalRecommendationSection({ recommendation }: Props) {
 
       {keyBenefits.length > 0 && (
         <ul className="portal-recommendation__benefits" data-testid="portal-recommendation-benefits">
-          {keyBenefits.map((benefit, i) => (
-            <li key={i} className="portal-recommendation__benefit">
+          {keyBenefits.map((benefit) => (
+            <li key={benefit} className="portal-recommendation__benefit">
               {benefit}
             </li>
           ))}
