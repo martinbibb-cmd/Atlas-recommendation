@@ -130,8 +130,6 @@ export interface AlternativesPageSection {
  */
 export interface EngineerSummarySection {
   id: 'engineer_summary';
-  /** Current installed system, if known from engine context. */
-  currentSystem: string | undefined;
   /** Recommended replacement system. */
   recommendedSystem: string;
   /** Primary constraint driving the recommendation. */
@@ -293,10 +291,6 @@ export function checkCompleteness(output: EngineOutputV1): ReportCompletenessSta
   };
 }
 
-/** kW output per L/min flow at a 35°C temperature rise (standard domestic DHW). */
-const _KW_PER_LPM_AT_35C_RISE = 2.4;
-// Suppress unused-variable warning — retained for future flow derivation.
-void _KW_PER_LPM_AT_35C_RISE;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -439,7 +433,10 @@ function buildDailyExperienceSection(
       note: 'Larger draw; allow extra time during morning peak',
     });
   } else {
-    // Combi / on-demand
+    // Combi / on-demand: detect flow-related limiters by id/title substring.
+    // LimiterV1 does not carry a category field; substring matching is the
+    // available signal. If no match is found, neutral scenarios are used which
+    // remain correct (no false warnings for a well-specified combi).
     const hasFlowLimiter = (output.limiters?.limiters ?? []).some(
       l => l.id.toLowerCase().includes('flow') || l.title.toLowerCase().includes('flow'),
     );
@@ -595,7 +592,6 @@ function buildEngineerSummarySection(output: EngineOutputV1): EngineerSummarySec
 
   return {
     id: 'engineer_summary',
-    currentSystem: undefined,
     recommendedSystem: output.recommendation.primary,
     keyConstraint,
     confidenceLevel: output.verdict?.confidence?.level ?? 'medium',

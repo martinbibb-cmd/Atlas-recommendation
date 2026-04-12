@@ -204,12 +204,6 @@ function EngineerSummaryRenderer({ section }: { section: EngineerSummarySection 
     >
       <h2 className="rv-section__title" id="rv-engineer-summary">Engineer snapshot</h2>
       <dl className="rv-dl">
-        {section.currentSystem && (
-          <div className="rv-dl-row">
-            <dt className="rv-dt">Current</dt>
-            <dd className="rv-dd">{section.currentSystem}</dd>
-          </div>
-        )}
         <div className="rv-dl-row">
           <dt className="rv-dt">Recommended</dt>
           <dd className="rv-dd">{section.recommendedSystem}</dd>
