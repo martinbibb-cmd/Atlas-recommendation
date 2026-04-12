@@ -42,6 +42,8 @@ interface Props {
   onPrintSummary?: () => void;
   /** Open a specific report by ID. */
   onOpenReport: (reportId: string) => void;
+  /** Open the pre-install engineer route for this visit. */
+  onOpenEngineerRoute?: () => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -155,6 +157,7 @@ function HubActions({
   onResumeSurvey,
   onOpenPresentation,
   onPrintSummary,
+  onOpenEngineerRoute,
   portalUrl,
   portalLoading,
 }: {
@@ -162,6 +165,7 @@ function HubActions({
   onResumeSurvey: () => void;
   onOpenPresentation: () => void;
   onPrintSummary?: () => void;
+  onOpenEngineerRoute?: () => void;
   portalUrl?: string;
   portalLoading?: boolean;
 }) {
@@ -244,6 +248,17 @@ function HubActions({
           📊 Presentation — complete survey first
         </button>
       )}
+
+      {onOpenEngineerRoute && (
+        <button
+          className="visit-hub__action-btn visit-hub__action-btn--secondary"
+          onClick={onOpenEngineerRoute}
+          aria-label="Open pre-install engineer view"
+          data-testid="open-engineer-route-btn"
+        >
+          🔧 Pre-install engineer view
+        </button>
+      )}
     </div>
   );
 }
@@ -257,6 +272,7 @@ export default function VisitHubPage({
   onOpenPresentation,
   onPrintSummary,
   onOpenReport,
+  onOpenEngineerRoute,
 }: Props) {
   const [meta, setMeta] = useState<VisitMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -427,6 +443,7 @@ export default function VisitHubPage({
           onResumeSurvey={onResumeSurvey}
           onOpenPresentation={onOpenPresentation}
           onPrintSummary={onPrintSummary}
+          onOpenEngineerRoute={onOpenEngineerRoute}
           portalUrl={portalUrl}
           portalLoading={portalLoading}
         />

@@ -23,6 +23,7 @@ import VisitPage from './components/visit/VisitPage';
 import VisitHubPage from './components/visit/VisitHubPage';
 import RecentVisitsList from './components/visit/RecentVisitsList';
 import NewVisitDialog from './components/visit/NewVisitDialog';
+import EngineerPreinstallPage from './components/engineer/EngineerPreinstallPage';
 import ReportPage from './components/reportpage/ReportPage';
 import CustomerPortalPage from './components/portal/CustomerPortalPage';
 import GlobalMenuShell from './components/shell/GlobalMenuShell';
@@ -165,7 +166,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'engineer';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -176,6 +177,13 @@ const REPORT_PATH_MATCH =
     ? window.location.pathname.match(/^\/report\/([^/]+)$/)
     : null;
 const INITIAL_REPORT_ID = REPORT_PATH_MATCH ? REPORT_PATH_MATCH[1] : null;
+
+/** Detect /visit/:visitId/engineer path — renders the pre-install engineer route. */
+const ENGINEER_PATH_MATCH =
+  typeof window !== 'undefined'
+    ? window.location.pathname.match(/^\/visit\/([^/]+)\/engineer$/)
+    : null;
+const ENGINEER_VISIT_ID = ENGINEER_PATH_MATCH ? ENGINEER_PATH_MATCH[1] : null;
 
 /** Detect /portal/:reference path — renders the customer portal. */
 const PORTAL_REFERENCE =
@@ -240,7 +248,8 @@ function CanonicalPresentationRoute({
 
 export default function App() {
   const [journey, setJourney] = useState<Journey>(
-    FLOOR_PLAN_TOOL_MODE ? 'floor-plan'
+    FLOOR_PLAN_TOOL_MODE    ? 'floor-plan'
+    : ENGINEER_VISIT_ID != null ? 'engineer'
     : INITIAL_REPORT_ID != null ? 'report'
     : 'landing'
   );
@@ -294,7 +303,9 @@ export default function App() {
    */
   const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
   /** Active visit ID — set when the user starts or opens a visit. */
-  const [activeVisitId, setActiveVisitId] = useState<string | undefined>();
+  const [activeVisitId, setActiveVisitId] = useState<string | undefined>(
+    ENGINEER_VISIT_ID ?? undefined,
+  );
   /** Fit position computed after survey completion — shown on the fit-map page. */
   const [fitPosition, setFitPosition] = useState<FitPosition | undefined>();
   /** Controls whether the new-visit dialog is open. */
@@ -492,6 +503,16 @@ export default function App() {
     return <CustomerPortalPage reference={PORTAL_REFERENCE} token={PORTAL_TOKEN} />;
   }
 
+  // /visit/:visitId/engineer — render the dedicated pre-install engineer route.
+  if (ENGINEER_VISIT_ID != null && journey === 'engineer') {
+    return (
+      <EngineerPreinstallPage
+        visitId={ENGINEER_VISIT_ID}
+        onBack={() => { window.history.back(); }}
+      />
+    );
+  }
+
   // ?report=1 feature flag — render the unified ReportView with demo engine output.
   if (REPORT_MODE_ENABLED) {
     const { engineOutput } = runEngine(CONSOLE_DEMO_INPUT);
@@ -651,6 +672,14 @@ export default function App() {
             setActiveReportId(reportId);
             setJourney('report');
           }}
+          onOpenEngineerRoute={() => setJourney('engineer')}
+        />
+      )}
+      {/* Engineer pre-install route — /visit/:visitId/engineer */}
+      {journey === 'engineer' && activeVisitId != null && (
+        <EngineerPreinstallPage
+          visitId={activeVisitId}
+          onBack={() => setJourney('visit-hub')}
         />
       )}
       {journey === 'visit' && activeVisitId != null && (
