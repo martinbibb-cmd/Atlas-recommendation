@@ -158,7 +158,7 @@ export interface EngineerSummarySection {
  */
 export interface CurrentSystemSection {
   id: 'current_system';
-  /** Human-readable label for the existing heat source, e.g. "Gas combi boiler". */
+  /** Human-readable label for the existing heat source, e.g. "Combi boiler". */
   heatSourceLabel: string;
   /** Key/value facts about the current installation. */
   facts: Array<{ label: string; value: string }>;

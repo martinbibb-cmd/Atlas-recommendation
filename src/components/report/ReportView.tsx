@@ -354,15 +354,15 @@ function EvidenceSummaryRenderer({ section }: { section: EvidenceSummarySection 
 
 function ScansSummaryRenderer({ section }: { section: ScansSection }) {
   const formattedDate = (() => {
-    try {
-      return new Date(section.generatedAt).toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      });
-    } catch {
+    const date = new Date(section.generatedAt);
+    if (Number.isNaN(date.getTime())) {
       return section.generatedAt;
     }
+    return date.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
   })();
 
   return (
