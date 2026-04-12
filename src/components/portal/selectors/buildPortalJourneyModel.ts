@@ -14,6 +14,7 @@
  */
 
 import type { PortalDisplayModel } from '../types/portalDisplay.types';
+
 import type {
   PortalJourneyModel,
   JourneyFindings,
@@ -22,24 +23,6 @@ import type {
   JourneyAlternative,
   JourneyScenario,
 } from '../types/portalJourney.types';
-import type { OptionCardV1 } from '../../../contracts/EngineOutputV1';
-
-// ─── Label maps ───────────────────────────────────────────────────────────────
-
-const SYSTEM_LABELS: Record<string, string> = {
-  combi:            'Combi boiler',
-  system_unvented:  'System boiler with unvented cylinder',
-  stored_unvented:  'Unvented cylinder system',
-  stored_vented:    'Vented cylinder system',
-  regular_vented:   'Regular (heat-only) boiler',
-  ashp:             'Air source heat pump',
-  unknown:          'Current system',
-};
-
-function systemLabel(id: string | undefined): string {
-  if (!id) return 'Current system';
-  return SYSTEM_LABELS[id] ?? id;
-}
 
 // ─── Findings ─────────────────────────────────────────────────────────────────
 
