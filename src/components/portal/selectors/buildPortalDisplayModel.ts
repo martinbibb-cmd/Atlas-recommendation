@@ -22,6 +22,7 @@ import type {
   PortalKnowledgeSummary,
   KnowledgeStatus,
 } from '../types/portalDisplay.types';
+import type { SpatialEvidence3D, ExternalClearanceSceneV1 } from '../../../contracts/spatial3dEvidence';
 
 // ─── Field-value helpers ──────────────────────────────────────────────────────
 
@@ -143,6 +144,22 @@ function resolveRecommendedOptionId(
   return engineOutput.options?.find((o) => o.status === 'viable')?.id;
 }
 
+// ─── 3D evidence extraction ───────────────────────────────────────────────────
+
+function extractSpatialEvidence3D(p: AtlasPropertyV1 | null): SpatialEvidence3D[] | undefined {
+  if (!p) return undefined;
+  const records = (p as unknown as Record<string, unknown>)['spatialEvidence3d'];
+  if (!Array.isArray(records) || records.length === 0) return undefined;
+  return records as SpatialEvidence3D[];
+}
+
+function extractExternalClearanceScenes(p: AtlasPropertyV1 | null): ExternalClearanceSceneV1[] | undefined {
+  if (!p) return undefined;
+  const records = (p as unknown as Record<string, unknown>)['externalClearanceScenes'];
+  if (!Array.isArray(records) || records.length === 0) return undefined;
+  return records as ExternalClearanceSceneV1[];
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -196,6 +213,10 @@ export function buildPortalDisplayModel(
   const evidenceSummary  = atlasProperty ? buildEvidenceSummary(atlasProperty)  : undefined;
   const knowledgeSummary = atlasProperty ? buildKnowledgeSummary(atlasProperty) : undefined;
 
+  // ── 3D evidence (canonical only) ─────────────────────────────────────────
+  const spatialEvidence3d       = extractSpatialEvidence3D(atlasProperty);
+  const externalClearanceScenes = extractExternalClearanceScenes(atlasProperty);
+
   return {
     propertyTitle,
     recommendationReady: true,
@@ -205,5 +226,7 @@ export function buildPortalDisplayModel(
     presentationState: presentationState ?? null,
     evidenceSummary,
     knowledgeSummary,
+    ...(spatialEvidence3d       ? { spatialEvidence3d }       : {}),
+    ...(externalClearanceScenes ? { externalClearanceScenes } : {}),
   };
 }

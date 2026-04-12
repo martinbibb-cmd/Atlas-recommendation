@@ -42,6 +42,7 @@ import PortalWhyFitsSection from './journey/PortalWhyFitsSection';
 import PortalWhatToExpectSection from './journey/PortalWhatToExpectSection';
 import PortalAlternativesSection from './journey/PortalAlternativesSection';
 import PortalScenarioSection from './journey/PortalScenarioSection';
+import PortalSpatialEvidenceSection from './journey/PortalSpatialEvidenceSection';
 import './CustomerPortalPage.css';
 
 interface Props { reference: string; token?: string; }
@@ -199,6 +200,14 @@ export default function CustomerPortalPage({ reference, token }: Props) {
       <div id="portal-alternatives">
         <PortalAlternativesSection alternatives={journeyModel.alternatives} />
       </div>
+
+      {/* ── F  Property evidence (3D room scans + flue clearance) ─────────── */}
+      {(displayModel.spatialEvidence3d || displayModel.externalClearanceScenes) && (
+        <PortalSpatialEvidenceSection
+          spatialEvidence3d={displayModel.spatialEvidence3d}
+          externalClearanceScenes={displayModel.externalClearanceScenes}
+        />
+      )}
 
       {/* ── F  See how it behaves / Simulator ───────────────────────────── */}
       {!showSimulator ? (

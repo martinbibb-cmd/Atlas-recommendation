@@ -80,4 +80,16 @@ export interface PortalDisplayModel {
    * Absent when only a legacy payload is available.
    */
   knowledgeSummary?: PortalKnowledgeSummary;
+
+  /**
+   * Internal room scan evidence (RoomPlan / LiDAR captures).
+   * Absent when no indoor 3D scans are available for this property.
+   */
+  spatialEvidence3d?: import('../../../contracts/spatial3dEvidence').SpatialEvidence3D[];
+
+  /**
+   * External flue-clearance scene records (ARKit tagged feature captures).
+   * Absent when no outdoor flue scenes have been captured.
+   */
+  externalClearanceScenes?: import('../../../contracts/spatial3dEvidence').ExternalClearanceSceneV1[];
 }
