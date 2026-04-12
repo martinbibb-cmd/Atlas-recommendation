@@ -706,7 +706,7 @@ function buildCurrentSystemSection(
   }
 
   const HEAT_SOURCE_LABELS: Record<string, string> = {
-    combi:        'Gas combi boiler',
+    combi:        'Combi boiler',
     system:       'System boiler',
     regular:      'Regular (heat-only) boiler',
     back_boiler:  'Back boiler',
@@ -756,9 +756,9 @@ function buildCurrentSystemSection(
 
   const contextBullets = output.contextSummary?.bullets ?? [];
 
-  // Red flags referencing the existing system (typically severity warn/info about current install).
+  // All red flags are included — fail severity represents critical issues that
+  // the engineer must be aware of before proceeding with the installation.
   const currentSystemFlags = (output.redFlags ?? [])
-    .filter(f => f.severity === 'warn' || f.severity === 'info')
     .map(f => ({ title: f.title, detail: f.detail, severity: f.severity }));
 
   return {
