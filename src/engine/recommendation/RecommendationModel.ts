@@ -244,6 +244,33 @@ export interface RecommendationResult {
    * Explains the dominant limiting signal(s) and score gap.
    */
   readonly whyNotExplanations: readonly WhyNotExplanation[];
+
+  /**
+   * The dominant limiter ID (from LimiterLedger) that most influenced this
+   * recommendation.  This is the `hard_stop` limiter if one exists for the winning
+   * family; otherwise the first `limit`-severity entry; otherwise the highest-penalty
+   * limiter from the evidence trace of `bestOverall`.
+   *
+   * Null when the run was entirely clean (no limiters at all across all candidates).
+   *
+   * This is the causal chain anchor: every recommendation must be traceable to a
+   * real constraint or to an absence of constraints (clean run).
+   */
+  readonly primaryConstraint: string | null;
+
+  /**
+   * Positive evidence IDs (event types, timeline keys, module fields) from the
+   * `bestOverall` candidate's evidence trace that supported this recommendation.
+   * Empty array when no positive evidence was recorded or when `bestOverall` is null.
+   */
+  readonly supportingEvents: readonly string[];
+
+  /**
+   * Fit-map axis position of the `bestOverall` candidate.
+   * Derived from the candidate's FitMapModel (heatingAxis.score, dhwAxis.score).
+   * Null when `bestOverall` is null or the bundle contained no fit-map data.
+   */
+  readonly fitMapPosition: { readonly heatingScore: number; readonly dhwScore: number } | null;
 }
 
 /**

@@ -819,6 +819,11 @@ export function buildRecommendationsFromEvidence(
   // "Why not this option?" explanations for non-winning candidates
   const whyNotExplanations = buildWhyNotExplanations(allDecisions, bestOverall);
 
+  // Physics anchor fields: primaryConstraint, supportingEvents, fitMapPosition
+  const primaryConstraint = derivePrimaryConstraint(bestOverall, bundles);
+  const supportingEvents   = bestOverall?.evidenceTrace.positiveEvidence ?? [];
+  const fitMapPosition     = deriveFitMapPosition(bestOverall, bundles);
+
   return {
     bestOverall,
     bestByObjective,
@@ -826,5 +831,63 @@ export function buildRecommendationsFromEvidence(
     disqualifiedCandidates,
     confidenceSummary,
     whyNotExplanations,
+    primaryConstraint,
+    supportingEvents,
+    fitMapPosition,
+  };
+}
+
+// ─── Physics anchor helpers ───────────────────────────────────────────────────
+
+/**
+ * Derives the dominant limiter ID from the best-overall candidate's evidence.
+ *
+ * Priority order:
+ *   1. hard_stop limiter in the winning candidate's bundle (blocks other families)
+ *   2. First `limit`-severity limiter entry in the bundle for the winning family
+ *   3. First limiter ID in the evidence trace (highest-penalty by ordering)
+ *   4. null — genuinely clean run with no constraints
+ */
+function derivePrimaryConstraint(
+  bestOverall: RecommendationDecision | null,
+  bundles: readonly CandidateEvidenceBundle[],
+): string | null {
+  if (!bestOverall) return null;
+
+  const bundle = bundles.find(b => b.runnerResult.family === bestOverall.family);
+  if (!bundle) return null;
+
+  const entries = bundle.limiterLedger.entries;
+
+  // 1. hard_stop first
+  const hardStop = entries.find(e => e.severity === 'hard_stop');
+  if (hardStop) return hardStop.id;
+
+  // 2. limit severity next
+  const limitEntry = entries.find(e => e.severity === 'limit');
+  if (limitEntry) return limitEntry.id;
+
+  // 3. first entry from the evidence trace
+  const firstConsidered = bestOverall.evidenceTrace.limitersConsidered[0];
+  if (firstConsidered) return firstConsidered;
+
+  return null;
+}
+
+/**
+ * Returns the fit-map axis scores for the best-overall candidate.
+ */
+function deriveFitMapPosition(
+  bestOverall: RecommendationDecision | null,
+  bundles: readonly CandidateEvidenceBundle[],
+): { readonly heatingScore: number; readonly dhwScore: number } | null {
+  if (!bestOverall) return null;
+
+  const bundle = bundles.find(b => b.runnerResult.family === bestOverall.family);
+  if (!bundle) return null;
+
+  return {
+    heatingScore: bundle.fitMap.heatingAxis.score,
+    dhwScore:     bundle.fitMap.dhwAxis.score,
   };
 }

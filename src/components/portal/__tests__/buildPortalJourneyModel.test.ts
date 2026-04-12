@@ -133,6 +133,40 @@ describe('buildPortalJourneyModel', () => {
       expect(model.recommendation.confidenceLabel).toBe('High confidence — based on measured inputs');
     });
 
+    it('sets physicsReady to true when a viable option is found', () => {
+      const model = buildPortalJourneyModel(makeDisplayModel());
+      expect(model.recommendation.physicsReady).toBe(true);
+    });
+
+    it('exposes primaryConstraint from limiters when present', () => {
+      const engineOutput: EngineOutputV1 = {
+        ...STUB_ENGINE_OUTPUT,
+        limiters: {
+          limiters: [
+            {
+              id: 'combi-concurrency-constraint',
+              title: 'Combi concurrency constraint',
+              severity: 'warn',
+              observed: { label: 'Outlets', value: 2, unit: 'kW' },
+              limit:    { label: 'Max outlets', value: 1, unit: 'kW' },
+              impact:   { summary: 'Simultaneous demand risk' },
+              confidence: 'high',
+              sources:  [{ kind: 'measured' }],
+              suggestedFixes: [],
+            },
+          ],
+        },
+      };
+      const model = buildPortalJourneyModel(makeDisplayModel({ engineOutput }));
+      expect(model.recommendation.primaryConstraint).toBe('combi-concurrency-constraint');
+    });
+
+    it('sets primaryConstraint to null when no limiters exist', () => {
+      const engineOutput: EngineOutputV1 = { ...STUB_ENGINE_OUTPUT, limiters: undefined };
+      const model = buildPortalJourneyModel(makeDisplayModel({ engineOutput }));
+      expect(model.recommendation.primaryConstraint).toBeNull();
+    });
+
     it('falls back gracefully when no recommended option exists', () => {
       const dm = makeDisplayModel({
         recommendedOptionId: undefined,
@@ -144,6 +178,7 @@ describe('buildPortalJourneyModel', () => {
       const model = buildPortalJourneyModel(dm);
       expect(model.recommendation.title).toBeTruthy();
       expect(model.recommendation.keyBenefits).toEqual([]);
+      expect(model.recommendation.physicsReady).toBe(false);
     });
   });
 

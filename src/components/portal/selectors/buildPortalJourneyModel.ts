@@ -108,18 +108,59 @@ function buildFindings(dm: PortalDisplayModel): JourneyFindings {
 
 // ─── Recommendation ───────────────────────────────────────────────────────────
 
+/**
+ * Derives the dominant limiter ID from the EngineOutputV1 limiters.
+ * Returns null when no constraining limiter exists (clean run).
+ *
+ * Note: EngineOutputV1.LimiterV1 does not carry a per-option filter today,
+ * so the full list is searched by severity priority.
+ */
+function derivePrimaryConstraint(dm: PortalDisplayModel): string | null {
+  const entries = dm.engineOutput.limiters?.limiters ?? [];
+  if (entries.length === 0) return null;
+
+  // EngineOutputV1.LimiterV1 severity: 'fail' > 'warn' > 'info'
+  // Pick the highest-severity entry as the primary constraint anchor.
+  const severityOrder: Array<import('../../../contracts/EngineOutputV1').LimiterSeverity> = [
+    'fail', 'warn', 'info',
+  ];
+  for (const severity of severityOrder) {
+    const found = entries.find((e) => e.severity === severity);
+    if (found) return found.id;
+  }
+  return null;
+}
+
+/**
+ * Derives supporting event strings from verdict reasons and non-fail red flags.
+ */
+function deriveSupportingEvents(dm: PortalDisplayModel): readonly string[] {
+  const events: string[] = [];
+  for (const reason of dm.engineOutput.verdict?.reasons ?? []) {
+    events.push(reason);
+  }
+  for (const flag of dm.engineOutput.redFlags ?? []) {
+    if (flag.severity !== 'fail') events.push(flag.id);
+  }
+  return events;
+}
+
 function buildRecommendation(dm: PortalDisplayModel): JourneyRecommendation {
   const recId = dm.recommendedOptionId;
   const options = dm.engineOutput.options ?? [];
   const recOption = options.find((o) => o.id === recId) ?? options.find((o) => o.status === 'viable');
 
+  // Physics guard: if no option found, emit a low-confidence placeholder.
+  // The UI must check physicsReady === false and show the "We need more
+  // information" state instead of rendering a recommendation card.
   if (!recOption) {
     return {
       recommendedOptionId: recId,
-      title:          dm.engineOutput.verdict?.title ?? 'Recommendation',
-      summary:        'Atlas has assessed your home and produced a recommendation.',
-      keyBenefits:    [],
+      title:           'We need more information',
+      summary:         'Atlas needs a complete survey or scan to produce a physics-backed recommendation for your home.',
+      keyBenefits:     [],
       confidenceLabel: undefined,
+      physicsReady:    false,
     };
   }
 
@@ -143,12 +184,19 @@ function buildRecommendation(dm: PortalDisplayModel): JourneyRecommendation {
   // Primary reason: first why[] item or headline
   const summary = recOption.why[0] ?? recOption.headline ?? `${recOption.label} is the best fit for your home.`;
 
+  // Physics anchor fields
+  const primaryConstraint = derivePrimaryConstraint(dm);
+  const supportingEvents  = deriveSupportingEvents(dm);
+
   return {
     recommendedOptionId: recOption.id,
     title:              recOption.label,
     summary,
     keyBenefits,
     confidenceLabel,
+    physicsReady:       true,
+    primaryConstraint,
+    supportingEvents,
   };
 }
 
