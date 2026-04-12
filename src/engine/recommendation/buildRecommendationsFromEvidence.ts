@@ -54,6 +54,9 @@ const DEFAULT_OBJECTIVE_WEIGHTS: Readonly<Record<RecommendationObjective, number
   space:           0.07,
 } as const;
 
+/** Minimum allowed weight for any objective after scenario adjustments. */
+const MIN_OBJECTIVE_WEIGHT = 0.01;
+
 /**
  * Additive weight boosts applied per selected PriorityKey.
  * Applied before normalization so weights always sum to 1.0.
@@ -114,7 +117,7 @@ export function deriveObjectiveWeights(
   if (preferences.disruptionTolerance === 'low') {
     weights.disruption += 0.08;
   } else if (preferences.disruptionTolerance === 'high') {
-    weights.disruption = Math.max(0.01, weights.disruption - 0.04);
+    weights.disruption = Math.max(MIN_OBJECTIVE_WEIGHT, weights.disruption - 0.04);
   }
 
   // selectedPriorities chip selections

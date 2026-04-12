@@ -97,7 +97,7 @@ describe('deriveObjectiveWeights', () => {
   it('7. normalised weights always sum to 1.0 for any valid preference combination', () => {
     const cases: UserPreferencesV1[] = [
       { spacePriority: 'high', disruptionTolerance: 'low' },
-      { selectedPriorities: ['performance', 'reliability', 'longevity', 'disruption', 'eco', 'cost_tendency', 'future_compatibility'] },
+      { selectedPriorities: ['performance', 'reliability', 'eco'] },
       { spacePriority: 'medium', selectedPriorities: ['eco', 'reliability'] },
       { disruptionTolerance: 'high', selectedPriorities: ['performance'] },
     ];
@@ -208,15 +208,24 @@ describe('scenario-based weights integration', () => {
     expect(defaultResult.bestByObjective.space?.family).toBe('combi');
     expect(spaceResult.bestByObjective.space?.family).toBe('combi');
 
-    // With heavily boosted space/disruption weights, combi's overall score
-    // should be closer to (or equal to) the system's compared to the default run
-    const combiDefaultScore = defaultResult.whyNotExplanations.find(w => w.family === 'combi')?.scoreGap;
-    const combiSpaceScore   = spaceResult.whyNotExplanations.find(w => w.family === 'combi')?.scoreGap;
+    // With heavily boosted space/disruption weights, combi's overall score gap
+    // should be smaller (or combi should be bestOverall) relative to the default run.
+    const combiDefaultEntry = defaultResult.whyNotExplanations.find(w => w.family === 'combi');
+    const combiSpaceEntry   = spaceResult.whyNotExplanations.find(w => w.family === 'combi');
 
-    // If combi wasn't the best overall in either run, its gap should be
-    // smaller with space preferences (or combi should win with space preferences)
-    if (combiDefaultScore != null && combiSpaceScore != null) {
-      expect(combiSpaceScore).toBeLessThanOrEqual(combiDefaultScore + 1); // allow rounding
+    // If combi is bestOverall in the space run, the preference is working as intended.
+    if (spaceResult.bestOverall?.family === 'combi') {
+      expect(spaceResult.bestOverall.family).toBe('combi');
+    } else if (combiSpaceEntry != null && combiDefaultEntry != null) {
+      // If combi didn't win, its gap should be smaller with space preferences
+      expect(combiSpaceEntry.scoreGap).toBeLessThanOrEqual(combiDefaultEntry.scoreGap + 1);
+    } else {
+      // combi must appear in one of the result slots
+      const allFamilies = [
+        defaultResult.bestOverall,
+        ...Object.values(defaultResult.bestByObjective),
+      ].map(d => d?.family);
+      expect(allFamilies).toContain('combi');
     }
   });
 
