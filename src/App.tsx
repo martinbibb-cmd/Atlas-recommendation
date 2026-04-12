@@ -519,6 +519,7 @@ export default function App() {
     return (
       <ReportView
         output={engineOutput}
+        engineInput={CONSOLE_DEMO_INPUT}
         onBack={() => {
           window.location.href = window.location.pathname;
         }}
