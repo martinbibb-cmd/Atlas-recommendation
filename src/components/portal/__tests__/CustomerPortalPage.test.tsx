@@ -9,7 +9,10 @@ vi.mock('../../../lib/portal/portalToken', () => ({ validatePortalToken: vi.fn(a
 
 const STUB_ENGINE_OUTPUT: EngineOutputV1 = {
   eligibility: [], redFlags: [], recommendation: { primary: 'Combi boiler' }, explainers: [],
-  options: [{ id: 'combi', label: 'Combi boiler', status: 'viable', headline: 'Best fit', why: ['Compact installation'], requirements: [], heat: { status: 'ok', headline: '', bullets: [] }, dhw: { status: 'ok', headline: '', bullets: [] }, engineering: { status: 'ok', headline: '', bullets: [] }, sensitivities: [], typedRequirements: { mustHave: [], likelyUpgrades: [], niceToHave: [] } }],
+  options: [
+    { id: 'combi', label: 'Combi boiler', status: 'viable', headline: 'Best fit', why: ['Compact installation'], requirements: [], heat: { status: 'ok', headline: 'Good heat output', bullets: ['Adequate for home'] }, dhw: { status: 'ok', headline: 'Meets hot water demand', bullets: ['Sufficient flow rate'] }, engineering: { status: 'ok', headline: 'Straightforward installation', bullets: [] }, sensitivities: [], typedRequirements: { mustHave: ['New flue'], likelyUpgrades: [], niceToHave: [] } },
+    { id: 'stored_unvented', label: 'Unvented cylinder', status: 'caution', headline: 'Alternative option', why: ['Higher storage capacity'], requirements: [], heat: { status: 'ok', headline: '', bullets: [] }, dhw: { status: 'caution', headline: 'Higher upfront cost', bullets: [] }, engineering: { status: 'ok', headline: '', bullets: [] }, sensitivities: [], typedRequirements: { mustHave: [], likelyUpgrades: [], niceToHave: [] } },
+  ],
   verdict: { title: 'Combi boiler recommended', status: 'good', reasons: ['Adequate mains pressure'], confidence: { level: 'high', reasons: [] }, assumptionsUsed: [] },
 };
 const STUB_ENGINE_INPUT: EngineInputV2_3 = { postcode: 'SW1A 1AA', dynamicMainsPressure: 2.5, mainsDynamicFlowLpm: 14, primaryPipeDiameter: 22, heatLossWatts: 8000, radiatorCount: 10, bathroomCount: 1, occupancyCount: 2, hasLoftConversion: false, returnWaterTemp: 45, occupancySignature: 'professional', buildingMass: 'medium', highOccupancy: false, preferCombi: true };
@@ -36,52 +39,47 @@ describe('CustomerPortalPage', () => {
     await waitFor(() => expect(screen.getByTestId('portal-error')).toBeTruthy());
   });
 
-  it('renders the premium portal with hero, signal cards, improvements, comparison and evidence when the report loads', async () => {
+  it('renders the guided closing journey with findings, recommendation, why-fits, alternatives and scenarios', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
     await waitFor(() => expect(screen.getByTestId('customer-portal')).toBeTruthy());
 
     // Hero section
     expect(screen.getByTestId('portal-hero')).toBeTruthy();
-    expect(screen.getByText('Recommended for your home')).toBeTruthy();
-    // The recommendation title appears in the hero heading
-    expect(screen.getByRole('heading', { name: 'Combi boiler recommended', level: 1 })).toBeTruthy();
-    expect(screen.getByText('SW1A 1AA')).toBeTruthy();
+    expect(screen.getAllByText('SW1A 1AA').length).toBeGreaterThan(0);
 
-    // Why this suits your home — signal cards
-    expect(screen.getByTestId('portal-signal-card-home')).toBeTruthy();
-    expect(screen.getByTestId('portal-signal-card-hot-water')).toBeTruthy();
-    expect(screen.getByTestId('portal-signal-card-current-system')).toBeTruthy();
+    // Section A — Findings
+    expect(screen.getByTestId('portal-findings-section')).toBeTruthy();
+    expect(screen.getByText('What we found in your home')).toBeTruthy();
 
-    // What this improves — improvement tiles rendered
-    expect(screen.getByText('What this improves')).toBeTruthy();
+    // Section B — Recommendation (clear, singular)
+    expect(screen.getByTestId('portal-recommendation-section')).toBeTruthy();
+    expect(screen.getByTestId('portal-recommendation-title')).toBeTruthy();
+    expect(screen.getByText('Atlas recommends')).toBeTruthy();
 
-    // Compare options
+    // Section C — Why fits
+    expect(screen.getByTestId('portal-why-fits-section')).toBeTruthy();
+    expect(screen.getByText('Why this fits your home')).toBeTruthy();
+
+    // Section E — Alternatives (caution option is present in stub)
+    expect(screen.getByTestId('portal-alternatives-section')).toBeTruthy();
     expect(screen.getByText('Other options considered')).toBeTruthy();
-    expect(screen.getByTestId('portal-comparison-cards')).toBeTruthy();
 
-    // Guided simulator intro is shown before the raw simulator
-    expect(screen.getByTestId('portal-simulator-intro')).toBeTruthy();
-    expect(screen.getByTestId('open-simulator-btn')).toBeTruthy();
-
-    // Evidence accordions
-    expect(screen.getByText('Evidence behind the advice')).toBeTruthy();
-    expect(screen.getByTestId('portal-evidence-accordions')).toBeTruthy();
-
-    // Plan section
-    expect(screen.getByTestId('portal-plan-ctas')).toBeTruthy();
+    // Section F — Scenarios (shown before simulator is opened)
+    expect(screen.getByTestId('portal-scenario-section')).toBeTruthy();
+    expect(screen.getByText('See how it behaves in your home')).toBeTruthy();
   });
 
-  it('opens the live simulator after clicking the CTA button', async () => {
+  it('opens the live simulator after clicking a scenario CTA button', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('open-simulator-btn')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('portal-scenario-cta-more_hot_water')).toBeTruthy());
 
     // Simulator is not yet rendered
     expect(document.querySelector('[data-testid="portal-unified-simulator"]')).toBeNull();
 
-    // Click the CTA
-    fireEvent.click(screen.getByTestId('open-simulator-btn'));
+    // Click a scenario CTA to launch the simulator
+    fireEvent.click(screen.getByTestId('portal-scenario-cta-more_hot_water'));
 
     // Now the simulator section should be visible
     await waitFor(() => expect(screen.getByTestId('portal-unified-simulator')).toBeTruthy());
@@ -89,17 +87,17 @@ describe('CustomerPortalPage', () => {
     expect(screen.getByTestId('performance-outcomes-panel')).toBeTruthy();
     expect(screen.getByTestId('advice-panel')).toBeTruthy();
 
-    // Guided intro should be replaced
-    expect(document.querySelector('[data-testid="portal-simulator-intro"]')).toBeNull();
+    // Scenario section should be replaced by the simulator
+    expect(document.querySelector('[data-testid="portal-scenario-section"]')).toBeNull();
   });
 
   it('clicking the print button shows PrintableRecommendationPage in portal mode', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('open-simulator-btn')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('portal-scenario-cta-more_hot_water')).toBeTruthy());
 
     // First open the simulator
-    fireEvent.click(screen.getByTestId('open-simulator-btn'));
+    fireEvent.click(screen.getByTestId('portal-scenario-cta-more_hot_water'));
     await waitFor(() => expect(screen.getByTestId('unified-simulator-view')).toBeTruthy());
 
     const printBtn = screen.getByTestId('print-report-btn');
@@ -114,10 +112,10 @@ describe('CustomerPortalPage', () => {
   it('portal mode hides expert-only inputs (mains pressure, mains flow, boiler output)', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('open-simulator-btn')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('portal-scenario-cta-more_hot_water')).toBeTruthy());
 
     // Open the simulator first
-    fireEvent.click(screen.getByTestId('open-simulator-btn'));
+    fireEvent.click(screen.getByTestId('portal-scenario-cta-more_hot_water'));
     await waitFor(() => expect(screen.getByTestId('unified-simulator-view')).toBeTruthy());
 
     // Expert-only labels must not appear in the portal simulator inputs
