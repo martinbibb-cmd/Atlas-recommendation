@@ -41,7 +41,9 @@ const STUB_REPORT: ReportDetail = {
   payload: {
     surveyData: STUB_ENGINE_INPUT as unknown as ReportDetail['payload']['surveyData'],
     engineInput: STUB_ENGINE_INPUT,
-    engineOutput: undefined as unknown as ReportDetail['payload']['engineOutput'],
+    // engineOutput is intentionally absent — the portal re-runs the engine from
+    // engineInput and does not rely on any persisted engine output.
+    engineOutput: null as unknown as ReportDetail['payload']['engineOutput'],
     decisionSynthesis: null,
   },
 };
