@@ -14,7 +14,6 @@
 import type { AtlasPropertyV1 } from '@atlas/contracts';
 import { extractEngineRunFromPayload } from '../../../features/reports/adapters/extractEngineRunFromPayload';
 import { extractAtlasPropertyFromPayload } from '../../../features/reports/adapters/extractAtlasPropertyFromPayload';
-import { readCanonicalReportPayload } from '../../../features/reports/adapters/readCanonicalReportPayload';
 import { visitStatusLabel, visitDisplayLabel } from '../../../lib/visits/visitApi';
 import { SYSTEM_REGISTRY } from '../../../lib/system/systemRegistry';
 import type { VisitMeta } from '../../../lib/visits/visitApi';
@@ -364,9 +363,7 @@ export function buildEngineerDisplayModel(
   const { engineOutput } = engineRun;
 
   // ── Canonical property ────────────────────────────────────────────────────
-  const payloadInfo   = readCanonicalReportPayload(payload);
-  const isCanonical   = payloadInfo.payloadVersion === 'canonical_v2';
-  const atlasProperty = isCanonical ? extractAtlasPropertyFromPayload(payload) : extractAtlasPropertyFromPayload(payload);
+  const atlasProperty = extractAtlasPropertyFromPayload(payload);
 
   // ── Core fields ───────────────────────────────────────────────────────────
   const title          = buildTitle(atlasProperty, visitMeta);
