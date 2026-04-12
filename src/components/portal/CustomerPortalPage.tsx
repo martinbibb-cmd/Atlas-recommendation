@@ -1,48 +1,28 @@
 /**
  * CustomerPortalPage.tsx
  *
- * Premium customer portal — the digital version of the recommendation sheet,
- * accessible via a signed portal link sent after the survey visit.
+ * Customer portal — mirrors the in-room recommendation presentation exactly.
+ * Accessible via a signed portal link sent after the survey visit.
  *
- * Design intent:
- *   1. Reassure  — "This recommendation makes sense for my home."
- *   2. Explain   — "Now I understand why."
- *   3. Explore   — "What changes if I choose differently?"
+ * The portal renders the same CanonicalPresentationPage (deck mode) that is
+ * shown to the customer in-room, so every slide is identical.
  *
- * Page structure — guided closing journey (PR10):
- *   A  What we found in your home   (PortalFindingsSection)
- *   B  What Atlas recommends        (PortalRecommendationSection)
- *   C  Why this fits your home      (PortalWhyFitsSection)
- *   D  What to expect               (PortalWhatToExpectSection)
- *   E  Other options considered     (PortalAlternativesSection)
- *   F  See how it behaves           (PortalScenarioSection → simulator)
- *
- * UX rules:
- *   - Recommendation-first — no dashboard chaos above the fold.
- *   - One core idea per section — no mixed-purpose panels.
- *   - Comparison is secondary — never visually overpowers recommendation.
- *   - Simulator is exploration, not doubt — comes after the proof.
- *   - No raw engine jargon surfaced to the customer.
+ * Restrictions vs the in-room view:
+ *   - No "Back" button — customers cannot navigate to other reports or surveys.
+ *   - No survey editing — portal is read-only.
+ *   - Simulator is available inline via the final deck slide CTA.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { getReport } from '../../lib/reports/reportApi';
 import { validatePortalToken } from '../../lib/portal/portalToken';
 import UnifiedSimulatorView from '../simulator/UnifiedSimulatorView';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import { readCanonicalReportPayload } from '../../features/reports/adapters/readCanonicalReportPayload';
-import { buildPortalDisplayModel } from './selectors/buildPortalDisplayModel';
-import { buildPortalJourneyModel } from './selectors/buildPortalJourneyModel';
-import type { PortalDisplayModel } from './types/portalDisplay.types';
-import type { PortalJourneyModel } from './types/portalJourney.types';
-import PortalFindingsSection from './journey/PortalFindingsSection';
-import PortalRecommendationSection from './journey/PortalRecommendationSection';
-import PortalWhyFitsSection from './journey/PortalWhyFitsSection';
-import PortalWhatToExpectSection from './journey/PortalWhatToExpectSection';
-import PortalAlternativesSection from './journey/PortalAlternativesSection';
-import PortalScenarioSection from './journey/PortalScenarioSection';
-import PortalSpatialEvidenceSection from './journey/PortalSpatialEvidenceSection';
+import { runEngine } from '../../engine/Engine';
+import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
+import CanonicalPresentationPage from '../presentation/CanonicalPresentationPage';
 import './CustomerPortalPage.css';
 
 interface Props { reference: string; token?: string; }
@@ -53,14 +33,13 @@ export default function CustomerPortalPage({ reference, token }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tokenDenied, setTokenDenied] = useState<'missing' | 'invalid' | 'expired' | null>(null);
-  const [displayModel, setDisplayModel] = useState<PortalDisplayModel | null>(null);
-  // Legacy fields kept for simulator launch compat during the migration window.
+  const [engineResult, setEngineResult] = useState<FullEngineResult | null>(null);
+  const [engineInput, setEngineInput] = useState<EngineInputV2_3 | null>(null);
+  // surveyData and floorplanOutput are kept for the inline simulator.
   const [surveyData, setSurveyData] = useState<FullSurveyModelV1 | null>(null);
   const [postcode, setPostcode] = useState<string | null>(null);
   const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
   const [showSimulator, setShowSimulator] = useState(false);
-  const [stickyVisible, setStickyVisible] = useState(false);
-  const heroRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,23 +51,29 @@ export default function CustomerPortalPage({ reference, token }: Props) {
       try {
         const tokenResult = await validatePortalToken(reference, token);
         if (tokenResult !== 'valid') {
-          if (!cancelled) { setTokenDenied(tokenResult); }
+          if (!cancelled) { setTokenDenied(tokenResult); setLoading(false); }
           return;
         }
         const report = await getReport(reference);
         if (cancelled) return;
 
-        // Canonical-first: build the portal display model from the payload.
-        const dm = buildPortalDisplayModel(report.payload, report.postcode);
-        if (!dm) throw new Error('This report does not contain recommendation data.');
-        setDisplayModel(dm);
-
-        // Legacy compat: keep surveyData/floorplanOutput for
-        // simulator launch until that consumer migrates to engineRun directly.
         const payloadInfo = readCanonicalReportPayload(report.payload);
-        setSurveyData((payloadInfo.legacy?.surveyData ?? payloadInfo.legacy?.engineInput ?? null) as FullSurveyModelV1 | null);
-        setFloorplanOutput(payloadInfo.legacy?.floorplanOutput ?? undefined);
-        setPostcode(report.postcode ?? null);
+        const engineInputRaw =
+          payloadInfo.engineRun?.engineInput ?? payloadInfo.legacy?.engineInput;
+        if (!engineInputRaw) {
+          throw new Error('This report does not contain the engine input needed to render the presentation.');
+        }
+
+        const input = engineInputRaw as EngineInputV2_3;
+        const result = runEngine(input);
+
+        if (!cancelled) {
+          setEngineInput(input);
+          setEngineResult(result);
+          setSurveyData((payloadInfo.legacy?.surveyData ?? payloadInfo.legacy?.engineInput ?? null) as FullSurveyModelV1 | null);
+          setFloorplanOutput(payloadInfo.legacy?.floorplanOutput ?? undefined);
+          setPostcode(report.postcode ?? null);
+        }
       } catch (err: unknown) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       } finally {
@@ -98,19 +83,6 @@ export default function CustomerPortalPage({ reference, token }: Props) {
     void loadPortal();
     return () => { cancelled = true; };
   }, [reference, token]);
-
-  // Sticky mini-bar: show after the hero scrolls out of view.
-  useEffect(() => {
-    const hero = heroRef.current;
-    // IntersectionObserver may be undefined in test environments (JSDOM).
-    if (!hero || typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver(
-      ([entry]) => { setStickyVisible(!entry.isIntersecting); },
-      { threshold: 0 },
-    );
-    observer.observe(hero);
-    return () => { observer.disconnect(); };
-  }, [loading]);
 
   if (loading) {
     return <div className="portal-page__loading" role="status" aria-live="polite">Loading your recommendation…</div>;
@@ -129,7 +101,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
     );
   }
 
-  if (error || !displayModel || !surveyData) {
+  if (error || !engineResult || !engineInput) {
     const isNotFound = error?.toLowerCase().includes('not found');
     return (
       <div className="portal-page__error" role="alert" data-testid="portal-error">
@@ -139,102 +111,56 @@ export default function CustomerPortalPage({ reference, token }: Props) {
     );
   }
 
-  // Build the portal journey model — two-stage derivation:
-  //   report payload
-  //   → buildPortalDisplayModel()   (PR9 — schema interpretation)
-  //   → buildPortalJourneyModel()   (PR10 — customer narrative)
-  const journeyModel: PortalJourneyModel = buildPortalJourneyModel(displayModel);
-  const engineOutput = displayModel.engineOutput;
-
-  // Simulator launch handler — called by PortalScenarioSection or directly.
-  function handleLaunchScenario(_scenarioId: string) {
-    setShowSimulator(true);
-  }
-
   return (
     <div className="portal-page" data-testid="customer-portal">
 
-      {/* ── Sticky mini summary bar ──────────────────────────────────────── */}
-      <div
-        className={`portal-sticky-bar${stickyVisible ? ' portal-sticky-bar--visible' : ''}`}
-        aria-hidden={!stickyVisible}
-        data-testid="portal-sticky-bar"
-      >
-        <span className="portal-sticky-bar__title">{journeyModel.recommendation.title}</span>
-        <nav className="portal-sticky-bar__nav" aria-label="Quick navigation">
-          <a href="#portal-findings"       className="portal-sticky-bar__link">What we found</a>
-          <a href="#portal-recommendation" className="portal-sticky-bar__link">Recommendation</a>
-          <a href="#portal-why-fits"       className="portal-sticky-bar__link">Why this fits</a>
-          <a href="#portal-alternatives"   className="portal-sticky-bar__link">Other options</a>
-        </nav>
-      </div>
-
-      {/* ── Page header ──────────────────────────────────────────────────── */}
-      <header className="portal-page__hero" data-testid="portal-hero" ref={heroRef}>
+      {/* ── Minimal portal header (brand + postcode only) ─────────────────── */}
+      <header className="portal-page__hero" data-testid="portal-hero">
         <div className="portal-hero__brand-row">
           <span className="portal-page__brand" aria-hidden="true"></span>
           {postcode && <span className="portal-page__postcode">{postcode}</span>}
         </div>
-        <h1 className="portal-hero__title">{journeyModel.title}</h1>
       </header>
 
-      {/* ── A  What we found in your home ───────────────────────────────── */}
-      <div id="portal-findings">
-        <PortalFindingsSection findings={journeyModel.findings} />
-      </div>
-
-      {/* ── B  What Atlas recommends ─────────────────────────────────────── */}
-      <div id="portal-recommendation">
-        <PortalRecommendationSection recommendation={journeyModel.recommendation} />
-      </div>
-
-      {/* ── C  Why this fits your home ───────────────────────────────────── */}
-      <div id="portal-why-fits">
-        <PortalWhyFitsSection whyFits={journeyModel.whyFits} />
-      </div>
-
-      {/* ── D  What to expect ────────────────────────────────────────────── */}
-      <PortalWhatToExpectSection whatToExpect={journeyModel.whatToExpect} />
-
-      {/* ── E  Other options considered ──────────────────────────────────── */}
-      <div id="portal-alternatives">
-        <PortalAlternativesSection alternatives={journeyModel.alternatives} />
-      </div>
-
-      {/* ── F  Property evidence (3D room scans + flue clearance) ─────────── */}
-      {(displayModel.spatialEvidence3d || displayModel.externalClearanceScenes) && (
-        <PortalSpatialEvidenceSection
-          spatialEvidence3d={displayModel.spatialEvidence3d}
-          externalClearanceScenes={displayModel.externalClearanceScenes}
-        />
-      )}
-
-      {/* ── F  See how it behaves / Simulator ───────────────────────────── */}
-      {!showSimulator ? (
-        <PortalScenarioSection
-          scenarios={journeyModel.scenarios}
-          onLaunchScenario={handleLaunchScenario}
-        />
-      ) : (
+      {/* ── Inline simulator (shown when launched from the deck CTA) ─────── */}
+      {showSimulator && surveyData ? (
         <section
           className="portal-section portal-unified-simulator"
           id="portal-simulator"
           aria-labelledby="portal-simulator-heading"
           data-testid="portal-unified-simulator"
         >
+          <div className="portal-simulator__back-row">
+            <button
+              type="button"
+              className="back-btn"
+              onClick={() => setShowSimulator(false)}
+            >
+              ← Back to presentation
+            </button>
+          </div>
           <h2 className="portal-section__heading" id="portal-simulator-heading">
             Live simulator
           </h2>
           <UnifiedSimulatorView
-            engineOutput={engineOutput}
+            engineOutput={engineResult.engineOutput}
             surveyData={surveyData}
             floorplanOutput={floorplanOutput}
             portalMode
           />
         </section>
+      ) : (
+        /* ── Canonical presentation deck — identical to the in-room view ─── */
+        <CanonicalPresentationPage
+          result={engineResult}
+          input={engineInput}
+          recommendationResult={engineResult.recommendationResult}
+          onOpenSimulator={surveyData ? () => setShowSimulator(true) : undefined}
+          deckMode
+        />
       )}
 
-      {/* ── Footer ─────────────────────────────────────────────────── */}
+      {/* ── Footer ───────────────────────────────────────────────────────── */}
       <footer className="portal-page__footer">
         <p className="portal-page__footer-text">
           The evidence is always visible. Setup, proof, outcomes, and advice in one place.

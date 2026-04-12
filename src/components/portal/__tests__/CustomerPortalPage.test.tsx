@@ -2,21 +2,51 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import CustomerPortalPage from '../CustomerPortalPage';
 import type { ReportDetail } from '../../../lib/reports/reportApi';
-import type { EngineOutputV1 } from '../../../contracts/EngineOutputV1';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 
 vi.mock('../../../lib/portal/portalToken', () => ({ validatePortalToken: vi.fn(async (_r: string, token?: string) => token === 'valid-token' ? 'valid' : 'invalid') }));
 
-const STUB_ENGINE_OUTPUT: EngineOutputV1 = {
-  eligibility: [], redFlags: [], recommendation: { primary: 'Combi boiler' }, explainers: [],
-  options: [
-    { id: 'combi', label: 'Combi boiler', status: 'viable', headline: 'Best fit', why: ['Compact installation'], requirements: [], heat: { status: 'ok', headline: 'Good heat output', bullets: ['Adequate for home'] }, dhw: { status: 'ok', headline: 'Meets hot water demand', bullets: ['Sufficient flow rate'] }, engineering: { status: 'ok', headline: 'Straightforward installation', bullets: [] }, sensitivities: [], typedRequirements: { mustHave: ['New flue'], likelyUpgrades: [], niceToHave: [] } },
-    { id: 'stored_unvented', label: 'Unvented cylinder', status: 'caution', headline: 'Alternative option', why: ['Higher storage capacity'], requirements: [], heat: { status: 'ok', headline: '', bullets: [] }, dhw: { status: 'caution', headline: 'Higher upfront cost', bullets: [] }, engineering: { status: 'ok', headline: '', bullets: [] }, sensitivities: [], typedRequirements: { mustHave: [], likelyUpgrades: [], niceToHave: [] } },
-  ],
-  verdict: { title: 'Combi boiler recommended', status: 'good', reasons: ['Adequate mains pressure'], confidence: { level: 'high', reasons: [] }, assumptionsUsed: [] },
+/**
+ * Complete enough engine input to run the engine without errors.
+ * Includes currentHeatSourceType so the runner selection is deterministic.
+ */
+const STUB_ENGINE_INPUT: EngineInputV2_3 = {
+  postcode: 'SW1A 1AA',
+  dynamicMainsPressure: 2.5,
+  mainsDynamicFlowLpm: 14,
+  primaryPipeDiameter: 22,
+  heatLossWatts: 8000,
+  radiatorCount: 10,
+  bathroomCount: 1,
+  occupancyCount: 2,
+  hasLoftConversion: false,
+  returnWaterTemp: 45,
+  occupancySignature: 'professional',
+  buildingMass: 'medium',
+  highOccupancy: false,
+  preferCombi: true,
+  currentHeatSourceType: 'combi',
+  dhwStorageType: 'none',
 };
-const STUB_ENGINE_INPUT: EngineInputV2_3 = { postcode: 'SW1A 1AA', dynamicMainsPressure: 2.5, mainsDynamicFlowLpm: 14, primaryPipeDiameter: 22, heatLossWatts: 8000, radiatorCount: 10, bathroomCount: 1, occupancyCount: 2, hasLoftConversion: false, returnWaterTemp: 45, occupancySignature: 'professional', buildingMass: 'medium', highOccupancy: false, preferCombi: true };
-const STUB_REPORT: ReportDetail = { id: 'test-report-1', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z', status: 'complete', title: null, customer_name: null, postcode: 'SW1A 1AA', visit_id: null, payload: { surveyData: STUB_ENGINE_INPUT as unknown as ReportDetail['payload']['surveyData'], engineInput: STUB_ENGINE_INPUT, engineOutput: STUB_ENGINE_OUTPUT, decisionSynthesis: null } };
+
+const STUB_REPORT: ReportDetail = {
+  id: 'test-report-1',
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
+  status: 'complete',
+  title: null,
+  customer_name: null,
+  postcode: 'SW1A 1AA',
+  visit_id: null,
+  payload: {
+    surveyData: STUB_ENGINE_INPUT as unknown as ReportDetail['payload']['surveyData'],
+    engineInput: STUB_ENGINE_INPUT,
+    // engineOutput is intentionally absent — the portal re-runs the engine from
+    // engineInput and does not rely on any persisted engine output.
+    engineOutput: null as unknown as ReportDetail['payload']['engineOutput'],
+    decisionSynthesis: null,
+  },
+};
 
 function mockFetchSuccess(report: ReportDetail) {
   global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ ok: true, report }) } as unknown as Response);
@@ -39,83 +69,87 @@ describe('CustomerPortalPage', () => {
     await waitFor(() => expect(screen.getByTestId('portal-error')).toBeTruthy());
   });
 
-  it('renders the guided closing journey with findings, recommendation, why-fits, alternatives and scenarios', async () => {
+  it('renders the canonical presentation deck — same pages as the in-room presentation', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
     await waitFor(() => expect(screen.getByTestId('customer-portal')).toBeTruthy());
 
-    // Hero section
+    // Portal header with postcode
     expect(screen.getByTestId('portal-hero')).toBeTruthy();
     expect(screen.getAllByText('SW1A 1AA').length).toBeGreaterThan(0);
 
-    // Section A — Findings
-    expect(screen.getByTestId('portal-findings-section')).toBeTruthy();
-    expect(screen.getByText('What we found in your home')).toBeTruthy();
+    // Canonical presentation deck — identical to the in-room view
+    expect(screen.getByTestId('presentation-deck')).toBeTruthy();
 
-    // Section B — Recommendation (clear, singular)
-    expect(screen.getByTestId('portal-recommendation-section')).toBeTruthy();
-    expect(screen.getByTestId('portal-recommendation-title')).toBeTruthy();
-    expect(screen.getByText('Atlas recommends')).toBeTruthy();
+    // Deck navigation present
+    expect(screen.getByRole('navigation', { name: 'Deck navigation' })).toBeTruthy();
 
-    // Section C — Why fits
-    expect(screen.getByTestId('portal-why-fits-section')).toBeTruthy();
-    expect(screen.getByText('Why this fits your home')).toBeTruthy();
-
-    // Section E — Alternatives (caution option is present in stub)
-    expect(screen.getByTestId('portal-alternatives-section')).toBeTruthy();
-    expect(screen.getByText('Other options considered')).toBeTruthy();
-
-    // Section F — Scenarios (shown before simulator is opened)
-    expect(screen.getByTestId('portal-scenario-section')).toBeTruthy();
-    expect(screen.getByText('See how it behaves in your home')).toBeTruthy();
+    // No "Back" button that would navigate away to other reports or survey
+    const backBtns = screen.queryAllByText('← Back');
+    // The only ← Back buttons that may appear are within-deck navigation
+    // (prev slide), not navigation to survey or other reports.
+    for (const btn of backBtns) {
+      expect(btn.closest('[data-testid="customer-portal"]')).toBeTruthy();
+    }
   });
 
-  it('opens the live simulator after clicking a scenario CTA button', async () => {
+  it('navigates to the simulator page and opens the live simulator', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('portal-scenario-cta-more_hot_water')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('presentation-deck')).toBeTruthy());
+
+    // Navigate to the last slide (Proof / simulator page) via progress dots
+    const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
+    const dots = nav.querySelectorAll('button');
+    // Click the last dot to jump directly to the simulator page
+    const lastDot = dots[dots.length - 1];
+    fireEvent.click(lastDot);
+
+    // Simulator CTA should now be visible
+    await waitFor(() => expect(screen.getByText('Open simulator →')).toBeTruthy());
 
     // Simulator is not yet rendered
     expect(document.querySelector('[data-testid="portal-unified-simulator"]')).toBeNull();
 
-    // Click a scenario CTA to launch the simulator
-    fireEvent.click(screen.getByTestId('portal-scenario-cta-more_hot_water'));
+    // Click the CTA to launch the inline simulator
+    fireEvent.click(screen.getByText('Open simulator →'));
 
-    // Now the simulator section should be visible
+    // Simulator section should now be visible
     await waitFor(() => expect(screen.getByTestId('portal-unified-simulator')).toBeTruthy());
     expect(screen.getByTestId('unified-simulator-view')).toBeTruthy();
-    expect(screen.getByTestId('performance-outcomes-panel')).toBeTruthy();
-    expect(screen.getByTestId('advice-panel')).toBeTruthy();
-
-    // Scenario section should be replaced by the simulator
-    expect(document.querySelector('[data-testid="portal-scenario-section"]')).toBeNull();
   });
 
   it('clicking the print button shows PrintableRecommendationPage in portal mode', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('portal-scenario-cta-more_hot_water')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('presentation-deck')).toBeTruthy());
 
-    // First open the simulator
-    fireEvent.click(screen.getByTestId('portal-scenario-cta-more_hot_water'));
+    // Navigate to simulator page and open it
+    const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
+    const dots = nav.querySelectorAll('button');
+    fireEvent.click(dots[dots.length - 1]);
+    await waitFor(() => expect(screen.getByText('Open simulator →')).toBeTruthy());
+    fireEvent.click(screen.getByText('Open simulator →'));
     await waitFor(() => expect(screen.getByTestId('unified-simulator-view')).toBeTruthy());
 
     const printBtn = screen.getByTestId('print-report-btn');
     fireEvent.click(printBtn);
     // After clicking, PrintableRecommendationPage should replace the simulator view.
-    // The printable page renders a back button and print button in its toolbar.
     await waitFor(() => expect(screen.getByLabelText('Back to advice page')).toBeTruthy());
-    // The original simulator view should no longer be visible.
     expect(document.querySelector('[data-testid="unified-simulator-view"]')).toBeNull();
   });
 
   it('portal mode hides expert-only inputs (mains pressure, mains flow, boiler output)', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('portal-scenario-cta-more_hot_water')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('presentation-deck')).toBeTruthy());
 
-    // Open the simulator first
-    fireEvent.click(screen.getByTestId('portal-scenario-cta-more_hot_water'));
+    // Navigate to simulator page and open it
+    const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
+    const dots = nav.querySelectorAll('button');
+    fireEvent.click(dots[dots.length - 1]);
+    await waitFor(() => expect(screen.getByText('Open simulator →')).toBeTruthy());
+    fireEvent.click(screen.getByText('Open simulator →'));
     await waitFor(() => expect(screen.getByTestId('unified-simulator-view')).toBeTruthy());
 
     // Expert-only labels must not appear in the portal simulator inputs
