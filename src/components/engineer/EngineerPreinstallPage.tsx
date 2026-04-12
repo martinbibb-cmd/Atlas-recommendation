@@ -31,6 +31,8 @@ import { EngineerCurrentSystemPanel } from './EngineerCurrentSystemPanel';
 import { EngineerRequiredWorkPanel } from './EngineerRequiredWorkPanel';
 import { EngineerWarningsPanel } from './EngineerWarningsPanel';
 import { EngineerEvidencePanel } from './EngineerEvidencePanel';
+import { EngineerRoomScanPanel } from './EngineerRoomScanPanel';
+import { EngineerFlueClearancePanel } from './EngineerFlueClearancePanel';
 import { VisitReplayPanel } from '../visit/VisitReplayPanel';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -198,6 +200,12 @@ export default function EngineerPreinstallPage({ visitId, onBack }: Props) {
           <EngineerRequiredWorkPanel model={displayModel} />
           <EngineerWarningsPanel model={displayModel} />
           <EngineerEvidencePanel model={displayModel} />
+          {displayModel.spatialEvidence3d && displayModel.spatialEvidence3d.length > 0 && (
+            <EngineerRoomScanPanel scans={displayModel.spatialEvidence3d} />
+          )}
+          {displayModel.externalClearanceScenes && displayModel.externalClearanceScenes.length > 0 && (
+            <EngineerFlueClearancePanel scenes={displayModel.externalClearanceScenes} />
+          )}
         </>
       )}
 

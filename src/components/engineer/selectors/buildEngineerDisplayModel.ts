@@ -27,6 +27,7 @@ import type {
   EngineerEvidenceSummary,
   KnowledgeStatus,
 } from '../types/engineerDisplay.types';
+import type { SpatialEvidence3D, ExternalClearanceSceneV1 } from '../../../contracts/spatial3dEvidence';
 
 // ─── Field-value helpers ──────────────────────────────────────────────────────
 
@@ -340,6 +341,30 @@ function buildEvidenceSummary(p: AtlasPropertyV1 | null): EngineerEvidenceSummar
   };
 }
 
+// ─── 3D evidence extraction ───────────────────────────────────────────────────
+
+/**
+ * Extracts internal room scan evidence from atlasProperty, if present.
+ * The atlasProperty type from @atlas/contracts may be extended in the iOS app
+ * to include spatialEvidence3d — we read it defensively via cast.
+ */
+function extractSpatialEvidence3D(p: AtlasPropertyV1 | null): SpatialEvidence3D[] | undefined {
+  if (!p) return undefined;
+  const records = (p as unknown as Record<string, unknown>)['spatialEvidence3d'];
+  if (!Array.isArray(records) || records.length === 0) return undefined;
+  return records as SpatialEvidence3D[];
+}
+
+/**
+ * Extracts external flue-clearance scene records from atlasProperty, if present.
+ */
+function extractExternalClearanceScenes(p: AtlasPropertyV1 | null): ExternalClearanceSceneV1[] | undefined {
+  if (!p) return undefined;
+  const records = (p as unknown as Record<string, unknown>)['externalClearanceScenes'];
+  if (!Array.isArray(records) || records.length === 0) return undefined;
+  return records as ExternalClearanceSceneV1[];
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -383,6 +408,10 @@ export function buildEngineerDisplayModel(
   const warnings         = buildWarnings(atlasProperty, knowledgeSummary);
   const evidence         = buildEvidenceSummary(atlasProperty);
 
+  // ── 3D evidence (optional) ────────────────────────────────────────────────
+  const spatialEvidence3d      = extractSpatialEvidence3D(atlasProperty);
+  const externalClearanceScenes = extractExternalClearanceScenes(atlasProperty);
+
   return {
     visitId,
     title,
@@ -397,5 +426,7 @@ export function buildEngineerDisplayModel(
     requiredWork,
     warnings,
     evidence,
+    ...(spatialEvidence3d       ? { spatialEvidence3d }       : {}),
+    ...(externalClearanceScenes ? { externalClearanceScenes } : {}),
   };
 }

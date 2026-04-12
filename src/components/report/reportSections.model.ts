@@ -31,6 +31,7 @@ import type {
 import type { ResimulationFromSurveyResult } from '../../lib/simulator/buildResimulationFromSurvey';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { ScanImportManifest } from '../../features/scanImport/package/ScanImportManifest';
+import type { ExternalClearanceSceneV1 } from '../../contracts/spatial3dEvidence';
 
 // ─── Section types ────────────────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ export type ReportSectionId =
   | 'evidence_summary'
   | 'engineer_summary'
   | 'scans_summary'
+  | 'flue_clearance_summary'
   // ── Simulator-derived sections (new product journey) ──────────────────────
   | 'simulator_outcomes'
   | 'upgrade_path'
@@ -217,6 +219,31 @@ export interface ScansSection {
   blockingIssues: boolean;
 }
 
+/**
+ * Flue clearance summary — image snapshot and compliance outcome for the
+ * external flue area captured during the survey.
+ *
+ * Rendered in print output as image + pass/fail summary only.
+ * The full interactive 3D scene is not shown in reports.
+ */
+export interface FlueClearanceSummarySection {
+  id: 'flue_clearance_summary';
+  /** Preview photograph URL — shown as the primary visual in print. */
+  previewImageUrl?: string;
+  /** Number of clearance measurements captured. */
+  measurementCount: number;
+  /** Number of tagged features (windows, doors, air bricks, etc.). */
+  featureCount: number;
+  /** Compliance pass status. */
+  pass?: boolean;
+  /** Regulatory standard reference (e.g. "BS 6798:2014 Table 1"). */
+  standardRef?: string;
+  /** Human-readable compliance warnings. */
+  warnings: string[];
+  /** Optional deep-link to the interactive flue-clearance scene. */
+  sceneUrl?: string;
+}
+
 // ─── Simulator-derived section interfaces ─────────────────────────────────────
 
 /**
@@ -313,6 +340,7 @@ export type ReportSection =
   | EvidenceSummarySection
   | EngineerSummarySection
   | ScansSection
+  | FlueClearanceSummarySection
   | SimulatorOutcomesSection
   | UpgradePathSection
   | BestFitInstallSection
@@ -826,6 +854,7 @@ export function buildReportSections(
   output: EngineOutputV1,
   engineInput?: Partial<EngineInputV2_3>,
   scanManifest?: ScanImportManifest,
+  clearanceScenes?: ExternalClearanceSceneV1[],
 ): ReportSection[] {
   const sections: ReportSection[] = [];
 
@@ -858,6 +887,12 @@ export function buildReportSections(
   // Scans section — only when a scan manifest is supplied
   if (scanManifest) {
     sections.push(buildScansSection(scanManifest));
+  }
+
+  // Flue clearance summary — only when external clearance scenes are supplied
+  if (clearanceScenes && clearanceScenes.length > 0) {
+    const clearanceSection = buildFlueClearanceSummarySection(clearanceScenes);
+    if (clearanceSection) sections.push(clearanceSection);
   }
 
   return sections;
@@ -1029,4 +1064,32 @@ export function buildSimulatorReportSections(
   if (handoverSection) sections.push(handoverSection);
 
   return sections;
+}
+
+// ─── Flue clearance summary builder ──────────────────────────────────────────
+
+/**
+ * Build a FlueClearanceSummarySection from the first available external
+ * flue-clearance scene.
+ *
+ * Returns null when no scenes are provided (section is omitted from report).
+ */
+export function buildFlueClearanceSummarySection(
+  scenes: ExternalClearanceSceneV1[],
+): FlueClearanceSummarySection | null {
+  if (scenes.length === 0) return null;
+
+  // Use the first scene (most recent capture) as the report representative.
+  const scene = scenes[0];
+
+  return {
+    id: 'flue_clearance_summary',
+    previewImageUrl: scene.evidence.previewImageUrl,
+    measurementCount: scene.measurements.length,
+    featureCount: scene.nearbyFeatures.length,
+    pass: scene.compliance?.pass,
+    standardRef: scene.compliance?.standardRef,
+    warnings: scene.compliance?.warnings ?? [],
+    sceneUrl: scene.evidence.modelUrl,
+  };
 }

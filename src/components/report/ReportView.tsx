@@ -27,6 +27,7 @@ import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { ScanImportManifest } from '../../features/scanImport/package/ScanImportManifest';
 import type { CapturedPhoto } from '../../features/scanImport/session/propertyScanSession';
+import type { ExternalClearanceSceneV1 } from '../../contracts/spatial3dEvidence';
 import { buildPortalUrl } from '../../lib/portal/portalUrl';
 import { generatePortalToken } from '../../lib/portal/portalToken';
 import {
@@ -40,6 +41,7 @@ import {
   type EvidenceSummarySection,
   type EngineerSummarySection,
   type ScansSection,
+  type FlueClearanceSummarySection,
   type ReportSection,
 } from './reportSections.model';
 import ReportCompletenessBanner from './ReportCompletenessBanner';
@@ -70,6 +72,12 @@ interface Props {
    * When provided the report includes a photo grid section.
    */
   capturedPhotos?: CapturedPhoto[];
+  /**
+   * Optional external flue-clearance scenes.
+   * When provided the report includes a flue clearance summary section
+   * (preview image + compliance outcome) after the scans section.
+   */
+  externalClearanceScenes?: ExternalClearanceSceneV1[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -412,6 +420,69 @@ function ScansSummaryRenderer({ section }: { section: ScansSection }) {
   );
 }
 
+function FlueClearanceSummaryRenderer({ section }: { section: FlueClearanceSummarySection }) {
+  const passLabel = section.pass === true ? '✓ Clearances pass' : section.pass === false ? '✗ Clearance issue — review required' : 'Compliance not yet assessed';
+  const passClass = section.pass === true ? 'rv-badge--pass' : section.pass === false ? 'rv-badge--fail' : 'rv-badge--warn';
+
+  return (
+    <section className="rv-section rv-page-break-before rv-flue-clearance-section" aria-labelledby="rv-flue-clearance">
+      <h2 className="rv-section__title" id="rv-flue-clearance">Flue clearance evidence</h2>
+      <p className="rv-section__subtitle">External flue area — captured during survey</p>
+
+      {section.previewImageUrl && (
+        <div className="rv-flue-clearance__preview">
+          <img
+            src={section.previewImageUrl}
+            alt="Flue area preview"
+            className="rv-flue-clearance__img"
+            style={{ width: '100%', maxHeight: '240px', objectFit: 'cover', borderRadius: '6px', marginBottom: '0.75rem' }}
+          />
+        </div>
+      )}
+
+      <span className={`rv-badge ${passClass}`} style={{ display: 'inline-block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: '4px' }}>
+        {passLabel}
+      </span>
+
+      <dl className="rv-dl">
+        <div className="rv-dl-row">
+          <dt className="rv-dt">Clearance measurements</dt>
+          <dd className="rv-dd">{section.measurementCount}</dd>
+        </div>
+        <div className="rv-dl-row">
+          <dt className="rv-dt">Tagged features</dt>
+          <dd className="rv-dd">{section.featureCount}</dd>
+        </div>
+        {section.standardRef && (
+          <div className="rv-dl-row">
+            <dt className="rv-dt">Standard</dt>
+            <dd className="rv-dd">{section.standardRef}</dd>
+          </div>
+        )}
+      </dl>
+
+      {section.warnings.length > 0 && (
+        <div className="rv-decision-block" style={{ marginTop: '0.75rem' }}>
+          <p className="rv-label rv-label--risk">Clearance warnings</p>
+          <ul className="rv-bullet-list" aria-label="Flue clearance warnings">
+            {section.warnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {section.sceneUrl && (
+        <p className="rv-scan-detail" style={{ marginTop: '0.5rem', fontSize: '0.78rem' }}>
+          Full scene:{' '}
+          <a href={section.sceneUrl} target="_blank" rel="noopener noreferrer" className="rv-link">
+            View interactive clearance scene ↗
+          </a>
+          <span className="rv-print-only"> (see portal for 3D view)</span>
+        </p>
+      )}
+    </section>
+  );
+}
+
 interface PhotosSectionProps {
   photos: CapturedPhoto[];
 }
@@ -464,6 +535,8 @@ function RenderSection({ section }: { section: ReportSection }) {
       return <EngineerSummaryRenderer section={section} />;
     case 'scans_summary':
       return <ScansSummaryRenderer section={section} />;
+    case 'flue_clearance_summary':
+      return <FlueClearanceSummaryRenderer section={section} />;
     // Simulator-derived sections (rendered by SimulatorReportView, not here)
     default:
       return null;
@@ -472,7 +545,7 @@ function RenderSection({ section }: { section: ReportSection }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ReportView({ output, onBack, reportReference, engineInput, scanManifest, capturedPhotos }: Props) {
+export default function ReportView({ output, onBack, reportReference, engineInput, scanManifest, capturedPhotos, externalClearanceScenes }: Props) {
   const [portalUrl, setPortalUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -557,7 +630,7 @@ export default function ReportView({ output, onBack, reportReference, engineInpu
     );
   }
 
-  const sections = buildReportSections(output, engineInput, scanManifest);
+  const sections = buildReportSections(output, engineInput, scanManifest, externalClearanceScenes);
   const engineerSection = sections.find(s => s.id === 'engineer_summary') as EngineerSummarySection | undefined;
   const confidenceLevel = engineerSection?.confidenceLevel ?? '—';
   const generatedDate = formatCurrentDate();

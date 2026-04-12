@@ -2,6 +2,7 @@
  * engineerDisplay.types.ts
  *
  * PR11 — Engineer-facing display model types.
+ * Updated: added optional 3D evidence fields (SpatialEvidence3D, ExternalClearanceSceneV1).
  *
  * EngineerDisplayModel is the single data contract for all engineer route panels.
  * Components must consume this model — never raw payload shapes.
@@ -135,4 +136,16 @@ export interface EngineerDisplayModel {
 
   /** Aggregated evidence counts for the evidence panel. */
   evidence: EngineerEvidenceSummary;
+
+  /**
+   * Internal room scan evidence records (RoomPlan / LiDAR captures).
+   * Absent when no indoor 3D scans have been linked to this property.
+   */
+  spatialEvidence3d?: import('../../../contracts/spatial3dEvidence').SpatialEvidence3D[];
+
+  /**
+   * External flue-clearance scene records (ARKit tagged feature captures).
+   * Absent when no outdoor flue scenes have been captured.
+   */
+  externalClearanceScenes?: import('../../../contracts/spatial3dEvidence').ExternalClearanceSceneV1[];
 }
