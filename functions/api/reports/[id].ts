@@ -45,6 +45,29 @@ interface ReportRow {
   payload_json: string;
 }
 
+function hasRenderableEngineOutput(payload: unknown): boolean {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+
+  // Legacy snapshots persist engineOutput at the root of the payload.
+  if ("engineOutput" in payload) {
+    return true;
+  }
+
+  // Canonical snapshots persist it under payload.engineRun.engineOutput.
+  if (!("engineRun" in payload)) {
+    return false;
+  }
+
+  const engineRun = (payload as { engineRun?: unknown }).engineRun;
+  if (typeof engineRun !== "object" || engineRun === null) {
+    return false;
+  }
+
+  return "engineOutput" in engineRun;
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env, params } = context;
   const id = params["id"] as string;
@@ -75,16 +98,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // Validate that essential payload fields exist so callers can trust the shape.
-    if (
-      typeof payload !== "object" ||
-      payload === null ||
-      !("engineOutput" in payload)
-    ) {
+    if (!hasRenderableEngineOutput(payload)) {
       return Response.json(
         {
           ok: false,
           error:
-            "Incomplete report snapshot: payload is missing required engineOutput field",
+            "Incomplete report snapshot: payload is missing required engine output",
         },
         { status: 422 }
       );
