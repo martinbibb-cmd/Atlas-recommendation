@@ -144,7 +144,7 @@ export default function PortalSpatialEvidenceSection({ spatialEvidence3d, extern
 
       <p className="portal-spatial__intro">
         During the survey, our engineer captured 3D evidence of your home. This is used for visual
-        reference and compliance checks — it does not affect the recommendation calculation.
+        reference and compliance checks — it does not affect the heating system recommendation.
       </p>
 
       <div className="portal-spatial__grid">
