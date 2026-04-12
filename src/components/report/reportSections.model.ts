@@ -11,13 +11,16 @@
  * This module must NOT re-derive engine physics.
  * All values come from EngineOutputV1 or normalized survey state already in use.
  *
- * Report structure — five-page decision document
+ * Report structure — detailed decision document
  * ──────────────────────────────────────────────────────────────────────────────
- *  Page 1 — decision_page     : The decision (constraint → system → why)
- *  Page 2 — daily_experience  : What daily use looks like with the new system
- *  Page 3 — what_changes      : Required installation changes only
- *  Page 4 — alternatives_page : One controlled alternative with trade-offs
- *  Page 5 — engineer_summary  : Engineer job-reference snapshot
+ *  Section 0 — current_system    : Existing installation snapshot (when input available)
+ *  Page 1    — decision_page     : The decision (constraint → system → why)
+ *  Page 2    — daily_experience  : What daily use looks like with the new system
+ *  Page 3    — what_changes      : Required installation changes only
+ *  Page 4    — alternatives_page : One controlled alternative with trade-offs
+ *  Section E — evidence_summary  : Full measured/derived evidence table (when present)
+ *  Page 5    — engineer_summary  : Engineer job-reference snapshot
+ *  Section S — scans_summary     : Atlas Scan package metadata (when scan manifest provided)
  */
 
 import type {
@@ -26,16 +29,21 @@ import type {
   OptionCardV1,
 } from '../../contracts/EngineOutputV1';
 import type { ResimulationFromSurveyResult } from '../../lib/simulator/buildResimulationFromSurvey';
+import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
+import type { ScanImportManifest } from '../../features/scanImport/package/ScanImportManifest';
 
 // ─── Section types ────────────────────────────────────────────────────────────
 
 export type ReportSectionId =
   // ── Five-page decision document (primary report) ──────────────────────────
+  | 'current_system'
   | 'decision_page'
   | 'daily_experience'
   | 'what_changes'
   | 'alternatives_page'
+  | 'evidence_summary'
   | 'engineer_summary'
+  | 'scans_summary'
   // ── Simulator-derived sections (new product journey) ──────────────────────
   | 'simulator_outcomes'
   | 'upgrade_path'
@@ -140,6 +148,75 @@ export interface EngineerSummarySection {
   beforeYouStart: string[];
 }
 
+// ─── New detailed summary sections ───────────────────────────────────────────
+
+/**
+ * Current system — a structured snapshot of the existing heating installation.
+ *
+ * Derived from optional engine input fields so it can be omitted gracefully
+ * when the survey data is not available to the report renderer.
+ */
+export interface CurrentSystemSection {
+  id: 'current_system';
+  /** Human-readable label for the existing heat source, e.g. "Gas combi boiler". */
+  heatSourceLabel: string;
+  /** Key/value facts about the current installation. */
+  facts: Array<{ label: string; value: string }>;
+  /**
+   * Context bullets from the engine's contextSummary — a brief plain-language
+   * description of the current system as interpreted by the engine.
+   */
+  contextBullets: string[];
+  /**
+   * Red flags from the engine output that describe problems with the current
+   * system (rather than new-system eligibility issues).
+   */
+  currentSystemFlags: Array<{ title: string; detail: string; severity: 'info' | 'warn' | 'fail' }>;
+}
+
+/**
+ * Evidence summary — the full set of measured/derived values that drove the
+ * engine's recommendation.
+ *
+ * Exposes every EvidenceItemV1 so the reader can trace the decision back to
+ * specific survey inputs.
+ */
+export interface EvidenceSummarySection {
+  id: 'evidence_summary';
+  items: Array<{
+    label: string;
+    value: string;
+    source: 'manual' | 'assumed' | 'placeholder' | 'derived';
+    confidence: 'high' | 'medium' | 'low';
+  }>;
+}
+
+/**
+ * Scans summary — metadata from an Atlas Scan package imported for this
+ * property.  Rendered only when scan data is available.
+ */
+export interface ScansSection {
+  id: 'scans_summary';
+  /** Human-readable job / visit reference from the scan manifest. */
+  jobRef: string;
+  /** Free-text property address from the manifest. */
+  propertyAddress: string;
+  /** ISO-8601 timestamp of package generation. */
+  generatedAt: string;
+  /** Total rooms in the scan bundle. */
+  roomCount: number;
+  /** Rooms reviewed by the scan operator. */
+  reviewedRoomCount: number;
+  /** Total detected objects across all rooms. */
+  totalObjects: number;
+  /** Total photos attached to this package. */
+  totalPhotos: number;
+  /** Human-readable warnings raised by the scan client. */
+  validationWarnings: string[];
+  /** Whether the scan client flagged blocking issues that prevented auto-import. */
+  blockingIssues: boolean;
+}
+
 // ─── Simulator-derived section interfaces ─────────────────────────────────────
 
 /**
@@ -228,11 +305,14 @@ export interface HandoverNotesSection {
 }
 
 export type ReportSection =
+  | CurrentSystemSection
   | DecisionPageSection
   | DailyExperienceSection
   | WhatChangesSection
   | AlternativesPageSection
+  | EvidenceSummarySection
   | EngineerSummarySection
+  | ScansSection
   | SimulatorOutcomesSection
   | UpgradePathSection
   | BestFitInstallSection
@@ -599,20 +679,159 @@ function buildEngineerSummarySection(output: EngineOutputV1): EngineerSummarySec
   };
 }
 
+// ─── New section builders ─────────────────────────────────────────────────────
+
+/**
+ * Current system — derives a snapshot of the existing installation from
+ * the optional engine input.  Returns null when no meaningful data is available.
+ */
+function buildCurrentSystemSection(
+  output: EngineOutputV1,
+  engineInput?: Partial<EngineInputV2_3>,
+): CurrentSystemSection | null {
+  const facts: Array<{ label: string; value: string }> = [];
+
+  // Prefer structured currentSystem.boiler block; fall back to flat top-level fields.
+  const boiler = engineInput?.currentSystem?.boiler;
+  const heatSourceType = boiler?.type ?? engineInput?.currentHeatSourceType;
+  const ageYears = boiler?.ageYears ?? engineInput?.currentBoilerAgeYears;
+  const outputKw = boiler?.nominalOutputKw ?? engineInput?.currentBoilerOutputKw;
+  const gcNumber = boiler?.gcNumber;
+  const condensing = boiler?.condensing;
+  const makeModel = engineInput?.makeModelText;
+
+  // If no current system data at all, omit the section.
+  if (!heatSourceType && !ageYears && !outputKw && !gcNumber && !makeModel) {
+    return null;
+  }
+
+  const HEAT_SOURCE_LABELS: Record<string, string> = {
+    combi:        'Gas combi boiler',
+    system:       'System boiler',
+    regular:      'Regular (heat-only) boiler',
+    back_boiler:  'Back boiler',
+    ashp:         'Air source heat pump',
+    other:        'Other heat source',
+    unknown:      'Unknown heat source',
+  };
+
+  const heatSourceLabel = heatSourceType
+    ? (HEAT_SOURCE_LABELS[heatSourceType] ?? heatSourceType)
+    : 'Existing heating system';
+
+  if (makeModel) {
+    facts.push({ label: 'Make / model', value: makeModel });
+  }
+  if (gcNumber) {
+    facts.push({ label: 'GC number', value: gcNumber });
+  }
+  if (ageYears != null) {
+    facts.push({ label: 'Approximate age', value: `${ageYears} year${ageYears !== 1 ? 's' : ''}` });
+  }
+  if (outputKw != null) {
+    facts.push({ label: 'Rated output', value: `${outputKw} kW` });
+  }
+  if (condensing && condensing !== 'unknown') {
+    facts.push({ label: 'Condensing', value: condensing === 'yes' ? 'Yes' : 'No' });
+  }
+  if (engineInput?.currentSystem?.emittersType) {
+    const emitterLabels: Record<string, string> = {
+      radiators_standard: 'Standard radiators',
+      radiators_designer: 'Designer radiators',
+      underfloor:         'Underfloor heating',
+      mixed:              'Mixed emitters',
+    };
+    facts.push({ label: 'Emitters', value: emitterLabels[engineInput.currentSystem.emittersType] ?? engineInput.currentSystem.emittersType });
+  }
+  if (engineInput?.currentSystem?.pipeLayout) {
+    const pipeLabels: Record<string, string> = {
+      two_pipe:  'Two-pipe system',
+      one_pipe:  'One-pipe system',
+      microbore: 'Microbore pipework',
+      manifold:  'Manifold (UFH-style)',
+      unknown:   'Unknown layout',
+    };
+    facts.push({ label: 'Pipe layout', value: pipeLabels[engineInput.currentSystem.pipeLayout] ?? engineInput.currentSystem.pipeLayout });
+  }
+
+  const contextBullets = output.contextSummary?.bullets ?? [];
+
+  // Red flags referencing the existing system (typically severity warn/info about current install).
+  const currentSystemFlags = (output.redFlags ?? [])
+    .filter(f => f.severity === 'warn' || f.severity === 'info')
+    .map(f => ({ title: f.title, detail: f.detail, severity: f.severity }));
+
+  return {
+    id: 'current_system',
+    heatSourceLabel,
+    facts,
+    contextBullets,
+    currentSystemFlags,
+  };
+}
+
+/**
+ * Evidence summary — exposes all measured/derived evidence items so the reader
+ * can trace the decision back to specific survey inputs.
+ * Returns null when the engine output contains no evidence items.
+ */
+function buildEvidenceSummarySection(output: EngineOutputV1): EvidenceSummarySection | null {
+  const items = output.evidence ?? [];
+  if (items.length === 0) return null;
+  return {
+    id: 'evidence_summary',
+    items: items.map(e => ({
+      label:      e.label,
+      value:      e.value,
+      source:     e.source,
+      confidence: e.confidence,
+    })),
+  };
+}
+
+/**
+ * Scans summary — converts a ScanImportManifest into a report section.
+ */
+function buildScansSection(manifest: ScanImportManifest): ScansSection {
+  return {
+    id: 'scans_summary',
+    jobRef:             manifest.jobRef,
+    propertyAddress:    manifest.propertyAddress,
+    generatedAt:        manifest.generatedAt,
+    roomCount:          manifest.stats.roomCount,
+    reviewedRoomCount:  manifest.stats.reviewedRoomCount,
+    totalObjects:       manifest.stats.totalObjects,
+    totalPhotos:        manifest.stats.totalPhotos,
+    validationWarnings: manifest.validationWarnings,
+    blockingIssues:     manifest.blockingIssues,
+  };
+}
+
 // ─── Main builder ─────────────────────────────────────────────────────────────
 
 /**
  * Build an ordered list of printable report sections from engine output.
  *
- * Produces a five-page decision document:
- *   Page 1 — decision_page     : constraint → consequence → system → why
- *   Page 2 — daily_experience  : typical-day scenarios (omitted when no option data)
- *   Page 3 — what_changes      : required install changes (omitted when no option data)
- *   Page 4 — alternatives_page : one alternative with trade-offs (omitted when no options)
- *   Page 5 — engineer_summary  : job-reference snapshot
+ * Produces a detailed decision document:
+ *   Section 0 — current_system    : existing installation snapshot (when input available)
+ *   Page 1    — decision_page     : constraint → consequence → system → why
+ *   Page 2    — daily_experience  : typical-day scenarios (omitted when no option data)
+ *   Page 3    — what_changes      : required install changes (omitted when no option data)
+ *   Page 4    — alternatives_page : one alternative with trade-offs (omitted when no options)
+ *   Section E — evidence_summary  : full evidence table (when present)
+ *   Page 5    — engineer_summary  : job-reference snapshot
+ *   Section S — scans_summary     : scan package metadata (when scan manifest provided)
  */
-export function buildReportSections(output: EngineOutputV1): ReportSection[] {
+export function buildReportSections(
+  output: EngineOutputV1,
+  engineInput?: Partial<EngineInputV2_3>,
+  scanManifest?: ScanImportManifest,
+): ReportSection[] {
   const sections: ReportSection[] = [];
+
+  // Section 0 — current system (omitted when no input data available)
+  const currentSystemSection = buildCurrentSystemSection(output, engineInput);
+  if (currentSystemSection) sections.push(currentSystemSection);
 
   // Page 1 — always present
   sections.push(buildDecisionPageSection(output));
@@ -629,8 +848,17 @@ export function buildReportSections(output: EngineOutputV1): ReportSection[] {
   const altSection = buildAlternativesPageSection(output);
   if (altSection) sections.push(altSection);
 
+  // Evidence summary — full trace of measured/derived inputs
+  const evidenceSection = buildEvidenceSummarySection(output);
+  if (evidenceSection) sections.push(evidenceSection);
+
   // Page 5 — always present
   sections.push(buildEngineerSummarySection(output));
+
+  // Scans section — only when a scan manifest is supplied
+  if (scanManifest) {
+    sections.push(buildScansSection(scanManifest));
+  }
 
   return sections;
 }

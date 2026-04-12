@@ -1,34 +1,45 @@
 /**
  * ReportView.tsx
  *
- * Unified printable report surface — five-page decision document.
+ * Unified printable report surface — detailed decision document.
  *
  * Structure
  * ──────────
  *  Report header
  *  Completeness banner (if partial)
  *
- *  Page 1 — decision_page     : constraint → consequence → system → why required
- *  Page 2 — daily_experience  : typical-day use scenarios
- *  Page 3 — what_changes      : required installation changes
- *  Page 4 — alternatives_page : one controlled alternative with trade-offs
- *  Page 5 — engineer_summary  : job-reference snapshot
+ *  Section 0 — current_system    : existing installation snapshot (when input available)
+ *  Page 1    — decision_page     : constraint → consequence → system → why required
+ *  Page 2    — daily_experience  : typical-day use scenarios
+ *  Page 3    — what_changes      : required installation changes
+ *  Page 4    — alternatives_page : one controlled alternative with trade-offs
+ *  Section E — evidence_summary  : full measured/derived evidence table
+ *  Page 5    — engineer_summary  : job-reference snapshot
+ *  Section S — scans_summary     : Atlas Scan package metadata (when available)
+ *  Section P — photos            : captured property photos (when available)
+ *  QR footer — portal link
  *
  * Printed output is print-first. Interactive chrome is hidden via @media print.
  */
 
 import { useState, useEffect } from 'react';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
+import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
+import type { ScanImportManifest } from '../../features/scanImport/package/ScanImportManifest';
+import type { CapturedPhoto } from '../../features/scanImport/session/propertyScanSession';
 import { buildPortalUrl } from '../../lib/portal/portalUrl';
 import { generatePortalToken } from '../../lib/portal/portalToken';
 import {
   checkCompleteness,
   buildReportSections,
+  type CurrentSystemSection,
   type DecisionPageSection,
   type DailyExperienceSection,
   type WhatChangesSection,
   type AlternativesPageSection,
+  type EvidenceSummarySection,
   type EngineerSummarySection,
+  type ScansSection,
   type ReportSection,
 } from './reportSections.model';
 import ReportCompletenessBanner from './ReportCompletenessBanner';
@@ -44,6 +55,21 @@ interface Props {
   onBack?: () => void;
   /** Optional report reference used to generate the customer portal QR code. */
   reportReference?: string;
+  /**
+   * Optional engine input — when provided the report includes a "current system"
+   * section derived from the survey inputs that drove this engine run.
+   */
+  engineInput?: Partial<EngineInputV2_3>;
+  /**
+   * Optional scan manifest — when provided the report includes a "scans" section
+   * summarising the Atlas Scan package imported for this property.
+   */
+  scanManifest?: ScanImportManifest;
+  /**
+   * Optional captured photos from the scan session.
+   * When provided the report includes a photo grid section.
+   */
+  capturedPhotos?: CapturedPhoto[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -61,6 +87,57 @@ function formatCurrentDate(): string {
 }
 
 // ─── Section renderers ────────────────────────────────────────────────────────
+
+const SEVERITY_ICON: Record<'info' | 'warn' | 'fail', string> = {
+  info: 'ℹ',
+  warn: '⚠',
+  fail: '✕',
+};
+
+function CurrentSystemRenderer({ section }: { section: CurrentSystemSection }) {
+  return (
+    <section className="rv-section rv-current-system" aria-labelledby="rv-current-system">
+      <h2 className="rv-section__title" id="rv-current-system">Current system</h2>
+      <p className="rv-section__subtitle">{section.heatSourceLabel}</p>
+
+      {section.facts.length > 0 && (
+        <dl className="rv-dl">
+          {section.facts.map((f, i) => (
+            <div key={i} className="rv-dl-row">
+              <dt className="rv-dt">{f.label}</dt>
+              <dd className="rv-dd">{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
+      {section.contextBullets.length > 0 && (
+        <div className="rv-decision-block" style={{ marginTop: '0.75rem' }}>
+          <p className="rv-label">System context</p>
+          <ul className="rv-bullet-list" aria-label="System context summary">
+            {section.contextBullets.map((b, i) => <li key={i}>{b}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {section.currentSystemFlags.length > 0 && (
+        <div className="rv-decision-block" style={{ marginTop: '0.75rem' }}>
+          <p className="rv-label">Notes on current installation</p>
+          <ul className="rv-flag-list" aria-label="Current system flags">
+            {section.currentSystemFlags.map((f, i) => (
+              <li key={i} className={`rv-flag rv-flag--${f.severity}`}>
+                <span className="rv-flag__icon" aria-hidden="true">{SEVERITY_ICON[f.severity]}</span>
+                <span className="rv-flag__body">
+                  <strong>{f.title}</strong>{f.detail ? ` — ${f.detail}` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
 
 function DecisionPageRenderer({ section }: { section: DecisionPageSection }) {
   return (
@@ -231,8 +308,148 @@ function EngineerSummaryRenderer({ section }: { section: EngineerSummarySection 
 
 // ─── Section dispatcher ───────────────────────────────────────────────────────
 
+const SOURCE_LABEL: Record<string, string> = {
+  manual:      'Measured',
+  assumed:     'Assumed',
+  placeholder: 'Placeholder',
+  derived:     'Derived',
+};
+
+const CONFIDENCE_LABEL: Record<string, string> = {
+  high:   'High',
+  medium: 'Medium',
+  low:    'Low',
+};
+
+function EvidenceSummaryRenderer({ section }: { section: EvidenceSummarySection }) {
+  return (
+    <section className="rv-section rv-page-break-before" aria-labelledby="rv-evidence-summary">
+      <h2 className="rv-section__title" id="rv-evidence-summary">Measurements collected</h2>
+      <p className="rv-section__subtitle">
+        All inputs used by the engine to produce this recommendation
+      </p>
+      <table className="rv-evidence-table" aria-label="Engine evidence">
+        <thead>
+          <tr>
+            <th className="rv-evidence-table__th">Input</th>
+            <th className="rv-evidence-table__th">Value</th>
+            <th className="rv-evidence-table__th">Source</th>
+            <th className="rv-evidence-table__th">Confidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {section.items.map((item, i) => (
+            <tr key={i} className={`rv-evidence-table__row rv-evidence-table__row--${item.confidence}`}>
+              <td className="rv-evidence-table__td">{item.label}</td>
+              <td className="rv-evidence-table__td rv-evidence-table__td--value">{item.value}</td>
+              <td className="rv-evidence-table__td">{SOURCE_LABEL[item.source] ?? item.source}</td>
+              <td className="rv-evidence-table__td">{CONFIDENCE_LABEL[item.confidence] ?? item.confidence}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function ScansSummaryRenderer({ section }: { section: ScansSection }) {
+  const formattedDate = (() => {
+    try {
+      return new Date(section.generatedAt).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch {
+      return section.generatedAt;
+    }
+  })();
+
+  return (
+    <section className="rv-section rv-page-break-before rv-scans-section" aria-labelledby="rv-scans-summary">
+      <h2 className="rv-section__title" id="rv-scans-summary">Scans</h2>
+      <p className="rv-section__subtitle">{section.propertyAddress}</p>
+      <dl className="rv-dl">
+        <div className="rv-dl-row">
+          <dt className="rv-dt">Job reference</dt>
+          <dd className="rv-dd">{section.jobRef}</dd>
+        </div>
+        <div className="rv-dl-row">
+          <dt className="rv-dt">Captured</dt>
+          <dd className="rv-dd">{formattedDate}</dd>
+        </div>
+        <div className="rv-dl-row">
+          <dt className="rv-dt">Rooms</dt>
+          <dd className="rv-dd">{section.roomCount} total, {section.reviewedRoomCount} reviewed</dd>
+        </div>
+        <div className="rv-dl-row">
+          <dt className="rv-dt">Detected objects</dt>
+          <dd className="rv-dd">{section.totalObjects}</dd>
+        </div>
+        <div className="rv-dl-row">
+          <dt className="rv-dt">Photos</dt>
+          <dd className="rv-dd">{section.totalPhotos}</dd>
+        </div>
+      </dl>
+      {section.blockingIssues && (
+        <div className="rv-decision-block" style={{ marginTop: '0.75rem' }}>
+          <p className="rv-label rv-label--risk">Blocking issues detected</p>
+          <p className="rv-scan-warning">
+            The scan client flagged issues that may require manual review before the floor
+            plan can be used.
+          </p>
+        </div>
+      )}
+      {section.validationWarnings.length > 0 && (
+        <div className="rv-decision-block" style={{ marginTop: '0.75rem' }}>
+          <p className="rv-label">Scan warnings</p>
+          <ul className="rv-bullet-list" aria-label="Scan validation warnings">
+            {section.validationWarnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+interface PhotosSectionProps {
+  photos: CapturedPhoto[];
+}
+
+function PhotosSectionRenderer({ photos }: PhotosSectionProps) {
+  if (photos.length === 0) return null;
+  return (
+    <section className="rv-section rv-page-break-before rv-photos-section" aria-labelledby="rv-photos">
+      <h2 className="rv-section__title" id="rv-photos">Photos</h2>
+      <p className="rv-section__subtitle">{photos.length} photo{photos.length !== 1 ? 's' : ''} captured during survey</p>
+      <div className="rv-photo-grid" role="list">
+        {photos.map((photo) => (
+          <figure key={photo.id} className="rv-photo-item" role="listitem">
+            <img
+              className="rv-photo-item__img"
+              src={photo.localFileURL}
+              alt={photo.note ?? `Photo ${photo.id}`}
+              loading="lazy"
+            />
+            {(photo.note || photo.issueTag) && (
+              <figcaption className="rv-photo-item__caption">
+                {photo.issueTag && (
+                  <span className="rv-photo-item__tag">{photo.issueTag}</span>
+                )}
+                {photo.note && <span>{photo.note}</span>}
+              </figcaption>
+            )}
+          </figure>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function RenderSection({ section }: { section: ReportSection }) {
   switch (section.id) {
+    case 'current_system':
+      return <CurrentSystemRenderer section={section} />;
     case 'decision_page':
       return <DecisionPageRenderer section={section} />;
     case 'daily_experience':
@@ -241,8 +458,12 @@ function RenderSection({ section }: { section: ReportSection }) {
       return <WhatChangesRenderer section={section} />;
     case 'alternatives_page':
       return <AlternativesPageRenderer section={section} />;
+    case 'evidence_summary':
+      return <EvidenceSummaryRenderer section={section} />;
     case 'engineer_summary':
       return <EngineerSummaryRenderer section={section} />;
+    case 'scans_summary':
+      return <ScansSummaryRenderer section={section} />;
     // Simulator-derived sections (rendered by SimulatorReportView, not here)
     default:
       return null;
@@ -251,7 +472,7 @@ function RenderSection({ section }: { section: ReportSection }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ReportView({ output, onBack, reportReference }: Props) {
+export default function ReportView({ output, onBack, reportReference, engineInput, scanManifest, capturedPhotos }: Props) {
   const [portalUrl, setPortalUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -336,7 +557,7 @@ export default function ReportView({ output, onBack, reportReference }: Props) {
     );
   }
 
-  const sections = buildReportSections(output);
+  const sections = buildReportSections(output, engineInput, scanManifest);
   const engineerSection = sections.find(s => s.id === 'engineer_summary') as EngineerSummarySection | undefined;
   const confidenceLevel = engineerSection?.confidenceLevel ?? '—';
   const generatedDate = formatCurrentDate();
@@ -386,6 +607,11 @@ export default function ReportView({ output, onBack, reportReference }: Props) {
       {sections.map((section) => (
         <RenderSection key={section.id} section={section} />
       ))}
+
+      {/* ── Photos section (optional) ─────────────────────────────────────── */}
+      {capturedPhotos && capturedPhotos.length > 0 && (
+        <PhotosSectionRenderer photos={capturedPhotos} />
+      )}
 
       {/* ── QR code footer — portal link ──────────────────────────────────── */}
       {reportReference && (
