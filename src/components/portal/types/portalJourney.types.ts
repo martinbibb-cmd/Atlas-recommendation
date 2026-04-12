@@ -39,6 +39,30 @@ export interface JourneyRecommendation {
   keyBenefits: string[];
   /** Optional confidence tone label, e.g. "High confidence (measured)". */
   confidenceLabel?: string;
+  /**
+   * True when the recommendation is causally linked to real physics evidence
+   * (a primary constraint was identified or the run was a verified clean pass).
+   * False when the engine lacked enough data to produce a confident, evidence-backed
+   * recommendation — in which case the UI must show the "We need more information"
+   * guard instead of a recommendation card.
+   */
+  physicsReady: boolean;
+  /**
+   * The dominant limiter ID that most influenced this recommendation, e.g.
+   * 'combi_service_switching'.  Null for a clean run (no constraining limiters).
+   * Undefined when `physicsReady` is false.
+   */
+  primaryConstraint?: string | null;
+  /**
+   * Key positive evidence IDs (event types, timeline keys, module fields) that
+   * supported this recommendation.  Empty when none were recorded.
+   */
+  supportingEvents?: readonly string[];
+  /**
+   * Fit-map axis scores of the recommended option.
+   * Absent when fit-map data was not available.
+   */
+  fitMapPosition?: { readonly heatingScore: number; readonly dhwScore: number };
 }
 
 export interface JourneyWhyFitsItem {
