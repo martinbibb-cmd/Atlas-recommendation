@@ -351,6 +351,14 @@ export interface RecommendationContextSignals {
    *   low    → no adjustment.
    */
   solarStorageOpportunity: import('../modules/PvAssessmentModule').SolarStorageOpportunity;
+
+  /**
+   * User-expressed preferences from the survey (spacePriority, disruptionTolerance,
+   * selectedPriorities).  When present, the engine derives scenario-specific objective
+   * weights so that bestOverall reflects the household's stated priorities rather than
+   * a single fixed weighting applied to every survey.
+   */
+  userPreferences?: import('../schema/EngineInputV2_3').UserPreferencesV1;
 }
 
 // ─── "Why not this option?" explanation ───────────────────────────────────────

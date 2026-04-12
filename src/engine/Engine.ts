@@ -170,6 +170,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
   const recommendationResult = buildRecommendationsFromEvidence(bundles, input.productConstraints, {
     storageBenefitSignal: core.demographicOutputs.storageBenefitSignal,
     solarStorageOpportunity: core.pvAssessment.solarStorageOpportunity,
+    userPreferences: input.preferences,
   });
 
   // Pass canonicalBestFamily so engineOutput.recommendation.primary always

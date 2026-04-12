@@ -700,5 +700,23 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
     }
   }
 
+  // ── Survey priorities → preferences.selectedPriorities ──────────────────
+  // Populate preferences.selectedPriorities from fullSurvey.priorities.selected
+  // so the recommendation engine can derive scenario-specific objective weights.
+  // Existing preferences are preserved; only selectedPriorities is set when the
+  // survey priorities step has been completed and selectedPriorities is not
+  // already set on the model.
+  const surveyPriorities = sanitised.fullSurvey?.priorities?.selected;
+  if (surveyPriorities != null && surveyPriorities.length > 0) {
+    if (sanitised.preferences == null) {
+      sanitised.preferences = { selectedPriorities: surveyPriorities };
+    } else if (sanitised.preferences.selectedPriorities == null) {
+      sanitised.preferences = {
+        ...sanitised.preferences,
+        selectedPriorities: surveyPriorities,
+      };
+    }
+  }
+
   return sanitised;
 }
