@@ -821,7 +821,7 @@ export function buildRecommendationsFromEvidence(
 
   // Physics anchor fields: primaryConstraint, supportingEvents, fitMapPosition
   const primaryConstraint = derivePrimaryConstraint(bestOverall, bundles);
-  const supportingEvents   = bestOverall?.evidenceTrace.positiveEvidence.slice() ?? [];
+  const supportingEvents   = bestOverall?.evidenceTrace.positiveEvidence ?? [];
   const fitMapPosition     = deriveFitMapPosition(bestOverall, bundles);
 
   return {
@@ -849,7 +849,7 @@ export function buildRecommendationsFromEvidence(
  *   4. null — genuinely clean run with no constraints
  */
 function derivePrimaryConstraint(
-  bestOverall: import('./RecommendationModel').RecommendationDecision | null,
+  bestOverall: RecommendationDecision | null,
   bundles: readonly CandidateEvidenceBundle[],
 ): string | null {
   if (!bestOverall) return null;
@@ -878,7 +878,7 @@ function derivePrimaryConstraint(
  * Returns the fit-map axis scores for the best-overall candidate.
  */
 function deriveFitMapPosition(
-  bestOverall: import('./RecommendationModel').RecommendationDecision | null,
+  bestOverall: RecommendationDecision | null,
   bundles: readonly CandidateEvidenceBundle[],
 ): { readonly heatingScore: number; readonly dhwScore: number } | null {
   if (!bestOverall) return null;

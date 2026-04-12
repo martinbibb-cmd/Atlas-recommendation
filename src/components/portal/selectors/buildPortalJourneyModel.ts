@@ -109,10 +109,13 @@ function buildFindings(dm: PortalDisplayModel): JourneyFindings {
 // ─── Recommendation ───────────────────────────────────────────────────────────
 
 /**
- * Derives the dominant limiter ID from the EngineOutputV1 limiters for a given
- * option id.  Returns null when no constraining limiter exists (clean run).
+ * Derives the dominant limiter ID from the EngineOutputV1 limiters.
+ * Returns null when no constraining limiter exists (clean run).
+ *
+ * Note: EngineOutputV1.LimiterV1 does not carry a per-option filter today,
+ * so the full list is searched by severity priority.
  */
-function derivePrimaryConstraint(dm: PortalDisplayModel, _recId?: string): string | null {
+function derivePrimaryConstraint(dm: PortalDisplayModel): string | null {
   const entries = dm.engineOutput.limiters?.limiters ?? [];
   if (entries.length === 0) return null;
 
@@ -182,7 +185,7 @@ function buildRecommendation(dm: PortalDisplayModel): JourneyRecommendation {
   const summary = recOption.why[0] ?? recOption.headline ?? `${recOption.label} is the best fit for your home.`;
 
   // Physics anchor fields
-  const primaryConstraint = derivePrimaryConstraint(dm, recOption.id);
+  const primaryConstraint = derivePrimaryConstraint(dm);
   const supportingEvents  = deriveSupportingEvents(dm);
 
   return {
